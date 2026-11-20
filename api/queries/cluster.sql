@@ -70,6 +70,10 @@ RETURNING id, name, region, cluster_key;
 SELECT id, name, region, cluster_key, agent_public_key FROM clusters
 WHERE id = $1 AND removed_at IS NULL AND agent_public_key IS NOT NULL;
 
+-- name: GetEnrolledClusterByKey :one
+SELECT id, name, region, cluster_key, agent_public_key FROM clusters
+WHERE cluster_key = $1 AND removed_at IS NULL AND agent_public_key IS NOT NULL;
+
 -- name: RecordClusterAssertion :execrows
 WITH expired AS (DELETE FROM cluster_assertions WHERE expires_at < NOW())
 INSERT INTO cluster_assertions (cluster_id, jti, expires_at)

@@ -436,3 +436,62 @@ func TestClusterJoinTokenRequestedTTL(t *testing.T) {
 		}
 	}
 }
+
+func recoverClusterID(
+	t *testing.T,
+	client agentv1connect.AgentServiceClient,
+	key ed25519.PrivateKey,
+	issuer, clusterKey uuid.UUID,
+) (*agentv1.RegisterResponse, error) {
+	t.Helper()
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer "+signAssertion(t, key, issuer))
+	return client.Register(ctx, &agentv1.RegisterRequest{
+		Role:             clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		ClusterKey:       clusterKey.String(),
+		RecoverClusterId: true,
+	})
+}
+
+func TestEnrolledKeyRecoversOnlyItsOwnClusterID(t *testing.T) {
+	t.Parallel()
+	e := newEnrollmentFixture(t)
+	clusterID, token := e.createCluster(t)
+	clusterKey, key := uuid.New(), newAgentKey(t)
+	if _, err := e.enroll(t, token, clusterKey, key); err != nil {
+		t.Fatal(err)
+	}
+	otherID, otherToken := e.createCluster(t)
+	otherKey, other := uuid.New(), newAgentKey(t)
+	if _, err := e.enroll(t, otherToken, otherKey, other); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := recoverClusterID(t, e.agent, key, clusterKey, clusterKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.GetClusterId() != clusterID.String() {
+		t.Fatalf("recovered cluster %s, want %s", resp.GetClusterId(), clusterID)
+	}
+	if resp, err = recoverClusterID(t, e.agent, other, otherKey, otherKey); err != nil ||
+		resp.GetClusterId() != otherID.String() {
+		t.Fatalf("other cluster recovered %s, %v, want %s", resp.GetClusterId(), err, otherID)
+	}
+	unknown := uuid.New()
+	for name, attempt := range map[string]struct {
+		key        ed25519.PrivateKey
+		issuer     uuid.UUID
+		clusterKey uuid.UUID
+	}{
+		"unenrolled key":                  {newAgentKey(t), clusterKey, clusterKey},
+		"key of another cluster":          {other, clusterKey, clusterKey},
+		"issuer differs from the request": {key, clusterKey, otherKey},
+		"unknown cluster key":             {key, unknown, unknown},
+	} {
+		_, err = recoverClusterID(t, e.agent, attempt.key, attempt.issuer, attempt.clusterKey)
+		requireCode(t, err, connect.CodeUnauthenticated, name)
+	}
+	_, err = registerWithAssertion(t.Context(), e.agent, signAssertion(t, key, clusterKey), clusterKey)
+	requireCode(t, err, connect.CodeUnauthenticated, "cluster key assertion without recovery")
+}

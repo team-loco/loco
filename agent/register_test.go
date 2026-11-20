@@ -43,18 +43,23 @@ type fakeRegistrar struct {
 	jtis             map[string]bool
 	enrolled         int
 	asserted         int
+	recovered        int
 	synced           int
 	enrollmentTokens chan string
 }
 
 func (f *fakeRegistrar) verify(ctx context.Context) error {
+	return f.verifyAs(ctx, f.clusterID)
+}
+
+func (f *fakeRegistrar) verifyAs(ctx context.Context, issuer string) error {
 	info, _ := connect.CallInfoForServerContext(ctx)
 	token, ok := strings.CutPrefix(info.RequestHeader().Get("Authorization"), "Bearer ")
 	if !ok || f.publicKey == nil {
 		return connect.NewError(connect.CodeUnauthenticated, errRejectedCall.Error())
 	}
 	claims, err := clusterassertion.Verify(token, f.publicKey, time.Now(), testAssertionTTL)
-	if err != nil || claims.ClusterID != f.clusterID || f.jtis[claims.ID] {
+	if err != nil || claims.ClusterID != issuer || f.jtis[claims.ID] {
 		return connect.NewError(connect.CodeUnauthenticated, errRejectedCall.Error())
 	}
 	f.jtis[claims.ID] = true
@@ -87,10 +92,18 @@ func (f *fakeRegistrar) Register(
 		f.enrolled++
 		return response, nil
 	}
-	if err := f.verify(ctx); err != nil {
+	issuer := f.clusterID
+	if req.GetRecoverClusterId() {
+		issuer = f.clusterKey
+	}
+	if err := f.verifyAs(ctx, issuer); err != nil {
 		return nil, err
 	}
-	f.asserted++
+	if req.GetRecoverClusterId() {
+		f.recovered++
+	} else {
+		f.asserted++
+	}
 	return response, nil
 }
 
@@ -116,7 +129,8 @@ func openTestSync(t *testing.T, a *Agent) {
 	}
 }
 
-func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
+func newTestRegistrar(t *testing.T) (*fakeRegistrar, *fake.Clientset, func(joinToken string) *Agent) {
+	t.Helper()
 	registrar := &fakeRegistrar{
 		t:          t,
 		clusterKey: uuid.NewString(),
@@ -131,11 +145,11 @@ func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 	server := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(server, registrar)
 	transport := connectinprocess.New(server)
-	newAgent := func(joinToken string) *Agent {
+	return registrar, kube, func(joinToken string) *Agent {
 		credentials := identity.NewCredentials(testAssertionTTL)
 		connectClient := connect.NewClient(transport, credentials.Interceptor())
 		return &Agent{
-			cfg:         &Config{JoinToken: joinToken},
+			cfg:         &Config{JoinToken: joinToken, AssertionLifetime: testAssertionTTL},
 			client:      agentv1connect.NewAgentServiceClient(connectClient),
 			inspector:   cluster.NewInspector(kube, metav1.NamespaceDefault, ""),
 			identities:  identity.NewStore(kube, metav1.NamespaceDefault, t.Name()),
@@ -143,6 +157,10 @@ func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 			domains:     testDomains(t),
 		}
 	}
+}
+
+func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
+	registrar, _, newAgent := newTestRegistrar(t)
 
 	tokenFile := filepath.Join(t.TempDir(), "join-token")
 	waiting := newAgent("")
@@ -205,5 +223,37 @@ func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 	}
 	if registrar.enrolled != 1 || registrar.asserted != 3 || registrar.synced != 4 {
 		t.Fatalf("enrolled %d, asserted %d, synced %d", registrar.enrolled, registrar.asserted, registrar.synced)
+	}
+}
+
+func TestAgentWithAKeyButNoClusterIDRecoversItWithoutAJoinToken(t *testing.T) {
+	registrar, kube, newAgent := newTestRegistrar(t)
+	if err := newAgent("").register(t.Context()); !errors.Is(err, errNotEnrolled) {
+		t.Fatalf("register with an unenrolled key: %v, want %v", err, errNotEnrolled)
+	}
+	if err := newAgent(registrar.joinToken).register(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	secrets := kube.CoreV1().Secrets(metav1.NamespaceDefault)
+	secret, err := secrets.Get(t.Context(), t.Name(), metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	delete(secret.Data, "cluster-id")
+	if _, err = secrets.Update(t.Context(), secret, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	recovered := newAgent("")
+	if err = recovered.register(t.Context()); err != nil {
+		t.Fatalf("register with a key but no cluster ID: %v", err)
+	}
+	openTestSync(t, recovered)
+	if stored, ensureErr := recovered.identities.Ensure(t.Context()); ensureErr != nil ||
+		stored.ClusterID != registrar.clusterID {
+		t.Fatalf("stored cluster ID %q, %v, want %s", stored.ClusterID, ensureErr, registrar.clusterID)
+	}
+	if registrar.enrolled != 1 || registrar.recovered != 1 || registrar.synced != 1 {
+		t.Fatalf("enrolled %d, recovered %d, synced %d", registrar.enrolled, registrar.recovered, registrar.synced)
 	}
 }

@@ -156,6 +156,32 @@ func (q *Queries) GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnro
 	return i, err
 }
 
+const getEnrolledClusterByKey = `-- name: GetEnrolledClusterByKey :one
+SELECT id, name, region, cluster_key, agent_public_key FROM clusters
+WHERE cluster_key = $1 AND removed_at IS NULL AND agent_public_key IS NOT NULL
+`
+
+type GetEnrolledClusterByKeyRow struct {
+	ID             uuid.UUID  `json:"id"`
+	Name           string     `json:"name"`
+	Region         string     `json:"region"`
+	ClusterKey     *uuid.UUID `json:"clusterKey"`
+	AgentPublicKey []byte     `json:"agentPublicKey"`
+}
+
+func (q *Queries) GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetEnrolledClusterByKeyRow, error) {
+	row := q.db.QueryRow(ctx, getEnrolledClusterByKey, clusterKey)
+	var i GetEnrolledClusterByKeyRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Region,
+		&i.ClusterKey,
+		&i.AgentPublicKey,
+	)
+	return i, err
+}
+
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
        last_heartbeat, agent_version, agent_public_key, role, domains
