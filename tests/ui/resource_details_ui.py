@@ -379,7 +379,9 @@ with session(out) as browser:
     variables = page.locator("#set-env")
     expect(
         variables.get_by_text(
-            "Refer to a secret of the environment with ${{ secrets.NAME }}.", exact=True
+            "Plain values, visible to anyone who can read this resource. "
+            "For anything sensitive, refer to a secret with ${{ secrets.NAME }}.",
+            exact=True,
         )
     ).to_be_visible()
     mode = page.get_by_label("Value of MODE", exact=True)

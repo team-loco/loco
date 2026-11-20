@@ -25,7 +25,7 @@ with session(out) as browser:
     page.goto(base + "?env=production&tab=settings#set-health")
     expect(page.locator("#set-health")).to_be_visible()
     page.wait_for_function(
-        "() => { const top = document.querySelector('#set-health').getBoundingClientRect().top; return top >= 0 && top < 120; }"
+        "() => { const top = document.querySelector('#set-health').getBoundingClientRect().top; return top >= 140 && top < 150; }"
     )
     expect(
         page.get_by_role("navigation", name="Settings sections").get_by_role(

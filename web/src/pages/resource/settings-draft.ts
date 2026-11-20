@@ -13,6 +13,7 @@ import {
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
+import { isEnvKey } from "@/lib/dotenv";
 import {
 	IMAGE_RE,
 	commandEntries,
@@ -40,8 +41,6 @@ import { isDeployed, type RegionView } from "./model";
 // These fields make up the resource's region map, which UpdateResource replaces in one request
 // for every environment; the other spec fields redeploy this environment's regions.
 export const REGION_MAP_KEYS = ["regions", "scaling", "cpu", "memory"] as const;
-
-export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 
 const IMAGE_BUILD = "image";
 const WHOLE = /^\d+$/;
@@ -76,7 +75,9 @@ export interface SettingsDraft {
 	command?: string;
 	args?: string;
 	regions?: Record<string, boolean>;
-	/** Variables to add or change in every deployment, by name. */
+	/** New variables in the order they were added. */
+	added?: AddedVariable[];
+	/** Variables to change in every deployment, by name. */
 	env?: Record<string, string>;
 	/** Variables to remove from every deployment. */
 	removedEnv?: string[];
@@ -104,6 +105,15 @@ export interface Baseline {
 	scaling: Record<string, Scaling>;
 	regions: Record<string, boolean>;
 	isPublic: boolean;
+	/** The variables the deployments run with, as written. */
+	env: Record<string, string>;
+}
+
+/** A variable added in the settings, before it has a name the deployments know. */
+export interface AddedVariable {
+	id: string;
+	key: string;
+	value: string;
 }
 
 function deployedRegions(regions: RegionView[]): RegionView[] {
@@ -163,6 +173,7 @@ export function baseline(
 		),
 		regions: Object.fromEntries(regions.map((r) => [r.name, isDeployed(r) || configured.includes(r.name)])),
 		isPublic,
+		env: { ...svc?.env },
 	};
 }
 
@@ -186,6 +197,7 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		scaling: { ...base.scaling, ...draft.scaling },
 		regions: { ...base.regions, ...draft.regions },
 		isPublic: draft.isPublic ?? base.isPublic,
+		env: plainEnv(base.env, draft),
 	};
 }
 
@@ -240,6 +252,7 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 		...Object.keys(next.regions)
 			.filter((r) => next.regions[r] !== base.regions[r])
 			.map((r) => (next.regions[r] === true ? `Add region ${r}` : `Remove region ${r}`)),
+		...namedAdded(draft).map((row) => `Add ${row.key.trim()}`),
 		...Object.keys(draft.env ?? {}).map((n) => `Variable ${n}`),
 		...(draft.removedEnv ?? []).map((n) => `Remove variable ${n}`),
 		...COMMAND_KEYS.filter((k) => !sameEntries(next[k], base[k])).map((k) =>
@@ -319,6 +332,8 @@ export function validateDraft(
 		errors.healthTimeout = timeoutOrder;
 	if (draft.healthFailures !== undefined && !positive(next.healthFailures))
 		errors.healthFailures = "A whole number, at least 1";
+	const [variableProblem] = addedProblems(draft, base.env).values();
+	if (variableProblem !== undefined) errors.added = variableProblem;
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
 	else if (regionMapChanged(draft, base) && planSave(regions, draft, base).length > 0)
 		errors.regions =
@@ -373,13 +388,37 @@ interface RegionDeploy {
 }
 
 export function variablesChanged(draft: SettingsDraft): boolean {
-	return Object.keys(draft.env ?? {}).length > 0 || (draft.removedEnv ?? []).length > 0;
+	return namedAdded(draft).length > 0 || Object.keys(draft.env ?? {}).length > 0 || (draft.removedEnv ?? []).length > 0;
+}
+
+function namedAdded(draft: SettingsDraft): AddedVariable[] {
+	return (draft.added ?? []).filter((row) => row.key.trim() !== "");
 }
 
 /** The variables deployments run with after the draft's changes. */
 export function plainEnv(current: Record<string, string>, draft: SettingsDraft): Record<string, string> {
 	const removed = new Set(draft.removedEnv ?? []);
-	return Object.fromEntries(Object.entries({ ...current, ...draft.env }).filter(([name]) => !removed.has(name)));
+	const kept = Object.entries({ ...current, ...draft.env }).filter(([name]) => !removed.has(name));
+	const fresh = namedAdded(draft).map((row): [string, string] => [row.key.trim(), row.value]);
+	return Object.fromEntries([...kept, ...fresh]);
+}
+
+/** Why each added variable cannot be saved, by its id. */
+export function addedProblems(draft: SettingsDraft, current: Record<string, string>): Map<string, string> {
+	const problems = new Map<string, string>();
+	const added = draft.added ?? [];
+	const counts = new Map<string, number>();
+	for (const row of added) counts.set(row.key.trim(), (counts.get(row.key.trim()) ?? 0) + 1);
+	const removed = new Set(draft.removedEnv ?? []);
+	for (const row of added) {
+		const key = row.key.trim();
+		if (key === "") {
+			if (row.value !== "") problems.set(row.id, "Enter a name for this value.");
+		} else if (!isEnvKey(key)) problems.set(row.id, "Use letters, digits and underscores, not starting with a digit.");
+		else if ((Object.hasOwn(current, key) && !removed.has(key)) || (counts.get(key) ?? 0) > 1)
+			problems.set(row.id, `${key} is already a variable.`);
+	}
+	return problems;
 }
 
 export function planSave(regions: RegionView[], draft: SettingsDraft, base: Baseline): RegionDeploy[] {

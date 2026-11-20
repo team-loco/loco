@@ -153,7 +153,14 @@ export function SettingsView({
 		};
 		document.addEventListener("scroll", follow, { capture: true, passive: true });
 		for (const type of USER_INPUTS) document.addEventListener(type, release, { passive: true });
-		const resize = new ResizeObserver(follow);
+		// Sections that load later move a linked section; keep it in place until the user scrolls.
+		const resize = new ResizeObserver(() => {
+			if (pinnedRef.current)
+				requestAnimationFrame(() => {
+					scrollToHash(node);
+				});
+			follow();
+		});
 		resize.observe(node);
 		return () => {
 			resize.disconnect();
@@ -262,13 +269,16 @@ export function SettingsView({
 					/>
 					<SizeSection {...props} sizes={sizes} />
 					<VariablesSection
+						workspaceId={resource.workspaceId}
 						resourceId={resource.id}
+						resourceSlug={resource.slug}
 						managed={managed}
 						deployed={regions.some(isDeployed)}
 						differingRegions={regionsWithDifferentVariables(regions)}
 						environmentId={environmentId}
 						draft={draft}
 						canWrite={canWrite}
+						canReadWorkspace={canReadWorkspace}
 						onChange={change}
 					/>
 					<DeploymentSection {...props} />
