@@ -438,6 +438,23 @@ def log_columns(page):
             .map(e => e.textContent.trim())"""
     )
     assert clipped == [], clipped
+    page.evaluate("localStorage.setItem('loco-clock', '12')")
+    page.reload()
+    time_cell = (
+        lines.get_by_role("button", name=re.compile(r"Slow request$"))
+        .first.locator("span")
+        .first
+    )
+    expect(time_cell).to_have_text(re.compile(r"^\d+:\d\d:\d\d\.\d{3} [AP]M$"))
+    assert time_cell.evaluate("e => e.scrollWidth <= e.clientWidth"), (
+        "12-hour time clipped"
+    )
+    before = time_cell.evaluate("e => e.clientWidth")
+    page.get_by_role("separator", name="Resize column Time").focus()
+    page.keyboard.press("ArrowRight")
+    expect(page).to_have_url(re.compile(r"widths=time:\d+"))
+    assert time_cell.evaluate("e => e.clientWidth") > before
+    page.evaluate("localStorage.removeItem('loco-clock')")
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
