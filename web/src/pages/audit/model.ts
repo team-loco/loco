@@ -61,7 +61,6 @@ export function dayLabel(ms: number, nowMs: number, pref: TimePreferences): stri
 
 export const ACTOR_KINDS: Record<string, string> = {
 	user: "Person",
-	api_token: "API token",
 	system: "Loco",
 	agent: "Cluster agent",
 };

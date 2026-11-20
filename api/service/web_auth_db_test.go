@@ -329,8 +329,8 @@ func TestClosedSignupReportsItsReason(t *testing.T) {
 	callback, binding := f.start(t, "good-code")
 	ctx, _ := webCall(t, binding)
 	_, err = f.client.CompleteWebLogin(ctx, callback)
-	if got := signInReason(t, err); got != auth.ReasonSignupClosed {
-		t.Fatalf("closed sign-up reason = %q, want %q", got, auth.ReasonSignupClosed)
+	if got := signInReason(t, err); got != reasonSignupClosed {
+		t.Fatalf("closed sign-up reason = %q, want %q", got, reasonSignupClosed)
 	}
 }
 

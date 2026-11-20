@@ -73,7 +73,7 @@ SELECT pg_advisory_xact_lock(hashtextextended(sqlc.arg(entity_id)::uuid::text, 0
 SELECT COUNT(*) FROM organizations WHERE created_by = $1;
 
 -- name: CountOrgWorkspaces :one
-SELECT COUNT(*) FROM workspaces x WHERE x.org_id = $1;
+SELECT COUNT(*) FROM workspaces WHERE org_id = $1;
 
 -- name: CountOrgMembers :one
 SELECT COUNT(DISTINCT user_id) FROM user_scopes WHERE entity_type = 'organization' AND entity_id = $1;
