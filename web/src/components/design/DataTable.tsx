@@ -485,8 +485,7 @@ export function DataTable<T extends RowData>({
 										}
 										className={cn(
 											ROW,
-											"group/row group/nav hover:bg-transparent has-[+[data-group]]:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-panel2",
-											onRowClick !== undefined && "hover:bg-(--row-hover)",
+											"group/row group/nav relative outline-none has-[+[data-group]]:border-b-0",
 											expanded !== null && "border-b-0",
 											rowClassName?.(row),
 										)}
