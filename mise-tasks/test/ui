@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Build the API and production UI of this checkout once, start one OpenBao, then run the dashboard suites in tests/ui, each with its own API process, database and seed: every *_ui.py (Chromium) and *_api.py file, or the named suites. Suites run --jobs at a time (default: one per CPU), longest first by tests/ui/durations; each suite's output prints when it ends. --shard i/N runs the ith of N shards of equal expected duration: test:ui [suite...] [--shard i/N] [--jobs N]"
+#MISE description="Build the API and production UI of this checkout once, start one OpenBao, then run the dashboard suites in tests/ui, each with its own API process, database and seed: every *_ui.py (Chromium) and *_api.py file, or the named suites. Suites run --jobs at a time (default: one per two CPUs), longest first by tests/ui/durations; each suite's output prints when it ends. --shard i/N runs the ith of N shards of equal expected duration: test:ui [suite...] [--shard i/N] [--jobs N]"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -7,7 +7,8 @@ cd "$root"
 usage="usage: mise run test:ui [suite...] [--shard i/N] [--jobs N]"
 suites=()
 shard=1/1
-jobs=$(getconf _NPROCESSORS_ONLN)
+jobs=$(($(getconf _NPROCESSORS_ONLN) / 2))
+if ((jobs < 1)); then jobs=1; fi
 while [[ $# -gt 0 ]]; do
 	case $1 in
 	--shard | --jobs)
@@ -111,7 +112,7 @@ finish_one() {
 	if ((status == 0)); then
 		echo "$suite passed in ${seconds}s"
 	else
-		echo "$suite failed in ${seconds}s" >&2
+		echo "$suite failed in ${seconds}s"
 		failed+=("$suite")
 	fi
 }
