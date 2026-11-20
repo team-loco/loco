@@ -480,7 +480,6 @@ function TraceList({
 		data: traces,
 		getRowId: (t) => t.traceId,
 		manualSorting: true,
-		manualPagination: true,
 		state: { sorting, columnSizing: widths },
 		onColumnSizingChange: (updater) => {
 			onWidths(functionalUpdate(updater, widths));

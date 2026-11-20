@@ -109,8 +109,6 @@ export function AuditTable({
 		columns: auditColumns(nowMs),
 		data: rows,
 		getRowId: (row) => row.event.id,
-		enableSorting: false,
-		manualPagination: true,
 	});
 	return (
 		<DataTable
@@ -118,7 +116,6 @@ export function AuditTable({
 			label="Audit events"
 			className="[--row-h:48px] [&_td]:py-1.5"
 			loading={loading}
-			empty={null}
 			activeRowId={selectedId}
 			onRowClick={(row) => {
 				onSelect(row.id);

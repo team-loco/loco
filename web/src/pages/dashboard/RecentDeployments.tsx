@@ -139,8 +139,6 @@ export function RecentDeployments({
 		columns: deploymentColumns(hrefOf, nowMs),
 		data: rows,
 		getRowId: (row) => row.deployment.id,
-		enableSorting: false,
-		manualPagination: true,
 	});
 
 	const toolbar = (

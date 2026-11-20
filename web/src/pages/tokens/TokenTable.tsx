@@ -152,8 +152,7 @@ function tokenColumns({
 		},
 		{
 			id: "menu",
-			enableResizing: false,
-			meta: { align: "end", pinEnd: true, label: "Actions" },
+			meta: { pinEnd: true, label: "Actions" },
 			cell: ({ row: { original: t } }) => (
 				<TokenMenu
 					token={t}
@@ -193,8 +192,6 @@ export function TokenTable({
 		columns: tokenColumns({ ...columns, now }),
 		data: tokens,
 		getRowId: (t) => t.name,
-		enableSorting: false,
-		manualPagination: true,
 	});
 	return (
 		<DataTable

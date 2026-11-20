@@ -77,6 +77,7 @@ export function ResourceTable({
 		data,
 		getRowId: rowId,
 		state: { sorting, columnVisibility: state.cols, pagination },
+		manualPagination: false,
 		autoResetPageIndex: false,
 		onSortingChange: (updater) => {
 			const next = functionalUpdate(updater, sorting)[0];

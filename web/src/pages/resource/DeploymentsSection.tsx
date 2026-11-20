@@ -4,7 +4,7 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { ChevronRightIcon, FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
+import { FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { Link } from "react-router";
@@ -13,7 +13,7 @@ import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deplo
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
-import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { CellText, DataTable, expandColumn, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
 import { Spinner } from "@/components/design/Spinner";
@@ -28,7 +28,7 @@ import { deploymentImage, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { maybeTsMs, readyMs, tsMs } from "@/lib/time";
-import { cn, formatShortId } from "@/lib/utils";
+import { formatShortId } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
@@ -211,29 +211,7 @@ function rolloutColumns(
 	setOpen: (key: string | null) => void,
 ): DataColumn<RolloutRow>[] {
 	return [
-		{
-			id: "toggle",
-			size: 40,
-			minSize: 40,
-			enableResizing: false,
-			meta: { label: "Details", fit: true },
-			cell: ({ row: { original: rollout } }) => {
-				const expanded = open === rollout.key;
-				return (
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						aria-expanded={expanded}
-						aria-label={`${expanded ? "Hide" : "Show"} details for ${formatShortId(rollout.rows[0].dep.id)}`}
-						onClick={() => {
-							setOpen(expanded ? null : rollout.key);
-						}}
-					>
-						<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
-					</Button>
-				);
-			},
-		},
+		expandColumn(open, setOpen, (rollout) => `details for ${formatShortId(rollout.rows[0].dep.id)}`),
 		{
 			id: "status",
 			header: "Status",
@@ -385,8 +363,6 @@ export function DeploymentsSection({
 		data: deployRows.rows,
 		getRowId: (rollout) => rollout.key,
 		state: { columnVisibility: { region: regions.length > 1 } },
-		enableSorting: false,
-		manualPagination: true,
 	});
 
 	const byBuild = deploymentsByBuild(all);

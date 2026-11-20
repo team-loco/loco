@@ -26,7 +26,6 @@ import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
 import { CreateScopeDialog } from "@/components/shell/CreateScopeDialog";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useIsMobile } from "@/hooks/use-mobile";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { useOrgLimitDetails } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
@@ -86,7 +85,7 @@ function workspaceColumns({
 			header: "Description",
 			size: 240,
 			minSize: 100,
-			meta: { grow: true },
+			meta: { hideOnMobile: true, grow: true },
 			cell: ({ row: { original: w } }) => <CellText text={w.description || "—"} className="text-[12.5px] text-fg2" />,
 		},
 		{
@@ -102,6 +101,7 @@ function workspaceColumns({
 			header: "Created",
 			size: 220,
 			minSize: 100,
+			meta: { hideOnMobile: true },
 			cell: ({ row: { original: w } }) => <CellText text={createdLabel(w)} className="text-[12px] text-fg3" />,
 		},
 	];
@@ -183,7 +183,6 @@ export function OrgTab({
 	};
 
 	const navigate = useNavigate();
-	const mobile = useIsMobile();
 	const createdLabel = (w: Workspace) => {
 		const by = userName(w.createdBy);
 		const day = formatDay(w.createdAt, timePref);
@@ -192,9 +191,6 @@ export function OrgTab({
 	const table = useDataTable("org-workspaces", {
 		data: paged.rows,
 		getRowId: (w) => w.id,
-		state: { columnVisibility: { description: !mobile, created: !mobile } },
-		enableSorting: false,
-		manualPagination: true,
 		columns: workspaceColumns({ orgId: org.id, currentWorkspaceId, counts, onOpenWorkspace, createdLabel }),
 	});
 
@@ -330,7 +326,6 @@ export function OrgTab({
 							if (!onOpenWorkspace(w)) void navigate(settingsPath(org.id, w.id, "workspace"));
 						}}
 						rowAction="navigate"
-						empty={null}
 					/>
 				)}
 				<Pager {...paged.pager} {...paged.ends} className="pt-3 pb-3.5" />

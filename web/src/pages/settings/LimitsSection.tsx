@@ -185,8 +185,6 @@ export function LimitsSection({
 		columns: COLUMNS,
 		data: rows,
 		getRowId: (row) => row.label,
-		enableSorting: false,
-		manualPagination: true,
 	});
 	return (
 		<SettingsSection id="s-lim" title="Limits">
@@ -194,13 +192,7 @@ export function LimitsSection({
 				{limits !== undefined && limits.overridden.length > 0 && (
 					<RaisedBanner org={org} limits={limits} users={users} />
 				)}
-				<DataTable
-					table={table}
-					label="Limits"
-					className="[&_tr[data-group]]:border-t"
-					groupBy={(row) => row.group}
-					empty={null}
-				/>
+				<DataTable table={table} label="Limits" className="[&_tr[data-group]]:border-t" groupBy={(row) => row.group} />
 			</SettingsCard>
 		</SettingsSection>
 	);

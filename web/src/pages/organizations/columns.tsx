@@ -118,7 +118,7 @@ export function orgColumns({
 			header: "Workspaces",
 			size: 110,
 			minSize: 90,
-			meta: { align: "end", cellClassName: COUNT_CELL },
+			meta: { hideOnMobile: true, align: "end", cellClassName: COUNT_CELL },
 			cell: ({ row: { original: org } }) => count(org.workspaceCount),
 		},
 		{
@@ -126,7 +126,7 @@ export function orgColumns({
 			header: "Members",
 			size: 100,
 			minSize: 80,
-			meta: { align: "end", cellClassName: COUNT_CELL },
+			meta: { hideOnMobile: true, align: "end", cellClassName: COUNT_CELL },
 			cell: ({ row: { original: org } }) => count(org.memberCount),
 		},
 		{
@@ -134,13 +134,12 @@ export function orgColumns({
 			header: "Created",
 			size: 130,
 			minSize: 90,
-			meta: { cellClassName: "whitespace-nowrap text-[12.5px] text-fg3" },
+			meta: { hideOnMobile: true, cellClassName: "whitespace-nowrap text-[12.5px] text-fg3" },
 			cell: ({ row: { original: org } }) => <Created org={org} />,
 		},
 		{
 			id: "menu",
-			enableResizing: false,
-			meta: { align: "end", pinEnd: true, label: "Actions" },
+			meta: { pinEnd: true, label: "Actions" },
 			cell: ({ row: { original: org } }) => <OrgMenu org={org} role={roleOf(org.id)} onSwitch={onSwitch} />,
 		},
 	];

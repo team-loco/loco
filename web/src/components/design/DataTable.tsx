@@ -26,7 +26,7 @@ import {
 	type TableOptions,
 } from "@tanstack/react-table";
 import { NavArrow } from "@/components/design/NavArrow";
-import { ArrowDownIcon, ArrowUpIcon, Columns3Icon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, Columns3Icon } from "lucide-react";
 import {
 	Fragment,
 	useRef,
@@ -51,6 +51,7 @@ import {
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { pageRangeLabel } from "@/lib/paging";
 import { useStoredJSON } from "@/lib/storage";
@@ -67,11 +68,12 @@ export interface DataColumnMeta {
 	grow?: boolean;
 	/** Holds the row's name; a clickable row shows its arrow after this column's content, the first column by default. */
 	primary?: boolean;
-	/** Keeps the column at the right edge while the table scrolls sideways, as wide as its content; the first column always stays at the left. */
+	/** Keeps the column at the right edge while the table scrolls sideways, end-aligned and as wide as its content; the first column always stays at the left. */
 	pinEnd?: boolean;
+	/** Hides the column below 768px. */
+	hideOnMobile?: boolean;
 	/** Names the column when its header is not plain text. */
 	label?: string;
-	headClassName?: string;
 	cellClassName?: string;
 	defaultHidden?: boolean;
 }
@@ -119,18 +121,27 @@ function parseSizing(value: unknown): ColumnSizingState {
 	);
 }
 
-/** A table whose column widths the viewer resizes and this browser keeps under `id`, unless the caller keeps them. */
+/** A table of every row it is given unless the caller paginates; the viewer resizes its columns and this browser keeps the widths under `id`, unless the caller keeps them. */
 export function useDataTable<T extends RowData>(
 	id: string,
-	options: Omit<TableOptions<Features, T>, "features">,
+	options: Omit<TableOptions<Features, T>, "features" | "columns"> & { columns: DataColumn<T>[] },
 ): ReactTable<Features, T> {
 	const external = options.onColumnSizingChange !== undefined;
 	const [stored, setStored] = useStoredJSON(external ? null : `loco.table-widths.${id}`, parseSizing);
+	const mobile = useIsMobile();
+	const mobileHidden = mobile
+		? options.columns.filter((c) => c.meta?.hideOnMobile === true).map((c): [string, boolean] => [c.id, false])
+		: [];
 	return useTable({
 		...sortOptions,
+		manualPagination: true,
 		...options,
 		features: dataTableFeatures,
-		state: { ...options.state, columnSizing: external ? (options.state?.columnSizing ?? {}) : stored },
+		state: {
+			...options.state,
+			columnVisibility: { ...options.state?.columnVisibility, ...Object.fromEntries(mobileHidden) },
+			columnSizing: external ? (options.state?.columnSizing ?? {}) : stored,
+		},
 		onColumnSizingChange:
 			options.onColumnSizingChange ??
 			((updater) => {
@@ -247,6 +258,11 @@ const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
 
 const PINNED = "sticky z-1 bg-(--card-bg,var(--panel)) data-[pin=end]:right-0 data-[pin=start]:left-0";
 
+function alignOf<T extends RowData>(column: Column<Features, T>): "end" | undefined {
+	const meta = column.columnDef.meta;
+	return meta?.pinEnd === true ? "end" : meta?.align;
+}
+
 function pinOf<T extends RowData>(column: Column<Features, T>, index: number): "start" | "end" | undefined {
 	if (index === 0) return "start";
 	return column.columnDef.meta?.pinEnd === true ? "end" : undefined;
@@ -272,7 +288,7 @@ function DataTableHead<T extends RowData>({
 	onPreview: (width: number | null) => void;
 }) {
 	const { column } = header;
-	const meta = column.columnDef.meta;
+	const align = alignOf(column);
 	const label = flexRender(column.columnDef.header, header.getContext());
 	const Arrow = sorted === "desc" ? ArrowDownIcon : ArrowUpIcon;
 	return (
@@ -281,12 +297,11 @@ function DataTableHead<T extends RowData>({
 			aria-label={typeof column.columnDef.header === "string" ? column.columnDef.header : column.columnDef.meta?.label}
 			data-pin={pin}
 			data-grow={grow || undefined}
-			data-align={meta?.align}
+			data-align={align}
 			className={cn(
-				"relative flex h-10 min-w-0 items-center overflow-hidden px-2.5 text-[12.5px] font-normal text-fg3",
-				meta?.align === "end" && "justify-end",
+				"group/head relative flex h-10 min-w-0 items-center overflow-hidden px-2.5 text-[12.5px] font-normal text-fg3",
+				align === "end" && "justify-end",
 				pin !== undefined && PINNED,
-				meta?.headClassName,
 			)}
 			style={bounds}
 			aria-sort={sorted === false ? undefined : ARIA_SORT[sorted]}
@@ -296,7 +311,7 @@ function DataTableHead<T extends RowData>({
 					type="button"
 					className={cn(
 						"group/sort flex min-w-0 items-center rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-						meta?.align === "end" && "flex-row-reverse",
+						align === "end" && "flex-row-reverse",
 					)}
 					onClick={column.getToggleSortingHandler()}
 				>
@@ -307,7 +322,7 @@ function DataTableHead<T extends RowData>({
 							className={cn(
 								"absolute size-3 group-hover/sort:visible group-focus-visible/sort:visible",
 								sorted === false && "invisible",
-								meta?.align === "end" ? "right-1" : "left-1",
+								align === "end" ? "right-1" : "left-1",
 							)}
 						/>
 					</span>
@@ -315,7 +330,7 @@ function DataTableHead<T extends RowData>({
 			) : (
 				<span className="inline-flex min-w-0 items-center gap-2 truncate">{label}</span>
 			)}
-			{column.getCanResize() && (
+			{column.getCanResize() && pin !== "end" && (
 				<ColumnResizeHandle
 					label={columnLabel(column)}
 					width={width}
@@ -350,7 +365,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
 
 export function DataTable<T extends RowData>({
 	table,
-	empty,
+	empty = null,
 	loading = false,
 	activeRowId,
 	onRowClick,
@@ -364,7 +379,8 @@ export function DataTable<T extends RowData>({
 	inset = false,
 }: {
 	table: ReactTable<Features, T>;
-	empty: ReactNode;
+	/** Content of the single row shown when there are no rows; null shows none. */
+	empty?: ReactNode;
 	loading?: boolean;
 	/** The row whose details are open; it shows as selected. */
 	activeRowId?: string | null;
@@ -492,7 +508,6 @@ export function DataTable<T extends RowData>({
 										)}
 									>
 										{row.getVisibleCells().map((cell, index) => {
-											const meta = cell.column.columnDef.meta;
 											const pin = pinOf(cell.column, index);
 											return (
 												<TableCell
@@ -502,9 +517,9 @@ export function DataTable<T extends RowData>({
 													style={fitBounds(cell.column, sizing, index)}
 													className={cn(
 														"flex min-h-(--row-h) min-w-0 items-center overflow-hidden py-2.5",
-														meta?.align === "end" && "justify-end",
+														alignOf(cell.column) === "end" && "justify-end",
 														pin !== undefined && PINNED,
-														meta?.cellClassName,
+														cell.column.columnDef.meta?.cellClassName,
 													)}
 												>
 													{flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -531,6 +546,37 @@ export function DataTable<T extends RowData>({
 		</div>
 	);
 	return inset ? <div className="px-2.5">{scroller}</div> : scroller;
+}
+
+/** A chevron column that shows or hides the details of row `openId`; `name` completes "Show …" and "Hide …". */
+export function expandColumn<T extends RowData>(
+	openId: string | null,
+	onOpen: (id: string | null) => void,
+	name: (row: T) => string,
+): DataColumn<T> {
+	return {
+		id: "toggle",
+		size: 40,
+		minSize: 40,
+		enableResizing: false,
+		meta: { label: "Details", fit: true },
+		cell: ({ row }) => {
+			const expanded = openId === row.id;
+			return (
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					aria-expanded={expanded}
+					aria-label={`${expanded ? "Hide" : "Show"} ${name(row.original)}`}
+					onClick={() => {
+						onOpen(expanded ? null : row.id);
+					}}
+				>
+					<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
+				</Button>
+			);
+		},
+	};
 }
 
 export function DataTableColumnsMenu<T extends RowData>({ table }: { table: DataTableInstance<T> }) {

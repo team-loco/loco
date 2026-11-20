@@ -20,7 +20,6 @@ import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useCopy } from "@/hooks/useCopy";
 import { toastConnectError } from "@/lib/error-handler";
 import { resourcePath } from "@/lib/routes";
@@ -53,7 +52,6 @@ export function SecretsPage({
 	canWrite: boolean;
 }) {
 	const transport = useTransport();
-	const mobile = useIsMobile();
 	const queryClient = useQueryClient();
 	const timePref = useTimePreferences();
 	const [, copy] = useCopy();
@@ -100,9 +98,6 @@ export function SecretsPage({
 		}),
 		data: shown,
 		getRowId: (secret) => secret.name,
-		state: { columnVisibility: { version: !mobile, updated: !mobile } },
-		enableSorting: false,
-		manualPagination: true,
 	});
 	const users = (name: string | null) =>
 		(secrets.find((secret) => secret.name === name)?.usedBy ?? []).map((user) => user.resourceSlug);
@@ -186,7 +181,7 @@ export function SecretsPage({
 					) : shown.length === 0 ? (
 						<div className="px-5 py-7 text-center text-[13px] text-fg3">No secrets match.</div>
 					) : (
-						<DataTable table={table} label="Secrets" empty={null} />
+						<DataTable table={table} label="Secrets" />
 					)}
 				</Section>
 			)}
@@ -308,7 +303,7 @@ function secretColumns({
 			header: "Version",
 			size: 90,
 			minSize: 70,
-			meta: { fit: true, cellClassName: "font-mono" },
+			meta: { hideOnMobile: true, fit: true, cellClassName: "font-mono" },
 			cell: ({ row: { original: secret } }) => <CellText text={`v${secret.version.toString()}`} />,
 		},
 		{
@@ -316,7 +311,7 @@ function secretColumns({
 			header: "Updated",
 			size: 150,
 			minSize: 110,
-			meta: { fit: true },
+			meta: { hideOnMobile: true, fit: true },
 			cell: ({ row: { original: secret } }) => (
 				<span className="flex flex-col">
 					<span>{formatStarted(tsMs(secret.updatedAt), timePref)}</span>
@@ -326,8 +321,7 @@ function secretColumns({
 		},
 		{
 			id: "menu",
-			enableResizing: false,
-			meta: { align: "end", pinEnd: true, label: "Actions" },
+			meta: { pinEnd: true, label: "Actions" },
 			cell: ({ row: { original: secret } }) => (
 				<RowMenu label={`Actions for ${secret.name}`} title={<span className="font-mono">{secret.name}</span>}>
 					{canWrite && (
