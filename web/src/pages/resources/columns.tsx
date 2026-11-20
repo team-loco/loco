@@ -1,16 +1,13 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { Subscribe } from "@tanstack/react-table";
 import { CopyIcon, RocketIcon, ScrollTextIcon, Settings2Icon } from "lucide-react";
 import { createContext, use } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
-import { Checkbox } from "@/components/design/Checkbox";
-import { DataTableColumnsMenu, type DataColumn } from "@/components/design/DataTable";
+import { CellText, DataTableColumnsMenu, type DataColumn } from "@/components/design/DataTable";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
-import { RowLink } from "@/components/design/RowLink";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { type Glyph, StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -53,7 +50,11 @@ function useCells(): ResourceCellValues {
 
 const DRAFT_NAME = "underline decoration-fg4 decoration-dashed hover:decoration-foreground";
 
-const SUMMARY_TONE: Partial<Record<Glyph, string>> = { spin: "text-info", warn: "text-warn", err: "text-err" };
+const SUMMARY_TONE: Partial<Record<Glyph, string>> = {
+	spin: "text-info",
+	warn: "text-warn",
+	err: "text-err",
+};
 
 function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 	const { nowMs } = useCells();
@@ -68,7 +69,7 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 				render={<button type="button" aria-label={`${tip}, ${cellSummary(cell)}`} />}
 				className="flex max-w-full min-w-0 flex-col items-start gap-0.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
 			>
-				<span className="flex min-w-0 items-center gap-2">
+				<span className="flex max-w-full min-w-0 items-center gap-2">
 					<StatusGlyph glyph={style.glyph} />
 					<span className="truncate font-mono text-[12.5px] text-foreground">{cell.tag === "" ? "—" : cell.tag}</span>
 				</span>
@@ -84,7 +85,7 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 function DraftCellView({ row }: { row: DraftRow }) {
 	return (
 		<span className="flex max-w-full min-w-0 flex-col items-start gap-0.5">
-			<span className="flex min-w-0 items-center gap-2">
+			<span className="flex max-w-full min-w-0 items-center gap-2">
 				<StatusGlyph glyph="draft" />
 				<span className="truncate font-mono text-[12.5px] text-foreground">Draft</span>
 			</span>
@@ -93,30 +94,32 @@ function DraftCellView({ row }: { row: DraftRow }) {
 	);
 }
 
+export function rowPath(row: ListRow, orgId: string, workspaceId: string, search: string): string {
+	return isDraftRow(row) ? draftSearch(search, row.draft.id) : resourcePath(orgId, workspaceId, row.resource.id);
+}
+
 function NameCell({ row }: { row: ListRow }) {
 	const { orgId, workspaceId } = useCells();
 	const { search } = useLocation();
 	const draft = isDraftRow(row);
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
-			<RowLink
-				to={draft ? draftSearch(search, row.draft.id) : resourcePath(orgId, workspaceId, row.resource.id)}
-				className={cn("truncate text-[14.5px] font-medium text-foreground", draft && DRAFT_NAME)}
-			>
-				{rowName(row)}
-			</RowLink>
-			<span className="truncate text-[12.5px] text-fg3">{draft ? DRAFT_NOTE : (row.resource.description ?? "")}</span>
+			<CellText
+				text={rowName(row)}
+				render={<Link to={rowPath(row, orgId, workspaceId, search)} />}
+				className={cn(
+					"text-[14.5px] font-medium text-foreground underline-offset-3 group-hover/row:underline",
+					draft && DRAFT_NAME,
+				)}
+			/>
+			<CellText text={draft ? DRAFT_NOTE : (row.resource.description ?? "")} className="text-[12.5px] text-fg3" />
 		</div>
 	);
 }
 
 function Mono({ text }: { text: string | null }) {
 	if (text === null || text === "") return <span className="text-fg4">—</span>;
-	return (
-		<span title={text} className="block truncate font-mono text-[12px] text-fg2">
-			{text}
-		</span>
-	);
+	return <CellText text={text} className="font-mono text-[12px] text-fg2" />;
 }
 
 function RowActions({ row }: { row: ResourceRow }) {
@@ -135,7 +138,12 @@ function RowActions({ row }: { row: ResourceRow }) {
 			{row.cells.size > 0 && (
 				<DropdownMenuItem
 					onClick={() =>
-						void navigate(observabilityPath(orgId, workspaceId, "logs", { env: env?.name ?? null, r: [resource.name] }))
+						void navigate(
+							observabilityPath(orgId, workspaceId, "logs", {
+								env: env?.name ?? null,
+								r: [resource.name],
+							}),
+						)
 					}
 				>
 					<ScrollTextIcon className="text-fg3" />
@@ -144,7 +152,12 @@ function RowActions({ row }: { row: ResourceRow }) {
 			)}
 			<DropdownMenuItem
 				onClick={() =>
-					void navigate(resourcePath(orgId, workspaceId, resource.id, { tab: "settings", env: env?.name ?? null }))
+					void navigate(
+						resourcePath(orgId, workspaceId, resource.id, {
+							tab: "settings",
+							env: env?.name ?? null,
+						}),
+					)
 				}
 			>
 				<Settings2Icon className="text-fg3" />
@@ -169,6 +182,9 @@ function envColumn(environment: Environment): DataColumn<ListRow> {
 		id: `${ENV_PREFIX}${environment.name}`,
 		header: environment.displayName,
 		size: 172,
+		minSize: 150,
+		maxSize: 280,
+		meta: { fit: true },
 		accessorFn: (row) => envRank(row, environment.id),
 		sortFn: "basic",
 		cell: ({ row }) =>
@@ -183,56 +199,25 @@ function envColumn(environment: Environment): DataColumn<ListRow> {
 export function resourceColumns(environments: Environment[]): DataColumn<ListRow>[] {
 	return [
 		{
-			id: "select",
-			header: ({ table }) => (
-				<Subscribe source={table.atoms.rowSelection}>
-					{() => {
-						const all = table.getIsAllPageRowsSelected();
-						return (
-							<Checkbox
-								aria-label={all ? "Deselect this page" : "Select this page"}
-								disabled={!table.getRowModel().rows.some((row) => row.getCanSelect())}
-								checked={all}
-								indeterminate={table.getIsSomePageRowsSelected() && !all}
-								onCheckedChange={() => {
-									table.toggleAllPageRowsSelected();
-								}}
-							/>
-						);
-					}}
-				</Subscribe>
-			),
-			cell: ({ row }) =>
-				row.getCanSelect() && (
-					<Checkbox
-						aria-label={`Select ${rowName(row.original)}`}
-						checked={row.getIsSelected()}
-						onCheckedChange={() => {
-							row.toggleSelected();
-						}}
-					/>
-				),
-			size: 36,
-			enableSorting: false,
-			enableHiding: false,
-			enableResizing: false,
-			meta: { headClassName: "w-9" },
-		},
-		{
 			id: "name",
 			header: "Resource",
-			size: 180,
+			size: 220,
+			minSize: 160,
+			maxSize: 360,
 			accessorFn: rowName,
 			sortFn: (a, b) => rowName(a.original).localeCompare(rowName(b.original)),
 			enableHiding: false,
-			enableResizing: false,
+			meta: { fit: true },
 			cell: ({ row }) => <NameCell row={row.original} />,
 		},
 		...environments.map(envColumn),
 		{
 			id: "size",
 			header: "Size",
-			size: 160,
+			size: 140,
+			minSize: 120,
+			maxSize: 220,
+			meta: { fit: true },
 			accessorFn: (row) => row.cpuMilli,
 			sortDescFirst: true,
 			sortFn: (a, b) => a.original.cpuMilli - b.original.cpuMilli || a.original.memMi - b.original.memMi,
@@ -244,45 +229,52 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			id: "replicas",
 			header: "Replicas",
 			size: 92,
+			minSize: 80,
+			maxSize: 140,
 			enableSorting: false,
-			meta: { defaultHidden: true },
+			meta: { fit: true, defaultHidden: true },
 			cell: ({ row }) => <Mono text={replicasLabel(row.original)} />,
 		},
 		{
 			id: "address",
 			header: "Address",
 			size: 170,
+			minSize: 100,
+			maxSize: 300,
 			enableSorting: false,
-			meta: { defaultHidden: true },
+			meta: { fit: true, defaultHidden: true },
 			cell: ({ row }) => <Mono text={row.original.address} />,
 		},
 		{
 			id: "image",
 			header: "Image",
 			size: 200,
+			minSize: 120,
+			maxSize: 360,
 			enableSorting: false,
-			meta: { defaultHidden: true },
+			meta: { fit: true, defaultHidden: true },
 			cell: ({ row }) => <Mono text={row.original.image} />,
 		},
 		{
 			id: "created",
 			header: "Created",
 			size: 150,
+			minSize: 100,
+			maxSize: 200,
 			accessorFn: (row) => row.createdMs,
 			sortFn: "basic",
 			sortDescFirst: true,
-			meta: { defaultHidden: true },
+			meta: { fit: true, defaultHidden: true },
 			cell: ({ row: { original: row } }) => <CreatedTime ms={row.createdMs} />,
 		},
 		{
 			id: "actions",
 			header: ({ table }) => <DataTableColumnsMenu table={table} />,
 			cell: ({ row }) => (isDraftRow(row.original) ? null : <RowActions row={row.original} />),
-			size: 40,
 			enableSorting: false,
 			enableHiding: false,
 			enableResizing: false,
-			meta: { headClassName: "w-10 text-right", cellClassName: "text-right" },
+			meta: { align: "end", pinEnd: true },
 		},
 	];
 }

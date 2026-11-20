@@ -11,27 +11,26 @@ import {
 	trafficValue,
 	type TrafficPoint,
 } from "@/lib/traffic";
-import { functionalUpdate, useTable } from "@tanstack/react-table";
+import { functionalUpdate } from "@tanstack/react-table";
 import { ArrowRightIcon, GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
 import { createContext, use } from "react";
 import { parseAsString, useQueryState, useQueryStates } from "nuqs";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { ResourceStatus, type RegionInfo, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
 import {
+	CellText,
 	DataTable,
-	dataTableFeatures,
-	sortOptions,
 	DataTablePager,
 	pageWithin,
+	useDataTable,
 	type DataColumn,
 } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
-import { RowLink } from "@/components/design/RowLink";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -114,7 +113,7 @@ function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: num
 	);
 }
 
-const NAME_CLASS = "truncate text-left text-[14.5px] font-medium text-foreground";
+const NAME_CLASS = "text-left text-[14.5px] font-medium text-foreground";
 
 function Regions({ item }: { item: DashboardItem }) {
 	return (
@@ -158,11 +157,7 @@ function StatusCell({ item }: { item: DashboardItem }) {
 	return (
 		<div className="flex min-w-0 flex-col items-start gap-[3px]">
 			<ResourceStatusBadge status={item.status} />
-			{note !== "" && (
-				<span title={note} className="max-w-full truncate text-[12px] text-fg3">
-					{note}
-				</span>
-			)}
+			{note !== "" && <CellText text={note} className="max-w-full text-[12px] text-fg3" />}
 		</div>
 	);
 }
@@ -172,10 +167,16 @@ function NameCell({ item }: { item: DashboardItem }) {
 	const draft = isDraftItem(item);
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
-			<RowLink to={hrefFor(item)} className={cn(NAME_CLASS, draft && "underline decoration-fg4 decoration-dashed")}>
-				{itemName(item)}
-			</RowLink>
-			<span className="truncate text-[12.5px] text-fg3">{draft ? DRAFT_NOTE : (item.resource.description ?? "")}</span>
+			<CellText
+				text={itemName(item)}
+				render={<Link to={hrefFor(item)} />}
+				className={cn(
+					NAME_CLASS,
+					"underline-offset-3 group-hover/row:underline",
+					draft && "underline decoration-fg4 decoration-dashed",
+				)}
+			/>
+			<CellText text={draft ? DRAFT_NOTE : (item.resource.description ?? "")} className="text-[12.5px] text-fg3" />
 		</div>
 	);
 }
@@ -202,7 +203,9 @@ function ReplicasCell({ item }: { item: DashboardItem }) {
 									"absolute inset-y-0 left-0 rounded-[3px] opacity-85",
 									degraded ? "bg-warn" : "bg-foreground",
 								)}
-								style={{ width: `${(g.desired === 0 ? 0 : Math.min(1, g.ready / g.desired) * 100).toString()}%` }}
+								style={{
+									width: `${(g.desired === 0 ? 0 : Math.min(1, g.ready / g.desired) * 100).toString()}%`,
+								}}
 							/>
 						</span>
 					) : (
@@ -226,19 +229,15 @@ function ReplicasCell({ item }: { item: DashboardItem }) {
 
 function LastDeployCell({ item }: { item: DashboardItem }) {
 	if (isDraftItem(item)) {
-		return (
-			<span className="block truncate font-mono text-[12px] text-fg3" title={item.draft.image}>
-				{item.draft.image}
-			</span>
-		);
+		return <CellText text={item.draft.image} className="font-mono text-[12px] text-fg3" />;
 	}
 	const last = item.last;
 	if (last === undefined) return <span className="text-fg4">—</span>;
 	const message = deploymentMessage(last);
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
-			<span className="truncate font-mono text-[12px]">{imageVersion(deploymentImage(last))}</span>
-			<span className="truncate text-[12.5px] text-fg3">{message !== "" ? message : "Running"}</span>
+			<CellText text={imageVersion(deploymentImage(last))} className="font-mono text-[12px]" />
+			<CellText text={message !== "" ? message : "Running"} className="text-[12.5px] text-fg3" />
 		</div>
 	);
 }
@@ -273,7 +272,7 @@ function TrafficCell({ item }: { item: DashboardItem }) {
 				values={trafficLoading || trafficError ? [] : trafficSeries(traffic, "requests", item.resource.id)}
 				className="h-6 min-w-0 flex-1 text-fg2"
 			/>
-			<span className="w-[62px] shrink-0 text-right font-mono text-[12px] whitespace-nowrap">{rate}</span>
+			<span className="min-w-[62px] shrink-0 text-right font-mono text-[12px] whitespace-nowrap">{rate}</span>
 		</span>
 	);
 }
@@ -284,7 +283,10 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		header: "Status",
 		accessorFn: itemRank,
 		sortFn: "basic",
-		meta: { headClassName: "w-[130px]" },
+		size: 130,
+		minSize: 90,
+		maxSize: 160,
+		meta: { fit: true },
 		cell: ({ row }) => <StatusCell item={row.original} />,
 	},
 	{
@@ -292,6 +294,8 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		header: "Resource",
 		accessorFn: itemName,
 		sortFn: (a, b) => itemName(a.original).localeCompare(itemName(b.original)),
+		size: 160,
+		meta: { grow: true },
 		cell: ({ row }) => <NameCell item={row.original} />,
 	},
 	{
@@ -299,7 +303,10 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		header: "Region",
 		accessorFn: (item) => item.regions[0]?.region ?? "",
 		sortFn: (a, b) => (a.original.regions[0]?.region ?? "").localeCompare(b.original.regions[0]?.region ?? ""),
-		meta: { headClassName: "w-[100px]" },
+		size: 100,
+		minSize: 80,
+		maxSize: 160,
+		meta: { fit: true },
 		cell: ({ row }) => <Regions item={row.original} />,
 	},
 	{
@@ -308,20 +315,28 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		accessorFn: replicaTotal,
 		sortFn: "basic",
 		sortDescFirst: true,
-		meta: { headClassName: "w-[184px]" },
+		size: 184,
+		minSize: 80,
+		maxSize: 184,
+		meta: { fit: true },
 		cell: ({ row }) => <ReplicasCell item={row.original} />,
 	},
 	{
 		id: "traffic",
 		header: "Traffic, last hour",
 		enableSorting: false,
-		meta: { headClassName: "w-[170px]" },
+		size: 116,
+		minSize: 110,
 		cell: ({ row }) => <TrafficCell item={row.original} />,
 	},
 	{
 		id: "last",
 		header: "Last deploy",
 		enableSorting: false,
+		size: 140,
+		minSize: 100,
+		maxSize: 200,
+		meta: { fit: true },
 		cell: ({ row }) => <LastDeployCell item={row.original} />,
 	},
 	{
@@ -330,16 +345,21 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		accessorFn: lastDeployMs,
 		sortFn: "basic",
 		sortDescFirst: true,
+		size: 96,
+		minSize: 72,
+		maxSize: 120,
 		meta: {
-			headClassName: "w-[84px] text-right [&>button]:ml-auto",
-			cellClassName: "text-right font-mono text-[12px] whitespace-nowrap text-fg3",
+			fit: true,
+			align: "end",
+			cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3",
 		},
 		cell: ({ row }) => <DeployedCell item={row.original} />,
 	},
 	{
 		id: "menu",
 		enableSorting: false,
-		meta: { headClassName: "w-10", cellClassName: "text-right" },
+		enableResizing: false,
+		meta: { align: "end", pinEnd: true },
 		cell: ({ row }) => <MenuCell item={row.original} />,
 	},
 ];
@@ -385,16 +405,23 @@ export function ResourcesTable({
 	);
 	const trafficData = trafficPoints([traffic.data ?? []]);
 	const { search: locationSearch } = useLocation();
+	const navigate = useNavigate();
 	const [view, setView] = useQueryState("view", resourceViewParser.withOptions({ history: "replace" }));
 	const isMap = view === "map";
-	const [state, setState] = useQueryStates(TABLE_PARAMS, { history: "replace", urlKeys: TABLE_URL_KEYS });
-	const filter: RowFilter = { status: state.status, type: state.type, region: state.region, query: state.query };
+	const [state, setState] = useQueryStates(TABLE_PARAMS, {
+		history: "replace",
+		urlKeys: TABLE_URL_KEYS,
+	});
+	const filter: RowFilter = {
+		status: state.status,
+		type: state.type,
+		region: state.region,
+		query: state.query,
+	};
 	const sorting = [state.sort];
 	const data = filterRows(items, filter);
 	const pagination = pageWithin({ pageIndex: state.page, pageSize: PAGE_SIZE }, data.length);
-	const table = useTable({
-		...sortOptions,
-		features: dataTableFeatures,
+	const table = useDataTable("dashboard-resources", {
 		data,
 		columns: COLUMNS,
 		getRowId: itemKey,
@@ -406,7 +433,6 @@ export function ResourcesTable({
 		onPaginationChange: (updater) => {
 			void setState({ page: functionalUpdate(updater, pagination).pageIndex });
 		},
-		enableColumnResizing: false,
 		autoResetPageIndex: false,
 	});
 	const visible = table.getPrePaginatedRowModel().rows.map((row) => row.original);
@@ -431,11 +457,19 @@ export function ResourcesTable({
 	}
 	const typeOptions = [
 		{ value: ALL, label: "All types", count: typeBase.length },
-		...TYPE_FILTERS.map((o) => ({ value: o.value, label: o.label, count: typeCounts.get(o.type) ?? 0 })),
+		...TYPE_FILTERS.map((o) => ({
+			value: o.value,
+			label: o.label,
+			count: typeCounts.get(o.type) ?? 0,
+		})),
 	];
 	const regionOptions = [
 		{ value: ALL, label: "All regions", count: regionBase.length },
-		...[...regionNames].map((name) => ({ value: name, label: name, count: regionCounts.get(name) ?? 0 })),
+		...[...regionNames].map((name) => ({
+			value: name,
+			label: name,
+			count: regionCounts.get(name) ?? 0,
+		})),
 	];
 
 	const update = (patch: Partial<RowFilter>) => {
@@ -576,7 +610,14 @@ export function ResourcesTable({
 							trafficError: traffic.error !== null,
 						}}
 					>
-						<DataTable table={table} inset className="min-w-[880px] table-fixed [--row-h:66px]" empty={empty} />
+						<DataTable
+							table={table}
+							inset
+							label="Resources"
+							onRowClick={(row) => void navigate(itemHref(row.original))}
+							className="[--row-h:66px]"
+							empty={empty}
+						/>
 					</DashboardCellContext>
 					<DataTablePager table={table} pageSizes={[PAGE_SIZE]} empty={`0 of ${items.length.toString()}`} />
 				</>

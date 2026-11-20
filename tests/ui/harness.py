@@ -26,9 +26,9 @@ def load_state(args, name, scenario, *, issuer=None):
 
 
 @contextlib.contextmanager
-def session(out):
+def session(out, **launch_options):
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
+        browser = playwright.chromium.launch(**launch_options)
         try:
             yield browser
         except BaseException:

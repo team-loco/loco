@@ -14,6 +14,7 @@ export function ColumnResizeHandle({
 	onWidth: (value: number) => void;
 }) {
 	const dragRef = useRef<{ x: number; width: number } | null>(null);
+	const measured = (handle: Element) => handle.parentElement?.getBoundingClientRect().width ?? width;
 	const resize = (value: number) => {
 		onWidth(Math.min(max, Math.max(min, Math.round(value))));
 	};
@@ -29,7 +30,7 @@ export function ColumnResizeHandle({
 			onKeyDown={(event) => {
 				if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
 					event.preventDefault();
-					resize(width + (event.key === "ArrowLeft" ? -16 : 16));
+					resize(measured(event.currentTarget) + (event.key === "ArrowLeft" ? -16 : 16));
 				}
 				if (event.key === "Escape" && dragRef.current !== null) {
 					resize(dragRef.current.width);
@@ -38,7 +39,7 @@ export function ColumnResizeHandle({
 			}}
 			onPointerDown={(event) => {
 				event.currentTarget.setPointerCapture(event.pointerId);
-				dragRef.current = { x: event.clientX, width };
+				dragRef.current = { x: event.clientX, width: measured(event.currentTarget) };
 			}}
 			onPointerMove={(event) => {
 				if (dragRef.current !== null) resize(dragRef.current.width + event.clientX - dragRef.current.x);
