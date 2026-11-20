@@ -646,6 +646,7 @@ with session(out) as browser:
     assert sql(state, f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
     interval.fill("15")
     expect(drawer.get_by_role("alert")).to_have_count(0)
+    expect(drawer.get_by_text("Checking the image…", exact=True)).to_have_count(0)
     creations_before = len(creations)
     reject_next.append(True)
     with expect_rpc(
