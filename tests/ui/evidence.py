@@ -681,15 +681,30 @@ def seed_cluster(
     state, region, *, name=None, domains=(), health="healthy", default=False
 ):
     cluster_id = str(uuid.uuid4())
-    q = sql_literal
-    domain_array = "ARRAY[" + ",".join(q(domain) for domain in domains) + "]::text[]"
     psql(
         state["container"],
-        "INSERT INTO clusters(id,name,region,provider,platforms,domains,is_active,is_default,health_status,last_heartbeat) "
-        f"VALUES({q(cluster_id)},{q(name or 'evidence-' + cluster_id)},{q(region)},'fixture',ARRAY['linux/amd64'],"
-        f"{domain_array},true,{str(default).lower()},{q(health)},NOW());",
+        cluster_row(
+            cluster_id,
+            region,
+            name=name,
+            domains=domains,
+            health=health,
+            default=default,
+        ),
     )
     return cluster_id
+
+
+def cluster_row(
+    cluster_id, region, *, name=None, domains=(), health="healthy", default=False
+):
+    q = sql_literal
+    domain_array = "ARRAY[" + ",".join(q(domain) for domain in domains) + "]::text[]"
+    return (
+        "INSERT INTO clusters(id,name,region,provider,platforms,domains,is_active,is_default,health_status,last_heartbeat) "
+        f"VALUES({q(cluster_id)},{q(name or 'evidence-' + cluster_id)},{q(region)},'fixture',ARRAY['linux/amd64'],"
+        f"{domain_array},true,{str(default).lower()},{q(health)},NOW());"
+    )
 
 
 def seed_resources(state, resources):
@@ -725,8 +740,11 @@ def seed_resources(state, resources):
     return seeded
 
 
-def seed_deployments(state, resource_id, deployments, user="owner"):
-    """Inserts each deployment with a placement per spec region; a `live` one (the default) runs in them."""
+def seed_deployments(state, resource_id, deployments, user="owner", then=()):
+    """Inserts each deployment with a placement per spec region; a `live` one (the default) runs in them.
+
+    One transaction holds every row, then the `then` statements.
+    """
     q = sql_literal
     target = json.loads(
         psql(
@@ -755,7 +773,10 @@ def seed_deployments(state, resource_id, deployments, user="owner"):
         )
         for region, sizing in runtime["regions"].items():
             placement = deployment.get("placements", {}).get(region, {})
-            cluster = placement.get("cluster") or seed_cluster(state, region)
+            cluster = placement.get("cluster")
+            if cluster is None:
+                cluster = str(uuid.uuid4())
+                rows.append(cluster_row(cluster, region))
             placement_status = placement.get(
                 "status", "pending" if status == "building" else status
             )
@@ -799,6 +820,7 @@ def seed_deployments(state, resource_id, deployments, user="owner"):
                 f"VALUES({q(resource_id)},{q(cluster)},{q(region)},{q(deployment_id)},{q(environment)},"
                 f"{q(json.dumps({'app_spec': app}))},1,1,{placement.get('ready_replicas', sizing['minReplicas'])},NOW());"
             )
+    rows += then
     if rows:
         psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
     return ids

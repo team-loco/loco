@@ -100,32 +100,13 @@ def seeded_draft(name, image):
 
 def seed_deployment(body, status, replica_state, detail, problem=None):
     spec = {**body["spec"]["service"], "observability": {"injectOtel": True}}
-    [deployment] = evidence.seed_deployments(
-        state,
-        body["resourceId"],
-        [
-            {
-                "environment": "production",
-                "status": status,
-                "spec": spec,
-                "placements": {
-                    region: {"ready_replicas": 0} for region in body["regions"]
-                },
-            }
-        ],
-    )
+    deployment = str(uuid.uuid4())
     rows = [
         f"INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message) VALUES('{deployment}',1,1,NOW(),'info','','Deployment requested.');"
     ]
-    placements = json.loads(
-        sql(
-            state,
-            f"SELECT json_agg(json_build_object('id',id,'cluster',cluster_id,'region',region)) FROM placements WHERE deployment_id='{deployment}';",
-        )
-    )
-    for seq, placement in enumerate(placements, 2):
+    for seq, region in enumerate(spec["regions"], 2):
         replica = {
-            "uid": f"replica-{deployment}-{placement['region']}",
+            "uid": f"replica-{deployment}-{region}",
             "name": "service-new-1",
             "node": "worker-east-1",
             "placement_revision": 1,
@@ -134,21 +115,40 @@ def seed_deployment(body, status, replica_state, detail, problem=None):
             "state": replica_state,
             "detail": detail,
         }
-        snapshot = {"placementId": placement["id"], "replicas": [replica]}
+        snapshot = {"replicas": [replica]}
         if problem is not None:
             snapshot["problem"] = {
                 "reason": problem,
                 "detail": detail,
                 "replica_name": replica["name"],
             }
+        placement = (
+            f"FROM placements WHERE deployment_id='{deployment}' AND region='{region}'"
+        )
         rows += [
             "INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) "
-            f"VALUES('{deployment}','{placement['cluster']}',1,{evidence.sql_literal(json.dumps(snapshot))});",
+            f"SELECT '{deployment}',cluster_id,1,{evidence.sql_literal(json.dumps(snapshot))}::jsonb"
+            f" || jsonb_build_object('placementId',id) {placement};",
             "INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message,cluster_id,region) "
-            f"VALUES('{deployment}',{seq},1,NOW(),'{'error' if problem else 'info'}','{replica['name']}',"
-            f"{evidence.sql_literal(detail)},'{placement['cluster']}','{placement['region']}');",
+            f"SELECT '{deployment}',{seq},1,NOW(),'{'error' if problem else 'info'}','{replica['name']}',"
+            f"{evidence.sql_literal(detail)},cluster_id,region {placement};",
         ]
-    sql(state, "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
+    evidence.seed_deployments(
+        state,
+        body["resourceId"],
+        [
+            {
+                "id": deployment,
+                "environment": "production",
+                "status": status,
+                "spec": spec,
+                "placements": {
+                    region: {"ready_replicas": 0} for region in body["regions"]
+                },
+            }
+        ],
+        then=rows,
+    )
     return deployment
 
 
