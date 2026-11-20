@@ -40,9 +40,9 @@ export function PersonalTab({
 	const queryClient = useQueryClient();
 	const update = useMutation(updateUser);
 
-	const name = draft ?? user.name;
+	const name = draft ?? userLabel(user);
 	const nameT = name.trim();
-	const dirty = name !== user.name;
+	const dirty = draft !== null && draft !== user.name;
 	const nameErr = nameT === "" ? "Name required" : null;
 	const shownErr = dirty ? nameErr : null;
 
