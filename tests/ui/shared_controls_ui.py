@@ -1620,11 +1620,27 @@ def first_click_sorts_descending(table, label, first):
     expect(table.get_by_role("row").nth(1)).to_contain_text(first)
 
 
-def new_service_button(page):
+def new_resource_menu(page):
     page.goto(state["ui_url"] + base + "/resources?env=production")
-    new_service = page.get_by_role("link", name="New service", exact=True)
-    expect(new_service).to_be_enabled()
-    expect(new_service).to_have_attribute("href", re.compile(r"[?&]new=1"))
+    page.get_by_role("button", name="New resource", exact=True).click()
+    menu = page.get_by_role("menu")
+    items = menu.get_by_role("menuitem")
+    expect(items).to_have_text(
+        [
+            "New service",
+            re.compile(r"^Database\s*Soon$"),
+            re.compile(r"^Cache\s*Soon$"),
+            re.compile(r"^Queue\s*Soon$"),
+            re.compile(r"^Blob storage\s*Soon$"),
+            re.compile(r"^Function\s*Soon$"),
+        ]
+    )
+    expect(items.first).to_be_enabled()
+    for name in ("Database", "Cache", "Queue", "Blob storage", "Function"):
+        expect(
+            menu.get_by_role("menuitem", name=re.compile(f"^{name}"))
+        ).to_be_disabled()
+    page.keyboard.press("Escape")
 
 
 def resources(page):
@@ -1791,7 +1807,7 @@ with session(out) as browser:
     mock_telemetry(context)
     time_preferences(browser)
     page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
-    new_service_button(page)
+    new_resource_menu(page)
     page.goto(state["ui_url"] + base + "/settings?scope=workspace")
     group = page.get_by_role("group", name="Settings for", exact=True)
     workspace_button = group.get_by_role("button", name="Workspace", exact=True)
