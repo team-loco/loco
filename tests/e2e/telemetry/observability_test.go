@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -1021,8 +1022,9 @@ func (o *observed) attributeLogs(t *testing.T) {
 	)
 }
 
-// gatewayMetrics sends one request to the app with no ready replica and the fixture successful and 5xx
-// requests until QueryMetrics reports both resources' traffic.
+// gatewayMetrics sends requestCount requests to the app with no ready replica, starting with the first
+// request its route ever serves, and the fixture successful and 5xx requests until QueryMetrics reports
+// both resources' traffic.
 func (o *observed) gatewayMetrics(t *testing.T) {
 	unreadyHost := o.w.Host(unreadyApp)
 	unreadyID := o.w.ResourceID(t, unreadyApp)
@@ -1038,6 +1040,14 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 			return nil
 		},
 	)
+	unreadySent := 1
+	for unreadySent < requestCount {
+		status, err := gatewayStatus(t.Context(), unreadyHost, "/", "")
+		if err != nil || status != http.StatusServiceUnavailable {
+			t.Fatalf("request %d to %s: HTTP %d (%v), want 503", unreadySent+1, unreadyHost, status, err)
+		}
+		unreadySent++
+	}
 	var app, unready gatewayTraffic
 	platform.Eventually(
 		t,
@@ -1071,8 +1081,12 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 				return err
 			}
 			if app.requests == 0 || app.errors == 0 || app.bytes == 0 || app.latency == 0 ||
-				unready.requests == 0 || unready.errors == 0 {
-				return fmt.Errorf("fixture %+v, app with no ready replica %+v", app, unready)
+				math.Round(unready.requests) != float64(unreadySent) ||
+				math.Round(unready.errors) != float64(unreadySent) {
+				return fmt.Errorf(
+					"fixture %+v, app with no ready replica %+v, want exactly %d requests and errors",
+					app, unready, unreadySent,
+				)
 			}
 			return nil
 		},
