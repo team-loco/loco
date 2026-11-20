@@ -601,7 +601,12 @@ with session(out) as browser:
             environment_switcher.click()
             page.get_by_role("menuitem", name="staging", exact=False).click()
             page.keyboard.press("Escape")
-            expect(environment_switcher).to_contain_text("staging")
+            # The app blanks a focused trigger's title while it shows the title as a tooltip.
+            expect(
+                page.get_by_role("navigation", name="breadcrumb").get_by_role(
+                    "button", name="staging", exact=True
+                )
+            ).to_be_visible()
             expect(page).to_have_url(re.compile(r"[?&]env=staging"))
             page.get_by_title("Switch workspace", exact=True).click()
             page.get_by_role("menuitem", name="sibling", exact=False).click()
