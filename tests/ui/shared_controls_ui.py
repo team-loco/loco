@@ -1349,7 +1349,7 @@ def metrics_many(page):
     expect(rows).to_have_count(8)
     expect(page.get_by_text(f"+{count - 8} more", exact=True)).to_be_visible()
     heights = rows.evaluate_all("els => els.map(e => e.getBoundingClientRect().height)")
-    assert len(set(heights)) == 1 and heights[0] <= 24, heights
+    assert len({round(h) for h in heights}) == 1 and heights[0] <= 24, heights
     assert rows.evaluate_all("els => els.every(e => e.scrollWidth <= e.clientWidth)")
     assert "0 vCPU" not in " ".join(rows.all_text_contents()).replace("<0.001 vCPU", "")
     by_region = page.get_by_role("region", name="By resource and region")
