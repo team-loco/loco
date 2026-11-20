@@ -12,7 +12,7 @@ const END = START + 24 * HOUR_MS;
 
 function at(hoursIn: number, status = DeploymentStatus.RUNNING, resource = "web") {
 	return {
-		resource,
+		resource: { name: resource },
 		deployment: create(DeploymentSchema, { createdAt: msToTimestamp(START + hoursIn * HOUR_MS), status }),
 	};
 }

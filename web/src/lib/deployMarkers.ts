@@ -27,7 +27,7 @@ interface Placed {
 
 /** Groups the deployments created in [startMs, endMs) into at most `buckets` markers. */
 export function deployMarkers(
-	deployments: { deployment: Deployment; resource: string }[],
+	deployments: { deployment: Deployment; resource: { name: string } }[],
 	startMs: number,
 	endMs: number,
 	buckets: number,
@@ -44,7 +44,7 @@ export function deployMarkers(
 			fraction,
 			failed: deployment.status === DeploymentStatus.FAILED,
 			version: imageVersion(deploymentImage(deployment)),
-			resource,
+			resource: resource.name,
 			createdMs,
 		};
 		groups.set(bucket, [...(groups.get(bucket) ?? []), placed]);

@@ -26,7 +26,7 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 		.filter(({ left }) => left >= 0 && left <= 1)
 		.toSorted((a, b) => a.left - b.left);
 	const dimOthers = visible.some(({ row }) => highlighted.has(row.key));
-	const clusters: { left: number; rows: LogRow[] }[] = [];
+	const clusters: { left: number; rows: [LogRow, ...LogRow[]] }[] = [];
 	for (const { row, left } of visible) {
 		const last = clusters.at(-1);
 		if (last !== undefined && left - last.left < CLUSTER_GAP) last.rows.push(row);
@@ -36,7 +36,6 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 		<div aria-label="Trace log markers" className="relative h-[12px] shrink-0">
 			{clusters.map(({ left, rows }) => {
 				const [row] = rows;
-				if (row === undefined) return null;
 				const at = formatClock(row.ts, true, timePref);
 				const many = rows.length > 1;
 				return (

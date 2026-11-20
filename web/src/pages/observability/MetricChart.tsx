@@ -14,7 +14,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
-import { formatPercent } from "@/lib/compute-chart";
+import { formatPercent, percentAxis } from "@/lib/compute-chart";
 import { cn } from "@/lib/utils";
 import { formatAxisTime, timeAxis } from "@/lib/time";
 
@@ -24,10 +24,10 @@ import { markerGroups } from "./metric-markers";
 export interface ChartSeries {
 	key: string;
 	name: string;
-	resourceId: string;
 	color: string;
 	dashed: boolean;
-	points: { t: number; v: number; abs: number }[];
+	limit: number;
+	points: { t: number; v: number }[];
 }
 
 export interface ChartMarker {
@@ -61,10 +61,6 @@ const LABEL_PAD_PX = 4;
 const LABEL_HEIGHT_PX = 14;
 
 type Datum = { t: number; [series: string]: number };
-
-function absOf(s: ChartSeries, t: number): number {
-	return s.points.find((p) => p.t === t)?.abs ?? 0;
-}
 
 function MarkerLabel({ viewBox, value, flip }: { viewBox?: { x?: number; y?: number }; value: string; flip: boolean }) {
 	const x0 = viewBox?.x ?? 0;
@@ -169,7 +165,7 @@ function MetricTooltip({
 				>
 					<span className="size-2 shrink-0 rounded-[2px]" style={{ background: s.color }} />
 					<span className="max-w-[160px] flex-1 truncate text-fg2">{s.name}</span>
-					<span className="shrink-0 font-mono tabular-nums">{fmt(absOf(s, t))}</span>
+					<span className="shrink-0 font-mono tabular-nums">{fmt((v / PERCENT) * s.limit)}</span>
 					<span className="w-12 shrink-0 text-right font-mono text-fg3 tabular-nums">{formatPercent(v)}</span>
 				</div>
 			))}
@@ -227,9 +223,8 @@ export function MetricChart({
 	series,
 	from,
 	to,
-	axis,
 	fmt,
-	highlightId,
+	highlight,
 	markers,
 	height,
 	actions,
@@ -238,9 +233,8 @@ export function MetricChart({
 	series: ChartSeries[];
 	from: number;
 	to: number;
-	axis: { maximum: number; ticks: number[] };
 	fmt: (v: number) => string;
-	highlightId: string | null;
+	highlight: string | null;
 	markers: ChartMarker[];
 	height: number;
 	actions: (t: number) => PinAction[];
@@ -249,14 +243,15 @@ export function MetricChart({
 	const [pin, setPin] = useState<{ t: number; dx: number; dy: number } | null>(null);
 	const triggerRef = useRef<HTMLDivElement>(null);
 	const [nearest, setNearest] = useState<string | null>(null);
+	const peaks = series.map((s) => ({ key: s.key, peak: Math.max(...s.points.map((p) => p.v)) }));
+	const axis = percentAxis(Math.max(0, ...peaks.map((p) => p.peak)));
 	const top = new Set(
-		series
-			.map((s) => ({ key: s.key, peak: Math.max(...s.points.map((p) => p.v)) }))
+		peaks
 			.toSorted((a, b) => b.peak - a.peak)
 			.slice(0, TOP_SERIES)
 			.map((x) => x.key),
 	);
-	const highlightKey = series.find((s) => s.resourceId === highlightId)?.key ?? nearest;
+	const highlightKey = highlight ?? nearest;
 	const byT = new Map<number, Datum>();
 	for (const s of series) {
 		for (const p of s.points) {

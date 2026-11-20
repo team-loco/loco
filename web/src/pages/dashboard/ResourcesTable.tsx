@@ -256,7 +256,7 @@ function TrafficCell({ item }: { item: DashboardItem }) {
 	const { traffic, trafficLoading, trafficError, nowMs } = useCells();
 	if (isDraftItem(item)) return <span className="text-fg3">—</span>;
 	const markers = deployMarkers(
-		item.envDeployments.map((deployment) => ({ deployment, resource: item.resource.name })),
+		item.envDeployments.map((deployment) => ({ deployment, resource: item.resource })),
 		nowMs - HOUR_MS,
 		nowMs,
 		ROW_BUCKETS,
