@@ -233,7 +233,10 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 									{field.href === undefined ? (
 										field.value
 									) : (
-										<Link to={field.href} className="underline-offset-[3px] hover:underline">
+										<Link
+											to={field.href}
+											className="underline decoration-fg3/60 underline-offset-[3px] hover:decoration-current"
+										>
 											{field.value}
 										</Link>
 									)}
