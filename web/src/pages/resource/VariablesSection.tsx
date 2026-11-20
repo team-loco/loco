@@ -463,7 +463,7 @@ export function VariablesSection({
 						{" "}
 						<Link
 							to={secretsHref}
-							className="font-medium whitespace-nowrap text-foreground no-underline after:opacity-0 after:transition-opacity after:duration-120 after:content-['_→'] hover:after:opacity-100 motion-reduce:after:transition-none"
+							className="font-medium whitespace-nowrap text-foreground no-underline after:opacity-0 after:transition-opacity after:duration-120 after:content-['_→'/''] hover:after:opacity-100 motion-reduce:after:transition-none"
 						>
 							Manage secrets in {environmentName}
 						</Link>
