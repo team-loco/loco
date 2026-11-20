@@ -246,7 +246,7 @@ export function TraceLogPanel({
 													}}
 													className={cn(
 														"grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 border-b border-line py-1.5 pr-3 pl-5 text-left font-mono text-[12px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:grid-cols-[96px_60px_64px_minmax(72px,104px)_minmax(0,1fr)]",
-														highlighted.has(row.key) && "bg-info/10 shadow-[inset_3px_0_0_var(--info)]",
+														highlighted.has(row.key) && "bg-info/10",
 													)}
 												>
 													<span className="text-fg3">{formatClock(row.ts, true, timePref)}</span>
