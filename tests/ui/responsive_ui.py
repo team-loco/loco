@@ -206,11 +206,12 @@ with session(out) as browser:
         ).first
         row.scroll_into_view_if_needed()
         cell = row.locator("td").first
-        assert cell.evaluate("el => getComputedStyle(el).backgroundImage") == "none"
+        idle = cell.evaluate("el => getComputedStyle(el).backgroundImage")
         row.hover()
-        assert cell.evaluate("el => getComputedStyle(el).backgroundImage") != "none", (
-            mode,
-            color,
+        page.wait_for_function(
+            "([el, idle]) => getComputedStyle(el).backgroundImage !== idle",
+            arg=[cell.element_handle(), idle],
+            timeout=2000,
         )
         page.locator("[data-slot=data-table][data-scroll]").first.screenshot(
             path=out / f"{color or mode}-{mode}-390-row-hover.png"

@@ -184,7 +184,10 @@ export function LogTable({
 				onSelect(row.id);
 			}}
 			rowClassName={(row) =>
-				row.id !== selectedKey && highlightAfter !== null && row.original.ts > highlightAfter && "bg-ok-bg"
+				row.id !== selectedKey &&
+				highlightAfter !== null &&
+				row.original.ts > highlightAfter &&
+				"[--row-tint:var(--color-ok-bg)]"
 			}
 		/>
 	);

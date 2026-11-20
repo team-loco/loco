@@ -1,5 +1,7 @@
 import argparse
 import re
+import struct
+import zlib
 from datetime import UTC, datetime, timedelta
 
 from harness import call, evidence, load_state, open_page, repo, session, sql
@@ -336,6 +338,59 @@ def check_resize(page, table, keyboard, drag, reopen, key="ArrowLeft", url_ids=(
     return table
 
 
+def pixel(page, x, y, width=1, height=1):
+    return page.screenshot(clip={"x": x, "y": y, "width": width, "height": height})
+
+
+def rgb(page, x, y):
+    """The colour of one screen pixel, read from the IDAT chunk of its 1x1 PNG."""
+    png, data, i = pixel(page, x, y), b"", 8
+    while i < len(png):
+        size, kind = struct.unpack(">I4s", png[i : i + 8])
+        if kind == b"IDAT":
+            data += png[i + 8 : i + 8 + size]
+        i += 12 + size
+    return zlib.decompress(data)[1:4]
+
+
+TRANSITIONS = "document.getAnimations().filter(a => a instanceof CSSTransition)"
+
+
+def check_row_states(page, row):
+    """The pinned first cell takes the row's hover tint as it fades in and its keyboard focus ring, like the next cell."""
+    row.evaluate(
+        "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"
+    )
+    page.mouse.move(0, 0)
+    first, second = (row.locator(":scope > td").nth(i).bounding_box() for i in range(2))
+    y = first["y"] + first["height"] - 3
+    # In the first cell's corner, clear of any cell text that opens a tooltip.
+    row.hover(position={"x": 3, "y": 3})
+    page.evaluate(
+        f"() => {TRANSITIONS}.forEach(a => {{ a.pause(); a.currentTime = 40; }})"
+    )
+    pinned, plain = rgb(page, first["x"] + 3, y), rgb(page, second["x"] + 3, y)
+    assert max(abs(a - b) for a, b in zip(pinned, plain, strict=True)) <= 1, (
+        "pinned cell misses the hover tint",
+        pinned,
+        plain,
+    )
+    page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
+    page.mouse.move(0, 0)
+    page.wait_for_timeout(300)
+    left = (first["x"], first["y"] + first["height"] / 2, 3, 1)
+    idle = pixel(page, *left)
+    page.keyboard.press("Shift")
+    row.focus()
+    assert row.evaluate("node => node.matches(':focus-visible')")
+    assert pixel(page, *left) != idle, "focus ring misses the row's left edge"
+    top = first["y"]
+    assert pixel(page, first["x"] + 20, top, 1, 3) == pixel(
+        page, second["x"] + 20, top, 1, 3
+    ), "focus ring breaks at the pinned cell"
+    row.blur()
+
+
 def resources_table(page):
     table = page.get_by_role("table", name="Resources")
     expect(table.get_by_role("row").filter(has_text=LONG_NAME)).to_be_visible()
@@ -374,6 +429,7 @@ def resources(page):
 
     row = table.get_by_role("row").filter(has_text="api").first
     expect_pointer(page, row.get_by_role("cell").nth(3))
+    check_row_states(page, row)
     check_arrow(page, table, row, row.get_by_role("button", name="Actions for api"))
     table = check_resize(page, table, "Resource", "Size", resources_table)
 
@@ -546,6 +602,7 @@ def logs(page):
     row = table.get_by_role("row", name=re.compile("Served checkout request 1"))
     expect_pointer(page, row.get_by_role("cell").nth(1))
     expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    check_row_states(page, row)
     table = check_resize(
         page, table, "Time", "Resource", logs_table, "ArrowRight", ("time", "resource")
     )
@@ -600,6 +657,14 @@ def traces(page):
     )
     expect_pointer(page, row.get_by_role("cell").nth(4))
     expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    check_row_states(page, row)
+    # Closing the drawer opened by a click returns focus to the row without a focus ring.
+    row.get_by_role("cell").nth(2).click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_role("button", name="Close").click()
+    expect(dialog).to_be_hidden()
+    expect(row).to_be_focused()
+    assert not row.evaluate("node => node.matches(':focus-visible')")
     table = check_resize(
         page, table, "Time", "Root span", traces_table, url_ids=("when", "span")
     )
