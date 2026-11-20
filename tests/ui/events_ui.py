@@ -25,8 +25,8 @@ environment = sql(
 base = f"/org/{org}/wks/{workspace}"
 sql(
     state,
-    f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
-SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' THEN '{environment}'::uuid ELSE NULL END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
+    f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,deployment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
+SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' THEN '{environment}'::uuid ELSE NULL END,CASE WHEN kind='deployment.ready' OR (kind='resource.degraded' AND n=1) THEN '7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a'::uuid END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
 jsonb_build_object('region','us-east-1','environmentId','{environment}') || CASE
 WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'restarting' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app ' || repeat('layer-', 40) || repeat('0123456789abcdef', 12) ELSE 'The service ran out of memory. Increase its memory limit or reduce memory usage.' END)
 WHEN kind LIKE 'deployment.%' THEN jsonb_build_object('deploymentId','7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a')
@@ -60,6 +60,16 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(events.get_by_text("deployment 8d7c6b5a", exact=True)).to_have_count(2)
+    events.get_by_role("button", name="Deploy ready in us-east-1", exact=True).click()
+    ready = page.get_by_role("dialog", name="Deploy ready in us-east-1", exact=True)
+    link = ready.get_by_role("region", name="Attributes").get_by_role(
+        "link", name="7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a", exact=True
+    )
+    expect(link).to_have_attribute(
+        "href", re.compile(rf"{base}/resource/{resource}\?env=production$")
+    )
+    page.keyboard.press("Escape")
+    expect(ready).to_have_count(0)
     events.get_by_role("button", name=re.compile(r"^Warnings")).click()
     wait_for_query(page, lambda query: query.get("q") == ["@severity:warning"])
     expect(
@@ -76,6 +86,7 @@ with session(out) as browser:
     attributes = drawer.get_by_role("region", name="Attributes")
     expect(attributes).to_contain_text("production")
     expect(attributes).to_contain_text("restarting")
+    expect(attributes.get_by_role("link")).to_have_count(1)
     expect(attributes.get_by_text("environmentId", exact=True)).to_have_count(0)
     expect(attributes.get_by_text("environment_id", exact=True)).to_have_count(0)
     expect(

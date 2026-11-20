@@ -185,6 +185,7 @@ type Event struct {
 	WorkspaceID   *uuid.UUID
 	ResourceID    *uuid.UUID
 	EnvironmentID *uuid.UUID
+	DeploymentID  *uuid.UUID
 	SubjectType   string
 	SubjectID     *uuid.UUID
 	ActorType     string
@@ -201,6 +202,9 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 	}
 	if ev.ResourceID == nil && ev.SubjectType == SubjectResource {
 		ev.ResourceID = ev.SubjectID
+	}
+	if ev.DeploymentID == nil && ev.SubjectType == SubjectDeployment {
+		ev.DeploymentID = ev.SubjectID
 	}
 	if ev.WorkspaceID == nil && ev.ResourceID != nil {
 		res, err := q.GetResourceByID(ctx, *ev.ResourceID)
@@ -234,6 +238,7 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		WorkspaceID:   ev.WorkspaceID,
 		ResourceID:    ev.ResourceID,
 		EnvironmentID: ev.EnvironmentID,
+		DeploymentID:  ev.DeploymentID,
 		ActorType:     actorType,
 		ActorID:       actorID,
 		SubjectID:     ev.SubjectID,

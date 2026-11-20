@@ -35,9 +35,9 @@ func (q *Queries) DeleteEventsBefore(ctx context.Context, arg DeleteEventsBefore
 }
 
 const insertEvent = `-- name: InsertEvent :one
-INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data,
+INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data,
                     actor_token_name, actor_token_type)
-SELECT $1, $2, $3, $4, $12, $5, $6, $7, $8, $9, $10, $11, t.name, t.entity_type::text
+SELECT $1, $2, $3, $4, $12, $13, $5, $6, $7, $8, $9, $10, $11, t.name, t.entity_type::text
 FROM (SELECT 1) one
 LEFT JOIN api_tokens t ON $5 = 'api_token' AND t.id = $6
 RETURNING seq
@@ -56,6 +56,7 @@ type InsertEventParams struct {
 	Traceparent   *string    `json:"traceparent"`
 	Data          []byte     `json:"data"`
 	EnvironmentID *uuid.UUID `json:"environmentId"`
+	DeploymentID  *uuid.UUID `json:"deploymentId"`
 }
 
 func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error) {
@@ -72,6 +73,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 		arg.Traceparent,
 		arg.Data,
 		arg.EnvironmentID,
+		arg.DeploymentID,
 	)
 	var seq int64
 	err := row.Scan(&seq)
@@ -79,7 +81,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 }
 
 const listEventsAfter = `-- name: ListEventsAfter :many
-SELECT seq, stream_position, id, type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, actor_token_name, actor_token_type, subject_type, subject_id, request_id, traceparent, data, created_at
+SELECT seq, stream_position, id, type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, actor_token_name, actor_token_type, subject_type, subject_id, request_id, traceparent, data, created_at
 FROM events
 WHERE stream_position > $1::bigint
 ORDER BY stream_position
@@ -109,6 +111,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 			&i.WorkspaceID,
 			&i.ResourceID,
 			&i.EnvironmentID,
+			&i.DeploymentID,
 			&i.ActorType,
 			&i.ActorID,
 			&i.ActorTokenName,

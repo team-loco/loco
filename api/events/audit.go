@@ -34,7 +34,7 @@ type AuditEvent struct {
 }
 
 const auditSelect = `SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id,
-	e.environment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id,
+	e.environment_id, e.deployment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id,
 	e.traceparent, e.data, e.created_at,
 	u.email, COALESCE(u.name, e.actor_token_name), e.actor_token_type
 FROM events e
@@ -63,6 +63,7 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 			&event.WorkspaceID,
 			&event.ResourceID,
 			&event.EnvironmentID,
+			&event.DeploymentID,
 			&event.ActorType,
 			&event.ActorID,
 			&event.SubjectType,

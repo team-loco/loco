@@ -82,12 +82,19 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 	const [, copy] = useCopy();
 	const raw = eventJson(item);
 	const environment = environments.find((e) => e.id === item.environmentId)?.name ?? item.environmentId;
-	const fields = [
+	const envName = environments.find((e) => e.id === item.environmentId)?.name ?? null;
+	const fields: { key: string; value: string; filter: boolean; href?: string }[] = [
 		{ key: "type", value: item.type, filter: true },
 		{ key: "resource", value: item.resourceName, filter: true },
 		{ key: "environment", value: environment, filter: false },
 		{ key: "region", value: item.region, filter: true },
 		{ key: "reason", value: item.reason, filter: true },
+		{
+			key: "deployment",
+			value: item.event.deploymentId,
+			filter: false,
+			href: resourcePath(orgId, workspaceId, item.resourceId, { env: envName }),
+		},
 		{ key: "actor", value: eventValue(item, "actor"), filter: true },
 		{ key: "email", value: item.event.actorEmail, filter: false },
 		...Object.entries(item.event.data ?? {})
@@ -104,6 +111,7 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 						"creator_email",
 						"environmentId",
 						"environment_id",
+						"deploymentId",
 					].includes(key),
 			)
 			.map(([key, value]) => ({
@@ -221,7 +229,18 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 								<dt className="truncate font-mono text-[12px] text-fg3" title={field.key}>
 									{field.key}
 								</dt>
-								<dd className="m-0 break-words font-mono text-[12px]">{field.value}</dd>
+								<dd className="m-0 break-words font-mono text-[12px]">
+									{field.href === undefined ? (
+										field.value
+									) : (
+										<Link
+											to={field.href}
+											className="underline decoration-fg3/60 underline-offset-[3px] hover:decoration-current"
+										>
+											{field.value}
+										</Link>
+									)}
+								</dd>
 								<span className="flex opacity-60 group-hover/attr:opacity-100 group-focus-within/attr:opacity-100">
 									{field.filter && (
 										<>

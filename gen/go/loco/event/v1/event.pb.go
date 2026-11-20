@@ -45,8 +45,11 @@ type Event struct {
 	EnvironmentId string `protobuf:"bytes,16,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	// The entity type that owns the API token that acted: user, organization, workspace or resource.
 	ActorTokenType string `protobuf:"bytes,17,opt,name=actor_token_type,json=actorTokenType,proto3" json:"actor_token_type,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The deployment the event concerns: the one a deployment event is about, or the one running
+	// when resource.degraded or resource.recovered fired. Empty for other events.
+	DeploymentId  string `protobuf:"bytes,18,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Event) Reset() {
@@ -194,6 +197,13 @@ func (x *Event) GetEnvironmentId() string {
 func (x *Event) GetActorTokenType() string {
 	if x != nil {
 		return x.ActorTokenType
+	}
+	return ""
+}
+
+func (x *Event) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
 	}
 	return ""
 }
@@ -522,7 +532,7 @@ var File_loco_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xac\x04\n" +
+	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x04\n" +
 	"\x05Event\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -548,7 +558,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\vresource_id\x18\x0f \x01(\tR\n" +
 	"resourceId\x12%\n" +
 	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\x12(\n" +
-	"\x10actor_token_type\x18\x11 \x01(\tR\x0eactorTokenType\"\xa9\x03\n" +
+	"\x10actor_token_type\x18\x11 \x01(\tR\x0eactorTokenType\x12#\n" +
+	"\rdeployment_id\x18\x12 \x01(\tR\fdeploymentId\"\xa9\x03\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +

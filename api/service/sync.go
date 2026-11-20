@@ -683,6 +683,7 @@ func (s *AgentServer) recordStatus(
 					ActorType:     events.ActorSystem,
 					ResourceID:    &row.ResourceID,
 					EnvironmentID: &row.EnvironmentID,
+					DeploymentID:  row.DeploymentID,
 					SubjectType:   events.SubjectResource,
 					SubjectID:     &row.ResourceID,
 					Data: map[string]any{
