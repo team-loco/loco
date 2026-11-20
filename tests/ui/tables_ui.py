@@ -364,7 +364,8 @@ def check_row_states(page, row):
     page.mouse.move(0, 0)
     first, second = (row.locator(":scope > td").nth(i).bounding_box() for i in range(2))
     y = first["y"] + first["height"] - 3
-    row.hover()
+    # In the first cell's corner, clear of any cell text that opens a tooltip.
+    row.hover(position={"x": 3, "y": 3})
     page.evaluate(
         f"() => {TRANSITIONS}.forEach(a => {{ a.pause(); a.currentTime = 40; }})"
     )
