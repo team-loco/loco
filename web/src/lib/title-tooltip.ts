@@ -29,6 +29,7 @@ export function showTitlesAsTooltips() {
 	let over: Element | null = null;
 	let anchor: Target | null = null;
 	let title: string | null = null;
+	let blanked = false;
 	let labelled = false;
 	let describedBy: string | null = null;
 	let timer = 0;
@@ -48,13 +49,17 @@ export function showTitlesAsTooltips() {
 		return null;
 	}
 
-	// the anchor's title stays blank while it is pointed at or focused
 	function claim(target: Target) {
 		release();
 		anchor = target;
-		const { element, text } = target;
-		title = element.getAttribute("title");
-		if (title === null) return;
+		title = target.element.getAttribute("title");
+	}
+
+	// blanks the anchor's title while the pointer is over it
+	function blank() {
+		if (anchor === null || title === null || blanked) return;
+		const { element, text } = anchor;
+		blanked = true;
 		element.setAttribute("title", "");
 		labelled = !element.hasAttribute("aria-label") && element.textContent.trim() === "";
 		if (labelled) element.setAttribute("aria-label", text);
@@ -66,21 +71,24 @@ export function showTitlesAsTooltips() {
 		const { element } = anchor;
 		anchor = null;
 		if (labelled) element.removeAttribute("aria-label");
-		if (title !== null) {
+		if (blanked && title !== null) {
 			restored.set(element, title);
 			element.setAttribute("title", title);
 		}
+		blanked = false;
 		labelled = false;
 		title = null;
 	}
 
 	function hover(target: Element | null) {
 		const found = find(target);
-		if (found !== null && found === anchor) return;
-		release();
-		if (found === null) return;
-		claim(found);
-		if (!found.quiet) timer = window.setTimeout(show, Date.now() < warmUntil ? 0 : DELAY);
+		if (found !== anchor) {
+			release();
+			if (found === null) return;
+			claim(found);
+			if (!found.quiet) timer = window.setTimeout(show, Date.now() < warmUntil ? 0 : DELAY);
+		}
+		blank();
 	}
 
 	function hide() {
@@ -124,8 +132,8 @@ export function showTitlesAsTooltips() {
 			hide();
 			return;
 		}
-		element.setAttribute("title", "");
 		anchor.text = value;
+		if (blanked) element.setAttribute("title", "");
 		if (labelled) element.setAttribute("aria-label", value);
 		if (!anchor.quiet) show();
 	}

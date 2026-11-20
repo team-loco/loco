@@ -1787,6 +1787,7 @@ def title_tooltip(page):
     page.mouse.move(0, 0)
     columns.focus()
     expect(tip).to_have_text("Columns")
+    expect(columns).to_have_attribute("title", "Columns")
     columns.blur()
     expect(tip).to_have_count(0)
     page.evaluate(
