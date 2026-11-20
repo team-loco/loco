@@ -53,6 +53,26 @@ For a separately hosted dashboard, forward `/api` on the dashboard origin to the
 
 Manage administrator grants with `locoadm admin grant USER_UUID` and `revoke USER_UUID`. Status lists configured emails that remain unclaimed. [Cluster enrollment](../reference/cluster-attachment.md) describes worker registration and join-token Secret delivery.
 
+## Worker collector queues
+
+Each worker cluster runs OpenTelemetry collectors that queue telemetry on disk before they export it to the observability endpoint (`global.exporter.endpoint` in the `loco-worker` chart). Worker clusters therefore need storage for these queues.
+
+| Collector | Namespace | Queue storage | Requirement |
+| --- | --- | --- | --- |
+| `otel-col-daemon` (one pod per node) | `loco-obs-node` | `hostPath` directory `/var/lib/otelcol-exporter/loco-obs-node/otel-col-daemon` on the node | Writable disk on every node |
+| `otel-col-deploy` and `otel-col-cluster` (one replica each) | `loco-obs` | One 2Gi `ReadWriteOnce` PersistentVolumeClaim per replica, from the cluster's default StorageClass | A default StorageClass, or a `volumeClaimTemplates` override with the class set |
+
+A collector retries a failed export with no time limit until the endpoint accepts it. While the endpoint is unreachable, the queue holds up to `global.exporter.queue.queue_size` items (5000 by default). When it is full, the collector blocks its senders; it does not drop telemetry.
+
+What survives:
+
+- A collector restart, pod replacement or chart upgrade keeps the queue. The node collector's pod reads the same directory on the same node. A StatefulSet pod reattaches its claim.
+- Scaling a StatefulSet collector down keeps its claim, and the queue replays when the replica returns.
+- Node loss or disk replacement destroys the node collector's queue. A volume that is deleted or lost with its node, such as node-local storage, destroys a StatefulSet collector's queue. Deleting the `loco-obs` namespace deletes its claims.
+- Queued telemetry that was never exported is gone after any of these losses. Telemetry already exported is in ClickHouse, not in the worker cluster.
+
+Set the claim size and class under `otel-col-deploy.statefulset.volumeClaimTemplates` and `otel-col-cluster.statefulset.volumeClaimTemplates`. Queue limits, batching and retry are under `global.exporter` in the `loco-worker` chart values.
+
 ## Releases and operations
 
 Upgrade the control plane first, staging workers second and production workers last by changing cohort pins in `releases/`. Staging cohorts can follow stable semver releases; production cohorts pin reviewed digests. The API supports agents at its own minor version and one minor behind. `locoadm status` reports unsupported or ahead versions and heartbeats from the API. Read the gateway’s load balancer address with `kubectl get gateway -n loco-system` on the worker or through its provider. Point the application wildcard at it once, or run external-dns.
