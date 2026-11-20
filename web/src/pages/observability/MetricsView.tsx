@@ -500,7 +500,8 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 	return [
 		{
 			id: "resource",
-			accessorFn: (p) => p.resource.slug,
+			accessorFn: (p) => p.resource.raw.name,
+			sortFn: (a, b) => a.original.resource.raw.name.localeCompare(b.original.resource.raw.name),
 			header: "Resource",
 			size: 220,
 			meta: { grow: true },
@@ -514,6 +515,7 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 		{
 			id: "region",
 			accessorFn: (p) => p.region,
+			sortFn: (a, b) => a.original.region.localeCompare(b.original.region),
 			header: "Region",
 			size: 140,
 			cell: ({ row }) => <CellText text={row.original.region} className="font-mono text-fg2" />,
