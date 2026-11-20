@@ -27,7 +27,6 @@
 10 settings_command_ui
 10 settings_scaling_ui
 10 update_toast_ui
-9 scale_dialog_ui
 9 status_badge_ui
 8 activity_drawer_ui
 8 settings_retention_ui

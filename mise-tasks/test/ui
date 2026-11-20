@@ -99,11 +99,16 @@ run_suite() {
 }
 # Run every selected suite even after a failure, so one run reports them all.
 failed=()
-running=0
+running=()
 finish_one() {
-	local suite status seconds
-	read -r suite status seconds <&3
-	running=$((running - 1))
+	local suite status seconds name rest=()
+	while ! read -r -t 60 suite status seconds <&3; do
+		echo "still running: ${running[*]}"
+	done
+	for name in "${running[@]}"; do
+		if [[ $name != "$suite" ]]; then rest+=("$name"); fi
+	done
+	running=(${rest[@]+"${rest[@]}"})
 	if ((jobs > 1)); then
 		echo "::group::$suite"
 		cat "$logs/$suite.log"
@@ -118,11 +123,11 @@ finish_one() {
 }
 start=$SECONDS
 for suite in ${suites[@]+"${suites[@]}"}; do
-	if ((running == jobs)); then finish_one; fi
+	if ((${#running[@]} == jobs)); then finish_one; fi
 	run_suite "$suite" &
-	running=$((running + 1))
+	running+=("$suite")
 done
-while ((running > 0)); do finish_one; done
+while ((${#running[@]} > 0)); do finish_one; done
 wait
 echo "Ran ${#suites[@]} suites, $jobs at a time, in $((SECONDS - start))s"
 if [[ ${#failed[@]} -gt 0 ]]; then
