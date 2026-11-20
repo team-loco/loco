@@ -1529,7 +1529,7 @@ def limit_display(page):
     user_id = owner["id"]
     sql(
         state,
-        f"INSERT INTO api_tokens (display_suffix,token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'test','limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() - INTERVAL '1 day' FROM generate_series(1,9) n;",
+        f"INSERT INTO api_tokens (display_suffix,token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'test','limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() + INTERVAL '1 day' FROM generate_series(1,9) n;",
     )
     limit = 11
     config_url = "**/loco.config.v1.ConfigService/GetConfig"
