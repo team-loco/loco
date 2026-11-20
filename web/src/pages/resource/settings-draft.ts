@@ -19,14 +19,13 @@ import {
 	commandEntries,
 	commandText,
 	healthTimeoutError,
-	nameError,
 	portRangeError,
 	scalingError,
 	scalingSpec,
-	slugError,
 	type Scaling,
 } from "@/lib/new-resource";
 import { SUBDOMAIN_RE } from "@/lib/platform-domain";
+import { nameError, slugError } from "@/lib/slug";
 
 /** The names and slugs other resources and drafts in the workspace hold. */
 export interface TakenSets {

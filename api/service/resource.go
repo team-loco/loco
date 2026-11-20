@@ -442,9 +442,9 @@ func (s *ResourceServer) UpdateResource(
 
 	updateParams := genDb.UpdateResourceParams{ID: resourceID, Description: req.Description}
 	if req.Name != nil {
-		name, nameErr := resourceName(req.GetName())
-		if nameErr != nil {
-			return nil, nameErr
+		name, ok := label(req.GetName())
+		if !ok {
+			return nil, errInvalidResourceName
 		}
 		updateParams.Name = &name
 	}
@@ -1149,21 +1149,12 @@ func validResourceSlug(slug string) bool {
 	return validSlug(slug) && slug != varref.Secrets
 }
 
-// resourceName trims name and reports whether it can name a resource.
-func resourceName(name string) (string, error) {
-	trimmed, ok := label(name)
-	if !ok {
-		return "", errInvalidResourceName
-	}
-	return trimmed, nil
-}
-
 // newResourceKeys checks a new resource's name and slug, deriving the slug from the name when
 // the request leaves it out.
 func newResourceKeys(req *resourcev1.CreateResourceRequest) (string, string, error) {
-	name, err := resourceName(req.GetName())
-	if err != nil {
-		return "", "", err
+	name, ok := label(req.GetName())
+	if !ok {
+		return "", "", errInvalidResourceName
 	}
 	slug := req.GetSlug()
 	if req.Slug == nil {

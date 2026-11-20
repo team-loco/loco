@@ -6,12 +6,9 @@ import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 import { isEnvKey } from "@/lib/dotenv";
 import { parseImage } from "@/lib/image";
 import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/platform-domain";
-import { slug, slugRuleError } from "@/lib/slug";
+import { slug } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
-// mirrors PrivateServiceName in k8sapi/v1alpha1/discovery.go; update both together.
-const RESERVED_SLUG_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
-export const MAX_NAME_LENGTH = 63;
 const DIGITS_RE = /^\d+$/;
 const LOCO_YAML_VERSION = 1;
 
@@ -134,24 +131,6 @@ export function mergeEnv(rows: EnvRow[], pairs: [string, string][], newId: () =>
 		});
 	const present = new Set(kept.map((r) => r.key.trim()));
 	return [...kept, ...pairs.filter(([key]) => !present.has(key)).map(([key, value]) => ({ id: newId(), key, value }))];
-}
-
-export function nameError(name: string, taken: ReadonlySet<string>): string | null {
-	const trimmed = name.trim();
-	if (trimmed === "") return "Enter a name";
-	if (Array.from(trimmed).length > MAX_NAME_LENGTH) return `Use at most ${MAX_NAME_LENGTH.toString()} characters`;
-	const lower = trimmed.toLowerCase();
-	if ([...taken].some((t) => t.toLowerCase() === lower)) return `${trimmed} already exists in this workspace`;
-	return null;
-}
-
-export function slugError(value: string, taken: ReadonlySet<string>): string | null {
-	if (value === "") return "Enter a slug";
-	const ruleError = slugRuleError(value);
-	if (ruleError !== null) return ruleError;
-	if (RESERVED_SLUG_RE.test(value)) return `${value} is reserved`;
-	if (taken.has(value)) return `${value} already exists in this workspace`;
-	return null;
 }
 
 function subdomainError(form: NewResourceForm, availability: DomainCheck["state"]): string | null {
