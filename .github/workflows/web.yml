@@ -61,10 +61,7 @@ jobs:
         timeout-minutes: 30
         env:
           SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
-        run: |
-          nproc; free -m
-          vmstat -n 15 &
-          mise run test:ui --shard "$SHARD"
+        run: mise run test:ui --shard "$SHARD"
 
       - name: Upload dashboard suite evidence
         if: always()
