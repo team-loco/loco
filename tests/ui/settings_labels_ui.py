@@ -427,7 +427,7 @@ with session(out) as browser:
     page.goto(state["ui_url"] + "/profile")
     name = page.get_by_role("textbox", name="Name", exact=True)
     expect(name).to_have_attribute("placeholder", "Your name")
-    expect(name).to_have_value("")
+    expect(name).to_have_value("nameless@acme.test")
     expect(page.get_by_text("Unsaved changes")).to_have_count(0)
     context.close()
     browser.close()
