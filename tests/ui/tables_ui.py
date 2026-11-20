@@ -203,6 +203,24 @@ def check_scroll_end(table):
     )
 
 
+def check_arrow(page, table, row, menu):
+    """Every clickable row has one arrow, hidden until the row is hovered, then uncovered and clear of the row menu."""
+    arrows = table.locator('[data-slot="row-arrow"]')
+    expect(arrows).to_have_count(table.locator("tbody tr[data-interactive]").count())
+    arrow = row.locator('[data-slot="row-arrow"]')
+    page.mouse.move(0, 0)
+    expect(arrow).to_have_css("opacity", "0")
+    row.get_by_role("cell").last.hover()
+    expect(arrow).to_have_css("opacity", "1")
+    assert arrow.evaluate(
+        """node => { const b = node.getBoundingClientRect();
+        return document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2) === node; }"""
+    ), "the arrow is covered"
+    a, m = arrow.bounding_box(), menu.bounding_box()
+    assert a["x"] + a["width"] <= m["x"], (a, m)
+    page.mouse.move(0, 0)
+
+
 def scroller_of(page, table):
     return page.locator('[data-slot="data-table"]').filter(has=table)
 
@@ -276,6 +294,7 @@ def resources(page):
 
     row = table.get_by_role("row").filter(has_text="api").first
     assert row.get_by_role("cell").nth(3).evaluate(POINTER_JS) == "pointer"
+    check_arrow(page, table, row, row.get_by_role("button", name="Actions for api"))
     table = check_resize(page, table, "Resource", "Size", resources_table)
 
     show_all_columns(page, table)
@@ -323,6 +342,9 @@ def dashboard(page):
     assert version.evaluate("node => node.scrollWidth <= node.clientWidth")
     row = table.get_by_role("row").filter(has_text="api").first
     assert row.get_by_role("cell").nth(2).evaluate(POINTER_JS) == "pointer"
+    check_arrow(
+        page, table, row, row.get_by_role("button", name=re.compile("^Actions for"))
+    )
     check_resize(
         page, table, "Traffic, last hour", "Region", dashboard_table, "ArrowRight"
     )

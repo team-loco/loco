@@ -295,7 +295,7 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		accessorFn: itemName,
 		sortFn: (a, b) => itemName(a.original).localeCompare(itemName(b.original)),
 		size: 160,
-		meta: { grow: true },
+		meta: { grow: true, primary: true },
 		cell: ({ row }) => <NameCell item={row.original} />,
 	},
 	{
