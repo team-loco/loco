@@ -243,7 +243,7 @@ function Meter({ value, format }: { value: { v: number; limit: number } | undefi
 	if (value === undefined) return <span className="text-fg4">—</span>;
 	const percent = (value.v / value.limit) * PERCENT;
 	return (
-		<span className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+		<span className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
 			<span className="h-1 overflow-hidden rounded-[2px] bg-line2">
 				<span
 					className={cn("block h-full rounded-[2px]", percent >= WARN_PERCENT ? "bg-warn" : "bg-fg2")}

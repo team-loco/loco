@@ -265,6 +265,7 @@ function eventColumns(nowMs: number): DataColumn<EventItem>[] {
 			id: "resource",
 			header: "Resource",
 			size: 160,
+			meta: { fit: true, fitMax: 280 },
 			cell: ({ row }) => <CellText text={row.original.resourceName} className="text-fg2" />,
 		},
 		{
