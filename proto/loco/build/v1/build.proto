@@ -58,6 +58,8 @@ message Build {
   loco.deployment.v1.DeploymentActorType actor_type = 23;
   // method is the client that called CreateBuild.
   loco.deployment.v1.DeploymentMethod method = 24;
+  // actor_name is the name of the API token while it exists; empty for a user or a deleted token.
+  string actor_name = 25;
 }
 
 message BuildsUnavailable {}

@@ -137,6 +137,18 @@ describe("buildStarter", () => {
 			}),
 			undefined,
 		);
-		expect(starter.name).toBe("API token");
+		expect(starter.name).toBe("API token · 0000a001");
+	});
+
+	test("names a token build after the token while it exists", () => {
+		const starter = buildStarter(
+			build(BuildStatus.SUCCEEDED, {
+				actorType: DeploymentActorType.API_TOKEN,
+				method: DeploymentMethod.API_TOKEN,
+				actorName: "ci",
+			}),
+			undefined,
+		);
+		expect(starter).toEqual({ name: "ci", detail: "API token" });
 	});
 });

@@ -648,10 +648,21 @@ func TestBuildRecordsWhoAndHowItStarted(t *testing.T) {
 	p.UserID = uuid.Nil
 	p.Method = genDb.DeploymentMethodApiToken
 	f.ctx = reqctx.WithPrincipal(f.ctx, p)
-	byToken := f.get(t, f.create(t, 1).GetBuildId())
+	tokenBuild := f.create(t, 1).GetBuildId()
+	byToken := f.get(t, tokenBuild)
+	if byToken.GetActorName() != "ci" {
+		t.Fatalf("token build actor name = %q, want the token name ci", byToken.GetActorName())
+	}
 	if byToken.GetActorType() != deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_API_TOKEN ||
 		byToken.GetMethod() != deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_API_TOKEN {
 		t.Fatalf("token build actor %v method %v, want api token twice", byToken.GetActorType(), byToken.GetMethod())
+	}
+
+	if _, err := f.pool.Exec(t.Context(), `DELETE FROM api_tokens WHERE id = $1`, tokenID); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.get(t, tokenBuild).GetActorName(); got != "" {
+		t.Fatalf("deleted token actor name = %q, want empty", got)
 	}
 }
 

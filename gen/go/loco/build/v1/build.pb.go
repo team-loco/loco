@@ -117,7 +117,9 @@ type Build struct {
 	// actor_type says whether created_by is a user or an API token.
 	ActorType v1.DeploymentActorType `protobuf:"varint,23,opt,name=actor_type,json=actorType,proto3,enum=loco.deployment.v1.DeploymentActorType" json:"actor_type,omitempty"`
 	// method is the client that called CreateBuild.
-	Method        v1.DeploymentMethod `protobuf:"varint,24,opt,name=method,proto3,enum=loco.deployment.v1.DeploymentMethod" json:"method,omitempty"`
+	Method v1.DeploymentMethod `protobuf:"varint,24,opt,name=method,proto3,enum=loco.deployment.v1.DeploymentMethod" json:"method,omitempty"`
+	// actor_name is the name of the API token while it exists; empty for a user or a deleted token.
+	ActorName     string `protobuf:"bytes,25,opt,name=actor_name,json=actorName,proto3" json:"actor_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -318,6 +320,13 @@ func (x *Build) GetMethod() v1.DeploymentMethod {
 		return x.Method
 	}
 	return v1.DeploymentMethod(0)
+}
+
+func (x *Build) GetActorName() string {
+	if x != nil {
+		return x.ActorName
+	}
+	return ""
 }
 
 type BuildsUnavailable struct {
@@ -909,7 +918,7 @@ var File_loco_build_v1_build_proto protoreflect.FileDescriptor
 
 const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\"\xc1\t\n" +
+	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\"\xe0\t\n" +
 	"\x05Build\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -947,7 +956,9 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\x15origin_environment_id\x18\x16 \x01(\tH\bR\x13originEnvironmentId\x88\x01\x01\x12F\n" +
 	"\n" +
 	"actor_type\x18\x17 \x01(\x0e2'.loco.deployment.v1.DeploymentActorTypeR\tactorType\x12<\n" +
-	"\x06method\x18\x18 \x01(\x0e2$.loco.deployment.v1.DeploymentMethodR\x06methodB\r\n" +
+	"\x06method\x18\x18 \x01(\x0e2$.loco.deployment.v1.DeploymentMethodR\x06method\x12\x1d\n" +
+	"\n" +
+	"actor_name\x18\x19 \x01(\tR\tactorNameB\r\n" +
 	"\v_cluster_idB\x0f\n" +
 	"\r_image_digestB\r\n" +
 	"\v_started_atB\x0e\n" +

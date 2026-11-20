@@ -325,7 +325,10 @@ func (s *BuildServer) StartBuild(
 	if err != nil {
 		return nil, err
 	}
-	queuedProto := buildToProto(queued)
+	queuedProto, err := s.buildProto(ctx, queued)
+	if err != nil {
+		return nil, err
+	}
 	return &buildv1.StartBuildResponse{Build: queuedProto}, nil
 }
 
@@ -457,7 +460,10 @@ func (s *BuildServer) GetBuild(
 		return nil, authErr
 	}
 
-	buildProto := buildToProto(build)
+	buildProto, err := s.buildProto(ctx, build)
+	if err != nil {
+		return nil, err
+	}
 	return &buildv1.GetBuildResponse{Build: buildProto}, nil
 }
 
@@ -502,10 +508,9 @@ func (s *BuildServer) ListBuilds(
 		return nil, fmt.Errorf("list builds of resource %s: %w", resourceID, err)
 	}
 
-	builds := make([]*buildv1.Build, 0, len(rows))
-	for _, b := range rows {
-		item := buildToProto(b)
-		builds = append(builds, item)
+	builds, err := s.buildsProto(ctx, rows)
+	if err != nil {
+		return nil, err
 	}
 
 	token := nextPageToken(rows, pageSize, func(b genDb.Build) (uuid.UUID, time.Time) { return b.ID, b.CreatedAt })
@@ -537,7 +542,10 @@ func (s *BuildServer) CancelBuild(
 	if err != nil {
 		return nil, err
 	}
-	canceledProto := buildToProto(canceled)
+	canceledProto, err := s.buildProto(ctx, canceled)
+	if err != nil {
+		return nil, err
+	}
 	return &buildv1.CancelBuildResponse{Build: canceledProto}, nil
 }
 
@@ -628,6 +636,42 @@ func buildStatusToProto(status genDb.BuildStatus) buildv1.BuildStatus {
 	default:
 		return buildv1.BuildStatus_BUILD_STATUS_UNSPECIFIED
 	}
+}
+
+func (s *BuildServer) buildProto(ctx context.Context, b genDb.Build) (*buildv1.Build, error) {
+	out, err := s.buildsProto(ctx, []genDb.Build{b})
+	if err != nil {
+		return nil, err
+	}
+	return out[0], nil
+}
+
+// buildsProto names each build's API token while the token exists.
+func (s *BuildServer) buildsProto(ctx context.Context, rows []genDb.Build) ([]*buildv1.Build, error) {
+	var tokenIDs []uuid.UUID
+	for _, b := range rows {
+		if b.ApiTokenID != nil {
+			tokenIDs = append(tokenIDs, *b.ApiTokenID)
+		}
+	}
+	names := map[uuid.UUID]string{}
+	if len(tokenIDs) > 0 {
+		tokens, err := s.queries.ListAPITokenNames(ctx, tokenIDs)
+		if err != nil {
+			return nil, fmt.Errorf("list build token names: %w", err)
+		}
+		for _, t := range tokens {
+			names[t.ID] = t.Name
+		}
+	}
+	out := make([]*buildv1.Build, len(rows))
+	for i, b := range rows {
+		out[i] = buildToProto(b)
+		if b.ApiTokenID != nil {
+			out[i].ActorName = names[*b.ApiTokenID]
+		}
+	}
+	return out, nil
 }
 
 func buildToProto(b genDb.Build) *buildv1.Build {

@@ -9580,6 +9580,11 @@
             "title": "method",
             "description": "method is the client that called CreateBuild.",
             "$ref": "#/components/schemas/loco.deployment.v1.DeploymentMethod"
+          },
+          "actorName": {
+            "type": "string",
+            "title": "actor_name",
+            "description": "actor_name is the name of the API token while it exists; empty for a user or a deleted token."
           }
         },
         "title": "Build",

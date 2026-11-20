@@ -268,9 +268,9 @@ func insertObservedBuild(t *testing.T, f *deployFixture, deployment uuid.UUID, d
 	t.Helper()
 	id := uuid.New()
 	if _, err := f.pool.Exec(t.Context(), `INSERT INTO builds
-(id,resource_id,cluster_id,status,source_type,source_key,source_size,dockerfile_path,
+(method,id,resource_id,cluster_id,status,source_type,source_key,source_size,dockerfile_path,
  image_repository,image_digest,created_by,finished_at,platform)
-VALUES($1,$2,$3,'succeeded','upload',$1::uuid::text,10,'Dockerfile','registry.test/app',$4,$5,NOW(),$6)`,
+VALUES('cli',$1,$2,$3,'succeeded','upload',$1::uuid::text,10,'Dockerfile','registry.test/app',$4,$5,NOW(),$6)`,
 		id, f.resourceID, f.clusterID, digest, f.userID, testPlatform); err != nil {
 		t.Fatal(err)
 	}

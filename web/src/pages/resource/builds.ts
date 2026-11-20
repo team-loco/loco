@@ -116,7 +116,8 @@ interface BuildStarter {
 
 export function buildStarter(build: Build, member: { name: string; email: string } | undefined): BuildStarter {
 	if (build.actorType === DeploymentActorType.API_TOKEN) {
-		return { name: "API token", detail: formatShortId(build.createdBy) };
+		if (build.actorName === "") return { name: `API token · ${formatShortId(build.createdBy)}`, detail: "" };
+		return { name: build.actorName, detail: METHOD_LABEL[build.method] };
 	}
 	return {
 		name: member === undefined ? formatShortId(build.createdBy) : member.name || member.email,

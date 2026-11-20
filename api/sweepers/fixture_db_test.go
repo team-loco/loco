@@ -73,9 +73,9 @@ func (f *fixture) insertBuildFinishedAt(t *testing.T, status genDb.BuildStatus, 
 	t.Helper()
 	id := uuid.Must(uuid.NewV7())
 	if _, err := f.pool.Exec(f.ctx, `
-INSERT INTO builds (platform, id, resource_id, cluster_id, status, source_type, source_key, source_size,
+INSERT INTO builds (method, platform, id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, created_by, finished_at)
-VALUES ('linux/amd64', $1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', $6, $7, $8)`,
+VALUES ('cli', 'linux/amd64', $1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', $6, $7, $8)`,
 		id, f.resourceID, f.clusterID, status, buildsource.Key(id), testRegistryHost+"/x", uuid.New(), finished,
 	); err != nil {
 		t.Fatalf("insert build: %v", err)

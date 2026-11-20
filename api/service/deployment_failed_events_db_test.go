@@ -64,9 +64,9 @@ func (f *deployFixture) deployAs(
 	t.Helper()
 	if _, err := f.pool.Exec(
 		t.Context(),
-		`INSERT INTO builds(platform, id,resource_id,status,source_type,source_key,source_size,
+		`INSERT INTO builds(method, platform, id,resource_id,status,source_type,source_key,source_size,
  dockerfile_path,image_repository,image_digest,created_by)
- VALUES ('linux/amd64', $1::uuid,$2,'succeeded','upload',$1::uuid::text,1,
+ VALUES ('cli', 'linux/amd64', $1::uuid,$2,'succeeded','upload',$1::uuid::text,1,
  'Dockerfile','registry.test/svc','sha256:0',$3)
  ON CONFLICT DO NOTHING`,
 		uuid.MustParse(failedDeployBuild),
