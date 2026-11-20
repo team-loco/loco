@@ -77,7 +77,6 @@ function environmentColumns({
 		},
 		{
 			id: "manageResources",
-			enableResizing: false,
 			size: 160,
 			meta: { align: "end", label: "Manage resources" },
 			cell: ({ row: { original: env } }) => (
@@ -88,7 +87,6 @@ function environmentColumns({
 		},
 		{
 			id: "manageSecrets",
-			enableResizing: false,
 			size: 150,
 			meta: { align: "end", label: "Manage secrets" },
 			cell: ({ row: { original: env } }) => (
