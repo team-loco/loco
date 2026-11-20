@@ -2533,9 +2533,11 @@ func (x *ResolveImageResponse) GetImage() string {
 
 // SourceCommit is client-reported metadata, not a verified source identity.
 type SourceCommit struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Sha           string                 `protobuf:"bytes,1,opt,name=sha,proto3" json:"sha,omitempty"`
-	Dirty         bool                   `protobuf:"varint,2,opt,name=dirty,proto3" json:"dirty,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Sha   string                 `protobuf:"bytes,1,opt,name=sha,proto3" json:"sha,omitempty"`
+	Dirty bool                   `protobuf:"varint,2,opt,name=dirty,proto3" json:"dirty,omitempty"`
+	// Subject line of the commit, read from the deployment's build. Output only.
+	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2582,6 +2584,13 @@ func (x *SourceCommit) GetDirty() bool {
 		return x.Dirty
 	}
 	return false
+}
+
+func (x *SourceCommit) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
 }
 
 var File_loco_deployment_v1_deployment_proto protoreflect.FileDescriptor
@@ -2816,10 +2825,11 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1d\n" +
 	"\x05image\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05image\",\n" +
 	"\x14ResolveImageResponse\x12\x14\n" +
-	"\x05image\x18\x01 \x01(\tR\x05image\"\\\n" +
+	"\x05image\x18\x01 \x01(\tR\x05image\"v\n" +
 	"\fSourceCommit\x126\n" +
 	"\x03sha\x18\x01 \x01(\tB$\xbaH!r\x1f2\x1d^([0-9a-f]{40}|[0-9a-f]{64})$R\x03sha\x12\x14\n" +
-	"\x05dirty\x18\x02 \x01(\bR\x05dirty*\xb4\x02\n" +
+	"\x05dirty\x18\x02 \x01(\bR\x05dirty\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage*\xb4\x02\n" +
 	"\x10DeploymentStatus\x12!\n" +
 	"\x1dDEPLOYMENT_STATUS_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aDEPLOYMENT_STATUS_BUILDING\x10\x01\x12\x1f\n" +

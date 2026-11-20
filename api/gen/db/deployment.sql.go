@@ -223,13 +223,15 @@ SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, 
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
-       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name,
+       COALESCE(b.git_commit_message, '')::text AS commit_message
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
+LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
 WHERE d.id = $1
 `
 
@@ -240,6 +242,7 @@ type GetDeploymentViewRow struct {
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
 	CanceledByName string       `json:"canceledByName"`
+	CommitMessage  string       `json:"commitMessage"`
 }
 
 func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error) {
@@ -272,6 +275,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 		&i.ActorName,
 		&i.ActorAvatarUrl,
 		&i.CanceledByName,
+		&i.CommitMessage,
 	)
 	return i, err
 }
@@ -421,7 +425,8 @@ SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, 
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
-       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name,
+       COALESCE(b.git_commit_message, '')::text AS commit_message
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
@@ -429,6 +434,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
+LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
 WHERE r.workspace_id = $1
   AND d.environment_id = $2
   AND ($3::bool
@@ -467,6 +473,7 @@ type ListEnvironmentDeploymentsRow struct {
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
 	CanceledByName string       `json:"canceledByName"`
+	CommitMessage  string       `json:"commitMessage"`
 }
 
 func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error) {
@@ -517,6 +524,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.ActorName,
 			&i.ActorAvatarUrl,
 			&i.CanceledByName,
+			&i.CommitMessage,
 		); err != nil {
 			return nil, err
 		}
@@ -657,7 +665,8 @@ SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, 
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
-       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name,
+       COALESCE(b.git_commit_message, '')::text AS commit_message
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
@@ -665,6 +674,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
+LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
 WHERE d.resource_id = $1
   AND ($2::uuid IS NULL OR d.environment_id = $2)
   AND ($3::bool
@@ -703,6 +713,7 @@ type ListResourceDeploymentsRow struct {
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
 	CanceledByName string       `json:"canceledByName"`
+	CommitMessage  string       `json:"commitMessage"`
 }
 
 func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceDeploymentsParams) ([]ListResourceDeploymentsRow, error) {
@@ -753,6 +764,7 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.ActorName,
 			&i.ActorAvatarUrl,
 			&i.CanceledByName,
+			&i.CommitMessage,
 		); err != nil {
 			return nil, err
 		}
