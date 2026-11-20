@@ -1493,7 +1493,12 @@ def metrics(page):
             "environmentId": production,
             "createdAt": point["timestamp"],
             "startedAt": point["timestamp"],
-            "spec": {"service": {"build": {"image": "ghcr.io/acme/pilot:1.27"}}},
+            "spec": {
+                "service": {
+                    "build": {"image": "ghcr.io/acme/pilot:1.27"},
+                    "regions": {"us-east-1": {"cpu": "500m", "memory": "512Mi"}},
+                }
+            },
         }
         for i, point in enumerate(telemetry_points)
     ]
@@ -1521,13 +1526,19 @@ def metrics(page):
     chart = page.locator('[aria-label="CPU over time"]')
     expect(chart.locator(".recharts-line")).to_be_visible()
     cpu_card = page.get_by_role("region", name="CPU", exact=True)
-    expect(cpu_card.get_by_text("% of limit, peak per bucket")).to_be_visible()
-    expect(cpu_card.get_by_text(re.compile(r"^latest \d")).first).to_be_visible()
+    expect(cpu_card.get_by_text("vCPU, peak per bucket")).to_be_visible()
+    expect(cpu_card.get_by_text("latest 0.175 vCPU · 35% of limit")).to_be_visible()
+    expect(chart.get_by_text("limit 0.5 vCPU")).to_be_visible()
+    memory_card = page.get_by_role("region", name="Memory", exact=True)
+    expect(memory_card.get_by_text("latest 179 Mi · 35% of limit")).to_be_visible()
     expect(chart.get_by_text("Controls Pilot 000de900").first).to_be_visible()
     memory = page.locator('[aria-label="Memory over time"]')
     chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
     expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
     by_region = page.get_by_role("region", name="By resource and region")
+    expect(
+        by_region.get_by_role("row").filter(has_text="Controls Pilot")
+    ).to_contain_text("0.175 vCPU 35%")
     expect(
         by_region.get_by_role("columnheader", name="CPU (latest) ↓")
     ).to_have_attribute("aria-sort", "descending")

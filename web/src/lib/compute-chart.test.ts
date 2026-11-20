@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatPercent, percentAxis } from "./compute-chart";
+import { formatPercent, limitAxis, percentAxis } from "./compute-chart";
 
 describe("compute chart axes", () => {
 	test("keeps a comparable 0–100% scale for low usage and labels intermediate levels", () => {
@@ -13,5 +13,9 @@ describe("compute chart axes", () => {
 		expect(formatPercent(0)).toBe("0%");
 		expect(formatPercent(0.25)).toBe("0.3%");
 		expect(formatPercent(23.8)).toBe("24%");
+	});
+	test("stops the axis just above the limit and extends it for bursts", () => {
+		expect(limitAxis(500, 100)).toEqual({ maximum: 550, ticks: [0, 250, 500] });
+		expect(limitAxis(500, 1000).maximum).toBe(1100);
 	});
 });

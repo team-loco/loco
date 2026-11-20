@@ -13,6 +13,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
+import { formatPercent } from "@/lib/compute-chart";
 import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
 
 import { fmtTs } from "./format";
@@ -23,6 +24,7 @@ export interface ChartSeries {
 	name: string;
 	color: string;
 	dashed: boolean;
+	limit: number;
 	points: { t: number; v: number }[];
 }
 
@@ -41,10 +43,10 @@ export interface PinAction {
 	run: () => void;
 }
 
+const PERCENT = 100;
 const DASH = "4 3";
 const MARGIN = 24;
 const WIDE_MARGIN = 44;
-const Y_TICKS = 4;
 // Labels of deploys past this share of the range sit left of their line.
 const FLIP_SHARE = 0.8;
 const LABEL_CHAR_PX = 6;
@@ -146,6 +148,9 @@ function MetricTooltip({
 					<span className="size-2 rounded-[2px]" style={{ background: s.color }} />
 					<span className="flex-1 text-fg2">{s.name}</span>
 					<span className="font-mono tabular-nums">{fmt(v)}</span>
+					<span className="w-[72px] text-right font-mono text-fg3 tabular-nums">
+						{formatPercent((v / s.limit) * PERCENT)} of limit
+					</span>
 				</div>
 			))}
 			<div className="mt-1.5 border-t border-line pt-1.5 text-[11px] text-fg3">Click for logs, traces and events</div>
@@ -191,9 +196,9 @@ export function MetricChart({
 	series,
 	from,
 	to,
-	max,
+	axis,
 	fmt,
-	limit,
+	limits,
 	markers,
 	height,
 	actions,
@@ -202,9 +207,9 @@ export function MetricChart({
 	series: ChartSeries[];
 	from: number;
 	to: number;
-	max: number;
+	axis: { maximum: number; ticks: number[] };
 	fmt: (v: number) => string;
-	limit: { v: number; label: string } | null;
+	limits: number[];
 	markers: ChartMarker[];
 	height: number;
 	actions: (t: number) => PinAction[];
@@ -223,7 +228,6 @@ export function MetricChart({
 	const config: ChartConfig = Object.fromEntries(series.map((s) => [s.key, { label: s.name, color: s.color }]));
 	const ticks = timeAxis(from, to, timePref);
 	const tickLabel = (value: number) => formatAxisTime(value, from, to, timePref);
-	const yTicks = Array.from({ length: Y_TICKS - 1 }, (_, i) => (max * (i + 1)) / Y_TICKS);
 	const groups = markerGroups(markers, from, to);
 
 	return (
@@ -263,9 +267,9 @@ export function MetricChart({
 								tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)" }}
 							/>
 							<YAxis
-								domain={[0, max]}
-								ticks={yTicks}
-								tickFormatter={(v: number) => String(Math.round(v))}
+								domain={[0, axis.maximum]}
+								ticks={axis.ticks}
+								tickFormatter={fmt}
 								tickLine={false}
 								axisLine={false}
 								mirror
@@ -277,14 +281,20 @@ export function MetricChart({
 									content={<MetricTooltip byT={byT} series={series} fmt={fmt} />}
 								/>
 							)}
-							{limit !== null && (
+							{limits.map((v) => (
 								<ReferenceLine
-									y={limit.v}
+									key={v}
+									y={v}
 									stroke="color-mix(in oklab, var(--err) 55%, transparent)"
 									strokeDasharray="5 4"
-									label={{ value: limit.label, position: "insideTopLeft", fill: "var(--color-bad-fg)", fontSize: 10 }}
+									label={{
+										value: `limit ${fmt(v)}`,
+										position: "insideTopLeft",
+										fill: "var(--color-bad-fg)",
+										fontSize: 10,
+									}}
 								/>
-							)}
+							))}
 							{groups.map((g) => (
 								<ReferenceLine
 									key={g.t}

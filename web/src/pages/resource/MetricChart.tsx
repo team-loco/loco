@@ -7,12 +7,11 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Skeleton } from "@/components/design/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
-import { formatPercent, percentAxis } from "@/lib/compute-chart";
+import { formatPercent, limitAxis, percentAxis } from "@/lib/compute-chart";
 
 import { formatFullTime } from "./format";
 import { scaleBand, usageSummary, type BandPoint } from "./metric";
 
-const HEADROOM = 1.1;
 const WARN_SHARE = 0.85;
 const AXIS_FONT = 11;
 const DAY_MARGIN = 40;
@@ -94,8 +93,7 @@ export function MetricChart({
 	const show = absolute ? format : formatPercent;
 	const usage = usageSummary(data);
 	const peak = Math.max(0, ...data.map((p) => p.band?.[1] ?? p.median ?? 0));
-	const top = absolute ? Math.max(limit, peak) * HEADROOM : percentAxis(peak).maximum;
-	const ticks = absolute ? [0, limit / 2, limit] : percentAxis(peak).ticks;
+	const axis = absolute ? limitAxis(limit, peak) : percentAxis(peak);
 	const line = absolute ? limit : FULL_REQUEST;
 	const warning =
 		absolute && usage.highest !== undefined && usage.highest > limit * WARN_SHARE
@@ -147,8 +145,8 @@ export function MetricChart({
 							tick={{ fontSize: AXIS_FONT, fill: "var(--fg3)" }}
 						/>
 						<YAxis
-							domain={[0, top]}
-							ticks={ticks}
+							domain={[0, axis.maximum]}
+							ticks={axis.ticks}
 							tickFormatter={show}
 							tickLine={false}
 							axisLine={false}
