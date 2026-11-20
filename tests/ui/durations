@@ -16,6 +16,7 @@
 15 org_roles_ui
 13 resource_regions_ui
 12 resource_load_ui
+12 tables_ui
 12 variables_ui
 12 webhooks_ui
 11 overscroll_ui
@@ -27,6 +28,7 @@
 10 settings_scaling_ui
 10 update_toast_ui
 9 scale_dialog_ui
+9 status_badge_ui
 8 activity_drawer_ui
 8 settings_retention_ui
 8 tokens_ui
