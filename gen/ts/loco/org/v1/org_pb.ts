@@ -1795,7 +1795,9 @@ export const OrgService: GenService<{
     output: typeof ResumeOrgResponseSchema;
   },
   /**
-   * GetOrgLimits returns the organization's effective count limits. Any member may call it.
+   * GetOrgLimits returns the organization's effective count limits. Any member may call it. A caller
+   * holding a scope on one of the organization's workspaces or resources reads the limits without
+   * the reason, updater and overridden fields.
    *
    * @generated from rpc loco.org.v1.OrgService.GetOrgLimits
    */

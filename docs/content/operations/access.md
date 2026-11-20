@@ -147,4 +147,4 @@ locoadm org limits unset <org-id> workspaces-per-org --reason "Contract ended"
 locoadm org limits get <org-id>
 ```
 
-`OrgService.GetOrgLimits` returns an organization's effective limits, the ones it overrides and the latest reason to any member, and the dashboard shows the usage beside each create button, such as "42 of 100 workspaces". `OrgService.SetOrgLimits` takes the limits, an `update_mask` naming the ones to change, where 0 returns a limit to the install default, and the reason; it requires `system:admin`.
+`OrgService.GetOrgLimits` returns an organization's effective limits, the ones it overrides and the latest reason to any member. A caller whose only scopes are on the organization's workspaces or resources reads the effective limits alone. The dashboard shows the usage beside each create button, such as "42 of 100 workspaces". `OrgService.SetOrgLimits` takes the limits, an `update_mask` naming the ones to change, where 0 returns a limit to the install default, and the reason; it requires `system:admin`.

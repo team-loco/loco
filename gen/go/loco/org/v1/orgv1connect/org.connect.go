@@ -201,7 +201,9 @@ type OrgServiceClient interface {
 	// ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
 	// Resuming an organization that is not suspended changes nothing.
 	ResumeOrg(context.Context, *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error)
-	// GetOrgLimits returns the organization's effective count limits. Any member may call it.
+	// GetOrgLimits returns the organization's effective count limits. Any member may call it. A caller
+	// holding a scope on one of the organization's workspaces or resources reads the limits without
+	// the reason, updater and overridden fields.
 	GetOrgLimits(context.Context, *v1.GetOrgLimitsRequest) (*v1.GetOrgLimitsResponse, error)
 	// SetOrgLimits overrides the install's count limits for one organization. Only the fields in
 	// update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
@@ -249,7 +251,9 @@ type OrgServiceHandler interface {
 	// ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
 	// Resuming an organization that is not suspended changes nothing.
 	ResumeOrg(context.Context, *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error)
-	// GetOrgLimits returns the organization's effective count limits. Any member may call it.
+	// GetOrgLimits returns the organization's effective count limits. Any member may call it. A caller
+	// holding a scope on one of the organization's workspaces or resources reads the limits without
+	// the reason, updater and overridden fields.
 	GetOrgLimits(context.Context, *v1.GetOrgLimitsRequest) (*v1.GetOrgLimitsResponse, error)
 	// SetOrgLimits overrides the install's count limits for one organization. Only the fields in
 	// update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user

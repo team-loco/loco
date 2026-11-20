@@ -606,6 +606,35 @@ with session(out) as browser:
     assert not errors, errors
     context.close()
 
+    # A workspace admin without an organization scope reads the limits that apply to their workspace.
+    wren = users["workspace_admin"]["id"]
+    org_scopes = sql(
+        state,
+        f"SELECT scope FROM user_scopes WHERE user_id='{wren}' AND entity_type='organization';",
+    ).split()
+    sql(
+        state,
+        f"DELETE FROM user_scopes WHERE user_id='{wren}' AND entity_type='organization';"
+        f"INSERT INTO org_limit_overrides(org_id, resources_per_workspace, reason) VALUES('{org}', 1, 'fixture');",
+    )
+    try:
+        context, page, calls, errors = open_page(
+            browser, "workspace_admin", f"/org/{org}/wks/{shared}/resources"
+        )
+        expect(
+            page.get_by_role("link", name="Workspace limit reached", exact=True)
+        ).to_be_visible()
+        context.close()
+    finally:
+        restore = "".join(
+            f"INSERT INTO user_scopes(user_id, scope, entity_type, entity_id) VALUES('{wren}', '{scope}', 'organization', '{org}');"
+            for scope in org_scopes
+        )
+        sql(
+            state,
+            f"DELETE FROM org_limit_overrides WHERE org_id='{org}';" + restore,
+        )
+
     # Members see no entry, and the page itself says only admins can read it.
     context, page, calls, errors = open_page(
         browser, "member", f"/org/{org}/wks/{shared}"

@@ -212,6 +212,49 @@ func TestGetOrgLimitsReportsOverridesToMembers(t *testing.T) {
 	wantCode(t, err, connect.CodePermissionDenied)
 }
 
+func TestGetOrgLimitsForScopesBelowTheOrganization(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.setLimit(t, limits.ResourcesPerWorkspace, 300)
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
+	req := &orgv1.GetOrgLimitsRequest{OrgId: f.organizationID(t)}
+	workspace := genDb.EntityScope{
+		EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeMember,
+	}
+	resource, err := f.queries.CreateResource(t.Context(), genDb.CreateResourceParams{
+		CreatedBy: f.creatorID(t), WorkspaceID: f.workspaceID(t), Name: "limits-reader",
+		Type: genDb.ResourceTypeService, Spec: []byte("{}"), SpecVersion: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resourceScope := genDb.EntityScope{EntityType: genDb.EntityTypeResource, EntityID: resource, Scope: genDb.ScopeRead}
+	for _, scope := range []genDb.EntityScope{workspace, resourceScope} {
+		got, getErr := server.GetOrgLimits(f.asCreator(t, scope), req)
+		if getErr != nil {
+			t.Fatalf("%s scope: %v", scope.EntityType, getErr)
+		}
+		details := got.GetLimits()
+		if limits.ResourcesPerWorkspace.Value(details.GetLimits()) != 300 {
+			t.Fatalf("%s scope reads %v, want the override", scope.EntityType, details.GetLimits())
+		}
+		counts := details.GetLimits()
+		if counts.GetOrgsPerUser() != 0 || counts.GetWorkspacesPerOrg() != 0 ||
+			counts.GetMembersPerOrg() != 0 || counts.GetInvitationsPerOrg() != 0 {
+			t.Fatalf("%s scope reads organization-level limits: %v", scope.EntityType, counts)
+		}
+		if details.GetReason() != "" || details.GetUpdatedBy() != "" || len(details.GetOverridden()) != 0 {
+			t.Fatalf("%s scope reads the change details: %v", scope.EntityType, details)
+		}
+	}
+
+	otherWorkspace := genDb.EntityScope{
+		EntityType: genDb.EntityTypeWorkspace, EntityID: uuid.New(), Scope: genDb.ScopeAdmin,
+	}
+	_, err = server.GetOrgLimits(f.asCreator(t, otherWorkspace), req)
+	wantCode(t, err, connect.CodePermissionDenied)
+}
+
 func TestSetOrgLimitsRequiresSystemAdmin(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

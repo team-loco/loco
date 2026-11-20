@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -36,8 +37,15 @@ func (s *OrgServer) GetOrgLimits(
 	if err != nil {
 		return nil, err
 	}
+	detailed := true
 	if err = authorize(ctx, s.authz, actions.GetOrgLimits, orgID); err != nil {
-		return nil, err
+		if connect.CodeOf(err) != connect.CodePermissionDenied {
+			return nil, err
+		}
+		if err = s.requireScopeInOrg(ctx, orgID, err); err != nil {
+			return nil, err
+		}
+		detailed = false
 	}
 	row, err := s.queries.GetOrgLimitOverrides(ctx, orgID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -51,7 +59,41 @@ func (s *OrgServer) GetOrgLimits(
 	if err != nil {
 		return nil, fmt.Errorf("get organization limits: %w", err)
 	}
-	return &orgv1.GetOrgLimitsResponse{Limits: s.orgLimitsToProto(row)}, nil
+	result := s.orgLimitsToProto(row)
+	if !detailed {
+		counts := proto.CloneOf(result.GetLimits())
+		counts.OrgsPerUser, counts.WorkspacesPerOrg, counts.MembersPerOrg, counts.InvitationsPerOrg = 0, 0, 0, 0
+		result = &orgv1.OrgLimits{Limits: counts}
+	}
+	return &orgv1.GetOrgLimitsResponse{Limits: result}, nil
+}
+
+// requireScopeInOrg returns denied unless the caller holds a scope on a workspace or resource of the
+// organization.
+func (s *OrgServer) requireScopeInOrg(ctx context.Context, orgID uuid.UUID, denied error) error {
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return err
+	}
+	var workspaceIDs, resourceIDs []uuid.UUID
+	for _, scope := range p.Scopes {
+		switch scope.EntityType {
+		case genDb.EntityTypeWorkspace:
+			workspaceIDs = append(workspaceIDs, scope.EntityID)
+		case genDb.EntityTypeResource:
+			resourceIDs = append(resourceIDs, scope.EntityID)
+		}
+	}
+	held, err := s.queries.HasScopeInOrg(ctx, genDb.HasScopeInOrgParams{
+		OrganizationID: orgID, WorkspaceIds: workspaceIDs, ResourceIds: resourceIDs,
+	})
+	if err != nil {
+		return fmt.Errorf("check scope in organization: %w", err)
+	}
+	if held == nil || !*held {
+		return denied
+	}
+	return nil
 }
 
 func (s *OrgServer) SetOrgLimits(
