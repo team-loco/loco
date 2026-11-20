@@ -19,8 +19,11 @@ import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import { LogRowMenu } from "./LogRowMenu";
 import { WORKLOAD_TITLE, type LogRow } from "./rows";
 
-const TIME_WIDTH = 128;
-const DATED_TIME_WIDTH = 172;
+const TIME_KEY = "time";
+const MONO_CHAR_WIDTH = 7.5;
+const CELL_PADDING = 28;
+// "12:00:00.000 PM" is 15 characters, "23:59:59.999" 12; the date adds "Sep 30, ".
+const timeChars = (dated: boolean, clock: "12" | "24") => (clock === "12" ? 15 : 12) + (dated ? 8 : 0);
 const MESSAGE_MIN = "minmax(260px,1fr)";
 const ADD_WIDTH = 36;
 
@@ -49,9 +52,12 @@ export function LogTable({
 	onColumns: (next: ColumnKey[]) => void;
 }) {
 	const timePref = useTimePreferences();
-	const { live, handle } = useResizableColumns(widths, onWidths, columnWidth);
+	const defaultTimeWidth = Math.ceil(timeChars(dated, timePref.clock) * MONO_CHAR_WIDTH) + CELL_PADDING;
+	const widthOf = (key: ColumnKey, w: ColumnWidths) =>
+		key === TIME_KEY ? (w[key] ?? defaultTimeWidth) : columnWidth(key, w);
+	const { live, handle } = useResizableColumns(widths, onWidths, widthOf);
 	const grid = [
-		`${String(dated ? DATED_TIME_WIDTH : TIME_WIDTH)}px`,
+		`${String(widthOf(TIME_KEY, live))}px`,
 		...columns.map((c) => `${String(columnWidth(c, live))}px`),
 		MESSAGE_MIN,
 		`${String(ADD_WIDTH)}px`,
@@ -61,7 +67,10 @@ export function LogTable({
 		<div className="w-max min-w-full">
 			<div>
 				<div className={LIST_HEAD_CLASS} style={{ gridTemplateColumns: grid }}>
-					<span className="flex h-full items-center px-3">Time</span>
+					<span className="relative flex h-full min-w-0 items-center px-3">
+						Time
+						{handle(TIME_KEY, "Time")}
+					</span>
 					{columns.map((c) => (
 						<span key={c} className="group/col relative flex h-full min-w-0 items-center px-3">
 							<span className="truncate" title={columnLabel(c)}>
@@ -139,7 +148,7 @@ export function LogTable({
 								className={cn(listRowClass(i, open), !open && fresh && "bg-ok-bg")}
 								style={{ gridTemplateColumns: grid }}
 							>
-								<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
+								<span className="px-3 font-mono whitespace-nowrap text-fg3">
 									{dated ? fmtTs(l.ts, true, timePref) : formatClock(l.ts, true, timePref)}
 								</span>
 								{columns.map((c) => (
