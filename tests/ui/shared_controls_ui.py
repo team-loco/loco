@@ -454,6 +454,7 @@ def log_columns(page):
     page.keyboard.press("ArrowRight")
     expect(page).to_have_url(re.compile(r"widths=time:\d+"))
     assert time_cell.evaluate("e => e.clientWidth") > before
+    page.evaluate("localStorage.removeItem('loco-clock')")
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 

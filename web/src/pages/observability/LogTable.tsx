@@ -68,7 +68,7 @@ export function LogTable({
 			<div>
 				<div className={LIST_HEAD_CLASS} style={{ gridTemplateColumns: grid }}>
 					<span className="relative flex h-full min-w-0 items-center px-3">
-						Time
+						<span className="truncate">Time</span>
 						{handle(TIME_KEY, "Time")}
 					</span>
 					{columns.map((c) => (
