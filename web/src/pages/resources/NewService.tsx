@@ -731,10 +731,8 @@ function ServiceForm({
 				<DrawerSection
 					title="Size per replica"
 					actions={
-						<span className="flex items-center gap-4 text-[12.5px] text-fg3">
-							<span className="flex items-center gap-1.5">
-								Cost <SoonTag />
-							</span>
+						<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
+							Cost <SoonTag />
 						</span>
 					}
 				>
