@@ -1628,11 +1628,11 @@ def new_resource_menu(page):
     expect(items).to_have_text(
         [
             "New service",
-            "Database Soon",
-            "Cache Soon",
-            "Queue Soon",
-            "Blob storage Soon",
-            "Function Soon",
+            re.compile(r"^Database\s*Soon$"),
+            re.compile(r"^Cache\s*Soon$"),
+            re.compile(r"^Queue\s*Soon$"),
+            re.compile(r"^Blob storage\s*Soon$"),
+            re.compile(r"^Function\s*Soon$"),
         ]
     )
     expect(items.first).to_be_enabled()
