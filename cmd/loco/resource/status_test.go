@@ -12,7 +12,7 @@ import (
 const statusTestRegion = "us-east-1"
 
 func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
-	crash := "container app is crash looping"
+	crash := "A replica keeps restarting. Check its logs."
 	pull := `Back-off pulling image "registry.test/web:v2": ImagePullBackOff`
 	resource := &resourcev1.Resource{
 		Name: "web",
