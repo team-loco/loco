@@ -581,6 +581,14 @@ def log_drawer(page):
     detail = page.get_by_role("dialog")
     expect(detail).to_be_visible()
     page.wait_for_timeout(500)
+    title = detail.get_by_role("heading", name="Message", exact=True)
+    expect(title).to_be_visible()
+    title_box = title.bounding_box()
+    message_box = detail.get_by_text("Drawer line", exact=True).bounding_box()
+    assert 0 < message_box["y"] - (title_box["y"] + title_box["height"]) <= 40, (
+        title_box,
+        message_box,
+    )
     for key in ("@container.image.name", "@k8s.cluster.name"):
         label = detail.get_by_text(key, exact=True)
         expect(label).to_be_visible()

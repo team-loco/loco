@@ -261,28 +261,31 @@ export function LogDetail({
 				</div>
 			</div>
 			<div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-6 pt-5 pb-6">
-				<div data-slot="code-block" className="relative rounded-lg bg-panel shadow-[inset_0_0_0_1px_var(--line)]">
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						aria-label="Copy message"
-						title="Copy message"
-						onClick={() => {
-							copy("msg", msgText, "Copied message");
-						}}
-						className={cn("absolute top-2 right-2", copied === "msg" ? "text-ok-fg" : "text-fg3")}
-					>
-						{copied === "msg" ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-					</Button>
-					<div
-						className={cn(
-							"max-h-[280px] overflow-auto py-3 pr-11 pl-3.5 font-mono text-[12.5px] leading-[1.55] break-words whitespace-pre-wrap",
-							row.json !== null ? "text-foreground" : style.body,
-						)}
-					>
-						{row.json !== null ? msgText : bodyParts(row.message, words)}
+				<section aria-label="Message" className="flex flex-col gap-2">
+					<h3 className="m-0 text-[12.5px] font-normal text-fg3">Message</h3>
+					<div data-slot="code-block" className="relative rounded-lg bg-panel shadow-[inset_0_0_0_1px_var(--line)]">
+						<Button
+							variant="ghost"
+							size="icon-xs"
+							aria-label="Copy message"
+							title="Copy message"
+							onClick={() => {
+								copy("msg", msgText, "Copied message");
+							}}
+							className={cn("absolute top-2 right-2", copied === "msg" ? "text-ok-fg" : "text-fg3")}
+						>
+							{copied === "msg" ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
+						</Button>
+						<div
+							className={cn(
+								"max-h-[280px] overflow-auto py-3 pr-11 pl-3.5 font-mono text-[12.5px] leading-[1.55] break-words whitespace-pre-wrap",
+								row.json !== null ? "text-foreground" : style.body,
+							)}
+						>
+							{row.json !== null ? msgText : bodyParts(row.message, words)}
+						</div>
 					</div>
-				</div>
+				</section>
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
 						<ToggleGroup
