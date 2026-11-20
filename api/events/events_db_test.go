@@ -12,14 +12,17 @@ import (
 	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/pkg/tracingtest"
 	"github.com/team-loco/loco/api/reqctx"
+	"github.com/team-loco/loco/internal/logquery"
 )
+
+const ownerEmail = "owner@acme.test"
 
 func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 	pool := dbtest.NewPool(t)
 	q := genDb.New(pool)
 	ctx := t.Context()
 
-	owner, err := q.CreateUser(ctx, genDb.CreateUserParams{Email: "owner@acme.test"})
+	owner, err := q.CreateUser(ctx, genDb.CreateUserParams{Email: ownerEmail})
 	if err != nil {
 		t.Fatalf("user: %v", err)
 	}
@@ -62,7 +65,7 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("org events = %d (%v)", len(rows), err)
 	}
-	if rows[0].ActorEmail == nil || *rows[0].ActorEmail != "owner@acme.test" {
+	if rows[0].ActorEmail == nil || *rows[0].ActorEmail != ownerEmail {
 		t.Fatalf("actor email = %v", rows[0].ActorEmail)
 	}
 	ev := rows[0].Event
@@ -192,5 +195,73 @@ func TestDeleteExpiredRemovesEveryBatchAndSparesRecentEvents(t *testing.T) {
 	var left int
 	if err = pool.QueryRow(t.Context(), "SELECT count(*) FROM events").Scan(&left); err != nil || left != 1 {
 		t.Fatalf("events left = %d (%v), want the recent one", left, err)
+	}
+}
+
+func TestAuditNamesTokensAfterDeletion(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	q := genDb.New(pool)
+	ctx := t.Context()
+
+	owner, err := q.CreateUser(ctx, genDb.CreateUserParams{Email: ownerEmail})
+	if err != nil {
+		t.Fatal(err)
+	}
+	org, err := q.CreateOrganization(ctx, genDb.CreateOrganizationParams{Name: "acme", CreatedBy: owner.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wsID uuid.UUID
+	if err = pool.QueryRow(ctx,
+		"INSERT INTO workspaces (org_id, name, created_by) VALUES ($1, 'default', $2) RETURNING id",
+		org.ID, owner.ID).Scan(&wsID); err != nil {
+		t.Fatal(err)
+	}
+	entity := genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: wsID}
+	tokenIDs := map[string]uuid.UUID{}
+	for _, name := range []string{"ci", "deploy"} {
+		token, tokenErr := q.CreateAPIToken(ctx, genDb.CreateAPITokenParams{
+			ID: uuid.New(), TokenHash: "hash-" + name, Name: name,
+			EntityType: entity.Type, EntityID: entity.ID, CreatedBy: owner.ID,
+			Scopes:    []genDb.EntityScope{{EntityType: entity.Type, EntityID: entity.ID, Scope: genDb.ScopeRead}},
+			ExpiresAt: time.Now().Add(time.Hour), DisplaySuffix: "12345678",
+		})
+		if tokenErr != nil {
+			t.Fatal(tokenErr)
+		}
+		tokenIDs[name] = token.ID
+		tokenCtx := reqctx.WithPrincipal(ctx, reqctx.Principal{
+			Entity: entity, ActorType: genDb.DeploymentActorTypeApiToken, ActorID: token.ID,
+		})
+		if err = events.Record(tokenCtx, q, events.Event{
+			Type: events.EnvironmentCreated, WorkspaceID: new(wsID),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = pool.Exec(ctx, "DELETE FROM api_tokens"); err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := events.ListAudit(ctx, pool, events.AuditQuery{OrgID: org.ID, Limit: 10})
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("events = %d (%v)", len(rows), err)
+	}
+	for _, row := range rows {
+		name := *row.ActorName
+		if *row.ActorID != tokenIDs[name] || *row.ActorTokenType != "workspace" {
+			t.Fatalf("event actor = %v %s %v", row.ActorID, name, row.ActorTokenType)
+		}
+	}
+
+	for _, query := range []string{"@actor:" + tokenIDs["ci"].String(), "@actor:ci"} {
+		expr, parseErr := logquery.Parse(query)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		rows, err = events.ListAudit(ctx, pool, events.AuditQuery{OrgID: org.ID, Filter: expr, Limit: 10})
+		if err != nil || len(rows) != 1 || *rows[0].ActorName != "ci" {
+			t.Fatalf("%s matched %d events (%v)", query, len(rows), err)
+		}
 	}
 }

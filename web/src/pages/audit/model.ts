@@ -11,6 +11,7 @@ import {
 	text as dataText,
 	type AuditActor,
 	type AuditUser,
+	tokenKind,
 	typesIn,
 } from "@/pages/settings/auditEvents";
 
@@ -60,9 +61,7 @@ export function dayLabel(ms: number, nowMs: number, pref: TimePreferences): stri
 
 export const ACTOR_KINDS: Record<string, string> = {
 	user: "Person",
-	organization: "Organization token",
-	workspace: "Workspace token",
-	resource: "Resource token",
+	api_token: "API token",
 	system: "Loco",
 	agent: "Cluster agent",
 };
@@ -107,8 +106,8 @@ export function auditRow(
 	return {
 		event,
 		ms: tsMs(event.createdAt),
-		actor: auditActor(event, names),
-		actorKind: ACTOR_KINDS[event.actorType] ?? event.actorType,
+		actor: auditActor(event),
+		actorKind: event.actorType === "api_token" ? tokenKind(event) : (ACTOR_KINDS[event.actorType] ?? event.actorType),
 		label: auditLabel(event.type, event.data),
 		detail: auditDetail(event, users) ?? "",
 		where: resource === "" ? workspace : `${workspace} / ${resource}`,

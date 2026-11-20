@@ -25,25 +25,28 @@ const (
 )
 
 type Event struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Seq           int64                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
-	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	OrgId         string                 `protobuf:"bytes,4,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	ActorType     string                 `protobuf:"bytes,6,opt,name=actor_type,json=actorType,proto3" json:"actor_type,omitempty"`
-	ActorId       string                 `protobuf:"bytes,7,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	SubjectType   string                 `protobuf:"bytes,8,opt,name=subject_type,json=subjectType,proto3" json:"subject_type,omitempty"`
-	SubjectId     string                 `protobuf:"bytes,9,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
-	RequestId     string                 `protobuf:"bytes,10,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Data          *structpb.Struct       `protobuf:"bytes,11,opt,name=data,proto3" json:"data,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ActorEmail    string                 `protobuf:"bytes,13,opt,name=actor_email,json=actorEmail,proto3" json:"actor_email,omitempty"`
-	ActorName     string                 `protobuf:"bytes,14,opt,name=actor_name,json=actorName,proto3" json:"actor_name,omitempty"`
-	ResourceId    string                 `protobuf:"bytes,15,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	EnvironmentId string                 `protobuf:"bytes,16,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Seq         int64                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	Id          string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Type        string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	OrgId       string                 `protobuf:"bytes,4,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	WorkspaceId string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ActorType   string                 `protobuf:"bytes,6,opt,name=actor_type,json=actorType,proto3" json:"actor_type,omitempty"`
+	ActorId     string                 `protobuf:"bytes,7,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	SubjectType string                 `protobuf:"bytes,8,opt,name=subject_type,json=subjectType,proto3" json:"subject_type,omitempty"`
+	SubjectId   string                 `protobuf:"bytes,9,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	RequestId   string                 `protobuf:"bytes,10,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Data        *structpb.Struct       `protobuf:"bytes,11,opt,name=data,proto3" json:"data,omitempty"`
+	CreatedAt   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ActorEmail  string                 `protobuf:"bytes,13,opt,name=actor_email,json=actorEmail,proto3" json:"actor_email,omitempty"`
+	// The user's name, or the name the acting API token had when the event was recorded.
+	ActorName     string `protobuf:"bytes,14,opt,name=actor_name,json=actorName,proto3" json:"actor_name,omitempty"`
+	ResourceId    string `protobuf:"bytes,15,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId string `protobuf:"bytes,16,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	// The entity type that owns the API token that acted: user, organization, workspace or resource.
+	ActorTokenType string `protobuf:"bytes,17,opt,name=actor_token_type,json=actorTokenType,proto3" json:"actor_token_type,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Event) Reset() {
@@ -184,6 +187,13 @@ func (x *Event) GetResourceId() string {
 func (x *Event) GetEnvironmentId() string {
 	if x != nil {
 		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *Event) GetActorTokenType() string {
+	if x != nil {
+		return x.ActorTokenType
 	}
 	return ""
 }
@@ -512,7 +522,7 @@ var File_loco_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x04\n" +
+	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xac\x04\n" +
 	"\x05Event\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -537,7 +547,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"actor_name\x18\x0e \x01(\tR\tactorName\x12\x1f\n" +
 	"\vresource_id\x18\x0f \x01(\tR\n" +
 	"resourceId\x12%\n" +
-	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xa9\x03\n" +
+	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\x12(\n" +
+	"\x10actor_token_type\x18\x11 \x01(\tR\x0eactorTokenType\"\xa9\x03\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +

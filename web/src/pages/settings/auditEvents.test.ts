@@ -17,8 +17,8 @@ test("uses the returned actor identity without organization members", () => {
 		actorName: "Wren Workspace",
 		actorEmail: "wren@example.test",
 	});
-	expect(auditActor(actor, new Map())).toEqual({ name: "Wren Workspace", detail: "wren@example.test" });
-	expect(auditActor(create(EventSchema, { actorType: "user" }), new Map())).toEqual({
+	expect(auditActor(actor)).toEqual({ name: "Wren Workspace", detail: "wren@example.test" });
+	expect(auditActor(create(EventSchema, { actorType: "user" }))).toEqual({
 		name: "Deleted user",
 		detail: "",
 	});
@@ -37,4 +37,13 @@ test("platform domains read as public or internal and only user domains read as 
 	expect(auditLabel("domain.created", { domainSource: "user_provided", primary: false })).toBe("Added a custom domain");
 	expect(auditLabel("domain.deleted", { domainSource: "user_provided" })).toBe("Removed a custom domain");
 	expect(auditLabel("domain.created")).toBe("Added a domain");
+});
+
+test("names an API token by its recorded name and owner kind, also after deletion", () => {
+	const token = create(EventSchema, { actorType: "api_token", actorName: "ci", actorTokenType: "workspace" });
+	expect(auditActor(token)).toEqual({ name: "ci", detail: "Workspace token" });
+	expect(auditActor(create(EventSchema, { actorType: "api_token" }))).toEqual({
+		name: "Deleted token",
+		detail: "API token",
+	});
 });

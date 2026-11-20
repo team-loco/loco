@@ -19,8 +19,8 @@ const PAGE_SIZE = 10;
 const NO_USERS = new Map<string, AuditUser>();
 const SKELETON_ROWS = [0, 1, 2];
 
-function ActivityRow({ event, names, nowMs }: { event: Event; names: ReadonlyMap<string, string>; nowMs: number }) {
-	const actor = auditActor(event, names);
+function ActivityRow({ event, nowMs }: { event: Event; nowMs: number }) {
+	const actor = auditActor(event);
 	const target = auditDetail(event, NO_USERS) ?? "";
 	return (
 		<li className="flex min-h-[42px] items-center gap-2.5 border-b border-line2 text-[13px] last:border-b-0">
@@ -48,14 +48,12 @@ export function ActivityPanel({
 	workspaceId,
 	resourceId,
 	environmentId,
-	names,
 	nowMs,
 }: {
 	orgId: string;
 	workspaceId: string;
 	resourceId: string;
 	environmentId: string | undefined;
-	names: ReadonlyMap<string, string>;
 	nowMs: number;
 }) {
 	const audit = useAuditAccess(orgId);
@@ -103,7 +101,7 @@ export function ActivityPanel({
 			{query.isSuccess && events.length === 0 && <p className="m-0 py-3 text-[13px] text-fg3">No changes yet.</p>}
 			<ul aria-label="Resource activity" className="m-0 list-none p-0">
 				{events.map((e) => (
-					<ActivityRow key={e.id} event={e} names={names} nowMs={nowMs} />
+					<ActivityRow key={e.id} event={e} nowMs={nowMs} />
 				))}
 			</ul>
 			{query.error !== null && (

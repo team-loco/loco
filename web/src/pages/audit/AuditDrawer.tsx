@@ -88,7 +88,9 @@ export function AuditDrawer({
 									<span>{row.actor.name}</span>
 									<span className="text-[11.5px] text-fg3">
 										{row.actorKind}
-										{row.actor.detail !== "" && <span className="font-mono"> · {row.actor.detail}</span>}
+										{row.actor.detail !== "" && row.actor.detail !== row.actorKind && (
+											<span className="font-mono"> · {row.actor.detail}</span>
+										)}
 									</span>
 								</Item>
 								<Item term="Event">

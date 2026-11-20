@@ -12028,7 +12028,8 @@
           },
           "actorName": {
             "type": "string",
-            "title": "actor_name"
+            "title": "actor_name",
+            "description": "The user's name, or the name the acting API token had when the event was recorded."
           },
           "resourceId": {
             "type": "string",
@@ -12037,6 +12038,11 @@
           "environmentId": {
             "type": "string",
             "title": "environment_id"
+          },
+          "actorTokenType": {
+            "type": "string",
+            "title": "actor_token_type",
+            "description": "The entity type that owns the API token that acted: user, organization, workspace or resource."
           }
         },
         "title": "Event",

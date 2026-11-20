@@ -7,14 +7,12 @@ import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { dayLabel, type AuditRow } from "./model";
 
-const TOKEN_ACTORS = new Set(["organization", "workspace", "resource"]);
-
 function ActorBadge({ row }: { row: AuditRow }) {
 	const { actorType, actorEmail } = row.event;
 	if (actorType === "user") {
 		return <MemberAvatar name={row.actor.name} email={actorEmail} avatarUrl="" className="size-6" />;
 	}
-	const Icon = TOKEN_ACTORS.has(actorType) ? KeyRoundIcon : actorType === "agent" ? ServerIcon : CpuIcon;
+	const Icon = actorType === "api_token" ? KeyRoundIcon : actorType === "agent" ? ServerIcon : CpuIcon;
 	return (
 		<span className="flex size-6 shrink-0 items-center justify-center rounded-[6px] border border-line bg-background text-fg2">
 			<Icon className="size-3" />

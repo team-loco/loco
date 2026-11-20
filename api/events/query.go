@@ -26,12 +26,12 @@ var queryFields = map[string]bool{
 // The audit query reads events e, the acting user u, the user an event is about, s, and the resource r,
 // workspace w and environment n the event happened in.
 const (
-	actorValues  = "(SELECT unnest(ARRAY[u.name, u.email]))"
+	actorValues  = "(SELECT unnest(ARRAY[u.name, u.email, e.actor_token_name]))"
 	targetValues = "(SELECT unnest(ARRAY[e.subject_id::text, e.data->>'name', e.data->>'domain', s.name, s.email, " +
 		"r.name, r.display_name, w.name, n.name]) " +
 		"UNION ALL SELECT jsonb_array_elements_text(" +
 		"CASE WHEN jsonb_typeof(e.data->'names') = 'array' THEN e.data->'names' END))"
-	textColumns = "(SELECT unnest(ARRAY[e.type, u.name, u.email]))"
+	textColumns = "(SELECT unnest(ARRAY[e.type, u.name, u.email, e.actor_token_name]))"
 )
 
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)

@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file loco/event/v1/event.proto.
  */
 export const file_loco_event_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIuUCCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJIsoCChFMaXN0RXZlbnRzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhsKCmJlZm9yZV9zZXEYAiABKANCB7pIBCICKAASHQoJcGFnZV9zaXplGAQgASgFQgq6SAcaBRj0AygAEiEKDHdvcmtzcGFjZV9pZBgFIAEoCUILukgI2AEBcgOwAQESIAoLcmVzb3VyY2VfaWQYBiABKAlCC7pICNgBAXIDsAEBEiMKDmVudmlyb25tZW50X2lkGAcgASgJQgu6SAjYAQFyA7ABARIuCgpzdGFydF90aW1lGAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghlbmRfdGltZRgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoFcXVlcnkYDSABKAlCCLpIBXIDKIAgIlMKEkxpc3RFdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50EhcKD25leHRfYmVmb3JlX3NlcRgCIAEoAyKsAgoTU3RyZWFtRXZlbnRzUmVxdWVzdBIXCgZjdXJzb3IYASABKAlCB7pIBHICGEASGwoGb3JnX2lkGAIgASgJQgu6SAjYAQFyA7ABARIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKBXF1ZXJ5GA0gASgJQgi6SAVyAyiAICJMChRTdHJlYW1FdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50Eg4KBmN1cnNvchgCIAEoCTK8AQoMRXZlbnRTZXJ2aWNlElEKCkxpc3RFdmVudHMSIC5sb2NvLmV2ZW50LnYxLkxpc3RFdmVudHNSZXF1ZXN0GiEubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVzcG9uc2USWQoMU3RyZWFtRXZlbnRzEiIubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXF1ZXN0GiMubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXNwb25zZTABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZXZlbnQvdjE7ZXZlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIv8CCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJEhgKEGFjdG9yX3Rva2VuX3R5cGUYESABKAkiygIKEUxpc3RFdmVudHNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGwoKYmVmb3JlX3NlcRgCIAEoA0IHukgEIgIoABIdCglwYWdlX3NpemUYBCABKAVCCrpIBxoFGPQDKAASIQoMd29ya3NwYWNlX2lkGAUgASgJQgu6SAjYAQFyA7ABARIgCgtyZXNvdXJjZV9pZBgGIAEoCUILukgI2AEBcgOwAQESIwoOZW52aXJvbm1lbnRfaWQYByABKAlCC7pICNgBAXIDsAEBEi4KCnN0YXJ0X3RpbWUYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZF90aW1lGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCgVxdWVyeRgNIAEoCUIIukgFcgMogCAiUwoSTGlzdEV2ZW50c1Jlc3BvbnNlEiQKBmV2ZW50cxgBIAMoCzIULmxvY28uZXZlbnQudjEuRXZlbnQSFwoPbmV4dF9iZWZvcmVfc2VxGAIgASgDIqwCChNTdHJlYW1FdmVudHNSZXF1ZXN0EhcKBmN1cnNvchgBIAEoCUIHukgEcgIYQBIbCgZvcmdfaWQYAiABKAlCC7pICNgBAXIDsAEBEiEKDHdvcmtzcGFjZV9pZBgFIAEoCUILukgI2AEBcgOwAQESIAoLcmVzb3VyY2VfaWQYBiABKAlCC7pICNgBAXIDsAEBEiMKDmVudmlyb25tZW50X2lkGAcgASgJQgu6SAjYAQFyA7ABARIuCgpzdGFydF90aW1lGAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghlbmRfdGltZRgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoFcXVlcnkYDSABKAlCCLpIBXIDKIAgIkwKFFN0cmVhbUV2ZW50c1Jlc3BvbnNlEiQKBmV2ZW50cxgBIAMoCzIULmxvY28uZXZlbnQudjEuRXZlbnQSDgoGY3Vyc29yGAIgASgJMrwBCgxFdmVudFNlcnZpY2USUQoKTGlzdEV2ZW50cxIgLmxvY28uZXZlbnQudjEuTGlzdEV2ZW50c1JlcXVlc3QaIS5sb2NvLmV2ZW50LnYxLkxpc3RFdmVudHNSZXNwb25zZRJZCgxTdHJlYW1FdmVudHMSIi5sb2NvLmV2ZW50LnYxLlN0cmVhbUV2ZW50c1JlcXVlc3QaIy5sb2NvLmV2ZW50LnYxLlN0cmVhbUV2ZW50c1Jlc3BvbnNlMAFCOFo2Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9ldmVudC92MTtldmVudHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.event.v1.Event
@@ -85,6 +85,8 @@ export type Event = Message<"loco.event.v1.Event"> & {
   actorEmail: string;
 
   /**
+   * The user's name, or the name the acting API token had when the event was recorded.
+   *
    * @generated from field: string actor_name = 14;
    */
   actorName: string;
@@ -98,6 +100,13 @@ export type Event = Message<"loco.event.v1.Event"> & {
    * @generated from field: string environment_id = 16;
    */
   environmentId: string;
+
+  /**
+   * The entity type that owns the API token that acted: user, organization, workspace or resource.
+   *
+   * @generated from field: string actor_token_type = 17;
+   */
+  actorTokenType: string;
 };
 
 /**
@@ -170,6 +179,8 @@ export type EventJson = {
   actorEmail?: string;
 
   /**
+   * The user's name, or the name the acting API token had when the event was recorded.
+   *
    * @generated from field: string actor_name = 14;
    */
   actorName?: string;
@@ -183,6 +194,13 @@ export type EventJson = {
    * @generated from field: string environment_id = 16;
    */
   environmentId?: string;
+
+  /**
+   * The entity type that owns the API token that acted: user, organization, workspace or resource.
+   *
+   * @generated from field: string actor_token_type = 17;
+   */
+  actorTokenType?: string;
 };
 
 /**

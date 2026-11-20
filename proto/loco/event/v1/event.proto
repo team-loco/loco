@@ -27,9 +27,12 @@ message Event {
   google.protobuf.Struct data = 11;
   google.protobuf.Timestamp created_at = 12;
   string actor_email = 13;
+  // The user's name, or the name the acting API token had when the event was recorded.
   string actor_name = 14;
   string resource_id = 15;
   string environment_id = 16;
+  // The entity type that owns the API token that acted: user, organization, workspace or resource.
+  string actor_token_type = 17;
 }
 
 message ListEventsRequest {
