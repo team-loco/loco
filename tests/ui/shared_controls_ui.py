@@ -1846,6 +1846,24 @@ def metrics(page):
     expect(
         by_region.get_by_role("row").filter(has_text="Controls Pilot")
     ).to_contain_text("0.175 vCPU 35%")
+    viewport = page.viewport_size
+    page.set_viewport_size({"width": 1280, "height": viewport["height"]})
+    region_cell = (
+        by_region.get_by_role("row")
+        .filter(has_text="Controls Pilot")
+        .get_by_role("cell")
+        .nth(1)
+    )
+    expect(region_cell).to_have_text("us-east-1")
+    text_lines = region_cell.evaluate(
+        """node => {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            return new Set([...range.getClientRects()].map(r => Math.round(r.top))).size;
+        }"""
+    )
+    assert text_lines == 1, text_lines
+    page.set_viewport_size(viewport)
     expect(
         by_region.get_by_role("columnheader", name="CPU (latest) ↓")
     ).to_have_attribute("aria-sort", "descending")

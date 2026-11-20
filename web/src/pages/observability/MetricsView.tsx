@@ -506,17 +506,17 @@ export function MetricsView() {
 								{header("replicas", "Replicas")}
 								{header("cpu", "CPU (latest)", "w-[240px]")}
 								{header("mem", "Memory (latest)", "w-[240px]")}
-								<th className="px-3 font-normal">
+								<th className="w-[88px] px-3 font-normal whitespace-nowrap">
 									<span className="flex items-center gap-1.5">
 										Requests <SoonTag />
 									</span>
 								</th>
-								<th className="px-3 font-normal">
+								<th className="w-[88px] px-3 font-normal whitespace-nowrap">
 									<span className="flex items-center gap-1.5">
 										5xx <SoonTag />
 									</span>
 								</th>
-								<th className="px-3 font-normal">
+								<th className="w-[88px] px-3 font-normal whitespace-nowrap">
 									<span className="flex items-center gap-1.5">
 										p95 <SoonTag />
 									</span>
@@ -560,7 +560,7 @@ export function MetricsView() {
 												{p.resource.raw.name}
 											</button>
 										</td>
-										<td className="px-3 font-mono text-fg2">{p.region}</td>
+										<td className="px-3 font-mono whitespace-nowrap text-fg2">{p.region}</td>
 										<td className={cn("px-3 font-mono", short ? "text-warn-fg" : "text-fg2")}>
 											{p.ready !== null && p.desired !== null ? `${String(p.ready)} of ${String(p.desired)}` : "—"}
 										</td>
