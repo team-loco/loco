@@ -44,7 +44,7 @@ func setup(ctx context.Context) error {
 	_, err := c.Helm(ctx, "upgrade", "--install", "cert-manager", certManager.Chart,
 		"--repo", certManager.Repository, "--version", certManager.Version,
 		"--namespace", "cert-manager", "--create-namespace", "--set", "crds.enabled=true",
-		"--wait", "--timeout", installTimeout.String())
+		"--wait=legacy", "--timeout", installTimeout.String())
 	return err
 }
 
