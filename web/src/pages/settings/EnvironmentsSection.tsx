@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
-import { nameError, slug as slugOf, slugError } from "@/lib/slug";
+import { derivedSlugError, nameError } from "@/lib/slug";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { limitReason, limitUsage, usageLabel } from "@/lib/limits";
@@ -58,12 +58,7 @@ function environmentColumns({
 			size: 110,
 			minSize: 100,
 			meta: { grow: true },
-			cell: ({ row: { original: env } }) => (
-				<span className="flex min-w-0 flex-col">
-					<CellText text={env.name} />
-					{env.name !== env.slug && <CellText text={env.slug} className="font-mono text-[12px] text-fg3" />}
-				</span>
-			),
+			cell: ({ row: { original: env } }) => <CellText text={env.name} />,
 		},
 		{
 			id: "description",
@@ -301,19 +296,17 @@ function EnvironmentForm({
 	const create = useMutation(createEnvironment);
 	const update = useMutation(updateEnvironment);
 	const [rawName, setRawName] = useState(env?.name ?? "");
-	const [editedSlug, setEditedSlug] = useState<string | null>(null);
 	const [desc, setDesc] = useState(env?.description ?? "");
 	const pending = create.isPending || update.isPending;
 
 	const name = rawName.trim();
-	const slug = env?.slug ?? editedSlug ?? slugOf(rawName);
-	const nameErr = rawName === "" ? null : nameError(rawName, new Set(others.map((e) => e.name)));
-	const slugErr =
-		env !== undefined || (rawName === "" && editedSlug === null)
+	const nameErr =
+		rawName === ""
 			? null
-			: slugError(slug, new Set(others.map((e) => e.slug)));
+			: (nameError(rawName, new Set(others.map((e) => e.name))) ??
+				(env === undefined ? derivedSlugError(rawName, new Set(others.map((e) => e.slug))) : null));
 	const unchanged = env === undefined ? false : name === env.name && desc.trim() === (env.description ?? "");
-	const ok = name !== "" && slug !== "" && nameErr === null && slugErr === null && !unchanged && !pending;
+	const ok = name !== "" && nameErr === null && !unchanged && !pending;
 
 	const submit = () => {
 		if (!ok) return;
@@ -338,7 +331,7 @@ function EnvironmentForm({
 			return;
 		}
 		create.mutate(
-			{ workspaceId, name, slug, description: description === "" ? undefined : description },
+			{ workspaceId, name, description: description === "" ? undefined : description },
 			{
 				onSuccess: () => {
 					toast.success(`Created ${name}`);
@@ -371,27 +364,6 @@ function EnvironmentForm({
 							className="h-9 text-[13.5px]"
 							onChange={(e) => {
 								setRawName(e.target.value);
-							}}
-						/>
-					</Field>
-					<Field
-						label="Slug"
-						error={slugErr}
-						hint={
-							env === undefined
-								? "Its key in loco.yaml, --env and links. It can't change once the environment exists."
-								: "Used in loco.yaml, --env and links; it never changes"
-						}
-					>
-						<Input
-							value={slug}
-							readOnly={env !== undefined}
-							autoComplete="off"
-							spellCheck={false}
-							aria-invalid={slugErr !== null}
-							className="h-9 font-mono text-[13.5px]"
-							onChange={(e) => {
-								setEditedSlug(e.target.value);
 							}}
 						/>
 					</Field>

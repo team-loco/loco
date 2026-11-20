@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from harness import expect_rpc, load_state, open_page, repo, session
+from harness import expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -151,9 +151,6 @@ def check_environments(page):
     environments = page.get_by_role("region", name="Environments", exact=True)
     environments.get_by_role("button", name="Edit production", exact=True).click()
     dialog = page.get_by_role("dialog", name="Edit production", exact=True)
-    slug = dialog.get_by_role("textbox", name="Slug", exact=True)
-    expect(slug).to_have_value("production")
-    expect(slug).not_to_be_editable()
     name = dialog.get_by_role("textbox", name="Name", exact=True)
     expect(name).to_have_value("production")
     save = dialog.get_by_role("button", name="Save", exact=True)
@@ -171,7 +168,6 @@ def check_environments(page):
     expect(dialog).to_be_hidden()
     expect(environments.get_by_text("Customer traffic", exact=True)).to_be_visible()
     expect(environments.get_by_text("Production EU", exact=True)).to_be_visible()
-    expect(environments.get_by_text("production", exact=True)).to_be_visible()
     expect(environments.get_by_text("0 resources", exact=True).first).to_be_visible()
     settings_url = page.url
     page.goto(settings_url.split("/settings")[0] + "/resources?env=production")
@@ -186,37 +182,26 @@ def check_environments(page):
     page.get_by_role("button", name="New environment", exact=True).click()
     dialog = page.get_by_role("dialog", name=re.compile(r"^New environment in "))
     name = dialog.get_by_role("textbox", name="Name", exact=True)
-    slug = dialog.get_by_role("textbox", name="Slug", exact=True)
     create = dialog.get_by_role("button", name="Create", exact=True)
+    for typed, error in [
+        ("production eu", "production eu already exists in this workspace"),
+        ("Production", "Too close to an existing name in this workspace"),
+        ("🚀", "Include a letter from a to z"),
+    ]:
+        name.fill(typed)
+        expect(dialog.get_by_text(error, exact=True)).to_be_visible()
+        expect(create).to_be_disabled()
     name.fill("QA Preview 🚀")
-    expect(slug).to_have_value("qa-preview")
-    name.fill("production eu")
-    expect(
-        dialog.get_by_text("production eu already exists in this workspace", exact=True)
-    ).to_be_visible()
-    expect(create).to_be_disabled()
-    name.fill("QA Preview 🚀")
-    slug.fill("production")
-    expect(
-        dialog.get_by_text("production already exists in this workspace", exact=True)
-    ).to_be_visible()
-    slug.fill("QA")
-    expect(
-        dialog.get_by_text(
-            "Use 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit",
-            exact=True,
-        )
-    ).to_be_visible()
-    slug.fill("qa")
     with expect_rpc(
-        page, "CreateEnvironment", lambda body: body.get("slug") == "qa"
+        page, "CreateEnvironment", lambda body: body.get("name") == "QA Preview 🚀"
     ) as created:
         create.click()
     assert created.value.ok, created.value.text()
-    assert created.value.request.post_data_json["name"] == "QA Preview 🚀"
+    assert "slug" not in created.value.request.post_data_json
     expect(dialog).to_be_hidden()
     expect(environments.get_by_text("QA Preview 🚀", exact=True)).to_be_visible()
-    expect(environments.get_by_text("qa", exact=True)).to_be_visible()
+    stored = sql(state, "SELECT slug FROM environments WHERE name='QA Preview 🚀';")
+    assert stored == "qa-preview", stored
 
 
 def check_create_dialogs(page):

@@ -25,15 +25,7 @@ import {
 	type Scaling,
 } from "@/lib/new-resource";
 import { SUBDOMAIN_RE } from "@/lib/platform-domain";
-import { nameError, slugError } from "@/lib/slug";
-
-/** The names and slugs other resources and drafts in the workspace hold. */
-export interface TakenSets {
-	names: ReadonlySet<string>;
-	slugs: ReadonlySet<string>;
-}
-
-const NONE: TakenSets = { names: new Set(), slugs: new Set() };
+import { nameError } from "@/lib/slug";
 
 import { isDeployed, type RegionView } from "./model";
 
@@ -58,7 +50,6 @@ function observabilitySettings(config: ObservabilityConfig | undefined): Observa
 
 export interface SettingsDraft {
 	name?: string;
-	slug?: string;
 	description?: string;
 	image?: string;
 	rollbackOnFailure?: boolean;
@@ -178,7 +169,7 @@ export function baseline(
 
 export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 	return {
-		slug: draft.slug ?? base.slug,
+		slug: base.slug,
 		name: draft.name ?? base.name,
 		description: draft.description ?? base.description,
 		image: draft.image ?? base.image,
@@ -202,7 +193,6 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 
 const SCALAR_KEYS = [
 	"name",
-	"slug",
 	"description",
 	"image",
 	"cpu",
@@ -228,7 +218,6 @@ function differs(a: string, b: string): boolean {
 
 const SCALAR_LABELS: Record<(typeof SCALAR_KEYS)[number], string> = {
 	name: "Name",
-	slug: "Slug",
 	description: "Description",
 	image: "Image",
 	cpu: "CPU",
@@ -289,7 +278,7 @@ export function validateDraft(
 	regions: RegionView[],
 	served: string[],
 	replicaLimit: number,
-	taken: TakenSets = NONE,
+	takenNames: ReadonlySet<string> = new Set(),
 ): DraftErrors {
 	const next = resolved(draft, base);
 	const errors: DraftErrors = {};
@@ -298,12 +287,8 @@ export function validateDraft(
 		if (error !== null) errors[`scaling.${region}`] = error;
 	}
 	if (draft.name !== undefined) {
-		const error = nameError(next.name, taken.names);
+		const error = nameError(next.name, takenNames);
 		if (error !== null) errors.name = error;
-	}
-	if (draft.slug !== undefined) {
-		const error = slugError(next.slug, taken.slugs);
-		if (error !== null) errors.slug = error;
 	}
 	if (draft.image !== undefined && !IMAGE_RE.test(next.image.trim())) errors.image = "Use registry/repository:tag";
 	if (draft.port !== undefined) {

@@ -111,19 +111,16 @@ export function useSaveSettings({
 		const env = current === undefined ? undefined : plainEnv(current.env, draft);
 		const name = draft.name?.trim();
 		const renamed = name !== undefined && name !== resource.name;
-		const slug = draft.slug;
-		const reslugged = slug !== undefined && slug !== resource.slug;
 		const description = draft.description?.trim();
 		const described = description !== undefined && description !== (resource.description ?? "");
-		if (renamed || reslugged || described) {
+		if (renamed || described) {
 			await attempt(
 				"General",
-				["name", "slug", "description"],
+				["name", "description"],
 				async () =>
 					await update.mutateAsync({
 						resourceId,
 						...(renamed ? { name } : {}),
-						...(reslugged ? { slug } : {}),
 						...(described ? { description } : {}),
 					}),
 			);
