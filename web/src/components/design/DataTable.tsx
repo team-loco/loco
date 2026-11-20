@@ -4,7 +4,6 @@ import {
 	columnVisibilityFeature,
 	createPaginatedRowModel,
 	createSortedRowModel,
-	flexRender,
 	functionalUpdate,
 	metaHelper,
 	rowPaginationFeature,
@@ -15,6 +14,7 @@ import {
 	useTable,
 	type Column,
 	type ColumnDef,
+	type ColumnDefTemplate,
 	type ColumnSizingState,
 	type Header,
 	type PaginationState,
@@ -119,6 +119,17 @@ function parseSizing(value: unknown): ColumnSizingState {
 	return Object.fromEntries(
 		Object.entries(value).filter((entry): entry is [string, number] => Number.isFinite(entry[1])),
 	);
+}
+
+/** Renders a column's header or cell template in one component type, so columns rebuilt on each render keep their state, such as an open menu. */
+function Template<P extends object>({
+	render,
+	context,
+}: {
+	render: ColumnDefTemplate<P> | undefined;
+	context: P;
+}): ReactNode {
+	return typeof render === "function" ? (render(context) as ReactNode) : render;
 }
 
 /** A table of every row it is given unless the caller paginates; the viewer resizes its columns and this browser keeps the widths under `id`, unless the caller keeps them. */
@@ -293,7 +304,7 @@ function DataTableHead<T extends RowData>({
 }) {
 	const { column } = header;
 	const align = alignOf(column);
-	const label = flexRender(column.columnDef.header, header.getContext());
+	const label = <Template render={column.columnDef.header} context={header.getContext()} />;
 	const Arrow = sorted === "desc" ? ArrowDownIcon : ArrowUpIcon;
 	return (
 		<TableHead
@@ -542,7 +553,7 @@ export function DataTable<T extends RowData>({
 														cell.column.columnDef.meta?.cellClassName,
 													)}
 												>
-													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+													<Template render={cell.column.columnDef.cell} context={cell.getContext()} />
 													{onRowClick !== undefined && rowAction === "navigate" && index === primaryIndex && (
 														<NavArrow />
 													)}
