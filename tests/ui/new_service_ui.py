@@ -436,8 +436,9 @@ with session(out) as browser:
     page.keyboard.press("ArrowRight")
     expect(cpu).to_have_attribute("aria-valuetext", "0.5 vCPU")
     # Clicking the track moves the thumb to the nearest step.
-    rail = drawer.locator(".dsl-rail").nth(1).bounding_box()
-    page.mouse.click(rail["x"] + rail["width"] - 3, rail["y"] + rail["height"] / 2)
+    rail = drawer.locator(".dsl-rail").nth(1)
+    box = rail.bounding_box()
+    rail.click(position={"x": box["width"] - 3, "y": box["height"] / 2})
     expect(memory).to_have_attribute("aria-valuetext", "4 Gi")
     memory.focus()
     page.keyboard.press("Home")
