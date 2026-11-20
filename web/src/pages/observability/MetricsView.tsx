@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
-import { formatPercent, percentAxis } from "@/lib/compute-chart";
+import { formatPercent } from "@/lib/compute-chart";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { isUnimplemented } from "@/lib/error-handler";
@@ -154,17 +154,17 @@ function useComputeSeries(
 			const sizing = row === undefined ? undefined : limits.get(row.key);
 			const limit = sizing === undefined ? 0 : def.limit(sizing);
 			if (row === undefined || limit <= 0) continue;
-			const points = [...pts].map(([t, v]) => ({ t, v, abs: (v / PERCENT) * limit })).toSorted((a, b) => a.t - b.t);
+			const points = [...pts].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
 			series.push({
 				key: row.key,
 				name: multi.has(id) ? `${row.resource.raw.name} ${region}` : row.resource.raw.name,
-				resourceId: id,
 				color: row.resource.color,
 				dashed: row.dashed,
+				limit,
 				points,
 			});
 			const last = points.at(-1);
-			if (last !== undefined) latest.set(row.key, { v: last.abs, limit });
+			if (last !== undefined) latest.set(row.key, { v: (last.v / PERCENT) * limit, limit });
 		}
 	});
 	return {
@@ -269,7 +269,7 @@ export function MetricsView() {
 	const cpu = useComputeSeries(CPU, rows, sizing, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, sizing, spanMs, endMs);
 	const deployMarkers = useDeployMarkers(visible, environment?.id ?? "", from, to);
-	const [hoverId, setHoverId] = useState<string | null>(null);
+	const [hoverKey, setHoverKey] = useState<string | null>(null);
 	const [focusTs] = useQueryState("at", msParser);
 	const markers: ChartMarker[] = [
 		...deployMarkers,
@@ -467,9 +467,8 @@ export function MetricsView() {
 									series={result.series}
 									from={from}
 									to={to}
-									axis={percentAxis(Math.max(0, ...result.series.flatMap((s) => s.points.map((p) => p.v))))}
 									fmt={def.format}
-									highlightId={hoverId}
+									highlight={hoverKey}
 									markers={markers}
 									height={CHART_HEIGHT}
 									actions={actions}
@@ -509,10 +508,10 @@ export function MetricsView() {
 											focusRow(p);
 										}}
 										onMouseEnter={() => {
-											setHoverId(p.resource.id);
+											setHoverKey(p.key);
 										}}
 										onMouseLeave={() => {
-											setHoverId(null);
+											setHoverKey(null);
 										}}
 										className="h-[38px] cursor-pointer border-b border-line last:border-b-0 hover:bg-panel2"
 									>

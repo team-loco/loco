@@ -290,7 +290,7 @@ function TrafficCard({
 	names,
 	deleted,
 	hrefFor,
-	deploys,
+	deployments,
 	nowMs,
 }: {
 	spec: TrafficCardSpec;
@@ -303,7 +303,7 @@ function TrafficCard({
 	names: ReadonlyMap<string, string>;
 	deleted: ReadonlyMap<string, string>;
 	hrefFor: (id: string) => string;
-	deploys: { deployment: Deployment; resource: string }[];
+	deployments: { deployment: Deployment; resource: { name: string } }[];
 	nowMs: number;
 }) {
 	const perResource = trafficTotals(current, spec.field, stepMs, windows.current);
@@ -358,7 +358,7 @@ function TrafficCard({
 				/>
 				{state === "ready" && (
 					<DeployMarkers
-						markers={deployMarkers(deploys, windows.current.startMs, windows.current.endMs, CARD_BUCKETS, nowMs)}
+						markers={deployMarkers(deployments, windows.current.startMs, windows.current.endMs, CARD_BUCKETS, nowMs)}
 					/>
 				)}
 			</div>
@@ -401,7 +401,6 @@ export function Totals({
 	const state = traffic.isLoading ? "loading" : traffic.error !== null ? "error" : "ready";
 	const gone = [...traffic.points, ...prior.points].some((p) => !names.has(p.resourceId));
 	const deleted = useDeletedResourceNames(orgId, workspaceId, gone);
-	const deploys = deployments.map(({ deployment, resource }) => ({ deployment, resource: resource.name }));
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-between gap-2">
@@ -442,7 +441,7 @@ export function Totals({
 						names={names}
 						deleted={deleted}
 						hrefFor={hrefFor}
-						deploys={deploys}
+						deployments={deployments}
 						nowMs={nowMs}
 					/>
 				))}
