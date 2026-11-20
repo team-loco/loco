@@ -190,6 +190,7 @@ func newBuildFixture(t *testing.T) *buildFixture {
 		ActorType: genDb.DeploymentActorTypeUser,
 		ActorID:   f.userID,
 		UserID:    f.userID,
+		Method:    genDb.DeploymentMethodCli,
 	})
 
 	return &buildFixture{deployFixture: f, server: server, bucket: bucket, ctx: ctx}
@@ -626,6 +627,31 @@ func TestCreateBuildStoresTheContext(t *testing.T) {
 	}
 	if got := f.get(t, resp.GetBuildId()).GetContext(); got != "services/web" {
 		t.Fatalf("context = %q, want services/web", got)
+	}
+}
+
+func TestBuildRecordsWhoAndHowItStarted(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+
+	byUser := f.get(t, f.create(t, 1).GetBuildId())
+	if byUser.GetActorType() != deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_USER ||
+		byUser.GetMethod() != deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_CLI {
+		t.Fatalf("user build actor %v method %v, want user and cli", byUser.GetActorType(), byUser.GetMethod())
+	}
+
+	tokenID := f.apiToken(t)
+	p, _ := reqctx.PrincipalFrom(f.ctx)
+	p.Entity = genDb.Entity{Type: genDb.EntityTypeResource, ID: f.resourceID}
+	p.ActorType = genDb.DeploymentActorTypeApiToken
+	p.ActorID = tokenID
+	p.UserID = uuid.Nil
+	p.Method = genDb.DeploymentMethodApiToken
+	f.ctx = reqctx.WithPrincipal(f.ctx, p)
+	byToken := f.get(t, f.create(t, 1).GetBuildId())
+	if byToken.GetActorType() != deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_API_TOKEN ||
+		byToken.GetMethod() != deploymentv1.DeploymentMethod_DEPLOYMENT_METHOD_API_TOKEN {
+		t.Fatalf("token build actor %v method %v, want api token twice", byToken.GetActorType(), byToken.GetMethod())
 	}
 }
 

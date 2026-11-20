@@ -23,6 +23,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
 	"github.com/team-loco/loco/internal/workloadplatform"
@@ -201,6 +202,7 @@ func (s *BuildServer) CreateBuild(
 			Platform:            string(s.config.TargetPlatform),
 			CreatedBy:           p.ActorID,
 			ApiTokenID:          apiTokenID,
+			Method:              p.Method,
 			GitCommit:           req.GitCommit,
 			GitBranch:           req.GitBranch,
 			GitCommitMessage:    gitCommitMessage,
@@ -652,6 +654,8 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 		ImageDigest:      b.ImageDigest,
 		Message:          b.Message,
 		CreatedBy:        createdBy,
+		ActorType:        buildActorType(b),
+		Method:           parseDeploymentMethod(b.Method),
 		CreatedAt:        createdAt,
 		StartedAt:        startedAt,
 		FinishedAt:       finishedAt,
@@ -669,4 +673,11 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 		out.ClusterId = &clusterID
 	}
 	return out
+}
+
+func buildActorType(b genDb.Build) deploymentv1.DeploymentActorType {
+	if b.ApiTokenID != nil {
+		return deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_API_TOKEN
+	}
+	return deploymentv1.DeploymentActorType_DEPLOYMENT_ACTOR_TYPE_USER
 }

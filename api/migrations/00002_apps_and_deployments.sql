@@ -487,6 +487,7 @@ CREATE TABLE
         created_by UUID NOT NULL,
         -- Set when an API token created the build; created_by records the same token ID.
         api_token_id UUID,
+        method deployment_method NOT NULL DEFAULT 'cli',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         started_at TIMESTAMPTZ,
         finished_at TIMESTAMPTZ,

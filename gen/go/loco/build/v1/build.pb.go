@@ -8,6 +8,7 @@ package buildv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -113,8 +114,12 @@ type Build struct {
 	Platform         string  `protobuf:"bytes,21,opt,name=platform,proto3" json:"platform,omitempty"`
 	// Historical context for the operation that initiated this build, not image ownership.
 	OriginEnvironmentId *string `protobuf:"bytes,22,opt,name=origin_environment_id,json=originEnvironmentId,proto3,oneof" json:"origin_environment_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// actor_type says whether created_by is a user or an API token.
+	ActorType v1.DeploymentActorType `protobuf:"varint,23,opt,name=actor_type,json=actorType,proto3,enum=loco.deployment.v1.DeploymentActorType" json:"actor_type,omitempty"`
+	// method is the client that called CreateBuild.
+	Method        v1.DeploymentMethod `protobuf:"varint,24,opt,name=method,proto3,enum=loco.deployment.v1.DeploymentMethod" json:"method,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Build) Reset() {
@@ -299,6 +304,20 @@ func (x *Build) GetOriginEnvironmentId() string {
 		return *x.OriginEnvironmentId
 	}
 	return ""
+}
+
+func (x *Build) GetActorType() v1.DeploymentActorType {
+	if x != nil {
+		return x.ActorType
+	}
+	return v1.DeploymentActorType(0)
+}
+
+func (x *Build) GetMethod() v1.DeploymentMethod {
+	if x != nil {
+		return x.Method
+	}
+	return v1.DeploymentMethod(0)
 }
 
 type BuildsUnavailable struct {
@@ -890,7 +909,7 @@ var File_loco_build_v1_build_proto protoreflect.FileDescriptor
 
 const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\b\n" +
+	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\"\xc1\t\n" +
 	"\x05Build\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -925,7 +944,10 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"git_branch\x18\x13 \x01(\tH\x06R\tgitBranch\x88\x01\x01\x121\n" +
 	"\x12git_commit_message\x18\x14 \x01(\tH\aR\x10gitCommitMessage\x88\x01\x01\x12\x1a\n" +
 	"\bplatform\x18\x15 \x01(\tR\bplatform\x127\n" +
-	"\x15origin_environment_id\x18\x16 \x01(\tH\bR\x13originEnvironmentId\x88\x01\x01B\r\n" +
+	"\x15origin_environment_id\x18\x16 \x01(\tH\bR\x13originEnvironmentId\x88\x01\x01\x12F\n" +
+	"\n" +
+	"actor_type\x18\x17 \x01(\x0e2'.loco.deployment.v1.DeploymentActorTypeR\tactorType\x12<\n" +
+	"\x06method\x18\x18 \x01(\x0e2$.loco.deployment.v1.DeploymentMethodR\x06methodB\r\n" +
 	"\v_cluster_idB\x0f\n" +
 	"\r_image_digestB\r\n" +
 	"\v_started_atB\x0e\n" +
@@ -1031,6 +1053,8 @@ var file_loco_build_v1_build_proto_goTypes = []any{
 	(*CancelBuildRequest)(nil),    // 11: loco.build.v1.CancelBuildRequest
 	(*CancelBuildResponse)(nil),   // 12: loco.build.v1.CancelBuildResponse
 	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(v1.DeploymentActorType)(0),   // 14: loco.deployment.v1.DeploymentActorType
+	(v1.DeploymentMethod)(0),      // 15: loco.deployment.v1.DeploymentMethod
 }
 var file_loco_build_v1_build_proto_depIdxs = []int32{
 	0,  // 0: loco.build.v1.Build.status:type_name -> loco.build.v1.BuildStatus
@@ -1038,26 +1062,28 @@ var file_loco_build_v1_build_proto_depIdxs = []int32{
 	13, // 2: loco.build.v1.Build.started_at:type_name -> google.protobuf.Timestamp
 	13, // 3: loco.build.v1.Build.finished_at:type_name -> google.protobuf.Timestamp
 	13, // 4: loco.build.v1.Build.image_deleted_at:type_name -> google.protobuf.Timestamp
-	13, // 5: loco.build.v1.CreateBuildResponse.upload_expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 6: loco.build.v1.StartBuildResponse.build:type_name -> loco.build.v1.Build
-	1,  // 7: loco.build.v1.GetBuildResponse.build:type_name -> loco.build.v1.Build
-	1,  // 8: loco.build.v1.ListBuildsResponse.builds:type_name -> loco.build.v1.Build
-	1,  // 9: loco.build.v1.CancelBuildResponse.build:type_name -> loco.build.v1.Build
-	3,  // 10: loco.build.v1.BuildService.CreateBuild:input_type -> loco.build.v1.CreateBuildRequest
-	5,  // 11: loco.build.v1.BuildService.StartBuild:input_type -> loco.build.v1.StartBuildRequest
-	7,  // 12: loco.build.v1.BuildService.GetBuild:input_type -> loco.build.v1.GetBuildRequest
-	9,  // 13: loco.build.v1.BuildService.ListBuilds:input_type -> loco.build.v1.ListBuildsRequest
-	11, // 14: loco.build.v1.BuildService.CancelBuild:input_type -> loco.build.v1.CancelBuildRequest
-	4,  // 15: loco.build.v1.BuildService.CreateBuild:output_type -> loco.build.v1.CreateBuildResponse
-	6,  // 16: loco.build.v1.BuildService.StartBuild:output_type -> loco.build.v1.StartBuildResponse
-	8,  // 17: loco.build.v1.BuildService.GetBuild:output_type -> loco.build.v1.GetBuildResponse
-	10, // 18: loco.build.v1.BuildService.ListBuilds:output_type -> loco.build.v1.ListBuildsResponse
-	12, // 19: loco.build.v1.BuildService.CancelBuild:output_type -> loco.build.v1.CancelBuildResponse
-	15, // [15:20] is the sub-list for method output_type
-	10, // [10:15] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	14, // 5: loco.build.v1.Build.actor_type:type_name -> loco.deployment.v1.DeploymentActorType
+	15, // 6: loco.build.v1.Build.method:type_name -> loco.deployment.v1.DeploymentMethod
+	13, // 7: loco.build.v1.CreateBuildResponse.upload_expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 8: loco.build.v1.StartBuildResponse.build:type_name -> loco.build.v1.Build
+	1,  // 9: loco.build.v1.GetBuildResponse.build:type_name -> loco.build.v1.Build
+	1,  // 10: loco.build.v1.ListBuildsResponse.builds:type_name -> loco.build.v1.Build
+	1,  // 11: loco.build.v1.CancelBuildResponse.build:type_name -> loco.build.v1.Build
+	3,  // 12: loco.build.v1.BuildService.CreateBuild:input_type -> loco.build.v1.CreateBuildRequest
+	5,  // 13: loco.build.v1.BuildService.StartBuild:input_type -> loco.build.v1.StartBuildRequest
+	7,  // 14: loco.build.v1.BuildService.GetBuild:input_type -> loco.build.v1.GetBuildRequest
+	9,  // 15: loco.build.v1.BuildService.ListBuilds:input_type -> loco.build.v1.ListBuildsRequest
+	11, // 16: loco.build.v1.BuildService.CancelBuild:input_type -> loco.build.v1.CancelBuildRequest
+	4,  // 17: loco.build.v1.BuildService.CreateBuild:output_type -> loco.build.v1.CreateBuildResponse
+	6,  // 18: loco.build.v1.BuildService.StartBuild:output_type -> loco.build.v1.StartBuildResponse
+	8,  // 19: loco.build.v1.BuildService.GetBuild:output_type -> loco.build.v1.GetBuildResponse
+	10, // 20: loco.build.v1.BuildService.ListBuilds:output_type -> loco.build.v1.ListBuildsResponse
+	12, // 21: loco.build.v1.BuildService.CancelBuild:output_type -> loco.build.v1.CancelBuildResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_loco_build_v1_build_proto_init() }

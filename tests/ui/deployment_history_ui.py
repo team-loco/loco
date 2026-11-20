@@ -517,6 +517,14 @@ with session(out) as browser:
             "columnheader", name="Time", exact=True
         )
     ).to_be_visible()
+    expect(
+        section.get_by_role("tabpanel", name=re.compile(r"^Builds"))
+        .get_by_text("loco deploy · CLI", exact=True)
+        .first
+    ).to_be_visible()
+    expect(
+        section.get_by_text(re.compile(r"· loco deploy · CLI$")).first
+    ).to_be_visible()
     section.get_by_role(
         "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True
     ).click()

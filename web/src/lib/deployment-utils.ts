@@ -117,7 +117,7 @@ export function deploymentActor(d: Deployment): string {
 	return d.actorType === DeploymentActorType.USER ? d.actorName || d.actorId : d.actorName || "Deleted token";
 }
 
-const METHOD_LABEL: Record<DeploymentMethod, string> = {
+export const METHOD_LABEL: Record<DeploymentMethod, string> = {
 	[DeploymentMethod.UNSPECIFIED]: "",
 	[DeploymentMethod.CLI]: "loco deploy · CLI",
 	[DeploymentMethod.WEB]: "Dashboard",

@@ -531,6 +531,7 @@ export function DeploymentsSection({
 						{selected.data?.build !== undefined && (
 							<BuildDetail
 								build={selected.data.build}
+								actors={actors}
 								workspaceId={workspaceId}
 								canWrite={canWrite}
 								deployment={buildDeployment(selected.data.build.id)}

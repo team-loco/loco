@@ -1,7 +1,7 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
 import { BuildSchema, BuildStatus } from "@gen/loco/build/v1/build_pb";
-import { DeploymentSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentActorType, DeploymentMethod, DeploymentSchema } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { DAY_MS } from "@/lib/time";
 import { msToTimestamp } from "@/lib/time";
@@ -10,6 +10,7 @@ import {
 	buildImageLabel,
 	buildLogSource,
 	buildMessage,
+	buildStarter,
 	buildTookMs,
 	canCancelBuild,
 	deploymentsByBuild,
@@ -115,5 +116,27 @@ describe("builds", () => {
 		expect(pageOf(0, 5)).toBe(0);
 		expect(pageOf(4, 5)).toBe(0);
 		expect(pageOf(5, 5)).toBe(1);
+	});
+});
+
+describe("buildStarter", () => {
+	test("names a member and the client that started the build", () => {
+		const starter = buildStarter(
+			build(BuildStatus.SUCCEEDED, { actorType: DeploymentActorType.USER, method: DeploymentMethod.CLI }),
+			{ name: "Ada", email: "ada@example.com" },
+		);
+		expect(starter).toEqual({ name: "Ada", detail: "loco deploy · CLI" });
+	});
+
+	test("labels a token build as an API token", () => {
+		const starter = buildStarter(
+			build(BuildStatus.SUCCEEDED, {
+				actorType: DeploymentActorType.API_TOKEN,
+				method: DeploymentMethod.API_TOKEN,
+				createdBy: "0199d1c2-0000-7000-8000-00000000a001",
+			}),
+			undefined,
+		);
+		expect(starter.name).toBe("API token");
 	});
 });

@@ -25,6 +25,7 @@ import {
 	buildImageLabel,
 	buildLogSource,
 	buildMessage,
+	buildStarter,
 	buildStatusStyle,
 	buildTookMs,
 	canCancelBuild,
@@ -109,6 +110,7 @@ function BuildLog({ build, workspaceId }: { build: Build; workspaceId: string })
 
 export function BuildDetail({
 	build,
+	actors,
 	workspaceId,
 	deployment,
 	logsHref,
@@ -116,6 +118,7 @@ export function BuildDetail({
 	onCanceled,
 }: {
 	build: Build;
+	actors: ReadonlyMap<string, BuildActor>;
 	workspaceId: string;
 	deployment: BuildDeploymentLink | undefined;
 	logsHref: string | undefined;
@@ -148,8 +151,11 @@ export function BuildDetail({
 		build.originEnvironmentId ??
 		"Not recorded";
 	const message = buildMessage(build);
+	const starter = buildStarter(build, actors.get(build.createdBy));
+	const starterFact = starter.detail === "" ? starter.name : `${starter.name} · ${starter.detail}`;
 	const facts: [string, string][] = [
 		["Build ID", build.id],
+		["Started by", starterFact],
 		["Origin environment", origin],
 		["Dockerfile", build.dockerfilePath],
 		["Context", build.context === "" ? "." : build.context],
@@ -278,7 +284,7 @@ export function BuildsTable({
 				const expanded = openId === build.id;
 				const style = buildStatusStyle(build.status);
 				const actor = actors.get(build.createdBy);
-				const actorName = actor === undefined ? formatShortId(build.createdBy) : actor.name || actor.email;
+				const starter = buildStarter(build, actor);
 				const image = buildImageLabel(build);
 				const took = buildTookMs(build);
 				const created = maybeTsMs(build.createdAt);
@@ -313,12 +319,15 @@ export function BuildsTable({
 							<TableCell>
 								<span className="flex min-w-0 items-center gap-2">
 									<MemberAvatar
-										name={actor?.name ?? actorName}
+										name={actor?.name ?? starter.name}
 										email={actor?.email ?? ""}
 										avatarUrl={actor?.avatarUrl ?? ""}
 										className="size-[22px]"
 									/>
-									<span className="truncate">{actorName}</span>
+									<span className="flex min-w-0 flex-col">
+										<span className="truncate">{starter.name}</span>
+										<span className="truncate text-[11.5px] text-fg3">{starter.detail}</span>
+									</span>
 								</span>
 							</TableCell>
 							<TableCell className={cn("truncate font-mono text-[12px]", image.muted && "text-fg3")}>
@@ -338,6 +347,7 @@ export function BuildsTable({
 							<TableCell colSpan={COLUMNS} className="h-auto p-0 whitespace-normal">
 								<BuildDetail
 									build={build}
+									actors={actors}
 									workspaceId={workspaceId}
 									deployment={deploymentFor(build.id)}
 									logsHref={logsHref(build.id)}
