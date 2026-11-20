@@ -157,6 +157,7 @@ const (
 	defaultHeartbeatInterval         = 30 * time.Second
 	defaultClusterJoinTokenTTL       = time.Hour
 	defaultClusterJoinTokenMaxTTL    = 7 * 24 * time.Hour
+	defaultWorkspaceNamespaceGrace   = 24 * time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 	defaultInvitationTTL             = 168 * time.Hour
 
@@ -815,5 +816,9 @@ func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 		JoinTokenTTL:         joinTokenTTL,
 		ApplyAttempts:        applyAttemptsEnv(),
 		ApplyRetryDelay:      positiveInt32Env("LOCO_APPLY_RETRY_DELAY", defaultApplyRetryDelay),
+		WorkspaceNamespaceGrace: envconfig.PositiveDuration(
+			"LOCO_WORKSPACE_NAMESPACE_GRACE",
+			defaultWorkspaceNamespaceGrace,
+		),
 	}
 }

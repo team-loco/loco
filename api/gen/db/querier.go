@@ -364,6 +364,8 @@ type Querier interface {
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
+	// Reports whether the workspace has a placement on the cluster that is open or was removed after since.
+	WorkspaceHasPlacementWindowSince(ctx context.Context, arg WorkspaceHasPlacementWindowSinceParams) (bool, error)
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }
 

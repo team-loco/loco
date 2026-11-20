@@ -935,3 +935,26 @@ func (q *Queries) UpsertPlacement(ctx context.Context, arg UpsertPlacementParams
 	err := row.Scan(&i.ID, &i.DesiredRevision)
 	return i, err
 }
+
+const workspaceHasPlacementWindowSince = `-- name: WorkspaceHasPlacementWindowSince :one
+SELECT EXISTS (
+    SELECT 1 FROM placement_windows
+    WHERE workspace_id = $1
+      AND cluster_id = $2
+      AND (removed_at IS NULL OR removed_at > $3::timestamptz)
+)
+`
+
+type WorkspaceHasPlacementWindowSinceParams struct {
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	ClusterID   uuid.UUID `json:"clusterId"`
+	Since       time.Time `json:"since"`
+}
+
+// Reports whether the workspace has a placement on the cluster that is open or was removed after since.
+func (q *Queries) WorkspaceHasPlacementWindowSince(ctx context.Context, arg WorkspaceHasPlacementWindowSinceParams) (bool, error) {
+	row := q.db.QueryRow(ctx, workspaceHasPlacementWindowSince, arg.WorkspaceID, arg.ClusterID, arg.Since)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
