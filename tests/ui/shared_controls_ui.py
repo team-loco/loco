@@ -1260,6 +1260,25 @@ def dashboard(page):
             )
             == colors
         )
+        links = allocated.get_by_role("link")
+        expect(totals.locator('[data-slot="nav-arrow"]')).to_have_count(
+            totals.get_by_role("link").count()
+        )
+        first = links.first
+        arrow = first.locator('[data-slot="nav-arrow"]')
+        allocated.get_by_text("By resource").hover()
+        expect(arrow).to_have_css("opacity", "0")
+        first.hover()
+        expect(arrow).to_have_css("opacity", "1")
+        name = first.locator('[data-slot="nav-arrow"]').evaluate(
+            "node => node.previousElementSibling.textContent"
+        )
+        first.click()
+        expect(page).to_have_url(re.compile(r"/resource/[^/?]+\?env=production$"))
+        expect(page.get_by_role("heading", name=name, exact=True)).to_be_visible()
+        page.go_back()
+        expect(allocated).to_be_visible()
+        assert allocated.evaluate("node => getComputedStyle(node).cursor") != "pointer"
         page.get_by_role("button").filter(has_text="Olivia Owner").click()
         next_mode = "Dark" if mode == "light" else "System"
         action = page.get_by_role("radiogroup", name="Mode").get_by_role(
