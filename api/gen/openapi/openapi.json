@@ -11429,6 +11429,11 @@
           "dirty": {
             "type": "boolean",
             "title": "dirty"
+          },
+          "message": {
+            "type": "string",
+            "title": "message",
+            "description": "Subject line of the commit, read from the deployment's build. Output only."
           }
         },
         "title": "SourceCommit",

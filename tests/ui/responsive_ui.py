@@ -180,7 +180,7 @@ with session(out) as browser:
                 page.locator("main, [role=main]").first.wait_for()
                 if name == "audit":
                     expect(
-                        page.get_by_role("list", name="Audit events")
+                        page.get_by_role("table", name="Audit events")
                     ).to_be_visible()
                 expect(
                     page.locator(

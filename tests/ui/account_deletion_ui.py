@@ -1,7 +1,7 @@
 import argparse
 import re
 
-from harness import call, evidence, load_state, open_page, repo, session
+from harness import call, evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -172,6 +172,18 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     assert not any(
         cookie["name"] == evidence.SESSION_COOKIE for cookie in context.cookies()
     )
+    assert errors == [], errors
+    context.close()
+
+    # An account without a name shows its email in the Name field.
+    sql(state, "UPDATE users SET name = '' WHERE email = 'other@acme.test'")
+    context, page, errors = open_page(browser, "other", state=state)
+    page.goto(state["ui_url"] + "/profile")
+    name = page.get_by_role("textbox", name="Name", exact=True)
+    expect(name).to_have_value("other@acme.test")
+    expect(page.get_by_role("button", name="Save", exact=True)).to_have_count(0)
+    name.fill("Oscar")
+    expect(page.get_by_role("button", name="Save", exact=True)).to_be_enabled()
     assert errors == [], errors
     context.close()
 

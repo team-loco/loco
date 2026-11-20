@@ -377,8 +377,7 @@ def activity_deployments(page):
         cards.nth(0).get_by_role("link", name="Open controls-pilot", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
-    page.unroute("**/loco.deployment.v1.DeploymentService/ListDeployments")
-    page.unroute("**/loco.resource.v1.ResourceService/ListWorkspaceResources")
+    page.unroute_all(behavior="wait")
 
 
 def log_levels(page):
@@ -391,7 +390,7 @@ def log_levels(page):
     levels = page.get_by_role("group", name="Log levels")
     warn = levels.get_by_role("button", name=re.compile(r"^Warn"))
     expect(warn).to_contain_text("2")
-    page.get_by_role("button", name=re.compile(r"Request completed \(2\)$")).click()
+    page.get_by_role("row", name=re.compile(r"Request completed \(2\)")).click()
     expect(page.get_by_role("dialog")).to_contain_text("Warning")
     page.keyboard.press("Escape")
     error = levels.get_by_role("button", name=re.compile(r"^Error"))
@@ -427,13 +426,14 @@ def log_columns(page):
         + f"/observability?env=production&view=logs&cols=level,resource,{attribute}"
     )
     lines = page.get_by_role("region", name="Log lines")
-    row = lines.get_by_role("button", name=re.compile(r"Slow request$")).first
+    row = lines.get_by_role("row", name=re.compile(r"Slow request")).first
     expect(row).to_be_visible()
-    head = page.locator(".list-head").first
     for label in ("Time", "Level", "Resource", attribute):
-        expect(head.get_by_text(label, exact=True)).to_be_visible()
+        expect(
+            lines.get_by_role("columnheader", name=label, exact=True)
+        ).to_be_visible()
     clipped = page.evaluate(
-        """() => [...document.querySelectorAll('.list-head span, .list-row > span')]
+        """() => [...document.querySelectorAll('[aria-label="Log lines"] :is(th, td) span')]
             .filter(e => e.scrollWidth > e.clientWidth + 1 && e.querySelector('.truncate') === null
                 && /^(Time|Level|Warning|[\\d:.]+|container\\.image\\.name)$/.test(e.textContent.trim()))
             .map(e => e.textContent.trim())"""
@@ -442,19 +442,24 @@ def log_columns(page):
     page.evaluate("localStorage.setItem('loco-clock', '12')")
     page.reload()
     time_cell = (
-        lines.get_by_role("button", name=re.compile(r"Slow request$"))
-        .first.locator("span")
+        lines.get_by_role("row", name=re.compile(r"Slow request"))
+        .first.locator("td")
         .first
     )
-    expect(time_cell).to_have_text(re.compile(r"^\d+:\d\d:\d\d\.\d{3} [AP]M$"))
+    expect(time_cell.locator("span").first).to_have_text(
+        re.compile(r"^\d+:\d\d:\d\d\.\d{3} [AP]M$")
+    )
     assert time_cell.evaluate("e => e.scrollWidth <= e.clientWidth"), (
         "12-hour time clipped"
     )
     before = time_cell.evaluate("e => e.clientWidth")
-    page.get_by_role("separator", name="Resize column Time").focus()
+    page.get_by_role("separator", name="Resize Time").focus()
     page.keyboard.press("ArrowRight")
-    expect(page).to_have_url(re.compile(r"widths=time:\d+"))
-    assert time_cell.evaluate("e => e.clientWidth") > before
+    expect(page).to_have_url(re.compile(r"widths=time(:|%3A)\d+"))
+    page.wait_for_function(
+        "([node, before]) => node.clientWidth > before",
+        arg=[time_cell.element_handle(), before],
+    )
     page.evaluate("localStorage.removeItem('loco-clock')")
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
@@ -485,9 +490,7 @@ def workload_logs(page):
     )
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     lines = page.get_by_role("region", name="Log lines")
-    workload_row = lines.get_by_role(
-        "button", name=re.compile(r"Broker connection lost$")
-    )
+    workload_row = lines.get_by_role("row", name=re.compile(r"Broker connection lost"))
     expect(workload_row).to_contain_text("kafka")
     expect(lines).not_to_contain_text("unknown")
     expect(
@@ -518,7 +521,7 @@ def workload_logs(page):
     page.keyboard.press("Escape")
     page.keyboard.press("Escape")
     expect(detail).to_have_count(0)
-    lines.get_by_role("button", name=re.compile(r"Checkout request served$")).click()
+    lines.get_by_role("row", name=re.compile(r"Checkout request served")).click()
     expect(detail.get_by_text("@resource", exact=True)).to_be_visible()
     detail.get_by_role("button", name="More for this line", exact=True).click()
     expect(
@@ -546,7 +549,7 @@ def template_logs(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     rendered = "GetCartAsync called with userId=u-42 in {region}"
     row = page.get_by_role("region", name="Log lines").get_by_role(
-        "button", name=re.compile(re.escape(rendered) + "$")
+        "row", name=re.compile(re.escape(rendered))
     )
     row.click()
     detail = page.get_by_role("dialog")
@@ -576,7 +579,7 @@ def log_drawer(page):
     )
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     row = page.get_by_role("region", name="Log lines").get_by_role(
-        "button", name=re.compile(r"Drawer line$")
+        "row", name=re.compile(r"Drawer line")
     )
     row.click()
     detail = page.get_by_role("dialog")
@@ -749,7 +752,7 @@ def log_paging(page):
         + "/observability?env=production&view=logs&live=0&size=25&page=2"
     )
     expect(pager_label).to_have_text("26–50 of 120 loaded")
-    page.get_by_role("button", name=re.compile(r"Paged line 30$")).click()
+    page.get_by_role("row", name=re.compile(r"Paged line 30\b")).click()
     wait_for_query(page, lambda query: "log" in query)
     page.reload()
     detail = page.get_by_role("dialog")
@@ -773,10 +776,8 @@ def log_paging(page):
     expect(detail).to_have_count(0)
     wait_for_query(page, lambda query: "log" not in query)
     page.context.grant_permissions(["clipboard-read", "clipboard-write"])
-    row = page.get_by_role("button", name=re.compile(r"Paged line 30$"))
-    menu = row.locator("xpath=following-sibling::div").get_by_role(
-        "button", name="More for this line", exact=True
-    )
+    row = page.get_by_role("row", name=re.compile(r"Paged line 30\b"))
+    menu = row.get_by_role("button", name="More for this line", exact=True)
     row.hover()
     menu.click()
     page.get_by_role("menuitem", name="Copy message", exact=True).click()
@@ -793,11 +794,17 @@ def log_paging(page):
     page.keyboard.press("Escape")
     wait_for_query(page, lambda query: "method" in query.get("cols", [""])[0])
     expect(
-        page.get_by_role("button", name=re.compile(r"GET Paged line 30$"))
+        page.get_by_role("row", name=re.compile(r"GET Paged line 30\b"))
     ).to_have_count(1)
-    page.get_by_role("separator", name="Resize column Resource").focus()
+    resource_head = page.get_by_role("columnheader", name="Resource", exact=True)
+    width = resource_head.evaluate("node => node.getBoundingClientRect().width")
+    page.get_by_role("separator", name="Resize Resource").focus()
     page.keyboard.press("ArrowRight")
-    expect(page).to_have_url(re.compile(r"widths=resource:156"))
+    expect(page).to_have_url(re.compile(r"widths=resource(:|%3A)\d+"))
+    page.wait_for_function(
+        "([node, width]) => Math.abs(node.getBoundingClientRect().width - width) <= 1",
+        arg=[resource_head.element_handle(), width + 16],
+    )
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
@@ -1636,7 +1643,7 @@ def limit_display(page):
             else:
                 expect(create).to_be_enabled()
     finally:
-        page.unroute(config_url, config)
+        page.unroute_all(behavior="wait")
         sql(
             state,
             f"DELETE FROM api_tokens WHERE entity_id='{user_id}' AND name LIKE 'limit-display-%';",

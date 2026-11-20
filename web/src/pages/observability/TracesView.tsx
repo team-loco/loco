@@ -2,15 +2,16 @@ import { useListNavigation } from "@/hooks/useListNavigation";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { listTraces } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { TraceStatus, TraceSummarySort, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { functionalUpdate } from "@tanstack/react-table";
 import { RefreshCwIcon, ZoomOutIcon } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 import { Button } from "@/components/design/Button";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { Skeleton } from "@/components/design/Skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useGetTrace } from "@/hooks/useGetTrace";
@@ -24,10 +25,9 @@ import { pageRangeLabel, pagingParsers, type Paging } from "@/lib/paging";
 import { formatClock, formatIsoDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { widthsParser, type ColumnKey, type ColumnWidths } from "./columns";
+import { widthsParser, type ColumnWidths } from "./columns";
 import { useObs } from "./context";
 import { fmtTs } from "./format";
-import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { QUERY_PARSERS, queryError, queryStr, sameToken, type FieldKey } from "./query";
 import { QueryBar, QueryErrorLine } from "./QueryBar";
@@ -40,12 +40,13 @@ import { traceServiceLabel } from "./trace-service";
 import { ViewHeader } from "./ViewHeader";
 import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, timestampMs, uniqueSpans } from "./traces";
 
+const SORT_IDS = ["duration", "operation", "resource", "status", "spans"] as const;
 const DEFAULT_PAGE_SIZE = 25;
 const TRACES_PARAMS = {
 	...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE),
 	...WINDOW_PARSERS,
 	...QUERY_PARSERS,
-	sort: parseAsStringLiteral(["duration", "operation", "resource", "status", "spans"]),
+	sort: parseAsStringLiteral(SORT_IDS),
 	dir: parseAsStringLiteral(["asc"]),
 	trace: parseAsString.withDefault(""),
 	span: parseAsString,
@@ -54,52 +55,15 @@ const TRACES_PARAMS = {
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
 const COUNT_LIMIT = 1;
 
-const TRACE_COLUMNS: {
-	key: ColumnKey;
-	label: string;
-	sort?: TraceSummarySort;
-	right?: boolean;
-	title?: string;
-}[] = [
-	{ key: "when", label: "Time", sort: TraceSummarySort.START_TIME },
-	{ key: "resource", label: "Resource", sort: TraceSummarySort.RESOURCE },
-	{ key: "span", label: "Root span", sort: TraceSummarySort.OPERATION },
-	{ key: "status", label: "Status", sort: TraceSummarySort.STATUS },
-	{
-		key: "duration",
-		label: "Duration",
-		sort: TraceSummarySort.DURATION,
-		right: true,
-		title: "From the first span's start to the last span's end",
-	},
-	{
-		key: "spans",
-		label: "Spans",
-		sort: TraceSummarySort.SPAN_COUNT,
-		right: true,
-	},
-];
-const TRACE_WIDTHS: Record<ColumnKey, number> = {
-	when: 150,
-	resource: 150,
-	span: 260,
-	status: 80,
-	duration: 100,
-	spans: 70,
-};
-const FLEX_COLUMNS: Record<ColumnKey, number> = { resource: 1, span: 2 };
-const SKELETON_ROWS = 8;
-const TRACE_SORTS = {
+type SortId = (typeof SORT_IDS)[number];
+const START_TIME = "when";
+const TRACE_SORTS: Record<SortId, TraceSummarySort> = {
 	duration: TraceSummarySort.DURATION,
 	operation: TraceSummarySort.OPERATION,
 	resource: TraceSummarySort.RESOURCE,
 	status: TraceSummarySort.STATUS,
 	spans: TraceSummarySort.SPAN_COUNT,
 };
-
-function traceColumnWidth(key: ColumnKey, widths: ColumnWidths): number {
-	return widths[key] ?? TRACE_WIDTHS[key] ?? 0;
-}
 
 export function TracesView() {
 	const { range } = useObs();
@@ -232,17 +196,15 @@ function TraceSession({
 		setZoomPrev(null);
 		void setParams({ ...windowValues(zoomPrev), page: null });
 	};
-	const sortBy = (column: TraceSummarySort) => {
-		const flip = column === sort && !ascending;
+	const sorting = [{ id: params.sort === "operation" ? "span" : (params.sort ?? START_TIME), desc: !ascending }];
+	const onSorting = (next: { id: string; desc: boolean }) => {
+		const id = next.id === "span" ? "operation" : next.id;
 		void setParams({
-			sort:
-				(Object.keys(TRACE_SORTS) as (keyof typeof TRACE_SORTS)[]).find((key) => TRACE_SORTS[key] === column) ?? null,
-			dir: flip ? "asc" : null,
+			sort: SORT_IDS.find((sortId) => sortId === id) ?? null,
+			dir: next.desc ? null : "asc",
 			page: null,
 		});
 	};
-	const sortDir = (column: TraceSummarySort) => (sort !== column ? undefined : ascending ? "ascending" : "descending");
-	const { widths } = params;
 
 	const header = (
 		<ViewHeader
@@ -349,24 +311,22 @@ function TraceSession({
 						</ToggleGroupItem>
 					</ToggleGroup>
 				</div>
-				<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
-					<TraceList
-						traces={traces}
-						loading={loading}
-						openId={openId}
-						crossesDay={crossesDay}
-						today={formatIsoDate(frozenEnd, timePref)}
-						resourceName={(t) => traceServiceLabel(t, resourceById.get(t.resourceId)?.name)}
-						onOpen={open}
-						widths={widths}
-						onWidths={(next) => {
-							void setParams({ widths: next }, { history: "replace" });
-						}}
-						sortDir={sortDir}
-						onSort={sortBy}
-					/>
-					{!loading && traces.length === 0 && rejected === null && <NoMatches title="No requests match." />}
-				</div>
+				<TraceList
+					traces={traces}
+					loading={loading}
+					openId={openId}
+					crossesDay={crossesDay}
+					today={formatIsoDate(frozenEnd, timePref)}
+					resourceName={(t) => traceServiceLabel(t, resourceById.get(t.resourceId)?.name)}
+					onOpen={open}
+					sorting={sorting}
+					onSorting={onSorting}
+					widths={params.widths}
+					onWidths={(next) => {
+						void setParams({ widths: next }, { history: "replace" });
+					}}
+					empty={rejected === null ? <NoMatches title="No requests match." /> : null}
+				/>
 				<Pager
 					label={traces.length > 0 ? pageRangeLabel(paging.page, paging.size, total) : "0"}
 					page={paging.page}
@@ -397,6 +357,96 @@ function TraceSession({
 	);
 }
 
+function TraceTime({ trace, crossesDay, today }: { trace: TraceSummary; crossesDay: boolean; today: string }) {
+	const timePref = useTimePreferences();
+	const startMs = timestampMs(trace.startTime);
+	return (
+		<span className="truncate font-mono whitespace-nowrap text-fg3">
+			{crossesDay || formatIsoDate(startMs, timePref) !== today
+				? fmtTs(startMs, false, timePref)
+				: formatClock(startMs, false, timePref)}
+		</span>
+	);
+}
+
+function traceColumns({
+	crossesDay,
+	today,
+	resourceName,
+}: {
+	crossesDay: boolean;
+	today: string;
+	resourceName: (t: TraceSummary) => string;
+}): DataColumn<TraceSummary>[] {
+	return [
+		{
+			id: START_TIME,
+			accessorFn: (t) => timestampMs(t.startTime),
+			header: "Time",
+			size: 150,
+			sortDescFirst: true,
+			cell: ({ row }) => <TraceTime trace={row.original} crossesDay={crossesDay} today={today} />,
+		},
+		{
+			id: "resource",
+			accessorFn: (t) => t.resourceId,
+			header: "Resource",
+			size: 150,
+			minSize: 100,
+			maxSize: 640,
+			sortDescFirst: true,
+			meta: { fit: true, fitMax: 240 },
+			cell: ({ row }) => <CellText text={resourceName(row.original)} className="text-[12.5px]" />,
+		},
+		{
+			id: "span",
+			accessorFn: (t) => t.rootSpanName,
+			header: "Root span",
+			size: 260,
+			sortDescFirst: true,
+			meta: { grow: true, primary: true },
+			cell: ({ row }) => (
+				<CellText text={row.original.rootSpanName || "Unnamed span"} className="font-mono text-foreground" />
+			),
+		},
+		{
+			id: "status",
+			accessorFn: (t) => t.status,
+			header: "Status",
+			size: 80,
+			sortDescFirst: true,
+			cell: ({ row }) => {
+				const failed = row.original.status === TraceStatus.ERROR;
+				return <span className={cn("font-mono", failed ? "text-bad-fg" : "text-fg3")}>{failed ? "Error" : "OK"}</span>;
+			},
+		},
+		{
+			id: "duration",
+			accessorFn: (t) => Number(t.durationNanos),
+			header: "Duration",
+			size: 100,
+			sortDescFirst: true,
+			meta: { align: "end" },
+			cell: ({ row }) => (
+				<span
+					className={cn("font-mono", row.original.status === TraceStatus.ERROR ? "text-bad-fg" : "text-foreground")}
+				>
+					{durationLabel(row.original.durationNanos)}
+				</span>
+			),
+		},
+		{
+			id: "spans",
+			accessorFn: (t) => Number(t.spanCount),
+			header: "Spans",
+			size: 70,
+			sortDescFirst: true,
+			meta: { align: "end" },
+			cell: ({ row }) => <span className="font-mono text-fg3">{String(row.original.spanCount)}</span>,
+		},
+	];
+}
+
 function TraceList({
 	traces,
 	loading,
@@ -405,10 +455,11 @@ function TraceList({
 	today,
 	resourceName,
 	onOpen,
+	sorting,
+	onSorting,
 	widths,
 	onWidths,
-	sortDir,
-	onSort,
+	empty,
 }: {
 	traces: TraceSummary[];
 	loading: boolean;
@@ -417,97 +468,40 @@ function TraceList({
 	today: string;
 	resourceName: (t: TraceSummary) => string;
 	onOpen: (id: string) => void;
+	sorting: { id: string; desc: boolean }[];
+	onSorting: (next: { id: string; desc: boolean }) => void;
 	widths: ColumnWidths;
 	onWidths: (next: ColumnWidths) => void;
-	sortDir: (column: TraceSummarySort) => "ascending" | "descending" | undefined;
-	onSort: (column: TraceSummarySort) => void;
+	empty: ReactNode;
 }) {
-	const timePref = useTimePreferences();
-	const { live, handle } = useResizableColumns(widths, onWidths, traceColumnWidth);
-	const grid = [
-		...TRACE_COLUMNS.map((c) => {
-			const px = String(traceColumnWidth(c.key, live));
-			const flex = FLEX_COLUMNS[c.key];
-			return flex === undefined || live[c.key] !== undefined ? `${px}px` : `minmax(${px}px,${String(flex)}fr)`;
-		}),
-		"0px",
-	].join(" ");
+	const columns = traceColumns({ crossesDay, today, resourceName });
+	const table = useDataTable("traces", {
+		columns,
+		data: traces,
+		getRowId: (t) => t.traceId,
+		manualSorting: true,
+		manualPagination: true,
+		state: { sorting, columnSizing: widths },
+		onColumnSizingChange: (updater) => {
+			onWidths(functionalUpdate(updater, widths));
+		},
+		onSortingChange: (updater) => {
+			const next = functionalUpdate(updater, sorting)[0];
+			if (next !== undefined) onSorting(next);
+		},
+	});
 	return (
-		<div className="w-max min-w-full">
-			<div className={LIST_HEAD_CLASS} style={{ gridTemplateColumns: grid }}>
-				{TRACE_COLUMNS.map((c) => (
-					<span
-						key={c.key}
-						title={c.title}
-						className={cn("relative flex min-w-0 items-center px-3", c.right === true && "justify-end")}
-					>
-						{c.sort === undefined ? (
-							<span className="truncate">{c.label}</span>
-						) : (
-							<button
-								type="button"
-								onClick={() => {
-									if (c.sort !== undefined) onSort(c.sort);
-								}}
-								className="truncate rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-							>
-								{c.label}
-								{sortDir(c.sort) !== undefined && (
-									<>
-										<span aria-hidden>{sortDir(c.sort) === "ascending" ? " ↑" : " ↓"}</span>
-										<span className="sr-only">, sorted {sortDir(c.sort)}</span>
-									</>
-								)}
-							</button>
-						)}
-						{handle(c.key, c.label)}
-					</span>
-				))}
-				<span />
-			</div>
-			<div className="flex flex-col gap-0.5 pt-1">
-				{loading &&
-					Array.from({ length: SKELETON_ROWS }, (_, i) => (
-						<div key={String(i)} className="flex h-[34px] items-center px-3">
-							<Skeleton className="h-3 w-full" />
-						</div>
-					))}
-				{!loading &&
-					traces.map((t, i) => {
-						const failed = t.status === TraceStatus.ERROR;
-						const startMs = timestampMs(t.startTime);
-						const name = t.rootSpanName || "Unnamed span";
-						return (
-							<button
-								key={t.traceId}
-								type="button"
-								aria-label={`Open trace ${t.rootSpanName || t.traceId}`}
-								aria-pressed={t.traceId === openId}
-								onClick={() => {
-									onOpen(t.traceId);
-								}}
-								className={listRowClass(i, t.traceId === openId)}
-								style={{ gridTemplateColumns: grid }}
-							>
-								<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
-									{crossesDay || formatIsoDate(startMs, timePref) !== today
-										? fmtTs(startMs, false, timePref)
-										: formatClock(startMs, false, timePref)}
-								</span>
-								<span className="truncate px-3 text-[12.5px]">{resourceName(t)}</span>
-								<span className="truncate px-3 font-mono text-foreground">{name}</span>
-								<span className={cn("truncate px-3 font-mono", failed ? "text-bad-fg" : "text-fg3")}>
-									{failed ? "Error" : "OK"}
-								</span>
-								<span className={cn("truncate px-3 text-right font-mono", failed ? "text-bad-fg" : "text-foreground")}>
-									{durationLabel(t.durationNanos)}
-								</span>
-								<span className="truncate px-3 text-right font-mono text-fg3">{String(t.spanCount)}</span>
-								<span />
-							</button>
-						);
-					})}
-			</div>
-		</div>
+		<DataTable
+			table={table}
+			label="Traces"
+			className="text-[12px] [--row-h:34px] [&_td]:py-1"
+			loading={loading}
+			empty={empty}
+			activeRowId={openId}
+			onRowClick={(row) => {
+				onOpen(row.id);
+			}}
+			rowLabel={(row) => `Open trace ${row.original.rootSpanName || row.original.traceId}`}
+		/>
 	);
 }

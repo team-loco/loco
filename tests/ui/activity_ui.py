@@ -564,7 +564,9 @@ with session(out) as browser:
                 + activity["resourceId"]
                 + "&env=*"
             )
-            page.get_by_role("list", name="Audit events").wait_for()
+            page.get_by_role("table", name="Audit events").locator(
+                "tbody tr[data-interactive]"
+            ).first.wait_for()
             expect(
                 page.get_by_role("button", name="checkout", exact=True)
             ).to_be_visible()
@@ -587,7 +589,9 @@ with session(out) as browser:
                 + "/audit?range=90d&ws="
                 + activity["workspaceId"]
             )
-            page.get_by_role("list", name="Audit events").wait_for()
+            page.get_by_role("table", name="Audit events").locator(
+                "tbody tr[data-interactive]"
+            ).first.wait_for()
             expect(
                 page.get_by_role("button", name="shared", exact=True).last
             ).to_be_visible()

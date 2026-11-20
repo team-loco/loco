@@ -1,5 +1,6 @@
 import argparse
 import re
+from datetime import UTC, datetime, timedelta
 
 from harness import call, evidence, load_state, open_page, repo, session
 from playwright.sync_api import TimeoutError as PlaywrightTimeout, expect
@@ -93,7 +94,7 @@ seed()
 
 # Each cell holds its content or truncates it, unpinned cells never overlap, the pinned end column meets the right edge,
 # every head lines up with its cells and its label sits on the same edge as their content, and no fit column
-# truncates while the grow column shows all of its text.
+# truncates below its maxSize while the grow column shows all of its text.
 LAYOUT_JS = """table => {
   const problems = [];
   const heads = [...table.querySelectorAll('thead th')];
@@ -119,7 +120,8 @@ LAYOUT_JS = """table => {
   const g = heads.findIndex(h => h.dataset.grow !== undefined);
   const growRoom = g >= 0 && cutIn(g).length > 0 && !cutIn(g).some(cut);
   heads.forEach((head, i) => {
-    if (i === g || !head.style.maxWidth || !growRoom) return;
+    const max = parseFloat(head.style.maxWidth);
+    if (i === g || Number.isNaN(max) || head.getBoundingClientRect().width >= max - 1 || !growRoom) return;
     if (cutIn(i).some(cut)) problems.push(`fit column ${head.textContent} truncates while the grow column has room`);
   });
   const first = table.querySelector('tbody tr');
@@ -127,10 +129,9 @@ LAYOUT_JS = """table => {
     const label = head.querySelector('button > span, :scope > span');
     const content = first?.children[i]?.firstElementChild;
     if (!label || !content || !label.textContent.trim()) return;
-    const end = getComputedStyle(head).justifyContent === 'flex-end';
     const a = label.getBoundingClientRect(), b = content.getBoundingClientRect();
-    if (Math.abs(end ? a.right - b.right : a.left - b.left) > 2)
-      problems.push(`head ${label.textContent} and its cells start at different edges`);
+    if (Math.abs(head.dataset.align === 'end' ? a.right - b.right : a.left - b.left) > 2)
+      problems.push(`head ${label.textContent} and its cells start at different edges: ${a.left}-${a.right} vs ${b.left}-${b.right}`);
   });
   return problems;
 }"""
@@ -147,7 +148,7 @@ def head_width(table, label):
     )
 
 
-POINTER_JS = """cell => { const b = cell.getBoundingClientRect();
+POINTER_JS = """cell => { cell.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }); const b = cell.getBoundingClientRect();
 return getComputedStyle(document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)).cursor; }"""
 
 
@@ -172,7 +173,9 @@ return b.left >= c.left && b.right <= c.right && node.contains(hit)
 
 def on_top(node):
     """Waits until `node` is on top, then reports where it is if it never gets there."""
-    node.evaluate("node => node.scrollIntoView({ block: 'center', inline: 'nearest' })")
+    node.evaluate(
+        "node => node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' })"
+    )
     try:
         node.page.wait_for_function(
             f"node => ({ON_TOP_JS})(node) === true",
@@ -207,7 +210,9 @@ SCROLL_END_JS = """table => {
 
 
 def check_scroll_end(table):
-    table.evaluate("table => table.scrollIntoView({ block: 'center' })")
+    table.evaluate(
+        "table => table.scrollIntoView({ block: 'center', behavior: 'instant' })"
+    )
     problems = table.evaluate(SCROLL_END_JS)
     assert not problems, problems
     table.evaluate(
@@ -228,9 +233,16 @@ def check_arrow(page, table, row, menu):
         """node => { const b = node.getBoundingClientRect();
         return document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2) === node; }"""
     ), "the arrow is covered"
-    a, m = arrow.bounding_box(), menu.bounding_box()
-    assert a["x"] + a["width"] <= m["x"], (a, m)
+    if menu is not None:
+        a, m = arrow.bounding_box(), menu.bounding_box()
+        assert a["x"] + a["width"] <= m["x"], (a, m)
     page.mouse.move(0, 0)
+
+
+def check_fade(scroller):
+    """A table that overflows its card at rest says so with a fade on its right edge."""
+    expect(scroller).to_have_attribute("data-scroll", "start")
+    assert scroller.evaluate("node => getComputedStyle(node).maskImage") != "none"
 
 
 def scroller_of(page, table):
@@ -238,19 +250,23 @@ def scroller_of(page, table):
 
 
 def drag_handle(page, table, label, dx):
+    """Drags the column's handle `dx` pixels and returns the column's width before the pointer is released."""
     handle = table.get_by_role("separator", name=f"Resize {label}")
     handle.evaluate(
-        "node => node.scrollIntoView({ block: 'nearest', inline: 'center' })"
+        "node => node.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' })"
     )
+    on_top(handle)
     box = handle.bounding_box()
     x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
     page.mouse.move(x, y)
     page.mouse.down()
     page.mouse.move(x + dx, y, steps=4)
+    during = head_width(table, label)
     page.mouse.up()
+    return during
 
 
-def check_resize(page, table, keyboard, drag, reopen, key="ArrowLeft"):
+def check_resize(page, table, keyboard, drag, reopen, key="ArrowLeft", url_ids=()):
     """Moves `keyboard` 32px with two `key` presses and widens `drag` by a 40px drag, then checks both widths after `reopen`."""
     before = head_width(table, keyboard)
     handle = table.get_by_role("separator", name=f"Resize {keyboard}")
@@ -261,14 +277,23 @@ def check_resize(page, table, keyboard, drag, reopen, key="ArrowLeft"):
     step = 32 if key == "ArrowRight" else -32
     assert abs(keyed - (before + step)) <= 1, (before, keyed)
     before = head_width(table, drag)
-    drag_handle(page, table, drag, 40)
+    during = drag_handle(page, table, drag, 40)
+    assert abs(during - (before + 40)) <= 1, ("mid-drag", before, during)
     dragged = head_width(table, drag)
     assert abs(dragged - (before + 40)) <= 1, (before, dragged)
     check_layout(table)
+    for column, width in zip(url_ids, (keyed, dragged), strict=False):
+        expect(page).to_have_url(
+            re.compile(rf"widths=[^&]*{column}(:|%3A){round(width)}\b"), timeout=1000
+        )
     page.reload()
     table = reopen(page)
-    assert abs(head_width(table, keyboard) - keyed) <= 1
-    assert abs(head_width(table, drag) - dragged) <= 1
+    reloaded = head_width(table, keyboard), head_width(table, drag)
+    assert abs(reloaded[0] - keyed) <= 1 and abs(reloaded[1] - dragged) <= 1, (
+        (keyed, dragged),
+        reloaded,
+        page.url,
+    )
     return table
 
 
@@ -279,8 +304,12 @@ def resources_table(page):
 
 
 def show_all_columns(page, table):
-    table.get_by_role("button", name="Columns", exact=True).click()
-    expect(page.get_by_role("menuitemcheckbox", name="Created")).to_be_visible()
+    button = table.get_by_role("button", name="Columns", exact=True)
+    created = page.get_by_role("menuitemcheckbox", name="Created")
+    # Focus without scrolling and open with Enter, so the test itself never moves the table.
+    button.evaluate("node => node.focus({ preventScroll: true })")
+    page.keyboard.press("Enter")
+    expect(created).to_be_visible()
     for item in page.get_by_role("menuitemcheckbox").all():
         if item.get_attribute("aria-checked") != "true":
             item.click()
@@ -367,7 +396,173 @@ def dashboard(page):
     expect(page).to_have_url(re.compile(r"/resource/"))
 
 
+def audit_table(page):
+    table = page.get_by_role("table", name="Audit events")
+    expect(table.locator("tbody tr[data-interactive]").first).to_be_visible()
+    return table
+
+
+def audit(page):
+    page.goto(state["ui_url"] + f"/org/{org}/audit")
+    table = audit_table(page)
+    expect(table.locator("tbody tr[data-group]").first).to_have_text("Today")
+    check_layout(table)
+    fits_at_16px(page, table)
+    row = table.locator("tbody tr[data-interactive]").first
+    expect_pointer(page, row.get_by_role("cell").nth(2))
+    expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    table = check_resize(page, table, "Time", "Where", audit_table, "ArrowRight")
+    table.locator("tbody tr[data-interactive]").first.get_by_role("cell").nth(1).click()
+    expect(page.get_by_role("dialog")).to_be_visible()
+
+
 # Playwright hides scrollbars by default; these checks need the table's own.
+def stamp(delta):
+    return (datetime.now(UTC) - delta).isoformat().replace("+00:00", "Z")
+
+
+def mock_telemetry(page):
+    entries = [
+        {
+            "timestamp": stamp(timedelta(seconds=i * 7 + 1)),
+            "level": "LOG_LEVEL_INFO",
+            "body": f"Served checkout request {i} " + "with a long message " * 6,
+            "resourceAttributes": {
+                "service.name": LONG_NAME,
+                "cloud.region": "eu-west-1",
+            },
+            "logAttributes": {
+                "http.request.method": "GET",
+                "url.path": "/api/checkout/payments/reconciliation/" + "x" * 40,
+                "http.response.status_code": "200",
+                "duration_ms": "12",
+            },
+        }
+        for i in range(6)
+    ]
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs",
+        lambda route: route.fulfill(
+            json={"entries": entries, "totalMatched": str(len(entries))}
+        ),
+    )
+    summaries = [
+        {
+            "traceId": f"{i + 1:032x}",
+            "rootSpanName": f"GET /api/checkout/payments/reconciliation/{i}",
+            "serviceName": LONG_NAME,
+            "startTime": stamp(timedelta(seconds=i * 30 + 5)),
+            "durationNanos": "427600000",
+            "status": "TRACE_STATUS_OK",
+            "spanCount": "12",
+        }
+        for i in range(6)
+    ]
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/ListTraces",
+        lambda route: route.fulfill(
+            json={"totalCount": str(len(summaries)), "summaries": summaries}
+        ),
+    )
+
+
+LOG_COLUMNS = "level,resource,replica,region,method,path,status,duration,trace"
+
+
+def logs_table(page):
+    table = page.get_by_role("table", name="Log lines")
+    expect(
+        table.get_by_role("row", name=re.compile("Served checkout request 0"))
+    ).to_be_visible()
+    return table
+
+
+def fits_at_16px(page, table):
+    """At the default 16px text size the table needs no sideways scroll."""
+    if page.evaluate("getComputedStyle(document.documentElement).fontSize") != "16px":
+        return
+    assert scroller_of(page, table).evaluate(
+        "node => node.scrollWidth <= node.clientWidth"
+    )
+
+
+def logs(page):
+    mock_telemetry(page)
+    page.goto(base + "/observability?env=production&view=logs")
+    fits_at_16px(page, logs_table(page))
+    page.goto(base + f"/observability?env=production&view=logs&cols={LOG_COLUMNS}")
+    table = logs_table(page)
+    check_layout(table)
+    scroller = scroller_of(page, table)
+    assert scroller.evaluate("node => node.scrollWidth > node.clientWidth")
+    on_top(table.get_by_role("button", name="Add a column", exact=True))
+    check_scroll_end(table)
+    row = table.get_by_role("row", name=re.compile("Served checkout request 1"))
+    expect_pointer(page, row.get_by_role("cell").nth(1))
+    expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    table = check_resize(
+        page, table, "Time", "Resource", logs_table, "ArrowRight", ("time", "resource")
+    )
+    cell = table.get_by_role("cell").nth(3)
+    cell.evaluate(
+        "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"
+    )
+    box = cell.bounding_box()
+    point = [box["x"] + 5, box["y"] + 5]
+    # The wheel goes to whatever is on top, so wait until the table is, past any loading overlay.
+    scroller.evaluate(
+        """(node, [x, y]) => new Promise(resolve => {
+        const check = () => node.contains(document.elementFromPoint(x, y)) ? resolve() : requestAnimationFrame(check);
+        check(); })""",
+        point,
+    )
+    page.mouse.move(*point)
+    page.mouse.wheel(300, 0)
+    try:
+        page.wait_for_function(
+            "node => node.scrollLeft > 0", arg=scroller.element_handle(), timeout=5000
+        )
+    except PlaywrightTimeout:
+        raise AssertionError(
+            scroller.evaluate(
+                """(node, [x, y]) => [node.scrollLeft, node.scrollWidth, node.clientWidth,
+                document.elementFromPoint(x, y)?.outerHTML.slice(0, 120)]""",
+                point,
+            )
+        ) from None
+    check_layout(table)
+    table.get_by_role("row", name=re.compile("Served checkout request 1")).get_by_role(
+        "cell"
+    ).nth(2).click()
+    expect(page.get_by_role("dialog")).to_contain_text("Served checkout request 1")
+
+
+def traces_table(page):
+    table = page.get_by_role("table", name="Traces")
+    expect(table.get_by_role("row", name=re.compile("^Open trace "))).to_have_count(6)
+    return table
+
+
+def traces(page):
+    mock_telemetry(page)
+    page.goto(base + "/observability?env=production&view=traces")
+    table = traces_table(page)
+    check_layout(table)
+    fits_at_16px(page, table)
+    row = table.get_by_role(
+        "row", name="Open trace GET /api/checkout/payments/reconciliation/1"
+    )
+    expect_pointer(page, row.get_by_role("cell").nth(4))
+    expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    table = check_resize(
+        page, table, "Time", "Root span", traces_table, url_ids=("when", "span")
+    )
+    table.get_by_role(
+        "row", name="Open trace GET /api/checkout/payments/reconciliation/1"
+    ).press("Enter")
+    expect(page).to_have_url(re.compile(f"trace={1 + 1:032x}"))
+
+
 with session(
     repo / "tests/ui/out/tables", ignore_default_args=["--hide-scrollbars"]
 ) as browser:
@@ -376,7 +571,7 @@ with session(
         context.add_init_script(
             f"document.addEventListener('DOMContentLoaded', () => {{ document.documentElement.style.fontSize = '{root}'; }})"
         )
-        for check in (resources, dashboard):
+        for check in (resources, dashboard, logs, traces, audit):
             check(page)
         assert not errors, errors
         context.close()
@@ -389,6 +584,7 @@ with session(
     name_cell = (
         table.get_by_role("row").filter(has_text="api").first.get_by_role("cell")
     )
+    check_fade(scroller)
     half = scroller.evaluate("node => node.clientWidth / 2")
     assert head_width(table, "Resource") <= half + 1, half
     left = name_cell.first.evaluate("node => node.getBoundingClientRect().left")
@@ -396,6 +592,19 @@ with session(
     page.wait_for_function("node => node.scrollLeft > 0", arg=scroller.element_handle())
     moved = name_cell.first.evaluate("node => node.getBoundingClientRect().left")
     assert abs(moved - left) <= 1, (left, moved)
+    for path, reopen in (
+        (f"/observability?env=production&view=logs&cols={LOG_COLUMNS}", logs_table),
+        ("/observability?env=production&view=traces", traces_table),
+    ):
+        mock_telemetry(page)
+        page.goto(base + path)
+        table = reopen(page)
+        check_layout(table)
+        check_fade(scroller_of(page, table))
+    page.goto(state["ui_url"] + f"/org/{org}/audit")
+    table = audit_table(page)
+    check_layout(table)
+    check_fade(scroller_of(page, table))
     assert not errors, errors
     context.close()
 print(

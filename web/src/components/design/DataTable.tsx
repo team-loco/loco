@@ -28,6 +28,7 @@ import {
 import { NavArrow } from "@/components/design/NavArrow";
 import { ArrowDownIcon, ArrowUpIcon, Columns3Icon } from "lucide-react";
 import {
+	Fragment,
 	useRef,
 	useState,
 	type CSSProperties,
@@ -58,14 +59,18 @@ import { cn } from "@/lib/utils";
 export interface DataColumnMeta {
 	/** Aligns the header and cells to the column's end edge. */
 	align?: "end";
-	/** Sizes the column to its widest cell, between `minSize` and `maxSize`, until the viewer resizes it. */
+	/** Sizes the column to its widest cell, between `minSize` and `fitMax` (or `maxSize`), until the viewer resizes it. */
 	fit?: boolean;
+	/** Caps a `fit` column's automatic width below the `maxSize` the viewer can resize it to. */
+	fitMax?: number;
 	/** Gives the column the width left over once every column has its size; without one, the last column takes it. */
 	grow?: boolean;
 	/** Holds the row's name; a clickable row shows its arrow after this column's content, the first column by default. */
 	primary?: boolean;
 	/** Keeps the column at the right edge while the table scrolls sideways, as wide as its content; the first column always stays at the left. */
 	pinEnd?: boolean;
+	/** Names the column when its header is not plain text. */
+	label?: string;
 	headClassName?: string;
 	cellClassName?: string;
 	defaultHidden?: boolean;
@@ -99,7 +104,7 @@ const MAX_WIDTH = 520;
 
 export function columnLabel<T extends RowData>(column: Column<Features, T>): string {
 	const header = column.columnDef.header;
-	return typeof header === "string" ? header : column.id;
+	return typeof header === "string" ? header : (column.columnDef.meta?.label ?? column.id);
 }
 
 export function pageWithin(pagination: PaginationState, rowCount: number): PaginationState {
@@ -114,20 +119,23 @@ function parseSizing(value: unknown): ColumnSizingState {
 	);
 }
 
-/** A table whose column widths the viewer resizes and this browser keeps under `id`. */
+/** A table whose column widths the viewer resizes and this browser keeps under `id`, unless the caller keeps them. */
 export function useDataTable<T extends RowData>(
 	id: string,
-	options: Omit<TableOptions<Features, T>, "features" | "onColumnSizingChange">,
+	options: Omit<TableOptions<Features, T>, "features">,
 ): ReactTable<Features, T> {
-	const [columnSizing, setColumnSizing] = useStoredJSON(`loco.table-widths.${id}`, parseSizing);
+	const external = options.onColumnSizingChange !== undefined;
+	const [stored, setStored] = useStoredJSON(external ? null : `loco.table-widths.${id}`, parseSizing);
 	return useTable({
 		...sortOptions,
 		...options,
 		features: dataTableFeatures,
-		state: { ...options.state, columnSizing },
-		onColumnSizingChange: (updater) => {
-			setColumnSizing((current) => functionalUpdate(updater, current));
-		},
+		state: { ...options.state, columnSizing: external ? (options.state?.columnSizing ?? {}) : stored },
+		onColumnSizingChange:
+			options.onColumnSizingChange ??
+			((updater) => {
+				setStored((current) => functionalUpdate(updater, current));
+			}),
 	});
 }
 
@@ -137,11 +145,19 @@ function growIndexOf<T extends RowData>(columns: Column<Features, T>[]): number 
 	return grow === -1 ? columns.length - 1 : grow;
 }
 
+/** The column's width in `sizing`, which may hold a drag in progress, within its bounds; its default size otherwise. */
+function widthOf<T extends RowData>(column: Column<Features, T>, sizing: ColumnSizingState): number {
+	const width = sizing[column.id];
+	if (width === undefined) return column.getSize();
+	const { minSize = MIN_WIDTH, maxSize = MAX_WIDTH } = column.columnDef;
+	return Math.min(maxSize, Math.max(minSize, width));
+}
+
 export function gridTracks<T extends RowData>(columns: Column<Features, T>[], sizing: ColumnSizingState): string {
 	const growIndex = growIndexOf(columns);
 	return columns
 		.map((column, index) => {
-			const size = column.getSize();
+			const size = widthOf(column, sizing);
 			const resized = column.id in sizing;
 			const fit = column.columnDef.meta?.fit === true && !resized;
 			if (column.columnDef.meta?.pinEnd === true)
@@ -161,7 +177,7 @@ function fitBounds<T extends RowData>(
 	index: number,
 ): CSSProperties | undefined {
 	if (column.columnDef.meta?.fit !== true || column.id in sizing) return undefined;
-	const max = `${String(column.columnDef.maxSize ?? MAX_WIDTH)}px`;
+	const max = `${String(column.columnDef.meta.fitMax ?? column.columnDef.maxSize ?? MAX_WIDTH)}px`;
 	return { minWidth: column.columnDef.minSize ?? MIN_WIDTH, maxWidth: index === 0 ? `min(${max}, 50cqi)` : max };
 }
 
@@ -245,6 +261,7 @@ function DataTableHead<T extends RowData>({
 	pin,
 	bounds,
 	grow,
+	onPreview,
 }: {
 	header: Header<Features, T>;
 	sorted: false | SortDirection;
@@ -252,6 +269,7 @@ function DataTableHead<T extends RowData>({
 	pin: "start" | "end" | undefined;
 	bounds: CSSProperties | undefined;
 	grow: boolean;
+	onPreview: (width: number | null) => void;
 }) {
 	const { column } = header;
 	const meta = column.columnDef.meta;
@@ -260,9 +278,10 @@ function DataTableHead<T extends RowData>({
 	return (
 		<TableHead
 			role="columnheader"
-			aria-label={typeof column.columnDef.header === "string" ? column.columnDef.header : undefined}
+			aria-label={typeof column.columnDef.header === "string" ? column.columnDef.header : column.columnDef.meta?.label}
 			data-pin={pin}
 			data-grow={grow || undefined}
+			data-align={meta?.align}
 			className={cn(
 				"relative flex h-10 min-w-0 items-center overflow-hidden px-2.5 text-[12.5px] font-normal text-fg3",
 				meta?.align === "end" && "justify-end",
@@ -286,7 +305,8 @@ function DataTableHead<T extends RowData>({
 					<span aria-hidden="true" className="relative flex w-0 items-center self-stretch">
 						<Arrow
 							className={cn(
-								"invisible absolute size-3 group-hover/sort:visible group-focus-visible/sort:visible",
+								"absolute size-3 group-hover/sort:visible group-focus-visible/sort:visible",
+								sorted === false && "invisible",
 								meta?.align === "end" ? "right-1" : "left-1",
 							)}
 						/>
@@ -307,6 +327,7 @@ function DataTableHead<T extends RowData>({
 							[column.id]: value,
 						}));
 					}}
+					onDrag={onPreview}
 				/>
 			)}
 		</TableHead>
@@ -330,6 +351,10 @@ export function DataTable<T extends RowData>({
 	loading = false,
 	activeRowId,
 	onRowClick,
+	rowAction = "open",
+	rowLabel,
+	rowClassName,
+	groupBy,
 	className,
 	label,
 	inset = false,
@@ -340,13 +365,22 @@ export function DataTable<T extends RowData>({
 	/** The row whose details are open; it shows as selected. */
 	activeRowId?: string | null;
 	onRowClick?: (row: Row<Features, T>) => void;
+	/** What a row click does: "navigate" to another page shows an arrow on the row, "open" a drawer here does not. */
+	rowAction?: "navigate" | "open";
+	/** Names a clickable row for assistive technology. */
+	rowLabel?: (row: Row<Features, T>) => string;
+	rowClassName?: (row: Row<Features, T>) => string | false | undefined;
+	/** Starts a labelled group, such as a day, wherever this value changes from the row before. */
+	groupBy?: (row: T) => string;
 	className?: string;
 	label?: string;
 	/** Keeps row content 10px inside the card edge instead of 20px; row tints and dividers reach 10px past it. */
 	inset?: boolean;
 }) {
 	const columns = table.getVisibleLeafColumns();
-	const sizing = table.state.columnSizing;
+	const [preview, setPreview] = useState<{ id: string; width: number } | null>(null);
+	const sizing =
+		preview === null ? table.state.columnSizing : { ...table.state.columnSizing, [preview.id]: preview.width };
 	const rows = table.getRowModel().rows;
 	const growIndex = growIndexOf(columns);
 	const primaryIndex = Math.max(
@@ -375,10 +409,13 @@ export function DataTable<T extends RowData>({
 									key={header.id}
 									header={header}
 									sorted={header.column.getIsSorted()}
-									width={header.getSize()}
+									width={widthOf(header.column, sizing)}
 									pin={pinOf(header.column, index)}
 									bounds={fitBounds(header.column, sizing, index)}
 									grow={index === growIndex}
+									onPreview={(width) => {
+										setPreview(width === null ? null : { id: header.column.id, width });
+									}}
 								/>
 							))}
 						</TableRow>
@@ -393,7 +430,7 @@ export function DataTable<T extends RowData>({
 								</TableCell>
 							</TableRow>
 						))}
-					{!loading && rows.length === 0 && (
+					{!loading && rows.length === 0 && empty !== null && (
 						<TableRow role="row" className={cn(ROW, "hover:bg-transparent")}>
 							<TableCell role="cell" className="col-span-full p-0 whitespace-normal">
 								{empty}
@@ -401,60 +438,76 @@ export function DataTable<T extends RowData>({
 						</TableRow>
 					)}
 					{!loading &&
-						rows.map((row) => {
+						rows.map((row, i) => {
 							const selected = row.id === activeRowId;
+							const group = groupBy?.(row.original);
+							const previous = rows[i - 1];
+							const opensGroup =
+								group !== undefined && (previous === undefined || groupBy?.(previous.original) !== group);
 							return (
-								<TableRow
-									role="row"
-									key={row.id}
-									data-state={selected ? "selected" : undefined}
-									data-interactive={onRowClick === undefined ? undefined : ""}
-									aria-selected={activeRowId === undefined ? undefined : row.id === activeRowId}
-									tabIndex={onRowClick === undefined ? undefined : 0}
-									onClick={
-										onRowClick === undefined
-											? undefined
-											: (event) => {
-													if (!fromControl(event)) onRowClick(row);
-												}
-									}
-									onKeyDown={
-										onRowClick === undefined
-											? undefined
-											: (event) => {
-													if (event.key !== "Enter" || fromControl(event)) return;
-													event.preventDefault();
-													onRowClick(row);
-												}
-									}
-									className={cn(
-										ROW,
-										"group/row group/nav hover:bg-transparent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-panel2",
-										onRowClick !== undefined && "hover:bg-(--row-hover)",
-									)}
-								>
-									{row.getVisibleCells().map((cell, index) => {
-										const meta = cell.column.columnDef.meta;
-										const pin = pinOf(cell.column, index);
-										return (
-											<TableCell
-												role="cell"
-												key={cell.id}
-												data-pin={pin}
-												style={fitBounds(cell.column, sizing, index)}
-												className={cn(
-													"flex min-h-(--row-h) min-w-0 items-center overflow-hidden py-2.5",
-													meta?.align === "end" && "justify-end",
-													pin !== undefined && PINNED,
-													meta?.cellClassName,
-												)}
-											>
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
-												{onRowClick !== undefined && index === primaryIndex && <NavArrow />}
+								<Fragment key={row.id}>
+									{opensGroup && (
+										<TableRow role="row" data-group="" className={cn(ROW, "border-b-0 hover:bg-transparent")}>
+											<TableCell role="cell" className="col-span-full pt-4 pb-1.5 text-[12px] text-fg3">
+												<span className="sticky left-5">{group}</span>
 											</TableCell>
-										);
-									})}
-								</TableRow>
+										</TableRow>
+									)}
+									<TableRow
+										role="row"
+										data-state={selected ? "selected" : undefined}
+										data-interactive={onRowClick === undefined ? undefined : ""}
+										aria-selected={activeRowId === undefined ? undefined : row.id === activeRowId}
+										aria-label={rowLabel?.(row)}
+										tabIndex={onRowClick === undefined ? undefined : 0}
+										onClick={
+											onRowClick === undefined
+												? undefined
+												: (event) => {
+														if (!fromControl(event)) onRowClick(row);
+													}
+										}
+										onKeyDown={
+											onRowClick === undefined
+												? undefined
+												: (event) => {
+														if (event.key !== "Enter" || fromControl(event)) return;
+														event.preventDefault();
+														onRowClick(row);
+													}
+										}
+										className={cn(
+											ROW,
+											"group/row group/nav hover:bg-transparent has-[+[data-group]]:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-panel2",
+											onRowClick !== undefined && "hover:bg-(--row-hover)",
+											rowClassName?.(row),
+										)}
+									>
+										{row.getVisibleCells().map((cell, index) => {
+											const meta = cell.column.columnDef.meta;
+											const pin = pinOf(cell.column, index);
+											return (
+												<TableCell
+													role="cell"
+													key={cell.id}
+													data-pin={pin}
+													style={fitBounds(cell.column, sizing, index)}
+													className={cn(
+														"flex min-h-(--row-h) min-w-0 items-center overflow-hidden py-2.5",
+														meta?.align === "end" && "justify-end",
+														pin !== undefined && PINNED,
+														meta?.cellClassName,
+													)}
+												>
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+													{onRowClick !== undefined && rowAction === "navigate" && index === primaryIndex && (
+														<NavArrow />
+													)}
+												</TableCell>
+											);
+										})}
+									</TableRow>
+								</Fragment>
 							);
 						})}
 				</TableBody>

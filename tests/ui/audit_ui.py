@@ -74,7 +74,7 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 
 
-def open_page(browser, user, path):
+def open_page(browser, user, path=None):
     context, page, errors = new_page(browser, user, state=state)
     calls = []
 
@@ -89,7 +89,8 @@ def open_page(browser, user, path):
             )
 
     page.on("response", record)
-    page.goto(state["ui_url"] + path)
+    if path is not None:
+        page.goto(state["ui_url"] + path)
     return context, page, calls, errors
 
 
@@ -99,11 +100,17 @@ def list_events(calls):
 
 with session(out) as browser:
     # Organization admins read the whole organization from the sidebar entry.
-    context, page, calls, errors = open_page(
-        browser, "owner", f"/org/{org}/wks/{shared}"
+    context, page, calls, errors = open_page(browser, "owner")
+    environments = []
+    context.route(
+        "**/loco.environment.v1.EnvironmentService/ListEnvironments",
+        lambda route: environments.append(route),
+        times=1,
     )
+    page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}")
 
-    # Reproduce a lazy import that exceeds Playwright's default assertion timeout.
+    # Reproduce a lazy import that exceeds Playwright's default assertion timeout,
+    # with the workspace's environments arriving while it loads.
     def delayed_audit(route):
         response = route.fetch()
         page.wait_for_timeout(6000)
@@ -113,23 +120,29 @@ with session(out) as browser:
     page.route(audit_module, delayed_audit, times=1)
     with page.expect_request(audit_module):
         page.get_by_role("link", name="Audit log", exact=True).click()
+    assert environments, "the workspace's environments loaded before the click"
+    environments[0].continue_()
     page.wait_for_url("**" + audit_path)
-    expect(page.get_by_role("list", name="Audit events")).to_be_visible(
+    expect(page.get_by_role("table", name="Audit events")).to_be_visible(
         timeout=evidence.STEP_TIMEOUT_MS
     )
-    rows = page.get_by_role("list", name="Audit events").get_by_role("button")
+    rows = page.get_by_role("table", name="Audit events").locator(
+        "tbody tr[data-interactive]"
+    )
     expect(rows).to_have_count(50)
     assert all(
         call["body"]["orgId"] == org and not call["body"].get("workspaceId")
         for call in list_events(calls)
     ), list_events(calls)
-    expect(page.get_by_role("list", name="Audit events")).to_contain_text("ledger")
-    events = page.get_by_role("list", name="Audit events")
+    expect(page.get_by_role("table", name="Audit events")).to_contain_text("ledger")
+    events = page.get_by_role("table", name="Audit events")
     expect(
-        events.get_by_role("button").filter(has_text="Invited someone")
+        events.locator("tbody tr[data-interactive]").filter(has_text="Invited someone")
     ).to_contain_text("newhire@acme.test")
     expect(
-        events.get_by_role("button").filter(has_text="Deleted a resource").first
+        events.locator("tbody tr[data-interactive]")
+        .filter(has_text="Deleted a resource")
+        .first
     ).to_contain_text("shared / retired")
 
     with expect_rpc(
@@ -185,8 +198,11 @@ with session(out) as browser:
     page.route("**/loco.event.v1.EventService/ListEvents", slow_list)
     page.get_by_role("button", name=re.compile(r"–")).click()
     time_range.get_by_role("button", name=re.compile(r"Past 30 days")).click()
-    expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
-    expect(page.get_by_role("list", name="Audit events")).to_be_visible(timeout=10000)
+    events = page.get_by_role("table", name="Audit events")
+    expect(events.locator("tbody tr[data-interactive]")).to_have_count(0)
+    expect(events.locator("tbody tr[data-interactive]").first).to_be_visible(
+        timeout=10000
+    )
     page.unroute("**/loco.event.v1.EventService/ListEvents", slow_list)
     expect(page).to_have_url(re.compile(r"[?&]range=30d"))
     expect(page).not_to_have_url(re.compile(r"[?&](from|to)="))
@@ -240,7 +256,7 @@ with session(out) as browser:
     page.get_by_role("button", name="Clear event filter", exact=True).click()
     expect(rows).to_have_count(50)
     # The search reads the whole log: inventory's events are older than the loaded page.
-    expect(page.get_by_role("list", name="Audit events")).not_to_contain_text(
+    expect(page.get_by_role("table", name="Audit events")).not_to_contain_text(
         "inventory"
     )
     with expect_rpc(
@@ -249,13 +265,13 @@ with session(out) as browser:
         lambda body: body.get("query") == "INVENTORY",
     ):
         search.fill("INVENTORY")
-    expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
+    expect(page.get_by_role("table", name="Audit events")).to_contain_text("inventory")
     # The search reads the Where column: the sibling workspace names events on its resources.
     with expect_rpc(page, "ListEvents", lambda body: body.get("query") == "sibling"):
         search.fill("sibling")
     expect(
-        page.get_by_role("list", name="Audit events")
-        .get_by_role("button")
+        page.get_by_role("table", name="Audit events")
+        .locator("tbody tr[data-interactive]")
         .filter(has_text="Created a resource")
     ).to_contain_text("sibling / inventory")
     # Typing sends only the query the typing pauses on, so a half-typed field neither reads nor fails.
@@ -293,7 +309,7 @@ with session(out) as browser:
         ).to_be_visible()
     expect(panel.get_by_role("heading")).to_have_text("@type does not compare numbers")
     expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
-    expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
+    expect(page.get_by_role("table", name="Audit events")).to_have_count(0)
     expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
     with expect_rpc(
         page,
@@ -335,7 +351,7 @@ with session(out) as browser:
         search.fill(request_id)
     assert not searched.value.request.post_data_json.get("beforeSeq")
     expect(rows).to_have_count(1)
-    expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
+    expect(page.get_by_role("table", name="Audit events")).to_contain_text("inventory")
     expect(page).to_have_url(re.compile(r"[?&]q=" + request_id))
     page.set_viewport_size({"width": 390, "height": 844})
     expect(search).to_be_visible()
@@ -468,7 +484,7 @@ with session(out) as browser:
     expect(alert).to_contain_text("EventService.ListEvents")
     expect(alert).to_contain_text("invalid_argument")
     expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
-    expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
+    expect(page.get_by_role("table", name="Audit events")).to_have_count(0)
     expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
     expect(rows).to_have_count(0)
     expect(search).to_be_visible()
@@ -493,7 +509,9 @@ with session(out) as browser:
         browser, "workspace_admin", f"/org/{org}/wks/{shared}"
     )
     page.get_by_role("link", name="Audit log", exact=True).click()
-    rows = page.get_by_role("list", name="Audit events").get_by_role("button")
+    rows = page.get_by_role("table", name="Audit events").locator(
+        "tbody tr[data-interactive]"
+    )
     expect(rows.first).to_be_visible()
     workspace_buttons = page.get_by_role(
         "button", name=re.compile(r"^(shared|sibling)$")
@@ -506,13 +524,13 @@ with session(out) as browser:
     expect(
         page.get_by_role("button", name="Clear workspace filter", exact=True)
     ).to_have_count(0)
-    expect(page.get_by_role("list", name="Audit events")).not_to_contain_text("ledger")
+    expect(page.get_by_role("table", name="Audit events")).not_to_contain_text("ledger")
     workspace_filter.click()
     page.get_by_role("option", name="sibling", exact=True).click()
-    expect(page.get_by_role("list", name="Audit events")).to_contain_text(
+    expect(page.get_by_role("table", name="Audit events")).to_contain_text(
         "Wren Workspace"
     )
-    expect(page.get_by_role("list", name="Audit events")).not_to_contain_text(
+    expect(page.get_by_role("table", name="Audit events")).not_to_contain_text(
         "checkout"
     )
     reads = list_events(calls)
@@ -558,7 +576,7 @@ with session(out) as browser:
             + f"{audit_path}?ws={sibling}&res={state['audit']['inventory']}"
         )
     expect(page.get_by_role("button", name="inventory", exact=True)).to_be_visible()
-    expect(page.get_by_role("list", name="Audit events")).not_to_contain_text(
+    expect(page.get_by_role("table", name="Audit events")).not_to_contain_text(
         "Wren Workspace"
     )
     first = filtered.value.request.post_data_json

@@ -4,6 +4,7 @@ import { listEnvironments } from "@gen/loco/environment/v1/environment-Environme
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { useEffect } from "react";
+import { useLocation } from "react-router";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -23,9 +24,10 @@ export function useEnvironments() {
 			: undefined;
 	// GetScopes does not say which workspace a granted resource is in; only a grant in this
 	// workspace lets the user list its environments.
+	const listGranted = typeof grants === "object" && grants.length > 0;
 	const granted = useTanstackQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
-		enabled: typeof grants === "object" && grants.length > 0,
+		enabled: listGranted,
 	});
 	const { data, isLoading: environmentsLoading } = useQuery(
 		listEnvironments,
@@ -53,7 +55,8 @@ export function useEnvironments() {
 		active,
 		requested,
 		setActive,
-		isLoading: scopes.isLoading || granted.isLoading || environmentsLoading,
+		// A disabled query reports loading while another view fetches the same list.
+		isLoading: scopes.isLoading || (listGranted && granted.isLoading) || environmentsLoading,
 	};
 }
 
@@ -62,7 +65,10 @@ export function useEnvironmentInUrl() {
 	const { active, isLoading } = useEnvironments();
 	const [env, setEnv] = useQueryState("env");
 	const name = active?.name;
+	const { pathname } = useLocation();
 	useEffect(() => {
+		// The browser is already on another path whose page is still loading; that page writes its own env.
+		if (pathname !== window.location.pathname) return;
 		if (!isLoading && name !== undefined && env !== name) void setEnv(name, { history: "replace" });
-	}, [isLoading, name, env, setEnv]);
+	}, [isLoading, name, env, setEnv, pathname]);
 }

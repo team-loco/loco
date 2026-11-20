@@ -5,7 +5,7 @@ import re
 import uuid
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import evidence, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -86,7 +86,33 @@ with session(out) as browser:
     page.on("request", record)
     for method in HELD:
         context.route(f"**/loco.{method}", lambda route: held.append(route))
-    page.goto(url)
+    # The shell lists the workspace's resources before the page's code arrives,
+    # and environments load after the page has mounted.
+    environments = []
+    context.route(
+        "**/loco.environment.v1.EnvironmentService/ListEnvironments",
+        lambda route: environments.append(route),
+        times=1,
+    )
+    page_code = []
+    context.route(
+        re.compile(r"/assets/Resource-[^/]+\.js$"),
+        lambda route: page_code.append(route),
+        times=1,
+    )
+    with expect_rpc(
+        page,
+        "loco.resource.v1.ResourceService/ListWorkspaceResources",
+        lambda body: True,
+    ):
+        page.goto(url)
+    assert page_code, "the resource page's code loaded before the resource list"
+    page_code[0].continue_()
+    expect(
+        page.get_by_role("status").filter(has_text="Loading resource")
+    ).to_be_attached()
+    assert environments, "the workspace's environments loaded before the page did"
+    environments[0].continue_()
     replicas = page.get_by_role("region", name="Replicas", exact=True)
     expect(replicas).to_be_visible()
     expect(replicas.locator("[data-slot=skeleton]").first).to_be_visible()
@@ -105,6 +131,18 @@ with session(out) as browser:
     for method in ONCE:
         assert any(c[0] == method for c in calls), (method, calls)
     assert not errors, errors
+    context.close()
+
+    # The workspace URL names its environment while the resource list still loads.
+    context, page, _ = open_page(browser, state=state)
+    listing = []
+    context.route(
+        "**/loco.resource.v1.ResourceService/ListWorkspaceResources",
+        lambda route: listing.append(route),
+    )
+    page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}")
+    expect(page).to_have_url(re.compile(r"[?&]env=production(&|$)"))
+    assert listing, "the resource list loaded before the check"
     context.close()
     shots = Path(os.environ.get("LOAD_SHOTS", out))
     shots.mkdir(parents=True, exist_ok=True)

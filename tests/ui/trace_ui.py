@@ -422,13 +422,13 @@ with session(out) as browser:
     expect(page).to_have_url(re.compile(r"[?&]env="))
     page.get_by_role("link", name="Traces", exact=True).click()
     open_trace = page.get_by_role("region", name="Trace list").get_by_role(
-        "button", name="Open trace " + root_name, exact=True
+        "row", name="Open trace " + root_name, exact=True
     )
     open_trace.wait_for()
     expect(page.get_by_role("heading", level=1)).to_have_text("Traces")
-    expect(
-        page.get_by_role("button", name=re.compile(r"^Time.*sorted descending$"))
-    ).to_be_visible()
+    expect(page.get_by_role("columnheader", name="Time", exact=True)).to_have_attribute(
+        "aria-sort", "descending"
+    )
     wait_for_query(
         page,
         lambda query: (
@@ -437,7 +437,7 @@ with session(out) as browser:
     )
     expect(page.get_by_role("button", name=re.compile(r"^All\s*7$"))).to_be_visible()
     expect(open_trace).to_contain_text("Error")
-    expect(open_trace).to_have_attribute("aria-pressed", "false")
+    expect(open_trace).to_have_attribute("aria-selected", "false")
     open_trace.click(position={"x": 20, "y": 10})
     drawer = page.get_by_role("dialog", name=root_name)
     expect(page).to_have_url(re.compile("trace=" + trace))
@@ -895,11 +895,17 @@ with session(out) as browser:
     expect(page.get_by_text("1–25 of 67", exact=True)).to_be_visible()
     expect(
         page.get_by_role("region", name="Trace list").locator(
-            'button[aria-label^="Open trace "]'
+            'tr[aria-label^="Open trace "]'
         )
     ).to_have_count(25)
-    page.get_by_role("separator", name="Resize column Root span").press("ArrowRight")
-    expect(page).to_have_url(re.compile(r"widths=span:276"))
+    root_span = page.get_by_role("columnheader", name="Root span", exact=True)
+    width = root_span.evaluate("node => node.getBoundingClientRect().width")
+    page.get_by_role("separator", name="Resize Root span").press("ArrowRight")
+    expect(page).to_have_url(re.compile(r"widths=span(:|%3A)\d+"))
+    page.wait_for_function(
+        "([node, width]) => Math.abs(node.getBoundingClientRect().width - width) <= 1",
+        arg=[root_span.element_handle(), width + 16],
+    )
     with expect_rpc(page, "ListTraces", page_request(offset=25)):
         page.get_by_role("button", name="Next page", exact=True).click()
     assert last_page_request()["offset"] == 25
@@ -909,7 +915,7 @@ with session(out) as browser:
     assert last_page_request()["offset"] == 50
     expect(
         page.get_by_role("region", name="Trace list").locator(
-            'button[aria-label^="Open trace "]'
+            'tr[aria-label^="Open trace "]'
         )
     ).to_have_count(17)
     expect(page.get_by_text("51–67 of 67", exact=True)).to_be_visible()
@@ -928,9 +934,7 @@ with session(out) as browser:
         "ListTraces",
         page_request(sort="TRACE_SUMMARY_SORT_DURATION", ascending=True),
     ):
-        page.get_by_role(
-            "button", name=re.compile(r"^Duration\W*sorted descending$")
-        ).click()
+        page.get_by_role("button", name="Duration", exact=True).click()
     assert last_page_request()["ascending"] is True
     for label, key in [
         ("Root span", "OPERATION"),
@@ -951,9 +955,7 @@ with session(out) as browser:
             "ListTraces",
             page_request(sort="TRACE_SUMMARY_SORT_" + key, ascending=True),
         ):
-            page.get_by_role(
-                "button", name=re.compile("^" + label + r"\W*sorted descending$")
-            ).click()
+            page.get_by_role("button", name=label, exact=True).click()
         assert last_page_request()["ascending"] is True
     with expect_rpc(page, "ListTraces", page_request(query="@status:error")):
         page.get_by_role("button", name=re.compile(r"^Errors")).click()
@@ -1015,7 +1017,7 @@ with session(out) as browser:
         page.goto(state["ui_url"] + base + "&q=products")
     assert filtered.value.request.post_data_json["query"] == "products"
     expect(
-        page.get_by_role("button", name="Open trace GET /api/products", exact=True)
+        page.get_by_role("row", name="Open trace GET /api/products", exact=True)
     ).to_be_visible()
     context.close()
     mode[0] = "outlier"
@@ -1036,7 +1038,7 @@ with session(out) as browser:
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
     page.goto(state["ui_url"] + base)
     rows = page.get_by_role("region", name="Trace list").get_by_role(
-        "button", name=re.compile("^Open trace ")
+        "row", name=re.compile("^Open trace ")
     )
     expect(rows).to_have_count(7)
     expect(rows.last).to_contain_text(re.compile(r"^[A-Z][a-z]{2} \d+, \d\d:\d\d"))
@@ -1712,7 +1714,7 @@ with session(out) as browser:
             ),
         )
         page.goto(state["ui_url"] + base)
-        page.get_by_role("button", name="Open trace " + root_name, exact=True).click()
+        page.get_by_role("row", name="Open trace " + root_name, exact=True).click()
         drawer = page.get_by_role("dialog", name=root_name)
         flame = drawer.get_by_role("region", name="Flame graph")
         expect(flame.locator("[data-span-id]")).to_have_count(len(spans))
@@ -1878,7 +1880,7 @@ with session(out) as browser:
             drawer.get_by_role("button", name="Close", exact=True).click()
             expect(drawer).to_have_count(0)
             page.evaluate("transitions.length = 0")
-            page.get_by_role("button", name="Open trace " + name, exact=True).click()
+            page.get_by_role("row", name="Open trace " + name, exact=True).click()
             expect(drawer).to_be_visible()
             page.wait_for_function(
                 "() => transitions.some(([c, p]) => c === 'sheet-content' && ['translate', 'transform'].includes(p))"
