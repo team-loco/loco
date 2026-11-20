@@ -27,13 +27,6 @@ import {
 import { SUBDOMAIN_RE } from "@/lib/platform-domain";
 import { nameError } from "@/lib/slug";
 
-/** The names other resources and drafts in the workspace hold. */
-export interface TakenSets {
-	names: ReadonlySet<string>;
-}
-
-const NONE: TakenSets = { names: new Set() };
-
 import { isDeployed, type RegionView } from "./model";
 
 // These fields make up the resource's region map, which UpdateResource replaces in one request
@@ -285,7 +278,7 @@ export function validateDraft(
 	regions: RegionView[],
 	served: string[],
 	replicaLimit: number,
-	taken: TakenSets = NONE,
+	takenNames: ReadonlySet<string> = new Set(),
 ): DraftErrors {
 	const next = resolved(draft, base);
 	const errors: DraftErrors = {};
@@ -294,7 +287,7 @@ export function validateDraft(
 		if (error !== null) errors[`scaling.${region}`] = error;
 	}
 	if (draft.name !== undefined) {
-		const error = nameError(next.name, taken.names);
+		const error = nameError(next.name, takenNames);
 		if (error !== null) errors.name = error;
 	}
 	if (draft.image !== undefined && !IMAGE_RE.test(next.image.trim())) errors.image = "Use registry/repository:tag";

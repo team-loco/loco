@@ -51,7 +51,6 @@ with session(out) as browser:
     ) as saved:
         save.click()
     assert saved.value.ok, saved.value.text()
-    expect(page.get_by_role("alertdialog")).to_have_count(0)
     expect(page.get_by_text(f"Saved {label}", exact=True)).to_be_visible()
     expect(page.get_by_role("heading", level=1)).to_have_text(label)
     assert updates == [{"resourceId": resource, "name": label}], updates

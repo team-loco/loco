@@ -190,7 +190,7 @@ export function SettingsView({
 	const served = servedDomains(domainsQuery.data?.platformDomains ?? [], onRegions);
 	const { activeOrgId } = useOrgWorkspace();
 	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
-	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id);
+	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
 	const errors = validateDraft(draft, base, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY, taken);
 	const errorCount = Object.keys(errors).length;
 	const changes = changeNames(draft, base);
