@@ -313,6 +313,7 @@ export function MetricChart({
 								type="number"
 								scale="time"
 								domain={[from, to]}
+								allowDataOverflow
 								ticks={ticks}
 								interval="preserveStartEnd"
 								tickLine={false}

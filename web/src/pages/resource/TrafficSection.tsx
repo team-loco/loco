@@ -107,6 +107,7 @@ function PublicTraffic({
 												dataKey="time"
 												type="number"
 												domain={[from, to]}
+												allowDataOverflow
 												ticks={timeAxis(from, to, timePref)}
 												interval="preserveStartEnd"
 												tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}

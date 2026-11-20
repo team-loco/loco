@@ -1402,6 +1402,10 @@ def metrics_many(page):
         requests.append(body["metricName"])
         now = datetime.now(UTC)
         ids = body.get("resourceIds") or []
+        before_start = (
+            datetime.fromisoformat(body["startTime"].replace("Z", "+00:00"))
+            - timedelta(seconds=30)
+        ).isoformat()
         series = [
             {
                 "resourceId": rid,
@@ -1411,7 +1415,8 @@ def metrics_many(page):
                         "value": 0.0004 if i == 0 else (i + 1) / 20 * scale,
                     }
                     for minute, scale in ((50, 0.6), (30, 1.0), (10, 0.8))
-                ],
+                ]
+                + [{"timestamp": before_start, "value": 0.1}],
             }
             for i, rid in enumerate(ids)
         ]
@@ -1433,6 +1438,10 @@ def metrics_many(page):
         "els => els.filter(e => e.getAttribute('y1') === e.getAttribute('y2')).length"
     )
     assert horizontal == 1, horizontal
+    first_label = chart.locator(".recharts-xAxis-tick-labels text").first
+    plot_left = chart.locator(".recharts-cartesian-grid line").first
+    gap = first_label.bounding_box()["x"] - plot_left.bounding_box()["x"]
+    assert abs(gap) <= 3, gap
     box = chart.bounding_box()
     chart.hover(position={"x": box["width"] * 0.5, "y": 60})
     rows = page.locator("[data-tooltip-row]")
