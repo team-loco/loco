@@ -21,6 +21,8 @@ import { Infrastructure } from "./Infrastructure";
 import type { useTraceLogs } from "./trace-logs";
 import { descendantIds } from "../flame";
 
+const MIN_HEIGHT = 192;
+
 export function TraceLogPanel({
 	trace,
 	selected,
@@ -64,11 +66,11 @@ export function TraceLogPanel({
 			tokens: [{ key: "trace", value: trace.id, neg: false }],
 		});
 	};
-	const clamp = (n: number) => Math.max(120, Math.min(620, n));
+	const clamp = (n: number) => Math.max(MIN_HEIGHT, Math.min(620, n));
 	return (
 		<section
 			aria-label="Trace bottom panel"
-			className="tv-bottom relative flex min-h-0 shrink-0 min-[1100px]:max-h-[65%] flex-col border-t border-line bg-background"
+			className="tv-bottom relative flex min-h-[192px] shrink-0 min-[1100px]:max-h-[65%] flex-col border-t border-line bg-background"
 			style={{ height: collapsed ? "auto" : height }}
 		>
 			{!collapsed && (
@@ -77,7 +79,7 @@ export function TraceLogPanel({
 					aria-label="Resize bottom panel"
 					aria-orientation="horizontal"
 					aria-valuenow={height}
-					aria-valuemin={120}
+					aria-valuemin={MIN_HEIGHT}
 					aria-valuemax={620}
 					tabIndex={0}
 					className="absolute inset-x-0 -top-1 z-10 h-2 cursor-row-resize touch-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -245,11 +247,11 @@ export function TraceLogPanel({
 														onOpen(row);
 													}}
 													className={cn(
-														"grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 border-b border-line py-1.5 pr-3 pl-5 text-left font-mono text-[12px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:grid-cols-[96px_60px_64px_minmax(72px,104px)_minmax(0,1fr)]",
+														"grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 border-b border-line py-1.5 pr-3 pl-5 text-left font-mono text-[12px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:grid-cols-[116px_60px_64px_minmax(72px,104px)_minmax(0,1fr)]",
 														highlighted.has(row.key) && "bg-info/10",
 													)}
 												>
-													<span className="text-fg3">{formatClock(row.ts, true, timePref)}</span>
+													<span className="whitespace-nowrap text-fg3">{formatClock(row.ts, true, timePref)}</span>
 													<span className="text-fg3">+{durationLabel(logOffset(trace, row.entry.timestamp))}</span>
 													<span
 														className={cn(

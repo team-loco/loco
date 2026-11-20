@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
 import { cn } from "@/lib/utils";
+import { SpanTipTrigger } from "./SpanTip";
 
 import { MIN_BLOCK, zoomLayout, lineage, zoomTo, type Zoom } from "../flame";
 
@@ -61,41 +62,49 @@ export function FlameGraph({
 					const on = b.span.spanId === selected.spanId;
 					const color = err ? "var(--err)" : resourceColor(b.span);
 					return (
-						<button
+						<SpanTipTrigger
 							key={b.span.spanId}
-							data-span-id={b.span.spanId}
-							data-linked={linkedSpan === b.span.spanId || undefined}
-							onFocus={() => {
-								onHoverSpan(b.span.spanId);
-							}}
-							onBlur={() => {
-								onHoverSpan(null);
-							}}
-							type="button"
-							aria-pressed={on}
-							aria-label={`${label(b.span)} ${b.span.name}, ${durationLabel(b.span.durationNanos)}${err ? ", error" : ""}`}
-							title={`${b.span.name}\n${label(b.span)} · ${durationLabel(b.span.durationNanos)} · self ${durationLabel(selfTime(b.span))}\nDouble-click to zoom`}
-							onClick={() => {
-								onSelect(b.span);
-							}}
-							onDoubleClick={() => {
-								setZoom(zoomTo(trace, b.span));
-							}}
-							className={cn(
-								"tv-span-bar @container absolute min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-								err && "text-bad-fg",
-								!related.has(b.span.spanId) && "opacity-45",
-								highlight !== null && traceResourceKey(b.span) !== highlight && "opacity-20",
-								on && "shadow-[inset_0_0_0_1.5px_var(--fg)]",
-								linkedSpan === b.span.spanId && "ring-2 ring-info",
-							)}
-							style={{
-								left: `${String(Math.min(b.left, 1 - MIN_BLOCK) * PERCENT)}%`,
-								width: `${String(Math.max(MIN_BLOCK, b.width) * PERCENT)}%`,
-								top: b.depth * ROW_PX,
-								height: BAR_PX,
-								background: `color-mix(in oklab, ${color} ${err ? "26%" : "34%"}, var(--bg))`,
-							}}
+							lines={[
+								b.span.name,
+								`${label(b.span)} · ${durationLabel(b.span.durationNanos)} · self ${durationLabel(selfTime(b.span))}`,
+								"Double-click to zoom",
+							]}
+							render={
+								<button
+									data-span-id={b.span.spanId}
+									data-linked={linkedSpan === b.span.spanId || undefined}
+									onFocus={() => {
+										onHoverSpan(b.span.spanId);
+									}}
+									onBlur={() => {
+										onHoverSpan(null);
+									}}
+									type="button"
+									aria-pressed={on}
+									aria-label={`${label(b.span)} ${b.span.name}, ${durationLabel(b.span.durationNanos)}${err ? ", error" : ""}`}
+									onClick={() => {
+										onSelect(b.span);
+									}}
+									onDoubleClick={() => {
+										setZoom(zoomTo(trace, b.span));
+									}}
+									className={cn(
+										"tv-span-bar @container absolute min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+										err && "text-bad-fg",
+										!related.has(b.span.spanId) && "opacity-45",
+										highlight !== null && traceResourceKey(b.span) !== highlight && "opacity-20",
+										on && "shadow-[inset_0_0_0_1.5px_var(--fg)]",
+										linkedSpan === b.span.spanId && "ring-2 ring-info",
+									)}
+									style={{
+										left: `${String(Math.min(b.left, 1 - MIN_BLOCK) * PERCENT)}%`,
+										width: `${String(Math.max(MIN_BLOCK, b.width) * PERCENT)}%`,
+										top: b.depth * ROW_PX,
+										height: BAR_PX,
+										background: `color-mix(in oklab, ${color} ${err ? "26%" : "34%"}, var(--bg))`,
+									}}
+								/>
+							}
 						>
 							<span className="flex h-full w-full min-w-0 items-center gap-2 overflow-hidden px-1.5">
 								<span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{b.span.name}</span>
@@ -103,7 +112,7 @@ export function FlameGraph({
 									{durationLabel(b.span.durationNanos)}
 								</span>
 							</span>
-						</button>
+						</SpanTipTrigger>
 					);
 				})}
 			</div>

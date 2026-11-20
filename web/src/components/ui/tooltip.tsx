@@ -8,8 +8,8 @@ function TooltipProvider({ delay = 0, ...props }: TooltipPrimitive.Provider.Prop
 	return <TooltipPrimitive.Provider data-slot="tooltip-provider" delay={delay} {...props} />;
 }
 
-function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
-	return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
+function Tooltip<Payload = unknown>({ ...props }: TooltipPrimitive.Root.Props<Payload>) {
+	return <TooltipPrimitive.Root<Payload> data-slot="tooltip" {...props} />;
 }
 
 function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
@@ -51,4 +51,6 @@ function TooltipContent({
 	);
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
+const createTooltipHandle = TooltipPrimitive.createHandle;
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, createTooltipHandle };

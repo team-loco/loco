@@ -1,3 +1,4 @@
+import { SpanTip } from "./SpanTip";
 import type { SetTraceZoom } from "./useTraceZoom";
 import { useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
@@ -205,6 +206,7 @@ export function TracePlot({
 					/>
 				)}
 
+				<SpanTip />
 				<div
 					ref={cursorRef}
 					hidden

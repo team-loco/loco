@@ -3,6 +3,7 @@ import {
 	TooltipContent as TooltipContentBase,
 	TooltipProvider,
 	TooltipTrigger,
+	createTooltipHandle,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -18,4 +19,4 @@ function TooltipContent({ className, ...props }: React.ComponentProps<typeof Too
 	);
 }
 
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, createTooltipHandle };

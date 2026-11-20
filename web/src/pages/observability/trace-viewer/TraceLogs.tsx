@@ -1,6 +1,6 @@
 import type { SetTraceZoom } from "./useTraceZoom";
 import { useTraceResources } from "./TraceColors";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { descendantIds, type Zoom } from "../flame";
 import type { LogRow } from "../rows";
@@ -37,7 +37,6 @@ export function TraceLogs({
 	const [opened, setOpened] = useState<LogRow | null>(null);
 	const [tab, setTab] = useState("logs");
 	const [collapsed, setCollapsed] = useState(false);
-	const rootRef = useRef<HTMLDivElement>(null);
 	const ids = useMemo(
 		() => (hoverSpan === null ? new Set<string>() : descendantIds(trace, hoverSpan, children)),
 		[trace, hoverSpan, children],
@@ -52,25 +51,10 @@ export function TraceLogs({
 			),
 		[logs.rows, ids, hoverLog, nearLog],
 	);
-	const scroll = (key: string | undefined) => {
-		if (key === undefined) return;
-		const row = rootRef.current?.querySelector<HTMLElement>(`[data-log-key="${CSS.escape(key)}"]`);
-		const list = row?.closest<HTMLElement>("[data-trace-log-scroll]");
-		if (row === undefined || row === null || list === undefined || list === null) return;
-		const rect = row.getBoundingClientRect(),
-			bounds = list.getBoundingClientRect();
-		if (rect.top < bounds.top) list.scrollTop += rect.top - bounds.top;
-		else if (rect.bottom > bounds.bottom) list.scrollTop += rect.bottom - bounds.bottom;
-	};
-
 	const hover = (id: string | null) => {
 		if (id === hoverSpan && nearLog === null) return;
 		setHoverSpan(id);
 		setNearLog(null);
-		if (id !== null) {
-			const descendants = descendantIds(trace, id, children);
-			scroll(logs.rows.find((r) => descendants.has(r.entry.spanId))?.key);
-		}
 	};
 	const atTime = (fraction: number | null) => {
 		setHoverSpan(null);
@@ -84,7 +68,6 @@ export function TraceLogs({
 			undefined,
 		);
 		setNearLog(nearest?.key ?? null);
-		if (nearest?.key !== nearLog) scroll(nearest?.key);
 	};
 	const open = (row: LogRow | null) => {
 		setOpened(row);
@@ -95,10 +78,7 @@ export function TraceLogs({
 		setCollapsed(false);
 	};
 	return (
-		<div
-			ref={rootRef}
-			className="flex min-w-0 flex-col min-[1100px]:grid min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]"
-		>
+		<div className="flex min-w-0 flex-col min-[1100px]:grid min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]">
 			<div className="flex min-h-0 min-w-0 flex-col">
 				<div className="flex min-w-0 shrink-0 flex-col pr-5 pb-5 pl-6 min-[1100px]:min-h-0 min-[1100px]:shrink min-[1100px]:pb-0">
 					<TracePlot
