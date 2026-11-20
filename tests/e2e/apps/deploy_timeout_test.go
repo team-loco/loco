@@ -9,6 +9,8 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/internal/locofile"
@@ -16,15 +18,16 @@ import (
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
-func TestFailedDeploymentRollsBack(t *testing.T) {
+// TestATimedOutDeployKeepsThePreviousVersionServing deploys a crashing version over a serving one.
+// Its deploy timeout stops it, and the previous version serves every request throughout.
+func TestATimedOutDeployKeepsThePreviousVersionServing(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
-	const app = "e2e-rollback"
+	const app = "e2e-deploy-timeout"
 	host := w.Host(app)
 	service := platform.ImageService(p.PublicImage, host)
-	service.RollbackOnFailure = new(true)
 	service.Health = nil
-	service.Env = map[string]string{rollbackModeKey: "previous"}
+	service.Env = map[string]string{versionModeKey: "previous"}
 	target := platform.OneReplica()
 	target.Replicas = &locofile.Replicas{Min: new(int32(2)), Max: new(int32(2))}
 	service.Regions = map[string]locofile.Region{p.Region: target}
@@ -38,7 +41,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const poller = "e2e-rollback-poller"
+	const poller = "e2e-deploy-timeout-poller"
 	request := fmt.Sprintf(
 		`wget -q -T 2 -O /dev/null --header "Host: %s" "http://%s.%s.svc.cluster.local/"`,
 		host,
@@ -55,7 +58,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 		),
 	}})
 	p.DeleteOnCleanup(t, "-n", p.Namespace, "pod", poller)
-	platform.Eventually(t, time.Minute, "requests before rollback", func(ctx context.Context) error {
+	platform.Eventually(t, time.Minute, "requests before the failed deploy", func(ctx context.Context) error {
 		logs, logErr := p.Kubectl(ctx, "-n", p.Namespace, "logs", poller)
 		if logErr != nil {
 			return logErr
@@ -66,7 +69,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 		return nil
 	})
 	crashing := withImage(file.Services[app], p.CrashingImage)
-	crashing.Env = map[string]string{rollbackModeKey: "crashing"}
+	crashing.Env = map[string]string{versionModeKey: "crashing"}
 	crashing.Deploy = &locofile.Deploy{Timeout: new(int32(locofile.MinDeployTimeout))}
 	file.Services[app] = crashing
 	platform.WriteLocoFile(t, dir, file)
@@ -82,55 +85,45 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	deployments := response.GetDeployments()
-	if len(deployments) != 3 {
-		t.Fatalf("deployments=%v, want the rollback, the failed deployment and the previous one", deployments)
+	if len(deployments) != 2 {
+		t.Fatalf("deployments=%v, want the failed deployment and the previous one", deployments)
 	}
-	restoredID, failed := deployments[0].GetId(), deployments[1]
-	if failed.GetId() == previous || failed.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED ||
-		failed.GetPlacements()[0].GetLive() {
+	failed := deployments[0]
+	if failed.GetId() == previous || failed.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Fatalf("failed deployment=%v", failed)
 	}
-	rollback := deployments[0]
-	if rollback.GetTrigger() != deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_AUTO_ROLLBACK ||
-		rollback.GetSourceDeploymentId() != previous {
-		t.Fatalf("rollback deployment=%v, want an automatic rollback copying %s", rollback, previous)
-	}
-	platform.Eventually(t, statusTimeout, "the rollback to run", func(context.Context) error {
-		restored := getDeployment(t, restoredID)
-		if !restored.GetPlacements()[0].GetLive() ||
-			restored.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
-			return fmt.Errorf("restored deployment=%v", restored)
-		}
-		if regionStatus(t, w, app).GetDeploymentId() != restoredID {
-			return errors.New("resource does not run the rollback")
-		}
-		return nil
-	})
-	requireServingReplicas(t, getDeployment(t, restoredID), restoredID, 2)
-	var workload appsv1.Deployment
-	p.MustGet(t, &workload, "-n", w.Namespace, "deployment", locov1alpha1.WorkloadName(resourceID))
-	if got := workloadEnv(workload, rollbackModeKey); got != "previous" {
-		t.Fatalf("%s=%q after the rollback, want the previous deployment's %q", rollbackModeKey, got, "previous")
-	}
+	platform.Eventually(
+		t,
+		statusTimeout,
+		"the previous version to serve on every replica",
+		func(context.Context) error {
+			var sets appsv1.ReplicaSetList
+			p.MustGet(t, &sets, "-n", w.Namespace, "replicasets", "-l", "app="+locov1alpha1.WorkloadName(resourceID))
+			for _, set := range sets.Items {
+				mode := templateEnv(set.Spec.Template.Spec, versionModeKey)
+				if replicas := ptr.Deref(set.Spec.Replicas, 0); mode == "crashing" && replicas != 0 ||
+					mode == "previous" && set.Status.ReadyReplicas != 2 {
+					return fmt.Errorf("%s replica set %s: %d desired, %d ready", mode, set.Name, replicas,
+						set.Status.ReadyReplicas)
+				}
+			}
+			return nil
+		},
+	)
+	requireServingReplicas(t, getDeployment(t, failed.GetId()), previous, 2)
 	logs, err := p.Kubectl(t.Context(), "-n", p.Namespace, "logs", poller)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(logs, "fail") {
-		t.Fatalf("requests failed during rollback:\n%s", logs)
-	}
-	if got := getDeployment(
-		t,
-		failed.GetId(),
-	).GetStatus(); got != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
-		t.Fatalf("failed deployment became %s", got)
+		t.Fatalf("requests failed during the failed deploy:\n%s", logs)
 	}
 }
 
-const rollbackModeKey = "ROLLBACK_MODE"
+const versionModeKey = "VERSION_MODE"
 
-func workloadEnv(deployment appsv1.Deployment, name string) string {
-	for _, variable := range deployment.Spec.Template.Spec.Containers[0].Env {
+func templateEnv(pod corev1.PodSpec, name string) string {
+	for _, variable := range pod.Containers[0].Env {
 		if variable.Name == name {
 			return variable.Value
 		}

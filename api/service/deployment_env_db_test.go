@@ -2,7 +2,6 @@ package service
 
 import (
 	"maps"
-	"strings"
 	"testing"
 )
 
@@ -10,27 +9,6 @@ const (
 	envModeKey   = "MODE"
 	previousMode = "previous"
 )
-
-func TestRollbackRestoresThePreviousDeploymentsEnv(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	seedDeployment(t, f, strings.Replace(sameRegionSpec, "{", `{"rollbackOnFailure":true,`, 1))
-	previous := imageService()
-	previous.Env = map[string]string{envModeKey: previousMode}
-	if _, err := deployService(t, f, previous); err != nil {
-		t.Fatal(err)
-	}
-	reportRollback(t, f, true, false)
-	failing := imageService()
-	failing.Env = map[string]string{envModeKey: "failing"}
-	if _, err := deployService(t, f, failing); err != nil {
-		t.Fatal(err)
-	}
-	reportRollback(t, f, false, true)
-	if got := desiredPayload(t, f).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(got, previous.GetEnv()) {
-		t.Fatalf("rolled back env = %v, want %v", got, previous.GetEnv())
-	}
-}
 
 func TestCancelRestoresThePreviousDeploymentsEnv(t *testing.T) {
 	t.Parallel()

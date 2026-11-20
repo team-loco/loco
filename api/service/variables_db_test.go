@@ -402,47 +402,6 @@ func TestListResourceOutputsListsBuiltInsVariablesAndUsers(t *testing.T) {
 	}
 }
 
-func TestAutomaticRollbackRestoresTheResolvedVariablesOfThePreviousDeployment(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	f.setSecrets(t, newTestKeyProvider(t, "k1"), map[string]string{passwordName: plaintextValue})
-	resourceSpec := strings.Replace(sameRegionSpec, "{", `{"rollbackOnFailure":true,`, 1)
-	deploy := func(env map[string]string) uuid.UUID {
-		t.Helper()
-		service := imageService()
-		service.Env = env
-		resp, err := createDeploymentReadingSecrets(t, f, resourceSpec, service)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return uuid.MustParse(resp.GetDeploymentId())
-	}
-	previousID := deploy(map[string]string{buildModeKey: "previous", "AUTH_TOKEN": ref(varref.Secrets, passwordName)})
-	reportRollback(t, f, true, false)
-	deploy(map[string]string{buildModeKey: "failed"})
-	reportRollback(t, f, false, true)
-
-	previous, err := f.queries.GetDeploymentByID(t.Context(), previousID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	restored, err := f.queries.GetDeploymentByID(t.Context(), f.liveDeployment(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if restored.Trigger != genDb.DeploymentTriggerAutoRollback ||
-		!maps.Equal(restored.PlainEnv, previous.PlainEnv) || !maps.Equal(restored.SecretEnv, previous.SecretEnv) {
-		t.Fatalf("rollback = %s with %v and %v, want an automatic rollback with %v and %v",
-			restored.Trigger, restored.PlainEnv, restored.SecretEnv, previous.PlainEnv, previous.SecretEnv)
-	}
-	if got := desiredPayload(t, f).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(got, previous.PlainEnv) {
-		t.Fatalf("application env after the rollback = %v, want %v", got, previous.PlainEnv)
-	}
-	if got := f.placement(t, f.clusterID).SecretEnv; !maps.Equal(got, previous.SecretEnv) {
-		t.Fatalf("placement secret env after the rollback = %v, want %v", got, previous.SecretEnv)
-	}
-}
-
 func TestRegionUpdateKeepsTheResolvedVariablesOfTheRunningDeployment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

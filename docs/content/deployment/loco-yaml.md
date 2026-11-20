@@ -142,9 +142,9 @@ Too many restarts stop a new version only until it proves itself by serving on e
 
 `timeout`, between 60 and 3600 seconds, is how long a new version has to become healthy: every replica available, and none restarted within the health window. A version that is still unhealthy at its timeout stops, whatever held it back: replicas that cannot be scheduled, an image that cannot be pulled, a health check that never passes or a crash loop. The timeout starts when the cluster first sees the version and ends once it is healthy, so a replica added later by scaling is not held to it.
 
-An omitted field uses the API default: `on-failure` with 10 restarts and a 600-second timeout, unless the operator sets `LOCO_DEFAULT_MAX_RESTARTS` or `LOCO_DEFAULT_DEPLOY_TIMEOUT`. `GetConfig` reports the defaults as `failure_policy`.
+The dashboard sets the same fields under **Deployment behavior** in a service's settings; a saved change applies from the service's next deployment without redeploying it. The dashboard stores every field, so a file whose `deploy` leaves them out plans their removal. An omitted field uses the API default: `on-failure` with 10 restarts and a 600-second timeout, unless the operator sets `LOCO_DEFAULT_MAX_RESTARTS` or `LOCO_DEFAULT_DEPLOY_TIMEOUT`. `GetConfig` reports the defaults as `failure_policy`.
 
-A stopped version runs no replicas. The previous version takes its place when its replicas still run, or when it proved itself by serving on every replica for the health window without a restart; the deployment then fails (and rolls back when `rollbackOnFailure` is on). A version that misses its timeout with nothing to fall back to also fails. A first version stopped for restarts before it was ever healthy runs nothing, and its deployment becomes `crashed` until `loco resource restart`, a redeploy or a rollback starts it again. A running deployment whose replica restarted is `degraded` and returns to `running` once every replica has gone the health window without a restart.
+A stopped version runs no replicas. The previous version takes its place when its replicas still run, or when it proved itself by serving on every replica for the health window without a restart; the deployment then fails, and remains the region's current deployment until the next one. A version that misses its timeout with nothing to fall back to also fails. A first version stopped for restarts before it was ever healthy runs nothing, and its deployment becomes `crashed` until `loco resource restart`, a redeploy or a rollback starts it again. A running deployment whose replica restarted is `degraded` and returns to `running` once every replica has gone the health window without a restart.
 
 `deploy` applies to the service in every environment, so an environment override cannot set it. A change reaches the cluster with the service's next deployment. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it; `loco deploy` still builds and redeploys the services it targets.
 
@@ -242,25 +242,6 @@ services:
 `injectOtel` defaults to `true`. Loco supplies `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`. A variable with one of those names replaces that default, and Loco injects the rest. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL`, sampler settings or signal-specific exporter settings, leave the defaults in place. See [Runtime environment](../operations/applications.md#runtime-environment) for the supplied values.
 
 Application code must already include the SDK and instrumentation. Setting `injectOtel` to `false` leaves SDK configuration to the application; it does not disable telemetry collection. Environment overrides replace the resource's injection preference. Saving the setting creates a deployment snapshot and rolls out the resource.
-
-## Rollback on failure
-
-`rollbackOnFailure` sets whether Loco restores the previous deployment when a deployment fails. It defaults to `false` in every environment. Set it for a service or override it for one environment:
-
-```yaml
-services:
-  web:
-    rollbackOnFailure: true
-    environments:
-      preview:
-        rollbackOnFailure: false
-```
-
-Changing the setting rolls out nothing; it applies the next time a deployment of the service fails.
-
-When the newest deployment in an environment fails in a region, by missing its deploy timeout, using up its restarts or running out of apply retries, Loco creates a rollback deployment from the newest earlier deployment that ran. The rollback covers every region the failed deployment runs in that the earlier deployment sized, keeps the earlier deployment's configuration and variables, and records `trigger: auto_rollback` with the earlier deployment as its source. It shows `deploying` until it is available, then `running`. The failed deployment stays `failed`. A rollback that fails does not roll back again. The activity of both deployments records the rollback.
-
-Nothing is rolled back, and the failed deployment stays active, when the setting is off, the build failed, no earlier deployment ran, or the earlier deployment's cluster or build image is no longer available. A restored deployment that fails is not rolled back again.
 
 ## Variables and secrets
 

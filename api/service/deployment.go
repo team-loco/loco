@@ -71,11 +71,10 @@ var placementStatuses = map[genDb.PlacementStatus]deploymentv1.PlacementStatus{
 }
 
 var deploymentTriggers = map[genDb.DeploymentTrigger]deploymentv1.DeploymentTrigger{
-	genDb.DeploymentTriggerDeploy:       deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_DEPLOY,
-	genDb.DeploymentTriggerRedeploy:     deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY,
-	genDb.DeploymentTriggerRollback:     deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK,
-	genDb.DeploymentTriggerScale:        deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_SCALE,
-	genDb.DeploymentTriggerAutoRollback: deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_AUTO_ROLLBACK,
+	genDb.DeploymentTriggerDeploy:   deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_DEPLOY,
+	genDb.DeploymentTriggerRedeploy: deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY,
+	genDb.DeploymentTriggerRollback: deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK,
+	genDb.DeploymentTriggerScale:    deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_SCALE,
 }
 
 var deploymentTriggersFromProto = map[deploymentv1.DeploymentTrigger]genDb.DeploymentTrigger{

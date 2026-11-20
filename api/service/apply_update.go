@@ -155,7 +155,7 @@ func (a *applier) affectedRegions(resourceID uuid.UUID, changes []configplan.Cha
 	global := false
 	changed := map[string]bool{}
 	for _, change := range changes {
-		if strings.HasPrefix(change.Path, deployPathPrefix) || change.Path == "rollbackOnFailure" {
+		if strings.HasPrefix(change.Path, deployPathPrefix) {
 			continue
 		}
 		rest, isRegion := strings.CutPrefix(change.Path, regionsPathPrefix)

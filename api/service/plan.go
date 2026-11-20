@@ -361,10 +361,9 @@ func liveState(
 	spec := resourceSpec.GetService()
 
 	state := configplan.State{
-		RollbackOnFailure: spec.GetRollbackOnFailure(),
-		Observability:     observabilityconfig.Resolve(spec.GetObservability(), nil),
-		Health:            liveHealth(spec.GetHealthCheck()),
-		Regions:           make(map[string]configplan.Region, len(spec.GetRegions())),
+		Observability: observabilityconfig.Resolve(spec.GetObservability(), nil),
+		Health:        liveHealth(spec.GetHealthCheck()),
+		Regions:       make(map[string]configplan.Region, len(spec.GetRegions())),
 	}
 	if routing := spec.GetRouting(); routing != nil {
 		state.Port = routing.Port

@@ -113,18 +113,17 @@ func MergeDeploymentSpec(
 		requestServiceSpec.GetObservability(),
 	)
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		Platform:          servicedefaults.FirstSet(requestServiceSpec.GetPlatform(), string(defaults.TargetPlatform)),
-		RollbackOnFailure: requestServiceSpec.RollbackOnFailure,
-		Observability:     observability.Proto(),
-		RunAsUser:         requestServiceSpec.RunAsUser,
-		RunAsGroup:        requestServiceSpec.RunAsGroup,
-		Build:             requestServiceSpec.GetBuild(),
-		Command:           requestServiceSpec.GetCommand(),
-		Args:              requestServiceSpec.GetArgs(),
-		Port:              requestServiceSpec.Port,
-		Env:               requestServiceSpec.GetEnv(),
-		Regions:           targets,
-		HealthCheck:       healthCheck,
+		Platform:      servicedefaults.FirstSet(requestServiceSpec.GetPlatform(), string(defaults.TargetPlatform)),
+		Observability: observability.Proto(),
+		RunAsUser:     requestServiceSpec.RunAsUser,
+		RunAsGroup:    requestServiceSpec.RunAsGroup,
+		Build:         requestServiceSpec.GetBuild(),
+		Command:       requestServiceSpec.GetCommand(),
+		Args:          requestServiceSpec.GetArgs(),
+		Port:          requestServiceSpec.Port,
+		Env:           requestServiceSpec.GetEnv(),
+		Regions:       targets,
+		HealthCheck:   healthCheck,
 	}
 
 	return &deploymentv1.DeploymentSpec{

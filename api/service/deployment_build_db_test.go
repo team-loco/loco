@@ -429,7 +429,7 @@ func TestBuildFailureProblemSurvivesBuildHistoryPruning(t *testing.T) {
 func TestABuildingDeploymentShowsTheServingReplicas(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
-	serving := rollbackDeployment(t, f.deployFixture, false, nil)
+	serving := imageDeployment(t, f.deployFixture)
 	p := f.placement(t, f.clusterID)
 	f.agentServer().recordStatus(f.ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), DeploymentId: serving.String(), ObservedRevision: p.DesiredRevision,
@@ -476,7 +476,7 @@ func TestABuildingDeploymentShowsTheServingReplicas(t *testing.T) {
 func TestAFailedBuildLeavesTheRollingDeploymentLive(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
-	rolling := rollbackDeployment(t, f.deployFixture, false, nil)
+	rolling := imageDeployment(t, f.deployFixture)
 	buildID := f.queued(t)
 	deployBuild(t, f, buildID)
 	status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_FAILED)

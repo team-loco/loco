@@ -1,10 +1,14 @@
 import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { RegionCard, RegionCards } from "@/components/design/RegionCards";
 import { CommandFields } from "@/components/design/CommandFields";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { SegmentedChoice } from "@/components/design/SegmentedChoice";
 import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
@@ -14,7 +18,13 @@ import { joinImage, parseImage, splitImage } from "@/lib/image";
 import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
 import type { RegionView } from "./model";
-import type { Baseline, DraftErrors, SettingsDraft } from "./settings-draft";
+import {
+	RESTART_CHOICES,
+	type Baseline,
+	type DraftErrors,
+	type RestartChoice,
+	type SettingsDraft,
+} from "./settings-draft";
 
 export const HEALTH_SECTION_ID = "set-health";
 
@@ -239,12 +249,13 @@ export function SizeSection({
 	);
 }
 
-function SecondsInput({
+function UnitInput({
 	label,
 	unit,
 	value,
 	error,
 	locked,
+	reserve = true,
 	describedBy,
 	onChange,
 }: {
@@ -253,15 +264,17 @@ function SecondsInput({
 	value: string;
 	error: string | undefined;
 	locked: boolean;
+	reserve?: boolean;
 	describedBy: string | undefined;
 	onChange: (value: string) => void;
 }) {
 	return (
-		<Field label={label} error={error} reserve>
+		<Field label={label} error={error} reserve={reserve}>
 			<InputGroup>
 				<InputGroupInput
 					className="font-mono"
 					inputMode="numeric"
+					aria-label={label}
 					value={value}
 					disabled={locked}
 					aria-describedby={describedBy}
@@ -297,7 +310,7 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 						}}
 					/>
 				</Field>
-				<SecondsInput
+				<UnitInput
 					label="Interval"
 					unit="sec"
 					value={draft.healthInterval ?? base.healthInterval}
@@ -308,7 +321,7 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 						onChange({ healthInterval });
 					}}
 				/>
-				<SecondsInput
+				<UnitInput
 					label="Timeout"
 					unit="sec"
 					value={draft.healthTimeout ?? base.healthTimeout}
@@ -319,7 +332,7 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 						onChange({ healthTimeout });
 					}}
 				/>
-				<SecondsInput
+				<UnitInput
 					label="Fail after"
 					unit="checks"
 					value={draft.healthFailures ?? base.healthFailures}
@@ -335,28 +348,79 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 	);
 }
 
-export function DeploymentSection({ draft, base, locked, describedBy, onChange }: SectionProps) {
+const RESTART_HINTS: Record<RestartChoice, string> = {
+	"on-failure":
+		"Loco restarts a replica that exits. Past the restart limit, a new version stops and the previous one keeps serving; a proven version keeps running and shows as crashed.",
+	always: "Loco restarts a replica every time it exits.",
+	never:
+		"A replica that exits stops a new version and the previous one keeps serving; a proven version restarts it and shows as crashed.",
+};
+
+export function DeploymentSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
+	const queryClient = useQueryClient();
+	const restartPolicy = draft.restartPolicy ?? base.restartPolicy;
 	return (
 		<SettingsBlock id="set-deployment" title="Deployment behavior" hint="Changes apply on the next rollout.">
-			<div className="flex items-start justify-between gap-4">
-				<div className="flex min-w-0 flex-col gap-1">
-					<label htmlFor="rollback-on-failure" className="text-[13.5px] font-medium">
-						Roll back when a deployment fails
-					</label>
-					<p id="rollback-on-failure-hint" className="m-0 text-[13px] text-fg3">
-						When a deployment fails, Loco restores the previous deployment. Off by default.
-					</p>
-				</div>
-				<Switch
-					id="rollback-on-failure"
-					checked={draft.rollbackOnFailure ?? base.rollbackOnFailure}
-					disabled={locked}
-					aria-describedby={["rollback-on-failure-hint", describedBy].filter(Boolean).join(" ")}
-					onCheckedChange={(rollbackOnFailure: boolean) => {
-						onChange({ rollbackOnFailure });
+			{base.failurePolicyMissing ? (
+				<ErrorState
+					error={new Error("The API returned no failure policy for this service")}
+					what="the failure policy"
+					rpc={getResource}
+					onRetry={async () => {
+						await queryClient.refetchQueries();
 					}}
 				/>
-			</div>
+			) : (
+				<div className="flex flex-col gap-3.5">
+					<Field label="Restart policy" hint={RESTART_HINTS[restartPolicy]}>
+						<SegmentedChoice
+							label="Restart policy"
+							options={RESTART_CHOICES}
+							value={restartPolicy}
+							disabled={locked}
+							describedBy={describedBy}
+							className="grid-cols-3"
+							onChange={(next) => {
+								const choice = RESTART_CHOICES.find((c) => c.value === next);
+								if (choice !== undefined) onChange({ restartPolicy: choice.value });
+							}}
+						/>
+					</Field>
+					<div className={grid2}>
+						{restartPolicy === "on-failure" && (
+							<UnitInput
+								label="Restart limit"
+								unit="restarts"
+								value={draft.maxRestarts ?? base.maxRestarts}
+								error={errors.maxRestarts}
+								locked={locked}
+								reserve={false}
+								describedBy={describedBy}
+								onChange={(maxRestarts) => {
+									onChange({ maxRestarts });
+								}}
+							/>
+						)}
+						<UnitInput
+							label="Deploy timeout"
+							unit="sec"
+							value={draft.deployTimeout ?? base.deployTimeout}
+							error={errors.deployTimeout}
+							locked={locked}
+							reserve={false}
+							describedBy={describedBy}
+							onChange={(deployTimeout) => {
+								onChange({ deployTimeout });
+							}}
+						/>
+					</div>
+					<p className="m-0 text-[13px] text-fg3">
+						A new version that is not healthy within the deploy timeout stops, and the previous version keeps serving. A
+						version is proven once every replica has served for the cluster's health window, 5 minutes by default,
+						without a restart.
+					</p>
+				</div>
+			)}
 		</SettingsBlock>
 	);
 }

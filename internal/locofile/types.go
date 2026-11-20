@@ -18,43 +18,41 @@ type File struct {
 
 // Service is one deployable unit of the workspace.
 type Service struct {
-	RollbackOnFailure *bool               `json:"rollbackOnFailure,omitempty"`
-	Observability     *Observability      `json:"observability,omitempty"`
-	Dockerfile        string              `json:"dockerfile,omitempty"`
-	Context           string              `json:"context,omitempty"`
-	Image             string              `json:"image,omitempty"`
-	Command           []string            `json:"command,omitempty"`
-	Args              []string            `json:"args,omitempty"`
-	RunAsUser         *int64              `json:"runAsUser,omitempty"`
-	RunAsGroup        *int64              `json:"runAsGroup,omitempty"`
-	Port              *int32              `json:"port,omitempty"`
-	Health            *Health             `json:"health,omitempty"`
-	Routing           *Routing            `json:"routing,omitempty"`
-	Domains           []string            `json:"domains,omitempty"`
-	Env               map[string]string   `json:"env,omitempty"`
-	Regions           map[string]Region   `json:"regions,omitempty"`
-	Deploy            *Deploy             `json:"deploy,omitempty"`
-	Environments      map[string]Override `json:"environments,omitempty"`
+	Observability *Observability      `json:"observability,omitempty"`
+	Dockerfile    string              `json:"dockerfile,omitempty"`
+	Context       string              `json:"context,omitempty"`
+	Image         string              `json:"image,omitempty"`
+	Command       []string            `json:"command,omitempty"`
+	Args          []string            `json:"args,omitempty"`
+	RunAsUser     *int64              `json:"runAsUser,omitempty"`
+	RunAsGroup    *int64              `json:"runAsGroup,omitempty"`
+	Port          *int32              `json:"port,omitempty"`
+	Health        *Health             `json:"health,omitempty"`
+	Routing       *Routing            `json:"routing,omitempty"`
+	Domains       []string            `json:"domains,omitempty"`
+	Env           map[string]string   `json:"env,omitempty"`
+	Regions       map[string]Region   `json:"regions,omitempty"`
+	Deploy        *Deploy             `json:"deploy,omitempty"`
+	Environments  map[string]Override `json:"environments,omitempty"`
 }
 
 // Override is the part of a service that one environment changes.
 type Override struct {
-	RollbackOnFailure *bool             `json:"rollbackOnFailure,omitempty"`
-	Observability     *Observability    `json:"observability,omitempty"`
-	Enabled           *bool             `json:"enabled,omitempty"`
-	Dockerfile        string            `json:"dockerfile,omitempty"`
-	Context           string            `json:"context,omitempty"`
-	Image             string            `json:"image,omitempty"`
-	Command           []string          `json:"command,omitempty"`
-	Args              []string          `json:"args,omitempty"`
-	RunAsUser         *int64            `json:"runAsUser,omitempty"`
-	RunAsGroup        *int64            `json:"runAsGroup,omitempty"`
-	Port              *int32            `json:"port,omitempty"`
-	Health            *Health           `json:"health,omitempty"`
-	Routing           *Routing          `json:"routing,omitempty"`
-	Domains           []string          `json:"domains,omitempty"`
-	Env               map[string]string `json:"env,omitempty"`
-	Regions           map[string]Region `json:"regions,omitempty"`
+	Observability *Observability    `json:"observability,omitempty"`
+	Enabled       *bool             `json:"enabled,omitempty"`
+	Dockerfile    string            `json:"dockerfile,omitempty"`
+	Context       string            `json:"context,omitempty"`
+	Image         string            `json:"image,omitempty"`
+	Command       []string          `json:"command,omitempty"`
+	Args          []string          `json:"args,omitempty"`
+	RunAsUser     *int64            `json:"runAsUser,omitempty"`
+	RunAsGroup    *int64            `json:"runAsGroup,omitempty"`
+	Port          *int32            `json:"port,omitempty"`
+	Health        *Health           `json:"health,omitempty"`
+	Routing       *Routing          `json:"routing,omitempty"`
+	Domains       []string          `json:"domains,omitempty"`
+	Env           map[string]string `json:"env,omitempty"`
+	Regions       map[string]Region `json:"regions,omitempty"`
 }
 
 // Observability controls automatic application SDK environment configuration.

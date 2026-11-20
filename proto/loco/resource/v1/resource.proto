@@ -101,8 +101,7 @@ message ServiceSpec {
   optional deployment.v1.HealthCheckConfig health_check = 3; // health check defaults
   // Application SDK environment injection defaults to true.
   deployment.v1.ObservabilityConfig observability = 4;
-  // Restores the previous deployment on failure; off by default.
-  bool rollback_on_failure = 5;
+  reserved 5;
 }
 
 // ResourceSpec defines the global infrastructure intent for a resource.
@@ -133,6 +132,8 @@ message Resource {
   int64 revision = 15;
   // name is the label the dashboard shows.
   string name = 16;
+  // The failure policy the service's next deployment runs under, with the defaults filled in.
+  deployment.v1.FailurePolicy failure_policy = 17;
 }
 
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.
@@ -245,8 +246,8 @@ message UpdateResourceRequest {
   optional RegionTargets regions = 4;
   // revision is the Resource.revision the caller loaded; a regions update fails when it moved.
   int64 revision = 5;
-  // Restores the previous deployment on failure; off by default.
-  optional bool rollback_on_failure = 6;
+  // failure_policy replaces the service's failure policy; it applies from the next deployment.
+  optional deployment.v1.FailurePolicy failure_policy = 6;
   // A new slug: a DNS label other than localhost and resource-<UUID>, unique in the workspace.
   // Resources that loco.yaml manages keep the slug the file names them by.
   optional string slug = 7;

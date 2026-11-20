@@ -421,3 +421,7 @@ func cancelUnusedBuild(ctx context.Context, qtx *genDb.Queries, deployment genDb
 	}
 	return err
 }
+
+func shortDeploymentID(id uuid.UUID) string {
+	return id.String()[28:]
+}

@@ -238,22 +238,6 @@ WITH placed AS (
 UPDATE deployments SET spec = jsonb_set(spec, '{build,image}', to_jsonb(sqlc.arg(image)::text))
 WHERE id = sqlc.arg(id);
 
--- name: PreviousDeploymentForRollback :one
--- The newest deployment older than the failed one that ran, while nothing newer than the
--- failed one exists.
-SELECT previous.* FROM deployments previous JOIN deployments failed ON failed.id = $1
-WHERE previous.resource_id = failed.resource_id
- AND previous.environment_id = failed.environment_id
- AND (previous.created_at, previous.id) < (failed.created_at, failed.id)
- AND previous.started_at IS NOT NULL
- AND NOT EXISTS (
- SELECT 1 FROM deployments newer
- WHERE newer.resource_id = failed.resource_id
- AND newer.environment_id = failed.environment_id
- AND (newer.created_at, newer.id) > (failed.created_at, failed.id)
- )
-ORDER BY previous.created_at DESC, previous.id DESC LIMIT 1;
-
 -- name: GetDeploymentPlacement :one
 SELECT * FROM deployment_placements WHERE deployment_id = $1 AND cluster_id = $2;
 

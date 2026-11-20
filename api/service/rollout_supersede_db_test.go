@@ -11,6 +11,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -303,7 +304,10 @@ func TestAFailedRolloutLeavesTheServiceOpenToChanges(t *testing.T) {
 				f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(),
 			)
 			_, err := server.UpdateResource(f.rolloutContext(t), &resourcev1.UpdateResourceRequest{
-				ResourceId: f.resourceID.String(), Name: new("Renamed"), RollbackOnFailure: new(true),
+				ResourceId: f.resourceID.String(), Name: new("Renamed"),
+				FailurePolicy: &deploymentv1.FailurePolicy{
+					RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS, DeployTimeoutSeconds: 120,
+				},
 			})
 			return err
 		},

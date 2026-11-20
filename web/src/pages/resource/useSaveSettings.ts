@@ -18,13 +18,17 @@ import { refreshVariables } from "./variables";
 
 import type { Notice, RegionView } from "./model";
 import {
+	FAILURE_POLICY_KEYS,
 	REGION_MAP_KEYS,
 	domainsChange,
+	failurePolicyChanged,
+	failurePolicyFrom,
 	mergedSpec,
 	plainEnv,
 	planSave,
 	regionChanges,
 	regionTargets,
+	resolved,
 	type Baseline,
 	type SettingsDraft,
 	variablesChanged,
@@ -173,11 +177,12 @@ export function useSaveSettings({
 				failures.push(`Regions: ${getErrorMessage(err, "failed")}`);
 			}
 		}
-		if (draft.rollbackOnFailure !== undefined) {
+		if (failurePolicyChanged(effective, base)) {
 			await attempt(
 				"Deployment behavior",
-				["rollbackOnFailure"],
-				async () => await update.mutateAsync({ resourceId, rollbackOnFailure: draft.rollbackOnFailure }),
+				FAILURE_POLICY_KEYS,
+				async () =>
+					await update.mutateAsync({ resourceId, failurePolicy: failurePolicyFrom(resolved(effective, base)) }),
 			);
 		}
 

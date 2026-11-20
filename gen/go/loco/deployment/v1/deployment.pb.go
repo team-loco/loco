@@ -163,12 +163,11 @@ func (PlacementStatus) EnumDescriptor() ([]byte, []int) {
 type DeploymentTrigger int32
 
 const (
-	DeploymentTrigger_DEPLOYMENT_TRIGGER_UNSPECIFIED   DeploymentTrigger = 0
-	DeploymentTrigger_DEPLOYMENT_TRIGGER_DEPLOY        DeploymentTrigger = 1
-	DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY      DeploymentTrigger = 2
-	DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK      DeploymentTrigger = 3
-	DeploymentTrigger_DEPLOYMENT_TRIGGER_SCALE         DeploymentTrigger = 4
-	DeploymentTrigger_DEPLOYMENT_TRIGGER_AUTO_ROLLBACK DeploymentTrigger = 5
+	DeploymentTrigger_DEPLOYMENT_TRIGGER_UNSPECIFIED DeploymentTrigger = 0
+	DeploymentTrigger_DEPLOYMENT_TRIGGER_DEPLOY      DeploymentTrigger = 1
+	DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY    DeploymentTrigger = 2
+	DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK    DeploymentTrigger = 3
+	DeploymentTrigger_DEPLOYMENT_TRIGGER_SCALE       DeploymentTrigger = 4
 )
 
 // Enum value maps for DeploymentTrigger.
@@ -179,15 +178,13 @@ var (
 		2: "DEPLOYMENT_TRIGGER_REDEPLOY",
 		3: "DEPLOYMENT_TRIGGER_ROLLBACK",
 		4: "DEPLOYMENT_TRIGGER_SCALE",
-		5: "DEPLOYMENT_TRIGGER_AUTO_ROLLBACK",
 	}
 	DeploymentTrigger_value = map[string]int32{
-		"DEPLOYMENT_TRIGGER_UNSPECIFIED":   0,
-		"DEPLOYMENT_TRIGGER_DEPLOY":        1,
-		"DEPLOYMENT_TRIGGER_REDEPLOY":      2,
-		"DEPLOYMENT_TRIGGER_ROLLBACK":      3,
-		"DEPLOYMENT_TRIGGER_SCALE":         4,
-		"DEPLOYMENT_TRIGGER_AUTO_ROLLBACK": 5,
+		"DEPLOYMENT_TRIGGER_UNSPECIFIED": 0,
+		"DEPLOYMENT_TRIGGER_DEPLOY":      1,
+		"DEPLOYMENT_TRIGGER_REDEPLOY":    2,
+		"DEPLOYMENT_TRIGGER_ROLLBACK":    3,
+		"DEPLOYMENT_TRIGGER_SCALE":       4,
 	}
 )
 
@@ -640,8 +637,6 @@ type ServiceDeploymentSpec struct {
 	RunAsGroup *int64          `protobuf:"varint,12,opt,name=run_as_group,json=runAsGroup,proto3,oneof" json:"run_as_group,omitempty"`
 	// Defaults to the resource settings when omitted; stored in the deployment snapshot.
 	Observability *ObservabilityConfig `protobuf:"bytes,13,opt,name=observability,proto3" json:"observability,omitempty"`
-	// Overrides the service's current rollback setting; omitted inherits it, off by default.
-	RollbackOnFailure *bool `protobuf:"varint,14,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
 	// The API assigns the installation target when recording this immutable snapshot.
 	Platform string `protobuf:"bytes,15,opt,name=platform,proto3" json:"platform,omitempty"`
 	// command replaces the image entrypoint; without it the image's ENTRYPOINT runs.
@@ -740,13 +735,6 @@ func (x *ServiceDeploymentSpec) GetObservability() *ObservabilityConfig {
 		return x.Observability
 	}
 	return nil
-}
-
-func (x *ServiceDeploymentSpec) GetRollbackOnFailure() bool {
-	if x != nil && x.RollbackOnFailure != nil {
-		return *x.RollbackOnFailure
-	}
-	return false
 }
 
 func (x *ServiceDeploymentSpec) GetPlatform() string {
@@ -2850,7 +2838,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x13ObservabilityConfig\x12$\n" +
 	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
 	"injectOtel\x88\x01\x01B\x0e\n" +
-	"\f_inject_otel\"\x9e\t\n" +
+	"\f_inject_otel\"\xd7\b\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12D\n" +
@@ -2863,8 +2851,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\frun_as_group\x18\f \x01(\x03B\r\xbaH\n" +
 	"\"\b\x18\xff\xff\xff\xff\a \x00H\x04R\n" +
 	"runAsGroup\x88\x01\x01\x12M\n" +
-	"\robservability\x18\r \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x123\n" +
-	"\x13rollback_on_failure\x18\x0e \x01(\bH\x05R\x11rollbackOnFailure\x88\x01\x01\x12\x1a\n" +
+	"\robservability\x18\r \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12\x1a\n" +
 	"\bplatform\x18\x0f \x01(\tR\bplatform\x12(\n" +
 	"\acommand\x18\x10 \x03(\tB\x0e\xbaH\v\x92\x01\b\x10d\"\x04r\x02\x10\x01R\acommand\x12\x1c\n" +
 	"\x04args\x18\x11 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10dR\x04args\x12P\n" +
@@ -2881,8 +2868,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
 	"\b_routingB\x0e\n" +
 	"\f_run_as_userB\x0f\n" +
-	"\r_run_as_groupB\x16\n" +
-	"\x14_rollback_on_failure\"\xe1\x03\n" +
+	"\r_run_as_groupJ\x04\b\x0e\x10\x0f\"\xe1\x03\n" +
 	"\x16RegionDeploymentTarget\x12\x1e\n" +
 	"\x03cpu\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x03cpu\x88\x01\x01\x12$\n" +
 	"\x06memory\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x01R\x06memory\x88\x01\x01\x12/\n" +
@@ -3090,14 +3076,13 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x18PLACEMENT_STATUS_CRASHED\x10\x05\x12\x1b\n" +
 	"\x17PLACEMENT_STATUS_FAILED\x10\x06\x12\x1d\n" +
 	"\x19PLACEMENT_STATUS_CANCELED\x10\a\x12\x1f\n" +
-	"\x1bPLACEMENT_STATUS_SUPERSEDED\x10\b*\xdc\x01\n" +
+	"\x1bPLACEMENT_STATUS_SUPERSEDED\x10\b*\xbc\x01\n" +
 	"\x11DeploymentTrigger\x12\"\n" +
 	"\x1eDEPLOYMENT_TRIGGER_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19DEPLOYMENT_TRIGGER_DEPLOY\x10\x01\x12\x1f\n" +
 	"\x1bDEPLOYMENT_TRIGGER_REDEPLOY\x10\x02\x12\x1f\n" +
 	"\x1bDEPLOYMENT_TRIGGER_ROLLBACK\x10\x03\x12\x1c\n" +
-	"\x18DEPLOYMENT_TRIGGER_SCALE\x10\x04\x12$\n" +
-	" DEPLOYMENT_TRIGGER_AUTO_ROLLBACK\x10\x05*\x81\x01\n" +
+	"\x18DEPLOYMENT_TRIGGER_SCALE\x10\x04\"\x04\b\x05\x10\x05*\x81\x01\n" +
 	"\x13DeploymentActorType\x12%\n" +
 	"!DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aDEPLOYMENT_ACTOR_TYPE_USER\x10\x01\x12#\n" +
