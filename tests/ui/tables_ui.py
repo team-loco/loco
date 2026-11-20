@@ -380,18 +380,37 @@ TRANSITIONS = "document.getAnimations().filter(a => a instanceof CSSTransition)"
 
 def check_row_states(page, row):
     """The pinned first cell takes the row's hover tint as it fades in and its keyboard focus ring, like the next cell."""
+
+    # Late content such as an error panel can move the table, so each sample measures the cells it reads.
+    def cells():
+        return [row.locator(":scope > td").nth(i).bounding_box() for i in range(2)]
+
+    def bottoms():
+        first, second = cells()
+        y = first["y"] + first["height"] - 3
+        return rgb(page, first["x"] + 3, y), rgb(page, second["x"] + 3, y)
+
+    def left_edge():
+        first, _ = cells()
+        return pixel(page, first["x"], first["y"] + first["height"] / 2, 3, 1)
+
+    def tops():
+        first, second = cells()
+        return (
+            pixel(page, first["x"] + 20, first["y"], 1, 3),
+            pixel(page, second["x"] + 20, second["y"], 1, 3),
+        )
+
     row.evaluate(
         "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"
     )
     page.mouse.move(0, 0)
-    first, second = (row.locator(":scope > td").nth(i).bounding_box() for i in range(2))
-    y = first["y"] + first["height"] - 3
     # In the first cell's corner, clear of any cell text that opens a tooltip.
     row.hover(position={"x": 3, "y": 3})
     page.evaluate(
         f"() => {TRANSITIONS}.forEach(a => {{ a.pause(); a.currentTime = 40; }})"
     )
-    pinned, plain = rgb(page, first["x"] + 3, y), rgb(page, second["x"] + 3, y)
+    pinned, plain = bottoms()
     assert max(abs(a - b) for a, b in zip(pinned, plain, strict=True)) <= 1, (
         "pinned cell misses the hover tint",
         pinned,
@@ -400,16 +419,13 @@ def check_row_states(page, row):
     page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
     page.mouse.move(0, 0)
     page.wait_for_timeout(300)
-    left = (first["x"], first["y"] + first["height"] / 2, 3, 1)
-    idle = pixel(page, *left)
+    idle = left_edge()
     page.keyboard.press("Shift")
     row.focus()
     assert row.evaluate("node => node.matches(':focus-visible')")
-    assert pixel(page, *left) != idle, "focus ring misses the row's left edge"
-    top = first["y"]
-    assert pixel(page, first["x"] + 20, top, 1, 3) == pixel(
-        page, second["x"] + 20, top, 1, 3
-    ), "focus ring breaks at the pinned cell"
+    assert left_edge() != idle, "focus ring misses the row's left edge"
+    pinned_top, plain_top = tops()
+    assert pinned_top == plain_top, "focus ring breaks at the pinned cell"
     row.blur()
 
 
