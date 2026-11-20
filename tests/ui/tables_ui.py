@@ -910,7 +910,7 @@ def settings(page):
     check_table(
         page,
         named_table("Environments", "Staging EU West"),
-        "Resources",
+        "Manage resources",
         "Description",
         clickable=False,
     )

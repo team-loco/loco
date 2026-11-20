@@ -78,7 +78,7 @@ function environmentColumns({
 		{
 			id: "manageResources",
 			size: 160,
-			meta: { align: "end", label: "Manage resources" },
+			meta: { align: "end", label: "Manage resources", hideOnMobile: true },
 			cell: ({ row: { original: env } }) => (
 				<ManageLink to={withEnv(resourcesPath(orgId, workspaceId), env.slug)} icon={<BoxIcon />}>
 					Manage resources
@@ -88,7 +88,7 @@ function environmentColumns({
 		{
 			id: "manageSecrets",
 			size: 150,
-			meta: { align: "end", label: "Manage secrets" },
+			meta: { align: "end", label: "Manage secrets", hideOnMobile: true },
 			cell: ({ row: { original: env } }) => (
 				<ManageLink to={withEnv(secretsPath(orgId, workspaceId), env.slug)} icon={<LockIcon />}>
 					Manage secrets
