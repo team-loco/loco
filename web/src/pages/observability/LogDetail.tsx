@@ -26,9 +26,11 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { SearchInput } from "@/components/design/SearchInput";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useCopy } from "@/hooks/useCopy";
 import { AROUND_MS, aroundWindow, MINUTE_MS } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
+import { useStoredValue } from "@/lib/storage";
 import { formatFullTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -100,6 +102,8 @@ export function LogDetail({
 	const timePref = useTimePreferences();
 	const { tokens, text, setQuery, goTo, orgId, workspaceId, resourceById } = useObs();
 	const [attrQ, setAttrQ] = useState("");
+	const [view, setView] = useStoredValue("loco:log-drawer-view", "attributes");
+	const showJson = view === "json";
 	const [copied, copy] = useCopy();
 	const style = levelStyle(row.level);
 	const e = row.entry;
@@ -281,48 +285,60 @@ export function LogDetail({
 				</div>
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
-						<span className="text-[12.5px] text-fg3">Attributes</span>
-						<span className="flex-1" />
-						<SearchInput
-							value={attrQ}
-							onChange={(ev) => {
-								setAttrQ(ev.target.value);
+						<ToggleGroup
+							variant="segmented"
+							aria-label="Detail view"
+							value={[view]}
+							onValueChange={(v: string[]) => {
+								if (v[0] !== undefined) setView(v[0]);
 							}}
-							aria-label="Filter attributes"
-							placeholder="Filter attributes"
-							className="w-[180px]"
-						/>
-					</div>
-					<div className="flex flex-col">
-						{attrs.length === 0 && <div className="py-2 text-sm text-fg3">No attributes match.</div>}
-						{attrs.map((a) => (
-							<AttributeRow
-								key={a.key}
-								attribute={a}
-								copied={copied === `a:${a.key}`}
-								isColumn={a.column !== undefined && columns.includes(a.column)}
-								onCopy={() => {
-									copy(`a:${a.key}`, a.value, `Copied ${a.key}`);
+						>
+							<ToggleGroupItem value="attributes">Attributes</ToggleGroupItem>
+							<ToggleGroupItem value="json">JSON</ToggleGroupItem>
+						</ToggleGroup>
+						<span className="flex-1" />
+						{!showJson && (
+							<SearchInput
+								value={attrQ}
+								onChange={(ev) => {
+									setAttrQ(ev.target.value);
 								}}
-								onFilter={(neg) => {
-									if (typeof a.filter !== "string") addTok({ neg, ...a.filter });
-								}}
-								onColumn={
-									onColumns === undefined
-										? undefined
-										: () => {
-												if (a.column !== undefined && !columns.includes(a.column)) onColumns([...columns, a.column]);
-											}
-								}
+								aria-label="Filter attributes"
+								placeholder="Filter attributes"
+								className="w-[180px]"
 							/>
-						))}
+						)}
 					</div>
-				</div>
-				<div className="flex flex-col gap-2">
-					<span className="text-[12.5px] text-fg3">JSON</span>
-					<CodeBlock language="json" copyLabel="Copy JSON">
-						{json}
-					</CodeBlock>
+					{showJson ? (
+						<CodeBlock language="json" copyLabel="Copy JSON">
+							{json}
+						</CodeBlock>
+					) : (
+						<div className="grid grid-cols-[fit-content(45%)_minmax(0,1fr)_auto]">
+							{attrs.length === 0 && <div className="py-2 text-sm text-fg3">No attributes match.</div>}
+							{attrs.map((a) => (
+								<AttributeRow
+									key={a.key}
+									attribute={a}
+									copied={copied === `a:${a.key}`}
+									isColumn={a.column !== undefined && columns.includes(a.column)}
+									onCopy={() => {
+										copy(`a:${a.key}`, a.value, `Copied ${a.key}`);
+									}}
+									onFilter={(neg) => {
+										if (typeof a.filter !== "string") addTok({ neg, ...a.filter });
+									}}
+									onColumn={
+										onColumns === undefined
+											? undefined
+											: () => {
+													if (a.column !== undefined && !columns.includes(a.column)) onColumns([...columns, a.column]);
+												}
+									}
+								/>
+							))}
+						</div>
+					)}
 				</div>
 			</div>
 		</>
@@ -356,8 +372,8 @@ function AttributeRow({
 	const { key, value, filter } = attribute;
 	const reason = typeof filter === "string" ? filter : null;
 	return (
-		<div className="group/attr grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line py-1.5 last:border-b-0">
-			<span className="truncate font-mono text-[12.5px] text-fg3" title={key}>
+		<div className="group/attr grid grid-cols-subgrid col-span-full items-start gap-2.5 border-b border-line py-1.5 last:border-b-0">
+			<span className="font-mono text-[12.5px] [overflow-wrap:anywhere] text-fg3" title={key}>
 				{reason === null ? `@${key}` : key}
 			</span>
 			<span
@@ -368,7 +384,7 @@ function AttributeRow({
 			>
 				{value}
 			</span>
-			<span className="flex gap-0.5 opacity-60 group-focus-within/attr:opacity-100 group-hover/attr:opacity-100">
+			<span className="flex gap-px self-center opacity-40 group-focus-within/attr:opacity-100 group-hover/attr:opacity-100">
 				<AttrAction
 					label={reason ?? `Only ${key} ${value}`}
 					disabled={reason !== null}
@@ -396,7 +412,7 @@ function AttributeRow({
 						<Columns3Icon />
 					</AttrAction>
 				)}
-				<CopyButton copied={copied} onCopy={onCopy} title={`Copy ${key}`} className="size-6" />
+				<CopyButton copied={copied} onCopy={onCopy} title={`Copy ${key}`} className="size-5" />
 			</span>
 		</div>
 	);
@@ -421,7 +437,7 @@ function AttrAction({
 			title={label}
 			disabled={disabled}
 			onClick={onClick}
-			className="text-fg2 hover:text-foreground [&_svg]:size-3.5"
+			className="size-5 text-fg2 hover:text-foreground [&_svg]:size-3"
 		>
 			{children}
 		</Button>
