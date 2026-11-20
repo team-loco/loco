@@ -51,18 +51,7 @@ func newBudgetService(t *testing.T, app string) *budgetService {
 		t.Fatalf("%d ReplicaSets after the first rollout, want 1", len(sets.Items))
 	}
 	s.oldHash = sets.Items[0].Labels["pod-template-hash"]
-	// Waits for the first version to prove itself.
-	platform.Eventually(t, 3*time.Minute, "the first version to prove itself", func(ctx context.Context) error {
-		current, err := p.Application(ctx, s.resourceID, s.w.EnvironmentID)
-		if err != nil {
-			return err
-		}
-		revision, _ := current.PlacementRevision()
-		if current.Status.Rollout == nil || current.Status.Rollout.ProvenRevision != revision {
-			return fmt.Errorf("revision %d not proven", revision)
-		}
-		return nil
-	})
+	s.waitProven(t)
 
 	gateway, err := p.GatewayService(t.Context())
 	if err != nil {
@@ -85,6 +74,22 @@ func newBudgetService(t *testing.T, app string) *budgetService {
 		return nil
 	})
 	return s
+}
+
+// waitProven waits for the current revision to prove itself.
+func (s *budgetService) waitProven(t *testing.T) {
+	t.Helper()
+	platform.Eventually(t, 3*time.Minute, "the revision to prove itself", func(ctx context.Context) error {
+		current, err := p.Application(ctx, s.resourceID, s.w.EnvironmentID)
+		if err != nil {
+			return err
+		}
+		revision, _ := current.PlacementRevision()
+		if current.Status.Rollout == nil || current.Status.Rollout.ProvenRevision != revision {
+			return fmt.Errorf("revision %d not proven", revision)
+		}
+		return nil
+	})
 }
 
 // results lists the poller's request outcomes, oldest first.
@@ -305,17 +310,7 @@ func TestRestartBudgetStopsAProvenService(t *testing.T) {
 	s := &budgetService{w: w, app: app, dir: dir, resourceID: w.ResourceID(t, app)}
 	s.selector = "app=" + locov1alpha1.WorkloadName(s.resourceID)
 	deployment := regionStatus(t, w, app).GetDeploymentId()
-	platform.Eventually(t, 3*time.Minute, "the revision to prove itself", func(ctx context.Context) error {
-		current, err := p.Application(ctx, s.resourceID, w.EnvironmentID)
-		if err != nil {
-			return err
-		}
-		revision, _ := current.PlacementRevision()
-		if current.Status.Rollout == nil || current.Status.Rollout.ProvenRevision != revision {
-			return fmt.Errorf("revision %d not proven", revision)
-		}
-		return nil
-	})
+	s.waitProven(t)
 	stop := func() {
 		t.Helper()
 		pods := appPods(t, w, s.selector)

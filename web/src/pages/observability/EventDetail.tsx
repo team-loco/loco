@@ -81,8 +81,8 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 	const now = useNow();
 	const [, copy] = useCopy();
 	const raw = eventJson(item);
-	const environment = environments.find((e) => e.id === item.environmentId)?.slug ?? item.environmentId;
 	const envSlug = environments.find((e) => e.id === item.environmentId)?.slug ?? null;
+	const environment = envSlug ?? item.environmentId;
 	const fields: { key: string; value: string; filter: boolean; href?: string }[] = [
 		{ key: "type", value: item.type, filter: true },
 		{ key: "resource", value: item.resourceName, filter: true },
