@@ -75,6 +75,10 @@ function timeFact(ms: number | undefined, pref: TimePreferences): string {
 	return ms === undefined ? "—" : formatFullTime(ms, false, pref);
 }
 
+function historyMessage(dep: Deployment): string {
+	return deploymentMessage(dep) || (dep.commit?.message ?? "");
+}
+
 function HistoryKept({ count, tip }: { count: number; tip: string }) {
 	return (
 		<Tooltip>
@@ -396,8 +400,8 @@ export function DeploymentsSection({
 													<PlacementChips placements={dep.placements} className="flex-col items-start" />
 												</TableCell>
 											)}
-											<TableCell className="max-w-0 truncate text-fg2" title={deploymentMessage(dep)}>
-												{deploymentMessage(dep)}
+											<TableCell className="max-w-0 truncate text-fg2" title={historyMessage(dep)}>
+												{historyMessage(dep)}
 											</TableCell>
 											<TableCell className="text-right font-mono text-[12px] text-fg2">
 												{took === undefined ? "—" : formatDuration(took)}

@@ -20,7 +20,8 @@ SELECT sqlc.embed(d), r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
-       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name,
+       COALESCE(b.git_commit_message, '')::text AS commit_message
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
@@ -28,6 +29,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE d.resource_id = sqlc.arg('resource_id')
   AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id'))
   AND (sqlc.arg('system_read')::bool
@@ -49,7 +51,8 @@ SELECT sqlc.embed(d), r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
-       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name,
+       COALESCE(b.git_commit_message, '')::text AS commit_message
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
@@ -57,6 +60,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE r.workspace_id = sqlc.arg('workspace_id')
   AND d.environment_id = sqlc.arg('environment_id')
   AND (sqlc.arg('system_read')::bool
@@ -78,13 +82,15 @@ SELECT sqlc.embed(d), r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
-       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name,
+       COALESCE(b.git_commit_message, '')::text AS commit_message
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE d.id = $1;
 
 -- name: GetDeploymentResourceID :one

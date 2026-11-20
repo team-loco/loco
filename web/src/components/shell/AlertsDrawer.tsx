@@ -1,7 +1,6 @@
 import "./Activity.css";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
-import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { useQuery } from "@tanstack/react-query";
@@ -209,8 +208,6 @@ function DeployCard({
 }) {
 	const running = isInFlight(deployment.status);
 	const nowMs = useNow(running ? 1000 : CLOCK_TICK_MS).getTime();
-	const buildId = getServiceSpec(deployment)?.build?.buildId ?? "";
-	const build = useConnectQuery(getBuild, { buildId }, { enabled: buildId !== "" }).data?.build;
 	const phase = deployPhase(deployment);
 	const problem = deploymentProblem(deployment);
 	const steps = deploySteps(deployment);
@@ -229,7 +226,7 @@ function DeployCard({
 					{running ? clockLabel(nowMs - created) : finishedLabel(deployment, nowMs)}
 				</span>
 			</div>
-			<CardName name={name} href={resourceHref} note={build?.gitCommitMessage ?? ""} onNavigate={onNavigate} />
+			<CardName name={name} href={resourceHref} note={deployment.commit?.message ?? ""} onNavigate={onNavigate} />
 			<PlacementChips placements={deployment.placements} />
 			{running ? (
 				<div className="flex items-center gap-2.5 text-[13px]">

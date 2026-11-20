@@ -123,7 +123,7 @@ function ProgressPanel({
 	const failed = phase === DeploymentStatus.FAILED || phase === DeploymentStatus.CRASHED;
 	const canceled = phase === DeploymentStatus.CANCELED;
 	const title = deploymentPhaseStyle(phase).label;
-	const message = build?.gitCommitMessage ?? "";
+	const message = deployment.commit?.message ?? "";
 	const headline = message === "" ? depTag(deployment) : message;
 	const glyph: Glyph = failed
 		? "err"

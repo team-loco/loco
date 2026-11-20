@@ -448,4 +448,6 @@ message ResolveImageResponse {
 message SourceCommit {
   string sha = 1 [(buf.validate.field).string.pattern = "^([0-9a-f]{40}|[0-9a-f]{64})$"];
   bool dirty = 2;
+  // Subject line of the commit, read from the deployment's build. Output only.
+  string message = 3;
 }

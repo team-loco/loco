@@ -110,7 +110,7 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 	}
 	var commit *deploymentv1.SourceCommit
 	if d.CommitSha != nil {
-		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
+		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty, Message: row.CommitMessage}
 	}
 	var views []placementView
 	if err := json.Unmarshal(row.Placements, &views); err != nil {

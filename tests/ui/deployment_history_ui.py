@@ -205,6 +205,12 @@ def fixture():
     rows.append(
         f"UPDATE deployments SET commit_sha='{'7c41e9a'.ljust(40, '0')}', commit_dirty=true WHERE id='{release_ids[0]}';"
     )
+    rows.append(
+        f"UPDATE deployments SET commit_sha='{'b2c3d4e'.ljust(40, '0')}' WHERE id='{release_ids[1]}';"
+    )
+    rows.append(
+        f"UPDATE builds SET git_commit_message='Add the release checklist' WHERE id='{builds['deployed']}';"
+    )
     sql(state, "BEGIN;" + "\n".join(rows) + "COMMIT;")
     data = {
         "resource": resource,
@@ -327,6 +333,9 @@ with session(out) as browser:
         deployments.get_by_role("columnheader", name="Deployed", exact=True)
     ).to_be_visible()
     expect(section.get_by_text("loco deploy · CLI", exact=True).first).to_be_visible()
+    expect(
+        deployments.get_by_role("cell", name="Add the release checklist", exact=True)
+    ).to_be_visible()
     section.get_by_role(
         "button",
         name=f"Show details for {data['releases'][0][-8:]}",
