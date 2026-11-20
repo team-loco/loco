@@ -9,7 +9,10 @@ import (
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
-const qaEnvironment = "qa-env"
+const (
+	qaEnvironment = "qa-env"
+	qaRenamed     = "QA renamed"
+)
 
 func TestUpdateAndDeleteEventsRecordTheNameOfTheirSubject(t *testing.T) {
 	t.Parallel()
@@ -24,7 +27,7 @@ func TestUpdateAndDeleteEventsRecordTheNameOfTheirSubject(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err = environments.UpdateEnvironment(f.owner, &environmentv1.UpdateEnvironmentRequest{
-		EnvironmentId: created.GetEnvironmentId(), DisplayName: new("QA renamed"),
+		EnvironmentId: created.GetEnvironmentId(), Name: new(qaRenamed),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -44,8 +47,8 @@ func TestUpdateAndDeleteEventsRecordTheNameOfTheirSubject(t *testing.T) {
 		t.Fatal(err)
 	}
 	for eventType, want := range map[string]string{
-		"environment.updated": qaEnvironment,
-		"environment.deleted": qaEnvironment,
+		"environment.updated": qaRenamed,
+		"environment.deleted": qaRenamed,
 		"workspace.updated":   "audit-renamed",
 		"workspace.deleted":   "audit-renamed",
 	} {

@@ -40,7 +40,7 @@ if "progress" not in state:
             "loco.environment.v1.EnvironmentService/ListEnvironments",
             {"workspaceId": workspace},
         )["environments"]
-        if env["name"] == "production"
+        if env["slug"] == "production"
     )
     previous, current, build = (str(uuid.uuid4()) for _ in range(3))
     old_image = "registry.example.test/progress:v1@sha256:" + "1" * 64

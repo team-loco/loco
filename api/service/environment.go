@@ -26,14 +26,22 @@ const (
 
 var (
 	ErrEnvironmentNotFound    = rpcerr.NewCoded(connect.CodeNotFound, "environment not found")
-	ErrInvalidEnvironmentName = rpcerr.NewCoded(
+	errInvalidEnvironmentName = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
-		"environment name must be 1 to 63 lowercase letters, digits and hyphens, "+
-			"starting and ending with a letter or digit",
+		"environment name must be 1 to 63 characters and not blank",
+	)
+	errInvalidEnvironmentSlug = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"environment slug must be 1 to 63 lowercase letters, digits and hyphens, "+
+			"starting and ending with a letter or digit, and not localhost or resource-<UUID>",
 	)
 	ErrEnvironmentNameNotUnique = rpcerr.NewCoded(
 		connect.CodeAlreadyExists,
 		"environment name already exists in this workspace",
+	)
+	ErrEnvironmentSlugNotUnique = rpcerr.NewCoded(
+		connect.CodeAlreadyExists,
+		"environment slug already exists in this workspace",
 	)
 	ErrEnvironmentInUse = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
@@ -71,8 +79,16 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, err
 	}
 
-	if !locofile.IsDNSLabel(req.GetName()) {
-		return nil, ErrInvalidEnvironmentName
+	name, ok := label(req.GetName())
+	if !ok {
+		return nil, errInvalidEnvironmentName
+	}
+	slug := req.GetSlug()
+	if req.Slug == nil {
+		slug = locofile.Slug(name)
+	}
+	if !validSlug(slug) {
+		return nil, errInvalidEnvironmentSlug
 	}
 	desc := req.GetDescription()
 	var env genDb.Environment
@@ -84,12 +100,13 @@ func (s *EnvironmentServer) CreateEnvironment(
 		}
 		created, createErr := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 			WorkspaceID: workspaceID,
-			Name:        req.GetName(),
+			Slug:        slug,
+			Name:        name,
 			Description: &desc,
 			CreatedBy:   p.ActorID,
 		})
-		if isUniqueViolation(createErr, pgEnvironmentNameUnique) {
-			return ErrEnvironmentNameNotUnique
+		if keyErr := environmentKeyConflict(createErr, name, slug); keyErr != nil {
+			return keyErr
 		}
 		if createErr != nil {
 			return fmt.Errorf("insert environment: %w", createErr)
@@ -177,8 +194,8 @@ func (s *EnvironmentServer) ListEnvironments(
 		protoEnvs = append(protoEnvs, &environmentv1.Environment{
 			Id:          env.ID.String(),
 			WorkspaceId: env.WorkspaceID.String(),
+			Slug:        env.Slug,
 			Name:        env.Name,
-			DisplayName: env.DisplayName,
 		})
 	}
 
@@ -199,12 +216,20 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, err
 	}
 
+	params := genDb.UpdateEnvironmentParams{ID: envID, Description: req.Description}
+	if req.Name != nil {
+		name, ok := label(req.GetName())
+		if !ok {
+			return nil, errInvalidEnvironmentName
+		}
+		params.Name = &name
+	}
+
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		updated, updateErr := qtx.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
-			ID:          envID,
-			DisplayName: req.DisplayName,
-			Description: req.Description,
-		})
+		updated, updateErr := qtx.UpdateEnvironment(ctx, params)
+		if isUniqueViolation(updateErr, pgEnvironmentNameUnique) {
+			return ErrEnvironmentNameNotUnique.Detail("%s", derefString(params.Name))
+		}
 		if updateErr != nil {
 			return fmt.Errorf("update environment: %w", updateErr)
 		}
@@ -273,12 +298,24 @@ func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 	return &environmentv1.Environment{
 		Id:          env.ID.String(),
 		WorkspaceId: env.WorkspaceID.String(),
+		Slug:        env.Slug,
 		Name:        env.Name,
-		DisplayName: env.DisplayName,
 		Description: env.Description,
 		CreatedBy:   env.CreatedBy.String(),
 		CreatedAt:   timestamppb.New(env.CreatedAt),
 		UpdatedAt:   timestamppb.New(env.UpdatedAt),
 		Revision:    env.Revision,
 	}
+}
+
+// environmentKeyConflict maps a write that hit another environment's name or slug to its client
+// error.
+func environmentKeyConflict(err error, name, slug string) error {
+	switch {
+	case isUniqueViolation(err, pgEnvironmentNameUnique):
+		return ErrEnvironmentNameNotUnique.Detail("%s", name)
+	case isUniqueViolation(err, pgEnvironmentSlugUnique):
+		return ErrEnvironmentSlugNotUnique.Detail("%s", slug)
+	}
+	return nil
 }

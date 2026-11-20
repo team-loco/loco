@@ -315,7 +315,7 @@ export function AlertsDrawer() {
 	}
 	const alerts = withoutRunningDeploys(buildAlerts(resources.data?.resources ?? [], active.id), deployments);
 	const count = alertedResourceCount(alerts);
-	const envParams = { env: active.name };
+	const envParams = { env: active.slug };
 	const close = () => {
 		setOpen(false);
 	};

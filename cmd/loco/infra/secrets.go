@@ -65,7 +65,7 @@ func provisionForSecrets(
 			assignments = append(assignments, secret+"=...")
 		}
 		fmt.Fprintf(out, "Created %s. Set its secrets with: loco env set --service %s --env %s %s\n",
-			name, name, t.Environment.GetName(), strings.Join(assignments, " "))
+			name, name, t.Environment.GetSlug(), strings.Join(assignments, " "))
 	}
 	return errSecretsNotSet
 }

@@ -140,7 +140,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 					onClick={() =>
 						void navigate(
 							observabilityPath(orgId, workspaceId, "logs", {
-								env: env?.name ?? null,
+								env: env?.slug ?? null,
 								r: [resource.slug],
 							}),
 						)
@@ -155,7 +155,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 					void navigate(
 						resourcePath(orgId, workspaceId, resource.id, {
 							tab: "settings",
-							env: env?.name ?? null,
+							env: env?.slug ?? null,
 						}),
 					)
 				}
@@ -179,8 +179,8 @@ function RowActions({ row }: { row: ResourceRow }) {
 
 function envColumn(environment: Environment): DataColumn<ListRow> {
 	return {
-		id: `${ENV_PREFIX}${environment.name}`,
-		header: environment.displayName,
+		id: `${ENV_PREFIX}${environment.slug}`,
+		header: environment.name,
 		size: 172,
 		minSize: 150,
 		maxSize: 280,

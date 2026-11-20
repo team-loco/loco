@@ -43,7 +43,7 @@ func TestCreateWorkspaceRecordsTheCredentialActor(t *testing.T) {
 			}
 			var environmentCreator uuid.UUID
 			if scanErr := f.pool.QueryRow(ctx,
-				"SELECT created_by FROM environments WHERE workspace_id = $1 AND name = 'production'", id,
+				"SELECT created_by FROM environments WHERE workspace_id = $1 AND slug = 'production'", id,
 			).Scan(&environmentCreator); scanErr != nil || environmentCreator != principal.ActorID {
 				t.Fatalf(
 					"default environment creator = %s (%v), want %s",

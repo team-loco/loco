@@ -134,7 +134,7 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 	nameStyle := lipgloss.NewStyle().Foreground(ui.Fg).Bold(true)
 	status := environment.GetStatus()
 	statusStyle := lipgloss.NewStyle().Foreground(statusColor(status))
-	heading := nameStyle.Render(environment.GetEnvironmentName()) + "  " + statusStyle.Render(statusLabel(status))
+	heading := nameStyle.Render(environment.GetEnvironmentSlug()) + "  " + statusStyle.Render(statusLabel(status))
 	if since := environment.GetStatusSince(); since != nil {
 		heading += "  " + lipgloss.NewStyle().Foreground(ui.Fg3).Render("since "+age(now.Sub(since.AsTime()))+" ago")
 	}

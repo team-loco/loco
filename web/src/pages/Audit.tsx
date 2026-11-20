@@ -339,7 +339,10 @@ export function Audit() {
 									<PickFilter
 										icon={<GitBranchIcon />}
 										label="Environment"
-										items={selectedDetails.environmentsOf.get(workspaceId) ?? []}
+										items={(selectedDetails.environmentsOf.get(workspaceId) ?? []).map((e) => ({
+											id: e.id,
+											name: e.name,
+										}))}
 										value={environmentId}
 										onChange={(id) => {
 											setFilters({ env: id, event: null });

@@ -230,7 +230,7 @@ export function ShellBreadcrumb() {
 				{showEnv && env !== undefined && (
 					<>
 						{hasScopeCrumb && <Slash />}
-						<EnvSwitcher label={env.displayName}>
+						<EnvSwitcher label={env.name}>
 							{environments.map((e) => (
 								<DropdownMenuItem
 									key={e.id}
@@ -238,7 +238,7 @@ export function ShellBreadcrumb() {
 										setEnv(e);
 									}}
 								>
-									<span className="flex-1 truncate font-mono text-[12.5px]">{e.displayName}</span>
+									<span className="flex-1 truncate font-mono text-[12.5px]">{e.name}</span>
 									<CheckIcon className={cn("size-3.5", e.id !== env.id && "invisible")} />
 								</DropdownMenuItem>
 							))}

@@ -18,7 +18,7 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 		Slug: "web",
 		EnvironmentStatuses: []*resourcev1.EnvironmentStatus{
 			{
-				EnvironmentName: "production",
+				EnvironmentSlug: "production",
 				Status:          resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 				Regions: []*resourcev1.RegionStatus{
 					{
@@ -39,7 +39,7 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 				},
 			},
 			{
-				EnvironmentName: "staging",
+				EnvironmentSlug: "staging",
 				Status:          resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
 				Regions: []*resourcev1.RegionStatus{
 					{

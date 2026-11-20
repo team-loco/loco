@@ -15,7 +15,7 @@ import {
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
-import { SLUG_RULE } from "@/lib/new-resource";
+import { SLUG_RULE } from "@/lib/slug";
 
 import type { RegionView } from "./model";
 import {

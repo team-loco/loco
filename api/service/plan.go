@@ -128,7 +128,7 @@ func (s *PlanServer) loadPlan(
 		return nil, err
 	}
 
-	services, err := locofile.Resolve(file, env.Name)
+	services, err := locofile.Resolve(file, env.Slug)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidLocofile).WithCause(err)
 	}
@@ -152,7 +152,7 @@ func (s *PlanServer) loadPlan(
 
 	environmentNames := make([]string, 0, len(environments))
 	for _, environment := range environments {
-		environmentNames = append(environmentNames, environment.Name)
+		environmentNames = append(environmentNames, environment.Slug)
 	}
 	targets := regionClusters(clusters)
 
@@ -160,7 +160,7 @@ func (s *PlanServer) loadPlan(
 	plan, err := configplan.Compute(configplan.Input{
 		Partial:          file.Partial,
 		Services:         services,
-		Disabled:         locofile.Disabled(file, env.Name),
+		Disabled:         locofile.Disabled(file, env.Slug),
 		FileEnvironments: fileEnvironments(file),
 		Environments:     environmentNames,
 		Clusters:         targets,
@@ -218,7 +218,7 @@ func nameErrors(operations []configplan.Operation, resources map[string]genDb.Re
 			continue
 		}
 		switch {
-		case !validResourceSlug(op.Service):
+		case !validSlug(op.Service):
 			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: errInvalidResourceSlug})
 		case names[strings.ToLower(op.Service)]:
 			errs = append(errs, configplan.Error{

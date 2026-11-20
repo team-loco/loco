@@ -43,7 +43,7 @@ Examples:
 			secrets := resp.GetSecrets()
 			if len(secrets) == 0 {
 				_, err = fmt.Fprintf(
-					cmd.OutOrStdout(), "%s has no secrets in %s.\n", service.GetSlug(), t.Environment.GetName(),
+					cmd.OutOrStdout(), "%s has no secrets in %s.\n", service.GetSlug(), t.Environment.GetSlug(),
 				)
 				return err
 			}

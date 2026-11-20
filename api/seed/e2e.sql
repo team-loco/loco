@@ -33,7 +33,7 @@ VALUES (
 ) ON CONFLICT DO NOTHING;
 
 -- Test environment for deployments
-INSERT INTO environments (id, workspace_id, name, display_name, created_by)
+INSERT INTO environments (id, workspace_id, slug, name, created_by)
 VALUES (
     '00000000-0000-7000-8000-000000000004',
     '00000000-0000-7000-8000-000000000003',

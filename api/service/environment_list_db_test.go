@@ -38,7 +38,7 @@ func TestResourceReaderListsTheEnvironmentsOfTheirResourcesWorkspace(t *testing.
 		t.Fatalf("resource reader environments = %v, want one", envs)
 	}
 	env := envs[0]
-	if env.GetId() != f.envID.String() || env.GetWorkspaceId() != workspaceID.String() || env.GetName() == "" {
+	if env.GetId() != f.envID.String() || env.GetWorkspaceId() != workspaceID.String() || env.GetSlug() == "" {
 		t.Fatalf("resource reader got %+v, want id, workspace and name", env)
 	}
 	if env.Description != nil || env.GetCreatedBy() != "" || env.GetCreatedAt() != nil ||

@@ -324,7 +324,7 @@ func newPlacementRenderer(
 		resourceSpec:    resourceSpec,
 		hostname:        hostname,
 		environmentID:   env.ID,
-		environmentName: env.Name,
+		environmentName: env.Slug,
 		defaults:        defaults,
 	}, nil
 }

@@ -135,7 +135,7 @@ message Resource {
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.
 message EnvironmentStatus {
   string environment_id = 1;
-  string environment_name = 2;
+  string environment_slug = 2;
   ResourceStatus status = 3;
   repeated RegionStatus regions = 4;
   // When the environment entered its current status: the earliest time a region entered a failing

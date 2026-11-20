@@ -128,6 +128,7 @@ func createWorkspaceInTx(
 
 	if _, err := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 		WorkspaceID: wsID,
+		Slug:        defaultEnvironmentName,
 		Name:        defaultEnvironmentName,
 		CreatedBy:   params.CreatedBy,
 	}); err != nil {

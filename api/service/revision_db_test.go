@@ -108,12 +108,12 @@ func TestEnvironmentDisplayNameKeepsTheNameAndRevision(t *testing.T) {
 	updateEnvironment(
 		t,
 		f,
-		&environmentv1.UpdateEnvironmentRequest{Description: &description, DisplayName: &displayName},
+		&environmentv1.UpdateEnvironmentRequest{Description: &description, Name: &displayName},
 	)
 	env := getEnvironment(t, f)
-	if env.GetRevision() != start.GetRevision() || env.GetName() != start.GetName() ||
-		env.GetDisplayName() != displayName {
+	if env.GetRevision() != start.GetRevision() || env.GetSlug() != start.GetSlug() ||
+		env.GetName() != displayName {
 		t.Fatalf("environment = %v, want name %s, revision %d, display name %s",
-			env, start.GetName(), start.GetRevision(), displayName)
+			env, start.GetSlug(), start.GetRevision(), displayName)
 	}
 }

@@ -37,7 +37,7 @@ production = next(
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace},
     )["environments"]
-    if env["name"] == "production"
+    if env["slug"] == "production"
 )
 name = "vars-" + uuid.uuid4().hex[:8]
 resource = evidence.seed_resources(

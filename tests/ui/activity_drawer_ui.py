@@ -21,7 +21,7 @@ resource = state["resources"]["acme/shared/svc-1"]
 owner = state["users"]["owner"]["id"]
 environment = sql(
     state,
-    f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production'",
+    f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production'",
 )
 sql(
     state,

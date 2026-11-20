@@ -122,7 +122,7 @@ func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {
 		for _, res := range api.platform.resources {
 			res.EnvironmentStatuses = []*resourcev1.EnvironmentStatus{
 				{
-					EnvironmentName: fakeEnvironmentName,
+					EnvironmentSlug: fakeEnvironmentName,
 					Regions: []*resourcev1.RegionStatus{
 						{Region: fakeDefaultRegion, Message: &api.platform.message},
 					},

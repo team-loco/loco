@@ -24,7 +24,7 @@ sql(
     state,
     f"""INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, platform_domain, is_primary)
 SELECT '{resource}', id, '{domain}', 'platform_provided', '{name}', 'apps.example.test', true
-FROM environments WHERE workspace_id='{workspace}' AND name='production';""",
+FROM environments WHERE workspace_id='{workspace}' AND slug='production';""",
 )
 
 display_name = "Public Shop"

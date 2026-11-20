@@ -586,7 +586,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				description={
 					<>
 						Restarts every replica of <span className="text-foreground">{resource.name}</span> in the{" "}
-						<span className="font-mono text-foreground">{environment?.environmentName ?? ""}</span> environment.
+						<span className="font-mono text-foreground">{environment?.environmentSlug ?? ""}</span> environment.
 					</>
 				}
 				confirmLabel="Restart all replicas"

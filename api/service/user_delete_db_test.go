@@ -108,7 +108,7 @@ func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
 		},
 		{
 			name: "environment",
-			insert: `INSERT INTO environments (workspace_id, name, display_name, created_by)
+			insert: `INSERT INTO environments (workspace_id, slug, name, created_by)
 			           VALUES ($2, 'other', 'other', $1)`,
 			reference: "environments.created_by",
 		},

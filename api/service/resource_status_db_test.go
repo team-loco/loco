@@ -233,11 +233,11 @@ func (f *resourceStatusFixture) assertEnvironment(
 	t.Helper()
 	got := f.environment(t, environmentID)
 	if got.GetStatus() != want {
-		t.Errorf("environment %s status = %s, want %s", got.GetEnvironmentName(), got.GetStatus(), want)
+		t.Errorf("environment %s status = %s, want %s", got.GetEnvironmentSlug(), got.GetStatus(), want)
 	}
 	if len(got.GetRegions()) != len(regions) {
 		t.Fatalf("environment %s has %d regions, want %d",
-			got.GetEnvironmentName(), len(got.GetRegions()), len(regions))
+			got.GetEnvironmentSlug(), len(got.GetRegions()), len(regions))
 	}
 	for i, wantRegion := range regions {
 		region := got.GetRegions()[i]
@@ -333,9 +333,9 @@ func TestResourceStatusIsPerEnvironment(t *testing.T) {
 	if len(statuses) != 2 {
 		t.Fatalf("got %d environment statuses, want 2", len(statuses))
 	}
-	if statuses[0].GetEnvironmentName() != statusProduction || statuses[1].GetEnvironmentName() != stagingName {
+	if statuses[0].GetEnvironmentSlug() != statusProduction || statuses[1].GetEnvironmentSlug() != stagingName {
 		t.Errorf("environments = %s, %s; want %s, %s",
-			statuses[0].GetEnvironmentName(), statuses[1].GetEnvironmentName(), statusProduction, stagingName)
+			statuses[0].GetEnvironmentSlug(), statuses[1].GetEnvironmentSlug(), statusProduction, stagingName)
 	}
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,

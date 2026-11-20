@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
@@ -82,10 +85,26 @@ func bumpResourceEnvironmentRevisions(ctx context.Context, qtx *genDb.Queries, r
 }
 
 // withTx runs fn at read committed so a count after a row lock sees rows committed while it waited.
+// txAttempts bounds how often withTx runs a transaction Postgres aborts to break a deadlock.
+const txAttempts = 3
+
+// withTx runs fn in a transaction, running it again when Postgres aborts it to break a deadlock.
 func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries) error) error {
-	return pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
-		return fn(genDb.New(tx))
-	})
+	return inTx(ctx, pool, func(tx pgx.Tx) error { return fn(genDb.New(tx)) })
+}
+
+// inTx is withTx for a function that needs the transaction itself.
+func inTx(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) error {
+	var err error
+	for attempt := 1; attempt <= txAttempts; attempt++ {
+		err = pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, fn)
+		pgErr, ok := errors.AsType[*pgconn.PgError](err)
+		if !ok || pgErr.Code != pgDeadlockDetected {
+			return err
+		}
+		slog.WarnContext(ctx, "transaction aborted to break a deadlock", "attempt", attempt, "sqlstate", pgErr.Code)
+	}
+	return err
 }
 
 func notifyCluster(ctx context.Context, qtx *genDb.Queries, clusterID uuid.UUID) error {

@@ -25,7 +25,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
-import { slug } from "@/lib/slug";
+import { nameError, slugError } from "@/lib/new-resource";
+import { slug as slugOf } from "@/lib/slug";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { limitReason, limitUsage, usageLabel } from "@/lib/limits";
@@ -34,7 +35,6 @@ import { resourcesPerEnvironment } from "./environments";
 import { SettingsCard, SettingsSection } from "./parts";
 
 const MAX_DESCRIPTION = 256;
-const MAX_DISPLAY_NAME = 63;
 
 function environmentColumns({
 	canWrite,
@@ -62,8 +62,8 @@ function environmentColumns({
 			meta: { grow: true },
 			cell: ({ row: { original: env } }) => (
 				<span className="flex min-w-0 flex-col">
-					<CellText text={env.displayName} />
-					{env.displayName !== env.name && <CellText text={env.name} className="font-mono text-[12px] text-fg3" />}
+					<CellText text={env.name} />
+					{env.name !== env.slug && <CellText text={env.slug} className="font-mono text-[12px] text-fg3" />}
 				</span>
 			),
 		},
@@ -97,7 +97,7 @@ function environmentColumns({
 					<Button
 						variant="ghost"
 						size="icon-sm"
-						aria-label={`Delete ${env.displayName}`}
+						aria-label={`Delete ${env.name}`}
 						disabled={blocked !== null}
 						onClick={() => {
 							onDelete(env);
@@ -111,7 +111,7 @@ function environmentColumns({
 						<Button
 							variant="ghost"
 							size="icon-sm"
-							aria-label={`Edit ${env.displayName}`}
+							aria-label={`Edit ${env.name}`}
 							disabled={!canWrite}
 							title={canWrite ? undefined : `Requires Write on ${workspaceName}`}
 							onClick={() => {
@@ -176,7 +176,7 @@ export function EnvironmentsSection({
 		if (!canAdmin) return `Requires Admin on ${workspaceName}`;
 		if (resourcesQuery.isPending) return "Checking for resources";
 		const n = counts.get(env.id) ?? 0;
-		return n > 0 ? `${env.displayName} still runs ${pluralize(n, "resource")}` : null;
+		return n > 0 ? `${env.name} still runs ${pluralize(n, "resource")}` : null;
 	};
 
 	const table = useDataTable("environments", {
@@ -201,7 +201,7 @@ export function EnvironmentsSection({
 			{ environmentId: env.id },
 			{
 				onSuccess: () => {
-					toast.success(`Deleted ${env.displayName}`);
+					toast.success(`Deleted ${env.name}`);
 					setDeleting(null);
 					void queryClient.invalidateQueries({ queryKey: envsKey });
 				},
@@ -259,7 +259,7 @@ export function EnvironmentsSection({
 						workspaceId={workspaceId}
 						workspaceName={workspaceName}
 						env={editing === "new" ? undefined : editing}
-						taken={environments.filter((e) => e !== editing).map((e) => e.name)}
+						others={environments.filter((e) => e !== editing)}
 						onDone={() => {
 							setEditing(null);
 							void queryClient.invalidateQueries({ queryKey: envsKey });
@@ -273,7 +273,7 @@ export function EnvironmentsSection({
 
 			<ConfirmDialog
 				open={deleting !== null}
-				title={`Delete ${deleting?.displayName ?? ""}?`}
+				title={`Delete ${deleting?.name ?? ""}?`}
 				description={`This removes the environment from ${workspaceName}. Loco refuses while it still has deployments.`}
 				confirmLabel="Delete environment"
 				pendingLabel="Deleting…"
@@ -293,37 +293,33 @@ function EnvironmentForm({
 	workspaceId,
 	workspaceName,
 	env,
-	taken,
+	others,
 	onDone,
 	onCancel,
 }: {
 	workspaceId: string;
 	workspaceName: string;
 	env: Environment | undefined;
-	taken: string[];
+	others: Environment[];
 	onDone: () => void;
 	onCancel: () => void;
 }) {
 	const create = useMutation(createEnvironment);
 	const update = useMutation(updateEnvironment);
-	const [raw, setRaw] = useState(env?.displayName ?? "");
+	const [rawName, setRawName] = useState(env?.name ?? "");
+	const [editedSlug, setEditedSlug] = useState<string | null>(null);
 	const [desc, setDesc] = useState(env?.description ?? "");
 	const pending = create.isPending || update.isPending;
 
-	const name = env?.name ?? slug(raw);
-	const displayName = raw.trim();
-	const error =
-		env !== undefined
+	const name = rawName.trim();
+	const slug = env?.slug ?? editedSlug ?? slugOf(rawName);
+	const nameErr = rawName === "" ? null : nameError(rawName, new Set(others.map((e) => e.name)));
+	const slugErr =
+		env !== undefined || (rawName === "" && editedSlug === null)
 			? null
-			: raw.trim() !== "" && name === ""
-				? "Use letters or digits"
-				: taken.includes(name)
-					? `${name} already exists`
-					: null;
-	const hint = env === undefined && name !== "" && name !== raw ? `Saved as ${name}` : undefined;
-	const unchanged =
-		env === undefined ? false : displayName === env.displayName && desc.trim() === (env.description ?? "");
-	const ok = (env === undefined ? name !== "" : displayName !== "") && error === null && !unchanged && !pending;
+			: slugError(slug, new Set(others.map((e) => e.slug)));
+	const unchanged = env === undefined ? false : name === env.name && desc.trim() === (env.description ?? "");
+	const ok = name !== "" && slug !== "" && nameErr === null && slugErr === null && !unchanged && !pending;
 
 	const submit = () => {
 		if (!ok) return;
@@ -332,12 +328,12 @@ function EnvironmentForm({
 			update.mutate(
 				{
 					environmentId: env.id,
-					...(displayName === env.displayName ? {} : { displayName }),
+					...(name === env.name ? {} : { name }),
 					...(description === (env.description ?? "") ? {} : { description }),
 				},
 				{
 					onSuccess: () => {
-						toast.success(`Saved ${displayName}`);
+						toast.success(`Saved ${name}`);
 						onDone();
 					},
 					onError: (err) => {
@@ -348,7 +344,7 @@ function EnvironmentForm({
 			return;
 		}
 		create.mutate(
-			{ workspaceId, name, description: description === "" ? undefined : description },
+			{ workspaceId, name, slug, description: description === "" ? undefined : description },
 			{
 				onSuccess: () => {
 					toast.success(`Created ${name}`);
@@ -362,7 +358,7 @@ function EnvironmentForm({
 	};
 
 	return (
-		<DialogContent title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.displayName}`}>
+		<DialogContent title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.name}`}>
 			<form
 				className="contents"
 				onSubmit={(e) => {
@@ -371,22 +367,37 @@ function EnvironmentForm({
 				}}
 			>
 				<DialogBody>
-					{env !== undefined && (
-						<Field label="Name" hint="Used in loco.yaml, --env and links; it never changes">
-							<Input value={env.name} readOnly className="h-9 font-mono text-[13.5px]" />
-						</Field>
-					)}
-					<Field label={env === undefined ? "Name" : "Display name"} error={error} hint={hint}>
+					<Field label="Name" error={nameErr}>
 						<Input
 							autoFocus
 							autoComplete="off"
-							value={raw}
-							maxLength={env === undefined ? undefined : MAX_DISPLAY_NAME}
-							placeholder="staging"
-							aria-invalid={error !== null}
-							className={env === undefined ? "h-9 font-mono text-[13.5px]" : "h-9 text-[13.5px]"}
+							value={rawName}
+							placeholder="Staging"
+							aria-invalid={nameErr !== null}
+							className="h-9 text-[13.5px]"
 							onChange={(e) => {
-								setRaw(e.target.value);
+								setRawName(e.target.value);
+							}}
+						/>
+					</Field>
+					<Field
+						label="Slug"
+						error={slugErr}
+						hint={
+							env === undefined
+								? "Its key in loco.yaml, --env and links. It can't change once the environment exists."
+								: "Used in loco.yaml, --env and links; it never changes"
+						}
+					>
+						<Input
+							value={slug}
+							readOnly={env !== undefined}
+							autoComplete="off"
+							spellCheck={false}
+							aria-invalid={slugErr !== null}
+							className="h-9 font-mono text-[13.5px]"
+							onChange={(e) => {
+								setEditedSlug(e.target.value);
 							}}
 						/>
 					</Field>

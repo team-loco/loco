@@ -240,7 +240,7 @@ func waitPodSecret(t *testing.T, w *platform.Workspace, app, want string) {
 			// The pod can start before the agent reports rollout completion to the API.
 			for _, environment := range resource.GetEnvironmentStatuses() {
 				for _, region := range environment.GetRegions() {
-					if environment.GetEnvironmentName() == platform.Production &&
+					if environment.GetEnvironmentSlug() == platform.Production &&
 						region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
 						return fmt.Errorf("deployment %v", region.GetPlacementStatus())
 					}

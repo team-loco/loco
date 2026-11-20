@@ -165,7 +165,7 @@ export function tookMs(dep: Deployment): number | undefined {
 export function activeDeploymentPlaces(resource: Resource): string[] {
 	const environments = resource.environmentStatuses;
 	return environments.flatMap((e) =>
-		e.regions.map((r) => (environments.length > 1 ? `${r.region} (${e.environmentName})` : r.region)),
+		e.regions.map((r) => (environments.length > 1 ? `${r.region} (${e.environmentSlug})` : r.region)),
 	);
 }
 
@@ -179,7 +179,7 @@ export function statusEnvironmentId(resource: Resource, requested: string | null
 	const match =
 		requested === null
 			? statuses[0]
-			: statuses.find((e) => e.environmentName === requested || e.environmentId === requested);
+			: statuses.find((e) => e.environmentSlug === requested || e.environmentId === requested);
 	return match?.environmentId;
 }
 

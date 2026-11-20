@@ -97,7 +97,7 @@ ORDER BY available DESC, (health_status = 'healthy') DESC, region;
 -- name: ListRegionStatusesForResources :many
 SELECT l.resource_id,
        l.environment_id,
-       e.name AS environment_name,
+       e.slug AS environment_slug,
        l.region,
        l.cluster_id,
        l.deployment_id,
@@ -131,7 +131,7 @@ JOIN clusters c ON c.id = l.cluster_id
 LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
     AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted
 WHERE l.resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
-ORDER BY l.resource_id, e.name, l.region;
+ORDER BY l.resource_id, e.slug, l.region;
 
 -- name: GetWorkspaceOrganizationIDByResourceID :one
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;

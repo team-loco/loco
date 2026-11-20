@@ -118,7 +118,7 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	environment := t.Environment.GetName()
+	environment := t.Environment.GetSlug()
 	resolve := func() (map[string]locofile.Service, error) { return resolveServices(file, path, environment) }
 	plan, err := reviewPlan(ctx, cmd, t, path, data, resolve, confirm)
 	if err != nil {

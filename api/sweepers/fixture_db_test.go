@@ -38,7 +38,7 @@ WITH u AS (
 ), w AS (
     INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'ws', u.id FROM o, u RETURNING id
 ), e AS (
-    INSERT INTO environments (workspace_id, name, display_name, created_by)
+    INSERT INTO environments (workspace_id, slug, name, created_by)
     SELECT w.id, 'prod', 'prod', u.id FROM w, u RETURNING id
 ), c AS (
     INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)

@@ -41,15 +41,15 @@ export function ResourcesMap({
 	const [open, setOpen] = useState(false);
 	const deployed = data.envResources.filter((r) => r.last !== undefined);
 	const selected = deployed.find((r) => r.resource.id === selectedId);
-	const envParam = { env: env.name };
+	const envParam = { env: env.slug };
 	const version = selected?.last === undefined ? "—" : imageVersion(deploymentImage(selected.last));
 	const hrefFor = (item: DashboardItem) =>
-		isDraftItem(item) ? "" : resourcePath(orgId, workspaceId, item.resource.id, { env: env.name });
+		isDraftItem(item) ? "" : resourcePath(orgId, workspaceId, item.resource.id, { env: env.slug });
 
 	return (
 		<Section>
 			{deployed.length === 0 ? (
-				<div className="py-10 text-center text-fg3">Nothing is deployed to {env.displayName} yet.</div>
+				<div className="py-10 text-center text-fg3">Nothing is deployed to {env.name} yet.</div>
 			) : (
 				<ArchitectureDiagram
 					rows={deployed}

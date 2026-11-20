@@ -78,7 +78,7 @@ func runCancel(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if inFlight == nil {
-		return fmt.Errorf("%w for %s in %s", errNothingToCancel, args[0], target.Environment.GetName())
+		return fmt.Errorf("%w for %s in %s", errNothingToCancel, args[0], target.Environment.GetSlug())
 	}
 	impact, err := target.Clients.Deployment.GetDeploymentCancelImpact(
 		ctx,
@@ -116,7 +116,7 @@ func runCancel(cmd *cobra.Command, args []string) error {
 			RollbackDeploymentIDs []string `json:"rollbackDeploymentIds"`
 		}{inFlight.GetId(), append([]string{}, rollbacks...)})
 	}
-	fmt.Fprintf(stdout, "Canceled deployment %s of %s in %s\n", inFlight.GetId(), args[0], target.Environment.GetName())
+	fmt.Fprintf(stdout, "Canceled deployment %s of %s in %s\n", inFlight.GetId(), args[0], target.Environment.GetSlug())
 	for _, id := range rollbacks {
 		fmt.Fprintf(stdout, "Queued rollback deployment %s\n", id)
 	}
