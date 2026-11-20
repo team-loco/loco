@@ -341,6 +341,7 @@ export function VariablesSection({
 	const { environments } = useEnvironments();
 	const environment = environments.find((env) => env.id === environmentId);
 	const environmentName = environment?.name ?? "";
+	const secretsHref = withEnv(secretsPath(activeOrgId ?? "", workspaceId), environment?.slug ?? null);
 	const ready = environmentId !== "";
 	const envQuery = useQuery(getResourceEnv, { resourceId, environmentId }, { enabled: ready });
 	const secretsQuery = useQuery(listSecrets, { environmentId }, { enabled: ready && canReadWorkspace });
@@ -435,7 +436,7 @@ export function VariablesSection({
 						<ReferencePicker
 							groups={groups}
 							environment={environmentName}
-							manageHref={withEnv(secretsPath(activeOrgId ?? "", workspaceId), environment?.slug ?? null)}
+							manageHref={secretsHref}
 							onPick={(item) => {
 								addRow(taken.has(item.key) ? `${item.key}_2` : item.key, item.ref);
 							}}
@@ -457,6 +458,17 @@ export function VariablesSection({
 			<span className="-mt-1 text-[12.5px] text-fg3">
 				Plain values, visible to anyone who can read this resource. For anything sensitive, refer to a secret with{" "}
 				<code className="font-mono text-[12px] text-fg2">{referenceOf("secrets", "NAME")}</code>.
+				{environment !== undefined && canReadWorkspace && (
+					<>
+						{" "}
+						<Link
+							to={secretsHref}
+							className="font-medium whitespace-nowrap text-foreground no-underline after:opacity-0 after:transition-opacity after:duration-120 after:content-['_→'] hover:after:opacity-100 motion-reduce:after:transition-none"
+						>
+							Manage secrets in {environmentName}
+						</Link>
+					</>
+				)}
 			</span>
 			{differingRegions.length > 0 && (
 				<p role="status" className="m-0 text-[12.5px] text-warn-fg">

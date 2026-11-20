@@ -8,8 +8,9 @@ import {
 	updateEnvironment,
 } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import { BoxIcon, LockIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { Link } from "react-router";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
@@ -21,6 +22,7 @@ import { Input } from "@/components/design/Input";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { resourcesPath, secretsPath, withEnv } from "@/lib/routes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
@@ -35,18 +37,18 @@ import { SettingsCard, SettingsSection } from "./parts";
 const MAX_DESCRIPTION = 256;
 
 function environmentColumns({
+	orgId,
+	workspaceId,
 	canWrite,
 	workspaceName,
-	resourcesPending,
-	counts,
 	deleteBlocked,
 	onEdit,
 	onDelete,
 }: {
+	orgId: string;
+	workspaceId: string;
 	canWrite: boolean;
 	workspaceName: string;
-	resourcesPending: boolean;
-	counts: ReadonlyMap<string, number>;
 	deleteBlocked: (env: Environment) => string | null;
 	onEdit: (env: Environment) => void;
 	onDelete: (env: Environment) => void;
@@ -74,12 +76,26 @@ function environmentColumns({
 				),
 		},
 		{
-			id: "resources",
-			header: "Resources",
-			size: 120,
-			minSize: 90,
-			meta: { cellClassName: "font-mono text-[12px] text-fg3" },
-			cell: ({ row: { original: env } }) => (resourcesPending ? "—" : pluralize(counts.get(env.id) ?? 0, "resource")),
+			id: "manageResources",
+			enableResizing: false,
+			size: 160,
+			meta: { align: "end", label: "Manage resources" },
+			cell: ({ row: { original: env } }) => (
+				<ManageLink to={withEnv(resourcesPath(orgId, workspaceId), env.slug)} icon={<BoxIcon />}>
+					Manage resources
+				</ManageLink>
+			),
+		},
+		{
+			id: "manageSecrets",
+			enableResizing: false,
+			size: 150,
+			meta: { align: "end", label: "Manage secrets" },
+			cell: ({ row: { original: env } }) => (
+				<ManageLink to={withEnv(secretsPath(orgId, workspaceId), env.slug)} icon={<LockIcon />}>
+					Manage secrets
+				</ManageLink>
+			),
 		},
 		{
 			id: "actions",
@@ -126,6 +142,15 @@ function environmentColumns({
 			},
 		},
 	];
+}
+
+function ManageLink({ to, icon, children }: { to: string; icon: ReactNode; children: string }) {
+	return (
+		<Button variant="outline" size="sm" className="h-7" nativeButton={false} render={<Link to={to} />}>
+			{icon}
+			{children}
+		</Button>
+	);
 }
 
 export function EnvironmentsSection({
@@ -175,10 +200,10 @@ export function EnvironmentsSection({
 		data: environments,
 		getRowId: (env) => env.id,
 		columns: environmentColumns({
+			orgId,
+			workspaceId,
 			canWrite,
 			workspaceName,
-			resourcesPending: resourcesQuery.isPending,
-			counts,
 			deleteBlocked,
 			onEdit: setEditing,
 			onDelete: setDeleting,
