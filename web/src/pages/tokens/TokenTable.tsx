@@ -97,7 +97,7 @@ export function TokenTable({
 	onRevoke: (token: Token) => void;
 }) {
 	return (
-		<Table className="min-w-[1050px] table-fixed">
+		<Table className="min-w-[880px] table-fixed">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-[24%]">Token</TableHead>
@@ -105,7 +105,7 @@ export function TokenTable({
 					<TableHead className="w-[190px]">Created by</TableHead>
 					<TableHead className="w-[110px]">Last used</TableHead>
 					<TableHead className="w-[130px]">Expires</TableHead>
-					<TableHead className="w-10" />
+					<TableHead className="w-[72px]" />
 				</TableRow>
 			</TableHeader>
 			<TableBody>

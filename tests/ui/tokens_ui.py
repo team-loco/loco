@@ -61,4 +61,24 @@ with session(repo / "tests/ui/out/tokens") as browser:
     expect(created).to_be_hidden()
     assert not errors, errors
     context.close()
-print("PASS: the token drawer shows the saved name, wraps text and closes on Escape")
+
+    context, page, errors = open_page(browser, state=state)
+    page.goto(state["ui_url"] + "/tokens?owner=organization")
+    menu = page.get_by_role("button", name="Actions for ci-source")
+    expect(menu).to_be_visible()
+    container = page.locator('[data-slot="table-container"]').first
+    assert container.get_attribute("data-scroll") is None
+    assert container.evaluate("node => getComputedStyle(node).maskImage") == "none"
+    gap = menu.evaluate(
+        "node => node.closest('[data-slot=\"table-container\"]').getBoundingClientRect().right"
+        " - node.getBoundingClientRect().right"
+    )
+    padding = menu.evaluate(
+        "node => parseFloat(getComputedStyle(node.closest('td')).paddingRight)"
+    )
+    assert gap >= padding >= 20, (gap, padding)
+    assert not errors, errors
+    context.close()
+print(
+    "PASS: the token drawer shows the saved name, wraps text and closes on Escape; the row menu keeps the cell padding"
+)
