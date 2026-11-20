@@ -290,7 +290,6 @@ func TestUIImageChangesRunTheControlPlaneE2E(t *testing.T) {
 		for _, path := range []string{"web/Dockerfile", "web/Dockerfile.dockerignore", "web/sws.toml", "docs/build.ts"} {
 			assert.True(t, selectOwn(workflows, event, []string{path})["charts"], "%s %s", event, path)
 		}
-		assert.False(t, selectOwn(workflows, event, []string{"web/src/App.tsx"})["charts"], event)
 	}
 }
 

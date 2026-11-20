@@ -79,6 +79,7 @@ charts:
     - "{api,observability-proxy,tests/e2e/fixtures/api-failover}/Dockerfile"
     # The UI image's definition and the server settings it starts with.
     - "web/{Dockerfile,Dockerfile.dockerignore,sws.toml}"
+    # docs/build.ts is copied into the image to write its server config.
     - "docs/build.ts"
     - "tests/e2e/fixtures/control-plane/**"
     - "api/seed/e2e.sql"
