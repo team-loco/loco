@@ -11,7 +11,7 @@ import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
-import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { PlacementChips } from "@/components/design/PlacementChips";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -221,10 +221,7 @@ function DeployCard({
 	return (
 		<ActivityCard>
 			<div className="flex items-center justify-between gap-2.5">
-				<span className="inline-flex items-center gap-2 text-[12.5px] font-medium whitespace-nowrap">
-					<StatusGlyph glyph={phase.glyph} />
-					{phase.label}
-				</span>
+				<StatusBadge {...phase} />
 				<span
 					className={cn("font-mono text-[12px]", running ? "text-foreground" : "text-fg3")}
 					title={running ? "Time since the deployment was created" : "How long it ran"}

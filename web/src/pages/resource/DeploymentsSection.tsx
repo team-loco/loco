@@ -16,11 +16,10 @@ import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
-import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
-import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
+import { DeploymentStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { PlacementChips } from "@/components/design/PlacementChips";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
@@ -524,12 +523,7 @@ export function DeploymentsSection({
 								{getErrorMessage(selected.error, "Could not load build.")}
 							</div>
 						)}
-						{selectedStatus !== undefined && (
-							<div className="flex items-center gap-2 text-sm">
-								<StatusGlyph glyph={selectedStatus.glyph} />
-								{selectedStatus.label}
-							</div>
-						)}
+						{selectedStatus !== undefined && <StatusBadge {...selectedStatus} className="self-start" />}
 						{selected.data?.build !== undefined && (
 							<BuildDetail
 								build={selected.data.build}

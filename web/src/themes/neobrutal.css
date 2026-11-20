@@ -608,3 +608,30 @@
 [data-theme="neobrutal"] [data-slot="trace-header"] {
 	border-bottom: 2px solid var(--ink);
 }
+
+[data-theme="neobrutal"] [data-status-badge] {
+	--nbf: #e4e4e7;
+	--bg: var(--nbf);
+	height: 26px;
+	border: 2px solid #000000;
+	border-radius: 4px;
+	background: var(--nbf);
+	box-shadow: 2px 2px 0 0 #000000;
+	color: #000000;
+	font-weight: 700;
+	& svg {
+		color: #000000;
+	}
+}
+[data-theme="neobrutal"] [data-status-badge="ok"] {
+	--nbf: #a3e636;
+}
+[data-theme="neobrutal"] [data-status-badge="warn"] {
+	--nbf: #ffdc58;
+}
+[data-theme="neobrutal"] [data-status-badge="err"] {
+	--nbf: #ff6b6b;
+}
+[data-theme="neobrutal"] [data-status-badge="info"] {
+	--nbf: #88aaee;
+}

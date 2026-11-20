@@ -13,7 +13,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { CopyButton } from "@/components/design/CopyButton";
-import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { StatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
@@ -307,10 +307,7 @@ export function BuildsTable({
 								</CollapsibleTrigger>
 							</TableCell>
 							<TableCell>
-								<span className="inline-flex items-center gap-2 text-[13.5px] whitespace-nowrap">
-									<StatusGlyph glyph={style.glyph} />
-									{style.label}
-								</span>
+								<StatusBadge {...style} />
 							</TableCell>
 							<TableCell className="font-mono text-[12.5px]">{formatShortId(build.id)}</TableCell>
 							<TableCell>
