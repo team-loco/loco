@@ -278,11 +278,9 @@ func environmentSince(regions []*resourcev1.RegionStatus, status resourcev1.Reso
 		status == resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN
 	var since *timestamppb.Timestamp
 	for _, region := range regions {
-		regionStatus := region.GetStatus()
-		regionFailing := regionStatus == resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED ||
-			regionStatus == resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
-		contributes := regionStatus == status ||
-			failing && regionFailing && status == resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
+		contributes := region.GetStatus() == status ||
+			status == resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED &&
+				region.GetStatus() == resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
 		at := region.GetStatusSince()
 		if !contributes || at == nil {
 			continue
