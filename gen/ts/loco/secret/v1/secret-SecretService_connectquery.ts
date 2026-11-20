@@ -12,14 +12,16 @@ import { SecretService } from "./secret_pb";
 export const setSecrets = SecretService.method.setSecrets;
 
 /**
- * DeleteSecrets removes names from a service in an environment.
+ * DeleteSecrets removes names from an environment. It fails with FAILED_PRECONDITION, naming
+ * the resources, while the latest deployment of a resource reads one of the names.
  *
  * @generated from rpc loco.secret.v1.SecretService.DeleteSecrets
  */
 export const deleteSecrets = SecretService.method.deleteSecrets;
 
 /**
- * ListSecrets lists the names a service holds in an environment with their version and who set them.
+ * ListSecrets lists an environment's secrets with their version, who set them and the
+ * resources that use them.
  *
  * @generated from rpc loco.secret.v1.SecretService.ListSecrets
  */

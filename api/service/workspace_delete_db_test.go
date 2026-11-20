@@ -63,7 +63,7 @@ func TestDeleteWorkspaceConfirmationDeletesAllResourcePlacements(t *testing.T) {
 	sibling := f.otherResource(t, "sibling")
 	if _, err := f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID: sibling, ClusterID: f.clusterID, Region: testRegion, DesiredSpec: []byte(`{}`),
-		EnvironmentID: f.envID, SecretNames: []string{},
+		EnvironmentID: f.envID, SecretEnv: map[string]string{},
 	}); err != nil {
 		t.Fatalf("place sibling: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestDeleteWorkspaceConfirmationDeletesAllResourcePlacements(t *testing.T) {
 	unrelated := f.tenant.resource(t, unrelatedWorkspace, "unrelated", &resourcev1.ServiceSpec{})
 	if _, err := f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID: unrelated, ClusterID: f.clusterID, Region: testRegion, DesiredSpec: []byte(`{}`),
-		EnvironmentID: unrelatedEnvironment, SecretNames: []string{},
+		EnvironmentID: unrelatedEnvironment, SecretEnv: map[string]string{},
 	}); err != nil {
 		t.Fatalf("place unrelated resource: %v", err)
 	}

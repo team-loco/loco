@@ -26,7 +26,10 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 )
 
-const testProbeResource = "fixture-resource"
+const (
+	testProbeResource    = "fixture-resource"
+	testProbeEnvironment = "fixture-environment"
+)
 
 type verificationAPI struct {
 	cancel context.CancelFunc
@@ -35,10 +38,10 @@ type verificationAPI struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
 	secretv1connect.UnimplementedSecretServiceHandler
 	buildv1connect.UnimplementedBuildServiceHandler
-	t                               *testing.T
-	loseProvision                   bool
-	name                            string
-	provisioned, secretSet, deleted bool
+	t                                              *testing.T
+	loseProvision                                  bool
+	name, secretName                               string
+	provisioned, secretSet, deleted, secretDeleted bool
 }
 
 func (api *verificationAPI) Plan(_ context.Context, request *planv1.PlanRequest) (*planv1.PlanResponse, error) {
@@ -47,6 +50,9 @@ func (api *verificationAPI) Plan(_ context.Context, request *planv1.PlanRequest)
 		api.t.Fatal(err)
 	}
 	api.name = file.Partial
+	if !api.secretSet || file.Services[api.name].Env[verificationVariable] != "${{ secrets."+api.secretName+" }}" {
+		api.t.Error("plan before the probe secret is set and referenced")
+	}
 	return &planv1.PlanResponse{Revision: 7}, nil
 }
 
@@ -77,11 +83,27 @@ func (api *verificationAPI) SetSecrets(
 	_ context.Context,
 	request *secretv1.SetSecretsRequest,
 ) (*secretv1.SetSecretsResponse, error) {
-	if request.GetResourceId() != testProbeResource || request.GetValues()[verificationSecretName] == "" {
-		api.t.Error("missing probe secret")
+	if request.GetEnvironmentId() != testProbeEnvironment || len(request.GetValues()) != 1 {
+		api.t.Errorf("invalid probe secret: %v", request)
+	}
+	for name := range request.GetValues() {
+		api.secretName = name
 	}
 	api.secretSet = true
 	return &secretv1.SetSecretsResponse{}, nil
+}
+
+func (api *verificationAPI) DeleteSecrets(
+	ctx context.Context,
+	request *secretv1.DeleteSecretsRequest,
+) (*secretv1.DeleteSecretsResponse, error) {
+	names := request.GetNames()
+	if ctx.Err() != nil || request.GetEnvironmentId() != testProbeEnvironment ||
+		len(names) != 1 || names[0] != api.secretName {
+		api.t.Errorf("invalid secret cleanup: %v", request)
+	}
+	api.secretDeleted = true
+	return &secretv1.DeleteSecretsResponse{}, nil
 }
 
 func (api *verificationAPI) CreateBuild(
@@ -89,8 +111,8 @@ func (api *verificationAPI) CreateBuild(
 	request *buildv1.CreateBuildRequest,
 ) (*buildv1.CreateBuildResponse, error) {
 	api.cancel()
-	if !api.secretSet || request.GetSourceSize() == 0 {
-		api.t.Error("build before source and secret")
+	if request.GetSourceSize() == 0 {
+		api.t.Error("build without source")
 	}
 	return nil, connect.NewError(connect.CodeUnavailable, "build fixture failure")
 }
@@ -106,7 +128,7 @@ func (api *verificationAPI) DeleteResource(
 	return &resourcev1.DeleteResourceResponse{}, nil
 }
 
-func TestVerificationCleansProvisionedResourceAfterFailure(t *testing.T) {
+func TestVerificationCleansResourceAndSecretAfterFailure(t *testing.T) {
 	for _, lost := range []bool{false, true} {
 		t.Run(map[bool]string{false: "build-failed", true: "provision-response-lost"}[lost], func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
@@ -129,10 +151,11 @@ func TestVerificationCleansProvisionedResourceAfterFailure(t *testing.T) {
 				&clusterv1.Cluster{
 					Region: "us-east-1", Domains: []string{"apps.example.com"},
 				},
-				&environmentv1.Environment{Id: "fixture-environment", WorkspaceId: "fixture-workspace"},
+				&environmentv1.Environment{Id: testProbeEnvironment, WorkspaceId: "fixture-workspace"},
 			)
-			if !errors.Is(err, errVerification) || !api.provisioned || !api.deleted || api.secretSet == lost {
-				t.Fatalf("err=%v provisioned=%v secret=%v deleted=%v", err, api.provisioned, api.secretSet, api.deleted)
+			if !errors.Is(err, errVerification) || !api.provisioned || !api.deleted || !api.secretDeleted {
+				t.Fatalf("err=%v provisioned=%v deleted=%v secretDeleted=%v",
+					err, api.provisioned, api.deleted, api.secretDeleted)
 			}
 		})
 	}

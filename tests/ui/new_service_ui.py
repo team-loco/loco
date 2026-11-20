@@ -307,7 +307,6 @@ with session(out) as browser:
         route.fulfill(json={"image": pinned_image})
 
     context.route("**/loco.deployment.v1.DeploymentService/ResolveImage", resolve_image)
-    writes = []
     order = []
     creations = []
 
@@ -318,13 +317,6 @@ with session(out) as browser:
     context.route(
         "**/loco.resource.v1.ResourceService/CreateResource", record_resource_create
     )
-
-    def record_secret_write(route):
-        writes.append(route.request.post_data_json)
-        order.append(("SetSecrets", route.request.post_data_json["resourceId"]))
-        route.continue_()
-
-    context.route("**/loco.secret.v1.SecretService/SetSecrets", record_secret_write)
 
     def create_deployment(route):
         order.append(("CreateDeployment", route.request.post_data_json["resourceId"]))
@@ -471,23 +463,10 @@ with session(out) as browser:
     expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value(
         "info"
     )
-    expect(
-        variables.get_by_role("listitem").first.get_by_label("Looks like a secret")
-    ).to_have_count(1)
-    expect(
-        variables.get_by_role("listitem").nth(1).get_by_label("Looks like a secret")
-    ).to_have_count(0)
-    secret_switch = variables.get_by_role(
-        "switch", name="Store STRIPE_API_KEY as secret", exact=True
-    )
-    secret_switch.click()
     secret_value = variables.get_by_label("Value of STRIPE_API_KEY", exact=True)
-    expect(secret_value).to_have_attribute("type", "password")
     expect(secret_value).to_have_value("sk_test")
-    assert "sk_test" not in page.evaluate(
-        f"localStorage.getItem({json.dumps(drafts_key)})"
-    )
-    # A storage update from another tab must not be masked by the in-memory secret.
+    secret_value.fill("${{ secrets.STRIPE_API_KEY }}")
+    # A storage update from another tab reaches the drawer.
     page.evaluate(
         """key => {
                 const drafts = JSON.parse(localStorage.getItem(key));
@@ -500,7 +479,7 @@ with session(out) as browser:
     )
     log_level = variables.get_by_label("Value of LOG_LEVEL", exact=True)
     expect(log_level).to_have_value("debug")
-    expect(secret_value).to_have_value("sk_test")
+    expect(secret_value).to_have_value("${{ secrets.STRIPE_API_KEY }}")
     log_level.fill("info")
     # A draft that cannot be saved reports it once, not on every keystroke.
     save_failed = page.get_by_text("Couldn't save changes to this draft", exact=True)
@@ -525,8 +504,11 @@ with session(out) as browser:
         log_level.fill("info")
         expect(save_failed).to_have_count(0, timeout=10_000)
     drawer.get_by_text("loco.yaml", exact=True).first.click()
-    expect(drawer.get_by_text("secrets: [STRIPE_API_KEY]", exact=False)).to_be_visible()
-    assert "sk_test" not in drawer.inner_text()
+    expect(
+        drawer.get_by_text(
+            'STRIPE_API_KEY: "${{ secrets.STRIPE_API_KEY }}"', exact=False
+        )
+    ).to_be_visible()
     drawer.get_by_text("loco.yaml", exact=True).first.click()
     secret_value.scroll_into_view_if_needed()
     drawer.get_by_role("button", name="Add", exact=True).click()
@@ -594,8 +576,7 @@ with session(out) as browser:
 
     page.reload()
     expect(page).to_have_url(DRAFT_URL)
-    expect(secret_switch).to_be_checked()
-    expect(secret_value).to_have_value("")
+    expect(secret_value).to_have_value("${{ secrets.STRIPE_API_KEY }}")
     expect(replicas.get_by_text("2", exact=True)).to_be_visible()
     expect(memory).to_have_attribute("aria-valuetext", "1 Gi")
     expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
@@ -657,8 +638,6 @@ with session(out) as browser:
     page.keyboard.press("Enter")
     expect(page).to_have_url(DRAFT_URL)
     health.click()
-    expect(secret_value).to_have_value("")
-    secret_value.fill("sk_test")
     expect(drawer.get_by_role("textbox", name="Timeout, sec")).to_have_value("5")
     drawer.get_by_role("textbox", name="Timeout, sec").fill("4")
     interval.fill("0")
@@ -781,14 +760,17 @@ with session(out) as browser:
     def unavailable(route):
         return route.fulfill(status=503, json={"code": "unavailable"})
 
-    page.route("**/loco.secret.v1.SecretService/SetSecrets", unavailable)
+    page.route(
+        "**/loco.deployment.v1.DeploymentService/CreateDeployment",
+        deployment_error,
+    )
     page.route("**/loco.resource.v1.ResourceService/DeleteResource", unavailable)
     drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
     expect(
-        drawer.get_by_text("Couldn't store the secrets.", exact=True)
+        drawer.get_by_text("Deployment creation unavailable.", exact=True)
     ).to_be_visible()
     drawer.get_by_role("textbox", name="Description").fill("Retained resource")
-    expect(drawer.get_by_role("alert")).to_have_text("Couldn't store the secrets.")
+    expect(drawer.get_by_role("alert")).to_have_text("Deployment creation unavailable.")
     expect(
         drawer.get_by_role("button", name=f"Deploy {name}", exact=True)
     ).to_be_disabled()
@@ -799,12 +781,15 @@ with session(out) as browser:
     expect(page).to_have_url(DRAFT_URL)
     assert not deployments, deployments
     assert stored_drafts(page) == [name], stored_drafts(page)
-    page.unroute("**/loco.secret.v1.SecretService/SetSecrets")
+    page.unroute(
+        "**/loco.deployment.v1.DeploymentService/CreateDeployment",
+        deployment_error,
+    )
     page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
     # The drawer learns of the retained resource before it is deleted elsewhere.
     taken = f"{name}.{platform_domain} is taken"
     expect(drawer.get_by_text(taken, exact=True).first).to_be_visible()
-    expect(drawer.get_by_role("alert")).to_have_text("Couldn't store the secrets.")
+    expect(drawer.get_by_role("alert")).to_have_text("Deployment creation unavailable.")
     orphan = sql(state, f"SELECT id FROM resources WHERE slug='{name}';")
     call(
         state, "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan}
@@ -827,7 +812,6 @@ with session(out) as browser:
     ).to_have_count(1)
     draft_row(page, name).get_by_role("link", name=name, exact=True).click()
     expect(page).to_have_url(DRAFT_URL)
-    secret_value.fill("sk_test")
     drawer.get_by_role("textbox", name="Description").fill("Takes checkout payments")
     pending = []
     page.route(
@@ -879,25 +863,13 @@ with session(out) as browser:
     assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 2, spec
     assert sizing["scalers"] == {}, spec
     assert sizing["cpu"] == "500m" and sizing["memory"] == "1Gi", spec
-    assert spec["env"] == {"LOG_LEVEL": "info", "EMPTY_FLAG": ""}, spec
+    assert spec["env"] == {
+        "STRIPE_API_KEY": "${{ secrets.STRIPE_API_KEY }}",
+        "LOG_LEVEL": "info",
+        "EMPTY_FLAG": "",
+    }, spec
     assert spec["args"] == ["-text=hello world", "-listen=:8080"], spec
     assert "command" not in spec, spec
-    assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
-    assert writes[-1] == {
-        "resourceId": resource,
-        "environmentId": production,
-        "values": {"STRIPE_API_KEY": "sk_test"},
-    }
-    assert [call for call in order if call[1] == resource] == [
-        ("SetSecrets", resource),
-        ("CreateDeployment", resource),
-    ], order
-    names = call(
-        state,
-        "loco.secret.v1.SecretService/ListSecrets",
-        {"resourceId": resource, "environmentId": production},
-    )
-    assert [secret["name"] for secret in names["secrets"]] == ["STRIPE_API_KEY"]
     check = spec["healthCheck"]
     assert (
         check["path"],

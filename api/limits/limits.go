@@ -92,10 +92,10 @@ var (
 		counted:  "the resource has %d of %d domains in the environment",
 		override: func(o *genDb.OrgLimitOverride) **int32 { return &o.DomainsPerResource },
 	}
-	SecretsPerResource = Limit{
-		Field: "secrets_per_resource", Env: "LOCO_SECRETS_MAX_PER_SERVICE", fallback: 256,
-		counted:  "the service has %d of %d secrets in the environment",
-		override: func(o *genDb.OrgLimitOverride) **int32 { return &o.SecretsPerResource },
+	SecretsPerEnvironment = Limit{
+		Field: "secrets_per_environment", Env: "LOCO_LIMIT_SECRETS_PER_ENVIRONMENT", fallback: 256,
+		counted:  "the environment has %d of %d secrets",
+		override: func(o *genDb.OrgLimitOverride) **int32 { return &o.SecretsPerEnvironment },
 	}
 	DeploymentHistory = Limit{
 		Field: "deployment_history", Env: "LOCO_LIMIT_DEPLOYMENT_HISTORY", fallback: 100,
@@ -123,7 +123,7 @@ var (
 var All = []Limit{
 	OrgsPerUser, WorkspacesPerOrg, MembersPerOrg, InvitationsPerOrg,
 	EnvironmentsPerWorkspace, ResourcesPerWorkspace, WebhooksPerWorkspace, TokensPerEntity,
-	DomainsPerResource, SecretsPerResource, DeploymentHistory, BuildHistory,
+	DomainsPerResource, SecretsPerEnvironment, DeploymentHistory, BuildHistory,
 	LogRetentionDays, TraceRetentionDays, MetricRetentionDays,
 }
 

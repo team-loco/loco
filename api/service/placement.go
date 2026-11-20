@@ -170,6 +170,6 @@ func rewritePlacement(
 		DeploymentID:  placement.DeploymentID,
 		DesiredSpec:   desired,
 		EnvironmentID: placement.EnvironmentID,
-		SecretNames:   placement.SecretNames,
+		SecretEnv:     placement.SecretEnv,
 	})
 }

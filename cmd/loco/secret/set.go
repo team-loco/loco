@@ -1,4 +1,4 @@
-package env
+package secret
 
 import (
 	"errors"
@@ -17,13 +17,16 @@ var (
 func newSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set KEY=VALUE [KEY=VALUE...]",
-		Short: "Set a service's secrets by name",
-		Long: `Set one or more secrets. A name without "=" takes its value from stdin, which keeps it out of
-the shell history.
+		Short: "Set an environment's secrets by name",
+		Long: `Set one or more secrets of an environment. A name without "=" takes its value from stdin,
+which keeps it out of the shell history.
+
+The command lists the services that read a changed value; each gets it on its next deploy or
+restart.
 
 Examples:
-  loco env set --service web --env production API_KEY=abc123 LOG_LEVEL=debug
-  printf '%s' "$DATABASE_URL" | loco env set --service web --env production DATABASE_URL`,
+  loco secret set --env production API_KEY=abc123 LOG_LEVEL=debug
+  printf '%s' "$DATABASE_URL" | loco secret set --env production DATABASE_URL`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			values, err := parseAssignments(cmd.InOrStdin(), args)

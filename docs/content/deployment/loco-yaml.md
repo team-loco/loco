@@ -229,7 +229,7 @@ services:
           injectOtel: false
 ```
 
-`injectOtel` defaults to `true`. Loco supplies `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`. A plain environment variable or declared secret with one of those names replaces that default, and Loco injects the rest. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL`, sampler settings or signal-specific exporter settings, leave the defaults in place. See [Runtime environment](../operations/applications.md#runtime-environment) for the supplied values.
+`injectOtel` defaults to `true`. Loco supplies `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`. A variable with one of those names replaces that default, and Loco injects the rest. Other OpenTelemetry variables, such as `OTEL_LOG_LEVEL`, sampler settings or signal-specific exporter settings, leave the defaults in place. See [Runtime environment](../operations/applications.md#runtime-environment) for the supplied values.
 
 Application code must already include the SDK and instrumentation. Setting `injectOtel` to `false` leaves SDK configuration to the application; it does not disable telemetry collection. Environment overrides replace the resource's injection preference. Saving the setting creates a deployment snapshot and rolls out the resource.
 
@@ -248,13 +248,13 @@ services:
 
 Changing the setting rolls out nothing; it applies the next time a deployment of the service fails.
 
-When the newest deployment in an environment fails in a region, by missing its rollout deadline or running out of apply retries, Loco creates a rollback deployment from the newest earlier deployment that ran. The rollback covers every region the failed deployment runs in that the earlier deployment sized, keeps the earlier deployment's configuration and plain environment variables, binds the secrets it bound, and records `trigger: auto_rollback` with the earlier deployment as its source. It shows `deploying` until it is available, then `running`. The failed deployment stays `failed`. A rollback that fails does not roll back again. The activity of both deployments records the rollback.
+When the newest deployment in an environment fails in a region, by missing its rollout deadline or running out of apply retries, Loco creates a rollback deployment from the newest earlier deployment that ran. The rollback covers every region the failed deployment runs in that the earlier deployment sized, keeps the earlier deployment's configuration and variables, and records `trigger: auto_rollback` with the earlier deployment as its source. It shows `deploying` until it is available, then `running`. The failed deployment stays `failed`. A rollback that fails does not roll back again. The activity of both deployments records the rollback.
 
 Nothing is rolled back, and the failed deployment stays active, when the setting is off, the build failed, no earlier deployment ran, or the earlier deployment's cluster or build image is no longer available. A restored deployment that fails is not rolled back again.
 
 ## Variables and secrets
 
-`env` holds plain values, which appear in the plan and in the file. Configure application trace sampling with standard OpenTelemetry variables under `env`; there is no separate tracing block. See [Trace sampling](../operations/applications.md#trace-sampling) for a portable example and SDK defaults.
+`env` holds the service's variables, which appear in the plan and in the file. Configure application trace sampling with standard OpenTelemetry variables under `env`; there is no separate tracing block. See [Trace sampling](../operations/applications.md#trace-sampling) for a portable example and SDK defaults.
 
 A plain value can reference a variable Loco sets, listed in [Runtime environment](../operations/applications.md#runtime-environment), as `$(NAME)`; Kubernetes expands it when the container starts:
 
@@ -265,12 +265,34 @@ env:
 
 `$$(NAME)` produces a literal `$(NAME)`.
 
-`secrets` lists the secret names the service reads; the file never contains their values. A secret belongs to one service in one environment, and `loco env` sets it:
+A value can also refer to a secret of the environment as `${{ secrets.NAME }}`, or to an output of another service in the workspace as `${{ service.KEY }}`. The file never contains a secret's value. A secret belongs to one environment, `loco secret` sets it, and any service in that environment can read it:
 
 ```sh
-loco env set --service web --env production STRIPE_API_KEY=sk_live_...
+loco secret set --env production STRIPE_API_KEY=sk_live_...
 ```
 
-The plan reports each listed name the service does not hold in the environment as an error. A value can only be set on a service that exists, so when a new service's only plan errors are its secrets, `loco deploy` and `loco infra apply` create it without building or deploying it, print the `loco env set` command for its secrets, and exit with an error. Run the command again once the values are set.
+```yaml
+services:
+  api:
+    port: 8080
+    env:
+      DATABASE_URL: "${{ secrets.DATABASE_URL }}"
+  web:
+    port: 3000
+    env:
+      API_URL: "${{ api.PRIVATE_URL }}"
+      STRIPE_API_KEY: "${{ secrets.STRIPE_API_KEY }}"
+```
 
-A deployment receives only the secrets the file lists. `loco infra plan`, `loco infra apply` and `loco deploy` print every secret the file's services hold in the environment: a listed one as `in use`, and one the file does not list as `Saved. To use this key, add STRIPE_API_KEY to services.web.secrets and redeploy.` Removing a name from `secrets` stops the next deployment from receiving it and keeps the stored value.
+A reference can sit inside a longer value, such as `postgres://app:${{ secrets.DB_PASSWORD }}@db:5432/app`. Every service provides these outputs:
+
+| Output | Value |
+|---|---|
+| `PRIVATE_HOST` | the service's slug, such as `api` |
+| `PORT` | its `port`; only a service with `port` provides it |
+| `PRIVATE_URL` | `http://<slug>:<port>`; only a service with `port` provides it |
+| `PUBLIC_URL` | `https://` and its primary domain, the first entry of its `domains`; only a service with a domain provides it |
+
+A reference names a service by its slug, the key it has under `services`. Any other key names one of that service's variables, such as `${{ api.LOG_LEVEL }}`, which can itself refer to secrets or other services. A reference to a service of the same file resolves against the file, and a reference to any other service against that service's latest deployment in the environment. A secret value reaches the container only; the plan and the deployment record keep the reference. The slug `secrets` is reserved for references to secrets. There is no escape for `${{`: every `${{ … }}` in a value is a reference. Deploying from the dashboard or `CreateDeployment` needs read access to each service a variable refers to directly, not to the services those refer to in turn, and read access to the workspace when a variable reads a secret.
+
+The plan reports each reference it cannot resolve as an error on `env.NAME`: a secret the environment does not have, a service the workspace does not have, a key the service does not provide, a reference that is not of the form `${{ source.KEY }}`, or references that form a cycle. A service reads a changed secret value on its next deploy or restart. `loco secret unset` refuses a secret that the latest deployment of a service reads, and names those services.

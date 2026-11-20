@@ -11,10 +11,10 @@ import (
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/loco/config"
-	envcmd "github.com/team-loco/loco/cmd/loco/env"
 	"github.com/team-loco/loco/cmd/loco/infra"
 	"github.com/team-loco/loco/cmd/loco/org"
 	"github.com/team-loco/loco/cmd/loco/resource"
+	"github.com/team-loco/loco/cmd/loco/secret"
 	"github.com/team-loco/loco/cmd/loco/token"
 	"github.com/team-loco/loco/cmd/loco/workspace"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -64,7 +64,7 @@ func NewRootCmd(env Env) *cobra.Command {
 	root.AddCommand(infra.BuildDeployCmd())
 	root.AddCommand(resource.BuildResourceCmd())
 	root.AddCommand(resource.BuildBuildsCmd())
-	root.AddCommand(envcmd.BuildEnvCmd())
+	root.AddCommand(secret.BuildSecretCmd())
 	root.AddCommand(org.BuildOrgCmd())
 	root.AddCommand(workspace.BuildWorkspaceCmd())
 	root.AddCommand(token.BuildTokenCmd())

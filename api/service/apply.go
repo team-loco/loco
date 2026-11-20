@@ -41,7 +41,7 @@ func (s *PlanServer) Apply(
 	ctx context.Context,
 	req *planv1.ApplyRequest,
 ) (*planv1.ApplyResponse, error) {
-	planned, err := s.loadPlan(ctx, req.GetFile(), req.GetEnvironmentId(), actions.Apply, req.GetProvision())
+	planned, err := s.loadPlan(ctx, req.GetFile(), req.GetEnvironmentId(), actions.Apply)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +98,7 @@ func (s *PlanServer) Apply(
 		a.partial = planned.file.Partial
 		a.live = planned.live
 		a.desired = plan.Desired
+		a.resolved = plan.Resolved
 		a.builds = builds
 		a.platformDomains = planned.platformDomains
 		a.provisioning = len(req.GetProvision()) > 0

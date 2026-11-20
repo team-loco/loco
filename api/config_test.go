@@ -184,12 +184,12 @@ func TestNewAPIConfigReadsSystemAdmins(t *testing.T) {
 func TestNewAPIConfigReadsCountLimits(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv(limits.WorkspacesPerOrg.Env, "250")
-	t.Setenv(limits.SecretsPerResource.Env, "8")
+	t.Setenv(limits.SecretsPerEnvironment.Env, "8")
 	counts := newAPIConfig().CountLimits
 	if got := limits.WorkspacesPerOrg.Value(counts); got != 250 {
 		t.Errorf("workspaces per org = %d, want 250", got)
 	}
-	if got := limits.SecretsPerResource.Value(counts); got != 8 {
+	if got := limits.SecretsPerEnvironment.Value(counts); got != 8 {
 		t.Errorf("secrets per resource = %d, want 8", got)
 	}
 	if got, want := limits.DeploymentHistory.Value(

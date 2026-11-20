@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/api/pkg/varref"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -118,6 +119,7 @@ type testDeploymentParams struct {
 	ClusterID uuid.UUID
 	Region    string
 	Replicas  int32
+	Resolved  varref.Resolved
 }
 
 func (f *deployFixture) paramsFor(clusterID uuid.UUID) testDeploymentParams {
@@ -127,12 +129,14 @@ func (f *deployFixture) paramsFor(clusterID uuid.UUID) testDeploymentParams {
 		ResourceID:    f.resourceID,
 		Spec:          []byte(`{"platform":"linux/amd64"}`),
 		EnvironmentID: f.envID,
-		SecretNames:   []string{},
+		PlainEnv:      map[string]string{},
+		SecretEnv:     map[string]string{},
 		Trigger:       genDb.DeploymentTriggerDeploy,
 		Status:        genDb.DeploymentStatusDeploying,
 		ClusterID:     clusterID,
 		Region:        testRegion,
 		Replicas:      1,
+		Resolved:      varref.Resolved{Plain: map[string]string{}, Secret: map[string]string{}},
 	}
 }
 
@@ -153,9 +157,10 @@ func recordTestDeployment(
 		params.Region: {MinReplicas: &params.Replicas},
 	}
 	return createDeployment(ctx, qtx, &counts, newDeployment{
-		params:  params.CreateDeploymentParams,
-		service: &service,
-		targets: []placementTarget{{region: params.Region, clusterID: params.ClusterID}},
+		params:   params.CreateDeploymentParams,
+		service:  &service,
+		resolved: params.Resolved,
+		targets:  []placementTarget{{region: params.Region, clusterID: params.ClusterID}},
 		render: func(_ *deploymentv1.DeploymentSpec, deploymentID uuid.UUID, _ string) ([]byte, error) {
 			return buildSpec(deploymentID)
 		},

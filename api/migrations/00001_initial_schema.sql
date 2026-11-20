@@ -59,7 +59,7 @@ CREATE TABLE
         webhooks_per_workspace INT CHECK (webhooks_per_workspace > 0),
         tokens_per_entity INT CHECK (tokens_per_entity > 0),
         domains_per_resource INT CHECK (domains_per_resource > 0),
-        secrets_per_resource INT CHECK (secrets_per_resource > 0),
+        secrets_per_environment INT CHECK (secrets_per_environment > 0),
         deployment_history INT CHECK (deployment_history > 0),
         build_history INT CHECK (build_history > 0),
         log_retention_days INT CHECK (log_retention_days > 0),

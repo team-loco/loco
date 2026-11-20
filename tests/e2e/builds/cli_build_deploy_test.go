@@ -152,7 +152,8 @@ func TestCLIBuildDeploy(t *testing.T) {
 	const secretApp = "e2e-cli-secret" //nolint:gosec // an app name
 	secretDir := t.TempDir()
 	service := platform.ImageService(p.PublicImage)
-	service.Secrets = []string{"E2E_SECRET"}
+	const secretRef = "${{ secrets.E2E_SECRET }}" //nolint:gosec // a reference, not a value
+	service.Env = map[string]string{"E2E_SECRET": secretRef}
 	platform.WriteLocoFile(
 		t,
 		secretDir,
@@ -161,37 +162,16 @@ func TestCLIBuildDeploy(t *testing.T) {
 
 	t.Run("deploys a secret", func(t *testing.T) {
 		result := w.Loco(t.Context(), secretDir, nil, "deploy", "--env", platform.Production, "--yes")
-		if result.Err == nil ||
-			!strings.Contains(result.Output(), "Created "+secretApp+". Set its secrets with: loco env set") {
-			t.Fatalf("the first deploy did not ask for the missing secret (%v):\n%s", result.Err, result.Output())
+		if result.Err == nil || !strings.Contains(result.Output(), "env.E2E_SECRET") {
+			t.Fatalf("the first deploy did not stop for the missing secret (%v):\n%s", result.Err, result.Output())
 		}
-		w.MustLoco(
-			t,
-			secretDir,
-			"env",
-			"set",
-			"--service",
-			secretApp,
-			"--env",
-			platform.Production,
-			"E2E_SECRET=e2e-secret-initial",
-		)
+		w.MustLoco(t, secretDir, "secret", "set", "--env", platform.Production, "E2E_SECRET=e2e-secret-initial")
 		w.MustLoco(t, secretDir, "deploy", "--env", platform.Production, "--yes")
 		waitPodSecret(t, w, secretApp, "e2e-secret-initial")
 	})
 
 	t.Run("rotates a secret", func(t *testing.T) {
-		w.MustLoco(
-			t,
-			secretDir,
-			"env",
-			"set",
-			"--service",
-			secretApp,
-			"--env",
-			platform.Production,
-			"E2E_SECRET=e2e-secret-rotated",
-		)
+		w.MustLoco(t, secretDir, "secret", "set", "--env", platform.Production, "E2E_SECRET=e2e-secret-rotated")
 		w.MustLoco(t, secretDir, "resource", "restart", secretApp, "--env", platform.Production)
 		waitPodSecret(t, w, secretApp, "e2e-secret-rotated")
 		w.MustLoco(t, secretDir, "deploy", "--env", platform.Production, "--yes")

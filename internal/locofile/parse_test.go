@@ -22,8 +22,7 @@ services:
     health: { path: /healthz, interval: 30, timeout: 5, failThreshold: 3, startupGracePeriod: 15 }
     routing: { pathPrefix: /, idleTimeout: 60 }
     domains: [app.example.com]
-    env: { LOG_LEVEL: info }
-    secrets: [SESSION_KEY]
+    env: { LOG_LEVEL: info, SESSION_KEY: "${{ secrets.SESSION_KEY }}" }
     regions:
       us-east-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 3 } }
     environments:
@@ -91,8 +90,7 @@ func TestParseTDDExample(t *testing.T) {
 	assert.Equal(t, int32(15), *web.Health.StartupGracePeriod)
 	assert.Equal(t, int32(60), *web.Routing.IdleTimeout)
 	assert.Equal(t, []string{"app.example.com"}, web.Domains)
-	assert.Equal(t, map[string]string{"LOG_LEVEL": "info"}, web.Env)
-	assert.Equal(t, []string{"SESSION_KEY"}, web.Secrets)
+	assert.Equal(t, map[string]string{"LOG_LEVEL": "info", "SESSION_KEY": "${{ secrets.SESSION_KEY }}"}, web.Env)
 	assert.Equal(t, "250m", web.Regions["us-east-1"].CPU)
 	assert.Equal(t, int32(3), *web.Regions["us-east-1"].Replicas.Max)
 	assert.Equal(t, []string{"www.example.com"}, web.Environments["production"].Domains)

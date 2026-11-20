@@ -15,23 +15,18 @@ import (
 
 type environmentLookupQuerier struct {
 	orgLookupQuerier
-	env      genDb.Environment
-	resource genDb.Resource
+	env genDb.Environment
 }
 
 func (q environmentLookupQuerier) GetEnvironmentByID(_ context.Context, _ uuid.UUID) (genDb.Environment, error) {
 	return q.env, nil
 }
 
-func (q environmentLookupQuerier) GetResourceByID(_ context.Context, _ uuid.UUID) (genDb.Resource, error) {
-	return q.resource, nil
-}
-
-func (q environmentLookupQuerier) GetWorkspaceOrganizationIDByResourceID(
+func (q environmentLookupQuerier) GetWorkspaceByIDQuery(
 	_ context.Context,
-	_ uuid.UUID,
-) (genDb.GetWorkspaceOrganizationIDByResourceIDRow, error) {
-	return genDb.GetWorkspaceOrganizationIDByResourceIDRow{WorkspaceID: q.resource.WorkspaceID, OrgID: q.orgID}, nil
+	id uuid.UUID,
+) (genDb.GetWorkspaceByIDQueryRow, error) {
+	return genDb.GetWorkspaceByIDQueryRow{ID: id, OrgID: q.orgID}, nil
 }
 
 func (environmentLookupQuerier) GetOrgLimitOverrides(
@@ -51,10 +46,9 @@ func TestSecretServiceAuthorization(t *testing.T) {
 	t.Parallel()
 	workspaceID := uuid.Must(uuid.NewV7())
 	env := genDb.Environment{ID: uuid.Must(uuid.NewV7()), WorkspaceID: workspaceID}
-	resource := genDb.Resource{ID: uuid.Must(uuid.NewV7()), WorkspaceID: workspaceID}
+	resourceID := uuid.Must(uuid.NewV7())
 	envID := env.ID.String()
-	resourceID := resource.ID.String()
-	querier := environmentLookupQuerier{orgLookupQuerier{orgID: uuid.Must(uuid.NewV7())}, env, resource}
+	querier := environmentLookupQuerier{orgLookupQuerier{orgID: uuid.Must(uuid.NewV7())}, env}
 	server := NewSecretServer(nil, querier, nil, SecretConfig{}, limits.Defaults())
 	read := genDb.EntityScope{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead}
 	write := genDb.EntityScope{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite}
@@ -62,10 +56,7 @@ func TestSecretServiceAuthorization(t *testing.T) {
 		EntityType: genDb.EntityTypeWorkspace, EntityID: uuid.Must(uuid.NewV7()), Scope: genDb.ScopeWrite,
 	}
 	resourceWrite := genDb.EntityScope{
-		EntityType: genDb.EntityTypeResource, EntityID: resource.ID, Scope: genDb.ScopeWrite,
-	}
-	otherResourceWrite := genDb.EntityScope{
-		EntityType: genDb.EntityTypeResource, EntityID: uuid.Must(uuid.NewV7()), Scope: genDb.ScopeWrite,
+		EntityType: genDb.EntityTypeResource, EntityID: resourceID, Scope: genDb.ScopeWrite,
 	}
 	systemRead := genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeRead}
 
@@ -77,47 +68,46 @@ func TestSecretServiceAuthorization(t *testing.T) {
 	}{
 		{"set with read only", []genDb.EntityScope{read}, func(ctx context.Context) error {
 			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
+				EnvironmentId: envID, Values: map[string]string{"A": "1"},
 			})
 			return err
 		}, connect.CodePermissionDenied},
 		{"set on another workspace", []genDb.EntityScope{otherWrite}, func(ctx context.Context) error {
 			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
+				EnvironmentId: envID, Values: map[string]string{"A": "1"},
 			})
 			return err
-		}, connect.CodePermissionDenied},
+		}, connect.CodeNotFound},
 		{"set with workspace write", []genDb.EntityScope{write}, func(ctx context.Context) error {
 			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
+				EnvironmentId: envID, Values: map[string]string{"A": "1"},
 			})
 			return err
 		}, connect.CodeInvalidArgument},
-		{"set on another resource", []genDb.EntityScope{otherResourceWrite}, func(ctx context.Context) error {
-			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
-			})
-			return err
-		}, connect.CodePermissionDenied},
-		{"set with the resource's own scope", []genDb.EntityScope{resourceWrite}, func(ctx context.Context) error {
-			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
-			})
-			return err
-		}, connect.CodeInvalidArgument},
+		{
+			"set with a resource scope in the workspace",
+			[]genDb.EntityScope{resourceWrite},
+			func(ctx context.Context) error {
+				_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
+					EnvironmentId: envID, Values: map[string]string{"A": "1"},
+				})
+				return err
+			},
+			connect.CodeNotFound,
+		},
 		{"delete with read only", []genDb.EntityScope{read}, func(ctx context.Context) error {
 			_, err := server.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
-				ResourceId: resourceID, EnvironmentId: envID, Names: []string{"A"},
+				EnvironmentId: envID, Names: []string{"A"},
 			})
 			return err
 		}, connect.CodePermissionDenied},
 		{"list without read", []genDb.EntityScope{otherWrite}, func(ctx context.Context) error {
 			_, err := server.ListSecrets(
 				ctx,
-				&secretv1.ListSecretsRequest{ResourceId: resourceID, EnvironmentId: envID},
+				&secretv1.ListSecretsRequest{EnvironmentId: envID},
 			)
 			return err
-		}, connect.CodePermissionDenied},
+		}, connect.CodeNotFound},
 		{"rewrap with workspace write", []genDb.EntityScope{write}, func(ctx context.Context) error {
 			_, err := server.RewrapEnvironmentKeys(ctx, &secretv1.RewrapEnvironmentKeysRequest{})
 			return err

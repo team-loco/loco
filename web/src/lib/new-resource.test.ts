@@ -9,7 +9,6 @@ import { draftSizing, parseDrafts } from "./drafts";
 
 import {
 	apiFieldError,
-	deploymentVariables,
 	envError,
 	envRowErrors,
 	firstError,
@@ -17,7 +16,6 @@ import {
 	scalingSpec,
 	healthSummary,
 	imageError,
-	looksSecret,
 	locoYaml,
 	commandEntries,
 	commandSummary,
@@ -76,25 +74,17 @@ test("servedDomains keeps only domains every selected region serves", () => {
 });
 
 test("envRowErrors names every row the API would reject and allows empty values", () => {
-	const secret = (key: string, id: string): EnvRow => ({ id, key, value: "x", secret: true });
 	expect(envRowErrors([row("A", "1"), row("", "", "blank"), row("EMPTY", "")]).size).toBe(0);
 	expect(envError([row("EMPTY", "")])).toBeNull();
 	expect(
 		Object.fromEntries(
-			envRowErrors([
-				row("", "x", "unnamed"),
-				row("1BAD", "x", "bad"),
-				row("A", "1", "a"),
-				row(" A ", "2", "b"),
-				secret("low", "s"),
-			]),
+			envRowErrors([row("", "x", "unnamed"), row("1BAD", "x", "bad"), row("A", "1", "a"), row(" A ", "2", "b")]),
 		),
 	).toEqual({
 		unnamed: "Enter a name for this value",
 		bad: "Use letters, digits and _, not starting with a digit",
 		a: "A is set more than once",
 		b: "A is set more than once",
-		s: "Secret names use uppercase letters",
 	});
 	expect(envError([row("", "x"), row("1BAD", "x")])).toBe("Fix the 2 highlighted variables");
 });
@@ -283,19 +273,6 @@ test("locoYaml quotes values YAML would read as numbers or booleans", () => {
 	).toContain("    health: { path: /up, failThreshold: 2 }\n");
 });
 
-test("looksSecret flags keys whose words name a credential", () => {
-	expect(
-		["API_KEY", "stripe_secret_key", "GITHUB_TOKEN", "DB_PASSWORD", "DATABASE_URL", "SENTRY_DSN"].map(looksSecret),
-	).toEqual([true, true, true, true, true, true]);
-	expect(["LOG_LEVEL", "PORT", "KEYBOARD_LAYOUT", "PUBLIC_URL", "MONKEY"].map(looksSecret)).toEqual([
-		false,
-		false,
-		false,
-		false,
-		false,
-	]);
-});
-
 test("imageError asks for an image reference before the drawer opens", () => {
 	expect(imageError("  ")).toBe("Enter an image");
 	expect(imageError("Not An Image")).toBe("An image reference can't contain spaces");
@@ -304,13 +281,11 @@ test("imageError asks for an image reference before the drawer opens", () => {
 	expect(imageError(" ghcr.io/acme/web:1.4.2 ")).toBeNull();
 });
 
-test("marked values only go to the secret write and the YAML names their bindings", () => {
-	const vars = [row("LOG_LEVEL", "info"), { ...row("API_KEY", "private-test-value"), secret: true }];
-	expect(deploymentVariables(vars)).toEqual({ env: { LOG_LEVEL: "info" }, secrets: { API_KEY: "private-test-value" } });
+test("the YAML keeps a secret reference as the variable's value", () => {
+	const vars = [row("LOG_LEVEL", "info"), row("API_KEY", "${{ secrets.API_KEY }}")];
 	const yaml = locoYaml({ schemaUrl: "", form: { ...form, vars } });
-	expect(yaml).toContain("secrets: [API_KEY]");
 	expect(yaml).toContain('LOG_LEVEL: "info"');
-	expect(yaml).not.toContain("private-test-value");
+	expect(yaml).toContain('API_KEY: "${{ secrets.API_KEY }}"');
 });
 
 test("apiFieldError decodes image resolution details", () => {

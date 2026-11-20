@@ -1,4 +1,4 @@
-package env
+package secret
 
 import (
 	"fmt"
@@ -11,21 +11,21 @@ import (
 func newUnsetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unset KEY [KEY...]",
-		Short: "Remove a service's secrets by name",
-		Long: `Remove one or more secrets from a service in an environment. The API refuses a name that the
-service's active deployment still declares; remove it from loco.yaml and apply first.
+		Short: "Remove an environment's secrets by name",
+		Long: `Remove one or more secrets from an environment. The API refuses a secret that the latest
+deployment of a service reads, and names the services; remove the reference from their variables
+and deploy them first.
 
 Examples:
-  loco env unset --service web --env production API_KEY LOG_LEVEL`,
+  loco secret unset --env production API_KEY LOG_LEVEL`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			t, service, err := resolveService(ctx, cmd)
+			t, err := resolveEnvironment(ctx, cmd)
 			if err != nil {
 				return err
 			}
 			req := &secretv1.DeleteSecretsRequest{
-				ResourceId:    service.GetId(),
 				EnvironmentId: t.Environment.GetId(),
 				Names:         args,
 			}

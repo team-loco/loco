@@ -12,13 +12,9 @@ var (
 	ErrOwnedByOtherPartial = errors.New("service is owned by another partial")
 	ErrUnknownRegion       = errors.New("region has no healthy cluster accepting applications")
 	ErrUnknownEnvironment  = errors.New("environment does not exist in the workspace")
-	ErrMissingSecret       = rpcerr.NewCoded(
+	ErrSecretsTooLarge     = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
-		"secret is not set for the service in the environment",
-	)
-	ErrSecretsTooLarge = rpcerr.NewCoded(
-		connect.CodeFailedPrecondition,
-		"secrets of the service exceed the size limit of one placement",
+		"the secret values one placement of the service reads exceed the size limit",
 	)
 	ErrImageUnresolved  = errors.New("image could not be resolved")
 	ErrImageNotResolved = errors.New("no resolution was supplied for the image")

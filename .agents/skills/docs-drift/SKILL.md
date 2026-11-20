@@ -64,7 +64,7 @@ Pages state released behaviour and label unreleased workflows with a release not
 - `docs/content/contributing/documentation.md`: docs tasks, build rules, theme files, hosting,
   `web/sws.toml`, `docs/build.ts`.
 - `README.md`: the quick start (the installer, `loco login`, `loco deploy`), the feature list
-  with the commands it names (`loco deploy --image`, `loco infra plan`, `loco env`, `loco
+  with the commands it names (`loco deploy --image`, `loco infra plan`, `loco secret`, `loco
   resource scale`), and the contributing section (`mise run setup`, `mise tasks`).
 - `AGENTS.md`, the "loco.yaml" section and the
   behaviour statements in "Dependencies and Configuration" (version reporting, `/version.json`,

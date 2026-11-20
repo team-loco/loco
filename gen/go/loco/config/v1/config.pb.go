@@ -259,8 +259,8 @@ type CountLimits struct {
 	TokensPerEntity int32 `protobuf:"varint,8,opt,name=tokens_per_entity,json=tokensPerEntity,proto3" json:"tokens_per_entity,omitempty"`
 	// domains_per_resource counts a resource's domains in one environment.
 	DomainsPerResource int32 `protobuf:"varint,9,opt,name=domains_per_resource,json=domainsPerResource,proto3" json:"domains_per_resource,omitempty"`
-	// secrets_per_resource counts a resource's secrets in one environment.
-	SecretsPerResource int32 `protobuf:"varint,10,opt,name=secrets_per_resource,json=secretsPerResource,proto3" json:"secrets_per_resource,omitempty"`
+	// secrets_per_environment counts an environment's secrets.
+	SecretsPerEnvironment int32 `protobuf:"varint,10,opt,name=secrets_per_environment,json=secretsPerEnvironment,proto3" json:"secrets_per_environment,omitempty"`
 	// deployment_history is how many deployments a resource keeps in each environment.
 	DeploymentHistory int32 `protobuf:"varint,11,opt,name=deployment_history,json=deploymentHistory,proto3" json:"deployment_history,omitempty"`
 	// build_history is how many builds a resource keeps.
@@ -366,9 +366,9 @@ func (x *CountLimits) GetDomainsPerResource() int32 {
 	return 0
 }
 
-func (x *CountLimits) GetSecretsPerResource() int32 {
+func (x *CountLimits) GetSecretsPerEnvironment() int32 {
 	if x != nil {
-		return x.SecretsPerResource
+		return x.SecretsPerEnvironment
 	}
 	return 0
 }
@@ -692,7 +692,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x10web_auth_enabled\x18\f \x01(\bR\x0ewebAuthEnabledJ\x04\b\x03\x10\x04R\x04auth\"\x80\x01\n" +
 	"\x10HistoryRetention\x129\n" +
 	"\x19build_images_per_resource\x18\x01 \x01(\x05R\x16buildImagesPerResource\x121\n" +
-	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xdb\x05\n" +
+	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xe1\x05\n" +
 	"\vCountLimits\x12\"\n" +
 	"\rorgs_per_user\x18\x01 \x01(\x05R\vorgsPerUser\x12,\n" +
 	"\x12workspaces_per_org\x18\x02 \x01(\x05R\x10workspacesPerOrg\x12&\n" +
@@ -702,9 +702,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x17resources_per_workspace\x18\x06 \x01(\x05R\x15resourcesPerWorkspace\x124\n" +
 	"\x16webhooks_per_workspace\x18\a \x01(\x05R\x14webhooksPerWorkspace\x12*\n" +
 	"\x11tokens_per_entity\x18\b \x01(\x05R\x0ftokensPerEntity\x120\n" +
-	"\x14domains_per_resource\x18\t \x01(\x05R\x12domainsPerResource\x120\n" +
-	"\x14secrets_per_resource\x18\n" +
-	" \x01(\x05R\x12secretsPerResource\x12-\n" +
+	"\x14domains_per_resource\x18\t \x01(\x05R\x12domainsPerResource\x126\n" +
+	"\x17secrets_per_environment\x18\n" +
+	" \x01(\x05R\x15secretsPerEnvironment\x12-\n" +
 	"\x12deployment_history\x18\v \x01(\x05R\x11deploymentHistory\x12#\n" +
 	"\rbuild_history\x18\f \x01(\x05R\fbuildHistory\x12,\n" +
 	"\x12log_retention_days\x18\r \x01(\x05R\x10logRetentionDays\x120\n" +

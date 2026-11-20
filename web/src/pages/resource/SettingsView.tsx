@@ -263,15 +263,12 @@ export function SettingsView({
 					<SizeSection {...props} sizes={sizes} />
 					<VariablesSection
 						resourceId={resource.id}
-						resourceName={resource.slug}
 						managed={managed}
 						deployed={regions.some(isDeployed)}
 						differingRegions={regionsWithDifferentVariables(regions)}
-						workspaceId={resource.workspaceId}
 						environmentId={environmentId}
 						draft={draft}
 						canWrite={canWrite}
-						canReadWorkspace={canReadWorkspace}
 						onChange={change}
 					/>
 					<DeploymentSection {...props} />

@@ -114,7 +114,9 @@ message ObservabilityConfig {
 message ServiceDeploymentSpec {
   BuildSource build = 1 [(buf.validate.field).required = true];
   optional HealthCheckConfig health_check = 2;
-  // The plain environment variables the deployment runs with, exactly; empty sets none.
+  // The variables the deployment runs with, exactly; empty sets none. A value can refer to a
+  // secret of the environment as ${{ secrets.NAME }} and to an output of another resource in the
+  // workspace as ${{ resource.NAME }}; the references resolve when the deployment is created.
   map<string, string> env = 8;
   // port is the port the service listens on; without it the service is a worker.
   optional int32 port = 9 [(buf.validate.field).int32 = {
@@ -207,7 +209,6 @@ enum DeploymentMethod {
 // Deployment is one rollout request for a resource in an environment. It fans out to one
 // placement per target region; the status aggregates the placements.
 message Deployment {
-  reserved 3, 4, 5, 7, 22, 23, 24, 25;
   string id = 1;
   string resource_id = 2;
   DeploymentStatus status = 6;
@@ -231,8 +232,6 @@ message Deployment {
   string source_deployment_id = 28;
   // Who canceled the deployment; empty unless a user or token canceled it.
   string canceled_by_name = 29;
-  // The stored secrets the deployment reads, sorted by name.
-  repeated string secret_names = 30;
   // The canceled deployment whose finished regions this rollback restores, if any.
   string rollback_of_deployment_id = 31;
 }
@@ -260,7 +259,6 @@ message DeploymentPlacement {
 
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
-  reserved 3;
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
   // The regions to deploy to; empty deploys to every enabled region of the resource.
   repeated string regions = 8 [(buf.validate.field).repeated = {
@@ -271,9 +269,6 @@ message CreateDeploymentRequest {
   }];
   DeploymentSpec spec = 4 [(buf.validate.field).required = true];
   string environment_id = 5 [(buf.validate.field).string.uuid = true];
-  // Omit to keep the secret bindings of the source deployment a redeploy or rollback copies,
-  // or else of the deployment live in the target regions.
-  DeploymentSecretBindings secret_bindings = 6;
   SourceCommit commit = 7;
   // Unspecified records a deploy; redeploy and rollback name the deployment they copy.
   DeploymentTrigger trigger = 9 [(buf.validate.field).enum = {
@@ -288,17 +283,6 @@ message CreateDeploymentRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
-}
-
-// DeploymentSecretBindings selects secrets already stored for the resource in the target environment.
-message DeploymentSecretBindings {
-  // An empty list clears the bindings.
-  repeated string names = 1 [(buf.validate.field).repeated = {
-    unique: true
-    items: {
-      string: {pattern: "^[A-Z_][A-Z0-9_]*$"}
-    }
-  }];
 }
 
 // CreateDeploymentResponse is the response containing the created deployment ID.

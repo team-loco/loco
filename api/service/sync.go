@@ -253,7 +253,7 @@ func listSyncPlacements(
 
 func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placement genDb.Placement) error {
 	var envSecret *agentv1.EnvSecret
-	if !placement.DesiredDeleted && len(placement.SecretNames) > 0 {
+	if !placement.DesiredDeleted && len(placement.SecretEnv) > 0 {
 		secret, err := secrets.envSecret(ctx, placement)
 		if isPlacementSecretError(err) {
 			ss.server.recordApplyError(ctx, ss.clusterID, placement.ID, &agentv1.Applied{

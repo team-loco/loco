@@ -84,10 +84,12 @@ func deployServiceIn(
 	})
 }
 
+// deployRequest deploys as a caller with write on the fixture's resource and the extra scopes.
 func deployRequest(
 	t *testing.T,
 	f *deployFixture,
 	req *deploymentv1.CreateDeploymentRequest,
+	extra ...genDb.EntityScope,
 ) (*deploymentv1.CreateDeploymentResponse, error) {
 	t.Helper()
 	server := NewDeploymentServer(
@@ -102,9 +104,9 @@ func deployRequest(
 		8,
 		nil,
 	)
-	scopes := []genDb.EntityScope{
+	scopes := append([]genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
-	}
+	}, extra...)
 	ctx := reqctx.WithPrincipal(
 		t.Context(),
 		reqctx.Principal{ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb, Scopes: scopes},

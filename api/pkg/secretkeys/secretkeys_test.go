@@ -10,7 +10,7 @@ const (
 	workspaceID   = "0199c3f0-0000-7000-8000-000000000001"
 	environmentID = "0199c3f0-0000-7000-8000-000000000002"
 	resourceID    = "0199c3f0-0000-7000-8000-000000000003"
-	otherResource = "0199c3f0-0000-7000-8000-000000000004"
+	otherEnv      = "0199c3f0-0000-7000-8000-000000000004"
 )
 
 func TestSealOpenRoundTripWithAAD(t *testing.T) {
@@ -18,7 +18,7 @@ func TestSealOpenRoundTripWithAAD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dek: %v", err)
 	}
-	aad := SecretAAD(workspaceID, environmentID, resourceID, "STRIPE_API_KEY", 1)
+	aad := SecretAAD(workspaceID, environmentID, "STRIPE_API_KEY", 1)
 	nonce, ciphertext, err := Seal(dek, []byte("sk_live_123"), aad)
 	if err != nil {
 		t.Fatalf("seal: %v", err)
@@ -33,15 +33,15 @@ func TestSealOpenRoundTripWithAAD(t *testing.T) {
 	if string(plaintext) != "sk_live_123" {
 		t.Fatalf("plaintext = %q", plaintext)
 	}
-	otherVersion := SecretAAD(workspaceID, environmentID, resourceID, "STRIPE_API_KEY", 2)
+	otherVersion := SecretAAD(workspaceID, environmentID, "STRIPE_API_KEY", 2)
 	if _, err := Open(dek, nonce, ciphertext, otherVersion); !errors.Is(err, ErrDecrypt) {
 		t.Fatalf("open with another version's aad: err = %v, want ErrDecrypt", err)
 	}
-	otherService := SecretAAD(workspaceID, environmentID, otherResource, "STRIPE_API_KEY", 1)
-	if _, err := Open(dek, nonce, ciphertext, otherService); !errors.Is(err, ErrDecrypt) {
-		t.Fatalf("open with another service's aad: err = %v, want ErrDecrypt", err)
+	otherEnvironment := SecretAAD(workspaceID, otherEnv, "STRIPE_API_KEY", 1)
+	if _, err := Open(dek, nonce, ciphertext, otherEnvironment); !errors.Is(err, ErrDecrypt) {
+		t.Fatalf("open with another environment's aad: err = %v, want ErrDecrypt", err)
 	}
-	otherName := SecretAAD(workspaceID, environmentID, resourceID, "OTHER", 1)
+	otherName := SecretAAD(workspaceID, environmentID, "OTHER", 1)
 	if _, err := Open(dek, nonce, ciphertext, otherName); !errors.Is(err, ErrDecrypt) {
 		t.Fatalf("open with another name's aad: err = %v, want ErrDecrypt", err)
 	}
@@ -52,9 +52,9 @@ func TestSealOpenRoundTripWithAAD(t *testing.T) {
 }
 
 func TestAADLayout(t *testing.T) {
-	secret := SecretAAD(workspaceID, environmentID, resourceID, "STRIPE_API_KEY", 3)
+	secret := SecretAAD(workspaceID, environmentID, "STRIPE_API_KEY", 3)
 	wantSecret := "loco/secret/v1|workspace=" + workspaceID + "|environment=" + environmentID +
-		"|resource=" + resourceID + "|name=STRIPE_API_KEY|version=3"
+		"|name=STRIPE_API_KEY|version=3"
 	if string(secret) != wantSecret {
 		t.Fatalf("secret aad = %q, want %q", secret, wantSecret)
 	}

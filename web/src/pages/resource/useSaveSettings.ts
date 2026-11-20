@@ -11,16 +11,14 @@ import {
 	updateResource,
 } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { GetResourceEnvResponse, Resource } from "@gen/loco/resource/v1/resource_pb";
-import { deleteSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 
 import { getErrorMessage } from "@/lib/error-handler";
 
-import { refreshSecrets, refreshVariables, secretUsageMessage, unusedNames, yamlBindingHint } from "./variables";
+import { refreshVariables } from "./variables";
 
 import type { Notice, RegionView } from "./model";
 import {
 	REGION_MAP_KEYS,
-	boundNames,
 	domainsChange,
 	mergedSpec,
 	plainEnv,
@@ -44,7 +42,7 @@ const SPEC_KEYS = [
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;
 
-const VARIABLE_KEYS = ["bindings", "env", "removedEnv"] as const;
+const VARIABLE_KEYS = ["env", "removedEnv"] as const;
 
 function omit(draft: SettingsDraft, keys: readonly (keyof SettingsDraft)[]): SettingsDraft {
 	return Object.fromEntries(Object.entries(draft).filter(([k]) => !keys.some((key) => key === k)));
@@ -65,8 +63,6 @@ export function useSaveSettings({
 }) {
 	const [saving, setSaving] = useState(false);
 	const update = useMutation(updateResource);
-	const writeSecrets = useMutation(setSecrets);
-	const removeSecrets = useMutation(deleteSecrets);
 	const addDomain = useMutation(createResourceDomain);
 	const removeDomain = useMutation(deleteResourceDomain);
 	const deploy = useMutation(createDeployment);
@@ -87,7 +83,6 @@ export function useSaveSettings({
 		const resourceId = resource.id;
 		const failures: string[] = [];
 		let next = draft;
-		let secretMessage = "";
 		const attempt = async (label: string, keys: readonly (keyof SettingsDraft)[], run: () => Promise<unknown>) => {
 			try {
 				await run();
@@ -113,27 +108,7 @@ export function useSaveSettings({
 				return;
 			}
 		}
-		const bindings = current === undefined ? undefined : boundNames(current.secretNames, draft);
 		const env = current === undefined ? undefined : plainEnv(current.env, draft);
-		const secrets = draft.secrets ?? {};
-		if (Object.keys(secrets).length > 0) {
-			await attempt("Secrets", ["secrets"], async () => {
-				const response = await writeSecrets.mutateAsync({ resourceId, environmentId, values: secrets });
-				const unused = unusedNames(Object.keys(secrets), response.usedBy).filter(
-					(name) => bindings?.includes(name) !== true,
-				);
-				secretMessage = [
-					secretUsageMessage(resource.name, response.usedBy),
-					unused.length === 0
-						? ""
-						: resource.partial === undefined
-							? `No deployment of ${resource.name} uses ${unused.join(", ")}.`
-							: yamlBindingHint(resource.slug, unused),
-				]
-					.filter(Boolean)
-					.join(" ");
-			});
-		}
 		const name = draft.name?.trim();
 		const renamed = name !== undefined && name !== resource.name;
 		const slug = draft.slug;
@@ -191,9 +166,7 @@ export function useSaveSettings({
 					onDone(omit(next, REGION_MAP_KEYS), {
 						tone: "warn",
 						title: `${resource.name} changed since you opened it`,
-						message: ["Showing its current regions and scaling. Make your region changes again.", secretMessage]
-							.filter(Boolean)
-							.join(" "),
+						message: "Showing its current regions and scaling. Make your region changes again.",
 					});
 					return;
 				}
@@ -225,23 +198,11 @@ export function useSaveSettings({
 						spec: merged,
 						environmentId,
 						commit: first.commit,
-						...(bindings === undefined ? {} : { secretBindings: { names: bindings } }),
 					}),
 			);
 			if (ok) savedRegions.push(...planned);
 		}
 		if (savedRegions.length === deploys.length) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
-		const removed = draft.removedSecrets ?? [];
-		if (removed.length > 0) {
-			await attempt(
-				"Removing secrets",
-				["removedSecrets"],
-				async () => await removeSecrets.mutateAsync({ resourceId, environmentId, names: removed }),
-			);
-		}
-		if (Object.keys(secrets).length > 0 || removed.length > 0) {
-			await refreshSecrets(queryClient, resourceId, environmentId);
-		}
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
 		setSaving(false);
@@ -251,13 +212,12 @@ export function useSaveSettings({
 				title: `Some changes to ${resource.name} were not saved`,
 				message: [
 					...failures,
-					...(secretMessage === "" ? [] : [secretMessage]),
 					...(savedRegions.length > 0 ? [`Saved changes in ${savedRegions.join(", ")}.`] : []),
 				].join(" · "),
 			});
 			return;
 		}
-		const parts = secretMessage === "" ? [] : [secretMessage];
+		const parts: string[] = [];
 		const { rolling, stopping } =
 			targets === undefined ? { rolling: deploys.map((d) => d.region), stopping: [] } : regionChanges(effective, base);
 		if (rolling.length > 0) parts.push(`Rolling out in ${rolling.join(", ")}.`);

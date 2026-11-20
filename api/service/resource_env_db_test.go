@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"maps"
-	"slices"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -60,32 +59,28 @@ func TestGetResourceEnvReturnsThePlainEnvOfTheEnvironmentsDeployment(t *testing.
 	if len(none.GetEnv()) != 0 {
 		t.Fatalf("env of a service without a deployment = %v, want none", none.GetEnv())
 	}
-	if len(got.GetSecretNames()) != 0 {
-		t.Fatalf("secret names of %s = %v, want none", applyWorker, got.GetSecretNames())
-	}
 }
 
-func TestGetResourceEnvReturnsTheSecretNamesTheDeploymentDeclares(t *testing.T) {
+func TestGetResourceEnvReturnsSecretReferencesAsWritten(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
-	file := planFileHeader + applyFileDeclared
-	worker := f.provisionWorker(t, file)
-	f.setWorkerSecrets(t, provider, worker, map[string]string{
-		sessionKeyName:  sessionKeyValue,
-		databaseURLName: databaseURLValue,
-	})
+	f.setSecrets(t, provider, map[string]string{sessionKeyName: sessionKeyValue, databaseURLName: databaseURLValue})
+	file := planFileHeader + applyFileReferences
 	if _, err := applyFile(t, f, file, applyOptions{revision: f.revision(t, f.envID)}, f.applyScopes(t)); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
+	worker, _ := f.resourceByName(t, applyWorker)
 
-	got, err := getResourceEnv(t, f, worker, f.envID)
+	got, err := getResourceEnv(t, f, worker.ID, f.envID)
 	if err != nil {
 		t.Fatalf("GetResourceEnv: %v", err)
 	}
-	if want := []string{databaseURLName, sessionKeyName}; !slices.Equal(got.GetSecretNames(), want) {
-		t.Fatalf("secret names = %v, want %v", got.GetSecretNames(), want)
+	want := secretEnvOf([]string{databaseURLName, sessionKeyName})
+	want[workerLogLevelKey] = workerLogLevelValue
+	if !maps.Equal(got.GetEnv(), want) {
+		t.Fatalf("env = %v, want %v", got.GetEnv(), want)
 	}
 }
 

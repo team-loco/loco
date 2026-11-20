@@ -172,16 +172,6 @@
           ],
           "description": "Environment variables to merge. null removes one."
         },
-        "secrets": {
-          "items": {
-            "type": "string"
-          },
-          "type": [
-            "array",
-            "null"
-          ],
-          "description": "Replaces the service's secret names."
-        },
         "regions": {
           "additionalProperties": {
             "anyOf": [
@@ -513,14 +503,7 @@
             "type": "string"
           },
           "type": "object",
-          "description": "Plain environment variables with their values."
-        },
-        "secrets": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array",
-          "description": "Names of secrets the service needs. Values live in the environment and are set with loco env push."
+          "description": "Variables with their values. A value can refer to a secret of the environment as ${{ secrets.NAME }} and to an output of another service as ${{ service.NAME }}, such as ${{ api.PRIVATE_URL }}; references resolve at deploy time."
         },
         "regions": {
           "additionalProperties": {

@@ -1,6 +1,6 @@
 import { useQuery as useRpcQuery } from "@connectrpc/connect-query";
 import { toast } from "sonner";
-import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,6 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
 import { CommandFields, type CommandValue } from "@/components/design/CommandFields";
 import { Spinner } from "@/components/design/Spinner";
-import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
@@ -52,7 +51,6 @@ import {
 	imageError,
 	envRowErrors,
 	locoYaml,
-	looksSecret,
 	mergeEnv,
 	nameError,
 	nameFromImage,
@@ -336,7 +334,6 @@ function DraftPanel({
 	const [healthOpen, setHealthOpen] = useState(false);
 	const [commandOpen, setCommandOpen] = useState(false);
 	const [discarding, setDiscarding] = useState(false);
-	const [secretValues, setSecretValues] = useState<ReadonlyMap<string, string>>(() => new Map());
 	const [saveFailed, setSaveFailed] = useState(false);
 
 	const draft = store.drafts.find((d) => d.id === draftId);
@@ -390,14 +387,13 @@ function DraftPanel({
 				</SheetBody>
 			);
 		}
-		const vars = draft.edits.vars?.map((row) => (row.secret ? { ...row, value: secretValues.get(row.id) ?? "" } : row));
 		return (
 			<ServiceForm
 				env={env}
 				schemaUrl={config.schemaUrl}
 				regions={regionsQuery.data.regions}
 				platformDomains={domainsQuery.data?.platformDomains ?? []}
-				draft={vars === undefined ? draft : { ...draft, edits: { ...draft.edits, vars } }}
+				draft={draft}
 				defaults={defaults}
 				sizes={sizeOptions(config.sizeLimits)}
 				deployment={deployment}
@@ -427,12 +423,8 @@ function DraftPanel({
 						return;
 					}
 					setSaveFailed(false);
-					if (edits.vars !== undefined) {
-						setSecretValues(new Map(edits.vars.filter((row) => row.secret).map((row) => [row.id, row.value])));
-					}
 				}}
 				onDeployed={(resourceId) => {
-					setSecretValues(new Map());
 					store.discard(draft.id);
 					void navigate(resourcePath(orgId, workspaceId, resourceId, { env: env.slug }));
 				}}
@@ -919,7 +911,7 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 									key={r.id}
 									data-invalid={rowError !== undefined || undefined}
 									className={cn(
-										"grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]",
+										"grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]",
 										rowError !== undefined && "bg-bad-bg",
 									)}
 								>
@@ -936,12 +928,8 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 												update(r.id, { key: e.target.value });
 											}}
 										/>
-										{looksSecret(r.key) && (
-											<LockIcon aria-label="Looks like a secret" className="mr-2.5 size-3.5 shrink-0 text-fg3" />
-										)}
 									</span>
 									<Input
-										type={r.secret ? "password" : "text"}
 										value={r.value}
 										placeholder="value"
 										aria-label={`Value of ${label}`}
@@ -952,16 +940,6 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 											update(r.id, { value: e.target.value });
 										}}
 									/>
-									<span className="flex items-center gap-2 px-2">
-										<Switch
-											aria-label={`Store ${label} as secret`}
-											checked={r.secret ?? false}
-											onCheckedChange={(secret) => {
-												update(r.id, { secret });
-											}}
-										/>
-										<span className="text-[11.5px] text-fg3">Secret</span>
-									</span>
 									<Button
 										type="button"
 										variant="ghost"
@@ -984,10 +962,6 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 						})}
 					</ul>
 				)}
-				<p className="m-0 text-[12.5px] text-fg3">
-					Mark each sensitive value as Secret. Secret values stay in this drawer until you deploy; re-enter them after
-					closing or reloading it.
-				</p>
 			</DrawerSection>
 		</Collapsible>
 	);

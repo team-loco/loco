@@ -59,6 +59,10 @@ func (*wireOwnership) GetWorkspaceOrganizationIDByResourceID(
 	id := uuid.MustParse(wireEntityID)
 	return genDb.GetWorkspaceOrganizationIDByResourceIDRow{WorkspaceID: id, OrgID: id}, nil
 }
+
+func (*wireOwnership) GetEnvironmentByID(_ context.Context, id uuid.UUID) (genDb.Environment, error) {
+	return genDb.Environment{ID: id, WorkspaceID: uuid.MustParse(wireEntityID)}, nil
+}
 func TestServicesExposePublicWireErrors(t *testing.T) {
 	t.Parallel()
 	authorizer := authz.New(&wireOwnership{})
@@ -169,14 +173,17 @@ func TestServicesExposePublicWireErrors(t *testing.T) {
 				return err
 			}, code: connect.CodePermissionDenied, message: expectedPermissionMessage},
 		{name: "Secret", register: func(server *connect.Server) {
-			secretv1connect.RegisterSecretServiceHandler(server, &SecretServer{authz: authorizer})
+			secretv1connect.RegisterSecretServiceHandler(
+				server,
+				&SecretServer{authz: authorizer, queries: &wireOwnership{}},
+			)
 		},
 			call: func(ctx context.Context, client *connect.Client) error {
 				serviceClient := secretv1connect.NewSecretServiceClient(client)
-				request := &secretv1.ListSecretsRequest{ResourceId: wireEntityID, EnvironmentId: wireEntityID}
+				request := &secretv1.ListSecretsRequest{EnvironmentId: wireEntityID}
 				_, err := serviceClient.ListSecrets(ctx, request)
 				return err
-			}, code: connect.CodePermissionDenied, message: expectedPermissionMessage},
+			}, code: connect.CodeNotFound, message: ErrEnvironmentNotFound.Error()},
 		{name: "Build", register: func(server *connect.Server) {
 			buildv1connect.RegisterBuildServiceHandler(server, &BuildServer{authz: authorizer})
 		},

@@ -21,7 +21,6 @@ import (
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
-	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -60,10 +59,6 @@ confirmation. The apply fails when the environment changed since the plan was sh
 
 Destructive operations need --confirm-destructive and imports need --confirm-import.
 Without a terminal, --yes replaces the prompt.
-
-A new service whose only plan errors are the secrets it declares is created without being
-deployed; the command prints the loco env set command for its secrets and exits with an
-error, and the next apply deploys it.
 
 The command returns once the API records the deployments it starts. With --wait it returns
 once every one of them runs: its replicas run the applied configuration and are ready. It
@@ -109,7 +104,7 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	file, data, err := loadLocoFile(path)
+	_, data, err := loadLocoFile(path)
 	if err != nil {
 		return err
 	}
@@ -118,9 +113,7 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	environment := t.Environment.GetSlug()
-	resolve := func() (map[string]locofile.Service, error) { return resolveServices(file, path, environment) }
-	plan, err := reviewPlan(ctx, cmd, t, path, data, resolve, confirm)
+	plan, err := reviewPlan(ctx, t, path, data, confirm)
 	if err != nil {
 		return err
 	}
@@ -146,21 +139,10 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	if writeErr := writeApplied(os.Stdout, applied); writeErr != nil {
-		return writeErr
-	}
-	if writeErr := writeSavedSecrets(os.Stdout, plan.GetSavedSecrets()); writeErr != nil || !wait {
+	if writeErr := writeApplied(os.Stdout, applied); writeErr != nil || !wait {
 		return writeErr
 	}
 	return waitRunning(ctx, t, os.Stdout, applied.GetDeployments())
-}
-
-func resolveServices(file *locofile.File, path, environment string) (map[string]locofile.Service, error) {
-	services, err := locofile.Resolve(file, environment)
-	if err != nil {
-		return nil, fmt.Errorf("%s does not resolve for environment %s: %w", path, environment, err)
-	}
-	return services, nil
 }
 
 func unconfirmedOperations(operations []*planv1.PlanOperation, confirm confirmations) []*planv1.PlanOperation {

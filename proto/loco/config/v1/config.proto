@@ -59,8 +59,8 @@ message CountLimits {
   int32 tokens_per_entity = 8;
   // domains_per_resource counts a resource's domains in one environment.
   int32 domains_per_resource = 9;
-  // secrets_per_resource counts a resource's secrets in one environment.
-  int32 secrets_per_resource = 10;
+  // secrets_per_environment counts an environment's secrets.
+  int32 secrets_per_environment = 10;
   // deployment_history is how many deployments a resource keeps in each environment.
   int32 deployment_history = 11;
   // build_history is how many builds a resource keeps.

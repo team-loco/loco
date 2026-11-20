@@ -92,9 +92,6 @@ func runPlan(cmd *cobra.Command, path string) error {
 		if writeErr := writePlan(os.Stdout, path, plan); writeErr != nil {
 			return writeErr
 		}
-		if writeErr := writeSavedSecrets(os.Stdout, plan.GetSavedSecrets()); writeErr != nil {
-			return writeErr
-		}
 	}
 
 	if detailedExitCode && len(plan.GetOperations()) > 0 {
@@ -118,11 +115,9 @@ func requestPlan(ctx context.Context, t cmdutil.Target, file []byte) (*planv1.Pl
 
 func reviewPlan(
 	ctx context.Context,
-	cmd *cobra.Command,
 	t cmdutil.Target,
 	path string,
 	data []byte,
-	resolve func() (map[string]locofile.Service, error),
 	confirm confirmations,
 ) (*planv1.PlanResponse, error) {
 	plan, err := requestPlan(ctx, t, data)
@@ -130,14 +125,6 @@ func reviewPlan(
 		return nil, err
 	}
 	if len(plan.GetErrors()) > 0 {
-		services, resolveErr := resolve()
-		if resolveErr != nil {
-			return nil, resolveErr
-		}
-		err = provisionForSecrets(ctx, cmd, t, data, plan, services, confirm)
-		if !errors.Is(err, errSecretsNotHandled) {
-			return nil, err
-		}
 		return nil, planErrorsError(path, plan.GetErrors())
 	}
 	if err = writePlan(os.Stdout, path, plan); err != nil {

@@ -5487,7 +5487,7 @@
           "loco.resource.v1.ResourceService"
         ],
         "summary": "GetResourceEnv",
-        "description": "GetResourceEnv returns the plain env variables a service runs with in an environment, the\n env map of loco.yaml, and the secret names it declares. Secret values are never included.",
+        "description": "GetResourceEnv returns the variables a service runs with in an environment as written, the\n env map of loco.yaml, with references unresolved. Secret values are never included.",
         "operationId": "loco.resource.v1.ResourceService.GetResourceEnv",
         "parameters": [
           {
@@ -5598,6 +5598,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.resource.v1.ListRegionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.resource.v1.ResourceService/ListResourceOutputs": {
+      "post": {
+        "tags": [
+          "loco.resource.v1.ResourceService"
+        ],
+        "summary": "ListResourceOutputs",
+        "description": "ListResourceOutputs lists what each resource of the workspace provides to references in an\n environment: its built-in outputs and its variables.",
+        "operationId": "loco.resource.v1.ResourceService.ListResourceOutputs",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.resource.v1.ListResourceOutputsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.resource.v1.ListResourceOutputsResponse"
                 }
               }
             }
@@ -5921,7 +5983,7 @@
           "loco.secret.v1.SecretService"
         ],
         "summary": "DeleteSecrets",
-        "description": "DeleteSecrets removes names from a service in an environment.",
+        "description": "DeleteSecrets removes names from an environment. It fails with FAILED_PRECONDITION, naming\n the resources, while the latest deployment of a resource reads one of the names.",
         "operationId": "loco.secret.v1.SecretService.DeleteSecrets",
         "parameters": [
           {
@@ -5983,7 +6045,7 @@
           "loco.secret.v1.SecretService"
         ],
         "summary": "ListSecrets",
-        "description": "ListSecrets lists the names a service holds in an environment with their version and who set them.",
+        "description": "ListSecrets lists an environment's secrets with their version, who set them and the\n resources that use them.",
         "operationId": "loco.secret.v1.SecretService.ListSecrets",
         "parameters": [
           {
@@ -10247,11 +10309,11 @@
             "format": "int32",
             "description": "domains_per_resource counts a resource's domains in one environment."
           },
-          "secretsPerResource": {
+          "secretsPerEnvironment": {
             "type": "integer",
-            "title": "secrets_per_resource",
+            "title": "secrets_per_environment",
             "format": "int32",
-            "description": "secrets_per_resource counts a resource's secrets in one environment."
+            "description": "secrets_per_environment counts an environment's secrets."
           },
           "deploymentHistory": {
             "type": "integer",
@@ -10602,11 +10664,6 @@
             "title": "environment_id",
             "format": "uuid"
           },
-          "secretBindings": {
-            "title": "secret_bindings",
-            "description": "Omit to keep the secret bindings of the source deployment a redeploy or rollback copies,\n or else of the deployment live in the target regions.",
-            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSecretBindings"
-          },
           "commit": {
             "title": "commit",
             "$ref": "#/components/schemas/loco.deployment.v1.SourceCommit"
@@ -10774,14 +10831,6 @@
             "title": "canceled_by_name",
             "description": "Who canceled the deployment; empty unless a user or token canceled it."
           },
-          "secretNames": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "title": "secret_names",
-            "description": "The stored secrets the deployment reads, sorted by name."
-          },
           "rollbackOfDeploymentId": {
             "type": "string",
             "title": "rollback_of_deployment_id",
@@ -10889,24 +10938,6 @@
         "title": "DeploymentPlacement",
         "additionalProperties": false,
         "description": "DeploymentPlacement is one region of a deployment."
-      },
-      "loco.deployment.v1.DeploymentSecretBindings": {
-        "type": "object",
-        "properties": {
-          "names": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "pattern": "^[A-Z_][A-Z0-9_]*$"
-            },
-            "title": "names",
-            "uniqueItems": true,
-            "description": "An empty list clears the bindings."
-          }
-        },
-        "title": "DeploymentSecretBindings",
-        "additionalProperties": false,
-        "description": "DeploymentSecretBindings selects secrets already stored for the resource in the target environment."
       },
       "loco.deployment.v1.DeploymentSpec": {
         "type": "object",
@@ -11450,7 +11481,7 @@
               "type": "string",
               "title": "value"
             },
-            "description": "The plain environment variables the deployment runs with, exactly; empty sets none."
+            "description": "The variables the deployment runs with, exactly; empty sets none. A value can refer to a\n secret of the environment as ${{ secrets.NAME }} and to an output of another resource in the\n workspace as ${{ resource.NAME }}; the references resolve when the deployment is created."
           },
           "port": {
             "type": [
@@ -14208,7 +14239,7 @@
             "title": "provision",
             "maxItems": 100,
             "uniqueItems": true,
-            "description": "provision names services the plan creates. When it is set, the apply creates only those\n services' resources, without deployments, and performs no other operation of the plan, so\n a source service can be built, and a service that declares secrets can have them set,\n before the file is applied. The secrets the provisioned services declare need not be set\n yet; every other plan error still refuses the apply. A request sets provision or builds,\n not both."
+            "description": "provision names services the plan creates. When it is set, the apply creates only those\n services' resources, without deployments, and performs no other operation of the plan, so\n a source service can be built before the file is applied. Every plan error still refuses\n the apply. A request sets provision or builds, not both."
           },
           "commit": {
             "title": "commit",
@@ -14383,39 +14414,10 @@
               "title": "value"
             },
             "description": "images maps every image reference of the file that resolved to the digest-pinned reference\n the plan uses. An ApplyRequest carries it back so the apply deploys the digests reviewed."
-          },
-          "savedSecrets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/loco.plan.v1.SavedSecret"
-            },
-            "title": "saved_secrets",
-            "description": "saved_secrets are the secrets the file's services hold in the environment, in service and\n name order."
           }
         },
         "title": "PlanResponse",
         "additionalProperties": false
-      },
-      "loco.plan.v1.SavedSecret": {
-        "type": "object",
-        "properties": {
-          "service": {
-            "type": "string",
-            "title": "service"
-          },
-          "name": {
-            "type": "string",
-            "title": "name"
-          },
-          "declared": {
-            "type": "boolean",
-            "title": "declared",
-            "description": "declared is true when the file lists the name in the service's secrets."
-          }
-        },
-        "title": "SavedSecret",
-        "additionalProperties": false,
-        "description": "SavedSecret is a secret a service holds in the environment. Its deployments receive it only\n when the file declares it."
       },
       "loco.plan.v1.StartedDeployment": {
         "type": "object",
@@ -14630,7 +14632,7 @@
         },
         "title": "GetResourceEnvRequest",
         "additionalProperties": false,
-        "description": "GetResourceEnvRequest names the service and the environment whose plain env variables to read."
+        "description": "GetResourceEnvRequest names the service and the environment whose variables to read."
       },
       "loco.resource.v1.GetResourceEnvResponse": {
         "type": "object",
@@ -14642,18 +14644,11 @@
               "type": "string",
               "title": "value"
             }
-          },
-          "secretNames": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "title": "secret_names"
           }
         },
         "title": "GetResourceEnvResponse",
         "additionalProperties": false,
-        "description": "GetResourceEnvResponse holds the plain env variables and the declared secret names of the\n service's active deployment in the environment, both empty when it has none."
+        "description": "GetResourceEnvResponse holds the variables of the service's active deployment in the\n environment, empty when it has none."
       },
       "loco.resource.v1.GetResourceRequest": {
         "type": "object",
@@ -14734,6 +14729,34 @@
         "title": "ListRegionsResponse",
         "additionalProperties": false,
         "description": "ListRegionsResponse contains the regions the environment's clusters serve."
+      },
+      "loco.resource.v1.ListResourceOutputsRequest": {
+        "type": "object",
+        "properties": {
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          }
+        },
+        "title": "ListResourceOutputsRequest",
+        "additionalProperties": false,
+        "description": "ListResourceOutputsRequest names the environment whose resource outputs to list."
+      },
+      "loco.resource.v1.ListResourceOutputsResponse": {
+        "type": "object",
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceOutputs"
+            },
+            "title": "resources"
+          }
+        },
+        "title": "ListResourceOutputsResponse",
+        "additionalProperties": false,
+        "description": "ListResourceOutputsResponse lists every resource of the workspace by slug."
       },
       "loco.resource.v1.ListWorkspaceResourcesRequest": {
         "type": "object",
@@ -15046,6 +15069,60 @@
         "additionalProperties": false,
         "description": "Resource represents a resource in a workspace."
       },
+      "loco.resource.v1.ResourceOutput": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value",
+            "description": "value is the output with its references to other resources resolved; references to\n secrets stay as ${{ secrets.NAME }}."
+          },
+          "builtIn": {
+            "type": "boolean",
+            "title": "built_in",
+            "description": "built_in is true for the outputs Loco provides: PRIVATE_HOST, PORT, PRIVATE_URL and\n PUBLIC_URL. The others are the resource's variables."
+          }
+        },
+        "title": "ResourceOutput",
+        "additionalProperties": false,
+        "description": "ResourceOutput is one value another resource can refer to as ${{ resource.KEY }}."
+      },
+      "loco.resource.v1.ResourceOutputs": {
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "resourceSlug": {
+            "type": "string",
+            "title": "resource_slug",
+            "description": "resource_slug is the name references use: ${{ \u003cslug\u003e.KEY }}."
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceOutput"
+            },
+            "title": "outputs"
+          },
+          "usedBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "used_by",
+            "description": "used_by holds the slugs of the resources whose latest deployment refers to this resource."
+          }
+        },
+        "title": "ResourceOutputs",
+        "additionalProperties": false,
+        "description": "ResourceOutputs is what one resource provides in the environment, read from its latest\n deployment there and its primary domain."
+      },
       "loco.resource.v1.ResourceSpec": {
         "type": "object",
         "properties": {
@@ -15350,11 +15427,6 @@
       "loco.secret.v1.DeleteSecretsRequest": {
         "type": "object",
         "properties": {
-          "resourceId": {
-            "type": "string",
-            "title": "resource_id",
-            "format": "uuid"
-          },
           "environmentId": {
             "type": "string",
             "title": "environment_id",
@@ -15372,7 +15444,7 @@
         },
         "title": "DeleteSecretsRequest",
         "additionalProperties": false,
-        "description": "DeleteSecretsRequest removes names from one service in one environment."
+        "description": "DeleteSecretsRequest removes names from one environment."
       },
       "loco.secret.v1.DeleteSecretsResponse": {
         "type": "object",
@@ -15390,11 +15462,6 @@
       "loco.secret.v1.ListSecretsRequest": {
         "type": "object",
         "properties": {
-          "resourceId": {
-            "type": "string",
-            "title": "resource_id",
-            "format": "uuid"
-          },
           "environmentId": {
             "type": "string",
             "title": "environment_id",
@@ -15403,7 +15470,7 @@
         },
         "title": "ListSecretsRequest",
         "additionalProperties": false,
-        "description": "ListSecretsRequest lists the secrets of one service in one environment."
+        "description": "ListSecretsRequest lists the secrets of one environment."
       },
       "loco.secret.v1.ListSecretsResponse": {
         "type": "object",
@@ -15418,7 +15485,7 @@
         },
         "title": "ListSecretsResponse",
         "additionalProperties": false,
-        "description": "ListSecretsResponse lists the names a service holds in an environment."
+        "description": "ListSecretsResponse lists the secrets of an environment by name."
       },
       "loco.secret.v1.RewrapEnvironmentKeysRequest": {
         "type": "object",
@@ -15489,30 +15556,36 @@
           "updatedAt": {
             "title": "updated_at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "usedBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.secret.v1.SecretUser"
+            },
+            "title": "used_by",
+            "description": "The resources whose latest deployment in the environment reads the secret, by slug."
           }
         },
         "title": "Secret",
         "additionalProperties": false,
         "description": "Secret is the metadata of one name; it never carries the value."
       },
-      "loco.secret.v1.SecretUsage": {
+      "loco.secret.v1.SecretUser": {
         "type": "object",
         "properties": {
-          "region": {
+          "resourceId": {
             "type": "string",
-            "title": "region"
+            "title": "resource_id"
           },
-          "names": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "title": "names"
+          "resourceSlug": {
+            "type": "string",
+            "title": "resource_slug",
+            "description": "resource_slug is the slug references and the CLI name the resource by."
           }
         },
-        "title": "SecretUsage",
+        "title": "SecretUser",
         "additionalProperties": false,
-        "description": "SecretUsage identifies the changed names a region's active deployment binds."
+        "description": "SecretUser is a resource whose latest deployment in the environment reads a secret."
       },
       "loco.secret.v1.SecretVersion": {
         "type": "object",
@@ -15534,11 +15607,6 @@
       "loco.secret.v1.SetSecretsRequest": {
         "type": "object",
         "properties": {
-          "resourceId": {
-            "type": "string",
-            "title": "resource_id",
-            "format": "uuid"
-          },
           "environmentId": {
             "type": "string",
             "title": "environment_id",
@@ -15556,7 +15624,7 @@
         },
         "title": "SetSecretsRequest",
         "additionalProperties": false,
-        "description": "SetSecretsRequest sets values by name for one service in one environment."
+        "description": "SetSecretsRequest sets values by name in one environment."
       },
       "loco.secret.v1.SetSecretsResponse": {
         "type": "object",
@@ -15576,10 +15644,10 @@
           "usedBy": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/loco.secret.v1.SecretUsage"
+              "$ref": "#/components/schemas/loco.secret.v1.SecretUser"
             },
             "title": "used_by",
-            "description": "Active deployments that bind names whose values changed, grouped by region."
+            "description": "The resources whose latest deployment reads a name whose value changed, by slug. They get\n the new value on their next deploy or restart."
           }
         },
         "title": "SetSecretsResponse",
@@ -17343,7 +17411,7 @@
     },
     {
       "name": "loco.secret.v1.SecretService",
-      "description": "SecretService stores named values of one service in one environment. Values are write-only: no RPC\n returns one."
+      "description": "SecretService stores the named secret values of one environment. Any resource in the environment\n reads one by referring to it from a variable as ${{ secrets.NAME }}. Values are write-only: no RPC\n returns one."
     },
     {
       "name": "loco.webhook.v1.WebhookService"

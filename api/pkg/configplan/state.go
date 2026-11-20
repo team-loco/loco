@@ -24,7 +24,6 @@ const (
 	pathRouting = "routing"
 	pathDomains = "domains"
 	pathEnv     = "env"
-	pathSecrets = "secrets"
 	pathRegions = "regions"
 	pathEnabled = "enabled"
 	pathDeploy  = "deploy"
@@ -58,7 +57,6 @@ type State struct {
 	Routing           *Routing
 	Domains           []string
 	Env               map[string]string
-	Secrets           []string
 	Regions           map[string]Region
 	Deploy            *locofile.Deploy
 }
@@ -111,7 +109,6 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		Port:              service.Port,
 		Domains:           CanonicalDomains(service.Domains),
 		Env:               maps.Clone(service.Env),
-		Secrets:           slices.Sorted(slices.Values(service.Secrets)),
 		Regions:           make(map[string]Region, len(service.Regions)),
 		Deploy:            service.Deploy,
 	}
@@ -206,7 +203,6 @@ func flatten(state *State) map[string]string {
 		"rollbackOnFailure":        strconv.FormatBool(state.RollbackOnFailure),
 		"observability.injectOtel": strconv.FormatBool(state.Observability.InjectOtel),
 		pathDomains:                formatList(state.Domains),
-		pathSecrets:                formatList(slices.Sorted(slices.Values(state.Secrets))),
 	}
 	if state.Port != nil {
 		fields[pathPort] = formatInt(*state.Port)

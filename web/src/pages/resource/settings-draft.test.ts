@@ -20,7 +20,6 @@ import { SLUG_RULE } from "@/lib/slug";
 import type { RegionView } from "./model";
 import {
 	baseline,
-	boundNames,
 	changeCount,
 	plainEnv,
 	planSave,
@@ -162,16 +161,9 @@ describe("planSave", () => {
 		expect(plan({ image: "example.test/another:release" })[0]?.commit).toBeUndefined();
 	});
 
-	test("secret binding and plain variable changes redeploy every running region", () => {
-		expect(plan({ bindings: { STRIPE_API_KEY: true } }).map((d) => d.region)).toEqual([EAST, WEST]);
+	test("variable changes redeploy every running region", () => {
 		expect(plan({ env: { FEATURE_FLAGS: "beta" } }).map((d) => d.region)).toEqual([EAST, WEST]);
-		expect(plan({ secrets: { STRIPE_API_KEY: "sk_test" } })).toEqual([]);
-	});
-
-	test("counts a new bound secret once and each binding or plain variable change", () => {
-		expect(changeCount({ secrets: { STRIPE_API_KEY: "sk_test" }, bindings: { STRIPE_API_KEY: true } }, base)).toBe(1);
-		expect(changeCount({ bindings: { SESSION_KEY: false, STRIPE_API_KEY: true } }, base)).toBe(2);
-		expect(changeCount({ env: { FEATURE_FLAGS: "beta" } }, base)).toBe(1);
+		expect(plan({ removedEnv: ["LOG_LEVEL"] }).map((d) => d.region)).toEqual([EAST, WEST]);
 	});
 
 	test("does nothing for an empty draft or region map edits", () => {
@@ -288,11 +280,7 @@ test("the baseline shows a configured region that does not run here as on", () =
 describe("changeCount", () => {
 	test("counts fields that differ from what runs", () => {
 		expect(changeCount({ cpu: "250m" }, base)).toBe(0);
-		expect(changeCount({ cpu: "1", scaling: { [EAST]: scaling(4) }, secrets: { API_KEY: "x" } }, base)).toBe(3);
-	});
-
-	test("counts removing a secret deployments read as one change", () => {
-		expect(changeCount({ removedSecrets: ["API_KEY"], bindings: { API_KEY: false } }, base)).toBe(1);
+		expect(changeCount({ cpu: "1", scaling: { [EAST]: scaling(4) }, env: { API_KEY: "x" } }, base)).toBe(3);
 	});
 
 	test("counts changed and removed plain variables", () => {
@@ -416,12 +404,4 @@ test("settings baseline follows configured bounds while the HPA changes the live
 	const initial = baseline("shop", "shop", "", [region(EAST, current)], [EAST], true, defaults);
 	expect(initial.scaling[EAST]).toEqual(scaling(1, 5, 80));
 	expect(changeCount({}, initial)).toBe(0);
-});
-
-describe("boundNames", () => {
-	test("applies the draft's binding changes to the current names", () => {
-		const draft = { bindings: { SESSION_KEY: false, STRIPE_API_KEY: true } };
-		expect(boundNames(["SESSION_KEY", "DATABASE_URL"], draft)).toEqual(["DATABASE_URL", "STRIPE_API_KEY"]);
-		expect(boundNames(["SESSION_KEY"], {})).toEqual(["SESSION_KEY"]);
-	});
 });

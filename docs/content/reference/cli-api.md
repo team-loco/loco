@@ -27,7 +27,7 @@ loco config --help
 | `loco deploy` | Deploy from the current directory with API defaults, or build and deploy the services of `loco.yaml` |
 | `loco resource` | Inspect and manage applications |
 | `loco builds` | List, inspect, follow and cancel builds |
-| `loco env` | Set, remove and list a service's secrets in an environment |
+| `loco secret` | Set, remove and list an environment's secrets |
 | `loco token` | Manage API tokens; creating one requires a saved login, and owned tokens require owner admin access |
 | `loco web` | Open the configured dashboard |
 | `loco config` | Manage local CLI settings |

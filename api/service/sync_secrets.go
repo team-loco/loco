@@ -9,10 +9,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/pkg/varref"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
-var errSecretMissing = errors.New("secret missing")
+var (
+	errSecretMissing       = errors.New("secret missing")
+	errUnresolvedReference = errors.New("secret env holds a reference to a resource")
+)
 
 type listPlacementsFunc func(ctx context.Context, q *genDb.Queries) ([]genDb.Placement, error)
 
@@ -62,13 +66,12 @@ func (s *AgentServer) readPlacements(
 }
 
 func (snap *secretSnapshot) load(ctx context.Context, q *genDb.Queries, placement genDb.Placement) error {
-	if placement.DesiredDeleted || len(placement.SecretNames) == 0 {
+	if placement.DesiredDeleted || len(placement.SecretEnv) == 0 {
 		return nil
 	}
 	rows, err := q.ListSecretCiphertexts(ctx, genDb.ListSecretCiphertextsParams{
-		ResourceID:    placement.ResourceID,
 		EnvironmentID: placement.EnvironmentID,
-		Names:         placement.SecretNames,
+		Names:         varref.SecretNames(placement.SecretEnv),
 	})
 	if err != nil {
 		return fmt.Errorf("list secrets: %w", err)
@@ -119,13 +122,15 @@ func (snap *secretSnapshot) dek(ctx context.Context, environmentID uuid.UUID) ([
 	return dek, nil
 }
 
+// envSecret renders the placement's secret-bearing variables with the values of the secrets they
+// refer to.
 func (snap *secretSnapshot) envSecret(ctx context.Context, placement genDb.Placement) (*agentv1.EnvSecret, error) {
 	rows := snap.ciphertexts[placement.ID]
 	byName := make(map[string]genDb.ListSecretCiphertextsRow, len(rows))
 	for _, row := range rows {
 		byName[row.Name] = row
 	}
-	for _, name := range placement.SecretNames {
+	for _, name := range varref.SecretNames(placement.SecretEnv) {
 		if _, ok := byName[name]; !ok {
 			return nil, fmt.Errorf("%w: %s", errSecretMissing, name)
 		}
@@ -134,15 +139,29 @@ func (snap *secretSnapshot) envSecret(ctx context.Context, placement genDb.Place
 	if err != nil {
 		return nil, err
 	}
-	target := secretTarget{env: snap.environments[placement.EnvironmentID], resourceID: placement.ResourceID}
-	data := make(map[string][]byte, len(byName))
+	target := secretTarget{env: snap.environments[placement.EnvironmentID]}
+	values := make(map[string][]byte, len(byName))
+	defer zeroEnvSecretData(values)
 	for name, row := range byName {
 		value, openErr := openSecret(dek, target, row)
 		if openErr != nil {
-			zeroEnvSecretData(data)
 			return nil, fmt.Errorf("decrypt %s: %w", name, openErr)
 		}
-		data[name] = value
+		values[name] = value
+	}
+	data := make(map[string][]byte, len(placement.SecretEnv))
+	for name, template := range placement.SecretEnv {
+		rendered, renderErr := varref.Render(template, func(ref varref.Ref) (string, error) {
+			if !ref.IsSecret() {
+				return "", fmt.Errorf("%w: %s", errUnresolvedReference, ref)
+			}
+			return string(values[ref.Key]), nil
+		})
+		if renderErr != nil {
+			zeroEnvSecretData(data)
+			return nil, fmt.Errorf("render %s: %w", name, renderErr)
+		}
+		data[name] = []byte(rendered)
 	}
 	return &agentv1.EnvSecret{Revision: placement.DesiredRevision, Data: data}, nil
 }

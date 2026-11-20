@@ -124,7 +124,7 @@ The API caps how many of each thing can exist, so one account cannot fill the co
 | Webhooks | workspace | 20 | `LOCO_LIMIT_WEBHOOKS_PER_WORKSPACE` |
 | API tokens | user, organization, workspace or resource that owns them | 50 | `LOCO_LIMIT_TOKENS_PER_ENTITY` |
 | Domains | resource in one environment | 10 | `LOCO_LIMIT_DOMAINS_PER_RESOURCE` |
-| Secrets | service in one environment | 256 | `LOCO_SECRETS_MAX_PER_SERVICE` |
+| Secrets | environment | 256 | `LOCO_LIMIT_SECRETS_PER_ENVIRONMENT` |
 
 An invitation is refused while the organization is at its member or open-invitation limit. A user signing in with an open invitation to an organization at its member limit signs in without joining it, and the invitation stays open until it expires.
 

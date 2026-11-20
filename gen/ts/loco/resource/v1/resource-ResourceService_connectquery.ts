@@ -47,12 +47,20 @@ export const listWorkspaceResources = ResourceService.method.listWorkspaceResour
 export const listRegions = ResourceService.method.listRegions;
 
 /**
- * GetResourceEnv returns the plain env variables a service runs with in an environment, the
- * env map of loco.yaml, and the secret names it declares. Secret values are never included.
+ * GetResourceEnv returns the variables a service runs with in an environment as written, the
+ * env map of loco.yaml, with references unresolved. Secret values are never included.
  *
  * @generated from rpc loco.resource.v1.ResourceService.GetResourceEnv
  */
 export const getResourceEnv = ResourceService.method.getResourceEnv;
+
+/**
+ * ListResourceOutputs lists what each resource of the workspace provides to references in an
+ * environment: its built-in outputs and its variables.
+ *
+ * @generated from rpc loco.resource.v1.ResourceService.ListResourceOutputs
+ */
+export const listResourceOutputs = ResourceService.method.listResourceOutputs;
 
 /**
  * Resource Operations

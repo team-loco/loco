@@ -10,6 +10,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
+	"github.com/team-loco/loco/api/pkg/varref"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -159,6 +160,7 @@ func (s *ResourceServer) updateRegions(
 			deployments: map[uuid.UUID][]liveDeployment{res.ID: active},
 			domains:     map[uuid.UUID][]genDb.ResourceDomain{res.ID: envDomains},
 		}
+		a.resolved = map[string]varref.Resolved{res.Slug: storedResolution(runtime[0].Deployment)}
 		a.builds = builds
 		a.platformDomains = platformdomain.Served(targets)
 		a.commit = commit

@@ -200,17 +200,15 @@ func TestSecretWritesSucceedDuringARollout(t *testing.T) {
 				t.Fatal(err)
 			}
 			server := f.secretServer(provider)
-			ctx := f.rolloutContext(t)
+			ctx := f.secretWriterContext(t)
 			var err error
 			if operation == "set" {
 				_, err = server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-					ResourceId:    f.resourceID.String(),
 					EnvironmentId: f.envID.String(),
 					Values:        map[string]string{stripeKey: "new value"},
 				})
 			} else {
 				_, err = server.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
-					ResourceId:    f.resourceID.String(),
 					EnvironmentId: f.envID.String(),
 					Names:         []string{stripeKey},
 				})
@@ -222,7 +220,8 @@ func TestSecretWritesSucceedDuringARollout(t *testing.T) {
 			if operation == rolloutDeleteOperation {
 				want = 0
 			}
-			if n := f.count(t, `SELECT count(*) FROM secrets WHERE resource_id = $1`); int64(n) != want {
+			if n := f.count(t, `SELECT count(*) FROM secrets s JOIN resources r ON r.id = $1
+WHERE s.environment_id IN (SELECT id FROM environments WHERE workspace_id = r.workspace_id)`); int64(n) != want {
 				t.Fatalf("secrets = %d, want %d", n, want)
 			}
 		})
