@@ -189,7 +189,9 @@ function usePlacementSizing(rows: Placement[], visible: ObsResource[], environme
 			const deployment =
 				deployments.find((d) => d.id === p.deploymentId) ??
 				deployments.find((d) => d.environmentId === environmentId && d.placements.some((x) => x.region === p.region));
-			const target = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
+			const deployed = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
+			const intent = r.raw.spec?.spec.case === "service" ? r.raw.spec.spec.value.regions[p.region] : undefined;
+			const target = deployed ?? intent;
 			if (target !== undefined) sizing.set(p.key, { cpu: target.cpu ?? "", memory: target.memory ?? "" });
 		}
 	});
