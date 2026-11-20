@@ -149,11 +149,12 @@ export function timeAxis(from: number, to: number, pref: TimePreferences, maxSte
 	return all.length >= 3 ? all : [from, from + (to - from) / 2, to];
 }
 
+/** One label format per axis: dates across more than four days, date and time when the window crosses midnight, clock times otherwise. */
 export function formatAxisTime(ms: number, from: number, to: number, pref: TimePreferences): string {
-	const p = parts(ms, pref);
-	return to - from > 4 * DAY_MS || (p.hour === 0 && p.minute === 0 && to - from > DAY_MS / 4)
-		? formatMonthDay(ms, pref)
-		: formatHourMinute(ms, pref);
+	if (to - from > 4 * DAY_MS) return formatMonthDay(ms, pref);
+	if (formatIsoDate(from, pref) !== formatIsoDate(to, pref))
+		return `${formatMonthDay(ms, pref)} ${formatHourMinute(ms, pref)}`;
+	return formatHourMinute(ms, pref);
 }
 
 /** A relative time: "just now", "5m ago", "3h ago", "2d ago". */

@@ -1423,6 +1423,16 @@ def traffic_small_values(page):
     assert requests == ["0/s", "0.01/s", "0.02/s", "0.03/s"], labels
     latency = [t for t in labels if t.endswith(" s") and not t.endswith("B/s")]
     assert latency == ["0 s", "1 s", "2 s", "3 s"], labels
+    page.get_by_role("button", name="24h", exact=True).click()
+    axis = section.get_by_role("application").first.locator(
+        ".recharts-xAxis-tick-labels text"
+    )
+    expect(axis.nth(2)).to_be_visible()
+    labels = axis.all_text_contents()
+    assert all(re.fullmatch(r"[A-Z][a-z]{2} \d+ \d\d:\d\d", t) for t in labels), labels
+    times = [int(t[-5:-3]) * 60 + int(t[-2:]) for t in labels[1:-1]]
+    gaps = {(b - a) % 1440 for a, b in zip(times, times[1:], strict=False)}
+    assert len(gaps) == 1, (labels, gaps)
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
 
 
