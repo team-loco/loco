@@ -323,7 +323,7 @@ export function SettingsView({
 					)}
 					<ConfirmDialog
 						open={confirmingInternal}
-						title={`Make ${resource.name} internal?`}
+						title={`Make ${resource.displayName} internal?`}
 						description="Saving removes every domain below and redeploys, so the resource only answers inside the workspace."
 						confirmLabel="Remove domains and save"
 						onConfirm={() => {

@@ -347,7 +347,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	return (
 		<Page className="gap-5">
-			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
+			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.displayName} />
 			<ResourceHeader
 				nowMs={nowMs}
 				resource={resource}

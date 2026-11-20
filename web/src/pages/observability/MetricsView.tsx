@@ -19,7 +19,7 @@ import { isUnimplemented } from "@/lib/error-handler";
 import { sortParser } from "@/lib/sort-parser";
 import { aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
-import { formatHourMinute, tsMs } from "@/lib/time";
+import { formatHourMinute, readyMs, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { filteredResources, useObs, type ObsResource } from "./context";
@@ -127,7 +127,7 @@ function useComputeSeries(def: MetricDef, rows: Placement[], spanMs: number, end
 			const points = [...pts].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
 			series.push({
 				key: `s${String(series.length)}`,
-				name: multi.has(id) ? `${row.resource.name} ${region}` : row.resource.name,
+				name: multi.has(id) ? `${row.resource.raw.displayName} ${region}` : row.resource.raw.displayName,
 				color: row.resource.color,
 				dashed: row.dashed,
 				points,
@@ -155,10 +155,10 @@ function useDeployMarkers(visible: ObsResource[], environmentId: string, from: n
 	const markers: DeployMarker[] = [];
 	visible.forEach((r, i) => {
 		for (const d of queries[i]?.data?.deployments ?? []) {
-			const t = tsMs(d.startedAt ?? d.createdAt);
-			if (t < from || t > to || d.environmentId !== environmentId) continue;
+			const t = readyMs(d);
+			if (t === undefined || t < from || t > to || d.environmentId !== environmentId) continue;
 			const tag = formatShortId(d.id);
-			const label = `${r.name} ${tag}`;
+			const label = `${r.raw.displayName} ${tag}`;
 			for (const p of d.placements) {
 				markers.push({
 					t,
@@ -167,7 +167,7 @@ function useDeployMarkers(visible: ObsResource[], environmentId: string, from: n
 					color: r.color,
 					tag,
 					resourceId: r.id,
-					resourceName: r.name,
+					resourceName: r.raw.displayName,
 					region: p.region,
 				});
 			}
@@ -467,7 +467,7 @@ export function MetricsView() {
 												className="flex items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 											>
 												<span className="size-2 rounded-[2px]" style={{ background: p.resource.color }} />
-												{p.resource.name}
+												{p.resource.raw.displayName}
 											</button>
 										</td>
 										<td className="px-3 font-mono text-fg2">{p.region}</td>

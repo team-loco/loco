@@ -7,7 +7,7 @@ import type { RuntimeEvent as Event } from "@/lib/runtime-events";
 import { Button } from "@/components/design/Button";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { HOUR_MS } from "@/lib/obs-time";
-import { agoLabel, formatClock, maybeTsMs } from "@/lib/time";
+import { agoLabel, formatClock, maybeTsMs, readyMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { logLevel } from "@/pages/observability/query";
@@ -15,7 +15,7 @@ import { logLevel } from "@/pages/observability/query";
 import { latestRestartWarning } from "./events";
 import { NEEDS_WRITE } from "@/hooks/useMyScopes";
 
-import { depTag, startedMs, type RegionProblem, type RegionView } from "./model";
+import { depTag, type RegionProblem, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
 
 const LOG_LINES = 6;
@@ -118,7 +118,7 @@ export function IncidentCard({
 	const reportedMs = maybeTsMs(status?.reportedAt);
 	const restarts = latestRestartWarning(events, region.name);
 	const changes = current !== undefined && lastGood !== undefined ? specChanges(lastGood, current) : [];
-	const goodMs = lastGood === undefined ? undefined : startedMs(lastGood);
+	const goodMs = lastGood === undefined ? undefined : readyMs(lastGood);
 
 	return (
 		<section
