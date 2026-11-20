@@ -40,22 +40,16 @@ func TestCommandAndArgs(t *testing.T) {
 		file.Services[app] = service
 		platform.WriteLocoFile(t, dir, file)
 		w.MustLoco(t, dir, "deploy", "--yes", "--wait")
-		platform.Eventually(t, endpointTimeout, "the service to serve the marker "+marker+" its args name",
+		platform.Eventually(t, endpointTimeout, "the service to serve only the marker "+marker+" its args name",
 			func(context.Context) error {
 				if !p.Reaches(t, probe, "http://"+app+"/"+marker) {
 					return errors.New("the marker is not served")
 				}
+				if previous != "" && p.Reaches(t, probe, "http://"+app+"/"+previous) {
+					return errors.New("the previous marker is still served")
+				}
 				return nil
 			})
-		if previous != "" {
-			platform.Eventually(t, endpointTimeout, "the service to stop serving the previous marker "+previous,
-				func(context.Context) error {
-					if p.Reaches(t, probe, "http://"+app+"/"+previous) {
-						return errors.New("the previous marker is still served")
-					}
-					return nil
-				})
-		}
 		previous = marker
 	}
 }
