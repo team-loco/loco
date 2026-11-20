@@ -14704,6 +14704,18 @@
             ],
             "title": "reported_at"
           },
+          "statusSince": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "status_since",
+            "description": "When the region entered its current status. Unset until the first replica report."
+          },
           "replicas": {
             "type": "array",
             "items": {

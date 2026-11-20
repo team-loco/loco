@@ -165,7 +165,7 @@ test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 		region: "us-east-1",
 		status,
 		message: "",
-		reportedMs: undefined,
+		sinceMs: undefined,
 	});
 	const alerts = [
 		alert("r-a", ResourceStatus.DEPLOYING),

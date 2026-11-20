@@ -349,6 +349,8 @@ CREATE TABLE
         ready_replicas INT NOT NULL DEFAULT 0,
         problem_reason TEXT NOT NULL DEFAULT '',
         status_updated_at TIMESTAMPTZ,
+        region_status TEXT NOT NULL DEFAULT '',
+        region_status_since TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (resource_id, environment_id, cluster_id),

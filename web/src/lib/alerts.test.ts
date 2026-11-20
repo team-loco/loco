@@ -8,7 +8,7 @@ import { alertedResourceCount, buildAlerts } from "./alerts";
 
 const PROD = "env-prod";
 const STAGING = "env-staging";
-const REPORTED_MS = 1_700_000_000_000;
+const SINCE_MS = 1_700_000_000_000;
 
 const api = create(ResourceSchema, {
 	id: "r-api",
@@ -25,7 +25,7 @@ const api = create(ResourceSchema, {
 					region: "eu-west",
 					status: ResourceStatus.DEGRADED,
 					message: "back-off restarting failed container",
-					reportedAt: timestampFromMs(REPORTED_MS),
+					statusSince: timestampFromMs(SINCE_MS),
 				},
 				{ region: "ap-south", status: ResourceStatus.UNAVAILABLE },
 			],
@@ -61,7 +61,7 @@ describe("buildAlerts", () => {
 		expect(alerts.map((a) => a.key)).toEqual(["r-api/eu-west", "r-api/ap-south", "r-worker/us-east"]);
 	});
 
-	test("carries the region's message and report time", () => {
+	test("carries the region's message and the time its status began", () => {
 		const [first, second] = buildAlerts([api], PROD);
 		expect(first).toEqual({
 			key: "r-api/eu-west",
@@ -72,10 +72,10 @@ describe("buildAlerts", () => {
 			region: "eu-west",
 			status: ResourceStatus.DEGRADED,
 			message: "back-off restarting failed container",
-			reportedMs: REPORTED_MS,
+			sinceMs: SINCE_MS,
 		});
 		expect(second?.message).toBe("");
-		expect(second?.reportedMs).toBeUndefined();
+		expect(second?.sinceMs).toBeUndefined();
 	});
 
 	test("ignores other environments and resources without a status there", () => {

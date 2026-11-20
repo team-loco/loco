@@ -664,76 +664,97 @@ func (s *AgentServer) recordStatus(
 		if updateErr != nil {
 			return fmt.Errorf("update placement status: %w", updateErr)
 		}
-		if status.GetObservedRevision() == row.DesiredRevision {
-			reason := status.GetProblem().GetReason()
-			changed, changeErr := qtx.ChangePlacementProblemReason(ctx, genDb.ChangePlacementProblemReasonParams{
-				ID: placementID, Reason: reason,
-			})
-			if changeErr != nil {
-				return fmt.Errorf("change placement problem: %w", changeErr)
-			}
-			if changed > 0 {
-				message, _ := locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
-				kind := events.ResourceDegraded
-				if reason == "" {
-					kind = events.ResourceRecovered
-				}
-				if recordErr := events.Record(ctx, qtx, events.Event{
-					Type:          kind,
-					ActorType:     events.ActorSystem,
-					ResourceID:    &row.ResourceID,
-					EnvironmentID: &row.EnvironmentID,
-					DeploymentID:  row.DeploymentID,
-					SubjectType:   events.SubjectResource,
-					SubjectID:     &row.ResourceID,
-					Data: map[string]any{
-						events.FieldReason:      reason,
-						events.FieldMessage:     message,
-						events.FieldPlacementID: placementID.String(),
-						events.FieldRegion:      row.Region,
-					},
-				}); recordErr != nil {
-					return recordErr
-				}
-			}
+		if reportErr := s.applyPlacementReport(ctx, qtx, clusterID, placementID, status, row); reportErr != nil {
+			return reportErr
 		}
-
-		// Older agents report only current-revision rollout context.
-		if status.GetDeploymentId() == "" &&
-			(row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision) {
-			return nil
-		}
-		deployment, captureErr := capturePlacementRollout(ctx, qtx, clusterID, row, status)
-		if captureErr != nil {
-			return captureErr
-		}
-		if row.DeploymentID == nil || deployment.ID != *row.DeploymentID ||
-			status.GetObservedRevision() != row.DesiredRevision {
-			return nil
-		}
-		placement, getErr := qtx.GetDeploymentPlacement(ctx, genDb.GetDeploymentPlacementParams{
-			DeploymentID: deployment.ID, ClusterID: clusterID,
-		})
-		if getErr != nil {
-			return fmt.Errorf("read deployment placement: %w", getErr)
-		}
-		next := nextPlacementStatus(placement.Status, status)
-		if next != placement.Status {
-			if transitionErr := advancePlacementStatus(
-				ctx, qtx, deployment.ID, clusterID, next, placementStatusNames(placement.Status),
-				reportCause(status), s.config.ServiceDefaults,
-			); transitionErr != nil {
-				return transitionErr
-			}
-		}
-		if next == genDb.PlacementStatusRunning {
-			return supersedePlacements(ctx, qtx, deployment.ID, clusterID, true)
-		}
-		return nil
+		return recordRegionStatuses(
+			ctx,
+			qtx,
+			row.ResourceID,
+			s.config.ServiceDefaults,
+			ClusterSilentAfter(s.heartbeatInterval),
+		)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record placement status", "placement_id", placementID, "error", err)
 	}
+}
+
+// applyPlacementReport records the rollout a placement's report describes and advances the
+// placement's deployment.
+func (s *AgentServer) applyPlacementReport(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	clusterID, placementID uuid.UUID,
+	status *agentv1.PlacementStatus,
+	row genDb.UpdatePlacementStatusRow,
+) error {
+	if status.GetObservedRevision() == row.DesiredRevision {
+		reason := status.GetProblem().GetReason()
+		changed, changeErr := qtx.ChangePlacementProblemReason(ctx, genDb.ChangePlacementProblemReasonParams{
+			ID: placementID, Reason: reason,
+		})
+		if changeErr != nil {
+			return fmt.Errorf("change placement problem: %w", changeErr)
+		}
+		if changed > 0 {
+			message, _ := locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
+			kind := events.ResourceDegraded
+			if reason == "" {
+				kind = events.ResourceRecovered
+			}
+			if recordErr := events.Record(ctx, qtx, events.Event{
+				Type:          kind,
+				ActorType:     events.ActorSystem,
+				ResourceID:    &row.ResourceID,
+				EnvironmentID: &row.EnvironmentID,
+				DeploymentID:  row.DeploymentID,
+				SubjectType:   events.SubjectResource,
+				SubjectID:     &row.ResourceID,
+				Data: map[string]any{
+					events.FieldReason:      reason,
+					events.FieldMessage:     message,
+					events.FieldPlacementID: placementID.String(),
+					events.FieldRegion:      row.Region,
+				},
+			}); recordErr != nil {
+				return recordErr
+			}
+		}
+	}
+
+	// Older agents report only current-revision rollout context.
+	if status.GetDeploymentId() == "" &&
+		(row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision) {
+		return nil
+	}
+	deployment, captureErr := capturePlacementRollout(ctx, qtx, clusterID, row, status)
+	if captureErr != nil {
+		return captureErr
+	}
+	if row.DeploymentID == nil || deployment.ID != *row.DeploymentID ||
+		status.GetObservedRevision() != row.DesiredRevision {
+		return nil
+	}
+	placement, getErr := qtx.GetDeploymentPlacement(ctx, genDb.GetDeploymentPlacementParams{
+		DeploymentID: deployment.ID, ClusterID: clusterID,
+	})
+	if getErr != nil {
+		return fmt.Errorf("read deployment placement: %w", getErr)
+	}
+	next := nextPlacementStatus(placement.Status, status)
+	if next != placement.Status {
+		if transitionErr := advancePlacementStatus(
+			ctx, qtx, deployment.ID, clusterID, next, placementStatusNames(placement.Status),
+			reportCause(status), s.config.ServiceDefaults,
+		); transitionErr != nil {
+			return transitionErr
+		}
+	}
+	if next == genDb.PlacementStatusRunning {
+		return supersedePlacements(ctx, qtx, deployment.ID, clusterID, true)
+	}
+	return nil
 }
 
 // transitionCause is why a placement moved: the message events carry and, when the controller

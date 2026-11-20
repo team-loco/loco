@@ -207,3 +207,46 @@ func TestRedeployedRegionShowsNoReplicasUntilReported(t *testing.T) {
 	f.deployProduction(t, 1)
 	assertReplicas(t, f.region(t, f.envID, testRegion), nil)
 }
+
+func TestRegionStatusSinceMarksTheLastStatusChange(t *testing.T) {
+	t.Parallel()
+	f := newResourceStatusFixture(t)
+	f.deployProduction(t, statusTwoReplicas)
+	started := time.Now().Add(-time.Hour)
+	serving := func(name string) *deploymentv1.Replica { return servingReplica(name, "node-1", started) }
+
+	f.reportReplicas(t, f.resourceID, f.envID, f.clusterID, serving("svc-a"), serving("svc-b"))
+	healthy := f.region(t, f.envID, testRegion)
+	if healthy.GetStatus() != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY {
+		t.Fatalf("status = %s, want HEALTHY", healthy.GetStatus())
+	}
+	f.reportReplicas(t, f.resourceID, f.envID, f.clusterID, serving("svc-a"), serving("svc-b"))
+	again := f.region(t, f.envID, testRegion)
+	if !proto.Equal(again.GetStatusSince(), healthy.GetStatusSince()) {
+		t.Errorf("status_since moved from %v to %v while the status stayed healthy",
+			healthy.GetStatusSince(), again.GetStatusSince())
+	}
+
+	f.reportReplicas(t, f.resourceID, f.envID, f.clusterID, serving("svc-a"))
+	degraded := f.region(t, f.envID, testRegion)
+	if degraded.GetStatus() != resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED {
+		t.Fatalf("status = %s, want DEGRADED", degraded.GetStatus())
+	}
+	if !degraded.GetStatusSince().AsTime().After(healthy.GetStatusSince().AsTime()) {
+		t.Errorf("degraded since %v is not after healthy since %v", degraded.GetStatusSince(), healthy.GetStatusSince())
+	}
+}
+
+func TestSilentRegionStatusSinceIsTheLastHeartbeat(t *testing.T) {
+	t.Parallel()
+	f := newResourceStatusFixture(t)
+	f.deployProduction(t, 1)
+	f.reportReplicas(t, f.resourceID, f.envID, f.clusterID, servingReplica("svc-a", "node-1", time.Now()))
+
+	beat := time.Now().Add(-statusClusterSilent).UTC().Truncate(time.Millisecond)
+	f.heartbeat(t, f.clusterID, beat, clusterHealthHealthy)
+	got := f.region(t, f.envID, testRegion).GetStatusSince().AsTime()
+	if !got.Equal(beat) {
+		t.Errorf("silent region status_since = %v, want the last heartbeat %v", got, beat)
+	}
+}

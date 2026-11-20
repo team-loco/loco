@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -113,6 +114,9 @@ func regionStatus(
 	if silence := clusterSilence(row, now, staleAfter); silence != "" {
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN
 		region.Message = new(silence)
+		if row.LastHeartbeat != nil {
+			region.StatusSince = timestamppb.New(*row.LastHeartbeat)
+		}
 		return region, nil
 	}
 
@@ -134,7 +138,57 @@ func regionStatus(
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
 		region.Message = new(regionMessageDomainsUnserved + strings.Join(row.UnservedDomains, ", "))
 	}
+	region.StatusSince = statusSince(row, region.GetStatus())
 	return region, nil
+}
+
+// statusSince is when the region entered status: the time recordRegionStatuses stamped, or the
+// last report when the stamp belongs to another status.
+func statusSince(row genDb.ListRegionStatusesForResourcesRow, status resourcev1.ResourceStatus) *timestamppb.Timestamp {
+	since := row.StatusUpdatedAt
+	if row.StoredStatus == status.String() && row.RegionStatusSince != nil {
+		since = row.RegionStatusSince
+	}
+	if since == nil {
+		return nil
+	}
+	return timestamppb.New(*since)
+}
+
+// recordRegionStatuses stamps the time each region of a resource entered its current status.
+func recordRegionStatuses(
+	ctx context.Context,
+	q *genDb.Queries,
+	resourceID uuid.UUID,
+	defaults servicedefaults.Defaults,
+	staleAfter time.Duration,
+) error {
+	rows, err := q.ListRegionStatusesForResources(ctx, genDb.ListRegionStatusesForResourcesParams{
+		ResourceIds: []uuid.UUID{resourceID}, DefaultMaxRestarts: defaults.MaxRestarts,
+	})
+	if err != nil {
+		return fmt.Errorf("list region statuses: %w", err)
+	}
+	now := time.Now()
+	for _, row := range rows {
+		region, regionErr := regionStatus(row, now, staleAfter)
+		if regionErr != nil {
+			return fmt.Errorf("resource %s region %s: %w", row.ResourceID, row.Region, regionErr)
+		}
+		status := region.GetStatus().String()
+		if status == row.StoredStatus {
+			continue
+		}
+		if setErr := q.SetPlacementRegionStatus(ctx, genDb.SetPlacementRegionStatusParams{
+			ResourceID:    row.ResourceID,
+			EnvironmentID: row.EnvironmentID,
+			ClusterID:     row.ClusterID,
+			RegionStatus:  status,
+		}); setErr != nil {
+			return fmt.Errorf("set region status: %w", setErr)
+		}
+	}
+	return nil
 }
 
 func placementInFlight(status genDb.PlacementStatus) (bool, error) {
