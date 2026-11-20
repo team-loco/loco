@@ -51,7 +51,7 @@ func (q *Queries) CountOrgMembers(ctx context.Context, entityID uuid.UUID) (int6
 }
 
 const countOrgWorkspaces = `-- name: CountOrgWorkspaces :one
-SELECT COUNT(*) FROM workspaces WHERE org_id = $1
+SELECT COUNT(*) FROM workspaces x WHERE x.org_id = $1
 `
 
 func (q *Queries) CountOrgWorkspaces(ctx context.Context, orgID uuid.UUID) (int64, error) {
@@ -122,6 +122,25 @@ func (q *Queries) GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (Or
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const hasScopeInOrg = `-- name: HasScopeInOrg :one
+SELECT EXISTS (SELECT 1 FROM workspaces x WHERE x.org_id = $1 AND x.id = ANY($2::uuid[]))
+    OR EXISTS (SELECT 1 FROM resources r JOIN workspaces w ON w.id = r.workspace_id
+               WHERE w.org_id = $1 AND r.id = ANY($3::uuid[]))::bool AS held
+`
+
+type HasScopeInOrgParams struct {
+	OrganizationID uuid.UUID   `json:"organizationId"`
+	WorkspaceIds   []uuid.UUID `json:"workspaceIds"`
+	ResourceIds    []uuid.UUID `json:"resourceIds"`
+}
+
+func (q *Queries) HasScopeInOrg(ctx context.Context, arg HasScopeInOrgParams) (*bool, error) {
+	row := q.db.QueryRow(ctx, hasScopeInOrg, arg.OrganizationID, arg.WorkspaceIds, arg.ResourceIds)
+	var held *bool
+	err := row.Scan(&held)
+	return held, err
 }
 
 const lockOrgForCreate = `-- name: LockOrgForCreate :one

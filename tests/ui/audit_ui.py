@@ -11,6 +11,7 @@ from harness import (
     open_page as new_page,
     repo,
     session,
+    sql,
 )
 from playwright.sync_api import expect
 
@@ -586,6 +587,18 @@ with session(out) as browser:
     ), first
     assert not errors, errors
     context.close()
+
+    # A workspace admin reads the organization's limits that apply to their workspace.
+    sql(
+        state,
+        f"INSERT INTO org_limit_overrides(org_id, resources_per_workspace, reason) VALUES('{org}', 1, 'fixture');",
+    )
+    context, page, calls, errors = open_page(
+        browser, "workspace_admin", f"/org/{org}/wks/{shared}"
+    )
+    expect(page.get_by_text("Workspace limit reached", exact=True)).to_be_visible()
+    context.close()
+    sql(state, f"DELETE FROM org_limit_overrides WHERE org_id='{org}';")
 
     # Members see no entry, and the page itself says only admins can read it.
     context, page, calls, errors = open_page(

@@ -73,7 +73,7 @@ SELECT pg_advisory_xact_lock(hashtextextended(sqlc.arg(entity_id)::uuid::text, 0
 SELECT COUNT(*) FROM organizations WHERE created_by = $1;
 
 -- name: CountOrgWorkspaces :one
-SELECT COUNT(*) FROM workspaces WHERE org_id = $1;
+SELECT COUNT(*) FROM workspaces x WHERE x.org_id = $1;
 
 -- name: CountOrgMembers :one
 SELECT COUNT(DISTINCT user_id) FROM user_scopes WHERE entity_type = 'organization' AND entity_id = $1;
@@ -90,3 +90,8 @@ SELECT COUNT(*) FROM resources WHERE workspace_id = $1;
 
 -- name: CountEntityAPITokens :one
 SELECT COUNT(*) FROM api_tokens WHERE entity_type = $1 AND entity_id = $2 AND expires_at > NOW();
+
+-- name: HasScopeInOrg :one
+SELECT EXISTS (SELECT 1 FROM workspaces x WHERE x.org_id = sqlc.arg('organization_id') AND x.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
+    OR EXISTS (SELECT 1 FROM resources r JOIN workspaces w ON w.id = r.workspace_id
+               WHERE w.org_id = sqlc.arg('organization_id') AND r.id = ANY(sqlc.arg('resource_ids')::uuid[]))::bool AS held;
