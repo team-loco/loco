@@ -304,10 +304,12 @@ def resources_table(page):
 
 
 def show_all_columns(page, table):
-    # A pointer click where the button is, so the test itself never scrolls the table.
-    box = table.get_by_role("button", name="Columns", exact=True).bounding_box()
-    page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
-    expect(page.get_by_role("menuitemcheckbox", name="Created")).to_be_visible()
+    button = table.get_by_role("button", name="Columns", exact=True)
+    created = page.get_by_role("menuitemcheckbox", name="Created")
+    # Focus without scrolling and open with Enter, so the test itself never moves the table.
+    button.evaluate("node => node.focus({ preventScroll: true })")
+    page.keyboard.press("Enter")
+    expect(created).to_be_visible()
     for item in page.get_by_role("menuitemcheckbox").all():
         if item.get_attribute("aria-checked") != "true":
             item.click()
