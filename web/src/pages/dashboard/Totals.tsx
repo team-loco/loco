@@ -21,6 +21,7 @@ import { Link } from "react-router";
 import { NavArrow } from "@/components/design/NavArrow";
 import { Skeleton } from "@/components/design/Skeleton";
 import { DeployMarkers } from "@/components/design/DeployMarkers";
+import { SoonTag } from "@/components/design/SoonTag";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deployMarkers } from "@/lib/deployMarkers";
@@ -34,6 +35,7 @@ import type { Allocation } from "./allocation";
 import { trafficResourceName } from "./trafficNames";
 import { useDeletedResourceNames } from "./useDeletedResourceNames";
 
+const SPEND = "Spend";
 const TOP = 5;
 const CARD_BUCKETS = 12;
 const PERCENT = 100;
@@ -53,6 +55,19 @@ function CardHead({ label, children }: { label: string; children?: ReactNode }) 
 			{label}
 			{children}
 		</span>
+	);
+}
+
+function SoonCard({ label }: { label: string }) {
+	return (
+		<div role="group" className={cn(CARD, "text-fg4")} aria-label={`${label}: not available yet`}>
+			<CardHead label={label}>
+				<SoonTag />
+			</CardHead>
+			<span data-slot="stat-value" className={VALUE} aria-hidden="true">
+				—
+			</span>
+		</div>
 	);
 }
 
@@ -445,6 +460,7 @@ export function Totals({
 						nowMs={nowMs}
 					/>
 				))}
+				<SoonCard label={SPEND} />
 				<AllocatedCard value={value} hrefFor={hrefFor} />
 			</section>
 			{traffic.error !== null && (

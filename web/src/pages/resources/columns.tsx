@@ -8,6 +8,7 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { CellText, DataTableColumnsMenu, type DataColumn } from "@/components/design/DataTable";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
+import { SoonTag } from "@/components/design/SoonTag";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { type Glyph, StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -233,6 +234,16 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			maxSize: 140,
 			meta: { fit: true, defaultHidden: true },
 			cell: ({ row }) => <Mono text={replicasLabel(row.original)} />,
+		},
+		{
+			id: "cost",
+			header: "Est. cost",
+			size: 90,
+			minSize: 72,
+			maxSize: 110,
+			enableSorting: false,
+			meta: { fit: true },
+			cell: () => <SoonTag />,
 		},
 		{
 			id: "address",

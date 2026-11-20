@@ -1,6 +1,9 @@
+import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 
 import { METRIC_RANGES, type MetricRange } from "./metric";
+
+const UNSUPPORTED_RANGE = "7d";
 
 export function RangeToggle({ range, onRange }: { range: MetricRange; onRange: (range: MetricRange) => void }) {
 	return (
@@ -20,6 +23,10 @@ export function RangeToggle({ range, onRange }: { range: MetricRange; onRange: (
 						{r}
 					</ToggleGroupItem>
 				))}
+				<ToggleGroupItem value={UNSUPPORTED_RANGE} disabled>
+					{UNSUPPORTED_RANGE}
+					<SoonTag />
+				</ToggleGroupItem>
 			</ToggleGroup>
 		</div>
 	);

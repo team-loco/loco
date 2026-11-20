@@ -1267,6 +1267,7 @@ def dashboard(page):
             )
             == colors
         )
+        expect(page.get_by_label("Spend: not available yet")).to_contain_text("soon")
         links = allocated.get_by_role("link")
         expect(totals.locator('[data-slot="nav-arrow"]')).to_have_count(
             totals.get_by_role("link").count()
@@ -1845,6 +1846,24 @@ def metrics(page):
     expect(
         by_region.get_by_role("row").filter(has_text="Controls Pilot")
     ).to_contain_text("0.175 vCPU 35%")
+    viewport = page.viewport_size
+    page.set_viewport_size({"width": 1280, "height": viewport["height"]})
+    region_cell = (
+        by_region.get_by_role("row")
+        .filter(has_text="Controls Pilot")
+        .get_by_role("cell")
+        .nth(1)
+    )
+    expect(region_cell).to_have_text("us-east-1")
+    text_lines = region_cell.evaluate(
+        """node => {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            return new Set([...range.getClientRects()].map(r => Math.round(r.top))).size;
+        }"""
+    )
+    assert text_lines == 1, text_lines
+    page.set_viewport_size(viewport)
     expect(
         by_region.get_by_role("columnheader", name="CPU (latest) ↓")
     ).to_have_attribute("aria-sort", "descending")
@@ -1946,6 +1965,7 @@ with session(out) as browser:
             }""")
     expect(personal).to_have_attribute("aria-pressed", "true")
     page.wait_for_function("() => window.indicatorSampleDone")
+    expect(indicator).to_be_visible()
     assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
     positions = page.evaluate("window.indicatorPositions")
     start = workspace_button.bounding_box()["x"]
@@ -1958,6 +1978,8 @@ with session(out) as browser:
     expect(workspace_button).to_have_attribute("aria-pressed", "true")
     page.emulate_media(reduced_motion="reduce")
     personal.click()
+    expect(personal).to_have_attribute("aria-pressed", "true")
+    expect(personal.locator('[data-slot="segmented-indicator"]')).to_be_visible()
     expect(indicator).to_have_css("transform", "none")
     assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
     assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"

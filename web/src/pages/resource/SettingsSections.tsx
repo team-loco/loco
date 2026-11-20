@@ -8,6 +8,7 @@ import { Input } from "@/components/design/Input";
 import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
+import { SoonTag } from "@/components/design/SoonTag";
 import { Switch } from "@/components/design/Switch";
 import { joinImage, parseImage, splitImage } from "@/lib/image";
 import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
@@ -229,6 +230,10 @@ export function SizeSection({
 						}}
 					/>
 				</Field>
+				<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
+					Cost per replica
+					<SoonTag />
+				</span>
 			</div>
 		</SettingsBlock>
 	);
