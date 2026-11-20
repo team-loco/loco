@@ -75,6 +75,7 @@ type plannedFile struct {
 	live            liveEnvironment
 	platformDomains []string
 	images          map[string]string
+	savedSecrets    []*planv1.SavedSecret
 	plan            configplan.Plan
 }
 
@@ -100,10 +101,11 @@ func (s *PlanServer) Plan(
 		return nil, err
 	}
 	return &planv1.PlanResponse{
-		Revision:   planned.env.Revision,
-		Operations: planOperationsToProto(planned.plan.Operations),
-		Errors:     planErrorsToProto(planned.plan.Errors),
-		Images:     planned.images,
+		Revision:     planned.env.Revision,
+		Operations:   planOperationsToProto(planned.plan.Operations),
+		Errors:       planErrorsToProto(planned.plan.Errors),
+		Images:       planned.images,
+		SavedSecrets: planned.savedSecrets,
 	}, nil
 }
 
@@ -182,8 +184,24 @@ func (s *PlanServer) loadPlan(
 		live:            live,
 		platformDomains: platformdomain.Served(targets),
 		images:          pinnedImages(images),
+		savedSecrets:    savedSecrets(services, secrets),
 		plan:            plan,
 	}, nil
+}
+
+// savedSecrets lists the secrets each service of the file holds, marking those the file declares.
+func savedSecrets(services map[string]locofile.Service, secrets map[string]map[string]int64) []*planv1.SavedSecret {
+	var saved []*planv1.SavedSecret
+	for _, service := range slices.Sorted(maps.Keys(services)) {
+		for _, name := range slices.Sorted(maps.Keys(secrets[service])) {
+			saved = append(saved, &planv1.SavedSecret{
+				Service:  service,
+				Name:     name,
+				Declared: slices.Contains(services[service].Secrets, name),
+			})
+		}
+	}
+	return saved
 }
 
 // nameErrors reports each service the plan creates whose name is reserved.

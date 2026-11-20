@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -412,6 +413,19 @@ func TestASecretRemovedFromTheFileLeavesTheNextDeploymentButStaysStored(t *testi
 		t.Fatalf("Apply with %s: %v", stripeName, err)
 	}
 	f.finishRollouts(t)
+
+	planned, err := plan(t, f, removed, f.workspaceReadScopes(t))
+	if err != nil {
+		t.Fatalf("Plan without %s: %v", stripeName, err)
+	}
+	saved := make([]string, 0, len(planned.GetSavedSecrets()))
+	for _, secret := range planned.GetSavedSecrets() {
+		saved = append(saved, fmt.Sprintf("%s %s %t", secret.GetService(), secret.GetName(), secret.GetDeclared()))
+	}
+	wantSaved := []string{applyWorker + " " + sessionKeyName + " true", applyWorker + " " + stripeName + " false"}
+	if !slices.Equal(saved, wantSaved) {
+		t.Fatalf("saved secrets = %v, want %v", saved, wantSaved)
+	}
 
 	resp, err := applyFile(t, f, removed, applyOptions{revision: f.revision(t, f.envID)}, f.applyScopes(t))
 	if err != nil {

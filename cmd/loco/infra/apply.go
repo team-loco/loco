@@ -146,7 +146,10 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	if writeErr := writeApplied(os.Stdout, applied); writeErr != nil || !wait {
+	if writeErr := writeApplied(os.Stdout, applied); writeErr != nil {
+		return writeErr
+	}
+	if writeErr := writeSavedSecrets(os.Stdout, plan.GetSavedSecrets()); writeErr != nil || !wait {
 		return writeErr
 	}
 	return waitRunning(ctx, t, os.Stdout, applied.GetDeployments())

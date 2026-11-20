@@ -270,3 +270,5 @@ loco env set --service web --env production STRIPE_API_KEY=sk_live_...
 ```
 
 The plan reports each listed name the service does not hold in the environment as an error. A value can only be set on a service that exists, so when a new service's only plan errors are its secrets, `loco deploy` and `loco infra apply` create it without building or deploying it, print the `loco env set` command for its secrets, and exit with an error. Run the command again once the values are set.
+
+A deployment receives only the secrets the file lists. `loco infra plan`, `loco infra apply` and `loco deploy` print every secret the file's services hold in the environment: a listed one as `in use`, and one the file does not list as `Saved. To use this key, add STRIPE_API_KEY to services.web.secrets and redeploy.` Removing a name from `secrets` stops the next deployment from receiving it and keeps the stored value.
