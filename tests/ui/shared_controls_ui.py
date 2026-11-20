@@ -1267,6 +1267,7 @@ def dashboard(page):
             )
             == colors
         )
+        expect(page.get_by_label("Spend: not available yet")).to_contain_text("soon")
         links = allocated.get_by_role("link")
         expect(totals.locator('[data-slot="nav-arrow"]')).to_have_count(
             totals.get_by_role("link").count()

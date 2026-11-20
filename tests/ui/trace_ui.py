@@ -1350,6 +1350,14 @@ with session(out) as browser:
     expect(
         infrastructure.get_by_text(re.compile("Up .* when this ran"))
     ).to_be_visible()
+    expect(
+        infrastructure.get_by_role(
+            "region", name="Events on checkout-abc-123", exact=True
+        )
+    ).to_be_visible()
+    expect(
+        infrastructure.get_by_role("button", name=re.compile("Replica events"))
+    ).to_be_disabled()
     cpu = infrastructure.get_by_role(
         "region", name="CPU for checkout-abc-123", exact=True
     )
@@ -1431,6 +1439,11 @@ with session(out) as browser:
     drawer.get_by_role("region", name="Flame graph").get_by_role(
         "button", name=re.compile("^product-catalog GetProduct")
     ).click()
+    expect(
+        infrastructure.get_by_role(
+            "region", name="Events on catalog-def-456", exact=True
+        )
+    ).to_be_visible()
     expect(window.get_by_role("button", name="±1h", exact=True)).to_have_attribute(
         "aria-pressed", "true"
     )

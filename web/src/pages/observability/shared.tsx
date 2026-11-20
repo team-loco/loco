@@ -3,6 +3,7 @@ import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, XI
 
 import { HistogramSlider } from "@/components/design/Slider";
 import { Button } from "@/components/design/Button";
+import { SoonTag } from "@/components/design/SoonTag";
 import { cn } from "@/lib/utils";
 
 export function Dot({ className, color, size = 7 }: { className?: string; color?: string; size?: number }) {
@@ -151,13 +152,15 @@ export function JumpButton({
 	label,
 	hint,
 	onClick,
+	soon,
 }: {
 	icon: ReactNode;
 	label: ReactNode;
 	hint?: ReactNode;
 	onClick?: (() => void) | undefined;
+	soon?: boolean;
 }) {
-	const disabled = onClick === undefined;
+	const disabled = soon === true || onClick === undefined;
 	return (
 		<button
 			type="button"
@@ -170,6 +173,7 @@ export function JumpButton({
 		>
 			<span className={cn("flex [&_svg]:size-[15px]", disabled ? "text-fg4" : "text-fg3")}>{icon}</span>
 			<span className="min-w-0 flex-1 truncate">{label}</span>
+			{soon === true && <SoonTag />}
 			{hint !== undefined && <span className="text-sm whitespace-nowrap text-fg3">{hint}</span>}
 			<ArrowRightIcon className="size-3.5 text-fg4" />
 		</button>
