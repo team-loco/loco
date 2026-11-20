@@ -213,8 +213,10 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if writeErr := writeApplied(os.Stdout, applied); writeErr != nil {
 		return writeErr
 	}
-	if writeErr := writeSavedSecrets(os.Stdout, plan.GetSavedSecrets()); writeErr != nil {
-		return writeErr
+	if !quickDeploy {
+		if writeErr := writeSavedSecrets(os.Stdout, plan.GetSavedSecrets()); writeErr != nil {
+			return writeErr
+		}
 	}
 	if reachErr := writeReachability(os.Stdout, services); reachErr != nil || !wait {
 		return reachErr
