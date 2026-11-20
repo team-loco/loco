@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -401,5 +404,73 @@ func TestSummarizeRegionsRejectsEmptyAndUnset(t *testing.T) {
 	unset := []*resourcev1.RegionStatus{{Region: testRegion}}
 	if _, err := summarizeRegions(unset); !errors.Is(err, errRegionStatusUnset) {
 		t.Errorf("unset region: err = %v, want %v", err, errRegionStatusUnset)
+	}
+}
+
+func TestEnvironmentSince(t *testing.T) {
+	t.Parallel()
+	healthy := resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
+	degraded := resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
+	unavailable := resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
+	deploying := resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING
+	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	at := func(minutes int) *timestamppb.Timestamp {
+		return timestamppb.New(base.Add(time.Duration(minutes) * time.Minute))
+	}
+
+	tests := []struct {
+		name    string
+		regions []*resourcev1.RegionStatus
+		status  resourcev1.ResourceStatus
+		want    *timestamppb.Timestamp
+	}{
+		{
+			name: "degraded since the first failing region",
+			regions: []*resourcev1.RegionStatus{
+				{Status: degraded, StatusSince: at(5)},
+				{Status: unavailable, StatusSince: at(2)},
+			},
+			status: degraded,
+			want:   at(2),
+		},
+		{
+			name: "one failing region among healthy ones",
+			regions: []*resourcev1.RegionStatus{
+				{Status: healthy, StatusSince: at(1)},
+				{Status: unavailable, StatusSince: at(7)},
+			},
+			status: degraded,
+			want:   at(7),
+		},
+		{
+			name: "healthy since the last region became healthy",
+			regions: []*resourcev1.RegionStatus{
+				{Status: healthy, StatusSince: at(3)},
+				{Status: healthy, StatusSince: at(9)},
+			},
+			status: healthy,
+			want:   at(9),
+		},
+		{
+			name: "deploying ignores the healthy region",
+			regions: []*resourcev1.RegionStatus{
+				{Status: healthy, StatusSince: at(1)},
+				{Status: deploying, StatusSince: at(4)},
+			},
+			status: deploying,
+			want:   at(4),
+		},
+		{
+			name:    "no region reported",
+			regions: []*resourcev1.RegionStatus{{Status: healthy}},
+			status:  healthy, want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := environmentSince(tt.regions, tt.status); !proto.Equal(got, tt.want) {
+				t.Errorf("environmentSince = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

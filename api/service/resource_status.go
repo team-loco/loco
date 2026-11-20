@@ -76,6 +76,7 @@ func (s *ResourceServer) environmentStatuses(
 				return nil, summaryErr
 			}
 			environment.Status = status
+			environment.StatusSince = environmentSince(environment.GetRegions(), status)
 		}
 	}
 	return statuses, nil
@@ -267,4 +268,29 @@ func summarizeRegions(regions []*resourcev1.RegionStatus) (resourcev1.ResourceSt
 	default:
 		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING, nil
 	}
+}
+
+// environmentSince is when the environment entered status: the earliest time a region entered a
+// failing status, or the latest time a region entered a healthy or deploying one.
+func environmentSince(regions []*resourcev1.RegionStatus, status resourcev1.ResourceStatus) *timestamppb.Timestamp {
+	failing := status == resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED ||
+		status == resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE ||
+		status == resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN
+	var since *timestamppb.Timestamp
+	for _, region := range regions {
+		regionStatus := region.GetStatus()
+		regionFailing := regionStatus == resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED ||
+			regionStatus == resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
+		contributes := regionStatus == status ||
+			failing && regionFailing && status == resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
+		at := region.GetStatusSince()
+		if !contributes || at == nil {
+			continue
+		}
+		if since == nil || failing && at.AsTime().Before(since.AsTime()) ||
+			!failing && at.AsTime().After(since.AsTime()) {
+			since = at
+		}
+	}
+	return since
 }

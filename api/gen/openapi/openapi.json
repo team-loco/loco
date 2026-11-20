@@ -14449,6 +14449,18 @@
               "$ref": "#/components/schemas/loco.resource.v1.RegionStatus"
             },
             "title": "regions"
+          },
+          "statusSince": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "status_since",
+            "description": "When the environment entered its current status: the earliest time a region entered a failing\n status, or the latest time a region entered a healthy or deploying one. Unset when no region\n has reported yet."
           }
         },
         "title": "EnvironmentStatus",

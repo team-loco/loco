@@ -235,6 +235,13 @@ func TestRegionStatusSinceMarksTheLastStatusChange(t *testing.T) {
 	if !degraded.GetStatusSince().AsTime().After(healthy.GetStatusSince().AsTime()) {
 		t.Errorf("degraded since %v is not after healthy since %v", degraded.GetStatusSince(), healthy.GetStatusSince())
 	}
+	if environment := f.environment(t, f.envID); !proto.Equal(environment.GetStatusSince(), degraded.GetStatusSince()) {
+		t.Errorf(
+			"environment status_since = %v, want the region's %v",
+			environment.GetStatusSince(),
+			degraded.GetStatusSince(),
+		)
+	}
 }
 
 func TestSilentRegionStatusSinceIsTheLastHeartbeat(t *testing.T) {

@@ -4,6 +4,7 @@ fakeapi replicas web
 env NO_COLOR=1
 
 exec loco resource status web
+stdout 'since 2h ago'
 stdout 'us-east-1 replicas'
 stdout 'REPLICA\s+STATE\s+RESTARTS\s+LAST EXIT\s+AGE\s+NODE'
 stdout 'web-7d9f-a1\s+Serving\s+0\s+—\s+3h\s+node-1'
