@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
 import { DeploymentPlacementSchema, DeploymentSchema, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { referenceKey, regionsWithDifferentVariables, resolveReferences, variableNameProblem } from "./variables";
+import { referenceKey, regionsWithDifferentVariables, resolveReferences } from "./variables";
 
 function running(region: string, env: Record<string, string>) {
 	const current: Deployment = create(DeploymentSchema, {
@@ -22,15 +22,6 @@ describe("regionsWithDifferentVariables", () => {
 	test("names none when every region runs the same variables", () => {
 		const regions = [running("us-east-1", { A: "1", B: "2" }), running("eu-west-1", { B: "2", A: "1" })];
 		expect(regionsWithDifferentVariables(regions)).toEqual([]);
-	});
-});
-
-describe("variableNameProblem", () => {
-	const taken = new Set(["LOG_LEVEL"]);
-	test("accepts any environment name that is not taken", () => {
-		expect(variableNameProblem("featureFlags", taken)).toBeUndefined();
-		expect(variableNameProblem("LOG_LEVEL", taken)).toBe("LOG_LEVEL is already a variable.");
-		expect(variableNameProblem("1X", taken)).toBe("Use letters, digits and underscores, not starting with a digit.");
 	});
 });
 

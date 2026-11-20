@@ -4,17 +4,8 @@ import { getResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_c
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
-import { isEnvKey } from "@/lib/dotenv";
 
 import { isDeployed, type RegionView } from "./model";
-
-/** Why name cannot be added as a new variable, given the names already in use. */
-export function variableNameProblem(name: string, taken: ReadonlySet<string>): string | undefined {
-	if (name === "") return "Enter a name.";
-	if (!isEnvKey(name)) return "Use letters, digits and underscores, not starting with a digit.";
-	if (taken.has(name)) return `${name} is already a variable.`;
-	return undefined;
-}
 
 function variablesKey(deployment: Deployment): string {
 	const env = Object.entries(getServiceSpec(deployment)?.env ?? {}).toSorted(([a], [b]) => a.localeCompare(b));

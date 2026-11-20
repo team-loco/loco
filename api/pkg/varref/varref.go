@@ -70,12 +70,11 @@ func (r Ref) String() string {
 // Parse returns the references in value in order.
 func Parse(value string) ([]Ref, error) {
 	var refs []Ref
-	for _, match := range refPattern.FindAllStringSubmatch(value, -1) {
-		parts := refInner.FindStringSubmatch(match[1])
-		if parts == nil {
-			return nil, ErrMalformed.Detail("%s", match[0])
-		}
-		refs = append(refs, Ref{Source: parts[1], Key: parts[2]})
+	if _, err := Render(value, func(ref Ref) (string, error) {
+		refs = append(refs, ref)
+		return "", nil
+	}); err != nil {
+		return nil, err
 	}
 	return refs, nil
 }
@@ -151,9 +150,21 @@ type Resolved struct {
 	Resources []string
 }
 
-// SecretNames lists the secrets the resolved variables read, sorted.
-func (r Resolved) SecretNames() []string {
-	return SecretNames(r.Secret)
+// ReferencedResources lists the resources a set of variables refers to, sorted.
+func ReferencedResources(env map[string]string) []string {
+	seen := map[string]bool{}
+	for _, value := range env {
+		refs, err := Parse(value)
+		if err != nil {
+			continue
+		}
+		for _, ref := range refs {
+			if !ref.IsSecret() {
+				seen[ref.Source] = true
+			}
+		}
+	}
+	return slices.Sorted(maps.Keys(seen))
 }
 
 // SecretNames lists the secrets a set of secret-bearing variables reads, sorted.
@@ -215,17 +226,8 @@ func (e Environment) Resolve(self string, target Target, env map[string]string) 
 	r := &resolver{env: Environment{Secrets: e.Secrets, Resources: resources}, done: map[node]string{}}
 
 	resolved := Resolved{Plain: map[string]string{}, Secret: map[string]string{}}
-	direct := map[string]bool{}
 	var errs []error
 	for _, name := range slices.Sorted(maps.Keys(env)) {
-		refs, err := Parse(env[name])
-		if err == nil {
-			for _, ref := range refs {
-				if !ref.IsSecret() && ref.Source != self {
-					direct[ref.Source] = true
-				}
-			}
-		}
 		r.name = name
 		value, err := r.variable(node{resource: self, key: name})
 		if err != nil {
@@ -241,7 +243,7 @@ func (e Environment) Resolve(self string, target Target, env map[string]string) 
 	if len(errs) > 0 {
 		return Resolved{}, errors.Join(errs...)
 	}
-	resolved.Resources = slices.Sorted(maps.Keys(direct))
+	resolved.Resources = slices.DeleteFunc(ReferencedResources(env), func(name string) bool { return name == self })
 	return resolved, nil
 }
 
