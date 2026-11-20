@@ -31,13 +31,9 @@
 	--nb-grid: #80808080;
 	--lv-info: #88aaee;
 	--lv-warn: #ffc800;
-	--list-zebra: #fff8fa;
 	--chart-error: #ff4d50;
 	--nb-hover: rgba(0, 0, 0, 0.05);
 	--row-hover: var(--nb-hover);
-	--list-hover: var(--nb-hover);
-	--list-selected: var(--tint);
-	--list-ring: var(--ink);
 	--tint: #fde4e6;
 	--pop-shadow: 4px 4px 0 0 var(--ink);
 	--overlay-shadow: 4px 4px 0 0 var(--ink);
@@ -94,7 +90,6 @@
 	--series-2: #2fd39f;
 	--series-3: #ff9f43;
 	--lv-warn: #ffd23f;
-	--list-zebra: #2c2f3e;
 }
 
 [data-theme="neobrutal"] {
@@ -588,10 +583,6 @@
 		scale: 1;
 		box-shadow: 1px 1px 0 var(--ink);
 	}
-}
-
-[data-theme="neobrutal"] .list-row[aria-pressed="true"] {
-	box-shadow: inset 0 0 0 2px var(--ink);
 }
 
 [data-theme="neobrutal"] [data-slot="legend-swatch"] {

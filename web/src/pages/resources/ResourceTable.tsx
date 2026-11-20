@@ -158,6 +158,7 @@ export function ResourceTable({
 					table={table}
 					label="Resources"
 					onRowClick={(row) => void navigate(rowPath(row.original, orgId, workspaceId, locationSearch))}
+					rowAction="navigate"
 					className="[--row-h:62px]"
 					empty={
 						<EmptyState

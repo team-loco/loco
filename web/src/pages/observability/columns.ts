@@ -51,7 +51,7 @@ const WIDTHS: Record<string, number> = {
 };
 const ATTRIBUTE_WIDTH = 190;
 export const MIN_COLUMN_WIDTH = 56;
-const MAX_COLUMN_WIDTH = 640;
+export const MAX_COLUMN_WIDTH = 640;
 const TRACE_PREFIX = 12;
 
 export const columnsParser = createParser<ColumnKey[]>({
