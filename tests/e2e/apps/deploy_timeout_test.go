@@ -70,7 +70,7 @@ func TestATimedOutDeployKeepsThePreviousVersionServing(t *testing.T) {
 	})
 	crashing := withImage(file.Services[app], p.CrashingImage)
 	crashing.Env = map[string]string{versionModeKey: "crashing"}
-	crashing.Deploy = &locofile.Deploy{Timeout: new(int32(locofile.MinDeployTimeout))}
+	crashing.Deploy = &locofile.Deploy{Restart: locofile.RestartAlways, Timeout: new(int32(locofile.MinDeployTimeout))}
 	file.Services[app] = crashing
 	platform.WriteLocoFile(t, dir, file)
 	result := w.Loco(t.Context(), dir, nil, "deploy", "--yes", "--wait")

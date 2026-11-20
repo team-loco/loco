@@ -72,7 +72,7 @@ function region(name: string, current: Deployment | undefined): RegionView {
 
 const POLICY = create(FailurePolicySchema, {
 	restartPolicy: RestartPolicy.ON_FAILURE,
-	maxRestarts: 10,
+	maxRestarts: 2,
 	deployTimeoutSeconds: 600,
 });
 const defaults = create(DefaultServiceConfigSchema, {
@@ -115,7 +115,7 @@ function plan(draft: SettingsDraft) {
 
 describe("planSave", () => {
 	test("failure policy changes update the service without planning deployments", () => {
-		expect([base.restartPolicy, base.maxRestarts, base.deployTimeout]).toEqual(["on-failure", "10", "600"]);
+		expect([base.restartPolicy, base.maxRestarts, base.deployTimeout]).toEqual(["on-failure", "2", "600"]);
 		expect(changeCount({ restartPolicy: "never" }, base)).toBe(1);
 		expect(changeCount({ restartPolicy: "never", maxRestarts: "3" }, base)).toBe(1);
 		expect(changeCount({ maxRestarts: "3", deployTimeout: "300" }, base)).toBe(2);
@@ -137,7 +137,7 @@ describe("planSave", () => {
 		const alwaysBase = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, always);
 		expect([alwaysBase.restartPolicy, alwaysBase.maxRestarts, alwaysBase.deployTimeout]).toEqual([
 			"always",
-			"10",
+			"2",
 			"120",
 		]);
 		expect(changeCount({ restartPolicy: "on-failure" }, alwaysBase)).toBe(1);

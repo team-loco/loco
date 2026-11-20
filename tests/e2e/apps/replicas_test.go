@@ -60,7 +60,9 @@ func TestReplicas(t *testing.T) {
 		return nil
 	})
 
-	file.Services[app] = withImage(file.Services[app], p.CrashingImage)
+	crashing := withImage(file.Services[app], p.CrashingImage)
+	crashing.Deploy = &locofile.Deploy{Restart: locofile.RestartAlways}
+	file.Services[app] = crashing
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "deploy", "--yes")
 	// The crashing image runs `sh -c 'sleep 5; exit 1'`, which the kubelet records as Error.

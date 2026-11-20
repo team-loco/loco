@@ -87,7 +87,7 @@ const (
 	defaultApplyAttempts      = 2
 	maxApplyAttempts          = 10
 	defaultApplyRetryDelay    = int32(5 * time.Minute / time.Second)
-	defaultMaxRestarts        = 10
+	defaultMaxRestarts        = 2
 	defaultDeployTimeout      = int32(10 * time.Minute / time.Second)
 	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
 
