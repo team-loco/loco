@@ -45,10 +45,6 @@ export interface Notice {
 	message: string;
 }
 
-export function startedMs(dep: Deployment): number | undefined {
-	return maybeTsMs(dep.startedAt) ?? maybeTsMs(dep.createdAt);
-}
-
 function depService(dep: Deployment | undefined): ServiceDeploymentSpec | undefined {
 	return dep === undefined ? undefined : getServiceSpec(dep);
 }

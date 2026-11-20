@@ -201,6 +201,7 @@ def fixture():
         rows.append(
             f"INSERT INTO builds (origin_environment_id, platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('{production}', 'linux/amd64', '{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});"
         )
+    rows.append(f"UPDATE deployments SET started_at=NULL WHERE id='{release_ids[3]}';")
     rows.append(
         f"UPDATE deployments SET commit_sha='{'7c41e9a'.ljust(40, '0')}', commit_dirty=true WHERE id='{release_ids[0]}';"
     )
@@ -351,6 +352,11 @@ with session(out) as browser:
         assert (
             download.value.suggested_filename == f"deployment-{deployment_id[-8:]}.yaml"
         )
+    picker.click()
+    expect(
+        page.get_by_role("menuitemradio", name=re.compile(data["releases"][3][-8:]))
+    ).to_have_text(re.compile(r"· —\s*$"))
+    page.keyboard.press("Escape")
     page.keyboard.press("Escape")
     section.get_by_role(
         "button",

@@ -27,6 +27,9 @@ SELECT '{resource}', id, '{domain}', 'platform_provided', '{name}', 'apps.exampl
 FROM environments WHERE workspace_id='{workspace}' AND name='production';""",
 )
 
+display_name = "Public Shop"
+sql(state, f"UPDATE resources SET display_name='{display_name}' WHERE id='{resource}';")
+
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     removals = []
@@ -46,7 +49,7 @@ with session(out) as browser:
     switch.click()
     save = page.get_by_role("button", name="Save & redeploy", exact=True)
     save.click()
-    dialog = page.get_by_role("alertdialog", name=f"Make {name} internal?")
+    dialog = page.get_by_role("alertdialog", name=f"Make {display_name} internal?")
     expect(dialog).to_contain_text(domain)
     assert removals == [], removals
     dialog.get_by_role("button", name="Cancel", exact=True).click()

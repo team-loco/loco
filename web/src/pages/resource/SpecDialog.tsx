@@ -1,5 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { formatStarted, type TimePreferences } from "@/lib/time";
+import { formatStarted, readyMs, type TimePreferences } from "@/lib/time";
 import type { CSSProperties } from "react";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
@@ -19,7 +19,7 @@ import { useCopy } from "@/hooks/useCopy";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
-import { depTag, startedMs } from "./model";
+import { depTag } from "./model";
 import { diffLines, sideBySide, specText } from "./spec";
 
 const COPIED_MS = 1500;
@@ -30,7 +30,7 @@ function optionLabel(dep: Deployment, pref: TimePreferences): string {
 		formatShortId(dep.id),
 		deploymentRegions(dep).join(", "),
 		depTag(dep),
-		formatStarted(startedMs(dep), pref),
+		formatStarted(readyMs(dep), pref),
 	].join(" · ");
 }
 

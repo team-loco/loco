@@ -1479,7 +1479,12 @@ def metrics(page):
         {"workspaceId": workspace},
     )["environments"]
     production = next(e["id"] for e in environments if e["name"] == "production")
-    # One deploy at each metric point, so a click on any point offers one.
+    sql(
+        state,
+        f"UPDATE resources SET display_name='Controls Pilot' WHERE id='{resource}';"
+        f"UPDATE resources SET display_name='Controls Alpha' WHERE id='{sorted_resources[0]}';",
+    )
+    # One ready deploy at each metric point, so a click on any point offers one.
     deploys = [
         {
             "id": f"01a1c8b3-0000-7000-8000-0000000de90{i}",
@@ -1487,10 +1492,19 @@ def metrics(page):
             "placements": [{"region": "us-east-1"}],
             "environmentId": production,
             "createdAt": point["timestamp"],
+            "startedAt": point["timestamp"],
             "spec": {"service": {"build": {"image": "ghcr.io/acme/pilot:1.27"}}},
         }
         for i, point in enumerate(telemetry_points)
     ]
+    # A deploy that never became ready has no deploy time and no marker.
+    deploys.append(
+        {
+            **deploys[len(deploys) // 2],
+            "id": "01a1c8b3-0000-7000-8000-0000000de9ff",
+            "startedAt": None,
+        }
+    )
     page.route(
         "**/loco.deployment.v1.DeploymentService/ListDeployments",
         lambda route: route.fulfill(
@@ -1509,7 +1523,7 @@ def metrics(page):
     cpu_card = page.get_by_role("region", name="CPU", exact=True)
     expect(cpu_card.get_by_text("% of limit, peak per bucket")).to_be_visible()
     expect(cpu_card.get_by_text(re.compile(r"^latest \d")).first).to_be_visible()
-    expect(chart.get_by_text("controls-pilot 000de900").first).to_be_visible()
+    expect(chart.get_by_text("Controls Pilot 000de900").first).to_be_visible()
     memory = page.locator('[aria-label="Memory over time"]')
     chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
     expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
@@ -1521,7 +1535,7 @@ def metrics(page):
     expect(by_region.get_by_role("columnheader", name="Resource ↑")).to_have_attribute(
         "aria-sort", "ascending"
     )
-    by_region.get_by_role("row").filter(has_text="controls-alpha").get_by_role(
+    by_region.get_by_role("row").filter(has_text="Controls Alpha").get_by_role(
         "cell"
     ).nth(1).click()
     expect(page).to_have_url(re.compile(r"resource:controls-alpha"))
@@ -1535,6 +1549,7 @@ def metrics(page):
     expect(
         menu.get_by_role("menuitem", name=re.compile(r"^Deploy 000de90")).first
     ).to_be_visible()
+    expect(menu.get_by_role("menuitem", name=re.compile("000de9ff"))).to_have_count(0)
     first, second = (
         menu.get_by_role("menuitem").nth(0),
         menu.get_by_role("menuitem").nth(1),
@@ -1556,6 +1571,10 @@ def metrics(page):
     expect(menu).not_to_be_visible()
     expect(page).to_have_url(re.compile(r"[?&]from="))
     page.unroute("**/loco.deployment.v1.DeploymentService/ListDeployments")
+    sql(
+        state,
+        f"UPDATE resources SET display_name=name WHERE id IN ('{resource}','{sorted_resources[0]}');",
+    )
 
 
 out = Path(args.out)
