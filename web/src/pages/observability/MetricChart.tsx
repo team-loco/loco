@@ -173,7 +173,7 @@ function MetricTooltip({
 					<span className="w-12 shrink-0 text-right font-mono text-fg3 tabular-nums">{formatPercent(v)}</span>
 				</div>
 			))}
-			{more > 0 && <div className="h-5 text-fg3">+{more} more</div>}
+			{more > 0 && <div className="mt-1.5 h-5 text-fg3">+{more} more</div>}
 			<div className="mt-1.5 border-t border-line pt-1.5 text-[11px] text-fg3">Click for logs, traces and events</div>
 		</div>
 	);

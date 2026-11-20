@@ -1454,7 +1454,12 @@ def metrics_many(page):
     chart.hover(position={"x": box["width"] * 0.5, "y": 60})
     rows = page.locator("[data-tooltip-row]")
     expect(rows).to_have_count(8)
-    expect(page.get_by_text(f"+{count - 8} more", exact=True)).to_be_visible()
+    more = page.get_by_text(f"+{count - 8} more", exact=True)
+    expect(more).to_be_visible()
+    footer_gap = more.evaluate(
+        "el => el.getBoundingClientRect().top - el.previousElementSibling.getBoundingClientRect().bottom"
+    )
+    assert footer_gap >= 6, footer_gap
     heights = rows.evaluate_all("els => els.map(e => e.getBoundingClientRect().height)")
     assert len({round(h) for h in heights}) == 1 and heights[0] <= 24, heights
     assert rows.evaluate_all("els => els.every(e => e.scrollWidth <= e.clientWidth)")
