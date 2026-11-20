@@ -1,10 +1,11 @@
 import { BuildStatus, type Build } from "@gen/loco/build/v1/build_pb";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentActorType, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { Glyph } from "@/components/design/StatusGlyph";
-import { getServiceSpec } from "@/lib/deployment-utils";
+import { getServiceSpec, METHOD_LABEL } from "@/lib/deployment-utils";
 import { shortDigest } from "@/lib/image";
 import { maybeTsMs, tsMs } from "@/lib/time";
+import { formatShortId } from "@/lib/utils";
 
 const SECOND_MS = 1000;
 const SECONDS_PER_MINUTE = 60;
@@ -106,4 +107,20 @@ export function deploymentsByBuild<T extends { dep: Deployment }>(rows: T[]): Ma
 
 export function pageOf(index: number, size: number): number {
 	return Math.max(0, Math.floor(index / size));
+}
+
+interface BuildStarter {
+	name: string;
+	detail: string;
+}
+
+export function buildStarter(build: Build, member: { name: string; email: string } | undefined): BuildStarter {
+	if (build.actorType === DeploymentActorType.API_TOKEN) {
+		if (build.actorName === "") return { name: `API token · ${formatShortId(build.createdBy)}`, detail: "" };
+		return { name: build.actorName, detail: METHOD_LABEL[build.method] };
+	}
+	return {
+		name: member === undefined ? formatShortId(build.createdBy) : member.name || member.email,
+		detail: METHOD_LABEL[build.method],
+	};
 }

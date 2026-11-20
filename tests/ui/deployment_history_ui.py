@@ -199,7 +199,7 @@ def fixture():
             else "NULL"
         )
         rows.append(
-            f"INSERT INTO builds (origin_environment_id, platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('{production}', 'linux/amd64', '{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});"
+            f"INSERT INTO builds (method, origin_environment_id, platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('cli', '{production}', 'linux/amd64', '{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});"
         )
     rows.append(f"UPDATE deployments SET started_at=NULL WHERE id='{release_ids[3]}';")
     rows.append(
@@ -516,6 +516,14 @@ with session(out) as browser:
         section.get_by_role("tabpanel", name=re.compile(r"^Builds")).get_by_role(
             "columnheader", name="Time", exact=True
         )
+    ).to_be_visible()
+    expect(
+        section.get_by_role("tabpanel", name=re.compile(r"^Builds"))
+        .get_by_text("loco deploy · CLI", exact=True)
+        .first
+    ).to_be_visible()
+    expect(
+        section.get_by_text(re.compile(r"· loco deploy · CLI$")).first
     ).to_be_visible()
     section.get_by_role(
         "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True

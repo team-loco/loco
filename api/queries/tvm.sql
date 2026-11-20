@@ -186,3 +186,6 @@ ORDER BY created_at DESC;
 -- name: DeleteAPITokenByNameAndEntity :exec
 DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
 
+
+-- name: ListAPITokenNames :many
+SELECT id, name FROM api_tokens WHERE id = ANY(sqlc.arg(ids)::uuid[]);

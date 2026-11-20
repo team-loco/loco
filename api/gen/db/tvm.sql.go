@@ -518,6 +518,35 @@ func (q *Queries) GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWit
 	return items, nil
 }
 
+const listAPITokenNames = `-- name: ListAPITokenNames :many
+SELECT id, name FROM api_tokens WHERE id = ANY($1::uuid[])
+`
+
+type ListAPITokenNamesRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) ListAPITokenNames(ctx context.Context, ids []uuid.UUID) ([]ListAPITokenNamesRow, error) {
+	rows, err := q.db.Query(ctx, listAPITokenNames, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAPITokenNamesRow
+	for rows.Next() {
+		var i ListAPITokenNamesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAPITokensForEntity = `-- name: ListAPITokensForEntity :many
 SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
 FROM api_tokens

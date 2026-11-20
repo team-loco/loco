@@ -211,9 +211,10 @@ func TestPlanReportsCreateUpdateImportAndDelete(t *testing.T) {
 func (f *deployFixture) addSucceededBuild(t *testing.T, resourceName, dockerfile, buildContext string) uuid.UUID {
 	t.Helper()
 	insert := `
-INSERT INTO builds (platform, resource_id, status, source_type, source_key, source_size, dockerfile_path, context,
+INSERT INTO builds (method, platform, resource_id, status, source_type, source_key, source_size, dockerfile_path,
+                    context,
                     image_repository, image_digest, created_by, finished_at)
-SELECT 'linux/amd64', r.id, 'succeeded', 'upload', 'src/' || gen_random_uuid(), 1, $3, $4,
+SELECT 'cli', 'linux/amd64', r.id, 'succeeded', 'upload', 'src/' || gen_random_uuid(), 1, $3, $4,
        'registry.loco.test/' || r.slug,
        $2, u.id, NOW()
 FROM resources r, users u WHERE r.slug = $1

@@ -97,8 +97,8 @@ if "progress" not in state:
     sql(
         state,
         f"""BEGIN;
-    INSERT INTO builds(origin_environment_id,platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,image_repository,image_digest,created_by,started_at,finished_at,git_commit,git_branch,git_commit_message)
-    VALUES('{production}','linux/amd64', '{build}','{resource}','succeeded','upload','progress-{build}',100,'Dockerfile','registry.example.test/progress','sha256:{"2" * 64}','{owner["id"]}',NOW()-INTERVAL '2 minutes',NOW()-INTERVAL '52 seconds','{"a" * 40}','main','Show saved cards');
+    INSERT INTO builds(method, origin_environment_id,platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,image_repository,image_digest,created_by,started_at,finished_at,git_commit,git_branch,git_commit_message)
+    VALUES('cli', '{production}','linux/amd64', '{build}','{resource}','succeeded','upload','progress-{build}',100,'Dockerfile','registry.example.test/progress','sha256:{"2" * 64}','{owner["id"]}',NOW()-INTERVAL '2 minutes',NOW()-INTERVAL '52 seconds','{"a" * 40}','main','Show saved cards');
     UPDATE deployments SET completed_at=NOW()-INTERVAL '9 minutes' WHERE id='{previous}';
     UPDATE deployments SET spec_version=2, commit_sha='{"a" * 40}' WHERE id='{current}';
     COMMIT;""",
