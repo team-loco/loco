@@ -253,6 +253,27 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		Expect(replicaSetReplicas(previous)).To(BeZero())
 	})
 
+	It("keeps a healthy first deployment running when a replica uses up its restarts", func() {
+		app := isolationTestApplication(stopWorkspace, "stop-first")
+		app.Spec.ServiceSpec.Routing = nil
+		app.Spec.ServiceSpec.Resources.Replicas = locov1alpha1.ReplicasSpec{Min: 2, Max: 2}
+		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		current := createReplicaSet(app, "stop-first-current", "2", 2)
+		app.Status.Rollout.DeployedRevision = 2
+		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+		pod := createReplica(app, "stop-first-replica", testImage)
+		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+2)
+		Expect(app.Status.Rollout.Stopped).To(BeNil())
+		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemRestartsExhausted))
+		dep := appDeployment(app)
+		Expect(dep.Spec.Paused).To(BeFalse())
+		Expect(*dep.Spec.Replicas).To(Equal(int32(2)))
+		Expect(replicaSetReplicas(current)).To(Equal(int32(2)))
+	})
+
 	It("keeps a deployed revision running when a replica uses up its restarts", func() {
 		app := isolationTestApplication(stopWorkspace, "stop-steady")
 		app.Spec.ServiceSpec.Routing = nil
