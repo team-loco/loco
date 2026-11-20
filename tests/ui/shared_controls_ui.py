@@ -1055,7 +1055,7 @@ def volume(page):
     target = count - 5
     point = {"x": box["width"] * (target + 0.5) / count, "y": box["height"] / 2}
     area.hover(position=point)
-    expect(area).to_have_attribute("title", re.compile(r"lines"))
+    expect(page.get_by_role("tooltip")).to_contain_text("lines")
     assert log_bucket_requests[-1]["groupBy"] == "LOG_BUCKET_GROUP_LEVEL"
     area.click(position=point)
     expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
@@ -1765,6 +1765,43 @@ def resources(page):
             first_click_sorts_descending(table, "Created", "controls-zeta")
 
 
+def title_tooltip(page):
+    page.goto(state["ui_url"] + base + "/resources?env=production")
+    tip = page.get_by_role("tooltip")
+    columns = page.get_by_role("button", name="Columns", exact=True)
+    started = time.monotonic()
+    columns.hover()
+    expect(tip).to_have_text("Columns")
+    assert time.monotonic() - started >= 0.3
+    expect(columns).not_to_have_attribute("title", re.compile(".+"))
+    expect(columns).to_have_attribute("aria-describedby", re.compile(r"\bloco-tip\b"))
+    page.keyboard.press("Escape")
+    expect(tip).to_have_count(0)
+    expect(columns).not_to_have_attribute("aria-describedby", re.compile(".+"))
+    page.mouse.move(0, 0)
+    columns.focus()
+    expect(tip).to_have_text("Columns")
+    columns.blur()
+    expect(tip).to_have_count(0)
+    page.evaluate(
+        """() => {
+            const fits = document.createElement("span");
+            fits.id = "tip-fits";
+            fits.title = fits.textContent = "Fits as it is";
+            const cut = document.createElement("span");
+            cut.id = "tip-cut";
+            cut.style.cssText = "display:block;width:40px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis";
+            cut.textContent = "Cut short by its width";
+            document.querySelector("main").prepend(fits, cut);
+        }"""
+    )
+    page.locator("#tip-fits").hover()
+    page.wait_for_timeout(700)
+    expect(tip).to_have_count(0)
+    page.locator("#tip-cut").hover()
+    expect(tip).to_have_text("Cut short by its width")
+
+
 def resource_view_history(page):
     dashboard_url = state["ui_url"] + base + "?env=production"
     page.goto(dashboard_url)
@@ -2034,6 +2071,7 @@ with session(out) as browser:
         volume_axis,
         access_picker,
         resources,
+        title_tooltip,
         resource_view_history,
         token_empty,
         limit_display,

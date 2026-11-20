@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { logCaughtError } from "@/lib/not-found";
-import { showFullTextOnTruncation } from "@/lib/truncation-title";
 import { addThemeFonts } from "@/lib/theme-stylesheet";
+import { showTitlesAsTooltips } from "@/lib/title-tooltip";
 import { watchForUpdates } from "@/lib/update-check";
 import App from "./App.tsx";
 import "./index.css";
@@ -13,5 +13,5 @@ if (rootElement) {
 	}).render(<App />);
 }
 addThemeFonts();
-showFullTextOnTruncation();
+showTitlesAsTooltips();
 watchForUpdates();

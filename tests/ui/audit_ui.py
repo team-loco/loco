@@ -509,6 +509,7 @@ with session(out) as browser:
     expect(search).to_be_visible()
     page.context.grant_permissions(["clipboard-read", "clipboard-write"])
     alert.get_by_title("Copy request ID", exact=True).click()
+    page.mouse.move(0, 0)
     assert page.evaluate("navigator.clipboard.readText()") == request_id
     expect(alert.get_by_title("Copied", exact=True)).to_be_visible()
     page.set_viewport_size(evidence.NARROW)
