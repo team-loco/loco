@@ -7,7 +7,6 @@ import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { dayLabel, type AuditRow } from "./model";
 
-
 function ActorBadge({ row }: { row: AuditRow }) {
 	const { actorType, actorEmail } = row.event;
 	if (actorType === "user") {
