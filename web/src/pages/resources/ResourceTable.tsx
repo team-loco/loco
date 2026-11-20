@@ -1,19 +1,19 @@
-import { functionalUpdate, useTable, type RowSelectionState } from "@tanstack/react-table";
+import { functionalUpdate } from "@tanstack/react-table";
 import { GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQueryStates } from "nuqs";
+import { useLocation, useNavigate } from "react-router";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
 import { Button } from "@/components/design/Button";
-import { DataTable, dataTableFeatures, DataTablePager, pageWithin, sortOptions } from "@/components/design/DataTable";
+import { DataTable, DataTablePager, pageWithin, useDataTable } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 
-import { BulkActions } from "./BulkActions";
-import { ResourceCellContext, resourceColumns } from "./columns";
+import { ResourceCellContext, resourceColumns, rowPath } from "./columns";
 import {
 	ALL,
 	FILTER_URL_KEYS,
@@ -27,7 +27,6 @@ import {
 	statusCounts,
 	tableParsers,
 	type ListRow,
-	type ResourceRow,
 } from "./table";
 
 function rowId(row: ListRow): string {
@@ -49,11 +48,19 @@ export function ResourceTable({
 	workspaceId: string;
 	nowMs: number;
 }) {
-	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+	const navigate = useNavigate();
+	const { search: locationSearch } = useLocation();
 	const columns = useMemo(() => resourceColumns(environments), [environments]);
 	const parsers = useMemo(() => tableParsers(columns), [columns]);
-	const [state, setState] = useQueryStates(parsers, { history: "replace", urlKeys: FILTER_URL_KEYS });
-	const filter = { query: state.query, status: state.status, region: state.region };
+	const [state, setState] = useQueryStates(parsers, {
+		history: "replace",
+		urlKeys: FILTER_URL_KEYS,
+	});
+	const filter = {
+		query: state.query,
+		status: state.status,
+		region: state.region,
+	};
 
 	const setFilter = (patch: Partial<typeof filter>) => {
 		void setState({ ...patch, page: null });
@@ -65,14 +72,11 @@ export function ResourceTable({
 	const data = nameOrder(filterRows(rows, filter));
 	const sorting = [state.sort];
 	const pagination = pageWithin({ pageIndex: state.page, pageSize: state.size }, data.length);
-	const table = useTable({
-		...sortOptions,
-		features: dataTableFeatures,
+	const table = useDataTable("resources", {
 		columns,
 		data,
 		getRowId: rowId,
-		enableRowSelection: (row) => !isDraftRow(row.original),
-		state: { sorting, columnVisibility: state.cols, pagination, rowSelection },
+		state: { sorting, columnVisibility: state.cols, pagination },
 		autoResetPageIndex: false,
 		onSortingChange: (updater) => {
 			const next = functionalUpdate(updater, sorting)[0];
@@ -83,20 +87,22 @@ export function ResourceTable({
 		},
 		onPaginationChange: (updater) => {
 			const next = functionalUpdate(updater, pagination);
-			void setState({ page: next.pageIndex, size: PAGE_SIZES.find((n) => n === next.pageSize) ?? null });
+			void setState({
+				page: next.pageIndex,
+				size: PAGE_SIZES.find((n) => n === next.pageSize) ?? null,
+			});
 		},
-		onRowSelectionChange: setRowSelection,
 	});
 
 	const counts = statusCounts(rows, filter);
 	const regionOptions = [
 		{ value: ALL, label: "All regions", count: regionTotal(rows, filter) },
-		...regionCounts(rows, filter).map((r) => ({ value: r.region, label: r.region, count: r.count })),
+		...regionCounts(rows, filter).map((r) => ({
+			value: r.region,
+			label: r.region,
+			count: r.count,
+		})),
 	];
-	const selectedRows = table
-		.getRowModel()
-		.rows.map((row) => row.original)
-		.filter((row): row is ResourceRow => !isDraftRow(row) && row.resource.id in rowSelection);
 	const hasFilters = filter.query.trim() !== "" || filter.status !== ALL || filter.region !== ALL;
 
 	const search = (
@@ -145,27 +151,14 @@ export function ResourceTable({
 		</>
 	);
 
-	const bulk = (
-		<BulkActions
-			rows={selectedRows}
-			environment={active}
-			onClear={() => {
-				setRowSelection({});
-			}}
-			onDone={(failed) => {
-				setRowSelection(Object.fromEntries([...failed].map((id) => [id, true as const])));
-			}}
-		/>
-	);
-	const some = selectedRows.length > 0;
-
 	return (
-		<Section filters={some ? bulk : filters} search={some ? undefined : search}>
+		<Section filters={filters} search={search}>
 			<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs }}>
 				<DataTable
 					table={table}
-					className="table-fixed [--row-h:62px]"
-					style={{ minWidth: table.getTotalSize() }}
+					label="Resources"
+					onRowClick={(row) => void navigate(rowPath(row.original, orgId, workspaceId, locationSearch))}
+					className="[--row-h:62px]"
 					empty={
 						<EmptyState
 							icon={<SearchXIcon />}

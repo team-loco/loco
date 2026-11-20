@@ -623,17 +623,6 @@ with session(out) as browser:
     expect(region).to_have_attribute("aria-checked", "true")
     expect(region.locator("svg")).to_be_hidden()
     page.keyboard.press("Escape")
-    page.get_by_role("checkbox", name="Select history-pilot", exact=True).click()
-    bulk_delete = page.get_by_role("button", name="Delete", exact=True)
-    bulk_delete.click()
-    page.get_by_role("alertdialog").get_by_role(
-        "button", name="Cancel", exact=True
-    ).click()
-    expect(bulk_delete).to_be_focused()
-    page.keyboard.press("Enter")
-    page.get_by_role("alertdialog").wait_for()
-    page.keyboard.press("Escape")
-    expect(bulk_delete).to_be_focused()
     page.get_by_role("button", name="Actions for history-pilot", exact=True).click()
     page.get_by_role("menuitem", name="Delete", exact=True).click()
     row_confirm = page.get_by_role("alertdialog", name="Delete history-pilot?")
