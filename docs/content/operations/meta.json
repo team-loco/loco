@@ -2,6 +2,7 @@
   "title": "Operate",
   "pages": [
     "applications",
+    "variables",
     "access",
     "self-hosting",
     "webhooks",
