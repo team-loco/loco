@@ -51,10 +51,10 @@ export const ALL = "all";
 export const TYPE_FILTERS: { value: string; type: ResourceType; label: string }[] = [
 	{ value: "service", type: ResourceType.SERVICE, label: "Service" },
 	{ value: "database", type: ResourceType.DATABASE, label: "Database" },
-	{ value: "function", type: ResourceType.FUNCTION, label: "Function" },
 	{ value: "cache", type: ResourceType.CACHE, label: "Cache" },
 	{ value: "queue", type: ResourceType.QUEUE, label: "Queue" },
-	{ value: "blob", type: ResourceType.BLOB, label: "Blob" },
+	{ value: "blob", type: ResourceType.BLOB, label: "Blob storage" },
+	{ value: "function", type: ResourceType.FUNCTION, label: "Function" },
 ];
 
 export interface RowFilter {

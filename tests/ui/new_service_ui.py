@@ -69,6 +69,11 @@ DRAFT_URL = re.compile(r"/resources\?env=production&draft=[0-9a-f-]+$")
 open_page = partial(new_page, state=state)
 
 
+def open_new_service(page):
+    page.get_by_role("button", name="New resource", exact=True).click()
+    page.get_by_role("menuitem", name="New service", exact=True).click()
+
+
 def stored_drafts(page):
     raw = page.evaluate(f"localStorage.getItem({json.dumps(drafts_key)})")
     return [] if raw is None else [d["name"] for d in json.loads(raw)]
@@ -339,7 +344,7 @@ with session(out) as browser:
         create_deployment,
     )
     page.goto(base + "/resources?env=production")
-    page.get_by_role("link", name="New service", exact=True).click()
+    open_new_service(page)
     expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
     ask = page.get_by_role("dialog", name="New resource")
     image_input = ask.get_by_role("textbox", name="Container image")
@@ -941,7 +946,7 @@ with session(out) as browser:
     expect(draft_row(page, repository)).to_have_count(0)
     assert stored_drafts(page) == [], stored_drafts(page)
 
-    page.get_by_role("link", name="New service", exact=True).click()
+    open_new_service(page)
     ask = page.get_by_role("dialog", name="New resource")
     ask.get_by_role("textbox", name="Container image").fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
