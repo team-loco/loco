@@ -4,12 +4,12 @@ import { ChevronRightIcon, CircleAlertIcon, PlusIcon, MinusIcon } from "lucide-r
 import { parseAsString, useQueryStates } from "nuqs";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { CopyButton } from "@/components/design/CopyButton";
 import { CopyId } from "@/components/design/CopyId";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/design/Tabs";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
 import { queryKeyReason, quoteValue, withToken } from "../query";
-import { SpanEvents } from "../SpanEvents";
 import { SpanLinks } from "../SpanLinks";
 import { failingSpan } from "../flame";
 import { durationLabel, spanError, spanStart, type TraceSummary } from "../traces";
@@ -43,6 +43,14 @@ export function SpanPanel({
 			: `${key} isn't an attribute`;
 	const cause = useMemo(() => failingSpan(trace, selected), [trace, selected]);
 	const tabs = spanAttributes(selected);
+	const stack = selected.events.find((event) => event.attributes["exception.stacktrace"])?.attributes[
+		"exception.stacktrace"
+	];
+	const tabNames = [
+		...ATTRIBUTE_TABS.slice(0, 1),
+		...(selected.links.length > 0 ? ["Links"] : []),
+		...ATTRIBUTE_TABS.slice(1),
+	];
 	const facts: [string, string][] = [
 		["duration", durationLabel(selected.durationNanos)],
 		["self time", durationLabel(selfTime(selected))],
@@ -111,17 +119,28 @@ export function SpanPanel({
 					{selected.statusMessage}
 				</pre>
 			)}
-			<SpanEvents span={selected} />
-			<SpanLinks span={selected} />
+			{stack !== undefined && (
+				<div className="relative min-w-0 rounded-lg border border-bad-fg/25 bg-bad-bg">
+					<div className="absolute top-1.5 right-1.5">
+						<CopyButton text={stack} name="Copy stack trace" toastText="Copied stack trace" />
+					</div>
+					<pre className="m-0 max-h-[360px] overflow-auto px-3 py-2.5 pr-24 font-mono text-[12px] whitespace-pre-wrap text-bad-fg [overflow-wrap:anywhere]">
+						{stack}
+					</pre>
+				</div>
+			)}
 			<section aria-label="Span attributes" className="min-w-0">
 				<Tabs defaultValue="Attributes" key={selected.spanId}>
 					<TabsList aria-label="Span detail tabs" variant="segmented" className="max-w-full overflow-x-auto">
-						{ATTRIBUTE_TABS.map((tab) => (
+						{tabNames.map((tab) => (
 							<TabsTrigger key={tab} value={tab} className="tv-stab px-2 text-[12px]">
 								{tab}
 							</TabsTrigger>
 						))}
 					</TabsList>
+					<TabsContent value="Links" className="pt-2">
+						<SpanLinks span={selected} />
+					</TabsContent>
 					{ATTRIBUTE_TABS.map((tab) => (
 						<TabsContent key={tab} value={tab} className="pt-2">
 							{tabs[tab].length === 0 ? (

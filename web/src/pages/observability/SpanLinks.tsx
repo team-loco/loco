@@ -7,9 +7,7 @@ export function SpanLinks({ span }: { span: TraceSpan }) {
 	const { search } = useLocation();
 	const { links } = span;
 	return (
-		<section aria-label="Span links" className="flex min-w-0 flex-col gap-2.5">
-			<h3 className="m-0 text-[13px] font-medium">Links · {links.length}</h3>
-			{links.length === 0 && <p className="m-0 text-[12.5px] text-fg3">No links recorded for this span.</p>}
+		<section aria-label="Span links" className="min-w-0">
 			<ol className="m-0 flex list-none flex-col gap-3 p-0">
 				{links.map((link, index) => {
 					const target = spanLinkSearch(search, link.traceId, link.spanId);
