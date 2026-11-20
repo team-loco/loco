@@ -26,11 +26,12 @@ import { toastConnectError } from "@/lib/error-handler";
 import { resourcePath } from "@/lib/routes";
 import { formatStarted, tsMs } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
+import { referenceOf } from "@/pages/resource/variables";
 import { DOCS_URL } from "@/pages/splash/links";
 
 import { ImportDialog, SecretDialog } from "./SecretDialogs";
 import { SecretsArt } from "./SecretsArt";
-import { deleteBlocked, deleteBody, matchesSearch, secretRef, setterLabel } from "./secrets";
+import { deleteBlocked, deleteBody, matchesSearch, setterLabel } from "./secrets";
 
 const SECRETS_DOCS = `${DOCS_URL}/operations/variables/`;
 const MODAL_PARAMS = { new: parseAsStringLiteral(["1"]) };
@@ -92,7 +93,8 @@ export function SecretsPage({
 				setModal({ kind: "edit", name });
 			},
 			onCopy: (name) => {
-				copy("ref", secretRef(name), `Copied ${secretRef(name)}`);
+				const ref = referenceOf("secrets", name);
+				copy("ref", ref, `Copied ${ref}`);
 			},
 			onDelete: (secret) => {
 				setModal({ kind: "delete", secret });
@@ -159,7 +161,7 @@ export function SecretsPage({
 							</span>
 							. Reference one with{" "}
 							<code className="mx-0.5 inline-block rounded-[4px] whitespace-nowrap bg-panel2 px-1.5 font-mono text-[12px] leading-[18px] text-foreground">
-								{secretRef("NAME")}
+								{referenceOf("secrets", "NAME")}
 							</code>
 							.
 						</span>

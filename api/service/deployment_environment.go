@@ -30,7 +30,7 @@ func (s *DeploymentServer) resolveVariables(
 	if err != nil {
 		return varref.Resolved{}, err
 	}
-	if len(resolved.SecretNames()) > 0 {
+	if len(resolved.Secret) > 0 {
 		if authErr := authorize(ctx, s.authz, actions.ListSecrets, resource.WorkspaceID); authErr != nil {
 			return varref.Resolved{}, authErr
 		}

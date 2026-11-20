@@ -19,6 +19,7 @@ import { SLUG_RULE } from "@/lib/slug";
 
 import type { RegionView } from "./model";
 import {
+	addedProblems,
 	baseline,
 	changeCount,
 	plainEnv,
@@ -297,6 +298,22 @@ describe("plainEnv", () => {
 
 	test("removes every plain variable", () => {
 		expect(plainEnv({ LOG_LEVEL: "info" }, { removedEnv: ["LOG_LEVEL"] })).toEqual({});
+	});
+});
+
+describe("addedProblems", () => {
+	test("refuses an invalid or taken name and accepts any other", () => {
+		const added = [
+			{ id: "a", key: "featureFlags", value: "1" },
+			{ id: "b", key: "LOG_LEVEL", value: "debug" },
+			{ id: "c", key: "1X", value: "1" },
+		];
+		expect(addedProblems({ added }, { LOG_LEVEL: "info" })).toEqual(
+			new Map([
+				["b", "LOG_LEVEL is already a variable."],
+				["c", "Use letters, digits and underscores, not starting with a digit."],
+			]),
+		);
 	});
 });
 

@@ -61,8 +61,8 @@ func TestResolveSplitsPlainAndSecretVariables(t *testing.T) {
 	if !maps.Equal(got.Secret, wantSecret) {
 		t.Errorf("Secret = %v, want %v", got.Secret, wantSecret)
 	}
-	if want := []string{"DB_PASSWORD", "STRIPE_KEY"}; !slices.Equal(got.SecretNames(), want) {
-		t.Errorf("SecretNames() = %v, want %v", got.SecretNames(), want)
+	if want := []string{"DB_PASSWORD", "STRIPE_KEY"}; !slices.Equal(varref.SecretNames(got.Secret), want) {
+		t.Errorf("SecretNames() = %v, want %v", varref.SecretNames(got.Secret), want)
 	}
 	if want := []string{"api"}; !slices.Equal(got.Resources, want) {
 		t.Errorf("Resources = %v, want %v", got.Resources, want)

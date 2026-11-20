@@ -94,6 +94,7 @@ type variableReferences struct {
 	environment varref.Environment
 	sizes       secretSizes
 	ids         map[string]uuid.UUID
+	targets     []environmentTarget
 }
 
 func loadVariableReferences(
@@ -120,6 +121,7 @@ func loadVariableReferences(
 		environment: varref.Environment{Secrets: sizes.names(), Resources: resources},
 		sizes:       sizes,
 		ids:         ids,
+		targets:     targets,
 	}, nil
 }
 

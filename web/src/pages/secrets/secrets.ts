@@ -1,15 +1,11 @@
 import type { Secret } from "@gen/loco/secret/v1/secret_pb";
 
 import { parseDotEnv } from "@/lib/dotenv";
+import { referenceOf } from "@/pages/resource/variables";
 
 export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 const USER_ENTITY = "user";
 const SHORT_ID = 8;
-
-/** The reference a variable uses to read the secret named name. */
-export function secretRef(name: string): string {
-	return `\${{ secrets.${name} }}`;
-}
 
 function list(names: string[]): string {
 	return new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
@@ -24,7 +20,8 @@ export function secretNameProblem(name: string, taken: boolean, env: string): st
 
 /** The note under the value of a secret being created or updated. */
 export function secretHint(name: string, users: string[], updating: boolean): string {
-	if (!updating) return `Refer to it from a resource’s variables as ${secretRef(name === "" ? "NAME" : name)}.`;
+	if (!updating)
+		return `Refer to it from a resource’s variables as ${referenceOf("secrets", name === "" ? "NAME" : name)}.`;
 	if (users.length === 0) return "No resource refers to it yet.";
 	const one = users.length === 1;
 	return `${list(users)} ${one ? "gets" : "get"} the new value on ${one ? "its" : "their"} next deploy or restart.`;
@@ -42,7 +39,6 @@ export function deleteBlocked(users: string[]): string {
 export interface ImportPreview {
 	values: Record<string, string>;
 	invalid: string[];
-	replacing: number;
 	summary: string;
 }
 
@@ -58,7 +54,7 @@ export function importPreview(text: string, existing: ReadonlySet<string>): Impo
 			: count === 0
 				? "Nothing found yet"
 				: `${count.toString()} found${replacing > 0 ? `, ${replacing.toString()} replace existing` : ""}`;
-	return { values, invalid, replacing, summary };
+	return { values, invalid, summary };
 }
 
 export function setterLabel(secret: Secret, members: ReadonlyMap<string, string>): string {

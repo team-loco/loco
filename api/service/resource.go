@@ -1062,17 +1062,14 @@ func (s *ResourceServer) ListResourceOutputs(
 	); err != nil {
 		return nil, err
 	}
-	targets, err := listEnvironmentTargets(ctx, s.queries, env.WorkspaceID, env.ID)
-	if err != nil {
-		return nil, err
-	}
 	references, err := loadVariableReferences(ctx, s.queries, env.WorkspaceID, env.ID)
 	if err != nil {
 		return nil, err
 	}
+	targets := references.targets
 	usedBy := map[string][]string{}
 	for _, target := range targets {
-		for _, used := range referencedResources(target.target.Env) {
+		for _, used := range varref.ReferencedResources(target.target.Env) {
 			if used != target.slug {
 				usedBy[used] = append(usedBy[used], target.slug)
 			}
@@ -1118,23 +1115,6 @@ func resolvableVariables(env varref.Environment, name string, target varref.Targ
 		}
 	}
 	return map[string]string{}
-}
-
-// referencedResources lists the resources a set of variables refers to, sorted.
-func referencedResources(env map[string]string) []string {
-	seen := map[string]bool{}
-	for _, value := range env {
-		refs, err := varref.Parse(value)
-		if err != nil {
-			continue
-		}
-		for _, ref := range refs {
-			if !ref.IsSecret() {
-				seen[ref.Source] = true
-			}
-		}
-	}
-	return slices.Sorted(maps.Keys(seen))
 }
 
 // validSlug reports whether slug can key a resource or an environment: a DNS label that is not
