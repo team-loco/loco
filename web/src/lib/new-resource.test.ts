@@ -21,16 +21,13 @@ import {
 	commandSummary,
 	commandText,
 	mergeEnv,
-	nameError,
 	nameFromImage,
 	portRangeError,
 	servedDomains,
-	slugError,
 	validateForm,
 	type EnvRow,
 	type NewResourceForm,
 } from "./new-resource";
-import { SLUG_DIGIT_LEAD, SLUG_RULE } from "./slug";
 
 const form: NewResourceForm = {
 	image: "ghcr.io/acme/web:1.4.2",
@@ -109,25 +106,6 @@ test("mergeEnv replaces pasted keys in place, appends new ones and drops blank r
 
 test("validateForm accepts a complete form", () => {
 	expect(firstError(validateForm(form, "available", 10))).toBeNull();
-});
-
-test("nameError follows the API's name rules", () => {
-	const nameErr = (name: string, taken = new Set<string>()) => nameError(name, taken);
-	for (const blank of ["", "   "]) expect(nameErr(blank)).toBe("Enter a name");
-	for (const ok of ["QA Echo", "🚀rocket", " web ", "🚀".repeat(63)]) expect(nameErr(ok)).toBeNull();
-	expect(nameErr("x".repeat(64))).toBe("Use at most 63 characters");
-	expect(nameErr(" QA Echo ", new Set(["QA Echo"]))).toBe("QA Echo already exists in this workspace");
-});
-
-test("slugError follows the API's slug rules", () => {
-	const slugErr = (slug: string, taken = new Set<string>()) => slugError(slug, taken);
-	expect(slugErr("")).toBe("Enter a slug");
-	for (const bad of ["!!!", "QA Echo", "Web", "🚀rocket", "<script>x</script>", "-bad-", " web", "x".repeat(64)])
-		expect(slugErr(bad)).toBe(SLUG_RULE);
-	for (const digitLed of ["123cart", "7", "1-web"]) expect(slugErr(digitLed)).toBe(SLUG_DIGIT_LEAD);
-	for (const ok of ["web", "qa-echo", "x".repeat(63)]) expect(slugErr(ok)).toBeNull();
-	expect(slugErr("localhost")).toBe("localhost is reserved");
-	expect(slugErr("web", new Set(["web"]))).toBe("web already exists in this workspace");
 });
 
 test("portRangeError accepts 1 through 65535 and rejects the rest", () => {

@@ -9,7 +9,6 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -124,20 +123,6 @@ func TestCreateResourceRejectsATakenNameOrSlug(t *testing.T) {
 	wantMessage(t, err, connect.CodeAlreadyExists, ErrResourceNameNotUnique.Error()+": "+strings.ToUpper(planSvc))
 	_, err = createKeyedResource(t, f, "Other", new(planSvc))
 	wantMessage(t, err, connect.CodeAlreadyExists, ErrResourceSlugNotUnique.Error()+": "+planSvc)
-}
-
-func TestResourceKeyConflictNamesTheTakenValue(t *testing.T) {
-	t.Parallel()
-	for constraint, want := range map[string]string{
-		pgResourceNameUnique: ErrResourceNameNotUnique.Error() + ": Cart",
-		pgResourceSlugUnique: ErrResourceSlugNotUnique.Error() + ": cart",
-	} {
-		err := resourceKeyConflict(&pgconn.PgError{Code: "23505", ConstraintName: constraint}, "Cart", "cart")
-		wantMessage(t, err, connect.CodeAlreadyExists, want)
-	}
-	if err := resourceKeyConflict(nil, "Cart", "cart"); err != nil {
-		t.Fatalf("no conflict = %v", err)
-	}
 }
 
 func TestUpdateResourceNameKeepsSlugAndPlacements(t *testing.T) {

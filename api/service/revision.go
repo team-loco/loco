@@ -84,11 +84,11 @@ func bumpResourceEnvironmentRevisions(ctx context.Context, qtx *genDb.Queries, r
 	return nil
 }
 
-// withTx runs fn at read committed so a count after a row lock sees rows committed while it waited.
 // txAttempts bounds how often withTx runs a transaction Postgres aborts to break a deadlock.
 const txAttempts = 3
 
-// withTx runs fn in a transaction, running it again when Postgres aborts it to break a deadlock.
+// withTx runs fn at read committed, so a count after a row lock sees rows committed while it
+// waited, and runs it again when Postgres aborts it to break a deadlock.
 func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries) error) error {
 	return inTx(ctx, pool, func(tx pgx.Tx) error { return fn(genDb.New(tx)) })
 }

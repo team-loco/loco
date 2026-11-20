@@ -1,16 +1,30 @@
+const MAX_NAME_LENGTH = 63;
 const MAX_SLUG_LENGTH = 63;
 const COMBINING_MARK_RE = /\p{Mn}/u;
-export const DNS_LABEL_RE = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/;
+const DNS_LABEL_RE = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/;
 const DIGIT_LEAD_RE = /^[0-9]/;
+// mirrors PrivateServiceName in k8sapi/v1alpha1/discovery.go; update both together.
+const RESERVED_SLUG_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 export const SLUG_RULE =
 	"Use 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit";
 export const SLUG_DIGIT_LEAD = "Start the slug with a letter";
 
-// slugRuleError reports why value is not a valid slug, or null.
-export function slugRuleError(value: string): string | null {
-	if (DNS_LABEL_RE.test(value)) return null;
-	if (DIGIT_LEAD_RE.test(value) && DNS_LABEL_RE.test(`a${value}`)) return SLUG_DIGIT_LEAD;
-	return SLUG_RULE;
+export function nameError(name: string, taken: ReadonlySet<string>): string | null {
+	const trimmed = name.trim();
+	if (trimmed === "") return "Enter a name";
+	if (Array.from(trimmed).length > MAX_NAME_LENGTH) return `Use at most ${MAX_NAME_LENGTH.toString()} characters`;
+	const lower = trimmed.toLowerCase();
+	if ([...taken].some((t) => t.toLowerCase() === lower)) return `${trimmed} already exists in this workspace`;
+	return null;
+}
+
+export function slugError(value: string, taken: ReadonlySet<string>): string | null {
+	if (value === "") return "Enter a slug";
+	if (!DNS_LABEL_RE.test(value))
+		return DIGIT_LEAD_RE.test(value) && DNS_LABEL_RE.test(`a${value}`) ? SLUG_DIGIT_LEAD : SLUG_RULE;
+	if (RESERVED_SLUG_RE.test(value)) return `${value} is reserved`;
+	if (taken.has(value)) return `${value} already exists in this workspace`;
+	return null;
 }
 
 // mirrors Slug in internal/locofile/name.go; update both together.

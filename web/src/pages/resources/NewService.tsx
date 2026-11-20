@@ -52,10 +52,8 @@ import {
 	envRowErrors,
 	locoYaml,
 	mergeEnv,
-	nameError,
 	nameFromImage,
 	servedDomains,
-	slugError,
 	validateForm,
 	type ApiField,
 	type EnvRow,
@@ -63,7 +61,7 @@ import {
 	type NewResourceForm,
 } from "@/lib/new-resource";
 import { sizeOptions, type SizeOptions } from "@/lib/sizing";
-import { slug as slugOf } from "@/lib/slug";
+import { nameError, slug as slugOf, slugError } from "@/lib/slug";
 import { useServiceDeploy, type DeployError } from "@/hooks/useServiceDeploy";
 
 const SKELETON_ROWS = 6;
