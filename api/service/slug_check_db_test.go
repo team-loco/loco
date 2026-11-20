@@ -9,6 +9,7 @@ import (
 const (
 	tableResources = "resources"
 	columnPartial  = "partial"
+	columnSlug     = "slug"
 )
 
 func TestDatabaseRejectsSlugsThatStartWithADigit(t *testing.T) {
@@ -18,9 +19,9 @@ func TestDatabaseRejectsSlugsThatStartWithADigit(t *testing.T) {
 		column, table string
 		id            uuid.UUID
 	}{
-		{"slug", tableResources, f.resourceID},
+		{columnSlug, tableResources, f.resourceID},
 		{columnPartial, tableResources, f.resourceID},
-		{"name", "environments", f.envID},
+		{columnSlug, "environments", f.envID},
 	} {
 		update := "UPDATE " + tc.table + " SET " + tc.column + " = $2 WHERE id = $1"
 		if _, err := f.pool.Exec(t.Context(), update, tc.id, "7cart"); err == nil {
