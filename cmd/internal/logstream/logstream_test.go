@@ -162,6 +162,39 @@ func TestBackfillFollowsCursorsAndClampsTheRange(t *testing.T) {
 	}
 }
 
+func TestBackfillLeavesPageSizesToTheAPIAndTrimsTheLastPage(t *testing.T) {
+	proxy := &fakeProxy{
+		entries:  []*observabilityv1.LogEntry{entry(0, "a"), entry(1, "b"), entry(2, "c")},
+		pageSize: 2,
+	}
+	client := newClient(proxy)
+	filter := BuildFilter("ws", "build-1")
+
+	var got []string
+	if err := client.Backfill(t.Context(), filter, base, base.Add(time.Hour), 3, collect(&got)); err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	if want := []string{"a", "b", "c"}; !slices.Equal(got, want) {
+		t.Fatalf("entries = %v, want %v", got, want)
+	}
+	if len(proxy.queries) != 2 {
+		t.Fatalf("%d queries, want 2 pages", len(proxy.queries))
+	}
+	for _, query := range proxy.queries {
+		if query.GetLimit() != 0 {
+			t.Fatalf("page limit = %d, want the API's default", query.GetLimit())
+		}
+	}
+
+	got = nil
+	if err := client.Backfill(t.Context(), filter, base, base.Add(time.Hour), 1, collect(&got)); err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	if want := []string{"c"}; !slices.Equal(got, want) {
+		t.Fatalf("entries = %v, want %v", got, want)
+	}
+}
+
 func TestTailSkipsBackfilledEntriesAndReconnects(t *testing.T) {
 	proxy := &fakeProxy{}
 	client := newClient(proxy)

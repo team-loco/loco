@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -89,6 +90,7 @@ type fakePlatform struct {
 	uploads           map[string]fakeUpload
 	logQueries        []*observabilityv1.QueryLogsRequest
 	eventPageSizes    []int32
+	buildPageSizes    []int32
 	message           string
 	plan              *planv1.PlanResponse
 	planned           [][]byte
@@ -619,13 +621,27 @@ func (s *fakeBuildService) ListBuilds(
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.platform.buildPageSizes = append(f.platform.buildPageSizes, req.GetPageSize())
 	var builds []*buildv1.Build
 	for _, b := range slices.Backward(f.platform.builds) {
 		if b.GetResourceId() == req.GetResourceId() {
 			builds = append(builds, b)
 		}
 	}
-	return &buildv1.ListBuildsResponse{Builds: builds}, nil
+	const apiBuildPageSize = 2
+	offset := 0
+	if token := req.GetPageToken(); token != "" {
+		var err error
+		if offset, err = strconv.Atoi(token); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, "bad page token")
+		}
+	}
+	end := min(offset+apiBuildPageSize, len(builds))
+	next := ""
+	if end < len(builds) {
+		next = strconv.Itoa(end)
+	}
+	return &buildv1.ListBuildsResponse{Builds: builds[offset:end], NextPageToken: next}, nil
 }
 
 func (s *fakeBuildService) CancelBuild(
