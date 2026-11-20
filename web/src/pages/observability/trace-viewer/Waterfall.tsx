@@ -6,7 +6,7 @@ import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { zoomTo, type Zoom } from "../flame";
-import { durationLabel, spanStart, spanError, type TraceSummary } from "../traces";
+import { durationLabel, spanStart, spanError, spanErrorText, type TraceSummary } from "../traces";
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
 import { offsetTicks } from "./plot";
@@ -35,7 +35,13 @@ export function Waterfall({
 	onHoverSpan: (id: string | null) => void;
 	label: (span: TraceSpan) => string;
 }) {
-	const { color, tree: all, children: childrenById } = useTraceResources();
+	const { color, selfTime, tree: all, children: childrenById } = useTraceResources();
+	const tipEntry = (span: TraceSpan) => ({
+		title: span.name,
+		color: color(span),
+		meta: `${label(span)} · ${durationLabel(span.durationNanos)} · self ${durationLabel(selfTime(span))}`,
+		error: spanError(span) ? spanErrorText(span) : undefined,
+	});
 	const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 	const [nameWidth, setNameWidth] = useState(340);
 	const resizeRef = useRef<{ x: number; width: number } | null>(null);
@@ -124,7 +130,10 @@ export function Waterfall({
 					>
 						<div
 							className="flex shrink-0 items-center overflow-hidden border-r border-line pr-2"
-							style={{ width: nameWidth, paddingLeft: 8 + Math.min(row.depth * 12, nameWidth * 0.3) }}
+							style={{
+								width: nameWidth,
+								paddingLeft: 8 + Math.min(row.depth * 12, nameWidth * 0.3),
+							}}
 						>
 							<button
 								type="button"
@@ -144,7 +153,7 @@ export function Waterfall({
 							</button>
 							<i className="mr-[6px] size-[8px] shrink-0 rounded-full" style={{ background: color(span) }} />
 							<SpanTipTrigger
-								lines={[span.name, `${label(span)} · ${durationLabel(span.durationNanos)}`]}
+								entries={[tipEntry(span)]}
 								render={
 									<button
 										type="button"
@@ -191,7 +200,7 @@ export function Waterfall({
 							</SpanTipTrigger>
 						</div>
 						<SpanTipTrigger
-							lines={[span.name, `${label(span)} · ${durationLabel(span.durationNanos)}`, "Double-click to zoom"]}
+							entries={[tipEntry(span)]}
 							render={
 								<button
 									type="button"

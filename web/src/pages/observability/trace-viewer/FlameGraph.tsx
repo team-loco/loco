@@ -12,7 +12,7 @@ import { MIN_BLOCK, zoomLayout, lineage, zoomTo, type Zoom } from "../flame";
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
 import { offsetTicks } from "./plot";
-import { durationLabel, spanError, type TraceSummary } from "../traces";
+import { durationLabel, spanError, spanErrorText, type TraceSummary } from "../traces";
 const ROW_PX = 26;
 const BAR_PX = 24;
 const PERCENT = 100;
@@ -64,10 +64,13 @@ export function FlameGraph({
 					return (
 						<SpanTipTrigger
 							key={b.span.spanId}
-							lines={[
-								b.span.name,
-								`${label(b.span)} · ${durationLabel(b.span.durationNanos)} · self ${durationLabel(selfTime(b.span))}`,
-								"Double-click to zoom",
+							entries={[
+								{
+									title: b.span.name,
+									color: resourceColor(b.span),
+									meta: `${label(b.span)} · ${durationLabel(b.span.durationNanos)} · self ${durationLabel(selfTime(b.span))}`,
+									error: err ? spanErrorText(b.span) : undefined,
+								},
 							]}
 							render={
 								<button
