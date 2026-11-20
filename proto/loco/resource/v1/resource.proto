@@ -153,6 +153,9 @@ message RegionStatus {
   deployment.v1.PlacementStatus placement_status = 10;
   optional string message = 7;
   optional google.protobuf.Timestamp reported_at = 8;
+  // When the region entered its current status. When Loco did not see the change, the time of the
+  // last report. Unset until the first replica report.
+  optional google.protobuf.Timestamp status_since = 12;
   // The replicas the cluster last reported for this region's placement. GetResource fills them;
   // list responses leave them empty.
   repeated deployment.v1.Replica replicas = 9;

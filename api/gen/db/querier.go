@@ -328,6 +328,7 @@ type Querier interface {
 	SetDeploymentPlacementStatus(ctx context.Context, arg SetDeploymentPlacementStatusParams) (int64, error)
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
+	SetPlacementRegionStatus(ctx context.Context, arg SetPlacementRegionStatusParams) error
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error

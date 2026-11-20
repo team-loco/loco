@@ -99,6 +99,7 @@ SELECT l.resource_id,
        l.environment_id,
        e.name AS environment_name,
        l.region,
+       l.cluster_id,
        l.deployment_id,
        l.status AS placement_status,
        l.replicas AS desired_replicas,
@@ -108,6 +109,8 @@ SELECT l.resource_id,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        p.status_updated_at,
+       COALESCE(p.region_status, '')::text AS stored_status,
+       p.region_status_since,
        COALESCE((SELECT ro.replicas FROM observed_placement_rollouts ro WHERE ro.placement_id = p.id),
                 '[]'::jsonb)::jsonb AS replicas,
        c.last_heartbeat,
@@ -157,3 +160,12 @@ ORDER BY environment_id, created_at DESC, id DESC;
 SELECT r.id, r.slug
 FROM resources r
 WHERE r.workspace_id = $1;
+
+-- name: SetPlacementRegionStatus :exec
+UPDATE placements
+SET region_status = sqlc.arg(region_status), region_status_since = NOW()
+WHERE resource_id = sqlc.arg(resource_id)
+  AND environment_id = sqlc.arg(environment_id)
+  AND cluster_id = sqlc.arg(cluster_id)
+  AND NOT desired_deleted
+  AND region_status <> sqlc.arg(region_status);

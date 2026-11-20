@@ -337,6 +337,7 @@ SELECT l.resource_id,
        l.environment_id,
        e.name AS environment_name,
        l.region,
+       l.cluster_id,
        l.deployment_id,
        l.status AS placement_status,
        l.replicas AS desired_replicas,
@@ -346,6 +347,8 @@ SELECT l.resource_id,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        p.status_updated_at,
+       COALESCE(p.region_status, '')::text AS stored_status,
+       p.region_status_since,
        COALESCE((SELECT ro.replicas FROM observed_placement_rollouts ro WHERE ro.placement_id = p.id),
                 '[]'::jsonb)::jsonb AS replicas,
        c.last_heartbeat,
@@ -375,22 +378,25 @@ type ListRegionStatusesForResourcesParams struct {
 }
 
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID      uuid.UUID       `json:"resourceId"`
-	EnvironmentID   uuid.UUID       `json:"environmentId"`
-	EnvironmentName string          `json:"environmentName"`
-	Region          string          `json:"region"`
-	DeploymentID    uuid.UUID       `json:"deploymentId"`
-	PlacementStatus PlacementStatus `json:"placementStatus"`
-	DesiredReplicas int32           `json:"desiredReplicas"`
-	Problem         []byte          `json:"problem"`
-	Placed          bool            `json:"placed"`
-	ReadyReplicas   int32           `json:"readyReplicas"`
-	StatusUpdatedAt *time.Time      `json:"statusUpdatedAt"`
-	Replicas        []byte          `json:"replicas"`
-	LastHeartbeat   *time.Time      `json:"lastHeartbeat"`
-	HealthStatus    *string         `json:"healthStatus"`
-	UnservedDomains []string        `json:"unservedDomains"`
-	MaxRestarts     int32           `json:"maxRestarts"`
+	ResourceID        uuid.UUID       `json:"resourceId"`
+	EnvironmentID     uuid.UUID       `json:"environmentId"`
+	EnvironmentName   string          `json:"environmentName"`
+	Region            string          `json:"region"`
+	ClusterID         uuid.UUID       `json:"clusterId"`
+	DeploymentID      uuid.UUID       `json:"deploymentId"`
+	PlacementStatus   PlacementStatus `json:"placementStatus"`
+	DesiredReplicas   int32           `json:"desiredReplicas"`
+	Problem           []byte          `json:"problem"`
+	Placed            bool            `json:"placed"`
+	ReadyReplicas     int32           `json:"readyReplicas"`
+	StatusUpdatedAt   *time.Time      `json:"statusUpdatedAt"`
+	StoredStatus      string          `json:"storedStatus"`
+	RegionStatusSince *time.Time      `json:"regionStatusSince"`
+	Replicas          []byte          `json:"replicas"`
+	LastHeartbeat     *time.Time      `json:"lastHeartbeat"`
+	HealthStatus      *string         `json:"healthStatus"`
+	UnservedDomains   []string        `json:"unservedDomains"`
+	MaxRestarts       int32           `json:"maxRestarts"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRegionStatusesForResourcesParams) ([]ListRegionStatusesForResourcesRow, error) {
@@ -407,6 +413,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRe
 			&i.EnvironmentID,
 			&i.EnvironmentName,
 			&i.Region,
+			&i.ClusterID,
 			&i.DeploymentID,
 			&i.PlacementStatus,
 			&i.DesiredReplicas,
@@ -414,6 +421,8 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRe
 			&i.Placed,
 			&i.ReadyReplicas,
 			&i.StatusUpdatedAt,
+			&i.StoredStatus,
+			&i.RegionStatusSince,
 			&i.Replicas,
 			&i.LastHeartbeat,
 			&i.HealthStatus,
@@ -590,6 +599,33 @@ func (q *Queries) LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UU
 		return nil, err
 	}
 	return items, nil
+}
+
+const setPlacementRegionStatus = `-- name: SetPlacementRegionStatus :exec
+UPDATE placements
+SET region_status = $1, region_status_since = NOW()
+WHERE resource_id = $2
+  AND environment_id = $3
+  AND cluster_id = $4
+  AND NOT desired_deleted
+  AND region_status <> $1
+`
+
+type SetPlacementRegionStatusParams struct {
+	RegionStatus  string    `json:"regionStatus"`
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	ClusterID     uuid.UUID `json:"clusterId"`
+}
+
+func (q *Queries) SetPlacementRegionStatus(ctx context.Context, arg SetPlacementRegionStatusParams) error {
+	_, err := q.db.Exec(ctx, setPlacementRegionStatus,
+		arg.RegionStatus,
+		arg.ResourceID,
+		arg.EnvironmentID,
+		arg.ClusterID,
+	)
+	return err
 }
 
 const setResourceDeployPolicy = `-- name: SetResourceDeployPolicy :exec

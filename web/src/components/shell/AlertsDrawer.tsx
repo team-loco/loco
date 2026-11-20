@@ -151,8 +151,8 @@ function AlertCard({
 		<ActivityCard>
 			<div className="flex items-center justify-between gap-2.5 [&>span:first-child]:text-[13px]">
 				<ResourceStatusBadge status={alert.status} />
-				{alert.reportedMs !== undefined && (
-					<span className="font-mono text-[12px] text-fg3">since {agoLabel(alert.reportedMs, nowMs)}</span>
+				{alert.sinceMs !== undefined && (
+					<span className="font-mono text-[12px] text-fg3">started {agoLabel(alert.sinceMs, nowMs)}</span>
 				)}
 			</div>
 			<CardName name={alert.name} href={resourceHref} note={alert.description} onNavigate={onNavigate} />

@@ -894,27 +894,29 @@ type Organization struct {
 }
 
 type Placement struct {
-	ID               uuid.UUID  `json:"id"`
-	ResourceID       uuid.UUID  `json:"resourceId"`
-	ClusterID        uuid.UUID  `json:"clusterId"`
-	Region           string     `json:"region"`
-	DeploymentID     *uuid.UUID `json:"deploymentId"`
-	EnvironmentID    uuid.UUID  `json:"environmentId"`
-	SecretNames      []string   `json:"secretNames"`
-	DesiredRevision  int64      `json:"desiredRevision"`
-	DesiredSpec      []byte     `json:"desiredSpec"`
-	DesiredDeleted   bool       `json:"desiredDeleted"`
-	AppliedRevision  int64      `json:"appliedRevision"`
-	AppliedError     *string    `json:"appliedError"`
-	RetryAfter       *time.Time `json:"retryAfter"`
-	ApplyAttempts    int32      `json:"applyAttempts"`
-	ApplyFailed      bool       `json:"applyFailed"`
-	ObservedRevision int64      `json:"observedRevision"`
-	ReadyReplicas    int32      `json:"readyReplicas"`
-	ProblemReason    string     `json:"problemReason"`
-	StatusUpdatedAt  *time.Time `json:"statusUpdatedAt"`
-	CreatedAt        time.Time  `json:"createdAt"`
-	UpdatedAt        time.Time  `json:"updatedAt"`
+	ID                uuid.UUID  `json:"id"`
+	ResourceID        uuid.UUID  `json:"resourceId"`
+	ClusterID         uuid.UUID  `json:"clusterId"`
+	Region            string     `json:"region"`
+	DeploymentID      *uuid.UUID `json:"deploymentId"`
+	EnvironmentID     uuid.UUID  `json:"environmentId"`
+	SecretNames       []string   `json:"secretNames"`
+	DesiredRevision   int64      `json:"desiredRevision"`
+	DesiredSpec       []byte     `json:"desiredSpec"`
+	DesiredDeleted    bool       `json:"desiredDeleted"`
+	AppliedRevision   int64      `json:"appliedRevision"`
+	AppliedError      *string    `json:"appliedError"`
+	RetryAfter        *time.Time `json:"retryAfter"`
+	ApplyAttempts     int32      `json:"applyAttempts"`
+	ApplyFailed       bool       `json:"applyFailed"`
+	ObservedRevision  int64      `json:"observedRevision"`
+	ReadyReplicas     int32      `json:"readyReplicas"`
+	ProblemReason     string     `json:"problemReason"`
+	StatusUpdatedAt   *time.Time `json:"statusUpdatedAt"`
+	RegionStatus      string     `json:"regionStatus"`
+	RegionStatusSince *time.Time `json:"regionStatusSince"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
 type PlacementWindow struct {

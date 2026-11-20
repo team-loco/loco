@@ -13,7 +13,7 @@ export interface Alert {
 	region: string;
 	status: ResourceStatus;
 	message: string;
-	reportedMs: number | undefined;
+	sinceMs: number | undefined;
 }
 
 function unhealthy(status: ResourceStatus): boolean {
@@ -54,7 +54,7 @@ export function buildAlerts(resources: Resource[], environmentId: string): Alert
 				region: r.region,
 				status: r.status,
 				message: r.message ?? "",
-				reportedMs: maybeTsMs(r.reportedAt),
+				sinceMs: maybeTsMs(r.statusSince),
 			})),
 	);
 }
