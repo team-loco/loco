@@ -1,8 +1,9 @@
-import type { CSSProperties } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { useState, type CSSProperties } from "react";
+import { CheckIcon, CopyIcon, TextWrapIcon } from "lucide-react";
 import { highlight, type LanguageName } from "sugar-high";
 
 import { Button } from "@/components/design/Button";
+import { ToggleChip } from "@/components/design/ToggleChip";
 import { useCopy } from "@/hooks/useCopy";
 import { cn } from "@/lib/utils";
 
@@ -35,13 +36,33 @@ function CodeBlock({
 	className,
 	copyLabel = "Copy code",
 	lineNumbers = true,
-	wrap = language === "json",
+	wrap = false,
 }: CodeBlockProps) {
 	const [copiedKey, copy] = useCopy(COPIED_RESET_MS);
+	const [wrapJson, setWrapJson] = useState(wrap);
 	const copied = copiedKey !== null;
+	const isJson = language === "json";
+	const shouldWrap = isJson ? wrapJson : wrap;
 	const lineCount = children.split("\n").length;
 	const digits = lineCount.toString().length;
 	const gutter = { "--code-digits": digits } as CSSProperties;
+	const copyButton = (
+		<Button
+			variant="ghost"
+			size="icon-xs"
+			aria-label={copied ? "Copied" : copyLabel}
+			className={cn(
+				!isJson &&
+					"absolute top-1.5 right-1.5 border-line bg-code-bg/85 opacity-0 backdrop-blur-xs group-focus-within/code:opacity-100 group-hover/code:opacity-100 pointer-coarse:opacity-100",
+				copied ? "text-ok-fg opacity-100" : "text-fg3 hover:text-foreground",
+			)}
+			onClick={() => {
+				copy("code", children);
+			}}
+		>
+			{copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
+		</Button>
+	);
 
 	return (
 		<div
@@ -51,6 +72,15 @@ function CodeBlock({
 				className,
 			)}
 		>
+			{isJson && (
+				<div className="flex shrink-0 items-center justify-end gap-1 border-b border-line px-2 py-1.5">
+					<ToggleChip variant="button" className="h-6.5 px-2 text-xs" pressed={wrapJson} onPressedChange={setWrapJson}>
+						<TextWrapIcon aria-hidden="true" />
+						Wrap lines
+					</ToggleChip>
+					{copyButton}
+				</div>
+			)}
 			<pre
 				tabIndex={0}
 				style={gutter}
@@ -63,26 +93,12 @@ function CodeBlock({
 					language={language}
 					className={cn(
 						lineNumbers ? "code-lines" : "code-plain block px-4 whitespace-normal",
-						wrap && "code-wrap",
-						!lineNumbers && !wrap && "w-max min-w-full",
+						shouldWrap && "code-wrap",
+						!lineNumbers && !shouldWrap && "w-max min-w-full",
 					)}
 				/>
 			</pre>
-			<Button
-				variant="ghost"
-				size="icon-xs"
-				aria-label={copied ? "Copied" : copyLabel}
-				className={cn(
-					"absolute top-1.5 right-1.5 border-line bg-code-bg/85 backdrop-blur-xs hover:bg-panel2 dark:hover:bg-panel2",
-					"opacity-0 group-focus-within/code:opacity-100 group-hover/code:opacity-100 pointer-coarse:opacity-100",
-					copied ? "text-ok-fg opacity-100" : "text-fg3 hover:text-foreground",
-				)}
-				onClick={() => {
-					copy("code", children);
-				}}
-			>
-				{copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-			</Button>
+			{!isJson && copyButton}
 		</div>
 	);
 }
