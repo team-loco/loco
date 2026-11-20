@@ -537,6 +537,7 @@ func setFakeReplicas(platform *fakePlatform, service string, silent bool) {
 				{
 					EnvironmentName: fakeEnvironmentName,
 					Status:          region.GetStatus(),
+					StatusSince:     timestamppb.New(now.Add(-2 * time.Hour)),
 					Regions:         []*resourcev1.RegionStatus{region},
 				},
 			}

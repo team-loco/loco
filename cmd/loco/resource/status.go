@@ -121,19 +121,23 @@ func renderStatusView(stdout io.Writer, name string, resource *resourcev1.Resour
 		_, err := lipgloss.Fprintln(stdout, sectionStyle.Render(notDeployedMessage))
 		return err
 	}
+	now := time.Now()
 	for _, environment := range statuses {
-		if err := renderEnvironmentStatus(stdout, environment); err != nil {
+		if err := renderEnvironmentStatus(stdout, environment, now); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.EnvironmentStatus) error {
+func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.EnvironmentStatus, now time.Time) error {
 	nameStyle := lipgloss.NewStyle().Foreground(ui.Fg).Bold(true)
 	status := environment.GetStatus()
 	statusStyle := lipgloss.NewStyle().Foreground(statusColor(status))
 	heading := nameStyle.Render(environment.GetEnvironmentName()) + "  " + statusStyle.Render(statusLabel(status))
+	if since := environment.GetStatusSince(); since != nil {
+		heading += "  " + lipgloss.NewStyle().Foreground(ui.Fg3).Render("since "+age(now.Sub(since.AsTime()))+" ago")
+	}
 	if _, err := lipgloss.Fprintln(stdout, sectionStyle.Render(heading)); err != nil {
 		return err
 	}
@@ -152,7 +156,6 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 	if err := printTable(stdout, []string{"REGION", "STATUS", "READY", "DEPLOYMENT", "MESSAGE"}, rows); err != nil {
 		return err
 	}
-	now := time.Now()
 	for _, region := range environment.GetRegions() {
 		if err := renderReplicas(stdout, region, now); err != nil {
 			return err
