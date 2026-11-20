@@ -55,12 +55,13 @@ export function ScalingFields({
 	region?: string;
 	error?: string | null;
 }) {
+	const autoscaling = autoscales(value);
 	const suffix = region === undefined ? "" : ` in ${region}`;
 	const limit = replicaRange?.max ?? value.maxReplicas;
 	const floor = replicaRange?.min ?? value.replicas;
 	return (
 		<>
-			{autoscales(value) ? (
+			{autoscaling ? (
 				<div className="grid grid-cols-2 gap-x-4 gap-y-3">
 					<Field label="Min replicas per region">
 						<Stepper
@@ -112,11 +113,7 @@ export function ScalingFields({
 					/>
 				</Field>
 			)}
-			<p className="m-0 text-[12.5px] text-fg3">
-				{autoscales(value)
-					? "Scales per region based on CPU utilization."
-					: `Runs exactly ${value.replicas.toString()} per region.`}
-			</p>
+			{autoscaling && <p className="m-0 text-[12.5px] text-fg3">Scales per region based on CPU utilization.</p>}
 			{error != null && (
 				<p role="alert" className="text-[12.5px] text-bad-fg">
 					{error}

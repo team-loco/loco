@@ -421,7 +421,11 @@ with session(out) as browser:
         drawer.get_by_role("button", name="Decrease replicas", exact=True)
     ).to_be_disabled()
     drawer.get_by_role("button", name="Increase replicas", exact=True).click()
-    expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+    replicas = drawer.get_by_role("group", name="Replicas", exact=True)
+    expect(replicas.get_by_text("2", exact=True)).to_be_visible()
+    expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_have_count(
+        0
+    )
     cpu = drawer.get_by_role("slider", name="CPU", exact=True)
     memory = drawer.get_by_role("slider", name="Memory", exact=True)
     expect(cpu).to_have_attribute("max", "4")
@@ -590,7 +594,7 @@ with session(out) as browser:
     expect(page).to_have_url(DRAFT_URL)
     expect(secret_switch).to_be_checked()
     expect(secret_value).to_have_value("")
-    expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_be_visible()
+    expect(replicas.get_by_text("2", exact=True)).to_be_visible()
     expect(memory).to_have_attribute("aria-valuetext", "1 Gi")
     expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
     expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value(
