@@ -65,9 +65,9 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 		}
 		return nil
 	})
-	shortenFailureDeadline(t, w, resourceID)
 	crashing := withImage(file.Services[app], p.CrashingImage)
 	crashing.Env = map[string]string{rollbackModeKey: "crashing"}
+	crashing.Deploy = &locofile.Deploy{Timeout: new(int32(locofile.MinDeployTimeout))}
 	file.Services[app] = crashing
 	platform.WriteLocoFile(t, dir, file)
 	result := w.Loco(t.Context(), dir, nil, "deploy", "--yes", "--wait")
@@ -136,11 +136,4 @@ func workloadEnv(deployment appsv1.Deployment, name string) string {
 		}
 	}
 	return ""
-}
-
-// 90s leaves the failing revision time to restart and take traffic before the rollout stalls.
-func shortenFailureDeadline(t *testing.T, w *platform.Workspace, resourceID string) {
-	t.Helper()
-	p.MustKubectl(t, "-n", w.Namespace, "patch", "deployment", locov1alpha1.WorkloadName(resourceID),
-		"--type=merge", "-p", `{"spec":{"progressDeadlineSeconds":90}}`)
 }

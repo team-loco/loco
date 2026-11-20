@@ -70,7 +70,8 @@ var _ = Describe("Application Controller", func() {
 								PathPrefix:  "/",
 								IdleTimeout: 300,
 							},
-							RestartPolicy: testRestartPolicy,
+							RestartPolicy:        testRestartPolicy,
+							DeployTimeoutSeconds: testDeployTimeout,
 						},
 					},
 				}

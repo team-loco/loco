@@ -190,8 +190,8 @@ The API fills these into a service that leaves the field out. See [loco.yaml](..
 | `LOCO_DEFAULT_HEALTH_TIMEOUT` | `5` (seconds) |
 | `LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD` | `3` |
 | `LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD` | `0` (seconds) |
-| `LOCO_DEFAULT_MAX_RESTARTS` | `5` (0 to 20) |
-| `LOCO_DEFAULT_RESTART_WINDOW` | `600` (seconds, 60 to 3600) |
+| `LOCO_DEFAULT_MAX_RESTARTS` | `10` (1 to 20, under the default `on-failure` restart policy) |
+| `LOCO_DEFAULT_DEPLOY_TIMEOUT` | `600` (seconds, 60 to 3600) |
 
 ## Count limits
 

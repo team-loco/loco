@@ -281,9 +281,9 @@ func TestAFailedRolloutLeavesTheServiceOpenToChanges(t *testing.T) {
 	stoppedRollout := stoppedReport()
 	stoppedRollout.Stopped.Rollout = true
 	failures := map[string]*agentv1.PlacementStatus{
-		"progress deadline": {
-			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemRolloutTimeout)},
-			ProgressDeadlineExceeded: true,
+		"deploy timeout": {
+			Problem: &agentv1.ProblemReport{Reason: string(loco.ProblemDeployTimeout)},
+			Stopped: deployTimedOut(),
 		},
 		"restart budget": stoppedRollout,
 	}

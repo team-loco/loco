@@ -369,8 +369,11 @@ func liveState(
 	if routing := spec.GetRouting(); routing != nil {
 		state.Port = routing.Port
 	}
-	if res.MaxRestarts != nil || res.RestartWindowSeconds != nil {
-		state.Deploy = &locofile.Deploy{MaxRestarts: res.MaxRestarts, RestartWindow: res.RestartWindowSeconds}
+	if res.RestartPolicy != nil || res.MaxRestarts != nil || res.DeployTimeoutSeconds != nil {
+		state.Deploy = &locofile.Deploy{MaxRestarts: res.MaxRestarts, Timeout: res.DeployTimeoutSeconds}
+		if res.RestartPolicy != nil {
+			state.Deploy.Restart = *res.RestartPolicy
+		}
 	}
 	if routing := spec.GetRouting(); routing.GetPathPrefix() != "" || routing.GetIdleTimeout() != 0 {
 		pathPrefix, idleTimeout := defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())

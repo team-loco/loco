@@ -40,7 +40,7 @@ func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 	}
 	report.Available = false
 	report.Healthy = false
-	report.ProgressDeadlineExceeded = true
+	report.Stopped = deployTimedOut()
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	failed := read()
 	if failed.CompletedAt == nil || !failed.StartedAt.Equal(*running.StartedAt) {
@@ -52,7 +52,7 @@ func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 	}
 	report.Available = true
 	report.Healthy = true
-	report.ProgressDeadlineExceeded = false
+	report.Stopped = nil
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := read(); got.CompletedAt != nil || !got.StartedAt.Equal(*running.StartedAt) {
 		t.Fatalf("recovered timestamps=%+v", got)

@@ -7,7 +7,7 @@ func TestProblemMessages(t *testing.T) {
 		ProblemBuildFailed, ProblemApplyFailed, ProblemUnschedulable,
 		ProblemImagePullFailed, ProblemImageUser, ProblemConfigError,
 		ProblemRestarting, ProblemRestartsExhausted, ProblemOutOfMemory, ProblemHealthCheckFailing,
-		ProblemRolloutTimeout, ProblemUncleanShutdown,
+		ProblemDeployTimeout, ProblemUncleanShutdown,
 	}
 	counts := make(map[ProblemReason]int)
 	for _, problem := range problems {
@@ -36,7 +36,7 @@ func TestProblemHigherPriority(t *testing.T) {
 		{ProblemBuildFailed, ProblemApplyFailed},
 		{ProblemOutOfMemory, ProblemRestarting},
 		{ProblemRestartsExhausted, ProblemOutOfMemory},
-		{ProblemRolloutTimeout, ProblemUncleanShutdown},
+		{ProblemDeployTimeout, ProblemImagePullFailed},
 	} {
 		if !ProblemHigherPriority(pair[0], pair[1]) {
 			t.Errorf("%q should outrank %q", pair[0], pair[1])

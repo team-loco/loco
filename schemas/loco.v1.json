@@ -22,17 +22,26 @@
     },
     "Deploy": {
       "properties": {
+        "restart": {
+          "type": "string",
+          "enum": [
+            "on-failure",
+            "always",
+            "never"
+          ],
+          "description": "When exits stop the version: on-failure after maxRestarts restarts without a healthy stretch, never on the first exit, always on none. Defaults to on-failure."
+        },
         "maxRestarts": {
           "type": "integer",
-          "minimum": 0,
+          "minimum": 1,
           "maximum": 20,
-          "description": "Restarts a replica may have within restartWindow. The next restart stops the version."
+          "description": "Restarts a replica may have under on-failure before the next one stops the version."
         },
-        "restartWindow": {
+        "timeout": {
           "type": "integer",
           "minimum": 60,
           "maximum": 3600,
-          "description": "Seconds over which restarts are counted."
+          "description": "Seconds a new version has to become healthy before Loco stops it and the previous version keeps serving."
         }
       },
       "additionalProperties": false,

@@ -12,7 +12,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -43,9 +42,7 @@ func (s *ResourceServer) environmentStatuses(
 	ctx context.Context,
 	resourceIDs []uuid.UUID,
 ) (map[uuid.UUID][]*resourcev1.EnvironmentStatus, error) {
-	rows, err := s.queries.ListRegionStatusesForResources(ctx, genDb.ListRegionStatusesForResourcesParams{
-		ResourceIds: resourceIDs, DefaultMaxRestarts: s.defaults.MaxRestarts,
-	})
+	rows, err := s.queries.ListRegionStatusesForResources(ctx, resourceIDs)
 	if err != nil {
 		return nil, fmt.Errorf("list region statuses: %w", err)
 	}
@@ -58,6 +55,8 @@ func (s *ResourceServer) environmentStatuses(
 		if regionErr != nil {
 			return nil, fmt.Errorf("resource %s region %s: %w", row.ResourceID, row.Region, regionErr)
 		}
+		region.FailurePolicy = s.defaults.FailurePolicy(row.RestartPolicy, row.MaxRestarts,
+			row.DeployTimeoutSeconds).Proto()
 		environmentID := row.EnvironmentID.String()
 		if current == nil || currentResource != row.ResourceID || current.GetEnvironmentId() != environmentID {
 			current = &resourcev1.EnvironmentStatus{
@@ -103,7 +102,6 @@ func regionStatus(
 		DesiredReplicas: row.DesiredReplicas,
 		DeploymentId:    row.DeploymentID.String(),
 		PlacementStatus: placementStatuses[row.PlacementStatus],
-		MaxRestarts:     row.MaxRestarts,
 	}
 	if row.StatusUpdatedAt != nil {
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)
@@ -161,12 +159,9 @@ func recordRegionStatuses(
 	ctx context.Context,
 	q *genDb.Queries,
 	resourceID uuid.UUID,
-	defaults servicedefaults.Defaults,
 	staleAfter time.Duration,
 ) error {
-	rows, err := q.ListRegionStatusesForResources(ctx, genDb.ListRegionStatusesForResourcesParams{
-		ResourceIds: []uuid.UUID{resourceID}, DefaultMaxRestarts: defaults.MaxRestarts,
-	})
+	rows, err := q.ListRegionStatusesForResources(ctx, []uuid.UUID{resourceID})
 	if err != nil {
 		return fmt.Errorf("list region statuses: %w", err)
 	}

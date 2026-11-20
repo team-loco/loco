@@ -22,7 +22,7 @@ func validDefaults() Defaults {
 		HealthTimeout:       5,
 		HealthFailThreshold: 3,
 		MaxRestarts:         5,
-		RestartWindow:       600,
+		DeployTimeout:       600,
 	}
 }
 
@@ -57,8 +57,9 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 		"high fail threshold":          {func(d *Defaults) { d.HealthFailThreshold = 11 }, errInvalidHealth},
 		"long grace period":            {func(d *Defaults) { d.HealthStartupGracePeriod = 181 }, errInvalidHealth},
 		"negative grace period":        {func(d *Defaults) { d.HealthStartupGracePeriod = -1 }, errInvalidHealth},
+		"zero restarts":                {func(d *Defaults) { d.MaxRestarts = 0 }, errInvalidRestarts},
 		"21 restarts":                  {func(d *Defaults) { d.MaxRestarts = 21 }, errInvalidRestarts},
-		"59 second restart window":     {func(d *Defaults) { d.RestartWindow = 59 }, errInvalidRestarts},
+		"59 second deploy timeout":     {func(d *Defaults) { d.DeployTimeout = 59 }, errInvalidRestarts},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -73,6 +74,7 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 
 func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 	health := d.Health()
+	policy := d.FailurePolicy(nil, nil, nil)
 	return &locoControllerV1.ApplicationSpec{
 		ResourceID:    "resource",
 		EnvironmentID: "environment",
@@ -95,7 +97,8 @@ func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 				PathPrefix:  d.PathPrefix,
 				IdleTimeout: d.IdleTimeout,
 			},
-			RestartPolicy: d.RestartPolicy(nil, nil),
+			RestartPolicy:        policy.Restart,
+			DeployTimeoutSeconds: policy.DeployTimeoutSeconds,
 		},
 	}
 }
@@ -115,6 +118,9 @@ func TestValidateAgreesWithTheApplicationValidator(t *testing.T) {
 		"replicas max 10":   func(d *Defaults) { d.MaxReplicas = 10 },
 		"replicas max 11":   func(d *Defaults) { d.MaxReplicas = 11 },
 		"idle timeout 0":    func(d *Defaults) { d.IdleTimeout = 0 },
+		"restarts 20":       func(d *Defaults) { d.MaxRestarts = 20 },
+		"restarts 21":       func(d *Defaults) { d.MaxRestarts = 21 },
+		"deploy timeout 59": func(d *Defaults) { d.DeployTimeout = 59 },
 	}
 	for name, change := range boundaries {
 		t.Run(name, func(t *testing.T) {
@@ -129,15 +135,29 @@ func TestValidateAgreesWithTheApplicationValidator(t *testing.T) {
 	}
 }
 
-func TestRestartPolicyFillsWhatTheServiceLeavesOut(t *testing.T) {
+func TestFailurePolicyFillsWhatTheServiceLeavesOut(t *testing.T) {
 	defaults := validDefaults()
-	if got := defaults.RestartPolicy(nil, nil); got.MaxRestarts != 5 || got.WindowSeconds != 600 {
-		t.Errorf("default policy = %+v", got)
+	onFailure := func(restarts int32) locoControllerV1.RestartPolicySpec {
+		return locoControllerV1.RestartPolicySpec{Mode: locoControllerV1.RestartOnFailure, MaxRestarts: restarts}
 	}
-	if got := defaults.RestartPolicy(new(int32(0)), nil); got.MaxRestarts != 0 || got.WindowSeconds != 600 {
-		t.Errorf("policy with zero restarts = %+v", got)
-	}
-	if got := defaults.RestartPolicy(nil, new(int32(120))); got.MaxRestarts != 5 || got.WindowSeconds != 120 {
-		t.Errorf("policy with a window = %+v", got)
+	always := string(locoControllerV1.RestartAlways)
+	for _, tt := range []struct {
+		name     string
+		mode     *string
+		restarts *int32
+		timeout  *int32
+		want     FailurePolicy
+	}{
+		{"defaults", nil, nil, nil, FailurePolicy{onFailure(5), 600}},
+		{"a budget", nil, new(int32(2)), nil, FailurePolicy{onFailure(2), 600}},
+		{"a timeout", nil, nil, new(int32(120)), FailurePolicy{onFailure(5), 120}},
+		{"always takes no budget", &always, new(int32(2)), nil,
+			FailurePolicy{locoControllerV1.RestartPolicySpec{Mode: locoControllerV1.RestartAlways}, 600}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := defaults.FailurePolicy(tt.mode, tt.restarts, tt.timeout); got != tt.want {
+				t.Errorf("policy = %+v, want %+v", got, tt.want)
+			}
+		})
 	}
 }

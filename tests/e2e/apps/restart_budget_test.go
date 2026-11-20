@@ -153,8 +153,8 @@ func (s *budgetService) waitDeploymentStatus(
 		t.Fatalf("%d %s events for deployment %s, want 1", len(recorded), eventType, deployment)
 	}
 	fields := recorded[0].GetData().GetFields()
-	if restarts := fields["restarts"].GetNumberValue(); restarts < 2 || fields["window"].GetNumberValue() != 600 {
-		t.Errorf("%s data = %v, want at least 2 restarts in a 600 s window", eventType, fields)
+	if restarts := fields["restarts"].GetNumberValue(); restarts < 2 {
+		t.Errorf("%s data = %v, want at least 2 restarts", eventType, fields)
 	}
 }
 
@@ -177,7 +177,7 @@ func (s *budgetService) waitStopped(t *testing.T, rollout bool, exitCode int32) 
 		stopped = status.Stopped
 		return nil
 	})
-	if stopped.Restarts < 2 || stopped.LastRestart.Cause != locov1alpha1.RestartExit ||
+	if stopped.Restarts < 2 || stopped.LastRestart == nil || stopped.LastRestart.Cause != locov1alpha1.RestartExit ||
 		stopped.LastRestart.ExitCode != exitCode || stopped.Rollout != rollout {
 		t.Errorf("stopped = %+v, want rollout %t after at least 2 restarts, the last after exit %d",
 			stopped, rollout, exitCode)

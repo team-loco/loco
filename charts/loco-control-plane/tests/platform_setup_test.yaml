@@ -23,7 +23,8 @@ tests:
       api.limits.orgsPerUser: 4
       api.limits.secretsPerEnvironment: 24
       api.defaults.minReplicas: 2
-      api.defaults.maxRestarts: 0
+      api.defaults.maxRestarts: 3
+      api.defaults.deployTimeout: 300
       api.retention.events: 720h
     asserts:
       - contains:
@@ -37,7 +38,10 @@ tests:
           content: {name: LOCO_DEFAULT_MIN_REPLICAS, value: '2'}
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: LOCO_DEFAULT_MAX_RESTARTS, value: '0'}
+          content: {name: LOCO_DEFAULT_MAX_RESTARTS, value: '3'}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_DEFAULT_DEPLOY_TIMEOUT, value: '300'}
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: EVENTS_RETENTION, value: 720h}

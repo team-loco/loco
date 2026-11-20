@@ -11,6 +11,7 @@ import (
 
 	"github.com/team-loco/loco/api/limits"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -67,14 +68,11 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		health.GetInitialDelaySeconds() != defaults.HealthStartupGracePeriod {
 		t.Errorf("health check = %v, want the configured defaults", health)
 	}
-	if got.GetMaxRestarts() != defaults.MaxRestarts || got.GetRestartWindowSeconds() != defaults.RestartWindow {
-		t.Errorf(
-			"%d restarts in %ds, want %d in %ds",
-			got.GetMaxRestarts(),
-			got.GetRestartWindowSeconds(),
-			defaults.MaxRestarts,
-			defaults.RestartWindow,
-		)
+	policy := got.GetFailurePolicy()
+	if policy.GetRestartPolicy() != deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE ||
+		policy.GetMaxRestarts() != defaults.MaxRestarts || policy.GetDeployTimeoutSeconds() != defaults.DeployTimeout {
+		t.Errorf("failure policy = %v, want on-failure with %d restarts and a %ds deploy timeout",
+			policy, defaults.MaxRestarts, defaults.DeployTimeout)
 	}
 	if resp.GetSchemaUrl() != schemaURL {
 		t.Errorf("schema url = %q, want %q", resp.GetSchemaUrl(), schemaURL)

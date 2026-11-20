@@ -147,12 +147,12 @@ func TestDeploymentFailedRecordedOnceAcrossRepeatedReports(t *testing.T) {
 	placement := f.placement(t, f.clusterID)
 	report := &agentv1.PlacementStatus{
 		Problem: &agentv1.ProblemReport{
-			Reason: string(loco.ProblemRolloutTimeout),
+			Reason: string(loco.ProblemDeployTimeout),
 			Detail: failedDeployMessage,
 		},
-		ProgressDeadlineExceeded: true,
-		PlacementId:              placement.ID.String(),
-		ObservedRevision:         placement.DesiredRevision,
+		Stopped:          deployTimedOut(),
+		PlacementId:      placement.ID.String(),
+		ObservedRevision: placement.DesiredRevision,
 	}
 	// Separate servers model API replicas reporting the same failure concurrently.
 	var wg sync.WaitGroup
@@ -178,7 +178,8 @@ func TestDeploymentFailedRecordedOnceAcrossRepeatedReports(t *testing.T) {
 		f,
 		ev.data,
 		id,
-		"The service exceeded its rollout progress deadline. Check its replicas and logs. "+failedDeployMessage,
+		"The new version did not become healthy within its deploy timeout, so Loco stopped it. "+
+			"Check its replicas and logs, then redeploy. "+failedDeployMessage,
 	)
 }
 

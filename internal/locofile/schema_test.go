@@ -70,7 +70,7 @@ type schemaProperty struct {
 	Type                 schemaTypes      `json:"type"`
 	Ref                  string           `json:"$ref"`
 	AnyOf                []schemaProperty `json:"anyOf"`
-	Enum                 []int            `json:"enum"`
+	Enum                 []any            `json:"enum"`
 	Default              string           `json:"default"`
 	Description          string           `json:"description"`
 	AdditionalProperties *schemaProperty  `json:"additionalProperties"`
@@ -262,7 +262,12 @@ func TestSchemaMatchesTypes(t *testing.T) {
 
 func TestSchemaConstraints(t *testing.T) {
 	schema := loadSchema(t)
-	assert.Equal(t, []int{Version}, schema.Properties[keyVersion].Enum)
+	assert.Equal(t, []any{float64(Version)}, schema.Properties[keyVersion].Enum)
+	assert.Equal(
+		t,
+		[]any{RestartOnFailure, RestartAlways, RestartNever},
+		schema.Defs["Deploy"].Properties["restart"].Enum,
+	)
 	assert.Equal(t, "Dockerfile", schema.Defs["Service"].Properties["dockerfile"].Default)
 	assert.Equal(t, ".", schema.Defs["Service"].Properties["context"].Default)
 }

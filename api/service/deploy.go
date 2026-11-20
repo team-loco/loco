@@ -428,8 +428,10 @@ func buildApplicationSpec(
 				hostname,
 				defaults,
 			),
-			RestartPolicy: defaults.RestartPolicy(resource.MaxRestarts, resource.RestartWindowSeconds),
 		}
+		policy := defaults.FailurePolicy(resource.RestartPolicy, resource.MaxRestarts, resource.DeployTimeoutSeconds)
+		appSpec.ServiceSpec.RestartPolicy = policy.Restart
+		appSpec.ServiceSpec.DeployTimeoutSeconds = policy.DeployTimeoutSeconds
 
 	default:
 		return nil, fmt.Errorf("unknown resource type: %s", resource.Type)

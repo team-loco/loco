@@ -1,5 +1,5 @@
 # loco resource status lists each region's replicas with their state, restarts, last exit and age;
-# a replica that restarted shows its restarts in the window against the budget.
+# a replica that restarted shows the restarts its restart policy counts against the budget.
 fakeapi replicas web
 env NO_COLOR=1
 

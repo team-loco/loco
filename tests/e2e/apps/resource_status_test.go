@@ -209,8 +209,9 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	servedBefore := count("ok")
 	samples := sampleReplicaSets(t, w.Namespace, selector)
 
-	shortenFailureDeadline(t, w, id)
-	file.Services[app] = withImage(file.Services[app], p.CrashingImage)
+	crashingService := withImage(file.Services[app], p.CrashingImage)
+	crashingService.Deploy = &locofile.Deploy{Timeout: new(int32(locofile.MinDeployTimeout))}
+	file.Services[app] = crashingService
 	platform.WriteLocoFile(t, dir, file)
 	crashing := w.Loco(t.Context(), dir, nil, "deploy", "--yes", "--wait")
 	newDeployment := regionStatus(t, w, app).GetDeploymentId()
@@ -219,20 +220,14 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 		t.Errorf("loco deploy --wait of the crashing version: %v, want an error naming %q:\n%s",
 			crashing.Err, failure, crashing.Output())
 	}
-	// Several completed crashes prove that no incarnation could replace an old replica.
-	platform.Eventually(
-		t,
-		2*time.Minute,
-		"the crashing version to complete multiple runs",
-		func(context.Context) error {
-			state := newPodState(t, w, selector, oldHash)
-			lastExit := state.LastTerminationState.Terminated
-			if state.RestartCount < 2 || lastExit == nil || lastExit.ExitCode == 0 {
-				return fmt.Errorf("%d restarts, previous termination %+v", state.RestartCount, lastExit)
+	platform.Eventually(t, 2*time.Minute, "the stopped version's replica to go away", func(context.Context) error {
+		for _, pod := range appPods(t, w, selector) {
+			if pod.Labels["pod-template-hash"] != oldHash {
+				return fmt.Errorf("replica %s of the stopped version remains", pod.Name)
 			}
-			return nil
-		},
-	)
+		}
+		return nil
+	})
 	recorded := samples.stop()
 	served, failed := count("ok"), count("fail")
 	if served <= servedBefore {
@@ -259,15 +254,6 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	if newSamples < 10 {
 		t.Errorf("%d replica samples cover the new ReplicaSet, want at least 10", newSamples)
 	}
-	newPods := 0
-	for _, pod := range appPods(t, w, selector) {
-		if pod.Labels["pod-template-hash"] != oldHash {
-			newPods++
-		}
-	}
-	if newPods > 1 {
-		t.Errorf("%d replicas of the new version exist, want at most one", newPods)
-	}
 	if status := getDeployment(
 		t,
 		newDeployment,
@@ -278,13 +264,7 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	if err := twoReady(t.Context()); err != nil {
 		t.Errorf("the API does not report the app healthy while the old replicas serve: %v", err)
 	}
-	desired := getDeployment(t, newDeployment)
-	requireServingReplicas(t, desired, oldDeployment, 2)
-	if !slices.ContainsFunc(desired.GetPlacements()[0].GetReplicas(), func(replica *deploymentv1.Replica) bool {
-		return replica.GetDeploymentId() == newDeployment
-	}) {
-		t.Error("the failed desired deployment has no identified unready replica")
-	}
+	requireServingReplicas(t, getDeployment(t, newDeployment), oldDeployment, 2)
 	if getDeployment(t, oldDeployment).GetPlacements()[0].GetLive() {
 		t.Error("the serving deployment is reported active")
 	}
@@ -395,17 +375,6 @@ func (s *sampler) stop() []replicaSample {
 	}
 	s.done.Wait()
 	return s.samples
-}
-
-// newPodState returns the new version's container status, including its previous termination.
-func newPodState(t *testing.T, w *platform.Workspace, selector, oldHash string) corev1.ContainerStatus {
-	t.Helper()
-	for _, pod := range appPods(t, w, selector) {
-		if pod.Labels["pod-template-hash"] != oldHash && len(pod.Status.ContainerStatuses) > 0 {
-			return pod.Status.ContainerStatuses[0]
-		}
-	}
-	return corev1.ContainerStatus{}
 }
 
 func appPods(t *testing.T, w *platform.Workspace, selector string) []corev1.Pod {

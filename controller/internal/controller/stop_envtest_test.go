@@ -149,6 +149,35 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
 	})
 
+	It("stops the revision on its first exit under never and on the one past the budget under on-failure", func() {
+		for _, tt := range []struct {
+			name   string
+			policy locov1alpha1.RestartPolicySpec
+			allows int32
+		}{
+			{"stop-never", locov1alpha1.RestartPolicySpec{Mode: locov1alpha1.RestartNever}, 0},
+			{"stop-on-failure", locov1alpha1.RestartPolicySpec{Mode: locov1alpha1.RestartOnFailure, MaxRestarts: 3}, 3},
+		} {
+			app := isolationTestApplication(stopWorkspace, tt.name)
+			app.Spec.ServiceSpec.Routing = nil
+			app.Spec.ServiceSpec.RestartPolicy = tt.policy
+			app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			reconcileStuckApp(r, app)
+			previous := createReplicaSet(app, tt.name+"-previous", "1", 1)
+			pod := createReplica(app, tt.name+"-replica", testImage)
+			restartTo(r, app, pod, tt.allows)
+			Expect(app.Status.Rollout.Stopped).To(BeNil(), tt.name)
+
+			setRestarted(pod, tt.allows+1)
+			reconcileStuckApp(r, app)
+			Expect(app.Status.Rollout.Stopped).NotTo(BeNil(), tt.name)
+			Expect(app.Status.Rollout.Stopped.Reason).To(Equal(locov1alpha1.ProblemRestartsExhausted))
+			Expect(app.Status.Rollout.Stopped.Restarts).To(Equal(tt.allows + 1))
+			Expect(replicaSetReplicas(previous)).To(Equal(int32(1)))
+		}
+	})
+
 	It("keeps the stop when a reconcile starts from a cached Application older than the stop", func() {
 		app := isolationTestApplication(stopWorkspace, "stop-stale")
 		app.Spec.ServiceSpec.Routing = nil

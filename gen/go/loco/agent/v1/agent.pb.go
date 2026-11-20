@@ -749,27 +749,25 @@ func (x *Applied) GetRetrying() bool {
 }
 
 type PlacementStatus struct {
-	state                    protoimpl.MessageState `protogen:"open.v1"`
-	PlacementId              string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
-	ObservedRevision         int64                  `protobuf:"varint,2,opt,name=observed_revision,json=observedRevision,proto3" json:"observed_revision,omitempty"`
-	ReadyReplicas            int32                  `protobuf:"varint,4,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
-	DesiredReplicas          int32                  `protobuf:"varint,9,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
-	Available                bool                   `protobuf:"varint,10,opt,name=available,proto3" json:"available,omitempty"`
-	ProgressDeadlineExceeded bool                   `protobuf:"varint,11,opt,name=progress_deadline_exceeded,json=progressDeadlineExceeded,proto3" json:"progress_deadline_exceeded,omitempty"`
-	Replicas                 []*v11.Replica         `protobuf:"bytes,12,rep,name=replicas,proto3" json:"replicas,omitempty"`
-	Problem                  *ProblemReport         `protobuf:"bytes,13,opt,name=problem,proto3" json:"problem,omitempty"`
-	DeploymentId             string                 `protobuf:"bytes,14,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	PlacementId      string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	ObservedRevision int64                  `protobuf:"varint,2,opt,name=observed_revision,json=observedRevision,proto3" json:"observed_revision,omitempty"`
+	ReadyReplicas    int32                  `protobuf:"varint,4,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
+	DesiredReplicas  int32                  `protobuf:"varint,9,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
+	Available        bool                   `protobuf:"varint,10,opt,name=available,proto3" json:"available,omitempty"`
+	Replicas         []*v11.Replica         `protobuf:"bytes,12,rep,name=replicas,proto3" json:"replicas,omitempty"`
+	Problem          *ProblemReport         `protobuf:"bytes,13,opt,name=problem,proto3" json:"problem,omitempty"`
+	DeploymentId     string                 `protobuf:"bytes,14,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	// Available with no current replica restarted within the controller's health window.
 	Healthy bool `protobuf:"varint,15,opt,name=healthy,proto3" json:"healthy,omitempty"`
 	// When an available placement becomes healthy if no replica restarts again.
 	HealthyAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=healthy_at,json=healthyAt,proto3" json:"healthy_at,omitempty"`
-	// Set when the controller stopped the observed revision after a replica used up its restart budget.
+	// Set when the controller stopped the observed revision.
 	Stopped *StoppedRevision `protobuf:"bytes,17,opt,name=stopped,proto3" json:"stopped,omitempty"`
-	// The observed revision's restart policy.
-	MaxRestarts          int32 `protobuf:"varint,18,opt,name=max_restarts,json=maxRestarts,proto3" json:"max_restarts,omitempty"`
-	RestartWindowSeconds int32 `protobuf:"varint,19,opt,name=restart_window_seconds,json=restartWindowSeconds,proto3" json:"restart_window_seconds,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// The observed revision's failure policy.
+	FailurePolicy *v11.FailurePolicy `protobuf:"bytes,18,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlacementStatus) Reset() {
@@ -837,13 +835,6 @@ func (x *PlacementStatus) GetAvailable() bool {
 	return false
 }
 
-func (x *PlacementStatus) GetProgressDeadlineExceeded() bool {
-	if x != nil {
-		return x.ProgressDeadlineExceeded
-	}
-	return false
-}
-
 func (x *PlacementStatus) GetReplicas() []*v11.Replica {
 	if x != nil {
 		return x.Replicas
@@ -886,31 +877,28 @@ func (x *PlacementStatus) GetStopped() *StoppedRevision {
 	return nil
 }
 
-func (x *PlacementStatus) GetMaxRestarts() int32 {
+func (x *PlacementStatus) GetFailurePolicy() *v11.FailurePolicy {
 	if x != nil {
-		return x.MaxRestarts
+		return x.FailurePolicy
 	}
-	return 0
-}
-
-func (x *PlacementStatus) GetRestartWindowSeconds() int32 {
-	if x != nil {
-		return x.RestartWindowSeconds
-	}
-	return 0
+	return nil
 }
 
 // StoppedRevision is a placement revision the controller stopped.
 type StoppedRevision struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	PlacementRevision int64                  `protobuf:"varint,1,opt,name=placement_revision,json=placementRevision,proto3" json:"placement_revision,omitempty"`
-	ReplicaName       string                 `protobuf:"bytes,2,opt,name=replica_name,json=replicaName,proto3" json:"replica_name,omitempty"`
-	// Restarts of the replica within the restart window.
+	// restarts_exhausted or deploy_timeout.
+	Reason string `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
+	// The replica whose restarts stopped the revision.
+	ReplicaName string `protobuf:"bytes,2,opt,name=replica_name,json=replicaName,proto3" json:"replica_name,omitempty"`
+	// Restarts of the replica since it last stayed up for the cluster's health window.
 	Restarts    int32                  `protobuf:"varint,3,opt,name=restarts,proto3" json:"restarts,omitempty"`
 	LastRestart *v11.ReplicaRestart    `protobuf:"bytes,4,opt,name=last_restart,json=lastRestart,proto3" json:"last_restart,omitempty"`
 	At          *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=at,proto3" json:"at,omitempty"`
 	// Set when the revision never proved itself, so the previous revision serves in its place.
-	Rollout       bool `protobuf:"varint,6,opt,name=rollout,proto3" json:"rollout,omitempty"`
+	Rollout       bool   `protobuf:"varint,6,opt,name=rollout,proto3" json:"rollout,omitempty"`
+	Detail        string `protobuf:"bytes,8,opt,name=detail,proto3" json:"detail,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -952,6 +940,13 @@ func (x *StoppedRevision) GetPlacementRevision() int64 {
 	return 0
 }
 
+func (x *StoppedRevision) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 func (x *StoppedRevision) GetReplicaName() string {
 	if x != nil {
 		return x.ReplicaName
@@ -985,6 +980,13 @@ func (x *StoppedRevision) GetRollout() bool {
 		return x.Rollout
 	}
 	return false
+}
+
+func (x *StoppedRevision) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
 }
 
 type ProblemReport struct {
@@ -1828,31 +1830,31 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bretrying\x18\x04 \x01(\bR\bretrying\"\x8d\x05\n" +
+	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xcc\x04\n" +
 	"\x0fPlacementStatus\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12+\n" +
 	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12%\n" +
 	"\x0eready_replicas\x18\x04 \x01(\x05R\rreadyReplicas\x12)\n" +
 	"\x10desired_replicas\x18\t \x01(\x05R\x0fdesiredReplicas\x12\x1c\n" +
 	"\tavailable\x18\n" +
-	" \x01(\bR\tavailable\x12<\n" +
-	"\x1aprogress_deadline_exceeded\x18\v \x01(\bR\x18progressDeadlineExceeded\x127\n" +
+	" \x01(\bR\tavailable\x127\n" +
 	"\breplicas\x18\f \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicas\x126\n" +
 	"\aproblem\x18\r \x01(\v2\x1c.loco.agent.v1.ProblemReportR\aproblem\x12#\n" +
 	"\rdeployment_id\x18\x0e \x01(\tR\fdeploymentId\x12\x18\n" +
 	"\ahealthy\x18\x0f \x01(\bR\ahealthy\x129\n" +
 	"\n" +
 	"healthy_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\thealthyAt\x128\n" +
-	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\x12!\n" +
-	"\fmax_restarts\x18\x12 \x01(\x05R\vmaxRestarts\x124\n" +
-	"\x16restart_window_seconds\x18\x13 \x01(\x05R\x14restartWindowSeconds\"\x8c\x02\n" +
+	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\x12H\n" +
+	"\x0efailure_policy\x18\x12 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\v\x10\fJ\x04\b\x13\x10\x14\"\xc6\x02\n" +
 	"\x0fStoppedRevision\x12-\n" +
-	"\x12placement_revision\x18\x01 \x01(\x03R\x11placementRevision\x12!\n" +
+	"\x12placement_revision\x18\x01 \x01(\x03R\x11placementRevision\x12\x16\n" +
+	"\x06reason\x18\a \x01(\tR\x06reason\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12\x1a\n" +
 	"\brestarts\x18\x03 \x01(\x05R\brestarts\x12E\n" +
 	"\flast_restart\x18\x04 \x01(\v2\".loco.deployment.v1.ReplicaRestartR\vlastRestart\x12*\n" +
 	"\x02at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x18\n" +
-	"\arollout\x18\x06 \x01(\bR\arollout\"\x9e\x01\n" +
+	"\arollout\x18\x06 \x01(\bR\arollout\x12 \n" +
+	"\x06detail\x18\b \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\x06detail\"\x9e\x01\n" +
 	"\rProblemReport\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12 \n" +
@@ -1976,7 +1978,8 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*durationpb.Duration)(nil),   // 24: google.protobuf.Duration
 	(*timestamppb.Timestamp)(nil), // 25: google.protobuf.Timestamp
 	(*v11.Replica)(nil),           // 26: loco.deployment.v1.Replica
-	(*v11.ReplicaRestart)(nil),    // 27: loco.deployment.v1.ReplicaRestart
+	(*v11.FailurePolicy)(nil),     // 27: loco.deployment.v1.FailurePolicy
+	(*v11.ReplicaRestart)(nil),    // 28: loco.deployment.v1.ReplicaRestart
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	20, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
@@ -1997,27 +2000,28 @@ var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	12, // 15: loco.agent.v1.PlacementStatus.problem:type_name -> loco.agent.v1.ProblemReport
 	25, // 16: loco.agent.v1.PlacementStatus.healthy_at:type_name -> google.protobuf.Timestamp
 	11, // 17: loco.agent.v1.PlacementStatus.stopped:type_name -> loco.agent.v1.StoppedRevision
-	27, // 18: loco.agent.v1.StoppedRevision.last_restart:type_name -> loco.deployment.v1.ReplicaRestart
-	25, // 19: loco.agent.v1.StoppedRevision.at:type_name -> google.protobuf.Timestamp
-	25, // 20: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
-	14, // 21: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
-	16, // 22: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
-	17, // 23: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
-	18, // 24: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	15, // 25: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
-	22, // 26: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
-	20, // 27: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
-	21, // 28: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
-	23, // 29: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
-	1,  // 30: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	4,  // 31: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	3,  // 32: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	13, // 33: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	32, // [32:34] is the sub-list for method output_type
-	30, // [30:32] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	27, // 18: loco.agent.v1.PlacementStatus.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
+	28, // 19: loco.agent.v1.StoppedRevision.last_restart:type_name -> loco.deployment.v1.ReplicaRestart
+	25, // 20: loco.agent.v1.StoppedRevision.at:type_name -> google.protobuf.Timestamp
+	25, // 21: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
+	14, // 22: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
+	16, // 23: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	17, // 24: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
+	18, // 25: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
+	15, // 26: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
+	22, // 27: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	20, // 28: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
+	21, // 29: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
+	23, // 30: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
+	1,  // 31: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	4,  // 32: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	3,  // 33: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	13, // 34: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	33, // [33:35] is the sub-list for method output_type
+	31, // [31:33] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }

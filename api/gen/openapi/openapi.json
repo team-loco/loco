@@ -8833,10 +8833,6 @@
             "type": "boolean",
             "title": "available"
           },
-          "progressDeadlineExceeded": {
-            "type": "boolean",
-            "title": "progress_deadline_exceeded"
-          },
           "replicas": {
             "type": "array",
             "items": {
@@ -8864,19 +8860,13 @@
           },
           "stopped": {
             "title": "stopped",
-            "description": "Set when the controller stopped the observed revision after a replica used up its restart budget.",
+            "description": "Set when the controller stopped the observed revision.",
             "$ref": "#/components/schemas/loco.agent.v1.StoppedRevision"
           },
-          "maxRestarts": {
-            "type": "integer",
-            "title": "max_restarts",
-            "format": "int32",
-            "description": "The observed revision's restart policy."
-          },
-          "restartWindowSeconds": {
-            "type": "integer",
-            "title": "restart_window_seconds",
-            "format": "int32"
+          "failurePolicy": {
+            "title": "failure_policy",
+            "description": "The observed revision's failure policy.",
+            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
           }
         },
         "title": "PlacementStatus",
@@ -9042,15 +9032,21 @@
             "title": "placement_revision",
             "format": "int64"
           },
+          "reason": {
+            "type": "string",
+            "title": "reason",
+            "description": "restarts_exhausted or deploy_timeout."
+          },
           "replicaName": {
             "type": "string",
-            "title": "replica_name"
+            "title": "replica_name",
+            "description": "The replica whose restarts stopped the revision."
           },
           "restarts": {
             "type": "integer",
             "title": "restarts",
             "format": "int32",
-            "description": "Restarts of the replica within the restart window."
+            "description": "Restarts of the replica since it last stayed up for the cluster's health window."
           },
           "lastRestart": {
             "title": "last_restart",
@@ -9064,6 +9060,11 @@
             "type": "boolean",
             "title": "rollout",
             "description": "Set when the revision never proved itself, so the previous revision serves in its place."
+          },
+          "detail": {
+            "type": "string",
+            "title": "detail",
+            "maxLength": 1024
           }
         },
         "title": "StoppedRevision",
@@ -10390,16 +10391,10 @@
             "title": "rollback_on_failure",
             "description": "Restores the previous deployment on failure; off by default."
           },
-          "maxRestarts": {
-            "type": "integer",
-            "title": "max_restarts",
-            "format": "int32",
-            "description": "Restarts a replica may have within restart_window_seconds before Loco stops the version."
-          },
-          "restartWindowSeconds": {
-            "type": "integer",
-            "title": "restart_window_seconds",
-            "format": "int32"
+          "failurePolicy": {
+            "title": "failure_policy",
+            "description": "The failure policy a service runs under when it sets none.",
+            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
           }
         },
         "title": "DefaultServiceConfig",
@@ -10974,6 +10969,30 @@
         ],
         "description": "DeploymentTrigger is what created a deployment."
       },
+      "loco.deployment.v1.FailurePolicy": {
+        "type": "object",
+        "properties": {
+          "restartPolicy": {
+            "title": "restart_policy",
+            "$ref": "#/components/schemas/loco.deployment.v1.RestartPolicy"
+          },
+          "maxRestarts": {
+            "type": "integer",
+            "title": "max_restarts",
+            "format": "int32",
+            "description": "The on-failure restart budget; zero under the other policies."
+          },
+          "deployTimeoutSeconds": {
+            "type": "integer",
+            "title": "deploy_timeout_seconds",
+            "format": "int32",
+            "description": "How long a new version has to become healthy before Loco stops it."
+          }
+        },
+        "title": "FailurePolicy",
+        "additionalProperties": false,
+        "description": "FailurePolicy is when Loco stops a version of a service. Either stop keeps the previous version\n serving when one ran before it."
+      },
       "loco.deployment.v1.FinishedRegion": {
         "type": "object",
         "properties": {
@@ -11333,7 +11352,7 @@
               "$ref": "#/components/schemas/google.protobuf.Timestamp"
             },
             "title": "restarts_at",
-            "description": "The replica's restarts within its restart window, oldest first."
+            "description": "The replica's restarts since it last stayed up for the cluster's health window, oldest first."
           },
           "lastRestart": {
             "title": "last_restart",
@@ -11415,6 +11434,17 @@
         },
         "title": "ResolveImageResponse",
         "additionalProperties": false
+      },
+      "loco.deployment.v1.RestartPolicy": {
+        "type": "string",
+        "title": "RestartPolicy",
+        "enum": [
+          "RESTART_POLICY_UNSPECIFIED",
+          "RESTART_POLICY_ON_FAILURE",
+          "RESTART_POLICY_ALWAYS",
+          "RESTART_POLICY_NEVER"
+        ],
+        "description": "RestartPolicy decides when a replica's exits stop a version."
       },
       "loco.deployment.v1.Scalers": {
         "type": "object",
@@ -14901,11 +14931,10 @@
             "title": "replicas",
             "description": "The replicas the cluster last reported for this region's placement. GetResource fills them;\n list responses leave them empty."
           },
-          "maxRestarts": {
-            "type": "integer",
-            "title": "max_restarts",
-            "format": "int32",
-            "description": "Restarts a replica may have within the service's restart window before Loco stops the version."
+          "failurePolicy": {
+            "title": "failure_policy",
+            "description": "The failure policy the region's placement runs under.",
+            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
           }
         },
         "title": "RegionStatus",

@@ -134,24 +134,26 @@ func TestRegionStatus(t *testing.T) {
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.PlacementStatusFailed, 2)
 				row.Problem = []byte(
-					`{"reason":"rollout_timeout","detail":"` + testFailureMessage + `"}`,
+					`{"reason":"deploy_timeout","detail":"` + testFailureMessage + `"}`,
 				)
 				return row
 			},
-			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-			message: "The service exceeded its rollout progress deadline. Check its replicas and logs. " + testFailureMessage,
+			want: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+			message: "The new version did not become healthy within its deploy timeout, so Loco stopped it. " +
+				"Check its replicas and logs, then redeploy. " + testFailureMessage,
 		},
 		{
 			name: "failed deployment with nothing serving",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.PlacementStatusFailed, 0)
 				row.Problem = []byte(
-					`{"reason":"rollout_timeout","detail":"` + testFailureMessage + `"}`,
+					`{"reason":"deploy_timeout","detail":"` + testFailureMessage + `"}`,
 				)
 				return row
 			},
-			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-			message: "The service exceeded its rollout progress deadline. Check its replicas and logs. " + testFailureMessage,
+			want: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
+			message: "The new version did not become healthy within its deploy timeout, so Loco stopped it. " +
+				"Check its replicas and logs, then redeploy. " + testFailureMessage,
 		},
 		{
 			name: "healthy report from a cluster that stopped heartbeating",

@@ -8,6 +8,7 @@ import (
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 // placementLiveStatuses are the placement statuses a region can still serve or roll out in.
@@ -20,20 +21,19 @@ var placementLiveStatuses = []genDb.PlacementStatus{
 }
 
 // nextPlacementStatus is where a report of the placement's current revision moves it. A stopped
-// revision fails when the previous revision serves in its place and crashes otherwise; a running
-// placement whose replica restarted or stopped being ready is degraded until the controller reports
-// it healthy again.
+// revision fails when the previous revision serves in its place or it missed its deploy timeout,
+// and crashes otherwise; a running placement whose replica restarted or stopped being ready is
+// degraded until the controller reports it healthy again.
 func nextPlacementStatus(previous genDb.PlacementStatus, report *agentv1.PlacementStatus) genDb.PlacementStatus {
 	ran := previous == genDb.PlacementStatusRunning || previous == genDb.PlacementStatusDegraded
 	switch {
-	case report.GetStopped().GetRollout():
+	case report.GetStopped().GetRollout(),
+		report.GetStopped().GetReason() == string(loco.ProblemDeployTimeout):
 		return genDb.PlacementStatusFailed
 	case report.GetStopped() != nil:
 		return genDb.PlacementStatusCrashed
 	case report.GetHealthy():
 		return genDb.PlacementStatusRunning
-	case report.GetProgressDeadlineExceeded():
-		return genDb.PlacementStatusFailed
 	case ran:
 		return genDb.PlacementStatusDegraded
 	default:

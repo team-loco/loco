@@ -17,7 +17,7 @@ var (
 	errInvalidResources = errors.New("the default resources are not accepted by the controller")
 	errInvalidRoute     = errors.New("the default route is not accepted by the controller")
 	errInvalidHealth    = errors.New("the default health check is not accepted by the controller")
-	errInvalidRestarts  = errors.New("the default restart policy is not accepted by the controller")
+	errInvalidRestarts  = errors.New("the default failure policy is not accepted by the controller")
 )
 
 // Defaults carries installation service policy and the values the API fills when a request omits them.
@@ -37,7 +37,7 @@ type Defaults struct {
 	HealthFailThreshold      int32
 	HealthStartupGracePeriod int32
 	MaxRestarts              int32
-	RestartWindow            int32
+	DeployTimeout            int32
 }
 
 // Resources is what a deployment runs with in one region.
@@ -97,16 +97,64 @@ func (d Defaults) Health() locoControllerV1.HealthCheckSpec {
 	}
 }
 
-// RestartPolicy is a service's restart budget: what the service sets, then the defaults.
-func (d Defaults) RestartPolicy(maxRestarts, windowSeconds *int32) locoControllerV1.RestartPolicySpec {
-	policy := locoControllerV1.RestartPolicySpec{MaxRestarts: d.MaxRestarts, WindowSeconds: d.RestartWindow}
-	if maxRestarts != nil {
-		policy.MaxRestarts = *maxRestarts
+// FailurePolicy is when Loco stops a version of a service.
+type FailurePolicy struct {
+	Restart              locoControllerV1.RestartPolicySpec
+	DeployTimeoutSeconds int32
+}
+
+// FailurePolicy is a service's failure policy: what the service sets, then the defaults. The
+// default restart mode is on-failure, and only on-failure takes a budget.
+func (d Defaults) FailurePolicy(mode *string, maxRestarts, deployTimeout *int32) FailurePolicy {
+	policy := FailurePolicy{
+		Restart:              locoControllerV1.RestartPolicySpec{Mode: locoControllerV1.RestartOnFailure},
+		DeployTimeoutSeconds: d.DeployTimeout,
 	}
-	if windowSeconds != nil {
-		policy.WindowSeconds = *windowSeconds
+	if mode != nil {
+		policy.Restart.Mode = locoControllerV1.RestartMode(*mode)
+	}
+	if policy.Restart.Mode == locoControllerV1.RestartOnFailure {
+		policy.Restart.MaxRestarts = d.MaxRestarts
+		if maxRestarts != nil {
+			policy.Restart.MaxRestarts = *maxRestarts
+		}
+	}
+	if deployTimeout != nil {
+		policy.DeployTimeoutSeconds = *deployTimeout
 	}
 	return policy
+}
+
+// Validate checks the policy with the rules the controller applies.
+func (p FailurePolicy) Validate() error {
+	if err := p.Restart.Validate(); err != nil {
+		return err
+	}
+	return locoControllerV1.ValidateDeployTimeout(p.DeployTimeoutSeconds)
+}
+
+// Proto is the policy as the API reports it.
+func (p FailurePolicy) Proto() *deploymentv1.FailurePolicy {
+	return &deploymentv1.FailurePolicy{
+		RestartPolicy:        RestartPolicyProto(p.Restart.Mode),
+		MaxRestarts:          p.Restart.MaxRestarts,
+		DeployTimeoutSeconds: p.DeployTimeoutSeconds,
+	}
+}
+
+// RestartPolicyProto maps a restart mode to its proto value; agent/pkg/appwatch keeps the same
+// mapping, update both together.
+func RestartPolicyProto(mode locoControllerV1.RestartMode) deploymentv1.RestartPolicy {
+	switch mode {
+	case locoControllerV1.RestartOnFailure:
+		return deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE
+	case locoControllerV1.RestartAlways:
+		return deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS
+	case locoControllerV1.RestartNever:
+		return deploymentv1.RestartPolicy_RESTART_POLICY_NEVER
+	default:
+		return deploymentv1.RestartPolicy_RESTART_POLICY_UNSPECIFIED
+	}
 }
 
 // Validate checks the defaults with the rules the controller applies to an Application, so
@@ -137,8 +185,7 @@ func (d Defaults) Validate() error {
 	if err := locoControllerV1.ValidateRoute(d.PathPrefix, d.IdleTimeout); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidRoute, err)
 	}
-	restarts := d.RestartPolicy(nil, nil)
-	if err := restarts.Validate(); err != nil {
+	if err := d.FailurePolicy(nil, nil, nil).Validate(); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidRestarts, err)
 	}
 	return nil

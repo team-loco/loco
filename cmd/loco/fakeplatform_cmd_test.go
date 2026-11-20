@@ -508,7 +508,10 @@ func setFakeReplicas(platform *fakePlatform, service string, silent bool) {
 	now := time.Now()
 	region := &resourcev1.RegionStatus{
 		Region: fakeDefaultRegion, Status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
-		ReadyReplicas: 1, DesiredReplicas: 2, ReportedAt: timestamppb.New(now), MaxRestarts: 5,
+		ReadyReplicas: 1, DesiredReplicas: 2, ReportedAt: timestamppb.New(now),
+		FailurePolicy: &deploymentv1.FailurePolicy{
+			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 5,
+		},
 		Replicas: []*deploymentv1.Replica{
 			{
 				Name: service + "-7d9f-a1", Node: "node-1", State: "Serving", Ready: true,

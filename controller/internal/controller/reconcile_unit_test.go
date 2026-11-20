@@ -36,7 +36,9 @@ func testResources() *locov1alpha1.ResourcesSpec {
 	}
 }
 
-var testRestartPolicy = locov1alpha1.RestartPolicySpec{MaxRestarts: 2, WindowSeconds: 600}
+var testRestartPolicy = locov1alpha1.RestartPolicySpec{Mode: locov1alpha1.RestartOnFailure, MaxRestarts: 2}
+
+const testDeployTimeout = 600
 
 func testRouting() *locov1alpha1.RoutingSpec {
 	return &locov1alpha1.RoutingSpec{HostName: testHostName, PathPrefix: "/", IdleTimeout: 60}
@@ -68,8 +70,9 @@ func testApplication() *locov1alpha1.Application {
 					Memory:   "256Mi",
 					Replicas: locov1alpha1.ReplicasSpec{Min: 2, Max: 3},
 				},
-				Routing:       testRouting(),
-				RestartPolicy: testRestartPolicy,
+				Routing:              testRouting(),
+				RestartPolicy:        testRestartPolicy,
+				DeployTimeoutSeconds: testDeployTimeout,
 			},
 		},
 	}

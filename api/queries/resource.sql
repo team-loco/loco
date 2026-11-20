@@ -6,17 +6,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceBySlugAndWorkspace :one
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.slug = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND (sqlc.narg('page_token')::text IS NULL
@@ -43,8 +43,9 @@ WHERE id = $1;
 
 -- name: SetResourceDeployPolicy :exec
 UPDATE resources
-SET max_restarts = sqlc.narg('max_restarts'),
-    restart_window_seconds = sqlc.narg('restart_window_seconds'),
+SET restart_policy = sqlc.narg('restart_policy'),
+    max_restarts = sqlc.narg('max_restarts'),
+    deploy_timeout_seconds = sqlc.narg('deploy_timeout_seconds'),
     updated_at = NOW()
 WHERE id = $1;
 
@@ -123,7 +124,7 @@ SELECT l.resource_id,
              AND NOT (rd.platform_domain = ANY(c.domains))
            ORDER BY rd.domain
        )::text[] AS unserved_domains,
-       COALESCE(r.max_restarts, sqlc.arg(default_max_restarts)::int)::int AS max_restarts
+       r.restart_policy, r.max_restarts, r.deploy_timeout_seconds
 FROM live_deployment_placements l
 JOIN resources r ON r.id = l.resource_id
 JOIN environments e ON e.id = l.environment_id
@@ -137,7 +138,7 @@ ORDER BY l.resource_id, e.slug, l.region;
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
 
 -- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.slug ASC;

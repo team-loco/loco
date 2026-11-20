@@ -508,19 +508,23 @@ func scalersFor(autoscaling *configplan.Autoscaling) *deploymentv1.Scalers {
 func deployPolicy(resourceID uuid.UUID, deploy *locofile.Deploy) genDb.SetResourceDeployPolicyParams {
 	params := genDb.SetResourceDeployPolicyParams{ID: resourceID}
 	if deploy != nil {
+		if deploy.Restart != "" {
+			params.RestartPolicy = &deploy.Restart
+		}
 		params.MaxRestarts = deploy.MaxRestarts
-		params.RestartWindowSeconds = deploy.RestartWindow
+		params.DeployTimeoutSeconds = deploy.Timeout
 	}
 	return params
 }
 
-// setDeployPolicy stores the service's restart policy and updates res, which the deployments
+// setDeployPolicy stores the service's failure policy and updates res, which the deployments
 // the same apply starts render from.
 func setDeployPolicy(ctx context.Context, qtx *genDb.Queries, res *genDb.Resource, deploy *locofile.Deploy) error {
 	params := deployPolicy(res.ID, deploy)
 	if err := qtx.SetResourceDeployPolicy(ctx, params); err != nil {
 		return fmt.Errorf("set resource deploy policy: %w", err)
 	}
-	res.MaxRestarts, res.RestartWindowSeconds = params.MaxRestarts, params.RestartWindowSeconds
+	res.RestartPolicy, res.MaxRestarts, res.DeployTimeoutSeconds =
+		params.RestartPolicy, params.MaxRestarts, params.DeployTimeoutSeconds
 	return nil
 }

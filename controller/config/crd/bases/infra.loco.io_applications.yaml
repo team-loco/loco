@@ -59,6 +59,13 @@ spec:
                 description: ServiceSpec contains service-specific deployment and
                   resource configuration
                 properties:
+                  deployTimeoutSeconds:
+                    description: DeployTimeoutSeconds is how long a new placement
+                      revision has to become healthy before Loco stops it.
+                    format: int32
+                    maximum: 3600
+                    minimum: 60
+                    type: integer
                   deployment:
                     description: Deployment info (current or requested)
                     properties:
@@ -208,22 +215,24 @@ spec:
                     type: object
                   restartPolicy:
                     description: |-
-                      RestartPolicySpec bounds how often a replica may restart: the restart past MaxRestarts within
-                      WindowSeconds stops the revision.
+                      RestartPolicySpec decides when a replica's exits stop the revision. Under on-failure, the exit past
+                      MaxRestarts before the replica stays up for the controller's health window stops it; under never,
+                      the first exit; under always, none.
                     properties:
                       maxRestarts:
+                        description: MaxRestarts is the on-failure budget.
                         format: int32
                         maximum: 20
-                        minimum: 0
+                        minimum: 1
                         type: integer
-                      windowSeconds:
-                        format: int32
-                        maximum: 3600
-                        minimum: 60
-                        type: integer
+                      mode:
+                        enum:
+                        - on-failure
+                        - always
+                        - never
+                        type: string
                     required:
-                    - maxRestarts
-                    - windowSeconds
+                    - mode
                     type: object
                   routing:
                     description: Routing exposes the service to the internet. Without
@@ -245,6 +254,7 @@ spec:
                     - pathPrefix
                     type: object
                 required:
+                - deployTimeoutSeconds
                 - deployment
                 - resources
                 - restartPolicy
@@ -275,6 +285,25 @@ spec:
                 properties:
                   available:
                     type: boolean
+                  deadline:
+                    description: Deadline is set while the current placement revision
+                      has not become healthy.
+                    properties:
+                      at:
+                        format: date-time
+                        type: string
+                      placementRevision:
+                        format: int64
+                        type: integer
+                    required:
+                    - at
+                    - placementRevision
+                    type: object
+                  deployedRevision:
+                    description: DeployedRevision is the newest placement revision
+                      that became healthy.
+                    format: int64
+                    type: integer
                   desiredReplicas:
                     format: int32
                     type: integer
@@ -304,7 +333,7 @@ spec:
                         - restarts_exhausted
                         - out_of_memory
                         - health_check_failing
-                        - rollout_timeout
+                        - deploy_timeout
                         - unclean_shutdown
                         type: string
                       replica:
@@ -315,8 +344,6 @@ spec:
                     required:
                     - reason
                     type: object
-                  progressDeadlineExceeded:
-                    type: boolean
                   provenRevision:
                     description: |-
                       ProvenRevision is the newest placement revision whose replicas all served for the health window
@@ -380,8 +407,9 @@ spec:
                           format: int32
                           type: integer
                         restartsAt:
-                          description: RestartsAt lists the replica's restarts within
-                            its restart window, oldest first.
+                          description: |-
+                            RestartsAt lists the replica's restarts since the start of its newest run that lasted the
+                            controller's health window, oldest first.
                           items:
                             format: date-time
                             type: string
@@ -423,11 +451,15 @@ spec:
                     - uid
                     x-kubernetes-list-type: map
                   stopped:
-                    description: StoppedRevision is a placement revision Loco stopped
-                      because a replica used up its restart budget.
+                    description: |-
+                      StoppedRevision is a placement revision Loco stopped: a replica used up its restart policy, or
+                      the revision did not become healthy within its deploy timeout.
                     properties:
                       at:
                         format: date-time
+                        type: string
+                      detail:
+                        maxLength: 1024
                         type: string
                       lastRestart:
                         properties:
@@ -451,11 +483,28 @@ spec:
                       placementRevision:
                         format: int64
                         type: integer
+                      reason:
+                        enum:
+                        - build_failed
+                        - apply_failed
+                        - unschedulable
+                        - image_pull_failed
+                        - image_user
+                        - config_error
+                        - restarting
+                        - restarts_exhausted
+                        - out_of_memory
+                        - health_check_failing
+                        - deploy_timeout
+                        - unclean_shutdown
+                        type: string
                       replica:
+                        description: Replica is the replica whose restarts stopped
+                          the revision.
                         type: string
                       restarts:
                         description: Restarts is how many times the replica restarted
-                          within the window.
+                          since it last stayed up for the health window.
                         format: int32
                         type: integer
                       rollout:
@@ -464,10 +513,8 @@ spec:
                         type: boolean
                     required:
                     - at
-                    - lastRestart
                     - placementRevision
-                    - replica
-                    - restarts
+                    - reason
                     type: object
                 type: object
             type: object

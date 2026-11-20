@@ -671,7 +671,6 @@ func (s *AgentServer) recordStatus(
 			ctx,
 			qtx,
 			row.ResourceID,
-			s.config.ServiceDefaults,
 			ClusterSilentAfter(s.heartbeatInterval),
 		)
 	})
@@ -758,18 +757,16 @@ func (s *AgentServer) applyPlacementReport(
 }
 
 // transitionCause is why a placement moved: the message events carry and, when the controller
-// stopped the revision, the stop with the restart window it counted in.
+// stopped the revision, the stop.
 type transitionCause struct {
-	message       string
-	stopped       *agentv1.StoppedRevision
-	windowSeconds int32
+	message string
+	stopped *agentv1.StoppedRevision
 }
 
 func reportCause(report *agentv1.PlacementStatus) transitionCause {
 	return transitionCause{
-		message:       problemReportMessage(report.GetProblem()),
-		stopped:       report.GetStopped(),
-		windowSeconds: report.GetRestartWindowSeconds(),
+		message: problemReportMessage(report.GetProblem()),
+		stopped: report.GetStopped(),
 	}
 }
 
@@ -865,9 +862,8 @@ func recordDeploymentStatus(
 		events.FieldMessage:       cause.message,
 		events.FieldResourceName:  d.ResourceName,
 	}
-	if stopped := cause.stopped; stopped != nil {
-		data[events.FieldRestarts] = stopped.GetRestarts()
-		data[events.FieldWindow] = cause.windowSeconds
+	if restarts := cause.stopped.GetRestarts(); restarts > 0 {
+		data[events.FieldRestarts] = restarts
 	}
 	if buildID := spec.GetService().GetBuild().GetBuildId(); buildID != "" {
 		data[events.FieldBuildID] = buildID

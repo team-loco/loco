@@ -63,12 +63,12 @@ const (
 	maxHealthFailThreshold = 10
 )
 
-// Bounds of a RestartPolicySpec.
+// Bounds of a RestartPolicySpec and a deploy timeout.
 const (
-	MinRestarts             = 0
+	MinRestarts             = 1
 	MaxRestarts             = 20
-	MinRestartWindowSeconds = 60
-	MaxRestartWindowSeconds = 3600
+	MinDeployTimeoutSeconds = 60
+	MaxDeployTimeoutSeconds = 3600
 )
 
 var (
@@ -131,21 +131,41 @@ func validateServiceSpec(spec *ServiceSpec) error {
 		}
 	}
 
-	return spec.RestartPolicy.Validate()
+	if err := spec.RestartPolicy.Validate(); err != nil {
+		return err
+	}
+	return ValidateDeployTimeout(spec.DeployTimeoutSeconds)
 }
 
-// Validate checks the restart policy against its bounds.
+// Validate checks the restart policy: on-failure takes a budget within its bounds, the other modes none.
 func (spec *RestartPolicySpec) Validate() error {
-	if spec.MaxRestarts < MinRestarts || spec.MaxRestarts > MaxRestarts {
-		return fmt.Errorf(
-			"restartPolicy.maxRestarts must be between %d and %d, got %d", MinRestarts, MaxRestarts, spec.MaxRestarts,
-		)
+	switch spec.Mode {
+	case RestartOnFailure:
+		if spec.MaxRestarts < MinRestarts || spec.MaxRestarts > MaxRestarts {
+			return fmt.Errorf(
+				"restartPolicy.maxRestarts must be between %d and %d, got %d",
+				MinRestarts,
+				MaxRestarts,
+				spec.MaxRestarts,
+			)
+		}
+	case RestartAlways, RestartNever:
+		if spec.MaxRestarts != 0 {
+			return fmt.Errorf("restartPolicy.maxRestarts applies only to %s, got %d under %s",
+				RestartOnFailure, spec.MaxRestarts, spec.Mode)
+		}
+	default:
+		return fmt.Errorf("restartPolicy.mode must be %s, %s or %s, got %q",
+			RestartOnFailure, RestartAlways, RestartNever, spec.Mode)
 	}
-	if spec.WindowSeconds < MinRestartWindowSeconds || spec.WindowSeconds > MaxRestartWindowSeconds {
-		return fmt.Errorf(
-			"restartPolicy.windowSeconds must be between %d and %d, got %d",
-			MinRestartWindowSeconds, MaxRestartWindowSeconds, spec.WindowSeconds,
-		)
+	return nil
+}
+
+// ValidateDeployTimeout checks a deploy timeout against its bounds.
+func ValidateDeployTimeout(seconds int32) error {
+	if seconds < MinDeployTimeoutSeconds || seconds > MaxDeployTimeoutSeconds {
+		return fmt.Errorf("deployTimeoutSeconds must be between %d and %d, got %d",
+			MinDeployTimeoutSeconds, MaxDeployTimeoutSeconds, seconds)
 	}
 	return nil
 }

@@ -51,17 +51,17 @@ func restartCause(pod *corev1.Pod, exit *corev1.ContainerStateTerminated, livene
 	return loco.RestartExit
 }
 
-// trackRestarts carries the replica's restarts from its previous report and keeps those within the
-// window, at most one past the budget. Restarts the kubelet counted since add one restart at the
-// last exit; the others have no known time and count only in the replica's total.
-func trackRestarts(replica, previous *loco.ReplicaStatus, policy loco.RestartPolicySpec, now time.Time) {
+// trackRestarts carries the replica's restarts from its previous report and keeps those since the
+// start of its newest run that lasted the health window, at most one past the largest budget.
+// Restarts the kubelet counted since add one restart at the last exit; the others have no known
+// time and count only in the replica's total.
+func trackRestarts(replica, previous *loco.ReplicaStatus, quietSince, now time.Time) {
 	var seen int32
 	var restarts []metav1.Time
 	if previous != nil {
 		seen = previous.Restarts
 		restarts = append(restarts, previous.RestartsAt...)
 	}
-	limit := int(policy.MaxRestarts) + 1
 	at := metav1.NewTime(now)
 	if replica.LastRestart != nil && !replica.LastRestart.At.IsZero() {
 		at = replica.LastRestart.At
@@ -69,14 +69,13 @@ func trackRestarts(replica, previous *loco.ReplicaStatus, policy loco.RestartPol
 	if replica.Restarts > seen {
 		restarts = append(restarts, at)
 	}
-	window := time.Duration(policy.WindowSeconds) * time.Second
 	kept := restarts[:0]
 	for _, restart := range restarts {
-		if now.Sub(restart.Time) < window {
+		if !restart.Time.Before(quietSince) {
 			kept = append(kept, restart)
 		}
 	}
-	if len(kept) > limit {
+	if limit := loco.MaxRestarts + 1; len(kept) > limit {
 		kept = kept[len(kept)-limit:]
 	}
 	replica.RestartsAt = nil
@@ -85,8 +84,34 @@ func trackRestarts(replica, previous *loco.ReplicaStatus, policy loco.RestartPol
 	}
 }
 
+// quietSince is when the pod's newest container run that lasted healthyAfter started: the run
+// going on now or the one that ended in its last exit. It is zero without one.
+func quietSince(pod *corev1.Pod, healthyAfter time.Duration, now time.Time) time.Time {
+	var since time.Time
+	for _, status := range pod.Status.ContainerStatuses {
+		if running := status.State.Running; running != nil && now.Sub(running.StartedAt.Time) >= healthyAfter &&
+			running.StartedAt.After(since) {
+			since = running.StartedAt.Time
+		}
+		exit := status.LastTerminationState.Terminated
+		if exit != nil && !exit.StartedAt.IsZero() && exit.FinishedAt.Sub(exit.StartedAt.Time) >= healthyAfter &&
+			exit.StartedAt.After(since) {
+			since = exit.StartedAt.Time
+		}
+	}
+	return since
+}
+
 func restartsExhausted(replica loco.ReplicaStatus, policy loco.RestartPolicySpec) bool {
-	return int32(len(replica.RestartsAt)) > policy.MaxRestarts
+	restarts := int32(len(replica.RestartsAt))
+	switch policy.Mode {
+	case loco.RestartOnFailure:
+		return restarts > policy.MaxRestarts
+	case loco.RestartNever:
+		return restarts > 0
+	default:
+		return false
+	}
 }
 
 func restartedWithin(replica loco.ReplicaStatus, within time.Duration, now time.Time) bool {
@@ -94,11 +119,8 @@ func restartedWithin(replica loco.ReplicaStatus, within time.Duration, now time.
 }
 
 func restartingDetail(restart *loco.ReplicaRestart, restarts int, policy loco.RestartPolicySpec) string {
-	return fmt.Sprintf("%s · %d of %d restarts in %s",
-		restart.After(), restarts, policy.MaxRestarts, loco.RestartWindow(policy.WindowSeconds))
-}
-
-func stoppedDetail(stopped *loco.StoppedRevision, policy loco.RestartPolicySpec) string {
-	return fmt.Sprintf("%s · %d restarts in %s",
-		stopped.LastRestart.After(), stopped.Restarts, loco.RestartWindow(policy.WindowSeconds))
+	if policy.Mode == loco.RestartOnFailure {
+		return fmt.Sprintf("%s · %d of %d restarts", restart.After(), restarts, policy.MaxRestarts)
+	}
+	return fmt.Sprintf("%s · %d restarts", restart.After(), restarts)
 }

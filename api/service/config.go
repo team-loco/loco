@@ -76,15 +76,14 @@ func (s *ConfigServer) GetConfig(
 			MaxReplicas:    locoControllerV1.MaxReplicas,
 		},
 		ServiceDefaults: &configv1.DefaultServiceConfig{
-			Observability:        observabilityconfig.Defaults().Proto(),
-			HealthCheck:          healthCheckFor(&health),
-			Cpu:                  s.defaults.CPU,
-			Memory:               s.defaults.Memory,
-			MinReplicas:          s.defaults.MinReplicas,
-			MaxReplicas:          s.defaults.MaxReplicas,
-			CpuTarget:            s.defaults.CPUTarget,
-			MaxRestarts:          s.defaults.MaxRestarts,
-			RestartWindowSeconds: s.defaults.RestartWindow,
+			Observability: observabilityconfig.Defaults().Proto(),
+			HealthCheck:   healthCheckFor(&health),
+			Cpu:           s.defaults.CPU,
+			Memory:        s.defaults.Memory,
+			MinReplicas:   s.defaults.MinReplicas,
+			MaxReplicas:   s.defaults.MaxReplicas,
+			CpuTarget:     s.defaults.CPUTarget,
+			FailurePolicy: s.defaults.FailurePolicy(nil, nil, nil).Proto(),
 		},
 	}, nil
 }

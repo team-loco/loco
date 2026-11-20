@@ -220,11 +220,14 @@ func flatten(state *State) map[string]string {
 		fields[pathHealth+".failThreshold"] = formatInt(state.Health.FailThreshold)
 		fields[pathHealth+".startupGracePeriod"] = formatInt(state.Health.StartupGracePeriod)
 	}
+	if state.Deploy != nil && state.Deploy.Restart != "" {
+		fields[pathDeploy+".restart"] = state.Deploy.Restart
+	}
 	if state.Deploy != nil && state.Deploy.MaxRestarts != nil {
 		fields[pathDeploy+".maxRestarts"] = formatInt(*state.Deploy.MaxRestarts)
 	}
-	if state.Deploy != nil && state.Deploy.RestartWindow != nil {
-		fields[pathDeploy+".restartWindow"] = formatInt(*state.Deploy.RestartWindow)
+	if state.Deploy != nil && state.Deploy.Timeout != nil {
+		fields[pathDeploy+".timeout"] = formatInt(*state.Deploy.Timeout)
 	}
 	if state.Image != "" {
 		fields[pathImage] = state.Image

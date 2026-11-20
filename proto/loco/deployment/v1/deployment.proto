@@ -357,10 +357,32 @@ message Replica {
   google.protobuf.Timestamp started_at = 13;
   // The most recent container exit the kubelet recorded for the Pod.
   ReplicaExit last_exit = 14;
-  // The replica's restarts within its restart window, oldest first.
+  // The replica's restarts since it last stayed up for the cluster's health window, oldest first.
   repeated google.protobuf.Timestamp restarts_at = 15;
   // The exit the replica most recently restarted after.
   ReplicaRestart last_restart = 16;
+}
+
+// RestartPolicy decides when a replica's exits stop a version.
+enum RestartPolicy {
+  RESTART_POLICY_UNSPECIFIED = 0;
+  // Stops the version on the restart past max_restarts before the replica stays up for the
+  // cluster's health window.
+  RESTART_POLICY_ON_FAILURE = 1;
+  // Restarts the replica after every exit.
+  RESTART_POLICY_ALWAYS = 2;
+  // Stops the version on a replica's first exit.
+  RESTART_POLICY_NEVER = 3;
+}
+
+// FailurePolicy is when Loco stops a version of a service. Either stop keeps the previous version
+// serving when one ran before it.
+message FailurePolicy {
+  RestartPolicy restart_policy = 1;
+  // The on-failure restart budget; zero under the other policies.
+  int32 max_restarts = 2;
+  // How long a new version has to become healthy before Loco stops it.
+  int32 deploy_timeout_seconds = 3;
 }
 
 // ReplicaRestart is an exit the kubelet restarted a replica's container after.

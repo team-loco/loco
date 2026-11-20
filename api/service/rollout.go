@@ -167,9 +167,12 @@ func restartActivity(before, replica *deploymentv1.Replica, report *agentv1.Plac
 		if !at.AsTime().After(seen) {
 			continue
 		}
+		message := fmt.Sprintf("Restarted after %s · %d", restart.After(), i+1)
+		if budget := report.GetFailurePolicy().GetMaxRestarts(); budget > 0 {
+			message += fmt.Sprintf(" of %d", budget)
+		}
 		entries = append(entries, activityEntry{
-			Message: fmt.Sprintf("Restarted after %s · %d of %d in %s", restart.After(), i+1,
-				report.GetMaxRestarts(), loco.RestartWindow(report.GetRestartWindowSeconds())),
+			Message:     message,
 			Severity:    activityWarn,
 			ReplicaUID:  replica.GetUid(),
 			ReplicaName: replica.GetName(),

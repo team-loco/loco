@@ -43,13 +43,16 @@ func (f *deployFixture) liveDeployment(t *testing.T) uuid.UUID {
 func reportRollback(t *testing.T, f *deployFixture, available, failed bool) {
 	t.Helper()
 	p := f.placement(t, f.clusterID)
-	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
-		PlacementId:              p.ID.String(),
-		ObservedRevision:         p.DesiredRevision,
-		Available:                available,
-		Healthy:                  available,
-		ProgressDeadlineExceeded: failed,
-	})
+	report := &agentv1.PlacementStatus{
+		PlacementId:      p.ID.String(),
+		ObservedRevision: p.DesiredRevision,
+		Available:        available,
+		Healthy:          available,
+	}
+	if failed {
+		report.Stopped = deployTimedOut()
+	}
+	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
 }
 
 func TestAutomaticRollback(t *testing.T) {

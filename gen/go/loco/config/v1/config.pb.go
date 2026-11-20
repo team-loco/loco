@@ -561,11 +561,10 @@ type DefaultServiceConfig struct {
 	Observability *v1.ObservabilityConfig `protobuf:"bytes,9,opt,name=observability,proto3" json:"observability,omitempty"`
 	// Restores the previous deployment on failure; off by default.
 	RollbackOnFailure bool `protobuf:"varint,10,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3" json:"rollback_on_failure,omitempty"`
-	// Restarts a replica may have within restart_window_seconds before Loco stops the version.
-	MaxRestarts          int32 `protobuf:"varint,11,opt,name=max_restarts,json=maxRestarts,proto3" json:"max_restarts,omitempty"`
-	RestartWindowSeconds int32 `protobuf:"varint,12,opt,name=restart_window_seconds,json=restartWindowSeconds,proto3" json:"restart_window_seconds,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// The failure policy a service runs under when it sets none.
+	FailurePolicy *v1.FailurePolicy `protobuf:"bytes,11,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DefaultServiceConfig) Reset() {
@@ -654,18 +653,11 @@ func (x *DefaultServiceConfig) GetRollbackOnFailure() bool {
 	return false
 }
 
-func (x *DefaultServiceConfig) GetMaxRestarts() int32 {
+func (x *DefaultServiceConfig) GetFailurePolicy() *v1.FailurePolicy {
 	if x != nil {
-		return x.MaxRestarts
+		return x.FailurePolicy
 	}
-	return 0
-}
-
-func (x *DefaultServiceConfig) GetRestartWindowSeconds() int32 {
-	if x != nil {
-		return x.RestartWindowSeconds
-	}
-	return 0
+	return nil
 }
 
 var File_loco_config_v1_config_proto protoreflect.FileDescriptor
@@ -720,7 +712,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\"1\n" +
 	"\aOrgLink\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url\"\xd3\x03\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\xc4\x03\n" +
 	"\x14DefaultServiceConfig\x12H\n" +
 	"\fhealth_check\x18\x01 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
 	"\x03cpu\x18\x02 \x01(\tR\x03cpu\x12\x16\n" +
@@ -731,9 +723,8 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"cpu_target\x18\b \x01(\x05R\tcpuTarget\x12M\n" +
 	"\robservability\x18\t \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12.\n" +
 	"\x13rollback_on_failure\x18\n" +
-	" \x01(\bR\x11rollbackOnFailure\x12!\n" +
-	"\fmax_restarts\x18\v \x01(\x05R\vmaxRestarts\x124\n" +
-	"\x16restart_window_seconds\x18\f \x01(\x05R\x14restartWindowSecondsJ\x04\b\x06\x10\aJ\x04\b\a\x10\b2a\n" +
+	" \x01(\bR\x11rollbackOnFailure\x12H\n" +
+	"\x0efailure_policy\x18\v \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\x06\x10\aJ\x04\b\a\x10\b2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 
@@ -761,6 +752,7 @@ var file_loco_config_v1_config_proto_goTypes = []any{
 	(*durationpb.Duration)(nil),    // 7: google.protobuf.Duration
 	(*v1.HealthCheckConfig)(nil),   // 8: loco.deployment.v1.HealthCheckConfig
 	(*v1.ObservabilityConfig)(nil), // 9: loco.deployment.v1.ObservabilityConfig
+	(*v1.FailurePolicy)(nil),       // 10: loco.deployment.v1.FailurePolicy
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
 	6,  // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
@@ -772,13 +764,14 @@ var file_loco_config_v1_config_proto_depIdxs = []int32{
 	7,  // 6: loco.config.v1.HistoryRetention.events:type_name -> google.protobuf.Duration
 	8,  // 7: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
 	9,  // 8: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.deployment.v1.ObservabilityConfig
-	0,  // 9: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
-	1,  // 10: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
-	10, // [10:11] is the sub-list for method output_type
-	9,  // [9:10] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	10, // 9: loco.config.v1.DefaultServiceConfig.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
+	0,  // 10: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	1,  // 11: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	11, // [11:12] is the sub-list for method output_type
+	10, // [10:11] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_loco_config_v1_config_proto_init() }
