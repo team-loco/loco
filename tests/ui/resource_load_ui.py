@@ -5,7 +5,7 @@ import re
 import uuid
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import evidence, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -86,14 +86,19 @@ with session(out) as browser:
     page.on("request", record)
     for method in HELD:
         context.route(f"**/loco.{method}", lambda route: held.append(route))
-    # Environments load after the page has started loading the resource.
+    # Environments load after the page has loaded the workspace's resources.
     environments = []
     context.route(
         "**/loco.environment.v1.EnvironmentService/ListEnvironments",
         lambda route: environments.append(route),
         times=1,
     )
-    page.goto(url)
+    with expect_rpc(
+        page,
+        "loco.resource.v1.ResourceService/ListWorkspaceResources",
+        lambda body: True,
+    ):
+        page.goto(url)
     expect(
         page.get_by_role("status").filter(has_text="Loading resource")
     ).to_be_attached()

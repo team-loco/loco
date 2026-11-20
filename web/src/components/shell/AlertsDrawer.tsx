@@ -288,7 +288,7 @@ export function AlertsDrawer() {
 	const { active } = useEnvironments();
 	const resources = useQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
-		enabled: activeOrgId !== null && activeWorkspaceId !== null && active !== undefined,
+		enabled: activeOrgId !== null && activeWorkspaceId !== null,
 	});
 	const sinceMs = Math.floor(nowMs / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
 	const deploymentsQuery = useConnectQuery(
