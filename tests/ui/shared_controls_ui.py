@@ -2047,10 +2047,12 @@ with session(out) as browser:
     expect(loco).to_be_checked()
     page.set_viewport_size(evidence.NARROW)
     workspace_button.click()
-    page.get_by_role("textbox", name="Name", exact=True).wait_for()
-    page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
-    page.wait_for_function("() => window.scrollY > 0")
     name = page.get_by_role("textbox", name="Name", exact=True)
+    expect(name).to_have_value("shared")
+    # Scrolls until the page has moved.
+    page.wait_for_function(
+        "() => { window.scrollTo(0, document.documentElement.scrollHeight); return window.scrollY > 0; }"
+    )
     name.focus()
     expect(name).to_be_focused()
     name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
