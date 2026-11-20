@@ -7,14 +7,15 @@ import (
 
 type SignupRejectedError struct {
 	Message string
+	// Reason is set when clients show their own text for the rejection.
+	Reason string
 }
+
+// ReasonSignupClosed marks a sign-up the installation does not accept without an invitation.
+const ReasonSignupClosed = "SIGNUP_CLOSED"
 
 func (e *SignupRejectedError) Error() string {
 	return e.Message
-}
-
-func rejected(message string) error {
-	return &SignupRejectedError{Message: message}
 }
 
 var (
@@ -43,7 +44,10 @@ func ParseSignupPolicy(mode string) (SignupPolicy, error) {
 
 func (p SignupPolicy) Check() error {
 	if p.Closed {
-		return rejected("Sign-ups are closed on this installation. Only existing accounts can sign in.")
+		return &SignupRejectedError{
+			Message: "Sign-ups are closed on this installation. Only existing accounts can sign in.",
+			Reason:  ReasonSignupClosed,
+		}
 	}
 	return nil
 }

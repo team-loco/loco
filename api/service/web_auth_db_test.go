@@ -9,15 +9,19 @@ import (
 	"net/url"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (
@@ -264,4 +268,77 @@ func TestDashboardSessionRefreshReplayAndSignOut(t *testing.T) {
 			t.Fatalf("access credential still valid after revocation: %v", err)
 		}
 	}
+}
+
+func signInReason(t *testing.T, err error) string {
+	t.Helper()
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("sign-in error code = %v, want unauthenticated: %v", connect.CodeOf(err), err)
+	}
+	info, ok := rpc.ErrorDetail[*errdetails.ErrorInfo](err)
+	if !ok || info.GetDomain() != webSignInErrorDomain {
+		return ""
+	}
+	return info.GetReason()
+}
+
+func TestWebSignInFailuresCarryTheirReason(t *testing.T) {
+	t.Parallel()
+	f := newWebAuthFixture(t)
+
+	callback, binding := f.start(t, "good-code")
+	canceled := url.Values{"error": {"access_denied"}, webLoginState: {stateOf(t, callback)}}
+	ctx, _ := webCall(t, binding)
+	_, err := f.client.CompleteWebLogin(ctx, &authv1.CompleteWebLoginRequest{
+		CallbackUrl: dashboardOrigin + "/auth/callback?" + canceled.Encode(),
+	})
+	if got := signInReason(t, err); got != reasonSignInCanceled {
+		t.Fatalf("canceled reason = %q, want %q", got, reasonSignInCanceled)
+	}
+
+	ctx, _ = webCall(t, binding)
+	_, err = f.client.CompleteWebLogin(ctx, callback)
+	if got := signInReason(t, err); got != reasonSignInExpired {
+		t.Fatalf("spent state reason = %q, want %q", got, reasonSignInExpired)
+	}
+
+	callback, binding = f.start(t, "bad-nonce")
+	ctx, _ = webCall(t, binding)
+	_, err = f.client.CompleteWebLogin(ctx, callback)
+	if got := signInReason(t, err); got != "" {
+		t.Fatalf("nonce mismatch reason = %q, want none", got)
+	}
+
+	callback, _ = f.start(t, "good-code")
+	ctx, _ = webCall(t)
+	_, err = f.client.CompleteWebLogin(ctx, callback)
+	if got := signInReason(t, err); got != reasonSignInInvalid {
+		t.Fatalf("callback without binding reason = %q, want %q", got, reasonSignInInvalid)
+	}
+}
+
+func TestClosedSignupReportsItsReason(t *testing.T) {
+	t.Parallel()
+	f := newWebAuthFixture(t)
+	policy, err := auth.ParseSignupPolicy("closed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.server.web.Resolver = auth.NewResolver(f.server.db, policy, limits.Defaults(), time.Hour)
+
+	callback, binding := f.start(t, "good-code")
+	ctx, _ := webCall(t, binding)
+	_, err = f.client.CompleteWebLogin(ctx, callback)
+	if got := signInReason(t, err); got != auth.ReasonSignupClosed {
+		t.Fatalf("closed sign-up reason = %q, want %q", got, auth.ReasonSignupClosed)
+	}
+}
+
+func stateOf(t *testing.T, req *authv1.CompleteWebLoginRequest) string {
+	t.Helper()
+	callback, err := url.Parse(req.GetCallbackUrl())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return callback.Query().Get(webLoginState)
 }

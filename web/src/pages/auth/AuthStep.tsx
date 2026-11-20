@@ -5,9 +5,7 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
 
 import { AppLoading } from "@/context/AppLoader";
-import { getErrorMessage } from "@/lib/error-handler";
-
-import { signInErrorState } from "./sign-in-error";
+import { signInErrorState, signInFailureMessage } from "./sign-in-error";
 
 type Outcome = { kind: "pending" } | { kind: "done"; to: string } | { kind: "failed"; message: string };
 
@@ -30,7 +28,7 @@ export function AuthStep({ id, run, fallbackError }: { id: string; run: AuthStep
 				setOutcome({ kind: "done", to });
 			})
 			.catch((err: unknown) => {
-				setOutcome({ kind: "failed", message: getErrorMessage(err, fallbackError) });
+				setOutcome({ kind: "failed", message: signInFailureMessage(err, fallbackError) });
 			});
 	}, [id, run, transport, queryClient, fallbackError]);
 

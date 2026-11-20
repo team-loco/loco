@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/oauth2"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 
 	"github.com/team-loco/loco/api/auth"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -28,7 +29,19 @@ const (
 	userAgentHeader = "User-Agent"
 )
 
-var errInvalidWebLogin = errors.New("invalid dashboard login")
+const (
+	webSignInErrorDomain = "loco.auth"
+	reasonSignInCanceled = "SIGN_IN_CANCELED"
+	reasonSignInExpired  = "SIGN_IN_EXPIRED"
+	reasonSignInInvalid  = "SIGN_IN_INVALID"
+	callbackAccessDenied = "access_denied"
+)
+
+var (
+	errInvalidWebLogin  = errors.New("invalid dashboard login")
+	errWebLoginExpired  = errors.New("dashboard login expired")
+	errWebLoginCanceled = errors.New("dashboard login canceled at the identity provider")
+)
 
 type WebAuth struct {
 	Provider *auth.WebProvider
@@ -107,7 +120,10 @@ func (s *AuthServer) CompleteWebLogin(
 		return nil, authStoreUnavailable(err)
 	}
 	if !found {
-		return nil, webSignInError(errInvalidWebLogin)
+		return nil, webSignInError(errWebLoginExpired)
+	}
+	if callback.Get("error") == callbackAccessDenied {
+		return nil, webSignInError(errWebLoginCanceled)
 	}
 	if len(callback["code"]) != 1 || callback.Get("code") == "" || callback.Has("error") {
 		return nil, webSignInError(errInvalidWebLogin)
@@ -246,8 +262,29 @@ func (s *AuthServer) setWebSession(headers *connect.Header, access, refresh stri
 	s.web.Cookies.Set(headers, auth.WebRefreshCookie, refresh, refreshExpires, http.SameSiteStrictMode)
 }
 
+// webSignInError carries a machine-readable reason, when the cause has one, for the dashboard
+// to choose its message and next step.
 func webSignInError(err error) error {
-	return connect.NewError(connect.CodeUnauthenticated, "Could not sign you in").WithCause(err)
+	public := connect.NewError(connect.CodeUnauthenticated, "Could not sign you in").WithCause(err)
+	if reason := webSignInReason(err); reason != "" {
+		return withDetail(public, &errdetails.ErrorInfo{Reason: reason, Domain: webSignInErrorDomain})
+	}
+	return public
+}
+
+func webSignInReason(err error) string {
+	if rejected, ok := errors.AsType[*auth.SignupRejectedError](err); ok {
+		return rejected.Reason
+	}
+	switch {
+	case errors.Is(err, errWebLoginCanceled):
+		return reasonSignInCanceled
+	case errors.Is(err, errWebLoginExpired):
+		return reasonSignInExpired
+	case errors.Is(err, errInvalidWebLogin):
+		return reasonSignInInvalid
+	}
+	return ""
 }
 
 func webLoginKey(state, binding string) string {
