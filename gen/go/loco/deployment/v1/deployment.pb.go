@@ -1993,12 +1993,16 @@ func (x *ReplicaExit) GetFinishedAt() *timestamppb.Timestamp {
 }
 
 type Problem struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Reason        string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	Detail        string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
-	ReplicaName   string                 `protobuf:"bytes,4,opt,name=replica_name,json=replicaName,proto3" json:"replica_name,omitempty"`
-	Since         *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=since,proto3" json:"since,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Reason      string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	Message     string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Detail      string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	ReplicaName string                 `protobuf:"bytes,4,opt,name=replica_name,json=replicaName,proto3" json:"replica_name,omitempty"`
+	Since       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=since,proto3" json:"since,omitempty"`
+	// A log query selecting the lines that explain the problem: the build's logs for a failed build,
+	// the replica's logs when the problem names one. Empty when no narrower selection exists, and
+	// the resource's logs are the place to look.
+	LogsQuery     string `protobuf:"bytes,6,opt,name=logs_query,json=logsQuery,proto3" json:"logs_query,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2066,6 +2070,13 @@ func (x *Problem) GetSince() *timestamppb.Timestamp {
 		return x.Since
 	}
 	return nil
+}
+
+func (x *Problem) GetLogsQuery() string {
+	if x != nil {
+		return x.LogsQuery
+	}
+	return ""
 }
 
 type Activity struct {
@@ -2791,13 +2802,15 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x1b\n" +
 	"\texit_code\x18\x02 \x01(\x05R\bexitCode\x12;\n" +
 	"\vfinished_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"finishedAt\"\xa8\x01\n" +
+	"finishedAt\"\xc7\x01\n" +
 	"\aProblem\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x16\n" +
 	"\x06detail\x18\x03 \x01(\tR\x06detail\x12!\n" +
 	"\freplica_name\x18\x04 \x01(\tR\vreplicaName\x120\n" +
-	"\x05since\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"\xd5\x01\n" +
+	"\x05since\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x1d\n" +
+	"\n" +
+	"logs_query\x18\x06 \x01(\tR\tlogsQuery\"\xd5\x01\n" +
 	"\bActivity\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12*\n" +

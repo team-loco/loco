@@ -397,6 +397,10 @@ message Problem {
   string detail = 3;
   string replica_name = 4;
   google.protobuf.Timestamp since = 5;
+  // A log query selecting the lines that explain the problem: the build's logs for a failed build,
+  // the replica's logs when the problem names one. Empty when no narrower selection exists, and
+  // the resource's logs are the place to look.
+  string logs_query = 6;
 }
 
 message Activity {
