@@ -55,7 +55,7 @@ export function showTitlesAsTooltips() {
 		title = target.element.getAttribute("title");
 	}
 
-	// the browser shows its own tooltip only on hover, so only a hovered anchor's title is blanked
+	// blanks the anchor's title while the pointer is over it
 	function blank() {
 		if (anchor === null || title === null || blanked) return;
 		const { element, text } = anchor;
@@ -82,15 +82,13 @@ export function showTitlesAsTooltips() {
 
 	function hover(target: Element | null) {
 		const found = find(target);
-		if (found !== null && found === anchor) {
-			blank();
-			return;
+		if (found !== anchor) {
+			release();
+			if (found === null) return;
+			claim(found);
+			if (!found.quiet) timer = window.setTimeout(show, Date.now() < warmUntil ? 0 : DELAY);
 		}
-		release();
-		if (found === null) return;
-		claim(found);
 		blank();
-		if (!found.quiet) timer = window.setTimeout(show, Date.now() < warmUntil ? 0 : DELAY);
 	}
 
 	function hide() {
@@ -131,7 +129,6 @@ export function showTitlesAsTooltips() {
 		if (value === "") return;
 		title = value;
 		if (value === null) {
-			blanked = false;
 			hide();
 			return;
 		}
