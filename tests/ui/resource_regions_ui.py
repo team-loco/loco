@@ -60,7 +60,8 @@ with session(out) as browser:
         state,
         f"UPDATE clusters SET last_heartbeat=NOW() - INTERVAL '5 minutes' WHERE id IN ('{east_cluster}', '{west_cluster}');",
     )
-    context, page, errors = open_page(browser, state=state)
+    # Instant scrolling: a smooth scroll to a focused region card would move the save bar under a click.
+    context, page, errors = open_page(browser, state=state, reduced_motion="reduce")
     calls = []
     concurrent_edit = []
 
