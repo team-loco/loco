@@ -222,7 +222,7 @@ func TestGetOrgLimitsForScopesBelowTheOrganization(t *testing.T) {
 		EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeMember,
 	}
 	resource, err := f.queries.CreateResource(t.Context(), genDb.CreateResourceParams{
-		CreatedBy: f.creatorID(t), WorkspaceID: f.workspaceID(t), Name: "limits-reader",
+		CreatedBy: f.creatorID(t), WorkspaceID: f.workspaceID(t), Name: "limits-reader", Slug: "limits-reader",
 		Type: genDb.ResourceTypeService, Spec: []byte("{}"), SpecVersion: 1,
 	})
 	if err != nil {
