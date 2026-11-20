@@ -69,10 +69,7 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 									dimOthers && "opacity-35",
 									rows.some((r) => highlighted.has(r.key)) && "top-0 h-[12px] opacity-100",
 								)}
-								style={{
-									left: `${String(left * 100)}%`,
-									background: row.color,
-								}}
+								style={{ left: `${String(left * 100)}%`, background: row.color }}
 							/>
 						}
 					/>

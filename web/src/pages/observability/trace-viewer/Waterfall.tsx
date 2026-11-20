@@ -124,10 +124,7 @@ export function Waterfall({
 					>
 						<div
 							className="flex shrink-0 items-center overflow-hidden border-r border-line pr-2"
-							style={{
-								width: nameWidth,
-								paddingLeft: 8 + Math.min(row.depth * 12, nameWidth * 0.3),
-							}}
+							style={{ width: nameWidth, paddingLeft: 8 + Math.min(row.depth * 12, nameWidth * 0.3) }}
 						>
 							<button
 								type="button"

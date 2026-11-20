@@ -177,11 +177,7 @@ export function TraceLogPanel({
 										title="h3"
 										onFilterToken={(token) => {
 											goTo("logs", {
-												range: {
-													kind: "absolute",
-													from: logs.from,
-													to: logs.to,
-												},
+												range: { kind: "absolute", from: logs.from, to: logs.to },
 												tokens:
 													token.key === "trace" ? [token] : [{ key: "trace", value: trace.id, neg: false }, token],
 												focusTs: opened.ts,
