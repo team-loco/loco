@@ -2049,7 +2049,7 @@ with session(out) as browser:
     workspace_button.click()
     name = page.get_by_role("textbox", name="Name", exact=True)
     expect(name).to_have_value("shared")
-    # The workspace sections below the name load on their own; scroll again until the page is tall enough.
+    # Scrolls until the page has moved.
     page.wait_for_function(
         "() => { window.scrollTo(0, document.documentElement.scrollHeight); return window.scrollY > 0; }"
     )
