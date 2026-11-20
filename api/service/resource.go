@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -29,10 +31,13 @@ import (
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpcerr"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
+
+const maxResourceNameLength = 63
 
 var (
 	ErrResourceNotFound      = rpcerr.NewCoded(connect.CodeNotFound, "resource not found")
@@ -41,10 +46,22 @@ var (
 		connect.CodeAlreadyExists,
 		"resource name already exists in this workspace",
 	)
+	ErrResourceSlugNotUnique = rpcerr.NewCoded(
+		connect.CodeAlreadyExists,
+		"resource slug already exists in this workspace",
+	)
 	errInvalidResourceName = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
-		"resource name must be 1 to 63 lowercase letters, digits and hyphens, "+
+		"resource name must be 1 to 63 characters and not blank",
+	)
+	errInvalidResourceSlug = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"resource slug must be 1 to 63 lowercase letters, digits and hyphens, "+
 			"starting and ending with a letter or digit, and not localhost or resource-<UUID>",
+	)
+	errManagedResourceSlug = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"loco.yaml names this resource by its slug, so the slug can't change here",
 	)
 	ErrClusterNotFound     = errors.New("cluster not found")
 	ErrInvalidResourceType = errors.New("invalid resource type")
@@ -113,8 +130,9 @@ func (s *ResourceServer) CreateResource(
 		return nil, err
 	}
 
-	if !validResourceName(req.GetName()) {
-		return nil, errInvalidResourceName
+	name, slug, err := newResourceKeys(req.GetName(), req.Slug)
+	if err != nil {
+		return nil, err
 	}
 
 	if req.GetSpec().GetService() == nil {
@@ -133,7 +151,8 @@ func (s *ResourceServer) CreateResource(
 	params := genDb.CreateResourceParams{
 		WorkspaceID: workspaceID,
 		CreatedBy:   p.ActorID,
-		Name:        req.GetName(),
+		Slug:        slug,
+		Name:        name,
 		Type:        genDb.ResourceTypeService,
 		Spec:        specJSON,
 		SpecVersion: specVersion,
@@ -151,8 +170,8 @@ func (s *ResourceServer) CreateResource(
 		}
 		var createErr error
 		resourceID, createErr = qtx.CreateResource(ctx, params)
-		if isUniqueViolation(createErr, pgResourceNameUnique) {
-			return ErrResourceNameNotUnique.Detail("%s", req.GetName())
+		if keyErr := resourceKeyConflict(createErr, name, slug); keyErr != nil {
+			return keyErr
 		}
 		if createErr != nil {
 			return fmt.Errorf("insert resource: %w", createErr)
@@ -170,7 +189,7 @@ func (s *ResourceServer) CreateResource(
 			WorkspaceID: new(workspaceID),
 			SubjectType: events.SubjectResource,
 			SubjectID:   new(resourceID),
-			Data:        map[string]any{events.FieldName: req.GetName()},
+			Data:        map[string]any{events.FieldName: name},
 		})
 	})
 	if err != nil {
@@ -267,10 +286,10 @@ func (s *ResourceServer) GetResource(
 	switch key := req.GetKey().(type) {
 	case *resourcev1.GetResourceRequest_ResourceId:
 		resourceID, err = parseID("resource_id", key.ResourceId)
-	case *resourcev1.GetResourceRequest_NameKey:
-		resourceID, err = s.resourceIDByName(ctx, p, key.NameKey)
+	case *resourcev1.GetResourceRequest_SlugKey:
+		resourceID, err = s.resourceIDBySlug(ctx, p, key.SlugKey)
 	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, "resource_id or name_key is required")
+		return nil, connect.NewError(connect.CodeInvalidArgument, "resource_id or slug_key is required")
 	}
 	if err != nil {
 		return nil, err
@@ -305,19 +324,18 @@ func (s *ResourceServer) GetResource(
 	return &resourcev1.GetResourceResponse{Resource: resource}, nil
 }
 
-func (s *ResourceServer) resourceIDByName(
+func (s *ResourceServer) resourceIDBySlug(
 	ctx context.Context,
 	p reqctx.Principal,
-	nameKey *resourcev1.GetResourceNameKey,
+	slugKey *resourcev1.GetResourceSlugKey,
 ) (uuid.UUID, error) {
-	workspaceID, err := parseID("workspace_id", nameKey.GetWorkspaceId())
+	workspaceID, err := parseID("workspace_id", slugKey.GetWorkspaceId())
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	name := nameKey.GetName()
-	res, err := s.queries.GetResourceByNameAndWorkspace(ctx, genDb.GetResourceByNameAndWorkspaceParams{
+	res, err := s.queries.GetResourceBySlugAndWorkspace(ctx, genDb.GetResourceBySlugAndWorkspaceParams{
 		WorkspaceID: workspaceID,
-		Name:        name,
+		Slug:        slugKey.GetSlug(),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		workspaceRead := actions.New(actions.ListResources, workspaceID)
@@ -327,7 +345,7 @@ func (s *ResourceServer) resourceIDByName(
 		return uuid.UUID{}, ErrResourceNotFound
 	}
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("get resource by name: %w", err)
+		return uuid.UUID{}, fmt.Errorf("get resource by slug: %w", err)
 	}
 	return res.ID, nil
 }
@@ -425,10 +443,16 @@ func (s *ResourceServer) UpdateResource(
 		return nil, err
 	}
 
-	updateParams := genDb.UpdateResourceParams{
-		ID:          resourceID,
-		DisplayName: req.DisplayName,
-		Description: req.Description,
+	updateParams := genDb.UpdateResourceParams{ID: resourceID, Description: req.Description}
+	if req.Name != nil {
+		name, nameErr := resourceName(req.GetName())
+		if nameErr != nil {
+			return nil, nameErr
+		}
+		updateParams.Name = &name
+	}
+	if req.Slug != nil && !validResourceSlug(req.GetSlug()) {
+		return nil, errInvalidResourceSlug
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -479,8 +503,25 @@ func (s *ResourceServer) UpdateResource(
 				return fmt.Errorf("update service setting: %w", updateErr)
 			}
 		}
-		if _, updateErr := qtx.UpdateResource(ctx, updateParams); updateErr != nil {
+		reslug := req.Slug != nil && req.GetSlug() != resource.Slug
+		if reslug {
+			if resource.Partial != nil {
+				return errManagedResourceSlug.Detail("partial %s", *resource.Partial)
+			}
+			updateParams.Slug = req.Slug
+		}
+		_, updateErr := qtx.UpdateResource(ctx, updateParams)
+		if keyErr := resourceKeyConflict(updateErr, derefString(updateParams.Name), req.GetSlug()); keyErr != nil {
+			return keyErr
+		}
+		if updateErr != nil {
 			return fmt.Errorf("update resource: %w", updateErr)
+		}
+		if reslug {
+			resource.Slug = req.GetSlug()
+			if renameErr := renamePlacements(ctx, qtx, resource); renameErr != nil {
+				return renameErr
+			}
 		}
 		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 			return bumpErr
@@ -944,8 +985,8 @@ func dbResourceToProto(
 	return &resourcev1.Resource{
 		Id:                  res.ID.String(),
 		WorkspaceId:         res.WorkspaceID.String(),
+		Slug:                res.Slug,
 		Name:                res.Name,
-		DisplayName:         res.DisplayName,
 		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:                spec,
 		Domains:             resourceDomainToListProto(domains),
@@ -1008,8 +1049,45 @@ func (s *ResourceServer) GetResourceEnv(
 	return &resourcev1.GetResourceEnvResponse{Env: plain, SecretNames: secretNames}, nil
 }
 
-// validResourceName reports whether name can name a resource: a DNS label that is not reserved
+// validResourceSlug reports whether slug can key a resource: a DNS label that is not reserved
 // for private service discovery.
-func validResourceName(name string) bool {
-	return locoControllerV1.PrivateServiceName(name) != ""
+func validResourceSlug(slug string) bool {
+	return locoControllerV1.PrivateServiceName(slug) != ""
+}
+
+// resourceName trims name and reports whether it can name a resource.
+func resourceName(name string) (string, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" || utf8.RuneCountInString(trimmed) > maxResourceNameLength {
+		return "", errInvalidResourceName
+	}
+	return trimmed, nil
+}
+
+// newResourceKeys checks a new resource's name and slug, deriving the slug from the name when
+// the request leaves it out.
+func newResourceKeys(rawName string, rawSlug *string) (string, string, error) {
+	name, err := resourceName(rawName)
+	if err != nil {
+		return "", "", err
+	}
+	slug := locofile.Slug(name)
+	if rawSlug != nil {
+		slug = *rawSlug
+	}
+	if !validResourceSlug(slug) {
+		return "", "", errInvalidResourceSlug
+	}
+	return name, slug, nil
+}
+
+// resourceKeyConflict maps a write that hit another resource's name or slug to its client error.
+func resourceKeyConflict(err error, name, slug string) error {
+	switch {
+	case isUniqueViolation(err, pgResourceNameUnique):
+		return ErrResourceNameNotUnique.Detail("%s", name)
+	case isUniqueViolation(err, pgResourceSlugUnique):
+		return ErrResourceSlugNotUnique.Detail("%s", slug)
+	}
+	return nil
 }

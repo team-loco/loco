@@ -111,7 +111,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 		list.forEach((event) => {
 			const e = runtimeEvent(event);
 			if (!eventInEnvironment(e, environmentId)) return;
-			events.push({ ...e, resourceId: resource.id, resourceName: resource.name });
+			events.push({ ...e, resourceId: resource.id, resourceName: resource.slug });
 		});
 	});
 	events.sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp));

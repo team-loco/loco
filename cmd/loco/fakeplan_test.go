@@ -185,7 +185,7 @@ func (p *fakePlatform) currentImages(plan *planv1.PlanResponse) map[string]strin
 }
 
 func (p *fakePlatform) hasResource(name string) bool {
-	return slices.ContainsFunc(p.resources, func(res *resourcev1.Resource) bool { return res.GetName() == name })
+	return slices.ContainsFunc(p.resources, func(res *resourcev1.Resource) bool { return res.GetSlug() == name })
 }
 
 func (p *fakePlatform) unwaivedErrors(plan *planv1.PlanResponse, provision []string) []*planv1.PlanError {

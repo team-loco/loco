@@ -34,7 +34,7 @@ const (
 
 func (f *deployFixture) setPartial(t *testing.T, name, partial string) {
 	t.Helper()
-	update := `UPDATE resources SET partial = $2 WHERE name = $1`
+	update := `UPDATE resources SET partial = $2 WHERE slug = $1`
 	if _, err := f.pool.Exec(context.Background(), update, name, partial); err != nil {
 		t.Fatalf("set partial of %s: %v", name, err)
 	}

@@ -128,7 +128,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 	const { resource, address } = row;
 	const env = linkEnvironment(row, environments, active);
 	return (
-		<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.displayName}>
+		<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.name}>
 			{row.cells.size === 0 && (
 				<DropdownMenuItem onClick={() => void navigate(resourcePath(orgId, workspaceId, resource.id))}>
 					<RocketIcon className="text-fg3" />
@@ -141,7 +141,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 						void navigate(
 							observabilityPath(orgId, workspaceId, "logs", {
 								env: env?.name ?? null,
-								r: [resource.name],
+								r: [resource.slug],
 							}),
 						)
 					}

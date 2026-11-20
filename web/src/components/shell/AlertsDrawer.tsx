@@ -302,9 +302,9 @@ export function AlertsDrawer() {
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 
-	const names = new Map((resources.data?.resources ?? []).map((r) => [r.id, r.displayName]));
+	const byId = new Map((resources.data?.resources ?? []).map((r) => [r.id, r]));
 	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter((d) =>
-		names.has(d.resourceId),
+		byId.has(d.resourceId),
 	);
 	const finished = deployments.filter((d) => !isInFlight(d.status));
 	const ready = new Map<string, number>();
@@ -320,16 +320,19 @@ export function AlertsDrawer() {
 		setOpen(false);
 	};
 	const deployCard = (d: Deployment) => {
-		const name = names.get(d.resourceId) ?? "";
+		const resource = byId.get(d.resourceId);
 		const buildId = getServiceSpec(d)?.build?.buildId ?? "";
 		return (
 			<DeployCard
 				key={d.id}
 				deployment={d}
 				ready={ready}
-				name={name}
+				name={resource?.name ?? ""}
 				resourceHref={resourcePath(activeOrgId, activeWorkspaceId, d.resourceId)}
-				logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [name] })}
+				logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", {
+					...envParams,
+					r: [resource?.slug ?? ""],
+				})}
 				buildLogsHref={buildId === "" ? undefined : buildLogsPath(activeOrgId, activeWorkspaceId, buildId)}
 				onNavigate={close}
 			/>
@@ -389,7 +392,7 @@ export function AlertsDrawer() {
 									key={a.key}
 									alert={a}
 									resourceHref={resourcePath(activeOrgId, activeWorkspaceId, a.resourceId)}
-									logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [a.name] })}
+									logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [a.slug] })}
 									nowMs={nowMs}
 									onNavigate={close}
 								/>

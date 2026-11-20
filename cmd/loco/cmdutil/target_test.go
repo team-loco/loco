@@ -28,11 +28,11 @@ func (namedResources) GetResource(
 	_ context.Context,
 	req *resourcev1.GetResourceRequest,
 ) (*resourcev1.GetResourceResponse, error) {
-	key := req.GetNameKey()
-	if key.GetWorkspaceId() != testTargetWorkspaceID || key.GetName() != testTargetService {
+	key := req.GetSlugKey()
+	if key.GetWorkspaceId() != testTargetWorkspaceID || key.GetSlug() != testTargetService {
 		return nil, connect.NewError(connect.CodeNotFound, "resource not found")
 	}
-	resource := &resourcev1.Resource{Id: testTargetServiceID, Name: testTargetService}
+	resource := &resourcev1.Resource{Id: testTargetServiceID, Slug: testTargetService}
 	return &resourcev1.GetResourceResponse{Resource: resource}, nil
 }
 

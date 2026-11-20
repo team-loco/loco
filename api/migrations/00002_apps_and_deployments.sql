@@ -135,8 +135,8 @@ CREATE TABLE
     resources (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
-        name TEXT NOT NULL CHECK (name ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
-        display_name TEXT NOT NULL CHECK (char_length(display_name) <= 63 AND display_name ~ '\S'),
+        slug TEXT NOT NULL CHECK (slug ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
+        name TEXT NOT NULL CHECK (char_length(name) <= 63 AND name ~ '\S'),
         type resource_type NOT NULL,
         description TEXT NOT NULL,
         spec JSONB NOT NULL,
@@ -148,8 +148,10 @@ CREATE TABLE
         created_by UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (workspace_id, name)
+        UNIQUE (workspace_id, slug)
     );
+
+CREATE UNIQUE INDEX uniq_resources_workspace_lower_name ON resources (workspace_id, lower(name));
 
 CREATE INDEX IF NOT EXISTS idx_resources_workspace_created_id_desc ON resources (workspace_id, created_at DESC, id DESC);
 

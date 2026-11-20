@@ -45,7 +45,7 @@ function buildTree(
 	orgs: { id: string; name: string }[],
 	activeOrgId: string | null,
 	workspaces: { id: string; name: string; orgId: string }[],
-	resources: { id: string; displayName: string; workspaceId: string }[],
+	resources: { id: string; name: string; workspaceId: string }[],
 	userId: string | null,
 ): EntityTree {
 	const order: EntityNode[] = [];
@@ -91,7 +91,7 @@ function buildTree(
 			kind: "res",
 			entityType: EntityType.RESOURCE,
 			id: r.id,
-			label: r.displayName,
+			label: r.name,
 			parent: nodeKey(EntityType.WORKSPACE, r.workspaceId),
 		});
 	}

@@ -54,8 +54,8 @@ func (f *deployFixture) addRunningBuild(t *testing.T, resourceName string) uuid.
 INSERT INTO builds (platform, resource_id, status, source_type, source_key, source_size, dockerfile_path, context,
                     image_repository, created_by)
 SELECT 'linux/amd64', r.id, 'running', 'upload', 'src/' || gen_random_uuid(), 1, $2, '.',
-       'registry.loco.test/' || r.name, u.id
-FROM resources r, users u WHERE r.name = $1
+       'registry.loco.test/' || r.slug, u.id
+FROM resources r, users u WHERE r.slug = $1
 RETURNING id`
 	var id uuid.UUID
 	if err := f.pool.QueryRow(context.Background(), insert, resourceName, applyBuildDockerfile).Scan(&id); err != nil {
@@ -206,7 +206,7 @@ func applyProvision(
 
 func (f *deployFixture) deploymentCount(t *testing.T, resourceName string) int {
 	t.Helper()
-	query := `SELECT count(*) FROM deployments d JOIN resources r ON r.id = d.resource_id WHERE r.name = $1`
+	query := `SELECT count(*) FROM deployments d JOIN resources r ON r.id = d.resource_id WHERE r.slug = $1`
 	var n int
 	if err := f.pool.QueryRow(context.Background(), query, resourceName).Scan(&n); err != nil {
 		t.Fatalf("count deployments of %s: %v", resourceName, err)
@@ -387,7 +387,7 @@ func TestApplyReusedSourceBuildMustMatchTarget(t *testing.T) {
 			a := &applier{defaults: testServiceDefaults()}
 			switch source {
 			case "named build":
-				a.builds = map[string]*deploymentv1.BuildSource{res.Name: pinned}
+				a.builds = map[string]*deploymentv1.BuildSource{res.Slug: pinned}
 			case "running deployment":
 				spec, specErr := deploymentSpecJSON(&deploymentv1.ServiceDeploymentSpec{
 					Platform: string(testPlatform), Build: pinned,

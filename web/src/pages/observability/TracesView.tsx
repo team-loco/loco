@@ -168,7 +168,7 @@ function TraceSession({
 	};
 	const crossesDay = formatIsoDate(bounds.from, timePref) !== formatIsoDate(bounds.to, timePref);
 	const valueCounts = (key: FieldKey): [string, number][] => {
-		if (key === "resource") return resources.map((r) => [r.name, 0]);
+		if (key === "resource") return resources.map((r) => [r.slug, 0]);
 		if (key === "status")
 			return [
 				["error", 0],
@@ -317,7 +317,7 @@ function TraceSession({
 					openId={openId}
 					crossesDay={crossesDay}
 					today={formatIsoDate(frozenEnd, timePref)}
-					resourceName={(t) => traceServiceLabel(t, resourceById.get(t.resourceId)?.name)}
+					resourceName={(t) => traceServiceLabel(t, resourceById.get(t.resourceId)?.slug)}
 					onOpen={open}
 					sorting={sorting}
 					onSorting={onSorting}

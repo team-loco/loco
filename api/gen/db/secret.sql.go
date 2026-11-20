@@ -282,17 +282,17 @@ func (q *Queries) ListPlacementSecretSizes(ctx context.Context, arg ListPlacemen
 }
 
 const listResourceSecretNames = `-- name: ListResourceSecretNames :many
-SELECT r.name AS resource_name,
+SELECT r.slug AS resource_slug,
        s.name,
        octet_length(s.ciphertext)::bigint AS ciphertext_bytes
 FROM secrets s
 JOIN resources r ON r.id = s.resource_id
 WHERE s.environment_id = $1
-ORDER BY r.name, s.name
+ORDER BY r.slug, s.name
 `
 
 type ListResourceSecretNamesRow struct {
-	ResourceName    string `json:"resourceName"`
+	ResourceSlug    string `json:"resourceSlug"`
 	Name            string `json:"name"`
 	CiphertextBytes int64  `json:"ciphertextBytes"`
 }
@@ -306,7 +306,7 @@ func (q *Queries) ListResourceSecretNames(ctx context.Context, environmentID uui
 	var items []ListResourceSecretNamesRow
 	for rows.Next() {
 		var i ListResourceSecretNamesRow
-		if err := rows.Scan(&i.ResourceName, &i.Name, &i.CiphertextBytes); err != nil {
+		if err := rows.Scan(&i.ResourceSlug, &i.Name, &i.CiphertextBytes); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

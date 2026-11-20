@@ -89,7 +89,8 @@ func fieldError(code connect.Code, field, message, reason string) *connect.Error
 // <table>_<columns>_key; the rest are the index names in api/migrations.
 const (
 	pgEnvironmentNameUnique   = "environments_workspace_id_name_key"
-	pgResourceNameUnique      = "resources_workspace_id_name_key"
+	pgResourceNameUnique      = "uniq_resources_workspace_lower_name"
+	pgResourceSlugUnique      = "resources_workspace_id_slug_key"
 	pgDomainUnique            = "resource_domains_domain_key"
 	pgPlatformSubdomainUnique = "uniq_platform_subdomain"
 	pgOpenInvitationUnique    = "invitations_open_idx"

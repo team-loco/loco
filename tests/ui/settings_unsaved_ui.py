@@ -19,7 +19,7 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 name, resource, base = seed_settings_resource(state, "unsaved")
 display_name = "Unsaved Shop"
-sql(state, f"UPDATE resources SET display_name='{display_name}' WHERE id='{resource}';")
+sql(state, f"UPDATE resources SET name='{display_name}' WHERE id='{resource}';")
 
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)

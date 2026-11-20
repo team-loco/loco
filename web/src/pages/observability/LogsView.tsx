@@ -339,10 +339,10 @@ export function LogsView() {
 			});
 		if (key === "resource") {
 			resources.forEach((r) => {
-				add(r.name, 0);
+				add(r.slug, 0);
 			});
 			for (const b of resourceVolume.data?.buckets ?? []) {
-				const name = resourceById.get(b.resourceId)?.name;
+				const name = resourceById.get(b.resourceId)?.slug;
 				if (name !== undefined) add(name, Number(b.count));
 			}
 		}
@@ -449,7 +449,7 @@ export function LogsView() {
 					body="Anything your resources write to stdout or stderr lands here."
 					action={
 						<>
-							<CopyCommand command={`loco resource logs ${resources[0]?.name ?? "<name>"} --follow`} />
+							<CopyCommand command={`loco resource logs ${resources[0]?.slug ?? "<name>"} --follow`} />
 							<WidenRangeButton />
 						</>
 					}

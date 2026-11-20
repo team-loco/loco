@@ -98,11 +98,15 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	resourceID, err := qtx.CreateResource(ctx, genDb.CreateResourceParams{
 		WorkspaceID: a.env.WorkspaceID,
 		CreatedBy:   principal.ActorID,
+		Slug:        op.Service,
 		Name:        op.Service,
 		Type:        genDb.ResourceTypeService,
 		Spec:        specJSON,
 		SpecVersion: specVersion,
 	})
+	if keyErr := resourceKeyConflict(err, op.Service, op.Service); keyErr != nil {
+		return keyErr
+	}
 	if err != nil {
 		return fmt.Errorf("create resource: %w", err)
 	}
@@ -265,7 +269,7 @@ func (a *applier) deploy(
 	if lockErr := lockPinnedBuildImage(ctx, qtx, build); lockErr != nil {
 		return lockErr
 	}
-	a.deployed[res.Name] = true
+	a.deployed[res.Slug] = true
 	hostname, err := primaryHostname(ctx, qtx, res.ID, a.env.ID)
 	if err != nil {
 		return err
@@ -319,7 +323,7 @@ func (a *applier) deploy(
 		return eventErr
 	}
 	a.started = append(a.started, &planv1.StartedDeployment{
-		Service:      res.Name,
+		Service:      res.Slug,
 		Regions:      regions,
 		DeploymentId: deploymentID.String(),
 	})
@@ -365,7 +369,7 @@ func (a *applier) currentBuild(
 	if state.Image != "" {
 		return &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: state.Image}, nil
 	}
-	source := a.builds[res.Name]
+	source := a.builds[res.Slug]
 	if source == nil {
 		if deployments := a.live.deployments[res.ID]; len(deployments) > 0 {
 			deploymentSpec, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, res.Type)
@@ -376,7 +380,7 @@ func (a *applier) currentBuild(
 		} else {
 			latest, built := a.live.builds[res.ID]
 			if !built {
-				return nil, fmt.Errorf("%w: %s", errNoBuildToDeploy, res.Name)
+				return nil, fmt.Errorf("%w: %s", errNoBuildToDeploy, res.Slug)
 			}
 			source = &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: new(latest.ID.String())}
 		}

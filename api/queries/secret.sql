@@ -29,13 +29,13 @@ WHERE environment_id = sqlc.arg(environment_id)
 SELECT * FROM environment_keys ORDER BY environment_id;
 
 -- name: ListResourceSecretNames :many
-SELECT r.name AS resource_name,
+SELECT r.slug AS resource_slug,
        s.name,
        octet_length(s.ciphertext)::bigint AS ciphertext_bytes
 FROM secrets s
 JOIN resources r ON r.id = s.resource_id
 WHERE s.environment_id = $1
-ORDER BY r.name, s.name;
+ORDER BY r.slug, s.name;
 
 -- name: ListSecretSizes :many
 SELECT name, octet_length(ciphertext)::bigint AS ciphertext_bytes

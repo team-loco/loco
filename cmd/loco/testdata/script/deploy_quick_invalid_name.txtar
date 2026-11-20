@@ -1,8 +1,8 @@
-# a quick deploy refuses a service name that is not a DNS label before it calls the API.
+# a quick deploy refuses a service slug that is not a DNS label before it calls the API.
 mkdir app
 cd app
 ! exec loco deploy 'My App' --port 8080 --yes
-stderr 'Service name "My App": must be 1 to 63 lowercase letters, digits and hyphens'
+stderr 'Service slug "My App": must be 1 to 63 lowercase letters, digits and hyphens'
 ! fakeapi called GetConfig
 ! fakeapi called Plan
 

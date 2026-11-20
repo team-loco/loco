@@ -65,7 +65,7 @@ func (api *verificationAPI) GetResource(
 	_ context.Context,
 	request *resourcev1.GetResourceRequest,
 ) (*resourcev1.GetResourceResponse, error) {
-	if !api.provisioned || request.GetNameKey().GetName() != api.name {
+	if !api.provisioned || request.GetSlugKey().GetSlug() != api.name {
 		api.t.Error("lookup before provisioning")
 	}
 	return &resourcev1.GetResourceResponse{

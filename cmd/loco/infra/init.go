@@ -92,7 +92,7 @@ func initCmdFunc(cmd *cobra.Command) error {
 		}
 	}
 	if !locofile.IsDNSLabel(appName) {
-		return fmt.Errorf("service name %q: %w", appName, locofile.ErrInvalidName)
+		return fmt.Errorf("service slug %q: %w", appName, locofile.ErrInvalidName)
 	}
 
 	apiConfig, err := fetchConfig(cmd)

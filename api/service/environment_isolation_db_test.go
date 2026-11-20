@@ -82,7 +82,7 @@ func TestPlanSeesOnlyTheDomainsOfItsEnvironment(t *testing.T) {
 	stagingID := f.addStagingEnvironment(t)
 	insert := `
 INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)
-SELECT id, $2, $3, 'user_provided', true FROM resources WHERE name = $1`
+SELECT id, $2, $3, 'user_provided', true FROM resources WHERE slug = $1`
 	if _, err := f.pool.Exec(context.Background(), insert, planOwned, stagingID, stagingDomain); err != nil {
 		t.Fatalf("add staging domain: %v", err)
 	}

@@ -67,7 +67,7 @@ export function ResourcesMap({
 				{selected !== undefined && (
 					<SheetContent>
 						<SheetHeader>
-							<SheetTitle className="truncate">{selected.resource.displayName}</SheetTitle>
+							<SheetTitle className="truncate">{selected.resource.name}</SheetTitle>
 							<ResourceStatusBadge status={selected.status} />
 						</SheetHeader>
 						<SheetBody>
@@ -83,7 +83,7 @@ export function ResourcesMap({
 								nativeButton={false}
 								render={
 									<Link
-										to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: [selected.resource.name] })}
+										to={observabilityPath(orgId, workspaceId, "logs", { ...envParam, r: [selected.resource.slug] })}
 									/>
 								}
 							>
@@ -95,7 +95,7 @@ export function ResourcesMap({
 								nativeButton={false}
 								render={
 									<Link
-										to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: [selected.resource.name] })}
+										to={observabilityPath(orgId, workspaceId, "traces", { ...envParam, r: [selected.resource.slug] })}
 									/>
 								}
 							>
@@ -103,7 +103,7 @@ export function ResourcesMap({
 								Traces
 							</Button>
 							<Button nativeButton={false} className="ml-auto" render={<Link to={hrefFor(selected)} />}>
-								Open {selected.resource.displayName}
+								Open {selected.resource.name}
 								<ArrowRightIcon />
 							</Button>
 						</SheetFooter>

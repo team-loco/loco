@@ -15,6 +15,7 @@ import {
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
+import { SLUG_RULE } from "@/lib/new-resource";
 
 import type { RegionView } from "./model";
 import {
@@ -312,12 +313,15 @@ describe("plainEnv", () => {
 });
 
 describe("validateDraft", () => {
-	test("limits the display name to 63 characters, counting an emoji as one", () => {
-		expect(validateDraft({ displayName: "  " }, base, regions, SERVED, 10).displayName).toBe("Enter a display name");
-		expect(validateDraft({ displayName: "🚀".repeat(63) }, base, regions, SERVED, 10).displayName).toBeUndefined();
-		expect(validateDraft({ displayName: "a".repeat(64) }, base, regions, SERVED, 10).displayName).toBe(
-			"Use at most 63 characters",
-		);
+	test("limits the name to 63 characters, counting an emoji as one", () => {
+		expect(validateDraft({ name: "  " }, base, regions, SERVED, 10).name).toBe("Enter a name");
+		expect(validateDraft({ name: "🚀".repeat(63) }, base, regions, SERVED, 10).name).toBeUndefined();
+		expect(validateDraft({ name: "a".repeat(64) }, base, regions, SERVED, 10).name).toBe("Use at most 63 characters");
+	});
+	test("checks a new slug against the DNS label rule", () => {
+		expect(validateDraft({ slug: "QA Echo" }, base, regions, SERVED, 10).slug).toBe(SLUG_RULE);
+		expect(validateDraft({ slug: "localhost" }, base, regions, SERVED, 10).slug).toBe("localhost is reserved");
+		expect(validateDraft({ slug: "qa-echo" }, base, regions, SERVED, 10).slug).toBeUndefined();
 	});
 	test("reports only the fields the draft touched", () => {
 		expect(validateDraft({}, base, regions, SERVED, 10)).toEqual({});

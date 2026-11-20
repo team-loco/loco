@@ -22,9 +22,9 @@ func getResourceByName(
 	t.Helper()
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
-	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID.String(), Name: name}
+	nameKey := &resourcev1.GetResourceSlugKey{WorkspaceId: workspaceID.String(), Slug: name}
 	req := &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
+		Key: &resourcev1.GetResourceRequest_SlugKey{SlugKey: nameKey},
 	}
 	resp, err := server.GetResource(ctx, req)
 	if err != nil {

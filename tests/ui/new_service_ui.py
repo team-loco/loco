@@ -91,6 +91,7 @@ def seeded_draft(name, image):
     return {
         "id": str(uuid.uuid4()),
         "name": name,
+        "slug": name,
         "image": image,
         "createdMs": 0,
         "edits": {},
@@ -669,7 +670,7 @@ with session(out) as browser:
         "Health check interval: Must be greater than or equal to 1"
     )
     assert not rejected, rejected
-    assert sql(state, f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
+    assert sql(state, f"SELECT count(*) FROM resources WHERE slug='{name}';") == "0"
     interval.fill("15")
     expect(drawer.get_by_role("alert")).to_have_count(0)
     expect(drawer.get_by_text("Checking the image…", exact=True)).to_have_count(0)
@@ -720,7 +721,7 @@ with session(out) as browser:
         == image
     )
     assert len(creations) == creations_before, creations
-    assert sql(state, f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
+    assert sql(state, f"SELECT count(*) FROM resources WHERE slug='{name}';") == "0"
     assert stored_drafts(page) == [name], stored_drafts(page)
     assert not order, order
 
@@ -769,7 +770,7 @@ with session(out) as browser:
     expect(drawer.get_by_role("link", name="Open resource", exact=True)).to_have_count(
         0
     )
-    assert sql(state, f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
+    assert sql(state, f"SELECT count(*) FROM resources WHERE slug='{name}';") == "0"
     assert stored_drafts(page) == [name], stored_drafts(page)
     page.unroute(
         "**/loco.deployment.v1.DeploymentService/CreateDeployment",
@@ -804,7 +805,7 @@ with session(out) as browser:
     taken = f"{name}.{platform_domain} is taken"
     expect(drawer.get_by_text(taken, exact=True).first).to_be_visible()
     expect(drawer.get_by_role("alert")).to_have_text("Couldn't store the secrets.")
-    orphan = sql(state, f"SELECT id FROM resources WHERE name='{name}';")
+    orphan = sql(state, f"SELECT id FROM resources WHERE slug='{name}';")
     call(
         state, "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan}
     )
@@ -948,7 +949,7 @@ with session(out) as browser:
     row.get_by_role("link", name=repository, exact=True).click()
     stale_drawer = page.get_by_role("dialog", name=repository, exact=True)
     expect(stale_drawer.get_by_role("note")).to_have_text(
-        f"{repository} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name."
+        f"{repository} already uses this name or slug in this workspace. Deploying this draft will fail; discard it and start again with another name."
     )
     stale_drawer.get_by_role("button", name="Discard draft", exact=True).click()
     confirm = page.get_by_role("alertdialog", name=f"Discard {repository}?")
@@ -962,22 +963,49 @@ with session(out) as browser:
     ask = page.get_by_role("dialog", name="New resource")
     ask.get_by_role("textbox", name="Container image").fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
+    slug_input = ask.get_by_role("textbox", name="Slug")
     expect(name_input).to_have_value(name)
+    expect(slug_input).to_have_value(name)
     name_input.fill(repository)
+    expect(slug_input).to_have_value(repository)
     expect(
         ask.get_by_text(f"{repository} already exists in this workspace", exact=True)
+    ).to_have_count(2)
+    name_input.fill(repository.upper())
+    expect(
+        ask.get_by_text(
+            f"{repository.upper()} already exists in this workspace", exact=True
+        )
     ).to_be_visible()
     rule = "Use 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit"
+    for typed, derived in [
+        ("QA Echo", "qa-echo"),
+        ("🚀 Rocket Launch", "rocket-launch"),
+        (" Café Orders ", "cafe-orders"),
+        ("Zürich", "zurich"),
+    ]:
+        name_input.fill(typed)
+        expect(slug_input).to_have_value(derived)
+        expect(ask.get_by_text(rule, exact=True)).to_have_count(0)
+    name_input.fill("a" * 64)
+    expect(ask.get_by_text("Use at most 63 characters", exact=True)).to_be_visible()
+    name_input.fill("   ")
+    expect(ask.get_by_text("Enter a name", exact=True)).to_be_visible()
+    expect(ask.get_by_text("Enter a slug", exact=True)).to_be_visible()
+    label = f"Shop {suffix} Two"
+    name_input.fill(label)
     for invalid in ["QA Echo", "-bad-", "🚀rocket", "a" * 64]:
-        name_input.fill(invalid)
+        slug_input.fill(invalid)
         expect(ask.get_by_text(rule, exact=True)).to_be_visible()
-    name_input.fill("localhost")
+    slug_input.fill("localhost")
     expect(ask.get_by_text("localhost is reserved", exact=True)).to_be_visible()
-    name_input.fill(name)
+    slug_input.fill(name)
+    name_input.fill(f"{label} ")
+    expect(slug_input).to_have_value(name)
     ask.get_by_role("button", name="Continue", exact=True).click()
 
     expect(page).to_have_url(DRAFT_URL)
-    drawer = page.get_by_role("dialog", name=name, exact=True)
+    drawer = page.get_by_role("dialog", name=label, exact=True)
     assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
     drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
     drawer.get_by_role("button", name="Increase replicas", exact=True).click()
@@ -999,10 +1027,17 @@ with session(out) as browser:
             "button", name="Decrease maximum replicas", exact=True
         ).click()
     with expect_rpc(page, "CreateDeployment", lambda body: "spec" in body):
-        drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+        drawer.get_by_role("button", name=f"Deploy {label}", exact=True).click()
 
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
     expect(drawer).to_have_count(0)
+    resource = urlparse(page.url).path.rsplit("/", 1)[-1]
+    stored = sql(
+        state, f"SELECT name || '|' || slug FROM resources WHERE id='{resource}';"
+    )
+    assert stored == f"{label}|{name}", stored
+    expect(page.get_by_role("heading", level=1)).to_have_text(label)
+    expect(page.get_by_label(f"Slug {name}", exact=True)).to_be_visible()
     panel = page.get_by_role("region", name="Failed", exact=True)
     problem = panel.get_by_role("status").filter(
         has_text="ImagePullBackOff: manifest unknown"

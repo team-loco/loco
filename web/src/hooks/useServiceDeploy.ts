@@ -55,6 +55,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			const { resourceId } = await createClient(ResourceService, transport).createResource({
 				workspaceId,
 				name: form.name,
+				slug: form.slug,
 				type: ResourceType.SERVICE,
 				...(form.description.trim() === "" ? {} : { description: form.description.trim() }),
 				...(form.isPublic

@@ -66,7 +66,7 @@ export function TraceHeader({
 					if (first === undefined) throw new Error("Trace resource has no spans");
 					return {
 						...share,
-						name: resourceById.get(first.resourceId)?.name ?? traceServiceLabel(first),
+						name: resourceById.get(first.resourceId)?.slug ?? traceServiceLabel(first),
 						color: color(first),
 						errors: spans.filter(spanError).length,
 					};
@@ -164,7 +164,7 @@ export function TraceHeader({
 												background: color(trace.root),
 											}}
 										/>
-										{resource.raw.displayName}
+										{resource.raw.name}
 									</Link>
 								))}
 							<span title={formatFullTime(start, true, timePref)}>
@@ -298,7 +298,7 @@ export function TraceHeader({
 						{resource !== undefined && (
 							<DropdownMenuItem render={<Link to={resourcePath(orgId, workspaceId, resource.id)} />}>
 								<BoxIcon />
-								Open {resource.raw.displayName}
+								Open {resource.raw.name}
 							</DropdownMenuItem>
 						)}
 						<DropdownMenuItem

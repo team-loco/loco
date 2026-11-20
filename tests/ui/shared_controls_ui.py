@@ -1149,7 +1149,7 @@ def dashboard(page):
         evidence.write_json(Path(args.state), state)
     sql(
         state,
-        f"UPDATE deployment_placements SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM deployments, resources WHERE deployment_placements.deployment_id=deployments.id AND deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, platform_domain, is_primary) SELECT resources.id, environments.id, 'dashboard-0.apps.example.test', 'platform_provided', 'dashboard-0', 'apps.example.test', true FROM resources, environments WHERE resources.workspace_id='{workspace}' AND resources.name='dashboard-0' AND environments.workspace_id='{workspace}' AND environments.name='production' AND NOT EXISTS (SELECT 1 FROM resource_domains WHERE resource_id=resources.id);",
+        f"UPDATE deployment_placements SET replicas=CASE WHEN resources.slug='dashboard-0' THEN 48 ELSE 12 END FROM deployments, resources WHERE deployment_placements.deployment_id=deployments.id AND deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.slug IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.slug='dashboard-0' THEN 47 ELSE 12 END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.slug IN ('dashboard-0','dashboard-1'); INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, platform_domain, is_primary) SELECT resources.id, environments.id, 'dashboard-0.apps.example.test', 'platform_provided', 'dashboard-0', 'apps.example.test', true FROM resources, environments WHERE resources.workspace_id='{workspace}' AND resources.slug='dashboard-0' AND environments.workspace_id='{workspace}' AND environments.name='production' AND NOT EXISTS (SELECT 1 FROM resource_domains WHERE resource_id=resources.id);",
     )
     for color, mode in (
         (color, mode)
@@ -1299,7 +1299,7 @@ def dashboard(page):
         page.keyboard.press("Escape")
     sql(
         state,
-        f"UPDATE placements SET ready_replicas=48 FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name='dashboard-0';",
+        f"UPDATE placements SET ready_replicas=48 FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.slug='dashboard-0';",
     )
     page.reload()
     ready = page.get_by_label("48 of 48 ready\nus-east-1: 48/48", exact=True)
@@ -1771,8 +1771,8 @@ def metrics(page):
     production = next(e["id"] for e in environments if e["name"] == "production")
     sql(
         state,
-        f"UPDATE resources SET display_name='Controls Pilot' WHERE id='{resource}';"
-        f"UPDATE resources SET display_name='Controls Alpha' WHERE id='{sorted_resources[0]}';",
+        f"UPDATE resources SET name='Controls Pilot' WHERE id='{resource}';"
+        f"UPDATE resources SET name='Controls Alpha' WHERE id='{sorted_resources[0]}';",
     )
     # One ready deploy at each metric point, so a click on any point offers one.
     deploys = [
@@ -1892,7 +1892,7 @@ def metrics(page):
     page.unroute("**/loco.deployment.v1.DeploymentService/ListDeployments")
     sql(
         state,
-        f"UPDATE resources SET display_name=name WHERE id IN ('{resource}','{sorted_resources[0]}');",
+        f"UPDATE resources SET name=slug WHERE id IN ('{resource}','{sorted_resources[0]}');",
     )
 
 

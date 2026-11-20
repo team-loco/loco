@@ -16,7 +16,7 @@ export function ResourceAccess({
 	workspaceId: string;
 	resources: Resource[];
 }) {
-	const sorted = resources.toSorted((a, b) => a.displayName.localeCompare(b.displayName));
+	const sorted = resources.toSorted((a, b) => a.name.localeCompare(b.name));
 	return (
 		<Section title="Your resources" count={resources.length}>
 			<EmptyState title={`You have access to ${pluralize(resources.length, "resource")} in this workspace`}>
@@ -27,7 +27,7 @@ export function ResourceAccess({
 					{sorted.map((r) => (
 						<li key={r.id} className="border-b border-line last:border-b-0">
 							<Link to={resourcePath(orgId, workspaceId, r.id)} className="flex px-5 py-3 text-[13px] hover:bg-panel2">
-								{r.displayName}
+								{r.name}
 							</Link>
 						</li>
 					))}

@@ -77,8 +77,8 @@ function resource(
 ): Resource {
 	return create(ResourceSchema, {
 		id: name,
-		name,
-		displayName: name,
+		slug: name,
+		name: name,
 		description: patch.description ?? "",
 		domains: patch.domain === undefined ? [] : [{ domain: patch.domain, isPrimary: true }],
 		createdAt: timestampFromMs(patch.createdMs ?? 0),
@@ -126,11 +126,11 @@ function deployment(id: string, env: string, image: string, createdMs: number): 
 const everything: Filter = { query: "", status: ALL, region: ALL };
 
 function names(rows: ListRow[]): string[] {
-	return rows.map((r) => (isDraftRow(r) ? r.draft.name : r.resource.name));
+	return rows.map((r) => (isDraftRow(r) ? r.draft.name : r.resource.slug));
 }
 
 function draft(name: string, edits: Draft["edits"] = {}): Draft {
-	return { id: `d-${name}`, name, image: `ghcr.io/acme/${name}:1.2`, createdMs: 5, edits };
+	return { id: `d-${name}`, name, slug: name, image: `ghcr.io/acme/${name}:1.2`, createdMs: 5, edits };
 }
 
 describe("buildRows", () => {

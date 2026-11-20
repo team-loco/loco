@@ -77,7 +77,7 @@ export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResourc
 			ts,
 			level: logLevel(entry.level),
 			resourceId: entry.resourceId,
-			resourceName: workload ? workloadName(entry) : (res?.name ?? entry.resourceId.slice(0, 8)),
+			resourceName: workload ? workloadName(entry) : (res?.slug ?? entry.resourceId.slice(0, 8)),
 			workload,
 			color: res?.color ?? "var(--fg4)",
 			pod,

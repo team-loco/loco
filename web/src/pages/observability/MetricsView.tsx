@@ -157,7 +157,7 @@ function useComputeSeries(
 			const points = [...pts].map(([t, v]) => ({ t, v, abs: (v / PERCENT) * limit })).toSorted((a, b) => a.t - b.t);
 			series.push({
 				key: row.key,
-				name: multi.has(id) ? `${row.resource.raw.displayName} ${region}` : row.resource.raw.displayName,
+				name: multi.has(id) ? `${row.resource.raw.name} ${region}` : row.resource.raw.name,
 				resourceId: id,
 				color: row.resource.color,
 				dashed: row.dashed,
@@ -217,7 +217,7 @@ function useDeployMarkers(visible: ObsResource[], environmentId: string, from: n
 			const t = readyMs(d);
 			if (t === undefined || t < from || t > to || d.environmentId !== environmentId) continue;
 			const tag = formatShortId(d.id);
-			const label = `${r.raw.displayName} ${tag}`;
+			const label = `${r.raw.name} ${tag}`;
 			for (const p of d.placements) {
 				markers.push({
 					t,
@@ -226,7 +226,7 @@ function useDeployMarkers(visible: ObsResource[], environmentId: string, from: n
 					color: r.color,
 					tag,
 					resourceId: r.id,
-					resourceName: r.raw.displayName,
+					resourceName: r.raw.name,
 					region: p.region,
 				});
 			}
@@ -383,7 +383,7 @@ export function MetricsView() {
 	const sortValue = (p: Placement): string | number => {
 		switch (sort.id) {
 			case "resource":
-				return p.resource.name;
+				return p.resource.slug;
 			case "region":
 				return p.region;
 			case "replicas":
@@ -424,7 +424,7 @@ export function MetricsView() {
 		setQuery(
 			[
 				...tokens.filter((t) => t.key !== "resource" && t.key !== "region"),
-				{ neg: false, key: "resource", value: p.resource.name },
+				{ neg: false, key: "resource", value: p.resource.slug },
 				{ neg: false, key: "region", value: p.region },
 			],
 			text,
@@ -526,7 +526,7 @@ export function MetricsView() {
 												className="flex items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 											>
 												<span className="size-2 rounded-[2px]" style={{ background: p.resource.color }} />
-												{p.resource.raw.displayName}
+												{p.resource.raw.name}
 											</button>
 										</td>
 										<td className="px-3 font-mono text-fg2">{p.region}</td>
@@ -551,7 +551,7 @@ export function MetricsView() {
 }
 
 function valueCounts(key: string, resources: ObsResource[]): [string, number][] {
-	if (key === "resource") return resources.map((r) => [r.name, 0]);
+	if (key === "resource") return resources.map((r) => [r.slug, 0]);
 	if (key === "region") return [...new Set(resources.flatMap((r) => r.regions))].map((g) => [g, 0]);
 	return [];
 }

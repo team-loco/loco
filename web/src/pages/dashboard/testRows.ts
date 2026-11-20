@@ -6,7 +6,7 @@ import type { Draft } from "@/lib/drafts";
 import type { EnvResource, RegionReplicas } from "./useDashboardData";
 
 export function draft(name: string, edits: Draft["edits"] = {}): Draft {
-	return { id: `d-${name}`, name, image: `ghcr.io/acme/${name}:1`, createdMs: 1, edits };
+	return { id: `d-${name}`, name, slug: name, image: `ghcr.io/acme/${name}:1`, createdMs: 1, edits };
 }
 
 export function row(
@@ -18,8 +18,8 @@ export function row(
 	return {
 		resource: create(ResourceSchema, {
 			id: name,
-			name,
-			displayName: name,
+			slug: name,
+			name: name,
 			description: patch.description ?? "",
 			domains,
 		}),

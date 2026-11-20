@@ -326,7 +326,10 @@ export function Audit() {
 									<PickFilter
 										icon={<BoxIcon />}
 										label="Resource"
-										items={selectedDetails.resourcesOf.get(workspaceId) ?? []}
+										items={(selectedDetails.resourcesOf.get(workspaceId) ?? []).map((r) => ({
+											id: r.id,
+											name: r.name,
+										}))}
 										value={resourceId}
 										placeholder="Find a resource"
 										onChange={(id) => {

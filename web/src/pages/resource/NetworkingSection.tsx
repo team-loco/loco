@@ -207,6 +207,7 @@ function DomainRow({
 function AddDomainForm({
 	resourceId,
 	resourceName,
+	slug,
 	own,
 	usage,
 	options,
@@ -218,6 +219,7 @@ function AddDomainForm({
 }: {
 	resourceId: string;
 	resourceName: string;
+	slug: string;
 	own: readonly string[];
 	usage: LimitUsage | null;
 	options: PlatformDomain[];
@@ -268,7 +270,7 @@ function AddDomainForm({
 				regions={regions}
 				check={check}
 				owner={resourceName}
-				placeholder={resourceName}
+				placeholder={slug}
 				disabled={locked}
 				describedBy={[unserved ? unservedId : undefined, describedBy].filter(Boolean).join(" ") || undefined}
 				onSubdomainChange={setSubdomain}
@@ -355,7 +357,7 @@ export function NetworkingSection({
 					aria-label="Public"
 					aria-describedby={describedBy}
 					onCheckedChange={(checked: boolean) => {
-						onChange({ isPublic: checked, platformDomain, subdomain: draft.subdomain ?? base.name });
+						onChange({ isPublic: checked, platformDomain, subdomain: draft.subdomain ?? base.slug });
 					}}
 				/>
 			</div>
@@ -417,6 +419,7 @@ export function NetworkingSection({
 						<AddDomainForm
 							resourceId={resourceId}
 							resourceName={base.name}
+							slug={base.slug}
 							own={own}
 							usage={usage}
 							options={platformDomains}

@@ -95,7 +95,7 @@ func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if row.Name != "svc" || row.Description != description {
+		if row.Slug != "svc" || row.Description != description {
 			t.Fatalf("resource=%+v, want description %q", row, description)
 		}
 	}
@@ -104,7 +104,7 @@ func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
 		ctx,
 		&resourcev1.UpdateResourceRequest{
 			ResourceId:  f.resourceID.String(),
-			DisplayName: new(""),
+			Name:        new(""),
 			Description: new("rejected"),
 		},
 	)
@@ -115,7 +115,7 @@ func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if row.Name != "svc" || row.Description != "" {
+	if row.Slug != "svc" || row.Description != "" {
 		t.Fatalf("rejected resource update mutated row: %+v", row)
 	}
 	if got := optionalAuditCount(t, f); got != auditBefore {
@@ -284,7 +284,7 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 	}
 	if _, err := resource.UpdateResource(
 		ctx,
-		&resourcev1.UpdateResourceRequest{ResourceId: f.resourceID.String(), DisplayName: new("Renamed svc")},
+		&resourcev1.UpdateResourceRequest{ResourceId: f.resourceID.String(), Name: new("Renamed svc")},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +327,7 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 	if env.DisplayName != "Renamed env" || derefString(env.Description) != optionalRetained {
 		t.Fatalf("environment=%+v", env)
 	}
-	if res.DisplayName != "Renamed svc" || res.Description != optionalRetained {
+	if res.Name != "Renamed svc" || res.Description != optionalRetained {
 		t.Fatalf("resource=%+v", res)
 	}
 	if ws.Name != "renamed-ws" || derefString(ws.Description) != optionalRetained {

@@ -133,7 +133,7 @@ var (
 type ResourceServiceClient interface {
 	// CreateResource creates a new resource.
 	CreateResource(context.Context, *v1.CreateResourceRequest) (*v1.CreateResourceResponse, error)
-	// GetResource retrieves a resource by ID or name.
+	// GetResource retrieves a resource by ID or slug.
 	GetResource(context.Context, *v1.GetResourceRequest) (*v1.GetResourceResponse, error)
 	// UpdateResource updates a resource configuration.
 	UpdateResource(context.Context, *v1.UpdateResourceRequest) (*v1.UpdateResourceResponse, error)
@@ -165,7 +165,7 @@ func NewResourceServiceClient(client *connect.Client) ResourceServiceClient {
 type ResourceServiceHandler interface {
 	// CreateResource creates a new resource.
 	CreateResource(context.Context, *v1.CreateResourceRequest) (*v1.CreateResourceResponse, error)
-	// GetResource retrieves a resource by ID or name.
+	// GetResource retrieves a resource by ID or slug.
 	GetResource(context.Context, *v1.GetResourceRequest) (*v1.GetResourceResponse, error)
 	// UpdateResource updates a resource configuration.
 	UpdateResource(context.Context, *v1.UpdateResourceRequest) (*v1.UpdateResourceResponse, error)

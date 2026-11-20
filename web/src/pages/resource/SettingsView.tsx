@@ -11,7 +11,10 @@ import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Notice } from "@/components/design/Notice";
 import { SaveBar } from "@/components/design/SaveBar";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useDrafts } from "@/hooks/useDrafts";
 import { NEEDS_ADMIN } from "@/hooks/useMyScopes";
+import { useTakenKeys } from "@/hooks/useTakenKeys";
 import { servedDomains } from "@/lib/new-resource";
 import { isWorker } from "@/lib/resource-regions";
 import { sizeOptions } from "@/lib/sizing";
@@ -159,7 +162,7 @@ export function SettingsView({
 		};
 	}, []);
 	const [tried, setTried] = useState(false);
-	const [confirmingInternal, setConfirmingInternal] = useState(false);
+	const [confirming, setConfirming] = useState<"slug" | "internal" | null>(null);
 	const regionsQuery = useQuery(listRegions, { environmentId }, { enabled: canReadWorkspace && environmentId !== "" });
 	const domainsQuery = useQuery(
 		listPlatformDomains,
@@ -178,7 +181,10 @@ export function SettingsView({
 	const want = resolved(draft, base);
 	const onRegions = Object.keys(want.regions).filter((r) => want.regions[r] === true);
 	const served = servedDomains(domainsQuery.data?.platformDomains ?? [], onRegions);
-	const errors = validateDraft(draft, base, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
+	const { activeOrgId } = useOrgWorkspace();
+	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
+	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id);
+	const errors = validateDraft(draft, base, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY, taken);
 	const errorCount = Object.keys(errors).length;
 	const changes = changeNames(draft, base);
 	const count = changes.length;
@@ -194,6 +200,14 @@ export function SettingsView({
 			onSaved(notice);
 		},
 	});
+	const confirmDomains = () => {
+		if (domainsChange(draft, base) === "remove") {
+			setConfirming("internal");
+			return;
+		}
+		setConfirming(null);
+		void save(draft);
+	};
 	const change = (patch: Partial<SettingsDraft>) => {
 		onDraft({ ...draft, ...patch });
 	};
@@ -249,7 +263,7 @@ export function SettingsView({
 					<SizeSection {...props} sizes={sizes} />
 					<VariablesSection
 						resourceId={resource.id}
-						resourceName={resource.name}
+						resourceName={resource.slug}
 						managed={managed}
 						deployed={regions.some(isDeployed)}
 						differingRegions={regionsWithDifferentVariables(regions)}
@@ -280,10 +294,10 @@ export function SettingsView({
 					/>
 					{!worker && <HealthSection {...props} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
-					<GeneralSection {...props} canWrite={canWrite} readOnlyId={READ_ONLY_ID} />
+					<GeneralSection {...props} canWrite={canWrite} managed={managed} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">
 						<DangerZone
-							title={`Delete ${resource.displayName}`}
+							title={`Delete ${resource.name}`}
 							description={
 								managed ? (
 									<>
@@ -316,22 +330,45 @@ export function SettingsView({
 							onSave={() => {
 								setTried(true);
 								if (errorCount > 0) return;
-								if (domainsChange(draft, base) === "remove") setConfirmingInternal(true);
-								else void save(draft);
+								if (want.slug !== base.slug) setConfirming("slug");
+								else confirmDomains();
 							}}
 						/>
 					)}
 					<ConfirmDialog
-						open={confirmingInternal}
-						title={`Make ${resource.displayName} internal?`}
+						open={confirming === "slug"}
+						title={`Change the slug of ${resource.name}?`}
+						description={
+							<>
+								Everything that still names it <code className="font-mono">{base.slug}</code> stops reaching it once the
+								slug is <code className="font-mono">{want.slug}</code>:
+							</>
+						}
+						confirmLabel="Change slug and save"
+						onConfirm={confirmDomains}
+						onClose={() => {
+							setConfirming(null);
+						}}
+					>
+						<ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-[13px] text-fg2">
+							<li>Other services that call its private hostname</li>
+							<li>loco.yaml files that use it as a service key</li>
+							<li>CLI scripts that pass it as an argument</li>
+							<li>Saved log, metric and trace filters on @resource</li>
+							<li>Every replica restarts to pick up the new slug</li>
+						</ul>
+					</ConfirmDialog>
+					<ConfirmDialog
+						open={confirming === "internal"}
+						title={`Make ${resource.name} internal?`}
 						description="Saving removes every domain below and redeploys, so the resource only answers inside the workspace."
 						confirmLabel="Remove domains and save"
 						onConfirm={() => {
-							setConfirmingInternal(false);
+							setConfirming(null);
 							void save(draft);
 						}}
 						onClose={() => {
-							setConfirmingInternal(false);
+							setConfirming(null);
 						}}
 					>
 						<ul className="m-0 flex list-none flex-col gap-1 p-0 font-mono text-[13px]">

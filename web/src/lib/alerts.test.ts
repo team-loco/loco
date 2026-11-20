@@ -12,8 +12,8 @@ const REPORTED_MS = 1_700_000_000_000;
 
 const api = create(ResourceSchema, {
 	id: "r-api",
-	name: "api",
-	displayName: "api",
+	slug: "api",
+	name: "Public API service",
 	description: "Public API",
 	environmentStatuses: [
 		{
@@ -42,8 +42,8 @@ const api = create(ResourceSchema, {
 
 const worker = create(ResourceSchema, {
 	id: "r-worker",
+	slug: "worker",
 	name: "worker",
-	displayName: "worker",
 	environmentStatuses: [
 		{
 			environmentId: PROD,
@@ -66,7 +66,8 @@ describe("buildAlerts", () => {
 		expect(first).toEqual({
 			key: "r-api/eu-west",
 			resourceId: "r-api",
-			name: "api",
+			name: "Public API service",
+			slug: "api",
 			description: "Public API",
 			region: "eu-west",
 			status: ResourceStatus.DEGRADED,

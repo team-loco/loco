@@ -168,7 +168,7 @@ export function LogDetail({
 									className="items-start"
 								>
 									<BoxIcon />
-									<ItemText label={`View ${known.name}`} sub="Resource page" />
+									<ItemText label={`View ${known.slug}`} sub="Resource page" />
 								</DropdownMenuItem>
 							)}
 							{e.traceId !== "" && (

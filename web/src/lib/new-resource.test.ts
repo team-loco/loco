@@ -23,11 +23,12 @@ import {
 	commandSummary,
 	commandText,
 	mergeEnv,
-	NAME_RULE,
 	nameError,
 	nameFromImage,
 	portRangeError,
 	servedDomains,
+	SLUG_RULE,
+	slugError,
 	validateForm,
 	type EnvRow,
 	type NewResourceForm,
@@ -35,7 +36,8 @@ import {
 
 const form: NewResourceForm = {
 	image: "ghcr.io/acme/web:1.4.2",
-	name: "web",
+	name: "Web API",
+	slug: "web",
 	description: "",
 	regions: ["us-east-1", "eu-west-1"],
 	cpu: "250m",
@@ -121,12 +123,20 @@ test("validateForm accepts a complete form", () => {
 
 test("nameError follows the API's name rules", () => {
 	const nameErr = (name: string, taken = new Set<string>()) => nameError(name, taken);
-	expect(nameErr("")).toBe("Enter a name");
+	for (const blank of ["", "   "]) expect(nameErr(blank)).toBe("Enter a name");
+	for (const ok of ["QA Echo", "🚀rocket", " web ", "🚀".repeat(63)]) expect(nameErr(ok)).toBeNull();
+	expect(nameErr("x".repeat(64))).toBe("Use at most 63 characters");
+	expect(nameErr(" QA Echo ", new Set(["QA Echo"]))).toBe("QA Echo already exists in this workspace");
+});
+
+test("slugError follows the API's slug rules", () => {
+	const slugErr = (slug: string, taken = new Set<string>()) => slugError(slug, taken);
+	expect(slugErr("")).toBe("Enter a slug");
 	for (const bad of ["!!!", "QA Echo", "Web", "🚀rocket", "<script>x</script>", "-bad-", " web", "x".repeat(64)])
-		expect(nameErr(bad)).toBe(NAME_RULE);
-	for (const ok of ["web", "123cart", "qa-echo", "x".repeat(63)]) expect(nameErr(ok)).toBeNull();
-	expect(nameErr("localhost")).toBe("localhost is reserved");
-	expect(nameErr("web", new Set(["web"]))).toBe("web already exists in this workspace");
+		expect(slugErr(bad)).toBe(SLUG_RULE);
+	for (const ok of ["web", "123cart", "qa-echo", "x".repeat(63)]) expect(slugErr(ok)).toBeNull();
+	expect(slugErr("localhost")).toBe("localhost is reserved");
+	expect(slugErr("web", new Set(["web"]))).toBe("web already exists in this workspace");
 });
 
 test("portRangeError accepts 1 through 65535 and rejects the rest", () => {
@@ -358,6 +368,7 @@ test("saved autoscaling drafts reload and serialize the same targets", () => {
 		{
 			id: "saved",
 			name: "web",
+			slug: "web",
 			image: form.image,
 			createdMs: 1,
 			edits: { replicas: 1, maxReplicas: 3, cpuTarget: 65 },

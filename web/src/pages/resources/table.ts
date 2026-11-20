@@ -73,7 +73,7 @@ export function isDraftRow(row: ListRow): row is DraftRow {
 }
 
 export function rowName(row: ListRow): string {
-	return isDraftRow(row) ? row.draft.name : row.resource.displayName;
+	return isDraftRow(row) ? row.draft.name : row.resource.name;
 }
 
 function newestFirst(a: Deployment, b: Deployment): number {

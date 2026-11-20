@@ -154,13 +154,13 @@ func (s *ObservabilityServer) resourceNames(ctx context.Context, workspaceID str
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.queries.ListWorkspaceResourceNames(ctx, workspace)
+	rows, err := s.queries.ListWorkspaceResourceSlugs(ctx, workspace)
 	if err != nil {
 		return nil, fmt.Errorf("list resource names: %w", err)
 	}
 	names := make([]chClient.ResourceName, len(rows))
 	for i, row := range rows {
-		names[i] = chClient.ResourceName{ID: row.ID.String(), Name: row.Name}
+		names[i] = chClient.ResourceName{ID: row.ID.String(), Name: row.Slug}
 	}
 	return names, nil
 }

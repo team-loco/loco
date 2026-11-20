@@ -110,7 +110,7 @@ func (s *ResourceServer) updateRegions(
 			return stateErr
 		}
 		current := configplan.Service{
-			Name:           res.Name,
+			Name:           res.Slug,
 			Built:          true,
 			RunningRegions: deploymentRegions(active),
 			State:          state,
@@ -142,12 +142,12 @@ func (s *ResourceServer) updateRegions(
 			return clusterErr
 		}
 		targets := regionClusters(clusters)
-		if errs := configplan.ValidateState(res.Name, desired, targets); len(errs) > 0 {
+		if errs := configplan.ValidateState(res.Slug, desired, targets); len(errs) > 0 {
 			return applyRefused(errPlanHasErrors, &planv1.ApplyRefusal{Errors: planErrorsToProto(errs)})
 		}
 		builds := map[string]*deploymentv1.BuildSource{}
 		if len(active) == 0 && desired.Image == "" {
-			builds[res.Name] = template.GetBuild()
+			builds[res.Slug] = template.GetBuild()
 		}
 		var commit *deploymentv1.SourceCommit
 		if sha := runtime[0].CommitSha; sha != nil {
@@ -155,7 +155,7 @@ func (s *ResourceServer) updateRegions(
 		}
 		a := newApplier(env, organizationID, counts, defaults, s.clusterSilentAfter)
 		a.live = liveEnvironment{
-			resources:   map[string]genDb.Resource{res.Name: res},
+			resources:   map[string]genDb.Resource{res.Slug: res},
 			deployments: map[uuid.UUID][]liveDeployment{res.ID: active},
 			domains:     map[uuid.UUID][]genDb.ResourceDomain{res.ID: envDomains},
 		}

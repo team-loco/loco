@@ -1,5 +1,4 @@
 import { useQuery as useRpcQuery } from "@connectrpc/connect-query";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -41,7 +40,7 @@ import { useImageCheck } from "@/hooks/useImageCheck";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
-import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useTakenKeys, type TakenKeys } from "@/hooks/useTakenKeys";
 import { parseDotEnv } from "@/lib/dotenv";
 import { draftIsPublic, draftRegions, draftSizing, type Draft, type DraftEdits } from "@/lib/drafts";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -58,6 +57,7 @@ import {
 	nameError,
 	nameFromImage,
 	servedDomains,
+	slugError,
 	validateForm,
 	type ApiField,
 	type EnvRow,
@@ -65,6 +65,7 @@ import {
 	type NewResourceForm,
 } from "@/lib/new-resource";
 import { sizeOptions, type SizeOptions } from "@/lib/sizing";
+import { slug as slugOf } from "@/lib/slug";
 import { useServiceDeploy, type DeployError } from "@/hooks/useServiceDeploy";
 
 const SKELETON_ROWS = 6;
@@ -88,11 +89,6 @@ const API_FIELD_LABEL: Record<ApiField, string> = {
 const HEALTH_FIELDS: ReadonlySet<ApiField> = new Set(["path", "interval", "timeout", "failAfter"]);
 const COMMAND_FIELDS: ReadonlySet<ApiField> = new Set(["command", "args"]);
 
-function useTakenNames(orgId: string, workspaceId: string): Map<string, string> {
-	const resourcesQuery = useQuery(useWorkspaceResourcesOptions(orgId, workspaceId));
-	return new Map((resourcesQuery.data?.resources ?? []).map((r) => [r.name, r.displayName]));
-}
-
 export function NewService({
 	orgId,
 	workspaceId,
@@ -111,8 +107,10 @@ export function NewService({
 	const store = useDrafts(orgId, workspaceId, env?.id);
 	const [image, setImage] = useState("");
 	const [editedName, setEditedName] = useState<string | null>(null);
-	const taken = useTakenNames(orgId, workspaceId);
-	const name = editedName ?? nameFromImage(image, new Set([...taken.keys(), ...store.drafts.map((d) => d.name)]));
+	const [editedSlug, setEditedSlug] = useState<string | null>(null);
+	const taken = useTakenKeys(orgId, workspaceId, store.drafts);
+	const name = editedName ?? nameFromImage(image, new Set([...taken.names, ...taken.slugs]));
+	const slug = editedSlug ?? slugOf(name);
 	return (
 		<Dialog
 			open
@@ -128,12 +126,15 @@ export function NewService({
 					loading={loading}
 					image={image}
 					name={name}
+					slug={slug}
 					taken={taken}
 					onImage={setImage}
 					onName={setEditedName}
+					onSlug={setEditedSlug}
 					onContinue={() => {
 						const id = crypto.randomUUID();
-						if (store.create({ id, image: image.trim(), name, createdMs: Date.now(), edits: {} })) onCreated(id);
+						const draft = { id, image: image.trim(), name: name.trim(), slug, createdMs: Date.now(), edits: {} };
+						if (store.create(draft)) onCreated(id);
 						else toast.error("Couldn't save the draft in this browser");
 					}}
 				/>
@@ -149,9 +150,11 @@ function ImageStep({
 	loading,
 	image,
 	name,
+	slug,
 	taken,
 	onImage,
 	onName,
+	onSlug,
 	onContinue,
 }: {
 	orgId: string;
@@ -160,9 +163,11 @@ function ImageStep({
 	loading: boolean;
 	image: string;
 	name: string;
-	taken: ReadonlyMap<string, string>;
+	slug: string;
+	taken: TakenKeys;
 	onImage: (image: string) => void;
 	onName: (name: string) => void;
+	onSlug: (slug: string) => void;
 	onContinue: () => void;
 }) {
 	const scopes = useMyScopes();
@@ -170,7 +175,8 @@ function ImageStep({
 	const [edited, setEdited] = useState(false);
 	const error = imageError(image);
 	const shown = tried || edited ? error : null;
-	const nameErr = nameError(name, new Set(taken.keys()));
+	const nameErr = nameError(name, taken.names);
+	const slugErr = slugError(slug, taken.slugs);
 
 	const waiting = scopes.isLoading || loading;
 	const notice = waiting
@@ -202,7 +208,7 @@ function ImageStep({
 			onSubmit={(e) => {
 				e.preventDefault();
 				setTried(true);
-				if (!waiting && error === null && nameErr === null) onContinue();
+				if (!waiting && error === null && nameErr === null && slugErr === null) onContinue();
 			}}
 		>
 			<DialogBody>
@@ -222,18 +228,35 @@ function ImageStep({
 					/>
 				</Field>
 				{error === null && (
-					<Field label="Name" error={nameErr}>
-						<Input
-							value={name}
-							className="h-9 font-mono"
-							autoComplete="off"
-							spellCheck={false}
-							aria-invalid={nameErr !== null}
-							onChange={(e) => {
-								onName(e.target.value);
-							}}
-						/>
-					</Field>
+					<>
+						<Field label="Name" error={nameErr}>
+							<Input
+								value={name}
+								className="h-9"
+								autoComplete="off"
+								aria-invalid={nameErr !== null}
+								onChange={(e) => {
+									onName(e.target.value);
+								}}
+							/>
+						</Field>
+						<Field
+							label="Slug"
+							error={slugErr}
+							hint="Its private hostname, and its key in loco.yaml, the CLI and log filters"
+						>
+							<Input
+								value={slug}
+								className="h-9 font-mono"
+								autoComplete="off"
+								spellCheck={false}
+								aria-invalid={slugErr !== null}
+								onChange={(e) => {
+									onSlug(e.target.value);
+								}}
+							/>
+						</Field>
+					</>
 				)}
 			</DialogBody>
 			<DialogFooter>
@@ -303,7 +326,7 @@ function DraftPanel({
 	close: () => void;
 }) {
 	const store = useDrafts(orgId, workspaceId, env.id);
-	const taken = useTakenNames(orgId, workspaceId);
+	const taken = useTakenKeys(orgId, workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
 	const regionsQuery = useRpcQuery(listRegions, { environmentId: env.id });
 	const domainsQuery = useRpcQuery(listPlatformDomains, { environmentId: env.id });
@@ -386,7 +409,7 @@ function DraftPanel({
 				tried={tried}
 				healthOpen={healthOpen}
 				commandOpen={commandOpen}
-				holder={taken.get(draft.name) ?? null}
+				holder={taken.holder(draft)}
 				onTry={() => {
 					setTried(true);
 				}}
@@ -509,7 +532,7 @@ function ServiceForm({
 	onDeployed: (resourceId: string) => void;
 	onDiscard: () => void;
 }) {
-	const { edits, image, name } = draft;
+	const { edits, image, name, slug } = draft;
 	const { deployError, deploy, isPending, resourceId } = deployment;
 
 	const selected = draftRegions(draft, regions);
@@ -519,6 +542,7 @@ function ServiceForm({
 	const form: NewResourceForm = {
 		image,
 		name,
+		slug,
 		description: edits.description ?? "",
 		regions: selected,
 		cpu: size.cpu,
@@ -527,7 +551,7 @@ function ServiceForm({
 		maxReplicas: size.maxReplicas,
 		cpuTarget: size.cpuTarget,
 		isPublic: draftIsPublic(draft),
-		subdomain: edits.subdomain ?? name,
+		subdomain: edits.subdomain ?? slug,
 		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
 		port: edits.port ?? "",
 		vars: edits.vars ?? [],
@@ -572,7 +596,7 @@ function ServiceForm({
 				{holder !== null && resourceId === undefined && !isPending && (
 					<div>
 						<Notice>
-							{`${holder} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name.`}
+							{`${holder} already uses this name or slug in this workspace. Deploying this draft will fail; discard it and start again with another name.`}
 						</Notice>
 					</div>
 				)}
