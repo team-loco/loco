@@ -8,14 +8,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
+import { DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { Skeleton } from "@/components/design/Skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
+import { cn } from "@/lib/utils";
 
 import { SettingsCard, SettingsSection } from "./parts";
 
@@ -32,14 +33,57 @@ const SIGNALS = [
 type Signal = (typeof SIGNALS)[number];
 type Drafts = Record<Signal["key"], string>;
 
+const MONO = "font-mono text-[12.5px]";
+
 function days(value: number | undefined): string {
 	return value === undefined ? "—" : `${value.toString()} days`;
+}
+
+function retentionColumns(workspace: Workspace, limits: CountLimits | undefined): DataColumn<Signal>[] {
+	return [
+		{ id: "signal", header: "Signal", size: 160, minSize: 90, cell: ({ row }) => row.original.label },
+		{
+			id: "workspace",
+			header: "Workspace",
+			size: 160,
+			minSize: 90,
+			meta: { cellClassName: MONO },
+			cell: ({ row: { original: signal } }) => {
+				const value = workspace.retention?.[signal.key];
+				return value === undefined ? <span className="text-fg3">Not set</span> : days(value);
+			},
+		},
+		{
+			id: "limit",
+			header: "Organization limit",
+			size: 180,
+			minSize: 90,
+			meta: { cellClassName: cn(MONO, "text-fg2") },
+			cell: ({ row: { original: signal } }) =>
+				limits === undefined ? <Skeleton className="h-4 w-16" /> : days(limits[signal.field]),
+		},
+		{
+			id: "kept",
+			header: "Kept for",
+			size: 160,
+			minSize: 90,
+			meta: { cellClassName: MONO },
+			cell: ({ row: { original: signal } }) => days(workspace.effectiveRetention?.[signal.key]),
+		},
+	];
 }
 
 export function RetentionSection({ workspace, canWrite }: { workspace: Workspace; canWrite: boolean }) {
 	const limits = useOrgLimits(workspace.orgId);
 	const [editing, setEditing] = useState(false);
 	const editBlocked = !canWrite ? `Requires Write on ${workspace.name}` : limits === undefined ? "Loading" : null;
+	const table = useDataTable("retention", {
+		data: SIGNALS,
+		getRowId: (signal) => signal.key,
+		enableSorting: false,
+		manualPagination: true,
+		columns: retentionColumns(workspace, limits),
+	});
 
 	return (
 		<SettingsSection
@@ -61,36 +105,7 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 			}
 		>
 			<SettingsCard className="pt-1">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Signal</TableHead>
-							<TableHead>Workspace</TableHead>
-							<TableHead>Organization limit</TableHead>
-							<TableHead>Kept for</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{SIGNALS.map((signal) => (
-							<TableRow key={signal.key}>
-								<TableCell>{signal.label}</TableCell>
-								<TableCell className="font-mono text-[12.5px]">
-									{workspace.retention?.[signal.key] === undefined ? (
-										<span className="text-fg3">Not set</span>
-									) : (
-										days(workspace.retention[signal.key])
-									)}
-								</TableCell>
-								<TableCell className="font-mono text-[12.5px] text-fg2">
-									{limits === undefined ? <Skeleton className="h-4 w-16" /> : days(limits[signal.field])}
-								</TableCell>
-								<TableCell className="font-mono text-[12.5px]">
-									{days(workspace.effectiveRetention?.[signal.key])}
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+				<DataTable table={table} label="Retention" empty={null} />
 				<p className="m-0 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">
 					A change applies to telemetry ingested after it; stored telemetry keeps the retention it was written with.
 				</p>

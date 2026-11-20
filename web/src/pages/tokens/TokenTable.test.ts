@@ -4,42 +4,23 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TokenSchema } from "@gen/loco/token/v1/token_pb";
 
-import { TokenTable } from "./TokenTable";
+import { CreatorCell } from "./TokenTable";
 
 test("token creator uses a member name, preserves an unresolved ID and marks absent attribution", () => {
-	const html = renderToStaticMarkup(
-		createElement(TokenTable, {
-			tokens: [
-				create(TokenSchema, {
-					name: "named",
-					createdBy: "member-id",
-					displaySuffix: "wxyz",
-				}),
-				create(TokenSchema, {
-					name: "unresolved",
-					createdBy: "former-member-id",
-				}),
-				create(TokenSchema, { name: "legacy" }),
-				create(TokenSchema, { name: "unlabelled", createdBy: "unlabelled-member-id" }),
-			],
-			creators: new Map([
-				["member-id", { name: "Olivia Owner", avatarUrl: "" }],
-				["unlabelled-member-id", { name: "", avatarUrl: "" }],
-			]),
-			tree: { nodes: new Map(), order: [], childCount: new Map() },
-			now: 0,
-			isLoading: false,
-			empty: null,
-			canDuplicate: false,
-			canRevoke: false,
-			onDuplicate: () => {},
-			onRevoke: () => {},
-		}),
-	);
-	expect(html).toContain("Created by");
-	expect(html).toContain("loco_k_…wxyz");
-	expect(html).toContain("…");
-	expect(html).toContain("wxyz");
+	const creators = new Map([
+		["member-id", { name: "Olivia Owner", avatarUrl: "" }],
+		["unlabelled-member-id", { name: "", avatarUrl: "" }],
+	]);
+	const html = [
+		create(TokenSchema, { name: "named", createdBy: "member-id" }),
+		create(TokenSchema, { name: "unresolved", createdBy: "former-member-id" }),
+		create(TokenSchema, { name: "legacy" }),
+		create(TokenSchema, { name: "unlabelled", createdBy: "unlabelled-member-id" }),
+	]
+		.map((token) =>
+			renderToStaticMarkup(createElement(CreatorCell, { token, creator: creators.get(token.createdBy), now: 0 })),
+		)
+		.join("");
 	expect(html).toContain("Olivia Owner");
 	expect(html).toContain("former-member-id");
 	expect(html).toContain("Unknown");

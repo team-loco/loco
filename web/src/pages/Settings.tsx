@@ -5,7 +5,7 @@ import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
-import { startTransition, useEffect, useState, type MouseEvent } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { useQueryStates } from "nuqs";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
@@ -106,14 +106,16 @@ export function Settings() {
 		});
 	};
 
-	const openWorkspace = (event: MouseEvent, w: Workspace) => {
+	const openWorkspace = (w: Workspace): boolean => {
 		if (w.id === workspaceId) {
-			event.preventDefault();
 			selectScope("workspace");
-		} else if (anyDirty) {
-			event.preventDefault();
-			setLeaveTo(settingsPath(orgId, w.id, "workspace"));
+			return true;
 		}
+		if (anyDirty) {
+			setLeaveTo(settingsPath(orgId, w.id, "workspace"));
+			return true;
+		}
+		return false;
 	};
 
 	const itemClass = "h-7! min-w-0 shrink gap-1.5 px-3 text-[12.5px]";

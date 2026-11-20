@@ -334,11 +334,14 @@ function DataTableHead<T extends RowData>({
 	);
 }
 
-function fromControl(event: MouseEvent | KeyboardEvent): boolean {
+// Events from a control in the row, or from portalled content such as a row menu or its dialogs, are not row clicks.
+function fromControl(event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>): boolean {
+	const target = event.target;
+	if (!(target instanceof Node) || !event.currentTarget.contains(target)) return true;
 	return (
-		event.target instanceof Element &&
-		event.target !== event.currentTarget &&
-		event.target.closest("a, button, input, label, [role=checkbox], [role=menuitem]") !== null
+		target instanceof Element &&
+		target !== event.currentTarget &&
+		target.closest("a, button, input, label, [role=checkbox], [role=menuitem]") !== null
 	);
 }
 
@@ -355,6 +358,7 @@ export function DataTable<T extends RowData>({
 	rowLabel,
 	rowClassName,
 	groupBy,
+	renderExpanded,
 	className,
 	label,
 	inset = false,
@@ -370,8 +374,10 @@ export function DataTable<T extends RowData>({
 	/** Names a clickable row for assistive technology. */
 	rowLabel?: (row: Row<Features, T>) => string;
 	rowClassName?: (row: Row<Features, T>) => string | false | undefined;
-	/** Starts a labelled group, such as a day, wherever this value changes from the row before. */
-	groupBy?: (row: T) => string;
+	/** Starts a labelled group, such as a day, wherever this value changes from the row before; undefined rows sit in no group. */
+	groupBy?: (row: T) => string | undefined;
+	/** Content shown in a full-width row below the row, such as its expanded details; null shows none. */
+	renderExpanded?: (row: Row<Features, T>) => ReactNode;
 	className?: string;
 	label?: string;
 	/** Keeps row content 10px inside the card edge instead of 20px; row tints and dividers reach 10px past it. */
@@ -444,6 +450,7 @@ export function DataTable<T extends RowData>({
 							const previous = rows[i - 1];
 							const opensGroup =
 								group !== undefined && (previous === undefined || groupBy?.(previous.original) !== group);
+							const expanded = renderExpanded?.(row) ?? null;
 							return (
 								<Fragment key={row.id}>
 									{opensGroup && (
@@ -480,6 +487,7 @@ export function DataTable<T extends RowData>({
 											ROW,
 											"group/row group/nav hover:bg-transparent has-[+[data-group]]:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-panel2",
 											onRowClick !== undefined && "hover:bg-(--row-hover)",
+											expanded !== null && "border-b-0",
 											rowClassName?.(row),
 										)}
 									>
@@ -507,6 +515,14 @@ export function DataTable<T extends RowData>({
 											);
 										})}
 									</TableRow>
+									{expanded !== null && (
+										<TableRow role="row" className={cn(ROW, "hover:bg-transparent")}>
+											{/* Zero width keeps the details out of the column sizing; min-w-full then gives them the row. */}
+											<TableCell role="cell" className="col-span-full w-0 min-w-full p-0 whitespace-normal">
+												{expanded}
+											</TableCell>
+										</TableRow>
+									)}
 								</Fragment>
 							);
 						})}

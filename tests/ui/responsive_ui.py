@@ -72,7 +72,7 @@ call(
 )
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 
-TABLES_JS = """() => [...document.querySelectorAll(':is([data-slot=table-container], [data-slot=data-table])')].map(c => ({
+TABLES_JS = """() => [...document.querySelectorAll('[data-slot=data-table]')].map(c => ({
   scrolls: c.scrollWidth > c.clientWidth + 1,
   overflowX: getComputedStyle(c).overflowX,
   scroll: c.getAttribute('data-scroll'),
@@ -86,7 +86,7 @@ TABLES_JS = """() => [...document.querySelectorAll(':is([data-slot=table-contain
   })(),
 }))"""
 FIRST_CELL_JS = """() => {
-  const c = [...document.querySelectorAll(':is([data-slot=table-container], [data-slot=data-table])')].find(x => x.querySelector('tbody tr'));
+  const c = [...document.querySelectorAll('[data-slot=data-table]')].find(x => x.querySelector('tbody tr'));
   const row = c.querySelector('tbody tr');
   const cell = row.querySelector('td');
   const content = cell.firstElementChild || cell;
@@ -182,16 +182,10 @@ with session(out) as browser:
                     expect(
                         page.get_by_role("table", name="Audit events")
                     ).to_be_visible()
-                expect(
-                    page.locator(
-                        ":is([data-slot=table-container], [data-slot=data-table])"
-                    ).first
-                ).to_be_visible()
+                expect(page.locator("[data-slot=data-table]").first).to_be_visible()
                 tables_stay_inside(page, f"{mode} {label} {name}")
                 if label == "390" and name in ("dashboard", "resource", "audit"):
-                    table = page.locator(
-                        ":is([data-slot=table-container], [data-slot=data-table])"
-                    ).first
+                    table = page.locator("[data-slot=data-table]").first
                     table.scroll_into_view_if_needed()
                     table.screenshot(path=out / f"{mode}-{label}-{name}-start.png")
                     table.evaluate("el => el.scrollTo(el.scrollWidth / 2, 0)")
@@ -207,7 +201,7 @@ with session(out) as browser:
             context.add_init_script(f"localStorage.setItem('loco:color:v1', '{color}')")
         page.goto(PAGES["dashboard"])
         row = page.locator(
-            ":is([data-slot=table-container], [data-slot=data-table])[data-scroll] tbody tr[data-interactive]"
+            "[data-slot=data-table][data-scroll] tbody tr[data-interactive]"
         ).first
         row.scroll_into_view_if_needed()
         cell = row.locator("td").first
@@ -217,9 +211,9 @@ with session(out) as browser:
             mode,
             color,
         )
-        page.locator(
-            ":is([data-slot=table-container], [data-slot=data-table])[data-scroll]"
-        ).first.screenshot(path=out / f"{color or mode}-{mode}-390-row-hover.png")
+        page.locator("[data-slot=data-table][data-scroll]").first.screenshot(
+            path=out / f"{color or mode}-{mode}-390-row-hover.png"
+        )
         context.close()
 
     for color in ("loco", "catppuccin", "rose-pine", "solarized", "neobrutal", "paper"):
@@ -234,9 +228,7 @@ with session(out) as browser:
                         f"localStorage.setItem('loco:color:v1', '{color}')"
                     )
                     page.goto(PAGES[name])
-                    page.locator(
-                        ":is([data-slot=table-container], [data-slot=data-table]) tbody tr"
-                    ).first.wait_for()
+                    page.locator("[data-slot=data-table] tbody tr").first.wait_for()
                     where = (color, mode, label, name)
                     cell = page.evaluate(FIRST_CELL_JS)
                     assert cell["rowOffset"] >= 10, (where, cell)
