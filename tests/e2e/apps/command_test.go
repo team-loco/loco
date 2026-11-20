@@ -1,11 +1,17 @@
 package apps
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
+
+// endpointTimeout bounds how long the Service takes to route to a new rollout's pod.
+const endpointTimeout = time.Minute
 
 // serveArgScript runs the fixture's nginx from /tmp and serves its first argument at /<argument>.
 const serveArgScript = `mkdir -p /tmp/www
@@ -34,11 +40,21 @@ func TestCommandAndArgs(t *testing.T) {
 		file.Services[app] = service
 		platform.WriteLocoFile(t, dir, file)
 		w.MustLoco(t, dir, "deploy", "--yes", "--wait")
-		if !p.Reaches(t, probe, "http://"+app+"/"+marker) {
-			t.Fatalf("the service does not serve the marker %s its args name", marker)
-		}
-		if previous != "" && p.Reaches(t, probe, "http://"+app+"/"+previous) {
-			t.Fatalf("the service still serves the marker %s of its previous args", previous)
+		platform.Eventually(t, endpointTimeout, "the service to serve the marker "+marker+" its args name",
+			func(context.Context) error {
+				if !p.Reaches(t, probe, "http://"+app+"/"+marker) {
+					return errors.New("the marker is not served")
+				}
+				return nil
+			})
+		if previous != "" {
+			platform.Eventually(t, endpointTimeout, "the service to stop serving the previous marker "+previous,
+				func(context.Context) error {
+					if p.Reaches(t, probe, "http://"+app+"/"+previous) {
+						return errors.New("the previous marker is still served")
+					}
+					return nil
+				})
 		}
 		previous = marker
 	}
