@@ -357,23 +357,17 @@ with session(out) as browser:
     assert stored_drafts(page) == [name], stored_drafts(page)
     last_region = drawer.get_by_role("button", name="us-east-1", exact=True)
     expect(last_region).to_have_attribute("aria-pressed", "true")
-    # One read measures the card and its contents in the same frame while the drawer slides in.
-    offsets = last_region.evaluate(
-        """card => {
-            const middle = (el) => {
-                const box = el.getBoundingClientRect();
-                return box.top + box.height / 2;
-            };
-            const text = [...card.querySelectorAll("*")].find(
-                (el) => el.childElementCount === 0 && el.textContent === "us-east-1"
-            );
-            return {
-                text: middle(text) - middle(card),
-                icon: middle(card.querySelector("svg")) - middle(card),
-            };
-        }"""
+    # Reads the card, its name and its check mark in one frame.
+    middles = page.evaluate(
+        "els => els.map(el => { const box = el.getBoundingClientRect(); return box.top + box.height / 2 })",
+        [
+            last_region.element_handle(),
+            last_region.get_by_text("us-east-1", exact=True).element_handle(),
+            last_region.locator("svg").element_handle(),
+        ],
     )
-    for content, offset in offsets.items():
+    for content, middle in zip(("name", "check mark"), middles[1:]):
+        offset = middle - middles[0]
         assert abs(offset) <= 1, f"the {content} is {offset}px from the card center"
     offline = drawer.get_by_role("button", name="eu-north-1 Offline", exact=True)
     expect(offline).to_be_disabled()
