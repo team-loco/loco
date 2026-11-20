@@ -66,7 +66,7 @@ func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -85,8 +85,9 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.SpecVersion,
 		&i.Revision,
 		&i.Partial,
+		&i.RestartPolicy,
 		&i.MaxRestarts,
-		&i.RestartWindowSeconds,
+		&i.DeployTimeoutSeconds,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -95,7 +96,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceBySlugAndWorkspace = `-- name: GetResourceBySlugAndWorkspace :one
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.slug = $2
 `
@@ -119,8 +120,9 @@ func (q *Queries) GetResourceBySlugAndWorkspace(ctx context.Context, arg GetReso
 		&i.SpecVersion,
 		&i.Revision,
 		&i.Partial,
+		&i.RestartPolicy,
 		&i.MaxRestarts,
-		&i.RestartWindowSeconds,
+		&i.DeployTimeoutSeconds,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -362,46 +364,43 @@ SELECT l.resource_id,
              AND NOT (rd.platform_domain = ANY(c.domains))
            ORDER BY rd.domain
        )::text[] AS unserved_domains,
-       COALESCE(r.max_restarts, $1::int)::int AS max_restarts
+       r.restart_policy, r.max_restarts, r.deploy_timeout_seconds
 FROM live_deployment_placements l
 JOIN resources r ON r.id = l.resource_id
 JOIN environments e ON e.id = l.environment_id
 JOIN clusters c ON c.id = l.cluster_id
 LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
     AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted
-WHERE l.resource_id = ANY($2::uuid[])
+WHERE l.resource_id = ANY($1::uuid[])
 ORDER BY l.resource_id, e.slug, l.region
 `
 
-type ListRegionStatusesForResourcesParams struct {
-	DefaultMaxRestarts int32       `json:"defaultMaxRestarts"`
-	ResourceIds        []uuid.UUID `json:"resourceIds"`
-}
-
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID        uuid.UUID       `json:"resourceId"`
-	EnvironmentID     uuid.UUID       `json:"environmentId"`
-	EnvironmentSlug   string          `json:"environmentSlug"`
-	Region            string          `json:"region"`
-	ClusterID         uuid.UUID       `json:"clusterId"`
-	DeploymentID      uuid.UUID       `json:"deploymentId"`
-	PlacementStatus   PlacementStatus `json:"placementStatus"`
-	DesiredReplicas   int32           `json:"desiredReplicas"`
-	Problem           []byte          `json:"problem"`
-	Placed            bool            `json:"placed"`
-	ReadyReplicas     int32           `json:"readyReplicas"`
-	StatusUpdatedAt   *time.Time      `json:"statusUpdatedAt"`
-	StoredStatus      string          `json:"storedStatus"`
-	RegionStatusSince *time.Time      `json:"regionStatusSince"`
-	Replicas          []byte          `json:"replicas"`
-	LastHeartbeat     *time.Time      `json:"lastHeartbeat"`
-	HealthStatus      *string         `json:"healthStatus"`
-	UnservedDomains   []string        `json:"unservedDomains"`
-	MaxRestarts       int32           `json:"maxRestarts"`
+	ResourceID           uuid.UUID       `json:"resourceId"`
+	EnvironmentID        uuid.UUID       `json:"environmentId"`
+	EnvironmentSlug      string          `json:"environmentSlug"`
+	Region               string          `json:"region"`
+	ClusterID            uuid.UUID       `json:"clusterId"`
+	DeploymentID         uuid.UUID       `json:"deploymentId"`
+	PlacementStatus      PlacementStatus `json:"placementStatus"`
+	DesiredReplicas      int32           `json:"desiredReplicas"`
+	Problem              []byte          `json:"problem"`
+	Placed               bool            `json:"placed"`
+	ReadyReplicas        int32           `json:"readyReplicas"`
+	StatusUpdatedAt      *time.Time      `json:"statusUpdatedAt"`
+	StoredStatus         string          `json:"storedStatus"`
+	RegionStatusSince    *time.Time      `json:"regionStatusSince"`
+	Replicas             []byte          `json:"replicas"`
+	LastHeartbeat        *time.Time      `json:"lastHeartbeat"`
+	HealthStatus         *string         `json:"healthStatus"`
+	UnservedDomains      []string        `json:"unservedDomains"`
+	RestartPolicy        *string         `json:"restartPolicy"`
+	MaxRestarts          *int32          `json:"maxRestarts"`
+	DeployTimeoutSeconds *int32          `json:"deployTimeoutSeconds"`
 }
 
-func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRegionStatusesForResourcesParams) ([]ListRegionStatusesForResourcesRow, error) {
-	rows, err := q.db.Query(ctx, listRegionStatusesForResources, arg.DefaultMaxRestarts, arg.ResourceIds)
+func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listRegionStatusesForResources, resourceIds)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +427,9 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRe
 			&i.LastHeartbeat,
 			&i.HealthStatus,
 			&i.UnservedDomains,
+			&i.RestartPolicy,
 			&i.MaxRestarts,
+			&i.DeployTimeoutSeconds,
 		); err != nil {
 			return nil, err
 		}
@@ -441,7 +442,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRe
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
@@ -485,8 +486,9 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.SpecVersion,
 			&i.Revision,
 			&i.Partial,
+			&i.RestartPolicy,
 			&i.MaxRestarts,
-			&i.RestartWindowSeconds,
+			&i.DeployTimeoutSeconds,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -533,7 +535,7 @@ func (q *Queries) ListWorkspaceResourceSlugs(ctx context.Context, workspaceID uu
 }
 
 const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.slug ASC
@@ -559,8 +561,9 @@ func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID
 			&i.SpecVersion,
 			&i.Revision,
 			&i.Partial,
+			&i.RestartPolicy,
 			&i.MaxRestarts,
-			&i.RestartWindowSeconds,
+			&i.DeployTimeoutSeconds,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -631,20 +634,27 @@ func (q *Queries) SetPlacementRegionStatus(ctx context.Context, arg SetPlacement
 
 const setResourceDeployPolicy = `-- name: SetResourceDeployPolicy :exec
 UPDATE resources
-SET max_restarts = $2,
-    restart_window_seconds = $3,
+SET restart_policy = $2,
+    max_restarts = $3,
+    deploy_timeout_seconds = $4,
     updated_at = NOW()
 WHERE id = $1
 `
 
 type SetResourceDeployPolicyParams struct {
 	ID                   uuid.UUID `json:"id"`
+	RestartPolicy        *string   `json:"restartPolicy"`
 	MaxRestarts          *int32    `json:"maxRestarts"`
-	RestartWindowSeconds *int32    `json:"restartWindowSeconds"`
+	DeployTimeoutSeconds *int32    `json:"deployTimeoutSeconds"`
 }
 
 func (q *Queries) SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error {
-	_, err := q.db.Exec(ctx, setResourceDeployPolicy, arg.ID, arg.MaxRestarts, arg.RestartWindowSeconds)
+	_, err := q.db.Exec(ctx, setResourceDeployPolicy,
+		arg.ID,
+		arg.RestartPolicy,
+		arg.MaxRestarts,
+		arg.DeployTimeoutSeconds,
+	)
 	return err
 }
 

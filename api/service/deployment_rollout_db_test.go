@@ -36,7 +36,7 @@ func TestDeploymentRolloutLifecycle(t *testing.T) {
 	report.ObservedRevision = p.DesiredRevision
 	report.Available = false
 	report.Healthy = false
-	report.ProgressDeadlineExceeded = true
+	report.Stopped = deployTimedOut()
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := f.deploymentStatus(t, second); got != genDb.DeploymentStatusFailed {
 		t.Fatalf("deadline=%s", got)
@@ -58,7 +58,7 @@ func TestDeploymentRolloutLifecycle(t *testing.T) {
 	}
 	report.Available = true
 	report.Healthy = true
-	report.ProgressDeadlineExceeded = false
+	report.Stopped = nil
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := f.deploymentStatus(t, second); got != genDb.DeploymentStatusRunning {
 		t.Fatalf("recovered=%s", got)
@@ -122,7 +122,7 @@ func TestDeploymentProblemLifecycle(t *testing.T) {
 	}
 	report.Available = false
 	report.Healthy = false
-	report.ProgressDeadlineExceeded = true
+	report.Stopped = deployTimedOut()
 	server.recordStatus(ctx, f.clusterID, 1, report)
 	report.ObservedRevision--
 	server.recordStatus(ctx, f.clusterID, 0, report)

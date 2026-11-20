@@ -2,7 +2,7 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// +kubebuilder:validation:Enum=build_failed;apply_failed;unschedulable;image_pull_failed;image_user;config_error;restarting;restarts_exhausted;out_of_memory;health_check_failing;rollout_timeout;unclean_shutdown
+// +kubebuilder:validation:Enum=build_failed;apply_failed;unschedulable;image_pull_failed;image_user;config_error;restarting;restarts_exhausted;out_of_memory;health_check_failing;deploy_timeout;unclean_shutdown
 type ProblemReason string
 
 const (
@@ -16,7 +16,7 @@ const (
 	ProblemRestartsExhausted  ProblemReason = "restarts_exhausted"
 	ProblemOutOfMemory        ProblemReason = "out_of_memory"
 	ProblemHealthCheckFailing ProblemReason = "health_check_failing"
-	ProblemRolloutTimeout     ProblemReason = "rollout_timeout"
+	ProblemDeployTimeout      ProblemReason = "deploy_timeout"
 	ProblemUncleanShutdown    ProblemReason = "unclean_shutdown"
 )
 
@@ -27,8 +27,10 @@ var problems = []struct {
 }{
 	{ProblemBuildFailed, "The build failed."},
 	{ProblemApplyFailed, "Loco could not apply the deployment to the cluster."},
-	{ProblemRestartsExhausted, "The service was stopped after restarting more often than its restart policy allows. " +
-		"Check its logs, then restart or redeploy it."},
+	{ProblemRestartsExhausted, "A replica restarted more often than its restart policy allows. " +
+		"A new version that does this while it rolls out is stopped. Check its logs."},
+	{ProblemDeployTimeout, "The new version did not become healthy within its deploy timeout, so Loco stopped it. " +
+		"Check its replicas and logs, then redeploy."},
 	{ProblemImageUser, "The image must run as a numeric, non-root USER, such as USER 1000."},
 	{ProblemConfigError, "The service could not start with this image and its settings."},
 	{ProblemImagePullFailed, "Loco could not pull the image. Check the image name and registry access."},
@@ -39,7 +41,6 @@ var problems = []struct {
 	{ProblemHealthCheckFailing, "The service is failing its health check, " +
 		"or without one is not accepting connections on its port. " +
 		"Check its port, health check settings and logs."},
-	{ProblemRolloutTimeout, "The service exceeded its rollout progress deadline. Check its replicas and logs."},
 	{ProblemUncleanShutdown, "A replica didn't stop after SIGTERM and was killed."},
 }
 

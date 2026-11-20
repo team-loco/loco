@@ -22,13 +22,12 @@ func restartedPod(restarts int32, exit corev1.ContainerStateTerminated) *corev1.
 }
 
 func TestTrackRestartsCountsTheKubeletDeltaAcrossObservations(t *testing.T) {
-	policy := loco.RestartPolicySpec{MaxRestarts: 5, WindowSeconds: 600}
 	now := replicaTestNow
 	first := metav1.NewTime(now.Add(-2 * time.Minute))
 	previous := &loco.ReplicaStatus{Restarts: 1, RestartsAt: []metav1.Time{first}}
 	exited := metav1.NewTime(now.Add(-time.Second))
 	replica := loco.ReplicaStatus{Restarts: 3, LastRestart: &loco.ReplicaRestart{At: exited}}
-	trackRestarts(&replica, previous, policy, now)
+	trackRestarts(&replica, previous, time.Time{}, now)
 	want := []metav1.Time{first, exited}
 	if len(replica.RestartsAt) != len(want) {
 		t.Fatalf("restarts = %v, want %v", replica.RestartsAt, want)
@@ -39,76 +38,103 @@ func TestTrackRestartsCountsTheKubeletDeltaAcrossObservations(t *testing.T) {
 		}
 	}
 	unchanged := loco.ReplicaStatus{Restarts: 3, LastRestart: replica.LastRestart}
-	trackRestarts(&unchanged, &replica, policy, now)
+	trackRestarts(&unchanged, &replica, time.Time{}, now)
 	if len(unchanged.RestartsAt) != 2 {
 		t.Fatalf("repeated observation counted again: %v", unchanged.RestartsAt)
 	}
 }
 
-func TestTrackRestartsForgetsRestartsOutsideTheWindow(t *testing.T) {
-	policy := loco.RestartPolicySpec{MaxRestarts: 5, WindowSeconds: 600}
+func TestTrackRestartsForgetsRestartsBeforeAQuietRun(t *testing.T) {
 	now := replicaTestNow
-	old := metav1.NewTime(now.Add(-10 * time.Minute))
-	recent := metav1.NewTime(now.Add(-9 * time.Minute))
+	old := metav1.NewTime(now.Add(-time.Hour))
+	recent := metav1.NewTime(now.Add(-time.Minute))
 	previous := &loco.ReplicaStatus{Restarts: 2, RestartsAt: []metav1.Time{old, recent}}
 	replica := loco.ReplicaStatus{Restarts: 2}
-	trackRestarts(&replica, previous, policy, now)
+	trackRestarts(&replica, previous, now.Add(-30*time.Minute), now)
 	if len(replica.RestartsAt) != 1 || !replica.RestartsAt[0].Equal(&recent) {
 		t.Fatalf("restarts = %v, want only %v", replica.RestartsAt, recent)
 	}
-	trackRestarts(&replica, &replica, policy, now.Add(time.Minute))
+	trackRestarts(&replica, &replica, recent.Add(time.Second), now)
 	if replica.RestartsAt != nil {
-		t.Fatalf("restarts = %v after the window, want none", replica.RestartsAt)
+		t.Fatalf("restarts = %v after a quiet run, want none", replica.RestartsAt)
 	}
 }
 
-func TestRestartsMissedBetweenObservationsCountOnceInTheWindow(t *testing.T) {
-	policy := loco.RestartPolicySpec{MaxRestarts: 2, WindowSeconds: 600}
+func TestRestartsMissedBetweenObservationsCountOnce(t *testing.T) {
+	policy := loco.RestartPolicySpec{Mode: loco.RestartOnFailure, MaxRestarts: 2}
 	exited := metav1.NewTime(replicaTestNow.Add(-time.Minute))
 	replica := loco.ReplicaStatus{Restarts: 40, LastRestart: &loco.ReplicaRestart{At: exited}}
-	trackRestarts(&replica, &loco.ReplicaStatus{Restarts: 34}, policy, replicaTestNow)
+	trackRestarts(&replica, &loco.ReplicaStatus{Restarts: 34}, time.Time{}, replicaTestNow)
 	if len(replica.RestartsAt) != 1 || !replica.RestartsAt[0].Equal(&exited) {
-		t.Fatalf("restarts in the window = %v, want only the last exit", replica.RestartsAt)
+		t.Fatalf("restarts = %v, want only the last exit", replica.RestartsAt)
 	}
 	if restartsExhausted(replica, policy) {
 		t.Fatal("restarts without a known time used up the budget")
 	}
 }
 
-func TestTrackRestartsKeepsOneRestartPastTheBudget(t *testing.T) {
-	policy := loco.RestartPolicySpec{MaxRestarts: 2, WindowSeconds: 600}
-	replica := loco.ReplicaStatus{}
-	for restarts := range int32(10) {
-		next := loco.ReplicaStatus{Restarts: restarts + 1}
-		trackRestarts(&next, &replica, policy, replicaTestNow.Add(time.Duration(restarts)*time.Second))
-		replica = next
-	}
-	if len(replica.RestartsAt) != 3 {
-		t.Fatalf("restarts = %d entries, want 3", len(replica.RestartsAt))
+func TestTrackRestartsKeepsOneRestartPastTheLargestBudget(t *testing.T) {
+	replica := restartTimes(40)
+	if len(replica.RestartsAt) != loco.MaxRestarts+1 {
+		t.Fatalf("restarts = %d entries, want %d", len(replica.RestartsAt), loco.MaxRestarts+1)
 	}
 }
 
 // restartTimes observes a replica restarting once a second.
-func restartTimes(restarts int32, policy loco.RestartPolicySpec) loco.ReplicaStatus {
+func restartTimes(restarts int32) loco.ReplicaStatus {
 	replica := loco.ReplicaStatus{}
 	for restart := range restarts {
 		next := loco.ReplicaStatus{Restarts: restart + 1}
-		trackRestarts(&next, &replica, policy, replicaTestNow.Add(time.Duration(restart)*time.Second))
+		trackRestarts(&next, &replica, time.Time{}, replicaTestNow.Add(time.Duration(restart)*time.Second))
 		replica = next
 	}
 	return replica
 }
 
-func TestRestartBudgetAllowsMaxRestartsAndStopsOnTheNext(t *testing.T) {
-	policy := loco.RestartPolicySpec{MaxRestarts: 2, WindowSeconds: 600}
-	for restarts, want := range map[int32]bool{0: false, 1: false, 2: false, 3: true} {
-		if got := restartsExhausted(restartTimes(restarts, policy), policy); got != want {
-			t.Errorf("%d restarts exhausted = %v, want %v", restarts, got, want)
+func TestRestartPolicyStopsTheRevision(t *testing.T) {
+	onFailure := loco.RestartPolicySpec{Mode: loco.RestartOnFailure, MaxRestarts: 2}
+	never := loco.RestartPolicySpec{Mode: loco.RestartNever}
+	always := loco.RestartPolicySpec{Mode: loco.RestartAlways}
+	for _, tt := range []struct {
+		policy   loco.RestartPolicySpec
+		restarts int32
+		want     bool
+	}{
+		{onFailure, 0, false}, {onFailure, 2, false}, {onFailure, 3, true},
+		{never, 0, false}, {never, 1, true},
+		{always, 0, false}, {always, 40, false},
+	} {
+		if got := restartsExhausted(restartTimes(tt.restarts), tt.policy); got != tt.want {
+			t.Errorf("%s after %d restarts exhausted = %v, want %v", tt.policy.Mode, tt.restarts, got, tt.want)
 		}
 	}
-	zero := loco.RestartPolicySpec{MaxRestarts: 0, WindowSeconds: 600}
-	if !restartsExhausted(restartTimes(1, zero), zero) {
-		t.Error("a budget of zero restarts allowed one")
+}
+
+func TestQuietSinceIsTheStartOfTheNewestRunThatLastedTheHealthWindow(t *testing.T) {
+	now := replicaTestNow
+	at := func(ago time.Duration) metav1.Time { return metav1.NewTime(now.Add(-ago)) }
+	pod := func(running metav1.Time, exit corev1.ContainerStateTerminated) *corev1.Pod {
+		return &corev1.Pod{Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
+			State:                corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: running}},
+			LastTerminationState: corev1.ContainerState{Terminated: &exit},
+		}}}}
+	}
+	short := corev1.ContainerStateTerminated{StartedAt: at(time.Hour), FinishedAt: at(time.Hour - time.Second)}
+	long := corev1.ContainerStateTerminated{StartedAt: at(time.Hour), FinishedAt: at(time.Minute)}
+	for _, tt := range []struct {
+		name string
+		pod  *corev1.Pod
+		want time.Time
+	}{
+		{"short runs", pod(at(time.Minute), short), time.Time{}},
+		{"running for the window", pod(at(testHealthyAfter), short), at(testHealthyAfter).Time},
+		{"exited after the window", pod(at(time.Second), long), long.StartedAt.Time},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := quietSince(tt.pod, testHealthyAfter, now); !got.Equal(tt.want) {
+				t.Fatalf("quiet since = %s, want %s", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -156,11 +182,11 @@ func TestRestartAfterText(t *testing.T) {
 			t.Errorf("%+v after = %q, want %q", restart, got, want)
 		}
 	}
-	if got := loco.RestartWindow(600); got != "10 min" {
-		t.Errorf("window = %q", got)
+	if got := deployTimeout(600); got != "10 min" {
+		t.Errorf("timeout = %q", got)
 	}
-	if got := loco.RestartWindow(90); got != "90 s" {
-		t.Errorf("window = %q", got)
+	if got := deployTimeout(90); got != "90 s" {
+		t.Errorf("timeout = %q", got)
 	}
 }
 
@@ -282,7 +308,7 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 	if rollout.Stopped != nil || rollout.Problem == nil || rollout.Problem.Reason != loco.ProblemRestarting {
 		t.Fatalf("within budget = %+v, want restarting and not stopped", rollout)
 	}
-	if want := "exit 1 · 2 of 2 restarts in 10 min"; rollout.Problem.Detail != want {
+	if want := "exit 1 · 2 of 2 restarts"; rollout.Problem.Detail != want {
 		t.Fatalf("restarting detail = %q, want %q", rollout.Problem.Detail, want)
 	}
 	if !rollout.Available || rollout.Healthy || rollout.HealthyAt == nil {
@@ -297,7 +323,7 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 		t.Fatalf("stopped = %+v, want revision 2 stopped after 3 restarts", stopped)
 	}
 	if rollout.Problem == nil || rollout.Problem.Reason != loco.ProblemRestartsExhausted ||
-		rollout.Problem.Detail != "exit 1 · 3 restarts in 10 min" {
+		rollout.Problem.Detail != "exit 1 · 3 restarts" {
 		t.Fatalf("problem = %+v, want restarts_exhausted", rollout.Problem)
 	}
 	if rollout.Available || rollout.Healthy {

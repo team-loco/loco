@@ -286,23 +286,31 @@ func TestRolloutForwarding(t *testing.T) {
 	application := app("rollout", testPlacementID, "5")
 	application.Spec.DeploymentID = "deployment-later"
 	application.Spec.ServiceSpec = &locoControllerV1.ServiceSpec{
-		RestartPolicy: locoControllerV1.RestartPolicySpec{MaxRestarts: 3, WindowSeconds: 120},
+		RestartPolicy: locoControllerV1.RestartPolicySpec{
+			Mode:        locoControllerV1.RestartOnFailure,
+			MaxRestarts: 3,
+		},
+		DeployTimeoutSeconds: 120,
 	}
 	application.Status.ObservedDeploymentID = observedDeploymentID
 	at := metav1.NewTime(time.Date(2026, 11, 16, 12, 0, 0, 123, time.UTC))
 	restart := locoControllerV1.ReplicaRestart{At: at, Cause: locoControllerV1.RestartHealthCheck, ExitCode: 137}
 	wantRestart := &deploymentv1.ReplicaRestart{At: timestamppb.New(at.Time), Cause: "health_check", ExitCode: 137}
+	wantPolicy := &deploymentv1.FailurePolicy{
+		RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 3, DeployTimeoutSeconds: 120,
+	}
 	application.Status.Rollout = &locoControllerV1.RolloutStatus{
-		DesiredReplicas:          2,
-		Available:                true,
-		ProgressDeadlineExceeded: true,
-		Healthy:                  true,
-		HealthyAt:                &at,
+		DesiredReplicas: 2,
+		Available:       true,
+		Healthy:         true,
+		HealthyAt:       &at,
 		Stopped: &locoControllerV1.StoppedRevision{
 			PlacementRevision: 5,
+			Reason:            locoControllerV1.ProblemRestartsExhausted,
 			Replica:           currentReplicaName,
 			Restarts:          3,
-			LastRestart:       restart,
+			LastRestart:       &restart,
+			Detail:            "failing its health check · 3 restarts",
 			At:                at,
 			Rollout:           true,
 		},
@@ -343,21 +351,21 @@ func TestRolloutForwarding(t *testing.T) {
 	w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
 	w.observe(application)
 	want := &agentv1.PlacementStatus{
-		PlacementId:              testPlacementID,
-		DeploymentId:             observedDeploymentID,
-		ObservedRevision:         5,
-		MaxRestarts:              3,
-		RestartWindowSeconds:     120,
-		DesiredReplicas:          2,
-		Available:                true,
-		ProgressDeadlineExceeded: true,
-		Healthy:                  true,
-		HealthyAt:                timestamppb.New(at.Time),
+		PlacementId:      testPlacementID,
+		DeploymentId:     observedDeploymentID,
+		ObservedRevision: 5,
+		FailurePolicy:    wantPolicy,
+		DesiredReplicas:  2,
+		Available:        true,
+		Healthy:          true,
+		HealthyAt:        timestamppb.New(at.Time),
 		Stopped: &agentv1.StoppedRevision{
 			PlacementRevision: 5,
+			Reason:            agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
 			ReplicaName:       currentReplicaName,
 			Restarts:          3,
 			LastRestart:       wantRestart,
+			Detail:            "failing its health check · 3 restarts",
 			At:                timestamppb.New(at.Time),
 			Rollout:           true,
 		},
@@ -408,11 +416,10 @@ func TestRolloutForwarding(t *testing.T) {
 	application.Status.Rollout = nil
 	w.observe(application)
 	want = &agentv1.PlacementStatus{
-		PlacementId:          testPlacementID,
-		DeploymentId:         observedDeploymentID,
-		ObservedRevision:     5,
-		MaxRestarts:          3,
-		RestartWindowSeconds: 120,
+		PlacementId:      testPlacementID,
+		DeploymentId:     observedDeploymentID,
+		ObservedRevision: 5,
+		FailurePolicy:    wantPolicy,
 	}
 	if len(got) != 3 || !proto.Equal(got[2], want) {
 		t.Fatalf("nil rollout=%v", got)

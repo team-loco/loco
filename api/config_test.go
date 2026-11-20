@@ -427,8 +427,8 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", "15")
 	t.Setenv("LOCO_APPLY_ATTEMPTS", "4")
 	t.Setenv("LOCO_APPLY_RETRY_DELAY", "60")
-	t.Setenv("LOCO_DEFAULT_MAX_RESTARTS", "0")
-	t.Setenv("LOCO_DEFAULT_RESTART_WINDOW", "120")
+	t.Setenv("LOCO_DEFAULT_MAX_RESTARTS", "3")
+	t.Setenv("LOCO_DEFAULT_DEPLOY_TIMEOUT", "120")
 	ac := newAPIConfig()
 	want := servicedefaults.Defaults{
 		TargetPlatform:           workloadplatform.AMD64,
@@ -444,8 +444,8 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 		HealthTimeout:            2,
 		HealthFailThreshold:      5,
 		HealthStartupGracePeriod: 15,
-		MaxRestarts:              0,
-		RestartWindow:            120,
+		MaxRestarts:              3,
+		DeployTimeout:            120,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -834,8 +834,8 @@ func TestApplyRetryAndRestartPolicyBounds(t *testing.T) {
 			func() { newAgentConfig(servicedefaults.Defaults{}) }},
 		{"LOCO_WORKSPACE_NAMESPACE_GRACE", []string{"1h", "30m"}, []string{"0", "-2h", "soon"},
 			func() { newAgentConfig(servicedefaults.Defaults{}) }},
-		{"LOCO_DEFAULT_MAX_RESTARTS", []string{"0", "20"}, []string{"21", "-1", "5m"}, func() { newServiceDefaults() }},
-		{"LOCO_DEFAULT_RESTART_WINDOW", []string{"60", "3600"}, []string{"59", "3601", "0", "10m"},
+		{"LOCO_DEFAULT_MAX_RESTARTS", []string{"1", "20"}, []string{"0", "21", "-1", "5m"}, func() { newServiceDefaults() }},
+		{"LOCO_DEFAULT_DEPLOY_TIMEOUT", []string{"60", "3600"}, []string{"59", "3601", "0", "10m"},
 			func() { newServiceDefaults() }},
 	} {
 		for _, value := range tc.accepted {

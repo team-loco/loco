@@ -122,19 +122,29 @@ Check the file without calling the API. `validate` parses the file and checks it
 loco infra validate
 ```
 
-## Restarts
+## Failure policy
 
-Kubernetes starts a replica's process again when it exits, runs out of memory or fails its liveness check. `deploy` sets how many restarts Loco allows a replica within a window:
+`deploy` sets when Loco stops a version of the service: after too many restarts, or when a new version does not become healthy in time.
 
 ```yaml
 services:
   web:
-    deploy: { maxRestarts: 3, restartWindow: 300 }
+    deploy: { restart: on-failure, maxRestarts: 3, timeout: 300 }
 ```
 
-`maxRestarts` is between 0 and 20 and `restartWindow` is between 60 and 3600 seconds. An omitted field uses the API default, 5 restarts in 600 seconds, unless the operator sets `LOCO_DEFAULT_MAX_RESTARTS` or `LOCO_DEFAULT_RESTART_WINDOW`. `GetConfig` reports the defaults as `max_restarts` and `restart_window_seconds`.
+Kubernetes starts a replica's process again when it exits, with any exit code, runs out of memory or fails its liveness check. `restart` decides which of those restarts are too many:
 
-The restart after the last allowed one stops the version. The previous version takes its place when its replicas still run, or when it proved itself by serving on every replica for the worker cluster's `controller.healthyAfterSeconds` without a restart; the deployment then fails (and rolls back when `rollbackOnFailure` is on). Otherwise the service stops entirely and its deployment becomes `crashed` until `loco resource restart`, a redeploy or a rollback starts it again with a fresh budget. A running deployment whose replica restarted is `degraded` and returns to `running` once every replica has gone the worker cluster's `controller.healthyAfterSeconds` (300 by default) without a restart.
+- `on-failure` (the default): the restart after `maxRestarts`, between 1 and 20. A replica's count starts again once it stays up for the worker cluster's `controller.healthyAfterSeconds` (300 by default).
+- `never`: a replica's first exit.
+- `always`: none. `maxRestarts` applies only to `on-failure`.
+
+Too many restarts stop a new version only until it proves itself by serving on every replica for the health window without a restart, and only when stopping it leaves something serving: a new version that has been healthy and has no earlier version to fall back to keeps running. Otherwise a replica that restarts too often keeps running and restarting, and the deployment shows `crashed` until the replica stays up for the health window again. A healthy version that has not proved itself can still be stopped well after its rollout, for example when one replica uses up its restarts 40 minutes in; its earlier proven version then serves again.
+
+`timeout`, between 60 and 3600 seconds, is how long a new version has to become healthy: every replica available, and none restarted within the health window. A version that is still unhealthy at its timeout stops, whatever held it back: replicas that cannot be scheduled, an image that cannot be pulled, a health check that never passes or a crash loop. The timeout starts when the cluster first sees the version and ends once it is healthy, so a replica added later by scaling is not held to it.
+
+An omitted field uses the API default: `on-failure` with 10 restarts and a 600-second timeout, unless the operator sets `LOCO_DEFAULT_MAX_RESTARTS` or `LOCO_DEFAULT_DEPLOY_TIMEOUT`. `GetConfig` reports the defaults as `failure_policy`.
+
+A stopped version runs no replicas. The previous version takes its place when its replicas still run, or when it proved itself by serving on every replica for the health window without a restart; the deployment then fails (and rolls back when `rollbackOnFailure` is on). A version that misses its timeout with nothing to fall back to also fails. A first version stopped for restarts before it was ever healthy runs nothing, and its deployment becomes `crashed` until `loco resource restart`, a redeploy or a rollback starts it again. A running deployment whose replica restarted is `degraded` and returns to `running` once every replica has gone the health window without a restart.
 
 `deploy` applies to the service in every environment, so an environment override cannot set it. A change reaches the cluster with the service's next deployment. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it; `loco deploy` still builds and redeploys the services it targets.
 
@@ -248,7 +258,7 @@ services:
 
 Changing the setting rolls out nothing; it applies the next time a deployment of the service fails.
 
-When the newest deployment in an environment fails in a region, by missing its rollout deadline or running out of apply retries, Loco creates a rollback deployment from the newest earlier deployment that ran. The rollback covers every region the failed deployment runs in that the earlier deployment sized, keeps the earlier deployment's configuration and variables, and records `trigger: auto_rollback` with the earlier deployment as its source. It shows `deploying` until it is available, then `running`. The failed deployment stays `failed`. A rollback that fails does not roll back again. The activity of both deployments records the rollback.
+When the newest deployment in an environment fails in a region, by missing its deploy timeout, using up its restarts or running out of apply retries, Loco creates a rollback deployment from the newest earlier deployment that ran. The rollback covers every region the failed deployment runs in that the earlier deployment sized, keeps the earlier deployment's configuration and variables, and records `trigger: auto_rollback` with the earlier deployment as its source. It shows `deploying` until it is available, then `running`. The failed deployment stays `failed`. A rollback that fails does not roll back again. The activity of both deployments records the rollback.
 
 Nothing is rolled back, and the failed deployment stays active, when the setting is off, the build failed, no earlier deployment ran, or the earlier deployment's cluster or build image is no longer available. A restored deployment that fails is not rolled back again.
 

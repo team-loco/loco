@@ -6,11 +6,23 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
+// deployTimedOut is the stop of a revision that missed its deploy timeout with nothing to fall back to.
+func deployTimedOut() *agentv1.StoppedRevision {
+	return &agentv1.StoppedRevision{PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT}
+}
+
 func TestNextPlacementStatus(t *testing.T) {
-	stopped := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6}
-	unproven := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6, Rollout: true}
+	stopped := &agentv1.StoppedRevision{
+		PlacementRevision: 2,
+		Reason:            agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
+		Restarts:          6,
+	}
+	unproven := &agentv1.StoppedRevision{
+		PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED, Restarts: 6, Rollout: true,
+	}
 	for _, tt := range []struct {
 		name           string
 		previous, want genDb.PlacementStatus
@@ -22,20 +34,18 @@ func TestNextPlacementStatus(t *testing.T) {
 			&agentv1.PlacementStatus{Available: true}},
 		{"healthy", genDb.PlacementStatusDeploying, genDb.PlacementStatusRunning,
 			&agentv1.PlacementStatus{Available: true, Healthy: true}},
-		{"deadline", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
-			&agentv1.PlacementStatus{ProgressDeadlineExceeded: true}},
+		{"deploy timeout", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{Stopped: deployTimedOut()}},
 		{"failed retries", genDb.PlacementStatusFailed, genDb.PlacementStatusFailed, &agentv1.PlacementStatus{}},
 		{"failed recovers", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning,
 			&agentv1.PlacementStatus{Available: true, Healthy: true}},
-		{"health wins over the deadline", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning,
-			&agentv1.PlacementStatus{Available: true, Healthy: true, ProgressDeadlineExceeded: true}},
+		{"a deploy timeout wins over health", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{Available: true, Healthy: true, Stopped: deployTimedOut()}},
 		{"running restarted", genDb.PlacementStatusRunning, genDb.PlacementStatusDegraded,
 			&agentv1.PlacementStatus{Available: true}},
 		{"running unready", genDb.PlacementStatusRunning, genDb.PlacementStatusDegraded, &agentv1.PlacementStatus{}},
 		{"degraded recovers", genDb.PlacementStatusDegraded, genDb.PlacementStatusRunning,
 			&agentv1.PlacementStatus{Available: true, Healthy: true}},
-		{"running past the deadline", genDb.PlacementStatusRunning, genDb.PlacementStatusFailed,
-			&agentv1.PlacementStatus{ProgressDeadlineExceeded: true}},
 		{"stopped rollout", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
 			&agentv1.PlacementStatus{Stopped: unproven}},
 		{"stopped before it proved itself", genDb.PlacementStatusRunning, genDb.PlacementStatusFailed,
@@ -46,6 +56,12 @@ func TestNextPlacementStatus(t *testing.T) {
 			&agentv1.PlacementStatus{Stopped: stopped}},
 		{"crashed stays", genDb.PlacementStatusCrashed, genDb.PlacementStatusCrashed,
 			&agentv1.PlacementStatus{Stopped: stopped}},
+		{"restarts used up after deploying", genDb.PlacementStatusRunning, genDb.PlacementStatusCrashed,
+			&agentv1.PlacementStatus{Available: true, Problem: &agentv1.ProblemReport{
+				Reason: string(loco.ProblemRestartsExhausted),
+			}}},
+		{"a deployed revision recovers from used-up restarts", genDb.PlacementStatusCrashed,
+			genDb.PlacementStatusRunning, &agentv1.PlacementStatus{Available: true, Healthy: true}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := nextPlacementStatus(tt.previous, tt.report); got != tt.want {

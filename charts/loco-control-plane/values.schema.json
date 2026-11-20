@@ -41,6 +41,14 @@
               "maximum": 100,
               "minimum": 1
             },
+            "deployTimeout": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 3600,
+              "minimum": 60
+            },
             "healthFailThreshold": {
               "type": [
                 "integer",
@@ -99,7 +107,7 @@
                 "null"
               ],
               "maximum": 20,
-              "minimum": 0
+              "minimum": 1
             },
             "memory": {
               "type": "string",
@@ -116,14 +124,6 @@
             "pathPrefix": {
               "type": "string",
               "pattern": "^$|^/"
-            },
-            "restartWindow": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "maximum": 3600,
-              "minimum": 60
             }
           },
           "additionalProperties": false

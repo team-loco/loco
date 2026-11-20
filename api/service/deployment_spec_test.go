@@ -51,7 +51,7 @@ func testServiceDefaults() servicedefaults.Defaults {
 		HealthFailThreshold:      testHealthFailThreshold,
 		HealthStartupGracePeriod: 0,
 		MaxRestarts:              5,
-		RestartWindow:            600,
+		DeployTimeout:            600,
 	}
 }
 

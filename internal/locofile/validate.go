@@ -10,11 +10,14 @@ import (
 const (
 	MaxServiceNameLength = 63
 
-	// Restart policy bounds; k8sapi RestartPolicySpec holds the same, update both together.
-	MinRestarts      = 0
+	// Failure policy modes and bounds; k8sapi RestartPolicySpec holds the same, update both together.
+	RestartOnFailure = "on-failure"
+	RestartAlways    = "always"
+	RestartNever     = "never"
+	MinRestarts      = 1
 	MaxRestarts      = 20
-	MinRestartWindow = 60
-	MaxRestartWindow = 3600
+	MinDeployTimeout = 60
+	MaxDeployTimeout = 3600
 )
 
 var dnsLabelPattern = regexp.MustCompile(`^[a-z]([-a-z0-9]*[a-z0-9])?$`)
@@ -105,12 +108,20 @@ func validateDeploy(path string, deploy *Deploy) []error {
 		return nil
 	}
 	var errs []error
-	if deploy.MaxRestarts != nil && (*deploy.MaxRestarts < MinRestarts || *deploy.MaxRestarts > MaxRestarts) {
-		errs = append(errs, &FieldError{Path: path + ".deploy.maxRestarts", Err: ErrMaxRestarts})
+	switch deploy.Restart {
+	case "", RestartOnFailure:
+		if deploy.MaxRestarts != nil && (*deploy.MaxRestarts < MinRestarts || *deploy.MaxRestarts > MaxRestarts) {
+			errs = append(errs, &FieldError{Path: path + ".deploy.maxRestarts", Err: ErrMaxRestarts})
+		}
+	case RestartAlways, RestartNever:
+		if deploy.MaxRestarts != nil {
+			errs = append(errs, &FieldError{Path: path + ".deploy.maxRestarts", Err: ErrMaxRestartsMode})
+		}
+	default:
+		errs = append(errs, &FieldError{Path: path + ".deploy.restart", Err: ErrRestart})
 	}
-	if deploy.RestartWindow != nil &&
-		(*deploy.RestartWindow < MinRestartWindow || *deploy.RestartWindow > MaxRestartWindow) {
-		errs = append(errs, &FieldError{Path: path + ".deploy.restartWindow", Err: ErrRestartWindow})
+	if deploy.Timeout != nil && (*deploy.Timeout < MinDeployTimeout || *deploy.Timeout > MaxDeployTimeout) {
+		errs = append(errs, &FieldError{Path: path + ".deploy.timeout", Err: ErrDeployTimeout})
 	}
 	return errs
 }

@@ -82,8 +82,9 @@ var _ = Describe("Application reconcile", func() {
 						Env:           map[string]string{"B": "2", "A": "1", "C": "3"},
 						EnvSecretRef:  &locov1alpha1.EnvSecretRef{Name: "env-converge", Revision: 2},
 					},
-					Resources:     testResources(),
-					RestartPolicy: testRestartPolicy,
+					Resources:            testResources(),
+					RestartPolicy:        testRestartPolicy,
+					DeployTimeoutSeconds: testDeployTimeout,
 				},
 			},
 		}

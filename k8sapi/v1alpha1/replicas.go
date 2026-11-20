@@ -42,7 +42,8 @@ type ReplicaStatus struct {
 	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 	// LastExit is the most recent container exit the kubelet recorded.
 	LastExit *ReplicaExit `json:"lastExit,omitempty"`
-	// RestartsAt lists the replica's restarts within its restart window, oldest first.
+	// RestartsAt lists the replica's restarts since the start of its newest run that lasted the
+	// controller's health window, oldest first.
 	// +kubebuilder:validation:MaxItems=21
 	RestartsAt []metav1.Time `json:"restartsAt,omitempty"`
 	// LastRestart is the exit the kubelet most recently restarted the replica after.
@@ -84,30 +85,33 @@ func (r *ReplicaRestart) After() string {
 	}
 }
 
-// RestartWindow names a restart window, as in "3 of 5 restarts in 10 min".
-func RestartWindow(seconds int32) string {
-	if seconds%60 == 0 {
-		return fmt.Sprintf("%d min", seconds/60)
-	}
-	return fmt.Sprintf("%d s", seconds)
-}
-
-// StoppedRevision is a placement revision Loco stopped because a replica used up its restart budget.
+// StoppedRevision is a placement revision Loco stopped: a replica used up its restart policy, or
+// the revision did not become healthy within its deploy timeout.
 type StoppedRevision struct {
-	PlacementRevision int64  `json:"placementRevision"`
-	Replica           string `json:"replica"`
-	// Restarts is how many times the replica restarted within the window.
-	Restarts    int32          `json:"restarts"`
-	LastRestart ReplicaRestart `json:"lastRestart"`
-	At          metav1.Time    `json:"at"`
+	PlacementRevision int64 `json:"placementRevision"`
+	// +kubebuilder:validation:Enum=restarts_exhausted;deploy_timeout
+	Reason ProblemReason `json:"reason"`
+	// Replica is the replica whose restarts stopped the revision.
+	Replica string `json:"replica,omitempty"`
+	// Restarts is how many times the replica restarted since it last stayed up for the health window.
+	Restarts    int32           `json:"restarts,omitzero"`
+	LastRestart *ReplicaRestart `json:"lastRestart,omitempty"`
+	// +kubebuilder:validation:MaxLength=1024
+	Detail string      `json:"detail,omitempty"`
+	At     metav1.Time `json:"at"`
 	// Rollout is set when a previous version took the stopped revision's place.
 	Rollout bool `json:"rollout,omitzero"`
 }
 
+// DeployDeadline is when a placement revision must become healthy.
+type DeployDeadline struct {
+	PlacementRevision int64       `json:"placementRevision"`
+	At                metav1.Time `json:"at"`
+}
+
 type RolloutStatus struct {
-	DesiredReplicas          int32 `json:"desiredReplicas,omitzero"`
-	Available                bool  `json:"available,omitzero"`
-	ProgressDeadlineExceeded bool  `json:"progressDeadlineExceeded,omitzero"`
+	DesiredReplicas int32 `json:"desiredReplicas,omitzero"`
+	Available       bool  `json:"available,omitzero"`
 	// Healthy is Available with no current replica restarted within the controller's health window.
 	Healthy bool `json:"healthy,omitzero"`
 	// HealthyAt is when an available rollout becomes healthy if no replica restarts again.
@@ -116,6 +120,10 @@ type RolloutStatus struct {
 	// ProvenRevision is the newest placement revision whose replicas all served for the health window
 	// without a restart.
 	ProvenRevision int64 `json:"provenRevision,omitzero"`
+	// DeployedRevision is the newest placement revision that became healthy.
+	DeployedRevision int64 `json:"deployedRevision,omitzero"`
+	// Deadline is set while the current placement revision has not become healthy.
+	Deadline *DeployDeadline `json:"deadline,omitempty"`
 	// +listType=map
 	// +listMapKey=uid
 	Replicas []ReplicaStatus `json:"replicas,omitempty"`

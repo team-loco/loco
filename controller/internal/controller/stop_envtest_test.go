@@ -6,9 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -149,6 +147,35 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
 	})
 
+	It("stops the revision on its first exit under never and on the one past the budget under on-failure", func() {
+		for _, tt := range []struct {
+			name   string
+			policy locov1alpha1.RestartPolicySpec
+			allows int32
+		}{
+			{"stop-never", locov1alpha1.RestartPolicySpec{Mode: locov1alpha1.RestartNever}, 0},
+			{"stop-on-failure", locov1alpha1.RestartPolicySpec{Mode: locov1alpha1.RestartOnFailure, MaxRestarts: 3}, 3},
+		} {
+			app := isolationTestApplication(stopWorkspace, tt.name)
+			app.Spec.ServiceSpec.Routing = nil
+			app.Spec.ServiceSpec.RestartPolicy = tt.policy
+			app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			reconcileStuckApp(r, app)
+			previous := createReplicaSet(app, tt.name+"-previous", "1", 1)
+			pod := createReplica(app, tt.name+"-replica", testImage)
+			restartTo(r, app, pod, tt.allows)
+			Expect(app.Status.Rollout.Stopped).To(BeNil(), tt.name)
+
+			setRestarted(pod, tt.allows+1)
+			reconcileStuckApp(r, app)
+			Expect(app.Status.Rollout.Stopped).NotTo(BeNil(), tt.name)
+			Expect(app.Status.Rollout.Stopped.Reason).To(Equal(locov1alpha1.ProblemRestartsExhausted))
+			Expect(app.Status.Rollout.Stopped.Restarts).To(Equal(tt.allows + 1))
+			Expect(replicaSetReplicas(previous)).To(Equal(int32(1)))
+		}
+	})
+
 	It("keeps the stop when a reconcile starts from a cached Application older than the stop", func() {
 		app := isolationTestApplication(stopWorkspace, "stop-stale")
 		app.Spec.ServiceSpec.Routing = nil
@@ -226,58 +253,60 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		Expect(replicaSetReplicas(previous)).To(BeZero())
 	})
 
-	It("stops the service at steady state and starts it again on a new placement revision", func() {
-		app := isolationTestApplication(stopWorkspace, "stop-steady")
+	It("keeps a healthy first deployment running when a replica uses up its restarts", func() {
+		app := isolationTestApplication(stopWorkspace, "stop-first")
 		app.Spec.ServiceSpec.Routing = nil
-		app.Spec.ServiceSpec.Resources.Replicas = locov1alpha1.ReplicasSpec{Min: 1, Max: 3}
-		app.Spec.ServiceSpec.Resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, CPUTarget: 50}
+		app.Spec.ServiceSpec.Resources.Replicas = locov1alpha1.ReplicasSpec{Min: 2, Max: 2}
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
-		hpaKey := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: testAppName(app)}
-		Expect(k8sClient.Get(ctx, hpaKey, &autoscalingv2.HorizontalPodAutoscaler{})).To(Succeed())
-		previous := createReplicaSet(app, "stop-steady-previous", "1", 0)
-		createReplicaSet(app, "stop-steady-current", "2", 1)
+		current := createReplicaSet(app, "stop-first-current", "2", 2)
+		app.Status.Rollout.DeployedRevision = 2
+		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+		pod := createReplica(app, "stop-first-replica", testImage)
+		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+2)
+		Expect(app.Status.Rollout.Stopped).To(BeNil())
+		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemRestartsExhausted))
+		dep := appDeployment(app)
+		Expect(dep.Spec.Paused).To(BeFalse())
+		Expect(*dep.Spec.Replicas).To(Equal(int32(2)))
+		Expect(replicaSetReplicas(current)).To(Equal(int32(2)))
+	})
+
+	It("keeps a deployed revision running when a replica uses up its restarts", func() {
+		app := isolationTestApplication(stopWorkspace, "stop-steady")
+		app.Spec.ServiceSpec.Routing = nil
+		app.Spec.ServiceSpec.Resources.Replicas = locov1alpha1.ReplicasSpec{Min: 2, Max: 2}
+		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		current := createReplicaSet(app, "stop-steady-current", "2", 2)
+		app.Status.Rollout.DeployedRevision = 2
 		app.Status.Rollout.ProvenRevision = 2
 		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 
 		pod := createReplica(app, "stop-steady-replica", testImage)
-		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+1)
-		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
-		Expect(replicaSetReplicas(previous)).To(BeZero())
+		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+3)
+		Expect(app.Status.Rollout.Stopped).To(BeNil())
 		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemRestartsExhausted))
-		Expect(app.Status.Rollout.DesiredReplicas).To(Equal(int32(1)))
+		Expect(app.Status.Rollout.Problem.Replica).To(Equal(pod.Name))
 		dep := appDeployment(app)
-		Expect(dep.Spec.Paused).To(BeTrue())
-		Expect(*dep.Spec.Replicas).To(BeZero())
-		err := k8sClient.Get(ctx, hpaKey, &autoscalingv2.HorizontalPodAutoscaler{})
-		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "autoscaler of a stopped service: %v", err)
+		Expect(dep.Spec.Paused).To(BeFalse())
+		Expect(*dep.Spec.Replicas).To(Equal(int32(2)))
+		Expect(replicaSetReplicas(current)).To(Equal(int32(2)))
 
-		By("rendering the same stopped shape while the revision stays")
-		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
-		Expect(app.Status.Rollout.DesiredReplicas).To(Equal(int32(1)))
-		Expect(*appDeployment(app).Spec.Replicas).To(BeZero())
-
-		By("starting a new placement revision")
+		By("stopping the next placement revision when it uses up its restarts while it rolls out")
 		app.Annotations[locov1alpha1.KeyPlacementRevision] = "3"
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Stopped).To(BeNil())
-		dep = appDeployment(app)
-		Expect(dep.Spec.Paused).To(BeFalse())
-		Expect(*dep.Spec.Replicas).To(Equal(int32(1)))
-		Expect(k8sClient.Get(ctx, hpaKey, &autoscalingv2.HorizontalPodAutoscaler{})).To(Succeed())
-
-		By("stopping the restarted revision without reviving the one that crashed")
-		crashed := createReplicaSet(app, "stop-steady-crashed", "2", 0)
-		restarted := createReplicaSet(app, "stop-steady-restarted", "3", 1)
+		next := createReplicaSet(app, "stop-steady-next", "3", 1)
 		again := createReplica(app, "stop-steady-again", testImage)
 		restartTo(r, app, again, testRestartPolicy.MaxRestarts+1)
 		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
 		Expect(app.Status.Rollout.Stopped.PlacementRevision).To(Equal(int64(3)))
-		Expect(*appDeployment(app).Spec.Replicas).To(BeZero())
-		Expect(replicaSetReplicas(crashed)).To(BeZero())
-		Expect(replicaSetReplicas(restarted)).To(BeZero())
+		Expect(app.Status.Rollout.Stopped.Rollout).To(BeTrue())
+		Expect(replicaSetReplicas(next)).To(BeZero())
+		Expect(replicaSetReplicas(current)).To(Equal(int32(2)))
 	})
 })

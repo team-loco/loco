@@ -210,20 +210,26 @@ func TestDiffRolloutRecordsEachNewRestart(t *testing.T) {
 			LastRestart: &deploymentv1.ReplicaRestart{At: restarts[len(restarts)-1], Cause: cause, ExitCode: 1},
 		}
 	}
+	onFailure := &deploymentv1.FailurePolicy{
+		RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 5,
+	}
 	report := func(replica *deploymentv1.Replica) *agentv1.PlacementStatus {
-		return &agentv1.PlacementStatus{
-			MaxRestarts: 5, RestartWindowSeconds: 600, Replicas: []*deploymentv1.Replica{replica},
-		}
+		return &agentv1.PlacementStatus{FailurePolicy: onFailure, Replicas: []*deploymentv1.Replica{replica}}
 	}
 	entries := diffRollout(rolloutSnapshot{}, report(replica(string(loco.RestartExit), first)))
-	assertActivityMessages(t, entries, []string{"Restarted after exit 1 · 1 of 5 in 10 min", testServingMessage})
+	assertActivityMessages(t, entries, []string{"Restarted after exit 1 · 1 of 5", testServingMessage})
 	if !entries[0].At.Equal(first.AsTime()) || entries[0].Severity != activityWarn {
 		t.Fatalf("restart entry = %+v", entries[0])
 	}
 	previous := rolloutSnapshot{Replicas: []*deploymentv1.Replica{replica(string(loco.RestartExit), first)}}
 	assertActivityMessages(t,
 		diffRollout(previous, report(replica(string(loco.RestartHealthCheck), first, second))),
-		[]string{"Restarted after failing its health check · 2 of 5 in 10 min"},
+		[]string{"Restarted after failing its health check · 2 of 5"},
 	)
 	assertActivityMessages(t, diffRollout(previous, report(replica(string(loco.RestartExit), first))), nil)
+	always := &agentv1.PlacementStatus{
+		FailurePolicy: &deploymentv1.FailurePolicy{RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS},
+		Replicas:      []*deploymentv1.Replica{replica(string(loco.RestartExit), first, second)},
+	}
+	assertActivityMessages(t, diffRollout(previous, always), []string{"Restarted after exit 1 · 2"})
 }

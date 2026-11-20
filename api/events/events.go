@@ -177,7 +177,6 @@ const (
 	FieldOld           = "old"
 	FieldNew           = "new"
 	FieldRestarts      = "restarts"
-	FieldWindow        = "window"
 )
 
 type Event struct {

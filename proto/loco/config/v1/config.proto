@@ -103,7 +103,6 @@ message DefaultServiceConfig {
   deployment.v1.ObservabilityConfig observability = 9;
   // Restores the previous deployment on failure; off by default.
   bool rollback_on_failure = 10;
-  // Restarts a replica may have within restart_window_seconds before Loco stops the version.
-  int32 max_restarts = 11;
-  int32 restart_window_seconds = 12;
+  // The failure policy a service runs under when it sets none.
+  deployment.v1.FailurePolicy failure_policy = 11;
 }

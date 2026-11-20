@@ -311,7 +311,7 @@ func TestProblemEventsWithPrunedDeploymentHistory(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	server := f.agentServer()
 	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
-		ProgressDeadlineExceeded: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
+		Stopped: deployTimedOut(), Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	for range 3 {
 		if _, deployErr := f.deploy(t.Context(), staticSpec); deployErr != nil {
@@ -363,7 +363,7 @@ func TestProblemEventsForARecreatedPlacement(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	server := f.agentServer()
 	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
-		ProgressDeadlineExceeded: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
+		Stopped: deployTimedOut(), Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	removed, err := f.queries.MarkPlacementDeleted(
 		t.Context(),

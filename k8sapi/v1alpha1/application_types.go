@@ -99,19 +99,34 @@ type ServiceSpec struct {
 
 	// +required
 	RestartPolicy RestartPolicySpec `json:"restartPolicy"`
-}
 
-// RestartPolicySpec bounds how often a replica may restart: the restart past MaxRestarts within
-// WindowSeconds stops the revision.
-type RestartPolicySpec struct {
-	// +required
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=20
-	MaxRestarts int32 `json:"maxRestarts"`
+	// DeployTimeoutSeconds is how long a new placement revision has to become healthy before Loco stops it.
 	// +required
 	// +kubebuilder:validation:Minimum=60
 	// +kubebuilder:validation:Maximum=3600
-	WindowSeconds int32 `json:"windowSeconds"`
+	DeployTimeoutSeconds int32 `json:"deployTimeoutSeconds"`
+}
+
+// +kubebuilder:validation:Enum=on-failure;always;never
+type RestartMode string
+
+const (
+	RestartOnFailure RestartMode = "on-failure"
+	RestartAlways    RestartMode = "always"
+	RestartNever     RestartMode = "never"
+)
+
+// RestartPolicySpec decides when a replica's exits stop the revision. Under on-failure, the exit past
+// MaxRestarts before the replica stays up for the controller's health window stops it; under never,
+// the first exit; under always, none.
+type RestartPolicySpec struct {
+	// +required
+	Mode RestartMode `json:"mode"`
+	// MaxRestarts is the on-failure budget.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=20
+	MaxRestarts int32 `json:"maxRestarts,omitzero"`
 }
 
 // ObservabilityConfig controls automatic application SDK environment configuration.

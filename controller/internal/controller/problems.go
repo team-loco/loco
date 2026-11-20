@@ -4,9 +4,7 @@ import (
 	"strings"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	"k8s.io/utils/ptr"
 
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -14,7 +12,6 @@ import (
 
 const (
 	reasonOOMKilled                  = "OOMKilled"
-	reasonProgressDeadlineExceeded   = "ProgressDeadlineExceeded"
 	reasonCreateContainerConfigError = "CreateContainerConfigError"
 	reasonImagePullBackOff           = "ImagePullBackOff"
 	reasonErrImagePull               = "ErrImagePull"
@@ -102,22 +99,4 @@ func configErrorReason(detail string) loco.ProblemReason {
 		return loco.ProblemImageUser
 	}
 	return loco.ProblemConfigError
-}
-
-func deploymentFailure(dep *appsv1ac.DeploymentApplyConfiguration) (string, bool) {
-	if dep.Status == nil {
-		return "", false
-	}
-	generation := ptr.Deref(dep.Generation, 0)
-	if generation <= 0 || ptr.Deref(dep.Status.ObservedGeneration, 0) != generation {
-		return "", false
-	}
-	for _, condition := range dep.Status.Conditions {
-		if ptr.Deref(condition.Type, "") == appsv1.DeploymentProgressing &&
-			ptr.Deref(condition.Status, "") == corev1.ConditionFalse &&
-			ptr.Deref(condition.Reason, "") == reasonProgressDeadlineExceeded {
-			return ptr.Deref(condition.Message, ""), true
-		}
-	}
-	return "", false
 }

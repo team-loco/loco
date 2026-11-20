@@ -135,7 +135,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	revision, placed := app.PlacementRevision()
 	for _, pod := range pods {
 		podEvents := events[pod.UID]
-		replica, err := observeReplica(&pod, &podEvents, deleted[pod.UID], previous, policy, now)
+		replica, err := observeReplica(&pod, &podEvents, deleted[pod.UID], previous, r.HealthyAfter, now)
 		if err != nil {
 			return err
 		}
@@ -147,30 +147,34 @@ func (r *ApplicationReconciler) observeReplicas(
 	sort.Slice(rollout.Replicas, func(i, j int) bool { return rollout.Replicas[i].Name < rollout.Replicas[j].Name })
 	sort.Slice(current, func(i, j int) bool { return current[i].pod.Name < current[j].pod.Name })
 	rollout.ProvenRevision = previous.ProvenRevision
-	if rollout.Stopped == nil {
-		rollout.Stopped = exhaustedRevision(current, revision, policy, now)
+	rollout.DeployedRevision = previous.DeployedRevision
+	// Restarts stop a revision only until it proves itself; a proven revision keeps running.
+	exhausted := exhaustedRevision(current, revision, policy, now)
+	if rollout.Stopped == nil && placed && previous.ProvenRevision != revision {
+		rollout.Stopped = exhausted
+	}
+	r.observeHealth(rollout, current, revision, now)
+	rollout.Problem = replicaProblem(current, policy, r.HealthyAfter, now)
+	if rollout.Stopped == nil && exhausted != nil {
+		rollout.Problem = &locov1alpha1.Problem{
+			Reason:  locov1alpha1.ProblemRestartsExhausted,
+			Replica: exhausted.Replica,
+			Detail:  exhausted.Detail,
+			Since:   exhausted.At.DeepCopy(),
+		}
+	}
+	if placed {
+		observeDeadline(rollout, previous, revision, app.Spec.ServiceSpec.DeployTimeoutSeconds, now)
 	}
 	if rollout.Stopped != nil && rollout.Stopped.PlacementRevision == rollout.ProvenRevision {
 		rollout.ProvenRevision = 0
 	}
-	r.observeHealth(rollout, current, revision, now)
-	rollout.Problem = replicaProblem(current, policy, r.HealthyAfter, now)
 	if stopped := rollout.Stopped; stopped != nil {
 		rollout.Problem = &locov1alpha1.Problem{
-			Reason:  locov1alpha1.ProblemRestartsExhausted,
+			Reason:  stopped.Reason,
 			Replica: stopped.Replica,
-			Detail:  stoppedDetail(stopped, policy),
+			Detail:  stopped.Detail,
 			Since:   stopped.At.DeepCopy(),
-		}
-	}
-	failure, expired := deploymentFailure(dep)
-	rollout.ProgressDeadlineExceeded = expired
-	if rollout.Problem == nil && expired {
-		at := metav1.NewTime(now)
-		rollout.Problem = &locov1alpha1.Problem{
-			Reason: locov1alpha1.ProblemRolloutTimeout,
-			Detail: clip.Bytes(failure, 1024),
-			Since:  &at,
 		}
 	}
 	if rollout.Problem == nil {
@@ -198,7 +202,7 @@ func observeReplica(
 	events *podEvent,
 	deleted bool,
 	previous *locov1alpha1.RolloutStatus,
-	policy locov1alpha1.RestartPolicySpec,
+	healthyAfter time.Duration,
 	now time.Time,
 ) (locov1alpha1.ReplicaStatus, error) {
 	replica := replicaState(pod, events, now)
@@ -229,8 +233,36 @@ func observeReplica(
 	if old != nil && old.State == replica.State && replica.State != locov1alpha1.ReplicaPulling {
 		replica.StateSince = old.StateSince
 	}
-	trackRestarts(&replica, old, policy, now)
+	trackRestarts(&replica, old, quietSince(pod, healthyAfter, now), now)
 	return replica, nil
+}
+
+// observeDeadline records the revision as deployed once it is healthy, and until then holds it to
+// the deadline its deploy timeout set when the controller first observed it, stopping it past that.
+func observeDeadline(
+	rollout, previous *locov1alpha1.RolloutStatus,
+	revision int64,
+	timeoutSeconds int32,
+	now time.Time,
+) {
+	if rollout.Healthy {
+		rollout.DeployedRevision = revision
+	}
+	if rollout.DeployedRevision == revision {
+		return
+	}
+	rollout.Deadline = previous.Deadline
+	if rollout.Deadline == nil || rollout.Deadline.PlacementRevision != revision {
+		at := metav1.NewTime(now.Add(time.Duration(timeoutSeconds) * time.Second))
+		rollout.Deadline = &locov1alpha1.DeployDeadline{PlacementRevision: revision, At: at}
+	}
+	if rollout.Stopped != nil || now.Before(rollout.Deadline.At.Time) {
+		return
+	}
+	rollout.Stopped = timedOutRevision(revision, timeoutSeconds, rollout.Problem, now)
+	rollout.Available = false
+	rollout.Healthy = false
+	rollout.HealthyAt = nil
 }
 
 // observeHealth marks an available rollout healthy once no current replica restarted within

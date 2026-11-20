@@ -11,6 +11,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/team-loco/loco/internal/clip"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -24,7 +25,7 @@ func stoppedRevision(app *loco.Application) *loco.StoppedRevision {
 	return app.Status.Rollout.Stopped
 }
 
-// exhaustedRevision stops the revision when one of its replicas restarted past the budget.
+// exhaustedRevision is the stop of the revision when one of its replicas restarted past its restart policy.
 func exhaustedRevision(
 	current []observedReplica,
 	revision int64,
@@ -40,15 +41,46 @@ func exhaustedRevision(
 		if status.LastRestart != nil {
 			last = *status.LastRestart
 		}
+		restarts := int32(len(status.RestartsAt))
 		return &loco.StoppedRevision{
 			PlacementRevision: revision,
+			Reason:            loco.ProblemRestartsExhausted,
 			Replica:           status.Name,
-			Restarts:          int32(len(status.RestartsAt)),
-			LastRestart:       last,
+			Restarts:          restarts,
+			LastRestart:       &last,
+			Detail:            fmt.Sprintf("%s · %d restarts", last.After(), restarts),
 			At:                metav1.NewTime(now),
 		}
 	}
 	return nil
+}
+
+// timedOutRevision stops the revision when it is still not healthy at its deploy deadline. The
+// detail carries the problem that held it back.
+func timedOutRevision(
+	revision int64,
+	timeoutSeconds int32,
+	problem *loco.Problem,
+	now time.Time,
+) *loco.StoppedRevision {
+	detail := "not healthy within " + deployTimeout(timeoutSeconds)
+	if problem != nil && problem.Detail != "" {
+		detail += " · " + problem.Detail
+	}
+	return &loco.StoppedRevision{
+		PlacementRevision: revision,
+		Reason:            loco.ProblemDeployTimeout,
+		Detail:            clip.Bytes(detail, 1024),
+		At:                metav1.NewTime(now),
+	}
+}
+
+// deployTimeout names a deploy timeout, as in "not healthy within 10 min".
+func deployTimeout(seconds int32) string {
+	if seconds%60 == 0 {
+		return fmt.Sprintf("%d min", seconds/60)
+	}
+	return fmt.Sprintf("%d s", seconds)
 }
 
 const annotationDeploymentRevision = "deployment.kubernetes.io/revision"

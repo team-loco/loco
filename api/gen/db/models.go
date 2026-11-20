@@ -952,8 +952,9 @@ type Resource struct {
 	SpecVersion          int32        `json:"specVersion"`
 	Revision             int64        `json:"revision"`
 	Partial              *string      `json:"partial"`
+	RestartPolicy        *string      `json:"restartPolicy"`
 	MaxRestarts          *int32       `json:"maxRestarts"`
-	RestartWindowSeconds *int32       `json:"restartWindowSeconds"`
+	DeployTimeoutSeconds *int32       `json:"deployTimeoutSeconds"`
 	CreatedBy            uuid.UUID    `json:"createdBy"`
 	CreatedAt            time.Time    `json:"createdAt"`
 	UpdatedAt            time.Time    `json:"updatedAt"`

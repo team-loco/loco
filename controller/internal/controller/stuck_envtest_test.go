@@ -140,20 +140,6 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(app.Status.Rollout.Available).To(BeFalse())
 		Expect(app.Status.Rollout.Problem).To(BeNil())
 
-		setWaiting(current, reasonImagePullBackOff, kubeletPullMessage)
-		dep := &appsv1.Deployment{}
-		key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: testAppName(app)}
-		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())
-		dep.Status.ObservedGeneration = dep.Generation
-		dep.Status.Conditions = []appsv1.DeploymentCondition{{
-			Type: appsv1.DeploymentProgressing, Status: corev1.ConditionFalse,
-			Reason: reasonProgressDeadlineExceeded,
-		}}
-		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
-		reconcileStuckApp(r, app)
-
-		Expect(app.Status.Rollout.Problem).NotTo(BeNil())
-		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemImagePullFailed))
 	})
 	It("reports another replica's startup failure while an image pull retries", func() {
 		app := isolationTestApplication(stuckWorkspace, "mixed-pull")
@@ -198,48 +184,6 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Available).To(BeFalse())
 		Expect(app.Status.Rollout.Problem).To(BeNil())
-	})
-
-	It("fails an expired rollout deadline and ignores conditions from an older generation", func() {
-		app := isolationTestApplication(stuckWorkspace, "deadline")
-		app.Spec.ServiceSpec.Routing = nil
-		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
-		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		reconcileStuckApp(r, app)
-		dep := &appsv1.Deployment{}
-		key := client.ObjectKey{
-			Namespace: testEnvironmentNamespace(app),
-			Name:      testAppName(app),
-		}
-		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())
-		dep.Status.ObservedGeneration = dep.Generation
-		dep.Status.Conditions = []appsv1.DeploymentCondition{{
-			Type:    appsv1.DeploymentProgressing,
-			Status:  corev1.ConditionFalse,
-			Reason:  "ProgressDeadlineExceeded",
-			Message: "Deployment exceeded its progress deadline",
-		}}
-		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
-		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Problem).NotTo(BeNil())
-		Expect(app.Status.Rollout.Problem.Detail).To(ContainSubstring("progress deadline"))
-		dep.Status.ObservedGeneration = dep.Generation - 1
-		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
-		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Available).To(BeFalse())
-		Expect(app.Status.Rollout.Problem).To(BeNil())
-		dep.Status.ObservedGeneration = dep.Generation
-		dep.Status.Conditions[0].Status = corev1.ConditionTrue
-		dep.Status.Conditions[0].Reason = "NewReplicaSetAvailable"
-		dep.Status.Replicas = *dep.Spec.Replicas
-		dep.Status.UpdatedReplicas = *dep.Spec.Replicas
-		dep.Status.AvailableReplicas = *dep.Spec.Replicas
-		dep.Status.ReadyReplicas = *dep.Spec.Replicas
-		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
-		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Available).To(BeTrue())
-		Expect(app.Status.Rollout.Problem).To(BeNil())
-
 	})
 
 	It("persists public runtime conditions and clears them on recovery", func() {

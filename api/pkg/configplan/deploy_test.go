@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	maxRestartsPath   = pathDeploy + ".maxRestarts"
-	restartWindowPath = pathDeploy + ".restartWindow"
+	restartPath     = pathDeploy + ".restart"
+	maxRestartsPath = pathDeploy + ".maxRestarts"
+	timeoutPath     = pathDeploy + ".timeout"
 )
 
 func TestDeployPolicyChangesArePlanned(t *testing.T) {
@@ -18,10 +19,22 @@ func TestDeployPolicyChangesArePlanned(t *testing.T) {
 		want map[string]Change
 	}{
 		"set": {
-			file: &locofile.Deploy{MaxRestarts: new(int32(4)), RestartWindow: new(int32(60))},
+			file: &locofile.Deploy{
+				Restart:     locofile.RestartOnFailure,
+				MaxRestarts: new(int32(4)),
+				Timeout:     new(int32(60)),
+			},
 			want: map[string]Change{
-				maxRestartsPath:   {Path: maxRestartsPath, After: "4"},
-				restartWindowPath: {Path: restartWindowPath, After: "60"},
+				restartPath:     {Path: restartPath, After: locofile.RestartOnFailure},
+				maxRestartsPath: {Path: maxRestartsPath, After: "4"},
+				timeoutPath:     {Path: timeoutPath, After: "60"},
+			},
+		},
+		"restart mode changed": {
+			file: &locofile.Deploy{Restart: locofile.RestartAlways},
+			live: &locofile.Deploy{Restart: locofile.RestartNever},
+			want: map[string]Change{
+				restartPath: {Path: restartPath, Before: locofile.RestartNever, After: locofile.RestartAlways},
 			},
 		},
 		"removed": {

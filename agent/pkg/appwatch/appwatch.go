@@ -140,13 +140,15 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		ReadyReplicas:    app.Status.ReadyReplicas,
 	}
 	if spec := app.Spec.ServiceSpec; spec != nil {
-		status.MaxRestarts = spec.RestartPolicy.MaxRestarts
-		status.RestartWindowSeconds = spec.RestartPolicy.WindowSeconds
+		status.FailurePolicy = &deploymentv1.FailurePolicy{
+			RestartPolicy:        restartPolicy(spec.RestartPolicy.Mode),
+			MaxRestarts:          spec.RestartPolicy.MaxRestarts,
+			DeployTimeoutSeconds: spec.DeployTimeoutSeconds,
+		}
 	}
 	if rollout := app.Status.Rollout; rollout != nil {
 		status.DesiredReplicas = rollout.DesiredReplicas
 		status.Available = rollout.Available
-		status.ProgressDeadlineExceeded = rollout.ProgressDeadlineExceeded
 		status.Healthy = rollout.Healthy
 		if rollout.HealthyAt != nil {
 			status.HealthyAt = timestamppb.New(rollout.HealthyAt.Time)
@@ -154,11 +156,15 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		if stopped := rollout.Stopped; stopped != nil {
 			status.Stopped = &agentv1.StoppedRevision{
 				PlacementRevision: stopped.PlacementRevision,
+				Reason:            stopReason(stopped.Reason),
 				ReplicaName:       stopped.Replica,
 				Restarts:          stopped.Restarts,
-				LastRestart:       replicaRestart(stopped.LastRestart),
+				Detail:            stopped.Detail,
 				At:                timestamppb.New(stopped.At.Time),
 				Rollout:           stopped.Rollout,
+			}
+			if stopped.LastRestart != nil {
+				status.Stopped.LastRestart = replicaRestart(*stopped.LastRestart)
 			}
 		}
 		for _, replica := range rollout.Replicas {
@@ -208,6 +214,32 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		}
 	}
 	w.feed.Publish(placementID, status)
+}
+
+// stopReason maps the reason the controller stopped a revision to its proto value.
+func stopReason(reason locoControllerV1.ProblemReason) agentv1.StopReason {
+	switch reason {
+	case locoControllerV1.ProblemRestartsExhausted:
+		return agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED
+	case locoControllerV1.ProblemDeployTimeout:
+		return agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT
+	default:
+		return agentv1.StopReason_STOP_REASON_UNSPECIFIED
+	}
+}
+
+// restartPolicy maps a restart mode to its proto value, as api/pkg/servicedefaults does; update both together.
+func restartPolicy(mode locoControllerV1.RestartMode) deploymentv1.RestartPolicy {
+	switch mode {
+	case locoControllerV1.RestartOnFailure:
+		return deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE
+	case locoControllerV1.RestartAlways:
+		return deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS
+	case locoControllerV1.RestartNever:
+		return deploymentv1.RestartPolicy_RESTART_POLICY_NEVER
+	default:
+		return deploymentv1.RestartPolicy_RESTART_POLICY_UNSPECIFIED
+	}
 }
 
 func replicaRestart(restart locoControllerV1.ReplicaRestart) *deploymentv1.ReplicaRestart {

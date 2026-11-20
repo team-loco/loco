@@ -30,12 +30,12 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 		0,
 		&agentv1.PlacementStatus{
 			Problem: &agentv1.ProblemReport{
-				Reason: string(loco.ProblemRolloutTimeout),
+				Reason: string(loco.ProblemDeployTimeout),
 				Detail: "pull secret",
 			},
-			ProgressDeadlineExceeded: true,
-			PlacementId:              p.ID.String(),
-			ObservedRevision:         1,
+			Stopped:          deployTimedOut(),
+			PlacementId:      p.ID.String(),
+			ObservedRevision: 1,
 		},
 	)
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusFailed {
@@ -82,10 +82,10 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 		f.clusterID,
 		0,
 		&agentv1.PlacementStatus{
-			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemImageUser), Detail: detail},
-			ProgressDeadlineExceeded: true,
-			PlacementId:              p.ID.String(),
-			ObservedRevision:         1,
+			Problem:          &agentv1.ProblemReport{Reason: string(loco.ProblemImageUser), Detail: detail},
+			Stopped:          deployTimedOut(),
+			PlacementId:      p.ID.String(),
+			ObservedRevision: 1,
 		},
 	)
 

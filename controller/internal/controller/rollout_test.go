@@ -45,7 +45,7 @@ func observed(now time.Time, pods ...corev1.Pod) []observedReplica {
 	for _, pod := range pods {
 		status := replicaState(&pod, nil, now)
 		status.Name = pod.Name
-		trackRestarts(&status, nil, testRestartPolicy, now)
+		trackRestarts(&status, nil, time.Time{}, now)
 		replicas = append(replicas, observedReplica{pod: pod, status: status})
 	}
 	return replicas
@@ -137,18 +137,6 @@ func TestObserveDeletedReplica(t *testing.T) {
 	if got := app.Status.Rollout.Problem; got == nil || got.Reason != locov1alpha1.ProblemUncleanShutdown {
 		t.Fatalf("killed problem=%+v", got)
 	}
-	dep.Status.WithConditions(
-		appsv1ac.DeploymentCondition().
-			WithType("Progressing").
-			WithStatus("False").
-			WithReason(reasonProgressDeadlineExceeded),
-	)
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
-		t.Fatal(err)
-	}
-	if got := app.Status.Rollout.Problem; got == nil || got.Reason != locov1alpha1.ProblemRolloutTimeout {
-		t.Fatalf("timeout priority=%+v", got)
-	}
 	pod.DeletionTimestamp = nil
 	pod.Status.ContainerStatuses = nil
 	pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
@@ -175,18 +163,6 @@ func TestObserveDeletedReplica(t *testing.T) {
 	}
 	if got := app.Status.Rollout.Replicas[0].State; got != locov1alpha1.ReplicaServing {
 		t.Fatalf("listed state=%s", got)
-	}
-	dep.Status.WithConditions(
-		appsv1ac.DeploymentCondition().
-			WithType("Progressing").
-			WithStatus("False").
-			WithReason(reasonProgressDeadlineExceeded),
-	)
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
-		t.Fatal(err)
-	}
-	if got := app.Status.Rollout.Problem; got == nil || got.Reason != locov1alpha1.ProblemRolloutTimeout {
-		t.Fatalf("timeout=%+v", got)
 	}
 }
 
@@ -215,12 +191,12 @@ func TestReplicaProblemDetail(t *testing.T) {
 			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
 				ExitCode: 1, FinishedAt: metav1.NewTime(now.Add(-time.Second)),
 			}},
-		}}}}, "exit 1 · 1 of 2 restarts in 10 min"},
+		}}}}, "exit 1 · 1 of 2 restarts"},
 		{"exited before its first restart", corev1.Pod{Status: corev1.PodStatus{
 			ContainerStatuses: []corev1.ContainerStatus{{State: corev1.ContainerState{
 				Terminated: &corev1.ContainerStateTerminated{ExitCode: 3},
 			}}},
-		}}, "exit 3 · 0 of 2 restarts in 10 min"},
+		}}, "exit 3 · 0 of 2 restarts"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			got := replicaProblem(observed(now, tt.pod), testRestartPolicy, testHealthyAfter, now)

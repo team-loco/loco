@@ -87,7 +87,7 @@ func TestServingDeploymentFollowsAcceptedObservation(t *testing.T) {
 	report.Available = false
 	report.Healthy = false
 	report.ReadyReplicas = 1
-	report.ProgressDeadlineExceeded = true
+	report.Stopped = deployTimedOut()
 	report.Problem = &agentv1.ProblemReport{Reason: "restarting"}
 	report.Replicas = []*deploymentv1.Replica{
 		{
@@ -195,11 +195,11 @@ func TestServingObservationRetainsHistoryAndImage(t *testing.T) {
 			firstRevision = p.DesiredRevision
 		}
 		report = &agentv1.PlacementStatus{
-			PlacementId:              p.ID.String(),
-			DeploymentId:             id.String(),
-			ObservedRevision:         p.DesiredRevision,
-			ProgressDeadlineExceeded: true,
-			ReadyReplicas:            1,
+			PlacementId:      p.ID.String(),
+			DeploymentId:     id.String(),
+			ObservedRevision: p.DesiredRevision,
+			Stopped:          deployTimedOut(),
+			ReadyReplicas:    1,
 			Replicas: []*deploymentv1.Replica{
 				{
 					Uid:               "still-serving",

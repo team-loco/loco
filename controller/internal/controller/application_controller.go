@@ -772,6 +772,7 @@ func (r *ApplicationReconciler) ensureDeployment(
 
 	var stoppedSets []appsv1.ReplicaSet
 	var previous *appsv1.ReplicaSet
+	kept := false
 	if stopped := stoppedRevision(app); stopped != nil {
 		var err error
 		proven := app.Status.Rollout.ProvenRevision
@@ -779,16 +780,25 @@ func (r *ApplicationReconciler) ensureDeployment(
 		if err != nil {
 			return nil, err
 		}
-		dep.Spec.WithPaused(true)
-		stopped.Rollout = previous != nil
-		if previous == nil {
-			dep.Spec.WithReplicas(0)
+		kept = keepsRunning(app, stopped, previous)
+		if kept {
+			app.Status.Rollout.Stopped = nil
+			stoppedSets = nil
+		} else {
+			dep.Spec.WithPaused(true)
+			stopped.Rollout = previous != nil
+			if previous == nil {
+				dep.Spec.WithReplicas(0)
+			}
 		}
 	}
 
 	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, dep, opts...); err != nil {
 		return nil, fmt.Errorf("apply deployment %s/%s: %w", namespace, name, err)
+	}
+	if kept {
+		app.Status.Rollout.Available = rolloutAvailable(dep, app)
 	}
 	if previous == nil {
 		return dep, r.scale(ctx, stoppedSets, 0)
@@ -797,6 +807,17 @@ func (r *ApplicationReconciler) ensureDeployment(
 		return nil, err
 	}
 	return dep, r.scale(ctx, []appsv1.ReplicaSet{*previous}, ptr.Deref(dep.Spec.Replicas, 0))
+}
+
+// keepsRunning is whether a restart stop leaves the revision running: it became healthy once and
+// nothing could take its place, so emptying it would take down what serves.
+func keepsRunning(
+	app *locov1alpha1.Application,
+	stopped *locov1alpha1.StoppedRevision,
+	previous *appsv1.ReplicaSet,
+) bool {
+	return previous == nil && stopped.Reason == locov1alpha1.ProblemRestartsExhausted &&
+		app.Status.Rollout.DeployedRevision == stopped.PlacementRevision
 }
 
 func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32) bool {

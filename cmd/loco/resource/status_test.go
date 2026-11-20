@@ -7,6 +7,7 @@ import (
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const statusTestRegion = "us-east-1"
@@ -82,5 +83,22 @@ func TestStatusViewSaysWhenNothingIsDeployed(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), notDeployedMessage) {
 		t.Errorf("view does not say the service is not deployed:\n%s", out.String())
+	}
+}
+
+func TestReplicaStateLabelCountsRestartsAgainstTheOnFailureBudget(t *testing.T) {
+	restarting := &deploymentv1.Replica{State: "Failing", RestartsAt: []*timestamppb.Timestamp{timestamppb.Now()}}
+	for _, tt := range []struct {
+		policy *deploymentv1.FailurePolicy
+		want   string
+	}{
+		{&deploymentv1.FailurePolicy{
+			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 3,
+		}, "Restarting (1/3)"},
+		{&deploymentv1.FailurePolicy{RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS}, "Restarting (1)"},
+	} {
+		if got := replicaStateLabel(restarting, tt.policy); got != tt.want {
+			t.Errorf("%s label = %q, want %q", tt.policy.GetRestartPolicy(), got, tt.want)
+		}
 	}
 }
