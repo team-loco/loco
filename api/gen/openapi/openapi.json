@@ -1891,7 +1891,7 @@
           "loco.deployment.v1.DeploymentService"
         ],
         "summary": "CancelDeployment",
-        "description": "CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet\n return to the deployment that served them before; regions it already runs keep it.",
+        "description": "CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet\n return to the deployment that served them before; regions it already runs keep it, or\n roll back to the version they ran before when the request asks.",
         "operationId": "loco.deployment.v1.DeploymentService.CancelDeployment",
         "parameters": [
           {
@@ -2126,6 +2126,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.deployment.v1.GetDeploymentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.deployment.v1.DeploymentService/GetDeploymentCancelImpact": {
+      "post": {
+        "tags": [
+          "loco.deployment.v1.DeploymentService"
+        ],
+        "summary": "GetDeploymentCancelImpact",
+        "description": "GetDeploymentCancelImpact lists the regions that already run a deployment and keep it when\n it is canceled, with the version each would roll back to.",
+        "operationId": "loco.deployment.v1.DeploymentService.GetDeploymentCancelImpact",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.deployment.v1.GetDeploymentCancelImpactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.deployment.v1.GetDeploymentCancelImpactResponse"
                 }
               }
             }
@@ -10488,6 +10550,11 @@
             "type": "string",
             "title": "deployment_id",
             "format": "uuid"
+          },
+          "rollbackFinishedRegions": {
+            "type": "boolean",
+            "title": "rollback_finished_regions",
+            "description": "Also deploy, to each region that already runs the deployment, the version it ran before."
           }
         },
         "title": "CancelDeploymentRequest",
@@ -10495,6 +10562,16 @@
       },
       "loco.deployment.v1.CancelDeploymentResponse": {
         "type": "object",
+        "properties": {
+          "rollbackDeploymentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "rollback_deployment_ids",
+            "description": "The rollback deployments queued for the finished regions, one per previous version."
+          }
+        },
         "title": "CancelDeploymentResponse",
         "additionalProperties": false
       },
@@ -10704,6 +10781,11 @@
             },
             "title": "secret_names",
             "description": "The stored secrets the deployment reads, sorted by name."
+          },
+          "rollbackOfDeploymentId": {
+            "type": "string",
+            "title": "rollback_of_deployment_id",
+            "description": "The canceled deployment whose finished regions this rollback restores, if any."
           }
         },
         "title": "Deployment",
@@ -10865,6 +10947,50 @@
           "DEPLOYMENT_TRIGGER_AUTO_ROLLBACK"
         ],
         "description": "DeploymentTrigger is what created a deployment."
+      },
+      "loco.deployment.v1.FinishedRegion": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "region"
+          },
+          "previous": {
+            "title": "previous",
+            "description": "The deployment the region ran before; unset when this was its first deployment.",
+            "$ref": "#/components/schemas/loco.deployment.v1.Deployment"
+          }
+        },
+        "title": "FinishedRegion",
+        "additionalProperties": false,
+        "description": "FinishedRegion is a region that already runs a deployment being canceled."
+      },
+      "loco.deployment.v1.GetDeploymentCancelImpactRequest": {
+        "type": "object",
+        "properties": {
+          "deploymentId": {
+            "type": "string",
+            "title": "deployment_id",
+            "format": "uuid"
+          }
+        },
+        "title": "GetDeploymentCancelImpactRequest",
+        "additionalProperties": false
+      },
+      "loco.deployment.v1.GetDeploymentCancelImpactResponse": {
+        "type": "object",
+        "properties": {
+          "finishedRegions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.FinishedRegion"
+            },
+            "title": "finished_regions",
+            "description": "Ordered by region."
+          }
+        },
+        "title": "GetDeploymentCancelImpactResponse",
+        "additionalProperties": false
       },
       "loco.deployment.v1.GetDeploymentRequest": {
         "type": "object",

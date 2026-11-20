@@ -9,6 +9,7 @@ import (
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -152,29 +153,28 @@ func TestCancelNeedsWriteAccess(t *testing.T) {
 func TestCancelKeepsARegionThatAlreadyRuns(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.prepareApply(t)
-	f.addOtherRegionCluster(t)
-	var other uuid.UUID
-	row := f.pool.QueryRow(t.Context(), `SELECT id FROM clusters WHERE region = $1`, otherRegion)
-	if err := row.Scan(&other); err != nil {
+	first, second, worker, other := twoRegionRollout(t, f)
+	finished := f.cancelImpact(t, second)
+	if len(finished) != 1 || finished[0].GetRegion() != testRegion || finished[0].GetPrevious().GetId() != first {
+		t.Fatalf("finished regions = %v, want %s back to %s", finished, testRegion, first)
+	}
+	resp, err := f.deploymentServer().CancelDeployment(
+		f.cancelContext(t, second, genDb.ScopeWrite),
+		&deploymentv1.CancelDeploymentRequest{DeploymentId: second},
+	)
+	if err != nil {
 		t.Fatal(err)
 	}
-	first := applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0]
-	f.finishRollouts(t)
-	second := applyOK(t, f, planFileHeader+twoRegionsBiggerCPU, applyOptions{}).GetDeployments()[0]
-	worker, _ := f.resourceByName(t, applyWorker)
-	running := f.placementOf(t, worker.ID, f.clusterID)
-	f.reportPlacement(t, running, true)
-	if err := f.cancelDeployment(t, second.GetDeploymentId()); err != nil {
-		t.Fatal(err)
+	if ids := resp.GetRollbackDeploymentIds(); len(ids) != 0 {
+		t.Fatalf("rollbacks = %v, want none", ids)
 	}
-	if p := f.placementOf(t, worker.ID, f.clusterID); p.DeploymentID.String() != second.GetDeploymentId() {
-		t.Fatalf("running region deployment = %s, want %s", p.DeploymentID, second.GetDeploymentId())
+	if p := f.placementOf(t, worker.ID, f.clusterID); p.DeploymentID.String() != second {
+		t.Fatalf("running region deployment = %s, want %s", p.DeploymentID, second)
 	}
-	if p := f.placementOf(t, worker.ID, other); p.DeploymentID.String() != first.GetDeploymentId() {
-		t.Fatalf("reverted region deployment = %s, want %s", p.DeploymentID, first.GetDeploymentId())
+	if p := f.placementOf(t, worker.ID, other); p.DeploymentID.String() != first {
+		t.Fatalf("reverted region deployment = %s, want %s", p.DeploymentID, first)
 	}
-	regions := placementRegions(f.getDeployment(t, second.GetDeploymentId()))
+	regions := placementRegions(f.getDeployment(t, second))
 	if regions[testRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING ||
 		regions[otherRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_CANCELED {
 		t.Fatalf("placements after cancel = %v", regions)
@@ -267,5 +267,183 @@ func TestCancelKeepsABuildAnotherDeploymentWaitsFor(t *testing.T) {
 	}
 	if got := f.row(t, buildID).Status; got != genDb.BuildStatusCanceled {
 		t.Fatalf("build status after cancel = %s, want canceled", got)
+	}
+}
+
+// twoRegionRollout applies a first deployment to both regions, finishes it, then applies a
+// second that already runs in testRegion and still deploys in otherRegion.
+func twoRegionRollout(t *testing.T, f *deployFixture) (first, second string, worker genDb.Resource, other uuid.UUID) {
+	t.Helper()
+	f.prepareApply(t)
+	f.addOtherRegionCluster(t)
+	row := f.pool.QueryRow(t.Context(), `SELECT id FROM clusters WHERE region = $1`, otherRegion)
+	if err := row.Scan(&other); err != nil {
+		t.Fatal(err)
+	}
+	first = applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId()
+	f.finishRollouts(t)
+	second = applyOK(t, f, planFileHeader+twoRegionsBiggerCPU, applyOptions{}).GetDeployments()[0].GetDeploymentId()
+	worker, _ = f.resourceByName(t, applyWorker)
+	f.reportPlacement(t, f.placementOf(t, worker.ID, f.clusterID), true)
+	return first, second, worker, other
+}
+
+func (f *deployFixture) cancelWithRollback(t *testing.T, id string) []string {
+	t.Helper()
+	resp, err := f.deploymentServer().CancelDeployment(
+		f.cancelContext(t, id, genDb.ScopeWrite),
+		&deploymentv1.CancelDeploymentRequest{DeploymentId: id, RollbackFinishedRegions: true},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp.GetRollbackDeploymentIds()
+}
+
+func (f *deployFixture) cancelImpact(t *testing.T, id string) []*deploymentv1.FinishedRegion {
+	t.Helper()
+	resp, err := f.deploymentServer().GetDeploymentCancelImpact(
+		f.cancelContext(t, id, genDb.ScopeRead),
+		&deploymentv1.GetDeploymentCancelImpactRequest{DeploymentId: id},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp.GetFinishedRegions()
+}
+
+func TestCancelWithRollbackAndNoFinishedRegionQueuesNothing(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	second, err := deployService(t, f, imageService())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished := f.cancelImpact(t, second.GetDeploymentId()); len(finished) != 0 {
+		t.Fatalf("finished regions = %v, want none", finished)
+	}
+	if rollbacks := f.cancelWithRollback(t, second.GetDeploymentId()); len(rollbacks) != 0 {
+		t.Fatalf("rollbacks = %v, want none", rollbacks)
+	}
+	if n := f.eventCount(t, events.DeploymentCreated); n != 2 {
+		t.Fatalf("deployment.created events = %d, want the 2 deploys", n)
+	}
+}
+
+func TestCancelWithRollbackRestoresTheFinishedRegion(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	first, second, worker, other := twoRegionRollout(t, f)
+	rollbacks := f.cancelWithRollback(t, second)
+	if len(rollbacks) != 1 {
+		t.Fatalf("rollbacks = %v, want one", rollbacks)
+	}
+	rollback := f.getDeployment(t, rollbacks[0])
+	if rollback.GetTrigger() != deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK ||
+		rollback.GetSourceDeploymentId() != first || rollback.GetRollbackOfDeploymentId() != second {
+		t.Fatalf(
+			"rollback trigger=%v source=%s of=%s, want rollback of %s to %s",
+			rollback.GetTrigger(),
+			rollback.GetSourceDeploymentId(),
+			rollback.GetRollbackOfDeploymentId(),
+			second,
+			first,
+		)
+	}
+	if regions := placementRegions(rollback); len(regions) != 1 || regions[testRegion] == 0 {
+		t.Fatalf("rollback regions = %v, want only %s", regions, testRegion)
+	}
+	if p := f.placementOf(t, worker.ID, f.clusterID); p.DeploymentID.String() != rollbacks[0] {
+		t.Fatalf("finished region deployment = %s, want the rollback %s", p.DeploymentID, rollbacks[0])
+	}
+	if p := f.placementOf(t, worker.ID, other); p.DeploymentID.String() != first {
+		t.Fatalf("reverted region deployment = %s, want %s", p.DeploymentID, first)
+	}
+	var recorded []string
+	if err := f.pool.QueryRow(t.Context(),
+		`SELECT ARRAY(SELECT jsonb_array_elements_text(data->$3)) FROM events WHERE type = $1 AND subject_id = $2`,
+		events.DeploymentCanceled, second, events.FieldRollbacks).Scan(&recorded); err != nil {
+		t.Fatal(err)
+	}
+	if len(recorded) != 1 || recorded[0] != rollbacks[0] {
+		t.Fatalf("deployment.canceled rollbacks = %v, want %v", recorded, rollbacks)
+	}
+	if err := f.cancelDeployment(t, rollbacks[0]); err != nil {
+		t.Fatalf("cancel the rollback: %v", err)
+	}
+	if p := f.placementOf(t, worker.ID, f.clusterID); p.DeploymentID.String() != second {
+		t.Fatalf("region after canceling the rollback runs %s, want %s", p.DeploymentID, second)
+	}
+}
+
+func TestCancelWithRollbackSkipsARegionWithoutAnEarlierDeployment(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	f.addOtherRegionCluster(t)
+	first := applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId()
+	worker, _ := f.resourceByName(t, applyWorker)
+	f.reportPlacement(t, f.placementOf(t, worker.ID, f.clusterID), true)
+	finished := f.cancelImpact(t, first)
+	if len(finished) != 1 || finished[0].GetRegion() != testRegion || finished[0].GetPrevious() != nil {
+		t.Fatalf("finished regions = %v, want %s with no previous deployment", finished, testRegion)
+	}
+	if rollbacks := f.cancelWithRollback(t, first); len(rollbacks) != 0 {
+		t.Fatalf("rollbacks = %v, want none", rollbacks)
+	}
+	if p := f.placementOf(t, worker.ID, f.clusterID); p.DeploymentID.String() != first {
+		t.Fatalf("finished region deployment = %s, want %s", p.DeploymentID, first)
+	}
+}
+
+func TestCancelImpactSkipsAnEarlierDeploymentThatFailed(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	first, second, _, _ := twoRegionRollout(t, f)
+	failed := uuid.New()
+	if _, err := f.pool.Exec(t.Context(), `
+INSERT INTO deployments (id, resource_id, status, environment_id, spec, spec_version, trigger, actor_type, actor_id,
+  method, created_at)
+SELECT $1, resource_id, 'failed', environment_id, spec, spec_version, trigger, actor_type, actor_id, method,
+  created_at + INTERVAL '1 microsecond'
+FROM deployments WHERE id = $2`, failed, uuid.MustParse(first)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(t.Context(), `
+INSERT INTO deployment_placements (deployment_id, cluster_id, region, replicas, status, image, started_at)
+SELECT $1, cluster_id, region, replicas, 'failed', image, NOW()
+FROM deployment_placements WHERE deployment_id = $2 AND cluster_id = $3`,
+		failed, uuid.MustParse(first), f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	finished := f.cancelImpact(t, second)
+	if len(finished) != 1 || finished[0].GetPrevious().GetId() != first {
+		t.Fatalf("finished regions = %v, want %s back to %s, not the failed %s", finished, testRegion, first, failed)
+	}
+}
+
+func TestCancelWithRollbackPrunesHistory(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	first, second, _, _ := twoRegionRollout(t, f)
+	f.setLimit(t, limits.DeploymentHistory, 2)
+	old := uuid.New()
+	if _, err := f.pool.Exec(t.Context(), `
+INSERT INTO deployments (id, resource_id, status, environment_id, spec, spec_version, trigger, actor_type, actor_id,
+  method, created_at)
+SELECT $1, resource_id, 'superseded', environment_id, spec, spec_version, trigger, actor_type, actor_id, method,
+  created_at - INTERVAL '5 days'
+FROM deployments WHERE id = $2`, old, uuid.MustParse(first)); err != nil {
+		t.Fatal(err)
+	}
+	if rollbacks := f.cancelWithRollback(t, second); len(rollbacks) != 1 {
+		t.Fatalf("rollbacks = %v, want one", rollbacks)
+	}
+	if f.deploymentExists(t, old) {
+		t.Fatal("the rollback left a finished deployment past the history limit")
 	}
 }

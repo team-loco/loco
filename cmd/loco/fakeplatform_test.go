@@ -111,6 +111,10 @@ type fakePlatform struct {
 	deploymentCanceledBy map[string]string
 	// canceledDeployments lists the IDs CancelDeployment accepted.
 	canceledDeployments []string
+	// canceledRollbacks holds whether each cancel asked to roll back finished regions.
+	canceledRollbacks map[string]bool
+	// finishedRegions holds GetDeploymentCancelImpact's regions per deployment ID.
+	finishedRegions map[string][]*deploymentv1.FinishedRegion
 	// retention holds the workspace's own days; a nil signal uses the limit.
 	retention *workspacev1.RetentionDays
 	// orgs are the organizations ListUserOrgs returns outside login.
@@ -134,6 +138,8 @@ func newFakePlatform() *fakePlatform {
 		deploymentOutcomes:   map[string]deploymentv1.DeploymentStatus{},
 		deploymentPlacements: map[string][]*deploymentv1.DeploymentPlacement{},
 		deploymentCanceledBy: map[string]string{},
+		canceledRollbacks:    map[string]bool{},
+		finishedRegions:      map[string][]*deploymentv1.FinishedRegion{},
 		retention:            &workspacev1.RetentionDays{},
 		workspaces: []*workspacev1.Workspace{
 			{Id: fakeWorkspaceID, OrgId: fakeOrgID, OrgName: fakeOrgName, Name: fakeWorkspaceName},

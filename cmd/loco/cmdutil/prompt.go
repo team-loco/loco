@@ -34,17 +34,28 @@ func Confirm(cmd *cobra.Command, question string) (bool, error) {
 // AskYesNo prompts for a yes or no answer on the command's input and output. It reports false
 // after printing "Aborted." when the user declines.
 func AskYesNo(cmd *cobra.Command, question string) (bool, error) {
+	confirmed, err := Ask(cmd, question)
+	if err == nil && !confirmed {
+		fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
+	}
+	return confirmed, err
+}
+
+// Ask prompts for a yes or no answer on the command's input and output.
+func Ask(cmd *cobra.Command, question string) (bool, error) {
 	if !isInteractive() {
 		return false, ErrNotInteractive
 	}
-	confirmed, err := ui.AskYesNo(cmd.InOrStdin(), cmd.OutOrStdout(), question)
+	answer, err := ui.AskYesNo(cmd.InOrStdin(), cmd.OutOrStdout(), question)
 	if err != nil {
 		return false, fmt.Errorf("failed to prompt for confirmation: %w", err)
 	}
-	if !confirmed {
-		fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
-	}
-	return confirmed, nil
+	return answer, nil
+}
+
+// Interactive reports whether stdin and stdout are a terminal.
+func Interactive() bool {
+	return isInteractive()
 }
 
 // AskString prompts for a line of text on the command's input and output.

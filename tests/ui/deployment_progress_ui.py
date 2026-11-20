@@ -547,7 +547,103 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(replicas).to_contain_text("0/2 ready · 2 previous")
     assert not errors, errors
     context.close()
+
+    # Canceling a rollout that already finished in one region offers to roll that region back.
+    east = evidence.seed_cluster(state, "us-east-1", name="cancel-east")
+    west = evidence.seed_cluster(state, "eu-west-1", name="cancel-west")
+    sizing = {"cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}
+    cancel_old = "registry.example.test/cancel:v1@sha256:" + "3" * 64
+    cancel_new = "registry.example.test/cancel:v2@sha256:" + "4" * 64
+
+    def cancel_spec(image):
+        return {
+            "platform": "linux/amd64",
+            "observability": {"injectOtel": True},
+            "build": {"type": "image", "image": image},
+            "regions": {"us-east-1": sizing, "eu-west-1": sizing},
+        }
+
+    before, rollout = str(uuid.uuid4()), str(uuid.uuid4())
+    both = {"us-east-1": {"cluster": east}, "eu-west-1": {"cluster": west}}
+    cancel_resource = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": "cancel-ui",
+                "deployments": [
+                    {
+                        "environment": "production",
+                        "placements": both,
+                        "id": before,
+                        "spec": cancel_spec(cancel_old),
+                        "age": "1 hour",
+                    },
+                    {
+                        "environment": "production",
+                        "placements": both,
+                        "id": rollout,
+                        "spec": cancel_spec(cancel_new),
+                        "status": "deploying",
+                        "live": False,
+                        "age": "1 minute",
+                    },
+                ],
+            }
+        ],
+    )["acme/shared/cancel-ui"]
+    sql(
+        state,
+        f"""BEGIN;
+    UPDATE deployment_placements SET status='running',started_at=NOW()-INTERVAL '30 seconds' WHERE deployment_id='{rollout}' AND region='us-east-1';
+    UPDATE deployment_placements SET status='deploying',started_at=NULL WHERE deployment_id='{rollout}' AND region='eu-west-1';
+    UPDATE deployment_placements SET status='superseded',superseded_by='{rollout}',completed_at=NOW() WHERE deployment_id='{before}' AND region='us-east-1';
+    UPDATE placements SET deployment_id='{rollout}',desired_revision=2,observed_revision=2 WHERE resource_id='{cancel_resource}';
+    COMMIT;""",
+    )
+    context, page, errors = open_page(browser, state=state)
+    page.goto(
+        state["ui_url"]
+        + f"/org/{p['org']}/wks/{workspace}/resource/{cancel_resource}?env=production"
+    )
+    page.get_by_role("button", name="Cancel", exact=True).first.click()
+    dialog = page.get_by_role("alertdialog")
+    finished = dialog.get_by_role(
+        "list", name="Regions that already run it", exact=True
+    )
+    expect(finished.get_by_role("listitem")).to_have_count(1)
+    expect(finished).to_contain_text("us-east-1")
+    expect(finished).to_contain_text("previous v1")
+    rollback_option = dialog.get_by_role(
+        "checkbox", name="Also roll back us-east-1 to v1", exact=True
+    )
+    expect(rollback_option).not_to_be_checked()
+    rollback_option.click()
+    dialog.get_by_role("button", name="Cancel deployment", exact=True).click()
+    expect(dialog).to_be_hidden()
+    queued = call(
+        state,
+        "loco.deployment.v1.DeploymentService/ListDeployments",
+        {"resourceId": cancel_resource, "environmentId": p["environment"]},
+    )["deployments"]
+    rollbacks = [d for d in queued if d.get("rollbackOfDeploymentId") == rollout]
+    assert len(rollbacks) == 1, queued
+    assert rollbacks[0]["sourceDeploymentId"] == before, rollbacks
+    assert [pl["region"] for pl in rollbacks[0]["placements"]] == ["us-east-1"], (
+        rollbacks
+    )
+    page.reload()
+    label = page.get_by_title(f"Rollback of canceled deployment {rollout}", exact=True)
+    expect(label).to_have_text(f"Rollback of {rollout[-8:]}")
+    for root_font in ("16px", "20px"):
+        page.evaluate(f"document.documentElement.style.fontSize = '{root_font}'")
+        widths = label.evaluate("text => [text.scrollWidth, text.clientWidth]")
+        assert widths[0] <= widths[1], (
+            f"the rollback label is cut off at a {root_font} root font: {widths}"
+        )
+    assert not errors, errors
+    context.close()
     browser.close()
 print(
-    "Deployment progress phases, replica watches, logs, rollback, reduced motion and restarts passed"
+    "Deployment progress phases, replica watches, logs, rollback, reduced motion, restarts and cancel rollback passed"
 )

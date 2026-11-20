@@ -160,6 +160,7 @@ const (
 	FieldSupersededBy  = "supersededBy"
 	FieldReverted      = "regionsReverted"
 	FieldKept          = "regionsKept"
+	FieldRollbacks     = "rollbackDeploymentIds"
 	FieldIP            = "ip"
 	FieldUserAgent     = "userAgent"
 	FieldFlow          = "flow"

@@ -713,27 +713,28 @@ type ClusterAssertion struct {
 }
 
 type Deployment struct {
-	ID                 uuid.UUID            `json:"id"`
-	ResourceID         uuid.UUID            `json:"resourceId"`
-	Status             DeploymentStatus     `json:"status"`
-	EnvironmentID      uuid.UUID            `json:"environmentId"`
-	Spec               []byte               `json:"spec"`
-	SpecVersion        int32                `json:"specVersion"`
-	Trigger            DeploymentTrigger    `json:"trigger"`
-	SourceDeploymentID *uuid.UUID           `json:"sourceDeploymentId"`
-	ActorType          DeploymentActorType  `json:"actorType"`
-	ActorID            uuid.UUID            `json:"actorId"`
-	Method             DeploymentMethod     `json:"method"`
-	CanceledByType     *DeploymentActorType `json:"canceledByType"`
-	CanceledByID       *uuid.UUID           `json:"canceledById"`
-	CommitSha          *string              `json:"commitSha"`
-	CommitDirty        bool                 `json:"commitDirty"`
-	SecretNames        []string             `json:"secretNames"`
-	ActivitySeq        int64                `json:"activitySeq"`
-	CreatedAt          time.Time            `json:"createdAt"`
-	StartedAt          *time.Time           `json:"startedAt"`
-	CompletedAt        *time.Time           `json:"completedAt"`
-	UpdatedAt          time.Time            `json:"updatedAt"`
+	ID                     uuid.UUID            `json:"id"`
+	ResourceID             uuid.UUID            `json:"resourceId"`
+	Status                 DeploymentStatus     `json:"status"`
+	EnvironmentID          uuid.UUID            `json:"environmentId"`
+	Spec                   []byte               `json:"spec"`
+	SpecVersion            int32                `json:"specVersion"`
+	Trigger                DeploymentTrigger    `json:"trigger"`
+	SourceDeploymentID     *uuid.UUID           `json:"sourceDeploymentId"`
+	RollbackOfDeploymentID *uuid.UUID           `json:"rollbackOfDeploymentId"`
+	ActorType              DeploymentActorType  `json:"actorType"`
+	ActorID                uuid.UUID            `json:"actorId"`
+	Method                 DeploymentMethod     `json:"method"`
+	CanceledByType         *DeploymentActorType `json:"canceledByType"`
+	CanceledByID           *uuid.UUID           `json:"canceledById"`
+	CommitSha              *string              `json:"commitSha"`
+	CommitDirty            bool                 `json:"commitDirty"`
+	SecretNames            []string             `json:"secretNames"`
+	ActivitySeq            int64                `json:"activitySeq"`
+	CreatedAt              time.Time            `json:"createdAt"`
+	StartedAt              *time.Time           `json:"startedAt"`
+	CompletedAt            *time.Time           `json:"completedAt"`
+	UpdatedAt              time.Time            `json:"updatedAt"`
 }
 
 type DeploymentActivity struct {

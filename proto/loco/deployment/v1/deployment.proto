@@ -56,8 +56,12 @@ service DeploymentService {
   // DeleteDeployment deletes/inactivates a deployment.
   rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
   // CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet
-  // return to the deployment that served them before; regions it already runs keep it.
+  // return to the deployment that served them before; regions it already runs keep it, or
+  // roll back to the version they ran before when the request asks.
   rpc CancelDeployment(CancelDeploymentRequest) returns (CancelDeploymentResponse);
+  // GetDeploymentCancelImpact lists the regions that already run a deployment and keep it when
+  // it is canceled, with the version each would roll back to.
+  rpc GetDeploymentCancelImpact(GetDeploymentCancelImpactRequest) returns (GetDeploymentCancelImpactResponse);
   // ResolveImage returns the digest-pinned image reference.
   rpc ResolveImage(ResolveImageRequest) returns (ResolveImageResponse);
 }
@@ -229,6 +233,8 @@ message Deployment {
   string canceled_by_name = 29;
   // The stored secrets the deployment reads, sorted by name.
   repeated string secret_names = 30;
+  // The canceled deployment whose finished regions this rollback restores, if any.
+  string rollback_of_deployment_id = 31;
 }
 
 // DeploymentPlacement is one region of a deployment.
@@ -435,9 +441,30 @@ message DeleteDeploymentResponse {}
 
 message CancelDeploymentRequest {
   string deployment_id = 1 [(buf.validate.field).string.uuid = true];
+  // Also deploy, to each region that already runs the deployment, the version it ran before.
+  bool rollback_finished_regions = 2;
 }
 
-message CancelDeploymentResponse {}
+message CancelDeploymentResponse {
+  // The rollback deployments queued for the finished regions, one per previous version.
+  repeated string rollback_deployment_ids = 1;
+}
+
+message GetDeploymentCancelImpactRequest {
+  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetDeploymentCancelImpactResponse {
+  // Ordered by region.
+  repeated FinishedRegion finished_regions = 1;
+}
+
+// FinishedRegion is a region that already runs a deployment being canceled.
+message FinishedRegion {
+  string region = 1;
+  // The deployment the region ran before; unset when this was its first deployment.
+  Deployment previous = 2;
+}
 
 message ResolveImageRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];

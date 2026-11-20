@@ -55,7 +55,7 @@ The `creator_*` fields are absent when that user no longer exists, and on `deplo
 
 ## Cancellation events
 
-`deployment.canceled` records a deployment that ended `canceled`, once. Its `subject.id` is the deployment ID and `data.deploymentId` repeats it. When a user or API token canceled it, `actor` is that caller, and `data.regionsReverted` and `data.regionsKept` list the regions that went back to the previous deployment and the regions that kept this one. When a newer deployment replaced it, `actor.type` is `system` and `data.supersededBy` is the newer deployment's ID.
+`deployment.canceled` records a deployment that ended `canceled`, once. Its `subject.id` is the deployment ID and `data.deploymentId` repeats it. When a user or API token canceled it, `actor` is that caller, and `data.regionsReverted` and `data.regionsKept` list the regions that went back to the previous deployment and the regions that kept this one, and `data.rollbackDeploymentIds` lists the rollback deployments queued for the kept regions. When a newer deployment replaced it, `actor.type` is `system` and `data.supersededBy` is the newer deployment's ID.
 
 ## User deletion
 

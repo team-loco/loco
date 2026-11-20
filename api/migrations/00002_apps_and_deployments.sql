@@ -232,6 +232,7 @@ CREATE TABLE
         spec_version INT NOT NULL,
         trigger deployment_trigger NOT NULL,
         source_deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
+        rollback_of_deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
         actor_type deployment_actor_type NOT NULL,
         actor_id UUID NOT NULL,
         method deployment_method NOT NULL,
@@ -256,6 +257,8 @@ CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deploymen
 CREATE INDEX idx_deployments_environment_created_id_desc ON deployments (environment_id, created_at DESC, id DESC);
 
 CREATE INDEX idx_deployments_source_deployment_id ON deployments (source_deployment_id);
+
+CREATE INDEX idx_deployments_rollback_of_deployment_id ON deployments (rollback_of_deployment_id);
 
 -- One region of a deployment.
 CREATE TABLE

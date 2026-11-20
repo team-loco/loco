@@ -42,6 +42,9 @@ const (
 	// DeploymentServiceCancelDeploymentProcedure is the procedure name of the DeploymentService's
 	// CancelDeployment RPC.
 	DeploymentServiceCancelDeploymentProcedure = "/loco.deployment.v1.DeploymentService/CancelDeployment"
+	// DeploymentServiceGetDeploymentCancelImpactProcedure is the procedure name of the
+	// DeploymentService's GetDeploymentCancelImpact RPC.
+	DeploymentServiceGetDeploymentCancelImpactProcedure = "/loco.deployment.v1.DeploymentService/GetDeploymentCancelImpact"
 	// DeploymentServiceResolveImageProcedure is the procedure name of the DeploymentService's
 	// ResolveImage RPC.
 	DeploymentServiceResolveImageProcedure = "/loco.deployment.v1.DeploymentService/ResolveImage"
@@ -90,6 +93,13 @@ var (
 			Procedure:  DeploymentServiceCancelDeploymentProcedure,
 		}
 	})
+	deploymentServiceGetDeploymentCancelImpactSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_deployment_v1_deployment_proto.Services().ByName("DeploymentService").Methods().ByName("GetDeploymentCancelImpact"),
+			Procedure:  DeploymentServiceGetDeploymentCancelImpactProcedure,
+		}
+	})
 	deploymentServiceResolveImageSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -112,8 +122,12 @@ type DeploymentServiceClient interface {
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
 	// CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet
-	// return to the deployment that served them before; regions it already runs keep it.
+	// return to the deployment that served them before; regions it already runs keep it, or
+	// roll back to the version they ran before when the request asks.
 	CancelDeployment(context.Context, *v1.CancelDeploymentRequest) (*v1.CancelDeploymentResponse, error)
+	// GetDeploymentCancelImpact lists the regions that already run a deployment and keep it when
+	// it is canceled, with the version each would roll back to.
+	GetDeploymentCancelImpact(context.Context, *v1.GetDeploymentCancelImpactRequest) (*v1.GetDeploymentCancelImpactResponse, error)
 	// ResolveImage returns the digest-pinned image reference.
 	ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error)
 }
@@ -159,8 +173,12 @@ type DeploymentServiceHandler interface {
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
 	// CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet
-	// return to the deployment that served them before; regions it already runs keep it.
+	// return to the deployment that served them before; regions it already runs keep it, or
+	// roll back to the version they ran before when the request asks.
 	CancelDeployment(context.Context, *v1.CancelDeploymentRequest) (*v1.CancelDeploymentResponse, error)
+	// GetDeploymentCancelImpact lists the regions that already run a deployment and keep it when
+	// it is canceled, with the version each would roll back to.
+	GetDeploymentCancelImpact(context.Context, *v1.GetDeploymentCancelImpactRequest) (*v1.GetDeploymentCancelImpactResponse, error)
 	// ResolveImage returns the digest-pinned image reference.
 	ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error)
 }
@@ -176,6 +194,7 @@ func RegisterDeploymentServiceHandler(server *connect.Server, svc DeploymentServ
 		connect.Method{Spec: deploymentServiceWatchDeploymentSpec(), Handler: adapter.watchDeployment},
 		connect.Method{Spec: deploymentServiceDeleteDeploymentSpec(), Handler: adapter.deleteDeployment},
 		connect.Method{Spec: deploymentServiceCancelDeploymentSpec(), Handler: adapter.cancelDeployment},
+		connect.Method{Spec: deploymentServiceGetDeploymentCancelImpactSpec(), Handler: adapter.getDeploymentCancelImpact},
 		connect.Method{Spec: deploymentServiceResolveImageSpec(), Handler: adapter.resolveImage},
 	)
 }
@@ -221,6 +240,10 @@ func (UnimplementedDeploymentServiceHandler) DeleteDeployment(context.Context, *
 
 func (UnimplementedDeploymentServiceHandler) CancelDeployment(context.Context, *v1.CancelDeploymentRequest) (*v1.CancelDeploymentResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.CancelDeployment is not implemented")
+}
+
+func (UnimplementedDeploymentServiceHandler) GetDeploymentCancelImpact(context.Context, *v1.GetDeploymentCancelImpactRequest) (*v1.GetDeploymentCancelImpactResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.GetDeploymentCancelImpact is not implemented")
 }
 
 func (UnimplementedDeploymentServiceHandler) ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error) {
@@ -274,6 +297,14 @@ func (c *deploymentServiceClient) DeleteDeployment(ctx context.Context, req *v1.
 func (c *deploymentServiceClient) CancelDeployment(ctx context.Context, req *v1.CancelDeploymentRequest) (*v1.CancelDeploymentResponse, error) {
 	var res v1.CancelDeploymentResponse
 	if err := c.client.CallUnary(ctx, deploymentServiceCancelDeploymentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *deploymentServiceClient) GetDeploymentCancelImpact(ctx context.Context, req *v1.GetDeploymentCancelImpactRequest) (*v1.GetDeploymentCancelImpactResponse, error) {
+	var res v1.GetDeploymentCancelImpactResponse
+	if err := c.client.CallUnary(ctx, deploymentServiceGetDeploymentCancelImpactSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -351,6 +382,18 @@ func (h deploymentServiceHandler) cancelDeployment(ctx context.Context, _ connec
 		return err
 	}
 	res, err := h.svc.CancelDeployment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h deploymentServiceHandler) getDeploymentCancelImpact(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetDeploymentCancelImpactRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetDeploymentCancelImpact(ctx, &req)
 	if err != nil {
 		return err
 	}

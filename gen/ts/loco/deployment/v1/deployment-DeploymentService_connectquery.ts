@@ -34,11 +34,20 @@ export const deleteDeployment = DeploymentService.method.deleteDeployment;
 
 /**
  * CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet
- * return to the deployment that served them before; regions it already runs keep it.
+ * return to the deployment that served them before; regions it already runs keep it, or
+ * roll back to the version they ran before when the request asks.
  *
  * @generated from rpc loco.deployment.v1.DeploymentService.CancelDeployment
  */
 export const cancelDeployment = DeploymentService.method.cancelDeployment;
+
+/**
+ * GetDeploymentCancelImpact lists the regions that already run a deployment and keep it when
+ * it is canceled, with the version each would roll back to.
+ *
+ * @generated from rpc loco.deployment.v1.DeploymentService.GetDeploymentCancelImpact
+ */
+export const getDeploymentCancelImpact = DeploymentService.method.getDeploymentCancelImpact;
 
 /**
  * ResolveImage returns the digest-pinned image reference.

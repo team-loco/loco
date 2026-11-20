@@ -1,13 +1,22 @@
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
-import { cancelDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { DeploymentStatus, type Activity, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	cancelDeployment,
+	getDeploymentCancelImpact,
+} from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import {
+	DeploymentStatus,
+	type Activity,
+	type Deployment,
+	type FinishedRegion,
+} from "@gen/loco/deployment/v1/deployment_pb";
 import { ChevronDownIcon, LogsIcon, ScrollTextIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
+import { Checkbox } from "@/components/design/Checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/design/Collapsible";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { CopyId } from "@/components/design/CopyId";
@@ -33,6 +42,7 @@ import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { parseImage } from "@/lib/image";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { maybeTsMs, tsMs } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { isBuildFinished } from "./builds";
@@ -50,6 +60,7 @@ import {
 	type StepState,
 } from "./deployment-progress";
 import { ActivityFeed, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
+import { formatFullTime } from "./format";
 import { depImage, depTag, type RegionView } from "./model";
 
 function regionPhase(m: RolloutMember): DeploymentStatus {
@@ -100,15 +111,28 @@ function ProgressPanel({
 	);
 	const [dismissed, setDismissed] = useState(false);
 	const [confirmingCancel, setConfirmingCancel] = useState(false);
+	const [rollbackFinished, setRollbackFinished] = useState(false);
 	const cancel = useMutation(cancelDeployment);
+	const impactQuery = useQuery(
+		getDeploymentCancelImpact,
+		{ deploymentId: deployment.id },
+		{ enabled: confirmingCancel },
+	);
 	if (dismissed) return null;
+	const finished = impactQuery.data?.finishedRegions ?? [];
+	const restorable = finished.filter((r) => r.previous !== undefined);
 	const confirmCancel = () => {
 		cancel.mutate(
-			{ deploymentId: deployment.id },
+			{ deploymentId: deployment.id, rollbackFinishedRegions: rollbackFinished && restorable.length > 0 },
 			{
-				onSuccess: () => {
-					toast.success(`Canceled ${depTag(deployment)}`);
+				onSuccess: (res) => {
+					toast.success(
+						res.rollbackDeploymentIds.length > 0
+							? `Canceled ${depTag(deployment)} and queued a rollback`
+							: `Canceled ${depTag(deployment)}`,
+					);
 					setConfirmingCancel(false);
+					setRollbackFinished(false);
 				},
 				onError: (err) => {
 					toastConnectError(err, `Could not cancel ${depTag(deployment)}`);
@@ -396,9 +420,72 @@ function ProgressPanel({
 				onConfirm={confirmCancel}
 				onClose={() => {
 					setConfirmingCancel(false);
+					setRollbackFinished(false);
 				}}
-			/>
+			>
+				{finished.length > 0 && (
+					<FinishedRegions
+						finished={finished}
+						restorable={restorable}
+						rollback={rollbackFinished}
+						onRollback={setRollbackFinished}
+					/>
+				)}
+			</ConfirmDialog>
 		</section>
+	);
+}
+
+function FinishedRegions({
+	finished,
+	restorable,
+	rollback,
+	onRollback,
+}: {
+	finished: readonly FinishedRegion[];
+	restorable: readonly FinishedRegion[];
+	rollback: boolean;
+	onRollback: (next: boolean) => void;
+}) {
+	const timePref = useTimePreferences();
+	const checkboxId = useId();
+	const targets = new Set(restorable.map((r) => r.previous?.id));
+	const target = targets.size === 1 ? depTag(restorable[0]?.previous) : "their previous versions";
+	return (
+		<div className="flex flex-col gap-2.5 text-left text-[12.5px]">
+			<ul aria-label="Regions that already run it" className="m-0 flex list-none flex-col gap-1 p-0">
+				{finished.map(({ region, previous }) => {
+					const deployedMs =
+						previous === undefined ? undefined : (maybeTsMs(previous.startedAt) ?? tsMs(previous.createdAt));
+					return (
+						<li key={region} className="flex min-w-0 flex-wrap gap-x-2">
+							<span className="font-mono text-foreground">{region}</span>
+							{previous === undefined || deployedMs === undefined ? (
+								<span className="text-fg3">First deployment here, nothing to roll back to</span>
+							) : (
+								<span className="text-fg2">
+									previous {depTag(previous)}
+									{previous.commit !== undefined && ` · ${shortSha(previous.commit.sha)}`}
+									{` · deployed ${formatFullTime(deployedMs, false, timePref)}`}
+								</span>
+							)}
+						</li>
+					);
+				})}
+			</ul>
+			{restorable.length > 0 && (
+				<label htmlFor={checkboxId} className="flex items-center gap-2 text-foreground">
+					<Checkbox
+						id={checkboxId}
+						checked={rollback}
+						onCheckedChange={(next) => {
+							onRollback(next);
+						}}
+					/>
+					Also roll back {restorable.map((r) => r.region).join(", ")} to {target}
+				</label>
+			)}
+		</div>
 	);
 }
 

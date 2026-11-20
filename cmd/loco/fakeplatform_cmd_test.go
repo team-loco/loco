@@ -75,16 +75,10 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.addEnvironment(args[1])
 		api.mu.Unlock()
-	case "deployment":
-		setDeploymentOutcome(ts, api, neg, args)
-	case "restarted", "scaled", "canceled":
-		checkRecorded(ts, api, neg, args)
-	case "built":
-		checkBuilt(ts, api, neg, args)
-	case "uploaded":
-		checkUploaded(ts, api, neg, args)
-	case "upload-header":
-		checkUploadHeader(ts, api, neg, args)
+	case "deployment", "finished", "restarted", "scaled", "canceled":
+		cmdFakeDeployments(ts, api, neg, args)
+	case "built", "uploaded", "upload-header":
+		cmdFakeSources(ts, api, neg, args)
 	case "secret", "secret-usage":
 		cmdFakeSecrets(ts, api, neg, args)
 	case "wait":
@@ -171,9 +165,14 @@ func setDeploymentOutcome(ts *testscript.TestScript, api *fakeAPI, neg bool, arg
 	api.platform.deploymentCanceledBy[args[1]] = canceledBy
 }
 
-// checkRecorded checks that the fake recorded the restart, scale or cancel the arguments name.
-func checkRecorded(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+// cmdFakeDeployments sets deployment outcomes and finished regions, or checks the restart,
+// scale or cancel the fake recorded.
+func cmdFakeDeployments(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
 	switch args[0] {
+	case "deployment":
+		setDeploymentOutcome(ts, api, neg, args)
+	case "finished":
+		setFinishedRegions(ts, api, neg, args)
 	case "restarted":
 		checkRestarted(ts, api, neg, args)
 	case "scaled":
@@ -183,13 +182,60 @@ func checkRecorded(ts *testscript.TestScript, api *fakeAPI, neg bool, args []str
 	}
 }
 
+// cmdFakeSources checks the builds and source uploads the fake recorded.
+func cmdFakeSources(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	switch args[0] {
+	case "built":
+		checkBuilt(ts, api, neg, args)
+	case "uploaded":
+		checkUploaded(ts, api, neg, args)
+	default:
+		checkUploadHeader(ts, api, neg, args)
+	}
+}
+
 func checkCanceled(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
-	requireArgs(ts, neg, args, 2, "fakeapi canceled <deployment id>")
+	if neg || len(args) < 2 || len(args) > 3 || len(args) == 3 && args[2] != "rollback" && args[2] != "no-rollback" {
+		ts.Fatalf("usage: fakeapi canceled <deployment id> [rollback|no-rollback]")
+	}
 	api.mu.Lock()
 	defer api.mu.Unlock()
 	if !slices.Contains(api.platform.canceledDeployments, args[1]) {
 		ts.Fatalf("fakeapi: %s was not canceled; canceled: %v", args[1], api.platform.canceledDeployments)
 	}
+	if len(args) == 3 && api.platform.canceledRollbacks[args[1]] != (args[2] == "rollback") {
+		ts.Fatalf("fakeapi: cancel of %s asked rollback=%t, want %s",
+			args[1], api.platform.canceledRollbacks[args[1]], args[2])
+	}
+}
+
+// setFinishedRegions makes the deployment already run in each region, after the named earlier
+// deployment or none.
+func setFinishedRegions(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if neg || len(args) < 3 {
+		ts.Fatalf("usage: fakeapi finished <deployment id> <region>=<previous deployment id|none>...")
+	}
+	regions := make([]*deploymentv1.FinishedRegion, 0, len(args)-2)
+	for _, arg := range args[2:] {
+		region, previous, _ := strings.Cut(arg, "=")
+		finished := &deploymentv1.FinishedRegion{Region: region}
+		if previous != "none" {
+			finished.Previous = &deploymentv1.Deployment{
+				Id:        previous,
+				StartedAt: timestamppb.New(time.Date(2026, 11, 18, 14, 2, 0, 0, time.UTC)),
+				Commit:    &deploymentv1.SourceCommit{Sha: strings.Repeat("a", 40)},
+				Spec: &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{
+					Service: &deploymentv1.ServiceDeploymentSpec{Build: &deploymentv1.BuildSource{
+						Image: "registry.example.test/web:" + previous,
+					}},
+				}},
+			}
+		}
+		regions = append(regions, finished)
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	api.platform.finishedRegions[args[1]] = regions
 }
 
 func requireArgs(ts *testscript.TestScript, neg bool, args []string, n int, usage string) {

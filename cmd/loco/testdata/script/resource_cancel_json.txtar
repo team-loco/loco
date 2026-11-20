@@ -1,0 +1,23 @@
+# loco resource cancel --json without --rollback queues no rollback and prints an empty list.
+fakeapi resource web
+fakeapi deployment dep-new deploying
+fakeapi finished dep-new us-east-1=dep-old
+
+exec loco resource cancel web --json
+cmp stdout want.json
+fakeapi canceled dep-new no-rollback
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"
+-- want.json --
+{
+  "deploymentId": "dep-new",
+  "rollbackDeploymentIds": []
+}
