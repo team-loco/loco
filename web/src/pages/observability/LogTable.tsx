@@ -122,7 +122,7 @@ function logColumns({
 			id: "message",
 			header: "Message",
 			size: 200,
-			enableResizing: false,
+			minSize: MIN_COLUMN_WIDTH,
 			meta: { grow: true },
 			cell: ({ row }) => <MessageCell row={row.original} words={words} />,
 		},

@@ -37,7 +37,7 @@ export function ColumnResizeHandle({
 			aria-label={`Resize ${label}`}
 			aria-valuenow={width}
 			aria-valuemin={min}
-			aria-valuemax={max}
+			aria-valuemax={Number.isFinite(max) ? max : undefined}
 			tabIndex={0}
 			onKeyDown={(event) => {
 				if (event.key === "ArrowLeft" || event.key === "ArrowRight") {

@@ -64,7 +64,7 @@ export interface DataColumnMeta {
 	fit?: boolean;
 	/** Caps a `fit` column's automatic width below the `maxSize` the viewer can resize it to. */
 	fitMax?: number;
-	/** Gives the column the width left over once every column has its size; without one, the last column takes it. */
+	/** Gives the column the width left over once every column has its size, until the viewer resizes it; the last column takes it otherwise. */
 	grow?: boolean;
 	/** Holds the row's name; a clickable row shows its arrow after this column's content, the first column by default. */
 	primary?: boolean;
@@ -151,8 +151,8 @@ export function useDataTable<T extends RowData>(
 }
 
 /** One grid track per visible column: resized and fixed columns take their width, `fit` columns their widest cell. */
-function growIndexOf<T extends RowData>(columns: Column<Features, T>[]): number {
-	const grow = columns.findIndex((c) => c.columnDef.meta?.grow === true);
+function growIndexOf<T extends RowData>(columns: Column<Features, T>[], sizing: ColumnSizingState): number {
+	const grow = columns.findIndex((c) => c.columnDef.meta?.grow === true && !(c.id in sizing));
 	return grow === -1 ? columns.length - 1 : grow;
 }
 
@@ -160,12 +160,16 @@ function growIndexOf<T extends RowData>(columns: Column<Features, T>[]): number 
 function widthOf<T extends RowData>(column: Column<Features, T>, sizing: ColumnSizingState): number {
 	const width = sizing[column.id];
 	if (width === undefined) return column.getSize();
-	const { minSize = MIN_WIDTH, maxSize = MAX_WIDTH } = column.columnDef;
-	return Math.min(maxSize, Math.max(minSize, width));
+	return Math.min(maxOf(column), Math.max(column.columnDef.minSize ?? MIN_WIDTH, width));
+}
+
+/** A `grow` column has no default cap, so a drag can start from any width it fills. */
+function maxOf<T extends RowData>(column: Column<Features, T>): number {
+	return column.columnDef.maxSize ?? (column.columnDef.meta?.grow === true ? Infinity : MAX_WIDTH);
 }
 
 export function gridTracks<T extends RowData>(columns: Column<Features, T>[], sizing: ColumnSizingState): string {
-	const growIndex = growIndexOf(columns);
+	const growIndex = growIndexOf(columns, sizing);
 	return columns
 		.map((column, index) => {
 			const size = widthOf(column, sizing);
@@ -335,7 +339,7 @@ function DataTableHead<T extends RowData>({
 					label={columnLabel(column)}
 					width={width}
 					min={column.columnDef.minSize ?? MIN_WIDTH}
-					max={column.columnDef.maxSize ?? MAX_WIDTH}
+					max={maxOf(column)}
 					onWidth={(value) => {
 						column.table.setColumnSizing((prev) => ({
 							...prev,
@@ -407,7 +411,7 @@ export function DataTable<T extends RowData>({
 	const sizing =
 		preview === null ? table.state.columnSizing : { ...table.state.columnSizing, [preview.id]: preview.width };
 	const rows = table.getRowModel().rows;
-	const growIndex = growIndexOf(columns);
+	const growIndex = growIndexOf(columns, sizing);
 	const primaryIndex = Math.max(
 		0,
 		columns.findIndex((c) => c.columnDef.meta?.primary === true),

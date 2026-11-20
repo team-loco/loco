@@ -320,6 +320,15 @@ def drag_handle(page, table, label, dx):
     return during
 
 
+def check_shrink(page, table, label):
+    """Dragging the column that takes the spare width 120px left narrows it by 120px."""
+    before = head_width(table, label)
+    drag_handle(page, table, label, -120)
+    after = head_width(table, label)
+    assert abs(after - (before - 120)) <= 1, (before, after)
+    check_layout(table)
+
+
 def check_resize(page, table, keyboard, drag, reopen, key="ArrowLeft", url_ids=()):
     """Moves `keyboard` 32px with two `key` presses and widens `drag` by a 40px drag, then checks both widths after `reopen`."""
     before = head_width(table, keyboard)
@@ -619,6 +628,7 @@ def logs(page):
     table = check_resize(
         page, table, "Time", "Resource", logs_table, "ArrowRight", ("time", "resource")
     )
+    check_shrink(page, table, "Message")
     cell = table.get_by_role("cell").nth(3)
     cell.evaluate(
         "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"
@@ -681,6 +691,7 @@ def traces(page):
     table = check_resize(
         page, table, "Time", "Root span", traces_table, url_ids=("when", "span")
     )
+    check_shrink(page, table, "Root span")
     table.get_by_role(
         "row", name="Open trace GET /api/checkout/payments/reconciliation/1"
     ).press("Enter")

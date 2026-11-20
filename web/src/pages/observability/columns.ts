@@ -70,8 +70,9 @@ export function columnWidth(key: ColumnKey, widths: ColumnWidths = {}): number {
 	return widths[key] ?? WIDTHS[key] ?? ATTRIBUTE_WIDTH;
 }
 
-export function clampWidth(width: number): number {
-	return Math.round(Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, width)));
+// The table caps each column at its own maximum; the message column has none.
+function clampWidth(width: number): number {
+	return Math.round(Math.max(MIN_COLUMN_WIDTH, width));
 }
 
 function serializeWidths(widths: ColumnWidths): string {
