@@ -2,12 +2,11 @@ import { CopyIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { LevelChip } from "@/components/design/LevelChip";
 import { RowMenu } from "@/components/design/RowMenu";
-import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -17,12 +16,9 @@ import { MemberAvatar } from "@/pages/team/MemberAvatar";
 import { accessByLevel, accessChips, expiresLabel, lastUsedLabel, tokenStatus } from "./model";
 import type { AccessChip, Creator, EntityTree } from "./model";
 
-const SKELETON_ROWS = [0, 1, 2, 3];
-const COLUMNS = 6;
-
 function AccessCell({ chips }: { chips: AccessChip[] }) {
 	return (
-		<div className="flex min-w-0 flex-wrap gap-1">
+		<div className="flex min-w-0 flex-wrap gap-1 *:shrink-0">
 			{accessByLevel(chips).map((g) => {
 				const names = g.nodes.map((n) => (n.kind === "ws" ? `${n.label} workspace` : n.label)).join(", ");
 				return <LevelChip key={g.level} level={g.level} name={names} title={`${LEVEL_LABEL[g.level]} ${names}`} />;
@@ -31,7 +27,7 @@ function AccessCell({ chips }: { chips: AccessChip[] }) {
 	);
 }
 
-function CreatorCell({ token, creator, now }: { token: Token; creator: Creator | undefined; now: number }) {
+export function CreatorCell({ token, creator, now }: { token: Token; creator: Creator | undefined; now: number }) {
 	const created = maybeTsMs(token.createdAt);
 	const name = token.createdBy === "" ? "Unknown" : (creator?.name ?? "") || token.createdBy;
 	return (
@@ -73,17 +69,114 @@ function TokenMenu({
 	);
 }
 
-export function TokenTable({
-	tokens,
+function tokenColumns({
 	creators,
 	tree,
 	now,
-	isLoading,
-	empty,
 	canDuplicate,
 	canRevoke,
 	onDuplicate,
 	onRevoke,
+}: {
+	creators: ReadonlyMap<string, Creator>;
+	tree: EntityTree;
+	now: number;
+	canDuplicate: boolean;
+	canRevoke: boolean;
+	onDuplicate: (token: Token) => void;
+	onRevoke: (token: Token) => void;
+}): DataColumn<Token>[] {
+	return [
+		{
+			id: "token",
+			header: "Token",
+			size: 220,
+			minSize: 120,
+			meta: { fit: true, fitMax: 220 },
+			cell: ({ row: { original: t } }) => (
+				<span className="flex min-w-0 flex-col gap-px font-mono text-[13px]">
+					<CellText text={t.name} />
+					{t.displaySuffix !== "" && <span className="text-[11px] text-fg3">loco_k_…{t.displaySuffix}</span>}
+				</span>
+			),
+		},
+		{
+			id: "access",
+			header: "Access",
+			size: 200,
+			minSize: 100,
+			meta: { fit: true, fitMax: 320 },
+			cell: ({ row: { original: t } }) => <AccessCell chips={accessChips(tree, t)} />,
+		},
+		{
+			id: "creator",
+			header: "Created by",
+			size: 190,
+			minSize: 100,
+			meta: { grow: true },
+			cell: ({ row: { original: t } }) => <CreatorCell token={t} creator={creators.get(t.createdBy)} now={now} />,
+		},
+		{
+			id: "used",
+			header: "Last used",
+			size: 110,
+			minSize: 80,
+			cell: ({ row: { original: t } }) => (
+				<span className={cn("font-mono text-[12px]", t.lastUsedAt === undefined ? "text-fg3" : "text-fg2")}>
+					{lastUsedLabel(t, now)}
+				</span>
+			),
+		},
+		{
+			id: "expires",
+			header: "Expires",
+			size: 130,
+			minSize: 90,
+			cell: ({ row: { original: t } }) => {
+				const status = tokenStatus(t, now);
+				return (
+					<span
+						className={cn(
+							"flex min-w-0 items-center gap-2",
+							status === "expired" && "text-bad-fg",
+							status === "expiring" && "text-warn-fg",
+							status === "active" && "text-fg2",
+						)}
+					>
+						{status === "expired" && <StatusGlyph glyph="err" />}
+						{status === "expiring" && <StatusGlyph glyph="warn" />}
+						<CellText text={expiresLabel(t, now)} />
+					</span>
+				);
+			},
+		},
+		{
+			id: "menu",
+			enableResizing: false,
+			meta: { align: "end", pinEnd: true, label: "Actions" },
+			cell: ({ row: { original: t } }) => (
+				<TokenMenu
+					token={t}
+					canDuplicate={canDuplicate}
+					canRevoke={canRevoke}
+					onDuplicate={() => {
+						onDuplicate(t);
+					}}
+					onRevoke={() => {
+						onRevoke(t);
+					}}
+				/>
+			),
+		},
+	];
+}
+
+export function TokenTable({
+	tokens,
+	isLoading,
+	empty,
+	now,
+	...columns
 }: {
 	tokens: Token[];
 	creators: ReadonlyMap<string, Creator>;
@@ -96,100 +189,20 @@ export function TokenTable({
 	onDuplicate: (token: Token) => void;
 	onRevoke: (token: Token) => void;
 }) {
+	const table = useDataTable("tokens", {
+		columns: tokenColumns({ ...columns, now }),
+		data: tokens,
+		getRowId: (t) => t.name,
+		enableSorting: false,
+		manualPagination: true,
+	});
 	return (
-		<Table className="min-w-[880px] table-fixed">
-			<TableHeader>
-				<TableRow>
-					<TableHead className="w-[24%]">Token</TableHead>
-					<TableHead>Access</TableHead>
-					<TableHead className="w-[190px]">Created by</TableHead>
-					<TableHead className="w-[110px]">Last used</TableHead>
-					<TableHead className="w-[130px]">Expires</TableHead>
-					<TableHead className="w-[72px]" />
-				</TableRow>
-			</TableHeader>
-			<TableBody>
-				{isLoading &&
-					SKELETON_ROWS.map((i) => (
-						<TableRow key={i}>
-							<TableCell>
-								<Skeleton className="h-3.5 w-36" />
-							</TableCell>
-							<TableCell>
-								<Skeleton className="h-5 w-48" />
-							</TableCell>
-							<TableCell>
-								<Skeleton className="h-3.5 w-24" />
-							</TableCell>
-							<TableCell>
-								<Skeleton className="h-3.5 w-16" />
-							</TableCell>
-							<TableCell>
-								<Skeleton className="h-3.5 w-20" />
-							</TableCell>
-							<TableCell />
-						</TableRow>
-					))}
-				{!isLoading && tokens.length === 0 && (
-					<TableRow>
-						<TableCell colSpan={COLUMNS} className="h-auto p-0 whitespace-normal">
-							{empty}
-						</TableCell>
-					</TableRow>
-				)}
-				{!isLoading &&
-					tokens.map((t) => {
-						const status = tokenStatus(t, now);
-						return (
-							<TableRow key={t.name} className={cn(status === "expired" && "opacity-65")}>
-								<TableCell className="truncate font-mono text-[13px]" title={t.name}>
-									<span className="flex min-w-0 flex-col gap-px">
-										<span className="truncate">{t.name}</span>
-										{t.displaySuffix !== "" && <span className="text-[11px] text-fg3">loco_k_…{t.displaySuffix}</span>}
-									</span>
-								</TableCell>
-								<TableCell className="whitespace-normal">
-									<AccessCell chips={accessChips(tree, t)} />
-								</TableCell>
-								<TableCell>
-									<CreatorCell token={t} creator={creators.get(t.createdBy)} now={now} />
-								</TableCell>
-								<TableCell
-									className={cn("font-mono text-[12px]", t.lastUsedAt === undefined ? "text-fg3" : "text-fg2")}
-								>
-									{lastUsedLabel(t, now)}
-								</TableCell>
-								<TableCell>
-									<span
-										className={cn(
-											"flex items-center gap-2",
-											status === "expired" && "text-bad-fg",
-											status === "expiring" && "text-warn-fg",
-											status === "active" && "text-fg2",
-										)}
-									>
-										{status === "expired" && <StatusGlyph glyph="err" />}
-										{status === "expiring" && <StatusGlyph glyph="warn" />}
-										{expiresLabel(t, now)}
-									</span>
-								</TableCell>
-								<TableCell className="text-right">
-									<TokenMenu
-										token={t}
-										canDuplicate={canDuplicate}
-										canRevoke={canRevoke}
-										onDuplicate={() => {
-											onDuplicate(t);
-										}}
-										onRevoke={() => {
-											onRevoke(t);
-										}}
-									/>
-								</TableCell>
-							</TableRow>
-						);
-					})}
-			</TableBody>
-		</Table>
+		<DataTable
+			table={table}
+			label="Tokens"
+			loading={isLoading}
+			empty={empty}
+			rowClassName={(row) => tokenStatus(row.original, now) === "expired" && "opacity-65"}
+		/>
 	);
 }

@@ -14,13 +14,14 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Button } from "@/components/design/Button";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { Skeleton } from "@/components/design/Skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Textarea } from "@/components/design/Textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
@@ -34,6 +35,105 @@ import { SettingsCard, SettingsSection } from "./parts";
 
 const MAX_DESCRIPTION = 256;
 const MAX_DISPLAY_NAME = 63;
+
+function environmentColumns({
+	canWrite,
+	workspaceName,
+	resourcesPending,
+	counts,
+	deleteBlocked,
+	onEdit,
+	onDelete,
+}: {
+	canWrite: boolean;
+	workspaceName: string;
+	resourcesPending: boolean;
+	counts: ReadonlyMap<string, number>;
+	deleteBlocked: (env: Environment) => string | null;
+	onEdit: (env: Environment) => void;
+	onDelete: (env: Environment) => void;
+}): DataColumn<Environment>[] {
+	return [
+		{
+			id: "name",
+			header: "Name",
+			size: 110,
+			minSize: 100,
+			meta: { grow: true },
+			cell: ({ row: { original: env } }) => (
+				<span className="flex min-w-0 flex-col">
+					<CellText text={env.displayName} />
+					{env.displayName !== env.name && <CellText text={env.name} className="font-mono text-[12px] text-fg3" />}
+				</span>
+			),
+		},
+		{
+			id: "description",
+			header: "Description",
+			size: 300,
+			minSize: 100,
+			cell: ({ row: { original: env } }) =>
+				(env.description ?? "") === "" ? (
+					<span className="text-fg4">—</span>
+				) : (
+					<CellText text={env.description ?? ""} className="text-[12.5px] text-fg2" />
+				),
+		},
+		{
+			id: "resources",
+			header: "Resources",
+			size: 120,
+			minSize: 90,
+			meta: { cellClassName: "font-mono text-[12px] text-fg3" },
+			cell: ({ row: { original: env } }) => (resourcesPending ? "—" : pluralize(counts.get(env.id) ?? 0, "resource")),
+		},
+		{
+			id: "actions",
+			enableResizing: false,
+			meta: { align: "end", pinEnd: true, label: "Actions" },
+			cell: ({ row: { original: env } }) => {
+				const blocked = deleteBlocked(env);
+				const button = (
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						aria-label={`Delete ${env.displayName}`}
+						disabled={blocked !== null}
+						onClick={() => {
+							onDelete(env);
+						}}
+					>
+						<Trash2Icon />
+					</Button>
+				);
+				return (
+					<span className="flex">
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-label={`Edit ${env.displayName}`}
+							disabled={!canWrite}
+							title={canWrite ? undefined : `Requires Write on ${workspaceName}`}
+							onClick={() => {
+								onEdit(env);
+							}}
+						>
+							<PencilIcon />
+						</Button>
+						{blocked === null ? (
+							button
+						) : (
+							<Tooltip>
+								<TooltipTrigger render={<span className="inline-flex" />}>{button}</TooltipTrigger>
+								<TooltipContent>{blocked}</TooltipContent>
+							</Tooltip>
+						)}
+					</span>
+				);
+			},
+		},
+	];
+}
 
 export function EnvironmentsSection({
 	orgId,
@@ -55,6 +155,7 @@ export function EnvironmentsSection({
 	const remove = useMutation(deleteEnvironment);
 	const [editing, setEditing] = useState<Environment | "new" | null>(null);
 	const [deleting, setDeleting] = useState<Environment | null>(null);
+	const mobile = useIsMobile();
 
 	const environments = envsQuery.data?.environments ?? [];
 	const limits = useOrgLimits(orgId);
@@ -77,6 +178,23 @@ export function EnvironmentsSection({
 		const n = counts.get(env.id) ?? 0;
 		return n > 0 ? `${env.displayName} still runs ${pluralize(n, "resource")}` : null;
 	};
+
+	const table = useDataTable("environments", {
+		data: environments,
+		getRowId: (env) => env.id,
+		state: { columnVisibility: { description: !mobile } },
+		enableSorting: false,
+		manualPagination: true,
+		columns: environmentColumns({
+			canWrite,
+			workspaceName,
+			resourcesPending: resourcesQuery.isPending,
+			counts,
+			deleteBlocked,
+			onEdit: setEditing,
+			onDelete: setDeleting,
+		}),
+	});
 
 	const confirmDelete = (env: Environment) => {
 		remove.mutate(
@@ -123,72 +241,7 @@ export function EnvironmentsSection({
 				) : environments.length === 0 ? (
 					<div className="px-5 py-7 text-fg3">No environments yet.</div>
 				) : (
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Name</TableHead>
-								<TableHead className="hidden md:table-cell">Description</TableHead>
-								<TableHead>Resources</TableHead>
-								<TableHead className="w-20">
-									<span className="sr-only">Actions</span>
-								</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{environments.map((env) => {
-								const blocked = deleteBlocked(env);
-								const button = (
-									<Button
-										variant="ghost"
-										size="icon-sm"
-										aria-label={`Delete ${env.displayName}`}
-										disabled={blocked !== null}
-										onClick={() => {
-											setDeleting(env);
-										}}
-									>
-										<Trash2Icon />
-									</Button>
-								);
-								return (
-									<TableRow key={env.id}>
-										<TableCell>
-											<div>{env.displayName}</div>
-											{env.displayName !== env.name && <div className="font-mono text-[12px] text-fg3">{env.name}</div>}
-										</TableCell>
-										<TableCell className="hidden max-w-0 truncate text-[12.5px] text-fg2 md:table-cell">
-											{(env.description ?? "") === "" ? <span className="text-fg4">—</span> : env.description}
-										</TableCell>
-										<TableCell className="font-mono text-[12px] text-fg3">
-											{resourcesQuery.isPending ? "—" : pluralize(counts.get(env.id) ?? 0, "resource")}
-										</TableCell>
-										<TableCell className="text-right whitespace-nowrap">
-											<Button
-												variant="ghost"
-												size="icon-sm"
-												aria-label={`Edit ${env.displayName}`}
-												disabled={!canWrite}
-												title={canWrite ? undefined : `Requires Write on ${workspaceName}`}
-												onClick={() => {
-													setEditing(env);
-												}}
-											>
-												<PencilIcon />
-											</Button>
-											{blocked === null ? (
-												button
-											) : (
-												<Tooltip>
-													<TooltipTrigger render={<span className="inline-flex" />}>{button}</TooltipTrigger>
-													<TooltipContent>{blocked}</TooltipContent>
-												</Tooltip>
-											)}
-										</TableCell>
-									</TableRow>
-								);
-							})}
-						</TableBody>
-					</Table>
+					<DataTable table={table} label="Environments" empty={null} />
 				)}
 				{permissionNote !== null && (
 					<p className="m-0 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">{permissionNote}</p>

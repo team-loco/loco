@@ -9,12 +9,11 @@ import { toast } from "sonner";
 import { cancelBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { BuildStatus, type Build } from "@gen/loco/build/v1/build_pb";
 
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/design/Collapsible";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { CopyButton } from "@/components/design/CopyButton";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { StatusBadge } from "@/components/design/StatusBadge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
@@ -34,8 +33,6 @@ import {
 } from "./builds";
 import { formatFullTime } from "./format";
 import { BUILD_LOG_LIMIT, useBuildLog } from "./useBuilds";
-
-const COLUMNS = 7;
 
 export interface BuildActor {
 	name: string;
@@ -233,6 +230,120 @@ export function BuildDetail({
 	);
 }
 
+/** How long ago `ms` was, with the full time on hover. */
+export function TimeAgo({ ms, nowMs }: { ms: number | undefined; nowMs: number }) {
+	const timePref = useTimePreferences();
+	return (
+		<span title={ms === undefined ? undefined : formatFullTime(ms, false, timePref)}>
+			{ms === undefined ? "—" : agoLabel(ms, nowMs)}
+		</span>
+	);
+}
+
+export const TIME_CELL = "font-mono text-[12px] text-fg2";
+
+function buildColumns(
+	actors: ReadonlyMap<string, BuildActor>,
+	nowMs: number,
+	openId: string | null,
+	onOpen: (id: string | null) => void,
+): DataColumn<Build>[] {
+	return [
+		{
+			id: "toggle",
+			size: 40,
+			minSize: 40,
+			enableResizing: false,
+			meta: { label: "Details", fit: true },
+			cell: ({ row: { original: build } }) => {
+				const expanded = openId === build.id;
+				return (
+					<Button
+						variant="ghost"
+						size="icon-xs"
+						aria-expanded={expanded}
+						aria-label={`${expanded ? "Hide" : "Show"} build ${formatShortId(build.id)}`}
+						onClick={() => {
+							onOpen(expanded ? null : build.id);
+						}}
+					>
+						<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
+					</Button>
+				);
+			},
+		},
+		{
+			id: "status",
+			header: "Status",
+			size: 140,
+			minSize: 90,
+			cell: ({ row: { original: build } }) => <StatusBadge {...buildStatusStyle(build.status)} />,
+		},
+		{
+			id: "build",
+			header: "Build",
+			size: 100,
+			minSize: 80,
+			meta: { cellClassName: "font-mono text-[12.5px]" },
+			cell: ({ row: { original: build } }) => formatShortId(build.id),
+		},
+		{
+			id: "actor",
+			header: "Started by",
+			size: 220,
+			minSize: 90,
+			cell: ({ row: { original: build } }) => {
+				const actor = actors.get(build.createdBy);
+				const starter = buildStarter(build, actor);
+				return (
+					<span className="flex min-w-0 items-center gap-2">
+						<MemberAvatar
+							name={actor?.name ?? starter.name}
+							email={actor?.email ?? ""}
+							avatarUrl={actor?.avatarUrl ?? ""}
+							className="size-[22px]"
+						/>
+						<span className="flex min-w-0 flex-col">
+							<CellText text={starter.name} />
+							{starter.detail !== "" && <CellText text={starter.detail} className="text-[11.5px] text-fg3" />}
+						</span>
+					</span>
+				);
+			},
+		},
+		{
+			id: "image",
+			header: "Image",
+			size: 160,
+			minSize: 90,
+			meta: { grow: true },
+			cell: ({ row: { original: build } }) => {
+				const image = buildImageLabel(build);
+				return <CellText text={image.text} className={cn("font-mono text-[12px]", image.muted && "text-fg3")} />;
+			},
+		},
+		{
+			id: "took",
+			header: "Took",
+			size: 72,
+			minSize: 72,
+			meta: { align: "end", cellClassName: TIME_CELL },
+			cell: ({ row: { original: build } }) => {
+				const took = buildTookMs(build);
+				return took === undefined ? "—" : formatBuildDuration(took);
+			},
+		},
+		{
+			id: "time",
+			header: "Time",
+			size: 100,
+			minSize: 72,
+			meta: { align: "end", cellClassName: TIME_CELL },
+			cell: ({ row: { original: build } }) => <TimeAgo ms={maybeTsMs(build.createdAt)} nowMs={nowMs} />,
+		},
+	];
+}
+
 export function BuildsTable({
 	builds,
 	actors,
@@ -256,109 +367,34 @@ export function BuildsTable({
 	logsHref: (buildId: string) => string | undefined;
 	onCanceled: () => void;
 }) {
-	const timePref = useTimePreferences();
-
+	const table = useDataTable("builds", {
+		columns: buildColumns(actors, nowMs, openId, onOpen),
+		data: builds,
+		getRowId: (build) => build.id,
+		enableSorting: false,
+		manualPagination: true,
+	});
 	return (
-		<Table className="min-w-[860px]">
-			<TableHeader>
-				<TableRow>
-					<TableHead className="w-6" />
-					<TableHead className="w-[140px]">Status</TableHead>
-					<TableHead className="w-[100px]">Build</TableHead>
-					<TableHead className="w-[220px]">Started by</TableHead>
-					<TableHead>Image</TableHead>
-					<TableHead className="w-[72px] text-right">Took</TableHead>
-					<TableHead className="w-[100px] text-right">Time</TableHead>
-				</TableRow>
-			</TableHeader>
-			<TableBody>
-				{builds.length === 0 && (
-					<TableRow>
-						<TableCell colSpan={COLUMNS} className="h-24 text-center text-fg3">
-							No builds yet.
-						</TableCell>
-					</TableRow>
-				)}
-			</TableBody>
-			{builds.map((build) => {
-				const expanded = openId === build.id;
-				const style = buildStatusStyle(build.status);
-				const actor = actors.get(build.createdBy);
-				const starter = buildStarter(build, actor);
-				const image = buildImageLabel(build);
-				const took = buildTookMs(build);
-				const created = maybeTsMs(build.createdAt);
-				const toggle = () => {
-					onOpen(expanded ? null : build.id);
-				};
-				return (
-					<Collapsible
-						key={build.id}
-						open={expanded}
-						onOpenChange={(next) => {
-							onOpen(next ? build.id : null);
-						}}
-						render={<TableBody />}
-					>
-						<TableRow className={expanded ? "border-b-0" : undefined} onClick={toggle}>
-							<TableCell>
-								<CollapsibleTrigger
-									render={<Button variant="ghost" size="icon-xs" />}
-									aria-label={`${expanded ? "Hide" : "Show"} build ${formatShortId(build.id)}`}
-									onClick={(e) => {
-										e.stopPropagation();
-									}}
-								>
-									<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
-								</CollapsibleTrigger>
-							</TableCell>
-							<TableCell>
-								<StatusBadge {...style} />
-							</TableCell>
-							<TableCell className="font-mono text-[12.5px]">{formatShortId(build.id)}</TableCell>
-							<TableCell>
-								<span className="flex min-w-0 items-center gap-2">
-									<MemberAvatar
-										name={actor?.name ?? starter.name}
-										email={actor?.email ?? ""}
-										avatarUrl={actor?.avatarUrl ?? ""}
-										className="size-[22px]"
-									/>
-									<span className="flex min-w-0 flex-col">
-										<span className="truncate">{starter.name}</span>
-										<span className="truncate text-[11.5px] text-fg3">{starter.detail}</span>
-									</span>
-								</span>
-							</TableCell>
-							<TableCell className={cn("truncate font-mono text-[12px]", image.muted && "text-fg3")}>
-								{image.text}
-							</TableCell>
-							<TableCell className="text-right font-mono text-[12px] text-fg2">
-								{took === undefined ? "—" : formatBuildDuration(took)}
-							</TableCell>
-							<TableCell
-								className="text-right font-mono text-[12px] text-fg2"
-								title={created === undefined ? undefined : formatFullTime(created, false, timePref)}
-							>
-								{created === undefined ? "—" : agoLabel(created, nowMs)}
-							</TableCell>
-						</TableRow>
-						<CollapsibleContent render={<TableRow />} className="data-closed:hidden">
-							<TableCell colSpan={COLUMNS} className="h-auto p-0 whitespace-normal">
-								<BuildDetail
-									build={build}
-									actors={actors}
-									workspaceId={workspaceId}
-									deployment={deploymentFor(build.id)}
-									logsHref={logsHref(build.id)}
-									canWrite={canWrite}
-									onCanceled={onCanceled}
-								/>
-							</TableCell>
-						</CollapsibleContent>
-					</Collapsible>
-				);
-			})}
-		</Table>
+		<DataTable
+			table={table}
+			label="Builds"
+			empty={<div className="flex h-24 items-center justify-center text-fg3">No builds yet.</div>}
+			onRowClick={(row) => {
+				onOpen(openId === row.id ? null : row.id);
+			}}
+			renderExpanded={(row) =>
+				openId === row.id ? (
+					<BuildDetail
+						build={row.original}
+						actors={actors}
+						workspaceId={workspaceId}
+						deployment={deploymentFor(row.id)}
+						logsHref={logsHref(row.id)}
+						canWrite={canWrite}
+						onCanceled={onCanceled}
+					/>
+				) : null
+			}
+		/>
 	);
 }

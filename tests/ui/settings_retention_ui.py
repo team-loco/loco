@@ -46,7 +46,7 @@ with session(out) as browser:
             expect(events.get_by_role("cell").last).to_have_text("90 days")
             expect(images.get_by_text("Raised", exact=True)).to_have_count(0)
             if narrow:
-                scroller = limits.locator('[data-slot="table-container"]')
+                scroller = limits.locator('[data-slot="data-table"]')
                 events.get_by_role("cell").last.scroll_into_view_if_needed()
                 assert scroller.evaluate("node => node.scrollLeft > 0")
                 expect(events.get_by_role("cell").last).to_be_in_viewport()

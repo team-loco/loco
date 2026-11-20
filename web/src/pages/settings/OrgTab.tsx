@@ -4,16 +4,17 @@ import { deleteOrg, updateOrg } from "@gen/loco/org/v1/org-OrgService_connectque
 import type { Organization, User } from "@gen/loco/org/v1/org_pb";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronRightIcon, PlusIcon } from "lucide-react";
-import { useState, type MouseEvent } from "react";
+import { PlusIcon } from "lucide-react";
+import { useState } from "react";
 import { parseAsString, useQueryState } from "nuqs";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { CopyId } from "@/components/design/CopyId";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
@@ -23,9 +24,9 @@ import { Pager } from "@/components/design/Pager";
 import { SaveBar } from "@/components/design/SaveBar";
 import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { CreateScopeDialog } from "@/components/shell/CreateScopeDialog";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { useOrgLimitDetails } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
@@ -41,6 +42,70 @@ import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
 const MAX_NAME = 100;
 const PAGE_SIZES = [25, 50, 100] as const;
+
+function workspaceColumns({
+	orgId,
+	currentWorkspaceId,
+	counts,
+	onOpenWorkspace,
+	createdLabel,
+}: {
+	orgId: string;
+	currentWorkspaceId: string;
+	counts: Map<string, ResourceCount>;
+	onOpenWorkspace: (workspace: Workspace) => boolean;
+	createdLabel: (workspace: Workspace) => string;
+}): DataColumn<Workspace>[] {
+	return [
+		{
+			id: "name",
+			header: "Name",
+			size: 160,
+			minSize: 100,
+			meta: { primary: true },
+			cell: ({ row: { original: w } }) => (
+				<span className="flex min-w-0 items-center gap-2">
+					<CellText
+						text={w.name}
+						render={
+							<Link
+								to={settingsPath(orgId, w.id, "workspace")}
+								onClick={(e) => {
+									if (onOpenWorkspace(w)) e.preventDefault();
+								}}
+							/>
+						}
+						className="font-mono text-[13px] text-foreground no-underline"
+					/>
+					{w.id === currentWorkspaceId && <Badge tone="pill">current</Badge>}
+				</span>
+			),
+		},
+		{
+			id: "description",
+			header: "Description",
+			size: 240,
+			minSize: 100,
+			meta: { grow: true },
+			cell: ({ row: { original: w } }) => <CellText text={w.description || "—"} className="text-[12.5px] text-fg2" />,
+		},
+		{
+			id: "resources",
+			header: "Resources",
+			size: 120,
+			minSize: 90,
+			meta: { cellClassName: "text-[12.5px] text-fg2" },
+			cell: ({ row: { original: w } }) => formatResourceCount(counts.get(w.id)),
+		},
+		{
+			id: "created",
+			header: "Created",
+			size: 220,
+			minSize: 100,
+			cell: ({ row: { original: w } }) => <CellText text={createdLabel(w)} className="text-[12px] text-fg3" />,
+		},
+	];
+}
 
 export function OrgTab({
 	org,
@@ -66,7 +131,8 @@ export function OrgTab({
 	currentWorkspaceId: string;
 	draft: string | null;
 	onDraft: (name: string | null) => void;
-	onOpenWorkspace: (event: MouseEvent, workspace: Workspace) => void;
+	/** Opens the workspace in place and reports whether it did; otherwise the caller navigates to its settings. */
+	onOpenWorkspace: (workspace: Workspace) => boolean;
 	memberCount: number | undefined;
 }) {
 	const timePref = useTimePreferences();
@@ -115,6 +181,22 @@ export function OrgTab({
 		const u = users.find((x) => x.id === id);
 		return u ? userLabel(u) : "";
 	};
+
+	const navigate = useNavigate();
+	const mobile = useIsMobile();
+	const createdLabel = (w: Workspace) => {
+		const by = userName(w.createdBy);
+		const day = formatDay(w.createdAt, timePref);
+		return by === "" ? day : `${day} · ${by}`;
+	};
+	const table = useDataTable("org-workspaces", {
+		data: paged.rows,
+		getRowId: (w) => w.id,
+		state: { columnVisibility: { description: !mobile, created: !mobile } },
+		enableSorting: false,
+		manualPagination: true,
+		columns: workspaceColumns({ orgId: org.id, currentWorkspaceId, counts, onOpenWorkspace, createdLabel }),
+	});
 
 	const save = () => {
 		if (nameErr !== null || update.isPending) return;
@@ -241,55 +323,15 @@ export function OrgTab({
 						{workspaces.length === 0 ? "No workspaces yet." : "No workspaces match."}
 					</div>
 				) : (
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Name</TableHead>
-								<TableHead className="hidden md:table-cell">Description</TableHead>
-								<TableHead>Resources</TableHead>
-								<TableHead className="hidden md:table-cell">Created</TableHead>
-								<TableHead className="w-6">
-									<span className="sr-only">Open</span>
-								</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{paged.rows.map((w) => {
-								const by = userName(w.createdBy);
-								const day = formatDay(w.createdAt, timePref);
-								return (
-									<TableRow key={w.id} interactive className="relative">
-										<TableCell>
-											<Link
-												to={settingsPath(org.id, w.id, "workspace")}
-												className="font-mono text-[13px] text-foreground no-underline after:absolute after:inset-0"
-												onClick={(e) => {
-													onOpenWorkspace(e, w);
-												}}
-											>
-												{w.name}
-											</Link>
-											{w.id === currentWorkspaceId && (
-												<Badge tone="pill" className="ml-2">
-													current
-												</Badge>
-											)}
-										</TableCell>
-										<TableCell className="hidden max-w-0 truncate text-[12.5px] text-fg2 md:table-cell">
-											{w.description || "—"}
-										</TableCell>
-										<TableCell className="text-[12.5px] text-fg2">{formatResourceCount(counts.get(w.id))}</TableCell>
-										<TableCell className="hidden text-[12px] text-fg3 md:table-cell">
-											{by === "" ? day : `${day} · ${by}`}
-										</TableCell>
-										<TableCell className="text-fg3">
-											<ChevronRightIcon className="size-3.5" />
-										</TableCell>
-									</TableRow>
-								);
-							})}
-						</TableBody>
-					</Table>
+					<DataTable
+						table={table}
+						label="Workspaces"
+						onRowClick={({ original: w }) => {
+							if (!onOpenWorkspace(w)) void navigate(settingsPath(org.id, w.id, "workspace"));
+						}}
+						rowAction="navigate"
+						empty={null}
+					/>
 				)}
 				<Pager {...paged.pager} {...paged.ends} className="pt-3 pb-3.5" />
 			</Section>

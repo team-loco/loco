@@ -19,10 +19,11 @@ import { SearchInput } from "@/components/design/SearchInput";
 import { parseAsString, useQueryStates } from "nuqs";
 import { WebhookActions } from "./WebhookActions";
 import { Skeleton } from "@/components/design/Skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 import { LimitedAction } from "@/components/design/LimitedAction";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { limitReason, limitUsage } from "@/lib/limits";
 
@@ -63,6 +64,7 @@ export function WebhooksPage({
 	};
 	const [openId, setOpenId] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState<Webhook | null>(null);
+	const mobile = useIsMobile();
 
 	const webhooks = query.data?.webhooks ?? [];
 	const filtered = webhooks.filter((w) =>
@@ -87,6 +89,25 @@ export function WebhooksPage({
 			},
 		);
 	};
+
+	const onChanged = () => {
+		void queryClient.invalidateQueries({ queryKey: listKey });
+		void refreshDeliveries(queryClient);
+	};
+	const table = useDataTable("webhooks", {
+		columns: webhookColumns({
+			workspaceId,
+			workspaceName,
+			onOpen: setOpenId,
+			onDelete: setDeleting,
+			onChanged,
+		}),
+		data: filtered,
+		getRowId: (w) => w.id,
+		state: { columnVisibility: { events: !mobile, created: !mobile } },
+		enableSorting: false,
+		manualPagination: true,
+	});
 
 	const usage =
 		query.data === undefined
@@ -141,39 +162,15 @@ export function WebhooksPage({
 				) : filtered.length === 0 ? (
 					<div className="px-5 py-7 text-center text-[13px] text-fg3">No webhooks match.</div>
 				) : (
-					<Table className="table-fixed">
-						<TableHeader>
-							<TableRow>
-								<TableHead className="w-[45%] md:w-[38%]">Endpoint</TableHead>
-								<TableHead className="hidden w-[130px] md:table-cell">Events</TableHead>
-								<TableHead>Last {DELIVERY_TICKS} deliveries</TableHead>
-								<TableHead className="hidden w-[130px] md:table-cell">Created</TableHead>
-								<TableHead className="w-10">
-									<span className="sr-only">Actions</span>
-								</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{filtered.map((w) => (
-								<WebhookRow
-									key={w.id}
-									workspaceId={workspaceId}
-									workspaceName={workspaceName}
-									onChanged={() => {
-										void queryClient.invalidateQueries({ queryKey: listKey });
-										void refreshDeliveries(queryClient);
-									}}
-									webhook={w}
-									onOpen={() => {
-										setOpenId(w.id);
-									}}
-									onDelete={() => {
-										setDeleting(w);
-									}}
-								/>
-							))}
-						</TableBody>
-					</Table>
+					<DataTable
+						table={table}
+						label="Webhooks"
+						activeRowId={openId}
+						onRowClick={(row) => {
+							setOpenId(row.id);
+						}}
+						empty={null}
+					/>
 				)}
 			</Section>
 
@@ -224,67 +221,95 @@ export function WebhooksPage({
 	);
 }
 
-function WebhookRow({
+function Created({ webhook }: { webhook: Webhook }) {
+	const timePref = useTimePreferences();
+	return <>{formatDay(webhook.createdAt, timePref)}</>;
+}
+
+function webhookColumns({
 	workspaceId,
 	workspaceName,
-	webhook,
 	onOpen,
 	onDelete,
 	onChanged,
 }: {
 	workspaceId: string;
 	workspaceName: string;
-	webhook: Webhook;
-	onOpen: () => void;
-	onDelete: () => void;
+	onOpen: (id: string) => void;
+	onDelete: (webhook: Webhook) => void;
 	onChanged: () => void;
-}) {
-	const timePref = useTimePreferences();
-	const url = new URL(webhook.url);
-	return (
-		<TableRow onClick={onOpen}>
-			<TableCell>
-				<button
-					type="button"
-					aria-label={`Deliveries for ${webhook.url}`}
-					title={webhook.url}
-					className="block w-full text-left font-mono"
-				>
-					<span className={cn("block truncate text-[13px]", webhook.name !== "" && "font-sans")}>
-						{webhook.name === "" ? url.host : webhook.name}
-					</span>
-					<span className="block truncate text-[11.5px] text-fg3">
-						{webhook.name === "" ? "" : url.host}
-						{url.pathname}
-						{url.search}
-					</span>
-				</button>
-			</TableCell>
-			<TableCell className="hidden text-[12.5px] whitespace-nowrap text-fg2 md:table-cell">
-				{eventsSummary(webhook.eventTypes)}
-			</TableCell>
-			<TableCell>
-				<DeliveryTicks workspaceId={workspaceId} webhookId={webhook.id} />
-			</TableCell>
-			<TableCell className="hidden font-mono text-[12px] whitespace-nowrap text-fg3 md:table-cell">
-				{formatDay(webhook.createdAt, timePref)}
-			</TableCell>
-			<TableCell
-				onClick={(e) => {
-					e.stopPropagation();
-				}}
-			>
+}): DataColumn<Webhook>[] {
+	return [
+		{
+			id: "endpoint",
+			header: "Endpoint",
+			size: 160,
+			minSize: 140,
+			meta: { grow: true },
+			cell: ({ row: { original: webhook } }) => {
+				const url = new URL(webhook.url);
+				return (
+					<button
+						type="button"
+						aria-label={`Deliveries for ${webhook.url}`}
+						className="block w-full min-w-0 text-left font-mono"
+						onClick={() => {
+							onOpen(webhook.id);
+						}}
+					>
+						<CellText
+							text={webhook.name === "" ? url.host : webhook.name}
+							className={cn("text-[13px]", webhook.name !== "" && "font-sans")}
+						/>
+						<CellText
+							text={`${webhook.name === "" ? "" : url.host}${url.pathname}${url.search}`}
+							className="text-[11.5px] text-fg3"
+						/>
+					</button>
+				);
+			},
+		},
+		{
+			id: "events",
+			header: "Events",
+			size: 130,
+			minSize: 90,
+			meta: { fit: true, cellClassName: "text-[12.5px] whitespace-nowrap text-fg2" },
+			cell: ({ row: { original: webhook } }) => <CellText text={eventsSummary(webhook.eventTypes)} />,
+		},
+		{
+			id: "deliveries",
+			header: `Last ${DELIVERY_TICKS.toString()} deliveries`,
+			size: 140,
+			minSize: 120,
+			cell: ({ row: { original: webhook } }) => <DeliveryTicks workspaceId={workspaceId} webhookId={webhook.id} />,
+		},
+		{
+			id: "created",
+			header: "Created",
+			size: 130,
+			minSize: 90,
+			meta: { fit: true, cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3" },
+			cell: ({ row: { original: webhook } }) => <Created webhook={webhook} />,
+		},
+		{
+			id: "menu",
+			enableResizing: false,
+			meta: { align: "end", pinEnd: true, label: "Actions" },
+			cell: ({ row: { original: webhook } }) => (
 				<WebhookActions
 					menuOnly
 					workspaceId={workspaceId}
 					workspaceName={workspaceName}
 					webhook={webhook}
-					onDelete={onDelete}
+					onDelete={() => {
+						onDelete(webhook);
+					}}
 					onChanged={onChanged}
 				/>
-			</TableCell>
-		</TableRow>
-	);
+			),
+		},
+	];
 }
 
 function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhookId: string }) {

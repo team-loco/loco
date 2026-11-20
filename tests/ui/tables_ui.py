@@ -2,7 +2,7 @@ import argparse
 import re
 from datetime import UTC, datetime, timedelta
 
-from harness import call, evidence, load_state, open_page, repo, session
+from harness import call, evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import TimeoutError as PlaywrightTimeout, expect
 
 parser = argparse.ArgumentParser(
@@ -19,6 +19,7 @@ base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 TOOLTIP = '[data-slot="tooltip-content"]'
 LONG_NAME = "checkout-payments-reconciliation-worker-eu"
 LONG_IMAGE = "registry.example.test/team/checkout-payments:2026.11.19-build-4812"
+DIGEST = "sha256:" + "a" * 64
 
 
 def runtime(image, regions):
@@ -76,7 +77,7 @@ def seed():
         }
         for env in ("production", "staging")
     ]
-    evidence.seed_resources(
+    ids = evidence.seed_resources(
         state,
         [
             {
@@ -87,6 +88,47 @@ def seed():
             }
             for name in (LONG_NAME, "api", "web")
         ],
+    )
+    production = next(e["id"] for e in environments if e["name"] == "production")
+    owner = state["users"]["owner"]["id"]
+    sql(
+        state,
+        "INSERT INTO builds (method, origin_environment_id, platform, id, resource_id, status, source_type, source_key,"
+        " source_size, dockerfile_path, context, image_repository, image_digest, message, created_by, created_at,"
+        " started_at, finished_at) VALUES"
+        + ",".join(
+            f"('cli', '{production}', 'linux/amd64', gen_random_uuid(), '{ids['acme/shared/api']}', 'succeeded', 'upload',"
+            f" 'api/{i}', 1024, 'Dockerfile', '.', 'registry.example.test/team/checkout-payments', '{DIGEST}', '', '{owner}',"
+            f" NOW() - INTERVAL '{i * 10 + 5} minutes', NOW() - INTERVAL '{i * 10 + 4} minutes',"
+            f" NOW() - INTERVAL '{i * 10 + 2} minutes')"
+            for i in range(3)
+        ),
+    )
+    call(
+        state,
+        "loco.token.v1.TokenService/CreateToken",
+        {
+            "name": "ci-deploy-checkout-payments-reconciliation",
+            "entityType": "ENTITY_TYPE_ORGANIZATION",
+            "entityId": org,
+            "expiresInSec": "3600",
+            "scopes": [
+                {
+                    "entityType": "ENTITY_TYPE_ORGANIZATION",
+                    "entityId": org,
+                    "scope": "SCOPE_READ",
+                }
+            ],
+        },
+    )
+    call(
+        state,
+        "loco.webhook.v1.WebhookService/CreateWebhook",
+        {
+            "workspaceId": workspace,
+            "url": "https://hooks.invalid/checkout/payments/reconciliation",
+            "eventTypes": ["resource.created", "deployment.succeeded"],
+        },
     )
 
 
@@ -256,6 +298,8 @@ def drag_handle(page, table, label, dx):
         "node => node.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' })"
     )
     on_top(handle)
+    # hover waits until the handle holds still and receives the pointer.
+    handle.hover()
     box = handle.bounding_box()
     x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
     page.mouse.move(x, y)
@@ -477,6 +521,13 @@ def logs_table(page):
     return table
 
 
+def shows_whole(page, text):
+    """At the default 16px text size the text is not truncated."""
+    if page.evaluate("getComputedStyle(document.documentElement).fontSize") != "16px":
+        return
+    assert text.evaluate("node => node.scrollWidth <= node.clientWidth"), text
+
+
 def fits_at_16px(page, table):
     """At the default 16px text size the table needs no sideways scroll."""
     if page.evaluate("getComputedStyle(document.documentElement).fontSize") != "16px":
@@ -563,6 +614,178 @@ def traces(page):
     expect(page).to_have_url(re.compile(f"trace={1 + 1:032x}"))
 
 
+def named_table(name, ready):
+    """Opens the table called `name` once a row containing `ready` shows."""
+
+    def reopen(page):
+        table = page.get_by_role("table", name=name, exact=True)
+        expect(table.get_by_role("row").filter(has_text=ready).first).to_be_visible()
+        return table
+
+    return reopen
+
+
+def check_table(page, reopen, keyboard, drag, key="ArrowRight", clickable=True):
+    """Checks layout, the pointer and arrow-free rows for a table that opens details in place, then resizing."""
+    table = reopen(page)
+    check_layout(table)
+    fits_at_16px(page, table)
+    if clickable:
+        expect_pointer(
+            page,
+            table.locator("tbody tr[data-interactive]")
+            .first.get_by_role("cell")
+            .nth(1),
+        )
+    else:
+        expect(table.locator("tbody tr[data-interactive]")).to_have_count(0)
+    expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    return check_resize(page, table, keyboard, drag, reopen, key)
+
+
+def recent_deployments(page):
+    page.goto(base + "?env=production")
+    reopen = named_table("Deployments", LONG_NAME)
+    table = reopen(page)
+    check_layout(table)
+    fits_at_16px(page, table)
+    row = table.get_by_role("row").filter(has_text="api").first
+    expect_pointer(page, row.get_by_role("cell").nth(5))
+    check_arrow(page, table, row, None)
+    table = check_resize(page, table, "Deployed by", "Region", reopen, "ArrowLeft")
+    table.get_by_role("row").filter(has_text="api").first.get_by_role("cell").nth(
+        5
+    ).click()
+    expect(page).to_have_url(re.compile(r"/resource/"))
+
+
+def history(page):
+    resource = next(
+        r["id"]
+        for r in call(
+            state,
+            "loco.resource.v1.ResourceService/ListWorkspaceResources",
+            {"workspaceId": workspace},
+        )["resources"]
+        if r["name"] == "api"
+    )
+    page.goto(base + f"/resource/{resource}?env=production")
+    reopen = named_table("Deployments", "current")
+    table = check_table(page, reopen, "Deployed by", "Version")
+    width = scroller_of(page, table).evaluate("node => node.scrollWidth")
+    table.locator("tbody tr[data-interactive]").first.get_by_role("cell").nth(4).click()
+    expect(
+        table.get_by_role("button", name=re.compile("^Hide details for"))
+    ).to_be_visible()
+    expect(
+        table.get_by_role("button", name="View spec", exact=True).first
+    ).to_be_visible()
+    check_layout(table)
+    # Expanded details never widen the columns.
+    assert scroller_of(page, table).evaluate("node => node.scrollWidth") == width
+    page.get_by_role("tab", name=re.compile(r"^Builds")).click()
+    reopen = named_table("Builds", "Olivia Owner")
+    table = check_table(page, reopen, "Started by", "Status", "ArrowLeft")
+    width = scroller_of(page, table).evaluate("node => node.scrollWidth")
+    table.locator("tbody tr[data-interactive]").first.get_by_role("cell").nth(4).click()
+    expect(table.get_by_role("button", name=re.compile("^Hide build"))).to_be_visible()
+    check_layout(table)
+    assert scroller_of(page, table).evaluate("node => node.scrollWidth") == width
+
+
+def organizations(page):
+    page.goto(state["ui_url"] + "/organizations")
+    reopen = named_table("Organizations", "beta")
+    table = reopen(page)
+    check_layout(table)
+    fits_at_16px(page, table)
+    row = table.get_by_role("row", name="Open beta", exact=True)
+    expect_pointer(page, row.get_by_role("cell").nth(1))
+    check_arrow(page, table, row, row.get_by_role("button", name="Actions for beta"))
+    table = check_resize(page, table, "Your role", "Created", reopen, "ArrowRight")
+    table.get_by_role("row", name="Open beta", exact=True).get_by_role("cell").nth(
+        1
+    ).click()
+    expect(page).not_to_have_url(re.compile(r"/organizations"))
+
+
+def settings(page):
+    page.goto(base + "/settings?scope=org")
+    reopen = named_table("Workspaces", "sibling")
+    table = reopen(page)
+    check_layout(table)
+    row = table.get_by_role("row").filter(has_text="sibling")
+    expect_pointer(page, row.get_by_role("cell").nth(2))
+    check_arrow(page, table, row, None)
+    check_resize(page, table, "Resources", "Name", reopen, "ArrowRight")
+    reopen = named_table("Limits", "Build images")
+    table = reopen(page)
+    expect(table.locator("tbody tr[data-group]")).to_have_text("History kept")
+    check_layout(table)
+    fits_at_16px(page, table)
+    expect(table.locator("tbody tr[data-interactive]")).to_have_count(0)
+    shows_whole(page, table.get_by_text("User, organization, workspace or resource"))
+    before = head_width(table, "In use")
+    handle = table.get_by_role("separator", name="Resize In use")
+    handle.focus()
+    handle.press("ArrowRight")
+    handle.press("ArrowRight")
+    assert abs(head_width(table, "In use") - (before + 32)) <= 1
+    page.reload()
+    assert abs(head_width(reopen(page), "In use") - (before + 32)) <= 1
+    named_table("Workspaces", "sibling")(page).get_by_role("row").filter(
+        has_text="sibling"
+    ).get_by_role("cell").nth(2).click()
+    expect(page).to_have_url(
+        re.compile(f"/wks/{state['workspaces']['acme/sibling']}/settings")
+    )
+
+    page.goto(base + "/settings?scope=workspace")
+    check_table(
+        page,
+        named_table("Environments", "Staging EU West"),
+        "Resources",
+        "Description",
+        clickable=False,
+    )
+    check_table(
+        page, named_table("Retention", "Traces"), "Workspace", "Signal", clickable=False
+    )
+
+
+def team(page):
+    page.goto(state["ui_url"] + f"/org/{org}/team")
+    check_table(
+        page,
+        named_table("People", "Max Member"),
+        "Last active",
+        "Role",
+        clickable=False,
+    )
+
+
+def tokens(page):
+    page.goto(state["ui_url"] + "/tokens?owner=organization")
+    check_table(
+        page,
+        named_table("Tokens", "ci-deploy"),
+        "Last used",
+        "Created by",
+        clickable=False,
+    )
+
+
+def webhooks(page):
+    page.goto(base + "/webhooks")
+    reopen = named_table("Webhooks", "hooks.invalid")
+    shows_whole(
+        page, reopen(page).get_by_text("/checkout/payments/reconciliation", exact=True)
+    )
+    table = check_table(page, reopen, "Events", "Created")
+    table.locator("tbody tr[data-interactive]").first.get_by_role("cell").nth(2).click()
+    expect(page.get_by_role("dialog", name="hooks.invalid", exact=True)).to_be_visible()
+
+
 with session(
     repo / "tests/ui/out/tables", ignore_default_args=["--hide-scrollbars"]
 ) as browser:
@@ -571,7 +794,20 @@ with session(
         context.add_init_script(
             f"document.addEventListener('DOMContentLoaded', () => {{ document.documentElement.style.fontSize = '{root}'; }})"
         )
-        for check in (resources, dashboard, logs, traces, audit):
+        for check in (
+            resources,
+            dashboard,
+            recent_deployments,
+            history,
+            logs,
+            traces,
+            audit,
+            organizations,
+            settings,
+            team,
+            tokens,
+            webhooks,
+        ):
             check(page)
         assert not errors, errors
         context.close()
@@ -605,6 +841,28 @@ with session(
     table = audit_table(page)
     check_layout(table)
     check_fade(scroller_of(page, table))
+    for path, name, ready in (
+        ("/organizations", "Organizations", "beta"),
+        (f"/org/{org}/wks/{workspace}/settings?scope=org", "Workspaces", "sibling"),
+        (
+            f"/org/{org}/wks/{workspace}/settings?scope=workspace",
+            "Environments",
+            "Staging EU West",
+        ),
+        (f"/org/{org}/wks/{workspace}/webhooks", "Webhooks", "hooks.invalid"),
+        (f"/org/{org}/wks/{workspace}/settings?scope=workspace", "Retention", "Traces"),
+    ):
+        page.goto(state["ui_url"] + path)
+        table = named_table(name, ready)(page)
+        assert scroller_of(page, table).evaluate(
+            "node => node.scrollWidth <= node.clientWidth"
+        ), f"{name} scrolls sideways at phone width"
+    page.goto(state["ui_url"] + "/tokens?owner=organization")
+    table = named_table("Tokens", "ci-deploy")(page)
+    for row in table.locator("tbody tr").all():
+        chip = row.locator('[data-slot="chip"]').last.bounding_box()
+        actions = row.locator('[data-pin="end"]').bounding_box()
+        assert chip["x"] + chip["width"] <= actions["x"], (chip, actions)
     assert not errors, errors
     context.close()
 print(

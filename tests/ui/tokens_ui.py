@@ -66,11 +66,11 @@ with session(repo / "tests/ui/out/tokens") as browser:
     page.goto(state["ui_url"] + "/tokens?owner=organization")
     menu = page.get_by_role("button", name="Actions for ci-source")
     expect(menu).to_be_visible()
-    container = page.locator('[data-slot="table-container"]').first
+    container = page.locator('[data-slot="data-table"]').first
     assert container.get_attribute("data-scroll") is None
     assert container.evaluate("node => getComputedStyle(node).maskImage") == "none"
     gap = menu.evaluate(
-        "node => node.closest('[data-slot=\"table-container\"]').getBoundingClientRect().right"
+        "node => node.closest('[data-slot=\"data-table\"]').getBoundingClientRect().right"
         " - node.getBoundingClientRect().right"
     )
     padding = menu.evaluate(

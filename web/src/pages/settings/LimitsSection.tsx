@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/design/Badge";
 import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { formatCount } from "@/lib/format";
@@ -32,31 +32,79 @@ type LimitRow = {
 /** GetOrgLimits lists a raised limit by its proto field name. */
 const protoField = (key: LimitKey) => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
-function Rows({ rows, limits }: { rows: readonly LimitRow[]; limits: OrgLimits | undefined }) {
-	return rows.map((row) => {
-		const limit = limits?.limits?.[row.key];
-		const tone = row.used === undefined ? null : limitTone(limitUsage(row.used, limit, row.label, ""));
-		return (
-			<TableRow key={row.key}>
-				<TableCell>{row.label}</TableCell>
-				<TableCell className="text-fg2">{row.per}</TableCell>
-				<TableCell className={cn("font-mono", tone === null ? "text-fg2" : LIMIT_TONE_TEXT[tone])}>
-					{row.used === undefined ? "—" : formatCount(row.used)}
-				</TableCell>
-				<TableCell className="text-right font-mono">
-					<span className="inline-flex items-center justify-end gap-2">
-						{limits?.overridden.includes(protoField(row.key)) === true && (
-							<Badge tone="info" size="sm">
-								Raised
-							</Badge>
-						)}
-						{limit === undefined ? "—" : `${formatCount(limit)}${row.unit === undefined ? "" : ` ${row.unit}`}`}
-					</span>
-				</TableCell>
-			</TableRow>
-		);
-	});
+interface Row {
+	label: string;
+	per: string;
+	used: string;
+	usedClass: string;
+	value: string;
+	raised: boolean;
+	group: string | undefined;
 }
+
+function limitRow(row: LimitRow, limits: OrgLimits | undefined, group?: string): Row {
+	const limit = limits?.limits?.[row.key];
+	const tone = row.used === undefined ? null : limitTone(limitUsage(row.used, limit, row.label, ""));
+	return {
+		label: row.label,
+		per: row.per,
+		used: row.used === undefined ? "—" : formatCount(row.used),
+		usedClass: tone === null ? "text-fg2" : LIMIT_TONE_TEXT[tone],
+		value: limit === undefined ? "—" : `${formatCount(limit)}${row.unit === undefined ? "" : ` ${row.unit}`}`,
+		raised: limits?.overridden.includes(protoField(row.key)) === true,
+		group,
+	};
+}
+
+const HISTORY = "History kept";
+
+function retentionRow(label: string, per: string, value: string): Row {
+	return { label, per, used: "—", usedClass: "text-fg2", value, raised: false, group: HISTORY };
+}
+
+const COLUMNS: DataColumn<Row>[] = [
+	{
+		id: "label",
+		header: "Limit",
+		size: 200,
+		minSize: 100,
+		meta: { fit: true },
+		cell: ({ row: { original: row } }) => <CellText text={row.label} />,
+	},
+	{
+		id: "per",
+		header: "Counted per",
+		size: 200,
+		minSize: 100,
+		meta: { grow: true },
+		cell: ({ row: { original: row } }) => <CellText text={row.per} className="text-fg2" />,
+	},
+	{
+		id: "used",
+		header: "In use",
+		size: 110,
+		minSize: 72,
+		meta: { fit: true },
+		cell: ({ row: { original: row } }) => <span className={cn("font-mono", row.usedClass)}>{row.used}</span>,
+	},
+	{
+		id: "limit",
+		header: "Limit",
+		size: 160,
+		minSize: 100,
+		meta: { align: "end", fit: true },
+		cell: ({ row: { original: row } }) => (
+			<span className="inline-flex items-center justify-end gap-2 font-mono whitespace-nowrap">
+				{row.raised && (
+					<Badge tone="info" size="sm">
+						Raised
+					</Badge>
+				)}
+				{row.value}
+			</span>
+		),
+	},
+];
 
 function RaisedBanner({ org, limits, users }: { org: Organization; limits: OrgLimits; users: User[] }): ReactNode {
 	const timePref = useTimePreferences();
@@ -113,58 +161,46 @@ export function LimitsSection({
 		{ key: "traceRetentionDays", label: "Traces", per: "Organization", unit: "days" },
 		{ key: "metricRetentionDays", label: "Metrics", per: "Organization", unit: "days" },
 	];
+	const rows: Row[] = [
+		...limitRows.map((row) => limitRow(row, limits)),
+		...historyRows.map((row) => limitRow(row, limits, HISTORY)),
+		retentionRow(
+			"Build images",
+			"Resource, plus images in use",
+			retention === undefined
+				? "—"
+				: retention.buildImagesPerResource === 0
+					? "Cleanup disabled"
+					: formatCount(retention.buildImagesPerResource),
+		),
+		retentionRow(
+			"Events and webhook deliveries",
+			"Organization",
+			eventDays === undefined
+				? "—"
+				: `${new Intl.NumberFormat(undefined, { maximumSignificantDigits: 9 }).format(eventDays)} days`,
+		),
+	];
+	const table = useDataTable("limits", {
+		columns: COLUMNS,
+		data: rows,
+		getRowId: (row) => row.label,
+		enableSorting: false,
+		manualPagination: true,
+	});
 	return (
 		<SettingsSection id="s-lim" title="Limits">
 			<SettingsCard>
 				{limits !== undefined && limits.overridden.length > 0 && (
 					<RaisedBanner org={org} limits={limits} users={users} />
 				)}
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Limit</TableHead>
-							<TableHead>Counted per</TableHead>
-							<TableHead>In use</TableHead>
-							<TableHead className="text-right">Limit</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						<Rows rows={limitRows} limits={limits} />
-						<TableRow data-subheader>
-							<TableCell colSpan={4} className="h-10 border-t border-line2 py-0 text-[12.5px] text-fg3">
-								History kept
-							</TableCell>
-						</TableRow>
-						<Rows rows={historyRows} limits={limits} />
-						{[
-							{
-								label: "Build images",
-								per: "Resource, plus images in use",
-								value:
-									retention === undefined
-										? "—"
-										: retention.buildImagesPerResource === 0
-											? "Cleanup disabled"
-											: formatCount(retention.buildImagesPerResource),
-							},
-							{
-								label: "Events and webhook deliveries",
-								per: "Organization",
-								value:
-									eventDays === undefined
-										? "—"
-										: `${new Intl.NumberFormat(undefined, { maximumSignificantDigits: 9 }).format(eventDays)} days`,
-							},
-						].map((row) => (
-							<TableRow key={row.label}>
-								<TableCell>{row.label}</TableCell>
-								<TableCell className="text-fg2">{row.per}</TableCell>
-								<TableCell className="font-mono text-fg2">—</TableCell>
-								<TableCell className="text-right font-mono">{row.value}</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+				<DataTable
+					table={table}
+					label="Limits"
+					className="[&_tr[data-group]]:border-t"
+					groupBy={(row) => row.group}
+					empty={null}
+				/>
 			</SettingsCard>
 		</SettingsSection>
 	);

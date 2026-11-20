@@ -11,9 +11,9 @@ import { Link } from "react-router";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Badge } from "@/components/design/Badge";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/design/Collapsible";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
 import { Spinner } from "@/components/design/Spinner";
@@ -21,14 +21,13 @@ import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { PlacementChips } from "@/components/design/PlacementChips";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { deploymentImage, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
-import { agoLabel, maybeTsMs, readyMs, tsMs } from "@/lib/time";
+import { maybeTsMs, readyMs, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -36,13 +35,12 @@ import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { formatCount } from "@/lib/format";
 
 import { buildStatusStyle, deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
-import { BuildDetail, BuildsTable, type BuildActor } from "./BuildsTable";
+import { BuildDetail, BuildsTable, TIME_CELL, TimeAgo, type BuildActor } from "./BuildsTable";
 import { formatDuration, formatFullTime } from "./format";
 import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
 
-const BASE_COLUMNS = 8;
 const DEFAULT_PAGE_SIZE = 10;
 const BUILD_PAGE_SIZE = 5;
 const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
@@ -194,6 +192,116 @@ function Detail({
 	);
 }
 
+function rolloutColumns(
+	nowMs: number,
+	open: string | null,
+	setOpen: (key: string | null) => void,
+): DataColumn<RolloutRow>[] {
+	return [
+		{
+			id: "toggle",
+			size: 40,
+			minSize: 40,
+			enableResizing: false,
+			meta: { label: "Details", fit: true },
+			cell: ({ row: { original: rollout } }) => {
+				const expanded = open === rollout.key;
+				return (
+					<Button
+						variant="ghost"
+						size="icon-xs"
+						aria-expanded={expanded}
+						aria-label={`${expanded ? "Hide" : "Show"} details for ${formatShortId(rollout.rows[0].dep.id)}`}
+						onClick={() => {
+							setOpen(expanded ? null : rollout.key);
+						}}
+					>
+						<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
+					</Button>
+				);
+			},
+		},
+		{
+			id: "status",
+			header: "Status",
+			size: 110,
+			minSize: 90,
+			meta: { fit: true, fitMax: 140 },
+			cell: ({ row: { original: rollout } }) => {
+				const { dep } = leadRow(rollout.rows);
+				return <DeploymentStatusBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />;
+			},
+		},
+		{
+			id: "version",
+			header: "Version",
+			size: 130,
+			minSize: 90,
+			meta: { fit: true, fitMax: 160 },
+			cell: ({ row: { original: rollout } }) => (
+				<span className="flex min-w-0 items-center gap-1.5">
+					<CellText text={depTag(leadRow(rollout.rows).dep)} className="font-mono text-[12.5px] text-foreground" />
+					{rollout.rows.some((r) => r.isCurrent) && <Badge tone="pill">current</Badge>}
+				</span>
+			),
+		},
+		{
+			id: "actor",
+			header: "Deployed by",
+			size: 120,
+			minSize: 90,
+			cell: ({ row: { original: rollout } }) => <DeploymentActor deployment={leadRow(rollout.rows).dep} />,
+		},
+		{
+			id: "region",
+			header: "Region",
+			size: 120,
+			minSize: 100,
+			meta: { fit: true, fitMax: 160 },
+			cell: ({ row: { original: rollout } }) => (
+				<PlacementChips placements={leadRow(rollout.rows).dep.placements} className="flex-col items-start" />
+			),
+		},
+		{
+			id: "message",
+			header: "Message",
+			size: 80,
+			minSize: 72,
+			meta: { grow: true },
+			cell: ({ row: { original: rollout } }) => (
+				<CellText text={historyMessage(leadRow(rollout.rows).dep)} className="text-fg2" />
+			),
+		},
+		{
+			id: "took",
+			header: "Took",
+			size: 64,
+			minSize: 64,
+			meta: { align: "end", cellClassName: TIME_CELL },
+			cell: ({ row: { original: rollout } }) => {
+				const tooks = rollout.rows.flatMap((r) => tookMs(r.dep) ?? []);
+				return tooks.length === rollout.rows.length ? formatDuration(Math.max(...tooks)) : "—";
+			},
+		},
+		{
+			id: "started",
+			header: "Started",
+			size: 84,
+			minSize: 72,
+			meta: { align: "end", cellClassName: TIME_CELL },
+			cell: ({ row: { original: rollout } }) => <TimeAgo ms={maybeTsMs(rollout.rows[0].dep.createdAt)} nowMs={nowMs} />,
+		},
+		{
+			id: "deployed",
+			header: "Deployed",
+			size: 84,
+			minSize: 72,
+			meta: { align: "end", cellClassName: TIME_CELL },
+			cell: ({ row: { original: rollout } }) => <TimeAgo ms={readyMs(rollout.rows[0].dep)} nowMs={nowMs} />,
+		},
+	];
+}
+
 export function DeploymentsSection({
 	resourceId,
 	workspaceId,
@@ -227,7 +335,6 @@ export function DeploymentsSection({
 	onViewSpec: (dep: Deployment) => void;
 	nowMs: number;
 }) {
-	const timePref = useTimePreferences();
 	const transport = useTransport();
 	const [pagination, setPagination] = useState<Paging>({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [open, setOpen] = useState<string | null>(null);
@@ -259,8 +366,14 @@ export function DeploymentsSection({
 		first === undefined ? [] : [{ key: first.dep.id, rows: [first, ...rest] }],
 	);
 	const deployRows = pagedRows(rollouts, pagination, setPagination, PAGE_SIZES);
-	const multiRegion = regions.length > 1;
-	const columns = BASE_COLUMNS + (multiRegion ? 1 : 0);
+	const deployTable = useDataTable("deployments", {
+		columns: rolloutColumns(nowMs, open, setOpen),
+		data: deployRows.rows,
+		getRowId: (rollout) => rollout.key,
+		state: { columnVisibility: { region: regions.length > 1 } },
+		enableSorting: false,
+		manualPagination: true,
+	});
 
 	const byBuild = deploymentsByBuild(all);
 	const actors = new Map<string, BuildActor>(
@@ -328,124 +441,39 @@ export function DeploymentsSection({
 				</div>
 				<TabsContent value="deploys" className="pt-1.5">
 					<div aria-busy={isLoadingMore}>
-						<Table inset className="min-w-[900px] table-fixed [--row-h:58px]">
-							<TableHeader>
-								<TableRow>
-									<TableHead className="w-7" />
-									<TableHead className="w-[130px]">Status</TableHead>
-									<TableHead className="w-[150px]">Version</TableHead>
-									<TableHead className="w-[170px]">Deployed by</TableHead>
-									{multiRegion && <TableHead className="w-[110px]">Region</TableHead>}
-									<TableHead>Message</TableHead>
-									<TableHead className="w-[72px] text-right">Took</TableHead>
-									<TableHead className="w-[100px] text-right">Started</TableHead>
-									<TableHead className="w-[100px] text-right">Deployed</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{deployRows.rows.length === 0 && (
-									<TableRow>
-										<TableCell colSpan={columns} className="h-24 text-center text-fg3">
-											No deployments yet.
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-							{deployRows.rows.map(({ key, rows }) => {
-								const { dep } = leadRow(rows);
-								const isCurrent = rows.some((r) => r.isCurrent);
-								const expanded = open === key;
-								const tooks = rows.flatMap((r) => tookMs(r.dep) ?? []);
-								const took = tooks.length === rows.length ? Math.max(...tooks) : undefined;
-								const created = maybeTsMs(rows[0].dep.createdAt);
-								const deployed = readyMs(rows[0].dep);
-								const toggle = () => {
-									setOpen(expanded ? null : key);
-								};
-								return (
-									<Collapsible
-										key={key}
-										open={expanded}
-										onOpenChange={(next) => {
-											setOpen(next ? key : null);
-										}}
-										render={<TableBody />}
-									>
-										<TableRow className={expanded ? "border-b-0" : undefined} onClick={toggle}>
-											<TableCell>
-												<CollapsibleTrigger
-													render={<Button variant="ghost" size="icon-xs" />}
-													aria-label={`${expanded ? "Hide" : "Show"} details for ${formatShortId(rows[0].dep.id)}`}
-													onClick={(e) => {
-														e.stopPropagation();
-													}}
-												>
-													<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
-												</CollapsibleTrigger>
-											</TableCell>
-											<TableCell>
-												<DeploymentStatusBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />
-											</TableCell>
-											<TableCell>
-												<span className="flex min-w-0 items-center gap-1.5">
-													<span className="truncate font-mono text-[12.5px] text-foreground">{depTag(dep)}</span>
-													{isCurrent && <Badge tone="pill">current</Badge>}
-												</span>
-											</TableCell>
-											<TableCell>
-												<DeploymentActor deployment={dep} />
-											</TableCell>
-											{multiRegion && (
-												<TableCell>
-													<PlacementChips placements={dep.placements} className="flex-col items-start" />
-												</TableCell>
-											)}
-											<TableCell className="max-w-0 truncate text-fg2" title={historyMessage(dep)}>
-												{historyMessage(dep)}
-											</TableCell>
-											<TableCell className="text-right font-mono text-[12px] text-fg2">
-												{took === undefined ? "—" : formatDuration(took)}
-											</TableCell>
-											<TableCell
-												className="text-right font-mono text-[12px] text-fg2"
-												title={created === undefined ? undefined : formatFullTime(created, false, timePref)}
+						<DataTable
+							table={deployTable}
+							inset
+							label="Deployments"
+							className="[--row-h:58px]"
+							empty={<div className="flex h-24 items-center justify-center text-fg3">No deployments yet.</div>}
+							onRowClick={(row) => {
+								setOpen(open === row.id ? null : row.id);
+							}}
+							renderExpanded={({ id, original: { rows } }) =>
+								open === id
+									? rows.map((row) => (
+											<section
+												key={row.region.name}
+												aria-label={rows.length > 1 ? `Deployment in ${row.region.name}` : undefined}
 											>
-												{created === undefined ? "—" : agoLabel(created, nowMs)}
-											</TableCell>
-											<TableCell
-												className="text-right font-mono text-[12px] text-fg2"
-												title={deployed === undefined ? undefined : formatFullTime(deployed, false, timePref)}
-											>
-												{deployed === undefined ? "—" : agoLabel(deployed, nowMs)}
-											</TableCell>
-										</TableRow>
-										<CollapsibleContent render={<TableRow />} className="data-closed:hidden">
-											<TableCell colSpan={columns} className="h-auto p-0 whitespace-normal">
-												{rows.map((row) => (
-													<section
-														key={row.region.name}
-														aria-label={rows.length > 1 ? `Deployment in ${row.region.name}` : undefined}
-													>
-														{rows.length > 1 && (
-															<h3 className="m-0 pt-3 font-mono text-[12px] font-medium text-fg2 md:pl-9">
-																{row.region.name}
-															</h3>
-														)}
-														<Detail
-															row={row}
-															logsHref={logsHref}
-															onRollback={onRollback}
-															onViewSpec={onViewSpec}
-															onOpenBuild={goBuild}
-														/>
-													</section>
-												))}
-											</TableCell>
-										</CollapsibleContent>
-									</Collapsible>
-								);
-							})}
-						</Table>
+												{rows.length > 1 && (
+													<h3 className="m-0 pt-3 font-mono text-[12px] font-medium text-fg2 md:pl-9">
+														{row.region.name}
+													</h3>
+												)}
+												<Detail
+													row={row}
+													logsHref={logsHref}
+													onRollback={onRollback}
+													onViewSpec={onViewSpec}
+													onOpenBuild={goBuild}
+												/>
+											</section>
+										))
+									: null
+							}
+						/>
 					</div>
 					<Pager
 						{...deployRows.pager}

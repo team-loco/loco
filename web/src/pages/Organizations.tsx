@@ -13,7 +13,8 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { DataTable, useDataTable } from "@/components/design/DataTable";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { userOrgsOptions } from "@/hooks/userOrgs";
 import { usePagedRows } from "@/lib/paging";
@@ -23,7 +24,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { limitReason, limitUsage } from "@/lib/limits";
 
 import { CreateOrgDialog } from "@/components/shell/CreateOrgDialog";
-import { OrgRow } from "./organizations/OrgRow";
+import { orgColumns } from "./organizations/columns";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 
@@ -59,6 +60,19 @@ export function Organizations() {
 			? null
 			: limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations you created", "account");
 	const blocked = limitReason(usage);
+	const mobile = useIsMobile();
+	const table = useDataTable("organizations", {
+		columns: orgColumns({
+			activeOrgId,
+			roleOf: (orgId) => (scopes.isLoading ? undefined : scopes.orgLevel(orgId) >= 3 ? "Admin" : "Member"),
+			onSwitch: setActiveOrg,
+		}),
+		data: paged.rows,
+		getRowId: (org) => org.id,
+		state: { columnVisibility: mobile ? { workspaces: false, members: false, created: false } : {} },
+		enableSorting: false,
+		manualPagination: true,
+	});
 
 	const openCreate = () => {
 		void setCreateOrgOpen(1);
@@ -93,31 +107,16 @@ export function Organizations() {
 		}
 		return (
 			<>
-				<Table aria-label="Organizations">
-					<TableHeader>
-						<TableRow>
-							<TableHead>Organization</TableHead>
-							<TableHead>Your role</TableHead>
-							<TableHead className="hidden text-right min-[701px]:table-cell">Workspaces</TableHead>
-							<TableHead className="hidden text-right min-[701px]:table-cell">Members</TableHead>
-							<TableHead className="hidden min-[701px]:table-cell">Created</TableHead>
-							<TableHead>
-								<span className="sr-only">Actions</span>
-							</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{paged.rows.map((org) => (
-							<OrgRow
-								key={org.id}
-								org={org}
-								active={org.id === activeOrgId}
-								onSwitch={setActiveOrg}
-								role={scopes.isLoading ? undefined : scopes.orgLevel(org.id) >= 3 ? "Admin" : "Member"}
-							/>
-						))}
-					</TableBody>
-				</Table>
+				<DataTable
+					table={table}
+					label="Organizations"
+					onRowClick={(row) => {
+						setActiveOrg(row.id);
+					}}
+					rowAction="navigate"
+					rowLabel={(row) => `Open ${row.original.name}`}
+					empty={null}
+				/>
 				<Pager {...paged.pager} {...paged.ends} />
 			</>
 		);
