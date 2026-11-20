@@ -77,6 +77,9 @@ charts:
     - "tests/e2e/control-plane-values.yaml"
     - "tests/e2e/worker-values.yaml"
     - "{api,observability-proxy,tests/e2e/fixtures/api-failover}/Dockerfile"
+    # The UI image's definition and the server settings it starts with.
+    - "web/{Dockerfile,Dockerfile.dockerignore,sws.toml}"
+    - "docs/build.ts"
     - "tests/e2e/fixtures/control-plane/**"
     - "api/seed/e2e.sql"
     - "agent/pkg/cluster/kubernetes.json"
