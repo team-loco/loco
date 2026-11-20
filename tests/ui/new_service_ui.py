@@ -357,15 +357,24 @@ with session(out) as browser:
     assert stored_drafts(page) == [name], stored_drafts(page)
     last_region = drawer.get_by_role("button", name="us-east-1", exact=True)
     expect(last_region).to_have_attribute("aria-pressed", "true")
-    card = last_region.bounding_box()
-    center = card["y"] + card["height"] / 2
-    for content in (
-        last_region.get_by_text("us-east-1", exact=True),
-        last_region.locator("svg"),
-    ):
-        box = content.bounding_box()
-        offset = box["y"] + box["height"] / 2 - center
-        assert abs(offset) <= 1, f"{content} is {offset}px from the card center"
+    # One read measures the card and its contents in the same frame while the drawer slides in.
+    offsets = last_region.evaluate(
+        """card => {
+            const middle = (el) => {
+                const box = el.getBoundingClientRect();
+                return box.top + box.height / 2;
+            };
+            const text = [...card.querySelectorAll("*")].find(
+                (el) => el.childElementCount === 0 && el.textContent === "us-east-1"
+            );
+            return {
+                text: middle(text) - middle(card),
+                icon: middle(card.querySelector("svg")) - middle(card),
+            };
+        }"""
+    )
+    for content, offset in offsets.items():
+        assert abs(offset) <= 1, f"the {content} is {offset}px from the card center"
     offline = drawer.get_by_role("button", name="eu-north-1 Offline", exact=True)
     expect(offline).to_be_disabled()
     expect(
