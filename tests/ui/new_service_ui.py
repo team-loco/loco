@@ -366,7 +366,7 @@ with session(out) as browser:
             last_region.locator("svg").element_handle(),
         ],
     )
-    for content, middle in zip(("name", "check mark"), middles[1:]):
+    for content, middle in zip(("name", "check mark"), middles[1:], strict=True):
         offset = middle - middles[0]
         assert abs(offset) <= 1, f"the {content} is {offset}px from the card center"
     offline = drawer.get_by_role("button", name="eu-north-1 Offline", exact=True)
