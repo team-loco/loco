@@ -22,7 +22,7 @@ import { formatPercent } from "@/lib/compute-chart";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { isUnimplemented } from "@/lib/error-handler";
-import { sortParser, type Sort } from "@/lib/sort-parser";
+import { sortParser } from "@/lib/sort-parser";
 import { aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
 import { formatHourMinute, readyMs, tsMs } from "@/lib/time";
@@ -69,7 +69,6 @@ const WARN_PERCENT = 85;
 const DEPLOY_PICK_SHARE = 0.02;
 
 const SORT_KEYS = ["resource", "region", "replicas", "cpu", "mem"] as const;
-type SortKey = (typeof SORT_KEYS)[number];
 const metricSortParser = sortParser(SORT_KEYS, {
 	id: "cpu",
 	desc: true,
@@ -333,6 +332,19 @@ export function MetricsView() {
 	};
 	const error = cpu.error ?? mem.error;
 	const loading = cpu.isLoading || mem.isLoading || sizingLoading || environmentLoading || resourcesLoading;
+	const sorting = [sort];
+	const table = useDataTable("metrics-placements", {
+		columns: placementColumns(cpu.latest, mem.latest),
+		data: rows.toSorted((a, b) => a.key.localeCompare(b.key)),
+		getRowId: (p) => p.key,
+		manualPagination: true,
+		state: { sorting },
+		onSortingChange: (updater) => {
+			const next = functionalUpdate(updater, sorting)[0];
+			const id = SORT_KEYS.find((key) => key === next?.id);
+			if (next !== undefined && id !== undefined) void setSort({ id, desc: next.desc });
+		},
+	});
 
 	if (!loading && error !== null && isUnimplemented(error)) {
 		return (
@@ -385,12 +397,6 @@ export function MetricsView() {
 		);
 	}
 
-	const sortedRows = rows.toSorted((a, b) => {
-		const x = sortValue(sort.id, a, cpu.latest, mem.latest);
-		const y = sortValue(sort.id, b, cpu.latest, mem.latest);
-		const order = typeof x === "string" && typeof y === "string" ? x.localeCompare(y) : Number(x) - Number(y);
-		return (sort.desc ? -order : order) || a.key.localeCompare(b.key);
-	});
 	const focusRow = (p: Placement) => {
 		setQuery(
 			[
@@ -466,16 +472,17 @@ export function MetricsView() {
 
 			<Section title="By resource and region" card={false}>
 				<div className="min-w-0 rounded-card bg-panel">
-					<PlacementTable
-						rows={sortedRows}
-						cpu={cpu.latest}
-						mem={mem.latest}
-						sort={sort}
-						onSort={(next) => {
-							void setSort(next);
+					<DataTable
+						table={table}
+						label="By resource and region"
+						className="text-[12.5px] [--row-h:38px] [&_td]:py-1"
+						empty={<p className="px-3 py-6 text-center text-fg3">Nothing matches these filters.</p>}
+						onRowClick={(row) => {
+							focusRow(row.original);
 						}}
-						onFocus={focusRow}
-						onHover={setHoverKey}
+						onRowHover={(row) => {
+							setHoverKey(row?.original.key ?? null);
+						}}
 					/>
 				</div>
 				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
@@ -488,21 +495,6 @@ export function MetricsView() {
 }
 
 type Latest = Map<string, { v: number; limit: number }>;
-
-function sortValue(key: SortKey, p: Placement, cpu: Latest, mem: Latest): string | number {
-	switch (key) {
-		case "resource":
-			return p.resource.slug;
-		case "region":
-			return p.region;
-		case "replicas":
-			return p.ready ?? -1;
-		case "cpu":
-			return cpu.get(p.key)?.v ?? -1;
-		case "mem":
-			return mem.get(p.key)?.v ?? -1;
-	}
-}
 
 function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 	return [
@@ -569,53 +561,6 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 			cell: () => <span className="text-fg4">—</span>,
 		})),
 	];
-}
-
-function PlacementTable({
-	rows,
-	cpu,
-	mem,
-	sort,
-	onSort,
-	onFocus,
-	onHover,
-}: {
-	rows: Placement[];
-	cpu: Latest;
-	mem: Latest;
-	sort: Sort<SortKey>;
-	onSort: (next: Sort<SortKey>) => void;
-	onFocus: (p: Placement) => void;
-	onHover: (key: string | null) => void;
-}) {
-	const sorting = [sort];
-	const table = useDataTable("metrics-placements", {
-		columns: placementColumns(cpu, mem),
-		data: rows,
-		getRowId: (p) => p.key,
-		manualSorting: true,
-		manualPagination: true,
-		state: { sorting },
-		onSortingChange: (updater) => {
-			const next = functionalUpdate(updater, sorting)[0];
-			const id = SORT_KEYS.find((key) => key === next?.id);
-			if (next !== undefined && id !== undefined) onSort({ id, desc: next.desc });
-		},
-	});
-	return (
-		<DataTable
-			table={table}
-			label="By resource and region"
-			className="text-[12.5px] [--row-h:38px] [&_td]:py-1"
-			empty={<p className="px-3 py-6 text-center text-fg3">Nothing matches these filters.</p>}
-			onRowClick={(row) => {
-				onFocus(row.original);
-			}}
-			onRowHover={(row) => {
-				onHover(row?.original.key ?? null);
-			}}
-		/>
-	);
 }
 
 function valueCounts(key: string, resources: ObsResource[]): [string, number][] {

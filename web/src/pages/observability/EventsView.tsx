@@ -109,6 +109,12 @@ export function EventsView() {
 		selItem?.id ?? null,
 		select,
 	);
+	const table = useDataTable("events", {
+		columns: eventColumns(nowMs),
+		data: paged.rows,
+		getRowId: (e) => e.id,
+		manualPagination: true,
+	});
 
 	const header = (
 		<ViewHeader
@@ -188,13 +194,17 @@ export function EventsView() {
 							</ToggleGroupItem>
 						</ToggleGroup>
 					</div>
-					<EventTable
-						events={paged.rows}
+					<DataTable
+						table={table}
+						label="Events"
 						loading={loading}
-						selectedId={selItem?.id ?? null}
-						openedAt={openedAt}
-						nowMs={nowMs}
-						onSelect={select}
+						empty={<NoMatches title="No events match these filters" />}
+						activeRowId={selItem?.id ?? null}
+						onRowClick={(row) => {
+							select(row.id);
+						}}
+						rowLabel={(row) => row.original.title}
+						rowClassName={(row) => row.original.ts > openedAt && "animate-row-flash motion-reduce:animate-none"}
 					/>
 					<Pager {...paged.pager} {...paged.ends} />
 				</section>
@@ -269,41 +279,4 @@ function eventColumns(nowMs: number): DataColumn<EventItem>[] {
 			),
 		},
 	];
-}
-
-function EventTable({
-	events,
-	loading,
-	selectedId,
-	openedAt,
-	nowMs,
-	onSelect,
-}: {
-	events: EventItem[];
-	loading: boolean;
-	selectedId: string | null;
-	openedAt: number;
-	nowMs: number;
-	onSelect: (id: string) => void;
-}) {
-	const table = useDataTable("events", {
-		columns: eventColumns(nowMs),
-		data: events,
-		getRowId: (e) => e.id,
-		manualPagination: true,
-	});
-	return (
-		<DataTable
-			table={table}
-			label="Events"
-			loading={loading}
-			empty={<NoMatches title="No events match these filters" />}
-			activeRowId={selectedId}
-			onRowClick={(row) => {
-				onSelect(row.id);
-			}}
-			rowLabel={(row) => row.original.title}
-			rowClassName={(row) => row.original.ts > openedAt && "animate-row-flash motion-reduce:animate-none"}
-		/>
-	);
 }
