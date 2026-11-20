@@ -2,12 +2,8 @@ const MAX_NAME_LENGTH = 63;
 const MAX_SLUG_LENGTH = 63;
 const COMBINING_MARK_RE = /\p{Mn}/u;
 const DNS_LABEL_RE = /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/;
-const DIGIT_LEAD_RE = /^[0-9]/;
 // mirrors PrivateServiceName in k8sapi/v1alpha1/discovery.go; update both together.
 const RESERVED_SLUG_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
-export const SLUG_RULE =
-	"Use 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit";
-export const SLUG_DIGIT_LEAD = "Start the slug with a letter";
 
 export function nameError(name: string, taken: ReadonlySet<string>): string | null {
 	const trimmed = name.trim();
@@ -18,12 +14,13 @@ export function nameError(name: string, taken: ReadonlySet<string>): string | nu
 	return null;
 }
 
-export function slugError(value: string, taken: ReadonlySet<string>): string | null {
-	if (value === "") return "Enter a slug";
-	if (!DNS_LABEL_RE.test(value))
-		return DIGIT_LEAD_RE.test(value) && DNS_LABEL_RE.test(`a${value}`) ? SLUG_DIGIT_LEAD : SLUG_RULE;
-	if (RESERVED_SLUG_RE.test(value)) return `${value} is reserved`;
-	if (taken.has(value)) return `${value} already exists in this workspace`;
+// derivedSlugError reports why the slug the API derives from a new name can't key it, or null.
+export function derivedSlugError(name: string, taken: ReadonlySet<string>): string | null {
+	const derived = slug(name);
+	if (derived === "") return "Include a letter from a to z";
+	if (!DNS_LABEL_RE.test(derived)) return "Start the name with a letter";
+	if (RESERVED_SLUG_RE.test(derived)) return `${name.trim()} is reserved`;
+	if (taken.has(derived)) return "Too close to an existing name in this workspace";
 	return null;
 }
 

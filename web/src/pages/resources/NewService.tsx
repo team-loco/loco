@@ -62,7 +62,7 @@ import {
 	type NewResourceForm,
 } from "@/lib/new-resource";
 import { sizeOptions, type SizeOptions } from "@/lib/sizing";
-import { nameError, slug as slugOf, slugError } from "@/lib/slug";
+import { derivedSlugError, nameError, slug as slugOf } from "@/lib/slug";
 import { useServiceDeploy, type DeployError } from "@/hooks/useServiceDeploy";
 
 const SKELETON_ROWS = 6;
@@ -104,10 +104,8 @@ export function NewService({
 	const store = useDrafts(orgId, workspaceId, env?.id);
 	const [image, setImage] = useState("");
 	const [editedName, setEditedName] = useState<string | null>(null);
-	const [editedSlug, setEditedSlug] = useState<string | null>(null);
 	const taken = useTakenKeys(orgId, workspaceId, store.drafts);
 	const name = editedName ?? nameFromImage(image, new Set([...taken.names, ...taken.slugs]));
-	const slug = editedSlug ?? slugOf(name);
 	return (
 		<Dialog
 			open
@@ -123,14 +121,19 @@ export function NewService({
 					loading={loading}
 					image={image}
 					name={name}
-					slug={slug}
 					taken={taken}
 					onImage={setImage}
 					onName={setEditedName}
-					onSlug={setEditedSlug}
 					onContinue={() => {
 						const id = crypto.randomUUID();
-						const draft = { id, image: image.trim(), name: name.trim(), slug, createdMs: Date.now(), edits: {} };
+						const draft = {
+							id,
+							image: image.trim(),
+							name: name.trim(),
+							slug: slugOf(name),
+							createdMs: Date.now(),
+							edits: {},
+						};
 						if (store.create(draft)) onCreated(id);
 						else toast.error("Couldn't save the draft in this browser");
 					}}
@@ -147,11 +150,9 @@ function ImageStep({
 	loading,
 	image,
 	name,
-	slug,
 	taken,
 	onImage,
 	onName,
-	onSlug,
 	onContinue,
 }: {
 	orgId: string;
@@ -160,11 +161,9 @@ function ImageStep({
 	loading: boolean;
 	image: string;
 	name: string;
-	slug: string;
 	taken: TakenKeys;
 	onImage: (image: string) => void;
 	onName: (name: string) => void;
-	onSlug: (slug: string) => void;
 	onContinue: () => void;
 }) {
 	const scopes = useMyScopes();
@@ -172,8 +171,7 @@ function ImageStep({
 	const [edited, setEdited] = useState(false);
 	const error = imageError(image);
 	const shown = tried || edited ? error : null;
-	const nameErr = nameError(name, taken.names);
-	const slugErr = slugError(slug, taken.slugs);
+	const nameErr = nameError(name, taken.names) ?? derivedSlugError(name, taken.slugs);
 
 	const waiting = scopes.isLoading || loading;
 	const notice = waiting
@@ -205,7 +203,7 @@ function ImageStep({
 			onSubmit={(e) => {
 				e.preventDefault();
 				setTried(true);
-				if (!waiting && error === null && nameErr === null && slugErr === null) onContinue();
+				if (!waiting && error === null && nameErr === null) onContinue();
 			}}
 		>
 			<DialogBody>
@@ -225,35 +223,17 @@ function ImageStep({
 					/>
 				</Field>
 				{error === null && (
-					<>
-						<Field label="Name" error={nameErr}>
-							<Input
-								value={name}
-								className="h-9"
-								autoComplete="off"
-								aria-invalid={nameErr !== null}
-								onChange={(e) => {
-									onName(e.target.value);
-								}}
-							/>
-						</Field>
-						<Field
-							label="Slug"
-							error={slugErr}
-							hint="Its private hostname, and its key in loco.yaml, the CLI and log filters"
-						>
-							<Input
-								value={slug}
-								className="h-9 font-mono"
-								autoComplete="off"
-								spellCheck={false}
-								aria-invalid={slugErr !== null}
-								onChange={(e) => {
-									onSlug(e.target.value);
-								}}
-							/>
-						</Field>
-					</>
+					<Field label="Name" error={nameErr}>
+						<Input
+							value={name}
+							className="h-9"
+							autoComplete="off"
+							aria-invalid={nameErr !== null}
+							onChange={(e) => {
+								onName(e.target.value);
+							}}
+						/>
+					</Field>
 				)}
 			</DialogBody>
 			<DialogFooter>

@@ -938,47 +938,37 @@ with session(out) as browser:
     ask = page.get_by_role("dialog", name="New resource")
     ask.get_by_role("textbox", name="Container image").fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
-    slug_input = ask.get_by_role("textbox", name="Slug")
     expect(name_input).to_have_value(name)
-    expect(slug_input).to_have_value(name)
+    expect(ask.get_by_role("textbox", name="Slug")).to_have_count(0)
     name_input.fill(repository)
-    expect(slug_input).to_have_value(repository)
     expect(
         ask.get_by_text(f"{repository} already exists in this workspace", exact=True)
-    ).to_have_count(2)
+    ).to_be_visible()
     name_input.fill(repository.upper())
     expect(
         ask.get_by_text(
             f"{repository.upper()} already exists in this workspace", exact=True
         )
     ).to_be_visible()
-    rule = "Use 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit"
-    for typed, derived in [
-        ("QA Echo", "qa-echo"),
-        ("🚀 Rocket Launch", "rocket-launch"),
-        (" Café Orders ", "cafe-orders"),
-        ("Zürich", "zurich"),
+    name_input.fill(repository.replace("-", " "))
+    expect(
+        ask.get_by_text("Too close to an existing name in this workspace", exact=True)
+    ).to_be_visible()
+    for typed in ["QA Echo", "🚀 Rocket Launch", " Café Orders ", "Zürich"]:
+        name_input.fill(typed)
+        expect(name_input).to_have_attribute("aria-invalid", "false")
+    for typed, error in [
+        ("🚀", "Include a letter from a to z"),
+        ("7 Cart", "Start the name with a letter"),
+        ("localhost", "localhost is reserved"),
+        ("a" * 64, "Use at most 63 characters"),
+        ("   ", "Enter a name"),
     ]:
         name_input.fill(typed)
-        expect(slug_input).to_have_value(derived)
-        expect(ask.get_by_text(rule, exact=True)).to_have_count(0)
-    name_input.fill("a" * 64)
-    expect(ask.get_by_text("Use at most 63 characters", exact=True)).to_be_visible()
-    name_input.fill("   ")
-    expect(ask.get_by_text("Enter a name", exact=True)).to_be_visible()
-    expect(ask.get_by_text("Enter a slug", exact=True)).to_be_visible()
+        expect(ask.get_by_text(error, exact=True)).to_be_visible()
     label = f"Shop {suffix} Two"
-    name_input.fill(label)
-    for invalid in ["QA Echo", "-bad-", "🚀rocket", "a" * 64]:
-        slug_input.fill(invalid)
-        expect(ask.get_by_text(rule, exact=True)).to_be_visible()
-    slug_input.fill("7-cart")
-    expect(ask.get_by_text("Start the slug with a letter", exact=True)).to_be_visible()
-    slug_input.fill("localhost")
-    expect(ask.get_by_text("localhost is reserved", exact=True)).to_be_visible()
-    slug_input.fill(name)
+    derived = f"shop-{suffix}-two"
     name_input.fill(f"{label} ")
-    expect(slug_input).to_have_value(name)
     ask.get_by_role("button", name="Continue", exact=True).click()
 
     expect(page).to_have_url(DRAFT_URL)
@@ -1003,8 +993,16 @@ with session(out) as browser:
         drawer.get_by_role(
             "button", name="Decrease maximum replicas", exact=True
         ).click()
-    with expect_rpc(page, "CreateDeployment", lambda body: "spec" in body):
+    with (
+        expect_rpc(
+            page, "CreateResource", lambda body: body.get("name") == label
+        ) as created,
+        expect_rpc(page, "CreateDeployment", lambda body: "spec" in body),
+    ):
         drawer.get_by_role("button", name=f"Deploy {label}", exact=True).click()
+    assert "slug" not in created.value.request.post_data_json, (
+        created.value.request.post_data_json
+    )
 
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
     expect(drawer).to_have_count(0)
@@ -1012,9 +1010,8 @@ with session(out) as browser:
     stored = sql(
         state, f"SELECT name || '|' || slug FROM resources WHERE id='{resource}';"
     )
-    assert stored == f"{label}|{name}", stored
+    assert stored == f"{label}|{derived}", stored
     expect(page.get_by_role("heading", level=1)).to_have_text(label)
-    expect(page.get_by_label(f"Slug {name}", exact=True)).to_be_visible()
     panel = page.get_by_role("region", name="Failed", exact=True)
     problem = panel.get_by_role("status").filter(
         has_text="ImagePullBackOff: manifest unknown"

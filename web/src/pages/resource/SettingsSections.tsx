@@ -472,9 +472,8 @@ export function GeneralSection({
 	describedBy,
 	onChange,
 	canWrite,
-	managed,
 	readOnlyId,
-}: SectionProps & { canWrite: boolean; managed: boolean; readOnlyId: string }) {
+}: SectionProps & { canWrite: boolean; readOnlyId: string }) {
 	return (
 		<SettingsBlock id="set-general" title="General">
 			<div className={grid2}>
@@ -486,27 +485,6 @@ export function GeneralSection({
 						aria-invalid={errors.name !== undefined}
 						onChange={(e) => {
 							onChange({ name: e.target.value });
-						}}
-					/>
-				</Field>
-				<Field
-					label="Slug"
-					error={errors.slug}
-					hint={
-						managed
-							? "loco.yaml names this resource by its slug, so it can't change here"
-							: "Its private hostname, and its key in loco.yaml, the CLI and log filters"
-					}
-				>
-					<Input
-						value={draft.slug ?? base.slug}
-						className="font-mono"
-						spellCheck={false}
-						disabled={locked}
-						aria-describedby={describedBy}
-						aria-invalid={errors.slug !== undefined}
-						onChange={(e) => {
-							onChange({ slug: e.target.value });
 						}}
 					/>
 				</Field>

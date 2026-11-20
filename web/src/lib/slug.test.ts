@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { SLUG_DIGIT_LEAD, SLUG_RULE, nameError, slug, slugError } from "./slug";
+import { derivedSlugError, nameError, slug } from "./slug";
 
 test("slug matches the API's slug of a name", () => {
 	expect(slug("My App")).toBe("my-app");
@@ -22,13 +22,11 @@ test("nameError follows the API's name rules", () => {
 	expect(nameErr(" QA Echo ", new Set(["QA Echo"]))).toBe("QA Echo already exists in this workspace");
 });
 
-test("slugError follows the API's slug rules", () => {
-	const slugErr = (value: string, taken = new Set<string>()) => slugError(value, taken);
-	expect(slugErr("")).toBe("Enter a slug");
-	for (const bad of ["!!!", "QA Echo", "Web", "🚀rocket", "<script>x</script>", "-bad-", " web", "x".repeat(64)])
-		expect(slugErr(bad)).toBe(SLUG_RULE);
-	for (const digitLed of ["123cart", "7", "1-web"]) expect(slugErr(digitLed)).toBe(SLUG_DIGIT_LEAD);
-	for (const ok of ["web", "qa-echo", "x".repeat(63)]) expect(slugErr(ok)).toBeNull();
-	expect(slugErr("localhost")).toBe("localhost is reserved");
-	expect(slugErr("web", new Set(["web"]))).toBe("web already exists in this workspace");
+test("derivedSlugError rejects names whose slug the API refuses", () => {
+	const err = (name: string, taken = new Set<string>()) => derivedSlugError(name, taken);
+	for (const ok of ["QA Echo", "🚀 Rocket", "Café Orders", "x".repeat(63)]) expect(err(ok)).toBeNull();
+	for (const noLetter of ["🚀", "!!!", "日本"]) expect(err(noLetter)).toBe("Include a letter from a to z");
+	for (const digitLed of ["3D Viewer", "7", "1-web"]) expect(err(digitLed)).toBe("Start the name with a letter");
+	expect(err(" Localhost ")).toBe("Localhost is reserved");
+	expect(err("My-App", new Set(["my-app"]))).toBe("Too close to an existing name in this workspace");
 });

@@ -166,9 +166,6 @@ export function ResourceHeader({
 					{resource.partial !== undefined && <PartialBadge />}
 				</div>
 				<div className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
-					<span aria-label={`Slug ${resource.slug}`} className="font-mono text-[12px] text-fg2">
-						{resource.slug}
-					</span>
 					{since !== undefined && primary !== undefined && (
 						<span>
 							deployed {agoLabel(since, nowMs)} by {deploymentActor(primary)}

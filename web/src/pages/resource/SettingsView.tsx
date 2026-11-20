@@ -169,7 +169,7 @@ export function SettingsView({
 		};
 	}, []);
 	const [tried, setTried] = useState(false);
-	const [confirming, setConfirming] = useState<"slug" | "internal" | null>(null);
+	const [confirming, setConfirming] = useState<"internal" | null>(null);
 	const regionsQuery = useQuery(listRegions, { environmentId }, { enabled: canReadWorkspace && environmentId !== "" });
 	const domainsQuery = useQuery(
 		listPlatformDomains,
@@ -301,7 +301,7 @@ export function SettingsView({
 					/>
 					{!worker && <HealthSection {...props} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
-					<GeneralSection {...props} canWrite={canWrite} managed={managed} readOnlyId={READ_ONLY_ID} />
+					<GeneralSection {...props} canWrite={canWrite} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">
 						<DangerZone
 							title={`Delete ${resource.name}`}
@@ -337,34 +337,10 @@ export function SettingsView({
 							onSave={() => {
 								setTried(true);
 								if (errorCount > 0) return;
-								if (want.slug !== base.slug) setConfirming("slug");
-								else confirmDomains();
+								confirmDomains();
 							}}
 						/>
 					)}
-					<ConfirmDialog
-						open={confirming === "slug"}
-						title={`Change the slug of ${resource.name}?`}
-						description={
-							<>
-								Everything that still names it <code className="font-mono">{base.slug}</code> stops reaching it once the
-								slug is <code className="font-mono">{want.slug}</code>:
-							</>
-						}
-						confirmLabel="Change slug and save"
-						onConfirm={confirmDomains}
-						onClose={() => {
-							setConfirming(null);
-						}}
-					>
-						<ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-[13px] text-fg2">
-							<li>Other services that call its private hostname</li>
-							<li>loco.yaml files that use it as a service key</li>
-							<li>CLI scripts that pass it as an argument</li>
-							<li>Saved log, metric and trace filters on @resource</li>
-							<li>Every replica restarts to pick up the new slug</li>
-						</ul>
-					</ConfirmDialog>
 					<ConfirmDialog
 						open={confirming === "internal"}
 						title={`Make ${resource.name} internal?`}
