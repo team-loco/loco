@@ -57,19 +57,6 @@ CREATE TRIGGER events_append_only
 BEFORE UPDATE ON events
 FOR EACH ROW EXECUTE FUNCTION events_reject_update();
 
--- +goose StatementBegin
-CREATE FUNCTION events_notify() RETURNS trigger AS $$
-BEGIN
-    PERFORM pg_notify('loco_events', '');
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
--- +goose StatementEnd
-
-CREATE TRIGGER events_notify_insert
-AFTER INSERT ON events
-FOR EACH STATEMENT EXECUTE FUNCTION events_notify();
-
 CREATE TYPE webhook_kind AS ENUM ('workspace', 'install');
 
 CREATE TABLE webhooks (
@@ -151,6 +138,5 @@ DROP TABLE IF EXISTS webhooks;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS event_stream_counter;
 DROP FUNCTION IF EXISTS events_reject_update();
-DROP FUNCTION IF EXISTS events_notify();
 DROP FUNCTION IF EXISTS events_enqueue_webhooks();
 DROP TYPE IF EXISTS webhook_kind;
