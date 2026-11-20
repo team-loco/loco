@@ -1799,6 +1799,26 @@ def metrics(page):
     expect(second).to_be_focused()
     page.keyboard.press("Escape")
     expect(menu).not_to_be_visible()
+    page.set_viewport_size({"width": 1280, "height": 800})
+    for root_font in ("16px", "20px"):
+        page.evaluate(f"document.documentElement.style.fontSize = '{root_font}'")
+        for target in (chart, memory):
+            for fraction in (0.3, 0.95):
+                box = target.bounding_box()
+                click_x = box["x"] + box["width"] * fraction
+                click_y = box["y"] + 60
+                page.mouse.click(click_x, click_y)
+                expect(menu).to_be_visible()
+                page.wait_for_timeout(300)
+                shown = menu.bounding_box()
+                assert 0 <= shown["x"] and shown["x"] + shown["width"] <= 1280, shown
+                near_left = abs(shown["x"] - click_x) <= 24
+                near_right = abs(shown["x"] + shown["width"] - click_x) <= 24
+                assert near_left or near_right, (root_font, fraction, shown, click_x)
+                assert abs(shown["y"] - click_y) <= 24, (shown, click_y)
+                page.keyboard.press("Escape")
+                expect(menu).not_to_be_visible()
+    page.evaluate("document.documentElement.style.fontSize = ''")
     chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})
     expect(menu).to_be_visible()
     assert (

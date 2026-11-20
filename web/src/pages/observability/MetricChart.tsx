@@ -1,6 +1,6 @@
 import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { ListIcon } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
 
@@ -179,13 +179,23 @@ function MetricTooltip({
 	);
 }
 
-function PinMenu({ t, x, actions, onClose }: { t: number; x: number; actions: PinAction[]; onClose: () => void }) {
+function PinMenu({
+	t,
+	anchor,
+	actions,
+	onClose,
+}: {
+	t: number;
+	anchor: () => DOMRect;
+	actions: PinAction[];
+	onClose: () => void;
+}) {
 	const timePref = useTimePreferences();
 	return (
 		<DropdownMenuContent
 			align="start"
-			alignOffset={({ anchor }) => x * anchor.width + 8}
-			sideOffset={({ anchor }) => 8 - anchor.height}
+			anchor={{ getBoundingClientRect: anchor }}
+			sideOffset={8}
 			className="w-[250px]"
 			aria-label={`Around ${fmtTs(t, false, timePref)}`}
 		>
@@ -236,7 +246,8 @@ export function MetricChart({
 	actions: (t: number) => PinAction[];
 }) {
 	const timePref = useTimePreferences();
-	const [pin, setPin] = useState<{ t: number; x: number } | null>(null);
+	const [pin, setPin] = useState<{ t: number; dx: number; dy: number } | null>(null);
+	const triggerRef = useRef<HTMLDivElement>(null);
 	const [nearest, setNearest] = useState<string | null>(null);
 	const top = new Set(
 		series
@@ -268,7 +279,7 @@ export function MetricChart({
 					if (!open) setPin(null);
 				}}
 			>
-				<DropdownMenuTrigger nativeButton={false} render={<div />} aria-label={`${title} over time`}>
+				<DropdownMenuTrigger nativeButton={false} render={<div ref={triggerRef} />} aria-label={`${title} over time`}>
 					<ChartContainer
 						config={config}
 						className="aspect-auto w-full cursor-pointer [&_.recharts-wrapper]:cursor-pointer!"
@@ -301,10 +312,12 @@ export function MetricChart({
 								}
 								setNearest(best?.key ?? null);
 							}}
-							onClick={(state) => {
+							onClick={(state, event) => {
 								const t = data[Number(state.activeTooltipIndex)]?.t ?? Number(state.activeLabel);
 								if (!Number.isFinite(t)) return;
-								setPin(pin?.t === t ? null : { t, x: (t - from) / Math.max(1, to - from) });
+								const box = triggerRef.current?.getBoundingClientRect();
+								if (!box) return;
+								setPin(pin?.t === t ? null : { t, dx: event.clientX - box.left, dy: event.clientY - box.top });
 							}}
 						>
 							<CartesianGrid vertical={false} stroke="var(--line)" />
@@ -387,7 +400,10 @@ export function MetricChart({
 				{pin !== null && (
 					<PinMenu
 						t={pin.t}
-						x={pin.x}
+						anchor={() => {
+							const box = triggerRef.current?.getBoundingClientRect();
+							return new DOMRect((box?.left ?? 0) + pin.dx, (box?.top ?? 0) + pin.dy, 0, 0);
+						}}
 						actions={actions(pin.t)}
 						onClose={() => {
 							setPin(null);
