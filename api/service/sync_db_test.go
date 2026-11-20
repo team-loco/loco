@@ -490,5 +490,7 @@ func testAgentConfig() AgentConfig {
 		JoinTokenMaxTTL:      7 * 24 * time.Hour,
 		ApplyAttempts:        testApplyAttempts,
 		ApplyRetryDelay:      testApplyRetryDelay,
+
+		WorkspaceNamespaceGrace: time.Hour,
 	}
 }

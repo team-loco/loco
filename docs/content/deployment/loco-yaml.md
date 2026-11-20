@@ -68,6 +68,8 @@ Port changes update the logical endpoint while preserving its ClusterIP. Port 80
 
 Each environment has its own namespace, so the same service can run independently in several environments on one worker cluster. A short name such as `cart` reaches the caller’s own environment; a namespace-qualified name reaches the named environment. The workspace network policies allow communication across that workspace’s environment namespaces. Other workspaces remain isolated.
 
+A workspace's namespaces on a worker cluster exist only while the workspace has deployments there, because the controller creates a namespace when it reconciles a deployment and a namespace always has a placement behind it. When a workspace has had no deployment on a cluster for `LOCO_WORKSPACE_NAMESPACE_GRACE` (24 hours by default), the API asks that cluster's agent to delete the workspace's namespaces there, including the pull secret and network policies. A new deployment recreates them.
+
 ## Runtime user
 
 Set `runAsUser` and `runAsGroup` to positive numeric IDs when an image uses a named user that Kubernetes cannot verify as non-root:

@@ -38,6 +38,9 @@ type AgentConfig struct {
 	AssertionMaxLifetime time.Duration
 	JoinTokenTTL         time.Duration
 	JoinTokenMaxTTL      time.Duration
+	// WorkspaceNamespaceGrace is how long a workspace may have no placements on a cluster before the API
+	// asks that cluster's agent to delete the workspace's namespace.
+	WorkspaceNamespaceGrace time.Duration
 	// ApplyAttempts and ApplyRetryDelay (seconds) bound how often the API resends a placement a cluster fails to apply.
 	ApplyAttempts     int32
 	ApplyRetryDelay   int32
