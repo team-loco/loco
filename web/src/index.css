@@ -202,7 +202,7 @@
 	transition-property: --row-tint;
 }
 
-[data-slot="data-table"] tr[data-interactive]:hover {
+[data-slot="data-table"] tr:is([data-interactive]:hover, :has([aria-expanded="true"])):not([data-state="selected"]) {
 	--row-tint: var(--row-hover);
 }
 
