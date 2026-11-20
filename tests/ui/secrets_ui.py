@@ -210,6 +210,19 @@ WHERE resource_id='{resource}';""",
     expect(blocked).to_contain_text(
         f"Read by {name}. Remove the reference and deploy first."
     )
+    call(
+        state,
+        secrets_service + "SetSecrets",
+        {"environmentId": production, "values": {"STRIPE_KEY": "sk_rotated"}},
+    )
+    with expect_rpc(
+        page, "ListSecrets", lambda body: body.get("environmentId") == production
+    ):
+        page.evaluate(
+            "document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))"
+        )
+    expect(page.get_by_role("row").filter(has_text="STRIPE_KEY")).to_contain_text("v2")
+    expect(blocked).to_be_visible()
     page.keyboard.press("Escape")
     sql(
         state,
