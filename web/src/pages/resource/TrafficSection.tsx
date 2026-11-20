@@ -1,3 +1,4 @@
+import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
@@ -106,9 +107,11 @@ function PublicTraffic({
 												dataKey="time"
 												type="number"
 												domain={[from, to]}
+												allowDataOverflow
 												ticks={timeAxis(from, to, timePref)}
 												interval="preserveStartEnd"
 												tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
+												tick={axisTimeTick(from, to, timePref)}
 												tickLine={false}
 												axisLine={false}
 											/>

@@ -1,3 +1,4 @@
+import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState, type ReactNode } from "react";
 import { ListIcon } from "lucide-react";
@@ -15,7 +16,7 @@ import {
 } from "@/components/design/DropdownMenu";
 import { formatPercent } from "@/lib/compute-chart";
 import { cn } from "@/lib/utils";
-import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
+import { formatAxisTime, timeAxis } from "@/lib/time";
 
 import { fmtTs } from "./format";
 import { markerGroups } from "./metric-markers";
@@ -52,8 +53,7 @@ const FADED = 0.3;
 const DIMMED = 0.12;
 const X_AXIS_HEIGHT = 20;
 const TOP_MARGIN = 14;
-const MARGIN = 24;
-const WIDE_MARGIN = 44;
+const MARGIN = 4;
 // Labels of deploys past this share of the range sit left of their line.
 const FLIP_SHARE = 0.8;
 const LABEL_CHAR_PX = 6;
@@ -257,7 +257,6 @@ export function MetricChart({
 	const data = [...byT.values()].toSorted((a, b) => a.t - b.t);
 	const config: ChartConfig = Object.fromEntries(series.map((s) => [s.key, { label: s.name, color: s.color }]));
 	const ticks = timeAxis(from, to, timePref);
-	const tickLabel = (value: number) => formatAxisTime(value, from, to, timePref);
 	const groups = markerGroups(markers, from, to);
 
 	return (
@@ -281,7 +280,7 @@ export function MetricChart({
 							data={data}
 							margin={{
 								top: TOP_MARGIN,
-								right: to - from >= DAY_MS ? WIDE_MARGIN : MARGIN,
+								right: MARGIN,
 								bottom: 0,
 								left: 0,
 							}}
@@ -314,17 +313,14 @@ export function MetricChart({
 								type="number"
 								scale="time"
 								domain={[from, to]}
+								allowDataOverflow
 								ticks={ticks}
-								tickFormatter={tickLabel}
 								interval="preserveStartEnd"
 								tickLine={false}
 								height={X_AXIS_HEIGHT}
 								axisLine={{ stroke: "var(--line)" }}
-								tick={{
-									fontSize: 10.5,
-									fill: "var(--fg3)",
-									fontFamily: "var(--font-mono)",
-								}}
+								tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
+								tick={axisTimeTick(from, to, timePref, 10.5)}
 							/>
 							<YAxis
 								domain={[0, axis.maximum]}

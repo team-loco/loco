@@ -195,6 +195,14 @@ with session(out) as browser:
             events.bounding_box()["y"] >= heading["y"] + heading["height"]
         ) == below, viewport
     page.get_by_role("button", name=re.compile(r"^us-east-1")).click()
+    chart = page.locator('[aria-label^="CPU · us-east-1: lowest"]')
+    ticks = chart.locator(".recharts-xAxis-tick-labels text")
+    expect(ticks.nth(2)).to_be_visible()
+    box = chart.bounding_box()
+    first, last = ticks.first.bounding_box(), ticks.last.bounding_box()
+    assert first["x"] >= box["x"], (first, box)
+    assert last["x"] + last["width"] <= box["x"] + box["width"], (last, box)
+    assert first["x"] + first["width"] < last["x"], (first, last)
     metrics_href = page.get_by_role(
         "link", name="All metrics", exact=True
     ).get_attribute("href")

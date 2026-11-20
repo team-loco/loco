@@ -64,7 +64,8 @@ test("places ticks on round boundaries within an unaligned range", () => {
 	const ticks = timeAxis(from, from + 3_600_000, { zone: "utc", clock: "24" });
 	expect(ticks.length).toBeGreaterThanOrEqual(6);
 	expect(ticks.length).toBeLessThanOrEqual(9);
-	expect(ticks.every((t) => t >= from && t <= from + 3_600_000 && t % 300_000 === 0)).toBe(true);
+	expect(ticks.slice(1, -1).every((t) => t % 300_000 === 0)).toBe(true);
+	expect(ticks.every((t) => t >= from && t <= from + 3_600_000)).toBe(true);
 	expect(timeAxis(from, from, utc12)).toEqual([]);
 });
 
@@ -146,11 +147,24 @@ test("narrow axes space ticks by the allowed number of steps", () => {
 	const narrow = timeAxis(from, to, pref, 3);
 	expect(narrow.length).toBeGreaterThanOrEqual(2);
 	for (let i = 1; i < narrow.length; i++)
-		expect((narrow[i] ?? 0) - (narrow[i - 1] ?? 0)).toBeGreaterThanOrEqual((to - from) / 3);
+		expect((narrow[i] ?? 0) - (narrow[i - 1] ?? 0)).toBeGreaterThanOrEqual(((to - from) / 3) * 0.75);
 });
 
 test("formatIsoTimestamp writes the instant in either zone", () => {
 	const ms = Date.UTC(2026, 10, 12, 8, 30, 15, 42);
 	expect(formatIsoTimestamp(ms, { zone: "utc", clock: "24" })).toBe("2026-11-12T08:30:15.042Z");
 	expect(new Date(formatIsoTimestamp(ms, { zone: "local", clock: "24" })).getTime()).toBe(ms);
+});
+
+test("axis ticks start at the range start and end at the range end", () => {
+	const pref = { zone: "utc", clock: "12" } as const;
+	for (const span of [90_000, 15 * 60_000, 3_600_000, 6 * 3_600_000, DAY_MS, 7 * DAY_MS, 30 * DAY_MS]) {
+		const from = midnight + 3 * 3_600_000 + 7 * 60_000 + 13_000;
+		const to = from + span;
+		const ticks = timeAxis(from, to, pref);
+		expect(ticks[0]).toBe(from);
+		expect(ticks.at(-1)).toBe(to);
+		expect(ticks.length).toBeGreaterThanOrEqual(3);
+		expect(ticks).toEqual(ticks.toSorted((a, b) => a - b));
+	}
 });

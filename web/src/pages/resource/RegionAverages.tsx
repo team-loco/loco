@@ -1,3 +1,4 @@
+import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
@@ -100,9 +101,11 @@ export function RegionAverages({
 							dataKey="time"
 							type="number"
 							domain={[from, to]}
+							allowDataOverflow
 							ticks={timeAxis(from, to, timePref)}
 							interval="preserveStartEnd"
 							tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
+							tick={axisTimeTick(from, to, timePref)}
 							tickLine={false}
 							axisLine={false}
 						/>
