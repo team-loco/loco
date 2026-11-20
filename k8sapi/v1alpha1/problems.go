@@ -27,8 +27,8 @@ var problems = []struct {
 }{
 	{ProblemBuildFailed, "The build failed."},
 	{ProblemApplyFailed, "Loco could not apply the deployment to the cluster."},
-	{ProblemRestartsExhausted, "The service was stopped after restarting more often than its restart policy allows. " +
-		"Check its logs, then restart or redeploy it."},
+	{ProblemRestartsExhausted, "A replica restarted more often than its restart policy allows. " +
+		"A new version that does this while it rolls out is stopped. Check its logs."},
 	{ProblemDeployTimeout, "The new version did not become healthy within its deploy timeout, so Loco stopped it. " +
 		"Check its replicas and logs, then redeploy."},
 	{ProblemImageUser, "The image must run as a numeric, non-root USER, such as USER 1000."},

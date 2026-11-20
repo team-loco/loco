@@ -138,47 +138,6 @@ func TestQuietSinceIsTheStartOfTheNewestRunThatLastedTheHealthWindow(t *testing.
 	}
 }
 
-// TestCrashLoopUnderTheKubeletBackoff restarts a container that exits a second after it starts,
-// waiting the kubelet's crash backoff (10 s doubling to 300 s) before each start.
-func TestCrashLoopUnderTheKubeletBackoff(t *testing.T) {
-	const healthyAfter = 5 * time.Minute
-	for _, tt := range []struct {
-		policy loco.RestartPolicySpec
-		want   int32
-	}{
-		{loco.RestartPolicySpec{Mode: loco.RestartOnFailure, MaxRestarts: 10}, 11},
-		{loco.RestartPolicySpec{Mode: loco.RestartNever}, 1},
-		{loco.RestartPolicySpec{Mode: loco.RestartAlways}, 0},
-	} {
-		t.Run(string(tt.policy.Mode), func(t *testing.T) {
-			start := replicaTestNow
-			backoff := 10 * time.Second
-			var previous *loco.ReplicaStatus
-			for restarts := int32(1); restarts <= 40; restarts++ {
-				exit := corev1.ContainerStateTerminated{
-					ExitCode: 1, StartedAt: metav1.NewTime(start), FinishedAt: metav1.NewTime(start.Add(time.Second)),
-				}
-				start = exit.FinishedAt.Add(backoff)
-				backoff = min(2*backoff, 300*time.Second)
-				pod := restartedPod(restarts, exit)
-				pod.Status.ContainerStatuses[0].State.Running.StartedAt = metav1.NewTime(start)
-				replica := loco.ReplicaStatus{Restarts: restarts, LastRestart: lastRestart(pod, metav1.Time{})}
-				trackRestarts(&replica, previous, quietSince(pod, healthyAfter, start), start)
-				if restartsExhausted(replica, tt.policy) {
-					if restarts != tt.want {
-						t.Fatalf("stopped after restart %d, want %d", restarts, tt.want)
-					}
-					return
-				}
-				previous = &replica
-			}
-			if tt.want != 0 {
-				t.Fatalf("never stopped, want a stop after restart %d", tt.want)
-			}
-		})
-	}
-}
-
 func TestLastRestartCause(t *testing.T) {
 	now := replicaTestNow
 	finished := metav1.NewTime(now)

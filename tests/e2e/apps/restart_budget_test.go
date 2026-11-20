@@ -295,9 +295,9 @@ func TestRestartBudgetBringsBackThePreviousVersion(t *testing.T) {
 	}
 }
 
-// TestRestartBudgetStopsAProvenService stops a service whose only version served for the health
-// window and then restarted past its budget, reports it crashed, and starts it again on restart.
-func TestRestartBudgetStopsAProvenService(t *testing.T) {
+// TestRestartBudgetKeepsAProvenServiceRunning restarts a service whose only version served for the
+// health window past its budget. It reports the deployment crashed and keeps its replica.
+func TestRestartBudgetKeepsAProvenServiceRunning(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
 	const app = "e2e-restart-crash"
@@ -334,16 +334,42 @@ func TestRestartBudgetStopsAProvenService(t *testing.T) {
 		return errors.New("not restarted")
 	})
 	stop()
-	s.waitStopped(t, false, 0)
-	s.waitDeploymentStatus(t, deployment, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED, "deployment.crashed")
-	var stopped appsv1.Deployment
-	p.MustGet(t, &stopped, "-n", w.Namespace, "deployment", locov1alpha1.WorkloadName(s.resourceID))
-	if stopped.Spec.Replicas == nil || *stopped.Spec.Replicas != 0 {
-		t.Errorf("the stopped Deployment wants %v replicas, want 0", stopped.Spec.Replicas)
+	platform.Eventually(
+		t,
+		2*time.Minute,
+		"the replica to report its used-up restarts",
+		func(ctx context.Context) error {
+			current, err := p.Application(ctx, s.resourceID, w.EnvironmentID)
+			if err != nil {
+				return err
+			}
+			if rollout := current.Status.Rollout; rollout == nil || rollout.Problem == nil ||
+				rollout.Problem.Reason != locov1alpha1.ProblemRestartsExhausted {
+				return errors.New("no restarts_exhausted problem")
+			}
+			if current.Status.Rollout.Stopped != nil {
+				t.Fatalf("the proven revision was stopped: %+v", current.Status.Rollout.Stopped)
+			}
+			return nil
+		},
+	)
+	platform.Eventually(t, 2*time.Minute, "the deployment to show crashed", func(context.Context) error {
+		if got := getDeployment(
+			t,
+			deployment,
+		).GetStatus(); got != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED {
+			return fmt.Errorf("deployment is %s", got)
+		}
+		return nil
+	})
+	var running appsv1.Deployment
+	p.MustGet(t, &running, "-n", w.Namespace, "deployment", locov1alpha1.WorkloadName(s.resourceID))
+	if running.Spec.Paused || running.Spec.Replicas == nil || *running.Spec.Replicas != 1 {
+		t.Errorf("the crashed Deployment is paused %t with %v replicas, want running with 1",
+			running.Spec.Paused, running.Spec.Replicas)
 	}
 
-	w.MustLoco(t, dir, "resource", "restart", app, "--env", platform.Production)
-	platform.Eventually(t, 3*time.Minute, "the restarted service to run", func(context.Context) error {
+	platform.Eventually(t, 3*time.Minute, "the replica to recover", func(context.Context) error {
 		if got := getDeployment(
 			t,
 			deployment,

@@ -361,7 +361,7 @@ func TestRolloutForwarding(t *testing.T) {
 		HealthyAt:        timestamppb.New(at.Time),
 		Stopped: &agentv1.StoppedRevision{
 			PlacementRevision: 5,
-			Reason:            "restarts_exhausted",
+			Reason:            agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
 			ReplicaName:       currentReplicaName,
 			Restarts:          3,
 			LastRestart:       wantRestart,

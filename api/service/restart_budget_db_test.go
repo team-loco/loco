@@ -59,8 +59,10 @@ func (f *deployFixture) reportStatus(t *testing.T, report *agentv1.PlacementStat
 func stoppedReport() *agentv1.PlacementStatus {
 	return &agentv1.PlacementStatus{
 		Stopped: &agentv1.StoppedRevision{
-			Reason: string(loco.ProblemRestartsExhausted), ReplicaName: stoppedReplica, Restarts: stoppedRestarts,
-			Detail: stoppedDetail,
+			Reason:      agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
+			ReplicaName: stoppedReplica,
+			Restarts:    stoppedRestarts,
+			Detail:      stoppedDetail,
 		},
 		Problem: &agentv1.ProblemReport{
 			Reason: string(loco.ProblemRestartsExhausted), ReplicaName: stoppedReplica, Detail: stoppedDetail,
@@ -169,7 +171,7 @@ func TestARolloutStoppedAtItsDeployTimeoutFailsWithoutAFallback(t *testing.T) {
 		t.Fatalf("deployment waiting for a node = %s, want deploying", got)
 	}
 	f.reportStatus(t, &agentv1.PlacementStatus{
-		Stopped: &agentv1.StoppedRevision{Reason: string(loco.ProblemDeployTimeout), Detail: timeoutDetail},
+		Stopped: &agentv1.StoppedRevision{Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT, Detail: timeoutDetail},
 		Problem: &agentv1.ProblemReport{Reason: string(loco.ProblemDeployTimeout), Detail: timeoutDetail},
 	})
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusFailed {

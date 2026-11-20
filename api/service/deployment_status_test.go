@@ -11,17 +11,17 @@ import (
 
 // deployTimedOut is the stop of a revision that missed its deploy timeout with nothing to fall back to.
 func deployTimedOut() *agentv1.StoppedRevision {
-	return &agentv1.StoppedRevision{PlacementRevision: 2, Reason: string(loco.ProblemDeployTimeout)}
+	return &agentv1.StoppedRevision{PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT}
 }
 
 func TestNextPlacementStatus(t *testing.T) {
 	stopped := &agentv1.StoppedRevision{
 		PlacementRevision: 2,
-		Reason:            string(loco.ProblemRestartsExhausted),
+		Reason:            agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
 		Restarts:          6,
 	}
 	unproven := &agentv1.StoppedRevision{
-		PlacementRevision: 2, Reason: string(loco.ProblemRestartsExhausted), Restarts: 6, Rollout: true,
+		PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED, Restarts: 6, Rollout: true,
 	}
 	for _, tt := range []struct {
 		name           string
@@ -56,6 +56,12 @@ func TestNextPlacementStatus(t *testing.T) {
 			&agentv1.PlacementStatus{Stopped: stopped}},
 		{"crashed stays", genDb.PlacementStatusCrashed, genDb.PlacementStatusCrashed,
 			&agentv1.PlacementStatus{Stopped: stopped}},
+		{"restarts used up after deploying", genDb.PlacementStatusRunning, genDb.PlacementStatusCrashed,
+			&agentv1.PlacementStatus{Available: true, Problem: &agentv1.ProblemReport{
+				Reason: string(loco.ProblemRestartsExhausted),
+			}}},
+		{"a deployed revision recovers from used-up restarts", genDb.PlacementStatusCrashed,
+			genDb.PlacementStatusRunning, &agentv1.PlacementStatus{Available: true, Healthy: true}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := nextPlacementStatus(tt.previous, tt.report); got != tt.want {

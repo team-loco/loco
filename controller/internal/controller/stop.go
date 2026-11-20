@@ -25,7 +25,7 @@ func stoppedRevision(app *loco.Application) *loco.StoppedRevision {
 	return app.Status.Rollout.Stopped
 }
 
-// exhaustedRevision stops the revision when one of its replicas restarted past its restart policy.
+// exhaustedRevision is the stop of the revision when one of its replicas restarted past its restart policy.
 func exhaustedRevision(
 	current []observedReplica,
 	revision int64,

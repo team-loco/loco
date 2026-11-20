@@ -148,11 +148,21 @@ func (r *ApplicationReconciler) observeReplicas(
 	sort.Slice(current, func(i, j int) bool { return current[i].pod.Name < current[j].pod.Name })
 	rollout.ProvenRevision = previous.ProvenRevision
 	rollout.DeployedRevision = previous.DeployedRevision
-	if rollout.Stopped == nil {
-		rollout.Stopped = exhaustedRevision(current, revision, policy, now)
+	// Restarts stop a revision only until it proves itself; a proven revision keeps running.
+	exhausted := exhaustedRevision(current, revision, policy, now)
+	if rollout.Stopped == nil && placed && previous.ProvenRevision != revision {
+		rollout.Stopped = exhausted
 	}
 	r.observeHealth(rollout, current, revision, now)
 	rollout.Problem = replicaProblem(current, policy, r.HealthyAfter, now)
+	if rollout.Stopped == nil && exhausted != nil {
+		rollout.Problem = &locov1alpha1.Problem{
+			Reason:  locov1alpha1.ProblemRestartsExhausted,
+			Replica: exhausted.Replica,
+			Detail:  exhausted.Detail,
+			Since:   exhausted.At.DeepCopy(),
+		}
+	}
 	if placed {
 		observeDeadline(rollout, previous, revision, app.Spec.ServiceSpec.DeployTimeoutSeconds, now)
 	}

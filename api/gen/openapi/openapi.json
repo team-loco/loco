@@ -9024,6 +9024,16 @@
         "title": "StartBuild",
         "additionalProperties": false
       },
+      "loco.agent.v1.StopReason": {
+        "type": "string",
+        "title": "StopReason",
+        "enum": [
+          "STOP_REASON_UNSPECIFIED",
+          "STOP_REASON_RESTARTS_EXHAUSTED",
+          "STOP_REASON_DEPLOY_TIMEOUT"
+        ],
+        "description": "StopReason is why the controller stopped a placement revision."
+      },
       "loco.agent.v1.StoppedRevision": {
         "type": "object",
         "properties": {
@@ -9033,9 +9043,8 @@
             "format": "int64"
           },
           "reason": {
-            "type": "string",
             "title": "reason",
-            "description": "restarts_exhausted or deploy_timeout."
+            "$ref": "#/components/schemas/loco.agent.v1.StopReason"
           },
           "replicaName": {
             "type": "string",

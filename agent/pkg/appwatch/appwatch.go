@@ -156,7 +156,7 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		if stopped := rollout.Stopped; stopped != nil {
 			status.Stopped = &agentv1.StoppedRevision{
 				PlacementRevision: stopped.PlacementRevision,
-				Reason:            string(stopped.Reason),
+				Reason:            stopReason(stopped.Reason),
 				ReplicaName:       stopped.Replica,
 				Restarts:          stopped.Restarts,
 				Detail:            stopped.Detail,
@@ -214,6 +214,18 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		}
 	}
 	w.feed.Publish(placementID, status)
+}
+
+// stopReason maps the reason the controller stopped a revision to its proto value.
+func stopReason(reason locoControllerV1.ProblemReason) agentv1.StopReason {
+	switch reason {
+	case locoControllerV1.ProblemRestartsExhausted:
+		return agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED
+	case locoControllerV1.ProblemDeployTimeout:
+		return agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT
+	default:
+		return agentv1.StopReason_STOP_REASON_UNSPECIFIED
+	}
 }
 
 // restartPolicy maps a restart mode to its proto value, as api/pkg/servicedefaults does; update both together.

@@ -132,17 +132,19 @@ services:
     deploy: { restart: on-failure, maxRestarts: 3, timeout: 300 }
 ```
 
-Kubernetes starts a replica's process again when it exits, with any exit code, runs out of memory or fails its liveness check. `restart` decides which of those restarts stop the version:
+Kubernetes starts a replica's process again when it exits, with any exit code, runs out of memory or fails its liveness check. `restart` decides which of those restarts are too many:
 
-- `on-failure` (the default) stops it on the restart after `maxRestarts`, between 1 and 20. A replica's count starts again once it stays up for the worker cluster's `controller.healthyAfterSeconds` (300 by default).
-- `never` stops it on a replica's first exit.
-- `always` never stops it for restarts. `maxRestarts` applies only to `on-failure`.
+- `on-failure` (the default): the restart after `maxRestarts`, between 1 and 20. A replica's count starts again once it stays up for the worker cluster's `controller.healthyAfterSeconds` (300 by default).
+- `never`: a replica's first exit.
+- `always`: none. `maxRestarts` applies only to `on-failure`.
+
+Too many restarts stop a new version only until it proves itself by serving on every replica for the health window without a restart. After that, a replica that restarts too often keeps running and restarting, and the deployment shows `crashed` until the replica stays up for the health window again.
 
 `timeout`, between 60 and 3600 seconds, is how long a new version has to become healthy: every replica available, and none restarted within the health window. A version that is still unhealthy at its timeout stops, whatever held it back: replicas that cannot be scheduled, an image that cannot be pulled, a health check that never passes or a crash loop. The timeout starts when the cluster first sees the version and ends once it is healthy, so a replica added later by scaling is not held to it.
 
 An omitted field uses the API default: `on-failure` with 10 restarts and a 600-second timeout, unless the operator sets `LOCO_DEFAULT_MAX_RESTARTS` or `LOCO_DEFAULT_DEPLOY_TIMEOUT`. `GetConfig` reports the defaults as `failure_policy`.
 
-A stopped version runs no replicas. The previous version takes its place when its replicas still run, or when it proved itself by serving on every replica for the health window without a restart; the deployment then fails (and rolls back when `rollbackOnFailure` is on). A version that misses its timeout with nothing to fall back to also fails. A version stopped for restarts with nothing to fall back to stops the service entirely, and its deployment becomes `crashed` until `loco resource restart`, a redeploy or a rollback starts it again. A running deployment whose replica restarted is `degraded` and returns to `running` once every replica has gone the health window without a restart.
+A stopped version runs no replicas. The previous version takes its place when its replicas still run, or when it proved itself by serving on every replica for the health window without a restart; the deployment then fails (and rolls back when `rollbackOnFailure` is on). A version that misses its timeout with nothing to fall back to also fails. A first version stopped for restarts runs nothing, and its deployment becomes `crashed` until `loco resource restart`, a redeploy or a rollback starts it again. A running deployment whose replica restarted is `degraded` and returns to `running` once every replica has gone the health window without a restart.
 
 `deploy` applies to the service in every environment, so an environment override cannot set it. A change reaches the cluster with the service's next deployment. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it; `loco deploy` still builds and redeploys the services it targets.
 
