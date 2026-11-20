@@ -9,7 +9,8 @@ import (
 
 // Slug turns text, such as a name or a directory name, into a DNS label: accents dropped,
 // lowercase letters and digits kept, runs of anything else collapsed to one hyphen, at most 63
-// characters. It returns "" when the text has no letter or digit.
+// characters. It returns "" when the text has no letter or digit. The result can start with a
+// digit, which IsDNSLabel rejects.
 func Slug(name string) string {
 	var b strings.Builder
 	for _, char := range norm.NFD.String(strings.ToLower(name)) {

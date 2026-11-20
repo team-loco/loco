@@ -201,22 +201,9 @@ var _ = Describe("Private service discovery", func() {
 		}
 	})
 
-	It("supports digit-leading names on the pinned API server", func() {
-		app := isolationTestApplication("discovery-digit", "digit")
-		app.Spec.Slug = "123cart"
-		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-		r := &ApplicationReconciler{
-			Client:                   k8sClient,
-			APIReader:                k8sClient,
-			Gateway:                  testGateway,
-			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
-		}
-		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
-	})
-
 	It("fails reconciliation for a stored name that is not a valid logical name", func() {
-		for _, name := range []string{"", "Legacy_API", "localhost", "resource-01234567-89ab-cdef-0123-456789abcdef"} {
+		invalid := []string{"", "Legacy_API", "123cart", "localhost", "resource-01234567-89ab-cdef-0123-456789abcdef"}
+		for _, name := range invalid {
 			app := isolationTestApplication("discovery-invalid", "invalid")
 			app.Spec.Slug = name
 			app.UID = "invalid-uid"

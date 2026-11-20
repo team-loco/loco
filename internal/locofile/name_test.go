@@ -26,18 +26,19 @@ func TestSlug(t *testing.T) {
 	for _, test := range cases {
 		got := Slug(test.name)
 		assert.Equal(t, test.want, got, test.name)
-		if got != "" {
+		if got != "" && got[0] >= 'a' {
 			assert.True(t, IsDNSLabel(got), test.name)
 		}
 	}
 }
 
 func TestIsDNSLabel(t *testing.T) {
-	for _, name := range []string{"web", "123cart", "qa-echo", strings.Repeat("a", MaxServiceNameLength)} {
+	for _, name := range []string{"web", "qa-echo", strings.Repeat("a", MaxServiceNameLength)} {
 		assert.True(t, IsDNSLabel(name), name)
 	}
 	for _, name := range []string{
-		"", "!!!", "--", "-bad-", "Checkout API", "Café", "🚀rocket", strings.Repeat("a", MaxServiceNameLength+1),
+		"", "!!!", "--", "123cart", "7", "-bad-", "Checkout API", "Café", "🚀rocket",
+		strings.Repeat("a", MaxServiceNameLength+1),
 	} {
 		assert.False(t, IsDNSLabel(name), name)
 	}

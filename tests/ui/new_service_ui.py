@@ -977,7 +977,7 @@ with session(out) as browser:
             f"{repository.upper()} already exists in this workspace", exact=True
         )
     ).to_be_visible()
-    rule = "Use 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit"
+    rule = "Use 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit"
     for typed, derived in [
         ("QA Echo", "qa-echo"),
         ("🚀 Rocket Launch", "rocket-launch"),
@@ -997,6 +997,10 @@ with session(out) as browser:
     for invalid in ["QA Echo", "-bad-", "🚀rocket", "a" * 64]:
         slug_input.fill(invalid)
         expect(ask.get_by_text(rule, exact=True)).to_be_visible()
+    name_input.fill("7 Cart")
+    expect(slug_input).to_have_value("7-cart")
+    expect(ask.get_by_text("Start the slug with a letter", exact=True)).to_be_visible()
+    name_input.fill(label)
     slug_input.fill("localhost")
     expect(ask.get_by_text("localhost is reserved", exact=True)).to_be_visible()
     slug_input.fill(name)
