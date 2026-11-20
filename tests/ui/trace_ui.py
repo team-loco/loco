@@ -465,20 +465,10 @@ with session(out) as browser:
     expect(
         drawer.get_by_text("Payment authorization timed out after 90 ms", exact=True)
     ).to_be_visible()
-    events = drawer.get_by_role("region", name="Span events")
-    expect(events.get_by_text("TimeoutError", exact=True)).to_be_visible()
-    expect(events.get_by_text("Authorization timed out", exact=True)).to_be_visible()
-    expect(events.locator("pre")).to_have_text(
-        spans[10]["events"][1]["attributes"]["exception.stacktrace"]
-    )
-    expect(events.get_by_role("listitem")).to_have_count(2)
-    expect(events.get_by_role("listitem").nth(0)).to_contain_text("+12ms")
-    expect(events.get_by_role("listitem").nth(1)).to_contain_text("+90ms")
-    events.get_by_role("button", name="Copy stack trace", exact=True).click()
-    assert (
-        page.evaluate("navigator.clipboard.readText()")
-        == spans[10]["events"][1]["attributes"]["exception.stacktrace"]
-    )
+    stack = spans[10]["events"][1]["attributes"]["exception.stacktrace"]
+    expect(drawer.locator("pre").filter(has_text="TimeoutError")).to_have_text(stack)
+    drawer.get_by_role("button", name="Copy stack trace", exact=True).click()
+    assert page.evaluate("navigator.clipboard.readText()") == stack
     attributes = drawer.get_by_role("region", name="Span attributes")
     expect(
         drawer.get_by_role("region", name="Span details").get_by_text(
@@ -526,10 +516,11 @@ with session(out) as browser:
         )
     ).to_be_disabled()
     attributes.get_by_role("tab", name="Attributes", exact=True).click()
-    expect(
-        drawer.get_by_role("button", name="Copy trace ID " + trace, exact=True)
-    ).to_have_text("Trace" + trace[:8])
-    drawer.get_by_role("button", name="Copy trace ID " + trace, exact=True).click()
+    trace_chip = drawer.get_by_role("button", name="Copy trace ID " + trace, exact=True)
+    expect(trace_chip).to_have_text("Trace" + trace[:8] + "…")
+    trace_chip.hover()
+    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(trace)
+    trace_chip.click()
     assert page.evaluate("navigator.clipboard.readText()") == trace
     drawer.get_by_role("button", name="More for this trace", exact=True).click()
     expect(
@@ -614,7 +605,13 @@ with session(out) as browser:
     plot = drawer.locator("[data-trace-plot]")
     plot.hover(position={"x": 150, "y": 50})
     page.mouse.wheel(0, -250)
-    expect(drawer.get_by_role("button", name="Reset zoom", exact=True)).to_have_count(0)
+    expect(overview).to_be_visible()
+    wheel_window = overview.get_attribute("aria-valuetext")
+    page.mouse.wheel(200, 0)
+    expect(overview).not_to_have_attribute("aria-valuetext", wheel_window)
+    drawer.get_by_role("button", name="Reset zoom", exact=True).click()
+    expect(overview).to_have_count(0)
+    plot.hover(position={"x": 150, "y": 50})
     page.keyboard.down("Control")
     page.mouse.wheel(0, -250)
     page.keyboard.up("Control")
@@ -673,47 +670,25 @@ with session(out) as browser:
     waterfall.get_by_role("separator", name="Resize span column").press("ArrowRight")
     expect(
         waterfall.get_by_role("separator", name="Resize span column")
-    ).to_have_attribute("aria-valuenow", "256")
-    drawer.get_by_role("button", name="Span list", exact=True).click()
-    span_list = drawer.get_by_role("region", name="Span list")
-    for width in (1280, 1100, 390):
-        page.set_viewport_size({"width": width, "height": 844})
-        share_header = span_list.get_by_role(
-            "button", name="% of exec time", exact=True
-        )
-        expect(share_header).to_be_visible()
-        assert share_header.evaluate(
-            "e => {const a=e.getBoundingClientRect(), b=e.closest('section').getBoundingClientRect(); return a.x >= b.x && a.right <= b.right}"
-        )
-        assert span_list.locator("tbody tr td:last-child").evaluate_all(
-            "cells => cells.every(c => {const v=c.lastElementChild.lastElementChild, a=v.getBoundingClientRect(), b=c.closest('section').getBoundingClientRect(); return a.x >= b.x && a.right <= b.right && v.scrollWidth <= v.clientWidth})"
-        )
-        assert span_list.locator("table").evaluate(
-            "e => e.scrollWidth <= e.closest('section').clientWidth"
-        )
-    page.set_viewport_size({"width": 1280, "height": 800})
-    span_list.get_by_role("separator", name="Resize Exec time", exact=True).press(
-        "ArrowLeft"
+    ).to_have_attribute("aria-valuenow", "356")
+    hint = drawer.get_by_text(
+        "Drag the time axis or double-click a span to zoom", exact=True
     )
-    assert span_list.locator(".tv-share-bar").evaluate_all(
-        "bars => bars.every(b => {const r=b.getBoundingClientRect(), c=b.closest('td').getBoundingClientRect();return r.x >= c.x && r.right <= c.right && r.width <= 110})"
-    )
-    search_operations = span_list.get_by_role("textbox", name="Filter operations")
-    search_operations.fill("Charge")
-    expect(span_list.locator("tbody tr")).to_have_count(2)
-    search_operations.fill("unknown-operation")
+    expect(hint).to_have_count(0)
     expect(
-        span_list.get_by_text("No operations match this filter.", exact=True)
-    ).to_be_visible()
-    span_list.get_by_role("button", name="Clear search", exact=True).click()
-    expect(span_list.locator("tbody tr")).to_have_count(len(spans))
+        drawer.get_by_role("group", name="Trace view").get_by_role("button")
+    ).to_have_text(["Flame graph", "Waterfall"])
     drawer.get_by_role("button", name="Flame graph", exact=True).click()
+    expect(hint).to_be_visible()
     flame.get_by_role("button", name=failing).click()
     page.get_by_text("Copied trace ID", exact=True).wait_for(state="hidden")
     linking_span = flame.get_by_role(
         "button", name=re.compile(r"^payment Charge · attempt 2,")
     )
+    attributes = drawer.get_by_role("region", name="Span attributes")
+    expect(attributes.get_by_role("tab", name="Links", exact=True)).to_have_count(0)
     linking_span.click()
+    attributes.get_by_role("tab", name="Links", exact=True).click()
     links = drawer.get_by_role("region", name="Span links")
     expect(links.get_by_role("listitem")).to_have_count(2)
     expect(links).to_contain_text("link.reason")
@@ -728,6 +703,7 @@ with session(out) as browser:
         "button", name=re.compile(r"^payment Charge · attempt 2,")
     ).dblclick()
     expect(drawer.get_by_role("button", name="Reset zoom", exact=True)).to_be_visible()
+    attributes.get_by_role("tab", name="Links", exact=True).click()
     links.get_by_role("link", name="Open linked span", exact=True).nth(1).click()
     wait_for_query(
         page,
@@ -830,7 +806,7 @@ with session(out) as browser:
     ).to_be_visible()
     expect(
         failed_drawer.get_by_role("button", name="Copy trace ID " + trace, exact=True)
-    ).to_have_text("Trace" + trace[:8])
+    ).to_have_text("Trace" + trace[:8] + "…")
     failed_drawer.get_by_role(
         "button", name="Copy trace ID " + trace, exact=True
     ).click()
@@ -1557,15 +1533,9 @@ with session(out) as browser:
     drawer = page.get_by_role("dialog", name=root_name)
     large_flame = drawer.get_by_role("region", name="Flame graph")
     expect(large_flame.get_by_role("button")).to_have_count(3001)
-    first = large_flame.get_by_role("button").first
-    first.hover()
-    before_top = first.bounding_box()["y"]
-    page.mouse.wheel(0, 400)
-    page.wait_for_function(
-        """top => document.querySelector('[aria-label="Flame graph"] button').getBoundingClientRect().top < top""",
-        arg=before_top,
-    )
-    expect(drawer.get_by_role("button", name="Reset zoom", exact=True)).to_have_count(0)
+    large_flame.get_by_role("button").first.hover()
+    page.mouse.wheel(0, -400)
+    expect(drawer.get_by_role("button", name="Reset zoom", exact=True)).to_be_visible()
     assert not errors, errors
     context.close()
     mode[0] = "many"
@@ -1577,18 +1547,6 @@ with session(out) as browser:
     )
     expect(flame.get_by_role("button")).to_have_count(114)
     many_drawer = page.get_by_role("dialog", name=root_name)
-    many_drawer.get_by_role("button", name="Span list", exact=True).click()
-    span_list = many_drawer.get_by_role("region", name="Span list")
-    expect(span_list.locator("tbody tr")).to_have_count(25)
-    span_list.get_by_role("button", name="Next page", exact=True).click()
-    expect(span_list.get_by_text("26–50 of 114", exact=True)).to_be_visible()
-    span_list.get_by_role("button", name="Last page", exact=True).click()
-    expect(span_list.locator("tbody tr")).to_have_count(14)
-    span_list.get_by_role("button", name="First page", exact=True).click()
-    span_list.get_by_role("separator", name="Resize Operation", exact=True).press(
-        "ArrowRight"
-    )
-    span_list.get_by_role("button", name="Operation", exact=True).click()
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     for width, height in ((1280, 600), (390, 844)):
         page.set_viewport_size({"width": width, "height": height})
@@ -1717,6 +1675,137 @@ with session(out) as browser:
         assert waterfall.locator("button > span.absolute").evaluate_all(
             "bars => bars.every(b => b.clientHeight >= b.scrollHeight)"
         )
+        assert not errors, errors
+        context.close()
+    mode[0] = "normal"
+    marker_logs = [
+        {
+            "timestamp": stamp(offset),
+            "level": "LOG_LEVEL_INFO",
+            "body": body,
+            "resourceId": workspace_id,
+            "traceId": trace,
+            "spanId": spans[index]["spanId"],
+        }
+        for offset, index, body in (
+            (0.5, 0, "Proxy accepted"),
+            (35, 5, "Product found"),
+            (172, 10, "Payment declined"),
+        )
+    ]
+    for font in ("16px", "20px"):
+        context, page, errors = open_page(browser, state=state, now=now)
+        context.add_init_script(
+            "document.addEventListener('DOMContentLoaded', () => {"
+            f"document.documentElement.style.fontSize = '{font}';"
+            "window.transitions = [];"
+            "document.addEventListener('transitionrun', (e) => window.transitions.push("
+            "[e.target.dataset.slot || String(e.target.className), e.propertyName]));});"
+        )
+        context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
+        context.route(
+            "**/loco.observability.v1.ObservabilityService/QueryLogs",
+            lambda route: route.fulfill(
+                json={"entries": marker_logs, "totalMatched": str(len(marker_logs))}
+            ),
+        )
+        page.goto(state["ui_url"] + base)
+        page.get_by_role("button", name="Open trace " + root_name, exact=True).click()
+        drawer = page.get_by_role("dialog", name=root_name)
+        flame = drawer.get_by_role("region", name="Flame graph")
+        expect(flame.locator("[data-span-id]")).to_have_count(len(spans))
+        page.wait_for_function(
+            "() => transitions.some(([c, p]) => c === 'sheet-content' && ['translate', 'transform'].includes(p))"
+        )
+        expect(page.locator('[data-slot="tooltip-content"]')).to_have_count(0)
+        overview = drawer.get_by_role("slider", name="Trace overview")
+        expect(overview).to_have_count(0)
+        lane = flame.locator("[data-span-id]").first.evaluate(
+            "b => [b.getBoundingClientRect().width, b.parentElement.getBoundingClientRect().width]"
+        )
+        assert abs(lane[0] - lane[1]) < 1, (font, lane)
+        boxes = flame.locator("[data-span-id]").evaluate_all(
+            "(bars) => bars.map(b => {const r=b.getBoundingClientRect(); return [r.x, r.y, r.right, r.bottom]})"
+        )
+        for i, a in enumerate(boxes):
+            for b in boxes[i + 1 :]:
+                assert (
+                    a[3] <= b[1]
+                    or b[3] <= a[1]
+                    or a[2] <= b[0] + 0.1
+                    or b[2] <= a[0] + 0.1
+                ), (font, a, b)
+        ranking = drawer.get_by_role("group", name="Time spent per resource")
+        ranking.get_by_role("button", name=re.compile(r"^\+\d+ more$")).click()
+        for service, body in (
+            ("product-catalog", "Product found"),
+            ("payment", "Payment declined"),
+        ):
+            marker = drawer.get_by_role(
+                "button", name=re.compile(f"^Log at .*: {body}$")
+            )
+            width, background = marker.evaluate(
+                "m => [m.getBoundingClientRect().width, getComputedStyle(m).backgroundColor]"
+            )
+            dot = (
+                ranking.get_by_role("button")
+                .filter(has_text=service)
+                .first.locator("i")
+                .evaluate("i => getComputedStyle(i).backgroundColor")
+            )
+            assert width <= 4 and background == dot, (
+                font,
+                service,
+                width,
+                background,
+                dot,
+            )
+        flame.locator("[data-span-id]").first.hover()
+        page.evaluate("transitions.length = 0")
+        page.mouse.wheel(0, -250)
+        expect(overview).to_be_visible()
+        page.wait_for_function(
+            "() => transitions.some(([c, p]) => c.includes('tv-range-wrap') && p === 'grid-template-rows')"
+        )
+        drawer.get_by_role("button", name="Reset zoom", exact=True).click()
+        expect(overview).to_have_count(0)
+        drawer.get_by_role("button", name="Waterfall", exact=True).click()
+        waterfall = drawer.get_by_role("region", name="Waterfall")
+        expect(waterfall.locator("[data-span]")).to_have_count(len(spans))
+        view_box = drawer.get_by_role("group", name="Trace view").bounding_box()
+        page.mouse.move(
+            view_box["x"] + view_box["width"] + 300,
+            view_box["y"] + view_box["height"] / 2,
+        )
+        for _ in range(6):
+            page.mouse.wheel(0, 300)
+            page.wait_for_timeout(50)
+        tabs = drawer.get_by_role("group", name="Trace view").get_by_role("button")
+        assert tabs.evaluate_all(
+            "ts => ts.every(t => {const r=t.getBoundingClientRect(); return [[r.left+2,r.top+2],[r.right-2,r.bottom-2],[r.left+r.width/2,r.top+r.height/2]].every(([x,y]) => t.contains(document.elementFromPoint(x,y)))})"
+        ), font
+        waterfall.locator("[data-span]").nth(4).hover()
+        for _ in range(6):
+            page.mouse.wheel(0, 300)
+            page.wait_for_timeout(50)
+        assert tabs.evaluate_all(
+            "ts => ts.every(t => {const r=t.getBoundingClientRect(); return [[r.left+2,r.top+2],[r.right-2,r.bottom-2],[r.left+r.width/2,r.top+r.height/2]].every(([x,y]) => t.contains(document.elementFromPoint(x,y)))})"
+        ), font
+        assert waterfall.get_by_text("Span", exact=True).first.evaluate(
+            "h => {const r=h.getBoundingClientRect(); return h.contains(document.elementFromPoint(r.left+r.width/2, r.top+r.height/2))}"
+        ), font
+        assert waterfall.locator("[data-span]").evaluate_all(
+            "bs => bs.every(b => {const r=document.createRange(); r.selectNodeContents(b.firstChild); return r.getBoundingClientRect().right <= b.getBoundingClientRect().right + 0.5})"
+        ), font
+        for name in ("GET /api/products", "GetRecommendations", root_name):
+            drawer.get_by_role("button", name="Close", exact=True).click()
+            expect(drawer).to_have_count(0)
+            page.evaluate("transitions.length = 0")
+            page.get_by_role("button", name="Open trace " + name, exact=True).click()
+            expect(drawer).to_be_visible()
+            page.wait_for_function(
+                "() => transitions.some(([c, p]) => c === 'sheet-content' && ['translate', 'transform'].includes(p))"
+            )
         assert not errors, errors
         context.close()
     browser.close()

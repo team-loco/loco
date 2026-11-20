@@ -36,7 +36,7 @@ export function Waterfall({
 }) {
 	const { color, tree: all, children: childrenById } = useTraceResources();
 	const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
-	const [nameWidth, setNameWidth] = useState(240);
+	const [nameWidth, setNameWidth] = useState(340);
 	const resizeRef = useRef<{ x: number; width: number } | null>(null);
 
 	const rows = useMemo(() => {
@@ -59,14 +59,14 @@ export function Waterfall({
 	};
 	const ticks = offsetTicks(trace.duration, zoom);
 	const width = zoom.b - zoom.a;
-	const clamp = (value: number) => Math.max(120, Math.min(480, value));
+	const clamp = (value: number) => Math.max(160, Math.min(640, value));
 	return (
 		<section
 			aria-label="Waterfall"
-			className="tv-waterfall max-h-[70vh] min-w-0 min-[1100px]:max-h-[max(240px,calc(100vh-460px))] overflow-auto overscroll-contain rounded-md border border-line"
+			className="tv-waterfall max-h-[70vh] min-w-0 overflow-auto overscroll-contain rounded-md border border-line min-[1100px]:max-h-none min-[1100px]:overflow-visible"
 		>
-			<div className="sticky top-0 z-20 flex border-b border-line bg-panel py-2 font-mono text-[11px] text-fg3">
-				<span className="shrink-0 px-2" style={{ width: nameWidth }}>
+			<div className="sticky top-0 z-20 flex border-b border-line bg-panel py-[6px] font-mono text-[11px] text-fg3">
+				<span className="shrink-0 border-r border-line px-2" style={{ width: nameWidth }}>
 					Span
 				</span>
 				<div
@@ -74,10 +74,10 @@ export function Waterfall({
 					aria-label="Resize span column"
 					aria-orientation="vertical"
 					aria-valuenow={nameWidth}
-					aria-valuemin={120}
-					aria-valuemax={480}
+					aria-valuemin={160}
+					aria-valuemax={640}
 					tabIndex={0}
-					className="absolute inset-y-0 z-10 w-2 -translate-x-1/2 cursor-col-resize touch-none border-x border-line focus-visible:ring-2 focus-visible:ring-ring"
+					className="absolute inset-y-0 z-10 w-2 -translate-x-1/2 cursor-col-resize touch-none focus-visible:ring-2 focus-visible:ring-ring"
 					style={{ left: nameWidth }}
 					onPointerDown={(e) => {
 						e.currentTarget.setPointerCapture(e.pointerId);
@@ -115,15 +115,15 @@ export function Waterfall({
 						key={span.spanId}
 						data-span-id={span.spanId}
 						className={cn(
-							"tv-waterfall-row flex min-h-8 items-stretch border-b border-line last:border-0",
+							"tv-waterfall-row flex h-[30px] items-stretch border-b border-line last:border-0",
 							selected.spanId === span.spanId && "bg-panel2",
 							highlight !== null && traceResourceKey(span) !== highlight && "opacity-30",
 							linkedSpan === span.spanId && "ring-2 ring-inset ring-info",
 						)}
 					>
 						<div
-							className="flex shrink-0 items-center overflow-hidden pr-2"
-							style={{ width: nameWidth, paddingLeft: 8 + row.depth * 12 }}
+							className="flex shrink-0 items-center overflow-hidden border-r border-line pr-2"
+							style={{ width: nameWidth, paddingLeft: 8 + Math.min(row.depth * 12, nameWidth * 0.3) }}
 						>
 							<button
 								type="button"
@@ -133,15 +133,15 @@ export function Waterfall({
 								onClick={() => {
 									toggle(span.spanId);
 								}}
-								className="flex size-5 shrink-0 items-center justify-center text-fg3 hover:bg-panel2 disabled:invisible"
+								className="flex size-[18px] shrink-0 items-center justify-center text-fg3 hover:bg-panel2 disabled:invisible"
 							>
 								{collapsed.has(span.spanId) ? (
-									<ChevronRightIcon className="size-3" />
+									<ChevronRightIcon className="size-[12px]" />
 								) : (
-									<ChevronDownIcon className="size-3" />
+									<ChevronDownIcon className="size-[12px]" />
 								)}
 							</button>
-							<i className="mr-1.5 size-2 shrink-0 rounded-full" style={{ background: color(span) }} />
+							<i className="mr-[6px] size-[8px] shrink-0 rounded-full" style={{ background: color(span) }} />
 							<button
 								type="button"
 								aria-pressed={selected.spanId === span.spanId}
@@ -212,19 +212,29 @@ export function Waterfall({
 									{end < zoom.a ? "←" : "→"} {durationLabel(span.durationNanos)}
 								</span>
 							) : (
-								<span
-									className={cn(
-										"tv-span-bar absolute top-1.5 bottom-1.5 flex items-center truncate rounded-sm px-1 text-foreground",
-										selected.spanId === span.spanId && "ring-1 ring-foreground",
-									)}
-									style={{
-										left: `${String(left * 100)}%`,
-										width: `${String((right - left) * 100)}%`,
-										background: `color-mix(in oklab, ${spanError(span) ? "var(--err)" : color(span)} 35%, var(--bg))`,
-									}}
-								>
-									{durationLabel(span.durationNanos)}
-								</span>
+								<>
+									<span
+										className={cn(
+											"tv-span-bar absolute top-[8px] h-[14px] min-w-[2px] rounded-[3px]",
+											selected.spanId === span.spanId && "ring-1 ring-foreground",
+										)}
+										style={{
+											left: `${String(left * 100)}%`,
+											width: `${String((right - left) * 100)}%`,
+											background: `color-mix(in oklab, ${spanError(span) ? "var(--err)" : color(span)} 70%, var(--bg))`,
+										}}
+									/>
+									<span
+										className="tv-span-bar absolute top-[8px] text-[11px] leading-[14px] whitespace-nowrap text-fg2"
+										style={
+											right > 0.85
+												? { right: `calc(${String((1 - left) * 100)}% + 6px)` }
+												: { left: `calc(${String(right * 100)}% + 6px)` }
+										}
+									>
+										{durationLabel(span.durationNanos)}
+									</span>
+								</>
 							)}
 						</button>
 					</div>

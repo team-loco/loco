@@ -4,7 +4,7 @@ import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Spinner } from "@/components/design/Spinner";
-import { useState, type KeyboardEventHandler } from "react";
+import { useRef, useState, type KeyboardEventHandler } from "react";
 
 import { useQueryState } from "nuqs";
 
@@ -28,6 +28,41 @@ import { TRACE_ID_PATTERN, type TraceSummary } from "./traces";
 export function TraceDrawer({
 	onKeyDown,
 	open,
+	onClose,
+	...view
+}: {
+	onKeyDown: KeyboardEventHandler<HTMLDivElement>;
+	open: boolean;
+	traceId: string;
+	trace: TraceSummary | undefined;
+	loading: boolean;
+	error: Error | null;
+	onRetry: () => Promise<unknown>;
+	onClose: () => void;
+}) {
+	const popupRef = useRef<HTMLDivElement>(null);
+	return (
+		<Sheet
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) onClose();
+			}}
+		>
+			<SheetContent
+				ref={popupRef}
+				initialFocus={popupRef}
+				onKeyDown={onKeyDown}
+				size="full"
+				className="outline-none data-[side=right]:w-[min(1480px,calc(100vw-16px))]"
+				showCloseButton={false}
+			>
+				<TraceView key={view.traceId} {...view} onClose={onClose} />
+			</SheetContent>
+		</Sheet>
+	);
+}
+
+function TraceView({
 	traceId,
 	trace,
 	loading,
@@ -35,8 +70,6 @@ export function TraceDrawer({
 	onRetry,
 	onClose,
 }: {
-	onKeyDown: KeyboardEventHandler<HTMLDivElement>;
-	open: boolean;
 	traceId: string;
 	trace: TraceSummary | undefined;
 	loading: boolean;
@@ -63,77 +96,64 @@ export function TraceDrawer({
 	};
 	return (
 		<TraceColors trace={trace}>
-			<Sheet
-				open={open}
-				onOpenChange={(next) => {
-					if (!next) onClose();
-				}}
-			>
-				<SheetContent
-					onKeyDown={onKeyDown}
-					ref={drawerRef}
-					size="full"
-					className="data-[side=right]:w-[min(1480px,calc(100vw-16px))]"
-					showCloseButton={false}
-				>
-					<TraceHeader
-						trace={trace}
-						traceId={traceId}
-						onClose={onClose}
-						highlight={highlight}
-						pinned={pinned}
-						onHover={setHovered}
-						onPin={setPinned}
-					/>
-					<SheetBody className="gap-0 p-0 min-[1100px]:overflow-hidden">
-						{loading && (
-							<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
-								<Spinner className="size-4" />
-								Loading spans…
-							</div>
-						)}
-						{!loading && error !== null && (
-							<div className="px-6 py-5">
-								<ErrorState
-									error={error}
-									what="this trace"
-									rpc={ObservabilityService.method.getTrace}
-									onRetry={onRetry}
-								/>
-							</div>
-						)}
-						{!loading && error === null && trace === undefined && (
-							<div className="px-6 py-5">
-								<EmptyHero
-									art={<ScrollTextIcon className="size-8 text-fg3" />}
-									title={validId ? "This trace is no longer available" : "Trace not found"}
-									subtitle={
-										validId
-											? `${traceDays === undefined ? "" : `Traces are kept for ${String(traceDays)} days. `}It may also have been dropped before it was stored.`
-											: "The trace ID looks invalid. A trace ID is 32 lowercase hexadecimal characters."
-									}
-								>
-									<Button variant="outline" onClick={onClose}>
-										Back to traces
-									</Button>
-								</EmptyHero>
-							</div>
-						)}
-						{trace !== undefined && selected !== undefined && (
-							<TraceLogs
-								trace={trace}
-								selected={selected}
-								missing={missing}
-								select={select}
-								label={label}
-								zoom={zoom}
-								onZoom={setZoom}
-								highlight={highlight}
+			<div ref={drawerRef} className="contents">
+				<TraceHeader
+					trace={trace}
+					traceId={traceId}
+					onClose={onClose}
+					highlight={highlight}
+					pinned={pinned}
+					onHover={setHovered}
+					onPin={setPinned}
+				/>
+				<SheetBody className="gap-0 p-0 min-[1100px]:overflow-hidden">
+					{loading && (
+						<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
+							<Spinner className="size-4" />
+							Loading spans…
+						</div>
+					)}
+					{!loading && error !== null && (
+						<div className="px-6 py-5">
+							<ErrorState
+								error={error}
+								what="this trace"
+								rpc={ObservabilityService.method.getTrace}
+								onRetry={onRetry}
 							/>
-						)}
-					</SheetBody>
-				</SheetContent>
-			</Sheet>
+						</div>
+					)}
+					{!loading && error === null && trace === undefined && (
+						<div className="px-6 py-5">
+							<EmptyHero
+								art={<ScrollTextIcon className="size-8 text-fg3" />}
+								title={validId ? "This trace is no longer available" : "Trace not found"}
+								subtitle={
+									validId
+										? `${traceDays === undefined ? "" : `Traces are kept for ${String(traceDays)} days. `}It may also have been dropped before it was stored.`
+										: "The trace ID looks invalid. A trace ID is 32 lowercase hexadecimal characters."
+								}
+							>
+								<Button variant="outline" onClick={onClose}>
+									Back to traces
+								</Button>
+							</EmptyHero>
+						</div>
+					)}
+					{trace !== undefined && selected !== undefined && (
+						<TraceLogs
+							trace={trace}
+							selected={selected}
+							missing={missing}
+							select={select}
+							label={label}
+							zoom={zoom}
+							onZoom={setZoom}
+							highlight={highlight}
+						/>
+					)}
+				</SheetBody>
+			</div>
 		</TraceColors>
 	);
 }

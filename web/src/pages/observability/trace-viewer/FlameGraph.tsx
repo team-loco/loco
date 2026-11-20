@@ -12,7 +12,8 @@ import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
 import { offsetTicks } from "./plot";
 import { durationLabel, spanError, type TraceSummary } from "../traces";
-const ROW_PX = 24;
+const ROW_PX = 26;
+const BAR_PX = 24;
 const PERCENT = 100;
 
 export function FlameGraph({
@@ -81,7 +82,7 @@ export function FlameGraph({
 								setZoom(zoomTo(trace, b.span));
 							}}
 							className={cn(
-								"tv-span-bar @container absolute h-6 min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+								"tv-span-bar @container absolute min-w-0 overflow-hidden rounded-[3px] p-0 text-left text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 								err && "text-bad-fg",
 								!related.has(b.span.spanId) && "opacity-45",
 								highlight !== null && traceResourceKey(b.span) !== highlight && "opacity-20",
@@ -92,6 +93,7 @@ export function FlameGraph({
 								left: `${String(Math.min(b.left, 1 - MIN_BLOCK) * PERCENT)}%`,
 								width: `${String(Math.max(MIN_BLOCK, b.width) * PERCENT)}%`,
 								top: b.depth * ROW_PX,
+								height: BAR_PX,
 								background: `color-mix(in oklab, ${color} ${err ? "26%" : "34%"}, var(--bg))`,
 							}}
 						>

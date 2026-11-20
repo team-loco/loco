@@ -26,7 +26,7 @@ export function TimeAxis({
 			<div
 				data-trace-axis
 				title="Drag across the time axis to zoom"
-				className="relative h-5 touch-none cursor-col-resize select-none font-mono text-[11px] text-fg3 hover:bg-panel2"
+				className="relative h-[20px] touch-none cursor-col-resize select-none font-mono text-[11px] text-fg3 hover:bg-panel2"
 				onPointerDown={(e) => {
 					if (e.button !== 0) return;
 					e.preventDefault();

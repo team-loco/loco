@@ -43,7 +43,7 @@ export function Minimap({ zoom, onZoom, highlight }: { zoom: Zoom; onZoom: SetTr
 					aria-valuetext={`${Math.round(zoom.a * 100).toString()}–${Math.round(zoom.b * 100).toString()}% of trace`}
 					tabIndex={zoom.b - zoom.a < 1 ? 0 : -1}
 					aria-hidden={zoom.b - zoom.a >= 1}
-					className="tv-mini relative h-6 shrink-0 touch-none overflow-hidden rounded-md border border-line bg-panel focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+					className="tv-mini relative h-[24px] shrink-0 touch-none overflow-hidden rounded-md border border-line bg-panel focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 					onPointerDown={(e) => {
 						if (e.button !== 0) return;
 						e.stopPropagation();

@@ -13,6 +13,7 @@ import {
 import { useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "@/components/design/Badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { Button } from "@/components/design/Button";
 import { MetaLine } from "@/components/design/MetaLine";
 import {
@@ -29,7 +30,6 @@ import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
 import { useTraceResources } from "./TraceColors";
-import { replicaOf } from "../rows";
 import { durationLabel, spanError, type TraceSummary } from "../traces";
 import { traceResourceKey, traceServiceLabel } from "../trace-service";
 import { traceJson } from "./trace-json";
@@ -92,11 +92,6 @@ export function TraceHeader({
 			onPin(pinned === key ? null : key);
 		},
 	});
-	const root = trace?.root;
-	const statusCode =
-		root?.spanAttributes["http.response.status_code"] ?? root?.spanAttributes["http.status_code"] ?? "";
-	const rootPod = root?.resourceAttributes["k8s.pod.name"] ?? "";
-	const rootRegion = root?.resourceAttributes["loco.region"] ?? "";
 	const resource = trace === undefined ? undefined : resourceById.get(trace.root.resourceId);
 	const start = trace === undefined ? 0 : Number(trace.start / 1_000_000n);
 	const download = () => {
@@ -120,34 +115,34 @@ export function TraceHeader({
 					{trace !== undefined && (
 						<Badge tone={trace.errors > 0 ? "bad" : "ok"}>{trace.errors > 0 ? "Error" : "OK"}</Badge>
 					)}
-					{statusCode !== "" && (
-						<Badge
-							tone={Number(statusCode) >= 500 ? "bad" : "muted"}
-							title="HTTP status of the root span"
-							className="font-mono"
-						>
-							{statusCode}
-						</Badge>
-					)}
 					<SheetTitle className="min-w-0 truncate font-mono">
 						{trace === undefined || trace.root.name === "" ? "Trace" : trace.root.name}
 					</SheetTitle>
-					<Button
-						variant="ghost"
-						size="sm"
-						className="tv-tid-c group/tid ml-2 h-6 gap-[7px] rounded-[6px] border-0 bg-panel2 pr-[7px] pl-2 text-[12px] text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:ring-0 in-data-[theme=neobrutal]:rounded-[5px] in-data-[theme=neobrutal]:border-2 in-data-[theme=neobrutal]:border-(--ink) in-data-[theme=neobrutal]:bg-background in-data-[theme=neobrutal]:shadow-none in-data-[theme=neobrutal]:focus-visible:border-(--ink) in-data-[theme=neobrutal]:focus-visible:bg-panel2 in-data-[theme=neobrutal]:focus-visible:shadow-none"
-						title={`Copy trace ID ${traceId}`}
-						aria-label={`Copy trace ID ${traceId}`}
-						onClick={() => {
-							copy("trace", traceId);
-						}}
-					>
-						<span className="text-[11.5px] text-fg3">Trace</span>
-						<span className="font-mono">{traceId.slice(0, 8)}</span>
-						<span className="text-fg3 group-hover/tid:text-foreground">
-							{copied === "trace" ? <CheckIcon /> : <CopyIcon />}
-						</span>
-					</Button>
+					<Tooltip>
+						<TooltipTrigger
+							render={
+								<Button
+									variant="ghost"
+									size="sm"
+									className="tv-tid-c group/tid ml-2 h-6 gap-[7px] rounded-[6px] border-0 bg-panel2 pr-[7px] pl-2 text-[12px] text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:ring-0 in-data-[theme=neobrutal]:rounded-[5px] in-data-[theme=neobrutal]:border-2 in-data-[theme=neobrutal]:border-(--ink) in-data-[theme=neobrutal]:bg-background in-data-[theme=neobrutal]:shadow-none in-data-[theme=neobrutal]:focus-visible:border-(--ink) in-data-[theme=neobrutal]:focus-visible:bg-panel2 in-data-[theme=neobrutal]:focus-visible:shadow-none"
+									aria-label={`Copy trace ID ${traceId}`}
+									onClick={() => {
+										copy("trace", traceId);
+									}}
+								/>
+							}
+						>
+							<span className="text-[11.5px] text-fg3">Trace</span>
+							<span className="font-mono">
+								{traceId.slice(0, 8)}
+								<span className="text-fg3">…</span>
+							</span>
+							<span className="text-fg3 group-hover/tid:text-foreground">
+								{copied === "trace" ? <CheckIcon /> : <CopyIcon />}
+							</span>
+						</TooltipTrigger>
+						<TooltipContent className="font-mono">{traceId}</TooltipContent>
+					</Tooltip>
 				</div>
 				<SheetDescription className={trace === undefined ? "sr-only" : "text-[12px] text-fg3"}>
 					{trace === undefined ? (
@@ -172,14 +167,9 @@ export function TraceHeader({
 										{resource.raw.displayName}
 									</Link>
 								))}
-							{rootPod !== "" && <span className="font-mono">{replicaOf(rootPod)}</span>}
-							{rootRegion !== "" && <span>{rootRegion}</span>}
-							<span className="font-mono" title={formatFullTime(start, true, timePref)}>
-								{`${formatMonthDay(start, timePref)}, ${formatClock(start, true, timePref)} ${timeZoneLabel(start, timePref)}`}
-							</span>
-							<span>{agoLabel(start, now)}</span>
-							<span>
-								{trace.spans.length} {trace.spans.length === 1 ? "span" : "spans"}
+							<span title={formatFullTime(start, true, timePref)}>
+								<span className="font-mono">{`${formatMonthDay(start, timePref)}, ${formatClock(start, true, timePref)} ${timeZoneLabel(start, timePref)}`}</span>
+								<span className="ml-1.5">({agoLabel(start, now)})</span>
 							</span>
 							{pinned !== null && (
 								<Button

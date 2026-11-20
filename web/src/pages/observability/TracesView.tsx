@@ -385,7 +385,6 @@ function TraceSession({
 			</section>
 			<TraceDrawer
 				onKeyDown={onListKeyDown}
-				key={shownId}
 				open={openId !== ""}
 				traceId={shownId}
 				trace={openTrace}

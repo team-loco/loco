@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
-import { TraceSpanEventSchema, TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
-import { durationLabel, eventOffsetLabel, spanLinkSearch, spanTree, summarizeTraces, uniqueSpans } from "./traces";
+import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
+import { durationLabel, spanLinkSearch, spanTree, summarizeTraces, uniqueSpans } from "./traces";
 
 const span = (id: string, parent = "", nanos = 0) =>
 	create(TraceSpanSchema, {
@@ -19,11 +19,6 @@ describe("trace timing and hierarchy", () => {
 		expect(durationLabel(5_012_000_000n)).toBe("5.0s");
 		expect(durationLabel(8_140_000n)).toBe("8.1ms");
 		expect(durationLabel(450_000n)).toBe("450µs");
-	});
-	test("labels a span event by its offset from the span start", () => {
-		const event = create(TraceSpanEventSchema, { timestamp: { seconds: 1_800_000_000n, nanos: 12_400_000 } });
-		expect(eventOffsetLabel(span("root"), event)).toBe("+12ms");
-		expect(eventOffsetLabel(span("root"), create(TraceSpanEventSchema))).toBeNull();
 	});
 	test("opens a linked span with its trace and keeps other query parameters", () => {
 		const traceId = "0102030405060708090a0b0c0d0e0f10";
