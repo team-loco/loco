@@ -1965,6 +1965,7 @@ with session(out) as browser:
             }""")
     expect(personal).to_have_attribute("aria-pressed", "true")
     page.wait_for_function("() => window.indicatorSampleDone")
+    expect(indicator).to_be_visible()
     assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
     positions = page.evaluate("window.indicatorPositions")
     start = workspace_button.bounding_box()["x"]
@@ -1977,6 +1978,8 @@ with session(out) as browser:
     expect(workspace_button).to_have_attribute("aria-pressed", "true")
     page.emulate_media(reduced_motion="reduce")
     personal.click()
+    expect(personal).to_have_attribute("aria-pressed", "true")
+    expect(personal.locator('[data-slot="segmented-indicator"]')).to_be_visible()
     expect(indicator).to_have_css("transform", "none")
     assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
     assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
