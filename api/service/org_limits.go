@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -60,7 +61,9 @@ func (s *OrgServer) GetOrgLimits(
 	}
 	result := s.orgLimitsToProto(row)
 	if !detailed {
-		result = &orgv1.OrgLimits{Limits: result.GetLimits()}
+		counts := proto.CloneOf(result.GetLimits())
+		counts.OrgsPerUser, counts.WorkspacesPerOrg, counts.MembersPerOrg, counts.InvitationsPerOrg = 0, 0, 0, 0
+		result = &orgv1.OrgLimits{Limits: counts}
 	}
 	return &orgv1.GetOrgLimitsResponse{Limits: result}, nil
 }

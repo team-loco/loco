@@ -238,6 +238,11 @@ func TestGetOrgLimitsForScopesBelowTheOrganization(t *testing.T) {
 		if limits.ResourcesPerWorkspace.Value(details.GetLimits()) != 300 {
 			t.Fatalf("%s scope reads %v, want the override", scope.EntityType, details.GetLimits())
 		}
+		counts := details.GetLimits()
+		if counts.GetOrgsPerUser() != 0 || counts.GetWorkspacesPerOrg() != 0 ||
+			counts.GetMembersPerOrg() != 0 || counts.GetInvitationsPerOrg() != 0 {
+			t.Fatalf("%s scope reads organization-level limits: %v", scope.EntityType, counts)
+		}
 		if details.GetReason() != "" || details.GetUpdatedBy() != "" || len(details.GetOverridden()) != 0 {
 			t.Fatalf("%s scope reads the change details: %v", scope.EntityType, details)
 		}
