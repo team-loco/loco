@@ -150,6 +150,18 @@ def head_width(table, label):
 POINTER_JS = """cell => { const b = cell.getBoundingClientRect();
 return getComputedStyle(document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)).cursor; }"""
 
+
+def expect_pointer(page, cell):
+    """The cell shows the pointer cursor once the table has stopped moving."""
+    cursor = None
+    for _ in range(50):
+        cursor = cell.evaluate(POINTER_JS)
+        if cursor == "pointer":
+            return
+        page.wait_for_timeout(100)
+    assert cursor == "pointer", cursor
+
+
 # The element is on top at its own centre, so a click there reaches it without scrolling.
 ON_TOP_JS = """node => { const b = node.getBoundingClientRect();
 const c = node.closest('[data-slot="data-table"]').getBoundingClientRect();
@@ -205,9 +217,9 @@ def check_scroll_end(table):
 
 def check_arrow(page, table, row, menu):
     """Every clickable row has one arrow, hidden until the row is hovered, then uncovered and clear of the row menu."""
-    arrows = table.locator('[data-slot="row-arrow"]')
+    arrows = table.locator('[data-slot="nav-arrow"]')
     expect(arrows).to_have_count(table.locator("tbody tr[data-interactive]").count())
-    arrow = row.locator('[data-slot="row-arrow"]')
+    arrow = row.locator('[data-slot="nav-arrow"]')
     page.mouse.move(0, 0)
     expect(arrow).to_have_css("opacity", "0")
     row.get_by_role("cell").last.hover()
@@ -293,7 +305,7 @@ def resources(page):
     expect(page.locator(TOOLTIP)).to_have_count(0)
 
     row = table.get_by_role("row").filter(has_text="api").first
-    assert row.get_by_role("cell").nth(3).evaluate(POINTER_JS) == "pointer"
+    expect_pointer(page, row.get_by_role("cell").nth(3))
     check_arrow(page, table, row, row.get_by_role("button", name="Actions for api"))
     table = check_resize(page, table, "Resource", "Size", resources_table)
 
@@ -341,7 +353,7 @@ def dashboard(page):
     version = table.get_by_text("2026.11.19-build-4812", exact=True).first
     assert version.evaluate("node => node.scrollWidth <= node.clientWidth")
     row = table.get_by_role("row").filter(has_text="api").first
-    assert row.get_by_role("cell").nth(2).evaluate(POINTER_JS) == "pointer"
+    expect_pointer(page, row.get_by_role("cell").nth(2))
     check_arrow(
         page, table, row, row.get_by_role("button", name=re.compile("^Actions for"))
     )

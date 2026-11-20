@@ -18,6 +18,7 @@ import { ChevronDownIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 
+import { NavArrow } from "@/components/design/NavArrow";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -82,7 +83,7 @@ function BreakdownEntry({
 			</div>
 		);
 	return (
-		<Link to={href} className={ENTRY} style={style}>
+		<Link to={href} className={cn(ENTRY, "group/nav")} style={style}>
 			{children}
 		</Link>
 	);
@@ -145,8 +146,11 @@ function Breakdown({ rows, total, format }: { rows: BreakdownRow[]; total: numbe
 						<li key={r.id}>
 							<BreakdownEntry href={r.href} style={{ transitionDelay: `${(60 + i * 40).toString()}ms` }}>
 								<span className="flex items-center justify-between gap-2.5">
-									<span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-foreground" title={r.name}>
-										{r.name}
+									<span className="flex min-w-0 flex-1 items-center">
+										<span className="min-w-0 truncate text-[13.5px] font-medium text-foreground" title={r.name}>
+											{r.name}
+										</span>
+										{r.href !== undefined && <NavArrow />}
 									</span>
 									<span className="flex shrink-0 items-baseline gap-2 font-mono whitespace-nowrap">
 										<span className="text-[12.5px]">{r.label}</span>

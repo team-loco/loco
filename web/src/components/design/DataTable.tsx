@@ -25,6 +25,7 @@ import {
 	type Table as TanStackTable,
 	type TableOptions,
 } from "@tanstack/react-table";
+import { NavArrow } from "@/components/design/NavArrow";
 import { ArrowDownIcon, ArrowUpIcon, Columns3Icon } from "lucide-react";
 import {
 	useRef,
@@ -428,7 +429,7 @@ export function DataTable<T extends RowData>({
 									}
 									className={cn(
 										ROW,
-										"group/row hover:bg-transparent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-panel2",
+										"group/row group/nav hover:bg-transparent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-panel2",
 										onRowClick !== undefined && "hover:bg-(--row-hover)",
 									)}
 								>
@@ -449,15 +450,7 @@ export function DataTable<T extends RowData>({
 												)}
 											>
 												{flexRender(cell.column.columnDef.cell, cell.getContext())}
-												{onRowClick !== undefined && index === primaryIndex && (
-													<span
-														aria-hidden="true"
-														data-slot="row-arrow"
-														className="ml-1.5 shrink-0 -translate-x-1 text-fg3 opacity-0 transition-[opacity,translate] duration-150 group-hover/row:translate-x-0 group-hover/row:opacity-100 group-focus-visible/row:translate-x-0 group-focus-visible/row:opacity-100"
-													>
-														→
-													</span>
-												)}
+												{onRowClick !== undefined && index === primaryIndex && <NavArrow />}
 											</TableCell>
 										);
 									})}
