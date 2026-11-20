@@ -1691,10 +1691,12 @@ with session(out) as browser:
             (0.5, 0, "Proxy accepted"),
             (35, 5, "Product found"),
             (172, 10, "Payment declined"),
+            *((0.5, 0, f"Proxy filler {n}") for n in range(30)),
         )
     ]
     for font in ("16px", "20px"):
         context, page, errors = open_page(browser, state=state, now=now)
+        context.add_init_script("localStorage.setItem('loco-clock', '12')")
         context.add_init_script(
             "document.addEventListener('DOMContentLoaded', () => {"
             f"document.documentElement.style.fontSize = '{font}';"
@@ -1760,6 +1762,68 @@ with session(out) as browser:
                 background,
                 dot,
             )
+        product = drawer.get_by_role(
+            "button", name=re.compile("^Log at .*: Product found$")
+        )
+        other = drawer.get_by_role(
+            "button", name=re.compile("^Log at .*: Payment declined$")
+        )
+        flame.locator(f'[data-span-id="{spans[5]["spanId"]}"]').hover()
+        expect(product).to_have_css("height", "12px")
+        assert product.evaluate("m => getComputedStyle(m).boxShadow") == "none", font
+        assert product.evaluate("m => getComputedStyle(m).outlineStyle") == "none", font
+        assert float(product.evaluate("m => getComputedStyle(m).opacity")) == 1, font
+        assert float(other.evaluate("m => getComputedStyle(m).opacity")) < 0.5, font
+        log_list = drawer.locator("[data-trace-log-scroll]")
+        log_list.evaluate(
+            "l => {l.scrollTop = l.scrollHeight; l.querySelectorAll('[data-log-key]').forEach(r => {r.mounted = true})}"
+        )
+        times = log_list.locator("[data-log-key] > span:first-child")
+        assert times.first.inner_text().endswith(("AM", "PM")), font
+        assert times.evaluate_all(
+            "ts => ts.every(t => t.getBoundingClientRect().height < 20 && t.scrollWidth <= t.clientWidth)"
+        ), font
+        scrolled = log_list.evaluate("l => l.scrollTop")
+        assert scrolled > 0, font
+        for span in (spans[10], spans[5], spans[0]):
+            flame.locator(f'[data-span-id="{span["spanId"]}"]').hover()
+            page.wait_for_timeout(100)
+            assert log_list.evaluate("l => l.scrollTop") == scrolled, font
+            flame.locator(f'[data-span-id="{span["spanId"]}"]').click()
+            page.wait_for_timeout(100)
+            assert log_list.evaluate("l => l.scrollTop") == scrolled, font
+            assert log_list.evaluate(
+                "l => [...l.querySelectorAll('[data-log-key]')].every(r => r.mounted)"
+            ), font
+        bar = flame.locator(f'[data-span-id="{spans[5]["spanId"]}"]')
+        bar.hover()
+        tooltip = page.get_by_role("tooltip")
+        expect(tooltip).to_contain_text(spans[5]["name"])
+        expect(tooltip).to_contain_text("Double-click to zoom")
+        box = bar.bounding_box()
+        assert page.evaluate(
+            "([x, y]) => document.elementsFromPoint(x, y).every(e => !e.hasAttribute('title'))",
+            [box["x"] + box["width"] / 2, box["y"] + box["height"] / 2],
+        ), font
+        marker = drawer.get_by_role(
+            "button", name=re.compile("^Log at .*: Product found$")
+        )
+        marker.hover()
+        expect(page.get_by_role("tooltip")).to_contain_text("Product found")
+        assert marker.get_attribute("title") is None, font
+        resizer = drawer.get_by_role("separator", name="Resize bottom panel")
+        handle_box = resizer.bounding_box()
+        page.mouse.move(
+            handle_box["x"] + 20, handle_box["y"] + handle_box["height"] / 2
+        )
+        page.mouse.down()
+        page.mouse.move(handle_box["x"] + 20, handle_box["y"] + 900, steps=5)
+        page.mouse.up()
+        assert resizer.get_attribute("aria-valuenow") == "192", font
+        log_list.evaluate("l => {l.scrollTop = 0}")
+        assert log_list.evaluate(
+            "l => {const top = l.getBoundingClientRect().top, bottom = l.getBoundingClientRect().bottom, rows = [...l.querySelectorAll('[data-log-key]')].map(r => r.getBoundingClientRect()); return rows[0].top >= top - 0.5 && rows.filter(r => r.bottom <= bottom + 0.5).length >= 3}"
+        ), font
         flame.locator("[data-span-id]").first.hover()
         page.evaluate("transitions.length = 0")
         page.mouse.wheel(0, -250)

@@ -5,6 +5,7 @@ import type { LogRow } from "../rows";
 import type { TraceSummary } from "../traces";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { SpanTipTrigger } from "./SpanTip";
 export interface LogMarkerProps {
 	trace: TraceSummary;
 	zoom: Zoom;
@@ -24,6 +25,7 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 		}))
 		.filter(({ left }) => left >= 0 && left <= 1)
 		.toSorted((a, b) => a.left - b.left);
+	const dimOthers = visible.some(({ row }) => highlighted.has(row.key));
 	const clusters: { left: number; rows: LogRow[] }[] = [];
 	for (const { row, left } of visible) {
 		const last = clusters.at(-1);
@@ -38,33 +40,41 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 				const at = formatClock(row.ts, true, timePref);
 				const many = rows.length > 1;
 				return (
-					<button
-						type="button"
+					<SpanTipTrigger
 						key={row.key}
-						aria-label={
-							many ? `${String(rows.length)} logs from ${at}: ${row.message}` : `Log at ${at}: ${row.message}`
+						lines={rows.map((r) => `${formatClock(r.ts, true, timePref)} · ${r.message}`)}
+						render={
+							<button
+								type="button"
+								aria-label={
+									many ? `${String(rows.length)} logs from ${at}: ${row.message}` : `Log at ${at}: ${row.message}`
+								}
+								onMouseEnter={() => {
+									onHover(row);
+								}}
+								onMouseLeave={() => {
+									onHover(null);
+								}}
+								onFocus={() => {
+									onHover(row);
+								}}
+								onBlur={() => {
+									onHover(null);
+								}}
+								onClick={() => {
+									onOpen(row);
+								}}
+								className={cn(
+									"tv-log-marker absolute top-px h-[10px] w-[3.5px] -translate-x-1/2 rounded-[1px] opacity-70 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+									dimOthers && "opacity-35",
+									rows.some((r) => highlighted.has(r.key)) && "top-0 h-[12px] opacity-100",
+								)}
+								style={{
+									left: `${String(left * 100)}%`,
+									background: row.color,
+								}}
+							/>
 						}
-						title={rows.map((r) => `${formatClock(r.ts, true, timePref)} · ${r.message}`).join("\n")}
-						onMouseEnter={() => {
-							onHover(row);
-						}}
-						onMouseLeave={() => {
-							onHover(null);
-						}}
-						onFocus={() => {
-							onHover(row);
-						}}
-						onBlur={() => {
-							onHover(null);
-						}}
-						onClick={() => {
-							onOpen(row);
-						}}
-						className={cn(
-							"tv-log-marker absolute top-px h-[10px] w-[3.5px] -translate-x-1/2 rounded-[1px] opacity-70 transition-transform hover:scale-125 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-							rows.some((r) => highlighted.has(r.key)) && "scale-125 opacity-100 ring-1 ring-foreground",
-						)}
-						style={{ left: `${String(left * 100)}%`, background: row.color }}
 					/>
 				);
 			})}

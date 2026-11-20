@@ -5,9 +5,10 @@ function cutOff(element: HTMLElement): boolean {
 	return getComputedStyle(element).textOverflow === "ellipsis" && element.scrollWidth > element.clientWidth;
 }
 
-// Gives ellipsized text its full value as a title on hover and keyboard focus, and drops the title once the text fits.
+// Gives ellipsized text its full value as a title on hover and keyboard focus, and drops the title once the text fits. Tooltip triggers show their own tooltip.
 function syncTitle(event: Event) {
 	let element = event.target instanceof HTMLElement ? event.target : null;
+	if (element?.closest("[data-slot='tooltip-trigger']")) return;
 	for (let depth = 0; element !== null && depth < DEPTH; depth++, element = element.parentElement) {
 		if (element.title !== "" && !generated.has(element)) return;
 		if (cutOff(element)) {

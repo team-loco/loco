@@ -10,6 +10,7 @@ import { durationLabel, spanStart, spanError, type TraceSummary } from "../trace
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
 import { offsetTicks } from "./plot";
+import { SpanTipTrigger } from "./SpanTip";
 
 export function Waterfall({
 	trace,
@@ -123,7 +124,10 @@ export function Waterfall({
 					>
 						<div
 							className="flex shrink-0 items-center overflow-hidden border-r border-line pr-2"
-							style={{ width: nameWidth, paddingLeft: 8 + Math.min(row.depth * 12, nameWidth * 0.3) }}
+							style={{
+								width: nameWidth,
+								paddingLeft: 8 + Math.min(row.depth * 12, nameWidth * 0.3),
+							}}
 						>
 							<button
 								type="button"
@@ -142,60 +146,69 @@ export function Waterfall({
 								)}
 							</button>
 							<i className="mr-[6px] size-[8px] shrink-0 rounded-full" style={{ background: color(span) }} />
-							<button
-								type="button"
-								aria-pressed={selected.spanId === span.spanId}
-								title={`${span.name} · ${label(span)}`}
-								onClick={() => {
-									onSelect(span);
-								}}
-								onKeyDown={(e) => {
-									if (["ArrowDown", "ArrowUp", "j", "k"].includes(e.key)) {
-										e.preventDefault();
-										const next = rows[index + (e.key === "ArrowDown" || e.key === "j" ? 1 : -1)];
-										if (next !== undefined) {
-											onSelect(next.span);
-											e.currentTarget
-												.closest("section")
-												?.querySelector<HTMLButtonElement>(`[data-span="${next.span.spanId}"]`)
-												?.focus();
-										}
-									} else if (e.key === "ArrowLeft" && children > 0 && !collapsed.has(span.spanId)) {
-										e.preventDefault();
-										toggle(span.spanId);
-									} else if (e.key === "ArrowRight" && collapsed.has(span.spanId)) {
-										e.preventDefault();
-										toggle(span.spanId);
-									}
-								}}
-								data-span={span.spanId}
-								onFocus={() => {
-									onHoverSpan(span.spanId);
-								}}
-								onBlur={() => {
-									onHoverSpan(null);
-								}}
-								className={cn(
-									"min-w-0 truncate text-left font-mono text-[11.5px] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-									spanError(span) && "text-bad-fg",
-								)}
+							<SpanTipTrigger
+								lines={[span.name, `${label(span)} · ${durationLabel(span.durationNanos)}`]}
+								render={
+									<button
+										type="button"
+										aria-pressed={selected.spanId === span.spanId}
+										onClick={() => {
+											onSelect(span);
+										}}
+										onKeyDown={(e) => {
+											if (["ArrowDown", "ArrowUp", "j", "k"].includes(e.key)) {
+												e.preventDefault();
+												const next = rows[index + (e.key === "ArrowDown" || e.key === "j" ? 1 : -1)];
+												if (next !== undefined) {
+													onSelect(next.span);
+													e.currentTarget
+														.closest("section")
+														?.querySelector<HTMLButtonElement>(`[data-span="${next.span.spanId}"]`)
+														?.focus();
+												}
+											} else if (e.key === "ArrowLeft" && children > 0 && !collapsed.has(span.spanId)) {
+												e.preventDefault();
+												toggle(span.spanId);
+											} else if (e.key === "ArrowRight" && collapsed.has(span.spanId)) {
+												e.preventDefault();
+												toggle(span.spanId);
+											}
+										}}
+										data-span={span.spanId}
+										onFocus={() => {
+											onHoverSpan(span.spanId);
+										}}
+										onBlur={() => {
+											onHoverSpan(null);
+										}}
+										className={cn(
+											"min-w-0 truncate text-left font-mono text-[11.5px] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+											spanError(span) && "text-bad-fg",
+										)}
+									/>
+								}
 							>
 								{span.name}
 								{collapsed.has(span.spanId) && ` (${children.toString()})`}
 								<span className="ml-2 text-[10px] text-fg3">{label(span)}</span>
-							</button>
+							</SpanTipTrigger>
 						</div>
-						<button
-							type="button"
-							aria-label={`${span.name}, ${durationLabel(span.durationNanos)}`}
-							aria-pressed={selected.spanId === span.spanId}
-							className="relative min-w-[100px] flex-1 overflow-hidden text-left font-mono text-[10px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring"
-							onClick={() => {
-								onSelect(span);
-							}}
-							onDoubleClick={() => {
-								onZoom(zoomTo(trace, span));
-							}}
+						<SpanTipTrigger
+							lines={[span.name, `${label(span)} · ${durationLabel(span.durationNanos)}`, "Double-click to zoom"]}
+							render={
+								<button
+									type="button"
+									aria-label={`${span.name}, ${durationLabel(span.durationNanos)}`}
+									aria-pressed={selected.spanId === span.spanId}
+									className="relative min-w-[100px] flex-1 overflow-hidden text-left font-mono text-[10px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring"
+									onClick={() => {
+										onSelect(span);
+									}}
+									onDoubleClick={() => {
+										onZoom(zoomTo(trace, span));
+									}}
+								/>
+							}
 						>
 							{ticks.map((t) => (
 								<i
@@ -236,7 +249,7 @@ export function Waterfall({
 									</span>
 								</>
 							)}
-						</button>
+						</SpanTipTrigger>
 					</div>
 				);
 			})}
