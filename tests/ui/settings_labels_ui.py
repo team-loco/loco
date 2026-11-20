@@ -171,15 +171,9 @@ def check_environments(page):
     row = environments.get_by_role("row").filter(has_text="Production EU")
     settings_url = page.url
     workspace_url = settings_url.split("/settings")[0]
-    secrets = row.get_by_role("link", name="Manage secrets", exact=True)
-    expect(secrets).to_have_attribute(
-        "href", urlparse(workspace_url).path + "/secrets?env=production"
-    )
-    secrets.click()
+    row.get_by_role("link", name="Manage secrets", exact=True).click()
     page.wait_for_url(workspace_url + "/secrets?env=production")
     page.go_back()
-    environments = page.get_by_role("region", name="Environments", exact=True)
-    row = environments.get_by_role("row").filter(has_text="Production EU")
     row.get_by_role("link", name="Manage resources", exact=True).click()
     page.wait_for_url(workspace_url + "/resources?env=production")
     switcher = page.get_by_title("Switch environment", exact=True)
