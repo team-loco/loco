@@ -16,12 +16,13 @@ import (
 
 var _ = Describe("Workspace namespace deletion", func() {
 	It("converges an Application that arrives while its namespace terminates", func() {
+		const pullSecretName = "terminating-pull"
 		pullSecret := &corev1.Secret{
-			Name: testPullSecretName, Namespace: testNamespace,
+			Name: pullSecretName, Namespace: testNamespace,
 			Type: corev1.SecretTypeDockerConfigJson,
 			Data: map[string][]byte{corev1.DockerConfigJsonKey: []byte(`{"auths":{}}`)},
 		}
-		Expect(client.IgnoreAlreadyExists(k8sClient.Create(ctx, pullSecret))).To(Succeed())
+		Expect(k8sClient.Create(ctx, pullSecret)).To(Succeed())
 
 		const name = "terminating"
 		app := testApplication()
@@ -47,7 +48,7 @@ var _ = Describe("Workspace namespace deletion", func() {
 			Scheme:                   k8sClient.Scheme(),
 			LocoNamespace:            testNamespace,
 			Telemetry:                testTelemetry(),
-			PullSecretName:           testPullSecretName,
+			PullSecretName:           pullSecretName,
 		}
 		req := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(app)}
 		depKey := client.ObjectKey{Namespace: namespaceName, Name: testAppName(app)}
