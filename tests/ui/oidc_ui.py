@@ -146,8 +146,15 @@ def check_canceled_sign_in(browser, state, issuer_url):
 
     page.route(issuer_url + "/authorize*", deny)
     page.goto(state["ui_url"] + "/login")
-    expect(page.get_by_role("alert")).to_have_text("Sign-in was canceled.")
-    expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
+    alert = page.get_by_role("alert")
+    expect(alert).to_have_text("Sign-in was canceled.")
+    held = []
+    page.route("**/loco.auth.v1.AuthService/StartWebLogin", held.append)
+    page.get_by_role("button", name="Continue", exact=True).click()
+    expect(page.get_by_role("button", name="Continue", exact=True)).to_be_disabled()
+    expect(alert).to_be_hidden()
+    held[0].abort()
+    expect(alert).to_have_text("Sign-in was canceled.")
     context.close()
 
 

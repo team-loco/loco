@@ -7,13 +7,17 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { AuthCard } from "@/pages/auth/AuthCard";
 import { SignInCard } from "@/pages/auth/SignInCard";
 
+import { TerminalCode } from "./TerminalCode";
+
 export function CliCard({
 	title,
 	error,
+	terminalCode = null,
 	children,
 }: {
 	title: string;
 	error?: string | null | undefined;
+	terminalCode?: string | null;
 	children: (email: string) => ReactNode;
 }) {
 	const { user, signedOut, isPending, error: authError } = useAuth();
@@ -26,7 +30,10 @@ export function CliCard({
 				next={location.pathname + location.search + location.hash}
 				loginHint={null}
 				error={null}
-			/>
+				autoStart={terminalCode === null}
+			>
+				{terminalCode !== null && <TerminalCode code={terminalCode} />}
+			</SignInCard>
 		);
 	}
 	if (isPending) return <AppLoading />;
