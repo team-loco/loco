@@ -18,16 +18,6 @@ const (
 	maxBodyFieldKey = 256
 )
 
-// httpAliases names the short attribute each HTTP attribute is also stored as, with the
-// OpenTelemetry semantic convention names before their deprecated forms.
-var httpAliases = []struct {
-	name    string
-	sources []string
-}{
-	{"method", []string{"http.request.method", "http.method"}},
-	{"status_code", []string{"http.response.status_code", "http.status_code"}},
-}
-
 // normalizeLogs copies the fields of each single-line JSON object body into the record's
 // attributes, keyed by dotted path (user.id) with array elements by index (roles.0), then copies
 // the HTTP method and status code to method and status_code. Attributes the record already has are
@@ -38,22 +28,23 @@ func normalizeLogs(logs plog.Logs) {
 		for _, scopeLogs := range resourceLogs.ScopeLogs().All() {
 			for _, record := range scopeLogs.LogRecords().All() {
 				flattenJSONBody(record)
-				aliasHTTPAttributes(record.Attributes())
+				attributes := record.Attributes()
+				aliasAttribute(attributes, "method", "http.request.method", "http.method")
+				aliasAttribute(attributes, "status_code", "http.response.status_code", "http.status_code")
 			}
 		}
 	}
 }
 
-func aliasHTTPAttributes(attributes pcommon.Map) {
-	for _, alias := range httpAliases {
-		if _, exists := attributes.Get(alias.name); exists {
-			continue
-		}
-		for _, source := range alias.sources {
-			if value, ok := attributes.Get(source); ok {
-				value.CopyTo(attributes.PutEmpty(alias.name))
-				break
-			}
+// aliasAttribute copies the first of sources the record has to alias, unless alias is already set.
+func aliasAttribute(attributes pcommon.Map, alias string, sources ...string) {
+	if _, exists := attributes.Get(alias); exists {
+		return
+	}
+	for _, source := range sources {
+		if value, ok := attributes.Get(source); ok {
+			value.CopyTo(attributes.PutEmpty(alias))
+			return
 		}
 	}
 }

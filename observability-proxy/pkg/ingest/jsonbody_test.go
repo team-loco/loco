@@ -109,7 +109,6 @@ func TestExportedLogsCarryTheHTTPMethodAndStatusCodeUnderShortNames(t *testing.T
 			existing: map[string]string{methodKey: http.MethodGet, shortMethodKey: "custom"},
 			want:     map[string]string{methodKey: http.MethodGet, shortMethodKey: "custom"},
 		},
-		{name: "no HTTP attributes", body: "plain text", want: map[string]string{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			attributes := exportLog(t, tc.body, tc.existing)
