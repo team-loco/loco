@@ -1,6 +1,10 @@
-import { useMutation } from "@connectrpc/connect-query";
-import { createMember, deleteMember } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
+import {
+	createMember,
+	deleteMember,
+	listOrgWorkspaces,
+} from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Pager } from "@/components/design/Pager";
@@ -9,7 +13,8 @@ import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTit
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
-import { pagedRows, type Paging } from "@/lib/paging";
+import { useTokenPage } from "@/hooks/useTokenPage";
+import { formatTotal, pagedRows, tokenPageLabel, tokenPager, type Paging } from "@/lib/paging";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 
@@ -26,14 +31,14 @@ const PRESSED: Record<Level, string> = {
 type Show = "has" | "all";
 
 export function WorkspaceAccessDrawer({
+	orgId,
 	member,
-	workspaces,
 	holds,
 	onClose,
 	onChanged,
 }: {
+	orgId: string;
 	member: Member | null;
-	workspaces: Workspace[];
 	holds: (workspaceId: string, scope: ScopeName) => boolean;
 	onClose: () => void;
 	onChanged: () => Promise<void>;
@@ -62,13 +67,7 @@ export function WorkspaceAccessDrawer({
 					</span>
 				</SheetHeader>
 				{shown !== null && (
-					<AccessRows
-						key={shown.member.user?.id}
-						member={shown}
-						workspaces={workspaces}
-						holds={holds}
-						onChanged={onChanged}
-					/>
+					<AccessRows key={shown.member.user?.id} orgId={orgId} member={shown} holds={holds} onChanged={onChanged} />
 				)}
 			</SheetContent>
 		</Sheet>
@@ -76,13 +75,13 @@ export function WorkspaceAccessDrawer({
 }
 
 function AccessRows({
+	orgId,
 	member,
-	workspaces,
 	holds,
 	onChanged,
 }: {
+	orgId: string;
 	member: Member;
-	workspaces: Workspace[];
 	holds: (workspaceId: string, scope: ScopeName) => boolean;
 	onChanged: () => Promise<void>;
 }) {
@@ -92,15 +91,38 @@ function AccessRows({
 	const [show, setShow] = useState<Show>(member.workspaces.length > 0 ? "has" : "all");
 	const [q, setQ] = useState("");
 	const userId = member.member.user?.id ?? "";
-	const granted = new Set(member.workspaces.map((a) => a.id));
-	const query = q.trim().toLowerCase();
-	const rows = workspaces.filter(
-		(w) => (show === "all" || granted.has(w.id)) && (query === "" || w.name.toLowerCase().includes(query)),
-	);
+	const query = q.trim();
+	const granted = member.workspaces.filter((w) => w.name.toLowerCase().includes(query.toLowerCase()));
 	const [paging, setPaging] = useState<Paging>({ page: 0, size: PAGE_SIZES[0] });
-	const paged = pagedRows(rows, paging, setPaging, PAGE_SIZES);
+	const grantedPage = pagedRows(granted, paging, setPaging, PAGE_SIZES);
+	const [tokens, setTokens] = useState<string[]>([]);
+	const all = useTokenPage(listOrgWorkspaces, { orgId, pageSize: PAGE_SIZES[0], query }, tokens, {
+		enabled: show === "all",
+		placeholderData: keepPreviousData,
+	});
+	const allCount = useQuery(
+		listOrgWorkspaces,
+		{ orgId, pageSize: 1, pageToken: "", includeTotalCount: true, query: "" },
+		{ staleTime: Infinity },
+	);
+	const allRows = all.query.data?.workspaces ?? [];
+	const allPager = tokenPager(tokens, all.nextPageToken, (next) => {
+		setTokens(next ?? []);
+	});
+	const rows = show === "has" ? grantedPage.rows : allRows;
+	const pager =
+		show === "has"
+			? grantedPage.pager
+			: {
+					...allPager,
+					label: tokenPageLabel(allPager.page, PAGE_SIZES[0], allRows.length, all.total),
+					total: allRows.length,
+					pageSizes: PAGE_SIZES,
+				};
+	const loading = show === "all" && all.query.isPending;
 	const resetPage = () => {
 		setPaging((current) => ({ ...current, page: 0 }));
+		setTokens([]);
 	};
 
 	const apply = async (workspaceId: string, current: ScopeName[], level: Level) => {
@@ -132,10 +154,13 @@ function AccessRows({
 						}
 					}}
 				>
-					<ToggleGroupItem value="has" count={granted.size}>
+					<ToggleGroupItem value="has" count={member.workspaces.length}>
 						Has access
 					</ToggleGroupItem>
-					<ToggleGroupItem value="all" count={workspaces.length}>
+					<ToggleGroupItem
+						value="all"
+						count={allCount.data === undefined ? undefined : formatTotal(allCount.data.totalCount)}
+					>
 						All workspaces
 					</ToggleGroupItem>
 				</ToggleGroup>
@@ -155,13 +180,13 @@ function AccessRows({
 				/>
 			</div>
 			<SheetBody className="gap-0 pt-1">
-				{rows.length === 0 && (
+				{rows.length === 0 && !loading && (
 					<span className="py-6 text-center text-fg3">
 						{query !== "" ? "No workspace matches." : "No access to any workspace yet."}
 					</span>
 				)}
 				<ul className="m-0 flex list-none flex-col p-0">
-					{paged.rows.map((w) => {
+					{rows.map((w) => {
 						const current = member.workspaces.find((a) => a.id === w.id)?.scopes ?? [];
 						const level = levelOf(current);
 						const held = (s: ScopeName) => holds(w.id, s);
@@ -200,7 +225,7 @@ function AccessRows({
 					})}
 				</ul>
 			</SheetBody>
-			<Pager {...paged.pager} className="border-t border-line px-6" />
+			<Pager {...pager} className="border-t border-line px-6" />
 		</>
 	);
 }

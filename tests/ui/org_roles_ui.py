@@ -183,8 +183,23 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(member_role).to_have_text("Member")
     expect(member_row.get_by_text("shared", exact=True)).to_be_visible()
     page.get_by_role("button", name="Workspace", exact=True).click()
-    page.get_by_role("option", name=re.compile(r"^shared")).click()
+    find = page.get_by_placeholder("Find a workspace", exact=True)
+    shared_option = page.get_by_role("option", name=re.compile(r"^shared"))
+    sibling_option = page.get_by_role("option", name=re.compile(r"^sibling"))
+    with expect_rpc(page, "ListOrgWorkspaces", lambda body: body.get("query") == "sib"):
+        find.fill("sib")
+    expect(sibling_option).to_be_visible()
+    expect(shared_option).to_have_count(0)
+    find.fill("")
+    shared_option.click()
     expect(page).to_have_url(re.compile(r"[?&]ws="))
+    page.locator('[data-slot="filter-control"]').get_by_role(
+        "button", name="shared", exact=True
+    ).click()
+    find.fill("sib")
+    expect(sibling_option).to_be_visible()
+    expect(shared_option).to_be_visible()
+    page.keyboard.press("Escape")
     expect(page.get_by_role("row").filter(has_text="Lee Leaver")).to_have_count(0)
     expect(member_row).to_be_visible()
     page.get_by_role("button", name="Clear workspace filter", exact=True).click()
@@ -203,6 +218,14 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(
         drawer.get_by_role("group", name="Access to sibling", exact=True)
     ).to_be_visible()
+    with expect_rpc(page, "ListOrgWorkspaces", lambda body: body.get("query") == "sib"):
+        drawer.get_by_label("Search workspaces", exact=True).fill("sib")
+    expect(
+        drawer.get_by_role("group", name="Access to sibling", exact=True)
+    ).to_be_visible()
+    expect(
+        drawer.get_by_role("group", name="Access to shared", exact=True)
+    ).to_have_count(0)
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"[?&]access="))
     member_role.click()

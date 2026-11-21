@@ -27,6 +27,7 @@ import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { useWorkspaceFilterChoices } from "@/hooks/orgWorkspaces";
 import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
@@ -69,6 +70,7 @@ export function Team() {
 	const meId = user?.id ?? "";
 	const scopes = useMyScopes();
 	const data = useTeamData(orgId);
+	const wsChoices = useWorkspaceFilterChoices(orgId, params.ws);
 	const limits = useOrgLimits(orgId);
 	const now = useNow(NOW_TICK_MS).getTime();
 	const resend = useMutation(resendInvitation);
@@ -325,7 +327,8 @@ export function Team() {
 							<PickFilter
 								icon={<LayersIcon />}
 								label="Workspace"
-								items={data.workspaces}
+								items={wsChoices.workspaces}
+								onSearch={wsChoices.onSearch}
 								placeholder="Find a workspace"
 								width="w-[280px]"
 								counts={workspaceCounts}
@@ -362,8 +365,8 @@ export function Team() {
 				}}
 			/>
 			<WorkspaceAccessDrawer
+				orgId={orgId}
 				member={accessMember}
-				workspaces={data.workspaces}
 				holds={(workspaceId, s) => scopes.holds(orgId, workspaceId, SCOPE_OF[s])}
 				onClose={() => {
 					void setParams({ access: null });

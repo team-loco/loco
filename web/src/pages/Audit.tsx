@@ -1,7 +1,7 @@
-import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
-import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import { keepPreviousData, useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { BoxIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -24,6 +24,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
+import { useWorkspaceFilterChoices } from "@/hooks/orgWorkspaces";
 import { useNow } from "@/hooks/useNow";
 import { useTokenPage } from "@/hooks/useTokenPage";
 import { msParser, type TimeWindow } from "@/lib/obs-time";
@@ -45,8 +46,6 @@ import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 const NOW_TICK_MS = 60_000;
 // Typing commits the search after this pause, so a half-typed query sends no request.
 const SEARCH_DEBOUNCE_MS = 300;
-// An organization admin's workspace filter lists the newest workspaces matching the typed text.
-const FILTER_WORKSPACES = 20;
 
 const AUDIT_PARAMS = {
 	before: pageTokensParser,
@@ -80,21 +79,9 @@ export function Audit() {
 	const { from, to } = params;
 	const custom = from !== null && to !== null && to > from;
 	const sent = auditQuery(types, actor, search);
-	const [workspaceSearch, setWorkspaceSearch] = useState("");
-	const newest = useQuery(
-		listOrgWorkspaces,
-		{ orgId, pageSize: FILTER_WORKSPACES, query: workspaceSearch.trim() },
-		{ enabled: access.org, placeholderData: keepPreviousData },
-	);
-	const picked = useQuery(getWorkspace, { workspaceId: wsParam }, { enabled: access.org && wsParam !== "" });
-	const pickedWorkspace = picked.data?.workspace?.orgId === orgId ? picked.data.workspace : undefined;
-	const listed = newest.data?.workspaces ?? [];
-	const choices = !access.org
-		? access.workspaces
-		: pickedWorkspace === undefined || listed.some((w) => w.id === pickedWorkspace.id)
-			? listed
-			: [pickedWorkspace, ...listed];
-	const choicesLoading = access.isLoading || (access.org && wsParam !== "" && picked.isLoading);
+	const orgChoices = useWorkspaceFilterChoices(orgId, wsParam, access.org);
+	const choices = access.org ? orgChoices.workspaces : access.workspaces;
+	const choicesLoading = access.isLoading || orgChoices.selectedLoading;
 	// ListEvents reads one workspace per call, so a workspace admin always reads exactly one.
 	const workspaceId = choices.some((w) => w.id === wsParam)
 		? wsParam
@@ -343,7 +330,7 @@ export function Audit() {
 									placeholder="Find a workspace"
 									value={workspaceId}
 									clearable={access.org}
-									{...(access.org ? { onSearch: setWorkspaceSearch } : {})}
+									{...(access.org ? { onSearch: orgChoices.onSearch } : {})}
 									onChange={(id) => {
 										setFilters({ ws: id, res: null, env: null, event: null });
 									}}
