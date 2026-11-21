@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"connectrpc.com/connect/v2"
@@ -22,7 +23,7 @@ import (
 // per-environment sort values, scoped to $10's.
 // $1 workspace, $2 cluster silence in seconds, $3 environment or NULL, $4 ILIKE pattern or ”,
 // $5 status name or ”, $6 not deployed, $7 region or ”, $8 type or ”, $9 environment scoped,
-// $10 sort environment or NULL, $11 the readable resources, or NULL for every resource.
+// $10 sort environment or NULL, $11 the resources to list, or NULL for every resource.
 const resourceListSQL = `WITH ws AS MATERIALIZED (
   SELECT r.id, r.name, r.slug, r.description, r.type::text AS type, r.created_at, r.spec
   FROM resources r WHERE r.workspace_id = $1 AND ($11::uuid[] IS NULL OR r.id = ANY($11::uuid[]))
@@ -124,14 +125,14 @@ type resourceFilter struct {
 	resourceType      string
 	environmentScoped bool
 	sortEnvironmentID *uuid.UUID
-	// readable limits the list to these resources; nil lists every resource of the workspace.
-	readable []uuid.UUID
+	// ids limits the list to these resources; nil lists every resource of the workspace.
+	ids []uuid.UUID
 }
 
 func (f resourceFilter) args() []any {
 	return []any{
 		f.workspaceID, f.silentSeconds, f.environmentID, f.pattern, f.status, f.notDeployed,
-		f.region, f.resourceType, f.environmentScoped, f.sortEnvironmentID, f.readable,
+		f.region, f.resourceType, f.environmentScoped, f.sortEnvironmentID, f.ids,
 	}
 }
 
@@ -165,7 +166,9 @@ func (s *ResourceServer) ListWorkspaceResources(
 	if err != nil {
 		return nil, err
 	}
-	filter.readable = readable
+	if filter.ids, err = requestedResources(readable, req.GetResourceIds()); err != nil {
+		return nil, err
+	}
 	order, descending := req.GetOrderBy(), req.GetDescending()
 	if order == resourcev1.ResourceOrder_RESOURCE_ORDER_UNSPECIFIED {
 		order, descending = resourcev1.ResourceOrder_RESOURCE_ORDER_CREATED, true
@@ -250,6 +253,28 @@ func (s *ResourceServer) readableResources(ctx context.Context, wsID uuid.UUID) 
 		return nil, denied
 	}
 	return readable, nil
+}
+
+// requestedResources narrows readable, nil for every resource, to the requested IDs when there are
+// any; a non-nil empty result matches no resource.
+func requestedResources(readable []uuid.UUID, requested []string) ([]uuid.UUID, error) {
+	ids, err := parseIDs("resource_ids", requested)
+	if err != nil {
+		return nil, err
+	}
+	if ids == nil {
+		return readable, nil
+	}
+	if readable == nil {
+		return ids, nil
+	}
+	narrowed := []uuid.UUID{}
+	for _, id := range ids {
+		if slices.Contains(readable, id) {
+			narrowed = append(narrowed, id)
+		}
+	}
+	return narrowed, nil
 }
 
 // resourceFilter reads the request's filters; environment_id and sort_environment_id must name

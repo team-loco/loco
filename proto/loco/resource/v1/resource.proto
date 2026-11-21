@@ -49,6 +49,10 @@ service ResourceService {
   // A caller who cannot list the workspace gets the resources of it that GetResource would return,
   // with every count over those alone; one who can read none of them is denied.
   rpc ListWorkspaceResources(ListWorkspaceResourcesRequest) returns (ListWorkspaceResourcesResponse);
+  // GetEnvironmentAllocation sums the CPU and memory the resources of a workspace are allocated in
+  // an environment. A caller who cannot list the workspace gets the sums over the resources of it
+  // that GetResource would return; one who can read none of them is denied.
+  rpc GetEnvironmentAllocation(GetEnvironmentAllocationRequest) returns (GetEnvironmentAllocationResponse);
   // ListRegions lists the regions an environment deploys to.
   rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
   // GetResourceEnv returns the variables a service runs with in an environment as written, the
@@ -304,6 +308,13 @@ message ListWorkspaceResourcesRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+  // Only these resources. They also limit the resources the facets count.
+  repeated string resource_ids = 16 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {uuid: true}
+    }
+  }];
 }
 
 // ListWorkspaceResourcesResponse is the response containing the list of resources.
@@ -397,6 +408,33 @@ message RegionInfo {
   reserved "is_default";
   string health_status = 3;
   RegionAvailability availability = 4;
+}
+
+// GetEnvironmentAllocationRequest names the workspace and the environment to sum.
+message GetEnvironmentAllocationRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+// GetEnvironmentAllocationResponse is the allocation of the environment. A resource's allocation
+// sums, over the regions of its status in the environment, the region's desired replicas times
+// the CPU and memory its live deployment sizes the region with; resources whose allocation is
+// zero are left out of every field.
+message GetEnvironmentAllocationResponse {
+  int64 cpu_millicores = 1;
+  int64 memory_bytes = 2;
+  // The resources with an allocation.
+  int32 resource_count = 3;
+  // The six largest allocations, by CPU, then memory, descending, then by name.
+  repeated ResourceAllocation resources = 4;
+}
+
+// ResourceAllocation is one resource's allocation in an environment.
+message ResourceAllocation {
+  string resource_id = 1;
+  string name = 2;
+  int64 cpu_millicores = 3;
+  int64 memory_bytes = 4;
 }
 
 // ListRegionsRequest names the environment whose clusters' regions to list.

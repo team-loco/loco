@@ -197,6 +197,11 @@ type Querier interface {
 	ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error)
 	ListDeploymentPlacements(ctx context.Context, deploymentID uuid.UUID) ([]DeploymentPlacement, error)
 	ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error)
+	// The six largest allocations of the workspace's resources in the environment, each row carrying
+	// the totals and count over every resource with an allocation. A resource's allocation sums, over
+	// its regions, desired replicas times the CPU and memory of the region in its live deployment.
+	// resource_ids limits the resources; NULL reads every resource of the workspace.
+	ListEnvironmentAllocation(ctx context.Context, arg ListEnvironmentAllocationParams) ([]ListEnvironmentAllocationRow, error)
 	ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error)
 	ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, error)
 	ListEnvironmentResourceDomains(ctx context.Context, arg ListEnvironmentResourceDomainsParams) ([]ResourceDomain, error)

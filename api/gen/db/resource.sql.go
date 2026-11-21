@@ -279,6 +279,81 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 	return items, nil
 }
 
+const listEnvironmentAllocation = `-- name: ListEnvironmentAllocation :many
+WITH allocated AS (
+    SELECT r.id, r.name,
+           COALESCE(sum(i.desired_replicas * cpu_millicores(d.spec->'regions'->i.region->>'cpu')), 0)::bigint
+               AS cpu_millicores,
+           COALESCE(sum(i.desired_replicas * memory_bytes(d.spec->'regions'->i.region->>'memory')), 0)::bigint
+               AS memory_bytes
+    FROM resource_region_inputs i
+    JOIN resources r ON r.id = i.resource_id
+    JOIN deployments d ON d.id = i.deployment_id
+    WHERE i.environment_id = $1::uuid
+      AND i.resource_id = ANY(ARRAY(
+          SELECT w.id FROM resources w WHERE w.workspace_id = $2::uuid
+            AND ($3::uuid[] IS NULL OR w.id = ANY($3::uuid[]))
+      ))
+    GROUP BY r.id, r.name
+)
+SELECT a.id, a.name, a.cpu_millicores, a.memory_bytes,
+       (sum(a.cpu_millicores) OVER ())::bigint AS total_cpu_millicores,
+       (sum(a.memory_bytes) OVER ())::bigint AS total_memory_bytes,
+       (count(*) OVER ())::int AS resource_count
+FROM allocated a
+WHERE a.cpu_millicores > 0 OR a.memory_bytes > 0
+ORDER BY a.cpu_millicores DESC, a.memory_bytes DESC, lower(a.name), a.id
+LIMIT 6
+`
+
+type ListEnvironmentAllocationParams struct {
+	EnvironmentID uuid.UUID   `json:"environmentId"`
+	WorkspaceID   uuid.UUID   `json:"workspaceId"`
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
+}
+
+type ListEnvironmentAllocationRow struct {
+	ID                 uuid.UUID `json:"id"`
+	Name               string    `json:"name"`
+	CpuMillicores      int64     `json:"cpuMillicores"`
+	MemoryBytes        int64     `json:"memoryBytes"`
+	TotalCpuMillicores int64     `json:"totalCpuMillicores"`
+	TotalMemoryBytes   int64     `json:"totalMemoryBytes"`
+	ResourceCount      int32     `json:"resourceCount"`
+}
+
+// The six largest allocations of the workspace's resources in the environment, each row carrying
+// the totals and count over every resource with an allocation. A resource's allocation sums, over
+// its regions, desired replicas times the CPU and memory of the region in its live deployment.
+// resource_ids limits the resources; NULL reads every resource of the workspace.
+func (q *Queries) ListEnvironmentAllocation(ctx context.Context, arg ListEnvironmentAllocationParams) ([]ListEnvironmentAllocationRow, error) {
+	rows, err := q.db.Query(ctx, listEnvironmentAllocation, arg.EnvironmentID, arg.WorkspaceID, arg.ResourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEnvironmentAllocationRow
+	for rows.Next() {
+		var i ListEnvironmentAllocationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CpuMillicores,
+			&i.MemoryBytes,
+			&i.TotalCpuMillicores,
+			&i.TotalMemoryBytes,
+			&i.ResourceCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLatestResourceDeployments = `-- name: ListLatestResourceDeployments :many
 SELECT DISTINCT ON (environment_id) id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
