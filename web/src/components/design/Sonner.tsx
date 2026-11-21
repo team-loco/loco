@@ -47,11 +47,10 @@ function Toaster() {
 function keepOpenOnToastPress(onOpenChange: Dialog.Root.Props["onOpenChange"]): Dialog.Root.Props["onOpenChange"] {
 	return (open, details) => {
 		const { event } = details;
-		const target = event instanceof MouseEvent ? document.elementFromPoint(event.clientX, event.clientY) : event.target;
 		if (
 			details.reason === "outside-press" &&
-			target instanceof Element &&
-			target.closest("[data-sonner-toaster]") !== null
+			event instanceof MouseEvent &&
+			document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-sonner-toaster]")
 		) {
 			details.cancel();
 			return;
