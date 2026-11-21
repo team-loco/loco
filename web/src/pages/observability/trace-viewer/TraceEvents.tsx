@@ -11,7 +11,7 @@ import type { TraceSummary } from "../traces";
 import { useTraceResources } from "./TraceColors";
 import { traceBounds } from "./trace-time";
 
-export const WINDOWS = [
+const WINDOWS = [
 	{ value: 5, label: "±5m" },
 	{ value: 10, label: "±10m" },
 	{ value: 30, label: "±30m" },

@@ -160,7 +160,7 @@ export function SpanPanel({
 			)}
 			<section aria-label="Span attributes" className="min-w-0">
 				<Tabs
-					value={tabNames.includes(activeTab) ? activeTab : "Attributes"}
+					value={activeTab}
 					onValueChange={(value) => {
 						onTab(String(value));
 					}}
