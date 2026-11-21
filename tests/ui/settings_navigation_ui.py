@@ -67,6 +67,8 @@ with session(out) as browser:
     expect(nav.get_by_role("link", name="Image", exact=True)).to_have_attribute(
         "aria-current", "true"
     )
+    # Connection variables load late and push every section below them down.
+    expect(page.get_by_text("Connection variables", exact=True)).to_be_visible()
     page.evaluate("document.querySelector('#set-health').scrollIntoView()")
     expect(nav.get_by_role("link", name="Health check", exact=True)).to_have_attribute(
         "aria-current", "true"
