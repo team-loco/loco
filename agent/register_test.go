@@ -76,6 +76,9 @@ func (f *fakeRegistrar) Register(
 	if !slices.Equal(req.GetDomains(), []string{testServedDomain}) {
 		f.t.Errorf("domains %v, want [%s]", req.GetDomains(), testServedDomain)
 	}
+	if req.GetRegion() != testRegion {
+		f.t.Errorf("region %q, want %s", req.GetRegion(), testRegion)
+	}
 	response := &agentv1.RegisterResponse{ClusterId: f.clusterID, HeartbeatInterval: durationpb.New(time.Second)}
 	if enrollment := req.GetEnrollment(); enrollment != nil {
 		if f.enrollmentTokens != nil {
@@ -149,7 +152,7 @@ func newTestRegistrar(t *testing.T) (*fakeRegistrar, *fake.Clientset, func(joinT
 		credentials := identity.NewCredentials(testAssertionTTL)
 		connectClient := connect.NewClient(transport, credentials.Interceptor())
 		return &Agent{
-			cfg:         &Config{JoinToken: joinToken, AssertionLifetime: testAssertionTTL},
+			cfg:         registeringConfig(joinToken),
 			client:      agentv1connect.NewAgentServiceClient(connectClient),
 			inspector:   cluster.NewInspector(kube, metav1.NamespaceDefault, ""),
 			identities:  identity.NewStore(kube, metav1.NamespaceDefault, t.Name()),
@@ -157,6 +160,13 @@ func newTestRegistrar(t *testing.T) (*fakeRegistrar, *fake.Clientset, func(joinT
 			domains:     testDomains(t),
 		}
 	}
+}
+
+func registeringConfig(joinToken string) *Config {
+	cfg := testConfig()
+	cfg.JoinToken = joinToken
+	cfg.AssertionLifetime = testAssertionTTL
+	return cfg
 }
 
 func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {

@@ -81,7 +81,7 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	key := newAgentKey(t)
 	clusterKey := uuid.New()
 	_, err := e.agent.Register(t.Context(), &agentv1.RegisterRequest{
-		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Region: testRegion, Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: clusterKey.String(),
 		Enrollment: &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)},
 		Domains:    []string{domainsSecond, domainsFirst, domainsFirst},
@@ -97,12 +97,19 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	server.recordHeartbeat(
 		t.Context(),
 		clusterID,
-		&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Domains: []string{domainsThird}},
+		&agentv1.Heartbeat{
+			Role:    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+			Domains: []string{domainsThird},
+		},
 	)
 	if got := e.clusterDomains(t, clusterID); !slices.Equal(got, []string{domainsThird}) {
 		t.Fatalf("domains after heartbeat = %v, want [c.test]", got)
 	}
-	server.recordHeartbeat(t.Context(), clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
+	server.recordHeartbeat(
+		t.Context(),
+		clusterID,
+		&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL},
+	)
 	if got := e.clusterDomains(t, clusterID); len(got) != 0 {
 		t.Fatalf("domains after an empty heartbeat = %v, want none", got)
 	}
@@ -114,7 +121,7 @@ func TestRegisterRejectsAnInvalidDomain(t *testing.T) {
 	_, token := e.createCluster(t)
 	key := newAgentKey(t)
 	_, err := e.agent.Register(t.Context(), &agentv1.RegisterRequest{
-		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Region: testRegion, Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: uuid.NewString(),
 		Enrollment: &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)},
 		Domains:    []string{"*.example.com"},

@@ -56,6 +56,9 @@ message Cluster {
   repeated string domains = 13;
   reserved 14;
   reserved "dns_records";
+  // the region's gateway, {region}.{platform domain}; empty until the agent reports the platform
+  // domain served
+  string gateway_hostname = 15;
 }
 
 // ClusterRole is chosen when the worker is installed and reported by its agent.

@@ -169,3 +169,18 @@ func TestServedIsEmptyWithoutAGateway(t *testing.T) {
 		t.Fatalf("served = %v, want none", got)
 	}
 }
+
+func TestServedRequiresTheCertificateToCoverTheDomainUnderTheRegion(t *testing.T) {
+	gateway := gatewayWith(bothListeners(readyListener, readyListener))
+	regional := reporter(t, testCertificate, gateway, certificate(metav1.ConditionTrue, "*."+testDomain))
+	regional.config.Region = "us-ca-1"
+	if got := served(t, regional); len(got) != 0 {
+		t.Fatalf("served = %v, want none while the certificate lacks *.us-ca-1.%s", got, testDomain)
+	}
+	covered := reporter(t, testCertificate, gateway,
+		certificate(metav1.ConditionTrue, "*."+testDomain, "*.us-ca-1."+testDomain))
+	covered.config.Region = "us-ca-1"
+	if got := served(t, covered); !slices.Equal(got, []string{testDomain}) {
+		t.Fatalf("served = %v, want [%s]", got, testDomain)
+	}
+}

@@ -200,8 +200,11 @@ type Cluster struct {
 	AgentKeyFingerprint *string                `protobuf:"bytes,11,opt,name=agent_key_fingerprint,json=agentKeyFingerprint,proto3,oneof" json:"agent_key_fingerprint,omitempty"`
 	Role                ClusterRole            `protobuf:"varint,12,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
 	Domains             []string               `protobuf:"bytes,13,rep,name=domains,proto3" json:"domains,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// the region's gateway, {region}.{platform domain}; empty until the agent reports the platform
+	// domain served
+	GatewayHostname string `protobuf:"bytes,15,opt,name=gateway_hostname,json=gatewayHostname,proto3" json:"gateway_hostname,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Cluster) Reset() {
@@ -316,6 +319,13 @@ func (x *Cluster) GetDomains() []string {
 		return x.Domains
 	}
 	return nil
+}
+
+func (x *Cluster) GetGatewayHostname() string {
+	if x != nil {
+		return x.GatewayHostname
+	}
+	return ""
 }
 
 type ClusterWorkload struct {
@@ -1287,7 +1297,7 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\rcluster_count\x18\x02 \x01(\x05R\fclusterCount\"o\n" +
 	"\tNewRegion\x12,\n" +
 	"\acountry\x18\x01 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\acountry\x124\n" +
-	"\vsubdivision\x18\x02 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\vsubdivision\"\xb7\x04\n" +
+	"\vsubdivision\x18\x02 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\vsubdivision\"\xe2\x04\n" +
 	"\aCluster\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vcluster_key\x18\x02 \x01(\tR\n" +
@@ -1303,7 +1313,8 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	" \x01(\tH\x01R\fagentVersion\x88\x01\x01\x127\n" +
 	"\x15agent_key_fingerprint\x18\v \x01(\tH\x02R\x13agentKeyFingerprint\x88\x01\x01\x120\n" +
 	"\x04role\x18\f \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleR\x04role\x12\x18\n" +
-	"\adomains\x18\r \x03(\tR\adomainsB\x10\n" +
+	"\adomains\x18\r \x03(\tR\adomains\x12)\n" +
+	"\x10gateway_hostname\x18\x0f \x01(\tR\x0fgatewayHostnameB\x10\n" +
 	"\x0e_health_statusB\x10\n" +
 	"\x0e_agent_versionB\x18\n" +
 	"\x16_agent_key_fingerprintJ\x04\b\x05\x10\x06J\x04\b\x0e\x10\x0fR\x04tierR\vdns_records\"5\n" +

@@ -47,6 +47,8 @@ func agentEnv() map[string]string {
 		envLogLevel:                 "warn",
 		envGateway:                  "ingress",
 		envAppDomains:               "apps.test,other.test",
+		envPlatformDomain:           "platform.test",
+		envRegion:                   "us-ca-1",
 		envRegistryAuth:             locoControllerV1.RegistryAuthToken,
 		envRegistryCheckInterval:    "6m",
 	}
@@ -96,6 +98,8 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		Gateway:                  "ingress",
 		Certificate:              "wildcard",
 		AppDomains:               []string{"apps.test", "other.test"},
+		PlatformDomain:           "platform.test",
+		Region:                   "us-ca-1",
 		RegistryAuth:             locoControllerV1.RegistryAuthToken,
 		RegistryCheckInterval:    6 * time.Minute,
 	}
@@ -130,6 +134,8 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 		envLogLevel,
 		envGateway,
 		envAppDomains,
+		envPlatformDomain,
+		envRegion,
 		envRegistryAuth,
 		envRegistryCheckInterval,
 	}

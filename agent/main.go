@@ -121,7 +121,8 @@ func main() {
 		Namespace:   cfg.Namespace,
 		Gateway:     cfg.Gateway,
 		Certificate: cfg.Certificate,
-		Domains:     cfg.AppDomains,
+		Domains:     cfg.CheckedDomains(),
+		Region:      cfg.Region,
 	})
 	identities := identity.NewStore(clientset, cfg.Namespace, cfg.KeySecret)
 

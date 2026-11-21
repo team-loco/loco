@@ -62,12 +62,14 @@ func (a *Agent) register(ctx context.Context) error {
 		return err
 	}
 	capacity := a.getCapacity(ctx)
+	apps, _ := a.servedDomains(ctx)
 	req := &agentv1.RegisterRequest{
 		AgentVersion: a.cfg.AgentVersion,
 		ClusterKey:   key,
 		Capacity:     capacity,
 		Role:         a.cfg.Role,
-		Domains:      a.servedDomains(ctx),
+		Domains:      apps,
+		Region:       a.cfg.Region,
 	}
 	callCtx := ctx
 	if stored.ClusterID == "" {

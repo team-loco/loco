@@ -40,6 +40,20 @@ func TestIngress(t *testing.T) {
 		})
 	})
 
+	t.Run("the cluster records its region's gateway hostname", func(t *testing.T) {
+		platform.Eventually(t, time.Minute, "the API to record "+p.GatewayHostname, func(ctx context.Context) error {
+			var hostname *string
+			if err := p.DB.QueryRow(ctx, "SELECT gateway_hostname FROM clusters WHERE id = $1", p.ClusterID).
+				Scan(&hostname); err != nil {
+				return err
+			}
+			if hostname == nil || *hostname != p.GatewayHostname {
+				return fmt.Errorf("the cluster records %v", hostname)
+			}
+			return nil
+		})
+	})
+
 	deploy := func(t *testing.T, name string, domains ...string) string {
 		t.Helper()
 		dir := t.TempDir()

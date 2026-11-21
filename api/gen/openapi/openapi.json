@@ -8797,6 +8797,12 @@
               "format": "hostname"
             },
             "title": "domains"
+          },
+          "platformDomain": {
+            "type": "string",
+            "title": "platform_domain",
+            "format": "hostname",
+            "description": "the platform domain whose listener and certificate are ready; empty while either is not"
           }
         },
         "title": "Heartbeat",
@@ -8998,6 +9004,11 @@
             "type": "boolean",
             "title": "recover_cluster_id",
             "description": "Set by an agent that holds an enrolled key but lost its cluster ID: the Authorization\n assertion names cluster_key as its issuer, and the response returns the cluster the key\n is enrolled to."
+          },
+          "region": {
+            "type": "string",
+            "title": "region",
+            "description": "the worker chart's global.region; the API refuses a region the cluster is not registered in.\n Empty from an agent that does not report one."
           }
         },
         "title": "RegisterRequest",
@@ -10064,6 +10075,11 @@
               "type": "string"
             },
             "title": "domains"
+          },
+          "gatewayHostname": {
+            "type": "string",
+            "title": "gateway_hostname",
+            "description": "the region's gateway, {region}.{platform domain}; empty until the agent reports the platform\n domain served"
           }
         },
         "title": "Cluster",

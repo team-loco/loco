@@ -29,7 +29,9 @@ global:
   replicas:
     agent: 1
 
-  # region label attached to platform records as loco.region.
+  # code of the cluster's region, such as us-ca-1; the agent reports it and the API refuses a
+  # region the cluster is not registered in. It names the regional hostnames and is attached to
+  # platform records as loco.region.
   region: ""
   # @schema additionalProperties: false
   exporter:

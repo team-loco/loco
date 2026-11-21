@@ -55,6 +55,8 @@ type Platform struct {
 	TargetPlatform string
 	// Region is the region of the run's one cluster.
 	Region string
+	// GatewayHostname is the gateway hostname the API records for the run's cluster.
+	GatewayHostname string
 
 	APIURL      string
 	ObsProxyURL string
@@ -149,6 +151,7 @@ func New(features Features) *Platform {
 	p.BuildNamespace = p.values.buildNamespace
 	p.Domain = platformDomain
 	p.Region = clusterRegion
+	p.GatewayHostname = clusterRegion + "." + WorkerPlatformDomain
 	p.APIURL = "http://127.0.0.1:" + strconv.Itoa(p.ports.api)
 	p.ObsProxyURL = "http://127.0.0.1:" + strconv.Itoa(p.ports.obsProxy)
 	p.OTLPURL = "http://127.0.0.1:" + strconv.Itoa(p.ports.otlpHTTP)

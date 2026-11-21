@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,8 @@ const (
 	envGateway                  = "LOCO_GATEWAY"
 	envCertificate              = "LOCO_CERTIFICATE"
 	envAppDomains               = "LOCO_APP_DOMAINS"
+	envPlatformDomain           = "LOCO_PLATFORM_DOMAIN"
+	envRegion                   = "LOCO_REGION"
 	listSeparator               = ","
 	envIngestTokenSecret        = "LOCO_INGEST_TOKEN_SECRET"     //nolint:gosec
 	envIngestTokenSecretKey     = "LOCO_INGEST_TOKEN_SECRET_KEY" //nolint:gosec
@@ -100,6 +103,8 @@ type Config struct {
 	Gateway                  string
 	Certificate              string
 	AppDomains               []string
+	PlatformDomain           string
+	Region                   string
 	IngestTokenSecret        telemetrytoken.Secret
 	RegistryAuth             string
 	RegistryCheckInterval    time.Duration
@@ -107,6 +112,13 @@ type Config struct {
 
 func (c *Config) RunsBuilds() bool {
 	return c.Role == clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS || c.Role == clusterv1.ClusterRole_CLUSTER_ROLE_ALL
+}
+
+// CheckedDomains are the domains whose listeners and certificate the agent reports on: each app
+// domain and the platform domain. The shared wildcard listeners also route the same domains under
+// the region.
+func (c *Config) CheckedDomains() []string {
+	return append(slices.Clone(c.AppDomains), c.PlatformDomain)
 }
 
 func (c *Config) RegistryTokenMode() bool {
@@ -140,6 +152,8 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		envControllerDeployment: &cfg.ControllerDeployment,
 		envBuildNamespace:       &cfg.BuildNamespace,
 		envGateway:              &cfg.Gateway,
+		envPlatformDomain:       &cfg.PlatformDomain,
+		envRegion:               &cfg.Region,
 	}
 	for name, field := range required {
 		value, err := requireEnv(getenv, name)

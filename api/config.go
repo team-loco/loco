@@ -818,6 +818,7 @@ func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 		JoinTokenTTL:         joinTokenTTL,
 		ApplyAttempts:        applyAttemptsEnv(),
 		ApplyRetryDelay:      positiveInt32Env("LOCO_APPLY_RETRY_DELAY", defaultApplyRetryDelay),
+		PlatformDomain:       envconfig.String("LOCO_PLATFORM_DOMAIN", ""),
 		WorkspaceNamespaceGrace: envconfig.PositiveDuration(
 			"LOCO_WORKSPACE_NAMESPACE_GRACE",
 			defaultWorkspaceNamespaceGrace,

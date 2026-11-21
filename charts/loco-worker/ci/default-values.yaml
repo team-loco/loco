@@ -1,5 +1,5 @@
 global:
-  region: ci
+  region: local-1
   exporter:
     endpoint: https://ingest.ci.invalid
 

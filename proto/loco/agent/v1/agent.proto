@@ -35,6 +35,9 @@ message RegisterRequest {
   // assertion names cluster_key as its issuer, and the response returns the cluster the key
   // is enrolled to.
   bool recover_cluster_id = 8;
+  // the worker chart's global.region; the API refuses a region the cluster is not registered in.
+  // Empty from an agent that does not report one.
+  string region = 9;
 }
 
 // Enrollment binds the agent's public key to the cluster that issued the join token.
@@ -224,6 +227,11 @@ message Heartbeat {
   repeated string domains = 4 [(buf.validate.field).repeated.items.string.hostname = true];
   reserved 5;
   reserved "dns_records";
+  // the platform domain whose listener and certificate are ready; empty while either is not
+  string platform_domain = 6 [
+    (buf.validate.field).string.hostname = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
 }
 
 // AgentCapacity reports cluster resource capacity.

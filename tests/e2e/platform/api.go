@@ -92,6 +92,7 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		"LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY=" + sourceSecretKey,
 		"LOCO_SOURCE_BUCKET_REGION=" + bucketRegion,
 		"LOCO_DEFAULT_REGION=" + clusterRegion,
+		"LOCO_PLATFORM_DOMAIN=" + WorkerPlatformDomain,
 		"LOCO_SOURCE_BUCKET_ENDPOINT=" + p.S3Endpoint,
 		"LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE=true",
 		"LOCO_SECRETS_TRANSIT_ADDR=" + p.transitAddr,

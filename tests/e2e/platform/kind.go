@@ -129,6 +129,8 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 		"--values", filepath.Join(p.root, "charts", "loco-worker", "tests", "kind-values.yaml"),
 		"--values", filepath.Join(p.root, "tests", "e2e", "worker-values.yaml"),
 		setFlag, "global.domain.apps={" + platformDomain + "}",
+		setFlag, "global.domain.platform=" + WorkerPlatformDomain,
+		setFlag, "global.region=" + clusterRegion,
 		setFlag, "certManager.existingTLSSecret=" + gatewayTLSSecret,
 		setFlag, "controller.image.repository=" + repository(images.controller),
 		setFlag, "controller.image.tag=" + tag(images.controller),

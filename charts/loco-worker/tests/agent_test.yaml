@@ -25,6 +25,19 @@ tests:
           content: {apiGroups: [""], resources: [namespaces], verbs: [list, delete]}
         template: templates/agent-rbac.yaml
         documentSelector: {path: kind, value: ClusterRole}
+  - it: reports the chart's region and platform domain
+    set:
+      global.region: us-ca-1
+      global.domain.platform: platform.test
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGION, value: us-ca-1}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_PLATFORM_DOMAIN, value: platform.test}
+        template: templates/agent-deployment.yaml
   - it: reads the app domains, Gateway and Certificate the chart renders
     asserts:
       - contains:
