@@ -71,6 +71,7 @@ const TRAFFIC_CARDS = [
 		title: "Requests",
 		column: "Requests",
 		unit: "req/s",
+		axisUnit: " req/s",
 		value: (p: TrafficPoint) => p.requests,
 		format: (v: number) => trafficValue(v, "/s"),
 	},
@@ -79,6 +80,7 @@ const TRAFFIC_CARDS = [
 		title: "5xx responses",
 		column: "5xx",
 		unit: "%",
+		axisUnit: "%",
 		value: errorShare,
 		format: (v: number) => `${v.toFixed(2)}%`,
 	},
@@ -87,6 +89,7 @@ const TRAFFIC_CARDS = [
 		title: "Latency, p95",
 		column: "p95",
 		unit: "ms",
+		axisUnit: " ms",
 		value: (p: TrafficPoint) => p.latency,
 		format: (v: number) => trafficValue(v, " ms"),
 	},
@@ -610,7 +613,7 @@ export function MetricsView() {
 									from={from}
 									to={to}
 									fmt={card.format}
-									unit={card.unit}
+									unit={card.axisUnit}
 									highlight={hoverKey}
 									markers={markers}
 									height={TRAFFIC_HEIGHT}
