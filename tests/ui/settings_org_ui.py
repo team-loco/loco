@@ -43,6 +43,7 @@ with session(out) as browser:
         "Logs",
         "Traces",
         "Metrics",
+        "Expired API tokens",
     ]
     labels = limits.get_by_role("row").locator("td:first-child").all_inner_texts()
     assert labels[-len(history) :] == history, labels
