@@ -1,8 +1,10 @@
 import { useId } from "react";
 
+import { Switch } from "@/components/design/Switch";
 import { RadioGroup, RadioCard } from "@/components/design/RadioGroup";
 import { ModeIcon, ThemePreview } from "@/components/design/ThemePreview";
-import { colorThemes, modes } from "@/lib/theme";
+import { useStoredValue } from "@/lib/storage";
+import { colorThemes, modes, soundsKey } from "@/lib/theme";
 import { useTheme } from "@/lib/use-theme";
 
 import { SettingsCard, SettingsSection } from "./parts";
@@ -13,8 +15,10 @@ const label = "text-[13px] font-medium";
 
 export function AppearanceSection() {
 	const { mode, setMode, color, setColor } = useTheme();
+	const [sounds, setSounds] = useStoredValue(soundsKey, "on");
 	const modeLabelId = useId();
 	const colorLabelId = useId();
+	const soundsLabelId = useId();
 
 	return (
 		<SettingsSection title="Appearance" meta="saved in this browser">
@@ -63,6 +67,21 @@ export function AppearanceSection() {
 							</RadioCard>
 						))}
 					</RadioGroup>
+				</div>
+				<div className="flex items-center justify-between gap-4">
+					<span className="flex flex-col gap-0.5">
+						<span id={soundsLabelId} className={label}>
+							Sounds
+						</span>
+						<span className="text-[12.5px] text-fg3">Play a sound when the mode switches between light and dark.</span>
+					</span>
+					<Switch
+						checked={sounds !== "off"}
+						aria-labelledby={soundsLabelId}
+						onCheckedChange={(checked: boolean) => {
+							setSounds(checked ? "on" : "off");
+						}}
+					/>
 				</div>
 			</SettingsCard>
 		</SettingsSection>

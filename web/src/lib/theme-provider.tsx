@@ -11,6 +11,7 @@ import {
 	resolveMode,
 	storeColorTheme,
 	storeMode,
+	soundsEnabled,
 	subscribeSystemTheme,
 	systemPrefersDark,
 	type ColorTheme,
@@ -19,9 +20,10 @@ import {
 import { ThemeContext } from "./theme-context";
 import { ThemeStylesheet } from "./theme-stylesheet";
 
-const THEME_SOUND_VOLUME = 0.9;
+const THEME_SOUND_VOLUME = 0.4;
 
 function playThemeSound(toDark: boolean) {
+	if (!soundsEnabled()) return;
 	const audio = new Audio(toDark ? "/darkMode.wav" : "/lightMode.wav");
 	audio.volume = THEME_SOUND_VOLUME;
 	void audio.play().catch(() => undefined);
