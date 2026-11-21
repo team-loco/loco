@@ -436,7 +436,9 @@ type ListUserOrgsRequest struct {
 	// Sets total_count in the response.
 	IncludeTotalCount bool `protobuf:"varint,5,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
 	// Matches organization names, ignoring case.
-	Query         string `protobuf:"bytes,6,opt,name=query,proto3" json:"query,omitempty"`
+	Query string `protobuf:"bytes,6,opt,name=query,proto3" json:"query,omitempty"`
+	// Only the organization with exactly this name, ignoring case.
+	Name          string `protobuf:"bytes,7,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -509,6 +511,13 @@ func (x *ListUserOrgsRequest) GetIncludeTotalCount() bool {
 func (x *ListUserOrgsRequest) GetQuery() string {
 	if x != nil {
 		return x.Query
+	}
+	return ""
+}
+
+func (x *ListUserOrgsRequest) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
@@ -2549,7 +2558,7 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\rGetOrgRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"O\n" +
 	"\x0eGetOrgResponse\x12=\n" +
-	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"\xfc\x01\n" +
+	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"\x9a\x02\n" +
 	"\x13ListUserOrgsRequest\x12!\n" +
 	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
@@ -2558,7 +2567,8 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\x12*\n" +
 	"\x11create_if_missing\x18\x04 \x01(\bR\x0fcreateIfMissing\x12.\n" +
 	"\x13include_total_count\x18\x05 \x01(\bR\x11includeTotalCount\x12\x1e\n" +
-	"\x05query\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01R\x05query\"\xb3\x01\n" +
+	"\x05query\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01R\x05query\x12\x1c\n" +
+	"\x04name\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01R\x04name\"\xb3\x01\n" +
 	"\x14ListUserOrgsResponse\x12-\n" +
 	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +

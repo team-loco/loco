@@ -19,6 +19,7 @@ WHERE EXISTS (
       AND us.entity_id = o.id
   )
   AND (sqlc.arg('query')::text = '' OR o.name ILIKE sqlc.arg('query'))
+  AND (sqlc.arg('name')::text = '' OR lower(o.name) = lower(sqlc.arg('name')))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (o.created_at, o.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -33,6 +34,7 @@ SELECT COUNT(*) FROM (
   JOIN organizations o ON o.id = us.entity_id
   WHERE us.user_id = $1 AND us.entity_type = 'organization'
     AND (sqlc.arg('query')::text = '' OR o.name ILIKE sqlc.arg('query'))
+    AND (sqlc.arg('name')::text = '' OR lower(o.name) = lower(sqlc.arg('name')))
   GROUP BY us.entity_id
   LIMIT $2
 ) capped;

@@ -14,16 +14,18 @@ func TestListUserOrgsSearchesNames(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		query string
-		want  []string
+		query, name string
+		want        []string
 	}{
-		{"", []string{empty.GetOrgId(), o.orgID}},
-		{"empty", []string{empty.GetOrgId()}},
-		{"Y_O", []string{empty.GetOrgId()}},
-		{"y%o", nil},
+		{"", "", []string{empty.GetOrgId(), o.orgID}},
+		{"mpty", "", []string{empty.GetOrgId()}},
+		{"Y_O", "", []string{empty.GetOrgId()}},
+		{"y%o", "", nil},
+		{"", "EMPTY_org", []string{empty.GetOrgId()}},
+		{"", "mpty_org", nil},
 	} {
 		response, listErr := o.owner.clients.Org.ListUserOrgs(t.Context(), &orgv1.ListUserOrgsRequest{
-			UserId: o.owner.id.String(), Query: tc.query, IncludeTotalCount: true,
+			UserId: o.owner.id.String(), Query: tc.query, Name: tc.name, IncludeTotalCount: true,
 		})
 		if listErr != nil {
 			t.Fatal(listErr)
@@ -33,12 +35,13 @@ func TestListUserOrgsSearchesNames(t *testing.T) {
 			got = append(got, org.GetId())
 		}
 		if len(got) != len(tc.want) || response.GetTotalCount() != int32(len(tc.want)) {
-			t.Errorf("query %q listed %v with total %d, want %v", tc.query, got, response.GetTotalCount(), tc.want)
+			t.Errorf("query %q name %q listed %v with total %d, want %v",
+				tc.query, tc.name, got, response.GetTotalCount(), tc.want)
 			continue
 		}
 		for i := range got {
 			if got[i] != tc.want[i] {
-				t.Errorf("query %q listed %v, want %v", tc.query, got, tc.want)
+				t.Errorf("query %q name %q listed %v, want %v", tc.query, tc.name, got, tc.want)
 			}
 		}
 	}

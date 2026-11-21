@@ -37,13 +37,12 @@ export function CreateOrgDialog({
 	const queryClient = useQueryClient();
 	const isPending = orgMutation.isPending || workspaceMutation.isPending;
 	const trimmed = orgName.trim();
-	// The largest page, so an exact match is listed unless more than 200 of the user's organizations contain the name.
-	const matching = useQuery(
+	const named = useQuery(
 		listUserOrgs,
-		{ userId: user?.id ?? "", query: trimmed, pageSize: 200 },
+		{ userId: user?.id ?? "", name: trimmed, pageSize: 1 },
 		{ enabled: open && user !== null && trimmed !== "" },
 	);
-	const taken = matching.data?.orgs.some((org) => org.name === trimmed) ?? false;
+	const taken = (named.data?.orgs.length ?? 0) > 0;
 
 	const nameError =
 		trimmed === ""

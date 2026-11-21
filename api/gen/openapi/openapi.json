@@ -14215,6 +14215,12 @@
             "title": "query",
             "maxLength": 200,
             "description": "Matches organization names, ignoring case."
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "maxLength": 200,
+            "description": "Only the organization with exactly this name, ignoring case."
           }
         },
         "title": "ListUserOrgsRequest",
