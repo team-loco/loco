@@ -1,7 +1,7 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { BoxIcon, GitBranchIcon, HistoryIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
+import { BoxIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
 	parseAsArrayOf,
@@ -14,7 +14,6 @@ import {
 import { useLocation, useSearchParams, useParams } from "react-router";
 
 import { Button } from "@/components/design/Button";
-import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
 import { PickFilter } from "@/components/design/FilterPopover";
 import { Page, PageHeader, Section } from "@/components/design/Page";
@@ -257,7 +256,7 @@ export function Audit() {
 							range={timeWindow}
 							setRange={setWindow}
 							maxMs={RANGES.at(-1)?.ms ?? DEFAULT_RANGE.ms}
-							presets={RANGES.map((r) => r.ms)}
+							presets={RANGES}
 						/>
 						<Button
 							variant="outline"
@@ -400,19 +399,18 @@ export function Audit() {
 					)}
 
 					{!loading && !filterRejected && rejected === null && rows.length === 0 && (
-						<EmptyState
-							icon={<HistoryIcon />}
-							title={
-								anyFilter
-									? "No events match these filters"
-									: custom
-										? "Nothing happened in this time range"
-										: `Nothing happened in the ${range.label.toLowerCase()}`
-							}
-							action={
-								anyFilter ? (
+						<div className="py-7 text-center text-[13px] text-fg3">
+							{anyFilter
+								? "No events match these filters."
+								: custom
+									? "Nothing happened in this range."
+									: `Nothing happened in the ${range.label.toLowerCase()}.`}
+							{anyFilter && (
+								<>
+									{" "}
 									<Button
-										variant="outline"
+										variant="plain-link"
+										className="text-[13px]"
 										onClick={() => {
 											setFilters({
 												types: null,
@@ -427,16 +425,16 @@ export function Audit() {
 									>
 										Clear filters
 									</Button>
-								) : undefined
-							}
-						/>
+								</>
+							)}
+						</div>
 					)}
 					{!filterRejected && rejected === null && (
 						<Pager
 							label={
 								first === undefined || last === undefined
 									? ""
-									: `${rows.length.toLocaleString()} events, ${agoLabel(first.ms, now)} to ${agoLabel(last.ms, now)}`
+									: `${rows.length.toLocaleString()} events, ${agoLabel(first.ms, now).replace(/ ago$/, "")} to ${agoLabel(last.ms, now)}`
 							}
 							total={rows.length}
 							pageSizes={PAGE_SIZES}

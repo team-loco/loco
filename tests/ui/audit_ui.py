@@ -165,8 +165,14 @@ with session(out) as browser:
     page.get_by_role("button", name="Newest events", exact=True).click()
     expect(rows).to_have_count(50)
 
+    expect(
+        page.get_by_text(
+            re.compile(r"^50 events, (just now|\d+[mhd]) to (just now|\d+[mhd] ago)$")
+        )
+    ).to_be_visible()
     separator = page.get_by_role("separator", name="Resize Time", exact=True)
     initial_width = int(separator.get_attribute("aria-valuenow"))
+    assert initial_width == 120, initial_width
     separator.focus()
     page.keyboard.press("ArrowRight")
     expect(separator).to_have_attribute("aria-valuenow", str(initial_width + 16))
@@ -182,11 +188,16 @@ with session(out) as browser:
     expect(page).not_to_have_url(re.compile(r"[?&]live="))
 
     # A custom range sends its start and end; a preset applies behind a loading state.
-    page.get_by_role("button", name=re.compile(r"^Past ")).click()
+    page.get_by_role("button", name=re.compile(r"^Past 7 days")).click()
     time_range = page.get_by_role("dialog", name="Time range")
+    presets = time_range.get_by_role("group", name="Presets")
+    expect(presets.get_by_role("button")).to_have_count(4)
     expect(
-        time_range.get_by_role("group", name="Presets").get_by_role("button")
-    ).to_have_count(4)
+        presets.get_by_role("button", name="Past 7 days", exact=True)
+    ).to_have_attribute("aria-pressed", "true")
+    expect(
+        time_range.get_by_role("textbox", name="Type a time range", exact=True)
+    ).to_have_attribute("placeholder", "Date range, like 15m, 6h, 3d, 2w")
     with expect_rpc(page, "ListEvents", lambda body: "endTime" in body) as custom:
         time_range.get_by_role("button", name="Apply", exact=True).click()
     assert (
@@ -217,6 +228,10 @@ with session(out) as browser:
     expect(rows).to_have_count(50)
     page.get_by_role("button", name="Event", exact=True).click()
     expect(page.get_by_text(re.compile(r"^0 of \d+$"))).to_be_visible()
+    # Workspace membership events come before invitations in the Access group.
+    expect(page.get_by_role("option").nth(1)).to_contain_text(
+        "Added someone to a workspace"
+    )
     expect(
         page.get_by_role("option", name=re.compile(r"^Invited someone"))
     ).to_be_visible()
@@ -237,7 +252,20 @@ with session(out) as browser:
     ).to_be_disabled()
     expect(drawer.get_by_title("Copy request ID", exact=True)).to_be_visible()
     request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()
-    expect(drawer.get_by_role("button", name=re.compile(r"^More by "))).to_be_visible()
+    expect(
+        drawer.get_by_role("button", name="More by Olivia", exact=True)
+    ).to_be_visible()
+    # The title and what the event acted on share one line.
+    title_box = drawer.get_by_role("heading", name="Created a resource").bounding_box()
+    target_box = drawer.locator('[data-slot="sheet-description"]').bounding_box()
+    assert target_box["y"] < title_box["y"] + title_box["height"], (
+        title_box,
+        target_box,
+    )
+    assert target_box["x"] > title_box["x"] + title_box["width"], (
+        title_box,
+        target_box,
+    )
     drawer.get_by_role("button", name="Older event", exact=True).click()
     expect(drawer.get_by_title("Copy request ID", exact=True)).not_to_have_text(
         request_id
@@ -327,6 +355,7 @@ with session(out) as browser:
             panel.get_by_role("button", name=re.compile(re.escape(field)))
         ).to_be_visible()
     expect(panel.get_by_role("heading")).to_have_text("@type does not compare numbers")
+    expect(panel).to_contain_text("Use an exact value or a * wildcard.")
     expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
     expect(page.get_by_role("table", name="Audit events")).to_have_count(0)
     expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
@@ -355,6 +384,7 @@ with session(out) as browser:
     ):
         search.fill("@wrong:value")
     expect(panel.locator("mark")).to_have_text("@wrong:value")
+    expect(panel).to_contain_text("Pick one of the fields listed.")
     page.set_viewport_size(evidence.NARROW)
     expect(panel.get_by_role("button", name=re.compile(r"^@request:"))).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
@@ -395,7 +425,7 @@ with session(out) as browser:
         == "(@type:resource.created) @actor_type:system"
     )
     expect(
-        page.get_by_text("No events match these filters", exact=True)
+        page.get_by_text("No events match these filters.", exact=True)
     ).to_be_visible()
     search.fill("no-such-event")
     page.get_by_role("button", name="Clear filters", exact=True).click()
@@ -464,32 +494,38 @@ with session(out) as browser:
     expect(page.get_by_role("button", name="Environment", exact=True)).to_have_count(0)
     expect(page).not_to_have_url(re.compile(r"[?&]env="))
 
-    field = b"start_time"
-    description = b"Time range is outside retention."
-    violation = (
-        b"\x0a"
-        + bytes([len(field)])
-        + field
-        + b"\x12"
-        + bytes([len(description)])
-        + description
-    )
-    details = base64.b64encode(b"\x0a" + bytes([len(violation)]) + violation).decode()
     request_id = "00000000-0000-4000-8000-000000000003"
 
-    def reject_filters(route):
-        route.fulfill(
-            status=400,
-            headers={
-                "x-loco-request-id": request_id,
-                "access-control-expose-headers": "x-loco-request-id",
-            },
-            json={
-                "code": "invalid_argument",
-                "message": "Invalid filters",
-                "details": [{"type": "google.rpc.BadRequest", "value": details}],
-            },
+    def rejecting(field, description):
+        violation = (
+            b"\x0a"
+            + bytes([len(field)])
+            + field
+            + b"\x12"
+            + bytes([len(description)])
+            + description
         )
+        details = base64.b64encode(
+            b"\x0a" + bytes([len(violation)]) + violation
+        ).decode()
+
+        def reject(route):
+            route.fulfill(
+                status=400,
+                headers={
+                    "x-loco-request-id": request_id,
+                    "access-control-expose-headers": "x-loco-request-id",
+                },
+                json={
+                    "code": "invalid_argument",
+                    "message": "Invalid filters",
+                    "details": [{"type": "google.rpc.BadRequest", "value": details}],
+                },
+            )
+
+        return reject
+
+    reject_filters = rejecting(b"start_time", b"Time range is outside retention.")
 
     page.route("**/loco.event.v1.EventService/ListEvents", reject_filters)
     page.goto(state["ui_url"] + audit_path + "?range=90d")
@@ -520,6 +556,12 @@ with session(out) as browser:
     alert.get_by_role("button", name="Reset to Past 7 days", exact=True).click()
     expect(rows).to_have_count(50)
     expect(alert).to_have_count(0)
+    # A range that ends before it starts says so.
+    reject_order = rejecting(b"end_time", b"must be after start_time")
+    page.route("**/loco.event.v1.EventService/ListEvents", reject_order)
+    page.reload()
+    expect(alert).to_contain_text("The end of the range is before its start.")
+    page.unroute("**/loco.event.v1.EventService/ListEvents", reject_order)
 
     assert not errors, errors
     context.close()

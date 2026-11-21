@@ -9,6 +9,8 @@ interface AuditType {
 }
 
 const AUDIT_TYPES: Record<string, AuditType> = {
+	"member.added": { label: "Added someone to a workspace", category: "access" },
+	"member.removed": { label: "Removed someone from a workspace", category: "access" },
 	"invitation.created": { label: "Invited someone", category: "access" },
 	"invitation.resent": { label: "Resent an invitation", category: "access" },
 	"invitation.claimed": { label: "Accepted an invitation", category: "access" },
@@ -42,8 +44,6 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 		label: "Changed the organization's limits",
 		category: "organization",
 	},
-	"member.added": { label: "Added someone to a workspace", category: "access" },
-	"member.removed": { label: "Removed someone from a workspace", category: "access" },
 	"org_member.added": {
 		label: "Joined the organization",
 		category: "access",

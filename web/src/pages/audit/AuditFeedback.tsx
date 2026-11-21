@@ -63,7 +63,13 @@ export function AuditFilterError({ error, onFix }: { error: Error; onFix: (field
 						? "Couldn’t load events with these filters"
 						: `Couldn’t load events for this ${subject}`
 			}
-			subtitle={time ? "Choose a different time range to load events." : "Check the filters and try again."}
+			subtitle={
+				field === "end_time"
+					? "The end of the range is before its start."
+					: time
+						? "Choose a different time range to load events."
+						: "Check the filters and try again."
+			}
 		>
 			{fix !== undefined && (
 				<Button
