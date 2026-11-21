@@ -1,10 +1,11 @@
 import { charCount, clampChars } from "@/lib/characters";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { callUnaryMethod, useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import {
 	deleteWorkspace,
 	getWorkspace,
+	listOrgWorkspaces,
 	updateWorkspace,
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,7 +23,6 @@ import { Input } from "@/components/design/Input";
 import { SaveBar } from "@/components/design/SaveBar";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
@@ -60,7 +60,7 @@ export function WorkspaceTab({
 	const timePref = useTimePreferences();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const { workspaces } = useOrgWorkspace();
+	const transport = useTransport();
 	const { data, isLoading, error, refetch } = useQuery(getWorkspace, { workspaceId });
 	const update = useMutation(updateWorkspace);
 	const remove = useMutation(deleteWorkspace);
@@ -122,9 +122,15 @@ export function WorkspaceTab({
 				onSuccess: () => {
 					toast.success(`Deleted ${ws.name}`);
 					setDeleteOpen(false);
-					const next = workspaces.find((w) => w.orgId === orgId && w.id !== ws.id);
-					void queryClient.invalidateQueries();
-					void navigate(next ? workspacePath(orgId, next.id) : "/organizations");
+					void callUnaryMethod(transport, listOrgWorkspaces, { orgId, pageSize: 2 })
+						.then(
+							(res) => res.workspaces.find((w) => w.id !== ws.id),
+							() => undefined,
+						)
+						.then(async (next) => {
+							void queryClient.invalidateQueries();
+							await navigate(next ? workspacePath(orgId, next.id) : "/organizations");
+						});
 				},
 				onError: (err) => {
 					toastConnectError(err, "Failed to delete workspace");

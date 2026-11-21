@@ -1,4 +1,3 @@
-import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { resourceMissing, routeKnown } from "@/lib/not-found";
 import { NotFound, NotFoundBoundary } from "@/pages/NotFound";
@@ -10,11 +9,12 @@ import { AppShell } from "@/components/shell/AppShell";
 import { KeyboardShortcutsProvider } from "@/components/shell/KeyboardShortcuts";
 import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
-import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
+import { ContextProvider, ORG_STORAGE_KEY, pickActive, WORKSPACE_STORAGE_KEY } from "@/context/ContextProvider";
+import { readStorage } from "@/lib/storage";
 import { getOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
-import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import { useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
+import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { Navigate, useLocation, useParams } from "react-router";
 
@@ -25,7 +25,6 @@ interface ProtectedLayoutProps {
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
 	const { pathname, search, hash } = useLocation();
-	const transport = useTransport();
 	const { user, signedOut, isPending, error } = useAuth();
 
 	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? "" }, { enabled: !!user });
@@ -34,13 +33,22 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
 
-	const { data: workspacesRes, isLoading: workspacesLoading } = useTanstackQuery({
-		...orgWorkspacesOptions(transport, activeOrgId ?? ""),
-		enabled: !!activeOrgId && !scopes.isLoading && scopes.orgMember(activeOrgId),
-	});
-	const workspaces = workspacesRes?.workspaces ?? [];
+	// Without a workspace in the URL, the active one is the remembered workspace if it is in the organization, else its newest.
+	const picking =
+		workspaceParam === undefined && activeOrgId !== null && !scopes.isLoading && scopes.orgMember(activeOrgId);
+	const stored = readStorage(WORKSPACE_STORAGE_KEY);
+	const newest = useQuery(listOrgWorkspaces, { orgId: activeOrgId ?? "", pageSize: 1 }, { enabled: picking });
+	const remembered = useQuery(
+		getWorkspace,
+		{ workspaceId: stored ?? "" },
+		{ enabled: picking && stored !== null && scopes.workspaceLevel(activeOrgId, stored) >= 1 },
+	);
+	const pickable = [...(newest.data?.workspaces ?? []), remembered.data?.workspace].filter(
+		(w): w is Workspace => w?.orgId === activeOrgId,
+	);
 
-	const workspacesSettled = (orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !workspacesLoading;
+	const workspacesSettled =
+		(orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !newest.isLoading && !remembered.isLoading;
 	const urlWorkspace = useQuery(
 		getWorkspace,
 		{ workspaceId: workspaceParam ?? "" },
@@ -49,7 +57,6 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				workspacesSettled &&
 				orgParam !== undefined &&
 				workspaceParam !== undefined &&
-				!workspaces.some((w) => w.id === workspaceParam) &&
 				scopes.workspaceLevel(orgParam, workspaceParam) >= 1,
 		},
 	);
@@ -76,7 +83,6 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			resourceMissing(urlWorkspace.error, true) ||
 			!routeKnown(
 				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
-				workspaces,
 				scopes.scopes,
 			));
 
@@ -93,7 +99,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	}
 
 	return (
-		<ContextProvider availableOrgs={orgs} availableWorkspaces={workspaces} workspacesSettled={workspacesSettled}>
+		<ContextProvider availableOrgs={orgs} pickableWorkspaces={pickable} workspacesSettled={workspacesSettled}>
 			<KeyboardShortcutsProvider>
 				<CommandPaletteProvider>
 					{routeNotFound ? (

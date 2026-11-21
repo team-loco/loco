@@ -4,8 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Link, matchPath, useLocation, useNavigate } from "react-router";
 
 import type { Organization } from "@gen/loco/org/v1/org_pb";
-import { Scope } from "@gen/loco/token/v1/token_pb";
-import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from "@/components/design/Breadcrumb";
@@ -21,6 +20,7 @@ import {
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { orgSettingsPath, settingsPath, switchWorkspacePath, WORKSPACE_ROUTE, workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -181,25 +181,12 @@ function WorkspaceSwitcher({
 
 export function ShellBreadcrumb() {
 	const { pathname } = useLocation();
-	const { orgs, workspaces, activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const { orgs, activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active: env, setActive: setEnv } = useEnvironments();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 
 	const org = orgs.find((o) => o.id === activeOrgId);
-	const scopes = useMyScopes();
-	const directWorkspace = useQuery(
-		getWorkspace,
-		{ workspaceId: activeWorkspaceId ?? "" },
-		{
-			enabled:
-				org === undefined &&
-				activeOrgId !== null &&
-				activeWorkspaceId !== null &&
-				!scopes.isLoading &&
-				scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ),
-		},
-	);
-	const workspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? directWorkspace.data?.workspace;
+	const workspace = useWorkspace(activeOrgId, activeWorkspaceId);
 	const hasScopeCrumb = org !== undefined || workspace !== undefined;
 	const inWorkspace = matchPath(WORKSPACE_ROUTE, pathname) !== null;
 	const showEnv = inWorkspace && !pathname.endsWith("/settings") && !pathname.endsWith("/webhooks");

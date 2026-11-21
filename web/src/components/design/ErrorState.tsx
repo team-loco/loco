@@ -19,6 +19,7 @@ import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth } from "@/auth/AuthProvider";
 import { BASE_URL } from "@/auth/connect-transport";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useCopy } from "@/hooks/useCopy";
 import { useMyScopes } from "@/hooks/useMyScopes";
@@ -222,12 +223,13 @@ function Internal({
 function Denied({ scope, className }: { scope: DeniedScope; className: string | undefined }) {
 	const transport = useTransport();
 	const { user } = useAuth();
-	const { activeOrgId, activeWorkspaceId, orgs, workspaces } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId, orgs } = useOrgWorkspace();
+	const workspace = useWorkspace(activeOrgId, activeWorkspaceId);
 	const { orgLevel } = useMyScopes();
 	const orgId = activeOrgId ?? "";
 	const members = useQuery({ ...orgMembersOptions(transport, orgId), enabled: orgId !== "" && scope !== "org" });
 	const org = orgs.find((o) => o.id === activeOrgId)?.name ?? "this organization";
-	const ws = workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? "this workspace";
+	const ws = workspace?.name ?? "this workspace";
 	const admins = (members.data?.members ?? []).flatMap((m) =>
 		m.user !== undefined && roleOf(m.scopes) === "Admin" ? [m.user] : [],
 	);

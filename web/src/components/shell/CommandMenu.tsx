@@ -1,5 +1,7 @@
 import { Scope } from "@gen/loco/token/v1/token_pb";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
 	Building2Icon,
 	KeyboardIcon,
@@ -75,6 +77,8 @@ const PALETTE_GROUPS = ["This page", "Actions", "Resources", "Pages", "Workspace
 const SEARCH_GROUPS = ["This page", "Actions", "Pages", "Resources", "Workspaces", "Appearance", "Help"] as const;
 const KEY_HINT = "bg-panel2 text-fg3 inset-ring-0";
 const BROWSE_LIMIT = 8;
+// Searching lists this many of the newest workspaces and this many that match the typed text.
+const PALETTE_WORKSPACES = 20;
 
 interface PaletteItem {
 	id: string;
@@ -98,12 +102,12 @@ const RESOURCE_VIEWS: { view: ObservabilityView; label: string; icon: ReactNode 
 function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
 	const openShortcuts = useOpenShortcuts();
-	const { pathname, search } = useLocation();
+	const { pathname } = useLocation();
 	const [env] = useQueryState("env");
 	const [, setResourceView] = useQueryState("view", resourceViewParser.withOptions({ history: "replace" }));
 	const { mode, setMode, color, setColor } = useTheme();
 	const { active: activeEnv } = useEnvironments();
-	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navPages = useNavSections().flatMap((section) => section.pages);
 	const scopes = useMyScopes();
 	const resources = useQuery({
@@ -255,19 +259,6 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		},
 	);
 
-	for (const w of workspaces) {
-		if (w.id === activeWorkspaceId) continue;
-		items.push({
-			id: `workspace-${w.id}`,
-			group: "Workspaces",
-			label: `Switch to ${w.name}`,
-			keywords: `workspace ${w.orgName}`,
-			meta: w.orgName,
-			icon: <LayersIcon />,
-			run: go(switchWorkspacePath(pathname, search, w.orgId, w.id)),
-		});
-	}
-
 	items.push(
 		{
 			id: "set-mode",
@@ -330,8 +321,43 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	return items;
 }
 
-function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClose: () => void }) {
+// The newest workspaces of the active organization, and those whose name or description holds the typed text.
+function useWorkspaceItems(query: string): PaletteItem[] {
+	const navigate = useNavigate();
+	const { pathname, search } = useLocation();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const scopes = useMyScopes();
+	const orgId = activeOrgId ?? "";
+	const text = query.trim();
+	const enabled = text !== "" && activeOrgId !== null && !scopes.isLoading && scopes.orgMember(activeOrgId);
+	const newest = useConnectQuery(listOrgWorkspaces, { orgId, pageSize: PALETTE_WORKSPACES }, { enabled });
+	const matching = useConnectQuery(
+		listOrgWorkspaces,
+		{ orgId, pageSize: PALETTE_WORKSPACES, query: text },
+		{ enabled, placeholderData: keepPreviousData },
+	);
+	const workspaces = new Map(
+		[...(newest.data?.workspaces ?? []), ...(matching.data?.workspaces ?? [])].map((w) => [w.id, w]),
+	);
+	return [...workspaces.values()]
+		.filter((w) => w.id !== activeWorkspaceId)
+		.map((w) => ({
+			id: `workspace-${w.id}`,
+			group: "Workspaces",
+			label: `Switch to ${w.name}`,
+			keywords: `workspace ${w.orgName} ${w.description}`,
+			meta: w.orgName,
+			icon: <LayersIcon />,
+			run: () => {
+				void navigate(switchWorkspacePath(pathname, search, w.orgId, w.id));
+			},
+		}));
+}
+
+function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem[]; onClose: () => void }) {
 	const [query, setQuery] = useState("");
+	const workspaceItems = useWorkspaceItems(query);
+	const items = [...commands, ...workspaceItems];
 	const [selected, setSelected] = useState("");
 	const [list, setList] = useState<"mode" | "theme" | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
