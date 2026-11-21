@@ -329,43 +329,29 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 }
 
 const listRegionStatusesForResources = `-- name: ListRegionStatusesForResources :many
-SELECT l.resource_id,
-       l.environment_id,
-       e.slug AS environment_slug,
-       l.region,
-       l.cluster_id,
-       l.deployment_id,
-       l.status AS placement_status,
-       l.replicas AS desired_replicas,
-       COALESCE((SELECT ro.snapshot->'problem' FROM deployment_rollouts ro
-                 WHERE ro.deployment_id = l.deployment_id AND ro.cluster_id = l.cluster_id
-                 ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
-       (p.id IS NOT NULL)::boolean AS placed,
-       p.deployment_id AS placed_deployment_id,
-       COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
-       p.status_updated_at,
-       COALESCE(p.region_status, '')::text AS stored_status,
-       p.region_status_since,
-       COALESCE((SELECT ro.replicas FROM observed_placement_rollouts ro WHERE ro.placement_id = p.id),
-                '[]'::jsonb)::jsonb AS replicas,
-       c.last_heartbeat,
-       c.health_status,
-       ARRAY(
-           SELECT rd.domain FROM resource_domains rd
-           WHERE rd.resource_id = l.resource_id
-             AND rd.environment_id = l.environment_id
-             AND rd.domain_source = 'platform_provided'
-             AND NOT (rd.platform_domain = ANY(c.domains))
-           ORDER BY rd.domain
-       )::text[] AS unserved_domains
-FROM live_deployment_placements l
-JOIN environments e ON e.id = l.environment_id
-JOIN clusters c ON c.id = l.cluster_id
-LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
-    AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted
-WHERE l.resource_id = ANY($1::uuid[])
-ORDER BY l.resource_id, e.slug, l.region
+SELECT s.resource_id, s.environment_id, s.environment_slug, s.region, s.cluster_id, s.deployment_id, s.placement_status, s.desired_replicas, s.problem, s.placed, s.placed_deployment_id, s.ready_replicas, s.status_updated_at, s.stored_status, s.region_status_since, s.replicas, s.last_heartbeat, s.health_status, s.unserved_domains, s.status_cause, s.status,
+       environment_status(array_agg(s.status) OVER (PARTITION BY s.resource_id, s.environment_id))::text
+           AS environment_status
+FROM (
+    SELECT i.resource_id, i.environment_id, i.environment_slug, i.region, i.cluster_id, i.deployment_id, i.placement_status, i.desired_replicas, i.problem, i.placed, i.placed_deployment_id, i.ready_replicas, i.status_updated_at, i.stored_status, i.region_status_since, i.replicas, i.last_heartbeat, i.health_status, i.unserved_domains,
+           c.cause AS status_cause,
+           region_status(c.cause, i.ready_replicas, i.desired_replicas, i.placement_status)::text AS status
+    FROM resource_region_inputs i
+    CROSS JOIN LATERAL (
+        SELECT region_status_cause(
+            i.last_heartbeat, i.health_status, make_interval(secs => $1::float8),
+            i.ready_replicas, i.desired_replicas, i.placement_status, cardinality(i.unserved_domains)
+        )::text AS cause
+    ) c
+    WHERE i.resource_id = ANY($2::uuid[])
+) s
+ORDER BY s.resource_id, s.environment_slug, s.region
 `
+
+type ListRegionStatusesForResourcesParams struct {
+	SilentAfterSeconds float64     `json:"silentAfterSeconds"`
+	ResourceIds        []uuid.UUID `json:"resourceIds"`
+}
 
 type ListRegionStatusesForResourcesRow struct {
 	ResourceID         uuid.UUID       `json:"resourceId"`
@@ -387,10 +373,13 @@ type ListRegionStatusesForResourcesRow struct {
 	LastHeartbeat      *time.Time      `json:"lastHeartbeat"`
 	HealthStatus       *string         `json:"healthStatus"`
 	UnservedDomains    []string        `json:"unservedDomains"`
+	StatusCause        string          `json:"statusCause"`
+	Status             string          `json:"status"`
+	EnvironmentStatus  string          `json:"environmentStatus"`
 }
 
-func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
-	rows, err := q.db.Query(ctx, listRegionStatusesForResources, resourceIds)
+func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRegionStatusesForResourcesParams) ([]ListRegionStatusesForResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listRegionStatusesForResources, arg.SilentAfterSeconds, arg.ResourceIds)
 	if err != nil {
 		return nil, err
 	}
@@ -418,6 +407,9 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.LastHeartbeat,
 			&i.HealthStatus,
 			&i.UnservedDomains,
+			&i.StatusCause,
+			&i.Status,
+			&i.EnvironmentStatus,
 		); err != nil {
 			return nil, err
 		}

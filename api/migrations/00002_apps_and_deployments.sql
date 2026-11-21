@@ -405,6 +405,89 @@ WHERE dp.status = 'pending' OR EXISTS (
 )
 ORDER BY d.resource_id, d.environment_id, dp.cluster_id, d.created_at DESC, d.id DESC;
 
+-- What a region's status is derived from: its live deployment, placement, latest report and cluster.
+CREATE VIEW resource_region_inputs AS
+SELECT l.resource_id,
+       l.environment_id,
+       e.slug AS environment_slug,
+       l.region,
+       l.cluster_id,
+       l.deployment_id,
+       l.status AS placement_status,
+       l.replicas AS desired_replicas,
+       COALESCE((SELECT ro.snapshot->'problem' FROM deployment_rollouts ro
+                 WHERE ro.deployment_id = l.deployment_id AND ro.cluster_id = l.cluster_id
+                 ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
+       (p.id IS NOT NULL)::boolean AS placed,
+       p.deployment_id AS placed_deployment_id,
+       COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
+       p.status_updated_at,
+       COALESCE(p.region_status, '')::text AS stored_status,
+       p.region_status_since,
+       COALESCE((SELECT ro.replicas FROM observed_placement_rollouts ro WHERE ro.placement_id = p.id),
+                '[]'::jsonb)::jsonb AS replicas,
+       c.last_heartbeat,
+       c.health_status,
+       ARRAY(
+           SELECT rd.domain FROM resource_domains rd
+           WHERE rd.resource_id = l.resource_id
+             AND rd.environment_id = l.environment_id
+             AND rd.domain_source = 'platform_provided'
+             AND NOT (rd.platform_domain = ANY(c.domains))
+           ORDER BY rd.domain
+       )::text[] AS unserved_domains
+FROM live_deployment_placements l
+JOIN environments e ON e.id = l.environment_id
+JOIN clusters c ON c.id = l.cluster_id
+LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
+    AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted;
+
+-- +goose StatementBegin
+-- What overrides a region's replica-based status: a cluster cause, unserved platform domains, or '' for none.
+CREATE FUNCTION region_status_cause (
+    last_heartbeat TIMESTAMPTZ, health_status TEXT, silent_after INTERVAL,
+    ready INT, desired INT, placement placement_status, unserved_domains INT
+) RETURNS TEXT LANGUAGE sql STABLE AS $$
+    SELECT CASE
+        WHEN last_heartbeat IS NULL THEN 'cluster_never_reported'
+        WHEN now() - last_heartbeat > silent_after THEN 'cluster_silent'
+        WHEN health_status IS DISTINCT FROM 'healthy' THEN 'cluster_unhealthy'
+        WHEN ready >= desired AND placement <> 'degraded' AND unserved_domains > 0 THEN 'domains_unserved'
+        ELSE ''
+    END
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+-- A region's status as the ResourceStatus enum name, from its cause, replicas and placement.
+CREATE FUNCTION region_status (cause TEXT, ready INT, desired INT, placement placement_status)
+RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
+    SELECT CASE
+        WHEN cause IN ('cluster_never_reported', 'cluster_silent', 'cluster_unhealthy') THEN 'RESOURCE_STATUS_UNKNOWN'
+        WHEN cause = 'domains_unserved' THEN 'RESOURCE_STATUS_DEGRADED'
+        WHEN ready >= desired AND placement <> 'degraded' THEN 'RESOURCE_STATUS_HEALTHY'
+        WHEN ready > 0 THEN 'RESOURCE_STATUS_DEGRADED'
+        WHEN placement IN ('pending', 'deploying') THEN 'RESOURCE_STATUS_DEPLOYING'
+        ELSE 'RESOURCE_STATUS_UNAVAILABLE'
+    END
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+-- An environment's status from its regions' statuses; NULL for no statuses or one that is not a region status.
+CREATE FUNCTION environment_status (statuses TEXT[]) RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
+    SELECT CASE
+        WHEN cardinality(statuses) = 0 OR NOT statuses <@ ARRAY[
+            'RESOURCE_STATUS_HEALTHY', 'RESOURCE_STATUS_DEGRADED', 'RESOURCE_STATUS_UNAVAILABLE',
+            'RESOURCE_STATUS_DEPLOYING', 'RESOURCE_STATUS_UNKNOWN'] THEN NULL
+        WHEN statuses[1] = ALL(statuses) THEN statuses[1]
+        WHEN statuses && ARRAY['RESOURCE_STATUS_UNAVAILABLE', 'RESOURCE_STATUS_DEGRADED'] THEN 'RESOURCE_STATUS_DEGRADED'
+        WHEN 'RESOURCE_STATUS_UNKNOWN' = ANY(statuses) THEN 'RESOURCE_STATUS_UNKNOWN'
+        ELSE 'RESOURCE_STATUS_DEPLOYING'
+    END
+$$;
+-- +goose StatementEnd
+
 -- +goose StatementBegin
 -- The placements of a deployment as the API returns them, ordered by region. A live placement is
 -- one the region runs or is building, and reports the replicas the region's clusters last
@@ -596,6 +679,10 @@ FOR EACH ROW EXECUTE FUNCTION notify_deployment_placement_change();
 DROP TABLE IF EXISTS registry_credentials;
 DROP TABLE IF EXISTS builds;
 DROP FUNCTION IF EXISTS deployment_placements_json;
+DROP FUNCTION IF EXISTS environment_status;
+DROP FUNCTION IF EXISTS region_status;
+DROP FUNCTION IF EXISTS region_status_cause;
+DROP VIEW IF EXISTS resource_region_inputs;
 DROP VIEW IF EXISTS live_deployment_placements;
 DROP VIEW IF EXISTS observed_placement_rollouts;
 DROP FUNCTION IF EXISTS resource_suspended;

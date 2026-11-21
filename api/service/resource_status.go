@@ -18,49 +18,63 @@ import (
 )
 
 const (
-	clusterHealthHealthy   = "healthy"
-	clusterHealthDegraded  = "degraded"
-	clusterHealthUnhealthy = "unhealthy"
-)
-
-const (
 	regionMessageClusterSilent     = "the cluster running this region has stopped reporting"
 	regionMessageClusterUnhealthy  = "the cluster running this region reports that it is unhealthy"
 	regionMessageClusterNeverHeard = "the cluster running this region has never reported"
 	regionMessageDomainsUnserved   = "the cluster running this region does not serve "
 )
 
+// The causes region_status_cause in the migrations returns.
+const (
+	statusCauseClusterNeverReported = "cluster_never_reported"
+	statusCauseClusterSilent        = "cluster_silent"
+	statusCauseClusterUnhealthy     = "cluster_unhealthy"
+	statusCauseDomainsUnserved      = "domains_unserved"
+)
+
+var clusterCauseMessages = map[string]string{
+	statusCauseClusterNeverReported: regionMessageClusterNeverHeard,
+	statusCauseClusterSilent:        regionMessageClusterSilent,
+	statusCauseClusterUnhealthy:     regionMessageClusterUnhealthy,
+}
+
 var (
 	errFinishedDeploymentActive = errors.New("finished deployment is still active")
 	errUnknownDeploymentStatus  = errors.New("unknown deployment status")
 	errNoDesiredReplicas        = errors.New("active deployment wants no replicas")
 	errActiveDeploymentUnplaced = errors.New("active deployment has no placement")
-	errNoRegions                = errors.New("environment status has no regions")
-	errRegionStatusUnset        = errors.New("region status is unset")
+	errUnknownResourceStatus    = errors.New("unknown resource status")
 )
 
 func (s *ResourceServer) environmentStatuses(
 	ctx context.Context,
 	resourceIDs []uuid.UUID,
 ) (map[uuid.UUID][]*resourcev1.EnvironmentStatus, error) {
-	rows, err := s.queries.ListRegionStatusesForResources(ctx, resourceIDs)
+	rows, err := s.queries.ListRegionStatusesForResources(ctx, genDb.ListRegionStatusesForResourcesParams{
+		ResourceIds:        resourceIDs,
+		SilentAfterSeconds: s.clusterSilentAfter.Seconds(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list region statuses: %w", err)
 	}
-	now := time.Now()
 	statuses := make(map[uuid.UUID][]*resourcev1.EnvironmentStatus, len(resourceIDs))
 	var current *resourcev1.EnvironmentStatus
 	var currentResource uuid.UUID
 	for _, row := range rows {
-		region, regionErr := regionStatus(row, now, s.clusterSilentAfter)
+		region, regionErr := regionStatus(row)
 		if regionErr != nil {
 			return nil, fmt.Errorf("resource %s region %s: %w", row.ResourceID, row.Region, regionErr)
 		}
 		environmentID := row.EnvironmentID.String()
 		if current == nil || currentResource != row.ResourceID || current.GetEnvironmentId() != environmentID {
+			environment, statusErr := parseResourceStatus(row.EnvironmentStatus)
+			if statusErr != nil {
+				return nil, fmt.Errorf("resource %s environment %s: %w", row.ResourceID, row.EnvironmentSlug, statusErr)
+			}
 			current = &resourcev1.EnvironmentStatus{
 				EnvironmentId:   environmentID,
 				EnvironmentSlug: row.EnvironmentSlug,
+				Status:          environment,
 			}
 			currentResource = row.ResourceID
 			statuses[row.ResourceID] = append(statuses[row.ResourceID], current)
@@ -69,29 +83,23 @@ func (s *ResourceServer) environmentStatuses(
 	}
 	for _, environments := range statuses {
 		for _, environment := range environments {
-			status, summaryErr := summarizeRegions(environment.GetRegions())
-			if summaryErr != nil {
-				return nil, summaryErr
-			}
-			environment.Status = status
-			environment.StatusSince = environmentSince(environment.GetRegions(), status)
+			environment.StatusSince = environmentSince(environment.GetRegions(), environment.GetStatus())
 		}
 	}
 	return statuses, nil
 }
 
-func regionStatus(
-	row genDb.ListRegionStatusesForResourcesRow,
-	now time.Time,
-	staleAfter time.Duration,
-) (*resourcev1.RegionStatus, error) {
+func regionStatus(row genDb.ListRegionStatusesForResourcesRow) (*resourcev1.RegionStatus, error) {
 	if row.DesiredReplicas < 1 {
 		return nil, fmt.Errorf("%w: deployment %s", errNoDesiredReplicas, row.DeploymentID)
 	}
 	if !row.Placed && row.PlacementStatus != genDb.PlacementStatusPending {
 		return nil, fmt.Errorf("%w: deployment %s", errActiveDeploymentUnplaced, row.DeploymentID)
 	}
-	inFlight, err := placementInFlight(row.PlacementStatus)
+	if err := checkPlacementActive(row.PlacementStatus); err != nil {
+		return nil, err
+	}
+	status, err := parseResourceStatus(row.Status)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +108,7 @@ func regionStatus(
 		DesiredReplicas: row.DesiredReplicas,
 		DeploymentId:    row.DeploymentID.String(),
 		PlacementStatus: placementStatuses[row.PlacementStatus],
+		Status:          status,
 	}
 	if row.StatusUpdatedAt != nil {
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)
@@ -114,35 +123,29 @@ func regionStatus(
 		region.ServingDeploymentId = row.PlacedDeploymentID.String()
 	}
 
-	if silence := clusterSilence(row, now, staleAfter); silence != "" {
-		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN
-		region.Message = new(silence)
+	if message, ok := clusterCauseMessages[row.StatusCause]; ok {
+		region.Message = new(message)
 		if row.LastHeartbeat != nil {
 			region.StatusSince = timestamppb.New(*row.LastHeartbeat)
 		}
 		return region, nil
 	}
-
-	switch {
-	case row.ReadyReplicas >= row.DesiredReplicas && row.PlacementStatus != genDb.PlacementStatusDegraded:
-		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
-	case row.ReadyReplicas > 0:
-		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
-	case inFlight:
-		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING
-	default:
-		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
-	}
-	region.Message, err = regionMessage(row, region.GetStatus())
-	if err != nil {
+	if row.StatusCause == statusCauseDomainsUnserved {
+		region.Message = new(regionMessageDomainsUnserved + strings.Join(row.UnservedDomains, ", "))
+	} else if region.Message, err = regionMessage(row, status); err != nil {
 		return nil, err
 	}
-	if region.GetStatus() == resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY && len(row.UnservedDomains) > 0 {
-		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
-		region.Message = new(regionMessageDomainsUnserved + strings.Join(row.UnservedDomains, ", "))
-	}
-	region.StatusSince = statusSince(row, region.GetStatus())
+	region.StatusSince = statusSince(row, status)
 	return region, nil
+}
+
+// parseResourceStatus reads a status name the status SQL functions return.
+func parseResourceStatus(name string) (resourcev1.ResourceStatus, error) {
+	value, ok := resourcev1.ResourceStatus_value[name]
+	if !ok || value == int32(resourcev1.ResourceStatus_RESOURCE_STATUS_UNSPECIFIED) {
+		return 0, fmt.Errorf("%w: %q", errUnknownResourceStatus, name)
+	}
+	return resourcev1.ResourceStatus(value), nil
 }
 
 // servingDeployment is the deployment with the most ready replicas. A tie goes to the live
@@ -182,15 +185,17 @@ func recordRegionStatuses(
 	ctx context.Context,
 	q *genDb.Queries,
 	resourceID uuid.UUID,
-	staleAfter time.Duration,
+	silentAfter time.Duration,
 ) error {
-	rows, err := q.ListRegionStatusesForResources(ctx, []uuid.UUID{resourceID})
+	rows, err := q.ListRegionStatusesForResources(ctx, genDb.ListRegionStatusesForResourcesParams{
+		ResourceIds:        []uuid.UUID{resourceID},
+		SilentAfterSeconds: silentAfter.Seconds(),
+	})
 	if err != nil {
 		return fmt.Errorf("list region statuses: %w", err)
 	}
-	now := time.Now()
 	for _, row := range rows {
-		region, regionErr := regionStatus(row, now, staleAfter)
+		region, regionErr := regionStatus(row)
 		if regionErr != nil {
 			return fmt.Errorf("resource %s region %s: %w", row.ResourceID, row.Region, regionErr)
 		}
@@ -210,31 +215,16 @@ func recordRegionStatuses(
 	return nil
 }
 
-func placementInFlight(status genDb.PlacementStatus) (bool, error) {
+func checkPlacementActive(status genDb.PlacementStatus) error {
 	switch status {
-	case genDb.PlacementStatusPending, genDb.PlacementStatusDeploying:
-		return true, nil
-	case genDb.PlacementStatusRunning, genDb.PlacementStatusDegraded, genDb.PlacementStatusCrashed,
-		genDb.PlacementStatusFailed:
-		return false, nil
+	case genDb.PlacementStatusPending, genDb.PlacementStatusDeploying, genDb.PlacementStatusRunning,
+		genDb.PlacementStatusDegraded, genDb.PlacementStatusCrashed, genDb.PlacementStatusFailed:
+		return nil
 	case genDb.PlacementStatusSuperseded, genDb.PlacementStatusCanceled:
-		return false, fmt.Errorf("%w: %s", errFinishedDeploymentActive, status)
+		return fmt.Errorf("%w: %s", errFinishedDeploymentActive, status)
 	default:
-		return false, fmt.Errorf("%w: %s", errUnknownDeploymentStatus, status)
+		return fmt.Errorf("%w: %s", errUnknownDeploymentStatus, status)
 	}
-}
-
-func clusterSilence(row genDb.ListRegionStatusesForResourcesRow, now time.Time, staleAfter time.Duration) string {
-	if row.LastHeartbeat == nil {
-		return regionMessageClusterNeverHeard
-	}
-	if now.Sub(*row.LastHeartbeat) > staleAfter {
-		return regionMessageClusterSilent
-	}
-	if row.HealthStatus == nil || *row.HealthStatus != clusterHealthHealthy {
-		return regionMessageClusterUnhealthy
-	}
-	return ""
 }
 
 func regionMessage(row genDb.ListRegionStatusesForResourcesRow, status resourcev1.ResourceStatus) (*string, error) {
@@ -247,45 +237,6 @@ func regionMessage(row genDb.ListRegionStatusesForResourcesRow, status resourcev
 		return new(problemReportMessage(problem)), nil
 	}
 	return nil, nil
-}
-
-func summarizeRegions(regions []*resourcev1.RegionStatus) (resourcev1.ResourceStatus, error) {
-	if len(regions) == 0 {
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_UNSPECIFIED, errNoRegions
-	}
-	first := regions[0].GetStatus()
-	uniform := true
-	failing := false
-	unknown := false
-	for _, region := range regions {
-		status := region.GetStatus()
-		if status != first {
-			uniform = false
-		}
-		switch status {
-		case resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE:
-			failing = true
-		case resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED:
-			failing = true
-		case resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN:
-			unknown = true
-		case resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY:
-		case resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING:
-		case resourcev1.ResourceStatus_RESOURCE_STATUS_UNSPECIFIED:
-			return resourcev1.ResourceStatus_RESOURCE_STATUS_UNSPECIFIED,
-				fmt.Errorf("%w: region %s", errRegionStatusUnset, region.GetRegion())
-		}
-	}
-	switch {
-	case uniform:
-		return first, nil
-	case failing:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, nil
-	case unknown:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, nil
-	default:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING, nil
-	}
 }
 
 // environmentSince is when the environment entered status: the earliest time a region entered a
