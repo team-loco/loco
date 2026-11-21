@@ -462,6 +462,23 @@ def log_columns(page):
     )
     page.evaluate("localStorage.removeItem('loco-clock')")
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs",
+        lambda route: route.fulfill(json={"entries": [], "totalMatched": "0"}),
+    )
+    logs_url = state["ui_url"] + base + "/observability?env=production&view=logs&live=0"
+    page.goto(logs_url + "&q=no-such-line")
+    expect(
+        page.get_by_text("No lines match these filters.", exact=True)
+    ).to_be_visible()
+    page.goto(logs_url)
+    expect(
+        page.get_by_text(
+            "Anything shared's resources write to stdout or stderr lands here.",
+            exact=True,
+        )
+    ).to_be_visible()
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
 def workload_logs(page):
@@ -661,12 +678,14 @@ def log_drawer(page):
 def live_focus(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
-    live = page.get_by_role("button", name=re.compile(r"^(Live|Starting…)"))
+    live = page.locator("[data-live-button]")
     expect(live).to_have_attribute("aria-pressed", "true")
+    expect(live).to_have_text("Pause")
     expect(page).not_to_have_url(re.compile(r"live="))
     live.focus()
     page.keyboard.press("Enter")
     expect(live).to_have_attribute("aria-pressed", "false")
+    expect(live).to_have_text("Live")
     wait_for_query(page, lambda query: query.get("live") == ["0"])
     page.reload()
     expect(live).to_have_attribute("aria-pressed", "false")
@@ -777,7 +796,7 @@ def log_paging(page):
     wait_for_query(page, lambda query: "log" not in query)
     page.context.grant_permissions(["clipboard-read", "clipboard-write"])
     row = page.get_by_role("row", name=re.compile(r"Paged line 30\b"))
-    menu = row.get_by_role("button", name="More for this line", exact=True)
+    menu = row.get_by_role("button", name="Line actions", exact=True)
     row.hover()
     menu.click()
     page.get_by_role("menuitem", name="Copy message", exact=True).click()
@@ -790,7 +809,9 @@ def log_paging(page):
     assert re.search(r"(Z|[+-]\d\d:\d\d)$", copied["timestamp"]), copied
     assert "trace_id" not in copied and "span_id" not in copied, copied
     page.get_by_role("button", name="Add a column", exact=True).click()
-    page.get_by_role("menuitemcheckbox", name="Method", exact=True).click()
+    page.get_by_role("dialog", name="Columns").get_by_role(
+        "checkbox", name="Method", exact=True
+    ).click()
     page.keyboard.press("Escape")
     wait_for_query(page, lambda query: "method" in query.get("cols", [""])[0])
     expect(

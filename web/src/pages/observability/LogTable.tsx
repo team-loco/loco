@@ -1,18 +1,12 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { CheckIcon, PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon, XIcon } from "lucide-react";
 import { functionalUpdate } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
-import {
-	DropdownMenu,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuLabel,
-	DropdownMenuTrigger,
-} from "@/components/design/DropdownMenu";
 import { Button } from "@/components/design/Button";
+import { Checkbox } from "@/components/design/Checkbox";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -35,42 +29,31 @@ const TIME_KEY = "time";
 function ColumnPicker({ columns, onColumns }: { columns: ColumnKey[]; onColumns: (next: ColumnKey[]) => void }) {
 	const extra = columns.filter((c) => !PICKABLE_COLUMNS.includes(c));
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger
-				render={<Button variant="ghost" size="icon-xs" aria-label="Add a column" title="Add a column" />}
-			>
+		<Popover>
+			<PopoverTrigger render={<Button variant="ghost" size="icon-xs" aria-label="Add a column" title="Add a column" />}>
 				<PlusIcon />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-[200px]">
-				<DropdownMenuGroup>
-					<DropdownMenuLabel>Columns</DropdownMenuLabel>
-					{[...PICKABLE_COLUMNS, ...extra].map((c) => {
-						const on = columns.includes(c);
-						return (
-							<DropdownMenuCheckboxItem
-								key={c}
-								className="pr-2.5 [&>[data-slot=dropdown-menu-checkbox-item-indicator]]:hidden"
+			</PopoverTrigger>
+			<PopoverContent align="end" aria-label="Columns" className="w-[200px] gap-0 p-1.5">
+				<span className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">Columns</span>
+				{[...PICKABLE_COLUMNS, ...extra].map((c) => {
+					const on = columns.includes(c);
+					return (
+						<label
+							key={c}
+							className="flex min-h-8 items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] hover:bg-panel"
+						>
+							<Checkbox
 								checked={on}
 								onCheckedChange={() => {
 									onColumns(on ? columns.filter((x) => x !== c) : [...columns, c]);
 								}}
-							>
-								<span
-									aria-hidden
-									className={cn(
-										"flex size-3.5 shrink-0 items-center justify-center rounded-[4px]",
-										on ? "bg-foreground text-background" : "shadow-[inset_0_0_0_1.5px_var(--line2)]",
-									)}
-								>
-									{on && <CheckIcon className="size-2.5" strokeWidth={3} />}
-								</span>
-								<span className={cn(!PICKABLE_COLUMNS.includes(c) && "font-mono text-[12.5px]")}>{columnLabel(c)}</span>
-							</DropdownMenuCheckboxItem>
-						);
-					})}
-				</DropdownMenuGroup>
-			</DropdownMenuContent>
-		</DropdownMenu>
+							/>
+							<span className={cn(!PICKABLE_COLUMNS.includes(c) && "font-mono text-[12.5px]")}>{columnLabel(c)}</span>
+						</label>
+					);
+				})}
+			</PopoverContent>
+		</Popover>
 	);
 }
 

@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { filteredResources, useObs } from "./context";
 import { EventDetail, EventIcon } from "./EventDetail";
 import { eventValue, eventItem, eventWindow, type EventItem, type Severity } from "./events";
-import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
@@ -128,7 +128,6 @@ export function EventsView() {
 			actions={
 				<LiveButton
 					on={live}
-					detail="streaming"
 					title={live ? "Pause event stream" : "Stream new events"}
 					onToggle={() => {
 						void setParams({ live: live ? "0" : null });
@@ -155,14 +154,8 @@ export function EventsView() {
 				<QueryBar valueCounts={valueCounts} />
 				<ObsHero
 					view="events"
-					title={
-						hasResources
-							? "No events in this range"
-							: environment === undefined
-								? "No events yet"
-								: `No events yet in ${environment.name}`
-					}
-					body="Deploys, restarts, failed health checks and scaling show up here as they happen."
+					title={hasResources ? "No events in this range" : "No events yet"}
+					body={`Deploys, restarts, failed health checks and scaling${environment === undefined ? "" : ` in ${environment.name}`} show up here as they happen.`}
 					action={
 						hasResources ? (
 							<WidenRangeButton />
@@ -213,7 +206,7 @@ export function EventsView() {
 						table={table}
 						label="Events"
 						loading={loading}
-						empty={<NoMatches title="No events match these filters" />}
+						empty={<div className="px-6 py-7 text-center text-[13px] text-fg3">No events match.</div>}
 						activeRowId={selItem?.id ?? null}
 						onRowClick={(row) => {
 							select(row.id);

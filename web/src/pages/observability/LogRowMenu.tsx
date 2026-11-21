@@ -22,8 +22,8 @@ export function LogRowMenu({ row }: { row: LogRow }) {
 					<Button
 						variant="ghost"
 						size="icon-xs"
-						aria-label="More for this line"
-						title="More"
+						aria-label="Line actions"
+						title="Line actions"
 						className="opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 data-popup-open:opacity-100"
 					/>
 				}

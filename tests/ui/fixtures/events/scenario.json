@@ -3,7 +3,7 @@
     "owner": {"email": "owner@acme.test", "name": "Olivia Owner"},
     "reader": {"email": "reader@acme.test", "name": "Riley Reader"}
   },
-  "orgs": [{"name": "acme", "owner": "owner", "members": ["reader"], "workspaces": ["shared"]}],
+  "orgs": [{"name": "acme", "owner": "owner", "members": ["reader"], "workspaces": ["shared", "empty"]}],
   "resources": [{
     "workspace": "acme/shared",
     "name": "web",
