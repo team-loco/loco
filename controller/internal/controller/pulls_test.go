@@ -130,10 +130,10 @@ func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 			ContainerStatuses: []corev1.ContainerStatus{{Name: "web", Started: new(true),
 				State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: started}}}},
 		}}
-	pod.Annotations[loco.KeyPlacementRevision] = "1"
+	set := ownedAtRevision(app, pod, "1")
 	r := &ApplicationReconciler{
 		Client: fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(
-			pod, &corev1.Namespace{Name: pod.Namespace, Labels: environmentNamespaceLabels(app)},
+			set, pod, &corev1.Namespace{Name: pod.Namespace, Labels: environmentNamespaceLabels(app)},
 		).Build(),
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		HealthyAfter:             testHealthyAfter,
