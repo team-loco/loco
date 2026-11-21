@@ -24,12 +24,14 @@ services:
     domains: [storefront.example.com]
     env: { LOG_LEVEL: info }
     regions:
-      us-east-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 3 } }
+      us-ca-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 3 } }
   worker:
     image: ghcr.io/acme/worker:1.4.2
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 ```
+
+Keys under `regions` are region codes such as `us-ca-1`. `loco region list` prints the codes and availability of the regions an environment can deploy to. The plan refuses a region with no healthy cluster. [Regions](../reference/regions.md) explains how codes are built.
 
 `port` is the port the service listens on, and nothing fills in a default. A service without `port`, such as `worker` above, is a worker: Loco creates no Kubernetes Service, route or readiness probe for it, so it needs no listener and cannot have `domains`, `routing` or `health`. The plan rejects those fields on a service without `port`. Each new replica of a worker counts as ready once it has run for the worker cluster's `controller.minReadySeconds`; see [health checks](#health-checks).
 
@@ -42,7 +44,7 @@ services:
     dockerfile: deploy/Dockerfile
 ```
 
-A service with `port` and without `domains` is private. Each entry of `domains` is one label under a platform domain, such as `storefront.example.com` under `example.com`. A platform domain is one a cluster serves: the cluster's agent reports it once the Gateway listeners for `*.<domain>` are accepted and programmed and the certificate covering it is ready. The plan rejects a hostname unless the cluster of every region the service runs in serves its platform domain, and names the clusters that do not. When a cluster stops serving a domain, assigned hostnames stay, and the region's status turns degraded with the hostnames it no longer serves. Each region needs `cpu` from `100m` to `2000m`, `memory` from `32Mi` to `4Gi`, and `replicas.min` and `replicas.max` from 1 to 10. Without `autoscaling`, the service runs `replicas.min` replicas. Set `autoscaling: { cpuTarget: 70 }` or `autoscaling: { memoryTarget: 80 }` on a region to scale between `replicas.min` and `replicas.max`. The target is a percentage of the container’s resource request, from 1 to 100. `loco.yaml` accepts exactly one target per region. Removing `autoscaling` returns the service to `replicas.min` replicas. Partial names and service keys are DNS labels: 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit. The API checks resource limits when it plans the file, and `GetConfig` reports them as `size_limits`. The API accepts any Kubernetes quantity within them. The JSON Schema accepts CPU as whole millicores such as `250m` or as cores such as `0.5`, and memory as whole mebibytes such as `512Mi` or as gibibytes from `1Gi`, such as `1.5Gi`.
+A service with `port` and without `domains` is private. Each entry of `domains` is one label under a platform domain, such as `storefront.example.com` under `example.com`. A platform domain is one a cluster serves: the cluster's agent reports it once the Gateway listeners for `*.<domain>` are accepted and programmed and the certificate covering it is ready. The service's primary hostname, the first entry of `domains`, also answers in every region the service runs in at the same label under the region code, `storefront.us-ca-1.example.com`; Loco derives that name, and a `domains` entry cannot name one. The plan rejects a hostname unless the cluster of every region the service runs in serves its platform domain, and names the clusters that do not. When a cluster stops serving a domain, assigned hostnames stay, and the region's status turns degraded with the hostnames it no longer serves. Each region needs `cpu` from `100m` to `2000m`, `memory` from `32Mi` to `4Gi`, and `replicas.min` and `replicas.max` from 1 to 10. Without `autoscaling`, the service runs `replicas.min` replicas. Set `autoscaling: { cpuTarget: 70 }` or `autoscaling: { memoryTarget: 80 }` on a region to scale between `replicas.min` and `replicas.max`. The target is a percentage of the container’s resource request, from 1 to 100. `loco.yaml` accepts exactly one target per region. Removing `autoscaling` returns the service to `replicas.min` replicas. Partial names and service keys are DNS labels: 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit. The API checks resource limits when it plans the file, and `GetConfig` reports them as `size_limits`. The API accepts any Kubernetes quantity within them. The JSON Schema accepts CPU as whole millicores such as `250m` or as cores such as `0.5`, and memory as whole mebibytes such as `512Mi` or as gibibytes from `1Gi`, such as `1.5Gi`.
 
 ## Private service discovery
 
@@ -161,16 +163,16 @@ services:
     port: 8080
     domains: [staging.storefront.example.com]
     regions:
-      us-east-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 1 } }
     environments:
       production:
         domains: [www.storefront.example.com]
         regions:
-          us-east-1: { replicas: { min: 2, max: 3 } }
+          us-ca-1: { replicas: { min: 2, max: 3 } }
   debug-proxy:
     image: ghcr.io/acme/debug-proxy:1
     regions:
-      us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
     environments:
       production:
         enabled: false

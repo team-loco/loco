@@ -6,6 +6,7 @@
     "log-queries",
     "audit-queries",
     "installation",
+    "regions",
     "api-environment",
     "ai"
   ],
