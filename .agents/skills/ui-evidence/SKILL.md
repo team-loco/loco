@@ -1,15 +1,12 @@
 ---
 name: ui-evidence
-description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Captures locally and clicks through a running app; the `ci-evidence` skill takes them in CI. Builds each git ref in its own worktree with a throwaway database, OpenBao, API and UI, seeds users, sessions and organization memberships with SQL and organizations, workspaces and grants through the API, and shoots headless Chromium. Load before taking PR screenshots.
+description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Captures locally and clicks through a running app, with each git ref built in its own worktree against a throwaway stack; the `ci-evidence` skill takes them in CI. Load before taking PR screenshots.
 context: fork
 agent: ui-evidence
 allowed-tools: Bash, Read, Write
 ---
 
 # UI evidence
-
-The `ci-evidence` skill takes captures in CI. This skill is for local capture and for clicking
-through a running app.
 
 `scripts/evidence.py` does every brittle step. Run it with uv from the repository root; it never
 touches the dev stack (`mise run dev`), Dex or a person's browser windows.
@@ -42,9 +39,7 @@ mise exec -- uv run --script "$E" <command>
    `maxReplicas` and optional `port`. Use one deployment per environment and region.
    Start from `.agents/skills/ui-evidence/scenario.resources.example.json`. Resources use the API; synthetic
    clusters, deployments and placements use SQL without contacting a registry or worker.
-   The evidence API uses the two-hour run lease as its heartbeat interval; synthetic clusters
-   stay live for six hours after seeding, covering long light/dark and narrow capture batches.
-   The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths, and
+      The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths, and
    `orgs` maps each organization name to its `id` and `owner`.
 2. Write a shot spec JSON. Each shot names a path, a `ready_selector`, an optional user, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,
@@ -115,14 +110,9 @@ mise exec -- uv run --script "$E" <command>
    ```
 
    Reserve `down --all` for manual machine-wide cleanup; it stops other callers' runs.
-   Each run holds a two-hour lease in `tools/testres`, the registry every local test harness
-   shares; its containers, processes, worktree and ports are recorded under that lease, outside
-   any temporary directory. Every `up`, `shoot` and `down` also stops runs nobody has used for
-   two hours and other harnesses' leftovers whose owner is gone. A failed `up` stops itself after
-   printing its API and UI logs, so an interrupted capture does not leave containers behind.
-
-Return the PNG paths, one line per file saying what it shows, every `scenario note:` line and every
-failure.
+   Each run holds a two-hour lease in `tools/testres`; every `up`, `shoot` and `down` also stops
+   expired runs and leftovers whose owner is gone. A failed `up` stops itself after printing its
+   API and UI logs.
 
 ## Networks and shared OpenBao
 
