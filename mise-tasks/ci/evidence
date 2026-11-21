@@ -14,14 +14,8 @@ while [[ $# -gt 0 ]]; do
 		}
 		case $1 in
 		--out) out=$2 ;;
-		--shots)
-			shots_file=$2
-			shots=$(<"$2")
-			;;
-		--scenario)
-			scenario_file=$2
-			scenario=$(<"$2")
-			;;
+		--shots) shots_file=$2 shots=$(<"$2") ;;
+		--scenario) scenario_file=$2 scenario=$(<"$2") ;;
 		--base) base=$2 ;;
 		esac
 		shift 2

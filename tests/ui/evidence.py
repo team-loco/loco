@@ -482,9 +482,6 @@ def validate_spec(spec):
     return shots
 
 
-DEFAULT_ENVIRONMENT = "production"
-
-
 def connect_methods():
     """Lists the `<package>.<Service>/<Method>` path of every RPC under proto/."""
     methods = set()
@@ -512,7 +509,7 @@ def scenario_ids(scenario):
         "resource": {
             f"{r['workspace']}/{r['name']}": "id" for r in scenario.get("resources", [])
         },
-        "environment": {f"{w}/{DEFAULT_ENVIRONMENT}": "id" for w in workspaces},
+        "environment": {f"{w}/production": "id" for w in workspaces},
     }
 
 
