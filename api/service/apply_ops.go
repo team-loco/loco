@@ -498,9 +498,8 @@ func scalersFor(autoscaling *configplan.Autoscaling) *deploymentv1.Scalers {
 		return nil
 	}
 	return &deploymentv1.Scalers{
-		Enabled:      true,
-		CpuTarget:    &autoscaling.CPUTarget,
-		MemoryTarget: &autoscaling.MemoryTarget,
+		Enabled:   true,
+		CpuTarget: &autoscaling.CPUTarget,
 	}
 }
 

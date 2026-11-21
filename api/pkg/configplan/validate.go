@@ -52,9 +52,8 @@ func validateRegion(name string, target Region, clusters []platformdomain.Cluste
 	var scalers locoControllerV1.ScalersSpec
 	if target.Autoscaling != nil {
 		scalers = locoControllerV1.ScalersSpec{
-			Enabled:      true,
-			CPUTarget:    target.Autoscaling.CPUTarget,
-			MemoryTarget: target.Autoscaling.MemoryTarget,
+			Enabled:   true,
+			CPUTarget: target.Autoscaling.CPUTarget,
 		}
 	}
 	resources := locoControllerV1.ResourcesSpec{

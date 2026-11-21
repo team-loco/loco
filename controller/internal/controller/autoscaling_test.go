@@ -29,7 +29,7 @@ var _ = Describe("Application autoscaling", func() {
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		resources := app.Spec.ServiceSpec.Resources
 		resources.Replicas = locov1alpha1.ReplicasSpec{Min: 2, Max: 5}
-		resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, CPUTarget: 70, MemoryTarget: 80}
+		resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, CPUTarget: 70}
 		dep, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(reconciler.ensureAutoscaler(ctx, app, dep)).To(Succeed())
@@ -41,11 +41,9 @@ var _ = Describe("Application autoscaling", func() {
 		Expect(
 			hpa.Spec.ScaleTargetRef,
 		).To(Equal(autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "Deployment", Name: key.Name}))
-		Expect(hpa.Spec.Metrics).To(HaveLen(2))
+		Expect(hpa.Spec.Metrics).To(HaveLen(1))
 		Expect(hpa.Spec.Metrics[0].Resource.Name).To(Equal(corev1.ResourceCPU))
 		Expect(hpa.Spec.Metrics[0].Resource.Target.AverageUtilization).To(HaveValue(Equal(int32(70))))
-		Expect(hpa.Spec.Metrics[1].Resource.Name).To(Equal(corev1.ResourceMemory))
-		Expect(hpa.Spec.Metrics[1].Resource.Target.AverageUtilization).To(HaveValue(Equal(int32(80))))
 		Expect(metav1.GetControllerOf(hpa).UID).To(Equal(*dep.UID))
 
 		deployment := &appsv1.Deployment{}
@@ -66,12 +64,12 @@ var _ = Describe("Application autoscaling", func() {
 		Expect(dep.Spec.Replicas).To(HaveValue(Equal(int32(4))))
 
 		resources.Replicas.Max = 6
-		resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, MemoryTarget: 60}
+		resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, CPUTarget: 60}
 		Expect(reconciler.ensureAutoscaler(ctx, app, dep)).To(Succeed())
 		Expect(k8sClient.Get(ctx, key, hpa)).To(Succeed())
 		Expect(hpa.Spec.MaxReplicas).To(Equal(int32(6)))
 		Expect(hpa.Spec.Metrics).To(HaveLen(1))
-		Expect(hpa.Spec.Metrics[0].Resource.Name).To(Equal(corev1.ResourceMemory))
+		Expect(hpa.Spec.Metrics[0].Resource.Name).To(Equal(corev1.ResourceCPU))
 		Expect(hpa.Spec.Metrics[0].Resource.Target.AverageUtilization).To(HaveValue(Equal(int32(60))))
 
 		resources.Scalers.Enabled = false

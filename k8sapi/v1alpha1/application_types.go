@@ -29,9 +29,8 @@ type ReplicasSpec struct {
 }
 
 type ScalersSpec struct {
-	Enabled      bool  `json:"enabled,omitzero"`
-	CPUTarget    int32 `json:"cpuTarget,omitzero"`
-	MemoryTarget int32 `json:"memoryTarget,omitzero"`
+	Enabled   bool  `json:"enabled,omitzero"`
+	CPUTarget int32 `json:"cpuTarget,omitzero"`
 }
 
 // HealthCheckSpec describes readiness/liveness checks

@@ -453,9 +453,8 @@ func (x *HealthCheckConfig) GetFailureThreshold() int32 {
 // Scalers defines autoscaling configuration.
 type Scalers struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`                                     // enable autoscaling
-	CpuTarget     *int32                 `protobuf:"varint,2,opt,name=cpu_target,json=cpuTarget,proto3,oneof" json:"cpu_target,omitempty"`          // target CPU percentage (0-100)
-	MemoryTarget  *int32                 `protobuf:"varint,3,opt,name=memory_target,json=memoryTarget,proto3,oneof" json:"memory_target,omitempty"` // target memory percentage (0-100)
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`                            // enable autoscaling
+	CpuTarget     *int32                 `protobuf:"varint,2,opt,name=cpu_target,json=cpuTarget,proto3,oneof" json:"cpu_target,omitempty"` // target CPU percentage (0-100)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -500,13 +499,6 @@ func (x *Scalers) GetEnabled() bool {
 func (x *Scalers) GetCpuTarget() int32 {
 	if x != nil && x.CpuTarget != nil {
 		return *x.CpuTarget
-	}
-	return 0
-}
-
-func (x *Scalers) GetMemoryTarget() int32 {
-	if x != nil && x.MemoryTarget != nil {
-		return *x.MemoryTarget
 	}
 	return 0
 }
@@ -3271,15 +3263,13 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x15initial_delay_seconds\x18\x02 \x01(\x05R\x13initialDelaySeconds\x122\n" +
 	"\x10interval_seconds\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds\x120\n" +
 	"\x0ftimeout_seconds\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0etimeoutSeconds\x124\n" +
-	"\x11failure_threshold\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x10failureThreshold\"\x86\x03\n" +
+	"\x11failure_threshold\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x10failureThreshold\"\x93\x02\n" +
 	"\aScalers\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12-\n" +
 	"\n" +
-	"cpu_target\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x00R\tcpuTarget\x88\x01\x01\x123\n" +
-	"\rmemory_target\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x01R\fmemoryTarget\x88\x01\x01:\xdb\x01\xbaH\xd7\x01\x1a\xd4\x01\n" +
-	"\x17scalers.target_required\x12Benabled autoscaling needs a CPU or memory target between 1 and 100\x1au!this.enabled || (has(this.cpu_target) && this.cpu_target > 0) || (has(this.memory_target) && this.memory_target > 0)B\r\n" +
-	"\v_cpu_targetB\x10\n" +
-	"\x0e_memory_target\"\xd7\x01\n" +
+	"cpu_target\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x00R\tcpuTarget\x88\x01\x01:\x9a\x01\xbaH\x96\x01\x1a\x93\x01\n" +
+	"\x17scalers.target_required\x128enabled autoscaling needs a CPU target between 1 and 100\x1a>!this.enabled || (has(this.cpu_target) && this.cpu_target > 0)B\r\n" +
+	"\v_cpu_targetJ\x04\b\x03\x10\x04R\rmemory_target\"\xd7\x01\n" +
 	"\vBuildSource\x12\x1b\n" +
 	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12t\n" +
 	"\x05image\x18\x02 \x01(\tB^\xbaH[\xd8\x01\x01rV2T^([a-z0-9\\-._]+(:[0-9]+)?(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+)?(@sha256:[a-f0-9]{64})?$R\x05image\x12(\n" +
