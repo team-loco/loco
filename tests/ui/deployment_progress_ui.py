@@ -385,7 +385,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     ), mutations
     page.goto(state["ui_url"] + path + "&tab=settings")
     banner = page.get_by_role("status").filter(
-        has_text=f"These settings are from deployment {p['current'][-8:]}, which did not finish in us-east-1."
+        has_text=f"These settings are from deployment {p['current'][-8:]}, which did not finish in us-ca-1."
     )
     expect(banner).to_contain_text(f"v1 · {p['previous'][-8:]} still serves.")
     expect(banner).to_contain_text("image:")
