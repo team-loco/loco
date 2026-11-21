@@ -1,4 +1,5 @@
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { useWorkspace, WORKSPACE_STALE_MS } from "@/hooks/useWorkspace";
 import { resourceMissing, routeKnown } from "@/lib/not-found";
 import { NotFound, NotFoundBoundary } from "@/pages/NotFound";
 import { useAuth } from "@/auth/AuthProvider";
@@ -38,12 +39,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		workspaceParam === undefined && activeOrgId !== null && !scopes.isLoading && scopes.orgMember(activeOrgId);
 	const stored = readStorage(WORKSPACE_STORAGE_KEY);
 	const newest = useQuery(listOrgWorkspaces, { orgId: activeOrgId ?? "", pageSize: 1 }, { enabled: picking });
-	const remembered = useQuery(
-		getWorkspace,
-		{ workspaceId: stored ?? "" },
-		{ enabled: picking && stored !== null && scopes.workspaceLevel(activeOrgId, stored) >= 1 },
-	);
-	const pickable = [...(newest.data?.workspaces ?? []), remembered.data?.workspace].filter(
+	const remembered = useWorkspace(picking ? activeOrgId : null, stored);
+	const pickable = [...(newest.data?.workspaces ?? []), remembered.workspace].filter(
 		(w): w is Workspace => w?.orgId === activeOrgId,
 	);
 
@@ -58,6 +55,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				orgParam !== undefined &&
 				workspaceParam !== undefined &&
 				scopes.workspaceLevel(orgParam, workspaceParam) >= 1,
+			staleTime: WORKSPACE_STALE_MS,
+			retryOnMount: false,
 		},
 	);
 	// A caller whose scopes cover every organization (system) can open an ID that is not in its list.

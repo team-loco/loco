@@ -224,7 +224,7 @@ function Denied({ scope, className }: { scope: DeniedScope; className: string | 
 	const transport = useTransport();
 	const { user } = useAuth();
 	const { activeOrgId, activeWorkspaceId, orgs } = useOrgWorkspace();
-	const workspace = useWorkspace(activeOrgId, activeWorkspaceId);
+	const { workspace } = useWorkspace(activeOrgId, activeWorkspaceId);
 	const { orgLevel } = useMyScopes();
 	const orgId = activeOrgId ?? "";
 	const members = useQuery({ ...orgMembersOptions(transport, orgId), enabled: orgId !== "" && scope !== "org" });

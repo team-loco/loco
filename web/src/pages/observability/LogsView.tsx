@@ -113,7 +113,7 @@ export function LogsView() {
 	} = useObs();
 	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
-	const workspace = useWorkspace(orgId, workspaceId);
+	const { workspace } = useWorkspace(orgId, workspaceId);
 	const environmentId = environment?.id ?? "";
 	const { size, page, log: selectedKey, cols: columns, widths, at: anchor, live } = params;
 	const [history, setHistory] = useState(createLogHistory);

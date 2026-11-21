@@ -186,7 +186,7 @@ export function ShellBreadcrumb() {
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 
 	const org = orgs.find((o) => o.id === activeOrgId);
-	const workspace = useWorkspace(activeOrgId, activeWorkspaceId);
+	const { workspace } = useWorkspace(activeOrgId, activeWorkspaceId);
 	const hasScopeCrumb = org !== undefined || workspace !== undefined;
 	const inWorkspace = matchPath(WORKSPACE_ROUTE, pathname) !== null;
 	const showEnv = inWorkspace && !pathname.endsWith("/settings") && !pathname.endsWith("/webhooks");
