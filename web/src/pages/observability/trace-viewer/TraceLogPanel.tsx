@@ -2,7 +2,7 @@ import { useTraceResources } from "./TraceColors";
 import { logOffset } from "./trace-time";
 import { aroundWindow } from "@/lib/obs-time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Button } from "@/components/design/Button";
@@ -54,6 +54,8 @@ export function TraceLogPanel({
 	const [scope, setScope] = useState("trace");
 	const [height, setHeight] = useState(310);
 	const resizeRef = useRef<{ y: number; height: number } | null>(null);
+	const panelRef = useRef<HTMLElement>(null);
+	const rendered = () => panelRef.current?.offsetHeight ?? height;
 	const descendants = useMemo(
 		() => descendantIds(trace, selected.spanId, children),
 		[trace, selected.spanId, children],
@@ -69,9 +71,14 @@ export function TraceLogPanel({
 	const clamp = (n: number) => Math.max(MIN_HEIGHT, Math.min(620, n));
 	return (
 		<section
+			ref={panelRef}
 			aria-label="Trace bottom panel"
-			className="tv-bottom relative flex min-h-[192px] shrink-0 min-[1100px]:max-h-[65%] flex-col border-t border-line bg-background"
-			style={{ height: collapsed ? "auto" : height }}
+			className={cn(
+				"tv-bottom relative flex min-h-[192px] shrink-0 flex-col border-t border-line bg-background",
+				!collapsed &&
+					"h-(--panel-h) min-[1100px]:h-auto min-[1100px]:grow min-[1100px]:basis-[min(var(--panel-h),65%)]",
+			)}
+			style={{ "--panel-h": `${String(height)}px` } as CSSProperties}
 		>
 			{!collapsed && (
 				<div
@@ -85,7 +92,7 @@ export function TraceLogPanel({
 					className="absolute inset-x-0 -top-1 z-10 h-2 cursor-row-resize touch-none focus-visible:ring-2 focus-visible:ring-ring"
 					onPointerDown={(e) => {
 						e.currentTarget.setPointerCapture(e.pointerId);
-						resizeRef.current = { y: e.clientY, height };
+						resizeRef.current = { y: e.clientY, height: rendered() };
 					}}
 					onPointerMove={(e) => {
 						if (resizeRef.current !== null)
@@ -97,7 +104,7 @@ export function TraceLogPanel({
 					onKeyDown={(e) => {
 						if (e.key === "ArrowUp" || e.key === "ArrowDown") {
 							e.preventDefault();
-							setHeight(clamp(height + (e.key === "ArrowUp" ? 24 : -24)));
+							setHeight(clamp(rendered() + (e.key === "ArrowUp" ? 24 : -24)));
 						}
 					}}
 				/>

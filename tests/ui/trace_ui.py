@@ -1844,13 +1844,31 @@ with session(out) as browser:
         expect(page.get_by_role("tooltip")).to_contain_text("Product found")
         assert marker.get_attribute("title") is None, font
         resizer = drawer.get_by_role("separator", name="Resize bottom panel")
-        handle_box = resizer.bounding_box()
-        page.mouse.move(
-            handle_box["x"] + 20, handle_box["y"] + handle_box["height"] / 2
+        panel_edges = (
+            "d => [d.querySelector('[data-slot=sheet-body]'), d.querySelector('[aria-label=\"Trace bottom panel\"]'), d.querySelector('[data-trace-log-scroll]')]"
+            ".map(e => e.getBoundingClientRect()).map(r => [r.top, r.bottom])"
         )
-        page.mouse.down()
-        page.mouse.move(handle_box["x"] + 20, handle_box["y"] + 900, steps=5)
-        page.mouse.up()
+        heights = []
+        for dy in (-900, 100, 900):
+            handle_box = resizer.bounding_box()
+            x = handle_box["x"] + 20
+            y = handle_box["y"] + handle_box["height"] / 2
+            page.mouse.move(x, y)
+            page.mouse.down()
+            page.mouse.move(x, y + dy, steps=5)
+            page.mouse.up()
+            body, panel, rows_box = drawer.evaluate(panel_edges)
+            assert abs(panel[1] - body[1]) < 1 and abs(rows_box[1] - panel[1]) < 1, (
+                font,
+                dy,
+                body,
+                panel,
+                rows_box,
+            )
+            heights.append(
+                (panel[1] - panel[0], resizer.get_attribute("aria-valuenow"))
+            )
+        assert abs(int(heights[1][1]) - (heights[0][0] - 100)) <= 1, (font, heights)
         assert resizer.get_attribute("aria-valuenow") == "192", font
         log_list.evaluate("l => {l.scrollTop = 0}")
         assert log_list.evaluate(
