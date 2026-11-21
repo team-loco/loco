@@ -1,8 +1,7 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
-import { useQueries } from "@tanstack/react-query";
+import { useTransport } from "@connectrpc/connect-query";
+import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
-import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
@@ -17,13 +16,15 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
+import { currentDeploymentOptions } from "@/hooks/useWorkspaceDeployments";
+import { workspaceDeploymentsOptions } from "@/hooks/workspaceDeployments";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent } from "@/lib/compute-chart";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { isUnimplemented } from "@/lib/error-handler";
 import { sortParser } from "@/lib/sort-parser";
-import { aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
+import { HOUR_MS, MINUTE_MS, aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
 import { formatHourMinute, readyMs, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
@@ -63,7 +64,8 @@ const SOON_COLUMNS = ["Requests", "5xx", "p95"];
 const PERCENT = 100;
 const NOW_TICK_MS = 60_000;
 const CHART_HEIGHT = 190;
-const DEPLOYS_PER_RESOURCE = 20;
+// A deployment shows where it became ready, which can be this long after it was created.
+const DEPLOY_LEAD_MS = 24 * HOUR_MS;
 const WARN_PERCENT = 85;
 // A click this close to a deploy line, as a share of the range, offers that deploy.
 const DEPLOY_PICK_SHARE = 0.02;
@@ -180,44 +182,50 @@ function useComputeSeries(
 	};
 }
 
-function usePlacementSizing(rows: Placement[], visible: ObsResource[], environmentId: string) {
+function usePlacementSizing(rows: Placement[]) {
 	const transport = useTransport();
-	const queries = useQueries({
-		queries: visible.map((r) =>
-			createQueryOptions(listDeployments, { resourceId: r.id, pageSize: DEPLOYS_PER_RESOURCE }, { transport }),
-		),
-	});
+	const ids = [...new Set(rows.map((p) => p.deploymentId).filter((id) => id !== ""))];
+	const queries = useQueries({ queries: ids.map((id) => currentDeploymentOptions(transport, id)) });
+	const deployments = new Map(
+		queries.flatMap((q) => (q.data?.deployment === undefined ? [] : [q.data.deployment])).map((d) => [d.id, d]),
+	);
 	const sizing = new Map<string, { cpu: string; memory: string }>();
-	const isLoading = queries.some((q) => q.isLoading);
-	visible.forEach((r, i) => {
-		const deployments = queries[i]?.data?.deployments ?? [];
-		for (const p of rows.filter((row) => row.resource.id === r.id)) {
-			const deployment =
-				deployments.find((d) => d.id === p.deploymentId) ??
-				deployments.find((d) => d.environmentId === environmentId && d.placements.some((x) => x.region === p.region));
-			const deployed = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
-			const intent = r.raw.spec?.spec.case === "service" ? r.raw.spec.spec.value.regions[p.region] : undefined;
-			const target = deployed ?? intent;
-			if (target !== undefined)
-				sizing.set(p.key, {
-					cpu: target.cpu ?? "",
-					memory: target.memory ?? "",
-				});
-		}
-	});
-	return { sizing, isLoading };
+	for (const p of rows) {
+		const deployment = deployments.get(p.deploymentId);
+		const deployed = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
+		const spec = p.resource.raw.spec?.spec;
+		const intent = spec?.case === "service" ? spec.value.regions[p.region] : undefined;
+		const target = deployed ?? intent;
+		if (target !== undefined)
+			sizing.set(p.key, {
+				cpu: target.cpu ?? "",
+				memory: target.memory ?? "",
+			});
+	}
+	return { sizing, isLoading: queries.some((q) => q.isLoading) };
 }
 
-function useDeployMarkers(visible: ObsResource[], environmentId: string, from: number, to: number): DeployMarker[] {
+function useDeployMarkers(
+	visible: ObsResource[],
+	workspaceId: string,
+	environmentId: string,
+	from: number,
+	to: number,
+	live: boolean,
+): DeployMarker[] {
 	const transport = useTransport();
-	const queries = useQueries({
-		queries: visible.map((r) =>
-			createQueryOptions(listDeployments, { resourceId: r.id, pageSize: DEPLOYS_PER_RESOURCE }, { transport }),
-		),
+	const query = useQuery({
+		...workspaceDeploymentsOptions(transport, workspaceId, environmentId, {
+			sinceMs: Math.floor((from - DEPLOY_LEAD_MS) / HOUR_MS) * HOUR_MS,
+			untilMs: live ? undefined : Math.floor(to / MINUTE_MS) * MINUTE_MS + MINUTE_MS,
+		}),
+		placeholderData: keepPreviousData,
+		meta: { persist: false },
 	});
+	const byResource = Map.groupBy(query.data?.deployments ?? [], (d) => d.resourceId);
 	const markers: DeployMarker[] = [];
-	visible.forEach((r, i) => {
-		for (const d of queries[i]?.data?.deployments ?? []) {
+	visible.forEach((r) => {
+		for (const d of byResource.get(r.id) ?? []) {
 			const t = readyMs(d);
 			if (t === undefined || t < from || t > to || d.environmentId !== environmentId) continue;
 			const tag = formatShortId(d.id);
@@ -269,10 +277,17 @@ export function MetricsView() {
 	const endMs = range.kind === "absolute" ? range.to : undefined;
 	const visible = filteredResources("metrics", resources, tokens);
 	const rows = placements(visible, environment?.id ?? "", liveTokens("metrics", tokens, "region"));
-	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows, visible, environment?.id ?? "");
+	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows);
 	const cpu = useComputeSeries(CPU, rows, sizing, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, sizing, spanMs, endMs);
-	const deployMarkers = useDeployMarkers(visible, environment?.id ?? "", from, to);
+	const deployMarkers = useDeployMarkers(
+		visible,
+		workspaceId,
+		environment?.id ?? "",
+		from,
+		to,
+		range.kind === "relative",
+	);
 	const [hoverKey, setHoverKey] = useState<string | null>(null);
 	const [focusTs] = useQueryState("at", msParser);
 	const markers: ChartMarker[] = [

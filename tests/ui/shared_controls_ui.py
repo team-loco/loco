@@ -1871,7 +1871,7 @@ def metrics(page):
         lambda route: route.fulfill(
             json={
                 "deployments": deploys
-                if route.request.post_data_json.get("resourceId") == resource
+                if route.request.post_data_json.get("workspaceId") == workspace
                 else []
             }
         ),

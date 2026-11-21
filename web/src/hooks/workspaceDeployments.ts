@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey } from "@connectrpc/connect-query";
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
@@ -10,8 +11,20 @@ import { collectPages } from "@/lib/collectPages";
 
 const PAGE_SIZE = 200;
 
-export function workspaceDeploymentsOptions(transport: Transport, workspaceId: string, environmentId: string) {
-	const input = { workspaceId, environmentId, pageSize: PAGE_SIZE };
+/** The environment's deployments, all pages; created bounds their creation time to [sinceMs, untilMs). */
+export function workspaceDeploymentsOptions(
+	transport: Transport,
+	workspaceId: string,
+	environmentId: string,
+	created?: { sinceMs: number; untilMs: number | undefined },
+) {
+	const input = {
+		workspaceId,
+		environmentId,
+		pageSize: PAGE_SIZE,
+		...(created === undefined ? {} : { since: timestampFromMs(created.sinceMs) }),
+		...(created?.untilMs === undefined ? {} : { until: timestampFromMs(created.untilMs) }),
+	};
 	const client = createClient(DeploymentService, transport);
 	const key = createConnectQueryKey({ schema: listDeployments, input, transport, cardinality: "finite" });
 	return queryOptions({
