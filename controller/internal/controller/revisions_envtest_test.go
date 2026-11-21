@@ -20,6 +20,7 @@ var _ = Describe("Placement revisions", func() {
 	newApp := func(name string) *locov1alpha1.Application {
 		GinkgoHelper()
 		app := workspaceApp(name, name)
+		app.Spec.EnvironmentID = name
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "1"}
 		namespace := &corev1.Namespace{Name: testEnvironmentNamespace(app)}
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())

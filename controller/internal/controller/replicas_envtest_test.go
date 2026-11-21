@@ -33,6 +33,7 @@ var _ = Describe("Replica rollout reports", func() {
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, ns)).To(Succeed()) })
 		r := &ApplicationReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Telemetry:                testTelemetry(),
 			MinReadySeconds:          testMinReadySeconds,

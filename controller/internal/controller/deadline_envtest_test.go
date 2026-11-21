@@ -185,6 +185,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 
 		By("setting a new deadline for the next placement revision")
 		app.Annotations[locov1alpha1.KeyPlacementRevision] = "3"
+		app.Spec.ServiceSpec.Deployment.Image = "registry.example.com/app:v3"
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Deadline).NotTo(BeNil())

@@ -158,13 +158,7 @@ func TestDeployAfterARestartKeepsTheRestartTime(t *testing.T) {
 	f := newDeployFixture(t)
 	deploy := func() {
 		t.Helper()
-		if _, err := deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
-			ResourceId:    f.resourceID.String(),
-			EnvironmentId: f.envID.String(),
-			Spec: &deploymentv1.DeploymentSpec{
-				Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
-			},
-		}); err != nil {
+		if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 			t.Fatal(err)
 		}
 		f.finishRollouts(t)
