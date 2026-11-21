@@ -463,6 +463,13 @@ with session(out) as browser:
     bottom = drawer.get_by_role("region", name="Trace bottom panel", exact=True)
     flame_box = flame.bounding_box()
     assert bottom.bounding_box()["y"] - flame_box["y"] - flame_box["height"] <= 20
+    details = drawer.get_by_role("region", name="Span details")
+    expect(drawer.get_by_role("region", name="Selected span")).to_have_count(0)
+    expect(details.get_by_role("heading", name="Details", exact=True)).to_be_visible()
+    assert (
+        details.locator("dl").evaluate("dl => getComputedStyle(dl).borderTopWidth")
+        == "1px"
+    )
     flame.get_by_role("button", name=failing).click()
     expect(flame.get_by_role("button", name=failing)).to_have_attribute(
         "aria-pressed", "true"
@@ -481,11 +488,20 @@ with session(out) as browser:
     drawer.get_by_role("button", name="Copy stack trace", exact=True).click()
     assert page.evaluate("navigator.clipboard.readText()") == stack
     attributes = drawer.get_by_role("region", name="Span attributes")
-    expect(
-        drawer.get_by_role("region", name="Span details").get_by_text(
-            spans[10]["spanId"], exact=True
+    expect(details.get_by_text(spans[10]["spanId"], exact=True)).to_be_visible()
+
+    def fact(label):
+        return details.locator("div").filter(
+            has=page.locator("dt").filter(has_text=re.compile("^" + label + "$"))
         )
-    ).to_be_visible()
+
+    expect(fact("Duration")).to_contain_text("21% of trace")
+    expect(fact("Starts at")).to_contain_text("+168ms")
+    expect(fact("Parent")).to_contain_text("Charge · attempt 1")
+    expect(fact("Resource")).to_contain_text("payment")
+    expect(attributes.get_by_role("heading", level=5)).to_have_text(
+        ["HTTP", "Server", "Other"]
+    )
     expect(
         attributes.get_by_text("http.response.status_code", exact=True)
     ).to_be_visible()
@@ -552,7 +568,15 @@ with session(out) as browser:
     expect(
         page.get_by_role("menuitem", name="Copy trace ID", exact=True)
     ).to_have_count(0)
-    page.get_by_role("menuitem", name="Copy as JSON", exact=True).click()
+    expect(page.get_by_role("menuitem")).to_have_text(
+        [
+            "Logs for this traceFilter logs by @trace",
+            f"Copy as JSON{len(spans)} spans, OTLP shape",
+            f"Download JSONtrace-{trace[:8]}….json",
+            "Copy linkThis trace and span",
+        ]
+    )
+    page.get_by_role("menuitem", name=re.compile("^Copy as JSON")).click()
     exported = json.loads(page.evaluate("navigator.clipboard.readText()"))
     exported_spans = [
         span
@@ -565,11 +589,11 @@ with session(out) as browser:
         span for span in exported_spans if span["spanId"] == spans[10]["spanId"]
     )["events"][1]["attributes"]
     drawer.get_by_role("button", name="More for this trace", exact=True).click()
-    page.get_by_role("menuitem", name="Copy link", exact=True).click()
+    page.get_by_role("menuitem", name=re.compile("^Copy link")).click()
     assert page.evaluate("navigator.clipboard.readText()") == page.url
     drawer.get_by_role("button", name="More for this trace", exact=True).click()
     with page.expect_download() as download_info:
-        page.get_by_role("menuitem", name="Download JSON", exact=True).click()
+        page.get_by_role("menuitem", name=re.compile("^Download JSON")).click()
     assert download_info.value.suggested_filename == f"trace-{trace}.json"
     ranking = drawer.get_by_role("group", name="Time spent per resource")
     expect(ranking.get_by_role("button", name="+7 more", exact=True)).to_be_visible()
@@ -744,6 +768,12 @@ with session(out) as browser:
     ).to_have_count(0)
     page.go_back()
     drawer.wait_for()
+    drawer.get_by_role("button", name="2 linked spans", exact=True).click()
+    expect(page).to_have_url(re.compile("span=" + spans[11]["spanId"]))
+    expect(attributes.get_by_role("tab", name="Links", exact=True)).to_have_attribute(
+        "aria-selected", "true"
+    )
+    expect(links.get_by_role("listitem")).to_have_count(2)
     flame.get_by_role("button", name=failing).click()
     expect(page).to_have_url(re.compile("span=" + spans[10]["spanId"]))
     assert not errors, errors
@@ -1307,6 +1337,52 @@ with session(out) as browser:
         )
 
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
+
+    event_requests = []
+
+    def events(route):
+        body = route.request.post_data_json
+        event_requests.append(body)
+
+        def event(seq, kind, offset, data):
+            return {
+                "seq": str(seq),
+                "id": f"00000000-0000-4000-8000-00000000000{seq}",
+                "type": kind,
+                "resourceId": body["resourceId"],
+                "environmentId": body["environmentId"],
+                "createdAt": time.strftime(
+                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime(start + offset)
+                ),
+                "data": data,
+            }
+
+        window = (
+            iso_seconds(body.get("startTime", "1970-01-01T00:00:00Z")),
+            iso_seconds(body.get("endTime", "9999-01-01T00:00:00Z")),
+        )
+        route.fulfill(
+            json={
+                "events": [
+                    item
+                    for item in [
+                        event(
+                            2,
+                            "resource.restarted",
+                            -120,
+                            {
+                                "region": "us-ca-1",
+                                "message": "Container exited with code 137",
+                            },
+                        ),
+                        event(1, "deployment.ready", -1800, {"region": "us-ca-1"}),
+                    ]
+                    if window[0] <= iso_seconds(item["createdAt"]) < window[1]
+                ]
+            }
+        )
+
+    context.route("**/loco.event.v1.EventService/ListEvents", events)
     page.mouse.move(0, 0)
     page.goto(state["ui_url"] + base + "&trace=" + trace)
     drawer = page.get_by_role("dialog", name=root_name)
@@ -1355,6 +1431,13 @@ with session(out) as browser:
     drawer.get_by_role("complementary", name="Log line").get_by_role(
         "button", name="Close", exact=True
     ).click()
+    scope_box = drawer.get_by_role("group", name="Which logs").bounding_box()
+    tabs_box = drawer.get_by_role("tablist", name="Trace bottom panel").bounding_box()
+    collapse_box = drawer.get_by_role(
+        "button", name="Collapse bottom panel"
+    ).bounding_box()
+    assert scope_box["x"] - tabs_box["x"] - tabs_box["width"] > 100
+    assert collapse_box["x"] - scope_box["x"] - scope_box["width"] < 140
     drawer.get_by_role("button", name="This span", exact=True).click()
     expect(log_rows.get_by_role("button")).to_have_count(1)
     drawer.get_by_role("region", name="Flame graph").get_by_role(
@@ -1376,13 +1459,18 @@ with session(out) as browser:
     expect(
         drawer.get_by_role("tab", name="Infrastructure", exact=True)
     ).to_have_attribute("aria-selected", "true")
+    events_tab = drawer.get_by_role("tab", name=re.compile("^Events"))
     drawer.get_by_role("tab", name="Infrastructure", exact=True).press("ArrowLeft")
+    expect(events_tab).to_be_focused()
+    events_tab.press("ArrowLeft")
     expect(drawer.get_by_role("tab", name=re.compile("^Logs "))).to_be_focused()
     drawer.get_by_role("tab", name=re.compile("^Logs ")).press("Enter")
     expect(drawer.get_by_role("tab", name=re.compile("^Logs "))).to_have_attribute(
         "aria-selected", "true"
     )
     drawer.get_by_role("tab", name=re.compile("^Logs ")).press("ArrowRight")
+    expect(events_tab).to_be_focused()
+    events_tab.press("ArrowRight")
     expect(drawer.get_by_role("tab", name="Infrastructure", exact=True)).to_be_focused()
     drawer.get_by_role("tab", name="Infrastructure", exact=True).press("Enter")
     expect(
@@ -1400,14 +1488,6 @@ with session(out) as browser:
     expect(
         infrastructure.get_by_text(re.compile("Up .* when this ran"))
     ).to_be_visible()
-    expect(
-        infrastructure.get_by_role(
-            "region", name="Events on checkout-abc-123", exact=True
-        )
-    ).to_be_visible()
-    expect(
-        infrastructure.get_by_role("button", name=re.compile("Replica events"))
-    ).to_be_disabled()
     cpu = infrastructure.get_by_role(
         "region", name="CPU for checkout-abc-123", exact=True
     )
@@ -1489,11 +1569,6 @@ with session(out) as browser:
     drawer.get_by_role("region", name="Flame graph").get_by_role(
         "button", name=re.compile("^checkout · product-catalog GetProduct")
     ).click()
-    expect(
-        infrastructure.get_by_role(
-            "region", name="Events on catalog-def-456", exact=True
-        )
-    ).to_be_visible()
     expect(window.get_by_role("button", name="±1h", exact=True)).to_have_attribute(
         "aria-pressed", "true"
     )
@@ -1527,6 +1602,30 @@ with session(out) as browser:
     expect(
         infrastructure.get_by_role("group", name="Network usage", exact=True)
     ).to_be_visible()
+    expect(events_tab).to_have_text(re.compile(r"^Events\s*1$"))
+    assert any(
+        "endTime" in request
+        and iso_seconds(request["endTime"]) - iso_seconds(request["startTime"]) >= 1200
+        for request in event_requests
+    ), event_requests
+    events_tab.click()
+    trace_events = drawer.get_by_role("region", name="Trace events")
+    restarted = trace_events.get_by_role(
+        "button", name="Open Restarted in us-ca-1 in Events", exact=True
+    )
+    expect(restarted).to_contain_text("Container exited with code 137")
+    expect(restarted).to_contain_text("checkout")
+    expect(restarted).to_contain_text("2m before")
+    expect(trace_events.get_by_role("listitem")).to_have_count(1)
+    trace_events.get_by_role("group", name="Events window").get_by_role(
+        "button", name="±1h", exact=True
+    ).click()
+    expect(trace_events.get_by_role("listitem")).to_have_count(2)
+    expect(events_tab).to_have_text(re.compile(r"^Events\s*2$"))
+    drawer.get_by_role("tab", name="Infrastructure", exact=True).click()
+    expect(window.get_by_role("button", name="±1h", exact=True)).to_have_attribute(
+        "aria-pressed", "true"
+    )
     drawer.get_by_role("tab", name=re.compile("^Logs ")).click()
     assert len(log_requests) == 1, log_requests
     marker.click()
@@ -1551,6 +1650,18 @@ with session(out) as browser:
             query.get("view") == ["logs"]
             and "@trace:" + trace in query.get("q", [""])[0]
             and "@level:error" in query.get("q", [""])[0]
+        ),
+    )
+    page.goto(state["ui_url"] + base + "&trace=" + trace)
+    drawer = page.get_by_role("dialog", name=root_name)
+    drawer.get_by_role("tab", name=re.compile("^Events")).click()
+    drawer.get_by_role("region", name="Trace events").get_by_role(
+        "button", name="Open Restarted in us-ca-1 in Events", exact=True
+    ).click()
+    wait_for_query(
+        page,
+        lambda query: (
+            query.get("view") == ["events"] and query.get("q") == ["@resource:checkout"]
         ),
     )
     page.set_viewport_size({"width": 390, "height": 844})

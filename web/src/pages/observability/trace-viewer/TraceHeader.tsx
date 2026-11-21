@@ -10,7 +10,7 @@ import {
 	BracesIcon,
 	BoxIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Badge } from "@/components/design/Badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -43,6 +43,7 @@ export function TraceHeader({
 	pinned,
 	onHover,
 	onPin,
+	onLinks,
 }: {
 	trace: TraceSummary | undefined;
 	traceId: string;
@@ -52,6 +53,7 @@ export function TraceHeader({
 	pinned: string | null;
 	onHover: (service: string | null) => void;
 	onPin: (service: string | null) => void;
+	onLinks: () => void;
 }) {
 	const timePref = useTimePreferences();
 	const { orgId, workspaceId, resourceById, goTo } = useObs();
@@ -99,6 +101,7 @@ export function TraceHeader({
 	const resource = trace === undefined ? undefined : resourceById.get(trace.root.resourceId);
 	const rootIdentity = trace === undefined ? undefined : traceIdentity(trace.root, resource?.slug);
 	const start = trace === undefined ? 0 : Number(trace.start / 1_000_000n);
+	const linkCount = trace === undefined ? 0 : trace.spans.reduce((n, span) => n + span.links.length, 0);
 	const download = () => {
 		if (trace === undefined) return;
 		const url = URL.createObjectURL(new Blob([traceJson(trace.spans)], { type: "application/json" }));
@@ -177,6 +180,17 @@ export function TraceHeader({
 								<span className="font-mono">{`${formatMonthDay(start, timePref)}, ${formatClock(start, true, timePref)} ${timeZoneLabel(start, timePref)}`}</span>
 								<span className="ml-1.5">({agoLabel(start, now)})</span>
 							</span>
+							{linkCount > 0 && (
+								<Button
+									variant="plain-link"
+									size="sm"
+									className="h-auto gap-1.5 p-0 text-[13px] text-fg2 hover:text-foreground"
+									onClick={onLinks}
+								>
+									<LinkIcon />
+									{linkCount} linked {linkCount === 1 ? "span" : "spans"}
+								</Button>
+							)}
 							{arriving && <span role="status">Spans may still be arriving</span>}
 							{pinned !== null && (
 								<Button
@@ -283,35 +297,9 @@ export function TraceHeader({
 					>
 						<EllipsisIcon />
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
+					<DropdownMenuContent align="end" className="w-[250px]">
 						<DropdownMenuItem
-							disabled={trace === undefined}
-							onClick={() => {
-								if (trace !== undefined) copy("json", traceJson(trace.spans), "Copied trace JSON");
-							}}
-						>
-							<BracesIcon />
-							Copy as JSON
-						</DropdownMenuItem>
-						<DropdownMenuItem disabled={trace === undefined} onClick={download}>
-							<DownloadIcon />
-							Download JSON
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() => {
-								copy("link", window.location.href, "Copied trace link");
-							}}
-						>
-							<LinkIcon />
-							Copy link
-						</DropdownMenuItem>
-						{resource !== undefined && (
-							<DropdownMenuItem render={<Link to={resourcePath(orgId, workspaceId, resource.id)} />}>
-								<BoxIcon />
-								Open {resource.raw.name}
-							</DropdownMenuItem>
-						)}
-						<DropdownMenuItem
+							className="items-start"
 							onClick={() => {
 								goTo("logs", {
 									range: aroundWindow(start, Date.now()),
@@ -320,7 +308,39 @@ export function TraceHeader({
 							}}
 						>
 							<ScrollTextIcon />
-							Logs for this trace
+							<MenuLabel sub="Filter logs by @trace">Logs for this trace</MenuLabel>
+						</DropdownMenuItem>
+						{resource !== undefined && (
+							<DropdownMenuItem
+								className="items-start"
+								render={<Link to={resourcePath(orgId, workspaceId, resource.id)} />}
+							>
+								<BoxIcon />
+								<MenuLabel sub="Resource page">Open {resource.raw.name}</MenuLabel>
+							</DropdownMenuItem>
+						)}
+						<DropdownMenuItem
+							className="items-start"
+							disabled={trace === undefined}
+							onClick={() => {
+								if (trace !== undefined) copy("json", traceJson(trace.spans), "Copied trace JSON");
+							}}
+						>
+							<BracesIcon />
+							<MenuLabel sub={`${(trace?.spans.length ?? 0).toString()} spans, OTLP shape`}>Copy as JSON</MenuLabel>
+						</DropdownMenuItem>
+						<DropdownMenuItem className="items-start" disabled={trace === undefined} onClick={download}>
+							<DownloadIcon />
+							<MenuLabel sub={`trace-${traceId.slice(0, 8)}….json`}>Download JSON</MenuLabel>
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							className="items-start"
+							onClick={() => {
+								copy("link", window.location.href, "Copied trace link");
+							}}
+						>
+							<LinkIcon />
+							<MenuLabel sub="This trace and span">Copy link</MenuLabel>
 						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
@@ -329,5 +349,14 @@ export function TraceHeader({
 				</Button>
 			</div>
 		</header>
+	);
+}
+
+function MenuLabel({ sub, children }: { sub: string; children: ReactNode }) {
+	return (
+		<span className="flex min-w-0 flex-col">
+			{children}
+			<span className="text-[11.5px] text-fg3">{sub}</span>
+		</span>
 	);
 }

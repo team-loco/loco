@@ -20,7 +20,13 @@ export interface WorkspaceEventWithResource extends RuntimeEvent {
 	resourceName: string;
 }
 
-export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[], live = false, startMs?: number) {
+export function useWorkspaceEvents(
+	workspaceId: string,
+	resourceFilter?: Resource[],
+	live = false,
+	startMs?: number,
+	endMs?: number,
+) {
 	const transport = useTransport();
 	const { activeOrgId } = useOrgWorkspace();
 	const canStream = useMyScopes().resourceGrants(activeOrgId ?? "", workspaceId) === "workspace";
@@ -38,7 +44,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 			...runtimeEventsOptions(
 				transport,
 				{ orgId: activeOrgId ?? "", workspaceId, environmentId, resourceId: resource.id },
-				{ types: ENVIRONMENT_EVENT_TYPES, startMs },
+				{ types: ENVIRONMENT_EVENT_TYPES, startMs, endMs },
 			),
 			placeholderData: keepPreviousData,
 			refetchInterval: live && !canStream ? 10_000 : false,
