@@ -1872,7 +1872,7 @@ def metrics(page):
         lambda route: route.fulfill(
             json={
                 "deployments": deploys
-                if route.request.post_data_json.get("resourceId") == resource
+                if route.request.post_data_json.get("workspaceId") == workspace
                 else []
             }
         ),
@@ -1891,9 +1891,48 @@ def metrics(page):
     chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
     expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
     by_region = page.get_by_role("region", name="By resource and region")
-    expect(
-        by_region.get_by_role("row").filter(has_text="Controls Pilot")
-    ).to_contain_text("0.175 vCPU 35%")
+    pilot_row = by_region.get_by_role("row").filter(has_text="Controls Pilot")
+    expect(pilot_row).to_contain_text("0.035 vCPU 35%")
+    # A live deployment sizes its region with its own limit, not the resource's.
+    cluster, deployment = (
+        "01a1c8b3-0000-7000-8000-0000000c1a51",
+        "01a1c8b3-0000-7000-8000-0000000de9aa",
+    )
+    sql(state, evidence.cluster_row(cluster, "us-east-1"))
+    try:
+        evidence.seed_deployments(
+            state,
+            resource,
+            [
+                {
+                    "id": deployment,
+                    "environment": "production",
+                    "spec": {
+                        "build": {"image": "ghcr.io/acme/pilot:1.27"},
+                        "regions": {
+                            "us-east-1": {
+                                "cpu": "500m",
+                                "memory": "512Mi",
+                                "minReplicas": 1,
+                                "maxReplicas": 1,
+                            }
+                        },
+                    },
+                    "placements": {"us-east-1": {"cluster": cluster}},
+                }
+            ],
+        )
+        page.reload()
+        expect(pilot_row).to_contain_text("0.175 vCPU 35%")
+    finally:
+        sql(
+            state,
+            f"DELETE FROM placements WHERE deployment_id='{deployment}';"
+            f"DELETE FROM deployments WHERE id='{deployment}';"
+            f"DELETE FROM clusters WHERE id='{cluster}';",
+        )
+    page.reload()
+    expect(pilot_row).to_contain_text("0.035 vCPU 35%")
     viewport = page.viewport_size
     page.set_viewport_size({"width": 1280, "height": viewport["height"]})
     region_cell = (

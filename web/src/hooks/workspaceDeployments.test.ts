@@ -32,6 +32,34 @@ describe("workspace environment deployments", () => {
 		}
 	});
 
+	test("bounds every page to the creation window", async () => {
+		const requests: ListDeploymentsRequest[] = [];
+		const transport = createRouterTransport((router) => {
+			router.service(DeploymentService, {
+				listDeployments(request) {
+					requests.push(request);
+					return request.pageToken === "" ? { deployments: [{ id: "a" }], nextPageToken: "cursor" } : {};
+				},
+			});
+		});
+		const client = new QueryClient();
+		try {
+			await client.query(
+				workspaceDeploymentsOptions(transport, "workspace", "production", { sinceMs: 60_000, untilMs: 120_000 }),
+			);
+			expect(requests.map((r) => [r.since?.seconds, r.until?.seconds])).toEqual([
+				[60n, 120n],
+				[60n, 120n],
+			]);
+			await client.query(
+				workspaceDeploymentsOptions(transport, "workspace", "production", { sinceMs: 60_000, untilMs: undefined }),
+			);
+			expect(requests.at(-1)?.until).toBeUndefined();
+		} finally {
+			client.clear();
+		}
+	});
+
 	test("fails the whole query when a later page fails", async () => {
 		const transport = createRouterTransport((router) => {
 			router.service(DeploymentService, {
