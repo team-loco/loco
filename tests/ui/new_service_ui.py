@@ -344,6 +344,9 @@ with session(out) as browser:
     expect(ask.get_by_role("button", name="Continue", exact=True)).to_be_disabled()
     expect(ask.get_by_role("textbox", name="Name")).to_have_count(0)
     image_input.fill("not an image!")
+    expect(
+        ask.get_by_text("An image reference can't contain spaces", exact=True)
+    ).to_be_visible()
     expect(ask.get_by_role("button", name="Continue", exact=True)).to_be_disabled()
     image_input.fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
