@@ -9,7 +9,9 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/config/v1;configv1";
 
 // ConfigService provides static configuration values. Clients can query this to show safe defaults.
 service ConfigService {
-  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetConfigRequest {}
