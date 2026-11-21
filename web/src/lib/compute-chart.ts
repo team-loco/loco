@@ -21,7 +21,7 @@ const HEADROOM = 1.06;
 
 /** A percent axis with room above the limit or the peak, labelled at its quarters. */
 export function quarterAxis(peak: number) {
-	const want = Math.max(peak, PERCENT * HEADROOM) * HEADROOM;
+	const want = Math.max(peak, PERCENT) * HEADROOM;
 	const magnitude = 10 ** Math.floor(Math.log10(want));
 	const maximum = (NICE_STEPS.find((step) => step * magnitude >= want) ?? 10) * magnitude;
 	return {
