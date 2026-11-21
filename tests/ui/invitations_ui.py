@@ -44,14 +44,11 @@ with session(repo / "tests/ui/out/invitations") as browser:
     )
     page.reload()
     expect(row.get_by_text("Expired", exact=True)).to_be_visible()
-    row.get_by_role(
-        "button", name=f"Actions for the invitation to {email}", exact=True
-    ).click()
+    row.get_by_role("button", name=f"Actions for invite to {email}", exact=True).click()
     page.get_by_role("menuitem", name="Send a new invite", exact=True).click()
+    expect(page.get_by_text(f"Sent invite to {email}", exact=True)).to_be_visible()
     expect(row.get_by_text("Invited", exact=True)).to_be_visible()
-    row.get_by_role(
-        "button", name=f"Actions for the invitation to {email}", exact=True
-    ).click()
+    row.get_by_role("button", name=f"Actions for invite to {email}", exact=True).click()
     page.get_by_role("menuitem", name="Copy invite link", exact=True).click()
     assert page.evaluate("navigator.clipboard.readText()") == invitation["link"]
     assert not errors, errors

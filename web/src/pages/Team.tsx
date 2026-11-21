@@ -109,7 +109,7 @@ export function Team() {
 	const doResend = async (invitation: Invitation) => {
 		try {
 			await resend.mutateAsync({ id: invitation.id });
-			toast(`Invitation renewed for ${invitation.email}`);
+			toast(`Sent invite to ${invitation.email}`);
 		} catch (err) {
 			toastConnectError(err, "Failed to resend the invitation");
 		} finally {
@@ -138,7 +138,7 @@ export function Team() {
 		try {
 			await remove.mutateAsync({ orgId, userId: removing.userId });
 			setRemoving(null);
-			toast(`Removed ${removing.name} from ${orgName}`);
+			toast(`Removed ${removing.name}`);
 			await Promise.all([data.invalidateRoles(), data.invalidateAccess()]);
 		} catch (err) {
 			toastConnectError(err, "Failed to remove the member");
@@ -244,7 +244,7 @@ export function Team() {
 							It's just you so far
 						</h2>
 						<p className="m-0 max-w-[34em] text-[14px] leading-[1.55] text-fg3">
-							Invite teammates by email. They join {orgName} as members the first time they sign in.
+							Invite people to {orgName} and choose which workspaces they can see.
 						</p>
 						<span className="mt-1 flex flex-wrap justify-center gap-2">
 							{inviteButton}
@@ -360,7 +360,7 @@ export function Team() {
 			/>
 			<ConfirmDialog
 				open={removing !== null}
-				title={`Remove ${removing?.name ?? "member"} from ${orgName}?`}
+				title={`Remove ${removing?.name ?? "member"}?`}
 				description={`${removing?.name ?? "They"} loses access to ${orgName} and its workspaces right away.`}
 				confirmLabel="Remove"
 				pendingLabel="Removing…"
