@@ -29,6 +29,7 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
+import { useCopy } from "@/hooks/useCopy";
 import { toastConnectError } from "@/lib/error-handler";
 import { limitReason, limitUsage } from "@/lib/limits";
 import { userLabel } from "@/lib/user";
@@ -62,6 +63,7 @@ export function Team() {
 	const { orgId = "" } = useParams<{ orgId: string }>();
 	const [params, setParams] = useQueryStates(TEAM_PARAMS, { history: "replace" });
 	const { user } = useAuth();
+	const [, copy] = useCopy();
 	const meId = user?.id ?? "";
 	const scopes = useMyScopes();
 	const data = useTeamData(orgId);
@@ -217,9 +219,7 @@ export function Team() {
 							void setParams({ access: m.member.user?.id ?? null });
 						},
 						onCopyLink: (invitation) => {
-							void navigator.clipboard.writeText(invitation.link).then(() => {
-								toast(`Copied the invite link for ${invitation.email}`);
-							});
+							copy("invite", invitation.link, `Copied the invite link for ${invitation.email}`);
 						},
 						onResend: (invitation) => {
 							void doResend(invitation);

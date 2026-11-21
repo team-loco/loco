@@ -80,7 +80,9 @@ function NodeText({ icon, title, sub, meta }: { icon: ReactNode; title: string; 
 				{icon}
 				<span className="truncate font-mono">{title}</span>
 			</span>
-			<span className="truncate font-mono text-[11.5px] text-fg3">{sub}</span>
+			<span className="truncate font-mono text-[11.5px] text-fg3" title={sub}>
+				{sub}
+			</span>
 			{meta !== "" && <span className="truncate text-[11.5px] text-fg3">{meta}</span>}
 		</>
 	);
