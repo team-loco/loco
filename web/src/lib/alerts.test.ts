@@ -20,21 +20,21 @@ const api = create(ResourceSchema, {
 			environmentId: PROD,
 			status: ResourceStatus.DEGRADED,
 			regions: [
-				{ region: "us-east", status: ResourceStatus.HEALTHY },
+				{ region: "us-va-1", status: ResourceStatus.HEALTHY },
 				{
-					region: "eu-west",
+					region: "us-ca-1",
 					status: ResourceStatus.DEGRADED,
 					message: "back-off restarting failed container",
 					statusSince: timestampFromMs(SINCE_MS),
 				},
-				{ region: "ap-south", status: ResourceStatus.UNAVAILABLE },
+				{ region: "de-he-1", status: ResourceStatus.UNAVAILABLE },
 			],
 		},
 		{
 			environmentId: STAGING,
 			regions: [
-				{ region: "us-east", status: ResourceStatus.DEPLOYING },
-				{ region: "eu-west", status: ResourceStatus.HEALTHY, placementStatus: PlacementStatus.FAILED },
+				{ region: "us-va-1", status: ResourceStatus.DEPLOYING },
+				{ region: "us-ca-1", status: ResourceStatus.HEALTHY, placementStatus: PlacementStatus.FAILED },
 			],
 		},
 	],
@@ -48,8 +48,8 @@ const worker = create(ResourceSchema, {
 		{
 			environmentId: PROD,
 			regions: [
-				{ region: "us-east", status: ResourceStatus.UNKNOWN },
-				{ region: "eu-west", status: ResourceStatus.UNSPECIFIED },
+				{ region: "us-va-1", status: ResourceStatus.UNKNOWN },
+				{ region: "us-ca-1", status: ResourceStatus.UNSPECIFIED },
 			],
 		},
 	],
@@ -58,18 +58,18 @@ const worker = create(ResourceSchema, {
 describe("buildAlerts", () => {
 	test("lists each unhealthy region of the selected environment", () => {
 		const alerts = buildAlerts([api, worker], PROD);
-		expect(alerts.map((a) => a.key)).toEqual(["r-api/eu-west", "r-api/ap-south", "r-worker/us-east"]);
+		expect(alerts.map((a) => a.key)).toEqual(["r-api/us-ca-1", "r-api/de-he-1", "r-worker/us-va-1"]);
 	});
 
 	test("carries the region's message and the time its status began", () => {
 		const [first, second] = buildAlerts([api], PROD);
 		expect(first).toEqual({
-			key: "r-api/eu-west",
+			key: "r-api/us-ca-1",
 			resourceId: "r-api",
 			name: "Public API service",
 			slug: "api",
 			description: "Public API",
-			region: "eu-west",
+			region: "us-ca-1",
 			status: ResourceStatus.DEGRADED,
 			rollout: undefined,
 			message: "back-off restarting failed container",
@@ -84,7 +84,7 @@ describe("buildAlerts", () => {
 	});
 
 	test("lists rollouts and failed deployments", () => {
-		expect(buildAlerts([api, worker], STAGING).map((a) => a.key)).toEqual(["r-api/us-east", "r-api/eu-west"]);
+		expect(buildAlerts([api, worker], STAGING).map((a) => a.key)).toEqual(["r-api/us-va-1", "r-api/us-ca-1"]);
 	});
 });
 

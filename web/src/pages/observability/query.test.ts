@@ -35,7 +35,7 @@ const readQuery = (search: string) => toQuery(loadQuery(search));
 
 describe("regional telemetry filters", () => {
 	test("attributes each row to the recorded region and preserves unknown resources", () => {
-		const entries = ["us-east-1", "eu-west-1", ""].map((region) =>
+		const entries = ["us-va-1", "us-ca-1", ""].map((region) =>
 			create(LogEntrySchema, {
 				resourceId: "removed-resource",
 				body: "historical record",
@@ -43,7 +43,7 @@ describe("regional telemetry filters", () => {
 			}),
 		);
 		const rows = toRows(entries, new Map());
-		expect(rows.map((row) => row.region)).toEqual(["us-east-1", "eu-west-1", ""]);
+		expect(rows.map((row) => row.region)).toEqual(["us-va-1", "us-ca-1", ""]);
 		expect(rows.map((row) => row.resourceName)).toEqual(["removed-", "removed-", "removed-"]);
 		expect(new Set(rows.map((row) => row.key)).size).toBe(3);
 	});

@@ -11,13 +11,13 @@ import { diffLines, sideBySide, specChanges, toYaml } from "./spec";
 
 function deployment(image: string, replicas: number, env: Record<string, string>): Deployment {
 	return create(DeploymentSchema, {
-		placements: [{ region: "us-east-1", desiredReplicas: replicas }],
+		placements: [{ region: "us-va-1", desiredReplicas: replicas }],
 		spec: create(DeploymentSpecSchema, {
 			spec: {
 				case: "service",
 				value: create(ServiceDeploymentSpecSchema, {
 					build: { type: "image", image },
-					regions: { "us-east-1": { cpu: "250m" } },
+					regions: { "us-va-1": { cpu: "250m" } },
 					port: 8080,
 					env,
 				}),
@@ -81,7 +81,7 @@ describe("toYaml", () => {
 			build: { image: "ghcr.io/acme/shop:1.5.0" },
 			cpu: "250m",
 			port: 8080,
-			regions: ["us-east-1", "eu-west-1"],
+			regions: ["us-va-1", "us-ca-1"],
 			env: { DEBUG: "true", GREETING: "hello world", EMPTY: "", RETRIES: "3" },
 			routes: [{ path: "/", port: 80 }],
 			labels: {},
@@ -93,8 +93,8 @@ describe("toYaml", () => {
 				"cpu: 250m",
 				"port: 8080",
 				"regions:",
-				"  - us-east-1",
-				"  - eu-west-1",
+				"  - us-va-1",
+				"  - us-ca-1",
 				"env:",
 				'  DEBUG: "true"',
 				'  GREETING: "hello world"',

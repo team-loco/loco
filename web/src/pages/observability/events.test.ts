@@ -23,7 +23,7 @@ test("build failures have error severity", () => {
 
 test("event titles preserve unknown types and include regions", () => {
 	expect(eventTitle("custom.event", "")).toBe("custom.event");
-	expect(eventTitle("resource.degraded", "us-east-1")).toBe("Degraded in us-east-1");
+	expect(eventTitle("resource.degraded", "us-va-1")).toBe("Degraded in us-va-1");
 });
 
 test("relative ranges retain received events between clock ticks", () => {
@@ -51,13 +51,13 @@ test("retains event context for filters and raw JSON", () => {
 				requestId: "req-1",
 				environmentId: "production",
 				createdAt: { seconds: 1800000000n },
-				data: { deploymentId: "019ab668-1111-7000-8000-000011112222", region: "us-east-1" },
+				data: { deploymentId: "019ab668-1111-7000-8000-000011112222", region: "us-va-1" },
 			}),
 		),
 		resourceId: "resource",
 		resourceName: "web",
 	});
-	expect(event.title).toBe("Deploy ready in us-east-1");
+	expect(event.title).toBe("Deploy ready in us-va-1");
 	expect(eventSummary(event)).toBe("deployment 11112222");
 	expect(eventValue(event, "actor")).toBe("Olivia");
 	expect(eventValue(event, "severity")).toBe("normal");
@@ -70,11 +70,11 @@ test("retains event context for filters and raw JSON", () => {
 		actor_name: "Olivia",
 		subject_type: "deployment",
 		request_id: "req-1",
-		data: { region: "us-east-1" },
+		data: { region: "us-va-1" },
 	});
 	expect(severityOf("deployment.failed")).toBe("error");
-	const scaled = { ...event, type: "resource.scaled", replicas: "3", region: "us-east-1", message: "" };
-	expect(eventSummary(scaled)).toBe("replicas 3 · region us-east-1");
+	const scaled = { ...event, type: "resource.scaled", replicas: "3", region: "us-va-1", message: "" };
+	expect(eventSummary(scaled)).toBe("replicas 3 · region us-va-1");
 	expect(eventSummary({ ...scaled, message: "Scaled by operator" })).toBe("Scaled by operator");
 });
 

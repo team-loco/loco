@@ -15,12 +15,12 @@ function running(region: string, env: Record<string, string>) {
 
 describe("regionsWithDifferentVariables", () => {
 	test("names every deployed region when one runs other variables", () => {
-		const regions = [running("us-east-1", { MODE: "a" }), running("eu-west-1", { MODE: "b" })];
-		expect(regionsWithDifferentVariables(regions)).toEqual(["eu-west-1", "us-east-1"]);
+		const regions = [running("us-va-1", { MODE: "a" }), running("us-ca-1", { MODE: "b" })];
+		expect(regionsWithDifferentVariables(regions)).toEqual(["us-ca-1", "us-va-1"]);
 	});
 
 	test("names none when every region runs the same variables", () => {
-		const regions = [running("us-east-1", { A: "1", B: "2" }), running("eu-west-1", { B: "2", A: "1" })];
+		const regions = [running("us-va-1", { A: "1", B: "2" }), running("us-ca-1", { B: "2", A: "1" })];
 		expect(regionsWithDifferentVariables(regions)).toEqual([]);
 	});
 });

@@ -58,7 +58,7 @@ describe("buildRegions", () => {
 		const history = [3, 1, 2].map((day) =>
 			create(DeploymentSchema, {
 				id: `release-${day.toString()}`,
-				placements: [{ region: "us-east-1" }],
+				placements: [{ region: "us-va-1" }],
 				status: DeploymentStatus.SUPERSEDED,
 				createdAt: msToTimestamp(day * 86_400_000),
 				spec: create(DeploymentSpecSchema),
@@ -73,23 +73,23 @@ describe("buildRegions", () => {
 
 	test("keeps a long-lived current deployment outside the history page", () => {
 		const current = create(DeploymentSchema, {
-			id: "current-europe",
-			placements: [{ region: "eu-west-1", live: true }],
+			id: "current-california",
+			placements: [{ region: "us-ca-1", live: true }],
 			spec: { spec: { case: "service", value: { port: 9090 } } },
 		});
 		const history = Array.from({ length: 200 }, (_, i) =>
 			create(DeploymentSchema, {
 				id: `release-${i.toString()}`,
-				placements: [{ region: "us-east-1" }],
+				placements: [{ region: "us-va-1" }],
 			}),
 		);
 		const environment = create(EnvironmentStatusSchema, {
-			regions: [create(RegionStatusSchema, { region: "eu-west-1", deploymentId: current.id })],
+			regions: [create(RegionStatusSchema, { region: "us-ca-1", deploymentId: current.id })],
 		});
 		const regions = buildRegions(create(ResourceSchema), history, environment, [current]);
-		const europe = regions.find((region) => region.name === "eu-west-1");
-		expect(europe?.current).toEqual(current);
-		expect(europe?.history).toEqual([]);
+		const california = regions.find((region) => region.name === "us-ca-1");
+		expect(california?.current).toEqual(current);
+		expect(california?.history).toEqual([]);
 		const resource = create(ResourceSchema, { spec: { spec: { case: "service", value: {} } } });
 		expect(
 			isWorker(
@@ -101,9 +101,9 @@ describe("buildRegions", () => {
 	});
 
 	test("does not substitute an old release for the current deployment", () => {
-		const old = create(DeploymentSchema, { id: "old", placements: [{ region: "eu-west-1", live: true }] });
+		const old = create(DeploymentSchema, { id: "old", placements: [{ region: "us-ca-1", live: true }] });
 		const environment = create(EnvironmentStatusSchema, {
-			regions: [create(RegionStatusSchema, { region: "eu-west-1", deploymentId: "current" })],
+			regions: [create(RegionStatusSchema, { region: "us-ca-1", deploymentId: "current" })],
 		});
 		const regions = buildRegions(create(ResourceSchema), [old], environment);
 		expect(regions[0]?.current).toBeUndefined();
@@ -113,16 +113,16 @@ describe("buildRegions", () => {
 describe("activeDeploymentPlaces", () => {
 	test("lists regions alone for one environment", () => {
 		const resource = create(ResourceSchema, {
-			environmentStatuses: [environmentStatus("production", "us-east-1", "eu-west-1")],
+			environmentStatuses: [environmentStatus("production", "us-va-1", "us-ca-1")],
 		});
-		expect(activeDeploymentPlaces(resource)).toEqual(["us-east-1", "eu-west-1"]);
+		expect(activeDeploymentPlaces(resource)).toEqual(["us-va-1", "us-ca-1"]);
 	});
 
 	test("names the environment of each region when several run", () => {
 		const resource = create(ResourceSchema, {
-			environmentStatuses: [environmentStatus("production", "us-east-1"), environmentStatus("staging", "us-east-1")],
+			environmentStatuses: [environmentStatus("production", "us-va-1"), environmentStatus("staging", "us-va-1")],
 		});
-		expect(activeDeploymentPlaces(resource)).toEqual(["us-east-1 (production)", "us-east-1 (staging)"]);
+		expect(activeDeploymentPlaces(resource)).toEqual(["us-va-1 (production)", "us-va-1 (staging)"]);
 	});
 });
 
@@ -134,7 +134,7 @@ describe("lastGoodDeployment", () => {
 
 	test("skips the current and failed deployments", () => {
 		const region: RegionView = {
-			name: "us-east-1",
+			name: "us-va-1",
 			status: undefined,
 			history: [failed, superseded, older],
 			current: failed,
@@ -143,7 +143,7 @@ describe("lastGoodDeployment", () => {
 	});
 
 	test("finds nothing when the region has one deployment", () => {
-		const region: RegionView = { name: "us-east-1", status: undefined, history: [failed], current: failed };
+		const region: RegionView = { name: "us-va-1", status: undefined, history: [failed], current: failed };
 		expect(lastGoodDeployment(region)).toBeUndefined();
 	});
 });
@@ -151,24 +151,24 @@ describe("lastGoodDeployment", () => {
 describe("focusRegion", () => {
 	test("picks the healthy region that has a release to roll back to", () => {
 		const spec = create(DeploymentSpecSchema);
-		const europe = create(DeploymentSchema, {
-			id: "europe",
-			placements: [{ region: "eu-west-1", live: true }],
+		const california = create(DeploymentSchema, {
+			id: "california",
+			placements: [{ region: "us-ca-1", live: true }],
 			status: DeploymentStatus.RUNNING,
 			spec,
 		});
 		const current = create(DeploymentSchema, {
 			id: "current",
-			placements: [{ region: "us-east-1", live: true }],
+			placements: [{ region: "us-va-1", live: true }],
 			status: DeploymentStatus.RUNNING,
 			spec,
 		});
 		const previous = create(DeploymentSchema, { id: "previous", status: DeploymentStatus.SUPERSEDED, spec });
 		const regions: RegionView[] = [
-			{ name: "eu-west-1", status: undefined, history: [europe], current: europe },
-			{ name: "us-east-1", status: undefined, history: [current, previous], current },
+			{ name: "us-ca-1", status: undefined, history: [california], current: california },
+			{ name: "us-va-1", status: undefined, history: [current, previous], current },
 		];
-		expect(focusRegion(regions)?.name).toBe("us-east-1");
+		expect(focusRegion(regions)?.name).toBe("us-va-1");
 	});
 });
 

@@ -21,7 +21,7 @@ function row(id: string, status: DeploymentStatus, isActive: boolean, ageMs = 0)
 		deployment: create(DeploymentSchema, {
 			id,
 			status,
-			placements: [{ region: "us-east-1", live: isActive }],
+			placements: [{ region: "us-va-1", live: isActive }],
 			createdAt: msToTimestamp(NOW - ageMs),
 		}),
 	};

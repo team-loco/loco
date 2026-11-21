@@ -6,7 +6,7 @@ import { RegionStatusSchema } from "@gen/loco/resource/v1/resource_pb";
 import { rolloutState } from "./resource-status";
 
 function region(placementStatus: PlacementStatus, readyReplicas: number) {
-	return create(RegionStatusSchema, { region: "us-east-1", placementStatus, readyReplicas, desiredReplicas: 2 });
+	return create(RegionStatusSchema, { region: "us-va-1", placementStatus, readyReplicas, desiredReplicas: 2 });
 }
 
 describe("rolloutState", () => {

@@ -22,8 +22,8 @@ test("statusKey changes with the deployment's or a placement's status, not with 
 		create(DeploymentSchema, {
 			status,
 			placements: [
-				{ region: "us-east-1", status: placement, replicas: [{ ready }] },
-				{ region: "eu-west-1", status: PlacementStatus.RUNNING },
+				{ region: "us-va-1", status: placement, replicas: [{ ready }] },
+				{ region: "us-ca-1", status: PlacementStatus.RUNNING },
 			],
 		});
 	const base = statusKey(d(DeploymentStatus.DEPLOYING, PlacementStatus.DEPLOYING, false));
