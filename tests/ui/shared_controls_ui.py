@@ -1892,7 +1892,7 @@ def metrics(page):
     by_region = page.get_by_role("region", name="By resource and region")
     expect(
         by_region.get_by_role("row").filter(has_text="Controls Pilot")
-    ).to_contain_text("0.175 vCPU 35%")
+    ).to_contain_text("0.035 vCPU 35%")
     viewport = page.viewport_size
     page.set_viewport_size({"width": 1280, "height": viewport["height"]})
     region_cell = (
