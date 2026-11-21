@@ -178,6 +178,7 @@ type Querier interface {
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error)
 	ListAPITokenNames(ctx context.Context, ids []uuid.UUID) ([]ListAPITokenNamesRow, error)
+	// scope_names holds each scope's organization, workspace or resource name in scope order, empty when the caller cannot read it.
 	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
 	// Keep the active-successor predicate aligned with OrgAdminHasNoActiveSuccessor.
 	ListAccountDeletionBlockingOrganizations(ctx context.Context, arg ListAccountDeletionBlockingOrganizationsParams) ([]ListAccountDeletionBlockingOrganizationsRow, error)

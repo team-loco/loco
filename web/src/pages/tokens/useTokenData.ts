@@ -1,10 +1,8 @@
-import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getScopes, listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { EntityType } from "@gen/loco/token/v1/token_pb";
 import type { Token } from "@gen/loco/token/v1/token_pb";
-import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -189,36 +187,7 @@ export function useTokenData(): TokenData {
 	};
 
 	const tokenScopes = Object.values(owners).flatMap((o) => o.tokens.flatMap((t) => t.scopes));
-	// Grants can name workspaces and resources outside the active organization, which the tree does not hold.
-	const unnamed = (type: EntityType) => [
-		...new Set(
-			tokenScopes
-				.filter((s) => s.entityType === type && !tree.nodes.has(nodeKey(type, s.entityId)))
-				.map((s) => s.entityId),
-		),
-	];
-	const workspaceNames = useQueries({
-		queries: unnamed(EntityType.WORKSPACE).map((workspaceId) => ({
-			...createQueryOptions(getWorkspace, { workspaceId }, { transport }),
-			retry: false,
-		})),
-	});
-	const resourceNames = useQueries({
-		queries: (resourcesLoading ? [] : unnamed(EntityType.RESOURCE)).map((id) => ({
-			...createQueryOptions(getResource, { key: { case: "resourceId", value: id } }, { transport }),
-			retry: false,
-		})),
-	});
-	const names = new Map<string, string>();
-	for (const q of workspaceNames) {
-		const w = q.data?.workspace;
-		if (w !== undefined) names.set(nodeKey(EntityType.WORKSPACE, w.id), w.name);
-	}
-	for (const q of resourceNames) {
-		const r = q.data?.resource;
-		if (r !== undefined) names.set(nodeKey(EntityType.RESOURCE, r.id), r.name);
-	}
-	const fullTree = withScopeEntities(tree, tokenScopes, names);
+	const fullTree = withScopeEntities(tree, tokenScopes);
 
 	return {
 		owners,

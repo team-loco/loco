@@ -232,18 +232,6 @@ func (tvm *VendingMachine) revokeReusedSession(ctx context.Context, sessionID uu
 	return ErrInvalidExpiredToken
 }
 
-// ListAPITokensForEntity lists all API tokens associated with the given entity.
-// The caller is expected to have already verified permissions.
-func (tvm *VendingMachine) ListAPITokensForEntity(
-	ctx context.Context,
-	entity queries.Entity,
-) ([]queries.ListAPITokensForEntityRow, error) {
-	return tvm.queries.ListAPITokensForEntity(ctx, queries.ListAPITokensForEntityParams{
-		EntityType: entity.Type,
-		EntityID:   entity.ID,
-	})
-}
-
 // touchSessionLastUsed updates last_used_at on the session row, throttled by LastUsedUpdateInterval.
 func (tvm *VendingMachine) touchSessionLastUsed(ctx context.Context, sessionID uuid.UUID, lastUsedAt time.Time) {
 	if time.Since(lastUsedAt) < tvm.Cfg.LastUsedUpdateInterval {

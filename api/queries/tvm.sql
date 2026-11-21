@@ -192,11 +192,40 @@ WHERE id IN (
 -- name: DeleteExpiredAPITokenByName :exec
 DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3 AND expires_at <= NOW();
 
+-- scope_names holds each scope's organization, workspace or resource name in scope order, empty when the caller cannot read it.
 -- name: ListAPITokensForEntity :many
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
-FROM api_tokens
-WHERE entity_type = $1 AND entity_id = $2
-ORDER BY created_at DESC;
+SELECT t.id, t.name, t.entity_type, t.entity_id, t.scopes, t.created_by, t.created_at, t.expires_at,
+       t.last_used_at, t.display_suffix,
+       ARRAY(
+           SELECT COALESCE(n.name, '')
+           FROM JSONB_ARRAY_ELEMENTS(t.scopes) WITH ORDINALITY AS e(scope, ord)
+           CROSS JOIN LATERAL (
+               SELECT (e.scope->>'entity_type')::entity_type AS entity_type, (e.scope->>'entity_id')::uuid AS entity_id
+           ) s
+           LEFT JOIN LATERAL (
+               SELECT o.name FROM organizations o
+               WHERE s.entity_type = 'organization' AND o.id = s.entity_id
+                 AND (sqlc.arg('system_read')::bool OR o.id = ANY(sqlc.arg('organization_ids')::uuid[]))
+               UNION ALL
+               SELECT w.name FROM workspaces w
+               WHERE s.entity_type = 'workspace' AND w.id = s.entity_id
+                 AND (sqlc.arg('system_read')::bool
+                      OR w.org_id = ANY(sqlc.arg('organization_ids')::uuid[])
+                      OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
+               UNION ALL
+               SELECT r.name FROM resources r
+               JOIN workspaces rw ON rw.id = r.workspace_id
+               WHERE s.entity_type = 'resource' AND r.id = s.entity_id
+                 AND (sqlc.arg('system_read')::bool
+                      OR rw.org_id = ANY(sqlc.arg('organization_ids')::uuid[])
+                      OR rw.id = ANY(sqlc.arg('workspace_ids')::uuid[])
+                      OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
+           ) n ON TRUE
+           ORDER BY e.ord
+       )::text[] AS scope_names
+FROM api_tokens t
+WHERE t.entity_type = sqlc.arg('entity_type') AND t.entity_id = sqlc.arg('entity_id')
+ORDER BY t.created_at DESC;
 
 -- name: DeleteAPITokenByNameAndEntity :exec
 DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
