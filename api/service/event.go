@@ -182,6 +182,25 @@ type eventScope struct {
 	orgID       uuid.UUID
 	workspaceID uuid.UUID
 	resourceID  uuid.UUID
+	// resourceIDs, when set, narrows a workspace scope to the resources the caller can list.
+	resourceIDs []uuid.UUID
+}
+
+// readableResources are the workspace's resources whose events the caller can list, by the checks a
+// ListEvents for one resource makes.
+func (s *EventServer) readableResources(ctx context.Context, workspaceID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := s.queries.ListWorkspaceResourceSlugs(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list the resources of workspace %s: %w", workspaceID, err)
+	}
+	var readable []uuid.UUID
+	for _, row := range rows {
+		if authorize(ctx, s.authz, actions.ListResourceAuditEvents, row.ID) == nil ||
+			authorize(ctx, s.authz, actions.ListResourceAuditAdminEvents, row.ID) == nil {
+			readable = append(readable, row.ID)
+		}
+	}
+	return readable, nil
 }
 
 func (s *EventServer) authorizeEventScope(
@@ -227,8 +246,15 @@ func (s *EventServer) authorizeEventScope(
 		if err != nil {
 			return eventScope{}, err
 		}
-		if err = authorize(ctx, s.authz, workspaceAction, workspaceID); err != nil {
-			return eventScope{}, err
+		denied := authorize(ctx, s.authz, workspaceAction, workspaceID)
+		var resources []uuid.UUID
+		if denied != nil && req.GetReadableResources() {
+			if resources, err = s.readableResources(ctx, workspaceID); err != nil {
+				return eventScope{}, err
+			}
+		}
+		if denied != nil && len(resources) == 0 {
+			return eventScope{}, denied
 		}
 		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -240,7 +266,9 @@ func (s *EventServer) authorizeEventScope(
 		if parent != orgID {
 			return eventScope{}, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
 		}
-		return eventScope{kind: eventScopeWorkspace, orgID: orgID, workspaceID: workspaceID}, nil
+		return eventScope{
+			kind: eventScopeWorkspace, orgID: orgID, workspaceID: workspaceID, resourceIDs: resources,
+		}, nil
 	}
 	if err := authorize(ctx, s.authz, actions.ListOrgAuditEvents, orgID); err != nil {
 		return eventScope{}, err
@@ -404,6 +432,7 @@ func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquer
 	if scope.kind == eventScopeResource {
 		query.ResourceID = &scope.resourceID
 	}
+	query.ResourceIDs = scope.resourceIDs
 	if req.GetEnvironmentId() != "" {
 		id, err := parseID("environment_id", req.GetEnvironmentId())
 		if err != nil {

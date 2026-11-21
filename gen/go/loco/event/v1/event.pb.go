@@ -258,8 +258,11 @@ type ListEventsRequest struct {
 	Types []string `protobuf:"bytes,15,rep,name=types,proto3" json:"types,omitempty"`
 	// Sets facets in the response.
 	IncludeFacets bool `protobuf:"varint,16,opt,name=include_facets,json=includeFacets,proto3" json:"include_facets,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// With workspace_id and no resource_id: a caller who cannot list the workspace's events gets the
+	// events of the workspace's resources it can list, as one ListEvents per resource would.
+	ReadableResources bool `protobuf:"varint,17,opt,name=readable_resources,json=readableResources,proto3" json:"readable_resources,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListEventsRequest) Reset() {
@@ -372,6 +375,13 @@ func (x *ListEventsRequest) GetTypes() []string {
 func (x *ListEventsRequest) GetIncludeFacets() bool {
 	if x != nil {
 		return x.IncludeFacets
+	}
+	return false
+}
+
+func (x *ListEventsRequest) GetReadableResources() bool {
+	if x != nil {
+		return x.ReadableResources
 	}
 	return false
 }
@@ -747,7 +757,7 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\rdeployment_id\x18\x12 \x01(\tR\fdeploymentId\x12\x14\n" +
 	"\x05title\x18\x13 \x01(\tR\x05title\x12\x1a\n" +
 	"\bseverity\x18\x14 \x01(\tR\bseverity\x12\x16\n" +
-	"\x06region\x18\x15 \x01(\tR\x06region\"\xa0\x04\n" +
+	"\x06region\x18\x15 \x01(\tR\x06region\"\xcf\x04\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
@@ -764,7 +774,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12.\n" +
 	"\x13include_total_count\x18\x0e \x01(\bR\x11includeTotalCount\x12\x1e\n" +
 	"\x05types\x18\x0f \x03(\tB\b\xbaH\x05\x92\x01\x02\x10dR\x05types\x12%\n" +
-	"\x0einclude_facets\x18\x10 \x01(\bR\rincludeFacets\"V\n" +
+	"\x0einclude_facets\x18\x10 \x01(\bR\rincludeFacets\x12-\n" +
+	"\x12readable_resources\x18\x11 \x01(\bR\x11readableResources\"V\n" +
 	"\n" +
 	"EventFacet\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +

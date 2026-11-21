@@ -13,9 +13,11 @@ import (
 
 // AuditQuery selects an organization's events within optional scope and time bounds.
 type AuditQuery struct {
-	OrgID         uuid.UUID
-	WorkspaceID   *uuid.UUID
-	ResourceID    *uuid.UUID
+	OrgID       uuid.UUID
+	WorkspaceID *uuid.UUID
+	ResourceID  *uuid.UUID
+	// ResourceIDs, when set, keeps events of these resources.
+	ResourceIDs   []uuid.UUID
 	EnvironmentID *uuid.UUID
 	Start, End    *time.Time
 	// BeforeSeq, when positive, selects events with a lower seq.
@@ -125,6 +127,9 @@ func auditWhere(q AuditQuery, b *binder) string {
 	}
 	if q.ResourceID != nil {
 		sql += " AND e.resource_id = " + b.bind(*q.ResourceID)
+	}
+	if q.ResourceIDs != nil {
+		sql += " AND e.resource_id = ANY(" + b.bind(q.ResourceIDs) + ")"
 	}
 	if q.EnvironmentID != nil {
 		sql += " AND e.environment_id = " + b.bind(*q.EnvironmentID)

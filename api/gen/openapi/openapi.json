@@ -12629,6 +12629,11 @@
             "type": "boolean",
             "title": "include_facets",
             "description": "Sets facets in the response."
+          },
+          "readableResources": {
+            "type": "boolean",
+            "title": "readable_resources",
+            "description": "With workspace_id and no resource_id: a caller who cannot list the workspace's events gets the\n events of the workspace's resources it can list, as one ListEvents per resource would."
           }
         },
         "title": "ListEventsRequest",
