@@ -1370,7 +1370,7 @@ def postgres_healthy(state):
 def openbao_starter(source):
     def start(root):
         testres("add", root, "compose", root.name)
-        # A restart replaces what is left of the earlier server.
+        # Clear what is left of an earlier server before starting.
         compose(source, root.name, openbao_env(source, dict(os.environ)), "down", "-v")
         address = start_openbao(source, root.name, dict(os.environ))
         return {"id": root.name, "root": str(root), "address": address}
@@ -1387,7 +1387,7 @@ def postgres_starter(image):
             cwd=TOOLS_ROOT,
         )
         testres("add", root, "container", container)
-        # A restart, or a failed earlier start, replaces what is left of the earlier server.
+        # Clear what is left of an earlier server or failed start before starting.
         run(["docker", "rm", "-f", container], capture=True)
         run(
             [
