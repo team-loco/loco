@@ -344,6 +344,8 @@ CREATE TABLE
         desired_revision BIGINT NOT NULL DEFAULT 1 CHECK (desired_revision > 0),
         desired_spec JSONB,
         desired_deleted BOOLEAN NOT NULL DEFAULT false,
+        -- the last restart, sent with every revision so deploys and cancels keep the restarted replicas
+        restarted_at TIMESTAMPTZ,
         applied_revision BIGINT NOT NULL DEFAULT 0,
         applied_error TEXT,
         retry_after TIMESTAMPTZ,

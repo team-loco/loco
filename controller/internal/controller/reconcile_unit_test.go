@@ -99,7 +99,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	dep := desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
-		envSecretMount{Mounted: true, Revision: 7},
+		envSecretMount{Mounted: true, Checksum: "abc"},
 		testTelemetry(),
 		testMinReadySeconds,
 		testDrainSeconds,
@@ -128,9 +128,8 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	if secretName != wantSecretName {
 		t.Errorf("envFrom secret = %q, want %q", secretName, wantSecretName)
 	}
-	revision := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]
-	if revision != "7" {
-		t.Errorf("env secret revision annotation = %q, want 7", revision)
+	if got := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretChecksum]; got != "abc" {
+		t.Errorf("env secret checksum annotation = %q, want abc", got)
 	}
 	if got := ptr.Deref(dep.Spec.Replicas, 0); got != 2 {
 		t.Errorf("replicas = %d, want 2", got)
@@ -148,8 +147,8 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	if len(container.EnvFrom) != 0 {
 		t.Errorf("envFrom without an env secret = %+v, want none", container.EnvFrom)
 	}
-	if _, ok := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]; ok {
-		t.Error("env secret revision annotation set without an env secret")
+	if _, ok := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretChecksum]; ok {
+		t.Error("env secret checksum annotation set without an env secret")
 	}
 }
 

@@ -281,10 +281,11 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 	pod := restartedPod(1, corev1.ContainerStateTerminated{ExitCode: 1, FinishedAt: exited})
 	pod.UID, pod.Name, pod.Namespace = "budget-uid", "budget-replica", testEnvironmentNamespace(app)
 	pod.Labels = map[string]string{labelApp: testAppName(app)}
-	pod.Annotations = map[string]string{loco.KeyPlacementRevision: "2"}
-	client := fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(pod).Build()
+	set := ownedAtRevision(app, pod, "2")
+	client := fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(pod, set).Build()
 	r := &ApplicationReconciler{
-		Client: client, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix, HealthyAfter: testHealthyAfter,
+		Client: client, APIReader: client, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		HealthyAfter: testHealthyAfter,
 	}
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithGeneration(1).
 		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1)).
@@ -347,11 +348,13 @@ func TestLivenessKillEventMakesTheRestartAHealthCheck(t *testing.T) {
 	pod.UID, pod.Name, pod.Namespace = "liveness-uid", "liveness-replica", testEnvironmentNamespace(app)
 	pod.Labels = map[string]string{labelApp: testAppName(app)}
 	pod.Annotations = ownerAnnotations(app)
-	pod.Annotations[loco.KeyPlacementRevision] = "1"
+	kube := fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(
+		pod, ownedAtRevision(app, pod, "1"),
+		&corev1.Namespace{Name: pod.Namespace, Labels: environmentNamespaceLabels(app)},
+	).Build()
 	r := &ApplicationReconciler{
-		Client: fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(
-			pod, &corev1.Namespace{Name: pod.Namespace, Labels: environmentNamespaceLabels(app)},
-		).Build(),
+		Client:                   kube,
+		APIReader:                kube,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		HealthyAfter:             testHealthyAfter,
 	}

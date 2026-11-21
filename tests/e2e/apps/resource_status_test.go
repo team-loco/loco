@@ -20,7 +20,7 @@ import (
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
-	"github.com/team-loco/loco/k8sapi/v1alpha1"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
@@ -456,14 +456,14 @@ func waitRolloutFinished(t *testing.T, w *platform.Workspace, app string) {
 	})
 }
 
-func templateRevision(t *testing.T, w *platform.Workspace, selector string) string {
+func templateRestartedAt(t *testing.T, w *platform.Workspace, selector string) string {
 	t.Helper()
 	var deployments appsv1.DeploymentList
 	p.MustGet(t, &deployments, "-n", w.Namespace, "deployments", "-l", selector)
 	if len(deployments.Items) == 0 {
 		t.Fatalf("no Deployment matches %s", selector)
 	}
-	return deployments.Items[0].Spec.Template.Annotations[v1alpha1.KeyPlacementRevision]
+	return deployments.Items[0].Spec.Template.Annotations[locolabels.AnnotationRestartedAt]
 }
 
 func deploymentCount(t *testing.T, resourceID string) int {
@@ -607,23 +607,31 @@ func (s *status) restartKeepsDeployment(t *testing.T) {
 	w, dir, id, selector := s.w, s.dir, s.id, s.selector
 	// A replica reports ready before it has stayed ready long enough to finish the rollout.
 	waitRolloutFinished(t, w, app)
-	before := templateRevision(t, w, selector)
+	before := templateRestartedAt(t, w, selector)
+	pods := appPods(t, w, selector)
 	deploymentID := regionStatus(t, w, app).GetDeploymentId()
 	count := deploymentCount(t, id)
 	w.MustLoco(t, dir, "resource", "restart", app, "--env", platform.Production)
 	platform.Eventually(
 		t,
 		revisionTimeout,
-		"the restart revision to reach the pod template",
+		"the restart to reach the pod template",
 		func(context.Context) error {
-			if revision := templateRevision(t, w, selector); revision == before {
-				return fmt.Errorf("revision still %s", revision)
+			if restarted := templateRestartedAt(t, w, selector); restarted == before {
+				return fmt.Errorf("restart time still %q", restarted)
 			}
 			return nil
 		},
 	)
 	p.MustKubectl(t, "-n", w.Namespace, "rollout", "status", "deployment", "-l", selector, "--timeout=180s")
 	waitStatus(t, w, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY)
+	for _, after := range appPods(t, w, selector) {
+		for _, pod := range pods {
+			if pod.UID == after.UID && after.DeletionTimestamp == nil {
+				t.Errorf("pod %s kept running through the restart", pod.Name)
+			}
+		}
+	}
 	if got := regionStatus(t, w, app).GetDeploymentId(); got != deploymentID {
 		t.Errorf("the restart replaced deployment %s with %s", deploymentID, got)
 	}

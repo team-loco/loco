@@ -41,11 +41,11 @@ var _ = Describe("Replica rollout reports", func() {
 		_, err := r.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
 		for _, name := range []string{"old", "new-a", "new-b"} {
-			pod := createReplica(app, name, "app:v1")
+			revision := "2"
 			if name == "old" {
-				pod.Annotations[loco.KeyPlacementRevision] = "1"
-				Expect(k8sClient.Update(ctx, pod)).To(Succeed())
+				revision = "1"
 			}
+			pod := createReplicaAt(app, name, "app:v1", revision)
 			pod.Status.Conditions = []corev1.PodCondition{
 				{Type: corev1.PodScheduled, Status: corev1.ConditionTrue},
 				{Type: corev1.PodReady, Status: corev1.ConditionTrue},
@@ -108,7 +108,7 @@ var _ = Describe("Pull event watch", func() {
 		}
 		_, err = seed.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
-		pod := createReplica(app, "pulling-pod", testImage)
+		pod := createReplica(app, "pulling-pod")
 		pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodScheduled, Status: corev1.ConditionTrue}}
 		pod.Status.ContainerStatuses = []corev1.ContainerStatus{{Name: pod.Spec.Containers[0].Name,
 			State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: reasonContainerCreating}}}}
@@ -203,7 +203,7 @@ var _ = Describe("Replica exits", func() {
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 
-		pod := createReplica(app, "exits-replica", testImage)
+		pod := createReplica(app, "exits-replica")
 		started := metav1.NewTime(time.Now().Add(-time.Hour).Truncate(time.Second))
 		exited := metav1.NewTime(time.Now().Add(-time.Minute).Truncate(time.Second))
 		pod.Status.StartTime = &started

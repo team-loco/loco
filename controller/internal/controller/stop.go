@@ -94,23 +94,21 @@ func (r *ApplicationReconciler) stoppedReplicaSets(
 	stopped *loco.StoppedRevision,
 	proven int64,
 ) ([]appsv1.ReplicaSet, *appsv1.ReplicaSet, error) {
-	var sets appsv1.ReplicaSetList
-	if err := r.APIReader.List(ctx, &sets, client.InNamespace(namespace),
-		client.MatchingLabels{labelApp: name}); err != nil {
-		return nil, nil, fmt.Errorf("list replica sets of %s/%s: %w", namespace, name, err)
+	sets, err := r.replicaSets(ctx, namespace, name)
+	if err != nil {
+		return nil, nil, err
 	}
-	revision := strconv.FormatInt(stopped.PlacementRevision, 10)
 	var current []appsv1.ReplicaSet
 	var serving, provenSet *appsv1.ReplicaSet
-	for i := range sets.Items {
-		set := &sets.Items[i]
-		switch setRevision := set.Spec.Template.Annotations[loco.KeyPlacementRevision]; {
-		case setRevision == revision:
+	for i := range sets {
+		set := &sets[i]
+		switch setRevision := replicaSetRevision(set); {
+		case setRevision == stopped.PlacementRevision:
 			current = append(current, *set)
 		case ptr.Deref(set.Spec.Replicas, 0) > 0 &&
 			(serving == nil || deploymentRevision(set) > deploymentRevision(serving)):
 			serving = set
-		case proven != 0 && setRevision == strconv.FormatInt(proven, 10):
+		case proven != 0 && setRevision == proven:
 			provenSet = set
 		}
 	}

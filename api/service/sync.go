@@ -275,6 +275,13 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 		envSecret = secret
 		defer zeroEnvSecretData(envSecret.GetData())
 	}
+	if placement.RestartedAt != nil && !placement.DesiredDeleted {
+		spec, err := restartedSpec(placement)
+		if err != nil {
+			return err
+		}
+		placement.DesiredSpec = spec
+	}
 	msg := placementMessage(placement, envSecret)
 	if err := ss.sendFn(msg); err != nil {
 		return fmt.Errorf("send placement %s: %w", placement.ID, err)

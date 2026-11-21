@@ -24,17 +24,22 @@ func appDeployment(app *locov1alpha1.Application) *appsv1.Deployment {
 	return dep
 }
 
-// createReplicaSet stands in for the Deployment controller, which envtest does not run.
+// createReplicaSet stands in for the Deployment controller, which envtest does not run, with a
+// ReplicaSet the controller recorded at the revision. Its template differs from the Deployment's, as
+// an earlier revision's would, so the controller leaves the recorded revision alone.
 func createReplicaSet(app *locov1alpha1.Application, name, revision string, replicas int32) *appsv1.ReplicaSet {
 	GinkgoHelper()
 	dep := appDeployment(app)
 	template := *dep.Spec.Template.DeepCopy()
-	template.Annotations[locov1alpha1.KeyPlacementRevision] = revision
+	template.Annotations["test.loco.io/revision"] = revision
 	set := &appsv1.ReplicaSet{
-		Name:        name,
-		Namespace:   dep.Namespace,
-		Labels:      template.Labels,
-		Annotations: map[string]string{annotationDeploymentRevision: revision},
+		Name:      name,
+		Namespace: dep.Namespace,
+		Labels:    template.Labels,
+		Annotations: map[string]string{
+			annotationDeploymentRevision:      revision,
+			locov1alpha1.KeyPlacementRevision: revision,
+		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas: new(replicas),
 			Selector: dep.Spec.Selector,
@@ -119,7 +124,7 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		previous := createReplicaSet(app, "stop-rollout-previous", "1", 2)
 		current := createReplicaSet(app, "stop-rollout-current", "2", 1)
 
-		pod := createReplica(app, "stop-rollout-replica", testImage)
+		pod := createReplica(app, "stop-rollout-replica")
 		restartTo(r, app, pod, testRestartPolicy.MaxRestarts)
 		Expect(app.Status.Rollout.Stopped).To(BeNil())
 		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemRestarting))
@@ -163,7 +168,7 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 			reconcileStuckApp(r, app)
 			previous := createReplicaSet(app, tt.name+"-previous", "1", 1)
-			pod := createReplica(app, tt.name+"-replica", testImage)
+			pod := createReplica(app, tt.name+"-replica")
 			restartTo(r, app, pod, tt.allows)
 			Expect(app.Status.Rollout.Stopped).To(BeNil(), tt.name)
 
@@ -185,7 +190,7 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		reconcileStuckApp(r, app)
 		createReplicaSet(app, "stop-stale-previous", "1", 2)
 		current := createReplicaSet(app, "stop-stale-current", "2", 1)
-		pod := createReplica(app, "stop-stale-replica", testImage)
+		pod := createReplica(app, "stop-stale-replica")
 		restartTo(r, app, pod, testRestartPolicy.MaxRestarts)
 		stale := app.DeepCopy()
 		setRestarted(pod, testRestartPolicy.MaxRestarts+1)
@@ -223,7 +228,7 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		app.Status.Rollout.ProvenRevision = 1
 		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 
-		pod := createReplica(app, "stop-late-replica", testImage)
+		pod := createReplica(app, "stop-late-replica")
 		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+1)
 		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
 		Expect(app.Status.Rollout.Stopped.Rollout).To(BeTrue())
@@ -244,7 +249,7 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		previous := createReplicaSet(app, "stop-unproven-previous", "1", 0)
 		current := createReplicaSet(app, "stop-unproven-current", "2", 2)
 
-		pod := createReplica(app, "stop-unproven-replica", testImage)
+		pod := createReplica(app, "stop-unproven-replica")
 		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+1)
 		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
 		Expect(app.Status.Rollout.Stopped.Rollout).To(BeFalse())
@@ -264,7 +269,7 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		app.Status.Rollout.DeployedRevision = 2
 		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 
-		pod := createReplica(app, "stop-first-replica", testImage)
+		pod := createReplica(app, "stop-first-replica")
 		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+2)
 		Expect(app.Status.Rollout.Stopped).To(BeNil())
 		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemRestartsExhausted))
@@ -286,7 +291,7 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		app.Status.Rollout.ProvenRevision = 2
 		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 
-		pod := createReplica(app, "stop-steady-replica", testImage)
+		pod := createReplica(app, "stop-steady-replica")
 		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+3)
 		Expect(app.Status.Rollout.Stopped).To(BeNil())
 		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemRestartsExhausted))
@@ -301,7 +306,7 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		next := createReplicaSet(app, "stop-steady-next", "3", 1)
-		again := createReplica(app, "stop-steady-again", testImage)
+		again := createReplica(app, "stop-steady-again")
 		restartTo(r, app, again, testRestartPolicy.MaxRestarts+1)
 		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
 		Expect(app.Status.Rollout.Stopped.PlacementRevision).To(Equal(int64(3)))

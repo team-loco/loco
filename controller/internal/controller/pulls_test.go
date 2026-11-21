@@ -23,13 +23,11 @@ func TestPullEvents(t *testing.T) {
 	other := pod.DeepCopy()
 	other.Name, other.UID = "second-pod", "second-pod"
 	other.Annotations = ownerAnnotations(workspaceApp("second-pod", "second-pod"))
-	r := &ApplicationReconciler{
-		Client: fake.NewClientBuilder().
-			WithScheme(workspaceTestScheme(t)).
-			WithObjects(pod, other, &corev1.Namespace{Name: pod.Namespace, Labels: environmentNamespaceLabels(app)}).
-			Build(),
-		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
-	}
+	kube := fake.NewClientBuilder().
+		WithScheme(workspaceTestScheme(t)).
+		WithObjects(pod, other, &corev1.Namespace{Name: pod.Namespace, Labels: environmentNamespaceLabels(app)}).
+		Build()
+	r := &ApplicationReconciler{Client: kube, APIReader: kube, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
 	now := time.Now().Truncate(time.Microsecond)
 	e := &eventsv1.Event{Namespace: pod.Namespace, Reason: pullReasonPulling, EventTime: metav1.NewMicroTime(now),
 		Regarding: corev1.ObjectReference{Kind: podKind, Name: pod.Name, Namespace: pod.Namespace, UID: pod.UID}}

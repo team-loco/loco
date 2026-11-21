@@ -56,6 +56,10 @@ spec:
                 type: string
               resourceId:
                 type: string
+              restartedAt:
+                description: RestartedAt is when the resource was last restarted;
+                  a new value replaces its replicas.
+                type: string
               serviceSpec:
                 description: ServiceSpec contains service-specific deployment and
                   resource configuration

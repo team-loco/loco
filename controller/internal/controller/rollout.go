@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -100,6 +99,10 @@ func (r *ApplicationReconciler) observeReplicas(
 	dep *appsv1ac.DeploymentApplyConfiguration,
 	now time.Time,
 ) error {
+	revisions, err := r.replicaSetRevisions(ctx, app, dep)
+	if err != nil {
+		return err
+	}
 	listed, events, err := r.listRolloutPods(ctx, app)
 	if err != nil {
 		return err
@@ -136,10 +139,8 @@ func (r *ApplicationReconciler) observeReplicas(
 	revision, placed := app.PlacementRevision()
 	for _, pod := range pods {
 		podEvents := events[pod.UID]
-		replica, err := observeReplica(&pod, &podEvents, deleted[pod.UID], previous, r.HealthyAfter, now)
-		if err != nil {
-			return err
-		}
+		replica := observeReplica(&pod, &podEvents, podRevision(&pod, revisions), deleted[pod.UID], previous,
+			r.HealthyAfter, now)
 		if placed && replica.PlacementRevision == revision && pod.DeletionTimestamp == nil {
 			current = append(current, observedReplica{pod: pod, status: replica})
 		}
@@ -190,11 +191,12 @@ func (r *ApplicationReconciler) observeReplicas(
 func observeReplica(
 	pod *corev1.Pod,
 	events *podEvent,
+	revision int64,
 	deleted bool,
 	previous *locov1alpha1.RolloutStatus,
 	healthyAfter time.Duration,
 	now time.Time,
-) (locov1alpha1.ReplicaStatus, error) {
+) locov1alpha1.ReplicaStatus {
 	replica := replicaState(pod, events, now)
 	if deleted && replica.State != locov1alpha1.ReplicaKilled && replica.State != locov1alpha1.ReplicaStopped {
 		replica.State = locov1alpha1.ReplicaStopped
@@ -204,13 +206,7 @@ func observeReplica(
 			replica.Detail = "no exit code seen"
 		}
 	}
-	if raw := pod.Annotations[locov1alpha1.KeyPlacementRevision]; raw != "" {
-		podRevision, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil {
-			return replica, fmt.Errorf("pod %s placement revision: %w", pod.Name, err)
-		}
-		replica.PlacementRevision = podRevision
-	}
+	replica.PlacementRevision = revision
 	replica.UID = string(pod.UID)
 	replica.Name = pod.Name
 	replica.Node = pod.Spec.NodeName
@@ -224,7 +220,7 @@ func observeReplica(
 		replica.StateSince = old.StateSince
 	}
 	trackRestarts(&replica, old, quietSince(pod, healthyAfter, now), now)
-	return replica, nil
+	return replica
 }
 
 // observeDeadline records the revision as deployed once it is healthy, and until then holds it to

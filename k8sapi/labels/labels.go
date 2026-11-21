@@ -15,5 +15,6 @@ const (
 
 	AnnotationApplicationNamespace = "loco.io/application-namespace"
 	AnnotationApplicationName      = "loco.io/application-name"
-	AnnotationEnvSecretRevision    = "loco.io/env-secret-revision" //nolint:gosec
+	AnnotationEnvSecretChecksum    = "loco.io/env-secret-checksum" //nolint:gosec
+	AnnotationRestartedAt          = "loco.io/restarted-at"
 )

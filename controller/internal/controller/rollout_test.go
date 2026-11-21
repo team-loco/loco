@@ -7,6 +7,7 @@ import (
 
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -99,7 +100,6 @@ func TestObserveDeletedReplica(t *testing.T) {
 	pod := &corev1.Pod{
 		UID: "deleted-uid", Name: "deleted-name", Namespace: testEnvironmentNamespace(app),
 		Labels:            map[string]string{labelApp: testAppName(app)},
-		Annotations:       map[string]string{locov1alpha1.KeyPlacementRevision: "1"},
 		DeletionTimestamp: new(metav1.NewTime(now)),
 		Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{
 			{
@@ -112,10 +112,8 @@ func TestObserveDeletedReplica(t *testing.T) {
 			},
 		}},
 	}
-	r := &ApplicationReconciler{
-		Client:                   fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(),
-		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
-	}
+	kube := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(ownedAtRevision(app, pod, "1")).Build()
+	r := &ApplicationReconciler{Client: kube, APIReader: kube, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
 	r.recordDeletedPod(types.NamespacedName{Namespace: app.Namespace, Name: app.Name}, pod, now)
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithGeneration(1).
 		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(2)).
@@ -220,15 +218,18 @@ func TestProblemIgnoresEarlierRevisions(t *testing.T) {
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
 		pod := &corev1.Pod{
 			UID: "crash-uid", Name: "crash-replica", Namespace: testEnvironmentNamespace(app),
-			Labels:      map[string]string{labelApp: testAppName(app)},
-			Annotations: map[string]string{locov1alpha1.KeyPlacementRevision: tt.revision},
+			Labels: map[string]string{labelApp: testAppName(app)},
 			Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{State: corev1.ContainerState{
 				Waiting: &corev1.ContainerStateWaiting{Reason: reasonCrashLoopBackOff},
 			}}}},
 		}
+		objects := []client.Object{pod}
+		if tt.revision != "" {
+			objects = append(objects, ownedAtRevision(app, pod, tt.revision))
+		}
+		kube := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(objects...).Build()
 		r := &ApplicationReconciler{
-			Client:                   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(pod).Build(),
-			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Client: kube, APIReader: kube, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
 		dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1))
 		if err := r.observeReplicas(context.Background(), app, dep, time.Now()); err != nil {
@@ -247,7 +248,6 @@ func TestDeletedReplicaKeepsItsPreviousExit(t *testing.T) {
 	exited := metav1.NewTime(now.Add(-time.Minute))
 	pod := &corev1.Pod{
 		UID: "previous-exit-uid", Name: "previous-exit", Namespace: testEnvironmentNamespace(app),
-		Annotations: map[string]string{locov1alpha1.KeyPlacementRevision: "1"},
 		Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
 			RestartCount: 1,
 			State:        corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
@@ -256,10 +256,8 @@ func TestDeletedReplicaKeepsItsPreviousExit(t *testing.T) {
 			}},
 		}}},
 	}
-	r := &ApplicationReconciler{
-		Client:                   fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(),
-		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
-	}
+	kube := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(ownedAtRevision(app, pod, "1")).Build()
+	r := &ApplicationReconciler{Client: kube, APIReader: kube, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
 	r.recordDeletedPod(client.ObjectKeyFromObject(app), pod, now)
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithGeneration(1).
 		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1)).
@@ -277,4 +275,20 @@ func TestDeletedReplicaKeepsItsPreviousExit(t *testing.T) {
 	if got[0].Detail != "" {
 		t.Fatalf("deleted replica detail = %q, want none beside its last exit", got[0].Detail)
 	}
+}
+
+// ownedAtRevision puts the pod under a ReplicaSet recorded at the revision, as the controller records
+// the ReplicaSet that runs a revision's template, and returns that ReplicaSet.
+func ownedAtRevision(app *locov1alpha1.Application, pod *corev1.Pod, revision string) *appsv1.ReplicaSet {
+	labels := map[string]string{labelApp: testAppName(app)}
+	set := &appsv1.ReplicaSet{
+		Name: testAppName(app) + "-" + revision, Namespace: testEnvironmentNamespace(app),
+		UID: types.UID("rs-" + revision), Labels: labels,
+		Annotations: map[string]string{locov1alpha1.KeyPlacementRevision: revision},
+		Spec:        appsv1.ReplicaSetSpec{Template: corev1.PodTemplateSpec{Labels: labels}},
+	}
+	pod.OwnerReferences = []metav1.OwnerReference{
+		*metav1.NewControllerRef(set, appsv1.SchemeGroupVersion.WithKind("ReplicaSet")),
+	}
+	return set
 }
