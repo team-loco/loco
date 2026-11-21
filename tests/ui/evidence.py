@@ -1318,15 +1318,33 @@ SETTLE_SCRIPT = """async ({timeout, excluded}) => {
 
 
 def settle(page, *, exclude_animations=()):
-    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+    """Waits for the page to stop navigating, the loading screen to leave and animations to finish."""
+    from playwright.sync_api import (
+        Error as PlaywrightError,
+        TimeoutError as PlaywrightTimeout,
+    )
 
-    try:
-        page.locator(APP_LOADER).wait_for(state="detached", timeout=STEP_TIMEOUT_MS)
-    except PlaywrightTimeout:
-        raise EvidenceError("the loading screen did not leave") from None
-    if not page.evaluate(
-        SETTLE_SCRIPT, {"timeout": SETTLE_TIMEOUT_MS, "excluded": exclude_animations}
-    ):
+    deadline = time.monotonic() + SETTLE_TIMEOUT_MS / 1000
+    while True:
+        url = page.url
+        try:
+            page.wait_for_load_state("load", timeout=STEP_TIMEOUT_MS)
+            page.locator(APP_LOADER).wait_for(state="detached", timeout=STEP_TIMEOUT_MS)
+            settled = page.evaluate(
+                SETTLE_SCRIPT,
+                {"timeout": SETTLE_TIMEOUT_MS, "excluded": exclude_animations},
+            )
+        except PlaywrightTimeout:
+            raise EvidenceError("the loading screen did not leave") from None
+        except PlaywrightError as err:
+            if "Execution context was destroyed" not in str(err):
+                raise EvidenceError(f"settling the page failed: {err}") from None
+            settled = None
+        if settled is not None and page.url == url:
+            break
+        if time.monotonic() > deadline:
+            raise EvidenceError(f"the page kept navigating, last to {page.url}")
+    if not settled:
         raise EvidenceError("animations did not finish")
 
 
