@@ -198,18 +198,18 @@ export function ReplicaDetail({
 				</Badge>
 			</span>
 			<span className="flex gap-1.5">
-				<span className="text-fg3">Up</span>
+				<span className="text-fg3">Up</span>{" "}
 				<span className="font-mono">{startedMs === undefined ? "—" : shortDurationLabel(nowMs - startedMs)}</span>
 			</span>
 			<span className="flex gap-1.5">
-				<span className="text-fg3">Restarts</span>
+				<span className="text-fg3">Restarts</span>{" "}
 				<span className={cn("font-mono", replica.restarts > 0 && "text-warn-fg")}>{restartLabel(replica, nowMs)}</span>
 			</span>
 			{replica.lastExit !== undefined && replica.lastRestart === undefined && (
 				<span className="font-mono text-warn-fg [overflow-wrap:anywhere]">{exitLabel(replica.lastExit, nowMs)}</span>
 			)}
 			<span className="flex gap-1.5">
-				<span className="text-fg3">Version</span>
+				<span className="text-fg3">Version</span>{" "}
 				<span className="font-mono">{deployment === undefined ? "—" : depTag(deployment)}</span>
 			</span>
 			<span className="ml-auto flex gap-2">

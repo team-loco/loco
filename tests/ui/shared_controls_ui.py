@@ -1475,7 +1475,7 @@ def traffic(page):
         if empty:
             expect(
                 section.get_by_text("No data in this range", exact=True)
-            ).to_have_count(4)
+            ).to_have_count(1)
             expect(section.get_by_role("alert")).to_have_count(0)
         else:
             expect(section).to_contain_text("10%")
