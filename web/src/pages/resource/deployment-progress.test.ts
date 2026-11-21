@@ -20,7 +20,6 @@ import {
 	problemLogsHref,
 	progressDeployments,
 	readyLabel,
-	problemReason,
 	replicaState,
 	replicaSummary,
 	rolloutActivity,
@@ -306,9 +305,4 @@ test("replicaSummary counts the replicas in each state", () => {
 		create(ReplicaSchema, { name: `web-${i.toString()}`, state }),
 	);
 	expect(replicaSummary(replicas)).toBe("4 replicas · 2 serving · 1 starting · 1 failing");
-});
-
-test("problemReason names a known reason and leaves others to the message", () => {
-	expect(problemReason("build_failed")).toBe("Build failed");
-	expect(problemReason("something_new")).toBeUndefined();
 });

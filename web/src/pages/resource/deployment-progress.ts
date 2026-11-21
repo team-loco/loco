@@ -204,7 +204,7 @@ export function readyLabel(deployment: Deployment, placement: DeploymentPlacemen
 }
 
 /** Short names for the problem reasons k8sapi/v1alpha1/problems.go defines. */
-const PROBLEM_REASONS: Record<string, string> = {
+export const PROBLEM_REASONS: Record<string, string> = {
 	build_failed: "Build failed",
 	apply_failed: "Couldn’t apply the deployment",
 	unschedulable: "No room to run",
@@ -218,10 +218,6 @@ const PROBLEM_REASONS: Record<string, string> = {
 	deploy_timeout: "Not healthy in time",
 	unclean_shutdown: "Unclean shutdown",
 };
-
-export function problemReason(reason: string): string | undefined {
-	return PROBLEM_REASONS[reason];
-}
 
 /** How many replicas there are and how many are in each state. */
 export function replicaSummary(replicas: readonly Replica[]): string {

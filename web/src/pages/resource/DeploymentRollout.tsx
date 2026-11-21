@@ -17,7 +17,7 @@ import {
 	activityTime,
 	groupReplicas,
 	problemLogsHref,
-	problemReason,
+	PROBLEM_REASONS,
 	replicaState,
 	replicaSummary,
 	stoppingCountdown,
@@ -53,12 +53,12 @@ export function ProblemBanner({
 }: {
 	deployment: Deployment;
 	logsHref: string | undefined;
-	serving?: Deployment | undefined;
+	serving: Deployment | undefined;
 }) {
 	const problem = deploymentProblem(deployment);
 	if (problem === undefined) return null;
 	const problemHref = problemLogsHref(logsHref, deployment);
-	const reason = problemReason(problem.reason);
+	const reason = PROBLEM_REASONS[problem.reason];
 	return (
 		<Banner
 			title={reason ?? problem.message}

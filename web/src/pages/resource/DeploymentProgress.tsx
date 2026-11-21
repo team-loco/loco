@@ -147,7 +147,6 @@ function ProgressPanel({
 	const failed = phase === DeploymentStatus.FAILED || phase === DeploymentStatus.CRASHED;
 	const canceled = phase === DeploymentStatus.CANCELED;
 	const title = deploymentPhaseStyle(phase).label;
-
 	const glyph: Glyph = failed
 		? "err"
 		: canceled || phase === DeploymentStatus.SUPERSEDED
@@ -165,7 +164,7 @@ function ProgressPanel({
 	const servingId = failed
 		? servingDeployments(region.status?.replicas ?? []).find((d) => d.id !== deployment.id)?.id
 		: undefined;
-	const servingNow = [region.current, ...region.history].find((d) => d !== undefined && d.id === servingId);
+	const servingNow = [region.current, ...region.history].find((d) => d?.id === servingId);
 	const { path, tag, digest } = parseImage(depImage(deployment));
 	const fields: [string, string][] = [];
 	const image = depImage(deployment);

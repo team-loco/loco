@@ -233,6 +233,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
+	const buildLogsHref = (buildId: string) =>
+		hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined;
 	const obsLink = (
 		obsView: "logs" | "metrics" | "events",
 		region: string | null = null,
@@ -446,7 +448,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					<DeploymentProgress
 						regions={regions}
 						logsHref={obsLink("logs")}
-						buildLogsHref={(buildId) => (hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined)}
+						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
 						onRollback={openRollback}
 					/>
@@ -503,7 +505,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						historyError={historyError}
 						onLoadMore={loadMoreHistory}
 						logsHref={obsLink("logs")}
-						buildLogsHref={(buildId) => (hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined)}
+						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
 						canReadWorkspace={canListResources}
 						onRollback={openRollback}
@@ -523,7 +525,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					<DeploymentProgress
 						regions={regions}
 						logsHref={obsLink("logs")}
-						buildLogsHref={(buildId) => (hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined)}
+						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
 						onRollback={openRollback}
 					/>
