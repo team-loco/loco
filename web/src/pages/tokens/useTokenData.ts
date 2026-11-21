@@ -1,24 +1,24 @@
 import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getScopes, listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { EntityType } from "@gen/loco/token/v1/token_pb";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
-import { useMyScopes } from "@/hooks/useMyScopes";
-import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
-import { buildHeld, holds, nodeKey, withScopeEntities } from "./model";
-import type { EntityNode, EntityTree, HeldScopes, OwnerKey } from "./model";
+import { buildHeld, entityNode, holds, withScopeEntities } from "./model";
+import type { Entities, EntityNode, HeldScopes, OwnerKey } from "./model";
 
 export interface Owner {
 	key: OwnerKey;
 	entityType: EntityType;
 	id: string | null;
+	node: EntityNode | null;
 	label: string;
 	canList: boolean;
 	canCreate: boolean;
@@ -35,71 +35,17 @@ interface OwnerTokens {
 
 export interface TokenData {
 	owners: Record<OwnerKey, OwnerTokens>;
-	tree: EntityTree;
+	/** The signed-in user's account and organizations, which the access picker always offers. */
+	roots: EntityNode[];
+	activeOrg: EntityNode | null;
+	activeWorkspace: EntityNode | null;
+	/** Every entity the listed tokens' scopes name, with its parents where the caller can read them. */
+	entities: Entities;
+	/** Whether a scope's entity or its parent is still being looked up. */
+	entitiesLoading: boolean;
 	held: HeldScopes;
 	scopesLoading: boolean;
 	scopesError: unknown;
-	resourcesLoading: boolean;
-	resourcesError: unknown;
-	retryResources: () => void;
-}
-
-function buildTree(
-	orgs: { id: string; name: string }[],
-	activeOrgId: string | null,
-	workspaces: { id: string; name: string; orgId: string }[],
-	resources: { id: string; name: string; workspaceId: string }[],
-	userId: string | null,
-): EntityTree {
-	const order: EntityNode[] = [];
-	const childCount = new Map<string, number>();
-	const push = (node: EntityNode) => {
-		order.push(node);
-		if (node.parent !== null) childCount.set(node.parent, (childCount.get(node.parent) ?? 0) + 1);
-	};
-	if (userId !== null) {
-		push({
-			key: nodeKey(EntityType.USER, userId),
-			kind: "user",
-			entityType: EntityType.USER,
-			id: userId,
-			label: "Your account",
-			parent: null,
-		});
-	}
-	const sortedOrgs = orgs.toSorted((a, b) => Number(b.id === activeOrgId) - Number(a.id === activeOrgId));
-	for (const o of sortedOrgs) {
-		push({
-			key: nodeKey(EntityType.ORGANIZATION, o.id),
-			kind: "org",
-			entityType: EntityType.ORGANIZATION,
-			id: o.id,
-			label: o.name,
-			parent: null,
-		});
-	}
-	for (const w of workspaces) {
-		push({
-			key: nodeKey(EntityType.WORKSPACE, w.id),
-			kind: "ws",
-			entityType: EntityType.WORKSPACE,
-			id: w.id,
-			label: w.name,
-			parent: nodeKey(EntityType.ORGANIZATION, w.orgId),
-		});
-	}
-	for (const r of resources) {
-		push({
-			key: nodeKey(EntityType.RESOURCE, r.id),
-			kind: "res",
-			entityType: EntityType.RESOURCE,
-			id: r.id,
-			label: r.name,
-			parent: nodeKey(EntityType.WORKSPACE, r.workspaceId),
-		});
-	}
-	const nodes = new Map(order.map((n) => [n.key, n]));
-	return { nodes, order, childCount };
 }
 
 export function useTokenData(): TokenData {
@@ -109,54 +55,54 @@ export function useTokenData(): TokenData {
 	const userId = user?.id ?? null;
 
 	const scopesQuery = useQuery(getScopes, {});
-	const { resourceGrants, orgMember, isLoading: myScopesLoading } = useMyScopes();
-	const workspacesQuery = useTanstackQuery({
-		...orgWorkspacesOptions(transport, activeOrgId ?? ""),
-		enabled: activeOrgId !== null && !myScopesLoading && orgMember(activeOrgId),
-	});
-	const orgWorkspaces = workspacesQuery.data?.workspaces ?? [];
-	// Access inherits down the tree, so permissions wait for the workspaces as well as the scopes.
-	const treeLoading = scopesQuery.isLoading || workspacesQuery.isLoading;
+	const activeWsQuery = useWorkspace(activeOrgId, activeWorkspaceId);
+	// Permissions wait for the active workspace as well as the scopes: it inherits its organization's scopes.
+	const treeLoading = scopesQuery.isLoading || activeWsQuery.isLoading;
 
-	const resourceQueries = useQueries({
-		queries: orgWorkspaces.map((w) =>
-			workspaceResourcesOptions(transport, w.id, resourceGrants(activeOrgId ?? "", w.id)),
-		),
-	});
-	const resources = resourceQueries.flatMap((q) => q.data?.resources ?? []);
-	const resourcesLoading = resourceQueries.some((q) => (q.isPending || q.isFetching) && q.data === undefined);
-	const resourcesError = resourceQueries.find((q) => q.error !== null)?.error ?? null;
+	const userNode = userId === null ? null : entityNode(EntityType.USER, userId, "Your account", null);
+	const orgNodes = new Map(
+		orgs
+			.toSorted((a, b) => Number(b.id === activeOrgId) - Number(a.id === activeOrgId))
+			.map((o) => [o.id, entityNode(EntityType.ORGANIZATION, o.id, o.name, null)]),
+	);
+	const orgOf = (w: Workspace): EntityNode =>
+		orgNodes.get(w.orgId) ?? entityNode(EntityType.ORGANIZATION, w.orgId, w.orgName, null);
+	const wsNode = (w: Workspace): EntityNode =>
+		entityNode(EntityType.WORKSPACE, w.id, w.name, orgOf(w), w.resourceCount);
 
-	const tree = buildTree(orgs, activeOrgId, orgWorkspaces, resources, userId);
-	const scopeList = scopesQuery.data?.scopes ?? [];
-	const held = buildHeld(scopeList);
+	const activeOrg = activeOrgId === null ? null : (orgNodes.get(activeOrgId) ?? null);
+	const activeWs = activeWsQuery.workspace;
+	const activeWorkspace =
+		activeWorkspaceId === null
+			? null
+			: activeWs?.id === activeWorkspaceId
+				? wsNode(activeWs)
+				: entityNode(EntityType.WORKSPACE, activeWorkspaceId, "Workspace", null);
+	const held = buildHeld(scopesQuery.data?.scopes ?? []);
 
-	const activeOrg = orgs.find((o) => o.id === activeOrgId);
-	const activeWs = orgWorkspaces.find((w) => w.id === activeWorkspaceId);
-
-	const can = (entityType: EntityType, id: string | null, level: 1 | 2 | 3): boolean => {
-		if (id === null || scopesQuery.data === undefined || workspacesQuery.isLoading) return false;
-		const key = nodeKey(entityType, id);
-		return holds(held, tree, key, level);
+	const can = (node: EntityNode | null, level: 1 | 2 | 3): boolean => {
+		if (node === null || scopesQuery.data === undefined || activeWsQuery.isLoading) return false;
+		return holds(held, node, level);
 	};
 
-	const mkOwner = (key: OwnerKey, entityType: EntityType, id: string | null, label: string): Owner => {
+	const mkOwner = (key: OwnerKey, entityType: EntityType, node: EntityNode | null, label: string): Owner => {
 		const personal = entityType === EntityType.USER;
-		const canCreate = can(entityType, id, personal ? 2 : 3);
+		const canCreate = can(node, personal ? 2 : 3);
 		return {
 			key,
 			entityType,
-			id,
+			id: node?.id ?? null,
+			node,
 			label,
-			canList: can(entityType, id, 1),
+			canList: can(node, 1),
 			canCreate,
 			createHint: canCreate ? null : `You need ${personal ? "write" : "admin"} access to ${label} to create tokens`,
 		};
 	};
 
-	const orgOwner = mkOwner("org", EntityType.ORGANIZATION, activeOrgId, activeOrg?.name ?? "Organization");
-	const wsOwner = mkOwner("ws", EntityType.WORKSPACE, activeWorkspaceId, activeWs?.name ?? "Workspace");
-	const personalOwner = mkOwner("user", EntityType.USER, userId, "Personal");
+	const orgOwner = mkOwner("org", EntityType.ORGANIZATION, activeOrg, activeOrg?.label ?? "Organization");
+	const wsOwner = mkOwner("ws", EntityType.WORKSPACE, activeWorkspace, activeWs?.name ?? "Workspace");
+	const personalOwner = mkOwner("user", EntityType.USER, userNode, "Personal");
 
 	const orgTokens = useQuery(
 		listTokens,
@@ -188,48 +134,58 @@ export function useTokenData(): TokenData {
 		user: wrap(personalOwner, personalTokens),
 	};
 
+	// Each workspace and resource the scopes name is looked up by ID, with a resource's workspace.
 	const tokenScopes = Object.values(owners).flatMap((o) => o.tokens.flatMap((t) => t.scopes));
-	// Grants can name workspaces and resources outside the active organization, which the tree does not hold.
-	const unnamed = (type: EntityType) => [
-		...new Set(
-			tokenScopes
-				.filter((s) => s.entityType === type && !tree.nodes.has(nodeKey(type, s.entityId)))
-				.map((s) => s.entityId),
-		),
+	const scopeIds = (type: EntityType) => [
+		...new Set(tokenScopes.filter((s) => s.entityType === type).map((s) => s.entityId)),
 	];
-	const workspaceNames = useQueries({
-		queries: unnamed(EntityType.WORKSPACE).map((workspaceId) => ({
-			...createQueryOptions(getWorkspace, { workspaceId }, { transport }),
-			retry: false,
-		})),
-	});
-	const resourceNames = useQueries({
-		queries: (resourcesLoading ? [] : unnamed(EntityType.RESOURCE)).map((id) => ({
+	const resourceQueries = useQueries({
+		queries: scopeIds(EntityType.RESOURCE).map((id) => ({
 			...createQueryOptions(getResource, { key: { case: "resourceId", value: id } }, { transport }),
 			retry: false,
 		})),
 	});
-	const names = new Map<string, string>();
-	for (const q of workspaceNames) {
+	const resources = resourceQueries.flatMap((q) => (q.data?.resource === undefined ? [] : [q.data.resource]));
+	const workspaceIds = [...new Set([...scopeIds(EntityType.WORKSPACE), ...resources.map((r) => r.workspaceId)])].filter(
+		(id) => id !== activeWs?.id,
+	);
+	const workspaceQueries = useQueries({
+		queries: workspaceIds.map((workspaceId) => ({
+			...createQueryOptions(getWorkspace, { workspaceId }, { transport }),
+			retry: false,
+		})),
+	});
+	const workspaces = new Map<string, EntityNode>();
+	if (activeWs !== undefined && activeWorkspace !== null) workspaces.set(activeWs.id, activeWorkspace);
+	for (const q of workspaceQueries) {
 		const w = q.data?.workspace;
-		if (w !== undefined) names.set(nodeKey(EntityType.WORKSPACE, w.id), w.name);
+		if (w !== undefined) workspaces.set(w.id, wsNode(w));
 	}
-	for (const q of resourceNames) {
-		const r = q.data?.resource;
-		if (r !== undefined) names.set(nodeKey(EntityType.RESOURCE, r.id), r.name);
-	}
-	const fullTree = withScopeEntities(tree, tokenScopes, names);
+	const known: EntityNode[] = [
+		...(userNode === null ? [] : [userNode]),
+		...orgNodes.values(),
+		...workspaces.values(),
+		...resources.map((r) =>
+			entityNode(
+				EntityType.RESOURCE,
+				r.id,
+				r.name,
+				workspaces.get(r.workspaceId) ??
+					entityNode(EntityType.WORKSPACE, r.workspaceId, r.workspaceId.slice(0, 8), null),
+			),
+		),
+	];
+	const entities = withScopeEntities(new Map(known.map((n) => [n.key, n])), tokenScopes);
 
 	return {
 		owners,
-		tree: fullTree,
+		roots: [...(userNode === null ? [] : [userNode]), ...orgNodes.values()],
+		activeOrg,
+		activeWorkspace,
+		entities,
+		entitiesLoading: [...resourceQueries, ...workspaceQueries].some((q) => q.isPending),
 		held,
 		scopesLoading: treeLoading,
 		scopesError: scopesQuery.error,
-		resourcesLoading,
-		resourcesError,
-		retryResources: () => {
-			for (const q of resourceQueries) void q.refetch();
-		},
 	};
 }

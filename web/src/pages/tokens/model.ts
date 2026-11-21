@@ -75,14 +75,13 @@ export interface EntityNode {
 	entityType: EntityType;
 	id: string;
 	label: string;
-	parent: string | null;
+	parent: EntityNode | null;
+	/** How many resources a workspace holds, when the caller can read it. */
+	resources?: number;
 }
 
-export interface EntityTree {
-	nodes: Map<string, EntityNode>;
-	order: EntityNode[];
-	childCount: Map<string, number>;
-}
+/** The entities the page knows, by nodeKey. */
+export type Entities = ReadonlyMap<string, EntityNode>;
 
 export interface HeldScopes {
 	scopes: Set<string>;
@@ -93,6 +92,18 @@ export type Grants = Map<string, Level>;
 
 export function nodeKey(entityType: EntityType, id: string): string {
 	return `${entityType.toString()}:${id}`;
+}
+
+export function entityNode(
+	entityType: EntityType,
+	id: string,
+	label: string,
+	parent: EntityNode | null,
+	resources?: number,
+): EntityNode {
+	const node: EntityNode = { key: nodeKey(entityType, id), kind: kindOf(entityType), entityType, id, label, parent };
+	if (resources !== undefined) node.resources = resources;
+	return node;
 }
 
 export function kindOf(entityType: EntityType): NodeKind {
@@ -138,19 +149,17 @@ export function buildHeld(scopes: EntityScope[]): HeldScopes {
 	return held;
 }
 
-export function holds(held: HeldScopes, tree: EntityTree, key: string, level: Level): boolean {
+export function holds(held: HeldScopes, node: EntityNode, level: Level): boolean {
 	if (held.system.has(level)) return true;
-	let cur: string | null = key;
-	while (cur !== null) {
-		if (held.scopes.has(`${cur}#${level.toString()}`)) return true;
-		cur = tree.nodes.get(cur)?.parent ?? null;
+	for (let cur: EntityNode | null = node; cur !== null; cur = cur.parent) {
+		if (held.scopes.has(`${cur.key}#${level.toString()}`)) return true;
 	}
 	return false;
 }
 
-export function heldLevel(held: HeldScopes, tree: EntityTree, key: string): Level | 0 {
+export function heldLevel(held: HeldScopes, node: EntityNode): Level | 0 {
 	for (const level of [3, 2, 1] as const) {
-		if (holds(held, tree, key, level)) return level;
+		if (holds(held, node, level)) return level;
 	}
 	return 0;
 }
@@ -180,9 +189,9 @@ export function grantsToScopes(
 	return out;
 }
 
-export function resolveNode(tree: EntityTree, key: string): EntityNode {
+export function resolveNode(entities: Entities, key: string): EntityNode {
 	return (
-		tree.nodes.get(key) ?? {
+		entities.get(key) ?? {
 			key,
 			kind: "system",
 			entityType: EntityType.UNSPECIFIED,
@@ -193,32 +202,30 @@ export function resolveNode(tree: EntityTree, key: string): EntityNode {
 	);
 }
 
-export function withScopeEntities(
-	tree: EntityTree,
-	scopes: EntityScope[],
-	names: ReadonlyMap<string, string>,
-): EntityTree {
-	const nodes = new Map(tree.nodes);
+/** Adds the scopes' entities the page could not name, labelled by a short ID. */
+export function withScopeEntities(entities: Entities, scopes: EntityScope[]): Entities {
+	const nodes = new Map(entities);
 	for (const s of scopes) {
 		const key = nodeKey(s.entityType, s.entityId);
 		if (nodes.has(key)) continue;
-		const kind = kindOf(s.entityType);
-		const label = kind === "system" ? "Platform" : (names.get(key) ?? s.entityId.slice(0, 8));
-		nodes.set(key, { key, kind, entityType: s.entityType, id: s.entityId, label, parent: null });
+		const label = s.entityType === EntityType.SYSTEM ? "Platform" : s.entityId.slice(0, 8);
+		nodes.set(key, entityNode(s.entityType, s.entityId, label, null));
 	}
-	return { nodes, order: tree.order, childCount: tree.childCount };
+	return nodes;
 }
 
 const KIND_ORDER: Record<NodeKind, number> = { system: 0, user: 1, org: 2, ws: 3, res: 4 };
 
-export function sortKeys(tree: EntityTree, keys: string[]): string[] {
-	const index = new Map(tree.order.map((n, i) => [n.key, i]));
+/** Orders keys by kind; organizations keep the entities' order, which puts the active one first, and the rest sort by name. */
+export function sortKeys(entities: Entities, keys: string[]): string[] {
+	const index = new Map([...entities.keys()].map((k, i) => [k, i]));
+	const at = (k: string) => index.get(k) ?? Number.MAX_SAFE_INTEGER;
 	return keys.toSorted((a, b) => {
-		const na = resolveNode(tree, a);
-		const nb = resolveNode(tree, b);
+		const na = resolveNode(entities, a);
+		const nb = resolveNode(entities, b);
 		const kd = KIND_ORDER[na.kind] - KIND_ORDER[nb.kind];
 		if (kd !== 0) return kd;
-		return (index.get(a) ?? Number.MAX_SAFE_INTEGER) - (index.get(b) ?? Number.MAX_SAFE_INTEGER);
+		return na.kind === "org" ? at(a) - at(b) : na.label.localeCompare(nb.label);
 	});
 }
 
@@ -245,10 +252,10 @@ export function accessByLevel(chips: readonly AccessChip[]): LevelGroup[] {
 	});
 }
 
-export function accessChips(tree: EntityTree, token: Token): AccessChip[] {
+export function accessChips(entities: Entities, token: Token): AccessChip[] {
 	const grants = tokenGrants(token);
-	return sortKeys(tree, [...grants.keys()])
-		.map((key) => ({ key, level: grants.get(key) ?? 1, node: resolveNode(tree, key) }))
+	return sortKeys(entities, [...grants.keys()])
+		.map((key) => ({ key, level: grants.get(key) ?? 1, node: resolveNode(entities, key) }))
 		.toSorted((a, b) => b.level - a.level);
 }
 
@@ -300,11 +307,11 @@ export function lastUsedLabel(token: Token, now: number): string {
 	return used === undefined ? "never" : agoLabel(used, now);
 }
 
-export function matchesQuery(tree: EntityTree, token: Token, q: string, creator = ""): boolean {
+export function matchesQuery(entities: Entities, token: Token, q: string, creator = ""): boolean {
 	if (q === "") return true;
 	if (token.name.toLowerCase().includes(q) || creator.toLowerCase().includes(q)) return true;
 	for (const s of token.scopes) {
-		const node = tree.nodes.get(nodeKey(s.entityType, s.entityId));
+		const node = entities.get(nodeKey(s.entityType, s.entityId));
 		if (node?.label.toLowerCase().includes(q) === true) return true;
 	}
 	return false;
