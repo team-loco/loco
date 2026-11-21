@@ -9,7 +9,7 @@ import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { CellText, DataTableColumnsMenu, type DataColumn } from "@/components/design/DataTable";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { SoonTag } from "@/components/design/SoonTag";
-import { resourceStatusStyle } from "@/components/design/StatusBadge";
+import { ROLLOUT_STYLE, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { type Glyph, StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { DRAFT_NOTE } from "@/lib/drafts";
@@ -61,7 +61,13 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 	const { nowMs } = useCells();
 	if (cell === undefined) return <span className="text-fg4">—</span>;
 	const style = resourceStatusStyle(cell.status);
-	const tip = [style.label, cell.note, cell.deployedMs === 0 ? "" : `deployed ${agoLabel(cell.deployedMs, nowMs)}`]
+	const rollout = cell.rollout === undefined ? undefined : ROLLOUT_STYLE[cell.rollout];
+	const tip = [
+		style.label,
+		rollout?.label ?? "",
+		cell.note,
+		cell.deployedMs === 0 ? "" : `deployed ${agoLabel(cell.deployedMs, nowMs)}`,
+	]
 		.filter((s) => s !== "")
 		.join(" · ");
 	return (
@@ -76,6 +82,12 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 				</span>
 				<span className={cn("truncate font-mono text-[11.5px]", SUMMARY_TONE[style.glyph] ?? "text-fg3")}>
 					{cellSummary(cell)}
+					{rollout !== undefined && (
+						<span className={SUMMARY_TONE[rollout.glyph]}>
+							{" · "}
+							{cell.rollout === "failed" ? "update failed" : "updating"}
+						</span>
+					)}
 				</span>
 			</TooltipTrigger>
 			<TooltipContent>{tip}</TooltipContent>

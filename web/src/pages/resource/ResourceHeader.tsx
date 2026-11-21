@@ -30,10 +30,11 @@ import {
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/design/Command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { PartialBadge } from "@/components/design/PartialBadge";
-import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge, RolloutBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { deploymentActor } from "@/lib/deployment-utils";
+import { rolloutState } from "@/lib/resource-status";
 import { agoLabel, readyMs } from "@/lib/time";
 
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
@@ -162,7 +163,10 @@ export function ResourceHeader({
 						</h1>
 						<Switcher items={switcher} currentId={resource.id} offset={titleWidth + 4} />
 					</div>
-					<ResourceStatusBadge status={environment?.status} />
+					<span className="flex flex-wrap items-center gap-1.5">
+						<ResourceStatusBadge status={environment?.status} />
+						<RolloutBadge rollout={rolloutState(environment?.regions ?? [])} />
+					</span>
 					{resource.partial !== undefined && <PartialBadge />}
 				</div>
 				<div className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">

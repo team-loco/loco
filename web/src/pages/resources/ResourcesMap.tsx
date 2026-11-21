@@ -6,10 +6,10 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
-import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge, RolloutBadge } from "@/components/design/StatusBadge";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
-import { primaryDomain } from "@/lib/resource-status";
+import { primaryDomain, rolloutState } from "@/lib/resource-status";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { ArchitectureDiagram } from "@/pages/dashboard/ArchitectureDiagram";
 import { isDraftItem, type DashboardItem } from "@/pages/dashboard/resourceRows";
@@ -68,7 +68,10 @@ export function ResourcesMap({
 					<SheetContent>
 						<SheetHeader>
 							<SheetTitle className="truncate">{selected.resource.name}</SheetTitle>
-							<ResourceStatusBadge status={selected.status} />
+							<div className="flex flex-wrap items-center gap-1.5">
+								<ResourceStatusBadge status={selected.status} />
+								<RolloutBadge rollout={rolloutState(selected.environment?.regions ?? [])} />
+							</div>
 						</SheetHeader>
 						<SheetBody>
 							<Fact label="Version">{version}</Fact>

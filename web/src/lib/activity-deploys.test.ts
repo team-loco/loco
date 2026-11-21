@@ -164,6 +164,7 @@ test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 		description: "",
 		region: "us-east-1",
 		status,
+		rollout: undefined,
 		message: "",
 		sinceMs: undefined,
 	});

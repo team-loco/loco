@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import uuid
 
 from harness import evidence, load_state, open_page, repo, session
@@ -81,6 +82,26 @@ evidence.seed_resources(
         },
         {
             "workspace": "acme/shared",
+            "name": "badge-update-failed",
+            "service": service(),
+            "deployments": [
+                {"environment": "production", "status": "failed", "spec": runtime(2)}
+            ],
+        },
+        {
+            "workspace": "acme/shared",
+            "name": "badge-updating",
+            "service": service(),
+            "deployments": [
+                {
+                    "environment": "production",
+                    "status": "deploying",
+                    "spec": runtime(2),
+                }
+            ],
+        },
+        {
+            "workspace": "acme/shared",
             "name": "badge-pending",
             "service": service(),
             "deployments": [],
@@ -134,9 +155,22 @@ def expect_running(page):
     expect(badge).to_have_attribute("data-status-badge", "ok")
 
 
+FAILED_UPDATE = "Update failed · previous version serving"
+
+
+def expect_badges(scope, labels):
+    expect(scope.locator("[data-status-badge]")).to_have_text(labels)
+
+
 def check_dashboard(page):
     page.goto(base + "?env=production")
     expect_badge(row_of(page, "badge-healthy"), "Healthy", "ok")
+    expect_badges(row_of(page, "badge-healthy"), ["Healthy"])
+    expect_badges(row_of(page, "badge-update-failed"), ["Healthy", FAILED_UPDATE])
+    expect(
+        row_of(page, "badge-update-failed").locator("[data-status-badge]").nth(1)
+    ).to_have_attribute("data-status-badge", "err")
+    expect_badges(row_of(page, "badge-updating"), ["Healthy", "Updating"])
     expect_badge(row_of(page, "badge-degraded"), "Degraded", "warn")
     expect_badge(row_of(page, "badge-pending"), "Pending", "neutral")
     expect_badge(row_of(page, "badge-draft"), "Draft", "neutral")
@@ -151,6 +185,31 @@ def check_resource_page(page):
     )
     expect(header.locator("[data-status-badge]").first).to_have_text("Degraded")
     expect_running(page)
+    page.goto(base + "?env=production")
+    row_of(page, "badge-update-failed").get_by_role(
+        "link", name="badge-update-failed"
+    ).click()
+    header = page.get_by_role(
+        "heading", name="badge-update-failed", exact=True
+    ).locator("xpath=ancestor::div[contains(@class,'flex-wrap')][1]")
+    expect_badges(header, ["Healthy", FAILED_UPDATE])
+
+
+def check_resources_table(page):
+    page.goto(base + "/resources?env=production")
+    expect(row_of(page, "badge-update-failed")).to_contain_text("update failed")
+    expect(row_of(page, "badge-updating")).to_contain_text("updating")
+    expect(row_of(page, "badge-healthy")).not_to_contain_text("update")
+
+
+def check_activity(page):
+    page.goto(base + "?env=production")
+    page.get_by_role("button", name=re.compile(r"^Workspace activity, ")).click()
+    drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
+    card = drawer.get_by_role("listitem").filter(
+        has=page.get_by_role("link", name="badge-update-failed", exact=True)
+    )
+    expect_badges(card, ["Healthy", FAILED_UPDATE])
 
 
 with session(repo / "tests/ui/out/status-badge") as browser:
@@ -168,6 +227,8 @@ with session(repo / "tests/ui/out/status-badge") as browser:
             check_dashboard(page)
             if color == "loco" and mode == "light":
                 check_resource_page(page)
+                check_resources_table(page)
+                check_activity(page)
             assert not errors, errors
             context.close()
 print("PASS: resource and deployment status render as status badges in every theme")

@@ -1,7 +1,7 @@
 import { PlacementStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus, type RegionStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
-import { environmentStatus } from "@/lib/resource-status";
+import { environmentStatus, rolloutState, type Rollout } from "@/lib/resource-status";
 import { maybeTsMs } from "@/lib/time";
 
 export interface Alert {
@@ -12,6 +12,7 @@ export interface Alert {
 	description: string;
 	region: string;
 	status: ResourceStatus;
+	rollout: Rollout | undefined;
 	message: string;
 	sinceMs: number | undefined;
 }
@@ -53,6 +54,7 @@ export function buildAlerts(resources: Resource[], environmentId: string): Alert
 				description: resource.description ?? "",
 				region: r.region,
 				status: r.status,
+				rollout: rolloutState([r]),
 				message: r.message ?? "",
 				sinceMs: maybeTsMs(r.statusSince),
 			})),
