@@ -1573,7 +1573,9 @@ type ListDeploymentsRequest struct {
 	// Sets total_count in the response.
 	IncludeTotalCount bool `protobuf:"varint,8,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
 	// Lists only deployments in these statuses; empty lists every status.
-	Statuses      []DeploymentStatus `protobuf:"varint,9,rep,packed,name=statuses,proto3,enum=loco.deployment.v1.DeploymentStatus" json:"statuses,omitempty"`
+	Statuses []DeploymentStatus `protobuf:"varint,9,rep,packed,name=statuses,proto3,enum=loco.deployment.v1.DeploymentStatus" json:"statuses,omitempty"`
+	// Lists only deployments whose spec builds from this build.
+	BuildId       string `protobuf:"bytes,10,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1669,6 +1671,13 @@ func (x *ListDeploymentsRequest) GetStatuses() []DeploymentStatus {
 		return x.Statuses
 	}
 	return nil
+}
+
+func (x *ListDeploymentsRequest) GetBuildId() string {
+	if x != nil {
+		return x.BuildId
+	}
+	return ""
 }
 
 // ListDeploymentsResponse is the response containing deployment list.
@@ -3401,7 +3410,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x15GetDeploymentResponse\x12>\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
-	"deployment\"\xb6\x06\n" +
+	"deployment\"\xde\x06\n" +
 	"\x16ListDeploymentsRequest\x12,\n" +
 	"\vresource_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12'\n" +
@@ -3414,7 +3423,9 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12.\n" +
 	"\x13include_total_count\x18\b \x01(\bR\x11includeTotalCount\x12S\n" +
-	"\bstatuses\x18\t \x03(\x0e2$.loco.deployment.v1.DeploymentStatusB\x11\xbaH\x0e\x92\x01\v\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\bstatuses:\xd8\x02\xbaH\xd4\x02\x1a\xdb\x01\n" +
+	"\bstatuses\x18\t \x03(\x0e2$.loco.deployment.v1.DeploymentStatusB\x11\xbaH\x0e\x92\x01\v\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\bstatuses\x12&\n" +
+	"\bbuild_id\x18\n" +
+	" \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\abuildId:\xd8\x02\xbaH\xd4\x02\x1a\xdb\x01\n" +
 	"\x16list_deployments.scope\x127provide resource_id or workspace_id with environment_id\x1a\x87\x01(this.resource_id != '' && this.workspace_id == '') || (this.resource_id == '' && this.workspace_id != '' && this.environment_id != '')\x1at\n" +
 	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\xa4\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +

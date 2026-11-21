@@ -349,6 +349,11 @@ message ListDeploymentsRequest {
       }
     }
   }];
+  // Lists only deployments whose spec builds from this build.
+  string build_id = 10 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
 // ListDeploymentsResponse is the response containing deployment list.
