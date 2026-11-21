@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/pkg/varref"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -84,6 +85,7 @@ func createDeployment(
 	params.SpecVersion = specVersion
 	params.PlainEnv = d.resolved.Plain
 	params.SecretEnv = d.resolved.Secret
+	params.Traceparent = tracing.Origin(ctx)
 	deploymentID, err := qtx.CreateDeployment(ctx, params)
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)

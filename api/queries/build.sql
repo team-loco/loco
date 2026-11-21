@@ -1,8 +1,9 @@
 -- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
-                    api_token_id, git_commit, git_branch, git_commit_message, platform, origin_environment_id, method)
+                    api_token_id, git_commit, git_branch, git_commit_message, platform, origin_environment_id, method, traceparent)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
-        sqlc.narg(api_token_id), sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message), sqlc.arg(platform), sqlc.narg(origin_environment_id), sqlc.arg(method))
+        sqlc.narg(api_token_id), sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message), sqlc.arg(platform), sqlc.narg(origin_environment_id), sqlc.arg(method),
+        sqlc.narg(traceparent))
 RETURNING *;
 
 -- name: GetBuildByID :one
@@ -322,3 +323,6 @@ WHERE b.id = $1 FOR UPDATE OF r;
 
 -- name: LockBuild :one
 SELECT * FROM builds WHERE id = $1 FOR UPDATE;
+
+-- name: GetBuildTraceparent :one
+SELECT traceparent FROM builds WHERE id = $1;

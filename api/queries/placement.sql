@@ -279,3 +279,9 @@ UPDATE placements SET desired_deleted = true, desired_spec = NULL,
 WHERE resource_id = sqlc.arg(resource_id) AND environment_id = sqlc.arg(environment_id)
  AND region = sqlc.arg(region) AND cluster_id <> sqlc.arg(cluster_id) AND NOT desired_deleted
 RETURNING id, cluster_id, desired_revision;
+
+-- name: GetPlacementTraceparent :one
+SELECT d.traceparent
+FROM placements p
+JOIN deployments d ON d.id = p.deployment_id
+WHERE p.id = $1;
