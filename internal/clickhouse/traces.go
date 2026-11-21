@@ -29,7 +29,7 @@ func (c *Client) GetTrace(
 	lookup, query, args := buildGetTraceQueries(req, c.queryTimeout)
 	var count uint64
 	var start, end time.Time
-	if err := c.conn.QueryRow(ctx, lookup, args...).Scan(&count, &start, &end); err != nil {
+	if err := c.scanRow(ctx, "LookupTrace", lookup, args, &count, &start, &end); err != nil {
 		return nil, fmt.Errorf("look up trace timestamps: %w", err)
 	}
 	if count == 0 {
@@ -37,7 +37,7 @@ func (c *Client) GetTrace(
 	}
 	// The lookup stores whole seconds, so include the fractional part of its final second.
 	args = append(args, start.UnixNano(), end.Add(time.Second).UnixNano())
-	rows, err := c.conn.Query(ctx, query, args...)
+	rows, err := c.query(ctx, "GetTrace", query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse trace query: %w", err)
 	}
