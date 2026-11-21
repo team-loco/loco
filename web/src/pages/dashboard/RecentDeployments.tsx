@@ -15,7 +15,7 @@ import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { observabilityPath, resourcePath } from "@/lib/routes";
-import { agoLabel, formatStarted, readyMs } from "@/lib/time";
+import { agoLabel, DAY_MS, formatStarted, readyMs } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -167,7 +167,7 @@ export function RecentDeployments({
 			variant="outline"
 			size="sm"
 			nativeButton={false}
-			render={<Link to={observabilityPath(orgId, workspaceId, "events", { env: envName })} />}
+			render={<Link to={observabilityPath(orgId, workspaceId, "events", { env: envName, range: DAY_MS })} />}
 		>
 			View all
 			<ArrowRightIcon />
