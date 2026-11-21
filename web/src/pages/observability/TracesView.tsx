@@ -38,7 +38,7 @@ import { TraceOverview } from "./TraceOverview";
 import { TraceSetup } from "./TraceSetup";
 import { traceIdentity } from "./trace-service";
 import { ViewHeader } from "./ViewHeader";
-import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, timestampMs, uniqueSpans } from "./traces";
+import { TRACE_ID_PATTERN, durationLabel, spansMayArrive, summarizeTraces, timestampMs, uniqueSpans } from "./traces";
 
 const SORT_IDS = ["duration", "operation", "resource", "status", "spans"] as const;
 const DEFAULT_PAGE_SIZE = 25;
@@ -54,6 +54,7 @@ const TRACES_PARAMS = {
 };
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
 const COUNT_LIMIT = 1;
+const ARRIVAL_POLL_MS = 5000;
 
 type SortId = (typeof SORT_IDS)[number];
 const START_TIME = "when";
@@ -139,6 +140,8 @@ function TraceSession({
 		resourceIds: scopedResourceIds ?? [],
 		traceId: shownId,
 		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId) && scopeReady,
+		refetchInterval: ({ state }) =>
+			spansMayArrive(state.data?.spans ?? [], state.dataUpdatedAt) ? ARRIVAL_POLL_MS : false,
 	});
 
 	const traces = scopeReady ? (browse.data?.summaries ?? []) : [];
@@ -348,6 +351,7 @@ function TraceSession({
 				open={openId !== ""}
 				traceId={shownId}
 				trace={openTrace}
+				arriving={spansMayArrive(detailSpans, detail.dataUpdatedAt)}
 				loading={detail.isLoading}
 				error={detail.error}
 				onRetry={async () => await detail.refetch()}

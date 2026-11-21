@@ -1961,6 +1961,38 @@ with session(out) as browser:
             )
         assert not errors, errors
         context.close()
+    context, page, errors = open_page(browser, state=state, now=start + 1)
+    context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
+    page.goto(state["ui_url"] + base + "&trace=" + trace)
+    arriving = (
+        page.get_by_role("dialog", name=root_name)
+        .get_by_role("status")
+        .filter(has_text="Spans may still be arriving")
+    )
+    expect(arriving).to_be_visible()
+
+    def trace_reads():
+        return sum(1 for row in recorded if row.get("traceId") == trace)
+
+    def wait_for_reads(count):
+        for _ in range(50):
+            if trace_reads() >= count:
+                return
+            page.wait_for_timeout(100)
+        raise AssertionError(f"expected {count} trace reads, got {trace_reads()}")
+
+    reads = trace_reads()
+    page.clock.run_for(5000)
+    wait_for_reads(reads + 1)
+    expect(arriving).to_be_visible()
+    page.clock.run_for(30000)
+    expect(arriving).to_have_count(0)
+    reads = trace_reads()
+    page.clock.run_for(20000)
+    page.wait_for_timeout(500)
+    assert trace_reads() == reads, (reads, trace_reads())
+    assert not errors, errors
+    context.close()
     browser.close()
 assert all(row.get("scope", {}).get("environmentId") for row in recorded)
 assert all(
@@ -1969,5 +2001,5 @@ assert all(
     if row.get("traceId")
 )
 print(
-    "PASS browser trace list, complete drawer spans, span selection and attributes, span attribute filters, query text requests, frozen bounds, whole-row trace buttons, resizable trace columns, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and production UI; trace responses use explicit browser fixtures."
+    "PASS browser trace list, complete drawer spans, span selection and attributes, span attribute filters, query text requests, frozen bounds, whole-row trace buttons, resizable trace columns, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and a refetch while spans of a recent trace may still arrive, and production UI; trace responses use explicit browser fixtures."
 )

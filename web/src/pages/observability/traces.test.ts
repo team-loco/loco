@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
-import { durationLabel, spanLinkSearch, spanStatus, spanTree, summarizeTraces, uniqueSpans } from "./traces";
+import {
+	durationLabel,
+	spanLinkSearch,
+	spansMayArrive,
+	spanStatus,
+	spanTree,
+	summarizeTraces,
+	uniqueSpans,
+} from "./traces";
 
 const span = (id: string, parent = "", nanos = 0) =>
 	create(TraceSpanSchema, {
@@ -79,4 +87,15 @@ test("reads every OTel status spelling as Error, OK or Unset", () => {
 	expect(["Error", "STATUS_CODE_ERROR", "2"].map(status)).toEqual(["Error", "Error", "Error"]);
 	expect(["Ok", "STATUS_CODE_OK", "1"].map(status)).toEqual(["OK", "OK", "OK"]);
 	expect(["Unset", "STATUS_CODE_UNSET", "0", ""].map(status)).toEqual(["Unset", "Unset", "Unset", "Unset"]);
+});
+
+test("spans may still arrive for 30s after a trace ends, or 2 minutes while a parent is missing", () => {
+	const end = 1_800_000_000_000 + 100 / 1_000_000;
+	const whole = [span("a"), span("b", "a")];
+	const orphan = [span("a"), span("c", "missing")];
+	expect(spansMayArrive(whole, end + 29_000)).toBe(true);
+	expect(spansMayArrive(whole, end + 31_000)).toBe(false);
+	expect(spansMayArrive(orphan, end + 90_000)).toBe(true);
+	expect(spansMayArrive(orphan, end + 121_000)).toBe(false);
+	expect(spansMayArrive([], end)).toBe(false);
 });
