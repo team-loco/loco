@@ -232,6 +232,17 @@ test("commandEntries keeps one entry per line as typed", () => {
 	expect(commandEntries(commandText(["-text=a, b", "$(PORT)"]))).toEqual(["-text=a, b", "$(PORT)"]);
 });
 
+test("locoYaml omits domains until the subdomain and platform domain are known", () => {
+	const yaml = (patch: Partial<typeof form>) =>
+		Bun.YAML.parse(locoYaml({ schemaUrl: "", form: { ...form, isPublic: true, ...patch } })) as {
+			services: Record<string, { domains?: string[] }>;
+		};
+	const domains = (patch: Partial<typeof form>) => Object.values(yaml(patch).services)[0]?.domains;
+	expect(domains({ subdomain: "web", platformDomain: "" })).toBeUndefined();
+	expect(domains({ subdomain: "", platformDomain: "loco.test" })).toBeUndefined();
+	expect(domains({ subdomain: "web", platformDomain: "loco.test" })).toEqual(["web.loco.test"]);
+});
+
 test("locoYaml writes the command", () => {
 	const yaml = locoYaml({ schemaUrl: "", form: { ...form, command: "/bin/sh\n-c", args: "exec app: now" } });
 	expect(yaml).toContain('    command: [/bin/sh, -c]\n    args: ["exec app: now"]\n');

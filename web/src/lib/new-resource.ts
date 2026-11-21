@@ -336,7 +336,8 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 	}
 	if (form.port.trim() !== "") lines.push(`    port: ${yamlInt(form.port)}`);
 	if (form.health.path !== "") lines.push(healthYaml(form.health, flow));
-	if (form.isPublic) lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
+	if (form.isPublic && form.subdomain !== "" && form.platformDomain !== "")
+		lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
 	const vars = envVars(form.vars);
 	if (vars.length > 0) {
 		lines.push("    env:");
