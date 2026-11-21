@@ -7,7 +7,7 @@ import {
 	type Deployment,
 } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { diffLines, sideBySide, specChanges, toYaml } from "./spec";
+import { diffLines, sideBySide, specChanges, specRows, toYaml } from "./spec";
 
 function deployment(image: string, replicas: number, env: Record<string, string>): Deployment {
 	return create(DeploymentSchema, {
@@ -72,6 +72,21 @@ describe("specChanges", () => {
 	test("is empty for the same spec", () => {
 		const dep = deployment("ghcr.io/acme/shop:1.4.0", 2, {});
 		expect(specChanges(dep, dep)).toEqual([]);
+	});
+});
+
+describe("specRows", () => {
+	test("keeps the settings that match beside the ones that differ", () => {
+		const from = deployment("ghcr.io/acme/shop:1.4.0", 2, { LOG_LEVEL: "info" });
+		const to = deployment("ghcr.io/acme/shop:1.4.0", 3, { LOG_LEVEL: "info" });
+		const rows = specRows(from, to);
+		expect(rows.filter((r) => !r.same).map((r) => r.label)).toEqual(["replicas"]);
+		expect(rows.find((r) => r.label === "env.LOG_LEVEL")).toEqual({
+			label: "env.LOG_LEVEL",
+			from: "info",
+			to: "info",
+			same: true,
+		});
 	});
 });
 

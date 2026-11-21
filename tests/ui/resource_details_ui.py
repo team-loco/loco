@@ -215,7 +215,16 @@ with session(out) as browser:
     expect(
         runtime_events.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()
-    runtime_events.get_by_role("button", name="Warnings", exact=True).click()
+    expect(runtime_events.get_by_text("Last 7 days", exact=True)).to_be_visible()
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: (
+            "deployment.failed" in body.get("query", "")
+            and "deployment.ready" not in body.get("query", "")
+        ),
+    ):
+        runtime_events.get_by_role("button", name="Warnings", exact=True).click()
     expect(
         runtime_events.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()
@@ -228,6 +237,11 @@ with session(out) as browser:
     ).to_be_visible()
     # Every "deployed N ago" counts from when the deployment became ready.
     expect(page.get_by_text("deployed 10m ago by Olivia Owner")).to_be_visible()
+    page.get_by_role("tab", name=re.compile(r"^Builds")).click()
+    expect(
+        page.get_by_text(f"No builds. {name} runs a public image.", exact=True)
+    ).to_be_visible()
+    page.get_by_role("tab", name=re.compile(r"^Deployments")).click()
     deployment_row = page.get_by_role("row").filter(has_text=deployment[:8])
     expect(deployment_row.get_by_role("cell").nth(-1)).to_have_text("10m ago")
     expect(deployment_row.get_by_role("cell").nth(-2)).to_have_text("30m ago")

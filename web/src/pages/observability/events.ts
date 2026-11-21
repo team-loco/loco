@@ -1,6 +1,7 @@
 import { resolveWindow, type TimeWindow } from "@/lib/obs-time";
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { WorkspaceEventWithResource } from "@/hooks/useWorkspaceEvents";
+import type { RuntimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
 
@@ -38,7 +39,7 @@ export function eventTitle(type: string, region = ""): string {
 	return `${TYPE_TITLES[type] ?? type}${REGIONAL_TITLES.has(type) && region !== "" ? ` in ${region}` : ""}`;
 }
 
-export function eventSummary(e: WorkspaceEventWithResource): string {
+export function eventSummary(e: RuntimeEvent): string {
 	if (e.message !== "") return e.message;
 	if (e.type === "resource.degraded") return e.reason;
 	if (e.type === "resource.scaled")

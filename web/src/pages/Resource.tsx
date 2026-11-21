@@ -40,7 +40,7 @@ import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
 import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
-import { newestFirst, recentWarningCount } from "@/pages/resource/events";
+import { drawerEventTypes, newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
@@ -70,6 +70,7 @@ import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 
 const EVENTS_REFRESH_MS = 30_000;
+const EVENTS_DRAWER_WINDOW_MS = 7 * 24 * 3_600_000;
 const CLOCK_TICK_MS = 60_000;
 
 const VIEWS = ["overview", ...SETTINGS_FOCUSES] as const;
@@ -121,13 +122,26 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { resourceLevel, workspaceLevel } = useMyScopes();
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const configQuery = useQuery(getConfig, {});
+	const eventScope = {
+		orgId: activeOrgId ?? "",
+		workspaceId: activeWorkspaceId ?? "",
+		resourceId,
+		environmentId: environmentId ?? "",
+	};
 	const eventsQuery = useTanstackQuery({
-		...runtimeEventsOptions(transport, {
-			orgId: activeOrgId ?? "",
-			workspaceId: activeWorkspaceId ?? "",
-			resourceId,
-			environmentId: environmentId ?? "",
-		}),
+		...runtimeEventsOptions(transport, eventScope),
+		refetchInterval: EVENTS_REFRESH_MS,
+	});
+	const [eventsTab, setEventsTab] = useState<EventsTab>("all");
+	// The drawer's window starts when it opens.
+	const [eventsSince, setEventsSince] = useState<number | null>(null);
+	const drawerEventsOptions = runtimeEventsOptions(transport, eventScope, {
+		types: drawerEventTypes(eventsTab === "warnings"),
+		startMs: eventsSince ?? undefined,
+	});
+	const drawerEventsQuery = useTanstackQuery({
+		...drawerEventsOptions,
+		enabled: drawerEventsOptions.enabled === true && eventsSince !== null,
 		refetchInterval: EVENTS_REFRESH_MS,
 	});
 
@@ -146,7 +160,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const [notice, setNotice] = useState<Notice | null>(null);
 	const [redeploying, setRedeploying] = useState(false);
 	const [eventsOpen, setEventsOpen] = useState(false);
-	const [eventsTab, setEventsTab] = useState<EventsTab>("all");
 	const [draft, setDraft] = useState<SettingsDraft>({});
 	const deploy = useMutation(createDeployment);
 	const del = useMutation(deleteResource);
@@ -378,6 +391,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				canDelete={canDelete}
 				rollbackTarget={rollbackTarget}
 				onEvents={() => {
+					setEventsSince(Date.now() - EVENTS_DRAWER_WINDOW_MS);
 					setEventsOpen(true);
 				}}
 				onSettings={() => {
@@ -478,6 +492,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						/>
 					)}
 					<DeploymentsSection
+						resourceName={resource.name}
 						environmentId={environmentId}
 						nowMs={nowMs}
 						resourceId={resource.id}
@@ -544,9 +559,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				tab={eventsTab}
 				onTab={setEventsTab}
 				resourceName={resource.name}
-				events={events}
-				isLoading={eventsQuery.isLoading}
-				error={eventsQuery.error}
+				events={(drawerEventsQuery.data?.events ?? []).map(runtimeEvent)}
+				isLoading={drawerEventsQuery.isLoading}
+				error={drawerEventsQuery.error}
 				eventsHref={obsLink("events")}
 			/>
 

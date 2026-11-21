@@ -361,7 +361,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(logs).to_have_count(1)
     panel.get_by_role("button", name="Roll back to v1", exact=True).click()
     dialog = page.get_by_role(
-        "dialog", name="Roll back progress-ui in us-ca-1", exact=True
+        "dialog", name="Roll back progress-ui to v1 in us-ca-1?", exact=True
     )
     expect(dialog).to_be_visible()
     mutations = []

@@ -344,6 +344,8 @@ with session(out) as browser:
     expect(
         section.get_by_role("button", name="Copy SHA", exact=True)
     ).to_have_attribute("title", f"Copy {'7c41e9a'.ljust(40, '0')}")
+    steps = section.get_by_role("list", name="Rollout steps", exact=True)
+    expect(steps.get_by_text("Deploy replicas", exact=False)).to_be_visible()
     section.get_by_role("button", name="View spec", exact=True).click()
     spec_dialog = page.get_by_role(
         "dialog", name="history-pilot deployment spec", exact=True
@@ -663,8 +665,19 @@ with session(out) as browser:
     ).to_be_enabled()
     expect(page.get_by_role("menuitem", name="Restart", exact=True)).to_be_enabled()
     page.get_by_role("menuitem", name=re.compile(r"^Roll back")).click()
+    rollback_dialog = page.get_by_role(
+        "dialog", name=re.compile(r"^Roll back history-pilot to .+ in .+\?$")
+    )
+    summary = rollback_dialog.get_by_text(
+        re.compile(r"^(\d+ changes? · \d+ unchanged|No spec changes · \d+ settings)$")
+    )
+    expect(summary).to_be_visible()
+    rollback_dialog.get_by_role("button", name="Show everything", exact=True).click()
     expect(
-        page.get_by_role("dialog", name=re.compile(r"^Roll back history-pilot in "))
+        rollback_dialog.get_by_role("rowheader", name="image", exact=True)
+    ).to_be_visible()
+    expect(
+        rollback_dialog.get_by_role("button", name="Only changes", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
     page.goto(
