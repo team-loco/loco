@@ -205,6 +205,14 @@ export function toQuery({ q, r }: { q: Query; r: string[] }): Query {
 	return { tokens: [...named, ...q.tokens], text: q.text };
 }
 
+/** The query a view keeps from another view: its @resource and @region terms that the view can filter by. */
+export function carriedQuery(view: ObservabilityView, tokens: Token[]): string | null {
+	const kept = tokens.filter(
+		(t) => (t.key === "resource" || t.key === "region") && fieldDef(t.key)?.views.includes(view),
+	);
+	return queryStr(kept, "") || null;
+}
+
 export function sameToken(a: Token, b: Token): boolean {
 	return a.key === b.key && a.neg === b.neg && a.value.toLowerCase() === b.value.toLowerCase();
 }

@@ -14,13 +14,15 @@ import {
 	WebhookIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { parseAsString, useQueryStates } from "nuqs";
+import { createLoader, parseAsString, useQueryStates } from "nuqs";
 import { useLocation } from "react-router";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { pageImporters } from "@/lib/lazy-pages";
+import { WINDOW_PARSERS } from "@/lib/obs-time";
+import { carriedQuery, QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 import {
 	auditPath,
 	secretsPath,
@@ -56,9 +58,10 @@ const OBSERVABILITY_PAGES: { view: ObservabilityView; name: string; icon: ReactN
 ];
 
 const NAV_PARAMS = { env: parseAsString, view: observabilityViewParser };
+const loadCarried = createLoader({ ...WINDOW_PARSERS, ...QUERY_PARSERS });
 
 export function useNavSections(): NavSection[] {
-	const { pathname } = useLocation();
+	const { pathname, search } = useLocation();
 	const [{ env, view }] = useQueryStates(NAV_PARAMS);
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
@@ -66,6 +69,9 @@ export function useNavSections(): NavSection[] {
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
 	const onObs = wsBase !== null && pathname.startsWith(`${wsBase}/observability`);
+	const { range, from, to, q, r } = loadCarried(search);
+	const carried = { range, from, to };
+	const carriedTokens = toQuery({ q, r }).tokens;
 	const audit = useAuditAccess(activeOrgId);
 	const scopes = useMyScopes();
 
@@ -96,7 +102,16 @@ export function useNavSections(): NavSection[] {
 				name: page.name,
 				icon: page.icon,
 				keywords: "observability",
-				to: hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, page.view, envParams) : undefined,
+				to: hasWs
+					? observabilityPath(
+							activeOrgId,
+							activeWorkspaceId,
+							page.view,
+							onObs && view !== page.view
+								? { ...envParams, ...carried, q: carriedQuery(page.view, carriedTokens) }
+								: envParams,
+						)
+					: undefined,
 				active: onObs && view === page.view,
 				preload: pageImporters.Observability,
 			})),

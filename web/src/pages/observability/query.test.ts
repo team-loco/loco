@@ -7,6 +7,7 @@ import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 
 import {
 	addRecent,
+	carriedQuery,
 	buildBackendQuery,
 	parseQuery,
 	pinnedKey,
@@ -246,5 +247,19 @@ describe("log queries", () => {
 	test("scopes to the readable resources and waits until one is known", () => {
 		expect(buildBackendQuery([], "", ["r1"]).resourceIds).toEqual(["r1"]);
 		expect(buildBackendQuery([], "", []).impossible).toBe(true);
+	});
+});
+
+describe("carriedQuery", () => {
+	const tokens = parseQuery("@resource:web @region:eu-west-1 @level:error -@resource:api").tokens;
+
+	test("keeps resource and region terms the target view can filter by", () => {
+		expect(carriedQuery("logs", tokens)).toBe("@resource:web @region:eu-west-1 -@resource:api");
+		expect(carriedQuery("events", tokens)).toBe("@resource:web @region:eu-west-1 -@resource:api");
+	});
+
+	test("drops region where the view has no region filter, and returns null when nothing is left", () => {
+		expect(carriedQuery("traces", tokens)).toBe("@resource:web -@resource:api");
+		expect(carriedQuery("traces", parseQuery("@region:eu-west-1").tokens)).toBeNull();
 	});
 });
