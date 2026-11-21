@@ -622,6 +622,7 @@ otel-col-daemon:
               - merge_maps(cache, ExtractPatterns(cache["message"], "(?i)^(?:[0-9]{4}-[0-9T:.+Z/ -]+\\s+)?(?:level=|\\[)?(?P<level>TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL|PANIC)(?:\\]|[\\s:=]|$)"), "upsert") where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
               - set(cache["fields"], ParseKeyValue(cache["message"])) where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
               - set(cache["level"], cache["fields"]["level"]) where cache["level"] == nil and IsMap(cache["fields"])
+              - set(cache["level"], "ERROR") where cache["level"] == nil and attributes["log.iostream"] == "stderr"
               - set(cache["level"], ToUpperCase(cache["level"])) where IsString(cache["level"])
               - set(severity_text, "TRACE") where cache["level"] == "TRACE"
               - set(severity_number, 1) where severity_text == "TRACE"

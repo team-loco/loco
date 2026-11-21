@@ -99,3 +99,64 @@ def test_collected_log_severity(tmp_path, source):
             assert record["body"]["stringValue"] == body
             assert record.get("severityText", "") == severity, record
             assert record.get("severityNumber", 0) == number, record
+
+
+def test_stderr_log_severity(tmp_path):
+    transform = chart_values("loco-worker")["otel-col-daemon"]["config"]["processors"][
+        "transform/log_severity"
+    ]
+    cases = [
+        ("stderr", "Traceback (most recent call last):", "ERROR", 17),
+        ("stderr", '{"level":', "ERROR", 17),
+        ("stderr", "INFO listening on :8080", "INFO", 9),
+        ("stderr", '{"level":"warning","message":"low memory"}', "WARN", 13),
+        ("stderr", "level=debug msg=checking", "DEBUG", 5),
+        ("stderr", '{"level":"custom"}', "", 0),
+        ("stdout", "a plain message", "", 0),
+    ]
+    log_path = (
+        tmp_path / "pods/default_fixture_00000000-0000-4000-8000-000000000001/app/0.log"
+    )
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text(
+        "".join(
+            f"2026-10-19T12:00:00.000000000Z {stream} F {body}\n"
+            for stream, body, _, _ in cases
+        )
+    )
+    config = {
+        "receivers": {
+            "file_log": {
+                "include": ["/data/pods/*/*/*.log"],
+                "include_file_path": True,
+                "start_at": "beginning",
+                "operators": [{"id": "container-parser", "type": "container"}],
+            }
+        },
+        "processors": {"transform/log_severity": transform},
+        "exporters": {"file": {"path": "/data/output.json", "flush_interval": "100ms"}},
+        "service": {
+            "pipelines": {
+                "logs": {
+                    "receivers": ["file_log"],
+                    "processors": ["transform/log_severity"],
+                    "exporters": ["file"],
+                }
+            }
+        },
+    }
+    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
+        received = read_output(
+            collector,
+            lambda document: [
+                record
+                for resource in document["resourceLogs"]
+                for scope in resource["scopeLogs"]
+                for record in scope["logRecords"]
+            ],
+            len(cases),
+        )
+        for record, (_, body, severity, number) in zip(received, cases, strict=True):
+            assert record["body"]["stringValue"] == body
+            assert record.get("severityText", "") == severity, record
+            assert record.get("severityNumber", 0) == number, record
