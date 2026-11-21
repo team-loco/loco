@@ -382,7 +382,7 @@ export function MetricChart({
 									strokeDasharray="5 4"
 									label={{
 										value: "limit",
-										position: "insideTopLeft",
+										position: "insideBottomLeft",
 										fill: "var(--color-bad-fg)",
 										fontSize: 10,
 									}}
