@@ -1171,26 +1171,20 @@ def dashboard(page):
             page.get_by_role("button").filter(has_text="Olivia Owner").click()
             modes = page.get_by_role("radiogroup", name="Mode")
             expect(modes.get_by_role("radio", checked=True)).to_be_focused()
-            # The open user menu stays by its sidebar trigger while the page scrolls.
-            scrolled, moved, scroller = modes.evaluate(
+            # The open user menu stays by its sidebar trigger while the page scrolls under it.
+            scrolled, moved = modes.evaluate(
                 """group => {
-                    // The menu's scroll lock can move the page's scroller from <html> to <body>.
-                    const range = (el) => el.scrollHeight - el.clientHeight;
-                    const page = [document.scrollingElement, document.body].reduce((a, b) =>
-                        range(b) > range(a) ? b : a,
-                    );
-                    const [y, top] = [page.scrollTop, group.getBoundingClientRect().top];
-                    page.scrollTop = y >= 100 ? y - 100 : y + 100;
-                    const result = [
-                        page.scrollTop - y,
-                        group.getBoundingClientRect().top - top,
-                        `${page.tagName} range ${range(page)}`,
-                    ];
-                    page.scrollTop = y;
+                    const rows = document.querySelectorAll('main [role="row"]');
+                    const row = rows[rows.length - 1];
+                    const saved = [document.documentElement, document.body].map((el) => [el, el.scrollTop]);
+                    const [rowTop, top] = [row.getBoundingClientRect().top, group.getBoundingClientRect().top];
+                    row.scrollIntoView({ block: 'end' });
+                    const result = [row.getBoundingClientRect().top - rowTop, group.getBoundingClientRect().top - top];
+                    for (const [el, y] of saved) el.scrollTop = y;
                     return result;
                 }"""
             )
-            assert scrolled != 0 and moved == 0, (scrolled, moved, scroller)
+            assert scrolled != 0 and moved == 0, (scrolled, moved)
             modes.get_by_role("radio", name="Dark", exact=True).click()
             page.keyboard.press("Escape")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
