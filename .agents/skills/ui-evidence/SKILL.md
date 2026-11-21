@@ -1,6 +1,6 @@
 ---
 name: ui-evidence
-description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Captures locally and clicks through a running app, with each commit built once into a machine-wide cache and run with its own database on a Postgres server and OpenBao every run shares; the `ci-evidence` skill takes them in CI. Load before taking PR screenshots.
+description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Captures locally and clicks through a running app, with each commit built once into a machine-wide cache, run with its own database on a Postgres server and OpenBao every run shares, and shot in its own context of a shared headless Chromium; the `ci-evidence` skill takes them in CI. Load before taking PR screenshots.
 context: fork
 agent: ui-evidence
 allowed-tools: Bash, Read, Write
@@ -151,7 +151,9 @@ mise exec -- uv run --script "$E" <command>
    expired runs and leftovers whose owner is gone. A failed `up` stops itself after printing its
    API and UI logs. Runs share one Postgres server per Postgres image and one seeded OpenBao per
    OpenBao setup, each run with its own database. The registry stops a shared server once no
-   live run holds it, and `down` drops the run's database.
+   live run holds it, and `down` drops the run's database. `shoot` connects to one headless
+   Chromium per Playwright version that every run shares, started on demand and stopped once
+   no `shoot` or suite uses it.
 
 ## Networks and OpenBao
 

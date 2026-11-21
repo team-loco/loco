@@ -9,10 +9,12 @@ import contextlib
 import fcntl
 import hashlib
 import http.server
+import importlib.metadata
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tarfile
@@ -46,6 +48,9 @@ SESSION_TTL = "1 day"
 READY_TIMEOUT_S = 120
 POSTGRES_READY_TIMEOUT_S = 300
 STEP_TIMEOUT_MS = 15000
+# A shared browser that does not answer a connection within these is frozen.
+BROWSER_CHECK_TIMEOUT_MS = 5000
+BROWSER_CONNECT_TIMEOUT_MS = 15000
 SETTLE_TIMEOUT_MS = 10000
 APP_LOADER = '[data-slot="app-loader"]'
 LOG_TAIL_LINES = 40
@@ -1421,6 +1426,109 @@ def postgres_starter(image):
     return start
 
 
+def browser_starter(options):
+    def start(root):
+        run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
+        # Clear what is left of an earlier server before starting.
+        if (root / "state.json").exists():
+            stop_browser(root, load_state(root / "state.json")["pid"])
+        port = int(testres("ports", root, 1))
+        config = root / "launch.json"
+        write_json(config, {**options, "host": HOST, "port": port, "headless": True})
+        log_path = root / "browser.log"
+        log_path.unlink(missing_ok=True)
+        cmd = [sys.executable, "-m", "playwright", "launch-server", "--browser"]
+        pid = spawn([*cmd, "chromium", "--config", str(config)], root, None, log_path)
+        testres("add", root, "process", pid)
+        deadline = time.monotonic() + READY_TIMEOUT_S
+        while not (endpoint := re.search(r"ws://\S+", log_path.read_text())):
+            if time.monotonic() > deadline:
+                raise EvidenceError(
+                    f"Chromium did not start; log tail:\n{log_tail(log_path)}"
+                )
+            time.sleep(0.2)
+        return {
+            "id": root.name,
+            "root": str(root),
+            "pid": pid,
+            "port": port,
+            "endpoint": endpoint.group(),
+        }
+
+    return start
+
+
+def stop_browser(root, pid):
+    command = subprocess.run(
+        ["ps", "-o", "command=", "-p", str(pid)], capture_output=True
+    )
+    if str(root / "launch.json").encode() not in command.stdout:
+        return
+    # Chromium leads its own process group, so kill every descendant; SIGKILL also ends a stopped process.
+    table = subprocess.run(["ps", "-axo", "pid=,ppid="], capture_output=True, text=True)
+    children = {}
+    for line in table.stdout.splitlines():
+        child, parent = map(int, line.split())
+        children.setdefault(parent, []).append(child)
+    tree, pending = [], [pid]
+    while pending:
+        tree.append(current := pending.pop())
+        pending += children.get(current, [])
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pid, signal.SIGKILL)
+    for member in tree:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(member, signal.SIGKILL)
+
+
+def browser_healthy(playwright):
+    from playwright.sync_api import Error as PlaywrightError
+
+    def healthy(state):
+        try:
+            browser = playwright.chromium.connect(
+                state["endpoint"], timeout=BROWSER_CHECK_TIMEOUT_MS
+            )
+        except PlaywrightError:
+            return False
+        try:
+            return bool(browser.version)
+        finally:
+            with contextlib.suppress(PlaywrightError):
+                browser.close()
+
+    return healthy
+
+
+@contextlib.contextmanager
+def shared_browser(playwright, **options):
+    """Connects to the machine's headless Chromium for this Playwright version and launch
+    options, held while in use."""
+    user = Path(testres("lease", "-name", f"{LABEL}-browser-user", "-pid", os.getpid()))
+    try:
+        # launch-server reads launchServer's camelCase options.
+        options = {
+            re.sub(r"_(\w)", lambda m: m.group(1).upper(), key): value
+            for key, value in options.items()
+        }
+        key = digest(
+            importlib.metadata.version("playwright"),
+            json.dumps(options, sort_keys=True),
+        )
+        server = shared(
+            user, "chromium", key, browser_starter(options), browser_healthy(playwright)
+        )
+        browser = playwright.chromium.connect(
+            server["endpoint"], timeout=BROWSER_CONNECT_TIMEOUT_MS
+        )
+        try:
+            yield browser
+        finally:
+            browser.close()
+    finally:
+        testres("release", user)
+
+
 def create_database(state):
     """Creates the run's database, after dropping those of runs whose lease is gone."""
     server = {"container": state["container"]}
@@ -1918,10 +2026,8 @@ def cmd_shoot(args):
     out.mkdir(parents=True, exist_ok=True)
     manifest_path = out / ".scenarios.json"
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
-    run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
     written, failures = [], []
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
+    with sync_playwright() as playwright, shared_browser(playwright) as browser:
         for shot in shots:
             renew(state)
             if state["name"] == "before" and shot.get("before") is False:
@@ -1945,7 +2051,6 @@ def cmd_shoot(args):
                         manifest[target.name] = state["scenario"]
                     except EvidenceError as err:
                         failures.append(f"{target.name}: {err}")
-        browser.close()
     write_json(manifest_path, manifest)
     for path in written:
         print(f"{path}\t{path.stat().st_size} bytes")
