@@ -18,6 +18,7 @@ export const BAND_AGGREGATIONS = ["min", "p50", "max"] as const;
 export type BandAggregation = (typeof BAND_AGGREGATIONS)[number];
 
 const PERCENT = 100;
+const POD_NAME = "k8s.pod.name";
 
 interface MetricPointPct {
 	time: number;
@@ -97,5 +98,55 @@ export function usageSummary(points: BandPoint[]): { average: number | undefined
 	return {
 		average: medians.length === 0 ? undefined : medians.reduce((a, b) => a + b, 0) / medians.length,
 		highest: highs.length === 0 ? undefined : Math.max(...highs),
+	};
+}
+
+/** Charts with more replicas than this keep the lowest-to-highest band. */
+export const MAX_REPLICA_LINES = 12;
+
+export interface ReplicaChart {
+	/** One row per time: each replica's value under its name, and the limit in force. */
+	rows: Record<string, number>[];
+	replicas: string[];
+	average: number | undefined;
+	highest: { replica: string; value: number; share: number | undefined } | undefined;
+}
+
+/** One line per replica from pod-grouped series, in absolute units when the limits are known. */
+export function replicaChart(
+	series: MetricSeries[],
+	resourceId: string,
+	steps: readonly LimitStep[] | undefined,
+): ReplicaChart | undefined {
+	const byPod = new Map<string, MetricPointPct[]>();
+	for (const s of series) {
+		const pod = s.labels[POD_NAME];
+		if (pod === undefined) continue;
+		byPod.set(pod, percentPoints([s], resourceId));
+	}
+	if (byPod.size === 0 || byPod.size > MAX_REPLICA_LINES) return undefined;
+	const rows = new Map<number, Record<string, number>>();
+	let highest: ReplicaChart["highest"];
+	let sum = 0;
+	let count = 0;
+	for (const [pod, points] of byPod) {
+		for (const p of points) {
+			const limit = steps === undefined ? PERCENT : (limitAt(steps, p.time) ?? 0);
+			const value = steps === undefined ? p.pct : (p.pct / PERCENT) * limit;
+			const row = rows.get(p.time) ?? { time: p.time, limit };
+			row[pod] = value;
+			rows.set(p.time, row);
+			sum += value;
+			count += 1;
+			const share = limit > 0 ? value / limit : undefined;
+			if (highest === undefined || (share ?? value) > (highest.share ?? highest.value))
+				highest = { replica: pod, value, share };
+		}
+	}
+	return {
+		rows: [...rows.values()].toSorted((a, b) => (a["time"] ?? 0) - (b["time"] ?? 0)),
+		replicas: [...byPod.keys()].toSorted(),
+		average: count === 0 ? undefined : sum / count,
+		highest,
 	};
 }

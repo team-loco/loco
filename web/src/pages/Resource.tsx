@@ -269,7 +269,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const problem = problemRegion === undefined ? undefined : regionProblem(problemRegion);
 	const focus = focusRegion(regions);
 	const rollbackTarget = focus === undefined ? undefined : lastGoodDeployment(focus);
-	const markers = [...new Set(regions.flatMap((r) => r.history).map((d) => tsMs(d.createdAt)))];
+	const markers = [
+		...new Map(
+			regions
+				.flatMap((r) => r.history)
+				.map((d) => [tsMs(d.createdAt), { ms: tsMs(d.createdAt), label: `deployed ${depTag(d)}` }]),
+		).values(),
+	];
 	const specDeployments = [
 		...new Map(
 			[...currents, ...regions.flatMap((r) => r.history)]

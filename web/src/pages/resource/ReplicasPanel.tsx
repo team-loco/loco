@@ -1,14 +1,17 @@
+import { useTransport } from "@connectrpc/connect-query";
+import { useQueries } from "@tanstack/react-query";
 import { useState } from "react";
 import type { EnvironmentStatus, RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Section } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 
-import { sharedLimit, type MetricRange } from "./metric";
-import { MetricChart } from "./MetricChart";
+import { RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
+import { MetricChart, type ChartMarker } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
 import { MANY_REPLICAS, ReplicaDetail, ReplicaList } from "./ReplicaList";
@@ -76,7 +79,7 @@ export function ReplicasPanel({
 	selected: string | null;
 	onSelect: (region: string | null) => void;
 	range: MetricRange;
-	markers: number[];
+	markers: ChartMarker[];
 	replicaHref: (view: "logs" | "metrics", replica: string) => string | undefined;
 	nowMs: number;
 }) {
@@ -90,6 +93,25 @@ export function ReplicasPanel({
 	const memoryLimits = regionLimits(charted, memorySize);
 	const single = charted.length === 1 ? charted[0]?.name : undefined;
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
+	const transport = useTransport();
+	const [cpuPods, memoryPods] = useQueries({
+		queries: [CPU_METRIC, MEMORY_METRIC].map((metricName) =>
+			metricsQueryOptions(transport, {
+				workspaceId,
+				environmentId,
+				resourceIds: [resourceId],
+				region: single ?? "",
+				spanMs: RANGE_MS[range],
+				metricName,
+				byPod: true,
+				enabled: single !== undefined,
+			}),
+		),
+	});
+	const cpuReplicas =
+		single === undefined ? undefined : replicaChart(cpuPods?.data ?? [], resourceId, cpuLimits?.get(single));
+	const memoryReplicas =
+		single === undefined ? undefined : replicaChart(memoryPods?.data ?? [], resourceId, memoryLimits?.get(single));
 	const pickedRegion = deployed.find((r) => r.name === selected);
 	const pickedCount = pickedRegion === undefined ? undefined : regionReady(pickedRegion);
 	const selectedLine =
@@ -191,6 +213,8 @@ export function ReplicasPanel({
 							to={cpu.to}
 							markers={markers}
 							limits={single === undefined ? undefined : cpuLimits?.get(single)}
+							replicas={cpuReplicas}
+							picked={picked}
 							format={formatCpu}
 						/>
 						<MetricChart
@@ -203,6 +227,8 @@ export function ReplicasPanel({
 							to={memory.to}
 							markers={markers}
 							limits={single === undefined ? undefined : memoryLimits?.get(single)}
+							replicas={memoryReplicas}
+							picked={picked}
 							format={formatMemory}
 						/>
 					</>
