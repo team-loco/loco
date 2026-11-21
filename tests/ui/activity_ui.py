@@ -270,18 +270,10 @@ def check_scoped_user(browser):
                 and response.status == 200
             ):
                 # The cluster reports restarts as runtime events; this resource never ran.
-                listed = response.json()
-                listed["events"] = [back_off, *listed.get("events", [])]
-                route.fulfill(response=response, json=listed)
-            elif (
-                method == "ListEvents"
-                and scene == "events"
-                and not body.get("environmentId")
-                and response.status == 200
-            ):
                 # Deploys and scaling carry their environment only in their data.
                 listed = response.json()
-                listed["events"] = [rollout, other_rollout, *listed.get("events", [])]
+                extra = [rollout, other_rollout] if scene == "events" else []
+                listed["events"] = [back_off, *extra, *listed.get("events", [])]
                 route.fulfill(response=response, json=listed)
             elif (
                 method == "GetResource"

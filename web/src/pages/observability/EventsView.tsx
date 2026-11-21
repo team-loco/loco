@@ -15,6 +15,7 @@ import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { formatCount } from "@/lib/format";
 import { pagedRows, pagingParsers, type Paging } from "@/lib/paging";
+import { resolveWindow, type TimeWindow } from "@/lib/obs-time";
 import { newResourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,12 @@ const EVENTS_PARAMS = {
 	event: parseAsString,
 };
 const NOW_TICK_MS = 30_000;
+const HISTORY_BUCKET_MS = 15 * 60_000;
+
+/** Window start rounded down to a bucket, so the history query key holds still between ticks. */
+function historyStart(range: TimeWindow, nowMs: number): number {
+	return Math.floor(resolveWindow(range, nowMs).from / HISTORY_BUCKET_MS) * HISTORY_BUCKET_MS;
+}
 
 type Show = "all" | "warning" | "error";
 
@@ -57,6 +64,7 @@ export function EventsView() {
 		workspaceId,
 		resources.map((r) => r.raw),
 		live,
+		historyStart(range, nowMs),
 	);
 	const { from, to } = eventWindow(range, nowMs, tsMs(events[0]?.timestamp));
 	const visible = new Set(filteredResources("events", resources, tokens).map((r) => r.id));

@@ -4,11 +4,11 @@ import { QueryClient } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 import { EventSchema, EventService, type ListEventsRequest } from "@gen/loco/event/v1/event_pb";
 import { mergeEvents, runtimeEventsOptions } from "./runtimeEvents";
-import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, ROLLOUT_EVENT_TYPES, runtimeEvent } from "@/lib/runtime-events";
+import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, runtimeEvent } from "@/lib/runtime-events";
 import { recentWarningCount } from "@/pages/resource/events";
 import { msToTimestamp } from "@/lib/time";
 
-test("build, deployment and scaling history requests use the selected environment", async () => {
+test("event history requests use the selected environment and window start", async () => {
 	const requests: ListEventsRequest[] = [];
 	const transport = createRouterTransport((router) => {
 		router.service(EventService, {
@@ -27,22 +27,14 @@ test("build, deployment and scaling history requests use the selected environmen
 	};
 	try {
 		await client.query(
-			runtimeEventsOptions(transport, scope, {
-				types: ENVIRONMENT_EVENT_TYPES,
-			}),
+			runtimeEventsOptions(transport, scope, { types: ENVIRONMENT_EVENT_TYPES, startMs: 1_700_000_000_000 }),
 		);
-		await client.query(
-			runtimeEventsOptions(transport, scope, {
-				types: ROLLOUT_EVENT_TYPES,
-				anyEnvironment: true,
-			}),
-		);
-		expect(requests.map((r) => [r.environmentId, r.query])).toEqual([
+		expect(requests.map((r) => [r.environmentId, r.query, Number(r.startTime?.seconds)])).toEqual([
 			[
 				"production",
-				"(@type:resource.degraded OR @type:resource.recovered OR @type:resource.restarted OR @type:deployment.created OR @type:resource.scaled OR @type:build.created OR @type:build.started OR @type:build.succeeded OR @type:build.failed OR @type:build.canceled)",
+				"(@type:resource.degraded OR @type:resource.recovered OR @type:resource.restarted OR @type:deployment.created OR @type:resource.scaled OR @type:build.created OR @type:build.started OR @type:build.succeeded OR @type:build.failed OR @type:build.canceled OR @type:deployment.ready OR @type:deployment.failed OR @type:deployment.crashed)",
+				1_700_000_000,
 			],
-			["", "(@type:deployment.ready OR @type:deployment.failed OR @type:deployment.crashed)"],
 		]);
 	} finally {
 		client.clear();
