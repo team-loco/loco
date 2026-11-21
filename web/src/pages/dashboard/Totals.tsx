@@ -12,8 +12,7 @@ import {
 	type TrafficPoint,
 } from "@/lib/traffic";
 import { stepSeconds } from "@/lib/obs-time";
-import { RANGE_MS, METRIC_RANGES } from "@/pages/resource/metric";
-import { getErrorMessage } from "@/lib/error-handler";
+import { DAY_MS } from "@/lib/time";
 import { ChevronDownIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
@@ -21,12 +20,14 @@ import { Link } from "react-router";
 import { NavArrow } from "@/components/design/NavArrow";
 import { Skeleton } from "@/components/design/Skeleton";
 import { DeployMarkers } from "@/components/design/DeployMarkers";
+import { PartialError } from "@/components/design/ErrorState";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deployMarkers } from "@/lib/deployMarkers";
 import { pluralize } from "@/lib/format";
 import { formatCpu, formatMemory } from "@/lib/quantity";
+import { observabilityPath, resourcesPath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
@@ -37,8 +38,16 @@ import { useDeletedResourceNames } from "./useDeletedResourceNames";
 
 const SPEND = "Spend";
 const TOP = 5;
-const CARD_BUCKETS = 12;
 const PERCENT = 100;
+
+const RANGES = ["24h", "7d", "30d"] as const;
+type Range = (typeof RANGES)[number];
+const RANGE_DAYS: Record<Range, number> = { "24h": 1, "7d": 7, "30d": 30 };
+const RANGE_BUCKETS: Record<Range, number> = { "24h": 12, "7d": 7, "30d": 10 };
+
+function memoryLabel(mi: number): string {
+	return `${formatMemory(mi)}B`;
+}
 
 const CARD = "flex min-h-full min-w-0 flex-col gap-1 rounded-card bg-panel px-5 pt-[18px] pb-4";
 const VALUE = "font-mono text-[30px] leading-[1.25] font-medium tracking-[-0.03em] tabular-nums";
@@ -109,7 +118,17 @@ function BreakdownEntry({
 	);
 }
 
-function Breakdown({ rows, total, format }: { rows: BreakdownRow[]; total: number; format: (n: number) => string }) {
+function Breakdown({
+	rows,
+	total,
+	format,
+	moreHref,
+}: {
+	rows: BreakdownRow[];
+	total: number;
+	format: (n: number) => string;
+	moreHref: string;
+}) {
 	const shown = rows.length > TOP + 1 ? rows.slice(0, TOP) : rows;
 	const rest = rows.slice(shown.length);
 	const restAmount = rest.reduce((n, r) => n + r.amount, 0);
@@ -194,12 +213,19 @@ function Breakdown({ rows, total, format }: { rows: BreakdownRow[]; total: numbe
 						</li>
 					))}
 					{rest.length > 0 && (
-						<li className="flex items-center justify-between gap-2.5 py-2 text-[13.5px] text-fg2">
-							{pluralize(rest.length, "more resource")}
-							<span className="flex items-baseline gap-2 font-mono">
-								<span className="text-[12.5px] text-foreground">{format(restAmount)}</span>
-								<span className="w-8 text-right text-[11px] text-fg3">{share(restAmount, total)}</span>
-							</span>
+						<li>
+							<BreakdownEntry href={moreHref} style={{ transitionDelay: `${(60 + shown.length * 40).toString()}ms` }}>
+								<span className="flex items-center justify-between gap-2.5 text-[13.5px] text-fg2">
+									<span className="flex min-w-0 flex-1 items-center">
+										{rest.length.toString()} more
+										<NavArrow />
+									</span>
+									<span className="flex items-baseline gap-2 font-mono">
+										<span className="text-[12.5px] text-foreground">{format(restAmount)}</span>
+										<span className="w-8 text-right text-[11px] text-fg3">{share(restAmount, total)}</span>
+									</span>
+								</span>
+							</BreakdownEntry>
 						</li>
 					)}
 				</ul>
@@ -229,6 +255,7 @@ function StatCard({
 		<div className="group/stat relative min-h-[178px]">
 			<div
 				role="group"
+				tabIndex={lifts ? 0 : undefined}
 				aria-label={ariaLabel}
 				className={cn(
 					CARD,
@@ -247,12 +274,20 @@ function StatCard({
 	);
 }
 
-function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: string) => string }) {
+function AllocatedCard({
+	value,
+	hrefFor,
+	moreHref,
+}: {
+	value: Allocation;
+	hrefFor: (id: string) => string;
+	moreHref: string;
+}) {
 	return (
 		<StatCard
 			label="Allocated"
 			growLeft
-			ariaLabel={`Allocated: ${formatCpu(value.cpuMilli)}, ${formatMemory(value.memMi)} memory`}
+			ariaLabel={`Allocated: ${formatCpu(value.cpuMilli)}, ${memoryLabel(value.memMi)} memory`}
 			corner={<span className="font-mono text-[11.5px]">now</span>}
 			breakdown={
 				value.resources.length > 0 ? (
@@ -262,11 +297,12 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 							name: r.name,
 							amount: r.cpuMilli,
 							label: formatCpu(r.cpuMilli),
-							detail: formatMemory(r.memMi),
+							detail: memoryLabel(r.memMi),
 							href: hrefFor(r.id),
 						}))}
 						total={value.cpuMilli}
 						format={formatCpu}
+						moreHref={moreHref}
 					/>
 				) : null
 			}
@@ -274,8 +310,8 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 			<span data-slot="stat-value" className={VALUE}>
 				{formatCpu(value.cpuMilli)}
 			</span>
-			<span className="truncate font-mono text-[11.5px] text-fg3" title={`${formatMemory(value.memMi)} memory`}>
-				{formatMemory(value.memMi)} memory
+			<span className="truncate font-mono text-[11.5px] text-fg3" title={`${memoryLabel(value.memMi)} memory`}>
+				{memoryLabel(value.memMi)} memory
 			</span>
 		</StatCard>
 	);
@@ -305,7 +341,9 @@ function TrafficCard({
 	names,
 	deleted,
 	hrefFor,
+	moreHref,
 	deployments,
+	buckets,
 	nowMs,
 }: {
 	spec: TrafficCardSpec;
@@ -318,7 +356,9 @@ function TrafficCard({
 	names: ReadonlyMap<string, string>;
 	deleted: ReadonlyMap<string, string>;
 	hrefFor: (id: string) => string;
+	moreHref: string;
 	deployments: { deployment: Deployment; resource: { name: string } }[];
+	buckets: number;
 	nowMs: number;
 }) {
 	const perResource = trafficTotals(current, spec.field, stepMs, windows.current);
@@ -340,7 +380,7 @@ function TrafficCard({
 			ariaLabel={state === "loading" ? `${spec.label}: loading` : `${spec.label}: ${shown}, ${comparison}`}
 			breakdown={
 				state === "ready" && rows.length > 0 && total !== undefined ? (
-					<Breakdown rows={rows} total={total} format={spec.format} />
+					<Breakdown rows={rows} total={total} format={spec.format} moreHref={moreHref} />
 				) : null
 			}
 		>
@@ -373,7 +413,7 @@ function TrafficCard({
 				/>
 				{state === "ready" && (
 					<DeployMarkers
-						markers={deployMarkers(deployments, windows.current.startMs, windows.current.endMs, CARD_BUCKETS, nowMs)}
+						markers={deployMarkers(deployments, windows.current.startMs, windows.current.endMs, buckets, nowMs)}
 					/>
 				)}
 			</div>
@@ -381,7 +421,7 @@ function TrafficCard({
 	);
 }
 
-const rangeParser = parseAsStringLiteral(METRIC_RANGES).withDefault("24h").withOptions({ history: "replace" });
+const rangeParser = parseAsStringLiteral(RANGES).withDefault("24h").withOptions({ history: "replace" });
 export function Totals({
 	value,
 	names,
@@ -389,6 +429,7 @@ export function Totals({
 	orgId,
 	workspaceId,
 	environmentId,
+	envName,
 	deployments,
 	nowMs,
 }: {
@@ -399,11 +440,12 @@ export function Totals({
 	orgId: string;
 	workspaceId: string;
 	environmentId: string;
+	envName: string;
 	deployments: { deployment: Deployment; resource: { name: string } }[];
 	nowMs: number;
 }) {
 	const [range, setRange] = useQueryState("range", rangeParser);
-	const spanMs = RANGE_MS[range];
+	const spanMs = RANGE_DAYS[range] * DAY_MS;
 	const stepMs = stepSeconds(spanMs) * 1000;
 	const scope = { workspaceId, environmentId, resourceIds: [], spanMs };
 	const traffic = useTraffic(scope);
@@ -416,6 +458,8 @@ export function Totals({
 	const state = traffic.isLoading ? "loading" : traffic.error !== null ? "error" : "ready";
 	const gone = [...traffic.points, ...prior.points].some((p) => !names.has(p.resourceId));
 	const deleted = useDeletedResourceNames(orgId, workspaceId, gone);
+	const metricsHref = observabilityPath(orgId, workspaceId, "metrics", { env: envName, range: spanMs });
+	const sizeHref = `${resourcesPath(orgId, workspaceId)}?${new URLSearchParams({ env: envName, sort: "size.desc" }).toString()}`;
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-between gap-2">
@@ -428,17 +472,25 @@ export function Totals({
 					aria-label="Time range"
 					value={[range]}
 					onValueChange={(values) => {
-						const next = METRIC_RANGES.find((r) => r === values[0]);
+						const next = RANGES.find((r) => r === values[0]);
 						if (next !== undefined) void setRange(next);
 					}}
 				>
-					{METRIC_RANGES.map((r) => (
+					{RANGES.map((r) => (
 						<ToggleGroupItem key={r} value={r}>
 							{r}
 						</ToggleGroupItem>
 					))}
 				</ToggleGroup>
 			</div>
+			{traffic.error !== null && (
+				<PartialError
+					title="Couldn’t load metrics"
+					detail="Requests, errors and bandwidth are missing for this range."
+					error={traffic.error}
+					onRetry={traffic.refetch}
+				/>
+			)}
 			<section
 				aria-label="Totals"
 				className="grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] gap-2.5 sm:auto-rows-[minmax(178px,auto)]"
@@ -456,18 +508,15 @@ export function Totals({
 						names={names}
 						deleted={deleted}
 						hrefFor={hrefFor}
+						moreHref={metricsHref}
 						deployments={deployments}
+						buckets={RANGE_BUCKETS[range]}
 						nowMs={nowMs}
 					/>
 				))}
 				<SoonCard label={SPEND} />
-				<AllocatedCard value={value} hrefFor={hrefFor} />
+				<AllocatedCard value={value} hrefFor={hrefFor} moreHref={sizeHref} />
 			</section>
-			{traffic.error !== null && (
-				<p role="status" className="m-0 text-[12.5px] text-fg3">
-					Traffic is unavailable: {getErrorMessage(traffic.error, "Failed to load traffic")}
-				</p>
-			)}
 		</div>
 	);
 }

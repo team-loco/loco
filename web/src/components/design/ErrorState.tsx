@@ -4,7 +4,16 @@ import type { DescMethod } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
-import { CheckIcon, CopyIcon, LockIcon, MonitorIcon, RotateCwIcon, ServerIcon, XIcon } from "lucide-react";
+import {
+	CheckIcon,
+	CopyIcon,
+	LockIcon,
+	MonitorIcon,
+	RotateCwIcon,
+	ServerIcon,
+	TriangleAlertIcon,
+	XIcon,
+} from "lucide-react";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { useAuth } from "@/auth/AuthProvider";
@@ -47,10 +56,11 @@ function codeName(error: unknown): string {
 	return Code[code].replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
-function RetryButton({ onRetry }: { onRetry: () => Promise<unknown> }) {
+function RetryButton({ onRetry, outline = false }: { onRetry: () => Promise<unknown>; outline?: boolean }) {
 	const [busy, setBusy] = useState(false);
 	return (
 		<Button
+			variant={outline ? "outline" : "default"}
 			disabled={busy}
 			onClick={() => {
 				setBusy(true);
@@ -328,6 +338,43 @@ function RateLimited({ onRetry, className }: { onRetry: () => Promise<unknown>; 
 			title="Too many requests"
 			subtitle="Loco is limiting requests from your account for a moment. This page retries on its own."
 		/>
+	);
+}
+
+/** Sits above a section whose data failed to load while the rest of the page still works. */
+export function PartialError({
+	title,
+	detail,
+	error,
+	onRetry,
+}: {
+	title: string;
+	detail: string;
+	error: unknown;
+	onRetry: () => Promise<unknown>;
+}) {
+	const id = requestId(error);
+	return (
+		<div
+			role="alert"
+			className="flex flex-wrap items-center gap-2.5 rounded-card border border-[color-mix(in_oklch,var(--warn)_40%,var(--line))] bg-[color-mix(in_oklch,var(--warn)_7%,var(--background))] py-2 pr-2 pl-3 text-[13px]"
+		>
+			<TriangleAlertIcon aria-hidden className="size-[15px] shrink-0 text-warn" />
+			<span className="flex min-w-0 grow basis-[220px] flex-wrap items-baseline gap-x-2">
+				<span>{title}</span>
+				<span className="text-[12.5px] text-fg2">{detail}</span>
+			</span>
+			{id !== null && (
+				<CopyId
+					value={id}
+					title="Copy request ID"
+					className="max-w-full min-w-0 rounded-md border border-line bg-background px-[7px] py-0.5 font-mono text-[11px] font-normal text-fg2 hover:border-fg3 hover:text-foreground"
+				>
+					<span className="min-w-0 truncate">{id}</span>
+				</CopyId>
+			)}
+			<RetryButton onRetry={onRetry} outline />
+		</div>
 	);
 }
 

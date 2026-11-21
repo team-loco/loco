@@ -180,16 +180,16 @@ def mock_telemetry(context):
         elif traffic_empty:
             series = []
         else:
-            # Buckets sit inside the requested window, as the server's do: the same
-            # three offsets from the start of the run, moved back whole windows for
-            # the prior-period query.
+            # Buckets sit whole inside the requested window, as the server's do: the
+            # same three fractions of the window back from the start of the run, moved
+            # back whole windows for the prior-period query.
             end = datetime.fromisoformat(body["endTime"].replace("Z", "+00:00"))
             start = datetime.fromisoformat(body["startTime"].replace("Z", "+00:00"))
             window = end - start
             anchor = now - round((now - end) / window) * window
             traffic_points = [
-                {"timestamp": stamp(anchor, timedelta(minutes=minute)), "value": rate}
-                for minute in (50, 30, 10)
+                {"timestamp": stamp(anchor, window * sixtieths / 60), "value": rate}
+                for sixtieths in (50, 30, 10)
             ]
             series = [
                 {"resourceId": rid, "points": traffic_points}
@@ -1441,16 +1441,16 @@ def traffic(page):
     section = page.get_by_role("region", name="Traffic", exact=True)
     for empty in (False, True):
         traffic_empty = empty
-        page.goto(state["ui_url"] + base + "?env=production&range=1h")
-        # 3 resources × 3 points × 10/s × 60 s buckets (1h range) = 5400 requests, 540 5xx.
-        requests, errors = ("—", "—") if empty else ("5.4K", "540")
+        page.goto(state["ui_url"] + base + "?env=production")
+        # 3 resources × 3 points × 10/s × 1440 s buckets (24h range) = 129.6K requests, 13K 5xx.
+        requests, errors = ("—", "—") if empty else ("129.6K", "13K")
         for label, value in (("Requests", requests), ("Errors", errors)):
             card = totals.get_by_role("group", name=f"{label}: {value},")
-            # The prior hour's stub equals this hour's.
-            comparison = "No prior 1h data to compare" if empty else "0% vs prior 1h"
+            # The prior day's stub equals this day's.
+            comparison = "No prior 24h data to compare" if empty else "0% vs prior 24h"
             expect(card.get_by_text(comparison, exact=True)).to_be_visible()
         if not empty:
-            card = totals.get_by_role("group", name="Requests: 5.4K,")
+            card = totals.get_by_role("group", name="Requests: 129.6K,")
             card.hover()
             expect(
                 card.get_by_role("link", name=re.compile("^controls-pilot"))
@@ -1486,8 +1486,8 @@ def traffic(page):
         state,
         f"UPDATE deployments SET status='failed' WHERE resource_id IN (SELECT id FROM resources WHERE workspace_id='{workspace}');",
     )
-    page.goto(state["ui_url"] + base + "?env=production&range=1h")
-    failed = totals.get_by_role("group", name="Requests: 5.4K,").locator(
+    page.goto(state["ui_url"] + base + "?env=production")
+    failed = totals.get_by_role("group", name="Requests: 129.6K,").locator(
         '[data-slot="deploy-marker"][data-failed]'
     )
     expect(failed.first).to_have_attribute("aria-label", re.compile(r"failed"))

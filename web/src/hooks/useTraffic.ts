@@ -21,5 +21,6 @@ export function useTraffic(options: {
 		points: trafficPoints(results.map((result) => result.data)),
 		isLoading: results.some((result) => result.isLoading),
 		error: results.find((result) => result.error !== null)?.error ?? null,
+		refetch: async () => await Promise.all(results.map(async (result) => await result.refetch())),
 	};
 }
