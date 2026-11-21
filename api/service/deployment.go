@@ -543,10 +543,18 @@ func (s *DeploymentServer) ListDeployments(
 	var rows []genDb.ListEnvironmentDeploymentsRow
 	if resourceID != nil {
 		resourceRows, listErr := s.queries.ListResourceDeployments(ctx, genDb.ListResourceDeploymentsParams{
-			ResourceID: *resourceID, EnvironmentID: environmentID,
-			SystemRead: readable.System, OrganizationIds: readable.Organizations,
-			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-			Since: since, Until: until, Statuses: statuses, PageSize: pageSize + 1, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+			ResourceID:      *resourceID,
+			EnvironmentID:   environmentID,
+			SystemRead:      readable.System,
+			OrganizationIds: readable.Organizations,
+			WorkspaceIds:    readable.Workspaces,
+			ResourceIds:     readable.Resources,
+			Since:           since,
+			Until:           until,
+			Statuses:        statuses,
+			PageSize:        pageSize + 1,
+			PageToken:       cursor.ID,
+			PageCreatedAt:   cursor.CreatedAt,
 		})
 		err = listErr
 		for _, row := range resourceRows {
@@ -554,10 +562,18 @@ func (s *DeploymentServer) ListDeployments(
 		}
 	} else {
 		rows, err = s.queries.ListEnvironmentDeployments(ctx, genDb.ListEnvironmentDeploymentsParams{
-			WorkspaceID: *workspaceID, EnvironmentID: *environmentID,
-			SystemRead: readable.System, OrganizationIds: readable.Organizations,
-			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-			Since: since, Until: until, Statuses: statuses, PageSize: pageSize + 1, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+			WorkspaceID:     *workspaceID,
+			EnvironmentID:   *environmentID,
+			SystemRead:      readable.System,
+			OrganizationIds: readable.Organizations,
+			WorkspaceIds:    readable.Workspaces,
+			ResourceIds:     readable.Resources,
+			Since:           since,
+			Until:           until,
+			Statuses:        statuses,
+			PageSize:        pageSize + 1,
+			PageToken:       cursor.ID,
+			PageCreatedAt:   cursor.CreatedAt,
 		})
 	}
 	if err != nil {

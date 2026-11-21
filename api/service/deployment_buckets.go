@@ -64,7 +64,10 @@ func (s *DeploymentServer) QueryDeploymentBuckets(
 	return &deploymentv1.QueryDeploymentBucketsResponse{Buckets: buckets}, nil
 }
 
-func deploymentBucketToProto(row genDb.QueryDeploymentBucketsRow, grouped bool) (*deploymentv1.DeploymentBucket, error) {
+func deploymentBucketToProto(
+	row genDb.QueryDeploymentBucketsRow,
+	grouped bool,
+) (*deploymentv1.DeploymentBucket, error) {
 	var counts map[genDb.DeploymentStatus]int32
 	if err := json.Unmarshal(row.StatusCounts, &counts); err != nil {
 		return nil, fmt.Errorf("decode status counts of bucket %d: %w", row.Bucket, err)

@@ -23,6 +23,7 @@ var bucketsBase = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 type bucketsFixture struct {
 	*deployFixture
 	workspaceID uuid.UUID
+	name        string
 	web, worker uuid.UUID
 	hidden      uuid.UUID
 }
@@ -37,9 +38,10 @@ func newBucketsFixture(t *testing.T) bucketsFixture {
 	return bucketsFixture{
 		deployFixture: f,
 		workspaceID:   resource.WorkspaceID,
-		web:           f.tenant.resource(t, resource.WorkspaceID, "web", &resourcev1.ServiceSpec{}),
-		worker:        f.tenant.resource(t, resource.WorkspaceID, "worker", &resourcev1.ServiceSpec{}),
-		hidden:        f.tenant.resource(t, resource.WorkspaceID, "hidden", &resourcev1.ServiceSpec{}),
+		name:          resource.Name,
+		web:           f.tenant.resource(t, resource.WorkspaceID, "storefront", &resourcev1.ServiceSpec{}),
+		worker:        f.tenant.resource(t, resource.WorkspaceID, "mailer", &resourcev1.ServiceSpec{}),
+		hidden:        f.tenant.resource(t, resource.WorkspaceID, "private", &resourcev1.ServiceSpec{}),
 	}
 }
 
@@ -59,7 +61,8 @@ func (f bucketsFixture) seed(
 		t.Fatal(err)
 	}
 	_, err = f.pool.Exec(t.Context(), `
-UPDATE deployments SET created_at = $2, status = $3, spec = jsonb_set(spec, '{build}', jsonb_build_object('image', $4::text))
+UPDATE deployments
+SET created_at = $2, status = $3, spec = jsonb_set(spec, '{build}', jsonb_build_object('image', $4::text))
 WHERE id = $1`, id, createdAt, status, image)
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +131,7 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 		MaxResourceNames: 2,
 	}, f.readers())
 
-	var indexes []int32
+	indexes := make([]int32, 0, len(buckets))
 	for _, b := range buckets {
 		indexes = append(indexes, b.GetIndex())
 	}
@@ -139,7 +142,7 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 	want := &deploymentv1.DeploymentBucketEntry{
 		Id:           only.String(),
 		ResourceId:   f.resourceID.String(),
-		ResourceName: "svc",
+		ResourceName: f.name,
 		Status:       deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
 		CreatedAt:    timestamppb.New(bucketsBase),
 		Image:        "nginx:1.0",
@@ -147,7 +150,8 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 	if got := first.GetOnlyDeployment(); got.String() != want.String() {
 		t.Errorf("only deployment = %v, want %v", got, want)
 	}
-	if first.GetDeploymentCount() != 1 || last.GetDeploymentCount() != 1 || last.GetOnlyDeployment().GetImage() != "nginx:1.2" {
+	if first.GetDeploymentCount() != 1 || last.GetDeploymentCount() != 1 ||
+		last.GetOnlyDeployment().GetImage() != "nginx:1.2" {
 		t.Errorf("edge buckets = %v and %v, want one deployment each", first, last)
 	}
 
@@ -162,15 +166,21 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 	if got := statusCounts(busy); !maps.Equal(got, wantCounts) {
 		t.Errorf("bucket 1 status counts = %v, want %v", got, wantCounts)
 	}
-	if busy.GetResourceCount() != 3 || !slices.Equal(busy.GetResourceNames(), []string{"worker", "web"}) {
-		t.Errorf("bucket 1 resources = %d %v, want 3 with the two newest names", busy.GetResourceCount(), busy.GetResourceNames())
+	if busy.GetResourceCount() != 3 || !slices.Equal(busy.GetResourceNames(), []string{"mailer", "storefront"}) {
+		t.Errorf(
+			"bucket 1 resources = %d %v, want 3 with the two newest names",
+			busy.GetResourceCount(),
+			busy.GetResourceNames(),
+		)
 	}
 	mean := bucketsBase.Add(time.Hour + (30*time.Minute+time.Hour-time.Microsecond)/3)
 	if got := busy.GetMeanCreatedAt().AsTime(); got.Sub(mean).Abs() > time.Millisecond {
 		t.Errorf("bucket 1 mean = %v, want %v", got, mean)
 	}
 
-	workspace := []genDb.EntityScope{{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeRead}}
+	workspace := []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeRead},
+	}
 	buckets = f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
 		Since: timestamppb.New(bucketsBase), Until: timestamppb.New(until), BucketCount: 12,
 	}, workspace)
@@ -231,7 +241,7 @@ func TestQueryDeploymentBucketsGroupsByResource(t *testing.T) {
 		index    int32
 		count    int32
 	}
-	var got []key
+	got := make([]key, 0, len(buckets))
 	for _, b := range buckets {
 		got = append(got, key{b.GetResourceId(), b.GetIndex(), b.GetDeploymentCount()})
 	}
@@ -241,7 +251,7 @@ func TestQueryDeploymentBucketsGroupsByResource(t *testing.T) {
 		t.Fatalf("buckets = %v, want %v: the filter leaves out worker and the caller cannot read hidden", got, want)
 	}
 	for _, b := range buckets {
-		if b.GetResourceId() == f.resourceID.String() && !slices.Equal(b.GetResourceNames(), []string{"svc"}) {
+		if b.GetResourceId() == f.resourceID.String() && !slices.Equal(b.GetResourceNames(), []string{f.name}) {
 			t.Errorf("svc bucket names = %v", b.GetResourceNames())
 		}
 	}
@@ -305,7 +315,13 @@ func TestListDeploymentsFiltersByStatus(t *testing.T) {
 	if page.GetTotalCount() != 2 {
 		t.Errorf("total = %d, want 2", page.GetTotalCount())
 	}
-	if names := []string{page.GetDeployments()[0].GetResourceName(), page.GetDeployments()[1].GetResourceName()}; !slices.Equal(names, []string{"svc", "web"}) {
+	if names := []string{
+		page.GetDeployments()[0].GetResourceName(),
+		page.GetDeployments()[1].GetResourceName(),
+	}; !slices.Equal(
+		names,
+		[]string{f.name, "storefront"},
+	) {
 		t.Errorf("resource names = %v, want [svc web]", names)
 	}
 
@@ -313,7 +329,8 @@ func TestListDeploymentsFiltersByStatus(t *testing.T) {
 		ResourceId: f.resourceID.String(),
 		Statuses:   []deploymentv1.DeploymentStatus{deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING},
 	}, f.readers()...)
-	if len(page.GetDeployments()) != 1 || page.GetDeployments()[0].GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
+	if len(page.GetDeployments()) != 1 ||
+		page.GetDeployments()[0].GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
 		t.Errorf("running deployments of svc = %v", deploymentIDs(page.GetDeployments()))
 	}
 
