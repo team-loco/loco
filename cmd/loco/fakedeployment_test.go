@@ -89,10 +89,7 @@ func (s *fakeDeploymentService) WatchDeployment(
 		); err != nil {
 			return err
 		}
-		if buildOutcome == outcomeFailed {
-			return nil
-		}
-		if buildOutcome == outcomeRunning {
+		if buildOutcome == outcomeFailed || buildOutcome == outcomeRunning {
 			<-ctx.Done()
 			return ctx.Err()
 		}
@@ -143,7 +140,17 @@ func (s *fakeDeploymentService) WatchDeployment(
 	if req.GetAfterSeq() < offset+3 {
 		activity = append(activity, &deploymentv1.Activity{Seq: offset + 3, Message: "Scaled to 3 replicas"})
 	}
-	return stream.Send(&deploymentv1.WatchDeploymentResponse{Deployment: deployment, Activity: activity})
+	err := stream.Send(&deploymentv1.WatchDeploymentResponse{Deployment: deployment, Activity: activity})
+	if err != nil {
+		return err
+	}
+	// The API ends a watch only on canceled and superseded deployments.
+	if outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED ||
+		outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED {
+		return nil
+	}
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 func (s *fakeDeploymentService) ListDeployments(
