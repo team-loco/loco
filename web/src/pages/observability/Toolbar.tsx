@@ -10,7 +10,6 @@ import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { ToggleChip } from "@/components/design/ToggleChip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { StatusDot } from "@/components/design/StatusGlyph";
 import {
 	checkCustomRange,
 	customRangeMessage,
@@ -26,7 +25,6 @@ import {
 	type TimeWindow,
 	windowLabel,
 } from "@/lib/obs-time";
-import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
 
@@ -251,14 +249,12 @@ export function LiveButton({
 	onToggle,
 	disabled = false,
 	pending = false,
-	detail,
 	title,
 }: {
 	on: boolean;
 	onToggle: () => void;
 	disabled?: boolean;
 	pending?: boolean;
-	detail?: string | undefined;
 	title: string;
 }) {
 	return (
@@ -274,12 +270,9 @@ export function LiveButton({
 				if (pending) return;
 				onToggle();
 			}}
-			className={cn("h-8", on && "border-[color-mix(in_oklab,var(--ok)_40%,transparent)] text-ok-fg")}
 		>
-			{on ? <StatusDot pulse className="text-ok-fg" /> : <PlayIcon />}
-			{pending ? "Starting…" : "Live"}
-			{on && detail !== undefined && <span className="font-mono text-[11.5px] opacity-85">{detail}</span>}
-			{on && <PauseIcon className="fill-current" />}
+			{on ? <PauseIcon /> : <PlayIcon />}
+			{pending ? "Starting…" : on ? "Pause" : "Live"}
 		</ToggleChip>
 	);
 }

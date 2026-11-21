@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 
-import { cancelLogResume, completeLogResume, logPlaybackForKey, tailRate, type LogPlayback } from "./log-playback";
+import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { toRows } from "./rows";
 
 const paused = {
@@ -66,11 +66,4 @@ test("Back cancels a resume before the target URL renders", () => {
 	expect(canceled.on).toBe(false);
 	expect(completeLogResume(canceled, pending, true)).toBe(canceled);
 	expect(cancelLogResume(canceled)).toBe(canceled);
-});
-
-test("the tail rate counts arrivals in the last ten seconds over the time the tail has run", () => {
-	const now = 100_000;
-	expect(tailRate([], now - 30_000, now)).toBe(0);
-	expect(tailRate([99_000, 98_000, 97_000, 96_000], now - 4_000, now)).toBe(1);
-	expect(tailRate([99_000, 50_000], now - 60_000, now)).toBe(0.1);
 });

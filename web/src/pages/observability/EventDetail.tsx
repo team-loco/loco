@@ -1,6 +1,6 @@
 import {
-	ArrowDownIcon,
-	ArrowUpIcon,
+	ChevronDownIcon,
+	ChevronUpIcon,
 	HammerIcon,
 	MinusIcon,
 	PlusIcon,
@@ -8,6 +8,7 @@ import {
 	RotateCwIcon,
 	ScalingIcon,
 	WebhookIcon,
+	XIcon,
 } from "lucide-react";
 import type { KeyboardEventHandler } from "react";
 import { Scope } from "@gen/loco/token/v1/token_pb";
@@ -57,23 +58,23 @@ type Props = {
 	onClose: () => void;
 };
 
-export function EventDetail({ item, onClose, onKeyDown, ...nav }: Props) {
+export function EventDetail({ item, onKeyDown, ...nav }: Props) {
 	const shown = useHeldWhileClosed(item, item !== null);
 	return (
 		<Sheet
 			open={item !== null}
 			onOpenChange={(open) => {
-				if (!open) onClose();
+				if (!open) nav.onClose();
 			}}
 		>
-			<SheetContent size="wide" onKeyDown={onKeyDown}>
+			<SheetContent size="wide" showCloseButton={false} onKeyDown={onKeyDown}>
 				{shown !== null && <EventBody item={shown} {...nav} />}
 			</SheetContent>
 		</Sheet>
 	);
 }
 
-function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "onKeyDown"> & { item: EventItem }) {
+function EventBody({ item, onPrev, onNext, onClose }: Omit<Props, "item" | "onKeyDown"> & { item: EventItem }) {
 	const { orgId, workspaceId, tokens, text, setQuery, goTo } = useObs();
 	const { environments } = useEnvironments();
 	const admin = useMyScopes().workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.ADMIN);
@@ -125,7 +126,7 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 	};
 	return (
 		<>
-			<SheetHeader>
+			<SheetHeader className="pr-4">
 				<EventIcon item={item} />
 				<SheetTitle className="min-w-0 flex-1 truncate font-medium">{item.title}</SheetTitle>
 				<div className="flex shrink-0 items-center gap-1">
@@ -138,7 +139,7 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 							onPrev?.();
 						}}
 					>
-						<ArrowUpIcon />
+						<ChevronUpIcon />
 					</Button>
 					<Button
 						variant="outline"
@@ -149,7 +150,7 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 							onNext?.();
 						}}
 					>
-						<ArrowDownIcon />
+						<ChevronDownIcon />
 					</Button>
 					<RowMenu label="Event actions">
 						{item.event.requestId !== "" && (
@@ -194,6 +195,16 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 							Open resource
 						</DropdownMenuItem>
 					</RowMenu>
+					<Button
+						variant="ghost"
+						size="icon"
+						aria-label="Close event"
+						title="Close"
+						onClick={onClose}
+						className="text-fg3 hover:text-foreground"
+					>
+						<XIcon />
+					</Button>
 				</div>
 			</SheetHeader>
 			<SheetBody>

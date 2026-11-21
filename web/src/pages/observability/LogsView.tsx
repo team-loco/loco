@@ -13,6 +13,7 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
 import { Sheet, SheetContent, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
@@ -31,9 +32,9 @@ import { columnsParser, widthsParser, type ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { fmtTs, LEVEL_LABEL } from "./format";
 import { LogDetail } from "./LogDetail";
-import { cancelLogResume, completeLogResume, logPlaybackForKey, tailRate, type LogPlayback } from "./log-playback";
+import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogTable } from "./LogTable";
-import { coversWholeRange, CopyCommand, NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { coversWholeRange, CopyCommand, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import {
 	buildBackendQuery,
 	LEVELS,
@@ -100,6 +101,7 @@ export function LogsView() {
 		useObs();
 	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
+	const workspace = useOrgWorkspace().workspaces.find((w) => w.id === workspaceId);
 	const environmentId = environment?.id ?? "";
 	const { size, page, log: selectedKey, cols: columns, widths, at: anchor, live } = params;
 	const [history, setHistory] = useState(createLogHistory);
@@ -188,7 +190,6 @@ export function LogsView() {
 	const tailRows = frozen ? allTail.filter((r) => r.ts <= freezeTs) : allTail;
 	const held = frozen ? allTail.length - tailRows.length : 0;
 	const rows = visibleLogRows(batchRows, tailRows, playback.paused?.rows ?? null);
-	const rate = tailRate(tailState.arrivals, tailState.startedAt, nowMs);
 	// The page and selected line live in the URL so a reload or shared link reopens them.
 	const setView = (nextPage: number | "last", key: string | null) => {
 		void setParams({ page: nextPage, log: key });
@@ -388,7 +389,6 @@ export function LogsView() {
 						on={tail}
 						pending={playback.pending !== null}
 						disabled={!canTail || cursor !== "" || backend.impossible}
-						detail={`${rate.toFixed(1)}/s`}
 						title={
 							canTail ? (tail ? "Pause live tail" : "Stream new logs as they arrive") : "Return to latest to go live"
 						}
@@ -448,7 +448,7 @@ export function LogsView() {
 								? "No logs collected"
 								: `No logs in the ${windowLabel(range, timePref).toLowerCase()}`
 					}
-					body="Anything your resources write to stdout or stderr lands here."
+					body={`Anything ${workspace === undefined ? "your" : `${workspace.name}'s`} resources write to stdout or stderr lands here.`}
 					action={
 						<>
 							<CopyCommand command={`loco resource logs ${resources[0]?.slug ?? "<name>"} --follow`} />
@@ -545,7 +545,7 @@ export function LogsView() {
 								) : tail ? (
 									<div className="px-3 py-6 text-fg3">Waiting for new logs…</div>
 								) : query !== "" ? (
-									<NoMatches title="No lines match these filters" />
+									<div className="px-6 py-7 text-center text-[13px] text-fg3">No lines match these filters.</div>
 								) : null
 							}
 							onSelect={(key) => {

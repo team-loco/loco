@@ -47,6 +47,12 @@ with session(out) as browser:
     )
     expect(page.get_by_text("No events in this range", exact=True)).to_be_visible()
     expect(
+        page.get_by_text(
+            "Deploys, restarts, failed health checks and scaling in production show up here as they happen.",
+            exact=True,
+        )
+    ).to_be_visible()
+    expect(
         page.get_by_role("button", name=re.compile(r"^Show the past"))
     ).to_be_visible()
     expect(page.get_by_role("link", name="New resource", exact=True)).to_have_count(0)
@@ -80,7 +86,7 @@ with session(out) as browser:
     expect(link).to_have_attribute(
         "href", re.compile(rf"{base}/resource/{resource}\?env=production$")
     )
-    page.keyboard.press("Escape")
+    ready.get_by_role("button", name="Close event", exact=True).click()
     expect(ready).to_have_count(0)
     events.get_by_role("button", name=re.compile(r"^Warnings")).click()
     wait_for_query(page, lambda query: query.get("q") == ["@severity:warning"])
@@ -190,6 +196,14 @@ with session(out) as browser:
     ).click()
     expect(drawer).not_to_be_visible()
     wait_for_query(page, lambda query: "@region:us-ca-1" in query.get("q", [""])[0])
+    page.goto(
+        state["ui_url"] + base + "/observability?view=events&live=0&q=no-such-event"
+    )
+    expect(page.get_by_text("No events match.", exact=True)).to_be_visible()
+    page.goto(state["ui_url"] + base + "/observability?view=events")
+    live = page.locator("[data-live-button]")
+    expect(live).to_have_attribute("aria-pressed", "true")
+    expect(live).to_have_text("Pause")
     assert not errors, errors
     context.close()
     context, page, errors = open_page(browser, user="reader", state=state)
