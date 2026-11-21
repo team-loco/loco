@@ -1,6 +1,6 @@
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import { createClient } from "@connectrpc/connect";
-import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
+import { createConnectQueryKey, skipToken, useQuery as useConnectQuery, useTransport } from "@connectrpc/connect-query";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
@@ -12,7 +12,10 @@ import {
 	type ResourceFacets,
 } from "@gen/loco/resource/v1/resource_pb";
 
+import { useTokenPage } from "@/hooks/useTokenPage";
+import { resourcesPollMs } from "@/hooks/useWorkspaceDeployments";
 import { collectPages } from "@/lib/collectPages";
+import { tokenPager } from "@/lib/paging";
 import type { Draft } from "@/lib/drafts";
 import type { Sort } from "@/lib/sort-parser";
 
@@ -114,4 +117,36 @@ export function useMatchingResourceIds(input: ResourcesInput, enabled: boolean) 
 			return new Set(ids);
 		},
 	});
+}
+
+/**
+ * A polled page of resources with its total and pager. allRegionsInput is the request the All regions
+ * count answers, undefined when the total answers it. A Draft-only list has no next page.
+ */
+export function useResourcePage(
+	input: ResourcesInput,
+	countInput: ResourcesInput,
+	allRegionsInput: ResourcesInput | undefined,
+	tokens: readonly string[],
+	onTokens: (tokens: string[] | null) => void,
+	draftsOnly: boolean,
+) {
+	const listed = useTokenPage(
+		listWorkspaceResources,
+		input,
+		tokens,
+		{ placeholderData: keepPreviousData, refetchInterval: (q) => resourcesPollMs(q.state.data?.resources) },
+		countInput,
+		() => {
+			onTokens(null);
+		},
+	);
+	const regionsTotal = useConnectQuery(
+		listWorkspaceResources,
+		allRegionsInput === undefined ? skipToken : { ...allRegionsInput, pageSize: 1, includeTotalCount: true },
+	).data?.totalCount;
+	const pager = tokenPager(tokens, draftsOnly ? "" : listed.nextPageToken, (page) => {
+		if (!listed.query.isPlaceholderData) onTokens(page);
+	});
+	return { listed, pager, allRegions: allRegionsInput === undefined ? listed.total : regionsTotal };
 }

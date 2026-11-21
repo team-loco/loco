@@ -36,8 +36,7 @@ import { Sparkline } from "@/components/design/Sparkline";
 import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { useTokenPage } from "@/hooks/useTokenPage";
-import { resourcesPollMs, useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
+import { useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
 import { deployMarkers, MARKER_NAMES } from "@/lib/deployMarkers";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
@@ -45,11 +44,18 @@ import { imageVersion } from "@/lib/image";
 import { rolloutState } from "@/lib/resource-status";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
 import { agoLabel, msToTimestamp, readyMs } from "@/lib/time";
-import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
+import { pageTokensParser, tokenPageLabel } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
-import { shownDrafts, statusCounts, statusInput, useMatchingResourceIds } from "@/pages/resources/query";
-import { DRAFT, sortableIds, visibleStatusFilters } from "@/pages/resources/table";
+import {
+	shownDrafts,
+	statusCounts,
+	statusInput,
+	useMatchingResourceIds,
+	useResourcePage,
+} from "@/pages/resources/query";
+import { StatusFilter } from "@/pages/resources/ResourceFilters";
+import { DRAFT, sortableIds } from "@/pages/resources/table";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { DashboardRowMenu } from "./DashboardRowMenu";
@@ -488,21 +494,16 @@ export function ResourcesTable({
 		type: TYPE_FILTERS.find((o) => o.value === filter.type)?.type ?? ResourceType.UNSPECIFIED,
 		region: filter.region === ALL ? "" : filter.region,
 	};
-	const listed = useTokenPage(
-		listWorkspaceResources,
-		{ ...matchedBy, ...ORDERS[state.sort.id], descending: state.sort.desc, pageSize: PAGE_SIZE },
-		state.page,
-		{ placeholderData: keepPreviousData, refetchInterval: (q) => resourcesPollMs(q.state.data?.resources) },
-		{ ...matchedBy, includeFacets: true },
-		() => void setState({ page: null }),
-	);
 	// Region counts ignore the region and status filters, and so does All regions.
 	const regionsCounted = filter.region === ALL && filter.status === ALL;
-	const regionsTotal = useConnectQuery(
-		listWorkspaceResources,
-		{ ...matchedBy, ...statusInput(ALL), region: "", pageSize: 1, includeTotalCount: true },
-		{ enabled: !regionsCounted },
-	).data?.totalCount;
+	const { listed, pager, allRegions } = useResourcePage(
+		{ ...matchedBy, ...ORDERS[state.sort.id], descending: state.sort.desc, pageSize: PAGE_SIZE },
+		{ ...matchedBy, includeFacets: true },
+		regionsCounted ? undefined : { ...matchedBy, ...statusInput(ALL), region: "" },
+		state.page,
+		(page) => void setState({ page }),
+		draftsOnly,
+	);
 	const matching = useMatchingResourceIds(matchedBy, isMap && hasFilters && !draftsOnly).data;
 
 	const draftRegions = (d: DraftItem) => d.regions.map((g) => g.region);
@@ -541,9 +542,6 @@ export function ResourcesTable({
 			if (next !== undefined) void setState({ sort: next, page: null });
 		},
 	});
-	const pager = tokenPager(state.page, draftsOnly ? "" : listed.nextPageToken, (page) => {
-		if (!listed.query.isPlaceholderData) void setState({ page });
-	});
 
 	// In one environment a resource has one status and one type, so the facets add up to the All counts.
 	const facets = listed.counts?.facets;
@@ -562,7 +560,6 @@ export function ResourcesTable({
 			count: facets?.types.find((t) => t.type === o.type)?.count ?? 0,
 		})),
 	];
-	const allRegions = regionsCounted ? listed.total : regionsTotal;
 	const regionOptions = [
 		{ value: ALL, label: "All regions", ...(allRegions === undefined ? {} : { count: allRegions }) },
 		...[...regionNames].map((name) => ({
@@ -607,26 +604,14 @@ export function ResourcesTable({
 
 	const filters = (
 		<>
-			{/* The counts arrive after the tabs render and widen them; a fresh group places the highlight on the counted tabs. */}
-			<ToggleGroup
-				key={counts.has(ALL) ? "counted" : "counting"}
-				variant="segmented"
-				aria-label="Filter resources by status"
-				className="max-w-full overflow-x-auto"
-				value={[filter.status]}
-				onValueChange={(v: string[]) => {
-					if (v[0] !== undefined) update({ status: v[0] });
+			<StatusFilter
+				label="Filter resources by status"
+				counts={counts}
+				status={filter.status}
+				onStatus={(status) => {
+					update({ status });
 				}}
-			>
-				<ToggleGroupItem value={ALL} count={counts.get(ALL)}>
-					All
-				</ToggleGroupItem>
-				{visibleStatusFilters(counts, filter.status).map((o) => (
-					<ToggleGroupItem key={o.value} value={o.value} count={counts.get(o.value) ?? 0}>
-						{o.label}
-					</ToggleGroupItem>
-				))}
-			</ToggleGroup>
+			/>
 			<FilterMenu
 				label="Type"
 				value={filter.type}
