@@ -157,7 +157,7 @@ function ProgressPanel({
 				: problem !== undefined || phase === DeploymentStatus.DEGRADED
 					? "warn"
 					: "ok";
-	const feed = rolloutActivity(activity, region.name, placement?.currentRevision ?? 0n);
+	const feed = rolloutActivity(activity, region.name, live ? (placement?.currentRevision ?? 0n) : 0n);
 	const elapsed = deploymentElapsedMs(deployment, nowMs, feed.restart);
 	const commit = deployment.commit?.sha ?? build?.gitCommit;
 	const { path, tag, digest } = parseImage(depImage(deployment));

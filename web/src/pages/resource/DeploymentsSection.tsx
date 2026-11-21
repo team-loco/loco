@@ -24,6 +24,7 @@ import { PlacementChips } from "@/components/design/PlacementChips";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
+import { tookLabel } from "@/lib/activity-deploys";
 import { deploymentImage, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
@@ -36,7 +37,7 @@ import { formatCount } from "@/lib/format";
 
 import { buildStatusStyle, deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
 import { BuildDetail, BuildsTable, TIME_CELL, TimeAgo, type BuildActor } from "./BuildsTable";
-import { formatDuration, formatFullTime } from "./format";
+import { formatFullTime } from "./format";
 import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
@@ -125,7 +126,7 @@ function Detail({
 					<dt className="text-fg3">Completed</dt>
 					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.completedAt), timePref)}</dd>
 					<dt className="text-fg3">Took</dt>
-					<dd className="m-0 font-mono">{took === undefined ? "—" : formatDuration(took)}</dd>
+					<dd className="m-0 font-mono">{took === undefined ? "—" : tookLabel(took)}</dd>
 				</dl>
 			</div>
 			<div className="flex min-w-0 flex-col gap-1.5">
@@ -252,12 +253,12 @@ function rolloutColumns(
 		{
 			id: "took",
 			header: "Took",
-			size: 64,
-			minSize: 64,
+			size: 88,
+			minSize: 88,
 			meta: { align: "end", cellClassName: TIME_CELL },
 			cell: ({ row: { original: rollout } }) => {
 				const tooks = rollout.rows.flatMap((r) => tookMs(r.dep) ?? []);
-				return tooks.length === rollout.rows.length ? formatDuration(Math.max(...tooks)) : "—";
+				return tooks.length === rollout.rows.length ? tookLabel(Math.max(...tooks)) : "—";
 			},
 		},
 		{

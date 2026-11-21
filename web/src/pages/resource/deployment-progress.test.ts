@@ -259,3 +259,17 @@ test("the ready line counts the current revision's ready replicas against the de
 	expect(readyLabel(deployment, placement)).toBe("1 of 2 ready");
 	expect(readyLabel(deployment, undefined)).toBe("0 of 0 ready");
 });
+
+test("a feed is ordered by event time, then arrival", () => {
+	const entry = (seq: number, atMs: number) =>
+		create(ActivitySchema, { seq: BigInt(seq), region: "east", revision: 2n, at: timestampFromMs(atMs) });
+	const late = entry(1, 5000);
+	const early = entry(2, 3000);
+	const tie = entry(3, 5000);
+	expect(rolloutActivity([late, early, tie], "east", 2n).entries).toEqual([early, late, tie]);
+});
+
+test("a finished rollout's feed ignores the placement revision", () => {
+	const entry = create(ActivitySchema, { seq: 1n, region: "east", revision: 2n, at: timestampFromMs(1000) });
+	expect(rolloutActivity([entry], "east", 0n).entries).toEqual([entry]);
+});
