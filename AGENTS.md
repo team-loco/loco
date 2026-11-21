@@ -59,7 +59,7 @@ The root Go module holds only `internal/`, `gen/`, `tools/` and `schemas/`; CLI-
 
 Builds, tests, code generation, linting and the local environment are mise tasks: `mise tasks` lists them, `mise run <task>` runs one. Every tool (go, bun, golangci-lint, buf, sqlc, helm, kind, ...) is pinned in `mise.toml` and `mise.lock`, and CI installs the same versions; `mise run setup` installs them, the web dependencies and the git hooks. `controller/Makefile` is the kubebuilder scaffold and stays; the root tasks call into it. Add a task to `mise.toml` (or a script under `mise-tasks/`) for commands you find yourself running often.
 
-A draft pull request runs no CI; marking it ready runs every check. Keep a PR a draft while you push work in progress, and run browser suites and UI screenshots for it in CI with `mise run ci:evidence` instead of on your machine.
+A draft pull request runs no CI; marking it ready runs every check. Keep a PR a draft while you push work in progress, and run browser suites and UI screenshots for it in CI with `mise run ci:evidence`, as the `ci-evidence` skill describes, instead of on your machine.
 
 ## Principles
 

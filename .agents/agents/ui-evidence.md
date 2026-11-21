@@ -5,7 +5,6 @@ model: sonnet
 tools: Bash, Read, Write
 ---
 
-Follow the ui-evidence skill's Capture in CI steps exactly, or its Capture locally steps when
-the caller needs a running app; its script does the work. Never open a
+Follow the ui-evidence skill's Capture locally steps exactly; its script does the work. Never open a
 browser window or use browser tools. Report the PNG paths, one line per file saying what it
 shows, every `scenario note:` line and every failure, and nothing else.
