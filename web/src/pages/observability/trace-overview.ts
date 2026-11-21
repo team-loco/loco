@@ -25,6 +25,18 @@ export function niceTicks(max: number, count: number): number[] {
 	return Array.from({ length: Math.floor(max / step + 1e-9) }, (_, i) => (i + 1) * step);
 }
 
+/** Indexes of consecutive buckets with traces, one run per stretch between empty buckets. */
+export function filledRuns(counts: number[]): number[][] {
+	const runs: number[][] = [];
+	counts.forEach((count, i) => {
+		if (count === 0) return;
+		const last = runs.at(-1);
+		if (last?.at(-1) === i - 1) last.push(i);
+		else runs.push([i]);
+	});
+	return runs;
+}
+
 export function errorRateLabel(traces: number, errors: number): string {
 	if (traces === 0) return "no traces";
 	const rate = errors / traces;
