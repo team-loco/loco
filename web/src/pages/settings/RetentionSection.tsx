@@ -54,8 +54,9 @@ function retentionColumns(
 		{
 			id: "kept",
 			header: "Kept for",
-			size: 320,
-			minSize: 160,
+			size: 200,
+			minSize: 140,
+			meta: { grow: true },
 			cell: ({ row: { original: signal } }) => {
 				if (edit === null) {
 					const own = workspace.retention?.[signal.key] !== undefined;
