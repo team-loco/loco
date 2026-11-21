@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { MemberAvatar } from "./MemberAvatar";
 import { LEVELS, levelBlocked, levelOf, levelPlan, type Level, type Member, type ScopeName } from "./model";
 
-const PAGE_SIZES = [50] as const;
+const PAGE_SIZES = [25] as const;
 const PRESSED: Record<Level, string> = {
 	0: "data-pressed:text-fg3 aria-pressed:text-fg3",
 	1: "",
@@ -200,7 +200,7 @@ function AccessRows({
 					})}
 				</ul>
 			</SheetBody>
-			{rows.length > PAGE_SIZES[0] && <Pager {...paged.pager} className="border-t border-line px-6" />}
+			<Pager {...paged.pager} className="border-t border-line px-6" />
 		</>
 	);
 }

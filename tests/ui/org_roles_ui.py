@@ -198,7 +198,6 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(
         drawer.get_by_role("group", name="Access to sibling", exact=True)
     ).to_be_visible()
-    expect(drawer.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"[?&]access="))
     member_role.click()
