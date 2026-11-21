@@ -14,7 +14,7 @@ import {
 	WebhookIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { parseAsString, useQueryStates } from "nuqs";
+import { createLoader, parseAsString, useQueryStates } from "nuqs";
 import { useLocation } from "react-router";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -57,17 +57,19 @@ const OBSERVABILITY_PAGES: { view: ObservabilityView; name: string; icon: ReactN
 	{ view: "events", name: "Events", icon: <BellIcon /> },
 ];
 
-const NAV_PARAMS = { env: parseAsString, view: observabilityViewParser, ...WINDOW_PARSERS, ...QUERY_PARSERS };
+const NAV_PARAMS = { env: parseAsString, view: observabilityViewParser };
+const loadCarried = createLoader({ ...WINDOW_PARSERS, ...QUERY_PARSERS });
 
 export function useNavSections(): NavSection[] {
-	const { pathname } = useLocation();
-	const [{ env, view, range, from, to, q, r }] = useQueryStates(NAV_PARAMS);
+	const { pathname, search } = useLocation();
+	const [{ env, view }] = useQueryStates(NAV_PARAMS);
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
 	const envParams: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
 	const onObs = wsBase !== null && pathname.startsWith(`${wsBase}/observability`);
+	const { range, from, to, q, r } = loadCarried(search);
 	const carried = { range, from, to };
 	const carriedTokens = toQuery({ q, r }).tokens;
 	const audit = useAuditAccess(activeOrgId);
