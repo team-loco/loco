@@ -1319,8 +1319,9 @@ def start_state(*, ref, name, scenario, issuer=None):
     repo = repo_root()
     openbao = os.environ.get(OPENBAO_ENV)
     commit = git_commit(repo, ref)
-    local = os.environ.get(BUILD_ENV) if commit == git_commit(repo, "HEAD") else None
-    if commit == git_commit(repo, "HEAD") and not local and (changes := dirty(repo)):
+    head = commit == git_commit(repo, "HEAD")
+    local = os.environ.get(BUILD_ENV) if head else None
+    if head and not local and (changes := dirty(repo)):
         raise EvidenceError(
             f"ref {ref} excludes uncommitted files; commit them before capture:\n{changes}"
         )
@@ -1918,7 +1919,10 @@ def main():
     serve.add_argument("--port", required=True, type=int)
     serve.add_argument("--api-url", required=True)
     serve.set_defaults(func=cmd_serve_ui)
-    prebuild = sub.add_parser("build", help="build the API and UI in this checkout")
+    prebuild = sub.add_parser(
+        "build",
+        help="build this checkout's API and UI, or reuse its commit's cached build, and print its path",
+    )
     prebuild.set_defaults(func=cmd_build)
     bao = sub.add_parser(
         "openbao",
