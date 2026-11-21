@@ -2,8 +2,7 @@ import type { RuntimeEvent as Event } from "@/lib/runtime-events";
 
 import type { Glyph } from "@/components/design/StatusGlyph";
 import { maybeTsMs, tsMs } from "@/lib/time";
-import { formatShortId } from "@/lib/utils";
-import { eventTitle, severityOf } from "@/pages/observability/events";
+import { eventSummary, eventTitle, severityOf, severityStyle } from "@/pages/observability/events";
 
 const WARNING_WINDOW_MS = 3_600_000;
 
@@ -38,8 +37,6 @@ export function latestRestartWarning(events: Event[], region?: string): Event | 
 /** Deploy outcomes the events drawer lists beside runtime events. */
 export const DEPLOY_EVENT_TYPES = ["deployment.ready", "deployment.failed", "deployment.crashed"];
 
-const SEVERITY_GLYPHS: Record<ReturnType<typeof severityOf>, Glyph> = { error: "err", warning: "warn", normal: "off" };
-
 export interface EventRow {
 	event: Event;
 	title: string;
@@ -52,17 +49,13 @@ export interface EventRow {
 function eventRow(event: Event): EventRow {
 	const severity = severityOf(event.type);
 	const deploy = DEPLOY_EVENT_TYPES.includes(event.type);
-	const deploymentId = event.event.data?.["deploymentId"];
 	const title = deploy
 		? eventTitle(event.type, event.region)
 		: event.reason === ""
 			? "Service recovered"
 			: event.reason.replaceAll("_", " ");
-	const detail =
-		event.message !== "" || !deploy || typeof deploymentId !== "string"
-			? event.message
-			: `deployment ${formatShortId(deploymentId)}`;
-	return { event, title, detail, glyph: SEVERITY_GLYPHS[severity], warning: severity !== "normal", count: 1 };
+	const detail = deploy ? eventSummary(event) : event.message;
+	return { event, title, detail, glyph: severityStyle(severity).glyph, warning: severity !== "normal", count: 1 };
 }
 
 /** Newest first, with each run of identical consecutive events collapsed into its newest row and a count. */

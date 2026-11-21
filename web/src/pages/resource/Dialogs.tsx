@@ -93,8 +93,8 @@ export function RollbackDialogContent({
 }) {
 	const [everything, setEverything] = useState(false);
 	const rows = current === undefined ? [] : specRows(current, target);
-	const changed = rows.filter((r) => !r.same).length;
-	const shown = everything ? rows : rows.filter((r) => !r.same);
+	const changes = rows.filter((r) => !r.same);
+	const shown = everything ? rows : changes;
 	const regions = deploymentRegions(target).join(", ");
 	return (
 		<DialogContent
@@ -109,9 +109,9 @@ export function RollbackDialogContent({
 					<div className="flex flex-col overflow-hidden rounded-lg bg-panel">
 						<div className="flex items-center justify-between gap-3 border-b border-line px-3.5 py-2.5 text-[12.5px] text-fg3">
 							<span>
-								{changed === 0
+								{changes.length === 0
 									? `No spec changes · ${rows.length.toString()} settings`
-									: `${changed.toString()} ${changed === 1 ? "change" : "changes"} · ${(rows.length - changed).toString()} unchanged`}
+									: `${changes.length.toString()} ${changes.length === 1 ? "change" : "changes"} · ${(rows.length - changes.length).toString()} unchanged`}
 							</span>
 							<Button
 								variant="link"
