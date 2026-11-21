@@ -52,7 +52,6 @@ const TRACES_PARAMS = {
 	span: parseAsString,
 	widths: widthsParser,
 };
-const SECOND_MS = 1000;
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
 const ARRIVAL_POLL_MS = 5000;
 
@@ -121,11 +120,11 @@ function TraceSession({
 	});
 	const unfiltered = tokens.filter((t) => t.key !== "status");
 	const statusFree = unfiltered.length === tokens.length;
-	// The histogram's total counts the tabs unless a status token narrows it; then one whole-range bucket does.
+	// The tabs count from the histogram without status tokens, which the All tab's overview has already loaded.
 	const unfilteredOverview = useTraceBuckets({
 		...filters,
 		query: queryStr(unfiltered, text),
-		intervalSeconds: Math.max(1, Math.ceil((bounds.to - bounds.from) / SECOND_MS)),
+		intervalSeconds: widthSeconds,
 		enabled: scopeReady && !statusFree,
 	});
 	const tabTotals = scopeReady ? (statusFree ? overview : unfilteredOverview).data?.total : undefined;

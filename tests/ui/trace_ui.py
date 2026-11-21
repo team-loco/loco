@@ -191,11 +191,12 @@ def trace_buckets(body):
             p50DurationNanos="400000000000",
             p95DurationNanos="500000000000",
         )
+    # The list's totals: one error trace among 7, and 60 more traces when paged.
+    traces = "67" if mode[0] == "paged" else "7"
     return {
         "buckets": buckets,
         "total": {
-            # The list's totals: one error trace among 7, and 60 more traces when paged.
-            "traceCount": "67" if mode[0] == "paged" else "7",
+            "traceCount": "1" if "@status:error" in body.get("query", "") else traces,
             "errorCount": "1",
             "p50DurationNanos": "42000000",
             "p95DurationNanos": "360000000",
@@ -988,7 +989,7 @@ with session(out) as browser:
         expect_rpc(
             page,
             "QueryTraceBuckets",
-            lambda body: body.get("query", "") == "" and "startTime" in body,
+            lambda body: body.get("query") == "@status:error",
         ),
     ):
         page.get_by_role("button", name=re.compile(r"^Errors")).click()
@@ -996,6 +997,9 @@ with session(out) as browser:
     expect(page.get_by_role("button", name=re.compile(r"^All\s*67$"))).to_be_visible()
     lists = [row for row in recorded[sent:] if "limit" in row]
     assert len(lists) == 1, lists
+    # The All count comes from the unfiltered histogram the All tab already loaded.
+    histograms = [row for row in recorded[sent:] if "intervalSeconds" in row]
+    assert len(histograms) == 1, histograms
     wait_for_query(page, lambda query: query.get("q") == ["@status:error"])
     with expect_rpc(
         page,
