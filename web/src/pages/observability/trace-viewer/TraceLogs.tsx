@@ -19,6 +19,8 @@ export function TraceLogs({
 	zoom,
 	onZoom,
 	highlight,
+	spanTab,
+	onSpanTab,
 }: {
 	trace: TraceSummary;
 	selected: TraceSpan;
@@ -28,6 +30,8 @@ export function TraceLogs({
 	zoom: Zoom;
 	onZoom: SetTraceZoom;
 	highlight: string | null;
+	spanTab: string;
+	onSpanTab: (tab: string) => void;
 }) {
 	const logs = useTraceLogs(trace);
 	const { children } = useTraceResources();
@@ -113,7 +117,15 @@ export function TraceLogs({
 				/>
 			</div>
 			<div className="border-t border-line bg-panel px-5 pt-4 pb-6 min-[1100px]:min-h-0 min-[1100px]:overflow-auto min-[1100px]:border-t-0 min-[1100px]:border-l">
-				<SpanPanel trace={trace} selected={selected} missing={missing} select={select} label={label} />
+				<SpanPanel
+					trace={trace}
+					selected={selected}
+					missing={missing}
+					select={select}
+					label={label}
+					tab={spanTab}
+					onTab={onSpanTab}
+				/>
 			</div>
 		</div>
 	);

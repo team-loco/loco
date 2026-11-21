@@ -18,6 +18,7 @@ import { LogDetail } from "../LogDetail";
 import type { LogRow } from "../rows";
 import { durationLabel, type TraceSummary } from "../traces";
 import { Infrastructure } from "./Infrastructure";
+import { TraceEvents, useTraceEvents } from "./TraceEvents";
 import type { useTraceLogs } from "./trace-logs";
 import { descendantIds } from "../flame";
 
@@ -52,6 +53,8 @@ export function TraceLogPanel({
 	const { goTo } = useObs();
 	const { children } = useTraceResources();
 	const [scope, setScope] = useState("trace");
+	const [minutes, setMinutes] = useState(10);
+	const events = useTraceEvents(trace, minutes);
 	const [height, setHeight] = useState(310);
 	const resizeRef = useRef<{ y: number; height: number } | null>(null);
 	const panelRef = useRef<HTMLElement>(null);
@@ -131,6 +134,14 @@ export function TraceLogPanel({
 							</TabsCount>
 						</TabsTrigger>
 						<TabsTrigger
+							value="events"
+							onClick={() => {
+								onCollapsed(false);
+							}}
+						>
+							Events {!events.isLoading && events.error === null && <TabsCount>{events.items.length}</TabsCount>}
+						</TabsTrigger>
+						<TabsTrigger
 							value="infra"
 							onClick={() => {
 								onCollapsed(false);
@@ -139,6 +150,7 @@ export function TraceLogPanel({
 							Infrastructure
 						</TabsTrigger>
 					</TabsList>
+					<span className="flex-1" />
 					{tab === "logs" && !collapsed && (
 						<>
 							<ToggleGroup
@@ -166,7 +178,6 @@ export function TraceLogPanel({
 						variant="ghost"
 						size="icon-sm"
 						aria-label={collapsed ? "Expand bottom panel" : "Collapse bottom panel"}
-						className="ml-auto"
 						onClick={() => {
 							onCollapsed(!collapsed);
 						}}
@@ -287,8 +298,11 @@ export function TraceLogPanel({
 								</section>
 							)}
 						</TabsContent>
+						<TabsContent value="events" className="min-h-0 flex-1 overflow-auto">
+							<TraceEvents trace={trace} events={events} minutes={minutes} onMinutes={setMinutes} />
+						</TabsContent>
 						<TabsContent value="infra" className="min-h-0 flex-1 overflow-auto">
-							<Infrastructure trace={trace} selected={selected} />
+							<Infrastructure trace={trace} selected={selected} minutes={minutes} onMinutes={setMinutes} />
 						</TabsContent>
 					</>
 				)}

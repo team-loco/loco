@@ -97,6 +97,14 @@ function TraceView({
 	const select = (span: TraceSpan) => {
 		void setSpanId(span.spanId);
 	};
+	// The span detail tab belongs to one span; selecting another opens its Attributes.
+	const [spanTab, setSpanTab] = useState({ spanId: "", tab: "Attributes" });
+	const openLinks = () => {
+		const span = trace?.spans.find((s) => s.links.length > 0);
+		if (span === undefined) return;
+		select(span);
+		setSpanTab({ spanId: span.spanId, tab: "Links" });
+	};
 	return (
 		<TraceColors trace={trace}>
 			<div ref={drawerRef} className="contents">
@@ -109,6 +117,7 @@ function TraceView({
 					pinned={pinned}
 					onHover={setHovered}
 					onPin={setPinned}
+					onLinks={openLinks}
 				/>
 				<SheetBody className="gap-0 p-0 min-[1100px]:overflow-hidden">
 					{loading && (
@@ -154,6 +163,10 @@ function TraceView({
 							zoom={zoom}
 							onZoom={setZoom}
 							highlight={highlight}
+							spanTab={spanTab.spanId === selected.spanId ? spanTab.tab : "Attributes"}
+							onSpanTab={(tab) => {
+								setSpanTab({ spanId: selected.spanId, tab });
+							}}
 						/>
 					)}
 				</SheetBody>

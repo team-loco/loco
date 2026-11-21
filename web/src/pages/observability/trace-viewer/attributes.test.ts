@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
-import { spanAttributes } from "./attributes";
+import { attributeGroups, spanAttributes } from "./attributes";
 
 test("attribute tabs retain custom resource fields and separate infrastructure namespaces", () => {
 	const span = create(TraceSpanSchema, {
@@ -25,4 +25,41 @@ test("attribute tabs retain custom resource fields and separate infrastructure n
 	expect(tabs.Telemetry).toContainEqual(["custom.version", "v1"]);
 	expect(tabs.Telemetry).toContainEqual(["scope.version", "1"]);
 	expect(Object.values(tabs).flat()).toHaveLength(10);
+});
+
+test("attribute groups follow namespaces in first-seen order and collect the rest under Other", () => {
+	expect(
+		attributeGroups([
+			["rpc.system", "grpc"],
+			["http.request.method", "POST"],
+			["payment.attempt", "1"],
+			["net.peer.name", "db"],
+			["network.protocol.name", "http"],
+			["http.response.status_code", "504"],
+			["retries", "2"],
+		]),
+	).toEqual([
+		["RPC", [["rpc.system", "grpc"]]],
+		[
+			"HTTP",
+			[
+				["http.request.method", "POST"],
+				["http.response.status_code", "504"],
+			],
+		],
+		[
+			"Other",
+			[
+				["payment.attempt", "1"],
+				["retries", "2"],
+			],
+		],
+		[
+			"Network",
+			[
+				["net.peer.name", "db"],
+				["network.protocol.name", "http"],
+			],
+		],
+	]);
 });
