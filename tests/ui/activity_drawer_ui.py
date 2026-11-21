@@ -34,8 +34,21 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
+    drawer_reads = []
+
+    def record_drawer_read(request):
+        if request.url.endswith(".DeploymentService/ListDeployments"):
+            body = request.post_data_json
+            if "since" in body:
+                drawer_reads.append(body)
+
+    page.on("request", record_drawer_read)
     page.goto(f"{state['ui_url']}/org/{org}/wks/{workspace}?env=production")
-    page.get_by_role("button", name=re.compile(r"^Workspace activity, ")).click()
+    activity = page.get_by_role("button", name=re.compile(r"^Workspace activity, "))
+    expect(page.get_by_role("link", name="svc-1", exact=True).first).to_be_visible()
+    page.wait_for_timeout(1000)
+    assert drawer_reads == [], drawer_reads
+    activity.click()
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
     expect(drawer.get_by_text("Degraded in us-east-1", exact=True)).to_be_visible()
     expect(drawer.get_by_text("Recovered in us-east-1", exact=True)).to_be_visible()
@@ -44,6 +57,7 @@ with session(out) as browser:
     drawer.get_by_role("button", name="Show 2 more", exact=True).click()
     expect(deployed).to_have_count(8)
     expect(drawer.get_by_role("button", name="Show 2 more")).to_have_count(0)
+    assert drawer_reads
     assert not errors, errors
     context.close()
 print("PASS: activity drawer")

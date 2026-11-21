@@ -13,6 +13,11 @@ export function deploymentEnded(deployment: Deployment): boolean {
 	return deployment.status === DeploymentStatus.CANCELED || deployment.status === DeploymentStatus.SUPERSEDED;
 }
 
+/** The deployment's status and its placements' statuses, which change the resource's region statuses and history rows. */
+export function statusKey(deployment: Deployment): string {
+	return [deployment.status, ...deployment.placements.map((p) => `${p.region}=${p.status.toString()}`)].join(",");
+}
+
 export function deploymentMessage(deployment: Deployment): string {
 	const problem = deploymentProblem(deployment);
 	return [problem?.message, problem?.detail].filter(Boolean).join(" · ");

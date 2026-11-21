@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { DeploymentSchema, DeploymentStatus, PlacementStatus } from "@gen/loco/deployment/v1/deployment_pb";
-import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import {
 	activityDeployments,
@@ -15,6 +15,8 @@ import {
 	canceledNote,
 	placementReadyLabel,
 	rolloutReadyLabel,
+	rollingOutRegions,
+	runningDeployRegions,
 	tookLabel,
 	withoutRunningDeploys,
 } from "./activity-deploys";
@@ -172,11 +174,26 @@ test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 		alert("r-b", ResourceStatus.DEPLOYING),
 		alert("r-a", ResourceStatus.DEGRADED),
 	];
-	const kept = withoutRunningDeploys(alerts, [deployment("a", DeploymentStatus.DEPLOYING, 1)]);
-	expect(kept.map((a) => `${a.resourceId}:${a.status.toString()}`)).toEqual([
-		`r-b:${ResourceStatus.DEPLOYING.toString()}`,
-		`r-a:${ResourceStatus.DEGRADED.toString()}`,
+	const expected = [`r-b:${ResourceStatus.DEPLOYING.toString()}`, `r-a:${ResourceStatus.DEGRADED.toString()}`];
+	const summary = (kept: Alert[]) => kept.map((a) => `${a.resourceId}:${a.status.toString()}`);
+	const running = runningDeployRegions([
+		deployment("a", DeploymentStatus.DEPLOYING, 1),
+		deployment("b", DeploymentStatus.RUNNING, 1),
 	]);
+	expect(summary(withoutRunningDeploys(alerts, running))).toEqual(expected);
+	const resource = (id: string, placementStatus: PlacementStatus) =>
+		create(ResourceSchema, {
+			id,
+			environmentStatuses: [
+				{ environmentId: "env", regions: [{ region: "us-east-1", placementStatus }] },
+				{ environmentId: "other", regions: [{ region: "us-east-1", placementStatus: PlacementStatus.PENDING }] },
+			],
+		});
+	const rolling = rollingOutRegions(
+		[resource("r-a", PlacementStatus.PENDING), resource("r-b", PlacementStatus.RUNNING)],
+		"env",
+	);
+	expect(summary(withoutRunningDeploys(alerts, rolling))).toEqual(expected);
 });
 
 describe("rolloutReadyLabel", () => {
