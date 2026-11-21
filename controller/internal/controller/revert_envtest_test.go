@@ -80,4 +80,44 @@ var _ = Describe("Placement returning to the previous deployment", func() {
 		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(serving), kept)).To(Succeed())
 		Expect(kept.Annotations).To(HaveKeyWithValue(locov1alpha1.KeyPlacementRevision, "3"))
 	})
+	It("replaces the previous deployment's pods when its secret values changed", func() {
+		app := workspaceApp("revert-secret", "revert-secret")
+		app.Spec.EnvironmentID = "env-revert-secret"
+		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "1"}
+		namespace := &corev1.Namespace{Name: testEnvironmentNamespace(app)}
+		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
+		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
+		r := &ApplicationReconciler{
+			Client: k8sClient, APIReader: k8sClient,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix, Telemetry: testTelemetry(),
+		}
+		secret := func(revision int64, value string) envSecretMount {
+			return envSecretMount{Mounted: true, Revision: revision, Names: []string{"TOKEN"}, Digest: []byte(value)}
+		}
+		previousSpec := app.Spec.DeepCopy()
+		_, err := r.ensureDeployment(ctx, app, secret(1, "old"))
+		Expect(err).NotTo(HaveOccurred())
+		previous := createReplicaSet(app, "revert-secret-previous", "1", 1)
+		serving := createSetReplica(previous, "revert-secret-previous-replica")
+
+		app.Spec.DeploymentID = "next"
+		app.Spec.ServiceSpec.Deployment.Image = testImage + "-next"
+		app.Annotations[locov1alpha1.KeyPlacementRevision] = "2"
+		_, err = r.ensureDeployment(ctx, app, secret(2, "old"))
+		Expect(err).NotTo(HaveOccurred())
+
+		By("placing the previous deployment again with a changed secret value")
+		app.Spec = *previousSpec
+		app.Annotations[locov1alpha1.KeyPlacementRevision] = "3"
+		_, err = r.ensureDeployment(ctx, app, secret(3, "new"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(appDeployment(app).Spec.Template.Annotations).
+			To(HaveKeyWithValue(locov1alpha1.KeyPlacementRevision, "3"))
+		kept := &appsv1.ReplicaSet{}
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(previous), kept)).To(Succeed())
+		Expect(kept.Spec.Template.Annotations).To(HaveKeyWithValue(locov1alpha1.KeyPlacementRevision, "1"))
+		pod := &corev1.Pod{}
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(serving), pod)).To(Succeed())
+		Expect(pod.Annotations).To(HaveKeyWithValue(locov1alpha1.KeyPlacementRevision, "1"))
+	})
 })

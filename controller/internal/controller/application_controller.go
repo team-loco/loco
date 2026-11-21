@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -428,6 +429,8 @@ type envSecretMount struct {
 	Mounted  bool
 	Revision int64
 	Names    []string
+	// Digest identifies the secret values, which the pods read only when they start.
+	Digest []byte
 }
 
 // ensureEnvSecret copies the staging Secret the Application references into the app namespace.
@@ -479,7 +482,14 @@ func (r *ApplicationReconciler) ensureEnvSecret(
 		return envSecretMount{}, fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
 	}
 	names := slices.Sorted(maps.Keys(staged.Data))
-	return envSecretMount{Mounted: true, Revision: ref.Revision, Names: names}, nil
+	digest := sha256.New()
+	for _, key := range names {
+		digest.Write([]byte(key))
+		digest.Write([]byte{0})
+		digest.Write(staged.Data[key])
+		digest.Write([]byte{0})
+	}
+	return envSecretMount{Mounted: true, Revision: ref.Revision, Names: names, Digest: digest.Sum(nil)}, nil
 }
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
@@ -769,7 +779,7 @@ func (r *ApplicationReconciler) ensureDeployment(
 	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
 	namespace := r.environmentNamespace(app)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
-	if err := hashTemplate(dep.Spec.Template); err != nil {
+	if err := hashTemplate(dep.Spec.Template, envSecret.Digest); err != nil {
 		return nil, err
 	}
 	if err := r.reviveReplicaSet(ctx, namespace, name, dep.Spec.Template); err != nil {

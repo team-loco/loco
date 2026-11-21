@@ -25,8 +25,9 @@ const annotationTemplateHash = "loco.io/template-hash"
 // revisionAnnotations change with every placement revision without changing what the pods run.
 var revisionAnnotations = []string{loco.KeyPlacementRevision, locolabels.AnnotationEnvSecretRevision}
 
-// hashTemplate stamps the template with the hash of everything but its revision annotations.
-func hashTemplate(template *corev1ac.PodTemplateSpecApplyConfiguration) error {
+// hashTemplate stamps the template with the hash of everything but its revision annotations, and of
+// the env secret values the pods start with.
+func hashTemplate(template *corev1ac.PodTemplateSpecApplyConfiguration, envSecret []byte) error {
 	meta := *template.ObjectMetaApplyConfiguration
 	meta.Annotations = maps.Clone(template.Annotations)
 	delete(meta.Annotations, annotationTemplateHash)
@@ -39,7 +40,7 @@ func hashTemplate(template *corev1ac.PodTemplateSpecApplyConfiguration) error {
 	if err != nil {
 		return fmt.Errorf("encode pod template: %w", err)
 	}
-	sum := sha256.Sum256(encoded)
+	sum := sha256.Sum256(append(encoded, envSecret...))
 	template.WithAnnotations(map[string]string{annotationTemplateHash: hex.EncodeToString(sum[:16])})
 	return nil
 }
