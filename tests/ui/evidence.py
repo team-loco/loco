@@ -322,9 +322,9 @@ def fill_placeholders(value, ids, now):
         if amount is not None:
             at += (1 if sign == "+" else -1) * int(amount) * UNIT_SECONDS[unit]
         if form == "s":
-            return str(int(at))
+            return str(at)
         if form == "ms":
-            return str(int(at * 1000))
+            return str(at * 1000)
         return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(at))
 
     whole = PLACEHOLDER.fullmatch(value)
@@ -492,7 +492,7 @@ def markdown_table(out, files):
     sections = []
     for (shot, narrow), cells in sorted(grouped.items()):
         title = f"{shot} (narrow)" if narrow else shot
-        themes = [t for t in THEMES if any(theme == t for _, theme in cells)]
+        themes = [t for t in THEMES if t in {theme for _, theme in cells}]
         rows = [
             f"#### {title}",
             "",
@@ -854,7 +854,7 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
         )
     )
     actor = state["users"][user]["id"]
-    ids, rows, rollouts = [], [], []
+    ids, rows = [], []
     placeholders, now = placeholder_ids(state), time.time()
     for deployment in deployments:
         deployment_id = deployment.get("id") or str(uuid.uuid4())
@@ -886,36 +886,27 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
                 f"VALUES({q(deployment_id)},{q(cluster)},{q(region)},{sizing['minReplicas']},"
                 f"{q(placement_status)},{q(image)},{created});"
             )
+            placement_id = str(uuid.uuid4())
             if "replicas" in placement or "problem" in placement:
-                snapshot = fill_placeholders(
-                    {
-                        "replicas": [
-                            {
-                                "uid": replica["name"],
-                                "deployment_id": deployment_id,
-                                "placement_revision": 1,
-                                **replica,
-                            }
-                            for replica in placement.get("replicas", [])
-                        ],
-                        **(
-                            {"problem": placement["problem"]}
-                            if "problem" in placement
-                            else {}
-                        ),
-                    },
-                    placeholders,
-                    now,
-                )
-                placement_id = (
-                    f"||jsonb_build_object('placementId',(SELECT id::text FROM placements "
-                    f"WHERE deployment_id={q(deployment_id)} AND cluster_id={q(cluster)}))"
-                    if live
-                    else ""
-                )
-                rollouts.append(
+                snapshot = {
+                    "replicas": [
+                        {
+                            "uid": replica["name"],
+                            "deployment_id": deployment_id,
+                            "placement_revision": 1,
+                            **replica,
+                        }
+                        for replica in placement.get("replicas", [])
+                    ]
+                }
+                if "problem" in placement:
+                    snapshot["problem"] = placement["problem"]
+                if live:
+                    snapshot["placementId"] = placement_id
+                rows.append(
                     "INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) "
-                    f"VALUES({q(deployment_id)},{q(cluster)},1,{q(json.dumps(snapshot))}::jsonb{placement_id});"
+                    f"VALUES({q(deployment_id)},{q(cluster)},1,"
+                    f"{q(json.dumps(fill_placeholders(snapshot, placeholders, now)))});"
                 )
             if not live:
                 continue
@@ -946,12 +937,11 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
                 },
             }
             rows.append(
-                "INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,"
+                "INSERT INTO placements(id,resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,"
                 "applied_revision,observed_revision,ready_replicas,status_updated_at) "
-                f"VALUES({q(resource_id)},{q(cluster)},{q(region)},{q(deployment_id)},{q(environment)},"
+                f"VALUES({q(placement_id)},{q(resource_id)},{q(cluster)},{q(region)},{q(deployment_id)},{q(environment)},"
                 f"{q(json.dumps({'app_spec': app}))},1,1,{placement.get('ready_replicas', sizing['minReplicas'])},NOW());"
             )
-    rows += rollouts
     rows += then
     if rows:
         psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
