@@ -14,7 +14,11 @@ func TestClusterRegistrationResumesWithoutReplacingEnrolledIdentity(t *testing.T
 	t.Parallel()
 	e := newEnrollmentFixture(t)
 	ctx := systemAdminContext(t)
-	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: "installed", Region: testRegion}
+	request := &clusterv1.CreateClusterRequest{
+		RequestId: uuid.NewString(),
+		Name:      "installed",
+		Target:    inRegion(testRegion),
+	}
 	first, err := e.admin.CreateCluster(ctx, request)
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +46,7 @@ func TestClusterRegistrationResumesWithoutReplacingEnrolledIdentity(t *testing.T
 	if got := e.fingerprint(t, uuid.MustParse(first.GetClusterId())); got != keyFingerprint(t, key) {
 		t.Fatal("retry replaced enrolled identity")
 	}
-	request.Region = "changed"
+	request.Target = inRegion(statusSecondRegion)
 	_, err = e.admin.CreateCluster(ctx, request)
 	requireCode(t, err, connect.CodeFailedPrecondition, "changed registration")
 }
@@ -50,7 +54,11 @@ func TestClusterRegistrationResumesWithoutReplacingEnrolledIdentity(t *testing.T
 func TestConcurrentClusterRegistrationCreatesOneRecord(t *testing.T) {
 	t.Parallel()
 	e := newEnrollmentFixture(t)
-	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: "installed", Region: testRegion}
+	request := &clusterv1.CreateClusterRequest{
+		RequestId: uuid.NewString(),
+		Name:      "installed",
+		Target:    inRegion(testRegion),
+	}
 	const contenders = 8
 	responses := make([]*clusterv1.CreateClusterResponse, contenders)
 	errs := make([]error, contenders)

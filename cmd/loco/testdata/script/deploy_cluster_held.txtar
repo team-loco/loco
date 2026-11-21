@@ -23,7 +23,7 @@ services:
   worker:
     image: ghcr.io/acme/worker:1
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 -- plan.json --
 {
   "revision": "7",

@@ -27,7 +27,7 @@ sql(
     state,
     f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
 SELECT kind,'{org}','{workspace}','{resource}','{environment}','user','{owner}','resource','req-activity-drawer',
-jsonb_build_object('region','us-east-1','environmentId','{environment}','reason','out_of_memory'),NOW()-n*INTERVAL '1 minute'
+jsonb_build_object('region','us-ca-1','environmentId','{environment}','reason','out_of_memory'),NOW()-n*INTERVAL '1 minute'
 FROM (VALUES(1,'resource.recovered'),(2,'resource.degraded')) AS records(n,kind);""",
 )
 out = Path(args.out)
@@ -50,8 +50,8 @@ with session(out) as browser:
     assert drawer_reads == [], drawer_reads
     activity.click()
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
-    expect(drawer.get_by_text("Degraded in us-east-1", exact=True)).to_be_visible()
-    expect(drawer.get_by_text("Recovered in us-east-1", exact=True)).to_be_visible()
+    expect(drawer.get_by_text("Degraded in us-ca-1", exact=True)).to_be_visible()
+    expect(drawer.get_by_text("Recovered in us-ca-1", exact=True)).to_be_visible()
     deployed = drawer.get_by_text("Deployed", exact=True)
     expect(deployed).to_have_count(6)
     drawer.get_by_role("button", name="Show 2 more", exact=True).click()

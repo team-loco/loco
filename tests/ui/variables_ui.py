@@ -50,7 +50,7 @@ resource = evidence.seed_resources(
                 {
                     "environment": "production",
                     "status": "running",
-                    "placements": {"us-east-1": {"ready_replicas": 1}},
+                    "placements": {"us-ca-1": {"ready_replicas": 1}},
                     "spec": {
                         "observability": {"injectOtel": True},
                         "build": {
@@ -59,7 +59,7 @@ resource = evidence.seed_resources(
                         },
                         "port": 8080,
                         "regions": {
-                            "us-east-1": {
+                            "us-ca-1": {
                                 "cpu": "100m",
                                 "memory": "128Mi",
                                 "minReplicas": 1,
@@ -122,8 +122,8 @@ split = evidence.seed_resources(
             "workspace": "acme/shared",
             "name": split_name,
             "deployments": [
-                regional("us-east-1", "east"),
-                regional("eu-west-1", "west"),
+                regional("us-ca-1", "east"),
+                regional("us-va-1", "west"),
             ],
         }
     ],
@@ -228,7 +228,7 @@ with session(out) as browser:
         page, "CreateDeployment", lambda body: body.get("resourceId") == resource
     ):
         save.click()
-    expect(page.get_by_text(re.compile(r"Rolling out in us-east-1\."))).to_be_visible()
+    expect(page.get_by_text(re.compile(r"Rolling out in us-ca-1\."))).to_be_visible()
     assert len(deployments) == 1, deployments
     sent = deployments[0]
     assert sent["spec"]["service"]["env"] == {
@@ -301,7 +301,7 @@ with session(out) as browser:
     )
     expect(
         page.locator("#set-env").get_by_text(
-            "eu-west-1 and us-east-1 run different variables. This list shows one of them; "
+            "us-ca-1 and us-va-1 run different variables. This list shows one of them; "
             "saving applies it to every region.",
             exact=True,
         )

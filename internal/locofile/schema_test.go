@@ -33,12 +33,12 @@ services:
     health: { path: /healthz, interval: 10 }
     routing: { pathPrefix: /api }
     regions:
-      us-east-1:
+      us-ca-1:
         cpu: 100m
         memory: 256Mi
         replicas: { min: 1, max: 2 }
         autoscaling: { cpuTarget: 80 }
-      eu-west-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-va-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
     environments:
       prod:
         domains: null
@@ -46,8 +46,8 @@ services:
         routing: null
         health: { interval: null }
         regions:
-          us-east-1: { autoscaling: null }
-          eu-west-1: null
+          us-ca-1: { autoscaling: null }
+          us-va-1: null
 `
 
 type schemaTypes []string
@@ -360,5 +360,5 @@ func TestResolveAppliesTheSchemaNullRemovals(t *testing.T) {
 	assert.Nil(t, api.Health.Interval)
 	assert.Equal(t, "/healthz", api.Health.Path)
 	assert.Nil(t, api.Regions[testRegion].Autoscaling)
-	assert.NotContains(t, api.Regions, "eu-west-1")
+	assert.NotContains(t, api.Regions, "us-va-1")
 }

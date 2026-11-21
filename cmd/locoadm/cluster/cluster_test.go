@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"sigs.k8s.io/yaml"
@@ -18,6 +20,8 @@ import (
 	"github.com/team-loco/loco/cmd/internal/clitest"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -26,7 +30,7 @@ const (
 	testJoinToken     = "loco_j_test"
 	testName          = "east"
 	testWorkerContext = "worker"
-	testRegion        = "us-east-1"
+	testRegion        = "us-ca-1"
 )
 
 var (
@@ -71,6 +75,7 @@ func (f *fakeClusterAdmin) CreateCluster(
 	f.created = req
 	return &clusterv1.CreateClusterResponse{
 		ClusterId: testClusterID,
+		Region:    testRegion,
 		JoinToken: &clusterv1.JoinToken{Token: testJoinToken, ExpiresAt: f.expiresAt},
 	}, nil
 }
@@ -201,6 +206,47 @@ func TestClusterCreateAndJoinTokenPrintTheToken(t *testing.T) {
 	}
 }
 
+func TestClusterCreateDescribesTheRegionToCreate(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want *clusterv1.CreateClusterRequest
+	}{
+		{
+			args: []string{clusterCreate, "--" + flagCountry, "us", "--" + flagSubdivision, "ca"},
+			want: &clusterv1.CreateClusterRequest{Target: &clusterv1.CreateClusterRequest_NewRegion{
+				NewRegion: &clusterv1.NewRegion{Country: "us", Subdivision: "ca"},
+			}},
+		},
+		{
+			args: []string{clusterCreate, "--" + flagLocal},
+			want: &clusterv1.CreateClusterRequest{Target: &clusterv1.CreateClusterRequest_Region{Region: "local-1"}},
+		},
+	} {
+		fake := &fakeClusterAdmin{t: t}
+		cmd, _ := clusterTestCommand(t, fake)
+		cmd.SetArgs(tc.args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatal(err)
+		}
+		got := &clusterv1.CreateClusterRequest{Name: fake.created.GetName(), Target: fake.created.GetTarget()}
+		if !proto.Equal(got, tc.want) {
+			t.Fatalf("%v created %v, want %v", tc.args, fake.created, tc.want)
+		}
+	}
+	for _, args := range [][]string{
+		{clusterCreate},
+		{clusterCreate, "--" + flagRegion, testRegion, "--" + flagLocal},
+		{clusterCreate, "--" + flagCountry, "us"},
+	} {
+		fake := &fakeClusterAdmin{t: t}
+		cmd, _ := clusterTestCommand(t, fake)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err == nil || len(fake.calls) != 0 {
+			t.Fatalf("%v ran with calls %v, want a flag error", args, fake.calls)
+		}
+	}
+}
+
 func TestClusterPreservesDenialsAndPrintsBlockingWorkloads(t *testing.T) {
 	detail, err := connectproto.NewErrorDetail(
 		&clusterv1.ClusterWorkloads{Workloads: []*clusterv1.ClusterWorkload{{Id: testClusterID, Kind: "placement"}}},
@@ -283,5 +329,64 @@ func TestClusterCreatePrintsSecretWithRequestedTTL(t *testing.T) {
 		secret.Metadata.Namespace != testWorkerContext ||
 		secret.StringData["join-token"] != testJoinToken {
 		t.Fatalf("invalid join Secret: %+v", secret)
+	}
+}
+
+type fakeDefaultRegion struct {
+	configv1connect.UnimplementedConfigServiceHandler
+	clusterv1connect.UnimplementedRegionAdminServiceHandler
+
+	configured string
+	regions    []string
+}
+
+func (f *fakeDefaultRegion) GetConfig(
+	context.Context,
+	*configv1.GetConfigRequest,
+) (*configv1.GetConfigResponse, error) {
+	return &configv1.GetConfigResponse{DefaultRegion: f.configured}, nil
+}
+
+func (f *fakeDefaultRegion) ListRegions(
+	context.Context,
+	*clusterv1.ListRegionsRequest,
+) (*clusterv1.ListRegionsResponse, error) {
+	resp := &clusterv1.ListRegionsResponse{}
+	for _, code := range f.regions {
+		resp.Regions = append(resp.Regions, &clusterv1.Region{Code: code})
+	}
+	return resp, nil
+}
+
+func TestClusterCreateSuggestsTheFirstRegionAsTheDefault(t *testing.T) {
+	const hint = "Set LOCO_DEFAULT_REGION=" + testRegion
+	for _, tc := range []struct {
+		name string
+		api  *fakeDefaultRegion
+		want bool
+	}{
+		{"first region without a default", &fakeDefaultRegion{regions: []string{testRegion}}, true},
+		{"default already set", &fakeDefaultRegion{configured: testRegion, regions: []string{testRegion}}, false},
+		{"second region", &fakeDefaultRegion{regions: []string{testRegion, "us-va-1"}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := &fakeClusterAdmin{t: t}
+			fake.credential = clitest.Session(t, func(server *connect.Server) {
+				clusterv1connect.RegisterClusterAdminServiceHandler(server, fake)
+				configv1connect.RegisterConfigServiceHandler(server, tc.api)
+				clusterv1connect.RegisterRegionAdminServiceHandler(server, tc.api)
+			})
+			cmd := BuildClusterCmd()
+			stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
+			cmd.SetOut(stdout)
+			cmd.SetErr(stderr)
+			cmd.SetArgs(createArgs)
+			if err := cmd.Execute(); err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(stderr.String(), hint) != tc.want || strings.Contains(stdout.String(), hint) {
+				t.Fatalf("stderr = %q, stdout = %q; want the hint on stderr: %v", stderr, stdout, tc.want)
+			}
+		})
 	}
 }

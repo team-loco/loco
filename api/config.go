@@ -229,6 +229,7 @@ type APIConfig struct {
 	CacheAddr             string   // Valkey address (when CacheType is "valkey")
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	MinCLIVersion         string
+	DefaultRegion         string
 	PprofAddr             string
 	SourceBucket          sourcebucket.Config
 	SourceMaxBytes        int64
@@ -349,6 +350,7 @@ func newAPIConfig() *APIConfig {
 		CacheAddr:             cacheAddr,
 		CORSAllowedOrigins:    corsOrigins,
 		MinCLIVersion:         minCLIVersion,
+		DefaultRegion:         envconfig.String("LOCO_DEFAULT_REGION", ""),
 		PprofAddr:             envconfig.String("PPROF_ADDR", ""),
 		SourceBucket:          sourceBucket,
 		SourceMaxBytes:        sourceMaxBytes,

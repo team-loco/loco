@@ -31,6 +31,9 @@ message GetConfigResponse {
   google.protobuf.Duration observability_max_time_range = 10;
   string api_version = 11;
   bool web_auth_enabled = 12;
+  // the region code new services default to, from LOCO_DEFAULT_REGION; empty when unset or when
+  // that code is not a live region
+  string default_region = 13;
 }
 
 message HistoryRetention {

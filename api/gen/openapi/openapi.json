@@ -1824,6 +1824,67 @@
         }
       }
     },
+    "/loco.cluster.v1.RegionAdminService/ListRegions": {
+      "post": {
+        "tags": [
+          "loco.cluster.v1.RegionAdminService"
+        ],
+        "summary": "ListRegions",
+        "operationId": "loco.cluster.v1.RegionAdminService.ListRegions",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.cluster.v1.ListRegionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.cluster.v1.ListRegionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.config.v1.ConfigService/GetConfig": {
       "post": {
         "tags": [
@@ -10050,6 +10111,32 @@
       },
       "loco.cluster.v1.CreateClusterRequest": {
         "type": "object",
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "region",
+                "newRegion"
+              ]
+            },
+            {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "region"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "newRegion"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
         "properties": {
           "ttl": {
             "title": "ttl",
@@ -10066,17 +10153,23 @@
             "type": "string",
             "title": "name",
             "maxLength": 255,
-            "minLength": 1
+            "description": "Omit to name the region's first cluster after the region code."
           },
           "region": {
             "type": "string",
             "title": "region",
             "maxLength": 255,
-            "minLength": 1
+            "minLength": 1,
+            "description": "code of a region that has a cluster, or local-1"
+          },
+          "newRegion": {
+            "title": "new_region",
+            "$ref": "#/components/schemas/loco.cluster.v1.NewRegion"
           }
         },
         "title": "CreateClusterRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Exactly one of `region`, `newRegion` must be set."
       },
       "loco.cluster.v1.CreateClusterResponse": {
         "type": "object",
@@ -10088,6 +10181,14 @@
           "joinToken": {
             "title": "join_token",
             "$ref": "#/components/schemas/loco.cluster.v1.JoinToken"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "region": {
+            "type": "string",
+            "title": "region"
           }
         },
         "title": "CreateClusterResponse",
@@ -10159,6 +10260,45 @@
         "title": "ListClustersResponse",
         "additionalProperties": false
       },
+      "loco.cluster.v1.ListRegionsRequest": {
+        "type": "object",
+        "title": "ListRegionsRequest",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.ListRegionsResponse": {
+        "type": "object",
+        "properties": {
+          "regions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.Region"
+            },
+            "title": "regions"
+          }
+        },
+        "title": "ListRegionsResponse",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.NewRegion": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string",
+            "title": "country",
+            "pattern": "^[a-z0-9]+$",
+            "description": "such as us; lowercase letters and digits"
+          },
+          "subdivision": {
+            "type": "string",
+            "title": "subdivision",
+            "pattern": "^[a-z0-9]+$",
+            "description": "such as ca, the state or province; lowercase letters and digits"
+          }
+        },
+        "title": "NewRegion",
+        "additionalProperties": false,
+        "description": "NewRegion describes the region CreateCluster creates. The API builds its code."
+      },
       "loco.cluster.v1.PauseClusterRequest": {
         "type": "object",
         "properties": {
@@ -10181,6 +10321,24 @@
         },
         "title": "PauseClusterResponse",
         "additionalProperties": false
+      },
+      "loco.cluster.v1.Region": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "code"
+          },
+          "clusterCount": {
+            "type": "integer",
+            "title": "cluster_count",
+            "format": "int32",
+            "description": "clusters in the region that are not removed"
+          }
+        },
+        "title": "Region",
+        "additionalProperties": false,
+        "description": "Region is the code clusters share, `{country}-{subdivision}-{n}` or `local-1`."
       },
       "loco.cluster.v1.RemoveClusterRequest": {
         "type": "object",
@@ -10457,6 +10615,11 @@
           "webAuthEnabled": {
             "type": "boolean",
             "title": "web_auth_enabled"
+          },
+          "defaultRegion": {
+            "type": "string",
+            "title": "default_region",
+            "description": "the region code new services default to, from LOCO_DEFAULT_REGION; empty when unset or when\n that code is not a live region"
           }
         },
         "title": "GetConfigResponse",
@@ -14299,7 +14462,7 @@
           "path": {
             "type": "string",
             "title": "path",
-            "description": "path is the field in loco.yaml form, such as regions.us-east-1.cpu or env.LOG_LEVEL."
+            "description": "path is the field in loco.yaml form, such as regions.us-ca-1.cpu or env.LOG_LEVEL."
           },
           "before": {
             "type": "string",
@@ -14835,10 +14998,6 @@
           "region": {
             "type": "string",
             "title": "region"
-          },
-          "isDefault": {
-            "type": "boolean",
-            "title": "is_default"
           },
           "healthStatus": {
             "type": "string",
@@ -17360,6 +17519,10 @@
     },
     {
       "name": "loco.cluster.v1.ClusterAdminService"
+    },
+    {
+      "name": "loco.cluster.v1.RegionAdminService",
+      "description": "RegionAdminService lists the regions clusters run in. A region is the region code its clusters\n carry; CreateCluster builds new codes."
     },
     {
       "name": "loco.deployment.v1.DeploymentService",

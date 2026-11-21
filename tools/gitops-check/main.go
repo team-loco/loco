@@ -214,7 +214,7 @@ func checkSingleCluster(ctx context.Context, root, scratch, spec string, resourc
 		"--domain",
 		"apps.test",
 		"--region",
-		"test-east",
+		"us-ca-1",
 		"--admin",
 		"admin@test.local",
 		"--bundle",

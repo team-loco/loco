@@ -77,7 +77,7 @@ func (f *fixture) installFlux(
 		"--domain",
 		"apps.installation.test",
 		"--region",
-		"us-east-1",
+		fixtureRegion,
 		"--admin",
 		fixtureEmail,
 		"--bundle",
@@ -330,7 +330,7 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 		"--name",
 		name,
 		"--region",
-		"us-east-1",
+		fixtureRegion,
 		"--secret-name",
 		"loco-worker-enrollment",
 	}

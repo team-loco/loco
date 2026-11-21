@@ -53,9 +53,9 @@ func TestErrorInterceptorMapsDomainErrorsToCodes(t *testing.T) {
 			wantMessage: ErrOrgSuspended.Error() + ": unpaid invoice",
 		},
 		"invalid argument": {
-			err:         errNoDeploymentInRegion.Detail("%s", "eu-west-1"),
+			err:         errNoDeploymentInRegion.Detail("%s", "us-va-1"),
 			wantCode:    connect.CodeInvalidArgument,
-			wantMessage: "resource has no active deployment in region: eu-west-1",
+			wantMessage: "resource has no active deployment in region: us-va-1",
 		},
 		"invalid input hides its cause": {
 			err:         &invalidInputError{public: publicInvalidRequest, err: errImageRequired},

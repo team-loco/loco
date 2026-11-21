@@ -18,7 +18,7 @@ state = load_state(
     args, "resource-replicas", "tests/ui/fixtures/deployment-history/scenario.json"
 )
 workspace = state["workspaces"]["acme/shared"]
-EAST, WEST = "us-east-1", "eu-west-1"
+EAST, WEST = "us-ca-1", "us-va-1"
 
 if "replicas" not in state:
     spec = {

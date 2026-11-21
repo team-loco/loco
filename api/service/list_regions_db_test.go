@@ -71,9 +71,8 @@ func TestListRegionsUsesTheSameEligibleClustersForEveryEnvironment(t *testing.T)
 	if len(production) != 2 {
 		t.Fatalf("production regions = %v, want both eligible regions including %s", production, testRegion)
 	}
-	if production[0].GetRegion() != statusSecondRegion || !production[0].GetIsDefault() ||
-		production[1].GetRegion() != testRegion || production[1].GetIsDefault() {
-		t.Fatalf("regions = %v, want the shared default region before the fallback region", production)
+	if production[0].GetRegion() != testRegion || production[1].GetRegion() != statusSecondRegion {
+		t.Fatalf("regions = %v, want both regions in code order", production)
 	}
 	for _, region := range production {
 		if region.GetHealthStatus() != "healthy" ||
@@ -112,8 +111,8 @@ func TestListRegionsReportsDegradedRegions(t *testing.T) {
 	}
 
 	regions := listRegions(t, server, scopes, f.envID.String())
-	if len(regions) != 1 || regions[0].GetHealthStatus() != clusterHealthHealthy || regions[0].GetIsDefault() {
-		t.Fatalf("regions with a healthy fallback = %v, want the healthy non-default cluster", regions)
+	if len(regions) != 1 || regions[0].GetHealthStatus() != clusterHealthHealthy {
+		t.Fatalf("regions with a healthy fallback = %v, want the healthy cluster", regions)
 	}
 
 	move := `UPDATE clusters SET region = $2 WHERE id = $1`
@@ -123,8 +122,8 @@ func TestListRegionsReportsDegradedRegions(t *testing.T) {
 	regions = listRegions(t, server, scopes, f.envID.String())
 	if len(regions) != 2 || regions[0].GetRegion() != testRegion ||
 		regions[1].GetRegion() != statusSecondRegion ||
-		regions[1].GetHealthStatus() != clusterHealthDegraded || regions[1].GetIsDefault() {
-		t.Fatalf("regions = %v, want the healthy region first and the degraded region without a default", regions)
+		regions[1].GetHealthStatus() != clusterHealthDegraded {
+		t.Fatalf("regions = %v, want the healthy region first and the degraded region second", regions)
 	}
 
 	_, err := eligibleCluster(ctx, f.queries, statusSecondRegion, testClusterSilentAfter, testPlatform)
@@ -154,8 +153,7 @@ func TestListRegionsReportsOfflineClusters(t *testing.T) {
 	}
 	regions = listRegions(t, server, scopes, f.envID.String())
 	if len(regions) != 2 || regions[1].GetRegion() != statusSecondRegion ||
-		regions[1].GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_OFFLINE ||
-		regions[1].GetIsDefault() {
-		t.Fatalf("regions = %v, want the offline region without a default", regions)
+		regions[1].GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_OFFLINE {
+		t.Fatalf("regions = %v, want the offline region second", regions)
 	}
 }

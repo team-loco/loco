@@ -34,7 +34,7 @@ const (
       SESSION_KEY: "${{ secrets.SESSION_KEY }}"
       DATABASE_URL: "${{ secrets.DATABASE_URL }}"
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 )
 

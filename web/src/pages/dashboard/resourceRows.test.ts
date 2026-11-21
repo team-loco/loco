@@ -52,7 +52,7 @@ describe("filterRows", () => {
 
 describe("draft and not deployed filters", () => {
 	const never = { ...row("never"), neverDeployed: true };
-	const rows = [row("api"), never, ...draftItems([draft("web")], [])];
+	const rows = [row("api"), never, ...draftItems([draft("web")], [], "")];
 
 	test("Not deployed keeps created resources without a deployment and Draft keeps browser drafts", () => {
 		expect(names(filterRows(rows, { ...everything, status: "not-deployed" }))).toEqual(["never"]);
@@ -90,10 +90,14 @@ describe("table sort", () => {
 
 describe("draftItems", () => {
 	const regions = [
-		create(RegionInfoSchema, { region: "us-east-1", isDefault: true }),
+		create(RegionInfoSchema, { region: "us-east-1" }),
 		create(RegionInfoSchema, { region: "eu-west-1" }),
 	];
-	const items = draftItems([draft("web"), draft("queue", { isPublic: false, regions: ["eu-west-1"] })], regions);
+	const items = draftItems(
+		[draft("web"), draft("queue", { isPublic: false, regions: ["eu-west-1"] })],
+		regions,
+		"us-east-1",
+	);
 
 	test("place a draft in its regions with nothing running", () => {
 		expect(items.map((i) => [i.draft.name, itemIsPublic(i), i.regions])).toEqual([

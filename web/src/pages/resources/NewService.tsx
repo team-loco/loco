@@ -377,6 +377,7 @@ function DraftPanel({
 				env={env}
 				schemaUrl={config.schemaUrl}
 				regions={regionsQuery.data.regions}
+				defaultRegion={config.defaultRegion}
 				platformDomains={domainsQuery.data?.platformDomains ?? []}
 				draft={draft}
 				defaults={defaults}
@@ -473,6 +474,7 @@ function ServiceForm({
 	sizes,
 	schemaUrl,
 	regions,
+	defaultRegion,
 	platformDomains,
 	deployment,
 	resourceHref,
@@ -494,6 +496,7 @@ function ServiceForm({
 	sizes: SizeOptions;
 	schemaUrl: string;
 	regions: RegionInfo[];
+	defaultRegion: string;
 	platformDomains: PlatformDomain[];
 	deployment: ReturnType<typeof useServiceDeploy>;
 	resourceHref: string | undefined;
@@ -512,7 +515,7 @@ function ServiceForm({
 	const { edits, image, name, slug } = draft;
 	const { deployError, deploy, isPending, resourceId } = deployment;
 
-	const selected = draftRegions(draft, regions);
+	const selected = draftRegions(draft, regions, defaultRegion);
 	const regionNames = [...new Set([...regions.map((region) => region.region), ...selected])];
 	const size = draftSizing(draft, defaults);
 	const served = servedDomains(platformDomains, selected);

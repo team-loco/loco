@@ -11,7 +11,7 @@ services:
     port: 8080
     health: {path: /healthz}
     regions:
-      us-east-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
+      us-ca-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
     environments:
       production:
         health: null
@@ -39,7 +39,7 @@ services:
     port: 8080
     health: {}
     regions:
-      us-east-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
+      us-ca-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
 `))
 	if err != nil {
 		t.Fatal(err)

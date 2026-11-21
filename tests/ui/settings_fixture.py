@@ -2,7 +2,7 @@ import uuid
 
 from harness import evidence
 
-REGION = "us-east-1"
+REGION = "us-ca-1"
 
 
 def seed_settings_resource(state, prefix, cpu="100m", memory="128Mi"):

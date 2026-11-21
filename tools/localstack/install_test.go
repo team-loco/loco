@@ -206,7 +206,7 @@ func TestEnrollmentResumesAnExistingRegistration(t *testing.T) {
 		strings.Join(
 			args,
 			" ",
-		) != "cluster create --name local --region local --kube-context kind-worker" {
+		) != "cluster create --name local --local --kube-context kind-worker" {
 		t.Fatalf("new enrollment=%v,%v", args, err)
 	}
 }
@@ -245,7 +245,7 @@ func TestReleaseOverridesFollowCurrentFixtureInputs(t *testing.T) {
 	}
 	for release, data := range map[string]string{
 		"loco-control-plane": "api:\n  env: {CUSTOM_VALUE: retained}\n",
-		"loco-worker":        "global: {region: local}\n",
+		"loco-worker":        "global: {region: local-1}\n",
 	} {
 		if err := os.WriteFile(repo.Values(release), []byte(data), 0600); err != nil {
 			t.Fatal(err)

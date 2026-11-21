@@ -32,7 +32,7 @@
             },
             "port": 8080,
             "regions": {
-              "us-east-1": {
+              "us-ca-1": {
                 "cpu": "100m",
                 "memory": "128Mi",
                 "minReplicas": 1,
@@ -60,7 +60,7 @@
             },
             "port": 8080,
             "regions": {
-              "us-east-1": {
+              "us-ca-1": {
                 "cpu": "100m",
                 "memory": "128Mi",
                 "minReplicas": 1,

@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -26,6 +29,13 @@ type ConfigServer struct {
 	orgLinks                  []*configv1.OrgLink
 	counts                    *configv1.CountLimits
 	historyRetention          *configv1.HistoryRetention
+	defaultRegion             string
+	regions                   liveRegionChecker
+	warnDefaultRegion         sync.Once
+}
+
+type liveRegionChecker interface {
+	IsLiveRegion(ctx context.Context, code string) (bool, error)
 }
 
 func NewConfigServer(
@@ -36,6 +46,8 @@ func NewConfigServer(
 	apiTokenMaxLifetime, observabilityMaxTimeRange time.Duration,
 	counts *configv1.CountLimits,
 	historyRetention *configv1.HistoryRetention,
+	defaultRegion string,
+	regions liveRegionChecker,
 ) *ConfigServer {
 	_, webAuthEnabled := auth.WebIssuer(issuers)
 	return &ConfigServer{
@@ -49,13 +61,37 @@ func NewConfigServer(
 		observabilityMaxTimeRange: observabilityMaxTimeRange,
 		counts:                    counts,
 		historyRetention:          historyRetention,
+		defaultRegion:             defaultRegion,
+		regions:                   regions,
 	}
 }
 
+// liveDefaultRegion returns LOCO_DEFAULT_REGION when it names a live region, and "" otherwise.
+func (s *ConfigServer) liveDefaultRegion(ctx context.Context) (string, error) {
+	if s.defaultRegion == "" {
+		return "", nil
+	}
+	live, err := s.regions.IsLiveRegion(ctx, s.defaultRegion)
+	if err != nil {
+		return "", fmt.Errorf("check default region: %w", err)
+	}
+	if !live {
+		s.warnDefaultRegion.Do(func() {
+			slog.WarnContext(ctx, "LOCO_DEFAULT_REGION is not a live region; ignoring it", "region", s.defaultRegion)
+		})
+		return "", nil
+	}
+	return s.defaultRegion, nil
+}
+
 func (s *ConfigServer) GetConfig(
-	_ context.Context,
+	ctx context.Context,
 	_ *configv1.GetConfigRequest,
 ) (*configv1.GetConfigResponse, error) {
+	defaultRegion, err := s.liveDefaultRegion(ctx)
+	if err != nil {
+		return nil, err
+	}
 	health := configplan.Health(s.defaults.Health())
 	return &configv1.GetConfigResponse{
 		MinCliVersion:              s.minCLIVersion,
@@ -63,6 +99,7 @@ func (s *ConfigServer) GetConfig(
 		ApiTokenMaxLifetimeSeconds: int64(s.apiTokenMaxLifetime / time.Second),
 		SchemaUrl:                  s.schemaURL,
 		WebAuthEnabled:             s.webAuthEnabled,
+		DefaultRegion:              defaultRegion,
 		OrgLinks:                   s.orgLinks,
 		CountLimits:                s.counts,
 		HistoryRetention:           s.historyRetention,

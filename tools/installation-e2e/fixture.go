@@ -38,6 +38,8 @@ var (
 )
 
 const (
+	// fixtureRegion is the region every fixture worker joins.
+	fixtureRegion          = "us-ca-1"
 	registryForwardTimeout = time.Minute
 	registryRequestTimeout = time.Second
 	registryProbeInterval  = 100 * time.Millisecond

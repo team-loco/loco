@@ -3,7 +3,7 @@ fakeapi plan plan.json
 fakeapi deployment dep-api superseded
 cd app
 exec loco deploy --yes --wait
-stdout '^api has no port, so it runs as a worker and takes no traffic\.\ndep-api · Starting\nus-east-1 · deploying\ndep-api · Serving traffic\nScaled to 3 replicas\nus-east-1 · superseded\nDeployment dep-api for api in us-east-1 is running\.$'
+stdout '^api has no port, so it runs as a worker and takes no traffic\.\ndep-api · Starting\nus-ca-1 · deploying\ndep-api · Serving traffic\nScaled to 3 replicas\nus-ca-1 · superseded\nDeployment dep-api for api in us-ca-1 is running\.$'
 fakeapi called WatchDeployment
 
 -- home/.loco/credentials.json --
@@ -22,7 +22,7 @@ services:
   api:
     image: ghcr.io/acme/api:1
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 -- plan.json --
 {
   "revision": "7",

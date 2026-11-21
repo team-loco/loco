@@ -35,7 +35,7 @@ var _ = Describe("Application Controller", func() {
 						ResourceID:    "1",
 						WorkspaceID:   "1",
 						EnvironmentID: "env-1",
-						Region:        "us-east-1",
+						Region:        "us-ca-1",
 						ServiceSpec: &locov1alpha1.ServiceSpec{
 							Deployment: &locov1alpha1.ServiceDeploymentSpec{
 								Platform: testPlatform,

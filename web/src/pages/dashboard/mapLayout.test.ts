@@ -130,8 +130,8 @@ describe("mapLayout", () => {
 	});
 
 	test("drafts sit in their column after deploying resources, on dashed edges, and add no routes", () => {
-		const regions = [create(RegionInfoSchema, { region: "us-east-1", isDefault: true })];
-		const drafts = draftItems([draft("new-web"), draft("new-queue", { isPublic: false })], regions);
+		const regions = [create(RegionInfoSchema, { region: "us-east-1" })];
+		const drafts = draftItems([draft("new-web"), draft("new-queue", { isPublic: false })], regions, "us-east-1");
 		const rows = [
 			row("web", { domain: "web.example.dev" }),
 			row("rolling", { domain: "r.example.dev", status: ResourceStatus.DEPLOYING }),

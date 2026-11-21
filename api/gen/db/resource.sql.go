@@ -158,10 +158,9 @@ func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id
 }
 
 const listClusterRegions = `-- name: ListClusterRegions :many
-SELECT region, (available AND is_default AND health_status = 'healthy')::boolean AS is_default,
-       health_status, available
+SELECT region, health_status, available
 FROM (
-    SELECT DISTINCT ON (region) region, is_default, health_status,
+    SELECT DISTINCT ON (region) region, health_status,
            COALESCE(last_heartbeat >= $1::timestamptz, false)::boolean AS available
     FROM clusters
     WHERE is_active = true
@@ -182,7 +181,6 @@ type ListClusterRegionsParams struct {
 
 type ListClusterRegionsRow struct {
 	Region       string  `json:"region"`
-	IsDefault    bool    `json:"isDefault"`
 	HealthStatus *string `json:"healthStatus"`
 	Available    bool    `json:"available"`
 }
@@ -196,12 +194,7 @@ func (q *Queries) ListClusterRegions(ctx context.Context, arg ListClusterRegions
 	var items []ListClusterRegionsRow
 	for rows.Next() {
 		var i ListClusterRegionsRow
-		if err := rows.Scan(
-			&i.Region,
-			&i.IsDefault,
-			&i.HealthStatus,
-			&i.Available,
-		); err != nil {
+		if err := rows.Scan(&i.Region, &i.HealthStatus, &i.Available); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

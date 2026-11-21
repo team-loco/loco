@@ -99,10 +99,10 @@ func newDeployFixture(t *testing.T) *deployFixture {
 	row := pool.QueryRow(ctx, `
 WITH c AS (
     INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
-    VALUES (ARRAY['linux/amd64'], 'c1', 'us-east-1', 'kind', true, true) RETURNING id
+    VALUES (ARRAY['linux/amd64'], 'c1', 'us-ca-1', 'kind', true, true) RETURNING id
 ), c2 AS (
     INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
-    VALUES (ARRAY['linux/amd64'], 'c2', 'us-east-1', 'kind', true, false) RETURNING id
+    VALUES (ARRAY['linux/amd64'], 'c2', 'us-ca-1', 'kind', true, false) RETURNING id
 )
 SELECT c.id, c2.id FROM c, c2`)
 	if err := row.Scan(&f.clusterID, &f.otherCluster); err != nil {

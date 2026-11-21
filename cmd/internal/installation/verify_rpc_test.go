@@ -149,7 +149,7 @@ func TestVerificationCleansResourceAndSecretAfterFailure(t *testing.T) {
 				rpc.ForHost(httpServer.URL, "fixture-session"),
 				httpServer.Client(),
 				&clusterv1.Cluster{
-					Region: "us-east-1", Domains: []string{"apps.example.com"},
+					Region: "us-ca-1", Domains: []string{"apps.example.com"},
 				},
 				&environmentv1.Environment{Id: testProbeEnvironment, WorkspaceId: "fixture-workspace"},
 			)

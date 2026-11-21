@@ -40,7 +40,7 @@ def service(cpu="100m"):
     return {
         "routing": {"port": 8080},
         "regions": {
-            "us-east-1": {
+            "us-ca-1": {
                 "enabled": True,
                 "cpu": cpu,
                 "memory": "128Mi",
@@ -122,7 +122,7 @@ def mock_telemetry(context):
             "level": LEVELS[i % 4],
             "body": f"Request completed ({i + 1})",
             "resourceId": resource,
-            "resourceAttributes": {"cloud.region": "us-east-1"},
+            "resourceAttributes": {"cloud.region": "us-ca-1"},
         }
         for i in range(18)
     ]
@@ -301,7 +301,7 @@ def activity_deployments(page):
             "status": f"DEPLOYMENT_STATUS_{status}",
             "placements": [
                 {
-                    "region": "us-east-1",
+                    "region": "us-ca-1",
                     "status": f"PLACEMENT_STATUS_{status}",
                     "desiredReplicas": 1,
                     "replicas": list(replicas),
@@ -344,7 +344,7 @@ def activity_deployments(page):
                         "status": "RESOURCE_STATUS_HEALTHY",
                         "regions": [
                             {
-                                "region": "us-east-1",
+                                "region": "us-ca-1",
                                 "status": "RESOURCE_STATUS_HEALTHY",
                                 "readyReplicas": 1,
                                 "desiredReplicas": 1,
@@ -714,7 +714,7 @@ def log_paging(page):
             "level": "LOG_LEVEL_INFO",
             "body": f"Paged line {i + 1}",
             "resourceId": resource,
-            "resourceAttributes": {"cloud.region": "us-east-1"},
+            "resourceAttributes": {"cloud.region": "us-ca-1"},
             "logAttributes": {"http.request.method": "GET"},
         }
         for i in range(120)
@@ -1108,7 +1108,7 @@ def volume_axis(page):
 def dashboard(page):
     page.set_viewport_size(evidence.DESKTOP)
     if not state.get("dashboard_resources"):
-        cluster = evidence.seed_cluster(state, "us-east-1", name="dashboard-pilot")
+        cluster = evidence.seed_cluster(state, "us-ca-1", name="dashboard-pilot")
         evidence.seed_resources(
             state,
             [
@@ -1119,7 +1119,7 @@ def dashboard(page):
                     "deployments": [
                         {
                             "environment": "production",
-                            "placements": {"us-east-1": {"cluster": cluster}},
+                            "placements": {"us-ca-1": {"cluster": cluster}},
                             "method": "cli",
                             "spec": {
                                 "platform": "linux/amd64",
@@ -1129,7 +1129,7 @@ def dashboard(page):
                                 },
                                 "port": 8080,
                                 "regions": {
-                                    "us-east-1": {
+                                    "us-ca-1": {
                                         "cpu": f"{(index + 1) * 100}m",
                                         "memory": "128Mi",
                                         "minReplicas": 1,
@@ -1165,7 +1165,7 @@ def dashboard(page):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
         replicas = page.get_by_label(
-            "47 of 48 ready · 1 starting\nus-east-1: 47/48", exact=True
+            "47 of 48 ready · 1 starting\nus-ca-1: 47/48", exact=True
         )
         expect(replicas).to_be_visible()
         # The authentication init script starts every navigation in light mode.
@@ -1201,7 +1201,7 @@ def dashboard(page):
         ), bounds
         replicas.focus()
         expect(page.locator('[data-slot="tooltip-content"]')).to_contain_text(
-            "us-east-1: 47/48"
+            "us-ca-1: 47/48"
         )
         page.keyboard.press("Escape")
         table = page.get_by_role("region", name="Deployments", exact=True).get_by_role(
@@ -1313,11 +1313,11 @@ def dashboard(page):
         f"UPDATE placements SET ready_replicas=48 FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.slug='dashboard-0';",
     )
     page.reload()
-    ready = page.get_by_label("48 of 48 ready\nus-east-1: 48/48", exact=True)
+    ready = page.get_by_label("48 of 48 ready\nus-ca-1: 48/48", exact=True)
     expect(ready).to_be_visible()
     ready.focus()
     expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(
-        "48 of 48 ready us-east-1: 48/48"
+        "48 of 48 ready us-ca-1: 48/48"
     )
     page.keyboard.press("Escape")
     page.evaluate(
@@ -1846,14 +1846,14 @@ def metrics(page):
         {
             "id": f"01a1c8b3-0000-7000-8000-0000000de90{i}",
             "resourceId": resource,
-            "placements": [{"region": "us-east-1"}],
+            "placements": [{"region": "us-ca-1"}],
             "environmentId": production,
             "createdAt": point["timestamp"],
             "startedAt": point["timestamp"],
             "spec": {
                 "service": {
                     "build": {"image": "ghcr.io/acme/pilot:1.27"},
-                    "regions": {"us-east-1": {"cpu": "500m", "memory": "512Mi"}},
+                    "regions": {"us-ca-1": {"cpu": "500m", "memory": "512Mi"}},
                 }
             },
         }
@@ -1902,7 +1902,7 @@ def metrics(page):
         .get_by_role("cell")
         .nth(1)
     )
-    expect(region_cell).to_have_text("us-east-1")
+    expect(region_cell).to_have_text("us-ca-1")
     text_lines = region_cell.evaluate(
         """node => {
             const range = document.createRange();

@@ -6,8 +6,8 @@ stdout '^Plan for loco.yaml against environment revision 7\.$'
 stdout '^  \+ api$'
 stdout '^  - worker  \(destructive\)$'
 stdout '^Applied\. Environment revision is now 8\.$'
-stdout '^Started deployment dep-api for api in us-east-1\.$'
-stdout '^Started deployment dep-db for db in us-east-1\.$'
+stdout '^Started deployment dep-api for api in us-ca-1\.$'
+stdout '^Started deployment dep-db for db in us-ca-1\.$'
 ! stdout 'dep-worker'
 ! stdout 'dep-web'
 ! stdout '\x1b\['
@@ -50,4 +50,4 @@ services:
   api:
     image: ghcr.io/acme/api:1
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

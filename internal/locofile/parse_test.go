@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testRegion = "us-east-1"
+const testRegion = "us-ca-1"
 
 const tddExample = `version: 1
 partial: web
@@ -24,19 +24,19 @@ services:
     domains: [app.example.com]
     env: { LOG_LEVEL: info, SESSION_KEY: "${{ secrets.SESSION_KEY }}" }
     regions:
-      us-east-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 3 } }
+      us-ca-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 3 } }
     environments:
       production:
         domains: [www.example.com]
         regions:
-          us-east-1: { replicas: { min: 2, max: 6 }, autoscaling: { cpuTarget: 70 } }
+          us-ca-1: { replicas: { min: 2, max: 6 }, autoscaling: { cpuTarget: 70 } }
       dev:
         enabled: false
 
   worker:
     image: ghcr.io/acme/worker:1.4.2
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 `
 
 const minimalFile = `version: 1
@@ -45,7 +45,7 @@ services:
   api:
     image: ghcr.io/acme/api:1
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 `
 
 func TestParsePortableOpenTelemetrySampling(t *testing.T) {
@@ -91,10 +91,10 @@ func TestParseTDDExample(t *testing.T) {
 	assert.Equal(t, int32(60), *web.Routing.IdleTimeout)
 	assert.Equal(t, []string{"app.example.com"}, web.Domains)
 	assert.Equal(t, map[string]string{"LOG_LEVEL": "info", "SESSION_KEY": "${{ secrets.SESSION_KEY }}"}, web.Env)
-	assert.Equal(t, "250m", web.Regions["us-east-1"].CPU)
-	assert.Equal(t, int32(3), *web.Regions["us-east-1"].Replicas.Max)
+	assert.Equal(t, "250m", web.Regions["us-ca-1"].CPU)
+	assert.Equal(t, int32(3), *web.Regions["us-ca-1"].Replicas.Max)
 	assert.Equal(t, []string{"www.example.com"}, web.Environments["production"].Domains)
-	assert.Equal(t, int32(70), *web.Environments["production"].Regions["us-east-1"].Autoscaling.CPUTarget)
+	assert.Equal(t, int32(70), *web.Environments["production"].Regions["us-ca-1"].Autoscaling.CPUTarget)
 	assert.False(t, *web.Environments["dev"].Enabled)
 
 	worker := file.Services["worker"]
@@ -253,34 +253,34 @@ func TestParseRejects(t *testing.T) {
 			name: "region without memory",
 			yaml: strings.Replace(minimalFile, "memory: 256Mi, ", "", 1),
 			err:  ErrRegionIncomplete,
-			path: "services.api.regions.us-east-1",
+			path: "services.api.regions.us-ca-1",
 		},
 		{
 			name: "region without replicas.max",
 			yaml: strings.Replace(minimalFile, ", max: 1", "", 1),
 			err:  ErrRegionIncomplete,
-			path: "services.api.regions.us-east-1",
+			path: "services.api.regions.us-ca-1",
 		},
 		{
 			name: "autoscaling with both targets",
 			yaml: strings.Replace(minimalFile, "replicas: { min: 1, max: 1 }",
 				"replicas: { min: 1, max: 1 }, autoscaling: { cpuTarget: 70, memoryTarget: 80 }", 1),
 			err:  ErrAutoscalingTarget,
-			path: "services.api.regions.us-east-1.autoscaling",
+			path: "services.api.regions.us-ca-1.autoscaling",
 		},
 		{
 			name: "autoscaling without a target",
 			yaml: strings.Replace(minimalFile, "replicas: { min: 1, max: 1 }",
 				"replicas: { min: 1, max: 1 }, autoscaling: {}", 1),
 			err:  ErrAutoscalingTarget,
-			path: "services.api.regions.us-east-1.autoscaling",
+			path: "services.api.regions.us-ca-1.autoscaling",
 		},
 		{
 			name: "autoscaling in an override with both targets",
 			yaml: minimalFile + "    environments:\n      prod:\n        regions:\n" +
-				"          us-east-1: { autoscaling: { cpuTarget: 70, memoryTarget: 80 } }\n",
+				"          us-ca-1: { autoscaling: { cpuTarget: 70, memoryTarget: 80 } }\n",
 			err:  ErrAutoscalingTarget,
-			path: "services.api.environments.prod.regions.us-east-1.autoscaling",
+			path: "services.api.environments.prod.regions.us-ca-1.autoscaling",
 		},
 		{
 			name: "environments inside an override",
@@ -297,9 +297,9 @@ func TestParseRejects(t *testing.T) {
 		},
 		{
 			name: "override removes the only region's memory",
-			yaml: minimalFile + "    environments:\n      prod:\n        regions:\n          us-east-1: { memory: null }\n",
+			yaml: minimalFile + "    environments:\n      prod:\n        regions:\n          us-ca-1: { memory: null }\n",
 			err:  ErrRegionIncomplete,
-			path: "services.api (environment prod).regions.us-east-1",
+			path: "services.api (environment prod).regions.us-ca-1",
 		},
 		{
 			name: "duplicate key",

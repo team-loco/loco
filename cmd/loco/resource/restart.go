@@ -20,7 +20,7 @@ Use --region to restart only one region.
 
 Examples:
   loco resource restart web --env production
-  loco resource restart web --env staging --region us-east-1`,
+  loco resource restart web --env staging --region us-ca-1`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

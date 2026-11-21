@@ -224,6 +224,7 @@ func (c *fakeConfigService) GetConfig(
 		SchemaUrl:       fakeSchemaURL,
 		WebAuthEnabled:  webAuthEnabled,
 		MinCliVersion:   minimum,
+		DefaultRegion:   fakeDefaultRegion,
 	}
 	return resp, nil
 }

@@ -1576,7 +1576,6 @@ func (*DeleteResourceResponse) Descriptor() ([]byte, []int) {
 type RegionInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Region        string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
-	IsDefault     bool                   `protobuf:"varint,2,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
 	HealthStatus  string                 `protobuf:"bytes,3,opt,name=health_status,json=healthStatus,proto3" json:"health_status,omitempty"`
 	Availability  RegionAvailability     `protobuf:"varint,4,opt,name=availability,proto3,enum=loco.resource.v1.RegionAvailability" json:"availability,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1618,13 +1617,6 @@ func (x *RegionInfo) GetRegion() string {
 		return x.Region
 	}
 	return ""
-}
-
-func (x *RegionInfo) GetIsDefault() bool {
-	if x != nil {
-		return x.IsDefault
-	}
-	return false
 }
 
 func (x *RegionInfo) GetHealthStatus() string {
@@ -2512,14 +2504,13 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x15DeleteResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\"\x18\n" +
-	"\x16DeleteResourceResponse\"\xb2\x01\n" +
+	"\x16DeleteResourceResponse\"\xa5\x01\n" +
 	"\n" +
 	"RegionInfo\x12\x16\n" +
-	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1d\n" +
-	"\n" +
-	"is_default\x18\x02 \x01(\bR\tisDefault\x12#\n" +
+	"\x06region\x18\x01 \x01(\tR\x06region\x12#\n" +
 	"\rhealth_status\x18\x03 \x01(\tR\fhealthStatus\x12H\n" +
-	"\favailability\x18\x04 \x01(\x0e2$.loco.resource.v1.RegionAvailabilityR\favailability\"E\n" +
+	"\favailability\x18\x04 \x01(\x0e2$.loco.resource.v1.RegionAvailabilityR\favailabilityJ\x04\b\x02\x10\x03R\n" +
+	"is_default\"E\n" +
 	"\x12ListRegionsRequest\x12/\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"M\n" +
 	"\x13ListRegionsResponse\x126\n" +

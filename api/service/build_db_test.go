@@ -425,7 +425,7 @@ func TestStartBuildPicksTheOldestEligibleCluster(t *testing.T) {
 	exec(`UPDATE clusters SET health_status = 'healthy' WHERE id = $1`, f.clusterID)
 	exec(
 		`UPDATE clusters SET created_at = NOW() - INTERVAL '2 hours',
-		 region = 'eu-west-1', is_default = false WHERE id = $1`,
+		 region = 'us-va-1', is_default = false WHERE id = $1`,
 		f.otherCluster,
 	)
 	if got, want := queuedOn(), f.otherCluster.String(); got != want {

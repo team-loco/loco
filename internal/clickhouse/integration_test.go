@@ -35,8 +35,8 @@ const (
 	resourceAttributeKey   = "loco.resource.id"
 	retentionAttributeKey  = "loco.retention.days"
 	environmentAttrKey     = "loco.environment.id"
-	testRegion             = "us-east-1"
-	testWorkerRegion       = "eu-west-1"
+	testRegion             = "us-ca-1"
+	testWorkerRegion       = "de-he-1"
 	testUSRegionPattern    = "us-*"
 	testEnvironmentID      = "66666666-7777-8888-9999-000000000000"
 	testOtherEnvironmentID = "77777777-8888-9999-0000-111111111111"
@@ -585,7 +585,7 @@ func TestQueryLogsFiltersRecordedRegionsBeforePagination(t *testing.T) {
 			{"exclude region", "-@region:" + testWorkerRegion, []string{testResourceID}},
 			{
 				"include OR then exclude",
-				"(@region:" + testUSRegionPattern + " OR @region:eu-*) -@region:" + testUSRegionPattern,
+				"(@region:" + testUSRegionPattern + " OR @region:de-*) -@region:" + testUSRegionPattern,
 				[]string{testWorkerResourceID},
 			},
 		}

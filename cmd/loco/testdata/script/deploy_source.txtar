@@ -9,7 +9,7 @@ stdout '^  ~ web  \(needs deploy\)$'
 stdout '^Packed 5 files from \. \('
 stdout '^Building web from Dockerfile in \.$'
 stdout '^Applied\. Environment revision is now 8\.$'
-stdout '^Started deployment dep-web for web in us-east-1\.$'
+stdout '^Started deployment dep-web for web in us-ca-1\.$'
 stdout '^web: https://web\.onloco\.test$'
 ! stdout '\x1b\['
 
@@ -53,7 +53,7 @@ services:
     port: 8080
     domains: [web.onloco.test]
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 -- app/Dockerfile --
 FROM scratch
 COPY main.go /

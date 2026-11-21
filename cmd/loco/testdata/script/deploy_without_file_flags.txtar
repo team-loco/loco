@@ -1,7 +1,7 @@
 fakeapi resource api
 fakeapi plan plan.json
 cd app
-exec loco deploy --name api --port 9090 --region us-east-1 --domain api.onloco.test --dockerfile deploy/Dockerfile --context src --yes
+exec loco deploy --name api --port 9090 --region us-ca-1 --domain api.onloco.test --dockerfile deploy/Dockerfile --context src --yes
 stdout '^Building api from deploy/Dockerfile in src$'
 stdout '^api: https://api.onloco.test$'
 fakeapi built api deploy/Dockerfile src
@@ -39,7 +39,7 @@ services:
     - api.onloco.test
     port: 9090
     regions:
-      us-east-1:
+      us-ca-1:
         cpu: 100m
         memory: 256Mi
         replicas:

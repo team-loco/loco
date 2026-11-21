@@ -28,7 +28,7 @@ sql(
     state,
     f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,deployment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
 SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' OR kind LIKE 'deployment.%' THEN '{environment}'::uuid ELSE NULL END,CASE WHEN kind='deployment.ready' OR (kind='resource.degraded' AND n=1) THEN '7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a'::uuid END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
-jsonb_build_object('region','us-east-1','environmentId','{environment}') || CASE
+jsonb_build_object('region','us-ca-1','environmentId','{environment}') || CASE
 WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'restarting' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app ' || repeat('layer-', 40) || repeat('0123456789abcdef', 12) ELSE 'The service ran out of memory. Increase its memory limit or reduce memory usage.' END)
 WHEN kind LIKE 'deployment.%' THEN jsonb_build_object('deploymentId','7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a')
 ELSE jsonb_build_object('buildId','32c7419e-0000-4000-8000-000000000001','message','Build failed: package installation exited with code 1.') END,NOW()-n*INTERVAL '1 minute'
@@ -53,17 +53,17 @@ with session(out) as browser:
     page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
     events = page.get_by_role("region", name="Events", exact=True)
     expect(
-        events.get_by_role("row", name="Degraded in us-east-1", exact=True)
+        events.get_by_role("row", name="Degraded in us-ca-1", exact=True)
     ).to_have_count(2)
     expect(events.get_by_role("columnheader", name="Time", exact=True)).to_be_visible()
     expect(events.get_by_role("columnheader", name="Count", exact=True)).to_have_count(
         0
     )
     expect(
-        events.get_by_role("row", name="Deploy ready in us-east-1", exact=True)
+        events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True)
     ).to_be_visible()
     expect(
-        events.get_by_role("row", name="Deploy failed in us-east-1", exact=True)
+        events.get_by_role("row", name="Deploy failed in us-ca-1", exact=True)
     ).to_be_visible()
     expect(
         events.get_by_text(
@@ -72,8 +72,8 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(events.get_by_text("deployment 8d7c6b5a", exact=True)).to_have_count(2)
-    events.get_by_role("row", name="Deploy ready in us-east-1", exact=True).click()
-    ready = page.get_by_role("dialog", name="Deploy ready in us-east-1", exact=True)
+    events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True).click()
+    ready = page.get_by_role("dialog", name="Deploy ready in us-ca-1", exact=True)
     link = ready.get_by_role("region", name="Attributes").get_by_role(
         "link", name="7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a", exact=True
     )
@@ -85,13 +85,13 @@ with session(out) as browser:
     events.get_by_role("button", name=re.compile(r"^Warnings")).click()
     wait_for_query(page, lambda query: query.get("q") == ["@severity:warning"])
     expect(
-        events.get_by_role("row", name="Degraded in us-east-1", exact=True)
+        events.get_by_role("row", name="Degraded in us-ca-1", exact=True)
     ).to_have_count(2)
     expect(
-        events.get_by_role("row", name="Deploy failed in us-east-1", exact=True)
+        events.get_by_role("row", name="Deploy failed in us-ca-1", exact=True)
     ).to_have_count(0)
-    events.get_by_role("row", name="Degraded in us-east-1", exact=True).first.click()
-    drawer = page.get_by_role("dialog", name="Degraded in us-east-1", exact=True)
+    events.get_by_role("row", name="Degraded in us-ca-1", exact=True).first.click()
+    drawer = page.get_by_role("dialog", name="Degraded in us-ca-1", exact=True)
     expect(drawer.get_by_role("region", name="Attributes")).to_contain_text(
         "Olivia Owner"
     )
@@ -183,21 +183,21 @@ with session(out) as browser:
     expect(drawer).to_be_visible()
     page.keyboard.press("Escape")
     expect(drawer).not_to_be_visible()
-    events.get_by_role("row", name="Degraded in us-east-1", exact=True).first.click()
+    events.get_by_role("row", name="Degraded in us-ca-1", exact=True).first.click()
     expect(drawer).to_be_visible()
     drawer.get_by_role(
-        "button", name="Only events with region us-east-1", exact=True
+        "button", name="Only events with region us-ca-1", exact=True
     ).click()
     expect(drawer).not_to_be_visible()
-    wait_for_query(page, lambda query: "@region:us-east-1" in query.get("q", [""])[0])
+    wait_for_query(page, lambda query: "@region:us-ca-1" in query.get("q", [""])[0])
     assert not errors, errors
     context.close()
     context, page, errors = open_page(browser, user="reader", state=state)
     page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
     page.get_by_role("region", name="Events", exact=True).get_by_role(
-        "row", name="Degraded in us-east-1", exact=True
+        "row", name="Degraded in us-ca-1", exact=True
     ).first.click()
-    drawer = page.get_by_role("dialog", name="Degraded in us-east-1", exact=True)
+    drawer = page.get_by_role("dialog", name="Degraded in us-ca-1", exact=True)
     expect(drawer).to_be_visible()
     expect(drawer.get_by_role("link", name="Subscribe", exact=True)).to_have_count(0)
     assert not errors, errors

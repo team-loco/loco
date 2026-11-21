@@ -41,6 +41,7 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 		server,
 		NewClusterAdminServer(pool, queries, testAgentConfig().JoinTokenTTL, testAgentConfig().JoinTokenMaxTTL),
 	)
+	clusterv1connect.RegisterRegionAdminServiceHandler(server, NewRegionAdminServer(queries))
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
 	httpServer := httptest.NewServer(mux)
@@ -55,7 +56,7 @@ func TestClusterAdminHTTPRequiresSystemAdminForEveryMethod(t *testing.T) {
 	a.machine.Cfg.MaxAPITokenDuration = time.Hour
 	var clusterID uuid.UUID
 	if err := a.pool.QueryRow(ctx, `INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
-VALUES (ARRAY['linux/amd64'], 'admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
+VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false) RETURNING id`).
 		Scan(&clusterID); err != nil {
 		t.Fatal(err)
 	}
@@ -90,43 +91,59 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'east', 'kubernetes', true, false) R
 	if tokenErr != nil {
 		t.Fatal(tokenErr)
 	}
-	methods := map[string]func(clusterv1connect.ClusterAdminServiceClient) error{
-		"create": func(client clusterv1connect.ClusterAdminServiceClient) error {
-			_, err := client.CreateCluster(
+	methods := map[string]func(*rpc.Clients) error{
+		"create": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.CreateCluster(
 				ctx,
 				&clusterv1.CreateClusterRequest{
 					RequestId: uuid.NewString(),
 					Name:      "created",
-					Region:    "east",
+					Target:    inRegion(testRegion),
 				},
 			)
 			return err
 		},
-		"join-token": func(client clusterv1connect.ClusterAdminServiceClient) error {
-			_, err := client.IssueJoinToken(ctx, &clusterv1.IssueJoinTokenRequest{ClusterId: clusterID.String()})
+		"join-token": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.IssueJoinToken(
+				ctx,
+				&clusterv1.IssueJoinTokenRequest{ClusterId: clusterID.String()},
+			)
 			return err
 		},
-		"list": func(client clusterv1connect.ClusterAdminServiceClient) error {
-			_, err := client.ListClusters(ctx, &clusterv1.ListClustersRequest{})
+		"list": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
 			return err
 		},
-		"pause": func(client clusterv1connect.ClusterAdminServiceClient) error {
-			_, err := client.PauseCluster(ctx, &clusterv1.PauseClusterRequest{ClusterId: clusterID.String()})
+		"pause": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.PauseCluster(
+				ctx,
+				&clusterv1.PauseClusterRequest{ClusterId: clusterID.String()},
+			)
 			return err
 		},
-		"resume": func(client clusterv1connect.ClusterAdminServiceClient) error {
-			_, err := client.ResumeCluster(ctx, &clusterv1.ResumeClusterRequest{ClusterId: clusterID.String()})
+		"resume": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.ResumeCluster(
+				ctx,
+				&clusterv1.ResumeClusterRequest{ClusterId: clusterID.String()},
+			)
 			return err
 		},
-		"remove": func(client clusterv1connect.ClusterAdminServiceClient) error {
-			_, err := client.RemoveCluster(
+		"remove": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.RemoveCluster(
 				ctx,
 				&clusterv1.RemoveClusterRequest{ClusterId: clusterID.String(), Force: true},
 			)
 			return err
 		},
-		"restore": func(client clusterv1connect.ClusterAdminServiceClient) error {
-			_, err := client.RestoreCluster(ctx, &clusterv1.RestoreClusterRequest{ClusterId: clusterID.String()})
+		"restore": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.RestoreCluster(
+				ctx,
+				&clusterv1.RestoreClusterRequest{ClusterId: clusterID.String()},
+			)
+			return err
+		},
+		"list regions": func(clients *rpc.Clients) error {
+			_, err := clients.RegionAdmin.ListRegions(ctx, &clusterv1.ListRegionsRequest{})
 			return err
 		},
 	}
@@ -148,9 +165,9 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'east', 'kubernetes', true, false) R
 		{"system write", systemWriter.token, connect.CodePermissionDenied},
 	} {
 		t.Run(candidate.name, func(t *testing.T) {
-			client := rpc.NewHTTPClients(http.DefaultClient, endpoint, candidate.token).ClusterAdmin
+			clients := rpc.NewHTTPClients(http.DefaultClient, endpoint, candidate.token)
 			for name, call := range methods {
-				if callErr := call(client); connect.CodeOf(callErr) != candidate.code {
+				if callErr := call(clients); connect.CodeOf(callErr) != candidate.code {
 					t.Fatalf("%s: %v, want %v", name, callErr, candidate.code)
 				}
 			}
@@ -173,13 +190,13 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'east', 'kubernetes', true, false) R
 	}
 	admin := a.signUp(t, "loco-admin")
 	grant(admin, genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeAdmin)
-	client := rpc.NewHTTPClients(http.DefaultClient, endpoint, admin.token).ClusterAdmin
-	listed, err := client.ListClusters(ctx, &clusterv1.ListClustersRequest{})
+	clients := rpc.NewHTTPClients(http.DefaultClient, endpoint, admin.token)
+	listed, err := clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
 	if err != nil || len(listed.GetClusters()) != 1 {
 		t.Fatalf("admin list: %v, %v", listed, err)
 	}
 	for _, name := range []string{"pause", "remove", "restore", "resume"} {
-		if err := methods[name](client); err != nil {
+		if err := methods[name](clients); err != nil {
 			t.Fatalf("admin %s: %v", name, err)
 		}
 	}
@@ -195,7 +212,7 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'east', 'kubernetes', true, false) R
 		t.Fatal(err)
 	}
 	for name, call := range methods {
-		if err := call(client); connect.CodeOf(err) != connect.CodePermissionDenied {
+		if err := call(clients); connect.CodeOf(err) != connect.CodePermissionDenied {
 			t.Fatalf("revoked admin %s: %v", name, err)
 		}
 	}

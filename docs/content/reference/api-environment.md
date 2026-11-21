@@ -170,6 +170,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | --- | --- | --- |
 | `MIN_CLI_VERSION` | empty | Oldest `loco` version the API supports, such as `v0.0.61`. Older CLIs print an update hint. |
 | `LOCO_SCHEMA_URL` | `https://loco.build/schemas/loco.v1.json` | loco.yaml JSON schema that `loco infra init` references. |
+| `LOCO_DEFAULT_REGION` | empty | Region code new services default to, such as `us-ca-1`. `locoadm cluster create` prints the code of the region it creates. When this is unset, or names a region with no live cluster, `loco infra init`, `loco deploy` without a file and the dashboard use the environment's only available region, and fail or select nothing when there are several. The API logs a warning on the first request that finds the code is not a live region. |
 | `ORG_LINKS` | empty | JSON array of up to 10 `{"label", "url"}` links the dashboard sidebar shows for each organization. A URL may contain `{orgId}`. |
 
 ## Service defaults

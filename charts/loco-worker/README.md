@@ -105,7 +105,7 @@ The OpenTelemetry collectors store nothing: every pipeline exports over OTLP/HTT
 
 ```yaml
 global:
-  region: us-east-1
+  region: us-ca-1
   exporter:
     endpoint: https://ingest.region.example.com
     headers: {}

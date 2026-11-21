@@ -75,7 +75,7 @@ func Init(options InitOptions) error {
 		webURL.Hostname(),
 		"apps.example.com",
 		options.Domain,
-		"example-east",
+		"us-ca-1",
 		options.Region,
 		"admin@example.com",
 		options.Admin,

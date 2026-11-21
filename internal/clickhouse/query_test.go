@@ -50,7 +50,7 @@ func TestBuildLogsQueryKeepsWorkspaceScopeAndBindsFilterValues(t *testing.T) {
 		End:         end,
 		Filter: mustParse(
 			t,
-			`(@region:US-* OR @region:eu-west-1) -@region:us-west-* @status:400..499 @user.tier:"gold plan"`,
+			`(@region:US-* OR @region:de-he-1) -@region:us-west-* @status:400..499 @user.tier:"gold plan"`,
 		),
 		Limit: testPageSize,
 		Order: observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
@@ -61,7 +61,7 @@ func TestBuildLogsQueryKeepsWorkspaceScopeAndBindsFilterValues(t *testing.T) {
 	if !strings.Contains(query, "WHERE WorkspaceId = ? AND") || args[0] != testWorkspaceID {
 		t.Fatalf("query %s with first argument %v does not lead with the workspace scope", query, args[0])
 	}
-	for _, value := range []any{testUSPrefix, "eu-west-1", "us-west-", 400.0, 499.0, "user.tier", "gold plan"} {
+	for _, value := range []any{testUSPrefix, "de-he-1", "us-west-", 400.0, 499.0, "user.tier", "gold plan"} {
 		if text, ok := value.(string); ok && strings.Contains(query, text) {
 			t.Errorf("value %q interpolated into SQL: %s", text, query)
 		}

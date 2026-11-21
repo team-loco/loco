@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -101,6 +102,9 @@ func (cfg config) install(ctx context.Context) error {
 		_, createErr := cfg.locoadm(ctx, args...)
 		if createErr != nil {
 			return createErr
+		}
+		if err = cfg.recordRegion(ctx); err != nil {
+			return err
 		}
 		if err = cfg.deploy(ctx, false); err != nil {
 			return err
@@ -281,10 +285,44 @@ func enrollmentArgs(data []byte, kubeContext string) ([]string, error) {
 		"create",
 		"--name",
 		localIdentity,
-		"--region",
-		localIdentity,
+		"--local",
 		"--kube-context", kubeContext,
 	}, nil
+}
+
+// recordRegion writes the region the API registered the local cluster in into the worker values
+// and makes it the API's default region.
+func (cfg config) recordRegion(ctx context.Context) error {
+	data, err := cfg.locoadm(ctx, "cluster", "list")
+	if err != nil {
+		return err
+	}
+	var listed struct {
+		Clusters []struct {
+			Name      string `json:"name"`
+			Region    string `json:"region"`
+			RemovedAt string `json:"removedAt"`
+		} `json:"clusters"`
+	}
+	if err = json.Unmarshal(data, &listed); err != nil {
+		return err
+	}
+	for _, cluster := range listed.Clusters {
+		if cluster.Name == localIdentity && cluster.RemovedAt == "" {
+			repo := operatorrepo.Repository{Path: filepath.Join(cfg.State, "repo"), Cluster: localIdentity}
+			if err = operatorrepo.Merge(
+				repo.Values("loco-worker"),
+				[]byte("global: {region: "+cluster.Region+"}\n"),
+			); err != nil {
+				return err
+			}
+			return operatorrepo.Merge(
+				repo.Values("loco-control-plane"),
+				[]byte("api: {env: {LOCO_DEFAULT_REGION: "+cluster.Region+"}}\n"),
+			)
+		}
+	}
+	return errors.New("locoadm cluster list shows no local cluster")
 }
 
 func (cfg config) initializeRepo(ctx context.Context, repo operatorrepo.Repository, bundle string) error {

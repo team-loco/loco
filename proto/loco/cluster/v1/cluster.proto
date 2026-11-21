@@ -18,6 +18,27 @@ service ClusterAdminService {
   rpc RestoreCluster(RestoreClusterRequest) returns (RestoreClusterResponse);
 }
 
+// RegionAdminService lists the regions clusters run in. A region is the region code its clusters
+// carry; CreateCluster builds new codes.
+service RegionAdminService {
+  rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
+}
+
+// Region is the code clusters share, `{country}-{subdivision}-{n}` or `local-1`.
+message Region {
+  string code = 1;
+  // clusters in the region that are not removed
+  int32 cluster_count = 2;
+}
+
+// NewRegion describes the region CreateCluster creates. The API builds its code.
+message NewRegion {
+  // such as us; lowercase letters and digits
+  string country = 1 [(buf.validate.field).string.pattern = "^[a-z0-9]+$"];
+  // such as ca, the state or province; lowercase letters and digits
+  string subdivision = 2 [(buf.validate.field).string.pattern = "^[a-z0-9]+$"];
+}
+
 message Cluster {
   string id = 1;
   string cluster_key = 2;
@@ -64,14 +85,17 @@ message CreateClusterRequest {
   google.protobuf.Duration ttl = 5;
   // persist before sending; reuse only for the same worker registration
   string request_id = 4 [(buf.validate.field).string.uuid = true];
-  string name = 1 [(buf.validate.field).string = {
-    min_len: 1
-    max_len: 255
-  }];
-  string region = 2 [(buf.validate.field).string = {
-    min_len: 1
-    max_len: 255
-  }];
+  // Omit to name the region's first cluster after the region code.
+  string name = 1 [(buf.validate.field).string.max_len = 255];
+  oneof target {
+    option (buf.validate.oneof).required = true;
+    // code of a region that has a cluster, or local-1
+    string region = 2 [(buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+    }];
+    NewRegion new_region = 6;
+  }
   reserved 3;
   reserved "tier";
 }
@@ -79,6 +103,8 @@ message CreateClusterRequest {
 message CreateClusterResponse {
   string cluster_id = 1;
   JoinToken join_token = 2;
+  string name = 3;
+  string region = 4;
 }
 
 message IssueJoinTokenRequest {
@@ -130,4 +156,10 @@ message RestoreClusterRequest {
 
 message RestoreClusterResponse {
   string cluster_id = 1;
+}
+
+message ListRegionsRequest {}
+
+message ListRegionsResponse {
+  repeated Region regions = 1;
 }

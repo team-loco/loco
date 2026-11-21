@@ -406,7 +406,7 @@ services:
     health: {path: /healthz, interval: 5, timeout: 3, failThreshold: 3, startupGracePeriod: 0}
     domains: [%s]
     regions:
-      us-east-1: {cpu: 100m, memory: 128Mi, replicas: {min: 1, max: 1}}
+      us-ca-1: {cpu: 100m, memory: 128Mi, replicas: {min: 1, max: 1}}
 `, hostname)
 	if checkErr := os.WriteFile(filepath.Join(app, "loco.yaml"), []byte(file), 0600); checkErr != nil {
 		return checkErr

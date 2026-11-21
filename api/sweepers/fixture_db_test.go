@@ -42,10 +42,10 @@ WITH u AS (
     SELECT w.id, 'prod', 'prod', u.id FROM w, u RETURNING id
 ), c AS (
     INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
-    VALUES (ARRAY['linux/amd64'], 'c1', 'us-east-1', 'kind', true, true) RETURNING id
+    VALUES (ARRAY['linux/amd64'], 'c1', 'us-ca-1', 'kind', true, true) RETURNING id
 ), c2 AS (
     INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
-    VALUES (ARRAY['linux/amd64'], 'c2', 'us-east-1', 'kind', true, false) RETURNING id
+    VALUES (ARRAY['linux/amd64'], 'c2', 'us-ca-1', 'kind', true, false) RETURNING id
 ), r AS (
     INSERT INTO resources (workspace_id, slug, name, type, description, spec, spec_version, created_by)
     SELECT w.id, 'svc', 'svc', 'service', '', '{}', 1, u.id FROM w, u RETURNING id

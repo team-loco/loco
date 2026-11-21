@@ -16,7 +16,7 @@ func TestGetConfigReportsDashboardSignInAvailability(t *testing.T) {
 		if configured {
 			issuers[0].Web = &auth.WebConfig{ClientID: clientID, ClientSecret: "test secret", Scopes: "openid"}
 		}
-		server := NewConfigServer("", "", "", servicedefaults.Defaults{}, issuers, nil, 0, 0, nil, nil)
+		server := NewConfigServer("", "", "", servicedefaults.Defaults{}, issuers, nil, 0, 0, nil, nil, "", nil)
 		config, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 		if err != nil {
 			t.Fatal(err)

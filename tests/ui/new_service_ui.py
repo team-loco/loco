@@ -45,8 +45,8 @@ clusters = {
         default=health == "healthy",
     )
     for region, health in (
-        ("us-east-1", "healthy"),
-        ("eu-west-1", "degraded"),
+        ("us-ca-1", "healthy"),
+        ("us-va-1", "degraded"),
         ("eu-north-1", "unhealthy"),
     )
 }
@@ -208,7 +208,7 @@ with session(out) as browser:
     context.close()
 
     missing = seeded_draft("missing-region", "registry.example.com/acme/missing:1")
-    missing["edits"] = {"regions": ["us-east-1", "ap-south-1"]}
+    missing["edits"] = {"regions": ["us-ca-1", "ap-south-1"]}
     context, page, errors = open_page(
         browser, "owner", storage={drafts_key: json.dumps([missing])}
     )
@@ -234,8 +234,7 @@ with session(out) as browser:
             json={
                 "regions": [
                     {
-                        "region": "us-east-1",
-                        "isDefault": False,
+                        "region": "us-ca-1",
                         "healthStatus": "healthy",
                         "availability": "REGION_AVAILABILITY_AVAILABLE",
                     }
@@ -245,7 +244,7 @@ with session(out) as browser:
     )
     page.goto(base + f"/resources?env=production&draft={lone['id']}")
     drawer = page.get_by_role("dialog", name="lone-region", exact=True)
-    region = drawer.get_by_role("button", name=re.compile(r"^us-east-1"))
+    region = drawer.get_by_role("button", name=re.compile(r"^us-ca-1"))
     expect(region).to_have_attribute("aria-pressed", "true")
     expect(drawer.get_by_text("Choose at least one region")).to_have_count(0)
     assert not errors, errors
@@ -355,14 +354,14 @@ with session(out) as browser:
     expect(drawer.get_by_text(image, exact=True)).to_be_visible()
     expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
     assert stored_drafts(page) == [name], stored_drafts(page)
-    last_region = drawer.get_by_role("button", name="us-east-1", exact=True)
+    last_region = drawer.get_by_role("button", name="us-ca-1", exact=True)
     expect(last_region).to_have_attribute("aria-pressed", "true")
     # Reads the card, its name and its check mark in one frame.
     middles = page.evaluate(
         "els => els.map(el => { const box = el.getBoundingClientRect(); return box.top + box.height / 2 })",
         [
             last_region.element_handle(),
-            last_region.get_by_text("us-east-1", exact=True).element_handle(),
+            last_region.get_by_text("us-ca-1", exact=True).element_handle(),
             last_region.locator("svg").element_handle(),
         ],
     )
@@ -372,7 +371,7 @@ with session(out) as browser:
     offline = drawer.get_by_role("button", name="eu-north-1 Offline", exact=True)
     expect(offline).to_be_disabled()
     expect(
-        drawer.get_by_role("button", name="eu-west-1 degraded", exact=True)
+        drawer.get_by_role("button", name="us-va-1 degraded", exact=True)
     ).to_be_enabled()
     expect(last_region).to_have_attribute("aria-disabled", "true")
     expect(last_region).to_have_attribute(
@@ -391,9 +390,9 @@ with session(out) as browser:
     domain_option = page.get_by_role(
         "menuitemradio", name=re.compile(rf"^{re.escape(platform_domain)}")
     )
-    expect(domain_option.get_by_text("us-east-1", exact=True)).to_be_visible()
+    expect(domain_option.get_by_text("us-ca-1", exact=True)).to_be_visible()
     expect(domain_option.get_by_text("healthy", exact=True)).to_have_count(0)
-    expect(domain_option.get_by_text("eu-west-1", exact=True)).to_have_count(0)
+    expect(domain_option.get_by_text("us-va-1", exact=True)).to_have_count(0)
     page.keyboard.press("Escape")
     expect(drawer.get_by_role("button", name="Public", exact=True)).to_have_attribute(
         "aria-pressed", "true"
@@ -621,7 +620,7 @@ with session(out) as browser:
     expect(dashboard_row.get_by_text("Draft", exact=True)).to_be_visible()
     page.get_by_role("button", name="Region: All regions", exact=True).click()
     expect(
-        page.get_by_role("menuitemradio", name=re.compile(r"^us-east-1\b"))
+        page.get_by_role("menuitemradio", name=re.compile(r"^us-ca-1\b"))
     ).to_be_visible()
     expect(
         page.get_by_role("menuitemradio", name=re.compile(r"^eu-north-1\b"))
@@ -857,12 +856,12 @@ with session(out) as browser:
         == "Takes checkout payments"
     )
     assert [(d["resourceId"], d["regions"]) for d in deployments] == [
-        (resource, ["us-east-1"])
+        (resource, ["us-ca-1"])
     ], deployments
     spec = deployments[0]["spec"]["service"]
     assert spec["build"]["image"] == pinned_image, spec
     assert spec["port"] == 8080, spec
-    sizing = spec["regions"]["us-east-1"]
+    sizing = spec["regions"]["us-ca-1"]
     assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 2, spec
     assert sizing["scalers"] == {}, spec
     assert sizing["cpu"] == "500m" and sizing["memory"] == "1Gi", spec
@@ -1025,7 +1024,7 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(panel.get_by_role("link", name="View logs", exact=True)).to_have_count(1)
-    sizing = deployments[0]["spec"]["service"]["regions"]["us-east-1"]
+    sizing = deployments[0]["spec"]["service"]["regions"]["us-ca-1"]
     assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 3, sizing
     assert sizing["scalers"] == {"enabled": True, "cpuTarget": 70}, sizing
     assert not errors, errors
@@ -1035,7 +1034,7 @@ with session(out) as browser:
     draft = seeded_draft(name, image)
     draft["edits"].update(
         {
-            "regions": ["us-east-1", "eu-west-1"],
+            "regions": ["us-ca-1", "us-va-1"],
             "isPublic": False,
             "port": "8080",
         }
@@ -1077,13 +1076,13 @@ with session(out) as browser:
     expect(panel).to_have_count(1)
     expect(panel).to_contain_text("Rolling out to 2 regions")
     chips = panel.get_by_role("group", name="Rollout regions", exact=True)
-    expect(chips.get_by_role("button", name="us-east-1")).to_be_visible()
-    expect(chips.get_by_role("button", name="eu-west-1")).to_be_visible()
+    expect(chips.get_by_role("button", name="us-ca-1")).to_be_visible()
+    expect(chips.get_by_role("button", name="us-va-1")).to_be_visible()
     assert len(regional_requests) == 1, regional_requests
-    assert sorted(regional_requests[0]["regions"]) == ["eu-west-1", "us-east-1"]
+    assert sorted(regional_requests[0]["regions"]) == ["us-ca-1", "us-va-1"]
     assert sorted(regional_requests[0]["spec"]["service"]["regions"]) == [
-        "eu-west-1",
-        "us-east-1",
+        "us-ca-1",
+        "us-va-1",
     ]
     assert regional_requests[0]["environmentId"] == production
     resource = urlparse(page.url).path.rsplit("/", 1)[-1]

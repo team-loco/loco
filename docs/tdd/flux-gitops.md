@@ -102,7 +102,7 @@ With SOPS, operators install it themselves, select cluster and offline recipient
 Join tokens are single-use and stored by the API only as hashes. `CreateCluster` and `IssueJoinToken` accept an optional TTL. The default is one hour; `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` caps requested lifetimes, such as seven days.
 
 ```sh
-locoadm cluster create --name worker-staging --region example-east --tier staging \
+locoadm cluster create --name worker-staging --country us --subdivision ca \
   --kube-context worker-staging
 ```
 

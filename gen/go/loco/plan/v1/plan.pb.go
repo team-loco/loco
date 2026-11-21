@@ -613,7 +613,7 @@ func (x *PlanOperation) GetNeedsDeploy() bool {
 // FieldChange is one field the apply would change. Secret values never appear here.
 type FieldChange struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// path is the field in loco.yaml form, such as regions.us-east-1.cpu or env.LOG_LEVEL.
+	// path is the field in loco.yaml form, such as regions.us-ca-1.cpu or env.LOG_LEVEL.
 	Path          string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	Before        string `protobuf:"bytes,2,opt,name=before,proto3" json:"before,omitempty"`
 	After         string `protobuf:"bytes,3,opt,name=after,proto3" json:"after,omitempty"`

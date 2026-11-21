@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	otherRegion          = "eu-west-1"
+	otherRegion          = "us-va-1"
 	biggerCPU            = "250m"
 	applyAPIDomain       = "api.loco.test"
 	applyFileWorkerDebug = `  worker:
@@ -26,20 +26,20 @@ const (
     domains: [worker.loco.test]
     env: { LOG_LEVEL: debug }
     regions:
-      us-east-1: { cpu: 250m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 250m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 	applyFileTwoRegions = `  worker:
     image: nginx:1.27
     port: 8080
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
-      eu-west-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-va-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 	applyFileOtherRegion = `  worker:
     image: nginx:1.27
     port: 8080
     regions:
-      eu-west-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-va-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 )
 

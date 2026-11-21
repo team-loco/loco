@@ -51,7 +51,7 @@ if "progress" not in state:
         "build": {"type": "image", "image": old_image},
         "port": 8080,
         "regions": {
-            "us-east-1": {
+            "us-ca-1": {
                 "cpu": "100m",
                 "memory": "128Mi",
                 "minReplicas": 2,
@@ -69,10 +69,10 @@ if "progress" not in state:
             "failureThreshold": 3,
         },
     }
-    cluster = evidence.seed_cluster(state, "us-east-1", name="progress-ui")
+    cluster = evidence.seed_cluster(state, "us-ca-1", name="progress-ui")
     target = {
         "environment": "production",
-        "placements": {"us-east-1": {"cluster": cluster}},
+        "placements": {"us-ca-1": {"cluster": cluster}},
     }
     resource = evidence.seed_resources(
         state,
@@ -215,7 +215,7 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
     ]
     activity = ",".join(
         f"('{p['current']}',{last_seq + index},2,NOW()-INTERVAL '{len(entries) - index} seconds',{evidence.sql_literal(severity)},{evidence.sql_literal(name)},{evidence.sql_literal(message)},"
-        + (f"'{p['cluster']}','us-east-1')" if name else "NULL,'')")
+        + (f"'{p['cluster']}','us-ca-1')" if name else "NULL,'')")
         for index, (severity, name, message) in enumerate(entries, 1)
     )
     completed = "NULL" if status in ("building", "deploying", "running") else "NOW()"
@@ -361,7 +361,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(logs).to_have_count(1)
     panel.get_by_role("button", name="Roll back to v1", exact=True).click()
     dialog = page.get_by_role(
-        "dialog", name="Roll back progress-ui in us-east-1", exact=True
+        "dialog", name="Roll back progress-ui in us-ca-1", exact=True
     )
     expect(dialog).to_be_visible()
     mutations = []
@@ -379,7 +379,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     ), mutations
     assert (
         mutations[0]["environmentId"] == p["environment"]
-        and mutations[0]["regions"] == ["us-east-1"]
+        and mutations[0]["regions"] == ["us-ca-1"]
         and mutations[0]["trigger"] == "DEPLOYMENT_TRIGGER_ROLLBACK"
         and mutations[0]["sourceDeploymentId"] == p["previous"]
     ), mutations
@@ -516,8 +516,8 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot)
     VALUES('{p["current"]}','{p["cluster"]}',3,{evidence.sql_literal(json.dumps(restart))});
     INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message,cluster_id,region) VALUES
-    ('{p["current"]}',{last_seq + 1},3,NOW()-INTERVAL '3 seconds','info','progress-restart-1','Starting','{p["cluster"]}','us-east-1'),
-    ('{p["current"]}',{last_seq + 2},3,NOW()-INTERVAL '1 second','info','progress-new-1','Stopping','{p["cluster"]}','us-east-1');
+    ('{p["current"]}',{last_seq + 1},3,NOW()-INTERVAL '3 seconds','info','progress-restart-1','Starting','{p["cluster"]}','us-ca-1'),
+    ('{p["current"]}',{last_seq + 2},3,NOW()-INTERVAL '1 second','info','progress-new-1','Stopping','{p["cluster"]}','us-ca-1');
     COMMIT;""",
     )
     context, page, errors = open_page(browser, state=state)
@@ -549,8 +549,8 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     context.close()
 
     # Canceling a rollout that already finished in one region offers to roll that region back.
-    east = evidence.seed_cluster(state, "us-east-1", name="cancel-east")
-    west = evidence.seed_cluster(state, "eu-west-1", name="cancel-west")
+    east = evidence.seed_cluster(state, "us-ca-1", name="cancel-east")
+    west = evidence.seed_cluster(state, "us-va-1", name="cancel-west")
     sizing = {"cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1}
     cancel_old = "registry.example.test/cancel:v1@sha256:" + "3" * 64
     cancel_new = "registry.example.test/cancel:v2@sha256:" + "4" * 64
@@ -560,11 +560,11 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             "platform": "linux/amd64",
             "observability": {"injectOtel": True},
             "build": {"type": "image", "image": image},
-            "regions": {"us-east-1": sizing, "eu-west-1": sizing},
+            "regions": {"us-ca-1": sizing, "us-va-1": sizing},
         }
 
     before, rollout = str(uuid.uuid4()), str(uuid.uuid4())
-    both = {"us-east-1": {"cluster": east}, "eu-west-1": {"cluster": west}}
+    both = {"us-ca-1": {"cluster": east}, "us-va-1": {"cluster": west}}
     cancel_resource = evidence.seed_resources(
         state,
         [
@@ -595,9 +595,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     sql(
         state,
         f"""BEGIN;
-    UPDATE deployment_placements SET status='running',started_at=NOW()-INTERVAL '30 seconds' WHERE deployment_id='{rollout}' AND region='us-east-1';
-    UPDATE deployment_placements SET status='deploying',started_at=NULL WHERE deployment_id='{rollout}' AND region='eu-west-1';
-    UPDATE deployment_placements SET status='superseded',superseded_by='{rollout}',completed_at=NOW() WHERE deployment_id='{before}' AND region='us-east-1';
+    UPDATE deployment_placements SET status='running',started_at=NOW()-INTERVAL '30 seconds' WHERE deployment_id='{rollout}' AND region='us-ca-1';
+    UPDATE deployment_placements SET status='deploying',started_at=NULL WHERE deployment_id='{rollout}' AND region='us-va-1';
+    UPDATE deployment_placements SET status='superseded',superseded_by='{rollout}',completed_at=NOW() WHERE deployment_id='{before}' AND region='us-ca-1';
     UPDATE placements SET deployment_id='{rollout}',desired_revision=2,observed_revision=2 WHERE resource_id='{cancel_resource}';
     COMMIT;""",
     )
@@ -612,10 +612,10 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         "list", name="Regions that already run it", exact=True
     )
     expect(finished.get_by_role("listitem")).to_have_count(1)
-    expect(finished).to_contain_text("us-east-1")
+    expect(finished).to_contain_text("us-ca-1")
     expect(finished).to_contain_text("previous v1")
     rollback_option = dialog.get_by_role(
-        "checkbox", name="Also roll back us-east-1 to v1", exact=True
+        "checkbox", name="Also roll back us-ca-1 to v1", exact=True
     )
     expect(rollback_option).not_to_be_checked()
     rollback_option.click()
@@ -629,9 +629,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     rollbacks = [d for d in queued if d.get("trigger") == "DEPLOYMENT_TRIGGER_ROLLBACK"]
     assert len(rollbacks) == 1, queued
     assert rollbacks[0]["sourceDeploymentId"] == before, rollbacks
-    assert [pl["region"] for pl in rollbacks[0]["placements"]] == ["us-east-1"], (
-        rollbacks
-    )
+    assert [pl["region"] for pl in rollbacks[0]["placements"]] == ["us-ca-1"], rollbacks
     assert not errors, errors
     context.close()
     browser.close()

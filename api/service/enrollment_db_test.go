@@ -63,7 +63,7 @@ func publicKeyBytes(t *testing.T, key ed25519.PrivateKey) []byte {
 func (e *enrollmentFixture) createCluster(t *testing.T) (uuid.UUID, string) {
 	t.Helper()
 	resp, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
-		RequestId: uuid.NewString(), Name: "enrolled", Region: testRegion,
+		RequestId: uuid.NewString(), Name: "enrolled", Target: inRegion(testRegion),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -401,7 +401,7 @@ func TestClusterJoinTokenRequestedTTL(t *testing.T) {
 		}
 		started := time.Now()
 		response, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
-			RequestId: uuid.NewString(), Name: "ttl", Region: testRegion,
+			RequestId: uuid.NewString(), Name: "ttl", Target: inRegion(testRegion),
 			Ttl: requested,
 		})
 		if err != nil {
@@ -424,7 +424,7 @@ func TestClusterJoinTokenRequestedTTL(t *testing.T) {
 		}
 		for _, invalid := range []time.Duration{0, -time.Second, 8 * 24 * time.Hour} {
 			_, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
-				RequestId: uuid.NewString(), Name: "invalid-ttl", Region: testRegion,
+				RequestId: uuid.NewString(), Name: "invalid-ttl", Target: inRegion(testRegion),
 				Ttl: durationpb.New(invalid),
 			})
 			requireCode(t, err, connect.CodeInvalidArgument, "create ttl")

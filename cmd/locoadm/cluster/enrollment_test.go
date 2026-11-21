@@ -81,6 +81,9 @@ func TestContextEnrollmentCreatesAndUpdatesSecretWithoutPrintingToken(t *testing
 				!strings.Contains(output.String(), "Applied join-token Secret") {
 				t.Fatalf("patches=%d output=%s", patches, output)
 			}
+			if args[0] == clusterCreate && !strings.Contains(output.String(), "in region "+testRegion) {
+				t.Fatalf("output = %s, want the created cluster's region", output)
+			}
 		})
 	}
 }

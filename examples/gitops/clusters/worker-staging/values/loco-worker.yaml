@@ -1,5 +1,5 @@
 global:
-  region: example-east
+  region: us-ca-1
   domain:
     apps:
       - apps.example.com

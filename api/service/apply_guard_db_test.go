@@ -25,7 +25,7 @@ const (
     image: nginx:1.27
     port: 8080
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 	emptyServicesFile = "version: 1\npartial: web\nservices: {}\n"
 	guardWorker       = "worker"
@@ -147,11 +147,11 @@ func TestApplyCommitsNothingForInvalidValues(t *testing.T) {
 	file := planFileHeader + `  worker:
     port: 8080
     regions:
-      us-east-1: { cpu: invalid, memory: 64Mi, replicas: { min: 1, max: 20 } }
+      us-ca-1: { cpu: invalid, memory: 64Mi, replicas: { min: 1, max: 20 } }
 `
 	_, err := applyFile(t, f, file, applyOptions{}, f.applyScopes(t))
 	refusal := wantRefusal(t, err)
-	if len(refusal.GetErrors()) != 1 || refusal.GetErrors()[0].GetPath() != "regions.us-east-1" {
+	if len(refusal.GetErrors()) != 1 || refusal.GetErrors()[0].GetPath() != "regions.us-ca-1" {
 		t.Fatalf("errors = %v, want the region's values refused", refusal.GetErrors())
 	}
 	if f.hasResource(t, guardWorker) {

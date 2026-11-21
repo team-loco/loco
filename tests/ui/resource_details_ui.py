@@ -52,7 +52,7 @@ resource = evidence.seed_resources(
             "service": {
                 "routing": {"port": 8080},
                 "regions": {
-                    "us-east-1": {
+                    "us-ca-1": {
                         "enabled": True,
                         "cpu": "500m",
                         "memory": "512Mi",
@@ -73,7 +73,7 @@ runtime = {
     "port": 8080,
     "env": {"MODE": "production", "API_BASE_URL": "https://api.example.test"},
     "regions": {
-        "us-east-1": {
+        "us-ca-1": {
             "cpu": "500m",
             "memory": "512Mi",
             "minReplicas": 1,
@@ -96,7 +96,7 @@ evidence.seed_deployments(
             "id": deployment,
             "environment": "production",
             "spec": runtime,
-            "placements": {"us-east-1": {"ready_replicas": 0}},
+            "placements": {"us-ca-1": {"ready_replicas": 0}},
         }
     ],
 )
@@ -105,7 +105,7 @@ sql(
     f"""BEGIN;
 UPDATE resources SET partial='recommendation', description='Ranks products for each shopper' WHERE id='{resource}';
 INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
-VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','restarting','message','The service exited with code 1.','region','us-east-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
+VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','restarting','message','The service exited with code 1.','region','us-ca-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
 INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) VALUES('{deployment}',(SELECT cluster_id FROM deployment_placements WHERE deployment_id='{deployment}'),1,'{{"problem":{{"reason":"restarting","detail":"The pod restarted"}}}}');
 COMMIT;""",
 )
@@ -185,8 +185,8 @@ with session(out) as browser:
         assert (
             events.bounding_box()["y"] >= heading["y"] + heading["height"]
         ) == below, viewport
-    page.get_by_role("button", name=re.compile(r"^us-east-1")).click()
-    chart = page.locator('[aria-label^="CPU · us-east-1: lowest"]')
+    page.get_by_role("button", name=re.compile(r"^us-ca-1")).click()
+    chart = page.locator('[aria-label^="CPU · us-ca-1: lowest"]')
     ticks = chart.locator(".recharts-xAxis-tick-labels text")
     expect(ticks.nth(2)).to_be_visible()
     box = chart.bounding_box()
@@ -197,7 +197,7 @@ with session(out) as browser:
     metrics_href = page.get_by_role(
         "link", name="All metrics", exact=True
     ).get_attribute("href")
-    assert parse_qs(urlparse(metrics_href).query)["q"] == ["@region:us-east-1"], (
+    assert parse_qs(urlparse(metrics_href).query)["q"] == ["@region:us-ca-1"], (
         metrics_href
     )
     replicas = page.get_by_role("region", name="Replicas", exact=True)
@@ -254,7 +254,7 @@ with session(out) as browser:
                 "service": {
                     "routing": {"port": 8080},
                     "regions": {
-                        "us-east-1": {
+                        "us-ca-1": {
                             "enabled": True,
                             "cpu": "100m",
                             "memory": "128Mi",
@@ -426,7 +426,7 @@ with session(out) as browser:
     ).to_be_visible()
     expect(
         dialog.get_by_text(
-            "its active deployment in us-east-1, and no domains", exact=False
+            "its active deployment in us-ca-1, and no domains", exact=False
         )
     ).to_be_visible()
     expect(dialog.get_by_role("textbox")).to_be_focused()

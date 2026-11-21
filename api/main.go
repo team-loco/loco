@@ -267,6 +267,7 @@ type deps struct {
 
 	config        *service.ConfigServer
 	clusterAdmin  *service.ClusterAdminServer
+	regionAdmin   *service.RegionAdminServer
 	systemAdmin   *service.SystemAdminServer
 	user          *service.UserServer
 	auth          *service.AuthServer
@@ -445,8 +446,11 @@ func newDeps(
 				BuildImagesPerResource: ac.ImageSweep.Retention,
 				Events:                 durationpb.New(ac.EventsRetention),
 			},
+			ac.DefaultRegion,
+			queries,
 		),
 		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL, ac.Agent.JoinTokenMaxTTL),
+		regionAdmin:  service.NewRegionAdminServer(queries),
 		systemAdmin:  service.NewSystemAdminServer(pool, queries),
 		user:         service.NewUserServer(pool, queries, machine),
 		auth:         authServiceHandler,
@@ -548,6 +552,7 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 	registryv1connect.RegisterRegistryServiceHandler(baseServer, d.registry)
 
 	clusterv1connect.RegisterClusterAdminServiceHandler(authenticatedServer, d.clusterAdmin)
+	clusterv1connect.RegisterRegionAdminServiceHandler(authenticatedServer, d.regionAdmin)
 	adminv1connect.RegisterSystemAdminServiceHandler(authenticatedServer, d.systemAdmin)
 	userv1connect.RegisterUserServiceHandler(authenticatedServer, d.user)
 	authv1connect.RegisterAuthServiceHandler(authenticatedServer, d.auth)

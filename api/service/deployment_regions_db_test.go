@@ -17,8 +17,8 @@ const twoRegionsBiggerCPU = `  worker:
     image: nginx:1.27
     port: 8080
     regions:
-      us-east-1: { cpu: 250m, memory: 64Mi, replicas: { min: 1, max: 1 } }
-      eu-west-1: { cpu: 250m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 250m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-va-1: { cpu: 250m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 
 func (f *deployFixture) getDeployment(t *testing.T, id string) *deploymentv1.Deployment {
@@ -70,7 +70,7 @@ func TestApplyAndScaleCreateOneDeploymentAcrossRegions(t *testing.T) {
 	f.addOtherRegionCluster(t)
 
 	started := applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()
-	both := []string{otherRegion, testRegion}
+	both := []string{testRegion, otherRegion}
 	if len(started) != 1 || !slices.Equal(started[0].GetRegions(), both) {
 		t.Fatalf("started = %v, want one deployment in %v", started, both)
 	}

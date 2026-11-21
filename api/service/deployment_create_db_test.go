@@ -23,9 +23,9 @@ import (
 
 const (
 	testPrimaryDomain = "svc.example.com"
-	otherRegionSpec   = `{"routing":{"port":8080},"regions":{"eu-west-1":{"enabled":true,"cpu":"100m",` +
+	otherRegionSpec   = `{"routing":{"port":8080},"regions":{"us-va-1":{"enabled":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
-	sameRegionSpec = `{"routing":{"port":8080},"regions":{"us-east-1":{"enabled":true,"cpu":"100m",` +
+	sameRegionSpec = `{"routing":{"port":8080},"regions":{"us-ca-1":{"enabled":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 )
 
@@ -216,7 +216,7 @@ func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
 }
 
 const unboundedRegionSpec = `{"routing":{"port":8080},` +
-	`"regions":{"us-east-1":{"enabled":true,"cpu":"100m","memory":"64Mi"}}}`
+	`"regions":{"us-ca-1":{"enabled":true,"cpu":"100m","memory":"64Mi"}}}`
 
 // testTarget is the request's sizing of testRegion, added when missing.
 func testTarget(service *deploymentv1.ServiceDeploymentSpec) *deploymentv1.RegionDeploymentTarget {
@@ -401,7 +401,7 @@ func TestCreateDeploymentAcceptsEnabledAutoscaling(t *testing.T) {
 	}
 }
 
-const workerRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"cpu":"100m",` +
+const workerRegionSpec = `{"regions":{"us-ca-1":{"enabled":true,"cpu":"100m",` +
 	`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 
 func TestCreateDeploymentWithoutAPortRunsAWorker(t *testing.T) {

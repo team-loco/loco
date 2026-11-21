@@ -16,7 +16,7 @@ services:
     port: 8080
     health: {path: /health}
     regions:
-      us-east-1: {cpu: 100m, memory: 128Mi, replicas: {min: 1, max: 1}}
+      us-ca-1: {cpu: 100m, memory: 128Mi, replicas: {min: 1, max: 1}}
     environments:
       production:
         dockerfile: Dockerfile.production
@@ -28,7 +28,7 @@ services:
   worker:
     image: example.com/worker:v1
     regions:
-      us-east-1: {cpu: 100m, memory: 128Mi, replicas: {min: 1, max: 1}}
+      us-ca-1: {cpu: 100m, memory: 128Mi, replicas: {min: 1, max: 1}}
 `)
 	file, err := Parse(original)
 	require.NoError(t, err)

@@ -30,6 +30,7 @@ import (
 
 type Clients struct {
 	ClusterAdmin  clusterv1connect.ClusterAdminServiceClient
+	RegionAdmin   clusterv1connect.RegionAdminServiceClient
 	SystemAdmin   adminv1connect.SystemAdminServiceClient
 	Agent         agentv1connect.AgentServiceClient
 	Auth          authv1connect.AuthServiceClient
@@ -73,6 +74,7 @@ func NewHTTPClients(httpClient *http.Client, host, token string) *Clients {
 func NewClients(connectClient *connect.Client) *Clients {
 	return &Clients{
 		ClusterAdmin:  clusterv1connect.NewClusterAdminServiceClient(connectClient),
+		RegionAdmin:   clusterv1connect.NewRegionAdminServiceClient(connectClient),
 		SystemAdmin:   adminv1connect.NewSystemAdminServiceClient(connectClient),
 		Agent:         agentv1connect.NewAgentServiceClient(connectClient),
 		Auth:          authv1connect.NewAuthServiceClient(connectClient),

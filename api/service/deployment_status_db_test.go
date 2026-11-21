@@ -99,9 +99,10 @@ func TestConcurrentRegionReportsAggregateBothPlacements(t *testing.T) {
 		t.Fatal(err)
 	}
 	clusters := []uuid.UUID{f.clusterID, f.otherCluster}
+	regions := map[uuid.UUID]string{f.clusterID: testRegion, f.otherCluster: statusSecondRegion}
 	for _, cluster := range clusters {
 		if err := f.queries.CreateDeploymentPlacement(t.Context(), genDb.CreateDeploymentPlacementParams{
-			DeploymentID: id, ClusterID: cluster, Region: cluster.String(), Replicas: 1,
+			DeploymentID: id, ClusterID: cluster, Region: regions[cluster], Replicas: 1,
 			Status: genDb.PlacementStatusDeploying,
 		}); err != nil {
 			t.Fatal(err)

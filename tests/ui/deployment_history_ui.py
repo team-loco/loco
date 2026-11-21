@@ -59,7 +59,7 @@ def fixture():
             name="browser-pilot",
             domains=[PLATFORM_DOMAIN] if index == 0 else [],
         )
-        for index, region in enumerate(("us-east-1", "eu-west-1", "us-east-1"))
+        for index, region in enumerate(("us-ca-1", "us-va-1", "us-ca-1"))
     ]
     release_ids = [str(uuid.uuid7()) for _ in range(221)]
     release_ids[:2] = [
@@ -91,7 +91,7 @@ def fixture():
 
     releases = []
     for index, deployment in enumerate(release_ids, 1):
-        region = "eu-west-1" if index == len(release_ids) else "us-east-1"
+        region = "us-va-1" if index == len(release_ids) else "us-ca-1"
         active = index in (1, len(release_ids))
         image = f"example.invalid/browser-pilot:release-{index:03}"
         build = None
@@ -106,7 +106,7 @@ def fixture():
                 "id": deployment,
                 "placements": {
                     region: {
-                        "cluster": clusters[1] if region == "eu-west-1" else clusters[0]
+                        "cluster": clusters[1] if region == "us-va-1" else clusters[0]
                     }
                 },
                 "environment": "production",
@@ -120,11 +120,11 @@ def fixture():
     releases.append(
         {
             "id": staging_release,
-            "placements": {"us-east-1": {"cluster": clusters[2]}},
+            "placements": {"us-ca-1": {"cluster": clusters[2]}},
             "environment": "staging",
             "method": "cli",
             "spec": runtime(
-                "example.invalid/browser-pilot:staging-current", ["us-east-1"], 2
+                "example.invalid/browser-pilot:staging-current", ["us-ca-1"], 2
             ),
         }
     )
@@ -138,7 +138,7 @@ def fixture():
                 "minReplicas": 1,
                 "maxReplicas": 1,
             }
-            for region in ("us-east-1", "eu-west-1")
+            for region in ("us-ca-1", "us-va-1")
         },
     }
     seeded = evidence.seed_resources(
@@ -157,14 +157,14 @@ def fixture():
                 "deployments": [
                     {
                         "placements": {
-                            "us-east-1": {"cluster": clusters[0]},
-                            "eu-west-1": {"cluster": clusters[1]},
+                            "us-ca-1": {"cluster": clusters[0]},
+                            "us-va-1": {"cluster": clusters[1]},
                         },
                         "environment": "production",
                         "method": "cli",
                         "spec": runtime(
                             "example.invalid/edge-pilot:1.0.0",
-                            ("us-east-1", "eu-west-1"),
+                            ("us-ca-1", "us-va-1"),
                         ),
                     }
                 ],
@@ -635,7 +635,7 @@ with session(out) as browser:
     page.get_by_role("button", name="Table", exact=True).click()
     expect(page).not_to_have_url(re.compile(r"view=map"))
     page.get_by_role("button", name="Region: All regions", exact=True).click()
-    region = page.get_by_role("menuitemradio", name=re.compile(r"^eu-west-1"))
+    region = page.get_by_role("menuitemradio", name=re.compile(r"^us-va-1"))
     region.click()
     expect(region).to_have_attribute("aria-checked", "true")
     expect(region.locator("svg")).to_be_hidden()

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { useQuery } from "@connectrpc/connect-query";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { RegionCard, RegionCards } from "@/components/design/RegionCards";
@@ -462,6 +464,7 @@ export function RegionsSection({
 	onChange,
 	available,
 }: SectionProps & { available: RegionInfo[] }) {
+	const defaultRegion = useQuery(getConfig, {}).data?.defaultRegion;
 	const names = [...new Set([...available.map((r) => r.region), ...Object.keys(base.regions)])].toSorted();
 	const hasDeployment = Object.keys(base.scaling).length > 0;
 	const selected = names.filter((name) => draft.regions?.[name] ?? base.regions[name] === true);
@@ -515,7 +518,7 @@ export function RegionsSection({
 								note === undefined ? undefined : (
 									<>
 										{note}
-										{configured && on && info?.isDefault === true && " · default"}
+										{configured && on && name === defaultRegion && " · default"}
 									</>
 								)
 							}

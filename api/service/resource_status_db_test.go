@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	statusSecondRegion  = "eu-west-1"
+	statusSecondRegion  = "us-va-1"
 	statusCrashMsg      = "A replica keeps restarting. Check its logs."
 	statusTwoReplicas   = 2
 	statusProduction    = "prod"
@@ -356,25 +356,25 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 	f.ready(t, f.clusterID, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
 		wantRegion{
-			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
-			ready: 0, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
-		},
-		wantRegion{
 			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 			ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
+		},
+		wantRegion{
+			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
+			ready: 0, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
 		},
 	)
 
 	f.failed(t, f.envID, f.regionCluster, 0)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 		wantRegion{
+			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+			ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
+		},
+		wantRegion{
 			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
 			ready: 0, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
 			message: statusCrashMsg,
-		},
-		wantRegion{
-			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-			ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		},
 	)
 }
@@ -408,13 +408,13 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 	f.ready(t, f.clusterID, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 		wantRegion{
+			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+			ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
+		},
+		wantRegion{
 			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
 			ready: 0, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
 			message: statusCrashMsg,
-		},
-		wantRegion{
-			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-			ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		},
 	)
 

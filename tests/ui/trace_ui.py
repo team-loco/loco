@@ -93,7 +93,7 @@ def span(row):
             "service.name": service,
             "service.version": "2.1.0",
             "deployment.environment.name": "production",
-            "cloud.region": "us-east-1",
+            "cloud.region": "us-ca-1",
         },
         "scopeName": "@opentelemetry/instrumentation-http",
         "scopeVersion": "0.210.0",
@@ -1163,7 +1163,7 @@ with session(out) as browser:
                 "k8s.pod.start_time": time.strftime(
                     "%Y-%m-%dT%H:%M:%SZ", time.gmtime(start - 3600)
                 ),
-                "loco.region": "us-east-1",
+                "loco.region": "us-ca-1",
             }
         )
     spans[6]["resourceAttributes"].pop("k8s.pod.name")
@@ -1182,7 +1182,7 @@ with session(out) as browser:
                         "spec": {
                             "service": {
                                 "regions": {
-                                    "us-east-1": {
+                                    "us-ca-1": {
                                         "enabled": True,
                                         "cpu": "500m",
                                         "memory": "512Mi",

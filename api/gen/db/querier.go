@@ -162,6 +162,7 @@ type Querier interface {
 	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
 	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
+	IsLiveRegion(ctx context.Context, region string) (bool, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error)
 	ListAPITokenNames(ctx context.Context, ids []uuid.UUID) ([]ListAPITokenNamesRow, error)
@@ -171,6 +172,7 @@ type Querier interface {
 	ListAccountDeletionTokens(ctx context.Context, arg ListAccountDeletionTokensParams) ([]ListAccountDeletionTokensRow, error)
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
 	ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error)
+	ListAdminRegions(ctx context.Context) ([]ListAdminRegionsRow, error)
 	ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]ListBuildStatesByIDsRow, error)
 	ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error)
 	ListBuildingDeployments(ctx context.Context, buildID string) ([]Deployment, error)
@@ -278,6 +280,9 @@ type Querier interface {
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
+	// Regions are the region codes on cluster rows.
+	// One more than the highest n of the clusters in {prefix}-{n} regions.
+	NextRegionNumber(ctx context.Context, prefix string) (int32, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	NotifyDeploymentActivity(ctx context.Context, deploymentID string) error
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
@@ -303,6 +308,7 @@ type Querier interface {
 	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
+	RegionHasClusters(ctx context.Context, region string) (bool, error)
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
 	RemoveOrgMember(ctx context.Context, arg RemoveOrgMemberParams) error
 	RemoveResourceScopesForUserInWorkspace(ctx context.Context, arg RemoveResourceScopesForUserInWorkspaceParams) error
