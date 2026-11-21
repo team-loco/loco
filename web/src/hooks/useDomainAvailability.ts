@@ -7,13 +7,14 @@ import { domainCheck, type DomainCheck } from "@/lib/platform-domain";
 
 const AVAILABILITY_DEBOUNCE_MS = 350;
 const AVAILABILITY_STALE_MS = 10_000;
+export const DOMAIN_AVAILABILITY_KEY = "domain-availability";
 
 export function useDomainAvailability(subdomain: string, platformDomain: string, own: readonly string[]): DomainCheck {
 	const transport = useTransport();
 	const before = domainCheck(subdomain, platformDomain, own, { fetching: false, available: undefined, error: null });
 	const target = before.state === "checking" ? before.host : null;
 	const query = useQuery({
-		queryKey: ["domain-availability", target],
+		queryKey: [DOMAIN_AVAILABILITY_KEY, target],
 		queryFn: async ({ signal }) => {
 			await new Promise((resolve) => setTimeout(resolve, AVAILABILITY_DEBOUNCE_MS));
 			signal.throwIfAborted();

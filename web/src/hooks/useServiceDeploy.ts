@@ -7,6 +7,7 @@ import { DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { DOMAIN_AVAILABILITY_KEY } from "@/hooks/useDomainAvailability";
 import { invalidateDeploys } from "@/hooks/workspaceDeployments";
 import { getErrorMessage } from "@/lib/error-handler";
 import {
@@ -142,6 +143,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		setIsPending(false);
 		setDeployError(result.error);
 		void invalidateDeploys(queryClient, transport, workspaceId, result.resourceId);
+		void queryClient.invalidateQueries({ queryKey: [DOMAIN_AVAILABILITY_KEY] });
 		return result;
 	};
 
