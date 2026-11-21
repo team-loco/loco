@@ -74,6 +74,7 @@ def test_postgres_pulled_and_recorded_before_start(
     monkeypatch.setattr(evidence.sys, "platform", platform)
     repo = Path(__file__).resolve().parents[2]
     monkeypatch.setenv(evidence.OPENBAO_ENV, "http://openbao")
+    monkeypatch.setenv(evidence.BUILD_ENV, str(repo))
     monkeypatch.setattr(evidence, "repo_root", lambda: repo)
     monkeypatch.setattr(evidence, "stop_state", lambda state: None)
     scenario = tmp_path / "scenario.json"

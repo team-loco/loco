@@ -4,13 +4,17 @@
 # ///
 import argparse
 import base64
+import contextlib
+import fcntl
 import hashlib
 import http.server
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
 import time
 import tomllib
 import urllib.error
@@ -49,6 +53,24 @@ USER_SCOPES = ("read", "write", "admin")
 RUNTIME_CONFIG_PATH = "/runtime-config.js"
 # The OpenBao every suite shares; `mise run test:ui` and the ui-evidence skill set it.
 OPENBAO_ENV = "UI_EVIDENCE_OPENBAO"
+# The build a run of HEAD uses, as `build` prints it; `mise run test:ui` sets it.
+BUILD_ENV = "UI_EVIDENCE_BUILD"
+# Each commit's API and UI build, which every checkout on the machine reuses.
+BUILDS = (
+    Path.home() / "Library" / "Caches"
+    if sys.platform == "darwin"
+    else Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+) / "loco-ui-builds"
+# Eviction keeps the builds of this many most recently used commits, and every build a live run uses.
+BUILDS_KEPT = 8
+# The files of a commit a run reads besides the build.
+RUN_SOURCES = (
+    "dev",
+    "web/sws.toml",
+    "tests/conformance/transit/compose.yaml",
+    "charts/loco-control-plane/values.yaml",
+    "charts/loco-control-plane/files/openbao-setup.sh",
+)
 
 RPC_CREATE_ORG = "loco.org.v1.OrgService/CreateOrg"
 RPC_CREATE_WORKSPACE = "loco.workspace.v1.WorkspaceService/CreateWorkspace"
@@ -116,10 +138,10 @@ def discovery_document(issuer):
     }
 
 
-def compose(worktree, project, env, *args, capture=False):
+def compose(source, project, env, *args, capture=False):
     files = [
         "-f",
-        str(worktree / "dev" / "compose.yaml"),
+        str(source / "dev" / "compose.yaml"),
         "-f",
         str(TOOLS_ROOT / "dev" / "compose.subnet.yaml"),
     ]
@@ -128,25 +150,25 @@ def compose(worktree, project, env, *args, capture=False):
     )
 
 
-def openbao_env(worktree, env):
-    values = worktree / "charts" / "loco-control-plane" / "values.yaml"
+def openbao_env(source, env):
+    values = source / "charts" / "loco-control-plane" / "values.yaml"
     image = run(
         ["mise", "exec", "--", "yq", ".openbao.image", str(values)], capture=True
     ).strip()
     return dict(env, OPENBAO_PORT=f"{HOST}:", OPENBAO_IMAGE=image)
 
 
-def start_openbao(worktree, project, env):
-    compose_env = openbao_env(worktree, env)
+def start_openbao(source, project, env):
+    compose_env = openbao_env(source, env)
     image = compose_env["OPENBAO_IMAGE"]
     run(
         ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
-        cwd=worktree,
+        cwd=TOOLS_ROOT,
         env=env,
     )
     try:
         compose(
-            worktree,
+            source,
             project,
             compose_env,
             "up",
@@ -157,7 +179,7 @@ def start_openbao(worktree, project, env):
             OPENBAO_SERVICE,
         )
         compose(
-            worktree,
+            source,
             project,
             compose_env,
             "run",
@@ -167,7 +189,7 @@ def start_openbao(worktree, project, env):
             OPENBAO_SEED_SERVICE,
         )
         published = compose(
-            worktree,
+            source,
             project,
             compose_env,
             "port",
@@ -182,12 +204,12 @@ def start_openbao(worktree, project, env):
             ("ps", "-a", "--format", "json"),
         ):
             try:
-                log(compose(worktree, project, compose_env, *arguments, capture=True))
+                log(compose(source, project, compose_env, *arguments, capture=True))
             except EvidenceError as error:
                 log(str(error))
         try:
             containers = compose(
-                worktree,
+                source,
                 project,
                 compose_env,
                 "ps",
@@ -1147,7 +1169,12 @@ def repo_root():
 
 
 def cmd_build(args):
-    build(repo_root(), dict(os.environ))
+    repo = repo_root()
+    if dirty(repo):
+        build(repo, dict(os.environ))
+        print(repo)
+    else:
+        print(cached_build(repo, git_commit(repo, "HEAD")))
 
 
 def cmd_openbao(args):
@@ -1173,21 +1200,95 @@ def cmd_stop_openbao(args):
             stop_state(state)
 
 
-def check_ref_worktree(repo, ref):
-    commit = run(
+def git_commit(repo, ref):
+    return run(
         ["git", "rev-parse", f"{ref}^{{commit}}"], cwd=repo, capture=True
     ).strip()
-    head = run(["git", "rev-parse", "HEAD"], cwd=repo, capture=True).strip()
-    if commit == head:
-        dirty = run(
-            ["git", "status", "--porcelain", "--untracked-files=all"],
-            cwd=repo,
-            capture=True,
-        ).strip()
-        if dirty:
-            raise EvidenceError(
-                f"ref {ref} excludes uncommitted files; commit them before capture:\n{dirty}"
-            )
+
+
+def dirty(repo):
+    return run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=repo,
+        capture=True,
+    ).strip()
+
+
+@contextlib.contextmanager
+def flocked(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as file:
+        fcntl.flock(file, fcntl.LOCK_EX)
+        yield
+
+
+def cached_build(repo, commit):
+    """Returns the cached build of a commit, building it in a clean worktree when missing."""
+    entry = BUILDS / commit
+    with flocked(BUILDS / f"{commit}.lock"):
+        if not entry.is_dir():
+            build_commit(repo, commit, entry)
+        os.utime(entry)
+    return entry
+
+
+def build_commit(repo, commit, entry):
+    lease = Path(testres("lease", "-name", f"{LABEL}-build", "-pid", os.getpid()))
+    try:
+        worktree = lease / "src"
+        testres("add", lease, "worktree", worktree)
+        run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "worktree",
+                "add",
+                "--detach",
+                str(worktree),
+                commit,
+            ]
+        )
+        build(worktree, dict(os.environ))
+        partial = BUILDS / f"{commit}.partial"
+        shutil.rmtree(partial, ignore_errors=True)
+        sources = lease / "sources.tar"
+        run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "archive",
+                "-o",
+                str(sources),
+                commit,
+                *RUN_SOURCES,
+            ]
+        )
+        with tarfile.open(sources) as tar:
+            tar.extractall(partial, filter="data")
+        (partial / "api" / "bin").mkdir(parents=True)
+        shutil.copy2(worktree / "api" / "bin" / "loco-api", partial / "api" / "bin")
+        shutil.copytree(worktree / "web" / "dist", partial / "web" / "dist")
+        partial.rename(entry)
+    finally:
+        testres("release", lease)
+    log(f"cached the build of {commit} in {entry}")
+    evict_builds()
+
+
+def evict_builds():
+    with flocked(BUILDS / "evict.lock"):
+        in_use = {state.get("build") for state in states()}
+        entries = sorted(
+            (path for path in BUILDS.iterdir() if path.is_dir()),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        for entry in entries[BUILDS_KEPT:]:
+            if str(entry) not in in_use:
+                shutil.rmtree(entry)
+                log(f"evicted the cached build {entry}")
 
 
 def states():
@@ -1217,8 +1318,13 @@ def reap():
 def start_state(*, ref, name, scenario, issuer=None):
     repo = repo_root()
     openbao = os.environ.get(OPENBAO_ENV)
-    if not openbao:
-        check_ref_worktree(repo, ref)
+    commit = git_commit(repo, ref)
+    head = commit == git_commit(repo, "HEAD")
+    local = os.environ.get(BUILD_ENV) if head else None
+    if head and not local and (changes := dirty(repo)):
+        raise EvidenceError(
+            f"ref {ref} excludes uncommitted files; commit them before capture:\n{changes}"
+        )
     scenario_path = str(Path(scenario).resolve())
     scenario = json.loads(Path(scenario).read_text())
     root = Path(testres("lease", "-name", f"{LABEL}-{name}", "-ttl", f"{LEASE_S}s"))
@@ -1230,32 +1336,15 @@ def start_state(*, ref, name, scenario, issuer=None):
         "ref": ref,
         "scenario": scenario_path,
         "root": str(root),
+        "commit": commit,
     }
     if openbao:
-        worktree = repo
         state["openbao"] = openbao
-    else:
-        worktree = root / "src"
-        state["worktree"] = str(worktree)
     try:
         renew(state)
-        if not openbao:
-            testres("add", root, "worktree", worktree)
-            run(
-                [
-                    "git",
-                    "-C",
-                    str(repo),
-                    "worktree",
-                    "add",
-                    "--detach",
-                    str(worktree),
-                    ref,
-                ]
-            )
-        state["commit"] = run(
-            ["git", "-C", str(worktree), "rev-parse", "HEAD"], capture=True
-        ).strip()
+        source = Path(local) if local else cached_build(repo, commit)
+        state["build"] = str(source)
+        write_json(state_path, state)
         names = ("db", "api", "ui", "unused")
         reserved = map(int, testres("ports", root, len(names)).split())
         ports = dict(zip(names, reserved, strict=True))
@@ -1275,16 +1364,14 @@ def start_state(*, ref, name, scenario, issuer=None):
             state["compose"] = run_id
             write_json(state_path, state)
             testres("add", root, "compose", state["compose"])
-            run(["mise", "trust", "--quiet", str(worktree / "mise.toml")])
-            openbao = start_openbao(worktree, state["compose"], env)
-            build(worktree, env)
-        dist = worktree / "web" / "dist"
+            openbao = start_openbao(source, state["compose"], env)
+        dist = source / "web" / "dist"
 
-        image = compose_postgres_image((worktree / "dev" / "compose.yaml").read_text())
+        image = compose_postgres_image((source / "dev" / "compose.yaml").read_text())
         container = run_id
         run(
             ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
-            cwd=worktree,
+            cwd=TOOLS_ROOT,
             env=env,
         )
         testres("add", root, "container", container)
@@ -1311,17 +1398,17 @@ def start_state(*, ref, name, scenario, issuer=None):
         write_json(state_path, state)
         wait_postgres(container)
 
-        dev_env = read_api_env((worktree / "dev" / "api.env").read_text())
+        dev_env = read_api_env((source / "dev" / "api.env").read_text())
         dev_env["LOCO_SECRETS_TRANSIT_ADDR"] = openbao
         api_log = root / "api.log"
-        api_cmd = [str(worktree / "api" / "bin" / "loco-api")]
+        api_cmd = [str(source / "api" / "bin" / "loco-api")]
         testres(
             "add",
             root,
             "process",
             spawn(
                 api_cmd,
-                worktree,
+                source,
                 dict(env, **api_env(dev_env, ports, state["issuer"])),
                 api_log,
             ),
@@ -1338,7 +1425,7 @@ def start_state(*, ref, name, scenario, issuer=None):
             "--api-url",
             state["api_url"],
         ]
-        testres("add", root, "process", spawn(ui_cmd, worktree, env, ui_log))
+        testres("add", root, "process", spawn(ui_cmd, source, env, ui_log))
         write_json(state_path, state)
         wait_http(f"{state['api_url']}/health", api_log)
         wait_http(state["ui_url"] + "/", ui_log)
@@ -1832,7 +1919,10 @@ def main():
     serve.add_argument("--port", required=True, type=int)
     serve.add_argument("--api-url", required=True)
     serve.set_defaults(func=cmd_serve_ui)
-    prebuild = sub.add_parser("build", help="build the API and UI in this checkout")
+    prebuild = sub.add_parser(
+        "build",
+        help="build this checkout's API and UI, or reuse its commit's cached build, and print its path",
+    )
     prebuild.set_defaults(func=cmd_build)
     bao = sub.add_parser(
         "openbao",

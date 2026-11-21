@@ -1,6 +1,6 @@
 ---
 name: ui-evidence
-description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Captures locally and clicks through a running app, with each git ref built in its own worktree against a throwaway stack; the `ci-evidence` skill takes them in CI. Load before taking PR screenshots.
+description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Captures locally and clicks through a running app, with each commit built once into a machine-wide cache and run against a throwaway stack; the `ci-evidence` skill takes them in CI. Load before taking PR screenshots.
 context: fork
 agent: ui-evidence
 allowed-tools: Bash, Read, Write
@@ -112,6 +112,11 @@ mise exec -- uv run --script "$E" <command>
    - Content below the fold of a scrolling drawer needs a `hover` step to scroll it into view.
 3. Commit source changes before capturing the current HEAD; `up` rejects uncommitted files
    when its ref resolves to HEAD. Historical refs can be captured from a dirty checkout.
+   `up` reuses the API and UI build of its commit from the cache in
+   `~/Library/Caches/loco-ui-builds` (`~/.cache/loco-ui-builds` on Linux), which every checkout
+   and agent on the machine shares. A commit missing from the cache builds once in a temporary
+   worktree; concurrent runs of that commit wait for that build. The cache keeps the eight most
+   recently used commits and every build a live run uses.
    Bring up both refs. Each prints the path of its state file on stdout:
 
    ```sh
@@ -156,39 +161,25 @@ E2e reserves the Compose network before builds. Its failure reports how to list 
 networks and tear down the current run. Remove only runs you own.
 
 Comparisons can share one seeded OpenBao. Each API keeps application data in its own
-database. Build each ref in a separate checkout and keep both checkouts until capture
-finishes: each UI serves its checkout's `web/dist`. From the checkout with this script:
+database. `UI_EVIDENCE_OPENBAO` makes `up` use the OpenBao at that address instead of starting
+its own:
 
 ```sh
-E="$PWD/.agents/skills/ui-evidence/scripts/evidence.py"
-git worktree add --detach "$capture/before-src" origin/main
-git worktree add --detach "$capture/after-src" HEAD
 UI_EVIDENCE_OPENBAO=$(mise exec -- uv run --script "$E" openbao)
 export UI_EVIDENCE_OPENBAO
-for side in before after; do
-  (
-    cd "$capture/$side-src"
-    mise exec -- uv run --script "$E" build
-    mise exec -- uv run --script "$E" up --ref HEAD --name "$side" --scenario "$capture/scenario.json"
-  ) > "$capture/$side.state-path"
-done
-before=$(cat "$capture/before.state-path")
-after=$(cat "$capture/after.state-path")
+before=$(mise exec -- uv run --script "$E" up --ref origin/main --name before --scenario "$capture/scenario.json")
+after=$(mise exec -- uv run --script "$E" up --ref HEAD --name after --scenario "$capture/scenario.json")
 ```
 
-Shoot with those state paths and the spec above. `UI_EVIDENCE_OPENBAO` makes `up` use the
-current checkout's built API and UI; it does not build or check out `--ref`. The shared
-OpenBao has a two-hour lease like a run's. Every `up` and `shoot` that uses it renews that
-lease, so it stays up while its captures run, whichever shell started it. The caller owns these
-checkouts and the shared OpenBao. After capture:
+Shoot with those state paths and the spec above. The shared OpenBao has a two-hour lease like
+a run's. Every `up` and `shoot` that uses it renews that lease, so it stays up while its
+captures run, whichever shell started it. The caller owns the shared OpenBao. After capture:
 
 ```sh
 mise exec -- uv run --script "$E" down --state "$before"
 mise exec -- uv run --script "$E" down --state "$after"
 mise exec -- uv run --script "$E" stop-openbao --address "$UI_EVIDENCE_OPENBAO"
 unset UI_EVIDENCE_OPENBAO
-git worktree remove --force "$capture/before-src"
-git worktree remove --force "$capture/after-src"
 ```
 
 ## Upload
