@@ -169,8 +169,10 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     page.get_by_role("button", name="Change role", exact=True).click()
     expect(member_role).to_have_text("Admin")
     member_row = page.get_by_role("row").filter(has_text="Max Member")
+    expect(member_row.get_by_role("cell").nth(1)).to_have_text("Member")
     expect(member_row.get_by_text("All workspaces", exact=True)).to_be_visible()
-    member_role.click()
+    page.get_by_role("button", name="Actions for Max Member", exact=True).click()
+    page.get_by_role("menuitem", name="Change role", exact=True).click()
     page.get_by_role("menuitem", name=re.compile(r"^Member")).click()
     page.get_by_role("button", name="Change role", exact=True).click()
     expect(member_role).to_have_text("Member")
@@ -196,6 +198,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(
         drawer.get_by_role("group", name="Access to sibling", exact=True)
     ).to_be_visible()
+    expect(drawer.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"[?&]access="))
     member_role.click()
@@ -205,10 +208,9 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     assert sum(url.endswith("/GetScopes") for url in requests) == scopes_before
     page.get_by_role("button", name="Actions for Lee Leaver", exact=True).click()
     page.get_by_role("menuitem", name="Remove from acme", exact=True).click()
-    expect(page.get_by_role("alertdialog")).to_contain_text(
-        "Remove Lee Leaver from acme?"
-    )
+    expect(page.get_by_role("alertdialog")).to_contain_text("Remove Lee Leaver?")
     page.get_by_role("button", name="Remove", exact=True).click()
+    expect(page.get_by_text("Removed Lee Leaver", exact=True)).to_be_visible()
     expect(page.get_by_role("row").filter(has_text="Lee Leaver")).to_have_count(0)
     assert (
         sum(url.endswith("/ListInvitations") for url in requests) == invitations_before
@@ -261,7 +263,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     row.focus()
     expect(row).to_be_focused()
     page.keyboard.press("Enter")
-    expect(page).not_to_have_url(re.compile(r"/organizations"))
+    expect(page).to_have_url(re.compile(rf"/org/{org}/wks/"))
     page.goto(path)
     expect(
         page.get_by_role("button", name="Change role for Max Member", exact=True)

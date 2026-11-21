@@ -1,5 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { Building2, Copy, Settings, Trash2, ArrowUpRight } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import type { Organization } from "@gen/loco/org/v1/org_pb";
@@ -7,7 +7,7 @@ import type { Organization } from "@gen/loco/org/v1/org_pb";
 import { CellText, type DataColumn } from "@/components/design/DataTable";
 import { formatCount } from "@/lib/format";
 import { RowMenu } from "@/components/design/RowMenu";
-import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
+import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { useCopy } from "@/hooks/useCopy";
 import { formatMonthDayYear } from "@/lib/time";
 
@@ -30,7 +30,6 @@ function OrgMenu({ org, role, onSwitch }: { org: Organization; role: OrgRole; on
 					onSwitch(org.id);
 				}}
 			>
-				<ArrowUpRight />
 				Open
 			</DropdownMenuItem>
 			{role === "Admin" && (
@@ -39,7 +38,6 @@ function OrgMenu({ org, role, onSwitch }: { org: Organization; role: OrgRole; on
 						void navigate(settings);
 					}}
 				>
-					<Settings />
 					Settings
 				</DropdownMenuItem>
 			)}
@@ -48,28 +46,23 @@ function OrgMenu({ org, role, onSwitch }: { org: Organization; role: OrgRole; on
 					copy(org.id, org.id, `Copied ${org.id}`);
 				}}
 			>
-				<Copy />
 				Copy ID
 			</DropdownMenuItem>
 			{role === "Admin" && (
-				<>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						variant="destructive"
-						onClick={() => {
-							void navigate(`${settings}#organization-danger`);
-						}}
-					>
-						<Trash2 />
-						Delete organization
-					</DropdownMenuItem>
-				</>
+				<DropdownMenuItem
+					variant="destructive"
+					onClick={() => {
+						void navigate(`${settings}#organization-danger`);
+					}}
+				>
+					Delete organization
+				</DropdownMenuItem>
 			)}
 		</RowMenu>
 	);
 }
 
-const COUNT_CELL = "font-mono text-[12.5px] text-fg3";
+const COUNT_CELL = "font-mono text-[12.5px]";
 
 function count(value: bigint | undefined): string {
 	return value === undefined ? "—" : formatCount(Number(value));

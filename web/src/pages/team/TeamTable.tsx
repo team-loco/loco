@@ -1,15 +1,6 @@
 import type { Invitation } from "@gen/loco/org/v1/org_pb";
-import {
-	CheckIcon,
-	ChevronDownIcon,
-	CopyIcon,
-	LayersIcon,
-	RotateCwIcon,
-	Trash2Icon,
-	UserCogIcon,
-	UserMinusIcon,
-} from "lucide-react";
-import type { ReactNode } from "react";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
@@ -21,9 +12,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
 } from "@/components/design/DropdownMenu";
 import { LevelChip } from "@/components/design/LevelChip";
 import { RowMenu } from "@/components/design/RowMenu";
@@ -229,34 +217,39 @@ function Joined({ row, now }: { row: TeamRow; now: number }) {
 	return joined ? <>{formatMonthYear(tsMs(joined), pref)}</> : <Dash />;
 }
 
-function MemberMenu({ member, actions }: { member: Member; actions: RowActions }) {
-	const name = memberName(member);
+function MemberMenuItems({ member, actions }: { member: Member; actions: RowActions }) {
+	const [picking, setPicking] = useState(false);
 	const role = roleOf(member.member.scopes);
-	if (member.member.user?.id === actions.meId) return null;
+	if (picking) {
+		return (
+			<RoleItems
+				role={role}
+				heading
+				onPick={(next) => {
+					actions.onRole(member, next);
+				}}
+			/>
+		);
+	}
 	return (
-		<RowMenu label={`Actions for ${name}`} title={name}>
+		<>
 			<DropdownMenuGroup>
-				<DropdownMenuSub>
-					<DropdownMenuSubTrigger disabled={!actions.canChangeRoles}>
-						<UserCogIcon />
-						Change role
-					</DropdownMenuSubTrigger>
-					<DropdownMenuSubContent className="w-[260px]">
-						<RoleItems
-							role={role}
-							onPick={(next) => {
-								actions.onRole(member, next);
-							}}
-						/>
-					</DropdownMenuSubContent>
-				</DropdownMenuSub>
+				<DropdownMenuLabel className="max-w-[260px] truncate">{memberName(member)}</DropdownMenuLabel>
+				<DropdownMenuItem
+					disabled={!actions.canChangeRoles}
+					closeOnClick={false}
+					onClick={() => {
+						setPicking(true);
+					}}
+				>
+					Change role
+				</DropdownMenuItem>
 				{role === "Member" && (
 					<DropdownMenuItem
 						onClick={() => {
 							actions.onAccess(member);
 						}}
 					>
-						<LayersIcon />
 						Workspace access
 					</DropdownMenuItem>
 				)}
@@ -270,9 +263,17 @@ function MemberMenu({ member, actions }: { member: Member; actions: RowActions }
 					actions.onRemove(member);
 				}}
 			>
-				<UserMinusIcon />
 				Remove from {actions.orgName}
 			</DropdownMenuItem>
+		</>
+	);
+}
+
+function MemberMenu({ member, actions }: { member: Member; actions: RowActions }) {
+	if (member.member.user?.id === actions.meId) return null;
+	return (
+		<RowMenu label={`Actions for ${memberName(member)}`}>
+			<MemberMenuItems member={member} actions={actions} />
 		</RowMenu>
 	);
 }
@@ -281,14 +282,13 @@ function InvitationMenu({ invitation, now, actions }: { invitation: Invitation; 
 	const expired = tsMs(invitation.expiresAt) <= now;
 	const manageTitle = actions.canManageInvitations ? undefined : "Only organization admins can change invitations";
 	return (
-		<RowMenu label={`Actions for the invitation to ${invitation.email}`} title={invitation.email}>
+		<RowMenu label={`Actions for invite to ${invitation.email}`} title={invitation.email}>
 			<DropdownMenuGroup>
 				<DropdownMenuItem
 					onClick={() => {
 						actions.onCopyLink(invitation);
 					}}
 				>
-					<CopyIcon />
 					Copy invite link
 				</DropdownMenuItem>
 				<DropdownMenuItem
@@ -298,7 +298,6 @@ function InvitationMenu({ invitation, now, actions }: { invitation: Invitation; 
 						actions.onResend(invitation);
 					}}
 				>
-					<RotateCwIcon />
 					{expired ? "Send a new invite" : "Resend invite"}
 				</DropdownMenuItem>
 			</DropdownMenuGroup>
@@ -311,7 +310,6 @@ function InvitationMenu({ invitation, now, actions }: { invitation: Invitation; 
 					actions.onRevoke(invitation);
 				}}
 			>
-				<Trash2Icon />
 				Revoke invite
 			</DropdownMenuItem>
 		</RowMenu>
@@ -338,7 +336,7 @@ function teamColumns(now: number, accessLoading: boolean, actions: RowActions): 
 				const expired = row.kind === "invitation" && tsMs(row.invitation.expiresAt) <= now;
 				return (
 					<Badge size="sm" tone={row.kind === "member" || expired ? "muted" : "info"}>
-						{row.kind === "member" ? "Active" : expired ? "Expired" : "Invited"}
+						{row.kind === "member" ? "Member" : expired ? "Expired" : "Invited"}
 					</Badge>
 				);
 			},
