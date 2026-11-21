@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -134,7 +135,10 @@ func classifyReplica(pod *corev1.Pod, events *podEvent, now time.Time) loco.Repl
 			return result
 		}
 	}
-	result.Detail = string(pod.Status.Phase) + ": " + pod.Status.Reason + " " + pod.Status.Message
+	result.Detail = string(pod.Status.Phase)
+	if why := strings.TrimSpace(pod.Status.Reason + " " + pod.Status.Message); why != "" {
+		result.Detail += ": " + why
+	}
 	return result
 }
 

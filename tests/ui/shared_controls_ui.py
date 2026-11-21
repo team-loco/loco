@@ -932,6 +932,44 @@ def custom_range_future_end(page):
     expect(page).not_to_have_url(re.compile(r"[?&]to="))
 
 
+def typed_range_error(page):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    page.get_by_role("button", name=re.compile(r"^Past ")).click()
+    time_range = page.get_by_role("dialog", name="Time range")
+    typed = time_range.get_by_role("textbox", name="Type a time range")
+    typed.fill("soon")
+    typed.press("Enter")
+    alert = time_range.get_by_role("alert")
+    expect(alert).to_have_count(1)
+    expect(alert).to_have_text(re.compile(r"^Try a span like"))
+    expect(typed).to_have_attribute("aria-invalid", "true")
+    gap = alert.bounding_box()["y"] - (
+        typed.bounding_box()["y"] + typed.bounding_box()["height"]
+    )
+    assert 0 <= gap <= 12, gap
+    typed.fill("15m")
+    expect(alert).to_have_count(0)
+    page.keyboard.press("Escape")
+
+
+def pin_needs_applied_query(page):
+    page.goto(
+        state["ui_url"]
+        + base
+        + "/observability?env=production&view=metrics&range=1h&q=checkout"
+    )
+    expect(page.get_by_text("Text search doesn't filter metrics")).to_be_visible()
+    expect(page.get_by_role("button", name="Clear", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Pin search")).to_have_count(0)
+    page.goto(
+        state["ui_url"] + base + "/observability?env=production&view=logs&q=checkout"
+    )
+    expect(page.get_by_role("button", name="Pin search")).to_be_visible()
+    expect(page.locator('input[aria-label="Search and filter"]')).to_have_value(
+        "checkout"
+    )
+
+
 def query_enter(page):
     page.goto(
         state["ui_url"]
@@ -2116,6 +2154,8 @@ with session(out) as browser:
         time_presets,
         calendar,
         custom_range_future_end,
+        typed_range_error,
+        pin_needs_applied_query,
         metrics,
         query_enter,
         query_suggestions,
