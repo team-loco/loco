@@ -1891,7 +1891,7 @@ def metrics(page):
             "spec": {
                 "service": {
                     "build": {"image": "ghcr.io/acme/pilot:1.27"},
-                    "regions": {"us-ca-1": {"cpu": "500m", "memory": "512Mi"}},
+                    "regions": {"us-ca-1": {"cpu": "100m", "memory": "128Mi"}},
                 }
             },
         }
@@ -1957,6 +1957,8 @@ def metrics(page):
                         },
                     },
                     "placements": {"us-east-1": {"cluster": cluster}},
+                    # Started before the chart, so every point ran with its limit.
+                    "age": "2 hours",
                 }
             ],
         )

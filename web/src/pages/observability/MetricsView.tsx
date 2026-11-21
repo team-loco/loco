@@ -204,10 +204,13 @@ function usePlacementSizing(rows: Placement[], recent: Deployment[], environment
 		queries.flatMap((q) => (q.data?.deployment === undefined ? [] : [q.data.deployment])).map((d) => [d.id, d]),
 	);
 	const byResource = Map.groupBy(recent, (d) => d.resourceId);
+	// Deployments that started after the current one never replaced it, so their sizing never ran.
 	const known = (p: Placement) => {
 		const deployment = current.get(p.deploymentId);
 		const history = byResource.get(p.resource.id) ?? [];
-		return deployment === undefined ? history : [...history, deployment];
+		if (deployment === undefined) return history;
+		const start = startedIn(deployment, p.region) ?? Infinity;
+		return [...history.filter((d) => (startedIn(d, p.region) ?? -Infinity) <= start), deployment];
 	};
 	// A placement whose known deployments all started inside the window needs the one running before it.
 	const startsInWindow = (p: Placement) => {
