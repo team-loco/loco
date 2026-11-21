@@ -28,7 +28,7 @@ Supply a published bundle digest and an environment file containing operator-sup
 ```sh
 locoadm init --output ./fleet \
   --api https://api.example.com --web https://app.example.com \
-  --domain apps.example.com --region example-east --admin admin@example.com \
+  --domain apps.example.com --region us-ca-1 --admin admin@example.com \
   --bundle oci://ghcr.io/team-loco/loco/platform@sha256:BUNDLE_DIGEST \
   --api-env-file ./api.env
 ```
@@ -66,8 +66,7 @@ Sign in with a verified email listed in `api.systemAdmins` to claim the first sy
 Bootstrap each worker’s Flux against its directory first. Once the bundle creates `loco-system`, register the worker and deliver its one-time join-token Secret directly:
 
 ```sh
-locoadm cluster create --name worker-staging --region example-east \
-  --kube-context worker-staging
+locoadm cluster create --name worker-staging --country us --subdivision ca --kube-context worker-staging
 ```
 
 Keep the join token out of Git. The default one-hour TTL covers immediate application. `--kube-context` applies the Secret through the Kubernetes client and prints only a confirmation. The agent waits for the mounted token, enrolls once and stores its identity in the cluster.  [Cluster enrollment](cluster-attachment.md) describes token renewal and enrollment status.

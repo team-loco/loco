@@ -22,7 +22,7 @@ loco resource events --help
 ```sh
 loco resource scale web --env production --replicas 3
 loco resource scale web --env staging --cpu 250m --memory 512Mi
-loco resource scale web --env production --region eu-west-1 --replicas 4
+loco resource scale web --env production --region us-va-1 --replicas 4
 ```
 
 ## Cancel
@@ -54,7 +54,7 @@ A newer deployment never waits for one in flight. It cancels the older deploymen
 
 ```sh
 loco resource restart web --env production
-loco resource restart web --env staging --region us-east-1
+loco resource restart web --env staging --region us-ca-1
 ```
 
 The dashboard's **Restart all replicas** action restarts the environment selected in the breadcrumb. The event history records the request as `resource.restarted`.
@@ -141,7 +141,7 @@ services:
     image: ghcr.io/acme/cart:2.1.0
     port: 7070
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 ```
 
 An application without a `port` is a worker, such as a queue consumer: it runs, scales and writes logs like any other and makes outbound connections, but it has no hostname, takes no traffic and gets no readiness probe. Leave out `port` to deploy one:
@@ -151,7 +151,7 @@ services:
   worker:
     image: ghcr.io/acme/worker:1.4.2
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 ```
 
 `loco deploy` prints that a private application has no public URL and that a worker takes no traffic, and `loco resource status` shows `URL: none` for both. In the dashboard, the New service drawer on the Resources page offers the same choice with its Public switch. Its Port field starts empty, which creates a worker. A domain added to an existing application takes effect on its next deployment, and removing an application's last domain makes it private from its next deployment.

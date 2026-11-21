@@ -10,11 +10,14 @@ Bootstrap the worker’s Flux against its repository directory first and wait fo
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
-locoadm cluster create --name worker-staging --region example-east \
-  --kube-context worker-staging
+locoadm cluster create --name worker-staging --country us --subdivision ca --kube-context worker-staging
 ```
 
-`--kube-context` creates or updates the Secret through the Kubernetes client and prints only a confirmation. A missing namespace fails with instructions to bootstrap Flux first. `-o secret` prints a plaintext Kubernetes Secret manifest for operator-managed delivery and cannot be combined with `--kube-context`. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Reference that Secret through the worker chart's `agent.joinToken.existingSecret`. The token is bootstrap material outside the operator repository. Core requires no SOPS executable or recipient flags.
+The command creates the cluster's region from its country and state or province, in lowercase letters and digits, and prints the region code the API builds: `us-ca-1` for the first region in California. The worker chart's `global.region` must hold that code; `locoadm init --region` writes it. A region's first cluster takes the region code as its name when `--name` is omitted. Add another cluster to an existing region with `--region us-ca-1` in place of `--country` and `--subdivision`, and a `--name`; running `--country` and `--subdivision` again creates a new region, `us-ca-2`. For a development cluster, `--local` uses the region `local-1`. [Regions](regions.md) explains the codes.
+
+The agent reports its chart's `global.region` when it registers, and the API refuses a registration from a chart that names another region.
+
+`--kube-context` creates or updates the Secret through the Kubernetes client and prints only a confirmation and the region. A missing namespace fails with instructions to bootstrap Flux first. `-o secret` prints a plaintext Kubernetes Secret manifest for operator-managed delivery and cannot be combined with `--kube-context`. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Reference that Secret through the worker chart's `agent.joinToken.existingSecret`. The token is bootstrap material outside the operator repository. Core requires no SOPS executable or recipient flags.
 
 Default output is the JSON API response, including the token. Keep both forms out of logs.
 
@@ -37,7 +40,7 @@ Status reports pending or enrolled clusters, last heartbeats, API and agent vers
 kubectl --context worker-staging get gateway -n loco-system
 ```
 
-Point the application wildcard, such as `*.apps.example.com`, at that address once, or run external-dns. Wait for certificates. Application environments can share a worker cluster. Each keeps separate workloads, secrets and deployment history. Loco’s own staging and production installations use separate clusters.
+Point the application wildcard, such as `*.apps.example.com`, and the region's names, `*.us-ca-1.apps.example.com` and `us-ca-1.<platform domain>`, at that address once, or run external-dns. [Regions](regions.md#hostnames) lists the records. Wait for certificates. Application environments can share a worker cluster. Each keeps separate workloads, secrets and deployment history. Loco’s own staging and production installations use separate clusters.
 
 ## Renew a pending token
 
@@ -47,6 +50,14 @@ locoadm cluster join-token CLUSTER_UUID --kube-context worker-staging
 
 If a pending token expires, re-run `locoadm cluster join-token CLUSTER_UUID --kube-context worker-staging`. A fresh token invalidates the preceding one. Apply the new Secret directly to the pending worker. The agent identity remains in the cluster after enrollment.
 
-`CreateCluster` requires a UUID request ID. Programmatic callers persist it and reuse it after a lost response: retries recover the same registration, while changed identity fields fail. Each CLI create invocation generates a fresh request ID. Use `join-token` for an existing registration.
+`CreateCluster` requires a UUID request ID. Programmatic callers persist it and reuse it after a lost response: retries recover the same registration and region, while changed identity fields fail. Each CLI create invocation generates a fresh request ID. Use `join-token` for an existing registration.
+
+## List regions
+
+```sh
+locoadm region list
+```
+
+`list` prints every region's code and the number of its clusters that are not removed. The API's `LOCO_DEFAULT_REGION` names the [default region](regions.md#default-region).
 
 Cluster pause, resume, remove and restore remain API operations. Removing an API registration does not provision or destroy Kubernetes infrastructure. Manage the cluster and its software through the operator's infrastructure and Flux workflows.
