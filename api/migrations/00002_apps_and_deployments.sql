@@ -417,6 +417,12 @@ CREATE FUNCTION deployment_placements_json (deployment UUID) RETURNS JSONB LANGU
         'startedAt', dp.started_at,
         'completedAt', dp.completed_at,
         'supersededBy', dp.superseded_by,
+        'previous', (
+            SELECT older.id FROM deployments older
+            JOIN deployment_placements odp ON odp.deployment_id = older.id
+            WHERE older.resource_id = d.resource_id AND older.environment_id = d.environment_id
+              AND odp.region = dp.region AND (older.created_at, older.id) < (d.created_at, d.id)
+            ORDER BY older.created_at DESC, older.id DESC LIMIT 1),
         'live', l.live,
         'revision', CASE WHEN p.deployment_id = dp.deployment_id THEN p.desired_revision ELSE COALESCE((
             SELECT max(ro.revision) FROM deployment_rollouts ro

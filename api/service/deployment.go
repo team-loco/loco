@@ -94,6 +94,7 @@ type placementView struct {
 	StartedAt    *time.Time            `json:"startedAt"`
 	CompletedAt  *time.Time            `json:"completedAt"`
 	SupersededBy *uuid.UUID            `json:"supersededBy"`
+	Previous     *uuid.UUID            `json:"previous"`
 	Live         bool                  `json:"live"`
 	Revision     int64                 `json:"revision"`
 	Rollout      json.RawMessage       `json:"rollout"`
@@ -126,6 +127,9 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 			CompletedAt:     optionalTimestamp(view.CompletedAt),
 			CurrentRevision: view.Revision,
 			Live:            view.Live,
+		}
+		if view.Previous != nil {
+			placement.PreviousDeploymentId = view.Previous.String()
 		}
 		if view.SupersededBy != nil {
 			placement.SupersededBy = view.SupersededBy.String()
@@ -562,16 +566,27 @@ func (s *DeploymentServer) ListDeployments(
 	})
 	var deployments []*deploymentv1.Deployment
 	for _, row := range rows {
-		deployment, err := deploymentToProto(genDb.GetDeploymentViewRow(row))
-		if err != nil {
-			return nil, err
+		deployment, convErr := deploymentToProto(genDb.GetDeploymentViewRow(row))
+		if convErr != nil {
+			return nil, convErr
 		}
 		for _, placement := range deployment.GetPlacements() {
 			placement.Replicas = nil
 		}
 		deployments = append(deployments, deployment)
 	}
-	return &deploymentv1.ListDeploymentsResponse{Deployments: deployments, NextPageToken: token}, nil
+	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
+		return s.queries.CountDeployments(ctx, genDb.CountDeploymentsParams{
+			ResourceID: resourceID, WorkspaceID: workspaceID, EnvironmentID: environmentID,
+			SystemRead: readable.System, OrganizationIds: readable.Organizations,
+			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
+			Since: since, Until: until, RowLimit: limit,
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count deployments: %w", err)
+	}
+	return &deploymentv1.ListDeploymentsResponse{Deployments: deployments, NextPageToken: token, TotalCount: total}, nil
 }
 
 // DeleteDeployment takes a deployment out of service and removes its Application.

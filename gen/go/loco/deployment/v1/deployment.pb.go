@@ -1184,9 +1184,12 @@ type DeploymentPlacement struct {
 	// Whether the region runs this deployment or is building it.
 	Live bool `protobuf:"varint,11,opt,name=live,proto3" json:"live,omitempty"`
 	// The newer deployment that replaced this region, if any.
-	SupersededBy  string `protobuf:"bytes,12,opt,name=superseded_by,json=supersededBy,proto3" json:"superseded_by,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SupersededBy string `protobuf:"bytes,12,opt,name=superseded_by,json=supersededBy,proto3" json:"superseded_by,omitempty"`
+	// The deployment before this one in this region: the newest older deployment of the resource in
+	// the same environment with a placement in the region. Empty for the region's first deployment.
+	PreviousDeploymentId string `protobuf:"bytes,13,opt,name=previous_deployment_id,json=previousDeploymentId,proto3" json:"previous_deployment_id,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *DeploymentPlacement) Reset() {
@@ -1299,6 +1302,13 @@ func (x *DeploymentPlacement) GetLive() bool {
 func (x *DeploymentPlacement) GetSupersededBy() string {
 	if x != nil {
 		return x.SupersededBy
+	}
+	return ""
+}
+
+func (x *DeploymentPlacement) GetPreviousDeploymentId() string {
+	if x != nil {
+		return x.PreviousDeploymentId
 	}
 	return ""
 }
@@ -1550,10 +1560,12 @@ type ListDeploymentsRequest struct {
 	EnvironmentId string                 `protobuf:"bytes,4,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	// The window includes since and excludes until, using deployment creation time.
-	Since         *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
-	Until         *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=until,proto3" json:"until,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Since *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
+	Until *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=until,proto3" json:"until,omitempty"`
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,8,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListDeploymentsRequest) Reset() {
@@ -1635,11 +1647,21 @@ func (x *ListDeploymentsRequest) GetUntil() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ListDeploymentsRequest) GetIncludeTotalCount() bool {
+	if x != nil {
+		return x.IncludeTotalCount
+	}
+	return false
+}
+
 // ListDeploymentsResponse is the response containing deployment list.
 type ListDeploymentsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deployments   []*Deployment          `protobuf:"bytes,1,rep,name=deployments,proto3" json:"deployments,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
+	// The deployments the filters match, ignoring page_token; set when include_total_count is.
+	// Exact up to 10,000; 10,001 means more than 10,000.
+	TotalCount    int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1686,6 +1708,13 @@ func (x *ListDeploymentsResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListDeploymentsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
 }
 
 type Replica struct {
@@ -2921,7 +2950,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x14source_deployment_id\x18\x1c \x01(\tR\x12sourceDeploymentId\x12(\n" +
 	"\x10canceled_by_name\x18\x1d \x01(\tR\x0ecanceledByNameB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\xc2\x04\n" +
+	"\r_completed_at\"\xf8\x04\n" +
 	"\x13DeploymentPlacement\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12\x16\n" +
@@ -2937,7 +2966,8 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\breplicas\x18\n" +
 	" \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicas\x12\x12\n" +
 	"\x04live\x18\v \x01(\bR\x04live\x12#\n" +
-	"\rsuperseded_by\x18\f \x01(\tR\fsupersededByB\r\n" +
+	"\rsuperseded_by\x18\f \x01(\tR\fsupersededBy\x124\n" +
+	"\x16previous_deployment_id\x18\r \x01(\tR\x14previousDeploymentIdB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_at\"\xa9\x03\n" +
 	"\x17CreateDeploymentRequest\x12)\n" +
@@ -2958,7 +2988,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x15GetDeploymentResponse\x12>\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
-	"deployment\"\xb1\x05\n" +
+	"deployment\"\xe1\x05\n" +
 	"\x16ListDeploymentsRequest\x12,\n" +
 	"\vresource_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12'\n" +
@@ -2969,12 +2999,15 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\x04 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12.\n" +
 	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
 	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
-	"\x05until\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x05until:\xd8\x02\xbaH\xd4\x02\x1a\xdb\x01\n" +
+	"\x05until\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12.\n" +
+	"\x13include_total_count\x18\b \x01(\bR\x11includeTotalCount:\xd8\x02\xbaH\xd4\x02\x1a\xdb\x01\n" +
 	"\x16list_deployments.scope\x127provide resource_id or workspace_id with environment_id\x1a\x87\x01(this.resource_id != '' && this.workspace_id == '') || (this.resource_id == '' && this.workspace_id != '' && this.environment_id != '')\x1at\n" +
-	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\x83\x01\n" +
+	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\xa4\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xfe\x04\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\"\xfe\x04\n" +
 	"\aReplica\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +

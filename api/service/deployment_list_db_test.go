@@ -109,18 +109,35 @@ func TestListDeploymentsFiltersByEnvironmentAcrossPages(t *testing.T) {
 	}
 
 	production := &deploymentv1.ListDeploymentsRequest{
-		ResourceId:    f.resourceID.String(),
-		EnvironmentId: f.envID.String(),
-		PageSize:      1,
+		ResourceId:        f.resourceID.String(),
+		EnvironmentId:     f.envID.String(),
+		PageSize:          1,
+		IncludeTotalCount: true,
 	}
 	page := f.listDeployments(t, production)
 	if got := deploymentIDs(page.GetDeployments()); len(got) != 1 || got[0] != second.String() {
 		t.Fatalf("first production page = %v, want %s", got, second)
 	}
+	if page.GetTotalCount() != 2 {
+		t.Errorf("production total = %d, want 2", page.GetTotalCount())
+	}
+	previous := func(d *deploymentv1.Deployment) []string {
+		ids := make([]string, 0, len(d.GetPlacements()))
+		for _, placement := range d.GetPlacements() {
+			ids = append(ids, placement.GetPreviousDeploymentId())
+		}
+		return ids
+	}
+	if got := previous(page.GetDeployments()[0]); !slices.Equal(got, []string{first.String()}) {
+		t.Errorf("previous of %s = %v, want %s, not the staging deployment between them", second, got, first)
+	}
 	production.PageToken = page.GetNextPageToken()
 	page = f.listDeployments(t, production)
 	if got := deploymentIDs(page.GetDeployments()); len(got) != 1 || got[0] != first.String() {
 		t.Fatalf("second production page = %v, want %s, not the staging deployment between them", got, first)
+	}
+	if got := previous(page.GetDeployments()[0]); !slices.Equal(got, []string{""}) {
+		t.Errorf("previous of the first deployment = %v, want none", got)
 	}
 }
 

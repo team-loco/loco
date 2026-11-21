@@ -11181,6 +11181,11 @@
             "type": "string",
             "title": "superseded_by",
             "description": "The newer deployment that replaced this region, if any."
+          },
+          "previousDeploymentId": {
+            "type": "string",
+            "title": "previous_deployment_id",
+            "description": "The deployment before this one in this region: the newest older deployment of the resource in\n the same environment with a placement in the region. Empty for the region's first deployment."
           }
         },
         "title": "DeploymentPlacement",
@@ -11397,6 +11402,11 @@
           "until": {
             "title": "until",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
           }
         },
         "title": "ListDeploymentsRequest",
@@ -11417,6 +11427,12 @@
             "type": "string",
             "title": "next_page_token",
             "description": "empty if no more pages"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The deployments the filters match, ignoring page_token; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
           }
         },
         "title": "ListDeploymentsResponse",
