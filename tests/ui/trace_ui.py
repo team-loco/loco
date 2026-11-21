@@ -1338,8 +1338,11 @@ with session(out) as browser:
 
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
 
+    event_requests = []
+
     def events(route):
         body = route.request.post_data_json
+        event_requests.append(body)
 
         def event(seq, kind, offset, data):
             return {
@@ -1354,19 +1357,27 @@ with session(out) as browser:
                 "data": data,
             }
 
+        window = (
+            iso_seconds(body.get("startTime", "1970-01-01T00:00:00Z")),
+            iso_seconds(body.get("endTime", "9999-01-01T00:00:00Z")),
+        )
         route.fulfill(
             json={
                 "events": [
-                    event(
-                        2,
-                        "resource.restarted",
-                        -120,
-                        {
-                            "region": "us-ca-1",
-                            "message": "Container exited with code 137",
-                        },
-                    ),
-                    event(1, "deployment.ready", -1800, {"region": "us-ca-1"}),
+                    item
+                    for item in [
+                        event(
+                            2,
+                            "resource.restarted",
+                            -120,
+                            {
+                                "region": "us-ca-1",
+                                "message": "Container exited with code 137",
+                            },
+                        ),
+                        event(1, "deployment.ready", -1800, {"region": "us-ca-1"}),
+                    ]
+                    if window[0] <= iso_seconds(item["createdAt"]) < window[1]
                 ]
             }
         )
@@ -1592,6 +1603,11 @@ with session(out) as browser:
         infrastructure.get_by_role("group", name="Network usage", exact=True)
     ).to_be_visible()
     expect(events_tab).to_have_text(re.compile(r"^Events\s*1$"))
+    assert any(
+        "endTime" in request
+        and iso_seconds(request["endTime"]) - iso_seconds(request["startTime"]) >= 1200
+        for request in event_requests
+    ), event_requests
     events_tab.click()
     trace_events = drawer.get_by_role("region", name="Trace events")
     restarted = trace_events.get_by_role(

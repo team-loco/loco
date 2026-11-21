@@ -2,7 +2,7 @@ import { Spinner } from "@/components/design/Spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatClock, shortDurationLabel, tsMs } from "@/lib/time";
+import { formatClock, shortDurationLabel } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useObs } from "../context";
 import { EventIcon } from "../EventDetail";
@@ -61,13 +61,9 @@ export function useTraceEvents(trace: TraceSummary, minutes: number) {
 		resources.map((resource) => resource.raw),
 		false,
 		from,
+		to,
 	);
-	const items = events
-		.filter((event) => {
-			const ts = tsMs(event.timestamp);
-			return ts >= from && ts <= to;
-		})
-		.map(eventItem);
+	const items = events.map(eventItem);
 	return { items, isLoading, error, from, to, names: resources.map((resource) => resource.slug) };
 }
 

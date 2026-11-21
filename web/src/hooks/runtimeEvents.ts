@@ -19,13 +19,18 @@ type Scope = Pick<ListEventsRequest, "orgId" | "workspaceId" | "resourceId" | "e
 export function runtimeEventsOptions(
 	transport: Transport,
 	scope: Scope,
-	{ types = RUNTIME_EVENT_TYPES, startMs }: { types?: string[]; startMs?: number | undefined } = {},
+	{
+		types = RUNTIME_EVENT_TYPES,
+		startMs,
+		endMs,
+	}: { types?: string[]; startMs?: number | undefined; endMs?: number | undefined } = {},
 ) {
 	const input = {
 		...scope,
 		query: eventTypesQuery(types),
 		pageSize: 500,
 		...(startMs === undefined ? {} : { startTime: msToTimestamp(startMs) }),
+		...(endMs === undefined ? {} : { endTime: msToTimestamp(endMs) }),
 	};
 	const key = createConnectQueryKey({ schema: listEvents, input, transport, cardinality: "finite" });
 	return queryOptions({
