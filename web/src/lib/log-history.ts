@@ -15,6 +15,11 @@ export function createLogHistory(): LogHistory {
 	return { older: [], current: { cursor: "", order: LogOrder.NEWEST_FIRST }, newer: [] };
 }
 
+/** Starts from the oldest matching lines, for jumping to the last page. */
+export function oldestLogHistory(): LogHistory {
+	return { older: [], current: { cursor: "", order: LogOrder.OLDEST_FIRST }, newer: [] };
+}
+
 export function moveLogHistory(history: LogHistory, direction: "older" | "newer", cursor: string): LogHistory {
 	const cached = history[direction].at(-1);
 	if (cached === undefined && cursor === "") throw new Error("No log batch in this direction");

@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/design/Button";
@@ -33,6 +33,8 @@ function PagerButton({
 function Pager({
 	label,
 	page,
+	pages,
+	more = false,
 	total,
 	pageSizes,
 	pageSize,
@@ -40,14 +42,19 @@ function Pager({
 	prevLabel = "Previous page",
 	nextLabel = "Next page",
 	firstLabel = "First page",
+	lastLabel = "Last page",
 	onFirst,
 	onPrev,
 	onNext,
+	onLast,
 	text,
 	className,
 }: {
 	label: ReactNode;
 	page?: number | undefined;
+	/** The page count; without it the pager shows only the page number. */
+	pages?: number | undefined;
+	more?: boolean | undefined;
 	total: number;
 	pageSizes: readonly number[];
 	pageSize?: number | undefined;
@@ -55,9 +62,11 @@ function Pager({
 	prevLabel?: string | undefined;
 	nextLabel?: string | undefined;
 	firstLabel?: string | undefined;
+	lastLabel?: string | undefined;
 	onFirst?: (() => void) | null | undefined;
 	onPrev: (() => void) | null;
 	onNext: (() => void) | null;
+	onLast?: (() => void) | null | undefined;
 	/** Shows text buttons with these labels instead of chevrons; the first-page button shows only when it can act. */
 	text?: { first: string; prev: string; next: string } | undefined;
 	className?: string | undefined;
@@ -93,7 +102,12 @@ function Pager({
 					</ToggleGroup>
 				</span>
 			)}
-			{page !== undefined && <span className="ml-2 text-fg3">Page {page + 1}</span>}
+			{page !== undefined && (
+				<span className="ml-2 text-fg3">
+					Page {page + 1}
+					{pages !== undefined && ` of ${pages.toString()}${more ? "+" : ""}`}
+				</span>
+			)}
 			{text !== undefined && onFirst !== undefined && onFirst !== null && (
 				<PagerButton label={firstLabel} text onClick={onFirst}>
 					{text.first}
@@ -113,6 +127,11 @@ function Pager({
 					{text?.next}
 					<ChevronRightIcon />
 				</PagerButton>
+				{text === undefined && onLast !== undefined && (
+					<PagerButton label={lastLabel} onClick={onLast}>
+						<ChevronsRightIcon />
+					</PagerButton>
+				)}
 			</span>
 		</div>
 	);

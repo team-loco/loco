@@ -22,7 +22,7 @@ import { useTailLogs } from "@/hooks/useTailLogs";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { pagingParsers } from "@/lib/paging";
-import { createLogHistory, moveLogHistory } from "@/lib/log-history";
+import { createLogHistory, moveLogHistory, oldestLogHistory } from "@/lib/log-history";
 import { DAY_MS, msToTimestamp } from "@/lib/time";
 import { msParser, windowLabel, windowSpan } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
@@ -326,6 +326,7 @@ export function LogsView() {
 		setView("last", null);
 	};
 	const atNewest = curPage === 0 && history.newer.length === 0 && newerCursor === null;
+	const atOldest = curPage === pages - 1 && history.older.length === 0 && cutoffCursor === null;
 
 	const valueCounts = (key: FieldKey): [string, number][] => {
 		const m = new Map<string, number>();
@@ -568,6 +569,8 @@ export function LogsView() {
 								)
 							}
 							page={curPage}
+							pages={pages}
+							more={truncated}
 							total={rows.length}
 							pageSizes={LOG_PAGE_SIZES}
 							pageSize={size}
@@ -577,6 +580,7 @@ export function LogsView() {
 							prevLabel="Newer"
 							nextLabel="Older"
 							firstLabel="Newest"
+							lastLabel="Oldest"
 							onFirst={
 								atNewest
 									? null
@@ -604,6 +608,17 @@ export function LogsView() {
 											else toOlderBatch();
 										}
 									: null
+							}
+							onLast={
+								atOldest || anchor !== null || tail
+									? null
+									: () => {
+											setFocusActive(false);
+											pauseLive();
+											// Lines past this batch are reachable only through cursors, so jump to the oldest batch.
+											if (cutoffCursor !== null || history.older.length > 0) setHistory(oldestLogHistory());
+											setView("last", null);
+										}
 							}
 						/>
 					</section>
