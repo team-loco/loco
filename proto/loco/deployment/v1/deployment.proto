@@ -360,13 +360,18 @@ message ListDeploymentsResponse {
   int32 total_count = 3;
 }
 
-// QueryDeploymentBucketsRequest splits [since, until) into bucket_count equal buckets by deployment
-// creation time.
+// QueryDeploymentBucketsRequest splits [since, until), at most 30 days, into bucket_count equal
+// buckets by deployment creation time.
 message QueryDeploymentBucketsRequest {
   option (buf.validate.message).cel = {
     id: "query_deployment_buckets.window"
     message: "since must precede until"
     expression: "this.since < this.until"
+  };
+  option (buf.validate.message).cel = {
+    id: "query_deployment_buckets.window_length"
+    message: "the window spans at most 30 days"
+    expression: "this.until - this.since <= duration('720h')"
   };
   option (buf.validate.message).cel = {
     id: "query_deployment_buckets.group_by_resource"

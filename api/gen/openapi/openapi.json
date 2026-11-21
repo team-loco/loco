@@ -11740,7 +11740,7 @@
           "until"
         ],
         "additionalProperties": false,
-        "description": "QueryDeploymentBucketsRequest splits [since, until) into bucket_count equal buckets by deployment\n creation time.\nquery_deployment_buckets.group_by_resource // group_by_resource requires resource_ids\nquery_deployment_buckets.window // since must precede until\n"
+        "description": "QueryDeploymentBucketsRequest splits [since, until), at most 30 days, into bucket_count equal\n buckets by deployment creation time.\nquery_deployment_buckets.group_by_resource // group_by_resource requires resource_ids\nquery_deployment_buckets.window // since must precede until\nquery_deployment_buckets.window_length // the window spans at most 30 days\n"
       },
       "loco.deployment.v1.QueryDeploymentBucketsResponse": {
         "type": "object",

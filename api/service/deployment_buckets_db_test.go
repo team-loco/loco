@@ -201,20 +201,20 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 	}
 }
 
-func TestQueryDeploymentBucketsWideWindow(t *testing.T) {
+func TestQueryDeploymentBucketsCoversThirtyDays(t *testing.T) {
 	t.Parallel()
 	f := newBucketsFixture(t)
-	f.seed(t, f.resourceID, genDb.DeploymentStatusRunning, bucketsBase, "nginx:1")
-	const span = 2000 * 365 * 24 * int64(time.Hour/time.Microsecond)
+	until := bucketsBase.Add(30 * 24 * time.Hour)
+	f.seed(t, f.resourceID, genDb.DeploymentStatusRunning, until.Add(-time.Microsecond), "nginx:1")
 
 	buckets := f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
-		Since:       timestamppb.New(time.UnixMicro(bucketsBase.UnixMicro() - span)),
-		Until:       timestamppb.New(time.UnixMicro(bucketsBase.UnixMicro() + span)),
+		Since:       timestamppb.New(bucketsBase),
+		Until:       timestamppb.New(until),
 		BucketCount: 200,
 	}, f.readers())
 
-	if len(buckets) != 1 || buckets[0].GetIndex() != 100 {
-		t.Fatalf("buckets = %v, want one at index 100", buckets)
+	if len(buckets) != 1 || buckets[0].GetIndex() != 199 {
+		t.Fatalf("buckets = %v, want one at index 199", buckets)
 	}
 }
 
@@ -283,6 +283,9 @@ func TestQueryDeploymentBucketsValidation(t *testing.T) {
 		"too many names":   func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.MaxResourceNames = 21 },
 		"no environment":   func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.EnvironmentId = "" },
 		"group everything": func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.GroupByResource = true },
+		"over thirty days": func(r *deploymentv1.QueryDeploymentBucketsRequest) {
+			r.Until = timestamppb.New(bucketsBase.Add(30*24*time.Hour + time.Second))
+		},
 	} {
 		req := valid()
 		change(req)
