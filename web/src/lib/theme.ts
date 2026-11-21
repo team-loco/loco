@@ -21,6 +21,7 @@ export const defaultColorTheme = "loco" satisfies ColorTheme;
 
 const modeKey = "loco:mode:v1";
 const colorKey = "loco:color:v1";
+export const soundsKey = "loco:sounds:v1";
 const darkQuery = "(prefers-color-scheme: dark)";
 
 export function parseMode(value: string | null): Mode {
@@ -57,6 +58,10 @@ export function storeMode(mode: Mode): void {
 		return;
 	}
 	writeStorage(modeKey, mode);
+}
+
+export function soundsEnabled(): boolean {
+	return readStorage(soundsKey) !== "off";
 }
 
 export function systemPrefersDark(): boolean {
