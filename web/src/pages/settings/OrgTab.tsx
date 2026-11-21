@@ -1,3 +1,4 @@
+import type { TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
 import { deleteOrg, updateOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
@@ -7,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsString, useQueryState } from "nuqs";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/design/Badge";
@@ -45,12 +46,12 @@ function workspaceColumns({
 	orgId,
 	currentWorkspaceId,
 	onOpenWorkspace,
-	createdLabel,
+	timePref,
 }: {
 	orgId: string;
 	currentWorkspaceId: string;
-	onOpenWorkspace: (workspace: Workspace) => boolean;
-	createdLabel: (workspace: Workspace) => string;
+	onOpenWorkspace: (workspace: Workspace) => void;
+	timePref: TimePreferences;
 }): DataColumn<Workspace>[] {
 	return [
 		{
@@ -67,7 +68,9 @@ function workspaceColumns({
 							<Link
 								to={settingsPath(orgId, w.id, "workspace")}
 								onClick={(e) => {
-									if (onOpenWorkspace(w)) e.preventDefault();
+									if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+									e.preventDefault();
+									onOpenWorkspace(w);
 								}}
 							/>
 						}
@@ -99,7 +102,9 @@ function workspaceColumns({
 			size: 220,
 			minSize: 100,
 			meta: { hideOnMobile: true },
-			cell: ({ row: { original: w } }) => <CellText text={createdLabel(w)} className="text-[12px] text-fg3" />,
+			cell: ({ row: { original: w } }) => (
+				<CellText text={formatDay(w.createdAt, timePref)} className="font-mono text-[12px] text-fg3" />
+			),
 		},
 	];
 }
@@ -111,6 +116,7 @@ export function OrgTab({
 	users,
 	level,
 	currentWorkspaceId,
+	currentWorkspaceLevel,
 	draft,
 	onDraft,
 	onOpenWorkspace,
@@ -122,13 +128,15 @@ export function OrgTab({
 	users: User[];
 	level: AccessLevel;
 	currentWorkspaceId: string;
+	currentWorkspaceLevel: AccessLevel;
 	draft: string | null;
 	onDraft: (name: string | null) => void;
-	/** Opens the workspace in place and reports whether it did; otherwise the caller navigates to its settings. */
-	onOpenWorkspace: (workspace: Workspace) => boolean;
+	/** Switches the page to the workspace's settings. */
+	onOpenWorkspace: (workspace: Workspace) => void;
 	memberCount: number | undefined;
 }) {
 	const timePref = useTimePreferences();
+	const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId);
 	const queryClient = useQueryClient();
 	const { clearContext } = useOrgWorkspace();
 	const limitDetails = useOrgLimitDetails(org.id);
@@ -172,16 +180,10 @@ export function OrgTab({
 		return u ? userLabel(u) : "";
 	};
 
-	const navigate = useNavigate();
-	const createdLabel = (w: Workspace) => {
-		const by = userName(w.createdBy);
-		const day = formatDay(w.createdAt, timePref);
-		return by === "" ? day : `${day} · ${by}`;
-	};
 	const table = useDataTable("org-workspaces", {
 		data: paged.rows,
 		getRowId: (w) => w.id,
-		columns: workspaceColumns({ orgId: org.id, currentWorkspaceId, onOpenWorkspace, createdLabel }),
+		columns: workspaceColumns({ orgId: org.id, currentWorkspaceId, onOpenWorkspace, timePref }),
 	});
 
 	const save = () => {
@@ -313,7 +315,7 @@ export function OrgTab({
 						table={table}
 						label="Workspaces"
 						onRowClick={({ original: w }) => {
-							if (!onOpenWorkspace(w)) void navigate(settingsPath(org.id, w.id, "workspace"));
+							onOpenWorkspace(w);
 						}}
 						rowAction="navigate"
 					/>
@@ -326,6 +328,16 @@ export function OrgTab({
 				limits={limitDetails}
 				workspaceCount={workspacesLoading ? undefined : workspaces.length}
 				memberCount={memberCount}
+				workspace={
+					currentWorkspace === undefined
+						? undefined
+						: {
+								id: currentWorkspace.id,
+								name: currentWorkspace.name,
+								level: currentWorkspaceLevel,
+								resources: currentWorkspace.resourceCount,
+							}
+				}
 			/>
 
 			<SettingsSection id="organization-danger" title="Danger zone">

@@ -309,14 +309,15 @@ with session(out) as browser:
                     f"label[for={json.dumps(name.get_attribute('id'))}]"
                 ).click()
                 assert name.evaluate("node => node === document.activeElement")
+                required = "Use 1–63 characters." if tab == "ws" else "Name required"
                 name.fill("")
-                page.get_by_text("Name required", exact=True).wait_for()
+                page.get_by_text(required, exact=True).wait_for()
                 assert name.get_attribute("aria-invalid") == "true"
-                assert "Name required" in descriptions(name)
+                assert required in descriptions(name)
                 page.get_by_role("button", name="Discard", exact=True).click()
                 assert name.input_value() == original
                 assert name.get_attribute("aria-invalid") == "false"
-                assert "Name required" not in descriptions(name)
+                assert required not in descriptions(name)
             if tab == "ws":
                 description = page.get_by_role(
                     "textbox", name="Description", exact=True

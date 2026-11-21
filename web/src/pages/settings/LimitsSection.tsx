@@ -1,7 +1,9 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { CountLimits } from "@gen/loco/config/v1/config_pb";
+import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import type { Organization, OrgLimits } from "@gen/loco/org/v1/org_pb";
+import { listWebhooks } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
 
 import { Badge } from "@/components/design/Badge";
 import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
@@ -20,8 +22,10 @@ type LimitRow = {
 	key: LimitKey;
 	label: string;
 	per: string;
-	/** The org-wide count against the limit; absent where the count is per workspace or resource. */
+	/** The count against the limit, org-wide or in `where`; absent where nothing is counted. */
 	used?: number | undefined;
+	/** The workspace a per-workspace count is from. */
+	where?: string | undefined;
 	unit?: string;
 };
 
@@ -44,7 +48,7 @@ function limitRow(row: LimitRow, limits: OrgLimits | undefined, group?: string):
 	return {
 		label: row.label,
 		per: row.per,
-		used: row.used === undefined ? "—" : formatCount(row.used),
+		used: row.used === undefined ? "—" : `${formatCount(row.used)}${row.where === undefined ? "" : ` in ${row.where}`}`,
 		usedClass: tone === null ? "text-fg2" : LIMIT_TONE_TEXT[tone],
 		value: limit === undefined ? "—" : `${formatCount(limit)}${row.unit === undefined ? "" : ` ${row.unit}`}`,
 		raised: limits?.overridden.includes(protoField(row.key)) === true,
@@ -107,11 +111,14 @@ export function LimitsSection({
 	limits,
 	workspaceCount,
 	memberCount,
+	workspace,
 }: {
 	org: Organization;
 	limits: OrgLimits | undefined;
 	workspaceCount: number | undefined;
 	memberCount: number | undefined;
+	/** The workspace the page is in, whose per-workspace counts show beside their limits. */
+	workspace: { id: string; name: string; level: number; resources: number | undefined } | undefined;
 }) {
 	const { data: config } = useQuery(getConfig, {});
 	const retention = config?.historyRetention;
@@ -120,27 +127,29 @@ export function LimitsSection({
 			? undefined
 			: (Number(retention.events.seconds) + retention.events.nanos / 1e9) / 86_400;
 	const openInvitations = useOpenInvitations(org.id, useNow().getTime());
+	const inWorkspace = useWorkspaceCounts(workspace);
+	const where = workspace?.name;
 	const limitRows: LimitRow[] = [
 		{ key: "workspacesPerOrg", label: "Workspaces", per: "Organization", used: workspaceCount },
 		{ key: "membersPerOrg", label: "Members", per: "Organization", used: memberCount },
 		{ key: "invitationsPerOrg", label: "Open invitations", per: "Organization", used: openInvitations },
-		{ key: "environmentsPerWorkspace", label: "Environments", per: "Workspace" },
-		{ key: "resourcesPerWorkspace", label: "Resources", per: "Workspace" },
-		{ key: "webhooksPerWorkspace", label: "Webhooks", per: "Workspace" },
+		{ key: "environmentsPerWorkspace", label: "Environments", per: "Workspace", used: inWorkspace.environments, where },
+		{
+			key: "resourcesPerWorkspace",
+			label: "Resources",
+			per: "Workspace",
+			used: workspace?.resources,
+			where,
+		},
+		{ key: "webhooksPerWorkspace", label: "Webhooks", per: "Workspace", used: inWorkspace.webhooks, where },
 		{ key: "tokensPerEntity", label: "API tokens", per: "User, organization, workspace or resource" },
 		{ key: "domainsPerResource", label: "Custom domains", per: "Resource" },
 		{ key: "secretsPerEnvironment", label: "Secrets", per: "Environment" },
 	];
-	const historyRows: LimitRow[] = [
-		{ key: "deploymentHistory", label: "Deployments", per: "Resource, per environment" },
-		{ key: "buildHistory", label: "Builds", per: "Resource" },
-		{ key: "logRetentionDays", label: "Logs", per: "Organization", unit: "days" },
-		{ key: "traceRetentionDays", label: "Traces", per: "Organization", unit: "days" },
-		{ key: "metricRetentionDays", label: "Metrics", per: "Organization", unit: "days" },
-	];
 	const rows: Row[] = [
 		...limitRows.map((row) => limitRow(row, limits)),
-		...historyRows.map((row) => limitRow(row, limits, HISTORY)),
+		limitRow({ key: "deploymentHistory", label: "Deployments", per: "Resource, per environment" }, limits, HISTORY),
+		limitRow({ key: "buildHistory", label: "Builds", per: "Resource" }, limits, HISTORY),
 		retentionRow(
 			"Build images",
 			"Resource, plus images in use",
@@ -157,6 +166,9 @@ export function LimitsSection({
 				? "—"
 				: `${new Intl.NumberFormat(undefined, { maximumSignificantDigits: 9 }).format(eventDays)} days`,
 		),
+		limitRow({ key: "logRetentionDays", label: "Logs", per: "Organization", unit: "days" }, limits, HISTORY),
+		limitRow({ key: "traceRetentionDays", label: "Traces", per: "Organization", unit: "days" }, limits, HISTORY),
+		limitRow({ key: "metricRetentionDays", label: "Metrics", per: "Organization", unit: "days" }, limits, HISTORY),
 	];
 	const table = useDataTable("limits", {
 		columns: COLUMNS,
@@ -170,4 +182,15 @@ export function LimitsSection({
 			</SettingsCard>
 		</SettingsSection>
 	);
+}
+
+function useWorkspaceCounts(workspace: { id: string; level: number } | undefined) {
+	const workspaceId = workspace?.id ?? "";
+	const reads = workspace !== undefined && workspace.level >= 1;
+	const environments = useQuery(listEnvironments, { workspaceId }, { enabled: reads });
+	const webhooks = useQuery(listWebhooks, { workspaceId }, { enabled: reads && workspace.level >= 3 });
+	return {
+		environments: environments.data?.environments.length,
+		webhooks: webhooks.data?.webhooks.length,
+	};
 }

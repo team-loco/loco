@@ -61,7 +61,7 @@ function environmentColumns({
 			size: 110,
 			minSize: 100,
 			meta: { grow: true },
-			cell: ({ row: { original: env } }) => <CellText text={env.name} />,
+			cell: ({ row: { original: env } }) => <CellText text={env.name} className="font-mono text-[12.5px]" />,
 		},
 		{
 			id: "description",
