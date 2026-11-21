@@ -33,6 +33,55 @@ func (q *Queries) BuildUsedByOtherDeployments(ctx context.Context, arg BuildUsed
 	return exists, err
 }
 
+const countDeployments = `-- name: CountDeployments :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM deployments d
+  JOIN resources r ON r.id = d.resource_id
+  JOIN workspaces w ON w.id = r.workspace_id
+  WHERE ($1::uuid IS NULL OR d.resource_id = $1)
+    AND ($2::uuid IS NULL OR r.workspace_id = $2)
+    AND ($3::uuid IS NULL OR d.environment_id = $3)
+    AND ($4::bool
+         OR w.org_id = ANY($5::uuid[])
+         OR w.id = ANY($6::uuid[])
+         OR r.id = ANY($7::uuid[]))
+    AND ($8::timestamptz IS NULL OR d.created_at >= $8)
+    AND ($9::timestamptz IS NULL OR d.created_at < $9)
+  LIMIT $10
+) capped
+`
+
+type CountDeploymentsParams struct {
+	ResourceID      *uuid.UUID  `json:"resourceId"`
+	WorkspaceID     *uuid.UUID  `json:"workspaceId"`
+	EnvironmentID   *uuid.UUID  `json:"environmentId"`
+	SystemRead      bool        `json:"systemRead"`
+	OrganizationIds []uuid.UUID `json:"organizationIds"`
+	WorkspaceIds    []uuid.UUID `json:"workspaceIds"`
+	ResourceIds     []uuid.UUID `json:"resourceIds"`
+	Since           *time.Time  `json:"since"`
+	Until           *time.Time  `json:"until"`
+	RowLimit        int32       `json:"rowLimit"`
+}
+
+func (q *Queries) CountDeployments(ctx context.Context, arg CountDeploymentsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countDeployments,
+		arg.ResourceID,
+		arg.WorkspaceID,
+		arg.EnvironmentID,
+		arg.SystemRead,
+		arg.OrganizationIds,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+		arg.Since,
+		arg.Until,
+		arg.RowLimit,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createDeployment = `-- name: CreateDeployment :one
 
 INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, plain_env, secret_env, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id)

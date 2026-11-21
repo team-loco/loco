@@ -252,6 +252,9 @@ message DeploymentPlacement {
   bool live = 11;
   // The newer deployment that replaced this region, if any.
   string superseded_by = 12;
+  // The deployment before this one in this region: the newest older deployment of the resource in
+  // the same environment with a placement in the region. Empty for the region's first deployment.
+  string previous_deployment_id = 13;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
@@ -330,12 +333,17 @@ message ListDeploymentsRequest {
   // The window includes since and excludes until, using deployment creation time.
   google.protobuf.Timestamp since = 6;
   google.protobuf.Timestamp until = 7;
+  // Sets total_count in the response.
+  bool include_total_count = 8;
 }
 
 // ListDeploymentsResponse is the response containing deployment list.
 message ListDeploymentsResponse {
   repeated Deployment deployments = 1;
   string next_page_token = 2; // empty if no more pages
+  // The deployments the filters match, ignoring page_token; set when include_total_count is.
+  // Exact up to 10,000; 10,001 means more than 10,000.
+  int32 total_count = 3;
 }
 
 message Replica {

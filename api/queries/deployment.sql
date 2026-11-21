@@ -77,6 +77,23 @@ WHERE r.workspace_id = sqlc.arg('workspace_id')
 ORDER BY d.created_at DESC, d.id DESC
 LIMIT sqlc.arg('page_size');
 
+-- name: CountDeployments :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM deployments d
+  JOIN resources r ON r.id = d.resource_id
+  JOIN workspaces w ON w.id = r.workspace_id
+  WHERE (sqlc.narg('resource_id')::uuid IS NULL OR d.resource_id = sqlc.narg('resource_id'))
+    AND (sqlc.narg('workspace_id')::uuid IS NULL OR r.workspace_id = sqlc.narg('workspace_id'))
+    AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id'))
+    AND (sqlc.arg('system_read')::bool
+         OR w.org_id = ANY(sqlc.arg('organization_ids')::uuid[])
+         OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
+         OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
+    AND (sqlc.narg('since')::timestamptz IS NULL OR d.created_at >= sqlc.narg('since'))
+    AND (sqlc.narg('until')::timestamptz IS NULL OR d.created_at < sqlc.narg('until'))
+  LIMIT sqlc.arg('row_limit')
+) capped;
+
 -- name: GetDeploymentView :one
 SELECT sqlc.embed(d), r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
