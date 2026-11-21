@@ -14,7 +14,6 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { formatHourMinute, formatMonthDayYear, maybeTsMs, type TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
-import { LogoutConfirm } from "./LogoutConfirm";
 import { SettingsCard } from "./parts";
 import { describeSession } from "./sessions";
 
@@ -46,7 +45,6 @@ export function ActiveSessions() {
 		meta: { persist: false },
 	});
 	const [selected, setSelected] = useState<Session | null>(null);
-	const [signingOut, setSigningOut] = useState(false);
 	const revoke = useMutation(revokeSession, {
 		async onSuccess(_, { sessionId }) {
 			await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
@@ -109,21 +107,19 @@ export function ActiveSessions() {
 										<SessionDate value={session.createdAt} label="Signed in" pref={pref} />
 									</div>
 								</div>
-								<Button
-									variant="outline"
-									size="sm"
-									aria-label={`Sign out ${session.current ? "this browser" : `${label} session`}`}
-									onClick={() => {
-										if (session.current) {
-											setSigningOut(true);
-											return;
-										}
-										revoke.reset();
-										setSelected(session);
-									}}
-								>
-									Sign out
-								</Button>
+								{!session.current && (
+									<Button
+										variant="outline"
+										size="sm"
+										aria-label={`Sign out ${label} session`}
+										onClick={() => {
+											revoke.reset();
+											setSelected(session);
+										}}
+									>
+										Sign out
+									</Button>
+								)}
 							</li>
 						);
 					})}
@@ -149,12 +145,6 @@ export function ActiveSessions() {
 					</p>
 				)}
 			</ConfirmDialog>
-			<LogoutConfirm
-				open={signingOut}
-				onClose={() => {
-					setSigningOut(false);
-				}}
-			/>
 		</SettingsCard>
 	);
 }
