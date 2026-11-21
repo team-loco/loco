@@ -4,17 +4,11 @@ import { EventService, type Event } from "@gen/loco/event/v1/event_pb";
 import { eventTypesQuery } from "@/lib/audit-query";
 import { msToTimestamp } from "@/lib/time";
 import { useTransport } from "@connectrpc/connect-query";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import {
-	ENVIRONMENT_EVENT_TYPES,
-	eventInEnvironment,
-	ROLLOUT_EVENT_TYPES,
-	runtimeEvent,
-	type RuntimeEvent,
-} from "@/lib/runtime-events";
+import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, runtimeEvent, type RuntimeEvent } from "@/lib/runtime-events";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { mergeEvents, runtimeEventsOptions } from "@/hooks/runtimeEvents";
@@ -26,7 +20,7 @@ export interface WorkspaceEventWithResource extends RuntimeEvent {
 	resourceName: string;
 }
 
-export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[], live = false) {
+export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[], live = false, startMs?: number) {
 	const transport = useTransport();
 	const { activeOrgId } = useOrgWorkspace();
 	const canStream = useMyScopes().resourceGrants(activeOrgId ?? "", workspaceId) === "workspace";
@@ -39,21 +33,16 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 	const resources = resourceFilter ?? resourcesData?.resources ?? [];
 
 	const environmentId = active?.id ?? "";
-	const kinds = [
-		{ types: ENVIRONMENT_EVENT_TYPES, anyEnvironment: false },
-		{ types: ROLLOUT_EVENT_TYPES, anyEnvironment: true },
-	];
 	const queries = useQueries({
-		queries: resources.flatMap((resource) =>
-			kinds.map((kind) => ({
-				...runtimeEventsOptions(
-					transport,
-					{ orgId: activeOrgId ?? "", workspaceId, environmentId, resourceId: resource.id },
-					kind,
-				),
-				refetchInterval: live && !canStream ? 10_000 : false,
-			})),
-		),
+		queries: resources.map((resource) => ({
+			...runtimeEventsOptions(
+				transport,
+				{ orgId: activeOrgId ?? "", workspaceId, environmentId, resourceId: resource.id },
+				{ types: ENVIRONMENT_EVENT_TYPES, startMs },
+			),
+			placeholderData: keepPreviousData,
+			refetchInterval: live && !canStream ? 10_000 : false,
+		})),
 	});
 
 	const streamKey = (activeOrgId ?? "") + "/" + workspaceId;
@@ -76,7 +65,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 						orgId: activeOrgId,
 						workspaceId,
 						startTime: msToTimestamp(openedAt),
-						query: eventTypesQuery([...ENVIRONMENT_EVENT_TYPES, ...ROLLOUT_EVENT_TYPES]),
+						query: eventTypesQuery(ENVIRONMENT_EVENT_TYPES),
 					},
 					{ signal: abort.signal },
 				)) {
@@ -103,9 +92,8 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 
 	const events: WorkspaceEventWithResource[] = [];
 	resources.forEach((resource, ri) => {
-		const history = kinds.flatMap((_, ki) => queries[ri * kinds.length + ki]?.data?.events ?? []);
 		const list = mergeEvents(
-			history,
+			queries[ri]?.data?.events ?? [],
 			tail.events.filter((event) => event.resourceId === resource.id),
 		);
 		list.forEach((event) => {

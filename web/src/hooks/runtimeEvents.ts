@@ -11,6 +11,7 @@ import {
 } from "@gen/loco/event/v1/event_pb";
 import { eventTypesQuery } from "@/lib/audit-query";
 import { collectPages } from "@/lib/collectPages";
+import { msToTimestamp } from "@/lib/time";
 import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
 
 type Scope = Pick<ListEventsRequest, "orgId" | "workspaceId" | "resourceId" | "environmentId">;
@@ -18,13 +19,13 @@ type Scope = Pick<ListEventsRequest, "orgId" | "workspaceId" | "resourceId" | "e
 export function runtimeEventsOptions(
 	transport: Transport,
 	scope: Scope,
-	{ types = RUNTIME_EVENT_TYPES, anyEnvironment = false }: { types?: string[]; anyEnvironment?: boolean } = {},
+	{ types = RUNTIME_EVENT_TYPES, startMs }: { types?: string[]; startMs?: number | undefined } = {},
 ) {
 	const input = {
 		...scope,
-		environmentId: anyEnvironment ? "" : scope.environmentId,
 		query: eventTypesQuery(types),
 		pageSize: 500,
+		...(startMs === undefined ? {} : { startTime: msToTimestamp(startMs) }),
 	};
 	const key = createConnectQueryKey({ schema: listEvents, input, transport, cardinality: "finite" });
 	return queryOptions({
