@@ -162,7 +162,14 @@ func (*TestingQueries) DeleteExpiredSessionTokens(_ context.Context) error { ret
 
 func (*TestingQueries) DeleteExpiredUsedRefreshTokens(_ context.Context) error { return nil }
 
-func (*TestingQueries) DeleteExpiredAPITokens(_ context.Context) error { return nil }
+func (*TestingQueries) DeleteExpiredAPITokens(_ context.Context, _ int32) error { return nil }
+
+func (*TestingQueries) DeleteExpiredAPITokenByName(
+	_ context.Context,
+	_ queries.DeleteExpiredAPITokenByNameParams,
+) error {
+	return nil
+}
 
 // --- Test helpers ---
 
@@ -319,7 +326,7 @@ func TestRunCleanupSweepsUntilContextIsCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
 	go func() {
-		machine.RunCleanup(ctx, time.Millisecond)
+		machine.RunCleanup(ctx, time.Millisecond, 1)
 		close(done)
 	}()
 

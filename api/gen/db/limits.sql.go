@@ -95,7 +95,7 @@ func (q *Queries) CountWorkspaceResources(ctx context.Context, workspaceID uuid.
 }
 
 const getOrgLimitOverrides = `-- name: GetOrgLimitOverrides :one
-SELECT org_id, workspaces_per_org, members_per_org, invitations_per_org, environments_per_workspace, resources_per_workspace, webhooks_per_workspace, tokens_per_entity, domains_per_resource, secrets_per_environment, deployment_history, build_history, log_retention_days, trace_retention_days, metric_retention_days, reason, updated_by, updated_at FROM org_limit_overrides WHERE org_id = $1
+SELECT org_id, workspaces_per_org, members_per_org, invitations_per_org, environments_per_workspace, resources_per_workspace, webhooks_per_workspace, tokens_per_entity, domains_per_resource, secrets_per_environment, deployment_history, build_history, log_retention_days, trace_retention_days, metric_retention_days, expired_token_retention_days, reason, updated_by, updated_at FROM org_limit_overrides WHERE org_id = $1
 `
 
 func (q *Queries) GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error) {
@@ -117,6 +117,7 @@ func (q *Queries) GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (Or
 		&i.LogRetentionDays,
 		&i.TraceRetentionDays,
 		&i.MetricRetentionDays,
+		&i.ExpiredTokenRetentionDays,
 		&i.Reason,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
@@ -191,6 +192,7 @@ INSERT INTO org_limit_overrides (
     log_retention_days,
     trace_retention_days,
     metric_retention_days,
+    expired_token_retention_days,
     reason,
     updated_by
 )
@@ -211,7 +213,8 @@ VALUES (
     $14,
     $15,
     $16,
-    $17
+    $17,
+    $18
 )
 ON CONFLICT (org_id) DO UPDATE SET
     workspaces_per_org = EXCLUDED.workspaces_per_org,
@@ -228,30 +231,32 @@ ON CONFLICT (org_id) DO UPDATE SET
     log_retention_days = EXCLUDED.log_retention_days,
     trace_retention_days = EXCLUDED.trace_retention_days,
     metric_retention_days = EXCLUDED.metric_retention_days,
+    expired_token_retention_days = EXCLUDED.expired_token_retention_days,
     reason = EXCLUDED.reason,
     updated_by = EXCLUDED.updated_by,
     updated_at = NOW()
-RETURNING org_id, workspaces_per_org, members_per_org, invitations_per_org, environments_per_workspace, resources_per_workspace, webhooks_per_workspace, tokens_per_entity, domains_per_resource, secrets_per_environment, deployment_history, build_history, log_retention_days, trace_retention_days, metric_retention_days, reason, updated_by, updated_at
+RETURNING org_id, workspaces_per_org, members_per_org, invitations_per_org, environments_per_workspace, resources_per_workspace, webhooks_per_workspace, tokens_per_entity, domains_per_resource, secrets_per_environment, deployment_history, build_history, log_retention_days, trace_retention_days, metric_retention_days, expired_token_retention_days, reason, updated_by, updated_at
 `
 
 type UpsertOrgLimitOverridesParams struct {
-	OrgID                    uuid.UUID  `json:"orgId"`
-	WorkspacesPerOrg         *int32     `json:"workspacesPerOrg"`
-	MembersPerOrg            *int32     `json:"membersPerOrg"`
-	InvitationsPerOrg        *int32     `json:"invitationsPerOrg"`
-	EnvironmentsPerWorkspace *int32     `json:"environmentsPerWorkspace"`
-	ResourcesPerWorkspace    *int32     `json:"resourcesPerWorkspace"`
-	WebhooksPerWorkspace     *int32     `json:"webhooksPerWorkspace"`
-	TokensPerEntity          *int32     `json:"tokensPerEntity"`
-	DomainsPerResource       *int32     `json:"domainsPerResource"`
-	SecretsPerEnvironment    *int32     `json:"secretsPerEnvironment"`
-	DeploymentHistory        *int32     `json:"deploymentHistory"`
-	BuildHistory             *int32     `json:"buildHistory"`
-	LogRetentionDays         *int32     `json:"logRetentionDays"`
-	TraceRetentionDays       *int32     `json:"traceRetentionDays"`
-	MetricRetentionDays      *int32     `json:"metricRetentionDays"`
-	Reason                   string     `json:"reason"`
-	UpdatedBy                *uuid.UUID `json:"updatedBy"`
+	OrgID                     uuid.UUID  `json:"orgId"`
+	WorkspacesPerOrg          *int32     `json:"workspacesPerOrg"`
+	MembersPerOrg             *int32     `json:"membersPerOrg"`
+	InvitationsPerOrg         *int32     `json:"invitationsPerOrg"`
+	EnvironmentsPerWorkspace  *int32     `json:"environmentsPerWorkspace"`
+	ResourcesPerWorkspace     *int32     `json:"resourcesPerWorkspace"`
+	WebhooksPerWorkspace      *int32     `json:"webhooksPerWorkspace"`
+	TokensPerEntity           *int32     `json:"tokensPerEntity"`
+	DomainsPerResource        *int32     `json:"domainsPerResource"`
+	SecretsPerEnvironment     *int32     `json:"secretsPerEnvironment"`
+	DeploymentHistory         *int32     `json:"deploymentHistory"`
+	BuildHistory              *int32     `json:"buildHistory"`
+	LogRetentionDays          *int32     `json:"logRetentionDays"`
+	TraceRetentionDays        *int32     `json:"traceRetentionDays"`
+	MetricRetentionDays       *int32     `json:"metricRetentionDays"`
+	ExpiredTokenRetentionDays *int32     `json:"expiredTokenRetentionDays"`
+	Reason                    string     `json:"reason"`
+	UpdatedBy                 *uuid.UUID `json:"updatedBy"`
 }
 
 func (q *Queries) UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error) {
@@ -271,6 +276,7 @@ func (q *Queries) UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimi
 		arg.LogRetentionDays,
 		arg.TraceRetentionDays,
 		arg.MetricRetentionDays,
+		arg.ExpiredTokenRetentionDays,
 		arg.Reason,
 		arg.UpdatedBy,
 	)
@@ -291,6 +297,7 @@ func (q *Queries) UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimi
 		&i.LogRetentionDays,
 		&i.TraceRetentionDays,
 		&i.MetricRetentionDays,
+		&i.ExpiredTokenRetentionDays,
 		&i.Reason,
 		&i.UpdatedBy,
 		&i.UpdatedAt,

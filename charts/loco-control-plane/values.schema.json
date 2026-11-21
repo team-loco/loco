@@ -210,6 +210,14 @@
               "maximum": 2147483647,
               "minimum": 1
             },
+            "expiredTokenRetentionDays": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
             "invitationsPerOrg": {
               "type": [
                 "integer",

@@ -18,6 +18,7 @@ INSERT INTO org_limit_overrides (
     log_retention_days,
     trace_retention_days,
     metric_retention_days,
+    expired_token_retention_days,
     reason,
     updated_by
 )
@@ -37,6 +38,7 @@ VALUES (
     sqlc.narg('log_retention_days'),
     sqlc.narg('trace_retention_days'),
     sqlc.narg('metric_retention_days'),
+    sqlc.narg('expired_token_retention_days'),
     sqlc.arg('reason'),
     sqlc.narg('updated_by')
 )
@@ -55,6 +57,7 @@ ON CONFLICT (org_id) DO UPDATE SET
     log_retention_days = EXCLUDED.log_retention_days,
     trace_retention_days = EXCLUDED.trace_retention_days,
     metric_retention_days = EXCLUDED.metric_retention_days,
+    expired_token_retention_days = EXCLUDED.expired_token_retention_days,
     reason = EXCLUDED.reason,
     updated_by = EXCLUDED.updated_by,
     updated_at = NOW()

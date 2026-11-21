@@ -174,8 +174,24 @@ UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1;
 -- name: DeleteAPITokenByHash :exec
 DELETE FROM api_tokens WHERE token_hash = $1;
 
+-- A token is deleted once it has been expired for its organization's expired_token_retention_days;
+-- user and system tokens, and organizations without an override, keep the install default.
 -- name: DeleteExpiredAPITokens :exec
-DELETE FROM api_tokens WHERE expires_at < NOW();
+DELETE FROM api_tokens
+WHERE id IN (
+    SELECT t.id
+    FROM api_tokens t
+    LEFT JOIN workspaces w ON w.id = t.workspace_ref
+    LEFT JOIN resources r ON r.id = t.resource_ref
+    LEFT JOIN workspaces rw ON rw.id = r.workspace_id
+    LEFT JOIN org_limit_overrides l ON l.org_id = COALESCE(t.organization_ref, w.org_id, rw.org_id)
+    WHERE t.expires_at < NOW() - make_interval(
+        days => COALESCE(l.expired_token_retention_days, sqlc.arg(default_retention_days)::int)
+    )
+);
+
+-- name: DeleteExpiredAPITokenByName :exec
+DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3 AND expires_at <= NOW();
 
 -- name: ListAPITokensForEntity :many
 SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix

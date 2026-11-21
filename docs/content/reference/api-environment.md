@@ -216,3 +216,4 @@ The API fills these into a service that leaves the field out. See [loco.yaml](..
 | `LOCO_LIMIT_LOG_RETENTION_DAYS` | `365` |
 | `LOCO_LIMIT_TRACE_RETENTION_DAYS` | `365` |
 | `LOCO_LIMIT_METRIC_RETENTION_DAYS` | `365` |
+| `LOCO_LIMIT_EXPIRED_TOKEN_RETENTION_DAYS` | `30` |

@@ -45,8 +45,10 @@ func (tvm *VendingMachine) WithQueries(q queries.Querier) *VendingMachine {
 	return &scoped
 }
 
-// RunCleanup deletes expired session and API tokens every interval until ctx is canceled.
-func (tvm *VendingMachine) RunCleanup(ctx context.Context, every time.Duration) {
+// RunCleanup deletes expired session tokens, and API tokens expired for longer than their
+// organization's expired-token retention, every interval until ctx is canceled. retentionDays is
+// the install default.
+func (tvm *VendingMachine) RunCleanup(ctx context.Context, every time.Duration, retentionDays int32) {
 	ticker := time.NewTicker(every)
 	defer ticker.Stop()
 
@@ -61,7 +63,7 @@ func (tvm *VendingMachine) RunCleanup(ctx context.Context, every time.Duration) 
 			if err := tvm.queries.DeleteExpiredUsedRefreshTokens(ctx); err != nil {
 				slog.ErrorContext(ctx, "failed to delete expired used refresh tokens", "err", err)
 			}
-			if err := tvm.queries.DeleteExpiredAPITokens(ctx); err != nil {
+			if err := tvm.queries.DeleteExpiredAPITokens(ctx, retentionDays); err != nil {
 				slog.ErrorContext(ctx, "failed to delete expired api tokens", "err", err)
 			}
 		}

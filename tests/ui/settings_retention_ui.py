@@ -44,6 +44,10 @@ with session(out) as browser:
             )
             expect(images.get_by_role("cell").last).to_have_text("Cleanup disabled")
             expect(events.get_by_role("cell").last).to_have_text("90 days")
+            expired_tokens = limits.get_by_role("row").filter(
+                has=page.get_by_role("cell", name="Expired API tokens", exact=True)
+            )
+            expect(expired_tokens.get_by_role("cell").last).to_have_text("30 days")
             expect(images.get_by_text("Raised", exact=True)).to_have_count(0)
             if narrow:
                 scroller = limits.locator('[data-slot="data-table"]')
