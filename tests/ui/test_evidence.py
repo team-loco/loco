@@ -290,3 +290,102 @@ def test_placeholders_leave_other_braces():
 def test_placeholder_errors_name_the_placeholder(value, named):
     with pytest.raises(evidence.EvidenceError, match=re.escape(named)):
         evidence.fill_placeholders({"a": [value]}, PLACEHOLDER_IDS, NOW)
+
+
+SCENARIO = {
+    "users": {"owner": {"email": "owner@acme.test"}},
+    "orgs": [{"name": "acme", "owner": "owner", "workspaces": ["shared"]}],
+    "resources": [{"workspace": "acme/shared", "name": "web", "deployments": []}],
+    "events": [
+        {"type": "deployment.ready", "resource": "acme/shared/web", "at": "{now-5m}"}
+    ],
+}
+METRICS = "**/loco.observability.v1.ObservabilityService/QueryMetrics"
+
+
+def shot(**fields):
+    return {
+        "name": "page",
+        "user": "owner",
+        "path": "/",
+        "ready_selector": "main",
+        **fields,
+    }
+
+
+def test_check_passes_a_correct_spec():
+    spec = {
+        "shots": [
+            shot(
+                path="/org/{org:acme}/wks/{workspace:acme/shared}/resource/{resource:acme/shared/web}",
+                respond=[
+                    {"url": METRICS, "match": {"byPod": True}, "json": {}},
+                    {
+                        "url": METRICS,
+                        "json": {"at": "{environment:acme/shared/production}"},
+                    },
+                ],
+            ),
+            {
+                "name": "landing",
+                "signedOut": True,
+                "path": "/",
+                "ready_selector": "main",
+            },
+        ]
+    }
+    assert evidence.check_spec(spec, SCENARIO, {METRICS[3:]}) == []
+
+
+@pytest.mark.parametrize(
+    "fields, error",
+    [
+        (
+            {"respond": [{"url": "**/ObservabilityService/QueryMetrics", "json": {}}]},
+            "matches no RPC",
+        ),
+        ({"hold_requests": ["**/loco.x.v1.S/Missing"]}, "hold_requests"),
+        ({"user": None}, "user is missing"),
+        ({"user": "member"}, "not a scenario user"),
+        (
+            {
+                "respond": [
+                    {"url": METRICS, "json": {}},
+                    {"url": METRICS, "match": {"byPod": True}, "json": {}},
+                ]
+            },
+            "respond entry 1",
+        ),
+        ({"path": "/{resource:acme/shared/api}"}, "{resource:acme/shared/api}"),
+        ({"respond": [{"url": METRICS, "json": {"t": "{now-5x}"}}]}, "{now-5x}"),
+        ({"themes": ["sepia"]}, "themes"),
+    ],
+)
+def test_check_names_the_shot_and_field(fields, error):
+    page = {k: v for k, v in shot(**fields).items() if v is not None}
+    errors = evidence.check_spec({"shots": [page]}, SCENARIO, {METRICS[3:]})
+    assert len(errors) == 1 and error in errors[0], errors
+    assert "shot page" in errors[0]
+
+
+def test_failure_summary_lists_failing_suites_and_shots():
+    suites = "\n".join(
+        [
+            "::group::events_ui",
+            "ok line",
+            "::endgroup::",
+            "events_ui passed in 4s",
+            "::group::trace_ui",
+            "Traceback (most recent call last):",
+            "AssertionError: expected 3 rows",
+            "::endgroup::",
+            "trace_ui failed in 9s",
+        ]
+    )
+    shots = "error: something\nFAILED replicas-after-light.png: selector never became visible\n"
+    summary = evidence.failure_summary(suites, shots)
+    assert (
+        "## Suite trace_ui" in summary and "AssertionError: expected 3 rows" in summary
+    )
+    assert "events_ui" not in summary
+    assert "## Screenshots" in summary and "FAILED replicas-after-light.png" in summary

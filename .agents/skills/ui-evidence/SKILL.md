@@ -49,7 +49,11 @@ mise exec -- uv run --script "$E" <command>
    clusters, deployments and placements use SQL without contacting a registry or worker.
    The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths,
    `orgs` maps each organization name to its `id` and `owner`, and `environments` maps
-   `org/workspace/slug` to environment IDs.
+   `org/workspace/slug` to environment IDs. A placement's `status` (for example `"failed"`)
+   overrides the deployment status for that region. A top-level `events` list seeds workspace
+   events: each has a `type` (such as `resource.degraded` or `deployment.ready`), a `resource`
+   (`org/workspace/name`) or a `workspace`, an optional `environment` slug, `actor_type`
+   (default `agent`), `data` and `at` (a time placeholder such as `{now-5m}`; default now).
 2. Write a shot spec JSON. Each shot names a path, a `ready_selector`, an optional user, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,
    `{"type": {"selector": selector, "text": "value"}}`, `{"press": {"selector": selector, "key": "ArrowLeft"}}`,
@@ -57,7 +61,9 @@ mise exec -- uv run --script "$E" <command>
    `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`), an optional `"color"`
    colour theme id (as in `web/src/lib/theme.ts`), `"themes": ["light"]` to capture only some of
    `light` and `dark` (default both) and `"narrow": true` for an extra 390-pixel-wide
-   capture. Omit `user` for signed-out pages; the context has no session.
+   capture. Set `"signedOut": true` instead of a `user` for a signed-out page; the context has
+   no session. `"before": false` skips the before capture for a page that exists only on the
+   branch; `table` then shows the after shot alone.
    Start from `shots.example.json`. Use a `clip` crop when
    before and after must line up: a selector crop follows the element's size.
    Full and selector crops expand the viewport to the document height before capture.
@@ -70,17 +76,19 @@ mise exec -- uv run --script "$E" <command>
    for example `.tv-range-wrap[data-open="true"] [aria-valuetext="20–60% of trace"]`.
    The overview slider remains in the DOM when closed, so its presence alone cannot prove zoom.
    To show data or errors the seeded API cannot produce (traces, metrics, a rejected request),
-   add `"respond": [{"url": "**/Service/Method", "json": {...}, "status": 400, "headers": {...}}]`.
+   add `"respond": [{"url": "**/<package>.<Service>/<Method>", "json": {...}, "status": 400, "headers": {...}}]`,
+   for example `**/loco.observability.v1.ObservabilityService/QueryMetrics`.
    Matching requests get that response; `status` defaults to 200 and `headers` is optional.
    An optional `match` object narrows an entry to requests whose JSON body has those field
-   values, such as `{"metricName": "k8s.pod.cpu_limit_utilization"}`; other requests fall
-   through to the next entry for the same URL.
+   values, such as `{"metricName": "k8s.pod.cpu_limit_utilization"}`. The first listed entry that
+   matches a request answers it, so list narrower entries before broader ones for the same URL.
    A shot's `path` and the strings in its `respond` JSON take placeholders, filled in when the shot
    runs: `{org:acme}`, `{workspace:acme/shared}`, `{resource:acme/shared/web}` and
    `{environment:acme/shared/production}` name seeded IDs by their scenario keys, and `{now}`,
    `{now-15m}` or `{now+1h}` (units s, m, h, d) give an RFC 3339 UTC time. A `:s` or `:ms` suffix,
    as in `{now-1h:ms}`, gives epoch seconds or milliseconds; a string that is only such a placeholder
-   becomes a number. An unknown key or a malformed placeholder fails the shot.
+   becomes a number. An unknown key or a malformed placeholder fails the shot. The page clock
+   starts at the same instant as `{now}`, so mocked times and the page's relative times agree.
    A Connect error is a status with `{"code": "invalid_argument", "message": "...", "details": [...]}`.
    `ready_selector` is a Playwright selector for an element that shows only once the page
    holds what the shot captures, such as a loaded row rather than the page heading. The shot
@@ -94,6 +102,13 @@ mise exec -- uv run --script "$E" <command>
    Only animations on matching elements skip settling; ordinary finite animations still finish.
    To grant browser permissions before navigation, set `"permissions"`, for example
    `["clipboard-read", "clipboard-write"]`. Permissions apply only to the preview origin.
+   `evidence.py check --spec F [--scenario F]` checks a spec without starting anything: RPC
+   patterns that name no method, shots without `user` or `signedOut`, entries a broader entry
+   answers first, unknown placeholder keys and theme names. `mise run ci:evidence` runs it first.
+   Pitfalls the check cannot catch:
+   - A zero-height SVG line never counts as visible; wait for its container instead.
+   - A time-range preset button in a popover can time out; type into the range field instead.
+   - Content below the fold of a scrolling drawer needs a `hover` step to scroll it into view.
 3. Commit source changes before capturing the current HEAD; `up` rejects uncommitted files
    when its ref resolves to HEAD. Historical refs can be captured from a dirty checkout.
    Bring up both refs. Each prints the path of its state file on stdout:

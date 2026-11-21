@@ -77,6 +77,7 @@ jobs:
           SCENARIO: ${{ inputs.scenario }}
           BASE: ${{ inputs.base }}
         run: |
+          exec > >(tee "$RUNNER_TEMP/evidence/shots.log") 2>&1
           input=$RUNNER_TEMP/evidence-input
           mkdir -p "$input"
           printf '%s\n' "$SHOTS" > "$input/shots.json"
@@ -99,6 +100,10 @@ jobs:
         if: ${{ always() && inputs.suites != '' }}
         run: |
           if [[ -d tests/ui/out ]]; then cp -R tests/ui/out "$RUNNER_TEMP/evidence/suites"; fi
+
+      - name: Summarize the failures
+        if: failure()
+        run: uv run --frozen --project tests python tests/ui/evidence.py failure-summary --dir "$RUNNER_TEMP/evidence"
 
       - name: Upload the evidence
         if: always()

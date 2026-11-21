@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage="usage: mise run ci:evidence --out DIR [--shots FILE] [--scenario FILE] [--base REF] [suite...]"
-out='' shots='' scenario='' base=main
+out='' shots='' scenario='' base=main shots_file='' scenario_file=''
 suites=()
 while [[ $# -gt 0 ]]; do
 	case $1 in
@@ -14,8 +14,14 @@ while [[ $# -gt 0 ]]; do
 		}
 		case $1 in
 		--out) out=$2 ;;
-		--shots) shots=$(<"$2") ;;
-		--scenario) scenario=$(<"$2") ;;
+		--shots)
+			shots_file=$2
+			shots=$(<"$2")
+			;;
+		--scenario)
+			scenario_file=$2
+			scenario=$(<"$2")
+			;;
 		--base) base=$2 ;;
 		esac
 		shift 2
@@ -33,6 +39,12 @@ done
 if [[ -z $out || (-z $shots && ${#suites[@]} -eq 0) ]]; then
 	echo "$usage" >&2
 	exit 2
+fi
+
+if [[ -n $shots ]]; then
+	check=(--spec "$shots_file")
+	if [[ -n $scenario_file ]]; then check+=(--scenario "$scenario_file"); fi
+	uv run --frozen --project tests python tests/ui/evidence.py check "${check[@]}"
 fi
 
 branch=$(git symbolic-ref --short HEAD)
@@ -63,4 +75,5 @@ conclusion=$(gh run view "$id" --json conclusion --jq .conclusion)
 mkdir -p "$out"
 gh run download "$id" --name evidence --dir "$out" || echo "Run $id uploaded no evidence" >&2
 echo "Run $id: $conclusion; evidence in $out"
+if [[ $conclusion != success && -f $out/failure.md ]]; then cat "$out/failure.md" >&2; fi
 [[ $conclusion == success ]]

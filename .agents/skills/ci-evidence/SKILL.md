@@ -42,5 +42,7 @@ uses.
 - Exit 0: open every PNG with Read and check it shows what the shot claims. Put
   `$capture/evidence.md` under `## Screenshots` in a body file in `$capture`, then upload as the
   Upload section of `.agents/skills/ui-evidence/SKILL.md` describes. Editing the PR body starts no CI.
-- Non-zero exit: read `$capture/suites.log` and the run log for `scenario note:` lines and the
-  failing suite or shot, and fix the cause. Never just re-run.
+- Non-zero exit before a run starts: the spec check found mistakes, each naming its shot and
+  field. Fix them; the pitfalls the check cannot catch are listed in the ui-evidence spec section.
+- Non-zero exit after a run: the task prints `$capture/failure.md`, each failing suite or shot with
+  its error lines and last log lines. Fix the cause. Never just re-run.
