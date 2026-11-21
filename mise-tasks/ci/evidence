@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#MISE description="Run tests/ui suites and before/after screenshots of this branch's pushed head in CI, wait for that run and download its evidence into DIR; exits non-zero when the run fails: ci:evidence --out DIR [--shots FILE] [--scenario FILE] [--base REF] [suite...]"
+set -euo pipefail
+
+usage="usage: mise run ci:evidence --out DIR [--shots FILE] [--scenario FILE] [--base REF] [suite...]"
+out='' shots='' scenario='' base=main
+suites=()
+while [[ $# -gt 0 ]]; do
+	case $1 in
+	--out | --shots | --scenario | --base)
+		[[ $# -ge 2 ]] || {
+			echo "$usage" >&2
+			exit 2
+		}
+		case $1 in
+		--out) out=$2 ;;
+		--shots) shots=$(<"$2") ;;
+		--scenario) scenario=$(<"$2") ;;
+		--base) base=$2 ;;
+		esac
+		shift 2
+		;;
+	-*)
+		echo "$usage" >&2
+		exit 2
+		;;
+	*)
+		suites+=("$1")
+		shift
+		;;
+	esac
+done
+if [[ -z $out || (-z $shots && ${#suites[@]} -eq 0) ]]; then
+	echo "$usage" >&2
+	exit 2
+fi
+
+branch=$(git symbolic-ref --short HEAD)
+head=$(git rev-parse HEAD)
+pushed=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+if [[ $pushed != "$head" ]]; then
+	echo "CI runs origin's $branch (${pushed:-missing}); push this checkout's $head first" >&2
+	exit 1
+fi
+
+run=$(gh api --method POST "repos/{owner}/{repo}/actions/workflows/evidence.yml/dispatches" \
+	-f ref="$branch" -F return_run_details=true \
+	-f "inputs[suites]=${suites[*]-}" -f "inputs[shots]=$shots" -f "inputs[scenario]=$scenario" -f "inputs[base]=$base" \
+	--jq '"\(.workflow_run_id) \(.html_url)"')
+id=${run%% *}
+echo "Evidence run: ${run#* }"
+
+until [[ $(gh run view "$id" --json status --jq .status) == completed ]]; do
+	sleep 30
+done
+conclusion=$(gh run view "$id" --json conclusion --jq .conclusion)
+
+mkdir -p "$out"
+gh run download "$id" --name evidence --dir "$out" || echo "Run $id uploaded no evidence" >&2
+echo "Run $id: $conclusion; evidence in $out"
+[[ $conclusion == success ]]

@@ -22,6 +22,16 @@ mise run test:ui deployment_history_ui
 
 `mise run test:ui` with no arguments runs every suite in `tests/ui/`: each `*_ui.py` file drives Chromium and each `*_api.py` file calls the API alone. A new suite is one new file there; add its CI duration in seconds to `tests/ui/durations`. Suites run side by side, one per two CPUs or `--jobs N` at a time, longest first, and each suite's output prints as one block when it ends. `--shard i/N` runs the ith of N shards with equal expected duration. The task builds the API and production UI of the working tree once and starts one OpenBao; each suite then starts its own API and UI processes and disposable PostgreSQL container, seeds it, runs Chromium and removes its resources on success or failure. The UI reads its API address from `/runtime-config.js`, as it does behind the chart, so one build serves every suite. Running a suite file directly builds `HEAD` in its own worktree instead. Users and hashed session tokens are inserted only in that database because creating identities requires an external provider. Organizations, workspace membership, environments and resources use the API. Historical deployment and placement rows are inserted privately to represent 221 releases and three controller reports without running builds or clusters. Each environment uses separate fixture clusters.
 
+## Run in CI
+
+`mise run ci:evidence` runs named suites in CI for the pushed head of the current branch, waits for that run and downloads its output into `--out`. It exits non-zero when a suite fails.
+
+```sh
+mise run ci:evidence --out /tmp/loco-suites tables_ui deployment_history_ui
+```
+
+The download holds `suites.log`, the combined suite output, and `suites/`, each suite's output directory. A draft pull request runs no CI, so this is how a draft gets its browser suites run.
+
 To inspect a failed fixture locally, run the driver with `--keep`; it prints its state path. Reuse that owned fixture with `--state PATH`. This runs against the production build recorded in the state, not newly edited source. Remove it afterward with `uv run --script tests/ui/evidence.py down --state PATH`. Do not reuse a person's development stack or publish its authentication state.
 
 ## Deployment history
@@ -46,4 +56,4 @@ The author changing a flow owns its assertions and fixture updates. Reviewers ch
 
 ## PR evidence
 
-Browser assertions check behavior continuously. The [UI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ui-evidence/SKILL.md) supplies reviewed before/after screenshots attached directly to UI PR descriptions. Cover light/dark and narrow layouts, state the build refs and whether API data is real or replayed, and inspect every image before upload. CI screenshots diagnose that run; they are not automatically a meaningful before/after comparison. A test-only change can attach its test states without claiming a product redesign.
+Browser assertions check behavior continuously. The [UI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ui-evidence/SKILL.md) supplies reviewed before/after screenshots attached directly to UI PR descriptions; `mise run ci:evidence --shots FILE` takes them in CI. Cover light/dark and narrow layouts, state the build refs and whether API data is real or replayed, and inspect every image before upload. CI screenshots diagnose that run; they are not automatically a meaningful before/after comparison. A test-only change can attach its test states without claiming a product redesign.

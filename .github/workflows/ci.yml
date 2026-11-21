@@ -6,14 +6,16 @@
 # push to main, the pass-markers job saves one for each check that passed. Path
 # filters on the called workflows' own triggers would leave a required check
 # without a result whenever they skipped it. After a push to main passes the
-# gate, the publish jobs tag the images Images built.
+# gate, the publish jobs tag the images Images built. A draft pull request runs
+# no checks: changes skips, and the gate fails and cancels its own run.
 name: CI
 
 on:
-  # Every run evaluates every check for its commit, because protection reads
-  # the newest CI Gate result on it. `ready_for_review` is a full run that lets
-  # Docs Drift review a pull request leaving draft; label events are left out
-  # because nothing needs a fresh run for them (see buf.yml for break-buf).
+  # Every run of a ready pull request or main evaluates every check for its
+  # commit, because protection reads the newest CI Gate result on it.
+  # `ready_for_review` is the full run of a pull request leaving draft; label
+  # events are left out because nothing needs a fresh run for them (see buf.yml
+  # for break-buf).
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
@@ -34,6 +36,7 @@ jobs:
 
   changes:
     name: Changes
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -328,9 +331,21 @@ jobs:
     # gate, since a skipped job counts as passing.
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     outputs:
       passed: ${{ steps.passed.outputs.passed }}
     steps:
+      # The failed gate blocks the merge; the cancelled run sends no failed-run notice.
+      - name: Fail the gate of a draft pull request
+        if: github.event.pull_request.draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "::error::Drafts run no checks; marking the pull request ready runs CI"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/cancel"
+          exit 1
+
       - name: List the checks that ran and passed
         id: passed
         env:
