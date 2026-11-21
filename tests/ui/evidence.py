@@ -4,6 +4,7 @@
 # ///
 import argparse
 import base64
+import gzip
 import hashlib
 import http.server
 import json
@@ -30,6 +31,7 @@ DB_PASSWORD = "evidence"
 DB_NAME = "evidence"
 SESSION_PREFIX = "loco_s_"
 MODE_KEY = "loco:mode:v1"
+INPUT_LIMIT = 64000
 COLOR_KEY = "loco:color:v1"
 SESSION_COOKIE = "__Host-loco_session"
 REFRESH_COOKIE = "__Host-loco_refresh"
@@ -333,10 +335,31 @@ def fill_placeholders(value, ids, now):
     return PLACEHOLDER.sub(resolve, value)
 
 
+def validate_responses(owner, responses):
+    if not isinstance(responses, list):
+        raise EvidenceError(f"{owner}: respond must be a list")
+    for response in responses:
+        if (
+            not isinstance(response, dict)
+            or not isinstance(response.get("url"), str)
+            or not response["url"].strip()
+            or "json" not in response
+            or not isinstance(response.get("status", 200), int)
+            or not isinstance(response.get("match", {}), dict)
+            or set(response) - {"url", "status", "json", "headers", "match"}
+        ):
+            raise EvidenceError(
+                f"{owner}: each respond entry is {{url, json, status?, headers?, match?}}"
+            )
+
+
 def validate_spec(spec):
+    """Returns the spec's shots, each with the spec-level respond entries after its own."""
     shots = spec.get("shots")
     if not isinstance(shots, list) or not shots:
         raise EvidenceError("spec needs a non-empty shots list")
+    shared = spec.get("respond", [])
+    validate_responses("spec", shared)
     names = set()
     for shot in shots:
         name = shot.get("name", "")
@@ -404,19 +427,7 @@ def validate_spec(spec):
             raise EvidenceError(
                 f"shot {name}: crop is viewport, full, {{selector, padding}} or {{clip}}"
             )
-        for response in shot.get("respond", []):
-            if (
-                not isinstance(response, dict)
-                or not isinstance(response.get("url"), str)
-                or not response["url"].strip()
-                or "json" not in response
-                or not isinstance(response.get("status", 200), int)
-                or not isinstance(response.get("match", {}), dict)
-                or set(response) - {"url", "status", "json", "headers", "match"}
-            ):
-                raise EvidenceError(
-                    f"shot {name}: each respond entry is {{url, json, status?, headers?, match?}}"
-                )
+        validate_responses(f"shot {name}", shot.get("respond", []))
         for step in shot.get("steps", []):
             if len(step) != 1 or next(iter(step)) not in (
                 "click",
@@ -479,7 +490,7 @@ def validate_spec(spec):
                     raise EvidenceError(
                         f"shot {name}: drag needs a selector and from/to points as [x, y] fractions of its box"
                     )
-    return shots
+    return [{**shot, "respond": [*shot.get("respond", []), *shared]} for shot in shots]
 
 
 def connect_methods():
@@ -622,15 +633,36 @@ def cmd_failure_summary(args):
     (Path(args.dir) / "failure.md").write_text(failure_summary(*texts))
 
 
+def encode_input(data):
+    """Returns JSON as the minified, gzipped, base64 text the evidence workflow decodes."""
+    packed = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode()
+    return base64.b64encode(gzip.compress(packed, 9, mtime=0)).decode()
+
+
+def input_size(spec, scenario):
+    return len(encode_input(spec)) + (len(encode_input(scenario)) if scenario else 0)
+
+
+def input_size_errors(size):
+    """Returns the error for dispatch inputs over the workflow input limit."""
+    if size <= INPUT_LIMIT:
+        return []
+    return [
+        f"encoded inputs are {size} bytes, over the {INPUT_LIMIT} byte limit; "
+        "move mocks shared by several shots into the spec-level respond list"
+    ]
+
+
 def cmd_check(args):
     scenario_path = args.scenario or (
         TOOLS_ROOT / ".agents/skills/ui-evidence/scenario.example.json"
     )
-    errors = check_spec(
-        json.loads(Path(args.spec).read_text()),
-        json.loads(Path(scenario_path).read_text()),
-        connect_methods(),
-    )
+    spec = json.loads(Path(args.spec).read_text())
+    scenario = json.loads(Path(scenario_path).read_text())
+    errors = check_spec(spec, scenario, connect_methods())
+    size = input_size(spec, scenario if args.scenario else {})
+    errors += input_size_errors(size)
+    log(f"encoded inputs: {size} of {INPUT_LIMIT} bytes")
     for error in errors:
         log(error)
     if errors:

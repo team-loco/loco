@@ -11,11 +11,11 @@ on:
         type: string
         default: ""
       shots:
-        description: Shot spec JSON in the ui-evidence skill's format
+        description: Shot spec JSON in the ui-evidence skill's format, gzipped and base64-encoded
         type: string
         default: ""
       scenario:
-        description: Scenario JSON for the shots; the ui-evidence skill's example scenario when empty
+        description: Scenario JSON for the shots, gzipped and base64-encoded; the ui-evidence skill's example scenario when empty
         type: string
         default: ""
       base:
@@ -80,9 +80,9 @@ jobs:
           exec > >(tee "$RUNNER_TEMP/evidence/shots.log") 2>&1
           input=$RUNNER_TEMP/evidence-input
           mkdir -p "$input"
-          printf '%s\n' "$SHOTS" > "$input/shots.json"
+          printf '%s' "$SHOTS" | base64 -d | gunzip > "$input/shots.json"
           if [[ -n $SCENARIO ]]; then
-            printf '%s\n' "$SCENARIO" > "$input/scenario.json"
+            printf '%s' "$SCENARIO" | base64 -d | gunzip > "$input/scenario.json"
           else
             cp .agents/skills/ui-evidence/scenario.example.json "$input/scenario.json"
           fi

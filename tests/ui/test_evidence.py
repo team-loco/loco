@@ -1,4 +1,7 @@
 import argparse
+import base64
+import gzip
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -389,3 +392,31 @@ def test_failure_summary_lists_failing_suites_and_shots():
     )
     assert "events_ui" not in summary
     assert "## Screenshots" in summary and "FAILED replicas-after-light.png" in summary
+
+
+def test_spec_respond_follows_each_shots_own_entries():
+    own = {"url": METRICS, "match": {"byPod": True}, "json": {"own": 1}}
+    shared = {"url": METRICS, "json": {"shared": 1}}
+    spec = {"respond": [shared], "shots": [shot(respond=[own]), shot(name="other")]}
+    first, second = evidence.validate_spec(spec)
+    assert first["respond"] == [own, shared]
+    assert second["respond"] == [shared]
+
+
+def test_spec_respond_entries_are_validated():
+    spec = {"respond": [{"url": METRICS}], "shots": [shot()]}
+    with pytest.raises(evidence.EvidenceError, match="spec: each respond entry"):
+        evidence.validate_spec(spec)
+
+
+def test_input_size_refuses_inputs_over_the_limit():
+    assert evidence.input_size_errors(evidence.INPUT_LIMIT) == []
+    (error,) = evidence.input_size_errors(evidence.INPUT_LIMIT + 1)
+    assert str(evidence.INPUT_LIMIT + 1) in error and "spec-level respond" in error
+
+
+def test_encoded_input_round_trips_compactly():
+    data = {"shots": [{"json": "x" * 5000}] * 10}
+    encoded = evidence.encode_input(data)
+    assert json.loads(gzip.decompress(base64.b64decode(encoded))) == data
+    assert len(encoded) < 1000
