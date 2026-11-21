@@ -323,7 +323,8 @@ def check_scoped_user(browser):
         if scene == "events":
             assert any(
                 request["method"] == "ListEvents"
-                and request["body"].get("resourceId") == rid
+                and request["body"].get("readableResources")
+                and not request["body"].get("resourceId")
                 and request["status"] == 200
                 for request in recorded
             ), recorded

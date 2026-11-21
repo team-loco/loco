@@ -1,4 +1,3 @@
-import { resolveWindow, type TimeWindow } from "@/lib/obs-time";
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { WorkspaceEventWithResource } from "@/hooks/useWorkspaceEvents";
 import type { RuntimeEvent } from "@/lib/runtime-events";
@@ -114,8 +113,4 @@ export function eventJson(e: EventItem): string {
 		null,
 		2,
 	);
-}
-
-export function eventWindow(range: TimeWindow, now: number, latest: number) {
-	return resolveWindow(range, Math.max(now, latest));
 }

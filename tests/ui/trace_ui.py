@@ -1352,8 +1352,9 @@ with session(out) as browser:
                 "title": title,
                 "severity": "normal",
                 "region": data.get("region", ""),
-                "resourceId": body["resourceId"],
-                "environmentId": body["environmentId"],
+                # The Events view lists the whole workspace; the trace drawer asks per resource.
+                "resourceId": body.get("resourceId", ""),
+                "environmentId": body.get("environmentId", ""),
                 "createdAt": time.strftime(
                     "%Y-%m-%dT%H:%M:%SZ", time.gmtime(start + offset)
                 ),

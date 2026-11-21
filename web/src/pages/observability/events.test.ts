@@ -2,22 +2,11 @@ import { create } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { expect, test } from "bun:test";
-import { eventDataLabel, eventItem, eventJson, eventSummary, asSeverity, eventValue, eventWindow } from "./events";
+import { eventDataLabel, eventItem, eventJson, eventSummary, asSeverity, eventValue } from "./events";
 test("unknown severities show as normal", () => {
 	expect(asSeverity("warning")).toBe("warning");
 	expect(asSeverity("error")).toBe("error");
 	expect(asSeverity("")).toBe("normal");
-});
-
-test("relative ranges retain received events between clock ticks", () => {
-	const range = { kind: "relative", spanMs: 60000 } as const;
-	expect(eventWindow(range, 100000, 100500)).toEqual({ from: 40500, to: 100500 });
-	expect(eventWindow(range, 100100, 100500)).toEqual({ from: 40500, to: 100500 });
-	expect(eventWindow(range, 101000, 100500)).toEqual({ from: 41000, to: 101000 });
-	expect(eventWindow({ kind: "absolute", from: 1000, to: 2000 }, 100000, 100500)).toEqual({
-		from: 1000,
-		to: 2000,
-	});
 });
 
 test("retains event context for filters and raw JSON", () => {
