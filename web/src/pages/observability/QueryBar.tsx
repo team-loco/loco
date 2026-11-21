@@ -319,7 +319,6 @@ export function QueryBar({
 
 	const curQuery = queryStr(tokens, applied);
 	const pinned = curQuery !== "" && pinnedList.includes(curQuery);
-	const applies = recentQuery(view, tokens, applied) !== "";
 
 	const onChange = (v: string) => {
 		const m = hasBoolean(v) ? null : COMPLETED_TOKEN_RE.exec(v);
@@ -429,7 +428,7 @@ export function QueryBar({
 							Clear
 						</Button>
 					)}
-					{(pinned || applies) && (
+					{(pinned || appliedRecent !== "") && (
 						<Button
 							variant="ghost"
 							size="icon-xs"
@@ -448,7 +447,7 @@ export function QueryBar({
 						</Button>
 					)}
 				</div>
-				<ComboboxContent anchor={anchor} className="min-w-0 p-1.5 data-[chips=true]:min-w-0">
+				<ComboboxContent anchor={anchor} className="p-1.5">
 					<ComboboxList aria-label="Suggestions">
 						{groups
 							.filter((g) => g.items.length > 0)
