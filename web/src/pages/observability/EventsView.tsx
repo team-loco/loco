@@ -24,7 +24,7 @@ import { formatTotal, pageTokensParser, pagingParsers, tokenPageLabel, tokenPage
 import { resolveWindow } from "@/lib/obs-time";
 import { newResourcePath } from "@/lib/routes";
 import { agoLabel, msToTimestamp } from "@/lib/time";
-import { ENVIRONMENT_EVENT_TYPES, runtimeEvent } from "@/lib/runtime-events";
+import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, runtimeEvent } from "@/lib/runtime-events";
 import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
@@ -109,9 +109,10 @@ export function EventsView() {
 	const warningCount = useSeverityCount(counted, "warning");
 	const errorCount = useSeverityCount(counted, "error");
 	const names = new Map(resources.map((r) => [r.id, r.slug]));
-	const items = (page.query.data?.events ?? []).map((e) =>
-		eventItem({ ...runtimeEvent(e), resourceId: e.resourceId, resourceName: names.get(e.resourceId) ?? "" }),
-	);
+	const items = (page.query.data?.events ?? [])
+		.map((e) => ({ ...runtimeEvent(e), resourceId: e.resourceId, resourceName: names.get(e.resourceId) ?? "" }))
+		.filter((e) => eventInEnvironment(e, environment?.id ?? ""))
+		.map(eventItem);
 	const error = page.query.error ?? facets.error;
 	const refetch = async () => await Promise.all([page.query.refetch(), facets.refetch()]);
 	const show: Show = tokens.some((t) => t.key === "severity" && !t.neg && t.value === "error")
