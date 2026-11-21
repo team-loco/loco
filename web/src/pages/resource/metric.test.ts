@@ -4,7 +4,7 @@ import { MetricPointSchema, MetricSeriesSchema } from "@gen/loco/observability/v
 
 import { msToTimestamp } from "@/lib/time";
 
-import { mergeBand, percentPoints, scaleBand, sharedLimit, usageSummary } from "./metric";
+import { mergeBand, percentPoints, scaleBand, sharedLimit, tightestPoint, usageSummary } from "./metric";
 
 const RESOURCE_ID = "0199d1c2-0000-7000-8000-000000000001";
 const STAGING_ID = "0199d1c2-0000-7000-8000-000000000003";
@@ -41,9 +41,9 @@ describe("mergeBand", () => {
 			{ time: 2, median: 25, band: null },
 		]);
 		expect(usageSummary(band)).toEqual({ average: 22.5, highest: 40 });
-		expect(scaleBand(band, 500)).toEqual([
-			{ time: 1, median: 100, band: [50, 200] },
-			{ time: 2, median: 125, band: null },
+		expect(scaleBand(band, [{ from: -Infinity, limit: 500 }])).toEqual([
+			{ time: 1, median: 100, band: [50, 200], limit: 500 },
+			{ time: 2, median: 125, band: null, limit: 500 },
 		]);
 	});
 });
@@ -53,4 +53,29 @@ test("uses absolute units only when every charted region has the same size", () 
 	expect(sharedLimit([500, 1000])).toBeUndefined();
 	expect(sharedLimit([500, 0])).toBeUndefined();
 	expect(sharedLimit([])).toBeUndefined();
+});
+
+describe("scaleBand across a resize", () => {
+	const steps = [
+		{ from: 0, limit: 100 },
+		{ from: HOUR_MS, limit: 200 },
+	];
+	const band = scaleBand(
+		[
+			{ time: HOUR_MS - 1, median: 50, band: [40, 90] },
+			{ time: HOUR_MS, median: 50, band: [40, 60] },
+		],
+		steps,
+	);
+
+	test("keeps each point in the units of the limit it ran under", () => {
+		expect(band.map((p) => [p.median, p.limit])).toEqual([
+			[50, 100],
+			[100, 200],
+		]);
+	});
+
+	test("finds the peak closest to its own limit", () => {
+		expect(tightestPoint(band)?.time).toBe(HOUR_MS - 1);
+	});
 });

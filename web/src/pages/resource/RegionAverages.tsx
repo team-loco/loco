@@ -7,6 +7,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Skeleton } from "@/components/design/Skeleton";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent } from "@/lib/compute-chart";
+import { limitAt, type LimitStep } from "@/lib/limit-history";
 import { formatAxisTime, timeAxis } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
@@ -24,7 +25,7 @@ export function RegionAverages({
 	environmentId,
 	resourceId,
 	range,
-	limit,
+	limits,
 	format,
 }: {
 	title: string;
@@ -34,7 +35,7 @@ export function RegionAverages({
 	environmentId: string;
 	resourceId: string;
 	range: MetricRange;
-	limit: number | undefined;
+	limits: Map<string, LimitStep[]> | undefined;
 	format: (value: number) => string;
 }) {
 	const timePref = useTimePreferences();
@@ -52,14 +53,14 @@ export function RegionAverages({
 			}),
 		),
 	});
-	const absolute = limit !== undefined && limit > 0;
+	const absolute = limits !== undefined;
 	const show = absolute ? format : formatPercent;
 	const rows = new Map<number, Record<string, number>>();
 	results.forEach((result, i) => {
 		const region = regions[i] ?? "";
 		for (const p of percentPoints(result.data ?? [], resourceId)) {
 			const row = rows.get(p.time) ?? { time: p.time };
-			row[region] = absolute ? (p.pct / PERCENT) * limit : p.pct;
+			row[region] = absolute ? (p.pct / PERCENT) * (limitAt(limits.get(region) ?? [], p.time) ?? 0) : p.pct;
 			rows.set(p.time, row);
 		}
 	});
