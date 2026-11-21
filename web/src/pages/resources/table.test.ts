@@ -19,19 +19,10 @@ import {
 	buildRows,
 	FILTER_URL_KEYS,
 	cellSummary,
-	DRAFT,
 	draftRows,
-	filterRows,
-	isDraftRow,
 	linkEnvironment,
-	NOT_DEPLOYED,
-	nameOrder,
-	regionCounts,
-	regionTotal,
 	replicasLabel,
-	statusCounts,
 	tableParsers,
-	type Filter,
 	type ListRow,
 } from "./table";
 
@@ -42,7 +33,7 @@ function withTable<R>(rows: ListRow[], sorting: ColumnSort, read: (table: DataTa
 			...sortOptions,
 			features: dataTableFeatures,
 			columns,
-			data: nameOrder(rows),
+			data: rows,
 			state: { sorting: [sorting], pagination: { pageIndex: 0, pageSize: Math.max(1, rows.length) } },
 		});
 		result = read(table);
@@ -51,10 +42,6 @@ function withTable<R>(rows: ListRow[], sorting: ColumnSort, read: (table: DataTa
 	renderToStaticMarkup(createElement(Rows));
 	if (result === undefined) throw new Error("table did not render");
 	return result;
-}
-
-function sortRows(rows: ListRow[], sorting: ColumnSort): ListRow[] {
-	return withTable(rows, sorting, (table) => table.getRowModel().rows.map((row) => row.original));
 }
 
 const prod = create(EnvironmentSchema, { id: "e-prod", slug: "production" });
@@ -121,12 +108,6 @@ function deployment(id: string, env: string, image: string, createdMs: number): 
 		startedAt: timestampFromMs(createdMs + 500),
 		spec: { spec: { case: "service", value: { build: { image } } } },
 	});
-}
-
-const everything: Filter = { query: "", status: ALL, region: ALL };
-
-function names(rows: ListRow[]): string[] {
-	return rows.map((r) => (isDraftRow(r) ? r.draft.name : r.resource.slug));
 }
 
 function draft(name: string, edits: Draft["edits"] = {}): Draft {
@@ -204,92 +185,8 @@ describe("buildRows", () => {
 	});
 });
 
-describe("filters", () => {
-	const rows = buildRows(
-		[
-			resource(
-				"api",
-				[
-					{ env: "e-prod", status: ResourceStatus.HEALTHY, regions: [{ region: "us-va-1", ready: 1, desired: 1 }] },
-					{ env: "e-stg", status: ResourceStatus.DEGRADED, regions: [{ region: "us-ca-1", ready: 0, desired: 1 }] },
-				],
-				{ domain: "api.example.dev" },
-			),
-			resource(
-				"worker",
-				[{ env: "e-prod", status: ResourceStatus.DEPLOYING, regions: [{ region: "us-va-1", ready: 0, desired: 1 }] }],
-				{ description: "Queue consumer" },
-			),
-			resource("draft"),
-		],
-		[[], [], []],
-		envs,
-		undefined,
-	);
-
-	test("a status matches when any environment has it, and not deployed means no environment", () => {
-		expect(names(filterRows(rows, { ...everything, status: "degraded" }))).toEqual(["api"]);
-		expect(names(filterRows(rows, { ...everything, status: "deploying" }))).toEqual(["worker"]);
-		expect(names(filterRows(rows, { ...everything, status: NOT_DEPLOYED }))).toEqual(["draft"]);
-	});
-
-	test("Draft keeps browser drafts and leaves them out of Not deployed", () => {
-		const withDraft = buildRows([resource("api"), resource("worker")], [[], []], envs, undefined);
-		const mixed = [...withDraft, ...draftRows([draft("web")], "e-prod", undefined, [], "")];
-		expect(names(filterRows(mixed, { ...everything, status: DRAFT }))).toEqual(["web"]);
-		expect(names(filterRows(mixed, { ...everything, status: NOT_DEPLOYED }))).toEqual(["api", "worker"]);
-		expect(statusCounts(mixed, everything).get(DRAFT)).toBe(1);
-	});
-
-	test("search covers the name, description, address and regions", () => {
-		expect(names(filterRows(rows, { ...everything, query: "QUEUE" }))).toEqual(["worker"]);
-		expect(names(filterRows(rows, { ...everything, query: "example.dev" }))).toEqual(["api"]);
-		expect(names(filterRows(rows, { ...everything, query: "us-ca" }))).toEqual(["api"]);
-	});
-
-	test("status counts follow the search and region but not the status", () => {
-		const counts = statusCounts(rows, { ...everything, region: "us-va-1", status: "degraded" });
-		expect(counts.get(ALL)).toBe(2);
-		expect(counts.get("degraded")).toBe(1);
-		expect(counts.get(NOT_DEPLOYED)).toBe(0);
-	});
-
-	test("region counts list every region in use and ignore the region and status filters", () => {
-		expect(regionCounts(rows, { ...everything, region: "us-ca-1", status: "degraded" })).toEqual([
-			{ region: "us-ca-1", count: 1 },
-			{ region: "us-va-1", count: 2 },
-		]);
-	});
-});
-
-describe("sortRows", () => {
-	const rows = buildRows(
-		[
-			resource(
-				"b-healthy",
-				[{ env: "e-prod", status: ResourceStatus.HEALTHY, regions: [{ region: "r", ready: 1, desired: 1 }] }],
-				{ cpu: "2", createdMs: 1 },
-			),
-			resource("a-missing", [], { cpu: "250m", createdMs: 3 }),
-			resource(
-				"c-down",
-				[{ env: "e-prod", status: ResourceStatus.UNAVAILABLE, regions: [{ region: "r", ready: 0, desired: 1 }] }],
-				{ cpu: "1", createdMs: 2 },
-			),
-		],
-		[[], [], []],
-		envs,
-		undefined,
-	);
-
-	test("an environment column puts problems first and undeployed resources last", () => {
-		expect(names(sortRows(rows, { id: "env-production", desc: false }))).toEqual(["c-down", "b-healthy", "a-missing"]);
-	});
-
-	test("size and created sort numerically in either direction", () => {
-		expect(names(sortRows(rows, { id: "size", desc: true }))).toEqual(["b-healthy", "c-down", "a-missing"]);
-		expect(names(sortRows(rows, { id: "created", desc: false }))).toEqual(["b-healthy", "c-down", "a-missing"]);
-	});
+describe("sort", () => {
+	const rows = buildRows([resource("a"), resource("b")], [[], []], envs, undefined);
 
 	test("size and created sort descending on the first click and every other column ascending", () => {
 		const first = withTable(rows, { id: "name", desc: false }, (table) =>
@@ -306,53 +203,11 @@ describe("sortRows", () => {
 			created: "desc",
 		});
 	});
-
-	test("ties sort by name ascending in either direction, with only the chosen column sorted", () => {
-		const tied = buildRows(
-			[resource("c"), resource("a"), resource("b", [], { cpu: "2" })],
-			[[], [], []],
-			envs,
-			undefined,
-		);
-		expect(names(sortRows(tied, { id: "size", desc: true }))).toEqual(["b", "a", "c"]);
-		expect(names(sortRows(tied, { id: "size", desc: false }))).toEqual(["a", "c", "b"]);
-		const sorted = withTable(tied, { id: "size", desc: true }, (table) =>
-			table
-				.getAllLeafColumns()
-				.filter((column) => column.getIsSorted() !== false)
-				.map((column) => column.id),
-		);
-		expect(sorted).toEqual(["size"]);
-	});
 });
 
 describe("draft rows", () => {
 	const sizing = { cpu: "500m", memory: "1Gi", minReplicas: 1, cpuTarget: 65 };
-	const resources = buildRows(
-		[
-			resource("healthy", [
-				{ env: "e-prod", status: ResourceStatus.HEALTHY, regions: [{ region: "r", ready: 1, desired: 1 }] },
-			]),
-			resource("rolling", [
-				{ env: "e-prod", status: ResourceStatus.DEPLOYING, regions: [{ region: "r", ready: 0, desired: 1 }] },
-			]),
-			resource("missing"),
-		],
-		[[], [], []],
-		envs,
-		"e-prod",
-	);
 	const drafts = draftRows([draft("web", { cpu: "2", replicas: 3 }), draft("api")], "e-prod", sizing, [], "");
-	const rows: ListRow[] = [...resources, ...drafts];
-
-	test("stay listed but out of the status and region counts", () => {
-		expect(names(filterRows(rows, everything))).toHaveLength(5);
-		const counts = statusCounts(rows, everything);
-		expect(counts.get(ALL)).toBe(3);
-		expect(counts.get(NOT_DEPLOYED)).toBe(1);
-		expect(regionTotal(rows, everything)).toBe(3);
-		expect(regionCounts(rows, everything)).toEqual([{ region: "r", count: 2 }]);
-	});
 
 	test("take sizing from the draft's edits, then the service defaults", () => {
 		const [web, api] = drafts;
@@ -360,33 +215,6 @@ describe("draft rows", () => {
 		expect([api?.cpuMilli, api?.replicas]).toEqual([500, { min: 1, max: 1 }]);
 		expect(draftRows([draft("x")], "e-prod", undefined, [], "")[0]?.replicas).toBeNull();
 		expect(api?.image).toBe("ghcr.io/acme/api");
-	});
-
-	test("sort between deploying and healthy in their environment's column", () => {
-		expect(names(sortRows(rows, { id: "env-production", desc: false }))).toEqual([
-			"rolling",
-			"api",
-			"web",
-			"healthy",
-			"missing",
-		]);
-	});
-
-	test("sort with the undeployed in another environment's column", () => {
-		expect(names(sortRows(rows, { id: "env-staging", desc: false }))).toEqual([
-			"api",
-			"healthy",
-			"missing",
-			"rolling",
-			"web",
-		]);
-	});
-
-	test("match their name and image in a search and form the Draft filter", () => {
-		expect(names(filterRows(rows, { ...everything, query: "acme/web" }))).toEqual(["web"]);
-		expect(names(filterRows(rows, { ...everything, query: "not deployed" }))).toEqual([]);
-		expect(names(filterRows(rows, { ...everything, status: NOT_DEPLOYED }))).toEqual(["missing"]);
-		expect(names(filterRows(rows, { ...everything, status: DRAFT }))).toEqual(["web", "api"]);
 	});
 });
 
@@ -437,7 +265,7 @@ describe("URL state", () => {
 			status: "degraded",
 			region: "us-va-1",
 			sort: { id: "created", desc: true },
-			page: 2,
+			page: ["t1", "t2"],
 			size: 50 as const,
 			cols: { ...shown, "env-production": false, size: false, cost: false, image: true },
 		};
@@ -447,11 +275,11 @@ describe("URL state", () => {
 	});
 
 	test("ignores values the table cannot show", () => {
-		const state = load("?status=bogus&sort=image.asc&size=7&page=0&cols=nope,size");
+		const state = load("?status=bogus&sort=image.asc&size=7&cols=nope,size");
 		expect(state.status).toBe(ALL);
 		expect(state.sort.id).toBe("env-production");
 		expect(state.size).toBe(25);
-		expect(state.page).toBe(0);
+		expect(state.page).toEqual([]);
 		expect(Object.entries(state.cols).filter(([, on]) => on)).toEqual([["size", true]]);
 	});
 

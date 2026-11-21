@@ -4,7 +4,16 @@ import struct
 import zlib
 from datetime import UTC, datetime, timedelta
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    evidence,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import TimeoutError as PlaywrightTimeout, expect
 
 parser = argparse.ArgumentParser(
@@ -455,6 +464,13 @@ def check_row_states(page, row):
     row.evaluate("node => cancelAnimationFrame(node.watch)")
 
 
+def production_id():
+    return sql(
+        state,
+        f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production';",
+    )
+
+
 def resources_table(page):
     table = page.get_by_role("table", name="Resources")
     expect(table.get_by_role("row").filter(has_text=LONG_NAME)).to_be_visible()
@@ -475,7 +491,18 @@ def show_all_columns(page, table):
 
 
 def resources(page):
-    page.goto(base + "/resources?env=production")
+    # The default sort is the first environment's column: its status, read on the server.
+    with expect_rpc(
+        page,
+        "ListWorkspaceResources",
+        lambda body: (
+            body.get("orderBy") == "RESOURCE_ORDER_STATUS"
+            and body.get("sortEnvironmentId") == production_id()
+            and "environmentId" not in body
+            and body.get("pageSize") == 25
+        ),
+    ):
+        page.goto(base + "/resources?env=production")
     table = resources_table(page)
     expect(
         table.get_by_role("columnheader", name="Staging EU West", exact=True)
@@ -545,7 +572,13 @@ def resources(page):
 
 
 def resources_map(page):
-    page.goto(base + "/resources?env=production&view=map&q=api")
+    # The map dims what the server's search leaves out.
+    with expect_rpc(
+        page,
+        "ListWorkspaceResources",
+        lambda body: body.get("query") == "api" and body.get("pageSize") == 200,
+    ):
+        page.goto(base + "/resources?env=production&view=map&q=api")
     expect(
         page.get_by_role("group", name="Filter by status", exact=True)
     ).to_be_visible()
@@ -569,7 +602,17 @@ def dashboard_table(page):
 
 
 def dashboard(page):
-    page.goto(base + "?env=production")
+    with expect_rpc(
+        page,
+        "ListWorkspaceResources",
+        lambda body: (
+            body.get("environmentScoped") is True
+            and body.get("environmentId") == production_id()
+            and body.get("orderBy") == "RESOURCE_ORDER_STATUS"
+            and body.get("pageSize") == 25
+        ),
+    ):
+        page.goto(base + "?env=production")
     table = dashboard_table(page)
     check_layout(table)
     version = table.get_by_text("2026.11.19-build-4812", exact=True).first
@@ -1074,6 +1117,18 @@ with session(
             check(page)
         assert not errors, errors
         context.close()
+
+    # A link from before the tables paged by token opens the first page; the API's rejection logs a console error.
+    context, page, _ = open_page(browser, state=state)
+    for path in ("/resources?env=production&page=2", "?env=production&page=2"):
+        page.goto(base + path)
+        expect(
+            page.get_by_role("table", name="Resources").get_by_role(
+                "link", name="api", exact=True
+            )
+        ).to_be_visible()
+        expect(page).not_to_have_url(re.compile(r"[?&]page="))
+    context.close()
 
     context, page, errors = open_page(browser, narrow=True, state=state)
     page.goto(base + "/resources?env=production")

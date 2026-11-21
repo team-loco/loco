@@ -4,7 +4,7 @@ import { DRAFT_RANK, draftIsPublic, draftRegions, type Draft } from "@/lib/draft
 import { primaryDomain, statusRank } from "@/lib/resource-status";
 import { createSerializer } from "nuqs";
 
-import { DRAFT, FILTER_PARSERS, FILTER_URL_KEYS, NOT_DEPLOYED, STATUS_FILTERS } from "@/pages/resources/table";
+import { FILTER_PARSERS, FILTER_URL_KEYS } from "@/pages/resources/table";
 
 import type { EnvResource, RegionReplicas } from "./useDashboardData";
 
@@ -46,10 +46,6 @@ export function itemIsPublic(item: DashboardItem): boolean {
 	return isDraftItem(item) ? draftIsPublic(item.draft) : primaryDomain(item.resource) !== null;
 }
 
-export function itemType(item: DashboardItem): ResourceType {
-	return isDraftItem(item) ? ResourceType.SERVICE : item.resource.type;
-}
-
 export const ALL = "all";
 
 export const TYPE_FILTERS: { value: string; type: ResourceType; label: string }[] = [
@@ -66,45 +62,6 @@ export interface RowFilter {
 	type: string;
 	region: string;
 	query: string;
-}
-
-function matchesQuery(item: DashboardItem, query: string): boolean {
-	const q = query.trim().toLowerCase();
-	if (q === "") return true;
-	const own = isDraftItem(item)
-		? [item.draft.name, item.draft.image]
-		: [item.resource.name, item.resource.slug, item.resource.description ?? "", primaryDomain(item.resource) ?? ""];
-	const fields = [...own, ...item.regions.map((g) => g.region)];
-	return fields.some((f) => f.toLowerCase().includes(q));
-}
-
-export function itemStatusFilter(item: DashboardItem): string {
-	if (isDraftItem(item)) return DRAFT;
-	if (item.neverDeployed) return NOT_DEPLOYED;
-	return STATUS_FILTERS.find((f) => f.status === item.status)?.value ?? ALL;
-}
-
-function matchesStatus(item: DashboardItem, status: string): boolean {
-	return status === ALL || itemStatusFilter(item) === status;
-}
-
-function matchesType(item: DashboardItem, type: string): boolean {
-	if (type === ALL) return true;
-	return TYPE_FILTERS.some((o) => o.value === type && o.type === itemType(item));
-}
-
-// The sorted row model falls back to input order on ties, in either direction,
-// so returning rows in name order makes every tie sort by name ascending.
-export function filterRows<T extends DashboardItem>(items: T[], filter: RowFilter): T[] {
-	return items
-		.filter(
-			(item) =>
-				matchesStatus(item, filter.status) &&
-				matchesType(item, filter.type) &&
-				(filter.region === ALL || item.regions.some((g) => g.region === filter.region)) &&
-				matchesQuery(item, filter.query),
-		)
-		.toSorted((a, b) => itemName(a).localeCompare(itemName(b)));
 }
 
 const serializeFilter = createSerializer(FILTER_PARSERS, { urlKeys: FILTER_URL_KEYS });

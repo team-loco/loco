@@ -1,4 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
+import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { parseAsString, useQueryStates } from "nuqs";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listRegions, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
@@ -8,13 +9,15 @@ import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { ResourceAccess } from "@/components/ResourceAccess";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
-import { useWorkspaceDeployments } from "@/hooks/useWorkspaceDeployments";
+import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { limitReason, limitUsage } from "@/lib/limits";
 import {
 	DRAFT_PARAM,
@@ -29,9 +32,10 @@ import { DraftSheet, NewService } from "@/pages/resources/NewService";
 import { ResourcesEmpty } from "@/pages/resources/ResourcesEmpty";
 import { ResourcesMap } from "@/pages/resources/ResourcesMap";
 import { ResourceTable } from "@/pages/resources/ResourceTable";
-import { buildRows, draftRows } from "@/pages/resources/table";
+import { draftRows } from "@/pages/resources/table";
 
 const NOW_TICK_MS = 60_000;
+const TOTAL_POLL_MS = 15_000;
 const SKELETON_ROWS = 6;
 const RESOURCES_PARAMS = {
 	view: resourceViewParser,
@@ -59,11 +63,18 @@ function ViewToggle({ view, onView }: { view: ResourceView; onView: (view: Resou
 export function Resources() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, isLoading: envsLoading } = useEnvironments();
-	const data = useWorkspaceDeployments(activeOrgId, activeWorkspaceId);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
 	const [params, setParams] = useQueryStates(RESOURCES_PARAMS);
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
+	const grants = useMyScopes().resourceGrants(orgId, workspaceId);
+	const scoped = grants !== undefined && grants !== "workspace";
+	const counted = useQuery(
+		listWorkspaceResources,
+		{ workspaceId, pageSize: 1, includeTotalCount: true },
+		{ enabled: grants === "workspace" && workspaceId !== "", refetchInterval: TOTAL_POLL_MS },
+	);
+	const granted = useTanstackQuery({ ...useWorkspaceResourcesOptions(orgId, workspaceId), enabled: scoped });
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
 	const configQuery = useQuery(getConfig, {}, { enabled: drafts.length > 0 });
 	const regionsQuery = useQuery(
@@ -72,14 +83,15 @@ export function Resources() {
 		{ enabled: drafts.length > 0 && active !== undefined },
 	);
 
-	const loading = envsLoading || data.isLoading;
+	const data = scoped ? granted : counted;
+	const loading = envsLoading || grants === undefined || data.isPending;
 	const limits = useOrgLimits(orgId);
 	const usage =
-		data.isLoading || data.error !== null
+		loading || scoped || counted.error !== null
 			? null
-			: limitUsage(data.resources.length, limits?.resourcesPerWorkspace, "resources", "workspace");
+			: limitUsage(counted.data?.totalCount ?? 0, limits?.resourcesPerWorkspace, "resources", "workspace");
 	const createBlocked = limitReason(usage);
-	const total = data.resources.length + drafts.length;
+	const total = (counted.data?.totalCount ?? 0) + drafts.length;
 	const { view, [DRAFT_PARAM]: draftId } = params;
 	const setView = (next: ResourceView) => {
 		void setParams({ view: next }, { history: "replace" });
@@ -101,15 +113,15 @@ export function Resources() {
 				</Section>
 			);
 		}
+		if (scoped)
+			return <ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={granted.data?.resources ?? []} />;
 		if (total === 0) return <ResourcesEmpty environmentId={active?.id} newHref={serviceHref} />;
-		const resources = buildRows(data.resources, data.deployments, environments, active?.id);
 		if (view === "map" && active !== undefined) {
 			return (
 				<ResourcesMap
 					orgId={orgId}
 					workspaceId={workspaceId}
 					env={active}
-					rows={resources}
 					onShowTable={() => {
 						setView("table");
 					}}
@@ -118,19 +130,16 @@ export function Resources() {
 		}
 		return (
 			<ResourceTable
-				rows={
+				drafts={
 					active === undefined
-						? resources
-						: [
-								...resources,
-								...draftRows(
-									drafts,
-									active.id,
-									configQuery.data?.serviceDefaults,
-									regionsQuery.data?.regions ?? [],
-									configQuery.data?.defaultRegion ?? "",
-								),
-							]
+						? []
+						: draftRows(
+								drafts,
+								active.id,
+								configQuery.data?.serviceDefaults,
+								regionsQuery.data?.regions ?? [],
+								configQuery.data?.defaultRegion ?? "",
+							)
 				}
 				environments={environments}
 				active={active}
@@ -147,12 +156,12 @@ export function Resources() {
 				title={
 					<>
 						Resources
-						{!loading && data.error === null && <LimitCount usage={usage} />}
+						{!loading && !scoped && data.error === null && <LimitCount usage={usage} />}
 					</>
 				}
 				actions={
 					<div className="flex items-center gap-2.5">
-						{!loading && total > 0 && <ViewToggle view={view} onView={setView} />}
+						{!loading && !scoped && total > 0 && <ViewToggle view={view} onView={setView} />}
 						<LimitedAction reason={createBlocked}>
 							<NewResourceMenu serviceHref={serviceHref} disabled={createBlocked !== null} />
 						</LimitedAction>

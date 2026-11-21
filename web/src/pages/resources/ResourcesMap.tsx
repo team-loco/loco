@@ -1,8 +1,10 @@
+import { useQuery } from "@connectrpc/connect-query";
 import { ArrowRightIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useQueryStates } from "nuqs";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
@@ -16,8 +18,9 @@ import { ArchitectureDiagram } from "@/pages/dashboard/ArchitectureDiagram";
 import { isDraftItem, type DashboardItem } from "@/pages/dashboard/resourceRows";
 import { useDashboardData, type EnvResource } from "@/pages/dashboard/useDashboardData";
 
+import { statusCounts, statusInput, useMatchingResourceIds } from "./query";
 import { ResourceSearch, StatusFilter } from "./ResourceFilters";
-import { ALL, FILTER_PARSERS, FILTER_URL_KEYS, filterRows, type ResourceRow } from "./table";
+import { ALL, DRAFT, FILTER_PARSERS, FILTER_URL_KEYS } from "./table";
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
 	return (
@@ -32,21 +35,28 @@ export function ResourcesMap({
 	orgId,
 	workspaceId,
 	env,
-	rows,
 	onShowTable,
 }: {
 	orgId: string;
 	workspaceId: string;
 	env: Environment;
-	rows: ResourceRow[];
 	onShowTable: () => void;
 }) {
 	const data = useDashboardData(orgId, workspaceId, env);
 	const [params, setParams] = useQueryStates(FILTER_PARSERS, { history: "replace", urlKeys: FILTER_URL_KEYS });
-	// The map has no region filter; every region stays on it.
-	const filter = { query: params.query, status: params.status, region: ALL };
+	// The map has no region filter and reads every environment's status; it dims what the filters leave out.
+	const filter = { query: params.query, status: params.status };
 	const filtering = filter.query.trim() !== "" || filter.status !== ALL;
-	const matching = new Set(filterRows(rows, filter).map((r) => r.resource.id));
+	const counted = { workspaceId, query: filter.query.trim() };
+	const counts = useQuery(listWorkspaceResources, {
+		...counted,
+		pageSize: 1,
+		includeTotalCount: true,
+		includeFacets: true,
+	}).data;
+	const matched = useMatchingResourceIds({ ...counted, ...statusInput(filter.status) }, filtering).data;
+	// The map draws no drafts, so the Draft filter leaves nothing lit.
+	const matching = filter.status === DRAFT ? new Set<string>() : matched;
 	// Kept after close so the panel keeps its contents while it slides out.
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [open, setOpen] = useState(false);
@@ -61,8 +71,8 @@ export function ResourcesMap({
 		<Section
 			filters={
 				<StatusFilter
-					rows={rows}
-					filter={filter}
+					counts={statusCounts(counts?.totalCount, counts?.facets, 0)}
+					status={filter.status}
 					onStatus={(status) => {
 						void setParams({ status });
 					}}
@@ -86,7 +96,7 @@ export function ResourcesMap({
 					environmentId={env.id}
 					hrefFor={hrefFor}
 					onShowTable={onShowTable}
-					dimmed={(item) => filtering && (isDraftItem(item) || !matching.has(item.resource.id))}
+					dimmed={(item) => filtering && (isDraftItem(item) || matching?.has(item.resource.id) === false)}
 					onSelect={(item: EnvResource) => {
 						setSelectedId(item.resource.id);
 						setOpen(true);

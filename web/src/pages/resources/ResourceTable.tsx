@@ -1,34 +1,40 @@
-import { useTransport } from "@connectrpc/connect-query";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery as useConnectQuery, useTransport } from "@connectrpc/connect-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
 import { GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useMemo } from "react";
 import { useQueryStates } from "nuqs";
 import { useLocation, useNavigate } from "react-router";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { Button } from "@/components/design/Button";
-import { DataTable, DataTablePager, pageWithin, useDataTable } from "@/components/design/DataTable";
+import { DataTable, useDataTable } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
+import { ErrorState } from "@/components/design/ErrorState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
+import { Pager } from "@/components/design/Pager";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
+import { useTokenPage } from "@/hooks/useTokenPage";
+import { resourcesPollMs, useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
+import { tokenPageLabel, tokenPager } from "@/lib/paging";
 import { userLabel } from "@/lib/user";
 
 import { ResourceCellContext, resourceColumns, rowPath } from "./columns";
+import { resourcesOrder, shownDrafts, statusCounts, statusInput } from "./query";
 import { ResourceSearch, StatusFilter } from "./ResourceFilters";
 import {
 	ALL,
+	buildRows,
+	DRAFT,
 	FILTER_URL_KEYS,
-	filterRows,
 	isDraftRow,
-	nameOrder,
 	PAGE_SIZES,
-	regionCounts,
-	regionTotal,
 	tableParsers,
+	type DraftRow,
 	type ListRow,
 } from "./table";
 
@@ -37,14 +43,14 @@ function rowId(row: ListRow): string {
 }
 
 export function ResourceTable({
-	rows,
+	drafts,
 	environments,
 	active,
 	orgId,
 	workspaceId,
 	nowMs,
 }: {
-	rows: ListRow[];
+	drafts: DraftRow[];
 	environments: Environment[];
 	active: Environment | undefined;
 	orgId: string;
@@ -81,16 +87,43 @@ export function ResourceTable({
 		void setState({ query: null, status: null, region: null, page: null });
 	};
 
-	const data = nameOrder(filterRows(rows, filter));
+	// The counts ignore the status filter, as the region counts do.
+	const order = resourcesOrder(state.sort, environments, active?.id);
+	const counted = {
+		workspaceId,
+		query: filter.query.trim(),
+		region: filter.region === ALL ? "" : filter.region,
+	};
+	const listed = useTokenPage(
+		listWorkspaceResources,
+		{ ...counted, ...order, ...statusInput(filter.status), pageSize: state.size },
+		state.page,
+		{ placeholderData: keepPreviousData, refetchInterval: (q) => resourcesPollMs(q.state.data?.resources) },
+		{ ...counted, includeFacets: true },
+		() => void setState({ page: null }),
+	);
+	const regionsTotal = useConnectQuery(
+		listWorkspaceResources,
+		{ ...counted, region: "", pageSize: 1, includeTotalCount: true },
+		{ enabled: filter.region !== ALL },
+	).data?.totalCount;
+	const resources = listed.query.data?.resources ?? [];
+	const deployments = useCurrentDeployments(resources);
+	const draftsOnly = filter.status === DRAFT;
+	const serverRows = draftsOnly ? [] : buildRows(resources, deployments, environments, active?.id);
+	const draftCount = shownDrafts(drafts, { ...filter, status: DRAFT }).length;
+	const data: ListRow[] = [...serverRows, ...(state.page.length === 0 ? shownDrafts(drafts, filter) : [])];
+	const facets = listed.counts?.facets;
+	const counts = statusCounts(listed.total, facets, draftCount);
+	const matched = facets === undefined && !draftsOnly ? undefined : (counts.get(filter.status) ?? 0);
+
 	const sorting = [state.sort];
-	const pagination = pageWithin({ pageIndex: state.page, pageSize: state.size }, data.length);
 	const table = useDataTable("resources", {
 		columns,
 		data,
 		getRowId: rowId,
-		state: { sorting, columnVisibility: state.cols, pagination },
-		manualPagination: false,
-		autoResetPageIndex: false,
+		state: { sorting, columnVisibility: state.cols },
+		manualSorting: true,
 		onSortingChange: (updater) => {
 			const next = functionalUpdate(updater, sorting)[0];
 			if (next !== undefined) void setState({ sort: next, page: null });
@@ -98,30 +131,29 @@ export function ResourceTable({
 		onColumnVisibilityChange: (updater) => {
 			void setState({ cols: functionalUpdate(updater, state.cols) });
 		},
-		onPaginationChange: (updater) => {
-			const next = functionalUpdate(updater, pagination);
-			void setState({
-				page: next.pageIndex,
-				size: PAGE_SIZES.find((n) => n === next.pageSize) ?? null,
-			});
-		},
+	});
+	const pager = tokenPager(state.page, draftsOnly ? "" : listed.nextPageToken, (page) => {
+		if (!listed.query.isPlaceholderData) void setState({ page });
 	});
 
+	const allRegions = filter.region === ALL ? listed.total : regionsTotal;
 	const regionOptions = [
-		{ value: ALL, label: "All regions", count: regionTotal(rows, filter) },
-		...regionCounts(rows, filter).map((r) => ({
+		{ value: ALL, label: "All regions", ...(allRegions === undefined ? {} : { count: allRegions }) },
+		...(facets?.regions ?? []).map((r) => ({
 			value: r.region,
 			label: r.region,
 			count: r.count,
 		})),
 	];
+	if (!regionOptions.some((o) => o.value === filter.region))
+		regionOptions.push({ value: filter.region, label: filter.region, count: 0 });
 	const hasFilters = filter.query.trim() !== "" || filter.status !== ALL || filter.region !== ALL;
 
 	const filters = (
 		<>
 			<StatusFilter
-				rows={rows}
-				filter={filter}
+				counts={counts}
+				status={filter.status}
 				onStatus={(status) => {
 					setFilter({ status });
 				}}
@@ -151,31 +183,47 @@ export function ResourceTable({
 				/>
 			}
 		>
-			<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs, creators }}>
-				<DataTable
-					table={table}
-					label="Resources"
-					onRowClick={(row) => void navigate(rowPath(row.original, orgId, workspaceId, locationSearch))}
-					rowAction="navigate"
-					className="[--row-h:62px]"
-					empty={
-						<EmptyState
-							icon={<SearchXIcon />}
-							title="No resources match"
-							query={filter.query.trim()}
-							action={
-								hasFilters && (
-									<Button variant="outline" onClick={clearFilters}>
-										<XIcon />
-										Clear filters
-									</Button>
-								)
+			{listed.error === null ? (
+				<>
+					<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs, creators }}>
+						<DataTable
+							table={table}
+							label="Resources"
+							loading={listed.query.isPending || listed.resetting}
+							onRowClick={(row) => void navigate(rowPath(row.original, orgId, workspaceId, locationSearch))}
+							rowAction="navigate"
+							className="[--row-h:62px]"
+							empty={
+								<EmptyState
+									icon={<SearchXIcon />}
+									title="No resources match"
+									query={filter.query.trim()}
+									action={
+										hasFilters && (
+											<Button variant="outline" onClick={clearFilters}>
+												<XIcon />
+												Clear filters
+											</Button>
+										)
+									}
+								/>
 							}
 						/>
-					}
-				/>
-			</ResourceCellContext>
-			<DataTablePager table={table} pageSizes={PAGE_SIZES} />
+					</ResourceCellContext>
+					<Pager
+						{...pager}
+						label={tokenPageLabel(pager.page, state.size, draftsOnly ? data.length : serverRows.length, matched)}
+						total={data.length}
+						pageSizes={PAGE_SIZES}
+						pageSize={state.size}
+						onPageSize={(size) => {
+							void setState({ size: PAGE_SIZES.find((n) => n === size) ?? null, page: null });
+						}}
+					/>
+				</>
+			) : (
+				<ErrorState error={listed.error} what="resources" rpc={listWorkspaceResources} onRetry={listed.query.refetch} />
+			)}
 		</Section>
 	);
 }

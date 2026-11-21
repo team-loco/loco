@@ -42,6 +42,29 @@ function regionReplicas(resource: Resource, environment: EnvironmentStatus | und
 	});
 }
 
+/** The resource in the environment, from the environment's deployments. */
+export function envResource(
+	resource: Resource,
+	deployments: readonly Deployment[],
+	environmentId: string,
+): EnvResource {
+	const mine = deployments
+		.filter((d) => d.resourceId === resource.id)
+		.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+	const environment = environmentStatus(resource, environmentId);
+	const regions = regionReplicas(resource, environment);
+	return {
+		resource,
+		environment,
+		status: environment?.status ?? ResourceStatus.UNSPECIFIED,
+		envDeployments: mine,
+		last: mine[0],
+		regions,
+		totalReplicas: regions.reduce((n, g) => n + g.desired, 0),
+		neverDeployed: mine.length === 0 && resource.environmentStatuses.length === 0,
+	};
+}
+
 export function useDashboardData(orgId: string | null, workspaceId: string | null, env: Environment | undefined) {
 	const { resources, deployments, isLoading, error, refetch } = useWorkspaceEnvironmentDeployments(
 		orgId,
@@ -60,24 +83,9 @@ export function useDashboardData(orgId: string | null, workspaceId: string | nul
 	const envDeployments: { deployment: Deployment; resource: Resource }[] = [];
 
 	resources.forEach((resource) => {
-		const mine = deployments
-			.filter((d) => d.resourceId === resource.id)
-			.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
-		for (const d of mine) envDeployments.push({ deployment: d, resource });
-		const neverDeployed = mine.length === 0 && resource.environmentStatuses.length === 0;
-		if (mine.length === 0 && !neverDeployed) return;
-		const environment = environmentStatus(resource, envId);
-		const regions = regionReplicas(resource, environment);
-		envResources.push({
-			resource,
-			environment,
-			status: environment?.status ?? ResourceStatus.UNSPECIFIED,
-			envDeployments: mine,
-			last: mine[0],
-			regions,
-			totalReplicas: regions.reduce((n, g) => n + g.desired, 0),
-			neverDeployed,
-		});
+		const item = envResource(resource, deployments, envId);
+		for (const d of item.envDeployments) envDeployments.push({ deployment: d, resource });
+		if (item.envDeployments.length > 0 || item.neverDeployed) envResources.push(item);
 	});
 
 	envDeployments.sort((a, b) => tsMs(b.deployment.createdAt) - tsMs(a.deployment.createdAt));
@@ -91,6 +99,7 @@ export function useDashboardData(orgId: string | null, workspaceId: string | nul
 		scoped: grants !== undefined && grants !== "workspace",
 		envResources,
 		envDeployments,
+		deployments,
 		regions: regionInfos,
 		// Until grants resolve a scoped viewer is indistinguishable from a workspace reader, and the
 		// workspace view queries environment-wide metrics the proxy refuses them.

@@ -24,7 +24,6 @@ import { DiscardDraftDialog } from "@/pages/resources/DiscardDraftDialog";
 import {
 	cellSummary,
 	ENV_PREFIX,
-	envRank,
 	isDraftRow,
 	linkEnvironment,
 	replicasLabel,
@@ -240,8 +239,7 @@ function envColumn(environment: Environment): DataColumn<ListRow> {
 		minSize: 150,
 		maxSize: 280,
 		meta: { fit: true },
-		accessorFn: (row) => envRank(row, environment.id),
-		sortFn: "basic",
+		accessorFn: (row) => row.cells.get(environment.id)?.status,
 		cell: ({ row }) =>
 			isDraftRow(row.original) && row.original.environmentId === environment.id ? (
 				<DraftCellView row={row.original} />
@@ -260,7 +258,6 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			minSize: 160,
 			maxSize: 360,
 			accessorFn: rowName,
-			sortFn: (a, b) => rowName(a.original).localeCompare(rowName(b.original)),
 			enableHiding: false,
 			meta: { fit: true },
 			cell: ({ row }) => <NameCell row={row.original} />,
@@ -275,7 +272,6 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			meta: { fit: true },
 			accessorFn: (row) => row.cpuMilli,
 			sortDescFirst: true,
-			sortFn: (a, b) => a.original.cpuMilli - b.original.cpuMilli || a.original.memMi - b.original.memMi,
 			cell: ({ row: { original: row } }) => (
 				<Mono text={row.cpuMilli === 0 ? null : `${formatCpu(row.cpuMilli)} · ${formatMemory(row.memMi)}`} />
 			),
@@ -324,7 +320,6 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			minSize: 100,
 			maxSize: 200,
 			accessorFn: (row) => row.createdMs,
-			sortFn: "basic",
 			sortDescFirst: true,
 			meta: { fit: true, defaultHidden: true },
 			cell: ({ row: { original: row } }) => (

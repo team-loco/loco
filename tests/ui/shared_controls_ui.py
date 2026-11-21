@@ -1488,9 +1488,18 @@ def dashboard_counts(page):
     total = int(count.inner_text())
     assert total >= 7, total
     expect(everything).to_have_text(re.compile(rf"^All\s*{total}$"))
-    section.get_by_role("textbox", name="Search resources", exact=True).fill(
-        "dashboard-1"
-    )
+    with expect_rpc(
+        page,
+        "ListWorkspaceResources",
+        lambda body: (
+            body.get("query") == "dashboard-1"
+            and body.get("environmentScoped") is True
+            and body.get("includeFacets") is True
+        ),
+    ):
+        section.get_by_role("textbox", name="Search resources", exact=True).fill(
+            "dashboard-1"
+        )
     expect(count).to_have_text("1")
     expect(everything).to_have_text(re.compile(r"^All\s*1$"))
     expect(section.get_by_role("link", name="dashboard-1", exact=True)).to_be_visible()
@@ -1907,7 +1916,15 @@ def resources(page):
         header = table.get_by_role("columnheader", name="Resource", exact=True)
         name = header.get_by_role("button", name="Resource", exact=True)
         name.press("Enter")
-        name.press("Enter")
+        with expect_rpc(
+            page,
+            "ListWorkspaceResources",
+            lambda body: (
+                body.get("orderBy") == "RESOURCE_ORDER_NAME"
+                and body.get("descending") is True
+            ),
+        ):
+            name.press("Enter")
         if route:
             expect(page).to_have_url(re.compile(r"[?&]sort=name\.desc"))
             page.reload()
