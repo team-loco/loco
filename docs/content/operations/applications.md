@@ -125,11 +125,11 @@ These settings work outside Loco with an SDK that supports them. When they are u
 
 ## Collected log levels
 
-Container stdout and stderr records keep their original message. When a record has no severity, the collector extracts a string `level`, `severity` or `severityText` from a JSON object, a leading level such as `[WARNING]`, or a `level=warn` field. An ISO timestamp can precede a leading level; terminal color codes do not affect detection. `warning` becomes `WARN` and a leading `panic` becomes `FATAL`; trace, debug, info, error and fatal levels are also recognized, without regard to case. Existing severity is preserved.
+Container stdout and stderr records keep their original message. When a record has no severity, the collector extracts a string `level`, `severity` or `severityText` from a JSON object, a leading level such as `[WARNING]`, or a `level=warn` field. A timestamp such as `2026-10-19T12:00:00Z`, `2026/10/19 12:00:00` or `[2026-10-19 12:00:00 +0000]`, and after it an optional bracketed process ID such as `[1]`, can precede a leading level, as in nginx and gunicorn logs; terminal color codes do not affect detection. `warning` becomes `WARN`, `notice` becomes `INFO`, and and a leading `panic` becomes `FATAL`; trace, debug, info, error and fatal levels are also recognized, without regard to case. Existing severity is preserved.
 
 The collector drops empty lines and joins a multi-line entry into one record: lines that start with whitespace, Java `Caused by:` lines and the lines of a Go panic or goroutine trace continue the line before them. A Go panic therefore arrives as one `FATAL` record that holds its whole stack trace.
 
-Malformed JSON, unknown levels and messages without a recognized level remain unclassified and appear as INFO in the dashboard. A word such as “warning” inside an ordinary message does not set its severity. Structured OTLP logs retain the severity supplied by the application SDK. When a replica exports logs over OTLP, the logs view shows those records and hides the replica's stdout lines, which repeat them; its stderr lines, where crashes are printed, stay visible.
+A stderr line that names no level is `ERROR`; one that names a level, such as `INFO`, keeps it. Other lines with malformed JSON, an unknown level or no recognized level remain unclassified and appear as INFO in the dashboard. A word such as “warning” inside an ordinary message does not set its severity. Structured OTLP logs retain the severity supplied by the application SDK. When a replica exports logs over OTLP, the logs view shows those records and hides the replica's stdout lines, which repeat them; its stderr lines, where crashes are printed, stay visible.
 
 ## Public, private and worker applications
 

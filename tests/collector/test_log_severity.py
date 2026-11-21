@@ -1,6 +1,24 @@
 import pytest
 from helpers import chart_values, post_otlp, read_output, run_collector
 
+# stderr lines without a level are errors; lines that name a level keep it.
+STDERR_CASES = [
+    ("Traceback (most recent call last):", "ERROR", 17, {}),
+    ('{"level":', "ERROR", 17, {}),
+    ("INFO listening on :8080", "INFO", 9, {}),
+    ('{"level":"warning","message":"low memory"}', "WARN", 13, {}),
+    ("level=debug msg=checking", "DEBUG", 5, {}),
+    ('{"level":"custom"}', "", 0, {}),
+    ("2026/10/19 12:00:00 listening on :8080", "ERROR", 17, {}),
+    ("2026/10/19 12:00:00 [notice] 1#1: start worker processes", "INFO", 9, {}),
+    ("2026/10/19 12:00:00 [warn] 1#1: conflicting server name", "WARN", 13, {}),
+    ("2026/10/19 12:00:00 [error] 7#7: *1 upstream timed out", "ERROR", 17, {}),
+    ("2026/10/19 12:00:00 [crit] 7#7: *1 open() failed", "ERROR", 17, {}),
+    ("[2026-10-19 12:00:00 +0000] [1] [INFO] Starting gunicorn 23.0.0", "INFO", 9, {}),
+    ("[2026-10-19 12:00:00 +0000] [7] [ERROR] Exception in worker", "ERROR", 17, {}),
+    ("Alert: disk full", "ERROR", 17, {}),
+]
+
 
 @pytest.mark.parametrize("source", ["otlp", "file_log"])
 def test_collected_log_severity(tmp_path, source):
@@ -53,6 +71,8 @@ def test_collected_log_severity(tmp_path, source):
     }
     if source == "file_log":
         cases = [case for case in cases if not case[3]]
+        streams = ["stdout"] * len(cases) + ["stderr"] * len(STDERR_CASES)
+        cases += STDERR_CASES
         log_path = (
             tmp_path
             / "pods/default_fixture_00000000-0000-4000-8000-000000000001/app/0.log"
@@ -60,8 +80,8 @@ def test_collected_log_severity(tmp_path, source):
         log_path.parent.mkdir(parents=True)
         log_path.write_text(
             "".join(
-                f"2026-10-19T12:00:00.000000000Z stdout F {body}\n"
-                for body, _, _, _ in cases
+                f"2026-10-19T12:00:00.000000000Z {stream} F {body}\n"
+                for stream, (body, _, _, _) in zip(streams, cases, strict=True)
             )
         )
         config["receivers"] = {
