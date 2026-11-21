@@ -39,11 +39,8 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 			t.Fatal(err)
 		}
 		health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
-		heartbeat := &agentv1.Heartbeat{
-			Role:   clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-			Health: health,
-		}
-		f.agentServer().recordHeartbeat(ctx, id, heartbeat)
+		f.agentServer().
+			recordHeartbeat(ctx, id, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Health: health})
 		row, err := f.queries.GetClusterByID(ctx, id)
 		if err != nil {
 			t.Fatal(err)

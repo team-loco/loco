@@ -97,19 +97,12 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	server.recordHeartbeat(
 		t.Context(),
 		clusterID,
-		&agentv1.Heartbeat{
-			Role:    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-			Domains: []string{domainsThird},
-		},
+		&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Domains: []string{domainsThird}},
 	)
 	if got := e.clusterDomains(t, clusterID); !slices.Equal(got, []string{domainsThird}) {
 		t.Fatalf("domains after heartbeat = %v, want [c.test]", got)
 	}
-	server.recordHeartbeat(
-		t.Context(),
-		clusterID,
-		&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL},
-	)
+	server.recordHeartbeat(t.Context(), clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
 	if got := e.clusterDomains(t, clusterID); len(got) != 0 {
 		t.Fatalf("domains after an empty heartbeat = %v, want none", got)
 	}

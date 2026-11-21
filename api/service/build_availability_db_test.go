@@ -191,8 +191,7 @@ func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	valid := &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL}
-	for _, heartbeat := range []*agentv1.Heartbeat{{}, valid} {
+	for _, heartbeat := range []*agentv1.Heartbeat{{}, {Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL}} {
 		message := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: heartbeat}}
 		if err := stream.Send(message); err != nil {
 			t.Fatalf("send heartbeat: %v", err)
