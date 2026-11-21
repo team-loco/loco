@@ -194,7 +194,7 @@ def trace_buckets(body):
     return {
         "buckets": buckets,
         "total": {
-            "traceCount": "67" if mode[0] == "paged" else "14",
+            "traceCount": "14",
             "errorCount": "2",
             "p50DurationNanos": "42000000",
             "p95DurationNanos": "360000000",
@@ -943,7 +943,7 @@ with session(out) as browser:
         )
     ).to_have_count(17)
     expect(page.get_by_text("51–67 of 67", exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name=re.compile(r"^All\s*67$"))).to_be_visible()
+    expect(page.get_by_role("button", name=re.compile(r"^All\s*14$"))).to_be_visible()
     with expect_rpc(
         page,
         "ListTraces",
@@ -992,7 +992,7 @@ with session(out) as browser:
     ):
         page.get_by_role("button", name=re.compile(r"^Errors")).click()
     assert last_page_request()["query"] == "@status:error"
-    expect(page.get_by_role("button", name=re.compile(r"^All\s*67$"))).to_be_visible()
+    expect(page.get_by_role("button", name=re.compile(r"^All\s*14$"))).to_be_visible()
     lists = [row for row in recorded[sent:] if "limit" in row]
     assert len(lists) == 1, lists
     wait_for_query(page, lambda query: query.get("q") == ["@status:error"])
