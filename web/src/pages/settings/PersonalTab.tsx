@@ -3,12 +3,10 @@ import { useMutation } from "@connectrpc/connect-query";
 import { updateUser } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { User } from "@gen/loco/user/v1/user_pb";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronRightIcon, KeyRoundIcon, LogOutIcon } from "lucide-react";
-import { useState } from "react";
+import { KeyRoundIcon } from "lucide-react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
-import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
@@ -21,7 +19,6 @@ import { DeleteAccount } from "./DeleteAccount";
 import { DateTimeSection } from "./DateTimeSection";
 import { AppearanceSection } from "./AppearanceSection";
 import { ActiveSessions } from "./ActiveSessions";
-import { LogoutConfirm } from "./LogoutConfirm";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
 const TOKENS_PATH = "/tokens?owner=personal";
@@ -36,7 +33,6 @@ export function PersonalTab({
 	onDraft: (name: string | null) => void;
 }) {
 	const timePref = useTimePreferences();
-	const [loggingOut, setLoggingOut] = useState(false);
 	const queryClient = useQueryClient();
 	const update = useMutation(updateUser);
 
@@ -117,36 +113,22 @@ export function PersonalTab({
 				<SettingsCard>
 					<Link
 						to={TOKENS_PATH}
-						className="flex items-center gap-3 border-b border-line px-5 py-3.5 text-foreground no-underline hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+						className="group flex items-center gap-3 px-5 py-3.5 text-foreground no-underline hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
 					>
 						<KeyRoundIcon className="size-4 shrink-0 text-fg3" />
 						<span className="flex min-w-0 flex-1 flex-col gap-0.5">
 							<span className="text-[13.5px] font-medium">Personal access tokens</span>
 							<span className="text-[12.5px] text-fg3">Tokens that act as you, for the CLI and scripts.</span>
 						</span>
-						<ChevronRightIcon className="size-3.5 shrink-0 text-fg3" />
-					</Link>
-					<div className="flex flex-wrap items-center gap-3 px-5 py-3.5">
-						<LogOutIcon className="size-4 shrink-0 text-fg3" />
-						<span className="min-w-0 flex-1 text-[13.5px] font-medium">Log out</span>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								setLoggingOut(true);
-							}}
+						<span
+							aria-hidden="true"
+							className="shrink-0 text-fg3 transition-transform duration-140 group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none"
 						>
-							Log out
-						</Button>
-					</div>
+							→
+						</span>
+					</Link>
 				</SettingsCard>
 				<ActiveSessions />
-				<LogoutConfirm
-					open={loggingOut}
-					onClose={() => {
-						setLoggingOut(false);
-					}}
-				/>
 			</SettingsSection>
 
 			<SettingsSection title="Danger zone">

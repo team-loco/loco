@@ -72,7 +72,7 @@ export function DeleteAccount({ user }: { user: User }) {
 		<>
 			<DangerZone
 				title="Delete your account"
-				description="Permanently deletes your profile, sessions and personal tokens, removes your memberships and signs you out. Your organizations, workspaces and their history stay."
+				description="Deletes your profile, sessions and personal tokens, removes your memberships and signs you out. Your organizations, workspaces and their history stay."
 				actionLabel="Delete account"
 				blockedReason={blockedReason}
 				onAction={() => {
