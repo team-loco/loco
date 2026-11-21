@@ -23,69 +23,59 @@ const configCacheControl = "public, max-age=60"
 
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
 type ConfigServer struct {
-	apiVersion                string
-	minCLIVersion             string
-	apiTokenMaxLifetime       time.Duration
-	observabilityMaxTimeRange time.Duration
-	schemaURL                 string
-	defaults                  servicedefaults.Defaults
-	webAuthEnabled            bool
-	orgLinks                  []*configv1.OrgLink
-	counts                    *configv1.CountLimits
-	historyRetention          *configv1.HistoryRetention
-	defaultRegion             string
-	regions                   liveRegionChecker
-	warnDefaultRegion         sync.Once
+	settings          ConfigSettings
+	webAuthEnabled    bool
+	orgLinks          []*configv1.OrgLink
+	regions           liveRegionChecker
+	warnDefaultRegion sync.Once
+}
+
+// ConfigSettings holds the install-wide values GetConfig reports.
+type ConfigSettings struct {
+	APIVersion                string
+	MinCLIVersion             string
+	SchemaURL                 string
+	ServiceDefaults           servicedefaults.Defaults
+	AuthIssuers               []auth.IssuerConfig
+	OrgLinks                  []OrgLink
+	APITokenMaxLifetime       time.Duration
+	ObservabilityMaxTimeRange time.Duration
+	CountLimits               *configv1.CountLimits
+	HistoryRetention          *configv1.HistoryRetention
+	DefaultRegion             string
 }
 
 type liveRegionChecker interface {
 	IsLiveRegion(ctx context.Context, code string) (bool, error)
 }
 
-func NewConfigServer(
-	apiVersion, minCLIVersion, schemaURL string,
-	defaults servicedefaults.Defaults,
-	issuers []auth.IssuerConfig,
-	orgLinks []OrgLink,
-	apiTokenMaxLifetime, observabilityMaxTimeRange time.Duration,
-	counts *configv1.CountLimits,
-	historyRetention *configv1.HistoryRetention,
-	defaultRegion string,
-	regions liveRegionChecker,
-) *ConfigServer {
-	_, webAuthEnabled := auth.WebIssuer(issuers)
+func NewConfigServer(settings ConfigSettings, regions liveRegionChecker) *ConfigServer {
+	_, webAuthEnabled := auth.WebIssuer(settings.AuthIssuers)
 	return &ConfigServer{
-		apiVersion:                apiVersion,
-		minCLIVersion:             minCLIVersion,
-		schemaURL:                 schemaURL,
-		defaults:                  defaults,
-		orgLinks:                  orgLinksProto(orgLinks),
-		webAuthEnabled:            webAuthEnabled,
-		apiTokenMaxLifetime:       apiTokenMaxLifetime,
-		observabilityMaxTimeRange: observabilityMaxTimeRange,
-		counts:                    counts,
-		historyRetention:          historyRetention,
-		defaultRegion:             defaultRegion,
-		regions:                   regions,
+		settings:       settings,
+		webAuthEnabled: webAuthEnabled,
+		orgLinks:       orgLinksProto(settings.OrgLinks),
+		regions:        regions,
 	}
 }
 
 // liveDefaultRegion returns LOCO_DEFAULT_REGION when it names a live region, and "" otherwise.
 func (s *ConfigServer) liveDefaultRegion(ctx context.Context) (string, error) {
-	if s.defaultRegion == "" {
+	if s.settings.DefaultRegion == "" {
 		return "", nil
 	}
-	live, err := s.regions.IsLiveRegion(ctx, s.defaultRegion)
+	live, err := s.regions.IsLiveRegion(ctx, s.settings.DefaultRegion)
 	if err != nil {
 		return "", fmt.Errorf("check default region: %w", err)
 	}
 	if !live {
 		s.warnDefaultRegion.Do(func() {
-			slog.WarnContext(ctx, "LOCO_DEFAULT_REGION is not a live region; ignoring it", "region", s.defaultRegion)
+			slog.WarnContext(ctx, "LOCO_DEFAULT_REGION is not a live region; ignoring it",
+				"region", s.settings.DefaultRegion)
 		})
 		return "", nil
 	}
-	return s.defaultRegion, nil
+	return s.settings.DefaultRegion, nil
 }
 
 func (s *ConfigServer) GetConfig(
@@ -99,18 +89,18 @@ func (s *ConfigServer) GetConfig(
 	if err != nil {
 		return nil, err
 	}
-	health := configplan.Health(s.defaults.Health())
+	health := configplan.Health(s.settings.ServiceDefaults.Health())
 	return &configv1.GetConfigResponse{
-		MinCliVersion:              s.minCLIVersion,
-		ApiVersion:                 s.apiVersion,
-		ApiTokenMaxLifetimeSeconds: int64(s.apiTokenMaxLifetime / time.Second),
-		SchemaUrl:                  s.schemaURL,
+		MinCliVersion:              s.settings.MinCLIVersion,
+		ApiVersion:                 s.settings.APIVersion,
+		ApiTokenMaxLifetimeSeconds: int64(s.settings.APITokenMaxLifetime / time.Second),
+		SchemaUrl:                  s.settings.SchemaURL,
 		WebAuthEnabled:             s.webAuthEnabled,
 		DefaultRegion:              defaultRegion,
 		OrgLinks:                   s.orgLinks,
-		CountLimits:                s.counts,
-		HistoryRetention:           s.historyRetention,
-		ObservabilityMaxTimeRange:  durationpb.New(s.observabilityMaxTimeRange),
+		CountLimits:                s.settings.CountLimits,
+		HistoryRetention:           s.settings.HistoryRetention,
+		ObservabilityMaxTimeRange:  durationpb.New(s.settings.ObservabilityMaxTimeRange),
 		SizeLimits: &configv1.SizeLimits{
 			MinCpuMillis:   locoControllerV1.MinCPUMillis,
 			MaxCpuMillis:   locoControllerV1.MaxCPUMillis,
@@ -122,12 +112,12 @@ func (s *ConfigServer) GetConfig(
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Observability: observabilityconfig.Defaults().Proto(),
 			HealthCheck:   healthCheckFor(&health),
-			Cpu:           s.defaults.CPU,
-			Memory:        s.defaults.Memory,
-			MinReplicas:   s.defaults.MinReplicas,
-			MaxReplicas:   s.defaults.MaxReplicas,
-			CpuTarget:     s.defaults.CPUTarget,
-			FailurePolicy: s.defaults.FailurePolicy(nil, nil, nil).Proto(),
+			Cpu:           s.settings.ServiceDefaults.CPU,
+			Memory:        s.settings.ServiceDefaults.Memory,
+			MinReplicas:   s.settings.ServiceDefaults.MinReplicas,
+			MaxReplicas:   s.settings.ServiceDefaults.MaxReplicas,
+			CpuTarget:     s.settings.ServiceDefaults.CPUTarget,
+			FailurePolicy: s.settings.ServiceDefaults.FailurePolicy(nil, nil, nil).Proto(),
 		},
 	}, nil
 }
