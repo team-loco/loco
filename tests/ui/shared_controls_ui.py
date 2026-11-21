@@ -1173,7 +1173,7 @@ def dashboard(page):
             expect(modes.get_by_role("radio", checked=True)).to_be_focused()
             # The open user menu stays by its sidebar trigger while the page scrolls under it, as it
             # can before the menu's scroll lock applies.
-            scrolled, moved = modes.evaluate(
+            scrolled, moved, scrollers = modes.evaluate(
                 """group => {
                     const rows = document.querySelectorAll('main [role="row"]');
                     const row = rows[rows.length - 1];
@@ -1181,8 +1181,13 @@ def dashboard(page):
                     const saved = roots.map((el) => [el, el.scrollTop, el.style.overflow, el.style.overflowY]);
                     for (const el of roots) el.style.overflow = el.style.overflowY = '';
                     const [rowTop, top] = [row.getBoundingClientRect().top, group.getBoundingClientRect().top];
-                    row.scrollIntoView({ block: 'end' });
-                    const result = [row.getBoundingClientRect().top - rowTop, group.getBoundingClientRect().top - top];
+                    const down = roots.every((el) => el.scrollTop === 0);
+                    (down ? row : roots[1]).scrollIntoView({ block: down ? 'end' : 'start' });
+                    const result = [
+                        row.getBoundingClientRect().top - rowTop,
+                        group.getBoundingClientRect().top - top,
+                        saved.map(([el, y]) => `${el.tagName} ${y}/${el.scrollHeight - el.clientHeight}`).join(' '),
+                    ];
                     for (const [el, y, overflow, overflowY] of saved) {
                         el.style.overflow = overflow;
                         el.style.overflowY = overflowY;
@@ -1191,7 +1196,7 @@ def dashboard(page):
                     return result;
                 }"""
             )
-            assert scrolled != 0 and moved == 0, (scrolled, moved)
+            assert scrolled != 0 and moved == 0, (scrolled, moved, scrollers)
             modes.get_by_role("radio", name="Dark", exact=True).click()
             page.keyboard.press("Escape")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
