@@ -559,7 +559,7 @@ func newSupportEmail() string {
 		return ""
 	}
 	address, err := mail.ParseAddress(raw)
-	if err != nil || address.Name != "" || address.Address != raw {
+	if err != nil || address.Address != raw {
 		panic(fmt.Errorf("%w: %q", errInvalidSupportEmail, raw))
 	}
 	return raw
