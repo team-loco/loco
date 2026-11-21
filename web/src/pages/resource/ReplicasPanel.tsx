@@ -14,7 +14,7 @@ import { RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric"
 import { MetricChart, type ChartMarker } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
-import { MANY_REPLICAS, ReplicaDetail, ReplicaList } from "./ReplicaList";
+import { ReplicaDetail, ReplicaList } from "./ReplicaList";
 import { regionReady, replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
@@ -169,7 +169,6 @@ export function ReplicasPanel({
 						environmentId={environmentId}
 						resourceId={resourceId}
 						region={r}
-						many={(r.status?.replicas.length ?? 0) > MANY_REPLICAS}
 						selected={picked}
 						onSelect={setPicked}
 						regionPressed={selected === r.name}

@@ -235,7 +235,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const obsLink = (
 		obsView: "logs" | "metrics" | "events",
-		region: string | null = null,
+		filter: { key: string; value: string } | null = null,
 		rangeMs?: number,
 	): string | undefined =>
 		hasWs
@@ -243,16 +243,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					...envParam,
 					...(rangeMs === undefined ? {} : { range: rangeMs }),
 					r: [resource.slug],
-					q: region === null ? null : queryStr([{ key: "region", value: quoteValue(region), neg: false }], ""),
-				})
-			: undefined;
-	const replicaLink = (obsView: "logs" | "metrics", replica: string, rangeMs?: number): string | undefined =>
-		hasWs
-			? observabilityPath(activeOrgId, activeWorkspaceId, obsView, {
-					...envParam,
-					...(rangeMs === undefined ? {} : { range: rangeMs }),
-					r: [resource.slug],
-					q: queryStr([{ key: "replica", value: quoteValue(replica), neg: false }], ""),
+					q: filter === null ? null : queryStr([{ key: filter.key, value: quoteValue(filter.value), neg: false }], ""),
 				})
 			: undefined;
 	const switcher = hasWs
@@ -471,7 +462,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							onRange={(next) => {
 								void setParams({ range: next });
 							}}
-							metricsHref={obsLink("metrics", selectedRegion, RANGE_MS[range])}
+							metricsHref={obsLink(
+								"metrics",
+								selectedRegion === null ? null : { key: "region", value: selectedRegion },
+								RANGE_MS[range],
+							)}
 						/>
 					)}
 					{deployed.length > 0 && environmentId !== undefined ? (
@@ -489,7 +484,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							range={range}
 							markers={markers}
 							replicaHref={(obsView, replica) =>
-								replicaLink(obsView, replica, obsView === "metrics" ? RANGE_MS[range] : undefined)
+								obsLink(
+									obsView,
+									{ key: "replica", value: replica },
+									obsView === "metrics" ? RANGE_MS[range] : undefined,
+								)
 							}
 						/>
 					) : (

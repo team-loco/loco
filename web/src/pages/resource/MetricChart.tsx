@@ -132,6 +132,8 @@ export function MetricChart({
 			: undefined;
 	const shown = markers.filter((m) => m.ms >= from && m.ms <= to);
 	const highest = replicas?.highest;
+	const average = replicas === undefined ? usage.average : replicas.average;
+	const top = replicas === undefined ? usage.highest : highest?.value;
 	const highestShare =
 		highest?.share === undefined ? undefined : `${Math.round(highest.share * 100).toString()}% of limit`;
 	const tooltipValue = (value: unknown) =>
@@ -140,35 +142,14 @@ export function MetricChart({
 		<div className="flex min-w-0 flex-col gap-3.5">
 			<span className="text-[13.5px] font-medium">{title}</span>
 			<div className="flex gap-6">
-				{replicas === undefined ? (
-					<>
-						<Stat
-							label="Average"
-							value={usage.average === undefined ? "—" : show(usage.average)}
-							isLoading={isLoading}
-						/>
-						<Stat
-							label="Highest"
-							value={usage.highest === undefined ? "—" : show(usage.highest)}
-							warning={warning}
-							isLoading={isLoading}
-						/>
-					</>
-				) : (
-					<>
-						<Stat
-							label="Average"
-							value={replicas.average === undefined ? "—" : show(replicas.average)}
-							isLoading={isLoading}
-						/>
-						<Stat
-							label={highest === undefined ? "Highest" : `Highest, ${shortName(highest.replica)}`}
-							value={highest === undefined ? "—" : show(highest.value)}
-							note={absolute ? highestShare : undefined}
-							isLoading={isLoading}
-						/>
-					</>
-				)}
+				<Stat label="Average" value={average === undefined ? "—" : show(average)} isLoading={isLoading} />
+				<Stat
+					label={highest === undefined ? "Highest" : `Highest, ${shortName(highest.replica)}`}
+					value={top === undefined ? "—" : show(top)}
+					note={absolute ? highestShare : undefined}
+					warning={replicas === undefined ? warning : undefined}
+					isLoading={isLoading}
+				/>
 			</div>
 			{isLoading ? (
 				<Skeleton className="h-40 w-full" />
@@ -262,26 +243,26 @@ export function MetricChart({
 							/>
 						))}
 						{replicas === undefined && (
-							<Area
-								dataKey="band"
-								type="linear"
-								stroke="none"
-								fill="var(--series-0)"
-								fillOpacity={BAND_OPACITY}
-								isAnimationActive={false}
-								connectNulls
-							/>
-						)}
-						{replicas === undefined && (
-							<Line
-								dataKey="median"
-								type="linear"
-								stroke="var(--series-0)"
-								strokeWidth={LINE_WIDTH}
-								dot={points.length === 1}
-								isAnimationActive={false}
-								connectNulls
-							/>
+							<>
+								<Area
+									dataKey="band"
+									type="linear"
+									stroke="none"
+									fill="var(--series-0)"
+									fillOpacity={BAND_OPACITY}
+									isAnimationActive={false}
+									connectNulls
+								/>
+								<Line
+									dataKey="median"
+									type="linear"
+									stroke="var(--series-0)"
+									strokeWidth={LINE_WIDTH}
+									dot={points.length === 1}
+									isAnimationActive={false}
+									connectNulls
+								/>
+							</>
 						)}
 					</ComposedChart>
 				</ChartContainer>

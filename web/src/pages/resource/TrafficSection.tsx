@@ -73,12 +73,11 @@ function PublicTraffic({
 		region,
 		spanMs: RANGE_MS[range],
 	});
-	const points = traffic.points;
 	const to = traffic.endMs;
 	const from = to - RANGE_MS[range];
 	const latest = latestTraffic(traffic.points, resourceId);
 	const share = errorShare(latest);
-	const axis = trafficAxis(Math.max(0, ...points.map((point) => point.requests ?? 0)), "/s");
+	const axis = trafficAxis(Math.max(0, ...traffic.points.map((point) => point.requests ?? 0)), "/s");
 	return (
 		<Section title="Traffic">
 			{traffic.error !== null ? (
@@ -105,13 +104,13 @@ function PublicTraffic({
 					</div>
 					{traffic.isLoading ? (
 						<Skeleton className="h-[150px] w-full" />
-					) : points.some((point) => point.requests !== undefined) ? (
+					) : traffic.points.some((point) => point.requests !== undefined) ? (
 						<ChartContainer
 							config={{ requests: { label: "Requests", color: "var(--series-0)" } }}
 							className="aspect-auto h-[150px] w-full"
 							aria-label="Requests"
 						>
-							<AreaChart data={points}>
+							<AreaChart data={traffic.points}>
 								<CartesianGrid vertical={false} stroke="var(--line)" />
 								<XAxis
 									dataKey="time"

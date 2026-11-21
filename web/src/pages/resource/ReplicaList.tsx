@@ -23,7 +23,7 @@ const USAGE_METRICS = ["k8s.pod.cpu_limit_utilization", "k8s.pod.memory.working_
 const PERCENT = 100;
 const HIGH_SHARE = 0.85;
 /** Regions with more replicas than this show one small cell per replica. */
-export const MANY_REPLICAS = 24;
+const MANY_REPLICAS = 24;
 
 const CELL_TONE: Record<BadgeTone, string> = {
 	ok: "bg-ok-glyph",
@@ -53,7 +53,6 @@ export function ReplicaList({
 	environmentId,
 	resourceId,
 	region,
-	many,
 	selected,
 	onSelect,
 	regionPressed,
@@ -64,7 +63,6 @@ export function ReplicaList({
 	environmentId: string;
 	resourceId: string;
 	region: RegionView;
-	many: boolean;
 	regionPressed: boolean;
 	onPickRegion: () => void;
 	selected: string | null;
@@ -97,9 +95,7 @@ export function ReplicaList({
 	const reportedMs = maybeTsMs(region.status?.reportedAt);
 	const { ready, desired } = regionReady(region);
 	const measuring = cpu?.isLoading === true || memory?.isLoading === true;
-	const pick = (name: string) => {
-		onSelect(selected === name ? null : name);
-	};
+	const many = replicas.length > MANY_REPLICAS;
 	return (
 		<section aria-label={`Replicas in ${region.name}`} className="flex min-w-0 flex-col gap-2">
 			<h3 className="m-0 flex flex-wrap items-baseline gap-x-2 text-[12px] font-normal text-fg3">
@@ -117,68 +113,58 @@ export function ReplicaList({
 				)}
 			</h3>
 			{replicas.length === 0 && <p className="m-0 text-[12px] text-fg3">No replicas reported</p>}
-			{many ? (
-				<ul className={cn("m-0 flex list-none flex-wrap gap-1 p-0", stale && "opacity-60")}>
-					{replicas.map((replica) => {
-						const state = replicaState(replica.state);
-						return (
-							<li key={replica.uid} className="flex">
-								<button
-									type="button"
-									aria-pressed={selected === replica.name}
-									aria-label={`${replica.name}: ${state.label}`}
-									title={`${replica.name}: ${state.label}`}
-									onClick={() => {
-										pick(replica.name);
-									}}
-									className={cn(
-										"size-3.5 rounded-[3px] border-0 p-0 aria-pressed:ring-2 aria-pressed:ring-ring aria-pressed:ring-offset-1",
-										CELL_TONE[state.tone],
-									)}
-								/>
-							</li>
-						);
-					})}
-				</ul>
-			) : (
-				<ul
-					className={cn(
-						"m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(220px,100%),1fr))] gap-2 p-0",
-						stale && "opacity-60",
-					)}
-				>
-					{replicas.map((replica) => {
-						const state = replicaState(replica.state);
-						return (
-							<li key={replica.uid} className="flex min-w-0">
-								<button
-									type="button"
-									aria-pressed={selected === replica.name}
-									onClick={() => {
-										pick(replica.name);
-									}}
-									className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg border border-line bg-background px-3 py-2.5 text-left text-[12px] hover:bg-panel aria-pressed:border-foreground"
-								>
-									<span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-										<span className="min-w-0 break-all font-mono">{replica.name}</span>
-										<Badge size="sm" tone={state.tone}>
-											{state.label}
-										</Badge>
-									</span>
-									{measuring ? (
-										<Skeleton className="h-3.5 w-40" />
-									) : (
-										<span className="flex min-w-0 flex-wrap gap-x-3 font-mono text-[11.5px] tabular-nums">
-											<Usage name="CPU" ratio={cpuUsage.get(replica.name)} limit={cpuLimit} />
-											<Usage name="Mem" ratio={memoryUsage.get(replica.name)} limit={memoryLimit} />
+			<ul
+				className={cn(
+					"m-0 list-none p-0",
+					many ? "flex flex-wrap gap-1" : "grid grid-cols-[repeat(auto-fill,minmax(min(220px,100%),1fr))] gap-2",
+					stale && "opacity-60",
+				)}
+			>
+				{replicas.map((replica) => {
+					const state = replicaState(replica.state);
+					const label = many ? `${replica.name}: ${state.label}` : undefined;
+					return (
+						<li key={replica.uid} className="flex min-w-0">
+							<button
+								type="button"
+								aria-pressed={selected === replica.name}
+								aria-label={label}
+								title={label}
+								onClick={() => {
+									onSelect(selected === replica.name ? null : replica.name);
+								}}
+								className={
+									many
+										? cn(
+												"size-3.5 rounded-[3px] border-0 p-0 aria-pressed:ring-2 aria-pressed:ring-ring aria-pressed:ring-offset-1",
+												CELL_TONE[state.tone],
+											)
+										: "flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg border border-line bg-background px-3 py-2.5 text-left text-[12px] hover:bg-panel aria-pressed:border-foreground"
+								}
+							>
+								{!many && (
+									<>
+										<span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+											<span className="min-w-0 break-all font-mono">{replica.name}</span>
+											<Badge size="sm" tone={state.tone}>
+												{state.label}
+											</Badge>
 										</span>
-									)}
-								</button>
-							</li>
-						);
-					})}
-				</ul>
-			)}
+										{measuring ? (
+											<Skeleton className="h-3.5 w-40" />
+										) : (
+											<span className="flex min-w-0 flex-wrap gap-x-3 font-mono text-[11.5px] tabular-nums">
+												<Usage name="CPU" ratio={cpuUsage.get(replica.name)} limit={cpuLimit} />
+												<Usage name="Mem" ratio={memoryUsage.get(replica.name)} limit={memoryLimit} />
+											</span>
+										)}
+									</>
+								)}
+							</button>
+						</li>
+					);
+				})}
+			</ul>
 		</section>
 	);
 }
