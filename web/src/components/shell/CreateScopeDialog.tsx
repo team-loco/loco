@@ -127,7 +127,7 @@ function CreateWorkspaceForm({ onDone }: { onDone: () => void }) {
 							aria-invalid={error !== null}
 							className="h-9 text-[13.5px]"
 							onChange={(e) => {
-								setName(e.target.value.toLowerCase());
+								setName(e.target.value);
 							}}
 						/>
 					</Field>

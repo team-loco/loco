@@ -168,7 +168,7 @@ export function WorkspaceTab({
 							aria-invalid={shownErr !== null}
 							className="h-9 font-mono text-[13.5px]"
 							onChange={(e) => {
-								onDraft({ ...current, name: e.target.value.toLowerCase() });
+								onDraft({ ...current, name: e.target.value });
 							}}
 						/>
 					</Field>
