@@ -1356,7 +1356,10 @@ def authenticate(context, state, token):
 
 
 def capture(browser, state, shot, theme, narrow, target):
-    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+    from playwright.sync_api import (
+        Error as PlaywrightError,
+        TimeoutError as PlaywrightTimeout,
+    )
 
     ids, now = placeholder_ids(state), time.time()
     shot = {
@@ -1502,10 +1505,13 @@ def capture(browser, state, shot, theme, narrow, target):
                 path=tmp, clip={"x": x, "y": y, "width": width, "height": height}
             )
         tmp.rename(target)
-    except EvidenceError as err:
+    except (EvidenceError, PlaywrightError) as err:
         failed = target.parent / "failed" / target.name
         failed.parent.mkdir(exist_ok=True)
-        page.screenshot(path=failed)
+        try:
+            page.screenshot(path=failed, timeout=STEP_TIMEOUT_MS)
+        except PlaywrightError as shot_err:
+            failed = f"not taken: {shot_err.message}"
         detail = "; ".join(problems[-5:]) or "no console errors or failed requests"
         raise EvidenceError(
             f"{err} (page at {page.url}; {detail}; screenshot {failed})"
