@@ -17,11 +17,12 @@ import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFie
 import { SoonTag } from "@/components/design/SoonTag";
 import { Switch } from "@/components/design/Switch";
 import { joinImage, parseImage, splitImage } from "@/lib/image";
+import type { Scaling } from "@/lib/new-resource";
 import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
-import type { RegionView } from "./model";
 import {
 	RESTART_CHOICES,
+	scalingDiffers,
 	type Baseline,
 	type DraftErrors,
 	type RestartChoice,
@@ -152,53 +153,38 @@ export function ScalingSection({
 	locked,
 	onChange,
 	sizes,
-	regions,
 	sectionRef,
 }: SectionProps & {
 	sizes: SizeOptions;
-	regions: RegionView[];
 	sectionRef: ((node: HTMLElement | null) => void) | undefined;
 }) {
 	const names = Object.keys(base.scaling);
+	const first = names[0];
+	const value = first === undefined ? undefined : (draft.scaling?.[first] ?? base.scaling[first]);
+	const setAll = (scaling: Scaling) => {
+		onChange({ scaling: Object.fromEntries(names.map((name) => [name, scaling])) });
+	};
+	const error = names.map((name) => errors[`scaling.${name}`]).find((e) => e !== undefined) ?? null;
 	return (
 		<SettingsBlock
 			id="set-scaling"
 			sectionRef={sectionRef}
 			title="Scaling"
-			hint="Run a fixed number of replicas, or turn on autoscaling to scale between bounds on CPU."
+			hint="Applies to every region this resource runs in."
+			actions={
+				value !== undefined && (
+					<AutoscalingSwitch value={value} replicaRange={sizes.replicas} disabled={locked} onChange={setAll} />
+				)
+			}
 		>
-			{names.length === 0 && <span className="text-fg3">Scaling is available once the resource is deployed.</span>}
-			<div className="flex flex-col gap-5">
-				{Object.entries(base.scaling).map(([name, value]) => (
-					<div key={name} className="flex flex-col gap-2.5">
-						<div className="flex items-center justify-between gap-3">
-							<span className="font-mono text-[12.5px] text-fg2">{name}</span>
-							<AutoscalingSwitch
-								value={draft.scaling?.[name] ?? value}
-								region={name}
-								replicaRange={sizes.replicas}
-								disabled={locked}
-								onChange={(scaling) => {
-									onChange({ scaling: { ...draft.scaling, [name]: scaling } });
-								}}
-							/>
-						</div>
-						<ScalingFields
-							value={draft.scaling?.[name] ?? value}
-							region={name}
-							replicaRange={sizes.replicas}
-							disabled={locked}
-							error={errors[`scaling.${name}`] ?? null}
-							onChange={(scaling) => {
-								onChange({ scaling: { ...draft.scaling, [name]: scaling } });
-							}}
-						/>
-					</div>
-				))}
-			</div>
-			{regions.length > names.length && (
+			{value === undefined ? (
+				<span className="text-fg3">Scaling is available once the resource is deployed.</span>
+			) : (
+				<ScalingFields value={value} replicaRange={sizes.replicas} disabled={locked} error={error} onChange={setAll} />
+			)}
+			{scalingDiffers(base) && (
 				<span className="text-[12.5px] text-fg3">
-					Regions added below start with the scaling of {names[0] ?? "the first region"}.
+					Regions scale differently now. Saving applies these values to every region.
 				</span>
 			)}
 		</SettingsBlock>
