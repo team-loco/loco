@@ -80,23 +80,23 @@ describe("resourcesOrder", () => {
 	];
 
 	test("an environment's column sorts by its status in that environment", () => {
-		expect(resourcesOrder({ id: "env-staging", desc: true }, environments)).toEqual({
+		expect(resourcesOrder({ id: "env-staging", desc: true }, environments, "e-prod")).toEqual({
 			orderBy: ResourceOrder.STATUS,
 			descending: true,
-			environmentId: "e-stg",
+			sortEnvironmentId: "e-stg",
 		});
 	});
 
-	test("name, size and created sort across every environment", () => {
+	test("name, size and created read the active environment", () => {
 		for (const [id, orderBy] of [
 			["name", ResourceOrder.NAME],
 			["size", ResourceOrder.SIZE],
 			["created", ResourceOrder.CREATED],
 		] as const) {
-			expect(resourcesOrder({ id, desc: false }, environments)).toEqual({
+			expect(resourcesOrder({ id, desc: false }, environments, "e-prod")).toEqual({
 				orderBy,
 				descending: false,
-				environmentId: "",
+				sortEnvironmentId: "e-prod",
 			});
 		}
 	});

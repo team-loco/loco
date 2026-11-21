@@ -497,7 +497,8 @@ def resources(page):
         "ListWorkspaceResources",
         lambda body: (
             body.get("orderBy") == "RESOURCE_ORDER_STATUS"
-            and body.get("environmentId") == production_id()
+            and body.get("sortEnvironmentId") == production_id()
+            and "environmentId" not in body
             and body.get("pageSize") == 25
         ),
     ):

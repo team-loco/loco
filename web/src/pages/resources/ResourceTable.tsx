@@ -88,12 +88,11 @@ export function ResourceTable({
 	};
 
 	// The counts ignore the status filter, as the region counts do.
-	const { environmentId, ...order } = resourcesOrder(state.sort, environments);
+	const order = resourcesOrder(state.sort, environments, active?.id);
 	const counted = {
 		workspaceId,
 		query: filter.query.trim(),
 		region: filter.region === ALL ? "" : filter.region,
-		environmentId,
 	};
 	const listed = useTokenPage(
 		listWorkspaceResources,

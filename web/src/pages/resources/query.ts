@@ -74,13 +74,16 @@ const ORDERS: Record<string, ResourceOrder> = {
 	created: ResourceOrder.CREATED,
 };
 
-/** The order of the Resources page's sort; an environment's column sorts by its status there. */
-export function resourcesOrder(sort: Sort<string>, environments: readonly Environment[]) {
+/**
+ * The order of the Resources page's sort: an environment's column sorts by its status there, and size by the
+ * active environment's, as its cells show.
+ */
+export function resourcesOrder(sort: Sort<string>, environments: readonly Environment[], activeId: string | undefined) {
 	const environment = environments.find((e) => `${ENV_PREFIX}${e.slug}` === sort.id);
 	return {
 		orderBy: environment === undefined ? (ORDERS[sort.id] ?? ResourceOrder.NAME) : ResourceOrder.STATUS,
 		descending: sort.desc,
-		environmentId: environment?.id ?? "",
+		sortEnvironmentId: environment?.id ?? activeId ?? "",
 	};
 }
 
