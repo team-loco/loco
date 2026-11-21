@@ -97,13 +97,15 @@ export function ResourceStatusBadge({ status }: { status: ResourceStatus | undef
 	return <StatusBadge {...resourceStatusStyle(status)} />;
 }
 
-export const ROLLOUT_STYLE: Record<Rollout, StatusStyle> = {
-	updating: { label: "Updating", glyph: "spin" },
-	failed: { label: "Update failed · previous version serving", glyph: "err" },
+export const ROLLOUT_STYLE: Record<Rollout, StatusStyle & { short: string }> = {
+	updating: { label: "Updating", short: "Updating", glyph: "spin" },
+	failed: { label: "Update failed · previous version serving", short: "Update failed", glyph: "err" },
 };
 
-export function RolloutBadge({ rollout }: { rollout: Rollout | undefined }) {
-	return rollout === undefined ? null : <StatusBadge {...ROLLOUT_STYLE[rollout]} />;
+export function RolloutBadge({ rollout, compact = false }: { rollout: Rollout | undefined; compact?: boolean }) {
+	if (rollout === undefined) return null;
+	const { label, short, glyph } = ROLLOUT_STYLE[rollout];
+	return <StatusBadge glyph={glyph} label={compact ? short : label} />;
 }
 
 const SUPERSEDED: StatusStyle = { label: "Superseded", glyph: "off" };

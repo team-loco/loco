@@ -155,7 +155,7 @@ function StatusCell({ item }: { item: DashboardItem }) {
 	return (
 		<div className="flex min-w-0 flex-col items-start gap-[3px]">
 			<ResourceStatusBadge status={item.status} />
-			<RolloutBadge rollout={rolloutState(item.environment?.regions ?? [])} />
+			<RolloutBadge rollout={rolloutState(item.environment?.regions ?? [])} compact />
 			{note !== "" && <CellText text={note} className="max-w-full text-[12px] text-fg3" />}
 		</div>
 	);

@@ -166,7 +166,7 @@ def check_dashboard(page):
     page.goto(base + "?env=production")
     expect_badge(row_of(page, "badge-healthy"), "Healthy", "ok")
     expect_badges(row_of(page, "badge-healthy"), ["Healthy"])
-    expect_badges(row_of(page, "badge-update-failed"), ["Healthy", FAILED_UPDATE])
+    expect_badges(row_of(page, "badge-update-failed"), ["Healthy", "Update failed"])
     expect(
         row_of(page, "badge-update-failed").locator("[data-status-badge]").nth(1)
     ).to_have_attribute("data-status-badge", "err")

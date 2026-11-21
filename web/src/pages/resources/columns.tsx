@@ -85,7 +85,7 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 					{rollout !== undefined && (
 						<span className={SUMMARY_TONE[rollout.glyph]}>
 							{" · "}
-							{cell.rollout === "failed" ? "update failed" : "updating"}
+							{rollout.short.toLowerCase()}
 						</span>
 					)}
 				</span>
