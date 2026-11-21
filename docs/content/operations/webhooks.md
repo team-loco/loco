@@ -20,6 +20,93 @@ Events enter the webhook outbox in the transaction that changes platform state. 
 
 Requests carry `Webhook-Id`, `Webhook-Timestamp`, and `Webhook-Signature`. Verify the HMAC-SHA256 signature over `Webhook-Id + "." + Webhook-Timestamp + "." + raw request body` using the decoded signing key. The signature header contains `v1,` followed by the base64 signature; secret rotation can produce multiple space-separated signatures. Accept a valid signature and reject stale timestamps before processing the event.
 
+## Workspace webhooks
+
+A workspace webhook delivers the events of one workspace to an HTTPS endpoint. Workspace admins create and manage them on the workspace's **Webhooks** page or through `WebhookService`; every `WebhookService` call requires `workspace:admin`. Deliveries use the outbox, retries, headers and signatures described above.
+
+### Create a webhook
+
+On the **Webhooks** page, choose **New webhook**, enter an optional name and the endpoint URL, and pick **All events** or **Choose events**. Saving shows the signing secret once; copy it before closing the dialog. `WebhookService.CreateWebhook` does the same and returns the secret in `secret`:
+
+```sh
+curl -sS "$LOCO_API/loco.webhook.v1.WebhookService/CreateWebhook" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"workspaceId":"<workspace-id>","name":"Deploy alerts","url":"https://hooks.example.com/loco","eventTypes":["build.failed"]}'
+```
+
+| Field | Value |
+| --- | --- |
+| `workspace_id` | Workspace that owns the webhook |
+| `url` | Endpoint, at most 2048 characters: `https` with a host name and no user info. With `WEBHOOK_ALLOW_PRIVATE_NETWORKS` on the API, `http` and private addresses are accepted too |
+| `event_types` | Event types to deliver, at most 100; an empty list delivers every event |
+| `name` | Optional label of at most 100 characters, shown in the webhook list |
+
+`UpdateWebhook` replaces a webhook's name, URL and event types, and pending retries go to the new URL. `DeleteWebhook` removes the webhook and its deliveries. The row's menu on the **Webhooks** page offers both as **Edit** and **Delete**.
+
+A workspace holds at most 20 webhooks, the API's `LOCO_LIMIT_WEBHOOKS_PER_WORKSPACE`. A create past the limit fails with `ResourceExhausted`. A system admin can raise or lower it for one organization with `OrgService.SetOrgLimits` (`webhooks_per_workspace`); see [count limits](access.md#count-limits).
+
+### Event types
+
+A webhook receives each event recorded in its workspace whose type it subscribes to, or every such event when its list is empty. **Choose events** offers these types:
+
+| Group | Event types |
+| --- | --- |
+| Runtime alerts | `resource.degraded`, `resource.recovered` |
+| Deployments | `deployment.created`, `deployment.canceled`, `deployment.deleted` |
+| Builds | `build.created`, `build.started`, `build.succeeded`, `build.failed`, `build.canceled` |
+| Resources | `resource.created`, `resource.updated`, `resource.deleted`, `resource.scaled`, `resource.restarted`, `resource.partial_transferred` |
+| Domains | `domain.created`, `domain.updated`, `domain.deleted` |
+| Environments | `environment.created`, `environment.updated`, `environment.deleted` |
+| Secrets | `secret.set`, `secret.deleted`, `secret_key.rewrapped` |
+| Members | `member.added`, `member.removed` |
+| Tokens | `token.created`, `token.revoked` |
+| Workspace | `workspace.created`, `workspace.updated`, `workspace.deleted`, `webhook.created`, `webhook.updated`, `webhook.secret_rotated`, `webhook.deleted` |
+
+`event_types` in the API takes any event type name. `deployment.ready`, `deployment.failed` and `deployment.crashed` reach a webhook that subscribes to all events or names them through the API.
+
+**Send test event** on a webhook's row, or `SendTestEvent`, records a `webhook.test` event and delivers it to that webhook only, whatever event types it subscribes to.
+
+### Rotate the signing secret
+
+Choose **Rotate signing secret** in the webhook's menu and pick how long the old secret keeps working: **None**, **1 hour**, **24 hours** or **7 days**. The dialog shows the new secret once. `RotateWebhookSecret` takes the same choice as `grace_period_seconds`, from `0` to `604800`, and returns the new secret in `secret`.
+
+During the grace period every delivery carries two signatures in `Webhook-Signature`, one per secret, so a receiver keeps verifying while it switches to the new secret. The webhook's `previous_secret_expires_at` and the **Signing** row of its detail panel show when the old secret stops. With `0` the old secret stops at once. Rotating again during a grace period drops the older of the two secrets.
+
+### Deliveries and redelivery
+
+Select a webhook on the **Webhooks** page to open its deliveries, newest first, and switch between **All** and **Failing**. A delivery succeeds when the endpoint answers with a 2xx status. A delivery that fails is **Retrying** while attempts remain in `WEBHOOK_RETRY_DELAYS` (by default 30 seconds, 2 minutes, 10 minutes, 1 hour, 6 hours and 24 hours apart), and **Failed** after the last one; each failing delivery shows its last error and attempt count.
+
+The **Redeliver** button on a delivered or failed delivery sends it again with the same `Webhook-Id` and restarts its retry schedule. Through the API, `ListWebhookDeliveries` lists deliveries with an optional `status` (`pending`, `succeeded` or `failed`) and `failing` filter, and `RedeliverWebhookDelivery` takes the delivery ID. Redelivering a pending delivery fails with `FailedPrecondition`.
+
+### Verify a signature
+
+Any [Standard Webhooks](https://www.standardwebhooks.com/) library verifies Loco deliveries. Without one, this Go function checks a request against the webhook's signing secret and rejects timestamps more than five minutes off:
+
+```go
+func verify(secret string, h http.Header, body []byte) bool {
+	key, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(secret, "whsec_"))
+	if err != nil {
+		return false
+	}
+	ts, err := strconv.ParseInt(h.Get("Webhook-Timestamp"), 10, 64)
+	if err != nil || time.Since(time.Unix(ts, 0)).Abs() > 5*time.Minute {
+		return false
+	}
+	mac := hmac.New(sha256.New, key)
+	fmt.Fprintf(mac, "%s.%d.", h.Get("Webhook-Id"), ts)
+	mac.Write(body)
+	want := "v1," + base64.StdEncoding.EncodeToString(mac.Sum(nil))
+	for _, sig := range strings.Fields(h.Get("Webhook-Signature")) {
+		if hmac.Equal([]byte(sig), []byte(want)) {
+			return true
+		}
+	}
+	return false
+}
+```
+
+Pass the raw request body, read before any JSON decoding.
+
 ## Invitation events
 
 Core sends no email. A deployment that wants invitation email consumes `invitation.created` and `invitation.resent` and renders the email itself. Both events carry the same `data` fields:
