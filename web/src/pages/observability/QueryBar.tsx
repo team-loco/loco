@@ -307,7 +307,7 @@ export function QueryBar({
 
 	const curQuery = queryStr(tokens, text);
 	const pinned = curQuery !== "" && pinnedList.includes(curQuery);
-	const applies = support.some((s) => s.ok) || (searchesText(view) && text.trim() !== "");
+	const applies = recentQuery(view, tokens, text) !== "";
 
 	const onChange = (v: string) => {
 		const m = hasBoolean(v) ? null : COMPLETED_TOKEN_RE.exec(v);
@@ -417,7 +417,7 @@ export function QueryBar({
 							Clear
 						</Button>
 					)}
-					{curQuery !== "" && (pinned || applies) && (
+					{(pinned || applies) && (
 						<Button
 							variant="ghost"
 							size="icon-xs"
