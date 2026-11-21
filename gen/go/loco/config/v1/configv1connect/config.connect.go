@@ -31,9 +31,10 @@ const (
 var (
 	configServiceGetConfigSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_config_v1_config_proto.Services().ByName("ConfigService").Methods().ByName("GetConfig"),
-			Procedure:  ConfigServiceGetConfigProcedure,
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_loco_config_v1_config_proto.Services().ByName("ConfigService").Methods().ByName("GetConfig"),
+			Procedure:        ConfigServiceGetConfigProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
 		}
 	})
 )

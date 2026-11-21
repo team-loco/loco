@@ -725,9 +725,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"cpu_target\x18\b \x01(\x05R\tcpuTarget\x12M\n" +
 	"\robservability\x18\t \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12H\n" +
 	"\x0efailure_policy\x18\v \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\v2a\n" +
-	"\rConfigService\x12P\n" +
-	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
+	"\x10\v2f\n" +
+	"\rConfigService\x12U\n" +
+	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponse\"\x03\x90\x02\x01B:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 
 var (
 	file_loco_config_v1_config_proto_rawDescOnce sync.Once

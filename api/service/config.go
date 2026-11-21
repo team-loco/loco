@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/team-loco/loco/api/auth"
@@ -16,6 +17,9 @@ import (
 	"github.com/team-loco/loco/internal/observabilityconfig"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
+
+// configCacheControl lets shared caches keep the response briefly; it holds only process-wide values.
+const configCacheControl = "public, max-age=60"
 
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
 type ConfigServer struct {
@@ -88,6 +92,9 @@ func (s *ConfigServer) GetConfig(
 	ctx context.Context,
 	_ *configv1.GetConfigRequest,
 ) (*configv1.GetConfigResponse, error) {
+	if info, ok := connect.CallInfoForServerContext(ctx); ok {
+		info.ResponseHeader().Set("Cache-Control", configCacheControl)
+	}
 	defaultRegion, err := s.liveDefaultRegion(ctx)
 	if err != nil {
 		return nil, err
