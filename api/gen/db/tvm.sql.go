@@ -163,12 +163,39 @@ func (q *Queries) DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteA
 	return err
 }
 
-const deleteExpiredAPITokens = `-- name: DeleteExpiredAPITokens :exec
-DELETE FROM api_tokens WHERE expires_at < NOW()
+const deleteExpiredAPITokenByName = `-- name: DeleteExpiredAPITokenByName :exec
+DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3 AND expires_at <= NOW()
 `
 
-func (q *Queries) DeleteExpiredAPITokens(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, deleteExpiredAPITokens)
+type DeleteExpiredAPITokenByNameParams struct {
+	Name       string     `json:"name"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
+}
+
+func (q *Queries) DeleteExpiredAPITokenByName(ctx context.Context, arg DeleteExpiredAPITokenByNameParams) error {
+	_, err := q.db.Exec(ctx, deleteExpiredAPITokenByName, arg.Name, arg.EntityType, arg.EntityID)
+	return err
+}
+
+const deleteExpiredAPITokens = `-- name: DeleteExpiredAPITokens :exec
+DELETE FROM api_tokens
+WHERE id IN (
+    SELECT t.id
+    FROM api_tokens t
+    LEFT JOIN workspaces w ON w.id = t.workspace_ref
+    LEFT JOIN resources r ON r.id = t.resource_ref
+    LEFT JOIN workspaces rw ON rw.id = r.workspace_id
+    LEFT JOIN org_limit_overrides l ON l.org_id = COALESCE(t.organization_ref, w.org_id, rw.org_id)
+    WHERE t.expires_at < NOW() - make_interval(
+        days => COALESCE(l.expired_token_retention_days, $1::int)
+    )
+)
+`
+
+// Tokens without an organization override, personal tokens included, use the install default retention.
+func (q *Queries) DeleteExpiredAPITokens(ctx context.Context, defaultRetentionDays int32) error {
+	_, err := q.db.Exec(ctx, deleteExpiredAPITokens, defaultRetentionDays)
 	return err
 }
 

@@ -864,24 +864,25 @@ type ObservedPlacementRollout struct {
 }
 
 type OrgLimitOverride struct {
-	OrgID                    uuid.UUID  `json:"orgId"`
-	WorkspacesPerOrg         *int32     `json:"workspacesPerOrg"`
-	MembersPerOrg            *int32     `json:"membersPerOrg"`
-	InvitationsPerOrg        *int32     `json:"invitationsPerOrg"`
-	EnvironmentsPerWorkspace *int32     `json:"environmentsPerWorkspace"`
-	ResourcesPerWorkspace    *int32     `json:"resourcesPerWorkspace"`
-	WebhooksPerWorkspace     *int32     `json:"webhooksPerWorkspace"`
-	TokensPerEntity          *int32     `json:"tokensPerEntity"`
-	DomainsPerResource       *int32     `json:"domainsPerResource"`
-	SecretsPerEnvironment    *int32     `json:"secretsPerEnvironment"`
-	DeploymentHistory        *int32     `json:"deploymentHistory"`
-	BuildHistory             *int32     `json:"buildHistory"`
-	LogRetentionDays         *int32     `json:"logRetentionDays"`
-	TraceRetentionDays       *int32     `json:"traceRetentionDays"`
-	MetricRetentionDays      *int32     `json:"metricRetentionDays"`
-	Reason                   string     `json:"reason"`
-	UpdatedBy                *uuid.UUID `json:"updatedBy"`
-	UpdatedAt                time.Time  `json:"updatedAt"`
+	OrgID                     uuid.UUID  `json:"orgId"`
+	WorkspacesPerOrg          *int32     `json:"workspacesPerOrg"`
+	MembersPerOrg             *int32     `json:"membersPerOrg"`
+	InvitationsPerOrg         *int32     `json:"invitationsPerOrg"`
+	EnvironmentsPerWorkspace  *int32     `json:"environmentsPerWorkspace"`
+	ResourcesPerWorkspace     *int32     `json:"resourcesPerWorkspace"`
+	WebhooksPerWorkspace      *int32     `json:"webhooksPerWorkspace"`
+	TokensPerEntity           *int32     `json:"tokensPerEntity"`
+	DomainsPerResource        *int32     `json:"domainsPerResource"`
+	SecretsPerEnvironment     *int32     `json:"secretsPerEnvironment"`
+	DeploymentHistory         *int32     `json:"deploymentHistory"`
+	BuildHistory              *int32     `json:"buildHistory"`
+	LogRetentionDays          *int32     `json:"logRetentionDays"`
+	TraceRetentionDays        *int32     `json:"traceRetentionDays"`
+	MetricRetentionDays       *int32     `json:"metricRetentionDays"`
+	ExpiredTokenRetentionDays *int32     `json:"expiredTokenRetentionDays"`
+	Reason                    string     `json:"reason"`
+	UpdatedBy                 *uuid.UUID `json:"updatedBy"`
+	UpdatedAt                 time.Time  `json:"updatedAt"`
 }
 
 type Organization struct {

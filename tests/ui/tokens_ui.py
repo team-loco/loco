@@ -1,7 +1,7 @@
 import argparse
 import re
 
-from harness import call, load_state, open_page, repo, session
+from harness import call, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(description="Check the new token drawer")
@@ -29,6 +29,24 @@ call(
 )
 
 with session(repo / "tests/ui/out/tokens") as browser:
+    # An expired token is listed but leaves room under a limit of one.
+    sql(
+        state,
+        f"INSERT INTO org_limit_overrides (org_id, tokens_per_entity, reason) VALUES ('{org}', 1, 'test');"
+        " UPDATE api_tokens SET expires_at = NOW() - INTERVAL '1 day' WHERE name = 'ci-source';",
+    )
+    context, page, errors = open_page(browser, state=state)
+    page.goto(state["ui_url"] + "/tokens?owner=org")
+    expect(page.get_by_text("expired 1d ago")).to_be_visible()
+    expect(page.get_by_role("button", name="New token", exact=True)).to_be_enabled()
+    assert not errors, errors
+    context.close()
+    sql(
+        state,
+        f"DELETE FROM org_limit_overrides WHERE org_id = '{org}';"
+        " UPDATE api_tokens SET expires_at = NOW() + INTERVAL '1 hour' WHERE name = 'ci-source';",
+    )
+
     context, page, errors = open_page(browser, narrow=True, state=state)
     page.goto(state["ui_url"] + "/tokens?owner=org")
     organization = page.get_by_role("group", name="Owner").get_by_role(

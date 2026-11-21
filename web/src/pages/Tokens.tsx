@@ -132,7 +132,7 @@ export function Tokens() {
 	const usage =
 		current.isLoading || current.error
 			? null
-			: limitUsage(tokens.length, tokenLimit, noun, OWNER_TITLE[ownerKey].toLowerCase());
+			: limitUsage(liveCount(ownerKey), tokenLimit, noun, OWNER_TITLE[ownerKey].toLowerCase());
 	const createBlocked = owner.canCreate ? limitReason(usage) : owner.createHint;
 	const newTokenButton = (
 		<Button disabled={createBlocked !== null} onClick={openCreate}>

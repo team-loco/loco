@@ -117,6 +117,10 @@ var (
 		Field: "metric_retention_days", Env: "LOCO_LIMIT_METRIC_RETENTION_DAYS", fallback: 365,
 		override: func(o *genDb.OrgLimitOverride) **int32 { return &o.MetricRetentionDays },
 	}
+	ExpiredTokenRetentionDays = Limit{
+		Field: "expired_token_retention_days", Env: "LOCO_LIMIT_EXPIRED_TOKEN_RETENTION_DAYS", fallback: 30,
+		override: func(o *genDb.OrgLimitOverride) **int32 { return &o.ExpiredTokenRetentionDays },
+	}
 )
 
 // All lists every limit in CountLimits field order.
@@ -124,7 +128,7 @@ var All = []Limit{
 	OrgsPerUser, WorkspacesPerOrg, MembersPerOrg, InvitationsPerOrg,
 	EnvironmentsPerWorkspace, ResourcesPerWorkspace, WebhooksPerWorkspace, TokensPerEntity,
 	DomainsPerResource, SecretsPerEnvironment, DeploymentHistory, BuildHistory,
-	LogRetentionDays, TraceRetentionDays, MetricRetentionDays,
+	LogRetentionDays, TraceRetentionDays, MetricRetentionDays, ExpiredTokenRetentionDays,
 }
 
 // Defaults returns the built-in defaults; environment variables replace them at startup.

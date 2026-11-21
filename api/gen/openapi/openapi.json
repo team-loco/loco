@@ -10480,7 +10480,7 @@
             "type": "integer",
             "title": "tokens_per_entity",
             "format": "int32",
-            "description": "tokens_per_entity counts the API tokens of one user, organization, workspace or resource."
+            "description": "tokens_per_entity counts the unexpired API tokens of one user, organization, workspace or resource."
           },
           "domainsPerResource": {
             "type": "integer",
@@ -10521,6 +10521,12 @@
             "type": "integer",
             "title": "metric_retention_days",
             "format": "int32"
+          },
+          "expiredTokenRetentionDays": {
+            "type": "integer",
+            "title": "expired_token_retention_days",
+            "format": "int32",
+            "description": "expired_token_retention_days is how many days an expired API token stays listed before it is deleted."
           }
         },
         "title": "CountLimits",

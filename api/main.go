@@ -34,6 +34,7 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
@@ -579,7 +580,8 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 }
 
 func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APIConfig, d *deps) {
-	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval) })
+	tokenRetention := limits.ExpiredTokenRetentionDays.Value(ac.CountLimits)
+	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval, tokenRetention) })
 	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
 	background.Go(func() { d.placementWindowSweeper.Run(ctx) })
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })

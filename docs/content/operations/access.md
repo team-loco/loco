@@ -89,6 +89,8 @@ The API reads `LOCO_STREAM_AUTH_INTERVAL` (default `5s`) and `LOCO_STREAM_AUTH_T
 
 The API limits token lifetimes with `LOCO_API_TOKEN_MAX_LIFETIME`, a Go duration of at least one second, defaulting to `8760h` (365 days). `ConfigService.GetConfig` exposes the limit as `api_token_max_lifetime_seconds`. The dashboard offers expiry choices up to that limit. The dashboard and `loco token create` default to 30 days, capped at the server maximum when it is shorter. The CLI rejects explicit `--expires` durations outside the permitted range. Use `--expires 7d` to request a shorter lifetime.
 
+An expired token stops authenticating and stops counting toward `LOCO_LIMIT_TOKENS_PER_ENTITY`. It stays listed, marked expired, for the organization's expired-token retention limit, `LOCO_LIMIT_EXPIRED_TOKEN_RETENTION_DAYS` (30 days), and the API then deletes it. Personal tokens keep the install default. Creating a token with the name of an expired one replaces it. A system admin can change an organization's retention with `OrgService.SetOrgLimits` (`expired_token_retention_days`), and the dashboard shows it under **Settings > Limits**.
+
 ## Suspend an organization
 
 An installation's operator can stop everything an organization runs without deleting any of it, for abuse, non-payment or a legal hold. `OrgService.SuspendOrg` takes the organization ID and a reason, and `OrgService.ResumeOrg` lifts the suspension. Both require `system:admin`; organization admins cannot call them.

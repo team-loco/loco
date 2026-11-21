@@ -265,7 +265,7 @@ type CountLimits struct {
 	EnvironmentsPerWorkspace int32 `protobuf:"varint,5,opt,name=environments_per_workspace,json=environmentsPerWorkspace,proto3" json:"environments_per_workspace,omitempty"`
 	ResourcesPerWorkspace    int32 `protobuf:"varint,6,opt,name=resources_per_workspace,json=resourcesPerWorkspace,proto3" json:"resources_per_workspace,omitempty"`
 	WebhooksPerWorkspace     int32 `protobuf:"varint,7,opt,name=webhooks_per_workspace,json=webhooksPerWorkspace,proto3" json:"webhooks_per_workspace,omitempty"`
-	// tokens_per_entity counts the API tokens of one user, organization, workspace or resource.
+	// tokens_per_entity counts the unexpired API tokens of one user, organization, workspace or resource.
 	TokensPerEntity int32 `protobuf:"varint,8,opt,name=tokens_per_entity,json=tokensPerEntity,proto3" json:"tokens_per_entity,omitempty"`
 	// domains_per_resource counts a resource's domains in one environment.
 	DomainsPerResource int32 `protobuf:"varint,9,opt,name=domains_per_resource,json=domainsPerResource,proto3" json:"domains_per_resource,omitempty"`
@@ -279,8 +279,10 @@ type CountLimits struct {
 	LogRetentionDays    int32 `protobuf:"varint,13,opt,name=log_retention_days,json=logRetentionDays,proto3" json:"log_retention_days,omitempty"`
 	TraceRetentionDays  int32 `protobuf:"varint,14,opt,name=trace_retention_days,json=traceRetentionDays,proto3" json:"trace_retention_days,omitempty"`
 	MetricRetentionDays int32 `protobuf:"varint,15,opt,name=metric_retention_days,json=metricRetentionDays,proto3" json:"metric_retention_days,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// expired_token_retention_days is how many days an expired API token stays listed before it is deleted.
+	ExpiredTokenRetentionDays int32 `protobuf:"varint,16,opt,name=expired_token_retention_days,json=expiredTokenRetentionDays,proto3" json:"expired_token_retention_days,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *CountLimits) Reset() {
@@ -414,6 +416,13 @@ func (x *CountLimits) GetTraceRetentionDays() int32 {
 func (x *CountLimits) GetMetricRetentionDays() int32 {
 	if x != nil {
 		return x.MetricRetentionDays
+	}
+	return 0
+}
+
+func (x *CountLimits) GetExpiredTokenRetentionDays() int32 {
+	if x != nil {
+		return x.ExpiredTokenRetentionDays
 	}
 	return 0
 }
@@ -686,7 +695,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x0edefault_region\x18\r \x01(\tR\rdefaultRegionJ\x04\b\x03\x10\x04R\x04auth\"\x80\x01\n" +
 	"\x10HistoryRetention\x129\n" +
 	"\x19build_images_per_resource\x18\x01 \x01(\x05R\x16buildImagesPerResource\x121\n" +
-	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xe1\x05\n" +
+	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xa2\x06\n" +
 	"\vCountLimits\x12\"\n" +
 	"\rorgs_per_user\x18\x01 \x01(\x05R\vorgsPerUser\x12,\n" +
 	"\x12workspaces_per_org\x18\x02 \x01(\x05R\x10workspacesPerOrg\x12&\n" +
@@ -703,7 +712,8 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\rbuild_history\x18\f \x01(\x05R\fbuildHistory\x12,\n" +
 	"\x12log_retention_days\x18\r \x01(\x05R\x10logRetentionDays\x120\n" +
 	"\x14trace_retention_days\x18\x0e \x01(\x05R\x12traceRetentionDays\x122\n" +
-	"\x15metric_retention_days\x18\x0f \x01(\x05R\x13metricRetentionDays\"\xf2\x01\n" +
+	"\x15metric_retention_days\x18\x0f \x01(\x05R\x13metricRetentionDays\x12?\n" +
+	"\x1cexpired_token_retention_days\x18\x10 \x01(\x05R\x19expiredTokenRetentionDays\"\xf2\x01\n" +
 	"\n" +
 	"SizeLimits\x12$\n" +
 	"\x0emin_cpu_millis\x18\x01 \x01(\x05R\fminCpuMillis\x12$\n" +

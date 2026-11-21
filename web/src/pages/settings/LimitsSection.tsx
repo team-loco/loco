@@ -165,6 +165,11 @@ export function LimitsSection({
 		limitRow({ key: "logRetentionDays", label: "Logs", per: "Organization", unit: "days" }, limits, HISTORY),
 		limitRow({ key: "traceRetentionDays", label: "Traces", per: "Organization", unit: "days" }, limits, HISTORY),
 		limitRow({ key: "metricRetentionDays", label: "Metrics", per: "Organization", unit: "days" }, limits, HISTORY),
+		limitRow(
+			{ key: "expiredTokenRetentionDays", label: "Expired API tokens", per: "Organization", unit: "days" },
+			limits,
+			HISTORY,
+		),
 	];
 	const table = useDataTable("limits", {
 		columns: COLUMNS,
