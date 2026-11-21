@@ -19,7 +19,7 @@ with session(repo / "tests/ui/out/overscroll") as browser:
                 state=state,
                 storage={"loco:mode:v1": mode, "loco:color:v1": theme},
             )
-            page.goto(state["ui_url"] + "/tokens?owner=organization")
+            page.goto(state["ui_url"] + "/tokens?owner=org")
             page.locator('[data-slot="sidebar-wrapper"]').wait_for()
             colors = page.evaluate(
                 """() => ({

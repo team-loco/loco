@@ -1636,7 +1636,7 @@ def metrics_many(page):
 
 
 def token_empty(page):
-    page.goto(state["ui_url"] + "/tokens?owner=personal")
+    page.goto(state["ui_url"] + "/tokens?owner=user")
     expect(
         page.get_by_role("heading", name="No personal tokens yet", exact=True)
     ).to_be_visible()
@@ -1679,7 +1679,7 @@ def limit_display(page):
             (10, "9 of 10 used"),
             (9, "Personal limit reached"),
         ):
-            page.goto(state["ui_url"] + "/tokens?owner=personal")
+            page.goto(state["ui_url"] + "/tokens?owner=user")
             heading = page.get_by_role("heading", name=re.compile("^Tokens"))
             expect(page.get_by_text("limit-display-1", exact=True)).to_be_visible()
             pill = heading.get_by_role("link")

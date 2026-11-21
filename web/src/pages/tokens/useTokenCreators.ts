@@ -17,7 +17,7 @@ export function useTokenCreators(owner: Owner): ReadonlyMap<string, Creator> {
 	});
 	const workspace = useQuery({
 		...workspaceMembersOptions(transport, owner.id ?? ""),
-		enabled: owner.key === "workspace" && owner.canList,
+		enabled: owner.key === "ws" && owner.canList,
 	});
 	const creators = new Map<string, Creator>();
 	for (const member of org.data?.members ?? []) {

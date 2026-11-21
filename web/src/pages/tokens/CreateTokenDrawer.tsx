@@ -48,7 +48,7 @@ export interface CreateDraft {
 const NAME_MAX = 100;
 const MS_PER_SECOND = 1000;
 const CUSTOM = "custom";
-const SECRET_PREVIEW = 12;
+const SECRET_PREVIEW = 14;
 const CUSTOM_DEFAULT_MS = 3 * DAY_MS;
 
 function apiExample(): string {
@@ -166,8 +166,8 @@ function CreateForm({
 		selected === CUSTOM ? Math.round((customMs - now) / MS_PER_SECOND) : Math.min(selected, Number(maximum));
 	const [itemsByOwner, setItemsByOwner] = useState<Record<OwnerKey, AccessItem[]>>(() => ({
 		org: [],
-		workspace: [],
-		personal: [],
+		ws: [],
+		user: [],
 		[draft.owner]: draft.items,
 	}));
 	const items = itemsByOwner[ownerKey];
@@ -242,7 +242,7 @@ function CreateForm({
 						autoComplete="off"
 						value={typed}
 						maxLength={NAME_MAX}
-						placeholder="ci-deploy"
+						placeholder="github-actions-deploy"
 						aria-invalid={nameErr !== null}
 						className="font-mono"
 						onChange={(e) => {
@@ -333,12 +333,12 @@ function CreateForm({
 						tree={data.tree}
 						held={data.held}
 						items={items}
-						allowUser={ownerKey === "personal"}
+						allowUser={ownerKey === "user"}
 						resourcesLoading={data.resourcesLoading}
 						resourcesError={data.resourcesError}
 						retryResources={data.retryResources}
 						scope={
-							owner.id === null || ownerKey === "personal"
+							owner.id === null || ownerKey === "user"
 								? null
 								: (data.tree.nodes.get(nodeKey(owner.entityType, owner.id)) ?? null)
 						}
@@ -400,7 +400,7 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 				<div className="flex flex-col gap-1.5">
 					<span className="text-[13px] font-medium">Use it from CI</span>
 					<CodeBlock lineNumbers={false} wrap>
-						{`LOCO_TOKEN=${secret.slice(0, SECRET_PREVIEW)}… loco deploy`}
+						{`LOCO_TOKEN=${secret.slice(0, SECRET_PREVIEW)}… loco deploy …`}
 					</CodeBlock>
 					<span className="text-[12.5px] text-fg3">
 						Save the token as a CI secret named <code>LOCO_TOKEN</code> and set <code>LOCO_HOST</code> to the API URL.

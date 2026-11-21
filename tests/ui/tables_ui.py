@@ -936,7 +936,7 @@ def team(page):
 
 
 def tokens(page):
-    page.goto(state["ui_url"] + "/tokens?owner=organization")
+    page.goto(state["ui_url"] + "/tokens?owner=org")
     check_table(
         page,
         named_table("Tokens", "ci-deploy"),
@@ -1039,7 +1039,7 @@ with session(
         assert scroller_of(page, table).evaluate(
             "node => node.scrollWidth <= node.clientWidth"
         ), f"{name} scrolls sideways at phone width"
-    page.goto(state["ui_url"] + "/tokens?owner=organization")
+    page.goto(state["ui_url"] + "/tokens?owner=org")
     table = named_table("Tokens", "ci-deploy")(page)
     for row in table.locator("tbody tr").all():
         chip = row.locator('[data-slot="chip"]').last.bounding_box()

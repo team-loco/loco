@@ -230,7 +230,7 @@ export function AppSidebar() {
 							<MenuLink
 								icon={<KeyRoundIcon />}
 								onClick={() => {
-									void navigate("/tokens?owner=personal");
+									void navigate("/tokens?owner=user");
 								}}
 							>
 								Personal access tokens

@@ -21,7 +21,7 @@ import { AppearanceSection } from "./AppearanceSection";
 import { ActiveSessions } from "./ActiveSessions";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
-const TOKENS_PATH = "/tokens?owner=personal";
+const TOKENS_PATH = "/tokens?owner=user";
 
 export function PersonalTab({
 	user,
