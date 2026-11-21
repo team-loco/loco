@@ -46,9 +46,13 @@ describe("limitSteps", () => {
 		]);
 	});
 
-	test("skips deployments that never ran in the region", () => {
+	test("skips deployments that are not running or never ran in the region", () => {
 		const steps = limitSteps(
-			[deployment("a", HOUR_MS, "100m"), deployment("b", 2 * HOUR_MS, "200m", PlacementStatus.FAILED)],
+			[
+				deployment("a", HOUR_MS, "100m"),
+				deployment("b", 2 * HOUR_MS, "200m", PlacementStatus.FAILED),
+				deployment("c", 3 * HOUR_MS, "300m", PlacementStatus.PENDING),
+			],
 			REGION,
 			cpu,
 			undefined,

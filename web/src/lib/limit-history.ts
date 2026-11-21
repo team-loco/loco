@@ -15,7 +15,7 @@ export interface Sizing {
 	memory?: string | undefined;
 }
 
-const NEVER_RAN = new Set([PlacementStatus.FAILED, PlacementStatus.CANCELED]);
+const NOT_RUN = new Set([PlacementStatus.PENDING, PlacementStatus.FAILED, PlacementStatus.CANCELED]);
 
 /**
  * The limit each deployment set in a region, from when it started there, oldest first.
@@ -30,7 +30,7 @@ export function limitSteps(
 	const steps = new Map<string, LimitStep>();
 	for (const d of deployments) {
 		const placement = placementIn(d, region);
-		if (placement === undefined || NEVER_RAN.has(placement.status)) continue;
+		if (placement === undefined || NOT_RUN.has(placement.status)) continue;
 		const from = maybeTsMs(placement.startedAt) ?? maybeTsMs(d.startedAt);
 		const target = regionTarget(getServiceSpec(d), region);
 		const limit = target === undefined ? 0 : size(target);
