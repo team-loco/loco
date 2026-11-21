@@ -15,6 +15,8 @@ import (
 const countWorkspaceContents = `-- name: CountWorkspaceContents :many
 SELECT w.id,
        (SELECT COUNT(*) FROM resources r WHERE r.workspace_id = w.id)::int AS resource_count,
+       (SELECT COUNT(*) FROM environments e WHERE e.workspace_id = w.id)::int AS environment_count,
+       (SELECT COUNT(*) FROM webhooks wh WHERE wh.kind = 'workspace' AND wh.workspace_id = w.id)::int AS webhook_count,
        (SELECT COUNT(DISTINCT us.user_id) FROM user_scopes us
         WHERE us.entity_type = 'workspace' AND us.entity_id = w.id)::int AS member_count
 FROM workspaces w
@@ -22,9 +24,11 @@ WHERE w.id = ANY($1::uuid[])
 `
 
 type CountWorkspaceContentsRow struct {
-	ID            uuid.UUID `json:"id"`
-	ResourceCount int32     `json:"resourceCount"`
-	MemberCount   int32     `json:"memberCount"`
+	ID               uuid.UUID `json:"id"`
+	ResourceCount    int32     `json:"resourceCount"`
+	EnvironmentCount int32     `json:"environmentCount"`
+	WebhookCount     int32     `json:"webhookCount"`
+	MemberCount      int32     `json:"memberCount"`
 }
 
 func (q *Queries) CountWorkspaceContents(ctx context.Context, workspaceIds []uuid.UUID) ([]CountWorkspaceContentsRow, error) {
@@ -36,7 +40,13 @@ func (q *Queries) CountWorkspaceContents(ctx context.Context, workspaceIds []uui
 	var items []CountWorkspaceContentsRow
 	for rows.Next() {
 		var i CountWorkspaceContentsRow
-		if err := rows.Scan(&i.ID, &i.ResourceCount, &i.MemberCount); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceCount,
+			&i.EnvironmentCount,
+			&i.WebhookCount,
+			&i.MemberCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

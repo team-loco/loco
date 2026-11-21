@@ -534,7 +534,7 @@ func (o *membershipOrg) sharedResource(t *testing.T, name string) uuid.UUID {
 	return uuid.MustParse(created.GetResourceId())
 }
 
-func TestListOrgWorkspacesCountsResourcesAndMembersOfReadableWorkspaces(t *testing.T) {
+func TestListOrgWorkspacesCountsContentsOfReadableWorkspaces(t *testing.T) {
 	t.Parallel()
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
@@ -550,10 +550,22 @@ func TestListOrgWorkspacesCountsResourcesAndMembersOfReadableWorkspaces(t *testi
 	}); err != nil {
 		t.Fatalf("grant resource: %v", err)
 	}
+	sharedID := uuid.MustParse(o.shared)
+	if _, err := o.api.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
+		WorkspaceID: sharedID, Slug: stagingName, Name: stagingName,
+	}); err != nil {
+		t.Fatalf("create environment: %v", err)
+	}
+	if _, err := o.api.queries.CreateWorkspaceWebhook(ctx, genDb.CreateWorkspaceWebhookParams{
+		ID: uuid.New(), WorkspaceID: sharedID, Name: "deploys", Url: receiverURL,
+		Provider: "generic", KekID: "k1", WrappedDek: []byte{1}, Secret: []byte{1}, EventTypes: []string{},
+	}); err != nil {
+		t.Fatalf("create webhook: %v", err)
+	}
 
 	type counts struct {
-		set                bool
-		resources, members int32
+		set                                        bool
+		resources, members, environments, webhooks int32
 	}
 	list := func(user membershipUser) map[string]counts {
 		t.Helper()
@@ -567,26 +579,38 @@ func TestListOrgWorkspacesCountsResourcesAndMembersOfReadableWorkspaces(t *testi
 		for _, ws := range listed.GetWorkspaces() {
 			message := ws.ProtoReflect()
 			fields := message.Descriptor().Fields()
-			set := message.Has(fields.ByName("resource_count")) && message.Has(fields.ByName("member_count"))
-			got[ws.GetId()] = counts{set, ws.GetResourceCount(), ws.GetMemberCount()}
+			set := message.Has(fields.ByName("resource_count")) && message.Has(fields.ByName("member_count")) &&
+				message.Has(fields.ByName("environment_count")) && message.Has(fields.ByName("webhook_count"))
+			got[ws.GetId()] = counts{
+				set, ws.GetResourceCount(), ws.GetMemberCount(), ws.GetEnvironmentCount(), ws.GetWebhookCount(),
+			}
 		}
 		return got
 	}
-	want := func(user membershipUser, workspaceID string, resources, members int32) {
+	want := func(user membershipUser, workspaceID string, want counts) {
 		t.Helper()
-		if got := list(user)[workspaceID]; got != (counts{true, resources, members}) {
-			t.Fatalf("%s sees %s counts %+v, want %d resources and %d members",
-				user.subject, workspaceID, got, resources, members)
+		want.set = true
+		if got := list(user)[workspaceID]; got != want {
+			t.Fatalf("%s sees %s counts %+v, want %+v", user.subject, workspaceID, got, want)
 		}
 	}
 
-	want(o.owner, o.shared, 2, 2)
-	want(o.owner, o.sibling, 0, 1)
-	want(member, o.shared, 2, 2)
+	want(o.owner, o.shared, counts{resources: 2, members: 2, environments: 2, webhooks: 1})
+	want(o.owner, o.sibling, counts{resources: 0, members: 1, environments: 1, webhooks: 0})
+	want(member, o.shared, counts{resources: 2, members: 2, environments: 2, webhooks: 1})
 	if _, ok := list(member)[o.sibling]; ok {
 		t.Fatal("member listed the sibling workspace")
 	}
 	if got, ok := list(reader)[o.shared]; !ok || got.set {
 		t.Fatalf("resource reader sees shared counts %+v, want none", got)
+	}
+	got, err := member.clients.Workspace.GetWorkspace(ctx, &workspacev1.GetWorkspaceRequest{WorkspaceId: o.shared})
+	if err != nil {
+		t.Fatalf("get workspace: %v", err)
+	}
+	if ws := got.GetWorkspace(); ws.EnvironmentCount == nil || ws.GetEnvironmentCount() != 2 ||
+		ws.WebhookCount == nil || ws.GetWebhookCount() != 1 {
+		t.Fatalf("get workspace counts %v environments and %v webhooks, want 2 and 1",
+			ws.EnvironmentCount, ws.WebhookCount)
 	}
 }

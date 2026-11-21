@@ -179,6 +179,8 @@ func (s *WorkspaceServer) GetWorkspace(
 	for _, c := range contents {
 		workspace.ResourceCount = new(c.ResourceCount)
 		workspace.MemberCount = new(c.MemberCount)
+		workspace.EnvironmentCount = new(c.EnvironmentCount)
+		workspace.WebhookCount = new(c.WebhookCount)
 	}
 	return &workspacev1.GetWorkspaceResponse{Workspace: workspace}, nil
 }
@@ -321,6 +323,8 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 			}
 			workspace.ResourceCount = new(counts[ws.ID].ResourceCount)
 			workspace.MemberCount = new(counts[ws.ID].MemberCount)
+			workspace.EnvironmentCount = new(counts[ws.ID].EnvironmentCount)
+			workspace.WebhookCount = new(counts[ws.ID].WebhookCount)
 			workspaces = append(workspaces, workspace)
 			continue
 		}

@@ -55,6 +55,12 @@ message Workspace {
   // without one is not counted. GetWorkspace sets it, and ListOrgWorkspaces sets it on each
   // workspace the caller can read.
   optional int32 member_count = 12;
+  // environment_count is how many environments the workspace holds. GetWorkspace sets it, and
+  // ListOrgWorkspaces sets it on each workspace the caller can read.
+  optional int32 environment_count = 13;
+  // webhook_count is how many webhooks the workspace holds. GetWorkspace sets it, and
+  // ListOrgWorkspaces sets it on each workspace the caller can read.
+  optional int32 webhook_count = 14;
 }
 
 // WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
