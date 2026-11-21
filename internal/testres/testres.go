@@ -68,7 +68,6 @@ var (
 	errNoOwner = errors.New("a lease needs a PID, a path or a TTL")
 	errClaimed = errors.New("lease is owned by another path")
 	errUnknown = errors.New("no such lease")
-	errShared  = errors.New("lease is not shared")
 )
 
 // Registry is a directory of leases and port reservations.
@@ -186,7 +185,6 @@ func (r *Registry) Claim(ctx context.Context, id string, owner Owner) (*Lease, e
 // of its users. A shared lease lives while any of its users does, so a run can hold a server other
 // runs started. While an earlier lease with the ID is being released, Share waits for the release.
 func (r *Registry) Share(ctx context.Context, id string, user *Lease) (*Lease, error) {
-	r.reapLeftovers(ctx)
 	ctx, cancel := context.WithTimeout(ctx, shareWait)
 	defer cancel()
 	for {
@@ -201,9 +199,6 @@ func (r *Registry) Share(ctx context.Context, id string, user *Lease) (*Lease, e
 			}
 			if err != nil {
 				return err
-			}
-			if len(rec.Users) == 0 {
-				return fmt.Errorf("%s: %w", id, errShared)
 			}
 			if rec.Releasing {
 				releasing = true
