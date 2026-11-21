@@ -33,5 +33,9 @@ export function useWorkspace(orgId: string | null, workspaceId: string | null) {
 	);
 	const workspace: Workspace | undefined =
 		direct.data?.workspace ?? granted.data?.workspaces.find((w) => w.id === workspaceId);
-	return { workspace, isLoading: scopes.isLoading || direct.isLoading || granted.isLoading };
+	// A disabled query reports another reader's fetch of the same workspace, so only enabled ones count.
+	return {
+		workspace,
+		isLoading: scopes.isLoading || (reads && direct.isLoading) || (viaResources && granted.isLoading),
+	};
 }

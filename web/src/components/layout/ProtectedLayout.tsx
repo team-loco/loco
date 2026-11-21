@@ -45,7 +45,9 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	);
 
 	const workspacesSettled =
-		(orgParam !== undefined || orgs !== undefined) && !scopes.isLoading && !newest.isLoading && !remembered.isLoading;
+		(orgParam !== undefined || orgs !== undefined) &&
+		!scopes.isLoading &&
+		!(picking && (newest.isLoading || remembered.isLoading));
 	const urlWorkspace = useQuery(
 		getWorkspace,
 		{ workspaceId: workspaceParam ?? "" },
