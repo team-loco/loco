@@ -4,6 +4,7 @@
 # ///
 import argparse
 import base64
+import concurrent.futures
 import contextlib
 import fcntl
 import hashlib
@@ -1326,22 +1327,50 @@ def digest(*parts):
     return hashlib.sha256("\0".join(parts).encode()).hexdigest()[:12]
 
 
-def shared(user, kind, key, start):
+def shared(user, kind, key, start, healthy):
     """Returns the state of the machine-wide `kind` server for `key`, held by `user`'s lease.
 
-    The first caller starts it with `start(lease_dir)`; the server stops when no lease holds it.
+    The first caller starts it with `start(lease_dir)`, and a caller that finds it not `healthy`
+    starts it again; the server stops when no lease holds it.
     """
     root = Path(testres("share", f"{LABEL}-{kind}-{key}", user))
     with flocked(root / "start.lock"):
         path = root / "state.json"
-        if not path.exists():
-            write_json(path, start(root))
+        if path.exists():
+            if healthy(load_state(path)):
+                return load_state(path)
+            log(f"restarting {root.name}: it stopped answering")
+        write_json(path, start(root))
         return load_state(path)
+
+
+def openbao_healthy(state):
+    try:
+        with urllib.request.urlopen(f"{state['address']}/v1/sys/health", timeout=2):
+            return True
+    except urllib.error.URLError, ConnectionError, TimeoutError:
+        return False
+
+
+def postgres_healthy(state):
+    ready = [
+        "docker",
+        "exec",
+        state["container"],
+        "pg_isready",
+        "-h",
+        HOST,
+        "-U",
+        DB_USER,
+    ]
+    return subprocess.run(ready, capture_output=True).returncode == 0
 
 
 def openbao_starter(source):
     def start(root):
         testres("add", root, "compose", root.name)
+        # A restart replaces what is left of the earlier server.
+        compose(source, root.name, openbao_env(source, dict(os.environ)), "down", "-v")
         address = start_openbao(source, root.name, dict(os.environ))
         return {"id": root.name, "root": str(root), "address": address}
 
@@ -1357,7 +1386,7 @@ def postgres_starter(image):
             cwd=TOOLS_ROOT,
         )
         testres("add", root, "container", container)
-        # A failed earlier start of this server may have left the container.
+        # A restart, or a failed earlier start, replaces what is left of the earlier server.
         run(["docker", "rm", "-f", container], capture=True)
         run(
             [
@@ -1448,15 +1477,25 @@ def start_state(*, ref, name, scenario, issuer=None):
         write_json(state_path, state)
 
         env = dict(os.environ)
-        if not openbao:
-            files = [(source / path).read_text() for path in OPENBAO_SOURCES]
-            key = digest(openbao_env(source, env)["OPENBAO_IMAGE"], *files)
-            openbao = shared(root, "openbao", key, openbao_starter(source))["address"]
-            state["openbao"] = openbao
-        dist = source / "web" / "dist"
-
         image = compose_postgres_image((source / "dev" / "compose.yaml").read_text())
-        server = shared(root, "postgres", digest(image), postgres_starter(image))
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            postgres = pool.submit(
+                shared,
+                root,
+                "postgres",
+                digest(image),
+                postgres_starter(image),
+                postgres_healthy,
+            )
+            if not openbao:
+                files = [(source / path).read_text() for path in OPENBAO_SOURCES]
+                key = digest(openbao_env(source, env)["OPENBAO_IMAGE"], *files)
+                bao = shared(
+                    root, "openbao", key, openbao_starter(source), openbao_healthy
+                )
+                state["openbao"] = openbao = bao["address"]
+            server = postgres.result()
+        dist = source / "web" / "dist"
         ports["db"] = server["port"]
         state.update(container=server["container"], database=run_id)
         write_json(state_path, state)
