@@ -250,6 +250,7 @@ def shell_navigation(page):
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
     expect(drawer).to_contain_text("Nothing needs attention.")
     events = drawer.get_by_role("link", name="All events", exact=True)
+    expect(events).to_have_attribute("href", re.compile(r"range=24h"))
     expect(events).to_be_visible()
     drawer.get_by_role("button", name="Close activity", exact=True).click()
     expect(drawer).not_to_be_visible()

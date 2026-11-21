@@ -1,5 +1,6 @@
 import argparse
 import re
+import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -38,6 +39,17 @@ with session(out) as browser:
     context, page, errors = open_page(
         browser, state=state, permissions=["clipboard-read", "clipboard-write"]
     )
+    now_ms = int(time.time() * 1000)
+    page.goto(
+        state["ui_url"]
+        + base
+        + f"/observability?view=events&live=0&from={now_ms - 3 * 3600_000}&to={now_ms - 2 * 3600_000}"
+    )
+    expect(page.get_by_text("No events in this range", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("button", name=re.compile(r"^Show the past"))
+    ).to_be_visible()
+    expect(page.get_by_role("link", name="New resource", exact=True)).to_have_count(0)
     page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
     events = page.get_by_role("region", name="Events", exact=True)
     expect(

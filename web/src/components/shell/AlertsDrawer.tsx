@@ -35,7 +35,7 @@ import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
 import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { eventTitle } from "@/pages/observability/events";
 import { buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
-import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
+import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { problemLogsHref } from "@/pages/resource/deployment-progress";
 
@@ -426,7 +426,10 @@ export function AlertsDrawer() {
 							variant="link"
 							nativeButton={false}
 							render={
-								<Link to={observabilityPath(activeOrgId, activeWorkspaceId, "events", envParams)} onClick={close} />
+								<Link
+									to={observabilityPath(activeOrgId, activeWorkspaceId, "events", { ...envParams, range: DAY_MS })}
+									onClick={close}
+								/>
 							}
 						>
 							All events

@@ -140,16 +140,25 @@ export function EventsView() {
 		);
 	}
 	if (!loading && inRange.length === 0 && query === "") {
+		const hasResources = resources.length > 0;
 		return (
 			<>
 				{header}
 				<QueryBar valueCounts={valueCounts} />
 				<ObsHero
 					view="events"
-					title={environment === undefined ? "No events yet" : `No events yet in ${environment.name}`}
+					title={
+						hasResources
+							? "No events in this range"
+							: environment === undefined
+								? "No events yet"
+								: `No events yet in ${environment.name}`
+					}
 					body="Deploys, restarts, failed health checks and scaling show up here as they happen."
 					action={
-						<>
+						hasResources ? (
+							<WidenRangeButton />
+						) : (
 							<Button
 								nativeButton={false}
 								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.slug } : {})} />}
@@ -157,8 +166,7 @@ export function EventsView() {
 								<PlusIcon />
 								New resource
 							</Button>
-							<WidenRangeButton />
-						</>
+						)
 					}
 				/>
 			</>
