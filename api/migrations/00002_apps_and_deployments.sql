@@ -489,6 +489,29 @@ $$;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
+-- A Kubernetes CPU quantity such as 250m or 0.5 in millicores; 0 for one this does not parse.
+CREATE FUNCTION cpu_millicores (quantity TEXT) RETURNS BIGINT LANGUAGE sql IMMUTABLE AS $$
+    SELECT COALESCE((
+        SELECT round(m[1]::numeric * CASE WHEN m[2] = 'm' THEN 1 ELSE 1000 END)::bigint
+        FROM regexp_match(quantity, '^([0-9]+(?:\.[0-9]+)?)(m)?$') m
+    ), 0)
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+-- A Kubernetes memory quantity such as 256Mi or 1G in bytes; 0 for one this does not parse.
+CREATE FUNCTION memory_bytes (quantity TEXT) RETURNS BIGINT LANGUAGE sql IMMUTABLE AS $$
+    SELECT COALESCE((
+        SELECT round(m[1]::numeric * CASE m[2]
+            WHEN 'Ki' THEN 1024 WHEN 'Mi' THEN 1048576 WHEN 'Gi' THEN 1073741824 WHEN 'Ti' THEN 1099511627776
+            WHEN 'k' THEN 1000 WHEN 'M' THEN 1000000 WHEN 'G' THEN 1000000000 WHEN 'T' THEN 1000000000000
+            ELSE 1 END)::bigint
+        FROM regexp_match(quantity, '^([0-9]+(?:\.[0-9]+)?)(Ki|Mi|Gi|Ti|k|M|G|T)?$') m
+    ), 0)
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
 -- The placements of a deployment as the API returns them, ordered by region. A live placement is
 -- one the region runs or is building, and reports the replicas the region's clusters last
 -- reported, which include the previous version's while it rolls out.
@@ -679,6 +702,8 @@ FOR EACH ROW EXECUTE FUNCTION notify_deployment_placement_change();
 DROP TABLE IF EXISTS registry_credentials;
 DROP TABLE IF EXISTS builds;
 DROP FUNCTION IF EXISTS deployment_placements_json;
+DROP FUNCTION IF EXISTS memory_bytes;
+DROP FUNCTION IF EXISTS cpu_millicores;
 DROP FUNCTION IF EXISTS environment_status;
 DROP FUNCTION IF EXISTS region_status;
 DROP FUNCTION IF EXISTS region_status_cause;

@@ -421,33 +421,14 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRe
 	return items, nil
 }
 
-const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
+const listResourcesByIDs = `-- name: ListResourcesByIDs :many
 SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
-WHERE r.workspace_id = $1
-   AND ($3::text IS NULL
-        OR (r.created_at, r.id) < (
-          $4::timestamptz,
-          $3::uuid
-        ))
-ORDER BY r.created_at DESC, r.id DESC
-LIMIT $2
+WHERE r.id = ANY($1::uuid[])
 `
 
-type ListResourcesForWorkspaceParams struct {
-	WorkspaceID   uuid.UUID  `json:"workspaceId"`
-	Limit         int32      `json:"limit"`
-	PageToken     *string    `json:"pageToken"`
-	PageCreatedAt *time.Time `json:"pageCreatedAt"`
-}
-
-func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error) {
-	rows, err := q.db.Query(ctx, listResourcesForWorkspace,
-		arg.WorkspaceID,
-		arg.Limit,
-		arg.PageToken,
-		arg.PageCreatedAt,
-	)
+func (q *Queries) ListResourcesByIDs(ctx context.Context, ids []uuid.UUID) ([]Resource, error) {
+	rows, err := q.db.Query(ctx, listResourcesByIDs, ids)
 	if err != nil {
 		return nil, err
 	}

@@ -33,7 +33,9 @@ export const updateResource = ResourceService.method.updateResource;
 export const deleteResource = ResourceService.method.deleteResource;
 
 /**
- * ListWorkspaceResources lists all resources in a workspace.
+ * ListWorkspaceResources lists, searches, filters, sorts and counts the resources of a workspace.
+ * A caller who cannot list the workspace gets the resources of it that GetResource would return,
+ * with every count over those alone; one who can read none of them is denied.
  *
  * @generated from rpc loco.resource.v1.ResourceService.ListWorkspaceResources
  */

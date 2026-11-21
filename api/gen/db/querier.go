@@ -228,7 +228,7 @@ type Querier interface {
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceDomainsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceDomain, error)
 	ListResourceEnvironmentPlacements(ctx context.Context, arg ListResourceEnvironmentPlacementsParams) ([]Placement, error)
-	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
+	ListResourcesByIDs(ctx context.Context, ids []uuid.UUID) ([]Resource, error)
 	ListResourcesRunningOutsideEnvironment(ctx context.Context, arg ListResourcesRunningOutsideEnvironmentParams) ([]uuid.UUID, error)
 	ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphertextsParams) ([]ListSecretCiphertextsRow, error)
 	ListSecretSizes(ctx context.Context, environmentID uuid.UUID) ([]ListSecretSizesRow, error)
