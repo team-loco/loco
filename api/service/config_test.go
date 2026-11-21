@@ -22,19 +22,15 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	t.Parallel()
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
-	server := NewConfigServer(configAPIVersion,
-		"v1.2.3",
-		schemaURL,
-		defaults,
-		nil,
-		nil,
-		42*time.Hour,
-		6*time.Hour,
-		limits.Defaults(),
-		nil,
-		"",
-		nil,
-	)
+	server := NewConfigServer(ConfigSettings{
+		APIVersion:                configAPIVersion,
+		MinCLIVersion:             "v1.2.3",
+		SchemaURL:                 schemaURL,
+		ServiceDefaults:           defaults,
+		APITokenMaxLifetime:       42 * time.Hour,
+		ObservabilityMaxTimeRange: 6 * time.Hour,
+		CountLimits:               limits.Defaults(),
+	}, nil)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -88,20 +84,11 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 		{Label: "Support", URL: "https://support.example.com/orgs/{orgId}"},
 		{Label: "Status", URL: "https://status.example.com"},
 	}
-	server := NewConfigServer(
-		configAPIVersion,
-		"",
-		"",
-		testServiceDefaults(),
-		nil,
-		links,
-		time.Hour,
-		6*time.Hour,
-		limits.Defaults(),
-		nil,
-		"",
-		nil,
-	)
+	server := NewConfigServer(ConfigSettings{
+		APIVersion:      configAPIVersion,
+		ServiceDefaults: testServiceDefaults(),
+		OrgLinks:        links,
+	}, nil)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -118,20 +105,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 
 func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 	t.Parallel()
-	server := NewConfigServer(
-		configAPIVersion,
-		"",
-		"",
-		testServiceDefaults(),
-		nil,
-		nil,
-		time.Hour,
-		6*time.Hour,
-		limits.Defaults(),
-		nil,
-		"",
-		nil,
-	)
+	server := NewConfigServer(ConfigSettings{APIVersion: configAPIVersion, ServiceDefaults: testServiceDefaults()}, nil)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
@@ -174,20 +148,11 @@ func TestGetConfigReportsTheInstallCountLimits(t *testing.T) {
 	t.Parallel()
 	counts := limits.Defaults()
 	limits.ResourcesPerWorkspace.Set(counts, 7)
-	server := NewConfigServer(
-		configAPIVersion,
-		"",
-		"",
-		testServiceDefaults(),
-		nil,
-		nil,
-		time.Hour,
-		6*time.Hour,
-		counts,
-		nil,
-		"",
-		nil,
-	)
+	server := NewConfigServer(ConfigSettings{
+		APIVersion:      configAPIVersion,
+		ServiceDefaults: testServiceDefaults(),
+		CountLimits:     counts,
+	}, nil)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
@@ -206,19 +171,11 @@ func TestGetConfigReportsInstallHistoryRetention(t *testing.T) {
 				BuildImagesPerResource: images,
 				Events:                 durationpb.New(36*time.Hour + 500*time.Millisecond),
 			}
-			server := NewConfigServer(configAPIVersion,
-				"",
-				"",
-				testServiceDefaults(),
-				nil,
-				nil,
-				time.Hour,
-				6*time.Hour,
-				limits.Defaults(),
-				retention,
-				"",
-				nil,
-			)
+			server := NewConfigServer(ConfigSettings{
+				APIVersion:       configAPIVersion,
+				ServiceDefaults:  testServiceDefaults(),
+				HistoryRetention: retention,
+			}, nil)
 			resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 			if err != nil {
 				t.Fatal(err)
@@ -240,8 +197,11 @@ func TestGetConfigReturnsTheDefaultRegionOnlyWhileItIsLive(t *testing.T) {
 	t.Parallel()
 	regions := liveRegions{testRegion: true}
 	for configured, want := range map[string]string{testRegion: testRegion, "jp-13-1": "", "": ""} {
-		server := NewConfigServer(configAPIVersion, "", "", testServiceDefaults(), nil, nil, 0, 0, nil, nil,
-			configured, regions)
+		server := NewConfigServer(ConfigSettings{
+			APIVersion:      configAPIVersion,
+			ServiceDefaults: testServiceDefaults(),
+			DefaultRegion:   configured,
+		}, regions)
 		resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 		if err != nil {
 			t.Fatalf("GetConfig with %q: %v", configured, err)

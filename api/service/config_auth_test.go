@@ -9,7 +9,6 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 )
@@ -22,7 +21,7 @@ func TestGetConfigReportsDashboardSignInAvailability(t *testing.T) {
 		if configured {
 			issuers[0].Web = &auth.WebConfig{ClientID: clientID, ClientSecret: "test secret", Scopes: "openid"}
 		}
-		server := NewConfigServer("", "", "", servicedefaults.Defaults{}, issuers, nil, 0, 0, nil, nil, "", nil)
+		server := NewConfigServer(ConfigSettings{AuthIssuers: issuers}, nil)
 		config, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 		if err != nil {
 			t.Fatal(err)
@@ -36,8 +35,7 @@ func TestGetConfigReportsDashboardSignInAvailability(t *testing.T) {
 func TestGetConfigAnswersHTTPGetWithCacheControl(t *testing.T) {
 	t.Parallel()
 	server := connect.NewServer()
-	configv1connect.RegisterConfigServiceHandler(
-		server, NewConfigServer("", "", "", servicedefaults.Defaults{}, nil, nil, 0, 0, nil, nil, "", nil))
+	configv1connect.RegisterConfigServiceHandler(server, NewConfigServer(ConfigSettings{}, nil))
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
 	srv := httptest.NewServer(mux)
