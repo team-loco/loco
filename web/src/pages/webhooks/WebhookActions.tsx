@@ -60,7 +60,7 @@ export function WebhookActions({
 						Send test event
 					</Button>
 				)}
-				<RowMenu label={`Actions for ${webhook.url}`} className={menuOnly ? "size-[22px] text-fg3" : undefined}>
+				<RowMenu label={`Actions for ${webhook.url}`}>
 					{menuOnly && (
 						<DropdownMenuItem
 							aria-disabled={test.isPending}
