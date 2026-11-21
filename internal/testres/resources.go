@@ -18,7 +18,12 @@ var errBadPID = errors.New("process resource needs a positive process ID")
 func removeResource(ctx context.Context, res resource) error {
 	switch res.Kind {
 	case Container:
-		return command(ctx, "docker", "rm", "-f", "-v", res.Name)
+		err := command(ctx, "docker", "rm", "-f", "-v", res.Name)
+		if err != nil && (strings.Contains(err.Error(), "is already in progress") ||
+			strings.Contains(err.Error(), "No such container")) {
+			return nil
+		}
+		return err
 	case Compose:
 		return command(ctx, "docker", "compose", "-p", res.Name, "down", "-v", "--remove-orphans")
 	case KindCluster:

@@ -103,16 +103,19 @@ type Lease struct {
 }
 
 type record struct {
-	ID        string     `json:"id"`
-	PID       int        `json:"pid,omitempty"`
-	Started   string     `json:"started,omitempty"`
-	Path      string     `json:"path,omitempty"`
-	TTL       int64      `json:"ttl,omitempty"`
-	Expires   int64      `json:"expires,omitempty"`
-	Releasing bool       `json:"releasing,omitempty"`
-	Users     []string   `json:"users,omitempty"`
-	Resources []resource `json:"resources,omitempty"`
-	Ports     []int      `json:"ports,omitempty"`
+	ID        string `json:"id"`
+	PID       int    `json:"pid,omitempty"`
+	Started   string `json:"started,omitempty"`
+	Path      string `json:"path,omitempty"`
+	TTL       int64  `json:"ttl,omitempty"`
+	Expires   int64  `json:"expires,omitempty"`
+	Releasing bool   `json:"releasing,omitempty"`
+	// Releaser and ReleaserStarted name the process removing a releasing lease's resources.
+	Releaser        int        `json:"releaser,omitempty"`
+	ReleaserStarted string     `json:"releaserStarted,omitempty"`
+	Users           []string   `json:"users,omitempty"`
+	Resources       []resource `json:"resources,omitempty"`
+	Ports           []int      `json:"ports,omitempty"`
 }
 
 type resource struct {
@@ -273,6 +276,21 @@ func (r *Registry) Reap(ctx context.Context) ([]string, error) {
 
 // reap releases the dead leases among those that match, shared leases after the leases that use them.
 func (r *Registry) reap(ctx context.Context, match func(record) bool) ([]string, error) {
+	dead, err := r.markDead(ctx, match)
+	var released []string
+	for _, id := range dead {
+		if removeErr := r.remove(ctx, id); removeErr != nil {
+			err = errors.Join(err, removeErr)
+			continue
+		}
+		released = append(released, id)
+	}
+	return released, err
+}
+
+// markDead marks the dead leases among those that match as released by this process and returns
+// them, shared leases last. It skips a lease another live process is releasing.
+func (r *Registry) markDead(ctx context.Context, match func(record) bool) ([]string, error) {
 	var dead, deadShared []string
 	err := r.locked(func() error {
 		records, err := r.records()
@@ -292,7 +310,14 @@ func (r *Registry) reap(ctx context.Context, match func(record) bool) ([]string,
 			if alive {
 				continue
 			}
-			rec.Releasing = true
+			claimed, err := claimRelease(ctx, &rec)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			if !claimed {
+				continue
+			}
 			if err := r.write(rec); err != nil {
 				errs = append(errs, err)
 				continue
@@ -305,15 +330,7 @@ func (r *Registry) reap(ctx context.Context, match func(record) bool) ([]string,
 		}
 		return errors.Join(errs...)
 	})
-	var released []string
-	for _, id := range append(dead, deadShared...) {
-		if removeErr := r.remove(ctx, id); removeErr != nil {
-			err = errors.Join(err, removeErr)
-			continue
-		}
-		released = append(released, id)
-	}
-	return released, err
+	return append(dead, deadShared...), err
 }
 
 // Dir is the lease's directory, where its owner may keep files; release removes it.
@@ -358,17 +375,42 @@ func (l *Lease) Renew() error {
 // Release removes the lease's resources, its directory and its ports, then releases the shared
 // leases no live lease uses any more.
 func (l *Lease) Release(ctx context.Context) error {
+	claimed := false
 	if err := l.update(func(rec *record) error {
-		rec.Releasing = true
-		return nil
+		var err error
+		claimed, err = claimRelease(ctx, rec)
+		return err
 	}); err != nil {
 		return err
+	}
+	if !claimed {
+		return nil
 	}
 	if err := l.r.remove(ctx, l.ID); err != nil {
 		return err
 	}
 	_, err := l.r.reap(ctx, func(rec record) bool { return len(rec.Users) > 0 })
 	return err
+}
+
+// claimRelease marks a record as released by this process, unless another live process is
+// releasing it. Callers hold the registry lock, so exactly one process removes a lease's resources.
+func claimRelease(ctx context.Context, rec *record) (bool, error) {
+	if rec.Releasing && rec.Releaser != 0 {
+		started, err := startTime(ctx, rec.Releaser)
+		if err != nil {
+			return false, err
+		}
+		if started == rec.ReleaserStarted {
+			return false, nil
+		}
+	}
+	self, err := startTime(ctx, os.Getpid())
+	if err != nil {
+		return false, err
+	}
+	rec.Releasing, rec.Releaser, rec.ReleaserStarted = true, os.Getpid(), self
+	return true, nil
 }
 
 func (l *Lease) update(change func(*record) error) error {

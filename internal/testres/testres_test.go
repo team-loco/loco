@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// sharedID is the ID of the shared lease the tests create.
+const sharedID = "server"
+
 func TestConcurrentLeasesNeverShareAPort(t *testing.T) {
 	root := t.TempDir()
 	const runs, perRun = 8, 25
@@ -317,7 +320,7 @@ func TestSharedLeaseLivesWhileAnyUserDoes(t *testing.T) {
 	for i := range users {
 		leases[i] = lease(t, registry, "run", Owner{TTL: time.Hour})
 		wg.Go(func() {
-			lease, err := registry.Share(t.Context(), "server", leases[i])
+			lease, err := registry.Share(t.Context(), sharedID, leases[i])
 			if err != nil {
 				t.Error(err)
 				return
@@ -327,15 +330,15 @@ func TestSharedLeaseLivesWhileAnyUserDoes(t *testing.T) {
 	}
 	wg.Wait()
 	for _, id := range shared {
-		if id != "server" {
+		if id != sharedID {
 			t.Fatalf("shared lease IDs = %v", shared)
 		}
 	}
-	server, err := registry.Get("server")
+	server, err := registry.Get(sharedID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rec, err := registry.read("server"); err != nil || len(rec.Users) != users {
+	if rec, err := registry.read(sharedID); err != nil || len(rec.Users) != users {
 		t.Fatalf("users of the shared lease = %v, %v", rec.Users, err)
 	}
 	process := serve(t, server)
@@ -365,7 +368,7 @@ func TestReapReleasesASharedLeaseWhoseUsersAreGone(t *testing.T) {
 		t.Fatal(err)
 	}
 	gone := lease(t, registry, "gone", Owner{PID: owner.Process.Pid})
-	if _, err := registry.Share(t.Context(), "server", gone); err != nil {
+	if _, err := registry.Share(t.Context(), sharedID, gone); err != nil {
 		t.Fatal(err)
 	}
 	if err := owner.Process.Kill(); err != nil {
@@ -378,7 +381,7 @@ func TestReapReleasesASharedLeaseWhoseUsersAreGone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(released, []string{gone.ID, "server"}) {
+	if !slices.Equal(released, []string{gone.ID, sharedID}) {
 		t.Fatalf("released %v, want the user before the shared lease", released)
 	}
 }
@@ -386,21 +389,102 @@ func TestReapReleasesASharedLeaseWhoseUsersAreGone(t *testing.T) {
 func TestShareRecreatesALeaseAfterItsRelease(t *testing.T) {
 	registry := open(t)
 	first := lease(t, registry, "run", Owner{TTL: time.Hour})
-	if _, err := registry.Share(t.Context(), "server", first); err != nil {
+	if _, err := registry.Share(t.Context(), sharedID, first); err != nil {
 		t.Fatal(err)
 	}
 	if err := first.Release(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	second := lease(t, registry, "run", Owner{TTL: time.Hour})
-	if _, err := registry.Share(t.Context(), "server", second); err != nil {
+	if _, err := registry.Share(t.Context(), sharedID, second); err != nil {
 		t.Fatal(err)
 	}
-	rec, err := registry.read("server")
+	rec, err := registry.read(sharedID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(rec.Users, []string{second.ID}) {
 		t.Fatalf("users of the recreated lease = %v", rec.Users)
+	}
+}
+
+func TestConcurrentReleasesOfTheLastUsersRemoveASharedLeaseOnce(t *testing.T) {
+	registry := open(t)
+	first := lease(t, registry, "run", Owner{TTL: time.Hour})
+	second := lease(t, registry, "run", Owner{TTL: time.Hour})
+	for _, user := range []*Lease{first, second} {
+		if _, err := registry.Share(t.Context(), sharedID, user); err != nil {
+			t.Fatal(err)
+		}
+	}
+	server, getErr := registry.Get(sharedID)
+	if getErr != nil {
+		t.Fatal(getErr)
+	}
+	// The process logs every SIGTERM it gets and lingers after the first, so a second removal shows.
+	stops := filepath.Join(t.TempDir(), "stops")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c",
+		`trap 'echo stop >> "$0"; sleep 1; exit 0' TERM; while :; do sleep 0.05; done`, stops)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Add(t.Context(), Process, strconv.Itoa(cmd.Process.Pid)); err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	for _, user := range []*Lease{first, second} {
+		wg.Go(func() {
+			if err := user.Release(t.Context()); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("the shared process: %v", err)
+	}
+	log, readErr := os.ReadFile(stops)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if got := strings.Count(string(log), "stop"); got != 1 {
+		t.Fatalf("the shared process was stopped %d times, want once", got)
+	}
+	if ids := ids(t, registry); len(ids) != 0 {
+		t.Fatalf("leases after both users released = %v", ids)
+	}
+}
+
+func TestOnlyOneReaperReleasesADeadLease(t *testing.T) {
+	registry := open(t)
+	owner := exec.CommandContext(t.Context(), "sleep", "60")
+	if err := owner.Start(); err != nil {
+		t.Fatal(err)
+	}
+	gone := lease(t, registry, "gone", Owner{PID: owner.Process.Pid})
+	if _, err := registry.Share(t.Context(), sharedID, gone); err != nil {
+		t.Fatal(err)
+	}
+	if err := owner.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	if err := owner.Wait(); !isExit(err) {
+		t.Fatalf("wait for the killed owner: %v", err)
+	}
+	all := func(record) bool { return true }
+	first, err := registry.markDead(t.Context(), all)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(first, []string{gone.ID, sharedID}) {
+		t.Fatalf("first reaper marked %v", first)
+	}
+	second, err := registry.markDead(t.Context(), all)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second) != 0 {
+		t.Fatalf("a second reaper took over leases a live process is releasing: %v", second)
 	}
 }
