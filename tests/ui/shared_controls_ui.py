@@ -210,33 +210,29 @@ def assert_sidebar_slide(target):
         const row = node.closest('li');
         const center = rect => rect.top + rect.height / 2;
         const start = center(sidebar.querySelector(selector).getBoundingClientRect());
-        const end = center(node.getBoundingClientRect());
-        const direction = Math.sign(end - start);
-        const deadline = performance.now() + 1000;
+        const end = center(row.getBoundingClientRect());
         node.click();
-        while (performance.now() < deadline) {
+        let highlight = null;
+        while (!highlight) {
             await new Promise(requestAnimationFrame);
-            const highlight = row.querySelector(selector);
-            if (!highlight) continue;
-            const rect = highlight.getBoundingClientRect();
-            const y = center(rect);
-            if (Math.abs(y - end) <= 2) return false;
-            if ((y - start) * direction <= 2) continue;
-            // The trailing edge should remain visible outside the destination row.
-            const trailingEdge = y - direction * (rect.height / 2 - 1);
-            highlight.style.pointerEvents = 'auto';
-            const visible = document.elementsFromPoint(rect.left + rect.width / 2, trailingEdge)
-                .includes(highlight);
-            highlight.style.removeProperty('pointer-events');
-            if (visible) return true;
+            highlight = row.querySelector(selector);
         }
-        return false;
+        // Hold the highlight halfway between the two rows, where the slide passes.
+        const transform = highlight.style.transform;
+        highlight.style.transform = `translateY(${(start - end) / 2}px)`;
+        const rect = highlight.getBoundingClientRect();
+        // The trailing edge should remain visible outside the destination row.
+        const trailingEdge = center(rect) - Math.sign(end - start) * (rect.height / 2 - 1);
+        highlight.style.pointerEvents = 'auto';
+        const visible = document.elementsFromPoint(rect.left + rect.width / 2, trailingEdge)
+            .includes(highlight);
+        highlight.style.removeProperty('pointer-events');
+        highlight.style.transform = transform;
+        return visible;
     }""",
         highlight_selector,
     )
-    assert traveled, (
-        f"Sidebar highlight did not visibly travel to {target.inner_text()}"
-    )
+    assert traveled, f"Sidebar highlight is hidden part way to {target.inner_text()}"
     expect(target).to_have_attribute("aria-current", "page")
     expect(target.locator("..").locator(highlight_selector)).to_have_css(
         "transform", "none"
