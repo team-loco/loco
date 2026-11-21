@@ -102,7 +102,7 @@ export function orgColumns({
 		{
 			id: "role",
 			header: "Your role",
-			size: 130,
+			size: 110,
 			minSize: 90,
 			cell: ({ row: { original: org } }) => roleOf(org.id) ?? "…",
 		},
