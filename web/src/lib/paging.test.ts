@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { nextPage, pagedRows, type Paging } from "./paging";
+import { nextPage, pagedRows, tokenPageLabel, tokenPager, type Paging } from "./paging";
 
 const ROWS = Array.from({ length: 7 }, (_, i) => i);
 const SIZES = [3, 6];
@@ -76,5 +76,34 @@ describe("nextPage", () => {
 		expect(next).not.toBeNull();
 		next?.();
 		expect(loads).toBe(0);
+	});
+});
+
+describe("tokenPageLabel", () => {
+	test("labels the page's range, with the total when there is one", () => {
+		expect(tokenPageLabel(2, 50, 7, undefined)).toBe("101–107");
+		expect(tokenPageLabel(0, 50, 50, 1234)).toBe("1–50 of 1,234");
+		expect(tokenPageLabel(0, 50, 50, 10_000)).toBe("1–50 of 10,000");
+		expect(tokenPageLabel(0, 50, 50, 10_001)).toBe("1–50 of 10,000+");
+		expect(tokenPageLabel(0, 50, 0, 0)).toBe("0");
+	});
+});
+
+describe("tokenPager", () => {
+	test("pushes the next token, pops on Previous and clears on First", () => {
+		const moves: (string[] | null)[] = [];
+		const go = (tokens: string[] | null) => {
+			moves.push(tokens);
+		};
+		const first = tokenPager([], "a", go);
+		expect([first.page, first.onFirst, first.onPrev]).toEqual([0, null, null]);
+		first.onNext?.();
+		const third = tokenPager(["a", "b"], "", go);
+		expect(third.page).toBe(2);
+		expect(third.onNext).toBeNull();
+		third.onPrev?.();
+		third.onFirst?.();
+		tokenPager(["a"], "b", go).onPrev?.();
+		expect(moves).toEqual([["a"], ["a"], null, null]);
 	});
 });

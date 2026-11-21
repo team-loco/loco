@@ -39,7 +39,7 @@ export function AuditFilterError({ error, onFix }: { error: Error; onFix: (field
 	const time = field === "start_time" || field === "end_time";
 	const subject = new Map([
 		["page_size", "number of rows"],
-		["before_seq", "page"],
+		["page_token", "page"],
 		["workspace_id", "workspace"],
 		["resource_id", "resource"],
 		["environment_id", "environment"],

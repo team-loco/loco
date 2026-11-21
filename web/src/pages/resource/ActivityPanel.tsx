@@ -65,12 +65,12 @@ export function ActivityPanel({
 			resourceId,
 			environmentId: environmentId ?? "",
 			pageSize: PAGE_SIZE,
-			beforeSeq: 0n,
+			pageToken: "",
 		},
 		{
 			enabled: environmentId !== undefined,
-			pageParamKey: "beforeSeq",
-			getNextPageParam: (last) => (last.nextBeforeSeq === 0n ? undefined : last.nextBeforeSeq),
+			pageParamKey: "pageToken",
+			getNextPageParam: (last) => last.nextPageToken || undefined,
 		},
 	);
 	const events = distinctAuditEvents(query.data?.pages.flatMap((p) => p.events) ?? []);

@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file loco/event/v1/event.proto.
  */
 export const file_loco_event_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIpYDCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJEhgKEGFjdG9yX3Rva2VuX3R5cGUYESABKAkSFQoNZGVwbG95bWVudF9pZBgSIAEoCSLKAgoRTGlzdEV2ZW50c1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCgpiZWZvcmVfc2VxGAIgASgDQge6SAQiAigAEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoABIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKBXF1ZXJ5GA0gASgJQgi6SAVyAyiAICJTChJMaXN0RXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIXCg9uZXh0X2JlZm9yZV9zZXEYAiABKAMirAIKE1N0cmVhbUV2ZW50c1JlcXVlc3QSFwoGY3Vyc29yGAEgASgJQge6SARyAhhAEhsKBm9yZ19pZBgCIAEoCUILukgI2AEBcgOwAQESIQoMd29ya3NwYWNlX2lkGAUgASgJQgu6SAjYAQFyA7ABARIgCgtyZXNvdXJjZV9pZBgGIAEoCUILukgI2AEBcgOwAQESIwoOZW52aXJvbm1lbnRfaWQYByABKAlCC7pICNgBAXIDsAEBEi4KCnN0YXJ0X3RpbWUYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZF90aW1lGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCgVxdWVyeRgNIAEoCUIIukgFcgMogCAiTAoUU3RyZWFtRXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIOCgZjdXJzb3IYAiABKAkyvAEKDEV2ZW50U2VydmljZRJRCgpMaXN0RXZlbnRzEiAubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVxdWVzdBohLmxvY28uZXZlbnQudjEuTGlzdEV2ZW50c1Jlc3BvbnNlElkKDFN0cmVhbUV2ZW50cxIiLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVxdWVzdBojLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVzcG9uc2UwAUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2V2ZW50L3YxO2V2ZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIpYDCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJEhgKEGFjdG9yX3Rva2VuX3R5cGUYESABKAkSFQoNZGVwbG95bWVudF9pZBgSIAEoCSLnAgoRTGlzdEV2ZW50c1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCgpwYWdlX3Rva2VuGAIgASgJQge6SARyAhhAEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoABIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKBXF1ZXJ5GA0gASgJQgi6SAVyAyiAIBIbChNpbmNsdWRlX3RvdGFsX2NvdW50GA4gASgIImgKEkxpc3RFdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBSKsAgoTU3RyZWFtRXZlbnRzUmVxdWVzdBIXCgZjdXJzb3IYASABKAlCB7pIBHICGEASGwoGb3JnX2lkGAIgASgJQgu6SAjYAQFyA7ABARIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKBXF1ZXJ5GA0gASgJQgi6SAVyAyiAICJMChRTdHJlYW1FdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50Eg4KBmN1cnNvchgCIAEoCTK8AQoMRXZlbnRTZXJ2aWNlElEKCkxpc3RFdmVudHMSIC5sb2NvLmV2ZW50LnYxLkxpc3RFdmVudHNSZXF1ZXN0GiEubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVzcG9uc2USWQoMU3RyZWFtRXZlbnRzEiIubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXF1ZXN0GiMubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXNwb25zZTABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZXZlbnQvdjE7ZXZlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.event.v1.Event
@@ -236,9 +236,11 @@ export type ListEventsRequest = Message<"loco.event.v1.ListEventsRequest"> & {
   orgId: string;
 
   /**
-   * @generated from field: int64 before_seq = 2;
+   * next_page_token from the previous page; empty for the newest events.
+   *
+   * @generated from field: string page_token = 2;
    */
-  beforeSeq: bigint;
+  pageToken: string;
 
   /**
    * @generated from field: int32 page_size = 4;
@@ -280,6 +282,13 @@ export type ListEventsRequest = Message<"loco.event.v1.ListEventsRequest"> & {
    * @generated from field: string query = 13;
    */
   query: string;
+
+  /**
+   * Sets total_count in the response.
+   *
+   * @generated from field: bool include_total_count = 14;
+   */
+  includeTotalCount: boolean;
 };
 
 /**
@@ -292,9 +301,11 @@ export type ListEventsRequestJson = {
   orgId?: string;
 
   /**
-   * @generated from field: int64 before_seq = 2;
+   * next_page_token from the previous page; empty for the newest events.
+   *
+   * @generated from field: string page_token = 2;
    */
-  beforeSeq?: string;
+  pageToken?: string;
 
   /**
    * @generated from field: int32 page_size = 4;
@@ -336,6 +347,13 @@ export type ListEventsRequestJson = {
    * @generated from field: string query = 13;
    */
   query?: string;
+
+  /**
+   * Sets total_count in the response.
+   *
+   * @generated from field: bool include_total_count = 14;
+   */
+  includeTotalCount?: boolean;
 };
 
 /**
@@ -350,14 +368,26 @@ export const ListEventsRequestSchema: GenMessage<ListEventsRequest, {jsonType: L
  */
 export type ListEventsResponse = Message<"loco.event.v1.ListEventsResponse"> & {
   /**
+   * Newest first.
+   *
    * @generated from field: repeated loco.event.v1.Event events = 1;
    */
   events: Event[];
 
   /**
-   * @generated from field: int64 next_before_seq = 2;
+   * Empty on the last page.
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  nextBeforeSeq: bigint;
+  nextPageToken: string;
+
+  /**
+   * The events the filters match, ignoring page_token; set when include_total_count is.
+   * Exact up to 10,000; 10,001 means more than 10,000.
+   *
+   * @generated from field: int32 total_count = 3;
+   */
+  totalCount: number;
 };
 
 /**
@@ -365,14 +395,26 @@ export type ListEventsResponse = Message<"loco.event.v1.ListEventsResponse"> & {
  */
 export type ListEventsResponseJson = {
   /**
+   * Newest first.
+   *
    * @generated from field: repeated loco.event.v1.Event events = 1;
    */
   events?: EventJson[];
 
   /**
-   * @generated from field: int64 next_before_seq = 2;
+   * Empty on the last page.
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  nextBeforeSeq?: string;
+  nextPageToken?: string;
+
+  /**
+   * The events the filters match, ignoring page_token; set when include_total_count is.
+   * Exact up to 10,000; 10,001 means more than 10,000.
+   *
+   * @generated from field: int32 total_count = 3;
+   */
+  totalCount?: number;
 };
 
 /**

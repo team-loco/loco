@@ -18,6 +18,7 @@ type AuditQuery struct {
 	ResourceID    *uuid.UUID
 	EnvironmentID *uuid.UUID
 	Start, End    *time.Time
+	// BeforeSeq, when positive, selects events with a lower seq.
 	BeforeSeq     int64
 	AfterPosition int64
 	Stream        bool
@@ -78,6 +79,14 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 		)
 		return event, err
 	})
+}
+
+// CountAudit counts the events q selects, at most q.Limit of them.
+func CountAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) (int64, error) {
+	sql, args := auditSQL(q)
+	var n int64
+	err := db.QueryRow(ctx, "SELECT count(*) FROM ("+sql+") capped", args...).Scan(&n)
+	return n, err
 }
 
 func auditSQL(q AuditQuery) (string, []any) {

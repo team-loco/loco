@@ -119,19 +119,33 @@ func TestListOrganizationEventsAuthorizationPagingAndFilter(t *testing.T) {
 	}
 
 	first, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
-		OrgId: f.orgID, PageSize: 4,
+		OrgId: f.orgID, PageSize: 4, IncludeTotalCount: true,
 	})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(first.GetEvents()) != 4 || first.GetNextBeforeSeq() == 0 {
-		t.Fatalf("first page = %v next=%d", eventTypes(first.GetEvents()), first.GetNextBeforeSeq())
+	if first.GetTotalCount() != 6 {
+		t.Fatalf("total = %d, want 6", first.GetTotalCount())
+	}
+	if len(first.GetEvents()) != 4 || first.GetNextPageToken() == "" {
+		t.Fatalf("first page = %v next=%q", eventTypes(first.GetEvents()), first.GetNextPageToken())
 	}
 	second, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
-		OrgId: f.orgID, PageSize: 4, BeforeSeq: first.GetNextBeforeSeq(),
+		OrgId: f.orgID, PageSize: 4, PageToken: first.GetNextPageToken(),
 	})
-	if err != nil || len(second.GetEvents()) != 2 || second.GetNextBeforeSeq() != 0 {
+	if err != nil || len(second.GetEvents()) != 2 || second.GetNextPageToken() != "" || second.GetTotalCount() != 0 {
 		t.Fatalf("second page = %v (%v)", eventTypes(second.GetEvents()), err)
+	}
+	full, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID, PageSize: 3})
+	if err != nil || full.GetNextPageToken() == "" {
+		t.Fatalf("first of two full pages: token %q (%v)", full.GetNextPageToken(), err)
+	}
+	last, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
+		OrgId: f.orgID, PageSize: 3, PageToken: full.GetNextPageToken(),
+	})
+	if err != nil || len(last.GetEvents()) != 3 || last.GetNextPageToken() != "" {
+		t.Fatalf("exactly full last page = %d events, token %q (%v)",
+			len(last.GetEvents()), last.GetNextPageToken(), err)
 	}
 	if got := second.GetEvents()[1]; got.GetType() != events.OrgCreated ||
 		got.GetData().GetFields()["name"].GetStringValue() != "acme" || got.GetActorEmail() != auditOwnerEmail {
@@ -438,5 +452,38 @@ func (s scopeInjector) Interceptor(next connect.ServerFunc) connect.ServerFunc {
 		ctx = auth.WithStreamValidation(ctx, auth.StreamConfig{Interval: 10 * time.Millisecond, Timeout: time.Second},
 			func(context.Context) (reqctx.Principal, error) { return reqctx.Principal{Scopes: s()}, nil })
 		return next(ctx, spec, stream)
+	}
+}
+
+func TestListEventsCapsTotalCount(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	if _, err := f.pool.Exec(t.Context(), `
+INSERT INTO events (type, org_id, actor_type)
+SELECT 'org.updated', $1, 'system' FROM generate_series(1, $2::int)`, f.orgID, totalCountCap+5); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		query string
+		want  int32
+	}{
+		{"", totalCountCap + 1},
+		{"@type:" + events.OrgCreated, 1},
+	} {
+		got, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
+			OrgId: f.orgID, PageSize: 1, Query: tc.query, IncludeTotalCount: true,
+		})
+		if err != nil || got.GetTotalCount() != tc.want {
+			t.Fatalf("query %q total = %d (%v), want %d", tc.query, got.GetTotalCount(), err, tc.want)
+		}
+	}
+}
+
+func TestListEventsRejectsAMalformedPageToken(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	_, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID, PageToken: "not a token"})
+	if codeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("err = %v, want invalid argument", err)
 	}
 }

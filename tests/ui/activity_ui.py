@@ -376,8 +376,8 @@ with session(out) as browser:
                     held.append(route)
                     return
                 if is_activity and (
-                    (mode["fail_older"] and body.get("beforeSeq"))
-                    or (mode["fail_initial"] and not body.get("beforeSeq"))
+                    (mode["fail_older"] and body.get("pageToken"))
+                    or (mode["fail_initial"] and not body.get("pageToken"))
                 ):
                     recorded.append(
                         {
@@ -529,7 +529,7 @@ with session(out) as browser:
             panel.get_by_role("alert").wait_for()
             expect(panel.get_by_role("listitem")).to_have_text(loaded_rows)
             cursor = [
-                request["body"]["beforeSeq"]
+                request["body"]["pageToken"]
                 for request in recorded
                 if request.get("controlledFailure")
             ][-1]
@@ -542,9 +542,9 @@ with session(out) as browser:
                 for request in recorded
                 if request["method"] == "ListEvents"
                 and request["status"] == 200
-                and request["body"].get("beforeSeq")
+                and request["body"].get("pageToken")
             ]
-            assert retries[-1]["body"]["beforeSeq"] == cursor, retries[-1]
+            assert retries[-1]["body"]["pageToken"] == cursor, retries[-1]
         if user == "owner":
             panel.get_by_role("link", name="View all in audit log", exact=True).click()
             page.wait_for_url(

@@ -311,13 +311,13 @@ func TestListEventsPagesMatchingHistoryAndRetainsDeletedResource(t *testing.T) {
 			seqs = append(seqs, ev.GetSeq())
 			kinds = append(kinds, ev.GetType())
 		}
-		if response.GetNextBeforeSeq() == 0 {
+		if response.GetNextPageToken() == "" {
 			break
 		}
-		if request.GetBeforeSeq() != 0 {
+		if request.GetPageToken() != "" {
 			t.Fatal("exact final page should have no cursor")
 		}
-		request.BeforeSeq = response.GetNextBeforeSeq()
+		request.PageToken = response.GetNextPageToken()
 		if err := events.Record(
 			f.owner,
 			f.queries,
@@ -341,7 +341,7 @@ func TestListEventsPagesMatchingHistoryAndRetainsDeletedResource(t *testing.T) {
 	}
 	request.ResourceId = ""
 	request.WorkspaceId = f.workspaceID.String()
-	request.BeforeSeq = 0
+	request.PageToken = ""
 	request.PageSize = 100
 	response, err := f.events.ListEvents(
 		auditScope(t, genDb.EntityTypeWorkspace, f.workspaceID, genDb.ScopeAdmin),

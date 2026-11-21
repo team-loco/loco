@@ -2,26 +2,25 @@ import { describe, expect, test } from "bun:test";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import { BadRequestSchema } from "@gen/google/rpc/error_details_pb";
-import { auditFilterViolations, auditLink, sequenceParser } from "./link";
+import { auditFilterViolations, auditLink } from "./link";
 
 describe("audit links", () => {
-	test("keeps usable event types, cursor history, search and page size", () => {
+	test("keeps usable event types, page tokens, search and page size", () => {
 		const result = auditLink(
-			"?range=forever&types=resource.created,unknown,secret.set&before=99,nope,55&size=100&q=hello",
+			"?range=forever&types=resource.created,unknown,secret.set&before=AAAA,BBBB&size=100&q=hello",
 			[],
 			undefined,
 			undefined,
 		);
 		expect(Object.fromEntries(new URLSearchParams(result.search))).toEqual({
 			types: "resource.created,secret.set",
-			before: "99,55",
+			before: "AAAA,BBBB",
 			size: "100",
 			q: "hello",
 		});
 		expect(result.dropped.map((f) => [f.label, f.value])).toEqual([
 			["Time range", "forever"],
 			["Event", "unknown"],
-			["Page", "nope"],
 		]);
 	});
 	test("drops unavailable scope values without discarding a valid workspace", () => {
@@ -49,11 +48,6 @@ describe("audit links", () => {
 	});
 	test("uses the workspace admin's selected workspace when the link omits it", () => {
 		expect(auditLink("?res=checkout", ["shared"], ["checkout"], [], "shared").dropped).toEqual([]);
-	});
-	test("validates cursor positions against the positive int64 protocol", () => {
-		for (const value of ["0", "-1", "1.5", "9223372036854775808", "nope"])
-			expect(sequenceParser.parse(value)).toBeNull();
-		expect(sequenceParser.parse("9223372036854775807")).toBe(9223372036854775807n);
 	});
 });
 
