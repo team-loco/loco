@@ -13,14 +13,24 @@ describe("demoFrame", () => {
 		const rest = demoFrame(REST_FRAME);
 		expect(rest.status).toBe(ResourceStatus.HEALTHY);
 		expect(rest.ready).toBe(rest.desired);
-		expect(rest.shown).toBe(TERMINAL.length);
+		expect(rest.lines).toHaveLength(TERMINAL.length);
 		expect(rest.regions.flatMap((r) => r.pods).every((p) => p.fresh && p.phase === "ready")).toBe(true);
 	});
 
 	test("moves the version tag to the digest the demo build pushed", () => {
 		const built = demoFrame(REST_FRAME).version;
 		expect(demoFrame(0).version).not.toBe(built);
-		expect(TERMINAL.some((line) => line.text.endsWith(`@${built}`))).toBe(true);
+		expect(demoFrame(REST_FRAME).lines.some((line) => line.text.endsWith(`@${built}`))).toBe(true);
+	});
+
+	test("resolves the running build line in place", () => {
+		const index = TERMINAL.findIndex((line) => line.resolved !== undefined);
+		const resolvedAt = TERMINAL[index]?.resolved?.at ?? 0;
+		const before = demoFrame(resolvedAt - 1).lines;
+		const after = demoFrame(resolvedAt).lines;
+		expect(before[index]?.tone).toBe("running");
+		expect(after[index]?.tone).toBe("ok");
+		expect(after).toHaveLength(before.length);
 	});
 
 	test("reports deploying while a region is still rolling out", () => {

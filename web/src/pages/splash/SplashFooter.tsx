@@ -10,7 +10,7 @@ const LINK_CLASS = "inline-flex w-fit items-center text-fg2 transition-colors ho
 function Column({ title, children }: { title: string; children: ReactNode }) {
 	return (
 		<div className="flex flex-col gap-[9px] text-[13.5px]">
-			<span className="mb-0.5 text-[12.5px] text-fg3">{title}</span>
+			<span className="mb-0.5 text-[12.5px] text-fg4">{title}</span>
 			{children}
 		</div>
 	);
@@ -30,7 +30,7 @@ export function SplashFooter({ onSignIn, redirecting }: { onSignIn: () => void; 
 		<footer className="mt-auto border-t border-line bg-panel">
 			<div className="mx-auto grid w-full max-w-[1160px] grid-cols-2 gap-8 px-4 pt-11 pb-14 sm:px-7 min-[760px]:grid-cols-[1.4fr_repeat(3,1fr)]">
 				<div className="flex flex-col items-start gap-[18px]">
-					<LocoLogo className="w-[72px]" />
+					<LocoLogo className="h-[26px]" />
 				</div>
 				<Column title="Product">
 					<a href="#start" className={LINK_CLASS}>

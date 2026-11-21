@@ -468,6 +468,18 @@ with session(out) as browser:
     assert page.evaluate("navigator.clipboard.readText()") == prompt
     expect(onboard).to_be_visible()
     page.set_viewport_size(evidence.DESKTOP)
+
+    # Reduced motion holds the deploy demo on its last frame.
+    page.reload()
+    demo = page.locator("#product")
+    build = demo.get_by_text(re.compile(r"^Build \S+ (running|succeeded in 38s)"))
+    expect(build).to_have_count(1)
+    expect(build).to_contain_text("succeeded in 38s")
+    pods = demo.get_by_text("us-ca-1", exact=True).locator("xpath=..").locator("i")
+    pods.first.hover()
+    expect(page.locator("[data-slot=tooltip-content]")).to_have_text(
+        "sha256:4be1c09d · ready"
+    )
     page.emulate_media(reduced_motion="no-preference")
 
     page.goto(ui + "/auth/callback?error=access_denied")

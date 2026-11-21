@@ -8,19 +8,26 @@ export interface Pod {
 	phase: PodPhase;
 }
 
-export type LineTone = "command" | "output" | "ok" | "link";
+export type LineTone = "command" | "output" | "detail" | "running" | "ok" | "link";
 
 export const TONE_CLASS: Record<LineTone, string> = {
 	command: "text-foreground",
 	output: "text-fg3",
+	detail: "text-fg3",
+	running: "text-fg3",
 	ok: "text-ok-fg",
 	link: "text-brand",
 };
 
-export interface TerminalLine {
-	at: number;
+export interface TerminalText {
 	text: string;
 	tone: LineTone;
+}
+
+export interface TerminalLine extends TerminalText {
+	at: number;
+	// The line rewrites itself in place once the frame reaches `at`.
+	resolved?: TerminalText & { at: number };
 }
 
 export interface RegionFrame {
@@ -29,7 +36,7 @@ export interface RegionFrame {
 }
 
 export interface DemoFrame {
-	shown: number;
+	lines: readonly TerminalText[];
 	status: ResourceStatus;
 	ready: number;
 	desired: number;
@@ -60,19 +67,23 @@ const REGION_STARTS = [
 ] as const;
 
 export const TERMINAL: readonly TerminalLine[] = [
-	{ at: 0, text: "$ loco deploy --yes", tone: "command" },
+	{ at: 0, text: "loco deploy --yes", tone: "command" },
 	{ at: 2, text: "Plan for loco.yaml against environment revision 7.", tone: "output" },
-	{ at: 3, text: "Update", tone: "output" },
-	{ at: 3, text: "  ~ api  (needs deploy)", tone: "output" },
-	{ at: 3, text: "Plan: 1 to update.", tone: "output" },
+	{ at: 3, text: "Update", tone: "detail" },
+	{ at: 3, text: "  ~ api  (needs deploy)", tone: "detail" },
+	{ at: 3, text: "Plan: 1 to update.", tone: "detail" },
 	{ at: 5, text: "Packed 214 files from . (1.8 MiB compressed)", tone: "output" },
 	{ at: 6, text: "Building api from Dockerfile in .", tone: "output" },
 	{ at: 7, text: `Uploading the source for build ${BUILD_ID}`, tone: "output" },
-	{ at: 8, text: `Build ${BUILD_ID} running`, tone: "output" },
 	{
-		at: 16,
-		text: `Build ${BUILD_ID} succeeded in 38s: registry.onloco.app/ws-019a1f04-8c2d-7e55-b6a1-0d9e3c7f2a18/019a1f05-3b6e-7a90-8d24-6f1c0e9b5d73@${NEW_DIGEST}`,
-		tone: "ok",
+		at: 8,
+		text: `Build ${BUILD_ID} running`,
+		tone: "running",
+		resolved: {
+			at: 16,
+			text: `Build ${BUILD_ID} succeeded in 38s: registry.onloco.app/ws-019a1f04-8c2d-7e55-b6a1-0d9e3c7f2a18/019a1f05-3b6e-7a90-8d24-6f1c0e9b5d73@${NEW_DIGEST}`,
+			tone: "ok",
+		},
 	},
 	{ at: DEPLOYED_AT, text: "Applied. Environment revision is now 8.", tone: "ok" },
 	{
@@ -86,8 +97,11 @@ export const TERMINAL: readonly TerminalLine[] = [
 		tone: "output",
 	},
 	{ at: 18, text: `api: https://${ENDPOINT}`, tone: "link" },
-	{ at: 19, text: "$", tone: "command" },
 ];
+
+export function podLabel({ fresh, phase }: Pod): string {
+	return `${fresh ? NEW_DIGEST : OLD_DIGEST} · ${phase}`;
+}
 
 function pod(n: number, fresh: boolean, phase: PodPhase): Pod {
 	return { id: `p${n.toString()}`, fresh, phase };
@@ -144,7 +158,9 @@ export function demoFrame(frame: number): DemoFrame {
 	const deploying = frame >= DEPLOYED_AT && frame < REST_FRAME;
 	const pods = regions.flatMap((r) => r.pods);
 	return {
-		shown: TERMINAL.filter((line) => line.at <= frame).length,
+		lines: TERMINAL.filter((line) => line.at <= frame).map(({ text, tone, resolved }) =>
+			resolved !== undefined && resolved.at <= frame ? resolved : { text, tone },
+		),
 		status: deploying ? ResourceStatus.DEPLOYING : ResourceStatus.HEALTHY,
 		ready,
 		desired: REPLICAS * regions.length,

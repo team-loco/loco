@@ -31,7 +31,7 @@ export function Architecture() {
 					href={GITHUB_URL}
 					target="_blank"
 					rel="noopener"
-					className="border-b border-line2 pb-px text-[13px] whitespace-nowrap text-fg2 transition-colors hover:text-foreground"
+					className="border-b border-line2 pb-px text-[13px] whitespace-nowrap text-fg2 transition-colors hover:border-foreground hover:text-foreground"
 				>
 					Read the source
 				</a>
