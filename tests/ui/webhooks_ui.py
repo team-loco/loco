@@ -31,6 +31,31 @@ def unavailable(route):
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with session(out) as browser:
+    context, page, errors = open_page(
+        browser, state=state, permissions=["clipboard-read", "clipboard-write"]
+    )
+    requests = []
+    page.on(
+        "request",
+        lambda req: (
+            requests.append((req.url.rsplit("/", 1)[-1], req.post_data_json))
+            if service in req.url
+            else None
+        ),
+    )
+    page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/webhooks")
+    expect(page.get_by_role("link", name="Webhooks", exact=True)).to_be_visible()
+    # A workspace without webhooks offers the first one and the webhook docs.
+    hero = page.locator("section").filter(
+        has=page.get_by_role("heading", name="No webhooks yet", exact=True)
+    )
+    expect(hero.get_by_role("link", name="Docs", exact=True)).to_have_attribute(
+        "href", re.compile(r"/operations/webhooks/$")
+    )
+    hero.get_by_role("button", name="New webhook", exact=True).click()
+    first = page.get_by_role("dialog", name="New webhook in shared", exact=True)
+    first.get_by_role("button", name="Cancel", exact=True).click()
+    expect(first).to_have_count(0)
     hook = call(
         state,
         service + "CreateWebhook",
@@ -50,20 +75,7 @@ SELECT 'resource.created','{workspace}','system',NOW() - n * INTERVAL '1 minute'
 UPDATE webhook_deliveries SET status=CASE WHEN mod(event_seq,3)=0 THEN 'failed' WHEN mod(event_seq,3)=1 THEN 'succeeded' ELSE 'pending' END,
 next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver unavailable' WHERE webhook_id='{hook_id}';""",
     )
-    context, page, errors = open_page(
-        browser, state=state, permissions=["clipboard-read", "clipboard-write"]
-    )
-    requests = []
-    page.on(
-        "request",
-        lambda req: (
-            requests.append((req.url.rsplit("/", 1)[-1], req.post_data_json))
-            if service in req.url
-            else None
-        ),
-    )
-    page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/webhooks")
-    expect(page.get_by_role("link", name="Webhooks", exact=True)).to_be_visible()
+    page.reload()
     search = page.get_by_role("textbox", name="Search webhooks", exact=True)
     search.fill("no-match")
     expect(page.get_by_text("No webhooks match.", exact=True)).to_be_visible()
@@ -227,6 +239,8 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     ).click()
     page.get_by_role("menuitem", name="Rotate signing secret", exact=True).click()
     rotation = page.get_by_role("dialog", name="Rotate signing secret", exact=True)
+    grace = rotation.get_by_role("group", name="Grace period", exact=True)
+    assert grace.bounding_box()["width"] < rotation.bounding_box()["width"] * 0.75
     rotation.get_by_role("button", name="1 hour", exact=True).click()
     page.route("**/" + service + "RotateWebhookSecret", slow)
     with page.expect_request("**/" + service + "RotateWebhookSecret"):
@@ -261,6 +275,16 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     expect(
         creation.get_by_role("button", name="Choose events", exact=True)
     ).to_have_attribute("aria-pressed", "true")
+    builds = creation.get_by_role("checkbox", name=re.compile(r"^Builds "))
+    expect(builds).to_have_attribute("aria-checked", "mixed")
+    expect(builds).to_have_accessible_name(re.compile(r"^Builds 1 of \d+$"))
+    expect(creation.get_by_text(re.compile(r"^1 of \d+ events$"))).to_be_visible()
+    name = creation.get_by_role("textbox", name="Name (optional)", exact=True)
+    expect(name).to_be_focused()
+    expect(name).to_have_accessible_description("Shown in the webhook list.")
+    expect(creation.get_by_role("textbox").first).to_have_accessible_name(
+        "Name (optional)"
+    )
     endpoint = creation.get_by_role("textbox", name="Endpoint URL", exact=True)
     endpoint.fill("https://127.0.0.1/hook")
     expect(
@@ -270,9 +294,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         creation.get_by_role("button", name="Create webhook", exact=True)
     ).to_be_disabled()
     endpoint.fill("https://hooks.invalid/named")
-    creation.get_by_role("textbox", name="Name (optional)", exact=True).fill(
-        "Billing alerts"
-    )
+    name.fill("Billing alerts")
     creation.get_by_role("button", name="Create webhook", exact=True).click()
     page.get_by_role("dialog", name="Signing secret", exact=True).get_by_role(
         "button", name="Done", exact=True
@@ -292,10 +314,26 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     expect(
         page.get_by_role("dialog", name="Billing alerts", exact=True)
     ).to_be_visible()
+    page.keyboard.press("Escape")
+    # At the workspace's webhook limit the header says so and blocks a new one.
+    sql(
+        state,
+        f"INSERT INTO org_limit_overrides(org_id, webhooks_per_workspace, reason) VALUES('{org}', 2, 'fixture');",
+    )
+    try:
+        page.reload()
+        expect(
+            page.get_by_role("link", name="Workspace limit reached", exact=True)
+        ).to_be_visible()
+        expect(
+            page.get_by_role("button", name="New webhook", exact=True)
+        ).to_be_disabled()
+    finally:
+        sql(state, f"DELETE FROM org_limit_overrides WHERE org_id='{org}';")
     assert not errors, errors
     context.close()
     browser.close()
 print(
-    "PASS: webhook names, edit, rotation, test, redelivery, server status filters and paging",
+    "PASS: webhook empty state, limit, names, event picker, edit, rotation, test, redelivery, server status filters and paging",
     flush=True,
 )

@@ -1,0 +1,43 @@
+.es-wh .es-wh-dot {
+	offset-path: path("M130 60 H188");
+	animation: es-wh-dot 3.2s linear infinite;
+}
+.es-wh .es-wh-ok {
+	animation: es-wh-ok 3.2s linear infinite;
+}
+@keyframes es-wh-dot {
+	0% {
+		offset-distance: 0%;
+		opacity: 1;
+	}
+	38% {
+		offset-distance: 100%;
+		opacity: 1;
+	}
+	40%,
+	100% {
+		offset-distance: 100%;
+		opacity: 0;
+	}
+}
+@keyframes es-wh-ok {
+	0%,
+	40% {
+		opacity: 0;
+	}
+	46%,
+	92% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.es-wh * {
+		animation: none !important;
+	}
+	.es-wh .es-wh-dot {
+		offset-distance: 100%;
+	}
+}

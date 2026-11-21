@@ -56,7 +56,7 @@ def check_time_preferences(page):
 
 
 def check_webhooks(page):
-    new_webhook = page.get_by_role("button", name="New webhook", exact=True)
+    new_webhook = page.get_by_role("button", name="New webhook", exact=True).first
     new_webhook.click()
     page.keyboard.press("Escape")
     expect(new_webhook).to_be_focused()
@@ -66,7 +66,9 @@ def check_webhooks(page):
     new_webhook.click()
     url = page.get_by_role("textbox", name="Endpoint URL", exact=True)
     assert url.evaluate("node => node.labels.length") == 1
-    expect(url).to_be_focused()
+    expect(
+        page.get_by_role("textbox", name="Name (optional)", exact=True)
+    ).to_be_focused()
     assert descriptions(url) == []
     create = page.get_by_role("button", name="Create webhook", exact=True)
     url.fill("https://user:secret@hooks.invalid/loco")
@@ -81,50 +83,39 @@ def check_webhooks(page):
     assert rejection not in descriptions(url)
     page.get_by_role("button", name="Choose events", exact=True).click()
     assert create.is_disabled()
-    groups = page.get_by_role("group", name="Event groups", exact=True)
-    builds = groups.get_by_role("button", name=re.compile(r"^Builds "))
-    deployments = groups.get_by_role("button", name=re.compile(r"^Deployments "))
-    expect(builds).to_have_attribute("aria-pressed", "false")
+    expect(page.get_by_text("None chosen yet", exact=True)).to_be_visible()
+    picker = page.get_by_role("group", name="Events to send", exact=True)
+    builds = picker.get_by_role("checkbox", name=re.compile(r"^Builds "))
+    deployments = picker.get_by_role("checkbox", name=re.compile(r"^Deployments "))
+    expect(builds).to_have_accessible_name(re.compile(r"^Builds \d+ events$"))
+    expect(builds).not_to_be_checked()
     builds.click()
-    expect(builds).to_have_attribute("aria-pressed", "true")
-    expect(builds).to_have_accessible_name("Builds all")
-    expect(builds.get_by_text("all", exact=True)).to_be_visible()
-    build_events = page.get_by_role("group", name="Builds events", exact=True)
-    failed = build_events.get_by_role("button", name="failed", exact=True)
-    expect(failed).to_have_attribute("aria-pressed", "true")
+    expect(builds).to_be_checked()
+    picker.get_by_role("button", name="Show builds events", exact=True).click()
+    failed = picker.get_by_role("checkbox", name="build.failed", exact=True)
+    expect(failed).to_be_checked()
     failed.click()
-    expect(failed).to_have_attribute("aria-pressed", "false")
-    expect(builds).to_have_attribute("aria-pressed", "true")
-    expect(builds).to_have_accessible_name(re.compile(r"^Builds \d+/\d+$"))
+    expect(failed).not_to_be_checked()
+    expect(builds).to_have_attribute("aria-checked", "mixed")
+    expect(builds).to_have_accessible_name(re.compile(r"^Builds \d+ of \d+$"))
     chosen, total = (
-        builds.get_attribute("aria-label").removeprefix("Builds ").split("/")
+        builds.get_attribute("aria-label").removeprefix("Builds ").split(" of ")
     )
     assert int(chosen) == int(total) - 1
-    expect(builds.get_by_text(f"{chosen}/{total}", exact=True)).to_be_visible()
+    expect(page.get_by_text(re.compile(rf"^{chosen} of \d+ events$"))).to_be_visible()
+    show_deployments = picker.get_by_role(
+        "button", name="Show deployments events", exact=True
+    )
+    show_deployments.click()
+    expect(failed).to_be_hidden()
+    expect(
+        picker.get_by_role("button", name="Hide deployments events", exact=True)
+    ).to_have_attribute("aria-expanded", "true")
     deployments.click()
-    expect(deployments).to_have_attribute("aria-pressed", "true")
-    deployment_events = page.get_by_role("group", name="Deployments events", exact=True)
-    deployment_events.wait_for()
-    expect(build_events).to_be_hidden()
-    builds.click()
-    expect(build_events).to_be_visible()
-    expect(deployment_events).to_be_hidden()
-    expect(builds).to_have_accessible_name(f"Builds {chosen}/{total}")
-    expect(failed).to_have_attribute("aria-pressed", "false")
+    expect(deployments).to_be_checked()
     deployments.click()
-    expect(deployment_events).to_be_visible()
-    expect(deployments).to_have_attribute("aria-pressed", "true")
-    deployments.click()
-    expect(deployments).to_have_attribute("aria-pressed", "false")
-    expect(deployment_events).to_be_hidden()
-    deployments.click()
-    pressed_events = deployment_events.get_by_role("button", pressed=True)
-    for _ in range(pressed_events.count()):
-        pressed_events.first.click()
-    expect(deployment_events).to_be_hidden()
-    expect(deployments).to_be_focused()
-    expect(deployments).to_have_attribute("aria-pressed", "false")
-    expect(builds).to_have_attribute("aria-pressed", "true")
+    expect(deployments).not_to_be_checked()
+    expect(builds).to_have_attribute("aria-checked", "mixed")
     create.click()
     page.get_by_role("dialog", name="Signing secret").wait_for()
     page.get_by_role("button", name="Copy signing secret", exact=True).wait_for()
@@ -141,10 +132,7 @@ def check_webhooks(page):
     page.get_by_role("alertdialog", name="Delete webhook?").get_by_role(
         "button", name="Delete webhook", exact=True
     ).click()
-    page.get_by_text(
-        "No webhooks yet. Create one to get a POST for events in this workspace.",
-        exact=True,
-    ).wait_for()
+    page.get_by_role("heading", name="No webhooks yet", exact=True).wait_for()
 
 
 def check_environments(page):

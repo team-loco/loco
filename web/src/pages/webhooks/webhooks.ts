@@ -120,7 +120,11 @@ interface EventGroup {
 }
 
 export function groupCountLabel(selected: number, total: number): string {
-	return selected === total ? "all" : `${selected.toString()}/${total.toString()}`;
+	return selected === 0 ? pluralize(total, "event") : `${selected.toString()} of ${total.toString()}`;
+}
+
+export function chosenLabel(selected: number, total: number): string {
+	return selected === 0 ? "None chosen yet" : `${selected.toString()} of ${pluralize(total, "event")}`;
 }
 
 export function webhookEventGroups(types: readonly string[] = AUDIT_EVENT_TYPES): EventGroup[] {

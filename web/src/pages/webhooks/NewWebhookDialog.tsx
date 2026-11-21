@@ -2,23 +2,33 @@ import { useMutation } from "@connectrpc/connect-query";
 import type { Webhook } from "@gen/loco/webhook/v1/webhook_pb";
 import { createWebhook, updateWebhook } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
 import { toast } from "sonner";
-import { useRef, useState, type RefObject } from "react";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { useId, useRef, useState, type RefObject } from "react";
 
 import { Button } from "@/components/design/Button";
 import { CopyButton } from "@/components/design/CopyButton";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
-import { ToggleChip } from "@/components/design/ToggleChip";
+import { Checkbox } from "@/components/design/Checkbox";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { pageSelection, setPage, toggleId } from "@/lib/selection";
+import { cn } from "@/lib/utils";
 
-import { groupCountLabel, isHttpsUrl, isPrivateAddress, isUrlRejection, webhookEventGroups } from "./webhooks";
+import {
+	chosenLabel,
+	groupCountLabel,
+	isHttpsUrl,
+	isPrivateAddress,
+	isUrlRejection,
+	webhookEventGroups,
+} from "./webhooks";
 
 type Mode = "all" | "choose";
 
 const GROUPS = webhookEventGroups();
+const EVENT_COUNT = GROUPS.reduce((n, g) => n + g.types.length, 0);
 const NO_TYPES: string[] = [];
 const NAME_MAX = 100;
 
@@ -40,7 +50,7 @@ export function NewWebhookDialog({
 	onCreated: () => void;
 }) {
 	const [secret, setSecret] = useState<string | null>(null);
-	const urlRef = useRef<HTMLInputElement>(null);
+	const nameRef = useRef<HTMLInputElement>(null);
 	const close = () => {
 		setSecret(null);
 		onClose();
@@ -62,14 +72,14 @@ export function NewWebhookDialog({
 								: "Edit webhook"
 					}
 					className={secret === null ? "w-[560px]" : undefined}
-					initialFocus={urlRef}
+					initialFocus={nameRef}
 				>
 					{secret === null ? (
 						<NewWebhookForm
 							initialTypes={initialTypes}
 							workspaceId={workspaceId}
 							webhook={webhook}
-							urlRef={urlRef}
+							nameRef={nameRef}
 							onCancel={close}
 							onCreated={(s) => {
 								if (s === null) close();
@@ -90,13 +100,13 @@ function NewWebhookForm({
 	workspaceId,
 	initialTypes,
 	webhook,
-	urlRef,
+	nameRef,
 	onCancel,
 	onCreated,
 }: {
 	initialTypes: string[];
 	workspaceId: string;
-	urlRef: RefObject<HTMLInputElement | null>;
+	nameRef: RefObject<HTMLInputElement | null>;
 	onCancel: () => void;
 	webhook?: Webhook | undefined;
 	onCreated: (secret: string | null) => void;
@@ -153,23 +163,16 @@ function NewWebhookForm({
 			}}
 		>
 			<DialogBody>
-				<Field label="Endpoint URL" error={urlError}>
+				<Field
+					label={
+						<>
+							Name <span className="font-normal text-fg3">(optional)</span>
+						</>
+					}
+					hint="Shown in the webhook list."
+				>
 					<Input
-						ref={urlRef}
-						autoComplete="off"
-						spellCheck={false}
-						value={url}
-						placeholder="https://example.com/hooks/loco"
-						aria-invalid={urlError !== null}
-						className="h-9 font-mono text-[13.5px]"
-						onChange={(e) => {
-							setUrl(e.target.value);
-							mutation.reset();
-						}}
-					/>
-				</Field>
-				<Field label="Name (optional)">
-					<Input
+						ref={nameRef}
 						autoComplete="off"
 						maxLength={NAME_MAX}
 						value={name}
@@ -177,6 +180,20 @@ function NewWebhookForm({
 						className="h-9"
 						onChange={(e) => {
 							setName(e.target.value);
+						}}
+					/>
+				</Field>
+				<Field label="Endpoint URL" error={urlError}>
+					<Input
+						autoComplete="off"
+						spellCheck={false}
+						value={url}
+						placeholder="https://example.com/hooks"
+						aria-invalid={urlError !== null}
+						className="h-9 font-mono text-[13.5px]"
+						onChange={(e) => {
+							setUrl(e.target.value);
+							mutation.reset();
 						}}
 					/>
 				</Field>
@@ -239,57 +256,77 @@ function EventPicker({
 	onChange: (next: ReadonlySet<string>) => void;
 }) {
 	const [opened, setOpened] = useState<string | null>(null);
-	const groupChipsRef = useRef(new Map<string, HTMLButtonElement>());
-	const open = GROUPS.find((g) => g.label === opened && pageSelection(selected, g.types).some);
+	const id = useId();
 	return (
-		<div className="flex flex-col gap-2.5">
-			<div role="group" aria-label="Event groups" className="flex flex-wrap gap-1.5">
-				{GROUPS.map((g) => {
+		<>
+			<div
+				role="group"
+				aria-label="Events to send"
+				className="max-h-[300px] overflow-y-auto rounded-card p-1 ring-1 ring-line ring-inset"
+			>
+				{GROUPS.map((g, i) => {
 					const state = pageSelection(selected, g.types);
+					const open = opened === g.label;
+					const groupId = `${id}-${i.toString()}`;
 					const count = groupCountLabel(state.count, g.types.length);
 					return (
-						<ToggleChip
-							key={g.label}
-							ref={(el) => {
-								if (el !== null) groupChipsRef.current.set(g.label, el);
-							}}
-							pressed={state.some}
-							aria-label={`${g.label} ${count}`}
-							onPressedChange={(on) => {
-								setOpened(g.label);
-								if (on || open === g) onChange(setPage(selected, g.types, on));
-							}}
-						>
-							{g.label}
-							{state.some && <span className="font-mono text-[11px] opacity-70">{count}</span>}
-						</ToggleChip>
+						<div key={g.label} className="border-line not-first:border-t">
+							<div className="flex items-center gap-1">
+								<label
+									htmlFor={groupId}
+									className="flex min-h-9 flex-1 items-center gap-2.5 rounded-md px-2 text-[13.5px] hover:bg-panel"
+								>
+									<Checkbox
+										id={groupId}
+										aria-label={`${g.label} ${count}`}
+										checked={state.all}
+										indeterminate={state.some && !state.all}
+										onCheckedChange={(on) => {
+											onChange(setPage(selected, g.types, on));
+										}}
+									/>
+									<span className="font-medium">{g.label}</span>
+									<span className={cn("ml-auto text-[12px]", state.some ? "text-fg2" : "text-fg3")}>{count}</span>
+								</label>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon-xs"
+									aria-expanded={open}
+									aria-label={`${open ? "Hide" : "Show"} ${g.label.toLowerCase()} events`}
+									onClick={() => {
+										setOpened(open ? null : g.label);
+									}}
+								>
+									{open ? <ChevronUpIcon /> : <ChevronDownIcon />}
+								</Button>
+							</div>
+							{open && (
+								<div className="flex flex-col pb-1.5 pl-[26px]">
+									{g.types.map((t) => (
+										<label
+											key={t}
+											htmlFor={`${groupId}-${t}`}
+											className="flex min-h-[30px] items-center gap-2.5 rounded-md px-2 font-mono text-[12.5px] text-fg2 hover:bg-panel has-data-checked:text-foreground"
+										>
+											<Checkbox
+												id={`${groupId}-${t}`}
+												checked={selected.has(t)}
+												onCheckedChange={() => {
+													onChange(toggleId(selected, t));
+												}}
+											/>
+											{t}
+										</label>
+									))}
+								</div>
+							)}
+						</div>
 					);
 				})}
 			</div>
-			{open !== undefined && (
-				<div
-					role="group"
-					aria-label={`${open.label} events`}
-					className="flex flex-wrap items-center gap-1.5 rounded-lg bg-panel px-3 py-2.5"
-				>
-					<span className="mr-1 text-[12.5px] text-fg3">{open.label}</span>
-					{open.types.map((t) => (
-						<ToggleChip
-							key={t}
-							variant="event"
-							pressed={selected.has(t)}
-							onPressedChange={() => {
-								const next = toggleId(selected, t);
-								onChange(next);
-								if (!pageSelection(next, open.types).some) groupChipsRef.current.get(open.label)?.focus();
-							}}
-						>
-							{t.slice(t.indexOf(".") + 1)}
-						</ToggleChip>
-					))}
-				</div>
-			)}
-		</div>
+			<span className="-mt-1 text-[12px] text-fg3">{chosenLabel(selected.size, EVENT_COUNT)}</span>
+		</>
 	);
 }
 
