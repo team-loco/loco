@@ -20,6 +20,7 @@ import {
 	presetsWithin,
 	resolveWindow,
 	shiftWindow,
+	spanExamples,
 	spanLabel,
 	toLocalInput,
 	type TimeWindow,
@@ -136,7 +137,7 @@ export function TimeRangePicker({
 						aria-label="Type a time range"
 						aria-invalid={textError !== null}
 						aria-describedby={textError === null ? undefined : textErrorId}
-						placeholder={`Type a range, like 90m or ${limit}`}
+						placeholder={`Date range, like ${spanExamples(maxMs)}`}
 						className="font-mono"
 					/>
 					{textError !== null && (

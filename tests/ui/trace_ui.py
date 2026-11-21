@@ -1679,7 +1679,10 @@ with session(out) as browser:
     expect(
         suggestions.get_by_role("option", name="Search root span names for “chec”")
     ).to_be_visible()
-    expect(page.get_by_role("button", name="Pin search")).to_be_visible()
+    expect(page.locator('[data-slot="combobox-content"]')).to_contain_text(
+        "@duration:>500 compare"
+    )
+    expect(page.get_by_role("button", name="Pin search")).to_have_count(0)
     search.fill("")
     page.keyboard.press("Escape")
     expect(page.get_by_role("button", name="Pin search")).to_have_count(0)

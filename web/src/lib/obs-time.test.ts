@@ -16,6 +16,7 @@ import {
 	parseSpan,
 	presetsWithin,
 	shiftWindow,
+	spanExamples,
 	spanLabel,
 	stepSeconds,
 	toWindow,
@@ -61,6 +62,16 @@ describe("time range limits", () => {
 	test("offers no preset longer than the limit", () => {
 		expect(presetsWithin(DAY_MS).every((ms) => ms <= DAY_MS)).toBe(true);
 		expect(presetsWithin(DAY_MS)).toContain(DAY_MS);
+	});
+
+	test("suggests only typed spans that parse and fit the limit", () => {
+		const examples = spanExamples(DAY_MS).split(", ");
+		expect(examples.length).toBeGreaterThan(0);
+		for (const example of examples) {
+			const ms = parseSpan(example);
+			expect(ms).not.toBeNull();
+			expect(ms ?? Infinity).toBeLessThanOrEqual(DAY_MS);
+		}
 	});
 
 	test("clamps a linked range to the limit", () => {

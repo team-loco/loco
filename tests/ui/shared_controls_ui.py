@@ -939,6 +939,9 @@ def typed_range_error(page):
     page.get_by_role("button", name=re.compile(r"^Past ")).click()
     time_range = page.get_by_role("dialog", name="Time range")
     typed = time_range.get_by_role("textbox", name="Type a time range")
+    expect(typed).to_have_attribute(
+        "placeholder", re.compile(r"^Date range, like 15m, 6h")
+    )
     typed.fill("soon")
     typed.press("Enter")
     alert = time_range.get_by_role("alert")
@@ -970,6 +973,13 @@ def pin_needs_applied_query(page):
     expect(page.locator('input[aria-label="Search and filter"]')).to_have_value(
         "checkout"
     )
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    search = page.locator('input[aria-label="Search and filter"]')
+    search.fill("checkout @lev")
+    expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
+    expect(page.get_by_role("button", name="Clear", exact=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="Pin search")).to_have_count(0)
+    search.press("Escape")
 
 
 def query_enter(page):
@@ -1010,6 +1020,15 @@ def query_suggestions(page):
     search.fill("@lev")
     expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
     expect(search).to_have_attribute("aria-expanded", "true")
+    bar = search.locator('xpath=ancestor::div[@role="presentation"]')
+    popup = page.locator('[data-slot="combobox-content"]')
+    # Waits out the opening zoom before comparing widths.
+    page.wait_for_function(
+        "([bar, popup]) => Math.abs(bar.getBoundingClientRect().width - popup.getBoundingClientRect().width) <= 2",
+        arg=[bar.element_handle(), popup.element_handle()],
+    )
+    expect(popup).to_contain_text("exclude")
+    expect(popup).not_to_contain_text("either")
     search.press("Enter")
     expect(search).to_have_value("@level:")
     search.fill("@level:warn")
