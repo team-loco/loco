@@ -933,7 +933,7 @@ def seed(state, scenario):
         for key, workspace_id in workspaces.items()
         for slug, environment_id in json.loads(
             psql(
-                container,
+                state,
                 "SELECT COALESCE(json_object_agg(slug, id), '{}') FROM environments "
                 f"WHERE workspace_id={sql_literal(workspace_id)};",
             )
@@ -1044,7 +1044,7 @@ def seed_events(state, events):
             f"{q(event['at']) if 'at' in event else 'NOW()'});"
         )
     if rows:
-        psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
+        psql(state, "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
 
 
 def seed_domains(state, resource_id, domains):
@@ -1063,7 +1063,7 @@ def seed_domains(state, resource_id, domains):
         )
         primary.add(environment)
     if rows:
-        psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
+        psql(state, "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
 
 
 def seed_deployments(state, resource_id, deployments, user="owner", then=()):
