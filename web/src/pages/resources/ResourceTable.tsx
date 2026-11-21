@@ -101,6 +101,7 @@ export function ResourceTable({
 		state.page,
 		{ placeholderData: keepPreviousData, refetchInterval: (q) => resourcesPollMs(q.state.data?.resources) },
 		{ ...counted, includeFacets: true },
+		() => void setState({ page: null }),
 	);
 	const regionsTotal = useConnectQuery(
 		listWorkspaceResources,
@@ -183,13 +184,13 @@ export function ResourceTable({
 				/>
 			}
 		>
-			{listed.query.error === null ? (
+			{listed.error === null ? (
 				<>
 					<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs, creators }}>
 						<DataTable
 							table={table}
 							label="Resources"
-							loading={listed.query.isPending}
+							loading={listed.query.isPending || listed.resetting}
 							onRowClick={(row) => void navigate(rowPath(row.original, orgId, workspaceId, locationSearch))}
 							rowAction="navigate"
 							className="[--row-h:62px]"
@@ -222,12 +223,7 @@ export function ResourceTable({
 					/>
 				</>
 			) : (
-				<ErrorState
-					error={listed.query.error}
-					what="resources"
-					rpc={listWorkspaceResources}
-					onRetry={listed.query.refetch}
-				/>
+				<ErrorState error={listed.error} what="resources" rpc={listWorkspaceResources} onRetry={listed.query.refetch} />
 			)}
 		</Section>
 	);

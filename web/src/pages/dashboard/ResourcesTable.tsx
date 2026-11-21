@@ -456,6 +456,7 @@ export function ResourcesTable({
 		state.page,
 		{ placeholderData: keepPreviousData, refetchInterval: (q) => resourcesPollMs(q.state.data?.resources) },
 		{ ...matchedBy, includeFacets: true },
+		() => void setState({ page: null }),
 	);
 	// Region counts ignore the region and status filters, and so does All regions.
 	const regionsCounted = filter.region === ALL && filter.status === ALL;
@@ -625,13 +626,8 @@ export function ResourcesTable({
 
 	return (
 		<Section title="Resources" count={matched} actions={actions} filters={filters} search={search}>
-			{listed.query.error !== null ? (
-				<ErrorState
-					error={listed.query.error}
-					what="resources"
-					rpc={listWorkspaceResources}
-					onRetry={listed.query.refetch}
-				/>
+			{listed.error !== null ? (
+				<ErrorState error={listed.error} what="resources" rpc={listWorkspaceResources} onRetry={listed.query.refetch} />
 			) : isMap ? (
 				mapped.length === 0 ? (
 					<div className="border-t border-line2">{empty}</div>
@@ -664,7 +660,7 @@ export function ResourcesTable({
 							table={table}
 							inset
 							label="Resources"
-							loading={listed.query.isPending}
+							loading={listed.query.isPending || listed.resetting}
 							onRowClick={(row) => void navigate(itemHref(row.original))}
 							rowAction="navigate"
 							className="[--row-h:62px]"
@@ -673,7 +669,11 @@ export function ResourcesTable({
 					</DashboardCellContext>
 					<Pager
 						{...pager}
-						label={tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched)}
+						label={
+							data.length === 0
+								? `0 of ${(envResources.length + drafts.length).toString()}`
+								: tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched)
+						}
 						total={data.length}
 						pageSizes={[PAGE_SIZE]}
 					/>
