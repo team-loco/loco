@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
-import { durationLabel, spanLinkSearch, spanTree, summarizeTraces, uniqueSpans } from "./traces";
+import { durationLabel, spanLinkSearch, spanStatus, spanTree, summarizeTraces, uniqueSpans } from "./traces";
 
 const span = (id: string, parent = "", nanos = 0) =>
 	create(TraceSpanSchema, {
@@ -72,4 +72,11 @@ describe("trace timing and hierarchy", () => {
 		expect(trace?.errors).toBe(1);
 		expect(trace?.services).toBe(2);
 	});
+});
+
+test("reads every OTel status spelling as Error, OK or Unset", () => {
+	const status = (statusCode: string) => spanStatus(create(TraceSpanSchema, { statusCode }));
+	expect(["Error", "STATUS_CODE_ERROR", "2"].map(status)).toEqual(["Error", "Error", "Error"]);
+	expect(["Ok", "STATUS_CODE_OK", "1"].map(status)).toEqual(["OK", "OK", "OK"]);
+	expect(["Unset", "STATUS_CODE_UNSET", "0", ""].map(status)).toEqual(["Unset", "Unset", "Unset", "Unset"]);
 });

@@ -43,6 +43,13 @@ export function spanError(span: TraceSpan): boolean {
 	return span.statusCode === "Error" || span.statusCode === "STATUS_CODE_ERROR" || span.statusCode === "2";
 }
 
+export type SpanStatus = "Error" | "OK" | "Unset";
+
+export function spanStatus(span: TraceSpan): SpanStatus {
+	if (spanError(span)) return "Error";
+	return ["ok", "status_code_ok", "1"].includes(span.statusCode.toLowerCase()) ? "OK" : "Unset";
+}
+
 export function spanErrorText(span: TraceSpan): string {
 	return span.statusMessage === "" ? "Error" : `Error: ${span.statusMessage}`;
 }

@@ -36,7 +36,7 @@ import { TraceDrawer } from "./TraceDrawer";
 import { bucketSeconds } from "./trace-overview";
 import { TraceOverview } from "./TraceOverview";
 import { TraceSetup } from "./TraceSetup";
-import { traceServiceLabel } from "./trace-service";
+import { traceIdentity } from "./trace-service";
 import { ViewHeader } from "./ViewHeader";
 import { TRACE_ID_PATTERN, durationLabel, summarizeTraces, timestampMs, uniqueSpans } from "./traces";
 
@@ -317,7 +317,7 @@ function TraceSession({
 					openId={openId}
 					crossesDay={crossesDay}
 					today={formatIsoDate(frozenEnd, timePref)}
-					resourceName={(t) => traceServiceLabel(t, resourceById.get(t.resourceId)?.slug)}
+					resourceName={(t) => traceIdentity(t, resourceById.get(t.resourceId)?.slug)}
 					onOpen={open}
 					sorting={sorting}
 					onSorting={onSorting}
@@ -376,7 +376,7 @@ function traceColumns({
 }: {
 	crossesDay: boolean;
 	today: string;
-	resourceName: (t: TraceSummary) => string;
+	resourceName: (t: TraceSummary) => ReturnType<typeof traceIdentity>;
 }): DataColumn<TraceSummary>[] {
 	return [
 		{
@@ -396,7 +396,10 @@ function traceColumns({
 			maxSize: 640,
 			sortDescFirst: true,
 			meta: { fit: true, fitMax: 240 },
-			cell: ({ row }) => <CellText text={resourceName(row.original)} className="text-[12.5px]" />,
+			cell: ({ row }) => {
+				const { name, service } = resourceName(row.original);
+				return <CellText text={name} detail={service} className="text-[12.5px]" />;
+			},
 		},
 		{
 			id: "span",
@@ -466,7 +469,7 @@ function TraceList({
 	openId: string;
 	crossesDay: boolean;
 	today: string;
-	resourceName: (t: TraceSummary) => string;
+	resourceName: (t: TraceSummary) => ReturnType<typeof traceIdentity>;
 	onOpen: (id: string) => void;
 	sorting: { id: string; desc: boolean }[];
 	onSorting: (next: { id: string; desc: boolean }) => void;

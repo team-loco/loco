@@ -12,7 +12,7 @@ import { useObs } from "../context";
 import { queryKeyReason, quoteValue, withToken } from "../query";
 import { SpanLinks } from "../SpanLinks";
 import { failingSpan } from "../flame";
-import { durationLabel, spanError, spanStart, type TraceSummary } from "../traces";
+import { durationLabel, spanError, spanStart, spanStatus, type TraceSummary } from "../traces";
 import { useTraceResources } from "./TraceColors";
 import { spanAttributes, ATTRIBUTE_TABS } from "./attributes";
 
@@ -56,7 +56,7 @@ export function SpanPanel({
 		["self time", durationLabel(selfTime(selected))],
 		["start offset", durationLabel(spanStart(selected) - trace.start)],
 		["kind", selected.kind],
-		["status", selected.statusCode],
+		["status", spanStatus(selected)],
 		["parent", selected.parentSpanId || "root span"],
 	];
 	return (
@@ -72,7 +72,7 @@ export function SpanPanel({
 					<h3 className="m-0 min-w-0 break-words font-mono text-[14px] [overflow-wrap:anywhere]">
 						{selected.name === "" ? "Unnamed span" : selected.name}
 					</h3>
-					<Badge tone={spanError(selected) ? "bad" : "muted"}>{spanError(selected) ? "Error" : "OK"}</Badge>
+					<Badge tone={spanError(selected) ? "bad" : "muted"}>{spanStatus(selected)}</Badge>
 				</div>
 				<span className="text-[12px] text-fg3">{label(selected)}</span>
 			</section>
