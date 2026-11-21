@@ -193,7 +193,7 @@ with session(out) as browser:
     presets = time_range.get_by_role("group", name="Presets")
     expect(presets.get_by_role("button")).to_have_count(4)
     expect(
-        presets.get_by_role("button", name="Past 7 days", exact=True)
+        presets.get_by_role("button", name=re.compile(r"Past 7 days$"))
     ).to_have_attribute("aria-pressed", "true")
     expect(
         time_range.get_by_role("textbox", name="Type a time range", exact=True)

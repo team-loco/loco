@@ -256,7 +256,7 @@ export function Audit() {
 							range={timeWindow}
 							setRange={setWindow}
 							maxMs={RANGES.at(-1)?.ms ?? DEFAULT_RANGE.ms}
-							presets={RANGES}
+							presets={RANGES.map((r) => r.ms)}
 						/>
 						<Button
 							variant="outline"

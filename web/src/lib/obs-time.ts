@@ -75,6 +75,7 @@ export function formatSpan(ms: number): string {
 
 export function spanLabel(ms: number): string {
 	const { count, name } = spanUnit(ms);
+	if (count === 1 && name === "week") return "Past 7 days";
 	return count === 1 ? `Past ${name}` : `Past ${String(count)} ${name}s`;
 }
 
