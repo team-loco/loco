@@ -1,6 +1,6 @@
 import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Section } from "@/components/design/Page";
@@ -11,12 +11,19 @@ import { formatAxisTime, formatFullTime, timeAxis } from "@/lib/time";
 import { errorShare, latestTraffic, trafficAxis, trafficValue } from "@/lib/traffic";
 import { RANGE_MS, type MetricRange } from "./metric";
 
-const CHARTS = [
-	{ key: "requests", title: "Requests", unit: "/s" },
-	{ key: "share", title: "5xx", unit: "%" },
-	{ key: "bytes", title: "Bandwidth out", unit: " B/s" },
-	{ key: "latency", title: "p95 latency", unit: " ms" },
-] as const;
+const ERROR_NOTE_SHARE = 2;
+
+function Stat({ label, value, note }: { label: string; value: string; note?: string | undefined }) {
+	return (
+		<div className="flex min-w-0 flex-col gap-0.5">
+			<span className="text-[12.5px] text-fg3">{label}</span>
+			<span className="flex items-baseline gap-1.5">
+				<span className="font-mono text-[22px] leading-[1.1] font-light tracking-[-0.03em] tabular-nums">{value}</span>
+				{note !== undefined && <span className="text-[12px] whitespace-nowrap text-warn-fg">{note}</span>}
+			</span>
+		</div>
+	);
+}
 
 export function TrafficSection({
 	workspaceId,
@@ -66,10 +73,12 @@ function PublicTraffic({
 		region,
 		spanMs: RANGE_MS[range],
 	});
-	const points = traffic.points.map((point) => ({ ...point, share: errorShare(point) }));
+	const points = traffic.points;
 	const to = traffic.endMs;
 	const from = to - RANGE_MS[range];
 	const latest = latestTraffic(traffic.points, resourceId);
+	const share = errorShare(latest);
+	const axis = trafficAxis(Math.max(0, ...points.map((point) => point.requests ?? 0)), "/s");
 	return (
 		<Section title="Traffic">
 			{traffic.error !== null ? (
@@ -82,66 +91,72 @@ function PublicTraffic({
 					</p>
 				</div>
 			) : (
-				<div className="grid gap-6 p-5 sm:grid-cols-2">
-					{CHARTS.map(({ key, title, unit }) => {
-						const axis = trafficAxis(Math.max(0, ...points.map((point) => point[key] ?? 0)), unit);
-						return (
-							<div key={key} className="min-w-0">
-								<div className="flex items-baseline justify-between gap-2 text-[13px]">
-									<span>{title}</span>
-									<span className="font-mono">
-										{trafficValue(key === "share" ? errorShare(latest) : latest?.[key], unit)}
-									</span>
-								</div>
-								{traffic.isLoading ? (
-									<Skeleton className="mt-3 h-32 w-full" />
-								) : points.some((point) => point[key] !== undefined) ? (
-									<ChartContainer
-										config={{ [key]: { label: title, color: "var(--series-0)" } }}
-										className="mt-3 aspect-auto h-32 w-full"
-										aria-label={title}
-									>
-										<LineChart data={points}>
-											<CartesianGrid vertical={false} stroke="var(--line)" />
-											<XAxis
-												dataKey="time"
-												type="number"
-												domain={[from, to]}
-												allowDataOverflow
-												ticks={timeAxis(from, to, timePref)}
-												interval="preserveStartEnd"
-												tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
-												tick={axisTimeTick(from, to, timePref)}
-												tickLine={false}
-												axisLine={false}
-											/>
-											<YAxis
-												domain={[0, axis.top]}
-												ticks={axis.ticks}
-												tickFormatter={axis.format}
-												width={65}
-												tickLine={false}
-												axisLine={false}
-											/>
-											<ChartTooltip
-												content={
-													<ChartTooltipContent
-														labelFormatter={(_label, payload) => {
-															const point = payload[0]?.payload as { time?: number } | undefined;
-															return point?.time === undefined ? "" : formatFullTime(point.time, false, timePref);
-														}}
-													/>
-												}
-											/>
-											<Line dataKey={key} stroke="var(--series-0)" dot={false} isAnimationActive={false} />
-										</LineChart>
-									</ChartContainer>
-								) : (
-									<p className="flex h-32 items-center justify-center text-sm text-fg3">No data in this range</p>
-								)}
-							</div>
-						);
-					})}
+				<div className="flex min-w-0 flex-col gap-3.5 px-5 pt-[18px] pb-3">
+					<div className="flex flex-wrap gap-7">
+						<Stat label="Requests" value={trafficValue(latest?.requests, "/s")} />
+						<Stat
+							label="Errors"
+							value={trafficValue(share, "%")}
+							note={
+								share !== undefined && share > ERROR_NOTE_SHARE ? `above ${ERROR_NOTE_SHARE.toString()}%` : undefined
+							}
+						/>
+						<Stat label="p95" value={trafficValue(latest?.latency, " ms")} />
+					</div>
+					{traffic.isLoading ? (
+						<Skeleton className="h-[150px] w-full" />
+					) : points.some((point) => point.requests !== undefined) ? (
+						<ChartContainer
+							config={{ requests: { label: "Requests", color: "var(--series-0)" } }}
+							className="aspect-auto h-[150px] w-full"
+							aria-label="Requests"
+						>
+							<AreaChart data={points}>
+								<CartesianGrid vertical={false} stroke="var(--line)" />
+								<XAxis
+									dataKey="time"
+									type="number"
+									domain={[from, to]}
+									allowDataOverflow
+									ticks={timeAxis(from, to, timePref)}
+									interval="preserveStartEnd"
+									tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
+									tick={axisTimeTick(from, to, timePref)}
+									tickLine={false}
+									axisLine={false}
+								/>
+								<YAxis
+									domain={[0, axis.top]}
+									ticks={axis.ticks}
+									tickFormatter={axis.format}
+									width={65}
+									tickLine={false}
+									axisLine={false}
+								/>
+								<ChartTooltip
+									content={
+										<ChartTooltipContent
+											labelFormatter={(_label, payload) => {
+												const point = payload[0]?.payload as { time?: number } | undefined;
+												return point?.time === undefined ? "" : formatFullTime(point.time, false, timePref);
+											}}
+											formatter={(value) => trafficValue(Number(value), "/s")}
+										/>
+									}
+								/>
+								<Area
+									dataKey="requests"
+									stroke="var(--series-0)"
+									fill="var(--series-0)"
+									fillOpacity={0.12}
+									dot={false}
+									isAnimationActive={false}
+								/>
+							</AreaChart>
+						</ChartContainer>
+					) : (
+						<p className="flex h-[150px] items-center justify-center text-sm text-fg3">No data in this range</p>
+					)}
 				</div>
 			)}
 		</Section>

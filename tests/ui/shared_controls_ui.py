@@ -1530,8 +1530,8 @@ def traffic_small_values(page):
     ).click()
     section = page.get_by_role("region", name="Traffic", exact=True)
     expect(section.get_by_text("<0.01/s", exact=True)).to_have_count(1)
-    expect(section.get_by_text("<0.01 B/s", exact=True)).to_have_count(1)
     expect(section.get_by_text("800 ms", exact=True)).to_have_count(1)
+    expect(section.get_by_text("B/s", exact=False)).to_have_count(0)
     ticks = section.locator(
         ".recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value"
     )
@@ -1539,8 +1539,6 @@ def traffic_small_values(page):
     labels = ticks.all_text_contents()
     requests = [t for t in labels if t.endswith("/s") and not t.endswith("B/s")]
     assert requests == ["0/s", "0.01/s", "0.02/s", "0.03/s"], labels
-    latency = [t for t in labels if t.endswith(" s") and not t.endswith("B/s")]
-    assert latency == ["0 s", "1 s", "2 s", "3 s"], labels
     page.get_by_role("button", name="24h", exact=True).click()
     axis = section.get_by_role("application").first.locator(
         ".recharts-xAxis-tick-labels text"
