@@ -340,10 +340,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(serving).not_to_contain_text(p["current"][-8:])
     incident = page.locator('section[aria-labelledby="incident-title"]')
     expect(incident.get_by_text("Running", exact=True).locator("+ dd")).to_have_text(
-        f"v1 · {p['previous'][-8:]}"
-    )
-    expect(incident.get_by_text("Replicas", exact=True).locator("+ dd")).to_have_text(
-        "2/2 ready"
+        f"v1 · {p['previous'][-8:]} · 2/2 ready"
     )
     phase("failed", survivors=False)
     expect(serving).to_have_text("No ready replicas reported", timeout=25000)
