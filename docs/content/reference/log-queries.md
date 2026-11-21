@@ -32,6 +32,8 @@ The built-in fields take precedence over attributes with the same name. Keys sta
 
 When a line's message is a single-line JSON object, its fields are also attributes, named by their path: `{"user":{"id":"42"},"roles":["admin"]}` gives `@user.id:42` and `@roles[0]:admin`. Attributes the line already has keep their values.
 
+A line with an HTTP method or status code attribute also has it under a short name: `@method` reads `http.request.method` or `http.method`, and `@status_code` reads `http.response.status_code` or `http.status_code`. A line that has its own `method` or `status_code` attribute keeps it.
+
 A value that contains a space, a colon, `..`, a quote or a parenthesis must be quoted: `@path:"/a:b"`, `@path:"../etc"`. A quoted value matches exactly.
 
 ## Prefixes

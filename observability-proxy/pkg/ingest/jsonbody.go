@@ -18,16 +18,33 @@ const (
 	maxBodyFieldKey = 256
 )
 
-// flattenJSONBodies copies the fields of each single-line JSON object body into the record's
-// attributes, keyed by dotted path (user.id) with array elements by index (roles.0). Attributes
-// the record already has are kept, and the body is left as it is. When two fields flatten to the
-// same path, such as "a.b" and {"a":{"b":...}}, the first in sorted key order wins.
-func flattenJSONBodies(logs plog.Logs) {
+// normalizeLogs copies the fields of each single-line JSON object body into the record's
+// attributes, keyed by dotted path (user.id) with array elements by index (roles.0), then copies
+// the HTTP method and status code to method and status_code. Attributes the record already has are
+// kept, and the body is left as it is. When two fields flatten to the same path, such as "a.b" and
+// {"a":{"b":...}}, the first in sorted key order wins.
+func normalizeLogs(logs plog.Logs) {
 	for _, resourceLogs := range logs.ResourceLogs().All() {
 		for _, scopeLogs := range resourceLogs.ScopeLogs().All() {
 			for _, record := range scopeLogs.LogRecords().All() {
 				flattenJSONBody(record)
+				attributes := record.Attributes()
+				aliasAttribute(attributes, "method", "http.request.method", "http.method")
+				aliasAttribute(attributes, "status_code", "http.response.status_code", "http.status_code")
 			}
+		}
+	}
+}
+
+// aliasAttribute copies the first of sources the record has to alias, unless alias is already set.
+func aliasAttribute(attributes pcommon.Map, alias string, sources ...string) {
+	if _, exists := attributes.Get(alias); exists {
+		return
+	}
+	for _, source := range sources {
+		if value, ok := attributes.Get(source); ok {
+			value.CopyTo(attributes.PutEmpty(alias))
+			return
 		}
 	}
 }
