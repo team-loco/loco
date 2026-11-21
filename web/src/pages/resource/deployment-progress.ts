@@ -111,9 +111,9 @@ export function rolloutActivity(activity: readonly Activity[], region: string, r
 	const regional = activity.filter((entry) => entry.region === region);
 	const current = regional.reduce((newest, e) => (e.revision > newest ? e.revision : newest), revision);
 	const restart = regional.some((entry) => entry.revision < current);
-	const entries = activity.filter((entry) =>
-		entry.region === "" ? !restart : entry.region === region && entry.revision === current,
-	);
+	const entries = activity
+		.filter((entry) => (entry.region === "" ? !restart : entry.region === region && entry.revision === current))
+		.toSorted((a, b) => (maybeTsMs(a.at) ?? 0) - (maybeTsMs(b.at) ?? 0) || Number(a.seq - b.seq));
 	return {
 		entries,
 		restart: restart ? { startMs: maybeTsMs(entries[0]?.at), endMs: maybeTsMs(entries.at(-1)?.at) } : undefined,
