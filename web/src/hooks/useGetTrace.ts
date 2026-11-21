@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type Query } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
-import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
+import { ObservabilityService, type GetTraceResponse } from "@gen/loco/observability/v1/observability_pb";
 
 export interface TraceScopeOptions {
 	workspaceId: string;
@@ -28,6 +28,8 @@ export function getTraceQueryOptions(transport: Transport, options: GetTraceOpti
 	};
 }
 
-export function useGetTrace(options: GetTraceOptions) {
-	return useQuery(getTraceQueryOptions(useTransport(), options));
+export function useGetTrace(
+	options: GetTraceOptions & { refetchInterval: (query: Query<GetTraceResponse>) => number | false },
+) {
+	return useQuery({ ...getTraceQueryOptions(useTransport(), options), refetchInterval: options.refetchInterval });
 }

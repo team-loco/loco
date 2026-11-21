@@ -35,6 +35,7 @@ export function TraceDrawer({
 	open: boolean;
 	traceId: string;
 	trace: TraceSummary | undefined;
+	arriving: boolean;
 	loading: boolean;
 	error: Error | null;
 	onRetry: () => Promise<unknown>;
@@ -65,6 +66,7 @@ export function TraceDrawer({
 function TraceView({
 	traceId,
 	trace,
+	arriving,
 	loading,
 	error,
 	onRetry,
@@ -72,6 +74,7 @@ function TraceView({
 }: {
 	traceId: string;
 	trace: TraceSummary | undefined;
+	arriving: boolean;
 	loading: boolean;
 	error: Error | null;
 	onRetry: () => Promise<unknown>;
@@ -100,6 +103,7 @@ function TraceView({
 				<TraceHeader
 					trace={trace}
 					traceId={traceId}
+					arriving={arriving}
 					onClose={onClose}
 					highlight={highlight}
 					pinned={pinned}

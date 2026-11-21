@@ -37,6 +37,7 @@ import { traceJson } from "./trace-json";
 export function TraceHeader({
 	trace,
 	traceId,
+	arriving,
 	onClose,
 	highlight,
 	pinned,
@@ -45,6 +46,7 @@ export function TraceHeader({
 }: {
 	trace: TraceSummary | undefined;
 	traceId: string;
+	arriving: boolean;
 	onClose: () => void;
 	highlight: string | null;
 	pinned: string | null;
@@ -175,6 +177,7 @@ export function TraceHeader({
 								<span className="font-mono">{`${formatMonthDay(start, timePref)}, ${formatClock(start, true, timePref)} ${timeZoneLabel(start, timePref)}`}</span>
 								<span className="ml-1.5">({agoLabel(start, now)})</span>
 							</span>
+							{arriving && <span role="status">Spans may still be arriving</span>}
 							{pinned !== null && (
 								<Button
 									variant="plain-link"

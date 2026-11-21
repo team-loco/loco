@@ -7,6 +7,8 @@ const NANOS_PER_MICROSECOND = 1_000n;
 
 export const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/;
 const SPAN_ID_PATTERN = /^[0-9a-f]{16}$/;
+const RECENT_MS = 30_000;
+const ORPHAN_WAIT_MS = 120_000;
 
 export function timestampNanos(ts: Timestamp | undefined): bigint {
 	return (ts?.seconds ?? 0n) * NANOS_PER_SECOND + BigInt(ts?.nanos ?? 0);
@@ -52,6 +54,19 @@ export function spanStatus(span: TraceSpan): SpanStatus {
 
 export function spanErrorText(span: TraceSpan): string {
 	return span.statusMessage === "" ? "Error" : `Error: ${span.statusMessage}`;
+}
+
+/** Whether more spans may still arrive: the trace ended under 30s before now, or a span's parent is missing and it ended under 2 minutes before now. */
+export function spansMayArrive(spans: TraceSpan[], now: number): boolean {
+	if (spans.length === 0) return false;
+	const end = spans.reduce((max, span) => {
+		const value = spanStart(span) + span.durationNanos;
+		return value > max ? value : max;
+	}, 0n);
+	const age = now - Number(end / NANOS_PER_MS);
+	if (age < RECENT_MS) return true;
+	const ids = new Set(spans.map((span) => span.spanId));
+	return age < ORPHAN_WAIT_MS && spans.some((span) => span.parentSpanId !== "" && !ids.has(span.parentSpanId));
 }
 
 export function uniqueSpans(spans: TraceSpan[]): TraceSpan[] {
