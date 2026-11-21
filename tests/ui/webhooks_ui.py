@@ -203,7 +203,14 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     assert any(method == "SendTestEvent" for method, _ in requests)
     expect(drawer.get_by_role("alert")).to_have_text("Could not refresh deliveries.")
     expect(deliveries.locator("li")).to_have_count(25)
+    # A press that starts in the drawer and is released over a toast leaves the drawer open.
     retry = drawer.get_by_role("button", name="Retry deliveries", exact=True)
+    box = retry.bounding_box()
+    page.mouse.move(box["x"] + 10, box["y"] + box["height"] / 2)
+    page.mouse.down()
+    page.get_by_text("Sent a test event", exact=True).hover()
+    page.mouse.up()
+    expect(drawer).to_have_attribute("data-open", "")
     retry.focus()
     with expect_rpc(
         page, "ListWebhookDeliveries", lambda body: body.get("webhookId") == hook_id
@@ -211,7 +218,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         page.keyboard.press("Enter")
     expect(retry).to_be_focused()
     page.unroute("**/" + service + "ListWebhookDeliveries")
-    retry.click()
+    page.keyboard.press("Enter")
     expect(drawer.get_by_role("alert")).to_have_count(0)
     failing_filter.click()
     expect(deliveries.locator("li")).to_have_count(failing_count)

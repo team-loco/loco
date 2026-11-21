@@ -1,7 +1,8 @@
 import { XIcon } from "lucide-react";
 
+import { keepOpenOnToastPress } from "@/components/design/Sonner";
 import {
-	Dialog,
+	Dialog as DialogBase,
 	DialogClose,
 	DialogContent as DialogContentBase,
 	DialogDescription as DialogDescriptionBase,
@@ -19,6 +20,10 @@ const modalSurface =
 	"max-h-[calc(100dvh-32px)] max-w-[calc(100%-32px)] gap-0 rounded-overlay border border-line bg-background p-0 text-base shadow-overlay ring-0 dark:border-line2";
 
 const modalTitle = "text-[17px] leading-normal font-medium tracking-[-0.01em]";
+
+function Dialog({ onOpenChange, ...props }: React.ComponentProps<typeof DialogBase>) {
+	return <DialogBase onOpenChange={keepOpenOnToastPress(onOpenChange)} {...props} />;
+}
 
 function DialogContent({
 	className,

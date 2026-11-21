@@ -1,3 +1,4 @@
+import type { Dialog } from "@base-ui/react/dialog";
 import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
 
 import { Toaster as ToasterBase } from "@/components/ui/sonner";
@@ -42,4 +43,21 @@ function Toaster() {
 	);
 }
 
-export { Toaster };
+// A press released over a toast leaves the dialog or drawer behind it open. Its click targets the page body, so the pointer position finds the toast.
+function keepOpenOnToastPress(onOpenChange: Dialog.Root.Props["onOpenChange"]): Dialog.Root.Props["onOpenChange"] {
+	return (open, details) => {
+		const { event } = details;
+		const target = event instanceof MouseEvent ? document.elementFromPoint(event.clientX, event.clientY) : event.target;
+		if (
+			details.reason === "outside-press" &&
+			target instanceof Element &&
+			target.closest("[data-sonner-toaster]") !== null
+		) {
+			details.cancel();
+			return;
+		}
+		onOpenChange?.(open, details);
+	};
+}
+
+export { keepOpenOnToastPress, Toaster };
