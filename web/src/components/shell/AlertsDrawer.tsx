@@ -19,6 +19,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
+import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import {
 	ACTIVITY_PAGE,
@@ -179,16 +180,20 @@ function AlertCard({
 
 function HealthEventCards({
 	workspaceId,
+	names,
+	sinceMs,
 	resourceHref,
 	nowMs,
 	onNavigate,
 }: {
 	workspaceId: string;
+	names: ReadonlyMap<string, string>;
+	sinceMs: number;
 	resourceHref: (resourceId: string) => string;
 	nowMs: number;
 	onNavigate: () => void;
 }) {
-	const { events } = useWorkspaceEvents(workspaceId);
+	const { events } = useWorkspaceEvents(workspaceId, names, { types: RUNTIME_EVENT_TYPES, startMs: sinceMs });
 	return recentHealthEvents(events, nowMs).map((e) => (
 		<ActivityCard key={e.id}>
 			<div className="flex items-center justify-between gap-2.5">
@@ -435,6 +440,8 @@ export function AlertsDrawer() {
 							))}
 							<HealthEventCards
 								workspaceId={activeWorkspaceId}
+								names={new Map([...byId].map(([id, r]) => [id, r.slug]))}
+								sinceMs={sinceMs}
 								resourceHref={(id) => resourcePath(activeOrgId, activeWorkspaceId, id)}
 								nowMs={nowMs}
 								onNavigate={close}
