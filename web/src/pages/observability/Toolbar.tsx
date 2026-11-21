@@ -1,7 +1,7 @@
 import { TimeZoneControl } from "@/components/design/TimeZoneControl";
 import { timeZoneLabel } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, PauseIcon, PlayIcon } from "lucide-react";
 
 import { DateTimePicker } from "@/components/design/DateTimePicker";
@@ -53,6 +53,7 @@ export function TimeRangePicker({
 	const [from, setFrom] = useState({ text: "", ms: Number.NaN });
 	const [to, setTo] = useState({ text: "", ms: Number.NaN });
 	const [textError, setTextError] = useState<string | null>(null);
+	const textErrorId = useId();
 	const [customError, setCustomError] = useState<string | null>(null);
 	const limit = formatSpan(maxMs);
 
@@ -134,12 +135,12 @@ export function TimeRangePicker({
 						}}
 						aria-label="Type a time range"
 						aria-invalid={textError !== null}
-						aria-describedby={textError === null ? undefined : "range-text-error"}
+						aria-describedby={textError === null ? undefined : textErrorId}
 						placeholder={`Type a range, like 90m or ${limit}`}
 						className="font-mono"
 					/>
 					{textError !== null && (
-						<span id="range-text-error" role="alert" className="-mt-1 text-[12px] text-bad-fg">
+						<span id={textErrorId} role="alert" className="-mt-1 text-[12px] text-bad-fg">
 							{textError}
 						</span>
 					)}
