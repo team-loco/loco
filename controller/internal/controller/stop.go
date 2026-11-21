@@ -94,7 +94,8 @@ func (r *ApplicationReconciler) stoppedReplicaSets(
 	stopped *loco.StoppedRevision,
 	proven int64,
 ) ([]appsv1.ReplicaSet, *appsv1.ReplicaSet, error) {
-	sets, err := r.replicaSets(ctx, namespace, name)
+	// The revisions this reconcile recorded must be seen, so the read skips the cache.
+	sets, err := replicaSets(ctx, r.APIReader, namespace, name)
 	if err != nil {
 		return nil, nil, err
 	}

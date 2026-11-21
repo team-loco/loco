@@ -69,11 +69,13 @@ var _ = Describe("Placement revisions", func() {
 			return revisions
 		}
 
-		first, firstPod := templateReplicaSet(app, place(app, "1"), "first")
+		place(app, "1")
+		first, firstPod := templateReplicaSet(app, "first")
 		Expect(observe(place(app, "1"))).To(Equal(map[string]int64{string(firstPod.UID): 1}))
 
 		app.Spec.ServiceSpec.Deployment.Image = "registry.example.com/app:v2"
-		_, secondPod := templateReplicaSet(app, place(app, "2"), "second")
+		place(app, "2")
+		_, secondPod := templateReplicaSet(app, "second")
 		Expect(observe(place(app, "2"))).To(Equal(map[string]int64{string(firstPod.UID): 1, string(secondPod.UID): 2}))
 
 		app.Spec.ServiceSpec.Deployment.Image = testImage
@@ -92,16 +94,10 @@ var _ = Describe("Placement revisions", func() {
 	})
 })
 
-// templateReplicaSet stands in for the Deployment controller: it creates a ReplicaSet running the
-// applied Deployment's template and one pod it owns.
-func templateReplicaSet(
-	app *locov1alpha1.Application,
-	dep *appsv1ac.DeploymentApplyConfiguration,
-	name string,
-) (*appsv1.ReplicaSet, *corev1.Pod) {
+// templateReplicaSet stands in for the Deployment controller with a ReplicaSet of the current template and one pod.
+func templateReplicaSet(app *locov1alpha1.Application, name string) (*appsv1.ReplicaSet, *corev1.Pod) {
 	GinkgoHelper()
 	stored := appDeployment(app)
-	Expect(stored.Generation).To(Equal(*dep.Generation))
 	template := *stored.Spec.Template.DeepCopy()
 	template.Labels[appsv1.DefaultDeploymentUniqueLabelKey] = name
 	set := &appsv1.ReplicaSet{

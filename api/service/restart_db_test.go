@@ -94,20 +94,6 @@ func TestRestartResourcePreservesSpecsAndTargetsOnlyTheRequestedPlacements(t *te
 				if (after.RestartedAt != nil) != restarted {
 					t.Fatalf("placement %s restarted at %v, restarted = %v", before.ID, after.RestartedAt, restarted)
 				}
-				if !restarted {
-					continue
-				}
-				spec, err := restartedSpec(after)
-				if err != nil {
-					t.Fatal(err)
-				}
-				payload, err := decodePlacement(genDb.Placement{ID: after.ID, DesiredSpec: spec})
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got := payload.AppSpec.RestartedAt; got != after.RestartedAt.UTC().Format(time.RFC3339Nano) {
-					t.Fatalf("sent restart time = %q, want %v", got, after.RestartedAt)
-				}
 			}
 			if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != beforeCount {
 				t.Fatalf("restart created a deployment: count = %d", n)
@@ -175,5 +161,41 @@ func TestDeployAfterARestartKeepsTheRestartTime(t *testing.T) {
 	}
 	if after.RestartedAt == nil || !after.RestartedAt.Equal(*restarted.RestartedAt) {
 		t.Fatalf("restart time after the deploy = %v, want %v", after.RestartedAt, restarted.RestartedAt)
+	}
+	server := NewAgentServer(f.pool, f.queries, nil, nil, newTestKeyProvider(t, "k1"), testHeartbeatInterval,
+		testAgentConfig())
+	sent := f.sendPending(t, server)
+	if len(sent) != 1 {
+		t.Fatalf("sent %d messages, want one Apply", len(sent))
+	}
+	payload, err := decodePlacement(genDb.Placement{ID: after.ID, DesiredSpec: sent[0].GetApply().GetApplication()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := after.RestartedAt.UTC().Format(time.RFC3339Nano); payload.AppSpec.RestartedAt != want {
+		t.Fatalf("sent restart time = %q, want %q", payload.AppSpec.RestartedAt, want)
+	}
+}
+
+func TestSyncRecordsAnApplyErrorForARestartedPlacementItCannotRead(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatal(err)
+	}
+	if err := restartResource(t, f, f.envID, "", genDb.ScopeWrite); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(t.Context(), `UPDATE placements SET desired_spec = '{}' WHERE resource_id = $1`,
+		f.resourceID); err != nil {
+		t.Fatal(err)
+	}
+	server := NewAgentServer(f.pool, f.queries, nil, nil, newTestKeyProvider(t, "k1"), testHeartbeatInterval,
+		testAgentConfig())
+	if sent := f.sendPending(t, server); len(sent) != 0 {
+		t.Fatalf("sent %v for a placement without an application", sent)
+	}
+	if placement := f.placement(t, f.clusterID); placement.AppliedError == nil {
+		t.Fatal("the unreadable placement has no apply error")
 	}
 }

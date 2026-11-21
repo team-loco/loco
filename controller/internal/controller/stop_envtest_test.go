@@ -239,6 +239,37 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		Expect(replicaSetReplicas(previous)).To(Equal(int32(2)))
 	})
 
+	It("brings back a proven ReplicaSet that a later revision with its template took over", func() {
+		app := isolationTestApplication(stopWorkspace, "stop-taken-over")
+		app.Spec.ServiceSpec.Routing = nil
+		app.Spec.ServiceSpec.Resources.Replicas = locov1alpha1.ReplicasSpec{Min: 2, Max: 2}
+		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		proven, _ := templateReplicaSet(app, "proven")
+		reconcileStuckApp(r, app)
+		app.Status.Rollout.ProvenRevision = 2
+		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+		app.Annotations[locov1alpha1.KeyPlacementRevision] = "3"
+		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.ProvenRevision).To(Equal(int64(3)))
+
+		app.Annotations[locov1alpha1.KeyPlacementRevision] = "4"
+		app.Spec.ServiceSpec.Deployment.Image = "registry.example.com/app:v4"
+		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		current := createReplicaSet(app, "stop-taken-over-current", "4", 2)
+		Expect(r.scale(ctx, []appsv1.ReplicaSet{*proven}, 0)).To(Succeed())
+		pod := createReplica(app, "stop-taken-over-replica")
+		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+1)
+		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
+		Expect(app.Status.Rollout.Stopped.Rollout).To(BeTrue())
+		Expect(replicaSetReplicas(current)).To(BeZero())
+		Expect(replicaSetReplicas(proven)).To(Equal(int32(2)))
+	})
+
 	It("never brings back an earlier revision that did not prove itself", func() {
 		app := isolationTestApplication(stopWorkspace, "stop-unproven")
 		app.Spec.ServiceSpec.Routing = nil

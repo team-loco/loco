@@ -104,7 +104,7 @@ type ApplicationReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
-// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;patch
+// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;watch;patch
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete

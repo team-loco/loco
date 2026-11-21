@@ -255,12 +255,7 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 	if !placement.DesiredDeleted && len(placement.SecretEnv) > 0 {
 		secret, err := secrets.envSecret(ctx, placement)
 		if isPlacementSecretError(err) {
-			ss.server.recordApplyError(ctx, ss.clusterID, placement.ID, &agentv1.Applied{
-				PlacementId: placement.ID.String(),
-				Revision:    placement.DesiredRevision,
-				Error:       err.Error(),
-			})
-			delete(ss.sent, placement.ID)
+			ss.reject(ctx, placement, err)
 			return nil
 		}
 		if err != nil {
@@ -278,7 +273,8 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 	if placement.RestartedAt != nil && !placement.DesiredDeleted {
 		spec, err := restartedSpec(placement)
 		if err != nil {
-			return err
+			ss.reject(ctx, placement, err)
+			return nil
 		}
 		placement.DesiredSpec = spec
 	}
@@ -288,6 +284,16 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 	}
 	ss.sent[placement.ID] = placement.DesiredRevision
 	return nil
+}
+
+// reject records the error as the placement's apply error and leaves it unsent for the next sync to retry.
+func (ss *syncSession) reject(ctx context.Context, placement genDb.Placement, err error) {
+	ss.server.recordApplyError(ctx, ss.clusterID, placement.ID, &agentv1.Applied{
+		PlacementId: placement.ID.String(),
+		Revision:    placement.DesiredRevision,
+		Error:       err.Error(),
+	})
+	delete(ss.sent, placement.ID)
 }
 
 func placementMessage(placement genDb.Placement, envSecret *agentv1.EnvSecret) *agentv1.SyncResponse {

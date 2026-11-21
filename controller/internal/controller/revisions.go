@@ -22,7 +22,7 @@ func (r *ApplicationReconciler) replicaSetRevisions(
 	app *loco.Application,
 	dep *appsv1ac.DeploymentApplyConfiguration,
 ) (map[string]int64, error) {
-	sets, err := r.replicaSets(ctx, *dep.Namespace, *dep.Name)
+	sets, err := replicaSets(ctx, r.Client, *dep.Namespace, *dep.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +46,11 @@ func (r *ApplicationReconciler) replicaSetRevisions(
 			if err = r.Patch(ctx, set, patch); err != nil {
 				return nil, fmt.Errorf("record the revision of replica set %s/%s: %w", set.Namespace, set.Name, err)
 			}
+			// Its pods proved this template under the earlier revision.
+			rollout := app.Status.Rollout
+			if rollout != nil && setRevision != 0 && rollout.ProvenRevision == setRevision {
+				rollout.ProvenRevision = revision
+			}
 			setRevision = revision
 		}
 		revisions[set.Name] = setRevision
@@ -62,9 +67,9 @@ func podRevision(pod *corev1.Pod, revisions map[string]int64) int64 {
 	return revisions[owner.Name]
 }
 
-func (r *ApplicationReconciler) replicaSets(ctx context.Context, namespace, name string) ([]appsv1.ReplicaSet, error) {
+func replicaSets(ctx context.Context, reader client.Reader, namespace, name string) ([]appsv1.ReplicaSet, error) {
 	var sets appsv1.ReplicaSetList
-	if err := r.APIReader.List(ctx, &sets, client.InNamespace(namespace),
+	if err := reader.List(ctx, &sets, client.InNamespace(namespace),
 		client.MatchingLabels{labelApp: name}); err != nil {
 		return nil, fmt.Errorf("list replica sets of %s/%s: %w", namespace, name, err)
 	}
