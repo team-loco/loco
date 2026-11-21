@@ -51,8 +51,8 @@ message Workspace {
   // resource_count is how many resources the workspace holds. ListOrgWorkspaces sets it on each
   // workspace the caller can read.
   optional int32 resource_count = 11;
-  // member_count is how many users hold a direct grant on the workspace. ListOrgWorkspaces sets it
-  // on each workspace the caller can read.
+  // member_count is how many users hold a direct grant on the workspace. An organization admin
+  // without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read.
   optional int32 member_count = 12;
 }
 

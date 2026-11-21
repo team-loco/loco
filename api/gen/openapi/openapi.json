@@ -17493,7 +17493,7 @@
             ],
             "title": "member_count",
             "format": "int32",
-            "description": "member_count is how many users hold a direct grant on the workspace. ListOrgWorkspaces sets it\n on each workspace the caller can read."
+            "description": "member_count is how many users hold a direct grant on the workspace. An organization admin\n without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read."
           }
         },
         "title": "Workspace",

@@ -43,8 +43,8 @@ type Workspace struct {
 	// resource_count is how many resources the workspace holds. ListOrgWorkspaces sets it on each
 	// workspace the caller can read.
 	ResourceCount *int32 `protobuf:"varint,11,opt,name=resource_count,json=resourceCount,proto3,oneof" json:"resource_count,omitempty"`
-	// member_count is how many users hold a direct grant on the workspace. ListOrgWorkspaces sets it
-	// on each workspace the caller can read.
+	// member_count is how many users hold a direct grant on the workspace. An organization admin
+	// without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read.
 	MemberCount   *int32 `protobuf:"varint,12,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

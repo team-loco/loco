@@ -86,8 +86,8 @@ export type Workspace = Message<"loco.workspace.v1.Workspace"> & {
   resourceCount?: number | undefined;
 
   /**
-   * member_count is how many users hold a direct grant on the workspace. ListOrgWorkspaces sets it
-   * on each workspace the caller can read.
+   * member_count is how many users hold a direct grant on the workspace. An organization admin
+   * without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read.
    *
    * @generated from field: optional int32 member_count = 12;
    */
@@ -165,8 +165,8 @@ export type WorkspaceJson = {
   resourceCount?: number;
 
   /**
-   * member_count is how many users hold a direct grant on the workspace. ListOrgWorkspaces sets it
-   * on each workspace the caller can read.
+   * member_count is how many users hold a direct grant on the workspace. An organization admin
+   * without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read.
    *
    * @generated from field: optional int32 member_count = 12;
    */
