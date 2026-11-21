@@ -70,7 +70,7 @@ A webhook receives each event recorded in its workspace whose type it subscribes
 
 Choose **Rotate signing secret** in the webhook's menu and pick how long the old secret keeps working: **None**, **1 hour**, **24 hours** or **7 days**. The dialog shows the new secret once. `RotateWebhookSecret` takes the same choice as `grace_period_seconds`, from `0` to `604800`, and returns the new secret in `secret`.
 
-During the grace period every delivery carries two signatures in `Webhook-Signature`, one per secret, so a receiver keeps verifying while it switches to the new secret. The webhook's `previous_secret_expires_at` and the **Signing** row of its detail panel show when the old secret stops. With `0` the old secret stops at once. Rotating again during a grace period drops the older of the two secrets.
+During the grace period `Webhook-Signature` carries one signature per secret. The webhook's `previous_secret_expires_at` and the **Signing** row of its detail panel show when the old secret stops. With `0` the old secret stops at once. Rotating again during a grace period drops the older of the two secrets.
 
 ### Deliveries and redelivery
 
@@ -104,8 +104,6 @@ func verify(secret string, h http.Header, body []byte) bool {
 	return false
 }
 ```
-
-Pass the raw request body, read before any JSON decoding.
 
 ## Invitation events
 
