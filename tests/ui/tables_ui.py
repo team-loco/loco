@@ -1117,6 +1117,18 @@ with session(
         assert not errors, errors
         context.close()
 
+    # A link from before the tables paged by token opens the first page; the API's rejection logs a console error.
+    context, page, _ = open_page(browser, state=state)
+    for path in ("/resources?env=production&page=2", "?env=production&page=2"):
+        page.goto(base + path)
+        expect(
+            page.get_by_role("table", name="Resources").get_by_role(
+                "link", name="api", exact=True
+            )
+        ).to_be_visible()
+        expect(page).not_to_have_url(re.compile(r"[?&]page="))
+    context.close()
+
     context, page, errors = open_page(browser, narrow=True, state=state)
     page.goto(base + "/resources?env=production")
     table = resources_table(page)
