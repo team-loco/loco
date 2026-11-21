@@ -88,15 +88,16 @@ export function ResourceTable({
 	};
 
 	// The counts ignore the status filter, as the region counts do.
+	const { environmentId, ...order } = resourcesOrder(state.sort, environments);
 	const counted = {
 		workspaceId,
 		query: filter.query.trim(),
 		region: filter.region === ALL ? "" : filter.region,
-		...resourcesOrder(state.sort, environments),
+		environmentId,
 	};
 	const listed = useTokenPage(
 		listWorkspaceResources,
-		{ ...counted, ...statusInput(filter.status), pageSize: state.size },
+		{ ...counted, ...order, ...statusInput(filter.status), pageSize: state.size },
 		state.page,
 		{ placeholderData: keepPreviousData, refetchInterval: (q) => resourcesPollMs(q.state.data?.resources) },
 		{ ...counted, includeFacets: true },
@@ -110,10 +111,8 @@ export function ResourceTable({
 	const deployments = useCurrentDeployments(resources);
 	const draftsOnly = filter.status === DRAFT;
 	const serverRows = draftsOnly ? [] : buildRows(resources, deployments, environments, active?.id);
-	const allDrafts = drafts.map((r) => r.draft);
-	const shown = new Set(shownDrafts(allDrafts, filter));
-	const draftCount = shownDrafts(allDrafts, { ...filter, status: DRAFT }).length;
-	const data: ListRow[] = [...(state.page.length === 0 ? drafts.filter((r) => shown.has(r.draft)) : []), ...serverRows];
+	const draftCount = shownDrafts(drafts, { ...filter, status: DRAFT }).length;
+	const data: ListRow[] = [...(state.page.length === 0 ? shownDrafts(drafts, filter) : []), ...serverRows];
 	const facets = listed.counts?.facets;
 	const counts = statusCounts(listed.total, facets, draftCount);
 	const matched = facets === undefined && !draftsOnly ? undefined : (counts.get(filter.status) ?? 0);

@@ -466,10 +466,9 @@ export function ResourcesTable({
 	).data?.totalCount;
 	const matching = useMatchingResourceIds(matchedBy, isMap && hasFilters && !draftsOnly).data;
 
-	const allDrafts = drafts.map((d) => d.draft);
-	const shown = new Set(shownDrafts(allDrafts, filter));
-	const draftCount = shownDrafts(allDrafts, { ...filter, status: DRAFT }).length;
-	const shownItems = drafts.filter((d) => shown.has(d.draft));
+	const draftRegions = (d: DraftItem) => d.regions.map((g) => g.region);
+	const shownItems = shownDrafts(drafts, filter, draftRegions);
+	const draftCount = shownDrafts(drafts, { ...filter, status: DRAFT }, draftRegions).length;
 	const serverRows = draftsOnly
 		? []
 		: (listed.query.data?.resources ?? []).map((r) => envResource(r, deployments, environmentId));
@@ -501,7 +500,7 @@ export function ResourcesTable({
 	const statusAll = facets === undefined ? undefined : sum(facets.statuses) + facets.notDeployed;
 	const counts = statusCounts(statusAll, facets, draftCount);
 	const regionNames = new Set(regions.map((r) => r.region));
-	for (const item of envResources) for (const g of item.regions) regionNames.add(g.region);
+	for (const item of [...envResources, ...drafts]) for (const g of item.regions) regionNames.add(g.region);
 	for (const r of facets?.regions ?? []) regionNames.add(r.region);
 	if (filter.region !== ALL) regionNames.add(filter.region);
 	const typeOptions = [

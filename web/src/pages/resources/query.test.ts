@@ -45,9 +45,13 @@ describe("statusCounts", () => {
 });
 
 describe("shownDrafts", () => {
-	const drafts = [draft("web"), draft("queue")];
+	const drafts = [
+		{ draft: draft("web"), regions: ["us-va-1"] },
+		{ draft: draft("queue"), regions: ["us-ca-1"] },
+	];
 	const everything = { query: "", status: ALL, region: ALL, type: ALL };
-	const names = (shown: Draft[]) => shown.map((d) => d.name);
+	const names = (shown: typeof drafts) => shown.map((d) => d.draft.name);
+	const regions = (d: (typeof drafts)[number]) => d.regions;
 
 	test("match their name or image in a search under All and Draft", () => {
 		expect(names(shownDrafts(drafts, everything))).toEqual(["web", "queue"]);
@@ -55,12 +59,17 @@ describe("shownDrafts", () => {
 		expect(names(shownDrafts(drafts, { ...everything, status: DRAFT, query: "web" }))).toEqual(["web"]);
 	});
 
-	test("are services with no status or region", () => {
+	test("are services with no status", () => {
 		expect(shownDrafts(drafts, { ...everything, status: "healthy" })).toEqual([]);
 		expect(shownDrafts(drafts, { ...everything, status: NOT_DEPLOYED })).toEqual([]);
-		expect(shownDrafts(drafts, { ...everything, region: "us-va-1" })).toEqual([]);
 		expect(shownDrafts(drafts, { ...everything, type: "database" })).toEqual([]);
 		expect(names(shownDrafts(drafts, { ...everything, type: "service" }))).toEqual(["web", "queue"]);
+	});
+
+	test("match a region filter and a region search by the regions given, none by default", () => {
+		expect(shownDrafts(drafts, { ...everything, region: "us-ca-1" })).toEqual([]);
+		expect(names(shownDrafts(drafts, { ...everything, region: "us-ca-1" }, regions))).toEqual(["queue"]);
+		expect(names(shownDrafts(drafts, { ...everything, query: "US-VA" }, regions))).toEqual(["web"]);
 	});
 });
 

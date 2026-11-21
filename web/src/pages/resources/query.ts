@@ -52,12 +52,20 @@ export interface DraftFilter {
 	type?: string;
 }
 
-/** The drafts a filter shows: drafts have no status, region or type the API filters, and are services. */
-export function shownDrafts(drafts: readonly Draft[], filter: DraftFilter): Draft[] {
-	if ((filter.status !== ALL && filter.status !== DRAFT) || filter.region !== ALL) return [];
+/** The drafts a filter shows: drafts are services with no status, matched by name, image and regions. */
+export function shownDrafts<T extends { draft: Draft }>(
+	drafts: readonly T[],
+	filter: DraftFilter,
+	regions: (draft: T) => readonly string[] = () => [],
+): T[] {
+	if (filter.status !== ALL && filter.status !== DRAFT) return [];
 	if (filter.type !== undefined && filter.type !== ALL && filter.type !== "service") return [];
 	const q = filter.query.trim().toLowerCase();
-	return drafts.filter((d) => q === "" || d.name.toLowerCase().includes(q) || d.image.toLowerCase().includes(q));
+	return drafts.filter((d) => {
+		const names = regions(d);
+		if (filter.region !== ALL && !names.includes(filter.region)) return false;
+		return q === "" || [d.draft.name, d.draft.image, ...names].some((f) => f.toLowerCase().includes(q));
+	});
 }
 
 const ORDERS: Record<string, ResourceOrder> = {
