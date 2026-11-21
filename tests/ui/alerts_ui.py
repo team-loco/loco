@@ -63,7 +63,11 @@ with session(out) as browser:
     page.goto(f"{state['ui_url']}/org/{org}/wks/{workspace}?env=production")
     page.get_by_role("button", name=re.compile(r"^Workspace activity, ")).click()
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
-    card = drawer.get_by_role("listitem").filter(has_text="alerts-ui")
+    card = (
+        drawer.get_by_role("listitem")
+        .filter(has_text="alerts-ui")
+        .filter(has_text="started 3h ago")
+    )
     expect(card.get_by_text("Degraded", exact=True)).to_be_visible()
     expect(card.get_by_text("started 3h ago", exact=True)).to_be_visible()
     expect(
