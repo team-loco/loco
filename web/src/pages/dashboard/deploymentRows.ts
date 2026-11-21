@@ -19,7 +19,7 @@ export function deploymentState(d: Deployment): DeploymentState {
 		case DeploymentStatus.RUNNING:
 			return "running";
 		case DeploymentStatus.DEGRADED:
-			return "running";
+			return "failed";
 		case DeploymentStatus.CRASHED:
 			return "failed";
 		case DeploymentStatus.SUPERSEDED:

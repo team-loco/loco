@@ -661,7 +661,9 @@ with session(out) as browser:
     expect(
         page.get_by_role("menuitem", name=re.compile(r"^Roll back\s*to "))
     ).to_be_enabled()
-    expect(page.get_by_role("menuitem", name="Restart", exact=True)).to_be_enabled()
+    expect(
+        page.get_by_role("menuitem", name=re.compile(r"^Restart\s*\d+ replicas?$"))
+    ).to_be_enabled()
     page.get_by_role("menuitem", name=re.compile(r"^Roll back")).click()
     expect(
         page.get_by_role("dialog", name=re.compile(r"^Roll back history-pilot in "))

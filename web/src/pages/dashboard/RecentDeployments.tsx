@@ -10,12 +10,14 @@ import { Button } from "@/components/design/Button";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
-import { DeploymentActor, DeploymentId } from "@/components/design/DeploymentOrigin";
+import { DeploymentActor } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, DAY_MS, formatStarted, readyMs } from "@/lib/time";
+import { formatShortId } from "@/lib/utils";
+import { depTag } from "@/pages/resource/model";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -58,7 +60,7 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 		{
 			id: "resource",
 			header: "Resource",
-			size: 140,
+			size: 200,
 			minSize: 90,
 			meta: { primary: true },
 			cell: ({ row: { original: r } }) => (
@@ -81,14 +83,19 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 		{
 			id: "deployment",
 			header: "Deployment",
-			size: 110,
+			size: 150,
 			minSize: 90,
-			cell: ({ row: { original: r } }) => <DeploymentId deployment={r.deployment} />,
+			cell: ({ row: { original: r } }) => (
+				<span className="flex min-w-0 flex-col gap-px">
+					<CellText text={formatShortId(r.deployment.id)} className="font-mono text-[12.5px] text-foreground" />
+					<CellText text={depTag(r.deployment)} className="font-mono text-[11px] text-fg3" />
+				</span>
+			),
 		},
 		{
 			id: "actor",
 			header: "Deployed by",
-			size: 180,
+			size: 170,
 			minSize: 90,
 			cell: ({ row: { original: r } }) => <DeploymentActor deployment={r.deployment} />,
 		},
@@ -103,8 +110,8 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 		{
 			id: "when",
 			header: "When",
-			size: 130,
-			minSize: 90,
+			size: 80,
+			minSize: 64,
 			meta: { align: "end", cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3" },
 			cell: ({ row: { original: r } }) => <When deployment={r.deployment} nowMs={nowMs} />,
 		},
@@ -186,7 +193,7 @@ export function RecentDeployments({
 					className="[--row-h:66px]"
 					onRowClick={(row) => void navigate(hrefOf(row.original))}
 					rowAction="navigate"
-					empty={<EmptyState title="No deployments with this status" />}
+					empty={<EmptyState title="No deployments with this status." />}
 				/>
 			)}
 		</Section>

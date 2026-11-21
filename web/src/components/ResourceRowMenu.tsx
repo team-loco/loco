@@ -8,7 +8,7 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
-import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
+import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { NEEDS_ADMIN, scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
@@ -49,7 +49,6 @@ export function ResourceRowMenu({
 		<>
 			<RowMenu label={`Actions for ${resource.name}`} title={title}>
 				{children}
-				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					variant="destructive"
 					disabled={!canDelete}
