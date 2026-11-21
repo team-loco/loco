@@ -204,7 +204,12 @@ export function AppSidebar() {
 						</span>
 						<ChevronsUpDownIcon className="size-4 shrink-0 text-fg3" />
 					</DropdownMenuTrigger>
-					<DropdownMenuContent className="w-[264px] overflow-hidden p-0" side="top" align="start">
+					<DropdownMenuContent
+						className="w-[264px] overflow-hidden p-0"
+						side="top"
+						align="start"
+						positionMethod="fixed"
+					>
 						<div className="flex items-center gap-3 px-4 py-3.5">
 							<UserAvatar name={displayName} src={user?.avatarUrl} className="size-10 text-[13px]" />
 							<span className="flex min-w-0 flex-col">

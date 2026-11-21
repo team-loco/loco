@@ -1169,9 +1169,14 @@ def dashboard(page):
         # The authentication init script starts every navigation in light mode.
         if mode == "dark":
             page.get_by_role("button").filter(has_text="Olivia Owner").click()
-            page.get_by_role("radiogroup", name="Mode").get_by_role(
-                "radio", name="Dark", exact=True
-            ).click()
+            modes = page.get_by_role("radiogroup", name="Mode")
+            # The menu sits against the viewport, like the sidebar it opens from.
+            expect(
+                modes.locator(
+                    'xpath=ancestor::*[@data-slot="dropdown-menu-content"]/..'
+                )
+            ).to_have_css("position", "fixed")
+            modes.get_by_role("radio", name="Dark", exact=True).click()
             page.keyboard.press("Escape")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
         else:
