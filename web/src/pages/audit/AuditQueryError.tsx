@@ -2,7 +2,7 @@ import { Button } from "@/components/design/Button";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { ErrorReceipt } from "@/components/design/ErrorState";
 import { QueryErrorText } from "@/pages/observability/QueryBar";
-import { AUDIT_FIELDS, auditQueryFix, type auditSearchError } from "./queryError";
+import { auditQueryFix, type auditSearchError } from "./queryError";
 
 export function AuditQueryError({
 	rejected,
@@ -38,11 +38,12 @@ export function AuditQueryError({
 					auditQueryFix(
 						Array.from(rejected.error.query).slice(rejected.start, rejected.end).join(""),
 						rejected.error.message,
+						rejected.fields,
 					) ?? undefined
 				}
 			>
 				<div className="flex flex-wrap justify-center gap-2">
-					{AUDIT_FIELDS.map((field) => (
+					{rejected.fields.map((field) => (
 						<Button
 							key={field.key}
 							variant="ghost"

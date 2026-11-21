@@ -351,8 +351,19 @@ with session(out) as browser:
     expect(search).to_have_attribute("aria-describedby", "audit-query-error")
     panel = page.locator("#audit-query-error")
     expect(panel.locator("mark")).to_have_text("@type:>1")
-    expect(panel.get_by_role("button")).to_have_count(5)
-    for field in ("@actor:", "@actor_type:", "@target:", "@type:", "@request:"):
+    fields = (
+        "actor",
+        "actor_type",
+        "target",
+        "type",
+        "request",
+        "severity",
+        "region",
+        "reason",
+        "resource",
+    )
+    expect(panel.get_by_role("button")).to_have_count(len(fields))
+    for field in (f"@{key}:" for key in fields):
         expect(
             panel.get_by_role("button", name=re.compile(re.escape(field)))
         ).to_be_visible()

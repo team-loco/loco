@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -23,9 +24,23 @@ const (
 	resourceField  = "resource"
 )
 
-var queryFields = map[string]bool{
-	actorField: true, actorTypeField: true, targetField: true, typeField: true, requestField: true,
-	severityField: true, regionField: true, reasonField: true, resourceField: true,
+// QueryField is a field an audit query names, with a short description for people picking one.
+type QueryField struct {
+	Key         string
+	Description string
+}
+
+// QueryFields lists the audit query fields in the order clients offer them.
+var QueryFields = []QueryField{
+	{Key: actorField, Description: "Person or token"},
+	{Key: actorTypeField, Description: "How the actor signed in"},
+	{Key: targetField, Description: "Event subject"},
+	{Key: typeField, Description: "Event type"},
+	{Key: requestField, Description: "Request ID"},
+	{Key: severityField, Description: "Event severity"},
+	{Key: regionField, Description: "Region"},
+	{Key: reasonField, Description: "Runtime event reason"},
+	{Key: resourceField, Description: "Resource name or slug"},
 }
 
 // The audit query reads events e, the acting user u, the user an event is about, s, and the resource r,
@@ -47,13 +62,10 @@ var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 // field holds.
 func ValidateQuery(expr logquery.Expr) error {
 	return logquery.CheckFields(expr, func(field logquery.Field) error {
-		if !queryFields[field.Key] {
+		if !slices.ContainsFunc(QueryFields, func(f QueryField) bool { return f.Key == field.Key }) {
 			return &logquery.SyntaxError{
 				Position: field.Position,
-				Message: fmt.Sprintf(
-					"unknown field @%s; use @actor, @actor_type, @target, @type, @request, @severity, "+
-						"@region, @reason or @resource", field.Key,
-				),
+				Message:  fmt.Sprintf("unknown field @%s; use %s", field.Key, fieldList()),
 			}
 		}
 		if field.Match != logquery.Equal && field.Match != logquery.Prefix {
@@ -64,6 +76,15 @@ func ValidateQuery(expr logquery.Expr) error {
 		}
 		return nil
 	})
+}
+
+// fieldList names the query fields as "@a, @b or @c".
+func fieldList() string {
+	names := make([]string, len(QueryFields))
+	for i, f := range QueryFields {
+		names[i] = "@" + f.Key
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]
 }
 
 // binder collects the arguments of a query and names each by its $n placeholder.
