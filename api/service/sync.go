@@ -687,8 +687,9 @@ func (*AgentServer) applyPlacementReport(
 	status *agentv1.PlacementStatus,
 	row genDb.UpdatePlacementStatusRow,
 ) error {
-	if status.GetObservedRevision() == row.DesiredRevision {
-		reason := status.GetProblem().GetReason()
+	reason := status.GetProblem().GetReason()
+	// A revision without a problem has not recovered until it serves.
+	if status.GetObservedRevision() == row.DesiredRevision && (reason != "" || status.GetAvailable()) {
 		changed, changeErr := qtx.ChangePlacementProblemReason(ctx, genDb.ChangePlacementProblemReasonParams{
 			ID: placementID, Reason: reason,
 		})

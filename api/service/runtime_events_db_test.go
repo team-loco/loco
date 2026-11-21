@@ -259,6 +259,7 @@ func TestRuntimeEventsDuringRollout(t *testing.T) {
 			server := f.agentServer()
 			server.recordStatus(t.Context(), f.clusterID, generation, report)
 			report.Problem = nil
+			report.Available = true
 			server.recordStatus(t.Context(), f.clusterID, generation, report)
 			server.recordStatus(t.Context(), f.clusterID, generation, report)
 			for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
@@ -297,6 +298,38 @@ func TestProblemEventsAcrossPlacementRevisions(t *testing.T) {
 	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
 		if count := f.eventCount(t, kind); count != 1 {
 			t.Fatalf("%s events=%d", kind, count)
+		}
+	}
+}
+
+// TestRecoveredWaitsForTheNextRevisionToServe deploys over a degraded revision. The new
+// revision's first report has no problem yet, which is not a recovery until it serves.
+func TestRecoveredWaitsForTheNextRevisionToServe(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	p := f.placement(t, f.clusterID)
+	server := f.agentServer()
+	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
+		Available: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemUncleanShutdown)}}
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	report.ObservedRevision = f.placement(t, f.clusterID).DesiredRevision
+	report.Available = false
+	report.Problem = nil
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	if count := f.eventCount(t, events.ResourceRecovered); count != 0 {
+		t.Fatalf("recovered events before the new revision serves=%d, want 0", count)
+	}
+	report.Available = true
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
+		if count := f.eventCount(t, kind); count != 1 {
+			t.Fatalf("%s events=%d, want 1", kind, count)
 		}
 	}
 }
@@ -346,6 +379,8 @@ func TestProblemEventsWithPrunedDeploymentHistory(t *testing.T) {
 	report.ObservedRevision = current.DesiredRevision
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	report.Problem = nil
+	report.Stopped = nil
+	report.Available = true
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
 		if count := f.eventCount(t, kind); count != 1 {
