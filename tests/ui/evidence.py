@@ -391,6 +391,9 @@ def validate_spec(spec):
             raise EvidenceError(
                 f"shot {name}: themes must be a non-empty list of {', '.join(THEMES)}"
             )
+        for field in ("before", "signedOut"):
+            if field in shot and not isinstance(shot[field], bool):
+                raise EvidenceError(f"shot {name}: {field} must be true or false")
         if "color" in shot and not isinstance(shot["color"], str):
             raise EvidenceError(f"shot {name}: color must be a colour theme id")
         crop = shot.get("crop", "viewport")
@@ -477,6 +480,161 @@ def validate_spec(spec):
                         f"shot {name}: drag needs a selector and from/to points as [x, y] fractions of its box"
                     )
     return shots
+
+
+def connect_methods():
+    """Lists the `<package>.<Service>/<Method>` path of every RPC under proto/."""
+    methods = set()
+    for proto in (TOOLS_ROOT / "proto").rglob("*.proto"):
+        text = proto.read_text()
+        package = re.search(r"^package ([\w.]+);", text, re.M)
+        for service, body in re.findall(
+            r"^service (\w+) \{(.*?)^\}", text, re.M | re.S
+        ):
+            for method in re.findall(r"^\s*rpc (\w+)\(", body, re.M):
+                methods.add(f"{package.group(1)}.{service}/{method}")
+    return methods
+
+
+def scenario_ids(scenario):
+    """Maps every placeholder key a scenario seeds to a stand-in ID."""
+    workspaces = [
+        f"{org['name']}/{workspace}"
+        for org in scenario.get("orgs", [])
+        for workspace in org.get("workspaces", [])
+    ]
+    return {
+        "org": {org["name"]: "id" for org in scenario.get("orgs", [])},
+        "workspace": dict.fromkeys(workspaces, "id"),
+        "resource": {
+            f"{r['workspace']}/{r['name']}": "id" for r in scenario.get("resources", [])
+        },
+        "environment": {f"{w}/production": "id" for w in workspaces},
+    }
+
+
+def check_spec(spec, scenario, methods):
+    """Returns the mistakes in a shot spec and its scenario that would fail or mislead a capture."""
+    try:
+        shots = validate_spec(spec)
+    except EvidenceError as err:
+        return [str(err)]
+    ids, errors = scenario_ids(scenario), []
+    for resource in scenario.get("resources", []):
+        try:
+            fill_placeholders(resource.get("deployments", []), ids, 0)
+        except EvidenceError as err:
+            errors.append(f"scenario resource {resource['name']}: {err}")
+    for index, event in enumerate(scenario.get("events", []), 1):
+        if "resource" in event and event["resource"] not in ids["resource"]:
+            errors.append(
+                f"scenario event {index}: resource {event['resource']!r} is not seeded"
+            )
+        try:
+            fill_placeholders(event, ids, 0)
+        except EvidenceError as err:
+            errors.append(f"scenario event {index}: {err}")
+    for shot in shots:
+        name = shot["name"]
+        if "user" in shot and shot["user"] not in scenario.get("users", {}):
+            errors.append(f"shot {name}: user {shot['user']!r} is not a scenario user")
+        if "user" not in shot and not shot.get("signedOut"):
+            errors.append(
+                f'shot {name}: user is missing; set "signedOut": true for a signed-out page'
+            )
+        responses = shot.get("respond", [])
+        patterns = [("respond", r["url"]) for r in responses]
+        patterns += [("hold_requests", p) for p in shot.get("hold_requests", [])]
+        for field, pattern in patterns:
+            if not pattern.startswith("**/") or pattern[3:] not in methods:
+                errors.append(
+                    f"shot {name}: {field} {pattern!r} matches no RPC; "
+                    "write **/<package>.<Service>/<Method>"
+                )
+        for index, response in enumerate(responses):
+            match = response.get("match", {}).items()
+            for later, other in enumerate(responses[index + 1 :], index + 2):
+                if (
+                    other["url"] == response["url"]
+                    and match <= other.get("match", {}).items()
+                ):
+                    errors.append(
+                        f"shot {name}: respond entry {index + 1} for {response['url']} answers "
+                        f"every request entry {later} matches; list the narrower entry first"
+                    )
+        for field in ("path", "respond"):
+            try:
+                fill_placeholders(shot.get(field, ""), ids, 0)
+            except EvidenceError as err:
+                errors.append(f"shot {name}: {field}: {err}")
+    return errors
+
+
+SUITE_END = re.compile(r"(\S+) (passed|failed) in \d+s")
+ERROR_LINE = re.compile(r"Error|error:|assert|Traceback|FAILED")
+FAILURE_TAIL = 20
+
+
+def failure_section(title, lines):
+    errors = [line for line in lines if ERROR_LINE.search(line)][-30:]
+    tail = lines[-FAILURE_TAIL:]
+    return "\n".join(
+        [
+            f"## {title}",
+            "",
+            "```",
+            *errors,
+            "```",
+            "",
+            "Last lines:",
+            "",
+            "```",
+            *tail,
+            "```",
+        ]
+    )
+
+
+def failure_summary(suites_log, shots_log):
+    """Builds failure.md: each failing suite or shot spec with its error lines and log tail."""
+    sections, chunk = [], []
+    for line in (suites_log or "").splitlines():
+        end = SUITE_END.fullmatch(line)
+        if end is None:
+            if not line.startswith("::"):
+                chunk.append(line)
+            continue
+        if end.group(2) == "failed":
+            sections.append(failure_section(f"Suite {end.group(1)}", chunk))
+        chunk = []
+    if shots_log and ERROR_LINE.search(shots_log):
+        sections.append(failure_section("Screenshots", shots_log.splitlines()))
+    if not sections and (suites_log or shots_log):
+        sections.append(failure_section("Run", (suites_log or shots_log).splitlines()))
+    return "# Evidence failures\n\n" + "\n\n".join(sections) + "\n"
+
+
+def cmd_failure_summary(args):
+    logs = [Path(args.dir) / name for name in ("suites.log", "shots.log")]
+    texts = [
+        path.read_text(errors="replace") if path.exists() else None for path in logs
+    ]
+    (Path(args.dir) / "failure.md").write_text(failure_summary(*texts))
+
+
+def cmd_check(args):
+    scenario_path = args.scenario or (
+        TOOLS_ROOT / ".agents/skills/ui-evidence/scenario.example.json"
+    )
+    errors = check_spec(
+        json.loads(Path(args.spec).read_text()),
+        json.loads(Path(scenario_path).read_text()),
+        connect_methods(),
+    )
+    for error in errors:
+        log(error)
+    if errors:
+        raise SystemExit(1)
 
 
 def markdown_table(out, files):
@@ -749,6 +907,7 @@ def seed(state, scenario):
         }
         rpc(api_url, users[orgs[org_name]["owner"]]["token"], RPC_CREATE_MEMBER, body)
     state["resources"] = seed_resources(state, scenario.get("resources", []))
+    seed_events(state, scenario.get("events", []))
     if state["resources"]:
         notes.append(
             "synthetic clusters, deployments and placements are inserted with SQL; no worker runs these resources"
@@ -818,6 +977,32 @@ def seed_resources(state, resources):
         seed_deployments(state, resource_id, resource.get("deployments", []), user)
         seed_domains(state, resource_id, resource.get("domains", []))
     return seeded
+
+
+def seed_events(state, events):
+    """Inserts workspace events with their resource and environment; `at` takes time placeholders."""
+    q = sql_literal
+    rows = []
+    for event in fill_placeholders(events, placeholder_ids(state), time.time()):
+        workspace = event.get("workspace") or event["resource"].rsplit("/", 1)[0]
+        org = state["orgs"][workspace.split("/", 1)[0]]["id"]
+        resource = (
+            state["resources"][event["resource"]] if "resource" in event else None
+        )
+        environment = (
+            state["environments"][f"{workspace}/{event['environment']}"]
+            if "environment" in event
+            else None
+        )
+        rows.append(
+            "INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at) "
+            f"VALUES({q(event['type'])},{q(org)},{q(state['workspaces'][workspace])},"
+            f"{q(resource) if resource else 'NULL'},{q(environment) if environment else 'NULL'},"
+            f"{q(event.get('actor_type', 'agent'))},{q(json.dumps(event.get('data', {})))},"
+            f"{q(event['at']) if 'at' in event else 'NOW()'});"
+        )
+    if rows:
+        psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
 
 
 def seed_domains(state, resource_id, domains):
@@ -1374,6 +1559,7 @@ def capture(browser, state, shot, theme, narrow, target):
     context = browser.new_context(
         viewport=viewport, device_scale_factor=SCALE, color_scheme=theme
     )
+    context.clock.install(time=now)
     if "permissions" in shot:
         context.grant_permissions(shot["permissions"], origin=state["ui_url"])
     script = f"localStorage.setItem({json.dumps(MODE_KEY)}, {json.dumps(theme)});"
@@ -1400,7 +1586,8 @@ def capture(browser, state, shot, theme, narrow, target):
 
         return respond
 
-    for response in shot.get("respond", []):
+    # Playwright tries the newest route first, so the first listed entry wins.
+    for response in reversed(shot["respond"]):
         context.route(response["url"], responder(response))
     for pattern in shot.get("hold_requests", []):
         context.route(pattern, lambda route: None)
@@ -1537,6 +1724,8 @@ def cmd_shoot(args):
         browser = playwright.chromium.launch()
         for shot in shots:
             renew(state)
+            if state["name"] == "before" and shot.get("before") is False:
+                continue
             for theme in shot.get("themes", THEMES):
                 for narrow in (False, True) if shot.get("narrow") else (False,):
                     target = out / shot_filename(
@@ -1612,6 +1801,18 @@ def main():
     )
     table.add_argument("--out", required=True)
     table.set_defaults(func=cmd_table)
+    check = sub.add_parser(
+        "check", help="check a shot spec and its scenario without starting anything"
+    )
+    check.add_argument("--spec", required=True)
+    check.add_argument("--scenario")
+    check.set_defaults(func=cmd_check)
+    summary = sub.add_parser(
+        "failure-summary",
+        help="write failure.md from the suite and shot logs in a directory",
+    )
+    summary.add_argument("--dir", required=True)
+    summary.set_defaults(func=cmd_failure_summary)
     down = sub.add_parser("down", help="stop a run, or every run with --all")
     target = down.add_mutually_exclusive_group(required=True)
     target.add_argument("--state")
