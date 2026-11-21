@@ -1429,7 +1429,7 @@ def browser_starter(options):
         run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
         # A restart replaces what is left of the earlier server.
         if (root / "state.json").exists():
-            stop_browser(load_state(root / "state.json")["pid"])
+            stop_browser(root, load_state(root / "state.json")["pid"])
         port = int(testres("ports", root, 1))
         config = root / "launch.json"
         write_json(config, {**options, "host": HOST, "port": port, "headless": True})
@@ -1456,11 +1456,11 @@ def browser_starter(options):
     return start
 
 
-def stop_browser(pid):
+def stop_browser(root, pid):
     command = subprocess.run(
         ["ps", "-o", "command=", "-p", str(pid)], capture_output=True
     )
-    if b"launch-server" in command.stdout:
+    if str(root / "launch.json").encode() in command.stdout:
         os.killpg(pid, signal.SIGTERM)
 
 
@@ -1483,7 +1483,10 @@ def shared_browser(playwright, **options):
             re.sub(r"_(\w)", lambda m: m.group(1).upper(), key): value
             for key, value in options.items()
         }
-        key = digest(importlib.metadata.version("playwright"), json.dumps(options))
+        key = digest(
+            importlib.metadata.version("playwright"),
+            json.dumps(options, sort_keys=True),
+        )
         server = shared(
             user, "chromium", key, browser_starter(options), browser_healthy
         )
