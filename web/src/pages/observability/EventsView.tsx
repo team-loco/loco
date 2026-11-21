@@ -1,5 +1,5 @@
 import { useListNavigation } from "@/hooks/useListNavigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@connectrpc/connect";
 import { createConnectQueryKey, useQuery, useTransport } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +49,9 @@ const NOW_TICK_MS = 30_000;
 // Live mode without the event stream polls the page this often, and the counts on a slower clock.
 const POLL_MS = 10_000;
 const FACETS_MS = 60_000;
+// With the stream, a burst of new events refreshes the page and the counts at most this often.
+const PAGE_REFRESH_MS = 2_000;
+const COUNT_REFRESH_MS = 10_000;
 const EVENT_KEYS = ["type", "severity", "region", "reason", "actor", "resource"] as const;
 
 type Show = "all" | "warning" | "error";
@@ -82,7 +85,14 @@ export function EventsView() {
 	const resourceChips = chips.filter((t) => t.key === "resource");
 	const query = eventsQuery(chips, text);
 	const canStream = useMyScopes().resourceGrants(orgId, workspaceId) === "workspace";
-	const streamFailed = useEventStream({ orgId, workspaceId, openedAt, on: live && canStream && enabled });
+	const stream = useEventStream({
+		orgId,
+		workspaceId,
+		openedAt,
+		on: live && canStream && enabled,
+		onFirstPage: params.pages.length === 0,
+	});
+	const streamFailed = stream.failed;
 	const poll = live && (!canStream || streamFailed) ? POLL_MS : false;
 	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.pages, {
 		enabled,
@@ -211,6 +221,11 @@ export function EventsView() {
 								Errors
 							</ToggleGroupItem>
 						</ToggleGroup>
+						{stream.newEvents > 0 && pager.onFirst !== null && (
+							<Button variant="ghost" size="sm" onClick={pager.onFirst}>
+								{stream.newEvents === 1 ? "1 new event" : `${formatTotal(stream.newEvents)} new events`}
+							</Button>
+						)}
 					</div>
 					<DataTable
 						table={table}
@@ -265,27 +280,61 @@ export function EventsView() {
 }
 
 /**
- * Streams the workspace's new runtime events while on and refetches the listed pages and counts when
- * one arrives, so live rows show as they happen. Returns whether the stream failed, so the view polls.
+ * Streams the workspace's new runtime events while on. On the first page a burst of events refetches
+ * the page at most once per PAGE_REFRESH_MS, after the last request settles, and the counts at most once
+ * per COUNT_REFRESH_MS; on later pages it counts the new events instead of moving rows under the reader.
  */
 function useEventStream({
 	orgId,
 	workspaceId,
 	openedAt,
 	on,
+	onFirstPage,
 }: {
 	orgId: string;
 	workspaceId: string;
 	openedAt: number;
 	on: boolean;
-}): boolean {
+	onFirstPage: boolean;
+}): { failed: boolean; newEvents: number } {
 	const transport = useTransport();
 	const queryClient = useQueryClient();
-	const [failed, setFailed] = useState<string | null>(null);
 	const key = `${orgId}/${workspaceId}`;
+	const [failed, setFailed] = useState<string | null>(null);
+	const [unseen, setUnseen] = useState({ key, count: 0 });
+	if (onFirstPage && unseen.count > 0) setUnseen({ key, count: 0 });
+	const firstPageRef = useRef(onFirstPage);
+	useEffect(() => {
+		firstPageRef.current = onFirstPage;
+	}, [onFirstPage]);
 	useEffect(() => {
 		if (!on) return;
 		const abort = new AbortController();
+		let pageTimer: ReturnType<typeof setTimeout> | undefined;
+		let countTimer: ReturnType<typeof setTimeout> | undefined;
+		// Refetches one kind of query; settles before the next refresh of that kind can start.
+		const invalidate = async (counts: boolean) => {
+			await queryClient.invalidateQueries({
+				queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
+				predicate: (query) => isCountQuery(query.queryKey) === counts,
+			});
+		};
+		const refreshPage = () => {
+			if (pageTimer !== undefined) return;
+			pageTimer = setTimeout(() => {
+				void invalidate(false).finally(() => {
+					pageTimer = undefined;
+				});
+			}, PAGE_REFRESH_MS);
+		};
+		const refreshCounts = () => {
+			if (countTimer !== undefined) return;
+			countTimer = setTimeout(() => {
+				void invalidate(true).finally(() => {
+					countTimer = undefined;
+				});
+			}, COUNT_REFRESH_MS);
+		};
 		const consume = async () => {
 			try {
 				const client = createClient(EventService, transport);
@@ -298,10 +347,10 @@ function useEventStream({
 					},
 					{ signal: abort.signal },
 				)) {
-					if (message.events.length > 0)
-						void queryClient.invalidateQueries({
-							queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
-						});
+					if (message.events.length === 0) continue;
+					refreshCounts();
+					if (firstPageRef.current) refreshPage();
+					else setUnseen((u) => ({ key, count: (u.key === key ? u.count : 0) + message.events.length }));
 				}
 			} catch {
 				if (!abort.signal.aborted) setFailed(key);
@@ -310,9 +359,17 @@ function useEventStream({
 		void consume();
 		return () => {
 			abort.abort();
+			clearTimeout(pageTimer);
+			clearTimeout(countTimer);
 		};
 	}, [on, orgId, workspaceId, openedAt, transport, queryClient, key]);
-	return failed === key;
+	return { failed: failed === key, newEvents: unseen.key === key ? unseen.count : 0 };
+}
+
+/** Whether a ListEvents query key is a one-row count or facet request rather than a listed page. */
+function isCountQuery(queryKey: readonly unknown[]): boolean {
+	const input = (queryKey[1] as { input?: { pageSize?: number } } | undefined)?.input;
+	return input?.pageSize === 1;
 }
 
 /** The events the resource chips keep, of one severity or all, for the severity tabs. */
