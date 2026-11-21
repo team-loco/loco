@@ -93,7 +93,7 @@ export function ReplicaList({
 	const replicas = region.status?.replicas ?? [];
 	const stale = region.status?.status === ResourceStatus.UNKNOWN;
 	const reportedMs = maybeTsMs(region.status?.reportedAt);
-	const { ready, desired } = regionReady(region);
+	const { ready, desired, previous } = regionReady(region);
 	const measuring = cpu?.isLoading === true || memory?.isLoading === true;
 	const many = replicas.length > MANY_REPLICAS;
 	return (
@@ -106,7 +106,10 @@ export function ReplicaList({
 					className="-ml-1.5 flex items-baseline gap-2 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-left hover:bg-background aria-pressed:bg-background"
 				>
 					<span className="font-mono text-[12.5px] font-medium text-foreground">{region.name}</span>
-					<span>{`${ready.toString()}/${desired.toString()} ready`}</span>
+					<span>
+						{`${ready.toString()}/${desired.toString()} ready`}
+						{previous > 0 && ` · ${previous.toString()} previous`}
+					</span>
 				</button>
 				{stale && (
 					<span>{reportedMs === undefined ? "Not reported yet" : `Last reported ${agoLabel(reportedMs, nowMs)}`}</span>
