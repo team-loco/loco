@@ -139,7 +139,8 @@ func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 		HealthyAfter:             testHealthyAfter,
 	}
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1))
-	detail := func() string {
+	// detail returns the rollout problem's detail and the replica's detail.
+	detail := func() (string, string) {
 		t.Helper()
 		if err := r.observeReplicas(t.Context(), app, dep, now); err != nil {
 			t.Fatal(err)
@@ -148,7 +149,7 @@ func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 		if problem == nil || problem.Reason != loco.ProblemHealthCheckFailing {
 			t.Fatalf("problem = %+v, want a failing health check", problem)
 		}
-		return problem.Detail
+		return problem.Detail, app.Status.Rollout.Replicas[0].Detail
 	}
 	unhealthy := func(note string, at time.Time) *eventsv1.Event {
 		return &eventsv1.Event{Namespace: pod.Namespace, Reason: reasonUnhealthy, Note: note,
@@ -159,8 +160,9 @@ func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 	timedOut := `Readiness probe failed: Get "http://10.0.0.7:8080/healthz": context deadline exceeded`
 	stale := unhealthy(timedOut, started.Add(-time.Minute))
 	r.applicationForPodEvent(t.Context(), stale)
-	if got, want := detail(), "Health check GET :8080/healthz failed"; got != want {
-		t.Fatalf("detail with only a failure from before the start = %q, want %q", got, want)
+	got, replica := detail()
+	if got != "Health check GET :8080/healthz failed" || replica != detailWaitingForReadiness {
+		t.Fatalf("details with only a failure from before the start = %q, %q", got, replica)
 	}
 	refused := `Readiness probe failed: Get "http://10.0.0.7:8080/healthz": ` +
 		"dial tcp 10.0.0.7:8080: connect: connection refused"
@@ -171,7 +173,8 @@ func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 	r.applicationForPodEvent(t.Context(), liveness)
 	older := unhealthy("Readiness probe failed: HTTP probe failed with statuscode: 503", now.Add(-2*time.Minute))
 	r.applicationForPodEvent(t.Context(), older)
-	if got, want := detail(), "Health check GET :8080/healthz failed: connection refused"; got != want {
-		t.Fatalf("detail = %q, want %q", got, want)
+	want := "Health check GET :8080/healthz failed: connection refused"
+	if got, replica = detail(); got != want || replica != want {
+		t.Fatalf("details = %q, %q, want %q", got, replica, want)
 	}
 }

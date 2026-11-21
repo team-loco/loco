@@ -142,8 +142,12 @@ func (r *ApplicationReconciler) observeReplicas(
 		podEvents := events[pod.UID]
 		replica := observeReplica(&pod, &podEvents, podRevision(&pod, revisions), deleted[pod.UID], previous,
 			r.HealthyAfter, now)
+		failure := podEvents.currentReadinessFailure(&pod)
+		health := healthCheckDetail(app.Spec.ServiceSpec.Deployment, failure)
+		if failure != "" && health != "" && replica.Detail == detailWaitingForReadiness {
+			replica.Detail = health
+		}
 		if placed && replica.PlacementRevision == revision && pod.DeletionTimestamp == nil {
-			health := healthCheckDetail(app.Spec.ServiceSpec.Deployment, podEvents.currentReadinessFailure(&pod))
 			current = append(current, observedReplica{pod: pod, status: replica, healthCheck: health})
 		}
 		rollout.Replicas = append(rollout.Replicas, replica)
