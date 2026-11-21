@@ -87,7 +87,6 @@ export function useAccessChoices({
 						{ transport },
 					),
 					enabled: granted !== undefined,
-					placeholderData: keepPreviousData,
 				};
 			}
 			return workspaceResourcesOptions(transport, w.id, granted);

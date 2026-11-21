@@ -176,6 +176,16 @@ with session(repo / "tests/ui/out/tokens") as browser:
         options.get_by_role("option", name=re.compile(r"^storefront-web"))
     ).to_be_visible()
     assert private not in listed, listed
+
+    # A resource listed under a workspace shows the access its organization already grants.
+    search.fill("")
+    options.get_by_role("option", name=re.compile(r"^acme")).click()
+    expect(drawer.get_by_role("group", name="Level for acme")).to_be_visible()
+    search.focus()
+    search.fill("shared/front")
+    expect(
+        options.get_by_role("option", name=re.compile(r"^storefront-web"))
+    ).to_contain_text("Included in acme")
     assert not errors, errors
     context.close()
 
