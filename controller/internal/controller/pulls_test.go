@@ -14,6 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 func TestPullEvents(t *testing.T) {
@@ -104,5 +106,67 @@ func TestPullEventTime(t *testing.T) {
 		if got := eventTime(&tt.event); !got.Time.Equal(tt.want) {
 			t.Fatalf("time = %v, want %v", got, tt.want)
 		}
+	}
+}
+
+func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	started := metav1.NewTime(now.Add(-time.Hour))
+	const unready = "containers with unready status: [web]"
+	app := workspaceApp("readiness", "readiness")
+	app.Annotations = map[string]string{loco.KeyPlacementRevision: "1"}
+	pod := &corev1.Pod{UID: "readiness-uid", Name: "readiness-replica", Namespace: testEnvironmentNamespace(app),
+		Labels: map[string]string{labelApp: testAppName(app)}, Annotations: ownerAnnotations(app),
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "web", ReadinessProbe: &corev1.Probe{
+			PeriodSeconds: 10, FailureThreshold: 3,
+		}}}},
+		Status: corev1.PodStatus{
+			Conditions: []corev1.PodCondition{
+				{Type: corev1.PodScheduled, Status: corev1.ConditionTrue},
+				{Type: corev1.PodReady, Status: corev1.ConditionFalse, Message: unready},
+			},
+			ContainerStatuses: []corev1.ContainerStatus{{Name: "web", Started: new(true),
+				State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: started}}}},
+		}}
+	pod.Annotations[loco.KeyPlacementRevision] = "1"
+	r := &ApplicationReconciler{
+		Client: fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(
+			pod, &corev1.Namespace{Name: pod.Namespace, Labels: environmentNamespaceLabels(app)},
+		).Build(),
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		HealthyAfter:             testHealthyAfter,
+	}
+	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1))
+	detail := func() string {
+		t.Helper()
+		if err := r.observeReplicas(t.Context(), app, dep, now); err != nil {
+			t.Fatal(err)
+		}
+		problem := app.Status.Rollout.Problem
+		if problem == nil || problem.Reason != loco.ProblemHealthCheckFailing {
+			t.Fatalf("problem = %+v, want a failing health check", problem)
+		}
+		return problem.Detail
+	}
+	unhealthy := func(note string, at time.Time) *eventsv1.Event {
+		return &eventsv1.Event{Namespace: pod.Namespace, Reason: reasonUnhealthy, Note: note,
+			EventTime: metav1.NewMicroTime(at),
+			Regarding: corev1.ObjectReference{Kind: podKind, Name: pod.Name, Namespace: pod.Namespace, UID: pod.UID}}
+	}
+
+	stale := unhealthy("Readiness probe failed: before the restart", started.Add(-time.Minute))
+	r.applicationForPodEvent(t.Context(), stale)
+	if got := detail(); got != unready {
+		t.Fatalf("detail with only a failure from before the start = %q", got)
+	}
+	refused := `Readiness probe failed: Get "http://10.0.0.7:5678/": dial tcp 10.0.0.7:5678: connect: connection refused`
+	if got := r.applicationForPodEvent(t.Context(), unhealthy(refused, now.Add(-time.Minute))); len(got) != 1 {
+		t.Fatalf("readiness event requests = %v", got)
+	}
+	liveness := unhealthy("Liveness probe failed: HTTP probe failed with statuscode: 500", now)
+	r.applicationForPodEvent(t.Context(), liveness)
+	r.applicationForPodEvent(t.Context(), unhealthy("Readiness probe failed: older", now.Add(-2*time.Minute)))
+	if got := detail(); got != refused {
+		t.Fatalf("detail = %q, want %q", got, refused)
 	}
 }
