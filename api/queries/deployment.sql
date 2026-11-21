@@ -39,6 +39,7 @@ WHERE d.resource_id = sqlc.arg('resource_id')
   AND (sqlc.narg('since')::timestamptz IS NULL OR d.created_at >= sqlc.narg('since'))
   AND (sqlc.narg('until')::timestamptz IS NULL OR d.created_at < sqlc.narg('until'))
   AND (COALESCE(cardinality(sqlc.arg('statuses')::text[]), 0) = 0 OR d.status::text = ANY(sqlc.arg('statuses')::text[]))
+  AND (sqlc.narg('build_id')::text IS NULL OR d.spec->'build'->>'buildId' = sqlc.narg('build_id'))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -71,6 +72,7 @@ WHERE r.workspace_id = sqlc.arg('workspace_id')
   AND (sqlc.narg('since')::timestamptz IS NULL OR d.created_at >= sqlc.narg('since'))
   AND (sqlc.narg('until')::timestamptz IS NULL OR d.created_at < sqlc.narg('until'))
   AND (COALESCE(cardinality(sqlc.arg('statuses')::text[]), 0) = 0 OR d.status::text = ANY(sqlc.arg('statuses')::text[]))
+  AND (sqlc.narg('build_id')::text IS NULL OR d.spec->'build'->>'buildId' = sqlc.narg('build_id'))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -94,6 +96,7 @@ SELECT COUNT(*) FROM (
     AND (sqlc.narg('since')::timestamptz IS NULL OR d.created_at >= sqlc.narg('since'))
     AND (sqlc.narg('until')::timestamptz IS NULL OR d.created_at < sqlc.narg('until'))
     AND (COALESCE(cardinality(sqlc.arg('statuses')::text[]), 0) = 0 OR d.status::text = ANY(sqlc.arg('statuses')::text[]))
+    AND (sqlc.narg('build_id')::text IS NULL OR d.spec->'build'->>'buildId' = sqlc.narg('build_id'))
   LIMIT sqlc.arg('row_limit')
 ) capped;
 
