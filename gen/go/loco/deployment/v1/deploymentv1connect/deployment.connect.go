@@ -33,6 +33,9 @@ const (
 	// DeploymentServiceListDeploymentsProcedure is the procedure name of the DeploymentService's
 	// ListDeployments RPC.
 	DeploymentServiceListDeploymentsProcedure = "/loco.deployment.v1.DeploymentService/ListDeployments"
+	// DeploymentServiceQueryDeploymentBucketsProcedure is the procedure name of the DeploymentService's
+	// QueryDeploymentBuckets RPC.
+	DeploymentServiceQueryDeploymentBucketsProcedure = "/loco.deployment.v1.DeploymentService/QueryDeploymentBuckets"
 	// DeploymentServiceWatchDeploymentProcedure is the procedure name of the DeploymentService's
 	// WatchDeployment RPC.
 	DeploymentServiceWatchDeploymentProcedure = "/loco.deployment.v1.DeploymentService/WatchDeployment"
@@ -70,6 +73,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_deployment_v1_deployment_proto.Services().ByName("DeploymentService").Methods().ByName("ListDeployments"),
 			Procedure:  DeploymentServiceListDeploymentsProcedure,
+		}
+	})
+	deploymentServiceQueryDeploymentBucketsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_deployment_v1_deployment_proto.Services().ByName("DeploymentService").Methods().ByName("QueryDeploymentBuckets"),
+			Procedure:  DeploymentServiceQueryDeploymentBucketsProcedure,
 		}
 	})
 	deploymentServiceWatchDeploymentSpec = sync.OnceValue(func() connect.Spec {
@@ -117,6 +127,9 @@ type DeploymentServiceClient interface {
 	GetDeployment(context.Context, *v1.GetDeploymentRequest) (*v1.GetDeploymentResponse, error)
 	// ListDeployments lists deployments visible to the caller.
 	ListDeployments(context.Context, *v1.ListDeploymentsRequest) (*v1.ListDeploymentsResponse, error)
+	// QueryDeploymentBuckets splits a time window into equal buckets and summarizes, per nonempty
+	// bucket, the deployments of a workspace environment the caller can read.
+	QueryDeploymentBuckets(context.Context, *v1.QueryDeploymentBucketsRequest) (*v1.QueryDeploymentBucketsResponse, error)
 	// WatchDeployment streams deployment events in real-time.
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest) (DeploymentServiceWatchDeploymentClientStream, error)
 	// DeleteDeployment deletes/inactivates a deployment.
@@ -168,6 +181,9 @@ type DeploymentServiceHandler interface {
 	GetDeployment(context.Context, *v1.GetDeploymentRequest) (*v1.GetDeploymentResponse, error)
 	// ListDeployments lists deployments visible to the caller.
 	ListDeployments(context.Context, *v1.ListDeploymentsRequest) (*v1.ListDeploymentsResponse, error)
+	// QueryDeploymentBuckets splits a time window into equal buckets and summarizes, per nonempty
+	// bucket, the deployments of a workspace environment the caller can read.
+	QueryDeploymentBuckets(context.Context, *v1.QueryDeploymentBucketsRequest) (*v1.QueryDeploymentBucketsResponse, error)
 	// WatchDeployment streams deployment events in real-time.
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest, DeploymentServiceWatchDeploymentServerStream) error
 	// DeleteDeployment deletes/inactivates a deployment.
@@ -191,6 +207,7 @@ func RegisterDeploymentServiceHandler(server *connect.Server, svc DeploymentServ
 		connect.Method{Spec: deploymentServiceCreateDeploymentSpec(), Handler: adapter.createDeployment},
 		connect.Method{Spec: deploymentServiceGetDeploymentSpec(), Handler: adapter.getDeployment},
 		connect.Method{Spec: deploymentServiceListDeploymentsSpec(), Handler: adapter.listDeployments},
+		connect.Method{Spec: deploymentServiceQueryDeploymentBucketsSpec(), Handler: adapter.queryDeploymentBuckets},
 		connect.Method{Spec: deploymentServiceWatchDeploymentSpec(), Handler: adapter.watchDeployment},
 		connect.Method{Spec: deploymentServiceDeleteDeploymentSpec(), Handler: adapter.deleteDeployment},
 		connect.Method{Spec: deploymentServiceCancelDeploymentSpec(), Handler: adapter.cancelDeployment},
@@ -228,6 +245,10 @@ func (UnimplementedDeploymentServiceHandler) GetDeployment(context.Context, *v1.
 
 func (UnimplementedDeploymentServiceHandler) ListDeployments(context.Context, *v1.ListDeploymentsRequest) (*v1.ListDeploymentsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.ListDeployments is not implemented")
+}
+
+func (UnimplementedDeploymentServiceHandler) QueryDeploymentBuckets(context.Context, *v1.QueryDeploymentBucketsRequest) (*v1.QueryDeploymentBucketsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.QueryDeploymentBuckets is not implemented")
 }
 
 func (UnimplementedDeploymentServiceHandler) WatchDeployment(context.Context, *v1.WatchDeploymentRequest, DeploymentServiceWatchDeploymentServerStream) error {
@@ -273,6 +294,14 @@ func (c *deploymentServiceClient) GetDeployment(ctx context.Context, req *v1.Get
 func (c *deploymentServiceClient) ListDeployments(ctx context.Context, req *v1.ListDeploymentsRequest) (*v1.ListDeploymentsResponse, error) {
 	var res v1.ListDeploymentsResponse
 	if err := c.client.CallUnary(ctx, deploymentServiceListDeploymentsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *deploymentServiceClient) QueryDeploymentBuckets(ctx context.Context, req *v1.QueryDeploymentBucketsRequest) (*v1.QueryDeploymentBucketsResponse, error) {
+	var res v1.QueryDeploymentBucketsResponse
+	if err := c.client.CallUnary(ctx, deploymentServiceQueryDeploymentBucketsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -350,6 +379,18 @@ func (h deploymentServiceHandler) listDeployments(ctx context.Context, _ connect
 		return err
 	}
 	res, err := h.svc.ListDeployments(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h deploymentServiceHandler) queryDeploymentBuckets(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.QueryDeploymentBucketsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.QueryDeploymentBuckets(ctx, &req)
 	if err != nil {
 		return err
 	}

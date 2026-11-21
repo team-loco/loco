@@ -16,7 +16,7 @@ SELECT * FROM deployments WHERE id = $1;
 SELECT * FROM deployment_placements WHERE deployment_id = $1 ORDER BY region, cluster_id;
 
 -- name: ListResourceDeployments :many
-SELECT sqlc.embed(d), r.type AS resource_type,
+SELECT sqlc.embed(d), r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -38,6 +38,7 @@ WHERE d.resource_id = sqlc.arg('resource_id')
        OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
   AND (sqlc.narg('since')::timestamptz IS NULL OR d.created_at >= sqlc.narg('since'))
   AND (sqlc.narg('until')::timestamptz IS NULL OR d.created_at < sqlc.narg('until'))
+  AND (COALESCE(cardinality(sqlc.arg('statuses')::text[]), 0) = 0 OR d.status::text = ANY(sqlc.arg('statuses')::text[]))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -47,7 +48,7 @@ ORDER BY d.created_at DESC, d.id DESC
 LIMIT sqlc.arg('page_size');
 
 -- name: ListEnvironmentDeployments :many
-SELECT sqlc.embed(d), r.type AS resource_type,
+SELECT sqlc.embed(d), r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -69,6 +70,7 @@ WHERE r.workspace_id = sqlc.arg('workspace_id')
        OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
   AND (sqlc.narg('since')::timestamptz IS NULL OR d.created_at >= sqlc.narg('since'))
   AND (sqlc.narg('until')::timestamptz IS NULL OR d.created_at < sqlc.narg('until'))
+  AND (COALESCE(cardinality(sqlc.arg('statuses')::text[]), 0) = 0 OR d.status::text = ANY(sqlc.arg('statuses')::text[]))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -91,11 +93,66 @@ SELECT COUNT(*) FROM (
          OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
     AND (sqlc.narg('since')::timestamptz IS NULL OR d.created_at >= sqlc.narg('since'))
     AND (sqlc.narg('until')::timestamptz IS NULL OR d.created_at < sqlc.narg('until'))
+    AND (COALESCE(cardinality(sqlc.arg('statuses')::text[]), 0) = 0 OR d.status::text = ANY(sqlc.arg('statuses')::text[]))
   LIMIT sqlc.arg('row_limit')
 ) capped;
 
+-- name: QueryDeploymentBuckets :many
+-- Splits [since, until) into bucket_count equal buckets by creation time, in exact microseconds.
+WITH matched AS (
+  SELECT d.id, d.status, d.created_at, d.resource_id, r.name AS resource_name,
+         COALESCE(d.spec->'build'->>'image', '') AS image,
+         CASE WHEN sqlc.arg('group_by_resource')::bool THEN d.resource_id ELSE '00000000-0000-0000-0000-000000000000'::uuid END AS group_id,
+         (EXTRACT(EPOCH FROM d.created_at - sqlc.arg('since')::timestamptz) * 1000000)::bigint
+           * sqlc.arg('bucket_count')::bigint
+           / (EXTRACT(EPOCH FROM sqlc.arg('until')::timestamptz - sqlc.arg('since')::timestamptz) * 1000000)::bigint
+           AS bucket
+  FROM deployments d
+  JOIN resources r ON r.id = d.resource_id
+  JOIN workspaces w ON w.id = r.workspace_id
+  WHERE r.workspace_id = sqlc.arg('workspace_id')
+    AND d.environment_id = sqlc.arg('environment_id')
+    AND (COALESCE(cardinality(sqlc.arg('filter_resource_ids')::uuid[]), 0) = 0 OR d.resource_id = ANY(sqlc.arg('filter_resource_ids')::uuid[]))
+    AND (sqlc.arg('system_read')::bool
+         OR w.org_id = ANY(sqlc.arg('organization_ids')::uuid[])
+         OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
+         OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
+    AND d.created_at >= sqlc.arg('since')
+    AND d.created_at < sqlc.arg('until')
+),
+statuses AS (
+  SELECT group_id, bucket, jsonb_object_agg(status, n) AS counts
+  FROM (SELECT group_id, bucket, status, COUNT(*) AS n FROM matched GROUP BY group_id, bucket, status) s
+  GROUP BY group_id, bucket
+),
+names AS (
+  SELECT group_id, bucket, COUNT(*) AS resource_count,
+         array_agg(resource_name ORDER BY latest DESC, resource_name) AS resource_names
+  FROM (SELECT group_id, bucket, resource_name, MAX(created_at) AS latest
+        FROM matched GROUP BY group_id, bucket, resource_name) n
+  GROUP BY group_id, bucket
+),
+totals AS (
+  SELECT group_id, bucket, COUNT(*) AS deployment_count,
+         to_timestamp(AVG(EXTRACT(EPOCH FROM created_at))::float8) AS mean_created_at,
+         (array_agg(id ORDER BY created_at DESC, id DESC))[1] AS latest_id
+  FROM matched
+  GROUP BY group_id, bucket
+)
+SELECT t.group_id, t.bucket::int AS bucket, t.deployment_count::int AS deployment_count,
+       t.mean_created_at::timestamptz AS mean_created_at, s.counts::jsonb AS status_counts,
+       n.resource_count::int AS resource_count,
+       n.resource_names[1:sqlc.arg('max_resource_names')::int]::text[] AS resource_names,
+       m.id AS latest_id, m.resource_id AS latest_resource_id, m.resource_name AS latest_resource_name,
+       m.status AS latest_status, m.created_at AS latest_created_at, m.image::text AS latest_image
+FROM totals t
+JOIN statuses s ON s.group_id = t.group_id AND s.bucket = t.bucket
+JOIN names n ON n.group_id = t.group_id AND n.bucket = t.bucket
+JOIN matched m ON m.id = t.latest_id
+ORDER BY t.group_id, t.bucket;
+
 -- name: GetDeploymentView :one
-SELECT sqlc.embed(d), r.type AS resource_type,
+SELECT sqlc.embed(d), r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,

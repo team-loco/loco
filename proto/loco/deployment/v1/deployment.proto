@@ -51,6 +51,9 @@ service DeploymentService {
   rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
   // ListDeployments lists deployments visible to the caller.
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
+  // QueryDeploymentBuckets splits a time window into equal buckets and summarizes, per nonempty
+  // bucket, the deployments of a workspace environment the caller can read.
+  rpc QueryDeploymentBuckets(QueryDeploymentBucketsRequest) returns (QueryDeploymentBucketsResponse);
   // WatchDeployment streams deployment events in real-time.
   rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
   // DeleteDeployment deletes/inactivates a deployment.
@@ -231,6 +234,7 @@ message Deployment {
   string source_deployment_id = 28;
   // Who canceled the deployment; empty unless a user or token canceled it.
   string canceled_by_name = 29;
+  string resource_name = 30;
 }
 
 // DeploymentPlacement is one region of a deployment.
@@ -335,6 +339,16 @@ message ListDeploymentsRequest {
   google.protobuf.Timestamp until = 7;
   // Sets total_count in the response.
   bool include_total_count = 8;
+  // Lists only deployments in these statuses; empty lists every status.
+  repeated DeploymentStatus statuses = 9 [(buf.validate.field).repeated = {
+    unique: true
+    items: {
+      enum: {
+        defined_only: true
+        not_in: [0]
+      }
+    }
+  }];
 }
 
 // ListDeploymentsResponse is the response containing deployment list.
@@ -344,6 +358,78 @@ message ListDeploymentsResponse {
   // The deployments the filters match, ignoring page_token; set when include_total_count is.
   // Exact up to 10,000; 10,001 means more than 10,000.
   int32 total_count = 3;
+}
+
+// QueryDeploymentBucketsRequest splits [since, until) into bucket_count equal buckets by deployment
+// creation time.
+message QueryDeploymentBucketsRequest {
+  option (buf.validate.message).cel = {
+    id: "query_deployment_buckets.window"
+    message: "since must precede until"
+    expression: "this.since < this.until"
+  };
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+  // Counts only these resources' deployments; empty counts every resource.
+  repeated string resource_ids = 3 [(buf.validate.field).repeated = {
+    max_items: 100
+    unique: true
+    items: {
+      string: {uuid: true}
+    }
+  }];
+  google.protobuf.Timestamp since = 4 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp until = 5 [(buf.validate.field).required = true];
+  int32 bucket_count = 6 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 200
+  }];
+  // Summarizes each resource's deployments in its own series of buckets.
+  bool group_by_resource = 7;
+  // The most resource names a bucket lists.
+  int32 max_resource_names = 8 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 20
+  }];
+}
+
+// QueryDeploymentBucketsResponse holds the nonempty buckets, ordered by resource_id, then index.
+message QueryDeploymentBucketsResponse {
+  repeated DeploymentBucket buckets = 1;
+}
+
+// DeploymentBucket summarizes the deployments created in one bucket of the window.
+message DeploymentBucket {
+  // The bucket's position in the window, from 0 to bucket_count - 1.
+  int32 index = 1;
+  // The resource the bucket counts; empty unless the request groups by resource.
+  string resource_id = 2;
+  int32 deployment_count = 3;
+  // The mean creation time of the bucket's deployments.
+  google.protobuf.Timestamp mean_created_at = 4;
+  // The deployments per current status, ordered by status; statuses without deployments are left out.
+  repeated DeploymentStatusCount status_counts = 5;
+  // The distinct resources deployed in the bucket.
+  int32 resource_count = 6;
+  // Up to max_resource_names of the bucket's resource names, most recently deployed first.
+  repeated string resource_names = 7;
+  // The bucket's deployment when it holds exactly one.
+  DeploymentBucketEntry only_deployment = 8;
+}
+
+message DeploymentStatusCount {
+  DeploymentStatus status = 1;
+  int32 count = 2;
+}
+
+message DeploymentBucketEntry {
+  string id = 1;
+  string resource_id = 2;
+  string resource_name = 3;
+  DeploymentStatus status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  // The image the deployment's spec names; empty while its build runs.
+  string image = 6;
 }
 
 message Replica {

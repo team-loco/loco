@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/deployment/v1/deployment.proto.
  */
 export const file_loco_deployment_v1_deployment: GenFile = /*@__PURE__*/
-  fileDesc("CiNsb2NvL2RlcGxveW1lbnQvdjEvZGVwbG95bWVudC5wcm90bxISbG9jby5kZXBsb3ltZW50LnYxIrIBChFIZWFsdGhDaGVja0NvbmZpZxIVCgRwYXRoGAEgASgJQge6SARyAhABEh0KFWluaXRpYWxfZGVsYXlfc2Vjb25kcxgCIAEoBRIhChBpbnRlcnZhbF9zZWNvbmRzGAMgASgFQge6SAQaAigBEiAKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIHukgEGgIoARIiChFmYWlsdXJlX3RocmVzaG9sZBgFIAEoBUIHukgEGgIoASLkAgoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEiIKCmNwdV90YXJnZXQYAiABKAVCCbpIBhoEGGQoAEgAiAEBEiUKDW1lbW9yeV90YXJnZXQYAyABKAVCCbpIBhoEGGQoAEgBiAEBOtsBukjXARrUAQoXc2NhbGVycy50YXJnZXRfcmVxdWlyZWQSQmVuYWJsZWQgYXV0b3NjYWxpbmcgbmVlZHMgYSBDUFUgb3IgbWVtb3J5IHRhcmdldCBiZXR3ZWVuIDEgYW5kIDEwMBp1IXRoaXMuZW5hYmxlZCB8fCAoaGFzKHRoaXMuY3B1X3RhcmdldCkgJiYgdGhpcy5jcHVfdGFyZ2V0ID4gMCkgfHwgKGhhcyh0aGlzLm1lbW9yeV90YXJnZXQpICYmIHRoaXMubWVtb3J5X3RhcmdldCA+IDApQg0KC19jcHVfdGFyZ2V0QhAKDl9tZW1vcnlfdGFyZ2V0IsEBCgtCdWlsZFNvdXJjZRIVCgR0eXBlGAEgASgJQge6SARyAhABEm0KBWltYWdlGAIgASgJQl66SFvYAQFyVjJUXihbYS16MC05XC0uX10rKDpbMC05XSspPygvW2EtejAtOVwtLl9dKykqKSg6W2EtejAtOVwtLl9dKyk/KEBzaGEyNTY6W2EtZjAtOV17NjR9KT8kEh8KCGJ1aWxkX2lkGAMgASgJQgi6SAVyA7ABAUgAiAEBQgsKCV9idWlsZF9pZCI/ChNPYnNlcnZhYmlsaXR5Q29uZmlnEhgKC2luamVjdF9vdGVsGAEgASgISACIAQFCDgoMX2luamVjdF9vdGVsIs8HChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSNgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2VCBrpIA8gBARJACgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARI/CgNlbnYYCCADKAsyMi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjLkVudkVudHJ5Eh4KBHBvcnQYCSABKAVCC7pICBoGGP//AygBSAGIAQESOAoHcm91dGluZxgKIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlUm91dGluZ0gCiAEBEicKC3J1bl9hc191c2VyGAsgASgDQg26SAoiCBj/////ByAASAOIAQESKAoMcnVuX2FzX2dyb3VwGAwgASgDQg26SAoiCBj/////ByAASASIAQESPgoNb2JzZXJ2YWJpbGl0eRgNIAEoCzInLmxvY28uZGVwbG95bWVudC52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEhAKCHBsYXRmb3JtGA8gASgJEh8KB2NvbW1hbmQYECADKAlCDrpIC5IBCBBkIgRyAhABEhYKBGFyZ3MYESADKAlCCLpIBZIBAhBkEkcKB3JlZ2lvbnMYEiADKAsyNi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjLlJlZ2lvbnNFbnRyeRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGloKDFJlZ2lvbnNFbnRyeRILCgNrZXkYASABKAkSOQoFdmFsdWUYAiABKAsyKi5sb2NvLmRlcGxveW1lbnQudjEuUmVnaW9uRGVwbG95bWVudFRhcmdldDoCOAE6pAG6SKABGp0BCi1zZXJ2aWNlX2RlcGxveW1lbnQuaGVhbHRoX2NoZWNrX3JlcXVpcmVzX3BvcnQSQWhlYWx0aF9jaGVjayBuZWVkcyBhIHBvcnQ6IHRoZSBIVFRQIGNoZWNrIHByb2JlcyB0aGUgc2VydmljZSBwb3J0GiloYXModGhpcy5wb3J0KSB8fCAhaGFzKHRoaXMuaGVhbHRoX2NoZWNrKUIPCg1faGVhbHRoX2NoZWNrQgcKBV9wb3J0QgoKCF9yb3V0aW5nQg4KDF9ydW5fYXNfdXNlckIPCg1fcnVuX2FzX2dyb3VwSgQIDhAPIrEDChZSZWdpb25EZXBsb3ltZW50VGFyZ2V0EhkKA2NwdRgBIAEoCUIHukgEcgIQAUgAiAEBEhwKBm1lbW9yeRgCIAEoCUIHukgEcgIQAUgBiAEBEiIKDG1pbl9yZXBsaWNhcxgDIAEoBUIHukgEGgIoAUgCiAEBEiIKDG1heF9yZXBsaWNhcxgEIAEoBUIHukgEGgIoAUgDiAEBEjEKB3NjYWxlcnMYBSABKAsyGy5sb2NvLmRlcGxveW1lbnQudjEuU2NhbGVyc0gEiAEBOqEBukidARqaAQoUcmVwbGljYXMubWluX2x0ZV9tYXgSJG1pbl9yZXBsaWNhcyBtdXN0IGJlIDw9IG1heF9yZXBsaWNhcxpcIWhhcyh0aGlzLm1pbl9yZXBsaWNhcykgfHwgIWhhcyh0aGlzLm1heF9yZXBsaWNhcykgfHwgdGhpcy5taW5fcmVwbGljYXMgPD0gdGhpcy5tYXhfcmVwbGljYXNCBgoEX2NwdUIJCgdfbWVtb3J5Qg8KDV9taW5fcmVwbGljYXNCDwoNX21heF9yZXBsaWNhc0IKCghfc2NhbGVycyI7Cg5TZXJ2aWNlUm91dGluZxITCgtwYXRoX3ByZWZpeBgBIAEoCRIUCgxpZGxlX3RpbWVvdXQYAiABKAUiVgoORGVwbG95bWVudFNwZWMSPAoHc2VydmljZRgBIAEoCzIpLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlRGVwbG95bWVudFNwZWNIAEIGCgRzcGVjIsEGCgpEZXBsb3ltZW50EgoKAmlkGAEgASgJEhMKC3Jlc291cmNlX2lkGAIgASgJEjQKBnN0YXR1cxgGIAEoDjIkLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3RhdHVzEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKCnN0YXJ0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQESNQoMY29tcGxldGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBEi4KCnVwZGF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHNwZWNfdmVyc2lvbhgNIAEoBRIwCgRzcGVjGA4gASgLMiIubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTcGVjEhYKDmVudmlyb25tZW50X2lkGA8gASgJEjsKCmFjdG9yX3R5cGUYECABKA4yJy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudEFjdG9yVHlwZRIQCghhY3Rvcl9pZBgRIAEoCRISCgphY3Rvcl9uYW1lGBIgASgJEhgKEGFjdG9yX2F2YXRhcl91cmwYEyABKAkSNAoGbWV0aG9kGBQgASgOMiQubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRNZXRob2QSMAoGY29tbWl0GBUgASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlNvdXJjZUNvbW1pdBI7CgpwbGFjZW1lbnRzGBogAygLMicubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQbGFjZW1lbnQSNgoHdHJpZ2dlchgbIAEoDjIlLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50VHJpZ2dlchIcChRzb3VyY2VfZGVwbG95bWVudF9pZBgcIAEoCRIYChBjYW5jZWxlZF9ieV9uYW1lGB0gASgJQg0KC19zdGFydGVkX2F0Qg8KDV9jb21wbGV0ZWRfYXQi3wMKE0RlcGxveW1lbnRQbGFjZW1lbnQSEgoKY2x1c3Rlcl9pZBgBIAEoCRIOCgZyZWdpb24YAiABKAkSGAoQZGVzaXJlZF9yZXBsaWNhcxgDIAEoBRIzCgZzdGF0dXMYBCABKA4yIy5sb2NvLmRlcGxveW1lbnQudjEuUGxhY2VtZW50U3RhdHVzEg0KBWltYWdlGAUgASgJEjMKCnN0YXJ0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQESNQoMY29tcGxldGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBEhgKEGN1cnJlbnRfcmV2aXNpb24YCCABKAMSLAoHcHJvYmxlbRgJIAEoCzIbLmxvY28uZGVwbG95bWVudC52MS5Qcm9ibGVtEi0KCHJlcGxpY2FzGAogAygLMhsubG9jby5kZXBsb3ltZW50LnYxLlJlcGxpY2ESDAoEbGl2ZRgLIAEoCBIVCg1zdXBlcnNlZGVkX2J5GAwgASgJEh4KFnByZXZpb3VzX2RlcGxveW1lbnRfaWQYDSABKAlCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdCLaAgoXQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEh8KB3JlZ2lvbnMYCCADKAlCDrpIC5IBCBgBIgRyAhABEjgKBHNwZWMYBCABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFNwZWNCBrpIA8gBARIgCg5lbnZpcm9ubWVudF9pZBgFIAEoCUIIukgFcgOwAQESMAoGY29tbWl0GAcgASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlNvdXJjZUNvbW1pdBJGCgd0cmlnZ2VyGAkgASgOMiUubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRUcmlnZ2VyQg66SAuCAQgYABgBGAIYAxIpChRzb3VyY2VfZGVwbG95bWVudF9pZBgKIAEoCUILukgI2AEBcgOwAQEiYQoYQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEhUKDWRlcGxveW1lbnRfaWQYASABKAkSLgoFYnVpbGQYAiABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2UiNwoUR2V0RGVwbG95bWVudFJlcXVlc3QSHwoNZGVwbG95bWVudF9pZBgBIAEoCUIIukgFcgOwAQEiSwoVR2V0RGVwbG95bWVudFJlc3BvbnNlEjIKCmRlcGxveW1lbnQYASABKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudCKDBQoWTGlzdERlcGxveW1lbnRzUmVxdWVzdBIgCgtyZXNvdXJjZV9pZBgBIAEoCUILukgI2AEBcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkSIwoOZW52aXJvbm1lbnRfaWQYBCABKAlCC7pICNgBAXIDsAEBEiEKDHdvcmtzcGFjZV9pZBgFIAEoCUILukgI2AEBcgOwAQESKQoFc2luY2UYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBXVudGlsGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIbChNpbmNsdWRlX3RvdGFsX2NvdW50GAggASgIOtgCukjUAhrbAQoWbGlzdF9kZXBsb3ltZW50cy5zY29wZRI3cHJvdmlkZSByZXNvdXJjZV9pZCBvciB3b3Jrc3BhY2VfaWQgd2l0aCBlbnZpcm9ubWVudF9pZBqHASh0aGlzLnJlc291cmNlX2lkICE9ICcnICYmIHRoaXMud29ya3NwYWNlX2lkID09ICcnKSB8fCAodGhpcy5yZXNvdXJjZV9pZCA9PSAnJyAmJiB0aGlzLndvcmtzcGFjZV9pZCAhPSAnJyAmJiB0aGlzLmVudmlyb25tZW50X2lkICE9ICcnKRp0ChdsaXN0X2RlcGxveW1lbnRzLndpbmRvdxIYc2luY2UgbXVzdCBwcmVjZWRlIHVudGlsGj8haGFzKHRoaXMuc2luY2UpIHx8ICFoYXModGhpcy51bnRpbCkgfHwgdGhpcy5zaW5jZSA8IHRoaXMudW50aWwifAoXTGlzdERlcGxveW1lbnRzUmVzcG9uc2USMwoLZGVwbG95bWVudHMYASADKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudBIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkSEwoLdG90YWxfY291bnQYAyABKAUi4wMKB1JlcGxpY2ESCwoDdWlkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEbm9kZRgDIAEoCRIaChJwbGFjZW1lbnRfcmV2aXNpb24YBCABKAMSDQoFc3RhdGUYBSABKAkSLwoLc3RhdGVfc2luY2UYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKDnN0YXRlX2RlYWRsaW5lGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghyZXN0YXJ0cxgIIAEoBRIYCgZkZXRhaWwYCiABKAlCCLpIBXIDGIAEEhUKDWRlcGxveW1lbnRfaWQYCyABKAkSDQoFcmVhZHkYDCABKAgSLgoKc3RhcnRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoJbGFzdF9leGl0GA4gASgLMh8ubG9jby5kZXBsb3ltZW50LnYxLlJlcGxpY2FFeGl0Ei8KC3Jlc3RhcnRzX2F0GA8gAygLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI4CgxsYXN0X3Jlc3RhcnQYECABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuUmVwbGljYVJlc3RhcnQigAEKDUZhaWx1cmVQb2xpY3kSOQoOcmVzdGFydF9wb2xpY3kYASABKA4yIS5sb2NvLmRlcGxveW1lbnQudjEuUmVzdGFydFBvbGljeRIUCgxtYXhfcmVzdGFydHMYAiABKAUSHgoWZGVwbG95X3RpbWVvdXRfc2Vjb25kcxgDIAEoBSJaCg5SZXBsaWNhUmVzdGFydBImCgJhdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFY2F1c2UYAiABKAkSEQoJZXhpdF9jb2RlGAMgASgFImEKC1JlcGxpY2FFeGl0Eg4KBnJlYXNvbhgBIAEoCRIRCglleGl0X2NvZGUYAiABKAUSLwoLZmluaXNoZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIo8BCgdQcm9ibGVtEg4KBnJlYXNvbhgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEg4KBmRldGFpbBgDIAEoCRIUCgxyZXBsaWNhX25hbWUYBCABKAkSKQoFc2luY2UYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCmxvZ3NfcXVlcnkYBiABKAkimgEKCEFjdGl2aXR5EgsKA3NlcRgBIAEoAxIQCghyZXZpc2lvbhgCIAEoAxImCgJhdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIc2V2ZXJpdHkYBCABKAkSFAoMcmVwbGljYV9uYW1lGAUgASgJEg8KB21lc3NhZ2UYBiABKAkSDgoGcmVnaW9uGAcgASgJIlUKFldhdGNoRGVwbG95bWVudFJlcXVlc3QSHwoNZGVwbG95bWVudF9pZBgBIAEoCUIIukgFcgOwAQESGgoJYWZ0ZXJfc2VxGAIgASgDQge6SAQiAigAIpgBChdXYXRjaERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQSLgoIYWN0aXZpdHkYAiADKAsyHC5sb2NvLmRlcGxveW1lbnQudjEuQWN0aXZpdHkSGQoRaGFzX21vcmVfYWN0aXZpdHkYAyABKAgiOgoXRGVsZXRlRGVwbG95bWVudFJlcXVlc3QSHwoNZGVwbG95bWVudF9pZBgBIAEoCUIIukgFcgOwAQEiGgoYRGVsZXRlRGVwbG95bWVudFJlc3BvbnNlIl0KF0NhbmNlbERlcGxveW1lbnRSZXF1ZXN0Eh8KDWRlcGxveW1lbnRfaWQYASABKAlCCLpIBXIDsAEBEiEKGXJvbGxiYWNrX2ZpbmlzaGVkX3JlZ2lvbnMYAiABKAgiOwoYQ2FuY2VsRGVwbG95bWVudFJlc3BvbnNlEh8KF3JvbGxiYWNrX2RlcGxveW1lbnRfaWRzGAEgAygJIkMKIEdldERlcGxveW1lbnRDYW5jZWxJbXBhY3RSZXF1ZXN0Eh8KDWRlcGxveW1lbnRfaWQYASABKAlCCLpIBXIDsAEBImEKIUdldERlcGxveW1lbnRDYW5jZWxJbXBhY3RSZXNwb25zZRI8ChBmaW5pc2hlZF9yZWdpb25zGAEgAygLMiIubG9jby5kZXBsb3ltZW50LnYxLkZpbmlzaGVkUmVnaW9uIlIKDkZpbmlzaGVkUmVnaW9uEg4KBnJlZ2lvbhgBIAEoCRIwCghwcmV2aW91cxgCIAEoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50Ik0KE1Jlc29sdmVJbWFnZVJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIWCgVpbWFnZRgCIAEoCUIHukgEcgIQASIlChRSZXNvbHZlSW1hZ2VSZXNwb25zZRINCgVpbWFnZRgBIAEoCSJhCgxTb3VyY2VDb21taXQSMQoDc2hhGAEgASgJQiS6SCFyHzIdXihbMC05YS1mXXs0MH18WzAtOWEtZl17NjR9KSQSDQoFZGlydHkYAiABKAgSDwoHbWVzc2FnZRgDIAEoCSq0AgoQRGVwbG95bWVudFN0YXR1cxIhCh1ERVBMT1lNRU5UX1NUQVRVU19VTlNQRUNJRklFRBAAEh4KGkRFUExPWU1FTlRfU1RBVFVTX0JVSUxESU5HEAESHwobREVQTE9ZTUVOVF9TVEFUVVNfREVQTE9ZSU5HEAISHQoZREVQTE9ZTUVOVF9TVEFUVVNfUlVOTklORxADEhwKGERFUExPWU1FTlRfU1RBVFVTX0ZBSUxFRBAEEh4KGkRFUExPWU1FTlRfU1RBVFVTX0NBTkNFTEVEEAUSIAocREVQTE9ZTUVOVF9TVEFUVVNfU1VQRVJTRURFRBAGEh4KGkRFUExPWU1FTlRfU1RBVFVTX0RFR1JBREVEEAcSHQoZREVQTE9ZTUVOVF9TVEFUVVNfQ1JBU0hFRBAIKqkCCg9QbGFjZW1lbnRTdGF0dXMSIAocUExBQ0VNRU5UX1NUQVRVU19VTlNQRUNJRklFRBAAEhwKGFBMQUNFTUVOVF9TVEFUVVNfUEVORElORxABEh4KGlBMQUNFTUVOVF9TVEFUVVNfREVQTE9ZSU5HEAISHAoYUExBQ0VNRU5UX1NUQVRVU19SVU5OSU5HEAMSHQoZUExBQ0VNRU5UX1NUQVRVU19ERUdSQURFRBAEEhwKGFBMQUNFTUVOVF9TVEFUVVNfQ1JBU0hFRBAFEhsKF1BMQUNFTUVOVF9TVEFUVVNfRkFJTEVEEAYSHQoZUExBQ0VNRU5UX1NUQVRVU19DQU5DRUxFRBAHEh8KG1BMQUNFTUVOVF9TVEFUVVNfU1VQRVJTRURFRBAIKrwBChFEZXBsb3ltZW50VHJpZ2dlchIiCh5ERVBMT1lNRU5UX1RSSUdHRVJfVU5TUEVDSUZJRUQQABIdChlERVBMT1lNRU5UX1RSSUdHRVJfREVQTE9ZEAESHwobREVQTE9ZTUVOVF9UUklHR0VSX1JFREVQTE9ZEAISHwobREVQTE9ZTUVOVF9UUklHR0VSX1JPTExCQUNLEAMSHAoYREVQTE9ZTUVOVF9UUklHR0VSX1NDQUxFEAQiBAgFEAUqgQEKE0RlcGxveW1lbnRBY3RvclR5cGUSJQohREVQTE9ZTUVOVF9BQ1RPUl9UWVBFX1VOU1BFQ0lGSUVEEAASHgoaREVQTE9ZTUVOVF9BQ1RPUl9UWVBFX1VTRVIQARIjCh9ERVBMT1lNRU5UX0FDVE9SX1RZUEVfQVBJX1RPS0VOEAIqjAEKEERlcGxveW1lbnRNZXRob2QSIQodREVQTE9ZTUVOVF9NRVRIT0RfVU5TUEVDSUZJRUQQABIfChtERVBMT1lNRU5UX01FVEhPRF9BUElfVE9LRU4QARIZChVERVBMT1lNRU5UX01FVEhPRF9DTEkQAhIZChVERVBMT1lNRU5UX01FVEhPRF9XRUIQAyqDAQoNUmVzdGFydFBvbGljeRIeChpSRVNUQVJUX1BPTElDWV9VTlNQRUNJRklFRBAAEh0KGVJFU1RBUlRfUE9MSUNZX09OX0ZBSUxVUkUQARIZChVSRVNUQVJUX1BPTElDWV9BTFdBWVMQAhIYChRSRVNUQVJUX1BPTElDWV9ORVZFUhADMo4HChFEZXBsb3ltZW50U2VydmljZRJtChBDcmVhdGVEZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXF1ZXN0GiwubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXNwb25zZRJkCg1HZXREZXBsb3ltZW50EigubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXF1ZXN0GikubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXNwb25zZRJqCg9MaXN0RGVwbG95bWVudHMSKi5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVxdWVzdBorLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXNwb25zZRJsCg9XYXRjaERlcGxveW1lbnQSKi5sb2NvLmRlcGxveW1lbnQudjEuV2F0Y2hEZXBsb3ltZW50UmVxdWVzdBorLmxvY28uZGVwbG95bWVudC52MS5XYXRjaERlcGxveW1lbnRSZXNwb25zZTABEm0KEERlbGV0ZURlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuRGVsZXRlRGVwbG95bWVudFJlcXVlc3QaLC5sb2NvLmRlcGxveW1lbnQudjEuRGVsZXRlRGVwbG95bWVudFJlc3BvbnNlEm0KEENhbmNlbERlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuQ2FuY2VsRGVwbG95bWVudFJlcXVlc3QaLC5sb2NvLmRlcGxveW1lbnQudjEuQ2FuY2VsRGVwbG95bWVudFJlc3BvbnNlEogBChlHZXREZXBsb3ltZW50Q2FuY2VsSW1wYWN0EjQubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRDYW5jZWxJbXBhY3RSZXF1ZXN0GjUubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRDYW5jZWxJbXBhY3RSZXNwb25zZRJhCgxSZXNvbHZlSW1hZ2USJy5sb2NvLmRlcGxveW1lbnQudjEuUmVzb2x2ZUltYWdlUmVxdWVzdBooLmxvY28uZGVwbG95bWVudC52MS5SZXNvbHZlSW1hZ2VSZXNwb25zZUJCWkBnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2RlcGxveW1lbnQvdjE7ZGVwbG95bWVudHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiNsb2NvL2RlcGxveW1lbnQvdjEvZGVwbG95bWVudC5wcm90bxISbG9jby5kZXBsb3ltZW50LnYxIrIBChFIZWFsdGhDaGVja0NvbmZpZxIVCgRwYXRoGAEgASgJQge6SARyAhABEh0KFWluaXRpYWxfZGVsYXlfc2Vjb25kcxgCIAEoBRIhChBpbnRlcnZhbF9zZWNvbmRzGAMgASgFQge6SAQaAigBEiAKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIHukgEGgIoARIiChFmYWlsdXJlX3RocmVzaG9sZBgFIAEoBUIHukgEGgIoASLkAgoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEiIKCmNwdV90YXJnZXQYAiABKAVCCbpIBhoEGGQoAEgAiAEBEiUKDW1lbW9yeV90YXJnZXQYAyABKAVCCbpIBhoEGGQoAEgBiAEBOtsBukjXARrUAQoXc2NhbGVycy50YXJnZXRfcmVxdWlyZWQSQmVuYWJsZWQgYXV0b3NjYWxpbmcgbmVlZHMgYSBDUFUgb3IgbWVtb3J5IHRhcmdldCBiZXR3ZWVuIDEgYW5kIDEwMBp1IXRoaXMuZW5hYmxlZCB8fCAoaGFzKHRoaXMuY3B1X3RhcmdldCkgJiYgdGhpcy5jcHVfdGFyZ2V0ID4gMCkgfHwgKGhhcyh0aGlzLm1lbW9yeV90YXJnZXQpICYmIHRoaXMubWVtb3J5X3RhcmdldCA+IDApQg0KC19jcHVfdGFyZ2V0QhAKDl9tZW1vcnlfdGFyZ2V0IsEBCgtCdWlsZFNvdXJjZRIVCgR0eXBlGAEgASgJQge6SARyAhABEm0KBWltYWdlGAIgASgJQl66SFvYAQFyVjJUXihbYS16MC05XC0uX10rKDpbMC05XSspPygvW2EtejAtOVwtLl9dKykqKSg6W2EtejAtOVwtLl9dKyk/KEBzaGEyNTY6W2EtZjAtOV17NjR9KT8kEh8KCGJ1aWxkX2lkGAMgASgJQgi6SAVyA7ABAUgAiAEBQgsKCV9idWlsZF9pZCI/ChNPYnNlcnZhYmlsaXR5Q29uZmlnEhgKC2luamVjdF9vdGVsGAEgASgISACIAQFCDgoMX2luamVjdF9vdGVsIs8HChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSNgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2VCBrpIA8gBARJACgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARI/CgNlbnYYCCADKAsyMi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjLkVudkVudHJ5Eh4KBHBvcnQYCSABKAVCC7pICBoGGP//AygBSAGIAQESOAoHcm91dGluZxgKIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlUm91dGluZ0gCiAEBEicKC3J1bl9hc191c2VyGAsgASgDQg26SAoiCBj/////ByAASAOIAQESKAoMcnVuX2FzX2dyb3VwGAwgASgDQg26SAoiCBj/////ByAASASIAQESPgoNb2JzZXJ2YWJpbGl0eRgNIAEoCzInLmxvY28uZGVwbG95bWVudC52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEhAKCHBsYXRmb3JtGA8gASgJEh8KB2NvbW1hbmQYECADKAlCDrpIC5IBCBBkIgRyAhABEhYKBGFyZ3MYESADKAlCCLpIBZIBAhBkEkcKB3JlZ2lvbnMYEiADKAsyNi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjLlJlZ2lvbnNFbnRyeRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGloKDFJlZ2lvbnNFbnRyeRILCgNrZXkYASABKAkSOQoFdmFsdWUYAiABKAsyKi5sb2NvLmRlcGxveW1lbnQudjEuUmVnaW9uRGVwbG95bWVudFRhcmdldDoCOAE6pAG6SKABGp0BCi1zZXJ2aWNlX2RlcGxveW1lbnQuaGVhbHRoX2NoZWNrX3JlcXVpcmVzX3BvcnQSQWhlYWx0aF9jaGVjayBuZWVkcyBhIHBvcnQ6IHRoZSBIVFRQIGNoZWNrIHByb2JlcyB0aGUgc2VydmljZSBwb3J0GiloYXModGhpcy5wb3J0KSB8fCAhaGFzKHRoaXMuaGVhbHRoX2NoZWNrKUIPCg1faGVhbHRoX2NoZWNrQgcKBV9wb3J0QgoKCF9yb3V0aW5nQg4KDF9ydW5fYXNfdXNlckIPCg1fcnVuX2FzX2dyb3VwSgQIDhAPIrEDChZSZWdpb25EZXBsb3ltZW50VGFyZ2V0EhkKA2NwdRgBIAEoCUIHukgEcgIQAUgAiAEBEhwKBm1lbW9yeRgCIAEoCUIHukgEcgIQAUgBiAEBEiIKDG1pbl9yZXBsaWNhcxgDIAEoBUIHukgEGgIoAUgCiAEBEiIKDG1heF9yZXBsaWNhcxgEIAEoBUIHukgEGgIoAUgDiAEBEjEKB3NjYWxlcnMYBSABKAsyGy5sb2NvLmRlcGxveW1lbnQudjEuU2NhbGVyc0gEiAEBOqEBukidARqaAQoUcmVwbGljYXMubWluX2x0ZV9tYXgSJG1pbl9yZXBsaWNhcyBtdXN0IGJlIDw9IG1heF9yZXBsaWNhcxpcIWhhcyh0aGlzLm1pbl9yZXBsaWNhcykgfHwgIWhhcyh0aGlzLm1heF9yZXBsaWNhcykgfHwgdGhpcy5taW5fcmVwbGljYXMgPD0gdGhpcy5tYXhfcmVwbGljYXNCBgoEX2NwdUIJCgdfbWVtb3J5Qg8KDV9taW5fcmVwbGljYXNCDwoNX21heF9yZXBsaWNhc0IKCghfc2NhbGVycyI7Cg5TZXJ2aWNlUm91dGluZxITCgtwYXRoX3ByZWZpeBgBIAEoCRIUCgxpZGxlX3RpbWVvdXQYAiABKAUiVgoORGVwbG95bWVudFNwZWMSPAoHc2VydmljZRgBIAEoCzIpLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlRGVwbG95bWVudFNwZWNIAEIGCgRzcGVjItgGCgpEZXBsb3ltZW50EgoKAmlkGAEgASgJEhMKC3Jlc291cmNlX2lkGAIgASgJEjQKBnN0YXR1cxgGIAEoDjIkLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3RhdHVzEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKCnN0YXJ0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQESNQoMY29tcGxldGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBEi4KCnVwZGF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHNwZWNfdmVyc2lvbhgNIAEoBRIwCgRzcGVjGA4gASgLMiIubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTcGVjEhYKDmVudmlyb25tZW50X2lkGA8gASgJEjsKCmFjdG9yX3R5cGUYECABKA4yJy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudEFjdG9yVHlwZRIQCghhY3Rvcl9pZBgRIAEoCRISCgphY3Rvcl9uYW1lGBIgASgJEhgKEGFjdG9yX2F2YXRhcl91cmwYEyABKAkSNAoGbWV0aG9kGBQgASgOMiQubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRNZXRob2QSMAoGY29tbWl0GBUgASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlNvdXJjZUNvbW1pdBI7CgpwbGFjZW1lbnRzGBogAygLMicubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQbGFjZW1lbnQSNgoHdHJpZ2dlchgbIAEoDjIlLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50VHJpZ2dlchIcChRzb3VyY2VfZGVwbG95bWVudF9pZBgcIAEoCRIYChBjYW5jZWxlZF9ieV9uYW1lGB0gASgJEhUKDXJlc291cmNlX25hbWUYHiABKAlCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdCLfAwoTRGVwbG95bWVudFBsYWNlbWVudBISCgpjbHVzdGVyX2lkGAEgASgJEg4KBnJlZ2lvbhgCIAEoCRIYChBkZXNpcmVkX3JlcGxpY2FzGAMgASgFEjMKBnN0YXR1cxgEIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5QbGFjZW1lbnRTdGF0dXMSDQoFaW1hZ2UYBSABKAkSMwoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARI1Cgxjb21wbGV0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQESGAoQY3VycmVudF9yZXZpc2lvbhgIIAEoAxIsCgdwcm9ibGVtGAkgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlByb2JsZW0SLQoIcmVwbGljYXMYCiADKAsyGy5sb2NvLmRlcGxveW1lbnQudjEuUmVwbGljYRIMCgRsaXZlGAsgASgIEhUKDXN1cGVyc2VkZWRfYnkYDCABKAkSHgoWcHJldmlvdXNfZGVwbG95bWVudF9pZBgNIAEoCUINCgtfc3RhcnRlZF9hdEIPCg1fY29tcGxldGVkX2F0ItoCChdDcmVhdGVEZXBsb3ltZW50UmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESHwoHcmVnaW9ucxgIIAMoCUIOukgLkgEIGAEiBHICEAESOAoEc3BlYxgEIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3BlY0IGukgDyAEBEiAKDmVudmlyb25tZW50X2lkGAUgASgJQgi6SAVyA7ABARIwCgZjb21taXQYByABKAsyIC5sb2NvLmRlcGxveW1lbnQudjEuU291cmNlQ29tbWl0EkYKB3RyaWdnZXIYCSABKA4yJS5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFRyaWdnZXJCDrpIC4IBCBgAGAEYAhgDEikKFHNvdXJjZV9kZXBsb3ltZW50X2lkGAogASgJQgu6SAjYAQFyA7ABASJhChhDcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USFQoNZGVwbG95bWVudF9pZBgBIAEoCRIuCgVidWlsZBgCIAEoCzIfLmxvY28uZGVwbG95bWVudC52MS5CdWlsZFNvdXJjZSI3ChRHZXREZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABASJLChVHZXREZXBsb3ltZW50UmVzcG9uc2USMgoKZGVwbG95bWVudBgBIAEoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50Is4FChZMaXN0RGVwbG95bWVudHNSZXF1ZXN0EiAKC3Jlc291cmNlX2lkGAEgASgJQgu6SAjYAQFyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCRIjCg5lbnZpcm9ubWVudF9pZBgEIAEoCUILukgI2AEBcgOwAQESIQoMd29ya3NwYWNlX2lkGAUgASgJQgu6SAjYAQFyA7ABARIpCgVzaW5jZRgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKQoFdW50aWwYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhsKE2luY2x1ZGVfdG90YWxfY291bnQYCCABKAgSSQoIc3RhdHVzZXMYCSADKA4yJC5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFN0YXR1c0IRukgOkgELGAEiB4IBBBABIAA62AK6SNQCGtsBChZsaXN0X2RlcGxveW1lbnRzLnNjb3BlEjdwcm92aWRlIHJlc291cmNlX2lkIG9yIHdvcmtzcGFjZV9pZCB3aXRoIGVudmlyb25tZW50X2lkGocBKHRoaXMucmVzb3VyY2VfaWQgIT0gJycgJiYgdGhpcy53b3Jrc3BhY2VfaWQgPT0gJycpIHx8ICh0aGlzLnJlc291cmNlX2lkID09ICcnICYmIHRoaXMud29ya3NwYWNlX2lkICE9ICcnICYmIHRoaXMuZW52aXJvbm1lbnRfaWQgIT0gJycpGnQKF2xpc3RfZGVwbG95bWVudHMud2luZG93EhhzaW5jZSBtdXN0IHByZWNlZGUgdW50aWwaPyFoYXModGhpcy5zaW5jZSkgfHwgIWhhcyh0aGlzLnVudGlsKSB8fCB0aGlzLnNpbmNlIDwgdGhpcy51bnRpbCJ8ChdMaXN0RGVwbG95bWVudHNSZXNwb25zZRIzCgtkZXBsb3ltZW50cxgBIAMoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBSKvAwodUXVlcnlEZXBsb3ltZW50QnVja2V0c1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQESJwoMcmVzb3VyY2VfaWRzGAMgAygJQhG6SA6SAQsQZBgBIgVyA7ABARIxCgVzaW5jZRgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARIxCgV1bnRpbBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARIgCgxidWNrZXRfY291bnQYBiABKAVCCrpIBxoFGMgBKAESGQoRZ3JvdXBfYnlfcmVzb3VyY2UYByABKAgSJQoSbWF4X3Jlc291cmNlX25hbWVzGAggASgFQgm6SAYaBBgUKAA6WbpIVhpUCh9xdWVyeV9kZXBsb3ltZW50X2J1Y2tldHMud2luZG93EhhzaW5jZSBtdXN0IHByZWNlZGUgdW50aWwaF3RoaXMuc2luY2UgPCB0aGlzLnVudGlsIlcKHlF1ZXJ5RGVwbG95bWVudEJ1Y2tldHNSZXNwb25zZRI1CgdidWNrZXRzGAEgAygLMiQubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRCdWNrZXQiuwIKEERlcGxveW1lbnRCdWNrZXQSDQoFaW5kZXgYASABKAUSEwoLcmVzb3VyY2VfaWQYAiABKAkSGAoQZGVwbG95bWVudF9jb3VudBgDIAEoBRIzCg9tZWFuX2NyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkAKDXN0YXR1c19jb3VudHMYBSADKAsyKS5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFN0YXR1c0NvdW50EhYKDnJlc291cmNlX2NvdW50GAYgASgFEhYKDnJlc291cmNlX25hbWVzGAcgAygJEkIKD29ubHlfZGVwbG95bWVudBgIIAEoCzIpLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50QnVja2V0RW50cnkiXAoVRGVwbG95bWVudFN0YXR1c0NvdW50EjQKBnN0YXR1cxgBIAEoDjIkLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3RhdHVzEg0KBWNvdW50GAIgASgFIsQBChVEZXBsb3ltZW50QnVja2V0RW50cnkSCgoCaWQYASABKAkSEwoLcmVzb3VyY2VfaWQYAiABKAkSFQoNcmVzb3VyY2VfbmFtZRgDIAEoCRI0CgZzdGF0dXMYBCABKA4yJC5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFN0YXR1cxIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVpbWFnZRgGIAEoCSLjAwoHUmVwbGljYRILCgN1aWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRub2RlGAMgASgJEhoKEnBsYWNlbWVudF9yZXZpc2lvbhgEIAEoAxINCgVzdGF0ZRgFIAEoCRIvCgtzdGF0ZV9zaW5jZRgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoOc3RhdGVfZGVhZGxpbmUYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHJlc3RhcnRzGAggASgFEhgKBmRldGFpbBgKIAEoCUIIukgFcgMYgAQSFQoNZGVwbG95bWVudF9pZBgLIAEoCRINCgVyZWFkeRgMIAEoCBIuCgpzdGFydGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCglsYXN0X2V4aXQYDiABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuUmVwbGljYUV4aXQSLwoLcmVzdGFydHNfYXQYDyADKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjgKDGxhc3RfcmVzdGFydBgQIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5SZXBsaWNhUmVzdGFydCKAAQoNRmFpbHVyZVBvbGljeRI5Cg5yZXN0YXJ0X3BvbGljeRgBIAEoDjIhLmxvY28uZGVwbG95bWVudC52MS5SZXN0YXJ0UG9saWN5EhQKDG1heF9yZXN0YXJ0cxgCIAEoBRIeChZkZXBsb3lfdGltZW91dF9zZWNvbmRzGAMgASgFIloKDlJlcGxpY2FSZXN0YXJ0EiYKAmF0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVjYXVzZRgCIAEoCRIRCglleGl0X2NvZGUYAyABKAUiYQoLUmVwbGljYUV4aXQSDgoGcmVhc29uGAEgASgJEhEKCWV4aXRfY29kZRgCIAEoBRIvCgtmaW5pc2hlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijwEKB1Byb2JsZW0SDgoGcmVhc29uGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSDgoGZGV0YWlsGAMgASgJEhQKDHJlcGxpY2FfbmFtZRgEIAEoCRIpCgVzaW5jZRgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKbG9nc19xdWVyeRgGIAEoCSKaAQoIQWN0aXZpdHkSCwoDc2VxGAEgASgDEhAKCHJldmlzaW9uGAIgASgDEiYKAmF0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghzZXZlcml0eRgEIAEoCRIUCgxyZXBsaWNhX25hbWUYBSABKAkSDwoHbWVzc2FnZRgGIAEoCRIOCgZyZWdpb24YByABKAkiVQoWV2F0Y2hEZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABARIaCglhZnRlcl9zZXEYAiABKANCB7pIBCICKAAimAEKF1dhdGNoRGVwbG95bWVudFJlc3BvbnNlEjIKCmRlcGxveW1lbnQYASABKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudBIuCghhY3Rpdml0eRgCIAMoCzIcLmxvY28uZGVwbG95bWVudC52MS5BY3Rpdml0eRIZChFoYXNfbW9yZV9hY3Rpdml0eRgDIAEoCCI6ChdEZWxldGVEZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABASIaChhEZWxldGVEZXBsb3ltZW50UmVzcG9uc2UiXQoXQ2FuY2VsRGVwbG95bWVudFJlcXVlc3QSHwoNZGVwbG95bWVudF9pZBgBIAEoCUIIukgFcgOwAQESIQoZcm9sbGJhY2tfZmluaXNoZWRfcmVnaW9ucxgCIAEoCCI7ChhDYW5jZWxEZXBsb3ltZW50UmVzcG9uc2USHwoXcm9sbGJhY2tfZGVwbG95bWVudF9pZHMYASADKAkiQwogR2V0RGVwbG95bWVudENhbmNlbEltcGFjdFJlcXVlc3QSHwoNZGVwbG95bWVudF9pZBgBIAEoCUIIukgFcgOwAQEiYQohR2V0RGVwbG95bWVudENhbmNlbEltcGFjdFJlc3BvbnNlEjwKEGZpbmlzaGVkX3JlZ2lvbnMYASADKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRmluaXNoZWRSZWdpb24iUgoORmluaXNoZWRSZWdpb24SDgoGcmVnaW9uGAEgASgJEjAKCHByZXZpb3VzGAIgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQiTQoTUmVzb2x2ZUltYWdlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhYKBWltYWdlGAIgASgJQge6SARyAhABIiUKFFJlc29sdmVJbWFnZVJlc3BvbnNlEg0KBWltYWdlGAEgASgJImEKDFNvdXJjZUNvbW1pdBIxCgNzaGEYASABKAlCJLpIIXIfMh1eKFswLTlhLWZdezQwfXxbMC05YS1mXXs2NH0pJBINCgVkaXJ0eRgCIAEoCBIPCgdtZXNzYWdlGAMgASgJKrQCChBEZXBsb3ltZW50U3RhdHVzEiEKHURFUExPWU1FTlRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHgoaREVQTE9ZTUVOVF9TVEFUVVNfQlVJTERJTkcQARIfChtERVBMT1lNRU5UX1NUQVRVU19ERVBMT1lJTkcQAhIdChlERVBMT1lNRU5UX1NUQVRVU19SVU5OSU5HEAMSHAoYREVQTE9ZTUVOVF9TVEFUVVNfRkFJTEVEEAQSHgoaREVQTE9ZTUVOVF9TVEFUVVNfQ0FOQ0VMRUQQBRIgChxERVBMT1lNRU5UX1NUQVRVU19TVVBFUlNFREVEEAYSHgoaREVQTE9ZTUVOVF9TVEFUVVNfREVHUkFERUQQBxIdChlERVBMT1lNRU5UX1NUQVRVU19DUkFTSEVEEAgqqQIKD1BsYWNlbWVudFN0YXR1cxIgChxQTEFDRU1FTlRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYUExBQ0VNRU5UX1NUQVRVU19QRU5ESU5HEAESHgoaUExBQ0VNRU5UX1NUQVRVU19ERVBMT1lJTkcQAhIcChhQTEFDRU1FTlRfU1RBVFVTX1JVTk5JTkcQAxIdChlQTEFDRU1FTlRfU1RBVFVTX0RFR1JBREVEEAQSHAoYUExBQ0VNRU5UX1NUQVRVU19DUkFTSEVEEAUSGwoXUExBQ0VNRU5UX1NUQVRVU19GQUlMRUQQBhIdChlQTEFDRU1FTlRfU1RBVFVTX0NBTkNFTEVEEAcSHwobUExBQ0VNRU5UX1NUQVRVU19TVVBFUlNFREVEEAgqvAEKEURlcGxveW1lbnRUcmlnZ2VyEiIKHkRFUExPWU1FTlRfVFJJR0dFUl9VTlNQRUNJRklFRBAAEh0KGURFUExPWU1FTlRfVFJJR0dFUl9ERVBMT1kQARIfChtERVBMT1lNRU5UX1RSSUdHRVJfUkVERVBMT1kQAhIfChtERVBMT1lNRU5UX1RSSUdHRVJfUk9MTEJBQ0sQAxIcChhERVBMT1lNRU5UX1RSSUdHRVJfU0NBTEUQBCIECAUQBSqBAQoTRGVwbG95bWVudEFjdG9yVHlwZRIlCiFERVBMT1lNRU5UX0FDVE9SX1RZUEVfVU5TUEVDSUZJRUQQABIeChpERVBMT1lNRU5UX0FDVE9SX1RZUEVfVVNFUhABEiMKH0RFUExPWU1FTlRfQUNUT1JfVFlQRV9BUElfVE9LRU4QAiqMAQoQRGVwbG95bWVudE1ldGhvZBIhCh1ERVBMT1lNRU5UX01FVEhPRF9VTlNQRUNJRklFRBAAEh8KG0RFUExPWU1FTlRfTUVUSE9EX0FQSV9UT0tFThABEhkKFURFUExPWU1FTlRfTUVUSE9EX0NMSRACEhkKFURFUExPWU1FTlRfTUVUSE9EX1dFQhADKoMBCg1SZXN0YXJ0UG9saWN5Eh4KGlJFU1RBUlRfUE9MSUNZX1VOU1BFQ0lGSUVEEAASHQoZUkVTVEFSVF9QT0xJQ1lfT05fRkFJTFVSRRABEhkKFVJFU1RBUlRfUE9MSUNZX0FMV0FZUxACEhgKFFJFU1RBUlRfUE9MSUNZX05FVkVSEAMyjwgKEURlcGxveW1lbnRTZXJ2aWNlEm0KEENyZWF0ZURlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QaLC5sb2NvLmRlcGxveW1lbnQudjEuQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEmQKDUdldERlcGxveW1lbnQSKC5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudFJlcXVlc3QaKS5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudFJlc3BvbnNlEmoKD0xpc3REZXBsb3ltZW50cxIqLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXF1ZXN0GisubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1Jlc3BvbnNlEn8KFlF1ZXJ5RGVwbG95bWVudEJ1Y2tldHMSMS5sb2NvLmRlcGxveW1lbnQudjEuUXVlcnlEZXBsb3ltZW50QnVja2V0c1JlcXVlc3QaMi5sb2NvLmRlcGxveW1lbnQudjEuUXVlcnlEZXBsb3ltZW50QnVja2V0c1Jlc3BvbnNlEmwKD1dhdGNoRGVwbG95bWVudBIqLmxvY28uZGVwbG95bWVudC52MS5XYXRjaERlcGxveW1lbnRSZXF1ZXN0GisubG9jby5kZXBsb3ltZW50LnYxLldhdGNoRGVwbG95bWVudFJlc3BvbnNlMAESbQoQRGVsZXRlRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5EZWxldGVEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5EZWxldGVEZXBsb3ltZW50UmVzcG9uc2USbQoQQ2FuY2VsRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5DYW5jZWxEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5DYW5jZWxEZXBsb3ltZW50UmVzcG9uc2USiAEKGUdldERlcGxveW1lbnRDYW5jZWxJbXBhY3QSNC5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudENhbmNlbEltcGFjdFJlcXVlc3QaNS5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudENhbmNlbEltcGFjdFJlc3BvbnNlEmEKDFJlc29sdmVJbWFnZRInLmxvY28uZGVwbG95bWVudC52MS5SZXNvbHZlSW1hZ2VSZXF1ZXN0GigubG9jby5kZXBsb3ltZW50LnYxLlJlc29sdmVJbWFnZVJlc3BvbnNlQkJaQGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZGVwbG95bWVudC92MTtkZXBsb3ltZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * HealthCheckConfig defines health check parameters.
@@ -711,6 +711,11 @@ export type Deployment = Message<"loco.deployment.v1.Deployment"> & {
    * @generated from field: string canceled_by_name = 29;
    */
   canceledByName: string;
+
+  /**
+   * @generated from field: string resource_name = 30;
+   */
+  resourceName: string;
 };
 
 /**
@@ -825,6 +830,11 @@ export type DeploymentJson = {
    * @generated from field: string canceled_by_name = 29;
    */
   canceledByName?: string;
+
+  /**
+   * @generated from field: string resource_name = 30;
+   */
+  resourceName?: string;
 };
 
 /**
@@ -1264,6 +1274,13 @@ export type ListDeploymentsRequest = Message<"loco.deployment.v1.ListDeployments
    * @generated from field: bool include_total_count = 8;
    */
   includeTotalCount: boolean;
+
+  /**
+   * Lists only deployments in these statuses; empty lists every status.
+   *
+   * @generated from field: repeated loco.deployment.v1.DeploymentStatus statuses = 9;
+   */
+  statuses: DeploymentStatus[];
 };
 
 /**
@@ -1319,6 +1336,13 @@ export type ListDeploymentsRequestJson = {
    * @generated from field: bool include_total_count = 8;
    */
   includeTotalCount?: boolean;
+
+  /**
+   * Lists only deployments in these statuses; empty lists every status.
+   *
+   * @generated from field: repeated loco.deployment.v1.DeploymentStatus statuses = 9;
+   */
+  statuses?: DeploymentStatusJson[];
 };
 
 /**
@@ -1388,6 +1412,399 @@ export type ListDeploymentsResponseJson = {
  */
 export const ListDeploymentsResponseSchema: GenMessage<ListDeploymentsResponse, {jsonType: ListDeploymentsResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_deployment_v1_deployment, 15);
+
+/**
+ * QueryDeploymentBucketsRequest splits [since, until) into bucket_count equal buckets by deployment
+ * creation time.
+ *
+ * @generated from message loco.deployment.v1.QueryDeploymentBucketsRequest
+ */
+export type QueryDeploymentBucketsRequest = Message<"loco.deployment.v1.QueryDeploymentBucketsRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string environment_id = 2;
+   */
+  environmentId: string;
+
+  /**
+   * Counts only these resources' deployments; empty counts every resource.
+   *
+   * @generated from field: repeated string resource_ids = 3;
+   */
+  resourceIds: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 4;
+   */
+  since?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 5;
+   */
+  until?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int32 bucket_count = 6;
+   */
+  bucketCount: number;
+
+  /**
+   * Summarizes each resource's deployments in its own series of buckets.
+   *
+   * @generated from field: bool group_by_resource = 7;
+   */
+  groupByResource: boolean;
+
+  /**
+   * The most resource names a bucket lists.
+   *
+   * @generated from field: int32 max_resource_names = 8;
+   */
+  maxResourceNames: number;
+};
+
+/**
+ * QueryDeploymentBucketsRequest splits [since, until) into bucket_count equal buckets by deployment
+ * creation time.
+ *
+ * @generated from message loco.deployment.v1.QueryDeploymentBucketsRequest
+ */
+export type QueryDeploymentBucketsRequestJson = {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string environment_id = 2;
+   */
+  environmentId?: string;
+
+  /**
+   * Counts only these resources' deployments; empty counts every resource.
+   *
+   * @generated from field: repeated string resource_ids = 3;
+   */
+  resourceIds?: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 4;
+   */
+  since?: TimestampJson;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 5;
+   */
+  until?: TimestampJson;
+
+  /**
+   * @generated from field: int32 bucket_count = 6;
+   */
+  bucketCount?: number;
+
+  /**
+   * Summarizes each resource's deployments in its own series of buckets.
+   *
+   * @generated from field: bool group_by_resource = 7;
+   */
+  groupByResource?: boolean;
+
+  /**
+   * The most resource names a bucket lists.
+   *
+   * @generated from field: int32 max_resource_names = 8;
+   */
+  maxResourceNames?: number;
+};
+
+/**
+ * Describes the message loco.deployment.v1.QueryDeploymentBucketsRequest.
+ * Use `create(QueryDeploymentBucketsRequestSchema)` to create a new message.
+ */
+export const QueryDeploymentBucketsRequestSchema: GenMessage<QueryDeploymentBucketsRequest, {jsonType: QueryDeploymentBucketsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_deployment_v1_deployment, 16);
+
+/**
+ * QueryDeploymentBucketsResponse holds the nonempty buckets, ordered by resource_id, then index.
+ *
+ * @generated from message loco.deployment.v1.QueryDeploymentBucketsResponse
+ */
+export type QueryDeploymentBucketsResponse = Message<"loco.deployment.v1.QueryDeploymentBucketsResponse"> & {
+  /**
+   * @generated from field: repeated loco.deployment.v1.DeploymentBucket buckets = 1;
+   */
+  buckets: DeploymentBucket[];
+};
+
+/**
+ * QueryDeploymentBucketsResponse holds the nonempty buckets, ordered by resource_id, then index.
+ *
+ * @generated from message loco.deployment.v1.QueryDeploymentBucketsResponse
+ */
+export type QueryDeploymentBucketsResponseJson = {
+  /**
+   * @generated from field: repeated loco.deployment.v1.DeploymentBucket buckets = 1;
+   */
+  buckets?: DeploymentBucketJson[];
+};
+
+/**
+ * Describes the message loco.deployment.v1.QueryDeploymentBucketsResponse.
+ * Use `create(QueryDeploymentBucketsResponseSchema)` to create a new message.
+ */
+export const QueryDeploymentBucketsResponseSchema: GenMessage<QueryDeploymentBucketsResponse, {jsonType: QueryDeploymentBucketsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_deployment_v1_deployment, 17);
+
+/**
+ * DeploymentBucket summarizes the deployments created in one bucket of the window.
+ *
+ * @generated from message loco.deployment.v1.DeploymentBucket
+ */
+export type DeploymentBucket = Message<"loco.deployment.v1.DeploymentBucket"> & {
+  /**
+   * The bucket's position in the window, from 0 to bucket_count - 1.
+   *
+   * @generated from field: int32 index = 1;
+   */
+  index: number;
+
+  /**
+   * The resource the bucket counts; empty unless the request groups by resource.
+   *
+   * @generated from field: string resource_id = 2;
+   */
+  resourceId: string;
+
+  /**
+   * @generated from field: int32 deployment_count = 3;
+   */
+  deploymentCount: number;
+
+  /**
+   * The mean creation time of the bucket's deployments.
+   *
+   * @generated from field: google.protobuf.Timestamp mean_created_at = 4;
+   */
+  meanCreatedAt?: Timestamp | undefined;
+
+  /**
+   * The deployments per current status, ordered by status; statuses without deployments are left out.
+   *
+   * @generated from field: repeated loco.deployment.v1.DeploymentStatusCount status_counts = 5;
+   */
+  statusCounts: DeploymentStatusCount[];
+
+  /**
+   * The distinct resources deployed in the bucket.
+   *
+   * @generated from field: int32 resource_count = 6;
+   */
+  resourceCount: number;
+
+  /**
+   * Up to max_resource_names of the bucket's resource names, most recently deployed first.
+   *
+   * @generated from field: repeated string resource_names = 7;
+   */
+  resourceNames: string[];
+
+  /**
+   * The bucket's deployment when it holds exactly one.
+   *
+   * @generated from field: loco.deployment.v1.DeploymentBucketEntry only_deployment = 8;
+   */
+  onlyDeployment?: DeploymentBucketEntry | undefined;
+};
+
+/**
+ * DeploymentBucket summarizes the deployments created in one bucket of the window.
+ *
+ * @generated from message loco.deployment.v1.DeploymentBucket
+ */
+export type DeploymentBucketJson = {
+  /**
+   * The bucket's position in the window, from 0 to bucket_count - 1.
+   *
+   * @generated from field: int32 index = 1;
+   */
+  index?: number;
+
+  /**
+   * The resource the bucket counts; empty unless the request groups by resource.
+   *
+   * @generated from field: string resource_id = 2;
+   */
+  resourceId?: string;
+
+  /**
+   * @generated from field: int32 deployment_count = 3;
+   */
+  deploymentCount?: number;
+
+  /**
+   * The mean creation time of the bucket's deployments.
+   *
+   * @generated from field: google.protobuf.Timestamp mean_created_at = 4;
+   */
+  meanCreatedAt?: TimestampJson;
+
+  /**
+   * The deployments per current status, ordered by status; statuses without deployments are left out.
+   *
+   * @generated from field: repeated loco.deployment.v1.DeploymentStatusCount status_counts = 5;
+   */
+  statusCounts?: DeploymentStatusCountJson[];
+
+  /**
+   * The distinct resources deployed in the bucket.
+   *
+   * @generated from field: int32 resource_count = 6;
+   */
+  resourceCount?: number;
+
+  /**
+   * Up to max_resource_names of the bucket's resource names, most recently deployed first.
+   *
+   * @generated from field: repeated string resource_names = 7;
+   */
+  resourceNames?: string[];
+
+  /**
+   * The bucket's deployment when it holds exactly one.
+   *
+   * @generated from field: loco.deployment.v1.DeploymentBucketEntry only_deployment = 8;
+   */
+  onlyDeployment?: DeploymentBucketEntryJson;
+};
+
+/**
+ * Describes the message loco.deployment.v1.DeploymentBucket.
+ * Use `create(DeploymentBucketSchema)` to create a new message.
+ */
+export const DeploymentBucketSchema: GenMessage<DeploymentBucket, {jsonType: DeploymentBucketJson}> = /*@__PURE__*/
+  messageDesc(file_loco_deployment_v1_deployment, 18);
+
+/**
+ * @generated from message loco.deployment.v1.DeploymentStatusCount
+ */
+export type DeploymentStatusCount = Message<"loco.deployment.v1.DeploymentStatusCount"> & {
+  /**
+   * @generated from field: loco.deployment.v1.DeploymentStatus status = 1;
+   */
+  status: DeploymentStatus;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count: number;
+};
+
+/**
+ * @generated from message loco.deployment.v1.DeploymentStatusCount
+ */
+export type DeploymentStatusCountJson = {
+  /**
+   * @generated from field: loco.deployment.v1.DeploymentStatus status = 1;
+   */
+  status?: DeploymentStatusJson;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count?: number;
+};
+
+/**
+ * Describes the message loco.deployment.v1.DeploymentStatusCount.
+ * Use `create(DeploymentStatusCountSchema)` to create a new message.
+ */
+export const DeploymentStatusCountSchema: GenMessage<DeploymentStatusCount, {jsonType: DeploymentStatusCountJson}> = /*@__PURE__*/
+  messageDesc(file_loco_deployment_v1_deployment, 19);
+
+/**
+ * @generated from message loco.deployment.v1.DeploymentBucketEntry
+ */
+export type DeploymentBucketEntry = Message<"loco.deployment.v1.DeploymentBucketEntry"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string resource_id = 2;
+   */
+  resourceId: string;
+
+  /**
+   * @generated from field: string resource_name = 3;
+   */
+  resourceName: string;
+
+  /**
+   * @generated from field: loco.deployment.v1.DeploymentStatus status = 4;
+   */
+  status: DeploymentStatus;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 5;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * The image the deployment's spec names; empty while its build runs.
+   *
+   * @generated from field: string image = 6;
+   */
+  image: string;
+};
+
+/**
+ * @generated from message loco.deployment.v1.DeploymentBucketEntry
+ */
+export type DeploymentBucketEntryJson = {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id?: string;
+
+  /**
+   * @generated from field: string resource_id = 2;
+   */
+  resourceId?: string;
+
+  /**
+   * @generated from field: string resource_name = 3;
+   */
+  resourceName?: string;
+
+  /**
+   * @generated from field: loco.deployment.v1.DeploymentStatus status = 4;
+   */
+  status?: DeploymentStatusJson;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 5;
+   */
+  createdAt?: TimestampJson;
+
+  /**
+   * The image the deployment's spec names; empty while its build runs.
+   *
+   * @generated from field: string image = 6;
+   */
+  image?: string;
+};
+
+/**
+ * Describes the message loco.deployment.v1.DeploymentBucketEntry.
+ * Use `create(DeploymentBucketEntrySchema)` to create a new message.
+ */
+export const DeploymentBucketEntrySchema: GenMessage<DeploymentBucketEntry, {jsonType: DeploymentBucketEntryJson}> = /*@__PURE__*/
+  messageDesc(file_loco_deployment_v1_deployment, 20);
 
 /**
  * @generated from message loco.deployment.v1.Replica
@@ -1578,7 +1995,7 @@ export type ReplicaJson = {
  * Use `create(ReplicaSchema)` to create a new message.
  */
 export const ReplicaSchema: GenMessage<Replica, {jsonType: ReplicaJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 16);
+  messageDesc(file_loco_deployment_v1_deployment, 21);
 
 /**
  * FailurePolicy is when Loco stops a version of a service. Either stop keeps the previous version
@@ -1639,7 +2056,7 @@ export type FailurePolicyJson = {
  * Use `create(FailurePolicySchema)` to create a new message.
  */
 export const FailurePolicySchema: GenMessage<FailurePolicy, {jsonType: FailurePolicyJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 17);
+  messageDesc(file_loco_deployment_v1_deployment, 22);
 
 /**
  * ReplicaRestart is an exit the kubelet restarted a replica's container after.
@@ -1694,7 +2111,7 @@ export type ReplicaRestartJson = {
  * Use `create(ReplicaRestartSchema)` to create a new message.
  */
 export const ReplicaRestartSchema: GenMessage<ReplicaRestart, {jsonType: ReplicaRestartJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 18);
+  messageDesc(file_loco_deployment_v1_deployment, 23);
 
 /**
  * ReplicaExit is how a replica's container last terminated.
@@ -1749,7 +2166,7 @@ export type ReplicaExitJson = {
  * Use `create(ReplicaExitSchema)` to create a new message.
  */
 export const ReplicaExitSchema: GenMessage<ReplicaExit, {jsonType: ReplicaExitJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 19);
+  messageDesc(file_loco_deployment_v1_deployment, 24);
 
 /**
  * @generated from message loco.deployment.v1.Problem
@@ -1834,7 +2251,7 @@ export type ProblemJson = {
  * Use `create(ProblemSchema)` to create a new message.
  */
 export const ProblemSchema: GenMessage<Problem, {jsonType: ProblemJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 20);
+  messageDesc(file_loco_deployment_v1_deployment, 25);
 
 /**
  * @generated from message loco.deployment.v1.Activity
@@ -1925,7 +2342,7 @@ export type ActivityJson = {
  * Use `create(ActivitySchema)` to create a new message.
  */
 export const ActivitySchema: GenMessage<Activity, {jsonType: ActivityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 21);
+  messageDesc(file_loco_deployment_v1_deployment, 26);
 
 /**
  * @generated from message loco.deployment.v1.WatchDeploymentRequest
@@ -1962,7 +2379,7 @@ export type WatchDeploymentRequestJson = {
  * Use `create(WatchDeploymentRequestSchema)` to create a new message.
  */
 export const WatchDeploymentRequestSchema: GenMessage<WatchDeploymentRequest, {jsonType: WatchDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 22);
+  messageDesc(file_loco_deployment_v1_deployment, 27);
 
 /**
  * @generated from message loco.deployment.v1.WatchDeploymentResponse
@@ -2009,7 +2426,7 @@ export type WatchDeploymentResponseJson = {
  * Use `create(WatchDeploymentResponseSchema)` to create a new message.
  */
 export const WatchDeploymentResponseSchema: GenMessage<WatchDeploymentResponse, {jsonType: WatchDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 23);
+  messageDesc(file_loco_deployment_v1_deployment, 28);
 
 /**
  * DeleteDeploymentRequest is the request to delete/inactivate a deployment.
@@ -2040,7 +2457,7 @@ export type DeleteDeploymentRequestJson = {
  * Use `create(DeleteDeploymentRequestSchema)` to create a new message.
  */
 export const DeleteDeploymentRequestSchema: GenMessage<DeleteDeploymentRequest, {jsonType: DeleteDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 24);
+  messageDesc(file_loco_deployment_v1_deployment, 29);
 
 /**
  * DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
@@ -2063,7 +2480,7 @@ export type DeleteDeploymentResponseJson = {
  * Use `create(DeleteDeploymentResponseSchema)` to create a new message.
  */
 export const DeleteDeploymentResponseSchema: GenMessage<DeleteDeploymentResponse, {jsonType: DeleteDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 25);
+  messageDesc(file_loco_deployment_v1_deployment, 30);
 
 /**
  * @generated from message loco.deployment.v1.CancelDeploymentRequest
@@ -2104,7 +2521,7 @@ export type CancelDeploymentRequestJson = {
  * Use `create(CancelDeploymentRequestSchema)` to create a new message.
  */
 export const CancelDeploymentRequestSchema: GenMessage<CancelDeploymentRequest, {jsonType: CancelDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 26);
+  messageDesc(file_loco_deployment_v1_deployment, 31);
 
 /**
  * @generated from message loco.deployment.v1.CancelDeploymentResponse
@@ -2135,7 +2552,7 @@ export type CancelDeploymentResponseJson = {
  * Use `create(CancelDeploymentResponseSchema)` to create a new message.
  */
 export const CancelDeploymentResponseSchema: GenMessage<CancelDeploymentResponse, {jsonType: CancelDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 27);
+  messageDesc(file_loco_deployment_v1_deployment, 32);
 
 /**
  * @generated from message loco.deployment.v1.GetDeploymentCancelImpactRequest
@@ -2162,7 +2579,7 @@ export type GetDeploymentCancelImpactRequestJson = {
  * Use `create(GetDeploymentCancelImpactRequestSchema)` to create a new message.
  */
 export const GetDeploymentCancelImpactRequestSchema: GenMessage<GetDeploymentCancelImpactRequest, {jsonType: GetDeploymentCancelImpactRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 28);
+  messageDesc(file_loco_deployment_v1_deployment, 33);
 
 /**
  * @generated from message loco.deployment.v1.GetDeploymentCancelImpactResponse
@@ -2193,7 +2610,7 @@ export type GetDeploymentCancelImpactResponseJson = {
  * Use `create(GetDeploymentCancelImpactResponseSchema)` to create a new message.
  */
 export const GetDeploymentCancelImpactResponseSchema: GenMessage<GetDeploymentCancelImpactResponse, {jsonType: GetDeploymentCancelImpactResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 29);
+  messageDesc(file_loco_deployment_v1_deployment, 34);
 
 /**
  * FinishedRegion is a region that already runs a deployment being canceled.
@@ -2238,7 +2655,7 @@ export type FinishedRegionJson = {
  * Use `create(FinishedRegionSchema)` to create a new message.
  */
 export const FinishedRegionSchema: GenMessage<FinishedRegion, {jsonType: FinishedRegionJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 30);
+  messageDesc(file_loco_deployment_v1_deployment, 35);
 
 /**
  * @generated from message loco.deployment.v1.ResolveImageRequest
@@ -2275,7 +2692,7 @@ export type ResolveImageRequestJson = {
  * Use `create(ResolveImageRequestSchema)` to create a new message.
  */
 export const ResolveImageRequestSchema: GenMessage<ResolveImageRequest, {jsonType: ResolveImageRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 31);
+  messageDesc(file_loco_deployment_v1_deployment, 36);
 
 /**
  * @generated from message loco.deployment.v1.ResolveImageResponse
@@ -2302,7 +2719,7 @@ export type ResolveImageResponseJson = {
  * Use `create(ResolveImageResponseSchema)` to create a new message.
  */
 export const ResolveImageResponseSchema: GenMessage<ResolveImageResponse, {jsonType: ResolveImageResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 32);
+  messageDesc(file_loco_deployment_v1_deployment, 37);
 
 /**
  * SourceCommit is client-reported metadata, not a verified source identity.
@@ -2357,7 +2774,7 @@ export type SourceCommitJson = {
  * Use `create(SourceCommitSchema)` to create a new message.
  */
 export const SourceCommitSchema: GenMessage<SourceCommit, {jsonType: SourceCommitJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 33);
+  messageDesc(file_loco_deployment_v1_deployment, 38);
 
 /**
  * @generated from enum loco.deployment.v1.DeploymentStatus
@@ -2681,6 +3098,17 @@ export const DeploymentService: GenService<{
     methodKind: "unary";
     input: typeof ListDeploymentsRequestSchema;
     output: typeof ListDeploymentsResponseSchema;
+  },
+  /**
+   * QueryDeploymentBuckets splits a time window into equal buckets and summarizes, per nonempty
+   * bucket, the deployments of a workspace environment the caller can read.
+   *
+   * @generated from rpc loco.deployment.v1.DeploymentService.QueryDeploymentBuckets
+   */
+  queryDeploymentBuckets: {
+    methodKind: "unary";
+    input: typeof QueryDeploymentBucketsRequestSchema;
+    output: typeof QueryDeploymentBucketsResponseSchema;
   },
   /**
    * WatchDeployment streams deployment events in real-time.
