@@ -17,9 +17,8 @@ const tokenDisplaySuffixLength = 4
 // the token_hash constraint also raises unique violations and must not read as a taken name.
 const pgNameEntityUnique = "api_tokens_name_entity_type_entity_id_key"
 
-// Issue stores an API token with its owning entity, scopes and historical issuer, replacing an
-// expired token of the same name. The caller must authorize the owner and requested scopes before
-// issuing a token.
+// Issue stores an API token with its owning entity, scopes and historical issuer, replacing an expired token
+// of the same name. The caller must authorize the owner and requested scopes before issuing a token.
 func (tvm *VendingMachine) Issue(
 	ctx context.Context,
 	name string,

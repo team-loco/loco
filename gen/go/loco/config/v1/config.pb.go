@@ -265,7 +265,7 @@ type CountLimits struct {
 	EnvironmentsPerWorkspace int32 `protobuf:"varint,5,opt,name=environments_per_workspace,json=environmentsPerWorkspace,proto3" json:"environments_per_workspace,omitempty"`
 	ResourcesPerWorkspace    int32 `protobuf:"varint,6,opt,name=resources_per_workspace,json=resourcesPerWorkspace,proto3" json:"resources_per_workspace,omitempty"`
 	WebhooksPerWorkspace     int32 `protobuf:"varint,7,opt,name=webhooks_per_workspace,json=webhooksPerWorkspace,proto3" json:"webhooks_per_workspace,omitempty"`
-	// tokens_per_entity counts the API tokens of one user, organization, workspace or resource.
+	// tokens_per_entity counts the unexpired API tokens of one user, organization, workspace or resource.
 	TokensPerEntity int32 `protobuf:"varint,8,opt,name=tokens_per_entity,json=tokensPerEntity,proto3" json:"tokens_per_entity,omitempty"`
 	// domains_per_resource counts a resource's domains in one environment.
 	DomainsPerResource int32 `protobuf:"varint,9,opt,name=domains_per_resource,json=domainsPerResource,proto3" json:"domains_per_resource,omitempty"`
@@ -279,8 +279,7 @@ type CountLimits struct {
 	LogRetentionDays    int32 `protobuf:"varint,13,opt,name=log_retention_days,json=logRetentionDays,proto3" json:"log_retention_days,omitempty"`
 	TraceRetentionDays  int32 `protobuf:"varint,14,opt,name=trace_retention_days,json=traceRetentionDays,proto3" json:"trace_retention_days,omitempty"`
 	MetricRetentionDays int32 `protobuf:"varint,15,opt,name=metric_retention_days,json=metricRetentionDays,proto3" json:"metric_retention_days,omitempty"`
-	// expired_token_retention_days is how many days an expired API token stays listed before it is
-	// deleted. Expired tokens never count toward tokens_per_entity.
+	// expired_token_retention_days is how many days an expired API token stays listed before it is deleted.
 	ExpiredTokenRetentionDays int32 `protobuf:"varint,16,opt,name=expired_token_retention_days,json=expiredTokenRetentionDays,proto3" json:"expired_token_retention_days,omitempty"`
 	unknownFields             protoimpl.UnknownFields
 	sizeCache                 protoimpl.SizeCache

@@ -79,8 +79,7 @@ type Querier interface {
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
 	DeleteEventsBefore(ctx context.Context, arg DeleteEventsBeforeParams) (int64, error)
 	DeleteExpiredAPITokenByName(ctx context.Context, arg DeleteExpiredAPITokenByNameParams) error
-	// A token is deleted once it has been expired for its organization's expired_token_retention_days;
-	// user and system tokens, and organizations without an override, keep the install default.
+	// Tokens without an organization override, personal tokens included, use the install default retention.
 	DeleteExpiredAPITokens(ctx context.Context, defaultRetentionDays int32) error
 	DeleteExpiredPlacementWindows(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteExpiredPullRegistryCredentials(ctx context.Context) (int64, error)

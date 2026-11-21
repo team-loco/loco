@@ -174,8 +174,7 @@ UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1;
 -- name: DeleteAPITokenByHash :exec
 DELETE FROM api_tokens WHERE token_hash = $1;
 
--- A token is deleted once it has been expired for its organization's expired_token_retention_days;
--- user and system tokens, and organizations without an override, keep the install default.
+-- Tokens without an organization override, personal tokens included, use the install default retention.
 -- name: DeleteExpiredAPITokens :exec
 DELETE FROM api_tokens
 WHERE id IN (

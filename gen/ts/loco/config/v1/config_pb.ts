@@ -282,7 +282,7 @@ export type CountLimits = Message<"loco.config.v1.CountLimits"> & {
   webhooksPerWorkspace: number;
 
   /**
-   * tokens_per_entity counts the API tokens of one user, organization, workspace or resource.
+   * tokens_per_entity counts the unexpired API tokens of one user, organization, workspace or resource.
    *
    * @generated from field: int32 tokens_per_entity = 8;
    */
@@ -334,8 +334,7 @@ export type CountLimits = Message<"loco.config.v1.CountLimits"> & {
   metricRetentionDays: number;
 
   /**
-   * expired_token_retention_days is how many days an expired API token stays listed before it is
-   * deleted. Expired tokens never count toward tokens_per_entity.
+   * expired_token_retention_days is how many days an expired API token stays listed before it is deleted.
    *
    * @generated from field: int32 expired_token_retention_days = 16;
    */
@@ -391,7 +390,7 @@ export type CountLimitsJson = {
   webhooksPerWorkspace?: number;
 
   /**
-   * tokens_per_entity counts the API tokens of one user, organization, workspace or resource.
+   * tokens_per_entity counts the unexpired API tokens of one user, organization, workspace or resource.
    *
    * @generated from field: int32 tokens_per_entity = 8;
    */
@@ -443,8 +442,7 @@ export type CountLimitsJson = {
   metricRetentionDays?: number;
 
   /**
-   * expired_token_retention_days is how many days an expired API token stays listed before it is
-   * deleted. Expired tokens never count toward tokens_per_entity.
+   * expired_token_retention_days is how many days an expired API token stays listed before it is deleted.
    *
    * @generated from field: int32 expired_token_retention_days = 16;
    */

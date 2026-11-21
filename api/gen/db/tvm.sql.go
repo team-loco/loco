@@ -193,8 +193,7 @@ WHERE id IN (
 )
 `
 
-// A token is deleted once it has been expired for its organization's expired_token_retention_days;
-// user and system tokens, and organizations without an override, keep the install default.
+// Tokens without an organization override, personal tokens included, use the install default retention.
 func (q *Queries) DeleteExpiredAPITokens(ctx context.Context, defaultRetentionDays int32) error {
 	_, err := q.db.Exec(ctx, deleteExpiredAPITokens, defaultRetentionDays)
 	return err
