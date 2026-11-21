@@ -40,7 +40,7 @@ func (c *Client) QueryMetrics(
 	}
 	query, args := buildMetricsQuery(req, c.queryTimeout)
 
-	rows, err := c.conn.Query(ctx, query, args...)
+	rows, err := c.query(ctx, "QueryMetrics", query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse metrics query: %w", err)
 	}

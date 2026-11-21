@@ -27,7 +27,7 @@ func (c *Client) QueryLogBuckets(
 	query := fmt.Sprintf("SELECT toStartOfInterval(Timestamp, INTERVAL %d SECOND) AS bucket, %s AS value, count() "+
 		"FROM otel_logs WHERE %s GROUP BY bucket, value ORDER BY bucket, value SETTINGS max_execution_time = %d",
 		intervalSeconds, column, strings.Join(where, " AND "), int(c.queryTimeout.Seconds()))
-	rows, err := c.conn.Query(ctx, query, b.args...)
+	rows, err := c.query(ctx, "QueryLogBuckets", query, b.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query log buckets: %w", err)
 	}
