@@ -1,4 +1,4 @@
-import { SegmentedScope, SegmentedThumb, segmentedGroupClass, segmentedItemClass } from "./Segmented";
+import { SegmentedScope, SegmentedThumb, segmentedGroupClass, segmentedItemClass, segmentedRoot } from "./Segmented";
 import { createContext, use, useState, type ReactNode } from "react";
 
 import { ToggleGroup as ToggleGroupBase, ToggleGroupItem as ToggleGroupItemBase } from "@/components/ui/toggle-group";
@@ -30,6 +30,7 @@ function ToggleGroup({
 			<SegmentedScope>
 				<ToggleGroupBase
 					data-segmented={segmented || undefined}
+					render={segmented ? segmentedRoot : undefined}
 					variant={segmented ? "default" : variant}
 					spacing={segmented ? 0.5 : spacing}
 					className={cn(segmented && segmentedGroupClass, className)}
