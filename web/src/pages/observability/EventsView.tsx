@@ -1,6 +1,11 @@
 import { useListNavigation } from "@/hooks/useListNavigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@connectrpc/connect";
+import { createConnectQueryKey, useQuery, useTransport } from "@connectrpc/connect-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import type { MessageInitShape } from "@bufbuild/protobuf";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
+import { EventService, type ListEventsRequestSchema } from "@gen/loco/event/v1/event_pb";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Link } from "react-router";
 import { PlusIcon } from "lucide-react";
@@ -11,20 +16,23 @@ import { CellText, DataTable, useDataTable, type DataColumn } from "@/components
 import { Pager } from "@/components/design/Pager";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
-import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
-import { formatCount } from "@/lib/format";
-import { pagedRows, pagingParsers, type Paging } from "@/lib/paging";
-import { resolveWindow, type TimeWindow } from "@/lib/obs-time";
+import { eventTypesQuery } from "@/lib/audit-query";
+import { useTokenPage } from "@/hooks/useTokenPage";
+import { formatTotal, pageTokensParser, pagingParsers, tokenPageLabel, tokenPager } from "@/lib/paging";
+import { resolveWindow } from "@/lib/obs-time";
 import { newResourcePath } from "@/lib/routes";
-import { agoLabel, tsMs } from "@/lib/time";
+import { agoLabel, msToTimestamp } from "@/lib/time";
+import { ENVIRONMENT_EVENT_TYPES, runtimeEvent } from "@/lib/runtime-events";
 import { cn } from "@/lib/utils";
 
-import { filteredResources, useObs } from "./context";
+import { useObs } from "./context";
 import { EventDetail, EventIcon } from "./EventDetail";
-import { eventValue, eventItem, eventWindow, type EventItem, type Severity } from "./events";
+import { eventItem, type EventItem, type Severity } from "./events";
+import { eventsQuery } from "./eventsQuery";
 import { ObsHero, WidenRangeButton } from "./ObsEmpty";
-import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
+import { liveTokens, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
 import { LiveButton } from "./Toolbar";
@@ -32,17 +40,16 @@ import { ViewHeader } from "./ViewHeader";
 
 const DEFAULT_PAGE_SIZE = 25;
 const EVENTS_PARAMS = {
-	...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE),
+	pages: pageTokensParser,
+	size: pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE).size,
 	live: parseAsStringLiteral(["0"]),
 	event: parseAsString,
 };
 const NOW_TICK_MS = 30_000;
-const HISTORY_BUCKET_MS = 15 * 60_000;
-
-/** Window start rounded down to a bucket, so the history query key holds still between ticks. */
-function historyStart(range: TimeWindow, nowMs: number): number {
-	return Math.floor(resolveWindow(range, nowMs).from / HISTORY_BUCKET_MS) * HISTORY_BUCKET_MS;
-}
+// Live mode without the event stream polls the page this often, and the counts on a slower clock.
+const POLL_MS = 10_000;
+const FACETS_MS = 60_000;
+const EVENT_KEYS = ["type", "severity", "region", "reason", "actor", "resource"] as const;
 
 type Show = "all" | "warning" | "error";
 
@@ -60,66 +67,69 @@ export function EventsView() {
 	const now = useNow(NOW_TICK_MS);
 	const nowMs = now.getTime();
 
-	const { events, isLoading, error, refetch } = useWorkspaceEvents(
+	const span = resolveWindow(range, nowMs);
+	const base = {
+		orgId,
 		workspaceId,
-		resources.map((r) => r.raw),
-		live,
-		historyStart(range, nowMs),
+		environmentId: environment?.id ?? "",
+		types: ENVIRONMENT_EVENT_TYPES,
+		readableResources: true,
+		startTime: msToTimestamp(span.from),
+		...(range.kind === "absolute" ? { endTime: msToTimestamp(span.to) } : {}),
+	};
+	const enabled = orgId !== "" && workspaceId !== "" && environment !== undefined;
+	const chips = EVENT_KEYS.flatMap((key) => liveTokens("events", tokens, key));
+	const resourceChips = chips.filter((t) => t.key === "resource");
+	const query = eventsQuery(chips, text);
+	const canStream = useMyScopes().resourceGrants(orgId, workspaceId) === "workspace";
+	const streamFailed = useEventStream({ orgId, workspaceId, openedAt, on: live && canStream && enabled });
+	const poll = live && (!canStream || streamFailed) ? POLL_MS : false;
+	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.pages, {
+		enabled,
+		refetchInterval: poll,
+		placeholderData: keepPreviousData,
+	});
+	const facets = useQuery(
+		listEvents,
+		{ ...base, pageSize: 1, includeFacets: true },
+		{ enabled, refetchInterval: poll === false ? false : FACETS_MS, placeholderData: keepPreviousData },
 	);
-	const { from, to } = eventWindow(range, nowMs, tsMs(events[0]?.timestamp));
-	const visible = new Set(filteredResources("events", resources, tokens).map((r) => r.id));
-	const words = text.toLowerCase().split(" ").filter(Boolean);
-	const inRange = events
-		.filter((e) => {
-			const ts = tsMs(e.timestamp);
-			return ts >= from && ts <= to;
-		})
-		.map(eventItem);
-	const all = inRange.filter((e) => visible.has(e.resourceId));
-	const sevCounts: Record<Severity, number> = { error: 0, warning: 0, normal: 0 };
-	for (const e of all) sevCounts[e.severity]++;
-	const keys = ["type", "severity", "region", "reason", "actor"] as const;
-	const items = all.filter(
-		(e) =>
-			keys.every((key) => passes([eventValue(e, key)], liveTokens("events", tokens, key))) &&
-			words.every((w) => `${e.type} ${e.title} ${e.reason} ${e.detail} ${e.resourceName}`.toLowerCase().includes(w)),
+	const counted = { base, resourceChips, enabled, live: poll !== false };
+	const allCount = useSeverityCount(counted, null);
+	const warningCount = useSeverityCount(counted, "warning");
+	const errorCount = useSeverityCount(counted, "error");
+	const names = new Map(resources.map((r) => [r.id, r.slug]));
+	const items = (page.query.data?.events ?? []).map((e) =>
+		eventItem({ ...runtimeEvent(e), resourceId: e.resourceId, resourceName: names.get(e.resourceId) ?? "" }),
 	);
+	const error = page.query.error ?? facets.error;
+	const refetch = async () => await Promise.all([page.query.refetch(), facets.refetch()]);
 	const show: Show = tokens.some((t) => t.key === "severity" && !t.neg && t.value === "error")
 		? "error"
 		: tokens.some((t) => t.key === "severity" && !t.neg && t.value === "warning")
 			? "warning"
 			: "all";
 
-	const paging = { page: params.page, size: params.size };
-	const setPaging = (next: Paging) => {
-		void setParams(next);
-	};
-	const paged = pagedRows(items, paging, setPaging, PAGE_SIZES, "0");
+	const pager = tokenPager(params.pages, page.nextPageToken, (pages) => {
+		if (!page.query.isPlaceholderData) void setParams({ pages });
+	});
 	const selKey = params.event;
 	const selIdx = selKey !== null ? items.findIndex((x) => x.id === selKey) : -1;
 	const selItem = selIdx >= 0 ? items[selIdx] : undefined;
 	const select = (key: string | null) => {
-		const idx = key === null ? -1 : items.findIndex((x) => x.id === key);
-		void setParams(idx >= 0 ? { event: key, page: Math.floor(idx / paging.size) } : { event: key });
+		void setParams({ event: key });
 	};
-	const loading = isLoading || resourcesLoading;
-	const query = queryStr(tokens, text);
-	const valueCounts = (key: FieldKey): [string, number][] => {
-		const counts = new Map<string, number>();
-		for (const e of inRange) {
-			const value = eventValue(e, key);
-			if (value !== "") counts.set(value, (counts.get(value) ?? 0) + 1);
-		}
-		return [...counts];
-	};
+	const loading = page.query.isPending || resourcesLoading;
+	const valueCounts = (key: FieldKey): [string, number][] =>
+		(facets.data?.facets.find((f) => f.key === key)?.values ?? []).map((v) => [v.value, v.count]);
 	const onListKeyDown = useListNavigation(
-		paged.rows.map((e) => e.id),
+		items.map((e) => e.id),
 		selItem?.id ?? null,
 		select,
 	);
 	const table = useDataTable("events", {
 		columns: eventColumns(nowMs),
-		data: paged.rows,
+		data: items,
 		getRowId: (e) => e.id,
 	});
 
@@ -146,7 +156,7 @@ export function EventsView() {
 			</>
 		);
 	}
-	if (!loading && inRange.length === 0 && query === "") {
+	if (!loading && allCount === 0 && query === "") {
 		const hasResources = resources.length > 0;
 		return (
 			<>
@@ -191,13 +201,13 @@ export function EventsView() {
 								setQuery(next === "warning" || next === "error" ? [...rest, SHOW_TOKENS[next]] : rest, text);
 							}}
 						>
-							<ToggleGroupItem value="all" count={formatCount(all.length)}>
+							<ToggleGroupItem value="all" count={countLabel(allCount)}>
 								All
 							</ToggleGroupItem>
-							<ToggleGroupItem value="warning" count={formatCount(sevCounts.warning)}>
+							<ToggleGroupItem value="warning" count={countLabel(warningCount)}>
 								Warnings
 							</ToggleGroupItem>
-							<ToggleGroupItem value="error" count={formatCount(sevCounts.error)}>
+							<ToggleGroupItem value="error" count={countLabel(errorCount)}>
 								Errors
 							</ToggleGroupItem>
 						</ToggleGroup>
@@ -214,7 +224,19 @@ export function EventsView() {
 						rowLabel={(row) => row.original.title}
 						rowClassName={(row) => row.original.ts > openedAt && "animate-row-flash motion-reduce:animate-none"}
 					/>
-					<Pager {...paged.pager} {...paged.ends} />
+					<Pager
+						label={tokenPageLabel(pager.page, params.size, items.length, page.total)}
+						page={pager.page}
+						total={items.length}
+						pageSizes={PAGE_SIZES}
+						pageSize={params.size}
+						onPageSize={(size) => {
+							void setParams({ size: PAGE_SIZES.find((n) => n === size) ?? null, pages: null });
+						}}
+						onFirst={pager.onFirst}
+						onPrev={pager.onPrev}
+						onNext={pager.onNext}
+					/>
 				</section>
 				<EventDetail
 					onKeyDown={onListKeyDown}
@@ -240,6 +262,83 @@ export function EventsView() {
 			</div>
 		</>
 	);
+}
+
+/**
+ * Streams the workspace's new runtime events while on and refetches the listed pages and counts when
+ * one arrives, so live rows show as they happen. Returns whether the stream failed, so the view polls.
+ */
+function useEventStream({
+	orgId,
+	workspaceId,
+	openedAt,
+	on,
+}: {
+	orgId: string;
+	workspaceId: string;
+	openedAt: number;
+	on: boolean;
+}): boolean {
+	const transport = useTransport();
+	const queryClient = useQueryClient();
+	const [failed, setFailed] = useState<string | null>(null);
+	const key = `${orgId}/${workspaceId}`;
+	useEffect(() => {
+		if (!on) return;
+		const abort = new AbortController();
+		const consume = async () => {
+			try {
+				const client = createClient(EventService, transport);
+				for await (const message of client.streamEvents(
+					{
+						orgId,
+						workspaceId,
+						startTime: msToTimestamp(openedAt),
+						query: eventTypesQuery(ENVIRONMENT_EVENT_TYPES),
+					},
+					{ signal: abort.signal },
+				)) {
+					if (message.events.length > 0)
+						void queryClient.invalidateQueries({
+							queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
+						});
+				}
+			} catch {
+				if (!abort.signal.aborted) setFailed(key);
+			}
+		};
+		void consume();
+		return () => {
+			abort.abort();
+		};
+	}, [on, orgId, workspaceId, openedAt, transport, queryClient, key]);
+	return failed === key;
+}
+
+/** The events the resource chips keep, of one severity or all, for the severity tabs. */
+function useSeverityCount(
+	{
+		base,
+		resourceChips,
+		enabled,
+		live,
+	}: {
+		base: Omit<MessageInitShape<typeof ListEventsRequestSchema>, "$typeName">;
+		resourceChips: Token[];
+		enabled: boolean;
+		live: boolean;
+	},
+	severity: Exclude<Severity, "normal"> | null,
+): number | undefined {
+	const chips = severity === null ? resourceChips : [...resourceChips, SHOW_TOKENS[severity]];
+	return useTokenPage(listEvents, { ...base, query: eventsQuery(chips, ""), pageSize: 1 }, [], {
+		enabled,
+		refetchInterval: live ? FACETS_MS : false,
+	}).total;
+}
+
+function countLabel(count: number | undefined): string | undefined {
+	return count === undefined ? undefined : formatTotal(count);
 }
 
 function eventColumns(nowMs: number): DataColumn<EventItem>[] {
