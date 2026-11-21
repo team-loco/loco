@@ -74,17 +74,17 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	);
 	const routeNotFound =
 		workspacesSettled &&
-		!urlWorkspace.isLoading &&
-		!urlOrg.isLoading &&
 		orgParam !== undefined &&
 		// not_found and invalid_argument mean the organization or workspace is absent. A denial counts as absent
 		// only for the workspace lookup, which runs for a caller who can read the workspace.
 		(resourceMissing(urlOrg.error, false) ||
 			resourceMissing(urlWorkspace.error, true) ||
-			!routeKnown(
-				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
-				scopes.scopes,
-			));
+			(!urlWorkspace.isLoading &&
+				!urlOrg.isLoading &&
+				!routeKnown(
+					{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
+					scopes.scopes,
+				)));
 
 	if (signedOut) {
 		return <Navigate to="/login" replace state={nextPathState(pathname + search + hash)} />;
