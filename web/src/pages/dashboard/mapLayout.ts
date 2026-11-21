@@ -60,6 +60,7 @@ interface Column {
 	count: number;
 	label: boolean;
 	more: boolean;
+	centered?: boolean;
 }
 
 interface PlacedColumn {
@@ -78,7 +79,7 @@ function columnHeight(c: Column): number {
 }
 
 function placeColumn(c: Column, x: number, height: number): PlacedColumn {
-	let y = (height - columnHeight(c)) / 2;
+	let y = c.centered === true ? (height - columnHeight(c)) / 2 : 0;
 	let label: MapPoint | null = null;
 	if (c.label) {
 		label = { x, y };
@@ -152,6 +153,7 @@ export function mapLayout(rows: DashboardItem[], regionOrder: string[], availabl
 			count: shownInternal.length,
 			label: true,
 			more: internalRows.length > shownInternal.length,
+			centered: true,
 		});
 	}
 
