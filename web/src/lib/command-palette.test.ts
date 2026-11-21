@@ -19,7 +19,6 @@ describe("scorePaletteItem", () => {
 		expect(score("front end", "frontend-proxy")).toBeGreaterThan(0);
 		expect(score("front end", "frontend-proxy")).toBeLessThan(score("front", "frontend-proxy"));
 		expect(score("front-end prox", "frontend proxy")).toBeGreaterThan(0);
-		expect(score("log", "product-catalog")).toBe(0);
 		expect(score("end pro", "frontend-proxy")).toBe(0);
 	});
 

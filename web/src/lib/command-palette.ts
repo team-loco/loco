@@ -17,6 +17,5 @@ export function scorePaletteItem(_value: string, search: string, keywords: strin
 // A query typed with different separators than the item ("front end" for "frontend-proxy") matches from a word start.
 function matchesJoined(textWords: string[], query: string): boolean {
 	const joined = query.split(WORDS).join("");
-	if (joined === "") return false;
 	return textWords.some((_, i) => textWords.slice(i).join("").startsWith(joined));
 }
