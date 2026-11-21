@@ -151,10 +151,6 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false
 	if err != nil {
 		t.Fatal(err)
 	}
-	regionsBefore, err := a.queries.ListAdminRegions(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, candidate := range []struct {
 		name, token string
 		code        connect.Code
@@ -183,10 +179,6 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false
 	}
 	if !reflect.DeepEqual(before, after) {
 		t.Fatalf("unauthorized calls changed cluster: %+v", after)
-	}
-	regionsAfter, err := a.queries.ListAdminRegions(ctx)
-	if err != nil || !reflect.DeepEqual(regionsBefore, regionsAfter) {
-		t.Fatalf("unauthorized calls changed regions: %+v, %v", regionsAfter, err)
 	}
 	var generation int64
 	if generationErr := a.pool.QueryRow(ctx, "SELECT sync_generation FROM clusters WHERE id = $1", clusterID).

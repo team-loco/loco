@@ -118,7 +118,6 @@ func TestCreateClusterRefusesRegionsThatAreNotDNSLabels(t *testing.T) {
 		{Country: "US", Subdivision: "ca"},
 		{Country: "us", Subdivision: "c-a"},
 		{Country: "us"},
-		{Country: "us", Local: true},
 	} {
 		req := &clusterv1.CreateClusterRequest{
 			RequestId: uuid.NewString(),
@@ -149,15 +148,8 @@ func TestCreateClusterRetryKeepsItsNewRegion(t *testing.T) {
 func TestLocalClustersShareLocal1(t *testing.T) {
 	t.Parallel()
 	f := newRegionFixture(t)
-	local := func(name string) *clusterv1.CreateClusterRequest {
-		return &clusterv1.CreateClusterRequest{
-			RequestId: uuid.NewString(),
-			Name:      name,
-			Target:    &clusterv1.CreateClusterRequest_NewRegion{NewRegion: &clusterv1.NewRegion{Local: true}},
-		}
-	}
-	first := f.create(t, local(""))
-	second := f.create(t, local("builds"))
+	first := f.create(t, inRegionRequest(localRegion, ""))
+	second := f.create(t, inRegionRequest(localRegion, "builds"))
 	if first.GetRegion() != localRegion || first.GetName() != localRegion || second.GetRegion() != localRegion {
 		t.Fatalf("local clusters = %v, %v; want both in local-1", first, second)
 	}

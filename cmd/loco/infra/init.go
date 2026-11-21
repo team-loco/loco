@@ -111,7 +111,7 @@ func initCmdFunc(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	region, err := fetchDefaultRegion(ctx, t)
+	region, err := fetchDefaultRegion(ctx, t, apiConfig.GetDefaultRegion())
 	if err != nil {
 		return err
 	}
@@ -158,20 +158,16 @@ func fetchConfig(cmd *cobra.Command) (*configv1.GetConfigResponse, error) {
 	return resp, nil
 }
 
-func fetchDefaultRegion(ctx context.Context, t cmdutil.Target) (string, error) {
+func fetchDefaultRegion(ctx context.Context, t cmdutil.Target, configured string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	config, err := t.Clients.Config.GetConfig(ctx, &configv1.GetConfigRequest{})
-	if err != nil {
-		return "", fmt.Errorf("could not fetch the default region from the API: %w", err)
-	}
 	req := &resourcev1.ListRegionsRequest{EnvironmentId: t.Environment.GetId()}
 	resp, err := t.Clients.Resource.ListRegions(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list regions from the API: %w", err)
 	}
-	return defaultRegion(config.GetDefaultRegion(), resp.GetRegions())
+	return defaultRegion(configured, resp.GetRegions())
 }
 
 // defaultRegion picks configured when the environment lists it, and otherwise its only available region.

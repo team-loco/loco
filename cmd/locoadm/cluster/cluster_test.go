@@ -209,13 +209,18 @@ func TestClusterCreateAndJoinTokenPrintTheToken(t *testing.T) {
 func TestClusterCreateDescribesTheRegionToCreate(t *testing.T) {
 	for _, tc := range []struct {
 		args []string
-		want *clusterv1.NewRegion
+		want *clusterv1.CreateClusterRequest
 	}{
 		{
 			args: []string{clusterCreate, "--" + flagCountry, "us", "--" + flagSubdivision, "ca"},
-			want: &clusterv1.NewRegion{Country: "us", Subdivision: "ca"},
+			want: &clusterv1.CreateClusterRequest{Target: &clusterv1.CreateClusterRequest_NewRegion{
+				NewRegion: &clusterv1.NewRegion{Country: "us", Subdivision: "ca"},
+			}},
 		},
-		{args: []string{clusterCreate, "--" + flagLocal}, want: &clusterv1.NewRegion{Local: true}},
+		{
+			args: []string{clusterCreate, "--" + flagLocal},
+			want: &clusterv1.CreateClusterRequest{Target: &clusterv1.CreateClusterRequest_Region{Region: "local-1"}},
+		},
 	} {
 		fake := &fakeClusterAdmin{t: t}
 		cmd, _ := clusterTestCommand(t, fake)
@@ -223,8 +228,9 @@ func TestClusterCreateDescribesTheRegionToCreate(t *testing.T) {
 		if err := cmd.Execute(); err != nil {
 			t.Fatal(err)
 		}
-		if !proto.Equal(fake.created.GetNewRegion(), tc.want) || fake.created.GetName() != "" {
-			t.Fatalf("%v created %v, want new region %v", tc.args, fake.created, tc.want)
+		got := &clusterv1.CreateClusterRequest{Name: fake.created.GetName(), Target: fake.created.GetTarget()}
+		if !proto.Equal(got, tc.want) {
+			t.Fatalf("%v created %v, want %v", tc.args, fake.created, tc.want)
 		}
 	}
 	for _, args := range [][]string{

@@ -137,9 +137,7 @@ type NewRegion struct {
 	// such as us; lowercase letters and digits
 	Country string `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
 	// such as ca, the state or province; lowercase letters and digits
-	Subdivision string `protobuf:"bytes,2,opt,name=subdivision,proto3" json:"subdivision,omitempty"`
-	// the development region local-1 in place of a country and subdivision
-	Local         bool `protobuf:"varint,3,opt,name=local,proto3" json:"local,omitempty"`
+	Subdivision   string `protobuf:"bytes,2,opt,name=subdivision,proto3" json:"subdivision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,13 +184,6 @@ func (x *NewRegion) GetSubdivision() string {
 		return x.Subdivision
 	}
 	return ""
-}
-
-func (x *NewRegion) GetLocal() bool {
-	if x != nil {
-		return x.Local
-	}
-	return false
 }
 
 type Cluster struct {
@@ -573,7 +564,7 @@ type isCreateClusterRequest_Target interface {
 }
 
 type CreateClusterRequest_Region struct {
-	// code of a region that has a cluster
+	// code of a region that has a cluster, or local-1
 	Region string `protobuf:"bytes,2,opt,name=region,proto3,oneof"`
 }
 
@@ -1293,11 +1284,10 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"A\n" +
 	"\x06Region\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12#\n" +
-	"\rcluster_count\x18\x02 \x01(\x05R\fclusterCount\"\x85\x01\n" +
+	"\rcluster_count\x18\x02 \x01(\x05R\fclusterCount\"o\n" +
 	"\tNewRegion\x12,\n" +
-	"\acountry\x18\x01 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]*$R\acountry\x124\n" +
-	"\vsubdivision\x18\x02 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]*$R\vsubdivision\x12\x14\n" +
-	"\x05local\x18\x03 \x01(\bR\x05local\"\xb7\x04\n" +
+	"\acountry\x18\x01 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\acountry\x124\n" +
+	"\vsubdivision\x18\x02 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\vsubdivision\"\xb7\x04\n" +
 	"\aCluster\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vcluster_key\x18\x02 \x01(\tR\n" +

@@ -16,13 +16,7 @@ import (
 
 const localRegion = "local-1"
 
-var (
-	errRegionNotFound = rpcerr.NewCoded(connect.CodeNotFound, "region has no cluster")
-	errNewRegionPlace = rpcerr.NewCoded(
-		connect.CodeInvalidArgument,
-		"a new region needs a country and a subdivision, or local alone",
-	)
-)
+var errRegionNotFound = rpcerr.NewCoded(connect.CodeNotFound, "region has no cluster")
 
 type RegionAdminServer struct {
 	queries genDb.Querier
@@ -46,13 +40,9 @@ func (s *RegionAdminServer) ListRegions(
 	}
 	response := &clusterv1.ListRegionsResponse{Regions: make([]*clusterv1.Region, 0, len(rows))}
 	for _, row := range rows {
-		response.Regions = append(response.Regions, regionToProto(row))
+		response.Regions = append(response.Regions, &clusterv1.Region{Code: row.Code, ClusterCount: row.ClusterCount})
 	}
 	return response, nil
-}
-
-func regionToProto(row genDb.ListAdminRegionsRow) *clusterv1.Region {
-	return &clusterv1.Region{Code: row.Code, ClusterCount: row.ClusterCount}
 }
 
 // clusterRegion returns the region a new cluster joins: a region that has a cluster, local-1, or a
@@ -63,19 +53,7 @@ func clusterRegion(
 	qtx *genDb.Queries,
 	req *clusterv1.CreateClusterRequest,
 ) (code string, fresh bool, err error) {
-	spec := req.GetNewRegion()
-	switch {
-	case spec == nil:
-		code = req.GetRegion()
-	case spec.GetLocal():
-		if spec.GetCountry() != "" || spec.GetSubdivision() != "" {
-			return "", false, errNewRegionPlace
-		}
-		code = localRegion
-	default:
-		if spec.GetCountry() == "" || spec.GetSubdivision() == "" {
-			return "", false, errNewRegionPlace
-		}
+	if spec := req.GetNewRegion(); spec != nil {
 		prefix := regionPrefix(spec)
 		n, numberErr := qtx.NextRegionNumber(ctx, prefix)
 		if numberErr != nil {
@@ -83,6 +61,7 @@ func clusterRegion(
 		}
 		return fmt.Sprintf("%s-%d", prefix, n), true, nil
 	}
+	code = req.GetRegion()
 	populated, err := qtx.RegionHasClusters(ctx, code)
 	if err != nil {
 		return "", false, fmt.Errorf("read region: %w", err)
@@ -100,13 +79,9 @@ func regionPrefix(spec *clusterv1.NewRegion) string {
 // sameRegion reports whether code is a region the request asks for.
 func sameRegion(code string, req *clusterv1.CreateClusterRequest) bool {
 	spec := req.GetNewRegion()
-	switch {
-	case spec == nil:
+	if spec == nil {
 		return code == req.GetRegion()
-	case spec.GetLocal():
-		return code == localRegion
-	default:
-		n, ok := strings.CutPrefix(code, regionPrefix(spec)+"-")
-		return ok && n != "" && strings.Trim(n, "0123456789") == ""
 	}
+	n, ok := strings.CutPrefix(code, regionPrefix(spec)+"-")
+	return ok && n != "" && strings.Trim(n, "0123456789") == ""
 }

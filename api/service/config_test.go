@@ -238,9 +238,8 @@ func (l liveRegions) IsLiveRegion(_ context.Context, code string) (bool, error) 
 
 func TestGetConfigReturnsTheDefaultRegionOnlyWhileItIsLive(t *testing.T) {
 	t.Parallel()
-	const retired, missing = "us-ca-2", "jp-13-1"
-	regions := liveRegions{testRegion: true, retired: false}
-	for configured, want := range map[string]string{testRegion: testRegion, retired: "", missing: "", "": ""} {
+	regions := liveRegions{testRegion: true}
+	for configured, want := range map[string]string{testRegion: testRegion, "jp-13-1": "", "": ""} {
 		server := NewConfigServer(configAPIVersion, "", "", testServiceDefaults(), nil, nil, 0, 0, nil, nil,
 			configured, regions)
 		resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})

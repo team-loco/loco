@@ -10160,7 +10160,7 @@
             "title": "region",
             "maxLength": 255,
             "minLength": 1,
-            "description": "code of a region that has a cluster"
+            "description": "code of a region that has a cluster, or local-1"
           },
           "newRegion": {
             "title": "new_region",
@@ -10285,19 +10285,14 @@
           "country": {
             "type": "string",
             "title": "country",
-            "pattern": "^[a-z0-9]*$",
+            "pattern": "^[a-z0-9]+$",
             "description": "such as us; lowercase letters and digits"
           },
           "subdivision": {
             "type": "string",
             "title": "subdivision",
-            "pattern": "^[a-z0-9]*$",
+            "pattern": "^[a-z0-9]+$",
             "description": "such as ca, the state or province; lowercase letters and digits"
-          },
-          "local": {
-            "type": "boolean",
-            "title": "local",
-            "description": "the development region local-1 in place of a country and subdivision"
           }
         },
         "title": "NewRegion",

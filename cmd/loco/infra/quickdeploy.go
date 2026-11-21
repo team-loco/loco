@@ -80,7 +80,7 @@ func buildQuickDeploy(cmd *cobra.Command, names []string, t cmdutil.Target) (*lo
 	}
 	if region == "" {
 		ctx := cmd.Context()
-		region, err = fetchDefaultRegion(ctx, t)
+		region, err = fetchDefaultRegion(ctx, t, config.GetDefaultRegion())
 		if err != nil {
 			return nil, nil, err
 		}

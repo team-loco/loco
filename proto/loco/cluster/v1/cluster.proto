@@ -34,11 +34,9 @@ message Region {
 // NewRegion describes the region CreateCluster creates. The API builds its code.
 message NewRegion {
   // such as us; lowercase letters and digits
-  string country = 1 [(buf.validate.field).string.pattern = "^[a-z0-9]*$"];
+  string country = 1 [(buf.validate.field).string.pattern = "^[a-z0-9]+$"];
   // such as ca, the state or province; lowercase letters and digits
-  string subdivision = 2 [(buf.validate.field).string.pattern = "^[a-z0-9]*$"];
-  // the development region local-1 in place of a country and subdivision
-  bool local = 3;
+  string subdivision = 2 [(buf.validate.field).string.pattern = "^[a-z0-9]+$"];
 }
 
 message Cluster {
@@ -91,7 +89,7 @@ message CreateClusterRequest {
   string name = 1 [(buf.validate.field).string.max_len = 255];
   oneof target {
     option (buf.validate.oneof).required = true;
-    // code of a region that has a cluster
+    // code of a region that has a cluster, or local-1
     string region = 2 [(buf.validate.field).string = {
       min_len: 1
       max_len: 255

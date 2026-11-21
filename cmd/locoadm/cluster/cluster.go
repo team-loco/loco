@@ -38,6 +38,8 @@ const (
 	flagSubdivision = "subdivision"
 	flagLocal       = "local"
 	flagForce       = "force"
+
+	localRegion = "local-1"
 )
 
 type adminClient = clusterv1connect.ClusterAdminServiceClient
@@ -255,6 +257,9 @@ func createCluster(
 	if err != nil {
 		return nil, err
 	}
+	if local {
+		flags[flagRegion] = localRegion
+	}
 	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: flags[flagName]}
 	if flags[flagRegion] != "" {
 		request.Target = &clusterv1.CreateClusterRequest_Region{Region: flags[flagRegion]}
@@ -262,7 +267,6 @@ func createCluster(
 		request.Target = &clusterv1.CreateClusterRequest_NewRegion{NewRegion: &clusterv1.NewRegion{
 			Country:     flags[flagCountry],
 			Subdivision: flags[flagSubdivision],
-			Local:       local,
 		}}
 	}
 	request.Ttl, err = tokenTTL(cmd)
