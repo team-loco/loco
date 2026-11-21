@@ -23,6 +23,8 @@ export interface AccessChoices {
 	workspacesLoading: boolean;
 	resourcesLoading: boolean;
 	error: unknown;
+	/** The message for an error that carries none. */
+	errorFallback: string;
 	retry: () => void;
 }
 
@@ -110,14 +112,15 @@ export function useAccessChoices({
 			? 0
 			: Math.max(0, wsPage.totalCount - wsPage.workspaces.length);
 
-	const errorQuery = [wsQuery, ...resourceQueries].find((q) => q.error !== null);
+	const resourcesError = resourceQueries.find((q) => q.error !== null)?.error ?? null;
 	return {
 		workspaces: slash !== -1 ? [] : owned !== null ? listed.filter(named) : listed,
 		resources,
 		more: workspacesMore + resourcesMore,
 		workspacesLoading: listsWorkspaces && wsQuery.isPending,
 		resourcesLoading: resourceQueries.some((q) => q.isPending && q.fetchStatus !== "idle"),
-		error: errorQuery?.error ?? null,
+		error: wsQuery.error ?? resourcesError,
+		errorFallback: wsQuery.error === null ? "Failed to load resources" : "Failed to load workspaces",
 		retry: () => {
 			for (const q of [wsQuery, ...resourceQueries]) if (q.error !== null) void q.refetch();
 		},

@@ -177,6 +177,14 @@ with session(repo / "tests/ui/out/tokens") as browser:
     ).to_be_visible()
     assert private not in listed, listed
 
+    # ArrowRight on a highlighted workspace lists its resources.
+    search.fill("sibling")
+    expect(
+        options.get_by_role("option", name=re.compile(r"^sibling"))
+    ).to_have_attribute("data-highlighted", "")
+    search.press("ArrowRight")
+    expect(search).to_have_value("sibling/")
+
     # A resource listed under a workspace shows the access its organization already grants.
     search.fill("")
     options.get_by_role("option", name=re.compile(r"^acme")).click()
@@ -186,6 +194,65 @@ with session(repo / "tests/ui/out/tokens") as browser:
     expect(
         options.get_by_role("option", name=re.compile(r"^storefront-web"))
     ).to_contain_text("Included in acme")
+    assert not errors, errors
+    context.close()
+
+    # Duplicating waits for a resource's workspace, through which the organization grants its access.
+    call(
+        state,
+        "loco.token.v1.TokenService/CreateToken",
+        {
+            "name": "inherits",
+            "entityType": "ENTITY_TYPE_ORGANIZATION",
+            "entityId": org,
+            "expiresInSec": "3600",
+            "scopes": [
+                {
+                    "entityType": "ENTITY_TYPE_RESOURCE",
+                    "entityId": state["tokens_resources"]["acme/sibling/inventory-api"],
+                    "scope": "SCOPE_READ",
+                }
+            ],
+        },
+    )
+    context, page, errors = open_page(
+        browser,
+        state=state,
+        storage={"loco:active-org:v1": org, "loco:active-workspace:v1": shared},
+    )
+    held = []
+
+    def hold_sibling(route):
+        if (route.request.post_data_json or {}).get("workspaceId") == sibling:
+            held.append(route)
+        else:
+            route.fallback()
+
+    page.route("**/loco.workspace.v1.WorkspaceService/GetWorkspace", hold_sibling)
+    page.goto(state["ui_url"] + "/tokens?owner=org")
+    page.get_by_role("button", name="Actions for inherits").click()
+    page.get_by_role("menuitem", name="Duplicate").click()
+    drawer = page.get_by_role("dialog", name="New token")
+    expect(drawer).to_have_count(0)
+    assert held, "GetWorkspace for sibling was not requested"
+    for route in held:
+        route.fallback()
+    page.unroute("**/loco.workspace.v1.WorkspaceService/GetWorkspace")
+    expect(drawer.get_by_role("group", name="Level for inventory-api")).to_be_visible()
+    expect(drawer.get_by_text("sibling", exact=True)).to_be_visible()
+    assert not errors, errors
+    context.close()
+
+    # A member is offered only the workspaces it can read.
+    context, page, errors = open_page(browser, "member", state=state)
+    page.goto(state["ui_url"] + "/tokens?owner=user")
+    page.get_by_role("button", name="New token", exact=True).first.click()
+    drawer = page.get_by_role("dialog", name="New token")
+    search = drawer.locator('input[aria-label="Add a workspace or resource"]')
+    search.focus()
+    options = page.get_by_role("listbox")
+    expect(options.get_by_role("option", name=re.compile(r"^shared"))).to_be_visible()
+    expect(options.get_by_role("option", name=re.compile(r"^private"))).to_have_count(0)
     assert not errors, errors
     context.close()
 
