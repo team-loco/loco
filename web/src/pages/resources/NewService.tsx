@@ -66,6 +66,7 @@ import { derivedSlugError, nameError, slug as slugOf } from "@/lib/slug";
 import { useServiceDeploy, type DeployError } from "@/hooks/useServiceDeploy";
 
 const SKELETON_ROWS = 6;
+const REGION_POLL_MS = 15_000;
 const NON_DIGITS_RE = /\D/g;
 const NETWORK_PUBLIC = "public";
 const NETWORK_INTERNAL = "internal";
@@ -305,7 +306,11 @@ function DraftPanel({
 	const store = useDrafts(orgId, workspaceId, env.id);
 	const taken = useTakenKeys(orgId, workspaceId);
 	const configQuery = useRpcQuery(getConfig, {});
-	const regionsQuery = useRpcQuery(listRegions, { environmentId: env.id });
+	const regionsQuery = useRpcQuery(
+		listRegions,
+		{ environmentId: env.id },
+		{ refetchInterval: open ? REGION_POLL_MS : false, refetchOnWindowFocus: true },
+	);
 	const domainsQuery = useRpcQuery(listPlatformDomains, { environmentId: env.id });
 	const deployment = useServiceDeploy(workspaceId, env);
 	const navigate = useNavigate();
