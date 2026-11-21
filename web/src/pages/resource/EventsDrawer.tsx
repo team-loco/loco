@@ -2,6 +2,7 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { Link } from "react-router";
 import type { RuntimeEvent as Event } from "@/lib/runtime-events";
 
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -10,7 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 
-import { isWarning } from "./events";
+import { eventRows } from "./events";
 import { formatFullTime } from "./format";
 
 export type EventsTab = "all" | "warnings";
@@ -45,28 +46,31 @@ function EventList({
 	}
 	if (error !== null)
 		return <p className="py-10 text-center text-bad-fg">{getErrorMessage(error, "Failed to load events")}</p>;
-	const shown = warningsOnly ? events.filter(isWarning) : events;
+	const shown = eventRows(events).filter((row) => !warningsOnly || row.warning);
 	if (shown.length === 0) {
 		return <p className="py-10 text-center text-fg3">{warningsOnly ? "No warnings." : "No events yet."}</p>;
 	}
 	return (
 		<ol className="m-0 list-none p-0">
-			{shown.map((e) => {
-				const ms = maybeTsMs(e.timestamp);
+			{shown.map((row) => {
+				const ms = maybeTsMs(row.event.timestamp);
 				return (
 					<li
-						key={e.id}
+						key={row.event.id}
 						className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-[11px] border-b border-line2 py-2.5 last:border-b-0"
 					>
 						<span className="pt-0.5">
-							<StatusGlyph glyph={isWarning(e) ? "warn" : "off"} />
-							<span className="sr-only">{isWarning(e) ? "Warning" : "Normal"}</span>
+							<StatusGlyph glyph={row.glyph} />
+							<span className="sr-only">{row.warning ? "Warning" : "Normal"}</span>
 						</span>
 						<span className="flex min-w-0 flex-col gap-0.5">
-							<span className="text-[13.5px]">
-								{e.reason === "" ? "Service recovered" : e.reason.replaceAll("_", " ")}
+							<span className="flex flex-wrap items-center gap-[7px] text-[13.5px]">
+								{row.title}
+								{row.count > 1 && <Badge tone="pill">{`×${row.count.toString()}`}</Badge>}
 							</span>
-							<span className="text-[12.5px] break-words text-fg2">{e.message}</span>
+							{row.detail !== "" && (
+								<span className="font-mono text-[11.5px] [overflow-wrap:anywhere] text-fg3">{row.detail}</span>
+							)}
 						</span>
 						<span
 							className="font-mono text-[11.5px] whitespace-nowrap text-fg3"
@@ -139,7 +143,7 @@ export function EventsDrawer({
 				</SheetBody>
 				{eventsHref !== undefined && (
 					<SheetFooter className="justify-between">
-						<span className="text-[12.5px] text-fg3">Newest first</span>
+						<span className="text-[12.5px] text-fg3">Last 7 days</span>
 						<Button variant="link" nativeButton={false} render={<Link to={eventsHref} />}>
 							Open in Events
 						</Button>

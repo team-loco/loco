@@ -190,22 +190,21 @@ function entriesLine(entries: string[] | undefined): string | null {
 	return entries === undefined || entries.length === 0 ? null : JSON.stringify(entries);
 }
 
-export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
+export interface SpecRow extends SpecChange {
+	same: boolean;
+}
+
+/** Every setting the two deployments run with, marking the ones that match. */
+export function specRows(from: Deployment, to: Deployment): SpecRow[] {
 	const f = getServiceSpec(from);
 	const t = getServiceSpec(to);
-	const out: SpecChange[] = [];
-	const push = (label: string, a: string | null, b: string | null) => {
-		if (a !== b) out.push({ label, from: a, to: b });
+	const out: SpecRow[] = [];
+	const push = (label: string, a: string | null, b: string | null, same = a === b) => {
+		out.push({ label, from: a, to: b, same });
 	};
 	const fromImage = f?.build?.image ?? "";
 	const toImage = t?.build?.image ?? "";
-	if (fromImage !== toImage) {
-		out.push({
-			label: "image",
-			from: shortImageRef(fromImage) || null,
-			to: shortImageRef(toImage) || null,
-		});
-	}
+	push("image", shortImageRef(fromImage) || null, shortImageRef(toImage) || null, fromImage === toImage);
 	push("replicas", desiredReplicas(from).toString(), desiredReplicas(to).toString());
 	push("cpu", regionTarget(f)?.cpu ?? null, regionTarget(t)?.cpu ?? null);
 	push("memory", regionTarget(f)?.memory ?? null, regionTarget(t)?.memory ?? null);
@@ -218,4 +217,10 @@ export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
 	const keys = [...new Set([...Object.keys(fEnv), ...Object.keys(tEnv)])].toSorted();
 	for (const k of keys) push(`env.${k}`, fEnv[k] ?? null, tEnv[k] ?? null);
 	return out;
+}
+
+export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
+	return specRows(from, to)
+		.filter((row) => !row.same)
+		.map(({ label, from: a, to: b }) => ({ label, from: a, to: b }));
 }

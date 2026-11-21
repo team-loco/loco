@@ -1,6 +1,4 @@
 import { deploymentMessage } from "@/hooks/deployment-watch";
-import type { TimePreferences } from "@/lib/time";
-import { useTimePreferences } from "@/lib/use-time-preferences";
 import { skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
@@ -15,7 +13,6 @@ import { CopyId } from "@/components/design/CopyId";
 import { CellText, DataTable, expandColumn, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
@@ -25,7 +22,7 @@ import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/component
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { tookLabel } from "@/lib/activity-deploys";
-import { deploymentImage, isInFlight } from "@/lib/deployment-utils";
+import { deploymentProblem, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { maybeTsMs, readyMs, tsMs } from "@/lib/time";
@@ -37,7 +34,8 @@ import { formatCount } from "@/lib/format";
 
 import { buildStatusStyle, deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
 import { BuildDetail, BuildsTable, TIME_CELL, TimeAgo, type BuildActor } from "./BuildsTable";
-import { formatFullTime } from "./format";
+import { StepRail } from "./DeploymentProgress";
+import { rolloutSteps } from "./deployment-progress";
 import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
@@ -67,10 +65,6 @@ function leadRow(rows: readonly [Row, ...Row[]]): Row {
 		rows.find((r) => r.dep.status === DeploymentStatus.FAILED || r.dep.status === DeploymentStatus.CRASHED) ??
 		rows[0]
 	);
-}
-
-function timeFact(ms: number | undefined, pref: TimePreferences): string {
-	return ms === undefined ? "—" : formatFullTime(ms, false, pref);
 }
 
 function historyMessage(dep: Deployment): string {
@@ -104,7 +98,6 @@ function Detail({
 	onViewSpec: (dep: Deployment) => void;
 	onOpenBuild: (buildId: string) => void;
 }) {
-	const timePref = useTimePreferences();
 	const { dep, region, prev } = row;
 	const buildId = deploymentBuildId(dep);
 	const took = tookMs(dep);
@@ -112,22 +105,17 @@ function Detail({
 	return (
 		<div className="grid grid-cols-1 gap-6 pt-1.5 pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:pl-9">
 			<div className="flex min-w-0 flex-col gap-1.5">
-				<span className="flex items-center gap-2 text-[12px] text-fg3">
-					Rollout
-					<SoonTag />
-				</span>
-				<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
-					<dt className="text-fg3">Image</dt>
-					<dd className="m-0 break-all font-mono">{deploymentImage(dep)}</dd>
-					<dt className="text-fg3">Started</dt>
-					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt), timePref)}</dd>
-					<dt className="text-fg3">Deployed</dt>
-					<dd className="m-0 font-mono">{timeFact(readyMs(dep), timePref)}</dd>
-					<dt className="text-fg3">Completed</dt>
-					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.completedAt), timePref)}</dd>
-					<dt className="text-fg3">Took</dt>
-					<dd className="m-0 font-mono">{took === undefined ? "—" : tookLabel(took)}</dd>
-				</dl>
+				<span className="text-[12px] text-fg3">Rollout</span>
+				<StepRail
+					steps={rolloutSteps(dep, buildId !== undefined)}
+					note={(step) => {
+						if (step.state === "failed") return deploymentProblem(dep)?.message ?? "";
+						if (step.state === "stopped") return "Canceled";
+						return step.key === "deploy" && step.state === "done" && took !== undefined
+							? `took ${tookLabel(took)}`
+							: "";
+					}}
+				/>
 			</div>
 			<div className="flex min-w-0 flex-col gap-1.5">
 				<span className="text-[12px] text-fg3">Changes from previous</span>
@@ -173,6 +161,11 @@ function Detail({
 					<FileCodeIcon />
 					View spec
 				</Button>
+				{dep.commit !== undefined && (
+					<CopyId value={dep.commit.sha} className="h-[30px] px-2.5 text-[12.5px] text-fg2">
+						Copy SHA
+					</CopyId>
+				)}
 				{buildId !== undefined && (
 					<Button
 						variant="outline"
@@ -184,11 +177,6 @@ function Detail({
 						<HammerIcon />
 						Build <span className="font-mono">{formatShortId(buildId)}</span>
 					</Button>
-				)}
-				{dep.commit !== undefined && (
-					<CopyId value={dep.commit.sha} className="h-[30px] px-2.5 text-[12.5px] text-fg2">
-						Copy SHA
-					</CopyId>
 				)}
 			</div>
 		</div>
@@ -282,6 +270,7 @@ function rolloutColumns(
 
 export function DeploymentsSection({
 	resourceId,
+	resourceName,
 	workspaceId,
 	environmentId,
 	regions,
@@ -298,6 +287,7 @@ export function DeploymentsSection({
 	nowMs,
 }: {
 	resourceId: string;
+	resourceName: string;
 	workspaceId: string;
 	environmentId: string | undefined;
 	regions: RegionView[];
@@ -358,6 +348,8 @@ export function DeploymentsSection({
 		]),
 	);
 	const buildRows = pagedRows(builds.builds, buildPaging, setBuildPaging, BUILD_PAGE_SIZES);
+	const running = regions.flatMap((r) => (r.current === undefined ? [] : [r.current]));
+	const imageOnly = running.length > 0 && running.every((dep) => deploymentBuildId(dep) === undefined);
 
 	const goBuild = (buildId: string) => {
 		const index = builds.builds.findIndex((build) => build.id === buildId);
@@ -484,6 +476,7 @@ export function DeploymentsSection({
 							deploymentFor={buildDeployment}
 							logsHref={buildLogsHref}
 							onCanceled={builds.refresh}
+							emptyText={imageOnly ? `No builds. ${resourceName} runs a public image.` : "No builds yet."}
 						/>
 					</div>
 					<Pager

@@ -333,6 +333,7 @@ export function BuildsTable({
 	deploymentFor,
 	logsHref,
 	onCanceled,
+	emptyText,
 }: {
 	builds: Build[];
 	actors: ReadonlyMap<string, BuildActor>;
@@ -344,6 +345,7 @@ export function BuildsTable({
 	deploymentFor: (buildId: string) => BuildDeploymentLink | undefined;
 	logsHref: (buildId: string) => string | undefined;
 	onCanceled: () => void;
+	emptyText: string;
 }) {
 	const table = useDataTable("builds", {
 		columns: buildColumns(actors, nowMs, openId, onOpen),
@@ -354,7 +356,7 @@ export function BuildsTable({
 		<DataTable
 			table={table}
 			label="Builds"
-			empty={<div className="flex h-24 items-center justify-center text-fg3">No builds yet.</div>}
+			empty={<div className="flex h-24 items-center justify-center text-fg3">{emptyText}</div>}
 			onRowClick={(row) => {
 				onOpen(openId === row.id ? null : row.id);
 			}}

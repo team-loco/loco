@@ -480,7 +480,7 @@ const STEP_GLYPH: Record<StepState, Glyph> = {
 	stopped: "off",
 };
 
-function StepRail({ steps, note }: { steps: RolloutStep[]; note: (step: RolloutStep) => string }) {
+export function StepRail({ steps, note }: { steps: RolloutStep[]; note: (step: RolloutStep) => string }) {
 	return (
 		<ol aria-label="Rollout steps" className="m-0 flex list-none flex-col p-0">
 			{steps.map((step, i) => (
