@@ -182,9 +182,9 @@ func activityToProto(rows []genDb.DeploymentActivity) []*deploymentv1.Activity {
 	return activity
 }
 
+// isTerminalDeploymentStatus reports a status a deployment never leaves; a failed one can still recover.
 func isTerminalDeploymentStatus(status deploymentv1.DeploymentStatus) bool {
-	return status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED ||
-		status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED ||
+	return status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED ||
 		status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED
 }
 

@@ -71,7 +71,11 @@ Settings update requests use optional fields. Omitted fields and JSON `null` pre
 
 `ClusterAdminService.CreateCluster` and `IssueJoinToken` accept an optional positive `ttl` duration, bounded by `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` (default `168h`). Omission uses `LOCO_CLUSTER_JOIN_TOKEN_TTL` (default `1h`).
 
-`DeploymentService.WatchDeployment` returns the current deployment and activity entries after `after_seq`, in batches of at most 200. `has_more_activity` indicates another batch is ready. Resume with the last entry's `seq` after a disconnect. The stream ends on canceled or superseded deployments; a failed deployment can still recover to running. `GetDeployment` includes the current replicas, and `ListDeployments` omits replicas.
+`DeploymentService.WatchDeployment` streams a deployment and its activity entries. The first message is a snapshot: the whole deployment and the entries after `after_seq`. Each later message carries the whole deployment again, sent when it changes or new entries arrive. Entries come in batches of at most 200; `has_more_activity` indicates another batch is ready. An entry's `seq` increases within its deployment and stays valid for as long as the deployment exists.
+
+The stream ends once the deployment is canceled or superseded. A failed deployment can still recover to running, so the stream continues after `FAILED`. Every stream ends after 30 minutes with `DeadlineExceeded`. To resume after any disconnect, open a new stream with `after_seq` set to the last `seq` received; the first message brings the deployment up to date. A caller with 25 open watch streams on one API instance gets `ResourceExhausted` and can retry once one closes. `NotFound` means the deployment does not exist, was deleted, or is not visible to the caller; reconnecting does not help.
+
+`GetDeployment` includes the current replicas, and `ListDeployments` omits replicas.
 
 ## Operator repository
 

@@ -86,7 +86,7 @@ func TestDeploymentStatusMapping(t *testing.T) {
 		{genDb.DeploymentStatusRunning, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING, false},
 		{genDb.DeploymentStatusDegraded, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED, false},
 		{genDb.DeploymentStatusCrashed, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED, false},
-		{genDb.DeploymentStatusFailed, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED, true},
+		{genDb.DeploymentStatusFailed, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED, false},
 		{genDb.DeploymentStatusCanceled, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED, true},
 		{genDb.DeploymentStatusSuperseded, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED, true},
 	} {

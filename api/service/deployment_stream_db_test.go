@@ -207,6 +207,56 @@ func TestDeploymentStreamTerminalStatuses(t *testing.T) {
 	}
 }
 
+func TestDeploymentStreamFollowsFailedDeploymentRecovery(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := uuid.MustParse(created.GetDeploymentId())
+	for _, statement := range []string{
+		`UPDATE deployment_placements SET status='failed' WHERE deployment_id=$1`,
+		`UPDATE deployments SET status='failed' WHERE id=$1`,
+	} {
+		if _, err = f.pool.Exec(t.Context(), statement, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	client := f.watchClient(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	stream, err := client.WatchDeployment(ctx, &deploymentv1.WatchDeploymentRequest{DeploymentId: id.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	initial, err := stream.Receive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if initial.GetDeployment().GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
+		t.Fatalf("initial status=%s", initial.GetDeployment().GetStatus())
+	}
+	placement := f.placement(t, f.clusterID)
+	f.agentServer().recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
+		PlacementId:      placement.ID.String(),
+		ObservedRevision: placement.DesiredRevision,
+		DesiredReplicas:  1,
+		Available:        true,
+		Healthy:          true,
+	})
+	for {
+		event, err := stream.Receive()
+		if err != nil {
+			t.Fatalf("stream ended before the deployment recovered: %v", err)
+		}
+		if event.GetDeployment().GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
+			return
+		}
+	}
+}
+
 func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
