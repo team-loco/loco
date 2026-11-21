@@ -309,7 +309,7 @@ function DraftPanel({
 	const regionsQuery = useRpcQuery(
 		listRegions,
 		{ environmentId: env.id },
-		{ refetchInterval: open ? REGION_POLL_MS : false, refetchOnWindowFocus: true },
+		{ refetchInterval: open ? REGION_POLL_MS : false, refetchOnWindowFocus: open },
 	);
 	const domainsQuery = useRpcQuery(listPlatformDomains, { environmentId: env.id });
 	const deployment = useServiceDeploy(workspaceId, env);
