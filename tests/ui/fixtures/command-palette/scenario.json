@@ -10,7 +10,8 @@
       "name": "acme",
       "owner": "owner",
       "workspaces": [
-        "shared"
+        "shared",
+        "sibling"
       ]
     }
   ],

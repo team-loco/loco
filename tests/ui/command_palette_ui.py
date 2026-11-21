@@ -32,6 +32,13 @@ with session(out) as browser:
     results = palette.get_by_role("listbox", name="Results")
     query = palette.get_by_role("combobox", name="Search resources, pages and actions")
 
+    # Before any typing the palette offers the organization's other workspaces.
+    expect(
+        results.get_by_role("group", name="Workspaces").get_by_role(
+            "option", name=re.compile("^Switch to sibling")
+        )
+    ).to_be_visible()
+
     query.fill("log")
     expect(results.get_by_role("option", name="Logs for api")).to_be_visible()
     expect(results.get_by_role("option").first).to_have_accessible_name(

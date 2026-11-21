@@ -77,7 +77,7 @@ const PALETTE_GROUPS = ["This page", "Actions", "Resources", "Pages", "Workspace
 const SEARCH_GROUPS = ["This page", "Actions", "Pages", "Resources", "Workspaces", "Appearance", "Help"] as const;
 const KEY_HINT = "bg-panel2 text-fg3 inset-ring-0";
 const BROWSE_LIMIT = 8;
-// Searching lists this many of the newest workspaces and this many that match the typed text.
+// The palette lists this many of the newest workspaces, and a search this many more that match the typed text.
 const PALETTE_WORKSPACES = 20;
 
 interface PaletteItem {
@@ -329,12 +329,12 @@ function useWorkspaceItems(query: string): PaletteItem[] {
 	const scopes = useMyScopes();
 	const orgId = activeOrgId ?? "";
 	const text = query.trim();
-	const enabled = text !== "" && activeOrgId !== null && !scopes.isLoading && scopes.orgMember(activeOrgId);
-	const newest = useConnectQuery(listOrgWorkspaces, { orgId, pageSize: PALETTE_WORKSPACES }, { enabled });
+	const member = activeOrgId !== null && !scopes.isLoading && scopes.orgMember(activeOrgId);
+	const newest = useConnectQuery(listOrgWorkspaces, { orgId, pageSize: PALETTE_WORKSPACES }, { enabled: member });
 	const matching = useConnectQuery(
 		listOrgWorkspaces,
 		{ orgId, pageSize: PALETTE_WORKSPACES, query: text },
-		{ enabled, placeholderData: keepPreviousData },
+		{ enabled: member && text !== "", placeholderData: keepPreviousData },
 	);
 	const workspaces = new Map(
 		[...(newest.data?.workspaces ?? []), ...(matching.data?.workspaces ?? [])].map((w) => [w.id, w]),
