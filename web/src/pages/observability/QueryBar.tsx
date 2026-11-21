@@ -76,7 +76,7 @@ export type ValueCounts = (key: FieldKey) => [string, number][];
 function placeholder(view: string): string {
 	switch (view) {
 		case "logs":
-			return "Search messages, or type @ to filter by resource, level, status…";
+			return "Search messages, or type @ to filter by resource, level, replica…";
 		case "metrics":
 			return "Type @resource to filter";
 		default:
@@ -307,6 +307,7 @@ export function QueryBar({
 
 	const curQuery = queryStr(tokens, text);
 	const pinned = curQuery !== "" && pinnedList.includes(curQuery);
+	const applies = support.some((s) => s.ok) || (searchesText(view) && text.trim() !== "");
 
 	const onChange = (v: string) => {
 		const m = hasBoolean(v) ? null : COMPLETED_TOKEN_RE.exec(v);
@@ -416,7 +417,7 @@ export function QueryBar({
 							Clear
 						</Button>
 					)}
-					{curQuery !== "" && (
+					{curQuery !== "" && (pinned || applies) && (
 						<Button
 							variant="ghost"
 							size="icon-xs"
