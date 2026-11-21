@@ -25,14 +25,12 @@ export function CreateScopeDialog({
 	kind: ScopeKind | null;
 	onOpenChange: (open: boolean) => void;
 }) {
-	const { orgs } = useOrgWorkspace();
 	const navigate = useNavigate();
 	if (kind === "org") {
 		return (
 			<CreateOrgDialog
 				open
 				onOpenChange={onOpenChange}
-				existingNames={orgs.map((org) => org.name)}
 				onSuccess={(orgId, workspaceId) => {
 					void navigate(workspacePath(orgId, workspaceId));
 				}}

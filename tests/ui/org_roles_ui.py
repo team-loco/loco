@@ -40,7 +40,8 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     dialog = page.get_by_role("dialog", name="New organization", exact=True)
     name = dialog.get_by_role("textbox", name="Name", exact=True)
     create = dialog.get_by_role("button", name="Create", exact=True)
-    name.fill("  acme  ")
+    with expect_rpc(page, "ListUserOrgs", lambda body: body.get("name") == "acme"):
+        name.fill("  acme  ")
     expect(dialog.get_by_text("acme is taken.", exact=True)).to_be_visible()
     expect(create).to_be_disabled()
     name.fill("   ")
@@ -50,7 +51,9 @@ with session(repo / "tests/ui/out/org_roles") as browser:
         dialog.get_by_text("Use at most 100 characters.", exact=True)
     ).to_be_visible()
     expect(create).to_be_disabled()
-    for accepted in ("a", "ACME", "Acme & Partners", "a" * 100, "🚀" * 100):
+    name.fill("ACME")
+    expect(dialog.get_by_text("ACME is taken.", exact=True)).to_be_visible()
+    for accepted in ("a", "Acme & Partners", "a" * 100, "🚀" * 100):
         name.fill(accepted)
         expect(name).to_have_value(accepted)
         expect(create).to_be_enabled()

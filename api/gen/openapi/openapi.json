@@ -14209,6 +14209,12 @@
             "type": "boolean",
             "title": "include_total_count",
             "description": "Sets total_count in the response."
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "maxLength": 200,
+            "description": "Only the organization with exactly this name, ignoring case."
           }
         },
         "title": "ListUserOrgsRequest",

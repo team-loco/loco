@@ -46,7 +46,7 @@ function OrgListSkeleton() {
 export function Organizations() {
 	const navigate = useNavigate();
 	const { user } = useAuth();
-	const { activeOrgId, setActiveOrg, orgs: knownOrgs } = useOrgWorkspace();
+	const { activeOrgId, setActiveOrg } = useOrgWorkspace();
 	const [createOrgOpen, setCreateOrgOpen] = useQueryState("new", parseAsInteger.withDefault(0));
 	const scopes = useMyScopes();
 	const [params, setParams] = useQueryStates(PAGE_PARAMS, { history: "replace" });
@@ -169,7 +169,6 @@ export function Organizations() {
 					void setCreateOrgOpen(open ? 1 : null);
 				}}
 				onSuccess={handleCreateOrgSuccess}
-				existingNames={knownOrgs.map((org) => org.name)}
 			/>
 		</Page>
 	);
