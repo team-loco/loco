@@ -33,7 +33,7 @@ describe("mapLayout", () => {
 		expect((layout.gateways[0]?.x ?? 0) - MAP_NODE_W).toBe(MAP_MIN_GAP);
 	});
 
-	test("each column's rows stack downwards and are centred on the tallest column", () => {
+	test("each column's rows stack downwards and the Internet, gateway and public columns start at the top", () => {
 		const layout = mapLayout(
 			[
 				row("api", { domain: "api.example.dev" }),
@@ -48,8 +48,8 @@ describe("mapLayout", () => {
 		expect(ys.toSorted((a, b) => a - b)).toEqual(ys);
 		expect(new Set(layout.publicNodes.map((n) => n.x)).size).toBe(1);
 		expect(layout.height).toBe((ys.at(-1) ?? 0) + MAP_NODE_H);
-		expect(middle(layout.internet?.y)).toBeCloseTo(layout.height / 2);
-		expect(middle(layout.gateways[0]?.y)).toBeCloseTo(layout.height / 2);
+		expect(layout.internet?.y).toBe(0);
+		expect(layout.gateways[0]?.y).toBe(0);
 	});
 
 	test("edges join Internet to gateways and gateways to the public resources they serve, never internal ones", () => {
