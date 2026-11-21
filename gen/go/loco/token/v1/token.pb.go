@@ -140,10 +140,12 @@ func (Scope) EnumDescriptor() ([]byte, []int) {
 
 // EntityScope represents a permission on a specific entity.
 type EntityScope struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         Scope                  `protobuf:"varint,1,opt,name=scope,proto3,enum=loco.token.v1.Scope" json:"scope,omitempty"`
-	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
-	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Scope      Scope                  `protobuf:"varint,1,opt,name=scope,proto3,enum=loco.token.v1.Scope" json:"scope,omitempty"`
+	EntityType EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
+	EntityId   string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	// Display name of the organization, workspace or resource, set by ListTokens when the caller can read it.
+	Name          string `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -195,6 +197,13 @@ func (x *EntityScope) GetEntityType() EntityType {
 func (x *EntityScope) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
+	}
+	return ""
+}
+
+func (x *EntityScope) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
@@ -842,14 +851,15 @@ var File_loco_token_v1_token_proto protoreflect.FileDescriptor
 
 const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/token/v1/token.proto\x12\rloco.token.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb4\x01\n" +
+	"\x19loco/token/v1/token.proto\x12\rloco.token.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\x01\n" +
 	"\vEntityScope\x126\n" +
 	"\x05scope\x18\x01 \x01(\x0e2\x14.loco.token.v1.ScopeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05scope\x12F\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"entityType\x12%\n" +
-	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\"\xb8\x03\n" +
+	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"\xb8\x03\n" +
 	"\x05Token\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
