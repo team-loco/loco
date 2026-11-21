@@ -110,12 +110,11 @@ type record struct {
 	TTL       int64  `json:"ttl,omitempty"`
 	Expires   int64  `json:"expires,omitempty"`
 	Releasing bool   `json:"releasing,omitempty"`
-	// Releaser and ReleaserStarted name the process removing a releasing lease's resources.
-	Releaser        int        `json:"releaser,omitempty"`
-	ReleaserStarted string     `json:"releaserStarted,omitempty"`
-	Users           []string   `json:"users,omitempty"`
-	Resources       []resource `json:"resources,omitempty"`
-	Ports           []int      `json:"ports,omitempty"`
+	// Releaser is the ID of the process removing a releasing lease's resources.
+	Releaser  int        `json:"releaser,omitempty"`
+	Users     []string   `json:"users,omitempty"`
+	Resources []resource `json:"resources,omitempty"`
+	Ports     []int      `json:"ports,omitempty"`
 }
 
 type resource struct {
@@ -310,12 +309,7 @@ func (r *Registry) markDead(ctx context.Context, match func(record) bool) ([]str
 			if alive {
 				continue
 			}
-			claimed, err := claimRelease(ctx, &rec)
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			if !claimed {
+			if !claimRelease(&rec) {
 				continue
 			}
 			if err := r.write(rec); err != nil {
@@ -377,9 +371,8 @@ func (l *Lease) Renew() error {
 func (l *Lease) Release(ctx context.Context) error {
 	claimed := false
 	if err := l.update(func(rec *record) error {
-		var err error
-		claimed, err = claimRelease(ctx, rec)
-		return err
+		claimed = claimRelease(rec)
+		return nil
 	}); err != nil {
 		return err
 	}
@@ -395,22 +388,16 @@ func (l *Lease) Release(ctx context.Context) error {
 
 // claimRelease marks a record as released by this process, unless another live process is
 // releasing it. Callers hold the registry lock, so exactly one process removes a lease's resources.
-func claimRelease(ctx context.Context, rec *record) (bool, error) {
+func claimRelease(rec *record) bool {
 	if rec.Releasing && rec.Releaser != 0 {
-		started, err := startTime(ctx, rec.Releaser)
-		if err != nil {
-			return false, err
-		}
-		if started == rec.ReleaserStarted {
-			return false, nil
+		// Signal 0 checks that the process exists; EPERM means it exists under another user.
+		err := syscall.Kill(rec.Releaser, 0)
+		if err == nil || errors.Is(err, syscall.EPERM) {
+			return false
 		}
 	}
-	self, err := startTime(ctx, os.Getpid())
-	if err != nil {
-		return false, err
-	}
-	rec.Releasing, rec.Releaser, rec.ReleaserStarted = true, os.Getpid(), self
-	return true, nil
+	rec.Releasing, rec.Releaser = true, os.Getpid()
+	return true
 }
 
 func (l *Lease) update(change func(*record) error) error {
