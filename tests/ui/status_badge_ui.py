@@ -30,7 +30,7 @@ def runtime(replicas):
         "build": {"type": "image", "image": "example.invalid/badge:1"},
         "port": 8080,
         "regions": {
-            "us-east-1": {
+            "us-ca-1": {
                 "cpu": "100m",
                 "memory": "128Mi",
                 "minReplicas": replicas,
@@ -44,7 +44,7 @@ def service():
     return {
         "routing": {"port": 8080},
         "regions": {
-            "us-east-1": {
+            "us-ca-1": {
                 "enabled": True,
                 "cpu": "100m",
                 "memory": "128Mi",
@@ -75,7 +75,7 @@ evidence.seed_resources(
                     "environment": "production",
                     "status": "running",
                     "spec": runtime(2),
-                    "placements": {"us-east-1": {"ready_replicas": 1}},
+                    "placements": {"us-ca-1": {"ready_replicas": 1}},
                 }
             ],
         },

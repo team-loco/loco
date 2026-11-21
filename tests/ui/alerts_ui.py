@@ -17,7 +17,7 @@ out.mkdir(parents=True, exist_ok=True)
 state = load_state(args, "alerts", "tests/ui/fixtures/deployment-history/scenario.json")
 workspace = state["workspaces"]["acme/shared"]
 org = state["orgs"]["acme"]["id"]
-REGION = "us-east-1"
+REGION = "us-ca-1"
 with session(out) as browser:
     cluster = evidence.seed_cluster(state, REGION)
     resource = evidence.seed_resources(

@@ -28,14 +28,14 @@ const (
 	domainsThird          = "c.test"
 	domainsPath           = "domains"
 	domainsTwoRegionSpec  = `{"routing":{"port":8080},"regions":{` +
-		`"us-east-1":{"enabled":true,"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1},` +
-		`"eu-west-1":{"enabled":true,"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
+		`"us-ca-1":{"enabled":true,"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1},` +
+		`"us-va-1":{"enabled":true,"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 	domainsTwoRegionFile = `  new:
     port: 8080
     domains: [new.loco.test]
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
-      eu-west-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-va-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 )
 
@@ -136,14 +136,14 @@ func TestPlanRejectsADomainOneRegionsClusterDoesNotServe(t *testing.T) {
 		t.Fatalf("plan = %v, want one error and no operations", resp)
 	}
 	want := "a cluster the service deploys to does not serve the domain: new.loco.test is under loco.test, " +
-		"which eu-cluster (eu-west-1) does not serve"
+		"which eu-cluster (us-va-1) does not serve"
 	planErr := resp.GetErrors()[0]
 	if planErr.GetPath() != domainsPath || planErr.GetMessage() != want {
 		t.Fatalf("error = %v, want %q", planErr, want)
 	}
 
 	singleRegion := strings.Replace(domainsTwoRegionFile,
-		"      eu-west-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }\n", "", 1)
+		"      us-va-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }\n", "", 1)
 	resp, err = plan(t, f, planFileHeader+singleRegion, f.workspaceReadScopes(t))
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
@@ -178,7 +178,7 @@ func TestCreateResourceDomainNamesTheClustersMissingTheDomain(t *testing.T) {
 
 	err := client.add(domainsServedHostname)
 	wantCode(t, err, connect.CodeFailedPrecondition)
-	if !strings.Contains(err.Error(), "which eu-cluster (eu-west-1) does not serve") {
+	if !strings.Contains(err.Error(), "which eu-cluster (us-va-1) does not serve") {
 		t.Fatalf("err = %v, want it to name eu-cluster", err)
 	}
 	if n := f.count(t, `SELECT count(*) FROM resource_domains WHERE resource_id = $1`); n != 0 {
@@ -202,7 +202,7 @@ func TestCreateResourceDomainNeedsTheDomainOnTheClusterThatRunsIt(t *testing.T) 
 
 	err = client.add(domainsServedHostname)
 	wantCode(t, err, connect.CodeFailedPrecondition)
-	if !strings.Contains(err.Error(), "which c2 (us-east-1) does not serve") {
+	if !strings.Contains(err.Error(), "which c2 (us-ca-1) does not serve") {
 		t.Fatalf("err = %v, want it to name c2, the cluster the resource runs on", err)
 	}
 }
@@ -252,7 +252,7 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 	for _, domain := range resp.GetPlatformDomains() {
 		got[domain.GetDomain()] = domain.GetRegions()
 	}
-	want := map[string][]string{domainsFirst: {testRegion}, domainsSecond: {statusSecondRegion, testRegion}}
+	want := map[string][]string{domainsFirst: {testRegion}, domainsSecond: {testRegion, statusSecondRegion}}
 	if len(got) != len(want) {
 		t.Fatalf("domains = %v, want %v", got, want)
 	}

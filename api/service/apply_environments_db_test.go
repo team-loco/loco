@@ -20,34 +20,34 @@ const (
     domains: [worker.loco.test]
     env: { LOG_LEVEL: info }
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
     environments:
       staging:
         routing: { pathPrefix: /staging }
         domains: [worker-staging.loco.test]
         env: { LOG_LEVEL: debug }
         regions:
-          us-east-1: { cpu: 250m, replicas: { max: 2 } }
+          us-ca-1: { cpu: 250m, replicas: { max: 2 } }
 `
 	applyFileWorkerMoreReplicas = `  worker:
     image: nginx:1.27
     port: 8080
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 3 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 3 } }
 `
 	applyFileWorkerSecondaries = `  worker:
     image: nginx:1.27
     port: 8080
     domains: [worker.loco.test, z.loco.test, a.loco.test]
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 	applyFileWorkerSecondariesReordered = `  worker:
     image: nginx:1.27
     port: 8080
     domains: [worker.loco.test, a.loco.test, z.loco.test]
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 )
 

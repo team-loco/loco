@@ -618,7 +618,6 @@ func (s *ResourceServer) ListRegions(
 		}
 		regions = append(regions, &resourcev1.RegionInfo{
 			Region:       cluster.Region,
-			IsDefault:    cluster.IsDefault,
 			HealthStatus: derefString(cluster.HealthStatus),
 			Availability: availability,
 		})

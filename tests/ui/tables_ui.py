@@ -57,7 +57,7 @@ def seed():
     service = {
         "routing": {"port": 8080},
         "regions": {
-            "us-east-1": {
+            "us-ca-1": {
                 "enabled": True,
                 "cpu": "1500m",
                 "memory": "3Gi",
@@ -70,7 +70,7 @@ def seed():
         {
             "environment": env,
             "status": "running",
-            "spec": runtime(LONG_IMAGE, ["us-east-1", "eu-west-1"]),
+            "spec": runtime(LONG_IMAGE, ["us-ca-1", "us-va-1"]),
         }
         for env in ("production", "staging")
     ]
@@ -108,7 +108,7 @@ def seed():
         " request_id, data, created_at) VALUES"
         + ",".join(
             f"('resource.degraded', '{org}', '{workspace}', '{long_id}', '{production}', 'user', '{owner}', 'resource',"
-            f" 'req-tables-{i}', jsonb_build_object('region', 'us-east-1', 'environmentId', '{production}',"
+            f" 'req-tables-{i}', jsonb_build_object('region', 'us-ca-1', 'environmentId', '{production}',"
             f" 'reason', 'restarting', 'message', 'Back-off restarting app ' || repeat('layer-', 30)),"
             f" NOW() - INTERVAL '{i + 1} minutes')"
             for i in range(3)
@@ -562,7 +562,7 @@ def mock_telemetry(page):
             "body": f"Served checkout request {i} " + "with a long message " * 6,
             "resourceAttributes": {
                 "service.name": LONG_NAME,
-                "cloud.region": "eu-west-1",
+                "cloud.region": "us-va-1",
             },
             "logAttributes": {
                 "http.request.method": "GET",
@@ -716,7 +716,7 @@ def traces(page):
 
 def events_table(page):
     table = page.get_by_role("table", name="Events")
-    expect(table.get_by_role("row", name="Degraded in us-east-1")).to_have_count(3)
+    expect(table.get_by_role("row", name="Degraded in us-ca-1")).to_have_count(3)
     return table
 
 
@@ -725,15 +725,15 @@ def events(page):
     table = events_table(page)
     check_layout(table)
     fits_at_16px(page, table)
-    row = table.get_by_role("row", name="Degraded in us-east-1").first
+    row = table.get_by_role("row", name="Degraded in us-ca-1").first
     expect_pointer(page, row.get_by_role("cell").nth(2))
     expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
     table = check_resize(page, table, "Time", "Resource", events_table, "ArrowRight")
-    table.get_by_role("row", name="Degraded in us-east-1").first.get_by_role(
-        "cell"
-    ).nth(2).click()
+    table.get_by_role("row", name="Degraded in us-ca-1").first.get_by_role("cell").nth(
+        2
+    ).click()
     expect(
-        page.get_by_role("dialog", name="Degraded in us-east-1", exact=True)
+        page.get_by_role("dialog", name="Degraded in us-ca-1", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
 

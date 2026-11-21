@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	testRegion = "us-east-1"
+	testRegion = "us-ca-1"
 	testCPU    = "100m"
 	testMemory = "256Mi"
-	westRegion = "eu-west"
-	eastRegion = "us-east"
+	westRegion = "us-va-1"
+	eastRegion = "us-ca-1"
 )
 
 func mergeReplicas(t *testing.T, request, region [2]int32, defaults [2]int32) (int32, int32) {
@@ -94,13 +94,13 @@ func TestMergeDeploymentSpecSizesEveryTargetRegion(t *testing.T) {
 	}
 	got := merged.GetService().GetRegions()
 	if len(got) != 2 {
-		t.Fatalf("regions = %v, want eu-west and us-east only", got)
+		t.Fatalf("regions = %v, want us-va-1 and us-ca-1 only", got)
 	}
 	if eu := got[westRegion]; eu.GetCpu() != "250m" || eu.GetMemory() != testMemory || eu.GetMinReplicas() != 2 {
-		t.Errorf("eu-west = %v, want the region target over the defaults", eu)
+		t.Errorf("us-va-1 = %v, want the region target over the defaults", eu)
 	}
 	if us := got[eastRegion]; us.GetCpu() != testCPU || us.GetMemory() != "1Gi" || us.GetMinReplicas() != 5 {
-		t.Errorf("us-east = %v, want the request override over the region target", us)
+		t.Errorf("us-ca-1 = %v, want the request override over the region target", us)
 	}
 
 	for name, targets := range map[string][]string{

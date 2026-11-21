@@ -1,4 +1,6 @@
 import { useQueryState } from "nuqs";
+import { useQuery } from "@connectrpc/connect-query";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { Link } from "react-router";
 
 import { EmptyState } from "@/components/design/EmptyState";
@@ -45,6 +47,7 @@ export function Dashboard() {
 	const workspaceId = activeWorkspaceId ?? "";
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
 	const [draftId] = useQueryState(DRAFT_PARAM);
+	const defaultRegion = useQuery(getConfig, {}).data?.defaultRegion ?? "";
 	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id, { env: active?.slug ?? null });
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 	const loading = envsLoading || data.isLoading;
@@ -121,7 +124,7 @@ export function Dashboard() {
 					/>
 					<ResourcesTable
 						key={active.id}
-						items={[...data.envResources, ...draftItems(drafts, data.regions)]}
+						items={[...data.envResources, ...draftItems(drafts, data.regions, defaultRegion)]}
 						regions={data.regions}
 						orgId={orgId}
 						workspaceId={workspaceId}

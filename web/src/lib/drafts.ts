@@ -58,10 +58,11 @@ export function removeDraft(drafts: readonly Draft[], id: string): Draft[] {
 	return drafts.filter((d) => d.id !== id);
 }
 
-export function draftRegions(draft: Draft, regions: readonly RegionInfo[]): string[] {
+export function draftRegions(draft: Draft, regions: readonly RegionInfo[], defaultRegion: string): string[] {
 	if (draft.edits.regions !== undefined) return draft.edits.regions;
+	if (regions.some((r) => r.region === defaultRegion)) return [defaultRegion];
 	const available = regions.filter((r) => r.availability === RegionAvailability.AVAILABLE);
-	return regions.filter((r) => r.isDefault || (available.length === 1 && r === available[0])).map((r) => r.region);
+	return available.length === 1 ? available.map((r) => r.region) : [];
 }
 
 export function draftIsPublic(draft: Draft): boolean {

@@ -24,7 +24,7 @@ func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
     image: nginx:1.27
     port: 8080
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `, applyOptions{})
 	fromFile := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec
 

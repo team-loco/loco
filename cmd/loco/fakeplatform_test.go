@@ -53,8 +53,8 @@ const (
 	fakeDeletedDigest   = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 	fakeDockerfile      = "Dockerfile"
 	fakePlatformDomain  = "onloco.test"
-	fakeDefaultRegion   = "us-east-1"
-	fakeSecondaryRegion = "eu-west-1"
+	fakeDefaultRegion   = "us-ca-1"
+	fakeSecondaryRegion = "us-va-1"
 	uploadModeOK        = "ok"
 	uploadModeDenied    = "forbidden"
 	uploadModeReset     = "reset"
@@ -335,7 +335,7 @@ func (s *fakeResourceService) ListRegions(
 	}
 	regions := []*resourcev1.RegionInfo{
 		{Region: fakeSecondaryRegion},
-		{Region: fakeDefaultRegion, IsDefault: true},
+		{Region: fakeDefaultRegion},
 	}
 	return &resourcev1.ListRegionsResponse{Regions: regions}, nil
 }

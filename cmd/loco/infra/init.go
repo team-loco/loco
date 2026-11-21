@@ -28,8 +28,11 @@ const (
 )
 
 var (
-	errConfigExists     = errors.New(locofile.FileName + " already exists. Use --force to overwrite")
-	errNoDefaultRegion  = errors.New("the API lists no default region")
+	errConfigExists    = errors.New(locofile.FileName + " already exists. Use --force to overwrite")
+	errNoDefaultRegion = errors.New(
+		"no default region: set LOCO_DEFAULT_REGION on the API to a region code the environment lists; " +
+			"without it the environment needs exactly one available region",
+	)
 	errNoSchemaURL      = errors.New("the API reports no schema URL")
 	errNoPlatformDomain = errors.New("no cluster of the environment serves a platform domain in the region")
 )
@@ -159,17 +162,33 @@ func fetchDefaultRegion(ctx context.Context, t cmdutil.Target) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
+	config, err := t.Clients.Config.GetConfig(ctx, &configv1.GetConfigRequest{})
+	if err != nil {
+		return "", fmt.Errorf("could not fetch the default region from the API: %w", err)
+	}
 	req := &resourcev1.ListRegionsRequest{EnvironmentId: t.Environment.GetId()}
 	resp, err := t.Clients.Resource.ListRegions(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list regions from the API: %w", err)
 	}
-	for _, region := range resp.GetRegions() {
-		if region.GetIsDefault() {
-			return region.GetRegion(), nil
+	return defaultRegion(config.GetDefaultRegion(), resp.GetRegions())
+}
+
+// defaultRegion picks configured when the environment lists it, and otherwise its only available region.
+func defaultRegion(configured string, regions []*resourcev1.RegionInfo) (string, error) {
+	var available []string
+	for _, region := range regions {
+		if region.GetRegion() == configured {
+			return configured, nil
+		}
+		if region.GetAvailability() == resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE {
+			available = append(available, region.GetRegion())
 		}
 	}
-	return "", errNoDefaultRegion
+	if len(available) != 1 {
+		return "", errNoDefaultRegion
+	}
+	return available[0], nil
 }
 
 func servedDomain(ctx context.Context, t cmdutil.Target, region string) (string, error) {

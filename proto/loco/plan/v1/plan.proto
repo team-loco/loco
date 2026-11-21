@@ -146,7 +146,7 @@ message PlanOperation {
 
 // FieldChange is one field the apply would change. Secret values never appear here.
 message FieldChange {
-  // path is the field in loco.yaml form, such as regions.us-east-1.cpu or env.LOG_LEVEL.
+  // path is the field in loco.yaml form, such as regions.us-ca-1.cpu or env.LOG_LEVEL.
   string path = 1;
   string before = 2;
   string after = 3;

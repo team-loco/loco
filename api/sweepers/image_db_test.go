@@ -298,7 +298,7 @@ WITH d AS (
     RETURNING id
 ), dp AS (
     INSERT INTO deployment_placements (deployment_id, cluster_id, region, replicas, status, image)
-    SELECT id, $2, 'us-east-1', 1, 'pending', '' FROM d
+    SELECT id, $2, 'us-ca-1', 1, 'pending', '' FROM d
 )
 SELECT id FROM d`, f.resourceID, f.clusterID, []byte(spec), f.envID).Scan(&id)
 	if err != nil {
@@ -312,7 +312,7 @@ func (f *imageSweepFixture) desiredPlacement(t *testing.T, clusterID uuid.UUID, 
 	spec := fmt.Sprintf(`{"app_spec":{"serviceSpec":{"image":"%s/%s@%s"}}}`, testRegistryHost, f.repoPath, image)
 	if _, err := f.pool.Exec(f.ctx, `
 INSERT INTO placements (resource_id, cluster_id, region, desired_spec, environment_id)
-VALUES ($1, $2, 'us-east-1', $3, $4)`, f.resourceID, clusterID, spec, f.envID); err != nil {
+VALUES ($1, $2, 'us-ca-1', $3, $4)`, f.resourceID, clusterID, spec, f.envID); err != nil {
 		t.Fatalf("insert placement: %v", err)
 	}
 }

@@ -31,7 +31,7 @@ Examples:
   loco resource scale myapp --env production --replicas 3
   loco resource scale myapp --env staging --cpu 0.5 --memory 512Mi
   loco resource scale myapp --env production --replicas 2 --cpu 0.25
-  loco resource scale myapp --env production --region eu-west-1 --replicas 4`,
+  loco resource scale myapp --env production --region us-va-1 --replicas 4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

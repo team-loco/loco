@@ -27,7 +27,7 @@ state = load_state(
 workspace = state["workspaces"]["acme/shared"]
 org = state["orgs"]["acme"]["id"]
 defaults = call(state, "loco.config.v1.ConfigService/GetConfig", {})["serviceDefaults"]
-region = "us-east-1"
+region = "us-ca-1"
 cluster = evidence.seed_cluster(state, region)
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)

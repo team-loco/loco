@@ -14,7 +14,7 @@ services:
     runAsUser: 1654
     runAsGroup: 1654
     regions:
-      us-east-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
+      us-ca-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
     environments:
       override:
         runAsUser: 82

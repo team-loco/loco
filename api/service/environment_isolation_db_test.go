@@ -116,8 +116,8 @@ func TestPlanAcceptsOnlyRegionsWithAHealthyCluster(t *testing.T) {
 				t.Fatalf("Plan: %v", err)
 			}
 			errs := resp.GetErrors()
-			if len(errs) != 1 || errs[0].GetPath() != "regions.us-east-1" ||
-				errs[0].GetMessage() != configplan.ErrUnknownRegion.Error()+": us-east-1" {
+			if len(errs) != 1 || errs[0].GetPath() != "regions.us-ca-1" ||
+				errs[0].GetMessage() != configplan.ErrUnknownRegion.Error()+": us-ca-1" {
 				t.Fatalf("errors = %v, want the region refused", errs)
 			}
 		})

@@ -30,7 +30,7 @@ sibling = state["workspaces"]["acme/sibling"]
 if "audit" not in state:
     service = {
         "routing": {"port": 8080},
-        "regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}},
+        "regions": {"us-ca-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}},
     }
     resources = evidence.seed_resources(
         state,

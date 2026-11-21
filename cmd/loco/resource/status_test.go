@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const statusTestRegion = "us-east-1"
+const statusTestRegion = "us-ca-1"
 
 func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 	crash := "A replica keeps restarting. Check its logs."
@@ -23,7 +23,7 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 				Status:          resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 				Regions: []*resourcev1.RegionStatus{
 					{
-						Region:          "eu-west-1",
+						Region:          "us-va-1",
 						Status:          resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
 						ReadyReplicas:   0,
 						DesiredReplicas: 2,
@@ -62,7 +62,7 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 	}
 	view := out.String()
 	for _, want := range []string{
-		"production", "Degraded", "eu-west-1", "Unavailable", "0/2", "failed", crash,
+		"production", "Degraded", "us-va-1", "Unavailable", "0/2", "failed", crash,
 		statusTestRegion, "Healthy", "2/2", "running",
 		"staging", "Unknown", "1/1", pull,
 	} {

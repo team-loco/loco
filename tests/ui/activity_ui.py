@@ -52,7 +52,7 @@ def check_scoped_user(browser):
                     "body": "checkout order placed",
                     "resourceId": rid,
                     "resourceAttributes": {
-                        "loco.region": "us-east-1",
+                        "loco.region": "us-ca-1",
                         "k8s.pod.name": "checkout-7d9f-x2k4p",
                     },
                 }
@@ -99,8 +99,8 @@ def check_scoped_user(browser):
         "data": {
             "reason": "restarting",
             "message": "Back-off restarting failed container",
-            "placementId": "checkout-us-east-1",
-            "region": "us-east-1",
+            "placementId": "checkout-us-ca-1",
+            "region": "us-ca-1",
         },
     }
     rollout = {
@@ -125,7 +125,7 @@ def check_scoped_user(browser):
         "status": "RESOURCE_STATUS_UNAVAILABLE",
         "regions": [
             {
-                "region": "us-east-1",
+                "region": "us-ca-1",
                 "status": "RESOURCE_STATUS_UNAVAILABLE",
                 "desiredReplicas": 1,
                 "message": "Back-off restarting failed container",
@@ -153,7 +153,7 @@ def check_scoped_user(browser):
             "resource",
             base + "/resource/" + rid,
             lambda page: expect(
-                page.get_by_label("Last log lines in us-east-1")
+                page.get_by_label("Last log lines in us-ca-1")
             ).to_contain_text("checkout order placed"),
         ),
         (

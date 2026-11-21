@@ -14,6 +14,8 @@ import (
 const (
 	// ClusterAdminServiceName is the fully-qualified name of the ClusterAdminService service.
 	ClusterAdminServiceName = "loco.cluster.v1.ClusterAdminService"
+	// RegionAdminServiceName is the fully-qualified name of the RegionAdminService service.
+	RegionAdminServiceName = "loco.cluster.v1.RegionAdminService"
 )
 
 // These constants are the procedure names of the RPCs defined in this package. They're exposed at
@@ -45,6 +47,9 @@ const (
 	// ClusterAdminServiceRestoreClusterProcedure is the procedure name of the ClusterAdminService's
 	// RestoreCluster RPC.
 	ClusterAdminServiceRestoreClusterProcedure = "/loco.cluster.v1.ClusterAdminService/RestoreCluster"
+	// RegionAdminServiceListRegionsProcedure is the procedure name of the RegionAdminService's
+	// ListRegions RPC.
+	RegionAdminServiceListRegionsProcedure = "/loco.cluster.v1.RegionAdminService/ListRegions"
 )
 
 var (
@@ -314,6 +319,74 @@ func (h clusterAdminServiceHandler) restoreCluster(ctx context.Context, _ connec
 		return err
 	}
 	res, err := h.svc.RestoreCluster(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+var (
+	regionAdminServiceListRegionsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("RegionAdminService").Methods().ByName("ListRegions"),
+			Procedure:  RegionAdminServiceListRegionsProcedure,
+		}
+	})
+)
+
+// RegionAdminServiceClient is a client for the loco.cluster.v1.RegionAdminService service.
+type RegionAdminServiceClient interface {
+	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
+}
+
+// NewRegionAdminServiceClient constructs a client for the loco.cluster.v1.RegionAdminService
+// service. Multiple service clients may share a single connect.Client.
+func NewRegionAdminServiceClient(client *connect.Client) RegionAdminServiceClient {
+	return &regionAdminServiceClient{client: client}
+}
+
+// RegionAdminServiceHandler is an implementation of the loco.cluster.v1.RegionAdminService service.
+type RegionAdminServiceHandler interface {
+	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
+}
+
+// RegisterRegionAdminServiceHandler registers svc as the loco.cluster.v1.RegionAdminService
+// implementation on server.
+func RegisterRegionAdminServiceHandler(server *connect.Server, svc RegionAdminServiceHandler) {
+	adapter := regionAdminServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: regionAdminServiceListRegionsSpec(), Handler: adapter.listRegions},
+	)
+}
+
+// UnimplementedRegionAdminServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedRegionAdminServiceHandler struct{}
+
+func (UnimplementedRegionAdminServiceHandler) ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.RegionAdminService.ListRegions is not implemented")
+}
+
+type regionAdminServiceClient struct {
+	client *connect.Client
+}
+
+func (c *regionAdminServiceClient) ListRegions(ctx context.Context, req *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error) {
+	var res v1.ListRegionsResponse
+	if err := c.client.CallUnary(ctx, regionAdminServiceListRegionsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type regionAdminServiceHandler struct{ svc RegionAdminServiceHandler }
+
+func (h regionAdminServiceHandler) listRegions(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListRegionsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListRegions(ctx, &req)
 	if err != nil {
 		return err
 	}

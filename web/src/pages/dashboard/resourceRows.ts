@@ -19,10 +19,14 @@ export function isDraftItem(item: DashboardItem): item is DraftItem {
 	return "draft" in item;
 }
 
-export function draftItems(drafts: readonly Draft[], regions: readonly RegionInfo[]): DraftItem[] {
+export function draftItems(
+	drafts: readonly Draft[],
+	regions: readonly RegionInfo[],
+	defaultRegion: string,
+): DraftItem[] {
 	return drafts.map((draft) => ({
 		draft,
-		regions: draftRegions(draft, regions).map((region) => ({ region, desired: 0, ready: 0 })),
+		regions: draftRegions(draft, regions, defaultRegion).map((region) => ({ region, desired: 0, ready: 0 })),
 	}));
 }
 

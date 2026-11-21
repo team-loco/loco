@@ -22,8 +22,8 @@ workspace = state["workspaces"]["acme/shared"]
 org = state["orgs"]["acme"]["id"]
 name = "regions-" + uuid.uuid4().hex[:8]
 with session(out) as browser:
-    east_cluster = evidence.seed_cluster(state, "us-east-1")
-    west_cluster = evidence.seed_cluster(state, "eu-west-1")
+    east_cluster = evidence.seed_cluster(state, "us-ca-1")
+    west_cluster = evidence.seed_cluster(state, "us-va-1")
     resource = evidence.seed_resources(
         state,
         [
@@ -33,7 +33,7 @@ with session(out) as browser:
                 "deployments": [
                     {
                         "environment": "production",
-                        "placements": {"us-east-1": {"cluster": east_cluster}},
+                        "placements": {"us-ca-1": {"cluster": east_cluster}},
                         "spec": {
                             "platform": "linux/amd64",
                             "observability": {"injectOtel": True},
@@ -43,7 +43,7 @@ with session(out) as browser:
                             },
                             "port": 8080,
                             "regions": {
-                                "us-east-1": {
+                                "us-ca-1": {
                                     "cpu": "500m",
                                     "memory": "512Mi",
                                     "minReplicas": 2,
@@ -93,10 +93,10 @@ with session(out) as browser:
     page.goto(
         state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}?tab=settings"
     )
-    west = page.get_by_role("button", name="Run in eu-west-1", exact=True)
+    west = page.get_by_role("button", name="Run in us-va-1", exact=True)
     expect(west).to_be_visible()
     expect(west).to_be_enabled()
-    east = page.get_by_role("button", name="Run in us-east-1", exact=True)
+    east = page.get_by_role("button", name="Run in us-ca-1", exact=True)
     expect(east).to_have_attribute("aria-disabled", "true")
     expect(east).to_have_attribute("title", "A resource needs at least one region")
     east.focus()
@@ -117,19 +117,19 @@ with session(out) as browser:
     expect(east).to_be_enabled()
     revision = sql(state, f"SELECT revision FROM resources WHERE id='{resource}';")
     save()
-    expect(page.get_by_text("Rolling out in eu-west-1.", exact=False)).to_be_visible()
+    expect(page.get_by_text("Rolling out in us-va-1.", exact=False)).to_be_visible()
     assert [call[0] for call in calls] == ["UpdateResource"], calls
     request = calls[0][1]
     assert request["revision"] == revision, request
-    added = request["regions"]["targets"]["eu-west-1"]
+    added = request["regions"]["targets"]["us-va-1"]
     assert added["enabled"] and added["cpu"] == "500m" and added["minReplicas"] == 2, (
         added
     )
-    assert stored()["eu-west-1"]["enabled"], stored()
+    assert stored()["us-va-1"]["enabled"], stored()
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='eu-west-1';",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='us-va-1';",
         )
         == "1"
     )
@@ -137,7 +137,7 @@ with session(out) as browser:
 
     sql(
         state,
-        "UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE region='us-east-1';",
+        "UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE region='us-ca-1';",
     )
     page.reload()
     expect(east).to_be_enabled()
@@ -145,21 +145,21 @@ with session(out) as browser:
     east.click()
     expect(east).to_contain_text("Will be removed")
     save()
-    expect(page.get_by_text("Stopping in us-east-1.", exact=False)).to_be_visible()
-    assert not stored()["us-east-1"].get("enabled", False), stored()
+    expect(page.get_by_text("Stopping in us-ca-1.", exact=False)).to_be_visible()
+    assert not stored()["us-ca-1"].get("enabled", False), stored()
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='us-east-1';",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='us-ca-1';",
         )
         == "0"
     )
     expect(east).to_be_disabled()
-    sql(state, "UPDATE clusters SET last_heartbeat=NOW() WHERE region='us-east-1';")
+    sql(state, "UPDATE clusters SET last_heartbeat=NOW() WHERE region='us-ca-1';")
     page.reload()
     east.click()
     save()
-    expect(page.get_by_text("Rolling out in us-east-1.", exact=False)).to_be_visible()
+    expect(page.get_by_text("Rolling out in us-ca-1.", exact=False)).to_be_visible()
 
     concurrent_edit.append(True)
     west.click()
@@ -167,16 +167,16 @@ with session(out) as browser:
     save()
     expect(page.get_by_text("changed since you opened it", exact=False)).to_be_visible()
     expect(west).to_have_attribute("aria-pressed", "true")
-    assert stored()["eu-west-1"]["enabled"], stored()
+    assert stored()["us-va-1"]["enabled"], stored()
 
     west.click()
     save()
-    expect(page.get_by_text("Stopping in eu-west-1.", exact=False)).to_be_visible()
-    assert not stored()["eu-west-1"].get("enabled", False), stored()
+    expect(page.get_by_text("Stopping in us-va-1.", exact=False)).to_be_visible()
+    assert not stored()["us-va-1"].get("enabled", False), stored()
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='eu-west-1';",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='us-va-1';",
         )
         == "0"
     )
@@ -192,10 +192,10 @@ with session(out) as browser:
     assert calls == [], calls
     page.get_by_role("button", name="Discard", exact=True).click()
 
-    sql(state, "UPDATE clusters SET is_active=false WHERE region='us-east-1';")
+    sql(state, "UPDATE clusters SET is_active=false WHERE region='us-ca-1';")
     page.reload()
-    expect(east).to_contain_text("No cluster in this region")
-    sql(state, "UPDATE clusters SET is_active=true WHERE region='us-east-1';")
+    expect(east).to_contain_text("Offline")
+    sql(state, "UPDATE clusters SET is_active=true WHERE region='us-ca-1';")
 
     sql(state, f"UPDATE resources SET partial='app' WHERE id='{resource}';")
     page.reload()

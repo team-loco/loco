@@ -343,7 +343,7 @@ func TestQueryAndTailLogsApplyEveryQueryAlike(t *testing.T) {
 		{web1, "INFO", traceA, "a", "web-1", "us-central-1", f.resource, map[string]string{
 			"method": "GET", "status": "200", "user.id": "42", "roles.0": "admin", "a=b": "c",
 		}},
-		{web2, "DEBUG", traceB, "b", "web-2", "eu-west-1", f.resource, map[string]string{
+		{web2, "DEBUG", traceB, "b", "web-2", "de-he-1", f.resource, map[string]string{
 			"method": "POST", "status": "503", "user.id": "7", "path": "/api/orders", "team": "b-log", "a": "b=c",
 		}},
 		{worker, "ERROR", "", "a", "worker-1", "us-west-2", f.otherResource, map[string]string{}},

@@ -6,6 +6,7 @@ api:
     LOCO_SOURCE_BUCKET_ENDPOINT: http://s3.installation.localhost:8080
     LOCO_SOURCE_BUCKET: source
     LOCO_SOURCE_BUCKET_REGION: us-east-1
+    LOCO_DEFAULT_REGION: us-ca-1
     LOCO_REGISTRY_HOST: registry.installation.localhost:5000
     LOCO_REGISTRY_URL: http://registry.installation.localhost:5000
 gatewayNamespace: loco-system

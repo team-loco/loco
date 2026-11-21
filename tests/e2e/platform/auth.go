@@ -175,8 +175,7 @@ func (p *Platform) enrollCluster(ctx context.Context) error {
 		"create",
 		"--name",
 		clusterName,
-		"--region",
-		clusterRegion,
+		"--local",
 	)
 	if err != nil {
 		return err

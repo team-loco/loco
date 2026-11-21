@@ -280,7 +280,8 @@ enum RegionAvailability {
 // RegionInfo describes a region served by an environment's eligible clusters.
 message RegionInfo {
   string region = 1;
-  bool is_default = 2;
+  reserved 2;
+  reserved "is_default";
   string health_status = 3;
   RegionAvailability availability = 4;
 }

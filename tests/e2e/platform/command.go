@@ -43,7 +43,7 @@ func (p *Platform) commandEnv() []string {
 		"LOCO_SOURCE_BUCKET="+sourceBucket,
 		"LOCO_SOURCE_BUCKET_ACCESS_KEY_ID="+sourceAccessKey,
 		"LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY="+sourceSecretKey,
-		"LOCO_SOURCE_BUCKET_REGION="+clusterRegion,
+		"LOCO_SOURCE_BUCKET_REGION="+bucketRegion,
 	)
 }
 

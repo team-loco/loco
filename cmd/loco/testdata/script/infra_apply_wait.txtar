@@ -3,10 +3,10 @@
 fakeapi plan plan.json
 fakeapi deployment dep-web failed
 ! exec loco infra apply --yes --wait
-stdout '^Started deployment dep-api for api in us-east-1\.$'
-stdout '^Deployment dep-api for api in us-east-1 is running\.$'
-! stdout 'dep-web for web in us-east-1 is running'
-stderr 'deployment dep-web for web in us-east-1 failed: replicas crash on start · exit 1'
+stdout '^Started deployment dep-api for api in us-ca-1\.$'
+stdout '^Deployment dep-api for api in us-ca-1 is running\.$'
+! stdout 'dep-web for web in us-ca-1 is running'
+stderr 'deployment dep-web for web in us-ca-1 failed: replicas crash on start · exit 1'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
@@ -32,4 +32,4 @@ services:
   api:
     image: ghcr.io/acme/api:1
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

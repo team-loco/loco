@@ -21,7 +21,7 @@ const testImage = "registry.loco.test/app@sha256:" +
 	"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 const (
-	testRegion              = "us-east-1"
+	testRegion              = "us-ca-1"
 	testDefaultCPU          = "150m"
 	testDefaultMemory       = "192Mi"
 	testIdleTimeout         = 45
@@ -63,7 +63,7 @@ func testResourceSpec() *resourcev1.ResourceSpec {
 		MinReplicas: 1,
 		MaxReplicas: 1,
 	}
-	service := &resourcev1.ServiceSpec{Regions: map[string]*resourcev1.RegionTarget{"us-east-1": region}}
+	service := &resourcev1.ServiceSpec{Regions: map[string]*resourcev1.RegionTarget{testRegion: region}}
 	return &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: service}}
 }
 
@@ -177,7 +177,7 @@ func TestDesiredSpecRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
 	t.Parallel()
 	resourceSpec := testResourceSpec()
 	deploymentSpec := mergedTestSpec(t, resourceSpec, testDeploymentSpec(8080))
-	buildSpec := testRenderer(resourceSpec, testHostname).specFor(deploymentSpec, "eu-west-1")
+	buildSpec := testRenderer(resourceSpec, testHostname).specFor(deploymentSpec, "us-va-1")
 	_, specErr := buildSpec(uuid.New())
 	joined := errors.Join(errDesiredSpec, specErr)
 	wantCode(t, joined, connect.CodeInvalidArgument)

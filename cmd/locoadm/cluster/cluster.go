@@ -19,6 +19,7 @@ import (
 
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -31,9 +32,12 @@ const (
 	clusterRemove    = "remove"
 	clusterRestore   = "restore"
 
-	flagName   = "name"
-	flagRegion = "region"
-	flagForce  = "force"
+	flagName        = "name"
+	flagRegion      = "region"
+	flagCountry     = "country"
+	flagSubdivision = "subdivision"
+	flagLocal       = "local"
+	flagForce       = "force"
 )
 
 type adminClient = clusterv1connect.ClusterAdminServiceClient
@@ -76,11 +80,15 @@ func operations() []operation {
 			short: "Create a pending cluster and deliver its one-time join token",
 			args:  cobra.NoArgs,
 			flags: func(c *cobra.Command) {
-				c.Flags().String(flagName, "", "Cluster name")
-				c.Flags().String(flagRegion, "", "Cluster region")
-				for _, flag := range []string{flagName, flagRegion} {
-					cobra.CheckErr(c.MarkFlagRequired(flag))
-				}
+				c.Flags().String(flagName, "", "Cluster name; a new region's first cluster defaults to the region code")
+				c.Flags().String(flagRegion, "", "Code of an existing region to add the cluster to, such as us-ca-1")
+				c.Flags().String(flagCountry, "", "Create a region in this country, such as us")
+				c.Flags().String(flagSubdivision, "", "State or province of the new region, such as ca")
+				c.Flags().
+					Bool(flagLocal, false, "Add the cluster to the development region local-1, creating it if needed")
+				c.MarkFlagsOneRequired(flagRegion, flagCountry, flagLocal)
+				c.MarkFlagsMutuallyExclusive(flagRegion, flagCountry, flagLocal)
+				c.MarkFlagsRequiredTogether(flagCountry, flagSubdivision)
 			},
 			run: createCluster,
 		},
@@ -180,13 +188,17 @@ func (op operation) command() *cobra.Command {
 			printWorkloads(cmd, err)
 			return err
 		}
+		if created, ok := response.(*clusterv1.CreateClusterResponse); ok {
+			suggestDefaultRegion(cmd, login.Clients, created.GetRegion())
+		}
 		if tokenCommand && (output == "secret" || worker != nil) {
 			var token *clusterv1.JoinToken
-			var clusterID string
+			var clusterID, region string
 			switch result := response.(type) {
 			case *clusterv1.CreateClusterResponse:
 				token = result.GetJoinToken()
 				clusterID = result.GetClusterId()
+				region = " in region " + result.GetRegion()
 			case *clusterv1.IssueJoinTokenResponse:
 				token = result.GetJoinToken()
 				clusterID = result.GetClusterId()
@@ -200,11 +212,12 @@ func (op operation) command() *cobra.Command {
 				}
 				_, err = fmt.Fprintf(
 					cmd.OutOrStdout(),
-					"Applied join-token Secret %s/%s to context %s for cluster %s\n",
+					"Applied join-token Secret %s/%s to context %s for cluster %s%s\n",
 					namespace,
 					secretName,
 					kubeContext,
 					clusterID,
+					region,
 				)
 				return err
 			}
@@ -230,16 +243,28 @@ func createCluster(
 	client adminClient,
 	_ []string,
 ) (proto.Message, error) {
-	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString()}
-	fields := map[string]*string{flagName: &request.Name, flagRegion: &request.Region}
-	for flag, field := range fields {
+	flags := map[string]string{}
+	for _, flag := range []string{flagName, flagRegion, flagCountry, flagSubdivision} {
 		value, err := cmd.Flags().GetString(flag)
 		if err != nil {
 			return nil, err
 		}
-		*field = value
+		flags[flag] = value
 	}
-	var err error
+	local, err := cmd.Flags().GetBool(flagLocal)
+	if err != nil {
+		return nil, err
+	}
+	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: flags[flagName]}
+	if flags[flagRegion] != "" {
+		request.Target = &clusterv1.CreateClusterRequest_Region{Region: flags[flagRegion]}
+	} else {
+		request.Target = &clusterv1.CreateClusterRequest_NewRegion{NewRegion: &clusterv1.NewRegion{
+			Country:     flags[flagCountry],
+			Subdivision: flags[flagSubdivision],
+			Local:       local,
+		}}
+	}
 	request.Ttl, err = tokenTTL(cmd)
 	if err != nil {
 		return nil, err
@@ -257,6 +282,23 @@ func removeCluster(
 		return nil, err
 	}
 	return client.RemoveCluster(cmd.Context(), &clusterv1.RemoveClusterRequest{ClusterId: args[0], Force: force})
+}
+
+// suggestDefaultRegion prints a LOCO_DEFAULT_REGION hint when the API has no default and region is the only one.
+func suggestDefaultRegion(cmd *cobra.Command, clients *rpc.Clients, region string) {
+	config, err := clients.Config.GetConfig(cmd.Context(), &configv1.GetConfigRequest{})
+	if err != nil || config.GetDefaultRegion() != "" {
+		return
+	}
+	listed, err := clients.RegionAdmin.ListRegions(cmd.Context(), &clusterv1.ListRegionsRequest{})
+	if err != nil || len(listed.GetRegions()) != 1 || listed.GetRegions()[0].GetCode() != region {
+		return
+	}
+	fmt.Fprintf(
+		cmd.ErrOrStderr(),
+		"Set LOCO_DEFAULT_REGION=%[1]s on the API to make %[1]s the default region for new services.\n",
+		region,
+	)
 }
 
 func printWorkloads(cmd *cobra.Command, err error) {

@@ -18,7 +18,7 @@ func (p *Platform) S3(ctx context.Context, dir string, args ...string) (string, 
 	command = append(command, "run", "--rm", "--network", "kind",
 		"-e", "AWS_ACCESS_KEY_ID="+sourceAccessKey,
 		"-e", "AWS_SECRET_ACCESS_KEY="+sourceSecretKey,
-		"-e", "AWS_DEFAULT_REGION="+clusterRegion,
+		"-e", "AWS_DEFAULT_REGION="+bucketRegion,
 		"-e", "AWS_CONFIG_FILE=/work/aws-config",
 		"-v", dir+":/work",
 		fromImage(p.root, "tests/e2e/fixtures/aws-cli/Dockerfile"), "--endpoint-url", p.S3Endpoint)

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"slices"
 	"testing"
 	"time"
@@ -30,6 +31,8 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		42*time.Hour,
 		6*time.Hour,
 		limits.Defaults(),
+		nil,
+		"",
 		nil,
 	)
 	req := &configv1.GetConfigRequest{}
@@ -96,6 +99,8 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 		6*time.Hour,
 		limits.Defaults(),
 		nil,
+		"",
+		nil,
 	)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
@@ -123,6 +128,8 @@ func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 		time.Hour,
 		6*time.Hour,
 		limits.Defaults(),
+		nil,
+		"",
 		nil,
 	)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
@@ -178,6 +185,8 @@ func TestGetConfigReportsTheInstallCountLimits(t *testing.T) {
 		6*time.Hour,
 		counts,
 		nil,
+		"",
+		nil,
 	)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
@@ -207,6 +216,8 @@ func TestGetConfigReportsInstallHistoryRetention(t *testing.T) {
 				6*time.Hour,
 				limits.Defaults(),
 				retention,
+				"",
+				nil,
 			)
 			resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 			if err != nil {
@@ -216,5 +227,29 @@ func TestGetConfigReportsInstallHistoryRetention(t *testing.T) {
 				t.Fatalf("history retention = %v, want %v", resp.GetHistoryRetention(), retention)
 			}
 		})
+	}
+}
+
+type liveRegions map[string]bool
+
+func (l liveRegions) IsLiveRegion(_ context.Context, code string) (bool, error) {
+	return l[code], nil
+}
+
+func TestGetConfigReturnsTheDefaultRegionOnlyWhileItIsLive(t *testing.T) {
+	t.Parallel()
+	const retired, missing = "us-ca-2", "jp-13-1"
+	regions := liveRegions{testRegion: true, retired: false}
+	for configured, want := range map[string]string{testRegion: testRegion, retired: "", missing: "", "": ""} {
+		server := NewConfigServer(configAPIVersion, "", "", testServiceDefaults(), nil, nil, 0, 0, nil, nil,
+			configured, regions)
+		resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
+		if err != nil {
+			t.Fatalf("GetConfig with %q: %v", configured, err)
+		}
+		if resp.GetDefaultRegion() != want {
+			t.Fatalf("default region with LOCO_DEFAULT_REGION=%q = %q, want %q",
+				configured, resp.GetDefaultRegion(), want)
+		}
 	}
 }

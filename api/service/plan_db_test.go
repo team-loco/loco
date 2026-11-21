@@ -27,32 +27,32 @@ const (
 	planTheirs       = "theirs"
 	testBuildContext = "services/web"
 	planRoutedSpec   = `{"routing":{"port":8080,"pathPrefix":"/","idleTimeout":45},` +
-		`"regions":{"us-east-1":{"enabled":true,"cpu":"100m",` +
+		`"regions":{"us-ca-1":{"enabled":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 	planFileHeader = "version: 1\npartial: web\nservices:\n"
 	planFileSvc    = `  svc:
     port: 8080
     routing: {}
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 	planFileOwned = `  owned:
     port: 8080
     routing: {}
     regions:
-      us-east-1: { cpu: 250m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 250m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 	planFileNew = `  new:
     port: 8080
     routing: {}
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 	planFileTheirs = `  theirs:
     port: 8080
     routing: {}
     regions:
-      us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
+      us-ca-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 )
 
@@ -196,7 +196,7 @@ func TestPlanReportsCreateUpdateImportAndDelete(t *testing.T) {
 			}
 		case planOwned:
 			changes := op.GetChanges()
-			if len(changes) != 1 || changes[0].GetPath() != "regions.us-east-1.cpu" ||
+			if len(changes) != 1 || changes[0].GetPath() != "regions.us-ca-1.cpu" ||
 				changes[0].GetBefore() != "100m" || changes[0].GetAfter() != "250m" {
 				t.Errorf("owned changes = %v, want only the cpu change", changes)
 			}

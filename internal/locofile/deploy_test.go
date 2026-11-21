@@ -18,7 +18,7 @@ services:
     image: example.com/web:v1
     deploy: {restart: on-failure, maxRestarts: 4, timeout: 120}
     regions:
-      us-east-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
+      us-ca-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
     environments:
       live:
         port: 8080

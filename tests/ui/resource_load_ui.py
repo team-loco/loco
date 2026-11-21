@@ -32,7 +32,7 @@ resource = evidence.seed_resources(
             "deployments": [
                 {
                     "environment": "production",
-                    "placements": {"us-east-1": {}},
+                    "placements": {"us-ca-1": {}},
                     "spec": {
                         "platform": "linux/amd64",
                         "observability": {"injectOtel": True},
@@ -42,7 +42,7 @@ resource = evidence.seed_resources(
                         },
                         "port": 8080,
                         "regions": {
-                            "us-east-1": {
+                            "us-ca-1": {
                                 "cpu": "500m",
                                 "memory": "512Mi",
                                 "minReplicas": 1,

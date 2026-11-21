@@ -35,4 +35,4 @@ services:
   my-app:
     dockerfile: Dockerfile
     regions:
-      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 2 } }
+      us-ca-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 2 } }

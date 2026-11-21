@@ -16,7 +16,7 @@ import (
 
 const (
 	testPartial        = webService
-	testRegion         = "us-east-1"
+	testRegion         = "us-ca-1"
 	testImage          = "ghcr.io/acme/worker:1.4.2"
 	webService         = "web"
 	workerService      = "worker"
@@ -170,10 +170,10 @@ func TestNewServiceIsACreateListingEveryField(t *testing.T) {
 		{Path: logLevelPath, After: logLevelInfo},
 		{Path: "observability.injectOtel", After: strconv.FormatBool(true)},
 		{Path: "port", After: "3000"},
-		{Path: "regions.us-east-1.cpu", After: testCPU},
-		{Path: "regions.us-east-1.memory", After: testMemory},
-		{Path: "regions.us-east-1.replicas.max", After: "3"},
-		{Path: "regions.us-east-1.replicas.min", After: "1"},
+		{Path: "regions.us-ca-1.cpu", After: testCPU},
+		{Path: "regions.us-ca-1.memory", After: testMemory},
+		{Path: "regions.us-ca-1.replicas.max", After: "3"},
+		{Path: "regions.us-ca-1.replicas.min", After: "1"},
 		{Path: "routing.idleTimeout", After: "60"},
 		{Path: "routing.pathPrefix", After: "/"},
 	}
@@ -240,7 +240,7 @@ func TestUnownedServiceIsImported(t *testing.T) {
 }
 
 func TestRemovingARunningRegionIsDestructive(t *testing.T) {
-	const movedRegion = "eu-west-1"
+	const movedRegion = "us-va-1"
 	service := fileService()
 	service.Regions = map[string]locofile.Region{movedRegion: service.Regions[testRegion]}
 	for _, partial := range []string{testPartial, ""} {
@@ -261,7 +261,7 @@ func TestRemovingARunningRegionIsDestructive(t *testing.T) {
 }
 
 func TestRemovingARegionThatDoesNotRunIsNotDestructive(t *testing.T) {
-	const movedRegion = "eu-west-1"
+	const movedRegion = "us-va-1"
 	service := fileService()
 	service.Regions = map[string]locofile.Region{movedRegion: service.Regions[testRegion]}
 	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
@@ -478,7 +478,7 @@ func TestCustomDomainIsAnError(t *testing.T) {
 }
 
 func TestDomainMustBeServedByEveryClusterTheServiceDeploysTo(t *testing.T) {
-	const otherRegion = "eu-west-1"
+	const otherRegion = "us-va-1"
 	service := fileService()
 	service.Regions = map[string]locofile.Region{
 		testRegion:  service.Regions[testRegion],
@@ -489,14 +489,14 @@ func TestDomainMustBeServedByEveryClusterTheServiceDeploysTo(t *testing.T) {
 	in.Clusters = []platformdomain.Cluster{testCluster(testRegion), missing}
 	planErr := onlyError(t, compute(t, in), platformdomain.ErrDomainNotServed)
 	wantMessage := "a cluster the service deploys to does not serve the domain: " +
-		appDomain + " is under " + testPlatformDomain + ", which cluster-eu (eu-west-1) does not serve"
+		appDomain + " is under " + testPlatformDomain + ", which cluster-eu (us-va-1) does not serve"
 	if planErr.Path != pathDomains || planErr.Err.Error() != wantMessage {
 		t.Fatalf("error = %+v, want %q", planErr, wantMessage)
 	}
 }
 
 func TestDomainServedOnlyInARegionTheServiceSkipsIsAllowed(t *testing.T) {
-	missing := platformdomain.Cluster{Name: "cluster-eu", Region: "eu-west-1"}
+	missing := platformdomain.Cluster{Name: "cluster-eu", Region: "us-va-1"}
 	in := input(map[string]locofile.Service{webService: fileService()})
 	in.Clusters = append(in.Clusters, missing)
 	if plan := compute(t, in); len(plan.Errors) > 0 {

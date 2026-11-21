@@ -20,9 +20,10 @@ After Flux bootstrap creates `loco-system` on the worker, sign in as the configu
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
-locoadm cluster create --name worker-staging --region example-east \
-  --kube-context worker-staging
+locoadm cluster create --name worker-staging --country us --subdivision ca --kube-context worker-staging
 ```
+
+The API builds the region code from the country and state or province and prints it. The first region in California is `us-ca-1`, the code `global.region` holds in `clusters/worker-staging/values/loco-worker.yaml`. Another worker in the same region takes `--region us-ca-1` in place of `--country` and `--subdivision`.
 
 `--kube-context` writes the one-time join-token Secret directly to the worker and prints only a confirmation. The default one-hour TTL covers bootstrap delivery; keep the token out of Git. The agent waits for delivery and retains its identity after enrollment.
 

@@ -36,7 +36,7 @@ const (
 	collectorStartTimeOffset    = time.Minute
 	collectorRecordedFlags      = 2
 	collectorAggregation        = "max"
-	collectorWorkerRegion       = "eu-west-1"
+	collectorWorkerRegion       = "de-he-1"
 	collectorOtherEnvValue      = 100
 	collectorOtherRegionValue   = 200
 	collectorOtherResourceValue = 300

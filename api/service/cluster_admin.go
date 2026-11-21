@@ -34,7 +34,11 @@ var (
 		"cluster registration is removed or its requested fields differ",
 	)
 	errInvalidClusterFields = errors.New(
-		"cluster name and region are required",
+		"cluster needs a region, or a new region's country and subdivision",
+	)
+	errClusterNameRequired = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"name the cluster; the region already has a cluster",
 	)
 )
 
@@ -110,19 +114,19 @@ func (s *ClusterAdminServer) CreateCluster(
 	response := &clusterv1.CreateClusterResponse{}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := genDb.New(tx)
-		if createErr := queries.CreateCluster(ctx, genDb.CreateClusterParams{
-			Name: req.GetName(), Region: req.GetRegion(), ID: requestID,
-		}); createErr != nil {
-			return fmt.Errorf("insert cluster: %w", createErr)
-		}
 		row, lookupErr := queries.LockClusterRegistration(ctx, requestID)
-		if lookupErr != nil {
-			return fmt.Errorf("lock cluster registration: %w", lookupErr)
+		if errors.Is(lookupErr, pgx.ErrNoRows) {
+			row, lookupErr = createClusterRow(ctx, queries, req, requestID)
 		}
-		if row.RemovedAt != nil || row.Name != req.GetName() || row.Region != req.GetRegion() {
+		if lookupErr != nil {
+			return lookupErr
+		}
+		if !sameRegistration(row, req) {
 			return errRegistrationChanged
 		}
 		response.ClusterId = row.ID.String()
+		response.Name = row.Name
+		response.Region = row.Region
 		if row.AgentPublicKey != nil {
 			return nil
 		}
@@ -140,6 +144,40 @@ func (s *ClusterAdminServer) CreateCluster(
 	}
 	slog.InfoContext(ctx, "cluster registration ready", "cluster_id", response.GetClusterId())
 	return response, nil
+}
+
+// createClusterRow registers the cluster in its region. A region's first cluster defaults to the
+// region code as its name.
+func createClusterRow(
+	ctx context.Context,
+	queries *genDb.Queries,
+	req *clusterv1.CreateClusterRequest,
+	id uuid.UUID,
+) (genDb.LockClusterRegistrationRow, error) {
+	region, fresh, err := clusterRegion(ctx, queries, req)
+	if err != nil {
+		return genDb.LockClusterRegistrationRow{}, err
+	}
+	name := req.GetName()
+	if name == "" && !fresh {
+		return genDb.LockClusterRegistrationRow{}, errClusterNameRequired.Detail("%s", region)
+	}
+	if name == "" {
+		name = region
+	}
+	if err = queries.CreateCluster(ctx, genDb.CreateClusterParams{Name: name, Region: region, ID: id}); err != nil {
+		return genDb.LockClusterRegistrationRow{}, fmt.Errorf("insert cluster: %w", err)
+	}
+	row, err := queries.LockClusterRegistration(ctx, id)
+	if err != nil {
+		return genDb.LockClusterRegistrationRow{}, fmt.Errorf("lock cluster registration: %w", err)
+	}
+	return row, nil
+}
+
+// sameRegistration reports whether a retried request asks for the cluster already recorded.
+func sameRegistration(row genDb.LockClusterRegistrationRow, req *clusterv1.CreateClusterRequest) bool {
+	return row.RemovedAt == nil && (req.GetName() == "" || row.Name == req.GetName()) && sameRegion(row.Region, req)
 }
 
 func (s *ClusterAdminServer) IssueJoinToken(

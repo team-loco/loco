@@ -79,10 +79,9 @@ WHERE is_active = true
 ORDER BY region ASC, is_default DESC, created_at ASC;
 
 -- name: ListClusterRegions :many
-SELECT region, (available AND is_default AND health_status = 'healthy')::boolean AS is_default,
-       health_status, available
+SELECT region, health_status, available
 FROM (
-    SELECT DISTINCT ON (region) region, is_default, health_status,
+    SELECT DISTINCT ON (region) region, health_status,
            COALESCE(last_heartbeat >= sqlc.arg(heard_since)::timestamptz, false)::boolean AS available
     FROM clusters
     WHERE is_active = true

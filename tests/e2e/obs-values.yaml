@@ -1,5 +1,5 @@
 global:
-  region: us-east-1
+  region: local-1
 
 otel-col-deploy:
   replicaCount: 2

@@ -557,7 +557,7 @@ export const PlanOperationSchema: GenMessage<PlanOperation, {jsonType: PlanOpera
  */
 export type FieldChange = Message<"loco.plan.v1.FieldChange"> & {
   /**
-   * path is the field in loco.yaml form, such as regions.us-east-1.cpu or env.LOG_LEVEL.
+   * path is the field in loco.yaml form, such as regions.us-ca-1.cpu or env.LOG_LEVEL.
    *
    * @generated from field: string path = 1;
    */
@@ -581,7 +581,7 @@ export type FieldChange = Message<"loco.plan.v1.FieldChange"> & {
  */
 export type FieldChangeJson = {
   /**
-   * path is the field in loco.yaml form, such as regions.us-east-1.cpu or env.LOG_LEVEL.
+   * path is the field in loco.yaml form, such as regions.us-ca-1.cpu or env.LOG_LEVEL.
    *
    * @generated from field: string path = 1;
    */

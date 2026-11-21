@@ -5,7 +5,7 @@ env NO_COLOR=1
 
 exec loco resource status web
 stdout 'since 2h ago'
-stdout 'us-east-1 replicas'
+stdout 'us-ca-1 replicas'
 stdout 'REPLICA\s+STATE\s+RESTARTS\s+LAST EXIT\s+AGE\s+NODE'
 stdout 'web-7d9f-a1\s+Serving\s+0\s+—\s+3h\s+node-1'
 stdout 'web-7d9f-b2\s+Restarting \(2/5\)\s+4\s+OOMKilled \(137\) 5m ago\s+20m\s+node-2'

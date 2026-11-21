@@ -61,25 +61,28 @@ describe("draft changes", () => {
 
 describe("draft placement", () => {
 	const regions = [
-		create(RegionInfoSchema, { region: "us-east-1", isDefault: true }),
-		create(RegionInfoSchema, { region: "eu-west-1", isDefault: false }),
+		create(RegionInfoSchema, { region: "us-east-1" }),
+		create(RegionInfoSchema, { region: "eu-west-1" }),
 	];
 
-	test("regions default to the environment's default regions until edited", () => {
-		expect(draftRegions(draft("a"), regions)).toEqual(["us-east-1"]);
-		expect(draftRegions({ ...draft("a"), edits: { regions: ["eu-west-1"] } }, regions)).toEqual(["eu-west-1"]);
-		expect(draftRegions({ ...draft("a"), edits: { regions: [] } }, regions)).toEqual([]);
+	test("regions default to the installation's default region until edited", () => {
+		expect(draftRegions(draft("a"), regions, "us-east-1")).toEqual(["us-east-1"]);
+		expect(draftRegions({ ...draft("a"), edits: { regions: ["eu-west-1"] } }, regions, "us-east-1")).toEqual([
+			"eu-west-1",
+		]);
+		expect(draftRegions({ ...draft("a"), edits: { regions: [] } }, regions, "us-east-1")).toEqual([]);
 	});
 
-	test("a lone available region is selected even when it is not marked default", () => {
-		const up = (region: string, availability: RegionAvailability) =>
-			create(RegionInfoSchema, { region, isDefault: false, availability });
+	test("a lone available region is selected when the default region is unset or not listed", () => {
+		const up = (region: string, availability: RegionAvailability) => create(RegionInfoSchema, { region, availability });
 		const lone = [up("us-east-1", RegionAvailability.AVAILABLE)];
-		expect(draftRegions(draft("a"), lone)).toEqual(["us-east-1"]);
-		expect(draftRegions({ ...draft("a"), edits: { regions: [] } }, lone)).toEqual([]);
-		expect(draftRegions(draft("a"), [...lone, up("eu-west-1", RegionAvailability.OFFLINE)])).toEqual(["us-east-1"]);
-		expect(draftRegions(draft("a"), [up("eu-west-1", RegionAvailability.OFFLINE)])).toEqual([]);
-		expect(draftRegions(draft("a"), [...lone, up("eu-west-1", RegionAvailability.AVAILABLE)])).toEqual([]);
+		const offline = up("eu-west-1", RegionAvailability.OFFLINE);
+		expect(draftRegions(draft("a"), lone, "")).toEqual(["us-east-1"]);
+		expect(draftRegions(draft("a"), lone, "ap-south-1")).toEqual(["us-east-1"]);
+		expect(draftRegions(draft("a"), [...lone, offline], "")).toEqual(["us-east-1"]);
+		expect(draftRegions(draft("a"), [...lone, offline], "eu-west-1")).toEqual(["eu-west-1"]);
+		expect(draftRegions(draft("a"), [offline], "")).toEqual([]);
+		expect(draftRegions(draft("a"), [...lone, up("eu-west-1", RegionAvailability.AVAILABLE)], "")).toEqual([]);
 	});
 
 	test("sizing comes from the draft's edits, then the service defaults", () => {

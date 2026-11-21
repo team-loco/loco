@@ -45,7 +45,7 @@ const (
 	testEnvironmentID    = "66666666-7777-8888-9999-000000000000"
 	testResourceID       = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 	testOrganizationID   = "99999999-8888-7777-6666-555555555555"
-	testRegion           = "us-east-1"
+	testRegion           = "us-ca-1"
 	testServiceName      = "web"
 	testEventName        = "deploy.started"
 	testIngestedLogBody  = "ingested over otlp http"

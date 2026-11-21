@@ -42,7 +42,7 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 		o AS (INSERT INTO organizations (name, created_by) SELECT '%[1]s', id FROM u RETURNING id),
 		w AS (INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, '%[1]s', u.id FROM o, u RETURNING id),
 		c AS (INSERT INTO clusters (name, region, provider, is_active, is_default, agent_public_key)
-		      VALUES ('%[1]s', 'us-east-1', 'kind', true, false, decode('%[2]s', 'hex')) RETURNING id),
+		      VALUES ('%[1]s', 'local-1', 'kind', true, false, decode('%[2]s', 'hex')) RETURNING id),
 		p AS (INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, placed_at)
 		      SELECT uuidv7(), c.id, w.id, NOW() - INTERVAL '1 hour' FROM c, w)
 		SELECT c.id, w.id FROM c, w`, name, hex.EncodeToString(public)), "-F", " "))

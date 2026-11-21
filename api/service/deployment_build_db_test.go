@@ -381,7 +381,7 @@ func TestBuildDeploymentUsesStoredSpecAndCurrentResource(t *testing.T) {
 	buildID := f.queued(t)
 	deployBuild(t, f, buildID)
 	if _, err := f.pool.Exec(f.ctx, `UPDATE resources SET
- spec=jsonb_set(spec,'{regions,us-east-1,cpu}','"900m"') WHERE id=$1`, f.resourceID); err != nil {
+ spec=jsonb_set(spec,'{regions,us-ca-1,cpu}','"900m"') WHERE id=$1`, f.resourceID); err != nil {
 		t.Fatal(err)
 	}
 	status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)

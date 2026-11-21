@@ -37,7 +37,7 @@ func TestFormatPlanGroupsOperationsByKind(t *testing.T) {
 				Service:     "web",
 				NeedsDeploy: true,
 				Changes: []*planv1.FieldChange{
-					{Path: "regions.us-east-1.cpu", Before: "250m", After: "500m"},
+					{Path: "regions.us-ca-1.cpu", Before: "250m", After: "500m"},
 					{Path: "env.TRACE", Before: "on"},
 				},
 			},
@@ -56,7 +56,7 @@ func TestFormatPlanGroupsOperationsByKind(t *testing.T) {
 		"      image: ghcr.io/acme/api:1",
 		"Update",
 		"  ~ web  (needs deploy)",
-		"      regions.us-east-1.cpu: 250m -> 500m",
+		"      regions.us-ca-1.cpu: 250m -> 500m",
 		"      env.TRACE: on -> (removed)",
 		"Delete",
 		"  - worker  (destructive)",

@@ -12,9 +12,11 @@ import (
 const (
 	locoNamespace  = "loco-system"
 	platformDomain = "e2e.test.local"
-	clusterRegion  = "us-east-1"
-	clusterName    = "e2e-test-cluster"
-	workerRelease  = "loco-worker"
+	clusterRegion  = "local-1"
+	// bucketRegion is the S3 region the source bucket signs requests for.
+	bucketRegion  = "us-east-1"
+	clusterName   = "e2e-test-cluster"
+	workerRelease = "loco-worker"
 	// gatewayName is loco-worker.gateway in charts/loco-worker/templates/_helpers.tpl.
 	gatewayName = "eg"
 )

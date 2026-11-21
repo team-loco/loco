@@ -8,9 +8,9 @@ fakeapi environment staging
 ! exec loco resource restart web
 stderr '(?i)the workspace has several environments \(production, staging\); pick one with --env'
 
-exec loco resource restart web --env staging --region us-east-1
+exec loco resource restart web --env staging --region us-ca-1
 stdout 'Restarting service web in staging'
-fakeapi restarted web staging us-east-1
+fakeapi restarted web staging us-ca-1
 
 env LOCO_ENV=production
 exec loco resource restart web
