@@ -712,7 +712,7 @@ func TestRegistryCredentialsEndWhenTheClusterReenrolls(t *testing.T) {
 		PublicKey: publicKeyBytes(t, newAgentKey(t)),
 	}
 	request := &agentv1.RegisterRequest{
-		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Region: testRegion, Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: f.clusterID.String(),
 		Enrollment: enrollment,
 	}

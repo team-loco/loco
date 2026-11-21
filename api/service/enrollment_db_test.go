@@ -91,7 +91,7 @@ func (e *enrollmentFixture) enroll(
 ) (*agentv1.RegisterResponse, error) {
 	t.Helper()
 	return e.agent.Register(t.Context(), &agentv1.RegisterRequest{
-		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Region: testRegion, Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: clusterKey.String(),
 		Enrollment: &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)},
 	})
@@ -116,7 +116,11 @@ func registerWithAssertion(
 	info.RequestHeader().Set("Authorization", "Bearer "+assertion)
 	return client.Register(
 		ctx,
-		&agentv1.RegisterRequest{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, ClusterKey: clusterKey.String()},
+		&agentv1.RegisterRequest{
+			Region:     testRegion,
+			Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+			ClusterKey: clusterKey.String(),
+		},
 	)
 }
 
@@ -447,7 +451,7 @@ func recoverClusterID(
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+signAssertion(t, key, issuer))
 	return client.Register(ctx, &agentv1.RegisterRequest{
-		Role:             clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Region: testRegion, Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey:       clusterKey.String(),
 		RecoverClusterId: true,
 	})

@@ -81,7 +81,7 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	key := newAgentKey(t)
 	clusterKey := uuid.New()
 	_, err := e.agent.Register(t.Context(), &agentv1.RegisterRequest{
-		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Region: testRegion, Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: clusterKey.String(),
 		Enrollment: &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)},
 		Domains:    []string{domainsSecond, domainsFirst, domainsFirst},
@@ -114,7 +114,7 @@ func TestRegisterRejectsAnInvalidDomain(t *testing.T) {
 	_, token := e.createCluster(t)
 	key := newAgentKey(t)
 	_, err := e.agent.Register(t.Context(), &agentv1.RegisterRequest{
-		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Region: testRegion, Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		ClusterKey: uuid.NewString(),
 		Enrollment: &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)},
 		Domains:    []string{"*.example.com"},

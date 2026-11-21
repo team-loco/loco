@@ -195,8 +195,9 @@ tests:
       - failedTemplate:
           errorPattern: "/certManager/issuer/email': minLength"
 
-  - it: covers the app and platform domains and the additional regional names
+  - it: covers the app and platform domains, the same under the region, and the additional names
     set:
+      global.region: us-ca-1
       global.domain: {apps: [apps.example.test], platform: platform.example.test}
       certManager.additionalDNSNames: ["*.staging-east.apps.example.test", "*.staging-west.apps.example.test"]
     template: templates/cm-cert.yaml
@@ -205,6 +206,8 @@ tests:
           path: spec.dnsNames
           value:
             - "*.apps.example.test"
+            - "*.us-ca-1.apps.example.test"
             - "*.platform.example.test"
+            - "*.us-ca-1.platform.example.test"
             - "*.staging-east.apps.example.test"
             - "*.staging-west.apps.example.test"

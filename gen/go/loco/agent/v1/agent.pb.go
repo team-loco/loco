@@ -149,8 +149,11 @@ type RegisterRequest struct {
 	// assertion names cluster_key as its issuer, and the response returns the cluster the key
 	// is enrolled to.
 	RecoverClusterId bool `protobuf:"varint,8,opt,name=recover_cluster_id,json=recoverClusterId,proto3" json:"recover_cluster_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// the worker chart's global.region; the API refuses a region the cluster is not registered in.
+	// Empty from an agent that does not report one.
+	Region        string `protobuf:"bytes,9,opt,name=region,proto3" json:"region,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RegisterRequest) Reset() {
@@ -230,6 +233,13 @@ func (x *RegisterRequest) GetRecoverClusterId() bool {
 		return x.RecoverClusterId
 	}
 	return false
+}
+
+func (x *RegisterRequest) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
 }
 
 // Enrollment binds the agent's public key to the cluster that issued the join token.
@@ -1592,13 +1602,15 @@ func (x *CancelBuild) GetBuildId() string {
 
 // Heartbeat is sent periodically by the agent.
 type Heartbeat struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Capacity      *AgentCapacity         `protobuf:"bytes,1,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	Health        *AgentHealth           `protobuf:"bytes,2,opt,name=health,proto3" json:"health,omitempty"`
-	Role          v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
-	Domains       []string               `protobuf:"bytes,4,rep,name=domains,proto3" json:"domains,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Capacity *AgentCapacity         `protobuf:"bytes,1,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Health   *AgentHealth           `protobuf:"bytes,2,opt,name=health,proto3" json:"health,omitempty"`
+	Role     v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
+	Domains  []string               `protobuf:"bytes,4,rep,name=domains,proto3" json:"domains,omitempty"`
+	// the platform domain whose listener and certificate are ready; empty while either is not
+	PlatformDomain string `protobuf:"bytes,6,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Heartbeat) Reset() {
@@ -1657,6 +1669,13 @@ func (x *Heartbeat) GetDomains() []string {
 		return x.Domains
 	}
 	return nil
+}
+
+func (x *Heartbeat) GetPlatformDomain() string {
+	if x != nil {
+		return x.PlatformDomain
+	}
+	return ""
 }
 
 // AgentCapacity reports cluster resource capacity.
@@ -1817,7 +1836,7 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dloco/cluster/v1/cluster.proto\x1a#loco/deployment/v1/deployment.proto\"\xfd\x02\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dloco/cluster/v1/cluster.proto\x1a#loco/deployment/v1/deployment.proto\"\x95\x03\n" +
 	"\x0fRegisterRequest\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12<\n" +
@@ -1829,7 +1848,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"enrollment\x18\x05 \x01(\v2\x19.loco.agent.v1.EnrollmentR\n" +
 	"enrollment\x12&\n" +
 	"\adomains\x18\x06 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\x12,\n" +
-	"\x12recover_cluster_id\x18\b \x01(\bR\x10recoverClusterIdJ\x04\b\a\x10\bR\vdns_records\"\\\n" +
+	"\x12recover_cluster_id\x18\b \x01(\bR\x10recoverClusterId\x12\x16\n" +
+	"\x06region\x18\t \x01(\tR\x06regionJ\x04\b\a\x10\bR\vdns_records\"\\\n" +
 	"\n" +
 	"Enrollment\x12&\n" +
 	"\n" +
@@ -1946,13 +1966,15 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	" \x01(\tR\x12registryCredential\x12;\n" +
 	"\bplatform\x18\v \x01(\tB\x1f\xbaH\x1cr\x1aR\vlinux/amd64R\vlinux/arm64R\bplatform\"2\n" +
 	"\vCancelBuild\x12#\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xf2\x01\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xa7\x02\n" +
 	"\tHeartbeat\x128\n" +
 	"\bcapacity\x18\x01 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
 	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12<\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12&\n" +
-	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06R\vdns_records\"\xce\x02\n" +
+	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\x123\n" +
+	"\x0fplatform_domain\x18\x06 \x01(\tB\n" +
+	"\xbaH\a\xd8\x01\x01r\x02h\x01R\x0eplatformDomainJ\x04\b\x05\x10\x06R\vdns_records\"\xce\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
 	"\x13cpu_millicores_used\x18\x02 \x01(\x03R\x11cpuMillicoresUsed\x12,\n" +

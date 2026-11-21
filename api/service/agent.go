@@ -31,6 +31,7 @@ var (
 	errClusterKeyEnrolled     = errors.New("this Kubernetes cluster is already enrolled as another cluster")
 	errClusterKeyMismatch     = errors.New("agent runs in a different Kubernetes cluster than the one enrolled")
 	errInvalidRegisterRequest = errors.New("invalid registration request")
+	errRegionMismatch         = errors.New("the worker chart's global.region is not the cluster's region")
 )
 
 type AgentConfig struct {
@@ -45,6 +46,9 @@ type AgentConfig struct {
 	ApplyAttempts     int32
 	ApplyRetryDelay   int32
 	RegistryTokenMode bool
+	// PlatformDomain is the workers' platform domain; a cluster serving it records
+	// {region}.{PlatformDomain} as its gateway hostname. Empty records none.
+	PlatformDomain string
 }
 
 // AgentServer implements the AgentService for agent communication.
@@ -133,6 +137,11 @@ func (s *AgentServer) Register(
 		}
 		if authErr != nil {
 			return authErr
+		}
+		if req.GetRegion() != "" && req.GetRegion() != cluster.region {
+			return rpcerr.New(connect.CodeFailedPrecondition, fmt.Errorf(
+				"%w: the chart names %s, the cluster is in %s", errRegionMismatch, req.GetRegion(), cluster.region,
+			))
 		}
 		agentVersion := req.GetAgentVersion()
 		cpuCores := req.GetCapacity().GetCpuMillicoresTotal()
@@ -225,6 +234,10 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 	cpuCores := heartbeat.GetCapacity().GetCpuMillicoresTotal()
 	memBytes := heartbeat.GetCapacity().GetMemoryBytesTotal()
 	healthStatus := healthStatusFromProto(heartbeat.GetHealth())
+	var platformDomain *string
+	if served := heartbeat.GetPlatformDomain(); served != "" && served == s.config.PlatformDomain {
+		platformDomain = &served
+	}
 	err := s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
 		ID:                    clusterID,
 		LastHeartbeat:         &now,
@@ -234,6 +247,7 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 		Role:                  clusterRoleFromProto(heartbeat.GetRole()),
 		Domains:               sortedReportedValues(heartbeat.GetDomains()),
 		Platforms:             sortedReportedValues(heartbeat.GetCapacity().GetPlatforms()),
+		PlatformDomain:        platformDomain,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", clusterID)

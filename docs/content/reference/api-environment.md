@@ -62,6 +62,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_AGENT_ASSERTION_MAX_LIFETIME` | `5m` | Longest lifetime the API accepts on an agent's signed cluster assertion. |
 | `LOCO_CLUSTER_JOIN_TOKEN_TTL` | `1h` | Default lifetime of a cluster join token. See [cluster enrollment](cluster-attachment.md). |
 | `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` | `168h` | Longest lifetime a join token may request. Must be at least `LOCO_CLUSTER_JOIN_TOKEN_TTL`. |
+| `LOCO_PLATFORM_DOMAIN` | empty | The workers' platform domain, the worker chart's `global.domain.platform`. A cluster that serves it records `<region>.<domain>` as its gateway hostname, such as `us-ca-1.loco.build`. Empty records none. The control-plane chart sets it from `platformDomain`, or from `controlPlaneHostname` without its first label. |
 | `LOCO_APPLY_ATTEMPTS` | `2` | Times the API sends a deployment a cluster fails to apply before it marks the deployment failed, 1 to 10. |
 | `LOCO_APPLY_RETRY_DELAY` | `300` | Seconds between those sends. |
 | `LOCO_WORKSPACE_NAMESPACE_GRACE` | `24h` | How long a workspace may have no deployments on a cluster before the API asks that cluster's agent to delete the workspace's namespace there. |

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -25,17 +26,18 @@ const (
 	testServedDomain      = "apps.test"
 	testGatewayNamespace  = "platform"
 	testGateway           = "ingress"
-	testListener          = "https-apps-0"
+	testPlatformDomain    = "platform.test"
+	testRegion            = "us-ca-1"
 	testGatewayGeneration = 1
 )
 
+// testDomains returns a reporter for a gateway with one ready listener per checked domain.
 func testDomains(t *testing.T) *domains.Reporter {
 	t.Helper()
 	scheme := runtime.NewScheme()
 	if err := gatewayv1.Install(scheme); err != nil {
 		t.Fatal(err)
 	}
-	host := gatewayv1.Hostname("*." + testServedDomain)
 	ready := func(condition gatewayv1.ListenerConditionType) metav1.Condition {
 		return metav1.Condition{
 			Type:               string(condition),
@@ -43,25 +45,35 @@ func testDomains(t *testing.T) *domains.Reporter {
 			ObservedGeneration: testGatewayGeneration,
 		}
 	}
-	gateway := &gatewayv1.Gateway{
-		Name:       testGateway,
-		Namespace:  testGatewayNamespace,
-		Generation: testGatewayGeneration,
-		Spec:       gatewayv1.GatewaySpec{Listeners: []gatewayv1.Listener{{Name: testListener, Hostname: &host}}},
-		Status: gatewayv1.GatewayStatus{Listeners: []gatewayv1.ListenerStatus{{
-			Name: testListener,
+	gateway := &gatewayv1.Gateway{Name: testGateway, Namespace: testGatewayNamespace, Generation: testGatewayGeneration}
+	checked := testConfig().CheckedDomains()
+	for i, domain := range checked {
+		name := gatewayv1.SectionName(fmt.Sprintf("https-%d", i))
+		host := gatewayv1.Hostname("*." + domain)
+		gateway.Spec.Listeners = append(gateway.Spec.Listeners, gatewayv1.Listener{Name: name, Hostname: &host})
+		gateway.Status.Listeners = append(gateway.Status.Listeners, gatewayv1.ListenerStatus{
+			Name: name,
 			Conditions: []metav1.Condition{
 				ready(gatewayv1.ListenerConditionAccepted),
 				ready(gatewayv1.ListenerConditionProgrammed),
 			},
-		}}},
+		})
 	}
 	reader := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(gateway).Build()
 	return domains.New(reader, domains.Config{
 		Namespace: testGatewayNamespace,
 		Gateway:   testGateway,
-		Domains:   []string{testServedDomain},
+		Domains:   checked,
 	})
+}
+
+func testConfig() *Config {
+	return &Config{
+		Role:           clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS,
+		AppDomains:     []string{testServedDomain},
+		PlatformDomain: testPlatformDomain,
+		Region:         testRegion,
+	}
 }
 
 func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
@@ -69,7 +81,7 @@ func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
 	a := &Agent{
 		inspector:         inspector,
 		domains:           testDomains(t),
-		cfg:               &Config{Role: clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS},
+		cfg:               testConfig(),
 		heartbeatInterval: testHeartbeatInterval,
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -93,6 +105,9 @@ func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
 			}
 			if !slices.Equal(msg.GetHeartbeat().GetDomains(), []string{testServedDomain}) {
 				t.Fatalf("sent %v, want a heartbeat that reports %s", msg, testServedDomain)
+			}
+			if msg.GetHeartbeat().GetPlatformDomain() != testPlatformDomain {
+				t.Fatalf("sent %v, want the served platform domain", msg)
 			}
 		case <-time.After(testHeartbeatWait):
 			t.Fatalf("no heartbeat within %s", testHeartbeatWait)

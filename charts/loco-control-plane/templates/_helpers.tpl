@@ -225,5 +225,10 @@ capabilities:
 {{- $_ := set $settings $env $value }}
 {{- end }}
 {{- end }}
+{{- $platform := default (regexReplaceAll "^[^.]+[.]" $.Values.controlPlaneHostname "") $.Values.platformDomain }}
+{{- $_ := set $settings "LOCO_PLATFORM_DOMAIN" $platform }}
+{{- with $.Values.defaultRegion }}
+{{- $_ := set $settings "LOCO_DEFAULT_REGION" . }}
+{{- end }}
 {{- toYaml $settings }}
 {{- end }}

@@ -81,16 +81,8 @@ func (cp *controlPlane) checkFailover(t *testing.T) {
 	f := &failover{cp: cp, name: "api-failover-" + platform.RandomHex(4)}
 	t.Cleanup(f.cleanup(t))
 	f.startFixture(t)
-	var worker struct {
-		Global struct {
-			Domain struct {
-				Platform string `json:"platform"`
-			} `json:"domain"`
-		} `json:"global"`
-	}
-	mustReadYAML(t, c.Path("tests", "e2e", "worker-values.yaml"), &worker)
 	for _, layout := range []string{"headless", "shared", "separate"} {
-		t.Run(layout, func(t *testing.T) { f.checkLayout(t, layout, worker.Global.Domain.Platform) })
+		t.Run(layout, func(t *testing.T) { f.checkLayout(t, layout, platform.WorkerPlatformDomain) })
 	}
 }
 

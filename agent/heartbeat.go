@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"time"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -25,22 +26,29 @@ func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRe
 func (a *Agent) heartbeat(ctx context.Context) *agentv1.Heartbeat {
 	capacity := a.getCapacity(ctx)
 	health := a.getHealth(ctx)
-	served := a.servedDomains(ctx)
+	apps, platform := a.servedDomains(ctx)
 	return &agentv1.Heartbeat{
-		Capacity: capacity,
-		Health:   health,
-		Role:     a.cfg.Role,
-		Domains:  served,
+		Capacity:       capacity,
+		Health:         health,
+		Role:           a.cfg.Role,
+		Domains:        apps,
+		PlatformDomain: platform,
 	}
 }
 
-func (a *Agent) servedDomains(ctx context.Context) []string {
+// servedDomains returns the app domains the gateway serves, and the platform domain when it serves
+// that too.
+func (a *Agent) servedDomains(ctx context.Context) ([]string, string) {
 	served, err := a.domains.Served(ctx)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to read the domains the gateway serves", "error", err)
-		return nil
+		return nil, ""
 	}
-	return served
+	platform := slices.Index(served, a.cfg.PlatformDomain)
+	if platform < 0 {
+		return served, ""
+	}
+	return slices.Delete(served, platform, platform+1), a.cfg.PlatformDomain
 }
 
 func (a *Agent) getCapacity(ctx context.Context) *agentv1.AgentCapacity {

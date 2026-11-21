@@ -434,6 +434,9 @@
     "controlPlaneHostname": {
       "type": "string"
     },
+    "defaultRegion": {
+      "type": "string"
+    },
     "gateway": {
       "type": "object",
       "properties": {
@@ -870,6 +873,9 @@
         }
       },
       "additionalProperties": false
+    },
+    "platformDomain": {
+      "type": "string"
     },
     "secrets": {
       "type": "object",

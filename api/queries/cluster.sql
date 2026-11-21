@@ -20,6 +20,7 @@ SET last_heartbeat = $2,
     role = $6,
     domains = sqlc.arg(domains)::text[],
     platforms = sqlc.arg(platforms)::text[],
+    gateway_hostname = region || '.' || sqlc.narg(platform_domain)::text,
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL;
 
@@ -82,7 +83,7 @@ ON CONFLICT (cluster_id, jti) DO NOTHING;
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role, domains
+       last_heartbeat, agent_version, agent_public_key, role, domains, gateway_hostname
 FROM clusters ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one

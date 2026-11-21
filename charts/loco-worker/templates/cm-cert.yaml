@@ -11,11 +11,16 @@ spec:
         kind: {{ .Values.certManager.issuer.kind }}
     {{- $primary := index .Values.global.domain.apps 0 }}
     commonName: {{ printf "*.%s" $primary | quote }}
+    {{- $region := required "global.region is required" .Values.global.region }}
     dnsNames:
         {{- range .Values.global.domain.apps }}
         - {{ printf "*.%s" . | quote }}
         {{- end }}
+        {{- range .Values.global.domain.apps }}
+        - {{ printf "*.%s.%s" $region . | quote }}
+        {{- end }}
         - {{ printf "*.%s" .Values.global.domain.platform | quote }}
+        - {{ printf "*.%s.%s" $region .Values.global.domain.platform | quote }}
         {{- range .Values.certManager.additionalDNSNames }}
         - {{ . | quote }}
         {{- end }}

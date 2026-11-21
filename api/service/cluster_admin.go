@@ -229,8 +229,9 @@ func (s *ClusterAdminServer) ListClusters(
 			IsActive: row.IsActive, RemovedAt: optionalTimestamp(row.RemovedAt),
 			LastHeartbeat: optionalTimestamp(row.LastHeartbeat),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
-			Role:    clusterRoleToProto(row.Role),
-			Domains: row.Domains,
+			Role:            clusterRoleToProto(row.Role),
+			Domains:         row.Domains,
+			GatewayHostname: derefString(row.GatewayHostname),
 		}
 		if row.AgentPublicKey != nil {
 			fingerprint := sha256.Sum256(row.AgentPublicKey)

@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
@@ -107,4 +108,66 @@ func TestConcurrentClusterRegistrationCreatesOneRecord(t *testing.T) {
 	}
 	_, err = e.admin.CreateCluster(ctx, request)
 	requireCode(t, err, connect.CodeFailedPrecondition, "removed registration")
+}
+
+func TestAgentRegistrationRefusesAnotherRegionAndRecordsTheGateway(t *testing.T) {
+	t.Parallel()
+	e := newEnrollmentFixture(t)
+	clusterID, token := e.createCluster(t)
+	key, clusterKey := newAgentKey(t), uuid.New()
+	enrollment := &agentv1.Enrollment{JoinToken: token, PublicKey: publicKeyBytes(t, key)}
+	request := &agentv1.RegisterRequest{
+		Region: statusSecondRegion, Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		ClusterKey: clusterKey.String(), Enrollment: enrollment,
+	}
+	_, err := e.agent.Register(t.Context(), request)
+	requireCode(t, err, connect.CodeFailedPrecondition, "registration from another region")
+
+	request.Region = ""
+	if _, err = e.agent.Register(t.Context(), request); err != nil {
+		t.Fatalf("registration from an agent that reports no region: %v", err)
+	}
+	request.Region = testRegion
+	request.Enrollment = nil
+	if err = e.register(t, clusterID, clusterKey, key); err != nil {
+		t.Fatal(err)
+	}
+
+	config := testAgentConfig()
+	config.PlatformDomain = testGatewayDomain
+	server := NewAgentServer(e.pool, e.queries, nil, nil, nil, testHeartbeatInterval, config)
+	heartbeat := func(platformDomain string) string {
+		t.Helper()
+		server.recordHeartbeat(t.Context(), clusterID, &agentv1.Heartbeat{
+			Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, PlatformDomain: platformDomain,
+		})
+		return e.gatewayHostname(t, clusterID)
+	}
+	if got := heartbeat(testGatewayDomain); got != testRegion+"."+testGatewayDomain {
+		t.Fatalf("gateway hostname = %q, want %s.%s", got, testRegion, testGatewayDomain)
+	}
+	if got := heartbeat("other.test"); got != "" {
+		t.Fatalf("gateway hostname for a platform domain the API does not use = %q, want none", got)
+	}
+	heartbeat(testGatewayDomain)
+	if got := heartbeat(""); got != "" {
+		t.Fatalf("gateway hostname once the platform domain is not served = %q, want none", got)
+	}
+}
+
+const testGatewayDomain = "loco.test"
+
+func (e *enrollmentFixture) gatewayHostname(t *testing.T, clusterID uuid.UUID) string {
+	t.Helper()
+	listed, err := e.admin.ListClusters(systemAdminContext(t), &clusterv1.ListClustersRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, cluster := range listed.GetClusters() {
+		if cluster.GetId() == clusterID.String() {
+			return cluster.GetGatewayHostname()
+		}
+	}
+	t.Fatalf("cluster %s is not listed", clusterID)
+	return ""
 }

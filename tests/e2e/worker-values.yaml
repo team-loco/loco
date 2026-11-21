@@ -1,6 +1,4 @@
 global:
-  domain:
-    platform: e2e-platform.test.local
   replicas:
     agent: 0
 certManager:

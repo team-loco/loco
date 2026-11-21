@@ -1,6 +1,3 @@
-global:
-  region: local-1
-
 otel-col-deploy:
   replicaCount: 2
   autoscaling:

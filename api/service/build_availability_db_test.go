@@ -154,6 +154,7 @@ func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
 		t.Helper()
 		req := &agentv1.RegisterRequest{
 			AgentVersion: "test",
+			Region:       testRegion,
 			Role:         role,
 			ClusterKey:   f.clusterID.String(),
 		}
