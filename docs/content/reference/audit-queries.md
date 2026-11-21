@@ -2,7 +2,7 @@
 title: "Audit queries"
 ---
 
-An audit query selects audit events by who acted, what they acted on, the event type and the request. The dashboard's audit log search, `loco resource events --query` and the `query` field of `EventService.ListEvents` take the same syntax as [log queries](log-queries.md), with the fields below. The organization, workspace, resource, environment and time range stay separate request fields.
+An audit query selects audit events by who acted, what they acted on, the event type and the request, and runtime events by severity, region, reason and resource. The dashboard's audit log search, `loco resource events --query` and the `query` field of `EventService.ListEvents` take the same syntax as [log queries](log-queries.md), with the fields below. The organization, workspace, resource, environment and time range stay separate request fields.
 
 ```text
 @type:member.* -@actor_type:system ada
@@ -17,7 +17,8 @@ A word or a quoted phrase matches events where any of these contains it, ignorin
 - the actor's name or email
 - the target: the ID of the event's subject, the name, domain or secret names in its data, and the name or email of the user it is about
 - the names of the resource, workspace and environment the event happened in
-- the event type, such as `secret.set`
+- the event type, such as `secret.set`, and its title on the dashboard, such as `Degraded in us-va-1`
+- the region, reason and message a runtime event records, and the deployment or build ID it names
 
 Text also matches events whose request ID equals it exactly, such as the request ID an error message shows. `%`, `_` and `\` match themselves.
 
@@ -30,6 +31,10 @@ Text also matches events whose request ID equals it exactly, such as the request
 | `@target` | The ID of the event's subject, or the name, domain or secret name in its data, the name or email of the user it is about, or the name of the resource, workspace or environment it happened in, ignoring case. |
 | `@type` | The event type, such as `deployment.created`. |
 | `@request` | The request ID. |
+| `@severity` | How the dashboard's Events view grades the event: `error` for a failed build or deployment or a crashed deployment, `warning` for a degraded resource, `normal` otherwise. |
+| `@region` | The region the event names, or the regions it names joined with `, `, ignoring case. |
+| `@reason` | The reason a runtime event records, such as `out_of_memory`, ignoring case. |
+| `@resource` | The name or slug of the resource the event happened in, ignoring case. |
 
 `@type`, `@actor_type` and `@request` match case-sensitively. A value ending in `*` matches values that start with it: `@type:secret.*`, `@actor:ada*`. Audit fields hold no numbers, so comparisons and ranges such as `@type:>1` are rejected, and so are other field names.
 
@@ -52,5 +57,5 @@ A query the API cannot parse fails with `InvalidArgument`, a `google.rpc.BadRequ
 
 ```text
 @type does not compare numbers at position 1
-unknown field @status; use @actor, @actor_type, @target, @type or @request at position 5
+unknown field @status; use @actor, @actor_type, @target, @type, @request, @severity, @region, @reason or @resource at position 5
 ```

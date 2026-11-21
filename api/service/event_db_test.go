@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"reflect"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -99,7 +100,7 @@ func TestAuthorizeEventScopeForAnOrganization(t *testing.T) {
 		t.Fatalf("authorize: %v", err)
 	}
 	want := eventScope{kind: eventScopeOrg, orgID: uuid.MustParse(f.orgID)}
-	if scope != want {
+	if !reflect.DeepEqual(scope, want) {
 		t.Fatalf("scope = %+v, want %+v", scope, want)
 	}
 }

@@ -2,7 +2,7 @@ import { RUNTIME_EVENT_TYPES, type RuntimeEvent as Event } from "@/lib/runtime-e
 
 import type { Glyph } from "@/components/design/StatusGlyph";
 import { maybeTsMs, tsMs } from "@/lib/time";
-import { eventSummary, eventTitle, severityOf, severityStyle } from "@/pages/observability/events";
+import { asSeverity, eventSummary, severityStyle } from "@/pages/observability/events";
 
 const WARNING_WINDOW_MS = 3_600_000;
 
@@ -26,11 +26,8 @@ export function recentWarningCount(events: Event[], nowMs: number): number {
 /** Deploy outcomes the events drawer lists beside runtime events. */
 const DEPLOY_EVENT_TYPES = ["deployment.ready", "deployment.failed", "deployment.crashed"];
 
-/** The event types the events drawer asks the API for: runtime events and deploy outcomes, or only the warnings and failures among them. */
-export function drawerEventTypes(warningsOnly: boolean): string[] {
-	const all = [...RUNTIME_EVENT_TYPES, ...DEPLOY_EVENT_TYPES];
-	return warningsOnly ? all.filter((type) => severityOf(type) !== "normal") : all;
-}
+/** The event types the events drawer asks the API for: runtime events and deploy outcomes. */
+export const DRAWER_EVENT_TYPES = [...RUNTIME_EVENT_TYPES, ...DEPLOY_EVENT_TYPES];
 
 export interface EventRow {
 	event: Event;
@@ -42,13 +39,9 @@ export interface EventRow {
 }
 
 function eventRow(event: Event): EventRow {
-	const severity = severityOf(event.type);
+	const severity = asSeverity(event.severity);
 	const deploy = DEPLOY_EVENT_TYPES.includes(event.type);
-	const title = deploy
-		? eventTitle(event.type, event.region)
-		: event.reason === ""
-			? "Service recovered"
-			: event.reason.replaceAll("_", " ");
+	const title = deploy ? event.title : event.reason === "" ? "Service recovered" : event.reason.replaceAll("_", " ");
 	const detail = deploy ? eventSummary(event) : event.message;
 	return { event, title, detail, glyph: severityStyle(severity).glyph, warning: severity !== "normal", count: 1 };
 }

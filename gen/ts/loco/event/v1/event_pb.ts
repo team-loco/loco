@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file loco/event/v1/event.proto.
  */
 export const file_loco_event_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIpYDCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJEhgKEGFjdG9yX3Rva2VuX3R5cGUYESABKAkSFQoNZGVwbG95bWVudF9pZBgSIAEoCSLnAgoRTGlzdEV2ZW50c1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCgpwYWdlX3Rva2VuGAIgASgJQge6SARyAhhAEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoABIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKBXF1ZXJ5GA0gASgJQgi6SAVyAyiAIBIbChNpbmNsdWRlX3RvdGFsX2NvdW50GA4gASgIImgKEkxpc3RFdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBSKsAgoTU3RyZWFtRXZlbnRzUmVxdWVzdBIXCgZjdXJzb3IYASABKAlCB7pIBHICGEASGwoGb3JnX2lkGAIgASgJQgu6SAjYAQFyA7ABARIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKBXF1ZXJ5GA0gASgJQgi6SAVyAyiAICJMChRTdHJlYW1FdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50Eg4KBmN1cnNvchgCIAEoCTK8AQoMRXZlbnRTZXJ2aWNlElEKCkxpc3RFdmVudHMSIC5sb2NvLmV2ZW50LnYxLkxpc3RFdmVudHNSZXF1ZXN0GiEubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVzcG9uc2USWQoMU3RyZWFtRXZlbnRzEiIubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXF1ZXN0GiMubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXNwb25zZTABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZXZlbnQvdjE7ZXZlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIscDCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJEhgKEGFjdG9yX3Rva2VuX3R5cGUYESABKAkSFQoNZGVwbG95bWVudF9pZBgSIAEoCRINCgV0aXRsZRgTIAEoCRIQCghzZXZlcml0eRgUIAEoCRIOCgZyZWdpb24YFSABKAki2wMKEUxpc3RFdmVudHNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGwoKcGFnZV90b2tlbhgCIAEoCUIHukgEcgIYQBIdCglwYWdlX3NpemUYBCABKAVCCrpIBxoFGPQDKAASIQoMd29ya3NwYWNlX2lkGAUgASgJQgu6SAjYAQFyA7ABARIgCgtyZXNvdXJjZV9pZBgGIAEoCUILukgI2AEBcgOwAQESIwoOZW52aXJvbm1lbnRfaWQYByABKAlCC7pICNgBAXIDsAEBEi4KCnN0YXJ0X3RpbWUYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZF90aW1lGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCgVxdWVyeRgNIAEoCUIIukgFcgMogCASGwoTaW5jbHVkZV90b3RhbF9jb3VudBgOIAEoCBIXCgV0eXBlcxgPIAMoCUIIukgFkgECEGQSFgoOaW5jbHVkZV9mYWNldHMYECABKAgSGgoScmVhZGFibGVfcmVzb3VyY2VzGBEgASgIEiUKDHJlc291cmNlX2lkcxgSIAMoCUIPukgMkgEJEGQiBXIDsAEBIkkKCkV2ZW50RmFjZXQSCwoDa2V5GAEgASgJEi4KBnZhbHVlcxgCIAMoCzIeLmxvY28uZXZlbnQudjEuRXZlbnRGYWNldFZhbHVlIi8KD0V2ZW50RmFjZXRWYWx1ZRINCgV2YWx1ZRgBIAEoCRINCgVjb3VudBgCIAEoBSKTAQoSTGlzdEV2ZW50c1Jlc3BvbnNlEiQKBmV2ZW50cxgBIAMoCzIULmxvY28uZXZlbnQudjEuRXZlbnQSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJEhMKC3RvdGFsX2NvdW50GAMgASgFEikKBmZhY2V0cxgEIAMoCzIZLmxvY28uZXZlbnQudjEuRXZlbnRGYWNldCKsAgoTU3RyZWFtRXZlbnRzUmVxdWVzdBIXCgZjdXJzb3IYASABKAlCB7pIBHICGEASGwoGb3JnX2lkGAIgASgJQgu6SAjYAQFyA7ABARIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKBXF1ZXJ5GA0gASgJQgi6SAVyAyiAICJMChRTdHJlYW1FdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50Eg4KBmN1cnNvchgCIAEoCTK8AQoMRXZlbnRTZXJ2aWNlElEKCkxpc3RFdmVudHMSIC5sb2NvLmV2ZW50LnYxLkxpc3RFdmVudHNSZXF1ZXN0GiEubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVzcG9uc2USWQoMU3RyZWFtRXZlbnRzEiIubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXF1ZXN0GiMubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXNwb25zZTABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZXZlbnQvdjE7ZXZlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.event.v1.Event
@@ -115,6 +115,27 @@ export type Event = Message<"loco.event.v1.Event"> & {
    * @generated from field: string deployment_id = 18;
    */
   deploymentId: string;
+
+  /**
+   * The dashboard's label for the event, from its type and region.
+   *
+   * @generated from field: string title = 19;
+   */
+  title: string;
+
+  /**
+   * How the Events view grades the event: "normal", "warning" or "error".
+   *
+   * @generated from field: string severity = 20;
+   */
+  severity: string;
+
+  /**
+   * The region the event names: its region, or its regions joined with ", ".
+   *
+   * @generated from field: string region = 21;
+   */
+  region: string;
 };
 
 /**
@@ -217,6 +238,27 @@ export type EventJson = {
    * @generated from field: string deployment_id = 18;
    */
   deploymentId?: string;
+
+  /**
+   * The dashboard's label for the event, from its type and region.
+   *
+   * @generated from field: string title = 19;
+   */
+  title?: string;
+
+  /**
+   * How the Events view grades the event: "normal", "warning" or "error".
+   *
+   * @generated from field: string severity = 20;
+   */
+  severity?: string;
+
+  /**
+   * The region the event names: its region, or its regions joined with ", ".
+   *
+   * @generated from field: string region = 21;
+   */
+  region?: string;
 };
 
 /**
@@ -275,8 +317,9 @@ export type ListEventsRequest = Message<"loco.event.v1.ListEventsRequest"> & {
   endTime?: Timestamp | undefined;
 
   /**
-   * Audit query: free text matched against the actor, target, event type and request ID, the
-   * @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+   * Audit query: free text matched against the actor, target, event type, title, reason, region,
+   * message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
+   * @reason and @resource fields, AND, OR, - and parentheses.
    * docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
    *
    * @generated from field: string query = 13;
@@ -289,6 +332,36 @@ export type ListEventsRequest = Message<"loco.event.v1.ListEventsRequest"> & {
    * @generated from field: bool include_total_count = 14;
    */
   includeTotalCount: boolean;
+
+  /**
+   * Only events of these types; empty matches every type. Facets count within these types.
+   *
+   * @generated from field: repeated string types = 15;
+   */
+  types: string[];
+
+  /**
+   * Sets facets in the response.
+   *
+   * @generated from field: bool include_facets = 16;
+   */
+  includeFacets: boolean;
+
+  /**
+   * With workspace_id and no resource_id: a caller who cannot list the workspace's events gets the
+   * events of the workspace's resources it can list, as one ListEvents per resource would.
+   *
+   * @generated from field: bool readable_resources = 17;
+   */
+  readableResources: boolean;
+
+  /**
+   * With workspace_id and no resource_id: only the events of these resources. With
+   * readable_resources, only those of them the caller can list.
+   *
+   * @generated from field: repeated string resource_ids = 18;
+   */
+  resourceIds: string[];
 };
 
 /**
@@ -340,8 +413,9 @@ export type ListEventsRequestJson = {
   endTime?: TimestampJson;
 
   /**
-   * Audit query: free text matched against the actor, target, event type and request ID, the
-   * @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+   * Audit query: free text matched against the actor, target, event type, title, reason, region,
+   * message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
+   * @reason and @resource fields, AND, OR, - and parentheses.
    * docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
    *
    * @generated from field: string query = 13;
@@ -354,6 +428,36 @@ export type ListEventsRequestJson = {
    * @generated from field: bool include_total_count = 14;
    */
   includeTotalCount?: boolean;
+
+  /**
+   * Only events of these types; empty matches every type. Facets count within these types.
+   *
+   * @generated from field: repeated string types = 15;
+   */
+  types?: string[];
+
+  /**
+   * Sets facets in the response.
+   *
+   * @generated from field: bool include_facets = 16;
+   */
+  includeFacets?: boolean;
+
+  /**
+   * With workspace_id and no resource_id: a caller who cannot list the workspace's events gets the
+   * events of the workspace's resources it can list, as one ListEvents per resource would.
+   *
+   * @generated from field: bool readable_resources = 17;
+   */
+  readableResources?: boolean;
+
+  /**
+   * With workspace_id and no resource_id: only the events of these resources. With
+   * readable_resources, only those of them the caller can list.
+   *
+   * @generated from field: repeated string resource_ids = 18;
+   */
+  resourceIds?: string[];
 };
 
 /**
@@ -362,6 +466,88 @@ export type ListEventsRequestJson = {
  */
 export const ListEventsRequestSchema: GenMessage<ListEventsRequest, {jsonType: ListEventsRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_event_v1_event, 1);
+
+/**
+ * EventFacet counts the events per value of one key.
+ *
+ * @generated from message loco.event.v1.EventFacet
+ */
+export type EventFacet = Message<"loco.event.v1.EventFacet"> & {
+  /**
+   * type, severity, region, reason, actor or resource.
+   *
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: repeated loco.event.v1.EventFacetValue values = 2;
+   */
+  values: EventFacetValue[];
+};
+
+/**
+ * EventFacet counts the events per value of one key.
+ *
+ * @generated from message loco.event.v1.EventFacet
+ */
+export type EventFacetJson = {
+  /**
+   * type, severity, region, reason, actor or resource.
+   *
+   * @generated from field: string key = 1;
+   */
+  key?: string;
+
+  /**
+   * @generated from field: repeated loco.event.v1.EventFacetValue values = 2;
+   */
+  values?: EventFacetValueJson[];
+};
+
+/**
+ * Describes the message loco.event.v1.EventFacet.
+ * Use `create(EventFacetSchema)` to create a new message.
+ */
+export const EventFacetSchema: GenMessage<EventFacet, {jsonType: EventFacetJson}> = /*@__PURE__*/
+  messageDesc(file_loco_event_v1_event, 2);
+
+/**
+ * @generated from message loco.event.v1.EventFacetValue
+ */
+export type EventFacetValue = Message<"loco.event.v1.EventFacetValue"> & {
+  /**
+   * @generated from field: string value = 1;
+   */
+  value: string;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count: number;
+};
+
+/**
+ * @generated from message loco.event.v1.EventFacetValue
+ */
+export type EventFacetValueJson = {
+  /**
+   * @generated from field: string value = 1;
+   */
+  value?: string;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count?: number;
+};
+
+/**
+ * Describes the message loco.event.v1.EventFacetValue.
+ * Use `create(EventFacetValueSchema)` to create a new message.
+ */
+export const EventFacetValueSchema: GenMessage<EventFacetValue, {jsonType: EventFacetValueJson}> = /*@__PURE__*/
+  messageDesc(file_loco_event_v1_event, 3);
 
 /**
  * @generated from message loco.event.v1.ListEventsResponse
@@ -388,6 +574,14 @@ export type ListEventsResponse = Message<"loco.event.v1.ListEventsResponse"> & {
    * @generated from field: int32 total_count = 3;
    */
   totalCount: number;
+
+  /**
+   * Set when include_facets is: counts per value of each facet key over the newest 10,001 events the
+   * scope, time range and types match, ignoring query and page_token.
+   *
+   * @generated from field: repeated loco.event.v1.EventFacet facets = 4;
+   */
+  facets: EventFacet[];
 };
 
 /**
@@ -415,6 +609,14 @@ export type ListEventsResponseJson = {
    * @generated from field: int32 total_count = 3;
    */
   totalCount?: number;
+
+  /**
+   * Set when include_facets is: counts per value of each facet key over the newest 10,001 events the
+   * scope, time range and types match, ignoring query and page_token.
+   *
+   * @generated from field: repeated loco.event.v1.EventFacet facets = 4;
+   */
+  facets?: EventFacetJson[];
 };
 
 /**
@@ -422,7 +624,7 @@ export type ListEventsResponseJson = {
  * Use `create(ListEventsResponseSchema)` to create a new message.
  */
 export const ListEventsResponseSchema: GenMessage<ListEventsResponse, {jsonType: ListEventsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_event_v1_event, 2);
+  messageDesc(file_loco_event_v1_event, 4);
 
 /**
  * @generated from message loco.event.v1.StreamEventsRequest
@@ -466,8 +668,9 @@ export type StreamEventsRequest = Message<"loco.event.v1.StreamEventsRequest"> &
   endTime?: Timestamp | undefined;
 
   /**
-   * Audit query: free text matched against the actor, target, event type and request ID, the
-   * @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+   * Audit query: free text matched against the actor, target, event type, title, reason, region,
+   * message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
+   * @reason and @resource fields, AND, OR, - and parentheses.
    * docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
    *
    * @generated from field: string query = 13;
@@ -517,8 +720,9 @@ export type StreamEventsRequestJson = {
   endTime?: TimestampJson;
 
   /**
-   * Audit query: free text matched against the actor, target, event type and request ID, the
-   * @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+   * Audit query: free text matched against the actor, target, event type, title, reason, region,
+   * message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
+   * @reason and @resource fields, AND, OR, - and parentheses.
    * docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
    *
    * @generated from field: string query = 13;
@@ -531,7 +735,7 @@ export type StreamEventsRequestJson = {
  * Use `create(StreamEventsRequestSchema)` to create a new message.
  */
 export const StreamEventsRequestSchema: GenMessage<StreamEventsRequest, {jsonType: StreamEventsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_event_v1_event, 3);
+  messageDesc(file_loco_event_v1_event, 5);
 
 /**
  * @generated from message loco.event.v1.StreamEventsResponse
@@ -568,7 +772,7 @@ export type StreamEventsResponseJson = {
  * Use `create(StreamEventsResponseSchema)` to create a new message.
  */
 export const StreamEventsResponseSchema: GenMessage<StreamEventsResponse, {jsonType: StreamEventsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_event_v1_event, 4);
+  messageDesc(file_loco_event_v1_event, 6);
 
 /**
  * @generated from service loco.event.v1.EventService

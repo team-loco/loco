@@ -132,6 +132,53 @@ CREATE TRIGGER events_enqueue_webhooks_insert
 AFTER INSERT ON events
 FOR EACH ROW EXECUTE FUNCTION events_enqueue_webhooks();
 
+-- +goose StatementBegin
+-- The region an event names: its region, or its regions joined.
+CREATE FUNCTION event_region (data JSONB) RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
+  SELECT COALESCE(NULLIF(data->>'region', ''), array_to_string(ARRAY(SELECT jsonb_array_elements_text(
+    CASE WHEN jsonb_typeof(data->'regions') = 'array' THEN data->'regions' END)), ', '), '')
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+-- How the dashboard's Events view grades an event type.
+CREATE FUNCTION event_severity (type TEXT) RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE
+    WHEN type IN ('build.failed', 'deployment.failed', 'deployment.crashed') THEN 'error'
+    WHEN type = 'resource.degraded' THEN 'warning'
+    ELSE 'normal'
+  END
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+-- The label the dashboard shows for an event; types without one show the type.
+CREATE FUNCTION event_title (type TEXT, data JSONB) RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE type
+      WHEN 'resource.degraded' THEN 'Degraded'
+      WHEN 'resource.recovered' THEN 'Recovered'
+      WHEN 'resource.restarted' THEN 'Restarted'
+      WHEN 'resource.scaled' THEN 'Scaled'
+      WHEN 'deployment.created' THEN 'Deploy created'
+      WHEN 'deployment.ready' THEN 'Deploy ready'
+      WHEN 'deployment.failed' THEN 'Deploy failed'
+      WHEN 'deployment.crashed' THEN 'Deploy crashed'
+      WHEN 'build.created' THEN 'Build queued'
+      WHEN 'build.started' THEN 'Build started'
+      WHEN 'build.succeeded' THEN 'Build succeeded'
+      WHEN 'build.failed' THEN 'Build failed'
+      WHEN 'build.canceled' THEN 'Build canceled'
+      ELSE type
+    END
+    || CASE
+      WHEN type IN ('resource.degraded', 'resource.recovered', 'resource.restarted',
+                    'deployment.ready', 'deployment.failed', 'deployment.crashed')
+        AND event_region(data) <> '' THEN ' in ' || event_region(data)
+      ELSE ''
+    END
+$$;
+-- +goose StatementEnd
+
 -- +goose Down
 DROP VIEW IF EXISTS webhook_delivery_results;
 DROP TABLE IF EXISTS webhook_deliveries;
@@ -141,3 +188,6 @@ DROP TABLE IF EXISTS event_stream_counter;
 DROP FUNCTION IF EXISTS events_reject_update();
 DROP FUNCTION IF EXISTS events_enqueue_webhooks();
 DROP TYPE IF EXISTS webhook_kind;
+DROP FUNCTION IF EXISTS event_title;
+DROP FUNCTION IF EXISTS event_severity;
+DROP FUNCTION IF EXISTS event_region;

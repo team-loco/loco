@@ -77,6 +77,22 @@ func check(ctx context.Context, authorizer *authz.Authorizer, p reqctx.Principal
 	return fmt.Errorf("check access: %w", err)
 }
 
+// parseIDs parses a repeated request field holding entity IDs; it returns nil for an empty field.
+func parseIDs(field string, values []string) ([]uuid.UUID, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	ids := make([]uuid.UUID, 0, len(values))
+	for _, value := range values {
+		id, err := parseID(field, value)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 // parseID parses a request field holding an entity ID.
 func parseID(field, value string) (uuid.UUID, error) {
 	id, err := uuid.Parse(value)

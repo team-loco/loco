@@ -222,10 +222,7 @@ with session(out) as browser:
     with expect_rpc(
         page,
         "ListEvents",
-        lambda body: (
-            "deployment.failed" in body.get("query", "")
-            and "deployment.ready" not in body.get("query", "")
-        ),
+        lambda body: body.get("query", "").endswith(" -@severity:normal"),
     ):
         runtime_events.get_by_role("button", name="Warnings", exact=True).click()
     expect(

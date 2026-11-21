@@ -36,6 +36,12 @@ message Event {
   // The deployment the event concerns: the one a deployment event is about, or the one running
   // when resource.degraded or resource.recovered fired. Empty for other events.
   string deployment_id = 18;
+  // The dashboard's label for the event, from its type and region.
+  string title = 19;
+  // How the Events view grades the event: "normal", "warning" or "error".
+  string severity = 20;
+  // The region the event names: its region, or its regions joined with ", ".
+  string region = 21;
 }
 
 message ListEventsRequest {
@@ -61,12 +67,40 @@ message ListEventsRequest {
   // Inclusive start and exclusive end of the event creation time range.
   google.protobuf.Timestamp start_time = 8;
   google.protobuf.Timestamp end_time = 9;
-  // Audit query: free text matched against the actor, target, event type and request ID, the
-  // @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+  // Audit query: free text matched against the actor, target, event type, title, reason, region,
+  // message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
+  // @reason and @resource fields, AND, OR, - and parentheses.
   // docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
   string query = 13 [(buf.validate.field).string.max_bytes = 4096];
   // Sets total_count in the response.
   bool include_total_count = 14;
+  // Only events of these types; empty matches every type. Facets count within these types.
+  repeated string types = 15 [(buf.validate.field).repeated.max_items = 100];
+  // Sets facets in the response.
+  bool include_facets = 16;
+  // With workspace_id and no resource_id: a caller who cannot list the workspace's events gets the
+  // events of the workspace's resources it can list, as one ListEvents per resource would.
+  bool readable_resources = 17;
+  // With workspace_id and no resource_id: only the events of these resources. With
+  // readable_resources, only those of them the caller can list.
+  repeated string resource_ids = 18 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {uuid: true}
+    }
+  }];
+}
+
+// EventFacet counts the events per value of one key.
+message EventFacet {
+  // type, severity, region, reason, actor or resource.
+  string key = 1;
+  repeated EventFacetValue values = 2;
+}
+
+message EventFacetValue {
+  string value = 1;
+  int32 count = 2;
 }
 
 message ListEventsResponse {
@@ -77,6 +111,9 @@ message ListEventsResponse {
   // The events the filters match, ignoring page_token; set when include_total_count is.
   // Exact up to 10,000; 10,001 means more than 10,000.
   int32 total_count = 3;
+  // Set when include_facets is: counts per value of each facet key over the newest 10,001 events the
+  // scope, time range and types match, ignoring query and page_token.
+  repeated EventFacet facets = 4;
 }
 
 message StreamEventsRequest {
@@ -100,8 +137,9 @@ message StreamEventsRequest {
   // Inclusive start and exclusive end of the event creation time range.
   google.protobuf.Timestamp start_time = 8;
   google.protobuf.Timestamp end_time = 9;
-  // Audit query: free text matched against the actor, target, event type and request ID, the
-  // @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+  // Audit query: free text matched against the actor, target, event type, title, reason, region,
+  // message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
+  // @reason and @resource fields, AND, OR, - and parentheses.
   // docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
   string query = 13 [(buf.validate.field).string.max_bytes = 4096];
 }

@@ -9,7 +9,8 @@ import (
 )
 
 // compiledLiterals are the only quoted strings querySQL writes itself.
-var compiledLiterals = strings.NewReplacer(`'\'`, "", `'name'`, "", `'domain'`, "", `'names'`, "", `'array'`, "")
+var compiledLiterals = strings.NewReplacer(`'\'`, "", `'name'`, "", `'domain'`, "", `'names'`, "", `'array'`, "",
+	`'reason'`, "", `'message'`, "", `'deploymentId'`, "", `'buildId'`, "")
 
 func FuzzQuerySQLBindsEveryValue(f *testing.F) {
 	for _, seed := range []string{

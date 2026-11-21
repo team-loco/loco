@@ -466,7 +466,8 @@ func TestWorkspaceEventStreamFiltersAndReconnects(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(first.GetEvents()) != 1 || first.GetEvents()[0].GetResourceId() != f.resourceID.String() ||
-		first.GetEvents()[0].GetType() != events.ResourceUpdated {
+		first.GetEvents()[0].GetType() != events.ResourceUpdated ||
+		first.GetEvents()[0].GetTitle() != events.ResourceUpdated || first.GetEvents()[0].GetSeverity() != "normal" {
 		t.Fatalf("batch = %v", first)
 	}
 	if err = stream.Close(); err != nil {
@@ -560,6 +561,86 @@ func TestListEventsSearchMatchesTheWhereColumn(t *testing.T) {
 		}
 		if got := len(res.GetEvents()); got != want {
 			t.Errorf("ListEvents(%q) found %d events, want %d", query, got, want)
+		}
+	}
+}
+
+func TestListEventsReadableResourcesOfAWorkspace(t *testing.T) {
+	t.Parallel()
+	f := newScopedAuditFixture(t)
+	for _, tc := range []struct {
+		name       string
+		entityType genDb.EntityType
+		entityID   uuid.UUID
+		readable   bool
+		requested  []uuid.UUID
+		code       connect.Code
+		resources  []uuid.UUID
+	}{
+		{"resource reader without the flag", genDb.EntityTypeResource, f.resourceID, false, nil,
+			connect.CodePermissionDenied, nil},
+		{"resource reader", genDb.EntityTypeResource, f.resourceID, true, nil, 0, []uuid.UUID{f.resourceID}},
+		{"workspace reader", genDb.EntityTypeWorkspace, f.workspaceID, true, nil, 0,
+			[]uuid.UUID{f.resourceID, f.otherResourceID}},
+		{"reader of another workspace", genDb.EntityTypeWorkspace, f.otherWorkspaceID, true, nil,
+			connect.CodePermissionDenied, nil},
+		{"workspace reader naming one resource", genDb.EntityTypeWorkspace, f.workspaceID, true,
+			[]uuid.UUID{f.otherResourceID}, 0, []uuid.UUID{f.otherResourceID}},
+		{"resource reader naming both resources", genDb.EntityTypeResource, f.resourceID, true,
+			[]uuid.UUID{f.resourceID, f.otherResourceID}, 0, []uuid.UUID{f.resourceID}},
+		{"resource reader naming the other resource", genDb.EntityTypeResource, f.resourceID, true,
+			[]uuid.UUID{f.otherResourceID}, 0, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := auditScope(t, tc.entityType, tc.entityID, genDb.ScopeRead)
+			req := &eventv1.ListEventsRequest{
+				OrgId: f.orgID, WorkspaceId: f.workspaceID.String(), ReadableResources: tc.readable,
+			}
+			for _, id := range tc.requested {
+				req.ResourceIds = append(req.ResourceIds, id.String())
+			}
+			got, err := f.events.ListEvents(ctx, req)
+			if tc.code != 0 {
+				if codeOf(err) != tc.code {
+					t.Fatalf("err = %v, want %v", err, tc.code)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			seen := map[uuid.UUID]int{}
+			for _, e := range got.GetEvents() {
+				seen[uuid.MustParse(e.GetResourceId())]++
+			}
+			if len(seen) != len(tc.resources) {
+				t.Fatalf("resources = %v, want %v", seen, tc.resources)
+			}
+			for _, id := range tc.resources {
+				if seen[id] != 5 {
+					t.Fatalf("resource %s has %d events, want 5: %v", id, seen[id], seen)
+				}
+			}
+		})
+	}
+}
+
+func TestListEventsReadableResourcesOfAnAdminGrant(t *testing.T) {
+	t.Parallel()
+	f := newScopedAuditFixture(t)
+	ctx := auditScope(t, genDb.EntityTypeResource, f.resourceID, genDb.ScopeAdmin)
+	got, err := f.events.ListEvents(ctx, &eventv1.ListEventsRequest{
+		OrgId: f.orgID, WorkspaceId: f.workspaceID.String(), ReadableResources: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.GetEvents()) == 0 {
+		t.Fatal("no events for the granted resource")
+	}
+	for _, e := range got.GetEvents() {
+		if e.GetResourceId() != f.resourceID.String() {
+			t.Fatalf("event of resource %s, want only %s", e.GetResourceId(), f.resourceID)
 		}
 	}
 }

@@ -1344,11 +1344,14 @@ with session(out) as browser:
         body = route.request.post_data_json
         event_requests.append(body)
 
-        def event(seq, kind, offset, data):
+        def event(seq, kind, offset, data, title):
             return {
                 "seq": str(seq),
                 "id": f"00000000-0000-4000-8000-00000000000{seq}",
                 "type": kind,
+                "title": title,
+                "severity": "normal",
+                "region": data.get("region", ""),
                 "resourceId": body["resourceId"],
                 "environmentId": body["environmentId"],
                 "createdAt": time.strftime(
@@ -1374,8 +1377,15 @@ with session(out) as browser:
                                 "region": "us-ca-1",
                                 "message": "Container exited with code 137",
                             },
+                            "Restarted in us-ca-1",
                         ),
-                        event(1, "deployment.ready", -1800, {"region": "us-ca-1"}),
+                        event(
+                            1,
+                            "deployment.ready",
+                            -1800,
+                            {"region": "us-ca-1"},
+                            "Deploy ready in us-ca-1",
+                        ),
                     ]
                     if window[0] <= iso_seconds(item["createdAt"]) < window[1]
                 ]

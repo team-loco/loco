@@ -40,7 +40,7 @@ import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
 import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
-import { drawerEventTypes, newestFirst, recentWarningCount } from "@/pages/resource/events";
+import { DRAWER_EVENT_TYPES, newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
@@ -136,7 +136,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	// The drawer's window starts when it opens.
 	const [eventsSince, setEventsSince] = useState<number | null>(null);
 	const drawerEventsOptions = runtimeEventsOptions(transport, eventScope, {
-		types: drawerEventTypes(eventsTab === "warnings"),
+		types: DRAWER_EVENT_TYPES,
+		warningsOnly: eventsTab === "warnings",
 		startMs: eventsSince ?? undefined,
 	});
 	const drawerEventsQuery = useTanstackQuery({
