@@ -12,6 +12,27 @@ import (
 	"github.com/google/uuid"
 )
 
+const countOrgsForUser = `-- name: CountOrgsForUser :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM user_scopes
+  WHERE user_id = $1 AND entity_type = 'organization'
+  GROUP BY entity_id
+  LIMIT $2
+) capped
+`
+
+type CountOrgsForUserParams struct {
+	UserID uuid.UUID `json:"userId"`
+	Limit  int32     `json:"limit"`
+}
+
+func (q *Queries) CountOrgsForUser(ctx context.Context, arg CountOrgsForUserParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countOrgsForUser, arg.UserID, arg.Limit)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createOrg = `-- name: CreateOrg :one
 INSERT INTO organizations (name, created_by)
 VALUES ($1, $2)

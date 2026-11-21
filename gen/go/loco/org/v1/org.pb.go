@@ -382,8 +382,10 @@ type ListUserOrgsRequest struct {
 	// create_if_missing creates an organization and its "default" workspace, with the caller as admin,
 	// when the caller belongs to no organization. It requires user_id to be the caller.
 	CreateIfMissing bool `protobuf:"varint,4,opt,name=create_if_missing,json=createIfMissing,proto3" json:"create_if_missing,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,5,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListUserOrgsRequest) Reset() {
@@ -444,11 +446,23 @@ func (x *ListUserOrgsRequest) GetCreateIfMissing() bool {
 	return false
 }
 
+func (x *ListUserOrgsRequest) GetIncludeTotalCount() bool {
+	if x != nil {
+		return x.IncludeTotalCount
+	}
+	return false
+}
+
 // ListUserOrgsResponse is the response containing organization list.
 type ListUserOrgsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Orgs          []*Organization        `protobuf:"bytes,1,rep,name=orgs,proto3" json:"orgs,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
+	// The organizations the user belongs to; set when include_total_count is.
+	// Exact up to 10,000; 10,001 means more than 10,000.
+	TotalCount int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// The organizations the user created, the count the orgs_per_user limit caps.
+	CreatedCount  int32 `protobuf:"varint,4,opt,name=created_count,json=createdCount,proto3" json:"created_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -495,6 +509,20 @@ func (x *ListUserOrgsResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListUserOrgsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ListUserOrgsResponse) GetCreatedCount() int32 {
+	if x != nil {
+		return x.CreatedCount
+	}
+	return 0
 }
 
 // ListOrgMembersRequest selects a page of organization members.
@@ -2112,17 +2140,21 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\rGetOrgRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"O\n" +
 	"\x0eGetOrgResponse\x12=\n" +
-	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"\xac\x01\n" +
+	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"\xdc\x01\n" +
 	"\x13ListUserOrgsRequest\x12!\n" +
 	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\x12*\n" +
-	"\x11create_if_missing\x18\x04 \x01(\bR\x0fcreateIfMissing\"m\n" +
+	"\x11create_if_missing\x18\x04 \x01(\bR\x0fcreateIfMissing\x12.\n" +
+	"\x13include_total_count\x18\x05 \x01(\bR\x11includeTotalCount\"\xb3\x01\n" +
 	"\x14ListUserOrgsResponse\x12-\n" +
 	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x80\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\x12#\n" +
+	"\rcreated_count\x18\x04 \x01(\x05R\fcreatedCount\"\x80\x01\n" +
 	"\x15ListOrgMembersRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +

@@ -26,6 +26,14 @@ WHERE EXISTS (
 ORDER BY o.created_at DESC, o.id DESC
 LIMIT $2;
 
+-- name: CountOrgsForUser :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM user_scopes
+  WHERE user_id = $1 AND entity_type = 'organization'
+  GROUP BY entity_id
+  LIMIT $2
+) capped;
+
 -- name: UpdateOrgName :one
 UPDATE organizations
 SET name = $2, updated_at = NOW()

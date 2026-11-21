@@ -81,3 +81,38 @@ func TestOrgPaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 		t.Fatalf("third page=%v, want %s", rows, ids[2])
 	}
 }
+
+func TestListUserOrgsCountsMembershipsAndCreatedOrgs(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	original, err := f.queries.GetOrgByID(t.Context(), uuid.MustParse(f.orgID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
+	for i := range 2 {
+		name := new("more-" + strconv.Itoa(i))
+		if _, createErr := server.CreateOrg(f.owner, &orgv1.CreateOrgRequest{Name: name}); createErr != nil {
+			t.Fatal(createErr)
+		}
+	}
+	// Created by the user, but the user holds no scope in it.
+	left := genDb.CreateOrgParams{Name: "left", CreatedBy: original.CreatedBy}
+	if _, err = f.queries.CreateOrg(t.Context(), left); err != nil {
+		t.Fatal(err)
+	}
+	ctx := scoped(t, f.queries, original.CreatedBy)
+	request := &orgv1.ListUserOrgsRequest{UserId: original.CreatedBy.String(), PageSize: 1, IncludeTotalCount: true}
+	first, err := server.ListUserOrgs(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.GetTotalCount() != 3 || first.GetCreatedCount() != 4 {
+		t.Fatalf("total=%d created=%d, want 3 and 4", first.GetTotalCount(), first.GetCreatedCount())
+	}
+	request.IncludeTotalCount, request.PageToken = false, first.GetNextPageToken()
+	second, err := server.ListUserOrgs(ctx, request)
+	if err != nil || second.GetTotalCount() != 0 {
+		t.Fatalf("second page total=%d (%v), want 0 when not asked", second.GetTotalCount(), err)
+	}
+}

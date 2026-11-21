@@ -38,6 +38,7 @@ type Querier interface {
 	CountOrgMembers(ctx context.Context, entityID uuid.UUID) (int64, error)
 	CountOrgWorkspaces(ctx context.Context, orgID uuid.UUID) (int64, error)
 	CountOrgsCreatedBy(ctx context.Context, createdBy uuid.UUID) (int64, error)
+	CountOrgsForUser(ctx context.Context, arg CountOrgsForUserParams) (int64, error)
 	CountSecrets(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	CountWebhookDeliveries(ctx context.Context, arg CountWebhookDeliveriesParams) (CountWebhookDeliveriesRow, error)
 	CountWorkspaceContents(ctx context.Context, workspaceIds []uuid.UUID) ([]CountWorkspaceContentsRow, error)
