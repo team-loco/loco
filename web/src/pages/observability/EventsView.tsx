@@ -19,6 +19,7 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { eventTypesQuery } from "@/lib/audit-query";
+import { useHeldError } from "@/hooks/useHeldError";
 import { useTokenPage } from "@/hooks/useTokenPage";
 import { formatTotal, pageTokensParser, pagingParsers, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { resolveWindow } from "@/lib/obs-time";
@@ -125,7 +126,7 @@ export function EventsView() {
 		}))
 		.filter((e) => eventInEnvironment(e, environment?.id ?? ""))
 		.map(eventItem);
-	const error = page.query.error ?? facets.error;
+	const error = useHeldError(page.query.error ?? facets.error, page.query.isFetching || facets.isFetching);
 	const refetch = async () => await Promise.all([page.query.refetch(), facets.refetch()]);
 	const show: Show = tokens.some((t) => t.key === "severity" && !t.neg && t.value === "error")
 		? "error"
@@ -142,7 +143,7 @@ export function EventsView() {
 	const select = (key: string | null) => {
 		void setParams({ event: key });
 	};
-	const loading = page.query.isPending || resourcesLoading;
+	const loading = resourcesLoading || (error === null && page.query.isPending);
 	const valueCounts = (key: FieldKey): [string, number][] =>
 		(facets.data?.facets.find((f) => f.key === key)?.values ?? []).map((v) => [v.value, v.count]);
 	const onListKeyDown = useListNavigation(
