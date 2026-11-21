@@ -78,6 +78,16 @@ RPC_CREATE_MEMBER = "loco.workspace.v1.WorkspaceService/CreateMember"
 OPENBAO_SERVICE = "openbao"
 OPENBAO_SEED_SERVICE = "openbao-seed"
 OPENBAO_CONTAINER_PORT = "8200"
+# The files a seeded OpenBao depends on; runs whose files match share one.
+OPENBAO_SOURCES = (
+    "dev/compose.yaml",
+    "dev/api.env",
+    "dev/openbao/config.hcl",
+    "tests/conformance/transit/compose.yaml",
+    "charts/loco-control-plane/files/openbao-setup.sh",
+)
+# Every run's API holds a connection pool on the shared Postgres.
+POSTGRES_MAX_CONNECTIONS = 1000
 
 
 class EvidenceError(Exception):
@@ -256,7 +266,7 @@ def read_api_env(text):
     return values
 
 
-def api_env(dev_env, ports, issuer):
+def api_env(dev_env, ports, database, issuer):
     db_port, api_port, ui_port, unused = (
         ports[key] for key in ("db", "api", "ui", "unused")
     )
@@ -264,7 +274,7 @@ def api_env(dev_env, ports, issuer):
     env.update(
         {
             "APP_PORT": f":{api_port}",
-            "DATABASE_URL": f"postgres://{DB_USER}:{DB_PASSWORD}@{HOST}:{db_port}/{DB_NAME}?sslmode=disable",
+            "DATABASE_URL": f"postgres://{DB_USER}:{DB_PASSWORD}@{HOST}:{db_port}/{database}?sslmode=disable",
             "LOCO_AGENT_HEARTBEAT_INTERVAL": f"{LEASE_S}s",
             "CACHE_TYPE": "in-memory",
             "CACHE_ADDR": "",
@@ -795,12 +805,13 @@ def postgres_network(port, image):
     ]
 
 
-def psql(container, sql):
+def psql(state, sql):
+    """Runs SQL in the run's database, or in the server's own one for a state without a database."""
     cmd = [
         "docker",
         "exec",
         "-i",
-        container,
+        state["container"],
         "psql",
         "-q",
         "-v",
@@ -808,7 +819,7 @@ def psql(container, sql):
         "-U",
         DB_USER,
         "-d",
-        DB_NAME,
+        state.get("database", DB_NAME),
         "-tA",
     ]
     result = subprocess.run(cmd, input=sql, text=True, capture_output=True)
@@ -852,13 +863,12 @@ def rpc(api_url, token, path, body):
 
 
 def seed(state, scenario):
-    container = state["container"]
     api_url = state["api_url"]
     notes = []
     users = {}
     for key, user in scenario["users"].items():
         user_id = psql(
-            container,
+            state,
             f"INSERT INTO users (email, name) VALUES ({sql_literal(user['email'])}, "
             f"{sql_literal(user.get('name', key))}) RETURNING id;",
         )
@@ -867,18 +877,18 @@ def seed(state, scenario):
             for s in USER_SCOPES
         )
         psql(
-            container,
+            state,
             f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {scope_rows};",
         )
         token = session_token()
         psql(
-            container,
+            state,
             "INSERT INTO identities (user_id, issuer, subject, email, email_verified) "
             f"VALUES ({sql_literal(user_id)}, {sql_literal(state['issuer'])}, "
             f"{sql_literal('evidence-' + key)}, {sql_literal(user['email'])}, true);",
         )
         psql(
-            container,
+            state,
             "INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, "
             "access_expires_at, refresh_expires_at, kind) VALUES "
             f"({sql_literal(uuid.uuid4())}, {sql_literal(token_hash(token))}, "
@@ -908,7 +918,7 @@ def seed(state, scenario):
         )
         if member_rows:
             psql(
-                container,
+                state,
                 f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {member_rows};",
             )
 
@@ -951,7 +961,7 @@ def seed_cluster(
 ):
     cluster_id = str(uuid.uuid4())
     psql(
-        state["container"],
+        state,
         cluster_row(
             cluster_id,
             region,
@@ -1063,7 +1073,7 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
     q = sql_literal
     target = json.loads(
         psql(
-            state["container"],
+            state,
             "SELECT json_build_object('org', w.org_id, 'workspace', w.id, 'slug', r.slug, 'environments', "
             "(SELECT json_object_agg(e.slug, e.id) FROM environments e WHERE e.workspace_id=w.id)) "
             f"FROM resources r JOIN workspaces w ON w.id=r.workspace_id WHERE r.id={q(resource_id)};",
@@ -1160,7 +1170,7 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
             )
     rows += then
     if rows:
-        psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
+        psql(state, "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
     return ids
 
 
@@ -1181,12 +1191,9 @@ def cmd_openbao(args):
     root = Path(
         testres("lease", "-name", f"{LABEL}-shared-openbao", "-ttl", f"{LEASE_S}s")
     )
-    state = {"id": root.name, "root": str(root), "compose": root.name}
+    state = {"id": root.name, "root": str(root)}
     try:
-        testres("add", root, "compose", state["compose"])
-        state["address"] = start_openbao(
-            repo_root(), state["compose"], dict(os.environ)
-        )
+        state = openbao_starter(repo_root())(root)
         write_json(root / "state.json", state)
     except BaseException:
         stop_state(state)
@@ -1315,6 +1322,87 @@ def reap():
         log(f"skipped leftovers that could not be stopped: {err}")
 
 
+def digest(*parts):
+    return hashlib.sha256("\0".join(parts).encode()).hexdigest()[:12]
+
+
+def shared(user, kind, key, start):
+    """Returns the state of the machine-wide `kind` server for `key`, held by `user`'s lease.
+
+    The first caller starts it with `start(lease_dir)`; the server stops when no lease holds it.
+    """
+    root = Path(testres("share", f"{LABEL}-{kind}-{key}", user))
+    with flocked(root / "start.lock"):
+        path = root / "state.json"
+        if not path.exists():
+            write_json(path, start(root))
+        return load_state(path)
+
+
+def openbao_starter(source):
+    def start(root):
+        testres("add", root, "compose", root.name)
+        address = start_openbao(source, root.name, dict(os.environ))
+        return {"id": root.name, "root": str(root), "address": address}
+
+    return start
+
+
+def postgres_starter(image):
+    def start(root):
+        container = root.name
+        port = int(testres("ports", root, 1))
+        run(
+            ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
+            cwd=TOOLS_ROOT,
+        )
+        testres("add", root, "container", container)
+        # A failed earlier start of this server may have left the container.
+        run(["docker", "rm", "-f", container], capture=True)
+        run(
+            [
+                "docker",
+                "run",
+                "--pull",
+                "never",
+                "-d",
+                "--name",
+                container,
+                "-e",
+                f"POSTGRES_USER={DB_USER}",
+                "-e",
+                f"POSTGRES_PASSWORD={DB_PASSWORD}",
+                "-e",
+                f"POSTGRES_DB={DB_NAME}",
+                *postgres_network(port, image),
+                "-c",
+                f"max_connections={POSTGRES_MAX_CONNECTIONS}",
+            ],
+            capture=True,
+        )
+        wait_postgres(container)
+        return {
+            "id": root.name,
+            "root": str(root),
+            "container": container,
+            "port": port,
+        }
+
+    return start
+
+
+def create_database(state):
+    """Creates the run's database, after dropping those of runs whose lease is gone."""
+    server = {"container": state["container"]}
+    live = {Path(lease).name for lease in testres("list").splitlines()}
+    for name in psql(
+        server, f"SELECT datname FROM pg_database WHERE datname LIKE '{LABEL}-%';"
+    ).split():
+        if name not in live:
+            psql(server, f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE);')
+    psql(server, f'CREATE DATABASE "{state["database"]}";')
+
+
 def start_state(*, ref, name, scenario, issuer=None):
     repo = repo_root()
     openbao = os.environ.get(OPENBAO_ENV)
@@ -1345,10 +1433,10 @@ def start_state(*, ref, name, scenario, issuer=None):
         source = Path(local) if local else cached_build(repo, commit)
         state["build"] = str(source)
         write_json(state_path, state)
-        names = ("db", "api", "ui", "unused")
+        names = ("api", "ui", "unused")
         reserved = map(int, testres("ports", root, len(names)).split())
         ports = dict(zip(names, reserved, strict=True))
-        db_port, api_port, ui_port = ports["db"], ports["api"], ports["ui"]
+        api_port, ui_port = ports["api"], ports["ui"]
         state.update(
             {
                 "ports": ports,
@@ -1361,42 +1449,18 @@ def start_state(*, ref, name, scenario, issuer=None):
 
         env = dict(os.environ)
         if not openbao:
-            state["compose"] = run_id
-            write_json(state_path, state)
-            testres("add", root, "compose", state["compose"])
-            openbao = start_openbao(source, state["compose"], env)
+            files = [(source / path).read_text() for path in OPENBAO_SOURCES]
+            key = digest(openbao_env(source, env)["OPENBAO_IMAGE"], *files)
+            openbao = shared(root, "openbao", key, openbao_starter(source))["address"]
+            state["openbao"] = openbao
         dist = source / "web" / "dist"
 
         image = compose_postgres_image((source / "dev" / "compose.yaml").read_text())
-        container = run_id
-        run(
-            ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
-            cwd=TOOLS_ROOT,
-            env=env,
-        )
-        testres("add", root, "container", container)
-        run(
-            [
-                "docker",
-                "run",
-                "--pull",
-                "never",
-                "-d",
-                "--name",
-                container,
-                "-e",
-                f"POSTGRES_USER={DB_USER}",
-                "-e",
-                f"POSTGRES_PASSWORD={DB_PASSWORD}",
-                "-e",
-                f"POSTGRES_DB={DB_NAME}",
-                *postgres_network(db_port, image),
-            ],
-            capture=True,
-        )
-        state["container"] = container
+        server = shared(root, "postgres", digest(image), postgres_starter(image))
+        ports["db"] = server["port"]
+        state.update(container=server["container"], database=run_id)
         write_json(state_path, state)
-        wait_postgres(container)
+        create_database(state)
 
         dev_env = read_api_env((source / "dev" / "api.env").read_text())
         dev_env["LOCO_SECRETS_TRANSIT_ADDR"] = openbao
@@ -1409,7 +1473,7 @@ def start_state(*, ref, name, scenario, issuer=None):
             spawn(
                 api_cmd,
                 source,
-                dict(env, **api_env(dev_env, ports, state["issuer"])),
+                dict(env, **api_env(dev_env, ports, run_id, state["issuer"])),
                 api_log,
             ),
         )
@@ -1857,6 +1921,14 @@ def cmd_table(args):
 
 
 def stop_state(state):
+    if "database" in state:
+        try:
+            psql(
+                {"container": state["container"]},
+                f'DROP DATABASE IF EXISTS "{state["database"]}" WITH (FORCE);',
+            )
+        except EvidenceError as err:
+            log(f"left database {state['database']} to the next run's cleanup: {err}")
     testres("release", state["root"])
     log(f"stopped {state['id']}")
 

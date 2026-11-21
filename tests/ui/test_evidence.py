@@ -35,6 +35,10 @@ def leases(tmp_path, monkeypatch):
             root.mkdir(parents=True)
             created.append(root)
             return str(root)
+        if args[0] == "share":
+            root = tmp_path / "leases" / args[1]
+            root.mkdir(parents=True, exist_ok=True)
+            return str(root)
         if args[0] == "list":
             return "\n".join(map(str, created))
         if args[0] == "ports":

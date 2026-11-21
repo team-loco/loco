@@ -19,7 +19,7 @@ org = state["orgs"]["acme"]["id"]
 workspace = state["workspaces"]["acme/shared"]
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = evidence.psql(
-    state["container"],
+    state,
     f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production';",
 )
 drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
