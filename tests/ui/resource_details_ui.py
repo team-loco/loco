@@ -216,7 +216,15 @@ with session(out) as browser:
         runtime_events.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()
     expect(runtime_events.get_by_text("Last 7 days", exact=True)).to_be_visible()
-    runtime_events.get_by_role("button", name="Warnings", exact=True).click()
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: (
+            "deployment.failed" in body.get("query", "")
+            and "deployment.ready" not in body.get("query", "")
+        ),
+    ):
+        runtime_events.get_by_role("button", name="Warnings", exact=True).click()
     expect(
         runtime_events.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()

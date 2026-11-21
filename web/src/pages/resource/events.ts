@@ -1,4 +1,4 @@
-import type { RuntimeEvent as Event } from "@/lib/runtime-events";
+import { RUNTIME_EVENT_TYPES, type RuntimeEvent as Event } from "@/lib/runtime-events";
 
 import type { Glyph } from "@/components/design/StatusGlyph";
 import { maybeTsMs, tsMs } from "@/lib/time";
@@ -35,7 +35,13 @@ export function latestRestartWarning(events: Event[], region?: string): Event | 
 }
 
 /** Deploy outcomes the events drawer lists beside runtime events. */
-export const DEPLOY_EVENT_TYPES = ["deployment.ready", "deployment.failed", "deployment.crashed"];
+const DEPLOY_EVENT_TYPES = ["deployment.ready", "deployment.failed", "deployment.crashed"];
+
+/** The event types the events drawer asks the API for: runtime events and deploy outcomes, or only the warnings and failures among them. */
+export function drawerEventTypes(warningsOnly: boolean): string[] {
+	const all = [...RUNTIME_EVENT_TYPES, ...DEPLOY_EVENT_TYPES];
+	return warningsOnly ? all.filter((type) => severityOf(type) !== "normal") : all;
+}
 
 export interface EventRow {
 	event: Event;

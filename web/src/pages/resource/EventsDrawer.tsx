@@ -46,7 +46,7 @@ function EventList({
 	}
 	if (error !== null)
 		return <p className="py-10 text-center text-bad-fg">{getErrorMessage(error, "Failed to load events")}</p>;
-	const shown = eventRows(events).filter((row) => !warningsOnly || row.warning);
+	const shown = eventRows(events);
 	if (shown.length === 0) {
 		return <p className="py-10 text-center text-fg3">{warningsOnly ? "No warnings." : "No events yet."}</p>;
 	}

@@ -35,12 +35,12 @@ import { notFound, resourceMissing } from "@/lib/not-found";
 import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, resourcesPath, withEnv } from "@/lib/routes";
-import { RUNTIME_EVENT_TYPES, runtimeEvent } from "@/lib/runtime-events";
+import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
 import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
-import { DEPLOY_EVENT_TYPES, newestFirst, recentWarningCount } from "@/pages/resource/events";
+import { drawerEventTypes, newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
@@ -132,10 +132,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		...runtimeEventsOptions(transport, eventScope),
 		refetchInterval: EVENTS_REFRESH_MS,
 	});
+	const [eventsTab, setEventsTab] = useState<EventsTab>("all");
 	// The drawer's window starts when it opens.
 	const [eventsSince, setEventsSince] = useState<number | null>(null);
 	const drawerEventsOptions = runtimeEventsOptions(transport, eventScope, {
-		types: [...RUNTIME_EVENT_TYPES, ...DEPLOY_EVENT_TYPES],
+		types: drawerEventTypes(eventsTab === "warnings"),
 		startMs: eventsSince ?? undefined,
 	});
 	const drawerEventsQuery = useTanstackQuery({
@@ -159,7 +160,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const [notice, setNotice] = useState<Notice | null>(null);
 	const [redeploying, setRedeploying] = useState(false);
 	const [eventsOpen, setEventsOpen] = useState(false);
-	const [eventsTab, setEventsTab] = useState<EventsTab>("all");
 	const [draft, setDraft] = useState<SettingsDraft>({});
 	const deploy = useMutation(createDeployment);
 	const del = useMutation(deleteResource);
