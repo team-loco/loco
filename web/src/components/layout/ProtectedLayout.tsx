@@ -67,7 +67,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			enabled:
 				workspacesSettled &&
 				orgParam !== undefined &&
-				!orgs?.some((o) => o.id === orgParam) &&
+				orgs !== undefined &&
+				!orgs.some((o) => o.id === orgParam) &&
 				scopes.orgMember(orgParam),
 		},
 	);
