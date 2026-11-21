@@ -153,7 +153,9 @@ with session(out) as browser:
         ),
     )
     page.goto(url)
-    expect(page.get_by_text("Can’t reach Loco", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("heading", name="Couldn’t load this resource", exact=True)
+    ).to_be_visible()
     expect(page.get_by_role("heading", level=1)).to_have_text(name)
     context.close()
     shots = Path(os.environ.get("LOAD_SHOTS", out))
