@@ -1,7 +1,8 @@
 import { useRef } from "react";
 
+import { keepOpenOnToastPress } from "@/components/design/Sonner";
 import {
-	Sheet,
+	Sheet as SheetBase,
 	SheetContent as SheetContentBase,
 	SheetDescription as SheetDescriptionBase,
 	SheetTitle as SheetTitleBase,
@@ -94,6 +95,10 @@ function SheetContent({
 			{children}
 		</SheetContentBase>
 	);
+}
+
+function Sheet({ onOpenChange, ...props }: React.ComponentProps<typeof SheetBase>) {
+	return <SheetBase onOpenChange={keepOpenOnToastPress(onOpenChange)} {...props} />;
 }
 
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
