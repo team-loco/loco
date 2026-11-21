@@ -18,6 +18,7 @@ WHERE EXISTS (
       AND us.entity_type = 'organization'
       AND us.entity_id = o.id
   )
+  AND (sqlc.arg('query')::text = '' OR o.name ILIKE sqlc.arg('query'))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (o.created_at, o.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -28,9 +29,11 @@ LIMIT $2;
 
 -- name: CountOrgsForUser :one
 SELECT COUNT(*) FROM (
-  SELECT 1 FROM user_scopes
-  WHERE user_id = $1 AND entity_type = 'organization'
-  GROUP BY entity_id
+  SELECT 1 FROM user_scopes us
+  JOIN organizations o ON o.id = us.entity_id
+  WHERE us.user_id = $1 AND us.entity_type = 'organization'
+    AND (sqlc.arg('query')::text = '' OR o.name ILIKE sqlc.arg('query'))
+  GROUP BY us.entity_id
   LIMIT $2
 ) capped;
 

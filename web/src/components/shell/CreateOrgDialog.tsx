@@ -1,14 +1,15 @@
 import { getOption } from "@bufbuild/protobuf";
-import { useMutation } from "@connectrpc/connect-query";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { field } from "@gen/buf/validate/validate_pb";
-import { createOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { createOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { CreateOrgRequestSchema } from "@gen/loco/org/v1/org_pb";
 
+import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
@@ -23,13 +24,12 @@ export function CreateOrgDialog({
 	open,
 	onOpenChange,
 	onSuccess,
-	existingNames,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onSuccess: (orgId: string, workspaceId: string) => void;
-	existingNames: string[];
 }) {
+	const { user } = useAuth();
 	const [orgName, setOrgName] = useState("");
 	const nameRef = useRef<HTMLInputElement>(null);
 	const orgMutation = useMutation(createOrg);
@@ -37,13 +37,20 @@ export function CreateOrgDialog({
 	const queryClient = useQueryClient();
 	const isPending = orgMutation.isPending || workspaceMutation.isPending;
 	const trimmed = orgName.trim();
+	// The largest page, so an exact match is listed unless more than 200 of the user's organizations contain the name.
+	const matching = useQuery(
+		listUserOrgs,
+		{ userId: user?.id ?? "", query: trimmed, pageSize: 200 },
+		{ enabled: open && user !== null && trimmed !== "" },
+	);
+	const taken = matching.data?.orgs.some((org) => org.name === trimmed) ?? false;
 
 	const nameError =
 		trimmed === ""
 			? null
 			: Array.from(trimmed).length > maxNameLength
 				? `Use at most ${maxNameLength.toString()} characters.`
-				: orgMutation.data === undefined && existingNames.includes(trimmed)
+				: orgMutation.data === undefined && taken
 					? `${trimmed} is taken.`
 					: null;
 

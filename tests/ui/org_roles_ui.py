@@ -40,7 +40,8 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     dialog = page.get_by_role("dialog", name="New organization", exact=True)
     name = dialog.get_by_role("textbox", name="Name", exact=True)
     create = dialog.get_by_role("button", name="Create", exact=True)
-    name.fill("  acme  ")
+    with expect_rpc(page, "ListUserOrgs", lambda body: body.get("query") == "acme"):
+        name.fill("  acme  ")
     expect(dialog.get_by_text("acme is taken.", exact=True)).to_be_visible()
     expect(create).to_be_disabled()
     name.fill("   ")

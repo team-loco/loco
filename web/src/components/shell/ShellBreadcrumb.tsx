@@ -1,12 +1,11 @@
-import { useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQueries } from "@tanstack/react-query";
+import { callUnaryMethod, useQuery, useTransport } from "@connectrpc/connect-query";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, Settings2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, matchPath, useLocation, useNavigate } from "react-router";
 
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
-import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from "@/components/design/Breadcrumb";
@@ -20,13 +19,15 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { orgSettingsPath, settingsPath, switchWorkspacePath, WORKSPACE_ROUTE, workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
+
+// The workspace switcher lists the newest workspaces; the organization's settings list the rest.
+const SWITCHER_WORKSPACES = 20;
 
 const TRIGGER =
 	"flex h-[26px] min-w-0 items-center gap-[5px] rounded-[5px] px-1.5 -mx-0.5 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
@@ -58,9 +59,11 @@ function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => voi
 	const navigate = useNavigate();
 	const transport = useTransport();
 	const { orgs, activeWorkspaceId } = useOrgWorkspace();
-	const results = useQueries({
-		queries: orgs.map((o) => orgWorkspacesOptions(transport, o.id)),
-	});
+	const open = async (orgId: string) => {
+		const { workspaces } = await callUnaryMethod(transport, listOrgWorkspaces, { orgId, pageSize: 1 });
+		const first = workspaces[0];
+		void navigate(first === undefined ? `/org/${orgId}/team` : workspacePath(orgId, first.id));
+	};
 
 	return (
 		<BreadcrumbItem className="min-w-0">
@@ -72,21 +75,17 @@ function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => voi
 				<DropdownMenuContent className="w-[248px]" align="start" sideOffset={6} alignOffset={-4}>
 					<DropdownMenuGroup>
 						<DropdownMenuLabel>Organizations</DropdownMenuLabel>
-						{orgs.map((o, i) => {
-							const first = results[i]?.data?.workspaces[0];
-							return (
-								<DropdownMenuItem
-									key={o.id}
-									onClick={() => {
-										if (o.id === org.id) return;
-										void navigate(first === undefined ? `/org/${o.id}/team` : workspacePath(o.id, first.id));
-									}}
-								>
-									<span className="flex-1 truncate">{o.name}</span>
-									{o.id === org.id && <CheckIcon className="size-3.5" />}
-								</DropdownMenuItem>
-							);
-						})}
+						{orgs.map((o) => (
+							<DropdownMenuItem
+								key={o.id}
+								onClick={() => {
+									if (o.id !== org.id) void open(o.id);
+								}}
+							>
+								<span className="flex-1 truncate">{o.name}</span>
+								{o.id === org.id && <CheckIcon className="size-3.5" />}
+							</DropdownMenuItem>
+						))}
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem
@@ -126,8 +125,11 @@ function WorkspaceSwitcher({
 }) {
 	const { pathname, search } = useLocation();
 	const navigate = useNavigate();
-	const { workspaces, activeWorkspaceId } = useOrgWorkspace();
+	const { activeWorkspaceId } = useOrgWorkspace();
 	const { orgLevel } = useMyScopes();
+	const listed = useQuery(listOrgWorkspaces, { orgId: org.id, pageSize: SWITCHER_WORKSPACES });
+	const workspaces = listed.data?.workspaces ?? [workspace];
+	const more = (listed.data?.nextPageToken ?? "") !== "";
 
 	return (
 		<BreadcrumbItem className="min-w-0">
@@ -139,20 +141,28 @@ function WorkspaceSwitcher({
 				<DropdownMenuContent className="w-[248px]" align="start" sideOffset={6} alignOffset={-4}>
 					<DropdownMenuGroup>
 						<DropdownMenuLabel className="truncate">Workspaces in {org.name}</DropdownMenuLabel>
-						{workspaces
-							.filter((w) => w.orgId === org.id)
-							.map((w) => (
-								<DropdownMenuItem
-									key={w.id}
-									onClick={() => {
-										if (w.id !== activeWorkspaceId) void navigate(switchWorkspacePath(pathname, search, org.id, w.id));
-									}}
-								>
-									<span className="flex-1 truncate">{w.name}</span>
-									{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
-								</DropdownMenuItem>
-							))}
+						{workspaces.map((w) => (
+							<DropdownMenuItem
+								key={w.id}
+								onClick={() => {
+									if (w.id !== activeWorkspaceId) void navigate(switchWorkspacePath(pathname, search, org.id, w.id));
+								}}
+							>
+								<span className="flex-1 truncate">{w.name}</span>
+								{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
+							</DropdownMenuItem>
+						))}
 					</DropdownMenuGroup>
+					{more && (
+						<DropdownMenuItem
+							onClick={() => {
+								void navigate(orgSettingsPath(org.id, activeWorkspaceId));
+							}}
+						>
+							<ArrowRightIcon className="text-fg3" />
+							All workspaces
+						</DropdownMenuItem>
+					)}
 					{orgLevel(org.id) >= 2 && (
 						<>
 							<DropdownMenuSeparator />
