@@ -316,9 +316,19 @@ def drag_handle(page, table, label, dx):
     handle.hover()
     box = handle.bounding_box()
     x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    start = head_width(table, label)
     page.mouse.move(x, y)
     page.mouse.down()
     page.mouse.move(x + dx, y, steps=4)
+    # React renders the pointermove preview in a later task; wait for it before measuring.
+    page.wait_for_function(
+        "([node, start]) => node.getBoundingClientRect().width !== start",
+        arg=[
+            table.get_by_role("columnheader", name=label, exact=True).element_handle(),
+            start,
+        ],
+        timeout=5000,
+    )
     during = head_width(table, label)
     page.mouse.up()
     return during
