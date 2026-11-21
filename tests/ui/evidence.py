@@ -4,7 +4,6 @@
 # ///
 import argparse
 import base64
-import gzip
 import hashlib
 import http.server
 import json
@@ -31,7 +30,6 @@ DB_PASSWORD = "evidence"
 DB_NAME = "evidence"
 SESSION_PREFIX = "loco_s_"
 MODE_KEY = "loco:mode:v1"
-INPUT_LIMIT = 64000
 COLOR_KEY = "loco:color:v1"
 SESSION_COOKIE = "__Host-loco_session"
 REFRESH_COOKIE = "__Host-loco_refresh"
@@ -633,36 +631,15 @@ def cmd_failure_summary(args):
     (Path(args.dir) / "failure.md").write_text(failure_summary(*texts))
 
 
-def encode_input(data):
-    """Returns JSON as the minified, gzipped, base64 text the evidence workflow decodes."""
-    packed = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode()
-    return base64.b64encode(gzip.compress(packed, 9, mtime=0)).decode()
-
-
-def input_size(spec, scenario):
-    return len(encode_input(spec)) + (len(encode_input(scenario)) if scenario else 0)
-
-
-def input_size_errors(size):
-    """Returns the error for dispatch inputs over the workflow input limit."""
-    if size <= INPUT_LIMIT:
-        return []
-    return [
-        f"encoded inputs are {size} bytes, over the {INPUT_LIMIT} byte limit; "
-        "move mocks shared by several shots into the spec-level respond list"
-    ]
-
-
 def cmd_check(args):
     scenario_path = args.scenario or (
         TOOLS_ROOT / ".agents/skills/ui-evidence/scenario.example.json"
     )
-    spec = json.loads(Path(args.spec).read_text())
-    scenario = json.loads(Path(scenario_path).read_text())
-    errors = check_spec(spec, scenario, connect_methods())
-    size = input_size(spec, scenario if args.scenario else {})
-    errors += input_size_errors(size)
-    log(f"encoded inputs: {size} of {INPUT_LIMIT} bytes")
+    errors = check_spec(
+        json.loads(Path(args.spec).read_text()),
+        json.loads(Path(scenario_path).read_text()),
+        connect_methods(),
+    )
     for error in errors:
         log(error)
     if errors:

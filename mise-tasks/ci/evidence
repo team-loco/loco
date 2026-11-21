@@ -4,6 +4,7 @@ set -euo pipefail
 
 usage="usage: mise run ci:evidence --out DIR [--shots FILE] [--scenario FILE] [--base REF] [suite...]"
 out='' shots='' scenario='' base=main shots_file='' scenario_file=''
+input_limit=64000
 encode() { jq -c . "$1" | gzip -9 -n | base64 | tr -d '\n'; }
 suites=()
 while [[ $# -gt 0 ]]; do
@@ -40,6 +41,12 @@ if [[ -n $shots ]]; then
 	check=(--spec "$shots_file")
 	if [[ -n $scenario_file ]]; then check+=(--scenario "$scenario_file"); fi
 	uv run --frozen --project tests python tests/ui/evidence.py check "${check[@]}"
+	size=$((${#shots} + ${#scenario}))
+	echo "encoded inputs: $size of $input_limit bytes"
+	if ((size > input_limit)); then
+		echo "over the limit; move mocks shared by several shots into the spec-level respond list" >&2
+		exit 1
+	fi
 fi
 
 branch=$(git symbolic-ref --short HEAD)

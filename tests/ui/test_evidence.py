@@ -1,7 +1,4 @@
 import argparse
-import base64
-import gzip
-import json
 import re
 import subprocess
 from pathlib import Path
@@ -407,16 +404,3 @@ def test_spec_respond_entries_are_validated():
     spec = {"respond": [{"url": METRICS}], "shots": [shot()]}
     with pytest.raises(evidence.EvidenceError, match="spec: each respond entry"):
         evidence.validate_spec(spec)
-
-
-def test_input_size_refuses_inputs_over_the_limit():
-    assert evidence.input_size_errors(evidence.INPUT_LIMIT) == []
-    (error,) = evidence.input_size_errors(evidence.INPUT_LIMIT + 1)
-    assert str(evidence.INPUT_LIMIT + 1) in error and "spec-level respond" in error
-
-
-def test_encoded_input_round_trips_compactly():
-    data = {"shots": [{"json": "x" * 5000}] * 10}
-    encoded = evidence.encode_input(data)
-    assert json.loads(gzip.decompress(base64.b64decode(encoded))) == data
-    assert len(encoded) < 1000
