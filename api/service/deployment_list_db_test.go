@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"testing"
 	"time"
@@ -138,6 +139,51 @@ func TestListDeploymentsFiltersByEnvironmentAcrossPages(t *testing.T) {
 	}
 	if got := previous(page.GetDeployments()[0]); !slices.Equal(got, []string{""}) {
 		t.Errorf("previous of the first deployment = %v, want none", got)
+	}
+}
+
+func TestListDeploymentsPreviousIsInTheSameRegion(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	var regionCluster uuid.UUID
+	addCluster := `
+INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat)
+VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
+	if err := f.pool.QueryRow(ctx, addCluster, otherRegion).Scan(&regionCluster); err != nil {
+		t.Fatalf("add cluster: %v", err)
+	}
+
+	first, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatalf("deploy %s: %v", testRegion, err)
+	}
+	var elsewhere uuid.UUID
+	err = withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
+		params := f.paramsFor(regionCluster)
+		params.Region = otherRegion
+		var deployErr error
+		elsewhere, deployErr = recordTestDeployment(ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
+		return deployErr
+	})
+	if err != nil {
+		t.Fatalf("deploy %s: %v", otherRegion, err)
+	}
+	second, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatalf("redeploy %s: %v", testRegion, err)
+	}
+
+	page := f.listDeployments(t, &deploymentv1.ListDeploymentsRequest{ResourceId: f.resourceID.String()})
+	previous := map[string]string{}
+	for _, d := range page.GetDeployments() {
+		for _, placement := range d.GetPlacements() {
+			previous[d.GetId()] = placement.GetPreviousDeploymentId()
+		}
+	}
+	want := map[string]string{second.String(): first.String(), elsewhere.String(): "", first.String(): ""}
+	if !maps.Equal(previous, want) {
+		t.Errorf("previous deployments = %v, want %v, skipping the deployment in %s", previous, want, otherRegion)
 	}
 }
 
