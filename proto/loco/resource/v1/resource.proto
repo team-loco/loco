@@ -154,13 +154,13 @@ message EnvironmentStatus {
 message RegionStatus {
   string region = 1;
   ResourceStatus status = 2;
-  // The ready replicas of the serving deployment's revision.
+  // The ready replicas of every version, at most desired_replicas.
   int32 ready_replicas = 3;
   int32 desired_replicas = 4;
   // The live deployment: the one placed in this region, or a newer one waiting for its build.
   string deployment_id = 5;
-  // The deployment whose ready replicas serve this region: the one whose revision has the most,
-  // the live deployment and then the newer revision on a tie. Empty while no replica is ready.
+  // The deployment with the most ready replicas in this region, the live deployment and then the
+  // newest on a tie. Empty while no replica is ready.
   string serving_deployment_id = 13;
   // The status of the live deployment's placement in this region.
   deployment.v1.PlacementStatus placement_status = 10;

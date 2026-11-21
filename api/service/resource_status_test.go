@@ -248,9 +248,10 @@ func TestRegionStatus(t *testing.T) {
 			if got.GetMessage() != tt.message {
 				t.Errorf("message = %q, want %q", got.GetMessage(), tt.message)
 			}
-			if got.GetDesiredReplicas() != row.DesiredReplicas || got.GetReadyReplicas() != row.ReadyReplicas {
+			ready := min(row.ReadyReplicas, row.DesiredReplicas)
+			if got.GetDesiredReplicas() != row.DesiredReplicas || got.GetReadyReplicas() != ready {
 				t.Errorf("replicas = %d/%d, want %d/%d",
-					got.GetReadyReplicas(), got.GetDesiredReplicas(), row.ReadyReplicas, row.DesiredReplicas)
+					got.GetReadyReplicas(), got.GetDesiredReplicas(), ready, row.DesiredReplicas)
 			}
 			if got.GetDeploymentId() != row.DeploymentID.String() {
 				t.Errorf("deployment id = %q, want %q", got.GetDeploymentId(), row.DeploymentID)
@@ -514,28 +515,20 @@ func TestServingDeployment(t *testing.T) {
 		name     string
 		replicas []*deploymentv1.Replica
 		serving  string
-		ready    int32
 	}{
-		{name: "no ready replica", replicas: replicas(nil, live), serving: "", ready: 0},
+		{name: "no ready replica", replicas: replicas(nil, live), serving: ""},
 		{name: "previous version serves a failed rollout", replicas: replicas(map[string]int{older: 2}, live),
-			serving: older, ready: 2},
-		{name: "most ready replicas", replicas: replicas(map[string]int{older: 2, live: 1}, live),
-			serving: older, ready: 2},
-		{name: "live deployment on a tie", replicas: replicas(map[string]int{newer: 1, live: 1}, live),
-			serving: live, ready: 1},
+			serving: older},
+		{name: "most ready replicas", replicas: replicas(map[string]int{older: 2, live: 1}, live), serving: older},
+		{name: "live deployment on a tie", replicas: replicas(map[string]int{newer: 1, live: 1}, live), serving: live},
 		{name: "newer deployment on a tie without the live one",
-			replicas: replicas(map[string]int{older: 1, newer: 1}, live), serving: newer, ready: 1},
-		{name: "one revision of a restart", replicas: []*deploymentv1.Replica{
-			{DeploymentId: live, PlacementRevision: 1, Ready: true},
-			{DeploymentId: live, PlacementRevision: 2, Ready: true},
-		}, serving: live, ready: 1},
+			replicas: replicas(map[string]int{older: 1, newer: 1}, live), serving: newer},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			serving, ready := servingDeployment(tt.replicas, live)
-			if serving != tt.serving || ready != tt.ready {
-				t.Errorf("servingDeployment = %q with %d ready, want %q with %d", serving, ready, tt.serving, tt.ready)
+			if serving := servingDeployment(tt.replicas, live); serving != tt.serving {
+				t.Errorf("servingDeployment = %q, want %q", serving, tt.serving)
 			}
 		})
 	}

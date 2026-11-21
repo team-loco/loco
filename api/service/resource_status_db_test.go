@@ -431,26 +431,32 @@ func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 	f.assertServing(t, failed, previous)
 }
 
-func TestOverlappingRolloutCountsOnlyTheServingDeploymentsReplicas(t *testing.T) {
+func TestOverlappingRolloutReadsNoMoreReadyThanDesired(t *testing.T) {
 	t.Parallel()
-	f := newResourceStatusFixture(t)
-	f.deployProduction(t, 1)
-	f.ready(t, f.clusterID, 1)
-	previous := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+	for _, desired := range []int32{1, statusTwoReplicas} {
+		t.Run(fmt.Sprintf("%d desired", desired), func(t *testing.T) {
+			t.Parallel()
+			f := newResourceStatusFixture(t)
+			f.deployProduction(t, desired)
+			previous := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+			f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
+				Available: true, Healthy: true, ReadyReplicas: desired,
+				Replicas: readyReplicas(previous, desired),
+			})
 
-	f.deployProduction(t, 1)
-	next := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
-	f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
-		Available:     true,
-		Healthy:       true,
-		ReadyReplicas: 2,
-		Replicas:      append(readyReplicas(previous, 1), readyReplicas(next, 1)...),
-	})
-	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
-		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
-	})
-	f.assertServing(t, next, next)
+			f.deployProduction(t, desired)
+			next := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+			f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
+				ReadyReplicas: 2,
+				Replicas:      append(readyReplicas(previous, 1), readyReplicas(next, 1)...),
+			})
+			f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
+				region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+				ready: desired, desired: desired, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
+			})
+			f.assertServing(t, next, next)
+		})
+	}
 }
 
 func (f *resourceStatusFixture) assertServing(t *testing.T, live, serving uuid.UUID) {

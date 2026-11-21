@@ -158,7 +158,7 @@ services:
 
 ## Investigate a rollout
 
-Use application status to find whether a deployment is progressing or ready. `loco resource status` shows a status for each environment the application runs in, and for each region its ready and desired replicas, its deployment and the reason a region is not ready. The ready count belongs to the region's serving deployment: the deployment whose revision has the most ready replicas, the newest one on a tie. While a rollout overlaps old and new replicas, a region with one desired replica reads `1/1`, not `2/1`.
+Use application status to find whether a deployment is progressing or ready. `loco resource status` shows a status for each environment the application runs in, and for each region its ready and desired replicas, its deployment and the reason a region is not ready. The ready count covers the ready replicas of every version and stops at the desired count, so a region with one desired replica reads `1/1`, not `2/1`, while a rollout overlaps old and new replicas. The region status also names its serving deployment: the one with the most ready replicas, the live deployment and then the newest on a tie.
 
 - Healthy: ready replicas of any version cover every desired replica.
 - Deploying: a first rollout has no ready replica yet.

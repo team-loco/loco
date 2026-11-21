@@ -15049,7 +15049,7 @@
             "type": "integer",
             "title": "ready_replicas",
             "format": "int32",
-            "description": "The ready replicas of the serving deployment's revision."
+            "description": "The ready replicas of every version, at most desired_replicas."
           },
           "desiredReplicas": {
             "type": "integer",
@@ -15064,7 +15064,7 @@
           "servingDeploymentId": {
             "type": "string",
             "title": "serving_deployment_id",
-            "description": "The deployment whose ready replicas serve this region: the one whose revision has the most,\n the live deployment and then the newer revision on a tie. Empty while no replica is ready."
+            "description": "The deployment with the most ready replicas in this region, the live deployment and then the\n newest on a tie. Empty while no replica is ready."
           },
           "placementStatus": {
             "title": "placement_status",

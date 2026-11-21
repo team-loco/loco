@@ -107,6 +107,7 @@ SELECT l.resource_id,
                  WHERE ro.deployment_id = l.deployment_id AND ro.cluster_id = l.cluster_id
                  ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
        (p.id IS NOT NULL)::boolean AS placed,
+       p.deployment_id AS placed_deployment_id,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        p.status_updated_at,
        COALESCE(p.region_status, '')::text AS stored_status,

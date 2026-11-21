@@ -107,10 +107,11 @@ func regionStatus(
 	if decodeErr := json.Unmarshal(row.Replicas, &region.Replicas); decodeErr != nil {
 		return nil, fmt.Errorf("decode observed replicas: %w", decodeErr)
 	}
-	region.ServingDeploymentId, region.ReadyReplicas = servingDeployment(region.GetReplicas(), region.GetDeploymentId())
-	if region.GetServingDeploymentId() == "" && row.ReadyReplicas > 0 {
-		// A ready count without the replicas behind it counts as the live deployment's.
-		region.ServingDeploymentId, region.ReadyReplicas = region.GetDeploymentId(), row.ReadyReplicas
+	region.ReadyReplicas = min(row.ReadyReplicas, row.DesiredReplicas)
+	region.ServingDeploymentId = servingDeployment(region.GetReplicas(), region.GetDeploymentId())
+	if region.GetServingDeploymentId() == "" && row.ReadyReplicas > 0 && row.PlacedDeploymentID != nil {
+		// A ready count without the replicas behind it counts as the placed deployment's.
+		region.ServingDeploymentId = row.PlacedDeploymentID.String()
 	}
 
 	if silence := clusterSilence(row, now, staleAfter); silence != "" {
@@ -144,28 +145,23 @@ func regionStatus(
 	return region, nil
 }
 
-// servingDeployment is the deployment whose revision has the most ready replicas, and that
-// revision's ready count. A tie goes to the live deployment, then to the greater UUIDv7, the newer.
-func servingDeployment(replicas []*deploymentv1.Replica, live string) (string, int32) {
-	type revision struct {
-		deployment string
-		number     int64
-	}
-	ready := make(map[revision]int32)
+// servingDeployment is the deployment with the most ready replicas. A tie goes to the live
+// deployment, then to the greater UUIDv7, the newer.
+func servingDeployment(replicas []*deploymentv1.Replica, live string) string {
+	ready := make(map[string]int)
 	for _, replica := range replicas {
 		if replica.GetReady() && replica.GetDeploymentId() != "" {
-			ready[revision{replica.GetDeploymentId(), replica.GetPlacementRevision()}]++
+			ready[replica.GetDeploymentId()]++
 		}
 	}
-	var serving revision
-	for r, count := range ready {
+	serving := ""
+	for id, count := range ready {
 		best := ready[serving]
-		if count > best || count == best && serving.deployment != live &&
-			(r.deployment == live || r.deployment > serving.deployment) {
-			serving = r
+		if count > best || count == best && serving != live && (id == live || id > serving) {
+			serving = id
 		}
 	}
-	return serving.deployment, ready[serving]
+	return serving
 }
 
 // statusSince is when the region entered status: the time recordRegionStatuses stamped, or the

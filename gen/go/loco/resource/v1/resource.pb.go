@@ -740,13 +740,13 @@ type RegionStatus struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Region string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
 	Status ResourceStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=loco.resource.v1.ResourceStatus" json:"status,omitempty"`
-	// The ready replicas of the serving deployment's revision.
+	// The ready replicas of every version, at most desired_replicas.
 	ReadyReplicas   int32 `protobuf:"varint,3,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
 	DesiredReplicas int32 `protobuf:"varint,4,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
 	// The live deployment: the one placed in this region, or a newer one waiting for its build.
 	DeploymentId string `protobuf:"bytes,5,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
-	// The deployment whose ready replicas serve this region: the one whose revision has the most,
-	// the live deployment and then the newer revision on a tie. Empty while no replica is ready.
+	// The deployment with the most ready replicas in this region, the live deployment and then the
+	// newest on a tie. Empty while no replica is ready.
 	ServingDeploymentId string `protobuf:"bytes,13,opt,name=serving_deployment_id,json=servingDeploymentId,proto3" json:"serving_deployment_id,omitempty"`
 	// The status of the live deployment's placement in this region.
 	PlacementStatus v1.PlacementStatus     `protobuf:"varint,10,opt,name=placement_status,json=placementStatus,proto3,enum=loco.deployment.v1.PlacementStatus" json:"placement_status,omitempty"`
