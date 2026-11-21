@@ -8,10 +8,9 @@ import {
 import { OrgPeopleView, OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { LayersIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
-import { useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 
@@ -129,7 +128,7 @@ export function Team() {
 		} catch (err) {
 			toastConnectError(err, "Failed to resend the invitation");
 		} finally {
-			await data.invalidatePeople();
+			await data.invalidateInvitations();
 		}
 	};
 
@@ -269,16 +268,14 @@ export function Team() {
 					</section>
 				) : (
 					<Pager
+						{...pager}
 						label={tokenPageLabel(pager.page, size, rows.length, people.total)}
-						page={pager.page}
 						total={rows.length}
 						pageSizes={PAGE_SIZES}
 						pageSize={size}
 						onPageSize={(next) => {
 							void setParams({ size: PAGE_SIZES.find((n) => n === next) ?? null, ...resetPage });
 						}}
-						onPrev={pager.onPrev}
-						onNext={pager.onNext}
 					/>
 				)}
 			</>
@@ -361,7 +358,7 @@ export function Team() {
 					setInviteOpen(false);
 				}}
 				onInvited={() => {
-					void data.invalidatePeople();
+					void data.invalidateInvitations();
 				}}
 			/>
 			<WorkspaceAccessDrawer
@@ -413,7 +410,7 @@ export function Team() {
 				onRevoked={(email) => {
 					setRevoking(null);
 					toast(`Revoked the invitation to ${email}`);
-					void data.invalidatePeople();
+					void data.invalidateInvitations();
 				}}
 			/>
 		</Page>

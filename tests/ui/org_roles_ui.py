@@ -151,6 +151,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
         )
         row = page.get_by_role("row").filter(has_text=member["user"]["name"])
         expect(row.get_by_role("cell").nth(5)).to_have_text(joined)
+    invitations_before = sum(url.endswith("/ListInvitations") for url in requests)
     scopes_before = sum(url.endswith("/GetScopes") for url in requests)
     member_role = page.get_by_role(
         "button", name="Change role for Max Member", exact=True
@@ -213,6 +214,9 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     page.get_by_role("button", name="Remove", exact=True).click()
     expect(page.get_by_text("Removed Lee Leaver", exact=True)).to_be_visible()
     expect(page.get_by_role("row").filter(has_text="Lee Leaver")).to_have_count(0)
+    assert (
+        sum(url.endswith("/ListInvitations") for url in requests) == invitations_before
+    )
     call(
         state,
         "loco.org.v1.OrgService/SetOrgMemberRole",
