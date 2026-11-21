@@ -1,7 +1,7 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { createConnectQueryKey, useMutation } from "@connectrpc/connect-query";
 import type { Webhook, WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
 	listWebhooks,
@@ -107,11 +107,12 @@ function WebhookDetail({
 		listWebhookDeliveries,
 		{ workspaceId, webhookId: webhook.id, status: "", failing: filter === FAILING, pageSize: size },
 		tokens,
-		{ refetchInterval: 15_000 },
+		{ refetchInterval: 15_000, placeholderData: keepPreviousData },
 	);
 	const loaded = query.data?.deliveries ?? [];
+	// The shown page stays while the next one loads, so the pressed button keeps its keyboard focus.
 	const pager = tokenPager(tokens, nextPageToken, (next) => {
-		setTokens(next ?? []);
+		if (!query.isPlaceholderData) setTokens(next ?? []);
 	});
 	const refresh = () => {
 		void refreshDeliveries(queryClient);
