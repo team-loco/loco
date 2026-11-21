@@ -258,10 +258,7 @@ export function MetricChart({
 	const [pin, setPin] = useState<{ t: number; dx: number; dy: number } | null>(null);
 	const triggerRef = useRef<HTMLDivElement>(null);
 	const [nearest, setNearest] = useState<string | null>(null);
-	const peaks = series.map((s) => ({
-		key: s.key,
-		peak: Math.max(...s.points.map((p) => p.v)),
-	}));
+	const peaks = series.map((s) => ({ key: s.key, peak: Math.max(...s.points.map((p) => p.v)) }));
 	const peak = Math.max(0, ...peaks.map((p) => p.peak));
 	const traffic = unit === undefined ? null : trafficAxis(peak, unit);
 	const axis =
@@ -335,15 +332,7 @@ export function MetricChart({
 								if (!Number.isFinite(t)) return;
 								const box = triggerRef.current?.getBoundingClientRect();
 								if (!box) return;
-								setPin(
-									pin?.t === t
-										? null
-										: {
-												t,
-												dx: event.clientX - box.left,
-												dy: event.clientY - box.top,
-											},
-								);
+								setPin(pin?.t === t ? null : { t, dx: event.clientX - box.left, dy: event.clientY - box.top });
 							}}
 						>
 							<CartesianGrid vertical={false} stroke="var(--line)" />

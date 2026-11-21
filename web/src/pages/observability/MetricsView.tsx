@@ -27,7 +27,7 @@ import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { limitAt, limitSteps, startedIn, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { isUnimplemented } from "@/lib/error-handler";
-import { TRAFFIC_METRICS, trafficValue } from "@/lib/traffic";
+import { errorShare, TRAFFIC_METRICS, trafficPoints, trafficValue, type TrafficPoint } from "@/lib/traffic";
 import { sortParser } from "@/lib/sort-parser";
 import { HOUR_MS, MINUTE_MS, aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
@@ -66,9 +66,30 @@ const MEMORY: MetricDef = {
 
 const [REQUESTS, ERRORS, , LATENCY] = TRAFFIC_METRICS;
 const TRAFFIC_CARDS = [
-	{ key: "req", title: "Requests", unit: "req/s", format: (v: number) => trafficValue(v, "/s") },
-	{ key: "err", title: "5xx responses", unit: "%", format: (v: number) => `${v.toFixed(2)}%` },
-	{ key: "lat", title: "Latency, p95", unit: "ms", format: (v: number) => trafficValue(v, " ms") },
+	{
+		key: "req",
+		title: "Requests",
+		column: "Requests",
+		unit: "req/s",
+		value: (p: TrafficPoint) => p.requests,
+		format: (v: number) => trafficValue(v, "/s"),
+	},
+	{
+		key: "err",
+		title: "5xx responses",
+		column: "5xx",
+		unit: "%",
+		value: errorShare,
+		format: (v: number) => `${v.toFixed(2)}%`,
+	},
+	{
+		key: "lat",
+		title: "Latency, p95",
+		column: "p95",
+		unit: "ms",
+		value: (p: TrafficPoint) => p.latency,
+		format: (v: number) => trafficValue(v, " ms"),
+	},
 ] as const;
 type TrafficKey = (typeof TRAFFIC_CARDS)[number]["key"];
 const PERCENT = 100;
@@ -228,49 +249,30 @@ function useTrafficSeries(rows: Placement[], spanMs: number, endMs: number | und
 	});
 	const multi = new Set(rows.filter((p) => p.dashed).map((p) => p.resource.id));
 	const series: Record<TrafficKey, ChartSeries[]> = { req: [], err: [], lat: [] };
-	const latest = new Map<string, Partial<Record<TrafficKey, number>>>();
 	regions.forEach((region, i) => {
-		const [requests, errors, latency] = metrics.map((_, m) => {
-			const byResource = new Map<string, Map<number, number>>();
-			for (const s of results[i * metrics.length + m]?.data ?? []) {
-				const points = byResource.get(s.resourceId) ?? new Map<number, number>();
-				for (const p of s.points) points.set(tsMs(p.timestamp), p.value);
-				byResource.set(s.resourceId, points);
-			}
-			return byResource;
-		});
+		const [requests, errors, latency] = results.slice(i * metrics.length, (i + 1) * metrics.length).map((r) => r.data);
+		const points = trafficPoints([requests, errors, undefined, latency]);
 		for (const row of rows.filter((p) => p.region === region)) {
-			const rates = requests?.get(row.resource.id);
-			const failed = errors?.get(row.resource.id);
-			const values: Record<TrafficKey, Map<number, number> | undefined> = {
-				req: rates,
-				err:
-					rates === undefined
-						? undefined
-						: new Map([...rates].map(([t, v]) => [t, v === 0 ? 0 : ((failed?.get(t) ?? 0) / v) * PERCENT])),
-				lat: latency?.get(row.resource.id),
-			};
-			const last: Partial<Record<TrafficKey, number>> = {};
+			const own = points.filter((p) => p.resourceId === row.resource.id);
 			for (const card of TRAFFIC_CARDS) {
-				const points = [...(values[card.key] ?? [])].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
-				const end = points.at(-1);
-				if (end === undefined) continue;
-				last[card.key] = end.v;
+				const values = own.flatMap((p) => {
+					const v = card.value(p);
+					return v === undefined ? [] : [{ t: p.time, v }];
+				});
+				if (values.length === 0) continue;
 				series[card.key].push({
 					key: row.key,
 					name: multi.has(row.resource.id) ? `${row.resource.raw.name} ${region}` : row.resource.raw.name,
 					color: row.resource.color,
 					dashed: row.dashed,
 					limits: [],
-					points,
+					points: values,
 				});
 			}
-			latest.set(row.key, last);
 		}
 	});
 	return {
 		series,
-		latest,
 		isLoading: results.some((r) => r.isLoading),
 		error: results.find((r) => r.error !== null)?.error ?? null,
 		refetch: async () => await Promise.all(results.map(async (r) => await r.refetch())),
@@ -467,7 +469,7 @@ export function MetricsView() {
 	const loading = cpu.isLoading || mem.isLoading || sizingLoading || environmentLoading || resourcesLoading;
 	const sorting = [sort];
 	const table = useDataTable("metrics-placements", {
-		columns: placementColumns(cpu.latest, mem.latest, traffic.latest),
+		columns: placementColumns(cpu.latest, mem.latest, traffic.series),
 		data: rows.toSorted((a, b) => a.key.localeCompare(b.key)),
 		getRowId: (p) => p.key,
 		state: { sorting },
@@ -661,7 +663,7 @@ type Latest = Map<string, { v: number; limit: number }>;
 function placementColumns(
 	cpu: Latest,
 	mem: Latest,
-	traffic: Map<string, Partial<Record<TrafficKey, number>>>,
+	traffic: Record<TrafficKey, ChartSeries[]>,
 ): DataColumn<Placement>[] {
 	return [
 		{
@@ -719,10 +721,10 @@ function placementColumns(
 		},
 		...TRAFFIC_CARDS.map((card): DataColumn<Placement> => ({
 			id: card.key,
-			header: { req: "Requests", err: "5xx", lat: "p95" }[card.key],
+			header: card.column,
 			meta: { fit: true },
 			cell: ({ row }) => {
-				const value = traffic.get(row.original.key)?.[card.key];
+				const value = traffic[card.key].find((s) => s.key === row.original.key)?.points.at(-1)?.v;
 				return (
 					<span className={cn("font-mono", value === undefined ? "text-fg4" : "text-fg2")}>
 						{value === undefined ? "—" : card.format(value)}
