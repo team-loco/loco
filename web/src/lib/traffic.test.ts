@@ -62,6 +62,24 @@ describe("gateway traffic", () => {
 			])?.requests,
 		).toBe(2);
 	});
+	it("reads each field at its own newest bucket when series end at different times", () => {
+		const series = (value: number, ...times: number[]) => [
+			create(MetricSeriesSchema, {
+				resourceId: "a",
+				points: times.map((time) => ({ timestamp: msToTimestamp(time), value })),
+			}),
+		];
+		const points = trafficPoints([series(10, 0, 60_000), series(1, 0, 60_000), series(500, 120_000), series(90, 0)]);
+		expect(latestTraffic(points, "a")).toEqual({
+			resourceId: "a",
+			time: 120_000,
+			requests: 10,
+			errors: 1,
+			bytes: 500,
+			latency: 90,
+		});
+		expect(latestTraffic(points)?.requests).toBe(10);
+	});
 });
 
 describe("traffic over a range", () => {

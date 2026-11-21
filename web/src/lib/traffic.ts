@@ -21,11 +21,12 @@ export interface TrafficPoint {
 	latency?: number;
 }
 
+const TRAFFIC_FIELDS = ["requests", "errors", "bytes", "latency"] as const;
+
 export function trafficPoints(metrics: (MetricSeries[] | undefined)[]): TrafficPoint[] {
 	const points = new Map<string, TrafficPoint>();
-	const fields = ["requests", "errors", "bytes", "latency"] as const;
 	metrics.forEach((series, index) => {
-		const field = fields[index];
+		const field = TRAFFIC_FIELDS[index];
 		if (field === undefined) return;
 		for (const s of series ?? []) {
 			for (const p of s.points) {
@@ -48,15 +49,15 @@ export function trafficPoints(metrics: (MetricSeries[] | undefined)[]): TrafficP
 
 export function latestTraffic(points: TrafficPoint[], resourceId?: string): TrafficPoint | undefined {
 	const matching = points.filter((point) => resourceId === undefined || point.resourceId === resourceId);
-	const time = Math.max(...matching.map((point) => point.time));
-	if (!Number.isFinite(time)) return undefined;
-	const result: TrafficPoint = { resourceId: resourceId ?? "", time };
-	for (const point of matching) {
-		if (point.time !== time) continue;
-		for (const field of ["requests", "errors", "bytes"] as const) {
-			if (point[field] !== undefined) result[field] = (result[field] ?? 0) + point[field];
+	if (matching.length === 0) return undefined;
+	const result: TrafficPoint = { resourceId: resourceId ?? "", time: Math.max(...matching.map((point) => point.time)) };
+	const fields = resourceId === undefined ? (["requests", "errors", "bytes"] as const) : TRAFFIC_FIELDS;
+	for (const field of fields) {
+		const withField = matching.filter((point) => point[field] !== undefined);
+		const time = Math.max(...withField.map((point) => point.time));
+		for (const point of withField) {
+			if (point.time === time) result[field] = (result[field] ?? 0) + (point[field] ?? 0);
 		}
-		if (resourceId !== undefined && point.latency !== undefined) result.latency = point.latency;
 	}
 	return result;
 }
