@@ -58,30 +58,43 @@ func (q *Queries) ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDe
 }
 
 const countWebhookDeliveries = `-- name: CountWebhookDeliveries :one
-SELECT COUNT(*) AS total_count,
-       COUNT(*) FILTER (WHERE failing) AS failing_count,
-       COUNT(*) FILTER (WHERE ($1::text = '' OR status = $1)
-                        AND (NOT $2::boolean OR failing)) AS matching_count
-FROM webhook_delivery_results
-WHERE webhook_id = $3
+SELECT
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM webhook_delivery_results ra WHERE ra.webhook_id = $1
+     LIMIT $2) a)::bigint AS all_count,
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM webhook_delivery_results rf WHERE rf.webhook_id = $1 AND rf.failing
+     LIMIT $2) f)::bigint AS failing_count,
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM webhook_delivery_results rm
+     WHERE rm.webhook_id = $1
+       AND ($3::text = '' OR rm.status = $3)
+       AND (NOT $4::boolean OR rm.failing)
+     LIMIT $2) m)::bigint AS total_count
 `
 
 type CountWebhookDeliveriesParams struct {
+	WebhookID uuid.UUID `json:"webhookId"`
+	MaxRows   int32     `json:"maxRows"`
 	Status    string    `json:"status"`
 	Failing   bool      `json:"failing"`
-	WebhookID uuid.UUID `json:"webhookId"`
 }
 
 type CountWebhookDeliveriesRow struct {
-	TotalCount    int64 `json:"totalCount"`
-	FailingCount  int64 `json:"failingCount"`
-	MatchingCount int64 `json:"matchingCount"`
+	AllCount     int64 `json:"allCount"`
+	FailingCount int64 `json:"failingCount"`
+	TotalCount   int64 `json:"totalCount"`
 }
 
 func (q *Queries) CountWebhookDeliveries(ctx context.Context, arg CountWebhookDeliveriesParams) (CountWebhookDeliveriesRow, error) {
-	row := q.db.QueryRow(ctx, countWebhookDeliveries, arg.Status, arg.Failing, arg.WebhookID)
+	row := q.db.QueryRow(ctx, countWebhookDeliveries,
+		arg.WebhookID,
+		arg.MaxRows,
+		arg.Status,
+		arg.Failing,
+	)
 	var i CountWebhookDeliveriesRow
-	err := row.Scan(&i.TotalCount, &i.FailingCount, &i.MatchingCount)
+	err := row.Scan(&i.AllCount, &i.FailingCount, &i.TotalCount)
 	return i, err
 }
 

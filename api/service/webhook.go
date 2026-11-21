@@ -401,15 +401,20 @@ func (s *WebhookServer) ListWebhookDeliveries(
 			NextAttemptAt: timestamppb.New(d.NextAttemptAt),
 		}
 	}
-	counts, err := s.queries.CountWebhookDeliveries(ctx, genDb.CountWebhookDeliveriesParams{
-		WebhookID: row.ID, Status: req.GetStatus(), Failing: req.GetFailing(),
+	var counts genDb.CountWebhookDeliveriesRow
+	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
+		var countErr error
+		counts, countErr = s.queries.CountWebhookDeliveries(ctx, genDb.CountWebhookDeliveriesParams{
+			WebhookID: row.ID, Status: req.GetStatus(), Failing: req.GetFailing(), MaxRows: limit,
+		})
+		return counts.TotalCount, countErr
 	})
 	if err != nil {
 		return nil, fmt.Errorf("count webhook deliveries: %w", err)
 	}
 	return &webhookv1.ListWebhookDeliveriesResponse{
-		Deliveries: out, NextPageToken: token, MatchingCount: counts.MatchingCount,
-		TotalCount: counts.TotalCount, FailingCount: counts.FailingCount,
+		Deliveries: out, NextPageToken: token, TotalCount: total,
+		AllCount: cappedCount(counts.AllCount), FailingCount: cappedCount(counts.FailingCount),
 	}, nil
 }
 

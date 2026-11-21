@@ -56,12 +56,19 @@ ORDER BY d.created_at DESC, d.id DESC
 LIMIT sqlc.arg('max_rows');
 
 -- name: CountWebhookDeliveries :one
-SELECT COUNT(*) AS total_count,
-       COUNT(*) FILTER (WHERE failing) AS failing_count,
-       COUNT(*) FILTER (WHERE (sqlc.arg('status')::text = '' OR status = sqlc.arg('status'))
-                        AND (NOT sqlc.arg('failing')::boolean OR failing)) AS matching_count
-FROM webhook_delivery_results
-WHERE webhook_id = sqlc.arg('webhook_id');
+SELECT
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM webhook_delivery_results ra WHERE ra.webhook_id = sqlc.arg('webhook_id')
+     LIMIT sqlc.arg('max_rows')) a)::bigint AS all_count,
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM webhook_delivery_results rf WHERE rf.webhook_id = sqlc.arg('webhook_id') AND rf.failing
+     LIMIT sqlc.arg('max_rows')) f)::bigint AS failing_count,
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM webhook_delivery_results rm
+     WHERE rm.webhook_id = sqlc.arg('webhook_id')
+       AND (sqlc.arg('status')::text = '' OR rm.status = sqlc.arg('status'))
+       AND (NOT sqlc.arg('failing')::boolean OR rm.failing)
+     LIMIT sqlc.arg('max_rows')) m)::bigint AS total_count;
 
 -- name: LockWebhookDeliveryStatus :one
 SELECT status FROM webhook_deliveries

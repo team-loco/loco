@@ -16807,6 +16807,11 @@
             "type": "boolean",
             "title": "failing",
             "description": "Failed deliveries and pending retries with a recorded error; combines with status."
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count, all_count and failing_count in the response."
           }
         },
         "title": "ListWebhookDeliveriesRequest",
@@ -16828,27 +16833,28 @@
             "title": "next_page_token",
             "description": "empty if no more pages"
           },
-          "matchingCount": {
-            "type": "string",
-            "title": "matching_count",
-            "format": "int64",
-            "description": "Matches status and failing filters; excludes the page cursor."
-          },
           "totalCount": {
-            "type": "string",
+            "type": "integer",
             "title": "total_count",
-            "format": "int64",
-            "description": "All deliveries for the webhook, ignoring filters and the page cursor."
+            "format": "int32",
+            "description": "The deliveries the status and failing filters match, ignoring page_token."
+          },
+          "allCount": {
+            "type": "integer",
+            "title": "all_count",
+            "format": "int32",
+            "description": "All deliveries for the webhook, ignoring filters and page_token."
           },
           "failingCount": {
-            "type": "string",
+            "type": "integer",
             "title": "failing_count",
-            "format": "int64",
-            "description": "Failed deliveries and pending retries, ignoring filters and the page cursor."
+            "format": "int32",
+            "description": "Failed deliveries and pending retries, ignoring filters and page_token."
           }
         },
         "title": "ListWebhookDeliveriesResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "The counts are set when include_total_count is. Each is exact up to 10,000; 10,001 means more\n than 10,000."
       },
       "loco.webhook.v1.ListWebhooksRequest": {
         "type": "object",

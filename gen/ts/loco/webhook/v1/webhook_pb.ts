@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/webhook/v1/webhook.proto.
  */
 export const file_loco_webhook_v1_webhook: GenFile = /*@__PURE__*/
-  fileDesc("Ch1sb2NvL3dlYmhvb2svdjEvd2ViaG9vay5wcm90bxIPbG9jby53ZWJob29rLnYxIrUBCgdXZWJob29rEgoKAmlkGAEgASgJEgsKA3VybBgCIAEoCRITCgtldmVudF90eXBlcxgDIAMoCRIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI+ChpwcmV2aW91c19zZWNyZXRfZXhwaXJlc19hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEbmFtZRgGIAEoCSKQAgoPV2ViaG9va0RlbGl2ZXJ5EgoKAmlkGAEgASgJEhAKCGV2ZW50X2lkGAIgASgJEhIKCmV2ZW50X3R5cGUYAyABKAkSDgoGc3RhdHVzGAQgASgJEhAKCGF0dGVtcHRzGAUgASgFEhIKCmxhc3RfZXJyb3IYBiABKAkSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMZGVsaXZlcmVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIzCg9uZXh0X2F0dGVtcHRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIo4BChRDcmVhdGVXZWJob29rUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhgKA3VybBgCIAEoCUILukgIcgYYgBCIAQESJQoLZXZlbnRfdHlwZXMYAyADKAlCELpIDZIBChBkIgZyBBABGGQSFQoEbmFtZRgEIAEoCUIHukgEcgIYZCJSChVDcmVhdGVXZWJob29rUmVzcG9uc2USKQoHd2ViaG9vaxgBIAEoCzIYLmxvY28ud2ViaG9vay52MS5XZWJob29rEg4KBnNlY3JldBgCIAEoCSI1ChNMaXN0V2ViaG9va3NSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQEiQgoUTGlzdFdlYmhvb2tzUmVzcG9uc2USKgoId2ViaG9va3MYASADKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vayKsAQoUVXBkYXRlV2ViaG9va1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABARIYCgN1cmwYAyABKAlCC7pICHIGGIAQiAEBEiUKC2V2ZW50X3R5cGVzGAQgAygJQhC6SA2SAQoQZCIGcgQQARhkEhUKBG5hbWUYBSABKAlCB7pIBHICGGQiQgoVVXBkYXRlV2ViaG9va1Jlc3BvbnNlEikKB3dlYmhvb2sYASABKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vayKFAQoaUm90YXRlV2ViaG9va1NlY3JldFJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABARIpChRncmFjZV9wZXJpb2Rfc2Vjb25kcxgDIAEoBUILukgIGgYYgPUkKAAiWAobUm90YXRlV2ViaG9va1NlY3JldFJlc3BvbnNlEikKB3dlYmhvb2sYASABKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vaxIOCgZzZWNyZXQYAiABKAkiVAoURGVsZXRlV2ViaG9va1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABASIXChVEZWxldGVXZWJob29rUmVzcG9uc2Ui1gEKHExpc3RXZWJob29rRGVsaXZlcmllc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAyABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgEIAEoCRI0CgZzdGF0dXMYBSABKAlCJLpIIdgBAXIcUgdwZW5kaW5nUglzdWNjZWVkZWRSBmZhaWxlZBIPCgdmYWlsaW5nGAYgASgIIrIBCh1MaXN0V2ViaG9va0RlbGl2ZXJpZXNSZXNwb25zZRI0CgpkZWxpdmVyaWVzGAEgAygLMiAubG9jby53ZWJob29rLnYxLldlYmhvb2tEZWxpdmVyeRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkSFgoObWF0Y2hpbmdfY291bnQYAyABKAMSEwoLdG90YWxfY291bnQYBCABKAMSFQoNZmFpbGluZ19jb3VudBgFIAEoAyJ+Ch9SZWRlbGl2ZXJXZWJob29rRGVsaXZlcnlSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoKd2ViaG9va19pZBgCIAEoCUIIukgFcgOwAQESHQoLZGVsaXZlcnlfaWQYAyABKAlCCLpIBXIDsAEBIiIKIFJlZGVsaXZlcldlYmhvb2tEZWxpdmVyeVJlc3BvbnNlIlQKFFNlbmRUZXN0RXZlbnRSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoKd2ViaG9va19pZBgCIAEoCUIIukgFcgOwAQEiFwoVU2VuZFRlc3RFdmVudFJlc3BvbnNlMtgGCg5XZWJob29rU2VydmljZRJeCg1DcmVhdGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLkNyZWF0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLkNyZWF0ZVdlYmhvb2tSZXNwb25zZRJbCgxMaXN0V2ViaG9va3MSJC5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tzUmVxdWVzdBolLmxvY28ud2ViaG9vay52MS5MaXN0V2ViaG9va3NSZXNwb25zZRJeCg1VcGRhdGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLlVwZGF0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLlVwZGF0ZVdlYmhvb2tSZXNwb25zZRJeCg1EZWxldGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLkRlbGV0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLkRlbGV0ZVdlYmhvb2tSZXNwb25zZRJwChNSb3RhdGVXZWJob29rU2VjcmV0EisubG9jby53ZWJob29rLnYxLlJvdGF0ZVdlYmhvb2tTZWNyZXRSZXF1ZXN0GiwubG9jby53ZWJob29rLnYxLlJvdGF0ZVdlYmhvb2tTZWNyZXRSZXNwb25zZRJ2ChVMaXN0V2ViaG9va0RlbGl2ZXJpZXMSLS5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVxdWVzdBouLmxvY28ud2ViaG9vay52MS5MaXN0V2ViaG9va0RlbGl2ZXJpZXNSZXNwb25zZRJ/ChhSZWRlbGl2ZXJXZWJob29rRGVsaXZlcnkSMC5sb2NvLndlYmhvb2sudjEuUmVkZWxpdmVyV2ViaG9va0RlbGl2ZXJ5UmVxdWVzdBoxLmxvY28ud2ViaG9vay52MS5SZWRlbGl2ZXJXZWJob29rRGVsaXZlcnlSZXNwb25zZRJeCg1TZW5kVGVzdEV2ZW50EiUubG9jby53ZWJob29rLnYxLlNlbmRUZXN0RXZlbnRSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLlNlbmRUZXN0RXZlbnRSZXNwb25zZUI8WjpnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3dlYmhvb2svdjE7d2ViaG9va3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Ch1sb2NvL3dlYmhvb2svdjEvd2ViaG9vay5wcm90bxIPbG9jby53ZWJob29rLnYxIrUBCgdXZWJob29rEgoKAmlkGAEgASgJEgsKA3VybBgCIAEoCRITCgtldmVudF90eXBlcxgDIAMoCRIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI+ChpwcmV2aW91c19zZWNyZXRfZXhwaXJlc19hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEbmFtZRgGIAEoCSKQAgoPV2ViaG9va0RlbGl2ZXJ5EgoKAmlkGAEgASgJEhAKCGV2ZW50X2lkGAIgASgJEhIKCmV2ZW50X3R5cGUYAyABKAkSDgoGc3RhdHVzGAQgASgJEhAKCGF0dGVtcHRzGAUgASgFEhIKCmxhc3RfZXJyb3IYBiABKAkSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMZGVsaXZlcmVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIzCg9uZXh0X2F0dGVtcHRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIo4BChRDcmVhdGVXZWJob29rUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhgKA3VybBgCIAEoCUILukgIcgYYgBCIAQESJQoLZXZlbnRfdHlwZXMYAyADKAlCELpIDZIBChBkIgZyBBABGGQSFQoEbmFtZRgEIAEoCUIHukgEcgIYZCJSChVDcmVhdGVXZWJob29rUmVzcG9uc2USKQoHd2ViaG9vaxgBIAEoCzIYLmxvY28ud2ViaG9vay52MS5XZWJob29rEg4KBnNlY3JldBgCIAEoCSI1ChNMaXN0V2ViaG9va3NSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQEiQgoUTGlzdFdlYmhvb2tzUmVzcG9uc2USKgoId2ViaG9va3MYASADKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vayKsAQoUVXBkYXRlV2ViaG9va1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABARIYCgN1cmwYAyABKAlCC7pICHIGGIAQiAEBEiUKC2V2ZW50X3R5cGVzGAQgAygJQhC6SA2SAQoQZCIGcgQQARhkEhUKBG5hbWUYBSABKAlCB7pIBHICGGQiQgoVVXBkYXRlV2ViaG9va1Jlc3BvbnNlEikKB3dlYmhvb2sYASABKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vayKFAQoaUm90YXRlV2ViaG9va1NlY3JldFJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABARIpChRncmFjZV9wZXJpb2Rfc2Vjb25kcxgDIAEoBUILukgIGgYYgPUkKAAiWAobUm90YXRlV2ViaG9va1NlY3JldFJlc3BvbnNlEikKB3dlYmhvb2sYASABKAsyGC5sb2NvLndlYmhvb2sudjEuV2ViaG9vaxIOCgZzZWNyZXQYAiABKAkiVAoURGVsZXRlV2ViaG9va1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABASIXChVEZWxldGVXZWJob29rUmVzcG9uc2Ui8wEKHExpc3RXZWJob29rRGVsaXZlcmllc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIcCgp3ZWJob29rX2lkGAIgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAyABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgEIAEoCRI0CgZzdGF0dXMYBSABKAlCJLpIIdgBAXIcUgdwZW5kaW5nUglzdWNjZWVkZWRSBmZhaWxlZBIPCgdmYWlsaW5nGAYgASgIEhsKE2luY2x1ZGVfdG90YWxfY291bnQYByABKAgirQEKHUxpc3RXZWJob29rRGVsaXZlcmllc1Jlc3BvbnNlEjQKCmRlbGl2ZXJpZXMYASADKAsyIC5sb2NvLndlYmhvb2sudjEuV2ViaG9va0RlbGl2ZXJ5EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBRIRCglhbGxfY291bnQYBCABKAUSFQoNZmFpbGluZ19jb3VudBgFIAEoBSJ+Ch9SZWRlbGl2ZXJXZWJob29rRGVsaXZlcnlSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoKd2ViaG9va19pZBgCIAEoCUIIukgFcgOwAQESHQoLZGVsaXZlcnlfaWQYAyABKAlCCLpIBXIDsAEBIiIKIFJlZGVsaXZlcldlYmhvb2tEZWxpdmVyeVJlc3BvbnNlIlQKFFNlbmRUZXN0RXZlbnRSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoKd2ViaG9va19pZBgCIAEoCUIIukgFcgOwAQEiFwoVU2VuZFRlc3RFdmVudFJlc3BvbnNlMtgGCg5XZWJob29rU2VydmljZRJeCg1DcmVhdGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLkNyZWF0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLkNyZWF0ZVdlYmhvb2tSZXNwb25zZRJbCgxMaXN0V2ViaG9va3MSJC5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tzUmVxdWVzdBolLmxvY28ud2ViaG9vay52MS5MaXN0V2ViaG9va3NSZXNwb25zZRJeCg1VcGRhdGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLlVwZGF0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLlVwZGF0ZVdlYmhvb2tSZXNwb25zZRJeCg1EZWxldGVXZWJob29rEiUubG9jby53ZWJob29rLnYxLkRlbGV0ZVdlYmhvb2tSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLkRlbGV0ZVdlYmhvb2tSZXNwb25zZRJwChNSb3RhdGVXZWJob29rU2VjcmV0EisubG9jby53ZWJob29rLnYxLlJvdGF0ZVdlYmhvb2tTZWNyZXRSZXF1ZXN0GiwubG9jby53ZWJob29rLnYxLlJvdGF0ZVdlYmhvb2tTZWNyZXRSZXNwb25zZRJ2ChVMaXN0V2ViaG9va0RlbGl2ZXJpZXMSLS5sb2NvLndlYmhvb2sudjEuTGlzdFdlYmhvb2tEZWxpdmVyaWVzUmVxdWVzdBouLmxvY28ud2ViaG9vay52MS5MaXN0V2ViaG9va0RlbGl2ZXJpZXNSZXNwb25zZRJ/ChhSZWRlbGl2ZXJXZWJob29rRGVsaXZlcnkSMC5sb2NvLndlYmhvb2sudjEuUmVkZWxpdmVyV2ViaG9va0RlbGl2ZXJ5UmVxdWVzdBoxLmxvY28ud2ViaG9vay52MS5SZWRlbGl2ZXJXZWJob29rRGVsaXZlcnlSZXNwb25zZRJeCg1TZW5kVGVzdEV2ZW50EiUubG9jby53ZWJob29rLnYxLlNlbmRUZXN0RXZlbnRSZXF1ZXN0GiYubG9jby53ZWJob29rLnYxLlNlbmRUZXN0RXZlbnRSZXNwb25zZUI8WjpnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3dlYmhvb2svdjE7d2ViaG9va3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.webhook.v1.Webhook
@@ -644,6 +644,13 @@ export type ListWebhookDeliveriesRequest = Message<"loco.webhook.v1.ListWebhookD
    * @generated from field: bool failing = 6;
    */
   failing: boolean;
+
+  /**
+   * Sets total_count, all_count and failing_count in the response.
+   *
+   * @generated from field: bool include_total_count = 7;
+   */
+  includeTotalCount: boolean;
 };
 
 /**
@@ -685,6 +692,13 @@ export type ListWebhookDeliveriesRequestJson = {
    * @generated from field: bool failing = 6;
    */
   failing?: boolean;
+
+  /**
+   * Sets total_count, all_count and failing_count in the response.
+   *
+   * @generated from field: bool include_total_count = 7;
+   */
+  includeTotalCount?: boolean;
 };
 
 /**
@@ -695,6 +709,9 @@ export const ListWebhookDeliveriesRequestSchema: GenMessage<ListWebhookDeliverie
   messageDesc(file_loco_webhook_v1_webhook, 12);
 
 /**
+ * The counts are set when include_total_count is. Each is exact up to 10,000; 10,001 means more
+ * than 10,000.
+ *
  * @generated from message loco.webhook.v1.ListWebhookDeliveriesResponse
  */
 export type ListWebhookDeliveriesResponse = Message<"loco.webhook.v1.ListWebhookDeliveriesResponse"> & {
@@ -711,28 +728,31 @@ export type ListWebhookDeliveriesResponse = Message<"loco.webhook.v1.ListWebhook
   nextPageToken: string;
 
   /**
-   * Matches status and failing filters; excludes the page cursor.
+   * The deliveries the status and failing filters match, ignoring page_token.
    *
-   * @generated from field: int64 matching_count = 3;
+   * @generated from field: int32 total_count = 3;
    */
-  matchingCount: bigint;
+  totalCount: number;
 
   /**
-   * All deliveries for the webhook, ignoring filters and the page cursor.
+   * All deliveries for the webhook, ignoring filters and page_token.
    *
-   * @generated from field: int64 total_count = 4;
+   * @generated from field: int32 all_count = 4;
    */
-  totalCount: bigint;
+  allCount: number;
 
   /**
-   * Failed deliveries and pending retries, ignoring filters and the page cursor.
+   * Failed deliveries and pending retries, ignoring filters and page_token.
    *
-   * @generated from field: int64 failing_count = 5;
+   * @generated from field: int32 failing_count = 5;
    */
-  failingCount: bigint;
+  failingCount: number;
 };
 
 /**
+ * The counts are set when include_total_count is. Each is exact up to 10,000; 10,001 means more
+ * than 10,000.
+ *
  * @generated from message loco.webhook.v1.ListWebhookDeliveriesResponse
  */
 export type ListWebhookDeliveriesResponseJson = {
@@ -749,25 +769,25 @@ export type ListWebhookDeliveriesResponseJson = {
   nextPageToken?: string;
 
   /**
-   * Matches status and failing filters; excludes the page cursor.
+   * The deliveries the status and failing filters match, ignoring page_token.
    *
-   * @generated from field: int64 matching_count = 3;
+   * @generated from field: int32 total_count = 3;
    */
-  matchingCount?: string;
+  totalCount?: number;
 
   /**
-   * All deliveries for the webhook, ignoring filters and the page cursor.
+   * All deliveries for the webhook, ignoring filters and page_token.
    *
-   * @generated from field: int64 total_count = 4;
+   * @generated from field: int32 all_count = 4;
    */
-  totalCount?: string;
+  allCount?: number;
 
   /**
-   * Failed deliveries and pending retries, ignoring filters and the page cursor.
+   * Failed deliveries and pending retries, ignoring filters and page_token.
    *
-   * @generated from field: int64 failing_count = 5;
+   * @generated from field: int32 failing_count = 5;
    */
-  failingCount?: string;
+  failingCount?: number;
 };
 
 /**

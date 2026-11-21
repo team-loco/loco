@@ -1,5 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { createConnectQueryKey, useInfiniteQuery, useMutation } from "@connectrpc/connect-query";
+import { createConnectQueryKey, useMutation } from "@connectrpc/connect-query";
 import type { Webhook, WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -20,8 +20,9 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
+import { useTokenPage } from "@/hooks/useTokenPage";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
-import { nextPage, pagedRows, type Paging } from "@/lib/paging";
+import { formatTotal, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { formatClock, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +39,6 @@ import {
 } from "./webhooks";
 
 const PAGE_SIZES = [25, 50, 100] as const;
-const FIRST_PAGE: Paging = { page: 0, size: PAGE_SIZES[0] };
 const SKELETON_ROWS = [0, 1, 2];
 
 // Base UI's Toggle swaps an empty value for a generated id, so All needs a real one.
@@ -99,33 +99,20 @@ function WebhookDetail({
 }) {
 	const timePref = useTimePreferences();
 	const [filter, setFilter] = useState<Filter>(ALL);
-	const [paging, setPaging] = useState(FIRST_PAGE);
+	const [size, setSize] = useState<number>(PAGE_SIZES[0]);
+	// The drawer's webhook and filter live in component state, so its page tokens do too.
+	const [tokens, setTokens] = useState<string[]>([]);
 	const queryClient = useQueryClient();
-	const query = useInfiniteQuery(
+	const { query, nextPageToken, total, counts } = useTokenPage(
 		listWebhookDeliveries,
-		{
-			workspaceId,
-			webhookId: webhook.id,
-			status: "",
-			failing: filter === FAILING,
-			pageSize: paging.size,
-			pageToken: "",
-		},
-		{
-			pageParamKey: "pageToken",
-			getNextPageParam: (last) => last.nextPageToken || undefined,
-			refetchInterval: 15_000,
-		},
+		{ workspaceId, webhookId: webhook.id, status: "", failing: filter === FAILING, pageSize: size },
+		tokens,
+		{ refetchInterval: 15_000 },
 	);
-	const loaded = query.data?.pages.flatMap((p) => p.deliveries) ?? [];
-	const paged = pagedRows(loaded, paging, setPaging, PAGE_SIZES);
-	const next = nextPage(
-		paged,
-		query.isFetchingNextPage,
-		query.hasNextPage,
-		async () => !(await query.fetchNextPage()).isError,
-		setPaging,
-	);
+	const loaded = query.data?.deliveries ?? [];
+	const pager = tokenPager(tokens, nextPageToken, (next) => {
+		setTokens(next ?? []);
+	});
 	const refresh = () => {
 		void refreshDeliveries(queryClient);
 		void queryClient.invalidateQueries({
@@ -228,18 +215,15 @@ function WebhookDetail({
 							const selected = FILTERS.find((option) => option.value === v[0]);
 							if (selected === undefined) return;
 							setFilter(selected.value);
-							setPaging(FIRST_PAGE);
+							setTokens([]);
 						}}
 					>
 						{FILTERS.map((f) => (
 							<ToggleGroupItem key={f.value} value={f.value}>
 								{f.label}
-								{query.data !== undefined && (
+								{counts !== undefined && (
 									<span className="text-fg3">
-										{(f.value === ALL
-											? query.data.pages[0]?.totalCount
-											: query.data.pages[0]?.failingCount
-										)?.toString()}
+										{formatTotal(f.value === ALL ? counts.allCount : counts.failingCount)}
 									</span>
 								)}
 							</ToggleGroupItem>
@@ -252,7 +236,7 @@ function WebhookDetail({
 					</p>
 				)}
 				<DeliveryList
-					deliveries={paged.rows}
+					deliveries={loaded}
 					isLoading={query.isPending}
 					error={query.data === undefined ? query.error : null}
 					onRedeliver={(deliveryId) => {
@@ -273,25 +257,26 @@ function WebhookDetail({
 					<Button
 						variant="outline"
 						onClick={() => {
-							if (query.isFetching) return;
-							if (query.isFetchNextPageError) next?.();
-							else void query.refetch();
+							if (!query.isFetching) void query.refetch();
 						}}
 					>
 						Retry deliveries
 					</Button>
 				)}
 				<Pager
-					{...paged.pager}
-					label={`${paged.pager.label}${query.hasNextPage ? "+" : ""}`}
-					onNext={next}
+					label={tokenPageLabel(pager.page, size, loaded.length, total)}
+					page={pager.page}
+					total={loaded.length}
+					pageSizes={PAGE_SIZES}
+					pageSize={size}
+					onPageSize={(next) => {
+						setSize(next);
+						setTokens([]);
+					}}
+					onPrev={pager.onPrev}
+					onNext={pager.onNext}
 					className="border-0 px-0 pt-0"
 				/>
-				{query.isFetchNextPageError && (
-					<p role="alert" className="m-0 text-bad-fg">
-						{getErrorMessage(query.error, "Could not load more deliveries")}
-					</p>
-				)}
 			</SheetBody>
 		</>
 	);

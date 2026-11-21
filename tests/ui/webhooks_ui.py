@@ -179,6 +179,12 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         method == "ListWebhookDeliveries" and body.get("pageToken")
         for method, body in requests
     )
+    assert not any(
+        method == "ListWebhookDeliveries"
+        and body.get("pageToken")
+        and body.get("includeTotalCount")
+        for method, body in requests
+    ), "only the first-page count request asks for totals"
     drawer.get_by_role("button", name="50", exact=True).click()
     expect(drawer.get_by_text("1–31 of 31", exact=True)).to_be_visible()
     assert any(

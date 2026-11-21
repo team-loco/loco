@@ -20,5 +20,10 @@ func totalCount(
 	if err != nil {
 		return 0, err
 	}
-	return int32(min(n, totalCountCap+1)), nil
+	return cappedCount(n), nil
+}
+
+// cappedCount converts a count taken with the totalCount row limit.
+func cappedCount(n int64) int32 {
+	return int32(min(n, totalCountCap+1))
 }

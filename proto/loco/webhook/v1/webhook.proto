@@ -150,17 +150,21 @@ message ListWebhookDeliveriesRequest {
   ];
   // Failed deliveries and pending retries with a recorded error; combines with status.
   bool failing = 6;
+  // Sets total_count, all_count and failing_count in the response.
+  bool include_total_count = 7;
 }
 
+// The counts are set when include_total_count is. Each is exact up to 10,000; 10,001 means more
+// than 10,000.
 message ListWebhookDeliveriesResponse {
   repeated WebhookDelivery deliveries = 1;
   string next_page_token = 2; // empty if no more pages
-  // Matches status and failing filters; excludes the page cursor.
-  int64 matching_count = 3;
-  // All deliveries for the webhook, ignoring filters and the page cursor.
-  int64 total_count = 4;
-  // Failed deliveries and pending retries, ignoring filters and the page cursor.
-  int64 failing_count = 5;
+  // The deliveries the status and failing filters match, ignoring page_token.
+  int32 total_count = 3;
+  // All deliveries for the webhook, ignoring filters and page_token.
+  int32 all_count = 4;
+  // Failed deliveries and pending retries, ignoring filters and page_token.
+  int32 failing_count = 5;
 }
 
 message RedeliverWebhookDeliveryRequest {
