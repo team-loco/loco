@@ -1,6 +1,6 @@
-import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment, type DeploymentStatusCount } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { DAY_MS, tsMs } from "@/lib/time";
+import { DAY_MS } from "@/lib/time";
 
 export const DEPLOYMENT_WINDOW_MS = DAY_MS;
 export const DEPLOYMENT_LIMIT = 10;
@@ -8,49 +8,39 @@ export const ALL_DEPLOYMENTS = "all";
 
 export type DeploymentState = "running" | "progress" | "failed" | "superseded" | "other";
 
-export const DEPLOYMENT_FILTERS: { value: DeploymentState; label: string }[] = [
-	{ value: "running", label: "Running" },
-	{ value: "progress", label: "In progress" },
-	{ value: "failed", label: "Failed" },
+export const DEPLOYMENT_FILTERS: {
+	value: Exclude<DeploymentState, "superseded" | "other">;
+	label: string;
+	statuses: DeploymentStatus[];
+}[] = [
+	{ value: "running", label: "Running", statuses: [DeploymentStatus.RUNNING] },
+	{ value: "progress", label: "In progress", statuses: [DeploymentStatus.BUILDING, DeploymentStatus.DEPLOYING] },
+	{
+		value: "failed",
+		label: "Failed",
+		statuses: [DeploymentStatus.FAILED, DeploymentStatus.DEGRADED, DeploymentStatus.CRASHED],
+	},
 ];
 
+function stateOf(status: DeploymentStatus): DeploymentState {
+	if (status === DeploymentStatus.SUPERSEDED) return "superseded";
+	return DEPLOYMENT_FILTERS.find((f) => f.statuses.includes(status))?.value ?? "other";
+}
+
 export function deploymentState(d: Deployment): DeploymentState {
-	switch (d.status) {
-		case DeploymentStatus.RUNNING:
-			return "running";
-		case DeploymentStatus.DEGRADED:
-			return "failed";
-		case DeploymentStatus.CRASHED:
-			return "failed";
-		case DeploymentStatus.SUPERSEDED:
-			return "superseded";
-		case DeploymentStatus.BUILDING:
-			return "progress";
-		case DeploymentStatus.DEPLOYING:
-			return "progress";
-		case DeploymentStatus.FAILED:
-			return "failed";
-		case DeploymentStatus.CANCELED:
-			return "other";
-		case DeploymentStatus.UNSPECIFIED:
-			return "other";
+	return stateOf(d.status);
+}
+
+/** The statuses a filter lists; empty for all of them. */
+export function filterStatuses(filter: string): DeploymentStatus[] {
+	return DEPLOYMENT_FILTERS.find((f) => f.value === filter)?.statuses ?? [];
+}
+
+export function deploymentCounts(counts: readonly DeploymentStatusCount[]): Map<DeploymentState, number> {
+	const states = new Map<DeploymentState, number>();
+	for (const c of counts) {
+		const state = stateOf(c.status);
+		states.set(state, (states.get(state) ?? 0) + c.count);
 	}
-}
-
-export function withinWindow<T extends { deployment: Deployment }>(rows: T[], nowMs: number): T[] {
-	return rows.filter((r) => nowMs - tsMs(r.deployment.createdAt) <= DEPLOYMENT_WINDOW_MS);
-}
-
-export function deploymentCounts(rows: { deployment: Deployment }[]): Map<DeploymentState, number> {
-	const counts = new Map<DeploymentState, number>();
-	for (const r of rows) {
-		const state = deploymentState(r.deployment);
-		counts.set(state, (counts.get(state) ?? 0) + 1);
-	}
-	return counts;
-}
-
-export function filterDeployments<T extends { deployment: Deployment }>(rows: T[], filter: string): T[] {
-	const matching = filter === ALL_DEPLOYMENTS ? rows : rows.filter((r) => deploymentState(r.deployment) === filter);
-	return matching.slice(0, DEPLOYMENT_LIMIT);
+	return states;
 }

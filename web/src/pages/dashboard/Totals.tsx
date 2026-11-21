@@ -1,4 +1,13 @@
 import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useQueries } from "@tanstack/react-query";
+import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { queryDeploymentBuckets } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import type { DeploymentBucket } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	getEnvironmentAllocation,
+	listWorkspaceResources,
+} from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import type { GetEnvironmentAllocationResponse } from "@gen/loco/resource/v1/resource_pb";
 import { useTraffic } from "@/hooks/useTraffic";
 import {
 	changeLabel,
@@ -12,7 +21,7 @@ import {
 	type TrafficPoint,
 } from "@/lib/traffic";
 import { stepSeconds } from "@/lib/obs-time";
-import { DAY_MS } from "@/lib/time";
+import { DAY_MS, msToTimestamp } from "@/lib/time";
 import { ChevronDownIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
@@ -24,21 +33,20 @@ import { PartialError } from "@/components/design/ErrorState";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { deployMarkers } from "@/lib/deployMarkers";
+import { deployMarkers, MARKER_NAMES } from "@/lib/deployMarkers";
 import { pluralize } from "@/lib/format";
-import { formatCpu, formatMemory } from "@/lib/quantity";
+import { bytesToMi, formatCpu, formatMemory } from "@/lib/quantity";
 import { observabilityPath, resourcesPath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-
-import type { Allocation } from "./allocation";
 import { trafficResourceName } from "./trafficNames";
 import { useDeletedResourceNames } from "./useDeletedResourceNames";
 
 const SPEND = "Spend";
 const TOP = 5;
 const PERCENT = 100;
+const ALLOCATION_POLL_MS = 15_000;
+const NAMES_PAGE = 100;
 
 const RANGES = ["24h", "7d", "30d"] as const;
 type Range = (typeof RANGES)[number];
@@ -118,20 +126,23 @@ function BreakdownEntry({
 	);
 }
 
+/** Lists the largest of count rows; rows holds at least the first TOP + 1 of them, largest first. */
 function Breakdown({
 	rows,
+	count = rows.length,
 	total,
 	format,
 	moreHref,
 }: {
 	rows: BreakdownRow[];
+	count?: number;
 	total: number;
 	format: (n: number) => string;
 	moreHref: string;
 }) {
-	const shown = rows.length > TOP + 1 ? rows.slice(0, TOP) : rows;
-	const rest = rows.slice(shown.length);
-	const restAmount = rest.reduce((n, r) => n + r.amount, 0);
+	const shown = count > TOP + 1 ? rows.slice(0, TOP) : rows;
+	const restCount = count - shown.length;
+	const restAmount = Math.max(0, total - shown.reduce((n, r) => n + r.amount, 0));
 	const max = Math.max(1, shown[0]?.amount ?? 0);
 	return (
 		<div
@@ -144,7 +155,7 @@ function Breakdown({
 				<div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3.5 pb-2 text-[12px] text-fg3">
 					By resource
 					<span className="flex items-center gap-1.5 font-mono text-[11px]">
-						{pluralize(rows.length, "resource")}
+						{pluralize(count, "resource")}
 						<ChevronDownIcon
 							className={cn(
 								EASE,
@@ -172,7 +183,7 @@ function Breakdown({
 							}}
 						/>
 					))}
-					{rest.length > 0 && (
+					{restCount > 0 && (
 						<span
 							data-rest
 							className="h-full min-w-0.5 bg-line2 dark:bg-panel2"
@@ -212,12 +223,12 @@ function Breakdown({
 							</BreakdownEntry>
 						</li>
 					))}
-					{rest.length > 0 && (
+					{restCount > 0 && (
 						<li>
 							<BreakdownEntry href={moreHref} style={{ transitionDelay: `${(60 + shown.length * 40).toString()}ms` }}>
 								<span className="flex items-center justify-between gap-2.5 text-[13.5px] text-fg2">
 									<span className="flex min-w-0 flex-1 items-center">
-										{rest.length.toString()} more
+										{restCount.toString()} more
 										<NavArrow />
 									</span>
 									<span className="flex items-baseline gap-2 font-mono">
@@ -279,28 +290,38 @@ function AllocatedCard({
 	hrefFor,
 	moreHref,
 }: {
-	value: Allocation;
+	value: GetEnvironmentAllocationResponse | undefined;
 	hrefFor: (id: string) => string;
 	moreHref: string;
 }) {
+	if (value === undefined)
+		return (
+			<StatCard label="Allocated" growLeft ariaLabel="Allocated: loading" breakdown={null}>
+				<Skeleton className="my-1 h-[30px] w-24" />
+				<Skeleton className="h-[14px] w-40" />
+			</StatCard>
+		);
+	const cpuMilli = Number(value.cpuMillicores);
+	const memory = memoryLabel(bytesToMi(value.memoryBytes));
 	return (
 		<StatCard
 			label="Allocated"
 			growLeft
-			ariaLabel={`Allocated: ${formatCpu(value.cpuMilli)}, ${memoryLabel(value.memMi)} memory`}
+			ariaLabel={`Allocated: ${formatCpu(cpuMilli)}, ${memory} memory`}
 			corner={<span className="font-mono text-[11.5px]">now</span>}
 			breakdown={
-				value.resources.length > 0 ? (
+				value.resourceCount > 0 ? (
 					<Breakdown
 						rows={value.resources.map((r) => ({
-							id: r.id,
+							id: r.resourceId,
 							name: r.name,
-							amount: r.cpuMilli,
-							label: formatCpu(r.cpuMilli),
-							detail: memoryLabel(r.memMi),
-							href: hrefFor(r.id),
+							amount: Number(r.cpuMillicores),
+							label: formatCpu(Number(r.cpuMillicores)),
+							detail: memoryLabel(bytesToMi(r.memoryBytes)),
+							href: hrefFor(r.resourceId),
 						}))}
-						total={value.cpuMilli}
+						count={value.resourceCount}
+						total={cpuMilli}
 						format={formatCpu}
 						moreHref={moreHref}
 					/>
@@ -308,10 +329,10 @@ function AllocatedCard({
 			}
 		>
 			<span data-slot="stat-value" className={VALUE}>
-				{formatCpu(value.cpuMilli)}
+				{formatCpu(cpuMilli)}
 			</span>
-			<span className="truncate font-mono text-[11.5px] text-fg3" title={`${memoryLabel(value.memMi)} memory`}>
-				{memoryLabel(value.memMi)} memory
+			<span className="truncate font-mono text-[11.5px] text-fg3" title={`${memory} memory`}>
+				{memory} memory
 			</span>
 		</StatCard>
 	);
@@ -342,7 +363,6 @@ function TrafficCard({
 	deleted,
 	hrefFor,
 	moreHref,
-	deployments,
 	buckets,
 	nowMs,
 }: {
@@ -353,12 +373,11 @@ function TrafficCard({
 	windows: { current: TrafficWindow; prior: TrafficWindow };
 	range: string;
 	state: "loading" | "error" | "ready";
-	names: ReadonlyMap<string, string>;
+	names: ReadonlyMap<string, string> | undefined;
 	deleted: ReadonlyMap<string, string>;
 	hrefFor: (id: string) => string;
 	moreHref: string;
-	deployments: { deployment: Deployment; resource: { name: string } }[];
-	buckets: number;
+	buckets: readonly DeploymentBucket[];
 	nowMs: number;
 }) {
 	const perResource = trafficTotals(current, spec.field, stepMs, windows.current);
@@ -368,7 +387,7 @@ function TrafficCard({
 	const rows = [...perResource.entries()]
 		.filter(([, amount]) => amount > 0)
 		.map(([id, amount]) => {
-			const { name, live } = trafficResourceName(id, names, deleted);
+			const { name, live } = trafficResourceName(id, names ?? new Map<string, string>(), deleted);
 			return { id, name, amount, label: spec.format(amount), href: live ? hrefFor(id) : undefined };
 		})
 		.toSorted((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
@@ -379,7 +398,7 @@ function TrafficCard({
 			label={spec.label}
 			ariaLabel={state === "loading" ? `${spec.label}: loading` : `${spec.label}: ${shown}, ${comparison}`}
 			breakdown={
-				state === "ready" && rows.length > 0 && total !== undefined ? (
+				state === "ready" && names !== undefined && rows.length > 0 && total !== undefined ? (
 					<Breakdown rows={rows} total={total} format={spec.format} moreHref={moreHref} />
 				) : null
 			}
@@ -412,9 +431,7 @@ function TrafficCard({
 					className={cn("h-[38px]", warn ? "text-warn" : "text-foreground")}
 				/>
 				{state === "ready" && (
-					<DeployMarkers
-						markers={deployMarkers(deployments, windows.current.startMs, windows.current.endMs, buckets, nowMs)}
-					/>
+					<DeployMarkers markers={deployMarkers(buckets, windows.current.startMs, windows.current.endMs, nowMs)} />
 				)}
 			</div>
 		</StatCard>
@@ -422,26 +439,34 @@ function TrafficCard({
 }
 
 const rangeParser = parseAsStringLiteral(RANGES).withDefault("24h").withOptions({ history: "replace" });
+/** The live resources of the workspace among ids, by ID; undefined while they load. */
+function useResourceNames(workspaceId: string, ids: readonly string[]): ReadonlyMap<string, string> | undefined {
+	const transport = useTransport();
+	const chunks = Array.from({ length: Math.ceil(ids.length / NAMES_PAGE) }, (_, i) =>
+		ids.slice(i * NAMES_PAGE, (i + 1) * NAMES_PAGE),
+	);
+	const queries = useQueries({
+		queries: chunks.map((resourceIds) =>
+			createQueryOptions(listWorkspaceResources, { workspaceId, resourceIds, pageSize: NAMES_PAGE }, { transport }),
+		),
+	});
+	if (queries.some((q) => q.data === undefined)) return undefined;
+	return new Map(queries.flatMap((q) => (q.data?.resources ?? []).map((r) => [r.id, r.name] as const)));
+}
+
 export function Totals({
-	value,
-	names,
 	hrefFor,
 	orgId,
 	workspaceId,
 	environmentId,
 	envName,
-	deployments,
 	nowMs,
 }: {
-	value: Allocation;
-	/** Every live resource of the workspace by ID. */
-	names: ReadonlyMap<string, string>;
 	hrefFor: (id: string) => string;
 	orgId: string;
 	workspaceId: string;
 	environmentId: string;
 	envName: string;
-	deployments: { deployment: Deployment; resource: { name: string } }[];
 	nowMs: number;
 }) {
 	const [range, setRange] = useQueryState("range", rangeParser);
@@ -456,8 +481,27 @@ export function Totals({
 		prior: { startMs: priorEndMs - spanMs, endMs: priorEndMs },
 	};
 	const state = traffic.isLoading ? "loading" : traffic.error !== null ? "error" : "ready";
-	const gone = [...traffic.points, ...prior.points].some((p) => !names.has(p.resourceId));
+	const trafficIds = [...new Set([...traffic.points, ...prior.points].map((p) => p.resourceId))].toSorted();
+	const names = useResourceNames(workspaceId, trafficIds);
+	const gone = names !== undefined && trafficIds.some((id) => !names.has(id));
 	const deleted = useDeletedResourceNames(orgId, workspaceId, gone);
+	const buckets = useQuery(
+		queryDeploymentBuckets,
+		{
+			workspaceId,
+			environmentId,
+			since: msToTimestamp(windows.current.startMs),
+			until: msToTimestamp(windows.current.endMs),
+			bucketCount: RANGE_BUCKETS[range],
+			maxResourceNames: MARKER_NAMES,
+		},
+		{ enabled: state === "ready" },
+	).data?.buckets;
+	const allocation = useQuery(
+		getEnvironmentAllocation,
+		{ workspaceId, environmentId },
+		{ refetchInterval: ALLOCATION_POLL_MS },
+	).data;
 	const metricsHref = observabilityPath(orgId, workspaceId, "metrics", { env: envName, range: spanMs });
 	const sizeHref = `${resourcesPath(orgId, workspaceId)}?${new URLSearchParams({ env: envName, sort: "size.desc" }).toString()}`;
 	return (
@@ -509,13 +553,12 @@ export function Totals({
 						deleted={deleted}
 						hrefFor={hrefFor}
 						moreHref={metricsHref}
-						deployments={deployments}
-						buckets={RANGE_BUCKETS[range]}
+						buckets={buckets ?? []}
 						nowMs={nowMs}
 					/>
 				))}
 				<SoonCard label={SPEND} />
-				<AllocatedCard value={value} hrefFor={hrefFor} moreHref={sizeHref} />
+				<AllocatedCard value={allocation} hrefFor={hrefFor} moreHref={sizeHref} />
 			</section>
 		</div>
 	);

@@ -1,6 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import {
 	RegionAvailability,
 	ResourceStatus,
@@ -26,7 +25,8 @@ export interface EnvResource {
 	resource: Resource;
 	environment: EnvironmentStatus | undefined;
 	status: ResourceStatus;
-	envDeployments: Deployment[];
+	/** The resource's loaded deployments in the environment, newest first. */
+	deployments: Deployment[];
 	last: Deployment | undefined;
 	regions: RegionReplicas[];
 	totalReplicas: number;
@@ -42,7 +42,7 @@ function regionReplicas(resource: Resource, environment: EnvironmentStatus | und
 	});
 }
 
-/** The resource in the environment, from the environment's deployments. */
+/** The resource in the environment, from deployments of the environment that include its own. */
 export function envResource(
 	resource: Resource,
 	deployments: readonly Deployment[],
@@ -57,7 +57,7 @@ export function envResource(
 		resource,
 		environment,
 		status: environment?.status ?? ResourceStatus.UNSPECIFIED,
-		envDeployments: mine,
+		deployments: mine,
 		last: mine[0],
 		regions,
 		totalReplicas: regions.reduce((n, g) => n + g.desired, 0),
@@ -65,46 +65,34 @@ export function envResource(
 	};
 }
 
-export function useDashboardData(orgId: string | null, workspaceId: string | null, env: Environment | undefined) {
-	const { resources, deployments, isLoading, error, refetch } = useWorkspaceEnvironmentDeployments(
-		orgId,
-		workspaceId,
-		env?.id ?? "",
-	);
+/** The environment's online regions, for a caller who reads the whole workspace. */
+export function useEnvironmentRegions(
+	orgId: string | null,
+	workspaceId: string | null,
+	environmentId: string | undefined,
+) {
 	const grants = useMyScopes().resourceGrants(orgId ?? "", workspaceId ?? "");
 	const regionsQuery = useQuery(
 		listRegions,
-		{ environmentId: env?.id ?? "" },
-		{ enabled: env !== undefined && grants === "workspace" },
+		{ environmentId: environmentId ?? "" },
+		{ enabled: environmentId !== undefined && grants === "workspace" },
 	);
-
-	const envId = env?.id ?? "";
-	const envResources: EnvResource[] = [];
-	const envDeployments: { deployment: Deployment; resource: Resource }[] = [];
-
-	resources.forEach((resource) => {
-		const item = envResource(resource, deployments, envId);
-		for (const d of item.envDeployments) envDeployments.push({ deployment: d, resource });
-		if (item.envDeployments.length > 0 || item.neverDeployed) envResources.push(item);
-	});
-
-	envDeployments.sort((a, b) => tsMs(b.deployment.createdAt) - tsMs(a.deployment.createdAt));
-
-	const regionInfos: RegionInfo[] = (regionsQuery.data?.regions ?? []).filter(
+	const regions: RegionInfo[] = (regionsQuery.data?.regions ?? []).filter(
 		(region) => region.availability !== RegionAvailability.OFFLINE,
 	);
+	return { grants, regions };
+}
 
-	return {
-		resources,
-		scoped: grants !== undefined && grants !== "workspace",
-		envResources,
-		envDeployments,
-		deployments,
-		regions: regionInfos,
-		// Until grants resolve a scoped viewer is indistinguishable from a workspace reader, and the
-		// workspace view queries environment-wide metrics the proxy refuses them.
-		isLoading: isLoading || grants === undefined,
-		error,
-		refetch,
-	};
+/** Every resource of the environment with every deployment of it, for the maps. */
+export function useDashboardData(orgId: string, workspaceId: string, environmentId: string) {
+	const { resources, deployments, isLoading, error, refetch } = useWorkspaceEnvironmentDeployments(
+		orgId,
+		workspaceId,
+		environmentId,
+	);
+	const { regions } = useEnvironmentRegions(orgId, workspaceId, environmentId);
+	const envResources = resources
+		.map((resource) => envResource(resource, deployments, environmentId))
+		.filter((item) => item.deployments.length > 0 || item.neverDeployed);
+	return { envResources, regions, isLoading, error, refetch };
 }

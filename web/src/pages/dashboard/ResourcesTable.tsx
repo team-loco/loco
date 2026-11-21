@@ -16,7 +16,8 @@ import { ArrowRightIcon, FilePenLineIcon, GlobeIcon } from "lucide-react";
 import { createContext, use } from "react";
 import { parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { Link, useLocation, useNavigate } from "react-router";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import type { DeploymentBucket } from "@gen/loco/deployment/v1/deployment_pb";
+import { queryDeploymentBuckets } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { ResourceOrder, ResourceStatus, ResourceType, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
@@ -26,6 +27,7 @@ import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { ErrorState } from "@/components/design/ErrorState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
+import { Skeleton } from "@/components/design/Skeleton";
 import { Pager } from "@/components/design/Pager";
 import { RowMenu } from "@/components/design/RowMenu";
 import { SearchInput } from "@/components/design/SearchInput";
@@ -35,14 +37,14 @@ import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/des
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useTokenPage } from "@/hooks/useTokenPage";
-import { resourcesPollMs } from "@/hooks/useWorkspaceDeployments";
-import { deployMarkers } from "@/lib/deployMarkers";
+import { resourcesPollMs, useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
+import { deployMarkers, MARKER_NAMES } from "@/lib/deployMarkers";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
 import { rolloutState } from "@/lib/resource-status";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
-import { agoLabel, readyMs } from "@/lib/time";
+import { agoLabel, msToTimestamp, readyMs } from "@/lib/time";
 import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
@@ -62,11 +64,12 @@ import {
 	type DraftItem,
 	type RowFilter,
 } from "./resourceRows";
-import { envResource, type EnvResource } from "./useDashboardData";
+import { envResource, useDashboardData, type EnvResource } from "./useDashboardData";
 
 const PAGE_SIZE = 25;
 const MAX_PIPS = 12;
 const ROW_BUCKETS = 6;
+const MAP_SKELETON_PX = 320;
 
 function replicaTotal(item: DashboardItem): number {
 	return isDraftItem(item) ? 0 : item.totalReplicas;
@@ -128,6 +131,8 @@ function Regions({ item }: { item: DashboardItem }) {
 
 interface DashboardCellValues {
 	traffic: TrafficPoint[];
+	/** The last hour's deployment buckets of each row's resource. */
+	deploys: ReadonlyMap<string, DeploymentBucket[]>;
 	trafficLoading: boolean;
 	trafficError: boolean;
 	orgId: string;
@@ -261,15 +266,9 @@ function MenuCell({ item }: { item: DashboardItem }) {
 }
 
 function TrafficCell({ item }: { item: DashboardItem }) {
-	const { traffic, trafficLoading, trafficError, nowMs } = useCells();
+	const { traffic, deploys, trafficLoading, trafficError, nowMs } = useCells();
 	if (isDraftItem(item)) return <span className="text-fg3">—</span>;
-	const markers = deployMarkers(
-		item.envDeployments.map((deployment) => ({ deployment, resource: item.resource })),
-		nowMs - HOUR_MS,
-		nowMs,
-		ROW_BUCKETS,
-		nowMs,
-	);
+	const markers = deployMarkers(deploys.get(item.resource.id) ?? [], nowMs - HOUR_MS, nowMs, nowMs);
 	const rate = trafficLoading
 		? "…"
 		: trafficError
@@ -388,9 +387,48 @@ const ORDERS: Record<string, { orderBy: ResourceOrder }> = {
 	deploy: { orderBy: ResourceOrder.DEPLOYED },
 };
 
+/** The map of every resource the filters match; it reads the environment's every deployment while shown. */
+function DashboardMap({
+	orgId,
+	workspaceId,
+	environmentId,
+	regions,
+	drafts,
+	matching,
+	empty,
+	hrefFor,
+	onShowTable,
+}: {
+	orgId: string;
+	workspaceId: string;
+	environmentId: string;
+	regions: RegionInfo[];
+	drafts: DraftItem[];
+	/** The resources the filters match; undefined matches all of them. */
+	matching: ReadonlySet<string> | undefined;
+	empty: React.ReactNode;
+	hrefFor: (item: DashboardItem) => string;
+	onShowTable: () => void;
+}) {
+	const data = useDashboardData(orgId, workspaceId, environmentId);
+	if (data.error !== null)
+		return <ErrorState error={data.error} what="resources" rpc={listWorkspaceResources} onRetry={data.refetch} />;
+	if (data.isLoading) return <Skeleton className="m-4" style={{ height: MAP_SKELETON_PX }} />;
+	const rows: DashboardItem[] = [...data.envResources.filter((r) => matching?.has(r.resource.id) !== false), ...drafts];
+	if (rows.length === 0) return <div className="border-t border-line2">{empty}</div>;
+	return (
+		<ArchitectureDiagram
+			rows={rows}
+			regionOrder={regions.map((r) => r.region)}
+			environmentId={environmentId}
+			hrefFor={hrefFor}
+			onShowTable={onShowTable}
+		/>
+	);
+}
+
 export function ResourcesTable({
-	envResources,
-	deployments,
+	total,
 	drafts,
 	regions,
 	orgId,
@@ -400,8 +438,8 @@ export function ResourcesTable({
 	nowMs,
 	hrefFor,
 }: {
-	envResources: EnvResource[];
-	deployments: Deployment[];
+	/** The resources of the environment. */
+	total: number;
 	drafts: DraftItem[];
 	regions: RegionInfo[];
 	orgId: string;
@@ -470,14 +508,26 @@ export function ResourcesTable({
 	const draftRegions = (d: DraftItem) => d.regions.map((g) => g.region);
 	const shownItems = shownDrafts(drafts, filter, draftRegions);
 	const draftCount = shownDrafts(drafts, { ...filter, status: DRAFT }, draftRegions).length;
-	const serverRows = draftsOnly
-		? []
-		: (listed.query.data?.resources ?? []).map((r) => envResource(r, deployments, environmentId));
+	const pageResources = listed.query.data?.resources ?? [];
+	const current = useCurrentDeployments(pageResources, environmentId);
+	const serverRows = draftsOnly ? [] : pageResources.map((r, i) => envResource(r, current[i] ?? [], environmentId));
 	const data: DashboardItem[] = [...serverRows, ...(state.page.length === 0 ? shownItems : [])];
-	const mapped: DashboardItem[] = [
-		...(draftsOnly ? [] : envResources.filter((r) => !hasFilters || matching?.has(r.resource.id) !== false)),
-		...shownItems,
-	];
+	const pageIds = serverRows.map((r) => r.resource.id);
+	const deployBuckets = useConnectQuery(
+		queryDeploymentBuckets,
+		{
+			workspaceId,
+			environmentId,
+			resourceIds: pageIds,
+			groupByResource: true,
+			since: msToTimestamp(nowMs - HOUR_MS),
+			until: msToTimestamp(nowMs),
+			bucketCount: ROW_BUCKETS,
+			maxResourceNames: MARKER_NAMES,
+		},
+		{ enabled: !isMap && pageIds.length > 0, placeholderData: keepPreviousData },
+	).data?.buckets;
+	const deploys = Map.groupBy(deployBuckets ?? [], (b) => b.resourceId);
 	const matched = draftsOnly ? draftCount : listed.total;
 
 	const table = useDataTable("dashboard-resources", {
@@ -501,7 +551,7 @@ export function ResourcesTable({
 	const statusAll = facets === undefined ? undefined : sum(facets.statuses) + facets.notDeployed;
 	const counts = statusCounts(statusAll, facets, draftCount);
 	const regionNames = new Set(regions.map((r) => r.region));
-	for (const item of [...envResources, ...drafts]) for (const g of item.regions) regionNames.add(g.region);
+	for (const item of drafts) for (const g of item.regions) regionNames.add(g.region);
 	for (const r of facets?.regions ?? []) regionNames.add(r.region);
 	if (filter.region !== ALL) regionNames.add(filter.region);
 	const typeOptions = [
@@ -631,19 +681,19 @@ export function ResourcesTable({
 			{listed.error !== null ? (
 				<ErrorState error={listed.error} what="resources" rpc={listWorkspaceResources} onRetry={listed.query.refetch} />
 			) : isMap ? (
-				mapped.length === 0 ? (
-					<div className="border-t border-line2">{empty}</div>
-				) : (
-					<ArchitectureDiagram
-						rows={mapped}
-						regionOrder={regions.map((r) => r.region)}
-						environmentId={environmentId}
-						hrefFor={itemHref}
-						onShowTable={() => {
-							void setView("table");
-						}}
-					/>
-				)
+				<DashboardMap
+					orgId={orgId}
+					workspaceId={workspaceId}
+					environmentId={environmentId}
+					regions={regions}
+					drafts={shownItems}
+					matching={draftsOnly ? new Set() : hasFilters ? matching : undefined}
+					empty={empty}
+					hrefFor={itemHref}
+					onShowTable={() => {
+						void setView("table");
+					}}
+				/>
 			) : (
 				<>
 					<DashboardCellContext
@@ -654,6 +704,7 @@ export function ResourcesTable({
 							nowMs,
 							hrefFor: itemHref,
 							traffic: trafficData,
+							deploys,
 							trafficLoading: traffic.isLoading,
 							trafficError: traffic.error !== null,
 						}}
@@ -673,7 +724,7 @@ export function ResourcesTable({
 						{...pager}
 						label={
 							data.length === 0
-								? `0 of ${(envResources.length + drafts.length).toString()}`
+								? `0 of ${(total + drafts.length).toString()}`
 								: tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched)
 						}
 						total={data.length}

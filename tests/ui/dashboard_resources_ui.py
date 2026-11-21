@@ -3,7 +3,7 @@ import json
 import re
 from pathlib import Path
 
-from harness import call, load_state, open_page, repo, session, sql
+from harness import call, expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -56,12 +56,40 @@ with session(out) as browser:
         storage={f"loco:drafts:v1:{org}:{workspace}:{production}": json.dumps([DRAFT])},
     )
     page.route(RESOURCES, resources)
-    page.goto(f"{base}?env=production")
+    listed = []
+    page.on(
+        "request",
+        lambda request: (
+            listed.append(request.post_data_json or {})
+            if request.url.endswith("/ListDeployments")
+            else None
+        ),
+    )
+    with (
+        expect_rpc(
+            page,
+            "QueryDeploymentBuckets",
+            lambda body: (
+                body.get("groupByResource") is True
+                and len(body.get("resourceIds", [])) > 0
+            ),
+        ),
+        expect_rpc(
+            page, "QueryDeploymentBuckets", lambda body: body.get("bucketCount") == 1
+        ),
+    ):
+        page.goto(f"{base}?env=production")
     table = page.get_by_role("table", name="Resources")
     row = table.get_by_role("row").filter(
         has=page.get_by_role("link", name="svc-1", exact=True)
     )
     expect(row).to_contain_text(re.compile(r"(just now|\d+[mhd] ago)$"))
+    # The table view reads no environment-wide deployment list; the map reads it while shown.
+    assert all(body.get("pageSize") == 10 for body in listed), listed
+    with expect_rpc(page, "ListDeployments", lambda body: body.get("pageSize") == 200):
+        page.get_by_role("button", name="Map", exact=True).click()
+    expect(page.get_by_role("link", name=re.compile(r"^svc-1\b")).first).to_be_visible()
+    page.get_by_role("button", name="Table", exact=True).click()
 
     row.get_by_role("button", name="Actions for svc-1", exact=True).click()
     menu = page.get_by_role("menu")

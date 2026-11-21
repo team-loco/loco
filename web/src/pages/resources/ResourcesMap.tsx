@@ -42,7 +42,7 @@ export function ResourcesMap({
 	env: Environment;
 	onShowTable: () => void;
 }) {
-	const data = useDashboardData(orgId, workspaceId, env);
+	const data = useDashboardData(orgId, workspaceId, env.id);
 	const [params, setParams] = useQueryStates(FILTER_PARSERS, { history: "replace", urlKeys: FILTER_URL_KEYS });
 	// The map has no region filter and reads every environment's status; it dims what the filters leave out.
 	const filter = { query: params.query, status: params.status };

@@ -25,7 +25,7 @@ export function row(
 		}),
 		environment: undefined,
 		status: patch.status ?? ResourceStatus.HEALTHY,
-		envDeployments: [],
+		deployments: [],
 		last: undefined,
 		regions,
 		totalReplicas: regions.reduce((n, g) => n + g.desired, 0),

@@ -2,7 +2,7 @@ import argparse
 import re
 from pathlib import Path
 
-from harness import load_state, open_page, repo, session
+from harness import expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -43,10 +43,32 @@ out.mkdir(parents=True, exist_ok=True)
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     page.route(METRICS, metrics)
-    page.goto(f"{base}?env=production")
+    listed = []
+    page.on(
+        "request",
+        lambda request: (
+            listed.append(request.post_data_json or {})
+            if request.url.endswith("/ListDeployments")
+            else None
+        ),
+    )
+    with (
+        expect_rpc(page, "GetEnvironmentAllocation", lambda body: True),
+        expect_rpc(
+            page,
+            "QueryDeploymentBuckets",
+            lambda body: (
+                body.get("bucketCount") == 12 and body.get("maxResourceNames") == 3
+            ),
+        ),
+    ):
+        page.goto(f"{base}?env=production")
     ranges = page.get_by_role("group", name="Time range", exact=True)
     expect(ranges.get_by_role("button")).to_have_text(["24h", "7d", "30d"])
-    ranges.get_by_role("button", name="30d", exact=True).click()
+    with expect_rpc(
+        page, "QueryDeploymentBuckets", lambda body: body.get("bucketCount") == 10
+    ):
+        ranges.get_by_role("button", name="30d", exact=True).click()
     expect(page).to_have_url(re.compile(r"[?&]range=30d"))
 
     allocated = page.get_by_role("group", name=re.compile(r"^Allocated: "))
@@ -57,6 +79,10 @@ with session(out) as browser:
     expect(more).to_have_attribute("href", re.compile(r"/resources\?.*sort=size\.desc"))
     more.click()
     expect(page).to_have_url(re.compile(r"/resources\?.*sort=size\.desc"))
+    # The dashboard lists only the deployments card's page of the last day.
+    assert listed and all(
+        body.get("pageSize") == 10 and "since" in body for body in listed
+    ), listed
 
     failing = True
     page.goto(f"{base}?env=production")
