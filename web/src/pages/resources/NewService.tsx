@@ -24,7 +24,6 @@ import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
 import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
-import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -65,6 +64,7 @@ import {
 import { sizeOptions, type SizeOptions } from "@/lib/sizing";
 import { derivedSlugError, nameError, slug as slugOf } from "@/lib/slug";
 import { useServiceDeploy, type DeployError } from "@/hooks/useServiceDeploy";
+import { DiscardDraftDialog } from "./DiscardDraftDialog";
 
 const SKELETON_ROWS = 6;
 const REGION_POLL_MS = 15_000;
@@ -425,14 +425,11 @@ function DraftPanel({
 			{header}
 			{body}
 			{draft !== undefined && (
-				<ConfirmDialog
+				<DiscardDraftDialog
+					name={draft.name}
 					open={discarding}
-					title={`Discard ${draft.name}?`}
-					description="The draft is removed from this browser. This can't be undone."
-					confirmLabel="Discard draft"
-					onConfirm={() => {
+					onDiscard={() => {
 						store.discard(draft.id);
-						toast.success(`Discarded ${draft.name}`);
 						close();
 					}}
 					onClose={() => {

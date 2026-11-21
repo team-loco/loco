@@ -90,6 +90,10 @@ def seed():
     owner = state["users"]["owner"]["id"]
     sql(
         state,
+        f"UPDATE resources SET description='Public API' WHERE id='{ids['acme/shared/api']}';",
+    )
+    sql(
+        state,
         "INSERT INTO builds (method, origin_environment_id, platform, id, resource_id, status, source_type, source_key,"
         " source_size, dockerfile_path, context, image_repository, image_digest, message, created_by, created_at,"
         " started_at, finished_at) VALUES"
@@ -455,6 +459,13 @@ def resources(page):
         table.get_by_role("columnheader", name="Staging EU West", exact=True)
     ).to_be_visible()
     expect(table.get_by_role("checkbox")).to_have_count(0)
+    expect(
+        table.get_by_role("columnheader", name="Production", exact=True)
+    ).to_have_attribute("aria-sort", "ascending")
+    color = "node => getComputedStyle(node).color"
+    assert table.locator("th[aria-sort]").evaluate(color) != table.get_by_role(
+        "columnheader", name="Size", exact=True
+    ).evaluate(color), "the sorted column looks like the others"
     check_layout(table)
     name_width = head_width(table, "Resource")
     assert 140 <= name_width <= 360, name_width
@@ -473,6 +484,8 @@ def resources(page):
 
     show_all_columns(page, table)
     expect(table.get_by_role("columnheader", name="Image", exact=True)).to_be_visible()
+    created = table.get_by_role("row").filter(has_text="api").first.get_by_role("cell")
+    expect(created.get_by_text("Olivia Owner", exact=True)).to_be_visible()
     check_layout(table)
     scroller = scroller_of(page, table)
     assert scroller.evaluate("node => node.scrollWidth > node.clientWidth")
@@ -495,11 +508,36 @@ def resources(page):
     page.mouse.move(0, 0)
     columns.click()
     expect(page.get_by_role("menuitemcheckbox", name="Image")).to_be_visible()
+    cost = page.get_by_role("menuitemcheckbox", name="Est. cost", exact=True)
+    expect(cost).to_have_attribute("aria-checked", "true")
+    tick = cost.locator(
+        '[data-slot="dropdown-menu-checkbox-item-indicator"]'
+    ).bounding_box()
+    label = cost.get_by_text("Est. cost", exact=True).bounding_box()
+    assert tick["x"] + tick["width"] <= label["x"], (tick, label)
     page.keyboard.press("Escape")
     expect(page.get_by_role("menu")).to_be_hidden()
 
     row.get_by_role("cell").nth(4).click()
     expect(page).to_have_url(re.compile(r"/resource/"))
+
+
+def resources_map(page):
+    page.goto(base + "/resources?env=production&view=map&q=api")
+    expect(
+        page.get_by_role("group", name="Filter by status", exact=True)
+    ).to_be_visible()
+    expect(page.get_by_role("textbox", name="Search resources")).to_have_value("api")
+    api = page.get_by_role("button", name=re.compile(r"^api\b"))
+    expect(page.get_by_role("button", name=re.compile(r"^web\b"))).to_have_css(
+        "opacity", "0.3"
+    )
+    expect(api).to_have_css("opacity", "1")
+    api.click()
+    panel = page.get_by_role("dialog", name="api", exact=True)
+    expect(panel.get_by_text("Public API", exact=True)).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(panel).to_be_hidden()
 
 
 def dashboard_table(page):
@@ -967,6 +1005,7 @@ with session(
         )
         for check in (
             resources,
+            resources_map,
             dashboard,
             recent_deployments,
             history,

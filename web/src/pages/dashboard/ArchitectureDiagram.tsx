@@ -37,6 +37,7 @@ const DRAFT_NODE = cn(
 	"border border-dashed border-fg4 bg-transparent hover:border-fg3 focus-visible:ring-2 focus-visible:ring-ring",
 );
 const EDGE_NODE = cn(NODE, "bg-panel2");
+const DIM = "opacity-30 transition-opacity";
 
 function curve(width: number, y1: number, y2: number): string {
 	const w = width.toString();
@@ -92,11 +93,13 @@ function ResourceNode({
 	node,
 	sub,
 	href,
+	dim,
 	onSelect,
 }: {
 	node: MapNode;
 	sub: string;
 	href: string;
+	dim: boolean;
 	onSelect: ((item: EnvResource) => void) | undefined;
 }) {
 	const { row } = node;
@@ -113,7 +116,7 @@ function ResourceNode({
 		return (
 			<button
 				type="button"
-				className={cn(RESOURCE_NODE, "text-left")}
+				className={cn(RESOURCE_NODE, "text-left", dim && DIM)}
 				style={box(node)}
 				onClick={() => {
 					onSelect(row);
@@ -124,7 +127,7 @@ function ResourceNode({
 		);
 	}
 	return (
-		<Link to={href} className={draft ? DRAFT_NODE : RESOURCE_NODE} style={box(node)}>
+		<Link to={href} className={cn(draft ? DRAFT_NODE : RESOURCE_NODE, dim && DIM)} style={box(node)}>
 			{text}
 		</Link>
 	);
@@ -137,6 +140,7 @@ export function ArchitectureDiagram({
 	hrefFor,
 	onShowTable,
 	onSelect,
+	dimmed,
 }: {
 	rows: DashboardItem[];
 	regionOrder: string[];
@@ -144,6 +148,7 @@ export function ArchitectureDiagram({
 	hrefFor: (item: DashboardItem) => string;
 	onShowTable: () => void;
 	onSelect?: (item: EnvResource) => void;
+	dimmed?: (item: DashboardItem) => boolean;
 }) {
 	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
 	const platformDomains = domainsRes?.platformDomains ?? [];
@@ -197,6 +202,7 @@ export function ArchitectureDiagram({
 								node={node}
 								sub={isDraftItem(node.row) ? "" : (primaryDomain(node.row.resource) ?? "")}
 								href={hrefFor(node.row)}
+								dim={dimmed?.(node.row) ?? false}
 								onSelect={onSelect}
 							/>
 						))}
@@ -220,6 +226,7 @@ export function ArchitectureDiagram({
 								node={node}
 								sub="internal"
 								href={hrefFor(node.row)}
+								dim={dimmed?.(node.row) ?? false}
 								onSelect={onSelect}
 							/>
 						))}

@@ -320,6 +320,7 @@ function DataTableHead<T extends RowData>({
 			data-align={align}
 			className={cn(
 				"group/head relative flex h-10 min-w-0 items-center overflow-hidden px-2.5 text-[12.5px] font-normal text-fg3",
+				sorted !== false && "text-foreground",
 				align === "end" && "justify-end",
 				pin !== undefined && PINNED,
 			)}
@@ -615,6 +616,10 @@ export function expandColumn<T extends RowData>(
 	};
 }
 
+// The tick sits in a box at the start of the option.
+const COLUMN_OPTION =
+	"pr-2.5 pl-8 *:data-[slot=dropdown-menu-checkbox-item-indicator]:right-auto *:data-[slot=dropdown-menu-checkbox-item-indicator]:left-2.5 *:data-[slot=dropdown-menu-checkbox-item-indicator]:size-3.5 *:data-[slot=dropdown-menu-checkbox-item-indicator]:rounded-[4px] *:data-[slot=dropdown-menu-checkbox-item-indicator]:ring-[1.5px] *:data-[slot=dropdown-menu-checkbox-item-indicator]:ring-line2 *:data-[slot=dropdown-menu-checkbox-item-indicator]:ring-inset data-checked:*:data-[slot=dropdown-menu-checkbox-item-indicator]:bg-foreground data-checked:*:data-[slot=dropdown-menu-checkbox-item-indicator]:text-background data-checked:*:data-[slot=dropdown-menu-checkbox-item-indicator]:ring-0 *:data-[slot=dropdown-menu-checkbox-item-indicator]:[&_svg]:size-2.5";
+
 export function DataTableColumnsMenu<T extends RowData>({ table }: { table: DataTableInstance<T> }) {
 	return (
 		<DropdownMenu>
@@ -634,6 +639,7 @@ export function DataTableColumnsMenu<T extends RowData>({ table }: { table: Data
 								.map((column) => (
 									<DropdownMenuCheckboxItem
 										key={column.id}
+										className={COLUMN_OPTION}
 										checked={visibility[column.id] !== false}
 										onCheckedChange={(on) => {
 											column.toggleVisibility(on);

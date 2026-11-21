@@ -1,12 +1,13 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { GlobeIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, GlobeIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
+import { Button } from "@/components/design/Button";
 import { DocsButton } from "@/components/design/DocsButton";
-import { CopyButton } from "@/components/design/CopyButton";
 import { EmptyHero } from "@/components/design/EmptyHero";
+import { useCopy } from "@/hooks/useCopy";
 import { DOCS_URL } from "@/pages/splash/links";
 
 const DEPLOY_COMMAND = "loco deploy";
@@ -41,6 +42,28 @@ function ResourcesArt({ domain, newHref }: { domain: string | undefined; newHref
 	);
 }
 
+function DeployCommand() {
+	const [copied, copy] = useCopy();
+	return (
+		<Button
+			variant="outline"
+			size="lg"
+			title="Copy"
+			aria-label={copied === null ? `Copy ${DEPLOY_COMMAND}` : "Copied"}
+			className="my-1 gap-2.5 bg-background pr-2.5 pl-3 font-mono"
+			onClick={() => {
+				copy(DEPLOY_COMMAND, DEPLOY_COMMAND);
+			}}
+		>
+			<span>
+				<span className="text-fg4">$ </span>
+				{DEPLOY_COMMAND}
+			</span>
+			{copied === null ? <CopyIcon className="text-fg3" /> : <CheckIcon className="text-ok-fg" />}
+		</Button>
+	);
+}
+
 export function ResourcesEmpty({ environmentId, newHref }: { environmentId: string | undefined; newHref: string }) {
 	const domainsQuery = useQuery(
 		listPlatformDomains,
@@ -51,15 +74,9 @@ export function ResourcesEmpty({ environmentId, newHref }: { environmentId: stri
 		<EmptyHero
 			art={<ResourcesArt domain={domainsQuery.data?.platformDomains[0]?.domain} newHref={newHref} />}
 			title="Deploy your first resource"
-			subtitle="Run loco deploy in a folder with a Dockerfile, or start one from New resource."
+			subtitle="Run loco deploy in a folder with a Dockerfile, or start from an image."
 		>
-			<div className="my-2 flex w-[min(320px,100%)] items-center justify-between gap-6 rounded-lg bg-background py-3 pr-3 pl-4 text-left ring-1 ring-line">
-				<span className="font-mono text-[13px]">
-					<span className="text-fg4">$ </span>
-					{DEPLOY_COMMAND}
-				</span>
-				<CopyButton text={DEPLOY_COMMAND} name="Copy loco deploy" />
-			</div>
+			<DeployCommand />
 			<DocsButton href={DOCS_URL} />
 		</EmptyHero>
 	);

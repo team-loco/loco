@@ -235,7 +235,7 @@ describe("filters", () => {
 
 	test("Draft keeps browser drafts and leaves them out of Not deployed", () => {
 		const withDraft = buildRows([resource("api"), resource("worker")], [[], []], envs, undefined);
-		const mixed = [...withDraft, ...draftRows([draft("web")], "e-prod", undefined)];
+		const mixed = [...withDraft, ...draftRows([draft("web")], "e-prod", undefined, [], "")];
 		expect(names(filterRows(mixed, { ...everything, status: DRAFT }))).toEqual(["web"]);
 		expect(names(filterRows(mixed, { ...everything, status: NOT_DEPLOYED }))).toEqual(["api", "worker"]);
 		expect(statusCounts(mixed, everything).get(DRAFT)).toBe(1);
@@ -342,7 +342,7 @@ describe("draft rows", () => {
 		envs,
 		"e-prod",
 	);
-	const drafts = draftRows([draft("web", { cpu: "2", replicas: 3 }), draft("api")], "e-prod", sizing);
+	const drafts = draftRows([draft("web", { cpu: "2", replicas: 3 }), draft("api")], "e-prod", sizing, [], "");
 	const rows: ListRow[] = [...resources, ...drafts];
 
 	test("stay listed but out of the status and region counts", () => {
@@ -358,7 +358,7 @@ describe("draft rows", () => {
 		const [web, api] = drafts;
 		expect([web?.cpuMilli, web?.memMi, web?.replicas]).toEqual([2000, 1024, { min: 3, max: 3 }]);
 		expect([api?.cpuMilli, api?.replicas]).toEqual([500, { min: 1, max: 1 }]);
-		expect(draftRows([draft("x")], "e-prod", undefined)[0]?.replicas).toBeNull();
+		expect(draftRows([draft("x")], "e-prod", undefined, [], "")[0]?.replicas).toBeNull();
 		expect(api?.image).toBe("ghcr.io/acme/api");
 	});
 

@@ -1,7 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { parseAsString, useQueryStates } from "nuqs";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { listRegions, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { ErrorState } from "@/components/design/ErrorState";
 import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
@@ -66,6 +66,11 @@ export function Resources() {
 	const workspaceId = activeWorkspaceId ?? "";
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
 	const configQuery = useQuery(getConfig, {}, { enabled: drafts.length > 0 });
+	const regionsQuery = useQuery(
+		listRegions,
+		{ environmentId: active?.id ?? "" },
+		{ enabled: drafts.length > 0 && active !== undefined },
+	);
 
 	const loading = envsLoading || data.isLoading;
 	const limits = useOrgLimits(orgId);
@@ -97,25 +102,35 @@ export function Resources() {
 			);
 		}
 		if (total === 0) return <ResourcesEmpty environmentId={active?.id} newHref={serviceHref} />;
+		const resources = buildRows(data.resources, data.deployments, environments, active?.id);
 		if (view === "map" && active !== undefined) {
 			return (
 				<ResourcesMap
 					orgId={orgId}
 					workspaceId={workspaceId}
 					env={active}
+					rows={resources}
 					onShowTable={() => {
 						setView("table");
 					}}
 				/>
 			);
 		}
-		const resources = buildRows(data.resources, data.deployments, environments, active?.id);
 		return (
 			<ResourceTable
 				rows={
 					active === undefined
 						? resources
-						: [...resources, ...draftRows(drafts, active.id, configQuery.data?.serviceDefaults)]
+						: [
+								...resources,
+								...draftRows(
+									drafts,
+									active.id,
+									configQuery.data?.serviceDefaults,
+									regionsQuery.data?.regions ?? [],
+									configQuery.data?.defaultRegion ?? "",
+								),
+							]
 				}
 				environments={environments}
 				active={active}

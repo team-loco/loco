@@ -171,6 +171,15 @@ with session(out) as browser:
     ask.get_by_role("button", name="Close", exact=True).last.click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
     expect(page.get_by_text("Deploy your first resource", exact=True)).to_be_visible()
+    expect(
+        page.get_by_text(
+            "Run loco deploy in a folder with a Dockerfile, or start from an image.",
+            exact=True,
+        )
+    ).to_be_visible()
+    expect(
+        page.get_by_role("button", name="Copy loco deploy", exact=True)
+    ).to_have_text("$ loco deploy")
     expect(page.get_by_text("member-draft")).to_have_count(0)
     page.get_by_role("link", name="New resource", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
@@ -591,9 +600,18 @@ with session(out) as browser:
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
     row = draft_row(page, name)
     expect(row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
-    expect(row.get_by_text("Draft", exact=True)).to_be_visible()
+    expect(row.get_by_text("draft", exact=True)).to_be_visible()
+    expect(row.get_by_text(re.compile(r"^0/\d+ · [a-z]+-[a-z]+-\d"))).to_be_visible()
     expect(row.get_by_role("checkbox")).to_have_count(0)
-    expect(row.get_by_role("button")).to_have_count(0)
+    expect(row.get_by_role("button")).to_have_count(1)
+    row.get_by_role("button", name=f"Actions for {name}", exact=True).click()
+    expect(
+        page.get_by_role("menuitem", name="Discard draft", exact=True)
+    ).to_be_visible()
+    page.get_by_role("menuitem", name="Edit draft", exact=True).click()
+    expect(page).to_have_url(DRAFT_URL)
+    page.keyboard.press("Escape")
+    expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
     listed = len(
         call(
             state,
@@ -920,6 +938,12 @@ with session(out) as browser:
     page.reload()
     row = draft_row(page, repository)
     expect(row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
+    row.get_by_role("button", name=f"Actions for {repository}", exact=True).click()
+    page.get_by_role("menuitem", name="Discard draft", exact=True).click()
+    page.get_by_role("alertdialog", name=f"Discard {repository}?").get_by_role(
+        "button", name="Cancel", exact=True
+    ).click()
+    expect(row).to_be_visible()
     row.get_by_role("link", name=repository, exact=True).click()
     stale_drawer = page.get_by_role("dialog", name=repository, exact=True)
     expect(stale_drawer.get_by_role("note")).to_have_text(

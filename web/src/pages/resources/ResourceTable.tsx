@@ -1,19 +1,24 @@
+import { useTransport } from "@connectrpc/connect-query";
+import { useQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
 import { GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useMemo } from "react";
 import { useQueryStates } from "nuqs";
 import { useLocation, useNavigate } from "react-router";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
+import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { Button } from "@/components/design/Button";
 import { DataTable, DataTablePager, pageWithin, useDataTable } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
-import { SearchInput } from "@/components/design/SearchInput";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { workspaceMembersOptions } from "@/hooks/completeMembers";
+import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
+import { userLabel } from "@/lib/user";
 
 import { ResourceCellContext, resourceColumns, rowPath } from "./columns";
+import { ResourceSearch, StatusFilter } from "./ResourceFilters";
 import {
 	ALL,
 	FILTER_URL_KEYS,
@@ -23,8 +28,6 @@ import {
 	PAGE_SIZES,
 	regionCounts,
 	regionTotal,
-	visibleStatusFilters,
-	statusCounts,
 	tableParsers,
 	type ListRow,
 } from "./table";
@@ -50,6 +53,15 @@ export function ResourceTable({
 }) {
 	const navigate = useNavigate();
 	const { search: locationSearch } = useLocation();
+	const transport = useTransport();
+	const { workspaceLevel } = useMyScopes();
+	const members = useQuery({
+		...workspaceMembersOptions(transport, workspaceId),
+		enabled: workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.READ),
+	});
+	const creators = new Map(
+		(members.data?.members ?? []).map((m) => [m.userId, userLabel({ name: m.userName, email: m.userEmail })]),
+	);
 	const columns = useMemo(() => resourceColumns(environments), [environments]);
 	const parsers = useMemo(() => tableParsers(columns), [columns]);
 	const [state, setState] = useQueryStates(parsers, {
@@ -95,7 +107,6 @@ export function ResourceTable({
 		},
 	});
 
-	const counts = statusCounts(rows, filter);
 	const regionOptions = [
 		{ value: ALL, label: "All regions", count: regionTotal(rows, filter) },
 		...regionCounts(rows, filter).map((r) => ({
@@ -106,39 +117,15 @@ export function ResourceTable({
 	];
 	const hasFilters = filter.query.trim() !== "" || filter.status !== ALL || filter.region !== ALL;
 
-	const search = (
-		<SearchInput
-			value={filter.query}
-			placeholder="Search name, image, version"
-			aria-label="Search resources"
-			onChange={(e) => {
-				setFilter({ query: e.target.value });
-			}}
-			onClear={() => {
-				setFilter({ query: "" });
-			}}
-		/>
-	);
 	const filters = (
 		<>
-			<ToggleGroup
-				variant="segmented"
-				aria-label="Filter by status"
-				className="max-w-full overflow-x-auto"
-				value={[filter.status]}
-				onValueChange={(v: string[]) => {
-					if (v[0] !== undefined) setFilter({ status: v[0] });
+			<StatusFilter
+				rows={rows}
+				filter={filter}
+				onStatus={(status) => {
+					setFilter({ status });
 				}}
-			>
-				<ToggleGroupItem value={ALL} count={counts.get(ALL)}>
-					All
-				</ToggleGroupItem>
-				{visibleStatusFilters(counts, filter.status).map((f) => (
-					<ToggleGroupItem key={f.value} value={f.value} count={counts.get(f.value)}>
-						{f.label}
-					</ToggleGroupItem>
-				))}
-			</ToggleGroup>
+			/>
 			<FilterMenu
 				label="Region"
 				icon={<GlobeIcon />}
@@ -153,8 +140,18 @@ export function ResourceTable({
 	);
 
 	return (
-		<Section filters={filters} search={search}>
-			<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs }}>
+		<Section
+			filters={filters}
+			search={
+				<ResourceSearch
+					query={filter.query}
+					onQuery={(query) => {
+						setFilter({ query });
+					}}
+				/>
+			}
+		>
+			<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs, creators }}>
 				<DataTable
 					table={table}
 					label="Resources"
