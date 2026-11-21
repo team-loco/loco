@@ -21,13 +21,14 @@ export function runtimeEventsOptions(
 	scope: Scope,
 	{
 		types = RUNTIME_EVENT_TYPES,
+		warningsOnly = false,
 		startMs,
 		endMs,
-	}: { types?: string[]; startMs?: number | undefined; endMs?: number | undefined } = {},
+	}: { types?: string[]; warningsOnly?: boolean; startMs?: number | undefined; endMs?: number | undefined } = {},
 ) {
 	const input = {
 		...scope,
-		query: eventTypesQuery(types),
+		query: warningsOnly ? `${eventTypesQuery(types)} -@severity:normal` : eventTypesQuery(types),
 		pageSize: 500,
 		...(startMs === undefined ? {} : { startTime: msToTimestamp(startMs) }),
 		...(endMs === undefined ? {} : { endTime: msToTimestamp(endMs) }),

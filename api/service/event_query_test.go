@@ -12,8 +12,9 @@ func TestListEventsRejectsQueriesWithThePosition(t *testing.T) {
 	t.Parallel()
 	server := NewEventServer(nil, nil)
 	for query, want := range map[string]string{
-		"(ada":                "unclosed ( at 1",
-		"ada @status:200":     "unknown field @status; use @actor, @actor_type, @target, @type or @request at 5",
+		"(ada": "unclosed ( at 1",
+		"ada @status:200": "unknown field @status; use @actor, @actor_type, @target, @type, @request, " +
+			"@severity, @region, @reason or @resource at 5",
 		"-@type:>1":           "@type does not compare numbers at 2",
 		"@actor:1..2":         "@actor does not compare numbers at 1",
 		"x (@request:<=5)":    "@request does not compare numbers at 4",

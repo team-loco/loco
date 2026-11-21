@@ -37,7 +37,6 @@ import {
 } from "@/lib/activity-deploys";
 import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
 import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
-import { eventTitle } from "@/pages/observability/events";
 import { buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -195,7 +194,7 @@ function HealthEventCards({
 			<div className="flex items-center justify-between gap-2.5">
 				<span className="inline-flex items-center gap-2 text-[12.5px] font-medium whitespace-nowrap">
 					<StatusGlyph glyph={e.type === "resource.degraded" ? "warn" : "ok"} />
-					{eventTitle(e.type, e.region)}
+					{e.title}
 				</span>
 				<span className="font-mono text-[12px] text-fg3">{agoLabel(tsMs(e.timestamp), nowMs)}</span>
 			</div>

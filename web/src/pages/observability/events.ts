@@ -11,34 +11,6 @@ export function eventDataLabel(key: string): string {
 	return key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
-const TYPE_TITLES: Record<string, string> = {
-	"resource.degraded": "Degraded",
-	"resource.recovered": "Recovered",
-	"resource.restarted": "Restarted",
-	"resource.scaled": "Scaled",
-	"deployment.created": "Deploy created",
-	"deployment.ready": "Deploy ready",
-	"deployment.failed": "Deploy failed",
-	"deployment.crashed": "Deploy crashed",
-	"build.created": "Build queued",
-	"build.started": "Build started",
-	"build.succeeded": "Build succeeded",
-	"build.failed": "Build failed",
-	"build.canceled": "Build canceled",
-};
-const REGIONAL_TITLES = new Set([
-	"resource.degraded",
-	"resource.recovered",
-	"resource.restarted",
-	"deployment.ready",
-	"deployment.failed",
-	"deployment.crashed",
-]);
-
-export function eventTitle(type: string, region = ""): string {
-	return `${TYPE_TITLES[type] ?? type}${REGIONAL_TITLES.has(type) && region !== "" ? ` in ${region}` : ""}`;
-}
-
 export function eventSummary(e: RuntimeEvent): string {
 	if (e.message !== "") return e.message;
 	if (e.type === "resource.degraded") return e.reason;
@@ -62,9 +34,9 @@ export function eventSummary(e: RuntimeEvent): string {
 	return "";
 }
 
-export function severityOf(type: string): Severity {
-	if (type === "build.failed" || type === "deployment.failed" || type === "deployment.crashed") return "error";
-	return type === "resource.degraded" ? "warning" : "normal";
+/** The API's severity for an event; an unknown value shows as normal. */
+export function asSeverity(value: string): Severity {
+	return value === "error" || value === "warning" ? value : "normal";
 }
 
 export interface SeverityStyle {
@@ -102,9 +74,9 @@ export interface EventItem extends WorkspaceEventWithResource {
 export function eventItem(e: WorkspaceEventWithResource): EventItem {
 	return {
 		...e,
-		title: eventTitle(e.type, e.region),
+		title: e.title,
 		detail: eventSummary(e),
-		severity: severityOf(e.type),
+		severity: asSeverity(e.severity),
 		ts: tsMs(e.timestamp),
 	};
 }

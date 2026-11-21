@@ -47,7 +47,13 @@ type Event struct {
 	ActorTokenType string `protobuf:"bytes,17,opt,name=actor_token_type,json=actorTokenType,proto3" json:"actor_token_type,omitempty"`
 	// The deployment the event concerns: the one a deployment event is about, or the one running
 	// when resource.degraded or resource.recovered fired. Empty for other events.
-	DeploymentId  string `protobuf:"bytes,18,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	DeploymentId string `protobuf:"bytes,18,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	// The dashboard's label for the event, from its type and region.
+	Title string `protobuf:"bytes,19,opt,name=title,proto3" json:"title,omitempty"`
+	// How the Events view grades the event: "normal", "warning" or "error".
+	Severity string `protobuf:"bytes,20,opt,name=severity,proto3" json:"severity,omitempty"`
+	// The region the event names: its region, or its regions joined with ", ".
+	Region        string `protobuf:"bytes,21,opt,name=region,proto3" json:"region,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -208,6 +214,27 @@ func (x *Event) GetDeploymentId() string {
 	return ""
 }
 
+func (x *Event) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Event) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *Event) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
 type ListEventsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	OrgId string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -220,14 +247,19 @@ type ListEventsRequest struct {
 	// Inclusive start and exclusive end of the event creation time range.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	EndTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	// Audit query: free text matched against the actor, target, event type and request ID, the
-	// @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+	// Audit query: free text matched against the actor, target, event type, title, reason, region,
+	// message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
+	// @reason and @resource fields, AND, OR, - and parentheses.
 	// docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
 	Query string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
 	// Sets total_count in the response.
 	IncludeTotalCount bool `protobuf:"varint,14,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Only events of these types; empty matches every type. Facets count within these types.
+	Types []string `protobuf:"bytes,15,rep,name=types,proto3" json:"types,omitempty"`
+	// Sets facets in the response.
+	IncludeFacets bool `protobuf:"varint,16,opt,name=include_facets,json=includeFacets,proto3" json:"include_facets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListEventsRequest) Reset() {
@@ -330,6 +362,126 @@ func (x *ListEventsRequest) GetIncludeTotalCount() bool {
 	return false
 }
 
+func (x *ListEventsRequest) GetTypes() []string {
+	if x != nil {
+		return x.Types
+	}
+	return nil
+}
+
+func (x *ListEventsRequest) GetIncludeFacets() bool {
+	if x != nil {
+		return x.IncludeFacets
+	}
+	return false
+}
+
+// EventFacet counts the events per value of one key.
+type EventFacet struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// type, severity, region, reason, actor or resource.
+	Key           string             `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Values        []*EventFacetValue `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventFacet) Reset() {
+	*x = EventFacet{}
+	mi := &file_loco_event_v1_event_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventFacet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventFacet) ProtoMessage() {}
+
+func (x *EventFacet) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_event_v1_event_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventFacet.ProtoReflect.Descriptor instead.
+func (*EventFacet) Descriptor() ([]byte, []int) {
+	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *EventFacet) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *EventFacet) GetValues() []*EventFacetValue {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+type EventFacetValue struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventFacetValue) Reset() {
+	*x = EventFacetValue{}
+	mi := &file_loco_event_v1_event_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventFacetValue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventFacetValue) ProtoMessage() {}
+
+func (x *EventFacetValue) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_event_v1_event_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventFacetValue.ProtoReflect.Descriptor instead.
+func (*EventFacetValue) Descriptor() ([]byte, []int) {
+	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *EventFacetValue) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *EventFacetValue) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type ListEventsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Newest first.
@@ -338,14 +490,17 @@ type ListEventsResponse struct {
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	// The events the filters match, ignoring page_token; set when include_total_count is.
 	// Exact up to 10,000; 10,001 means more than 10,000.
-	TotalCount    int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	TotalCount int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// Set when include_facets is: counts per value of each facet key over the newest 10,001 events the
+	// scope, time range and types match, ignoring query and page_token.
+	Facets        []*EventFacet `protobuf:"bytes,4,rep,name=facets,proto3" json:"facets,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListEventsResponse) Reset() {
 	*x = ListEventsResponse{}
-	mi := &file_loco_event_v1_event_proto_msgTypes[2]
+	mi := &file_loco_event_v1_event_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -357,7 +512,7 @@ func (x *ListEventsResponse) String() string {
 func (*ListEventsResponse) ProtoMessage() {}
 
 func (x *ListEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_event_v1_event_proto_msgTypes[2]
+	mi := &file_loco_event_v1_event_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -370,7 +525,7 @@ func (x *ListEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListEventsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{2}
+	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListEventsResponse) GetEvents() []*Event {
@@ -394,6 +549,13 @@ func (x *ListEventsResponse) GetTotalCount() int32 {
 	return 0
 }
 
+func (x *ListEventsResponse) GetFacets() []*EventFacet {
+	if x != nil {
+		return x.Facets
+	}
+	return nil
+}
+
 type StreamEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cursor        string                 `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
@@ -404,8 +566,9 @@ type StreamEventsRequest struct {
 	// Inclusive start and exclusive end of the event creation time range.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	EndTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	// Audit query: free text matched against the actor, target, event type and request ID, the
-	// @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+	// Audit query: free text matched against the actor, target, event type, title, reason, region,
+	// message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,
+	// @reason and @resource fields, AND, OR, - and parentheses.
 	// docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
 	Query         string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -414,7 +577,7 @@ type StreamEventsRequest struct {
 
 func (x *StreamEventsRequest) Reset() {
 	*x = StreamEventsRequest{}
-	mi := &file_loco_event_v1_event_proto_msgTypes[3]
+	mi := &file_loco_event_v1_event_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -426,7 +589,7 @@ func (x *StreamEventsRequest) String() string {
 func (*StreamEventsRequest) ProtoMessage() {}
 
 func (x *StreamEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_event_v1_event_proto_msgTypes[3]
+	mi := &file_loco_event_v1_event_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -439,7 +602,7 @@ func (x *StreamEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamEventsRequest.ProtoReflect.Descriptor instead.
 func (*StreamEventsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{3}
+	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StreamEventsRequest) GetCursor() string {
@@ -508,7 +671,7 @@ type StreamEventsResponse struct {
 
 func (x *StreamEventsResponse) Reset() {
 	*x = StreamEventsResponse{}
-	mi := &file_loco_event_v1_event_proto_msgTypes[4]
+	mi := &file_loco_event_v1_event_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -520,7 +683,7 @@ func (x *StreamEventsResponse) String() string {
 func (*StreamEventsResponse) ProtoMessage() {}
 
 func (x *StreamEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_event_v1_event_proto_msgTypes[4]
+	mi := &file_loco_event_v1_event_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -533,7 +696,7 @@ func (x *StreamEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamEventsResponse.ProtoReflect.Descriptor instead.
 func (*StreamEventsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{4}
+	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *StreamEventsResponse) GetEvents() []*Event {
@@ -554,7 +717,7 @@ var File_loco_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x04\n" +
+	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x05\n" +
 	"\x05Event\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -581,7 +744,10 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"resourceId\x12%\n" +
 	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\x12(\n" +
 	"\x10actor_token_type\x18\x11 \x01(\tR\x0eactorTokenType\x12#\n" +
-	"\rdeployment_id\x18\x12 \x01(\tR\fdeploymentId\"\xd9\x03\n" +
+	"\rdeployment_id\x18\x12 \x01(\tR\fdeploymentId\x12\x14\n" +
+	"\x05title\x18\x13 \x01(\tR\x05title\x12\x1a\n" +
+	"\bseverity\x18\x14 \x01(\tR\bseverity\x12\x16\n" +
+	"\x06region\x18\x15 \x01(\tR\x06region\"\xa0\x04\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
@@ -596,12 +762,22 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1e\n" +
 	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12.\n" +
-	"\x13include_total_count\x18\x0e \x01(\bR\x11includeTotalCount\"\x8b\x01\n" +
+	"\x13include_total_count\x18\x0e \x01(\bR\x11includeTotalCount\x12\x1e\n" +
+	"\x05types\x18\x0f \x03(\tB\b\xbaH\x05\x92\x01\x02\x10dR\x05types\x12%\n" +
+	"\x0einclude_facets\x18\x10 \x01(\bR\rincludeFacets\"V\n" +
+	"\n" +
+	"EventFacet\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +
+	"\x06values\x18\x02 \x03(\v2\x1e.loco.event.v1.EventFacetValueR\x06values\"=\n" +
+	"\x0fEventFacetValue\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\xbe\x01\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x05R\n" +
-	"totalCount\"\xfe\x02\n" +
+	"totalCount\x121\n" +
+	"\x06facets\x18\x04 \x03(\v2\x19.loco.event.v1.EventFacetR\x06facets\"\xfe\x02\n" +
 	"\x13StreamEventsRequest\x12\x1f\n" +
 	"\x06cursor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\x12\"\n" +
 	"\x06org_id\x18\x02 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12.\n" +
@@ -633,34 +809,38 @@ func file_loco_event_v1_event_proto_rawDescGZIP() []byte {
 	return file_loco_event_v1_event_proto_rawDescData
 }
 
-var file_loco_event_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_loco_event_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_loco_event_v1_event_proto_goTypes = []any{
 	(*Event)(nil),                 // 0: loco.event.v1.Event
 	(*ListEventsRequest)(nil),     // 1: loco.event.v1.ListEventsRequest
-	(*ListEventsResponse)(nil),    // 2: loco.event.v1.ListEventsResponse
-	(*StreamEventsRequest)(nil),   // 3: loco.event.v1.StreamEventsRequest
-	(*StreamEventsResponse)(nil),  // 4: loco.event.v1.StreamEventsResponse
-	(*structpb.Struct)(nil),       // 5: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*EventFacet)(nil),            // 2: loco.event.v1.EventFacet
+	(*EventFacetValue)(nil),       // 3: loco.event.v1.EventFacetValue
+	(*ListEventsResponse)(nil),    // 4: loco.event.v1.ListEventsResponse
+	(*StreamEventsRequest)(nil),   // 5: loco.event.v1.StreamEventsRequest
+	(*StreamEventsResponse)(nil),  // 6: loco.event.v1.StreamEventsResponse
+	(*structpb.Struct)(nil),       // 7: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
 }
 var file_loco_event_v1_event_proto_depIdxs = []int32{
-	5,  // 0: loco.event.v1.Event.data:type_name -> google.protobuf.Struct
-	6,  // 1: loco.event.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	6,  // 2: loco.event.v1.ListEventsRequest.start_time:type_name -> google.protobuf.Timestamp
-	6,  // 3: loco.event.v1.ListEventsRequest.end_time:type_name -> google.protobuf.Timestamp
-	0,  // 4: loco.event.v1.ListEventsResponse.events:type_name -> loco.event.v1.Event
-	6,  // 5: loco.event.v1.StreamEventsRequest.start_time:type_name -> google.protobuf.Timestamp
-	6,  // 6: loco.event.v1.StreamEventsRequest.end_time:type_name -> google.protobuf.Timestamp
-	0,  // 7: loco.event.v1.StreamEventsResponse.events:type_name -> loco.event.v1.Event
-	1,  // 8: loco.event.v1.EventService.ListEvents:input_type -> loco.event.v1.ListEventsRequest
-	3,  // 9: loco.event.v1.EventService.StreamEvents:input_type -> loco.event.v1.StreamEventsRequest
-	2,  // 10: loco.event.v1.EventService.ListEvents:output_type -> loco.event.v1.ListEventsResponse
-	4,  // 11: loco.event.v1.EventService.StreamEvents:output_type -> loco.event.v1.StreamEventsResponse
-	10, // [10:12] is the sub-list for method output_type
-	8,  // [8:10] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	7,  // 0: loco.event.v1.Event.data:type_name -> google.protobuf.Struct
+	8,  // 1: loco.event.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	8,  // 2: loco.event.v1.ListEventsRequest.start_time:type_name -> google.protobuf.Timestamp
+	8,  // 3: loco.event.v1.ListEventsRequest.end_time:type_name -> google.protobuf.Timestamp
+	3,  // 4: loco.event.v1.EventFacet.values:type_name -> loco.event.v1.EventFacetValue
+	0,  // 5: loco.event.v1.ListEventsResponse.events:type_name -> loco.event.v1.Event
+	2,  // 6: loco.event.v1.ListEventsResponse.facets:type_name -> loco.event.v1.EventFacet
+	8,  // 7: loco.event.v1.StreamEventsRequest.start_time:type_name -> google.protobuf.Timestamp
+	8,  // 8: loco.event.v1.StreamEventsRequest.end_time:type_name -> google.protobuf.Timestamp
+	0,  // 9: loco.event.v1.StreamEventsResponse.events:type_name -> loco.event.v1.Event
+	1,  // 10: loco.event.v1.EventService.ListEvents:input_type -> loco.event.v1.ListEventsRequest
+	5,  // 11: loco.event.v1.EventService.StreamEvents:input_type -> loco.event.v1.StreamEventsRequest
+	4,  // 12: loco.event.v1.EventService.ListEvents:output_type -> loco.event.v1.ListEventsResponse
+	6,  // 13: loco.event.v1.EventService.StreamEvents:output_type -> loco.event.v1.StreamEventsResponse
+	12, // [12:14] is the sub-list for method output_type
+	10, // [10:12] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_loco_event_v1_event_proto_init() }
@@ -674,7 +854,7 @@ func file_loco_event_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_event_v1_event_proto_rawDesc), len(file_loco_event_v1_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

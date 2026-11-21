@@ -4,6 +4,9 @@ export type RuntimeEvent = {
 	id: string;
 	event: Event;
 	type: string;
+	/** The API's label for the event, such as "Degraded in us-va-1". */
+	title: string;
+	severity: string;
 	reason: string;
 	message: string;
 	placementId: string;
@@ -38,16 +41,16 @@ export function runtimeEvent(event: Event): RuntimeEvent {
 		const value = event.data?.[key];
 		return typeof value === "string" ? value : typeof value === "number" ? String(value) : "";
 	};
-	const regions = event.data?.["regions"];
-	const regionList = Array.isArray(regions) ? regions.filter((r) => typeof r === "string").join(", ") : "";
 	return {
 		id: event.id,
 		event,
 		type: event.type,
+		title: event.title,
+		severity: event.severity,
 		reason: field("reason"),
 		message: field("message"),
 		placementId: field("placementId"),
-		region: field("region") || regionList,
+		region: event.region,
 		environmentId: event.environmentId || field("environmentId"),
 		replicas: field("replicas"),
 		cpu: field("cpu"),

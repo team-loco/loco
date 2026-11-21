@@ -139,11 +139,34 @@ func (s *EventServer) ListEvents(
 		return nil, fmt.Errorf("list audit events: %w", err)
 	}
 	response := &eventv1.ListEventsResponse{Events: rows, TotalCount: total}
+	if req.GetIncludeFacets() {
+		faceted := query
+		faceted.BeforeSeq, faceted.Limit = 0, totalCountCap+1
+		if response.Facets, err = s.facets(ctx, faceted); err != nil {
+			return nil, err
+		}
+	}
 	if len(rows) > int(pageSize) {
 		response.Events = rows[:pageSize]
 		response.NextPageToken = eventPosition(response.GetEvents()[len(response.GetEvents())-1].GetSeq()).encode()
 	}
 	return response, nil
+}
+
+func (s *EventServer) facets(ctx context.Context, query events.AuditQuery) ([]*eventv1.EventFacet, error) {
+	rows, err := events.FacetAudit(ctx, s.db, query)
+	if err != nil {
+		return nil, fmt.Errorf("count event facets: %w", err)
+	}
+	var out []*eventv1.EventFacet
+	for _, row := range rows {
+		if len(out) == 0 || out[len(out)-1].GetKey() != row.Key {
+			out = append(out, &eventv1.EventFacet{Key: row.Key})
+		}
+		facet := out[len(out)-1]
+		facet.Values = append(facet.Values, &eventv1.EventFacetValue{Value: row.Value, Count: cappedCount(row.Count)})
+	}
+	return out, nil
 }
 
 type eventScopeKind int
@@ -235,6 +258,7 @@ func (s *EventServer) listAuditEvents(ctx context.Context, query events.AuditQue
 		out[i] = eventToProto(row.Event)
 		out[i].ActorEmail = derefString(row.ActorEmail)
 		out[i].ActorName = derefString(row.ActorName)
+		out[i].Title, out[i].Severity, out[i].Region = row.Title, row.Severity, row.Region
 	}
 	return out, nil
 }
@@ -373,7 +397,7 @@ func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
 }
 
 func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquery.Expr) (events.AuditQuery, error) {
-	query := events.AuditQuery{OrgID: scope.orgID, Filter: filter}
+	query := events.AuditQuery{OrgID: scope.orgID, Filter: filter, Types: req.GetTypes()}
 	if scope.kind != eventScopeOrg {
 		query.WorkspaceID = &scope.workspaceID
 	}

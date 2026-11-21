@@ -22,8 +22,10 @@ type AuditQuery struct {
 	BeforeSeq     int64
 	AfterPosition int64
 	Stream        bool
-	Filter        logquery.Expr
-	Limit         int32
+	// Types, when set, keeps events of these types.
+	Types  []string
+	Filter logquery.Expr
+	Limit  int32
 }
 
 // AuditEvent is an event with the email and name of the user who acted, when one did. The name of
@@ -32,12 +34,20 @@ type AuditEvent struct {
 	genDb.Event
 	ActorEmail *string
 	ActorName  *string
+	// Title, Severity and Region are the dashboard's labels for the event, from event_title,
+	// event_severity and event_region.
+	Title    string
+	Severity string
+	Region   string
 }
 
 const auditSelect = `SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id,
 	e.environment_id, e.deployment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id,
 	e.traceparent, e.data, e.created_at,
-	u.email, COALESCE(u.name, e.actor_token_name), e.actor_token_type
+	u.email, COALESCE(u.name, e.actor_token_name), e.actor_token_type,
+	event_title(e.type, e.data), event_severity(e.type), event_region(e.data)` + auditFrom
+
+const auditFrom = `
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 LEFT JOIN users s ON e.subject_type = 'user' AND s.id = e.subject_id
@@ -76,6 +86,9 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 			&event.ActorEmail,
 			&event.ActorName,
 			&event.ActorTokenType,
+			&event.Title,
+			&event.Severity,
+			&event.Region,
 		)
 		return event, err
 	})
@@ -91,7 +104,22 @@ func CountAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) (int64, error)
 
 func auditSQL(q AuditQuery) (string, []any) {
 	b := &binder{args: []any{q.OrgID}}
-	sql := auditSelect
+	sql := auditSelect + auditWhere(q, b)
+	if q.Stream {
+		sql += " AND e.stream_position > " + b.bind(q.AfterPosition) + " ORDER BY e.stream_position"
+	} else {
+		sql += " ORDER BY e.seq DESC"
+	}
+	sql += " LIMIT " + b.bind(q.Limit)
+	return sql, b.args
+}
+
+// auditWhere is the conditions after auditFrom's org condition.
+func auditWhere(q AuditQuery, b *binder) string {
+	sql := ""
+	if len(q.Types) > 0 {
+		sql += " AND e.type = ANY(" + b.bind(q.Types) + ")"
+	}
 	if q.WorkspaceID != nil {
 		sql += " AND e.workspace_id = " + b.bind(*q.WorkspaceID)
 	}
@@ -113,11 +141,37 @@ func auditSQL(q AuditQuery) (string, []any) {
 	if q.Filter != nil {
 		sql += " AND " + querySQL(q.Filter, b)
 	}
-	if q.Stream {
-		sql += " AND e.stream_position > " + b.bind(q.AfterPosition) + " ORDER BY e.stream_position"
-	} else {
-		sql += " ORDER BY e.seq DESC"
+	return sql
+}
+
+// Facet is the events per value of one key.
+type Facet struct {
+	Key, Value string
+	Count      int64
+}
+
+// facetValues are the facet keys over the subquery e of FacetAudit.
+const facetValues = `(VALUES ('type', e.type), ('severity', event_severity(e.type)), ('region', event_region(e.data)),
+	('reason', COALESCE(e.data->>'reason', '')),
+	('actor', CASE WHEN e.actor_type = 'system' THEN 'system' ELSE COALESCE(e.user_name, e.actor_token_name, '') END),
+	('resource', COALESCE(e.resource_name, '')))`
+
+// FacetAudit counts each facet key's values over the newest q.Limit events q selects, ignoring q.Filter.
+func FacetAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]Facet, error) {
+	q.Filter = nil
+	b := &binder{args: []any{q.OrgID}}
+	sql := "SELECT f.key, f.value, count(*) FROM (SELECT e.type, e.data, e.actor_type, e.actor_token_name, " +
+		"u.name AS user_name, r.name AS resource_name" + auditFrom + auditWhere(q, b) +
+		" ORDER BY e.seq DESC LIMIT " + b.bind(q.Limit) + ") e" +
+		" CROSS JOIN LATERAL " + facetValues + " f(key, value) WHERE f.value <> '' GROUP BY f.key, f.value" +
+		" ORDER BY f.key, count(*) DESC, f.value"
+	rows, err := db.Query(ctx, sql, b.args...)
+	if err != nil {
+		return nil, err
 	}
-	sql += " LIMIT " + b.bind(q.Limit)
-	return sql, b.args
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Facet, error) {
+		var f Facet
+		err := row.Scan(&f.Key, &f.Value, &f.Count)
+		return f, err
+	})
 }

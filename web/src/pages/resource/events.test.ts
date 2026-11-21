@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { msToTimestamp } from "@/lib/time";
-import { drawerEventTypes, eventRows, recentWarningCount } from "./events";
+import { eventRows, recentWarningCount } from "./events";
 
 const NOW_MS = Date.UTC(2026, 10, 8, 12);
 function event(reason: string, type: string, minutesAgo: number, placementId = "p1") {
@@ -54,6 +54,9 @@ describe("eventRows", () => {
 			create(EventSchema, {
 				id: "d1",
 				type: "deployment.failed",
+				title: "Deploy failed in us-ca-1",
+				severity: "error",
+				region: "us-ca-1",
 				data: { deploymentId: "0199d1c2-0000-7000-8000-000000000009", regions: ["us-ca-1"] },
 				createdAt: msToTimestamp(NOW_MS),
 			}),
@@ -66,9 +69,4 @@ describe("eventRows", () => {
 			warning: true,
 		});
 	});
-});
-
-test("drawerEventTypes asks only for warnings and failures on the Warnings tab", () => {
-	expect(drawerEventTypes(true)).toEqual(["resource.degraded", "deployment.failed", "deployment.crashed"]);
-	expect(drawerEventTypes(false)).toContain("deployment.ready");
 });

@@ -12505,9 +12505,60 @@
             "type": "string",
             "title": "deployment_id",
             "description": "The deployment the event concerns: the one a deployment event is about, or the one running\n when resource.degraded or resource.recovered fired. Empty for other events."
+          },
+          "title": {
+            "type": "string",
+            "title": "title",
+            "description": "The dashboard's label for the event, from its type and region."
+          },
+          "severity": {
+            "type": "string",
+            "title": "severity",
+            "description": "How the Events view grades the event: \"normal\", \"warning\" or \"error\"."
+          },
+          "region": {
+            "type": "string",
+            "title": "region",
+            "description": "The region the event names: its region, or its regions joined with \", \"."
           }
         },
         "title": "Event",
+        "additionalProperties": false
+      },
+      "loco.event.v1.EventFacet": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key",
+            "description": "type, severity, region, reason, actor or resource."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.event.v1.EventFacetValue"
+            },
+            "title": "values"
+          }
+        },
+        "title": "EventFacet",
+        "additionalProperties": false,
+        "description": "EventFacet counts the events per value of one key."
+      },
+      "loco.event.v1.EventFacetValue": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "value"
+          },
+          "count": {
+            "type": "integer",
+            "title": "count",
+            "format": "int32"
+          }
+        },
+        "title": "EventFacetValue",
         "additionalProperties": false
       },
       "loco.event.v1.ListEventsRequest": {
@@ -12558,12 +12609,26 @@
           "query": {
             "type": "string",
             "title": "query",
-            "description": "Audit query: free text matched against the actor, target, event type and request ID, the\n @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.\n docs/content/reference/audit-queries.md describes the fields. Empty matches every event.\nstring.max_bytes = 4096\n"
+            "description": "Audit query: free text matched against the actor, target, event type, title, reason, region,\n message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,\n @reason and @resource fields, AND, OR, - and parentheses.\n docs/content/reference/audit-queries.md describes the fields. Empty matches every event.\nstring.max_bytes = 4096\n"
           },
           "includeTotalCount": {
             "type": "boolean",
             "title": "include_total_count",
             "description": "Sets total_count in the response."
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "types",
+            "maxItems": 100,
+            "description": "Only events of these types; empty matches every type. Facets count within these types."
+          },
+          "includeFacets": {
+            "type": "boolean",
+            "title": "include_facets",
+            "description": "Sets facets in the response."
           }
         },
         "title": "ListEventsRequest",
@@ -12590,6 +12655,14 @@
             "title": "total_count",
             "format": "int32",
             "description": "The events the filters match, ignoring page_token; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.event.v1.EventFacet"
+            },
+            "title": "facets",
+            "description": "Set when include_facets is: counts per value of each facet key over the newest 10,001 events the\n scope, time range and types match, ignoring query and page_token."
           }
         },
         "title": "ListEventsResponse",
@@ -12635,7 +12708,7 @@
           "query": {
             "type": "string",
             "title": "query",
-            "description": "Audit query: free text matched against the actor, target, event type and request ID, the\n @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.\n docs/content/reference/audit-queries.md describes the fields. Empty matches every event.\nstring.max_bytes = 4096\n"
+            "description": "Audit query: free text matched against the actor, target, event type, title, reason, region,\n message and request ID, the @actor, @actor_type, @target, @type, @request, @severity, @region,\n @reason and @resource fields, AND, OR, - and parentheses.\n docs/content/reference/audit-queries.md describes the fields. Empty matches every event.\nstring.max_bytes = 4096\n"
           }
         },
         "title": "StreamEventsRequest",

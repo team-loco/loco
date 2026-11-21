@@ -2,28 +2,11 @@ import { create } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { expect, test } from "bun:test";
-import {
-	eventDataLabel,
-	eventItem,
-	eventJson,
-	eventSummary,
-	eventTitle,
-	eventValue,
-	severityOf,
-	eventWindow,
-} from "./events";
-test("degraded resources have warning severity", () => {
-	expect(severityOf("resource.degraded")).toBe("warning");
-	expect(severityOf("resource.recovered")).toBe("normal");
-});
-test("build failures have error severity", () => {
-	expect(severityOf("build.failed")).toBe("error");
-	expect(severityOf("resource.restarted")).toBe("normal");
-});
-
-test("event titles preserve unknown types and include regions", () => {
-	expect(eventTitle("custom.event", "")).toBe("custom.event");
-	expect(eventTitle("resource.degraded", "us-va-1")).toBe("Degraded in us-va-1");
+import { eventDataLabel, eventItem, eventJson, eventSummary, asSeverity, eventValue, eventWindow } from "./events";
+test("unknown severities show as normal", () => {
+	expect(asSeverity("warning")).toBe("warning");
+	expect(asSeverity("error")).toBe("error");
+	expect(asSeverity("")).toBe("normal");
 });
 
 test("relative ranges retain received events between clock ticks", () => {
@@ -44,6 +27,9 @@ test("retains event context for filters and raw JSON", () => {
 				id: "event",
 				seq: 17n,
 				type: "deployment.ready",
+				title: "Deploy ready in us-va-1",
+				severity: "normal",
+				region: "us-va-1",
 				actorType: "user",
 				actorName: "Olivia",
 				actorEmail: "owner@acme.test",
@@ -72,7 +58,6 @@ test("retains event context for filters and raw JSON", () => {
 		request_id: "req-1",
 		data: { region: "us-va-1" },
 	});
-	expect(severityOf("deployment.failed")).toBe("error");
 	const scaled = { ...event, type: "resource.scaled", replicas: "3", region: "us-va-1", message: "" };
 	expect(eventSummary(scaled)).toBe("replicas 3 · region us-va-1");
 	expect(eventSummary({ ...scaled, message: "Scaled by operator" })).toBe("Scaled by operator");

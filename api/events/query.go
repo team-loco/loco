@@ -17,10 +17,15 @@ const (
 	targetField    = "target"
 	typeField      = "type"
 	requestField   = "request"
+	severityField  = "severity"
+	regionField    = "region"
+	reasonField    = "reason"
+	resourceField  = "resource"
 )
 
 var queryFields = map[string]bool{
 	actorField: true, actorTypeField: true, targetField: true, typeField: true, requestField: true,
+	severityField: true, regionField: true, reasonField: true, resourceField: true,
 }
 
 // The audit query reads events e, the acting user u, the user an event is about, s, and the resource r,
@@ -31,7 +36,9 @@ const (
 		"r.slug, r.name, w.name, n.slug, n.name]) " +
 		"UNION ALL SELECT jsonb_array_elements_text(" +
 		"CASE WHEN jsonb_typeof(e.data->'names') = 'array' THEN e.data->'names' END))"
-	textColumns = "(SELECT unnest(ARRAY[e.type, u.name, u.email, e.actor_token_name]))"
+	textColumns = "(SELECT unnest(ARRAY[e.type, u.name, u.email, e.actor_token_name, event_title(e.type, e.data), " +
+		"event_region(e.data), e.data->>'reason', e.data->>'message', e.data->>'deploymentId', " +
+		"e.data->>'buildId']))"
 )
 
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
@@ -44,7 +51,8 @@ func ValidateQuery(expr logquery.Expr) error {
 			return &logquery.SyntaxError{
 				Position: field.Position,
 				Message: fmt.Sprintf(
-					"unknown field @%s; use @actor, @actor_type, @target, @type or @request", field.Key,
+					"unknown field @%s; use @actor, @actor_type, @target, @type, @request, @severity, "+
+						"@region, @reason or @resource", field.Key,
 				),
 			}
 		}
@@ -116,6 +124,14 @@ func fieldSQL(field logquery.Field, b *binder) string {
 		return exactMatch("e.type", field, b)
 	case requestField:
 		return exactMatch("e.request_id", field, b)
+	case severityField:
+		return anyMatches("(SELECT event_severity(e.type))", field, b)
+	case regionField:
+		return anyMatches("(SELECT event_region(e.data))", field, b)
+	case reasonField:
+		return anyMatches("(SELECT e.data->>'reason')", field, b)
+	case resourceField:
+		return anyMatches("(SELECT unnest(ARRAY[r.name, r.slug]))", field, b)
 	}
 	panic("unknown audit query field " + field.Key)
 }
