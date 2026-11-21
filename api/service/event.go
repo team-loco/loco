@@ -348,23 +348,23 @@ func (s *EventServer) StreamEvents(
 	ticker := time.NewTicker(s.poll)
 	defer ticker.Stop()
 	for {
-		var rows []genDb.Event
+		var rows []events.AuditEvent
 		if scoped == nil {
-			rows, err = s.queries.ListEventsAfter(
+			var all []genDb.Event
+			all, err = s.queries.ListEventsAfter(
 				ctx,
 				genDb.ListEventsAfterParams{AfterPosition: int64(position), MaxRows: streamBatch},
 			)
+			for _, row := range all {
+				rows = append(rows, events.AuditEvent{Event: row})
+			}
 		} else {
 			query, queryErr := auditQuery(scoped, scope, filter)
 			if queryErr != nil {
 				return queryErr
 			}
 			query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
-			var audit []events.AuditEvent
-			audit, err = events.ListAudit(ctx, s.db, query)
-			for _, row := range audit {
-				rows = append(rows, row.Event)
-			}
+			rows, err = events.ListAudit(ctx, s.db, query)
 		}
 		if err != nil {
 			if ctx.Err() != nil {
@@ -375,7 +375,8 @@ func (s *EventServer) StreamEvents(
 		if len(rows) > 0 {
 			batch := make([]*eventv1.Event, len(rows))
 			for i, row := range rows {
-				batch[i] = eventToProto(row)
+				batch[i] = eventToProto(row.Event)
+				batch[i].Title, batch[i].Severity, batch[i].Region = row.Title, row.Severity, row.Region
 			}
 			last := rows[len(rows)-1]
 			position = eventPosition(*last.StreamPosition)

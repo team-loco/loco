@@ -466,7 +466,8 @@ func TestWorkspaceEventStreamFiltersAndReconnects(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(first.GetEvents()) != 1 || first.GetEvents()[0].GetResourceId() != f.resourceID.String() ||
-		first.GetEvents()[0].GetType() != events.ResourceUpdated {
+		first.GetEvents()[0].GetType() != events.ResourceUpdated ||
+		first.GetEvents()[0].GetTitle() != events.ResourceUpdated || first.GetEvents()[0].GetSeverity() != "normal" {
 		t.Fatalf("batch = %v", first)
 	}
 	if err = stream.Close(); err != nil {

@@ -65,7 +65,6 @@ export function severityStyle(s: Severity): SeverityStyle {
 }
 
 export interface EventItem extends WorkspaceEventWithResource {
-	title: string;
 	detail: string;
 	severity: Severity;
 	ts: number;
@@ -74,7 +73,6 @@ export interface EventItem extends WorkspaceEventWithResource {
 export function eventItem(e: WorkspaceEventWithResource): EventItem {
 	return {
 		...e,
-		title: e.title,
 		detail: eventSummary(e),
 		severity: asSeverity(e.severity),
 		ts: tsMs(e.timestamp),
