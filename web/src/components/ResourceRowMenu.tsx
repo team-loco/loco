@@ -7,7 +7,7 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
-import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
+import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -38,7 +38,7 @@ export function ResourceRowMenu({
 		try {
 			await deleteMutation.mutateAsync({ resourceId: resource.id });
 			await queryClient.invalidateQueries({ queryKey: workspaceResourcesKey(transport, workspaceId) });
-			toast.success(`${resource.name} deleted`);
+			toast.success(`Deleted ${resource.name}`);
 			setConfirmOpen(false);
 		} catch (err) {
 			toastConnectError(err, "Failed to delete resource");
@@ -62,12 +62,10 @@ export function ResourceRowMenu({
 					Delete
 				</DropdownMenuItem>
 			</RowMenu>
-			<ConfirmDeleteDialog
+			<DeleteResourceDialog
 				open={confirmOpen}
 				onOpenChange={setConfirmOpen}
-				title={`Delete ${resource.name}?`}
-				text="Deployments, domains and variables are removed in every environment. This can't be undone."
-				target={resource.slug}
+				resource={resource}
 				confirmLabel="Delete"
 				pending={deleteMutation.isPending}
 				onConfirm={() => {

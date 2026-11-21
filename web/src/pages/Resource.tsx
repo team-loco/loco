@@ -16,6 +16,7 @@ import {
 } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
+import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -38,7 +39,7 @@ import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
-import { DeleteResourceDialog, RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
+import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
@@ -46,7 +47,6 @@ import { IncidentCard } from "@/pages/resource/IncidentCard";
 import { METRIC_RANGES, RANGE_MS } from "@/pages/resource/metric";
 import { RangeToggle } from "@/pages/resource/RangeToggle";
 import {
-	activeDeploymentPlaces,
 	buildRegions,
 	depImage,
 	depTag,
@@ -106,7 +106,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		history: "replace",
 	});
 	const {
-		resource,
+		resource: loaded,
 		environmentId,
 		deployments,
 		currentDeployments,
@@ -180,15 +180,18 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const defaults = configQuery.data.serviceDefaults;
 	if (defaults === undefined) return <ResourceSkeleton />;
 
-	if (error !== null) {
-		if (resourceMissing(error, canListResources)) notFound();
+	if (error !== null && resourceMissing(error, canListResources)) notFound();
+	// A failed load keeps the header from the workspace's resource list when it has this resource.
+	const resource =
+		loaded ?? (error === null ? undefined : resourcesQuery.data?.resources.find((r) => r.id === resourceId));
+	if (resource === undefined) {
+		if (error === null) notFound();
 		return (
 			<Page>
 				<ErrorState error={error} what="this resource" rpc={getResource} onRetry={refresh} />
 			</Page>
 		);
 	}
-	if (resource === undefined) notFound();
 
 	const environment = environmentStatus(resource, environmentId);
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);
@@ -408,7 +411,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				/>
 			)}
 
-			{view === "overview" ? (
+			{error !== null ? (
+				<ErrorState error={error} what="this resource" rpc={getResource} onRetry={refresh} />
+			) : view === "overview" ? (
 				<div className="flex flex-col gap-5">
 					{problem !== undefined && problemRegion !== undefined && environmentId !== undefined && (
 						<IncidentCard
@@ -603,7 +608,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					if (!open) setModal(null);
 				}}
 				resource={resource}
-				places={activeDeploymentPlaces(resource)}
+				confirmLabel={`Delete ${resource.name}`}
 				pending={del.isPending}
 				onConfirm={handleDelete}
 			/>

@@ -1,10 +1,8 @@
 import { ArrowRightIcon } from "lucide-react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
 import { DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
-import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
@@ -156,51 +154,5 @@ export function RollbackDialogContent({
 				</Button>
 			</DialogFooter>
 		</DialogContent>
-	);
-}
-
-export function DeleteResourceDialog({
-	open,
-	onOpenChange,
-	resource,
-	places,
-	pending,
-	onConfirm,
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	resource: Resource;
-	places: string[];
-	pending: boolean;
-	onConfirm: () => void;
-}) {
-	const deployCount =
-		places.length === 1 ? "its active deployment" : `its ${places.length.toString()} active deployments`;
-	const placeList = places.length > 0 ? ` in ${places.join(" and ")}` : "";
-	const domains = resource.domains;
-	const domainText =
-		domains.length === 0
-			? "no domains"
-			: domains.length === 1
-				? `the domain ${domains[0]?.domain ?? ""}`
-				: `${domains.length.toString()} domains`;
-	return (
-		<ConfirmDeleteDialog
-			open={open}
-			onOpenChange={onOpenChange}
-			title={`Delete ${resource.name}?`}
-			text={`Removes the resource, ${deployCount}${placeList}, and ${domainText}. Running replicas stop immediately.`}
-			target={resource.slug}
-			confirmLabel={`Delete ${resource.name}`}
-			pending={pending}
-			onConfirm={onConfirm}
-		>
-			{resource.partial !== undefined && (
-				<p className="rounded-md border border-warn/30 bg-warn-bg px-3 py-2 text-sm text-warn-fg">
-					Deleting here causes drift with <code className="font-mono">loco.yaml</code>. Applying the file again can
-					recreate this resource. Remove it from the file to keep it deleted.
-				</p>
-			)}
-		</ConfirmDeleteDialog>
 	);
 }

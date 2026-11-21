@@ -162,13 +162,6 @@ export function tookMs(dep: Deployment): number | undefined {
 	return Math.max(0, end - created);
 }
 
-export function activeDeploymentPlaces(resource: Resource): string[] {
-	const environments = resource.environmentStatuses;
-	return environments.flatMap((e) =>
-		e.regions.map((r) => (environments.length > 1 ? `${r.region} (${e.environmentSlug})` : r.region)),
-	);
-}
-
 export function deploymentsRequest(resourceId: string, environmentId: string | undefined) {
 	if (resourceId === "" || environmentId === undefined) return skipToken;
 	return { resourceId, environmentId, pageSize: DEPLOYMENT_HISTORY_SIZE, pageToken: "" };

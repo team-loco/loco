@@ -644,6 +644,11 @@ with session(out) as browser:
     page.get_by_role("menuitem", name="Delete", exact=True).click()
     row_confirm = page.get_by_role("alertdialog", name="Delete history-pilot?")
     expect(
+        row_confirm.get_by_text(
+            "It is running. Deleting it stops its compute", exact=False
+        )
+    ).to_be_visible()
+    expect(
         row_confirm.get_by_role("button", name="Delete", exact=True)
     ).to_be_disabled()
     row_confirm.get_by_role("textbox").fill("history-pilot")

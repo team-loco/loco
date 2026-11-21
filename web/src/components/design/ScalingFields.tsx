@@ -3,11 +3,8 @@ import type { ReplicaRange } from "@/lib/sizing";
 
 import { Field } from "./Field";
 import { RangeSlider } from "./RangeSlider";
-import { SoonTag } from "./SoonTag";
 import { Stepper } from "./Stepper";
 import { Switch } from "./Switch";
-
-const MEMORY_TARGET = 80;
 
 export function autoscales(value: Scaling): boolean {
 	return value.maxReplicas > value.replicas;
@@ -101,20 +98,6 @@ export function ScalingFields({
 							onChange({ ...value, cpuTarget });
 						}}
 					/>
-					<RangeSlider
-						label={`Memory target (%)${suffix}`}
-						heading={
-							<span className="flex items-center gap-2">
-								Memory target
-								<SoonTag />
-							</span>
-						}
-						value={MEMORY_TARGET}
-						min={1}
-						max={100}
-						disabled
-						onChange={() => undefined}
-					/>
 				</div>
 			) : (
 				<Field label="Replicas per region">
@@ -130,7 +113,12 @@ export function ScalingFields({
 					/>
 				</Field>
 			)}
-			{autoscaling && <p className="m-0 text-[12.5px] text-fg3">Scales per region based on CPU utilization.</p>}
+			{autoscaling && (
+				<p className="m-0 text-[12.5px] text-fg3">
+					Adds replicas when average CPU stays above {value.cpuTarget}%, and removes them when it drops, between{" "}
+					{value.replicas} and {value.maxReplicas} per region.
+				</p>
+			)}
 			{error != null && (
 				<p role="alert" className="text-[12.5px] text-bad-fg">
 					{error}
