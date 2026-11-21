@@ -55,8 +55,8 @@ export const STRATEGY = `Rolling · ${SURGE_PERCENT}% surge · ${SURGE_PERCENT}%
 const DEPLOYED_AT = 17;
 const STAGE_FRAMES = 2;
 const REGION_STARTS = [
-	{ name: "us-east-1", start: 19 },
-	{ name: "eu-west-1", start: 20 },
+	{ name: "us-ca-1", start: 19 },
+	{ name: "us-va-1", start: 20 },
 ] as const;
 
 export const TERMINAL: readonly TerminalLine[] = [
@@ -77,12 +77,12 @@ export const TERMINAL: readonly TerminalLine[] = [
 	{ at: DEPLOYED_AT, text: "Applied. Environment revision is now 8.", tone: "ok" },
 	{
 		at: DEPLOYED_AT,
-		text: "Started deployment 019a6b31-0f8e-7c12-a4d5-2e7b9c3f6a01 for api in us-east-1.",
+		text: "Started deployment 019a6b31-0f8e-7c12-a4d5-2e7b9c3f6a01 for api in us-ca-1.",
 		tone: "output",
 	},
 	{
 		at: DEPLOYED_AT,
-		text: "Started deployment 019a6b31-0f8e-7c12-a4d5-2e7b9c3f6a02 for api in eu-west-1.",
+		text: "Started deployment 019a6b31-0f8e-7c12-a4d5-2e7b9c3f6a02 for api in us-va-1.",
 		tone: "output",
 	},
 	{ at: 18, text: `api: https://${ENDPOINT}`, tone: "link" },
