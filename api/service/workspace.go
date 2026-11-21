@@ -172,6 +172,14 @@ func (s *WorkspaceServer) GetWorkspace(
 	if err != nil {
 		return nil, err
 	}
+	contents, err := s.queries.CountWorkspaceContents(ctx, []uuid.UUID{workspaceID})
+	if err != nil {
+		return nil, fmt.Errorf("count workspace contents: %w", err)
+	}
+	for _, c := range contents {
+		workspace.ResourceCount = new(c.ResourceCount)
+		workspace.MemberCount = new(c.MemberCount)
+	}
 	return &workspacev1.GetWorkspaceResponse{Workspace: workspace}, nil
 }
 
@@ -223,9 +231,20 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		workspaces = append(workspaces, workspace)
 	}
 
+	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
+		return s.queries.CountWorkspacesForUser(
+			ctx,
+			genDb.CountWorkspacesForUserParams{UserID: p.Entity.ID, Limit: limit},
+		)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count user workspaces: %w", err)
+	}
+
 	return &workspacev1.ListUserWorkspacesResponse{
 		Workspaces:    workspaces,
 		NextPageToken: token,
+		TotalCount:    total,
 	}, nil
 }
 
@@ -254,11 +273,15 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	}
 
 	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
+	resourceIDs := grantedResourceIDs(p.Scopes)
+	query := likePattern(req.GetQuery())
 	workspaceList, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
 		OrgID:         orgID,
 		AllWorkspaces: allWorkspaces,
 		WorkspaceIds:  workspaceIDs,
-		ResourceIds:   grantedResourceIDs(p.Scopes),
+		ResourceIds:   resourceIDs,
+		Query:         query,
+		HasResources:  req.GetHasResources(),
 		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
@@ -311,9 +334,25 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		})
 	}
 
+	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
+		return s.queries.CountWorkspacesInOrg(ctx, genDb.CountWorkspacesInOrgParams{
+			OrgID:         orgID,
+			AllWorkspaces: allWorkspaces,
+			WorkspaceIds:  workspaceIDs,
+			ResourceIds:   resourceIDs,
+			Query:         query,
+			HasResources:  req.GetHasResources(),
+			Limit:         limit,
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count organization workspaces: %w", err)
+	}
+
 	return &workspacev1.ListOrgWorkspacesResponse{
 		Workspaces:    workspaces,
 		NextPageToken: token,
+		TotalCount:    total,
 	}, nil
 }
 

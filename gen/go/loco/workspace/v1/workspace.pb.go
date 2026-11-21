@@ -40,11 +40,12 @@ type Workspace struct {
 	// effective_retention is how many days ingest keeps each signal, with every field set: the
 	// workspace's own value capped by its organization's limit.
 	EffectiveRetention *RetentionDays `protobuf:"bytes,10,opt,name=effective_retention,json=effectiveRetention,proto3" json:"effective_retention,omitempty"`
-	// resource_count is how many resources the workspace holds. ListOrgWorkspaces sets it on each
-	// workspace the caller can read.
+	// resource_count is how many resources the workspace holds. GetWorkspace sets it, and
+	// ListOrgWorkspaces sets it on each workspace the caller can read.
 	ResourceCount *int32 `protobuf:"varint,11,opt,name=resource_count,json=resourceCount,proto3,oneof" json:"resource_count,omitempty"`
 	// member_count is how many users hold a direct grant on the workspace. An organization admin
-	// without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read.
+	// without one is not counted. GetWorkspace sets it, and ListOrgWorkspaces sets it on each
+	// workspace the caller can read.
 	MemberCount   *int32 `protobuf:"varint,12,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -455,12 +456,14 @@ func (x *GetWorkspaceResponse) GetWorkspace() *Workspace {
 
 // ListUserWorkspacesRequest is the request to list workspaces for a user.
 type ListUserWorkspacesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
-	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	UserId    string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	PageSize  int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,4,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListUserWorkspacesRequest) Reset() {
@@ -514,11 +517,21 @@ func (x *ListUserWorkspacesRequest) GetPageToken() string {
 	return ""
 }
 
+func (x *ListUserWorkspacesRequest) GetIncludeTotalCount() bool {
+	if x != nil {
+		return x.IncludeTotalCount
+	}
+	return false
+}
+
 // ListUserWorkspacesResponse contains the list of user's workspaces.
 type ListUserWorkspacesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspaces    []*Workspace           `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
+	// The workspaces the user can read; set when include_total_count is.
+	// Exact up to 10,000; 10,001 means more than 10,000.
+	TotalCount    int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -567,12 +580,25 @@ func (x *ListUserWorkspacesResponse) GetNextPageToken() string {
 	return ""
 }
 
+func (x *ListUserWorkspacesResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
 type ListOrgWorkspacesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
-	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	OrgId     string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	PageSize  int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,4,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	// Matches workspace names and descriptions, ignoring case.
+	Query string `protobuf:"bytes,5,opt,name=query,proto3" json:"query,omitempty"`
+	// Only workspaces that hold at least one resource.
+	HasResources  bool `protobuf:"varint,6,opt,name=has_resources,json=hasResources,proto3" json:"has_resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -628,11 +654,35 @@ func (x *ListOrgWorkspacesRequest) GetPageToken() string {
 	return ""
 }
 
+func (x *ListOrgWorkspacesRequest) GetIncludeTotalCount() bool {
+	if x != nil {
+		return x.IncludeTotalCount
+	}
+	return false
+}
+
+func (x *ListOrgWorkspacesRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *ListOrgWorkspacesRequest) GetHasResources() bool {
+	if x != nil {
+		return x.HasResources
+	}
+	return false
+}
+
 // ListOrgWorkspacesResponse contains the list of workspaces.
 type ListOrgWorkspacesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspaces    []*Workspace           `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
+	// The workspaces the filters match, ignoring page_token; set when include_total_count is.
+	// Exact up to 10,000; 10,001 means more than 10,000.
+	TotalCount    int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -679,6 +729,13 @@ func (x *ListOrgWorkspacesResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListOrgWorkspacesResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
 }
 
 // UpdateWorkspaceRequest is the request to update a workspace.
@@ -1327,29 +1384,37 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x13GetWorkspaceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"R\n" +
 	"\x14GetWorkspaceResponse\x12:\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\"|\n" +
+	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\"\xac\x01\n" +
 	"\x19ListUserWorkspacesRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x12.\n" +
+	"\x13include_total_count\x18\x04 \x01(\bR\x11includeTotalCount\"\xa3\x01\n" +
 	"\x1aListUserWorkspacesResponse\x12<\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
 	"workspaces\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x83\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\"\xf8\x01\n" +
 	"\x18ListOrgWorkspacesRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x81\x01\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x12.\n" +
+	"\x13include_total_count\x18\x04 \x01(\bR\x11includeTotalCount\x12\x1e\n" +
+	"\x05query\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01R\x05query\x12#\n" +
+	"\rhas_resources\x18\x06 \x01(\bR\fhasResources\"\xa2\x01\n" +
 	"\x19ListOrgWorkspacesResponse\x12<\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
 	"workspaces\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa0\x03\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\"\xa0\x03\n" +
 	"\x16UpdateWorkspaceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\"\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +

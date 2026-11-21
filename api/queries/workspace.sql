@@ -50,6 +50,18 @@ JOIN organizations o ON o.id = v.org_id
 ORDER BY v.created_at DESC, v.id DESC
 LIMIT $2;
 
+-- name: CountWorkspacesForUser :one
+SELECT COUNT(*) FROM (
+  SELECT w.id FROM user_scopes us
+  JOIN workspaces w ON w.id = us.entity_id
+  WHERE us.user_id = $1 AND us.scope = 'read' AND us.entity_type = 'workspace'
+  UNION
+  SELECT w.id FROM user_scopes us
+  JOIN workspaces w ON w.org_id = us.entity_id
+  WHERE us.user_id = $1 AND us.scope = 'read' AND us.entity_type = 'organization'
+  LIMIT $2
+) capped;
+
 -- name: ListWorkspacesInOrg :many
 SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at,
        w.log_retention_days, w.trace_retention_days, w.metric_retention_days
@@ -59,6 +71,8 @@ WHERE w.org_id = $1
   AND (sqlc.arg('all_workspaces')::bool
        OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
        OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY(sqlc.arg('resource_ids')::uuid[])))
+  AND (sqlc.arg('query')::text = '' OR w.name ILIKE sqlc.arg('query') OR w.description ILIKE sqlc.arg('query'))
+  AND (NOT sqlc.arg('has_resources')::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -66,6 +80,18 @@ WHERE w.org_id = $1
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2;
+
+-- name: CountWorkspacesInOrg :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM workspaces w
+  WHERE w.org_id = $1
+    AND (sqlc.arg('all_workspaces')::bool
+         OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
+         OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY(sqlc.arg('resource_ids')::uuid[])))
+    AND (sqlc.arg('query')::text = '' OR w.name ILIKE sqlc.arg('query') OR w.description ILIKE sqlc.arg('query'))
+    AND (NOT sqlc.arg('has_resources')::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
+  LIMIT $2
+) capped;
 
 -- name: CountWorkspaceContents :many
 SELECT w.id,
