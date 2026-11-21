@@ -260,6 +260,8 @@ type Querier interface {
 	LockOrgForSuspension(ctx context.Context, id uuid.UUID) (Organization, error)
 	LockOrgResources(ctx context.Context, orgID uuid.UUID) error
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
+	// Takes the lock a deployment's foreign key check takes on its environment.
+	LockPlacementEnvironment(ctx context.Context, arg LockPlacementEnvironmentParams) error
 	LockPlacementResource(ctx context.Context, arg LockPlacementResourceParams) (uuid.UUID, error)
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
