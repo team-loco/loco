@@ -1,6 +1,7 @@
 import type { Transport } from "@connectrpc/connect";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import type { GetDeploymentResponse } from "@gen/loco/deployment/v1/deployment_pb";
 import { getDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -61,11 +62,15 @@ export function useWorkspaceDeployments(orgId: string | null, workspaceId: strin
 			q.data?.deployment === undefined ? [] : ([[q.data.deployment.id, q.data.deployment]] as const),
 		),
 	);
+	// A rollout brings a new deployment ID; only the first load waits for its deployments.
+	const pending = resourcesQuery.isLoading || deploymentQueries.some((q) => q.isLoading);
+	const [loadedFor, setLoadedFor] = useState<string | null>(null);
+	if (!pending && loadedFor !== workspaceId) setLoadedFor(workspaceId);
 
 	return {
 		resources,
 		deployments: resources.map((r) => currentDeploymentIds(r).flatMap((id) => byId.get(id) ?? [])),
-		isLoading: resourcesQuery.isLoading || deploymentQueries.some((q) => q.isLoading),
+		isLoading: resourcesQuery.isLoading || (pending && loadedFor !== workspaceId),
 		error: resourcesQuery.error,
 		refetch: resourcesQuery.refetch,
 	};
