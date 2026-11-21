@@ -44,19 +44,16 @@ if [[ $pushed != "$head" ]]; then
 fi
 
 key=$(printf '%s\0' "${suites[*]-}" "$shots" "$scenario" "$base" | git hash-object --stdin | cut -c1-10)
-title="Evidence $head $key"
-id=$(gh run list --workflow evidence.yml --branch "$branch" --limit 50 --json databaseId,displayTitle,status,headSha \
-	--jq "[.[] | select(.displayTitle == \"$title\" and .headSha == \"$head\" and (.status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\" or .status == \"pending\"))][0].databaseId // empty")
-if [[ -n $id ]]; then
-	echo "Joining the Evidence run already going for these inputs: $(gh run view "$id" --json url --jq .url)"
-else
+run=$(gh run list --workflow evidence.yml --branch "$branch" --limit 50 --json displayTitle,status,databaseId,url \
+	--jq ".[] | select(.displayTitle == \"Evidence $head $key\" and .status != \"completed\") | \"\(.databaseId) \(.url)\"" | head -n1)
+if [[ -z $run ]]; then
 	run=$(gh api --method POST "repos/{owner}/{repo}/actions/workflows/evidence.yml/dispatches" \
 		-f ref="$branch" -F return_run_details=true \
 		-f "inputs[suites]=${suites[*]-}" -f "inputs[shots]=$shots" -f "inputs[scenario]=$scenario" -f "inputs[base]=$base" -f "inputs[key]=$key" \
 		--jq '"\(.workflow_run_id) \(.html_url)"')
-	id=${run%% *}
-	echo "Evidence run: ${run#* }"
 fi
+id=${run%% *}
+echo "Evidence run: ${run#* }"
 
 until [[ $(gh run view "$id" --json status --jq .status) == completed ]]; do
 	sleep 30

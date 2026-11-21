@@ -2,7 +2,7 @@ name: Evidence
 run-name: Evidence ${{ github.sha }} ${{ inputs.key }}
 
 # Runs dashboard suites and before/after screenshots for a branch on request; `mise run ci:evidence` dispatches it.
-# The run name carries the head commit SHA and `key`, a hash of the other inputs, so `ci:evidence` can find a run it would repeat.
+# The run name holds the head commit SHA and `key`, a hash of the other inputs.
 on:
   workflow_dispatch:
     inputs:
