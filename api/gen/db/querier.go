@@ -118,6 +118,7 @@ type Querier interface {
 	GetBuildCluster(ctx context.Context, arg GetBuildClusterParams) (uuid.UUID, error)
 	// creator_* is NULL when the creating user no longer exists.
 	GetBuildCreator(ctx context.Context, id uuid.UUID) (GetBuildCreatorRow, error)
+	GetBuildTraceparent(ctx context.Context, id uuid.UUID) (*string, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
 	GetClusterRole(ctx context.Context, id uuid.UUID) (ClusterRole, error)
 	GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
@@ -140,6 +141,7 @@ type Querier interface {
 	GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	GetPlacementTraceparent(ctx context.Context, id uuid.UUID) (*string, error)
 	GetPreviousPlacementRollout(ctx context.Context, arg GetPreviousPlacementRolloutParams) ([]byte, error)
 	GetPrimaryResourceDomain(ctx context.Context, arg GetPrimaryResourceDomainParams) (string, error)
 	GetRegistryGrant(ctx context.Context, arg GetRegistryGrantParams) (GetRegistryGrantRow, error)

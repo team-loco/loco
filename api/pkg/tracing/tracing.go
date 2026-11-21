@@ -19,6 +19,21 @@ func StartRoot(ctx context.Context, name string, opts ...trace.SpanStartOption) 
 	return otel.Tracer(tracerName).Start(ctx, name, opts...) //nolint:spancheck
 }
 
+// StartLinked starts a root span for work a request caused earlier, linked to that request's span.
+func StartLinked(
+	ctx context.Context,
+	name string,
+	traceparent *string,
+	opts ...trace.SpanStartOption,
+) (context.Context, trace.Span) {
+	if traceparent != nil {
+		if link, ok := LinkTo(*traceparent); ok {
+			opts = append(opts, trace.WithLinks(link))
+		}
+	}
+	return StartRoot(ctx, name, opts...)
+}
+
 func End(span trace.Span, err error) {
 	if err != nil {
 		span.RecordError(err)
@@ -31,6 +46,14 @@ func Traceparent(ctx context.Context) string {
 	carrier := propagation.MapCarrier{}
 	propagation.TraceContext{}.Inject(ctx, carrier)
 	return carrier[traceparentKey]
+}
+
+// Origin is the traceparent to store with work that outlives the request, or nil outside a trace.
+func Origin(ctx context.Context) *string {
+	if traceparent := Traceparent(ctx); traceparent != "" {
+		return &traceparent
+	}
+	return nil
 }
 
 func LinkTo(traceparent string) (trace.Link, bool) {
