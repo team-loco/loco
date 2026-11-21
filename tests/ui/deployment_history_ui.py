@@ -284,6 +284,7 @@ with session(out) as browser:
         if ".DeploymentService/" in request.url and method in (
             "GetDeployment",
             "ListDeployments",
+            "QueryDeploymentBuckets",
         ):
             requests.append({"method": method, "body": request.post_data_json})
 
@@ -323,7 +324,20 @@ with session(out) as browser:
     section = page.get_by_role("tab", name=re.compile(r"^Deployments")).locator(
         "xpath=ancestor::section[1]"
     )
-    expect(section.get_by_text("1–10 of 200+", exact=False)).to_be_visible()
+    expect(section.get_by_text("1–10 of 221", exact=False)).to_be_visible()
+    expect(
+        section.get_by_role("tab", name=re.compile(r"^Deployments\s*221$"))
+    ).to_be_visible()
+    history_requests = [
+        request["body"]
+        for request in requests
+        if request["method"] == "ListDeployments"
+        and request["body"].get("resourceId") == data["resource"]
+    ]
+    assert history_requests and all(
+        body.get("pageSize") in (1, 10) and not body.get("pageToken")
+        for body in history_requests
+    ), history_requests
     expect(
         section.get_by_role(
             "button",
@@ -405,10 +419,44 @@ with session(out) as browser:
         and request["body"]["deploymentId"] == data["releases"][-1]
         for request in requests
     )
+    assert any(
+        request["method"] == "QueryDeploymentBuckets"
+        and request["body"].get("resourceIds") == [data["resource"]]
+        for request in requests
+    ), requests
+    # The tenth row's previous deployment is on the next page, so its diff fetches it by ID.
+    section.get_by_role(
+        "button",
+        name=f"Show details for {data['releases'][9][-8:]}",
+        exact=True,
+    ).click()
+    expect(
+        section.get_by_text("example.invalid/browser-pilot:release-011", exact=True)
+    ).to_be_visible()
+    assert any(
+        request["method"] == "GetDeployment"
+        and request["body"]["deploymentId"] == data["releases"][10]
+        for request in requests
+    )
+    section.get_by_role(
+        "button",
+        name=f"Hide details for {data['releases'][9][-8:]}",
+        exact=True,
+    ).click()
     section.get_by_role("button", name="50", exact=True).click()
     next_button = section.get_by_role("button", name="Next page", exact=True)
-    for _ in range(3):
+    next_button.click()
+    section.get_by_text("Pilot page failure", exact=False).wait_for()
+    assert len(failed) == 1
+    section.get_by_role("button", name="Previous page", exact=True).click()
+    expect(section.get_by_text("1–50 of 221", exact=False)).to_be_visible()
+    next_button.focus()
+    page.keyboard.press("Enter")
+    expect(section.get_by_text("51–100 of 221", exact=False)).to_be_visible()
+    expect(section.get_by_text("Pilot page failure", exact=False)).to_have_count(0)
+    for _ in range(2):
         next_button.click()
+    expect(section.get_by_text("151–200 of 221", exact=False)).to_be_visible()
     expect(
         section.get_by_role(
             "button",
@@ -417,18 +465,6 @@ with session(out) as browser:
         )
     ).to_be_visible()
     next_button.click()
-    section.get_by_text("Pilot page failure", exact=False).wait_for()
-    expect(
-        section.get_by_role(
-            "button",
-            name=f"Show details for {data['releases'][150][-8:]}",
-            exact=True,
-        )
-    ).to_be_visible()
-    assert len(failed) == 1
-    expect(section.get_by_text("151–200 of 200+", exact=False)).to_be_visible()
-    next_button.focus()
-    page.keyboard.press("Enter")
     expect(section.get_by_text("201–221 of 221", exact=False)).to_be_visible()
     expect(
         section.get_by_role(
@@ -437,14 +473,15 @@ with session(out) as browser:
             exact=True,
         )
     ).to_be_visible()
+    expect(next_button).to_be_disabled()
     older_requests = [
         request["body"]
         for request in requests
         if request["method"] == "ListDeployments" and request["body"].get("pageToken")
     ]
-    assert (
-        len(older_requests) == 2 and older_requests[0] == older_requests[1] == failed[0]
-    )
+    assert older_requests[:2] == [failed[0], failed[0]], older_requests
+    assert all(body["pageSize"] == 50 for body in older_requests), older_requests
+    assert len({body["pageToken"] for body in older_requests}) == 4, older_requests
     environment_switcher = page.get_by_title("Switch environment", exact=True)
     environment_switcher.click()
     page.get_by_role("menuitem", name="staging", exact=True).click()

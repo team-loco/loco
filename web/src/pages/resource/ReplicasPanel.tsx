@@ -1,6 +1,7 @@
-import { useTransport } from "@connectrpc/connect-query";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery, useTransport } from "@connectrpc/connect-query";
+import { keepPreviousData, useQueries } from "@tanstack/react-query";
 import { useState } from "react";
+import { queryDeploymentBuckets } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { EnvironmentStatus, RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Section } from "@/components/design/Page";
@@ -9,11 +10,12 @@ import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
+import { msToTimestamp } from "@/lib/time";
 
-import { chartWindow, RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
-import { MetricChart, type ChartMarker } from "./MetricChart";
+import { chartWindow, deploymentMarkers, RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
+import { MetricChart } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
-import { isDeployed, type RegionView } from "./model";
+import { isDeployed, REFRESH_MS, type RegionView } from "./model";
 import { ReplicaDetail, ReplicaList } from "./ReplicaList";
 import { regionReady, replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
@@ -21,6 +23,9 @@ import { useMetricBand } from "./useMetricBand";
 const ALL_REGIONS = "all";
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
 const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
+const MARKER_BUCKETS = 200;
+// nowMs ticks once a minute; the window runs a minute past it to cover the charts' newer end.
+const MARKER_LEAD_MS = 60_000;
 
 type Size = (target: Sizing) => number;
 
@@ -67,7 +72,6 @@ export function ReplicasPanel({
 	selected,
 	onSelect,
 	range,
-	markers,
 	replicaHref,
 	nowMs,
 }: {
@@ -79,7 +83,6 @@ export function ReplicasPanel({
 	selected: string | null;
 	onSelect: (region: string | null) => void;
 	range: MetricRange;
-	markers: ChartMarker[];
 	replicaHref: (view: "logs" | "metrics", replica: string) => string | undefined;
 	nowMs: number;
 }) {
@@ -93,6 +96,19 @@ export function ReplicasPanel({
 	const memoryLimits = regionLimits(charted, memorySize);
 	const single = charted.length === 1 ? charted[0]?.name : undefined;
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
+	const buckets = useQuery(
+		queryDeploymentBuckets,
+		{
+			workspaceId,
+			environmentId,
+			resourceIds: [resourceId],
+			since: msToTimestamp(nowMs - RANGE_MS[range]),
+			until: msToTimestamp(nowMs + MARKER_LEAD_MS),
+			bucketCount: MARKER_BUCKETS,
+		},
+		{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
+	);
+	const markers = deploymentMarkers(buckets.data?.buckets ?? []);
 	const transport = useTransport();
 	const [cpuPods, memoryPods] = useQueries({
 		queries: [CPU_METRIC, MEMORY_METRIC].map((metricName) =>

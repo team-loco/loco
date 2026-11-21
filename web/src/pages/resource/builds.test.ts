@@ -16,7 +16,6 @@ import {
 	deploymentsByBuild,
 	emptyBuildLogText,
 	formatBuildDuration,
-	pageOf,
 } from "./builds";
 
 const BUILD_ID = "0199d1c2-0000-7000-8000-00000000b001";
@@ -110,12 +109,6 @@ describe("builds", () => {
 		const joined = deploymentsByBuild([older, image, newer]);
 		expect(joined.get(BUILD_ID)).toBe(newer);
 		expect(joined.size).toBe(1);
-	});
-
-	test("finds the page that holds a row", () => {
-		expect(pageOf(0, 5)).toBe(0);
-		expect(pageOf(4, 5)).toBe(0);
-		expect(pageOf(5, 5)).toBe(1);
 	});
 });
 

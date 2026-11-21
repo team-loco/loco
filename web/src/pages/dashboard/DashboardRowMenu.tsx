@@ -20,7 +20,7 @@ import { pluralize } from "@/lib/format";
 import { toastConnectError } from "@/lib/error-handler";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { RollbackDialogContent } from "@/pages/resource/Dialogs";
-import { buildRegions, depTag, focusRegion, lastGoodDeployment } from "@/pages/resource/model";
+import { buildRegions, depTag, focusRegion } from "@/pages/resource/model";
 
 import type { EnvResource } from "./useDashboardData";
 
@@ -44,7 +44,7 @@ export function DashboardRowMenu({
 	const [rollingBack, setRollingBack] = useState(false);
 	const canWrite = useMyScopes().resourceLevel(orgId, workspaceId, resource.id) >= scopeLevel(Scope.WRITE);
 	const focus = focusRegion(buildRegions(resource, item.envDeployments, item.environment));
-	const target = focus === undefined ? undefined : lastGoodDeployment(focus);
+	const target = focus?.lastGood;
 	const obs = (view: "logs" | "events") =>
 		observabilityPath(orgId, workspaceId, view, { env: envName, r: [resource.slug] });
 

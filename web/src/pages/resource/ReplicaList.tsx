@@ -15,7 +15,7 @@ import { agoLabel, maybeTsMs, shortDurationLabel } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { replicaState } from "./deployment-progress";
-import { depTag, type RegionView } from "./model";
+import { depTag, regionDeployment, type RegionView } from "./model";
 import { exitLabel, podUsage, regionReady, restartLabel } from "./replicas";
 
 const USAGE_SPAN_MS = 5 * 60_000;
@@ -188,7 +188,7 @@ export function ReplicaDetail({
 }) {
 	const state = replicaState(replica.state);
 	const startedMs = maybeTsMs(replica.startedAt);
-	const deployment = [region.current, ...region.history].find((d) => d?.id === replica.deploymentId);
+	const deployment = regionDeployment(region, replica.deploymentId);
 	return (
 		<section
 			aria-label={`Replica ${replica.name}`}

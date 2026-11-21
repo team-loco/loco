@@ -1,11 +1,13 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
+import { DeploymentBucketSchema } from "@gen/loco/deployment/v1/deployment_pb";
 import { MetricPointSchema, MetricSeriesSchema } from "@gen/loco/observability/v1/observability_pb";
 
 import { msToTimestamp } from "@/lib/time";
 
 import {
 	chartWindow,
+	deploymentMarkers,
 	mergeBand,
 	percentPoints,
 	replicaChart,
@@ -120,5 +122,24 @@ describe("chartWindow", () => {
 	});
 	test("keeps the band's span without per-replica lines", () => {
 		expect(chartWindow(false, NOW_MS, { from: 5, to: 9 }, "1h")).toEqual({ from: 5, to: 9 });
+	});
+});
+
+describe("deploymentMarkers", () => {
+	test("marks each bucket at its mean time, naming the version of a lone deployment", () => {
+		const buckets = [
+			create(DeploymentBucketSchema, {
+				deploymentCount: 1,
+				meanCreatedAt: msToTimestamp(NOW_MS - 60_000),
+				onlyDeployment: { image: "example.test/app:v2" },
+			}),
+			create(DeploymentBucketSchema, { deploymentCount: 3, meanCreatedAt: msToTimestamp(NOW_MS) }),
+			create(DeploymentBucketSchema, { deploymentCount: 1, meanCreatedAt: msToTimestamp(NOW_MS), onlyDeployment: {} }),
+		];
+		expect(deploymentMarkers(buckets)).toEqual([
+			{ ms: NOW_MS - 60_000, label: "deployed v2" },
+			{ ms: NOW_MS, label: "3 deployments" },
+			{ ms: NOW_MS, label: "deployed —" },
+		]);
 	});
 });

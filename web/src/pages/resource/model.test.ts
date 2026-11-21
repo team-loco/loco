@@ -12,7 +12,8 @@ import {
 	buildRegions,
 	deploymentsRequest,
 	focusRegion,
-	lastGoodDeployment,
+	previousDeploymentId,
+	regionDeployment,
 	statusEnvironmentId,
 	tookMs,
 	type RegionView,
@@ -22,12 +23,11 @@ const RESOURCE_ID = "0199d1c2-0000-7000-8000-000000000001";
 const PRODUCTION_ID = "0199d1c2-0000-7000-8000-000000000002";
 
 describe("deploymentsRequest", () => {
-	test("asks only for the deployments of the active environment", () => {
+	test("asks for the newest page of the active environment's deployments", () => {
 		expect(deploymentsRequest(RESOURCE_ID, PRODUCTION_ID)).toEqual({
 			resourceId: RESOURCE_ID,
 			environmentId: PRODUCTION_ID,
-			pageSize: 200,
-			pageToken: "",
+			pageSize: 10,
 		});
 	});
 
@@ -54,8 +54,22 @@ describe("buildRegions", () => {
 		const [region] = buildRegions(create(ResourceSchema), history, undefined);
 		expect(region?.current).toBeUndefined();
 		expect(region?.history.map((d) => d.id)).toEqual(["release-3", "release-2", "release-1"]);
-		if (region === undefined) throw new Error("Missing history region");
-		expect(lastGoodDeployment(region)?.id).toBe("release-3");
+		expect(region?.lastGood).toBeUndefined();
+	});
+
+	test("takes the rollback target the region status names, outside the history page", () => {
+		const [current, target] = ["current", "target"].map((id) =>
+			create(DeploymentSchema, { id, placements: [{ region: "us-va-1" }], spec: create(DeploymentSpecSchema) }),
+		);
+		if (current === undefined || target === undefined) throw new Error("Missing deployment");
+		const environment = create(EnvironmentStatusSchema, {
+			regions: [
+				create(RegionStatusSchema, { region: "us-va-1", deploymentId: "current", lastGoodDeploymentId: "target" }),
+			],
+		});
+		const [region] = buildRegions(create(ResourceSchema), [current], environment, [current, target]);
+		expect(region?.lastGood?.id).toBe("target");
+		expect(region?.history.map((d) => d.id)).toEqual(["current"]);
 	});
 
 	test("names the deployment that serves after a failed rollout apart from the live one", () => {
@@ -112,32 +126,41 @@ describe("buildRegions", () => {
 	});
 });
 
-describe("lastGoodDeployment", () => {
-	const spec = create(DeploymentSpecSchema);
-	const failed = create(DeploymentSchema, { id: "failed", status: DeploymentStatus.FAILED, spec });
-	const superseded = create(DeploymentSchema, { id: "superseded", status: DeploymentStatus.SUPERSEDED, spec });
-	const older = create(DeploymentSchema, { id: "older", status: DeploymentStatus.SUPERSEDED, spec });
-
-	test("skips the current and failed deployments", () => {
+describe("regionDeployment", () => {
+	test("finds the region's current, serving and rollback target deployments beside its history page", () => {
+		const [current, serving, target, paged] = ["current", "serving", "target", "paged"].map((id) =>
+			create(DeploymentSchema, { id }),
+		);
 		const region: RegionView = {
 			name: "us-va-1",
 			status: undefined,
-			history: [failed, superseded, older],
-			current: failed,
-			serving: superseded,
+			history: paged === undefined ? [] : [paged],
+			current,
+			serving,
+			lastGood: target,
 		};
-		expect(lastGoodDeployment(region)?.id).toBe("superseded");
+		expect(["current", "serving", "target", "paged"].map((id) => regionDeployment(region, id)?.id)).toEqual([
+			"current",
+			"serving",
+			"target",
+			"paged",
+		]);
+		expect(regionDeployment(region, "")).toBeUndefined();
+		expect(regionDeployment(region, "elsewhere")).toBeUndefined();
 	});
+});
 
-	test("finds nothing when the region has one deployment", () => {
-		const region: RegionView = {
-			name: "us-va-1",
-			status: undefined,
-			history: [failed],
-			current: failed,
-			serving: undefined,
-		};
-		expect(lastGoodDeployment(region)).toBeUndefined();
+describe("previousDeploymentId", () => {
+	test("reads the deployment before this one in each region from its placement", () => {
+		const dep = create(DeploymentSchema, {
+			placements: [
+				{ region: "us-ca-1", previousDeploymentId: "older-ca" },
+				{ region: "us-va-1", previousDeploymentId: "" },
+			],
+		});
+		expect(previousDeploymentId(dep, "us-ca-1")).toBe("older-ca");
+		expect(previousDeploymentId(dep, "us-va-1")).toBe("");
+		expect(previousDeploymentId(dep, "eu-west-1")).toBe("");
 	});
 });
 
@@ -158,8 +181,22 @@ describe("focusRegion", () => {
 		});
 		const previous = create(DeploymentSchema, { id: "previous", status: DeploymentStatus.SUPERSEDED, spec });
 		const regions: RegionView[] = [
-			{ name: "us-ca-1", status: undefined, history: [california], current: california, serving: california },
-			{ name: "us-va-1", status: undefined, history: [current, previous], current, serving: current },
+			{
+				name: "us-ca-1",
+				status: undefined,
+				history: [california],
+				current: california,
+				serving: california,
+				lastGood: undefined,
+			},
+			{
+				name: "us-va-1",
+				status: undefined,
+				history: [current, previous],
+				current,
+				serving: current,
+				lastGood: previous,
+			},
 		];
 		expect(focusRegion(regions)?.name).toBe("us-va-1");
 	});

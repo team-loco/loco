@@ -49,6 +49,7 @@ const region: RegionView = {
 	history: [pending, previous],
 	current: previous,
 	serving: previous,
+	lastGood: undefined,
 	status: undefined,
 };
 
@@ -65,6 +66,14 @@ test("a failed newest deployment offers the previous running release", () => {
 	expect(progressDeployments([{ ...region, history: [running, previous] }])[0]?.deployment).toBe(running);
 });
 
+test("a failed live deployment offers the rollback target its region status names", () => {
+	const failed = create(DeploymentSchema, { ...pending, status: DeploymentStatus.FAILED });
+	const [progress] = progressDeployments([{ ...region, history: [failed], current: failed, lastGood: previous }]);
+	expect(progress?.deployment.id).toBe("pending");
+	expect(progress?.previous?.id).toBe("previous");
+	expect(progressDeployments([{ ...region, history: [failed], current: failed }])[0]?.previous).toBeUndefined();
+});
+
 test("progress does not use a sibling region's deployments", () => {
 	const other = create(DeploymentSchema, {
 		...previous,
@@ -75,7 +84,7 @@ test("progress does not use a sibling region's deployments", () => {
 	expect(
 		progressDeployments([
 			region,
-			{ name: "west", history: [other], current: other, serving: other, status: undefined },
+			{ name: "west", history: [other], current: other, serving: other, lastGood: undefined, status: undefined },
 		]).map((p) => p.deployment.id),
 	).toEqual(["pending", "other"]);
 });

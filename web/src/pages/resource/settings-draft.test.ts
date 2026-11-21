@@ -68,7 +68,14 @@ function deployment(id: string, regionName: string, replicas = 2): Deployment {
 }
 
 function region(name: string, current: Deployment | undefined): RegionView {
-	return { name, status: undefined, history: current === undefined ? [] : [current], current, serving: current };
+	return {
+		name,
+		status: undefined,
+		history: current === undefined ? [] : [current],
+		current,
+		serving: current,
+		lastGood: undefined,
+	};
 }
 
 const POLICY = create(FailurePolicySchema, {

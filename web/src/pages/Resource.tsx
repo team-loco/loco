@@ -52,7 +52,6 @@ import {
 	depTag,
 	focusRegion,
 	isDeployed,
-	lastGoodDeployment,
 	problemRegionOf,
 	regionProblem,
 	useResourceData,
@@ -111,10 +110,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		environmentId,
 		deployments,
 		currentDeployments,
-		hasMoreHistory,
-		isLoadingMoreHistory,
-		historyError,
-		loadMoreHistory,
 		isLoading,
 		error,
 		refresh,
@@ -262,17 +257,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const problemRegion = problemRegionOf(regions);
 	const problem = problemRegion === undefined ? undefined : regionProblem(problemRegion);
 	const focus = focusRegion(regions);
-	const rollbackTarget = focus === undefined ? undefined : lastGoodDeployment(focus);
-	const markers = [
-		...new Map(
-			regions
-				.flatMap((r) => r.history)
-				.map((d) => [tsMs(d.createdAt), { ms: tsMs(d.createdAt), label: `deployed ${depTag(d)}` }]),
-		).values(),
-	];
+	const rollbackTarget = focus?.lastGood;
 	const specDeployments = [
 		...new Map(
-			[...currents, ...regions.flatMap((r) => r.history)]
+			[...(modal?.kind === "spec" ? modal.shown : []), ...currents, ...regions.flatMap((r) => r.history)]
 				.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt))
 				.map((d) => [d.id, d]),
 		).values(),
@@ -376,8 +364,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const openRollback = (target: Deployment, current: Deployment | undefined) => {
 		setModal({ kind: "rollback", target, current });
 	};
-	const openSpec = (dep: Deployment | undefined) => {
-		if (dep !== undefined) setModal({ kind: "spec", deploymentId: dep.id, compareId: null });
+	const openSpec = (dep: Deployment | undefined, shown: Deployment[] = []) => {
+		if (dep !== undefined) setModal({ kind: "spec", deploymentId: dep.id, compareId: null, shown: [dep, ...shown] });
 	};
 
 	return (
@@ -443,7 +431,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							nowMs={nowMs}
 							problem={problem}
 							region={problemRegion}
-							lastGood={lastGoodDeployment(problemRegion)}
+							lastGood={problemRegion.lastGood}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}
@@ -485,7 +473,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 								void setParams({ region });
 							}}
 							range={range}
-							markers={markers}
 							replicaHref={(obsView, replica) =>
 								obsLink(
 									obsView,
@@ -518,10 +505,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						resourceId={resource.id}
 						workspaceId={resource.workspaceId}
 						regions={regions}
-						hasMore={hasMoreHistory}
-						isLoadingMore={isLoadingMoreHistory}
-						historyError={historyError}
-						onLoadMore={loadMoreHistory}
 						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
@@ -599,7 +582,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						deploymentId={modal.deploymentId}
 						compareId={modal.compareId}
 						onChange={(deploymentId, compareId) => {
-							setModal({ kind: "spec", deploymentId, compareId });
+							setModal({ ...modal, deploymentId, compareId });
 						}}
 					/>
 				)}

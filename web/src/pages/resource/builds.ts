@@ -105,10 +105,6 @@ export function deploymentsByBuild<T extends { dep: Deployment }>(rows: T[]): Ma
 	return byBuild;
 }
 
-export function pageOf(index: number, size: number): number {
-	return Math.max(0, Math.floor(index / size));
-}
-
 interface BuildStarter {
 	name: string;
 	detail: string;
