@@ -1174,10 +1174,14 @@ def dashboard(page):
             # The open user menu stays by its sidebar trigger while the page scrolls.
             scrolled, moved = modes.evaluate(
                 """group => {
-                    const [y, top] = [scrollY, group.getBoundingClientRect().top];
-                    scrollBy(0, y >= 100 ? -100 : 100);
-                    const result = [scrollY - y, group.getBoundingClientRect().top - top];
-                    scrollTo(0, y);
+                    // The menu's scroll lock can move the page's scroller from <html> to <body>.
+                    const page = [document.scrollingElement, document.body].find(
+                        (el) => el.scrollHeight > el.clientHeight,
+                    );
+                    const [y, top] = [page.scrollTop, group.getBoundingClientRect().top];
+                    page.scrollTop = y >= 100 ? y - 100 : y + 100;
+                    const result = [page.scrollTop - y, group.getBoundingClientRect().top - top];
+                    page.scrollTop = y;
                     return result;
                 }"""
             )
