@@ -15,6 +15,7 @@ import {
 	expiresLabel,
 	heldLevel,
 	sanitizeTokenName,
+	sortKeys,
 	TOKEN_NAME_RE,
 	tokenStatus,
 } from "./model";
@@ -105,6 +106,13 @@ describe("held access", () => {
 		expect(heldLevel(held, res)).toBe(2);
 		expect(heldLevel(held, org)).toBe(1);
 		expect(heldLevel(held, other)).toBe(0);
+	});
+
+	test("access chips keep the organizations' order and sort other kinds by name", () => {
+		const beta = entityNode(EntityType.ORGANIZATION, "beta", "beta", null);
+		const entities = new Map([org, beta, other, res, ws].map((n) => [n.key, n]));
+		const keys = [res.key, beta.key, ws.key, other.key, org.key];
+		expect(sortKeys(entities, keys)).toEqual([org.key, beta.key, ws.key, other.key, res.key]);
 	});
 
 	test("a system scope covers every entity", () => {

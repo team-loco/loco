@@ -82,6 +82,8 @@ export function Tokens() {
 	const now = useNow(NOW_TICK_MS).getTime();
 	const [draft, setDraft] = useState<CreateDraft | null>(null);
 	const [revoking, setRevoking] = useState<Token | null>(null);
+	// Duplicating waits for the token's entities and their parents, which decide the access the copy keeps.
+	const [duplicating, setDuplicating] = useState<Token | null>(null);
 
 	const current = data.owners[ownerKey];
 	const { owner, tokens } = current;
@@ -109,7 +111,7 @@ export function Tokens() {
 		await queryClient.invalidateQueries({ queryKey: key });
 	};
 
-	const duplicate = (token: Token) => {
+	const duplicateDraft = (token: Token): CreateDraft => {
 		const items: AccessItem[] = [];
 		for (const [key, level] of tokenGrants(token)) {
 			const node = data.entities.get(key);
@@ -118,8 +120,12 @@ export function Tokens() {
 			if (max === 0) continue;
 			items.push({ node, level: level > max ? max : level });
 		}
-		setDraft({ owner: ownerKey, name: `${token.name}-copy`, items });
+		return { owner: ownerKey, name: `${token.name}-copy`, items };
 	};
+	if (duplicating !== null && !data.entitiesLoading) {
+		setDraft(duplicateDraft(duplicating));
+		setDuplicating(null);
+	}
 
 	// The command palette links to ?new=1 to open the create drawer.
 	const shownDraft =
@@ -262,7 +268,7 @@ export function Tokens() {
 							empty={empty}
 							canDuplicate={owner.canCreate}
 							canRevoke={owner.canCreate || owner.key === "user"}
-							onDuplicate={duplicate}
+							onDuplicate={setDuplicating}
 							onRevoke={setRevoking}
 						/>
 						<Pager {...paged.pager} />

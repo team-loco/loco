@@ -41,6 +41,8 @@ export interface TokenData {
 	activeWorkspace: EntityNode | null;
 	/** Every entity the listed tokens' scopes name, with its parents where the caller can read them. */
 	entities: Entities;
+	/** Whether a scope's entity or its parent is still being looked up. */
+	entitiesLoading: boolean;
 	held: HeldScopes;
 	scopesLoading: boolean;
 	scopesError: unknown;
@@ -181,6 +183,7 @@ export function useTokenData(): TokenData {
 		activeOrg,
 		activeWorkspace,
 		entities,
+		entitiesLoading: [...resourceQueries, ...workspaceQueries].some((q) => q.isPending),
 		held,
 		scopesLoading: treeLoading,
 		scopesError: scopesQuery.error,

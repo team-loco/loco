@@ -216,11 +216,16 @@ export function withScopeEntities(entities: Entities, scopes: EntityScope[]): En
 
 const KIND_ORDER: Record<NodeKind, number> = { system: 0, user: 1, org: 2, ws: 3, res: 4 };
 
+/** Orders keys by kind; organizations keep the entities' order, which puts the active one first, and the rest sort by name. */
 export function sortKeys(entities: Entities, keys: string[]): string[] {
+	const index = new Map([...entities.keys()].map((k, i) => [k, i]));
+	const at = (k: string) => index.get(k) ?? Number.MAX_SAFE_INTEGER;
 	return keys.toSorted((a, b) => {
 		const na = resolveNode(entities, a);
 		const nb = resolveNode(entities, b);
-		return KIND_ORDER[na.kind] - KIND_ORDER[nb.kind] || na.label.localeCompare(nb.label);
+		const kd = KIND_ORDER[na.kind] - KIND_ORDER[nb.kind];
+		if (kd !== 0) return kd;
+		return na.kind === "org" ? at(a) - at(b) : na.label.localeCompare(nb.label);
 	});
 }
 

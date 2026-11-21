@@ -231,7 +231,14 @@ export function AccessPicker({
 							setFocus(true);
 						}}
 						onKeyDown={(e) => {
-							if (e.key !== "Enter" || highlightedRef.current !== undefined) return;
+							const highlighted = highlightedRef.current;
+							const atEnd = e.currentTarget.selectionStart === e.currentTarget.value.length;
+							if (e.key === "ArrowRight" && highlighted?.kind === "ws" && atEnd) {
+								e.preventDefault();
+								expand(highlighted);
+								return;
+							}
+							if (e.key !== "Enter" || highlighted !== undefined) return;
 							e.preventDefault();
 							e.preventBaseUIHandler();
 							const first = shown.find((n) => heldLevel(held, n) > 0);
@@ -270,7 +277,6 @@ export function AccessPicker({
 													type="button"
 													variant="ghost"
 													size="icon-xs"
-													tabIndex={-1}
 													aria-label={`Show resources in ${n.label}`}
 													title={`Show resources in ${n.label}`}
 													className="-mr-1"
@@ -303,7 +309,7 @@ export function AccessPicker({
 						)}
 						{choices.error !== null && (
 							<div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm">
-								<span className="text-bad-fg">{getErrorMessage(choices.error, "Failed to load resources")}</span>
+								<span className="text-bad-fg">{getErrorMessage(choices.error, choices.errorFallback)}</span>
 								<Button type="button" variant="outline" size="sm" disabled={loading} onClick={choices.retry}>
 									Retry
 								</Button>
