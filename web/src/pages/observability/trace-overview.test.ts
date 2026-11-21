@@ -5,6 +5,7 @@ import {
 	countReadout,
 	durationTick,
 	errorRateLabel,
+	filledRuns,
 	latencyReadout,
 	logPosition,
 	logScale,
@@ -73,4 +74,10 @@ describe("trace overview", () => {
 		expect(logPosition(500e9, scale)).toBeLessThan(1);
 		expect(scale.ticks.length).toBeLessThanOrEqual(4);
 	});
+});
+
+test("latency runs break at empty buckets and keep a lone bucket as its own run", () => {
+	expect(filledRuns([0, 3, 0, 0])).toEqual([[1]]);
+	expect(filledRuns([2, 1, 0, 4, 0, 5, 6])).toEqual([[0, 1], [3], [5, 6]]);
+	expect(filledRuns([0, 0])).toEqual([]);
 });

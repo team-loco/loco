@@ -13,6 +13,7 @@ import {
 	countReadout,
 	durationTick,
 	errorRateLabel,
+	filledRuns,
 	latencyReadout,
 	logPosition,
 	logScale,
@@ -83,14 +84,27 @@ export function TraceOverview({
 	const countMax = Math.max(1, ...buckets.map((b) => b.traces));
 	const countTicks = niceTicks(countMax, Y_TICKS).filter((v) => Number.isInteger(v));
 	const scale = logScale(buckets.flatMap((b) => (b.traces > 0 ? [Number(b.p50), Number(b.p95)] : [])));
-	const line = (key: "p50" | "p95") =>
-		buckets
-			.flatMap((b, i) =>
-				b.traces > 0
-					? [`${String(((i + 0.5) / n) * 100)},${String(100 - logPosition(Number(b[key]), scale) * 100)}`]
-					: [],
-			)
-			.join(" ");
+	const runs = filledRuns(buckets.map((b) => b.traces));
+	const point = (key: "p50" | "p95", i: number) =>
+		`${String(((i + 0.5) / n) * 100)},${String(100 - logPosition(Number(buckets[i]?.[key] ?? 0n), scale) * 100)}`;
+	// A lone bucket draws as a zero-length round-capped segment: a dot.
+	const lines = (key: "p50" | "p95", className: string, dash?: string) =>
+		runs.map((run) => {
+			const lone = run.length === 1;
+			return (
+				<path
+					key={run[0]}
+					d={`M${run.map((i) => point(key, i)).join("L")}${lone ? "h0" : ""}`}
+					fill="none"
+					strokeWidth={lone ? 4 : 1.75}
+					strokeLinecap={lone ? "round" : undefined}
+					strokeLinejoin="round"
+					strokeDasharray={lone ? undefined : dash}
+					vectorEffect="non-scaling-stroke"
+					className={className}
+				/>
+			);
+		});
 
 	const pointer = {
 		onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
@@ -232,23 +246,8 @@ export function TraceOverview({
 					preserveAspectRatio="none"
 					className="absolute inset-0 size-full overflow-visible"
 				>
-					<polyline
-						points={line("p50")}
-						fill="none"
-						strokeWidth={1.75}
-						strokeLinejoin="round"
-						vectorEffect="non-scaling-stroke"
-						className="stroke-info"
-					/>
-					<polyline
-						points={line("p95")}
-						fill="none"
-						strokeWidth={1.75}
-						strokeLinejoin="round"
-						strokeDasharray={DASH}
-						vectorEffect="non-scaling-stroke"
-						className="stroke-warn"
-					/>
+					{lines("p50", "stroke-info")}
+					{lines("p95", "stroke-warn", DASH)}
 				</svg>
 				{overlay((b) => latencyReadout({ ...b, widthSeconds }, timePref))}
 			</OverviewCard>
