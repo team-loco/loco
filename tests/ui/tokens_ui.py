@@ -36,7 +36,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
         " UPDATE api_tokens SET expires_at = NOW() - INTERVAL '1 day' WHERE name = 'ci-source';",
     )
     context, page, errors = open_page(browser, state=state)
-    page.goto(state["ui_url"] + "/tokens?owner=organization")
+    page.goto(state["ui_url"] + "/tokens?owner=org")
     expect(page.get_by_text("expired 1d ago")).to_be_visible()
     expect(page.get_by_role("button", name="New token", exact=True)).to_be_enabled()
     assert not errors, errors
