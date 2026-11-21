@@ -15891,6 +15891,11 @@
             "title": "serving_deployment_id",
             "description": "The deployment with the most ready replicas in this region, the live deployment and then the\n newest on a tie. Empty while no replica is ready."
           },
+          "lastGoodDeploymentId": {
+            "type": "string",
+            "title": "last_good_deployment_id",
+            "description": "The newest earlier deployment in this region that a rollback returns to: running or superseded,\n and not the live deployment. Empty when there is none."
+          },
           "placementStatus": {
             "title": "placement_status",
             "description": "The status of the live deployment's placement in this region.",

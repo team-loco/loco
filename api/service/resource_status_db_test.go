@@ -140,16 +140,15 @@ func (f *resourceStatusFixture) notReady(t *testing.T, clusterID uuid.UUID, repl
 	})
 }
 
-func (f *resourceStatusFixture) failed(t *testing.T, environmentID, clusterID uuid.UUID, replicas int32) {
+func (f *resourceStatusFixture) failed(t *testing.T, environmentID, clusterID uuid.UUID) {
 	t.Helper()
 	f.report(
 		t,
 		environmentID,
 		clusterID,
 		&agentv1.PlacementStatus{
-			Problem:       &agentv1.ProblemReport{Reason: string(loco.ProblemRestarting)},
-			Stopped:       deployTimedOut(),
-			ReadyReplicas: replicas,
+			Problem: &agentv1.ProblemReport{Reason: string(loco.ProblemRestarting)},
+			Stopped: deployTimedOut(),
 		},
 	)
 }
@@ -342,7 +341,7 @@ func TestResourceStatusIsPerEnvironment(t *testing.T) {
 	f.deployProduction(t, 1)
 	f.ready(t, f.clusterID, 1)
 	f.deployTo(t, f.stagingCluster, f.stagingID, testRegion, 1)
-	f.failed(t, f.stagingID, f.stagingCluster, 0)
+	f.failed(t, f.stagingID, f.stagingCluster)
 
 	statuses := f.statuses(t)
 	if len(statuses) != 2 {
@@ -380,7 +379,7 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 		},
 	)
 
-	f.failed(t, f.envID, f.regionCluster, 0)
+	f.failed(t, f.envID, f.regionCluster)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 		wantRegion{
 			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
@@ -472,7 +471,7 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployTo(t, f.regionCluster, f.envID, statusSecondRegion, 1)
-	f.failed(t, f.envID, f.regionCluster, 0)
+	f.failed(t, f.envID, f.regionCluster)
 	f.deployProduction(t, 1)
 	f.ready(t, f.clusterID, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
@@ -605,4 +604,35 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		message: regionMessageClusterSilent,
 	})
+}
+
+func TestRegionLastGoodDeploymentIsTheNewestEarlierHealthyOneInTheRegion(t *testing.T) {
+	t.Parallel()
+	f := newResourceStatusFixture(t)
+	f.deployProduction(t, 1)
+	first := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+	f.ready(t, f.clusterID, 1)
+	f.assertLastGood(t, "")
+
+	f.deployProduction(t, 1)
+	second := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+	f.ready(t, f.clusterID, 1)
+	f.assertLastGood(t, first.String())
+
+	// A failed deployment is never a rollback target, and the one it failed to replace still is.
+	f.deployProduction(t, 1)
+	f.failed(t, f.envID, f.clusterID)
+	f.assertLastGood(t, second.String())
+
+	// Newer deployments in another region or environment leave this region's target alone.
+	f.deployTo(t, f.regionCluster, f.envID, statusSecondRegion, 1)
+	f.deployTo(t, f.stagingCluster, f.stagingID, testRegion, 1)
+	f.assertLastGood(t, second.String())
+}
+
+func (f *resourceStatusFixture) assertLastGood(t *testing.T, want string) {
+	t.Helper()
+	if got := f.region(t, f.envID, testRegion).GetLastGoodDeploymentId(); got != want {
+		t.Errorf("last good deployment %q, want %q", got, want)
+	}
 }

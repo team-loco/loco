@@ -404,13 +404,21 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 }
 
 const listRegionStatusesForResources = `-- name: ListRegionStatusesForResources :many
-SELECT s.resource_id, s.environment_id, s.environment_slug, s.region, s.cluster_id, s.deployment_id, s.placement_status, s.desired_replicas, s.problem, s.placed, s.placed_deployment_id, s.ready_replicas, s.status_updated_at, s.stored_status, s.region_status_since, s.replicas, s.last_heartbeat, s.health_status, s.unserved_domains, s.status_cause, s.status,
+SELECT s.resource_id, s.environment_id, s.environment_slug, s.region, s.cluster_id, s.deployment_id, s.placement_status, s.desired_replicas, s.problem, s.placed, s.placed_deployment_id, s.ready_replicas, s.status_updated_at, s.stored_status, s.region_status_since, s.replicas, s.last_heartbeat, s.health_status, s.unserved_domains, s.status_cause, s.status, s.last_good_deployment_id,
        environment_status(array_agg(s.status) OVER (PARTITION BY s.resource_id, s.environment_id))::text
            AS environment_status
 FROM (
     SELECT i.resource_id, i.environment_id, i.environment_slug, i.region, i.cluster_id, i.deployment_id, i.placement_status, i.desired_replicas, i.problem, i.placed, i.placed_deployment_id, i.ready_replicas, i.status_updated_at, i.stored_status, i.region_status_since, i.replicas, i.last_heartbeat, i.health_status, i.unserved_domains,
            c.cause AS status_cause,
-           region_status(c.cause, i.ready_replicas, i.desired_replicas, i.placement_status)::text AS status
+           region_status(c.cause, i.ready_replicas, i.desired_replicas, i.placement_status)::text AS status,
+           COALESCE((SELECT d.id::text FROM deployments d
+            JOIN deployment_placements dp ON dp.deployment_id = d.id AND dp.region = i.region
+            WHERE d.resource_id = i.resource_id
+              AND d.environment_id = i.environment_id
+              AND d.id <> i.deployment_id
+              AND d.status IN ('running', 'superseded')
+            ORDER BY d.created_at DESC, d.id DESC
+            LIMIT 1), '')::text AS last_good_deployment_id
     FROM resource_region_inputs i
     CROSS JOIN LATERAL (
         SELECT region_status_cause(
@@ -429,28 +437,29 @@ type ListRegionStatusesForResourcesParams struct {
 }
 
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID         uuid.UUID       `json:"resourceId"`
-	EnvironmentID      uuid.UUID       `json:"environmentId"`
-	EnvironmentSlug    string          `json:"environmentSlug"`
-	Region             string          `json:"region"`
-	ClusterID          uuid.UUID       `json:"clusterId"`
-	DeploymentID       uuid.UUID       `json:"deploymentId"`
-	PlacementStatus    PlacementStatus `json:"placementStatus"`
-	DesiredReplicas    int32           `json:"desiredReplicas"`
-	Problem            []byte          `json:"problem"`
-	Placed             bool            `json:"placed"`
-	PlacedDeploymentID *uuid.UUID      `json:"placedDeploymentId"`
-	ReadyReplicas      int32           `json:"readyReplicas"`
-	StatusUpdatedAt    *time.Time      `json:"statusUpdatedAt"`
-	StoredStatus       string          `json:"storedStatus"`
-	RegionStatusSince  *time.Time      `json:"regionStatusSince"`
-	Replicas           []byte          `json:"replicas"`
-	LastHeartbeat      *time.Time      `json:"lastHeartbeat"`
-	HealthStatus       *string         `json:"healthStatus"`
-	UnservedDomains    []string        `json:"unservedDomains"`
-	StatusCause        string          `json:"statusCause"`
-	Status             string          `json:"status"`
-	EnvironmentStatus  string          `json:"environmentStatus"`
+	ResourceID           uuid.UUID       `json:"resourceId"`
+	EnvironmentID        uuid.UUID       `json:"environmentId"`
+	EnvironmentSlug      string          `json:"environmentSlug"`
+	Region               string          `json:"region"`
+	ClusterID            uuid.UUID       `json:"clusterId"`
+	DeploymentID         uuid.UUID       `json:"deploymentId"`
+	PlacementStatus      PlacementStatus `json:"placementStatus"`
+	DesiredReplicas      int32           `json:"desiredReplicas"`
+	Problem              []byte          `json:"problem"`
+	Placed               bool            `json:"placed"`
+	PlacedDeploymentID   *uuid.UUID      `json:"placedDeploymentId"`
+	ReadyReplicas        int32           `json:"readyReplicas"`
+	StatusUpdatedAt      *time.Time      `json:"statusUpdatedAt"`
+	StoredStatus         string          `json:"storedStatus"`
+	RegionStatusSince    *time.Time      `json:"regionStatusSince"`
+	Replicas             []byte          `json:"replicas"`
+	LastHeartbeat        *time.Time      `json:"lastHeartbeat"`
+	HealthStatus         *string         `json:"healthStatus"`
+	UnservedDomains      []string        `json:"unservedDomains"`
+	StatusCause          string          `json:"statusCause"`
+	Status               string          `json:"status"`
+	LastGoodDeploymentID string          `json:"lastGoodDeploymentId"`
+	EnvironmentStatus    string          `json:"environmentStatus"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRegionStatusesForResourcesParams) ([]ListRegionStatusesForResourcesRow, error) {
@@ -484,6 +493,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRe
 			&i.UnservedDomains,
 			&i.StatusCause,
 			&i.Status,
+			&i.LastGoodDeploymentID,
 			&i.EnvironmentStatus,
 		); err != nil {
 			return nil, err

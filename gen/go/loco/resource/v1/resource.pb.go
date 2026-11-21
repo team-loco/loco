@@ -823,6 +823,9 @@ type RegionStatus struct {
 	// The deployment with the most ready replicas in this region, the live deployment and then the
 	// newest on a tie. Empty while no replica is ready.
 	ServingDeploymentId string `protobuf:"bytes,13,opt,name=serving_deployment_id,json=servingDeploymentId,proto3" json:"serving_deployment_id,omitempty"`
+	// The newest earlier deployment in this region that a rollback returns to: running or superseded,
+	// and not the live deployment. Empty when there is none.
+	LastGoodDeploymentId string `protobuf:"bytes,14,opt,name=last_good_deployment_id,json=lastGoodDeploymentId,proto3" json:"last_good_deployment_id,omitempty"`
 	// The status of the live deployment's placement in this region.
 	PlacementStatus v1.PlacementStatus     `protobuf:"varint,10,opt,name=placement_status,json=placementStatus,proto3,enum=loco.deployment.v1.PlacementStatus" json:"placement_status,omitempty"`
 	Message         *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
@@ -905,6 +908,13 @@ func (x *RegionStatus) GetDeploymentId() string {
 func (x *RegionStatus) GetServingDeploymentId() string {
 	if x != nil {
 		return x.ServingDeploymentId
+	}
+	return ""
+}
+
+func (x *RegionStatus) GetLastGoodDeploymentId() string {
+	if x != nil {
+		return x.LastGoodDeploymentId
 	}
 	return ""
 }
@@ -3083,14 +3093,15 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x128\n" +
 	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\x12B\n" +
 	"\fstatus_since\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vstatusSince\x88\x01\x01B\x0f\n" +
-	"\r_status_since\"\xec\x04\n" +
+	"\r_status_since\"\xa3\x05\n" +
 	"\fRegionStatus\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x128\n" +
 	"\x06status\x18\x02 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x12%\n" +
 	"\x0eready_replicas\x18\x03 \x01(\x05R\rreadyReplicas\x12)\n" +
 	"\x10desired_replicas\x18\x04 \x01(\x05R\x0fdesiredReplicas\x12#\n" +
 	"\rdeployment_id\x18\x05 \x01(\tR\fdeploymentId\x122\n" +
-	"\x15serving_deployment_id\x18\r \x01(\tR\x13servingDeploymentId\x12N\n" +
+	"\x15serving_deployment_id\x18\r \x01(\tR\x13servingDeploymentId\x125\n" +
+	"\x17last_good_deployment_id\x18\x0e \x01(\tR\x14lastGoodDeploymentId\x12N\n" +
 	"\x10placement_status\x18\n" +
 	" \x01(\x0e2#.loco.deployment.v1.PlacementStatusR\x0fplacementStatus\x12\x1d\n" +
 	"\amessage\x18\a \x01(\tH\x00R\amessage\x88\x01\x01\x12@\n" +
