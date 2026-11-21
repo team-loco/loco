@@ -34,6 +34,8 @@ require (
 	github.com/foxboron/go-tpm-keyfiles v0.0.0-20260902202739-8c9c2d1005f4 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.8.0 // indirect
+	github.com/go-logr/logr v1.4.4 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/google/go-tpm v0.9.9-0.20260124013517-8f8f42cba0de // indirect
@@ -63,6 +65,7 @@ require (
 	github.com/sethvargo/go-retry v0.5.0 // indirect
 	github.com/shopspring/decimal v1.6.0 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/collector/client v1.71.0 // indirect
 	go.opentelemetry.io/collector/config/configopaque v1.71.0 // indirect
 	go.opentelemetry.io/collector/config/configretry v1.71.0 // indirect
@@ -82,6 +85,7 @@ require (
 	go.opentelemetry.io/collector/pipeline v1.71.0 // indirect
 	go.opentelemetry.io/collector/pipeline/xpipeline v0.165.0 // indirect
 	go.opentelemetry.io/otel v1.47.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2 // indirect

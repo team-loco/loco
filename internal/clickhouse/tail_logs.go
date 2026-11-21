@@ -75,7 +75,7 @@ func (c *Client) QueryTailLogPage(ctx context.Context, q LogQuery, cursor TailLo
 		return TailLogPage{}, err
 	}
 	ctx = ch.Context(ctx, ch.WithParameters(parameters))
-	page, err := queryLogPage(ctx, c.conn, query, nil, q.Limit)
+	page, err := c.queryLogPage(ctx, "QueryTailLogs", query, nil, q.Limit)
 	if err != nil {
 		return TailLogPage{}, err
 	}

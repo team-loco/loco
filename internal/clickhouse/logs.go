@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/internal/logquery"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -50,7 +49,7 @@ func (c *Client) QueryLogs(ctx context.Context, q LogQuery) (*observabilityv1.Qu
 		return nil, err
 	}
 	slog.DebugContext(ctx, "executing log query", "query", query)
-	page, err := queryLogPage(ctx, c.conn, query, args, q.Limit)
+	page, err := c.queryLogPage(ctx, "QueryLogs", query, args, q.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +59,7 @@ func (c *Client) QueryLogs(ctx context.Context, q LogQuery) (*observabilityv1.Qu
 	countQuery := "SELECT count() FROM otel_logs WHERE " + strings.Join(where, " AND ") +
 		fmt.Sprintf(" SETTINGS max_execution_time = %d", int(c.queryTimeout.Seconds()))
 	var total uint64
-	if err := c.conn.QueryRow(ctx, countQuery, b.args...).Scan(&total); err != nil {
+	if err := c.scanRow(ctx, "CountLogs", countQuery, b.args, &total); err != nil {
 		return nil, fmt.Errorf("count matching logs: %w", err)
 	}
 	return &observabilityv1.QueryLogsResponse{
@@ -68,8 +67,13 @@ func (c *Client) QueryLogs(ctx context.Context, q LogQuery) (*observabilityv1.Qu
 	}, nil
 }
 
-func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []any, limit int32) (logPage, error) {
-	rows, err := conn.Query(ctx, query, args...)
+func (c *Client) queryLogPage(
+	ctx context.Context,
+	summary, query string,
+	args []any,
+	limit int32,
+) (logPage, error) {
+	rows, err := c.query(ctx, summary, query, args...)
 	if err != nil {
 		return logPage{}, fmt.Errorf("clickhouse query: %w", err)
 	}

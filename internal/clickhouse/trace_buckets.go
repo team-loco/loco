@@ -27,7 +27,7 @@ func (c *Client) QueryTraceBuckets(
 		"countIf(status = %s), quantiles(0.5, 0.95)(duration_nanos) FROM (%s) GROUP BY bucket WITH TOTALS "+
 		"SETTINGS max_execution_time = %d",
 		req.GetIntervalSeconds(), failedStatus, summaries, int(c.queryTimeout.Seconds()))
-	rows, err := c.conn.Query(ctx, query, b.args...)
+	rows, err := c.query(ctx, "QueryTraceBuckets", query, b.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query trace buckets: %w", err)
 	}

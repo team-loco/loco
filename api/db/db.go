@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/exaring/otelpgx"
@@ -17,6 +18,7 @@ const (
 	maxConnLifetimeJitter = 5 * time.Minute
 	maxConnIdleTime       = 2 * time.Minute
 	connectTimeout        = 5 * time.Second
+	sqlcNamePrefix        = "-- name: "
 )
 
 type Config struct {
@@ -44,7 +46,7 @@ func NewPool(ctx context.Context, config Config) (*pgxpool.Pool, error) {
 		cfg.ConnConfig.RuntimeParams[statementTimeoutParam] = milliseconds
 	}
 
-	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithSpanNameCtxFunc(queryName))
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
@@ -58,4 +60,14 @@ func NewPool(ctx context.Context, config Config) (*pgxpool.Pool, error) {
 	slog.Info("Database connection established")
 
 	return pool, nil
+}
+
+// queryName names a statement's span after its sqlc query, such as CountWorkspaceContents.
+func queryName(ctx context.Context, sql string) string {
+	if rest, ok := strings.CutPrefix(sql, sqlcNamePrefix); ok {
+		if name, _, found := strings.Cut(rest, " "); found {
+			return name
+		}
+	}
+	return otelpgx.SQLOperationName(ctx, sql)
 }

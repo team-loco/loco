@@ -64,7 +64,7 @@ func (c *Client) queryTrafficMetrics(
 	)
 	queryArgs = append(queryArgs, b.args...)
 	queryArgs = append(queryArgs, req.GetStartTime().AsTime().UnixNano())
-	rows, err := c.conn.Query(ctx, query, queryArgs...)
+	rows, err := c.query(ctx, "QueryTrafficMetrics", query, queryArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("query traffic metrics: %w", err)
 	}

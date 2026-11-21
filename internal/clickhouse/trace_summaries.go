@@ -83,7 +83,7 @@ func (c *Client) ListTraces(
 	query = "SELECT TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4, " +
 		"count() OVER () FROM (" + query + ") ORDER BY " + sort + direction + ", TraceId ASC LIMIT ? OFFSET ?" + settings
 	b.args = append(b.args, limit, req.GetOffset())
-	rows, err := c.conn.Query(ctx, query, b.args...)
+	rows, err := c.query(ctx, "ListTraces", query, b.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query trace summaries: %w", err)
 	}
@@ -127,7 +127,7 @@ func (c *Client) ListTraces(
 	}
 	// A page past the end has no rows to carry the total.
 	if len(summaries) == 0 && req.GetOffset() > 0 {
-		err := c.conn.QueryRow(ctx, "SELECT count() FROM ("+summaryQuery+")"+settings, summaryArgs...).Scan(&total)
+		err := c.scanRow(ctx, "CountTraces", "SELECT count() FROM ("+summaryQuery+")"+settings, summaryArgs, &total)
 		if err != nil {
 			return nil, fmt.Errorf("count trace summaries: %w", err)
 		}
