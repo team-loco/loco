@@ -473,10 +473,10 @@ export function ResourcesTable({
 	const serverRows = draftsOnly
 		? []
 		: (listed.query.data?.resources ?? []).map((r) => envResource(r, deployments, environmentId));
-	const data: DashboardItem[] = [...(state.page.length === 0 ? shownItems : []), ...serverRows];
+	const data: DashboardItem[] = [...serverRows, ...(state.page.length === 0 ? shownItems : [])];
 	const mapped: DashboardItem[] = [
-		...shownItems,
 		...(draftsOnly ? [] : envResources.filter((r) => !hasFilters || matching?.has(r.resource.id) !== false)),
+		...shownItems,
 	];
 	const matched = draftsOnly ? draftCount : listed.total;
 

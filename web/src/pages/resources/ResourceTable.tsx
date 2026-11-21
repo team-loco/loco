@@ -113,7 +113,7 @@ export function ResourceTable({
 	const draftsOnly = filter.status === DRAFT;
 	const serverRows = draftsOnly ? [] : buildRows(resources, deployments, environments, active?.id);
 	const draftCount = shownDrafts(drafts, { ...filter, status: DRAFT }).length;
-	const data: ListRow[] = [...(state.page.length === 0 ? shownDrafts(drafts, filter) : []), ...serverRows];
+	const data: ListRow[] = [...serverRows, ...(state.page.length === 0 ? shownDrafts(drafts, filter) : [])];
 	const facets = listed.counts?.facets;
 	const counts = statusCounts(listed.total, facets, draftCount);
 	const matched = facets === undefined && !draftsOnly ? undefined : (counts.get(filter.status) ?? 0);
