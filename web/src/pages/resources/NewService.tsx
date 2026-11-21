@@ -169,13 +169,13 @@ function ImageStep({
 	onContinue: () => void;
 }) {
 	const scopes = useMyScopes();
-	const [tried, setTried] = useState(false);
 	const [edited, setEdited] = useState(false);
 	const error = imageError(image);
-	const shown = tried || edited ? error : null;
+	const shown = edited ? error : null;
 	const nameErr = nameError(name, taken.names) ?? derivedSlugError(name, taken.slugs);
 
 	const waiting = scopes.isLoading || loading;
+	const ready = !waiting && error === null && nameErr === null;
 	const notice = waiting
 		? null
 		: scopes.workspaceLevel(orgId, workspaceId) < scopeLevel(Scope.WRITE)
@@ -204,8 +204,7 @@ function ImageStep({
 			className="contents"
 			onSubmit={(e) => {
 				e.preventDefault();
-				setTried(true);
-				if (!waiting && error === null && nameErr === null) onContinue();
+				if (ready) onContinue();
 			}}
 		>
 			<DialogBody>
@@ -240,7 +239,9 @@ function ImageStep({
 			</DialogBody>
 			<DialogFooter>
 				<DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-				<Button type="submit">Continue</Button>
+				<Button type="submit" disabled={!ready}>
+					Continue
+				</Button>
 			</DialogFooter>
 		</form>
 	);
@@ -689,7 +690,6 @@ function ServiceForm({
 							<Input
 								value={form.port}
 								inputMode="numeric"
-								placeholder="None"
 								className="font-mono"
 								aria-invalid={shown(errors.port, "port") !== null || apiError("port") !== null}
 								onChange={(e) => {
@@ -773,13 +773,10 @@ function ServiceForm({
 				/>
 
 				<details className="group flex flex-col gap-2.5">
-					<summary className="w-fit text-[14px] font-medium">loco.yaml</summary>
+					<summary className="w-fit font-mono text-[13.5px] font-medium">loco.yaml</summary>
 					<div className="mt-2.5 flex flex-col gap-2.5">
-						<p className="m-0 text-[12.5px] text-fg3">
-							The same service as a <code className="font-mono">loco.yaml</code>. Save it next to your code and run:
-						</p>
-						<CodeBlock>{`loco deploy --env ${env.slug}`}</CodeBlock>
-						<CodeBlock>{locoYaml({ schemaUrl, form })}</CodeBlock>
+						<CodeBlock copyLabel="Copy command" lineNumbers={false}>{`loco deploy --env ${env.slug}`}</CodeBlock>
+						<CodeBlock copyLabel="Copy loco.yaml">{locoYaml({ schemaUrl, form })}</CodeBlock>
 					</div>
 				</details>
 			</SheetBody>

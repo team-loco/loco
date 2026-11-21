@@ -350,9 +350,13 @@ with session(out) as browser:
     ask = page.get_by_role("dialog", name="New resource")
     image_input = ask.get_by_role("textbox", name="Container image")
     expect(image_input).to_be_focused()
-    ask.get_by_role("button", name="Continue", exact=True).click()
-    expect(ask.get_by_text("Enter an image", exact=True)).to_be_visible()
+    expect(ask.get_by_role("button", name="Continue", exact=True)).to_be_disabled()
     expect(ask.get_by_role("textbox", name="Name")).to_have_count(0)
+    image_input.fill("not an image!")
+    expect(
+        ask.get_by_text("An image reference can't contain spaces", exact=True)
+    ).to_be_visible()
+    expect(ask.get_by_role("button", name="Continue", exact=True)).to_be_disabled()
     image_input.fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
     expect(name_input).to_have_value(name)
@@ -581,6 +585,8 @@ with session(out) as browser:
     expect(
         drawer.get_by_text('args: ["-text=hello world", "-listen=:8080"]', exact=False)
     ).to_be_visible()
+    for copy in ("Copy command", "Copy loco.yaml"):
+        expect(drawer.get_by_role("button", name=copy, exact=True)).to_have_count(1)
     drawer.get_by_text("loco.yaml", exact=True).first.click()
     expect(drawer.get_by_text("To production", exact=True)).to_be_visible()
     assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
