@@ -10,6 +10,7 @@ export const EVENTS_MAX_MS = WEEK_MS;
 export const DEFAULT_SPAN_MS = 15 * MINUTE_MS;
 export const AROUND_MS = 5 * MINUTE_MS;
 
+const EXAMPLES_MS = [15 * MINUTE_MS, 6 * HOUR_MS, 3 * DAY_MS, 2 * WEEK_MS];
 const PRESETS_MS = [15 * MINUTE_MS, HOUR_MS, 4 * HOUR_MS, 12 * HOUR_MS, DAY_MS, 2 * DAY_MS, WEEK_MS];
 
 const UNITS: { suffix: string; ms: number; name: string }[] = [
@@ -33,6 +34,13 @@ export interface Bounds {
 
 export function presetsWithin(maxMs: number): number[] {
 	return PRESETS_MS.filter((ms) => ms <= maxMs);
+}
+
+/** Example spans for the typed range field, within `maxMs`. */
+export function spanExamples(maxMs: number): string {
+	return EXAMPLES_MS.filter((ms) => ms <= maxMs)
+		.map(formatSpan)
+		.join(", ");
 }
 
 function unitFor(word: string) {

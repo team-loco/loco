@@ -317,9 +317,9 @@ export function QueryBar({
 		if (ks.length > 0) groups.push({ title: "Attributes", items: ks.map((f) => keyItem(f, false)) });
 	}
 
-	const curQuery = queryStr(tokens, text);
+	const curQuery = queryStr(tokens, applied);
 	const pinned = curQuery !== "" && pinnedList.includes(curQuery);
-	const applies = recentQuery(view, tokens, text) !== "";
+	const applies = recentQuery(view, tokens, applied) !== "";
 
 	const onChange = (v: string) => {
 		const m = hasBoolean(v) ? null : COMPLETED_TOKEN_RE.exec(v);
@@ -448,10 +448,7 @@ export function QueryBar({
 						</Button>
 					)}
 				</div>
-				<ComboboxContent
-					anchor={anchor}
-					className="w-[min(560px,var(--anchor-width))] min-w-0 p-1.5 data-[chips=true]:min-w-0"
-				>
+				<ComboboxContent anchor={anchor} className="min-w-0 p-1.5 data-[chips=true]:min-w-0">
 					<ComboboxList aria-label="Suggestions">
 						{groups
 							.filter((g) => g.items.length > 0)
@@ -503,7 +500,12 @@ export function QueryBar({
 						<ComboboxEmpty className="p-2.5 text-fg3">No matches</ComboboxEmpty>
 					</ComboboxList>
 					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
-						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>OR</Kbd> either
+						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude
+						{view === "traces" && (
+							<>
+								<Kbd>@duration:&gt;500</Kbd> compare
+							</>
+						)}
 					</div>
 				</ComboboxContent>
 			</div>
