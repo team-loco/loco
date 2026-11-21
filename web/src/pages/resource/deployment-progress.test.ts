@@ -293,7 +293,7 @@ test("a stopped live deployment names the older deployment its region still serv
 	});
 	const found = servingBehindStop([stopped(status(PlacementStatus.FAILED, ["previous", "previous"]))]);
 	expect([found?.stopped.id, found?.serving.id]).toEqual(["pending", "previous"]);
-	expect(servingBehindStop([stopped(status(PlacementStatus.CANCELED, ["previous"]))])?.serving.id).toBe("previous");
+	expect(servingBehindStop([stopped(status(PlacementStatus.CRASHED, ["previous"]))])?.serving.id).toBe("previous");
 	expect(servingBehindStop([stopped(status(PlacementStatus.FAILED, ["pending"]))])).toBeUndefined();
 	expect(servingBehindStop([stopped(status(PlacementStatus.FAILED, []))])).toBeUndefined();
 	expect(servingBehindStop([stopped(status(PlacementStatus.DEPLOYING, ["previous"]))])).toBeUndefined();

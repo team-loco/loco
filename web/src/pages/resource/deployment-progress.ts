@@ -60,14 +60,14 @@ export function servingDeployments(replicas: readonly Replica[]) {
 	return [...counts].map(([id, readyReplicas]) => ({ id, readyReplicas }));
 }
 
-const STOPPED = new Set([PlacementStatus.FAILED, PlacementStatus.CRASHED, PlacementStatus.CANCELED]);
-
 /** A region whose live deployment stopped while an older deployment's ready replicas keep serving it. */
 export function servingBehindStop(regions: readonly RegionView[]) {
 	for (const region of regions) {
 		const stopped = region.current;
 		const status = region.status;
-		if (stopped === undefined || status === undefined || !STOPPED.has(status.placementStatus)) continue;
+		if (stopped === undefined || status === undefined) continue;
+		if (status.placementStatus !== PlacementStatus.FAILED && status.placementStatus !== PlacementStatus.CRASHED)
+			continue;
 		const id = servingDeployments(status.replicas).find((d) => d.id !== stopped.id)?.id;
 		const serving = region.history.find((d) => d.id === id);
 		if (serving !== undefined) return { region, stopped, serving };
