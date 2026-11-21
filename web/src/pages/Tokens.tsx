@@ -41,7 +41,6 @@ import type { Owner } from "./tokens/useTokenData";
 const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
 const NEW_PARAM = "new";
-const LIMIT_SCOPE: Record<OwnerKey, string> = { org: "organization", ws: "workspace", user: "personal" };
 const TOKEN_DOCS = `${DOCS_URL}/operations/access/#deploy-from-ci-with-an-api-token`;
 
 const TOKENS_PARAMS = {
@@ -131,7 +130,9 @@ export function Tokens() {
 		owner.entityType === EntityType.USER ? config.data?.countLimits?.tokensPerEntity : limits?.tokensPerEntity;
 	const noun = ownerKey === "user" ? "personal tokens" : "tokens";
 	const usage =
-		current.isLoading || current.error ? null : limitUsage(tokens.length, tokenLimit, noun, LIMIT_SCOPE[ownerKey]);
+		current.isLoading || current.error
+			? null
+			: limitUsage(tokens.length, tokenLimit, noun, OWNER_TITLE[ownerKey].toLowerCase());
 	const createBlocked = owner.canCreate ? limitReason(usage) : owner.createHint;
 	const newTokenButton = (
 		<Button disabled={createBlocked !== null} onClick={openCreate}>
