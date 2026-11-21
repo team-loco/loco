@@ -24,6 +24,9 @@ service OrgService {
   rpc ListUserOrgs(ListUserOrgsRequest) returns (ListUserOrgsResponse);
   // ListOrgMembers lists organization members; organization membership is required.
   rpc ListOrgMembers(ListOrgMembersRequest) returns (ListOrgMembersResponse);
+  // ListOrgPeople lists members and open invitations together: invitations newest first, then the
+  // caller, then the other members by name. Organization membership is required.
+  rpc ListOrgPeople(ListOrgPeopleRequest) returns (ListOrgPeopleResponse);
   // SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
   rpc SetOrgMemberRole(SetOrgMemberRoleRequest) returns (SetOrgMemberRoleResponse);
   // RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.
@@ -142,6 +145,69 @@ message OrgMember {
   google.protobuf.Timestamp joined_at = 3;
   // Last recorded identity sign-in, throttled by LOCO_TOKEN_LAST_USED_INTERVAL.
   google.protobuf.Timestamp last_login_at = 4;
+}
+
+// OrgPeopleView picks which people ListOrgPeople lists.
+enum OrgPeopleView {
+  // Members and open invitations.
+  ORG_PEOPLE_VIEW_UNSPECIFIED = 0;
+  ORG_PEOPLE_VIEW_MEMBERS = 1;
+  ORG_PEOPLE_VIEW_INVITATIONS = 2;
+}
+
+// ListOrgPeopleRequest selects a page of an organization's members and open invitations.
+message ListOrgPeopleRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  string page_token = 3 [(buf.validate.field).string.max_len = 512];
+  // Sets total_count, member_count and invitation_count in the response.
+  bool include_total_count = 4;
+  // Matches members' names and emails and invitations' emails, ignoring case.
+  string query = 5 [(buf.validate.field).string.max_len = 200];
+  OrgPeopleView view = 6 [(buf.validate.field).enum.defined_only = true];
+  // Only members with access to this workspace, organization admins included; no invitations.
+  string workspace_id = 7 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// OrgPerson is a member or an open invitation.
+message OrgPerson {
+  oneof person {
+    OrgMember member = 1;
+    Invitation invitation = 2;
+  }
+  // The member's access in each workspace the caller can read; empty for an invitation.
+  repeated MemberWorkspaceAccess workspaces = 3;
+}
+
+// MemberWorkspaceAccess is a member's scopes in one workspace.
+message MemberWorkspaceAccess {
+  string workspace_id = 1;
+  string workspace_name = 2;
+  repeated string scopes = 3;
+}
+
+// ListOrgPeopleResponse is a page of people. The counts are set when include_total_count is; each is
+// exact up to 10,000, and 10,001 means more than 10,000.
+message ListOrgPeopleResponse {
+  repeated OrgPerson people = 1;
+  // Empty on the last page.
+  string next_page_token = 2;
+  // The people the query, view and workspace filters match, ignoring page_token.
+  int32 total_count = 3;
+  // All members and all open invitations, ignoring the filters.
+  int32 member_count = 4;
+  int32 invitation_count = 5;
+  // For each workspace the caller can read, keyed by its ID: the members with access to it,
+  // organization admins included, which is what the workspace filter keeps.
+  map<string, int32> workspace_member_counts = 6;
+  // Open invitations that have not expired, the count the invitations_per_org limit caps.
+  int32 open_invitation_count = 7;
 }
 
 // RemoveOrgMemberRequest identifies another user to remove from the organization.

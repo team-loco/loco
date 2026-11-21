@@ -27,7 +27,7 @@ A user joins an organization only by accepting an invitation. An organization ad
 
 The dashboard and CLI return a sign-in link for the inviter to copy and share. Core sends no email. Installations that want invitation email consume the [`invitation.created` and `invitation.resent` webhook events](webhooks.md#invitation-events). Resending extends the invitation expiry and records a new event.
 
-`OrgService.RemoveOrgMember` removes a member, naming the user by the ID `UserService.WhoAmI` returns for them. `OrgService.ListOrgMembers` lists each member with their organization scopes, join date and last recorded sign-in. Role changes preserve the join date. Sign-in timestamps update at most once per `LOCO_TOKEN_LAST_USED_INTERVAL`, except when identity email details change; they do not measure session activity. The dashboard Team page displays both dates. Removing a member also removes every workspace and resource grant they hold in that organization.
+`OrgService.RemoveOrgMember` removes a member, naming the user by the ID `UserService.WhoAmI` returns for them. `OrgService.ListOrgMembers` lists each member with their organization scopes, join date and last recorded sign-in. Role changes preserve the join date. Sign-in timestamps update at most once per `LOCO_TOKEN_LAST_USED_INTERVAL`, except when identity email details change; they do not measure session activity. The dashboard Team page displays both dates. `OrgService.ListOrgPeople` lists members and open invitations together, one page at a time, with a search across names and emails and a filter for the members with access to one workspace. Removing a member also removes every workspace and resource grant they hold in that organization.
 
 ## Grant a workspace
 

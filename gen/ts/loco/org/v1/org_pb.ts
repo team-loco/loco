@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/org/v1/org.proto.
  */
 export const file_loco_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIscCCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDHN1c3BlbmRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRc3VzcGVuc2lvbl9yZWFzb24YByABKAkSHAoPd29ya3NwYWNlX2NvdW50GAggASgDSACIAQESGQoMbWVtYmVyX2NvdW50GAkgASgDSAGIAQFCEgoQX3dvcmtzcGFjZV9jb3VudEIPCg1fbWVtYmVyX2NvdW50IjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiMQoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJEgwKBG5hbWUYAiABKAkiKQoNR2V0T3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBIkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiKbAQoTTGlzdFVzZXJPcmdzUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCRIZChFjcmVhdGVfaWZfbWlzc2luZxgEIAEoCBIbChNpbmNsdWRlX3RvdGFsX2NvdW50GAUgASgIIoQBChRMaXN0VXNlck9yZ3NSZXNwb25zZRInCgRvcmdzGAEgAygLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBRIVCg1jcmVhdGVkX2NvdW50GAQgASgFImQKFUxpc3RPcmdNZW1iZXJzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIloKFkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USJwoHbWVtYmVycxgBIAMoCzIWLmxvY28ub3JnLnYxLk9yZ01lbWJlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkingEKCU9yZ01lbWJlchIfCgR1c2VyGAEgASgLMhEubG9jby5vcmcudjEuVXNlchIOCgZzY29wZXMYAiADKAkSLQoJam9pbmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIxCg1sYXN0X2xvZ2luX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJNChZSZW1vdmVPcmdNZW1iZXJSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGQoHdXNlcl9pZBgCIAEoCUIIukgFcgOwAQEiGQoXUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2UifgoXU2V0T3JnTWVtYmVyUm9sZVJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABARIuCgRyb2xlGAMgASgOMhQubG9jby5vcmcudjEuT3JnUm9sZUIKukgHggEEEAEgACIaChhTZXRPcmdNZW1iZXJSb2xlUmVzcG9uc2Ui8AEKCkludml0YXRpb24SCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEg0KBWVtYWlsGAMgASgJEiUKCmludml0ZWRfYnkYBCABKAsyES5sb2NvLm9yZy52MS5Vc2VyEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGxpbmsYByABKAkSIgoEcm9sZRgIIAEoDjIULmxvY28ub3JnLnYxLk9yZ1JvbGUieAoWSW52aXRlT3JnTWVtYmVyUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhYKBWVtYWlsGAIgASgJQge6SARyAhABEiwKBHJvbGUYAyABKA4yFC5sb2NvLm9yZy52MS5PcmdSb2xlQgi6SAWCAQIQASJGChdJbnZpdGVPcmdNZW1iZXJSZXNwb25zZRIrCgppbnZpdGF0aW9uGAEgASgLMhcubG9jby5vcmcudjEuSW52aXRhdGlvbiJlChZMaXN0SW52aXRhdGlvbnNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiYAoXTGlzdEludml0YXRpb25zUmVzcG9uc2USLAoLaW52aXRhdGlvbnMYASADKAsyFy5sb2NvLm9yZy52MS5JbnZpdGF0aW9uEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIvChdSZXZva2VJbnZpdGF0aW9uUmVxdWVzdBIUCgJpZBgBIAEoCUIIukgFcgOwAQEiGgoYUmV2b2tlSW52aXRhdGlvblJlc3BvbnNlIi8KF1Jlc2VuZEludml0YXRpb25SZXF1ZXN0EhQKAmlkGAEgASgJQgi6SAVyA7ABASJHChhSZXNlbmRJbnZpdGF0aW9uUmVzcG9uc2USKwoKaW52aXRhdGlvbhgBIAEoCzIXLmxvY28ub3JnLnYxLkludml0YXRpb24iQwoEVXNlchIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIMCgRuYW1lGAMgASgJEhIKCmF2YXRhcl91cmwYBCABKAkiUwoQVXBkYXRlT3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhwKBG5hbWUYAiABKAlCCbpIBnIEEAEYZEgAiAEBQgcKBV9uYW1lIiMKEVVwZGF0ZU9yZ1Jlc3BvbnNlEg4KBm9yZ19pZBgBIAEoCSIsChBEZWxldGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiEwoRRGVsZXRlT3JnUmVzcG9uc2UiSQoRU3VzcGVuZE9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIaCgZyZWFzb24YAiABKAlCCrpIB3IFEAEY9AMiRQoSU3VzcGVuZE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiIsChBSZXN1bWVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiRAoRUmVzdW1lT3JnUmVzcG9uc2USLwoMb3JnYW5pemF0aW9uGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uIqABCglPcmdMaW1pdHMSKwoGbGltaXRzGAEgASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMSEgoKb3ZlcnJpZGRlbhgCIAMoCRIOCgZyZWFzb24YAyABKAkSEgoKdXBkYXRlZF9ieRgEIAEoCRIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIvChNHZXRPcmdMaW1pdHNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiPgoUR2V0T3JnTGltaXRzUmVzcG9uc2USJgoGbGltaXRzGAEgASgLMhYubG9jby5vcmcudjEuT3JnTGltaXRzIrkBChNTZXRPcmdMaW1pdHNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESMwoGbGltaXRzGAIgASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHNCBrpIA8gBARI3Cgt1cGRhdGVfbWFzaxgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2tCBrpIA8gBARIaCgZyZWFzb24YBCABKAlCCrpIB3IFEAEY9AMiPgoUU2V0T3JnTGltaXRzUmVzcG9uc2USJgoGbGltaXRzGAEgASgLMhYubG9jby5vcmcudjEuT3JnTGltaXRzKkwKB09yZ1JvbGUSGAoUT1JHX1JPTEVfVU5TUEVDSUZJRUQQABISCg5PUkdfUk9MRV9BRE1JThABEhMKD09SR19ST0xFX01FTUJFUhACMuUKCgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRJBCgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhsubG9jby5vcmcudjEuR2V0T3JnUmVzcG9uc2USSgoJVXBkYXRlT3JnEh0ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1Jlc3BvbnNlEkoKCURlbGV0ZU9yZxIdLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXNwb25zZRJTCgxMaXN0VXNlck9yZ3MSIC5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVzcG9uc2USWQoOTGlzdE9yZ01lbWJlcnMSIi5sb2NvLm9yZy52MS5MaXN0T3JnTWVtYmVyc1JlcXVlc3QaIy5sb2NvLm9yZy52MS5MaXN0T3JnTWVtYmVyc1Jlc3BvbnNlEl8KEFNldE9yZ01lbWJlclJvbGUSJC5sb2NvLm9yZy52MS5TZXRPcmdNZW1iZXJSb2xlUmVxdWVzdBolLmxvY28ub3JnLnYxLlNldE9yZ01lbWJlclJvbGVSZXNwb25zZRJcCg9SZW1vdmVPcmdNZW1iZXISIy5sb2NvLm9yZy52MS5SZW1vdmVPcmdNZW1iZXJSZXF1ZXN0GiQubG9jby5vcmcudjEuUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2USTQoKU3VzcGVuZE9yZxIeLmxvY28ub3JnLnYxLlN1c3BlbmRPcmdSZXF1ZXN0Gh8ubG9jby5vcmcudjEuU3VzcGVuZE9yZ1Jlc3BvbnNlEkoKCVJlc3VtZU9yZxIdLmxvY28ub3JnLnYxLlJlc3VtZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5SZXN1bWVPcmdSZXNwb25zZRJTCgxHZXRPcmdMaW1pdHMSIC5sb2NvLm9yZy52MS5HZXRPcmdMaW1pdHNSZXF1ZXN0GiEubG9jby5vcmcudjEuR2V0T3JnTGltaXRzUmVzcG9uc2USUwoMU2V0T3JnTGltaXRzEiAubG9jby5vcmcudjEuU2V0T3JnTGltaXRzUmVxdWVzdBohLmxvY28ub3JnLnYxLlNldE9yZ0xpbWl0c1Jlc3BvbnNlElwKD0ludml0ZU9yZ01lbWJlchIjLmxvY28ub3JnLnYxLkludml0ZU9yZ01lbWJlclJlcXVlc3QaJC5sb2NvLm9yZy52MS5JbnZpdGVPcmdNZW1iZXJSZXNwb25zZRJcCg9MaXN0SW52aXRhdGlvbnMSIy5sb2NvLm9yZy52MS5MaXN0SW52aXRhdGlvbnNSZXF1ZXN0GiQubG9jby5vcmcudjEuTGlzdEludml0YXRpb25zUmVzcG9uc2USXwoQUmV2b2tlSW52aXRhdGlvbhIkLmxvY28ub3JnLnYxLlJldm9rZUludml0YXRpb25SZXF1ZXN0GiUubG9jby5vcmcudjEuUmV2b2tlSW52aXRhdGlvblJlc3BvbnNlEl8KEFJlc2VuZEludml0YXRpb24SJC5sb2NvLm9yZy52MS5SZXNlbmRJbnZpdGF0aW9uUmVxdWVzdBolLmxvY28ub3JnLnYxLlJlc2VuZEludml0YXRpb25SZXNwb25zZUI0WjJnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL29yZy92MTtvcmd2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_loco_config_v1_config]);
+  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIscCCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDHN1c3BlbmRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRc3VzcGVuc2lvbl9yZWFzb24YByABKAkSHAoPd29ya3NwYWNlX2NvdW50GAggASgDSACIAQESGQoMbWVtYmVyX2NvdW50GAkgASgDSAGIAQFCEgoQX3dvcmtzcGFjZV9jb3VudEIPCg1fbWVtYmVyX2NvdW50IjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiMQoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJEgwKBG5hbWUYAiABKAkiKQoNR2V0T3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBIkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiKbAQoTTGlzdFVzZXJPcmdzUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCRIZChFjcmVhdGVfaWZfbWlzc2luZxgEIAEoCBIbChNpbmNsdWRlX3RvdGFsX2NvdW50GAUgASgIIoQBChRMaXN0VXNlck9yZ3NSZXNwb25zZRInCgRvcmdzGAEgAygLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBRIVCg1jcmVhdGVkX2NvdW50GAQgASgFImQKFUxpc3RPcmdNZW1iZXJzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIloKFkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USJwoHbWVtYmVycxgBIAMoCzIWLmxvY28ub3JnLnYxLk9yZ01lbWJlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkingEKCU9yZ01lbWJlchIfCgR1c2VyGAEgASgLMhEubG9jby5vcmcudjEuVXNlchIOCgZzY29wZXMYAiADKAkSLQoJam9pbmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIxCg1sYXN0X2xvZ2luX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCL6AQoUTGlzdE9yZ1Blb3BsZVJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASHAoKcGFnZV90b2tlbhgDIAEoCUIIukgFcgMYgAQSGwoTaW5jbHVkZV90b3RhbF9jb3VudBgEIAEoCBIXCgVxdWVyeRgFIAEoCUIIukgFcgMYyAESMgoEdmlldxgGIAEoDjIaLmxvY28ub3JnLnYxLk9yZ1Blb3BsZVZpZXdCCLpIBYIBAhABEiEKDHdvcmtzcGFjZV9pZBgHIAEoCUILukgI2AEBcgOwAQEipgEKCU9yZ1BlcnNvbhIoCgZtZW1iZXIYASABKAsyFi5sb2NvLm9yZy52MS5PcmdNZW1iZXJIABItCgppbnZpdGF0aW9uGAIgASgLMhcubG9jby5vcmcudjEuSW52aXRhdGlvbkgAEjYKCndvcmtzcGFjZXMYAyADKAsyIi5sb2NvLm9yZy52MS5NZW1iZXJXb3Jrc3BhY2VBY2Nlc3NCCAoGcGVyc29uIlUKFU1lbWJlcldvcmtzcGFjZUFjY2VzcxIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFgoOd29ya3NwYWNlX25hbWUYAiABKAkSDgoGc2NvcGVzGAMgAygJItoCChVMaXN0T3JnUGVvcGxlUmVzcG9uc2USJgoGcGVvcGxlGAEgAygLMhYubG9jby5vcmcudjEuT3JnUGVyc29uEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBRIUCgxtZW1iZXJfY291bnQYBCABKAUSGAoQaW52aXRhdGlvbl9jb3VudBgFIAEoBRJeChd3b3Jrc3BhY2VfbWVtYmVyX2NvdW50cxgGIAMoCzI9LmxvY28ub3JnLnYxLkxpc3RPcmdQZW9wbGVSZXNwb25zZS5Xb3Jrc3BhY2VNZW1iZXJDb3VudHNFbnRyeRIdChVvcGVuX2ludml0YXRpb25fY291bnQYByABKAUaPAoaV29ya3NwYWNlTWVtYmVyQ291bnRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ASJNChZSZW1vdmVPcmdNZW1iZXJSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGQoHdXNlcl9pZBgCIAEoCUIIukgFcgOwAQEiGQoXUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2UifgoXU2V0T3JnTWVtYmVyUm9sZVJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABARIuCgRyb2xlGAMgASgOMhQubG9jby5vcmcudjEuT3JnUm9sZUIKukgHggEEEAEgACIaChhTZXRPcmdNZW1iZXJSb2xlUmVzcG9uc2Ui8AEKCkludml0YXRpb24SCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEg0KBWVtYWlsGAMgASgJEiUKCmludml0ZWRfYnkYBCABKAsyES5sb2NvLm9yZy52MS5Vc2VyEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGxpbmsYByABKAkSIgoEcm9sZRgIIAEoDjIULmxvY28ub3JnLnYxLk9yZ1JvbGUieAoWSW52aXRlT3JnTWVtYmVyUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhYKBWVtYWlsGAIgASgJQge6SARyAhABEiwKBHJvbGUYAyABKA4yFC5sb2NvLm9yZy52MS5PcmdSb2xlQgi6SAWCAQIQASJGChdJbnZpdGVPcmdNZW1iZXJSZXNwb25zZRIrCgppbnZpdGF0aW9uGAEgASgLMhcubG9jby5vcmcudjEuSW52aXRhdGlvbiJlChZMaXN0SW52aXRhdGlvbnNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiYAoXTGlzdEludml0YXRpb25zUmVzcG9uc2USLAoLaW52aXRhdGlvbnMYASADKAsyFy5sb2NvLm9yZy52MS5JbnZpdGF0aW9uEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIvChdSZXZva2VJbnZpdGF0aW9uUmVxdWVzdBIUCgJpZBgBIAEoCUIIukgFcgOwAQEiGgoYUmV2b2tlSW52aXRhdGlvblJlc3BvbnNlIi8KF1Jlc2VuZEludml0YXRpb25SZXF1ZXN0EhQKAmlkGAEgASgJQgi6SAVyA7ABASJHChhSZXNlbmRJbnZpdGF0aW9uUmVzcG9uc2USKwoKaW52aXRhdGlvbhgBIAEoCzIXLmxvY28ub3JnLnYxLkludml0YXRpb24iQwoEVXNlchIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIMCgRuYW1lGAMgASgJEhIKCmF2YXRhcl91cmwYBCABKAkiUwoQVXBkYXRlT3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhwKBG5hbWUYAiABKAlCCbpIBnIEEAEYZEgAiAEBQgcKBV9uYW1lIiMKEVVwZGF0ZU9yZ1Jlc3BvbnNlEg4KBm9yZ19pZBgBIAEoCSIsChBEZWxldGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiEwoRRGVsZXRlT3JnUmVzcG9uc2UiSQoRU3VzcGVuZE9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIaCgZyZWFzb24YAiABKAlCCrpIB3IFEAEY9AMiRQoSU3VzcGVuZE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiIsChBSZXN1bWVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiRAoRUmVzdW1lT3JnUmVzcG9uc2USLwoMb3JnYW5pemF0aW9uGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uIqABCglPcmdMaW1pdHMSKwoGbGltaXRzGAEgASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMSEgoKb3ZlcnJpZGRlbhgCIAMoCRIOCgZyZWFzb24YAyABKAkSEgoKdXBkYXRlZF9ieRgEIAEoCRIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIvChNHZXRPcmdMaW1pdHNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiPgoUR2V0T3JnTGltaXRzUmVzcG9uc2USJgoGbGltaXRzGAEgASgLMhYubG9jby5vcmcudjEuT3JnTGltaXRzIrkBChNTZXRPcmdMaW1pdHNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESMwoGbGltaXRzGAIgASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHNCBrpIA8gBARI3Cgt1cGRhdGVfbWFzaxgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2tCBrpIA8gBARIaCgZyZWFzb24YBCABKAlCCrpIB3IFEAEY9AMiPgoUU2V0T3JnTGltaXRzUmVzcG9uc2USJgoGbGltaXRzGAEgASgLMhYubG9jby5vcmcudjEuT3JnTGltaXRzKm4KDU9yZ1Blb3BsZVZpZXcSHwobT1JHX1BFT1BMRV9WSUVXX1VOU1BFQ0lGSUVEEAASGwoXT1JHX1BFT1BMRV9WSUVXX01FTUJFUlMQARIfChtPUkdfUEVPUExFX1ZJRVdfSU5WSVRBVElPTlMQAipMCgdPcmdSb2xlEhgKFE9SR19ST0xFX1VOU1BFQ0lGSUVEEAASEgoOT1JHX1JPTEVfQURNSU4QARITCg9PUkdfUk9MRV9NRU1CRVIQAjK9CwoKT3JnU2VydmljZRJKCglDcmVhdGVPcmcSHS5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVzcG9uc2USQQoGR2V0T3JnEhoubG9jby5vcmcudjEuR2V0T3JnUmVxdWVzdBobLmxvY28ub3JnLnYxLkdldE9yZ1Jlc3BvbnNlEkoKCVVwZGF0ZU9yZxIdLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXNwb25zZRJKCglEZWxldGVPcmcSHS5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuRGVsZXRlT3JnUmVzcG9uc2USUwoMTGlzdFVzZXJPcmdzEiAubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVxdWVzdBohLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1Jlc3BvbnNlElkKDkxpc3RPcmdNZW1iZXJzEiIubG9jby5vcmcudjEuTGlzdE9yZ01lbWJlcnNSZXF1ZXN0GiMubG9jby5vcmcudjEuTGlzdE9yZ01lbWJlcnNSZXNwb25zZRJWCg1MaXN0T3JnUGVvcGxlEiEubG9jby5vcmcudjEuTGlzdE9yZ1Blb3BsZVJlcXVlc3QaIi5sb2NvLm9yZy52MS5MaXN0T3JnUGVvcGxlUmVzcG9uc2USXwoQU2V0T3JnTWVtYmVyUm9sZRIkLmxvY28ub3JnLnYxLlNldE9yZ01lbWJlclJvbGVSZXF1ZXN0GiUubG9jby5vcmcudjEuU2V0T3JnTWVtYmVyUm9sZVJlc3BvbnNlElwKD1JlbW92ZU9yZ01lbWJlchIjLmxvY28ub3JnLnYxLlJlbW92ZU9yZ01lbWJlclJlcXVlc3QaJC5sb2NvLm9yZy52MS5SZW1vdmVPcmdNZW1iZXJSZXNwb25zZRJNCgpTdXNwZW5kT3JnEh4ubG9jby5vcmcudjEuU3VzcGVuZE9yZ1JlcXVlc3QaHy5sb2NvLm9yZy52MS5TdXNwZW5kT3JnUmVzcG9uc2USSgoJUmVzdW1lT3JnEh0ubG9jby5vcmcudjEuUmVzdW1lT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlJlc3VtZU9yZ1Jlc3BvbnNlElMKDEdldE9yZ0xpbWl0cxIgLmxvY28ub3JnLnYxLkdldE9yZ0xpbWl0c1JlcXVlc3QaIS5sb2NvLm9yZy52MS5HZXRPcmdMaW1pdHNSZXNwb25zZRJTCgxTZXRPcmdMaW1pdHMSIC5sb2NvLm9yZy52MS5TZXRPcmdMaW1pdHNSZXF1ZXN0GiEubG9jby5vcmcudjEuU2V0T3JnTGltaXRzUmVzcG9uc2USXAoPSW52aXRlT3JnTWVtYmVyEiMubG9jby5vcmcudjEuSW52aXRlT3JnTWVtYmVyUmVxdWVzdBokLmxvY28ub3JnLnYxLkludml0ZU9yZ01lbWJlclJlc3BvbnNlElwKD0xpc3RJbnZpdGF0aW9ucxIjLmxvY28ub3JnLnYxLkxpc3RJbnZpdGF0aW9uc1JlcXVlc3QaJC5sb2NvLm9yZy52MS5MaXN0SW52aXRhdGlvbnNSZXNwb25zZRJfChBSZXZva2VJbnZpdGF0aW9uEiQubG9jby5vcmcudjEuUmV2b2tlSW52aXRhdGlvblJlcXVlc3QaJS5sb2NvLm9yZy52MS5SZXZva2VJbnZpdGF0aW9uUmVzcG9uc2USXwoQUmVzZW5kSW52aXRhdGlvbhIkLmxvY28ub3JnLnYxLlJlc2VuZEludml0YXRpb25SZXF1ZXN0GiUubG9jby5vcmcudjEuUmVzZW5kSW52aXRhdGlvblJlc3BvbnNlQjRaMmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_loco_config_v1_config]);
 
 /**
  * Organization represents a top-level organization container for users, workspaces, and resources.
@@ -600,6 +600,337 @@ export const OrgMemberSchema: GenMessage<OrgMember, {jsonType: OrgMemberJson}> =
   messageDesc(file_loco_org_v1_org, 9);
 
 /**
+ * ListOrgPeopleRequest selects a page of an organization's members and open invitations.
+ *
+ * @generated from message loco.org.v1.ListOrgPeopleRequest
+ */
+export type ListOrgPeopleRequest = Message<"loco.org.v1.ListOrgPeopleRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: int32 page_size = 2;
+   */
+  pageSize: number;
+
+  /**
+   * @generated from field: string page_token = 3;
+   */
+  pageToken: string;
+
+  /**
+   * Sets total_count, member_count and invitation_count in the response.
+   *
+   * @generated from field: bool include_total_count = 4;
+   */
+  includeTotalCount: boolean;
+
+  /**
+   * Matches members' names and emails and invitations' emails, ignoring case.
+   *
+   * @generated from field: string query = 5;
+   */
+  query: string;
+
+  /**
+   * @generated from field: loco.org.v1.OrgPeopleView view = 6;
+   */
+  view: OrgPeopleView;
+
+  /**
+   * Only members with access to this workspace, organization admins included; no invitations.
+   *
+   * @generated from field: string workspace_id = 7;
+   */
+  workspaceId: string;
+};
+
+/**
+ * ListOrgPeopleRequest selects a page of an organization's members and open invitations.
+ *
+ * @generated from message loco.org.v1.ListOrgPeopleRequest
+ */
+export type ListOrgPeopleRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: int32 page_size = 2;
+   */
+  pageSize?: number;
+
+  /**
+   * @generated from field: string page_token = 3;
+   */
+  pageToken?: string;
+
+  /**
+   * Sets total_count, member_count and invitation_count in the response.
+   *
+   * @generated from field: bool include_total_count = 4;
+   */
+  includeTotalCount?: boolean;
+
+  /**
+   * Matches members' names and emails and invitations' emails, ignoring case.
+   *
+   * @generated from field: string query = 5;
+   */
+  query?: string;
+
+  /**
+   * @generated from field: loco.org.v1.OrgPeopleView view = 6;
+   */
+  view?: OrgPeopleViewJson;
+
+  /**
+   * Only members with access to this workspace, organization admins included; no invitations.
+   *
+   * @generated from field: string workspace_id = 7;
+   */
+  workspaceId?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.ListOrgPeopleRequest.
+ * Use `create(ListOrgPeopleRequestSchema)` to create a new message.
+ */
+export const ListOrgPeopleRequestSchema: GenMessage<ListOrgPeopleRequest, {jsonType: ListOrgPeopleRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 10);
+
+/**
+ * OrgPerson is a member or an open invitation.
+ *
+ * @generated from message loco.org.v1.OrgPerson
+ */
+export type OrgPerson = Message<"loco.org.v1.OrgPerson"> & {
+  /**
+   * @generated from oneof loco.org.v1.OrgPerson.person
+   */
+  person: {
+    /**
+     * @generated from field: loco.org.v1.OrgMember member = 1;
+     */
+    value: OrgMember;
+    case: "member";
+  } | {
+    /**
+     * @generated from field: loco.org.v1.Invitation invitation = 2;
+     */
+    value: Invitation;
+    case: "invitation";
+  } | { case: undefined; value?: undefined };
+
+  /**
+   * The member's access in each workspace the caller can read; empty for an invitation.
+   *
+   * @generated from field: repeated loco.org.v1.MemberWorkspaceAccess workspaces = 3;
+   */
+  workspaces: MemberWorkspaceAccess[];
+};
+
+/**
+ * OrgPerson is a member or an open invitation.
+ *
+ * @generated from message loco.org.v1.OrgPerson
+ */
+export type OrgPersonJson = {
+  /**
+   * @generated from field: loco.org.v1.OrgMember member = 1;
+   */
+  member?: OrgMemberJson;
+
+  /**
+   * @generated from field: loco.org.v1.Invitation invitation = 2;
+   */
+  invitation?: InvitationJson;
+
+  /**
+   * The member's access in each workspace the caller can read; empty for an invitation.
+   *
+   * @generated from field: repeated loco.org.v1.MemberWorkspaceAccess workspaces = 3;
+   */
+  workspaces?: MemberWorkspaceAccessJson[];
+};
+
+/**
+ * Describes the message loco.org.v1.OrgPerson.
+ * Use `create(OrgPersonSchema)` to create a new message.
+ */
+export const OrgPersonSchema: GenMessage<OrgPerson, {jsonType: OrgPersonJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 11);
+
+/**
+ * MemberWorkspaceAccess is a member's scopes in one workspace.
+ *
+ * @generated from message loco.org.v1.MemberWorkspaceAccess
+ */
+export type MemberWorkspaceAccess = Message<"loco.org.v1.MemberWorkspaceAccess"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string workspace_name = 2;
+   */
+  workspaceName: string;
+
+  /**
+   * @generated from field: repeated string scopes = 3;
+   */
+  scopes: string[];
+};
+
+/**
+ * MemberWorkspaceAccess is a member's scopes in one workspace.
+ *
+ * @generated from message loco.org.v1.MemberWorkspaceAccess
+ */
+export type MemberWorkspaceAccessJson = {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string workspace_name = 2;
+   */
+  workspaceName?: string;
+
+  /**
+   * @generated from field: repeated string scopes = 3;
+   */
+  scopes?: string[];
+};
+
+/**
+ * Describes the message loco.org.v1.MemberWorkspaceAccess.
+ * Use `create(MemberWorkspaceAccessSchema)` to create a new message.
+ */
+export const MemberWorkspaceAccessSchema: GenMessage<MemberWorkspaceAccess, {jsonType: MemberWorkspaceAccessJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 12);
+
+/**
+ * ListOrgPeopleResponse is a page of people. The counts are set when include_total_count is; each is
+ * exact up to 10,000, and 10,001 means more than 10,000.
+ *
+ * @generated from message loco.org.v1.ListOrgPeopleResponse
+ */
+export type ListOrgPeopleResponse = Message<"loco.org.v1.ListOrgPeopleResponse"> & {
+  /**
+   * @generated from field: repeated loco.org.v1.OrgPerson people = 1;
+   */
+  people: OrgPerson[];
+
+  /**
+   * Empty on the last page.
+   *
+   * @generated from field: string next_page_token = 2;
+   */
+  nextPageToken: string;
+
+  /**
+   * The people the query, view and workspace filters match, ignoring page_token.
+   *
+   * @generated from field: int32 total_count = 3;
+   */
+  totalCount: number;
+
+  /**
+   * All members and all open invitations, ignoring the filters.
+   *
+   * @generated from field: int32 member_count = 4;
+   */
+  memberCount: number;
+
+  /**
+   * @generated from field: int32 invitation_count = 5;
+   */
+  invitationCount: number;
+
+  /**
+   * For each workspace the caller can read, keyed by its ID: the members with access to it,
+   * organization admins included, which is what the workspace filter keeps.
+   *
+   * @generated from field: map<string, int32> workspace_member_counts = 6;
+   */
+  workspaceMemberCounts: { [key: string]: number };
+
+  /**
+   * Open invitations that have not expired, the count the invitations_per_org limit caps.
+   *
+   * @generated from field: int32 open_invitation_count = 7;
+   */
+  openInvitationCount: number;
+};
+
+/**
+ * ListOrgPeopleResponse is a page of people. The counts are set when include_total_count is; each is
+ * exact up to 10,000, and 10,001 means more than 10,000.
+ *
+ * @generated from message loco.org.v1.ListOrgPeopleResponse
+ */
+export type ListOrgPeopleResponseJson = {
+  /**
+   * @generated from field: repeated loco.org.v1.OrgPerson people = 1;
+   */
+  people?: OrgPersonJson[];
+
+  /**
+   * Empty on the last page.
+   *
+   * @generated from field: string next_page_token = 2;
+   */
+  nextPageToken?: string;
+
+  /**
+   * The people the query, view and workspace filters match, ignoring page_token.
+   *
+   * @generated from field: int32 total_count = 3;
+   */
+  totalCount?: number;
+
+  /**
+   * All members and all open invitations, ignoring the filters.
+   *
+   * @generated from field: int32 member_count = 4;
+   */
+  memberCount?: number;
+
+  /**
+   * @generated from field: int32 invitation_count = 5;
+   */
+  invitationCount?: number;
+
+  /**
+   * For each workspace the caller can read, keyed by its ID: the members with access to it,
+   * organization admins included, which is what the workspace filter keeps.
+   *
+   * @generated from field: map<string, int32> workspace_member_counts = 6;
+   */
+  workspaceMemberCounts?: { [key: string]: number };
+
+  /**
+   * Open invitations that have not expired, the count the invitations_per_org limit caps.
+   *
+   * @generated from field: int32 open_invitation_count = 7;
+   */
+  openInvitationCount?: number;
+};
+
+/**
+ * Describes the message loco.org.v1.ListOrgPeopleResponse.
+ * Use `create(ListOrgPeopleResponseSchema)` to create a new message.
+ */
+export const ListOrgPeopleResponseSchema: GenMessage<ListOrgPeopleResponse, {jsonType: ListOrgPeopleResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 13);
+
+/**
  * RemoveOrgMemberRequest identifies another user to remove from the organization.
  *
  * @generated from message loco.org.v1.RemoveOrgMemberRequest
@@ -638,7 +969,7 @@ export type RemoveOrgMemberRequestJson = {
  * Use `create(RemoveOrgMemberRequestSchema)` to create a new message.
  */
 export const RemoveOrgMemberRequestSchema: GenMessage<RemoveOrgMemberRequest, {jsonType: RemoveOrgMemberRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 10);
+  messageDesc(file_loco_org_v1_org, 14);
 
 /**
  * RemoveOrgMemberResponse acknowledges member removal.
@@ -661,7 +992,7 @@ export type RemoveOrgMemberResponseJson = {
  * Use `create(RemoveOrgMemberResponseSchema)` to create a new message.
  */
 export const RemoveOrgMemberResponseSchema: GenMessage<RemoveOrgMemberResponse, {jsonType: RemoveOrgMemberResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 11);
+  messageDesc(file_loco_org_v1_org, 15);
 
 /**
  * SetOrgMemberRoleRequest identifies the organization member and their desired role.
@@ -712,7 +1043,7 @@ export type SetOrgMemberRoleRequestJson = {
  * Use `create(SetOrgMemberRoleRequestSchema)` to create a new message.
  */
 export const SetOrgMemberRoleRequestSchema: GenMessage<SetOrgMemberRoleRequest, {jsonType: SetOrgMemberRoleRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 12);
+  messageDesc(file_loco_org_v1_org, 16);
 
 /**
  * SetOrgMemberRoleResponse acknowledges the member role assignment.
@@ -735,7 +1066,7 @@ export type SetOrgMemberRoleResponseJson = {
  * Use `create(SetOrgMemberRoleResponseSchema)` to create a new message.
  */
 export const SetOrgMemberRoleResponseSchema: GenMessage<SetOrgMemberRoleResponse, {jsonType: SetOrgMemberRoleResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 13);
+  messageDesc(file_loco_org_v1_org, 17);
 
 /**
  * Invitation describes an open invitation and its sign-in link.
@@ -836,7 +1167,7 @@ export type InvitationJson = {
  * Use `create(InvitationSchema)` to create a new message.
  */
 export const InvitationSchema: GenMessage<Invitation, {jsonType: InvitationJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 14);
+  messageDesc(file_loco_org_v1_org, 18);
 
 /**
  * InviteOrgMemberRequest identifies the organization and email address to invite.
@@ -891,7 +1222,7 @@ export type InviteOrgMemberRequestJson = {
  * Use `create(InviteOrgMemberRequestSchema)` to create a new message.
  */
 export const InviteOrgMemberRequestSchema: GenMessage<InviteOrgMemberRequest, {jsonType: InviteOrgMemberRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 15);
+  messageDesc(file_loco_org_v1_org, 19);
 
 /**
  * InviteOrgMemberResponse contains the created invitation.
@@ -922,7 +1253,7 @@ export type InviteOrgMemberResponseJson = {
  * Use `create(InviteOrgMemberResponseSchema)` to create a new message.
  */
 export const InviteOrgMemberResponseSchema: GenMessage<InviteOrgMemberResponse, {jsonType: InviteOrgMemberResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 16);
+  messageDesc(file_loco_org_v1_org, 20);
 
 /**
  * ListInvitationsRequest selects a page of open organization invitations.
@@ -977,7 +1308,7 @@ export type ListInvitationsRequestJson = {
  * Use `create(ListInvitationsRequestSchema)` to create a new message.
  */
 export const ListInvitationsRequestSchema: GenMessage<ListInvitationsRequest, {jsonType: ListInvitationsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 17);
+  messageDesc(file_loco_org_v1_org, 21);
 
 /**
  * ListInvitationsResponse contains a page of invitations and a continuation token.
@@ -1022,7 +1353,7 @@ export type ListInvitationsResponseJson = {
  * Use `create(ListInvitationsResponseSchema)` to create a new message.
  */
 export const ListInvitationsResponseSchema: GenMessage<ListInvitationsResponse, {jsonType: ListInvitationsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 18);
+  messageDesc(file_loco_org_v1_org, 22);
 
 /**
  * RevokeInvitationRequest identifies the open invitation to revoke.
@@ -1053,7 +1384,7 @@ export type RevokeInvitationRequestJson = {
  * Use `create(RevokeInvitationRequestSchema)` to create a new message.
  */
 export const RevokeInvitationRequestSchema: GenMessage<RevokeInvitationRequest, {jsonType: RevokeInvitationRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 19);
+  messageDesc(file_loco_org_v1_org, 23);
 
 /**
  * RevokeInvitationResponse acknowledges invitation revocation.
@@ -1076,7 +1407,7 @@ export type RevokeInvitationResponseJson = {
  * Use `create(RevokeInvitationResponseSchema)` to create a new message.
  */
 export const RevokeInvitationResponseSchema: GenMessage<RevokeInvitationResponse, {jsonType: RevokeInvitationResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 20);
+  messageDesc(file_loco_org_v1_org, 24);
 
 /**
  * ResendInvitationRequest identifies the open invitation to extend and resend.
@@ -1107,7 +1438,7 @@ export type ResendInvitationRequestJson = {
  * Use `create(ResendInvitationRequestSchema)` to create a new message.
  */
 export const ResendInvitationRequestSchema: GenMessage<ResendInvitationRequest, {jsonType: ResendInvitationRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 21);
+  messageDesc(file_loco_org_v1_org, 25);
 
 /**
  * ResendInvitationResponse contains the invitation with its extended expiry.
@@ -1138,7 +1469,7 @@ export type ResendInvitationResponseJson = {
  * Use `create(ResendInvitationResponseSchema)` to create a new message.
  */
 export const ResendInvitationResponseSchema: GenMessage<ResendInvitationResponse, {jsonType: ResendInvitationResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 22);
+  messageDesc(file_loco_org_v1_org, 26);
 
 /**
  * User is a lightweight representation of a user for listing.
@@ -1199,7 +1530,7 @@ export type UserJson = {
  * Use `create(UserSchema)` to create a new message.
  */
 export const UserSchema: GenMessage<User, {jsonType: UserJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 23);
+  messageDesc(file_loco_org_v1_org, 27);
 
 /**
  * UpdateOrgRequest is the request to update an organization.
@@ -1240,7 +1571,7 @@ export type UpdateOrgRequestJson = {
  * Use `create(UpdateOrgRequestSchema)` to create a new message.
  */
 export const UpdateOrgRequestSchema: GenMessage<UpdateOrgRequest, {jsonType: UpdateOrgRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 24);
+  messageDesc(file_loco_org_v1_org, 28);
 
 /**
  * UpdateOrgResponse is the response containing the updated organization ID.
@@ -1271,7 +1602,7 @@ export type UpdateOrgResponseJson = {
  * Use `create(UpdateOrgResponseSchema)` to create a new message.
  */
 export const UpdateOrgResponseSchema: GenMessage<UpdateOrgResponse, {jsonType: UpdateOrgResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 25);
+  messageDesc(file_loco_org_v1_org, 29);
 
 /**
  * DeleteOrgRequest is the request to delete an organization.
@@ -1302,7 +1633,7 @@ export type DeleteOrgRequestJson = {
  * Use `create(DeleteOrgRequestSchema)` to create a new message.
  */
 export const DeleteOrgRequestSchema: GenMessage<DeleteOrgRequest, {jsonType: DeleteOrgRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 26);
+  messageDesc(file_loco_org_v1_org, 30);
 
 /**
  * DeleteOrgResponse is the response after deleting an organization.
@@ -1325,7 +1656,7 @@ export type DeleteOrgResponseJson = {
  * Use `create(DeleteOrgResponseSchema)` to create a new message.
  */
 export const DeleteOrgResponseSchema: GenMessage<DeleteOrgResponse, {jsonType: DeleteOrgResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 27);
+  messageDesc(file_loco_org_v1_org, 31);
 
 /**
  * SuspendOrgRequest is the request to suspend an organization.
@@ -1366,7 +1697,7 @@ export type SuspendOrgRequestJson = {
  * Use `create(SuspendOrgRequestSchema)` to create a new message.
  */
 export const SuspendOrgRequestSchema: GenMessage<SuspendOrgRequest, {jsonType: SuspendOrgRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 28);
+  messageDesc(file_loco_org_v1_org, 32);
 
 /**
  * SuspendOrgResponse is the organization after the request.
@@ -1397,7 +1728,7 @@ export type SuspendOrgResponseJson = {
  * Use `create(SuspendOrgResponseSchema)` to create a new message.
  */
 export const SuspendOrgResponseSchema: GenMessage<SuspendOrgResponse, {jsonType: SuspendOrgResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 29);
+  messageDesc(file_loco_org_v1_org, 33);
 
 /**
  * ResumeOrgRequest is the request to resume a suspended organization.
@@ -1428,7 +1759,7 @@ export type ResumeOrgRequestJson = {
  * Use `create(ResumeOrgRequestSchema)` to create a new message.
  */
 export const ResumeOrgRequestSchema: GenMessage<ResumeOrgRequest, {jsonType: ResumeOrgRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 30);
+  messageDesc(file_loco_org_v1_org, 34);
 
 /**
  * ResumeOrgResponse is the organization after the request.
@@ -1459,7 +1790,7 @@ export type ResumeOrgResponseJson = {
  * Use `create(ResumeOrgResponseSchema)` to create a new message.
  */
 export const ResumeOrgResponseSchema: GenMessage<ResumeOrgResponse, {jsonType: ResumeOrgResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 31);
+  messageDesc(file_loco_org_v1_org, 35);
 
 /**
  * OrgLimits are an organization's effective count limits and the latest change to them.
@@ -1538,7 +1869,7 @@ export type OrgLimitsJson = {
  * Use `create(OrgLimitsSchema)` to create a new message.
  */
 export const OrgLimitsSchema: GenMessage<OrgLimits, {jsonType: OrgLimitsJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 32);
+  messageDesc(file_loco_org_v1_org, 36);
 
 /**
  * GetOrgLimitsRequest is the request for an organization's count limits.
@@ -1569,7 +1900,7 @@ export type GetOrgLimitsRequestJson = {
  * Use `create(GetOrgLimitsRequestSchema)` to create a new message.
  */
 export const GetOrgLimitsRequestSchema: GenMessage<GetOrgLimitsRequest, {jsonType: GetOrgLimitsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 33);
+  messageDesc(file_loco_org_v1_org, 37);
 
 /**
  * GetOrgLimitsResponse holds the organization's count limits.
@@ -1600,7 +1931,7 @@ export type GetOrgLimitsResponseJson = {
  * Use `create(GetOrgLimitsResponseSchema)` to create a new message.
  */
 export const GetOrgLimitsResponseSchema: GenMessage<GetOrgLimitsResponse, {jsonType: GetOrgLimitsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 34);
+  messageDesc(file_loco_org_v1_org, 38);
 
 /**
  * SetOrgLimitsRequest is the request to override an organization's count limits.
@@ -1661,7 +1992,7 @@ export type SetOrgLimitsRequestJson = {
  * Use `create(SetOrgLimitsRequestSchema)` to create a new message.
  */
 export const SetOrgLimitsRequestSchema: GenMessage<SetOrgLimitsRequest, {jsonType: SetOrgLimitsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 35);
+  messageDesc(file_loco_org_v1_org, 39);
 
 /**
  * SetOrgLimitsResponse holds the organization's count limits after the request.
@@ -1692,7 +2023,44 @@ export type SetOrgLimitsResponseJson = {
  * Use `create(SetOrgLimitsResponseSchema)` to create a new message.
  */
 export const SetOrgLimitsResponseSchema: GenMessage<SetOrgLimitsResponse, {jsonType: SetOrgLimitsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 36);
+  messageDesc(file_loco_org_v1_org, 40);
+
+/**
+ * OrgPeopleView picks which people ListOrgPeople lists.
+ *
+ * @generated from enum loco.org.v1.OrgPeopleView
+ */
+export enum OrgPeopleView {
+  /**
+   * Members and open invitations.
+   *
+   * @generated from enum value: ORG_PEOPLE_VIEW_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ORG_PEOPLE_VIEW_MEMBERS = 1;
+   */
+  MEMBERS = 1,
+
+  /**
+   * @generated from enum value: ORG_PEOPLE_VIEW_INVITATIONS = 2;
+   */
+  INVITATIONS = 2,
+}
+
+/**
+ * OrgPeopleView picks which people ListOrgPeople lists.
+ *
+ * @generated from enum loco.org.v1.OrgPeopleView
+ */
+export type OrgPeopleViewJson = "ORG_PEOPLE_VIEW_UNSPECIFIED" | "ORG_PEOPLE_VIEW_MEMBERS" | "ORG_PEOPLE_VIEW_INVITATIONS";
+
+/**
+ * Describes the enum loco.org.v1.OrgPeopleView.
+ */
+export const OrgPeopleViewSchema: GenEnum<OrgPeopleView, OrgPeopleViewJson> = /*@__PURE__*/
+  enumDesc(file_loco_org_v1_org, 0);
 
 /**
  * OrgRole selects organization administrator or member access.
@@ -1727,7 +2095,7 @@ export type OrgRoleJson = "ORG_ROLE_UNSPECIFIED" | "ORG_ROLE_ADMIN" | "ORG_ROLE_
  * Describes the enum loco.org.v1.OrgRole.
  */
 export const OrgRoleSchema: GenEnum<OrgRole, OrgRoleJson> = /*@__PURE__*/
-  enumDesc(file_loco_org_v1_org, 0);
+  enumDesc(file_loco_org_v1_org, 1);
 
 /**
  * OrgService manages organizations.
@@ -1794,6 +2162,17 @@ export const OrgService: GenService<{
     methodKind: "unary";
     input: typeof ListOrgMembersRequestSchema;
     output: typeof ListOrgMembersResponseSchema;
+  },
+  /**
+   * ListOrgPeople lists members and open invitations together: invitations newest first, then the
+   * caller, then the other members by name. Organization membership is required.
+   *
+   * @generated from rpc loco.org.v1.OrgService.ListOrgPeople
+   */
+  listOrgPeople: {
+    methodKind: "unary";
+    input: typeof ListOrgPeopleRequestSchema;
+    output: typeof ListOrgPeopleResponseSchema;
   },
   /**
    * SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.

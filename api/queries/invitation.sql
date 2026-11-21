@@ -66,3 +66,6 @@ FROM invitations i
 JOIN organizations o ON o.id = i.org_id
 LEFT JOIN users u ON u.id = i.invited_by
 WHERE i.id = $1;
+
+-- name: ListInvitationsByIDs :many
+SELECT * FROM invitations WHERE id = ANY(sqlc.arg('ids')::uuid[]);

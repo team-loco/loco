@@ -4612,6 +4612,68 @@
         }
       }
     },
+    "/loco.org.v1.OrgService/ListOrgPeople": {
+      "post": {
+        "tags": [
+          "loco.org.v1.OrgService"
+        ],
+        "summary": "ListOrgPeople",
+        "description": "ListOrgPeople lists members and open invitations together: invitations newest first, then the\n caller, then the other members by name. Organization membership is required.",
+        "operationId": "loco.org.v1.OrgService.ListOrgPeople",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.org.v1.ListOrgPeopleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.org.v1.ListOrgPeopleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.org.v1.OrgService/ListUserOrgs": {
       "post": {
         "tags": [
@@ -13930,6 +13992,105 @@
         "additionalProperties": false,
         "description": "ListOrgMembersResponse contains a page of members and a continuation token."
       },
+      "loco.org.v1.ListOrgPeopleRequest": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string",
+            "title": "org_id",
+            "format": "uuid"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 200,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "pageToken": {
+            "type": "string",
+            "title": "page_token",
+            "maxLength": 512
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count, member_count and invitation_count in the response."
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200,
+            "description": "Matches members' names and emails and invitations' emails, ignoring case."
+          },
+          "view": {
+            "title": "view",
+            "$ref": "#/components/schemas/loco.org.v1.OrgPeopleView"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid",
+            "description": "Only members with access to this workspace, organization admins included; no invitations."
+          }
+        },
+        "title": "ListOrgPeopleRequest",
+        "additionalProperties": false,
+        "description": "ListOrgPeopleRequest selects a page of an organization's members and open invitations."
+      },
+      "loco.org.v1.ListOrgPeopleResponse": {
+        "type": "object",
+        "properties": {
+          "people": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.org.v1.OrgPerson"
+            },
+            "title": "people"
+          },
+          "nextPageToken": {
+            "type": "string",
+            "title": "next_page_token",
+            "description": "Empty on the last page."
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The people the query, view and workspace filters match, ignoring page_token."
+          },
+          "memberCount": {
+            "type": "integer",
+            "title": "member_count",
+            "format": "int32",
+            "description": "All members and all open invitations, ignoring the filters."
+          },
+          "invitationCount": {
+            "type": "integer",
+            "title": "invitation_count",
+            "format": "int32"
+          },
+          "workspaceMemberCounts": {
+            "type": "object",
+            "title": "workspace_member_counts",
+            "additionalProperties": {
+              "type": "integer",
+              "title": "value",
+              "format": "int32"
+            },
+            "description": "For each workspace the caller can read, keyed by its ID: the members with access to it,\n organization admins included, which is what the workspace filter keeps."
+          },
+          "openInvitationCount": {
+            "type": "integer",
+            "title": "open_invitation_count",
+            "format": "int32",
+            "description": "Open invitations that have not expired, the count the invitations_per_org limit caps."
+          }
+        },
+        "title": "ListOrgPeopleResponse",
+        "additionalProperties": false,
+        "description": "ListOrgPeopleResponse is a page of people. The counts are set when include_total_count is; each is\n exact up to 10,000, and 10,001 means more than 10,000."
+      },
       "loco.org.v1.ListUserOrgsRequest": {
         "type": "object",
         "properties": {
@@ -13998,6 +14159,29 @@
         "additionalProperties": false,
         "description": "ListUserOrgsResponse is the response containing organization list."
       },
+      "loco.org.v1.MemberWorkspaceAccess": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "workspaceName": {
+            "type": "string",
+            "title": "workspace_name"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "scopes"
+          }
+        },
+        "title": "MemberWorkspaceAccess",
+        "additionalProperties": false,
+        "description": "MemberWorkspaceAccess is a member's scopes in one workspace."
+      },
       "loco.org.v1.OrgLimits": {
         "type": "object",
         "properties": {
@@ -14058,6 +14242,46 @@
         "title": "OrgMember",
         "additionalProperties": false,
         "description": "OrgMember pairs a user with their organization scopes."
+      },
+      "loco.org.v1.OrgPeopleView": {
+        "type": "string",
+        "title": "OrgPeopleView",
+        "enum": [
+          "ORG_PEOPLE_VIEW_UNSPECIFIED",
+          "ORG_PEOPLE_VIEW_MEMBERS",
+          "ORG_PEOPLE_VIEW_INVITATIONS"
+        ],
+        "description": "OrgPeopleView picks which people ListOrgPeople lists."
+      },
+      "loco.org.v1.OrgPerson": {
+        "type": "object",
+        "not": {
+          "required": [
+            "member",
+            "invitation"
+          ]
+        },
+        "properties": {
+          "member": {
+            "title": "member",
+            "$ref": "#/components/schemas/loco.org.v1.OrgMember"
+          },
+          "invitation": {
+            "title": "invitation",
+            "$ref": "#/components/schemas/loco.org.v1.Invitation"
+          },
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.org.v1.MemberWorkspaceAccess"
+            },
+            "title": "workspaces",
+            "description": "The member's access in each workspace the caller can read; empty for an invitation."
+          }
+        },
+        "title": "OrgPerson",
+        "additionalProperties": false,
+        "description": "OrgPerson is a member or an open invitation.\n\nAt most one of `member`, `invitation` may be set."
       },
       "loco.org.v1.OrgRole": {
         "type": "string",
