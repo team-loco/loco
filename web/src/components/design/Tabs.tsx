@@ -1,5 +1,5 @@
 import { createContext, use } from "react";
-import { SegmentedScope, SegmentedThumb, segmentedGroupClass, segmentedItemClass } from "./Segmented";
+import { SegmentedScope, SegmentedThumb, segmentedGroupClass, segmentedItemClass, segmentedRoot } from "./Segmented";
 import {
 	Tabs as TabsBase,
 	TabsContent as TabsContentBase,
@@ -26,6 +26,7 @@ function TabsList({
 		<TabsListBase
 			variant="line"
 			data-segmented={segmented || undefined}
+			render={segmented ? segmentedRoot : undefined}
 			className={cn(
 				segmented
 					? cn("h-auto! w-fit justify-start gap-0.5 border-0", segmentedGroupClass)

@@ -5,6 +5,9 @@ export const segmentedGroupClass = "rounded-control bg-panel2 p-0.5 data-[varian
 export const segmentedItemClass =
 	"relative isolate h-[26px] gap-[7px] rounded-control-inner! border border-transparent px-2.5 text-[12.5px] font-normal text-fg2 after:hidden hover:bg-transparent hover:text-foreground aria-pressed:bg-transparent aria-pressed:text-foreground data-pressed:bg-transparent data-pressed:text-foreground data-active:bg-transparent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-transparent dark:data-active:text-foreground";
 
+/** The group's element: thumbs measure their layout animation inside it, so the page moving around the group does not move them. */
+export const segmentedRoot = <motion.div layoutRoot />;
+
 export function SegmentedScope({ children }: { children: ReactNode }) {
 	const id = useId();
 	return (
