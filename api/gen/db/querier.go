@@ -37,7 +37,6 @@ type Querier interface {
 	CountEntityAPITokens(ctx context.Context, arg CountEntityAPITokensParams) (int64, error)
 	CountOpenOrgInvitations(ctx context.Context, orgID uuid.UUID) (int64, error)
 	CountOrgMembers(ctx context.Context, entityID uuid.UUID) (int64, error)
-	CountOrgPeople(ctx context.Context, arg CountOrgPeopleParams) (CountOrgPeopleRow, error)
 	CountOrgPeopleByWorkspace(ctx context.Context, orgID uuid.UUID) ([]CountOrgPeopleByWorkspaceRow, error)
 	CountOrgWorkspaces(ctx context.Context, orgID uuid.UUID) (int64, error)
 	CountOrgsCreatedBy(ctx context.Context, createdBy uuid.UUID) (int64, error)

@@ -155,7 +155,7 @@ func (s *OrgServer) peoplePage(ctx context.Context, args []any, after personKey,
 	})
 }
 
-// people loads the members and invitations rows name, in rows' order.
+// people loads the members and invitations rows names, in rows' order.
 func (s *OrgServer) people(ctx context.Context, orgID uuid.UUID, rows []personRow) ([]*orgv1.OrgPerson, error) {
 	var memberIDs, invitationIDs []uuid.UUID
 	for _, row := range rows {
@@ -245,6 +245,9 @@ func (s *OrgServer) addWorkspaceAccess(
 	return nil
 }
 
+// countPeople sets the response's counts when include is set: the request's filters for total_count,
+// the unfiltered members and invitations views for the tab counts, and each readable workspace's
+// members.
 func (s *OrgServer) countPeople(
 	ctx context.Context,
 	include bool,
@@ -252,25 +255,28 @@ func (s *OrgServer) countPeople(
 	args []any,
 	response *orgv1.ListOrgPeopleResponse,
 ) error {
-	var counts genDb.CountOrgPeopleRow
-	total, err := totalCount(ctx, include, func(ctx context.Context, limit int32) (int64, error) {
-		var n int64
-		if err := s.db.QueryRow(ctx, "SELECT count(*) FROM ("+orgPeopleSQL+
-			" SELECT 1 FROM people LIMIT $6) capped", append(args, limit)...).Scan(&n); err != nil {
-			return 0, err
-		}
-		var err error
-		counts, err = s.queries.CountOrgPeople(ctx, genDb.CountOrgPeopleParams{OrgID: orgID, MaxRows: limit})
-		return n, err
-	})
-	if err != nil {
-		return fmt.Errorf("count organization people: %w", err)
-	}
-	response.TotalCount = total
-	response.MemberCount = cappedCount(counts.MemberCount)
-	response.InvitationCount = cappedCount(counts.InvitationCount)
 	if !include {
 		return nil
+	}
+	callerID := args[1]
+	for _, c := range []struct {
+		into *int32
+		args []any
+	}{
+		{&response.TotalCount, args},
+		{&response.MemberCount, []any{orgID, callerID, "members", nil, ""}},
+		{&response.InvitationCount, []any{orgID, callerID, "invitations", nil, ""}},
+	} {
+		n, err := totalCount(ctx, true, func(ctx context.Context, limit int32) (int64, error) {
+			var n int64
+			err := s.db.QueryRow(ctx, "SELECT count(*) FROM ("+orgPeopleSQL+
+				" SELECT 1 FROM people LIMIT $6) capped", append(c.args, limit)...).Scan(&n)
+			return n, err
+		})
+		if err != nil {
+			return fmt.Errorf("count organization people: %w", err)
+		}
+		*c.into = n
 	}
 	p, err := principalFrom(ctx)
 	if err != nil {

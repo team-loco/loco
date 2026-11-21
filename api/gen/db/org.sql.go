@@ -12,36 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const countOrgPeople = `-- name: CountOrgPeople :one
-SELECT
-  (SELECT COUNT(*) FROM (
-     SELECT 1 FROM user_scopes us
-     WHERE us.entity_type = 'organization' AND us.entity_id = $1
-     GROUP BY us.user_id
-     LIMIT $2) m)::bigint AS member_count,
-  (SELECT COUNT(*) FROM (
-     SELECT 1 FROM invitations i
-     WHERE i.org_id = $1 AND i.claimed_at IS NULL AND i.revoked_at IS NULL
-     LIMIT $2) v)::bigint AS invitation_count
-`
-
-type CountOrgPeopleParams struct {
-	OrgID   uuid.UUID `json:"orgId"`
-	MaxRows int32     `json:"maxRows"`
-}
-
-type CountOrgPeopleRow struct {
-	MemberCount     int64 `json:"memberCount"`
-	InvitationCount int64 `json:"invitationCount"`
-}
-
-func (q *Queries) CountOrgPeople(ctx context.Context, arg CountOrgPeopleParams) (CountOrgPeopleRow, error) {
-	row := q.db.QueryRow(ctx, countOrgPeople, arg.OrgID, arg.MaxRows)
-	var i CountOrgPeopleRow
-	err := row.Scan(&i.MemberCount, &i.InvitationCount)
-	return i, err
-}
-
 const countOrgPeopleByWorkspace = `-- name: CountOrgPeopleByWorkspace :many
 WITH members AS (
   SELECT us.user_id, bool_or(us.scope = 'admin') AS admin

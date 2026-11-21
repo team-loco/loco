@@ -206,18 +206,6 @@ WHERE us.entity_type = 'workspace' AND w.org_id = sqlc.arg('org_id')
 GROUP BY us.user_id, w.id, w.name
 ORDER BY w.name, w.id;
 
--- name: CountOrgPeople :one
-SELECT
-  (SELECT COUNT(*) FROM (
-     SELECT 1 FROM user_scopes us
-     WHERE us.entity_type = 'organization' AND us.entity_id = sqlc.arg('org_id')
-     GROUP BY us.user_id
-     LIMIT sqlc.arg('max_rows')) m)::bigint AS member_count,
-  (SELECT COUNT(*) FROM (
-     SELECT 1 FROM invitations i
-     WHERE i.org_id = sqlc.arg('org_id') AND i.claimed_at IS NULL AND i.revoked_at IS NULL
-     LIMIT sqlc.arg('max_rows')) v)::bigint AS invitation_count;
-
 -- name: CountOrgPeopleByWorkspace :many
 WITH members AS (
   SELECT us.user_id, bool_or(us.scope = 'admin') AS admin
