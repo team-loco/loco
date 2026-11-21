@@ -185,7 +185,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
                         "labels": {"k8s.pod.name": pod},
                         "points": [{"timestamp": stamp, "value": value}],
                     }
-                    for pod, value in usage[body["metricName"]].items()
+                    for pod, value in usage.get(body["metricName"], {}).items()
                     if pod.split("-")[2]
                     == ("east" if body.get("region") == EAST else "west")
                 ]
@@ -241,6 +241,16 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(
         panel.get_by_role("region", name="Replica replicas-ui-west-c3")
     ).to_have_count(0)
+    panel.get_by_role("group", name="Region", exact=True).get_by_role(
+        "button", name=EAST, exact=True
+    ).click()
+    expect(
+        panel.locator(f'[aria-label^="Memory · {EAST}: one line per replica"]')
+    ).to_be_visible()
+    expect(panel.get_by_text("Highest, b2", exact=True)).to_be_visible()
+    panel.get_by_role("group", name="Region", exact=True).get_by_role(
+        "button", name="All regions", exact=True
+    ).click()
     assert {
         (q.get("region"), q["resourceIds"][0], q["metricName"]) for q in pod_requests
     } >= {
