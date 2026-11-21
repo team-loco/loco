@@ -13,7 +13,12 @@ export function SuspensionBanner() {
 	const { orgId = "" } = useParams();
 	const scopes = useMyScopes();
 	const canReadOrg = orgId !== "" && !scopes.isLoading && scopes.orgMember(orgId);
-	const { data } = useQuery(getOrg, { orgId }, { enabled: canReadOrg, staleTime: SUSPENSION_STALE_MS });
+	// A refused lookup stays refused on mount, so the layout's not-found check does not see it pending again.
+	const { data } = useQuery(
+		getOrg,
+		{ orgId },
+		{ enabled: canReadOrg, staleTime: SUSPENSION_STALE_MS, retryOnMount: false },
+	);
 	const reason = suspensionReason(data?.organization);
 	if (reason === null) return null;
 	return (

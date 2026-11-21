@@ -16,7 +16,7 @@ import { getOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectque
 import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery } from "@connectrpc/connect-query";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Navigate, useLocation, useParams } from "react-router";
 
 interface ProtectedLayoutProps {
@@ -84,9 +84,6 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
 				scopes.scopes,
 			));
-	// A path stays not found while the shell's other readers refetch the lookups behind the decision.
-	const [missingPath, setMissingPath] = useState<string | null>(null);
-	if (routeNotFound && user !== null && missingPath !== pathname) setMissingPath(pathname);
 
 	if (signedOut) {
 		return <Navigate to="/login" replace state={nextPathState(pathname + search + hash)} />;
@@ -104,7 +101,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		<ContextProvider availableOrgs={orgs} pickableWorkspaces={pickable} workspacesSettled={workspacesSettled}>
 			<KeyboardShortcutsProvider>
 				<CommandPaletteProvider>
-					{routeNotFound || missingPath === pathname ? (
+					{routeNotFound ? (
 						<NotFound unknownWorkspace />
 					) : (
 						<NotFoundBoundary path={pathname}>
