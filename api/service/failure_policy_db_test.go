@@ -72,11 +72,18 @@ func TestUpdateResourceSetsTheFailurePolicyWithoutDeploying(t *testing.T) {
 		"a budget under never": {
 			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_NEVER, MaxRestarts: 3, DeployTimeoutSeconds: 300,
 		},
+		"an unknown restart policy": {RestartPolicy: deploymentv1.RestartPolicy(99), DeployTimeoutSeconds: 300},
 		"no budget under on-failure": {
 			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, DeployTimeoutSeconds: 300,
 		},
+		"six restarts": {
+			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 6, DeployTimeoutSeconds: 300,
+		},
 		"a short timeout": {
 			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS, DeployTimeoutSeconds: 30,
+		},
+		"a long timeout": {
+			RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS, DeployTimeoutSeconds: 3601,
 		},
 	} {
 		_, err := server.UpdateResource(ctx, &resourcev1.UpdateResourceRequest{
