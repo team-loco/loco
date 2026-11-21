@@ -40,9 +40,9 @@ def row(section, signal):
     )
 
 
-def expect_row(section, signal, workspace, applied):
+def expect_row(section, signal, kept, source):
     expect(row(section, signal).get_by_role("cell")).to_have_text(
-        [signal, workspace, install, applied]
+        [signal, kept + source, install]
     )
 
 
@@ -62,28 +62,39 @@ with session(out) as browser:
     page.goto(path)
     section = page.get_by_role("region", name="Retention", exact=True)
     for signal in ("Logs", "Traces", "Metrics"):
-        expect_row(section, signal, "Not set", install)
+        expect_row(section, signal, install, "organization limit")
 
-    section.get_by_role("button", name="Edit retention").click()
-    dialog = page.get_by_role("dialog")
-    save = dialog.get_by_role("button", name="Save", exact=True)
+    edit = section.get_by_role("button", name="Edit retention")
+    edit.click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(edit).to_have_count(0)
+    save = section.get_by_role("button", name="Save", exact=True)
     expect(save).to_be_disabled()
-    dialog.get_by_role("textbox", name="Traces (days)").fill("400")
-    expect(dialog.get_by_text("Enter whole days from 1 to 365")).to_be_visible()
+    traces = section.get_by_role("textbox", name="Traces retention in days")
+    traces.fill("400")
+    expect(section.get_by_text("Enter whole days from 1 to 365")).to_be_visible()
     expect(save).to_be_disabled()
-    dialog.get_by_role("textbox", name="Traces (days)").fill("")
-    dialog.get_by_role("textbox", name="Logs (days)").fill("7")
+    row(section, "Traces").get_by_role("button", name="Use limit").click()
+    expect(traces).to_have_value("")
+    section.get_by_role("textbox", name="Logs retention in days").fill("7")
     save.click()
-    expect(dialog).to_be_hidden()
-    expect_row(section, "Logs", "7 days", "7 days")
-    expect_row(section, "Traces", "Not set", install)
+    expect(save).to_have_count(0)
+    expect_row(section, "Logs", "7 days", "set for this workspace")
+    expect_row(section, "Traces", install, "organization limit")
     assert stored() == {"logDays": 7}, stored()
 
     section.get_by_role("button", name="Edit retention").click()
-    dialog.get_by_role("textbox", name="Logs (days)").fill("")
-    dialog.get_by_role("button", name="Save", exact=True).click()
-    expect(dialog).to_be_hidden()
-    expect_row(section, "Logs", "Not set", install)
+    logs = section.get_by_role("textbox", name="Logs retention in days")
+    expect(logs).to_have_value("7")
+    section.get_by_role("button", name="Cancel", exact=True).click()
+    expect(logs).to_have_count(0)
+    expect_row(section, "Logs", "7 days", "set for this workspace")
+
+    section.get_by_role("button", name="Edit retention").click()
+    row(section, "Logs").get_by_role("button", name="Use limit").click()
+    section.get_by_role("button", name="Save", exact=True).click()
+    expect(section.get_by_role("button", name="Edit retention")).to_be_visible()
+    expect_row(section, "Logs", install, "organization limit")
     assert stored() == {}, stored()
     assert not errors, errors
     context.close()
@@ -91,7 +102,7 @@ with session(out) as browser:
     context, page, errors = open_page(browser, "member", state=state)
     page.goto(path)
     section = page.get_by_role("region", name="Retention", exact=True)
-    expect_row(section, "Logs", "Not set", install)
+    expect_row(section, "Logs", install, "organization limit")
     expect(section.get_by_role("button", name="Edit retention")).to_be_disabled()
     assert not errors, errors
     context.close()

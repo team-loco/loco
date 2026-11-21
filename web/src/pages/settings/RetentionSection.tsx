@@ -9,9 +9,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
 import { DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
-import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
-import { Field } from "@/components/design/Field";
-import { Input } from "@/components/design/Input";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
@@ -39,7 +37,11 @@ function days(value: number | undefined): string {
 	return value === undefined ? "—" : `${value.toString()} days`;
 }
 
-function retentionColumns(workspace: Workspace, limits: CountLimits | undefined): DataColumn<Signal>[] {
+function retentionColumns(
+	workspace: Workspace,
+	limits: CountLimits | undefined,
+	edit: { drafts: Drafts; errorFor: (signal: Signal) => string | null; onDraft: (drafts: Drafts) => void } | null,
+): DataColumn<Signal>[] {
 	return [
 		{
 			id: "signal",
@@ -50,14 +52,58 @@ function retentionColumns(workspace: Workspace, limits: CountLimits | undefined)
 			cell: ({ row }) => row.original.label,
 		},
 		{
-			id: "workspace",
-			header: "Workspace",
-			size: 140,
-			minSize: 80,
-			meta: { fit: true, cellClassName: MONO },
+			id: "kept",
+			header: "Kept for",
+			size: 200,
+			minSize: 140,
+			meta: { grow: true },
 			cell: ({ row: { original: signal } }) => {
-				const value = workspace.retention?.[signal.key];
-				return value === undefined ? <span className="text-fg3">Not set</span> : days(value);
+				if (edit === null) {
+					const own = workspace.retention?.[signal.key] !== undefined;
+					return (
+						<span className="flex items-baseline gap-2.5">
+							<span className={MONO}>{days(workspace.effectiveRetention?.[signal.key])}</span>
+							<span className={cn("text-[12px]", own ? "text-fg2" : "text-fg3")}>
+								{own ? "set for this workspace" : "organization limit"}
+							</span>
+						</span>
+					);
+				}
+				const { drafts, errorFor, onDraft } = edit;
+				const error = errorFor(signal);
+				return (
+					<span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 py-1.5">
+						<InputGroup className="h-8 w-[120px]">
+							<InputGroupInput
+								inputMode="numeric"
+								autoComplete="off"
+								aria-label={`${signal.label} retention in days`}
+								aria-invalid={error !== null}
+								value={drafts[signal.key]}
+								placeholder={limits?.[signal.field].toString()}
+								className="font-mono text-[13px] md:text-[13px]"
+								onChange={(e) => {
+									onDraft({ ...drafts, [signal.key]: e.target.value.replace(/[^0-9]/g, "") });
+								}}
+							/>
+							<InputGroupAddon align="inline-end">
+								<InputGroupText className="font-sans text-[12px]">days</InputGroupText>
+							</InputGroupAddon>
+						</InputGroup>
+						{drafts[signal.key] !== "" && (
+							<Button
+								variant="plain-link"
+								className="underline decoration-line2 underline-offset-3"
+								onClick={() => {
+									onDraft({ ...drafts, [signal.key]: "" });
+								}}
+							>
+								Use limit
+							</Button>
+						)}
+						{error !== null && <span className="basis-full text-[12px] text-bad-fg">{error}</span>}
+					</span>
+				);
 			},
 		},
 		{
@@ -65,105 +111,40 @@ function retentionColumns(workspace: Workspace, limits: CountLimits | undefined)
 			header: "Organization limit",
 			size: 160,
 			minSize: 80,
-			meta: { hideOnMobile: true, fit: true, cellClassName: cn(MONO, "text-fg2") },
+			meta: { hideOnMobile: true, fit: true, cellClassName: cn(MONO, "text-fg3") },
 			cell: ({ row: { original: signal } }) =>
 				limits === undefined ? <Skeleton className="h-4 w-16" /> : days(limits[signal.field]),
-		},
-		{
-			id: "kept",
-			header: "Kept for",
-			size: 100,
-			minSize: 80,
-			meta: { cellClassName: MONO },
-			cell: ({ row: { original: signal } }) => days(workspace.effectiveRetention?.[signal.key]),
 		},
 	];
 }
 
-export function RetentionSection({ workspace, canWrite }: { workspace: Workspace; canWrite: boolean }) {
-	const limits = useOrgLimits(workspace.orgId);
-	const [editing, setEditing] = useState(false);
-	const editBlocked = !canWrite ? `Requires Write on ${workspace.name}` : limits === undefined ? "Loading" : null;
-	const table = useDataTable("retention", {
-		data: SIGNALS,
-		getRowId: (signal) => signal.key,
-		columns: retentionColumns(workspace, limits),
-	});
-
-	return (
-		<SettingsSection
-			title="Retention"
-			actions={
-				<LimitedAction reason={editBlocked}>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={editBlocked !== null}
-						onClick={() => {
-							setEditing(true);
-						}}
-					>
-						<PencilIcon />
-						Edit retention
-					</Button>
-				</LimitedAction>
-			}
-		>
-			<SettingsCard className="pt-1">
-				<DataTable table={table} label="Retention" />
-				<p className="m-0 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">
-					A change applies to telemetry ingested after it; stored telemetry keeps the retention it was written with.
-				</p>
-			</SettingsCard>
-
-			<Dialog open={editing} onOpenChange={setEditing}>
-				{editing && limits !== undefined && (
-					<RetentionForm
-						workspace={workspace}
-						limits={limits}
-						onDone={() => {
-							setEditing(false);
-						}}
-					/>
-				)}
-			</Dialog>
-		</SettingsSection>
-	);
+function initialDrafts(workspace: Workspace): Drafts {
+	return Object.fromEntries(SIGNALS.map((s) => [s.key, workspace.retention?.[s.key]?.toString() ?? ""])) as Drafts;
 }
 
-function RetentionForm({
-	workspace,
-	limits,
-	onDone,
-}: {
-	workspace: Workspace;
-	limits: CountLimits;
-	onDone: () => void;
-}) {
+export function RetentionSection({ workspace, canWrite }: { workspace: Workspace; canWrite: boolean }) {
+	const limits = useOrgLimits(workspace.orgId);
 	const queryClient = useQueryClient();
 	const save = useMutation(updateWorkspace);
-	const initial = Object.fromEntries(
-		SIGNALS.map((s) => [s.key, workspace.retention?.[s.key]?.toString() ?? ""]),
-	) as Drafts;
-	const [drafts, setDrafts] = useState<Drafts>(initial);
+	const [drafts, setDrafts] = useState<Drafts | null>(null);
+	const editBlocked = !canWrite ? `Requires Write on ${workspace.name}` : limits === undefined ? "Loading" : null;
 
 	const errorFor = (signal: Signal): string | null => {
-		const raw = drafts[signal.key].trim();
-		if (raw === "") return null;
+		const raw = drafts?.[signal.key] ?? "";
+		if (raw === "" || limits === undefined) return null;
 		const limit = limits[signal.field];
 		const value = Number(raw);
-		return Number.isInteger(value) && value >= 1 && value <= limit
-			? null
-			: `Enter whole days from 1 to ${limit.toString()}`;
+		return value >= 1 && value <= limit ? null : `Enter whole days from 1 to ${limit.toString()}`;
 	};
-	const changed = SIGNALS.filter((s) => drafts[s.key].trim() !== initial[s.key]);
+	const initial = initialDrafts(workspace);
+	const changed = drafts === null ? [] : SIGNALS.filter((s) => drafts[s.key] !== initial[s.key]);
 	const ok = changed.length > 0 && SIGNALS.every((s) => errorFor(s) === null) && !save.isPending;
 
 	const submit = () => {
-		if (!ok) return;
+		if (!ok || drafts === null) return;
 		const values: Partial<Record<Signal["field"], number>> = {};
 		for (const signal of changed) {
-			const raw = drafts[signal.key].trim();
+			const raw = drafts[signal.key];
 			values[signal.field] = raw === "" ? 0 : Number(raw);
 		}
 		save.mutate(
@@ -178,7 +159,7 @@ function RetentionForm({
 							cardinality: "finite",
 						}),
 					});
-					onDone();
+					setDrafts(null);
 				},
 				onError: (err) => {
 					toastConnectError(err, "Failed to save retention");
@@ -187,50 +168,65 @@ function RetentionForm({
 		);
 	};
 
+	const table = useDataTable("retention", {
+		data: SIGNALS,
+		getRowId: (signal) => signal.key,
+		columns: retentionColumns(workspace, limits, drafts === null ? null : { drafts, errorFor, onDraft: setDrafts }),
+	});
+
 	return (
-		<DialogContent title={`Retention for ${workspace.name}`}>
-			<form
-				className="contents"
-				onSubmit={(e) => {
-					e.preventDefault();
-					submit();
-				}}
-			>
-				<DialogBody>
-					{SIGNALS.map((signal) => {
-						const limit = limits[signal.field];
-						const error = errorFor(signal);
-						return (
-							<Field
-								key={signal.key}
-								label={`${signal.label} (days)`}
-								error={error}
-								hint={`Up to ${limit.toString()}, the organization's limit. Leave empty to use the limit.`}
-							>
-								<Input
-									inputMode="numeric"
-									autoComplete="off"
-									value={drafts[signal.key]}
-									placeholder={limit.toString()}
-									aria-invalid={error !== null}
-									className="h-9 max-w-[160px] font-mono text-[13.5px]"
-									onChange={(e) => {
-										setDrafts({ ...drafts, [signal.key]: e.target.value });
+		<SettingsSection
+			title="Retention"
+			actions={
+				drafts === null && (
+					<LimitedAction reason={editBlocked}>
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={editBlocked !== null}
+							onClick={() => {
+								setDrafts(initial);
+							}}
+						>
+							<PencilIcon />
+							Edit retention
+						</Button>
+					</LimitedAction>
+				)
+			}
+		>
+			<SettingsCard className="pt-1">
+				<form
+					className="contents"
+					onSubmit={(e) => {
+						e.preventDefault();
+						submit();
+					}}
+				>
+					<DataTable table={table} label="Retention" />
+					<div className="flex flex-wrap items-center justify-between gap-3 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">
+						<p className="m-0">
+							A change applies to telemetry ingested after it. Stored telemetry keeps the retention it was written with.
+						</p>
+						{drafts !== null && (
+							<span className="flex gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => {
+										setDrafts(null);
 									}}
-								/>
-							</Field>
-						);
-					})}
-				</DialogBody>
-				<DialogFooter>
-					<Button type="button" variant="outline" onClick={onDone}>
-						Cancel
-					</Button>
-					<Button type="submit" disabled={!ok}>
-						{save.isPending ? "Saving…" : "Save"}
-					</Button>
-				</DialogFooter>
-			</form>
-		</DialogContent>
+								>
+									Cancel
+								</Button>
+								<Button type="submit" disabled={!ok}>
+									{save.isPending ? "Saving…" : "Save"}
+								</Button>
+							</span>
+						)}
+					</div>
+				</form>
+			</SettingsCard>
+		</SettingsSection>
 	);
 }

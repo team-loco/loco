@@ -100,16 +100,16 @@ export function Settings() {
 		});
 	};
 
-	const openWorkspace = (w: Workspace): boolean => {
-		if (w.id === workspaceId) {
-			selectScope("workspace");
-			return true;
+	// Switches the page to the workspace's settings and back to its top, like a scope change.
+	const openWorkspace = (w: Workspace) => {
+		const to = settingsPath(orgId, w.id, "workspace");
+		if (w.id !== workspaceId && anyDirty) {
+			setLeaveTo(to);
+			return;
 		}
-		if (anyDirty) {
-			setLeaveTo(settingsPath(orgId, w.id, "workspace"));
-			return true;
-		}
-		return false;
+		if (w.id === workspaceId) selectScope("workspace");
+		else void navigate(to);
+		window.scrollTo({ top: 0, behavior: "instant" });
 	};
 
 	const itemClass = "h-7! min-w-0 shrink gap-1.5 px-3 text-[12.5px]";
@@ -206,7 +206,9 @@ export function Settings() {
 					const to = leaveTo;
 					setDrafts(NO_DRAFTS);
 					setLeaveTo(null);
-					if (to !== null) void navigate(to);
+					if (to === null) return;
+					void navigate(to);
+					window.scrollTo({ top: 0, behavior: "instant" });
 				}}
 				onClose={() => {
 					setLeaveTo(null);

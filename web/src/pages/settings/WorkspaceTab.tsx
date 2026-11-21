@@ -77,8 +77,7 @@ export function WorkspaceTab({
 	const current: WorkspaceDraft = draft ?? { name: ws.name, desc: ws.description };
 	const nameT = current.name.trim();
 	const dirty = current.name !== ws.name || current.desc !== ws.description;
-	const nameErr =
-		nameT === "" ? "Name required" : nameT.length > MAX_NAME ? `Max ${MAX_NAME.toString()} characters` : null;
+	const nameErr = nameT === "" || nameT.length > MAX_NAME ? `Use 1–${MAX_NAME.toString()} characters.` : null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
 	const shownErr = dirty ? nameErr : null;
