@@ -51,6 +51,8 @@ message EntityScope {
     not_in: [0]
   }];
   string entity_id = 3 [(buf.validate.field).string.uuid = true];
+  // Display name of the organization, workspace or resource, set by ListTokens when the caller can read it.
+  string name = 4;
 }
 
 // Token represents token metadata (without the actual token string).

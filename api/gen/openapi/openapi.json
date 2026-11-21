@@ -15999,6 +15999,11 @@
             "type": "string",
             "title": "entity_id",
             "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "description": "Display name of the organization, workspace or resource, set by ListTokens when the caller can read it."
           }
         },
         "title": "EntityScope",

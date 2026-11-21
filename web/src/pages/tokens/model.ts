@@ -193,17 +193,13 @@ export function resolveNode(tree: EntityTree, key: string): EntityNode {
 	);
 }
 
-export function withScopeEntities(
-	tree: EntityTree,
-	scopes: EntityScope[],
-	names: ReadonlyMap<string, string>,
-): EntityTree {
+export function withScopeEntities(tree: EntityTree, scopes: EntityScope[]): EntityTree {
 	const nodes = new Map(tree.nodes);
 	for (const s of scopes) {
 		const key = nodeKey(s.entityType, s.entityId);
 		if (nodes.has(key)) continue;
 		const kind = kindOf(s.entityType);
-		const label = kind === "system" ? "Platform" : (names.get(key) ?? s.entityId.slice(0, 8));
+		const label = kind === "system" ? "Platform" : s.name || s.entityId.slice(0, 8);
 		nodes.set(key, { key, kind, entityType: s.entityType, id: s.entityId, label, parent: null });
 	}
 	return { nodes, order: tree.order, childCount: tree.childCount };

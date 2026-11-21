@@ -575,15 +575,47 @@ func (q *Queries) ListAPITokenNames(ctx context.Context, ids []uuid.UUID) ([]Lis
 }
 
 const listAPITokensForEntity = `-- name: ListAPITokensForEntity :many
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
-FROM api_tokens
-WHERE entity_type = $1 AND entity_id = $2
-ORDER BY created_at DESC
+SELECT t.id, t.name, t.entity_type, t.entity_id, t.scopes, t.created_by, t.created_at, t.expires_at,
+       t.last_used_at, t.display_suffix,
+       ARRAY(
+           SELECT COALESCE(n.name, '')
+           FROM JSONB_ARRAY_ELEMENTS(t.scopes) WITH ORDINALITY AS e(scope, ord)
+           CROSS JOIN LATERAL (
+               SELECT (e.scope->>'entity_type')::entity_type AS entity_type, (e.scope->>'entity_id')::uuid AS entity_id
+           ) s
+           LEFT JOIN LATERAL (
+               SELECT o.name FROM organizations o
+               WHERE s.entity_type = 'organization' AND o.id = s.entity_id
+                 AND ($1::bool OR o.id = ANY($2::uuid[]))
+               UNION ALL
+               SELECT w.name FROM workspaces w
+               WHERE s.entity_type = 'workspace' AND w.id = s.entity_id
+                 AND ($1::bool
+                      OR w.org_id = ANY($2::uuid[])
+                      OR w.id = ANY($3::uuid[]))
+               UNION ALL
+               SELECT r.name FROM resources r
+               JOIN workspaces rw ON rw.id = r.workspace_id
+               WHERE s.entity_type = 'resource' AND r.id = s.entity_id
+                 AND ($1::bool
+                      OR rw.org_id = ANY($2::uuid[])
+                      OR rw.id = ANY($3::uuid[])
+                      OR r.id = ANY($4::uuid[]))
+           ) n ON TRUE
+           ORDER BY e.ord
+       )::text[] AS scope_names
+FROM api_tokens t
+WHERE t.entity_type = $5 AND t.entity_id = $6
+ORDER BY t.created_at DESC
 `
 
 type ListAPITokensForEntityParams struct {
-	EntityType EntityType `json:"entityType"`
-	EntityID   uuid.UUID  `json:"entityId"`
+	SystemRead      bool        `json:"systemRead"`
+	OrganizationIds []uuid.UUID `json:"organizationIds"`
+	WorkspaceIds    []uuid.UUID `json:"workspaceIds"`
+	ResourceIds     []uuid.UUID `json:"resourceIds"`
+	EntityType      EntityType  `json:"entityType"`
+	EntityID        uuid.UUID   `json:"entityId"`
 }
 
 type ListAPITokensForEntityRow struct {
@@ -597,10 +629,19 @@ type ListAPITokensForEntityRow struct {
 	ExpiresAt     time.Time     `json:"expiresAt"`
 	LastUsedAt    *time.Time    `json:"lastUsedAt"`
 	DisplaySuffix string        `json:"displaySuffix"`
+	ScopeNames    []string      `json:"scopeNames"`
 }
 
+// scope_names holds each scope's organization, workspace or resource name in scope order, empty when the caller cannot read it.
 func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error) {
-	rows, err := q.db.Query(ctx, listAPITokensForEntity, arg.EntityType, arg.EntityID)
+	rows, err := q.db.Query(ctx, listAPITokensForEntity,
+		arg.SystemRead,
+		arg.OrganizationIds,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+		arg.EntityType,
+		arg.EntityID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -619,6 +660,7 @@ func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensF
 			&i.ExpiresAt,
 			&i.LastUsedAt,
 			&i.DisplaySuffix,
+			&i.ScopeNames,
 		); err != nil {
 			return nil, err
 		}

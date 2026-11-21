@@ -255,14 +255,26 @@ func (s *TokenServer) ListTokens(
 		return nil, err
 	}
 
-	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
+	readable := s.authz.ReadableEntities(p.Scopes)
+	tokens, err := s.queries.ListAPITokensForEntity(ctx, genDb.ListAPITokensForEntityParams{
+		SystemRead: readable.System, OrganizationIds: readable.Organizations,
+		WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
+		EntityType: targetEntity.Type, EntityID: targetEntity.ID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list tokens: %w", err)
 	}
 
 	protoTokens := make([]*tokenv1.Token, len(tokens))
 	for i, t := range tokens {
-		protoTokens[i] = apiTokenRowToProto(genDb.CreateAPITokenRow(t))
+		protoTokens[i] = apiTokenRowToProto(genDb.CreateAPITokenRow{
+			ID: t.ID, Name: t.Name, EntityType: t.EntityType, EntityID: t.EntityID, Scopes: t.Scopes,
+			CreatedBy: t.CreatedBy, CreatedAt: t.CreatedAt, ExpiresAt: t.ExpiresAt, LastUsedAt: t.LastUsedAt,
+			DisplaySuffix: t.DisplaySuffix,
+		})
+		for j, scope := range protoTokens[i].GetScopes() {
+			scope.Name = t.ScopeNames[j]
+		}
 	}
 
 	return &tokenv1.ListTokensResponse{
