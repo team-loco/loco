@@ -24,7 +24,9 @@ export function SpanTip() {
 					<TooltipContent role="tooltip" className="pointer-events-none max-w-80 flex-col items-stretch gap-2">
 						{payload.entries.map((entry, i) => (
 							<div key={i} className="flex min-w-0 flex-col gap-0.5">
-								<span className="text-[12.5px] leading-snug font-medium [overflow-wrap:anywhere]">{entry.title}</span>
+								<span className="line-clamp-2 text-[12.5px] leading-snug font-medium [overflow-wrap:anywhere]">
+									{entry.title}
+								</span>
 								<span className="flex min-w-0 items-center gap-1.5 text-[11px] text-fg3 tabular-nums">
 									{entry.color !== undefined && (
 										<i

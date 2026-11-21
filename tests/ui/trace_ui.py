@@ -1710,6 +1710,7 @@ with session(out) as browser:
             (0.5, 0, "Proxy accepted"),
             (35, 5, "Product found"),
             (172, 10, "Payment declined"),
+            (300, 12, "Access log " + "GET /api/products/OLJCESPC7Z 200 " * 12),
             *((0.5, 0, f"Proxy filler {n}") for n in range(30)),
         )
     ]
@@ -1843,6 +1844,14 @@ with session(out) as browser:
         marker.hover()
         expect(page.get_by_role("tooltip")).to_contain_text("Product found")
         assert marker.get_attribute("title") is None, font
+        drawer.get_by_role("button", name=re.compile("^Log at .*: Access log ")).hover()
+        tip = page.get_by_role("tooltip")
+        expect(tip).to_contain_text("Access log")
+        clamped = tip.locator("span").first.evaluate(
+            "t => [t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight), t.scrollHeight > t.clientHeight]"
+        )
+        assert clamped[0] <= 2.05 and clamped[1], (font, clamped)
+        expect(tip.locator("span").nth(1)).to_be_visible()
         resizer = drawer.get_by_role("separator", name="Resize bottom panel")
         handle_box = resizer.bounding_box()
         page.mouse.move(
