@@ -52,8 +52,8 @@ const TRACES_PARAMS = {
 	span: parseAsString,
 	widths: widthsParser,
 };
+const SECOND_MS = 1000;
 const ERROR_TOKEN = { neg: false, key: "status" as const, value: "error" };
-const COUNT_LIMIT = 1;
 const ARRIVAL_POLL_MS = 5000;
 
 type SortId = (typeof SORT_IDS)[number];
@@ -120,18 +120,15 @@ function TraceSession({
 		enabled: scopeReady,
 	});
 	const unfiltered = tokens.filter((t) => t.key !== "status");
-	const allQuery = queryStr(unfiltered, text);
-	const errorQuery = queryStr([...unfiltered, ERROR_TOKEN], text);
-	const countOf = (countQuery: string) => ({
+	const statusFree = unfiltered.length === tokens.length;
+	// The histogram's total counts the tabs unless a status token narrows it; then one whole-range bucket does.
+	const unfilteredOverview = useTraceBuckets({
 		...filters,
-		query: countQuery,
-		limit: COUNT_LIMIT,
-		offset: 0,
-		sort: TraceSummarySort.START_TIME,
-		enabled: scopeReady && countQuery !== query,
+		query: queryStr(unfiltered, text),
+		intervalSeconds: Math.max(1, Math.ceil((bounds.to - bounds.from) / SECOND_MS)),
+		enabled: scopeReady && !statusFree,
 	});
-	const allCount = useListTraces(countOf(allQuery));
-	const errorCount = useListTraces(countOf(errorQuery));
+	const tabTotals = scopeReady ? (statusFree ? overview : unfilteredOverview).data?.total : undefined;
 	const openId = params.trace;
 	const shownId = useHeldWhileClosed(openId, openId !== "");
 	const detail = useGetTrace({
@@ -146,10 +143,7 @@ function TraceSession({
 
 	const traces = scopeReady ? (browse.data?.summaries ?? []) : [];
 	const total = scopeReady ? Number(browse.data?.totalCount ?? 0n) : 0;
-	const countLabel = (countQuery: string, data: { totalCount: bigint } | undefined) => {
-		const counted = countQuery === query ? browse.data : data;
-		return scopeReady && counted !== undefined ? formatCount(Number(counted.totalCount)) : undefined;
-	};
+	const countLabel = (count: bigint | undefined) => (count === undefined ? undefined : formatCount(Number(count)));
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
 	const go = (page: number) => () => {
 		setPaging({ page, size: paging.size });
@@ -306,10 +300,10 @@ function TraceSession({
 							setQuery(v[0] === "errors" ? [...unfiltered, ERROR_TOKEN] : unfiltered, text);
 						}}
 					>
-						<ToggleGroupItem value="all" count={countLabel(allQuery, allCount.data)}>
+						<ToggleGroupItem value="all" count={countLabel(tabTotals?.traceCount)}>
 							All
 						</ToggleGroupItem>
-						<ToggleGroupItem value="errors" count={countLabel(errorQuery, errorCount.data)}>
+						<ToggleGroupItem value="errors" count={countLabel(tabTotals?.errorCount)}>
 							Errors
 						</ToggleGroupItem>
 					</ToggleGroup>

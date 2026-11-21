@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -52,10 +53,7 @@ func (c *Client) ListTraces(
 	b := &positionalBinder{}
 	query := buildTraceSummaryQuery(req, filter, b)
 	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(c.queryTimeout.Seconds()))
-	var total uint64
-	if err := c.conn.QueryRow(ctx, "SELECT count() FROM ("+query+")"+settings, b.args...).Scan(&total); err != nil {
-		return nil, fmt.Errorf("count trace summaries: %w", err)
-	}
+	summaryQuery, summaryArgs := query, slices.Clone(b.args)
 	sort := "start_time"
 	switch req.GetSort() {
 	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION:
@@ -81,8 +79,9 @@ func (c *Client) ListTraces(
 	if req.GetAscending() {
 		direction = " ASC"
 	}
-	query = "SELECT TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4 FROM (" +
-		query + ") ORDER BY " + sort + direction + ", TraceId ASC LIMIT ? OFFSET ?" + settings
+	// The window count totals every matching trace before LIMIT, so one aggregation serves the page and its total.
+	query = "SELECT TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4, " +
+		"count() OVER () FROM (" + query + ") ORDER BY " + sort + direction + ", TraceId ASC LIMIT ? OFFSET ?" + settings
 	b.args = append(b.args, limit, req.GetOffset())
 	rows, err := c.conn.Query(ctx, query, b.args...)
 	if err != nil {
@@ -90,6 +89,7 @@ func (c *Client) ListTraces(
 	}
 	defer rows.Close()
 	summaries := make([]*observabilityv1.TraceSummary, 0)
+	var total uint64
 	for rows.Next() {
 		var id, name, service, resource string
 		var status int32
@@ -106,6 +106,7 @@ func (c *Client) ListTraces(
 			&status,
 			&count,
 			&httpStatus,
+			&total,
 		); err != nil {
 			return nil, fmt.Errorf("scan trace summary: %w", err)
 		}
@@ -123,6 +124,13 @@ func (c *Client) ListTraces(
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("trace summary rows: %w", err)
+	}
+	// A page past the end has no rows to carry the total.
+	if len(summaries) == 0 && req.GetOffset() > 0 {
+		err := c.conn.QueryRow(ctx, "SELECT count() FROM ("+summaryQuery+")"+settings, summaryArgs...).Scan(&total)
+		if err != nil {
+			return nil, fmt.Errorf("count trace summaries: %w", err)
+		}
 	}
 	return &observabilityv1.ListTracesResponse{Summaries: summaries, TotalCount: total}, nil
 }
