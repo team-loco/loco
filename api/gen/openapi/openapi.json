@@ -14210,12 +14210,6 @@
             "title": "include_total_count",
             "description": "Sets total_count in the response."
           },
-          "query": {
-            "type": "string",
-            "title": "query",
-            "maxLength": 200,
-            "description": "Matches organization names, ignoring case."
-          },
           "name": {
             "type": "string",
             "title": "name",

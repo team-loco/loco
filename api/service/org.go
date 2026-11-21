@@ -232,10 +232,8 @@ func (s *OrgServer) ListUserOrgs(
 		}
 	}
 
-	query := likePattern(req.GetQuery())
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
 		UserID:        userID,
-		Query:         query,
 		Name:          req.GetName(),
 		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
@@ -259,7 +257,7 @@ func (s *OrgServer) ListUserOrgs(
 	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
 		return s.queries.CountOrgsForUser(
 			ctx,
-			genDb.CountOrgsForUserParams{UserID: userID, Query: query, Name: req.GetName(), Limit: limit},
+			genDb.CountOrgsForUserParams{UserID: userID, Name: req.GetName(), Limit: limit},
 		)
 	})
 	if err != nil {

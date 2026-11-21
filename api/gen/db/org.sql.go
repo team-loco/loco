@@ -58,8 +58,7 @@ SELECT COUNT(*) FROM (
   SELECT 1 FROM user_scopes us
   JOIN organizations o ON o.id = us.entity_id
   WHERE us.user_id = $1 AND us.entity_type = 'organization'
-    AND ($3::text = '' OR o.name ILIKE $3)
-    AND ($4::text = '' OR lower(o.name) = lower($4))
+    AND ($3::text = '' OR lower(o.name) = lower($3))
   GROUP BY us.entity_id
   LIMIT $2
 ) capped
@@ -68,17 +67,11 @@ SELECT COUNT(*) FROM (
 type CountOrgsForUserParams struct {
 	UserID uuid.UUID `json:"userId"`
 	Limit  int32     `json:"limit"`
-	Query  string    `json:"query"`
 	Name   string    `json:"name"`
 }
 
 func (q *Queries) CountOrgsForUser(ctx context.Context, arg CountOrgsForUserParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countOrgsForUser,
-		arg.UserID,
-		arg.Limit,
-		arg.Query,
-		arg.Name,
-	)
+	row := q.db.QueryRow(ctx, countOrgsForUser, arg.UserID, arg.Limit, arg.Name)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -389,12 +382,11 @@ WHERE EXISTS (
       AND us.entity_type = 'organization'
       AND us.entity_id = o.id
   )
-  AND ($3::text = '' OR o.name ILIKE $3)
-  AND ($4::text = '' OR lower(o.name) = lower($4))
-  AND ($5::text IS NULL
+  AND ($3::text = '' OR lower(o.name) = lower($3))
+  AND ($4::text IS NULL
        OR (o.created_at, o.id) < (
-         $6::timestamptz,
-         $5::uuid
+         $5::timestamptz,
+         $4::uuid
        ))
 ORDER BY o.created_at DESC, o.id DESC
 LIMIT $2
@@ -403,7 +395,6 @@ LIMIT $2
 type ListOrgsForUserParams struct {
 	UserID        uuid.UUID  `json:"userId"`
 	Limit         int32      `json:"limit"`
-	Query         string     `json:"query"`
 	Name          string     `json:"name"`
 	PageToken     *string    `json:"pageToken"`
 	PageCreatedAt *time.Time `json:"pageCreatedAt"`
@@ -419,7 +410,6 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams
 	rows, err := q.db.Query(ctx, listOrgsForUser,
 		arg.UserID,
 		arg.Limit,
-		arg.Query,
 		arg.Name,
 		arg.PageToken,
 		arg.PageCreatedAt,

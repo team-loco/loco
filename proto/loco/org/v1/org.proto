@@ -109,10 +109,8 @@ message ListUserOrgsRequest {
   bool create_if_missing = 4;
   // Sets total_count in the response.
   bool include_total_count = 5;
-  // Matches organization names, ignoring case.
-  string query = 6 [(buf.validate.field).string.max_len = 200];
   // Only the organization with exactly this name, ignoring case.
-  string name = 7 [(buf.validate.field).string.max_len = 200];
+  string name = 6 [(buf.validate.field).string.max_len = 200];
 }
 
 // ListUserOrgsResponse is the response containing organization list.
