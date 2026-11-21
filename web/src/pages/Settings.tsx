@@ -109,7 +109,7 @@ export function Settings() {
 		}
 		if (w.id === workspaceId) selectScope("workspace");
 		else void navigate(to);
-		window.scrollTo(0, 0);
+		window.scrollTo({ top: 0, behavior: "instant" });
 	};
 
 	const itemClass = "h-7! min-w-0 shrink gap-1.5 px-3 text-[12.5px]";
@@ -208,7 +208,7 @@ export function Settings() {
 					setLeaveTo(null);
 					if (to === null) return;
 					void navigate(to);
-					window.scrollTo(0, 0);
+					window.scrollTo({ top: 0, behavior: "instant" });
 				}}
 				onClose={() => {
 					setLeaveTo(null);

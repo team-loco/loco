@@ -916,7 +916,11 @@ def settings(page):
         clickable=False,
     )
     check_table(
-        page, named_table("Retention", "Traces"), "Workspace", "Signal", clickable=False
+        page,
+        named_table("Retention", "Traces"),
+        "Organization limit",
+        "Signal",
+        clickable=False,
     )
 
 
