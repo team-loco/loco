@@ -9967,6 +9967,11 @@
             "title": "origin_environment_id",
             "format": "uuid",
             "description": "When set, return only builds initiated from this environment; omitted returns all origins."
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
           }
         },
         "title": "ListBuildsRequest",
@@ -9984,7 +9989,14 @@
           },
           "nextPageToken": {
             "type": "string",
-            "title": "next_page_token"
+            "title": "next_page_token",
+            "description": "Empty on the last page."
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The builds the filters match, ignoring page_token; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
           }
         },
         "title": "ListBuildsResponse",

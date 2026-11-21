@@ -5,7 +5,16 @@ import time
 import uuid
 from pathlib import Path
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    evidence,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -570,6 +579,21 @@ with session(out) as browser:
         section.get_by_role("button", name="Cancel build", exact=True)
     ).to_have_count(0)
     expect(section.get_by_text("canceled", exact=True).first).to_be_visible()
+    with expect_rpc(
+        page, "ListBuilds", lambda body: bool(body.get("pageToken"))
+    ) as older:
+        section.get_by_role("button", name="Older builds", exact=True).click()
+    assert older.value.request.post_data_json["pageSize"] == 5
+    expect(section.get_by_text("6–6 of 6", exact=False)).to_be_visible()
+    expect(section.get_by_text("Page 2", exact=True)).to_be_visible()
+    expect(
+        section.get_by_role(
+            "button", name=f"Show build {builds['older'][-8:]}", exact=True
+        )
+    ).to_be_visible()
+    expect(page).to_have_url(re.compile(r"[?&]builds="))
+    section.get_by_role("button", name="Newer builds", exact=True).click()
+    expect(section.get_by_text("1–5 of 6", exact=False)).to_be_visible()
     # Reuse the existing deployment's build from a different initiating environment.
     sql(
         state,

@@ -712,8 +712,10 @@ type ListBuildsRequest struct {
 	PageToken  string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// When set, return only builds initiated from this environment; omitted returns all origins.
 	OriginEnvironmentId *string `protobuf:"bytes,4,opt,name=origin_environment_id,json=originEnvironmentId,proto3,oneof" json:"origin_environment_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,5,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListBuildsRequest) Reset() {
@@ -774,10 +776,21 @@ func (x *ListBuildsRequest) GetOriginEnvironmentId() string {
 	return ""
 }
 
+func (x *ListBuildsRequest) GetIncludeTotalCount() bool {
+	if x != nil {
+		return x.IncludeTotalCount
+	}
+	return false
+}
+
 type ListBuildsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Builds        []*Build               `protobuf:"bytes,1,rep,name=builds,proto3" json:"builds,omitempty"`
-	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Builds []*Build               `protobuf:"bytes,1,rep,name=builds,proto3" json:"builds,omitempty"`
+	// Empty on the last page.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// The builds the filters match, ignoring page_token; set when include_total_count is.
+	// Exact up to 10,000; 10,001 means more than 10,000.
+	TotalCount    int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -824,6 +837,13 @@ func (x *ListBuildsResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListBuildsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
 }
 
 type CancelBuildRequest struct {
@@ -1001,7 +1021,7 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\x0fGetBuildRequest\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\">\n" +
 	"\x10GetBuildResponse\x12*\n" +
-	"\x05build\x18\x01 \x01(\v2\x14.loco.build.v1.BuildR\x05build\"\xe3\x01\n" +
+	"\x05build\x18\x01 \x01(\v2\x14.loco.build.v1.BuildR\x05build\"\x93\x02\n" +
 	"\x11ListBuildsRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12'\n" +
@@ -1009,11 +1029,14 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\x12A\n" +
-	"\x15origin_environment_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x13originEnvironmentId\x88\x01\x01B\x18\n" +
-	"\x16_origin_environment_id\"j\n" +
+	"\x15origin_environment_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x13originEnvironmentId\x88\x01\x01\x12.\n" +
+	"\x13include_total_count\x18\x05 \x01(\bR\x11includeTotalCountB\x18\n" +
+	"\x16_origin_environment_id\"\x8b\x01\n" +
 	"\x12ListBuildsResponse\x12,\n" +
 	"\x06builds\x18\x01 \x03(\v2\x14.loco.build.v1.BuildR\x06builds\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"9\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\"9\n" +
 	"\x12CancelBuildRequest\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"A\n" +
 	"\x13CancelBuildResponse\x12*\n" +
