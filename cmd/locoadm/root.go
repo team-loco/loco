@@ -10,6 +10,7 @@ import (
 	"github.com/team-loco/loco/cmd/locoadm/login"
 	"github.com/team-loco/loco/cmd/locoadm/org"
 	"github.com/team-loco/loco/cmd/locoadm/recovery"
+	"github.com/team-loco/loco/cmd/locoadm/region"
 	"github.com/team-loco/loco/cmd/locoadm/status"
 	"github.com/team-loco/loco/cmd/locoadm/user"
 	"github.com/team-loco/loco/cmd/locoadm/verify"
@@ -22,7 +23,7 @@ func NewRootCmd() *cobra.Command {
 	}
 	root.AddCommand(initialize.Command(), status.Command())
 	root.AddCommand(admin.BuildAdminCmd())
-	root.AddCommand(cluster.BuildClusterCmd())
+	root.AddCommand(cluster.BuildClusterCmd(), region.BuildRegionCmd())
 	root.AddCommand(login.Command())
 	root.AddCommand(user.BuildUserCmd())
 	root.AddCommand(org.BuildOrgCmd())
