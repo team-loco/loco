@@ -88,8 +88,9 @@ func (ResourceType) EnumDescriptor() ([]byte, []int) {
 }
 
 // ResourceStatus is whether a resource is serving, derived from the replicas its clusters report ready.
-// HEALTHY: every desired replica is ready. DEGRADED: some replicas or regions are not ready.
-// UNAVAILABLE: no replica is ready. DEPLOYING: a first rollout has no ready replica yet.
+// HEALTHY: ready replicas of any version cover every desired replica. DEGRADED: some replicas or
+// regions are not ready. UNAVAILABLE: no replica is ready. DEPLOYING: a first rollout has no ready
+// replica yet.
 // UNKNOWN: the cluster running it stopped reporting, so its last report cannot be trusted.
 type ResourceStatus int32
 
@@ -736,12 +737,17 @@ func (x *EnvironmentStatus) GetStatusSince() *timestamppb.Timestamp {
 // RegionStatus is a resource's status in one region of an environment: its active deployment and
 // the replicas the cluster running it reports ready.
 type RegionStatus struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Region          string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
-	Status          ResourceStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=loco.resource.v1.ResourceStatus" json:"status,omitempty"`
-	ReadyReplicas   int32                  `protobuf:"varint,3,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
-	DesiredReplicas int32                  `protobuf:"varint,4,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
-	DeploymentId    string                 `protobuf:"bytes,5,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Region string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
+	Status ResourceStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=loco.resource.v1.ResourceStatus" json:"status,omitempty"`
+	// The ready replicas of every version, at most desired_replicas.
+	ReadyReplicas   int32 `protobuf:"varint,3,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
+	DesiredReplicas int32 `protobuf:"varint,4,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
+	// The live deployment: the one placed in this region, or a newer one waiting for its build.
+	DeploymentId string `protobuf:"bytes,5,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	// The deployment with the most ready replicas in this region, the live deployment and then the
+	// newest on a tie. Empty while no replica is ready.
+	ServingDeploymentId string `protobuf:"bytes,13,opt,name=serving_deployment_id,json=servingDeploymentId,proto3" json:"serving_deployment_id,omitempty"`
 	// The status of the live deployment's placement in this region.
 	PlacementStatus v1.PlacementStatus     `protobuf:"varint,10,opt,name=placement_status,json=placementStatus,proto3,enum=loco.deployment.v1.PlacementStatus" json:"placement_status,omitempty"`
 	Message         *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
@@ -817,6 +823,13 @@ func (x *RegionStatus) GetDesiredReplicas() int32 {
 func (x *RegionStatus) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *RegionStatus) GetServingDeploymentId() string {
+	if x != nil {
+		return x.ServingDeploymentId
 	}
 	return ""
 }
@@ -2424,13 +2437,14 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x128\n" +
 	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\x12B\n" +
 	"\fstatus_since\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vstatusSince\x88\x01\x01B\x0f\n" +
-	"\r_status_since\"\xb8\x04\n" +
+	"\r_status_since\"\xec\x04\n" +
 	"\fRegionStatus\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x128\n" +
 	"\x06status\x18\x02 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x12%\n" +
 	"\x0eready_replicas\x18\x03 \x01(\x05R\rreadyReplicas\x12)\n" +
 	"\x10desired_replicas\x18\x04 \x01(\x05R\x0fdesiredReplicas\x12#\n" +
-	"\rdeployment_id\x18\x05 \x01(\tR\fdeploymentId\x12N\n" +
+	"\rdeployment_id\x18\x05 \x01(\tR\fdeploymentId\x122\n" +
+	"\x15serving_deployment_id\x18\r \x01(\tR\x13servingDeploymentId\x12N\n" +
 	"\x10placement_status\x18\n" +
 	" \x01(\x0e2#.loco.deployment.v1.PlacementStatusR\x0fplacementStatus\x12\x1d\n" +
 	"\amessage\x18\a \x01(\tH\x00R\amessage\x88\x01\x01\x12@\n" +

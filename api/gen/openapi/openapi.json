@@ -15048,7 +15048,8 @@
           "readyReplicas": {
             "type": "integer",
             "title": "ready_replicas",
-            "format": "int32"
+            "format": "int32",
+            "description": "The ready replicas of every version, at most desired_replicas."
           },
           "desiredReplicas": {
             "type": "integer",
@@ -15057,7 +15058,13 @@
           },
           "deploymentId": {
             "type": "string",
-            "title": "deployment_id"
+            "title": "deployment_id",
+            "description": "The live deployment: the one placed in this region, or a newer one waiting for its build."
+          },
+          "servingDeploymentId": {
+            "type": "string",
+            "title": "serving_deployment_id",
+            "description": "The deployment with the most ready replicas in this region, the live deployment and then the\n newest on a tie. Empty while no replica is ready."
           },
           "placementStatus": {
             "title": "placement_status",
@@ -15341,7 +15348,7 @@
           "RESOURCE_STATUS_UNAVAILABLE",
           "RESOURCE_STATUS_UNKNOWN"
         ],
-        "description": "ResourceStatus is whether a resource is serving, derived from the replicas its clusters report ready.\n HEALTHY: every desired replica is ready. DEGRADED: some replicas or regions are not ready.\n UNAVAILABLE: no replica is ready. DEPLOYING: a first rollout has no ready replica yet.\n UNKNOWN: the cluster running it stopped reporting, so its last report cannot be trusted."
+        "description": "ResourceStatus is whether a resource is serving, derived from the replicas its clusters report ready.\n HEALTHY: ready replicas of any version cover every desired replica. DEGRADED: some replicas or\n regions are not ready. UNAVAILABLE: no replica is ready. DEPLOYING: a first rollout has no ready\n replica yet.\n UNKNOWN: the cluster running it stopped reporting, so its last report cannot be trusted."
       },
       "loco.resource.v1.ResourceType": {
         "type": "string",

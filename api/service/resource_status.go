@@ -13,6 +13,7 @@ import (
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -96,7 +97,6 @@ func regionStatus(
 	}
 	region := &resourcev1.RegionStatus{
 		Region:          row.Region,
-		ReadyReplicas:   row.ReadyReplicas,
 		DesiredReplicas: row.DesiredReplicas,
 		DeploymentId:    row.DeploymentID.String(),
 		PlacementStatus: placementStatuses[row.PlacementStatus],
@@ -106,6 +106,12 @@ func regionStatus(
 	}
 	if decodeErr := json.Unmarshal(row.Replicas, &region.Replicas); decodeErr != nil {
 		return nil, fmt.Errorf("decode observed replicas: %w", decodeErr)
+	}
+	region.ReadyReplicas = min(row.ReadyReplicas, row.DesiredReplicas)
+	region.ServingDeploymentId = servingDeployment(region.GetReplicas(), region.GetDeploymentId())
+	if region.GetServingDeploymentId() == "" && row.ReadyReplicas > 0 && row.PlacedDeploymentID != nil {
+		// A ready count without the replicas behind it counts as the placed deployment's.
+		region.ServingDeploymentId = row.PlacedDeploymentID.String()
 	}
 
 	if silence := clusterSilence(row, now, staleAfter); silence != "" {
@@ -137,6 +143,25 @@ func regionStatus(
 	}
 	region.StatusSince = statusSince(row, region.GetStatus())
 	return region, nil
+}
+
+// servingDeployment is the deployment with the most ready replicas. A tie goes to the live
+// deployment, then to the greater UUIDv7, the newer.
+func servingDeployment(replicas []*deploymentv1.Replica, live string) string {
+	ready := make(map[string]int)
+	for _, replica := range replicas {
+		if replica.GetReady() && replica.GetDeploymentId() != "" {
+			ready[replica.GetDeploymentId()]++
+		}
+	}
+	serving := ""
+	for id, count := range ready {
+		best := ready[serving]
+		if count > best || count == best && serving != live && (id == live || id > serving) {
+			serving = id
+		}
+	}
+	return serving
 }
 
 // statusSince is when the region entered status: the time recordRegionStatuses stamped, or the

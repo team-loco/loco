@@ -341,6 +341,7 @@ SELECT l.resource_id,
                  WHERE ro.deployment_id = l.deployment_id AND ro.cluster_id = l.cluster_id
                  ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
        (p.id IS NOT NULL)::boolean AS placed,
+       p.deployment_id AS placed_deployment_id,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        p.status_updated_at,
        COALESCE(p.region_status, '')::text AS stored_status,
@@ -367,24 +368,25 @@ ORDER BY l.resource_id, e.slug, l.region
 `
 
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID        uuid.UUID       `json:"resourceId"`
-	EnvironmentID     uuid.UUID       `json:"environmentId"`
-	EnvironmentSlug   string          `json:"environmentSlug"`
-	Region            string          `json:"region"`
-	ClusterID         uuid.UUID       `json:"clusterId"`
-	DeploymentID      uuid.UUID       `json:"deploymentId"`
-	PlacementStatus   PlacementStatus `json:"placementStatus"`
-	DesiredReplicas   int32           `json:"desiredReplicas"`
-	Problem           []byte          `json:"problem"`
-	Placed            bool            `json:"placed"`
-	ReadyReplicas     int32           `json:"readyReplicas"`
-	StatusUpdatedAt   *time.Time      `json:"statusUpdatedAt"`
-	StoredStatus      string          `json:"storedStatus"`
-	RegionStatusSince *time.Time      `json:"regionStatusSince"`
-	Replicas          []byte          `json:"replicas"`
-	LastHeartbeat     *time.Time      `json:"lastHeartbeat"`
-	HealthStatus      *string         `json:"healthStatus"`
-	UnservedDomains   []string        `json:"unservedDomains"`
+	ResourceID         uuid.UUID       `json:"resourceId"`
+	EnvironmentID      uuid.UUID       `json:"environmentId"`
+	EnvironmentSlug    string          `json:"environmentSlug"`
+	Region             string          `json:"region"`
+	ClusterID          uuid.UUID       `json:"clusterId"`
+	DeploymentID       uuid.UUID       `json:"deploymentId"`
+	PlacementStatus    PlacementStatus `json:"placementStatus"`
+	DesiredReplicas    int32           `json:"desiredReplicas"`
+	Problem            []byte          `json:"problem"`
+	Placed             bool            `json:"placed"`
+	PlacedDeploymentID *uuid.UUID      `json:"placedDeploymentId"`
+	ReadyReplicas      int32           `json:"readyReplicas"`
+	StatusUpdatedAt    *time.Time      `json:"statusUpdatedAt"`
+	StoredStatus       string          `json:"storedStatus"`
+	RegionStatusSince  *time.Time      `json:"regionStatusSince"`
+	Replicas           []byte          `json:"replicas"`
+	LastHeartbeat      *time.Time      `json:"lastHeartbeat"`
+	HealthStatus       *string         `json:"healthStatus"`
+	UnservedDomains    []string        `json:"unservedDomains"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
@@ -407,6 +409,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.DesiredReplicas,
 			&i.Problem,
 			&i.Placed,
+			&i.PlacedDeploymentID,
 			&i.ReadyReplicas,
 			&i.StatusUpdatedAt,
 			&i.StoredStatus,

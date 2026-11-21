@@ -86,9 +86,9 @@ function envCell(resource: Resource, environment: Environment, deployments: Depl
 	const status = environmentStatus(resource, environment.id);
 	const first = status?.regions[0];
 	if (status === undefined) return undefined;
+	const activeId = first?.servingDeploymentId === "" ? first.deploymentId : first?.servingDeploymentId;
 	const active =
-		deployments.find((d) => d.id === first?.deploymentId) ??
-		deployments.find((d) => d.environmentId === environment.id);
+		deployments.find((d) => d.id === activeId) ?? deployments.find((d) => d.environmentId === environment.id);
 	const image = active === undefined ? "" : deploymentImage(active);
 	return {
 		status: status.status,

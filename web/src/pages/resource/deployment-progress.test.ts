@@ -44,7 +44,13 @@ const pending = create(DeploymentSchema, {
 	status: DeploymentStatus.BUILDING,
 	createdAt: timestampFromMs(3000),
 });
-const region: RegionView = { name: "east", history: [pending, previous], current: previous, status: undefined };
+const region: RegionView = {
+	name: "east",
+	history: [pending, previous],
+	current: previous,
+	serving: previous,
+	status: undefined,
+};
 
 test("a new pending deployment appears while the region still runs its previous release", () => {
 	const [progress] = progressDeployments([region]);
@@ -67,9 +73,10 @@ test("progress does not use a sibling region's deployments", () => {
 		createdAt: timestampFromMs(4000),
 	});
 	expect(
-		progressDeployments([region, { name: "west", history: [other], current: other, status: undefined }]).map(
-			(p) => p.deployment.id,
-		),
+		progressDeployments([
+			region,
+			{ name: "west", history: [other], current: other, serving: other, status: undefined },
+		]).map((p) => p.deployment.id),
 	).toEqual(["pending", "other"]);
 });
 

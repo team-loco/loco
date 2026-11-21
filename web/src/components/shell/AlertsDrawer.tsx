@@ -330,7 +330,7 @@ export function AlertsDrawer() {
 	for (const region of (resources.data?.resources ?? []).flatMap((r) =>
 		r.environmentStatuses.flatMap((e) => e.regions),
 	)) {
-		ready.set(region.deploymentId, (ready.get(region.deploymentId) ?? 0) + region.readyReplicas);
+		ready.set(region.servingDeploymentId, (ready.get(region.servingDeploymentId) ?? 0) + region.readyReplicas);
 	}
 	const running =
 		open && deploymentsQuery.data !== undefined
