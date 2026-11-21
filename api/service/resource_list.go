@@ -213,23 +213,37 @@ func (s *ResourceServer) ListWorkspaceResources(
 
 // readableResources is nil for a caller who can list the workspace's resources, else the
 // resources of the workspace GetResource would return to the caller. A caller who can read none of
-// them is denied.
+// them is denied. Without workspace read, only a grant on the resource itself passes GetResource's
+// check, so only the caller's resource grants are checked.
 func (s *ResourceServer) readableResources(ctx context.Context, wsID uuid.UUID) ([]uuid.UUID, error) {
-	denied := authorize(ctx, s.authz, actions.ListResources, wsID)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	denied := check(ctx, s.authz, p, actions.New(actions.ListResources, wsID))
 	if denied == nil || connect.CodeOf(denied) != connect.CodePermissionDenied {
 		return nil, denied
 	}
-	rows, err := s.queries.ListWorkspaceResourceSlugs(ctx, wsID)
-	if err != nil {
-		return nil, fmt.Errorf("list the resources of workspace %s: %w", wsID, err)
-	}
-	readable := []uuid.UUID{}
-	for _, row := range rows {
-		checkErr := authorize(ctx, s.authz, actions.GetResource, row.ID)
+	var granted []uuid.UUID
+	for _, id := range grantedResourceIDs(p.Scopes) {
+		checkErr := check(ctx, s.authz, p, actions.New(actions.GetResource, id))
 		if checkErr == nil {
-			readable = append(readable, row.ID)
+			granted = append(granted, id)
 		} else if connect.CodeOf(checkErr) != connect.CodePermissionDenied {
 			return nil, checkErr
+		}
+	}
+	if len(granted) == 0 {
+		return nil, denied
+	}
+	rows, err := s.queries.ListResourcesByIDs(ctx, granted)
+	if err != nil {
+		return nil, fmt.Errorf("list the granted resources: %w", err)
+	}
+	var readable []uuid.UUID
+	for _, row := range rows {
+		if row.WorkspaceID == wsID {
+			readable = append(readable, row.ID)
 		}
 	}
 	if len(readable) == 0 {

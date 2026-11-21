@@ -425,6 +425,10 @@ func TestListWorkspaceResourcesNeedsTheWorkspace(t *testing.T) {
 		"a resource of another workspace": {
 			{EntityType: genDb.EntityTypeResource, EntityID: otherResource, Scope: genDb.ScopeRead},
 		},
+		"write and admin on a resource": {
+			{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeWrite},
+			{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeAdmin},
+		},
 	} {
 		caller := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 		_, err := f.server().ListWorkspaceResources(caller, &resourcev1.ListWorkspaceResourcesRequest{
@@ -446,6 +450,9 @@ func TestListWorkspaceResourcesNeedsTheWorkspace(t *testing.T) {
 func TestListWorkspaceResourcesListsTheGrantedResources(t *testing.T) {
 	t.Parallel()
 	f := newResourceListFixture(t)
+	f.tenant.resource(t, f.workspaceID, "hidden", &resourcev1.ServiceSpec{
+		Regions: map[string]*resourcev1.RegionTarget{"hidden-region": {Enabled: true}},
+	})
 	f.ctx = reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listBeta], Scope: genDb.ScopeRead},
