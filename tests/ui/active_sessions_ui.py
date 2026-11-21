@@ -59,7 +59,7 @@ def verify(state):
         page.get_by_role("button", name="Retry", exact=True).click()
         sessions = page.get_by_role("list", name="Active sessions", exact=True)
         heading = page.get_by_role("heading", name="Active sessions", exact=True)
-        expect(heading.locator("xpath=..")).to_contain_text("Active sessions2")
+        expect(heading.locator("xpath=following-sibling::span")).to_have_text("2")
         current = sessions.get_by_role("listitem").first
         expect(current.get_by_text("Chrome on macOS", exact=True)).to_be_visible()
         expect(current.get_by_text("This browser", exact=True)).to_be_visible()
