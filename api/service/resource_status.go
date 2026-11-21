@@ -55,8 +55,6 @@ func (s *ResourceServer) environmentStatuses(
 		if regionErr != nil {
 			return nil, fmt.Errorf("resource %s region %s: %w", row.ResourceID, row.Region, regionErr)
 		}
-		region.FailurePolicy = s.defaults.FailurePolicy(row.RestartPolicy, row.MaxRestarts,
-			row.DeployTimeoutSeconds).Proto()
 		environmentID := row.EnvironmentID.String()
 		if current == nil || currentResource != row.ResourceID || current.GetEnvironmentId() != environmentID {
 			current = &resourcev1.EnvironmentStatus{

@@ -11,18 +11,12 @@ import (
 
 // deployTimedOut is the stop of a revision that missed its deploy timeout with nothing to fall back to.
 func deployTimedOut() *agentv1.StoppedRevision {
-	return &agentv1.StoppedRevision{PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT}
+	return &agentv1.StoppedRevision{PlacementRevision: 2}
 }
 
 func TestNextPlacementStatus(t *testing.T) {
-	stopped := &agentv1.StoppedRevision{
-		PlacementRevision: 2,
-		Reason:            agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
-		Restarts:          6,
-	}
-	unproven := &agentv1.StoppedRevision{
-		PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED, Restarts: 6, Rollout: true,
-	}
+	stopped := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6}
+	unproven := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6, Rollout: true}
 	for _, tt := range []struct {
 		name           string
 		previous, want genDb.PlacementStatus

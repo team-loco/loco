@@ -166,8 +166,7 @@ message RegionStatus {
   // The replicas the cluster last reported for this region's placement. GetResource fills them;
   // list responses leave them empty.
   repeated deployment.v1.Replica replicas = 9;
-  // The failure policy the region's placement runs under.
-  deployment.v1.FailurePolicy failure_policy = 11;
+  reserved 11;
 }
 
 // --- CRUD ---

@@ -9024,16 +9024,6 @@
         "title": "StartBuild",
         "additionalProperties": false
       },
-      "loco.agent.v1.StopReason": {
-        "type": "string",
-        "title": "StopReason",
-        "enum": [
-          "STOP_REASON_UNSPECIFIED",
-          "STOP_REASON_RESTARTS_EXHAUSTED",
-          "STOP_REASON_DEPLOY_TIMEOUT"
-        ],
-        "description": "StopReason is why the controller stopped a placement revision."
-      },
       "loco.agent.v1.StoppedRevision": {
         "type": "object",
         "properties": {
@@ -9041,10 +9031,6 @@
             "type": "string",
             "title": "placement_revision",
             "format": "int64"
-          },
-          "reason": {
-            "title": "reason",
-            "$ref": "#/components/schemas/loco.agent.v1.StopReason"
           },
           "replicaName": {
             "type": "string",
@@ -9069,16 +9055,11 @@
             "type": "boolean",
             "title": "rollout",
             "description": "Set when the revision never proved itself, so the previous revision serves in its place."
-          },
-          "detail": {
-            "type": "string",
-            "title": "detail",
-            "maxLength": 1024
           }
         },
         "title": "StoppedRevision",
         "additionalProperties": false,
-        "description": "StoppedRevision is a placement revision the controller stopped."
+        "description": "StoppedRevision is a placement revision the controller stopped; the problem report says why."
       },
       "loco.agent.v1.SyncRequest": {
         "type": "object",
@@ -14925,11 +14906,6 @@
             },
             "title": "replicas",
             "description": "The replicas the cluster last reported for this region's placement. GetResource fills them;\n list responses leave them empty."
-          },
-          "failurePolicy": {
-            "title": "failure_policy",
-            "description": "The failure policy the region's placement runs under.",
-            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
           }
         },
         "title": "RegionStatus",
