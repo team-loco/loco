@@ -54,22 +54,28 @@ with session(out) as browser:
     )
     hero.get_by_role("button", name="New webhook", exact=True).click()
     first = page.get_by_role("dialog", name="New webhook in shared", exact=True)
-    # The thumb slides inside its group even though the dialog grows and moves when the picker opens.
-    offsets = first.get_by_role("group", name="Events", exact=True).evaluate(
+    # The thumb slides across inside its group even though the dialog grows and moves when the picker opens.
+    frames = first.get_by_role("group", name="Events", exact=True).evaluate(
         """group => new Promise(resolve => {
-            const tops = [];
+            const frames = [];
             group.querySelector('[aria-pressed="false"]').click();
             const start = performance.now();
             const tick = () => {
                 const thumb = group.querySelector('[data-slot="segmented-indicator"]');
-                if (thumb) tops.push(thumb.getBoundingClientRect().top - group.getBoundingClientRect().top);
+                if (thumb) {
+                    const box = thumb.getBoundingClientRect(), root = group.getBoundingClientRect();
+                    frames.push([box.top - root.top, box.left - root.left]);
+                }
                 if (performance.now() - start < 400) requestAnimationFrame(tick);
-                else resolve(tops);
+                else resolve(frames);
             };
             requestAnimationFrame(tick);
         })"""
     )
-    assert offsets and max(offsets) - min(offsets) < 1, offsets
+    tops = [top for top, _ in frames]
+    lefts = {round(left) for _, left in frames}
+    assert tops and max(tops) - min(tops) < 1, frames
+    assert len(lefts) > 2, frames
     first.get_by_role("button", name="Cancel", exact=True).click()
     expect(first).to_have_count(0)
     hook = call(
