@@ -357,10 +357,10 @@ export function PartialError({
 	return (
 		<div
 			role="alert"
-			className="flex items-center gap-2.5 rounded-card border border-[color-mix(in_oklch,var(--warn)_40%,var(--line))] bg-[color-mix(in_oklch,var(--warn)_7%,var(--background))] py-2 pr-2 pl-3 text-[13px]"
+			className="flex flex-wrap items-center gap-2.5 rounded-card border border-[color-mix(in_oklch,var(--warn)_40%,var(--line))] bg-[color-mix(in_oklch,var(--warn)_7%,var(--background))] py-2 pr-2 pl-3 text-[13px]"
 		>
 			<TriangleAlertIcon aria-hidden className="size-[15px] shrink-0 text-warn" />
-			<span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
+			<span className="flex min-w-0 grow basis-[220px] flex-wrap items-baseline gap-x-2">
 				<span>{title}</span>
 				<span className="text-[12.5px] text-fg2">{detail}</span>
 			</span>
@@ -368,7 +368,7 @@ export function PartialError({
 				<CopyId
 					value={id}
 					title="Copy request ID"
-					className="min-w-0 rounded-md border border-line bg-background px-[7px] py-0.5 font-mono text-[11px] font-normal text-fg2 hover:border-fg3 hover:text-foreground"
+					className="max-w-full min-w-0 rounded-md border border-line bg-background px-[7px] py-0.5 font-mono text-[11px] font-normal text-fg2 hover:border-fg3 hover:text-foreground"
 				>
 					<span className="min-w-0 truncate">{id}</span>
 				</CopyId>
