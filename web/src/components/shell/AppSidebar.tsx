@@ -116,7 +116,7 @@ export function AppSidebar() {
 
 	const sections: { label?: string | undefined; items: NavItem[] }[] = useNavSections().map((section) => ({
 		label: section.label,
-		items: section.label === "Manage" ? [...section.pages, ...orgLinks] : section.pages,
+		items: section.label === "Organization" ? [...section.pages, ...orgLinks] : section.pages,
 	}));
 
 	const displayName = user === null ? "" : userLabel(user);

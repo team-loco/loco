@@ -102,7 +102,7 @@ export function useNavSections(): NavSection[] {
 			})),
 		},
 		{
-			label: "Manage",
+			label: "Workspace",
 			pages: [
 				...(hasWs && scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ)
 					? [
@@ -116,22 +116,6 @@ export function useNavSections(): NavSection[] {
 							},
 						]
 					: []),
-				{
-					name: "Tokens",
-					icon: <KeyRoundIcon />,
-					keywords: "api keys access",
-					to: "/tokens",
-					active: pathname === "/tokens",
-					preload: pageImporters.Tokens,
-				},
-				{
-					name: "Team",
-					icon: <UsersIcon />,
-					keywords: "members people",
-					to: activeOrgId !== null ? `/org/${activeOrgId}/team` : undefined,
-					active: pathname.endsWith("/team"),
-					preload: pageImporters.Team,
-				},
 				...(hasWs && scopes.workspaceLevel(activeOrgId, activeWorkspaceId) >= scopeLevel(Scope.ADMIN)
 					? [
 							{
@@ -144,6 +128,27 @@ export function useNavSections(): NavSection[] {
 							},
 						]
 					: []),
+				{
+					name: "Settings",
+					icon: <Settings2Icon />,
+					keywords: "workspace environments",
+					to: wsBase !== null ? withEnv(`${wsBase}/settings`, env) : undefined,
+					active: pathname.endsWith("/settings"),
+					preload: pageImporters.Settings,
+				},
+			],
+		},
+		{
+			label: "Organization",
+			pages: [
+				{
+					name: "Team",
+					icon: <UsersIcon />,
+					keywords: "members people",
+					to: activeOrgId !== null ? `/org/${activeOrgId}/team` : undefined,
+					active: pathname.endsWith("/team"),
+					preload: pageImporters.Team,
+				},
 				...(audit.visible && activeOrgId !== null
 					? [
 							{
@@ -157,12 +162,12 @@ export function useNavSections(): NavSection[] {
 						]
 					: []),
 				{
-					name: "Settings",
-					icon: <Settings2Icon />,
-					keywords: "workspace environments",
-					to: wsBase !== null ? withEnv(`${wsBase}/settings`, env) : undefined,
-					active: pathname.endsWith("/settings"),
-					preload: pageImporters.Settings,
+					name: "Tokens",
+					icon: <KeyRoundIcon />,
+					keywords: "api keys access",
+					to: "/tokens",
+					active: pathname === "/tokens",
+					preload: pageImporters.Tokens,
 				},
 			],
 		},
