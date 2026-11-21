@@ -2063,6 +2063,16 @@ def metrics(page):
     expect(
         menu.get_by_role("menuitem", name=re.compile(r"^Deploy 000de90")).first
     ).to_be_visible()
+    expect(menu.get_by_role("menuitem").first).to_contain_text("Logs around")
+    expect(
+        menu.get_by_role("menuitem", name=re.compile(r"^Events around"))
+    ).to_contain_text("deploys, restarts, scaling")
+    expect(menu.get_by_role("separator")).to_have_count(1)
+    y_labels = chart.locator(
+        ".recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value"
+    ).all_text_contents()
+    assert y_labels and all(label.isdigit() for label in y_labels), y_labels
+    assert "100" not in y_labels, y_labels
     expect(menu.get_by_role("menuitem", name=re.compile("000de9ff"))).to_have_count(0)
     first, second = (
         menu.get_by_role("menuitem").nth(0),
