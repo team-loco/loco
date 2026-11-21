@@ -66,6 +66,21 @@ func TestReplicaState(t *testing.T) {
 		t.Fatal("unknown readiness")
 	}
 	for _, tt := range []struct {
+		reason, message, want string
+	}{
+		{"", "", "Pending"},
+		{"Preempted", "", "Pending: Preempted"},
+		{"", "waiting for a volume", "Pending: waiting for a volume"},
+		{"Preempted", "by a higher priority pod", "Pending: Preempted by a higher priority pod"},
+	} {
+		p = base.DeepCopy()
+		p.Status.Conditions = p.Status.Conditions[:1]
+		p.Status.Phase, p.Status.Reason, p.Status.Message = corev1.PodPending, tt.reason, tt.message
+		if got := replicaState(p, nil, now).Detail; got != tt.want {
+			t.Fatalf("detail = %q, want %q", got, tt.want)
+		}
+	}
+	for _, tt := range []struct {
 		name   string
 		offset time.Duration
 		reason string
