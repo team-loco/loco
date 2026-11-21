@@ -61,11 +61,11 @@ func (r *ApplicationReconciler) deletedReplicas(key types.NamespacedName, now ti
 	return pods
 }
 
-// observedReplica pairs a pod with the replica status and readiness probe failure observed from it.
+// observedReplica pairs a pod with the replica status and health check failure observed from it.
 type observedReplica struct {
-	pod              corev1.Pod
-	status           locov1alpha1.ReplicaStatus
-	readinessFailure string
+	pod         corev1.Pod
+	status      locov1alpha1.ReplicaStatus
+	healthCheck string
 }
 
 func replicaProblem(
@@ -143,9 +143,8 @@ func (r *ApplicationReconciler) observeReplicas(
 		replica := observeReplica(&pod, &podEvents, podRevision(&pod, revisions), deleted[pod.UID], previous,
 			r.HealthyAfter, now)
 		if placed && replica.PlacementRevision == revision && pod.DeletionTimestamp == nil {
-			current = append(current, observedReplica{
-				pod: pod, status: replica, readinessFailure: podEvents.currentReadinessFailure(&pod),
-			})
+			health := healthCheckDetail(app.Spec.ServiceSpec.Deployment, podEvents.currentReadinessFailure(&pod))
+			current = append(current, observedReplica{pod: pod, status: replica, healthCheck: health})
 		}
 		rollout.Replicas = append(rollout.Replicas, replica)
 	}
@@ -309,15 +308,7 @@ func replicaProblemDetail(
 		}
 	}
 	if reason == locov1alpha1.ProblemHealthCheckFailing {
-		if replica.readinessFailure != "" {
-			return replica.readinessFailure
-		}
-		for _, condition := range pod.Status.Conditions {
-			if condition.Type == corev1.PodReady && condition.Message != "" {
-				return condition.Message
-			}
-		}
-		return detailWaitingForReadiness
+		return cmp.Or(replica.healthCheck, detailWaitingForReadiness)
 	}
 	if reason == locov1alpha1.ProblemUnschedulable {
 		for _, condition := range pod.Status.Conditions {

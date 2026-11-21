@@ -112,8 +112,10 @@ func TestPullEventTime(t *testing.T) {
 func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	started := metav1.NewTime(now.Add(-time.Hour))
-	const unready = "containers with unready status: [web]"
 	app := workspaceApp("readiness", "readiness")
+	app.Spec.ServiceSpec.Deployment.HealthCheck = &loco.HealthCheckSpec{
+		Path: "/healthz", Interval: 10, Timeout: 1, FailThreshold: 3,
+	}
 	app.Annotations = map[string]string{loco.KeyPlacementRevision: "1"}
 	pod := &corev1.Pod{UID: "readiness-uid", Name: "readiness-replica", Namespace: testEnvironmentNamespace(app),
 		Labels: map[string]string{labelApp: testAppName(app)}, Annotations: ownerAnnotations(app),
@@ -123,7 +125,7 @@ func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 		Status: corev1.PodStatus{
 			Conditions: []corev1.PodCondition{
 				{Type: corev1.PodScheduled, Status: corev1.ConditionTrue},
-				{Type: corev1.PodReady, Status: corev1.ConditionFalse, Message: unready},
+				{Type: corev1.PodReady, Status: corev1.ConditionFalse},
 			},
 			ContainerStatuses: []corev1.ContainerStatus{{Name: "web", Started: new(true),
 				State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: started}}}},
@@ -154,19 +156,22 @@ func TestReadinessProbeFailureIsTheProblemDetail(t *testing.T) {
 			Regarding: corev1.ObjectReference{Kind: podKind, Name: pod.Name, Namespace: pod.Namespace, UID: pod.UID}}
 	}
 
-	stale := unhealthy("Readiness probe failed: before the restart", started.Add(-time.Minute))
+	timedOut := `Readiness probe failed: Get "http://10.0.0.7:8080/healthz": context deadline exceeded`
+	stale := unhealthy(timedOut, started.Add(-time.Minute))
 	r.applicationForPodEvent(t.Context(), stale)
-	if got := detail(); got != unready {
-		t.Fatalf("detail with only a failure from before the start = %q", got)
+	if got, want := detail(), "Health check GET :8080/healthz failed"; got != want {
+		t.Fatalf("detail with only a failure from before the start = %q, want %q", got, want)
 	}
-	refused := `Readiness probe failed: Get "http://10.0.0.7:5678/": dial tcp 10.0.0.7:5678: connect: connection refused`
+	refused := `Readiness probe failed: Get "http://10.0.0.7:8080/healthz": ` +
+		"dial tcp 10.0.0.7:8080: connect: connection refused"
 	if got := r.applicationForPodEvent(t.Context(), unhealthy(refused, now.Add(-time.Minute))); len(got) != 1 {
 		t.Fatalf("readiness event requests = %v", got)
 	}
 	liveness := unhealthy("Liveness probe failed: HTTP probe failed with statuscode: 500", now)
 	r.applicationForPodEvent(t.Context(), liveness)
-	r.applicationForPodEvent(t.Context(), unhealthy("Readiness probe failed: older", now.Add(-2*time.Minute)))
-	if got := detail(); got != refused {
-		t.Fatalf("detail = %q, want %q", got, refused)
+	older := unhealthy("Readiness probe failed: HTTP probe failed with statuscode: 503", now.Add(-2*time.Minute))
+	r.applicationForPodEvent(t.Context(), older)
+	if got, want := detail(), "Health check GET :8080/healthz failed: connection refused"; got != want {
+		t.Fatalf("detail = %q, want %q", got, want)
 	}
 }
