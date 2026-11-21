@@ -122,7 +122,7 @@ def call(state, method, body, user="owner"):
 
 
 def sql(state, query):
-    return evidence.psql(state["container"], query)
+    return evidence.psql(state, query)
 
 
 def wait_for_query(page, check):

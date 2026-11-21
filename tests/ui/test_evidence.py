@@ -35,6 +35,10 @@ def leases(tmp_path, monkeypatch):
             root.mkdir(parents=True)
             created.append(root)
             return str(root)
+        if args[0] == "share":
+            root = tmp_path / "leases" / args[1]
+            root.mkdir(parents=True, exist_ok=True)
+            return str(root)
         if args[0] == "list":
             return "\n".join(map(str, created))
         if args[0] == "ports":
@@ -50,6 +54,8 @@ def test_capture_renews_the_shared_openbao_it_uses(leases, monkeypatch, capsys):
     monkeypatch.setattr(
         evidence, "start_openbao", lambda *args: "http://127.0.0.1:8200"
     )
+    monkeypatch.setattr(evidence, "openbao_env", lambda source, env: env)
+    monkeypatch.setattr(evidence, "compose", lambda *args, **kwargs: "")
     evidence.cmd_openbao(argparse.Namespace())
     address = capsys.readouterr().out.strip()
     openbao = next(call[1] for call in leases if call[0] == "add")

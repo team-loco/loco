@@ -1,6 +1,6 @@
 ---
 name: ui-evidence
-description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Captures locally and clicks through a running app, with each commit built once into a machine-wide cache and run against a throwaway stack; the `ci-evidence` skill takes them in CI. Load before taking PR screenshots.
+description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Captures locally and clicks through a running app, with each commit built once into a machine-wide cache and run with its own database on a Postgres server and OpenBao every run shares; the `ci-evidence` skill takes them in CI. Load before taking PR screenshots.
 context: fork
 agent: ui-evidence
 allowed-tools: Bash, Read, Write
@@ -149,9 +149,11 @@ mise exec -- uv run --script "$E" <command>
    Reserve `down --all` for manual machine-wide cleanup; it stops other callers' runs.
    Each run holds a two-hour lease in `tools/testres`; every `up`, `shoot` and `down` also stops
    expired runs and leftovers whose owner is gone. A failed `up` stops itself after printing its
-   API and UI logs.
+   API and UI logs. Runs share one Postgres server per Postgres image and one seeded OpenBao per
+   OpenBao setup, each run with its own database. The registry stops a shared server once no
+   live run holds it, and `down` drops the run's database.
 
-## Networks and shared OpenBao
+## Networks and OpenBao
 
 `LOCO_TEST_SUBNET` selects an unused subnet for a Compose project, for example
 `LOCO_TEST_SUBNET=10.243.17.0/24`. Omit it for Docker's automatic allocation. Use a different,
@@ -160,27 +162,11 @@ non-overlapping subnet for each concurrent project. This applies to `up`, `openb
 E2e reserves the Compose network before builds. Its failure reports how to list project
 networks and tear down the current run. Remove only runs you own.
 
-Comparisons can share one seeded OpenBao. Each API keeps application data in its own
-database. `UI_EVIDENCE_OPENBAO` makes `up` use the OpenBao at that address instead of starting
-its own:
-
-```sh
-UI_EVIDENCE_OPENBAO=$(mise exec -- uv run --script "$E" openbao)
-export UI_EVIDENCE_OPENBAO
-before=$(mise exec -- uv run --script "$E" up --ref origin/main --name before --scenario "$capture/scenario.json")
-after=$(mise exec -- uv run --script "$E" up --ref HEAD --name after --scenario "$capture/scenario.json")
-```
-
-Shoot with those state paths and the spec above. The shared OpenBao has a two-hour lease like
-a run's. Every `up` and `shoot` that uses it renews that lease, so it stays up while its
-captures run, whichever shell started it. The caller owns the shared OpenBao. After capture:
-
-```sh
-mise exec -- uv run --script "$E" down --state "$before"
-mise exec -- uv run --script "$E" down --state "$after"
-mise exec -- uv run --script "$E" stop-openbao --address "$UI_EVIDENCE_OPENBAO"
-unset UI_EVIDENCE_OPENBAO
-```
+Every run on the machine whose OpenBao image, compose files and seed script match uses one
+seeded OpenBao, started on demand and stopped with the last run that uses it. Each API keeps
+application data in its own database. To use another OpenBao, set `UI_EVIDENCE_OPENBAO` to its
+address before `up`; `openbao` starts one with a two-hour lease that every `up` and `shoot`
+using it renews, and `stop-openbao --address "$UI_EVIDENCE_OPENBAO"` removes it.
 
 ## Upload
 

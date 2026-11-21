@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Build the API and production UI of this checkout once (a clean checkout reuses its commit's cached build), start one OpenBao, then run the dashboard suites in tests/ui, each with its own API process, database and seed: every *_ui.py (Chromium) and *_api.py file, or the named suites. Suites run --jobs at a time (default: one per two CPUs), longest first by tests/ui/durations; each suite's output prints when it ends. --shard i/N runs the ith of N shards of equal expected duration: test:ui [suite...] [--shard i/N] [--jobs N]"
+#MISE description="Build the API and production UI of this checkout once (a clean checkout reuses its commit's cached build), then run the dashboard suites in tests/ui, each with its own API process, database and seed on the OpenBao and Postgres server every run on the machine shares: every *_ui.py (Chromium) and *_api.py file, or the named suites. Suites run --jobs at a time (default: one per two CPUs), longest first by tests/ui/durations; each suite's output prints when it ends. --shard i/N runs the ith of N shards of equal expected duration: test:ui [suite...] [--shard i/N] [--jobs N]"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -74,21 +74,11 @@ uv run --frozen --project tests pytest tests/ui/test_evidence.py
 evidence=(uv run --frozen --project tests python tests/ui/evidence.py)
 logs=$(mktemp -d)
 start=$SECONDS
-# The suites share one OpenBao. It holds only the seeded transit keys; each API
-# keeps what it encrypts or signs with them in its own database.
-cleanup() {
-	status=$?
-	"${evidence[@]}" stop-openbao --address "${UI_EVIDENCE_OPENBAO:-}" || status=1
-	rm -rf "$logs"
-	exit "$status"
-}
-trap cleanup EXIT
-UI_EVIDENCE_OPENBAO=$("${evidence[@]}" openbao)
-export UI_EVIDENCE_OPENBAO
+trap 'rm -rf "$logs"' EXIT
 # A clean checkout reuses its commit's cached build; uncommitted changes build in place.
 UI_EVIDENCE_BUILD=$("${evidence[@]}" build)
 export UI_EVIDENCE_BUILD
-echo "Built the API and UI and started OpenBao in $((SECONDS - start))s"
+echo "Built the API and UI in $((SECONDS - start))s"
 
 # Each finished suite writes "name status seconds" to this pipe.
 mkfifo "$logs/done"
