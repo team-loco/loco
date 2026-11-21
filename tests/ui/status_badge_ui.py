@@ -206,8 +206,10 @@ def check_activity(page):
     page.goto(base + "?env=production")
     page.get_by_role("button", name=re.compile(r"^Workspace activity, ")).click()
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
-    card = drawer.get_by_role("listitem").filter(
-        has=page.get_by_role("link", name="badge-update-failed", exact=True)
+    card = (
+        drawer.get_by_role("listitem")
+        .filter(has=page.get_by_role("link", name="badge-update-failed", exact=True))
+        .filter(has=page.locator("[data-status-badge='ok']"))
     )
     expect_badges(card, ["Healthy", FAILED_UPDATE])
 
