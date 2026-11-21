@@ -2,7 +2,6 @@ import { Spinner } from "@/components/design/Spinner";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState, type SubmitEvent } from "react";
 import { useQueryState } from "nuqs";
-import { SquareTerminalIcon } from "lucide-react";
 
 import { approveDeviceLogin, getDeviceLogin } from "@gen/loco/auth/v1/auth-AuthService_connectquery";
 
@@ -15,6 +14,7 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { describeDevice } from "@/pages/settings/sessions";
 
 import { CliCard } from "./CliCard";
+import { TerminalCode } from "./TerminalCode";
 
 const USER_CODE_LENGTH = 8;
 
@@ -70,7 +70,7 @@ export function CliDevice() {
 	}
 
 	return (
-		<CliCard title="Sign in a device">
+		<CliCard title="Sign in a device" terminalCode={linkedCode}>
 			{(email) => (
 				<form className="flex flex-col gap-4" onSubmit={submit}>
 					<p className="m-0 text-center text-[13.5px] text-fg2">
@@ -95,20 +95,13 @@ export function CliDevice() {
 							/>
 						</Field>
 					) : (
-						<div className="flex flex-col gap-2.5 rounded-[10px] bg-panel px-4 py-3.5">
-							<span className="flex items-center gap-2 text-[12.5px] text-fg3">
-								<SquareTerminalIcon className="size-[15px]" aria-hidden />
-								Check that this matches your terminal
-							</span>
-							<output className="py-1 text-center font-mono text-[26px] tracking-[0.16em] uppercase">
-								{linkedCode}
-							</output>
+						<TerminalCode code={linkedCode}>
 							{errorText !== undefined && (
 								<span role="alert" className="text-[12.5px] text-bad-fg">
 									{errorText}
 								</span>
 							)}
-						</div>
+						</TerminalCode>
 					)}
 					<DeviceDetails userCode={userCode} />
 					<Button type="submit" size="xl" className="w-full" disabled={approve.isPending || userCode.trim() === ""}>

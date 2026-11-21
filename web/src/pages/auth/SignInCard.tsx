@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { Spinner } from "@/components/design/Spinner";
 
@@ -14,12 +14,14 @@ export function SignInCard({
 	loginHint,
 	error,
 	autoStart = true,
+	children,
 }: {
 	subtitle?: string | undefined;
 	next: string | null;
 	loginHint: string | null;
 	error: string | null;
 	autoStart?: boolean;
+	children?: ReactNode;
 }) {
 	const { signIn, redirecting, failed } = useSignIn();
 	const automatic = autoStart && error === null && !failed;
@@ -34,7 +36,8 @@ export function SignInCard({
 	if (automatic) return <AppLoading />;
 
 	return (
-		<AuthCard title="Sign in to loco" subtitle={subtitle} error={error}>
+		<AuthCard title="Sign in to loco" subtitle={subtitle} error={redirecting ? null : error}>
+			{children}
 			<Button
 				size="xl"
 				className="w-full"
