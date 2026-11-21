@@ -162,12 +162,11 @@ func fetchDefaultRegion(ctx context.Context, t cmdutil.Target, configured string
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	req := &resourcev1.ListRegionsRequest{EnvironmentId: t.Environment.GetId()}
-	resp, err := t.Clients.Resource.ListRegions(ctx, req)
+	regions, err := listRegions(ctx, t)
 	if err != nil {
-		return "", fmt.Errorf("could not list regions from the API: %w", err)
+		return "", err
 	}
-	return defaultRegion(configured, resp.GetRegions())
+	return defaultRegion(configured, regions)
 }
 
 // defaultRegion picks configured when the environment lists it, and otherwise its only available region.

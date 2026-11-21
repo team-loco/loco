@@ -335,7 +335,7 @@ func (s *fakeResourceService) ListRegions(
 	}
 	regions := []*resourcev1.RegionInfo{
 		{Region: fakeSecondaryRegion},
-		{Region: fakeDefaultRegion},
+		{Region: fakeDefaultRegion, Availability: resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE},
 	}
 	return &resourcev1.ListRegionsResponse{Regions: regions}, nil
 }

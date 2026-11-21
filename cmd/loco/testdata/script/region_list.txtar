@@ -1,0 +1,16 @@
+# region list prints each region's code and status for the environment.
+exec loco region list
+stdout '^CODE +STATUS$'
+stdout '^us-ca-1 +available, default$'
+stdout '^us-va-1 +offline$'
+fakeapi called ListRegions 'Bearer test-token'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"

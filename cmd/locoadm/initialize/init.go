@@ -33,7 +33,7 @@ func Command() *cobra.Command {
 		{"api", &options.API, "Public API URL"},
 		{"web", &options.Web, "Public dashboard URL"},
 		{"domain", &options.Domain, "Worker application domain"},
-		{"region", &options.Region, "Worker region"},
+		{"region", &options.Region, "Code of the worker's region, such as us-ca-1; locoadm cluster create prints it"},
 		{"admin", &options.Admin, "First system administrator's verified email"},
 		{"bundle", &options.Bundle, "Platform OCI reference pinned by SHA-256 digest"},
 		{"api-env-file", &options.APIEnvFile, "Environment file for the plaintext API Secret"},

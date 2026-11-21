@@ -68,7 +68,7 @@ func NewRootCmd(env Env) *cobra.Command {
 	root.AddCommand(org.BuildOrgCmd())
 	root.AddCommand(workspace.BuildWorkspaceCmd())
 	root.AddCommand(token.BuildTokenCmd())
-	root.AddCommand(infra.BuildInfraCmd())
+	root.AddCommand(infra.BuildInfraCmd(), infra.BuildRegionCmd())
 	groupcmd.RejectUnknown(root)
 	return root
 }
