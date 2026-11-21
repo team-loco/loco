@@ -51,7 +51,9 @@ with session(repo / "tests/ui/out/org_roles") as browser:
         dialog.get_by_text("Use at most 100 characters.", exact=True)
     ).to_be_visible()
     expect(create).to_be_disabled()
-    for accepted in ("a", "ACME", "Acme & Partners", "a" * 100, "🚀" * 100):
+    name.fill("ACME")
+    expect(dialog.get_by_text("ACME is taken.", exact=True)).to_be_visible()
+    for accepted in ("a", "Acme & Partners", "a" * 100, "🚀" * 100):
         name.fill(accepted)
         expect(name).to_have_value(accepted)
         expect(create).to_be_enabled()
