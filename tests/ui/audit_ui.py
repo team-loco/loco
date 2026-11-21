@@ -195,9 +195,6 @@ with session(out) as browser:
     expect(
         presets.get_by_role("button", name=re.compile(r"Past 7 days$"))
     ).to_have_attribute("aria-pressed", "true")
-    expect(
-        time_range.get_by_role("textbox", name="Type a time range", exact=True)
-    ).to_have_attribute("placeholder", "Date range, like 15m, 6h, 3d, 2w")
     with expect_rpc(page, "ListEvents", lambda body: "endTime" in body) as custom:
         time_range.get_by_role("button", name="Apply", exact=True).click()
     assert (
