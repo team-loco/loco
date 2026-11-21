@@ -7,7 +7,6 @@ import {
 	getWorkspace,
 	updateWorkspace,
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRightIcon } from "lucide-react";
 import { useState } from "react";
@@ -23,6 +22,7 @@ import { Input } from "@/components/design/Input";
 import { SaveBar } from "@/components/design/SaveBar";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
@@ -45,7 +45,6 @@ export interface WorkspaceDraft {
 export function WorkspaceTab({
 	orgId,
 	workspaceId,
-	workspaces,
 	users,
 	level,
 	draft,
@@ -53,7 +52,6 @@ export function WorkspaceTab({
 }: {
 	orgId: string;
 	workspaceId: string;
-	workspaces: Workspace[];
 	users: User[];
 	level: AccessLevel;
 	draft: WorkspaceDraft | null;
@@ -62,6 +60,7 @@ export function WorkspaceTab({
 	const timePref = useTimePreferences();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const { workspaces } = useOrgWorkspace();
 	const { data, isLoading, error, refetch } = useQuery(getWorkspace, { workspaceId });
 	const update = useMutation(updateWorkspace);
 	const remove = useMutation(deleteWorkspace);
@@ -85,13 +84,12 @@ export function WorkspaceTab({
 	const createdDay = formatDay(ws.createdAt, timePref);
 	const created = creator ? `${createdDay} by ${userLabel(creator)}` : createdDay;
 
-	const listed = workspaces.find((w) => w.id === workspaceId);
-	const nRes = listed?.resourceCount;
+	const nRes = ws.resourceCount;
 	const hasRes = (nRes ?? 0) > 0;
 	const resLabel = nRes === undefined ? "—" : nRes.toString();
 	const subtitle = hasRes
 		? `Delete the ${resLabel} ${nRes === 1 ? "resource" : "resources"} in ${ws.name} first.`
-		: `${resLabel} resources, ${pluralize(listed?.memberCount ?? 0, "member")} with direct access`;
+		: `${resLabel} resources, ${pluralize(ws.memberCount ?? 0, "member")} with direct access`;
 	const blockedReason = !canAdmin
 		? `Requires Admin on ${ws.name}`
 		: nRes === undefined
@@ -124,7 +122,7 @@ export function WorkspaceTab({
 				onSuccess: () => {
 					toast.success(`Deleted ${ws.name}`);
 					setDeleteOpen(false);
-					const next = workspaces.find((w) => w.id !== ws.id);
+					const next = workspaces.find((w) => w.orgId === orgId && w.id !== ws.id);
 					void queryClient.invalidateQueries();
 					void navigate(next ? workspacePath(orgId, next.id) : "/organizations");
 				},

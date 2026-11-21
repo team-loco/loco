@@ -17,7 +17,6 @@ import { Page, PageHeader } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { ResourceAccess } from "@/components/ResourceAccess";
-import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { SETTINGS_SCOPES, settingsPath, type SettingsScope } from "@/lib/routes";
@@ -63,18 +62,13 @@ export function Settings() {
 		{ enabled: workspaceId !== "" && readsWorkspace(workspaceId) },
 	);
 	const orgQuery = useQuery(getOrg, { orgId }, { enabled: orgId !== "" && canReadOrg });
-	const wsQuery = useTanstackQuery({
-		...orgWorkspacesOptions(transport, orgId),
-		enabled: orgId !== "" && canReadOrg,
-	});
 	const membersQuery = useTanstackQuery({
 		...orgMembersOptions(transport, orgId),
 		enabled: orgId !== "" && canReadOrg,
 	});
 	const org = orgQuery.data?.organization;
-	const workspaces = wsQuery.data?.workspaces ?? [];
 	const users = (membersQuery.data?.members ?? []).flatMap((m) => (m.user ? [m.user] : []));
-	const currentWs = workspaceQuery.data?.workspace ?? workspaces.find((w) => w.id === workspaceId);
+	const currentWs = workspaceQuery.data?.workspace;
 	const scope = requested === "org" && !canReadOrg ? "workspace" : requested;
 	useEffect(() => {
 		if (inUrl === scope || scopes.isLoading) return;
@@ -96,7 +90,7 @@ export function Settings() {
 	// A transition keeps the current scope on screen while the Personal scope's theme stylesheets load.
 	const selectScope = (next: SettingsScope) => {
 		startTransition(() => {
-			void setParams({ scope: next, q: null, page: null, size: null });
+			void setParams({ scope: next, q: null, pages: null, size: null });
 		});
 	};
 
@@ -160,7 +154,6 @@ export function Settings() {
 					key={workspaceId}
 					orgId={orgId}
 					workspaceId={workspaceId}
-					workspaces={workspaces}
 					users={users}
 					level={scopes.workspaceLevel(orgId, workspaceId)}
 					draft={wsDraft}
@@ -182,8 +175,7 @@ export function Settings() {
 				<OrgTab
 					key={org.id}
 					org={org}
-					workspaces={workspaces}
-					workspacesLoading={wsQuery.isLoading}
+					currentWorkspace={currentWs}
 					users={users}
 					level={scopes.orgLevel(org.id)}
 					currentWorkspaceId={workspaceId}
