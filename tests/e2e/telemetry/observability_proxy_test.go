@@ -151,7 +151,7 @@ func TestObservabilityProxy(t *testing.T) {
 		)
 		w.MustLoco(t, dir, "deploy", "--yes")
 		marker := "e2e-otlp-ingest-" + rand.Text()[:8]
-		status, rejected := postLogs(t, w.ID, marker, "Bearer "+token)
+		status, rejected := postLogs(t, w.ID, `{"msg":"`+marker+`","http.request.method":"PATCH"}`, "Bearer "+token)
 		if status != http.StatusOK || rejected != 0 {
 			t.Errorf("logs of a placed workspace: HTTP %d with %d rejected, want 200 with none", status, rejected)
 		}
@@ -185,7 +185,9 @@ func TestObservabilityProxy(t *testing.T) {
 			t.Errorf("OTLP/JSON: HTTP %d, want 415", status)
 		}
 		query := p.Clients(w.MintToken(t, "e2e-proxy-ingest", tokenv1.Scope_SCOPE_READ))
-		logs, err := query.Observability.QueryLogs(t.Context(), queryLogsRequest(w.ID))
+		request := queryLogsRequest(w.ID)
+		request.Query = "@method:PATCH"
+		logs, err := query.Observability.QueryLogs(t.Context(), request)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -195,7 +197,7 @@ func TestObservabilityProxy(t *testing.T) {
 		}
 		if !found {
 			t.Errorf(
-				"QueryLogs does not return the record written through OTLP ingest (%d entries)",
+				"QueryLogs @method:PATCH does not return the record written through OTLP ingest (%d entries)",
 				len(logs.GetEntries()),
 			)
 		}

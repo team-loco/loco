@@ -108,7 +108,7 @@ func (s *Service) logsSignal() signal[plogotlp.ExportRequest, plogotlp.ExportRes
 		filter:      (*tenancyFilter).logs,
 		count:       plog.Logs.LogRecordCount,
 		consume: func(ctx context.Context, logs plog.Logs) error {
-			flattenJSONBodies(logs)
+			normalizeLogs(logs)
 			return s.consumers.Logs.ConsumeLogs(ctx, logs)
 		},
 		reject: func(response plogotlp.ExportResponse, rejected int64, message string) {
