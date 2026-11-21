@@ -463,3 +463,70 @@ func TestListWorkspaceResourcesValidatesFilters(t *testing.T) {
 		}
 	}
 }
+
+func TestListWorkspaceResourcesSortsByAnotherEnvironment(t *testing.T) {
+	t.Parallel()
+	f := newResourceListFixture(t)
+	prod, staging := f.envID.String(), f.stagingID.String()
+	status := resourcev1.ResourceOrder_RESOURCE_ORDER_STATUS
+	cases := []struct {
+		name string
+		req  *resourcev1.ListWorkspaceResourcesRequest
+		want []string
+	}{
+		{"every environment's regions, prod's status", &resourcev1.ListWorkspaceResourcesRequest{
+			OrderBy: status, SortEnvironmentId: prod, Region: statusSecondRegion,
+		}, []string{listAlpha}},
+		{"every resource, prod's status", &resourcev1.ListWorkspaceResourcesRequest{
+			OrderBy: status, SortEnvironmentId: prod,
+		}, []string{listAlpha, listSvc, listBeta, listDelta, listEpsilon, listGamma}},
+		{"healthy anywhere, staging's status", &resourcev1.ListWorkspaceResourcesRequest{
+			OrderBy: status, SortEnvironmentId: staging,
+			Status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+		}, []string{listAlpha, listSvc}},
+		{"staging's status, descending", &resourcev1.ListWorkspaceResourcesRequest{
+			OrderBy: status, SortEnvironmentId: staging, Descending: true,
+		}, []string{listDelta, listEpsilon, listGamma, listSvc, listAlpha, listBeta}},
+		{"prod's resources, staging's status", &resourcev1.ListWorkspaceResourcesRequest{
+			OrderBy:           status,
+			SortEnvironmentId: staging,
+			EnvironmentId:     prod,
+			Status:            resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+		}, []string{listSvc}},
+		{"prod's size across environments", &resourcev1.ListWorkspaceResourcesRequest{
+			OrderBy: resourcev1.ResourceOrder_RESOURCE_ORDER_SIZE, SortEnvironmentId: prod,
+		}, []string{listDelta, listEpsilon, listBeta, listAlpha, listGamma, listSvc}},
+		{"prod's deploy time across environments", &resourcev1.ListWorkspaceResourcesRequest{
+			OrderBy: resourcev1.ResourceOrder_RESOURCE_ORDER_DEPLOYED, SortEnvironmentId: prod,
+		}, []string{listBeta, listDelta, listGamma, listSvc, listAlpha, listEpsilon}},
+	}
+	for _, c := range cases {
+		for _, pageSize := range []int32{0, 1, 2} {
+			if got := f.names(t, c.req, pageSize); !slices.Equal(got, c.want) {
+				t.Errorf("%s, page size %d = %v, want %v", c.name, pageSize, got, c.want)
+			}
+		}
+	}
+
+	first := f.list(t, &resourcev1.ListWorkspaceResourcesRequest{
+		PageSize: 1, OrderBy: status, SortEnvironmentId: prod,
+	})
+	for _, sortEnvironment := range []string{staging, ""} {
+		_, err := f.server().ListWorkspaceResources(f.ctx, &resourcev1.ListWorkspaceResourcesRequest{
+			WorkspaceId: f.workspaceID.String(), PageSize: 1, OrderBy: status,
+			SortEnvironmentId: sortEnvironment, PageToken: first.GetNextPageToken(),
+		})
+		if codeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("prod's status token sorting by %q: %v, want InvalidArgument", sortEnvironment, err)
+		}
+	}
+
+	otherWorkspace := f.tenant.workspace(t, "other")
+	_, err := f.server().ListWorkspaceResources(f.ctx, &resourcev1.ListWorkspaceResourcesRequest{
+		WorkspaceId: f.workspaceID.String(), OrderBy: status,
+		SortEnvironmentId: f.tenant.defaultEnvironment(t, otherWorkspace).String(),
+	})
+	if codeOf(err) != connect.CodeNotFound {
+		t.Errorf("sorting by another workspace's environment: %v, want NotFound", err)
+	}
+}

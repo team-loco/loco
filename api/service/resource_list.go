@@ -18,9 +18,11 @@ import (
 )
 
 // resourceListSQL defines the resources ListWorkspaceResources matches as the CTE matched, with
-// the values its filters, facets and orders read, scoped to $3's environment when it is set.
+// the values its filters and facets read, scoped to $3's environment when it is set, and the
+// per-environment sort values, scoped to $10's.
 // $1 workspace, $2 cluster silence in seconds, $3 environment or NULL, $4 ILIKE pattern or ”,
-// $5 status name or ”, $6 not deployed, $7 region or ”, $8 type or ”, $9 environment scoped.
+// $5 status name or ”, $6 not deployed, $7 region or ”, $8 type or ”, $9 environment scoped,
+// $10 sort environment or NULL.
 const resourceListSQL = `WITH ws AS MATERIALIZED (
   SELECT r.id, r.name, r.slug, r.description, r.type::text AS type, r.created_at, r.spec
   FROM resources r WHERE r.workspace_id = $1
@@ -35,7 +37,8 @@ regions AS MATERIALIZED (
       ), i.ready_replicas, i.desired_replicas, i.placement_status) AS status
   FROM resource_region_inputs i
   JOIN deployments d ON d.id = i.deployment_id
-  WHERE i.resource_id = ANY(ARRAY(SELECT id FROM ws)) AND ($3::uuid IS NULL OR i.environment_id = $3::uuid)
+  WHERE i.resource_id = ANY(ARRAY(SELECT id FROM ws))
+    AND ($3::uuid IS NULL OR $10::uuid IS NULL OR i.environment_id IN ($3::uuid, $10::uuid))
 ),
 cells AS (
   SELECT resource_id, environment_id, environment_status(array_agg(status)) AS status,
@@ -45,20 +48,26 @@ cells AS (
 ),
 facts AS (
   SELECT ws.id, ws.name, ws.slug, ws.description, ws.type, ws.created_at, lower(ws.name) AS name_key,
-    ARRAY(SELECT c.status FROM cells c WHERE c.resource_id = ws.id) AS statuses,
-    ARRAY(SELECT g.region FROM regions g WHERE g.resource_id = ws.id
+    ARRAY(SELECT c.status FROM cells c WHERE c.resource_id = ws.id
+      AND ($3::uuid IS NULL OR c.environment_id = $3::uuid)) AS statuses,
+    ARRAY(SELECT c.status FROM cells c WHERE c.resource_id = ws.id
+      AND ($10::uuid IS NULL OR c.environment_id = $10::uuid)) AS sort_statuses,
+    ARRAY(SELECT g.region FROM regions g
+      WHERE g.resource_id = ws.id AND ($3::uuid IS NULL OR g.environment_id = $3::uuid)
       UNION SELECT t.key FROM jsonb_each(ws.spec->'regions') t WHERE t.value->>'enabled' = 'true'
       ORDER BY 1) AS regions,
-    ARRAY(SELECT DISTINCT g.image FROM regions g WHERE g.resource_id = ws.id AND g.image <> '') AS images,
-    (SELECT COALESCE(sum(g.desired_replicas), 0) FROM regions g WHERE g.resource_id = ws.id)::bigint AS replicas,
+    ARRAY(SELECT DISTINCT g.image FROM regions g
+      WHERE g.resource_id = ws.id AND g.image <> '' AND ($3::uuid IS NULL OR g.environment_id = $3::uuid)) AS images,
+    (SELECT COALESCE(sum(g.desired_replicas), 0) FROM regions g
+      WHERE g.resource_id = ws.id AND ($3::uuid IS NULL OR g.environment_id = $3::uuid))::bigint AS replicas,
     (SELECT max(n.at) FROM (
       SELECT DISTINCT ON (d.environment_id) COALESCE(d.started_at, d.created_at) AS at FROM deployments d
-      WHERE d.resource_id = ws.id AND ($3::uuid IS NULL OR d.environment_id = $3::uuid)
+      WHERE d.resource_id = ws.id AND ($10::uuid IS NULL OR d.environment_id = $10::uuid)
       ORDER BY d.environment_id, d.created_at DESC, d.id DESC) n) AS deployed_at,
     cpu_millicores(COALESCE(run.target->>'cpu', cfg.target->>'cpu')) AS cpu,
     memory_bytes(COALESCE(run.target->>'memory', cfg.target->>'memory')) AS memory
   FROM ws
-  LEFT JOIN cells env ON $3::uuid IS NOT NULL AND env.resource_id = ws.id
+  LEFT JOIN cells env ON env.resource_id = ws.id AND env.environment_id = $10::uuid
   LEFT JOIN LATERAL (
     SELECT t.key AS region, t.value AS target FROM jsonb_each(ws.spec->'regions') t
     WHERE t.value->>'enabled' = 'true' ORDER BY t.key LIMIT 1
@@ -88,7 +97,7 @@ var resourceOrderKeys = map[resourcev1.ResourceOrder]string{
 	    WHEN s IN ('RESOURCE_STATUS_DEGRADED', 'RESOURCE_STATUS_UNAVAILABLE') THEN 0
 	    WHEN s IN ('RESOURCE_STATUS_UNKNOWN', 'RESOURCE_STATUS_DEPLOYING') THEN 1
 	    WHEN s = 'RESOURCE_STATUS_HEALTHY' THEN 3
-	    ELSE 2 END) FROM unnest(statuses) s), 4)::bigint, 0::bigint, ''::text`,
+	    ELSE 2 END) FROM unnest(sort_statuses) s), 4)::bigint, 0::bigint, ''::text`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_CREATED: `(EXTRACT(EPOCH FROM created_at) * 1000000)::bigint,
 	    0::bigint, ''::text`,
 	resourcev1.ResourceOrder_RESOURCE_ORDER_SIZE:     `cpu, memory, ''::text`,
@@ -114,12 +123,13 @@ type resourceFilter struct {
 	region            string
 	resourceType      string
 	environmentScoped bool
+	sortEnvironmentID *uuid.UUID
 }
 
 func (f resourceFilter) args() []any {
 	return []any{
 		f.workspaceID, f.silentSeconds, f.environmentID, f.pattern, f.status, f.notDeployed,
-		f.region, f.resourceType, f.environmentScoped,
+		f.region, f.resourceType, f.environmentScoped, f.sortEnvironmentID,
 	}
 }
 
@@ -127,6 +137,7 @@ func (f resourceFilter) args() []any {
 type resourceKey struct {
 	Order      resourcev1.ResourceOrder `json:"o"`
 	Descending bool                     `json:"d"`
+	SortEnv    string                   `json:"e,omitempty"`
 	K1         int64                    `json:"k1"`
 	K2         int64                    `json:"k2"`
 	Text       string                   `json:"t"`
@@ -155,7 +166,9 @@ func (s *ResourceServer) ListWorkspaceResources(
 	if order == resourcev1.ResourceOrder_RESOURCE_ORDER_UNSPECIFIED {
 		order, descending = resourcev1.ResourceOrder_RESOURCE_ORDER_CREATED, true
 	}
-	after, err := decodeResourceKey(req.GetPageToken(), order, descending)
+	after, err := decodeResourceKey(req.GetPageToken(), resourceKey{
+		Order: order, Descending: descending, SortEnv: req.GetSortEnvironmentId(),
+	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 	}
@@ -178,7 +191,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 	}
 	count := func(ctx context.Context, limit int32) (int64, error) {
 		var n int64
-		scanErr := s.db.QueryRow(ctx, resourceListSQL+" SELECT count(*) FROM (SELECT 1 FROM matched LIMIT $10) capped",
+		scanErr := s.db.QueryRow(ctx, resourceListSQL+" SELECT count(*) FROM (SELECT 1 FROM matched LIMIT $11) capped",
 			append(filter.args(), limit)...).Scan(&n)
 		return n, scanErr
 	}
@@ -194,7 +207,8 @@ func (s *ResourceServer) ListWorkspaceResources(
 	return response, nil
 }
 
-// resourceFilter reads the request's filters; environment_id must name an environment of the workspace.
+// resourceFilter reads the request's filters; environment_id and sort_environment_id must name
+// environments of the workspace.
 func (s *ResourceServer) resourceFilter(
 	ctx context.Context,
 	wsID uuid.UUID,
@@ -214,22 +228,51 @@ func (s *ResourceServer) resourceFilter(
 	if req.GetType() != resourcev1.ResourceType_RESOURCE_TYPE_UNSPECIFIED {
 		filter.resourceType = strings.ToLower(strings.TrimPrefix(req.GetType().String(), "RESOURCE_TYPE_"))
 	}
-	if req.GetEnvironmentId() == "" {
-		return filter, nil
-	}
-	environmentID, err := parseID("environment_id", req.GetEnvironmentId())
-	if err != nil {
+	var err error
+	if filter.environmentID, err = s.workspaceEnvironment(
+		ctx,
+		wsID,
+		"environment_id",
+		req.GetEnvironmentId(),
+	); err != nil {
 		return resourceFilter{}, err
+	}
+	filter.sortEnvironmentID = filter.environmentID
+	if req.GetSortEnvironmentId() != "" {
+		filter.sortEnvironmentID, err = s.workspaceEnvironment(
+			ctx,
+			wsID,
+			"sort_environment_id",
+			req.GetSortEnvironmentId(),
+		)
+		if err != nil {
+			return resourceFilter{}, err
+		}
+	}
+	return filter, nil
+}
+
+// workspaceEnvironment parses an optional environment ID of the workspace; nil when raw is empty.
+func (s *ResourceServer) workspaceEnvironment(
+	ctx context.Context,
+	wsID uuid.UUID,
+	field, raw string,
+) (*uuid.UUID, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	environmentID, err := parseID(field, raw)
+	if err != nil {
+		return nil, err
 	}
 	environment, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) || err == nil && environment.WorkspaceID != wsID {
-		return resourceFilter{}, ErrEnvironmentNotFound
+		return nil, ErrEnvironmentNotFound
 	}
 	if err != nil {
-		return resourceFilter{}, fmt.Errorf("get environment: %w", err)
+		return nil, fmt.Errorf("get environment: %w", err)
 	}
-	filter.environmentID = &environmentID
-	return filter, nil
+	return &environmentID, nil
 }
 
 func (s *ResourceServer) resourcePage(
@@ -246,8 +289,8 @@ func (s *ResourceServer) resourcePage(
 		direction, beyond = "DESC", "<"
 	}
 	if after.ID != uuid.Nil {
-		sql += " WHERE (k1, k2, kt) " + beyond + " ($10, $11, $12)" +
-			" OR ((k1, k2, kt) = ($10, $11, $12) AND (name_key, id) > ($13, $14))"
+		sql += " WHERE (k1, k2, kt) " + beyond + " ($11, $12, $13)" +
+			" OR ((k1, k2, kt) = ($11, $12, $13) AND (name_key, id) > ($14, $15))"
 		args = append(args, after.K1, after.K2, after.Text, after.Name, after.ID)
 	}
 	sql += fmt.Sprintf(" ORDER BY k1 %[1]s, k2 %[1]s, kt %[1]s, name_key, id LIMIT $%[2]d", direction, len(args)+1)
@@ -256,7 +299,7 @@ func (s *ResourceServer) resourcePage(
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (resourceKey, error) {
-		key := resourceKey{Order: after.Order, Descending: after.Descending}
+		key := resourceKey{Order: after.Order, Descending: after.Descending, SortEnv: after.SortEnv}
 		err := row.Scan(&key.ID, &key.Name, &key.K1, &key.K2, &key.Text)
 		return key, err
 	})
@@ -386,9 +429,9 @@ func (s *ResourceServer) facetCounts(ctx context.Context, filter resourceFilter,
 	})
 }
 
-// decodeResourceKey reads a page token of order; the first page's empty token is the zero key.
-func decodeResourceKey(token string, order resourcev1.ResourceOrder, descending bool) (resourceKey, error) {
-	key := resourceKey{Order: order, Descending: descending}
+// decodeResourceKey reads a page token of key's order, direction and sort environment; the first
+// page's empty token is key itself.
+func decodeResourceKey(token string, key resourceKey) (resourceKey, error) {
 	if token == "" {
 		return key, nil
 	}
@@ -398,7 +441,7 @@ func decodeResourceKey(token string, order resourcev1.ResourceOrder, descending 
 	}
 	var decoded resourceKey
 	if err = json.Unmarshal(raw, &decoded); err != nil || decoded.ID == uuid.Nil ||
-		decoded.Order != order || decoded.Descending != descending {
+		decoded.Order != key.Order || decoded.Descending != key.Descending || decoded.SortEnv != key.SortEnv {
 		return key, errResourcesToken
 	}
 	return decoded, nil

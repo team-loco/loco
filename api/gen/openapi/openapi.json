@@ -15353,7 +15353,7 @@
             "type": "string",
             "title": "page_token",
             "maxLength": 1024,
-            "description": "next_page_token from the previous page of the same order; empty for the first page."
+            "description": "next_page_token from the previous page of the same order, direction and sort_environment_id;\n empty for the first page."
           },
           "query": {
             "type": "string",
@@ -15409,6 +15409,12 @@
             "type": "boolean",
             "title": "include_facets",
             "description": "Sets facets in the response."
+          },
+          "sortEnvironmentId": {
+            "type": "string",
+            "title": "sort_environment_id",
+            "format": "uuid",
+            "description": "The environment whose status, size and deployment time the STATUS, SIZE and DEPLOYED orders\n read, while query, the filters and the facets follow environment_id. Empty sorts by\n environment_id, or across environments without it."
           }
         },
         "title": "ListWorkspaceResourcesRequest",

@@ -163,7 +163,7 @@ const (
 	ResourceOrder_RESOURCE_ORDER_STATUS ResourceOrder = 2
 	// Creation time.
 	ResourceOrder_RESOURCE_ORDER_CREATED ResourceOrder = 3
-	// CPU, then memory, of the live deployment in environment_id, else of the resource's spec.
+	// CPU, then memory, of the live deployment in the sort environment, else of the resource's spec.
 	ResourceOrder_RESOURCE_ORDER_SIZE ResourceOrder = 4
 	// The first of the resource's regions, alphabetically.
 	ResourceOrder_RESOURCE_ORDER_REGION ResourceOrder = 5
@@ -1284,7 +1284,8 @@ type ListWorkspaceResourcesRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	PageSize    int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // default: 50, max: 200
-	// next_page_token from the previous page of the same order; empty for the first page.
+	// next_page_token from the previous page of the same order, direction and sort_environment_id;
+	// empty for the first page.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Case-insensitive substring of the name, slug, description, a domain or a region, or of an
 	// image of the resource's live deployments.
@@ -1306,8 +1307,12 @@ type ListWorkspaceResourcesRequest struct {
 	IncludeTotalCount bool `protobuf:"varint,13,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
 	// Sets facets in the response.
 	IncludeFacets bool `protobuf:"varint,14,opt,name=include_facets,json=includeFacets,proto3" json:"include_facets,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// The environment whose status, size and deployment time the STATUS, SIZE and DEPLOYED orders
+	// read, while query, the filters and the facets follow environment_id. Empty sorts by
+	// environment_id, or across environments without it.
+	SortEnvironmentId string `protobuf:"bytes,15,opt,name=sort_environment_id,json=sortEnvironmentId,proto3" json:"sort_environment_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListWorkspaceResourcesRequest) Reset() {
@@ -1436,6 +1441,13 @@ func (x *ListWorkspaceResourcesRequest) GetIncludeFacets() bool {
 		return x.IncludeFacets
 	}
 	return false
+}
+
+func (x *ListWorkspaceResourcesRequest) GetSortEnvironmentId() string {
+	if x != nil {
+		return x.SortEnvironmentId
+	}
+	return ""
 }
 
 // ListWorkspaceResourcesResponse is the response containing the list of resources.
@@ -2911,7 +2923,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\bslug_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceSlugKeyH\x00R\aslugKeyB\x05\n" +
 	"\x03key\"M\n" +
 	"\x13GetResourceResponse\x126\n" +
-	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"\xbd\a\n" +
+	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"\xfa\a\n" +
 	"\x1dListWorkspaceResourcesRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
@@ -2931,7 +2943,8 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"descending\x18\f \x01(\bR\n" +
 	"descending\x12.\n" +
 	"\x13include_total_count\x18\r \x01(\bR\x11includeTotalCount\x12%\n" +
-	"\x0einclude_facets\x18\x0e \x01(\bR\rincludeFacets:\x96\x02\xbaH\x92\x02\x1az\n" +
+	"\x0einclude_facets\x18\x0e \x01(\bR\rincludeFacets\x12;\n" +
+	"\x13sort_environment_id\x18\x0f \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x11sortEnvironmentId:\x96\x02\xbaH\x92\x02\x1az\n" +
 	" resources.status_or_not_deployed\x12.status and not_deployed are mutually exclusive\x1a&this.status == 0 || !this.not_deployed\x1a\x93\x01\n" +
 	"1resources.environment_scoped_requires_environment\x12'environment_scoped needs environment_id\x1a5!this.environment_scoped || this.environment_id != ''\"\xdd\x01\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
