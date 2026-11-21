@@ -1175,13 +1175,13 @@ def dashboard(page):
             scrolled, moved = modes.evaluate(
                 """group => {
                     const [y, top] = [scrollY, group.getBoundingClientRect().top];
-                    scrollBy(0, 100);
+                    scrollBy(0, y >= 100 ? -100 : 100);
                     const result = [scrollY - y, group.getBoundingClientRect().top - top];
-                    scrollBy(0, -100);
+                    scrollTo(0, y);
                     return result;
                 }"""
             )
-            assert scrolled > 0 and moved == 0, (scrolled, moved)
+            assert scrolled != 0 and moved == 0, (scrolled, moved)
             modes.get_by_role("radio", name="Dark", exact=True).click()
             page.keyboard.press("Escape")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
