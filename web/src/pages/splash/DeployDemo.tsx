@@ -121,10 +121,7 @@ export function DeployDemo() {
 					{lines.map((line, i) => (
 						<div
 							key={i}
-							className={cn(
-								"flex animate-log-in gap-2.5 whitespace-pre motion-reduce:animate-none",
-								TONE_CLASS[line.tone],
-							)}
+							className={cn("flex animate-log-in gap-2.5 motion-reduce:animate-none", TONE_CLASS[line.tone])}
 						>
 							<span
 								aria-hidden="true"
@@ -132,7 +129,7 @@ export function DeployDemo() {
 							>
 								{GLYPH[line.tone]}
 							</span>
-							<span className="min-w-0 truncate">{line.text}</span>
+							<span className="min-w-0 overflow-hidden text-ellipsis whitespace-pre">{line.text}</span>
 						</div>
 					))}
 					<div aria-hidden="true" className="flex h-[1.8em] items-center">
