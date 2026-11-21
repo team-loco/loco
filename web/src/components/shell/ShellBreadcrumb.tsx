@@ -1,6 +1,6 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, Settings2Icon } from "lucide-react";
+import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, Settings2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, matchPath, useLocation, useNavigate } from "react-router";
 
@@ -106,7 +106,7 @@ function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => voi
 							void navigate("/organizations");
 						}}
 					>
-						<Building2Icon className="text-fg3" />
+						<ArrowRightIcon className="text-fg3" />
 						All organizations
 					</DropdownMenuItem>
 				</DropdownMenuContent>
@@ -138,7 +138,7 @@ function WorkspaceSwitcher({
 				</DropdownMenuTrigger>
 				<DropdownMenuContent className="w-[248px]" align="start" sideOffset={6} alignOffset={-4}>
 					<DropdownMenuGroup>
-						<DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+						<DropdownMenuLabel className="truncate">Workspaces in {org.name}</DropdownMenuLabel>
 						{workspaces
 							.filter((w) => w.orgId === org.id)
 							.map((w) => (

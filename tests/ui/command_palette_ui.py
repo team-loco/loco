@@ -30,7 +30,7 @@ with session(out) as browser:
     page.get_by_role("button", name="Search and run commands").click()
     palette = page.get_by_role("dialog", name="Command palette")
     results = palette.get_by_role("listbox", name="Results")
-    query = palette.get_by_role("combobox", name="Search pages, resources and actions")
+    query = palette.get_by_role("combobox", name="Search resources, pages and actions")
 
     query.fill("log")
     expect(results.get_by_role("option", name="Logs for api")).to_be_visible()

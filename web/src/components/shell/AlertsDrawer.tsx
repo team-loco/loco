@@ -9,10 +9,12 @@ import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
+import { Kbd } from "@/components/design/Kbd";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
-import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/design/StatusBadge";
+import { ROLLOUT_STYLE, StatusBadge, resourceStatusStyle, type StatusStyle } from "@/components/design/StatusBadge";
 import { PlacementChips } from "@/components/design/PlacementChips";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
@@ -65,11 +67,13 @@ function ActivityCard({ children }: { children: ReactNode }) {
 function CardName({
 	name,
 	href,
+	region = "",
 	note,
 	onNavigate,
 }: {
 	name: string;
 	href: string;
+	region?: string;
 	note: string;
 	onNavigate: () => void;
 }) {
@@ -82,23 +86,18 @@ function CardName({
 			>
 				{name}
 			</Link>
+			{region !== "" && <span className="shrink-0 font-mono text-[12px] text-fg3">{region}</span>}
 			{note !== "" && <span className="min-w-0 truncate text-[13px] text-fg3">{note}</span>}
 		</div>
 	);
 }
 
-function RegionChips({ regions }: { regions: readonly string[] }) {
+function StatusLabel({ glyph, label }: StatusStyle) {
 	return (
-		<div className="flex flex-wrap gap-1">
-			{regions.map((region) => (
-				<span
-					key={region}
-					className="dwa-chip rounded-[4px] bg-background px-[7px] py-0.5 font-mono text-[11.5px] text-fg2 shadow-[inset_0_0_0_1px_var(--line)]"
-				>
-					{region}
-				</span>
-			))}
-		</div>
+		<span className="inline-flex items-center gap-2">
+			<StatusGlyph glyph={glyph} />
+			{label}
+		</span>
 	);
 }
 
@@ -107,26 +106,28 @@ function CardActions({
 	resourceHref,
 	logsHref,
 	logsLabel = "Logs",
+	primary = false,
 	onNavigate,
 }: {
 	name: string;
 	resourceHref: string;
 	logsHref: string;
 	logsLabel?: string;
+	primary?: boolean;
 	onNavigate: () => void;
 }) {
 	return (
 		<div className="mt-0.5 flex gap-1.5">
 			{[
-				{ to: resourceHref, label: `Open ${name}` },
-				{ to: logsHref, label: logsLabel, icon: <ScrollTextIcon className="text-fg3" /> },
+				{ to: resourceHref, label: `Open ${name}`, solid: primary },
+				{ to: logsHref, label: logsLabel, icon: <ScrollTextIcon className="text-fg3" />, solid: false },
 			].map((action) => (
 				<Button
 					key={action.label}
-					variant="outline"
+					variant={action.solid ? "default" : "outline"}
 					nativeButton={false}
 					render={<Link to={action.to} onClick={onNavigate} />}
-					className="h-7 bg-background px-2.5 text-[12.5px]"
+					className={cn("h-7 px-2.5 text-[12.5px]", !action.solid && "bg-background")}
 				>
 					{action.icon}
 					{action.label}
@@ -151,19 +152,28 @@ function AlertCard({
 }) {
 	return (
 		<ActivityCard>
-			<div className="flex items-center justify-between gap-2.5 [&>span:first-child]:text-[13px]">
-				<span className="flex flex-wrap items-center gap-1.5">
-					<ResourceStatusBadge status={alert.status} />
-					<RolloutBadge rollout={alert.rollout} />
+			<div className="flex items-center justify-between gap-2.5">
+				<span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+					<StatusLabel {...resourceStatusStyle(alert.status)} />
+					{alert.rollout !== undefined && <StatusLabel {...ROLLOUT_STYLE[alert.rollout]} />}
 				</span>
 				{alert.sinceMs !== undefined && (
 					<span className="font-mono text-[12px] text-fg3">started {agoLabel(alert.sinceMs, nowMs)}</span>
 				)}
 			</div>
-			<CardName name={alert.name} href={resourceHref} note={alert.description} onNavigate={onNavigate} />
-			<RegionChips regions={[alert.region]} />
-			{alert.message !== "" && <p className="m-0 font-mono text-[12px] break-words text-fg2">{alert.message}</p>}
-			<CardActions name={alert.name} resourceHref={resourceHref} logsHref={logsHref} onNavigate={onNavigate} />
+			<CardName
+				name={alert.name}
+				href={resourceHref}
+				region={alert.region}
+				note={alert.description}
+				onNavigate={onNavigate}
+			/>
+			{alert.message !== "" && (
+				<p className="m-0 rounded-[6px] bg-background px-3 py-2.5 font-mono text-[12px] leading-[1.55] break-words text-foreground">
+					{alert.message}
+				</p>
+			)}
+			<CardActions name={alert.name} resourceHref={resourceHref} logsHref={logsHref} primary onNavigate={onNavigate} />
 		</ActivityCard>
 	);
 }
@@ -389,17 +399,27 @@ export function AlertsDrawer() {
 			<Sheet open={open} onOpenChange={openChange}>
 				<SheetContent showCloseButton={false}>
 					<SheetHeader>
-						<SheetTitle className="font-medium">Workspace activity</SheetTitle>
+						<SheetTitle className="text-[26px] leading-[1.15] tracking-[-0.03em]">Workspace activity</SheetTitle>
 						{count > 0 && <span className="act-n act-heading-count font-mono">{count}</span>}
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label="Close activity"
-							onClick={close}
-							className="absolute top-[18px] right-4"
-						>
-							<XIcon />
-						</Button>
+						<Tooltip>
+							<TooltipTrigger
+								render={
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										aria-label="Close activity"
+										onClick={close}
+										className="absolute top-[18px] right-4"
+									/>
+								}
+							>
+								<XIcon />
+							</TooltipTrigger>
+							<TooltipContent className="flex items-center gap-2">
+								Close
+								<Kbd>esc</Kbd>
+							</TooltipContent>
+						</Tooltip>
 					</SheetHeader>
 					<SheetBody className="p-4">
 						<ul className="flex flex-col gap-2.5">

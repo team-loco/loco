@@ -99,8 +99,10 @@ with session(out) as browser:
     expect_not_found(page, f"/org/{org}/wks/{shared}/resource/{missing}")
     palette = page.get_by_role("dialog", name="Command palette")
     results = palette.get_by_role("listbox", name="Results")
-    query = palette.get_by_role("combobox", name="Search pages, resources and actions")
-    search = page.get_by_role("button", name=re.compile(r"^Search (⌘K|Ctrl K)$"))
+    query = palette.get_by_role("combobox", name="Search resources, pages and actions")
+    search = page.get_by_role(
+        "button", name=re.compile(r"^Command palette (⌘K|Ctrl K)$")
+    )
     search.click()
     expect(query).to_be_focused()
     page.keyboard.press("Escape")
@@ -295,7 +297,9 @@ with session(out) as browser:
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
     logo = page.get_by_role("link", name="Loco dashboard").bounding_box()
     assert abs(logo["x"] + logo["width"] / 2 - page.viewport_size["width"] / 2) <= 1
-    expect(page.get_by_role("button", name=re.compile("^Search"))).to_have_count(0)
+    expect(
+        page.get_by_role("button", name=re.compile("^Command palette"))
+    ).to_have_count(0)
 
     unknown = f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}"
     page.goto(ui + unknown)

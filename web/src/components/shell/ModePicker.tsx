@@ -26,7 +26,7 @@ export function ModePicker() {
 					if (event.key.startsWith("Arrow")) event.stopPropagation();
 				}}
 				style={{ padding: MODE_PADDING }}
-				className="relative flex w-auto gap-0 rounded-full bg-panel2 shadow-[inset_0_1px_2px_color-mix(in_oklch,var(--fg)_8%,transparent)]"
+				className="relative flex w-auto gap-0 rounded-control bg-panel2 shadow-[inset_0_1px_2px_color-mix(in_oklch,var(--fg)_8%,transparent)]"
 			>
 				<span
 					aria-hidden
@@ -48,7 +48,7 @@ export function ModePicker() {
 						aria-label={item.name}
 						title={item.name}
 						style={{ width: MODE_WIDTH }}
-						className="relative z-3 h-6 shrink-0 justify-center rounded-full bg-transparent p-0 text-fg3 ring-0 hover:ring-0 data-checked:bg-transparent data-checked:text-foreground data-checked:ring-0 dark:bg-transparent dark:data-checked:bg-transparent data-checked:[&>.mt-static]:opacity-0"
+						className="relative z-3 h-6 shrink-0 justify-center rounded-control-inner bg-transparent p-0 text-fg3 ring-0 hover:ring-0 data-checked:bg-transparent data-checked:text-foreground data-checked:ring-0 dark:bg-transparent dark:data-checked:bg-transparent data-checked:[&>.mt-static]:opacity-0"
 					>
 						<span aria-hidden className="mt-static">
 							<ThemeIcon mode={MODE_ICONS[item.id]} />
