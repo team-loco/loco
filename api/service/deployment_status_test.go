@@ -11,12 +11,18 @@ import (
 
 // deployTimedOut is the stop of a revision that missed its deploy timeout with nothing to fall back to.
 func deployTimedOut() *agentv1.StoppedRevision {
-	return &agentv1.StoppedRevision{PlacementRevision: 2}
+	return &agentv1.StoppedRevision{PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT}
 }
 
 func TestNextPlacementStatus(t *testing.T) {
-	stopped := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6}
-	unproven := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6, Rollout: true}
+	stopped := &agentv1.StoppedRevision{
+		PlacementRevision: 2,
+		Reason:            agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
+		Restarts:          6,
+	}
+	unproven := &agentv1.StoppedRevision{
+		PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED, Restarts: 6, Rollout: true,
+	}
 	for _, tt := range []struct {
 		name           string
 		previous, want genDb.PlacementStatus
@@ -33,6 +39,10 @@ func TestNextPlacementStatus(t *testing.T) {
 		{"failed retries", genDb.PlacementStatusFailed, genDb.PlacementStatusFailed, &agentv1.PlacementStatus{}},
 		{"failed recovers", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning,
 			&agentv1.PlacementStatus{Available: true, Healthy: true}},
+		{"a deploy timeout after a restart", genDb.PlacementStatusDegraded, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{Stopped: &agentv1.StoppedRevision{
+				PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT, Restarts: 1,
+			}}},
 		{"a deploy timeout wins over health", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
 			&agentv1.PlacementStatus{Available: true, Healthy: true, Stopped: deployTimedOut()}},
 		{"running restarted", genDb.PlacementStatusRunning, genDb.PlacementStatusDegraded,

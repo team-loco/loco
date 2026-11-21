@@ -77,6 +77,7 @@ func (f *deployFixture) liveDeployment(t *testing.T) uuid.UUID {
 func stoppedReport() *agentv1.PlacementStatus {
 	return &agentv1.PlacementStatus{
 		Stopped: &agentv1.StoppedRevision{
+			Reason:      agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
 			ReplicaName: stoppedReplica,
 			Restarts:    stoppedRestarts,
 		},
@@ -187,7 +188,7 @@ func TestARolloutStoppedAtItsDeployTimeoutFailsWithoutAFallback(t *testing.T) {
 		t.Fatalf("deployment waiting for a node = %s, want deploying", got)
 	}
 	f.reportStatus(t, &agentv1.PlacementStatus{
-		Stopped: &agentv1.StoppedRevision{},
+		Stopped: &agentv1.StoppedRevision{Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT},
 		Problem: &agentv1.ProblemReport{Reason: string(loco.ProblemDeployTimeout), Detail: timeoutDetail},
 	})
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusFailed {

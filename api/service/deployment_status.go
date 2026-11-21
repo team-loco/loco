@@ -28,8 +28,8 @@ var placementLiveStatuses = []genDb.PlacementStatus{
 func nextPlacementStatus(previous genDb.PlacementStatus, report *agentv1.PlacementStatus) genDb.PlacementStatus {
 	ran := previous == genDb.PlacementStatusRunning || previous == genDb.PlacementStatusDegraded
 	switch {
-	// A deploy-timeout stop is the only stop that counts no restarts.
-	case report.GetStopped().GetRollout(), report.GetStopped() != nil && report.GetStopped().GetRestarts() == 0:
+	case report.GetStopped().GetRollout(),
+		report.GetStopped().GetReason() == agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT:
 		return genDb.PlacementStatusFailed
 	case report.GetStopped() != nil,
 		report.GetProblem().GetReason() == string(loco.ProblemRestartsExhausted):

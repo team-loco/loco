@@ -125,9 +125,19 @@ message PlacementStatus {
   loco.deployment.v1.FailurePolicy failure_policy = 18;
 }
 
-// StoppedRevision is a placement revision the controller stopped; the problem report says why.
+// StopReason is why the controller stopped a placement revision.
+enum StopReason {
+  STOP_REASON_UNSPECIFIED = 0;
+  // A replica restarted past its restart policy while the revision rolled out.
+  STOP_REASON_RESTARTS_EXHAUSTED = 1;
+  // The revision was not healthy within its deploy timeout.
+  STOP_REASON_DEPLOY_TIMEOUT = 2;
+}
+
+// StoppedRevision is a placement revision the controller stopped.
 message StoppedRevision {
   int64 placement_revision = 1;
+  StopReason reason = 7;
   // The replica whose restarts stopped the revision.
   string replica_name = 2;
   // Restarts of the replica since it last stayed up for the cluster's health window.
@@ -136,7 +146,7 @@ message StoppedRevision {
   google.protobuf.Timestamp at = 5;
   // Set when the revision never proved itself, so the previous revision serves in its place.
   bool rollout = 6;
-  reserved 7, 8;
+  reserved 8;
 }
 
 message ProblemReport {
