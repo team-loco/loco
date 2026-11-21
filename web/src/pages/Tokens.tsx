@@ -31,7 +31,8 @@ import type { CreateDraft } from "./tokens/CreateTokenDrawer";
 import { ownerIcon } from "./tokens/icons";
 import { TokensArt } from "./tokens/TokensArt";
 import { heldLevel, matchesQuery, OWNER_KEYS, OWNER_TITLE, tokenGrants, tokenStatus } from "./tokens/model";
-import type { Level, OwnerKey } from "./tokens/model";
+import type { OwnerKey } from "./tokens/model";
+import type { AccessItem } from "./tokens/AccessPicker";
 import { RevokeDialog } from "./tokens/RevokeDialog";
 import { TokenTable } from "./tokens/TokenTable";
 import { useTokenCreators } from "./tokens/useTokenCreators";
@@ -87,7 +88,7 @@ export function Tokens() {
 	const creators = useTokenCreators(owner);
 	const query = q.trim().toLowerCase();
 	const rows = tokens
-		.filter((t) => matchesQuery(data.tree, t, query, creators.get(t.createdBy)?.name))
+		.filter((t) => matchesQuery(data.entities, t, query, creators.get(t.createdBy)?.name))
 		.toSorted((a, b) => {
 			const ea = tokenStatus(a, now) === "expired" ? 1 : 0;
 			const eb = tokenStatus(b, now) === "expired" ? 1 : 0;
@@ -109,12 +110,13 @@ export function Tokens() {
 	};
 
 	const duplicate = (token: Token) => {
-		const items: { key: string; level: Level }[] = [];
+		const items: AccessItem[] = [];
 		for (const [key, level] of tokenGrants(token)) {
-			if (!data.tree.nodes.has(key)) continue;
-			const max = heldLevel(data.held, data.tree, key);
+			const node = data.entities.get(key);
+			if (node === undefined) continue;
+			const max = heldLevel(data.held, node);
 			if (max === 0) continue;
-			items.push({ key, level: level > max ? max : level });
+			items.push({ node, level: level > max ? max : level });
 		}
 		setDraft({ owner: ownerKey, name: `${token.name}-copy`, items });
 	};
@@ -254,7 +256,7 @@ export function Tokens() {
 						<TokenTable
 							tokens={paged.rows}
 							creators={creators}
-							tree={data.tree}
+							entities={data.entities}
 							now={now}
 							isLoading={current.isLoading}
 							empty={empty}

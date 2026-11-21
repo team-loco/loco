@@ -1,7 +1,9 @@
 import argparse
 import re
+from pathlib import Path
 
-from harness import call, load_state, open_page, repo, session, sql
+import evidence
+from harness import call, expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(description="Check the new token drawer")
@@ -10,6 +12,23 @@ parser.add_argument("--keep", action="store_true")
 args = parser.parse_args()
 state = load_state(args, "tokens", "tests/ui/fixtures/audit/scenario.json")
 org = state["orgs"]["acme"]["id"]
+shared = state["workspaces"]["acme/shared"]
+sibling = state["workspaces"]["acme/sibling"]
+private = state["workspaces"]["acme/private"]
+if "tokens_resources" not in state:
+    service = {
+        "routing": {"port": 8080},
+        "regions": {"us-ca-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}},
+    }
+    state["tokens_resources"] = evidence.seed_resources(
+        state,
+        [
+            {"workspace": "acme/shared", "name": "storefront-web", "service": service},
+            {"workspace": "acme/sibling", "name": "inventory-api", "service": service},
+            {"workspace": "acme/private", "name": "ledger", "service": service},
+        ],
+    )
+    evidence.write_json(Path(args.state), state)
 call(
     state,
     "loco.token.v1.TokenService/CreateToken",
@@ -98,6 +117,68 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert not errors, errors
     context.close()
 
+    # The picker lists one page of workspaces and the resources of only the workspaces it targets.
+    context, page, errors = open_page(
+        browser,
+        state=state,
+        storage={"loco:active-org:v1": org, "loco:active-workspace:v1": shared},
+    )
+    listed = []
+    page.on(
+        "request",
+        lambda request: (
+            listed.append(request.post_data_json["workspaceId"])
+            if request.url.endswith("/ListWorkspaceResources")
+            else None
+        ),
+    )
+    page.goto(state["ui_url"] + "/tokens?owner=org")
+    page.get_by_role("button", name="New token", exact=True).first.click()
+    drawer = page.get_by_role("dialog", name="New token")
+    search = drawer.locator('input[aria-label="Add a workspace or resource"]')
+    search.focus()
+    options = page.get_by_role("listbox")
+    expect(
+        options.get_by_role("option", name=re.compile(r"^storefront-web"))
+    ).to_be_visible()
+    expect(options.get_by_role("option", name=re.compile(r"^private"))).to_be_visible()
+    expect(options.get_by_text("inventory-api", exact=True)).to_have_count(0)
+    assert set(listed) == {shared}, listed
+
+    with expect_rpc(
+        page,
+        "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces",
+        lambda body: body.get("query") == "sib" and body.get("pageSize") == 40,
+    ):
+        search.fill("sib")
+    workspace = options.get_by_role("option", name=re.compile(r"^sibling"))
+    expect(workspace).to_contain_text("Workspace · 1 resources")
+    expect(options.get_by_role("option", name=re.compile(r"^private"))).to_have_count(0)
+    with expect_rpc(
+        page,
+        "loco.resource.v1.ResourceService/ListWorkspaceResources",
+        lambda body: body.get("workspaceId") == sibling and "query" not in body,
+    ):
+        workspace.get_by_role("button", name="Show resources in sibling").click()
+    expect(search).to_have_value("sibling/")
+    expect(drawer.get_by_role("group", name="Level for sibling")).to_have_count(0)
+    options.get_by_role("option", name=re.compile(r"^inventory-api")).click()
+    expect(drawer.get_by_role("group", name="Level for inventory-api")).to_be_visible()
+
+    search.focus()
+    with expect_rpc(
+        page,
+        "loco.resource.v1.ResourceService/ListWorkspaceResources",
+        lambda body: body.get("workspaceId") == shared and body.get("query") == "front",
+    ):
+        search.fill("shared/front")
+    expect(
+        options.get_by_role("option", name=re.compile(r"^storefront-web"))
+    ).to_be_visible()
+    assert private not in listed, listed
+    assert not errors, errors
+    context.close()
+
     beta = call(state, "loco.org.v1.OrgService/CreateOrg", {"name": "beta"})["orgId"]
     outside = call(
         state,
@@ -137,5 +218,6 @@ with session(repo / "tests/ui/out/tokens") as browser:
     context.close()
 print(
     "PASS: the token drawer shows the saved name, wraps text and closes on Escape; the row menu keeps the cell padding; "
+    "the access picker searches workspaces on the server and lists only the resources of the workspaces it shows; "
     "owner=user opens personal tokens, which name a workspace in another organization"
 )

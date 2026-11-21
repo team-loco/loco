@@ -1,4 +1,4 @@
-import { SearchIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, SearchIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
 import {
@@ -19,16 +19,16 @@ import { cn } from "@/lib/utils";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 
 import { ALLOWS, heldLevel, LEVELS } from "./model";
-import type { EntityNode, EntityTree, HeldScopes, Level, NodeKind } from "./model";
+import type { EntityNode, HeldScopes, Level, NodeKind } from "./model";
 import { kindIcon } from "./icons";
+import { CHOICE_PAGE, useAccessChoices } from "./useAccessChoices";
 
 export interface AccessItem {
-	key: string;
+	node: EntityNode;
 	level: Level;
 }
 
 const KIND_RANK = { user: 0, org: 1, ws: 2, res: 3, system: 4 } as const;
-const MAX_RESULTS = 40;
 const GROUPS: { label: string; kinds: NodeKind[] }[] = [
 	{ label: "Account", kinds: ["user"] },
 	{ label: "Organization", kinds: ["org"] },
@@ -37,68 +37,52 @@ const GROUPS: { label: string; kinds: NodeKind[] }[] = [
 ];
 
 export function AccessPicker({
-	tree,
+	roots,
+	org,
+	activeWorkspace,
 	held,
 	items,
 	allowUser,
-	resourcesLoading,
-	resourcesError,
-	retryResources,
 	scope,
 	onChange,
 }: {
-	tree: EntityTree;
+	roots: EntityNode[];
+	org: EntityNode | null;
+	activeWorkspace: EntityNode | null;
 	held: HeldScopes;
 	items: AccessItem[];
 	allowUser: boolean;
-	resourcesLoading: boolean;
-	resourcesError: unknown;
-	retryResources: () => void;
 	scope: EntityNode | null;
 	onChange: (items: AccessItem[]) => void;
 }) {
 	const [q, setQ] = useState("");
+	const [expanded, setExpanded] = useState<EntityNode | null>(null);
 	const [focus, setFocus] = useState(false);
 	const highlightedRef = useRef<EntityNode | undefined>(undefined);
 	const anchorRef = useRef<HTMLDivElement>(null);
-	const levelByKey = new Map(items.map((x) => [x.key, x.level]));
+	const levelByKey = new Map(items.map((x) => [x.node.key, x.level]));
 	const query = q.trim().toLowerCase();
+	const choices = useAccessChoices({ org, scope, activeWorkspace, expanded, text: q.trim() });
 
 	const coveredBy = (node: EntityNode, level: Level): string | null => {
-		let p = node.parent;
-		while (p !== null) {
-			const parentKey = p;
-			const itLevel = levelByKey.get(parentKey);
-			const parent = tree.nodes.get(parentKey);
-			if (itLevel !== undefined && itLevel >= level && parent !== undefined) return parent.label;
-			p = parent?.parent ?? null;
+		for (let p = node.parent; p !== null; p = p.parent) {
+			const itLevel = levelByKey.get(p.key);
+			if (itLevel !== undefined && itLevel >= level) return p.label;
 		}
 		return null;
 	};
 
 	const within = (node: EntityNode): boolean => {
 		if (scope === null) return true;
-		for (let cur: EntityNode | undefined = node; cur !== undefined;) {
+		for (let cur: EntityNode | null = node; cur !== null; cur = cur.parent) {
 			if (cur.key === scope.key) return true;
-			cur = cur.parent === null ? undefined : tree.nodes.get(cur.parent);
 		}
 		return false;
 	};
-	const slash = query.indexOf("/");
-	const matches = (n: EntityNode): boolean => {
-		if (query === "") return true;
-		if (slash === -1) return n.label.toLowerCase().includes(query);
-		const parent = n.parent === null ? undefined : tree.nodes.get(n.parent);
-		return (
-			n.kind === "res" &&
-			parent !== undefined &&
-			parent.label.toLowerCase().includes(query.slice(0, slash)) &&
-			n.label.toLowerCase().includes(query.slice(slash + 1))
-		);
-	};
-	const pool = tree.order
-		.filter((n) => n.kind !== "system" && (allowUser || n.kind !== "user") && within(n))
-		.filter((n) => !levelByKey.has(n.key) && matches(n))
+	const named = (n: EntityNode): boolean => !query.includes("/") && n.label.toLowerCase().includes(query);
+	const pool = [...roots.filter(named), ...choices.workspaces, ...choices.resources]
+		.filter((n) => (allowUser || n.kind !== "user") && within(n))
+		.filter((n) => !levelByKey.has(n.key))
 		.toSorted((a, b) => {
 			const kind = KIND_RANK[a.kind] - KIND_RANK[b.kind];
 			if (kind !== 0 || query === "") return kind;
@@ -106,7 +90,9 @@ export function AccessPicker({
 			const sb = b.label.toLowerCase().startsWith(query) ? 0 : 1;
 			return sa - sb;
 		});
-	const shown = pool.slice(0, MAX_RESULTS);
+	const shown = pool.slice(0, CHOICE_PAGE);
+	const more = pool.length - shown.length + choices.more;
+	const loading = choices.workspacesLoading || choices.resourcesLoading;
 	const groups = GROUPS.map((g) => ({ ...g, nodes: shown.filter((n) => g.kinds.includes(n.kind)) })).filter(
 		(g) => g.nodes.length > 0,
 	);
@@ -116,11 +102,20 @@ export function AccessPicker({
 			: "Add a workspace or resource, e.g. storefront/web";
 
 	const add = (node: EntityNode) => {
-		const lvl = heldLevel(held, tree, node.key);
+		const lvl = heldLevel(held, node);
 		if (lvl === 0) return;
-		onChange([...items, { key: node.key, level: 1 }]);
+		onChange([...items, { node, level: 1 }]);
 		setQ("");
+		setExpanded(null);
 	};
+
+	const expand = (node: EntityNode) => {
+		setExpanded(node);
+		setQ(`${node.label}/`);
+	};
+
+	const resourceCount = (n: EntityNode): string | null =>
+		n.resources === undefined ? null : `${n.resources.toString()} resources`;
 
 	const resultNote = (n: EntityNode): string => {
 		switch (n.kind) {
@@ -128,14 +123,13 @@ export function AccessPicker({
 				return "Your user account";
 			case "org":
 				return "Organization";
-			case "ws":
-				if (resourcesLoading || resourcesError !== null) return "Workspace";
-				return `Workspace · ${(tree.childCount.get(n.key) ?? 0).toString()} resources`;
+			case "ws": {
+				const count = resourceCount(n);
+				return count === null ? "Workspace" : `Workspace · ${count}`;
+			}
 			case "res": {
 				const cov = coveredBy(n, 1);
-				if (cov !== null) return `Included in ${cov}`;
-				const parentKey = n.parent;
-				return parentKey === null ? "Resource" : (tree.nodes.get(parentKey)?.label ?? "Resource");
+				return cov === null ? (n.parent?.label ?? "Resource") : `Included in ${cov}`;
 			}
 			case "system":
 				return "System";
@@ -148,24 +142,22 @@ export function AccessPicker({
 				return "User · your profile and account";
 			case "org":
 				return "Organization · everything in it";
-			case "ws":
-				if (resourcesLoading || resourcesError !== null) return "Workspace · all resources";
-				return `Workspace · all ${(tree.childCount.get(n.key) ?? 0).toString()} resources`;
-			case "res": {
-				const parentKey = n.parent;
-				return parentKey === null ? "Resource" : (tree.nodes.get(parentKey)?.label ?? "Resource");
+			case "ws": {
+				const count = resourceCount(n);
+				return `Workspace · all ${count ?? "resources"}`;
 			}
+			case "res":
+				return n.parent?.label ?? "Resource";
 			case "system":
 				return "System";
 		}
 	};
 
 	const rows = items.map((it, i) => {
-		const n = tree.nodes.get(it.key);
-		if (n === undefined) return null;
-		const lvl = heldLevel(held, tree, n.key);
+		const n = it.node;
+		const lvl = heldLevel(held, n);
 		return (
-			<div key={it.key} className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-line py-2 pr-2.5 pl-3">
+			<div key={n.key} className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-line py-2 pr-2.5 pl-3">
 				<span className="flex shrink-0 text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
 				<span className="flex min-w-[9rem] flex-1 flex-col gap-px">
 					<span className="truncate font-mono text-[12.5px]">{n.label}</span>
@@ -242,7 +234,7 @@ export function AccessPicker({
 							if (e.key !== "Enter" || highlightedRef.current !== undefined) return;
 							e.preventDefault();
 							e.preventBaseUIHandler();
-							const first = shown.find((n) => heldLevel(held, tree, n.key) > 0);
+							const first = shown.find((n) => heldLevel(held, n) > 0);
 							if (first !== undefined) add(first);
 						}}
 						placeholder={placeholder}
@@ -257,7 +249,7 @@ export function AccessPicker({
 							<ComboboxGroup key={g.label}>
 								<ComboboxLabel className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">{g.label}</ComboboxLabel>
 								{g.nodes.map((n) => {
-									const lvl = heldLevel(held, tree, n.key);
+									const lvl = heldLevel(held, n);
 									const disabled = lvl === 0;
 									const covered = n.kind === "res" && coveredBy(n, 1) !== null;
 									return (
@@ -273,29 +265,57 @@ export function AccessPicker({
 											<span className="text-[11.5px] whitespace-nowrap text-fg3">
 												{disabled ? "No access" : resultNote(n)}
 											</span>
+											{n.kind === "ws" && (
+												<Button
+													type="button"
+													variant="ghost"
+													size="icon-xs"
+													tabIndex={-1}
+													aria-label={`Show resources in ${n.label}`}
+													title={`Show resources in ${n.label}`}
+													className="-mr-1 opacity-100"
+													onPointerDown={(e) => {
+														e.preventDefault();
+														e.stopPropagation();
+													}}
+													onMouseDown={(e) => {
+														e.preventDefault();
+														e.stopPropagation();
+													}}
+													onClick={(e) => {
+														e.preventDefault();
+														e.stopPropagation();
+														expand(n);
+													}}
+												>
+													<ChevronRightIcon />
+												</Button>
+											)}
 										</ComboboxItem>
 									);
 								})}
 							</ComboboxGroup>
 						))}
-						{!resourcesLoading && resourcesError === null && (
+						{!loading && choices.error === null && (
 							<ComboboxEmpty className="p-3 text-[12.5px] text-fg3">
 								{query === "" ? "Nothing left to add." : `Nothing matches “${q.trim()}”.`}
 							</ComboboxEmpty>
 						)}
-						{resourcesError !== null && (
+						{choices.error !== null && (
 							<div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm">
-								<span className="text-bad-fg">{getErrorMessage(resourcesError, "Failed to load resources")}</span>
-								<Button type="button" variant="outline" size="sm" disabled={resourcesLoading} onClick={retryResources}>
+								<span className="text-bad-fg">{getErrorMessage(choices.error, "Failed to load resources")}</span>
+								<Button type="button" variant="outline" size="sm" disabled={loading} onClick={choices.retry}>
 									Retry
 								</Button>
 							</div>
 						)}
-						{resourcesLoading && <div className="px-2.5 py-1.5 text-sm text-fg3">Loading resources…</div>}
-						{pool.length > shown.length && (
-							<div className="px-2.5 py-1.5 text-[11.5px] text-fg3">
-								{(pool.length - shown.length).toString()} more, keep typing
+						{loading && (
+							<div className="px-2.5 py-1.5 text-sm text-fg3">
+								{choices.workspacesLoading ? "Loading workspaces…" : "Loading resources…"}
 							</div>
+						)}
+						{more > 0 && (
+							<div className="px-2.5 py-1.5 text-[11.5px] text-fg3">{more.toString()} more, keep typing</div>
 						)}
 					</ComboboxList>
 				</ComboboxContent>
