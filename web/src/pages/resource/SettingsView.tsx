@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
@@ -20,6 +21,7 @@ import { isWorker } from "@/lib/resource-regions";
 import { sizeOptions } from "@/lib/sizing";
 import { cn } from "@/lib/utils";
 
+import { ServingBanner } from "./Banners";
 import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
 import { isDeployed, type Notice as NoticeState, type RegionView } from "./model";
 import { regionsWithDifferentVariables } from "./variables";
@@ -119,6 +121,7 @@ export function SettingsView({
 	onBack,
 	onDelete,
 	onSaved,
+	onRollback,
 }: {
 	resource: Resource;
 	environmentId: string;
@@ -133,6 +136,7 @@ export function SettingsView({
 	onBack: () => void;
 	onDelete: () => void;
 	onSaved: (notice: NoticeState) => void;
+	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
 	const [current, setCurrent] = useState(() => {
 		const linked = NAV.find((n) => `#${n.id}` === window.location.hash);
@@ -232,6 +236,7 @@ export function SettingsView({
 				</Button>
 				<h2 className="m-0 text-[16px] font-medium tracking-[-0.01em]">Settings</h2>
 			</div>
+			<ServingBanner regions={regions} canWrite={canWrite} onRollback={onRollback} />
 			{managed && <ManagedNotice />}
 			{!canWrite && (
 				<Notice id={READ_ONLY_ID}>

@@ -1,6 +1,7 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import {
 	DeploymentStatus,
+	PlacementStatus,
 	type Activity,
 	type Deployment,
 	type DeploymentPlacement,
@@ -57,6 +58,21 @@ export function servingDeployments(replicas: readonly Replica[]) {
 			counts.set(replica.deploymentId, (counts.get(replica.deploymentId) ?? 0) + 1);
 	}
 	return [...counts].map(([id, readyReplicas]) => ({ id, readyReplicas }));
+}
+
+/** A region whose live deployment stopped while an older deployment's ready replicas keep serving it. */
+export function servingBehindStop(regions: readonly RegionView[]) {
+	for (const region of regions) {
+		const stopped = region.current;
+		const status = region.status;
+		if (stopped === undefined || status === undefined) continue;
+		if (status.placementStatus !== PlacementStatus.FAILED && status.placementStatus !== PlacementStatus.CRASHED)
+			continue;
+		const id = servingDeployments(status.replicas).find((d) => d.id !== stopped.id)?.id;
+		const serving = region.history.find((d) => d.id === id);
+		if (serving !== undefined) return { region, stopped, serving };
+	}
+	return undefined;
 }
 
 export function replicaState(state: string): { label: string; tone: BadgeTone } {

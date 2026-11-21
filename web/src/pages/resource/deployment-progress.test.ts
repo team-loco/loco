@@ -5,8 +5,10 @@ import {
 	DeploymentPlacementSchema,
 	DeploymentSchema,
 	DeploymentStatus,
+	PlacementStatus,
 	ReplicaSchema,
 } from "@gen/loco/deployment/v1/deployment_pb";
+import { RegionStatusSchema } from "@gen/loco/resource/v1/resource_pb";
 import { expect, test } from "bun:test";
 
 import {
@@ -23,6 +25,7 @@ import {
 	rolloutSteps,
 	showsCard,
 	stoppingCountdown,
+	servingBehindStop,
 	servingDeployments,
 } from "./deployment-progress";
 import type { RegionView } from "./model";
@@ -272,4 +275,26 @@ test("a feed is ordered by event time, then arrival", () => {
 test("a finished rollout's feed ignores the placement revision", () => {
 	const entry = create(ActivitySchema, { seq: 1n, region: "east", revision: 2n, at: timestampFromMs(1000) });
 	expect(rolloutActivity([entry], "east", 0n).entries).toEqual([entry]);
+});
+
+test("a stopped live deployment names the older deployment its region still serves", () => {
+	const failed = create(DeploymentSchema, { ...pending, status: DeploymentStatus.FAILED });
+	const status = (placementStatus: PlacementStatus, ready: string[]) =>
+		create(RegionStatusSchema, {
+			region: "east",
+			placementStatus,
+			replicas: ready.map((deploymentId) => create(ReplicaSchema, { deploymentId, ready: true })),
+		});
+	const stopped = (s: ReturnType<typeof status>): RegionView => ({
+		...region,
+		current: failed,
+		history: [failed, previous],
+		status: s,
+	});
+	const found = servingBehindStop([stopped(status(PlacementStatus.FAILED, ["previous", "previous"]))]);
+	expect([found?.stopped.id, found?.serving.id]).toEqual(["pending", "previous"]);
+	expect(servingBehindStop([stopped(status(PlacementStatus.CRASHED, ["previous"]))])?.serving.id).toBe("previous");
+	expect(servingBehindStop([stopped(status(PlacementStatus.FAILED, ["pending"]))])).toBeUndefined();
+	expect(servingBehindStop([stopped(status(PlacementStatus.FAILED, []))])).toBeUndefined();
+	expect(servingBehindStop([stopped(status(PlacementStatus.DEPLOYING, ["previous"]))])).toBeUndefined();
 });
