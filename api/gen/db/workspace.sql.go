@@ -79,7 +79,9 @@ SELECT COUNT(*) FROM (
     AND ($3::bool
          OR w.id = ANY($4::uuid[])
          OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY($5::uuid[])))
-    AND ($6::text = '' OR w.name ILIKE $6 OR w.description ILIKE $6)
+    AND ($6::text = '' OR w.name ILIKE $6
+         OR (($3::bool OR w.id = ANY($4::uuid[]))
+             AND w.description ILIKE $6))
     AND (NOT $7::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
   LIMIT $2
 ) capped
@@ -434,7 +436,9 @@ WHERE w.org_id = $1
   AND ($3::bool
        OR w.id = ANY($4::uuid[])
        OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY($5::uuid[])))
-  AND ($6::text = '' OR w.name ILIKE $6 OR w.description ILIKE $6)
+  AND ($6::text = '' OR w.name ILIKE $6
+       OR (($3::bool OR w.id = ANY($4::uuid[]))
+           AND w.description ILIKE $6))
   AND (NOT $7::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
   AND ($8::text IS NULL
        OR (w.created_at, w.id) < (

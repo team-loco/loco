@@ -71,7 +71,9 @@ WHERE w.org_id = $1
   AND (sqlc.arg('all_workspaces')::bool
        OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
        OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY(sqlc.arg('resource_ids')::uuid[])))
-  AND (sqlc.arg('query')::text = '' OR w.name ILIKE sqlc.arg('query') OR w.description ILIKE sqlc.arg('query'))
+  AND (sqlc.arg('query')::text = '' OR w.name ILIKE sqlc.arg('query')
+       OR ((sqlc.arg('all_workspaces')::bool OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
+           AND w.description ILIKE sqlc.arg('query')))
   AND (NOT sqlc.arg('has_resources')::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
@@ -88,7 +90,9 @@ SELECT COUNT(*) FROM (
     AND (sqlc.arg('all_workspaces')::bool
          OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
          OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY(sqlc.arg('resource_ids')::uuid[])))
-    AND (sqlc.arg('query')::text = '' OR w.name ILIKE sqlc.arg('query') OR w.description ILIKE sqlc.arg('query'))
+    AND (sqlc.arg('query')::text = '' OR w.name ILIKE sqlc.arg('query')
+         OR ((sqlc.arg('all_workspaces')::bool OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
+             AND w.description ILIKE sqlc.arg('query')))
     AND (NOT sqlc.arg('has_resources')::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
   LIMIT $2
 ) capped;
