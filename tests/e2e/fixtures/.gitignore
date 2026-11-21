@@ -1,0 +1,5 @@
+# Binaries from running go build inside a fixture directory.
+/api-failover/api-failover
+/build-app/build-app
+/otel-app/otel-app
+/tcp-app/tcp-app
