@@ -1,6 +1,7 @@
 package service
 
 import (
+	"slices"
 	"strconv"
 	"testing"
 
@@ -19,6 +20,7 @@ func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	for i := range ids {
 		ids[i] = f.otherResource(t, "page-"+strconv.Itoa(i))
 	}
+	slices.Reverse(ids)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	page := func(cursor string) ([]*resourcev1.Resource, string) {
 		t.Helper()

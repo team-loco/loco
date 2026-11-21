@@ -40,7 +40,9 @@ const (
 //	beta     staging us-ca-1 0/3 DEPLOYING, domain beta.example.test, configured 500m 1Gi
 //	gamma    never deployed, slug custom-slug, configured 2 CPU 1Gi
 //	delta    never deployed, configured 500m 512Mi
-//	epsilon  never deployed, configured 500m 512Mi
+//	epsilon  prod deployment canceled, nothing live, configured 500m 512Mi
+//
+// Every resource but svc configures one region: us-va-1 for Alpha, us-ca-1 for the others.
 type resourceListFixture struct {
 	*resourceStatusFixture
 	ids map[string]uuid.UUID
@@ -87,6 +89,11 @@ func newResourceListFixture(t *testing.T) *resourceListFixture {
 	f.exec(t, "UPDATE deployments SET started_at = $2 WHERE id = $1", beta, start.Add(4*time.Hour))
 	f.exec(t, `INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)
 		VALUES ($1, $2, 'beta.example.test', 'user_provided', true)`, f.ids[listBeta], f.stagingID)
+
+	epsilon := f.deployResource(t, listEpsilon, f.clusterID, f.envID, testRegion, 1)
+	f.exec(t, "UPDATE deployment_placements SET status = 'canceled' WHERE deployment_id = $1", epsilon)
+	f.exec(t, "UPDATE placements SET desired_deleted = true WHERE deployment_id = $1", epsilon)
+	f.exec(t, "UPDATE deployments SET started_at = $2 WHERE id = $1", epsilon, start.Add(5*time.Hour))
 	return f
 }
 
@@ -164,7 +171,7 @@ func (f *resourceListFixture) names(
 func TestListWorkspaceResourcesOrders(t *testing.T) {
 	t.Parallel()
 	f := newResourceListFixture(t)
-	prod := f.envID.String()
+	prod, staging := f.envID.String(), f.stagingID.String()
 	type order = resourcev1.ResourceOrder
 	cases := []struct {
 		order       order
@@ -173,6 +180,11 @@ func TestListWorkspaceResourcesOrders(t *testing.T) {
 	}{
 		{
 			resourcev1.ResourceOrder_RESOURCE_ORDER_UNSPECIFIED, "",
+			[]string{listEpsilon, listDelta, listGamma, listBeta, listAlpha, listSvc},
+			[]string{listEpsilon, listDelta, listGamma, listBeta, listAlpha, listSvc},
+		},
+		{
+			resourcev1.ResourceOrder_RESOURCE_ORDER_NAME, "",
 			[]string{listAlpha, listBeta, listDelta, listEpsilon, listGamma, listSvc},
 			[]string{listSvc, listGamma, listEpsilon, listDelta, listBeta, listAlpha},
 		},
@@ -203,13 +215,18 @@ func TestListWorkspaceResourcesOrders(t *testing.T) {
 		},
 		{
 			resourcev1.ResourceOrder_RESOURCE_ORDER_REGION, "",
-			[]string{listDelta, listEpsilon, listGamma, listAlpha, listBeta, listSvc},
-			[]string{listAlpha, listBeta, listSvc, listDelta, listEpsilon, listGamma},
+			[]string{listAlpha, listBeta, listDelta, listEpsilon, listGamma, listSvc},
+			[]string{listAlpha, listBeta, listDelta, listEpsilon, listGamma, listSvc},
 		},
 		{
 			resourcev1.ResourceOrder_RESOURCE_ORDER_REGION, prod,
 			[]string{listBeta, listDelta, listEpsilon, listGamma, listSvc, listAlpha},
-			[]string{listAlpha, listSvc, listBeta, listDelta, listEpsilon, listGamma},
+			[]string{listAlpha, listBeta, listDelta, listEpsilon, listGamma, listSvc},
+		},
+		{
+			resourcev1.ResourceOrder_RESOURCE_ORDER_REGION, staging,
+			[]string{listSvc, listAlpha, listBeta, listDelta, listEpsilon, listGamma},
+			[]string{listAlpha, listBeta, listDelta, listEpsilon, listGamma, listSvc},
 		},
 		{
 			resourcev1.ResourceOrder_RESOURCE_ORDER_REPLICAS, "",
@@ -223,13 +240,13 @@ func TestListWorkspaceResourcesOrders(t *testing.T) {
 		},
 		{
 			resourcev1.ResourceOrder_RESOURCE_ORDER_DEPLOYED, "",
-			[]string{listDelta, listEpsilon, listGamma, listSvc, listAlpha, listBeta},
-			[]string{listBeta, listAlpha, listSvc, listDelta, listEpsilon, listGamma},
+			[]string{listDelta, listGamma, listSvc, listAlpha, listBeta, listEpsilon},
+			[]string{listEpsilon, listBeta, listAlpha, listSvc, listDelta, listGamma},
 		},
 		{
 			resourcev1.ResourceOrder_RESOURCE_ORDER_DEPLOYED, prod,
-			[]string{listBeta, listDelta, listEpsilon, listGamma, listSvc, listAlpha},
-			[]string{listAlpha, listSvc, listBeta, listDelta, listEpsilon, listGamma},
+			[]string{listBeta, listDelta, listGamma, listSvc, listAlpha, listEpsilon},
+			[]string{listEpsilon, listAlpha, listSvc, listBeta, listDelta, listGamma},
 		},
 	}
 	for _, c := range cases {
@@ -269,9 +286,12 @@ func TestListWorkspaceResourcesFilters(t *testing.T) {
 			Query: "acme/alpha", EnvironmentId: prod,
 		}, nil},
 		{"region", &resourcev1.ListWorkspaceResourcesRequest{Query: "us-va"}, []string{listAlpha}},
-		{"region in another environment", &resourcev1.ListWorkspaceResourcesRequest{
+		{"live region in another environment", &resourcev1.ListWorkspaceResourcesRequest{
+			Query: testRegion, EnvironmentId: staging,
+		}, []string{listAlpha, listBeta, listDelta, listEpsilon, listGamma}},
+		{"configured region", &resourcev1.ListWorkspaceResourcesRequest{
 			Query: "us-va", EnvironmentId: staging,
-		}, nil},
+		}, []string{listAlpha}},
 		{"wildcards match literally", &resourcev1.ListWorkspaceResourcesRequest{Query: "%"}, nil},
 		{"status in any environment", &resourcev1.ListWorkspaceResourcesRequest{Status: healthy},
 			[]string{listAlpha, listSvc}},
@@ -285,11 +305,17 @@ func TestListWorkspaceResourcesFilters(t *testing.T) {
 		{"not deployed in the environment", &resourcev1.ListWorkspaceResourcesRequest{
 			NotDeployed: true, EnvironmentId: prod,
 		}, []string{listBeta, listDelta, listEpsilon, listGamma}},
-		{"region filter", &resourcev1.ListWorkspaceResourcesRequest{Region: testRegion},
-			[]string{listAlpha, listBeta, listSvc}},
+		{
+			"region filter",
+			&resourcev1.ListWorkspaceResourcesRequest{Region: testRegion},
+			[]string{listAlpha, listBeta, listDelta, listEpsilon, listGamma, listSvc},
+		},
 		{"region filter in the environment", &resourcev1.ListWorkspaceResourcesRequest{
 			Region: testRegion, EnvironmentId: prod,
-		}, []string{listSvc}},
+		}, []string{listBeta, listDelta, listEpsilon, listGamma, listSvc}},
+		{"region filter without a live deployment there", &resourcev1.ListWorkspaceResourcesRequest{
+			Region: statusSecondRegion, EnvironmentId: staging,
+		}, []string{listAlpha}},
 		{"type", &resourcev1.ListWorkspaceResourcesRequest{Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE},
 			[]string{listAlpha, listBeta, listDelta, listEpsilon, listGamma, listSvc}},
 		{
@@ -301,9 +327,10 @@ func TestListWorkspaceResourcesFilters(t *testing.T) {
 			[]string{listAlpha, listDelta, listEpsilon, listGamma, listSvc}},
 		{"environment scoped to staging", &resourcev1.ListWorkspaceResourcesRequest{
 			EnvironmentScoped: true, EnvironmentId: staging,
-		}, []string{listAlpha, listBeta, listDelta, listEpsilon, listGamma}},
+		}, []string{listAlpha, listBeta, listDelta, listGamma}},
 	}
 	for _, c := range cases {
+		c.req.OrderBy = resourcev1.ResourceOrder_RESOURCE_ORDER_NAME
 		if got := f.names(t, c.req, 0); !slices.Equal(got, c.want) {
 			t.Errorf("%s = %v, want %v", c.name, got, c.want)
 		}
@@ -321,21 +348,38 @@ func TestListWorkspaceResourcesCounts(t *testing.T) {
 		t.Errorf("total_count = %d, want 2", page.GetTotalCount())
 	}
 	want := &resourcev1.ResourceFacets{
-		// Ignoring the status filter: Alpha, beta and svc run in us-ca-1.
+		// Ignoring the status filter: every resource has us-ca-1, and gamma, delta and epsilon run nothing.
 		Statuses: []*resourcev1.ResourceStatusCount{
 			{Status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, Count: 1},
 			{Status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING, Count: 1},
 			{Status: healthy, Count: 2},
 		},
-		// Ignoring the region filter: Alpha and svc are healthy.
+		NotDeployed: 3,
+		// Ignoring the region and status filters: every resource.
 		Regions: []*resourcev1.ResourceRegionCount{
-			{Region: testRegion, Count: 2},
+			{Region: testRegion, Count: 6},
 			{Region: statusSecondRegion, Count: 1},
 		},
 		Types: []*resourcev1.ResourceTypeCount{{Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE, Count: 2}},
 	}
 	if !proto.Equal(page.GetFacets(), want) {
 		t.Errorf("facets = %v, want %v", page.GetFacets(), want)
+	}
+
+	searched := f.list(t, &resourcev1.ListWorkspaceResourcesRequest{Query: listBeta, IncludeFacets: true})
+	wantRegions := []*resourcev1.ResourceRegionCount{
+		{Region: testRegion, Count: 1},
+		{Region: statusSecondRegion},
+	}
+	if got := searched.GetFacets().
+		GetRegions(); !slices.EqualFunc(
+		got,
+		wantRegions,
+		func(a, b *resourcev1.ResourceRegionCount) bool {
+			return proto.Equal(a, b)
+		},
+	) {
+		t.Errorf("regions for %q = %v, want %v", listBeta, got, wantRegions)
 	}
 
 	unfiltered := f.list(t, &resourcev1.ListWorkspaceResourcesRequest{

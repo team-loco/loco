@@ -154,7 +154,7 @@ func (ResourceStatus) EnumDescriptor() ([]byte, []int) {
 type ResourceOrder int32
 
 const (
-	// Sorts by name.
+	// Newest first: creation time, descending, whatever descending says.
 	ResourceOrder_RESOURCE_ORDER_UNSPECIFIED ResourceOrder = 0
 	// Case-insensitive name.
 	ResourceOrder_RESOURCE_ORDER_NAME ResourceOrder = 1
@@ -165,11 +165,12 @@ const (
 	ResourceOrder_RESOURCE_ORDER_CREATED ResourceOrder = 3
 	// CPU, then memory, of the live deployment in environment_id, else of the resource's spec.
 	ResourceOrder_RESOURCE_ORDER_SIZE ResourceOrder = 4
-	// The first region, alphabetically, the resource's live deployments run in.
+	// The first of the resource's regions, alphabetically.
 	ResourceOrder_RESOURCE_ORDER_REGION ResourceOrder = 5
 	// Total desired replicas of the live deployments.
 	ResourceOrder_RESOURCE_ORDER_REPLICAS ResourceOrder = 6
-	// When the newest live deployment started, or was created before it started.
+	// When the newest deployment started, or was created before it started, live or not. Across
+	// environments the latest environment's.
 	ResourceOrder_RESOURCE_ORDER_DEPLOYED ResourceOrder = 7
 )
 
@@ -1274,24 +1275,26 @@ func (x *GetResourceResponse) GetResource() *Resource {
 	return nil
 }
 
-// ListWorkspaceResourcesRequest is the request to list resources. environment_id scopes the
-// status, regions, image and size that query, the filters, the facets and the order read; without
-// it they read every environment, and a resource matches a status or region any environment has.
+// ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the
+// regions its live deployments run in and the enabled regions of its spec. environment_id scopes
+// the status, live regions, image and size that query, the filters, the facets and the order read;
+// without it they read every environment, and a resource matches a status or region any
+// environment has.
 type ListWorkspaceResourcesRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	PageSize    int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"` // default: 50, max: 200
 	// next_page_token from the previous page of the same order; empty for the first page.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	// Case-insensitive substring of the name, slug, description or a domain, or of an image or
-	// region of the resource's live deployments.
+	// Case-insensitive substring of the name, slug, description, a domain or a region, or of an
+	// image of the resource's live deployments.
 	Query         string `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
 	EnvironmentId string `protobuf:"bytes,5,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	// Only resources with this status.
 	Status ResourceStatus `protobuf:"varint,6,opt,name=status,proto3,enum=loco.resource.v1.ResourceStatus" json:"status,omitempty"`
-	// Only resources with no status.
+	// Only resources with no status: nothing live, though older deployments may exist.
 	NotDeployed bool `protobuf:"varint,7,opt,name=not_deployed,json=notDeployed,proto3" json:"not_deployed,omitempty"`
-	// Only resources whose live deployments run in this region.
+	// Only resources with this region.
 	Region string `protobuf:"bytes,8,opt,name=region,proto3" json:"region,omitempty"`
 	// Only resources of this type.
 	Type ResourceType `protobuf:"varint,9,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
@@ -1507,18 +1510,21 @@ func (x *ListWorkspaceResourcesResponse) GetFacets() *ResourceFacets {
 	return nil
 }
 
-// ResourceFacets counts the resources per value of the status, region and type filters. Each
-// facet counts the resources every other filter and query match, ignoring its own filter and
-// page_token. Values no resource has are left out. Counts are capped like total_count.
+// ResourceFacets counts the resources per value of the status, region and type filters, over the
+// resources the query and the other filters match, ignoring page_token. Counts are capped like
+// total_count.
 type ResourceFacets struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// A resource with statuses in several environments counts once for each status.
+	// Ignores status and not_deployed; statuses no resource has are left out. A resource with
+	// statuses in several environments counts once for each status.
 	Statuses []*ResourceStatusCount `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
-	// The resources not_deployed would match.
+	// The resources not_deployed would match, ignoring status.
 	NotDeployed int32 `protobuf:"varint,2,opt,name=not_deployed,json=notDeployed,proto3" json:"not_deployed,omitempty"`
-	// A resource counts once for each region, ordered by region.
-	Regions       []*ResourceRegionCount `protobuf:"bytes,3,rep,name=regions,proto3" json:"regions,omitempty"`
-	Types         []*ResourceTypeCount   `protobuf:"bytes,4,rep,name=types,proto3" json:"types,omitempty"`
+	// Ignores region, status and not_deployed. Every region a resource of the workspace has, with 0
+	// where none matches, ordered by region; a resource counts once for each of its regions.
+	Regions []*ResourceRegionCount `protobuf:"bytes,3,rep,name=regions,proto3" json:"regions,omitempty"`
+	// Ignores type; types no resource has are left out.
+	Types         []*ResourceTypeCount `protobuf:"bytes,4,rep,name=types,proto3" json:"types,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

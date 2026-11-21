@@ -995,9 +995,11 @@ export const GetResourceResponseSchema: GenMessage<GetResourceResponse, {jsonTyp
   messageDesc(file_loco_resource_v1_resource, 11);
 
 /**
- * ListWorkspaceResourcesRequest is the request to list resources. environment_id scopes the
- * status, regions, image and size that query, the filters, the facets and the order read; without
- * it they read every environment, and a resource matches a status or region any environment has.
+ * ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the
+ * regions its live deployments run in and the enabled regions of its spec. environment_id scopes
+ * the status, live regions, image and size that query, the filters, the facets and the order read;
+ * without it they read every environment, and a resource matches a status or region any
+ * environment has.
  *
  * @generated from message loco.resource.v1.ListWorkspaceResourcesRequest
  */
@@ -1022,8 +1024,8 @@ export type ListWorkspaceResourcesRequest = Message<"loco.resource.v1.ListWorksp
   pageToken: string;
 
   /**
-   * Case-insensitive substring of the name, slug, description or a domain, or of an image or
-   * region of the resource's live deployments.
+   * Case-insensitive substring of the name, slug, description, a domain or a region, or of an
+   * image of the resource's live deployments.
    *
    * @generated from field: string query = 4;
    */
@@ -1042,14 +1044,14 @@ export type ListWorkspaceResourcesRequest = Message<"loco.resource.v1.ListWorksp
   status: ResourceStatus;
 
   /**
-   * Only resources with no status.
+   * Only resources with no status: nothing live, though older deployments may exist.
    *
    * @generated from field: bool not_deployed = 7;
    */
   notDeployed: boolean;
 
   /**
-   * Only resources whose live deployments run in this region.
+   * Only resources with this region.
    *
    * @generated from field: string region = 8;
    */
@@ -1095,9 +1097,11 @@ export type ListWorkspaceResourcesRequest = Message<"loco.resource.v1.ListWorksp
 };
 
 /**
- * ListWorkspaceResourcesRequest is the request to list resources. environment_id scopes the
- * status, regions, image and size that query, the filters, the facets and the order read; without
- * it they read every environment, and a resource matches a status or region any environment has.
+ * ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the
+ * regions its live deployments run in and the enabled regions of its spec. environment_id scopes
+ * the status, live regions, image and size that query, the filters, the facets and the order read;
+ * without it they read every environment, and a resource matches a status or region any
+ * environment has.
  *
  * @generated from message loco.resource.v1.ListWorkspaceResourcesRequest
  */
@@ -1122,8 +1126,8 @@ export type ListWorkspaceResourcesRequestJson = {
   pageToken?: string;
 
   /**
-   * Case-insensitive substring of the name, slug, description or a domain, or of an image or
-   * region of the resource's live deployments.
+   * Case-insensitive substring of the name, slug, description, a domain or a region, or of an
+   * image of the resource's live deployments.
    *
    * @generated from field: string query = 4;
    */
@@ -1142,14 +1146,14 @@ export type ListWorkspaceResourcesRequestJson = {
   status?: ResourceStatusJson;
 
   /**
-   * Only resources with no status.
+   * Only resources with no status: nothing live, though older deployments may exist.
    *
    * @generated from field: bool not_deployed = 7;
    */
   notDeployed?: boolean;
 
   /**
-   * Only resources whose live deployments run in this region.
+   * Only resources with this region.
    *
    * @generated from field: string region = 8;
    */
@@ -1277,70 +1281,78 @@ export const ListWorkspaceResourcesResponseSchema: GenMessage<ListWorkspaceResou
   messageDesc(file_loco_resource_v1_resource, 13);
 
 /**
- * ResourceFacets counts the resources per value of the status, region and type filters. Each
- * facet counts the resources every other filter and query match, ignoring its own filter and
- * page_token. Values no resource has are left out. Counts are capped like total_count.
+ * ResourceFacets counts the resources per value of the status, region and type filters, over the
+ * resources the query and the other filters match, ignoring page_token. Counts are capped like
+ * total_count.
  *
  * @generated from message loco.resource.v1.ResourceFacets
  */
 export type ResourceFacets = Message<"loco.resource.v1.ResourceFacets"> & {
   /**
-   * A resource with statuses in several environments counts once for each status.
+   * Ignores status and not_deployed; statuses no resource has are left out. A resource with
+   * statuses in several environments counts once for each status.
    *
    * @generated from field: repeated loco.resource.v1.ResourceStatusCount statuses = 1;
    */
   statuses: ResourceStatusCount[];
 
   /**
-   * The resources not_deployed would match.
+   * The resources not_deployed would match, ignoring status.
    *
    * @generated from field: int32 not_deployed = 2;
    */
   notDeployed: number;
 
   /**
-   * A resource counts once for each region, ordered by region.
+   * Ignores region, status and not_deployed. Every region a resource of the workspace has, with 0
+   * where none matches, ordered by region; a resource counts once for each of its regions.
    *
    * @generated from field: repeated loco.resource.v1.ResourceRegionCount regions = 3;
    */
   regions: ResourceRegionCount[];
 
   /**
+   * Ignores type; types no resource has are left out.
+   *
    * @generated from field: repeated loco.resource.v1.ResourceTypeCount types = 4;
    */
   types: ResourceTypeCount[];
 };
 
 /**
- * ResourceFacets counts the resources per value of the status, region and type filters. Each
- * facet counts the resources every other filter and query match, ignoring its own filter and
- * page_token. Values no resource has are left out. Counts are capped like total_count.
+ * ResourceFacets counts the resources per value of the status, region and type filters, over the
+ * resources the query and the other filters match, ignoring page_token. Counts are capped like
+ * total_count.
  *
  * @generated from message loco.resource.v1.ResourceFacets
  */
 export type ResourceFacetsJson = {
   /**
-   * A resource with statuses in several environments counts once for each status.
+   * Ignores status and not_deployed; statuses no resource has are left out. A resource with
+   * statuses in several environments counts once for each status.
    *
    * @generated from field: repeated loco.resource.v1.ResourceStatusCount statuses = 1;
    */
   statuses?: ResourceStatusCountJson[];
 
   /**
-   * The resources not_deployed would match.
+   * The resources not_deployed would match, ignoring status.
    *
    * @generated from field: int32 not_deployed = 2;
    */
   notDeployed?: number;
 
   /**
-   * A resource counts once for each region, ordered by region.
+   * Ignores region, status and not_deployed. Every region a resource of the workspace has, with 0
+   * where none matches, ordered by region; a resource counts once for each of its regions.
    *
    * @generated from field: repeated loco.resource.v1.ResourceRegionCount regions = 3;
    */
   regions?: ResourceRegionCountJson[];
 
   /**
+   * Ignores type; types no resource has are left out.
+   *
    * @generated from field: repeated loco.resource.v1.ResourceTypeCount types = 4;
    */
   types?: ResourceTypeCountJson[];
@@ -2442,7 +2454,7 @@ export const ResourceStatusSchema: GenEnum<ResourceStatus, ResourceStatusJson> =
  */
 export enum ResourceOrder {
   /**
-   * Sorts by name.
+   * Newest first: creation time, descending, whatever descending says.
    *
    * @generated from enum value: RESOURCE_ORDER_UNSPECIFIED = 0;
    */
@@ -2478,7 +2490,7 @@ export enum ResourceOrder {
   SIZE = 4,
 
   /**
-   * The first region, alphabetically, the resource's live deployments run in.
+   * The first of the resource's regions, alphabetically.
    *
    * @generated from enum value: RESOURCE_ORDER_REGION = 5;
    */
@@ -2492,7 +2504,8 @@ export enum ResourceOrder {
   REPLICAS = 6,
 
   /**
-   * When the newest live deployment started, or was created before it started.
+   * When the newest deployment started, or was created before it started, live or not. Across
+   * environments the latest environment's.
    *
    * @generated from enum value: RESOURCE_ORDER_DEPLOYED = 7;
    */

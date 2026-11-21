@@ -28,7 +28,7 @@ const resourceListSQL = `WITH ws AS MATERIALIZED (
 regions AS MATERIALIZED (
   SELECT i.resource_id, i.environment_id, i.region, i.desired_replicas,
     d.id AS deployment_id, d.created_at AS deployment_created_at, d.spec AS deployment_spec,
-    COALESCE(d.started_at, d.created_at) AS deployed_at, d.spec->'build'->>'image' AS image,
+    d.spec->'build'->>'image' AS image,
     region_status(region_status_cause(
         i.last_heartbeat, i.health_status, make_interval(secs => $2::float8),
         i.ready_replicas, i.desired_replicas, i.placement_status, cardinality(i.unserved_domains)
@@ -40,17 +40,21 @@ regions AS MATERIALIZED (
 cells AS (
   SELECT resource_id, environment_id, environment_status(array_agg(status)) AS status,
     min(region) AS first_region,
-    (array_agg(deployment_spec ORDER BY deployment_created_at DESC, deployment_id DESC))[1] AS live_spec,
-    (array_agg(deployed_at ORDER BY deployment_created_at DESC, deployment_id DESC))[1] AS deployed_at
+    (array_agg(deployment_spec ORDER BY deployment_created_at DESC, deployment_id DESC))[1] AS live_spec
   FROM regions GROUP BY resource_id, environment_id
 ),
 facts AS (
   SELECT ws.id, ws.name, ws.slug, ws.description, ws.type, ws.created_at, lower(ws.name) AS name_key,
     ARRAY(SELECT c.status FROM cells c WHERE c.resource_id = ws.id) AS statuses,
-    ARRAY(SELECT DISTINCT g.region FROM regions g WHERE g.resource_id = ws.id ORDER BY g.region) AS regions,
+    ARRAY(SELECT g.region FROM regions g WHERE g.resource_id = ws.id
+      UNION SELECT t.key FROM jsonb_each(ws.spec->'regions') t WHERE t.value->>'enabled' = 'true'
+      ORDER BY 1) AS regions,
     ARRAY(SELECT DISTINCT g.image FROM regions g WHERE g.resource_id = ws.id AND g.image <> '') AS images,
     (SELECT COALESCE(sum(g.desired_replicas), 0) FROM regions g WHERE g.resource_id = ws.id)::bigint AS replicas,
-    (SELECT max(c.deployed_at) FROM cells c WHERE c.resource_id = ws.id) AS deployed_at,
+    (SELECT max(n.at) FROM (
+      SELECT DISTINCT ON (d.environment_id) COALESCE(d.started_at, d.created_at) AS at FROM deployments d
+      WHERE d.resource_id = ws.id AND ($3::uuid IS NULL OR d.environment_id = $3::uuid)
+      ORDER BY d.environment_id, d.created_at DESC, d.id DESC) n) AS deployed_at,
     cpu_millicores(COALESCE(run.target->>'cpu', cfg.target->>'cpu')) AS cpu,
     memory_bytes(COALESCE(run.target->>'memory', cfg.target->>'memory')) AS memory
   FROM ws
@@ -147,11 +151,11 @@ func (s *ResourceServer) ListWorkspaceResources(
 	if err != nil {
 		return nil, err
 	}
-	order := req.GetOrderBy()
+	order, descending := req.GetOrderBy(), req.GetDescending()
 	if order == resourcev1.ResourceOrder_RESOURCE_ORDER_UNSPECIFIED {
-		order = resourcev1.ResourceOrder_RESOURCE_ORDER_NAME
+		order, descending = resourcev1.ResourceOrder_RESOURCE_ORDER_CREATED, true
 	}
-	after, err := decodeResourceKey(req.GetPageToken(), order, req.GetDescending())
+	after, err := decodeResourceKey(req.GetPageToken(), order, descending)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 	}
@@ -305,7 +309,8 @@ func (s *ResourceServer) listedResources(ctx context.Context, keys []resourceKey
 	return resources, nil
 }
 
-// resourceFacets counts the matched resources per status, region and type, each without its own filter.
+// resourceFacets counts the matched resources per status, region and type, each without its own
+// filter; the region facet also ignores the status filters and lists every region of the workspace.
 func (s *ResourceServer) resourceFacets(
 	ctx context.Context,
 	filter resourceFilter,
@@ -331,10 +336,14 @@ func (s *ResourceServer) resourceFacets(
 		}
 		facets.Statuses = append(facets.Statuses, &resourcev1.ResourceStatusCount{Status: status, Count: c.count})
 	}
-	byRegion := filter
+	byRegion := byStatus
 	byRegion.region = ""
-	regions, err := s.facetCounts(ctx, byRegion,
-		" SELECT g, count(*) FROM matched m CROSS JOIN LATERAL unnest(m.regions) g GROUP BY g ORDER BY g")
+	regions, err := s.facetCounts(
+		ctx,
+		byRegion,
+		` SELECT g, count(m.id) FROM (SELECT DISTINCT unnest(regions) g FROM facts) a
+	  LEFT JOIN matched m ON g = ANY(m.regions) GROUP BY g ORDER BY g`,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("count resources by region: %w", err)
 	}

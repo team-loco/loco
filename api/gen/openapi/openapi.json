@@ -15359,7 +15359,7 @@
             "type": "string",
             "title": "query",
             "maxLength": 256,
-            "description": "Case-insensitive substring of the name, slug, description or a domain, or of an image or\n region of the resource's live deployments."
+            "description": "Case-insensitive substring of the name, slug, description, a domain or a region, or of an\n image of the resource's live deployments."
           },
           "environmentId": {
             "type": "string",
@@ -15374,13 +15374,13 @@
           "notDeployed": {
             "type": "boolean",
             "title": "not_deployed",
-            "description": "Only resources with no status."
+            "description": "Only resources with no status: nothing live, though older deployments may exist."
           },
           "region": {
             "type": "string",
             "title": "region",
             "maxLength": 63,
-            "description": "Only resources whose live deployments run in this region."
+            "description": "Only resources with this region."
           },
           "type": {
             "title": "type",
@@ -15413,7 +15413,7 @@
         },
         "title": "ListWorkspaceResourcesRequest",
         "additionalProperties": false,
-        "description": "ListWorkspaceResourcesRequest is the request to list resources. environment_id scopes the\n status, regions, image and size that query, the filters, the facets and the order read; without\n it they read every environment, and a resource matches a status or region any environment has.\nresources.environment_scoped_requires_environment // environment_scoped needs environment_id\nresources.status_or_not_deployed // status and not_deployed are mutually exclusive\n"
+        "description": "ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the\n regions its live deployments run in and the enabled regions of its spec. environment_id scopes\n the status, live regions, image and size that query, the filters, the facets and the order read;\n without it they read every environment, and a resource matches a status or region any\n environment has.\nresources.environment_scoped_requires_environment // environment_scoped needs environment_id\nresources.status_or_not_deployed // status and not_deployed are mutually exclusive\n"
       },
       "loco.resource.v1.ListWorkspaceResourcesResponse": {
         "type": "object",
@@ -15722,13 +15722,13 @@
               "$ref": "#/components/schemas/loco.resource.v1.ResourceStatusCount"
             },
             "title": "statuses",
-            "description": "A resource with statuses in several environments counts once for each status."
+            "description": "Ignores status and not_deployed; statuses no resource has are left out. A resource with\n statuses in several environments counts once for each status."
           },
           "notDeployed": {
             "type": "integer",
             "title": "not_deployed",
             "format": "int32",
-            "description": "The resources not_deployed would match."
+            "description": "The resources not_deployed would match, ignoring status."
           },
           "regions": {
             "type": "array",
@@ -15736,19 +15736,20 @@
               "$ref": "#/components/schemas/loco.resource.v1.ResourceRegionCount"
             },
             "title": "regions",
-            "description": "A resource counts once for each region, ordered by region."
+            "description": "Ignores region, status and not_deployed. Every region a resource of the workspace has, with 0\n where none matches, ordered by region; a resource counts once for each of its regions."
           },
           "types": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/loco.resource.v1.ResourceTypeCount"
             },
-            "title": "types"
+            "title": "types",
+            "description": "Ignores type; types no resource has are left out."
           }
         },
         "title": "ResourceFacets",
         "additionalProperties": false,
-        "description": "ResourceFacets counts the resources per value of the status, region and type filters. Each\n facet counts the resources every other filter and query match, ignoring its own filter and\n page_token. Values no resource has are left out. Counts are capped like total_count."
+        "description": "ResourceFacets counts the resources per value of the status, region and type filters, over the\n resources the query and the other filters match, ignoring page_token. Counts are capped like\n total_count."
       },
       "loco.resource.v1.ResourceOrder": {
         "type": "string",

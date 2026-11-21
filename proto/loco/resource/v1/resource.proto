@@ -227,7 +227,7 @@ message GetResourceResponse {
 
 // ResourceOrder is what ListWorkspaceResources sorts by. Ties sort by name, then ID, ascending.
 enum ResourceOrder {
-  // Sorts by name.
+  // Newest first: creation time, descending, whatever descending says.
   RESOURCE_ORDER_UNSPECIFIED = 0;
   // Case-insensitive name.
   RESOURCE_ORDER_NAME = 1;
@@ -238,17 +238,20 @@ enum ResourceOrder {
   RESOURCE_ORDER_CREATED = 3;
   // CPU, then memory, of the live deployment in environment_id, else of the resource's spec.
   RESOURCE_ORDER_SIZE = 4;
-  // The first region, alphabetically, the resource's live deployments run in.
+  // The first of the resource's regions, alphabetically.
   RESOURCE_ORDER_REGION = 5;
   // Total desired replicas of the live deployments.
   RESOURCE_ORDER_REPLICAS = 6;
-  // When the newest live deployment started, or was created before it started.
+  // When the newest deployment started, or was created before it started, live or not. Across
+  // environments the latest environment's.
   RESOURCE_ORDER_DEPLOYED = 7;
 }
 
-// ListWorkspaceResourcesRequest is the request to list resources. environment_id scopes the
-// status, regions, image and size that query, the filters, the facets and the order read; without
-// it they read every environment, and a resource matches a status or region any environment has.
+// ListWorkspaceResourcesRequest is the request to list resources. A resource's regions are the
+// regions its live deployments run in and the enabled regions of its spec. environment_id scopes
+// the status, live regions, image and size that query, the filters, the facets and the order read;
+// without it they read every environment, and a resource matches a status or region any
+// environment has.
 message ListWorkspaceResourcesRequest {
   option (buf.validate.message).cel = {
     id: "resources.status_or_not_deployed"
@@ -268,8 +271,8 @@ message ListWorkspaceResourcesRequest {
   }]; // default: 50, max: 200
   // next_page_token from the previous page of the same order; empty for the first page.
   string page_token = 3 [(buf.validate.field).string.max_len = 1024];
-  // Case-insensitive substring of the name, slug, description or a domain, or of an image or
-  // region of the resource's live deployments.
+  // Case-insensitive substring of the name, slug, description, a domain or a region, or of an
+  // image of the resource's live deployments.
   string query = 4 [(buf.validate.field).string.max_len = 256];
   string environment_id = 5 [
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
@@ -277,9 +280,9 @@ message ListWorkspaceResourcesRequest {
   ];
   // Only resources with this status.
   ResourceStatus status = 6 [(buf.validate.field).enum.defined_only = true];
-  // Only resources with no status.
+  // Only resources with no status: nothing live, though older deployments may exist.
   bool not_deployed = 7;
-  // Only resources whose live deployments run in this region.
+  // Only resources with this region.
   string region = 8 [(buf.validate.field).string.max_len = 63];
   // Only resources of this type.
   ResourceType type = 9 [(buf.validate.field).enum.defined_only = true];
@@ -304,16 +307,19 @@ message ListWorkspaceResourcesResponse {
   ResourceFacets facets = 4;
 }
 
-// ResourceFacets counts the resources per value of the status, region and type filters. Each
-// facet counts the resources every other filter and query match, ignoring its own filter and
-// page_token. Values no resource has are left out. Counts are capped like total_count.
+// ResourceFacets counts the resources per value of the status, region and type filters, over the
+// resources the query and the other filters match, ignoring page_token. Counts are capped like
+// total_count.
 message ResourceFacets {
-  // A resource with statuses in several environments counts once for each status.
+  // Ignores status and not_deployed; statuses no resource has are left out. A resource with
+  // statuses in several environments counts once for each status.
   repeated ResourceStatusCount statuses = 1;
-  // The resources not_deployed would match.
+  // The resources not_deployed would match, ignoring status.
   int32 not_deployed = 2;
-  // A resource counts once for each region, ordered by region.
+  // Ignores region, status and not_deployed. Every region a resource of the workspace has, with 0
+  // where none matches, ordered by region; a resource counts once for each of its regions.
   repeated ResourceRegionCount regions = 3;
+  // Ignores type; types no resource has are left out.
   repeated ResourceTypeCount types = 4;
 }
 
