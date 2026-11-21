@@ -79,33 +79,33 @@ export function ServingBanner({
 			tone="warn"
 			className="mx-0 mt-0"
 			title={`These settings are from deployment ${formatShortId(stopped.id)}, which did not finish in ${region.name}.`}
-			action={
-				canRollBackTo(serving, region) && (
-					<Button
-						size="sm"
-						disabled={!canWrite}
-						title={canWrite ? undefined : NEEDS_WRITE}
-						onClick={() => {
-							onRollback(serving, stopped);
-						}}
-					>
-						<Undo2Icon />
-						Roll back to {depTag(serving)}
-					</Button>
-				)
-			}
 		>
-			<span className="font-mono">{servingLabel}</span> still serves.
+			<p className="my-1">
+				<span className="font-mono">{servingLabel}</span> still serves.
+			</p>
 			{changes.length > 0 && (
-				<span className="mt-1.5 flex flex-col gap-0.5 font-mono text-[12px]">
-					<span className="font-sans text-fg2">Serving → these settings</span>
+				<dl className="my-2 flex flex-col gap-0.5 font-mono text-[12px]">
+					<dt className="font-sans text-fg2">Serving → these settings</dt>
 					{changes.map((c) => (
-						<span key={c.label} className="[overflow-wrap:anywhere]">
+						<dd key={c.label} className="m-0 [overflow-wrap:anywhere]">
 							{c.label}: <span className="text-bad-fg">{c.from ?? ABSENT}</span> →{" "}
 							<span className="text-ok-fg">{c.to ?? ABSENT}</span>
-						</span>
+						</dd>
 					))}
-				</span>
+				</dl>
+			)}
+			{canRollBackTo(serving, region) && (
+				<Button
+					size="sm"
+					disabled={!canWrite}
+					title={canWrite ? undefined : NEEDS_WRITE}
+					onClick={() => {
+						onRollback(serving, stopped);
+					}}
+				>
+					<Undo2Icon />
+					Roll back to {depTag(serving)}
+				</Button>
 			)}
 		</Banner>
 	);
