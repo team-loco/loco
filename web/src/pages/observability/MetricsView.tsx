@@ -27,6 +27,7 @@ import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { limitAt, limitSteps, startedIn, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { isUnimplemented } from "@/lib/error-handler";
+import { TRAFFIC_METRICS, trafficValue } from "@/lib/traffic";
 import { sortParser } from "@/lib/sort-parser";
 import { HOUR_MS, MINUTE_MS, aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
@@ -63,11 +64,17 @@ const MEMORY: MetricDef = {
 	limit: (target) => parseMemMi(target.memory ?? ""),
 };
 
-const TRAFFIC = ["Requests", "5xx responses", "Latency, p95"];
-const SOON_COLUMNS = ["Requests", "5xx", "p95"];
+const [REQUESTS, ERRORS, , LATENCY] = TRAFFIC_METRICS;
+const TRAFFIC_CARDS = [
+	{ key: "req", title: "Requests", unit: "req/s", format: (v: number) => trafficValue(v, "/s") },
+	{ key: "err", title: "5xx responses", unit: "%", format: (v: number) => `${v.toFixed(2)}%` },
+	{ key: "lat", title: "Latency, p95", unit: "ms", format: (v: number) => trafficValue(v, " ms") },
+] as const;
+type TrafficKey = (typeof TRAFFIC_CARDS)[number]["key"];
 const PERCENT = 100;
 const NOW_TICK_MS = 60_000;
 const CHART_HEIGHT = 190;
+const TRAFFIC_HEIGHT = 170;
 // A deployment shows where it became ready, which can be this long after it was created.
 const DEPLOY_LEAD_MS = 24 * HOUR_MS;
 // Enough of the deployments created before the window to find the one running at its start.
@@ -185,6 +192,80 @@ function useComputeSeries(
 			const last = points.at(-1);
 			const limit = last === undefined ? undefined : limitAt(limits, last.t);
 			if (last !== undefined && limit !== undefined) latest.set(row.key, { v: (last.v / PERCENT) * limit, limit });
+		}
+	});
+	return {
+		series,
+		latest,
+		isLoading: results.some((r) => r.isLoading),
+		error: results.find((r) => r.error !== null)?.error ?? null,
+		refetch: async () => await Promise.all(results.map(async (r) => await r.refetch())),
+	};
+}
+
+/** Requests per second, the share of 5xx responses and p95 latency of each placement, from the gateway. */
+function useTrafficSeries(rows: Placement[], spanMs: number, endMs: number | undefined) {
+	const transport = useTransport();
+	const { workspaceId } = useObs();
+	const { active: environment } = useEnvironments();
+	const environmentId = environment?.id ?? "";
+	const regions = [...new Set(rows.map((p) => p.region))];
+	const metrics = [REQUESTS, ERRORS, LATENCY];
+	const results = useQueries({
+		queries: regions.flatMap((region) =>
+			metrics.map((metric) =>
+				metricsQueryOptions(transport, {
+					workspaceId,
+					environmentId,
+					resourceIds: [...new Set(rows.filter((p) => p.region === region).map((p) => p.resource.id))],
+					spanMs,
+					endMs,
+					region,
+					...metric,
+				}),
+			),
+		),
+	});
+	const multi = new Set(rows.filter((p) => p.dashed).map((p) => p.resource.id));
+	const series: Record<TrafficKey, ChartSeries[]> = { req: [], err: [], lat: [] };
+	const latest = new Map<string, Partial<Record<TrafficKey, number>>>();
+	regions.forEach((region, i) => {
+		const [requests, errors, latency] = metrics.map((_, m) => {
+			const byResource = new Map<string, Map<number, number>>();
+			for (const s of results[i * metrics.length + m]?.data ?? []) {
+				const points = byResource.get(s.resourceId) ?? new Map<number, number>();
+				for (const p of s.points) points.set(tsMs(p.timestamp), p.value);
+				byResource.set(s.resourceId, points);
+			}
+			return byResource;
+		});
+		for (const row of rows.filter((p) => p.region === region)) {
+			const rates = requests?.get(row.resource.id);
+			const failed = errors?.get(row.resource.id);
+			const values: Record<TrafficKey, Map<number, number> | undefined> = {
+				req: rates,
+				err:
+					rates === undefined
+						? undefined
+						: new Map([...rates].map(([t, v]) => [t, v === 0 ? 0 : ((failed?.get(t) ?? 0) / v) * PERCENT])),
+				lat: latency?.get(row.resource.id),
+			};
+			const last: Partial<Record<TrafficKey, number>> = {};
+			for (const card of TRAFFIC_CARDS) {
+				const points = [...(values[card.key] ?? [])].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
+				const end = points.at(-1);
+				if (end === undefined) continue;
+				last[card.key] = end.v;
+				series[card.key].push({
+					key: row.key,
+					name: multi.has(row.resource.id) ? `${row.resource.raw.name} ${region}` : row.resource.raw.name,
+					color: row.resource.color,
+					dashed: row.dashed,
+					limits: [],
+					points,
+				});
+			}
+			latest.set(row.key, last);
 		}
 	});
 	return {
@@ -323,6 +404,7 @@ export function MetricsView() {
 	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows, recent, environment?.id ?? "", from);
 	const cpu = useComputeSeries(CPU, rows, sizing, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, sizing, spanMs, endMs);
+	const traffic = useTrafficSeries(rows, spanMs, endMs);
 	const deployMarkers = deployMarkersOf(visible, recent, environment?.id ?? "", from, to);
 	const [hoverKey, setHoverKey] = useState<string | null>(null);
 	const [focusTs] = useQueryState("at", msParser);
@@ -381,11 +463,11 @@ export function MetricsView() {
 			},
 		];
 	};
-	const error = cpu.error ?? mem.error;
+	const error = cpu.error ?? mem.error ?? traffic.error;
 	const loading = cpu.isLoading || mem.isLoading || sizingLoading || environmentLoading || resourcesLoading;
 	const sorting = [sort];
 	const table = useDataTable("metrics-placements", {
-		columns: placementColumns(cpu.latest, mem.latest),
+		columns: placementColumns(cpu.latest, mem.latest, traffic.latest),
 		data: rows.toSorted((a, b) => a.key.localeCompare(b.key)),
 		getRowId: (p) => p.key,
 		state: { sorting },
@@ -417,7 +499,7 @@ export function MetricsView() {
 					error={error}
 					what="metrics"
 					rpc={queryMetrics}
-					onRetry={async () => await Promise.all([cpu.refetch(), mem.refetch()])}
+					onRetry={async () => await Promise.all([cpu.refetch(), mem.refetch(), traffic.refetch()])}
 				/>
 			</>
 		);
@@ -462,6 +544,7 @@ export function MetricsView() {
 		{ def: CPU, result: cpu },
 		{ def: MEMORY, result: mem },
 	];
+	const trafficCards = TRAFFIC_CARDS.filter((card) => traffic.series[card.key].length > 0);
 
 	return (
 		<>
@@ -506,19 +589,48 @@ export function MetricsView() {
 				</div>
 			</Section>
 
-			<Section title="Traffic" card={false}>
-				<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-					{TRAFFIC.map((title) => (
-						<div key={title} className="flex flex-col gap-2 rounded-card bg-panel px-5 py-4">
-							<span className="flex items-baseline gap-2">
-								<span className="text-[15px] font-medium tracking-[-0.01em] text-fg3">{title}</span>
-								<SoonTag />
-							</span>
-							<div className="h-12 rounded-lg border border-dashed border-line2" />
-						</div>
-					))}
-				</div>
-			</Section>
+			{trafficCards.length > 0 && (
+				<Section title="Traffic" card={false}>
+					<div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+						{trafficCards.map((card) => (
+							<section
+								key={card.key}
+								aria-label={card.title}
+								className="flex min-w-0 flex-col gap-3.5 rounded-card bg-panel px-5 pt-[18px] pb-4"
+							>
+								<div className="flex items-baseline gap-2">
+									<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{card.title}</h3>
+									<span className="font-mono text-[12px] text-fg3">{card.unit}</span>
+								</div>
+								<MetricChart
+									title={card.title}
+									series={traffic.series[card.key]}
+									from={from}
+									to={to}
+									fmt={card.format}
+									unit={card.unit}
+									highlight={hoverKey}
+									markers={markers}
+									height={TRAFFIC_HEIGHT}
+									actions={actions}
+								/>
+								<ul className="m-0 flex list-none flex-wrap gap-x-3.5 gap-y-1 p-0 text-[12px] text-fg2">
+									{traffic.series[card.key].map((s) => (
+										<li key={s.key} className="flex items-center gap-1.5">
+											<span
+												className={cn("w-3 border-t-2", s.dashed && "border-dashed")}
+												style={{ borderColor: s.color }}
+											/>
+											{s.name}
+											<span className="font-mono text-fg3">{card.format(s.points.at(-1)?.v ?? 0)}</span>
+										</li>
+									))}
+								</ul>
+							</section>
+						))}
+					</div>
+				</Section>
+			)}
 
 			<Section title="By resource and region" card={false}>
 				<div className="min-w-0 rounded-card bg-panel">
@@ -546,7 +658,11 @@ export function MetricsView() {
 
 type Latest = Map<string, { v: number; limit: number }>;
 
-function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
+function placementColumns(
+	cpu: Latest,
+	mem: Latest,
+	traffic: Map<string, Partial<Record<TrafficKey, number>>>,
+): DataColumn<Placement>[] {
 	return [
 		{
 			id: "resource",
@@ -601,15 +717,18 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 			sortDescFirst: true,
 			cell: ({ row }) => <Meter value={mem.get(row.original.key)} format={MEMORY.format} />,
 		},
-		...SOON_COLUMNS.map((label): DataColumn<Placement> => ({
-			id: label,
-			header: () => (
-				<span className="flex items-center gap-1.5 whitespace-nowrap">
-					{label} <SoonTag />
-				</span>
-			),
-			meta: { label, fit: true },
-			cell: () => <span className="text-fg4">—</span>,
+		...TRAFFIC_CARDS.map((card): DataColumn<Placement> => ({
+			id: card.key,
+			header: { req: "Requests", err: "5xx", lat: "p95" }[card.key],
+			meta: { fit: true },
+			cell: ({ row }) => {
+				const value = traffic.get(row.original.key)?.[card.key];
+				return (
+					<span className={cn("font-mono", value === undefined ? "text-fg4" : "text-fg2")}>
+						{value === undefined ? "—" : card.format(value)}
+					</span>
+				);
+			},
 		})),
 	];
 }
