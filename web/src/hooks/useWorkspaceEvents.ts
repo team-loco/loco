@@ -8,6 +8,7 @@ import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { useHeldError } from "@/hooks/useHeldError";
 import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, runtimeEvent, type RuntimeEvent } from "@/lib/runtime-events";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
@@ -110,11 +111,14 @@ export function useWorkspaceEvents(
 	});
 	events.sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp));
 
-	const error = queries.find((q) => q.error !== null)?.error ?? null;
+	const error = useHeldError(
+		queries.find((q) => q.error !== null)?.error ?? null,
+		queries.some((q) => q.isFetching),
+	);
 
 	return {
 		events,
-		isLoading: resourcesLoading || queries.some((q) => q.isLoading),
+		isLoading: resourcesLoading || (error === null && queries.some((q) => q.isLoading)),
 		error: error ?? (live && canStream ? tail.error : null),
 		refetch: async () => {
 			setTail((previous) => ({ ...previous, error: null }));

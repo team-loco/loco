@@ -911,6 +911,66 @@ def time_preferences(browser):
     context.close()
 
 
+def volume_error(browser):
+    context, page, errors = open_page(
+        browser, state=state, timezone_id="UTC", now=datetime.now(UTC)
+    )
+    mock_telemetry(context)
+    buckets = "**/loco.observability.v1.ObservabilityService/QueryLogBuckets"
+    page.route(
+        buckets,
+        lambda route: route.fulfill(
+            status=500, json={"code": "internal", "message": "boom"}
+        ),
+    )
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    expect(page.locator("[data-live-button]")).to_have_attribute("aria-pressed", "true")
+    expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
+    panel = page.get_by_role("region", name="Log volume")
+    failed = panel.get_by_role("alert")
+    expect(failed).to_contain_text("Couldn’t load log volume")
+    lines = page.get_by_role("region", name="Log lines")
+    top = lines.bounding_box()["y"]
+    # Live tail moves the volume window every 15 seconds; hold the next request.
+    page.route(buckets, lambda route: None)
+    with page.expect_request("**/QueryLogBuckets"):
+        page.clock.run_for(15_000)
+    assert failed.is_visible()
+    assert lines.bounding_box()["y"] == top
+    page.unroute(buckets)
+    page.clock.run_for(15_000)
+    expect(panel.get_by_role("slider", name=re.compile(r"^Log volume"))).to_be_visible()
+    expect(failed).to_have_count(0)
+    assert not errors, errors
+    context.close()
+
+
+def metrics_error(browser):
+    context, page, errors = open_page(
+        browser, state=state, timezone_id="UTC", now=datetime.now(UTC)
+    )
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryMetrics",
+        lambda route: route.fulfill(
+            status=500, json={"code": "internal", "message": "boom"}
+        ),
+    )
+    page.goto(
+        state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
+    )
+    failed = page.get_by_role("alert").filter(has_text="Couldn’t load metrics")
+    expect(failed).to_be_visible()
+    # Live metrics refetch every minute; hold those requests.
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryMetrics", lambda route: None
+    )
+    with page.expect_request("**/QueryMetrics"):
+        page.clock.run_for(60_000)
+    assert failed.is_visible()
+    assert not errors, errors
+    context.close()
+
+
 def calendar(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     page.get_by_role("button", name=re.compile(r"^Past ")).click()
@@ -2126,6 +2186,8 @@ with session(out) as browser:
     context, page, errors = open_page(browser, state=state, timezone_id="UTC")
     mock_telemetry(context)
     time_preferences(browser)
+    volume_error(browser)
+    metrics_error(browser)
     page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
     new_resource_menu(page)
     page.goto(state["ui_url"] + base + "/settings?scope=workspace")

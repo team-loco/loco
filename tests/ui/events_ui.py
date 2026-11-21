@@ -222,6 +222,28 @@ with session(out) as browser:
     expect(live).to_have_text("Pause")
     assert not errors, errors
     context.close()
+    context, page, errors = open_page(browser, state=state, now=time.time())
+    page.route(
+        "**/loco.event.v1.EventService/ListEvents",
+        lambda route: route.fulfill(
+            status=500, json={"code": "internal", "message": "boom"}
+        ),
+    )
+    page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
+    failed = page.get_by_role("alert").filter(has_text="Couldn’t load events")
+    expect(failed).to_be_visible()
+    # The history window moves every 15 minutes; hold the next window's requests.
+    page.route("**/loco.event.v1.EventService/ListEvents", lambda route: None)
+    with page.expect_request(
+        lambda request: (
+            request.url.endswith("/ListEvents")
+            and "startTime" in (request.post_data_json or {})
+        )
+    ):
+        page.clock.run_for(15 * 60_000)
+    assert failed.is_visible()
+    assert not errors, errors
+    context.close()
     context, page, errors = open_page(browser, user="reader", state=state)
     page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
     page.get_by_role("region", name="Events", exact=True).get_by_role(
