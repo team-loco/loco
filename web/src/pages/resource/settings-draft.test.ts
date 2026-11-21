@@ -29,6 +29,7 @@ import {
 	regionChanges,
 	regionTargets,
 	resolved,
+	scalingDiffers,
 	validateDraft,
 	type SettingsDraft,
 } from "./settings-draft";
@@ -267,6 +268,15 @@ describe("regionTargets", () => {
 		expect(targets?.[WEST]).toEqual(target("250m", 3));
 	});
 
+	test("adds a region with the scaling the draft sets for every region", () => {
+		const all = { [EAST]: scaling(5), [WEST]: scaling(5) };
+		const running = { [EAST]: stored[EAST], [WEST]: stored[WEST] };
+		const targets = regionTargets(running, { regions: { [SPARE]: true }, scaling: all }, base);
+		expect([targets?.[EAST]?.minReplicas, targets?.[WEST]?.minReplicas, targets?.[SPARE]?.minReplicas]).toEqual([
+			5, 5, 5,
+		]);
+	});
+
 	test("turns a region off without forgetting its sizing", () => {
 		const targets = regionTargets(stored, { regions: { [WEST]: false } }, base);
 		expect(targets?.[WEST]).toEqual(target("250m", 3, false));
@@ -458,4 +468,12 @@ test("settings baseline follows configured bounds while the HPA changes the live
 	const initial = baseline("shop", "shop", "", [region(EAST, current)], [EAST], true, defaults, POLICY);
 	expect(initial.scaling[EAST]).toEqual(scaling(1, 5, 80));
 	expect(changeCount({}, initial)).toBe(0);
+});
+
+describe("scalingDiffers", () => {
+	test("is true when the running regions scale differently", () => {
+		expect(scalingDiffers(base)).toBe(true);
+		const same = baseline("shop", "shop", "", [region(EAST, deployment("east", EAST))], [EAST], true, defaults, POLICY);
+		expect(scalingDiffers(same)).toBe(false);
+	});
 });

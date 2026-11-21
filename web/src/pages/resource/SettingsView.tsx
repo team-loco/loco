@@ -266,12 +266,7 @@ export function SettingsView({
 				<div ref={sectionsRef} className="flex min-w-0 flex-col">
 					<ImageSection {...props} />
 					<CommandSection {...props} />
-					<ScalingSection
-						{...props}
-						sizes={sizes}
-						regions={regions}
-						sectionRef={focus === "scaling" ? scrollToSection : undefined}
-					/>
+					<ScalingSection {...props} sizes={sizes} sectionRef={focus === "scaling" ? scrollToSection : undefined} />
 					<SizeSection {...props} sizes={sizes} />
 					<VariablesSection
 						workspaceId={resource.workspaceId}

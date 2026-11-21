@@ -132,33 +132,22 @@ with session(out) as browser:
     )
     section = page.locator("#set-scaling")
     expect(section).to_be_visible()
-    for region in regions:
-        section.get_by_role(
-            "switch", name=f"Autoscaling in {region}", exact=True
-        ).click()
-        section.get_by_role(
-            "button",
-            name=f"Increase maximum replicas in {region}",
-            exact=True,
-        ).click()
-        section.get_by_role(
-            "slider", name=f"CPU target (%) in {region}", exact=True
-        ).focus()
-        page.keyboard.press("ArrowLeft")
+    autoscaling = section.get_by_role("switch", name="Autoscaling", exact=True)
+    cpu_target = section.get_by_role("slider", name="CPU target (%)", exact=True)
+    # One control scales every region.
+    expect(section.get_by_role("switch")).to_have_count(1)
+    autoscaling.click()
+    section.get_by_role("button", name="Increase maximum replicas", exact=True).click()
+    cpu_target.focus()
+    page.keyboard.press("ArrowLeft")
     section.evaluate("node => node.scrollIntoView({block: 'start'})")
     page.wait_for_function("() => !document.documentElement.classList.contains('dark')")
 
-    def assert_edits(region, target):
+    def assert_edits(target):
         expect(
-            section.get_by_role(
-                "group", name=f"Maximum replicas in {region}", exact=True
-            )
+            section.get_by_role("group", name="Maximum replicas", exact=True)
         ).to_contain_text("3")
-        expect(
-            section.get_by_role(
-                "slider", name=f"CPU target (%) in {region}", exact=True
-            )
-        ).to_have_value(str(target))
+        expect(cpu_target).to_have_value(str(target))
 
     def stored_regions():
         return json.loads(
@@ -190,18 +179,18 @@ with session(out) as browser:
             f"Adds replicas when average CPU stays above {target}%, and removes them when it drops, between 1 and 3 per region.",
             exact=True,
         )
-    ).to_have_count(len(regions))
+    ).to_be_visible()
     expect(page.locator("#set-size")).to_contain_text("1–3 × (")
     expect(page.locator("#set-danger")).to_contain_text(
         "Removes it from every region, along with its domains and variables."
     )
     save = page.get_by_role("button", name="Save & redeploy", exact=True)
     save.click()
-    expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
+    expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
     expect(page.get_by_text("fixture rejected scaling", exact=False)).to_be_visible()
-    for region in regions:
-        assert_edits(region, target)
+    assert_edits(target)
     assert len(calls) == 1, calls
+    # The one control's values go to every region.
     for region in regions:
         sent = calls[0]["regions"]["targets"][region]
         assert (sent["minReplicas"], sent["maxReplicas"]) == (1, 3), sent
@@ -215,39 +204,28 @@ with session(out) as browser:
             "enabled": True,
             "cpuTarget": target,
         }
-        assert_edits(region, target)
+    assert_edits(target)
     commits = sql(
         state,
         f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE id IN ({live});",
     )
     assert commits == f"{source_commit['sha']}:true", commits
 
-    section.get_by_role(
-        "slider", name=f"CPU target (%) in {regions[0]}", exact=True
-    ).focus()
+    cpu_target.focus()
     page.keyboard.press("ArrowLeft")
     save_and_settle()
-    assert stored_regions()[regions[0]]["scalers"]["cpuTarget"] == target - 1
+    for region in regions:
+        assert stored_regions()[region]["scalers"]["cpuTarget"] == target - 1
 
-    section.get_by_role(
-        "button",
-        name=f"Decrease maximum replicas in {regions[0]}",
-        exact=True,
-    ).click()
-    section.get_by_role(
-        "switch", name=f"Autoscaling in {regions[0]}", exact=True
-    ).click()
-    save_and_settle()
-    fixed = stored_regions()[regions[0]]
-    assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
-    assert not fixed.get("scalers", {}).get("enabled", False), fixed
-    autoscaling = section.get_by_role(
-        "switch", name=f"Autoscaling in {regions[0]}", exact=True
-    )
+    section.get_by_role("button", name="Decrease maximum replicas", exact=True).click()
     autoscaling.click()
-    section.get_by_role(
-        "slider", name=f"CPU target (%) in {regions[0]}", exact=True
-    ).focus()
+    save_and_settle()
+    for region in regions:
+        fixed = stored_regions()[region]
+        assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
+        assert not fixed.get("scalers", {}).get("enabled", False), fixed
+    autoscaling.click()
+    cpu_target.focus()
     page.keyboard.press("ArrowLeft")
     autoscaling.click()
     expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
@@ -288,6 +266,20 @@ with session(out) as browser:
     assert all(spec["observability"] == {"injectOtel": True} for spec in runtime), (
         runtime
     )
+    # Regions that scale differently show the first region's values and say saving applies them to all.
+    sql(
+        state,
+        f"UPDATE deployments SET spec=jsonb_set(jsonb_set(spec, '{{regions,{regions[1]},minReplicas}}', '2'), '{{regions,{regions[1]},maxReplicas}}', '2') WHERE id IN ({live});",
+    )
+    page.reload()
+    section = page.locator("#set-scaling")
+    expect(
+        section.get_by_text(
+            "Regions scale differently now. Saving applies these values to every region.",
+            exact=True,
+        )
+    ).to_be_visible()
+    expect(section.get_by_role("switch")).to_have_count(1)
     assert not errors, errors
     context.close()
 print(

@@ -282,9 +282,9 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	const next = resolved(draft, base);
 	const names: string[] = SCALAR_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
 	names.push(
-		...Object.keys(draft.scaling ?? {})
-			.filter((r) => !sameScaling(next.scaling[r], base.scaling[r]))
-			.map((r) => `Scaling in ${r}`),
+		...(Object.keys(draft.scaling ?? {}).some((r) => !sameScaling(next.scaling[r], base.scaling[r]))
+			? ["Scaling"]
+			: []),
 		...Object.keys(next.regions)
 			.filter((r) => next.regions[r] !== base.regions[r])
 			.map((r) => (next.regions[r] === true ? `Add region ${r}` : `Remove region ${r}`)),
@@ -551,9 +551,9 @@ export function regionTargets(
 	draft: SettingsDraft,
 	base: Baseline,
 ): Record<string, RegionTarget> | undefined {
-	const fallback = Object.values(base.scaling)[0];
-	if (fallback === undefined || !regionMapChanged(draft, base)) return undefined;
 	const want = resolved(draft, base);
+	const fallback = Object.values(want.scaling)[0];
+	if (fallback === undefined || !regionMapChanged(draft, base)) return undefined;
 	const targets = { ...stored };
 	for (const [name, on] of Object.entries(want.regions)) {
 		const kept = stored[name];
@@ -578,6 +578,12 @@ export function regionTargets(
 		});
 	}
 	return targets;
+}
+
+/** Whether the regions a resource runs in scale differently today. */
+export function scalingDiffers(base: Baseline): boolean {
+	const [first, ...rest] = Object.values(base.scaling);
+	return rest.some((scaling) => !sameScaling(scaling, first));
 }
 
 function sameScaling(a: Scaling | undefined, b: Scaling | undefined): boolean {
