@@ -906,6 +906,7 @@ type Placement struct {
 	DesiredRevision   int64             `json:"desiredRevision"`
 	DesiredSpec       []byte            `json:"desiredSpec"`
 	DesiredDeleted    bool              `json:"desiredDeleted"`
+	RestartedAt       *time.Time        `json:"restartedAt"`
 	AppliedRevision   int64             `json:"appliedRevision"`
 	AppliedError      *string           `json:"appliedError"`
 	RetryAfter        *time.Time        `json:"retryAfter"`

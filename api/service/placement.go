@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -150,6 +151,20 @@ func decodePlacement(placement genDb.Placement) (locoControllerV1.PlacementPaylo
 		return payload, fmt.Errorf("placement %s: %w", placement.ID, errPlacementApplicationMissing)
 	}
 	return payload, nil
+}
+
+// restartedSpec is the placement's desired spec with its last restart time, which rolls its replicas.
+func restartedSpec(placement genDb.Placement) ([]byte, error) {
+	payload, err := decodePlacement(placement)
+	if err != nil {
+		return nil, err
+	}
+	payload.AppSpec.RestartedAt = placement.RestartedAt.UTC().Format(time.RFC3339Nano)
+	spec, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode placement %s: %w", placement.ID, err)
+	}
+	return spec, nil
 }
 
 // rewritePlacement stores a changed payload as the placement's next desired revision.

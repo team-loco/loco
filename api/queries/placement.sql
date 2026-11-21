@@ -253,6 +253,7 @@ FOR SHARE;
 WITH restarted AS (
     UPDATE placements
     SET desired_revision = desired_revision + 1,
+        restarted_at = NOW(),
         applied_error = NULL,
         retry_after = NULL,
         apply_attempts = 0,

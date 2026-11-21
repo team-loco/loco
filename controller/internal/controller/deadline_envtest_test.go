@@ -61,7 +61,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		reconcileStuckApp(r, app)
 		previous := createReplicaSet(app, "deadline-unschedulable-previous", "1", 2)
 		current := createReplicaSet(app, "deadline-unschedulable-current", "2", 1)
-		pod := createReplica(app, "deadline-unschedulable-replica", testImage)
+		pod := createReplica(app, "deadline-unschedulable-replica")
 		setUnschedulable(pod)
 
 		started := time.Now()
@@ -99,7 +99,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		current := createReplicaSet(app, "deadline-pull-current", "2", 1)
-		pod := createReplica(app, "deadline-pull-replica", testImage)
+		pod := createReplica(app, "deadline-pull-replica")
 		setWaiting(pod, reasonImagePullBackOff, kubeletPullMessage)
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemImagePullFailed))
@@ -120,7 +120,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		previous := createReplicaSet(app, "deadline-always-previous", "1", 1)
-		pod := createReplica(app, "deadline-always-replica", testImage)
+		pod := createReplica(app, "deadline-always-replica")
 		restartTo(r, app, pod, locov1alpha1.MaxRestarts+2)
 		Expect(app.Status.Rollout.Stopped).To(BeNil())
 		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemRestarting))
@@ -140,7 +140,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		createReplicaSet(app, "deadline-restarted-previous", "1", 1)
-		pod := createReplica(app, "deadline-restarted-replica", testImage)
+		pod := createReplica(app, "deadline-restarted-replica")
 		restartTo(r, app, pod, 1)
 		Expect(app.Status.Rollout.Stopped).To(BeNil())
 
@@ -156,7 +156,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Deadline).NotTo(BeNil())
-		pod := createReplica(app, "deadline-healthy-replica", testImage)
+		pod := createReplica(app, "deadline-healthy-replica")
 		setContainerState(pod, corev1.PodRunning, corev1.ContainerState{
 			Running: &corev1.ContainerStateRunning{StartedAt: metav1.Now()},
 		})
@@ -176,7 +176,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(app.Status.Rollout.Deadline).To(BeNil())
 
 		By("leaving a replica added later to wait for a node without stopping the revision")
-		added := createReplica(app, "deadline-healthy-added", testImage)
+		added := createReplica(app, "deadline-healthy-added")
 		setUnschedulable(added)
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemUnschedulable))
@@ -185,6 +185,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 
 		By("setting a new deadline for the next placement revision")
 		app.Annotations[locov1alpha1.KeyPlacementRevision] = "3"
+		app.Spec.ServiceSpec.Deployment.Image = "registry.example.com/app:v3"
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Deadline).NotTo(BeNil())

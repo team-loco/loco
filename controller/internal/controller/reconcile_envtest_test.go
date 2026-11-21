@@ -165,7 +165,8 @@ var _ = Describe("Application reconcile", func() {
 			{Name: "B", Value: "2"},
 			{Name: "C", Value: "3"},
 		}))
-		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(locolabels.AnnotationEnvSecretRevision, "2"))
+		checksum := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretChecksum]
+		Expect(checksum).NotTo(BeEmpty())
 		envSecret := &corev1.Secret{}
 		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
 		Expect(envSecret.Data).To(Equal(map[string][]byte{"DATABASE_URL": []byte("postgres://new")}))
@@ -206,7 +207,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(envSecret.Data).To(HaveKeyWithValue("DATABASE_URL", []byte("postgres://new")),
 			"the env Secret was copied ahead of the Application's reference")
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
-		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(locolabels.AnnotationEnvSecretRevision, "2"))
+		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(locolabels.AnnotationEnvSecretChecksum, checksum))
 
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 3
@@ -216,7 +217,19 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
 		Expect(envSecret.Data).To(HaveKeyWithValue("DATABASE_URL", []byte("postgres://next")))
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
-		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(locolabels.AnnotationEnvSecretRevision, "3"))
+		next := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretChecksum]
+		Expect(next).NotTo(Or(BeEmpty(), Equal(checksum)), "new secret values left the pod template alone")
+
+		staged.Labels[locov1alpha1.KeyPlacementRevision] = "4"
+		Expect(k8sClient.Update(ctx, staged)).To(Succeed())
+		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 4
+		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		generation := dep.Generation
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
+		Expect(dep.Generation).To(Equal(generation), "restaging the same secret values changed the pod template")
 
 		rotated := []byte(`{"auths":{"registry.example.com":{}}}`)
 		pullSecret.Data = map[string][]byte{corev1.DockerConfigJsonKey: rotated}
@@ -243,7 +256,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the env Secret outlived its reference")
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		Expect(dep.Spec.Template.Spec.Containers[0].EnvFrom).To(BeEmpty())
-		Expect(dep.Spec.Template.Annotations).NotTo(HaveKey(locolabels.AnnotationEnvSecretRevision))
+		Expect(dep.Spec.Template.Annotations).NotTo(HaveKey(locolabels.AnnotationEnvSecretChecksum))
 
 		Expect(k8sClient.Delete(ctx, staged)).To(Succeed())
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())

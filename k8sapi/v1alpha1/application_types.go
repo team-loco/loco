@@ -81,6 +81,8 @@ type ApplicationSpec struct {
 	EnvironmentID   string `json:"environmentId"`             // UUIDv7 as string
 	EnvironmentName string `json:"environmentName,omitempty"` // e.g. "production", "staging"
 	DeploymentID    string `json:"deploymentId,omitempty"`    // UUIDv7 as string
+	// RestartedAt is when the resource was last restarted; a new value replaces its replicas.
+	RestartedAt string `json:"restartedAt,omitempty"`
 
 	ServiceSpec *ServiceSpec `json:"serviceSpec,omitempty"`
 }

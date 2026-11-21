@@ -2,12 +2,13 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -103,7 +104,7 @@ type ApplicationReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
-// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;patch
+// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;watch;patch
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
@@ -444,7 +445,7 @@ func (r *ApplicationReconciler) ensureNamespace(ctx context.Context, app *locov1
 
 type envSecretMount struct {
 	Mounted  bool
-	Revision int64
+	Checksum string
 	Names    []string
 }
 
@@ -497,7 +498,17 @@ func (r *ApplicationReconciler) ensureEnvSecret(
 		return envSecretMount{}, fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
 	}
 	names := slices.Sorted(maps.Keys(staged.Data))
-	return envSecretMount{Mounted: true, Revision: ref.Revision, Names: names}, nil
+	return envSecretMount{Mounted: true, Checksum: envChecksum(staged.Data, names), Names: names}, nil
+}
+
+// envChecksum digests the secret values, so the pod template changes exactly when they do.
+func envChecksum(data map[string][]byte, names []string) string {
+	hash := sha256.New()
+	for _, name := range names {
+		fmt.Fprintf(hash, "%d:%s%d:", len(name), name, len(data[name]))
+		hash.Write(data[name])
+	}
+	return hex.EncodeToString(hash.Sum(nil))
 }
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
@@ -711,15 +722,15 @@ func podTemplate(
 		WithResources(resources).
 		WithSecurityContext(containerSecurity)
 	podAnnotations := ownerAnnotations(app)
-	if revision, ok := app.PlacementRevision(); ok {
-		podAnnotations[locov1alpha1.KeyPlacementRevision] = strconv.FormatInt(revision, 10)
+	if app.Spec.RestartedAt != "" {
+		podAnnotations[locolabels.AnnotationRestartedAt] = app.Spec.RestartedAt
 	}
 	if envSecret.Mounted {
 		envSecretName := getEnvSecretName(app)
 		secretRef := corev1ac.SecretEnvSource().WithName(envSecretName)
 		envFrom := corev1ac.EnvFromSource().WithSecretRef(secretRef)
 		container.WithEnvFrom(envFrom)
-		podAnnotations[locolabels.AnnotationEnvSecretRevision] = strconv.FormatInt(envSecret.Revision, 10)
+		podAnnotations[locolabels.AnnotationEnvSecretChecksum] = envSecret.Checksum
 	}
 
 	// A service without a port is a worker that never listens, so it gets no probe and counts
@@ -942,6 +953,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, applicationHandler).
+		Watches(&appsv1.ReplicaSet{}, applicationHandler, applicationPredicates).
 		Watches(&autoscalingv2.HorizontalPodAutoscaler{}, applicationHandler, applicationPredicates).
 		Watches(&corev1.Pod{}, r.podHandler(applicationHandler)).
 		WatchesRawSource(source.Channel(podEvents, handler.EnqueueRequestsFromMapFunc(r.applicationForPodEvent))).

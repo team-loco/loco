@@ -62,7 +62,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		mount, err := r.ensureEnvSecret(ctx, app)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mount.Mounted).To(BeTrue())
-		Expect(mount.Revision).To(Equal(int64(1)))
+		first := mount.Checksum
 		target := &corev1.Secret{}
 		targetKey := client.ObjectKey{Namespace: namespace.Name, Name: getEnvSecretName(app)}
 		Expect(k8sClient.Get(ctx, targetKey, target)).To(Succeed())
@@ -73,7 +73,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 2
 		mount, err = r.ensureEnvSecret(ctx, app)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(mount.Revision).To(Equal(int64(2)))
+		Expect(mount.Checksum).NotTo(Equal(first))
 		Expect(k8sClient.Get(ctx, targetKey, target)).To(Succeed())
 		Expect(target.Data).To(Equal(stage.Data))
 	})

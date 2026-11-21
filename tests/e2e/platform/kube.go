@@ -137,7 +137,7 @@ func (p *Platform) LogWorkspaceRuntime(tb testing.TB, namespace string) {
 	for _, args := range [][]string{
 		{"-n", namespace, get, "pods",
 			"-o=custom-columns=NAME:.metadata.name,IP:.status.podIP,NODE:.spec.nodeName,PHASE:.status.phase," +
-				"REVISION:.metadata.annotations.loco\\.io/placement-revision,READY:.status.containerStatuses[*].ready," +
+				"TEMPLATE:.metadata.labels.pod-template-hash,READY:.status.containerStatuses[*].ready," +
 				"DELETING:.metadata.deletionTimestamp,REASON:.status.containerStatuses[*].state.waiting.reason," +
 				"MESSAGE:.status.containerStatuses[*].state.waiting.message"},
 		{"-n", namespace, get, "deployments,replicasets", "-o", "wide"},

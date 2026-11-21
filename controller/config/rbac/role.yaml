@@ -67,6 +67,7 @@ rules:
   verbs:
   - list
   - patch
+  - watch
 - apiGroups:
   - autoscaling
   resources:
