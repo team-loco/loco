@@ -124,7 +124,7 @@ export function AuditTable({
 			groupBy={(row) => dayLabel(row.ms, nowMs, timePref)}
 			rowClassName={(row) =>
 				cn(
-					"data-[state=selected]:bg-background",
+					"data-[state=selected]:[--row-tint:var(--background)]!",
 					highlightAfter !== undefined &&
 						row.original.event.seq > highlightAfter &&
 						"motion-safe:animate-[audit-event-in_2s_ease-out]",
