@@ -383,6 +383,20 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         and mutations[0]["trigger"] == "DEPLOYMENT_TRIGGER_ROLLBACK"
         and mutations[0]["sourceDeploymentId"] == p["previous"]
     ), mutations
+    page.goto(state["ui_url"] + path + "&tab=settings")
+    banner = page.get_by_role("status").filter(
+        has_text=f"These settings are from deployment {p['current'][-8:]}, which did not finish in us-east-1."
+    )
+    expect(banner).to_contain_text(f"v1 · {p['previous'][-8:]} still serves.")
+    expect(banner).to_contain_text("image:")
+    expect(banner).to_contain_text("health:")
+    mutations.clear()
+    banner.get_by_role("button", name="Roll back to v1", exact=True).click()
+    dialog.get_by_role("button", name="Roll back", exact=True).click()
+    expect(dialog).to_be_hidden()
+    assert (
+        len(mutations) == 1 and mutations[0]["sourceDeploymentId"] == p["previous"]
+    ), mutations
     phase("canceled")
     sql(
         state,

@@ -509,6 +509,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					/>
 					<SettingsView
 						resource={resource}
+						onRollback={openRollback}
 						environmentId={environmentId ?? ""}
 						regions={regions}
 						draft={draft}

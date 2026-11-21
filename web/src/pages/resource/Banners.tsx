@@ -1,8 +1,14 @@
-import { InfoIcon, OctagonAlertIcon, TriangleAlertIcon, XIcon } from "lucide-react";
+import { InfoIcon, OctagonAlertIcon, TriangleAlertIcon, Undo2Icon, XIcon } from "lucide-react";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { cn } from "@/lib/utils";
+import { Banner } from "@/components/design/Banner";
+import { Button } from "@/components/design/Button";
+import { NEEDS_WRITE } from "@/hooks/useMyScopes";
+import { cn, formatShortId } from "@/lib/utils";
 
-import type { Notice } from "./model";
+import { servingBehindStop } from "./deployment-progress";
+import { canRollBackTo, depTag, type Notice, type RegionView } from "./model";
+import { ABSENT, specChanges } from "./spec";
 
 function toneClass(tone: Notice["tone"]): string {
 	switch (tone) {
@@ -51,5 +57,56 @@ export function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss:
 				<XIcon className="size-4" />
 			</button>
 		</div>
+	);
+}
+
+export function ServingBanner({
+	regions,
+	canWrite,
+	onRollback,
+}: {
+	regions: RegionView[];
+	canWrite: boolean;
+	onRollback: (target: Deployment, current: Deployment | undefined) => void;
+}) {
+	const found = servingBehindStop(regions);
+	if (found === undefined) return null;
+	const { region, stopped, serving } = found;
+	const changes = specChanges(serving, stopped);
+	const servingLabel = `${depTag(serving)} · ${formatShortId(serving.id)}`;
+	return (
+		<Banner
+			tone="warn"
+			className="mx-0 mt-0"
+			title={`These settings are from deployment ${formatShortId(stopped.id)}, which did not finish in ${region.name}.`}
+			action={
+				canRollBackTo(serving, region) && (
+					<Button
+						size="sm"
+						disabled={!canWrite}
+						title={canWrite ? undefined : NEEDS_WRITE}
+						onClick={() => {
+							onRollback(serving, stopped);
+						}}
+					>
+						<Undo2Icon />
+						Roll back to {depTag(serving)}
+					</Button>
+				)
+			}
+		>
+			<span className="font-mono">{servingLabel}</span> still serves.
+			{changes.length > 0 && (
+				<span className="mt-1.5 flex flex-col gap-0.5 font-mono text-[12px]">
+					<span className="font-sans text-fg2">Serving → these settings</span>
+					{changes.map((c) => (
+						<span key={c.label} className="[overflow-wrap:anywhere]">
+							{c.label}: <span className="text-bad-fg">{c.from ?? ABSENT}</span> →{" "}
+							<span className="text-ok-fg">{c.to ?? ABSENT}</span>
+						</span>
+					))}
+				</span>
+			)}
+		</Banner>
 	);
 }
