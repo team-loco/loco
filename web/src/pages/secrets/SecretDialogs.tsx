@@ -12,6 +12,7 @@ import { Textarea } from "@/components/design/Textarea";
 import { getErrorMessage } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
+import { DotEnvNotes } from "@/components/DotEnvNotes";
 import { importPreview, secretHint, secretNameProblem } from "./secrets";
 
 /** Creates a secret, or with name set replaces the value of that secret. */
@@ -216,6 +217,7 @@ export function ImportDialog({
 						<span className={cn("font-mono text-[12px]", preview.invalid.length > 0 ? "text-bad-fg" : "text-fg3")}>
 							{preview.summary}
 						</span>
+						<DotEnvNotes notes={preview.notes} />
 						{save.error !== null && (
 							<span role="alert" className="text-[12.5px] text-bad-fg">
 								{getErrorMessage(save.error, "Couldn't import the secrets")}

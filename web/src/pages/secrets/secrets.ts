@@ -1,6 +1,6 @@
 import type { Secret } from "@gen/loco/secret/v1/secret_pb";
 
-import { parseDotEnv } from "@/lib/dotenv";
+import { dotEnvNotes, parseDotEnv } from "@/lib/dotenv";
 import { referenceOf } from "@/pages/resource/variables";
 
 export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
@@ -40,10 +40,12 @@ export interface ImportPreview {
 	values: Record<string, string>;
 	invalid: string[];
 	summary: string;
+	notes: string[];
 }
 
 export function importPreview(text: string, existing: ReadonlySet<string>): ImportPreview {
-	const pairs = parseDotEnv(text);
+	const parsed = parseDotEnv(text);
+	const pairs = parsed.pairs;
 	const invalid = pairs.filter(([name]) => !SECRET_NAME.test(name)).map(([name]) => name);
 	const values = Object.fromEntries(pairs);
 	const replacing = Object.keys(values).filter((name) => existing.has(name)).length;
@@ -54,7 +56,7 @@ export function importPreview(text: string, existing: ReadonlySet<string>): Impo
 			: count === 0
 				? "Nothing found yet"
 				: `${count.toString()} found${replacing > 0 ? `, ${replacing.toString()} replace existing` : ""}`;
-	return { values, invalid, summary };
+	return { values, invalid, summary, notes: dotEnvNotes(parsed, existing) };
 }
 
 export function setterLabel(secret: Secret, members: ReadonlyMap<string, string>): string {
