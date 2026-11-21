@@ -1,4 +1,5 @@
 import argparse
+import re
 import subprocess
 from pathlib import Path
 
@@ -230,3 +231,62 @@ def test_down_all_stops_every_evidence_lease(leases, monkeypatch):
     assert ("release", early) in leases
     assert ("release", other) not in leases
     assert ("git", "worktree", "prune") in leases
+
+
+PLACEHOLDER_IDS = {
+    "org": {"acme": "org-1"},
+    "workspace": {"acme/shared": "ws-1"},
+    "resource": {"acme/shared/web": "res-1"},
+    "environment": {"acme/shared/production": "env-1"},
+}
+NOW = 1_800_000_000
+
+
+def test_placeholders_fill_ids_and_times():
+    respond = {
+        "series": [
+            {
+                "resourceId": "{resource:acme/shared/web}",
+                "points": [{"timestamp": "{now-15m}", "value": 0.31}],
+            }
+        ],
+        "environmentId": "{environment:acme/shared/production}",
+        "at": "{now+1h:s}",
+        "late": "{now+2d}",
+    }
+    assert evidence.fill_placeholders(respond, PLACEHOLDER_IDS, NOW) == {
+        "series": [
+            {
+                "resourceId": "res-1",
+                "points": [{"timestamp": "2027-01-15T07:45:00Z", "value": 0.31}],
+            }
+        ],
+        "environmentId": "env-1",
+        "at": NOW + 3600,
+        "late": "2027-01-17T08:00:00Z",
+    }
+    path = "/org/{org:acme}/wks/{workspace:acme/shared}/observability?from={now-1h:ms}&to={now:ms}&at={now}"
+    assert (
+        evidence.fill_placeholders(path, PLACEHOLDER_IDS, NOW)
+        == f"/org/org-1/wks/ws-1/observability?from={(NOW - 3600) * 1000}&to={NOW * 1000}&at=2027-01-15T08:00:00Z"
+    )
+
+
+def test_placeholders_leave_other_braces():
+    text = '{"level": "info"} {nowhere}'
+    assert evidence.fill_placeholders(text, PLACEHOLDER_IDS, NOW) == text
+
+
+@pytest.mark.parametrize(
+    "value, named",
+    [
+        ("{resource:acme/shared/api}", "{resource:acme/shared/api}"),
+        ("/org/{org}", "{org}"),
+        ("{workspace:acme}", "{workspace:acme}"),
+        ("{now-15x}", "{now-15x}"),
+        ("{now:us}", "{now:us}"),
+    ],
+)
+def test_placeholder_errors_name_the_placeholder(value, named):
+    with pytest.raises(evidence.EvidenceError, match=re.escape(named)):
+        evidence.fill_placeholders({"a": [value]}, PLACEHOLDER_IDS, NOW)

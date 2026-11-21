@@ -281,6 +281,58 @@ def parse_filename(name):
     return match.group(1), match.group(2), match.group(3), match.group(4) is not None
 
 
+PLACEHOLDER = re.compile(
+    r"\{(org|workspace|resource|environment|now)((?:[:+-][^{}]*)?)\}"
+)
+NOW_OFFSET = re.compile(r"(?:([+-])(\d+)([smhd]))?(?::(s|ms))?")
+UNIT_SECONDS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+
+
+def placeholder_ids(state):
+    return {
+        "org": {name: org["id"] for name, org in state.get("orgs", {}).items()},
+        "workspace": state.get("workspaces", {}),
+        "resource": state.get("resources", {}),
+        "environment": state.get("environments", {}),
+    }
+
+
+def fill_placeholders(value, ids, now):
+    """Fills placeholders in every string of value; a string that is one :s or :ms time becomes a number."""
+    if isinstance(value, dict):
+        return {key: fill_placeholders(v, ids, now) for key, v in value.items()}
+    if isinstance(value, list):
+        return [fill_placeholders(v, ids, now) for v in value]
+    if not isinstance(value, str):
+        return value
+
+    def resolve(match):
+        kind, rest = match.groups()
+        if kind != "now":
+            if not rest.startswith(":") or rest[1:] not in ids[kind]:
+                raise EvidenceError(
+                    f"placeholder {match.group(0)} names no seeded {kind}"
+                )
+            return ids[kind][rest[1:]]
+        offset = NOW_OFFSET.fullmatch(rest)
+        if offset is None:
+            raise EvidenceError(f"placeholder {match.group(0)} is malformed")
+        sign, amount, unit, form = offset.groups()
+        at = int(now)
+        if amount is not None:
+            at += (1 if sign == "+" else -1) * int(amount) * UNIT_SECONDS[unit]
+        if form == "s":
+            return str(int(at))
+        if form == "ms":
+            return str(int(at * 1000))
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(at))
+
+    whole = PLACEHOLDER.fullmatch(value)
+    if whole and whole.group(1) == "now" and whole.group(2).endswith((":s", ":ms")):
+        return int(resolve(whole))
+    return PLACEHOLDER.sub(resolve, value)
+
+
 def validate_spec(spec):
     shots = spec.get("shots")
     if not isinstance(shots, list) or not shots:
@@ -330,6 +382,15 @@ def validate_spec(spec):
                 raise EvidenceError(
                     f"shot {name}: hold_requests must be a non-empty list of URL patterns"
                 )
+        themes = shot.get("themes", THEMES)
+        if (
+            not isinstance(themes, (list, tuple))
+            or not themes
+            or any(theme not in THEMES for theme in themes)
+        ):
+            raise EvidenceError(
+                f"shot {name}: themes must be a non-empty list of {', '.join(THEMES)}"
+            )
         if "color" in shot and not isinstance(shot["color"], str):
             raise EvidenceError(f"shot {name}: color must be a colour theme id")
         crop = shot.get("crop", "viewport")
@@ -431,12 +492,18 @@ def markdown_table(out, files):
     sections = []
     for (shot, narrow), cells in sorted(grouped.items()):
         title = f"{shot} (narrow)" if narrow else shot
-        rows = [f"#### {title}", "", "| | Light | Dark |", "| --- | --- | --- |"]
+        themes = [t for t in THEMES if any(theme == t for _, theme in cells)]
+        rows = [
+            f"#### {title}",
+            "",
+            "| | " + " | ".join(t.capitalize() for t in themes) + " |",
+            "| --- |" + " --- |" * len(themes),
+        ]
         for side in ("before", "after"):
-            if not any((side, theme) in cells for theme in THEMES):
+            if not any((side, theme) in cells for theme in themes):
                 continue
             row = [side.capitalize()]
-            for theme in THEMES:
+            for theme in themes:
                 path = cells.get((side, theme))
                 row.append(f"![{title}, {side}, {theme}]({path})" if path else "")
             rows.append("| " + " | ".join(row) + " |")
@@ -661,6 +728,17 @@ def seed(state, scenario):
         "provider, and org membership comes only from an accepted invitation"
     )
     state.update({"users": users, "workspaces": workspaces, "orgs": orgs})
+    state["environments"] = {
+        f"{key}/{slug}": environment_id
+        for key, workspace_id in workspaces.items()
+        for slug, environment_id in json.loads(
+            psql(
+                container,
+                "SELECT COALESCE(json_object_agg(slug, id), '{}') FROM environments "
+                f"WHERE workspace_id={sql_literal(workspace_id)};",
+            )
+        ).items()
+    }
 
     for grant in scenario.get("grants", []):
         org_name = grant["workspace"].split("/", 1)[0]
@@ -738,7 +816,27 @@ def seed_resources(state, resources):
         )["resourceId"]
         seeded[f"{resource['workspace']}/{resource['name']}"] = resource_id
         seed_deployments(state, resource_id, resource.get("deployments", []), user)
+        seed_domains(state, resource_id, resource.get("domains", []))
     return seeded
+
+
+def seed_domains(state, resource_id, domains):
+    """Inserts each platform domain; the first in an environment is its primary and makes the resource public."""
+    q = sql_literal
+    rows, primary = [], set()
+    for entry in domains:
+        label, platform = entry["domain"].split(".", 1)
+        environment = entry["environment"]
+        rows.append(
+            "INSERT INTO resource_domains(resource_id,environment_id,domain,domain_source,subdomain_label,"
+            "platform_domain,is_primary) SELECT r.id,e.id,"
+            f"{q(entry['domain'])},'platform_provided',{q(label)},{q(platform)},{str(environment not in primary).lower()} "
+            f"FROM resources r JOIN environments e ON e.workspace_id=r.workspace_id "
+            f"WHERE r.id={q(resource_id)} AND e.slug={q(environment)};"
+        )
+        primary.add(environment)
+    if rows:
+        psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
 
 
 def seed_deployments(state, resource_id, deployments, user="owner", then=()):
@@ -756,7 +854,8 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
         )
     )
     actor = state["users"][user]["id"]
-    ids, rows = [], []
+    ids, rows, rollouts = [], [], []
+    placeholders, now = placeholder_ids(state), time.time()
     for deployment in deployments:
         deployment_id = deployment.get("id") or str(uuid.uuid4())
         ids.append(deployment_id)
@@ -787,6 +886,37 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
                 f"VALUES({q(deployment_id)},{q(cluster)},{q(region)},{sizing['minReplicas']},"
                 f"{q(placement_status)},{q(image)},{created});"
             )
+            if "replicas" in placement or "problem" in placement:
+                snapshot = fill_placeholders(
+                    {
+                        "replicas": [
+                            {
+                                "uid": replica["name"],
+                                "deployment_id": deployment_id,
+                                "placement_revision": 1,
+                                **replica,
+                            }
+                            for replica in placement.get("replicas", [])
+                        ],
+                        **(
+                            {"problem": placement["problem"]}
+                            if "problem" in placement
+                            else {}
+                        ),
+                    },
+                    placeholders,
+                    now,
+                )
+                placement_id = (
+                    f"||jsonb_build_object('placementId',(SELECT id::text FROM placements "
+                    f"WHERE deployment_id={q(deployment_id)} AND cluster_id={q(cluster)}))"
+                    if live
+                    else ""
+                )
+                rollouts.append(
+                    "INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) "
+                    f"VALUES({q(deployment_id)},{q(cluster)},1,{q(json.dumps(snapshot))}::jsonb{placement_id});"
+                )
             if not live:
                 continue
             app = {
@@ -821,6 +951,7 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
                 f"VALUES({q(resource_id)},{q(cluster)},{q(region)},{q(deployment_id)},{q(environment)},"
                 f"{q(json.dumps({'app_spec': app}))},1,1,{placement.get('ready_replicas', sizing['minReplicas'])},NOW());"
             )
+    rows += rollouts
     rows += then
     if rows:
         psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
@@ -1219,6 +1350,12 @@ def authenticate(context, state, token):
 def capture(browser, state, shot, theme, narrow, target):
     from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
+    ids, now = placeholder_ids(state), time.time()
+    shot = {
+        **shot,
+        "path": fill_placeholders(shot["path"], ids, now),
+        "respond": fill_placeholders(shot.get("respond", []), ids, now),
+    }
     user = state["users"].get(shot["user"]) if "user" in shot else None
     if "user" in shot and user is None:
         raise EvidenceError(f"state has no user {shot['user']!r}")
@@ -1386,7 +1523,7 @@ def cmd_shoot(args):
         browser = playwright.chromium.launch()
         for shot in shots:
             renew(state)
-            for theme in THEMES:
+            for theme in shot.get("themes", THEMES):
                 for narrow in (False, True) if shot.get("narrow") else (False,):
                     target = out / shot_filename(
                         shot["name"], state["name"], theme, narrow
