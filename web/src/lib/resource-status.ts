@@ -18,10 +18,7 @@ export type Rollout = "updating" | "failed";
 /** A change to regions that keep serving: a newer deployment rolling out, or one that stopped while an older one serves. */
 export function rolloutState(regions: readonly RegionStatus[]): Rollout | undefined {
 	const serving = regions.filter((r) => r.readyReplicas > 0).map((r) => r.placementStatus);
-	if (
-		serving.some((s) => s === PlacementStatus.FAILED || s === PlacementStatus.CRASHED || s === PlacementStatus.CANCELED)
-	)
-		return "failed";
+	if (serving.some((s) => s === PlacementStatus.FAILED || s === PlacementStatus.CRASHED)) return "failed";
 	if (serving.some((s) => s === PlacementStatus.PENDING || s === PlacementStatus.DEPLOYING)) return "updating";
 	return undefined;
 }

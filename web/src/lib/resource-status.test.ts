@@ -16,7 +16,7 @@ describe("rolloutState", () => {
 	});
 
 	test("a stopped deployment over serving replicas is a failed update", () => {
-		for (const status of [PlacementStatus.FAILED, PlacementStatus.CRASHED, PlacementStatus.CANCELED]) {
+		for (const status of [PlacementStatus.FAILED, PlacementStatus.CRASHED]) {
 			expect(rolloutState([region(status, 2)])).toBe("failed");
 		}
 	});
