@@ -2,12 +2,18 @@ package platform
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -241,7 +247,8 @@ func (p *Platform) gatewayTLSSecret(ctx context.Context) error {
 	key := filepath.Join(p.dir, "gateway-tls.key")
 	cert := filepath.Join(p.dir, "gateway-tls.crt")
 	if _, err := p.Command(ctx, "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
-		"-subj", "/CN=*."+platformDomain, "-addext", "subjectAltName=DNS:*."+platformDomain,
+		"-subj", "/CN=*."+platformDomain,
+		"-addext", "subjectAltName=DNS:*."+platformDomain+",DNS:*."+clusterRegion+"."+platformDomain,
 		"-keyout", key, "-out", cert); err != nil {
 		return err
 	}
@@ -257,3 +264,34 @@ const setFlag = "--set"
 
 func repository(reference string) string { return reference[:strings.LastIndex(reference, ":")] }
 func tag(reference string) string        { return reference[strings.LastIndex(reference, ":")+1:] }
+
+// GatewayHTTPS requests path at host through the gateway's HTTPS listener and returns the status.
+// It trusts only the run's gateway certificate and checks it covers host.
+func (p *Platform) GatewayHTTPS(ctx context.Context, host, path string) (int, error) {
+	pem, err := os.ReadFile(filepath.Join(p.dir, "gateway-tls.crt"))
+	if err != nil {
+		return 0, err
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(pem) {
+		return 0, errors.New("the gateway certificate is not PEM")
+	}
+	client := http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: host, MinVersion: tls.VersionTLS12},
+		},
+	}
+	request, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, "https://127.0.0.1:"+strconv.Itoa(p.ports.gatewayTLS)+path, nil,
+	)
+	if err != nil {
+		return 0, err
+	}
+	request.Host = host
+	response, err := client.Do(request)
+	if err != nil {
+		return 0, err
+	}
+	return response.StatusCode, response.Body.Close()
+}

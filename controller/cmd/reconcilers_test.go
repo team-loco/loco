@@ -31,6 +31,7 @@ func testApplicationConfig() operatorConfig {
 		LocoNamespace:            testLocoNamespace,
 		PullSecretName:           testPullSecretName,
 		Gateway:                  testGateway,
+		AppDomains:               []string{"onloco.build"},
 		WorkspaceNamespacePrefix: testWorkspacePrefix,
 		Telemetry:                testTelemetry(),
 		MinReadySeconds:          new(int32(10)),
@@ -152,6 +153,11 @@ func TestApplicationReconcilerRequiresItsSettings(t *testing.T) {
 	withoutHealthyAfter.HealthyAfterSeconds = nil
 	if _, err := selectReconciler(reconcilerApplication, withoutHealthyAfter); !errors.Is(err, errHealthyAfterMissing) {
 		t.Errorf("without healthy after seconds: err = %v, want %v", err, errHealthyAfterMissing)
+	}
+	withoutAppDomains := testApplicationConfig()
+	withoutAppDomains.AppDomains = nil
+	if _, err := selectReconciler(reconcilerApplication, withoutAppDomains); !errors.Is(err, errAppDomainsMissing) {
+		t.Errorf("without app domains: err = %v, want %v", err, errAppDomainsMissing)
 	}
 	withoutMinReady := testApplicationConfig()
 	withoutMinReady.MinReadySeconds = nil

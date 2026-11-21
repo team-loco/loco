@@ -26,6 +26,7 @@ const (
 	testNamespace = "default"
 	testImage     = "registry.example.com/app:v1"
 	testHostName  = "app.example.com"
+	testRegion    = "us-ca-1"
 )
 
 func testResources() *locov1alpha1.ResourcesSpec {
@@ -48,6 +49,7 @@ func testApplication() *locov1alpha1.Application {
 	return &locov1alpha1.Application{
 		Name: "app", Namespace: "loco",
 		Spec: locov1alpha1.ApplicationSpec{
+			Region:        testRegion,
 			Type:          testAppType,
 			ResourceID:    "1",
 			Slug:          "app",

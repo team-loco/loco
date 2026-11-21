@@ -133,6 +133,8 @@ func TestObservability(t *testing.T) {
 		return
 	}
 
+	t.Run("the region's hostname serves the app over HTTPS", o.regionalHTTPS)
+
 	t.Run("migrations", migrations)
 
 	t.Run("ListTraces summarizes the known trace", o.traceSummary)
@@ -706,6 +708,19 @@ func clusterEventsOnce(t *testing.T) {
 	}); err == nil {
 		t.Errorf("the Kubernetes event is stored %d times, want once", duplicates)
 	}
+}
+
+// regionalHTTPS requests the app at its hostname under the run's region through the gateway's HTTPS
+// listener, trusting only the run's certificate.
+func (o *observed) regionalHTTPS(t *testing.T) {
+	regional := strings.TrimSuffix(o.host, "."+p.Domain) + "." + p.Region + "." + p.Domain
+	platform.Eventually(t, routeTimeout, "the gateway to serve "+regional, func(ctx context.Context) error {
+		status, err := p.GatewayHTTPS(ctx, regional, "/healthz")
+		if err != nil || status != http.StatusOK {
+			return fmt.Errorf("HTTP %d (%w)", status, err)
+		}
+		return nil
+	})
 }
 
 func (o *observed) traffic(t *testing.T) {

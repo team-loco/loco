@@ -26,6 +26,7 @@ const (
 	readyTimeout     = 2 * time.Minute
 	rolloutTimeout   = 10 * time.Minute
 	gatewayHTTPPort  = 80
+	gatewayHTTPSPort = 443
 	clickhouseNative = 9000
 	clickhouseUser   = "loco_e2e"
 	clickhousePass   = "loco_e2e_pass"   //nolint:gosec // the throwaway ClickHouse of the run
@@ -593,6 +594,7 @@ func (p *Platform) forwardGateway(ctx context.Context) error {
 		"127.0.0.1",
 		strings.TrimSpace(service),
 		fmt.Sprintf("%d:%d", p.ports.gateway, gatewayHTTPPort),
+		fmt.Sprintf("%d:%d", p.ports.gatewayTLS, gatewayHTTPSPort),
 	); err != nil {
 		return err
 	}

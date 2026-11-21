@@ -76,10 +76,13 @@ type ApplicationReconciler struct {
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
 
-	LocoNamespace            string
-	PullSecretName           string
-	RegistryTokenMode        bool
-	Gateway                  string
+	LocoNamespace     string
+	PullSecretName    string
+	RegistryTokenMode bool
+	Gateway           string
+	// AppDomains are the app platform domains the gateway serves; a hostname one label under one
+	// of them also gets the same label under the application's region.
+	AppDomains               []string
 	WorkspaceNamespacePrefix string
 	Telemetry                TelemetryConfig
 	// MinReadySeconds is how long a new replica must stay ready before the rollout
@@ -371,6 +374,21 @@ func (r *ApplicationReconciler) environmentNamespace(app *locov1alpha1.Applicati
 
 func getEnvSecretName(app *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-env", locov1alpha1.WorkloadName(app.Spec.ResourceID))
+}
+
+// routeHostnames returns the routed hostname and, for one label under an app domain, the same
+// label under the application's region: storefront.onloco.build also answers at
+// storefront.us-ca-1.onloco.build.
+func (r *ApplicationReconciler) routeHostnames(app *locov1alpha1.Application) []v1Gateway.Hostname {
+	hostname := app.Spec.ServiceSpec.Routing.HostName
+	label, domain, found := strings.Cut(hostname, ".")
+	if !found || !slices.Contains(r.AppDomains, domain) {
+		return []v1Gateway.Hostname{v1Gateway.Hostname(hostname)}
+	}
+	return []v1Gateway.Hostname{
+		v1Gateway.Hostname(hostname),
+		v1Gateway.Hostname(label + "." + app.Spec.Region + "." + domain),
+	}
 }
 
 func getRouteName(app *locov1alpha1.Application) string {
@@ -876,7 +894,7 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 		WithMatches(match).
 		WithBackendRefs(backendRef)
 	spec := gatewayac.HTTPRouteSpec().
-		WithHostnames(v1Gateway.Hostname(routing.HostName)).
+		WithHostnames(r.routeHostnames(app)...).
 		WithParentRefs(parentRef).
 		WithRules(rule)
 

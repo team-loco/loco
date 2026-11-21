@@ -74,7 +74,8 @@ type ApplicationSpec struct {
 	Slug           string `json:"slug,omitempty"`
 	OrganizationID string `json:"organizationId,omitempty"` // UUIDv7 as string
 	WorkspaceID    string `json:"workspaceId,omitempty"`    // UUIDv7 as string
-	Region         string `json:"region,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	Region string `json:"region"`
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="environmentId is immutable"
 	EnvironmentID   string `json:"environmentId"`             // UUIDv7 as string

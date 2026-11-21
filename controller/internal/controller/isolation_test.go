@@ -28,7 +28,7 @@ func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Appl
 			Slug:           resourceID,
 			WorkspaceID:    workspaceID,
 			EnvironmentID:  "env-" + workspaceID,
-			Region:         "us-ca-1",
+			Region:         testRegion,
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
 					Platform: testPlatform,
