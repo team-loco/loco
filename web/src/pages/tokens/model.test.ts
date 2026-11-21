@@ -1,16 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import { TokenSchema } from "@gen/loco/token/v1/token_pb";
+import { EntityScopeSchema, EntityType, Scope, TokenSchema } from "@gen/loco/token/v1/token_pb";
 
 import { DAY_MS } from "@/lib/time";
 
 import {
 	allowsFor,
+	buildHeld,
 	customExpiryError,
 	defaultExpirySeconds,
 	expiryOptions,
+	entityNode,
 	expiresLabel,
+	heldLevel,
 	sanitizeTokenName,
 	TOKEN_NAME_RE,
 	tokenStatus,
@@ -84,4 +87,27 @@ test("token names keep only lowercase letters, digits and dashes", () => {
 	expect(TOKEN_NAME_RE.test("ci-deploy")).toBe(true);
 	expect(TOKEN_NAME_RE.test("-ci")).toBe(false);
 	expect(TOKEN_NAME_RE.test("c")).toBe(false);
+});
+
+describe("held access", () => {
+	const org = entityNode(EntityType.ORGANIZATION, "org", "acme", null);
+	const ws = entityNode(EntityType.WORKSPACE, "ws", "shared", org);
+	const res = entityNode(EntityType.RESOURCE, "res", "web", ws);
+	const other = entityNode(EntityType.RESOURCE, "other", "api", entityNode(EntityType.WORKSPACE, "ws2", "x", null));
+	const scope = (entityType: EntityType, entityId: string, s: Scope) =>
+		create(EntityScopeSchema, { entityType, entityId, scope: s });
+
+	test("a resource inherits the highest level held on its workspace or organization", () => {
+		const held = buildHeld([
+			scope(EntityType.ORGANIZATION, "org", Scope.READ),
+			scope(EntityType.WORKSPACE, "ws", Scope.WRITE),
+		]);
+		expect(heldLevel(held, res)).toBe(2);
+		expect(heldLevel(held, org)).toBe(1);
+		expect(heldLevel(held, other)).toBe(0);
+	});
+
+	test("a system scope covers every entity", () => {
+		expect(heldLevel(buildHeld([scope(EntityType.SYSTEM, "", Scope.ADMIN)]), other)).toBe(3);
+	});
 });

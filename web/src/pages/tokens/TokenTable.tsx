@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { accessByLevel, accessChips, expiresLabel, lastUsedLabel, tokenStatus } from "./model";
-import type { AccessChip, Creator, EntityTree } from "./model";
+import type { AccessChip, Creator, Entities } from "./model";
 
 function AccessCell({ chips }: { chips: AccessChip[] }) {
 	return (
@@ -71,7 +71,7 @@ function TokenMenu({
 
 function tokenColumns({
 	creators,
-	tree,
+	entities,
 	now,
 	canDuplicate,
 	canRevoke,
@@ -79,7 +79,7 @@ function tokenColumns({
 	onRevoke,
 }: {
 	creators: ReadonlyMap<string, Creator>;
-	tree: EntityTree;
+	entities: Entities;
 	now: number;
 	canDuplicate: boolean;
 	canRevoke: boolean;
@@ -106,7 +106,7 @@ function tokenColumns({
 			size: 200,
 			minSize: 100,
 			meta: { fit: true, fitMax: 320 },
-			cell: ({ row: { original: t } }) => <AccessCell chips={accessChips(tree, t)} />,
+			cell: ({ row: { original: t } }) => <AccessCell chips={accessChips(entities, t)} />,
 		},
 		{
 			id: "creator",
@@ -177,7 +177,7 @@ export function TokenTable({
 }: {
 	tokens: Token[];
 	creators: ReadonlyMap<string, Creator>;
-	tree: EntityTree;
+	entities: Entities;
 	now: number;
 	isLoading: boolean;
 	empty: ReactNode;
