@@ -188,14 +188,32 @@ type eventScope struct {
 }
 
 // readableResources are the workspace's resources whose events the caller can list, by the checks a
-// ListEvents for one resource makes.
-func (s *EventServer) readableResources(ctx context.Context, workspaceID uuid.UUID) ([]uuid.UUID, error) {
+// ListEvents for one resource makes. A caller without a scope on the workspace or its organization
+// reads a resource only through a grant on it, so only those resources are checked.
+func (s *EventServer) readableResources(
+	ctx context.Context,
+	orgID uuid.UUID,
+	workspaceID uuid.UUID,
+) ([]uuid.UUID, error) {
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
+	granted := grantedResourceIDs(p.Scopes)
+	scoped := allWorkspaces || slices.Contains(workspaceIDs, workspaceID)
+	if !scoped && len(granted) == 0 {
+		return nil, nil
+	}
 	rows, err := s.queries.ListWorkspaceResourceSlugs(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list the resources of workspace %s: %w", workspaceID, err)
 	}
 	var readable []uuid.UUID
 	for _, row := range rows {
+		if !scoped && !slices.Contains(granted, row.ID) {
+			continue
+		}
 		if authorize(ctx, s.authz, actions.ListResourceAuditEvents, row.ID) == nil ||
 			authorize(ctx, s.authz, actions.ListResourceAuditAdminEvents, row.ID) == nil {
 			readable = append(readable, row.ID)
@@ -263,7 +281,7 @@ func (s *EventServer) authorizeEventScope(
 			if !req.GetReadableResources() {
 				return eventScope{}, denied
 			}
-			readable, readErr := s.readableResources(ctx, workspaceID)
+			readable, readErr := s.readableResources(ctx, orgID, workspaceID)
 			if readErr != nil {
 				return eventScope{}, readErr
 			}

@@ -624,3 +624,23 @@ func TestListEventsReadableResourcesOfAWorkspace(t *testing.T) {
 		})
 	}
 }
+
+func TestListEventsReadableResourcesOfAnAdminGrant(t *testing.T) {
+	t.Parallel()
+	f := newScopedAuditFixture(t)
+	ctx := auditScope(t, genDb.EntityTypeResource, f.resourceID, genDb.ScopeAdmin)
+	got, err := f.events.ListEvents(ctx, &eventv1.ListEventsRequest{
+		OrgId: f.orgID, WorkspaceId: f.workspaceID.String(), ReadableResources: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.GetEvents()) == 0 {
+		t.Fatal("no events for the granted resource")
+	}
+	for _, e := range got.GetEvents() {
+		if e.GetResourceId() != f.resourceID.String() {
+			t.Fatalf("event of resource %s, want only %s", e.GetResourceId(), f.resourceID)
+		}
+	}
+}
