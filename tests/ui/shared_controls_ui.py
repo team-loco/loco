@@ -351,6 +351,7 @@ def activity_deployments(page):
                                 "readyReplicas": 1,
                                 "desiredReplicas": 1,
                                 "deploymentId": deployments[0]["id"],
+                                "servingDeploymentId": deployments[0]["id"],
                             }
                         ],
                     }

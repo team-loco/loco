@@ -121,6 +121,7 @@ export function IncidentCard({
 }) {
 	const status = region.status;
 	const current = region.current;
+	const serving = region.serving;
 	const reportedMs = maybeTsMs(status?.reportedAt);
 	const failing = (status?.replicas ?? []).filter((r) => !r.ready && r.state !== "Stopping" && r.state !== "Stopped");
 	const [only] = failing.length === 1 ? failing : [];
@@ -176,10 +177,10 @@ export function IncidentCard({
 								<span className="font-mono">{exitLabel(only.lastExit, nowMs)}</span>
 							</Fact>
 						)}
-						{current !== undefined && (
+						{serving !== undefined && (
 							<Fact label="Running">
 								<span className="font-mono">
-									{depTag(current)} · {formatShortId(current.id)}
+									{depTag(serving)} · {formatShortId(serving.id)}
 								</span>
 								{status !== undefined &&
 									` · ${status.readyReplicas.toString()}/${status.desiredReplicas.toString()} ready`}

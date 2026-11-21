@@ -30,6 +30,8 @@ export interface RegionView {
 	status: RegionStatus | undefined;
 	history: Deployment[];
 	current: Deployment | undefined;
+	/** The deployment whose ready replicas serve the region. */
+	serving: Deployment | undefined;
 }
 
 export type ModalState =
@@ -79,11 +81,12 @@ export function buildRegions(
 	return [...names].map((name) => {
 		const status = environment?.regions.find((r) => r.region === name);
 		const history = deployments.filter((d) => placementIn(d, name) !== undefined).toSorted(byNewest);
+		const byId = (id: string) => currentDeployments.find((d) => d.id === id) ?? history.find((d) => d.id === id);
 		const currentId = status?.deploymentId;
-		const current = currentId
-			? (currentDeployments.find((d) => d.id === currentId) ?? history.find((d) => d.id === currentId))
-			: history.find((d) => placementIn(d, name)?.live);
-		return { name, status, history, current };
+		const current = currentId ? byId(currentId) : history.find((d) => placementIn(d, name)?.live);
+		const servingId = status?.servingDeploymentId;
+		const serving = servingId ? byId(servingId) : undefined;
+		return { name, status, history, current, serving };
 	});
 }
 
@@ -194,7 +197,13 @@ export function useResourceData(resourceId: string) {
 		refetchInterval: REFRESH_MS,
 	});
 	const environment = resource === undefined ? undefined : environmentStatus(resource, environmentId);
-	const currentIds = [...new Set(environment?.regions.map((region) => region.deploymentId).filter((id) => id !== ""))];
+	const currentIds = [
+		...new Set(
+			environment?.regions
+				.flatMap((region) => [region.deploymentId, region.servingDeploymentId])
+				.filter((id) => id !== ""),
+		),
+	];
 	const currentQueries = useQueries({
 		queries: currentIds.map((deploymentId) => ({
 			...createQueryOptions(getDeployment, { deploymentId }, { transport }),

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -46,6 +48,19 @@ func regionRow(status genDb.PlacementStatus, ready int32) genDb.ListRegionStatus
 		LastHeartbeat:   &heartbeat,
 		HealthStatus:    &health,
 	}
+}
+
+// replicasJSON is a stored rollout listing ready replicas of deploymentID.
+func replicasJSON(deploymentID uuid.UUID, ready int32) []byte {
+	replicas := make([]*deploymentv1.Replica, 0, ready)
+	for range ready {
+		replicas = append(replicas, &deploymentv1.Replica{DeploymentId: deploymentID.String(), Ready: true})
+	}
+	data, err := json.Marshal(replicas)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func TestRegionStatus(t *testing.T) {
@@ -126,13 +141,18 @@ func TestRegionStatus(t *testing.T) {
 		},
 		{
 			name: "redeploy while the previous replicas still serve",
-			row:  func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusDeploying, 2) },
+			row: func() genDb.ListRegionStatusesForResourcesRow {
+				row := regionRow(genDb.PlacementStatusDeploying, 2)
+				row.Replicas = replicasJSON(uuid.New(), 2)
+				return row
+			},
 			want: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 		},
 		{
 			name: "failed redeploy while the previous replicas still serve",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.PlacementStatusFailed, 2)
+				row.Replicas = replicasJSON(uuid.New(), 2)
 				row.Problem = []byte(
 					`{"reason":"deploy_timeout","detail":"` + testFailureMessage + `"}`,
 				)
@@ -472,6 +492,50 @@ func TestEnvironmentSince(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := environmentSince(tt.regions, tt.status); !proto.Equal(got, tt.want) {
 				t.Errorf("environmentSince = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestServingDeployment(t *testing.T) {
+	t.Parallel()
+	older, newer := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+	live := uuid.Must(uuid.NewV7()).String()
+	replicas := func(ready map[string]int, notReady string) []*deploymentv1.Replica {
+		var list []*deploymentv1.Replica
+		for id, count := range ready {
+			for range count {
+				list = append(list, &deploymentv1.Replica{DeploymentId: id, Ready: true})
+			}
+		}
+		return append(list, &deploymentv1.Replica{DeploymentId: notReady})
+	}
+	tests := []struct {
+		name     string
+		replicas []*deploymentv1.Replica
+		serving  string
+		ready    int32
+	}{
+		{name: "no ready replica", replicas: replicas(nil, live), serving: "", ready: 0},
+		{name: "previous version serves a failed rollout", replicas: replicas(map[string]int{older: 2}, live),
+			serving: older, ready: 2},
+		{name: "most ready replicas", replicas: replicas(map[string]int{older: 2, live: 1}, live),
+			serving: older, ready: 2},
+		{name: "live deployment on a tie", replicas: replicas(map[string]int{newer: 1, live: 1}, live),
+			serving: live, ready: 1},
+		{name: "newer deployment on a tie without the live one",
+			replicas: replicas(map[string]int{older: 1, newer: 1}, live), serving: newer, ready: 1},
+		{name: "one revision of a restart", replicas: []*deploymentv1.Replica{
+			{DeploymentId: live, PlacementRevision: 1, Ready: true},
+			{DeploymentId: live, PlacementRevision: 2, Ready: true},
+		}, serving: live, ready: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			serving, ready := servingDeployment(tt.replicas, live)
+			if serving != tt.serving || ready != tt.ready {
+				t.Errorf("servingDeployment = %q with %d ready, want %q with %d", serving, ready, tt.serving, tt.ready)
 			}
 		})
 	}

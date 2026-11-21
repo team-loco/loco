@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -110,6 +111,19 @@ func (f *resourceStatusFixture) report(
 	f.agentServer().recordStatus(context.Background(), clusterID, 0, status)
 }
 
+// readyReplicas is count ready replicas of deploymentID, as the agent lists them beside its ready count.
+func readyReplicas(deploymentID uuid.UUID, count int32) []*deploymentv1.Replica {
+	replicas := make([]*deploymentv1.Replica, 0, count)
+	for i := range count {
+		name := fmt.Sprintf("%s-%d", deploymentID, i)
+		replicas = append(replicas, &deploymentv1.Replica{
+			Uid: "uid-" + name, Name: name, DeploymentId: deploymentID.String(), Ready: true,
+			State: string(loco.ReplicaServing),
+		})
+	}
+	return replicas
+}
+
 func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID, replicas int32) {
 	t.Helper()
 	f.report(t, f.envID, clusterID, &agentv1.PlacementStatus{
@@ -187,7 +201,8 @@ func statusesEqual(a, b []*resourcev1.EnvironmentStatus) bool {
 		for j, region := range a[i].GetRegions() {
 			other := b[i].GetRegions()[j]
 			if region.GetRegion() != other.GetRegion() || region.GetStatus() != other.GetStatus() ||
-				region.GetReadyReplicas() != other.GetReadyReplicas() || region.GetMessage() != other.GetMessage() {
+				region.GetReadyReplicas() != other.GetReadyReplicas() || region.GetMessage() != other.GetMessage() ||
+				region.GetServingDeploymentId() != other.GetServingDeploymentId() {
 				return false
 			}
 		}
@@ -382,21 +397,64 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 	t.Parallel()
 	f := newResourceStatusFixture(t)
-	f.deployProduction(t, 1)
-	f.ready(t, f.clusterID, 1)
+	f.deployProduction(t, statusTwoReplicas)
+	f.ready(t, f.clusterID, statusTwoReplicas)
+	previous := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
 
-	f.deployProduction(t, 1)
+	f.deployProduction(t, statusTwoReplicas)
+	failed := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
+		ready: 2, desired: 2, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
 	})
+	f.assertServing(t, failed, previous)
 
-	f.failed(t, f.envID, f.clusterID, 1)
+	stuck := readyReplicas(failed, 1)
+	stuck[0].Ready = false
+	stuck[0].State = string(loco.ReplicaStarting)
+	f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
+		Problem:       &agentv1.ProblemReport{Reason: string(loco.ProblemRestarting)},
+		Stopped:       deployTimedOut(),
+		ReadyReplicas: statusTwoReplicas,
+		Replicas:      append(readyReplicas(previous, statusTwoReplicas), stuck...),
+	})
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
+		ready: 2, desired: 2, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
 		message: statusCrashMsg,
 	})
+	f.assertServing(t, failed, previous)
+}
+
+func TestOverlappingRolloutCountsOnlyTheServingDeploymentsReplicas(t *testing.T) {
+	t.Parallel()
+	f := newResourceStatusFixture(t)
+	f.deployProduction(t, 1)
+	f.ready(t, f.clusterID, 1)
+	previous := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+
+	f.deployProduction(t, 1)
+	next := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+	f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
+		Available:     true,
+		Healthy:       true,
+		ReadyReplicas: 2,
+		Replicas:      append(readyReplicas(previous, 1), readyReplicas(next, 1)...),
+	})
+	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
+		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
+	})
+	f.assertServing(t, next, next)
+}
+
+func (f *resourceStatusFixture) assertServing(t *testing.T, live, serving uuid.UUID) {
+	t.Helper()
+	region := f.region(t, f.envID, testRegion)
+	if region.GetDeploymentId() != live.String() || region.GetServingDeploymentId() != serving.String() {
+		t.Errorf("region deployment %s serving %s, want %s serving %s",
+			region.GetDeploymentId(), region.GetServingDeploymentId(), live, serving)
+	}
 }
 
 func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {

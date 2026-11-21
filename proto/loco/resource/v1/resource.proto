@@ -21,8 +21,9 @@ enum ResourceType {
 }
 
 // ResourceStatus is whether a resource is serving, derived from the replicas its clusters report ready.
-// HEALTHY: every desired replica is ready. DEGRADED: some replicas or regions are not ready.
-// UNAVAILABLE: no replica is ready. DEPLOYING: a first rollout has no ready replica yet.
+// HEALTHY: ready replicas of any version cover every desired replica. DEGRADED: some replicas or
+// regions are not ready. UNAVAILABLE: no replica is ready. DEPLOYING: a first rollout has no ready
+// replica yet.
 // UNKNOWN: the cluster running it stopped reporting, so its last report cannot be trusted.
 enum ResourceStatus {
   RESOURCE_STATUS_UNSPECIFIED = 0;
@@ -153,9 +154,14 @@ message EnvironmentStatus {
 message RegionStatus {
   string region = 1;
   ResourceStatus status = 2;
+  // The ready replicas of the serving deployment's revision.
   int32 ready_replicas = 3;
   int32 desired_replicas = 4;
+  // The live deployment: the one placed in this region, or a newer one waiting for its build.
   string deployment_id = 5;
+  // The deployment whose ready replicas serve this region: the one whose revision has the most,
+  // the live deployment and then the newer revision on a tie. Empty while no replica is ready.
+  string serving_deployment_id = 13;
   // The status of the live deployment's placement in this region.
   deployment.v1.PlacementStatus placement_status = 10;
   optional string message = 7;

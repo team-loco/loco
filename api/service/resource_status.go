@@ -13,6 +13,7 @@ import (
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -96,7 +97,6 @@ func regionStatus(
 	}
 	region := &resourcev1.RegionStatus{
 		Region:          row.Region,
-		ReadyReplicas:   row.ReadyReplicas,
 		DesiredReplicas: row.DesiredReplicas,
 		DeploymentId:    row.DeploymentID.String(),
 		PlacementStatus: placementStatuses[row.PlacementStatus],
@@ -106,6 +106,11 @@ func regionStatus(
 	}
 	if decodeErr := json.Unmarshal(row.Replicas, &region.Replicas); decodeErr != nil {
 		return nil, fmt.Errorf("decode observed replicas: %w", decodeErr)
+	}
+	region.ServingDeploymentId, region.ReadyReplicas = servingDeployment(region.GetReplicas(), region.GetDeploymentId())
+	if region.GetServingDeploymentId() == "" && row.ReadyReplicas > 0 {
+		// A ready count without the replicas behind it counts as the live deployment's.
+		region.ServingDeploymentId, region.ReadyReplicas = region.GetDeploymentId(), row.ReadyReplicas
 	}
 
 	if silence := clusterSilence(row, now, staleAfter); silence != "" {
@@ -137,6 +142,44 @@ func regionStatus(
 	}
 	region.StatusSince = statusSince(row, region.GetStatus())
 	return region, nil
+}
+
+// servingDeployment is the deployment whose revision has the most ready replicas, and that
+// revision's ready count. A tie goes to the live deployment and then to the newer revision.
+func servingDeployment(replicas []*deploymentv1.Replica, live string) (string, int32) {
+	ready := make(map[servedRevision]int32)
+	for _, replica := range replicas {
+		if replica.GetReady() && replica.GetDeploymentId() != "" {
+			ready[servedRevision{replica.GetDeploymentId(), replica.GetPlacementRevision()}]++
+		}
+	}
+	var serving servedRevision
+	for revision, count := range ready {
+		if count > ready[serving] || count == ready[serving] && revision.newer(serving, live) {
+			serving = revision
+		}
+	}
+	return serving.deployment, ready[serving]
+}
+
+type servedRevision struct {
+	deployment string
+	revision   int64
+}
+
+// newer is whether r is newer than other, counting the live deployment newest. Deployment IDs are
+// UUIDv7, so between two other deployments the greater ID is the newer.
+func (r servedRevision) newer(other servedRevision, live string) bool {
+	switch {
+	case r.deployment == other.deployment:
+		return r.revision > other.revision
+	case other.deployment == live:
+		return false
+	case r.deployment == live:
+		return true
+	default:
+		return r.deployment > other.deployment
+	}
 }
 
 // statusSince is when the region entered status: the time recordRegionStatuses stamped, or the

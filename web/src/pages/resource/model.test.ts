@@ -58,6 +58,21 @@ describe("buildRegions", () => {
 		expect(lastGoodDeployment(region)?.id).toBe("release-3");
 	});
 
+	test("names the deployment that serves after a failed rollout apart from the live one", () => {
+		const [previous, failed] = ["previous", "failed"].map((id) =>
+			create(DeploymentSchema, { id, placements: [{ region: "us-va-1" }], spec: create(DeploymentSpecSchema) }),
+		);
+		if (previous === undefined || failed === undefined) throw new Error("Missing deployment");
+		const environment = create(EnvironmentStatusSchema, {
+			regions: [
+				create(RegionStatusSchema, { region: "us-va-1", deploymentId: "failed", servingDeploymentId: "previous" }),
+			],
+		});
+		const [region] = buildRegions(create(ResourceSchema), [failed, previous], environment);
+		expect(region?.current?.id).toBe("failed");
+		expect(region?.serving?.id).toBe("previous");
+	});
+
 	test("keeps a long-lived current deployment outside the history page", () => {
 		const current = create(DeploymentSchema, {
 			id: "current-california",
@@ -109,12 +124,19 @@ describe("lastGoodDeployment", () => {
 			status: undefined,
 			history: [failed, superseded, older],
 			current: failed,
+			serving: superseded,
 		};
 		expect(lastGoodDeployment(region)?.id).toBe("superseded");
 	});
 
 	test("finds nothing when the region has one deployment", () => {
-		const region: RegionView = { name: "us-va-1", status: undefined, history: [failed], current: failed };
+		const region: RegionView = {
+			name: "us-va-1",
+			status: undefined,
+			history: [failed],
+			current: failed,
+			serving: undefined,
+		};
 		expect(lastGoodDeployment(region)).toBeUndefined();
 	});
 });
@@ -136,8 +158,8 @@ describe("focusRegion", () => {
 		});
 		const previous = create(DeploymentSchema, { id: "previous", status: DeploymentStatus.SUPERSEDED, spec });
 		const regions: RegionView[] = [
-			{ name: "us-ca-1", status: undefined, history: [california], current: california },
-			{ name: "us-va-1", status: undefined, history: [current, previous], current },
+			{ name: "us-ca-1", status: undefined, history: [california], current: california, serving: california },
+			{ name: "us-va-1", status: undefined, history: [current, previous], current, serving: current },
 		];
 		expect(focusRegion(regions)?.name).toBe("us-va-1");
 	});

@@ -264,6 +264,11 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	if err := twoReady(t.Context()); err != nil {
 		t.Errorf("the API does not report the app healthy while the old replicas serve: %v", err)
 	}
+	if region := regionStatus(t, w, app); region.GetDeploymentId() != newDeployment ||
+		region.GetServingDeploymentId() != oldDeployment {
+		t.Errorf("the region reports deployment %s serving %s, want %s serving %s",
+			region.GetDeploymentId(), region.GetServingDeploymentId(), newDeployment, oldDeployment)
+	}
 	requireServingReplicas(t, getDeployment(t, newDeployment), oldDeployment, 2)
 	if getDeployment(t, oldDeployment).GetPlacements()[0].GetLive() {
 		t.Error("the serving deployment is reported active")
