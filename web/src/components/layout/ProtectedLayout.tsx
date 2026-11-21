@@ -11,7 +11,7 @@ import { KeyboardShortcutsProvider } from "@/components/shell/KeyboardShortcuts"
 import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive, WORKSPACE_STORAGE_KEY } from "@/context/ContextProvider";
-import { readStorage } from "@/lib/storage";
+import { useStoredValue } from "@/lib/storage";
 import { getOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
@@ -37,9 +37,9 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	// Without a workspace in the URL, the active one is the remembered workspace if it is in the organization, else its newest.
 	const picking =
 		workspaceParam === undefined && activeOrgId !== null && !scopes.isLoading && scopes.orgMember(activeOrgId);
-	const stored = readStorage(WORKSPACE_STORAGE_KEY);
+	const [stored] = useStoredValue(WORKSPACE_STORAGE_KEY, "");
 	const newest = useQuery(listOrgWorkspaces, { orgId: activeOrgId ?? "", pageSize: 1 }, { enabled: picking });
-	const remembered = useWorkspace(picking ? activeOrgId : null, stored);
+	const remembered = useWorkspace(picking ? activeOrgId : null, stored === "" ? null : stored);
 	const pickable = [...(newest.data?.workspaces ?? []), remembered.workspace].filter(
 		(w): w is Workspace => w?.orgId === activeOrgId,
 	);
