@@ -140,7 +140,7 @@ export function ActiveSessions() {
 											size="sm"
 											disabled={revoke.isPending}
 											onClick={() => {
-												if (!revoke.isPending) revoke.mutate({ sessionId: session.id });
+												revoke.mutate({ sessionId: session.id });
 											}}
 										>
 											{revoke.isPending ? "Signing out…" : "Sign out"}
