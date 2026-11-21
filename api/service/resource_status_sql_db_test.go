@@ -98,6 +98,10 @@ func TestRegionStatusSQL(t *testing.T) {
 			in:   freshRegion(genDb.PlacementStatusDeploying, 0), want: deploying,
 		},
 		{
+			name: "redeploy while the previous replicas still serve",
+			in:   freshRegion(genDb.PlacementStatusDeploying, 2), want: healthy,
+		},
+		{
 			name: "failed redeploy while the previous replicas still serve",
 			in:   freshRegion(genDb.PlacementStatusFailed, 2), want: healthy,
 		},

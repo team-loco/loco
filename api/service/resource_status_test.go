@@ -131,6 +131,30 @@ func TestRegionStatus(t *testing.T) {
 			message: testStatusMessage,
 		},
 		{
+			name: "every replica ready but one restarted within the health window",
+			row: func() genDb.ListRegionStatusesForResourcesRow {
+				return regionRow(genDb.PlacementStatusDegraded, 2, degraded)
+			},
+			want:    degraded,
+			message: testStatusMessage,
+		},
+		{
+			name: "service stopped after too many restarts",
+			row: func() genDb.ListRegionStatusesForResourcesRow {
+				return regionRow(genDb.PlacementStatusCrashed, 0, unavailable)
+			},
+			want:    unavailable,
+			message: testStatusMessage,
+		},
+		{
+			name: "first rollout before any replica is ready",
+			row: func() genDb.ListRegionStatusesForResourcesRow {
+				return regionRow(genDb.PlacementStatusDeploying, 0, deploying)
+			},
+			want:    deploying,
+			message: testStatusMessage,
+		},
+		{
 			name: "pending deployment the agent has not reported on",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.PlacementStatusDeploying, 0, deploying)
@@ -139,6 +163,15 @@ func TestRegionStatus(t *testing.T) {
 				return row
 			},
 			want: deploying,
+		},
+		{
+			name: "redeploy while the previous replicas still serve",
+			row: func() genDb.ListRegionStatusesForResourcesRow {
+				row := regionRow(genDb.PlacementStatusDeploying, 2, healthy)
+				row.Replicas = replicasJSON(uuid.New(), 2)
+				return row
+			},
+			want: healthy,
 		},
 		{
 			name: "failed redeploy while the previous replicas still serve",
@@ -151,6 +184,19 @@ func TestRegionStatus(t *testing.T) {
 				return row
 			},
 			want: healthy,
+			message: "The new version did not become healthy within its deploy timeout, so Loco stopped it. " +
+				"Check its replicas and logs, then redeploy. " + testFailureMessage,
+		},
+		{
+			name: "failed deployment with nothing serving",
+			row: func() genDb.ListRegionStatusesForResourcesRow {
+				row := regionRow(genDb.PlacementStatusFailed, 0, unavailable)
+				row.Problem = []byte(
+					`{"reason":"deploy_timeout","detail":"` + testFailureMessage + `"}`,
+				)
+				return row
+			},
+			want: unavailable,
 			message: "The new version did not become healthy within its deploy timeout, so Loco stopped it. " +
 				"Check its replicas and logs, then redeploy. " + testFailureMessage,
 		},
