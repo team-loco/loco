@@ -98,15 +98,13 @@ SELECT COUNT(*) FROM (
 ) capped;
 
 -- name: QueryDeploymentBuckets :many
--- Splits [since, until) into bucket_count equal buckets by creation time, in exact microseconds.
+-- Splits [since, until) into bucket_count equal buckets by creation time, in exact numeric arithmetic.
 WITH matched AS (
   SELECT d.id, d.status, d.created_at, d.resource_id, r.name AS resource_name,
          COALESCE(d.spec->'build'->>'image', '') AS image,
          CASE WHEN sqlc.arg('group_by_resource')::bool THEN d.resource_id ELSE '00000000-0000-0000-0000-000000000000'::uuid END AS group_id,
-         (EXTRACT(EPOCH FROM d.created_at - sqlc.arg('since')::timestamptz) * 1000000)::bigint
-           * sqlc.arg('bucket_count')::bigint
-           / (EXTRACT(EPOCH FROM sqlc.arg('until')::timestamptz - sqlc.arg('since')::timestamptz) * 1000000)::bigint
-           AS bucket
+         div(EXTRACT(EPOCH FROM d.created_at - sqlc.arg('since')::timestamptz) * sqlc.arg('bucket_count')::int,
+             EXTRACT(EPOCH FROM sqlc.arg('until')::timestamptz - sqlc.arg('since')::timestamptz)) AS bucket
   FROM deployments d
   JOIN resources r ON r.id = d.resource_id
   JOIN workspaces w ON w.id = r.workspace_id

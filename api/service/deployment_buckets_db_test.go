@@ -177,6 +177,35 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 	if buckets[1].GetDeploymentCount() != 4 || len(buckets[1].GetResourceNames()) != 0 {
 		t.Errorf("workspace reader's bucket 1 = %v, want four deployments and no names", buckets[1])
 	}
+
+	orgID, err := f.queries.GetOrganizationIDByWorkspaceID(t.Context(), f.workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	org := []genDb.EntityScope{{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeRead}}
+	buckets = f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
+		Since: timestamppb.New(bucketsBase), Until: timestamppb.New(until), BucketCount: 12,
+	}, org)
+	if buckets[1].GetDeploymentCount() != 4 {
+		t.Errorf("organization reader's bucket 1 = %v, want four deployments", buckets[1])
+	}
+}
+
+func TestQueryDeploymentBucketsWideWindow(t *testing.T) {
+	t.Parallel()
+	f := newBucketsFixture(t)
+	f.seed(t, f.resourceID, genDb.DeploymentStatusRunning, bucketsBase, "nginx:1")
+	const span = 2000 * 365 * 24 * int64(time.Hour/time.Microsecond)
+
+	buckets := f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
+		Since:       timestamppb.New(time.UnixMicro(bucketsBase.UnixMicro() - span)),
+		Until:       timestamppb.New(time.UnixMicro(bucketsBase.UnixMicro() + span)),
+		BucketCount: 200,
+	}, f.readers())
+
+	if len(buckets) != 1 || buckets[0].GetIndex() != 100 {
+		t.Fatalf("buckets = %v, want one at index 100", buckets)
+	}
 }
 
 func TestQueryDeploymentBucketsGroupsByResource(t *testing.T) {
@@ -243,6 +272,7 @@ func TestQueryDeploymentBucketsValidation(t *testing.T) {
 		"many resources":   func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.ResourceIds = tooMany },
 		"too many names":   func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.MaxResourceNames = 21 },
 		"no environment":   func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.EnvironmentId = "" },
+		"group everything": func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.GroupByResource = true },
 	} {
 		req := valid()
 		change(req)

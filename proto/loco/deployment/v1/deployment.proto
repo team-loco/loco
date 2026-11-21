@@ -368,6 +368,11 @@ message QueryDeploymentBucketsRequest {
     message: "since must precede until"
     expression: "this.since < this.until"
   };
+  option (buf.validate.message).cel = {
+    id: "query_deployment_buckets.group_by_resource"
+    message: "group_by_resource requires resource_ids"
+    expression: "!this.group_by_resource || size(this.resource_ids) > 0"
+  };
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   string environment_id = 2 [(buf.validate.field).string.uuid = true];
   // Counts only these resources' deployments; empty counts every resource.
@@ -384,7 +389,7 @@ message QueryDeploymentBucketsRequest {
     gte: 1
     lte: 200
   }];
-  // Summarizes each resource's deployments in its own series of buckets.
+  // Summarizes each resource of resource_ids in its own series of buckets.
   bool group_by_resource = 7;
   // The most resource names a bucket lists.
   int32 max_resource_names = 8 [(buf.validate.field).int32 = {

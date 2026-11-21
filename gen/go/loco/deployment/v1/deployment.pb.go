@@ -1745,7 +1745,7 @@ type QueryDeploymentBucketsRequest struct {
 	Since       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=since,proto3" json:"since,omitempty"`
 	Until       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=until,proto3" json:"until,omitempty"`
 	BucketCount int32                  `protobuf:"varint,6,opt,name=bucket_count,json=bucketCount,proto3" json:"bucket_count,omitempty"`
-	// Summarizes each resource's deployments in its own series of buckets.
+	// Summarizes each resource of resource_ids in its own series of buckets.
 	GroupByResource bool `protobuf:"varint,7,opt,name=group_by_resource,json=groupByResource,proto3" json:"group_by_resource,omitempty"`
 	// The most resource names a bucket lists.
 	MaxResourceNames int32 `protobuf:"varint,8,opt,name=max_resource_names,json=maxResourceNames,proto3" json:"max_resource_names,omitempty"`
@@ -3421,7 +3421,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x05R\n" +
-	"totalCount\"\x96\x04\n" +
+	"totalCount\"\xa8\x05\n" +
 	"\x1dQueryDeploymentBucketsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12/\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x124\n" +
@@ -3431,8 +3431,9 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\fbucket_count\x18\x06 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x01R\vbucketCount\x12*\n" +
 	"\x11group_by_resource\x18\a \x01(\bR\x0fgroupByResource\x127\n" +
-	"\x12max_resource_names\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x14(\x00R\x10maxResourceNames:Y\xbaHV\x1aT\n" +
-	"\x1fquery_deployment_buckets.window\x12\x18since must precede until\x1a\x17this.since < this.until\"`\n" +
+	"\x12max_resource_names\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x14(\x00R\x10maxResourceNames:\xea\x01\xbaH\xe6\x01\x1aT\n" +
+	"\x1fquery_deployment_buckets.window\x12\x18since must precede until\x1a\x17this.since < this.until\x1a\x8d\x01\n" +
+	"*query_deployment_buckets.group_by_resource\x12'group_by_resource requires resource_ids\x1a6!this.group_by_resource || size(this.resource_ids) > 0\"`\n" +
 	"\x1eQueryDeploymentBucketsResponse\x12>\n" +
 	"\abuckets\x18\x01 \x03(\v2$.loco.deployment.v1.DeploymentBucketR\abuckets\"\xaa\x03\n" +
 	"\x10DeploymentBucket\x12\x14\n" +

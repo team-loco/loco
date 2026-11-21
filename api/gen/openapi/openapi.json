@@ -11723,7 +11723,7 @@
           "groupByResource": {
             "type": "boolean",
             "title": "group_by_resource",
-            "description": "Summarizes each resource's deployments in its own series of buckets."
+            "description": "Summarizes each resource of resource_ids in its own series of buckets."
           },
           "maxResourceNames": {
             "type": "integer",
@@ -11740,7 +11740,7 @@
           "until"
         ],
         "additionalProperties": false,
-        "description": "QueryDeploymentBucketsRequest splits [since, until) into bucket_count equal buckets by deployment\n creation time.\nquery_deployment_buckets.window // since must precede until\n"
+        "description": "QueryDeploymentBucketsRequest splits [since, until) into bucket_count equal buckets by deployment\n creation time.\nquery_deployment_buckets.group_by_resource // group_by_resource requires resource_ids\nquery_deployment_buckets.window // since must precede until\n"
       },
       "loco.deployment.v1.QueryDeploymentBucketsResponse": {
         "type": "object",

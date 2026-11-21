@@ -1050,10 +1050,8 @@ WITH matched AS (
   SELECT d.id, d.status, d.created_at, d.resource_id, r.name AS resource_name,
          COALESCE(d.spec->'build'->>'image', '') AS image,
          CASE WHEN $2::bool THEN d.resource_id ELSE '00000000-0000-0000-0000-000000000000'::uuid END AS group_id,
-         (EXTRACT(EPOCH FROM d.created_at - $3::timestamptz) * 1000000)::bigint
-           * $4::bigint
-           / (EXTRACT(EPOCH FROM $5::timestamptz - $3::timestamptz) * 1000000)::bigint
-           AS bucket
+         div(EXTRACT(EPOCH FROM d.created_at - $3::timestamptz) * $4::int,
+             EXTRACT(EPOCH FROM $5::timestamptz - $3::timestamptz)) AS bucket
   FROM deployments d
   JOIN resources r ON r.id = d.resource_id
   JOIN workspaces w ON w.id = r.workspace_id
@@ -1103,7 +1101,7 @@ type QueryDeploymentBucketsParams struct {
 	MaxResourceNames  int32       `json:"maxResourceNames"`
 	GroupByResource   bool        `json:"groupByResource"`
 	Since             time.Time   `json:"since"`
-	BucketCount       int64       `json:"bucketCount"`
+	BucketCount       int32       `json:"bucketCount"`
 	Until             time.Time   `json:"until"`
 	WorkspaceID       uuid.UUID   `json:"workspaceId"`
 	EnvironmentID     uuid.UUID   `json:"environmentId"`
@@ -1130,7 +1128,7 @@ type QueryDeploymentBucketsRow struct {
 	LatestImage        string           `json:"latestImage"`
 }
 
-// Splits [since, until) into bucket_count equal buckets by creation time, in exact microseconds.
+// Splits [since, until) into bucket_count equal buckets by creation time, in exact numeric arithmetic.
 func (q *Queries) QueryDeploymentBuckets(ctx context.Context, arg QueryDeploymentBucketsParams) ([]QueryDeploymentBucketsRow, error) {
 	rows, err := q.db.Query(ctx, queryDeploymentBuckets,
 		arg.MaxResourceNames,

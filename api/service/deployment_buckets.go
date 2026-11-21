@@ -42,7 +42,7 @@ func (s *DeploymentServer) QueryDeploymentBuckets(
 		FilterResourceIds: resourceIDs,
 		Since:             req.GetSince().AsTime(),
 		Until:             req.GetUntil().AsTime(),
-		BucketCount:       int64(req.GetBucketCount()),
+		BucketCount:       req.GetBucketCount(),
 		GroupByResource:   req.GetGroupByResource(),
 		MaxResourceNames:  req.GetMaxResourceNames(),
 		SystemRead:        readable.System,
