@@ -44,7 +44,7 @@
         }},
         "spec": {
           "observability": {"injectOtel": true},
-          "build": {"type": "image", "image": "example.invalid/web:1.4.2", "buildId": "01900000-0000-7000-8000-0000000b0142"},
+          "build": {"type": "image", "image": "example.invalid/web:1.4.2"},
           "port": 8080,
           "regions": {"us-ca-1": {"cpu": "500m", "memory": "256Mi", "minReplicas": 3, "maxReplicas": 3}}
         }
