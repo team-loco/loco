@@ -60,7 +60,7 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 		{
 			id: "resource",
 			header: "Resource",
-			size: 200,
+			size: 160,
 			minSize: 90,
 			meta: { primary: true },
 			cell: ({ row: { original: r } }) => (
@@ -83,7 +83,7 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 		{
 			id: "deployment",
 			header: "Deployment",
-			size: 150,
+			size: 130,
 			minSize: 90,
 			cell: ({ row: { original: r } }) => (
 				<span className="flex min-w-0 flex-col gap-px">
