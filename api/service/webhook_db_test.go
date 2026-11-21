@@ -433,9 +433,11 @@ func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 		t.Fatal(updateErr)
 	}
 	for _, status := range []string{"", webhooks.StatusPending, webhooks.StatusSucceeded} {
-		req := &webhookv1.ListWebhookDeliveriesRequest{Failing: true, Status: status, PageSize: 1}
+		req := &webhookv1.ListWebhookDeliveriesRequest{
+			Failing: true, Status: status, PageSize: 1, IncludeTotalCount: true,
+		}
 		var ids []string
-		matching := int64(2)
+		matching := int32(2)
 		if status == webhooks.StatusPending {
 			matching = 1
 		}
@@ -444,10 +446,13 @@ func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 		}
 		for {
 			response := list(t, req)
-			if response.GetTotalCount() != 4 || response.GetFailingCount() != 2 ||
-				response.GetMatchingCount() != matching {
+			counted := req.GetIncludeTotalCount()
+			if counted && (response.GetAllCount() != 4 || response.GetFailingCount() != 2 ||
+				response.GetTotalCount() != matching) ||
+				!counted && (response.GetAllCount() != 0 || response.GetTotalCount() != 0) {
 				t.Fatalf("delivery counts = %v", response)
 			}
+			req.IncludeTotalCount = false
 			for _, delivery := range response.GetDeliveries() {
 				ids = append(ids, delivery.GetId())
 			}
@@ -456,7 +461,7 @@ func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 				break
 			}
 		}
-		if int64(len(ids)) != matching {
+		if int32(len(ids)) != matching {
 			t.Fatalf("failing %q: deliveries = %v", status, ids)
 		}
 	}

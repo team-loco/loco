@@ -21,6 +21,8 @@ import { WebhookActions } from "./WebhookActions";
 import { Skeleton } from "@/components/design/Skeleton";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { useTokenPage } from "@/hooks/useTokenPage";
+import { formatTotal } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { DocsButton } from "@/components/design/DocsButton";
@@ -325,20 +327,20 @@ function webhookColumns({
 	];
 }
 
+const NO_TOKENS: string[] = [];
+
 function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhookId: string }) {
-	const query = useQuery(
-		listWebhookDeliveries,
-		{ workspaceId, webhookId },
-		{ refetchInterval: (q) => (hasPending(q.state.data?.deliveries) ? PENDING_REFRESH_MS : false) },
-	);
+	const { query, counts } = useTokenPage(listWebhookDeliveries, { workspaceId, webhookId }, NO_TOKENS, {
+		refetchInterval: (q) => (hasPending(q.state.data?.deliveries) ? PENDING_REFRESH_MS : false),
+	});
 	if (query.isPending) return <Skeleton className="h-4 w-36" />;
 	if (query.error !== null) {
 		return <span className="text-[12px] text-bad-fg">{getErrorMessage(query.error, "Failed to load deliveries")}</span>;
 	}
 	const ticks = tickStrip(query.data.deliveries);
 	if (ticks.length === 0) return <span className="text-[12px] text-fg3">No deliveries yet</span>;
-	const errors = Number(query.data.failingCount);
-	const label = `${errors} failing`;
+	const errors = counts?.failingCount ?? 0;
+	const label = `${formatTotal(errors)} failing`;
 	return (
 		<span className="flex min-w-0 items-center gap-2.5">
 			<span

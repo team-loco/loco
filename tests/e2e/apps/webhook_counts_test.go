@@ -26,23 +26,27 @@ func TestWebhookDeliveryCounts(t *testing.T) {
 	}
 	response, err := p.User.Webhook.ListWebhookDeliveries(
 		t.Context(),
-		&webhookv1.ListWebhookDeliveriesRequest{WorkspaceId: tenant.ID, WebhookId: hook, PageSize: 1},
+		&webhookv1.ListWebhookDeliveriesRequest{
+			WorkspaceId: tenant.ID, WebhookId: hook, PageSize: 1, IncludeTotalCount: true,
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.GetTotalCount() != 1 || response.GetMatchingCount() != 1 || len(response.GetDeliveries()) != 1 {
+	if response.GetAllCount() != 1 || response.GetTotalCount() != 1 || len(response.GetDeliveries()) != 1 {
 		t.Fatalf("delivery counts = %v", response)
 	}
 	failed, err := p.User.Webhook.ListWebhookDeliveries(
 		t.Context(),
-		&webhookv1.ListWebhookDeliveriesRequest{WorkspaceId: tenant.ID, WebhookId: hook, Failing: true},
+		&webhookv1.ListWebhookDeliveriesRequest{
+			WorkspaceId: tenant.ID, WebhookId: hook, Failing: true, IncludeTotalCount: true,
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if failed.GetTotalCount() != 1 || failed.GetMatchingCount() != failed.GetFailingCount() ||
-		int64(len(failed.GetDeliveries())) != failed.GetMatchingCount() {
+	if failed.GetAllCount() != 1 || failed.GetTotalCount() != failed.GetFailingCount() ||
+		int32(len(failed.GetDeliveries())) != failed.GetTotalCount() {
 		t.Fatalf("failing counts = %v", failed)
 	}
 	_, err = p.User.Webhook.DeleteWebhook(

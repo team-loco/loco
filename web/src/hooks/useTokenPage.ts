@@ -28,5 +28,7 @@ export function useTokenPage<I extends DescMessage, O extends DescMessage>(
 		query,
 		nextPageToken: (query.data as { nextPageToken: string } | undefined)?.nextPageToken ?? "",
 		total: (counted.data as { totalCount: number } | undefined)?.totalCount,
+		/** The response that carried the total, for lists that return more counts beside it. */
+		counts: counted.data,
 	};
 }
