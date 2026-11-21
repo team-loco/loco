@@ -19,7 +19,7 @@ var (
 	ErrPortRequired           = errors.New("needs port; a service without port is a worker and receives no traffic")
 	ErrNoRegions              = errors.New("at least one region is required")
 	ErrRegionIncomplete       = errors.New("cpu, memory, replicas.min and replicas.max are required")
-	ErrAutoscalingTarget      = errors.New("autoscaling needs exactly one of cpuTarget or memoryTarget")
+	ErrAutoscalingTarget      = errors.New("autoscaling needs cpuTarget")
 	ErrEnvironmentsInOverride = errors.New("environments cannot be nested inside an environment override")
 	ErrNotAnObject            = errors.New("must be a mapping")
 	ErrRestart                = fmt.Errorf("must be %s, %s or %s", RestartOnFailure, RestartAlways, RestartNever)

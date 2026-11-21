@@ -79,19 +79,17 @@ message HealthCheckConfig {
 message Scalers {
   option (buf.validate.message).cel = {
     id: "scalers.target_required"
-    message: "enabled autoscaling needs a CPU or memory target between 1 and 100"
-    expression: "!this.enabled || (has(this.cpu_target) && this.cpu_target > 0) || (has(this.memory_target) && this.memory_target > 0)"
+    message: "enabled autoscaling needs a CPU target between 1 and 100"
+    expression: "!this.enabled || (has(this.cpu_target) && this.cpu_target > 0)"
   };
+  reserved 3;
+  reserved "memory_target";
 
   bool enabled = 1; // enable autoscaling
   optional int32 cpu_target = 2 [(buf.validate.field).int32 = {
     gte: 0
     lte: 100
   }]; // target CPU percentage (0-100)
-  optional int32 memory_target = 3 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 100
-  }]; // target memory percentage (0-100)
 }
 
 // BuildSource defines where the code comes from.

@@ -34,26 +34,12 @@ func (r *ApplicationReconciler) ensureAutoscaler(
 		return nil
 	}
 
-	var metrics []*autoscalingv2ac.MetricSpecApplyConfiguration
-	for _, metric := range []struct {
-		name   corev1.ResourceName
-		target int32
-	}{
-		{corev1.ResourceCPU, resources.Scalers.CPUTarget},
-		{corev1.ResourceMemory, resources.Scalers.MemoryTarget},
-	} {
-		if metric.target == 0 {
-			continue
-		}
-		target := autoscalingv2ac.MetricTarget().
-			WithType(autoscalingv2.UtilizationMetricType).
-			WithAverageUtilization(metric.target)
-		resource := autoscalingv2ac.ResourceMetricSource().WithName(metric.name).WithTarget(target)
-		metrics = append(
-			metrics,
-			autoscalingv2ac.MetricSpec().WithType(autoscalingv2.ResourceMetricSourceType).WithResource(resource),
-		)
-	}
+	utilization := autoscalingv2ac.MetricTarget().
+		WithType(autoscalingv2.UtilizationMetricType).
+		WithAverageUtilization(resources.Scalers.CPUTarget)
+	cpu := autoscalingv2ac.MetricSpec().
+		WithType(autoscalingv2.ResourceMetricSourceType).
+		WithResource(autoscalingv2ac.ResourceMetricSource().WithName(corev1.ResourceCPU).WithTarget(utilization))
 	target := autoscalingv2ac.CrossVersionObjectReference().
 		WithAPIVersion(appsv1.SchemeGroupVersion.String()).
 		WithKind("Deployment").
@@ -62,7 +48,7 @@ func (r *ApplicationReconciler) ensureAutoscaler(
 		WithScaleTargetRef(target).
 		WithMinReplicas(resources.Replicas.Min).
 		WithMaxReplicas(resources.Replicas.Max).
-		WithMetrics(metrics...)
+		WithMetrics(cpu)
 	// Applications live in the control namespace, so the same-namespace Deployment owns the HPA.
 	owner := metav1ac.OwnerReference().
 		WithAPIVersion(appsv1.SchemeGroupVersion.String()).

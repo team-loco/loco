@@ -14,12 +14,10 @@ func TestProtocolAutoscaling(t *testing.T) {
 		valid   bool
 	}{
 		"cpu":         {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}, true},
-		"memory":      {&deploymentv1.Scalers{Enabled: true, MemoryTarget: new(int32(80))}, true},
-		"both":        {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(1)), MemoryTarget: new(int32(100))}, true},
 		"no target":   {&deploymentv1.Scalers{Enabled: true}, false},
 		"zero target": {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(0))}, false},
 		"negative":    {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(-1))}, false},
-		"above 100":   {&deploymentv1.Scalers{Enabled: true, MemoryTarget: new(int32(101))}, false},
+		"above 100":   {&deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(101))}, false},
 		"disabled":    {&deploymentv1.Scalers{CpuTarget: new(int32(0))}, true},
 	} {
 		t.Run(name, func(t *testing.T) {

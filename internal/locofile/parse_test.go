@@ -262,25 +262,11 @@ func TestParseRejects(t *testing.T) {
 			path: "services.api.regions.us-ca-1",
 		},
 		{
-			name: "autoscaling with both targets",
-			yaml: strings.Replace(minimalFile, "replicas: { min: 1, max: 1 }",
-				"replicas: { min: 1, max: 1 }, autoscaling: { cpuTarget: 70, memoryTarget: 80 }", 1),
-			err:  ErrAutoscalingTarget,
-			path: "services.api.regions.us-ca-1.autoscaling",
-		},
-		{
 			name: "autoscaling without a target",
 			yaml: strings.Replace(minimalFile, "replicas: { min: 1, max: 1 }",
 				"replicas: { min: 1, max: 1 }, autoscaling: {}", 1),
 			err:  ErrAutoscalingTarget,
 			path: "services.api.regions.us-ca-1.autoscaling",
-		},
-		{
-			name: "autoscaling in an override with both targets",
-			yaml: minimalFile + "    environments:\n      prod:\n        regions:\n" +
-				"          us-ca-1: { autoscaling: { cpuTarget: 70, memoryTarget: 80 } }\n",
-			err:  ErrAutoscalingTarget,
-			path: "services.api.environments.prod.regions.us-ca-1.autoscaling",
 		},
 		{
 			name: "environments inside an override",

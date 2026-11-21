@@ -84,10 +84,9 @@ type Region struct {
 	Autoscaling *Autoscaling
 }
 
-// Autoscaling holds the one target autoscaling follows; the other is zero.
+// Autoscaling holds the average CPU utilization percent autoscaling follows.
 type Autoscaling struct {
-	CPUTarget    int32
-	MemoryTarget int32
+	CPUTarget int32
 }
 
 func fileState(service locofile.Service, pinnedImage string, defaults servicedefaults.Defaults) State {
@@ -181,14 +180,7 @@ func fileRegion(region locofile.Region) Region {
 		}
 	}
 	if region.Autoscaling != nil {
-		autoscaling := Autoscaling{}
-		if region.Autoscaling.CPUTarget != nil {
-			autoscaling.CPUTarget = *region.Autoscaling.CPUTarget
-		}
-		if region.Autoscaling.MemoryTarget != nil {
-			autoscaling.MemoryTarget = *region.Autoscaling.MemoryTarget
-		}
-		filled.Autoscaling = &autoscaling
+		filled.Autoscaling = &Autoscaling{CPUTarget: *region.Autoscaling.CPUTarget}
 	}
 	return filled
 }
@@ -254,14 +246,8 @@ func flatten(state *State) map[string]string {
 		fields[prefix+"memory"] = region.Memory
 		fields[prefix+"replicas.min"] = formatInt(region.MinReplicas)
 		fields[prefix+"replicas.max"] = formatInt(region.MaxReplicas)
-		if region.Autoscaling == nil {
-			continue
-		}
-		if region.Autoscaling.CPUTarget != 0 {
+		if region.Autoscaling != nil {
 			fields[prefix+"autoscaling.cpuTarget"] = formatInt(region.Autoscaling.CPUTarget)
-		}
-		if region.Autoscaling.MemoryTarget != 0 {
-			fields[prefix+"autoscaling.memoryTarget"] = formatInt(region.Autoscaling.MemoryTarget)
 		}
 	}
 	return fields

@@ -195,9 +195,8 @@ func ProtoToResourcesSpec(target *deploymentv1.RegionDeploymentTarget) *locoCont
 		Memory:   target.GetMemory(),
 		Replicas: locoControllerV1.ReplicasSpec{Min: target.GetMinReplicas(), Max: target.GetMaxReplicas()},
 		Scalers: locoControllerV1.ScalersSpec{
-			Enabled:      scalers.GetEnabled(),
-			CPUTarget:    scalers.GetCpuTarget(),
-			MemoryTarget: scalers.GetMemoryTarget(),
+			Enabled:   scalers.GetEnabled(),
+			CPUTarget: scalers.GetCpuTarget(),
 		},
 	}
 }
