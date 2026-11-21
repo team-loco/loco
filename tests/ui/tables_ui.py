@@ -776,16 +776,33 @@ def events(page):
     page.keyboard.press("Escape")
 
 
+# Gateway traffic per bucket: 2 requests/s with 0.5 of them 5xx, and 120 ms at p95.
+TRAFFIC_VALUES = {
+    "cluster.upstream_rq_completed": 2,
+    "cluster.upstream_rq_xx": 0.5,
+    "cluster.upstream_rq_time": 120,
+}
+
+
 def mock_metrics(page):
+    # Every metric shares bucket times, as the API's buckets do.
+    now = datetime.now(UTC).replace(second=0, microsecond=0)
+
     def metrics(route):
         body = route.request.post_data_json
+        value = TRAFFIC_VALUES.get(body.get("metricName"), 0.4)
         route.fulfill(
             json={
                 "series": [
                     {
                         "resourceId": rid,
                         "points": [
-                            {"timestamp": stamp(timedelta(minutes=m)), "value": 0.4}
+                            {
+                                "timestamp": (now - timedelta(minutes=m))
+                                .isoformat()
+                                .replace("+00:00", "Z"),
+                                "value": value,
+                            }
                             for m in (30, 10)
                         ],
                     }
@@ -812,6 +829,18 @@ def metrics(page):
     row = table.get_by_role("row").filter(has_text="api").first
     expect_pointer(page, row.get_by_role("cell").nth(1))
     expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    traffic = page.get_by_role("region", name="Traffic", exact=True)
+    for card, latest in (
+        ("Requests", "2/s"),
+        ("5xx responses", "25.00%"),
+        ("Latency, p95", "120 ms"),
+    ):
+        section = traffic.get_by_role("region", name=card, exact=True)
+        expect(section.get_by_label(f"{card} over time")).to_be_visible()
+        expect(section.get_by_role("listitem").first).to_contain_text(latest)
+    api = table.get_by_role("row").filter(has_text="api").first
+    for latest in ("2/s", "25.00%", "120 ms"):
+        expect(api.get_by_role("cell", name=latest, exact=True)).to_be_visible()
     table = check_resize(page, table, "CPU (latest)", "Region", metrics_table)
     table.get_by_role("row").filter(has_text="api").first.get_by_role("cell").nth(
         1

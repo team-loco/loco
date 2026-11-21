@@ -16,6 +16,7 @@ import {
 } from "@/components/design/DropdownMenu";
 import { formatPercent, percentAxis } from "@/lib/compute-chart";
 import { limitAt, type LimitStep } from "@/lib/limit-history";
+import { trafficAxis } from "@/lib/traffic";
 import { cn } from "@/lib/utils";
 import { formatAxisTime, timeAxis } from "@/lib/time";
 
@@ -134,6 +135,7 @@ function MetricTooltip({
 	series,
 	fmt,
 	highlight,
+	unit,
 }: {
 	active?: boolean;
 	label?: string | number;
@@ -141,6 +143,7 @@ function MetricTooltip({
 	series: ChartSeries[];
 	fmt: (v: number) => string;
 	highlight: string | null;
+	unit: string | undefined;
 }) {
 	const timePref = useTimePreferences();
 	const t = Number(label);
@@ -156,7 +159,7 @@ function MetricTooltip({
 		<div className="min-w-[200px] rounded-lg border border-line bg-background px-2.5 py-2 text-[12px] shadow-popover">
 			<div className="mb-1.5 flex items-center justify-between gap-3 font-mono text-[11px] whitespace-nowrap text-fg3">
 				<span>{fmtTs(t, false, timePref)}</span>
-				<span>% of limit</span>
+				<span>{unit ?? "% of limit"}</span>
 			</div>
 			{shown.map(({ s, v }) => (
 				<div
@@ -166,8 +169,16 @@ function MetricTooltip({
 				>
 					<span className="size-2 shrink-0 rounded-[2px]" style={{ background: s.color }} />
 					<span className="max-w-[160px] flex-1 truncate text-fg2">{s.name}</span>
-					<span className="shrink-0 font-mono tabular-nums">{fmt((v / PERCENT) * (limitAt(s.limits, t) ?? 0))}</span>
-					<span className="w-12 shrink-0 text-right font-mono text-fg3 tabular-nums">{formatPercent(v)}</span>
+					{unit === undefined ? (
+						<>
+							<span className="shrink-0 font-mono tabular-nums">
+								{fmt((v / PERCENT) * (limitAt(s.limits, t) ?? 0))}
+							</span>
+							<span className="w-12 shrink-0 text-right font-mono text-fg3 tabular-nums">{formatPercent(v)}</span>
+						</>
+					) : (
+						<span className="shrink-0 font-mono tabular-nums">{fmt(v)}</span>
+					)}
 				</div>
 			))}
 			{more > 0 && <div className="mt-1.5 h-5 text-fg3">+{more} more</div>}
@@ -229,6 +240,7 @@ export function MetricChart({
 	markers,
 	height,
 	actions,
+	unit,
 }: {
 	title: string;
 	series: ChartSeries[];
@@ -239,13 +251,20 @@ export function MetricChart({
 	markers: ChartMarker[];
 	height: number;
 	actions: (t: number) => PinAction[];
+	/** Plots values in this unit from zero; without one, values are percentages of each series' limit. */
+	unit?: string;
 }) {
 	const timePref = useTimePreferences();
 	const [pin, setPin] = useState<{ t: number; dx: number; dy: number } | null>(null);
 	const triggerRef = useRef<HTMLDivElement>(null);
 	const [nearest, setNearest] = useState<string | null>(null);
 	const peaks = series.map((s) => ({ key: s.key, peak: Math.max(...s.points.map((p) => p.v)) }));
-	const axis = percentAxis(Math.max(0, ...peaks.map((p) => p.peak)));
+	const peak = Math.max(0, ...peaks.map((p) => p.peak));
+	const traffic = unit === undefined ? null : trafficAxis(peak, unit);
+	const axis =
+		traffic === null
+			? { ...percentAxis(peak), format: (v: number) => `${String(v)}%` }
+			: { ticks: traffic.ticks, maximum: traffic.top, format: traffic.format };
 	const top = new Set(
 		peaks
 			.toSorted((a, b) => b.peak - a.peak)
@@ -334,7 +353,7 @@ export function MetricChart({
 							<YAxis
 								domain={[0, axis.maximum]}
 								ticks={axis.ticks}
-								tickFormatter={(v: number) => `${String(v)}%`}
+								tickFormatter={axis.format}
 								tickLine={false}
 								axisLine={false}
 								mirror
@@ -348,20 +367,22 @@ export function MetricChart({
 							{pin === null && (
 								<ChartTooltip
 									cursor={{ stroke: "var(--fg4)", strokeWidth: 1 }}
-									content={<MetricTooltip byT={byT} series={series} fmt={fmt} highlight={highlightKey} />}
+									content={<MetricTooltip byT={byT} series={series} fmt={fmt} highlight={highlightKey} unit={unit} />}
 								/>
 							)}
-							<ReferenceLine
-								y={PERCENT}
-								stroke="color-mix(in oklab, var(--err) 55%, transparent)"
-								strokeDasharray="5 4"
-								label={{
-									value: "limit",
-									position: "insideTopLeft",
-									fill: "var(--color-bad-fg)",
-									fontSize: 10,
-								}}
-							/>
+							{unit === undefined && (
+								<ReferenceLine
+									y={PERCENT}
+									stroke="color-mix(in oklab, var(--err) 55%, transparent)"
+									strokeDasharray="5 4"
+									label={{
+										value: "limit",
+										position: "insideTopLeft",
+										fill: "var(--color-bad-fg)",
+										fontSize: 10,
+									}}
+								/>
+							)}
 							{groups.map((g) => (
 								<ReferenceLine
 									key={g.t}
