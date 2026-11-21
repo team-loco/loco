@@ -9,6 +9,7 @@ import {
 } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
 import { BoxIcon, LockIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { Link } from "react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -31,7 +32,7 @@ import { LimitedAction } from "@/components/design/LimitedAction";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { limitReason, limitUsage, usageLabel } from "@/lib/limits";
 
-import { resourcesPerEnvironment } from "./environments";
+import { deleteDescription, resourcesPerEnvironment } from "./environments";
 import { SettingsCard, SettingsSection } from "./parts";
 
 const MAX_DESCRIPTION = 256;
@@ -171,6 +172,7 @@ export function EnvironmentsSection({
 	const remove = useMutation(deleteEnvironment);
 	const [editing, setEditing] = useState<Environment | "new" | null>(null);
 	const [deleting, setDeleting] = useState<Environment | null>(null);
+	const secretsQuery = useQuery(listSecrets, { environmentId: deleting?.id ?? "" }, { enabled: deleting !== null });
 
 	const environments = envsQuery.data?.environments ?? [];
 	const limits = useOrgLimits(orgId);
@@ -286,7 +288,10 @@ export function EnvironmentsSection({
 			<ConfirmDialog
 				open={deleting !== null}
 				title={`Delete ${deleting?.name ?? ""}?`}
-				description={`This removes the environment from ${workspaceName}. Loco refuses while it still has deployments.`}
+				description={deleteDescription(
+					workspaceName,
+					secretsQuery.isSuccess ? secretsQuery.data.secrets.map((secret) => secret.name) : null,
+				)}
 				confirmLabel="Delete environment"
 				pendingLabel="Deleting…"
 				pending={remove.isPending}
