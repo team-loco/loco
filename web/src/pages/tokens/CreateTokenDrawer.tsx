@@ -164,7 +164,16 @@ function CreateForm({
 	const expiryErr = selected === CUSTOM ? customExpiryError(customMs, now, maximum) : null;
 	const seconds =
 		selected === CUSTOM ? Math.round((customMs - now) / MS_PER_SECOND) : Math.min(selected, Number(maximum));
-	const [items, setItems] = useState<AccessItem[]>(draft.items);
+	const [itemsByOwner, setItemsByOwner] = useState<Record<OwnerKey, AccessItem[]>>(() => ({
+		org: [],
+		workspace: [],
+		personal: [],
+		[draft.owner]: draft.items,
+	}));
+	const items = itemsByOwner[ownerKey];
+	const setItems = (next: AccessItem[]) => {
+		setItemsByOwner((prev) => ({ ...prev, [ownerKey]: next }));
+	};
 	const [nameTaken, setNameTaken] = useState<string | null>(null);
 	const mutation = useMutation(createToken);
 	const owner = data.owners[ownerKey].owner;
@@ -219,6 +228,7 @@ function CreateForm({
 				<Field
 					label="Name"
 					error={nameErr}
+					reserve
 					hint={
 						name !== typed && name !== "" ? (
 							<>
@@ -235,9 +245,6 @@ function CreateForm({
 						placeholder="ci-deploy"
 						aria-invalid={nameErr !== null}
 						className="font-mono"
-						onBlur={() => {
-							setNameTouched(true);
-						}}
 						onChange={(e) => {
 							setTyped(e.target.value);
 							setNameTouched(true);
@@ -256,7 +263,6 @@ function CreateForm({
 							const next = OWNER_KEYS.find((k) => k === v[0]);
 							if (next === undefined || next === ownerKey) return;
 							setOwnerKey(next);
-							setItems([]);
 							setNameTaken(null);
 						}}
 					>
