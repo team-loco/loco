@@ -52,6 +52,7 @@ function Pager({
 }: {
 	label: ReactNode;
 	page?: number | undefined;
+	/** The page count; without it the pager shows only the page number. */
 	pages?: number | undefined;
 	more?: boolean | undefined;
 	total: number;
@@ -101,10 +102,10 @@ function Pager({
 					</ToggleGroup>
 				</span>
 			)}
-			{page !== undefined && pages !== undefined && (
+			{page !== undefined && (
 				<span className="ml-2 text-fg3">
-					Page {page + 1} of {pages}
-					{more && "+"}
+					Page {page + 1}
+					{pages !== undefined && ` of ${pages.toString()}${more ? "+" : ""}`}
 				</span>
 			)}
 			{text !== undefined && onFirst !== undefined && onFirst !== null && (

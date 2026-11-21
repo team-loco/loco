@@ -665,7 +665,6 @@ export function DataTablePager<T extends RowData>({
 		<Pager
 			label={total > 0 ? pageRangeLabel(pageIndex, pageSize, total) : empty}
 			page={pageIndex}
-			pages={Math.max(1, table.getPageCount())}
 			total={total}
 			pageSizes={pageSizes}
 			pageSize={pageSize}
@@ -675,7 +674,6 @@ export function DataTablePager<T extends RowData>({
 			onFirst={table.getCanPreviousPage() ? table.firstPage : null}
 			onPrev={table.getCanPreviousPage() ? table.previousPage : null}
 			onNext={table.getCanNextPage() ? table.nextPage : null}
-			onLast={table.getCanNextPage() ? table.lastPage : null}
 		/>
 	);
 }

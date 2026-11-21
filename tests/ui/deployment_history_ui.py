@@ -446,7 +446,7 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(section.get_by_text("1–1 of 1", exact=False)).to_be_visible()
-    expect(section.get_by_text("Page 1 of 1", exact=True)).to_be_visible()
+    expect(section.get_by_text("Page 1", exact=True)).to_be_visible()
     expect(section.get_by_role("button", name="Next page", exact=True)).to_be_disabled()
     assert not section.get_by_role(
         "button",

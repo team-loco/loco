@@ -463,7 +463,6 @@ export function DeploymentsSection({
 								)}
 							</>
 						}
-						more={hasMore}
 						onNext={nextPage(deployRows, isLoadingMore, hasMore, onLoadMore, setPagination)}
 					/>
 					{historyError !== null && (
@@ -500,7 +499,6 @@ export function DeploymentsSection({
 								)}
 							</>
 						}
-						more={builds.hasMore}
 						prevLabel="Newer builds"
 						nextLabel="Older builds"
 						onNext={nextPage(buildRows, builds.isLoadingMore, builds.hasMore, builds.loadMore, setBuildPaging)}
