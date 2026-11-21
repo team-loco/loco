@@ -13,7 +13,9 @@ export function StatusFilter({
 	onStatus: (status: string) => void;
 }) {
 	return (
+		// The counts arrive after the tabs render and widen them; a fresh group places the highlight on the counted tabs.
 		<ToggleGroup
+			key={counts.has(ALL) ? "counted" : "counting"}
 			variant="segmented"
 			aria-label="Filter by status"
 			className="max-w-full overflow-x-auto"
