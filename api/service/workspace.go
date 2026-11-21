@@ -329,7 +329,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		row, lockErr := qtx.LockWorkspaceRetention(ctx, wsID)
+		row, lockErr := qtx.LockWorkspace(ctx, wsID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
 			return ErrWorkspaceNotFound
 		}
@@ -343,8 +343,14 @@ func (s *WorkspaceServer) UpdateWorkspace(
 			SubjectID:   new(wsID),
 			Data:        map[string]any{events.FieldName: row.Name},
 		}
+		// old and new hold only the fields the request sets.
+		previous, changed := map[string]any{}, map[string]any{}
 		if rename {
 			event.Data[events.FieldName] = req.GetName()
+			previous[events.FieldName], changed[events.FieldName] = row.Name, req.GetName()
+		}
+		if params.Description != nil {
+			previous[events.FieldDescription], changed[events.FieldDescription] = row.Description, req.GetDescription()
 		}
 		before := ownRetention(row.LogRetentionDays, row.TraceRetentionDays, row.MetricRetentionDays)
 		after := before
@@ -356,8 +362,11 @@ func (s *WorkspaceServer) UpdateWorkspace(
 			if after, limitsErr = updateRetention(req, counts, before); limitsErr != nil {
 				return limitsErr
 			}
-			event.Data[events.FieldOld] = retentionData(before)
-			event.Data[events.FieldNew] = retentionData(after)
+			addRetentionData(previous, before)
+			addRetentionData(changed, after)
+		}
+		if len(changed) > 0 {
+			event.Data[events.FieldOld], event.Data[events.FieldNew] = previous, changed
 		}
 		params.LogRetentionDays = after.LogDays
 		params.TraceRetentionDays = after.TraceDays

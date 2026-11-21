@@ -409,6 +409,34 @@ func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInO
 	return items, nil
 }
 
+const lockWorkspace = `-- name: LockWorkspace :one
+SELECT org_id, name, description, log_retention_days, trace_retention_days, metric_retention_days
+FROM workspaces WHERE id = $1 FOR UPDATE
+`
+
+type LockWorkspaceRow struct {
+	OrgID               uuid.UUID `json:"orgId"`
+	Name                string    `json:"name"`
+	Description         *string   `json:"description"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
+}
+
+func (q *Queries) LockWorkspace(ctx context.Context, id uuid.UUID) (LockWorkspaceRow, error) {
+	row := q.db.QueryRow(ctx, lockWorkspace, id)
+	var i LockWorkspaceRow
+	err := row.Scan(
+		&i.OrgID,
+		&i.Name,
+		&i.Description,
+		&i.LogRetentionDays,
+		&i.TraceRetentionDays,
+		&i.MetricRetentionDays,
+	)
+	return i, err
+}
+
 const lockWorkspaceForDeletion = `-- name: LockWorkspaceForDeletion :one
 SELECT org_id, name FROM workspaces WHERE id = $1 FOR UPDATE
 `
@@ -422,32 +450,6 @@ func (q *Queries) LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (L
 	row := q.db.QueryRow(ctx, lockWorkspaceForDeletion, id)
 	var i LockWorkspaceForDeletionRow
 	err := row.Scan(&i.OrgID, &i.Name)
-	return i, err
-}
-
-const lockWorkspaceRetention = `-- name: LockWorkspaceRetention :one
-SELECT org_id, name, log_retention_days, trace_retention_days, metric_retention_days
-FROM workspaces WHERE id = $1 FOR UPDATE
-`
-
-type LockWorkspaceRetentionRow struct {
-	OrgID               uuid.UUID `json:"orgId"`
-	Name                string    `json:"name"`
-	LogRetentionDays    *int32    `json:"logRetentionDays"`
-	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
-	MetricRetentionDays *int32    `json:"metricRetentionDays"`
-}
-
-func (q *Queries) LockWorkspaceRetention(ctx context.Context, id uuid.UUID) (LockWorkspaceRetentionRow, error) {
-	row := q.db.QueryRow(ctx, lockWorkspaceRetention, id)
-	var i LockWorkspaceRetentionRow
-	err := row.Scan(
-		&i.OrgID,
-		&i.Name,
-		&i.LogRetentionDays,
-		&i.TraceRetentionDays,
-		&i.MetricRetentionDays,
-	)
 	return i, err
 }
 

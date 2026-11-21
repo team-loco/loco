@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -73,6 +74,7 @@ func TestUpdateWorkspaceSetsAndClearsRetention(t *testing.T) {
 	workspaceID := f.workspaceID(t)
 	writer := f.workspaceWriter(t, workspaceID)
 	install := new(int32(installRetentionDays))
+	original := getWorkspace(t, writer, server, workspaceID).GetName()
 
 	if _, err := server.UpdateWorkspace(writer, &workspacev1.UpdateWorkspaceRequest{
 		WorkspaceId:        workspaceID.String(),
@@ -104,18 +106,53 @@ func TestUpdateWorkspaceSetsAndClearsRetention(t *testing.T) {
 	if len(changes) != 2 {
 		t.Fatalf("%d %s events, want 2", len(changes), events.WorkspaceUpdated)
 	}
-	var cleared struct {
-		Old map[string]*int32 `json:"old"`
-		New map[string]*int32 `json:"new"`
+	requireChange(t, changes[1],
+		map[string]any{
+			"name": original, "log_retention_days": 30.0, "trace_retention_days": 10.0, "metric_retention_days": nil,
+		},
+		map[string]any{
+			"name": "renamed", "log_retention_days": nil, "trace_retention_days": 10.0, "metric_retention_days": nil,
+		})
+}
+
+func TestUpdateWorkspaceRecordsTheOldDescription(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
+	workspaceID := f.workspaceID(t)
+	writer := f.workspaceWriter(t, workspaceID)
+
+	for _, description := range []string{"Checkout APIs", "Checkout and payments"} {
+		if _, err := server.UpdateWorkspace(writer, &workspacev1.UpdateWorkspaceRequest{
+			WorkspaceId: workspaceID.String(), Description: new(description),
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := json.Unmarshal(changes[1], &cleared); err != nil {
+	changes := f.workspaceUpdates(t, workspaceID)
+	if len(changes) != 2 {
+		t.Fatalf("%d %s events, want 2", len(changes), events.WorkspaceUpdated)
+	}
+	requireChange(
+		t,
+		changes[1],
+		map[string]any{"description": "Checkout APIs"},
+		map[string]any{"description": "Checkout and payments"},
+	)
+}
+
+// requireChange fails unless the event data records exactly the given old and new values.
+func requireChange(t *testing.T, data []byte, old, changed map[string]any) {
+	t.Helper()
+	var got struct {
+		Old map[string]any `json:"old"`
+		New map[string]any `json:"new"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	if cleared.Old["log_retention_days"] == nil || *cleared.Old["log_retention_days"] != 30 ||
-		cleared.New["log_retention_days"] != nil ||
-		cleared.New["trace_retention_days"] == nil ||
-		*cleared.New["trace_retention_days"] != 10 {
-		t.Fatalf("clearing event = %s", changes[1])
+	if !reflect.DeepEqual(got.Old, old) || !reflect.DeepEqual(got.New, changed) {
+		t.Fatalf("event data = %s, want old %v and new %v", data, old, changed)
 	}
 }
 

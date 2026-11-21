@@ -109,8 +109,8 @@ WHERE (sqlc.narg('page_token')::text IS NULL
 ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2;
 
--- name: LockWorkspaceRetention :one
-SELECT org_id, name, log_retention_days, trace_retention_days, metric_retention_days
+-- name: LockWorkspace :one
+SELECT org_id, name, description, log_retention_days, trace_retention_days, metric_retention_days
 FROM workspaces WHERE id = $1 FOR UPDATE;
 
 -- name: ListWorkspaceRetention :many

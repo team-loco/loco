@@ -108,13 +108,11 @@ func ownRetention(logs, traces, metrics *int32) *workspacev1.RetentionDays {
 	return &workspacev1.RetentionDays{LogDays: logs, TraceDays: traces, MetricDays: metrics}
 }
 
-// retentionData records retention in an event, with null for a signal left to the limit.
-func retentionData(retention *workspacev1.RetentionDays) map[string]*int32 {
-	data := make(map[string]*int32, len(retentionSignals))
+// addRetentionData records retention in event data, with null for a signal left to the limit.
+func addRetentionData(data map[string]any, retention *workspacev1.RetentionDays) {
 	for _, signal := range retentionSignals {
 		data[string(signal.limit.Field)] = *signal.days(retention)
 	}
-	return data
 }
 
 // orgLimits loads each organization's limits once.
