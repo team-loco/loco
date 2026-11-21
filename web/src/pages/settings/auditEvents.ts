@@ -1,4 +1,4 @@
-import type { JsonObject } from "@bufbuild/protobuf";
+import type { JsonObject, JsonValue } from "@bufbuild/protobuf";
 import type { Event } from "@gen/loco/event/v1/event_pb";
 
 export type AuditCategory = "access" | "organization" | "workspaces" | "deploys" | "tokens";
@@ -143,7 +143,61 @@ const DOMAIN_LABELS: Record<string, { platform: [primary: string, other: string]
 	},
 };
 
+const RETENTION_FIELDS: [field: string, name: string][] = [
+	["log_retention_days", "log retention"],
+	["trace_retention_days", "trace retention"],
+	["metric_retention_days", "metric retention"],
+];
+
+interface WorkspaceChange {
+	label: string;
+	field: string;
+	values: string;
+}
+
+function days(value: JsonValue | undefined): string {
+	return typeof value === "number" ? `${value.toString()} days` : "org limit";
+}
+
+function retentionValues(before: JsonValue | undefined, after: JsonValue | undefined): string {
+	if (typeof before === "number" && typeof after === "number") return `${before.toString()} → ${days(after)}`;
+	return `${days(before)} → ${days(after)}`;
+}
+
+function object(data: JsonObject | undefined, key: string): JsonObject {
+	const value = data?.[key];
+	return typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
+}
+
+/** The fields a workspace.updated event's old and new values show changing. */
+function workspaceChanges(data: JsonObject | undefined): WorkspaceChange[] {
+	const before = object(data, "old");
+	const after = object(data, "new");
+	const changed = (key: string) => key in after && before[key] !== after[key];
+	const changes: WorkspaceChange[] = [];
+	if (changed("name")) {
+		changes.push({
+			label: "Renamed workspace",
+			field: "name",
+			values: `${text(before, "name") ?? ""} → ${text(after, "name") ?? ""}`,
+		});
+	}
+	if (changed("description")) {
+		changes.push({ label: "Changed the workspace description", field: "description", values: "" });
+	}
+	for (const [key, name] of RETENTION_FIELDS) {
+		if (changed(key)) {
+			changes.push({ label: `Changed ${name}`, field: name, values: retentionValues(before[key], after[key]) });
+		}
+	}
+	return changes;
+}
+
 export function auditLabel(type: string, data?: JsonObject): string {
+	if (type === "workspace.updated") {
+		const changes = workspaceChanges(data);
+		if (changes.length === 1 && changes[0] !== undefined) return changes[0].label;
+	}
 	const domain = DOMAIN_LABELS[type];
 	const source = text(data, "domainSource");
 	if (domain !== undefined && source !== undefined) {
@@ -252,6 +306,11 @@ export function auditDetail(event: DetailFields, users: ReadonlyMap<string, Audi
 		}
 		case "secret.deleted": {
 			return strings(data, "names").join(", ");
+		}
+		case "workspace.updated": {
+			const changes = workspaceChanges(data);
+			if (changes.length === 1) return changes[0]?.values;
+			return changes.map((c) => `${c.field} ${c.values}`.trim()).join(" · ");
 		}
 		default: {
 			return text(data, "name") ?? text(data, "domain") ?? text(data, "email") ?? text(data, "url");

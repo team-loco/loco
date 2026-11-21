@@ -265,11 +265,11 @@ type Querier interface {
 	LockUserAdminOrganizations(ctx context.Context, userID uuid.UUID) ([]LockUserAdminOrganizationsRow, error)
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhookDeliveryStatusParams) (string, error)
+	LockWorkspace(ctx context.Context, id uuid.UUID) (LockWorkspaceRow, error)
 	LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
 	LockWorkspaceForCreate(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (LockWorkspaceForDeletionRow, error)
 	LockWorkspaceOrganization(ctx context.Context, id uuid.UUID) error
-	LockWorkspaceRetention(ctx context.Context, id uuid.UUID) (LockWorkspaceRetentionRow, error)
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { create } from "@bufbuild/protobuf";
+import { create, type JsonObject } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
-import { auditActor, auditLabel, typesIn, distinctAuditEvents } from "./auditEvents";
+import { auditActor, auditDetail, auditLabel, typesIn, distinctAuditEvents } from "./auditEvents";
 
 test("appends older audit rows once while preserving the first loaded record", () => {
 	const newest = create(EventSchema, { id: "new", seq: 5n });
@@ -46,4 +46,30 @@ test("names an API token by its recorded name and owner kind, also after deletio
 		name: "Deleted token",
 		detail: "API token",
 	});
+});
+
+test("workspace updates say what changed", () => {
+	const summary = (data: JsonObject) => {
+		const event = { type: "workspace.updated", subjectId: "", data };
+		return `${auditLabel(event.type, data)} ${auditDetail(event, new Map()) ?? ""}`.trim();
+	};
+	expect(summary({ name: "acme-prod", old: { name: "acme" }, new: { name: "acme-prod" } })).toBe(
+		"Renamed workspace acme → acme-prod",
+	);
+	const retention = (log: number | null, next: number | null) => ({
+		name: "acme",
+		old: { log_retention_days: log, trace_retention_days: 10, metric_retention_days: null },
+		new: { log_retention_days: next, trace_retention_days: 10, metric_retention_days: null },
+	});
+	expect(summary(retention(7, 30))).toBe("Changed log retention 7 → 30 days");
+	expect(summary(retention(7, null))).toBe("Changed log retention 7 days → org limit");
+	expect(summary({ old: { description: "a" }, new: { description: "b" } })).toBe("Changed the workspace description");
+	expect(
+		summary({
+			name: "acme-prod",
+			old: { name: "acme", log_retention_days: null },
+			new: { name: "acme-prod", log_retention_days: 30 },
+		}),
+	).toBe("Updated a workspace name acme → acme-prod · log retention org limit → 30 days");
+	expect(summary({ name: "acme", old: { name: "acme" }, new: { name: "acme" } })).toBe("Updated a workspace");
 });

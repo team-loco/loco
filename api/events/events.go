@@ -124,6 +124,7 @@ const (
 
 const (
 	FieldName          = "name"
+	FieldDescription   = "description"
 	FieldDomain        = "domain"
 	FieldResourceID    = "resourceId"
 	FieldDeploymentID  = "deploymentId"
