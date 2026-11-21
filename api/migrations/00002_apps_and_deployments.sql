@@ -258,6 +258,8 @@ CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deploymen
 
 CREATE INDEX idx_deployments_environment_created_id_desc ON deployments (environment_id, created_at DESC, id DESC);
 
+CREATE INDEX idx_deployments_resource_environment_created_id_desc ON deployments (resource_id, environment_id, created_at DESC, id DESC);
+
 CREATE INDEX idx_deployments_source_deployment_id ON deployments (source_deployment_id);
 
 -- One region of a deployment.
