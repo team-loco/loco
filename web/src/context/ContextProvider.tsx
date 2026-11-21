@@ -13,7 +13,6 @@ interface OrgWorkspaceContextType {
 	activeOrgId: string | null;
 	activeWorkspaceId: string | null;
 	orgs: Organization[];
-	workspaces: Workspace[];
 	workspacesSettled: boolean;
 	setActiveOrg: (orgId: string) => void;
 	clearContext: () => void;
@@ -23,7 +22,6 @@ const NO_CONTEXT: OrgWorkspaceContextType = {
 	activeOrgId: null,
 	activeWorkspaceId: null,
 	orgs: [],
-	workspaces: [],
 	workspacesSettled: false,
 	setActiveOrg: () => undefined,
 	clearContext: () => undefined,
@@ -49,12 +47,13 @@ const NO_WORKSPACES: Workspace[] = [];
 export function ContextProvider({
 	children,
 	availableOrgs,
-	availableWorkspaces = NO_WORKSPACES,
+	pickableWorkspaces = NO_WORKSPACES,
 	workspacesSettled = false,
 }: {
 	children: ReactNode;
 	availableOrgs?: Organization[] | undefined;
-	availableWorkspaces?: Workspace[];
+	/** The workspaces the active one is picked from when the URL names none. */
+	pickableWorkspaces?: Workspace[];
 	workspacesSettled?: boolean;
 }) {
 	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
@@ -62,7 +61,7 @@ export function ContextProvider({
 
 	const activeOrgId = pickActive(availableOrgs, orgParam, ORG_STORAGE_KEY);
 	const activeWorkspaceId = pickActive(
-		workspacesSettled ? availableWorkspaces : undefined,
+		workspacesSettled ? pickableWorkspaces : undefined,
 		workspaceParam,
 		WORKSPACE_STORAGE_KEY,
 	);
@@ -92,7 +91,6 @@ export function ContextProvider({
 				activeOrgId,
 				activeWorkspaceId,
 				orgs: availableOrgs ?? NO_ORGS,
-				workspaces: availableWorkspaces,
 				workspacesSettled,
 				setActiveOrg,
 				clearContext,

@@ -26,17 +26,12 @@ export interface Route {
 	workspaceOrgId: string | undefined;
 }
 
-export function routeKnown(
-	{ orgId, workspaceId, workspaceOrgId }: Route,
-	workspaces: readonly { id: string }[],
-	scopes: readonly EntityScope[],
-): boolean {
+export function routeKnown({ orgId, workspaceId, workspaceOrgId }: Route, scopes: readonly EntityScope[]): boolean {
 	const member = hasOrganizationMembership(scopes, orgId);
 	if (workspaceId === undefined) return member;
 	if (workspaceOrgId !== undefined && workspaceOrgId !== orgId) return false;
 	return (
 		member ||
-		workspaces.some((w) => w.id === workspaceId) ||
 		scopes.some(
 			(s) =>
 				s.entityType === EntityType.RESOURCE || (s.entityType === EntityType.WORKSPACE && s.entityId === workspaceId),

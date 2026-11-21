@@ -13,7 +13,7 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
 import { Sheet, SheetContent, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
-import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
@@ -98,11 +98,22 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 
 export function LogsView() {
 	const timePref = useTimePreferences();
-	const { workspaceId, resources, scopedResourceIds, resourceById, maxMs, range, setRange, tokens, text, setQuery } =
-		useObs();
+	const {
+		orgId,
+		workspaceId,
+		resources,
+		scopedResourceIds,
+		resourceById,
+		maxMs,
+		range,
+		setRange,
+		tokens,
+		text,
+		setQuery,
+	} = useObs();
 	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
-	const workspace = useOrgWorkspace().workspaces.find((w) => w.id === workspaceId);
+	const { workspace } = useWorkspace(orgId, workspaceId);
 	const environmentId = environment?.id ?? "";
 	const { size, page, log: selectedKey, cols: columns, widths, at: anchor, live } = params;
 	const [history, setHistory] = useState(createLogHistory);

@@ -39,41 +39,33 @@ describe("routeKnown", () => {
 	const route: Route = { orgId: ORG, workspaceId: WS, workspaceOrgId: undefined };
 	const member = create(EntityScopeSchema, { entityType: EntityType.ORGANIZATION, entityId: ORG, scope: Scope.MEMBER });
 
-	test("a workspace in the user's list is known", () => {
-		expect(routeKnown(route, [{ id: WS }], [])).toBe(true);
-	});
-
-	test("a workspace grant makes it known without the list", () => {
-		expect(routeKnown(route, [], [scope(EntityType.WORKSPACE, WS)])).toBe(true);
+	test("a workspace grant makes it known", () => {
+		expect(routeKnown(route, [scope(EntityType.WORKSPACE, WS)])).toBe(true);
 	});
 
 	test("any resource grant makes it known", () => {
-		expect(routeKnown(route, [], [scope(EntityType.RESOURCE, "res-1")])).toBe(true);
+		expect(routeKnown(route, [scope(EntityType.RESOURCE, "res-1")])).toBe(true);
 	});
 
 	test("membership in the org makes every workspace in it known", () => {
-		expect(routeKnown(route, [], [member])).toBe(true);
+		expect(routeKnown(route, [member])).toBe(true);
 	});
 
 	test("a workspace that belongs to another org is unknown", () => {
-		expect(routeKnown({ ...route, workspaceOrgId: "org-2" }, [{ id: WS }], [member])).toBe(false);
-		expect(routeKnown({ ...route, workspaceOrgId: ORG }, [{ id: WS }], [member])).toBe(true);
+		expect(routeKnown({ ...route, workspaceOrgId: "org-2" }, [member])).toBe(false);
+		expect(routeKnown({ ...route, workspaceOrgId: ORG }, [member])).toBe(true);
 	});
 
 	test("an org page is known only to the org's members", () => {
 		const orgPage = { orgId: ORG, workspaceId: undefined, workspaceOrgId: undefined };
-		expect(routeKnown(orgPage, [], [member])).toBe(true);
-		expect(routeKnown(orgPage, [{ id: WS }], [scope(EntityType.WORKSPACE, WS)])).toBe(false);
+		expect(routeKnown(orgPage, [member])).toBe(true);
+		expect(routeKnown(orgPage, [scope(EntityType.WORKSPACE, WS)])).toBe(false);
 	});
 
 	test("anything else is unknown", () => {
-		expect(
-			routeKnown(
-				route,
-				[{ id: "ws-2" }],
-				[scope(EntityType.WORKSPACE, "ws-2"), scope(EntityType.ORGANIZATION, "org-2")],
-			),
-		).toBe(false);
+		expect(routeKnown(route, [scope(EntityType.WORKSPACE, "ws-2"), scope(EntityType.ORGANIZATION, "org-2")])).toBe(
+			false,
+		);
 	});
 });
 

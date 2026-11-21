@@ -1,5 +1,5 @@
 import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getScopes, listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { EntityType } from "@gen/loco/token/v1/token_pb";
@@ -8,6 +8,7 @@ import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_
 
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 
@@ -104,13 +105,19 @@ function buildTree(
 export function useTokenData(): TokenData {
 	const transport = useTransport();
 	const { user } = useAuth();
-	const { activeOrgId, activeWorkspaceId, orgs, workspaces } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId, orgs } = useOrgWorkspace();
 	const userId = user?.id ?? null;
 
 	const scopesQuery = useQuery(getScopes, {});
-	const orgWorkspaces = workspaces.filter((w) => w.orgId === activeOrgId);
+	const { resourceGrants, orgMember, isLoading: myScopesLoading } = useMyScopes();
+	const workspacesQuery = useTanstackQuery({
+		...orgWorkspacesOptions(transport, activeOrgId ?? ""),
+		enabled: activeOrgId !== null && !myScopesLoading && orgMember(activeOrgId),
+	});
+	const orgWorkspaces = workspacesQuery.data?.workspaces ?? [];
+	// Access inherits down the tree, so permissions wait for the workspaces as well as the scopes.
+	const treeLoading = scopesQuery.isLoading || workspacesQuery.isLoading;
 
-	const { resourceGrants } = useMyScopes();
 	const resourceQueries = useQueries({
 		queries: orgWorkspaces.map((w) =>
 			workspaceResourcesOptions(transport, w.id, resourceGrants(activeOrgId ?? "", w.id)),
@@ -125,10 +132,10 @@ export function useTokenData(): TokenData {
 	const held = buildHeld(scopeList);
 
 	const activeOrg = orgs.find((o) => o.id === activeOrgId);
-	const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
+	const activeWs = orgWorkspaces.find((w) => w.id === activeWorkspaceId);
 
 	const can = (entityType: EntityType, id: string | null, level: 1 | 2 | 3): boolean => {
-		if (id === null || scopesQuery.data === undefined) return false;
+		if (id === null || scopesQuery.data === undefined || workspacesQuery.isLoading) return false;
 		const key = nodeKey(entityType, id);
 		return holds(held, tree, key, level);
 	};
@@ -170,7 +177,7 @@ export function useTokenData(): TokenData {
 	const wrap = (owner: Owner, q: typeof orgTokens): OwnerTokens => ({
 		owner,
 		tokens: q.data?.tokens ?? [],
-		isLoading: scopesQuery.isLoading || (owner.canList && q.isLoading),
+		isLoading: treeLoading || (owner.canList && q.isLoading),
 		error: q.error,
 		refetch: async () => await Promise.all([scopesQuery.refetch(), ...(owner.canList ? [q.refetch()] : [])]),
 	});
@@ -217,7 +224,7 @@ export function useTokenData(): TokenData {
 		owners,
 		tree: fullTree,
 		held,
-		scopesLoading: scopesQuery.isLoading,
+		scopesLoading: treeLoading,
 		scopesError: scopesQuery.error,
 		resourcesLoading,
 		resourcesError,

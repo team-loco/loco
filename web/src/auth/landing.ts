@@ -5,12 +5,14 @@ import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
+import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { ORG_STORAGE_KEY, pickActive, WORKSPACE_STORAGE_KEY } from "@/context/ContextProvider";
-import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { hasOrganizationMembership } from "@/hooks/useMyScopes";
 import { pageImporters } from "@/lib/lazy-pages";
 import { workspacePath } from "@/lib/routes";
+import { readStorage } from "@/lib/storage";
 
 export async function landingPath(
 	transport: Transport,
@@ -44,7 +46,7 @@ async function dashboardPath(
 	}
 	const { scopes } = await queryClient.query(createQueryOptions(getScopes, {}, { transport }));
 	const workspaces = hasOrganizationMembership(scopes, orgId)
-		? (await queryClient.query(orgWorkspacesOptions(transport, orgId))).workspaces
+		? await pickableWorkspaces(transport, queryClient, orgId)
 		: [];
 	const workspaceId = pickActive(workspaces, undefined, WORKSPACE_STORAGE_KEY);
 	if (workspaceId === null) {
@@ -53,4 +55,19 @@ async function dashboardPath(
 	}
 	await pageImporters.Dashboard();
 	return workspacePath(orgId, workspaceId);
+}
+
+// The organization's newest workspace, and the remembered one when it belongs to the organization.
+async function pickableWorkspaces(transport: Transport, queryClient: QueryClient, orgId: string): Promise<Workspace[]> {
+	const stored = readStorage(WORKSPACE_STORAGE_KEY);
+	const [newest, remembered] = await Promise.all([
+		queryClient.query(createQueryOptions(listOrgWorkspaces, { orgId, pageSize: 1 }, { transport })),
+		stored === null
+			? undefined
+			: queryClient.query(createQueryOptions(getWorkspace, { workspaceId: stored }, { transport })).then(
+					(res) => res.workspace,
+					() => undefined,
+				),
+	]);
+	return remembered?.orgId === orgId ? [...newest.workspaces, remembered] : newest.workspaces;
 }

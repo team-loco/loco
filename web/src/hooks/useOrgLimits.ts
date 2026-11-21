@@ -16,13 +16,12 @@ import { hasOrganizationMembership } from "@/hooks/useMyScopes";
  */
 export function useOrgLimitDetails(orgId: string): OrgLimits | undefined {
 	const scopes = useQuery(getScopes, {});
-	const { workspaces, activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const held = scopes.data?.scopes ?? [];
-	const inOrg = new Set(workspaces.filter((w) => w.orgId === orgId).map((w) => w.id));
-	if (activeOrgId === orgId && activeWorkspaceId !== null) inOrg.add(activeWorkspaceId);
+	const inOrg = activeOrgId === orgId ? activeWorkspaceId : null;
 	const scoped =
 		hasOrganizationMembership(held, orgId) ||
-		held.some((s) => s.entityType === EntityType.WORKSPACE && inOrg.has(s.entityId));
+		held.some((s) => s.entityType === EntityType.WORKSPACE && s.entityId === inOrg);
 	const query = useQuery(getOrgLimits, { orgId }, { enabled: orgId !== "" && scoped, retry: false });
 	return query.data?.limits;
 }

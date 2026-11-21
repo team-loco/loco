@@ -9,10 +9,11 @@ import { CliDevice } from "@/pages/cli/CliDevice";
 import { CliLogin } from "@/pages/cli/CliLogin";
 import { ResourceTitle } from "@/pages/resource/ResourceTitle";
 import { Splash } from "@/pages/Splash";
-import { createConnectQueryKey, TransportProvider } from "@connectrpc/connect-query";
+import { createConnectQueryKey, TransportProvider, useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { defaultShouldDehydrateQuery, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider, type AsyncStorage } from "@tanstack/react-query-persist-client";
@@ -32,6 +33,7 @@ import {
 } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironmentInUrl } from "@/hooks/useEnvironment";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { notFound } from "@/lib/not-found";
 import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
@@ -112,12 +114,18 @@ function NewResourceRedirect() {
 function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	const { hash } = useLocation();
 	const { orgId } = useParams();
-	const { activeOrgId, workspaces, workspacesSettled } = useOrgWorkspace();
+	const { activeOrgId, workspacesSettled } = useOrgWorkspace();
+	const scopes = useMyScopes();
 	const org = orgId ?? activeOrgId;
-	if (!workspacesSettled) return <AppLoading />;
+	const first = useQuery(
+		listOrgWorkspaces,
+		{ orgId: org ?? "", pageSize: 1 },
+		{ enabled: to === "settings" && org !== null && !scopes.isLoading && scopes.orgMember(org) },
+	);
+	if (!workspacesSettled || scopes.isLoading || first.isLoading) return <AppLoading />;
 	if (org === null) return <Navigate to="/organizations" replace />;
 	if (to === "team") return <Navigate to={`/org/${org}/team`} replace />;
-	const ws = workspaces.find((w) => w.orgId === org)?.id;
+	const ws = first.data?.workspaces[0]?.id;
 	if (ws === undefined) return <Navigate to="/organizations" replace />;
 	return <Navigate to={`${settingsPath(org, ws, "org")}${hash}`} replace />;
 }

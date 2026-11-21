@@ -17,6 +17,7 @@ export function FilterPopover({
 	children,
 	footer,
 	width = "w-[300px]",
+	onSearch,
 }: {
 	icon: ReactNode;
 	label: string;
@@ -26,6 +27,8 @@ export function FilterPopover({
 	onClear?: (() => void) | undefined;
 	placeholder?: string | undefined;
 	footer?: ReactNode;
+	/** Receives the typed text, which the caller filters on the server; the list then shows children unfiltered. */
+	onSearch?: ((text: string) => void) | undefined;
 	children: (close: () => void) => ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
@@ -42,6 +45,7 @@ export function FilterPopover({
 				onOpenChange={(next) => {
 					setOpen(next);
 					setEngaged(false);
+					onSearch?.("");
 				}}
 			>
 				<PopoverTrigger
@@ -58,12 +62,19 @@ export function FilterPopover({
 				</PopoverTrigger>
 				<PopoverContent align="start" className={cn("p-0", width)} aria-label={`Filter by ${label.toLowerCase()}`}>
 					<Command
+						shouldFilter={onSearch === undefined}
 						data-engaged={engaged || undefined}
 						className="[&:not([data-engaged])_[data-selected=true]]:bg-transparent"
 						onKeyDown={engage}
 						onPointerMove={engage}
 					>
-						{placeholder !== undefined && <CommandInput compact placeholder={placeholder} />}
+						{placeholder !== undefined && (
+							<CommandInput
+								compact
+								placeholder={placeholder}
+								{...(onSearch === undefined ? {} : { onValueChange: onSearch })}
+							/>
+						)}
 						<CommandList className="max-h-[320px] p-[5px]">
 							<CommandEmpty>Nothing matches.</CommandEmpty>
 							{children(() => {
@@ -103,6 +114,7 @@ export function PickFilter({
 	placeholder,
 	clearable = true,
 	width,
+	onSearch,
 	onChange,
 }: {
 	icon: ReactNode;
@@ -113,6 +125,7 @@ export function PickFilter({
 	placeholder?: string;
 	clearable?: boolean;
 	width?: string;
+	onSearch?: (text: string) => void;
 	onChange: (id: string) => void;
 }) {
 	return (
@@ -130,6 +143,7 @@ export function PickFilter({
 					: undefined
 			}
 			placeholder={placeholder}
+			onSearch={onSearch}
 		>
 			{(close) =>
 				items.map((i) => (

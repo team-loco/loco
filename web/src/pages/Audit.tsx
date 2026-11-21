@@ -1,6 +1,7 @@
-import { useTransport } from "@connectrpc/connect-query";
+import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
-import { useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { keepPreviousData, useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { BoxIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -44,6 +45,8 @@ import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 const NOW_TICK_MS = 60_000;
 // Typing commits the search after this pause, so a half-typed query sends no request.
 const SEARCH_DEBOUNCE_MS = 300;
+// An organization admin's workspace filter lists the newest workspaces matching the typed text.
+const FILTER_WORKSPACES = 20;
 
 const AUDIT_PARAMS = {
 	before: pageTokensParser,
@@ -68,7 +71,7 @@ export function Audit() {
 	});
 	const transport = useTransport();
 	const access = useAuditAccess(orgId);
-	const { orgs, workspaces, activeWorkspaceId } = useOrgWorkspace();
+	const { orgs, activeWorkspaceId } = useOrgWorkspace();
 	const [openedAt, setOpenedAt] = useState(Date.now);
 	const now = useNow(NOW_TICK_MS).getTime();
 
@@ -77,7 +80,21 @@ export function Audit() {
 	const { from, to } = params;
 	const custom = from !== null && to !== null && to > from;
 	const sent = auditQuery(types, actor, search);
-	const choices = access.org ? workspaces.filter((w) => w.orgId === orgId) : access.workspaces;
+	const [workspaceSearch, setWorkspaceSearch] = useState("");
+	const newest = useQuery(
+		listOrgWorkspaces,
+		{ orgId, pageSize: FILTER_WORKSPACES, query: workspaceSearch.trim() },
+		{ enabled: access.org, placeholderData: keepPreviousData },
+	);
+	const picked = useQuery(getWorkspace, { workspaceId: wsParam }, { enabled: access.org && wsParam !== "" });
+	const pickedWorkspace = picked.data?.workspace?.orgId === orgId ? picked.data.workspace : undefined;
+	const listed = newest.data?.workspaces ?? [];
+	const choices = !access.org
+		? access.workspaces
+		: pickedWorkspace === undefined || listed.some((w) => w.id === pickedWorkspace.id)
+			? listed
+			: [pickedWorkspace, ...listed];
+	const choicesLoading = access.isLoading || (access.org && wsParam !== "" && picked.isLoading);
 	// ListEvents reads one workspace per call, so a workspace admin always reads exactly one.
 	const workspaceId = choices.some((w) => w.id === wsParam)
 		? wsParam
@@ -89,7 +106,7 @@ export function Audit() {
 	const [, setSearchParams] = useSearchParams();
 	const checked = auditLink(
 		location.search,
-		access.isLoading ? undefined : choices.map((w) => w.id),
+		choicesLoading ? undefined : choices.map((w) => w.id),
 		selectedDetails.resourcesReady.has(workspaceId)
 			? (selectedDetails.resourcesOf.get(workspaceId) ?? []).map((r) => r.id)
 			: undefined,
@@ -163,7 +180,7 @@ export function Audit() {
 		...(custom ? { endTime: msToTimestamp(to) } : {}),
 	};
 	const { query, nextPageToken, total } = useTokenPage(listEvents, input, stack, {
-		enabled: orgId !== "" && !access.isLoading && (!(params.res || params.env) || !selectedDetails.isLoading),
+		enabled: orgId !== "" && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading),
 		refetchInterval: live ? 5000 : false,
 	});
 	const members = useTanstackQuery({
@@ -177,15 +194,25 @@ export function Audit() {
 	}
 	const events = query.data?.events ?? [];
 	const known = new Set(choices.map((w) => w.id));
-	const details = useWorkspaceDetails([
-		...new Set(events.map((e) => e.workspaceId).filter((id) => id !== workspaceId && known.has(id))),
-	]);
+	const eventWorkspaceIds = [
+		...new Set(events.map((e) => e.workspaceId).filter((id) => id !== "" && (access.org || known.has(id)))),
+	];
+	const eventWorkspaces = useQueries({
+		queries: eventWorkspaceIds
+			.filter((id) => !known.has(id))
+			.map((id) => createQueryOptions(getWorkspace, { workspaceId: id }, { transport })),
+	});
+	for (const q of eventWorkspaces) if (q.data?.workspace !== undefined) known.add(q.data.workspace.id);
+	const details = useWorkspaceDetails(eventWorkspaceIds.filter((id) => id !== workspaceId && known.has(id)));
 	const users = new Map<string, AuditUser>(
 		(members.data?.members ?? []).flatMap((m) => (m.user === undefined ? [] : [[m.user.id, m.user] as const])),
 	);
 	const names = new Map<string, string>([
 		...orgs.map((o): [string, string] => [o.id, o.name]),
 		...choices.map((w): [string, string] => [w.id, w.name]),
+		...eventWorkspaces.flatMap((q): [string, string][] =>
+			q.data?.workspace === undefined ? [] : [[q.data.workspace.id, q.data.workspace.name]],
+		),
 		...selectedDetails.names,
 		...details.names,
 	]);
@@ -229,7 +256,7 @@ export function Audit() {
 	});
 	const first = rows[0];
 	const last = rows.at(-1);
-	const loading = access.isLoading || query.isLoading;
+	const loading = choicesLoading || query.isLoading;
 	const rejected = query.error === null ? null : auditSearchError(query.error, types, actor, search);
 	const searchRejected = rejected !== null && (draft === null || draft === search);
 	const filterRejected = auditFilterViolations(query.error).length > 0;
@@ -316,6 +343,7 @@ export function Audit() {
 									placeholder="Find a workspace"
 									value={workspaceId}
 									clearable={access.org}
+									{...(access.org ? { onSearch: setWorkspaceSearch } : {})}
 									onChange={(id) => {
 										setFilters({ ws: id, res: null, env: null, event: null });
 									}}
