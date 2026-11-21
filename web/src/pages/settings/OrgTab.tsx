@@ -37,7 +37,6 @@ import { userLabel } from "@/lib/user";
 
 import { LimitsSection } from "./LimitsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
-import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
 const MAX_NAME = 100;
 const PAGE_SIZES = [25, 50, 100] as const;
@@ -45,13 +44,11 @@ const PAGE_SIZES = [25, 50, 100] as const;
 function workspaceColumns({
 	orgId,
 	currentWorkspaceId,
-	counts,
 	onOpenWorkspace,
 	createdLabel,
 }: {
 	orgId: string;
 	currentWorkspaceId: string;
-	counts: Map<string, ResourceCount>;
 	onOpenWorkspace: (workspace: Workspace) => boolean;
 	createdLabel: (workspace: Workspace) => string;
 }): DataColumn<Workspace>[] {
@@ -94,7 +91,7 @@ function workspaceColumns({
 			size: 120,
 			minSize: 90,
 			meta: { cellClassName: "text-[12.5px] text-fg2" },
-			cell: ({ row: { original: w } }) => formatResourceCount(counts.get(w.id)),
+			cell: ({ row: { original: w } }) => formatResourceCount(w.resourceCount),
 		},
 		{
 			id: "created",
@@ -113,8 +110,6 @@ export function OrgTab({
 	workspacesLoading,
 	users,
 	level,
-	counts,
-	countsLoading,
 	currentWorkspaceId,
 	draft,
 	onDraft,
@@ -126,8 +121,6 @@ export function OrgTab({
 	workspacesLoading: boolean;
 	users: User[];
 	level: AccessLevel;
-	counts: Map<string, ResourceCount>;
-	countsLoading: boolean;
 	currentWorkspaceId: string;
 	draft: string | null;
 	onDraft: (name: string | null) => void;
@@ -156,10 +149,7 @@ export function OrgTab({
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
 
-	const withRes = workspaces.filter((w) => {
-		const c = counts.get(w.id);
-		return c !== undefined && (c.count > 0 || c.more);
-	});
+	const withRes = workspaces.filter((w) => (w.resourceCount ?? 0) > 0);
 	const withResNames = withRes.map((w) => w.name);
 	const lastName = withResNames.pop();
 	const joinedNames = withResNames.length > 0 ? `${withResNames.join(", ")} and ${lastName ?? ""}` : (lastName ?? "");
@@ -167,7 +157,7 @@ export function OrgTab({
 		withRes.length > 0 ? `Delete the resources in ${joinedNames} first.` : "Empty workspaces are deleted with it.";
 	const blockedReason = !canAdmin
 		? `Requires Admin on ${org.name}`
-		: countsLoading
+		: workspacesLoading
 			? "Checking workspaces for resources"
 			: withRes.length > 0
 				? "Workspaces still have resources"
@@ -191,7 +181,7 @@ export function OrgTab({
 	const table = useDataTable("org-workspaces", {
 		data: paged.rows,
 		getRowId: (w) => w.id,
-		columns: workspaceColumns({ orgId: org.id, currentWorkspaceId, counts, onOpenWorkspace, createdLabel }),
+		columns: workspaceColumns({ orgId: org.id, currentWorkspaceId, onOpenWorkspace, createdLabel }),
 	});
 
 	const save = () => {
@@ -374,4 +364,9 @@ export function OrgTab({
 			/>
 		</div>
 	);
+}
+
+function formatResourceCount(count: number | undefined): string {
+	if (count === undefined) return "—";
+	return count === 0 ? "Empty" : pluralize(count, "resource");
 }

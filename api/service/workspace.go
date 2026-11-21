@@ -272,14 +272,32 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		func(row genDb.ListWorkspacesInOrgRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
 	)
 
+	canRead := func(id uuid.UUID) bool { return allWorkspaces || slices.Contains(workspaceIDs, id) }
+	var readable []uuid.UUID
+	for _, ws := range workspaceList {
+		if canRead(ws.ID) {
+			readable = append(readable, ws.ID)
+		}
+	}
+	contents, err := s.queries.CountWorkspaceContents(ctx, readable)
+	if err != nil {
+		return nil, fmt.Errorf("count workspace contents: %w", err)
+	}
+	counts := make(map[uuid.UUID]genDb.CountWorkspaceContentsRow, len(contents))
+	for _, c := range contents {
+		counts[c.ID] = c
+	}
+
 	orgs := orgLimits{queries: s.queries, defaults: s.counts}
 	var workspaces []*workspacev1.Workspace
 	for _, ws := range workspaceList {
-		if allWorkspaces || slices.Contains(workspaceIDs, ws.ID) {
+		if canRead(ws.ID) {
 			workspace, convertErr := workspaceToProto(ctx, &orgs, genDb.GetWorkspaceByIDQueryRow(ws))
 			if convertErr != nil {
 				return nil, convertErr
 			}
+			workspace.ResourceCount = new(counts[ws.ID].ResourceCount)
+			workspace.MemberCount = new(counts[ws.ID].MemberCount)
 			workspaces = append(workspaces, workspace)
 			continue
 		}

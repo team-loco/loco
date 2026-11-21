@@ -233,8 +233,10 @@ func TestOrganizationLimitCapsWorkspaceRetention(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(listed.GetWorkspaces()) != 1 || !proto.Equal(listed.GetWorkspaces()[0], got) {
-			t.Fatalf("listed %v, want %v", listed.GetWorkspaces(), got)
+		if len(listed.GetWorkspaces()) != 1 ||
+			!proto.Equal(listed.GetWorkspaces()[0].GetRetention(), got.GetRetention()) ||
+			!proto.Equal(listed.GetWorkspaces()[0].GetEffectiveRetention(), got.GetEffectiveRetention()) {
+			t.Fatalf("listed %v, want the retention of %v", listed.GetWorkspaces(), got)
 		}
 	}
 }

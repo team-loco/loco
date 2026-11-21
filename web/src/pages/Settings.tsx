@@ -25,7 +25,6 @@ import { SETTINGS_SCOPES, settingsPath, type SettingsScope } from "@/lib/routes"
 import { OrgTab } from "./settings/OrgTab";
 import { PersonalTab } from "./settings/PersonalTab";
 import { SETTINGS_PARAMS } from "./settings/scope";
-import { useResourceCounts } from "./settings/useResourceCounts";
 import { SettingsSkeleton, type WorkspaceDraft, WorkspaceTab } from "./settings/WorkspaceTab";
 
 interface Drafts {
@@ -76,10 +75,6 @@ export function Settings() {
 	const workspaces = wsQuery.data?.workspaces ?? [];
 	const users = (membersQuery.data?.members ?? []).flatMap((m) => (m.user ? [m.user] : []));
 	const currentWs = workspaceQuery.data?.workspace ?? workspaces.find((w) => w.id === workspaceId);
-	const workspaceIds = (canReadOrg ? workspaces.map((w) => w.id) : currentWs ? [currentWs.id] : []).filter(
-		readsWorkspace,
-	);
-	const { counts, isLoading: countsLoading } = useResourceCounts(workspaceIds);
 	const scope = requested === "org" && !canReadOrg ? "workspace" : requested;
 	useEffect(() => {
 		if (inUrl === scope || scopes.isLoading) return;
@@ -168,7 +163,6 @@ export function Settings() {
 					workspaces={workspaces}
 					users={users}
 					level={scopes.workspaceLevel(orgId, workspaceId)}
-					resourceCount={counts.get(workspaceId)}
 					draft={wsDraft}
 					onDraft={(d) => {
 						setDrafts({ ...drafts, workspace: d === null ? null : { ...d, id: workspaceId } });
@@ -192,8 +186,6 @@ export function Settings() {
 					workspacesLoading={wsQuery.isLoading}
 					users={users}
 					level={scopes.orgLevel(org.id)}
-					counts={counts}
-					countsLoading={countsLoading}
 					currentWorkspaceId={workspaceId}
 					memberCount={membersQuery.data?.members.length}
 					draft={orgDraft?.name ?? null}

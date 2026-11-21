@@ -522,3 +522,60 @@ func (o *membershipOrg) sharedResource(t *testing.T, name string) uuid.UUID {
 	}
 	return uuid.MustParse(created.GetResourceId())
 }
+
+func TestListOrgWorkspacesCountsResourcesAndMembersOfReadableWorkspaces(t *testing.T) {
+	t.Parallel()
+	o := newMembershipOrg(t)
+	member := o.api.signUp(t, "member")
+	reader := o.api.signUp(t, "reader")
+	o.addOrgMember(t, member)
+	o.addOrgMember(t, reader)
+	ctx := t.Context()
+	o.grantWorkspace(t, member, o.shared)
+	resourceID := o.sharedResource(t, "api")
+	o.sharedResource(t, "worker")
+	if err := o.api.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+		UserID: reader.id, EntityType: genDb.EntityTypeResource, EntityID: resourceID, Scope: genDb.ScopeRead,
+	}); err != nil {
+		t.Fatalf("grant resource: %v", err)
+	}
+
+	type counts struct {
+		set                bool
+		resources, members int32
+	}
+	list := func(user membershipUser) map[string]counts {
+		t.Helper()
+		listed, err := user.clients.Workspace.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
+			OrgId: o.orgID,
+		})
+		if err != nil {
+			t.Fatalf("%s list org workspaces: %v", user.subject, err)
+		}
+		got := map[string]counts{}
+		for _, ws := range listed.GetWorkspaces() {
+			message := ws.ProtoReflect()
+			fields := message.Descriptor().Fields()
+			set := message.Has(fields.ByName("resource_count")) && message.Has(fields.ByName("member_count"))
+			got[ws.GetId()] = counts{set, ws.GetResourceCount(), ws.GetMemberCount()}
+		}
+		return got
+	}
+	want := func(user membershipUser, workspaceID string, resources, members int32) {
+		t.Helper()
+		if got := list(user)[workspaceID]; got != (counts{true, resources, members}) {
+			t.Fatalf("%s sees %s counts %+v, want %d resources and %d members",
+				user.subject, workspaceID, got, resources, members)
+		}
+	}
+
+	want(o.owner, o.shared, 2, 2)
+	want(o.owner, o.sibling, 0, 1)
+	want(member, o.shared, 2, 2)
+	if _, ok := list(member)[o.sibling]; ok {
+		t.Fatal("member listed the sibling workspace")
+	}
+	if got, ok := list(reader)[o.shared]; !ok || got.set {
+		t.Fatalf("resource reader sees shared counts %+v, want none", got)
+	}
+}

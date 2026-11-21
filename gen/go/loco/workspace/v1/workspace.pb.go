@@ -40,8 +40,14 @@ type Workspace struct {
 	// effective_retention is how many days ingest keeps each signal, with every field set: the
 	// workspace's own value capped by its organization's limit.
 	EffectiveRetention *RetentionDays `protobuf:"bytes,10,opt,name=effective_retention,json=effectiveRetention,proto3" json:"effective_retention,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// resource_count is how many resources the workspace holds. ListOrgWorkspaces sets it on each
+	// workspace the caller can read.
+	ResourceCount *int32 `protobuf:"varint,11,opt,name=resource_count,json=resourceCount,proto3,oneof" json:"resource_count,omitempty"`
+	// member_count is how many users hold a direct grant on the workspace. An organization admin
+	// without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read.
+	MemberCount   *int32 `protobuf:"varint,12,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Workspace) Reset() {
@@ -142,6 +148,20 @@ func (x *Workspace) GetEffectiveRetention() *RetentionDays {
 		return x.EffectiveRetention
 	}
 	return nil
+}
+
+func (x *Workspace) GetResourceCount() int32 {
+	if x != nil && x.ResourceCount != nil {
+		return *x.ResourceCount
+	}
+	return 0
+}
+
+func (x *Workspace) GetMemberCount() int32 {
+	if x != nil && x.MemberCount != nil {
+		return *x.MemberCount
+	}
+	return 0
 }
 
 // WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
@@ -1267,7 +1287,7 @@ var File_loco_workspace_v1_workspace_proto protoreflect.FileDescriptor
 
 const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
-	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x03\n" +
+	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x04\n" +
 	"\tWorkspace\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06org_id\x18\x02 \x01(\tR\x05orgId\x12\x12\n" +
@@ -1282,7 +1302,11 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\borg_name\x18\b \x01(\tR\aorgName\x12>\n" +
 	"\tretention\x18\t \x01(\v2 .loco.workspace.v1.RetentionDaysR\tretention\x12Q\n" +
 	"\x13effective_retention\x18\n" +
-	" \x01(\v2 .loco.workspace.v1.RetentionDaysR\x12effectiveRetention\"\x8c\x02\n" +
+	" \x01(\v2 .loco.workspace.v1.RetentionDaysR\x12effectiveRetention\x12*\n" +
+	"\x0eresource_count\x18\v \x01(\x05H\x00R\rresourceCount\x88\x01\x01\x12&\n" +
+	"\fmember_count\x18\f \x01(\x05H\x01R\vmemberCount\x88\x01\x01B\x11\n" +
+	"\x0f_resource_countB\x0f\n" +
+	"\r_member_count\"\x8c\x02\n" +
 	"\x17WorkspaceMemberWithUser\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
@@ -1462,6 +1486,7 @@ func file_loco_workspace_v1_workspace_proto_init() {
 	if File_loco_workspace_v1_workspace_proto != nil {
 		return
 	}
+	file_loco_workspace_v1_workspace_proto_msgTypes[0].OneofWrappers = []any{}
 	file_loco_workspace_v1_workspace_proto_msgTypes[2].OneofWrappers = []any{}
 	file_loco_workspace_v1_workspace_proto_msgTypes[10].OneofWrappers = []any{}
 	file_loco_workspace_v1_workspace_proto_msgTypes[20].OneofWrappers = []any{}
