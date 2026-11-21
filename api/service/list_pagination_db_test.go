@@ -130,3 +130,46 @@ func TestUserPagingSurvivesDeletingTheCursorRow(t *testing.T) {
 	}
 	assertPagingSurvivesDeletingTheCursorRow(t, newestFirst, list, f.deleteByID("users"))
 }
+
+func TestListBuildsExactlyFullLastPageHasNoNextToken(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	for range 3 {
+		f.create(t, 10)
+	}
+	list := func(token string) *buildv1.ListBuildsResponse {
+		resp, err := f.server.ListBuilds(f.ctx, &buildv1.ListBuildsRequest{
+			ResourceId: f.resourceID.String(),
+			PageSize:   2,
+			PageToken:  token,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
+	}
+	first := list("")
+	if len(first.GetBuilds()) != 2 || first.GetNextPageToken() == "" {
+		t.Fatalf("first page = %d builds, token %q; want 2 and a token",
+			len(first.GetBuilds()), first.GetNextPageToken())
+	}
+	last := list(first.GetNextPageToken())
+	if len(last.GetBuilds()) != 1 || last.GetNextPageToken() != "" {
+		t.Fatalf("last page = %d builds, token %q; want 1 and no token",
+			len(last.GetBuilds()), last.GetNextPageToken())
+	}
+	exact := func() *buildv1.ListBuildsResponse {
+		resp, err := f.server.ListBuilds(f.ctx, &buildv1.ListBuildsRequest{
+			ResourceId: f.resourceID.String(),
+			PageSize:   3,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
+	}()
+	if len(exact.GetBuilds()) != 3 || exact.GetNextPageToken() != "" {
+		t.Fatalf("exactly-full page = %d builds, token %q; want 3 and no token",
+			len(exact.GetBuilds()), exact.GetNextPageToken())
+	}
+}

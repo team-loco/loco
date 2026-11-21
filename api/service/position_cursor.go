@@ -26,12 +26,14 @@ func encodePositionCursor(id uuid.UUID, createdAt time.Time) string {
 	return base64.URLEncoding.EncodeToString([]byte(position))
 }
 
-func nextPageToken[T any](rows []T, pageSize int32, position func(T) (uuid.UUID, time.Time)) string {
-	if len(rows) < int(pageSize) {
-		return ""
+// trimPage cuts rows fetched with pageSize+1 to the page; the token is empty on the last page.
+func trimPage[T any](rows []T, pageSize int32, position func(T) (uuid.UUID, time.Time)) ([]T, string) {
+	if len(rows) <= int(pageSize) {
+		return rows, ""
 	}
+	rows = rows[:pageSize]
 	id, createdAt := position(rows[len(rows)-1])
-	return encodePositionCursor(id, createdAt)
+	return rows, encodePositionCursor(id, createdAt)
 }
 
 func decodePositionCursor(token string) (positionCursor, error) {

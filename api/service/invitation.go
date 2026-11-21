@@ -182,13 +182,16 @@ func (s *OrgServer) ListInvitations(
 	}
 	rows, err := s.queries.ListOrgInvitations(ctx, genDb.ListOrgInvitationsParams{
 		OrgID:         orgID,
-		Limit:         pageSize,
+		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list invitations: %w", err)
 	}
+	rows, token := trimPage(rows, pageSize, func(i genDb.Invitation) (uuid.UUID, time.Time) {
+		return i.ID, i.CreatedAt
+	})
 	inviters := map[uuid.UUID]genDb.User{}
 	invitations := make([]*orgv1.Invitation, len(rows))
 	for i, row := range rows {
@@ -202,7 +205,6 @@ func (s *OrgServer) ListInvitations(
 		}
 		invitations[i] = s.invitationProto(row, inviter)
 	}
-	token := nextPageToken(rows, pageSize, func(i genDb.Invitation) (uuid.UUID, time.Time) { return i.ID, i.CreatedAt })
 	return &orgv1.ListInvitationsResponse{Invitations: invitations, NextPageToken: token}, nil
 }
 

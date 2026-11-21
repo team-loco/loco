@@ -500,20 +500,20 @@ func (s *BuildServer) ListBuilds(
 	rows, err := s.queries.ListBuildsForResource(ctx, genDb.ListBuildsForResourceParams{
 		ResourceID:          resourceID,
 		OriginEnvironmentID: originEnvironmentID,
-		Limit:               pageSize,
+		Limit:               pageSize + 1,
 		PageToken:           cursor.ID,
 		PageCreatedAt:       cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list builds of resource %s: %w", resourceID, err)
 	}
+	rows, token := trimPage(rows, pageSize, func(b genDb.Build) (uuid.UUID, time.Time) { return b.ID, b.CreatedAt })
 
 	builds, err := s.buildsProto(ctx, rows)
 	if err != nil {
 		return nil, err
 	}
 
-	token := nextPageToken(rows, pageSize, func(b genDb.Build) (uuid.UUID, time.Time) { return b.ID, b.CreatedAt })
 	return &buildv1.ListBuildsResponse{
 		Builds:        builds,
 		NextPageToken: token,

@@ -170,20 +170,22 @@ func (s *UserServer) ListUsers(
 	}
 
 	dbUsers, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
-		Limit:         pageSize,
+		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
+	dbUsers, token := trimPage(dbUsers, pageSize, func(u genDb.User) (uuid.UUID, time.Time) {
+		return u.ID, u.CreatedAt
+	})
 
 	var users []*userv1.User
 	for _, dbUser := range dbUsers {
 		users = append(users, dbUserToProto(dbUser))
 	}
 
-	token := nextPageToken(dbUsers, pageSize, func(u genDb.User) (uuid.UUID, time.Time) { return u.ID, u.CreatedAt })
 	return &userv1.ListUsersResponse{
 		Users:         users,
 		NextPageToken: token,
