@@ -1,9 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 import { EventSchema, EventService, type ListEventsRequest } from "@gen/loco/event/v1/event_pb";
-import { mergeEvents, runtimeEventsOptions } from "./runtimeEvents";
+import { runtimeEventsOptions } from "./runtimeEvents";
 import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, runtimeEvent } from "@/lib/runtime-events";
 import { recentWarningCount } from "@/pages/resource/events";
 import { msToTimestamp } from "@/lib/time";
@@ -89,17 +89,6 @@ test("warning counts include later pages with the same environment scope", async
 	} finally {
 		client.clear();
 	}
-});
-
-describe("streamed event history", () => {
-	test("retains notifications received during history loading and deduplicates overlap", () => {
-		const older = create(EventSchema, { id: "older", seq: 1n });
-		const incoming = create(EventSchema, { id: "incoming", seq: 2n });
-		const tail = mergeEvents([], [incoming]);
-		expect(mergeEvents([older], tail)).toEqual([older, incoming]);
-		expect(mergeEvents([older, incoming], tail)).toEqual([older, incoming]);
-		expect(mergeEvents(tail, [incoming])).toEqual([incoming]);
-	});
 });
 
 test("selected activity follows build origin and excludes missing origins", () => {

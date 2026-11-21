@@ -139,7 +139,10 @@ export function TraceLogPanel({
 								onCollapsed(false);
 							}}
 						>
-							Events {!events.isLoading && events.error === null && <TabsCount>{events.items.length}</TabsCount>}
+							Events{" "}
+							{!events.isLoading && events.error === null && (
+								<TabsCount>{`${events.items.length.toString()}${events.more ? "+" : ""}`}</TabsCount>
+							)}
 						</TabsTrigger>
 						<TabsTrigger
 							value="infra"
