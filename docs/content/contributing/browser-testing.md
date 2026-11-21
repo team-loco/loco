@@ -24,7 +24,7 @@ mise run test:ui deployment_history_ui
 
 ## Run in CI
 
-`mise run ci:evidence` runs named suites in CI for the pushed head of the current branch, waits for that run and downloads its output into `--out`. It exits non-zero when a suite fails.
+`mise run ci:evidence` runs named suites in CI for the pushed head of the current branch, waits for that run (joining one already going for the same commit and inputs) and downloads its output into `--out`. It exits non-zero when a suite fails.
 
 ```sh
 mise run ci:evidence --out /tmp/loco-suites tables_ui deployment_history_ui
