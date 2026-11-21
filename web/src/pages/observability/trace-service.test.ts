@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
-import { traceColors, traceResourceKey, traceServiceLabel } from "./trace-service";
+import { traceColors, traceIdentity, traceResourceKey, traceServiceLabel } from "./trace-service";
 
 test("resolves only Loco's default service identity to the known workspace resource name", () => {
 	const span = create(TraceSpanSchema, {
@@ -12,12 +12,17 @@ test("resolves only Loco's default service identity to the known workspace resou
 	expect(traceServiceLabel(span)).toBe("resource-id");
 });
 
-test("preserves explicit telemetry names instead of replacing them with the resource name", () => {
+test("names a span by its Loco resource and keeps a differing OTel service name as secondary", () => {
 	const span = create(TraceSpanSchema, {
 		resourceId: "id",
 		serviceName: "payments-worker",
 	});
-	expect(traceServiceLabel(span, "cart")).toBe("payments-worker");
+	expect(traceIdentity(span, "cart")).toEqual({ name: "cart", service: "payments-worker" });
+	expect(traceServiceLabel(span, "cart")).toBe("cart · payments-worker");
+	expect(
+		traceIdentity(create(TraceSpanSchema, { resourceId: "id", serviceName: "cart" }), "cart").service,
+	).toBeUndefined();
+	expect(traceServiceLabel(span)).toBe("payments-worker");
 });
 
 test("trace colours stay distinct beyond the chart palette and follow ranked order", () => {

@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 import { useObs } from "../context";
 import { useTraceResources } from "./TraceColors";
 import { durationLabel, spanError, type TraceSummary } from "../traces";
-import { traceResourceKey, traceServiceLabel } from "../trace-service";
+import { traceIdentity, traceResourceKey, traceServiceLabel } from "../trace-service";
 import { traceJson } from "./trace-json";
 
 export function TraceHeader({
@@ -64,9 +64,11 @@ export function TraceHeader({
 					const spans = trace.spans.filter((span) => traceResourceKey(span) === share.key);
 					const first = spans[0];
 					if (first === undefined) throw new Error("Trace resource has no spans");
+					const slug = resourceById.get(first.resourceId)?.slug;
 					return {
 						...share,
-						name: resourceById.get(first.resourceId)?.slug ?? traceServiceLabel(first),
+						...traceIdentity(first, slug),
+						label: traceServiceLabel(first, slug),
 						color: color(first),
 						errors: spans.filter(spanError).length,
 					};
@@ -93,6 +95,7 @@ export function TraceHeader({
 		},
 	});
 	const resource = trace === undefined ? undefined : resourceById.get(trace.root.resourceId);
+	const rootIdentity = trace === undefined ? undefined : traceIdentity(trace.root, resource?.slug);
 	const start = trace === undefined ? 0 : Number(trace.start / 1_000_000n);
 	const download = () => {
 		if (trace === undefined) return;
@@ -164,7 +167,8 @@ export function TraceHeader({
 												background: color(trace.root),
 											}}
 										/>
-										{resource.raw.name}
+										{rootIdentity?.name}
+										{rootIdentity?.service !== undefined && <span className="text-fg3">· {rootIdentity.service}</span>}
 									</Link>
 								))}
 							<span title={formatFullTime(start, true, timePref)}>
@@ -201,8 +205,8 @@ export function TraceHeader({
 								key={item.key}
 								{...interactions(item.key)}
 								aria-pressed={pinned === item.key}
-								aria-label={`${item.name} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
-								title={`${item.name} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
+								aria-label={`${item.label} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
+								title={`${item.label} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
 								className={cn(
 									"tv-mseg min-w-1 border-0 p-0 transition-opacity focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:outline-none",
 									highlight !== null && highlight !== item.key && "opacity-25",
@@ -227,7 +231,7 @@ export function TraceHeader({
 								type="button"
 								key={item.key}
 								{...interactions(item.key)}
-								title={`${item.name} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
+								title={`${item.label} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
 								aria-pressed={pinned === item.key}
 								className={cn(
 									"inline-flex h-[22px] min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-left text-[12.5px] transition-opacity hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
@@ -236,7 +240,10 @@ export function TraceHeader({
 								)}
 							>
 								<i className="size-2 shrink-0 rounded-[2px]" style={{ background: item.color }} />
-								<span className="truncate">{item.name}</span>
+								<span className="truncate">
+									{item.name}
+									{item.service !== undefined && <span className="text-fg3"> · {item.service}</span>}
+								</span>
 								<span className="shrink-0 font-mono text-[11.5px] text-fg3">
 									{durationLabel(item.nanos)} ({percent(item.share)})
 								</span>

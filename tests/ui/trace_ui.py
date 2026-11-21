@@ -70,7 +70,11 @@ def span(row):
         "serviceName": service,
         "startTime": stamp(offset),
         "durationNanos": str(int(duration * 1000000)),
-        "statusCode": "Error" if sid in ("000a", "000b") else "Ok",
+        "statusCode": "Error"
+        if sid in ("000a", "000b")
+        else "Unset"
+        if sid == "000e"
+        else "Ok",
         "statusMessage": "Payment authorization timed out after 90 ms"
         if sid == "000b"
         else "",
@@ -520,6 +524,21 @@ with session(out) as browser:
         )
     ).to_be_disabled()
     attributes.get_by_role("tab", name="Attributes", exact=True).click()
+    for name, status in (("cart EmptyCart", "Unset"), ("checkout ", "OK")):
+        flame.get_by_role("button", name=re.compile("^" + name)).first.click()
+        expect(
+            drawer.get_by_role("region", name="Selected span").locator(
+                '[data-slot="badge"]'
+            )
+        ).to_have_text(status)
+        expect(
+            drawer.get_by_role("region", name="Span details")
+            .get_by_role("definition")
+            .filter(has_text=re.compile("^(OK|Unset|Error)$"))
+        ).to_have_text(status)
+    flame.get_by_role("button", name=failing).click()
+    page.mouse.move(0, 0)
+    expect(page.locator('[data-slot="tooltip-content"]')).to_have_count(0)
     trace_chip = drawer.get_by_role("button", name="Copy trace ID " + trace, exact=True)
     expect(trace_chip).to_have_text("Trace" + trace[:8] + "…")
     trace_chip.hover()
@@ -1133,6 +1152,8 @@ with session(out) as browser:
     mode[0] = "normal"
     context, page, _ = open_page(browser, state=state, now=now)
     original_spans = json.loads(json.dumps(spans))
+    unmapped_failing = failing
+    failing = re.compile(r"^checkout · payment POST \/payments\/authorize, .*, error$")
     for row in spans:
         row["resourceId"] = workspace_id
         row["resourceAttributes"].update(
@@ -1156,6 +1177,7 @@ with session(out) as browser:
                         "id": workspace_id,
                         "workspaceId": workspace_id,
                         "name": "checkout",
+                        "slug": "checkout",
                         "type": "RESOURCE_TYPE_SERVICE",
                         "spec": {
                             "service": {
@@ -1267,6 +1289,9 @@ with session(out) as browser:
     page.mouse.move(0, 0)
     page.goto(state["ui_url"] + base + "&trace=" + trace)
     drawer = page.get_by_role("dialog", name=root_name)
+    expect(drawer.locator("[data-meta-line]").get_by_role("link")).to_have_text(
+        "checkout"
+    )
     log_rows = drawer.get_by_role("region", name="Logs in this trace")
     expect(
         log_rows.get_by_role("button", name="Open log: Payment request failed")
@@ -1312,7 +1337,7 @@ with session(out) as browser:
     drawer.get_by_role("button", name="This span", exact=True).click()
     expect(log_rows.get_by_role("button")).to_have_count(1)
     drawer.get_by_role("region", name="Flame graph").get_by_role(
-        "button", name=re.compile("^currency Convert")
+        "button", name=re.compile("^checkout · currency Convert")
     ).click()
     expect(
         log_rows.get_by_text("No logs from this span or its children.", exact=True)
@@ -1441,7 +1466,7 @@ with session(out) as browser:
         for request in metric_requests[4:]
     )
     drawer.get_by_role("region", name="Flame graph").get_by_role(
-        "button", name=re.compile("^product-catalog GetProduct")
+        "button", name=re.compile("^checkout · product-catalog GetProduct")
     ).click()
     expect(
         infrastructure.get_by_role(
@@ -1529,6 +1554,7 @@ with session(out) as browser:
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     context.close()
     spans[:] = original_spans
+    failing = unmapped_failing
     mode[0] = "zero"
     context, page, errors = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)

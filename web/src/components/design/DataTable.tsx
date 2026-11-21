@@ -238,13 +238,17 @@ const SPAN = <span />;
 /** Text that truncates to its cell and shows the full value in a tooltip when it does not fit. */
 export function CellText({
 	text,
+	detail,
 	className,
 	render = SPAN,
 }: {
 	text: string;
+	/** Secondary text shown muted after `text`. */
+	detail?: string | undefined;
 	className?: string;
 	render?: ReactElement;
 }) {
+	const full = detail === undefined ? text : `${text} · ${detail}`;
 	const ref = useRef<HTMLElement>(null);
 	const [open, setOpen] = useState(false);
 	return (
@@ -263,8 +267,9 @@ export function CellText({
 				className={cn("block truncate", className)}
 			>
 				{text}
+				{detail !== undefined && <span className="text-fg3"> · {detail}</span>}
 			</TooltipTrigger>
-			<TooltipContent className="max-w-[min(480px,90vw)] break-all">{text}</TooltipContent>
+			<TooltipContent className="max-w-[min(480px,90vw)] break-all">{full}</TooltipContent>
 		</Tooltip>
 	);
 }
