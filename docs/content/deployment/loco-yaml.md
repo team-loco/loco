@@ -134,7 +134,7 @@ services:
 
 Kubernetes starts a replica's process again when it exits, with any exit code, runs out of memory or fails its liveness check. `restart` decides which of those restarts are too many:
 
-- `on-failure` (the default): the restart after `maxRestarts`, between 1 and 20. A replica's count starts again once it stays up for the worker cluster's `controller.healthyAfterSeconds` (300 by default).
+- `on-failure` (the default): the restart after `maxRestarts`, between 1 and 5. A replica's count starts again once it stays up for the worker cluster's `controller.healthyAfterSeconds` (300 by default).
 - `never`: a replica's first exit.
 - `always`: none. `maxRestarts` applies only to `on-failure`.
 

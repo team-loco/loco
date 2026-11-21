@@ -109,7 +109,7 @@ api:
     healthFailThreshold: null
     # @schema type: [integer, "null"]; minimum: 0; maximum: 180
     healthStartupGracePeriod: null
-    # @schema type: [integer, "null"]; minimum: 1; maximum: 20
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 5
     maxRestarts: null
     # @schema type: [integer, "null"]; minimum: 60; maximum: 3600
     deployTimeout: null

@@ -58,7 +58,7 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 		"long grace period":            {func(d *Defaults) { d.HealthStartupGracePeriod = 181 }, errInvalidHealth},
 		"negative grace period":        {func(d *Defaults) { d.HealthStartupGracePeriod = -1 }, errInvalidHealth},
 		"zero restarts":                {func(d *Defaults) { d.MaxRestarts = 0 }, errInvalidRestarts},
-		"21 restarts":                  {func(d *Defaults) { d.MaxRestarts = 21 }, errInvalidRestarts},
+		"6 restarts":                   {func(d *Defaults) { d.MaxRestarts = 6 }, errInvalidRestarts},
 		"59 second deploy timeout":     {func(d *Defaults) { d.DeployTimeout = 59 }, errInvalidRestarts},
 	}
 	for name, tc := range cases {
@@ -118,8 +118,8 @@ func TestValidateAgreesWithTheApplicationValidator(t *testing.T) {
 		"replicas max 10":   func(d *Defaults) { d.MaxReplicas = 10 },
 		"replicas max 11":   func(d *Defaults) { d.MaxReplicas = 11 },
 		"idle timeout 0":    func(d *Defaults) { d.IdleTimeout = 0 },
-		"restarts 20":       func(d *Defaults) { d.MaxRestarts = 20 },
-		"restarts 21":       func(d *Defaults) { d.MaxRestarts = 21 },
+		"restarts 5":        func(d *Defaults) { d.MaxRestarts = 5 },
+		"restarts 6":        func(d *Defaults) { d.MaxRestarts = 6 },
 		"deploy timeout 59": func(d *Defaults) { d.DeployTimeout = 59 },
 	}
 	for name, change := range boundaries {

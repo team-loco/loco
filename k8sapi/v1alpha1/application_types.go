@@ -125,7 +125,7 @@ type RestartPolicySpec struct {
 	// MaxRestarts is the on-failure budget.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=20
+	// +kubebuilder:validation:Maximum=5
 	MaxRestarts int32 `json:"maxRestarts,omitzero"`
 }
 

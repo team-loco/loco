@@ -45,8 +45,8 @@ func TestDeployBounds(t *testing.T) {
 	for deploy, want := range map[string]error{
 		"{maxRestarts: 0}":                  ErrMaxRestarts,
 		"{maxRestarts: 1}":                  nil,
-		"{maxRestarts: 20}":                 nil,
-		"{maxRestarts: 21}":                 ErrMaxRestarts,
+		"{maxRestarts: 5}":                  nil,
+		"{maxRestarts: 6}":                  ErrMaxRestarts,
 		"{restart: always}":                 nil,
 		"{restart: never}":                  nil,
 		"{restart: never, maxRestarts: 3}":  ErrMaxRestartsMode,

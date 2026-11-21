@@ -15,7 +15,7 @@ const (
 	RestartAlways    = "always"
 	RestartNever     = "never"
 	MinRestarts      = 1
-	MaxRestarts      = 20
+	MaxRestarts      = 5
 	MinDeployTimeout = 60
 	MaxDeployTimeout = 3600
 )
