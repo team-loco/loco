@@ -391,25 +391,35 @@ def rgb(page, x, y):
 
 TRANSITIONS = "document.getAnimations().filter(a => a instanceof CSSTransition)"
 
+# Counts the frames in which the node's box moved, on `node.moves`.
+MOVES_JS = """node => { node.moves = 0; let last = '';
+const tick = () => { const b = node.getBoundingClientRect(), now = `${b.x},${b.y}`;
+if (now !== last) { node.moves++; last = now; } node.watch = requestAnimationFrame(tick); }; tick(); }"""
+
 
 def check_row_states(page, row):
     """The pinned first cell takes the row's hover tint as it fades in and its keyboard focus ring, like the next cell."""
 
-    # Late content such as an error panel can move the table, so each sample measures the cells it reads.
-    def cells():
-        return [row.locator(":scope > td").nth(i).bounding_box() for i in range(2)]
+    # Late content such as an error panel can move the table for a frame, so a read counts only if the row held still through it.
+    def steady(read):
+        for _ in range(20):
+            moves = row.evaluate("node => node.moves")
+            first, second = (
+                row.locator(":scope > td").nth(i).bounding_box() for i in range(2)
+            )
+            value = read(first, second)
+            if row.evaluate("node => node.moves") == moves:
+                return value
+        raise AssertionError("the row kept moving")
 
-    def bottoms():
-        first, second = cells()
+    def bottoms(first, second):
         y = first["y"] + first["height"] - 3
         return rgb(page, first["x"] + 3, y), rgb(page, second["x"] + 3, y)
 
-    def left_edge():
-        first, _ = cells()
+    def left_edge(first, _):
         return pixel(page, first["x"], first["y"] + first["height"] / 2, 3, 1)
 
-    def tops():
-        first, second = cells()
+    def tops(first, second):
         return (
             pixel(page, first["x"] + 20, first["y"], 1, 3),
             pixel(page, second["x"] + 20, second["y"], 1, 3),
@@ -418,13 +428,14 @@ def check_row_states(page, row):
     row.evaluate(
         "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"
     )
+    row.evaluate(MOVES_JS)
     page.mouse.move(0, 0)
     # In the first cell's corner, clear of any cell text that opens a tooltip.
     row.hover(position={"x": 3, "y": 3})
     page.evaluate(
         f"() => {TRANSITIONS}.forEach(a => {{ a.pause(); a.currentTime = 40; }})"
     )
-    pinned, plain = bottoms()
+    pinned, plain = steady(bottoms)
     assert max(abs(a - b) for a, b in zip(pinned, plain, strict=True)) <= 1, (
         "pinned cell misses the hover tint",
         pinned,
@@ -432,15 +443,16 @@ def check_row_states(page, row):
     )
     page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
     page.mouse.move(0, 0)
-    page.wait_for_timeout(300)
-    idle = left_edge()
+    page.wait_for_function(f"() => {TRANSITIONS}.length === 0", timeout=5000)
+    idle = steady(left_edge)
     page.keyboard.press("Shift")
     row.focus()
     assert row.evaluate("node => node.matches(':focus-visible')")
-    assert left_edge() != idle, "focus ring misses the row's left edge"
-    pinned_top, plain_top = tops()
+    assert steady(left_edge) != idle, "focus ring misses the row's left edge"
+    pinned_top, plain_top = steady(tops)
     assert pinned_top == plain_top, "focus ring breaks at the pinned cell"
     row.blur()
+    row.evaluate("node => cancelAnimationFrame(node.watch)")
 
 
 def resources_table(page):
