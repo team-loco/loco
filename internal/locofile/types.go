@@ -98,8 +98,7 @@ type Replicas struct {
 	Max *int32 `json:"max,omitempty"`
 }
 
-// Autoscaling targets one metric. Exactly one of cpuTarget or memoryTarget is set.
+// Autoscaling holds the average CPU utilization percent to scale on.
 type Autoscaling struct {
-	CPUTarget    *int32 `json:"cpuTarget,omitempty"`
-	MemoryTarget *int32 `json:"memoryTarget,omitempty"`
+	CPUTarget *int32 `json:"cpuTarget"`
 }

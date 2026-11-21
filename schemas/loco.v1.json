@@ -9,14 +9,9 @@
           "maximum": 100,
           "minimum": 1,
           "description": "Average CPU utilization percent to hold."
-        },
-        "memoryTarget": {
-          "type": "integer",
-          "maximum": 100,
-          "minimum": 1,
-          "description": "Average memory utilization percent to hold."
         }
       },
+      "required": ["cpuTarget"],
       "additionalProperties": false,
       "type": "object"
     },
@@ -241,15 +236,6 @@
           "maximum": 100,
           "minimum": 1,
           "description": "Average CPU utilization percent to hold."
-        },
-        "memoryTarget": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "maximum": 100,
-          "minimum": 1,
-          "description": "Average memory utilization percent to hold."
         }
       },
       "additionalProperties": false,

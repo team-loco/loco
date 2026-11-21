@@ -11647,22 +11647,11 @@
             "minimum": 0,
             "format": "int32",
             "description": "target CPU percentage (0-100)"
-          },
-          "memoryTarget": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "title": "memory_target",
-            "maximum": 100,
-            "minimum": 0,
-            "format": "int32",
-            "description": "target memory percentage (0-100)"
           }
         },
         "title": "Scalers",
         "additionalProperties": false,
-        "description": "Scalers defines autoscaling configuration.\nscalers.target_required // enabled autoscaling needs a CPU or memory target between 1 and 100\n"
+        "description": "Scalers defines autoscaling configuration.\nscalers.target_required // enabled autoscaling needs a CPU target between 1 and 100\n"
       },
       "loco.deployment.v1.ServiceDeploymentSpec": {
         "type": "object",
