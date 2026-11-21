@@ -171,7 +171,9 @@ with session(out) as browser:
 
     expect(
         page.get_by_text(
-            re.compile(r"^50 events, (just now|\d+[mhd]) to (just now|\d+[mhd] ago)$")
+            re.compile(
+                r"^1–50 of [\d,]+ events, (just now|\d+[mhd]) to (just now|\d+[mhd] ago)$"
+            )
         )
     ).to_be_visible()
     separator = page.get_by_role("separator", name="Resize Time", exact=True)
