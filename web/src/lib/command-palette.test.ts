@@ -15,6 +15,13 @@ describe("scorePaletteItem", () => {
 		expect(score("log", "product-catalog", "catalog")).toBe(0);
 	});
 
+	test("matches a query split differently from the item, scoring below a word match", () => {
+		expect(score("front end", "frontend-proxy")).toBeGreaterThan(0);
+		expect(score("front end", "frontend-proxy")).toBeLessThan(score("front", "frontend-proxy"));
+		expect(score("front-end prox", "frontend proxy")).toBeGreaterThan(0);
+		expect(score("end pro", "frontend-proxy")).toBe(0);
+	});
+
 	test("does not match letters scattered across words", () => {
 		expect(score("log", "Light mode", "appearance theme mode")).toBe(0);
 	});
