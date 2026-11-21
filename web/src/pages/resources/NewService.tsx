@@ -175,6 +175,7 @@ function ImageStep({
 	const nameErr = nameError(name, taken.names) ?? derivedSlugError(name, taken.slugs);
 
 	const waiting = scopes.isLoading || loading;
+	const ready = !waiting && error === null && nameErr === null;
 	const notice = waiting
 		? null
 		: scopes.workspaceLevel(orgId, workspaceId) < scopeLevel(Scope.WRITE)
@@ -203,7 +204,7 @@ function ImageStep({
 			className="contents"
 			onSubmit={(e) => {
 				e.preventDefault();
-				if (!waiting && error === null && nameErr === null) onContinue();
+				if (ready) onContinue();
 			}}
 		>
 			<DialogBody>
@@ -238,7 +239,7 @@ function ImageStep({
 			</DialogBody>
 			<DialogFooter>
 				<DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-				<Button type="submit" disabled={waiting || error !== null || nameErr !== null}>
+				<Button type="submit" disabled={!ready}>
 					Continue
 				</Button>
 			</DialogFooter>
