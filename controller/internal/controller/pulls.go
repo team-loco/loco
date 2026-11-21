@@ -28,13 +28,21 @@ const (
 // kubeletLivenessKill is in the note of the Killing event the kubelet records before it restarts a container.
 const kubeletLivenessKill = "failed liveness probe"
 
-// podEvent holds the newest image pull and liveness kill the kubelet reported for a pod.
+const (
+	reasonUnhealthy = "Unhealthy"
+	// kubeletReadinessFailed opens the note of the Unhealthy event the kubelet records for a failed readiness probe.
+	kubeletReadinessFailed = "Readiness probe failed:"
+)
+
+// podEvent holds the newest image pull, liveness kill and readiness probe failure the kubelet reported for a pod.
 type podEvent struct {
-	application  types.NamespacedName
-	namespace    string
-	pull         string
-	pulledAt     metav1.Time
-	livenessKill metav1.Time
+	application       types.NamespacedName
+	namespace         string
+	pull              string
+	pulledAt          metav1.Time
+	livenessKill      metav1.Time
+	readinessFailure  string
+	readinessFailedAt metav1.Time
 }
 
 func (r *ApplicationReconciler) applicationForPodEvent(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -46,10 +54,13 @@ func (r *ApplicationReconciler) applicationForPodEvent(ctx context.Context, obj 
 		return nil
 	}
 	kill := e.Reason == reasonKilling && strings.Contains(e.Note, kubeletLivenessKill)
+	readiness := e.Reason == reasonUnhealthy && strings.HasPrefix(e.Note, kubeletReadinessFailed)
+	pull := false
 	switch e.Reason {
 	case pullReasonPulling, pullReasonPulled, pullReasonFailed:
+		pull = true
 	default:
-		if !kill {
+		if !kill && !readiness {
 			return nil
 		}
 	}
@@ -85,7 +96,9 @@ func (r *ApplicationReconciler) applicationForPodEvent(ctx context.Context, obj 
 	switch {
 	case kill && at.After(recorded.livenessKill.Time):
 		recorded.livenessKill = at
-	case !kill && at.After(recorded.pulledAt.Time):
+	case readiness && at.After(recorded.readinessFailedAt.Time):
+		recorded.readinessFailure, recorded.readinessFailedAt = e.Note, at
+	case pull && at.After(recorded.pulledAt.Time):
 		recorded.pull, recorded.pulledAt = e.Reason, at
 	default:
 		return nil
@@ -96,6 +109,16 @@ func (r *ApplicationReconciler) applicationForPodEvent(ctx context.Context, obj 
 	recorded.application, recorded.namespace = requests[0].NamespacedName, e.Namespace
 	r.podEvents[pod.UID] = recorded
 	return requests
+}
+
+// currentReadinessFailure is the newest readiness probe failure reported since the pod's containers last started.
+func (e podEvent) currentReadinessFailure(pod *corev1.Pod) string {
+	for _, status := range pod.Status.ContainerStatuses {
+		if running := status.State.Running; running != nil && e.readinessFailedAt.Before(&running.StartedAt) {
+			return ""
+		}
+	}
+	return e.readinessFailure
 }
 
 func eventTime(e *eventsv1.Event) metav1.Time {

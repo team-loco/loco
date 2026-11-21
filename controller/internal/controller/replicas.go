@@ -130,8 +130,8 @@ func classifyReplica(pod *corev1.Pod, events *podEvent, now time.Time) loco.Repl
 				result.State = loco.ReplicaServing
 			case corev1.ConditionFalse:
 				result.State = loco.ReplicaStarting
+				result.Detail = detailWaitingForReadiness
 			}
-			result.Detail = condition.Message
 			return result
 		}
 	}

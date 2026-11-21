@@ -426,3 +426,31 @@ func TestShutdownDetailNamesTheExitRelativeToTheDrain(t *testing.T) {
 		})
 	}
 }
+
+func TestReplicaDetailOmitsReadyConditionText(t *testing.T) {
+	const unready = "containers with unready status: [web]"
+	running := corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(replicaTestNow)}}
+	for _, tt := range []struct {
+		name      string
+		ready     corev1.ConditionStatus
+		container bool
+		want      string
+	}{
+		{"container not ready", corev1.ConditionFalse, false, detailWaitingForReadiness},
+		{"pod not ready", corev1.ConditionFalse, true, detailWaitingForReadiness},
+		{"pod ready", corev1.ConditionTrue, true, ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			pod := &corev1.Pod{Status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{Type: corev1.PodScheduled, Status: corev1.ConditionTrue},
+					{Type: corev1.PodReady, Status: tt.ready, Message: unready},
+				},
+				ContainerStatuses: []corev1.ContainerStatus{{Ready: tt.container, State: running}},
+			}}
+			if got := replicaState(pod, nil, replicaTestNow).Detail; got != tt.want {
+				t.Fatalf("detail = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
