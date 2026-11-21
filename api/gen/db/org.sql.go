@@ -12,6 +12,77 @@ import (
 	"github.com/google/uuid"
 )
 
+const countOrgPeople = `-- name: CountOrgPeople :one
+SELECT
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM user_scopes us
+     WHERE us.entity_type = 'organization' AND us.entity_id = $1
+     GROUP BY us.user_id
+     LIMIT $2) m)::bigint AS member_count,
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM invitations i
+     WHERE i.org_id = $1 AND i.claimed_at IS NULL AND i.revoked_at IS NULL
+     LIMIT $2) v)::bigint AS invitation_count
+`
+
+type CountOrgPeopleParams struct {
+	OrgID   uuid.UUID `json:"orgId"`
+	MaxRows int32     `json:"maxRows"`
+}
+
+type CountOrgPeopleRow struct {
+	MemberCount     int64 `json:"memberCount"`
+	InvitationCount int64 `json:"invitationCount"`
+}
+
+func (q *Queries) CountOrgPeople(ctx context.Context, arg CountOrgPeopleParams) (CountOrgPeopleRow, error) {
+	row := q.db.QueryRow(ctx, countOrgPeople, arg.OrgID, arg.MaxRows)
+	var i CountOrgPeopleRow
+	err := row.Scan(&i.MemberCount, &i.InvitationCount)
+	return i, err
+}
+
+const countOrgPeopleByWorkspace = `-- name: CountOrgPeopleByWorkspace :many
+WITH members AS (
+  SELECT us.user_id, bool_or(us.scope = 'admin') AS admin
+  FROM user_scopes us
+  WHERE us.entity_type = 'organization' AND us.entity_id = $1
+  GROUP BY us.user_id
+)
+SELECT w.id AS workspace_id,
+  ((SELECT COUNT(*) FROM members WHERE admin) + COUNT(DISTINCT s.user_id))::bigint AS member_count
+FROM workspaces w
+LEFT JOIN user_scopes s ON s.entity_type = 'workspace' AND s.entity_id = w.id
+  AND s.user_id IN (SELECT m.user_id FROM members m WHERE NOT m.admin)
+WHERE w.org_id = $1
+GROUP BY w.id
+`
+
+type CountOrgPeopleByWorkspaceRow struct {
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	MemberCount int64     `json:"memberCount"`
+}
+
+func (q *Queries) CountOrgPeopleByWorkspace(ctx context.Context, orgID uuid.UUID) ([]CountOrgPeopleByWorkspaceRow, error) {
+	rows, err := q.db.Query(ctx, countOrgPeopleByWorkspace, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountOrgPeopleByWorkspaceRow
+	for rows.Next() {
+		var i CountOrgPeopleByWorkspaceRow
+		if err := rows.Scan(&i.WorkspaceID, &i.MemberCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countOrgsForUser = `-- name: CountOrgsForUser :one
 SELECT COUNT(*) FROM (
   SELECT 1 FROM user_scopes
@@ -143,6 +214,114 @@ func (q *Queries) IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailPara
 	var is_member bool
 	err := row.Scan(&is_member)
 	return is_member, err
+}
+
+const listMemberWorkspaceScopes = `-- name: ListMemberWorkspaceScopes :many
+SELECT us.user_id, w.id AS workspace_id, w.name AS workspace_name,
+  array_agg(us.scope ORDER BY us.scope)::text[] AS scopes
+FROM user_scopes us
+JOIN workspaces w ON w.id = us.entity_id
+WHERE us.entity_type = 'workspace' AND w.org_id = $1
+  AND us.user_id = ANY($2::uuid[])
+GROUP BY us.user_id, w.id, w.name
+ORDER BY w.name, w.id
+`
+
+type ListMemberWorkspaceScopesParams struct {
+	OrgID   uuid.UUID   `json:"orgId"`
+	UserIds []uuid.UUID `json:"userIds"`
+}
+
+type ListMemberWorkspaceScopesRow struct {
+	UserID        uuid.UUID `json:"userId"`
+	WorkspaceID   uuid.UUID `json:"workspaceId"`
+	WorkspaceName string    `json:"workspaceName"`
+	Scopes        []string  `json:"scopes"`
+}
+
+func (q *Queries) ListMemberWorkspaceScopes(ctx context.Context, arg ListMemberWorkspaceScopesParams) ([]ListMemberWorkspaceScopesRow, error) {
+	rows, err := q.db.Query(ctx, listMemberWorkspaceScopes, arg.OrgID, arg.UserIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMemberWorkspaceScopesRow
+	for rows.Next() {
+		var i ListMemberWorkspaceScopesRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.WorkspaceID,
+			&i.WorkspaceName,
+			&i.Scopes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrgMembersByUserIDs = `-- name: ListOrgMembersByUserIDs :many
+WITH member_scopes AS (
+  SELECT
+    us.user_id,
+    array_agg(us.scope ORDER BY us.scope)::text[] AS scopes,
+    MIN(us.created_at)::timestamptz AS joined_at
+  FROM user_scopes us
+  WHERE us.entity_type = 'organization' AND us.entity_id = $1
+    AND us.user_id = ANY($2::uuid[])
+  GROUP BY us.user_id
+)
+SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes, ms.joined_at, i.last_login_at
+FROM member_scopes ms
+JOIN users u ON u.id = ms.user_id
+LEFT JOIN identities i ON i.user_id = u.id
+`
+
+type ListOrgMembersByUserIDsParams struct {
+	OrgID   uuid.UUID   `json:"orgId"`
+	UserIds []uuid.UUID `json:"userIds"`
+}
+
+type ListOrgMembersByUserIDsRow struct {
+	ID          uuid.UUID  `json:"id"`
+	Email       string     `json:"email"`
+	Name        *string    `json:"name"`
+	AvatarUrl   *string    `json:"avatarUrl"`
+	Scopes      []string   `json:"scopes"`
+	JoinedAt    time.Time  `json:"joinedAt"`
+	LastLoginAt *time.Time `json:"lastLoginAt"`
+}
+
+func (q *Queries) ListOrgMembersByUserIDs(ctx context.Context, arg ListOrgMembersByUserIDsParams) ([]ListOrgMembersByUserIDsRow, error) {
+	rows, err := q.db.Query(ctx, listOrgMembersByUserIDs, arg.OrgID, arg.UserIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrgMembersByUserIDsRow
+	for rows.Next() {
+		var i ListOrgMembersByUserIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.AvatarUrl,
+			&i.Scopes,
+			&i.JoinedAt,
+			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listOrgMembersWithDetails = `-- name: ListOrgMembersWithDetails :many

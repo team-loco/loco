@@ -47,6 +47,14 @@ export const listUserOrgs = OrgService.method.listUserOrgs;
 export const listOrgMembers = OrgService.method.listOrgMembers;
 
 /**
+ * ListOrgPeople lists members and open invitations together: invitations newest first, then the
+ * caller, then the other members by name. Organization membership is required.
+ *
+ * @generated from rpc loco.org.v1.OrgService.ListOrgPeople
+ */
+export const listOrgPeople = OrgService.method.listOrgPeople;
+
+/**
  * SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
  *
  * @generated from rpc loco.org.v1.OrgService.SetOrgMemberRole

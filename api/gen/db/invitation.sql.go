@@ -155,6 +155,41 @@ func (q *Queries) GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (
 	return i, err
 }
 
+const listInvitationsByIDs = `-- name: ListInvitationsByIDs :many
+SELECT id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at FROM invitations WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListInvitationsByIDs(ctx context.Context, ids []uuid.UUID) ([]Invitation, error) {
+	rows, err := q.db.Query(ctx, listInvitationsByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Invitation
+	for rows.Next() {
+		var i Invitation
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.Email,
+			&i.Role,
+			&i.InvitedBy,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.ClaimedBy,
+			&i.ClaimedAt,
+			&i.RevokedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenInvitationsForEmail = `-- name: ListOpenInvitationsForEmail :many
 SELECT id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 FROM invitations

@@ -36,6 +36,8 @@ const (
 	OrgServiceListUserOrgsProcedure = "/loco.org.v1.OrgService/ListUserOrgs"
 	// OrgServiceListOrgMembersProcedure is the procedure name of the OrgService's ListOrgMembers RPC.
 	OrgServiceListOrgMembersProcedure = "/loco.org.v1.OrgService/ListOrgMembers"
+	// OrgServiceListOrgPeopleProcedure is the procedure name of the OrgService's ListOrgPeople RPC.
+	OrgServiceListOrgPeopleProcedure = "/loco.org.v1.OrgService/ListOrgPeople"
 	// OrgServiceSetOrgMemberRoleProcedure is the procedure name of the OrgService's SetOrgMemberRole
 	// RPC.
 	OrgServiceSetOrgMemberRoleProcedure = "/loco.org.v1.OrgService/SetOrgMemberRole"
@@ -102,6 +104,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ListOrgMembers"),
 			Procedure:  OrgServiceListOrgMembersProcedure,
+		}
+	})
+	orgServiceListOrgPeopleSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ListOrgPeople"),
+			Procedure:  OrgServiceListOrgPeopleProcedure,
 		}
 	})
 	orgServiceSetOrgMemberRoleSpec = sync.OnceValue(func() connect.Spec {
@@ -190,6 +199,9 @@ type OrgServiceClient interface {
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
 	// ListOrgMembers lists organization members; organization membership is required.
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
+	// ListOrgPeople lists members and open invitations together: invitations newest first, then the
+	// caller, then the other members by name. Organization membership is required.
+	ListOrgPeople(context.Context, *v1.ListOrgPeopleRequest) (*v1.ListOrgPeopleResponse, error)
 	// SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
 	SetOrgMemberRole(context.Context, *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error)
 	// RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.
@@ -240,6 +252,9 @@ type OrgServiceHandler interface {
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
 	// ListOrgMembers lists organization members; organization membership is required.
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
+	// ListOrgPeople lists members and open invitations together: invitations newest first, then the
+	// caller, then the other members by name. Organization membership is required.
+	ListOrgPeople(context.Context, *v1.ListOrgPeopleRequest) (*v1.ListOrgPeopleResponse, error)
 	// SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
 	SetOrgMemberRole(context.Context, *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error)
 	// RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.
@@ -280,6 +295,7 @@ func RegisterOrgServiceHandler(server *connect.Server, svc OrgServiceHandler) {
 		connect.Method{Spec: orgServiceDeleteOrgSpec(), Handler: adapter.deleteOrg},
 		connect.Method{Spec: orgServiceListUserOrgsSpec(), Handler: adapter.listUserOrgs},
 		connect.Method{Spec: orgServiceListOrgMembersSpec(), Handler: adapter.listOrgMembers},
+		connect.Method{Spec: orgServiceListOrgPeopleSpec(), Handler: adapter.listOrgPeople},
 		connect.Method{Spec: orgServiceSetOrgMemberRoleSpec(), Handler: adapter.setOrgMemberRole},
 		connect.Method{Spec: orgServiceRemoveOrgMemberSpec(), Handler: adapter.removeOrgMember},
 		connect.Method{Spec: orgServiceSuspendOrgSpec(), Handler: adapter.suspendOrg},
@@ -318,6 +334,10 @@ func (UnimplementedOrgServiceHandler) ListUserOrgs(context.Context, *v1.ListUser
 
 func (UnimplementedOrgServiceHandler) ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ListOrgMembers is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) ListOrgPeople(context.Context, *v1.ListOrgPeopleRequest) (*v1.ListOrgPeopleResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ListOrgPeople is not implemented")
 }
 
 func (UnimplementedOrgServiceHandler) SetOrgMemberRole(context.Context, *v1.SetOrgMemberRoleRequest) (*v1.SetOrgMemberRoleResponse, error) {
@@ -407,6 +427,14 @@ func (c *orgServiceClient) ListUserOrgs(ctx context.Context, req *v1.ListUserOrg
 func (c *orgServiceClient) ListOrgMembers(ctx context.Context, req *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error) {
 	var res v1.ListOrgMembersResponse
 	if err := c.client.CallUnary(ctx, orgServiceListOrgMembersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) ListOrgPeople(ctx context.Context, req *v1.ListOrgPeopleRequest) (*v1.ListOrgPeopleResponse, error) {
+	var res v1.ListOrgPeopleResponse
+	if err := c.client.CallUnary(ctx, orgServiceListOrgPeopleSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -560,6 +588,18 @@ func (h orgServiceHandler) listOrgMembers(ctx context.Context, _ connect.Spec, s
 		return err
 	}
 	res, err := h.svc.ListOrgMembers(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) listOrgPeople(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListOrgPeopleRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListOrgPeople(ctx, &req)
 	if err != nil {
 		return err
 	}

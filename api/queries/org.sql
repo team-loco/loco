@@ -179,3 +179,56 @@ SELECT EXISTS (
             AND other.scope = 'admin' AND other.user_id <> s.user_id AND other_user.status = 'active'
       )
 ) AS has_no_active_successor;
+
+-- name: ListOrgMembersByUserIDs :many
+WITH member_scopes AS (
+  SELECT
+    us.user_id,
+    array_agg(us.scope ORDER BY us.scope)::text[] AS scopes,
+    MIN(us.created_at)::timestamptz AS joined_at
+  FROM user_scopes us
+  WHERE us.entity_type = 'organization' AND us.entity_id = sqlc.arg('org_id')
+    AND us.user_id = ANY(sqlc.arg('user_ids')::uuid[])
+  GROUP BY us.user_id
+)
+SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes, ms.joined_at, i.last_login_at
+FROM member_scopes ms
+JOIN users u ON u.id = ms.user_id
+LEFT JOIN identities i ON i.user_id = u.id;
+
+-- name: ListMemberWorkspaceScopes :many
+SELECT us.user_id, w.id AS workspace_id, w.name AS workspace_name,
+  array_agg(us.scope ORDER BY us.scope)::text[] AS scopes
+FROM user_scopes us
+JOIN workspaces w ON w.id = us.entity_id
+WHERE us.entity_type = 'workspace' AND w.org_id = sqlc.arg('org_id')
+  AND us.user_id = ANY(sqlc.arg('user_ids')::uuid[])
+GROUP BY us.user_id, w.id, w.name
+ORDER BY w.name, w.id;
+
+-- name: CountOrgPeople :one
+SELECT
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM user_scopes us
+     WHERE us.entity_type = 'organization' AND us.entity_id = sqlc.arg('org_id')
+     GROUP BY us.user_id
+     LIMIT sqlc.arg('max_rows')) m)::bigint AS member_count,
+  (SELECT COUNT(*) FROM (
+     SELECT 1 FROM invitations i
+     WHERE i.org_id = sqlc.arg('org_id') AND i.claimed_at IS NULL AND i.revoked_at IS NULL
+     LIMIT sqlc.arg('max_rows')) v)::bigint AS invitation_count;
+
+-- name: CountOrgPeopleByWorkspace :many
+WITH members AS (
+  SELECT us.user_id, bool_or(us.scope = 'admin') AS admin
+  FROM user_scopes us
+  WHERE us.entity_type = 'organization' AND us.entity_id = sqlc.arg('org_id')
+  GROUP BY us.user_id
+)
+SELECT w.id AS workspace_id,
+  ((SELECT COUNT(*) FROM members WHERE admin) + COUNT(DISTINCT s.user_id))::bigint AS member_count
+FROM workspaces w
+LEFT JOIN user_scopes s ON s.entity_type = 'workspace' AND s.entity_id = w.id
+  AND s.user_id IN (SELECT m.user_id FROM members m WHERE NOT m.admin)
+WHERE w.org_id = sqlc.arg('org_id')
+GROUP BY w.id;
