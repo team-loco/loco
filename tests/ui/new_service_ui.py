@@ -189,11 +189,11 @@ with session(out) as browser:
     )
     pending_config = []
     context.route(
-        "**/loco.config.v1.ConfigService/GetConfig",
+        "**/loco.config.v1.ConfigService/GetConfig*",
         lambda route: pending_config.append(route),
         times=1,
     )
-    with page.expect_request("**/loco.config.v1.ConfigService/GetConfig"):
+    with page.expect_request("**/loco.config.v1.ConfigService/GetConfig*"):
         page.goto(base + f"/resources?env=production&draft={loading['id']}")
     drawer = page.get_by_role("dialog", name="loading-draft", exact=True)
     expect(page.get_by_role("status")).to_be_visible()

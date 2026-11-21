@@ -57,7 +57,7 @@ with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     config["historyRetention"] = {"buildImagesPerResource": 7, "events": "129600s"}
     page.route(
-        "**/loco.config.v1.ConfigService/GetConfig",
+        "**/loco.config.v1.ConfigService/GetConfig*",
         lambda route: route.fulfill(json=config),
     )
     page.goto(path)
