@@ -785,6 +785,9 @@ TRAFFIC_VALUES = {
 
 
 def mock_metrics(page):
+    # Every metric shares bucket times, as the API's buckets do.
+    now = datetime.now(UTC).replace(second=0, microsecond=0)
+
     def metrics(route):
         body = route.request.post_data_json
         value = TRAFFIC_VALUES.get(body.get("metricName"), 0.4)
@@ -794,7 +797,12 @@ def mock_metrics(page):
                     {
                         "resourceId": rid,
                         "points": [
-                            {"timestamp": stamp(timedelta(minutes=m)), "value": value}
+                            {
+                                "timestamp": (now - timedelta(minutes=m))
+                                .isoformat()
+                                .replace("+00:00", "Z"),
+                                "value": value,
+                            }
                             for m in (30, 10)
                         ],
                     }
