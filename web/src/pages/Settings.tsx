@@ -7,7 +7,7 @@ import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { startTransition, useEffect, useState } from "react";
 import { useQueryStates } from "nuqs";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
 
@@ -47,7 +47,8 @@ function DirtyDot() {
 
 export function Settings() {
 	const { orgId = "", workspaceId = "" } = useParams<{ orgId: string; workspaceId: string }>();
-	const [{ scope: requested }, setParams] = useQueryStates(SETTINGS_PARAMS, { history: "replace" });
+	const [{ scope: inUrl }, setParams] = useQueryStates(SETTINGS_PARAMS, { history: "replace" });
+	const requested = inUrl ?? "workspace";
 	const navigate = useNavigate();
 	const { user } = useAuth();
 	const [drafts, setDrafts] = useState<Drafts>(NO_DRAFTS);
@@ -80,18 +81,12 @@ export function Settings() {
 	);
 	const { counts, isLoading: countsLoading } = useResourceCounts(workspaceIds);
 	const scope = requested === "org" && !canReadOrg ? "workspace" : requested;
-	// Rewrites a missing, unknown or unreadable scope in the URL, which leads `requested` while a switch renders.
-	const [search] = useSearchParams();
-	const inUrl = search.get("scope");
 	useEffect(() => {
-		if (scopes.isLoading) return;
-		const asked = SETTINGS_SCOPES.find((s) => s === inUrl) ?? "workspace";
-		const allowed = asked === "org" && !canReadOrg ? "workspace" : asked;
-		if (inUrl === allowed) return;
-		if (asked !== allowed)
+		if (inUrl === scope || scopes.isLoading) return;
+		if (requested !== scope)
 			toast.info("Organization settings need admin access", { description: "Showing workspace settings." });
-		void setParams({ scope: allowed }, { history: "replace", clearOnDefault: false });
-	}, [inUrl, scopes.isLoading, canReadOrg, setParams]);
+		void setParams({ scope }, { history: "replace" });
+	}, [inUrl, scope, requested, scopes.isLoading, setParams]);
 
 	const wsDraft = drafts.workspace?.id === workspaceId ? drafts.workspace : null;
 	const orgDraft = drafts.org?.id === orgId ? drafts.org : null;
@@ -106,7 +101,7 @@ export function Settings() {
 	// A transition keeps the current scope on screen while the Personal scope's theme stylesheets load.
 	const selectScope = (next: SettingsScope) => {
 		startTransition(() => {
-			void setParams({ scope: next, q: null, page: null, size: null }, { clearOnDefault: false });
+			void setParams({ scope: next, q: null, page: null, size: null });
 		});
 	};
 
