@@ -18,6 +18,7 @@ import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { useHeldError } from "@/hooks/useHeldError";
 import { useNow } from "@/hooks/useNow";
 import { currentDeploymentOptions } from "@/hooks/useWorkspaceDeployments";
 import { workspaceDeploymentsOptions } from "@/hooks/workspaceDeployments";
@@ -184,6 +185,10 @@ function useComputeSeries(
 			}),
 		),
 	});
+	const error = useHeldError(
+		results.find((r) => r.error !== null)?.error ?? null,
+		results.some((r) => r.isFetching),
+	);
 	const series: ChartSeries[] = [];
 	const latest = new Map<string, { v: number; limit: number }>();
 	const multi = new Set(rows.filter((p) => p.dashed).map((p) => p.resource.id));
@@ -221,8 +226,8 @@ function useComputeSeries(
 	return {
 		series,
 		latest,
-		isLoading: results.some((r) => r.isLoading),
-		error: results.find((r) => r.error !== null)?.error ?? null,
+		isLoading: error === null && results.some((r) => r.isLoading),
+		error,
 		refetch: async () => await Promise.all(results.map(async (r) => await r.refetch())),
 	};
 }
@@ -250,6 +255,10 @@ function useTrafficSeries(rows: Placement[], spanMs: number, endMs: number | und
 			),
 		),
 	});
+	const error = useHeldError(
+		results.find((r) => r.error !== null)?.error ?? null,
+		results.some((r) => r.isFetching),
+	);
 	const multi = new Set(rows.filter((p) => p.dashed).map((p) => p.resource.id));
 	const series: Record<TrafficKey, ChartSeries[]> = { req: [], err: [], lat: [] };
 	regions.forEach((region, i) => {
@@ -276,8 +285,8 @@ function useTrafficSeries(rows: Placement[], spanMs: number, endMs: number | und
 	});
 	return {
 		series,
-		isLoading: results.some((r) => r.isLoading),
-		error: results.find((r) => r.error !== null)?.error ?? null,
+		isLoading: error === null && results.some((r) => r.isLoading),
+		error,
 		refetch: async () => await Promise.all(results.map(async (r) => await r.refetch())),
 	};
 }

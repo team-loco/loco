@@ -17,6 +17,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
+import { useHeldError } from "@/hooks/useHeldError";
 import { useLogBuckets } from "@/hooks/useLogBuckets";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
@@ -259,6 +260,7 @@ export function LogsView() {
 		intervalSeconds,
 		enabled: !backend.impossible,
 	});
+	const volumeError = useHeldError(volume.error, volume.isFetching);
 	const resourceVolume = useLogBuckets({
 		workspaceId,
 		environmentId,
@@ -495,8 +497,8 @@ export function LogsView() {
 								);
 							})}
 						</ToggleGroup>
-						{volume.error !== null ? (
-							<ErrorState error={volume.error} what="log volume" rpc={queryLogBuckets} onRetry={volume.refetch} />
+						{volumeError !== null ? (
+							<ErrorState error={volumeError} what="log volume" rpc={queryLogBuckets} onRetry={volume.refetch} />
 						) : (
 							<>
 								{volume.isLoading || environmentLoading ? (
