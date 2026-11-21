@@ -493,6 +493,51 @@ func TestListWorkspaceResourcesListsTheGrantedResources(t *testing.T) {
 	}
 }
 
+func TestListWorkspaceResourcesByID(t *testing.T) {
+	t.Parallel()
+	f := newResourceListFixture(t)
+	otherWorkspace := f.tenant.workspace(t, "other")
+	elsewhere := f.tenant.resource(t, otherWorkspace, "elsewhere", &resourcev1.ServiceSpec{})
+	ids := func(names ...string) []string {
+		values := make([]string, 0, len(names))
+		for _, name := range names {
+			values = append(values, f.ids[name].String())
+		}
+		return values
+	}
+	requested := append(ids(listAlpha, listBeta, listSvc), elsewhere.String(), uuid.NewString())
+	healthy := &resourcev1.ListWorkspaceResourcesRequest{
+		ResourceIds: requested, Status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+		OrderBy: resourcev1.ResourceOrder_RESOURCE_ORDER_NAME,
+	}
+	for _, pageSize := range []int32{0, 1} {
+		if got, want := f.names(t, healthy, pageSize), []string{listAlpha, listSvc}; !slices.Equal(got, want) {
+			t.Errorf("healthy of the requested, page size %d = %v, want %v", pageSize, got, want)
+		}
+	}
+	healthy.IncludeTotalCount = true
+	if got := f.list(t, healthy).GetTotalCount(); got != 2 {
+		t.Errorf("total_count of the requested = %d, want 2", got)
+	}
+
+	f.ctx = reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listBeta], Scope: genDb.ScopeRead},
+	}})
+	for _, c := range []struct {
+		requested []string
+		want      []string
+	}{
+		{ids(listAlpha, listGamma), []string{listAlpha}},
+		{ids(listGamma), nil},
+	} {
+		got := f.names(t, &resourcev1.ListWorkspaceResourcesRequest{ResourceIds: c.requested}, 0)
+		if !slices.Equal(got, c.want) {
+			t.Errorf("granted Alpha and beta, requested %v = %v, want %v", c.requested, got, c.want)
+		}
+	}
+}
+
 func TestListWorkspaceResourcesValidatesFilters(t *testing.T) {
 	t.Parallel()
 	f := newResourceListFixture(t)
@@ -507,6 +552,8 @@ func TestListWorkspaceResourcesValidatesFilters(t *testing.T) {
 	for _, req := range []*resourcev1.ListWorkspaceResourcesRequest{
 		{Status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, NotDeployed: true},
 		{EnvironmentScoped: true},
+		{ResourceIds: []string{"not-a-uuid"}},
+		{ResourceIds: slices.Repeat([]string{uuid.NewString()}, 101)},
 	} {
 		req.WorkspaceId = f.workspaceID.String()
 		if _, err := client.ListWorkspaceResources(

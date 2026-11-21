@@ -42,6 +42,15 @@ export const deleteResource = ResourceService.method.deleteResource;
 export const listWorkspaceResources = ResourceService.method.listWorkspaceResources;
 
 /**
+ * GetEnvironmentAllocation sums the CPU and memory the resources of a workspace are allocated in
+ * an environment. A caller who cannot list the workspace gets the sums over the resources of it
+ * that GetResource would return; one who can read none of them is denied.
+ *
+ * @generated from rpc loco.resource.v1.ResourceService.GetEnvironmentAllocation
+ */
+export const getEnvironmentAllocation = ResourceService.method.getEnvironmentAllocation;
+
+/**
  * ListRegions lists the regions an environment deploys to.
  *
  * @generated from rpc loco.resource.v1.ResourceService.ListRegions

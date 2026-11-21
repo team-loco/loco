@@ -5542,6 +5542,68 @@
         }
       }
     },
+    "/loco.resource.v1.ResourceService/GetEnvironmentAllocation": {
+      "post": {
+        "tags": [
+          "loco.resource.v1.ResourceService"
+        ],
+        "summary": "GetEnvironmentAllocation",
+        "description": "GetEnvironmentAllocation sums the CPU and memory the resources of a workspace are allocated in\n an environment. A caller who cannot list the workspace gets the sums over the resources of it\n that GetResource would return; one who can read none of them is denied.",
+        "operationId": "loco.resource.v1.ResourceService.GetEnvironmentAllocation",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.resource.v1.GetEnvironmentAllocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.resource.v1.GetEnvironmentAllocationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.resource.v1.ResourceService/GetResource": {
       "post": {
         "tags": [
@@ -15191,6 +15253,56 @@
         "additionalProperties": false,
         "description": "EnvironmentStatus is a resource's status in one environment it has an active deployment in."
       },
+      "loco.resource.v1.GetEnvironmentAllocationRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          }
+        },
+        "title": "GetEnvironmentAllocationRequest",
+        "additionalProperties": false,
+        "description": "GetEnvironmentAllocationRequest names the workspace and the environment to sum."
+      },
+      "loco.resource.v1.GetEnvironmentAllocationResponse": {
+        "type": "object",
+        "properties": {
+          "cpuMillicores": {
+            "type": "string",
+            "title": "cpu_millicores",
+            "format": "int64"
+          },
+          "memoryBytes": {
+            "type": "string",
+            "title": "memory_bytes",
+            "format": "int64"
+          },
+          "resourceCount": {
+            "type": "integer",
+            "title": "resource_count",
+            "format": "int32",
+            "description": "The resources with an allocation."
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceAllocation"
+            },
+            "title": "resources",
+            "description": "The six largest allocations, by CPU, then memory, descending, then by name."
+          }
+        },
+        "title": "GetEnvironmentAllocationResponse",
+        "additionalProperties": false,
+        "description": "GetEnvironmentAllocationResponse is the allocation of the environment. A resource's allocation\n sums, over the regions of its status in the environment, the region's desired replicas times\n the CPU and memory its live deployment sizes the region with; resources whose allocation is\n zero are left out of every field."
+      },
       "loco.resource.v1.GetResourceEnvRequest": {
         "type": "object",
         "properties": {
@@ -15415,6 +15527,16 @@
             "title": "sort_environment_id",
             "format": "uuid",
             "description": "The environment whose status, size and deployment time the STATUS, SIZE and DEPLOYED orders\n read, while query, the filters and the facets follow environment_id. Empty sorts by\n environment_id, or across environments without it."
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids",
+            "maxItems": 100,
+            "description": "Only these resources. They also limit the resources the facets count."
           }
         },
         "title": "ListWorkspaceResourcesRequest",
@@ -15718,6 +15840,32 @@
         "title": "Resource",
         "additionalProperties": false,
         "description": "Resource represents a resource in a workspace."
+      },
+      "loco.resource.v1.ResourceAllocation": {
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "cpuMillicores": {
+            "type": "string",
+            "title": "cpu_millicores",
+            "format": "int64"
+          },
+          "memoryBytes": {
+            "type": "string",
+            "title": "memory_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "ResourceAllocation",
+        "additionalProperties": false,
+        "description": "ResourceAllocation is one resource's allocation in an environment."
       },
       "loco.resource.v1.ResourceFacets": {
         "type": "object",

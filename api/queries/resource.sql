@@ -106,6 +106,36 @@ FROM (
 ) s
 ORDER BY s.resource_id, s.environment_slug, s.region;
 
+-- name: ListEnvironmentAllocation :many
+-- The six largest allocations of the workspace's resources in the environment, each row carrying
+-- the totals and count over every resource with an allocation. A resource's allocation sums, over
+-- its regions, desired replicas times the CPU and memory of the region in its live deployment.
+-- resource_ids limits the resources; NULL reads every resource of the workspace.
+WITH allocated AS (
+    SELECT r.id, r.name,
+           COALESCE(sum(i.desired_replicas * cpu_millicores(d.spec->'regions'->i.region->>'cpu')), 0)::bigint
+               AS cpu_millicores,
+           COALESCE(sum(i.desired_replicas * memory_bytes(d.spec->'regions'->i.region->>'memory')), 0)::bigint
+               AS memory_bytes
+    FROM resource_region_inputs i
+    JOIN resources r ON r.id = i.resource_id
+    JOIN deployments d ON d.id = i.deployment_id
+    WHERE i.environment_id = sqlc.arg(environment_id)::uuid
+      AND i.resource_id = ANY(ARRAY(
+          SELECT w.id FROM resources w WHERE w.workspace_id = sqlc.arg(workspace_id)::uuid
+            AND (sqlc.narg(resource_ids)::uuid[] IS NULL OR w.id = ANY(sqlc.narg(resource_ids)::uuid[]))
+      ))
+    GROUP BY r.id, r.name
+)
+SELECT a.id, a.name, a.cpu_millicores, a.memory_bytes,
+       (sum(a.cpu_millicores) OVER ())::bigint AS total_cpu_millicores,
+       (sum(a.memory_bytes) OVER ())::bigint AS total_memory_bytes,
+       (count(*) OVER ())::int AS resource_count
+FROM allocated a
+WHERE a.cpu_millicores > 0 OR a.memory_bytes > 0
+ORDER BY a.cpu_millicores DESC, a.memory_bytes DESC, lower(a.name), a.id
+LIMIT 6;
+
 -- name: GetWorkspaceOrganizationIDByResourceID :one
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
 

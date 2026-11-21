@@ -39,6 +39,9 @@ const (
 	// ResourceServiceListWorkspaceResourcesProcedure is the procedure name of the ResourceService's
 	// ListWorkspaceResources RPC.
 	ResourceServiceListWorkspaceResourcesProcedure = "/loco.resource.v1.ResourceService/ListWorkspaceResources"
+	// ResourceServiceGetEnvironmentAllocationProcedure is the procedure name of the ResourceService's
+	// GetEnvironmentAllocation RPC.
+	ResourceServiceGetEnvironmentAllocationProcedure = "/loco.resource.v1.ResourceService/GetEnvironmentAllocation"
 	// ResourceServiceListRegionsProcedure is the procedure name of the ResourceService's ListRegions
 	// RPC.
 	ResourceServiceListRegionsProcedure = "/loco.resource.v1.ResourceService/ListRegions"
@@ -93,6 +96,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_resource_v1_resource_proto.Services().ByName("ResourceService").Methods().ByName("ListWorkspaceResources"),
 			Procedure:  ResourceServiceListWorkspaceResourcesProcedure,
+		}
+	})
+	resourceServiceGetEnvironmentAllocationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_resource_v1_resource_proto.Services().ByName("ResourceService").Methods().ByName("GetEnvironmentAllocation"),
+			Procedure:  ResourceServiceGetEnvironmentAllocationProcedure,
 		}
 	})
 	resourceServiceListRegionsSpec = sync.OnceValue(func() connect.Spec {
@@ -153,6 +163,10 @@ type ResourceServiceClient interface {
 	// A caller who cannot list the workspace gets the resources of it that GetResource would return,
 	// with every count over those alone; one who can read none of them is denied.
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
+	// GetEnvironmentAllocation sums the CPU and memory the resources of a workspace are allocated in
+	// an environment. A caller who cannot list the workspace gets the sums over the resources of it
+	// that GetResource would return; one who can read none of them is denied.
+	GetEnvironmentAllocation(context.Context, *v1.GetEnvironmentAllocationRequest) (*v1.GetEnvironmentAllocationResponse, error)
 	// ListRegions lists the regions an environment deploys to.
 	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
 	// GetResourceEnv returns the variables a service runs with in an environment as written, the
@@ -190,6 +204,10 @@ type ResourceServiceHandler interface {
 	// A caller who cannot list the workspace gets the resources of it that GetResource would return,
 	// with every count over those alone; one who can read none of them is denied.
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
+	// GetEnvironmentAllocation sums the CPU and memory the resources of a workspace are allocated in
+	// an environment. A caller who cannot list the workspace gets the sums over the resources of it
+	// that GetResource would return; one who can read none of them is denied.
+	GetEnvironmentAllocation(context.Context, *v1.GetEnvironmentAllocationRequest) (*v1.GetEnvironmentAllocationResponse, error)
 	// ListRegions lists the regions an environment deploys to.
 	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
 	// GetResourceEnv returns the variables a service runs with in an environment as written, the
@@ -217,6 +235,7 @@ func RegisterResourceServiceHandler(server *connect.Server, svc ResourceServiceH
 		connect.Method{Spec: resourceServiceUpdateResourceSpec(), Handler: adapter.updateResource},
 		connect.Method{Spec: resourceServiceDeleteResourceSpec(), Handler: adapter.deleteResource},
 		connect.Method{Spec: resourceServiceListWorkspaceResourcesSpec(), Handler: adapter.listWorkspaceResources},
+		connect.Method{Spec: resourceServiceGetEnvironmentAllocationSpec(), Handler: adapter.getEnvironmentAllocation},
 		connect.Method{Spec: resourceServiceListRegionsSpec(), Handler: adapter.listRegions},
 		connect.Method{Spec: resourceServiceGetResourceEnvSpec(), Handler: adapter.getResourceEnv},
 		connect.Method{Spec: resourceServiceListResourceOutputsSpec(), Handler: adapter.listResourceOutputs},
@@ -247,6 +266,10 @@ func (UnimplementedResourceServiceHandler) DeleteResource(context.Context, *v1.D
 
 func (UnimplementedResourceServiceHandler) ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.ListWorkspaceResources is not implemented")
+}
+
+func (UnimplementedResourceServiceHandler) GetEnvironmentAllocation(context.Context, *v1.GetEnvironmentAllocationRequest) (*v1.GetEnvironmentAllocationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.GetEnvironmentAllocation is not implemented")
 }
 
 func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error) {
@@ -312,6 +335,14 @@ func (c *resourceServiceClient) DeleteResource(ctx context.Context, req *v1.Dele
 func (c *resourceServiceClient) ListWorkspaceResources(ctx context.Context, req *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error) {
 	var res v1.ListWorkspaceResourcesResponse
 	if err := c.client.CallUnary(ctx, resourceServiceListWorkspaceResourcesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *resourceServiceClient) GetEnvironmentAllocation(ctx context.Context, req *v1.GetEnvironmentAllocationRequest) (*v1.GetEnvironmentAllocationResponse, error) {
+	var res v1.GetEnvironmentAllocationResponse
+	if err := c.client.CallUnary(ctx, resourceServiceGetEnvironmentAllocationSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -421,6 +452,18 @@ func (h resourceServiceHandler) listWorkspaceResources(ctx context.Context, _ co
 		return err
 	}
 	res, err := h.svc.ListWorkspaceResources(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h resourceServiceHandler) getEnvironmentAllocation(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetEnvironmentAllocationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetEnvironmentAllocation(ctx, &req)
 	if err != nil {
 		return err
 	}
