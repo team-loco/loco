@@ -67,6 +67,14 @@ WHERE w.org_id = $1
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2;
 
+-- name: CountWorkspaceContents :many
+SELECT w.id,
+       (SELECT COUNT(*) FROM resources r WHERE r.workspace_id = w.id)::int AS resource_count,
+       (SELECT COUNT(DISTINCT us.user_id) FROM user_scopes us
+        WHERE us.entity_type = 'workspace' AND us.entity_id = w.id)::int AS member_count
+FROM workspaces w
+WHERE w.id = ANY(sqlc.arg('workspace_ids')::uuid[]);
+
 -- name: UpdateWorkspace :exec
 UPDATE workspaces
 SET name = COALESCE(sqlc.narg('name'), name),

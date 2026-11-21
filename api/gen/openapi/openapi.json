@@ -17476,6 +17476,24 @@
             "title": "effective_retention",
             "description": "effective_retention is how many days ingest keeps each signal, with every field set: the\n workspace's own value capped by its organization's limit.",
             "$ref": "#/components/schemas/loco.workspace.v1.RetentionDays"
+          },
+          "resourceCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "resource_count",
+            "format": "int32",
+            "description": "resource_count is how many resources the workspace holds. ListOrgWorkspaces sets it on each\n workspace the caller can read."
+          },
+          "memberCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "member_count",
+            "format": "int32",
+            "description": "member_count is how many users hold a direct grant on the workspace. ListOrgWorkspaces sets it\n on each workspace the caller can read."
           }
         },
         "title": "Workspace",

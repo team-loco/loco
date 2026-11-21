@@ -1,6 +1,6 @@
 import { charCount, clampChars } from "@/lib/characters";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import {
 	deleteWorkspace,
@@ -8,7 +8,7 @@ import {
 	updateWorkspace,
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
-import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRightIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -23,7 +23,6 @@ import { Input } from "@/components/design/Input";
 import { SaveBar } from "@/components/design/SaveBar";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
-import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
@@ -34,7 +33,6 @@ import { userLabel } from "@/lib/user";
 import { EnvironmentsSection } from "./EnvironmentsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { RetentionSection } from "./RetentionSection";
-import type { ResourceCount } from "./useResourceCounts";
 
 const MAX_NAME = 63;
 const MAX_DESCRIPTION = 256;
@@ -50,7 +48,6 @@ export function WorkspaceTab({
 	workspaces,
 	users,
 	level,
-	resourceCount,
 	draft,
 	onDraft,
 }: {
@@ -59,16 +56,13 @@ export function WorkspaceTab({
 	workspaces: Workspace[];
 	users: User[];
 	level: AccessLevel;
-	resourceCount: ResourceCount | undefined;
 	draft: WorkspaceDraft | null;
 	onDraft: (draft: WorkspaceDraft | null) => void;
 }) {
 	const timePref = useTimePreferences();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const transport = useTransport();
 	const { data, isLoading, error, refetch } = useQuery(getWorkspace, { workspaceId });
-	const { data: membersRes } = useTanstackQuery(workspaceMembersOptions(transport, workspaceId));
 	const update = useMutation(updateWorkspace);
 	const remove = useMutation(deleteWorkspace);
 
@@ -92,16 +86,16 @@ export function WorkspaceTab({
 	const createdDay = formatDay(ws.createdAt, timePref);
 	const created = creator ? `${createdDay} by ${userLabel(creator)}` : createdDay;
 
-	const nRes = resourceCount?.count ?? 0;
-	const hasRes = nRes > 0 || resourceCount?.more === true;
-	const members = membersRes?.members.length ?? 0;
-	const resLabel = resourceCount === undefined ? "—" : `${nRes.toString()}${resourceCount.more ? "+" : ""}`;
+	const listed = workspaces.find((w) => w.id === workspaceId);
+	const nRes = listed?.resourceCount;
+	const hasRes = (nRes ?? 0) > 0;
+	const resLabel = nRes === undefined ? "—" : nRes.toString();
 	const subtitle = hasRes
 		? `Delete the ${resLabel} ${nRes === 1 ? "resource" : "resources"} in ${ws.name} first.`
-		: `${resLabel} resources, ${pluralize(members, "member")} with direct access`;
+		: `${resLabel} resources, ${pluralize(listed?.memberCount ?? 0, "member")} with direct access`;
 	const blockedReason = !canAdmin
 		? `Requires Admin on ${ws.name}`
-		: resourceCount === undefined
+		: nRes === undefined
 			? "Checking for resources"
 			: hasRes
 				? "Workspace still has resources"
