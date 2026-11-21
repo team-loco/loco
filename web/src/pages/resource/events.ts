@@ -41,11 +41,7 @@ export interface EventRow {
 function eventRow(event: Event): EventRow {
 	const severity = asSeverity(event.severity);
 	const deploy = DEPLOY_EVENT_TYPES.includes(event.type);
-	const title = deploy
-		? event.title
-		: event.reason === ""
-			? "Service recovered"
-			: event.reason.replaceAll("_", " ");
+	const title = deploy ? event.title : event.reason === "" ? "Service recovered" : event.reason.replaceAll("_", " ");
 	const detail = deploy ? eventSummary(event) : event.message;
 	return { event, title, detail, glyph: severityStyle(severity).glyph, warning: severity !== "normal", count: 1 };
 }
