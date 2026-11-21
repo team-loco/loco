@@ -825,6 +825,8 @@ with session(out) as browser:
     )
     drawer.get_by_role("button", name="Close", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+    # The table sees a deletion made elsewhere on its next poll; the reload skips the wait.
+    page.reload()
     draft_row(page, name).get_by_role("link", name=name, exact=True).click()
     expect(page).to_have_url(DRAFT_URL)
     expect(
