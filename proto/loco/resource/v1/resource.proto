@@ -168,6 +168,9 @@ message RegionStatus {
   // The deployment with the most ready replicas in this region, the live deployment and then the
   // newest on a tie. Empty while no replica is ready.
   string serving_deployment_id = 13;
+  // The newest earlier deployment in this region that a rollback returns to: running or superseded,
+  // and not the live deployment. Empty when there is none.
+  string last_good_deployment_id = 14;
   // The status of the live deployment's placement in this region.
   deployment.v1.PlacementStatus placement_status = 10;
   optional string message = 7;

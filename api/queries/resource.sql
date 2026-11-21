@@ -94,7 +94,15 @@ SELECT s.*,
 FROM (
     SELECT i.*,
            c.cause AS status_cause,
-           region_status(c.cause, i.ready_replicas, i.desired_replicas, i.placement_status)::text AS status
+           region_status(c.cause, i.ready_replicas, i.desired_replicas, i.placement_status)::text AS status,
+           COALESCE((SELECT d.id::text FROM deployments d
+            JOIN deployment_placements dp ON dp.deployment_id = d.id AND dp.region = i.region
+            WHERE d.resource_id = i.resource_id
+              AND d.environment_id = i.environment_id
+              AND d.id <> i.deployment_id
+              AND d.status IN ('running', 'superseded')
+            ORDER BY d.created_at DESC, d.id DESC
+            LIMIT 1), '')::text AS last_good_deployment_id
     FROM resource_region_inputs i
     CROSS JOIN LATERAL (
         SELECT region_status_cause(

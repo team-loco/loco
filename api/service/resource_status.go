@@ -104,11 +104,12 @@ func regionStatus(row genDb.ListRegionStatusesForResourcesRow) (*resourcev1.Regi
 		return nil, err
 	}
 	region := &resourcev1.RegionStatus{
-		Region:          row.Region,
-		DesiredReplicas: row.DesiredReplicas,
-		DeploymentId:    row.DeploymentID.String(),
-		PlacementStatus: placementStatuses[row.PlacementStatus],
-		Status:          status,
+		Region:               row.Region,
+		DesiredReplicas:      row.DesiredReplicas,
+		DeploymentId:         row.DeploymentID.String(),
+		LastGoodDeploymentId: row.LastGoodDeploymentID,
+		PlacementStatus:      placementStatuses[row.PlacementStatus],
+		Status:               status,
 	}
 	if row.StatusUpdatedAt != nil {
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)
