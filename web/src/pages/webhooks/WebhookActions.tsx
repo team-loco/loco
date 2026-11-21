@@ -194,7 +194,7 @@ function RotateSecret({
 								<ToggleGroup
 									variant="segmented"
 									aria-label="Grace period"
-									className="w-max"
+									className="w-max!"
 									value={[seconds]}
 									onValueChange={(v) => {
 										if (v[0] !== undefined) setSeconds(v[0]);
