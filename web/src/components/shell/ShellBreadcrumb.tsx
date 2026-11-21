@@ -191,7 +191,7 @@ export function ShellBreadcrumb() {
 	const workspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? directWorkspace.data?.workspace;
 	const hasScopeCrumb = org !== undefined || workspace !== undefined;
 	const inWorkspace = matchPath(WORKSPACE_ROUTE, pathname) !== null;
-	const showEnv = inWorkspace && !pathname.endsWith("/settings");
+	const showEnv = inWorkspace && !pathname.endsWith("/settings") && !pathname.endsWith("/webhooks");
 
 	return (
 		<Breadcrumb className="min-w-0 flex-1 overflow-hidden">
