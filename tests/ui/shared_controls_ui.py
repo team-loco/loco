@@ -1172,20 +1172,25 @@ def dashboard(page):
             modes = page.get_by_role("radiogroup", name="Mode")
             expect(modes.get_by_role("radio", checked=True)).to_be_focused()
             # The open user menu stays by its sidebar trigger while the page scrolls.
-            scrolled, moved = modes.evaluate(
+            scrolled, moved, scroller = modes.evaluate(
                 """group => {
                     // The menu's scroll lock can move the page's scroller from <html> to <body>.
-                    const page = [document.scrollingElement, document.body].find(
-                        (el) => el.scrollHeight > el.clientHeight,
+                    const range = (el) => el.scrollHeight - el.clientHeight;
+                    const page = [document.scrollingElement, document.body].reduce((a, b) =>
+                        range(b) > range(a) ? b : a,
                     );
                     const [y, top] = [page.scrollTop, group.getBoundingClientRect().top];
                     page.scrollTop = y >= 100 ? y - 100 : y + 100;
-                    const result = [page.scrollTop - y, group.getBoundingClientRect().top - top];
+                    const result = [
+                        page.scrollTop - y,
+                        group.getBoundingClientRect().top - top,
+                        `${page.tagName} range ${range(page)}`,
+                    ];
                     page.scrollTop = y;
                     return result;
                 }"""
             )
-            assert scrolled != 0 and moved == 0, (scrolled, moved)
+            assert scrolled != 0 and moved == 0, (scrolled, moved, scroller)
             modes.get_by_role("radio", name="Dark", exact=True).click()
             page.keyboard.press("Escape")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
