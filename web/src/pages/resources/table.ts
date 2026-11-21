@@ -2,10 +2,10 @@ import type { ColumnSort, ColumnVisibilityState } from "@tanstack/react-table";
 import { createParser, parseAsNumberLiteral, parseAsString, parseAsStringLiteral } from "nuqs";
 import type { Deployment, ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
-import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceStatus, type RegionInfo, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { deploymentImage, getServiceSpec, regionTarget } from "@/lib/deployment-utils";
-import { DRAFT_RANK, draftSizing, type Draft, type ServiceSizing } from "@/lib/drafts";
+import { DRAFT_RANK, draftRegions, draftSizing, type Draft, type ServiceSizing } from "@/lib/drafts";
 import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { configuredRegions } from "@/lib/resource-regions";
@@ -65,6 +65,7 @@ export interface ResourceRow {
 export interface DraftRow extends Omit<ResourceRow, "resource"> {
 	draft: Draft;
 	environmentId: string;
+	regions: string[];
 }
 
 export type ListRow = ResourceRow | DraftRow;
@@ -140,12 +141,15 @@ export function draftRows(
 	drafts: readonly Draft[],
 	environmentId: string,
 	defaults: ServiceSizing | undefined,
+	regions: readonly RegionInfo[],
+	defaultRegion: string,
 ): DraftRow[] {
 	return drafts.map((draft) => {
 		const size = defaults === undefined ? undefined : draftSizing(draft, defaults);
 		return {
 			draft,
 			environmentId,
+			regions: draftRegions(draft, regions, defaultRegion),
 			cells: new Map(),
 			cpuMilli: parseCpuMilli(size?.cpu ?? ""),
 			memMi: parseMemMi(size?.memory ?? ""),
@@ -157,7 +161,7 @@ export function draftRows(
 	});
 }
 
-export function cellSummary(cell: EnvCell): string {
+export function cellSummary(cell: Pick<EnvCell, "ready" | "desired" | "regions">): string {
 	if (cell.regions.length === 0) return "no region";
 	const [first = "", ...rest] = cell.regions;
 	const more = rest.length > 0 ? ` +${rest.length.toString()}` : "";

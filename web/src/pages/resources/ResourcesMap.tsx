@@ -1,4 +1,5 @@
 import { ArrowRightIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
+import { useQueryStates } from "nuqs";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
@@ -15,6 +16,9 @@ import { ArchitectureDiagram } from "@/pages/dashboard/ArchitectureDiagram";
 import { isDraftItem, type DashboardItem } from "@/pages/dashboard/resourceRows";
 import { useDashboardData, type EnvResource } from "@/pages/dashboard/useDashboardData";
 
+import { ResourceSearch, StatusFilter } from "./ResourceFilters";
+import { ALL, FILTER_PARSERS, FILTER_URL_KEYS, filterRows, type ResourceRow } from "./table";
+
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
 	return (
 		<div className="flex flex-col gap-1">
@@ -28,14 +32,21 @@ export function ResourcesMap({
 	orgId,
 	workspaceId,
 	env,
+	rows,
 	onShowTable,
 }: {
 	orgId: string;
 	workspaceId: string;
 	env: Environment;
+	rows: ResourceRow[];
 	onShowTable: () => void;
 }) {
 	const data = useDashboardData(orgId, workspaceId, env);
+	const [params, setParams] = useQueryStates(FILTER_PARSERS, { history: "replace", urlKeys: FILTER_URL_KEYS });
+	// The map has no region filter; every region stays on it.
+	const filter = { query: params.query, status: params.status, region: ALL };
+	const filtering = filter.query.trim() !== "" || filter.status !== ALL;
+	const matching = new Set(filterRows(rows, filter).map((r) => r.resource.id));
 	// Kept after close so the panel keeps its contents while it slides out.
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [open, setOpen] = useState(false);
@@ -47,7 +58,25 @@ export function ResourcesMap({
 		isDraftItem(item) ? "" : resourcePath(orgId, workspaceId, item.resource.id, { env: env.slug });
 
 	return (
-		<Section>
+		<Section
+			filters={
+				<StatusFilter
+					rows={rows}
+					filter={filter}
+					onStatus={(status) => {
+						void setParams({ status });
+					}}
+				/>
+			}
+			search={
+				<ResourceSearch
+					query={filter.query}
+					onQuery={(query) => {
+						void setParams({ query });
+					}}
+				/>
+			}
+		>
 			{deployed.length === 0 ? (
 				<div className="py-10 text-center text-fg3">Nothing is deployed to {env.name} yet.</div>
 			) : (
@@ -57,6 +86,7 @@ export function ResourcesMap({
 					environmentId={env.id}
 					hrefFor={hrefFor}
 					onShowTable={onShowTable}
+					dimmed={(item) => filtering && (isDraftItem(item) || !matching.has(item.resource.id))}
 					onSelect={(item: EnvResource) => {
 						setSelectedId(item.resource.id);
 						setOpen(true);
@@ -74,6 +104,9 @@ export function ResourcesMap({
 							</div>
 						</SheetHeader>
 						<SheetBody>
+							{(selected.resource.description ?? "") !== "" && (
+								<p className="m-0 text-[13.5px] text-fg2">{selected.resource.description}</p>
+							)}
 							<Fact label="Version">{version}</Fact>
 							<Fact label="Replicas">
 								{selected.regions.map((g) => `${g.region} ${g.ready.toString()}/${g.desired.toString()}`).join(" · ")}

@@ -1,23 +1,25 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { CopyIcon, RocketIcon, ScrollTextIcon, Settings2Icon } from "lucide-react";
-import { createContext, use } from "react";
+import { CopyIcon, PencilIcon, RocketIcon, ScrollTextIcon, Settings2Icon, Trash2Icon } from "lucide-react";
+import { createContext, use, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
 import { useCopy } from "@/hooks/useCopy";
+import { useDrafts } from "@/hooks/useDrafts";
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { CellText, DataTableColumnsMenu, type DataColumn } from "@/components/design/DataTable";
-import { DropdownMenuItem } from "@/components/design/DropdownMenu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
+import { RowMenu } from "@/components/design/RowMenu";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ROLLOUT_STYLE, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { type Glyph, StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { DRAFT_NOTE } from "@/lib/drafts";
-import { imageVersion } from "@/lib/image";
 import { formatCpu, formatMemory } from "@/lib/quantity";
 import { draftSearch, observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, formatMonthDayYear } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { DiscardDraftDialog } from "@/pages/resources/DiscardDraftDialog";
 
 import {
 	cellSummary,
@@ -39,6 +41,7 @@ export interface ResourceCellValues {
 	environments: Environment[];
 	active: Environment | undefined;
 	nowMs: number;
+	creators: ReadonlyMap<string, string>;
 }
 
 export const ResourceCellContext = createContext<ResourceCellValues | null>(null);
@@ -48,8 +51,6 @@ function useCells(): ResourceCellValues {
 	if (ctx === null) throw new Error("ResourceCellContext provider missing");
 	return ctx;
 }
-
-const DRAFT_NAME = "underline decoration-fg4 decoration-dashed hover:decoration-foreground";
 
 const SUMMARY_TONE: Partial<Record<Glyph, string>> = {
 	spin: "text-info",
@@ -96,13 +97,16 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 }
 
 function DraftCellView({ row }: { row: DraftRow }) {
+	const desired = (row.replicas?.min ?? 0) * row.regions.length;
 	return (
 		<span className="flex max-w-full min-w-0 flex-col items-start gap-0.5">
 			<span className="flex max-w-full min-w-0 items-center gap-2">
 				<StatusGlyph glyph="draft" />
-				<span className="truncate font-mono text-[12.5px] text-foreground">Draft</span>
+				<span className="truncate font-mono text-[12.5px] text-foreground">draft</span>
 			</span>
-			<span className="max-w-full truncate font-mono text-[11.5px] text-fg3">{imageVersion(row.draft.image)}</span>
+			<span className="max-w-full truncate font-mono text-[11.5px] text-fg3">
+				{cellSummary({ ready: 0, desired, regions: row.regions })}
+			</span>
 		</span>
 	);
 }
@@ -120,10 +124,7 @@ function NameCell({ row }: { row: ListRow }) {
 			<CellText
 				text={rowName(row)}
 				render={<Link to={rowPath(row, orgId, workspaceId, search)} />}
-				className={cn(
-					"text-[14.5px] font-medium text-foreground underline-offset-3 group-hover/row:underline",
-					draft && DRAFT_NAME,
-				)}
+				className="text-[14.5px] font-medium text-foreground underline-offset-3 group-hover/row:underline"
 			/>
 			<CellText text={draft ? DRAFT_NOTE : (row.resource.description ?? "")} className="text-[12.5px] text-fg3" />
 		</div>
@@ -191,10 +192,49 @@ function RowActions({ row }: { row: ResourceRow }) {
 	);
 }
 
+function DraftActions({ row }: { row: DraftRow }) {
+	const { orgId, workspaceId } = useCells();
+	const navigate = useNavigate();
+	const { search } = useLocation();
+	const { discard } = useDrafts(orgId, workspaceId, row.environmentId);
+	const [discarding, setDiscarding] = useState(false);
+	const { draft } = row;
+	return (
+		<>
+			<RowMenu label={`Actions for ${draft.name}`} title={draft.name}>
+				<DropdownMenuItem onClick={() => void navigate(draftSearch(search, draft.id))}>
+					<PencilIcon className="text-fg3" />
+					Edit draft
+				</DropdownMenuItem>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					variant="destructive"
+					onClick={() => {
+						setDiscarding(true);
+					}}
+				>
+					<Trash2Icon />
+					Discard draft
+				</DropdownMenuItem>
+			</RowMenu>
+			<DiscardDraftDialog
+				name={draft.name}
+				open={discarding}
+				onDiscard={() => {
+					discard(draft.id);
+				}}
+				onClose={() => {
+					setDiscarding(false);
+				}}
+			/>
+		</>
+	);
+}
+
 function envColumn(environment: Environment): DataColumn<ListRow> {
 	return {
 		id: `${ENV_PREFIX}${environment.slug}`,
-		header: environment.name,
+		header: environment.name.charAt(0).toUpperCase() + environment.name.slice(1),
 		size: 172,
 		minSize: 150,
 		maxSize: 280,
@@ -286,19 +326,31 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			sortFn: "basic",
 			sortDescFirst: true,
 			meta: { fit: true, defaultHidden: true },
-			cell: ({ row: { original: row } }) => <CreatedTime ms={row.createdMs} />,
+			cell: ({ row: { original: row } }) => (
+				<Created ms={row.createdMs} by={isDraftRow(row) ? "" : row.resource.createdBy} />
+			),
 		},
 		{
 			id: "actions",
 			header: ({ table }) => <DataTableColumnsMenu table={table} />,
-			cell: ({ row }) => (isDraftRow(row.original) ? null : <RowActions row={row.original} />),
+			cell: ({ row }) =>
+				isDraftRow(row.original) ? <DraftActions row={row.original} /> : <RowActions row={row.original} />,
 			enableHiding: false,
 			meta: { pinEnd: true },
 		},
 	];
 }
 
-function CreatedTime({ ms }: { ms: number }) {
+function Created({ ms, by }: { ms: number; by: string }) {
 	const pref = useTimePreferences();
-	return <Mono text={ms === 0 ? null : formatMonthDayYear(ms, pref)} />;
+	const { creators } = useCells();
+	const date = ms === 0 ? null : formatMonthDayYear(ms, pref);
+	const name = creators.get(by);
+	if (name === undefined) return <Mono text={date} />;
+	return (
+		<div className="flex min-w-0 flex-col gap-0.5">
+			<CellText text={name} className="text-[13px] text-foreground" />
+			<CellText text={date ?? "—"} className="font-mono text-[11.5px] text-fg3" />
+		</div>
+	);
 }
