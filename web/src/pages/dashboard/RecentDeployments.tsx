@@ -58,7 +58,7 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 		{
 			id: "resource",
 			header: "Resource",
-			size: 140,
+			size: 160,
 			minSize: 90,
 			meta: { primary: true },
 			cell: ({ row: { original: r } }) => (
@@ -81,14 +81,14 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 		{
 			id: "deployment",
 			header: "Deployment",
-			size: 110,
+			size: 130,
 			minSize: 90,
 			cell: ({ row: { original: r } }) => <DeploymentId deployment={r.deployment} />,
 		},
 		{
 			id: "actor",
 			header: "Deployed by",
-			size: 180,
+			size: 170,
 			minSize: 90,
 			cell: ({ row: { original: r } }) => <DeploymentActor deployment={r.deployment} />,
 		},
@@ -103,8 +103,8 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 		{
 			id: "when",
 			header: "When",
-			size: 130,
-			minSize: 90,
+			size: 80,
+			minSize: 64,
 			meta: { align: "end", cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3" },
 			cell: ({ row: { original: r } }) => <When deployment={r.deployment} nowMs={nowMs} />,
 		},
@@ -186,7 +186,7 @@ export function RecentDeployments({
 					className="[--row-h:66px]"
 					onRowClick={(row) => void navigate(hrefOf(row.original))}
 					rowAction="navigate"
-					empty={<EmptyState title="No deployments with this status" />}
+					empty={<EmptyState title="No deployments with this status." />}
 				/>
 			)}
 		</Section>

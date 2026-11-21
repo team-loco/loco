@@ -12,7 +12,7 @@ import {
 	type TrafficPoint,
 } from "@/lib/traffic";
 import { functionalUpdate } from "@tanstack/react-table";
-import { ArrowRightIcon, GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, FilePenLineIcon, GlobeIcon } from "lucide-react";
 import { createContext, use } from "react";
 import { parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -27,9 +27,10 @@ import {
 	useDataTable,
 	type DataColumn,
 } from "@/components/design/DataTable";
-import { EmptyState } from "@/components/design/EmptyState";
+import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
+import { RowMenu } from "@/components/design/RowMenu";
 import { SearchInput } from "@/components/design/SearchInput";
 import { DeployMarkers } from "@/components/design/DeployMarkers";
 import { Sparkline } from "@/components/design/Sparkline";
@@ -42,7 +43,7 @@ import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
 import { rolloutState } from "@/lib/resource-status";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
-import { readyMs, shortDurationLabel } from "@/lib/time";
+import { agoLabel, readyMs } from "@/lib/time";
 import { pageParser } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
@@ -245,12 +246,20 @@ function DeployedCell({ item }: { item: DashboardItem }) {
 	const { nowMs } = useCells();
 	const last = isDraftItem(item) ? undefined : item.last;
 	const ready = last === undefined ? undefined : readyMs(last);
-	return <>{ready === undefined ? "—" : shortDurationLabel(nowMs - ready)}</>;
+	return <>{ready === undefined ? "—" : agoLabel(ready, nowMs)}</>;
 }
 
 function MenuCell({ item }: { item: DashboardItem }) {
-	const { orgId, workspaceId, envName } = useCells();
-	if (isDraftItem(item)) return null;
+	const { orgId, workspaceId, envName, hrefFor } = useCells();
+	if (isDraftItem(item))
+		return (
+			<RowMenu label={`Actions for ${item.draft.name}`} title={item.draft.name}>
+				<DropdownMenuItem render={<Link to={hrefFor(item)} />}>
+					<FilePenLineIcon className="text-fg3" />
+					Open draft
+				</DropdownMenuItem>
+			</RowMenu>
+		);
 	return <DashboardRowMenu item={item} orgId={orgId} workspaceId={workspaceId} envName={envName} />;
 }
 
@@ -569,18 +578,14 @@ export function ResourcesTable({
 		/>
 	);
 
+	const query = filter.query.trim();
 	const empty = (
-		<EmptyState
-			icon={<SearchXIcon />}
-			title="No resources match"
-			query={filter.query.trim()}
-			action={
-				<Button variant="outline" onClick={clearFilters}>
-					<XIcon />
-					Clear filters
-				</Button>
-			}
-		/>
+		<p className="m-0 py-7 text-center text-[13px] text-fg3">
+			{query === "" ? "No resources with this status." : `Nothing matches “${query}”.`}{" "}
+			<Button variant="plain-link" onClick={clearFilters}>
+				Clear filters
+			</Button>
+		</p>
 	);
 
 	const itemHref = (item: DashboardItem) =>
@@ -622,7 +627,7 @@ export function ResourcesTable({
 							label="Resources"
 							onRowClick={(row) => void navigate(itemHref(row.original))}
 							rowAction="navigate"
-							className="[--row-h:66px]"
+							className="[--row-h:62px]"
 							empty={empty}
 						/>
 					</DashboardCellContext>

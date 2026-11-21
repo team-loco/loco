@@ -1,9 +1,11 @@
 import { useQueryState } from "nuqs";
 import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Link } from "react-router";
 
 import { EmptyState } from "@/components/design/EmptyState";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Page, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { ResourceAccess } from "@/components/ResourceAccess";
@@ -11,7 +13,6 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
-import { getErrorMessage } from "@/lib/error-handler";
 import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
 import { allocation } from "@/pages/dashboard/allocation";
 import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
@@ -57,11 +58,7 @@ export function Dashboard() {
 		return (
 			<Page>
 				{heading}
-				<Section>
-					<EmptyState title="Couldn't load resources">
-						{getErrorMessage(data.error, "Failed to load resources")}
-					</EmptyState>
-				</Section>
+				<ErrorState error={data.error} what="the dashboard" rpc={listWorkspaceResources} onRetry={data.refetch} />
 			</Page>
 		);
 	}

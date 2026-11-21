@@ -188,6 +188,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 					Copy address
 				</DropdownMenuItem>
 			)}
+			<DropdownMenuSeparator />
 		</ResourceRowMenu>
 	);
 }

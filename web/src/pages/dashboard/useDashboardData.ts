@@ -43,7 +43,7 @@ function regionReplicas(resource: Resource, environment: EnvironmentStatus | und
 }
 
 export function useDashboardData(orgId: string | null, workspaceId: string | null, env: Environment | undefined) {
-	const { resources, deployments, isLoading, error } = useWorkspaceEnvironmentDeployments(
+	const { resources, deployments, isLoading, error, refetch } = useWorkspaceEnvironmentDeployments(
 		orgId,
 		workspaceId,
 		env?.id ?? "",
@@ -96,5 +96,6 @@ export function useDashboardData(orgId: string | null, workspaceId: string | nul
 		// workspace view queries environment-wide metrics the proxy refuses them.
 		isLoading: isLoading || grants === undefined,
 		error,
+		refetch,
 	};
 }

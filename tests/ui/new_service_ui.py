@@ -650,7 +650,10 @@ with session(out) as browser:
         page.get_by_role("menuitemradio", name=re.compile(r"^eu-north-1\b"))
     ).to_have_count(0)
     page.keyboard.press("Escape")
-    expect(dashboard_row.get_by_role("button")).to_have_count(0)
+    expect(dashboard_row.get_by_role("button")).to_have_count(1)
+    expect(
+        dashboard_row.get_by_role("button", name=f"Actions for {name}", exact=True)
+    ).to_be_visible()
     page.goto(base + "?env=production&view=map")
     node = page.get_by_role("link", name=re.compile(rf"^{re.escape(name)}\s*draft"))
     expect(node).to_be_visible()

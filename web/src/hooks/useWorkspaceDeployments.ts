@@ -95,5 +95,6 @@ export function useWorkspaceEnvironmentDeployments(
 		deployments: deploymentsQuery.data?.deployments ?? [],
 		isLoading: resourcesQuery.isLoading || deploymentsQuery.isLoading,
 		error: resourcesQuery.error ?? deploymentsQuery.error,
+		refetch: async () => await Promise.all([resourcesQuery.refetch(), deploymentsQuery.refetch()]),
 	};
 }

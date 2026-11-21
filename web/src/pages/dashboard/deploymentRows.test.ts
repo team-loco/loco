@@ -35,6 +35,10 @@ describe("deploymentState", () => {
 		expect(deploymentState(row("d", DeploymentStatus.FAILED, false).deployment)).toBe("failed");
 		expect(deploymentState(row("e", DeploymentStatus.BUILDING, true).deployment)).toBe("progress");
 	});
+
+	test("a degraded deployment counts as failed", () => {
+		expect(deploymentState(row("f", DeploymentStatus.DEGRADED, true).deployment)).toBe("failed");
+	});
 });
 
 describe("filters", () => {

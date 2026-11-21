@@ -3,18 +3,20 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentTrigger, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { restartResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
-import { ActivityIcon, ChevronsUpDownIcon, RotateCwIcon, ScrollTextIcon, Undo2Icon, VariableIcon } from "lucide-react";
+import { ActivityIcon, ChevronsUpDownIcon, RotateCwIcon, ScrollTextIcon, Settings2Icon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { Dialog } from "@/components/design/Dialog";
-import { DropdownMenuItem } from "@/components/design/DropdownMenu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { NEEDS_WRITE, scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { invalidateDeploys } from "@/hooks/workspaceDeployments";
 import { deploymentRegions } from "@/lib/deployment-utils";
+import { pluralize } from "@/lib/format";
 import { toastConnectError } from "@/lib/error-handler";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { RollbackDialogContent } from "@/pages/resource/Dialogs";
@@ -79,9 +81,13 @@ export function DashboardRowMenu({
 		}
 	};
 
+	const rollingOut = item.status === ResourceStatus.DEPLOYING;
+	const settings = (tab: "settings" | "scaling") =>
+		resourcePath(orgId, workspaceId, resource.id, { tab, env: envName });
+
 	return (
 		<>
-			<ResourceRowMenu resource={resource} workspaceId={workspaceId}>
+			<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.name}>
 				<DropdownMenuItem onClick={() => void navigate(obs("logs"))}>
 					<ScrollTextIcon className="text-fg3" />
 					View logs
@@ -90,42 +96,41 @@ export function DashboardRowMenu({
 					<ActivityIcon className="text-fg3" />
 					View events
 				</DropdownMenuItem>
+				<DropdownMenuSeparator />
 				<DropdownMenuItem
-					onClick={() =>
-						void navigate(resourcePath(orgId, workspaceId, resource.id, { tab: "settings", env: envName }))
-					}
-				>
-					<ChevronsUpDownIcon className="text-fg3" />
-					Scale
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={() =>
-						void navigate(resourcePath(orgId, workspaceId, resource.id, { tab: "settings", env: envName }))
-					}
-				>
-					<VariableIcon className="text-fg3" />
-					Environment variables
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					disabled={!canWrite || target === undefined}
-					title={canWrite ? undefined : NEEDS_WRITE}
-					onClick={() => {
-						setRollingBack(true);
-					}}
-				>
-					<Undo2Icon className="text-fg3" />
-					<span className="flex-1">Roll back</span>
-					{target !== undefined && <span className="font-mono text-[11.5px] text-fg3">to {depTag(target)}</span>}
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					disabled={!canWrite || last === undefined || restart.isPending}
+					disabled={!canWrite || last === undefined || rollingOut || restart.isPending}
 					title={canWrite ? undefined : NEEDS_WRITE}
 					onClick={() => {
 						if (last !== undefined) void doRestart(last.environmentId);
 					}}
 				>
 					<RotateCwIcon className="text-fg3" />
-					Restart
+					<span className="flex-1">Restart</span>
+					<span className="font-mono text-[11.5px] text-fg3">
+						{rollingOut ? "rollout in progress" : pluralize(item.totalReplicas, "replica")}
+					</span>
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => void navigate(settings("scaling"))}>
+					<ChevronsUpDownIcon className="text-fg3" />
+					Scale
+				</DropdownMenuItem>
+				{target !== undefined && (
+					<DropdownMenuItem
+						disabled={!canWrite}
+						title={canWrite ? undefined : NEEDS_WRITE}
+						onClick={() => {
+							setRollingBack(true);
+						}}
+					>
+						<Undo2Icon className="text-fg3" />
+						<span className="flex-1">Roll back</span>
+						<span className="font-mono text-[11.5px] text-fg3">to {depTag(target)}</span>
+					</DropdownMenuItem>
+				)}
+				<DropdownMenuSeparator />
+				<DropdownMenuItem onClick={() => void navigate(settings("settings"))}>
+					<Settings2Icon className="text-fg3" />
+					Settings
 				</DropdownMenuItem>
 			</ResourceRowMenu>
 			<Dialog
