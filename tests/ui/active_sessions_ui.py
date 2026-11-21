@@ -58,13 +58,18 @@ def verify(state):
         context.unroute(LIST_SESSIONS)
         page.get_by_role("button", name="Retry", exact=True).click()
         sessions = page.get_by_role("list", name="Active sessions", exact=True)
+        heading = page.get_by_role("heading", name="Active sessions", exact=True)
+        expect(heading.locator("xpath=following-sibling::span")).to_have_text("2")
         current = sessions.get_by_role("listitem").first
         expect(current.get_by_text("Chrome on macOS", exact=True)).to_be_visible()
         expect(current.get_by_text("This browser", exact=True)).to_be_visible()
+        expect(current.get_by_text("Active now", exact=True)).to_be_visible()
         cli_row = sessions.get_by_role("listitem").filter(
             has_text="Loco CLI on build-box"
         )
         expect(cli_row).to_contain_text("macOS arm64 · v1.2.3 · 203.0.113.9")
+        expect(cli_row.get_by_text("Active 1h ago", exact=True)).to_be_visible()
+        expect(cli_row.get_by_text("Signed in ", exact=False)).to_be_visible()
         assert not page.evaluate(
             """id => JSON.stringify(Object.values(localStorage)).includes(id)""", cli_id
         )
@@ -73,10 +78,9 @@ def verify(state):
             "button", name="Sign out Loco CLI on build-box session"
         )
         sign_out.click()
-        confirmation = page.get_by_role(
-            "alertdialog", name="Sign out this session?", exact=True
-        )
-        expect(confirmation).to_contain_text("Loco CLI on build-box (203.0.113.9)")
+        confirmation = cli_row.get_by_role("group", name="Confirm sign out")
+        expect(confirmation).to_contain_text("Sign out this session?")
+        expect(page.get_by_role("alertdialog")).to_have_count(0)
         confirmation.get_by_role("button", name="Cancel", exact=True).click()
         expect(sign_out).to_be_visible()
         assert (
@@ -99,12 +103,14 @@ def verify(state):
         expect(confirmation.get_by_role("alert")).to_have_text("Try signing out again.")
         context.unroute(REVOKE_SESSION)
         confirm.click()
-        expect(confirmation).to_be_hidden()
         expect(cli_row).to_have_count(0)
         expect(current.get_by_text("This browser", exact=True)).to_be_visible()
-        expect(current.get_by_role("button")).to_have_count(0)
+        expect(page.get_by_role("button", name="Log out", exact=True)).to_have_count(1)
+        expect(
+            current.get_by_role("button", name="Log out", exact=True)
+        ).to_be_visible()
         logout = page.get_by_role("alertdialog", name="Log out?", exact=True)
-        page.get_by_role("button", name="Log out", exact=True).click()
+        current.get_by_role("button", name="Log out", exact=True).click()
         expect(logout).to_be_visible()
         logout.get_by_role("button", name="Log out", exact=True).click()
         expect(page.get_by_role("button", name="Log out", exact=True)).to_have_count(0)

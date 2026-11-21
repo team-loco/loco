@@ -1,5 +1,7 @@
 import { SessionKind, type Session } from "@gen/loco/user/v1/user_pb";
 
+import { agoLabel, formatMonthDay, type TimePreferences } from "@/lib/time";
+
 const BROWSERS = [
 	[/Edg(?:A|iOS)?\//, "Edge"],
 	[/(?:Firefox|FxiOS)\//, "Firefox"],
@@ -47,4 +49,12 @@ export function describeSession(session: Pick<Session, "kind" | "userAgent" | "i
 /** A device's sign-in request, read from the User-Agent it sent. */
 export function describeDevice(userAgent: string, ipAddress: string): SessionInfo {
 	return describeSession({ kind: SessionKind.CLI, userAgent, ipAddress });
+}
+
+/** When a session was last used: "Active now", "Active 2h ago", then "Last active Nov 16" after a day. */
+export function activeLabel(ms: number, nowMs: number, pref: TimePreferences): string {
+	const mins = (nowMs - ms) / 60_000;
+	if (mins < 1) return "Active now";
+	if (mins < 24 * 60) return `Active ${agoLabel(ms, nowMs)}`;
+	return `Last active ${formatMonthDay(ms, pref)}`;
 }

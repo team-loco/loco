@@ -1,6 +1,6 @@
 import { createQueryOptions, useMutation, useTransport } from "@connectrpc/connect-query";
 import { listSessions, revokeSession } from "@gen/loco/user/v1/user-UserService_connectquery";
-import { SessionKind, type ListSessionsResponse, type Session } from "@gen/loco/user/v1/user_pb";
+import { SessionKind, type ListSessionsResponse } from "@gen/loco/user/v1/user_pb";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MonitorIcon, TerminalIcon } from "lucide-react";
 import { useState } from "react";
@@ -8,31 +8,22 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Skeleton } from "@/components/design/Skeleton";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatHourMinute, formatMonthDayYear, maybeTsMs, type TimePreferences } from "@/lib/time";
+import { useNow } from "@/hooks/useNow";
+import { formatFullTime, formatMonthDay, maybeTsMs, type TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
 import { SettingsCard } from "./parts";
-import { describeSession } from "./sessions";
+import { LogoutConfirm } from "./LogoutConfirm";
+import { activeLabel, describeSession } from "./sessions";
 
-function SessionDate({ value, label, pref }: { value: Session["lastUsedAt"]; label: string; pref: TimePreferences }) {
-	const ms = maybeTsMs(value);
-	if (ms === undefined) return null;
+function SessionTime({ ms, label, pref }: { ms: number; label: string; pref: TimePreferences }) {
 	return (
-		<span>
-			{label}{" "}
-			<time dateTime={new Date(ms).toISOString()}>
-				{formatMonthDayYear(ms, pref)}, {formatHourMinute(ms, pref)}
-			</time>
-		</span>
+		<time dateTime={new Date(ms).toISOString()} title={formatFullTime(ms, false, pref)}>
+			{label}
+		</time>
 	);
-}
-
-function revokeDescription(session: Session): string {
-	const { label, ipAddress } = describeSession(session);
-	return `${label}${ipAddress === "" ? "" : ` (${ipAddress})`} will need to sign in again to access your account.`;
 }
 
 export function ActiveSessions() {
@@ -44,14 +35,16 @@ export function ActiveSessions() {
 		...options,
 		meta: { persist: false },
 	});
-	const [selected, setSelected] = useState<Session | null>(null);
+	const nowMs = useNow(60_000).getTime();
+	const [asking, setAsking] = useState<string | null>(null);
+	const [loggingOut, setLoggingOut] = useState(false);
 	const revoke = useMutation(revokeSession, {
 		async onSuccess(_, { sessionId }) {
 			await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
 			queryClient.setQueryData<ListSessionsResponse>(options.queryKey, (data) =>
 				data === undefined ? data : { ...data, sessions: data.sessions.filter((session) => session.id !== sessionId) },
 			);
-			setSelected(null);
+			setAsking(null);
 			toast.success("Session signed out");
 		},
 	});
@@ -61,9 +54,12 @@ export function ActiveSessions() {
 	return (
 		<SettingsCard className="mt-3">
 			<div className="border-b border-line px-5 py-3.5">
-				<h3 id="active-sessions-title" className="text-[13.5px] font-medium">
-					Active sessions
-				</h3>
+				<div className="flex items-baseline gap-2">
+					<h3 id="active-sessions-title" className="text-[13.5px] font-medium">
+						Active sessions
+					</h3>
+					{sessions.isSuccess && <span className="font-mono text-[12px] text-fg3">{rows.length}</span>}
+				</div>
 				<p className="mt-0.5 text-[12.5px] text-fg3">Browsers and CLI sessions signed in to your account.</p>
 			</div>
 			{sessions.isPending ? (
@@ -87,6 +83,8 @@ export function ActiveSessions() {
 					{rows.map((session) => {
 						const { label, detail, ipAddress } = describeSession(session);
 						const Icon = session.kind === SessionKind.CLI ? TerminalIcon : MonitorIcon;
+						const lastUsed = maybeTsMs(session.lastUsedAt);
+						const created = maybeTsMs(session.createdAt);
 						return (
 							<li key={session.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3.5">
 								<Icon className="size-4 shrink-0 text-fg3" aria-hidden="true" />
@@ -102,19 +100,65 @@ export function ActiveSessions() {
 									{(detail !== "" || ipAddress !== "") && (
 										<span className="text-[12.5px] text-fg3">{[detail, ipAddress].filter(Boolean).join(" · ")}</span>
 									)}
-									<div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-fg3">
-										<SessionDate value={session.lastUsedAt} label="Last active" pref={pref} />
-										<SessionDate value={session.createdAt} label="Signed in" pref={pref} />
+									<div className="flex flex-wrap gap-x-3.5 gap-y-0.5 text-[12.5px] text-fg3">
+										{lastUsed !== undefined && (
+											<SessionTime ms={lastUsed} label={activeLabel(lastUsed, nowMs, pref)} pref={pref} />
+										)}
+										{created !== undefined && (
+											<SessionTime ms={created} label={`Signed in ${formatMonthDay(created, pref)}`} pref={pref} />
+										)}
 									</div>
 								</div>
-								{!session.current && (
+								{session.current ? (
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => {
+											setLoggingOut(true);
+										}}
+									>
+										Log out
+									</Button>
+								) : asking === session.id ? (
+									<div
+										role="group"
+										aria-label="Confirm sign out"
+										className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-fg2"
+									>
+										<span className="mr-1">Sign out this session?</span>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => {
+												setAsking(null);
+											}}
+										>
+											Cancel
+										</Button>
+										<Button
+											variant="destructive-outline"
+											size="sm"
+											disabled={revoke.isPending}
+											onClick={() => {
+												revoke.mutate({ sessionId: session.id });
+											}}
+										>
+											{revoke.isPending ? "Signing out…" : "Sign out"}
+										</Button>
+										{revoke.isError && (
+											<p role="alert" className="basis-full text-bad-fg">
+												{getErrorMessage(revoke.error, "Could not sign out this session")}
+											</p>
+										)}
+									</div>
+								) : (
 									<Button
 										variant="outline"
 										size="sm"
 										aria-label={`Sign out ${label} session`}
 										onClick={() => {
 											revoke.reset();
-											setSelected(session);
+											setAsking(session.id);
 										}}
 									>
 										Sign out
@@ -125,26 +169,12 @@ export function ActiveSessions() {
 					})}
 				</ul>
 			)}
-			<ConfirmDialog
-				open={selected !== null}
-				title="Sign out this session?"
-				description={selected === null ? null : revokeDescription(selected)}
-				confirmLabel="Sign out"
-				pendingLabel="Signing out…"
-				pending={revoke.isPending}
-				onConfirm={() => {
-					if (selected !== null && !revoke.isPending) revoke.mutate({ sessionId: selected.id });
-				}}
+			<LogoutConfirm
+				open={loggingOut}
 				onClose={() => {
-					setSelected(null);
+					setLoggingOut(false);
 				}}
-			>
-				{revoke.isError && (
-					<p role="alert" className="text-[13.5px] text-bad-fg">
-						{getErrorMessage(revoke.error, "Could not sign out this session")}
-					</p>
-				)}
-			</ConfirmDialog>
+			/>
 		</SettingsCard>
 	);
 }
