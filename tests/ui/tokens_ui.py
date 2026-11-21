@@ -106,15 +106,15 @@ with session(repo / "tests/ui/out/tokens") as browser:
     context, page, errors = open_page(
         browser, state=state, storage={"loco:active-org:v1": org}
     )
-    page.goto(state["ui_url"] + "/tokens?owner=user")
+    page.goto(state["ui_url"] + "/tokens")
     owners = page.get_by_role("group", name="Owner")
-    expect(
-        owners.get_by_role("button", name=re.compile(r"^Personal"))
-    ).to_have_attribute("aria-pressed", "true")
+    personal = owners.get_by_role("button", name=re.compile(r"^Personal"))
+    personal.click()
+    expect(page).to_have_url(re.compile(r"[?&]owner=user(&|$)"))
+    page.reload()
+    expect(personal).to_have_attribute("aria-pressed", "true")
     row = page.get_by_role("row").filter(has_text="laptop")
     expect(row.get_by_text("outside workspace", exact=True)).to_be_visible()
-    owners.get_by_role("button", name=re.compile(r"^Workspace")).click()
-    expect(page).to_have_url(re.compile(r"[?&]owner=ws(&|$)"))
     assert not errors, errors
     context.close()
 print(
