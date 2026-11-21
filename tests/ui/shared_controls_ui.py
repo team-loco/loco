@@ -1169,9 +1169,20 @@ def dashboard(page):
         # The authentication init script starts every navigation in light mode.
         if mode == "dark":
             page.get_by_role("button").filter(has_text="Olivia Owner").click()
-            page.get_by_role("radiogroup", name="Mode").get_by_role(
-                "radio", name="Dark", exact=True
-            ).click()
+            modes = page.get_by_role("radiogroup", name="Mode")
+            expect(modes.get_by_role("radio", checked=True)).to_be_focused()
+            # The open user menu stays by its sidebar trigger while the page scrolls.
+            scrolled, moved = modes.evaluate(
+                """group => {
+                    const [y, top] = [scrollY, group.getBoundingClientRect().top];
+                    scrollBy(0, 100);
+                    const result = [scrollY - y, group.getBoundingClientRect().top - top];
+                    scrollBy(0, -100);
+                    return result;
+                }"""
+            )
+            assert scrolled > 0 and moved == 0, (scrolled, moved)
+            modes.get_by_role("radio", name="Dark", exact=True).click()
             page.keyboard.press("Escape")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
         else:
