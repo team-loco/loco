@@ -20,7 +20,9 @@ import {
 	problemLogsHref,
 	progressDeployments,
 	readyLabel,
+	problemReason,
 	replicaState,
+	replicaSummary,
 	rolloutActivity,
 	rolloutSteps,
 	showsCard,
@@ -297,4 +299,16 @@ test("a stopped live deployment names the older deployment its region still serv
 	expect(servingBehindStop([stopped(status(PlacementStatus.FAILED, ["pending"]))])).toBeUndefined();
 	expect(servingBehindStop([stopped(status(PlacementStatus.FAILED, []))])).toBeUndefined();
 	expect(servingBehindStop([stopped(status(PlacementStatus.DEPLOYING, ["previous"]))])).toBeUndefined();
+});
+
+test("replicaSummary counts the replicas in each state", () => {
+	const replicas = ["Serving", "Serving", "Starting", "Failing"].map((state, i) =>
+		create(ReplicaSchema, { name: `web-${i.toString()}`, state }),
+	);
+	expect(replicaSummary(replicas)).toBe("4 replicas · 2 serving · 1 starting · 1 failing");
+});
+
+test("problemReason names a known reason and leaves others to the message", () => {
+	expect(problemReason("build_failed")).toBe("Build failed");
+	expect(problemReason("something_new")).toBeUndefined();
 });

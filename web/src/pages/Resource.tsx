@@ -447,6 +447,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					<DeploymentProgress
 						regions={regions}
 						logsHref={obsLink("logs")}
+						buildLogsHref={(buildId) => (hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined)}
 						canWrite={canWrite}
 						onRollback={openRollback}
 					/>
@@ -523,6 +524,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					<DeploymentProgress
 						regions={regions}
 						logsHref={obsLink("logs")}
+						buildLogsHref={(buildId) => (hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined)}
 						canWrite={canWrite}
 						onRollback={openRollback}
 					/>
