@@ -15,17 +15,10 @@ SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.sp
 FROM resources r
 WHERE r.workspace_id = $1 AND r.slug = $2;
 
--- name: ListResourcesForWorkspace :many
+-- name: ListResourcesByIDs :many
 SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.restart_policy, r.max_restarts, r.deploy_timeout_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
-WHERE r.workspace_id = $1
-   AND (sqlc.narg('page_token')::text IS NULL
-        OR (r.created_at, r.id) < (
-          sqlc.narg('page_created_at')::timestamptz,
-          sqlc.narg('page_token')::uuid
-        ))
-ORDER BY r.created_at DESC, r.id DESC
-LIMIT $2;
+WHERE r.id = ANY(sqlc.arg(ids)::uuid[]);
 
 -- name: UpdateResource :one
 UPDATE resources

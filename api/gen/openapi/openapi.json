@@ -5796,7 +5796,7 @@
           "loco.resource.v1.ResourceService"
         ],
         "summary": "ListWorkspaceResources",
-        "description": "ListWorkspaceResources lists all resources in a workspace.",
+        "description": "ListWorkspaceResources lists, searches, filters, sorts and counts the resources of a workspace.",
         "operationId": "loco.resource.v1.ResourceService.ListWorkspaceResources",
         "parameters": [
           {
@@ -15352,12 +15352,68 @@
           "pageToken": {
             "type": "string",
             "title": "page_token",
-            "description": "cursor from previous page (base64-encoded timestamp+id)"
+            "maxLength": 1024,
+            "description": "next_page_token from the previous page of the same order; empty for the first page."
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 256,
+            "description": "Case-insensitive substring of the name, slug, description or a domain, or of an image or\n region of the resource's live deployments."
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "status": {
+            "title": "status",
+            "description": "Only resources with this status.",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceStatus"
+          },
+          "notDeployed": {
+            "type": "boolean",
+            "title": "not_deployed",
+            "description": "Only resources with no status."
+          },
+          "region": {
+            "type": "string",
+            "title": "region",
+            "maxLength": 63,
+            "description": "Only resources whose live deployments run in this region."
+          },
+          "type": {
+            "title": "type",
+            "description": "Only resources of this type.",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceType"
+          },
+          "environmentScoped": {
+            "type": "boolean",
+            "title": "environment_scoped",
+            "description": "Only resources with a deployment in environment_id, or with no deployment anywhere."
+          },
+          "orderBy": {
+            "title": "order_by",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceOrder"
+          },
+          "descending": {
+            "type": "boolean",
+            "title": "descending"
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
+          },
+          "includeFacets": {
+            "type": "boolean",
+            "title": "include_facets",
+            "description": "Sets facets in the response."
           }
         },
         "title": "ListWorkspaceResourcesRequest",
         "additionalProperties": false,
-        "description": "ListWorkspaceResourcesRequest is the request to list resources."
+        "description": "ListWorkspaceResourcesRequest is the request to list resources. environment_id scopes the\n status, regions, image and size that query, the filters, the facets and the order read; without\n it they read every environment, and a resource matches a status or region any environment has.\nresources.environment_scoped_requires_environment // environment_scoped needs environment_id\nresources.status_or_not_deployed // status and not_deployed are mutually exclusive\n"
       },
       "loco.resource.v1.ListWorkspaceResourcesResponse": {
         "type": "object",
@@ -15373,6 +15429,17 @@
             "type": "string",
             "title": "next_page_token",
             "description": "empty if no more pages"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The resources the filters match, ignoring page_token; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
+          },
+          "facets": {
+            "title": "facets",
+            "description": "Set when include_facets is.",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceFacets"
           }
         },
         "title": "ListWorkspaceResourcesResponse",
@@ -15646,6 +15713,58 @@
         "additionalProperties": false,
         "description": "Resource represents a resource in a workspace."
       },
+      "loco.resource.v1.ResourceFacets": {
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceStatusCount"
+            },
+            "title": "statuses",
+            "description": "A resource with statuses in several environments counts once for each status."
+          },
+          "notDeployed": {
+            "type": "integer",
+            "title": "not_deployed",
+            "format": "int32",
+            "description": "The resources not_deployed would match."
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceRegionCount"
+            },
+            "title": "regions",
+            "description": "A resource counts once for each region, ordered by region."
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.ResourceTypeCount"
+            },
+            "title": "types"
+          }
+        },
+        "title": "ResourceFacets",
+        "additionalProperties": false,
+        "description": "ResourceFacets counts the resources per value of the status, region and type filters. Each\n facet counts the resources every other filter and query match, ignoring its own filter and\n page_token. Values no resource has are left out. Counts are capped like total_count."
+      },
+      "loco.resource.v1.ResourceOrder": {
+        "type": "string",
+        "title": "ResourceOrder",
+        "enum": [
+          "RESOURCE_ORDER_UNSPECIFIED",
+          "RESOURCE_ORDER_NAME",
+          "RESOURCE_ORDER_STATUS",
+          "RESOURCE_ORDER_CREATED",
+          "RESOURCE_ORDER_SIZE",
+          "RESOURCE_ORDER_REGION",
+          "RESOURCE_ORDER_REPLICAS",
+          "RESOURCE_ORDER_DEPLOYED"
+        ],
+        "description": "ResourceOrder is what ListWorkspaceResources sorts by. Ties sort by name, then ID, ascending."
+      },
       "loco.resource.v1.ResourceOutput": {
         "type": "object",
         "properties": {
@@ -15700,6 +15819,22 @@
         "additionalProperties": false,
         "description": "ResourceOutputs is what one resource provides in the environment, read from its latest\n deployment there and its primary domain."
       },
+      "loco.resource.v1.ResourceRegionCount": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "region"
+          },
+          "count": {
+            "type": "integer",
+            "title": "count",
+            "format": "int32"
+          }
+        },
+        "title": "ResourceRegionCount",
+        "additionalProperties": false
+      },
       "loco.resource.v1.ResourceSpec": {
         "type": "object",
         "properties": {
@@ -15725,6 +15860,22 @@
         ],
         "description": "ResourceStatus is whether a resource is serving, derived from the replicas its clusters report ready.\n HEALTHY: ready replicas of any version cover every desired replica. DEGRADED: some replicas or\n regions are not ready. UNAVAILABLE: no replica is ready. DEPLOYING: a first rollout has no ready\n replica yet.\n UNKNOWN: the cluster running it stopped reporting, so its last report cannot be trusted."
       },
+      "loco.resource.v1.ResourceStatusCount": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceStatus"
+          },
+          "count": {
+            "type": "integer",
+            "title": "count",
+            "format": "int32"
+          }
+        },
+        "title": "ResourceStatusCount",
+        "additionalProperties": false
+      },
       "loco.resource.v1.ResourceType": {
         "type": "string",
         "title": "ResourceType",
@@ -15738,6 +15889,22 @@
           "RESOURCE_TYPE_BLOB"
         ],
         "description": "ResourceType categorizes the type of resource being deployed."
+      },
+      "loco.resource.v1.ResourceTypeCount": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "title": "type",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceType"
+          },
+          "count": {
+            "type": "integer",
+            "title": "count",
+            "format": "int32"
+          }
+        },
+        "title": "ResourceTypeCount",
+        "additionalProperties": false
       },
       "loco.resource.v1.RestartResourceRequest": {
         "type": "object",

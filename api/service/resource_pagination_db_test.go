@@ -1,11 +1,8 @@
 package service
 
 import (
-	"bytes"
-	"slices"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/limits"
@@ -18,15 +15,10 @@ func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
-	position := time.Now().UTC().Add(time.Minute).Truncate(time.Microsecond)
 	ids := make([]uuid.UUID, 3)
 	for i := range ids {
 		ids[i] = f.otherResource(t, "page-"+strconv.Itoa(i))
-		if _, err := f.pool.Exec(ctx, "UPDATE resources SET created_at=$1 WHERE id=$2", position, ids[i]); err != nil {
-			t.Fatal(err)
-		}
 	}
-	slices.SortFunc(ids, func(a, b uuid.UUID) int { return bytes.Compare(b[:], a[:]) })
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	page := func(cursor string) ([]*resourcev1.Resource, string) {
 		t.Helper()
