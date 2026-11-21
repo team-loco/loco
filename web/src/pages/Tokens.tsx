@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { createParser, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
@@ -43,14 +43,8 @@ const NOW_TICK_MS = 60_000;
 const NEW_PARAM = "new";
 const TOKEN_DOCS = `${DOCS_URL}/operations/access/#deploy-from-ci-with-an-api-token`;
 
-// The long name `organization` reads as `org`.
-const ownerParser = createParser<OwnerKey>({
-	parse: (value) => OWNER_KEYS.find((k) => k === (value === "organization" ? "org" : value)) ?? null,
-	serialize: (value) => value,
-});
-
 const TOKENS_PARAMS = {
-	owner: ownerParser.withDefault("workspace"),
+	owner: parseAsStringLiteral(OWNER_KEYS).withDefault("ws"),
 	[NEW_PARAM]: parseAsStringLiteral(["1"]),
 	q: parseAsString.withDefault(""),
 };
@@ -62,12 +56,12 @@ function firstRun(owner: Owner): { title: string; body: string } {
 				title: "No organization tokens yet",
 				body: `Organization tokens belong to ${owner.label}, so automation keeps working when people leave.`,
 			};
-		case "workspace":
+		case "ws":
 			return {
 				title: "No workspace tokens yet",
 				body: `Workspace tokens let CI deploy to ${owner.label}, or to just a few of its resources.`,
 			};
-		case "personal":
+		case "user":
 			return {
 				title: "No personal tokens yet",
 				body: "Personal tokens act as you, for scripts on your own machine.",
@@ -134,11 +128,11 @@ export function Tokens() {
 	};
 	const tokenLimit =
 		owner.entityType === EntityType.USER ? config.data?.countLimits?.tokensPerEntity : limits?.tokensPerEntity;
-	const noun = ownerKey === "personal" ? "personal tokens" : "tokens";
+	const noun = ownerKey === "user" ? "personal tokens" : "tokens";
 	const usage =
 		current.isLoading || current.error
 			? null
-			: limitUsage(tokens.length, tokenLimit, noun, ownerKey === "org" ? "organization" : ownerKey);
+			: limitUsage(tokens.length, tokenLimit, noun, OWNER_TITLE[ownerKey].toLowerCase());
 	const createBlocked = owner.canCreate ? limitReason(usage) : owner.createHint;
 	const newTokenButton = (
 		<Button disabled={createBlocked !== null} onClick={openCreate}>
@@ -265,7 +259,7 @@ export function Tokens() {
 							isLoading={current.isLoading}
 							empty={empty}
 							canDuplicate={owner.canCreate}
-							canRevoke={owner.canCreate || owner.key === "personal"}
+							canRevoke={owner.canCreate || owner.key === "user"}
 							onDuplicate={duplicate}
 							onRevoke={setRevoking}
 						/>

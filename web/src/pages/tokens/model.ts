@@ -8,12 +8,12 @@ import { agoLabel, DAY_MS, maybeTsMs, shortDurationLabel } from "@/lib/time";
 export type NodeKind = "org" | "ws" | "res" | "user" | "system";
 export type Level = 1 | 2 | 3;
 
-export const OWNER_KEYS = ["org", "workspace", "personal"] as const;
+export const OWNER_KEYS = ["org", "ws", "user"] as const;
 export type OwnerKey = (typeof OWNER_KEYS)[number];
 export const OWNER_TITLE: Record<OwnerKey, string> = {
 	org: "Organization",
-	workspace: "Workspace",
-	personal: "Personal",
+	ws: "Workspace",
+	user: "Personal",
 };
 
 export const LEVELS: Level[] = [1, 2, 3];
@@ -193,13 +193,17 @@ export function resolveNode(tree: EntityTree, key: string): EntityNode {
 	);
 }
 
-export function withScopeEntities(tree: EntityTree, scopes: EntityScope[]): EntityTree {
+export function withScopeEntities(
+	tree: EntityTree,
+	scopes: EntityScope[],
+	names: ReadonlyMap<string, string>,
+): EntityTree {
 	const nodes = new Map(tree.nodes);
 	for (const s of scopes) {
 		const key = nodeKey(s.entityType, s.entityId);
 		if (nodes.has(key)) continue;
 		const kind = kindOf(s.entityType);
-		const label = kind === "system" ? "Platform" : s.entityId.slice(0, 8);
+		const label = kind === "system" ? "Platform" : (names.get(key) ?? s.entityId.slice(0, 8));
 		nodes.set(key, { key, kind, entityType: s.entityType, id: s.entityId, label, parent: null });
 	}
 	return { nodes, order: tree.order, childCount: tree.childCount };

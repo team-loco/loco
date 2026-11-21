@@ -122,9 +122,7 @@ function tokenColumns({
 			size: 110,
 			minSize: 80,
 			cell: ({ row: { original: t } }) => (
-				<span className={cn("font-mono text-[12px]", t.lastUsedAt === undefined ? "text-fg3" : "text-fg2")}>
-					{lastUsedLabel(t, now)}
-				</span>
+				<span className="font-mono text-[12px] text-fg2">{lastUsedLabel(t, now)}</span>
 			),
 		},
 		{

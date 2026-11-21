@@ -22,9 +22,9 @@ export function ownerIcon(owner: OwnerKey): ReactNode {
 	switch (owner) {
 		case "org":
 			return <Building2Icon />;
-		case "workspace":
+		case "ws":
 			return <LayersIcon />;
-		case "personal":
+		case "user":
 			return <UserIcon />;
 	}
 }

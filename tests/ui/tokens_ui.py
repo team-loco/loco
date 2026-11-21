@@ -30,7 +30,7 @@ call(
 
 with session(repo / "tests/ui/out/tokens") as browser:
     context, page, errors = open_page(browser, narrow=True, state=state)
-    page.goto(state["ui_url"] + "/tokens?owner=organization")
+    page.goto(state["ui_url"] + "/tokens?owner=org")
     organization = page.get_by_role("group", name="Owner").get_by_role(
         "button", name=re.compile(r"^Organization")
     )
@@ -63,7 +63,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     context.close()
 
     context, page, errors = open_page(browser, state=state)
-    page.goto(state["ui_url"] + "/tokens?owner=organization")
+    page.goto(state["ui_url"] + "/tokens?owner=org")
     menu = page.get_by_role("button", name="Actions for ci-source")
     expect(menu).to_be_visible()
     container = page.locator('[data-slot="data-table"]').first
@@ -79,6 +79,45 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert gap >= padding >= 20, (gap, padding)
     assert not errors, errors
     context.close()
+
+    beta = call(state, "loco.org.v1.OrgService/CreateOrg", {"name": "beta"})["orgId"]
+    outside = call(
+        state,
+        "loco.workspace.v1.WorkspaceService/CreateWorkspace",
+        {"orgId": beta, "name": "outside"},
+    )["workspaceId"]
+    call(
+        state,
+        "loco.token.v1.TokenService/CreateToken",
+        {
+            "name": "laptop",
+            "entityType": "ENTITY_TYPE_USER",
+            "entityId": state["users"]["owner"]["id"],
+            "expiresInSec": "3600",
+            "scopes": [
+                {
+                    "entityType": "ENTITY_TYPE_WORKSPACE",
+                    "entityId": outside,
+                    "scope": "SCOPE_READ",
+                }
+            ],
+        },
+    )
+    context, page, errors = open_page(
+        browser, state=state, storage={"loco:active-org:v1": org}
+    )
+    page.goto(state["ui_url"] + "/tokens")
+    owners = page.get_by_role("group", name="Owner")
+    personal = owners.get_by_role("button", name=re.compile(r"^Personal"))
+    personal.click()
+    expect(page).to_have_url(re.compile(r"[?&]owner=user(&|$)"))
+    page.reload()
+    expect(personal).to_have_attribute("aria-pressed", "true")
+    row = page.get_by_role("row").filter(has_text="laptop")
+    expect(row.get_by_text("outside workspace", exact=True)).to_be_visible()
+    assert not errors, errors
+    context.close()
 print(
-    "PASS: the token drawer shows the saved name, wraps text and closes on Escape; the row menu keeps the cell padding"
+    "PASS: the token drawer shows the saved name, wraps text and closes on Escape; the row menu keeps the cell padding; "
+    "owner=user opens personal tokens, which name a workspace in another organization"
 )

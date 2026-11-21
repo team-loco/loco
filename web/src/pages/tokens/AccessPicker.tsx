@@ -112,8 +112,8 @@ export function AccessPicker({
 	);
 	const placeholder =
 		scope?.kind === "ws"
-			? `Add ${scope.label} or one of its resources`
-			: "Add a workspace or resource, e.g. workspace/resource";
+			? `Add ${scope.label} or one of its resources…`
+			: "Add a workspace or resource, e.g. storefront/web";
 
 	const add = (node: EntityNode) => {
 		const lvl = heldLevel(held, tree, node.key);
