@@ -255,7 +255,7 @@ function StatCard({
 		<div className="group/stat relative min-h-[178px]">
 			<div
 				role="group"
-				tabIndex={0}
+				tabIndex={lifts ? 0 : undefined}
 				aria-label={ariaLabel}
 				className={cn(
 					CARD,
