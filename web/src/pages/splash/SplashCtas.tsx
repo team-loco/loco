@@ -22,7 +22,7 @@ export function SplashCtas({ onSignIn, redirecting }: { onSignIn: () => void; re
 					<span className="text-fg4">$</span> {INSTALL_COMMAND}
 				</span>
 				<span className="flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-panel text-fg3">
-					{copied === null ? <Copy aria-hidden="true" /> : <Check aria-hidden="true" className="text-ok-fg" />}
+					{copied === null ? <Copy aria-hidden="true" /> : <Check aria-hidden="true" />}
 				</span>
 			</Button>
 			<Button

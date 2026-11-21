@@ -2,21 +2,48 @@ import { Server } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { cn } from "@/lib/utils";
 
-import { demoFrame, DEPLOY_SHARE, ENDPOINT, REQUEST_SERIES, STRATEGY, TERMINAL, TONE_CLASS, type Pod } from "./deploy";
+import {
+	demoFrame,
+	DEPLOY_SHARE,
+	ENDPOINT,
+	podLabel,
+	REQUEST_SERIES,
+	STRATEGY,
+	TERMINAL,
+	TONE_CLASS,
+	type LineTone,
+	type Pod,
+} from "./deploy";
 import { RolloutPlayer } from "./rolloutPlayer";
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
+const GLYPH: Record<LineTone, string> = {
+	command: "$",
+	output: "·",
+	detail: "",
+	running: "◐",
+	ok: "✓",
+	link: "→",
+};
+
+const GLYPH_CLASS: Partial<Record<LineTone, string>> = {
+	running: "animate-[spin_900ms_steps(8)_infinite] motion-reduce:animate-none",
+	ok: "text-ok",
+	link: "text-brand",
+};
+
 function podClass(pod: Pod): string {
 	switch (pod.phase) {
 		case "ready":
-			return "animate-pod-pop bg-ok-glyph";
+			return pod.fresh ? "animate-pod-pop bg-ok-glyph" : "bg-fg4 opacity-55";
 		case "starting":
 			return "animate-pod-starting border-[1.5px] border-warn motion-reduce:animate-none";
 		case "terminating":
-			return "bg-fg4 opacity-40";
+			return "bg-fg4 opacity-[0.22]";
 	}
 }
 
@@ -73,7 +100,7 @@ export function DeployDemo() {
 		() => new RolloutPlayer(window.matchMedia(REDUCED_MOTION).matches),
 	);
 	const frame = useSyncExternalStore(subscribe, getSnapshot);
-	const { shown, status, ready, desired, regions, version, requestsPerSecond, p95Ms, deployed } = demoFrame(frame);
+	const { lines, status, ready, desired, regions, version, requestsPerSecond, p95Ms, deployed } = demoFrame(frame);
 
 	return (
 		<div
@@ -91,27 +118,31 @@ export function DeployDemo() {
 			</div>
 			<div className="grid min-[860px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
 				<div className="min-w-0 px-5 py-4 font-mono text-[12.5px] leading-[1.8]">
-					{TERMINAL.map((line, i) => {
-						const visible = i < shown;
-						return (
-							<div
-								key={line.text}
-								className={cn(
-									"truncate whitespace-pre",
-									TONE_CLASS[line.tone],
-									visible ? "animate-log-in motion-reduce:animate-none" : "invisible",
-								)}
+					{lines.map((line, i) => (
+						<div
+							key={i}
+							className={cn(
+								"flex animate-log-in gap-2.5 whitespace-pre motion-reduce:animate-none",
+								TONE_CLASS[line.tone],
+							)}
+						>
+							<span
+								aria-hidden="true"
+								className={cn("inline-block w-3 shrink-0 text-center text-fg4", GLYPH_CLASS[line.tone])}
 							>
-								{line.text}
-								{i === shown - 1 && (
-									<span
-										aria-hidden="true"
-										className="ml-1.5 inline-block h-3.5 w-[7px] translate-y-0.5 animate-pulse-soft bg-fg3 motion-reduce:animate-none"
-									/>
-								)}
-							</div>
-						);
-					})}
+								{GLYPH[line.tone]}
+							</span>
+							<span className="min-w-0 truncate">{line.text}</span>
+						</div>
+					))}
+					<div aria-hidden="true" className="flex h-[1.8em] items-center">
+						<span className="h-[15px] w-2 animate-caret-blink bg-fg3 motion-reduce:animate-none" />
+					</div>
+					{TERMINAL.slice(lines.length).map((line) => (
+						<div key={line.text} aria-hidden="true" className="invisible truncate whitespace-pre">
+							{line.text}
+						</div>
+					))}
 				</div>
 				<div className="flex min-w-0 flex-col gap-3.5 border-line bg-panel px-5 py-[18px] max-[859px]:border-t min-[860px]:border-l">
 					<div className="flex items-center gap-2">
@@ -134,7 +165,13 @@ export function DeployDemo() {
 								<span className="w-[72px] shrink-0 font-mono text-sm text-fg3">{region.name}</span>
 								<span aria-hidden="true" className="flex h-4 gap-1.5">
 									{region.pods.map((pod) => (
-										<i key={pod.id} className={cn("size-4 rounded-[4px] transition-opacity", podClass(pod))} />
+										<Tooltip key={pod.id}>
+											<TooltipTrigger
+												render={<i />}
+												className={cn("size-4 rounded-[4px] transition-opacity", podClass(pod))}
+											/>
+											<TooltipContent className="font-mono">{podLabel(pod)}</TooltipContent>
+										</Tooltip>
 									))}
 								</span>
 							</div>

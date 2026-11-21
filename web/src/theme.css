@@ -105,6 +105,7 @@
 	--animate-pod-pop: pod-pop 220ms ease-out;
 	--animate-pod-starting: pod-pop 220ms ease-out, pulse-soft 0.8s 220ms ease-in-out infinite;
 	--animate-log-in: log-in 200ms ease-out;
+	--animate-caret-blink: caret-blink 1.1s steps(2) infinite;
 	--animate-row-flash: row-flash 1.8s ease-out;
 	--animate-ring: ring 1.8s ease-out infinite;
 	--animate-wire-flow: wire-flow 1s linear infinite;

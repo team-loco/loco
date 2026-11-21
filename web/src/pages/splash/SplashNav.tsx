@@ -19,7 +19,7 @@ export function SplashNav({ onSignIn, redirecting }: { onSignIn: () => void; red
 		<header className="sticky top-0 z-30 border-b border-line bg-background/80 backdrop-blur-md backdrop-saturate-150">
 			<div className="mx-auto flex h-[58px] max-w-[1160px] items-center gap-7 px-4 sm:px-7">
 				<a href="/" className="flex items-center" aria-label="Loco home">
-					<LocoLogo className="w-[72px]" />
+					<LocoLogo className="h-[26px]" />
 				</a>
 				<nav aria-label="Main" className="hidden gap-[22px] text-[13.5px] min-[760px]:flex">
 					{NAV_LINKS.map((link) => (

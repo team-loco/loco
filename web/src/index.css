@@ -88,6 +88,12 @@
 	}
 }
 
+@keyframes caret-blink {
+	50% {
+		opacity: 0;
+	}
+}
+
 @keyframes log-in {
 	from {
 		transform: translateY(4px);

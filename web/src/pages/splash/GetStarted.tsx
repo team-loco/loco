@@ -41,7 +41,7 @@ const STEPS: readonly Step[] = [
 	{
 		n: "03",
 		title: "Deploy",
-		body: "Builds your Dockerfile, rolls out the replicas and serves the service over HTTPS.",
+		body: "Build, roll out, health-check and route.",
 		command: "loco deploy",
 		output: [
 			["Packed 214 files from . (1.8 MiB compressed)", "output"],
