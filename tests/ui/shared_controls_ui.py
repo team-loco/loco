@@ -111,6 +111,7 @@ TRAFFIC_RATES = {
 }
 traffic_empty = False
 log_bucket_requests = []
+resource_bucket_requests = []
 LEVELS = ("LOG_LEVEL_INFO", "LOG_LEVEL_WARN", "LOG_LEVEL_ERROR", "LOG_LEVEL_DEBUG")
 
 
@@ -148,6 +149,7 @@ def mock_telemetry(context):
             .replace("+00:00", "Z")
         )
         if body["groupBy"] == "LOG_BUCKET_GROUP_RESOURCE":
+            resource_bucket_requests.append(body)
             route.fulfill(
                 json={
                     "buckets": [
@@ -994,8 +996,17 @@ def query_enter(page):
 
 
 def query_suggestions(page):
-    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    sent = len(resource_bucket_requests)
+    with expect_rpc(
+        page,
+        "QueryLogBuckets",
+        lambda body: body.get("groupBy") == "LOG_BUCKET_GROUP_LEVEL",
+    ):
+        page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     search = page.locator('input[aria-label="Search and filter"]')
+    expect(search).to_be_visible()
+    # Per-resource counts load only once the suggestion list opens.
+    assert len(resource_bucket_requests) == sent, resource_bucket_requests[sent:]
     search.fill("@lev")
     expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
     expect(search).to_have_attribute("aria-expanded", "true")

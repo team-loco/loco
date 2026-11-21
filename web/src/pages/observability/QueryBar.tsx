@@ -95,13 +95,25 @@ function searchLabel(view: string, text: string): string {
 	}
 }
 
+function useOpenState(onChange: ((open: boolean) => void) | undefined) {
+	const [open, setOpen] = useState(false);
+	const change = (next: boolean) => {
+		setOpen(next);
+		onChange?.(next);
+	};
+	return [open, change] as const;
+}
+
 export function QueryBar({
 	valueCounts,
 	sampledKeys,
+	onOpenChange,
 }: {
 	valueCounts: ValueCounts;
 	/** Fields whose counts come from the loaded lines, not the whole range. */
 	sampledKeys?: ReadonlySet<FieldKey>;
+	/** Called whenever the suggestion list opens or closes. */
+	onOpenChange?: (open: boolean) => void;
 }) {
 	const { orgId, workspaceId, view, tokens, text: applied, setQuery, resourceByName } = useObs();
 	const [text, setText] = useState(applied);
@@ -110,7 +122,7 @@ export function QueryBar({
 		setSynced(applied);
 		setText(applied);
 	}
-	const [open, setOpen] = useState(false);
+	const [open, setOpen] = useOpenState(onOpenChange);
 	const [now, setNow] = useState(Date.now);
 	const highlightedRef = useRef<Suggestion | undefined>(undefined);
 	const anchor = useComboboxAnchor();

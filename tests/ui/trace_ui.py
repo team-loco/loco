@@ -191,11 +191,13 @@ def trace_buckets(body):
             p50DurationNanos="400000000000",
             p95DurationNanos="500000000000",
         )
+    # The list's totals: one error trace among 7, and 60 more traces when paged.
+    traces = "67" if mode[0] == "paged" else "7"
     return {
         "buckets": buckets,
         "total": {
-            "traceCount": "14",
-            "errorCount": "2",
+            "traceCount": "1" if "@status:error" in body.get("query", "") else traces,
+            "errorCount": "1",
             "p50DurationNanos": "42000000",
             "p95DurationNanos": "360000000",
         },
@@ -444,6 +446,7 @@ with session(out) as browser:
         ),
     )
     expect(page.get_by_role("button", name=re.compile(r"^All\s*7$"))).to_be_visible()
+    expect(page.get_by_role("button", name=re.compile(r"^Errors\s*1$"))).to_be_visible()
     expect(open_trace).to_contain_text("Error")
     expect(open_trace).to_have_attribute("aria-selected", "false")
     open_trace.click(position={"x": 20, "y": 10})
@@ -980,9 +983,23 @@ with session(out) as browser:
         ):
             page.get_by_role("button", name=label, exact=True).click()
         assert last_page_request()["ascending"] is True
-    with expect_rpc(page, "ListTraces", page_request(query="@status:error")):
+    sent = len(recorded)
+    with (
+        expect_rpc(page, "ListTraces", page_request(query="@status:error")),
+        expect_rpc(
+            page,
+            "QueryTraceBuckets",
+            lambda body: body.get("query") == "@status:error",
+        ),
+    ):
         page.get_by_role("button", name=re.compile(r"^Errors")).click()
     assert last_page_request()["query"] == "@status:error"
+    expect(page.get_by_role("button", name=re.compile(r"^All\s*67$"))).to_be_visible()
+    lists = [row for row in recorded[sent:] if "limit" in row]
+    assert len(lists) == 1, lists
+    # The All count comes from the unfiltered histogram the All tab already loaded.
+    histograms = [row for row in recorded[sent:] if "intervalSeconds" in row]
+    assert len(histograms) == 1, histograms
     wait_for_query(page, lambda query: query.get("q") == ["@status:error"])
     with expect_rpc(
         page,
@@ -997,10 +1014,10 @@ with session(out) as browser:
     page.goto(state["ui_url"] + base)
     chart = page.get_by_role(
         "img",
-        name=re.compile(r"^Traces per \d+-second bucket, 14 in range with 2 errors"),
+        name=re.compile(r"^Traces per \d+-second bucket, 67 in range with 1 errors"),
     )
     expect(chart).to_be_visible()
-    expect(page.get_by_text("14% errors", exact=True)).to_be_visible()
+    expect(page.get_by_text("1.5% errors", exact=True)).to_be_visible()
     expect(page.get_by_text("360ms", exact=True)).to_be_visible()
     box = chart.bounding_box()
     chart.hover(position={"x": box["width"] - 2, "y": box["height"] / 2})

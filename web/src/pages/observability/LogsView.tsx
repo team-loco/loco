@@ -106,6 +106,8 @@ export function LogsView() {
 	const [focusActive, setFocusActive] = useState(anchor !== null);
 	const [windowEnd, setWindowEnd] = useState(Date.now);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
+	// Per-resource counts only feed the suggestion list, so they load while it is open.
+	const [suggesting, setSuggesting] = useState(false);
 	const backend = buildBackendQuery(tokens, text, scopedResourceIds);
 	const spanMs = windowSpan(range);
 	const queryKey = JSON.stringify([
@@ -266,7 +268,7 @@ export function LogsView() {
 		end: volumeEnd,
 		intervalSeconds: Math.max(1, Math.ceil((volumeEnd - volumeStart) / 1000)),
 		groupBy: LogBucketGroup.RESOURCE,
-		enabled: !backend.impossible,
+		enabled: !backend.impossible && suggesting,
 	});
 	const bw = intervalSeconds * 1000;
 	const { points, totals } = logVolume(volume.data?.buckets ?? [], volumeStart, volumeEnd, bw);
@@ -415,7 +417,7 @@ export function LogsView() {
 		return (
 			<>
 				{header}
-				<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} />
+				<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} onOpenChange={setSuggesting} />
 				<QueryErrorLine error={rejected} />
 			</>
 		);
@@ -425,7 +427,7 @@ export function LogsView() {
 		return (
 			<>
 				{header}
-				<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} />
+				<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} onOpenChange={setSuggesting} />
 				<ErrorState error={logs.error} what="logs" rpc={queryLogs} onRetry={logs.refetch} />
 			</>
 		);
@@ -456,7 +458,7 @@ export function LogsView() {
 				/>
 			) : (
 				<>
-					<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} />
+					<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} onOpenChange={setSuggesting} />
 					<section aria-label="Log volume" className="flex flex-col gap-2.5 rounded-card bg-panel px-5 pt-4 pb-3.5">
 						<ToggleGroup
 							multiple
