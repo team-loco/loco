@@ -1171,16 +1171,23 @@ def dashboard(page):
             page.get_by_role("button").filter(has_text="Olivia Owner").click()
             modes = page.get_by_role("radiogroup", name="Mode")
             expect(modes.get_by_role("radio", checked=True)).to_be_focused()
-            # The open user menu stays by its sidebar trigger while the page scrolls under it.
+            # The open user menu stays by its sidebar trigger while the page scrolls under it, as it
+            # can before the menu's scroll lock applies.
             scrolled, moved = modes.evaluate(
                 """group => {
                     const rows = document.querySelectorAll('main [role="row"]');
                     const row = rows[rows.length - 1];
-                    const saved = [document.documentElement, document.body].map((el) => [el, el.scrollTop]);
+                    const roots = [document.documentElement, document.body];
+                    const saved = roots.map((el) => [el, el.scrollTop, el.style.overflow, el.style.overflowY]);
+                    for (const el of roots) el.style.overflow = el.style.overflowY = '';
                     const [rowTop, top] = [row.getBoundingClientRect().top, group.getBoundingClientRect().top];
                     row.scrollIntoView({ block: 'end' });
                     const result = [row.getBoundingClientRect().top - rowTop, group.getBoundingClientRect().top - top];
-                    for (const [el, y] of saved) el.scrollTop = y;
+                    for (const [el, y, overflow, overflowY] of saved) {
+                        el.style.overflow = overflow;
+                        el.style.overflowY = overflowY;
+                        el.scrollTop = y;
+                    }
                     return result;
                 }"""
             )
