@@ -2071,8 +2071,8 @@ def metrics(page):
     y_labels = chart.locator(
         ".recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value"
     ).all_text_contents()
-    assert y_labels and all(label.isdigit() for label in y_labels), y_labels
-    assert "100" not in y_labels, y_labels
+    # The mocked CPU peaks at 55% of the limit, so the axis tops out at 120.
+    assert y_labels == ["30", "60", "90"], y_labels
     expect(menu.get_by_role("menuitem", name=re.compile("000de9ff"))).to_have_count(0)
     first, second = (
         menu.get_by_role("menuitem").nth(0),
