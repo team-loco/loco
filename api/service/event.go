@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -452,7 +453,12 @@ func (s *EventServer) authorizeStreamScope(ctx context.Context, req *eventv1.Lis
 func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
 	if req.GetStartTime() != nil && req.GetEndTime() != nil &&
 		!req.GetStartTime().AsTime().Before(req.GetEndTime().AsTime()) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, "start_time must be before end_time")
+		public := connect.NewError(connect.CodeInvalidArgument, "end_time must be after start_time")
+		return nil, withDetail(public, &errdetails.BadRequest{
+			FieldViolations: []*errdetails.BadRequest_FieldViolation{
+				{Field: "end_time", Description: "must be after start_time"},
+			},
+		})
 	}
 	filter, err := logquery.Parse(req.GetQuery())
 	if err == nil {
