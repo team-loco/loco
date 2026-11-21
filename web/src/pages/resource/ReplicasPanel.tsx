@@ -10,7 +10,7 @@ import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 
-import { RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
+import { chartWindow, RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
 import { MetricChart, type ChartMarker } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
@@ -112,6 +112,8 @@ export function ReplicasPanel({
 		single === undefined ? undefined : replicaChart(cpuPods?.data ?? [], resourceId, cpuLimits?.get(single));
 	const memoryReplicas =
 		single === undefined ? undefined : replicaChart(memoryPods?.data ?? [], resourceId, memoryLimits?.get(single));
+	const cpuWindow = chartWindow(cpuReplicas !== undefined, cpuPods?.dataUpdatedAt, cpu, range);
+	const memoryWindow = chartWindow(memoryReplicas !== undefined, memoryPods?.dataUpdatedAt, memory, range);
 	const pickedRegion = deployed.find((r) => r.name === selected);
 	const pickedCount = pickedRegion === undefined ? undefined : regionReady(pickedRegion);
 	const selectedLine =
@@ -208,8 +210,8 @@ export function ReplicasPanel({
 							points={cpu.points}
 							isLoading={cpu.isLoading}
 							failed={cpu.error !== null}
-							from={cpu.from}
-							to={cpu.to}
+							from={cpuWindow.from}
+							to={cpuWindow.to}
 							markers={markers}
 							limits={single === undefined ? undefined : cpuLimits?.get(single)}
 							replicas={cpuReplicas}
@@ -222,8 +224,8 @@ export function ReplicasPanel({
 							points={memory.points}
 							isLoading={memory.isLoading}
 							failed={memory.error !== null}
-							from={memory.from}
-							to={memory.to}
+							from={memoryWindow.from}
+							to={memoryWindow.to}
 							markers={markers}
 							limits={single === undefined ? undefined : memoryLimits?.get(single)}
 							replicas={memoryReplicas}

@@ -150,3 +150,14 @@ export function replicaChart(
 		highest,
 	};
 }
+
+/** The time span a chart covers: the per-replica query's window when its lines are drawn, else the band's. */
+export function chartWindow(
+	replicaLines: boolean,
+	replicaUpdatedAt: number | undefined,
+	band: { from: number; to: number },
+	range: MetricRange,
+): { from: number; to: number } {
+	if (!replicaLines || replicaUpdatedAt === undefined) return { from: band.from, to: band.to };
+	return { from: replicaUpdatedAt - RANGE_MS[range], to: replicaUpdatedAt };
+}

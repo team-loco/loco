@@ -4,7 +4,16 @@ import { MetricPointSchema, MetricSeriesSchema } from "@gen/loco/observability/v
 
 import { msToTimestamp } from "@/lib/time";
 
-import { mergeBand, percentPoints, replicaChart, scaleBand, sharedLimit, tightestPoint, usageSummary } from "./metric";
+import {
+	chartWindow,
+	mergeBand,
+	percentPoints,
+	replicaChart,
+	scaleBand,
+	sharedLimit,
+	tightestPoint,
+	usageSummary,
+} from "./metric";
 
 const RESOURCE_ID = "0199d1c2-0000-7000-8000-000000000001";
 const STAGING_ID = "0199d1c2-0000-7000-8000-000000000003";
@@ -102,5 +111,14 @@ describe("replicaChart", () => {
 	test("leaves charts with too many replicas to the band", () => {
 		const pods = Array.from({ length: 13 }, (_, i) => pod(`web-${i.toString()}`, 0.1));
 		expect(replicaChart(pods, RESOURCE_ID, undefined)).toBeUndefined();
+	});
+});
+
+describe("chartWindow", () => {
+	test("spans the per-replica query when its lines are drawn, even if the band failed", () => {
+		expect(chartWindow(true, NOW_MS, { from: 0, to: 1 }, "1h")).toEqual({ from: NOW_MS - HOUR_MS, to: NOW_MS });
+	});
+	test("keeps the band's span without per-replica lines", () => {
+		expect(chartWindow(false, NOW_MS, { from: 5, to: 9 }, "1h")).toEqual({ from: 5, to: 9 });
 	});
 });
