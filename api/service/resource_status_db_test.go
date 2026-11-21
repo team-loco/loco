@@ -398,8 +398,13 @@ func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployProduction(t, statusTwoReplicas)
-	f.ready(t, f.clusterID, statusTwoReplicas)
 	previous := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+	f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
+		Available:     true,
+		Healthy:       true,
+		ReadyReplicas: statusTwoReplicas,
+		Replicas:      readyReplicas(previous, statusTwoReplicas),
+	})
 
 	f.deployProduction(t, statusTwoReplicas)
 	failed := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
