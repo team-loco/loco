@@ -365,7 +365,6 @@ func TestRolloutForwarding(t *testing.T) {
 			ReplicaName:       currentReplicaName,
 			Restarts:          3,
 			LastRestart:       wantRestart,
-			Detail:            "failing its health check · 3 restarts",
 			At:                timestamppb.New(at.Time),
 			Rollout:           true,
 		},

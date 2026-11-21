@@ -68,10 +68,6 @@ var (
 		connect.CodeInvalidArgument,
 		"only service resources are currently supported",
 	)
-	errRestartPolicyUnset = rpcerr.NewCoded(
-		connect.CodeInvalidArgument,
-		"failure_policy.restart_policy must be on-failure, always or never",
-	)
 	errScaleNothingRequested = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"at least one of replicas, cpu, or memory must be provided",
@@ -531,10 +527,7 @@ func failurePolicyParams(
 	resourceID uuid.UUID,
 	policy *deploymentv1.FailurePolicy,
 ) (genDb.SetResourceDeployPolicyParams, error) {
-	mode, ok := servicedefaults.RestartMode(policy.GetRestartPolicy())
-	if !ok {
-		return genDb.SetResourceDeployPolicyParams{}, errRestartPolicyUnset
-	}
+	mode := servicedefaults.RestartMode(policy.GetRestartPolicy())
 	filled := servicedefaults.FailurePolicy{
 		Restart:              locoControllerV1.RestartPolicySpec{Mode: mode, MaxRestarts: policy.GetMaxRestarts()},
 		DeployTimeoutSeconds: policy.GetDeployTimeoutSeconds(),

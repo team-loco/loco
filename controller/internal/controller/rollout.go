@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"sort"
@@ -155,21 +156,10 @@ func (r *ApplicationReconciler) observeReplicas(
 	}
 	r.observeHealth(rollout, current, revision, now)
 	rollout.Problem = replicaProblem(current, policy, r.HealthyAfter, now)
-	if rollout.Stopped == nil && exhausted != nil {
-		rollout.Problem = &locov1alpha1.Problem{
-			Reason:  locov1alpha1.ProblemRestartsExhausted,
-			Replica: exhausted.Replica,
-			Detail:  exhausted.Detail,
-			Since:   exhausted.At.DeepCopy(),
-		}
-	}
 	if placed {
 		observeDeadline(rollout, previous, revision, app.Spec.ServiceSpec.DeployTimeoutSeconds, now)
 	}
-	if rollout.Stopped != nil && rollout.Stopped.PlacementRevision == rollout.ProvenRevision {
-		rollout.ProvenRevision = 0
-	}
-	if stopped := rollout.Stopped; stopped != nil {
+	if stopped := cmp.Or(rollout.Stopped, exhausted); stopped != nil {
 		rollout.Problem = &locov1alpha1.Problem{
 			Reason:  stopped.Reason,
 			Replica: stopped.Replica,

@@ -5,12 +5,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -82,7 +80,6 @@ func stoppedReport() *agentv1.PlacementStatus {
 			Reason:      agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,
 			ReplicaName: stoppedReplica,
 			Restarts:    stoppedRestarts,
-			Detail:      stoppedDetail,
 		},
 		Problem: &agentv1.ProblemReport{
 			Reason: string(loco.ProblemRestartsExhausted), ReplicaName: stoppedReplica, Detail: stoppedDetail,
@@ -191,7 +188,7 @@ func TestARolloutStoppedAtItsDeployTimeoutFailsWithoutAFallback(t *testing.T) {
 		t.Fatalf("deployment waiting for a node = %s, want deploying", got)
 	}
 	f.reportStatus(t, &agentv1.PlacementStatus{
-		Stopped: &agentv1.StoppedRevision{Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT, Detail: timeoutDetail},
+		Stopped: &agentv1.StoppedRevision{Reason: agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT},
 		Problem: &agentv1.ProblemReport{Reason: string(loco.ProblemDeployTimeout), Detail: timeoutDetail},
 	})
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusFailed {
@@ -207,40 +204,5 @@ func TestARolloutStoppedAtItsDeployTimeoutFailsWithoutAFallback(t *testing.T) {
 	}
 	if crashed := f.eventsOf(t, events.DeploymentCrashed, id); len(crashed) != 0 {
 		t.Fatalf("a deploy timeout recorded deployment.crashed: %v", crashed)
-	}
-}
-
-func TestRegionStatusReportsTheFailurePolicy(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
-	server := &ResourceServer{queries: f.queries, defaults: testServiceDefaults()}
-	policy := func() *deploymentv1.FailurePolicy {
-		t.Helper()
-		statuses, err := server.environmentStatuses(t.Context(), []uuid.UUID{f.resourceID})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return statuses[f.resourceID][0].GetRegions()[0].GetFailurePolicy()
-	}
-	defaults := testServiceDefaults()
-	want := &deploymentv1.FailurePolicy{
-		RestartPolicy:        deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE,
-		MaxRestarts:          defaults.MaxRestarts,
-		DeployTimeoutSeconds: defaults.DeployTimeout,
-	}
-	if got := policy(); !proto.Equal(got, want) {
-		t.Fatalf("policy = %v, want the defaults %v", got, want)
-	}
-	if err := f.queries.SetResourceDeployPolicy(t.Context(), genDb.SetResourceDeployPolicyParams{
-		ID: f.resourceID, RestartPolicy: new(string(loco.RestartAlways)), DeployTimeoutSeconds: new(int32(120)),
-	}); err != nil {
-		t.Fatal(err)
-	}
-	want = &deploymentv1.FailurePolicy{
-		RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ALWAYS, DeployTimeoutSeconds: 120,
-	}
-	if got := policy(); !proto.Equal(got, want) {
-		t.Fatalf("policy = %v, want the service's %v", got, want)
 	}
 }

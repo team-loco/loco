@@ -142,16 +142,16 @@ func (p FailurePolicy) Proto() *deploymentv1.FailurePolicy {
 	}
 }
 
-// RestartMode maps a proto restart policy to its mode; it is false for an unset one.
-func RestartMode(policy deploymentv1.RestartPolicy) (locoControllerV1.RestartMode, bool) {
+// RestartMode maps a proto restart policy to its mode; it is empty for an unset one.
+func RestartMode(policy deploymentv1.RestartPolicy) locoControllerV1.RestartMode {
 	for _, mode := range []locoControllerV1.RestartMode{
 		locoControllerV1.RestartOnFailure, locoControllerV1.RestartAlways, locoControllerV1.RestartNever,
 	} {
 		if RestartPolicyProto(mode) == policy {
-			return mode, true
+			return mode
 		}
 	}
-	return "", false
+	return ""
 }
 
 // RestartPolicyProto maps a restart mode to its proto value; agent/pkg/appwatch keeps the same

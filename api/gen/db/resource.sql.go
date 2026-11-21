@@ -363,10 +363,8 @@ SELECT l.resource_id,
              AND rd.domain_source = 'platform_provided'
              AND NOT (rd.platform_domain = ANY(c.domains))
            ORDER BY rd.domain
-       )::text[] AS unserved_domains,
-       r.restart_policy, r.max_restarts, r.deploy_timeout_seconds
+       )::text[] AS unserved_domains
 FROM live_deployment_placements l
-JOIN resources r ON r.id = l.resource_id
 JOIN environments e ON e.id = l.environment_id
 JOIN clusters c ON c.id = l.cluster_id
 LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
@@ -376,27 +374,24 @@ ORDER BY l.resource_id, e.slug, l.region
 `
 
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID           uuid.UUID       `json:"resourceId"`
-	EnvironmentID        uuid.UUID       `json:"environmentId"`
-	EnvironmentSlug      string          `json:"environmentSlug"`
-	Region               string          `json:"region"`
-	ClusterID            uuid.UUID       `json:"clusterId"`
-	DeploymentID         uuid.UUID       `json:"deploymentId"`
-	PlacementStatus      PlacementStatus `json:"placementStatus"`
-	DesiredReplicas      int32           `json:"desiredReplicas"`
-	Problem              []byte          `json:"problem"`
-	Placed               bool            `json:"placed"`
-	ReadyReplicas        int32           `json:"readyReplicas"`
-	StatusUpdatedAt      *time.Time      `json:"statusUpdatedAt"`
-	StoredStatus         string          `json:"storedStatus"`
-	RegionStatusSince    *time.Time      `json:"regionStatusSince"`
-	Replicas             []byte          `json:"replicas"`
-	LastHeartbeat        *time.Time      `json:"lastHeartbeat"`
-	HealthStatus         *string         `json:"healthStatus"`
-	UnservedDomains      []string        `json:"unservedDomains"`
-	RestartPolicy        *string         `json:"restartPolicy"`
-	MaxRestarts          *int32          `json:"maxRestarts"`
-	DeployTimeoutSeconds *int32          `json:"deployTimeoutSeconds"`
+	ResourceID        uuid.UUID       `json:"resourceId"`
+	EnvironmentID     uuid.UUID       `json:"environmentId"`
+	EnvironmentSlug   string          `json:"environmentSlug"`
+	Region            string          `json:"region"`
+	ClusterID         uuid.UUID       `json:"clusterId"`
+	DeploymentID      uuid.UUID       `json:"deploymentId"`
+	PlacementStatus   PlacementStatus `json:"placementStatus"`
+	DesiredReplicas   int32           `json:"desiredReplicas"`
+	Problem           []byte          `json:"problem"`
+	Placed            bool            `json:"placed"`
+	ReadyReplicas     int32           `json:"readyReplicas"`
+	StatusUpdatedAt   *time.Time      `json:"statusUpdatedAt"`
+	StoredStatus      string          `json:"storedStatus"`
+	RegionStatusSince *time.Time      `json:"regionStatusSince"`
+	Replicas          []byte          `json:"replicas"`
+	LastHeartbeat     *time.Time      `json:"lastHeartbeat"`
+	HealthStatus      *string         `json:"healthStatus"`
+	UnservedDomains   []string        `json:"unservedDomains"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
@@ -427,9 +422,6 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.LastHeartbeat,
 			&i.HealthStatus,
 			&i.UnservedDomains,
-			&i.RestartPolicy,
-			&i.MaxRestarts,
-			&i.DeployTimeoutSeconds,
 		); err != nil {
 			return nil, err
 		}

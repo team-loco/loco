@@ -948,8 +948,7 @@ type StoppedRevision struct {
 	LastRestart *v11.ReplicaRestart    `protobuf:"bytes,4,opt,name=last_restart,json=lastRestart,proto3" json:"last_restart,omitempty"`
 	At          *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=at,proto3" json:"at,omitempty"`
 	// Set when the revision never proved itself, so the previous revision serves in its place.
-	Rollout       bool   `protobuf:"varint,6,opt,name=rollout,proto3" json:"rollout,omitempty"`
-	Detail        string `protobuf:"bytes,8,opt,name=detail,proto3" json:"detail,omitempty"`
+	Rollout       bool `protobuf:"varint,6,opt,name=rollout,proto3" json:"rollout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1031,13 +1030,6 @@ func (x *StoppedRevision) GetRollout() bool {
 		return x.Rollout
 	}
 	return false
-}
-
-func (x *StoppedRevision) GetDetail() string {
-	if x != nil {
-		return x.Detail
-	}
-	return ""
 }
 
 type ProblemReport struct {
@@ -1896,7 +1888,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"healthy_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\thealthyAt\x128\n" +
 	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\x12H\n" +
-	"\x0efailure_policy\x18\x12 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\v\x10\fJ\x04\b\x13\x10\x14\"\xe1\x02\n" +
+	"\x0efailure_policy\x18\x12 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\v\x10\fJ\x04\b\x13\x10\x14\"\xc5\x02\n" +
 	"\x0fStoppedRevision\x12-\n" +
 	"\x12placement_revision\x18\x01 \x01(\x03R\x11placementRevision\x121\n" +
 	"\x06reason\x18\a \x01(\x0e2\x19.loco.agent.v1.StopReasonR\x06reason\x12!\n" +
@@ -1904,8 +1896,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\brestarts\x18\x03 \x01(\x05R\brestarts\x12E\n" +
 	"\flast_restart\x18\x04 \x01(\v2\".loco.deployment.v1.ReplicaRestartR\vlastRestart\x12*\n" +
 	"\x02at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x18\n" +
-	"\arollout\x18\x06 \x01(\bR\arollout\x12 \n" +
-	"\x06detail\x18\b \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\x06detail\"\x9e\x01\n" +
+	"\arollout\x18\x06 \x01(\bR\arolloutJ\x04\b\b\x10\t\"\x9e\x01\n" +
 	"\rProblemReport\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12 \n" +

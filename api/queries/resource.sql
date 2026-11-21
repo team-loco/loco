@@ -123,10 +123,8 @@ SELECT l.resource_id,
              AND rd.domain_source = 'platform_provided'
              AND NOT (rd.platform_domain = ANY(c.domains))
            ORDER BY rd.domain
-       )::text[] AS unserved_domains,
-       r.restart_policy, r.max_restarts, r.deploy_timeout_seconds
+       )::text[] AS unserved_domains
 FROM live_deployment_placements l
-JOIN resources r ON r.id = l.resource_id
 JOIN environments e ON e.id = l.environment_id
 JOIN clusters c ON c.id = l.cluster_id
 LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id

@@ -159,7 +159,6 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 				Reason:            stopReason(stopped.Reason),
 				ReplicaName:       stopped.Replica,
 				Restarts:          stopped.Restarts,
-				Detail:            stopped.Detail,
 				At:                timestamppb.New(stopped.At.Time),
 				Rollout:           stopped.Rollout,
 			}

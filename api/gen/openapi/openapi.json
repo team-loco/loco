@@ -9069,11 +9069,6 @@
             "type": "boolean",
             "title": "rollout",
             "description": "Set when the revision never proved itself, so the previous revision serves in its place."
-          },
-          "detail": {
-            "type": "string",
-            "title": "detail",
-            "maxLength": 1024
           }
         },
         "title": "StoppedRevision",
@@ -14925,11 +14920,6 @@
             },
             "title": "replicas",
             "description": "The replicas the cluster last reported for this region's placement. GetResource fills them;\n list responses leave them empty."
-          },
-          "failurePolicy": {
-            "title": "failure_policy",
-            "description": "The failure policy the region's placement runs under.",
-            "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
           }
         },
         "title": "RegionStatus",

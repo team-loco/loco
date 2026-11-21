@@ -123,14 +123,19 @@ func renderStatusView(stdout io.Writer, name string, resource *resourcev1.Resour
 	}
 	now := time.Now()
 	for _, environment := range statuses {
-		if err := renderEnvironmentStatus(stdout, environment, now); err != nil {
+		if err := renderEnvironmentStatus(stdout, environment, resource.GetFailurePolicy(), now); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.EnvironmentStatus, now time.Time) error {
+func renderEnvironmentStatus(
+	stdout io.Writer,
+	environment *resourcev1.EnvironmentStatus,
+	policy *deploymentv1.FailurePolicy,
+	now time.Time,
+) error {
 	nameStyle := lipgloss.NewStyle().Foreground(ui.Fg).Bold(true)
 	status := environment.GetStatus()
 	statusStyle := lipgloss.NewStyle().Foreground(statusColor(status))
@@ -157,7 +162,7 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 		return err
 	}
 	for _, region := range environment.GetRegions() {
-		if err := renderReplicas(stdout, region, now); err != nil {
+		if err := renderReplicas(stdout, region, policy, now); err != nil {
 			return err
 		}
 	}
@@ -180,7 +185,12 @@ func replicaStateLabel(replica *deploymentv1.Replica, policy *deploymentv1.Failu
 }
 
 // renderReplicas prints the replicas the cluster last reported for a region.
-func renderReplicas(stdout io.Writer, region *resourcev1.RegionStatus, now time.Time) error {
+func renderReplicas(
+	stdout io.Writer,
+	region *resourcev1.RegionStatus,
+	policy *deploymentv1.FailurePolicy,
+	now time.Time,
+) error {
 	if len(region.GetReplicas()) == 0 {
 		return nil
 	}
@@ -203,7 +213,7 @@ func renderReplicas(stdout io.Writer, region *resourcev1.RegionStatus, now time.
 		}
 		rows = append(rows, []string{
 			replica.GetName(),
-			replicaStateLabel(replica, region.GetFailurePolicy()),
+			replicaStateLabel(replica, policy),
 			strconv.Itoa(int(replica.GetRestarts())),
 			lastExit,
 			started,

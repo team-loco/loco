@@ -132,6 +132,25 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(replicaSetReplicas(previous)).To(Equal(int32(1)))
 	})
 
+	It("stops a revision that restarted within its budget as a deploy timeout", func() {
+		app := deadlineApp("deadline-restarted", 1)
+		app.Spec.ServiceSpec.RestartPolicy = locov1alpha1.RestartPolicySpec{
+			Mode: locov1alpha1.RestartOnFailure, MaxRestarts: 2,
+		}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		createReplicaSet(app, "deadline-restarted-previous", "1", 1)
+		pod := createReplica(app, "deadline-restarted-replica", testImage)
+		restartTo(r, app, pod, 1)
+		Expect(app.Status.Rollout.Stopped).To(BeNil())
+
+		passDeadline(app)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
+		Expect(app.Status.Rollout.Stopped.Reason).To(Equal(locov1alpha1.ProblemDeployTimeout))
+		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemDeployTimeout))
+	})
+
 	It("holds a revision that became healthy to no deadline", func() {
 		app := deadlineApp("deadline-healthy", 1)
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
