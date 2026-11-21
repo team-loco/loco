@@ -1020,11 +1020,12 @@ def query_suggestions(page):
     search.fill("@lev")
     expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
     expect(search).to_have_attribute("aria-expanded", "true")
-    bar = search.locator('xpath=ancestor::div[@role="presentation"]').bounding_box()
+    bar = search.locator('xpath=ancestor::div[@role="presentation"]')
     popup = page.locator('[data-slot="combobox-content"]')
-    assert abs(popup.bounding_box()["width"] - bar["width"]) <= 2, (
-        bar,
-        popup.bounding_box(),
+    # Waits out the opening zoom before comparing widths.
+    page.wait_for_function(
+        "([bar, popup]) => Math.abs(bar.getBoundingClientRect().width - popup.getBoundingClientRect().width) <= 2",
+        arg=[bar.element_handle(), popup.element_handle()],
     )
     expect(popup).to_contain_text("exclude")
     expect(popup).not_to_contain_text("either")
