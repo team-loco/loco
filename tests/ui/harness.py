@@ -26,10 +26,10 @@ def load_state(args, name, scenario, *, issuer=None):
 
 
 @contextlib.contextmanager
-def session(out):
+def session(out, **launch_options):
     with (
         sync_playwright() as playwright,
-        evidence.shared_browser(playwright) as browser,
+        evidence.shared_browser(playwright, **launch_options) as browser,
     ):
         try:
             yield browser

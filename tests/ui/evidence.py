@@ -14,6 +14,8 @@ import json
 import os
 import re
 import shutil
+import signal
+import socket
 import subprocess
 import sys
 import tarfile
@@ -1422,32 +1424,69 @@ def postgres_starter(image):
     return start
 
 
-def browser_starter(root):
-    run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
-    port = int(testres("ports", root, 1))
-    config = root / "launch.json"
-    write_json(config, {"host": HOST, "port": port, "headless": True})
-    log_path = root / "browser.log"
-    cmd = [sys.executable, "-m", "playwright", "launch-server", "--browser", "chromium"]
-    pid = spawn([*cmd, "--config", str(config)], root, dict(os.environ), log_path)
-    testres("add", root, "process", pid)
-    deadline = time.monotonic() + READY_TIMEOUT_S
-    while not (endpoint := re.search(r"ws://\S+", log_path.read_text())):
-        if time.monotonic() > deadline:
-            raise EvidenceError(
-                f"Chromium did not start; log tail:\n{log_tail(log_path)}"
-            )
-        time.sleep(0.2)
-    return {"id": root.name, "root": str(root), "endpoint": endpoint.group()}
+def browser_starter(options):
+    def start(root):
+        run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
+        # A restart replaces what is left of the earlier server.
+        if (root / "state.json").exists():
+            stop_browser(load_state(root / "state.json")["pid"])
+        port = int(testres("ports", root, 1))
+        config = root / "launch.json"
+        write_json(config, {**options, "host": HOST, "port": port, "headless": True})
+        log_path = root / "browser.log"
+        log_path.unlink(missing_ok=True)
+        cmd = [sys.executable, "-m", "playwright", "launch-server", "--browser"]
+        pid = spawn([*cmd, "chromium", "--config", str(config)], root, None, log_path)
+        testres("add", root, "process", pid)
+        deadline = time.monotonic() + READY_TIMEOUT_S
+        while not (endpoint := re.search(r"ws://\S+", log_path.read_text())):
+            if time.monotonic() > deadline:
+                raise EvidenceError(
+                    f"Chromium did not start; log tail:\n{log_tail(log_path)}"
+                )
+            time.sleep(0.2)
+        return {
+            "id": root.name,
+            "root": str(root),
+            "pid": pid,
+            "port": port,
+            "endpoint": endpoint.group(),
+        }
+
+    return start
+
+
+def stop_browser(pid):
+    command = subprocess.run(
+        ["ps", "-o", "command=", "-p", str(pid)], capture_output=True
+    )
+    if b"launch-server" in command.stdout:
+        os.killpg(pid, signal.SIGTERM)
+
+
+def browser_healthy(state):
+    try:
+        socket.create_connection((HOST, state["port"]), timeout=2).close()
+        return True
+    except OSError:
+        return False
 
 
 @contextlib.contextmanager
-def shared_browser(playwright):
-    """Connects to the machine's headless Chromium for this Playwright version, held while in use."""
+def shared_browser(playwright, **options):
+    """Connects to the machine's headless Chromium for this Playwright version and launch
+    options, held while in use."""
     user = Path(testres("lease", "-name", f"{LABEL}-browser-user", "-pid", os.getpid()))
     try:
-        version = importlib.metadata.version("playwright")
-        server = shared(user, "chromium", digest(version), browser_starter)
+        # launch-server reads launchServer's camelCase options.
+        options = {
+            re.sub(r"_(\w)", lambda m: m.group(1).upper(), key): value
+            for key, value in options.items()
+        }
+        key = digest(importlib.metadata.version("playwright"), json.dumps(options))
+        server = shared(
+            user, "chromium", key, browser_starter(options), browser_healthy
+        )
         browser = playwright.chromium.connect(server["endpoint"])
         try:
             yield browser
