@@ -1,6 +1,16 @@
 import pytest
 from helpers import chart_values, post_otlp, read_output, run_collector
 
+# stderr lines without a level are errors; lines that name a level keep it.
+STDERR_CASES = [
+    ("Traceback (most recent call last):", "ERROR", 17, {}),
+    ('{"level":', "ERROR", 17, {}),
+    ("INFO listening on :8080", "INFO", 9, {}),
+    ('{"level":"warning","message":"low memory"}', "WARN", 13, {}),
+    ("level=debug msg=checking", "DEBUG", 5, {}),
+    ('{"level":"custom"}', "", 0, {}),
+]
+
 
 @pytest.mark.parametrize("source", ["otlp", "file_log"])
 def test_collected_log_severity(tmp_path, source):
@@ -53,6 +63,8 @@ def test_collected_log_severity(tmp_path, source):
     }
     if source == "file_log":
         cases = [case for case in cases if not case[3]]
+        streams = ["stdout"] * len(cases) + ["stderr"] * len(STDERR_CASES)
+        cases += STDERR_CASES
         log_path = (
             tmp_path
             / "pods/default_fixture_00000000-0000-4000-8000-000000000001/app/0.log"
@@ -60,8 +72,8 @@ def test_collected_log_severity(tmp_path, source):
         log_path.parent.mkdir(parents=True)
         log_path.write_text(
             "".join(
-                f"2026-10-19T12:00:00.000000000Z stdout F {body}\n"
-                for body, _, _, _ in cases
+                f"2026-10-19T12:00:00.000000000Z {stream} F {body}\n"
+                for stream, (body, _, _, _) in zip(streams, cases, strict=True)
             )
         )
         config["receivers"] = {
@@ -96,67 +108,6 @@ def test_collected_log_severity(tmp_path, source):
             len(cases),
         )
         for record, (body, severity, number, _) in zip(received, cases, strict=True):
-            assert record["body"]["stringValue"] == body
-            assert record.get("severityText", "") == severity, record
-            assert record.get("severityNumber", 0) == number, record
-
-
-def test_stderr_log_severity(tmp_path):
-    transform = chart_values("loco-worker")["otel-col-daemon"]["config"]["processors"][
-        "transform/log_severity"
-    ]
-    cases = [
-        ("stderr", "Traceback (most recent call last):", "ERROR", 17),
-        ("stderr", '{"level":', "ERROR", 17),
-        ("stderr", "INFO listening on :8080", "INFO", 9),
-        ("stderr", '{"level":"warning","message":"low memory"}', "WARN", 13),
-        ("stderr", "level=debug msg=checking", "DEBUG", 5),
-        ("stderr", '{"level":"custom"}', "", 0),
-        ("stdout", "a plain message", "", 0),
-    ]
-    log_path = (
-        tmp_path / "pods/default_fixture_00000000-0000-4000-8000-000000000001/app/0.log"
-    )
-    log_path.parent.mkdir(parents=True)
-    log_path.write_text(
-        "".join(
-            f"2026-10-19T12:00:00.000000000Z {stream} F {body}\n"
-            for stream, body, _, _ in cases
-        )
-    )
-    config = {
-        "receivers": {
-            "file_log": {
-                "include": ["/data/pods/*/*/*.log"],
-                "include_file_path": True,
-                "start_at": "beginning",
-                "operators": [{"id": "container-parser", "type": "container"}],
-            }
-        },
-        "processors": {"transform/log_severity": transform},
-        "exporters": {"file": {"path": "/data/output.json", "flush_interval": "100ms"}},
-        "service": {
-            "pipelines": {
-                "logs": {
-                    "receivers": ["file_log"],
-                    "processors": ["transform/log_severity"],
-                    "exporters": ["file"],
-                }
-            }
-        },
-    }
-    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
-        received = read_output(
-            collector,
-            lambda document: [
-                record
-                for resource in document["resourceLogs"]
-                for scope in resource["scopeLogs"]
-                for record in scope["logRecords"]
-            ],
-            len(cases),
-        )
-        for record, (_, body, severity, number) in zip(received, cases, strict=True):
             assert record["body"]["stringValue"] == body
             assert record.get("severityText", "") == severity, record
             assert record.get("severityNumber", 0) == number, record
