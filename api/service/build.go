@@ -21,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -206,6 +207,7 @@ func (s *BuildServer) CreateBuild(
 			GitCommit:           req.GitCommit,
 			GitBranch:           req.GitBranch,
 			GitCommitMessage:    gitCommitMessage,
+			Traceparent:         tracing.Origin(ctx),
 		}); err != nil {
 			return fmt.Errorf("create build: %w", err)
 		}

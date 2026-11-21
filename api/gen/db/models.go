@@ -669,6 +669,7 @@ type Build struct {
 	CreatedBy           uuid.UUID        `json:"createdBy"`
 	ApiTokenID          *uuid.UUID       `json:"apiTokenId"`
 	Method              DeploymentMethod `json:"method"`
+	Traceparent         *string          `json:"traceparent"`
 	CreatedAt           time.Time        `json:"createdAt"`
 	StartedAt           *time.Time       `json:"startedAt"`
 	FinishedAt          *time.Time       `json:"finishedAt"`
@@ -730,6 +731,7 @@ type Deployment struct {
 	PlainEnv           map[string]string    `json:"plainEnv"`
 	SecretEnv          map[string]string    `json:"secretEnv"`
 	ActivitySeq        int64                `json:"activitySeq"`
+	Traceparent        *string              `json:"traceparent"`
 	CreatedAt          time.Time            `json:"createdAt"`
 	StartedAt          *time.Time           `json:"startedAt"`
 	CompletedAt        *time.Time           `json:"completedAt"`

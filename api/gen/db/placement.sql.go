@@ -141,6 +141,20 @@ func (q *Queries) GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (i
 	return sync_generation, err
 }
 
+const getPlacementTraceparent = `-- name: GetPlacementTraceparent :one
+SELECT d.traceparent
+FROM placements p
+JOIN deployments d ON d.id = p.deployment_id
+WHERE p.id = $1
+`
+
+func (q *Queries) GetPlacementTraceparent(ctx context.Context, id uuid.UUID) (*string, error) {
+	row := q.db.QueryRow(ctx, getPlacementTraceparent, id)
+	var traceparent *string
+	err := row.Scan(&traceparent)
+	return traceparent, err
+}
+
 const getResourceEnvironmentPlacement = `-- name: GetResourceEnvironmentPlacement :one
 SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_env, desired_revision, desired_spec, desired_deleted, restarted_at, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND environment_id = $2 AND cluster_id = $3
