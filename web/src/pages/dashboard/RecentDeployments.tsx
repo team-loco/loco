@@ -15,8 +15,7 @@ import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { observabilityPath, resourcePath } from "@/lib/routes";
-import { DAY_MS } from "@/lib/time";
-import { agoLabel, formatStarted, readyMs } from "@/lib/time";
+import { agoLabel, DAY_MS, formatStarted, readyMs } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
