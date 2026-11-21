@@ -15,13 +15,11 @@ export function AutoscalingSwitch({
 	replicaRange,
 	onChange,
 	disabled = false,
-	region,
 }: {
 	value: Scaling;
 	replicaRange: ReplicaRange | null;
 	onChange: (value: Scaling) => void;
 	disabled?: boolean;
-	region?: string;
 }) {
 	const on = autoscales(value);
 	const limit = replicaRange?.max ?? value.maxReplicas;
@@ -29,7 +27,7 @@ export function AutoscalingSwitch({
 		<span className="flex items-center gap-2.5 text-[13px] text-fg2">
 			Autoscaling
 			<Switch
-				aria-label={region === undefined ? "Autoscaling" : `Autoscaling in ${region}`}
+				aria-label="Autoscaling"
 				checked={on}
 				disabled={disabled || (!on && value.replicas >= limit)}
 				onCheckedChange={(next) => {
@@ -45,18 +43,15 @@ export function ScalingFields({
 	replicaRange,
 	onChange,
 	disabled = false,
-	region,
 	error,
 }: {
 	value: Scaling;
 	replicaRange: ReplicaRange | null;
 	onChange: (value: Scaling) => void;
 	disabled?: boolean;
-	region?: string;
 	error?: string | null;
 }) {
 	const autoscaling = autoscales(value);
-	const suffix = region === undefined ? "" : ` in ${region}`;
 	const limit = replicaRange?.max ?? value.maxReplicas;
 	const floor = replicaRange?.min ?? value.replicas;
 	return (
@@ -65,7 +60,7 @@ export function ScalingFields({
 				<div className="grid max-w-[520px] grid-cols-2 gap-x-4 gap-y-3">
 					<Field label="Min replicas per region">
 						<Stepper
-							label={`Minimum replicas${suffix}`}
+							label="Minimum replicas"
 							value={value.replicas}
 							min={floor}
 							max={value.maxReplicas - 1}
@@ -77,7 +72,7 @@ export function ScalingFields({
 					</Field>
 					<Field label="Max replicas per region">
 						<Stepper
-							label={`Maximum replicas${suffix}`}
+							label="Maximum replicas"
 							value={value.maxReplicas}
 							min={value.replicas + 1}
 							max={limit}
@@ -88,7 +83,7 @@ export function ScalingFields({
 						/>
 					</Field>
 					<RangeSlider
-						label={`CPU target (%)${suffix}`}
+						label="CPU target (%)"
 						heading="CPU target"
 						value={value.cpuTarget}
 						min={1}
@@ -102,7 +97,7 @@ export function ScalingFields({
 			) : (
 				<Field label="Replicas per region">
 					<Stepper
-						label={`Replicas${suffix}`}
+						label="Replicas"
 						value={value.replicas}
 						min={floor}
 						max={limit}
