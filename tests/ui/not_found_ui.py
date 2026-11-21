@@ -320,6 +320,24 @@ with session(out) as browser:
     ):
         page.goto(ui + path)
         expect_not_found(page, path)
+    # A remembered workspace equal to the URL's shares its lookup; the failed lookup runs once.
+    missing = f"/org/{org}/wks/{uuid.UUID(int=0)}"
+    page.evaluate(
+        f"localStorage.setItem('loco:active-workspace:v1', '{uuid.UUID(int=0)}')"
+    )
+    lookups = []
+    page.on(
+        "request",
+        lambda request: (
+            lookups.append(request.url)
+            if request.url.endswith("/GetWorkspace")
+            else None
+        ),
+    )
+    page.goto(ui + missing)
+    expect_not_found(page, missing)
+    page.wait_for_timeout(1000)
+    assert len(lookups) <= 2, len(lookups)
     page.goto(ui + "/team")
     expect(page).to_have_url(re.compile(r"/org/[0-9a-f-]+/team$"))
     page.goto(ui + f"/org/{org}/team")
