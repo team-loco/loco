@@ -43,7 +43,10 @@ mise exec -- uv run --script "$E" <command>
    `deployment_id` and `placement_revision` default to the name, the deployment and 1) and a
    rollout `problem` (`reason`, `message`, `detail`, `replica_name`), and a resource may list
    platform `domains` (`{"environment": "production", "domain": "web.apps.example.test"}`), which
-   make it public. Give a deployment an `id` when another deployment's replica names it. Time
+   make it public. Give a deployment an `id` when another deployment's replica names it. A deployment's
+   `build` seeds the build it came from, as `builds` columns such as `status`, `image_digest`,
+   `git_commit`, `created_at`, `started_at` and `finished_at`, and adds its ID to the spec; a
+   shot's `respond` for `ObservabilityService/QueryLogs` supplies the build's log lines. Time
    placeholders such as `{"seconds": "{now-3h:s}"}` work in these fields. Start from
    `.agents/skills/ui-evidence/scenario.agent.example.json`. Resources use the API; synthetic
    clusters, deployments and placements use SQL without contacting a registry or worker.
