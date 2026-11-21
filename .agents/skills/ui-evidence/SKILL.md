@@ -29,9 +29,8 @@ This is the default. It keeps the browsers, databases and builds off your machin
    `--base` names the before ref (default `main`); without `--scenario` CI uses
    `scenario.example.json`. Suite names after the flags also run those `tests/ui` suites in
    the same run. The task refuses to start when the local head differs from the pushed one,
-   prints the run URL, checks it every 30 seconds and downloads `evidence/*.png`,
-   `evidence.md`, `refs.txt` (the before and after commits) and any suite output into
-   `$capture`. It exits non-zero when the run failed; read the run log for `scenario note:`
+   waits for the run and downloads `evidence/*.png`, `evidence.md`, `refs.txt` (the before
+   and after commits) and any suite output into `$capture`. It exits non-zero when the run failed; read the run log for `scenario note:`
    lines and the failing shot.
 4. Open every PNG with Read and check it shows what the shot claims.
 5. Write the PR body to `$capture/body.md` with `$capture/evidence.md` under `## Screenshots`,

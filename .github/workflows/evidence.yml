@@ -59,6 +59,7 @@ jobs:
         env:
           SUITES: ${{ inputs.suites }}
         run: |
+          set -o pipefail
           read -ra suites <<<"$SUITES"
           mise run test:ui "${suites[@]}" 2>&1 | tee "$RUNNER_TEMP/evidence/suites.log"
 
