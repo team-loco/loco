@@ -14,13 +14,13 @@ person's browser windows.
 
 ## Capture in CI
 
-This is the default. It keeps the browsers, databases and builds off your machine.
+This is the default. It keeps the browsers, databases and builds off your machine. The PR
+stays a draft while you work, so pushes run no CI; `gh pr ready` runs the full CI.
 
-1. Open the PR as a draft (`gh pr create --draft`). A draft runs no CI, so pushes cost nothing.
-2. Write `scenario.json` and `shots.json` into a directory outside the checkout, as steps 1
+1. Write `scenario.json` and `shots.json` into a directory outside the checkout, as steps 1
    and 2 of [Capture locally](#capture-locally) describe. They are not committed; the task
    sends their contents to CI.
-3. Push the branch, then run the capture for its pushed head:
+2. Push the branch, then run the capture for its pushed head:
 
    ```sh
    mise run ci:evidence --out "$capture" --shots "$capture/shots.json" --scenario "$capture/scenario.json"
@@ -30,13 +30,11 @@ This is the default. It keeps the browsers, databases and builds off your machin
    `scenario.example.json`. Suite names after the flags also run those `tests/ui` suites in
    the same run. The task refuses to start when the local head differs from the pushed one,
    waits for the run and downloads `evidence/*.png`, `evidence.md`, `refs.txt` (the before
-   and after commits) and any suite output into `$capture`. It exits non-zero when the run failed; read the run log for `scenario note:`
-   lines and the failing shot.
-4. Open every PNG with Read and check it shows what the shot claims.
-5. Write the PR body to `$capture/body.md` with `$capture/evidence.md` under `## Screenshots`,
-   and upload as [Upload](#upload) describes. The table's `evidence/<file>.png` paths resolve
-   against the body file's directory.
-6. Mark the PR ready (`gh pr ready`); that runs the full CI.
+   and after commits) and any suite output into `$capture`. It exits non-zero when the run
+   failed; read the run log for `scenario note:` lines and the failing shot.
+3. Open every PNG with Read and check it shows what the shot claims.
+4. Report the PNG paths, one line per file saying what it shows, and the path of
+   `$capture/evidence.md`.
 
 ## Capture locally
 
@@ -202,8 +200,9 @@ their local paths:
 mise exec -- uv run --script "$E" table --out "$capture/evidence" > "$capture/evidence.md"
 ```
 
-Put `$capture/evidence.md` under a `## Screenshots` heading in the PR body file, then attach every PNG the
-tables reference. `gh` uploads each file and rewrites its local path in the body to the uploaded
+Put `$capture/evidence.md` under a `## Screenshots` heading in the PR body file, then attach every
+PNG the tables reference. For a CI capture, write the body file into `$capture`; the table's
+`evidence/<file>.png` paths resolve against its directory. `gh` uploads each file and rewrites its local path in the body to the uploaded
 asset:
 
 ```sh
