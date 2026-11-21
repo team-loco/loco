@@ -435,7 +435,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							problem={problem}
 							region={problemRegion}
 							lastGood={lastGoodDeployment(problemRegion)}
-							events={events}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}

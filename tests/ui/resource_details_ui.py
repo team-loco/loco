@@ -155,9 +155,12 @@ with session(out) as browser:
     )
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
     page.goto(base)
-    expect(page.get_by_text("Last warning", exact=True)).to_be_visible()
+    incident = page.get_by_role(
+        "region", name=re.compile(r"us-ca-1"), exact=False
+    ).filter(has=page.get_by_text("Last good", exact=True))
+    expect(incident.get_by_text("Last good", exact=True)).to_be_visible()
     expect(
-        page.get_by_text("The service exited with code 1.", exact=True)
+        incident.get_by_label("Last log lines in us-ca-1", exact=True)
     ).to_be_visible()
     expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
     expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
