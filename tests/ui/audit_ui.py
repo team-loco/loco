@@ -425,7 +425,7 @@ with session(out) as browser:
         == "(@type:resource.created) @actor_type:system"
     )
     expect(
-        page.get_by_text("No events match these filters.", exact=True)
+        page.get_by_text(re.compile(r"^No events match these filters\. Clear filters$"))
     ).to_be_visible()
     search.fill("no-such-event")
     page.get_by_role("button", name="Clear filters", exact=True).click()

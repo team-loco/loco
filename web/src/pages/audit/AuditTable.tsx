@@ -50,7 +50,7 @@ function auditColumns(nowMs: number): DataColumn<AuditRow>[] {
 		{
 			id: "action",
 			header: "Action",
-			size: 420,
+			size: 300,
 			minSize: 90,
 			maxSize: 640,
 			meta: { grow: true },
