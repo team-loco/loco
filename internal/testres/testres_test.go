@@ -307,3 +307,100 @@ func TestNewLeavesNothingForAnOwnerThatIsNotRunning(t *testing.T) {
 		t.Fatalf("lease directories left behind: %v", entries)
 	}
 }
+
+func TestSharedLeaseLivesWhileAnyUserDoes(t *testing.T) {
+	registry := open(t)
+	const users = 4
+	leases := make([]*Lease, users)
+	shared := make([]string, users)
+	var wg sync.WaitGroup
+	for i := range users {
+		leases[i] = lease(t, registry, "run", Owner{TTL: time.Hour})
+		wg.Go(func() {
+			lease, err := registry.Share(t.Context(), "server", leases[i])
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			shared[i] = lease.ID
+		})
+	}
+	wg.Wait()
+	for _, id := range shared {
+		if id != "server" {
+			t.Fatalf("shared lease IDs = %v", shared)
+		}
+	}
+	server, err := registry.Get("server")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec, err := registry.read("server"); err != nil || len(rec.Users) != users {
+		t.Fatalf("users of the shared lease = %v, %v", rec.Users, err)
+	}
+	process := serve(t, server)
+	for _, user := range leases[:users-1] {
+		if err := user.Release(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if started, err := startTime(t.Context(), process.Process.Pid); err != nil || started == "" {
+		t.Fatalf("the shared process stopped while a user remains: %v", err)
+	}
+	if err := leases[users-1].Release(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if err := process.Wait(); !isExit(err) {
+		t.Fatalf("the shared process after its last user left: %v", err)
+	}
+	if ids := ids(t, registry); len(ids) != 0 {
+		t.Fatalf("leases after every user left = %v", ids)
+	}
+}
+
+func TestReapReleasesASharedLeaseWhoseUsersAreGone(t *testing.T) {
+	registry := open(t)
+	owner := exec.CommandContext(t.Context(), "sleep", "60")
+	if err := owner.Start(); err != nil {
+		t.Fatal(err)
+	}
+	gone := lease(t, registry, "gone", Owner{PID: owner.Process.Pid})
+	if _, err := registry.Share(t.Context(), "server", gone); err != nil {
+		t.Fatal(err)
+	}
+	if err := owner.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	if err := owner.Wait(); !isExit(err) {
+		t.Fatalf("wait for the killed owner: %v", err)
+	}
+	released, err := registry.Reap(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(released, []string{gone.ID, "server"}) {
+		t.Fatalf("released %v, want the user before the shared lease", released)
+	}
+}
+
+func TestShareRecreatesALeaseAfterItsRelease(t *testing.T) {
+	registry := open(t)
+	first := lease(t, registry, "run", Owner{TTL: time.Hour})
+	if _, err := registry.Share(t.Context(), "server", first); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Release(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	second := lease(t, registry, "run", Owner{TTL: time.Hour})
+	if _, err := registry.Share(t.Context(), "server", second); err != nil {
+		t.Fatal(err)
+	}
+	rec, err := registry.read("server")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(rec.Users, []string{second.ID}) {
+		t.Fatalf("users of the recreated lease = %v", rec.Users)
+	}
+}

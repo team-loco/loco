@@ -36,7 +36,8 @@ const (
 	Process Kind = "process"
 )
 
-// Owner says how long a lease lives: while any of its set fields holds.
+// Owner says how long a lease lives: while any of its set fields holds. A shared lease has no owner;
+// it lives while any of its users does.
 type Owner struct {
 	// PID keeps the lease while this process runs.
 	PID int
@@ -57,10 +58,17 @@ const (
 	fileMode     = 0o644
 )
 
+// Share waits up to shareWait for an earlier release of the same shared lease, checking every sharePoll.
+const (
+	shareWait = 5 * time.Minute
+	sharePoll = 250 * time.Millisecond
+)
+
 var (
 	errNoOwner = errors.New("a lease needs a PID, a path or a TTL")
 	errClaimed = errors.New("lease is owned by another path")
 	errUnknown = errors.New("no such lease")
+	errShared  = errors.New("lease is not shared")
 )
 
 // Registry is a directory of leases and port reservations.
@@ -103,6 +111,7 @@ type record struct {
 	TTL       int64      `json:"ttl,omitempty"`
 	Expires   int64      `json:"expires,omitempty"`
 	Releasing bool       `json:"releasing,omitempty"`
+	Users     []string   `json:"users,omitempty"`
 	Resources []resource `json:"resources,omitempty"`
 	Ports     []int      `json:"ports,omitempty"`
 }
@@ -173,6 +182,56 @@ func (r *Registry) Claim(ctx context.Context, id string, owner Owner) (*Lease, e
 	return &Lease{r: r, ID: id}, nil
 }
 
+// Share returns the shared lease with a fixed ID, creating it when missing, and records user as one
+// of its users. A shared lease lives while any of its users does, so a run can hold a server other
+// runs started. While an earlier lease with the ID is being released, Share waits for the release.
+func (r *Registry) Share(ctx context.Context, id string, user *Lease) (*Lease, error) {
+	r.reapLeftovers(ctx)
+	ctx, cancel := context.WithTimeout(ctx, shareWait)
+	defer cancel()
+	for {
+		releasing := false
+		err := r.locked(func() error {
+			rec, err := r.read(id)
+			if errors.Is(err, fs.ErrNotExist) {
+				if mkdirErr := os.MkdirAll(r.dir(id), dirMode); mkdirErr != nil {
+					return fmt.Errorf("create lease: %w", mkdirErr)
+				}
+				return r.write(record{ID: id, Users: []string{user.ID}})
+			}
+			if err != nil {
+				return err
+			}
+			if len(rec.Users) == 0 {
+				return fmt.Errorf("%s: %w", id, errShared)
+			}
+			if rec.Releasing {
+				releasing = true
+				return nil
+			}
+			rec.Users = slices.DeleteFunc(rec.Users, func(userID string) bool {
+				_, statErr := os.Stat(r.dir(userID))
+				return errors.Is(statErr, fs.ErrNotExist)
+			})
+			if !slices.Contains(rec.Users, user.ID) {
+				rec.Users = append(rec.Users, user.ID)
+			}
+			return r.write(rec)
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !releasing {
+			return &Lease{r: r, ID: id}, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("wait for the release of %s: %w", id, ctx.Err())
+		case <-time.After(sharePoll):
+		}
+	}
+}
+
 // reapLeftovers reaps before a new run starts. A leftover that cannot be removed now stays for a
 // later reap and does not stop the new run.
 func (r *Registry) reapLeftovers(ctx context.Context) {
@@ -214,7 +273,12 @@ func (r *Registry) List() ([]*Lease, error) {
 // Reap releases every lease whose owner is gone or whose TTL ran out, finishes releases that were
 // interrupted, and returns the IDs of the leases it released.
 func (r *Registry) Reap(ctx context.Context) ([]string, error) {
-	var dead []string
+	return r.reap(ctx, func(record) bool { return true })
+}
+
+// reap releases the dead leases among those that match, shared leases after the leases that use them.
+func (r *Registry) reap(ctx context.Context, match func(record) bool) ([]string, error) {
+	var dead, deadShared []string
 	err := r.locked(func() error {
 		records, err := r.records()
 		if err != nil {
@@ -222,6 +286,9 @@ func (r *Registry) Reap(ctx context.Context) ([]string, error) {
 		}
 		var errs []error
 		for _, rec := range records {
+			if !match(rec) {
+				continue
+			}
 			alive, err := r.alive(ctx, rec)
 			if err != nil {
 				errs = append(errs, err)
@@ -235,12 +302,16 @@ func (r *Registry) Reap(ctx context.Context) ([]string, error) {
 				errs = append(errs, err)
 				continue
 			}
-			dead = append(dead, rec.ID)
+			if len(rec.Users) > 0 {
+				deadShared = append(deadShared, rec.ID)
+			} else {
+				dead = append(dead, rec.ID)
+			}
 		}
 		return errors.Join(errs...)
 	})
 	var released []string
-	for _, id := range dead {
+	for _, id := range append(dead, deadShared...) {
 		if removeErr := r.remove(ctx, id); removeErr != nil {
 			err = errors.Join(err, removeErr)
 			continue
@@ -289,7 +360,8 @@ func (l *Lease) Renew() error {
 	})
 }
 
-// Release removes the lease's resources, its directory and its ports.
+// Release removes the lease's resources, its directory and its ports, then releases the shared
+// leases no live lease uses any more.
 func (l *Lease) Release(ctx context.Context) error {
 	if err := l.update(func(rec *record) error {
 		rec.Releasing = true
@@ -297,7 +369,11 @@ func (l *Lease) Release(ctx context.Context) error {
 	}); err != nil {
 		return err
 	}
-	return l.r.remove(ctx, l.ID)
+	if err := l.r.remove(ctx, l.ID); err != nil {
+		return err
+	}
+	_, err := l.r.reap(ctx, func(rec record) bool { return len(rec.Users) > 0 })
+	return err
 }
 
 func (l *Lease) update(change func(*record) error) error {
@@ -342,6 +418,18 @@ func (r *Registry) writeNew(id string, owner Owner) error {
 func (r *Registry) alive(ctx context.Context, rec record) (bool, error) {
 	if rec.Releasing {
 		return false, nil
+	}
+	for _, id := range rec.Users {
+		user, err := r.read(id)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return false, err
+		}
+		if alive, err := r.alive(ctx, user); err != nil || alive {
+			return alive, err
+		}
 	}
 	if rec.Expires > r.now().Unix() {
 		return true, nil
