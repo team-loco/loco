@@ -128,7 +128,8 @@ function WorkspaceSwitcher({
 	const { activeWorkspaceId } = useOrgWorkspace();
 	const { orgLevel } = useMyScopes();
 	const listed = useQuery(listOrgWorkspaces, { orgId: org.id, pageSize: SWITCHER_WORKSPACES });
-	const workspaces = listed.data?.workspaces ?? [workspace];
+	const newest = listed.data?.workspaces ?? [];
+	const workspaces = newest.some((w) => w.id === workspace.id) ? newest : [workspace, ...newest];
 	const more = (listed.data?.nextPageToken ?? "") !== "";
 
 	return (
