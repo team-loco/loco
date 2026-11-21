@@ -1081,7 +1081,11 @@ def volume(page):
 
 
 def volume_axis(page):
-    end = int(datetime.now(UTC).timestamp() * 1000)
+    # Yesterday's UTC noon: a window that crosses midnight labels its axis with dates.
+    noon = (datetime.now(UTC) - timedelta(days=1)).replace(
+        hour=12, minute=0, second=0, microsecond=0
+    )
+    end = int(noon.timestamp() * 1000)
     chart = page.get_by_role("region", name="Log volume")
     labels = chart.get_by_text(re.compile(r"^\d{1,2}:\d{2}$")).filter(visible=True)
     for viewport in (evidence.NARROW, evidence.DESKTOP):
