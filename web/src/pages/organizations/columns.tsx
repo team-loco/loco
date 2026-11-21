@@ -102,14 +102,14 @@ export function orgColumns({
 		{
 			id: "role",
 			header: "Your role",
-			size: 110,
+			size: 130,
 			minSize: 90,
 			cell: ({ row: { original: org } }) => roleOf(org.id) ?? "…",
 		},
 		{
 			id: "workspaces",
 			header: "Workspaces",
-			size: 110,
+			size: 130,
 			minSize: 90,
 			meta: { hideOnMobile: true, align: "end", cellClassName: COUNT_CELL },
 			cell: ({ row: { original: org } }) => count(org.workspaceCount),
@@ -117,7 +117,7 @@ export function orgColumns({
 		{
 			id: "members",
 			header: "Members",
-			size: 100,
+			size: 120,
 			minSize: 80,
 			meta: { hideOnMobile: true, align: "end", cellClassName: COUNT_CELL },
 			cell: ({ row: { original: org } }) => count(org.memberCount),
@@ -125,7 +125,7 @@ export function orgColumns({
 		{
 			id: "created",
 			header: "Created",
-			size: 130,
+			size: 150,
 			minSize: 90,
 			meta: { hideOnMobile: true, cellClassName: "whitespace-nowrap text-[12.5px] text-fg3" },
 			cell: ({ row: { original: org } }) => <Created org={org} />,
