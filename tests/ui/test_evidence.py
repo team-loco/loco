@@ -1,4 +1,5 @@
 import argparse
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -411,3 +412,54 @@ def test_spec_respond_entries_are_validated():
     spec = {"respond": [{"url": METRICS}], "shots": [shot()]}
     with pytest.raises(evidence.EvidenceError, match="spec: each respond entry"):
         evidence.validate_spec(spec)
+
+
+def test_deployment_build_is_seeded_and_named_by_the_spec(monkeypatch):
+    statements = []
+
+    def psql(state, sql):
+        if sql.startswith("SELECT json_build_object"):
+            return '{"org": "o", "workspace": "w", "slug": "web", "environments": {"production": "e"}}'
+        statements.extend(sql.splitlines())
+        return ""
+
+    monkeypatch.setattr(evidence, "psql", psql)
+    state = {"users": {"owner": {"id": "u"}}, "orgs": {}}
+    spec = {
+        "build": {"type": "dockerfile", "image": "example.invalid/web:1"},
+        "regions": {"us-ca-1": {"cpu": "500m", "memory": "256Mi", "minReplicas": 1}},
+    }
+    deployment = {
+        "environment": "production",
+        "status": "failed",
+        "live": False,
+        "build": {"status": "succeeded", "finished_at": "{now-6m}"},
+        "spec": spec,
+    }
+    evidence.seed_deployments(state, "r", [deployment])
+    [build] = [s for s in statements if s.startswith("INSERT INTO builds(")]
+    [inserted] = [s for s in statements if s.startswith("INSERT INTO deployments(")]
+    build_id = re.search(r"VALUES\('([0-9a-f-]{36})'", build).group(1)
+    assert f'"buildId": "{build_id}"' in inserted
+    assert "'succeeded'" in build and re.search(r"'\d{4}-\d\d-\d\dT[\d:]+Z'", build)
+    assert "buildId" not in spec["build"]
+
+
+def test_ui_serves_the_issuer_sign_in_page(tmp_path):
+    import threading
+    import urllib.request
+
+    (tmp_path / "index.html").write_text("app")
+
+    def handler(*a, **kw):
+        return evidence.UIHandler(*a, directory=str(tmp_path), api_url="", **kw)
+
+    with evidence.UIServer((evidence.HOST, 0), handler) as server:
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base = f"http://{evidence.HOST}:{server.server_address[1]}"
+        with urllib.request.urlopen(base + evidence.DISCOVERY_PATH) as response:
+            authorize = json.load(response)["authorization_endpoint"]
+        with urllib.request.urlopen(authorize + "?client_id=loco") as response:
+            assert response.headers["Content-Type"] == "text/html"
+            assert "<h1>Sign in</h1>" in response.read().decode()
+        server.shutdown()

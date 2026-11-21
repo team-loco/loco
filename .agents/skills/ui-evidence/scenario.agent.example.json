@@ -23,6 +23,15 @@
         "environment": "production",
         "status": "failed",
         "age": "5 minutes",
+        "build": {
+          "status": "succeeded",
+          "image_digest": "sha256:8f2a6c1d9e4b7a3f0c5d2e8b1a6f9c3d7e0b4a8f2c6d1e5b9a3f7c0d4e8b2a6f",
+          "git_commit": "8f2a6c1d9e4b7a3f0c5d2e8b1a6f9c3d7e0b4a8f",
+          "git_commit_message": "Cache sessions in Redis",
+          "created_at": "{now-10m}",
+          "started_at": "{now-9m}",
+          "finished_at": "{now-6m}"
+        },
         "placements": {"us-ca-1": {
           "ready_replicas": 2,
           "replicas": [
@@ -44,7 +53,7 @@
         }},
         "spec": {
           "observability": {"injectOtel": true},
-          "build": {"type": "image", "image": "example.invalid/web:1.4.2"},
+          "build": {"type": "dockerfile", "image": "example.invalid/web:1.4.2"},
           "port": 8080,
           "regions": {"us-ca-1": {"cpu": "500m", "memory": "256Mi", "minReplicas": 3, "maxReplicas": 3}}
         }

@@ -55,6 +55,9 @@ SETTLE_TIMEOUT_MS = 10000
 APP_LOADER = '[data-slot="app-loader"]'
 LOG_TAIL_LINES = 40
 DISCOVERY_PATH = "/dex/.well-known/openid-configuration"
+AUTHORIZATION_PATH = "/dex/auth"
+# The stand-in issuer's sign-in page, where the dashboard sends a signed-out visitor.
+SIGN_IN_PAGE = "<!doctype html><title>Sign in</title><h1>Sign in</h1>\n"
 USER_SCOPES = ("read", "write", "admin")
 RUNTIME_CONFIG_PATH = "/runtime-config.js"
 # An OpenBao address every run uses in place of the shared one when set.
@@ -1072,7 +1075,8 @@ def seed_domains(state, resource_id, domains):
 
 
 def seed_deployments(state, resource_id, deployments, user="owner", then=()):
-    """Inserts each deployment with a placement per spec region; a `live` one (the default) runs in them.
+    """Inserts each deployment, the build its `build` describes, and a placement per spec region;
+    a `live` one (the default) runs in them.
 
     One transaction holds every row, then the `then` statements.
     """
@@ -1096,6 +1100,33 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
         status = deployment.get("status", "running")
         live = deployment.get("live", True)
         created = f"NOW()-{q(deployment.get('age', '0 seconds'))}::interval"
+        if "build" in deployment:
+            build_id = str(uuid.uuid4())
+            runtime = {**runtime, "build": {**runtime["build"], "buildId": build_id}}
+            # The scenario's build fields are builds columns and override these.
+            columns = {
+                "id": q(build_id),
+                "resource_id": q(resource_id),
+                "origin_environment_id": q(environment),
+                "source_type": "'upload'",
+                "source_key": q(build_id),
+                "source_size": "0",
+                "dockerfile_path": "'Dockerfile'",
+                "image_repository": q(runtime["build"]["image"]),
+                "created_by": q(actor),
+                "method": q(deployment.get("method", "web")),
+                "platform": "'linux/amd64'",
+                "created_at": created,
+                **{
+                    column: q(value)
+                    for column, value in fill_placeholders(
+                        deployment["build"], placeholders, now
+                    ).items()
+                },
+            }
+            rows.append(
+                f"INSERT INTO builds({','.join(columns)}) VALUES({','.join(columns.values())});"
+            )
         rows.append(
             "INSERT INTO deployments(id,resource_id,status,environment_id,spec,spec_version,trigger,"
             "actor_type,actor_id,method,created_at,started_at) "
@@ -1700,6 +1731,8 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
             )
         if path == RUNTIME_CONFIG_PATH:
             return self.send_body("text/javascript", runtime_config("/api"))
+        if path == AUTHORIZATION_PATH:
+            return self.send_body("text/html", SIGN_IN_PAGE)
         return super().do_GET()
 
     def do_POST(self):
