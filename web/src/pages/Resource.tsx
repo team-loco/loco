@@ -237,7 +237,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined;
 	const obsLink = (
 		obsView: "logs" | "metrics" | "events",
-		region: string | null = null,
+		filter: { key: string; value: string } | null = null,
 		rangeMs?: number,
 	): string | undefined =>
 		hasWs
@@ -245,7 +245,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					...envParam,
 					...(rangeMs === undefined ? {} : { range: rangeMs }),
 					r: [resource.slug],
-					q: region === null ? null : queryStr([{ key: "region", value: quoteValue(region), neg: false }], ""),
+					q: filter === null ? null : queryStr([{ key: filter.key, value: quoteValue(filter.value), neg: false }], ""),
 				})
 			: undefined;
 	const switcher = hasWs
@@ -262,7 +262,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const problem = problemRegion === undefined ? undefined : regionProblem(problemRegion);
 	const focus = focusRegion(regions);
 	const rollbackTarget = focus === undefined ? undefined : lastGoodDeployment(focus);
-	const markers = [...new Set(regions.flatMap((r) => r.history).map((d) => tsMs(d.createdAt)))];
+	const markers = [
+		...new Map(
+			regions
+				.flatMap((r) => r.history)
+				.map((d) => [tsMs(d.createdAt), { ms: tsMs(d.createdAt), label: `deployed ${depTag(d)}` }]),
+		).values(),
+	];
 	const specDeployments = [
 		...new Map(
 			[...currents, ...regions.flatMap((r) => r.history)]
@@ -458,6 +464,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							onRange={(next) => {
 								void setParams({ range: next });
 							}}
+							metricsHref={obsLink(
+								"metrics",
+								selectedRegion === null ? null : { key: "region", value: selectedRegion },
+								RANGE_MS[range],
+							)}
 						/>
 					)}
 					{deployed.length > 0 && environmentId !== undefined ? (
@@ -474,7 +485,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							}}
 							range={range}
 							markers={markers}
-							metricsHref={obsLink("metrics", selectedRegion, RANGE_MS[range])}
+							replicaHref={(obsView, replica) =>
+								obsLink(
+									obsView,
+									{ key: "replica", value: replica },
+									obsView === "metrics" ? RANGE_MS[range] : undefined,
+								)
+							}
 						/>
 					) : (
 						<Section>

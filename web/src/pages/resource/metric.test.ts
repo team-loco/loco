@@ -4,7 +4,16 @@ import { MetricPointSchema, MetricSeriesSchema } from "@gen/loco/observability/v
 
 import { msToTimestamp } from "@/lib/time";
 
-import { mergeBand, percentPoints, scaleBand, sharedLimit, tightestPoint, usageSummary } from "./metric";
+import {
+	chartWindow,
+	mergeBand,
+	percentPoints,
+	replicaChart,
+	scaleBand,
+	sharedLimit,
+	tightestPoint,
+	usageSummary,
+} from "./metric";
 
 const RESOURCE_ID = "0199d1c2-0000-7000-8000-000000000001";
 const STAGING_ID = "0199d1c2-0000-7000-8000-000000000003";
@@ -77,5 +86,39 @@ describe("scaleBand across a resize", () => {
 
 	test("finds the peak closest to its own limit", () => {
 		expect(tightestPoint(band)?.time).toBe(HOUR_MS - 1);
+	});
+});
+
+describe("replicaChart", () => {
+	const pod = (name: string, ...values: number[]) =>
+		create(MetricSeriesSchema, {
+			resourceId: RESOURCE_ID,
+			labels: { "k8s.pod.name": name },
+			points: values.map((value, i) =>
+				create(MetricPointSchema, { timestamp: msToTimestamp(NOW_MS + i * 60_000), value }),
+			),
+		});
+
+	test("draws each replica in the limit's units and names the busiest", () => {
+		const chart = replicaChart([pod("web-a1", 0.2, 0.4), pod("web-b2", 0.5, 0.9)], RESOURCE_ID, [
+			{ from: 0, limit: 500 },
+		]);
+		expect(chart?.replicas).toEqual(["web-a1", "web-b2"]);
+		expect(chart?.rows[1]).toEqual({ time: NOW_MS + 60_000, limit: 500, "web-a1": 200, "web-b2": 450 });
+		expect(chart?.highest).toEqual({ replica: "web-b2", value: 450, share: 0.9 });
+	});
+
+	test("leaves charts with too many replicas to the band", () => {
+		const pods = Array.from({ length: 13 }, (_, i) => pod(`web-${i.toString()}`, 0.1));
+		expect(replicaChart(pods, RESOURCE_ID, undefined)).toBeUndefined();
+	});
+});
+
+describe("chartWindow", () => {
+	test("spans the per-replica query when its lines are drawn, even if the band failed", () => {
+		expect(chartWindow(true, NOW_MS, { from: 0, to: 1 }, "1h")).toEqual({ from: NOW_MS - HOUR_MS, to: NOW_MS });
+	});
+	test("keeps the band's span without per-replica lines", () => {
+		expect(chartWindow(false, NOW_MS, { from: 5, to: 9 }, "1h")).toEqual({ from: 5, to: 9 });
 	});
 });

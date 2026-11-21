@@ -4,6 +4,7 @@ import re
 import time
 import uuid
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from harness import evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
@@ -184,7 +185,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
                         "labels": {"k8s.pod.name": pod},
                         "points": [{"timestamp": stamp, "value": value}],
                     }
-                    for pod, value in usage[body["metricName"]].items()
+                    for pod, value in usage.get(body["metricName"], {}).items()
                     if pod.split("-")[2]
                     == ("east" if body.get("region") == EAST else "west")
                 ]
@@ -204,24 +205,52 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
 
     serving = east.get_by_role("listitem").filter(has_text="replicas-ui-east-a1")
     expect(serving).to_contain_text("Serving")
-    expect(serving).to_contain_text("0 restarts")
-    expect(serving).to_contain_text("Up 3h")
     expect(serving).to_contain_text("CPU 45% of 0.5 vCPU")
-    expect(serving).to_contain_text("Memory 60% of 256 Mi")
-
+    expect(serving).to_contain_text("Mem 60% of 256 Mi")
     crashed = east.get_by_role("listitem").filter(has_text="replicas-ui-east-b2")
     expect(crashed).to_contain_text("Failing")
-    expect(crashed).to_contain_text("4 restarts · last 5m ago · out of memory")
-    expect(crashed).not_to_contain_text("OOMKilled")
-    exited = west.get_by_role("listitem").filter(has_text="replicas-ui-west-c3")
-    expect(exited).to_contain_text("0 restarts")
-    expect(exited).to_contain_text("Completed · exit 0")
-    expect(crashed).to_contain_text("Up 20m")
     expect(crashed).to_contain_text("CPU 90% of 0.5 vCPU")
-
     unmeasured = west.get_by_role("listitem").filter(has_text="replicas-ui-west-d4")
     expect(unmeasured).to_contain_text("CPU —")
-    expect(unmeasured).to_contain_text("Memory —")
+    expect(unmeasured).to_contain_text("Mem —")
+
+    def replica_detail(item, name):
+        item.get_by_role("button").click()
+        detail = panel.get_by_role("region", name=f"Replica {name}", exact=True)
+        expect(detail).to_be_visible()
+        return detail
+
+    detail = replica_detail(serving, "replicas-ui-east-a1")
+    expect(detail).to_contain_text("0 restarts")
+    expect(detail).to_contain_text("Up 3h")
+    logs_href = detail.get_by_role("link", name="Logs", exact=True).get_attribute(
+        "href"
+    )
+    assert parse_qs(urlparse(logs_href).query)["q"] == [
+        "@replica:replicas-ui-east-a1"
+    ], logs_href
+    detail = replica_detail(crashed, "replicas-ui-east-b2")
+    expect(detail).to_contain_text("4 restarts · last 5m ago · out of memory")
+    expect(detail).not_to_contain_text("OOMKilled")
+    expect(detail).to_contain_text("Up 20m")
+    exited = west.get_by_role("listitem").filter(has_text="replicas-ui-west-c3")
+    detail = replica_detail(exited, "replicas-ui-west-c3")
+    expect(detail).to_contain_text("0 restarts")
+    expect(detail).to_contain_text("Completed · exit 0")
+    exited.get_by_role("button").click()
+    expect(
+        panel.get_by_role("region", name="Replica replicas-ui-west-c3")
+    ).to_have_count(0)
+    panel.get_by_role("group", name="Region", exact=True).get_by_role(
+        "button", name=EAST, exact=True
+    ).click()
+    expect(
+        panel.locator(f'[aria-label^="Memory · {EAST}: one line per replica"]')
+    ).to_be_visible()
+    expect(panel.get_by_text("Highest, b2", exact=True)).to_be_visible()
+    panel.get_by_role("group", name="Region", exact=True).get_by_role(
+        "button", name="All regions", exact=True
+    ).click()
     assert {
         (q.get("region"), q["resourceIds"][0], q["metricName"]) for q in pod_requests
     } >= {

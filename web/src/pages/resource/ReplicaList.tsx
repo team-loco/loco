@@ -1,8 +1,12 @@
 import { useTransport } from "@connectrpc/connect-query";
+import type { Replica } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import { useQueries } from "@tanstack/react-query";
+import { ChartLineIcon, ScrollTextIcon } from "lucide-react";
+import { Link } from "react-router";
 
-import { Badge } from "@/components/design/Badge";
+import { Badge, type BadgeTone } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
 import { Skeleton } from "@/components/design/Skeleton";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
@@ -11,16 +15,36 @@ import { agoLabel, maybeTsMs, shortDurationLabel } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { replicaState } from "./deployment-progress";
-import type { RegionView } from "./model";
-import { exitLabel, podUsage, restartLabel } from "./replicas";
+import { depTag, type RegionView } from "./model";
+import { exitLabel, podUsage, regionReady, restartLabel } from "./replicas";
 
 const USAGE_SPAN_MS = 5 * 60_000;
 const USAGE_METRICS = ["k8s.pod.cpu_limit_utilization", "k8s.pod.memory.working_set_limit_utilization"] as const;
 const PERCENT = 100;
+const HIGH_SHARE = 0.85;
+/** Regions with more replicas than this show one small cell per replica. */
+const MANY_REPLICAS = 24;
 
-function usageLabel(name: string, ratio: number | undefined, limit: string): string {
-	if (ratio === undefined) return `${name} —`;
-	return `${name} ${Math.round(ratio * PERCENT).toString()}%${limit === "" ? "" : ` of ${limit}`}`;
+const CELL_TONE: Record<BadgeTone, string> = {
+	ok: "bg-ok-glyph",
+	info: "bg-info",
+	warn: "bg-warn",
+	bad: "bg-bad-fg",
+	neutral: "bg-line2",
+	muted: "bg-line2",
+	pill: "bg-line2",
+};
+
+function Usage({ name, ratio, limit }: { name: string; ratio: number | undefined; limit: string }) {
+	return (
+		<span className="text-fg3">
+			{name}{" "}
+			<span className={cn("text-foreground", ratio !== undefined && ratio >= HIGH_SHARE && "text-warn-fg")}>
+				{ratio === undefined ? "—" : `${Math.round(ratio * PERCENT).toString()}%`}
+			</span>
+			{limit !== "" && ` of ${limit}`}
+		</span>
+	);
 }
 
 /** The replicas the cluster last reported for one region, with each pod's CPU and memory against its limits. */
@@ -29,12 +53,20 @@ export function ReplicaList({
 	environmentId,
 	resourceId,
 	region,
+	selected,
+	onSelect,
+	regionPressed,
+	onPickRegion,
 	nowMs,
 }: {
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
 	region: RegionView;
+	regionPressed: boolean;
+	onPickRegion: () => void;
+	selected: string | null;
+	onSelect: (replica: string | null) => void;
 	nowMs: number;
 }) {
 	const transport = useTransport();
@@ -61,55 +93,139 @@ export function ReplicaList({
 	const replicas = region.status?.replicas ?? [];
 	const stale = region.status?.status === ResourceStatus.UNKNOWN;
 	const reportedMs = maybeTsMs(region.status?.reportedAt);
+	const { ready, desired } = regionReady(region);
+	const measuring = cpu?.isLoading === true || memory?.isLoading === true;
+	const many = replicas.length > MANY_REPLICAS;
 	return (
-		<section aria-label={`Replicas in ${region.name}`} className="flex min-w-0 flex-col gap-1.5">
-			<h3 className="m-0 flex flex-wrap items-baseline gap-x-2 text-[12px] font-medium text-fg3">
-				<span className="font-mono">{region.name}</span>
+		<section aria-label={`Replicas in ${region.name}`} className="flex min-w-0 flex-col gap-2">
+			<h3 className="m-0 flex flex-wrap items-baseline gap-x-2 text-[12px] font-normal text-fg3">
+				<button
+					type="button"
+					aria-pressed={regionPressed}
+					onClick={onPickRegion}
+					className="-ml-1.5 flex items-baseline gap-2 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-left hover:bg-background aria-pressed:bg-background"
+				>
+					<span className="font-mono text-[12.5px] font-medium text-foreground">{region.name}</span>
+					<span>{`${ready.toString()}/${desired.toString()} ready`}</span>
+				</button>
 				{stale && (
-					<span className="font-normal">
-						{reportedMs === undefined ? "Not reported yet" : `Last reported ${agoLabel(reportedMs, nowMs)}`}
-					</span>
+					<span>{reportedMs === undefined ? "Not reported yet" : `Last reported ${agoLabel(reportedMs, nowMs)}`}</span>
 				)}
 			</h3>
-			<ul className={cn("m-0 list-none divide-y divide-line2 p-0", stale && "opacity-60")}>
-				{replicas.length === 0 && <li className="py-1.5 text-[12px] text-fg3">No replicas reported</li>}
+			{replicas.length === 0 && <p className="m-0 text-[12px] text-fg3">No replicas reported</p>}
+			<ul
+				className={cn(
+					"m-0 list-none p-0",
+					many ? "flex flex-wrap gap-1" : "grid grid-cols-[repeat(auto-fill,minmax(min(220px,100%),1fr))] gap-2",
+					stale && "opacity-60",
+				)}
+			>
 				{replicas.map((replica) => {
 					const state = replicaState(replica.state);
-					const startedMs = maybeTsMs(replica.startedAt);
+					const label = many ? `${replica.name}: ${state.label}` : undefined;
 					return (
-						<li
-							key={replica.uid}
-							className="grid min-w-0 gap-x-3 gap-y-1 py-2 text-[12px] sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]"
-						>
-							<span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-								<span className="min-w-0 break-all font-mono">{replica.name}</span>
-								<Badge size="sm" tone={state.tone}>
-									{state.label}
-								</Badge>
-							</span>
-							<span className="flex min-w-0 flex-wrap gap-x-2 text-fg2">
-								<span>{restartLabel(replica, nowMs)}</span>
-								{startedMs !== undefined && <span>Up {shortDurationLabel(nowMs - startedMs)}</span>}
-								{replica.lastExit !== undefined && replica.lastRestart === undefined && (
-									<span className="font-mono text-warn-fg [overflow-wrap:anywhere]">
-										{exitLabel(replica.lastExit, nowMs)}
-									</span>
-								)}
-							</span>
-							<span className="flex min-w-0 flex-wrap gap-x-3 font-mono text-fg3 tabular-nums">
-								{cpu?.isLoading === true || memory?.isLoading === true ? (
-									<Skeleton className="h-3.5 w-40" />
-								) : (
+						<li key={replica.uid} className="flex min-w-0">
+							<button
+								type="button"
+								aria-pressed={selected === replica.name}
+								aria-label={label}
+								title={label}
+								onClick={() => {
+									onSelect(selected === replica.name ? null : replica.name);
+								}}
+								className={
+									many
+										? cn(
+												"size-3.5 rounded-[3px] border-0 p-0 aria-pressed:ring-2 aria-pressed:ring-ring aria-pressed:ring-offset-1",
+												CELL_TONE[state.tone],
+											)
+										: "flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg border border-line bg-background px-3 py-2.5 text-left text-[12px] hover:bg-panel aria-pressed:border-foreground"
+								}
+							>
+								{!many && (
 									<>
-										<span>{usageLabel("CPU", cpuUsage.get(replica.name), cpuLimit)}</span>
-										<span>{usageLabel("Memory", memoryUsage.get(replica.name), memoryLimit)}</span>
+										<span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+											<span className="min-w-0 break-all font-mono">{replica.name}</span>
+											<Badge size="sm" tone={state.tone}>
+												{state.label}
+											</Badge>
+										</span>
+										{measuring ? (
+											<Skeleton className="h-3.5 w-40" />
+										) : (
+											<span className="flex min-w-0 flex-wrap gap-x-3 font-mono text-[11.5px] tabular-nums">
+												<Usage name="CPU" ratio={cpuUsage.get(replica.name)} limit={cpuLimit} />
+												<Usage name="Mem" ratio={memoryUsage.get(replica.name)} limit={memoryLimit} />
+											</span>
+										)}
 									</>
 								)}
-							</span>
+							</button>
 						</li>
 					);
 				})}
 			</ul>
+		</section>
+	);
+}
+
+/** Details of the replica the user picked: its state, uptime, restarts, version and links to its telemetry. */
+export function ReplicaDetail({
+	replica,
+	region,
+	nowMs,
+	metricsHref,
+	logsHref,
+}: {
+	replica: Replica;
+	region: RegionView;
+	nowMs: number;
+	metricsHref: string | undefined;
+	logsHref: string | undefined;
+}) {
+	const state = replicaState(replica.state);
+	const startedMs = maybeTsMs(replica.startedAt);
+	const deployment = [region.current, ...region.history].find((d) => d?.id === replica.deploymentId);
+	return (
+		<section
+			aria-label={`Replica ${replica.name}`}
+			className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg bg-background px-3.5 py-2.5 text-[12.5px]"
+		>
+			<span className="flex min-w-0 items-center gap-2">
+				<span className="break-all font-mono text-[13px]">{replica.name}</span>
+				<Badge size="sm" tone={state.tone}>
+					{state.label}
+				</Badge>
+			</span>
+			<span className="flex gap-1.5">
+				<span className="text-fg3">Up</span>{" "}
+				<span className="font-mono">{startedMs === undefined ? "—" : shortDurationLabel(nowMs - startedMs)}</span>
+			</span>
+			<span className="flex gap-1.5">
+				<span className="text-fg3">Restarts</span>{" "}
+				<span className={cn("font-mono", replica.restarts > 0 && "text-warn-fg")}>{restartLabel(replica, nowMs)}</span>
+			</span>
+			{replica.lastExit !== undefined && replica.lastRestart === undefined && (
+				<span className="font-mono text-warn-fg [overflow-wrap:anywhere]">{exitLabel(replica.lastExit, nowMs)}</span>
+			)}
+			<span className="flex gap-1.5">
+				<span className="text-fg3">Version</span>{" "}
+				<span className="font-mono">{deployment === undefined ? "—" : depTag(deployment)}</span>
+			</span>
+			<span className="ml-auto flex gap-2">
+				{metricsHref !== undefined && (
+					<Button variant="outline" size="sm" nativeButton={false} render={<Link to={metricsHref} />}>
+						<ChartLineIcon />
+						Metrics
+					</Button>
+				)}
+				{logsHref !== undefined && (
+					<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
+						<ScrollTextIcon />
+						Logs
+					</Button>
+				)}
+			</span>
 		</section>
 	);
 }
