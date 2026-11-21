@@ -36,7 +36,8 @@ const (
 	Process Kind = "process"
 )
 
-// Owner says how long a lease lives: while any of its set fields holds.
+// Owner says how long a lease lives: while any of its set fields holds. A shared lease has no owner;
+// it lives while any of its users does.
 type Owner struct {
 	// PID keeps the lease while this process runs.
 	PID int
@@ -55,6 +56,12 @@ const (
 	idBytes      = 4
 	dirMode      = 0o755
 	fileMode     = 0o644
+)
+
+// Share waits up to shareWait for an earlier release of the same shared lease, checking every sharePoll.
+const (
+	shareWait = 5 * time.Minute
+	sharePoll = 250 * time.Millisecond
 )
 
 var (
@@ -96,13 +103,16 @@ type Lease struct {
 }
 
 type record struct {
-	ID        string     `json:"id"`
-	PID       int        `json:"pid,omitempty"`
-	Started   string     `json:"started,omitempty"`
-	Path      string     `json:"path,omitempty"`
-	TTL       int64      `json:"ttl,omitempty"`
-	Expires   int64      `json:"expires,omitempty"`
-	Releasing bool       `json:"releasing,omitempty"`
+	ID        string `json:"id"`
+	PID       int    `json:"pid,omitempty"`
+	Started   string `json:"started,omitempty"`
+	Path      string `json:"path,omitempty"`
+	TTL       int64  `json:"ttl,omitempty"`
+	Expires   int64  `json:"expires,omitempty"`
+	Releasing bool   `json:"releasing,omitempty"`
+	// Releaser is the ID of the process removing a releasing lease's resources.
+	Releaser  int        `json:"releaser,omitempty"`
+	Users     []string   `json:"users,omitempty"`
 	Resources []resource `json:"resources,omitempty"`
 	Ports     []int      `json:"ports,omitempty"`
 }
@@ -173,6 +183,52 @@ func (r *Registry) Claim(ctx context.Context, id string, owner Owner) (*Lease, e
 	return &Lease{r: r, ID: id}, nil
 }
 
+// Share returns the shared lease with a fixed ID, creating it when missing, and records user as one
+// of its users. A shared lease lives while any of its users does, so a run can hold a server other
+// runs started. While an earlier lease with the ID is being released, Share waits for the release.
+func (r *Registry) Share(ctx context.Context, id string, user *Lease) (*Lease, error) {
+	ctx, cancel := context.WithTimeout(ctx, shareWait)
+	defer cancel()
+	for {
+		releasing := false
+		err := r.locked(func() error {
+			rec, err := r.read(id)
+			if errors.Is(err, fs.ErrNotExist) {
+				if mkdirErr := os.MkdirAll(r.dir(id), dirMode); mkdirErr != nil {
+					return fmt.Errorf("create lease: %w", mkdirErr)
+				}
+				return r.write(record{ID: id, Users: []string{user.ID}})
+			}
+			if err != nil {
+				return err
+			}
+			if rec.Releasing {
+				releasing = true
+				return nil
+			}
+			rec.Users = slices.DeleteFunc(rec.Users, func(userID string) bool {
+				_, statErr := os.Stat(r.dir(userID))
+				return errors.Is(statErr, fs.ErrNotExist)
+			})
+			if !slices.Contains(rec.Users, user.ID) {
+				rec.Users = append(rec.Users, user.ID)
+			}
+			return r.write(rec)
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !releasing {
+			return &Lease{r: r, ID: id}, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("wait for the release of %s: %w", id, ctx.Err())
+		case <-time.After(sharePoll):
+		}
+	}
+}
+
 // reapLeftovers reaps before a new run starts. A leftover that cannot be removed now stays for a
 // later reap and does not stop the new run.
 func (r *Registry) reapLeftovers(ctx context.Context) {
@@ -214,31 +270,12 @@ func (r *Registry) List() ([]*Lease, error) {
 // Reap releases every lease whose owner is gone or whose TTL ran out, finishes releases that were
 // interrupted, and returns the IDs of the leases it released.
 func (r *Registry) Reap(ctx context.Context) ([]string, error) {
-	var dead []string
-	err := r.locked(func() error {
-		records, err := r.records()
-		if err != nil {
-			return err
-		}
-		var errs []error
-		for _, rec := range records {
-			alive, err := r.alive(ctx, rec)
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			if alive {
-				continue
-			}
-			rec.Releasing = true
-			if err := r.write(rec); err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			dead = append(dead, rec.ID)
-		}
-		return errors.Join(errs...)
-	})
+	return r.reap(ctx, func(record) bool { return true })
+}
+
+// reap releases the dead leases among those that match, shared leases after the leases that use them.
+func (r *Registry) reap(ctx context.Context, match func(record) bool) ([]string, error) {
+	dead, err := r.markDead(ctx, match)
 	var released []string
 	for _, id := range dead {
 		if removeErr := r.remove(ctx, id); removeErr != nil {
@@ -248,6 +285,46 @@ func (r *Registry) Reap(ctx context.Context) ([]string, error) {
 		released = append(released, id)
 	}
 	return released, err
+}
+
+// markDead marks the dead leases among those that match as released by this process and returns
+// them, shared leases last. It skips a lease another live process is releasing.
+func (r *Registry) markDead(ctx context.Context, match func(record) bool) ([]string, error) {
+	var dead, deadShared []string
+	err := r.locked(func() error {
+		records, err := r.records()
+		if err != nil {
+			return err
+		}
+		var errs []error
+		for _, rec := range records {
+			if !match(rec) {
+				continue
+			}
+			alive, err := r.alive(ctx, rec)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			if alive {
+				continue
+			}
+			if !claimRelease(&rec) {
+				continue
+			}
+			if err := r.write(rec); err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			if len(rec.Users) > 0 {
+				deadShared = append(deadShared, rec.ID)
+			} else {
+				dead = append(dead, rec.ID)
+			}
+		}
+		return errors.Join(errs...)
+	})
+	return append(dead, deadShared...), err
 }
 
 // Dir is the lease's directory, where its owner may keep files; release removes it.
@@ -289,15 +366,38 @@ func (l *Lease) Renew() error {
 	})
 }
 
-// Release removes the lease's resources, its directory and its ports.
+// Release removes the lease's resources, its directory and its ports, then releases the shared
+// leases no live lease uses any more.
 func (l *Lease) Release(ctx context.Context) error {
+	claimed := false
 	if err := l.update(func(rec *record) error {
-		rec.Releasing = true
+		claimed = claimRelease(rec)
 		return nil
 	}); err != nil {
 		return err
 	}
-	return l.r.remove(ctx, l.ID)
+	if !claimed {
+		return nil
+	}
+	if err := l.r.remove(ctx, l.ID); err != nil {
+		return err
+	}
+	_, err := l.r.reap(ctx, func(rec record) bool { return len(rec.Users) > 0 })
+	return err
+}
+
+// claimRelease marks a record as released by this process, unless another live process is
+// releasing it. Callers hold the registry lock, so exactly one process removes a lease's resources.
+func claimRelease(rec *record) bool {
+	if rec.Releasing && rec.Releaser != 0 {
+		// Signal 0 checks that the process exists; EPERM means it exists under another user.
+		err := syscall.Kill(rec.Releaser, 0)
+		if err == nil || errors.Is(err, syscall.EPERM) {
+			return false
+		}
+	}
+	rec.Releasing, rec.Releaser = true, os.Getpid()
+	return true
 }
 
 func (l *Lease) update(change func(*record) error) error {
@@ -342,6 +442,18 @@ func (r *Registry) writeNew(id string, owner Owner) error {
 func (r *Registry) alive(ctx context.Context, rec record) (bool, error) {
 	if rec.Releasing {
 		return false, nil
+	}
+	for _, id := range rec.Users {
+		user, err := r.read(id)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return false, err
+		}
+		if alive, err := r.alive(ctx, user); err != nil || alive {
+			return alive, err
+		}
 	}
 	if rec.Expires > r.now().Unix() {
 		return true, nil

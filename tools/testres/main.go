@@ -1,10 +1,11 @@
 // Command testres gives shell and Python test harnesses the shared registry of internal/testres:
 //
 //	testres lease -name NAME [-pid PID] [-ttl DURATION]  reap, then print a new lease's directory
+//	testres share ID DIR                                  print the directory of shared lease ID, used by lease DIR
 //	testres add DIR KIND NAME                             record a resource before creating it
 //	testres ports DIR N                                   print the lease's N reserved ports on one line
 //	testres renew DIR...                                  extend leases by their TTL
-//	testres release DIR                                   remove a lease and its resources
+//	testres release DIR                                   remove a lease and its resources, then unused shared leases
 //	testres reap                                          release every lease whose owner is gone
 //	testres list                                          print the directory of every lease
 //
@@ -26,7 +27,7 @@ import (
 	"github.com/team-loco/loco/internal/testres"
 )
 
-var errUsage = errors.New("usage: testres lease|add|ports|renew|release|reap|list; see the package documentation")
+var errUsage = errors.New("usage: testres lease|share|add|ports|renew|release|reap|list; see the package documentation")
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -50,6 +51,17 @@ func run(ctx context.Context, args []string) error {
 	switch {
 	case command == "lease":
 		return newLease(ctx, registry, args)
+	case command == "share" && len(args) == 2:
+		user, err := lookup(registry, args[1])
+		if err != nil {
+			return err
+		}
+		shared, err := registry.Share(ctx, args[0], user)
+		if err != nil {
+			return err
+		}
+		fmt.Println(shared.Dir())
+		return nil
 	case command == "add" && len(args) == 3:
 		lease, err := lookup(registry, args[0])
 		if err != nil {
