@@ -26,6 +26,14 @@ export const getDeployment = DeploymentService.method.getDeployment;
 export const listDeployments = DeploymentService.method.listDeployments;
 
 /**
+ * QueryDeploymentBuckets splits a time window into equal buckets and summarizes, per nonempty
+ * bucket, the deployments of a workspace environment the caller can read.
+ *
+ * @generated from rpc loco.deployment.v1.DeploymentService.QueryDeploymentBuckets
+ */
+export const queryDeploymentBuckets = DeploymentService.method.queryDeploymentBuckets;
+
+/**
  * DeleteDeployment deletes/inactivates a deployment.
  *
  * @generated from rpc loco.deployment.v1.DeploymentService.DeleteDeployment

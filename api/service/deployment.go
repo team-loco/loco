@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -36,27 +37,26 @@ var (
 	ErrDeploymentNotFound   = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")
 )
 
-func parseDeploymentStatus(status genDb.DeploymentStatus) deploymentv1.DeploymentStatus {
-	switch status {
-	case genDb.DeploymentStatusBuilding:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_BUILDING
-	case genDb.DeploymentStatusDeploying:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING
-	case genDb.DeploymentStatusRunning:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING
-	case genDb.DeploymentStatusDegraded:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED
-	case genDb.DeploymentStatusCrashed:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED
-	case genDb.DeploymentStatusSuperseded:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED
-	case genDb.DeploymentStatusFailed:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED
-	case genDb.DeploymentStatusCanceled:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED
-	default:
-		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_UNSPECIFIED
+var deploymentStatuses = map[genDb.DeploymentStatus]deploymentv1.DeploymentStatus{
+	genDb.DeploymentStatusBuilding:   deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_BUILDING,
+	genDb.DeploymentStatusDeploying:  deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING,
+	genDb.DeploymentStatusRunning:    deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+	genDb.DeploymentStatusDegraded:   deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED,
+	genDb.DeploymentStatusCrashed:    deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED,
+	genDb.DeploymentStatusSuperseded: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED,
+	genDb.DeploymentStatusFailed:     deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
+	genDb.DeploymentStatusCanceled:   deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED,
+}
+
+// deploymentStatusNames returns the database names of statuses.
+func deploymentStatusNames(statuses []deploymentv1.DeploymentStatus) []string {
+	var names []string
+	for name, status := range deploymentStatuses {
+		if slices.Contains(statuses, status) {
+			names = append(names, string(name))
+		}
 	}
+	return names
 }
 
 var placementStatuses = map[genDb.PlacementStatus]deploymentv1.PlacementStatus{
@@ -152,7 +152,7 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 		Id:                 d.ID.String(),
 		ResourceId:         d.ResourceID.String(),
 		EnvironmentId:      d.EnvironmentID.String(),
-		Status:             parseDeploymentStatus(d.Status),
+		Status:             deploymentStatuses[d.Status],
 		CreatedAt:          timestamppb.New(d.CreatedAt),
 		UpdatedAt:          timestamppb.New(d.UpdatedAt),
 		StartedAt:          optionalTimestamp(d.StartedAt),
@@ -169,6 +169,7 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 		Trigger:            deploymentTriggers[d.Trigger],
 		SourceDeploymentId: source,
 		CanceledByName:     row.CanceledByName,
+		ResourceName:       row.ResourceName,
 	}, nil
 }
 
@@ -532,6 +533,7 @@ func (s *DeploymentServer) ListDeployments(
 		value := req.GetUntil().AsTime()
 		until = &value
 	}
+	statuses := deploymentStatusNames(req.GetStatuses())
 	readable := s.authz.ReadableEntities(p.Scopes)
 	pageSize := normalizePageSize(req.GetPageSize())
 	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
@@ -541,10 +543,18 @@ func (s *DeploymentServer) ListDeployments(
 	var rows []genDb.ListEnvironmentDeploymentsRow
 	if resourceID != nil {
 		resourceRows, listErr := s.queries.ListResourceDeployments(ctx, genDb.ListResourceDeploymentsParams{
-			ResourceID: *resourceID, EnvironmentID: environmentID,
-			SystemRead: readable.System, OrganizationIds: readable.Organizations,
-			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-			Since: since, Until: until, PageSize: pageSize + 1, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+			ResourceID:      *resourceID,
+			EnvironmentID:   environmentID,
+			SystemRead:      readable.System,
+			OrganizationIds: readable.Organizations,
+			WorkspaceIds:    readable.Workspaces,
+			ResourceIds:     readable.Resources,
+			Since:           since,
+			Until:           until,
+			Statuses:        statuses,
+			PageSize:        pageSize + 1,
+			PageToken:       cursor.ID,
+			PageCreatedAt:   cursor.CreatedAt,
 		})
 		err = listErr
 		for _, row := range resourceRows {
@@ -552,10 +562,18 @@ func (s *DeploymentServer) ListDeployments(
 		}
 	} else {
 		rows, err = s.queries.ListEnvironmentDeployments(ctx, genDb.ListEnvironmentDeploymentsParams{
-			WorkspaceID: *workspaceID, EnvironmentID: *environmentID,
-			SystemRead: readable.System, OrganizationIds: readable.Organizations,
-			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-			Since: since, Until: until, PageSize: pageSize + 1, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+			WorkspaceID:     *workspaceID,
+			EnvironmentID:   *environmentID,
+			SystemRead:      readable.System,
+			OrganizationIds: readable.Organizations,
+			WorkspaceIds:    readable.Workspaces,
+			ResourceIds:     readable.Resources,
+			Since:           since,
+			Until:           until,
+			Statuses:        statuses,
+			PageSize:        pageSize + 1,
+			PageToken:       cursor.ID,
+			PageCreatedAt:   cursor.CreatedAt,
 		})
 	}
 	if err != nil {
@@ -580,7 +598,7 @@ func (s *DeploymentServer) ListDeployments(
 			ResourceID: resourceID, WorkspaceID: workspaceID, EnvironmentID: environmentID,
 			SystemRead: readable.System, OrganizationIds: readable.Organizations,
 			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-			Since: since, Until: until, RowLimit: limit,
+			Since: since, Until: until, Statuses: statuses, RowLimit: limit,
 		})
 	})
 	if err != nil {

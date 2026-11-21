@@ -2318,6 +2318,68 @@
         }
       }
     },
+    "/loco.deployment.v1.DeploymentService/QueryDeploymentBuckets": {
+      "post": {
+        "tags": [
+          "loco.deployment.v1.DeploymentService"
+        ],
+        "summary": "QueryDeploymentBuckets",
+        "description": "QueryDeploymentBuckets splits a time window into equal buckets and summarizes, per nonempty\n bucket, the deployments of a workspace environment the caller can read.",
+        "operationId": "loco.deployment.v1.DeploymentService.QueryDeploymentBuckets",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.deployment.v1.QueryDeploymentBucketsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.deployment.v1.QueryDeploymentBucketsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.deployment.v1.DeploymentService/ResolveImage": {
       "post": {
         "tags": [
@@ -11145,6 +11207,10 @@
             "type": "string",
             "title": "canceled_by_name",
             "description": "Who canceled the deployment; empty unless a user or token canceled it."
+          },
+          "resourceName": {
+            "type": "string",
+            "title": "resource_name"
           }
         },
         "title": "Deployment",
@@ -11159,6 +11225,94 @@
           "DEPLOYMENT_ACTOR_TYPE_USER",
           "DEPLOYMENT_ACTOR_TYPE_API_TOKEN"
         ]
+      },
+      "loco.deployment.v1.DeploymentBucket": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "index",
+            "format": "int32",
+            "description": "The bucket's position in the window, from 0 to bucket_count - 1."
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id",
+            "description": "The resource the bucket counts; empty unless the request groups by resource."
+          },
+          "deploymentCount": {
+            "type": "integer",
+            "title": "deployment_count",
+            "format": "int32"
+          },
+          "meanCreatedAt": {
+            "title": "mean_created_at",
+            "description": "The mean creation time of the bucket's deployments.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "statusCounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.DeploymentStatusCount"
+            },
+            "title": "status_counts",
+            "description": "The deployments per current status, ordered by status; statuses without deployments are left out."
+          },
+          "resourceCount": {
+            "type": "integer",
+            "title": "resource_count",
+            "format": "int32",
+            "description": "The distinct resources deployed in the bucket."
+          },
+          "resourceNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "resource_names",
+            "description": "Up to max_resource_names of the bucket's resource names, most recently deployed first."
+          },
+          "onlyDeployment": {
+            "title": "only_deployment",
+            "description": "The bucket's deployment when it holds exactly one.",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentBucketEntry"
+          }
+        },
+        "title": "DeploymentBucket",
+        "additionalProperties": false,
+        "description": "DeploymentBucket summarizes the deployments created in one bucket of the window."
+      },
+      "loco.deployment.v1.DeploymentBucketEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "resourceName": {
+            "type": "string",
+            "title": "resource_name"
+          },
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentStatus"
+          },
+          "createdAt": {
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "image": {
+            "type": "string",
+            "title": "image",
+            "description": "The image the deployment's spec names; empty while its build runs."
+          }
+        },
+        "title": "DeploymentBucketEntry",
+        "additionalProperties": false
       },
       "loco.deployment.v1.DeploymentMethod": {
         "type": "string",
@@ -11280,6 +11434,22 @@
           "DEPLOYMENT_STATUS_DEGRADED",
           "DEPLOYMENT_STATUS_CRASHED"
         ]
+      },
+      "loco.deployment.v1.DeploymentStatusCount": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentStatus"
+          },
+          "count": {
+            "type": "integer",
+            "title": "count",
+            "format": "int32"
+          }
+        },
+        "title": "DeploymentStatusCount",
+        "additionalProperties": false
       },
       "loco.deployment.v1.DeploymentTrigger": {
         "type": "string",
@@ -11469,6 +11639,15 @@
             "type": "boolean",
             "title": "include_total_count",
             "description": "Sets total_count in the response."
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.DeploymentStatus"
+            },
+            "title": "statuses",
+            "uniqueItems": true,
+            "description": "Lists only deployments in these statuses; empty lists every status."
           }
         },
         "title": "ListDeploymentsRequest",
@@ -11563,6 +11742,82 @@
         },
         "title": "Problem",
         "additionalProperties": false
+      },
+      "loco.deployment.v1.QueryDeploymentBucketsRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids",
+            "maxItems": 100,
+            "uniqueItems": true,
+            "description": "Counts only these resources' deployments; empty counts every resource."
+          },
+          "since": {
+            "title": "since",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "until": {
+            "title": "until",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "bucketCount": {
+            "type": "integer",
+            "title": "bucket_count",
+            "maximum": 200,
+            "minimum": 1,
+            "format": "int32"
+          },
+          "groupByResource": {
+            "type": "boolean",
+            "title": "group_by_resource",
+            "description": "Summarizes each resource of resource_ids in its own series of buckets."
+          },
+          "maxResourceNames": {
+            "type": "integer",
+            "title": "max_resource_names",
+            "maximum": 20,
+            "minimum": 0,
+            "format": "int32",
+            "description": "The most resource names a bucket lists."
+          }
+        },
+        "title": "QueryDeploymentBucketsRequest",
+        "required": [
+          "since",
+          "until"
+        ],
+        "additionalProperties": false,
+        "description": "QueryDeploymentBucketsRequest splits [since, until), at most 30 days, into bucket_count equal\n buckets by deployment creation time.\nquery_deployment_buckets.group_by_resource // group_by_resource requires resource_ids\nquery_deployment_buckets.window // since must precede until\nquery_deployment_buckets.window_length // the window spans at most 30 days\n"
+      },
+      "loco.deployment.v1.QueryDeploymentBucketsResponse": {
+        "type": "object",
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.DeploymentBucket"
+            },
+            "title": "buckets"
+          }
+        },
+        "title": "QueryDeploymentBucketsResponse",
+        "additionalProperties": false,
+        "description": "QueryDeploymentBucketsResponse holds the nonempty buckets, ordered by resource_id, then index."
       },
       "loco.deployment.v1.RegionDeploymentTarget": {
         "type": "object",

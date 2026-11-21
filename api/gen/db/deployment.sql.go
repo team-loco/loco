@@ -47,7 +47,8 @@ SELECT COUNT(*) FROM (
          OR r.id = ANY($7::uuid[]))
     AND ($8::timestamptz IS NULL OR d.created_at >= $8)
     AND ($9::timestamptz IS NULL OR d.created_at < $9)
-  LIMIT $10
+    AND (COALESCE(cardinality($10::text[]), 0) = 0 OR d.status::text = ANY($10::text[]))
+  LIMIT $11
 ) capped
 `
 
@@ -61,6 +62,7 @@ type CountDeploymentsParams struct {
 	ResourceIds     []uuid.UUID `json:"resourceIds"`
 	Since           *time.Time  `json:"since"`
 	Until           *time.Time  `json:"until"`
+	Statuses        []string    `json:"statuses"`
 	RowLimit        int32       `json:"rowLimit"`
 }
 
@@ -75,6 +77,7 @@ func (q *Queries) CountDeployments(ctx context.Context, arg CountDeploymentsPara
 		arg.ResourceIds,
 		arg.Since,
 		arg.Until,
+		arg.Statuses,
 		arg.RowLimit,
 	)
 	var count int64
@@ -271,7 +274,7 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 }
 
 const getDeploymentView = `-- name: GetDeploymentView :one
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -290,6 +293,7 @@ WHERE d.id = $1
 type GetDeploymentViewRow struct {
 	Deployment     Deployment   `json:"deployment"`
 	ResourceType   ResourceType `json:"resourceType"`
+	ResourceName   string       `json:"resourceName"`
 	Placements     []byte       `json:"placements"`
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
@@ -324,6 +328,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 		&i.Deployment.CompletedAt,
 		&i.Deployment.UpdatedAt,
 		&i.ResourceType,
+		&i.ResourceName,
 		&i.Placements,
 		&i.ActorName,
 		&i.ActorAvatarUrl,
@@ -476,7 +481,7 @@ func (q *Queries) ListDeploymentPlacements(ctx context.Context, deploymentID uui
 }
 
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -498,13 +503,14 @@ WHERE r.workspace_id = $1
        OR r.id = ANY($6::uuid[]))
   AND ($7::timestamptz IS NULL OR d.created_at >= $7)
   AND ($8::timestamptz IS NULL OR d.created_at < $8)
-  AND ($9::text IS NULL
+  AND (COALESCE(cardinality($9::text[]), 0) = 0 OR d.status::text = ANY($9::text[]))
+  AND ($10::text IS NULL
        OR (d.created_at, d.id) < (
-         $10::timestamptz,
-         $9::uuid
+         $11::timestamptz,
+         $10::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $11
+LIMIT $12
 `
 
 type ListEnvironmentDeploymentsParams struct {
@@ -516,6 +522,7 @@ type ListEnvironmentDeploymentsParams struct {
 	ResourceIds     []uuid.UUID `json:"resourceIds"`
 	Since           *time.Time  `json:"since"`
 	Until           *time.Time  `json:"until"`
+	Statuses        []string    `json:"statuses"`
 	PageToken       *string     `json:"pageToken"`
 	PageCreatedAt   *time.Time  `json:"pageCreatedAt"`
 	PageSize        int32       `json:"pageSize"`
@@ -524,6 +531,7 @@ type ListEnvironmentDeploymentsParams struct {
 type ListEnvironmentDeploymentsRow struct {
 	Deployment     Deployment   `json:"deployment"`
 	ResourceType   ResourceType `json:"resourceType"`
+	ResourceName   string       `json:"resourceName"`
 	Placements     []byte       `json:"placements"`
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
@@ -541,6 +549,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 		arg.ResourceIds,
 		arg.Since,
 		arg.Until,
+		arg.Statuses,
 		arg.PageToken,
 		arg.PageCreatedAt,
 		arg.PageSize,
@@ -576,6 +585,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Deployment.CompletedAt,
 			&i.Deployment.UpdatedAt,
 			&i.ResourceType,
+			&i.ResourceName,
 			&i.Placements,
 			&i.ActorName,
 			&i.ActorAvatarUrl,
@@ -719,7 +729,7 @@ func (q *Queries) ListLiveDeploymentsForResource(ctx context.Context, resourceID
 }
 
 const listResourceDeployments = `-- name: ListResourceDeployments :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.plain_env, d.secret_env, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type, r.name AS resource_name,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -741,13 +751,14 @@ WHERE d.resource_id = $1
        OR r.id = ANY($6::uuid[]))
   AND ($7::timestamptz IS NULL OR d.created_at >= $7)
   AND ($8::timestamptz IS NULL OR d.created_at < $8)
-  AND ($9::text IS NULL
+  AND (COALESCE(cardinality($9::text[]), 0) = 0 OR d.status::text = ANY($9::text[]))
+  AND ($10::text IS NULL
        OR (d.created_at, d.id) < (
-         $10::timestamptz,
-         $9::uuid
+         $11::timestamptz,
+         $10::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $11
+LIMIT $12
 `
 
 type ListResourceDeploymentsParams struct {
@@ -759,6 +770,7 @@ type ListResourceDeploymentsParams struct {
 	ResourceIds     []uuid.UUID `json:"resourceIds"`
 	Since           *time.Time  `json:"since"`
 	Until           *time.Time  `json:"until"`
+	Statuses        []string    `json:"statuses"`
 	PageToken       *string     `json:"pageToken"`
 	PageCreatedAt   *time.Time  `json:"pageCreatedAt"`
 	PageSize        int32       `json:"pageSize"`
@@ -767,6 +779,7 @@ type ListResourceDeploymentsParams struct {
 type ListResourceDeploymentsRow struct {
 	Deployment     Deployment   `json:"deployment"`
 	ResourceType   ResourceType `json:"resourceType"`
+	ResourceName   string       `json:"resourceName"`
 	Placements     []byte       `json:"placements"`
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
@@ -784,6 +797,7 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 		arg.ResourceIds,
 		arg.Since,
 		arg.Until,
+		arg.Statuses,
 		arg.PageToken,
 		arg.PageCreatedAt,
 		arg.PageSize,
@@ -819,6 +833,7 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Deployment.CompletedAt,
 			&i.Deployment.UpdatedAt,
 			&i.ResourceType,
+			&i.ResourceName,
 			&i.Placements,
 			&i.ActorName,
 			&i.ActorAvatarUrl,
@@ -1028,6 +1043,137 @@ func (q *Queries) PruneDeploymentHistory(ctx context.Context, arg PruneDeploymen
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const queryDeploymentBuckets = `-- name: QueryDeploymentBuckets :many
+WITH matched AS (
+  SELECT d.id, d.status, d.created_at, d.resource_id, r.name AS resource_name,
+         COALESCE(d.spec->'build'->>'image', '') AS image,
+         CASE WHEN $2::bool THEN d.resource_id ELSE '00000000-0000-0000-0000-000000000000'::uuid END AS group_id,
+         div(EXTRACT(EPOCH FROM d.created_at - $3::timestamptz) * $4::int,
+             EXTRACT(EPOCH FROM $5::timestamptz - $3::timestamptz)) AS bucket
+  FROM deployments d
+  JOIN resources r ON r.id = d.resource_id
+  JOIN workspaces w ON w.id = r.workspace_id
+  WHERE r.workspace_id = $6
+    AND d.environment_id = $7
+    AND (COALESCE(cardinality($8::uuid[]), 0) = 0 OR d.resource_id = ANY($8::uuid[]))
+    AND ($9::bool
+         OR w.org_id = ANY($10::uuid[])
+         OR w.id = ANY($11::uuid[])
+         OR r.id = ANY($12::uuid[]))
+    AND d.created_at >= $3
+    AND d.created_at < $5
+),
+statuses AS (
+  SELECT group_id, bucket, jsonb_object_agg(status, n) AS counts
+  FROM (SELECT group_id, bucket, status, COUNT(*) AS n FROM matched GROUP BY group_id, bucket, status) s
+  GROUP BY group_id, bucket
+),
+names AS (
+  SELECT group_id, bucket, COUNT(*) AS resource_count,
+         array_agg(resource_name ORDER BY latest DESC, resource_name) AS resource_names
+  FROM (SELECT group_id, bucket, resource_name, MAX(created_at) AS latest
+        FROM matched GROUP BY group_id, bucket, resource_name) n
+  GROUP BY group_id, bucket
+),
+totals AS (
+  SELECT group_id, bucket, COUNT(*) AS deployment_count,
+         to_timestamp(AVG(EXTRACT(EPOCH FROM created_at))::float8) AS mean_created_at,
+         (array_agg(id ORDER BY created_at DESC, id DESC))[1] AS latest_id
+  FROM matched
+  GROUP BY group_id, bucket
+)
+SELECT t.group_id, t.bucket::int AS bucket, t.deployment_count::int AS deployment_count,
+       t.mean_created_at::timestamptz AS mean_created_at, s.counts::jsonb AS status_counts,
+       n.resource_count::int AS resource_count,
+       n.resource_names[1:$1::int]::text[] AS resource_names,
+       m.id AS latest_id, m.resource_id AS latest_resource_id, m.resource_name AS latest_resource_name,
+       m.status AS latest_status, m.created_at AS latest_created_at, m.image::text AS latest_image
+FROM totals t
+JOIN statuses s ON s.group_id = t.group_id AND s.bucket = t.bucket
+JOIN names n ON n.group_id = t.group_id AND n.bucket = t.bucket
+JOIN matched m ON m.id = t.latest_id
+ORDER BY t.group_id, t.bucket
+`
+
+type QueryDeploymentBucketsParams struct {
+	MaxResourceNames  int32       `json:"maxResourceNames"`
+	GroupByResource   bool        `json:"groupByResource"`
+	Since             time.Time   `json:"since"`
+	BucketCount       int32       `json:"bucketCount"`
+	Until             time.Time   `json:"until"`
+	WorkspaceID       uuid.UUID   `json:"workspaceId"`
+	EnvironmentID     uuid.UUID   `json:"environmentId"`
+	FilterResourceIds []uuid.UUID `json:"filterResourceIds"`
+	SystemRead        bool        `json:"systemRead"`
+	OrganizationIds   []uuid.UUID `json:"organizationIds"`
+	WorkspaceIds      []uuid.UUID `json:"workspaceIds"`
+	ResourceIds       []uuid.UUID `json:"resourceIds"`
+}
+
+type QueryDeploymentBucketsRow struct {
+	GroupID            uuid.UUID        `json:"groupId"`
+	Bucket             int32            `json:"bucket"`
+	DeploymentCount    int32            `json:"deploymentCount"`
+	MeanCreatedAt      time.Time        `json:"meanCreatedAt"`
+	StatusCounts       []byte           `json:"statusCounts"`
+	ResourceCount      int32            `json:"resourceCount"`
+	ResourceNames      []string         `json:"resourceNames"`
+	LatestID           uuid.UUID        `json:"latestId"`
+	LatestResourceID   uuid.UUID        `json:"latestResourceId"`
+	LatestResourceName string           `json:"latestResourceName"`
+	LatestStatus       DeploymentStatus `json:"latestStatus"`
+	LatestCreatedAt    time.Time        `json:"latestCreatedAt"`
+	LatestImage        string           `json:"latestImage"`
+}
+
+// Splits [since, until) into bucket_count equal buckets by creation time, in exact numeric arithmetic.
+func (q *Queries) QueryDeploymentBuckets(ctx context.Context, arg QueryDeploymentBucketsParams) ([]QueryDeploymentBucketsRow, error) {
+	rows, err := q.db.Query(ctx, queryDeploymentBuckets,
+		arg.MaxResourceNames,
+		arg.GroupByResource,
+		arg.Since,
+		arg.BucketCount,
+		arg.Until,
+		arg.WorkspaceID,
+		arg.EnvironmentID,
+		arg.FilterResourceIds,
+		arg.SystemRead,
+		arg.OrganizationIds,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []QueryDeploymentBucketsRow
+	for rows.Next() {
+		var i QueryDeploymentBucketsRow
+		if err := rows.Scan(
+			&i.GroupID,
+			&i.Bucket,
+			&i.DeploymentCount,
+			&i.MeanCreatedAt,
+			&i.StatusCounts,
+			&i.ResourceCount,
+			&i.ResourceNames,
+			&i.LatestID,
+			&i.LatestResourceID,
+			&i.LatestResourceName,
+			&i.LatestStatus,
+			&i.LatestCreatedAt,
+			&i.LatestImage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const recomputeDeploymentStatus = `-- name: RecomputeDeploymentStatus :one

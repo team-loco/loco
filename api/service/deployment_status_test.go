@@ -90,7 +90,7 @@ func TestDeploymentStatusMapping(t *testing.T) {
 		{genDb.DeploymentStatusCanceled, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED, true},
 		{genDb.DeploymentStatusSuperseded, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED, true},
 	} {
-		if parseDeploymentStatus(tt.status) != tt.phase || isTerminalDeploymentStatus(tt.phase) != tt.terminal {
+		if deploymentStatuses[tt.status] != tt.phase || isTerminalDeploymentStatus(tt.phase) != tt.terminal {
 			t.Fatalf("mapping %s", tt.status)
 		}
 	}

@@ -321,6 +321,8 @@ type Querier interface {
 	// ones and those a region still runs or reports.
 	PruneDeploymentHistory(ctx context.Context, arg PruneDeploymentHistoryParams) (int64, error)
 	PublishEvents(ctx context.Context, arg PublishEventsParams) (int64, error)
+	// Splits [since, until) into bucket_count equal buckets by creation time, in exact numeric arithmetic.
+	QueryDeploymentBuckets(ctx context.Context, arg QueryDeploymentBucketsParams) ([]QueryDeploymentBucketsRow, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
