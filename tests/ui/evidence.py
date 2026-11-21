@@ -1427,7 +1427,7 @@ def postgres_starter(image):
 def browser_starter(options):
     def start(root):
         run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
-        # A restart replaces what is left of the earlier server.
+        # Clear what is left of an earlier server before starting.
         if (root / "state.json").exists():
             stop_browser(root, load_state(root / "state.json")["pid"])
         port = int(testres("ports", root, 1))
