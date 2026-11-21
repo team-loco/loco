@@ -1,10 +1,10 @@
-import { useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { useQuery } from "@connectrpc/connect-query";
 import { Building2, Plus } from "lucide-react";
-import { parseAsInteger, useQueryState } from "nuqs";
+import { parseAsInteger, parseAsNumberLiteral, useQueryState, useQueryStates } from "nuqs";
 import { useNavigate } from "react-router";
 
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
@@ -15,8 +15,8 @@ import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { DataTable, useDataTable } from "@/components/design/DataTable";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { userOrgsOptions } from "@/hooks/userOrgs";
-import { usePagedRows } from "@/lib/paging";
+import { useTokenPage } from "@/hooks/useTokenPage";
+import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { workspacePath } from "@/lib/routes";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -26,6 +26,7 @@ import { CreateOrgDialog } from "@/components/shell/CreateOrgDialog";
 import { orgColumns } from "./organizations/columns";
 
 const PAGE_SIZES = [25, 50, 100] as const;
+const PAGE_PARAMS = { pages: pageTokensParser, size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]) };
 
 function OrgListSkeleton() {
 	return (
@@ -45,19 +46,31 @@ function OrgListSkeleton() {
 export function Organizations() {
 	const navigate = useNavigate();
 	const { user } = useAuth();
-	const { activeOrgId, setActiveOrg } = useOrgWorkspace();
+	const { activeOrgId, setActiveOrg, orgs: knownOrgs } = useOrgWorkspace();
 	const [createOrgOpen, setCreateOrgOpen] = useQueryState("new", parseAsInteger.withDefault(0));
-	const transport = useTransport();
 	const scopes = useMyScopes();
-	const { data: orgsRes, isLoading, error } = useTanstackQuery(userOrgsOptions(transport, user?.id ?? ""));
-	const orgs = orgsRes?.orgs ?? [];
-	const paged = usePagedRows(orgs, PAGE_SIZES);
+	const [params, setParams] = useQueryStates(PAGE_PARAMS, { history: "replace" });
+	const { query, nextPageToken, total } = useTokenPage(
+		listUserOrgs,
+		{ userId: user?.id ?? "", pageSize: params.size },
+		params.pages,
+		{ enabled: user !== null },
+	);
+	const { isLoading, error } = query;
+	const orgs = query.data?.orgs ?? [];
+	const pager = tokenPager(params.pages, nextPageToken, (pages) => {
+		void setParams({ pages });
+	});
 	const config = useQuery(getConfig, {});
-	const created = orgs.filter((org) => org.createdBy === user?.id).length;
 	const usage =
-		isLoading || error
+		isLoading || error || query.data === undefined
 			? null
-			: limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations you created", "account");
+			: limitUsage(
+					query.data.createdCount,
+					config.data?.countLimits?.orgsPerUser,
+					"organizations you created",
+					"account",
+				);
 	const blocked = limitReason(usage);
 	const table = useDataTable("organizations", {
 		columns: orgColumns({
@@ -65,7 +78,7 @@ export function Organizations() {
 			roleOf: (orgId) => (scopes.isLoading ? undefined : scopes.orgLevel(orgId) >= 3 ? "Admin" : "Member"),
 			onSwitch: setActiveOrg,
 		}),
-		data: paged.rows,
+		data: orgs,
 		getRowId: (org) => org.id,
 	});
 
@@ -84,7 +97,7 @@ export function Organizations() {
 		if (error) {
 			return <ErrorCard error={error} fallbackMessage="Failed to load organizations" minHeight="min-h-48" />;
 		}
-		if (orgs.length === 0) {
+		if (orgs.length === 0 && params.pages.length === 0) {
 			return (
 				<EmptyState
 					icon={<Building2 />}
@@ -111,7 +124,19 @@ export function Organizations() {
 					rowAction="navigate"
 					rowLabel={(row) => `Open ${row.original.name}`}
 				/>
-				<Pager {...paged.pager} {...paged.ends} />
+				<Pager
+					label={tokenPageLabel(pager.page, params.size, orgs.length, total)}
+					page={pager.page}
+					total={orgs.length}
+					pageSizes={PAGE_SIZES}
+					pageSize={params.size}
+					onPageSize={(size) => {
+						void setParams({ size: PAGE_SIZES.find((n) => n === size) ?? null, pages: null });
+					}}
+					onFirst={pager.onFirst}
+					onPrev={pager.onPrev}
+					onNext={pager.onNext}
+				/>
 			</>
 		);
 	};
@@ -144,7 +169,7 @@ export function Organizations() {
 					void setCreateOrgOpen(open ? 1 : null);
 				}}
 				onSuccess={handleCreateOrgSuccess}
-				existingNames={orgs.map((org) => org.name)}
+				existingNames={knownOrgs.map((org) => org.name)}
 			/>
 		</Page>
 	);

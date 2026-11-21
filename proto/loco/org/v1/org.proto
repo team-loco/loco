@@ -104,12 +104,19 @@ message ListUserOrgsRequest {
   // create_if_missing creates an organization and its "default" workspace, with the caller as admin,
   // when the caller belongs to no organization. It requires user_id to be the caller.
   bool create_if_missing = 4;
+  // Sets total_count in the response.
+  bool include_total_count = 5;
 }
 
 // ListUserOrgsResponse is the response containing organization list.
 message ListUserOrgsResponse {
   repeated Organization orgs = 1;
   string next_page_token = 2; // empty if no more pages
+  // The organizations the user belongs to; set when include_total_count is.
+  // Exact up to 10,000; 10,001 means more than 10,000.
+  int32 total_count = 3;
+  // The organizations the user created, the count the orgs_per_user limit caps.
+  int32 created_count = 4;
 }
 
 // ListOrgMembersRequest selects a page of organization members.

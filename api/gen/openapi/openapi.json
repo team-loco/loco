@@ -13943,6 +13943,11 @@
             "type": "boolean",
             "title": "create_if_missing",
             "description": "create_if_missing creates an organization and its \"default\" workspace, with the caller as admin,\n when the caller belongs to no organization. It requires user_id to be the caller."
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
           }
         },
         "title": "ListUserOrgsRequest",
@@ -13963,6 +13968,18 @@
             "type": "string",
             "title": "next_page_token",
             "description": "empty if no more pages"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The organizations the user belongs to; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
+          },
+          "createdCount": {
+            "type": "integer",
+            "title": "created_count",
+            "format": "int32",
+            "description": "The organizations the user created, the count the orgs_per_user limit caps."
           }
         },
         "title": "ListUserOrgsResponse",

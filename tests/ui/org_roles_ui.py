@@ -3,7 +3,7 @@ import re
 import uuid
 from datetime import datetime
 
-from harness import call, expect_rpc, load_state, open_page, repo, session
+from harness import call, expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -270,6 +270,43 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(
         page.get_by_role("button", name="Change role for Max Member", exact=True)
     ).to_be_disabled()
+    assert not errors, errors
+    context.close()
+
+    # Organizations page through the API: 26 more memberships make two pages of 25.
+    member = state["users"]["member"]["id"]
+    owner = state["users"]["owner"]["id"]
+    sql(
+        state,
+        "WITH made AS (INSERT INTO organizations (name, created_by) "
+        f"SELECT 'paged-' || lpad(g::text, 2, '0'), '{owner}' FROM generate_series(1, 26) g RETURNING id) "
+        "INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) "
+        f"SELECT '{member}', 'read', 'organization', id FROM made;",
+    )
+    context, page, errors = open_page(browser, "member", state=state)
+    with expect_rpc(
+        page, "ListUserOrgs", lambda body: body.get("pageSize") == 25
+    ) as first_page:
+        page.goto(state["ui_url"] + "/organizations?size=25")
+    assert not first_page.value.request.post_data_json.get("includeTotalCount")
+    organizations = page.get_by_role("table", name="Organizations", exact=True)
+    rows = organizations.locator("tbody tr")
+    expect(rows).to_have_count(25)
+    expect(page.get_by_text("1–25 of 27", exact=True)).to_be_visible()
+    expect(page.get_by_text("Page 1", exact=True)).to_be_visible()
+    with expect_rpc(
+        page, "ListUserOrgs", lambda body: bool(body.get("pageToken"))
+    ) as later:
+        page.get_by_role("button", name="Next page", exact=True).click()
+    assert not later.value.request.post_data_json.get("includeTotalCount")
+    expect(rows).to_have_count(2)
+    expect(page.get_by_text("26–27 of 27", exact=True)).to_be_visible()
+    expect(page.get_by_text("Page 2", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Next page", exact=True)).to_be_disabled()
+    expect(page).to_have_url(re.compile(r"[?&]pages="))
+    page.get_by_role("button", name="Previous page", exact=True).click()
+    expect(rows).to_have_count(25)
+    expect(page.get_by_text("Page 1", exact=True)).to_be_visible()
     assert not errors, errors
     context.close()
     browser.close()

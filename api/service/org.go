@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -252,9 +253,22 @@ func (s *OrgServer) ListUserOrgs(
 		orgResponses = append(orgResponses, response)
 	}
 
+	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
+		return s.queries.CountOrgsForUser(ctx, genDb.CountOrgsForUserParams{UserID: userID, Limit: limit})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count organizations: %w", err)
+	}
+	created, err := s.queries.CountOrgsCreatedBy(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("count organizations created: %w", err)
+	}
+
 	return &orgv1.ListUserOrgsResponse{
 		Orgs:          orgResponses,
 		NextPageToken: token,
+		TotalCount:    total,
+		CreatedCount:  int32(min(created, math.MaxInt32)),
 	}, nil
 }
 
