@@ -12,6 +12,7 @@ export const BASE_URL = resolveAPIURL(window.locoConfig?.apiURL, PUBLIC_API_URL,
 const options = {
 	baseUrl: BASE_URL,
 	useBinaryFormat: PUBLIC_APP_ENV === "PRODUCTION",
+	useHttpGet: true,
 	fetch: async (input: RequestInfo | URL, init?: RequestInit) =>
 		await fetch(input, { ...init, credentials: "include" }),
 };

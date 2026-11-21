@@ -427,7 +427,7 @@ with session(out) as browser:
         body["observabilityMaxTimeRange"] = "21600s"
         route.fulfill(response=response, json=body)
 
-    context.route("**/loco.config.v1.ConfigService/GetConfig", six_hour_config)
+    context.route("**/loco.config.v1.ConfigService/GetConfig*", six_hour_config)
     page.goto(state["ui_url"] + f"/org/{org_id}/wks/{workspace_id}/resources")
     expect(page).to_have_url(re.compile(r"[?&]env="))
     page.get_by_role("link", name="Traces", exact=True).click()

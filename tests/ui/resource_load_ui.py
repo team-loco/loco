@@ -56,7 +56,7 @@ resource = evidence.seed_resources(
     ],
 )[f"acme/shared/{name}"]
 
-RPC = re.compile(r"/loco\.\w+\.v1\.\w+/(\w+)$")
+RPC = re.compile(r"/loco\.\w+\.v1\.\w+/(\w+)(?:\?|$)")
 ONCE = (
     "GetConfig",
     "GetScopes",
@@ -76,11 +76,13 @@ url = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}?env=pro
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     calls = []
+    methods = {}
 
     def record(request):
         rpc = RPC.search(request.url)
         if rpc:
             calls.append((rpc.group(1), request.post_data or ""))
+            methods[rpc.group(1)] = request.method
 
     held = []
     page.on("request", record)
@@ -130,6 +132,10 @@ with session(out) as browser:
     assert collections.Counter(c[0] for c in calls)["WatchDeployment"] == 1, calls
     for method in ONCE:
         assert any(c[0] == method for c in calls), (method, calls)
+    assert methods["GetConfig"] == "GET", methods
+    assert {m for name, m in methods.items() if name != "GetConfig"} == {"POST"}, (
+        methods
+    )
     assert not errors, errors
     context.close()
 
