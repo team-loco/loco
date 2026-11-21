@@ -102,7 +102,7 @@ type ApplicationReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;patch
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;create;list;watch;patch;update;delete
@@ -769,6 +769,12 @@ func (r *ApplicationReconciler) ensureDeployment(
 	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
 	namespace := r.environmentNamespace(app)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
+	if err := hashTemplate(dep.Spec.Template); err != nil {
+		return nil, err
+	}
+	if err := r.reviveReplicaSet(ctx, namespace, name, dep.Spec.Template); err != nil {
+		return nil, err
+	}
 
 	var stoppedSets []appsv1.ReplicaSet
 	var previous *appsv1.ReplicaSet

@@ -18,7 +18,10 @@ var _ = Describe("Replica restart", func() {
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
 		r := &ApplicationReconciler{
-			Client: k8sClient, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix, Telemetry: testTelemetry(),
+			Client:                   k8sClient,
+			APIReader:                k8sClient,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Telemetry:                testTelemetry(),
 		}
 		_, err := r.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())

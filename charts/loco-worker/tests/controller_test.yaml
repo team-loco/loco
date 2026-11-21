@@ -28,11 +28,11 @@ tests:
           pattern: ^(builds|jobs)(/.*)?$
         template: templates/controller/manager-role.yaml
 
-  - it: grants the Application controller only read access to pods
+  - it: lets the Application controller read pods and patch them, but not create or delete them
     asserts:
       - equal:
           path: rules[?(@.resources[?(@ == 'pods')])].verbs
-          value: [get, list, watch]
+          value: [get, list, patch, watch]
         template: templates/controller/manager-role.yaml
 
   - it: keeps namespace deletion with the agent

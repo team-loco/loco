@@ -16,7 +16,8 @@ var _ = Describe("Container command", func() {
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
 		r := &ApplicationReconciler{
-			Client: k8sClient, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix, Telemetry: testTelemetry(),
+			Client: k8sClient, APIReader: k8sClient, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Telemetry: testTelemetry(),
 		}
 		key := client.ObjectKey{Namespace: namespace.Name, Name: testAppName(app)}
 		container := func() corev1.Container {
