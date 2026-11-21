@@ -934,7 +934,7 @@ with session(out) as browser:
     assert last_page_request()["offset"] == 25
     expect(page.get_by_text("26–50 of 67", exact=True)).to_be_visible()
     with expect_rpc(page, "ListTraces", page_request(offset=50)):
-        page.get_by_role("button", name="Last page", exact=True).click()
+        page.get_by_role("button", name="Next page", exact=True).click()
     assert last_page_request()["offset"] == 50
     expect(
         page.get_by_role("region", name="Trace list").locator(

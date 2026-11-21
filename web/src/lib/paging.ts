@@ -36,7 +36,6 @@ export interface PagedRows<T> {
 	pager: {
 		label: string;
 		page: number;
-		pages: number;
 		total: number;
 		pageSizes: readonly number[];
 		pageSize: number;
@@ -44,7 +43,7 @@ export interface PagedRows<T> {
 		onPrev: (() => void) | null;
 		onNext: (() => void) | null;
 	};
-	ends: { onFirst: (() => void) | null; onLast: (() => void) | null };
+	ends: { onFirst: (() => void) | null };
 }
 
 export function pagedRows<T>(
@@ -64,7 +63,6 @@ export function pagedRows<T>(
 		pager: {
 			label: all.length > 0 ? pageRangeLabel(page, size, all.length) : empty,
 			page,
-			pages,
 			total: all.length,
 			pageSizes: sizes,
 			pageSize: size,
@@ -76,7 +74,6 @@ export function pagedRows<T>(
 		},
 		ends: {
 			onFirst: page > 0 ? go(0) : null,
-			onLast: page < pages - 1 ? go(pages - 1) : null,
 		},
 	};
 }

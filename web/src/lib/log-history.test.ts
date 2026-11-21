@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 
-import { createLogHistory, moveLogHistory, oldestLogHistory } from "./log-history";
+import { createLogHistory, moveLogHistory } from "./log-history";
 
 test("walks older and newer batches without losing the centered batch", () => {
 	const centered = createLogHistory();
@@ -17,13 +17,6 @@ test("walks older and newer batches without losing the centered batch", () => {
 	expect(moveLogHistory(newer, "older", "").current).toEqual(centered.current);
 	expect(centered.older).toEqual([]);
 	expect(centered.newer).toEqual([]);
-});
-
-test("pages newer from the oldest batch and has nothing older", () => {
-	const oldest = oldestLogHistory();
-	expect(oldest.current.order).toBe(LogOrder.OLDEST_FIRST);
-	expect(() => moveLogHistory(oldest, "older", "")).toThrow("No log batch");
-	expect(moveLogHistory(oldest, "newer", "next").current).toEqual({ cursor: "next", order: LogOrder.OLDEST_FIRST });
 });
 
 test("does not navigate beyond an exhausted result", () => {

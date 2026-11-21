@@ -24,14 +24,13 @@ describe("pagedRows", () => {
 		const { result } = paged({ page: 1, size: 3 });
 		expect(result.rows).toEqual([3, 4, 5]);
 		expect(result.pager.label).toBe("4–6 of 7");
-		expect([result.pager.page, result.pager.pages]).toEqual([1, 3]);
+		expect(result.pager.page).toBe(1);
 	});
 
 	test("clamps a page past the end to the last page", () => {
 		const { result } = paged({ page: 9, size: 3 });
 		expect(result.rows).toEqual([6]);
 		expect(result.pager.onNext).toBeNull();
-		expect(result.ends.onLast).toBeNull();
 	});
 
 	test("uses the empty label when there are no rows", () => {
@@ -41,8 +40,9 @@ describe("pagedRows", () => {
 	test("moves between pages and returns to the first page on a size change", () => {
 		const first = paged({ page: 0, size: 3 });
 		expect(first.result.pager.onPrev).toBeNull();
-		first.result.ends.onLast?.();
-		expect(first.moves).toEqual([{ page: 2, size: 3 }]);
+		expect(first.result.ends.onFirst).toBeNull();
+		first.result.pager.onNext?.();
+		expect(first.moves).toEqual([{ page: 1, size: 3 }]);
 		const middle = paged({ page: 1, size: 3 });
 		middle.result.pager.onPageSize(6);
 		expect(middle.moves).toEqual([{ page: 0, size: 6 }]);

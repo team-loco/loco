@@ -330,7 +330,6 @@ function TraceSession({
 				<Pager
 					label={traces.length > 0 ? pageRangeLabel(paging.page, paging.size, total) : "0"}
 					page={paging.page}
-					pages={pages}
 					total={total}
 					pageSizes={PAGE_SIZES}
 					pageSize={paging.size}
@@ -340,7 +339,6 @@ function TraceSession({
 					onFirst={!loading && paging.page > 0 ? go(0) : null}
 					onPrev={!loading && paging.page > 0 ? go(paging.page - 1) : null}
 					onNext={!loading && paging.page < pages - 1 ? go(paging.page + 1) : null}
-					onLast={!loading && paging.page < pages - 1 ? go(pages - 1) : null}
 				/>
 			</section>
 			<TraceDrawer
