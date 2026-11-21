@@ -197,7 +197,7 @@ export function useTokenData(): TokenData {
 		})),
 	});
 	const resourceNames = useQueries({
-		queries: unnamed(EntityType.RESOURCE).map((id) => ({
+		queries: (resourcesLoading ? [] : unnamed(EntityType.RESOURCE)).map((id) => ({
 			...createQueryOptions(getResource, { key: { case: "resourceId", value: id } }, { transport }),
 			retry: false,
 		})),
