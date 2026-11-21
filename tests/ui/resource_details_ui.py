@@ -464,7 +464,7 @@ with session(out) as browser:
     context.unroute(delete_rpc)
     confirm.click()
     expect(page).to_have_url(
-        state["ui_url"] + f"/org/{org}/wks/{workspace}?env=production"
+        state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production"
     )
     remaining = sql(state, f"SELECT COUNT(*) FROM resources WHERE id='{resource}';")
     assert remaining == "0", remaining
