@@ -32,7 +32,7 @@ import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
 import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
-import { buildLogsPath, observabilityPath, resourcePath, withEnv, workspacePath } from "@/lib/routes";
+import { buildLogsPath, observabilityPath, resourcePath, resourcesPath, withEnv } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
@@ -336,8 +336,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					toast.success(`Deleted ${resource.name}`);
 					setModal(null);
 					if (hasWs) {
-						const home = workspacePath(activeOrgId, activeWorkspaceId);
-						void navigate(withEnv(home, env));
+						void navigate(withEnv(resourcesPath(activeOrgId, activeWorkspaceId), env));
 					}
 				},
 				onError: (err) => {
