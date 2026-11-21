@@ -1,0 +1,54 @@
+{
+  "users": {"owner": {"email": "owner@acme.test", "name": "Olivia Owner"}},
+  "orgs": [{"name": "acme", "owner": "owner", "workspaces": ["shared"]}],
+  "resources": [{
+    "workspace": "acme/shared",
+    "name": "web",
+    "domains": [{"environment": "production", "domain": "web.apps.example.test"}],
+    "deployments": [
+      {
+        "id": "01900000-0000-7000-8000-000000000141",
+        "environment": "production",
+        "status": "superseded",
+        "live": false,
+        "age": "3 hours",
+        "spec": {
+          "observability": {"injectOtel": true},
+          "build": {"type": "image", "image": "example.invalid/web:1.4.1"},
+          "port": 8080,
+          "regions": {"us-ca-1": {"cpu": "500m", "memory": "256Mi", "minReplicas": 3, "maxReplicas": 3}}
+        }
+      },
+      {
+        "environment": "production",
+        "status": "failed",
+        "age": "5 minutes",
+        "placements": {"us-ca-1": {
+          "ready_replicas": 2,
+          "replicas": [
+            {"name": "web-6c1d-x1", "deployment_id": "01900000-0000-7000-8000-000000000141", "node": "node-1",
+              "ready": true, "state": "Serving", "started_at": {"seconds": "{now-3h:s}"}},
+            {"name": "web-6c1d-x2", "deployment_id": "01900000-0000-7000-8000-000000000141", "node": "node-2",
+              "ready": true, "state": "Serving", "started_at": {"seconds": "{now-3h:s}"}},
+            {"name": "web-8f2a-qm4rt", "node": "node-1", "ready": false, "state": "Failing", "restarts": 4,
+              "started_at": {"seconds": "{now-20m:s}"},
+              "last_exit": {"reason": "Error", "exit_code": 2, "finished_at": {"seconds": "{now-5m:s}"}},
+              "last_restart": {"at": {"seconds": "{now-5m:s}"}, "cause": "out_of_memory", "exit_code": 137}}
+          ],
+          "problem": {
+            "reason": "restarts_exhausted",
+            "message": "A replica restarted more often than its restart policy allows. Check its logs.",
+            "detail": "dial tcp 10.0.3.14:6379: i/o timeout",
+            "replica_name": "web-8f2a-qm4rt"
+          }
+        }},
+        "spec": {
+          "observability": {"injectOtel": true},
+          "build": {"type": "image", "image": "example.invalid/web:1.4.2"},
+          "port": 8080,
+          "regions": {"us-ca-1": {"cpu": "500m", "memory": "256Mi", "minReplicas": 3, "maxReplicas": 3}}
+        }
+      }
+    ]
+  }]
+}

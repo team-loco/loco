@@ -37,16 +37,26 @@ mise exec -- uv run --script "$E" <command>
    an existing `environment`, `region`, deployment `status`, placement `ready_replicas`
    and a service deployment `spec` with `observability`, an image `build`, `cpu`, `memory`, `minReplicas`,
    `maxReplicas` and optional `port`. Use one deployment per environment and region.
-   Start from `.agents/skills/ui-evidence/scenario.resources.example.json`. Resources use the API; synthetic
+   Start from `.agents/skills/ui-evidence/scenario.resources.example.json`. To seed what the cluster
+   agent reports, a region under `placements` may also list `replicas` (the agent's replica
+   reports: `name`, `ready`, `state`, `restarts`, `started_at`, `last_exit`, `last_restart`; `uid`,
+   `deployment_id` and `placement_revision` default to the name, the deployment and 1) and a
+   rollout `problem` (`reason`, `message`, `detail`, `replica_name`), and a resource may list
+   platform `domains` (`{"environment": "production", "domain": "web.apps.example.test"}`), which
+   make it public. Give a deployment an `id` when another deployment's replica names it. Time
+   placeholders such as `{"seconds": "{now-3h:s}"}` work in these fields. Start from
+   `.agents/skills/ui-evidence/scenario.agent.example.json`. Resources use the API; synthetic
    clusters, deployments and placements use SQL without contacting a registry or worker.
-      The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths, and
-   `orgs` maps each organization name to its `id` and `owner`.
+   The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths,
+   `orgs` maps each organization name to its `id` and `owner`, and `environments` maps
+   `org/workspace/slug` to environment IDs.
 2. Write a shot spec JSON. Each shot names a path, a `ready_selector`, an optional user, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,
    `{"type": {"selector": selector, "text": "value"}}`, `{"press": {"selector": selector, "key": "ArrowLeft"}}`,
    `{"drag": {"selector": selector, "from": [x, y], "to": [x, y]}}`), a crop (`"viewport"`, `"full"`,
    `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`), an optional `"color"`
-   colour theme id (as in `web/src/lib/theme.ts`) and `"narrow": true` for an extra 390-pixel-wide
+   colour theme id (as in `web/src/lib/theme.ts`), `"themes": ["light"]` to capture only some of
+   `light` and `dark` (default both) and `"narrow": true` for an extra 390-pixel-wide
    capture. Omit `user` for signed-out pages; the context has no session.
    Start from `shots.example.json`. Use a `clip` crop when
    before and after must line up: a selector crop follows the element's size.
@@ -65,6 +75,12 @@ mise exec -- uv run --script "$E" <command>
    An optional `match` object narrows an entry to requests whose JSON body has those field
    values, such as `{"metricName": "k8s.pod.cpu_limit_utilization"}`; other requests fall
    through to the next entry for the same URL.
+   A shot's `path` and the strings in its `respond` JSON take placeholders, filled in when the shot
+   runs: `{org:acme}`, `{workspace:acme/shared}`, `{resource:acme/shared/web}` and
+   `{environment:acme/shared/production}` name seeded IDs by their scenario keys, and `{now}`,
+   `{now-15m}` or `{now+1h}` (units s, m, h, d) give an RFC 3339 UTC time. A `:s` or `:ms` suffix,
+   as in `{now-1h:ms}`, gives epoch seconds or milliseconds; a string that is only such a placeholder
+   becomes a number. An unknown key or a malformed placeholder fails the shot.
    A Connect error is a status with `{"code": "invalid_argument", "message": "...", "details": [...]}`.
    `ready_selector` is a Playwright selector for an element that shows only once the page
    holds what the shot captures, such as a loaded row rather than the page heading. The shot
