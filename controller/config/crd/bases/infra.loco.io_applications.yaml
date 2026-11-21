@@ -52,6 +52,7 @@ spec:
               organizationId:
                 type: string
               region:
+                minLength: 1
                 type: string
               resourceId:
                 type: string
@@ -268,6 +269,7 @@ spec:
                 type: string
             required:
             - environmentId
+            - region
             - type
             type: object
           status:

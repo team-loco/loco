@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/team-loco/loco/controller/internal/builds"
 	"github.com/team-loco/loco/controller/internal/controller"
@@ -20,6 +21,7 @@ const (
 	envRegistryPullSecretName = "REGISTRY_PULL_SECRET_NAME" //nolint:gosec
 	envRegistryAuth           = "LOCO_REGISTRY_AUTH"
 	envGateway                = "LOCO_GATEWAY"
+	envAppDomains             = "LOCO_APP_DOMAINS"
 	envWorkspacePrefix        = "LOCO_WORKSPACE_NAMESPACE_PREFIX"
 	envMinReadySeconds        = "LOCO_MIN_READY_SECONDS"
 	envDrainSeconds           = "LOCO_DRAIN_SECONDS"
@@ -38,6 +40,7 @@ type operatorConfig struct {
 	PullSecretName           string
 	RegistryTokenMode        bool
 	Gateway                  string
+	AppDomains               []string
 	WorkspaceNamespacePrefix string
 	RawBuildConfig           string
 	Telemetry                controller.TelemetryConfig
@@ -63,6 +66,7 @@ func newOperatorConfig() operatorConfig {
 		PullSecretName:           os.Getenv(envRegistryPullSecretName),
 		RegistryTokenMode:        registryTokenMode(),
 		Gateway:                  os.Getenv(envGateway),
+		AppDomains:               strings.FieldsFunc(os.Getenv(envAppDomains), func(r rune) bool { return r == ',' }),
 		WorkspaceNamespacePrefix: os.Getenv(envWorkspacePrefix),
 		RawBuildConfig:           os.Getenv(builds.EnvConfig),
 		Telemetry:                telemetry,

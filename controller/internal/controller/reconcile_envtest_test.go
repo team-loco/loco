@@ -69,6 +69,7 @@ var _ = Describe("Application reconcile", func() {
 			Annotations: map[string]string{locov1alpha1.KeyPlacementID: "p-converge"},
 			Spec: locov1alpha1.ApplicationSpec{
 				Type:          testAppType,
+				Region:        testRegion,
 				ResourceID:    convergeName,
 				Slug:          convergeName,
 				WorkspaceID:   "ws",
@@ -534,8 +535,8 @@ var _ = Describe("Application reconcile", func() {
 			Name:       "invalid",
 			Namespace:  testNamespace,
 			Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
-			Spec: locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: "invalid", WorkspaceID: "ws",
-				EnvironmentID: "env-invalid"},
+			Spec: locov1alpha1.ApplicationSpec{Type: testAppType, Region: testRegion, ResourceID: "invalid",
+				WorkspaceID: "ws", EnvironmentID: "env-invalid"},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
@@ -573,7 +574,8 @@ var _ = Describe("Application reconcile", func() {
 				Namespace:  testNamespace,
 				Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
 				Spec: locov1alpha1.ApplicationSpec{
-					Type: testAppType, ResourceID: workspaceID, WorkspaceID: workspaceID, EnvironmentID: workspaceID,
+					Type: testAppType, Region: testRegion, ResourceID: workspaceID, WorkspaceID: workspaceID,
+					EnvironmentID: workspaceID,
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())

@@ -109,10 +109,10 @@ type Platform struct {
 }
 
 type ports struct {
-	api, obsProxy, s3, clickhouse, gateway, apiReplica, otlpGRPC, otlpHTTP, registry, auth int
+	api, obsProxy, s3, clickhouse, gateway, apiReplica, otlpGRPC, otlpHTTP, registry, auth, gatewayTLS int
 }
 
-const portCount = 10
+const portCount = 11
 
 // New reads the run's configuration for a shard, claims its lease and reserves its ports, the
 // same ones for every run of the shard in this worktree. It starts nothing.
@@ -144,6 +144,7 @@ func New(features Features) *Platform {
 			otlpHTTP:   reserved[7],
 			registry:   reserved[8],
 			auth:       reserved[9],
+			gatewayTLS: reserved[10],
 		},
 	}
 	p.values = readValues(c.root)
