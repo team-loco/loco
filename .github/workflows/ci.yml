@@ -7,8 +7,7 @@
 # filters on the called workflows' own triggers would leave a required check
 # without a result whenever they skipped it. After a push to main passes the
 # gate, the publish jobs tag the images Images built. A draft pull request runs
-# no checks: changes skips, and the gate cancels its own run, which never
-# passes.
+# no checks: changes skips, and the gate fails and cancels its own run.
 name: CI
 
 on:
@@ -337,15 +336,14 @@ jobs:
     outputs:
       passed: ${{ steps.passed.outputs.passed }}
     steps:
-      # A cancelled gate blocks the merge without a failure notice; the exit fails it if the cancel is late.
-      - name: Cancel the run of a draft pull request
+      # The failed gate blocks the merge; the cancelled run sends no failed-run notice.
+      - name: Fail the gate of a draft pull request
         if: github.event.pull_request.draft
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "::notice::Drafts run no checks; marking the pull request ready runs CI"
+          echo "::error::Drafts run no checks; marking the pull request ready runs CI"
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/cancel"
-          sleep 60
           exit 1
 
       - name: List the checks that ran and passed

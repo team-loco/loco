@@ -1,6 +1,6 @@
 ---
 name: ui-evidence
-description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Builds each git ref in its own worktree with a throwaway database, OpenBao, API and UI, seeds users, sessions and organization memberships with SQL and organizations, workspaces and grants through the API, and shoots headless Chromium. Load before taking PR screenshots.
+description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves. Takes them in CI by default with `mise run ci:evidence`, or locally: builds each git ref in its own worktree with a throwaway database, OpenBao, API and UI, seeds users, sessions and organization memberships with SQL and organizations, workspaces and grants through the API, and shoots headless Chromium. Load before taking PR screenshots.
 context: fork
 agent: ui-evidence
 allowed-tools: Bash, Read, Write
@@ -8,15 +8,45 @@ allowed-tools: Bash, Read, Write
 
 # UI evidence
 
-`scripts/evidence.py` does every brittle step. Run it with uv from the repository root; it
-never touches the dev stack (`mise run dev`), Dex or a person's browser windows.
+`scripts/evidence.py` does every brittle step. CI runs it for a pushed branch; locally, run it
+with uv from the repository root. It never touches the dev stack (`mise run dev`), Dex or a
+person's browser windows.
+
+## Capture in CI
+
+This is the default. It keeps the browsers, databases and builds off your machine.
+
+1. Open the PR as a draft (`gh pr create --draft`). A draft runs no CI, so pushes cost nothing.
+2. Write `scenario.json` and `shots.json` into a directory outside the checkout, as steps 1
+   and 2 of [Capture locally](#capture-locally) describe. They are not committed; the task
+   sends their contents to CI.
+3. Push the branch, then run the capture for its pushed head:
+
+   ```sh
+   mise run ci:evidence --out "$capture" --shots "$capture/shots.json" --scenario "$capture/scenario.json"
+   ```
+
+   `--base` names the before ref (default `main`); without `--scenario` CI uses
+   `scenario.example.json`. Suite names after the flags also run those `tests/ui` suites in
+   the same run. The task refuses to start when the local head differs from the pushed one,
+   prints the run URL, checks it every 30 seconds and downloads `evidence/*.png`,
+   `evidence.md`, `refs.txt` (the before and after commits) and any suite output into
+   `$capture`. It exits non-zero when the run failed; read the run log for `scenario note:`
+   lines and the failing shot.
+4. Open every PNG with Read and check it shows what the shot claims.
+5. Write the PR body to `$capture/body.md` with `$capture/evidence.md` under `## Screenshots`,
+   and upload as [Upload](#upload) describes. The table's `evidence/<file>.png` paths resolve
+   against the body file's directory.
+6. Mark the PR ready (`gh pr ready`); that runs the full CI.
+
+## Capture locally
+
+Use this to click through a running app: `up` leaves each ref's API and UI running until `down`.
 
 ```sh
 E="${CLAUDE_SKILL_DIR}/scripts/evidence.py"
 mise exec -- uv run --script "$E" <command>
 ```
-
-## Capture
 
 1. Put inputs and screenshots outside the checkout. `up --ref HEAD` rejects untracked
    files as well as tracked edits.

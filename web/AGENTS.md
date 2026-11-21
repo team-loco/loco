@@ -20,4 +20,5 @@ Paths and commands below are relative to `web/`.
   `getErrorMessage(error, fallback)` for a string, `toastConnectError(error, fallback)` for a
   toast. Both handle `ConnectError`, `Error` and unknown values.
 - **PR screenshots**: UI changes need before/after screenshots in light and dark mode, plus
-  a narrow viewport for layout changes. Use `ui-evidence` and upload with `gh pr edit --attach`.
+  a narrow viewport for layout changes. Take them in CI with `mise run ci:evidence` while the PR
+  is a draft, as the `ui-evidence` skill describes, and upload with `gh pr edit --attach`.

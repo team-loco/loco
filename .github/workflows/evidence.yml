@@ -2,8 +2,6 @@ name: Evidence
 
 # Runs dashboard suites and before/after screenshots for a branch on request; `mise run ci:evidence` dispatches it.
 on:
-  push:
-    branches: [claude-ci-drafts]
   workflow_dispatch:
     inputs:
       suites:
