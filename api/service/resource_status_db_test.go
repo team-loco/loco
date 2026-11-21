@@ -636,3 +636,18 @@ func (f *resourceStatusFixture) assertLastGood(t *testing.T, want string) {
 		t.Errorf("last good deployment %q, want %q", got, want)
 	}
 }
+
+func TestRegionLastGoodDeploymentSkipsADeploymentReplacedBeforeItRan(t *testing.T) {
+	t.Parallel()
+	f := newResourceStatusFixture(t)
+	f.deployProduction(t, 1)
+	first := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
+	f.ready(t, f.clusterID, 1)
+
+	f.deployProduction(t, 1)
+	f.deployProduction(t, 1)
+	f.assertLastGood(t, first.String())
+
+	f.ready(t, f.clusterID, 1)
+	f.assertLastGood(t, first.String())
+}
