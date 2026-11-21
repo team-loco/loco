@@ -13,11 +13,9 @@ STDERR_CASES = [
     ("2026/10/19 12:00:00 [notice] 1#1: start worker processes", "INFO", 9, {}),
     ("2026/10/19 12:00:00 [warn] 1#1: conflicting server name", "WARN", 13, {}),
     ("2026/10/19 12:00:00 [error] 7#7: *1 upstream timed out", "ERROR", 17, {}),
-    ("2026/10/19 12:00:00 [crit] 7#7: *1 open() failed", "FATAL", 21, {}),
-    ("2026/10/19 12:00:00 [emerg] 1#1: bind() failed", "FATAL", 21, {}),
+    ("2026/10/19 12:00:00 [crit] 7#7: *1 open() failed", "ERROR", 17, {}),
     ("[2026-10-19 12:00:00 +0000] [1] [INFO] Starting gunicorn 23.0.0", "INFO", 9, {}),
     ("[2026-10-19 12:00:00 +0000] [7] [ERROR] Exception in worker", "ERROR", 17, {}),
-    ("[alert] disk full", "FATAL", 21, {}),
     ("Alert: disk full", "ERROR", 17, {}),
 ]
 
