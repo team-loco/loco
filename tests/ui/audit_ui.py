@@ -165,8 +165,14 @@ with session(out) as browser:
     page.get_by_role("button", name="Newest events", exact=True).click()
     expect(rows).to_have_count(50)
 
+    expect(
+        page.get_by_text(
+            re.compile(r"^50 events, (just now|\d+[mhd]) to (just now|\d+[mhd] ago)$")
+        )
+    ).to_be_visible()
     separator = page.get_by_role("separator", name="Resize Time", exact=True)
     initial_width = int(separator.get_attribute("aria-valuenow"))
+    assert initial_width == 120, initial_width
     separator.focus()
     page.keyboard.press("ArrowRight")
     expect(separator).to_have_attribute("aria-valuenow", str(initial_width + 16))
@@ -182,11 +188,13 @@ with session(out) as browser:
     expect(page).not_to_have_url(re.compile(r"[?&]live="))
 
     # A custom range sends its start and end; a preset applies behind a loading state.
-    page.get_by_role("button", name=re.compile(r"^Past ")).click()
+    page.get_by_role("button", name=re.compile(r"^Past 7 days")).click()
     time_range = page.get_by_role("dialog", name="Time range")
+    presets = time_range.get_by_role("group", name="Presets")
+    expect(presets.get_by_role("button")).to_have_count(4)
     expect(
-        time_range.get_by_role("group", name="Presets").get_by_role("button")
-    ).to_have_count(4)
+        presets.get_by_role("button", name=re.compile(r"Past 7 days$"))
+    ).to_have_attribute("aria-pressed", "true")
     with expect_rpc(page, "ListEvents", lambda body: "endTime" in body) as custom:
         time_range.get_by_role("button", name="Apply", exact=True).click()
     assert (
@@ -217,6 +225,10 @@ with session(out) as browser:
     expect(rows).to_have_count(50)
     page.get_by_role("button", name="Event", exact=True).click()
     expect(page.get_by_text(re.compile(r"^0 of \d+$"))).to_be_visible()
+    # Workspace membership events come before invitations in the Access group.
+    expect(page.get_by_role("option").nth(1)).to_contain_text(
+        "Added someone to a workspace"
+    )
     expect(
         page.get_by_role("option", name=re.compile(r"^Invited someone"))
     ).to_be_visible()
@@ -237,7 +249,19 @@ with session(out) as browser:
     ).to_be_disabled()
     expect(drawer.get_by_title("Copy request ID", exact=True)).to_be_visible()
     request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()
-    expect(drawer.get_by_role("button", name=re.compile(r"^More by "))).to_be_visible()
+    expect(
+        drawer.get_by_role("button", name="More by Olivia", exact=True)
+    ).to_be_visible()
+    # The title and what the event acted on share one line.
+    # Both boxes come from one frame, so the drawer's slide-in cannot skew them.
+    gap = drawer.locator('[data-slot="sheet-description"]').evaluate(
+        """node => {
+            const title = node.previousElementSibling.getBoundingClientRect();
+            const target = node.getBoundingClientRect();
+            return { left: target.left - title.right, top: target.top - title.bottom };
+        }"""
+    )
+    assert gap["left"] >= 0 and gap["top"] < 0, gap
     drawer.get_by_role("button", name="Older event", exact=True).click()
     expect(drawer.get_by_title("Copy request ID", exact=True)).not_to_have_text(
         request_id
@@ -327,6 +351,7 @@ with session(out) as browser:
             panel.get_by_role("button", name=re.compile(re.escape(field)))
         ).to_be_visible()
     expect(panel.get_by_role("heading")).to_have_text("@type does not compare numbers")
+    expect(panel).to_contain_text("Use an exact value or a * wildcard.")
     expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
     expect(page.get_by_role("table", name="Audit events")).to_have_count(0)
     expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
@@ -355,6 +380,7 @@ with session(out) as browser:
     ):
         search.fill("@wrong:value")
     expect(panel.locator("mark")).to_have_text("@wrong:value")
+    expect(panel).to_contain_text("Pick one of the fields listed.")
     page.set_viewport_size(evidence.NARROW)
     expect(panel.get_by_role("button", name=re.compile(r"^@request:"))).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
@@ -395,7 +421,7 @@ with session(out) as browser:
         == "(@type:resource.created) @actor_type:system"
     )
     expect(
-        page.get_by_text("No events match these filters", exact=True)
+        page.get_by_text(re.compile(r"^No events match these filters\. Clear filters$"))
     ).to_be_visible()
     search.fill("no-such-event")
     page.get_by_role("button", name="Clear filters", exact=True).click()

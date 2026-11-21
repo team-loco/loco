@@ -4,7 +4,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
 
 import { auditQuery } from "./model";
-import { auditSearchError, insertAuditField } from "./queryError";
+import { auditQueryFix, auditSearchError, insertAuditField } from "./queryError";
 
 function rejection(position: number) {
 	return new ConnectError("Unknown field", Code.InvalidArgument, undefined, [
@@ -53,5 +53,26 @@ describe("audit search errors", () => {
 		expect(result?.start).toBe(5);
 		expect(result?.end).toBe(5);
 		expect(insertAuditField("hello OR", 8, 8, "type")).toEqual({ query: "hello OR @type:", caret: 15 });
+	});
+});
+
+describe("audit search fixes", () => {
+	test("suggests a field that starts like the unknown one", () => {
+		expect(auditQueryFix("@acter:bob", "unknown field @acter")).toBe("Did you mean @actor?");
+		expect(auditQueryFix("-@req:x", "unknown field @req")).toBe("Did you mean @request?");
+	});
+	test("points at the field list when nothing is close", () => {
+		expect(auditQueryFix("@wrong:value", "unknown field @wrong")).toBe("Pick one of the fields listed.");
+		expect(auditQueryFix("@", "expected a key after @")).toBe("Pick one of the fields listed.");
+	});
+	test("sends environments to the Environment filter", () => {
+		expect(auditQueryFix("@environment:prod", "unknown field @environment")).toBe(
+			"Pick a workspace, then use the Environment filter.",
+		);
+	});
+	test("offers exact values for number comparisons on known fields", () => {
+		expect(auditQueryFix("@type:>1", "@type does not compare numbers")).toBe("Use an exact value or a * wildcard.");
+		expect(auditQueryFix("@type:", "expected a value after @type:")).toBeNull();
+		expect(auditQueryFix("hello", 'unexpected ")"')).toBeNull();
 	});
 });

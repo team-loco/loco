@@ -53,9 +53,9 @@ export function AuditDrawer({
 				{row !== undefined && (
 					<>
 						<SheetHeader className="pr-[140px]">
-							<div className="flex min-w-0 flex-col gap-0.5">
-								<SheetTitle className="truncate">{row.label}</SheetTitle>
-								<SheetDescription className="truncate font-mono text-[12.5px]">{row.detail}</SheetDescription>
+							<div className="flex min-w-0 items-baseline gap-3">
+								<SheetTitle className="max-w-full shrink-0 truncate">{row.label}</SheetTitle>
+								<SheetDescription className="min-w-0 truncate font-mono text-[12.5px]">{row.detail}</SheetDescription>
 							</div>
 							<div className="absolute top-[17px] right-12 flex gap-1">
 								<Button
@@ -119,18 +119,16 @@ export function AuditDrawer({
 									<span className="font-mono text-[12.5px]">#{row.event.seq.toLocaleString()}</span>
 								</Item>
 							</dl>
-							<div>
+							<div className="flex flex-wrap gap-2">
 								<Button variant="outline" onClick={onActor}>
-									More by {row.actor.name}
+									More by {row.event.actorType === "user" ? row.actor.name.split(" ")[0] : row.actor.name}
 								</Button>
-							</div>
-							{onResource !== null && (
-								<div>
+								{onResource !== null && (
 									<Button variant="outline" onClick={onResource}>
 										More for {row.resource}
 									</Button>
-								</div>
-							)}
+								)}
+							</div>
 							<div className="flex flex-col gap-1.5">
 								<span className="text-[12.5px] text-fg3">Raw event</span>
 								<CodeBlock

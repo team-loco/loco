@@ -34,3 +34,15 @@ export function insertAuditField(search: string, start: number, end: number, fie
 	const term = `${before !== "" && !/[\s(]$/.test(before) ? " " : ""}@${field}:`;
 	return { query: before + term + chars.slice(end).join(""), caret: before.length + term.length };
 }
+
+/** A suggested fix for the rejected search term, or null when there is none to offer. */
+export function auditQueryFix(term: string, message: string): string | null {
+	const key = /^-?@([\w.]*)/.exec(term)?.[1];
+	if (key === undefined) return null;
+	if (key === "environment") return "Pick a workspace, then use the Environment filter.";
+	if (AUDIT_FIELDS.some((f) => f.key === key)) {
+		return message.includes("compare numbers") ? "Use an exact value or a * wildcard." : null;
+	}
+	const near = key === "" ? undefined : AUDIT_FIELDS.find((f) => f.key.startsWith(key.slice(0, 2)));
+	return near === undefined ? "Pick one of the fields listed." : `Did you mean @${near.key}?`;
+}

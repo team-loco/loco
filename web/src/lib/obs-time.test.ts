@@ -54,6 +54,9 @@ describe("time range text", () => {
 		expect(formatSpan(2 * DAY_MS)).toBe("2d");
 		expect(spanLabel(HOUR_MS)).toBe("Past hour");
 		expect(spanLabel(DAY_MS)).toBe("Past 24 hours");
+		expect(spanLabel(7 * DAY_MS)).toBe("Past 7 days");
+		expect(spanLabel(14 * DAY_MS)).toBe("Past 2 weeks");
+		expect(formatSpan(7 * DAY_MS)).toBe("1w");
 		expect(spanLabel(15 * MINUTE_MS)).toBe("Past 15 minutes");
 	});
 });

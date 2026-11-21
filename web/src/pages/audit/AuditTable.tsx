@@ -3,6 +3,7 @@ import { CpuIcon, KeyRoundIcon, ServerIcon } from "lucide-react";
 
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { agoLabel, formatClock } from "@/lib/time";
+import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { dayLabel, type AuditRow } from "./model";
@@ -25,7 +26,7 @@ function auditColumns(nowMs: number): DataColumn<AuditRow>[] {
 		{
 			id: "time",
 			header: "Time",
-			size: 110,
+			size: 120,
 			minSize: 90,
 			maxSize: 640,
 			cell: ({ row }) => <AuditTime row={row.original} nowMs={nowMs} />,
@@ -33,7 +34,7 @@ function auditColumns(nowMs: number): DataColumn<AuditRow>[] {
 		{
 			id: "actor",
 			header: "Actor",
-			size: 200,
+			size: 220,
 			minSize: 90,
 			maxSize: 640,
 			cell: ({ row: { original: row } }) => (
@@ -63,7 +64,7 @@ function auditColumns(nowMs: number): DataColumn<AuditRow>[] {
 		{
 			id: "where",
 			header: "Where",
-			size: 220,
+			size: 240,
 			minSize: 90,
 			maxSize: 640,
 			cell: ({ row: { original: row } }) => (
@@ -122,9 +123,12 @@ export function AuditTable({
 			}}
 			groupBy={(row) => dayLabel(row.ms, nowMs, timePref)}
 			rowClassName={(row) =>
-				highlightAfter !== undefined &&
-				row.original.event.seq > highlightAfter &&
-				"motion-safe:animate-[audit-event-in_2s_ease-out]"
+				cn(
+					"data-[state=selected]:[--row-tint:var(--background)]!",
+					highlightAfter !== undefined &&
+						row.original.event.seq > highlightAfter &&
+						"motion-safe:animate-[audit-event-in_2s_ease-out]",
+				)
 			}
 		/>
 	);
