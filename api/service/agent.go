@@ -260,6 +260,12 @@ func sortedReportedValues(domains []string) []string {
 	return slices.Compact(reported)
 }
 
+const (
+	clusterHealthHealthy   = "healthy"
+	clusterHealthDegraded  = "degraded"
+	clusterHealthUnhealthy = "unhealthy"
+)
+
 // healthStatusFromProto converts agent health to a status string.
 func healthStatusFromProto(h *agentv1.AgentHealth) string {
 	if h == nil {

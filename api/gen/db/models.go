@@ -974,6 +974,28 @@ type ResourceDomain struct {
 	UpdatedAt      time.Time    `json:"updatedAt"`
 }
 
+type ResourceRegionInput struct {
+	ResourceID         uuid.UUID       `json:"resourceId"`
+	EnvironmentID      uuid.UUID       `json:"environmentId"`
+	EnvironmentSlug    string          `json:"environmentSlug"`
+	Region             string          `json:"region"`
+	ClusterID          uuid.UUID       `json:"clusterId"`
+	DeploymentID       uuid.UUID       `json:"deploymentId"`
+	PlacementStatus    PlacementStatus `json:"placementStatus"`
+	DesiredReplicas    int32           `json:"desiredReplicas"`
+	Problem            []byte          `json:"problem"`
+	Placed             bool            `json:"placed"`
+	PlacedDeploymentID *uuid.UUID      `json:"placedDeploymentId"`
+	ReadyReplicas      int32           `json:"readyReplicas"`
+	StatusUpdatedAt    *time.Time      `json:"statusUpdatedAt"`
+	StoredStatus       string          `json:"storedStatus"`
+	RegionStatusSince  *time.Time      `json:"regionStatusSince"`
+	Replicas           []byte          `json:"replicas"`
+	LastHeartbeat      *time.Time      `json:"lastHeartbeat"`
+	HealthStatus       *string         `json:"healthStatus"`
+	UnservedDomains    []string        `json:"unservedDomains"`
+}
+
 type Secret struct {
 	ID            uuid.UUID `json:"id"`
 	EnvironmentID uuid.UUID `json:"environmentId"`

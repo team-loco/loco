@@ -223,7 +223,7 @@ type Querier interface {
 	ListPlacementSecretEnvs(ctx context.Context, environmentID uuid.UUID) ([]ListPlacementSecretEnvsRow, error)
 	ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]ListPlacementsByIDsRow, error)
 	ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.UUID) ([]ListQueuedClusterBuildsRow, error)
-	ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error)
+	ListRegionStatusesForResources(ctx context.Context, arg ListRegionStatusesForResourcesParams) ([]ListRegionStatusesForResourcesRow, error)
 	ListResourceDeployments(ctx context.Context, arg ListResourceDeploymentsParams) ([]ListResourceDeploymentsRow, error)
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceDomainsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceDomain, error)
