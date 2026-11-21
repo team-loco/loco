@@ -33,25 +33,26 @@ const (
 	cursorBytes        = 8
 )
 
-var ErrInvalidCursor = errors.New("invalid event stream cursor")
+var ErrInvalidCursor = errors.New("invalid event cursor")
 
-type streamPosition int64
+// eventPosition is an event's stream position or seq, as the opaque token clients send back.
+type eventPosition int64
 
-func (p streamPosition) encode() string {
+func (p eventPosition) encode() string {
 	buf := make([]byte, 0, cursorBytes)
 	buf = binary.BigEndian.AppendUint64(buf, uint64(p))
 	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
-func decodeStreamCursor(cursor string) (streamPosition, error) {
+func decodeEventPosition(cursor string) (eventPosition, error) {
 	if cursor == "" {
-		return streamPosition(0), nil
+		return eventPosition(0), nil
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(cursor)
 	if err != nil || len(raw) != cursorBytes {
-		return streamPosition(0), ErrInvalidCursor
+		return eventPosition(0), ErrInvalidCursor
 	}
-	return streamPosition(binary.BigEndian.Uint64(raw)), nil
+	return eventPosition(binary.BigEndian.Uint64(raw)), nil
 }
 
 type EventServer struct {
@@ -111,18 +112,36 @@ func (s *EventServer) ListEvents(
 	if err != nil {
 		return nil, err
 	}
+	before, err := decodeEventPosition(req.GetPageToken())
+	if err != nil {
+		return nil, fieldError(connect.CodeInvalidArgument, "page_token", publicInvalidPageToken, "")
+	}
 	pageSize := req.GetPageSize()
 	if pageSize == 0 {
 		pageSize = defaultEventPage
 	}
-	rows, err := s.listAuditEvents(ctx, req, scope, filter, pageSize+1)
+	query, err := auditQuery(req, scope, filter)
+	if err != nil {
+		return nil, err
+	}
+	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
+		counted := query
+		counted.Limit = limit
+		return events.CountAudit(ctx, s.db, counted)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count audit events: %w", err)
+	}
+	query.BeforeSeq = int64(before)
+	query.Limit = pageSize + 1
+	rows, err := s.listAuditEvents(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("list audit events: %w", err)
 	}
-	response := &eventv1.ListEventsResponse{Events: rows}
+	response := &eventv1.ListEventsResponse{Events: rows, TotalCount: total}
 	if len(rows) > int(pageSize) {
 		response.Events = rows[:pageSize]
-		response.NextBeforeSeq = response.GetEvents()[len(response.GetEvents())-1].GetSeq()
+		response.NextPageToken = eventPosition(response.GetEvents()[len(response.GetEvents())-1].GetSeq()).encode()
 	}
 	return response, nil
 }
@@ -206,17 +225,7 @@ func (s *EventServer) authorizeEventScope(
 	return eventScope{kind: eventScopeOrg, orgID: orgID}, nil
 }
 
-func (s *EventServer) listAuditEvents(
-	ctx context.Context,
-	req *eventv1.ListEventsRequest,
-	scope eventScope,
-	filter logquery.Expr,
-	maxRows int32,
-) ([]*eventv1.Event, error) {
-	query, err := auditQuery(req, scope, filter, maxRows)
-	if err != nil {
-		return nil, err
-	}
+func (s *EventServer) listAuditEvents(ctx context.Context, query events.AuditQuery) ([]*eventv1.Event, error) {
 	rows, err := events.ListAudit(ctx, s.db, query)
 	if err != nil {
 		return nil, err
@@ -280,7 +289,7 @@ func (s *EventServer) StreamEvents(
 			err = authErr
 		}
 	}()
-	position, err := decodeStreamCursor(req.GetCursor())
+	position, err := decodeEventPosition(req.GetCursor())
 	if err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
@@ -294,11 +303,11 @@ func (s *EventServer) StreamEvents(
 				genDb.ListEventsAfterParams{AfterPosition: int64(position), MaxRows: streamBatch},
 			)
 		} else {
-			query, queryErr := auditQuery(scoped, scope, filter, streamBatch)
+			query, queryErr := auditQuery(scoped, scope, filter)
 			if queryErr != nil {
 				return queryErr
 			}
-			query.Stream, query.AfterPosition = true, int64(position)
+			query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
 			var audit []events.AuditEvent
 			audit, err = events.ListAudit(ctx, s.db, query)
 			for _, row := range audit {
@@ -317,7 +326,7 @@ func (s *EventServer) StreamEvents(
 				batch[i] = eventToProto(row)
 			}
 			last := rows[len(rows)-1]
-			position = streamPosition(*last.StreamPosition)
+			position = eventPosition(*last.StreamPosition)
 			resp := &eventv1.StreamEventsResponse{Events: batch, Cursor: position.encode()}
 			if err = ctx.Err(); err != nil {
 				return err
@@ -363,18 +372,8 @@ func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
 	return filter, nil
 }
 
-func auditQuery(
-	req *eventv1.ListEventsRequest,
-	scope eventScope,
-	filter logquery.Expr,
-	maxRows int32,
-) (events.AuditQuery, error) {
-	query := events.AuditQuery{
-		OrgID:     scope.orgID,
-		BeforeSeq: req.GetBeforeSeq(),
-		Filter:    filter,
-		Limit:     maxRows,
-	}
+func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquery.Expr) (events.AuditQuery, error) {
+	query := events.AuditQuery{OrgID: scope.orgID, Filter: filter}
 	if scope.kind != eventScopeOrg {
 		query.WorkspaceID = &scope.workspaceID
 	}

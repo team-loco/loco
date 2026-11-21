@@ -40,7 +40,8 @@ message Event {
 
 message ListEventsRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
-  int64 before_seq = 2 [(buf.validate.field).int64.gte = 0];
+  // next_page_token from the previous page; empty for the newest events.
+  string page_token = 2 [(buf.validate.field).string.max_len = 64];
   int32 page_size = 4 [(buf.validate.field).int32 = {
     gte: 0
     lte: 500
@@ -64,11 +65,18 @@ message ListEventsRequest {
   // @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
   // docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
   string query = 13 [(buf.validate.field).string.max_bytes = 4096];
+  // Sets total_count in the response.
+  bool include_total_count = 14;
 }
 
 message ListEventsResponse {
+  // Newest first.
   repeated Event events = 1;
-  int64 next_before_seq = 2;
+  // Empty on the last page.
+  string next_page_token = 2;
+  // The events the filters match, ignoring page_token; set when include_total_count is.
+  // Exact up to 10,000; 10,001 means more than 10,000.
+  int32 total_count = 3;
 }
 
 message StreamEventsRequest {

@@ -87,10 +87,10 @@ func TestListEventsRequestIDAndActors(t *testing.T) {
 					for _, e := range res.GetEvents() {
 						got = append(got, e.GetSeq())
 					}
-					if res.GetNextBeforeSeq() == 0 {
+					if res.GetNextPageToken() == "" {
 						break
 					}
-					req.BeforeSeq = res.GetNextBeforeSeq()
+					req.PageToken = res.GetNextPageToken()
 				}
 				if !slices.Equal(got, tc.want) {
 					t.Fatalf("resource=%s: seqs=%v want %v", resource, got, tc.want)

@@ -140,6 +140,8 @@ with session(out) as browser:
         call["body"]["orgId"] == org and not call["body"].get("workspaceId")
         for call in list_events(calls)
     ), list_events(calls)
+    assert any(call["body"].get("includeTotalCount") for call in list_events(calls))
+    expect(page.get_by_text(re.compile(r"^1–50 of [\d,]+ events,"))).to_be_visible()
     expect(page.get_by_role("table", name="Audit events")).to_contain_text("ledger")
     events = page.get_by_role("table", name="Audit events")
     expect(
@@ -152,14 +154,16 @@ with session(out) as browser:
     ).to_contain_text("shared / retired")
 
     with expect_rpc(
-        page, "ListEvents", lambda body: bool(body.get("beforeSeq"))
+        page, "ListEvents", lambda body: bool(body.get("pageToken"))
     ) as older:
         page.get_by_role("button", name="Older events", exact=True).click()
-    assert older.value.request.post_data_json.get("beforeSeq"), (
+    assert older.value.request.post_data_json.get("pageToken"), (
         older.value.request.post_data_json
     )
     expect(rows).not_to_have_count(50)
     expect(page).to_have_url(re.compile(r"[?&]before="))
+    expect(page.get_by_text(re.compile(r"^51–\d+ of [\d,]+ events,"))).to_be_visible()
+    assert not older.value.request.post_data_json.get("includeTotalCount")
     page.reload()
     expect(rows).not_to_have_count(50)
     page.get_by_role("button", name="Newest events", exact=True).click()
@@ -394,7 +398,7 @@ with session(out) as browser:
         lambda body: body.get("query") == request_id,
     ) as searched:
         search.fill(request_id)
-    assert not searched.value.request.post_data_json.get("beforeSeq")
+    assert not searched.value.request.post_data_json.get("pageToken")
     expect(rows).to_have_count(1)
     expect(page.get_by_role("table", name="Audit events")).to_contain_text("inventory")
     expect(page).to_have_url(re.compile(r"[?&]q=" + request_id))
@@ -454,7 +458,7 @@ with session(out) as browser:
     page.goto(
         state["ui_url"]
         + audit_path
-        + f"?range=forever&types=resource.created,unknown.event&ws={shared}&res=00000000-0000-4000-8000-000000000001&env=00000000-0000-4000-8000-000000000002&size=bad&before=bad&q=checkout"
+        + f"?range=forever&types=resource.created,unknown.event&ws={shared}&res=00000000-0000-4000-8000-000000000001&env=00000000-0000-4000-8000-000000000002&size=bad&q=checkout"
     )
     banner = page.get_by_role("status").filter(
         has_text="Some filters in this link couldn’t be used"
@@ -470,7 +474,7 @@ with session(out) as browser:
         expect(banner).to_contain_text(value)
     expect(rows).to_have_count(1)
     expect(search).to_have_value("checkout")
-    expect(page).not_to_have_url(re.compile(r"[?&](range|res|env|size|before)="))
+    expect(page).not_to_have_url(re.compile(r"[?&](range|res|env|size)="))
     assert (
         list_events(calls)[-1]["body"]["query"] == "(@type:resource.created) checkout"
     )
@@ -485,6 +489,11 @@ with session(out) as browser:
     ).to_contain_text("Workspace not found")
     expect(rows).to_have_count(50)
     expect(page).not_to_have_url(re.compile(r"[?&](ws|res|env)="))
+    page.goto(state["ui_url"] + audit_path + "?before=bad")
+    expect(page.get_by_text("Couldn’t load events for this page")).to_be_visible()
+    page.get_by_role("button", name="Show newest events", exact=True).click()
+    expect(rows).to_have_count(50)
+    expect(page).not_to_have_url(re.compile(r"[?&]before="))
     page.goto(state["ui_url"] + audit_path + "?env=missing")
     expect(banner).to_contain_text("pick a workspace to filter by environment")
     expect(page.get_by_role("button", name="Environment", exact=True)).to_have_count(0)

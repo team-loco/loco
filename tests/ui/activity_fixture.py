@@ -126,7 +126,7 @@ def verify_activity_access(state, activity):
             for item in granted
         )
         first = call(state, method, {**scope, "pageSize": 50}, user=user)
-        assert len(first["events"]) == 50 and first.get("nextBeforeSeq")
+        assert len(first["events"]) == 50 and first.get("nextPageToken")
         assert all(
             event["orgId"] == activity["orgId"]
             and event["workspaceId"] == activity["workspaceId"]
@@ -140,7 +140,7 @@ def verify_activity_access(state, activity):
         second = call(
             state,
             method,
-            {**scope, "pageSize": 50, "beforeSeq": first["nextBeforeSeq"]},
+            {**scope, "pageSize": 50, "pageToken": first["nextPageToken"]},
             user=user,
         )
         assert second["events"]

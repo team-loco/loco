@@ -777,8 +777,11 @@ func (s *fakeEventService) ListEvents(
 	defer s.api.mu.Unlock()
 	s.api.platform.eventPageSizes = append(s.api.platform.eventPageSizes, req.GetPageSize())
 	before := int64(6)
-	if req.GetBeforeSeq() > 0 {
-		before = req.GetBeforeSeq()
+	if req.GetPageToken() != "" {
+		var err error
+		if before, err = strconv.ParseInt(req.GetPageToken(), 10, 64); err != nil {
+			return nil, err
+		}
 	}
 	size := 2
 	if req.GetPageSize() > 0 {
@@ -797,9 +800,9 @@ func (s *fakeEventService) ListEvents(
 			events = append(events, event)
 		}
 	}
-	next := int64(0)
+	next := ""
 	if seq > 0 {
-		next = seq + 1
+		next = strconv.FormatInt(seq+1, 10)
 	}
-	return &eventv1.ListEventsResponse{Events: events, NextBeforeSeq: next}, nil
+	return &eventv1.ListEventsResponse{Events: events, NextPageToken: next}, nil
 }

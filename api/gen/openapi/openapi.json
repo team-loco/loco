@@ -12444,11 +12444,11 @@
             "title": "org_id",
             "format": "uuid"
           },
-          "beforeSeq": {
+          "pageToken": {
             "type": "string",
-            "title": "before_seq",
-            "format": "int64",
-            "description": "int64.gte = 0\n"
+            "title": "page_token",
+            "maxLength": 64,
+            "description": "next_page_token from the previous page; empty for the newest events."
           },
           "pageSize": {
             "type": "integer",
@@ -12485,6 +12485,11 @@
             "type": "string",
             "title": "query",
             "description": "Audit query: free text matched against the actor, target, event type and request ID, the\n @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.\n docs/content/reference/audit-queries.md describes the fields. Empty matches every event.\nstring.max_bytes = 4096\n"
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
           }
         },
         "title": "ListEventsRequest",
@@ -12498,12 +12503,19 @@
             "items": {
               "$ref": "#/components/schemas/loco.event.v1.Event"
             },
-            "title": "events"
+            "title": "events",
+            "description": "Newest first."
           },
-          "nextBeforeSeq": {
+          "nextPageToken": {
             "type": "string",
-            "title": "next_before_seq",
-            "format": "int64"
+            "title": "next_page_token",
+            "description": "Empty on the last page."
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The events the filters match, ignoring page_token; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
           }
         },
         "title": "ListEventsResponse",

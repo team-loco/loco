@@ -37,9 +37,9 @@ export function runtimeEventsOptions(
 		queryKey: [...key, "all-pages"] as const,
 		queryFn: async ({ signal }: { signal: AbortSignal }) => {
 			const client = createClient(EventService, transport);
-			const events = await collectPages(async (cursor) => {
-				const page = await client.listEvents({ ...input, beforeSeq: cursor === "" ? 0n : BigInt(cursor) }, { signal });
-				return { items: page.events, nextPageToken: page.nextBeforeSeq === 0n ? "" : page.nextBeforeSeq.toString() };
+			const events = await collectPages(async (pageToken) => {
+				const page = await client.listEvents({ ...input, pageToken }, { signal });
+				return { items: page.events, nextPageToken: page.nextPageToken };
 			});
 			return create(ListEventsResponseSchema, { events });
 		},

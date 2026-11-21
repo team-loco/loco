@@ -88,10 +88,10 @@ Examples:
 					return fmt.Errorf("failed to fetch events: %w", err)
 				}
 				items = append(items, response.GetEvents()...)
-				if response.GetNextBeforeSeq() == 0 || (limit > 0 && len(items) >= int(limit)) {
+				if response.GetNextPageToken() == "" || (limit > 0 && len(items) >= int(limit)) {
 					break
 				}
-				request.BeforeSeq = response.GetNextBeforeSeq()
+				request.PageToken = response.GetNextPageToken()
 			}
 
 			if limit > 0 && len(items) > int(limit) {

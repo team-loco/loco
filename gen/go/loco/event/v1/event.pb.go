@@ -209,22 +209,25 @@ func (x *Event) GetDeploymentId() string {
 }
 
 type ListEventsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	BeforeSeq     int64                  `protobuf:"varint,2,opt,name=before_seq,json=beforeSeq,proto3" json:"before_seq,omitempty"`
-	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	ResourceId    string                 `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	EnvironmentId string                 `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	OrgId string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	// next_page_token from the previous page; empty for the newest events.
+	PageToken     string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	PageSize      int32  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	WorkspaceId   string `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId    string `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	// Inclusive start and exclusive end of the event creation time range.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	EndTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	// Audit query: free text matched against the actor, target, event type and request ID, the
 	// @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
 	// docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
-	Query         string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Query string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,14,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListEventsRequest) Reset() {
@@ -264,11 +267,11 @@ func (x *ListEventsRequest) GetOrgId() string {
 	return ""
 }
 
-func (x *ListEventsRequest) GetBeforeSeq() int64 {
+func (x *ListEventsRequest) GetPageToken() string {
 	if x != nil {
-		return x.BeforeSeq
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 func (x *ListEventsRequest) GetPageSize() int32 {
@@ -320,10 +323,22 @@ func (x *ListEventsRequest) GetQuery() string {
 	return ""
 }
 
+func (x *ListEventsRequest) GetIncludeTotalCount() bool {
+	if x != nil {
+		return x.IncludeTotalCount
+	}
+	return false
+}
+
 type ListEventsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	NextBeforeSeq int64                  `protobuf:"varint,2,opt,name=next_before_seq,json=nextBeforeSeq,proto3" json:"next_before_seq,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Newest first.
+	Events []*Event `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	// Empty on the last page.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// The events the filters match, ignoring page_token; set when include_total_count is.
+	// Exact up to 10,000; 10,001 means more than 10,000.
+	TotalCount    int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -365,9 +380,16 @@ func (x *ListEventsResponse) GetEvents() []*Event {
 	return nil
 }
 
-func (x *ListEventsResponse) GetNextBeforeSeq() int64 {
+func (x *ListEventsResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextBeforeSeq
+		return x.NextPageToken
+	}
+	return ""
+}
+
+func (x *ListEventsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
 	}
 	return 0
 }
@@ -559,11 +581,11 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"resourceId\x12%\n" +
 	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\x12(\n" +
 	"\x10actor_token_type\x18\x11 \x01(\tR\x0eactorTokenType\x12#\n" +
-	"\rdeployment_id\x18\x12 \x01(\tR\fdeploymentId\"\xa9\x03\n" +
+	"\rdeployment_id\x18\x12 \x01(\tR\fdeploymentId\"\xd9\x03\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
-	"before_seq\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\tbeforeSeq\x12'\n" +
+	"page_token\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18@R\tpageToken\x12'\n" +
 	"\tpage_size\x18\x04 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xf4\x03(\x00R\bpageSize\x12.\n" +
 	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12,\n" +
@@ -573,10 +595,13 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
 	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1e\n" +
-	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\"j\n" +
+	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12.\n" +
+	"\x13include_total_count\x18\x0e \x01(\bR\x11includeTotalCount\"\x8b\x01\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
-	"\x0fnext_before_seq\x18\x02 \x01(\x03R\rnextBeforeSeq\"\xfe\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\"\xfe\x02\n" +
 	"\x13StreamEventsRequest\x12\x1f\n" +
 	"\x06cursor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\x12\"\n" +
 	"\x06org_id\x18\x02 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12.\n" +

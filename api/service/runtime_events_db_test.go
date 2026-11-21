@@ -89,10 +89,10 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(first.GetEvents()) != 2 || first.GetEvents()[0].GetType() != events.ResourceRecovered ||
-		first.GetNextBeforeSeq() == 0 {
+		first.GetNextPageToken() == "" {
 		t.Fatalf("first = %v", first)
 	}
-	req.BeforeSeq = first.GetNextBeforeSeq()
+	req.PageToken = first.GetNextPageToken()
 	second, err := eventServer.ListEvents(ctx, req)
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +101,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		second.GetEvents()[0].GetData().GetFields()["reason"].GetStringValue() != string(
 			locov1alpha1.ProblemRestarting,
 		) ||
-		second.GetNextBeforeSeq() != 0 {
+		second.GetNextPageToken() != "" {
 		t.Fatalf("second = %v", second)
 	}
 	for _, event := range append(first.Events, second.GetEvents()...) {
@@ -121,7 +121,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	if deliveries != 3 {
 		t.Fatalf("webhook deliveries = %d, want 3", deliveries)
 	}
-	req.BeforeSeq = 0
+	req.PageToken = ""
 	req.EnvironmentId = uuid.NewString()
 	empty, err := eventServer.ListEvents(ctx, req)
 	if err != nil || len(empty.GetEvents()) != 0 {

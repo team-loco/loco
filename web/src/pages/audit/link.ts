@@ -1,15 +1,8 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { BadRequestSchema } from "@gen/google/rpc/error_details_pb";
-import { createParser } from "nuqs";
 
 import { AUDIT_EVENT_TYPES } from "@/pages/settings/auditEvents";
 import { PAGE_SIZES, RANGES } from "./model";
-
-export const sequenceParser = createParser<bigint>({
-	parse: (value) =>
-		/^\d+$/.test(value) && BigInt(value) > 0n && BigInt(value) <= 9223372036854775807n ? BigInt(value) : null,
-	serialize: (value) => value.toString(),
-});
 
 export interface DroppedFilter {
 	label: string;
@@ -35,17 +28,15 @@ export function auditLink(
 	const size = params.get("size");
 	if (size !== null && !PAGE_SIZES.some((s) => s.toString() === size))
 		drop("size", "Rows per page", `Use ${PAGE_SIZES.join(", ")}`);
-	for (const [key, label, valid, reason] of [
-		["types", "Event", (v: string) => AUDIT_EVENT_TYPES.some((t) => t === v), "Unknown event type"],
-		["before", "Page", (v: string) => sequenceParser.parse(v) !== null, "Invalid page position"],
-	] as const) {
-		const raw = params.get(key);
-		if (raw === null) continue;
-		const values = raw.split(",");
-		const kept = values.filter(valid);
-		for (const value of values.filter((v) => !valid(v))) dropped.push({ label, value, reason });
-		if (kept.length > 0) params.set(key, kept.join(","));
-		else params.delete(key);
+	const types = params.get("types");
+	if (types !== null) {
+		const values = types.split(",");
+		const known = (v: string) => AUDIT_EVENT_TYPES.some((t) => t === v);
+		for (const value of values.filter((v) => !known(v)))
+			dropped.push({ label: "Event", value, reason: "Unknown event type" });
+		const kept = values.filter(known);
+		if (kept.length > 0) params.set("types", kept.join(","));
+		else params.delete("types");
 	}
 	const workspace = params.get("ws");
 	if (workspace !== null && workspaces !== undefined && !workspaces.includes(workspace))
@@ -78,7 +69,7 @@ export const AUDIT_FILTER_FIXES = new Map<
 	["start_time", { label: "Reset time range", params: { range: null, from: null, to: null } }],
 	["end_time", { label: "Reset time range", params: { range: null, from: null, to: null } }],
 	["page_size", { label: "Reset rows per page", params: { size: null } }],
-	["before_seq", { label: "Show newest events", params: { before: null } }],
+	["page_token", { label: "Show newest events", params: { before: null } }],
 	["workspace_id", { label: "Clear workspace filter", params: { ws: null, res: null, env: null } }],
 	["resource_id", { label: "Clear resource filter", params: { res: null } }],
 	["environment_id", { label: "Clear environment filter", params: { env: null } }],

@@ -48,7 +48,7 @@ test("warning counts include later pages with the same environment scope", async
 		router.service(EventService, {
 			listEvents(request) {
 				requests.push(request);
-				return request.beforeSeq === 0n
+				return request.pageToken === ""
 					? {
 							events: Array.from({ length: 500 }, (_, i) => ({
 								id: i.toString(),
@@ -56,7 +56,7 @@ test("warning counts include later pages with the same environment scope", async
 								createdAt: msToTimestamp(now),
 								data: { reason: "restarting" },
 							})),
-							nextBeforeSeq: 10n,
+							nextPageToken: "next",
 						}
 					: {
 							events: [
@@ -82,9 +82,9 @@ test("warning counts include later pages with the same environment scope", async
 			}),
 		);
 		expect(recentWarningCount(result.events.map(runtimeEvent), now)).toBe(501);
-		expect(requests.map((r) => [r.orgId, r.workspaceId, r.resourceId, r.environmentId, r.query, r.beforeSeq])).toEqual([
-			["org", "workspace", "resource", "production", "(@type:resource.degraded OR @type:resource.recovered)", 0n],
-			["org", "workspace", "resource", "production", "(@type:resource.degraded OR @type:resource.recovered)", 10n],
+		expect(requests.map((r) => [r.orgId, r.workspaceId, r.resourceId, r.environmentId, r.query, r.pageToken])).toEqual([
+			["org", "workspace", "resource", "production", "(@type:resource.degraded OR @type:resource.recovered)", ""],
+			["org", "workspace", "resource", "production", "(@type:resource.degraded OR @type:resource.recovered)", "next"],
 		]);
 	} finally {
 		client.clear();

@@ -1,4 +1,4 @@
-import { useQuery, useTransport } from "@connectrpc/connect-query";
+import { useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { BoxIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
@@ -24,13 +24,15 @@ import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
+import { useTokenPage } from "@/hooks/useTokenPage";
 import { msParser, type TimeWindow } from "@/lib/obs-time";
+import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { agoLabel, msToTimestamp } from "@/lib/time";
 import { TimeRangePicker } from "./observability/Toolbar";
 import { AuditQueryError } from "./audit/AuditQueryError";
 import { auditSearchError, insertAuditField } from "./audit/queryError";
 
-import { AUDIT_FILTER_FIXES, auditLink, auditFilterViolations, sequenceParser, type DroppedFilter } from "./audit/link";
+import { AUDIT_FILTER_FIXES, auditLink, auditFilterViolations, type DroppedFilter } from "./audit/link";
 import { DroppedFilters, AuditFilterError } from "./audit/AuditFeedback";
 import { AuditDrawer } from "./audit/AuditDrawer";
 import { ActorFilter, EventFilter } from "./audit/AuditFilters";
@@ -44,7 +46,7 @@ const NOW_TICK_MS = 60_000;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const AUDIT_PARAMS = {
-	before: parseAsArrayOf(sequenceParser).withDefault([]),
+	before: pageTokensParser,
 	live: parseAsInteger.withDefault(0),
 	range: parseAsStringLiteral(RANGES.map((r) => r.value)).withDefault(DEFAULT_RANGE.value),
 	from: msParser,
@@ -150,24 +152,20 @@ export function Audit() {
 		}
 		void setParams({ ...next, before: null });
 	};
-	const query = useQuery(
-		listEvents,
-		{
-			orgId,
-			workspaceId,
-			resourceId,
-			environmentId,
-			query: sent,
-			pageSize: size,
-			beforeSeq: stack.at(-1) ?? 0n,
-			startTime: msToTimestamp(custom ? from : openedAt - range.ms),
-			...(custom ? { endTime: msToTimestamp(to) } : {}),
-		},
-		{
-			enabled: orgId !== "" && !access.isLoading && (!(params.res || params.env) || !selectedDetails.isLoading),
-			refetchInterval: live ? 5000 : false,
-		},
-	);
+	const input = {
+		orgId,
+		workspaceId,
+		resourceId,
+		environmentId,
+		query: sent,
+		pageSize: size,
+		startTime: msToTimestamp(custom ? from : openedAt - range.ms),
+		...(custom ? { endTime: msToTimestamp(to) } : {}),
+	};
+	const { query, nextPageToken, total } = useTokenPage(listEvents, input, stack, {
+		enabled: orgId !== "" && !access.isLoading && (!(params.res || params.env) || !selectedDetails.isLoading),
+		refetchInterval: live ? 5000 : false,
+	});
 	const members = useTanstackQuery({
 		...orgMembersOptions(transport, orgId),
 		enabled: access.org,
@@ -225,7 +223,10 @@ export function Audit() {
 		(access.org && workspaceId !== "") ||
 		resourceId !== "" ||
 		environmentId !== "";
-	const nextBeforeSeq = query.data?.nextBeforeSeq ?? 0n;
+	// Older leaves live mode and the open event; Newer and Newest keep the event open.
+	const pager = tokenPager(stack, nextPageToken, (before) => {
+		void setParams((before?.length ?? 0) > stack.length ? { before, live: null, event: null } : { before });
+	});
 	const first = rows[0];
 	const last = rows.at(-1);
 	const loading = access.isLoading || query.isLoading;
@@ -434,8 +435,9 @@ export function Audit() {
 							label={
 								first === undefined || last === undefined
 									? ""
-									: `${rows.length.toLocaleString()} events, ${agoLabel(first.ms, now).replace(/ ago$/, "")} to ${agoLabel(last.ms, now)}`
+									: `${tokenPageLabel(stack.length, size, rows.length, total)} events, ${agoLabel(first.ms, now).replace(/ ago$/, "")} to ${agoLabel(last.ms, now)}`
 							}
+							page={pager.page}
 							total={rows.length}
 							pageSizes={PAGE_SIZES}
 							pageSize={size}
@@ -449,31 +451,9 @@ export function Audit() {
 							prevLabel="Newer events"
 							nextLabel="Older events"
 							text={{ first: "Newest", prev: "Newer", next: "Older" }}
-							onFirst={
-								stack.length > 0
-									? () => {
-											void setParams({ before: null });
-										}
-									: null
-							}
-							onPrev={
-								stack.length > 0
-									? () => {
-											void setParams({ before: stack.slice(0, -1) });
-										}
-									: null
-							}
-							onNext={
-								nextBeforeSeq !== 0n
-									? () => {
-											void setParams({
-												before: [...stack, nextBeforeSeq],
-												live: null,
-												event: null,
-											});
-										}
-									: null
-							}
+							onFirst={pager.onFirst}
+							onPrev={pager.onPrev}
+							onNext={pager.onNext}
 						/>
 					)}
 				</Section>
