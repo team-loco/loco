@@ -1,10 +1,9 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { OrgRole, type Invitation, type OrgMember } from "@gen/loco/org/v1/org_pb";
+import { OrgPeopleView, OrgRole, type Invitation, type OrgMember, type OrgPerson } from "@gen/loco/org/v1/org_pb";
 
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
-import { shortDurationLabel, tsMs } from "@/lib/time";
-import { userLabel } from "@/lib/user";
+import { shortDurationLabel } from "@/lib/time";
 
 export type ScopeName = "read" | "write" | "admin";
 export type Level = AccessLevel;
@@ -13,10 +12,10 @@ export type Role = "Admin" | "Member";
 
 export const SCOPE_NAMES: ScopeName[] = ["read", "write", "admin"];
 export const LEVELS: Level[] = [0, 1, 2, 3];
-export const VIEWS: { key: View; label: string }[] = [
-	{ key: "all", label: "All" },
-	{ key: "members", label: "Members" },
-	{ key: "invitations", label: "Invitations" },
+export const VIEWS: { key: View; label: string; view: OrgPeopleView }[] = [
+	{ key: "all", label: "All", view: OrgPeopleView.UNSPECIFIED },
+	{ key: "members", label: "Members", view: OrgPeopleView.MEMBERS },
+	{ key: "invitations", label: "Invitations", view: OrgPeopleView.INVITATIONS },
 ];
 
 const EMAIL_SEPARATORS = /[\s,;]+/;
@@ -137,47 +136,16 @@ export function untilLabel(ms: number, now: number): string {
 	return ms <= now ? "expired" : `in ${shortDurationLabel(ms - now)}`;
 }
 
-function displayName(m: Member): string {
-	const user = m.member.user;
-	return user === undefined ? "" : userLabel(user);
-}
-
-function matches(row: TeamRow, q: string): boolean {
-	if (q === "") return true;
-	if (row.kind === "invitation") return row.invitation.email.toLowerCase().includes(q);
-	const user = row.member.member.user;
-	return `${user?.name ?? ""} ${user?.email ?? ""}`.toLowerCase().includes(q);
-}
-
-export function inWorkspace(m: Member, workspaceId: string): boolean {
-	return roleOf(m.member.scopes) === "Admin" || m.workspaces.some((w) => w.id === workspaceId);
-}
-
-export function buildRows(
-	members: readonly Member[],
-	invitations: readonly Invitation[],
-	view: View,
-	query: string,
-	meId: string,
-	workspaceId = "",
-): TeamRow[] {
-	const q = query.trim().toLowerCase();
-	const invitationRows: TeamRow[] =
-		view === "members" || workspaceId !== ""
-			? []
-			: invitations
-					.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt))
-					.map((invitation) => ({ kind: "invitation", invitation }));
-	const memberRows: TeamRow[] =
-		view === "invitations"
-			? []
-			: members
-					.filter((m) => workspaceId === "" || inWorkspace(m, workspaceId))
-					.toSorted((a, b) => {
-						const aMe = a.member.user?.id === meId ? 0 : 1;
-						const bMe = b.member.user?.id === meId ? 0 : 1;
-						return aMe - bMe || displayName(a).localeCompare(displayName(b));
-					})
-					.map((member) => ({ kind: "member", member }));
-	return [...invitationRows, ...memberRows].filter((row) => matches(row, q));
+/** The rows of one page of ListOrgPeople. */
+export function teamRows(people: readonly OrgPerson[]): TeamRow[] {
+	return people.flatMap((person): TeamRow[] => {
+		if (person.person.case === "invitation") return [{ kind: "invitation", invitation: person.person.value }];
+		if (person.person.case !== "member") return [];
+		const workspaces = person.workspaces.map((w) => ({
+			id: w.workspaceId,
+			name: w.workspaceName,
+			scopes: w.scopes.map(parseScopeName).filter((s): s is ScopeName => s !== null),
+		}));
+		return [{ kind: "member", member: { member: person.person.value, workspaces } }];
+	});
 }

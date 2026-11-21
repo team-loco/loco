@@ -1,32 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
-import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { InvitationSchema, OrgMemberSchema, UserSchema } from "@gen/loco/org/v1/org_pb";
+import { InvitationSchema, OrgMemberSchema, OrgPersonSchema, UserSchema } from "@gen/loco/org/v1/org_pb";
 
 import {
-	buildRows,
 	inviteFailure,
 	levelBlocked,
 	levelPlan,
 	parseEmails,
 	roleOf,
+	teamRows,
 	untilLabel,
-	type Member,
 	type ScopeName,
 } from "./model";
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
-
-function member(id: string, name: string, email: string): Member {
-	const user = create(UserSchema, { id, name, email });
-	return { member: create(OrgMemberSchema, { user, scopes: ["member"] }), workspaces: [] };
-}
-
-function invitation(id: string, email: string, createdMs: number) {
-	return create(InvitationSchema, { id, email, createdAt: timestampFromMs(createdMs) });
-}
 
 function holding(...held: ScopeName[]) {
 	return (s: ScopeName) => held.includes(s);
@@ -102,24 +91,24 @@ describe("untilLabel", () => {
 	});
 });
 
-describe("buildRows", () => {
-	const members = [member("2", "Zoe", "zoe@x"), member("1", "", "me@x"), member("3", "Ann", "ann@x")];
-	const invitations = [invitation("i1", "old@x", 1), invitation("i2", "new@x", 2)];
-
-	test("lists newest invitations first, then you, then members by name", () => {
-		const rows = buildRows(members, invitations, "all", "", "1");
-		expect(rows.map((r) => (r.kind === "invitation" ? r.invitation.id : r.member.member.user?.id))).toEqual([
-			"i2",
-			"i1",
-			"1",
-			"3",
-			"2",
+describe("teamRows", () => {
+	test("keeps the page order and reads each member's known workspace scopes", () => {
+		const rows = teamRows([
+			create(OrgPersonSchema, {
+				person: { case: "invitation", value: create(InvitationSchema, { id: "i1", email: "new@x" }) },
+			}),
+			create(OrgPersonSchema, {
+				person: {
+					case: "member",
+					value: create(OrgMemberSchema, { user: create(UserSchema, { id: "u1", email: "ann@x" }) }),
+				},
+				workspaces: [{ workspaceId: "w1", workspaceName: "shop", scopes: ["read", "owner", "write"] }],
+			}),
 		]);
-	});
-
-	test("filters by view and by name or email", () => {
-		expect(buildRows(members, invitations, "invitations", "", "1")).toHaveLength(2);
-		expect(buildRows(members, invitations, "members", "ZO", "1")).toHaveLength(1);
-		expect(buildRows(members, invitations, "all", "new@", "1")).toHaveLength(1);
+		expect(rows.map((r) => r.kind)).toEqual(["invitation", "member"]);
+		const second = rows[1];
+		expect(second?.kind === "member" ? second.member.workspaces : []).toEqual([
+			{ id: "w1", name: "shop", scopes: ["read", "write"] },
+		]);
 	});
 });

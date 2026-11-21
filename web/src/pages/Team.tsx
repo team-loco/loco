@@ -1,15 +1,16 @@
 import { useMutation } from "@connectrpc/connect-query";
 import {
-	listOrgMembers,
+	listOrgPeople,
 	removeOrgMember,
 	resendInvitation,
 	setOrgMemberRole,
 } from "@gen/loco/org/v1/org-OrgService_connectquery";
-import { OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
+import { OrgPeopleView, OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { LayersIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
-import { useState } from "react";
-import { parseAsInteger, parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { keepPreviousData } from "@tanstack/react-query";
+import { parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 
@@ -29,15 +30,16 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
+import { useTokenPage } from "@/hooks/useTokenPage";
 import { useCopy } from "@/hooks/useCopy";
 import { toastConnectError } from "@/lib/error-handler";
 import { limitReason, limitUsage } from "@/lib/limits";
 import { userLabel } from "@/lib/user";
-import { pagedRows } from "@/lib/paging";
+import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 
 import { DOCS_URL } from "./splash/links";
 import { InviteDrawer } from "./team/InviteDrawer";
-import { buildRows, inWorkspace, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
+import { teamRows, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
 import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
 import { TeamArt } from "./team/TeamArt";
 import { TeamTable } from "./team/TeamTable";
@@ -55,7 +57,7 @@ const TEAM_PARAMS = {
 	ws: parseAsString.withDefault(""),
 	access: parseAsString,
 	invite: parseAsStringLiteral(["1"]),
-	page: parseAsInteger.withDefault(0),
+	pages: pageTokensParser,
 	size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]),
 };
 
@@ -81,26 +83,39 @@ export function Team() {
 	const canChangeRoles = scopes.holds(orgId, "", Scope.ADMIN);
 	const orgName = data.org?.name ?? "";
 	const inviteOpen = canInvite && params.invite !== null;
-	const rows = buildRows(data.members, data.invitations, view, q, meId, wsFilter);
-	const paged = pagedRows(
-		rows,
-		{ page: params.page, size },
-		(next) => {
-			void setParams({ page: next.page, size: PAGE_SIZES.find((n) => n === next.size) ?? null });
+	const people = useTokenPage(
+		listOrgPeople,
+		{
+			orgId,
+			pageSize: size,
+			query: q.trim(),
+			view: VIEWS.find((v) => v.key === view)?.view ?? OrgPeopleView.UNSPECIFIED,
+			workspaceId: wsFilter,
 		},
-		PAGE_SIZES,
+		params.pages,
+		{ enabled: orgId !== "", placeholderData: keepPreviousData },
 	);
-	const resetPage = { page: null };
-	const workspaceCounts = new Map(
-		data.workspaces.map((w) => [w.id, data.members.filter((m) => inWorkspace(m, w.id)).length]),
-	);
-	const counts: Record<View, number> = {
-		all: data.members.length + data.invitations.length,
-		members: data.members.length,
-		invitations: data.invitations.length,
-	};
-	const accessMember = data.members.find((m) => m.member.user?.id === accessId) ?? null;
-	const justYou = !data.isLoading && data.members.length <= 1 && data.invitations.length === 0;
+	const isLoading = people.query.isPending;
+	const peopleData = people.query.data;
+	const rows = useMemo(() => teamRows(peopleData?.people ?? []), [peopleData]);
+	const pager = tokenPager(params.pages, people.nextPageToken, (pages) => {
+		void setParams({ pages });
+	});
+	const resetPage = { pages: null };
+	const counted = people.counts;
+	const workspaceCounts = new Map(Object.entries(counted?.workspaceMemberCounts ?? {}));
+	const counts: Record<View, number> | undefined =
+		counted === undefined
+			? undefined
+			: {
+					all: counted.memberCount + counted.invitationCount,
+					members: counted.memberCount,
+					invitations: counted.invitationCount,
+				};
+	const accessMember =
+		rows.flatMap((r) => (r.kind === "member" && r.member.member.user?.id === accessId ? [r.member] : []))[0] ?? null;
+	const justYou = counted !== undefined && counted.memberCount <= 1 && counted.invitationCount === 0;
+	const error = data.orgError ?? people.query.error;
 
 	const setInviteOpen = (open: boolean) => {
 		void setParams({ invite: open ? "1" : null });
@@ -113,7 +128,7 @@ export function Team() {
 		} catch (err) {
 			toastConnectError(err, "Failed to resend the invitation");
 		} finally {
-			await data.invalidateInvitations();
+			await data.invalidatePeople();
 		}
 	};
 
@@ -127,7 +142,7 @@ export function Team() {
 			});
 			setRoleChange(null);
 			toast("Organization role updated");
-			await data.invalidateRoles();
+			await data.invalidatePeople();
 		} catch (err) {
 			toastConnectError(err, "Failed to change the organization role");
 		}
@@ -139,19 +154,19 @@ export function Team() {
 			await remove.mutateAsync({ orgId, userId: removing.userId });
 			setRemoving(null);
 			toast(`Removed ${removing.name}`);
-			await Promise.all([data.invalidateRoles(), data.invalidateAccess()]);
+			await data.invalidatePeople();
 		} catch (err) {
 			toastConnectError(err, "Failed to remove the member");
 		}
 	};
 
 	const memberUsage =
-		data.isLoading || data.error
+		counted === undefined || error !== null
 			? null
-			: limitUsage(data.members.length, limits?.membersPerOrg, "members", "organization");
-	const openInvitations = useOpenInvitations(orgId, now);
+			: limitUsage(counted.memberCount, limits?.membersPerOrg, "members", "organization");
+	const openInvitations = useOpenInvitations(orgId);
 	const invitationUsage =
-		openInvitations === undefined || data.error
+		openInvitations === undefined || error !== null
 			? null
 			: limitUsage(openInvitations, limits?.invitationsPerOrg, "open invitations", "organization");
 	const inviteBlocked = canInvite
@@ -197,10 +212,10 @@ export function Team() {
 		return (
 			<>
 				<TeamTable
-					rows={paged.rows}
+					rows={rows}
 					now={now}
-					isLoading={data.isLoading}
-					accessLoading={data.accessLoading}
+					isLoading={isLoading}
+					accessLoading={isLoading}
 					empty={empty}
 					actions={{
 						meId,
@@ -252,7 +267,16 @@ export function Team() {
 						</span>
 					</section>
 				) : (
-					<Pager {...paged.pager} />
+					<Pager
+						{...pager}
+						label={tokenPageLabel(pager.page, size, rows.length, people.total)}
+						total={rows.length}
+						pageSizes={PAGE_SIZES}
+						pageSize={size}
+						onPageSize={(next) => {
+							void setParams({ size: PAGE_SIZES.find((n) => n === next) ?? null, ...resetPage });
+						}}
+					/>
 				)}
 			</>
 		);
@@ -264,13 +288,19 @@ export function Team() {
 				title={
 					<>
 						Team
-						{!data.isLoading && data.error === null && <LimitCount usage={memberUsage} />}
+						{counted !== undefined && error === null && <LimitCount usage={memberUsage} />}
 					</>
 				}
 				actions={inviteButton}
 			/>
-			{data.error !== null ? (
-				<ErrorState error={data.error} what="people" rpc={listOrgMembers} scope="org" onRetry={data.refetch} />
+			{error !== null ? (
+				<ErrorState
+					error={error}
+					what="people"
+					rpc={listOrgPeople}
+					scope="org"
+					onRetry={async () => await Promise.all([data.refetchOrg(), people.query.refetch()])}
+				/>
 			) : (
 				<Section
 					filters={
@@ -287,7 +317,7 @@ export function Team() {
 								}}
 							>
 								{VIEWS.map((v) => (
-									<ToggleGroupItem key={v.key} value={v.key} count={data.isLoading ? undefined : counts[v.key]}>
+									<ToggleGroupItem key={v.key} value={v.key} count={counts?.[v.key]}>
 										{v.label}
 									</ToggleGroupItem>
 								))}
@@ -328,7 +358,7 @@ export function Team() {
 					setInviteOpen(false);
 				}}
 				onInvited={() => {
-					void data.invalidateInvitations();
+					void data.invalidatePeople();
 				}}
 			/>
 			<WorkspaceAccessDrawer
@@ -338,7 +368,7 @@ export function Team() {
 				onClose={() => {
 					void setParams({ access: null });
 				}}
-				onChanged={data.invalidateAccess}
+				onChanged={data.invalidatePeople}
 			/>
 			<ConfirmDialog
 				open={roleChange !== null}
@@ -380,7 +410,7 @@ export function Team() {
 				onRevoked={(email) => {
 					setRevoking(null);
 					toast(`Revoked the invitation to ${email}`);
-					void data.invalidateInvitations();
+					void data.invalidatePeople();
 				}}
 			/>
 		</Page>

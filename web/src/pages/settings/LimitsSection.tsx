@@ -6,7 +6,6 @@ import type { Organization, OrgLimits } from "@gen/loco/org/v1/org_pb";
 import { Badge } from "@/components/design/Badge";
 import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
-import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { formatCount } from "@/lib/format";
 import { limitTone, limitUsage } from "@/lib/limits";
@@ -124,7 +123,7 @@ export function LimitsSection({
 		retention?.events === undefined
 			? undefined
 			: (Number(retention.events.seconds) + retention.events.nanos / 1e9) / 86_400;
-	const openInvitations = useOpenInvitations(org.id, useNow().getTime());
+	const openInvitations = useOpenInvitations(org.id);
 	const limitRows: LimitRow[] = [
 		{ key: "workspacesPerOrg", label: "Workspaces", per: "Organization", used: workspaceCount },
 		{ key: "membersPerOrg", label: "Members", per: "Organization", used: memberCount },

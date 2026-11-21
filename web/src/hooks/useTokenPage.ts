@@ -20,6 +20,7 @@ export function useTokenPage<I extends DescMessage, O extends DescMessage>(
 		{ ...input, pageSize: 1, pageToken: "", includeTotalCount: true },
 		{
 			enabled: options?.enabled ?? true,
+			...(options?.placeholderData === undefined ? {} : { placeholderData: options.placeholderData }),
 			staleTime: Infinity,
 			refetchInterval: options?.refetchInterval ? COUNT_REFRESH_MS : false,
 		},
