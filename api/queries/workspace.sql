@@ -100,6 +100,8 @@ SELECT COUNT(*) FROM (
 -- name: CountWorkspaceContents :many
 SELECT w.id,
        (SELECT COUNT(*) FROM resources r WHERE r.workspace_id = w.id)::int AS resource_count,
+       (SELECT COUNT(*) FROM environments e WHERE e.workspace_id = w.id)::int AS environment_count,
+       (SELECT COUNT(*) FROM webhooks wh WHERE wh.kind = 'workspace' AND wh.workspace_id = w.id)::int AS webhook_count,
        (SELECT COUNT(DISTINCT us.user_id) FROM user_scopes us
         WHERE us.entity_type = 'workspace' AND us.entity_id = w.id)::int AS member_count
 FROM workspaces w

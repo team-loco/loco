@@ -2,6 +2,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { CountLimits } from "@gen/loco/config/v1/config_pb";
 import type { Organization, OrgLimits } from "@gen/loco/org/v1/org_pb";
+import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
@@ -115,7 +116,7 @@ export function LimitsSection({
 	workspaceCount: number | undefined;
 	memberCount: number | undefined;
 	/** The workspace the page is in, whose per-workspace counts show beside their limits. */
-	workspace: { name: string; resources: number | undefined } | undefined;
+	workspace: Workspace | undefined;
 }) {
 	const { data: config } = useQuery(getConfig, {});
 	const retention = config?.historyRetention;
@@ -128,15 +129,27 @@ export function LimitsSection({
 		{ key: "workspacesPerOrg", label: "Workspaces", per: "Organization", used: workspaceCount },
 		{ key: "membersPerOrg", label: "Members", per: "Organization", used: memberCount },
 		{ key: "invitationsPerOrg", label: "Open invitations", per: "Organization", used: openInvitations },
-		{ key: "environmentsPerWorkspace", label: "Environments", per: "Workspace" },
+		{
+			key: "environmentsPerWorkspace",
+			label: "Environments",
+			per: "Workspace",
+			used: workspace?.environmentCount,
+			where: workspace?.name,
+		},
 		{
 			key: "resourcesPerWorkspace",
 			label: "Resources",
 			per: "Workspace",
-			used: workspace?.resources,
+			used: workspace?.resourceCount,
 			where: workspace?.name,
 		},
-		{ key: "webhooksPerWorkspace", label: "Webhooks", per: "Workspace" },
+		{
+			key: "webhooksPerWorkspace",
+			label: "Webhooks",
+			per: "Workspace",
+			used: workspace?.webhookCount,
+			where: workspace?.name,
+		},
 		{ key: "tokensPerEntity", label: "API tokens", per: "User, organization, workspace or resource" },
 		{ key: "domainsPerResource", label: "Custom domains", per: "Resource" },
 		{ key: "secretsPerEnvironment", label: "Secrets", per: "Environment" },

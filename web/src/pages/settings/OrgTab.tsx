@@ -365,11 +365,7 @@ export function OrgTab({
 				limits={limitDetails}
 				workspaceCount={workspaceCount}
 				memberCount={memberCount}
-				workspace={
-					currentWorkspace === undefined
-						? undefined
-						: { name: currentWorkspace.name, resources: currentWorkspace.resourceCount }
-				}
+				workspace={currentWorkspace}
 			/>
 
 			<SettingsSection id="organization-danger" title="Danger zone">
