@@ -430,15 +430,6 @@ export function MetricsView() {
 		const around = aroundWindow(t, Date.now());
 		const near = deployMarkers.filter((m) => Math.abs(m.t - t) <= (to - from) * DEPLOY_PICK_SHARE);
 		return [
-			...near.map((m) => ({
-				key: `deploy-${m.resourceId}-${String(m.t)}`,
-				icon: <RocketIcon />,
-				label: `Deploy ${m.tag}`,
-				sub: `${m.resourceName} · ${m.region} · ${formatHourMinute(m.t, timePref)}`,
-				run: () => {
-					void navigate(resourcePath(orgId, workspaceId, m.resourceId));
-				},
-			})),
 			{
 				key: "logs",
 				icon: <ScrollTextIcon />,
@@ -461,11 +452,21 @@ export function MetricsView() {
 				key: "events",
 				icon: <BellIcon />,
 				label: `Events around ${formatHourMinute(t, timePref)}`,
-				sub: "deploys, restarts, health checks",
+				sub: "deploys, restarts, scaling",
 				run: () => {
 					goTo("events", { range: around });
 				},
 			},
+			...near.map((m, i) => ({
+				separated: i === 0,
+				key: `deploy-${m.resourceId}-${String(m.t)}`,
+				icon: <RocketIcon />,
+				label: `Deploy ${m.tag}`,
+				sub: `${m.resourceName} · ${m.region} · ${formatHourMinute(m.t, timePref)}`,
+				run: () => {
+					void navigate(resourcePath(orgId, workspaceId, m.resourceId));
+				},
+			})),
 		];
 	};
 	const error = cpu.error ?? mem.error ?? traffic.error;

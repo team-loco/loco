@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatPercent, limitAxis, percentAxis } from "./compute-chart";
+import { formatPercent, limitAxis, percentAxis, quarterAxis } from "./compute-chart";
 
 describe("compute chart axes", () => {
 	test("keeps a comparable 0–100% scale for low usage and labels intermediate levels", () => {
@@ -14,6 +14,10 @@ describe("compute chart axes", () => {
 			maximum: 200,
 			ticks: [0, 50, 100, 150, 200],
 		});
+	});
+	test("leaves room above the limit and labels the quarters between zero and the top", () => {
+		expect(quarterAxis(3)).toEqual({ maximum: 120, ticks: [30, 60, 90] });
+		expect(quarterAxis(147)).toEqual({ maximum: 200, ticks: [50, 100, 150] });
 	});
 	test("keeps subpercent utilization and exact zero legible", () => {
 		expect(formatPercent(0)).toBe("0%");

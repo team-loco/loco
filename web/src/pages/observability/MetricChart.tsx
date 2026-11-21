@@ -1,6 +1,6 @@
 import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useRef, useState, type ReactNode } from "react";
+import { Fragment, useRef, useState, type ReactNode } from "react";
 import { ListIcon } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
 
@@ -12,9 +12,10 @@ import {
 	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
-import { formatPercent, percentAxis } from "@/lib/compute-chart";
+import { formatPercent, quarterAxis } from "@/lib/compute-chart";
 import { limitAt, type LimitStep } from "@/lib/limit-history";
 import { trafficAxis } from "@/lib/traffic";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,8 @@ export interface PinAction {
 	icon: ReactNode;
 	label: string;
 	sub: string;
+	/** Starts a new group in the menu. */
+	separated?: boolean;
 	run: () => void;
 }
 
@@ -210,20 +213,22 @@ function PinMenu({
 			<DropdownMenuGroup>
 				<DropdownMenuLabel>{fmtTs(t, false, timePref)}</DropdownMenuLabel>
 				{actions.map((a) => (
-					<DropdownMenuItem
-						key={a.key}
-						onClick={() => {
-							onClose();
-							a.run();
-						}}
-						className="items-start"
-					>
-						{a.icon}
-						<span className="flex min-w-0 flex-col">
-							<span>{a.label}</span>
-							<span className="text-[12px] text-fg3">{a.sub}</span>
-						</span>
-					</DropdownMenuItem>
+					<Fragment key={a.key}>
+						{a.separated === true && <DropdownMenuSeparator />}
+						<DropdownMenuItem
+							onClick={() => {
+								onClose();
+								a.run();
+							}}
+							className="items-start"
+						>
+							{a.icon}
+							<span className="flex min-w-0 flex-col">
+								<span>{a.label}</span>
+								<span className="text-[12px] text-fg3">{a.sub}</span>
+							</span>
+						</DropdownMenuItem>
+					</Fragment>
 				))}
 			</DropdownMenuGroup>
 		</DropdownMenuContent>
@@ -263,7 +268,7 @@ export function MetricChart({
 	const traffic = unit === undefined ? null : trafficAxis(peak, unit);
 	const axis =
 		traffic === null
-			? { ...percentAxis(peak), format: (v: number) => `${String(v)}%` }
+			? { ...quarterAxis(peak), format: String }
 			: { ticks: traffic.ticks, maximum: traffic.top, format: traffic.format };
 	const top = new Set(
 		peaks
@@ -377,7 +382,7 @@ export function MetricChart({
 									strokeDasharray="5 4"
 									label={{
 										value: "limit",
-										position: "insideTopLeft",
+										position: "insideBottomLeft",
 										fill: "var(--color-bad-fg)",
 										fontSize: 10,
 									}}
