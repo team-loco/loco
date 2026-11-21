@@ -10,13 +10,21 @@ import { msToTimestamp } from "@/lib/time";
 
 // The most events one list shows; the API's largest page.
 const EVENTS_PAGE = 200;
+// The longest query ListEvents accepts, in bytes.
+const MAX_QUERY_LENGTH = 4096;
+
+// A resource filter too long for the server is left to the `names` check on the rows.
+function resourceQuery(slugs: string[] | undefined): string {
+	const query = slugs === undefined ? "" : `(${slugs.map((slug) => `@resource:${slug}`).join(" OR ")})`;
+	return query.length > MAX_QUERY_LENGTH ? "" : query;
+}
 
 export interface WorkspaceEventWithResource extends RuntimeEvent {
 	resourceId: string;
 	resourceName: string;
 }
 
-/** The newest events of `types` in the active environment, from one ListEvents over the resources the caller reads. */
+/** The newest events of `types` in the active environment for the resources in `names`, from one ListEvents. */
 export function useWorkspaceEvents(
 	workspaceId: string,
 	names: ReadonlyMap<string, string>,
@@ -31,7 +39,7 @@ export function useWorkspaceEvents(
 			workspaceId,
 			environmentId: active?.id ?? "",
 			types,
-			query: slugs === undefined ? "" : `(${slugs.map((slug) => `@resource:${slug}`).join(" OR ")})`,
+			query: resourceQuery(slugs),
 			readableResources: true,
 			pageSize: EVENTS_PAGE,
 			...(startMs === undefined ? {} : { startTime: msToTimestamp(startMs) }),
@@ -43,11 +51,13 @@ export function useWorkspaceEvents(
 			placeholderData: keepPreviousData,
 		},
 	);
-	const events: WorkspaceEventWithResource[] = (query.data?.events ?? []).map((event) => ({
-		...runtimeEvent(event),
-		resourceId: event.resourceId,
-		resourceName: names.get(event.resourceId) ?? "",
-	}));
+	const events: WorkspaceEventWithResource[] = (query.data?.events ?? [])
+		.filter((event) => names.has(event.resourceId))
+		.map((event) => ({
+			...runtimeEvent(event),
+			resourceId: event.resourceId,
+			resourceName: names.get(event.resourceId) ?? "",
+		}));
 	const error = useHeldError(query.error, query.isFetching);
 	return { events, isLoading: error === null && query.isLoading, error };
 }
