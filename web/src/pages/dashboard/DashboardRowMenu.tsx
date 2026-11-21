@@ -1,6 +1,6 @@
-import { createConnectQueryKey, useMutation, useTransport } from "@connectrpc/connect-query";
+import { useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { createDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentTrigger, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { restartResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
@@ -13,7 +13,7 @@ import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { Dialog } from "@/components/design/Dialog";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { NEEDS_WRITE, scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
-import { workspaceResourcesKey } from "@/hooks/workspaceResources";
+import { invalidateDeploys } from "@/hooks/workspaceDeployments";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { toastConnectError } from "@/lib/error-handler";
 import { observabilityPath, resourcePath } from "@/lib/routes";
@@ -47,12 +47,7 @@ export function DashboardRowMenu({
 		observabilityPath(orgId, workspaceId, view, { env: envName, r: [resource.slug] });
 
 	const refresh = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: workspaceResourcesKey(transport, workspaceId) }),
-			queryClient.invalidateQueries({
-				queryKey: createConnectQueryKey({ schema: listDeployments, cardinality: "finite" }),
-			}),
-		]);
+		await invalidateDeploys(queryClient, transport, workspaceId, resource.id);
 	};
 
 	const rollBack = async (to: Deployment) => {

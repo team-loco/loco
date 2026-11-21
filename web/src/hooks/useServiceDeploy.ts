@@ -7,7 +7,7 @@ import { DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
-import { IMAGE_CHECK_KEY } from "@/hooks/useImageCheck";
+import { invalidateDeploys } from "@/hooks/workspaceDeployments";
 import { getErrorMessage } from "@/lib/error-handler";
 import {
 	apiFieldError,
@@ -141,7 +141,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 		setRetainedResourceId(result.resourceId);
 		setIsPending(false);
 		setDeployError(result.error);
-		void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== IMAGE_CHECK_KEY });
+		void invalidateDeploys(queryClient, transport, workspaceId, result.resourceId);
 		return result;
 	};
 

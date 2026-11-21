@@ -6,7 +6,7 @@ import { DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { getErrorMessage } from "@/lib/error-handler";
 import { apiFieldError, imageError } from "@/lib/new-resource";
 
-export const IMAGE_CHECK_KEY = "image-check";
+const IMAGE_CHECK_KEY = "image-check";
 const IMAGE_CHECK_DEBOUNCE_MS = 600;
 
 export interface ImageCheck {

@@ -1,13 +1,19 @@
+import { create } from "@bufbuild/protobuf";
 import { createClient } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { DeploymentService, type Activity, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	DeploymentService,
+	GetDeploymentResponseSchema,
+	type Activity,
+	type Deployment,
+} from "@gen/loco/deployment/v1/deployment_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { getErrorMessage } from "@/lib/error-handler";
-import { deploymentEnded, mergeActivity } from "./deployment-watch";
+import { deploymentEnded, mergeActivity, statusKey } from "./deployment-watch";
 
 export interface DeploymentWatch {
 	deployment: Deployment | undefined;
@@ -31,7 +37,7 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 		const client = createClient(DeploymentService, transport);
 		const watch = async (deploymentId: string) => {
 			let backoff = 1000;
-			let firstEvent = true;
+			let status: string | undefined;
 			while (!isAborted()) {
 				try {
 					let terminal = false;
@@ -53,35 +59,35 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 								error: undefined,
 							},
 						}));
-						if (firstEvent) {
-							firstEvent = false;
-							continue;
-						}
-						void queryClient.invalidateQueries({
-							queryKey: createConnectQueryKey({
+						queryClient.setQueryData(
+							createConnectQueryKey({
 								schema: getDeployment,
 								input: { deploymentId },
 								transport,
 								cardinality: "finite",
 							}),
-						});
-						void queryClient.invalidateQueries({
-							queryKey: createConnectQueryKey({
+							(cached) => (cached === undefined ? undefined : create(GetDeploymentResponseSchema, { deployment })),
+						);
+						const previousStatus = status;
+						status = statusKey(deployment);
+						backoff = 1000;
+						if (previousStatus === undefined || previousStatus === status) continue;
+						for (const queryKey of [
+							createConnectQueryKey({
 								schema: getResource,
 								input: { key: { case: "resourceId", value: deployment.resourceId } },
 								transport,
 								cardinality: "finite",
 							}),
-						});
-						void queryClient.invalidateQueries({
-							queryKey: createConnectQueryKey({
+							createConnectQueryKey({
 								schema: listDeployments,
 								input: { resourceId: deployment.resourceId },
 								transport,
 								cardinality: undefined,
 							}),
-						});
-						backoff = 1000;
+						]) {
+							void queryClient.invalidateQueries({ queryKey }, { cancelRefetch: false });
+						}
 					}
 					if (terminal) return;
 					throw new Error("Deployment stream disconnected");

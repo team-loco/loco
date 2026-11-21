@@ -3,7 +3,7 @@ import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { XIcon, ScrollTextIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
@@ -28,6 +28,8 @@ import {
 	deploySteps,
 	finishedLabel,
 	reportedReadyLabel,
+	rollingOutRegions,
+	runningDeployRegions,
 	withoutRunningDeploys,
 	type StepState,
 } from "@/lib/activity-deploys";
@@ -276,6 +278,7 @@ function DeployCard({
 
 export function AlertsDrawer() {
 	const [open, setOpen] = useState(false);
+	const [openedAtMs, setOpenedAtMs] = useState(0);
 	const [shown, setShown] = useState(ACTIVITY_PAGE);
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
@@ -284,7 +287,7 @@ export function AlertsDrawer() {
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
 		enabled: activeOrgId !== null && activeWorkspaceId !== null,
 	});
-	const sinceMs = Math.floor(nowMs / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
+	const sinceMs = Math.floor(openedAtMs / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
 	const deploymentsQuery = useConnectQuery(
 		listDeployments,
 		{
@@ -294,7 +297,9 @@ export function AlertsDrawer() {
 			pageSize: 50,
 		},
 		{
-			enabled: activeWorkspaceId !== null && active !== undefined,
+			enabled: open && activeWorkspaceId !== null && active !== undefined,
+			placeholderData: keepPreviousData,
+			meta: { persist: false },
 			refetchInterval: (q) =>
 				(q.state.data?.deployments ?? []).some((d) => isInFlight(d.status)) ? POLL_MS : IDLE_POLL_MS,
 		},
@@ -303,8 +308,9 @@ export function AlertsDrawer() {
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 
 	const byId = new Map((resources.data?.resources ?? []).map((r) => [r.id, r]));
-	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter((d) =>
-		byId.has(d.resourceId),
+	// Placeholder rows from an earlier opening can belong to another environment.
+	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter(
+		(d) => byId.has(d.resourceId) && d.environmentId === active.id,
 	);
 	const finished = deployments.filter((d) => !isInFlight(d.status));
 	const ready = new Map<string, number>();
@@ -313,11 +319,19 @@ export function AlertsDrawer() {
 	)) {
 		ready.set(region.deploymentId, (ready.get(region.deploymentId) ?? 0) + region.readyReplicas);
 	}
-	const alerts = withoutRunningDeploys(buildAlerts(resources.data?.resources ?? [], active.id), deployments);
+	const running =
+		open && deploymentsQuery.data !== undefined
+			? runningDeployRegions(deployments)
+			: rollingOutRegions(resources.data?.resources ?? [], active.id);
+	const alerts = withoutRunningDeploys(buildAlerts(resources.data?.resources ?? [], active.id), running);
 	const count = alertedResourceCount(alerts);
 	const envParams = { env: active.slug };
+	const openChange = (next: boolean) => {
+		if (next) setOpenedAtMs(Date.now());
+		setOpen(next);
+	};
 	const close = () => {
-		setOpen(false);
+		openChange(false);
 	};
 	const deployCard = (d: Deployment) => {
 		const resource = byId.get(d.resourceId);
@@ -347,7 +361,7 @@ export function AlertsDrawer() {
 				aria-haspopup="dialog"
 				aria-expanded={open}
 				onClick={() => {
-					setOpen(true);
+					openChange(true);
 				}}
 				className="act-btn gap-[7px] border-line bg-background pr-2.5 pl-[9px] text-fg2 hover:border-line2 hover:bg-background hover:text-foreground aria-expanded:border-line2 aria-expanded:bg-background aria-expanded:text-foreground dark:border-line dark:bg-background dark:hover:border-line2 dark:hover:bg-background dark:aria-expanded:bg-background"
 			>
@@ -369,7 +383,7 @@ export function AlertsDrawer() {
 				<span className="hidden md:inline">Workspace activity</span>
 				{count > 0 && <span className="act-n font-mono">{count}</span>}
 			</Button>
-			<Sheet open={open} onOpenChange={setOpen}>
+			<Sheet open={open} onOpenChange={openChange}>
 				<SheetContent showCloseButton={false}>
 					<SheetHeader>
 						<SheetTitle className="font-medium">Workspace activity</SheetTitle>

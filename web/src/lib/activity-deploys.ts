@@ -6,11 +6,12 @@ import {
 	type DeploymentPlacement,
 	type Replica,
 } from "@gen/loco/deployment/v1/deployment_pb";
-import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { Alert } from "@/lib/alerts";
-import { deploymentProblem, desiredReplicas, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { deploymentProblem, desiredReplicas, getServiceSpec, isInFlight, placementPhase } from "@/lib/deployment-utils";
+import { environmentStatus } from "@/lib/resource-status";
 import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
 import { agoLabel, maybeTsMs, readyMs, tsMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
@@ -123,13 +124,28 @@ export function finishedLabel(d: Deployment, nowMs: number): string {
 	return `took ${tookLabel(end - created)} · ${agoLabel(end, nowMs)}`;
 }
 
-/** Drops a rollout alert when a deploy card already shows that rollout. */
-export function withoutRunningDeploys(alerts: readonly Alert[], deployments: readonly Deployment[]): Alert[] {
-	const running = new Set(
+/** The resource/region keys of the deployments in flight. */
+export function runningDeployRegions(deployments: readonly Deployment[]): Set<string> {
+	return new Set(
 		deployments
 			.filter((d) => isInFlight(d.status))
 			.flatMap((d) => d.placements.map((p) => `${d.resourceId}/${p.region}`)),
 	);
+}
+
+/** The resource/region keys whose live placement in the environment is in flight. */
+export function rollingOutRegions(resources: readonly Resource[], environmentId: string): Set<string> {
+	return new Set(
+		resources.flatMap((resource) =>
+			(environmentStatus(resource, environmentId)?.regions ?? [])
+				.filter((r) => isInFlight(placementPhase(r.placementStatus)))
+				.map((r) => `${resource.id}/${r.region}`),
+		),
+	);
+}
+
+/** Drops a rollout alert when a deploy card already shows that rollout. */
+export function withoutRunningDeploys(alerts: readonly Alert[], running: ReadonlySet<string>): Alert[] {
 	return alerts.filter((a) => a.status !== ResourceStatus.DEPLOYING || !running.has(a.key));
 }
 
