@@ -52,7 +52,7 @@ LOG_TAIL_LINES = 40
 DISCOVERY_PATH = "/dex/.well-known/openid-configuration"
 USER_SCOPES = ("read", "write", "admin")
 RUNTIME_CONFIG_PATH = "/runtime-config.js"
-# The OpenBao every suite shares; `mise run test:ui` and the ui-evidence skill set it.
+# An OpenBao address every run uses in place of the shared one when set.
 OPENBAO_ENV = "UI_EVIDENCE_OPENBAO"
 # The build a run of HEAD uses, as `build` prints it; `mise run test:ui` sets it.
 BUILD_ENV = "UI_EVIDENCE_BUILD"
@@ -1337,11 +1337,12 @@ def shared(user, kind, key, start, healthy):
     with flocked(root / "start.lock"):
         path = root / "state.json"
         if path.exists():
-            if healthy(load_state(path)):
-                return load_state(path)
+            if healthy(state := load_state(path)):
+                return state
             log(f"restarting {root.name}: it stopped answering")
-        write_json(path, start(root))
-        return load_state(path)
+        state = start(root)
+        write_json(path, state)
+        return state
 
 
 def openbao_healthy(state):
