@@ -37,7 +37,7 @@ with session(out) as browser:
     drawer_reads = []
 
     def record_drawer_read(request):
-        if request.url.endswith("/DeploymentService/ListDeployments"):
+        if request.url.endswith(".DeploymentService/ListDeployments"):
             body = request.post_data_json
             if "since" in body:
                 drawer_reads.append(body)

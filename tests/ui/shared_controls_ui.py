@@ -287,11 +287,16 @@ def mobile_sidebar(page):
 
 def activity_deployments(page):
     now = datetime.now(UTC)
+    production = sql(
+        state,
+        f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production'",
+    )
 
     def deployment(id, status, minutes, replicas=(), **extra):
         return {
             "id": id,
             "resourceId": resource,
+            "environmentId": production,
             "status": f"DEPLOYMENT_STATUS_{status}",
             "placements": [
                 {
@@ -324,10 +329,6 @@ def activity_deployments(page):
     page.route(
         "**/loco.deployment.v1.DeploymentService/ListDeployments",
         lambda route: route.fulfill(json={"deployments": deployments}),
-    )
-    production = sql(
-        state,
-        f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production'",
     )
 
     def report_ready(route):
