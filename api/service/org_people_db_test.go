@@ -141,6 +141,11 @@ func TestListOrgPeopleOrdersAndFilters(t *testing.T) {
 func TestListOrgPeopleCountsAndAccess(t *testing.T) {
 	t.Parallel()
 	f := newPeopleFixture(t)
+	// An expired invitation still lists and counts as an invitation, but not as open.
+	if _, err := f.pool.Exec(t.Context(),
+		"UPDATE invitations SET expires_at = now() - interval '1 minute' WHERE email = $1", zed); err != nil {
+		t.Fatal(err)
+	}
 	first, err := f.server.ListOrgPeople(f.owner(t), &orgv1.ListOrgPeopleRequest{
 		OrgId: f.orgID.String(), Query: "ACME.TEST", View: orgv1.OrgPeopleView_ORG_PEOPLE_VIEW_MEMBERS,
 		PageSize: 1, IncludeTotalCount: true,
@@ -148,9 +153,10 @@ func TestListOrgPeopleCountsAndAccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.GetTotalCount() != 4 || first.GetMemberCount() != 4 || first.GetInvitationCount() != 2 {
-		t.Fatalf("counts = %d %d %d, want 4 4 2",
-			first.GetTotalCount(), first.GetMemberCount(), first.GetInvitationCount())
+	if first.GetTotalCount() != 4 || first.GetMemberCount() != 4 || first.GetInvitationCount() != 2 ||
+		first.GetOpenInvitationCount() != 1 {
+		t.Fatalf("counts = %d %d %d %d, want 4 4 2 1", first.GetTotalCount(), first.GetMemberCount(),
+			first.GetInvitationCount(), first.GetOpenInvitationCount())
 	}
 	// Olivia and Bea are admins, Dee holds read on shop and Cal on ops.
 	if got := first.GetWorkspaceMemberCounts(); len(got) != 2 || got[f.workspace.String()] != 3 ||

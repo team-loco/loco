@@ -206,6 +206,8 @@ message ListOrgPeopleResponse {
   // For each workspace the caller can read, keyed by its ID: the members with access to it,
   // organization admins included, which is what the workspace filter keeps.
   map<string, int32> workspace_member_counts = 6;
+  // Open invitations that have not expired, the count the invitations_per_org limit caps.
+  int32 open_invitation_count = 7;
 }
 
 // RemoveOrgMemberRequest identifies another user to remove from the organization.

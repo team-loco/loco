@@ -14079,6 +14079,12 @@
               "format": "int32"
             },
             "description": "For each workspace the caller can read, keyed by its ID: the members with access to it,\n organization admins included, which is what the workspace filter keeps."
+          },
+          "openInvitationCount": {
+            "type": "integer",
+            "title": "open_invitation_count",
+            "format": "int32",
+            "description": "Open invitations that have not expired, the count the invitations_per_org limit caps."
           }
         },
         "title": "ListOrgPeopleResponse",

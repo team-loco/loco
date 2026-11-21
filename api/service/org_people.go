@@ -278,6 +278,11 @@ func (s *OrgServer) countPeople(
 		}
 		*c.into = n
 	}
+	open, openErr := s.queries.CountOpenOrgInvitations(ctx, orgID)
+	if openErr != nil {
+		return fmt.Errorf("count open invitations: %w", openErr)
+	}
+	response.OpenInvitationCount = cappedCount(open)
 	p, err := principalFrom(ctx)
 	if err != nil {
 		return err

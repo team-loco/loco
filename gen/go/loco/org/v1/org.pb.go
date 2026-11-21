@@ -1024,8 +1024,10 @@ type ListOrgPeopleResponse struct {
 	// For each workspace the caller can read, keyed by its ID: the members with access to it,
 	// organization admins included, which is what the workspace filter keeps.
 	WorkspaceMemberCounts map[string]int32 `protobuf:"bytes,6,rep,name=workspace_member_counts,json=workspaceMemberCounts,proto3" json:"workspace_member_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Open invitations that have not expired, the count the invitations_per_org limit caps.
+	OpenInvitationCount int32 `protobuf:"varint,7,opt,name=open_invitation_count,json=openInvitationCount,proto3" json:"open_invitation_count,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ListOrgPeopleResponse) Reset() {
@@ -1098,6 +1100,13 @@ func (x *ListOrgPeopleResponse) GetWorkspaceMemberCounts() map[string]int32 {
 		return x.WorkspaceMemberCounts
 	}
 	return nil
+}
+
+func (x *ListOrgPeopleResponse) GetOpenInvitationCount() int32 {
+	if x != nil {
+		return x.OpenInvitationCount
+	}
+	return 0
 }
 
 // RemoveOrgMemberRequest identifies another user to remove from the organization.
@@ -2582,7 +2591,7 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\x15MemberWorkspaceAccess\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12%\n" +
 	"\x0eworkspace_name\x18\x02 \x01(\tR\rworkspaceName\x12\x16\n" +
-	"\x06scopes\x18\x03 \x03(\tR\x06scopes\"\x9f\x03\n" +
+	"\x06scopes\x18\x03 \x03(\tR\x06scopes\"\xd3\x03\n" +
 	"\x15ListOrgPeopleResponse\x12.\n" +
 	"\x06people\x18\x01 \x03(\v2\x16.loco.org.v1.OrgPersonR\x06people\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
@@ -2590,7 +2599,8 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"totalCount\x12!\n" +
 	"\fmember_count\x18\x04 \x01(\x05R\vmemberCount\x12)\n" +
 	"\x10invitation_count\x18\x05 \x01(\x05R\x0finvitationCount\x12u\n" +
-	"\x17workspace_member_counts\x18\x06 \x03(\v2=.loco.org.v1.ListOrgPeopleResponse.WorkspaceMemberCountsEntryR\x15workspaceMemberCounts\x1aH\n" +
+	"\x17workspace_member_counts\x18\x06 \x03(\v2=.loco.org.v1.ListOrgPeopleResponse.WorkspaceMemberCountsEntryR\x15workspaceMemberCounts\x122\n" +
+	"\x15open_invitation_count\x18\a \x01(\x05R\x13openInvitationCount\x1aH\n" +
 	"\x1aWorkspaceMemberCountsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\\\n" +
