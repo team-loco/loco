@@ -2,7 +2,7 @@ import argparse
 import re
 from pathlib import Path
 
-from harness import load_state, open_page, repo, session
+from harness import expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -49,6 +49,10 @@ with session(out) as browser:
     assert labels[-len(history) :] == history, labels
 
     workspaces = page.get_by_role("region", name="Workspaces", exact=True)
+    with expect_rpc(page, "ListOrgWorkspaces", lambda body: body.get("query") == "SIB"):
+        workspaces.get_by_placeholder("Search workspaces", exact=True).fill("SIB")
+    expect(workspaces.get_by_role("row").filter(has_text="shared")).to_have_count(0)
+    expect(workspaces.get_by_text("1–1 of 1", exact=True)).to_be_visible()
     row = workspaces.get_by_role("row").filter(has_text="sibling")
     expect(row.get_by_role("cell").last).to_have_text(
         re.compile(r"^[A-Z][a-z]{2} \d{1,2}, \d{4}$")

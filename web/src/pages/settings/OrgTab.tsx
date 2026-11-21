@@ -1,13 +1,14 @@
 import type { TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useMutation } from "@connectrpc/connect-query";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { deleteOrg, updateOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { Organization, User } from "@gen/loco/org/v1/org_pb";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
-import { parseAsString, useQueryState } from "nuqs";
+import { parseAsNumberLiteral, parseAsString, useQueryStates } from "nuqs";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
@@ -29,10 +30,11 @@ import { CreateScopeDialog } from "@/components/shell/CreateScopeDialog";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { useOrgLimitDetails } from "@/hooks/useOrgLimits";
+import { useTokenPage } from "@/hooks/useTokenPage";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatCount, pluralize } from "@/lib/format";
 import { limitReason, limitUsage, usageLabel } from "@/lib/limits";
-import { usePagedRows } from "@/lib/paging";
+import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
 
@@ -41,6 +43,13 @@ import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
 const MAX_NAME = 100;
 const PAGE_SIZES = [25, 50, 100] as const;
+const PAGE_PARAMS = {
+	q: parseAsString.withDefault(""),
+	pages: pageTokensParser,
+	size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]),
+};
+// The delete-organization notice names at most this many workspaces that still hold resources.
+const NAMED_WITH_RESOURCES = 10;
 
 function workspaceColumns({
 	orgId,
@@ -111,8 +120,7 @@ function workspaceColumns({
 
 export function OrgTab({
 	org,
-	workspaces,
-	workspacesLoading,
+	currentWorkspace,
 	users,
 	level,
 	currentWorkspaceId,
@@ -122,8 +130,7 @@ export function OrgTab({
 	memberCount,
 }: {
 	org: Organization;
-	workspaces: Workspace[];
-	workspacesLoading: boolean;
+	currentWorkspace: Workspace | undefined;
 	users: User[];
 	level: AccessLevel;
 	currentWorkspaceId: string;
@@ -134,7 +141,6 @@ export function OrgTab({
 	memberCount: number | undefined;
 }) {
 	const timePref = useTimePreferences();
-	const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId);
 	const queryClient = useQueryClient();
 	const { clearContext } = useOrgWorkspace();
 	const limitDetails = useOrgLimitDetails(org.id);
@@ -142,7 +148,31 @@ export function OrgTab({
 	const update = useMutation(updateOrg);
 	const remove = useMutation(deleteOrg);
 
-	const [query, setQuery] = useQueryState("q", parseAsString.withDefault("").withOptions({ history: "replace" }));
+	const [params, setParams] = useQueryStates(PAGE_PARAMS, { history: "replace" });
+	const listed = useTokenPage(
+		listOrgWorkspaces,
+		{ orgId: org.id, pageSize: params.size, query: params.q.trim() },
+		params.pages,
+		{ placeholderData: keepPreviousData },
+	);
+	const rows = listed.query.data?.workspaces ?? [];
+	const pager = tokenPager(params.pages, listed.nextPageToken, (pages) => {
+		void setParams({ pages });
+	});
+	const counted = useQuery(listOrgWorkspaces, {
+		orgId: org.id,
+		pageSize: 1,
+		query: "",
+		pageToken: "",
+		includeTotalCount: true,
+	});
+	const workspaceCount = counted.data?.totalCount;
+	const withResources = useQuery(listOrgWorkspaces, {
+		orgId: org.id,
+		hasResources: true,
+		pageSize: NAMED_WITH_RESOURCES,
+		includeTotalCount: true,
+	});
 	const [newOpen, setNewOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -155,31 +185,27 @@ export function OrgTab({
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
 
-	const withRes = workspaces.filter((w) => (w.resourceCount ?? 0) > 0);
-	const withResNames = withRes.map((w) => w.name);
-	const lastName = withResNames.pop();
+	const withResCount = withResources.data?.totalCount ?? 0;
+	const withResNames = (withResources.data?.workspaces ?? []).map((w) => w.name);
+	const unnamed = withResCount - withResNames.length;
+	const lastName = unnamed > 0 ? `${formatCount(unnamed)} more` : withResNames.pop();
 	const joinedNames = withResNames.length > 0 ? `${withResNames.join(", ")} and ${lastName ?? ""}` : (lastName ?? "");
 	const subtitle =
-		withRes.length > 0 ? `Delete the resources in ${joinedNames} first.` : "Empty workspaces are deleted with it.";
+		withResCount > 0 ? `Delete the resources in ${joinedNames} first.` : "Empty workspaces are deleted with it.";
 	const blockedReason = !canAdmin
 		? `Requires Admin on ${org.name}`
-		: workspacesLoading
+		: withResources.isPending
 			? "Checking workspaces for resources"
-			: withRes.length > 0
+			: withResCount > 0
 				? "Workspaces still have resources"
 				: null;
-	const needle = query.trim().toLowerCase();
-	const matches = workspaces.filter(
-		(w) => w.name.toLowerCase().includes(needle) || w.description.toLowerCase().includes(needle),
-	);
-	const paged = usePagedRows(matches, PAGE_SIZES);
 	const userName = (id: string) => {
 		const u = users.find((x) => x.id === id);
 		return u ? userLabel(u) : "";
 	};
 
 	const table = useDataTable("org-workspaces", {
-		data: paged.rows,
+		data: rows,
 		getRowId: (w) => w.id,
 		columns: workspaceColumns({ orgId: org.id, currentWorkspaceId, onOpenWorkspace, timePref }),
 	});
@@ -218,9 +244,10 @@ export function OrgTab({
 		);
 	};
 
-	const workspaceUsage = workspacesLoading
-		? null
-		: limitUsage(workspaces.length, limits?.workspacesPerOrg, "workspaces", "organization");
+	const workspaceUsage =
+		workspaceCount === undefined
+			? null
+			: limitUsage(workspaceCount, limits?.workspacesPerOrg, "workspaces", "organization");
 	const newBlocked = canWrite ? limitReason(workspaceUsage) : `Requires Write on ${org.name}`;
 	const newButton = (
 		<Button
@@ -284,29 +311,28 @@ export function OrgTab({
 
 			<Section
 				title="Workspaces"
-				count={workspaceUsage === null ? workspaces.length : usageLabel(workspaceUsage)}
+				count={workspaceUsage === null ? workspaceCount : usageLabel(workspaceUsage)}
 				className="max-w-[960px]"
 				actions={<LimitedAction reason={newBlocked}>{newButton}</LimitedAction>}
 				search={
 					<SearchInput
 						aria-label="Search workspaces"
 						placeholder="Search workspaces"
-						value={query}
+						value={params.q}
 						onChange={(e) => {
-							void setQuery(e.target.value);
-							paged.reset();
+							void setParams({ q: e.target.value, pages: null });
 						}}
 					/>
 				}
 			>
-				{workspacesLoading ? (
+				{listed.query.isPending ? (
 					<div className="flex flex-col gap-2 px-5 py-3">
 						<Skeleton className="h-9 w-full" />
 						<Skeleton className="h-9 w-full" />
 					</div>
-				) : paged.rows.length === 0 ? (
+				) : rows.length === 0 ? (
 					<div className="px-5 py-7 text-fg3">
-						{workspaces.length === 0 ? "No workspaces yet." : "No workspaces match."}
+						{workspaceCount === 0 ? "No workspaces yet." : "No workspaces match."}
 					</div>
 				) : (
 					<DataTable
@@ -318,13 +344,26 @@ export function OrgTab({
 						rowAction="navigate"
 					/>
 				)}
-				<Pager {...paged.pager} {...paged.ends} className="pt-3 pb-3.5" />
+				<Pager
+					label={tokenPageLabel(pager.page, params.size, rows.length, listed.total)}
+					page={pager.page}
+					total={rows.length}
+					pageSizes={PAGE_SIZES}
+					pageSize={params.size}
+					onPageSize={(size) => {
+						void setParams({ size: PAGE_SIZES.find((n) => n === size) ?? null, pages: null });
+					}}
+					onFirst={pager.onFirst}
+					onPrev={pager.onPrev}
+					onNext={pager.onNext}
+					className="pt-3 pb-3.5"
+				/>
 			</Section>
 
 			<LimitsSection
 				org={org}
 				limits={limitDetails}
-				workspaceCount={workspacesLoading ? undefined : workspaces.length}
+				workspaceCount={workspaceCount}
 				memberCount={memberCount}
 				workspace={
 					currentWorkspace === undefined
@@ -337,7 +376,7 @@ export function OrgTab({
 				<DangerZone
 					title={`Delete ${org.name}`}
 					description={subtitle}
-					warn={withRes.length > 0}
+					warn={withResCount > 0}
 					actionLabel="Delete organization"
 					blockedReason={blockedReason}
 					onAction={() => {
@@ -361,7 +400,7 @@ export function OrgTab({
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
 				title={`Delete ${org.name}`}
-				text={`This removes ${org.name}, its ${pluralize(workspaces.length, "empty workspace")} and all members.`}
+				text={`This removes ${org.name}, its ${pluralize(workspaceCount ?? 0, "empty workspace")} and all members.`}
 				target={org.name}
 				confirmLabel="Delete organization"
 				pending={remove.isPending}
