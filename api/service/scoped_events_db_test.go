@@ -568,30 +568,38 @@ func TestListEventsSearchMatchesTheWhereColumn(t *testing.T) {
 func TestListEventsReadableResourcesOfAWorkspace(t *testing.T) {
 	t.Parallel()
 	f := newScopedAuditFixture(t)
-	request := func(readable bool) *eventv1.ListEventsRequest {
-		return &eventv1.ListEventsRequest{
-			OrgId: f.orgID, WorkspaceId: f.workspaceID.String(), ReadableResources: readable,
-		}
-	}
 	for _, tc := range []struct {
 		name       string
 		entityType genDb.EntityType
 		entityID   uuid.UUID
 		readable   bool
+		requested  []uuid.UUID
 		code       connect.Code
 		resources  []uuid.UUID
 	}{
-		{"resource reader without the flag", genDb.EntityTypeResource, f.resourceID, false,
+		{"resource reader without the flag", genDb.EntityTypeResource, f.resourceID, false, nil,
 			connect.CodePermissionDenied, nil},
-		{"resource reader", genDb.EntityTypeResource, f.resourceID, true, 0, []uuid.UUID{f.resourceID}},
-		{"workspace reader", genDb.EntityTypeWorkspace, f.workspaceID, true, 0,
+		{"resource reader", genDb.EntityTypeResource, f.resourceID, true, nil, 0, []uuid.UUID{f.resourceID}},
+		{"workspace reader", genDb.EntityTypeWorkspace, f.workspaceID, true, nil, 0,
 			[]uuid.UUID{f.resourceID, f.otherResourceID}},
-		{"reader of another workspace", genDb.EntityTypeWorkspace, f.otherWorkspaceID, true,
+		{"reader of another workspace", genDb.EntityTypeWorkspace, f.otherWorkspaceID, true, nil,
 			connect.CodePermissionDenied, nil},
+		{"workspace reader naming one resource", genDb.EntityTypeWorkspace, f.workspaceID, true,
+			[]uuid.UUID{f.otherResourceID}, 0, []uuid.UUID{f.otherResourceID}},
+		{"resource reader naming both resources", genDb.EntityTypeResource, f.resourceID, true,
+			[]uuid.UUID{f.resourceID, f.otherResourceID}, 0, []uuid.UUID{f.resourceID}},
+		{"resource reader naming the other resource", genDb.EntityTypeResource, f.resourceID, true,
+			[]uuid.UUID{f.otherResourceID}, 0, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := auditScope(t, tc.entityType, tc.entityID, genDb.ScopeRead)
-			got, err := f.events.ListEvents(ctx, request(tc.readable))
+			req := &eventv1.ListEventsRequest{
+				OrgId: f.orgID, WorkspaceId: f.workspaceID.String(), ReadableResources: tc.readable,
+			}
+			for _, id := range tc.requested {
+				req.ResourceIds = append(req.ResourceIds, id.String())
+			}
+			got, err := f.events.ListEvents(ctx, req)
 			if tc.code != 0 {
 				if codeOf(err) != tc.code {
 					t.Fatalf("err = %v, want %v", err, tc.code)

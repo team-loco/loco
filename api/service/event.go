@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -213,6 +214,12 @@ func (s *EventServer) authorizeEventScope(
 		return eventScope{}, err
 	}
 	if req.GetResourceId() != "" {
+		if len(req.GetResourceIds()) > 0 {
+			return eventScope{}, connect.NewError(
+				connect.CodeInvalidArgument,
+				"set resource_id or resource_ids, not both",
+			)
+		}
 		resourceID, err := parseID("resource_id", req.GetResourceId())
 		if err != nil {
 			return eventScope{}, err
@@ -246,15 +253,29 @@ func (s *EventServer) authorizeEventScope(
 		if err != nil {
 			return eventScope{}, err
 		}
-		denied := authorize(ctx, s.authz, workspaceAction, workspaceID)
-		var resources []uuid.UUID
-		if denied != nil && req.GetReadableResources() {
-			if resources, err = s.readableResources(ctx, workspaceID); err != nil {
-				return eventScope{}, err
-			}
+		requested, err := parseIDs("resource_ids", req.GetResourceIds())
+		if err != nil {
+			return eventScope{}, err
 		}
-		if denied != nil && len(resources) == 0 {
-			return eventScope{}, denied
+		denied := authorize(ctx, s.authz, workspaceAction, workspaceID)
+		resources := requested
+		if denied != nil {
+			if !req.GetReadableResources() {
+				return eventScope{}, denied
+			}
+			readable, readErr := s.readableResources(ctx, workspaceID)
+			if readErr != nil {
+				return eventScope{}, readErr
+			}
+			if len(readable) == 0 {
+				return eventScope{}, denied
+			}
+			resources = readable
+			if requested != nil {
+				resources = slices.DeleteFunc(readable, func(id uuid.UUID) bool {
+					return !slices.Contains(requested, id)
+				})
+			}
 		}
 		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
 		if errors.Is(err, pgx.ErrNoRows) {

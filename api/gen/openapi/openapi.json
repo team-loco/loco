@@ -12634,6 +12634,16 @@
             "type": "boolean",
             "title": "readable_resources",
             "description": "With workspace_id and no resource_id: a caller who cannot list the workspace's events gets the\n events of the workspace's resources it can list, as one ListEvents per resource would."
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids",
+            "maxItems": 100,
+            "description": "With workspace_id and no resource_id: only the events of these resources. With\n readable_resources, only those of them the caller can list."
           }
         },
         "title": "ListEventsRequest",

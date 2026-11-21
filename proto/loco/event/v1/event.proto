@@ -81,6 +81,14 @@ message ListEventsRequest {
   // With workspace_id and no resource_id: a caller who cannot list the workspace's events gets the
   // events of the workspace's resources it can list, as one ListEvents per resource would.
   bool readable_resources = 17;
+  // With workspace_id and no resource_id: only the events of these resources. With
+  // readable_resources, only those of them the caller can list.
+  repeated string resource_ids = 18 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {uuid: true}
+    }
+  }];
 }
 
 // EventFacet counts the events per value of one key.
