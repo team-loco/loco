@@ -149,7 +149,9 @@ def check_canceled_sign_in(browser, state, issuer_url):
     alert = page.get_by_role("alert")
     expect(alert).to_have_text("Sign-in was canceled.")
     held = []
-    page.route("**/loco.auth.v1.AuthService/StartWebLogin", held.append)
+    page.route(
+        "**/loco.auth.v1.AuthService/StartWebLogin", lambda route: held.append(route)
+    )
     page.get_by_role("button", name="Continue", exact=True).click()
     expect(page.get_by_role("button", name="Continue", exact=True)).to_be_disabled()
     expect(alert).to_be_hidden()
