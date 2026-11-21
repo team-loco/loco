@@ -15,7 +15,6 @@ import os
 import re
 import shutil
 import signal
-import socket
 import subprocess
 import sys
 import tarfile
@@ -49,6 +48,9 @@ SESSION_TTL = "1 day"
 READY_TIMEOUT_S = 120
 POSTGRES_READY_TIMEOUT_S = 300
 STEP_TIMEOUT_MS = 15000
+# A shared browser that does not answer a connection within these is frozen.
+BROWSER_CHECK_TIMEOUT_MS = 5000
+BROWSER_CONNECT_TIMEOUT_MS = 15000
 SETTLE_TIMEOUT_MS = 10000
 APP_LOADER = '[data-slot="app-loader"]'
 LOG_TAIL_LINES = 40
@@ -1460,16 +1462,42 @@ def stop_browser(root, pid):
     command = subprocess.run(
         ["ps", "-o", "command=", "-p", str(pid)], capture_output=True
     )
-    if str(root / "launch.json").encode() in command.stdout:
-        os.killpg(pid, signal.SIGTERM)
+    if str(root / "launch.json").encode() not in command.stdout:
+        return
+    # Chromium leads its own process group, so kill every descendant; SIGKILL also ends a stopped process.
+    table = subprocess.run(["ps", "-axo", "pid=,ppid="], capture_output=True, text=True)
+    children = {}
+    for line in table.stdout.splitlines():
+        child, parent = map(int, line.split())
+        children.setdefault(parent, []).append(child)
+    tree, pending = [], [pid]
+    while pending:
+        tree.append(current := pending.pop())
+        pending += children.get(current, [])
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pid, signal.SIGKILL)
+    for member in tree:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(member, signal.SIGKILL)
 
 
-def browser_healthy(state):
-    try:
-        socket.create_connection((HOST, state["port"]), timeout=2).close()
-        return True
-    except OSError:
-        return False
+def browser_healthy(playwright):
+    from playwright.sync_api import Error as PlaywrightError
+
+    def healthy(state):
+        try:
+            browser = playwright.chromium.connect(
+                state["endpoint"], timeout=BROWSER_CHECK_TIMEOUT_MS
+            )
+        except PlaywrightError:
+            return False
+        try:
+            return bool(browser.version)
+        finally:
+            with contextlib.suppress(PlaywrightError):
+                browser.close()
+
+    return healthy
 
 
 @contextlib.contextmanager
@@ -1488,9 +1516,11 @@ def shared_browser(playwright, **options):
             json.dumps(options, sort_keys=True),
         )
         server = shared(
-            user, "chromium", key, browser_starter(options), browser_healthy
+            user, "chromium", key, browser_starter(options), browser_healthy(playwright)
         )
-        browser = playwright.chromium.connect(server["endpoint"])
+        browser = playwright.chromium.connect(
+            server["endpoint"], timeout=BROWSER_CONNECT_TIMEOUT_MS
+        )
         try:
             yield browser
         finally:
