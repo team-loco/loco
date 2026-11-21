@@ -10,14 +10,12 @@ import { Button } from "@/components/design/Button";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
-import { DeploymentActor } from "@/components/design/DeploymentOrigin";
+import { DeploymentActor, DeploymentId } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, DAY_MS, formatStarted, readyMs } from "@/lib/time";
-import { formatShortId } from "@/lib/utils";
-import { depTag } from "@/pages/resource/model";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -85,12 +83,7 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 			header: "Deployment",
 			size: 130,
 			minSize: 90,
-			cell: ({ row: { original: r } }) => (
-				<span className="flex min-w-0 flex-col gap-px">
-					<CellText text={formatShortId(r.deployment.id)} className="font-mono text-[12.5px] text-foreground" />
-					<CellText text={depTag(r.deployment)} className="font-mono text-[11px] text-fg3" />
-				</span>
-			),
+			cell: ({ row: { original: r } }) => <DeploymentId deployment={r.deployment} />,
 		},
 		{
 			id: "actor",

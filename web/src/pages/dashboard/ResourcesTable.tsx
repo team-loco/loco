@@ -251,11 +251,10 @@ function DeployedCell({ item }: { item: DashboardItem }) {
 
 function MenuCell({ item }: { item: DashboardItem }) {
 	const { orgId, workspaceId, envName, hrefFor } = useCells();
-	const navigate = useNavigate();
 	if (isDraftItem(item))
 		return (
 			<RowMenu label={`Actions for ${item.draft.name}`} title={item.draft.name}>
-				<DropdownMenuItem onClick={() => void navigate(hrefFor(item))}>
+				<DropdownMenuItem render={<Link to={hrefFor(item)} />}>
 					<FilePenLineIcon className="text-fg3" />
 					Open draft
 				</DropdownMenuItem>
@@ -583,11 +582,9 @@ export function ResourcesTable({
 	const empty = (
 		<p className="m-0 py-7 text-center text-[13px] text-fg3">
 			{query === "" ? "No resources with this status." : `Nothing matches “${query}”.`}{" "}
-			{hasFilters && (
-				<Button variant="plain-link" onClick={clearFilters}>
-					Clear filters
-				</Button>
-			)}
+			<Button variant="plain-link" onClick={clearFilters}>
+				Clear filters
+			</Button>
 		</p>
 	);
 

@@ -1,8 +1,9 @@
 import { DeploymentActorType, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { KeyRoundIcon } from "lucide-react";
 
-import { deploymentActor, deploymentMethod, shortSha } from "@/lib/deployment-utils";
+import { deploymentActor, deploymentMethod } from "@/lib/deployment-utils";
 import { formatShortId } from "@/lib/utils";
+import { depTag } from "@/pages/resource/model";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 export function DeploymentActor({ deployment: d }: { deployment: Deployment }) {
@@ -41,11 +42,7 @@ export function DeploymentId({ deployment: d }: { deployment: Deployment }) {
 			<span className="truncate font-mono text-[12.5px] text-foreground" title={d.id}>
 				{formatShortId(d.id)}
 			</span>
-			{d.commit !== undefined && (
-				<span className="truncate font-mono text-[11px] text-fg3" title={d.commit.sha}>
-					{shortSha(d.commit.sha)}
-				</span>
-			)}
+			<span className="truncate font-mono text-[11px] text-fg3">{depTag(d)}</span>
 		</span>
 	);
 }
