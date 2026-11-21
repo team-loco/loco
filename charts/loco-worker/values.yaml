@@ -619,7 +619,8 @@ otel-col-daemon:
               - set(cache["level"], cache["record"]["level"]) where IsMap(cache["record"])
               - set(cache["level"], cache["record"]["severity"]) where cache["level"] == nil and IsMap(cache["record"])
               - set(cache["level"], cache["record"]["severityText"]) where cache["level"] == nil and IsMap(cache["record"])
-              - merge_maps(cache, ExtractPatterns(cache["message"], "(?i)^(?:[0-9]{4}-[0-9T:.+Z/ -]+\\s+)?(?:level=|\\[)?(?P<level>TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL|PANIC)(?:\\]|[\\s:=]|$)"), "upsert") where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
+              - merge_maps(cache, ExtractPatterns(cache["message"], "(?i)^(?:\\[?[0-9]{4}[-/][0-9T:.+Z/ -]+\\]?\\s+)?(?:\\[[0-9]+\\]\\s+)?(?:level=|\\[)?(?P<level>TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL|PANIC)(?:\\]|[\\s:=]|$)"), "upsert") where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
+              - merge_maps(cache, ExtractPatterns(cache["message"], "(?i)^(?:\\[?[0-9]{4}[-/][0-9T:.+Z/ -]+\\]?\\s+)?(?:\\[[0-9]+\\]\\s+)?\\[(?P<level>CRIT|ALERT|EMERG)\\]"), "upsert") where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
               - set(cache["fields"], ParseKeyValue(cache["message"])) where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
               - set(cache["level"], cache["fields"]["level"]) where cache["level"] == nil and IsMap(cache["fields"])
               - set(cache["level"], "ERROR") where cache["level"] == nil and attributes["log.iostream"] == "stderr"
@@ -634,7 +635,7 @@ otel-col-daemon:
               - set(severity_number, 13) where severity_text == "WARN"
               - set(severity_text, "ERROR") where cache["level"] == "ERROR" or cache["level"] == "ERR"
               - set(severity_number, 17) where severity_text == "ERROR"
-              - set(severity_text, "FATAL") where cache["level"] == "FATAL" or cache["level"] == "CRITICAL" or cache["level"] == "PANIC"
+              - set(severity_text, "FATAL") where cache["level"] == "FATAL" or cache["level"] == "CRITICAL" or cache["level"] == "CRIT" or cache["level"] == "ALERT" or cache["level"] == "EMERG" or cache["level"] == "PANIC"
               - set(severity_number, 21) where severity_text == "FATAL"
       k8s_attributes/connection:
         filter:
