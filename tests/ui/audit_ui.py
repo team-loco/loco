@@ -256,16 +256,15 @@ with session(out) as browser:
         drawer.get_by_role("button", name="More by Olivia", exact=True)
     ).to_be_visible()
     # The title and what the event acted on share one line.
-    title_box = drawer.get_by_role("heading", name="Created a resource").bounding_box()
-    target_box = drawer.locator('[data-slot="sheet-description"]').bounding_box()
-    assert target_box["y"] < title_box["y"] + title_box["height"], (
-        title_box,
-        target_box,
+    # Both boxes come from one frame, so the drawer's slide-in cannot skew them.
+    gap = drawer.locator('[data-slot="sheet-description"]').evaluate(
+        """node => {
+            const title = node.previousElementSibling.getBoundingClientRect();
+            const target = node.getBoundingClientRect();
+            return { left: target.left - title.right, top: target.top - title.bottom };
+        }"""
     )
-    assert target_box["x"] >= title_box["x"] + title_box["width"] - 1, (
-        title_box,
-        target_box,
-    )
+    assert gap["left"] >= 0 and gap["top"] < 0, gap
     drawer.get_by_role("button", name="Older event", exact=True).click()
     expect(drawer.get_by_title("Copy request ID", exact=True)).not_to_have_text(
         request_id
