@@ -17588,6 +17588,22 @@
             "type": "string",
             "title": "page_token",
             "description": "cursor from previous page (base64-encoded timestamp+id)"
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200,
+            "description": "Matches workspace names and descriptions, ignoring case."
+          },
+          "hasResources": {
+            "type": "boolean",
+            "title": "has_resources",
+            "description": "Only workspaces that hold at least one resource."
           }
         },
         "title": "ListOrgWorkspacesRequest",
@@ -17608,6 +17624,12 @@
             "type": "string",
             "title": "next_page_token",
             "description": "empty if no more pages"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The workspaces the filters match, ignoring page_token; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
           }
         },
         "title": "ListOrgWorkspacesResponse",
@@ -17633,6 +17655,11 @@
             "type": "string",
             "title": "page_token",
             "description": "cursor from previous page (base64-encoded timestamp+id)"
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
           }
         },
         "title": "ListUserWorkspacesRequest",
@@ -17653,6 +17680,12 @@
             "type": "string",
             "title": "next_page_token",
             "description": "empty if no more pages"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The workspaces the user can read; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
           }
         },
         "title": "ListUserWorkspacesResponse",
@@ -17856,7 +17889,7 @@
             ],
             "title": "resource_count",
             "format": "int32",
-            "description": "resource_count is how many resources the workspace holds. ListOrgWorkspaces sets it on each\n workspace the caller can read."
+            "description": "resource_count is how many resources the workspace holds. GetWorkspace sets it, and\n ListOrgWorkspaces sets it on each workspace the caller can read."
           },
           "memberCount": {
             "type": [
@@ -17865,7 +17898,7 @@
             ],
             "title": "member_count",
             "format": "int32",
-            "description": "member_count is how many users hold a direct grant on the workspace. An organization admin\n without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read."
+            "description": "member_count is how many users hold a direct grant on the workspace. An organization admin\n without one is not counted. GetWorkspace sets it, and ListOrgWorkspaces sets it on each\n workspace the caller can read."
           }
         },
         "title": "Workspace",

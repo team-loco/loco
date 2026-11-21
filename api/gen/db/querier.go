@@ -47,6 +47,8 @@ type Querier interface {
 	CountWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	CountWorkspaceResources(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) (int64, error)
+	CountWorkspacesForUser(ctx context.Context, arg CountWorkspacesForUserParams) (int64, error)
+	CountWorkspacesInOrg(ctx context.Context, arg CountWorkspacesInOrgParams) (int64, error)
 	// -----------------------------------------------------------------------------
 	// API token queries
 	// -----------------------------------------------------------------------------

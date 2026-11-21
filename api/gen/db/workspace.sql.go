@@ -47,6 +47,71 @@ func (q *Queries) CountWorkspaceContents(ctx context.Context, workspaceIds []uui
 	return items, nil
 }
 
+const countWorkspacesForUser = `-- name: CountWorkspacesForUser :one
+SELECT COUNT(*) FROM (
+  SELECT w.id FROM user_scopes us
+  JOIN workspaces w ON w.id = us.entity_id
+  WHERE us.user_id = $1 AND us.scope = 'read' AND us.entity_type = 'workspace'
+  UNION
+  SELECT w.id FROM user_scopes us
+  JOIN workspaces w ON w.org_id = us.entity_id
+  WHERE us.user_id = $1 AND us.scope = 'read' AND us.entity_type = 'organization'
+  LIMIT $2
+) capped
+`
+
+type CountWorkspacesForUserParams struct {
+	UserID uuid.UUID `json:"userId"`
+	Limit  int32     `json:"limit"`
+}
+
+func (q *Queries) CountWorkspacesForUser(ctx context.Context, arg CountWorkspacesForUserParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countWorkspacesForUser, arg.UserID, arg.Limit)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countWorkspacesInOrg = `-- name: CountWorkspacesInOrg :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM workspaces w
+  WHERE w.org_id = $1
+    AND ($3::bool
+         OR w.id = ANY($4::uuid[])
+         OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY($5::uuid[])))
+    AND ($6::text = '' OR w.name ILIKE $6
+         OR (($3::bool OR w.id = ANY($4::uuid[]))
+             AND w.description ILIKE $6))
+    AND (NOT $7::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
+  LIMIT $2
+) capped
+`
+
+type CountWorkspacesInOrgParams struct {
+	OrgID         uuid.UUID   `json:"orgId"`
+	Limit         int32       `json:"limit"`
+	AllWorkspaces bool        `json:"allWorkspaces"`
+	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
+	Query         string      `json:"query"`
+	HasResources  bool        `json:"hasResources"`
+}
+
+func (q *Queries) CountWorkspacesInOrg(ctx context.Context, arg CountWorkspacesInOrgParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countWorkspacesInOrg,
+		arg.OrgID,
+		arg.Limit,
+		arg.AllWorkspaces,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+		arg.Query,
+		arg.HasResources,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (org_id, name, description, created_by)
 VALUES ($1, $2, $3, $4)
@@ -371,10 +436,14 @@ WHERE w.org_id = $1
   AND ($3::bool
        OR w.id = ANY($4::uuid[])
        OR w.id IN (SELECT r.workspace_id FROM resources r WHERE r.id = ANY($5::uuid[])))
-  AND ($6::text IS NULL
+  AND ($6::text = '' OR w.name ILIKE $6
+       OR (($3::bool OR w.id = ANY($4::uuid[]))
+           AND w.description ILIKE $6))
+  AND (NOT $7::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
+  AND ($8::text IS NULL
        OR (w.created_at, w.id) < (
-         $7::timestamptz,
-         $6::uuid
+         $9::timestamptz,
+         $8::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2
@@ -386,6 +455,8 @@ type ListWorkspacesInOrgParams struct {
 	AllWorkspaces bool        `json:"allWorkspaces"`
 	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
 	ResourceIds   []uuid.UUID `json:"resourceIds"`
+	Query         string      `json:"query"`
+	HasResources  bool        `json:"hasResources"`
 	PageToken     *string     `json:"pageToken"`
 	PageCreatedAt *time.Time  `json:"pageCreatedAt"`
 }
@@ -411,6 +482,8 @@ func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInO
 		arg.AllWorkspaces,
 		arg.WorkspaceIds,
 		arg.ResourceIds,
+		arg.Query,
+		arg.HasResources,
 		arg.PageToken,
 		arg.PageCreatedAt,
 	)

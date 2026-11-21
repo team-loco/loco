@@ -48,11 +48,12 @@ message Workspace {
   // effective_retention is how many days ingest keeps each signal, with every field set: the
   // workspace's own value capped by its organization's limit.
   RetentionDays effective_retention = 10;
-  // resource_count is how many resources the workspace holds. ListOrgWorkspaces sets it on each
-  // workspace the caller can read.
+  // resource_count is how many resources the workspace holds. GetWorkspace sets it, and
+  // ListOrgWorkspaces sets it on each workspace the caller can read.
   optional int32 resource_count = 11;
   // member_count is how many users hold a direct grant on the workspace. An organization admin
-  // without one is not counted. ListOrgWorkspaces sets it on each workspace the caller can read.
+  // without one is not counted. GetWorkspace sets it, and ListOrgWorkspaces sets it on each
+  // workspace the caller can read.
   optional int32 member_count = 12;
 }
 
@@ -100,12 +101,17 @@ message ListUserWorkspacesRequest {
     lte: 200
   }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
+  // Sets total_count in the response.
+  bool include_total_count = 4;
 }
 
 // ListUserWorkspacesResponse contains the list of user's workspaces.
 message ListUserWorkspacesResponse {
   repeated Workspace workspaces = 1;
   string next_page_token = 2; // empty if no more pages
+  // The workspaces the user can read; set when include_total_count is.
+  // Exact up to 10,000; 10,001 means more than 10,000.
+  int32 total_count = 3;
 }
 
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
@@ -116,12 +122,21 @@ message ListOrgWorkspacesRequest {
     lte: 200
   }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
+  // Sets total_count in the response.
+  bool include_total_count = 4;
+  // Matches workspace names and descriptions, ignoring case.
+  string query = 5 [(buf.validate.field).string.max_len = 200];
+  // Only workspaces that hold at least one resource.
+  bool has_resources = 6;
 }
 
 // ListOrgWorkspacesResponse contains the list of workspaces.
 message ListOrgWorkspacesResponse {
   repeated Workspace workspaces = 1;
   string next_page_token = 2; // empty if no more pages
+  // The workspaces the filters match, ignoring page_token; set when include_total_count is.
+  // Exact up to 10,000; 10,001 means more than 10,000.
+  int32 total_count = 3;
 }
 
 // UpdateWorkspaceRequest is the request to update a workspace.

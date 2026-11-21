@@ -453,15 +453,20 @@ func TestResourceReaderListsOnlyTheNameOfTheirResourcesWorkspace(t *testing.T) {
 		t.Fatalf("grant resource: %v", err)
 	}
 
-	list := func() []*workspacev1.Workspace {
+	search := func(query string) ([]*workspacev1.Workspace, int32) {
 		t.Helper()
 		listed, err := member.clients.Workspace.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
-			OrgId: o.orgID,
+			OrgId: o.orgID, Query: query, IncludeTotalCount: true,
 		})
 		if err != nil {
 			t.Fatalf("list org workspaces: %v", err)
 		}
-		return listed.GetWorkspaces()
+		return listed.GetWorkspaces(), listed.GetTotalCount()
+	}
+	list := func() []*workspacev1.Workspace {
+		t.Helper()
+		workspaces, _ := search("")
+		return workspaces
 	}
 	workspaces := list()
 	if got := workspaceNames(workspaces); !slices.Equal(got, []string{membershipSharedPath}) {
@@ -472,10 +477,16 @@ func TestResourceReaderListsOnlyTheNameOfTheirResourcesWorkspace(t *testing.T) {
 		shared.GetCreatedBy() != "" || shared.GetCreatedAt() != nil || shared.GetUpdatedAt() != nil {
 		t.Fatalf("resource reader got workspace details: %+v", shared)
 	}
+	if found, total := search("private"); len(found) != 0 || total != 0 {
+		t.Fatalf("resource reader found %d workspaces (total %d) by their hidden description", len(found), total)
+	}
 
 	o.grantWorkspace(t, member, o.shared)
 	if shared = list()[0]; shared.GetDescription() != "private notes" || shared.GetCreatedBy() != o.owner.id.String() {
 		t.Fatalf("workspace reader got %+v, want the full workspace", shared)
+	}
+	if found, total := search("private"); len(found) != 1 || total != 1 {
+		t.Fatalf("workspace reader found %d workspaces (total %d) by description, want 1", len(found), total)
 	}
 }
 
