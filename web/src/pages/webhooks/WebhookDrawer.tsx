@@ -23,6 +23,7 @@ import { useNow } from "@/hooks/useNow";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { formatClock, tsMs } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 import { WebhookActions } from "./WebhookActions";
 import { formatDay } from "../settings/parts";
@@ -145,7 +146,10 @@ function WebhookDetail({
 			<SheetHeader>
 				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
 					<span className="text-[12px] text-fg3">Webhook</span>
-					<SheetTitle className="truncate font-mono text-[15px] font-medium" title={webhook.url}>
+					<SheetTitle
+						className={cn("truncate text-[15px] font-medium", webhook.name === "" && "font-mono")}
+						title={webhook.url}
+					>
 						{webhook.name === "" ? new URL(webhook.url).host : webhook.name}
 					</SheetTitle>
 				</div>

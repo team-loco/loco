@@ -60,7 +60,7 @@ export function WebhookActions({
 						Send test event
 					</Button>
 				)}
-				<RowMenu label={`Actions for ${webhook.url}`}>
+				<RowMenu label={`Actions for ${webhook.url}`} className={menuOnly ? "size-[22px] text-fg3" : undefined}>
 					{menuOnly && (
 						<DropdownMenuItem
 							aria-disabled={test.isPending}
@@ -159,7 +159,10 @@ function RotateSecret({
 				if (!next && !rotate.isPending) close();
 			}}
 		>
-			<DialogContent title={secret === undefined ? "Rotate signing secret" : "New signing secret"}>
+			<DialogContent
+				title={secret === undefined ? "Rotate signing secret" : "New signing secret"}
+				showCloseButton={false}
+			>
 				{secret !== undefined ? (
 					<SigningSecret secret={secret} onDone={close} />
 				) : (
@@ -177,7 +180,9 @@ function RotateSecret({
 						}}
 					>
 						<DialogBody>
-							<p className="m-0 break-all text-fg2">For {webhook.url}</p>
+							<p className="m-0 text-fg2">
+								For <span className="font-mono [overflow-wrap:anywhere]">{webhook.url}</span>
+							</p>
 							<Field
 								label="Keep the old secret working for"
 								hint={
@@ -189,6 +194,7 @@ function RotateSecret({
 								<ToggleGroup
 									variant="segmented"
 									aria-label="Grace period"
+									className="w-max"
 									value={[seconds]}
 									onValueChange={(v) => {
 										if (v[0] !== undefined) setSeconds(v[0]);

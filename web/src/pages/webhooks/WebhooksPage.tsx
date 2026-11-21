@@ -22,16 +22,21 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
-import { LimitedAction } from "@/components/design/LimitedAction";
+import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
+import { DocsButton } from "@/components/design/DocsButton";
+import { EmptyHero } from "@/components/design/EmptyHero";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { limitReason, limitUsage } from "@/lib/limits";
 
 import { NewWebhookDialog } from "./NewWebhookDialog";
 import { WebhookDrawer } from "./WebhookDrawer";
 import { formatDay } from "../settings/parts";
+import { DOCS_URL } from "../splash/links";
+import { WebhooksArt } from "./WebhooksArt";
 import { DELIVERY_TICKS, eventsSummary, hasPending, refreshDeliveries, tickStrip, type Tick } from "./webhooks";
 
 const PENDING_REFRESH_MS = 5_000;
+const WEBHOOK_DOCS = `${DOCS_URL}/operations/webhooks/`;
 
 const TICK_CLASS: Record<Tick, string> = {
 	ok: "bg-ok-glyph opacity-75",
@@ -109,64 +114,79 @@ export function WebhooksPage({
 			? null
 			: limitUsage(webhooks.length, limits?.webhooksPerWorkspace, "webhooks", "workspace");
 	const createBlocked = limitReason(usage);
+	const newWebhook = (
+		<LimitedAction reason={createBlocked}>
+			<Button
+				variant="default"
+				disabled={createBlocked !== null}
+				onClick={() => {
+					setCreating(true);
+				}}
+			>
+				<PlusIcon />
+				New webhook
+			</Button>
+		</LimitedAction>
+	);
 
 	return (
 		<Page className="gap-[22px]">
 			<PageHeader
-				title="Webhooks"
-				actions={
-					<LimitedAction reason={createBlocked}>
-						<Button
-							variant="default"
-							disabled={createBlocked !== null}
-							onClick={() => {
-								setCreating(true);
-							}}
-						>
-							<PlusIcon />
-							New webhook
-						</Button>
-					</LimitedAction>
+				title={
+					<>
+						Webhooks
+						<LimitCount usage={usage} />
+					</>
 				}
+				actions={newWebhook}
 			/>
-			<Section
-				search={
-					<SearchInput
-						aria-label="Search webhooks"
-						placeholder="Search by name, URL or event type"
-						value={search}
-						onClear={() => {
-							setSearch("");
-						}}
-						onChange={(e) => {
-							setSearch(e.target.value);
-						}}
-					/>
-				}
-			>
-				{query.isPending ? (
-					<div className="flex flex-col gap-2 px-5 py-3">
-						<Skeleton className="h-9 w-full" />
+			{query.data !== undefined && webhooks.length === 0 ? (
+				<EmptyHero
+					art={<WebhooksArt />}
+					title="No webhooks yet"
+					subtitle={`Loco sends a signed POST to your URL when something happens in ${workspaceName}, such as a build finishing, a resource scaling or a secret changing.`}
+				>
+					<div className="mt-1.5 flex flex-wrap justify-center gap-2">
+						{newWebhook}
+						<DocsButton href={WEBHOOK_DOCS} />
 					</div>
-				) : query.error !== null ? (
-					<ErrorState error={query.error} what="webhooks" rpc={listWebhooks} onRetry={query.refetch} />
-				) : webhooks.length === 0 ? (
-					<div className="px-5 py-7 text-center text-[13px] text-fg3">
-						No webhooks yet. Create one to get a POST for events in this workspace.
-					</div>
-				) : filtered.length === 0 ? (
-					<div className="px-5 py-7 text-center text-[13px] text-fg3">No webhooks match.</div>
-				) : (
-					<DataTable
-						table={table}
-						label="Webhooks"
-						activeRowId={openId}
-						onRowClick={(row) => {
-							setOpenId(row.id);
-						}}
-					/>
-				)}
-			</Section>
+				</EmptyHero>
+			) : (
+				<Section
+					search={
+						<SearchInput
+							aria-label="Search webhooks"
+							placeholder="Search by name, URL or event type"
+							value={search}
+							onClear={() => {
+								setSearch("");
+							}}
+							onChange={(e) => {
+								setSearch(e.target.value);
+							}}
+						/>
+					}
+				>
+					{query.isPending ? (
+						<div className="flex flex-col gap-2 px-5 py-3">
+							<Skeleton className="h-9 w-full" />
+						</div>
+					) : query.error !== null ? (
+						<ErrorState error={query.error} what="webhooks" rpc={listWebhooks} onRetry={query.refetch} />
+					) : filtered.length === 0 ? (
+						<div className="px-5 py-7 text-center text-[13px] text-fg3">No webhooks match.</div>
+					) : (
+						<DataTable
+							table={table}
+							label="Webhooks"
+							activeRowId={openId}
+							onRowClick={(row) => {
+								setOpenId(row.id);
+							}}
+						/>
+					)}
+				</Section>
+			)}
 
 			<WebhookDrawer
 				workspaceId={workspaceId}

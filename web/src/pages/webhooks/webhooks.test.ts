@@ -15,6 +15,7 @@ import {
 	deliveryTick,
 	deliveryWhen,
 	eventsSummary,
+	chosenLabel,
 	groupCountLabel,
 	hasPending,
 	isHttpsUrl,
@@ -90,10 +91,16 @@ test("summarises event filters", () => {
 	expect(eventsSummary(["build.failed", "build.succeeded"])).toBe("2 events");
 });
 
-test("counts a group's chosen events as all or n/m", () => {
-	expect(groupCountLabel(5, 5)).toBe("all");
-	expect(groupCountLabel(4, 5)).toBe("4/5");
-	expect(groupCountLabel(0, 5)).toBe("0/5");
+test("counts a group's events, or its chosen events once any are chosen", () => {
+	expect(groupCountLabel(0, 5)).toBe("5 events");
+	expect(groupCountLabel(0, 1)).toBe("1 event");
+	expect(groupCountLabel(4, 5)).toBe("4 of 5");
+	expect(groupCountLabel(5, 5)).toBe("5 of 5");
+});
+
+test("summarises the chosen events", () => {
+	expect(chosenLabel(0, 40)).toBe("None chosen yet");
+	expect(chosenLabel(3, 40)).toBe("3 of 40 events");
 });
 
 test("groups workspace events by subject and leaves out organization events", () => {
