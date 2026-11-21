@@ -96,6 +96,9 @@ def check_scoped_user(browser):
         "resourceId": rid,
         "environmentId": production,
         "createdAt": stamp,
+        "title": "Degraded in us-ca-1",
+        "severity": "warning",
+        "region": "us-ca-1",
         "data": {
             "reason": "restarting",
             "message": "Back-off restarting failed container",
@@ -111,12 +114,15 @@ def check_scoped_user(browser):
         "workspaceId": activity["workspaceId"],
         "resourceId": rid,
         "createdAt": stamp,
+        "title": "Deploy created",
+        "severity": "normal",
         "data": {"resourceId": rid, "environmentId": production},
     }
     other_rollout = dict(
         rollout,
         id="01a1c8b3-0000-7000-8000-00000000d002",
         type="resource.scaled",
+        title="Scaled",
         data={"environmentId": "01a1c8b3-0000-7000-8000-0000000000ff", "replicas": 3},
     )
     down = {
