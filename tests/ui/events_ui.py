@@ -222,7 +222,7 @@ with session(out) as browser:
     expect(live).to_have_text("Pause")
     assert not errors, errors
     context.close()
-    context, page, errors = open_page(browser, state=state, now=time.time() * 1000)
+    context, page, errors = open_page(browser, state=state, now=time.time())
     page.route(
         "**/loco.event.v1.EventService/ListEvents",
         lambda route: route.fulfill(
