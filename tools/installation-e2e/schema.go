@@ -51,5 +51,12 @@ func (f *fixture) prepareSchema(ctx context.Context, databaseURL string) (result
 	if output, migrateErr := migrate.CombinedOutput(); migrateErr != nil {
 		return fmt.Errorf("initialize fixture database schema: %w; output: %s", migrateErr, output)
 	}
+	// A removed cluster gives the fixture region a cluster, so the baseline CLI's --region joins it.
+	if _, err = kubectl(ctx, "-n", fixtureNamespace, "exec", "deploy/postgres", "--",
+		"psql", databaseURL, "-v", "ON_ERROR_STOP=1", "-c",
+		"INSERT INTO clusters (name, region, provider, is_active, is_default, removed_at) "+
+			"VALUES ('region-seed', '"+fixtureRegion+"', 'kubernetes', false, false, NOW())"); err != nil {
+		return fmt.Errorf("seed fixture region: %w", err)
+	}
 	return nil
 }

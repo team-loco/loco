@@ -194,7 +194,7 @@ with session(out) as browser:
 
     sql(state, "UPDATE clusters SET is_active=false WHERE region='us-ca-1';")
     page.reload()
-    expect(east).to_contain_text("Offline")
+    expect(east).to_contain_text("No cluster in this region")
     sql(state, "UPDATE clusters SET is_active=true WHERE region='us-ca-1';")
 
     sql(state, f"UPDATE resources SET partial='app' WHERE id='{resource}';")
