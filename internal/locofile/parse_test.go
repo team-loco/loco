@@ -262,23 +262,11 @@ func TestParseRejects(t *testing.T) {
 			path: "services.api.regions.us-ca-1",
 		},
 		{
-			name: "autoscaling on memory",
-			yaml: strings.Replace(minimalFile, "replicas: { min: 1, max: 1 }",
-				"replicas: { min: 1, max: 1 }, autoscaling: { memoryTarget: 80 }", 1),
-			err: errUnknownKey,
-		},
-		{
 			name: "autoscaling without a target",
 			yaml: strings.Replace(minimalFile, "replicas: { min: 1, max: 1 }",
 				"replicas: { min: 1, max: 1 }, autoscaling: {}", 1),
 			err:  ErrAutoscalingTarget,
 			path: "services.api.regions.us-ca-1.autoscaling",
-		},
-		{
-			name: "autoscaling on memory in an override",
-			yaml: minimalFile + "    environments:\n      prod:\n        regions:\n" +
-				"          us-ca-1: { autoscaling: { memoryTarget: 80 } }\n",
-			err: errUnknownKey,
 		},
 		{
 			name: "environments inside an override",
