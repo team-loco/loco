@@ -10,7 +10,7 @@ import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
-import { ResourceStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { PlacementChips } from "@/components/design/PlacementChips";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -152,7 +152,10 @@ function AlertCard({
 	return (
 		<ActivityCard>
 			<div className="flex items-center justify-between gap-2.5 [&>span:first-child]:text-[13px]">
-				<ResourceStatusBadge status={alert.status} />
+				<span className="flex flex-wrap items-center gap-1.5">
+					<ResourceStatusBadge status={alert.status} />
+					<RolloutBadge rollout={alert.rollout} />
+				</span>
 				{alert.sinceMs !== undefined && (
 					<span className="font-mono text-[12px] text-fg3">started {agoLabel(alert.sinceMs, nowMs)}</span>
 				)}

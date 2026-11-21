@@ -33,13 +33,14 @@ import { Section } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
 import { DeployMarkers } from "@/components/design/DeployMarkers";
 import { Sparkline } from "@/components/design/Sparkline";
-import { ResourceStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deployMarkers } from "@/lib/deployMarkers";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
+import { rolloutState } from "@/lib/resource-status";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
 import { readyMs, shortDurationLabel } from "@/lib/time";
 import { pageParser } from "@/lib/paging";
@@ -154,6 +155,7 @@ function StatusCell({ item }: { item: DashboardItem }) {
 	return (
 		<div className="flex min-w-0 flex-col items-start gap-[3px]">
 			<ResourceStatusBadge status={item.status} />
+			<RolloutBadge rollout={rolloutState(item.environment?.regions ?? [])} compact />
 			{note !== "" && <CellText text={note} className="max-w-full text-[12px] text-fg3" />}
 		</div>
 	);

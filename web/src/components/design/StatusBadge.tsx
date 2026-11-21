@@ -2,6 +2,7 @@ import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Badge } from "@/components/ui/badge";
+import type { Rollout } from "@/lib/resource-status";
 import { cn } from "@/lib/utils";
 
 import { type Glyph, StatusGlyph } from "./StatusGlyph";
@@ -94,6 +95,17 @@ export function StatusBadge({ glyph, label, className }: StatusStyle & { classNa
 
 export function ResourceStatusBadge({ status }: { status: ResourceStatus | undefined }) {
 	return <StatusBadge {...resourceStatusStyle(status)} />;
+}
+
+export const ROLLOUT_STYLE: Record<Rollout, StatusStyle & { short: string }> = {
+	updating: { label: "Updating", short: "Updating", glyph: "spin" },
+	failed: { label: "Update failed · previous version serving", short: "Update failed", glyph: "err" },
+};
+
+export function RolloutBadge({ rollout, compact = false }: { rollout: Rollout | undefined; compact?: boolean }) {
+	if (rollout === undefined) return null;
+	const { label, short, glyph } = ROLLOUT_STYLE[rollout];
+	return <StatusBadge glyph={glyph} label={compact ? short : label} />;
 }
 
 const SUPERSEDED: StatusStyle = { label: "Superseded", glyph: "off" };

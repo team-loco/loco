@@ -71,6 +71,7 @@ describe("buildAlerts", () => {
 			description: "Public API",
 			region: "eu-west",
 			status: ResourceStatus.DEGRADED,
+			rollout: undefined,
 			message: "back-off restarting failed container",
 			sinceMs: SINCE_MS,
 		});

@@ -9,7 +9,7 @@ import { DRAFT_RANK, draftSizing, type Draft, type ServiceSizing } from "@/lib/d
 import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { configuredRegions } from "@/lib/resource-regions";
-import { environmentStatus, primaryDomain, statusRank } from "@/lib/resource-status";
+import { environmentStatus, primaryDomain, rolloutState, statusRank, type Rollout } from "@/lib/resource-status";
 import { pageParser } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { readyMs, tsMs } from "@/lib/time";
@@ -41,6 +41,7 @@ export function visibleStatusFilters(counts: ReadonlyMap<string, number>, select
 
 export interface EnvCell {
 	status: ResourceStatus;
+	rollout: Rollout | undefined;
 	tag: string;
 	ready: number;
 	desired: number;
@@ -90,6 +91,7 @@ function envCell(resource: Resource, environment: Environment, deployments: Depl
 	const image = active === undefined ? "" : deploymentImage(active);
 	return {
 		status: status.status,
+		rollout: rolloutState(status.regions),
 		tag: image === "" ? "" : imageVersion(image),
 		ready: status.regions.reduce((n, r) => n + r.readyReplicas, 0),
 		desired: status.regions.reduce((n, r) => n + r.desiredReplicas, 0),
