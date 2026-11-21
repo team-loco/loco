@@ -1,27 +1,21 @@
-import { Link } from "react-router";
+import { useState } from "react";
 import type { EnvironmentStatus, RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
-import { Progress } from "@/components/design/Progress";
-import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
-import { resourceStatusStyle } from "@/components/design/StatusBadge";
-import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
-import { cn } from "@/lib/utils";
 
 import { sharedLimit, type MetricRange } from "./metric";
 import { MetricChart } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
-import { ReplicaList } from "./ReplicaList";
+import { MANY_REPLICAS, ReplicaDetail, ReplicaList } from "./ReplicaList";
 import { regionReady, replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
 const ALL_REGIONS = "all";
-const PERCENT = 100;
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
 const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
 
@@ -61,43 +55,6 @@ function scaleText(regions: RegionView[]): string {
 	return `autoscaling ${min.toString()}–${max.toString()}${cpu === undefined ? "" : `, CPU ${cpu.toString()}%`}`;
 }
 
-function RegionRow({ region, pressed, onPick }: { region: RegionView; pressed: boolean; onPick: () => void }) {
-	const status = region.status;
-	const { ready, desired, previous } = regionReady(region);
-	const style = resourceStatusStyle(status?.status);
-	const pct = desired === 0 ? 0 : Math.min(PERCENT, (ready / desired) * PERCENT);
-	return (
-		<div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[170px_minmax(0,1fr)] sm:gap-3.5">
-			<button
-				type="button"
-				aria-pressed={pressed}
-				onClick={onPick}
-				className="-ml-2 flex flex-col items-start gap-0.5 rounded-md border-0 bg-transparent px-2 py-1.5 text-left hover:bg-background aria-pressed:bg-background"
-			>
-				<span className="flex items-center gap-2 font-mono text-[12.5px] text-foreground">
-					<StatusGlyph glyph={style.glyph} />
-					{region.name}
-				</span>
-				<span className="text-[11.5px] text-fg3">
-					{status === undefined
-						? "Not reporting"
-						: [
-								`${ready.toString()}/${desired.toString()} ready`,
-								...(previous > 0 ? [`${previous.toString()} previous`] : []),
-								style.label,
-							].join(" · ")}
-				</span>
-			</button>
-			<Progress
-				value={pct}
-				aria-label={`Replicas ready in ${region.name}`}
-				getAriaValueText={() => `${ready.toString()} of ${desired.toString()} replicas ready`}
-				className={cn(ready < desired && "[&_[data-slot=progress-indicator]]:bg-warn")}
-			/>
-		</div>
-	);
-}
-
 export function ReplicasPanel({
 	workspaceId,
 	environmentId,
@@ -108,7 +65,7 @@ export function ReplicasPanel({
 	onSelect,
 	range,
 	markers,
-	metricsHref,
+	replicaHref,
 	nowMs,
 }: {
 	workspaceId: string;
@@ -120,9 +77,10 @@ export function ReplicasPanel({
 	onSelect: (region: string | null) => void;
 	range: MetricRange;
 	markers: number[];
-	metricsHref: string | undefined;
+	replicaHref: (view: "logs" | "metrics", replica: string) => string | undefined;
 	nowMs: number;
 }) {
+	const [picked, setPicked] = useState<string | null>(null);
 	const deployed = regions.filter(isDeployed);
 	const region = selected ?? "";
 	const target = { workspaceId, environmentId, resourceId, region, range };
@@ -132,8 +90,8 @@ export function ReplicasPanel({
 	const memoryLimits = regionLimits(charted, memorySize);
 	const single = charted.length === 1 ? charted[0]?.name : undefined;
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
-	const picked = deployed.find((r) => r.name === selected);
-	const pickedCount = picked === undefined ? undefined : regionReady(picked);
+	const pickedRegion = deployed.find((r) => r.name === selected);
+	const pickedCount = pickedRegion === undefined ? undefined : regionReady(pickedRegion);
 	const selectedLine =
 		pickedCount === undefined
 			? undefined
@@ -143,6 +101,9 @@ export function ReplicasPanel({
 		return view === undefined ? { ready: 0, desired: status.desiredReplicas } : regionReady(view);
 	};
 	const compare = selected === null && deployed.length > 1;
+	const pickedReplica = charted
+		.flatMap((view) => (view.status?.replicas ?? []).map((replica) => ({ region: view, replica })))
+		.find((r) => r.replica.name === picked);
 	const averages = {
 		regions: deployed.map((r) => r.name),
 		workspaceId,
@@ -175,27 +136,10 @@ export function ReplicasPanel({
 							))}
 						</ToggleGroup>
 					)}
-					{metricsHref !== undefined && (
-						<Button variant="link" nativeButton={false} render={<Link to={metricsHref} />}>
-							All metrics
-						</Button>
-					)}
 				</>
 			}
 		>
-			<div className="flex flex-col gap-2">
-				{deployed.map((r) => (
-					<RegionRow
-						key={r.name}
-						region={r}
-						pressed={selected === r.name}
-						onPick={() => {
-							onSelect(selected === r.name ? null : r.name);
-						}}
-					/>
-				))}
-			</div>
-			<div className="flex flex-col gap-3">
+			<div className="flex flex-col gap-3.5">
 				{charted.map((r) => (
 					<ReplicaList
 						key={r.name}
@@ -203,9 +147,25 @@ export function ReplicasPanel({
 						environmentId={environmentId}
 						resourceId={resourceId}
 						region={r}
+						many={(r.status?.replicas.length ?? 0) > MANY_REPLICAS}
+						selected={picked}
+						onSelect={setPicked}
+						regionPressed={selected === r.name}
+						onPickRegion={() => {
+							onSelect(selected === r.name ? null : r.name);
+						}}
 						nowMs={nowMs}
 					/>
 				))}
+				{pickedReplica !== undefined && (
+					<ReplicaDetail
+						replica={pickedReplica.replica}
+						region={pickedReplica.region}
+						nowMs={nowMs}
+						metricsHref={replicaHref("metrics", pickedReplica.replica.name)}
+						logsHref={replicaHref("logs", pickedReplica.replica.name)}
+					/>
+				)}
 			</div>
 			<div className="grid grid-cols-1 gap-7 border-t border-line2 pt-3.5 lg:grid-cols-2">
 				{compare ? (

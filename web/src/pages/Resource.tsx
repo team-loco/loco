@@ -246,6 +246,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					q: region === null ? null : queryStr([{ key: "region", value: quoteValue(region), neg: false }], ""),
 				})
 			: undefined;
+	const replicaLink = (obsView: "logs" | "metrics", replica: string, rangeMs?: number): string | undefined =>
+		hasWs
+			? observabilityPath(activeOrgId, activeWorkspaceId, obsView, {
+					...envParam,
+					...(rangeMs === undefined ? {} : { range: rangeMs }),
+					r: [resource.slug],
+					q: queryStr([{ key: "replica", value: quoteValue(replica), neg: false }], ""),
+				})
+			: undefined;
 	const switcher = hasWs
 		? (resourcesQuery.data?.resources ?? []).map((r) => ({
 				id: r.id,
@@ -456,6 +465,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							onRange={(next) => {
 								void setParams({ range: next });
 							}}
+							metricsHref={obsLink("metrics", selectedRegion, RANGE_MS[range])}
 						/>
 					)}
 					{deployed.length > 0 && environmentId !== undefined ? (
@@ -472,7 +482,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							}}
 							range={range}
 							markers={markers}
-							metricsHref={obsLink("metrics", selectedRegion, RANGE_MS[range])}
+							replicaHref={(obsView, replica) =>
+								replicaLink(obsView, replica, obsView === "metrics" ? RANGE_MS[range] : undefined)
+							}
 						/>
 					) : (
 						<Section>
