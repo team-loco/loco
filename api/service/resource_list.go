@@ -22,10 +22,10 @@ import (
 // per-environment sort values, scoped to $10's.
 // $1 workspace, $2 cluster silence in seconds, $3 environment or NULL, $4 ILIKE pattern or ”,
 // $5 status name or ”, $6 not deployed, $7 region or ”, $8 type or ”, $9 environment scoped,
-// $10 sort environment or NULL.
+// $10 sort environment or NULL, $11 the readable resources, or NULL for every resource.
 const resourceListSQL = `WITH ws AS MATERIALIZED (
   SELECT r.id, r.name, r.slug, r.description, r.type::text AS type, r.created_at, r.spec
-  FROM resources r WHERE r.workspace_id = $1
+  FROM resources r WHERE r.workspace_id = $1 AND ($11::uuid[] IS NULL OR r.id = ANY($11::uuid[]))
 ),
 regions AS MATERIALIZED (
   SELECT i.resource_id, i.environment_id, i.region, i.desired_replicas,
@@ -124,12 +124,14 @@ type resourceFilter struct {
 	resourceType      string
 	environmentScoped bool
 	sortEnvironmentID *uuid.UUID
+	// readable limits the list to these resources; nil lists every resource of the workspace.
+	readable []uuid.UUID
 }
 
 func (f resourceFilter) args() []any {
 	return []any{
 		f.workspaceID, f.silentSeconds, f.environmentID, f.pattern, f.status, f.notDeployed,
-		f.region, f.resourceType, f.environmentScoped, f.sortEnvironmentID,
+		f.region, f.resourceType, f.environmentScoped, f.sortEnvironmentID, f.readable,
 	}
 }
 
@@ -155,13 +157,15 @@ func (s *ResourceServer) ListWorkspaceResources(
 	if err != nil {
 		return nil, err
 	}
-	if err = authorize(ctx, s.authz, actions.ListResources, wsID); err != nil {
+	readable, err := s.readableResources(ctx, wsID)
+	if err != nil {
 		return nil, err
 	}
 	filter, err := s.resourceFilter(ctx, wsID, req)
 	if err != nil {
 		return nil, err
 	}
+	filter.readable = readable
 	order, descending := req.GetOrderBy(), req.GetDescending()
 	if order == resourcev1.ResourceOrder_RESOURCE_ORDER_UNSPECIFIED {
 		order, descending = resourcev1.ResourceOrder_RESOURCE_ORDER_CREATED, true
@@ -191,7 +195,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 	}
 	count := func(ctx context.Context, limit int32) (int64, error) {
 		var n int64
-		scanErr := s.db.QueryRow(ctx, resourceListSQL+" SELECT count(*) FROM (SELECT 1 FROM matched LIMIT $11) capped",
+		scanErr := s.db.QueryRow(ctx, resourceListSQL+" SELECT count(*) FROM (SELECT 1 FROM matched LIMIT $12) capped",
 			append(filter.args(), limit)...).Scan(&n)
 		return n, scanErr
 	}
@@ -205,6 +209,33 @@ func (s *ResourceServer) ListWorkspaceResources(
 		}
 	}
 	return response, nil
+}
+
+// readableResources is nil for a caller who can list the workspace's resources, else the
+// resources of the workspace GetResource would return to the caller. A caller who can read none of
+// them is denied.
+func (s *ResourceServer) readableResources(ctx context.Context, wsID uuid.UUID) ([]uuid.UUID, error) {
+	denied := authorize(ctx, s.authz, actions.ListResources, wsID)
+	if denied == nil || connect.CodeOf(denied) != connect.CodePermissionDenied {
+		return nil, denied
+	}
+	rows, err := s.queries.ListWorkspaceResourceSlugs(ctx, wsID)
+	if err != nil {
+		return nil, fmt.Errorf("list the resources of workspace %s: %w", wsID, err)
+	}
+	readable := []uuid.UUID{}
+	for _, row := range rows {
+		checkErr := authorize(ctx, s.authz, actions.GetResource, row.ID)
+		if checkErr == nil {
+			readable = append(readable, row.ID)
+		} else if connect.CodeOf(checkErr) != connect.CodePermissionDenied {
+			return nil, checkErr
+		}
+	}
+	if len(readable) == 0 {
+		return nil, denied
+	}
+	return readable, nil
 }
 
 // resourceFilter reads the request's filters; environment_id and sort_environment_id must name
@@ -289,8 +320,8 @@ func (s *ResourceServer) resourcePage(
 		direction, beyond = "DESC", "<"
 	}
 	if after.ID != uuid.Nil {
-		sql += " WHERE (k1, k2, kt) " + beyond + " ($11, $12, $13)" +
-			" OR ((k1, k2, kt) = ($11, $12, $13) AND (name_key, id) > ($14, $15))"
+		sql += " WHERE (k1, k2, kt) " + beyond + " ($12, $13, $14)" +
+			" OR ((k1, k2, kt) = ($12, $13, $14) AND (name_key, id) > ($15, $16))"
 		args = append(args, after.K1, after.K2, after.Text, after.Name, after.ID)
 	}
 	sql += fmt.Sprintf(" ORDER BY k1 %[1]s, k2 %[1]s, kt %[1]s, name_key, id LIMIT $%[2]d", direction, len(args)+1)

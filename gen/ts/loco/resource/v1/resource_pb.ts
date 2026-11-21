@@ -2628,6 +2628,8 @@ export const ResourceService: GenService<{
   },
   /**
    * ListWorkspaceResources lists, searches, filters, sorts and counts the resources of a workspace.
+   * A caller who cannot list the workspace gets the resources of it that GetResource would return,
+   * with every count over those alone; one who can read none of them is denied.
    *
    * @generated from rpc loco.resource.v1.ResourceService.ListWorkspaceResources
    */

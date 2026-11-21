@@ -418,22 +418,71 @@ func TestListWorkspaceResourcesRejectsATokenOfAnotherOrder(t *testing.T) {
 func TestListWorkspaceResourcesNeedsTheWorkspace(t *testing.T) {
 	t.Parallel()
 	f := newResourceListFixture(t)
-	resourceReader := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeRead},
-	}})
-	_, err := f.server().ListWorkspaceResources(resourceReader, &resourcev1.ListWorkspaceResourcesRequest{
-		WorkspaceId: f.workspaceID.String(),
-	})
-	if codeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("resource reader listed the workspace: %v, want PermissionDenied", err)
+	otherWorkspace := f.tenant.workspace(t, "other")
+	otherResource := f.tenant.resource(t, otherWorkspace, "elsewhere", &resourcev1.ServiceSpec{})
+	for name, scopes := range map[string][]genDb.EntityScope{
+		"no grant": nil,
+		"a resource of another workspace": {
+			{EntityType: genDb.EntityTypeResource, EntityID: otherResource, Scope: genDb.ScopeRead},
+		},
+	} {
+		caller := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
+		_, err := f.server().ListWorkspaceResources(caller, &resourcev1.ListWorkspaceResourcesRequest{
+			WorkspaceId: f.workspaceID.String(),
+		})
+		if codeOf(err) != connect.CodePermissionDenied {
+			t.Errorf("caller with %s listed the workspace: %v, want PermissionDenied", name, err)
+		}
 	}
 
-	otherWorkspace := f.tenant.workspace(t, "other")
-	_, err = f.server().ListWorkspaceResources(f.ctx, &resourcev1.ListWorkspaceResourcesRequest{
+	_, err := f.server().ListWorkspaceResources(f.ctx, &resourcev1.ListWorkspaceResourcesRequest{
 		WorkspaceId: f.workspaceID.String(), EnvironmentId: f.tenant.defaultEnvironment(t, otherWorkspace).String(),
 	})
 	if codeOf(err) != connect.CodeNotFound {
 		t.Errorf("environment of another workspace: %v, want NotFound", err)
+	}
+}
+
+func TestListWorkspaceResourcesListsTheGrantedResources(t *testing.T) {
+	t.Parallel()
+	f := newResourceListFixture(t)
+	f.ctx = reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listBeta], Scope: genDb.ScopeRead},
+	}})
+	for _, pageSize := range []int32{0, 1} {
+		got := f.names(t, &resourcev1.ListWorkspaceResourcesRequest{
+			OrderBy: resourcev1.ResourceOrder_RESOURCE_ORDER_STATUS,
+		}, pageSize)
+		if want := []string{listAlpha, listBeta}; !slices.Equal(got, want) {
+			t.Errorf("granted resources, page size %d = %v, want %v", pageSize, got, want)
+		}
+	}
+	if got := f.names(t, &resourcev1.ListWorkspaceResourcesRequest{Region: testRegion}, 0); !slices.Equal(
+		got, []string{listBeta, listAlpha}) {
+		t.Errorf("granted resources in %s = %v, want beta, Alpha", testRegion, got)
+	}
+
+	page := f.list(t, &resourcev1.ListWorkspaceResourcesRequest{
+		PageSize: 1, IncludeTotalCount: true, IncludeFacets: true,
+	})
+	if page.GetTotalCount() != 2 {
+		t.Errorf("total_count = %d, want 2", page.GetTotalCount())
+	}
+	want := &resourcev1.ResourceFacets{
+		Statuses: []*resourcev1.ResourceStatusCount{
+			{Status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, Count: 1},
+			{Status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING, Count: 1},
+			{Status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, Count: 1},
+		},
+		Regions: []*resourcev1.ResourceRegionCount{
+			{Region: testRegion, Count: 2},
+			{Region: statusSecondRegion, Count: 1},
+		},
+		Types: []*resourcev1.ResourceTypeCount{{Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE, Count: 2}},
+	}
+	if !proto.Equal(page.GetFacets(), want) {
+		t.Errorf("facets = %v, want %v", page.GetFacets(), want)
 	}
 }
 

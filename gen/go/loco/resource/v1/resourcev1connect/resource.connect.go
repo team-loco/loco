@@ -150,6 +150,8 @@ type ResourceServiceClient interface {
 	// DeleteResource deletes a resource.
 	DeleteResource(context.Context, *v1.DeleteResourceRequest) (*v1.DeleteResourceResponse, error)
 	// ListWorkspaceResources lists, searches, filters, sorts and counts the resources of a workspace.
+	// A caller who cannot list the workspace gets the resources of it that GetResource would return,
+	// with every count over those alone; one who can read none of them is denied.
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
 	// ListRegions lists the regions an environment deploys to.
 	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
@@ -185,6 +187,8 @@ type ResourceServiceHandler interface {
 	// DeleteResource deletes a resource.
 	DeleteResource(context.Context, *v1.DeleteResourceRequest) (*v1.DeleteResourceResponse, error)
 	// ListWorkspaceResources lists, searches, filters, sorts and counts the resources of a workspace.
+	// A caller who cannot list the workspace gets the resources of it that GetResource would return,
+	// with every count over those alone; one who can read none of them is denied.
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
 	// ListRegions lists the regions an environment deploys to.
 	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
