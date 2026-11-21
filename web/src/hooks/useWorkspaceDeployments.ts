@@ -1,7 +1,6 @@
 import type { Transport } from "@connectrpc/connect";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import type { GetDeploymentResponse } from "@gen/loco/deployment/v1/deployment_pb";
 import { getDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -17,14 +16,16 @@ function rollingOut(resource: Resource): boolean {
 	return resource.environmentStatuses.some((e) => e.regions.some((r) => isInFlight(placementPhase(r.placementStatus))));
 }
 
+/** How often a list of resources refreshes: faster while one of them rolls out. */
+export function resourcesPollMs(resources: readonly Resource[] | undefined): number {
+	return (resources ?? []).some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
+}
+
 function usePollingWorkspaceResources(orgId: string | null, workspaceId: string | null) {
 	return useQuery({
 		...useWorkspaceResourcesOptions(orgId ?? "", workspaceId ?? ""),
 		enabled: orgId !== null && workspaceId !== null,
-		refetchInterval: (q) => {
-			const list = q.state.data?.resources ?? [];
-			return list.some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
-		},
+		refetchInterval: (q) => resourcesPollMs(q.state.data?.resources),
 	});
 }
 
@@ -51,10 +52,9 @@ function currentDeploymentIds(resource: Resource): string[] {
 	];
 }
 
-export function useWorkspaceDeployments(orgId: string | null, workspaceId: string | null) {
+/** The current deployments of each of resources, in resources' order. */
+export function useCurrentDeployments(resources: readonly Resource[]) {
 	const transport = useTransport();
-	const resourcesQuery = usePollingWorkspaceResources(orgId, workspaceId);
-	const resources = resourcesQuery.data?.resources ?? [];
 	const ids = [...new Set(resources.flatMap(currentDeploymentIds))];
 	const deploymentQueries = useQueries({ queries: ids.map((id) => currentDeploymentOptions(transport, id)) });
 	const byId = new Map(
@@ -62,18 +62,7 @@ export function useWorkspaceDeployments(orgId: string | null, workspaceId: strin
 			q.data?.deployment === undefined ? [] : ([[q.data.deployment.id, q.data.deployment]] as const),
 		),
 	);
-	// A rollout brings a new deployment ID; only the first load waits for its deployments.
-	const pending = resourcesQuery.isLoading || deploymentQueries.some((q) => q.isLoading);
-	const [loadedFor, setLoadedFor] = useState<string | null>(null);
-	if (!pending && loadedFor !== workspaceId) setLoadedFor(workspaceId);
-
-	return {
-		resources,
-		deployments: resources.map((r) => currentDeploymentIds(r).flatMap((id) => byId.get(id) ?? [])),
-		isLoading: resourcesQuery.isLoading || (pending && loadedFor !== workspaceId),
-		error: resourcesQuery.error,
-		refetch: resourcesQuery.refetch,
-	};
+	return resources.map((r) => currentDeploymentIds(r).flatMap((id) => byId.get(id) ?? []));
 }
 
 export function useWorkspaceEnvironmentDeployments(

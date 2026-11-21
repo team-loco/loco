@@ -122,7 +122,9 @@ export function Dashboard() {
 					/>
 					<ResourcesTable
 						key={active.id}
-						items={[...data.envResources, ...draftItems(drafts, data.regions, defaultRegion)]}
+						envResources={data.envResources}
+						deployments={data.deployments}
+						drafts={draftItems(drafts, data.regions, defaultRegion)}
 						regions={data.regions}
 						orgId={orgId}
 						workspaceId={workspaceId}

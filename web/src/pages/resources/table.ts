@@ -5,12 +5,12 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type RegionInfo, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { deploymentImage, getServiceSpec, regionTarget } from "@/lib/deployment-utils";
-import { DRAFT_RANK, draftRegions, draftSizing, type Draft, type ServiceSizing } from "@/lib/drafts";
+import { draftRegions, draftSizing, type Draft, type ServiceSizing } from "@/lib/drafts";
 import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { configuredRegions } from "@/lib/resource-regions";
-import { environmentStatus, primaryDomain, rolloutState, statusRank, type Rollout } from "@/lib/resource-status";
-import { pageParser } from "@/lib/paging";
+import { environmentStatus, primaryDomain, rolloutState, type Rollout } from "@/lib/resource-status";
+import { pageTokensParser } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { readyMs, tsMs } from "@/lib/time";
 
@@ -176,85 +176,6 @@ export function replicasLabel(row: ListRow): string | null {
 
 export const ENV_PREFIX = "env-";
 
-const NO_CELL_RANK = statusRank(ResourceStatus.HEALTHY) + 1;
-
-export function envRank(row: ListRow, environmentId: string): number {
-	if (isDraftRow(row)) return row.environmentId === environmentId ? DRAFT_RANK : NO_CELL_RANK;
-	const cell = row.cells.get(environmentId);
-	return cell === undefined ? NO_CELL_RANK : statusRank(cell.status);
-}
-
-// The sorted row model falls back to input order on ties, in either direction,
-// so feeding rows in name order makes every tie sort by name ascending.
-export function nameOrder<T extends ListRow>(rows: T[]): T[] {
-	return rows.toSorted((a, b) => rowName(a).localeCompare(rowName(b)));
-}
-
-export interface Filter {
-	query: string;
-	status: string;
-	region: string;
-}
-
-function matchesQuery(row: ListRow, query: string): boolean {
-	const q = query.trim().toLowerCase();
-	if (q === "") return true;
-	const cells = [...row.cells.values()];
-	const fields = [
-		rowName(row),
-		isDraftRow(row) ? "" : (row.resource.description ?? ""),
-		row.image,
-		row.address ?? "",
-		...cells.map((c) => c.tag),
-		...cells.flatMap((c) => c.regions),
-	];
-	return fields.some((f) => f.toLowerCase().includes(q));
-}
-
-function matchesRegion(row: ListRow, region: string): boolean {
-	return region === ALL || [...row.cells.values()].some((c) => c.regions.includes(region));
-}
-
-function matchesStatus(row: ListRow, status: string): boolean {
-	if (status === ALL) return true;
-	if (status === DRAFT) return isDraftRow(row);
-	if (status === NOT_DEPLOYED) return !isDraftRow(row) && row.cells.size === 0;
-	const want = STATUS_FILTERS.find((f) => f.value === status)?.status;
-	return [...row.cells.values()].some((c) => c.status === want);
-}
-
-export function filterRows<T extends ListRow>(rows: T[], filter: Filter): T[] {
-	return rows.filter(
-		(r) => matchesQuery(r, filter.query) && matchesRegion(r, filter.region) && matchesStatus(r, filter.status),
-	);
-}
-
-// Counts cover resources the API lists; drafts live in the browser and stay out of them.
-function countable(rows: ListRow[], filter: Filter): ListRow[] {
-	return filterRows(rows, filter).filter((r) => !isDraftRow(r));
-}
-
-export function statusCounts(rows: ListRow[], filter: Filter): Map<string, number> {
-	const base = countable(rows, { ...filter, status: ALL });
-	const counts = new Map<string, number>([[ALL, base.length]]);
-	for (const f of STATUS_FILTERS) counts.set(f.value, base.filter((r) => matchesStatus(r, f.value)).length);
-	counts.set(DRAFT, filterRows(rows, { ...filter, status: ALL }).filter(isDraftRow).length);
-	return counts;
-}
-
-export function regionTotal(rows: ListRow[], filter: Filter): number {
-	return countable(rows, { ...filter, status: ALL, region: ALL }).length;
-}
-
-export function regionCounts(rows: ListRow[], filter: Filter): { region: string; count: number }[] {
-	const base = countable(rows, { ...filter, status: ALL, region: ALL });
-	const regions = new Set(rows.flatMap((r) => [...r.cells.values()].flatMap((c) => c.regions)));
-	return [...regions].toSorted().map((region) => ({
-		region,
-		count: base.filter((r) => matchesRegion(r, region)).length,
-	}));
-}
-
 export function linkEnvironment(row: ResourceRow, environments: Environment[], active: Environment | undefined) {
 	if (active !== undefined && row.cells.has(active.id)) return active;
 	return environments.find((e) => row.cells.has(e.id)) ?? active;
@@ -308,7 +229,7 @@ export function tableParsers(columns: readonly TableColumn[]) {
 	return {
 		...FILTER_PARSERS,
 		sort: sortParser(sortableIds(columns), defaultSort(columns)),
-		page: pageParser.withDefault(0),
+		page: pageTokensParser,
 		size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]),
 		cols: createParser<ColumnVisibilityState>({
 			parse: (raw) => {

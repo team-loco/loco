@@ -1,24 +1,23 @@
 import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 
-import { ALL, statusCounts, visibleStatusFilters, type Filter, type ListRow } from "./table";
+import { ALL, visibleStatusFilters } from "./table";
 
 export function StatusFilter({
-	rows,
-	filter,
+	counts,
+	status,
 	onStatus,
 }: {
-	rows: ListRow[];
-	filter: Filter;
+	counts: ReadonlyMap<string, number>;
+	status: string;
 	onStatus: (status: string) => void;
 }) {
-	const counts = statusCounts(rows, filter);
 	return (
 		<ToggleGroup
 			variant="segmented"
 			aria-label="Filter by status"
 			className="max-w-full overflow-x-auto"
-			value={[filter.status]}
+			value={[status]}
 			onValueChange={(v: string[]) => {
 				if (v[0] !== undefined) onStatus(v[0]);
 			}}
@@ -26,7 +25,7 @@ export function StatusFilter({
 			<ToggleGroupItem value={ALL} count={counts.get(ALL)}>
 				All
 			</ToggleGroupItem>
-			{visibleStatusFilters(counts, filter.status).map((f) => (
+			{visibleStatusFilters(counts, status).map((f) => (
 				<ToggleGroupItem key={f.value} value={f.value} count={counts.get(f.value)}>
 					{f.label}
 				</ToggleGroupItem>

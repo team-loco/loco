@@ -1,6 +1,6 @@
 import { deploymentMessage } from "@/hooks/deployment-watch";
-import { useTransport } from "@connectrpc/connect-query";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery as useConnectQuery, useTransport } from "@connectrpc/connect-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { HOUR_MS } from "@/lib/obs-time";
 import {
@@ -16,20 +16,17 @@ import { ArrowRightIcon, FilePenLineIcon, GlobeIcon } from "lucide-react";
 import { createContext, use } from "react";
 import { parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { Link, useLocation, useNavigate } from "react-router";
-import { ResourceStatus, type RegionInfo, type ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { ResourceOrder, ResourceStatus, ResourceType, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
-import {
-	CellText,
-	DataTable,
-	DataTablePager,
-	pageWithin,
-	useDataTable,
-	type DataColumn,
-} from "@/components/design/DataTable";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
+import { ErrorState } from "@/components/design/ErrorState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
+import { Pager } from "@/components/design/Pager";
 import { RowMenu } from "@/components/design/RowMenu";
 import { SearchInput } from "@/components/design/SearchInput";
 import { DeployMarkers } from "@/components/design/DeployMarkers";
@@ -37,6 +34,8 @@ import { Sparkline } from "@/components/design/Sparkline";
 import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useTokenPage } from "@/hooks/useTokenPage";
+import { resourcesPollMs } from "@/hooks/useWorkspaceDeployments";
 import { deployMarkers } from "@/lib/deployMarkers";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
@@ -44,28 +43,26 @@ import { imageVersion } from "@/lib/image";
 import { rolloutState } from "@/lib/resource-status";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
 import { agoLabel, readyMs } from "@/lib/time";
-import { pageParser } from "@/lib/paging";
+import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
-import { sortableIds, visibleStatusFilters } from "@/pages/resources/table";
+import { shownDrafts, statusCounts, statusInput, useMatchingResourceIds } from "@/pages/resources/query";
+import { DRAFT, sortableIds, visibleStatusFilters } from "@/pages/resources/table";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { DashboardRowMenu } from "./DashboardRowMenu";
 import {
 	ALL,
-	filterRows,
 	isDraftItem,
 	itemKey,
 	itemName,
-	itemRank,
-	itemType,
-	itemStatusFilter,
 	TYPE_FILTERS,
 	viewAllSearch,
 	type DashboardItem,
+	type DraftItem,
 	type RowFilter,
 } from "./resourceRows";
-import type { EnvResource } from "./useDashboardData";
+import { envResource, type EnvResource } from "./useDashboardData";
 
 const PAGE_SIZE = 25;
 const MAX_PIPS = 12;
@@ -299,8 +296,7 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 	{
 		id: "status",
 		header: "Status",
-		accessorFn: itemRank,
-		sortFn: "basic",
+		accessorFn: (item) => (isDraftItem(item) ? ResourceStatus.UNSPECIFIED : item.status),
 		size: 130,
 		minSize: 90,
 		maxSize: 160,
@@ -311,7 +307,6 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		id: "name",
 		header: "Resource",
 		accessorFn: itemName,
-		sortFn: (a, b) => itemName(a.original).localeCompare(itemName(b.original)),
 		size: 160,
 		meta: { grow: true, primary: true },
 		cell: ({ row }) => <NameCell item={row.original} />,
@@ -320,7 +315,6 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		id: "regions",
 		header: "Region",
 		accessorFn: (item) => item.regions[0]?.region ?? "",
-		sortFn: (a, b) => (a.original.regions[0]?.region ?? "").localeCompare(b.original.regions[0]?.region ?? ""),
 		size: 100,
 		minSize: 80,
 		maxSize: 160,
@@ -331,7 +325,6 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		id: "replicas",
 		header: "Replicas",
 		accessorFn: replicaTotal,
-		sortFn: "basic",
 		sortDescFirst: true,
 		size: 184,
 		minSize: 80,
@@ -359,7 +352,6 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		id: "deploy",
 		header: "Deployed",
 		accessorFn: lastDeployMs,
-		sortFn: "basic",
 		sortDescFirst: true,
 		size: 96,
 		minSize: 72,
@@ -384,12 +376,22 @@ const TABLE_PARAMS = {
 	region: parseAsString.withDefault(ALL),
 	query: parseAsString.withDefault(""),
 	sort: sortParser(sortableIds(COLUMNS), { id: "status", desc: false }),
-	page: pageParser.withDefault(0),
+	page: pageTokensParser,
 };
 const TABLE_URL_KEYS = { query: "q" };
 
+const ORDERS: Record<string, { orderBy: ResourceOrder }> = {
+	status: { orderBy: ResourceOrder.STATUS },
+	name: { orderBy: ResourceOrder.NAME },
+	regions: { orderBy: ResourceOrder.REGION },
+	replicas: { orderBy: ResourceOrder.REPLICAS },
+	deploy: { orderBy: ResourceOrder.DEPLOYED },
+};
+
 export function ResourcesTable({
-	items,
+	envResources,
+	deployments,
+	drafts,
 	regions,
 	orgId,
 	workspaceId,
@@ -398,7 +400,9 @@ export function ResourcesTable({
 	nowMs,
 	hrefFor,
 }: {
-	items: DashboardItem[];
+	envResources: EnvResource[];
+	deployments: Deployment[];
+	drafts: DraftItem[];
 	regions: RegionInfo[];
 	orgId: string;
 	workspaceId: string;
@@ -432,66 +436,95 @@ export function ResourcesTable({
 		region: state.region,
 		query: state.query,
 	};
+	const hasFilters =
+		filter.status !== ALL || filter.type !== ALL || filter.region !== ALL || filter.query.trim() !== "";
+	const draftsOnly = filter.status === DRAFT;
 	const sorting = [state.sort];
-	const data = filterRows(items, filter);
-	const pagination = pageWithin({ pageIndex: state.page, pageSize: PAGE_SIZE }, data.length);
+
+	const matchedBy = {
+		workspaceId,
+		environmentId,
+		environmentScoped: true,
+		query: filter.query.trim(),
+		...statusInput(filter.status),
+		type: TYPE_FILTERS.find((o) => o.value === filter.type)?.type ?? ResourceType.UNSPECIFIED,
+		region: filter.region === ALL ? "" : filter.region,
+	};
+	const listed = useTokenPage(
+		listWorkspaceResources,
+		{ ...matchedBy, ...ORDERS[state.sort.id], descending: state.sort.desc, pageSize: PAGE_SIZE },
+		state.page,
+		{ placeholderData: keepPreviousData, refetchInterval: (q) => resourcesPollMs(q.state.data?.resources) },
+		{ ...matchedBy, includeFacets: true },
+	);
+	// Region counts ignore the region and status filters, and so does All regions.
+	const regionsCounted = filter.region === ALL && filter.status === ALL;
+	const regionsTotal = useConnectQuery(
+		listWorkspaceResources,
+		{ ...matchedBy, ...statusInput(ALL), region: "", pageSize: 1, includeTotalCount: true },
+		{ enabled: !regionsCounted },
+	).data?.totalCount;
+	const matching = useMatchingResourceIds(matchedBy, isMap && hasFilters && !draftsOnly).data;
+
+	const allDrafts = drafts.map((d) => d.draft);
+	const shown = new Set(shownDrafts(allDrafts, filter));
+	const draftCount = shownDrafts(allDrafts, { ...filter, status: DRAFT }).length;
+	const shownItems = drafts.filter((d) => shown.has(d.draft));
+	const serverRows = draftsOnly
+		? []
+		: (listed.query.data?.resources ?? []).map((r) => envResource(r, deployments, environmentId));
+	const data: DashboardItem[] = [...(state.page.length === 0 ? shownItems : []), ...serverRows];
+	const mapped: DashboardItem[] = [
+		...shownItems,
+		...(draftsOnly ? [] : envResources.filter((r) => !hasFilters || matching?.has(r.resource.id) !== false)),
+	];
+	const matched = draftsOnly ? draftCount : listed.total;
+
 	const table = useDataTable("dashboard-resources", {
 		data,
 		columns: COLUMNS,
 		getRowId: itemKey,
-		state: { sorting, pagination },
+		state: { sorting },
+		manualSorting: true,
 		onSortingChange: (updater) => {
 			const next = functionalUpdate(updater, sorting)[0];
 			if (next !== undefined) void setState({ sort: next, page: null });
 		},
-		onPaginationChange: (updater) => {
-			void setState({ page: functionalUpdate(updater, pagination).pageIndex });
-		},
-		manualPagination: false,
-		autoResetPageIndex: false,
 	});
-	const visible = table.getPrePaginatedRowModel().rows.map((row) => row.original);
+	const pager = tokenPager(state.page, draftsOnly ? "" : listed.nextPageToken, (page) => {
+		if (!listed.query.isPlaceholderData) void setState({ page });
+	});
 
-	const statusCounts = new Map<string, number>();
-	const typeCounts = new Map<ResourceType, number>();
-	const regionCounts = new Map<string, number>();
+	// In one environment a resource has one status and one type, so the facets add up to the All counts.
+	const facets = listed.counts?.facets;
+	const sum = (counts: readonly { count: number }[]) => counts.reduce((n, c) => n + c.count, 0);
+	const statusAll = facets === undefined ? undefined : sum(facets.statuses) + facets.notDeployed;
+	const counts = statusCounts(statusAll, facets, draftCount);
 	const regionNames = new Set(regions.map((r) => r.region));
-	const statusBase = filterRows(items, { ...filter, status: ALL });
-	const typeBase = filterRows(items, { ...filter, type: ALL });
-	const regionBase = filterRows(items, { ...filter, region: ALL });
-	for (const item of statusBase) {
-		const key = itemStatusFilter(item);
-		statusCounts.set(key, (statusCounts.get(key) ?? 0) + 1);
-	}
-	for (const item of typeBase) typeCounts.set(itemType(item), (typeCounts.get(itemType(item)) ?? 0) + 1);
-	for (const item of items) for (const g of item.regions) regionNames.add(g.region);
-	for (const item of regionBase) {
-		for (const name of new Set(item.regions.map((g) => g.region))) {
-			regionCounts.set(name, (regionCounts.get(name) ?? 0) + 1);
-		}
-	}
+	for (const item of envResources) for (const g of item.regions) regionNames.add(g.region);
+	for (const r of facets?.regions ?? []) regionNames.add(r.region);
+	if (filter.region !== ALL) regionNames.add(filter.region);
 	const typeOptions = [
-		{ value: ALL, label: "All types", count: typeBase.length },
+		{ value: ALL, label: "All types", ...(facets === undefined ? {} : { count: sum(facets.types) }) },
 		...TYPE_FILTERS.map((o) => ({
 			value: o.value,
 			label: o.label,
-			count: typeCounts.get(o.type) ?? 0,
+			count: facets?.types.find((t) => t.type === o.type)?.count ?? 0,
 		})),
 	];
+	const allRegions = regionsCounted ? listed.total : regionsTotal;
 	const regionOptions = [
-		{ value: ALL, label: "All regions", count: regionBase.length },
+		{ value: ALL, label: "All regions", ...(allRegions === undefined ? {} : { count: allRegions }) },
 		...[...regionNames].map((name) => ({
 			value: name,
 			label: name,
-			count: regionCounts.get(name) ?? 0,
+			count: facets?.regions.find((r) => r.region === name)?.count ?? 0,
 		})),
 	];
 
 	const update = (patch: Partial<RowFilter>) => {
 		void setState({ ...patch, page: null });
 	};
-	const hasFilters =
-		filter.status !== ALL || filter.type !== ALL || filter.region !== ALL || filter.query.trim() !== "";
 	const clearFilters = () => {
 		update({ status: ALL, type: ALL, region: ALL, query: "" });
 	};
@@ -533,11 +566,11 @@ export function ResourcesTable({
 					if (v[0] !== undefined) update({ status: v[0] });
 				}}
 			>
-				<ToggleGroupItem value={ALL} count={statusBase.length}>
+				<ToggleGroupItem value={ALL} count={counts.get(ALL)}>
 					All
 				</ToggleGroupItem>
-				{visibleStatusFilters(statusCounts, filter.status).map((o) => (
-					<ToggleGroupItem key={o.value} value={o.value} count={statusCounts.get(o.value) ?? 0}>
+				{visibleStatusFilters(counts, filter.status).map((o) => (
+					<ToggleGroupItem key={o.value} value={o.value} count={counts.get(o.value) ?? 0}>
 						{o.label}
 					</ToggleGroupItem>
 				))}
@@ -592,13 +625,20 @@ export function ResourcesTable({
 		isDraftItem(item) ? draftSearch(locationSearch, item.draft.id) : hrefFor(item.resource.id);
 
 	return (
-		<Section title="Resources" count={data.length} actions={actions} filters={filters} search={search}>
-			{isMap ? (
-				visible.length === 0 ? (
+		<Section title="Resources" count={matched} actions={actions} filters={filters} search={search}>
+			{listed.query.error !== null ? (
+				<ErrorState
+					error={listed.query.error}
+					what="resources"
+					rpc={listWorkspaceResources}
+					onRetry={listed.query.refetch}
+				/>
+			) : isMap ? (
+				mapped.length === 0 ? (
 					<div className="border-t border-line2">{empty}</div>
 				) : (
 					<ArchitectureDiagram
-						rows={visible}
+						rows={mapped}
 						regionOrder={regions.map((r) => r.region)}
 						environmentId={environmentId}
 						hrefFor={itemHref}
@@ -625,13 +665,19 @@ export function ResourcesTable({
 							table={table}
 							inset
 							label="Resources"
+							loading={listed.query.isPending}
 							onRowClick={(row) => void navigate(itemHref(row.original))}
 							rowAction="navigate"
 							className="[--row-h:62px]"
 							empty={empty}
 						/>
 					</DashboardCellContext>
-					<DataTablePager table={table} pageSizes={[PAGE_SIZE]} empty={`0 of ${items.length.toString()}`} />
+					<Pager
+						{...pager}
+						label={tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched)}
+						total={data.length}
+						pageSizes={[PAGE_SIZE]}
+					/>
 				</>
 			)}
 		</Section>

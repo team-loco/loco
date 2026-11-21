@@ -18,6 +18,15 @@ export function useWorkspaceResourcesOptions(orgId: string, workspaceId: string)
 
 /** Prefix of every list of this workspace's resources, for invalidating them after a change. */
 export function workspaceResourcesKey(transport: Transport, workspaceId: string) {
+	return createConnectQueryKey({
+		schema: listWorkspaceResources,
+		input: { workspaceId },
+		transport,
+		cardinality: undefined,
+	});
+}
+
+function allPagesKey(transport: Transport, workspaceId: string) {
 	const input = { workspaceId, pageSize: RESOURCE_PAGE_SIZE };
 	const key = createConnectQueryKey({ schema: listWorkspaceResources, input, transport, cardinality: "finite" });
 	return [...key, "all-pages"] as const;
@@ -62,7 +71,7 @@ export function workspaceResourcesOptions(
 			const resources = fetched.flatMap((r) => (r?.workspaceId === workspaceId ? [r] : []));
 			return create(ListWorkspaceResourcesResponseSchema, { resources });
 		};
-	const prefix = workspaceResourcesKey(transport, workspaceId);
+	const prefix = allPagesKey(transport, workspaceId);
 	return queryOptions({
 		queryKey: grants === undefined || grants === "workspace" ? prefix : [...prefix, ...grants],
 		queryFn: grants === undefined ? skipToken : grants === "workspace" ? listAll : listGranted(grants),
