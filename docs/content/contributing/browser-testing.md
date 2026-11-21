@@ -30,7 +30,7 @@ mise run test:ui deployment_history_ui
 mise run ci:evidence --out /tmp/loco-suites tables_ui deployment_history_ui
 ```
 
-The download holds `suites.log`, the combined suite output, and `suites/`, each suite's output directory. A draft pull request runs no CI, so this is how a draft gets its browser suites run.
+The download holds `suites.log`, the combined suite output, and `suites/`, each suite's output directory. A draft pull request runs no CI, so this is how a draft gets its browser suites run. The [CI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ci-evidence/SKILL.md) describes the workflow for agents.
 
 To inspect a failed fixture locally, run the driver with `--keep`; it prints its state path. Reuse that owned fixture with `--state PATH`. This runs against the production build recorded in the state, not newly edited source. Remove it afterward with `uv run --script tests/ui/evidence.py down --state PATH`. Do not reuse a person's development stack or publish its authentication state.
 
@@ -56,4 +56,4 @@ The author changing a flow owns its assertions and fixture updates. Reviewers ch
 
 ## PR evidence
 
-Browser assertions check behavior continuously. The [UI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ui-evidence/SKILL.md) supplies reviewed before/after screenshots attached directly to UI PR descriptions; `mise run ci:evidence --shots FILE` takes them in CI. Cover light/dark and narrow layouts, state the build refs and whether API data is real or replayed, and inspect every image before upload. CI screenshots diagnose that run; they are not automatically a meaningful before/after comparison. A test-only change can attach its test states without claiming a product redesign.
+Browser assertions check behavior continuously. The [CI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ci-evidence/SKILL.md) supplies reviewed before/after screenshots attached directly to UI PR descriptions; `mise run ci:evidence --shots FILE` takes them in CI, and the [UI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ui-evidence/SKILL.md) takes them locally. Cover light/dark and narrow layouts, state the build refs and whether API data is real or replayed, and inspect every image before upload. CI screenshots diagnose that run; they are not automatically a meaningful before/after comparison. A test-only change can attach its test states without claiming a product redesign.
