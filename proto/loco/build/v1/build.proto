@@ -130,11 +130,17 @@ message ListBuildsRequest {
   string page_token = 3;
   // When set, return only builds initiated from this environment; omitted returns all origins.
   optional string origin_environment_id = 4 [(buf.validate.field).string.uuid = true];
+  // Sets total_count in the response.
+  bool include_total_count = 5;
 }
 
 message ListBuildsResponse {
   repeated Build builds = 1;
+  // Empty on the last page.
   string next_page_token = 2;
+  // The builds the filters match, ignoring page_token; set when include_total_count is.
+  // Exact up to 10,000; 10,001 means more than 10,000.
+  int32 total_count = 3;
 }
 
 message CancelBuildRequest {

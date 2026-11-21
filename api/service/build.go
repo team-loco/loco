@@ -514,9 +514,19 @@ func (s *BuildServer) ListBuilds(
 		return nil, err
 	}
 
+	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
+		return s.queries.CountBuildsForResource(ctx, genDb.CountBuildsForResourceParams{
+			ResourceID: resourceID, OriginEnvironmentID: originEnvironmentID, Limit: limit,
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count builds of resource %s: %w", resourceID, err)
+	}
+
 	return &buildv1.ListBuildsResponse{
 		Builds:        builds,
 		NextPageToken: token,
+		TotalCount:    total,
 	}, nil
 }
 

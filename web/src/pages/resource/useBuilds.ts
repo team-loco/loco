@@ -1,15 +1,14 @@
-import { skipToken, useInfiniteQuery } from "@connectrpc/connect-query";
 import { listBuilds } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { LogOrder, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
 
 import { useQueryLogs } from "@/hooks/useQueryLogs";
+import { useTokenPage } from "@/hooks/useTokenPage";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { msToTimestamp } from "@/lib/time";
 
 import type { BuildLogSource } from "./builds";
 
 export const BUILD_LOG_LIMIT = 1000;
-const BUILDS_PAGE_SIZE = 50;
 const REFRESH_MS = 15_000;
 
 export interface BuildLog {
@@ -58,28 +57,29 @@ export function useBuildLog(workspaceId: string, buildId: string, source: BuildL
 	};
 }
 
-export function useResourceBuilds(resourceId: string, originEnvironmentId: string | undefined) {
-	const query = useInfiniteQuery(
+/** One page of the resource's builds from originEnvironmentId: the page the last of tokens names. */
+export function useResourceBuilds(
+	resourceId: string,
+	originEnvironmentId: string | undefined,
+	pageSize: number,
+	tokens: readonly string[],
+) {
+	const { query, nextPageToken, total } = useTokenPage(
 		listBuilds,
-		resourceId === "" || originEnvironmentId === undefined || originEnvironmentId === ""
-			? skipToken
-			: { resourceId, originEnvironmentId, pageSize: BUILDS_PAGE_SIZE, pageToken: "" },
+		{ resourceId, originEnvironmentId: originEnvironmentId ?? "", pageSize },
+		tokens,
 		{
-			pageParamKey: "pageToken",
-			getNextPageParam: (last) => (last.nextPageToken === "" ? undefined : last.nextPageToken),
+			enabled: resourceId !== "" && originEnvironmentId !== undefined && originEnvironmentId !== "",
 			refetchInterval: REFRESH_MS,
 		},
 	);
 	return {
-		builds: query.data?.pages.flatMap((page) => page.builds) ?? [],
-		hasMore: query.hasNextPage,
+		builds: query.data?.builds ?? [],
+		nextPageToken,
+		total,
 		isLoading: query.isLoading,
-		isLoadingMore: query.isFetchingNextPage,
+		isFetching: query.isFetching,
 		error: query.error,
-		loadMore: async () => {
-			const result = await query.fetchNextPage();
-			return !result.isError;
-		},
 		refresh: () => {
 			void query.refetch();
 		},

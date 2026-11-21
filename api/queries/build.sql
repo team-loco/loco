@@ -21,6 +21,15 @@ WHERE b.resource_id = $1
 ORDER BY b.created_at DESC, b.id DESC
 LIMIT $2;
 
+-- name: CountBuildsForResource :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM builds b
+  WHERE b.resource_id = $1
+    AND (sqlc.narg(origin_environment_id)::uuid IS NULL
+         OR b.origin_environment_id = sqlc.narg(origin_environment_id))
+  LIMIT $2
+) capped;
+
 -- name: CancelOtherActiveBuilds :many
 UPDATE builds
 SET status = 'canceled',

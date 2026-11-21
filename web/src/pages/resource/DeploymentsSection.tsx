@@ -24,7 +24,15 @@ import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { tookLabel } from "@/lib/activity-deploys";
 import { deploymentProblem, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
-import { nextPage, pagedRows, type Paging } from "@/lib/paging";
+import {
+	formatTotal,
+	nextPage,
+	pagedRows,
+	pageTokensParser,
+	tokenPageLabel,
+	tokenPager,
+	type Paging,
+} from "@/lib/paging";
 import { maybeTsMs, readyMs, tsMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
@@ -45,6 +53,7 @@ const BUILD_PAGE_SIZE = 5;
 const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
 const HISTS = ["deploys", "builds"] as const;
 const histParser = parseAsStringLiteral(HISTS).withDefault("deploys").withOptions({ history: "replace" });
+const buildPagesParser = pageTokensParser.withOptions({ history: "replace" });
 
 interface Row {
 	dep: Deployment;
@@ -306,9 +315,12 @@ export function DeploymentsSection({
 	const transport = useTransport();
 	const [pagination, setPagination] = useState<Paging>({ page: 0, size: DEFAULT_PAGE_SIZE });
 	const [open, setOpen] = useState<string | null>(null);
-	const [buildPaging, setBuildPaging] = useState<Paging>({ page: 0, size: BUILD_PAGE_SIZE });
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
-	const builds = useResourceBuilds(resourceId, environmentId);
+	const [buildPages, setBuildPages] = useQueryState("builds", buildPagesParser);
+	const builds = useResourceBuilds(resourceId, environmentId, BUILD_PAGE_SIZE, buildPages);
+	const buildPager = tokenPager(buildPages, builds.nextPageToken, (pages) => {
+		void setBuildPages(pages);
+	});
 	const [selectedBuild, setSelectedBuild] = useState<string | null>(null);
 	const selected = useQuery(getBuild, selectedBuild === null ? skipToken : { buildId: selectedBuild });
 	const selectedStatus = selected.data?.build === undefined ? undefined : buildStatusStyle(selected.data.build.status);
@@ -347,16 +359,13 @@ export function DeploymentsSection({
 			{ name: m.userName, email: m.userEmail, avatarUrl: m.userAvatarUrl },
 		]),
 	);
-	const buildRows = pagedRows(builds.builds, buildPaging, setBuildPaging, BUILD_PAGE_SIZES);
 	const running = regions.flatMap((r) => (r.current === undefined ? [] : [r.current]));
 	const imageOnly = running.length > 0 && running.every((dep) => deploymentBuildId(dep) === undefined);
 
 	const goBuild = (buildId: string) => {
-		const index = builds.builds.findIndex((build) => build.id === buildId);
-		if (index !== -1) {
+		if (builds.builds.some((build) => build.id === buildId)) {
 			void setHist("builds");
 			setOpenBuild(buildId);
-			setBuildPaging({ page: pageOf(index, BUILD_PAGE_SIZE), size: BUILD_PAGE_SIZE });
 			return;
 		}
 		setSelectedBuild(buildId);
@@ -398,11 +407,7 @@ export function DeploymentsSection({
 							</TabsCount>
 						</TabsTrigger>
 						<TabsTrigger value="builds">
-							Builds{" "}
-							<TabsCount>
-								{builds.isLoading ? "—" : builds.builds.length}
-								{builds.hasMore ? "+" : ""}
-							</TabsCount>
+							Builds <TabsCount>{builds.total === undefined ? "—" : formatTotal(builds.total)}</TabsCount>
 						</TabsTrigger>
 					</TabsList>
 				</div>
@@ -464,9 +469,9 @@ export function DeploymentsSection({
 					)}
 				</TabsContent>
 				<TabsContent value="builds" className="pt-1.5">
-					<div aria-busy={builds.isLoading || builds.isLoadingMore}>
+					<div aria-busy={builds.isFetching}>
 						<BuildsTable
-							builds={buildRows.rows}
+							builds={builds.builds}
 							actors={actors}
 							workspaceId={workspaceId}
 							nowMs={nowMs}
@@ -480,10 +485,12 @@ export function DeploymentsSection({
 						/>
 					</div>
 					<Pager
-						{...buildRows.pager}
+						page={buildPager.page}
+						total={builds.builds.length}
+						pageSizes={BUILD_PAGE_SIZES}
 						label={
 							<>
-								{`${buildRows.pager.label}${builds.hasMore ? "+" : ""}`}
+								{tokenPageLabel(buildPager.page, BUILD_PAGE_SIZE, builds.builds.length, builds.total)}
 								{limits !== undefined && (
 									<HistoryKept
 										count={limits.buildHistory}
@@ -492,9 +499,12 @@ export function DeploymentsSection({
 								)}
 							</>
 						}
+						firstLabel="Newest builds"
 						prevLabel="Newer builds"
 						nextLabel="Older builds"
-						onNext={nextPage(buildRows, builds.isLoadingMore, builds.hasMore, builds.loadMore, setBuildPaging)}
+						onFirst={buildPager.onFirst}
+						onPrev={buildPager.onPrev}
+						onNext={buildPager.onNext}
 					/>
 					{builds.error !== null && (
 						<div role="alert" className="px-5 pb-3 text-bad-fg">

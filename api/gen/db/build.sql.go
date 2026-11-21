@@ -143,6 +143,29 @@ func (q *Queries) CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherAc
 	return items, nil
 }
 
+const countBuildsForResource = `-- name: CountBuildsForResource :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM builds b
+  WHERE b.resource_id = $1
+    AND ($3::uuid IS NULL
+         OR b.origin_environment_id = $3)
+  LIMIT $2
+) capped
+`
+
+type CountBuildsForResourceParams struct {
+	ResourceID          uuid.UUID  `json:"resourceId"`
+	Limit               int32      `json:"limit"`
+	OriginEnvironmentID *uuid.UUID `json:"originEnvironmentId"`
+}
+
+func (q *Queries) CountBuildsForResource(ctx context.Context, arg CountBuildsForResourceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countBuildsForResource, arg.ResourceID, arg.Limit, arg.OriginEnvironmentID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBuild = `-- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
                     api_token_id, git_commit, git_branch, git_commit_message, platform, origin_environment_id, method)

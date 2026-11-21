@@ -176,12 +176,15 @@ func TestBuildHistoryFiltersOriginBeforePagination(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got []string
 			request := &buildv1.ListBuildsRequest{
-				ResourceId: f.resourceID.String(), OriginEnvironmentId: tc.origin, PageSize: 1,
+				ResourceId: f.resourceID.String(), OriginEnvironmentId: tc.origin, PageSize: 1, IncludeTotalCount: true,
 			}
 			for {
 				page, err := f.server.ListBuilds(f.ctx, request)
 				if err != nil {
 					t.Fatal(err)
+				}
+				if page.GetTotalCount() != int32(len(tc.want)) {
+					t.Fatalf("total = %d, want %d", page.GetTotalCount(), len(tc.want))
 				}
 				for _, build := range page.GetBuilds() {
 					got = append(got, build.GetId())
