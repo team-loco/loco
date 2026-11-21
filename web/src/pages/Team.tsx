@@ -128,7 +128,7 @@ export function Team() {
 		} catch (err) {
 			toastConnectError(err, "Failed to resend the invitation");
 		} finally {
-			await data.invalidateInvitations();
+			await data.invalidatePeople();
 		}
 	};
 
@@ -164,7 +164,7 @@ export function Team() {
 		counted === undefined || error !== null
 			? null
 			: limitUsage(counted.memberCount, limits?.membersPerOrg, "members", "organization");
-	const openInvitations = useOpenInvitations(orgId, now);
+	const openInvitations = useOpenInvitations(orgId);
 	const invitationUsage =
 		openInvitations === undefined || error !== null
 			? null
@@ -358,7 +358,7 @@ export function Team() {
 					setInviteOpen(false);
 				}}
 				onInvited={() => {
-					void data.invalidateInvitations();
+					void data.invalidatePeople();
 				}}
 			/>
 			<WorkspaceAccessDrawer
@@ -410,7 +410,7 @@ export function Team() {
 				onRevoked={(email) => {
 					setRevoking(null);
 					toast(`Revoked the invitation to ${email}`);
-					void data.invalidateInvitations();
+					void data.invalidatePeople();
 				}}
 			/>
 		</Page>
