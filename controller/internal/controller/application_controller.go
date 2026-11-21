@@ -953,6 +953,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, applicationHandler).
+		Watches(&appsv1.ReplicaSet{}, applicationHandler, applicationPredicates).
 		Watches(&autoscalingv2.HorizontalPodAutoscaler{}, applicationHandler, applicationPredicates).
 		Watches(&corev1.Pod{}, r.podHandler(applicationHandler)).
 		WatchesRawSource(source.Channel(podEvents, handler.EnqueueRequestsFromMapFunc(r.applicationForPodEvent))).
