@@ -5,7 +5,7 @@ import { createConnectQueryKey, useQuery, useTransport } from "@connectrpc/conne
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
-import { EventService, type ListEventsRequestSchema } from "@gen/loco/event/v1/event_pb";
+import { EventService, type ListEventsRequest, type ListEventsRequestSchema } from "@gen/loco/event/v1/event_pb";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Link } from "react-router";
 import { PlusIcon } from "lucide-react";
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { useObs } from "./context";
 import { EventDetail, EventIcon } from "./EventDetail";
 import { eventItem, type EventItem, type Severity } from "./events";
+import { coalesced } from "./coalesce";
 import { eventsQuery } from "./eventsQuery";
 import { ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, type FieldKey, type Token } from "./query";
@@ -39,8 +40,9 @@ import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
 
 const DEFAULT_PAGE_SIZE = 25;
+// Page tokens sit in the obs view's page parameter, which query and range changes clear.
 const EVENTS_PARAMS = {
-	pages: pageTokensParser,
+	page: pageTokensParser,
 	size: pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE).size,
 	live: parseAsStringLiteral(["0"]),
 	event: parseAsString,
@@ -90,11 +92,13 @@ export function EventsView() {
 		workspaceId,
 		openedAt,
 		on: live && canStream && enabled,
-		onFirstPage: params.pages.length === 0,
+		environmentId: environment?.id ?? "",
+		query,
+		onFirstPage: params.page.length === 0,
 	});
 	const streamFailed = stream.failed;
 	const poll = live && (!canStream || streamFailed) ? POLL_MS : false;
-	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.pages, {
+	const page = useTokenPage(listEvents, { ...base, query, pageSize: params.size }, params.page, {
 		enabled,
 		refetchInterval: poll,
 		placeholderData: keepPreviousData,
@@ -102,7 +106,11 @@ export function EventsView() {
 	const facets = useQuery(
 		listEvents,
 		{ ...base, pageSize: 1, includeFacets: true },
-		{ enabled, refetchInterval: poll === false ? false : FACETS_MS, placeholderData: keepPreviousData },
+		{
+			enabled,
+			refetchInterval: poll === false ? false : FACETS_MS,
+			placeholderData: keepPreviousData,
+		},
 	);
 	const counted = { base, resourceChips, enabled, live: poll !== false };
 	const allCount = useSeverityCount(counted, null);
@@ -110,7 +118,11 @@ export function EventsView() {
 	const errorCount = useSeverityCount(counted, "error");
 	const names = new Map(resources.map((r) => [r.id, r.slug]));
 	const items = (page.query.data?.events ?? [])
-		.map((e) => ({ ...runtimeEvent(e), resourceId: e.resourceId, resourceName: names.get(e.resourceId) ?? "" }))
+		.map((e) => ({
+			...runtimeEvent(e),
+			resourceId: e.resourceId,
+			resourceName: names.get(e.resourceId) ?? "",
+		}))
 		.filter((e) => eventInEnvironment(e, environment?.id ?? ""))
 		.map(eventItem);
 	const error = page.query.error ?? facets.error;
@@ -121,8 +133,8 @@ export function EventsView() {
 			? "warning"
 			: "all";
 
-	const pager = tokenPager(params.pages, page.nextPageToken, (pages) => {
-		if (!page.query.isPlaceholderData) void setParams({ pages });
+	const pager = tokenPager(params.page, page.nextPageToken, (pages) => {
+		if (!page.query.isPlaceholderData) void setParams({ page: pages });
 	});
 	const selKey = params.event;
 	const selIdx = selKey !== null ? items.findIndex((x) => x.id === selKey) : -1;
@@ -247,7 +259,7 @@ export function EventsView() {
 						pageSizes={PAGE_SIZES}
 						pageSize={params.size}
 						onPageSize={(size) => {
-							void setParams({ size: PAGE_SIZES.find((n) => n === size) ?? null, pages: null });
+							void setParams({ size: PAGE_SIZES.find((n) => n === size) ?? null, page: null });
 						}}
 						onFirst={pager.onFirst}
 						onPrev={pager.onPrev}
@@ -281,19 +293,23 @@ export function EventsView() {
 }
 
 /**
- * Streams the workspace's new runtime events while on. On the first page a burst of events refetches
- * the page at most once per PAGE_REFRESH_MS, after the last request settles, and the counts at most once
- * per COUNT_REFRESH_MS; on later pages it counts the new events instead of moving rows under the reader.
+ * Streams the environment's new events that query matches while on. On the first page a burst of events
+ * refetches the page at most once per PAGE_REFRESH_MS and the counts at most once per COUNT_REFRESH_MS,
+ * one request at a time; on later pages it counts the new events instead of moving rows under the reader.
  */
 function useEventStream({
 	orgId,
 	workspaceId,
+	environmentId,
+	query,
 	openedAt,
 	on,
 	onFirstPage,
 }: {
 	orgId: string;
 	workspaceId: string;
+	environmentId: string;
+	query: string;
 	openedAt: number;
 	on: boolean;
 	onFirstPage: boolean;
@@ -311,31 +327,18 @@ function useEventStream({
 	useEffect(() => {
 		if (!on) return;
 		const abort = new AbortController();
-		let pageTimer: ReturnType<typeof setTimeout> | undefined;
-		let countTimer: ReturnType<typeof setTimeout> | undefined;
-		// Refetches one kind of query; settles before the next refresh of that kind can start.
-		const invalidate = async (counts: boolean) => {
+		// Refetches this view's listed pages, or its one-row count and facet requests.
+		const invalidate = (counts: boolean) => async () => {
 			await queryClient.invalidateQueries({
 				queryKey: createConnectQueryKey({ schema: listEvents, cardinality: "finite" }),
-				predicate: (query) => isCountQuery(query.queryKey) === counts,
+				predicate: (q) => {
+					const input = (q.queryKey[1] as { input?: Partial<ListEventsRequest> } | undefined)?.input;
+					return input?.readableResources === true && (input.pageSize === 1) === counts;
+				},
 			});
 		};
-		const refreshPage = () => {
-			if (pageTimer !== undefined) return;
-			pageTimer = setTimeout(() => {
-				void invalidate(false).finally(() => {
-					pageTimer = undefined;
-				});
-			}, PAGE_REFRESH_MS);
-		};
-		const refreshCounts = () => {
-			if (countTimer !== undefined) return;
-			countTimer = setTimeout(() => {
-				void invalidate(true).finally(() => {
-					countTimer = undefined;
-				});
-			}, COUNT_REFRESH_MS);
-		};
+		const pageRefresh = coalesced(invalidate(false), PAGE_REFRESH_MS);
+		const countRefresh = coalesced(invalidate(true), COUNT_REFRESH_MS);
 		const consume = async () => {
 			try {
 				const client = createClient(EventService, transport);
@@ -343,15 +346,20 @@ function useEventStream({
 					{
 						orgId,
 						workspaceId,
+						environmentId,
 						startTime: msToTimestamp(openedAt),
-						query: eventTypesQuery(ENVIRONMENT_EVENT_TYPES),
+						query: [eventTypesQuery(ENVIRONMENT_EVENT_TYPES), query === "" ? "" : `(${query})`].join(" ").trim(),
 					},
 					{ signal: abort.signal },
 				)) {
 					if (message.events.length === 0) continue;
-					refreshCounts();
-					if (firstPageRef.current) refreshPage();
-					else setUnseen((u) => ({ key, count: (u.key === key ? u.count : 0) + message.events.length }));
+					countRefresh.poke();
+					if (firstPageRef.current) pageRefresh.poke();
+					else
+						setUnseen((u) => ({
+							key,
+							count: (u.key === key ? u.count : 0) + message.events.length,
+						}));
 				}
 			} catch {
 				if (!abort.signal.aborted) setFailed(key);
@@ -360,17 +368,11 @@ function useEventStream({
 		void consume();
 		return () => {
 			abort.abort();
-			clearTimeout(pageTimer);
-			clearTimeout(countTimer);
+			pageRefresh.stop();
+			countRefresh.stop();
 		};
-	}, [on, orgId, workspaceId, openedAt, transport, queryClient, key]);
+	}, [on, orgId, workspaceId, environmentId, query, openedAt, transport, queryClient, key]);
 	return { failed: failed === key, newEvents: unseen.key === key ? unseen.count : 0 };
-}
-
-/** Whether a ListEvents query key is a one-row count or facet request rather than a listed page. */
-function isCountQuery(queryKey: readonly unknown[]): boolean {
-	const input = (queryKey[1] as { input?: { pageSize?: number } } | undefined)?.input;
-	return input?.pageSize === 1;
 }
 
 /** The events the resource chips keep, of one severity or all, for the severity tabs. */
@@ -389,10 +391,11 @@ function useSeverityCount(
 	severity: Exclude<Severity, "normal"> | null,
 ): number | undefined {
 	const chips = severity === null ? resourceChips : [...resourceChips, SHOW_TOKENS[severity]];
-	return useTokenPage(listEvents, { ...base, query: eventsQuery(chips, ""), pageSize: 1 }, [], {
-		enabled,
-		refetchInterval: live ? FACETS_MS : false,
-	}).total;
+	return useQuery(
+		listEvents,
+		{ ...base, query: eventsQuery(chips, ""), pageSize: 1, includeTotalCount: true },
+		{ enabled, refetchInterval: live ? FACETS_MS : false },
+	).data?.totalCount;
 }
 
 function countLabel(count: number | undefined): string | undefined {
