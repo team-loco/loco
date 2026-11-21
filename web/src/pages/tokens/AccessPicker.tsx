@@ -273,7 +273,7 @@ export function AccessPicker({
 													tabIndex={-1}
 													aria-label={`Show resources in ${n.label}`}
 													title={`Show resources in ${n.label}`}
-													className="-mr-1 opacity-100"
+													className="-mr-1"
 													onPointerDown={(e) => {
 														e.preventDefault();
 														e.stopPropagation();
