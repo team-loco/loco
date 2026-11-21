@@ -3,7 +3,7 @@ import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { LogsIcon } from "lucide-react";
 import { Link } from "react-router";
 
-import { Badge } from "@/components/design/Badge";
+import { Badge, type BadgeTone } from "@/components/design/Badge";
 import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
@@ -13,7 +13,16 @@ import { useNow } from "@/hooks/useNow";
 import { deploymentProblem, placementIn } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
-import { activityTime, groupReplicas, problemLogsHref, replicaState, stoppingCountdown } from "./deployment-progress";
+import {
+	activityTime,
+	groupReplicas,
+	problemLogsHref,
+	PROBLEM_REASONS,
+	replicaState,
+	replicaSummary,
+	stoppingCountdown,
+} from "./deployment-progress";
+import { depTag } from "./model";
 
 // Keeps the feed scrolled to the newest entry while the reader is at the bottom.
 function followActivity(node: HTMLDivElement) {
@@ -37,18 +46,33 @@ function followActivity(node: HTMLDivElement) {
 	};
 }
 
-export function ProblemBanner({ deployment, logsHref }: { deployment: Deployment; logsHref: string | undefined }) {
+export function ProblemBanner({
+	deployment,
+	logsHref,
+	serving,
+}: {
+	deployment: Deployment;
+	logsHref: string | undefined;
+	serving: Deployment | undefined;
+}) {
 	const problem = deploymentProblem(deployment);
 	if (problem === undefined) return null;
 	const problemHref = problemLogsHref(logsHref, deployment);
+	const reason = PROBLEM_REASONS[problem.reason];
 	return (
 		<Banner
-			title={problem.message}
+			title={reason ?? problem.message}
 			tone={
 				deployment.status === DeploymentStatus.FAILED || deployment.status === DeploymentStatus.CRASHED ? "bad" : "warn"
 			}
 			className="mx-0 mt-0"
 		>
+			{reason !== undefined && <p className="my-1">{problem.message}</p>}
+			{serving !== undefined && (
+				<p className="my-1">
+					<span className="font-mono">{depTag(serving)}</span> is still serving traffic.
+				</p>
+			)}
 			{problem.detail !== "" && <p className="my-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{problem.detail}</p>}
 			{problem.replicaName !== "" && <p className="my-1 break-all font-mono text-[12px]">{problem.replicaName}</p>}
 			{problemHref !== undefined && (
@@ -60,6 +84,19 @@ export function ProblemBanner({ deployment, logsHref }: { deployment: Deployment
 		</Banner>
 	);
 }
+
+/** Groups with more replicas than this list the first ones and summarise the rest. */
+const LISTED_REPLICAS = 8;
+
+const CELL_TONE: Record<BadgeTone, string> = {
+	ok: "bg-ok-glyph",
+	info: "bg-info",
+	warn: "bg-warn",
+	bad: "bg-bad-fg",
+	neutral: "bg-line2",
+	muted: "bg-line2",
+	pill: "bg-line2",
+};
 
 export function ReplicaGroups({ deployment, region }: { deployment: Deployment; region: string }) {
 	const placement = placementIn(deployment, region);
@@ -74,9 +111,28 @@ export function ReplicaGroups({ deployment, region }: { deployment: Deployment; 
 						<h3 className="mt-0 mb-1.5 text-[12px] font-medium text-fg3">
 							{group.label} <span className="font-mono">({group.replicas.length})</span>
 						</h3>
+						{group.replicas.length > LISTED_REPLICAS && (
+							<div className="mb-1.5 flex flex-col gap-1.5">
+								<p className="m-0 text-[12px] text-fg2">{replicaSummary(group.replicas)}</p>
+								<ul aria-label={`${group.label} replica states`} className="m-0 flex list-none flex-wrap gap-1 p-0">
+									{group.replicas.map((replica) => {
+										const state = replicaState(replica.state);
+										return (
+											<li
+												key={replica.uid}
+												title={`${replica.name}: ${state.label}`}
+												className={cn("size-2.5 rounded-[2px]", CELL_TONE[state.tone])}
+											>
+												<span className="sr-only">{`${replica.name}: ${state.label}`}</span>
+											</li>
+										);
+									})}
+								</ul>
+							</div>
+						)}
 						<ul className="m-0 list-none divide-y divide-line2 p-0">
 							{group.replicas.length === 0 && <li className="py-1.5 text-[12px] text-fg3">No replicas</li>}
-							{group.replicas.map((replica) => {
+							{group.replicas.slice(0, LISTED_REPLICAS).map((replica) => {
 								const state = replicaState(replica.state);
 								const countdown = stoppingCountdown(replica, now);
 								return (
@@ -116,6 +172,11 @@ export function ReplicaGroups({ deployment, region }: { deployment: Deployment; 
 									</li>
 								);
 							})}
+							{group.replicas.length > LISTED_REPLICAS && (
+								<li className="py-1.5 text-[12px] text-fg3">
+									{`+${(group.replicas.length - LISTED_REPLICAS).toString()} more`}
+								</li>
+							)}
 						</ul>
 					</section>
 				))}

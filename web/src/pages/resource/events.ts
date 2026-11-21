@@ -7,8 +7,6 @@ import { eventSummary, eventTitle, severityOf, severityStyle } from "@/pages/obs
 const WARNING_WINDOW_MS = 3_600_000;
 
 const WARNING = "resource.degraded";
-/** Problem reasons of a replica that restarts, owned by k8sapi/v1alpha1/problems.go. */
-const RESTARTS: ReadonlySet<string> = new Set(["restarting", "restarts_exhausted"]);
 
 export function isWarning(event: Event): boolean {
 	return event.type === WARNING;
@@ -23,15 +21,6 @@ export function recentWarningCount(events: Event[], nowMs: number): number {
 		const ms = maybeTsMs(e.timestamp);
 		return isWarning(e) && ms !== undefined && ms <= nowMs && nowMs - ms <= WARNING_WINDOW_MS;
 	}).length;
-}
-
-export function latestRestartWarning(events: Event[], region?: string): Event | undefined {
-	const latest = new Map<string, Event>();
-	for (const event of newestFirst(events)) {
-		if ((region === undefined || event.region === region) && !latest.has(event.placementId))
-			latest.set(event.placementId, event);
-	}
-	return [...latest.values()].find((event) => event.type === WARNING && RESTARTS.has(event.reason));
 }
 
 /** Deploy outcomes the events drawer lists beside runtime events. */

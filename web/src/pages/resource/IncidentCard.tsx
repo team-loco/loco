@@ -2,7 +2,6 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { Link } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { RuntimeEvent as Event } from "@/lib/runtime-events";
 
 import { Button } from "@/components/design/Button";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
@@ -12,7 +11,8 @@ import { cn, formatShortId } from "@/lib/utils";
 
 import { logLevel } from "@/pages/observability/query";
 
-import { latestRestartWarning } from "./events";
+import { replicaState } from "./deployment-progress";
+import { exitLabel } from "./replicas";
 import { NEEDS_WRITE } from "@/hooks/useMyScopes";
 
 import { depTag, type RegionProblem, type RegionView } from "./model";
@@ -76,7 +76,15 @@ function RegionLogs({
 							)}
 						>
 							<span className="text-fg3">{ms === undefined ? "" : formatClock(ms, false, timePref)}</span>
-							<span className="text-fg3">{logLevel(l.level).toUpperCase()}</span>
+							<span
+								className={cn(
+									"text-fg3",
+									logLevel(l.level) === "error" && "text-bad-fg",
+									logLevel(l.level) === "warn" && "text-warn-fg",
+								)}
+							>
+								{logLevel(l.level).toUpperCase()}
+							</span>
 							<span className="truncate" title={l.body}>
 								{l.body}
 							</span>
@@ -92,7 +100,6 @@ export function IncidentCard({
 	problem,
 	region,
 	lastGood,
-	events,
 	workspaceId,
 	environmentId,
 	resourceId,
@@ -104,7 +111,6 @@ export function IncidentCard({
 	problem: RegionProblem;
 	region: RegionView;
 	lastGood: Deployment | undefined;
-	events: Event[];
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
@@ -116,7 +122,12 @@ export function IncidentCard({
 	const status = region.status;
 	const current = region.current;
 	const reportedMs = maybeTsMs(status?.reportedAt);
-	const restarts = latestRestartWarning(events, region.name);
+	const failing = (status?.replicas ?? []).filter((r) => !r.ready && r.state !== "Stopping" && r.state !== "Stopped");
+	const [only] = failing.length === 1 ? failing : [];
+	const title =
+		only === undefined
+			? problem.title
+			: `Replica ${only.name} ${only.restarts > 0 ? "keeps restarting" : `is ${replicaState(only.state).label.toLowerCase()}`}`;
 	const changes = current !== undefined && lastGood !== undefined ? specChanges(lastGood, current) : [];
 	const goodMs = lastGood === undefined ? undefined : readyMs(lastGood);
 
@@ -128,7 +139,7 @@ export function IncidentCard({
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
 					<h2 id="incident-title" className="m-0 text-[16px] font-medium tracking-[-0.01em]">
-						{problem.title}
+						{title}
 					</h2>
 					<span className="font-mono text-[12px] text-fg3">
 						{reportedMs === undefined ? "not reported yet" : `updated ${agoLabel(reportedMs, nowMs)}`}
@@ -157,57 +168,53 @@ export function IncidentCard({
 				</div>
 			</div>
 			<div className="grid grid-cols-1 items-start gap-5 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-				<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-[18px] gap-y-[9px] text-[13px]">
-					<Fact label="Region">
-						<span className="font-mono">{region.name}</span>
-					</Fact>
-					{status !== undefined && (
-						<Fact label="Replicas">
-							{status.readyReplicas}/{status.desiredReplicas} ready
-						</Fact>
-					)}
-					{current !== undefined && (
-						<Fact label="Running">
-							<span className="font-mono">
-								{depTag(current)} · {formatShortId(current.id)}
-							</span>
-						</Fact>
-					)}
-					{problem.message !== "" && <Fact label="Status">{problem.message}</Fact>}
-					{restarts !== undefined && <Fact label="Last warning">{restarts.message}</Fact>}
-					<Fact label="Last good">
-						{lastGood === undefined ? (
-							"No earlier healthy deployment in this region"
-						) : (
-							<span className="font-mono">
-								{depTag(lastGood)} · {formatShortId(lastGood.id)}
-								{goodMs !== undefined && ` · ${agoLabel(goodMs, nowMs)}`}
-							</span>
+				<div className="flex min-w-0 flex-col gap-3">
+					{problem.message !== "" && <p className="m-0 text-[13px] text-fg2">{problem.message}</p>}
+					<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-[18px] gap-y-[9px] text-[13px]">
+						{only?.lastExit !== undefined && (
+							<Fact label="Exit">
+								<span className="font-mono">{exitLabel(only.lastExit, nowMs)}</span>
+							</Fact>
 						)}
-					</Fact>
-					{changes.length > 0 && (
-						<Fact label="Changed since">
-							<span className="flex flex-col gap-0.5 font-mono text-[12px]">
-								{changes.map((c) => (
-									<span key={c.label}>
-										{c.label}: <span className="text-bad-fg">{c.from ?? ABSENT}</span> →{" "}
-										<span className="text-ok-fg">{c.to ?? ABSENT}</span>
-									</span>
-								))}
-							</span>
+						{current !== undefined && (
+							<Fact label="Running">
+								<span className="font-mono">
+									{depTag(current)} · {formatShortId(current.id)}
+								</span>
+								{status !== undefined &&
+									` · ${status.readyReplicas.toString()}/${status.desiredReplicas.toString()} ready`}
+							</Fact>
+						)}
+						{changes.length > 0 && (
+							<Fact label="Changed">
+								<span className="flex flex-col gap-0.5 font-mono text-[12px]">
+									{changes.map((c) => (
+										<span key={c.label}>
+											{c.label}: <span className="text-bad-fg">{c.from ?? ABSENT}</span> →{" "}
+											<span className="text-ok-fg">{c.to ?? ABSENT}</span>
+										</span>
+									))}
+								</span>
+							</Fact>
+						)}
+						<Fact label="Last good">
+							{lastGood === undefined ? (
+								"No earlier healthy deployment in this region"
+							) : (
+								<span className="font-mono">
+									{depTag(lastGood)} · {formatShortId(lastGood.id)}
+									{goodMs !== undefined && ` · ${agoLabel(goodMs, nowMs)}`}
+								</span>
+							)}
 						</Fact>
-					)}
-				</dl>
-				{restarts !== undefined ? (
-					<RegionLogs
-						workspaceId={workspaceId}
-						environmentId={environmentId}
-						resourceId={resourceId}
-						region={region.name}
-					/>
-				) : (
-					<span className="text-[12.5px] text-fg3">No replica restarting in this region.</span>
-				)}
+					</dl>
+				</div>
+				<RegionLogs
+					workspaceId={workspaceId}
+					environmentId={environmentId}
+					resourceId={resourceId}
+					region={region.name}
+				/>
 			</div>
 		</section>
 	);

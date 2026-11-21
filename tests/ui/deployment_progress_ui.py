@@ -247,7 +247,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     page.goto(state["ui_url"] + path)
     panel = page.get_by_role("region", name="Building", exact=True)
     expect(panel).to_be_visible()
-    expect(panel.get_by_text("Show saved cards", exact=True)).to_be_visible()
+    expect(panel.get_by_text("Deploy aaaaaaa", exact=True)).to_be_visible()
     versions = panel.locator('dl[aria-label="Deployment versions"]')
     expect(
         versions.get_by_text("Desired deployment", exact=True).locator("+ dd")
@@ -348,6 +348,10 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             exact=True,
         ).first
     ).to_be_visible()
+    expect(
+        panel.get_by_text("v1 is still serving traffic.", exact=True)
+    ).to_be_visible()
+    expect(panel.get_by_role("link", name="Build logs", exact=True)).to_be_visible()
     logs = panel.get_by_role("link", name="View logs", exact=True)
     query = parse_qs(urlparse(logs.get_attribute("href")).query)
     assert query.get("r") == ["progress-ui"] and query.get("q") == [

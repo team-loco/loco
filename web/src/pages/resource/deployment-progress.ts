@@ -202,3 +202,30 @@ export function readyLabel(deployment: Deployment, placement: DeploymentPlacemen
 	const ready = placement === undefined ? 0 : readyIn(deployment, placement);
 	return `${ready.toString()} of ${(placement?.desiredReplicas ?? 0).toString()} ready`;
 }
+
+/** Short names for the problem reasons k8sapi/v1alpha1/problems.go defines. */
+export const PROBLEM_REASONS: Record<string, string> = {
+	build_failed: "Build failed",
+	apply_failed: "Couldn’t apply the deployment",
+	unschedulable: "No room to run",
+	image_pull_failed: "Image pull failed",
+	image_user: "Image user not allowed",
+	config_error: "Configuration error",
+	restarting: "Restarting",
+	restarts_exhausted: "Too many restarts",
+	out_of_memory: "Out of memory",
+	health_check_failing: "Health check failing",
+	deploy_timeout: "Not healthy in time",
+	unclean_shutdown: "Unclean shutdown",
+};
+
+/** How many replicas there are and how many are in each state. */
+export function replicaSummary(replicas: readonly Replica[]): string {
+	const counts = new Map<string, number>();
+	for (const replica of replicas) {
+		const label = replicaState(replica.state).label;
+		counts.set(label, (counts.get(label) ?? 0) + 1);
+	}
+	const parts = [...counts].map(([label, n]) => `${n.toString()} ${label.toLowerCase()}`);
+	return [`${replicas.length.toString()} replicas`, ...parts].join(" · ");
+}

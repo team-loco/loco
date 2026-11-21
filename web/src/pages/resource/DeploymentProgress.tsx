@@ -10,7 +10,7 @@ import {
 	type Deployment,
 	type FinishedRegion,
 } from "@gen/loco/deployment/v1/deployment_pb";
-import { ChevronDownIcon, LogsIcon, ScrollTextIcon, Undo2Icon, XIcon } from "lucide-react";
+import { ArrowUpRightIcon, ChevronDownIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
@@ -29,7 +29,6 @@ import { useNow } from "@/hooks/useNow";
 import { cancelable, canceledNote, placementReadyLabel, rolloutReadyLabel } from "@/lib/activity-deploys";
 import {
 	deploymentActor,
-	deploymentMethod,
 	deploymentProblem,
 	getServiceSpec,
 	isInFlight,
@@ -79,11 +78,13 @@ interface RolloutMember {
 function ProgressPanel({
 	members,
 	logsHref,
+	buildLogsHref,
 	canWrite,
 	onRollback,
 }: {
 	members: readonly [RolloutMember, ...RolloutMember[]];
 	logsHref: string | undefined;
+	buildLogsHref: (buildId: string) => string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
@@ -146,8 +147,6 @@ function ProgressPanel({
 	const failed = phase === DeploymentStatus.FAILED || phase === DeploymentStatus.CRASHED;
 	const canceled = phase === DeploymentStatus.CANCELED;
 	const title = deploymentPhaseStyle(phase).label;
-	const message = deployment.commit?.message ?? "";
-	const headline = message === "" ? depTag(deployment) : message;
 	const glyph: Glyph = failed
 		? "err"
 		: canceled || phase === DeploymentStatus.SUPERSEDED
@@ -160,6 +159,12 @@ function ProgressPanel({
 	const feed = rolloutActivity(activity, region.name, live ? (placement?.currentRevision ?? 0n) : 0n);
 	const elapsed = deploymentElapsedMs(deployment, nowMs, feed.restart);
 	const commit = deployment.commit?.sha ?? build?.gitCommit;
+	const buildHref = buildId === "" ? undefined : buildLogsHref(buildId);
+	const headline = `Deploy ${commit ? shortSha(commit) : depTag(deployment)}`;
+	const servingId = failed
+		? servingDeployments(region.status?.replicas ?? []).find((d) => d.id !== deployment.id)?.id
+		: undefined;
+	const servingNow = [region.current, ...region.history].find((d) => d?.id === servingId);
 	const { path, tag, digest } = parseImage(depImage(deployment));
 	const fields: [string, string][] = [];
 	const image = depImage(deployment);
@@ -236,12 +241,7 @@ function ProgressPanel({
 								<span className="sr-only">Copy deployment ID</span>
 							</CopyId>
 						</span>
-						{(deployment.actorName !== "" || deployment.actorId !== "") && (
-							<span>
-								{deploymentActor(deployment)}
-								{deploymentMethod(deployment) !== "" && ` via ${deploymentMethod(deployment)}`}
-							</span>
-						)}
+						{(deployment.actorName !== "" || deployment.actorId !== "") && <span>{deploymentActor(deployment)}</span>}
 						<span>
 							{multiRegion ? (
 								`${live ? "Rolling out to" : "Rolled out to"} ${members.length.toString()} regions`
@@ -249,9 +249,6 @@ function ProgressPanel({
 								<span className="font-mono text-[12px]">{region.name}</span>
 							)}
 						</span>
-						{!commit && image !== "" && (
-							<span className="min-w-0 break-all font-mono text-[12px] text-fg2">{image}</span>
-						)}
 					</MetaLine>
 				</div>
 				<div className="flex shrink-0 flex-wrap items-center gap-1.5">
@@ -259,8 +256,8 @@ function ProgressPanel({
 						<>
 							{logsHref !== undefined && problemLogsHref(logsHref, deployment) === undefined && (
 								<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
-									<LogsIcon />
-									View logs
+									Logs
+									<ArrowUpRightIcon />
 								</Button>
 							)}
 							{previous !== undefined && (
@@ -280,10 +277,16 @@ function ProgressPanel({
 					) : (
 						logsHref !== undefined && (
 							<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
-								<ScrollTextIcon />
 								Logs
+								<ArrowUpRightIcon />
 							</Button>
 						)
+					)}
+					{buildHref !== undefined && (
+						<Button variant="outline" size="sm" nativeButton={false} render={<Link to={buildHref} />}>
+							Build logs
+							<ArrowUpRightIcon />
+						</Button>
 					)}
 					{live ? (
 						cancelable(deployment) && (
@@ -340,7 +343,7 @@ function ProgressPanel({
 					Disconnected. Reconnecting… {connectionError}
 				</p>
 			)}
-			<ProblemBanner deployment={deployment} logsHref={logsHref} />
+			<ProblemBanner deployment={deployment} logsHref={logsHref} serving={servingNow} />
 			<div className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
 				<div className="flex min-w-0 flex-col gap-4">
 					<StepRail steps={steps} note={stepNote} />
@@ -505,11 +508,13 @@ export function StepRail({ steps, note }: { steps: RolloutStep[]; note: (step: R
 export function DeploymentProgress({
 	regions,
 	logsHref,
+	buildLogsHref,
 	canWrite,
 	onRollback,
 }: {
 	regions: RegionView[];
 	logsHref: string | undefined;
+	buildLogsHref: (buildId: string) => string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
@@ -532,6 +537,7 @@ export function DeploymentProgress({
 				key={first.deployment.id}
 				members={[first, ...rest]}
 				logsHref={logsHref}
+				buildLogsHref={buildLogsHref}
 				canWrite={canWrite}
 				onRollback={onRollback}
 			/>
