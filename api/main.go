@@ -447,6 +447,7 @@ func newDeps(
 				Events:                 durationpb.New(ac.EventsRetention),
 			},
 			ac.DefaultRegion,
+			ac.SupportEmail,
 			queries,
 		),
 		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL, ac.Agent.JoinTokenMaxTTL),

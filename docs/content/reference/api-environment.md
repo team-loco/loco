@@ -172,6 +172,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `MIN_CLI_VERSION` | empty | Oldest `loco` version the API supports, such as `v0.0.61`. Older CLIs print an update hint. |
 | `LOCO_SCHEMA_URL` | `https://loco.build/schemas/loco.v1.json` | loco.yaml JSON schema that `loco infra init` references. |
 | `LOCO_DEFAULT_REGION` | empty | Region code new services default to, such as `us-ca-1`. Ignored while no cluster has it; see [regions](regions.md#default-region). |
+| `LOCO_SUPPORT_EMAIL` | empty | Address the dashboard's **Contact support** button on internal errors writes to, set through the control-plane chart value `supportEmail`. Must be a bare address such as `support@example.com`; empty hides the button. |
 | `ORG_LINKS` | empty | JSON array of up to 10 `{"label", "url"}` links the dashboard sidebar shows for each organization. A URL may contain `{orgId}`. |
 
 ## Service defaults

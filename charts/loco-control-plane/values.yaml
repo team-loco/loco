@@ -148,6 +148,9 @@ controlPlaneHostname: api.loco.build
 platformDomain: ""
 # Region code new services default to (the API's LOCO_DEFAULT_REGION); empty sets none.
 defaultRegion: ""
+# The address the dashboard's Contact support button writes to (the API's LOCO_SUPPORT_EMAIL);
+# empty hides the button.
+supportEmail: ""
 
 # @schema additionalProperties: false
 gateway:

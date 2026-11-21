@@ -22,7 +22,7 @@ func TestGetConfigReportsDashboardSignInAvailability(t *testing.T) {
 		if configured {
 			issuers[0].Web = &auth.WebConfig{ClientID: clientID, ClientSecret: "test secret", Scopes: "openid"}
 		}
-		server := NewConfigServer("", "", "", servicedefaults.Defaults{}, issuers, nil, 0, 0, nil, nil, "", nil)
+		server := NewConfigServer("", "", "", servicedefaults.Defaults{}, issuers, nil, 0, 0, nil, nil, "", "", nil)
 		config, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 		if err != nil {
 			t.Fatal(err)
@@ -37,7 +37,7 @@ func TestGetConfigAnswersHTTPGetWithCacheControl(t *testing.T) {
 	t.Parallel()
 	server := connect.NewServer()
 	configv1connect.RegisterConfigServiceHandler(
-		server, NewConfigServer("", "", "", servicedefaults.Defaults{}, nil, nil, 0, 0, nil, nil, "", nil))
+		server, NewConfigServer("", "", "", servicedefaults.Defaults{}, nil, nil, 0, 0, nil, nil, "", "", nil))
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
 	srv := httptest.NewServer(mux)

@@ -33,6 +33,7 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		limits.Defaults(),
 		nil,
 		"",
+		"",
 		nil,
 	)
 	req := &configv1.GetConfigRequest{}
@@ -100,6 +101,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 		limits.Defaults(),
 		nil,
 		"",
+		"",
 		nil,
 	)
 	req := &configv1.GetConfigRequest{}
@@ -129,6 +131,7 @@ func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 		6*time.Hour,
 		limits.Defaults(),
 		nil,
+		"",
 		"",
 		nil,
 	)
@@ -186,6 +189,7 @@ func TestGetConfigReportsTheInstallCountLimits(t *testing.T) {
 		counts,
 		nil,
 		"",
+		"",
 		nil,
 	)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
@@ -217,6 +221,7 @@ func TestGetConfigReportsInstallHistoryRetention(t *testing.T) {
 				limits.Defaults(),
 				retention,
 				"",
+				"",
 				nil,
 			)
 			resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
@@ -241,7 +246,7 @@ func TestGetConfigReturnsTheDefaultRegionOnlyWhileItIsLive(t *testing.T) {
 	regions := liveRegions{testRegion: true}
 	for configured, want := range map[string]string{testRegion: testRegion, "jp-13-1": "", "": ""} {
 		server := NewConfigServer(configAPIVersion, "", "", testServiceDefaults(), nil, nil, 0, 0, nil, nil,
-			configured, regions)
+			configured, "", regions)
 		resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 		if err != nil {
 			t.Fatalf("GetConfig with %q: %v", configured, err)
@@ -250,5 +255,18 @@ func TestGetConfigReturnsTheDefaultRegionOnlyWhileItIsLive(t *testing.T) {
 			t.Fatalf("default region with LOCO_DEFAULT_REGION=%q = %q, want %q",
 				configured, resp.GetDefaultRegion(), want)
 		}
+	}
+}
+
+func TestGetConfigReturnsTheSupportEmail(t *testing.T) {
+	t.Parallel()
+	server := NewConfigServer(configAPIVersion, "", "", testServiceDefaults(), nil, nil, 0, 0, nil, nil,
+		"", "support@loco.test", nil)
+	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.GetSupportEmail() != "support@loco.test" {
+		t.Fatalf("support email = %q, want the configured support@loco.test", resp.GetSupportEmail())
 	}
 }

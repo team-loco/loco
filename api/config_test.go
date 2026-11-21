@@ -53,6 +53,7 @@ const (
 	webhookRetryEnv     = "WEBHOOK_RETRY_DELAYS"
 	webhookPollEnv      = "WEBHOOK_POLL_INTERVAL"
 	orgLinksEnv         = "ORG_LINKS"
+	supportEmailEnv     = "LOCO_SUPPORT_EMAIL"
 	authIssuersEnv      = "AUTH_ISSUERS"
 	testIssuer          = "https://issuer.loco.test"
 	testHookURL         = "https://hooks.loco.test/events"
@@ -298,6 +299,17 @@ func TestNewAPIConfigReadsOrgLinks(t *testing.T) {
 	want := []service.OrgLink{{Label: "Support", URL: "https://support.loco.test/orgs/{orgId}"}}
 	if !slices.Equal(ac.OrgLinks, want) {
 		t.Errorf("org links = %+v, want %+v", ac.OrgLinks, want)
+	}
+}
+
+func TestNewAPIConfigReadsTheSupportEmail(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if ac := newAPIConfig(); ac.SupportEmail != "" {
+		t.Fatalf("support email = %q without %s", ac.SupportEmail, supportEmailEnv)
+	}
+	t.Setenv(supportEmailEnv, "support@example.test")
+	if ac := newAPIConfig(); ac.SupportEmail != "support@example.test" {
+		t.Errorf("support email = %q, want support@example.test", ac.SupportEmail)
 	}
 }
 
@@ -601,6 +613,12 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			errInvalidSystemAdmins,
 		},
 		{"empty system admin entry", map[string]string{systemAdminsEnv: "ada@example.test,"}, errInvalidSystemAdmins},
+		{"support email that is not an email", map[string]string{supportEmailEnv: "support"}, errInvalidSupportEmail},
+		{
+			"support email with a display name",
+			map[string]string{supportEmailEnv: "Support <support@example.test>"},
+			errInvalidSupportEmail,
+		},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"non-semver min cli version", map[string]string{"MIN_CLI_VERSION": "0.0.61"}, errInvalidMinCLIVersion},
 		{

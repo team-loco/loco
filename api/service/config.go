@@ -34,6 +34,7 @@ type ConfigServer struct {
 	counts                    *configv1.CountLimits
 	historyRetention          *configv1.HistoryRetention
 	defaultRegion             string
+	supportEmail              string
 	regions                   liveRegionChecker
 	warnDefaultRegion         sync.Once
 }
@@ -50,7 +51,7 @@ func NewConfigServer(
 	apiTokenMaxLifetime, observabilityMaxTimeRange time.Duration,
 	counts *configv1.CountLimits,
 	historyRetention *configv1.HistoryRetention,
-	defaultRegion string,
+	defaultRegion, supportEmail string,
 	regions liveRegionChecker,
 ) *ConfigServer {
 	_, webAuthEnabled := auth.WebIssuer(issuers)
@@ -66,6 +67,7 @@ func NewConfigServer(
 		counts:                    counts,
 		historyRetention:          historyRetention,
 		defaultRegion:             defaultRegion,
+		supportEmail:              supportEmail,
 		regions:                   regions,
 	}
 }
@@ -107,6 +109,7 @@ func (s *ConfigServer) GetConfig(
 		SchemaUrl:                  s.schemaURL,
 		WebAuthEnabled:             s.webAuthEnabled,
 		DefaultRegion:              defaultRegion,
+		SupportEmail:               s.supportEmail,
 		OrgLinks:                   s.orgLinks,
 		CountLimits:                s.counts,
 		HistoryRetention:           s.historyRetention,

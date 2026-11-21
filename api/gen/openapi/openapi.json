@@ -10636,6 +10636,11 @@
             "type": "string",
             "title": "default_region",
             "description": "the region code new services default to, from LOCO_DEFAULT_REGION; empty when unset or when\n that code is not a live region"
+          },
+          "supportEmail": {
+            "type": "string",
+            "title": "support_email",
+            "description": "the address users write to for help with this installation, from LOCO_SUPPORT_EMAIL; empty when unset"
           }
         },
         "title": "GetConfigResponse",

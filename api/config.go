@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/mail"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -48,6 +49,7 @@ var (
 	errInvalidRegistry        = errors.New("invalid registry configuration")
 	errInvalidInstallWebhooks = errors.New("INSTALL_WEBHOOKS is invalid")
 	errInvalidOrgLinks        = errors.New("ORG_LINKS is invalid")
+	errInvalidSupportEmail    = errors.New("LOCO_SUPPORT_EMAIL is not a bare email address")
 	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
 	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
 	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
@@ -230,6 +232,7 @@ type APIConfig struct {
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	MinCLIVersion         string
 	DefaultRegion         string
+	SupportEmail          string
 	PprofAddr             string
 	SourceBucket          sourcebucket.Config
 	SourceMaxBytes        int64
@@ -351,6 +354,7 @@ func newAPIConfig() *APIConfig {
 		CORSAllowedOrigins:    corsOrigins,
 		MinCLIVersion:         minCLIVersion,
 		DefaultRegion:         envconfig.String("LOCO_DEFAULT_REGION", ""),
+		SupportEmail:          newSupportEmail(),
 		PprofAddr:             envconfig.String("PPROF_ADDR", ""),
 		SourceBucket:          sourceBucket,
 		SourceMaxBytes:        sourceMaxBytes,
@@ -547,6 +551,18 @@ func newInstallWebhooks() []webhooks.InstallWebhook {
 		panic(fmt.Errorf("%w: %w", errInvalidInstallWebhooks, err))
 	}
 	return hooks
+}
+
+func newSupportEmail() string {
+	raw := envconfig.String("LOCO_SUPPORT_EMAIL", "")
+	if raw == "" {
+		return ""
+	}
+	address, err := mail.ParseAddress(raw)
+	if err != nil || address.Name != "" || address.Address != raw {
+		panic(fmt.Errorf("%w: %q", errInvalidSupportEmail, raw))
+	}
+	return raw
 }
 
 func newOrgLinks() []service.OrgLink {

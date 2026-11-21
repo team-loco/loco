@@ -252,6 +252,7 @@ def api_env(dev_env, ports, issuer):
             "INSTALL_WEBHOOKS": "",
             "LOCO_IMAGE_RETENTION": "0",
             "LOCO_DEFAULT_REGION": "us-ca-1",
+            "LOCO_SUPPORT_EMAIL": "support@loco.test",
             "LOCO_SOURCE_BUCKET_ENDPOINT": f"http://{HOST}:{unused}",
             "LOCO_REGISTRY_URL": f"http://{HOST}:{unused}",
             "AUTH_ISSUERS": json.dumps(

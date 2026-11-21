@@ -886,6 +886,9 @@
       },
       "additionalProperties": false
     },
+    "supportEmail": {
+      "type": "string"
+    },
     "ui": {
       "allOf": [
         {

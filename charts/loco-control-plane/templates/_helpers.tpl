@@ -230,5 +230,8 @@ capabilities:
 {{- with $.Values.defaultRegion }}
 {{- $_ := set $settings "LOCO_DEFAULT_REGION" . }}
 {{- end }}
+{{- with $.Values.supportEmail }}
+{{- $_ := set $settings "LOCO_SUPPORT_EMAIL" . }}
+{{- end }}
 {{- toYaml $settings }}
 {{- end }}

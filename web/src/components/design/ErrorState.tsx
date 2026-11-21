@@ -2,9 +2,19 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { formatClock } from "@/lib/time";
 import type { DescMethod } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useTransport } from "@connectrpc/connect-query";
+import { useQuery as useRpcQuery, useTransport } from "@connectrpc/connect-query";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { useQuery } from "@tanstack/react-query";
-import { CheckIcon, CopyIcon, LockIcon, MonitorIcon, RotateCwIcon, ServerIcon, XIcon } from "lucide-react";
+import {
+	ArrowUpRightIcon,
+	CheckIcon,
+	CopyIcon,
+	LockIcon,
+	MonitorIcon,
+	RotateCwIcon,
+	ServerIcon,
+	XIcon,
+} from "lucide-react";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { useAuth } from "@/auth/AuthProvider";
@@ -164,6 +174,7 @@ function Internal({
 }) {
 	const timePref = useTimePreferences();
 	const [copied, copy] = useCopy(1400);
+	const supportEmail = useRpcQuery(getConfig, {}).data?.supportEmail ?? "";
 	const id = requestId(error);
 	const at = firstShown(error);
 	const code = codeName(error);
@@ -204,6 +215,20 @@ function Internal({
 					{copied === null ? <CopyIcon className="text-fg3" /> : <CheckIcon className="text-fg3" />}
 					{copied === null ? "Copy details" : "Copied"}
 				</Button>
+				{supportEmail !== "" && (
+					<Button
+						variant="ghost"
+						nativeButton={false}
+						render={
+							<a
+								href={`mailto:${supportEmail}?subject=${encodeURIComponent(`Couldn’t load ${what}`)}&body=${encodeURIComponent(details)}`}
+							/>
+						}
+					>
+						Contact support
+						<ArrowUpRightIcon className="text-fg3" />
+					</Button>
+				)}
 			</div>
 		</EmptyHero>
 	);

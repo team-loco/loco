@@ -36,6 +36,8 @@ message GetConfigResponse {
   // the region code new services default to, from LOCO_DEFAULT_REGION; empty when unset or when
   // that code is not a live region
   string default_region = 13;
+  // the address users write to for help with this installation, from LOCO_SUPPORT_EMAIL; empty when unset
+  string support_email = 14;
 }
 
 message HistoryRetention {
