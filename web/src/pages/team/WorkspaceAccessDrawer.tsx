@@ -100,11 +100,13 @@ function AccessRows({
 		enabled: show === "all",
 		placeholderData: keepPreviousData,
 	});
-	const allCount = useQuery(
-		listOrgWorkspaces,
-		{ orgId, pageSize: 1, pageToken: "", includeTotalCount: true, query: "" },
-		{ staleTime: Infinity },
-	);
+	const allCount = useQuery(listOrgWorkspaces, {
+		orgId,
+		pageSize: 1,
+		pageToken: "",
+		includeTotalCount: true,
+		query: "",
+	});
 	const allRows = all.query.data?.workspaces ?? [];
 	const allPager = tokenPager(tokens, all.nextPageToken, (next) => {
 		setTokens(next ?? []);
