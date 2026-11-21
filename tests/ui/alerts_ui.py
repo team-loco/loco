@@ -63,9 +63,24 @@ with session(out) as browser:
     page.goto(f"{state['ui_url']}/org/{org}/wks/{workspace}?env=production")
     page.get_by_role("button", name=re.compile(r"^Workspace activity, ")).click()
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
-    card = drawer.get_by_role("listitem").filter(has_text="alerts-ui")
+    card = (
+        drawer.get_by_role("listitem")
+        .filter(has_text="alerts-ui")
+        .filter(has_text="started 3h ago")
+    )
     expect(card.get_by_text("Degraded", exact=True)).to_be_visible()
     expect(card.get_by_text("started 3h ago", exact=True)).to_be_visible()
+    expect(
+        card.get_by_role("link", name="Open alerts-ui", exact=True)
+    ).to_have_attribute("data-variant", "default")
+    expect(card.get_by_role("link", name="Logs", exact=True)).to_have_attribute(
+        "data-variant", "outline"
+    )
+    close = drawer.get_by_role("button", name="Close activity", exact=True)
+    close.hover()
+    tooltip = page.locator("[data-slot=tooltip-content]")
+    expect(tooltip).to_contain_text("Close")
+    expect(tooltip.locator("kbd")).to_have_text("esc")
     assert not errors, errors
     context.close()
 print("PASS: alerts")

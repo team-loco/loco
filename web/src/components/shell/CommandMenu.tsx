@@ -70,7 +70,7 @@ import { useNavSections } from "./nav";
 
 const SHORTCUT_KEY = "k";
 export const SHORTCUT_LABEL = shortcutLabel("K");
-const PLACEHOLDER = "Search pages, resources and actions";
+const PLACEHOLDER = "Search resources, pages and actions";
 const PALETTE_GROUPS = ["This page", "Actions", "Resources", "Pages", "Workspaces", "Appearance", "Help"] as const;
 const SEARCH_GROUPS = ["This page", "Actions", "Pages", "Resources", "Workspaces", "Appearance", "Help"] as const;
 const KEY_HINT = "bg-panel2 text-fg3 inset-ring-0";

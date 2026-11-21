@@ -1,4 +1,4 @@
-import { LayoutGridIcon, SearchIcon } from "lucide-react";
+import { CommandIcon, LayoutGridIcon } from "lucide-react";
 import { Component, type ComponentProps, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 
@@ -64,12 +64,12 @@ function MissingPath() {
 	);
 }
 
-function SearchButton() {
+function PaletteButton() {
 	const openPalette = useOpenPalette();
 	return (
 		<Button variant="outline" aria-keyshortcuts="Meta+K Control+K" onClick={openPalette}>
-			<SearchIcon className="text-fg3" aria-hidden />
-			Search
+			<CommandIcon className="text-fg3" aria-hidden />
+			Command palette
 			<Kbd className="ml-0.5">{SHORTCUT_LABEL}</Kbd>
 		</Button>
 	);
@@ -78,8 +78,8 @@ function SearchButton() {
 /**
  * `staticPage` renders the page for the 404 file the static server returns for missing files and unknown
  * documentation paths, built by build.ts. That file runs no script and has no router, so it leaves out the
- * parts that need them (the missing path and the search button) and gets the logo inline, because /logo.svg
- * does not exist on the documentation host.
+ * parts that need them (the missing path and the command palette button) and gets the logo inline, because
+ * /logo.svg does not exist on the documentation host.
  */
 export function NotFound({
 	unknownWorkspace = false,
@@ -124,7 +124,7 @@ export function NotFound({
 							<LayoutGridIcon className="text-fg3" aria-hidden />
 							Go to dashboard
 						</Button>
-						{!isStatic && <SearchButton />}
+						{!isStatic && <PaletteButton />}
 					</div>
 				</EmptyHero>
 			</div>

@@ -81,7 +81,10 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     shared = state["workspaces"]["acme/shared"]
     page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}/resources")
     page.get_by_title("Switch workspace", exact=True).click()
-    expect(page.get_by_role("menuitem", name="shared", exact=True)).to_be_visible()
+    workspaces_menu = page.get_by_role("group", name="Workspaces in acme", exact=True)
+    expect(
+        workspaces_menu.get_by_role("menuitem", name="shared", exact=True)
+    ).to_be_visible()
     expect(page.get_by_role("menuitem", name="New organization")).to_have_count(0)
     page.keyboard.press("Escape")
     page.get_by_title("Switch organization", exact=True).click()

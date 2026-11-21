@@ -209,9 +209,10 @@ def check_activity(page):
     card = (
         drawer.get_by_role("listitem")
         .filter(has=page.get_by_role("link", name="badge-update-failed", exact=True))
-        .filter(has=page.locator("[data-status-badge='ok']"))
+        .filter(has_text=FAILED_UPDATE)
     )
-    expect_badges(card, ["Healthy", FAILED_UPDATE])
+    expect(card.get_by_text("Healthy", exact=True)).to_be_visible()
+    expect(card.get_by_text(FAILED_UPDATE, exact=True)).to_be_visible()
 
 
 with session(repo / "tests/ui/out/status-badge") as browser:
