@@ -41,7 +41,8 @@ import { useDrafts } from "@/hooks/useDrafts";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useTakenKeys, type TakenKeys } from "@/hooks/useTakenKeys";
-import { parseDotEnv } from "@/lib/dotenv";
+import { DotEnvNotes } from "@/components/DotEnvNotes";
+import { dotEnvNotes, parseDotEnv } from "@/lib/dotenv";
 import { draftIsPublic, draftRegions, draftSizing, type Draft, type DraftEdits } from "@/lib/drafts";
 import { getErrorMessage } from "@/lib/error-handler";
 import { DRAFT_PARAM, resourcePath } from "@/lib/routes";
@@ -822,7 +823,8 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 	const [pasteOpen, setPasteOpen] = useState(false);
 	const [pasteText, setPasteText] = useState("");
 	const [focusId, setFocusId] = useState<string | null>(null);
-	const pasted = parseDotEnv(pasteText);
+	const parsed = parseDotEnv(pasteText);
+	const pasted = parsed.pairs;
 	const newId = () => crypto.randomUUID();
 	const update = (id: string, patch: Partial<EnvRow>) => {
 		onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -870,6 +872,7 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 							setPasteText(e.target.value);
 						}}
 					/>
+					<DotEnvNotes notes={dotEnvNotes(parsed, new Set(rows.map((r) => r.key.trim())))} />
 					<div className="flex justify-end">
 						<Button
 							type="button"

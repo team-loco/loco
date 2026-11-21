@@ -23,7 +23,8 @@ import { Textarea } from "@/components/design/Textarea";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useCopy } from "@/hooks/useCopy";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { isEnvKey, parseDotEnv } from "@/lib/dotenv";
+import { DotEnvNotes } from "@/components/DotEnvNotes";
+import { dotEnvNotes, parseDotEnv } from "@/lib/dotenv";
 import { getErrorMessage } from "@/lib/error-handler";
 import { secretsPath, withEnv } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -55,14 +56,17 @@ function newId(): string {
 function ImportDialog({
 	open,
 	onOpenChange,
+	existing,
 	onImport,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	existing: ReadonlySet<string>;
 	onImport: (pairs: [string, string][]) => void;
 }) {
 	const [text, setText] = useState("");
-	const pairs = parseDotEnv(text).filter(([key]) => isEnvKey(key));
+	const parsed = parseDotEnv(text);
+	const pairs = parsed.pairs;
 	const close = () => {
 		setText("");
 		onOpenChange(false);
@@ -95,6 +99,7 @@ function ImportDialog({
 									.map(([key]) => key)
 									.join(", ")}${pairs.length > 5 ? "…" : ""}`}
 					</span>
+					<DotEnvNotes notes={dotEnvNotes(parsed, existing)} />
 				</DialogBody>
 				<DialogFooter>
 					<DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
@@ -543,7 +548,7 @@ export function VariablesSection({
 					usedBy={me.usedBy}
 				/>
 			)}
-			<ImportDialog open={importing} onOpenChange={setImporting} onImport={importPairs} />
+			<ImportDialog open={importing} onOpenChange={setImporting} existing={taken} onImport={importPairs} />
 		</SettingsBlock>
 	);
 }

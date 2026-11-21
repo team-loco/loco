@@ -40,6 +40,16 @@ describe("importPreview", () => {
 		expect(importPreview("", new Set()).summary).toBe("Nothing found yet");
 		expect(importPreview("lower=1", new Set()).summary).toBe("Not valid secret names: lower");
 	});
+
+	test("notes the skipped lines, repeated names and replaced secrets", () => {
+		const preview = importPreview("A=1\noops\nA=2\nB=3", new Set(["B"]));
+		expect(preview.values).toEqual({ A: "2", B: "3" });
+		expect(preview.notes).toEqual([
+			"Skipped line 2 (not KEY=value).",
+			"A appears more than once; the last value is used.",
+			"Replaces B.",
+		]);
+	});
 });
 
 describe("matchesSearch", () => {
