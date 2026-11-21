@@ -48,7 +48,6 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 		{Message: &agentv1.SyncRequest_Status{Status: &agentv1.PlacementStatus{
 			PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision, ReadyReplicas: 1,
 		}}},
-		{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: &agentv1.Heartbeat{}}},
 	} {
 		if err := session.handle(t.Context(), msg); err != nil {
 			t.Fatalf("handle %T: %v", msg.GetMessage(), err)
@@ -76,10 +75,13 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 			t.Errorf("%s placement id = %q, want %s", name, placementID, placement.ID)
 		}
 	}
-	for _, span := range recorder.Ended() {
-		if !span.Parent().IsValid() && span.SpanKind() == trace.SpanKindConsumer && len(span.Links()) == 0 {
-			t.Errorf("heartbeat started span %s", span.Name())
-		}
+	ended := len(recorder.Ended())
+	heartbeat := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: &agentv1.Heartbeat{}}}
+	if err := session.handle(t.Context(), heartbeat); err != nil {
+		t.Fatalf("handle heartbeat: %v", err)
+	}
+	if got := len(recorder.Ended()); got != ended {
+		t.Errorf("a heartbeat ended %d spans, want none", got-ended)
 	}
 }
 

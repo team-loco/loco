@@ -11,7 +11,6 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -59,8 +58,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	go receiveSync(recvCtx, stream, messages, recvErr)
 
 	send := func(msg *agentv1.SyncResponse) error {
-		subject, traced := responseSubject(msg)
-		sendCtx, span := s.startSyncSpan(ctx, cluster.ID, subject, traced, trace.SpanKindProducer)
+		sendCtx, span := s.responseSpan(ctx, cluster.ID, msg)
 		err := s.checkSyncGeneration(sendCtx, cluster.ID, generation)
 		if err == nil {
 			err = stream.Send(msg)
@@ -330,8 +328,7 @@ func placementMessage(placement genDb.Placement, envSecret *agentv1.EnvSecret) *
 }
 
 func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) error {
-	subject, traced := requestSubject(msg)
-	ctx, span := ss.server.startSyncSpan(ctx, ss.clusterID, subject, traced, trace.SpanKindConsumer)
+	ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
 	err := ss.dispatch(ctx, msg)
 	tracing.End(span, err)
 	return err
