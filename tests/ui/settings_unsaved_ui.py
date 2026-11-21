@@ -85,7 +85,9 @@ with session(out) as browser:
     delete = page.get_by_role("alertdialog", name=f"Delete {display_name}?", exact=True)
     delete.get_by_role("textbox").fill(name)
     delete.get_by_role("button", name=f"Delete {display_name}", exact=True).click()
-    expect(page).to_have_url(base.rsplit("/resource/", 1)[0] + "?env=production")
+    expect(page).to_have_url(
+        base.rsplit("/resource/", 1)[0] + "/resources?env=production"
+    )
     expect(guard).to_have_count(0)
     assert not errors, errors
     context.close()
