@@ -9,7 +9,7 @@ import {
 	ServiceDeploymentSpecSchema,
 } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { limitAt, limitSteps, type Sizing } from "@/lib/limit-history";
+import { limitAt, limitSteps, startedIn, type Sizing } from "@/lib/limit-history";
 import { parseCpuMilli } from "@/lib/quantity";
 import { msToTimestamp } from "@/lib/time";
 
@@ -81,5 +81,13 @@ describe("limitAt", () => {
 	test("uses the oldest known limit before the first step", () => {
 		expect(limitAt(steps, 0)).toBe(100);
 		expect(limitAt([], 0)).toBeUndefined();
+	});
+});
+
+describe("startedIn", () => {
+	test("gives the start of a placement that ran and nothing for one that did not", () => {
+		expect(startedIn(deployment("a", HOUR_MS, "100m"), REGION)).toBe(HOUR_MS);
+		expect(startedIn(deployment("b", HOUR_MS, "100m", PlacementStatus.PENDING), REGION)).toBeUndefined();
+		expect(startedIn(deployment("c", HOUR_MS, "100m"), "eu-west")).toBeUndefined();
 	});
 });

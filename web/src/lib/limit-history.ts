@@ -17,6 +17,13 @@ export interface Sizing {
 
 const NOT_RUN = new Set([PlacementStatus.PENDING, PlacementStatus.FAILED, PlacementStatus.CANCELED]);
 
+/** When a deployment's pods started in a region; undefined if they never ran there. */
+export function startedIn(d: Deployment, region: string): number | undefined {
+	const placement = placementIn(d, region);
+	if (placement === undefined || NOT_RUN.has(placement.status)) return undefined;
+	return maybeTsMs(placement.startedAt) ?? maybeTsMs(d.startedAt);
+}
+
 /**
  * The limit each deployment set in a region, from when it started there, oldest first.
  * Without any started deployment, the current target's limit holds for all time.
@@ -29,9 +36,7 @@ export function limitSteps(
 ): LimitStep[] {
 	const steps = new Map<string, LimitStep>();
 	for (const d of deployments) {
-		const placement = placementIn(d, region);
-		if (placement === undefined || NOT_RUN.has(placement.status)) continue;
-		const from = maybeTsMs(placement.startedAt) ?? maybeTsMs(d.startedAt);
+		const from = startedIn(d, region);
 		const target = regionTarget(getServiceSpec(d), region);
 		const limit = target === undefined ? 0 : size(target);
 		if (from !== undefined && limit > 0) steps.set(d.id, { from, limit });

@@ -1,8 +1,10 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useTransport } from "@connectrpc/connect-query";
+import { timestampFromMs } from "@bufbuild/protobuf/wkt";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
@@ -22,7 +24,7 @@ import { workspaceDeploymentsOptions } from "@/hooks/workspaceDeployments";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent } from "@/lib/compute-chart";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
-import { limitAt, limitSteps, type Sizing } from "@/lib/limit-history";
+import { limitAt, limitSteps, startedIn, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { isUnimplemented } from "@/lib/error-handler";
 import { sortParser } from "@/lib/sort-parser";
@@ -68,6 +70,8 @@ const NOW_TICK_MS = 60_000;
 const CHART_HEIGHT = 190;
 // A deployment shows where it became ready, which can be this long after it was created.
 const DEPLOY_LEAD_MS = 24 * HOUR_MS;
+// Enough of the deployments created before the window to find the one running at its start.
+const EARLIER_DEPLOYS = 5;
 const WARN_PERCENT = 85;
 // A click this close to a deploy line, as a share of the range, offers that deploy.
 const DEPLOY_PICK_SHARE = 0.02;
@@ -192,27 +196,48 @@ function useComputeSeries(
 	};
 }
 
-function usePlacementSizing(rows: Placement[], recent: Deployment[]) {
+function usePlacementSizing(rows: Placement[], recent: Deployment[], environmentId: string, from: number) {
 	const transport = useTransport();
 	const ids = [...new Set(rows.map((p) => p.deploymentId).filter((id) => id !== ""))];
 	const queries = useQueries({ queries: ids.map((id) => currentDeploymentOptions(transport, id)) });
-	const deployments = new Map(
+	const current = new Map(
 		queries.flatMap((q) => (q.data?.deployment === undefined ? [] : [q.data.deployment])).map((d) => [d.id, d]),
 	);
 	const byResource = Map.groupBy(recent, (d) => d.resourceId);
+	const known = (p: Placement) => {
+		const deployment = current.get(p.deploymentId);
+		const history = byResource.get(p.resource.id) ?? [];
+		return deployment === undefined ? history : [...history, deployment];
+	};
+	// A placement whose known deployments all started inside the window needs the one running before it.
+	const startsInWindow = (p: Placement) => {
+		const starts = known(p).flatMap((d) => startedIn(d, p.region) ?? []);
+		return starts.length > 0 && starts.every((t) => t > from);
+	};
+	const earlierFor = [...new Set(rows.filter(startsInWindow).map((p) => p.resource.id))];
+	const until = timestampFromMs(Math.floor(from / HOUR_MS) * HOUR_MS);
+	const earlierQueries = useQueries({
+		queries: earlierFor.map((resourceId) =>
+			createQueryOptions(
+				listDeployments,
+				{ resourceId, environmentId, until, pageSize: EARLIER_DEPLOYS },
+				{ transport },
+			),
+		),
+	});
+	const earlier = new Map(earlierFor.map((id, i) => [id, earlierQueries[i]?.data?.deployments ?? []]));
 	const sizing = new Map<string, PlacementSizing>();
 	for (const p of rows) {
-		const deployment = deployments.get(p.deploymentId);
+		const deployment = current.get(p.deploymentId);
 		const deployed = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
 		const spec = p.resource.raw.spec?.spec;
 		const intent = spec?.case === "service" ? spec.value.regions[p.region] : undefined;
-		const history = byResource.get(p.resource.id) ?? [];
 		sizing.set(p.key, {
-			deployments: deployment === undefined ? history : [...history, deployment],
+			deployments: [...(earlier.get(p.resource.id) ?? []), ...known(p)],
 			target: deployed ?? intent,
 		});
 	}
-	return { sizing, isLoading: queries.some((q) => q.isLoading) };
+	return { sizing, isLoading: queries.some((q) => q.isLoading) || earlierQueries.some((q) => q.isLoading) };
 }
 
 /** The environment's deployments created from a day before the window through its end. */
@@ -292,7 +317,7 @@ export function MetricsView() {
 	const visible = filteredResources("metrics", resources, tokens);
 	const rows = placements(visible, environment?.id ?? "", liveTokens("metrics", tokens, "region"));
 	const recent = useWindowDeployments(workspaceId, environment?.id ?? "", from, to, range.kind === "relative");
-	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows, recent);
+	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows, recent, environment?.id ?? "", from);
 	const cpu = useComputeSeries(CPU, rows, sizing, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, sizing, spanMs, endMs);
 	const deployMarkers = deployMarkersOf(visible, recent, environment?.id ?? "", from, to);
