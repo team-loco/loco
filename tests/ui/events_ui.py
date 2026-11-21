@@ -56,6 +56,22 @@ with session(out) as browser:
         page.get_by_role("button", name=re.compile(r"^Show the past"))
     ).to_be_visible()
     expect(page.get_by_role("link", name="New resource", exact=True)).to_have_count(0)
+    empty_workspace = state["workspaces"]["acme/empty"]
+    page.goto(
+        state["ui_url"]
+        + f"/org/{org}/wks/{empty_workspace}/observability?view=events&live=0"
+    )
+    expect(
+        page.get_by_role("heading", name="No events yet", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_text(
+            re.compile(
+                r"^Deploys, restarts, failed health checks and scaling in \S+ show up here as they happen\.$"
+            )
+        )
+    ).to_be_visible()
+    expect(page.get_by_role("link", name="New resource", exact=True)).to_be_visible()
     page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
     events = page.get_by_role("region", name="Events", exact=True)
     expect(
