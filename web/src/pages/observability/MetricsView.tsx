@@ -2,6 +2,7 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useTransport } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
@@ -21,6 +22,7 @@ import { workspaceDeploymentsOptions } from "@/hooks/workspaceDeployments";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent } from "@/lib/compute-chart";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
+import { limitAt, limitSteps, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { isUnimplemented } from "@/lib/error-handler";
 import { sortParser } from "@/lib/sort-parser";
@@ -41,7 +43,7 @@ interface MetricDef {
 	metric: string;
 	title: string;
 	format: (value: number) => string;
-	limit: (sizing: { cpu: string; memory: string }) => number;
+	limit: (target: Sizing) => number;
 }
 
 const CPU: MetricDef = {
@@ -49,14 +51,14 @@ const CPU: MetricDef = {
 	metric: "k8s.pod.cpu_limit_utilization",
 	title: "CPU",
 	format: formatCpu,
-	limit: (sizing) => parseCpuMilli(sizing.cpu),
+	limit: (target) => parseCpuMilli(target.cpu ?? ""),
 };
 const MEMORY: MetricDef = {
 	key: "mem",
 	metric: "k8s.pod.memory.working_set_limit_utilization",
 	title: "Memory",
 	format: formatMemory,
-	limit: (sizing) => parseMemMi(sizing.memory),
+	limit: (target) => parseMemMi(target.memory ?? ""),
 };
 
 const TRAFFIC = ["Requests", "5xx responses", "Latency, p95"];
@@ -81,6 +83,11 @@ interface DeployMarker extends ChartMarker {
 	resourceId: string;
 	resourceName: string;
 	region: string;
+}
+
+interface PlacementSizing {
+	deployments: Deployment[];
+	target: Sizing | undefined;
 }
 
 interface Placement {
@@ -119,7 +126,7 @@ function placements(resources: ObsResource[], environmentId: string, regionToken
 function useComputeSeries(
 	def: MetricDef,
 	rows: Placement[],
-	limits: Map<string, { cpu: string; memory: string }>,
+	sizing: Map<string, PlacementSizing>,
 	spanMs: number,
 	endMs: number | undefined,
 ) {
@@ -157,20 +164,23 @@ function useComputeSeries(
 		}
 		for (const [id, pts] of peaks) {
 			const row = rows.find((p) => p.resource.id === id && p.region === region);
-			const sizing = row === undefined ? undefined : limits.get(row.key);
-			const limit = sizing === undefined ? 0 : def.limit(sizing);
-			if (row === undefined || limit <= 0) continue;
+			if (row === undefined) continue;
+			const placement = sizing.get(row.key);
+			const limits =
+				placement === undefined ? [] : limitSteps(placement.deployments, region, def.limit, placement.target);
+			if (limits.length === 0) continue;
 			const points = [...pts].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
 			series.push({
 				key: row.key,
 				name: multi.has(id) ? `${row.resource.raw.name} ${region}` : row.resource.raw.name,
 				color: row.resource.color,
 				dashed: row.dashed,
-				limit,
+				limits,
 				points,
 			});
 			const last = points.at(-1);
-			if (last !== undefined) latest.set(row.key, { v: (last.v / PERCENT) * limit, limit });
+			const limit = last === undefined ? undefined : limitAt(limits, last.t);
+			if (last !== undefined && limit !== undefined) latest.set(row.key, { v: (last.v / PERCENT) * limit, limit });
 		}
 	});
 	return {
@@ -182,37 +192,31 @@ function useComputeSeries(
 	};
 }
 
-function usePlacementSizing(rows: Placement[]) {
+function usePlacementSizing(rows: Placement[], recent: Deployment[]) {
 	const transport = useTransport();
 	const ids = [...new Set(rows.map((p) => p.deploymentId).filter((id) => id !== ""))];
 	const queries = useQueries({ queries: ids.map((id) => currentDeploymentOptions(transport, id)) });
 	const deployments = new Map(
 		queries.flatMap((q) => (q.data?.deployment === undefined ? [] : [q.data.deployment])).map((d) => [d.id, d]),
 	);
-	const sizing = new Map<string, { cpu: string; memory: string }>();
+	const byResource = Map.groupBy(recent, (d) => d.resourceId);
+	const sizing = new Map<string, PlacementSizing>();
 	for (const p of rows) {
 		const deployment = deployments.get(p.deploymentId);
 		const deployed = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
 		const spec = p.resource.raw.spec?.spec;
 		const intent = spec?.case === "service" ? spec.value.regions[p.region] : undefined;
-		const target = deployed ?? intent;
-		if (target !== undefined)
-			sizing.set(p.key, {
-				cpu: target.cpu ?? "",
-				memory: target.memory ?? "",
-			});
+		const history = byResource.get(p.resource.id) ?? [];
+		sizing.set(p.key, {
+			deployments: deployment === undefined ? history : [...history, deployment],
+			target: deployed ?? intent,
+		});
 	}
 	return { sizing, isLoading: queries.some((q) => q.isLoading) };
 }
 
-function useDeployMarkers(
-	visible: ObsResource[],
-	workspaceId: string,
-	environmentId: string,
-	from: number,
-	to: number,
-	live: boolean,
-): DeployMarker[] {
+/** The environment's deployments created from a day before the window through its end. */
+function useWindowDeployments(workspaceId: string, environmentId: string, from: number, to: number, live: boolean) {
 	const transport = useTransport();
 	const query = useQuery({
 		...workspaceDeploymentsOptions(transport, workspaceId, environmentId, {
@@ -222,7 +226,17 @@ function useDeployMarkers(
 		placeholderData: keepPreviousData,
 		meta: { persist: false },
 	});
-	const byResource = Map.groupBy(query.data?.deployments ?? [], (d) => d.resourceId);
+	return query.data?.deployments ?? [];
+}
+
+function deployMarkersOf(
+	visible: ObsResource[],
+	deployments: Deployment[],
+	environmentId: string,
+	from: number,
+	to: number,
+): DeployMarker[] {
+	const byResource = Map.groupBy(deployments, (d) => d.resourceId);
 	const markers: DeployMarker[] = [];
 	visible.forEach((r) => {
 		for (const d of byResource.get(r.id) ?? []) {
@@ -277,17 +291,11 @@ export function MetricsView() {
 	const endMs = range.kind === "absolute" ? range.to : undefined;
 	const visible = filteredResources("metrics", resources, tokens);
 	const rows = placements(visible, environment?.id ?? "", liveTokens("metrics", tokens, "region"));
-	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows);
+	const recent = useWindowDeployments(workspaceId, environment?.id ?? "", from, to, range.kind === "relative");
+	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows, recent);
 	const cpu = useComputeSeries(CPU, rows, sizing, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, sizing, spanMs, endMs);
-	const deployMarkers = useDeployMarkers(
-		visible,
-		workspaceId,
-		environment?.id ?? "",
-		from,
-		to,
-		range.kind === "relative",
-	);
+	const deployMarkers = deployMarkersOf(visible, recent, environment?.id ?? "", from, to);
 	const [hoverKey, setHoverKey] = useState<string | null>(null);
 	const [focusTs] = useQueryState("at", msParser);
 	const markers: ChartMarker[] = [

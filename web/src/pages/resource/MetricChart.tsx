@@ -9,9 +9,10 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { formatAxisTime, timeAxis } from "@/lib/time";
 import { formatPercent, limitAxis, percentAxis } from "@/lib/compute-chart";
+import { limitAt, type LimitStep } from "@/lib/limit-history";
 
 import { formatFullTime } from "./format";
-import { scaleBand, usageSummary, type BandPoint } from "./metric";
+import { scaleBand, tightestPoint, usageSummary, type BandPoint } from "./metric";
 
 const WARN_SHARE = 0.85;
 const AXIS_FONT = 11;
@@ -23,6 +24,7 @@ const LINE_WIDTH = 1.75;
 const CHART_CONFIG = {
 	median: { label: "Median", color: "var(--series-0)" },
 	band: { label: "Min – max", color: "var(--series-0)" },
+	limit: { label: "Limit", color: "var(--fg3)" },
 };
 
 const tooltipTime = (_label: unknown, payload: readonly { payload?: { time?: number } }[], pref: TimePreferences) => {
@@ -72,7 +74,7 @@ export function MetricChart({
 	from,
 	to,
 	markers,
-	limit,
+	limits,
 	format,
 }: {
 	name: string;
@@ -83,21 +85,27 @@ export function MetricChart({
 	from: number;
 	to: number;
 	markers: number[];
-	limit: number | undefined;
+	limits: LimitStep[] | undefined;
 	format: (value: number) => string;
 }) {
 	const timePref = useTimePreferences();
 	// Without a known limit the chart falls back to percent of request.
-	const absolute = limit !== undefined && limit > 0;
-	const data = absolute ? scaleBand(points, limit) : points;
+	const limit = limits === undefined ? undefined : limitAt(limits, to);
+	const absolute = limits !== undefined && limit !== undefined;
+	const scaled = absolute ? scaleBand(points, limits) : undefined;
+	const data = scaled ?? points;
 	const show = absolute ? format : formatPercent;
 	const usage = usageSummary(data);
 	const peak = Math.max(0, ...data.map((p) => p.band?.[1] ?? p.median ?? 0));
-	const axis = absolute ? limitAxis(limit, peak) : percentAxis(peak);
+	const axis = absolute ? limitAxis(Math.max(limit, ...(scaled ?? []).map((p) => p.limit)), peak) : percentAxis(peak);
 	const line = absolute ? limit : FULL_REQUEST;
+	// After a resize inside the range the limit is drawn as a step line.
+	const resized = scaled?.some((p) => p.limit !== limit) ?? false;
+	const tightest = scaled === undefined ? undefined : tightestPoint(scaled);
+	const tightestHigh = tightest === undefined ? 0 : (tightest.band?.[1] ?? tightest.median ?? 0);
 	const warning =
-		absolute && usage.highest !== undefined && usage.highest > limit * WARN_SHARE
-			? `Peaked ${usage.highest > limit ? "above" : "within 15% of"} the ${name} limit (${show(limit)})`
+		tightest !== undefined && tightestHigh > tightest.limit * WARN_SHARE
+			? `Peaked ${tightestHigh > tightest.limit ? "above" : "within 15% of"} the ${name} limit (${show(tightest.limit)})`
 			: undefined;
 	const shown = markers.filter((m) => m >= from && m <= to);
 	const tooltipValue = (value: unknown) =>
@@ -151,17 +159,29 @@ export function MetricChart({
 							width={absolute ? 72 : 44}
 							tick={{ fontSize: AXIS_FONT, fill: "var(--fg3)" }}
 						/>
-						<ReferenceLine
-							y={line}
-							stroke="var(--fg3)"
-							strokeDasharray="4 4"
-							label={{
-								value: `limit ${show(line)}`,
-								position: "insideTopRight",
-								fontSize: AXIS_FONT,
-								fill: "var(--fg3)",
-							}}
-						/>
+						{resized ? (
+							<Line
+								dataKey="limit"
+								type="stepAfter"
+								stroke="var(--fg3)"
+								strokeDasharray="4 4"
+								strokeWidth={1}
+								dot={false}
+								isAnimationActive={false}
+							/>
+						) : (
+							<ReferenceLine
+								y={line}
+								stroke="var(--fg3)"
+								strokeDasharray="4 4"
+								label={{
+									value: `limit ${show(line)}`,
+									position: "insideTopRight",
+									fontSize: AXIS_FONT,
+									fill: "var(--fg3)",
+								}}
+							/>
+						)}
 						{shown.map((m) => (
 							<ReferenceLine key={m} x={m} stroke="var(--fg3)" strokeDasharray="2 3" />
 						))}

@@ -8,6 +8,7 @@ import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
+import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,26 @@ const ALL_REGIONS = "all";
 const PERCENT = 100;
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
 const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
+
+type Size = (target: Sizing) => number;
+
+const cpuSize: Size = (target) => parseCpuMilli(target.cpu ?? "");
+const memorySize: Size = (target) => parseMemMi(target.memory ?? "");
+
+function currentTarget(region: RegionView): Sizing | undefined {
+	return regionTarget(region.current === undefined ? undefined : getServiceSpec(region.current), region.name);
+}
+
+function regionLimits(regions: RegionView[], size: Size): Map<string, LimitStep[]> | undefined {
+	const targets = regions.map(currentTarget);
+	if (sharedLimit(targets.map((t) => (t === undefined ? 0 : size(t)))) === undefined) return undefined;
+	return new Map(
+		regions.map((r, i) => {
+			const deployments = r.current === undefined ? r.history : [...r.history, r.current];
+			return [r.name, limitSteps(deployments, r.name, size, targets[i])];
+		}),
+	);
+}
 
 function scaleText(regions: RegionView[]): string {
 	const pairs = regions.flatMap((r) => {
@@ -107,11 +128,9 @@ export function ReplicasPanel({
 	const target = { workspaceId, environmentId, resourceId, region, range };
 	const cpu = useMetricBand({ ...target, metricName: CPU_METRIC });
 	const charted = deployed.filter((r) => selected === null || r.name === selected);
-	const specs = charted.map((r) =>
-		regionTarget(r.current === undefined ? undefined : getServiceSpec(r.current), r.name),
-	);
-	const cpuLimit = sharedLimit(specs.map((spec) => parseCpuMilli(spec?.cpu ?? "")));
-	const memoryLimit = sharedLimit(specs.map((spec) => parseMemMi(spec?.memory ?? "")));
+	const cpuLimits = regionLimits(charted, cpuSize);
+	const memoryLimits = regionLimits(charted, memorySize);
+	const single = charted.length === 1 ? charted[0]?.name : undefined;
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
 	const picked = deployed.find((r) => r.name === selected);
 	const pickedCount = picked === undefined ? undefined : regionReady(picked);
@@ -191,12 +210,12 @@ export function ReplicasPanel({
 			<div className="grid grid-cols-1 gap-7 border-t border-line2 pt-3.5 lg:grid-cols-2">
 				{compare ? (
 					<>
-						<RegionAverages {...averages} title="CPU" metricName={CPU_METRIC} limit={cpuLimit} format={formatCpu} />
+						<RegionAverages {...averages} title="CPU" metricName={CPU_METRIC} limits={cpuLimits} format={formatCpu} />
 						<RegionAverages
 							{...averages}
 							title="Memory"
 							metricName={MEMORY_METRIC}
-							limit={memoryLimit}
+							limits={memoryLimits}
 							format={formatMemory}
 						/>
 					</>
@@ -211,7 +230,7 @@ export function ReplicasPanel({
 							from={cpu.from}
 							to={cpu.to}
 							markers={markers}
-							limit={cpuLimit}
+							limits={single === undefined ? undefined : cpuLimits?.get(single)}
 							format={formatCpu}
 						/>
 						<MetricChart
@@ -223,7 +242,7 @@ export function ReplicasPanel({
 							from={memory.from}
 							to={memory.to}
 							markers={markers}
-							limit={memoryLimit}
+							limits={single === undefined ? undefined : memoryLimits?.get(single)}
 							format={formatMemory}
 						/>
 					</>

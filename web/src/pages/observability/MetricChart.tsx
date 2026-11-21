@@ -15,6 +15,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { formatPercent, percentAxis } from "@/lib/compute-chart";
+import { limitAt, type LimitStep } from "@/lib/limit-history";
 import { cn } from "@/lib/utils";
 import { formatAxisTime, timeAxis } from "@/lib/time";
 
@@ -26,7 +27,7 @@ export interface ChartSeries {
 	name: string;
 	color: string;
 	dashed: boolean;
-	limit: number;
+	limits: LimitStep[];
 	points: { t: number; v: number }[];
 }
 
@@ -165,7 +166,7 @@ function MetricTooltip({
 				>
 					<span className="size-2 shrink-0 rounded-[2px]" style={{ background: s.color }} />
 					<span className="max-w-[160px] flex-1 truncate text-fg2">{s.name}</span>
-					<span className="shrink-0 font-mono tabular-nums">{fmt((v / PERCENT) * s.limit)}</span>
+					<span className="shrink-0 font-mono tabular-nums">{fmt((v / PERCENT) * (limitAt(s.limits, t) ?? 0))}</span>
 					<span className="w-12 shrink-0 text-right font-mono text-fg3 tabular-nums">{formatPercent(v)}</span>
 				</div>
 			))}
