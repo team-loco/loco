@@ -30,7 +30,7 @@ function deployment(id: string, status: DeploymentStatus, agoMin: number, extra:
 	return create(DeploymentSchema, {
 		id,
 		resourceId: `r-${id}`,
-		placements: [{ region: "us-east-1", ...placement }],
+		placements: [{ region: "us-va-1", ...placement }],
 		status,
 		createdAt: timestampFromMs(NOW - agoMin * MIN),
 		...extra,
@@ -159,12 +159,12 @@ test("tookLabel writes units", () => {
 
 test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 	const alert = (resourceId: string, status: ResourceStatus): Alert => ({
-		key: `${resourceId}/us-east-1`,
+		key: `${resourceId}/us-va-1`,
 		resourceId,
 		name: resourceId,
 		slug: resourceId,
 		description: "",
-		region: "us-east-1",
+		region: "us-va-1",
 		status,
 		rollout: undefined,
 		message: "",
@@ -186,8 +186,8 @@ test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 		create(ResourceSchema, {
 			id,
 			environmentStatuses: [
-				{ environmentId: "env", regions: [{ region: "us-east-1", placementStatus }] },
-				{ environmentId: "other", regions: [{ region: "us-east-1", placementStatus: PlacementStatus.PENDING }] },
+				{ environmentId: "env", regions: [{ region: "us-va-1", placementStatus }] },
+				{ environmentId: "other", regions: [{ region: "us-va-1", placementStatus: PlacementStatus.PENDING }] },
 			],
 		});
 	const rolling = rollingOutRegions(
@@ -200,9 +200,9 @@ test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 describe("rolloutReadyLabel", () => {
 	test("counts the ready replicas of every region of the deployment", () => {
 		const replica = (deploymentId: string, ready: boolean) => ({ deploymentId, ready });
-		const east = { region: "us-east-1", desiredReplicas: 2, replicas: [replica("d", true), replica("d", false)] };
+		const east = { region: "us-va-1", desiredReplicas: 2, replicas: [replica("d", true), replica("d", false)] };
 		const west = {
-			region: "eu-west-1",
+			region: "us-ca-1",
 			desiredReplicas: 2,
 			replicas: [replica("d", true), replica("d", true), replica("old", true)],
 		};
@@ -215,8 +215,8 @@ describe("rolloutReadyLabel", () => {
 
 describe("reportedReadyLabel", () => {
 	test("counts the ready replicas the clusters report for the deployment's regions", () => {
-		const east = { region: "us-east-1", desiredReplicas: 2 };
-		const west = { region: "eu-west-1", desiredReplicas: 2 };
+		const east = { region: "us-va-1", desiredReplicas: 2 };
+		const west = { region: "us-ca-1", desiredReplicas: 2 };
 		const both = deployment("d", DeploymentStatus.RUNNING, 1, { placements: [east, west] });
 		expect(reportedReadyLabel(both, new Map([["d", 3]]))).toBe("3 of 4 ready in 2 regions");
 		const one = deployment("d", DeploymentStatus.RUNNING, 1, { placements: [east] });
@@ -225,7 +225,7 @@ describe("reportedReadyLabel", () => {
 
 	test("says nothing for deployments the cluster does not report on", () => {
 		const d = deployment("d", DeploymentStatus.SUPERSEDED, 1, {
-			placements: [{ region: "us-east-1", desiredReplicas: 2 }],
+			placements: [{ region: "us-va-1", desiredReplicas: 2 }],
 		});
 		expect(reportedReadyLabel(d, new Map())).toBeUndefined();
 	});
@@ -234,7 +234,7 @@ describe("reportedReadyLabel", () => {
 test("placementReadyLabel counts one region's ready replicas of this deployment", () => {
 	const replica = (deploymentId: string, ready: boolean) => ({ deploymentId, ready });
 	const west = {
-		region: "eu-west-1",
+		region: "us-ca-1",
 		desiredReplicas: 3,
 		replicas: [replica("d", true), replica("d", false), replica("old", true)],
 	};
@@ -252,7 +252,7 @@ describe("canceledNote", () => {
 	test("names the deployment that replaced it", () => {
 		const newer = "0196a5c0-0000-7000-8000-00000000beef";
 		const d = deployment("d", DeploymentStatus.CANCELED, 1, {
-			placements: [{ region: "us-east-1", supersededBy: newer }],
+			placements: [{ region: "us-va-1", supersededBy: newer }],
 		});
 		expect(canceledNote(d)).toBe(`Superseded by ${formatShortId(newer)}`);
 	});

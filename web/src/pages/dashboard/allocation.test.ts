@@ -5,7 +5,7 @@ import { EnvironmentStatusSchema, ResourceSchema } from "@gen/loco/resource/v1/r
 
 import { allocation } from "./allocation";
 
-const REGION = "us-east-1";
+const REGION = "us-va-1";
 
 function deployment(id: string, cpu: string, memory: string): Deployment {
 	return create(DeploymentSchema, {

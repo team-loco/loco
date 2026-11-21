@@ -33,8 +33,8 @@ import {
 	type SettingsDraft,
 } from "./settings-draft";
 
-const EAST = "us-east-1";
-const WEST = "eu-west-1";
+const EAST = "us-va-1";
+const WEST = "us-ca-1";
 const IMAGE = "ghcr.io/acme/shop:1.4.0";
 const SERVED = ["loco.example.com"];
 const OBSERVABILITY = { injectOtel: true };
@@ -90,7 +90,7 @@ const scaling = (replicas: number, maxReplicas = replicas, cpuTarget = defaults.
 
 const regions = [region(EAST, deployment("east", EAST)), region(WEST, deployment("west", WEST, 3))];
 const base = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, POLICY);
-const SPARE = "ap-south-1";
+const SPARE = "in-mh-1";
 
 function target(cpu: string, replicas: number, enabled = true): RegionTarget {
 	return create(RegionTargetSchema, {

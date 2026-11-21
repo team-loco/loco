@@ -87,7 +87,7 @@ function resource(
 				case: "service",
 				value: {
 					regions: {
-						"us-east-1": {
+						"us-va-1": {
 							enabled: true,
 							cpu: patch.cpu ?? "500m",
 							memory: patch.memory ?? "1Gi",
@@ -140,8 +140,8 @@ describe("buildRows", () => {
 				env: "e-prod",
 				status: ResourceStatus.DEGRADED,
 				regions: [
-					{ region: "us-east-1", ready: 1, desired: 2, deploymentId: "d2", message: "Back-off restarting" },
-					{ region: "eu-west-1", ready: 1, desired: 1, deploymentId: "d2" },
+					{ region: "us-va-1", ready: 1, desired: 2, deploymentId: "d2", message: "Back-off restarting" },
+					{ region: "us-ca-1", ready: 1, desired: 1, deploymentId: "d2" },
 				],
 			},
 		]);
@@ -156,7 +156,7 @@ describe("buildRows", () => {
 		expect(cell.tag).toBe("v2");
 		expect(cell.deployedMs).toBe(2500);
 		expect(cell.note).toBe("Back-off restarting");
-		expect(cellSummary(cell)).toBe("2/3 · us-east-1 +1");
+		expect(cellSummary(cell)).toBe("2/3 · us-va-1 +1");
 		expect(row?.cells.has("e-stg")).toBe(false);
 		expect(row?.image).toBe("ghcr.io/acme/api");
 		expect(row?.cpuMilli).toBe(500);
@@ -169,7 +169,7 @@ describe("buildRows", () => {
 			{
 				env: "e-prod",
 				status: ResourceStatus.HEALTHY,
-				regions: [{ region: "us-east-1", ready: 2, desired: 2, deploymentId: "d1" }],
+				regions: [{ region: "us-va-1", ready: 2, desired: 2, deploymentId: "d1" }],
 			},
 		]);
 		const scaled = create(DeploymentSchema, {
@@ -178,7 +178,7 @@ describe("buildRows", () => {
 			spec: {
 				spec: {
 					case: "service",
-					value: { regions: { "us-east-1": { memory: "512Mi", minReplicas: 2, maxReplicas: 2 } } },
+					value: { regions: { "us-va-1": { memory: "512Mi", minReplicas: 2, maxReplicas: 2 } } },
 				},
 			},
 		});
@@ -210,14 +210,14 @@ describe("filters", () => {
 			resource(
 				"api",
 				[
-					{ env: "e-prod", status: ResourceStatus.HEALTHY, regions: [{ region: "us-east-1", ready: 1, desired: 1 }] },
-					{ env: "e-stg", status: ResourceStatus.DEGRADED, regions: [{ region: "eu-west-1", ready: 0, desired: 1 }] },
+					{ env: "e-prod", status: ResourceStatus.HEALTHY, regions: [{ region: "us-va-1", ready: 1, desired: 1 }] },
+					{ env: "e-stg", status: ResourceStatus.DEGRADED, regions: [{ region: "us-ca-1", ready: 0, desired: 1 }] },
 				],
 				{ domain: "api.example.dev" },
 			),
 			resource(
 				"worker",
-				[{ env: "e-prod", status: ResourceStatus.DEPLOYING, regions: [{ region: "us-east-1", ready: 0, desired: 1 }] }],
+				[{ env: "e-prod", status: ResourceStatus.DEPLOYING, regions: [{ region: "us-va-1", ready: 0, desired: 1 }] }],
 				{ description: "Queue consumer" },
 			),
 			resource("draft"),
@@ -244,20 +244,20 @@ describe("filters", () => {
 	test("search covers the name, description, address and regions", () => {
 		expect(names(filterRows(rows, { ...everything, query: "QUEUE" }))).toEqual(["worker"]);
 		expect(names(filterRows(rows, { ...everything, query: "example.dev" }))).toEqual(["api"]);
-		expect(names(filterRows(rows, { ...everything, query: "eu-west" }))).toEqual(["api"]);
+		expect(names(filterRows(rows, { ...everything, query: "us-ca" }))).toEqual(["api"]);
 	});
 
 	test("status counts follow the search and region but not the status", () => {
-		const counts = statusCounts(rows, { ...everything, region: "us-east-1", status: "degraded" });
+		const counts = statusCounts(rows, { ...everything, region: "us-va-1", status: "degraded" });
 		expect(counts.get(ALL)).toBe(2);
 		expect(counts.get("degraded")).toBe(1);
 		expect(counts.get(NOT_DEPLOYED)).toBe(0);
 	});
 
 	test("region counts list every region in use and ignore the region and status filters", () => {
-		expect(regionCounts(rows, { ...everything, region: "eu-west-1", status: "degraded" })).toEqual([
-			{ region: "eu-west-1", count: 1 },
-			{ region: "us-east-1", count: 2 },
+		expect(regionCounts(rows, { ...everything, region: "us-ca-1", status: "degraded" })).toEqual([
+			{ region: "us-ca-1", count: 1 },
+			{ region: "us-va-1", count: 2 },
 		]);
 	});
 });
@@ -435,7 +435,7 @@ describe("URL state", () => {
 		const state = {
 			query: "api",
 			status: "degraded",
-			region: "us-east-1",
+			region: "us-va-1",
 			sort: { id: "created", desc: true },
 			page: 2,
 			size: 50 as const,

@@ -670,6 +670,16 @@ with session(out) as browser:
         + "?env=production&tab=settings"
     )
     networking = page.get_by_role("region", name="Networking")
+    regional = networking.get_by_role(
+        "list", name=f"Regional hostnames of edge.{PLATFORM_DOMAIN}", exact=True
+    )
+    expect(regional.get_by_role("listitem")).to_have_count(1)
+    expect(regional.get_by_role("listitem")).to_have_text(
+        f"edge.us-ca-1.{PLATFORM_DOMAIN}"
+    )
+    expect(
+        regional.get_by_role("button", name=f"edge.us-ca-1.{PLATFORM_DOMAIN}")
+    ).to_have_attribute("title", f"Copy edge.us-ca-1.{PLATFORM_DOMAIN}")
     networking.get_by_role("textbox", name="Subdomain", exact=True).fill("edge-v2")
     expect(
         networking.get_by_text(

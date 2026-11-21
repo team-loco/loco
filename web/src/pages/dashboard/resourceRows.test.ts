@@ -33,14 +33,14 @@ function names(rows: DashboardItem[]): string[] {
 describe("filterRows", () => {
 	const rows = [
 		row("api", { description: "Public storefront API", domain: "api.example.dev" }),
-		row("worker", { status: ResourceStatus.UNAVAILABLE, regions: [{ region: "eu-west-1", desired: 2, ready: 0 }] }),
+		row("worker", { status: ResourceStatus.UNAVAILABLE, regions: [{ region: "us-ca-1", desired: 2, ready: 0 }] }),
 		row("billing", { status: ResourceStatus.DEPLOYING }),
 	];
 
 	test("search matches the description, the domain and the region", () => {
 		expect(names(filterRows(rows, { ...everything, query: "storefront" }))).toEqual(["api"]);
 		expect(names(filterRows(rows, { ...everything, query: "example.dev" }))).toEqual(["api"]);
-		expect(names(filterRows(rows, { ...everything, query: "EU-WEST" }))).toEqual(["worker"]);
+		expect(names(filterRows(rows, { ...everything, query: "US-CA" }))).toEqual(["worker"]);
 	});
 
 	test("a status filter keeps only that status and All keeps every row", () => {
@@ -78,8 +78,8 @@ describe("table sort", () => {
 		renderToStaticMarkup(createElement(Rows));
 		return sorted;
 	}
-	const eu = [{ region: "eu-west-1", desired: 1, ready: 1 }];
-	const items = [row("c", { regions: eu }), row("a", { regions: eu }), row("b"), row("d", { regions: eu })];
+	const west = [{ region: "us-ca-1", desired: 1, ready: 1 }];
+	const items = [row("c", { regions: west }), row("a", { regions: west }), row("b"), row("d", { regions: west })];
 
 	test("ties sort by name ascending in either direction", () => {
 		expect(names(sortRows(items, { id: "regions", desc: false }))).toEqual(["a", "c", "d", "b"]);
@@ -89,27 +89,24 @@ describe("table sort", () => {
 });
 
 describe("draftItems", () => {
-	const regions = [
-		create(RegionInfoSchema, { region: "us-east-1" }),
-		create(RegionInfoSchema, { region: "eu-west-1" }),
-	];
+	const regions = [create(RegionInfoSchema, { region: "us-va-1" }), create(RegionInfoSchema, { region: "us-ca-1" })];
 	const items = draftItems(
-		[draft("web"), draft("queue", { isPublic: false, regions: ["eu-west-1"] })],
+		[draft("web"), draft("queue", { isPublic: false, regions: ["us-ca-1"] })],
 		regions,
-		"us-east-1",
+		"us-va-1",
 	);
 
 	test("place a draft in its regions with nothing running", () => {
 		expect(items.map((i) => [i.draft.name, itemIsPublic(i), i.regions])).toEqual([
-			["web", true, [{ region: "us-east-1", desired: 0, ready: 0 }]],
-			["queue", false, [{ region: "eu-west-1", desired: 0, ready: 0 }]],
+			["web", true, [{ region: "us-va-1", desired: 0, ready: 0 }]],
+			["queue", false, [{ region: "us-ca-1", desired: 0, ready: 0 }]],
 		]);
 	});
 
 	test("match the search, type and region filters but no status", () => {
 		const rows: DashboardItem[] = [row("api"), ...items];
 		expect(names(filterRows(rows, { ...everything, query: "acme/queue" }))).toEqual(["queue"]);
-		expect(names(filterRows(rows, { ...everything, type: "service", region: "eu-west-1" }))).toEqual(["queue"]);
+		expect(names(filterRows(rows, { ...everything, type: "service", region: "us-ca-1" }))).toEqual(["queue"]);
 		expect(names(filterRows(rows, { ...everything, type: "database" }))).toEqual([]);
 		expect(names(filterRows(rows, { ...everything, status: "healthy" }))).toEqual(["api"]);
 	});
@@ -120,14 +117,14 @@ describe("viewAllSearch", () => {
 		const search = viewAllSearch("staging", {
 			status: "deploying",
 			type: "service",
-			region: "eu-west-1",
+			region: "us-ca-1",
 			query: " api ",
 		});
 		expect(Object.fromEntries(new URLSearchParams(search))).toEqual({
 			env: "staging",
 			q: "api",
 			status: "deploying",
-			region: "eu-west-1",
+			region: "us-ca-1",
 		});
 	});
 

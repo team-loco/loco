@@ -34,7 +34,7 @@ const form: NewResourceForm = {
 	name: "Web API",
 	slug: "web",
 	description: "",
-	regions: ["us-east-1", "eu-west-1"],
+	regions: ["us-va-1", "us-ca-1"],
 	cpu: "250m",
 	memory: "512Mi",
 	replicas: 2,
@@ -63,11 +63,11 @@ test("nameFromImage slugs the repository and skips taken names", () => {
 
 test("servedDomains keeps only domains every selected region serves", () => {
 	const domains = [
-		create(PlatformDomainSchema, { domain: "a.test", regions: ["us-east-1", "eu-west-1"] }),
-		create(PlatformDomainSchema, { domain: "b.test", regions: ["us-east-1"] }),
+		create(PlatformDomainSchema, { domain: "a.test", regions: ["us-va-1", "us-ca-1"] }),
+		create(PlatformDomainSchema, { domain: "b.test", regions: ["us-va-1"] }),
 	];
-	expect(servedDomains(domains, ["us-east-1", "eu-west-1"])).toEqual(["a.test"]);
-	expect(servedDomains(domains, ["us-east-1"])).toEqual(["a.test", "b.test"]);
+	expect(servedDomains(domains, ["us-va-1", "us-ca-1"])).toEqual(["a.test"]);
+	expect(servedDomains(domains, ["us-va-1"])).toEqual(["a.test", "b.test"]);
 });
 
 test("envRowErrors names every row the API would reject and allows empty values", () => {
@@ -208,8 +208,8 @@ test("locoYaml writes a loco.yaml that parses to the form", () => {
 				domains: ["web.example.com"],
 				env: { LOG_LEVEL: "info", ON: "yes: really" },
 				regions: {
-					"us-east-1": { cpu: "250m", memory: "512Mi", replicas: { min: 2, max: 2 } },
-					"eu-west-1": { cpu: "250m", memory: "512Mi", replicas: { min: 2, max: 2 } },
+					"us-va-1": { cpu: "250m", memory: "512Mi", replicas: { min: 2, max: 2 } },
+					"us-ca-1": { cpu: "250m", memory: "512Mi", replicas: { min: 2, max: 2 } },
 				},
 			},
 		},
@@ -321,7 +321,7 @@ test("form scaling sends fixed replicas or CPU autoscaling", () => {
 	});
 	const yaml = Bun.YAML.parse(locoYaml({ schemaUrl: "", form: autoscaled }));
 	expect(yaml).toMatchObject({
-		services: { web: { regions: { "us-east-1": { replicas: { min: 2, max: 5 }, autoscaling: { cpuTarget: 70 } } } } },
+		services: { web: { regions: { "us-va-1": { replicas: { min: 2, max: 5 }, autoscaling: { cpuTarget: 70 } } } } },
 	});
 	for (const patch of [{ replicas: 0 }, { maxReplicas: 1 }, { cpuTarget: 0 }, { cpuTarget: 101 }, { cpuTarget: 1.5 }]) {
 		expect(validateForm({ ...autoscaled, ...patch }, "available", 10).scaling).not.toBeNull();

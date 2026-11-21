@@ -21,7 +21,7 @@ const logOptions = {
 	environmentId: workspaceId,
 	resourceIds: [],
 	spanMs: HOUR_MS,
-	query: "@region:us-* -@region:us-west-*",
+	query: "@region:us-* -@region:us-ca-*",
 };
 
 describe("regional control-plane queries", () => {
@@ -334,20 +334,20 @@ describe("regional control-plane queries", () => {
 			spanMs: HOUR_MS,
 		};
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-		const east = metricsQueryOptions(transport, { ...input, region: "us-east-1" });
-		const west = metricsQueryOptions(transport, { ...input, region: "eu-west-1" });
+		const east = metricsQueryOptions(transport, { ...input, region: "us-va-1" });
+		const west = metricsQueryOptions(transport, { ...input, region: "us-ca-1" });
 		expect(east.enabled).toBe(true);
 		expect(east.queryKey).not.toEqual(west.queryKey);
 		expect(east.queryKey).not.toEqual(
 			metricsQueryOptions(transport, {
 				...input,
-				region: "us-east-1",
+				region: "us-va-1",
 				environmentId: "22222222-3333-4444-5555-666666666666",
 			}).queryKey,
 		);
 		await client.query(east);
 		await client.query(west);
-		expect(received.map((request) => request.region)).toEqual(["us-east-1", "eu-west-1"]);
+		expect(received.map((request) => request.region)).toEqual(["us-va-1", "us-ca-1"]);
 		expect(received.map((request) => request.environmentId)).toEqual([workspaceId, workspaceId]);
 		expect(metricsQueryOptions(otherTransport, input).queryKey).not.toEqual(
 			metricsQueryOptions(transport, input).queryKey,

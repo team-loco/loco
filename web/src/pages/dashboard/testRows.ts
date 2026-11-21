@@ -13,7 +13,7 @@ export function row(
 	name: string,
 	patch: { description?: string; domain?: string; status?: ResourceStatus; regions?: RegionReplicas[] } = {},
 ): EnvResource {
-	const regions = patch.regions ?? [{ region: "us-east-1", desired: 1, ready: 1 }];
+	const regions = patch.regions ?? [{ region: "us-va-1", desired: 1, ready: 1 }];
 	const domains = patch.domain === undefined ? [] : [{ domain: patch.domain, isPrimary: true }];
 	return {
 		resource: create(ResourceSchema, {
