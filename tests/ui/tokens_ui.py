@@ -1,7 +1,7 @@
 import argparse
 import re
 
-from harness import call, load_state, open_page, repo, session, wait_for_query
+from harness import call, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(description="Check the new token drawer")
@@ -114,7 +114,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     row = page.get_by_role("row").filter(has_text="laptop")
     expect(row.get_by_text("outside workspace", exact=True)).to_be_visible()
     owners.get_by_role("button", name=re.compile(r"^Workspace")).click()
-    wait_for_query(page, lambda query: query.get("owner") == ["ws"])
+    expect(page).to_have_url(re.compile(r"[?&]owner=ws(&|$)"))
     assert not errors, errors
     context.close()
 print(
