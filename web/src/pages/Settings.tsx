@@ -187,7 +187,6 @@ export function Settings() {
 					users={users}
 					level={scopes.orgLevel(org.id)}
 					currentWorkspaceId={workspaceId}
-					currentWorkspaceLevel={scopes.workspaceLevel(orgId, workspaceId)}
 					memberCount={membersQuery.data?.members.length}
 					draft={orgDraft?.name ?? null}
 					onDraft={(name) => {

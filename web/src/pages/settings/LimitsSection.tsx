@@ -1,9 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { CountLimits } from "@gen/loco/config/v1/config_pb";
-import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import type { Organization, OrgLimits } from "@gen/loco/org/v1/org_pb";
-import { listWebhooks } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
 
 import { Badge } from "@/components/design/Badge";
 import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
@@ -118,7 +116,7 @@ export function LimitsSection({
 	workspaceCount: number | undefined;
 	memberCount: number | undefined;
 	/** The workspace the page is in, whose per-workspace counts show beside their limits. */
-	workspace: { id: string; name: string; level: number; resources: number | undefined } | undefined;
+	workspace: { name: string; resources: number | undefined } | undefined;
 }) {
 	const { data: config } = useQuery(getConfig, {});
 	const retention = config?.historyRetention;
@@ -127,21 +125,19 @@ export function LimitsSection({
 			? undefined
 			: (Number(retention.events.seconds) + retention.events.nanos / 1e9) / 86_400;
 	const openInvitations = useOpenInvitations(org.id, useNow().getTime());
-	const inWorkspace = useWorkspaceCounts(workspace);
-	const where = workspace?.name;
 	const limitRows: LimitRow[] = [
 		{ key: "workspacesPerOrg", label: "Workspaces", per: "Organization", used: workspaceCount },
 		{ key: "membersPerOrg", label: "Members", per: "Organization", used: memberCount },
 		{ key: "invitationsPerOrg", label: "Open invitations", per: "Organization", used: openInvitations },
-		{ key: "environmentsPerWorkspace", label: "Environments", per: "Workspace", used: inWorkspace.environments, where },
+		{ key: "environmentsPerWorkspace", label: "Environments", per: "Workspace" },
 		{
 			key: "resourcesPerWorkspace",
 			label: "Resources",
 			per: "Workspace",
 			used: workspace?.resources,
-			where,
+			where: workspace?.name,
 		},
-		{ key: "webhooksPerWorkspace", label: "Webhooks", per: "Workspace", used: inWorkspace.webhooks, where },
+		{ key: "webhooksPerWorkspace", label: "Webhooks", per: "Workspace" },
 		{ key: "tokensPerEntity", label: "API tokens", per: "User, organization, workspace or resource" },
 		{ key: "domainsPerResource", label: "Custom domains", per: "Resource" },
 		{ key: "secretsPerEnvironment", label: "Secrets", per: "Environment" },
@@ -182,15 +178,4 @@ export function LimitsSection({
 			</SettingsCard>
 		</SettingsSection>
 	);
-}
-
-function useWorkspaceCounts(workspace: { id: string; level: number } | undefined) {
-	const workspaceId = workspace?.id ?? "";
-	const reads = workspace !== undefined && workspace.level >= 1;
-	const environments = useQuery(listEnvironments, { workspaceId }, { enabled: reads });
-	const webhooks = useQuery(listWebhooks, { workspaceId }, { enabled: reads && workspace.level >= 3 });
-	return {
-		environments: environments.data?.environments.length,
-		webhooks: webhooks.data?.webhooks.length,
-	};
 }

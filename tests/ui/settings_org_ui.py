@@ -2,7 +2,7 @@ import argparse
 import re
 from pathlib import Path
 
-from harness import call, load_state, open_page, repo, session
+from harness import load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -21,23 +21,6 @@ shared = state["workspaces"]["acme/shared"]
 sibling = state["workspaces"]["acme/sibling"]
 base = f"{state['ui_url']}/org/{org_id}/wks"
 
-call(
-    state,
-    "loco.webhook.v1.WebhookService/CreateWebhook",
-    {
-        "workspaceId": shared,
-        "url": "https://hooks.invalid/loco",
-        "eventTypes": ["resource.created"],
-    },
-)
-environments = len(
-    call(
-        state,
-        "loco.environment.v1.EnvironmentService/ListEnvironments",
-        {"workspaceId": shared},
-    )["environments"]
-)
-
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     page.goto(f"{base}/{shared}/settings?scope=org")
@@ -51,9 +34,7 @@ with session(out) as browser:
             .nth(2)
         )
 
-    expect(in_use("Environments")).to_have_text(f"{environments} in shared")
     expect(in_use("Resources")).to_have_text("0 in shared")
-    expect(in_use("Webhooks")).to_have_text("1 in shared")
     history = [
         "Deployments",
         "Builds",

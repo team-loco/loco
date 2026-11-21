@@ -116,7 +116,6 @@ export function OrgTab({
 	users,
 	level,
 	currentWorkspaceId,
-	currentWorkspaceLevel,
 	draft,
 	onDraft,
 	onOpenWorkspace,
@@ -128,7 +127,6 @@ export function OrgTab({
 	users: User[];
 	level: AccessLevel;
 	currentWorkspaceId: string;
-	currentWorkspaceLevel: AccessLevel;
 	draft: string | null;
 	onDraft: (name: string | null) => void;
 	/** Switches the page to the workspace's settings. */
@@ -331,12 +329,7 @@ export function OrgTab({
 				workspace={
 					currentWorkspace === undefined
 						? undefined
-						: {
-								id: currentWorkspace.id,
-								name: currentWorkspace.name,
-								level: currentWorkspaceLevel,
-								resources: currentWorkspace.resourceCount,
-							}
+						: { name: currentWorkspace.name, resources: currentWorkspace.resourceCount }
 				}
 			/>
 
