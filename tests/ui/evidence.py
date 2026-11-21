@@ -333,10 +333,31 @@ def fill_placeholders(value, ids, now):
     return PLACEHOLDER.sub(resolve, value)
 
 
+def validate_responses(owner, responses):
+    if not isinstance(responses, list):
+        raise EvidenceError(f"{owner}: respond must be a list")
+    for response in responses:
+        if (
+            not isinstance(response, dict)
+            or not isinstance(response.get("url"), str)
+            or not response["url"].strip()
+            or "json" not in response
+            or not isinstance(response.get("status", 200), int)
+            or not isinstance(response.get("match", {}), dict)
+            or set(response) - {"url", "status", "json", "headers", "match"}
+        ):
+            raise EvidenceError(
+                f"{owner}: each respond entry is {{url, json, status?, headers?, match?}}"
+            )
+
+
 def validate_spec(spec):
+    """Returns the spec's shots, each with the spec-level respond entries after its own."""
     shots = spec.get("shots")
     if not isinstance(shots, list) or not shots:
         raise EvidenceError("spec needs a non-empty shots list")
+    shared = spec.get("respond", [])
+    validate_responses("spec", shared)
     names = set()
     for shot in shots:
         name = shot.get("name", "")
@@ -404,19 +425,7 @@ def validate_spec(spec):
             raise EvidenceError(
                 f"shot {name}: crop is viewport, full, {{selector, padding}} or {{clip}}"
             )
-        for response in shot.get("respond", []):
-            if (
-                not isinstance(response, dict)
-                or not isinstance(response.get("url"), str)
-                or not response["url"].strip()
-                or "json" not in response
-                or not isinstance(response.get("status", 200), int)
-                or not isinstance(response.get("match", {}), dict)
-                or set(response) - {"url", "status", "json", "headers", "match"}
-            ):
-                raise EvidenceError(
-                    f"shot {name}: each respond entry is {{url, json, status?, headers?, match?}}"
-                )
+        validate_responses(f"shot {name}", shot.get("respond", []))
         for step in shot.get("steps", []):
             if len(step) != 1 or next(iter(step)) not in (
                 "click",
@@ -479,7 +488,7 @@ def validate_spec(spec):
                     raise EvidenceError(
                         f"shot {name}: drag needs a selector and from/to points as [x, y] fractions of its box"
                     )
-    return shots
+    return [{**shot, "respond": [*shot.get("respond", []), *shared]} for shot in shots]
 
 
 def connect_methods():

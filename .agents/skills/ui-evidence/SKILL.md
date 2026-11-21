@@ -82,6 +82,7 @@ mise exec -- uv run --script "$E" <command>
    An optional `match` object narrows an entry to requests whose JSON body has those field
    values, such as `{"metricName": "k8s.pod.cpu_limit_utilization"}`. The first listed entry that
    matches a request answers it, so list narrower entries before broader ones for the same URL.
+   A spec-level `"respond"` list beside `shots` applies to every shot, after the shot's own entries.
    A shot's `path` and the strings in its `respond` JSON take placeholders, filled in when the shot
    runs: `{org:acme}`, `{workspace:acme/shared}`, `{resource:acme/shared/web}` and
    `{environment:acme/shared/production}` name seeded IDs by their scenario keys, and `{now}`,
