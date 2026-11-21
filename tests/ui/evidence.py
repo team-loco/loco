@@ -9,6 +9,7 @@ import contextlib
 import fcntl
 import hashlib
 import http.server
+import importlib.metadata
 import json
 import os
 import re
@@ -1421,6 +1422,41 @@ def postgres_starter(image):
     return start
 
 
+def browser_starter(root):
+    run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
+    port = int(testres("ports", root, 1))
+    config = root / "launch.json"
+    write_json(config, {"host": HOST, "port": port, "headless": True})
+    log_path = root / "browser.log"
+    cmd = [sys.executable, "-m", "playwright", "launch-server", "--browser", "chromium"]
+    pid = spawn([*cmd, "--config", str(config)], root, dict(os.environ), log_path)
+    testres("add", root, "process", pid)
+    deadline = time.monotonic() + READY_TIMEOUT_S
+    while not (endpoint := re.search(r"ws://\S+", log_path.read_text())):
+        if time.monotonic() > deadline:
+            raise EvidenceError(
+                f"Chromium did not start; log tail:\n{log_tail(log_path)}"
+            )
+        time.sleep(0.2)
+    return {"id": root.name, "root": str(root), "endpoint": endpoint.group()}
+
+
+@contextlib.contextmanager
+def shared_browser(playwright):
+    """Connects to the machine's headless Chromium for this Playwright version, held while in use."""
+    user = Path(testres("lease", "-name", f"{LABEL}-browser-user", "-pid", os.getpid()))
+    try:
+        version = importlib.metadata.version("playwright")
+        server = shared(user, "chromium", digest(version), browser_starter)
+        browser = playwright.chromium.connect(server["endpoint"])
+        try:
+            yield browser
+        finally:
+            browser.close()
+    finally:
+        testres("release", user)
+
+
 def create_database(state):
     """Creates the run's database, after dropping those of runs whose lease is gone."""
     server = {"container": state["container"]}
@@ -1918,10 +1954,8 @@ def cmd_shoot(args):
     out.mkdir(parents=True, exist_ok=True)
     manifest_path = out / ".scenarios.json"
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
-    run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
     written, failures = [], []
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
+    with sync_playwright() as playwright, shared_browser(playwright) as browser:
         for shot in shots:
             renew(state)
             if state["name"] == "before" and shot.get("before") is False:
@@ -1945,7 +1979,6 @@ def cmd_shoot(args):
                         manifest[target.name] = state["scenario"]
                     except EvidenceError as err:
                         failures.append(f"{target.name}: {err}")
-        browser.close()
     write_json(manifest_path, manifest)
     for path in written:
         print(f"{path}\t{path.stat().st_size} bytes")
