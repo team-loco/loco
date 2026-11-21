@@ -363,7 +363,7 @@ export function NetworkingSection({
 					<span className="text-[12.5px] text-fg3">
 						{base.isPublic && !isPublic
 							? "Saving removes every domain and redeploys, so the resource only answers inside the workspace."
-							: "Serve this resource on the internet over HTTPS."}
+							: "Expose this resource on the internet over HTTPS."}
 					</span>
 				</span>
 				<Switch

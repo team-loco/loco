@@ -144,6 +144,18 @@ with session(out) as browser:
     expect(page).to_have_url(re.compile(r"[?&]env=production(&|$)"))
     assert listing, "the resource list loaded before the check"
     context.close()
+    # A resource that fails to load keeps its header from the workspace's resource list.
+    context, page, _ = open_page(browser, state=state)
+    context.route(
+        "**/loco.resource.v1.ResourceService/GetResource",
+        lambda route: route.fulfill(
+            status=503, json={"code": "unavailable", "message": "fixture outage"}
+        ),
+    )
+    page.goto(url)
+    expect(page.get_by_text("Can’t reach Loco", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", level=1)).to_have_text(name)
+    context.close()
     shots = Path(os.environ.get("LOAD_SHOTS", out))
     shots.mkdir(parents=True, exist_ok=True)
     for mode in ("light", "dark"):

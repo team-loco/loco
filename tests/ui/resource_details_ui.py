@@ -426,7 +426,8 @@ with session(out) as browser:
     ).to_be_visible()
     expect(
         dialog.get_by_text(
-            "its active deployment in us-ca-1, and no domains", exact=False
+            "It is running. Deleting it stops its compute right away and releases its domains",
+            exact=False,
         )
     ).to_be_visible()
     expect(dialog.get_by_role("textbox")).to_be_focused()

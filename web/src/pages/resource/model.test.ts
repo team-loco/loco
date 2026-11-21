@@ -2,19 +2,13 @@ import { create } from "@bufbuild/protobuf";
 import { DeploymentStatus, DeploymentSchema, DeploymentSpecSchema } from "@gen/loco/deployment/v1/deployment_pb";
 import { skipToken } from "@connectrpc/connect-query";
 import { describe, expect, test } from "bun:test";
-import {
-	EnvironmentStatusSchema,
-	RegionStatusSchema,
-	ResourceSchema,
-	type EnvironmentStatus,
-} from "@gen/loco/resource/v1/resource_pb";
+import { EnvironmentStatusSchema, RegionStatusSchema, ResourceSchema } from "@gen/loco/resource/v1/resource_pb";
 
 import { isWorker } from "@/lib/resource-regions";
 
 import { msToTimestamp } from "@/lib/time";
 
 import {
-	activeDeploymentPlaces,
 	buildRegions,
 	deploymentsRequest,
 	focusRegion,
@@ -26,13 +20,6 @@ import {
 
 const RESOURCE_ID = "0199d1c2-0000-7000-8000-000000000001";
 const PRODUCTION_ID = "0199d1c2-0000-7000-8000-000000000002";
-
-function environmentStatus(name: string, ...regions: string[]): EnvironmentStatus {
-	return create(EnvironmentStatusSchema, {
-		environmentSlug: name,
-		regions: regions.map((region) => create(RegionStatusSchema, { region })),
-	});
-}
 
 describe("deploymentsRequest", () => {
 	test("asks only for the deployments of the active environment", () => {
@@ -107,22 +94,6 @@ describe("buildRegions", () => {
 		});
 		const regions = buildRegions(create(ResourceSchema), [old], environment);
 		expect(regions[0]?.current).toBeUndefined();
-	});
-});
-
-describe("activeDeploymentPlaces", () => {
-	test("lists regions alone for one environment", () => {
-		const resource = create(ResourceSchema, {
-			environmentStatuses: [environmentStatus("production", "us-va-1", "us-ca-1")],
-		});
-		expect(activeDeploymentPlaces(resource)).toEqual(["us-va-1", "us-ca-1"]);
-	});
-
-	test("names the environment of each region when several run", () => {
-		const resource = create(ResourceSchema, {
-			environmentStatuses: [environmentStatus("production", "us-va-1"), environmentStatus("staging", "us-va-1")],
-		});
-		expect(activeDeploymentPlaces(resource)).toEqual(["us-va-1 (production)", "us-va-1 (staging)"]);
 	});
 });
 

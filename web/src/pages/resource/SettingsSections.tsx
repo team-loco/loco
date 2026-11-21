@@ -215,6 +215,10 @@ export function SizeSection({
 }: SectionProps & { sizes: SizeOptions }) {
 	const cpuOptions = cpuWith(sizes.cpu, draft.cpu ?? base.cpu);
 	const memoryOptions = memoryWith(sizes.memory, draft.memory ?? base.memory);
+	const scalings = Object.values({ ...base.scaling, ...draft.scaling });
+	const low = Math.min(...scalings.map((s) => s.replicas));
+	const high = Math.max(...scalings.map((s) => s.maxReplicas));
+	const replicas = low === high ? low.toString() : `${low.toString()}–${high.toString()}`;
 	return (
 		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica, applied in every region.">
 			<div className="flex max-w-[520px] flex-col gap-3.5">
@@ -242,8 +246,13 @@ export function SizeSection({
 						}}
 					/>
 				</Field>
-				<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
-					Cost per replica
+				<span className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-fg3">
+					{scalings.length > 0 && (
+						<span className="font-mono text-[12px]">
+							{`${replicas} × (${stepLabel(cpuOptions, draft.cpu ?? base.cpu)}, ${stepLabel(memoryOptions, draft.memory ?? base.memory)})`}
+						</span>
+					)}
+					<span>Cost per replica</span>
 					<SoonTag />
 				</span>
 			</div>

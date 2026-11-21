@@ -979,7 +979,10 @@ with session(out) as browser:
         "button", name="Increase maximum replicas", exact=True
     )
     expect(
-        drawer.get_by_text("Scales per region based on CPU utilization.", exact=True)
+        drawer.get_by_text(
+            "Adds replicas when average CPU stays above 70%, and removes them when it drops, between 2 and 3 per region.",
+            exact=True,
+        )
     ).to_be_visible()
     expect(
         drawer.get_by_role("slider", name="CPU target (%)", exact=True)

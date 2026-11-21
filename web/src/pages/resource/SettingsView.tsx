@@ -234,7 +234,7 @@ export function SettingsView({
 					<ArrowLeftIcon />
 					Overview
 				</Button>
-				<h2 className="m-0 text-[16px] font-medium tracking-[-0.01em]">Settings</h2>
+				<h2 className="m-0 text-[18px] font-normal tracking-[-0.01em]">Settings</h2>
 			</div>
 			<ServingBanner regions={regions} canWrite={canWrite} onRollback={onRollback} />
 			{managed && <ManagedNotice />}
@@ -316,7 +316,7 @@ export function SettingsView({
 										Deleting here causes drift with <code className="font-mono">loco.yaml</code>.
 									</>
 								) : (
-									"Removes its deployments in every region and its domains."
+									"Removes it from every region, along with its domains and variables."
 								)
 							}
 							actionLabel="Delete resource"

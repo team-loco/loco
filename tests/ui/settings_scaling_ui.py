@@ -185,6 +185,16 @@ with session(out) as browser:
         expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
 
     target = defaults["cpuTarget"] - 1
+    expect(
+        section.get_by_text(
+            f"Adds replicas when average CPU stays above {target}%, and removes them when it drops, between 1 and 3 per region.",
+            exact=True,
+        )
+    ).to_have_count(len(regions))
+    expect(page.locator("#set-size")).to_contain_text("1–3 × (")
+    expect(page.locator("#set-danger")).to_contain_text(
+        "Removes it from every region, along with its domains and variables."
+    )
     save = page.get_by_role("button", name="Save & redeploy", exact=True)
     save.click()
     expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
