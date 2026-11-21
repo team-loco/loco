@@ -86,7 +86,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			));
 	// A path stays not found while the shell's other readers refetch the lookups behind the decision.
 	const [missingPath, setMissingPath] = useState<string | null>(null);
-	if (routeNotFound && missingPath !== pathname) setMissingPath(pathname);
+	if (routeNotFound && user !== null && missingPath !== pathname) setMissingPath(pathname);
 
 	if (signedOut) {
 		return <Navigate to="/login" replace state={nextPathState(pathname + search + hash)} />;
