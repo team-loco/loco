@@ -1,7 +1,7 @@
 import { TimeZoneControl } from "@/components/design/TimeZoneControl";
 import { timeZoneLabel } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, PauseIcon, PlayIcon } from "lucide-react";
 
 import { DateTimePicker } from "@/components/design/DateTimePicker";
@@ -52,7 +52,9 @@ export function TimeRangePicker({
 	const [text, setText] = useState("");
 	const [from, setFrom] = useState({ text: "", ms: Number.NaN });
 	const [to, setTo] = useState({ text: "", ms: Number.NaN });
-	const [error, setError] = useState<string | null>(null);
+	const [textError, setTextError] = useState<string | null>(null);
+	const textErrorId = useId();
+	const [customError, setCustomError] = useState<string | null>(null);
 	const limit = formatSpan(maxMs);
 
 	const onOpenChange = (next: boolean) => {
@@ -61,7 +63,8 @@ export function TimeRangePicker({
 			setFrom({ text: toLocalInput(bounds.from, pref), ms: bounds.from });
 			setTo({ text: toLocalInput(bounds.to, pref), ms: bounds.to });
 			setText("");
-			setError(null);
+			setTextError(null);
+			setCustomError(null);
 		}
 		setOpen(next);
 	};
@@ -72,11 +75,11 @@ export function TimeRangePicker({
 	const applyText = () => {
 		const span = parseSpan(text);
 		if (span === null) {
-			setError(`Try a span like 15m, 6h or ${limit}.`);
+			setTextError(`Try a span like 15m, 6h or ${limit}.`);
 			return;
 		}
 		if (span > maxMs) {
-			setError(`Pick a range of ${limit} or less.`);
+			setTextError(`Pick a range of ${limit} or less.`);
 			return;
 		}
 		pick(span);
@@ -87,7 +90,7 @@ export function TimeRangePicker({
 		const now = Date.now();
 		const problem = checkCustomRange(start, end, now, maxMs);
 		if (problem !== null) {
-			setError(customRangeMessage(problem, maxMs));
+			setCustomError(customRangeMessage(problem, maxMs));
 			return;
 		}
 		setRange({ kind: "absolute", from: start, to: end });
@@ -122,7 +125,7 @@ export function TimeRangePicker({
 						value={text}
 						onChange={(e) => {
 							setText(e.target.value);
-							setError(null);
+							setTextError(null);
 						}}
 						onKeyDown={(e) => {
 							if (e.key === "Enter") {
@@ -131,9 +134,16 @@ export function TimeRangePicker({
 							}
 						}}
 						aria-label="Type a time range"
+						aria-invalid={textError !== null}
+						aria-describedby={textError === null ? undefined : textErrorId}
 						placeholder={`Type a range, like 90m or ${limit}`}
 						className="font-mono"
 					/>
+					{textError !== null && (
+						<span id={textErrorId} role="alert" className="-mt-1 text-[12px] text-bad-fg">
+							{textError}
+						</span>
+					)}
 					<ToggleGroup
 						aria-label="Presets"
 						value={range.kind === "relative" ? [String(range.spanMs)] : []}
@@ -165,7 +175,7 @@ export function TimeRangePicker({
 							value={from.text}
 							onChange={(value) => {
 								setFrom({ text: value, ms: fromLocalInput(value, pref) });
-								setError(null);
+								setCustomError(null);
 							}}
 						/>
 					</div>
@@ -176,14 +186,14 @@ export function TimeRangePicker({
 							value={to.text}
 							onChange={(value) => {
 								setTo({ text: value, ms: fromLocalInput(value, pref) });
-								setError(null);
+								setCustomError(null);
 							}}
 						/>
 					</div>
 					<div className="flex items-center gap-2">
-						{error !== null && (
+						{customError !== null && (
 							<span role="alert" className="text-[12px] text-bad-fg">
-								{error}
+								{customError}
 							</span>
 						)}
 						<span className="flex-1" />
