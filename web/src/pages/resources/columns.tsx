@@ -2,9 +2,9 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { CopyIcon, RocketIcon, ScrollTextIcon, Settings2Icon } from "lucide-react";
 import { createContext, use } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { toast } from "sonner";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
+import { useCopy } from "@/hooks/useCopy";
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { CellText, DataTableColumnsMenu, type DataColumn } from "@/components/design/DataTable";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
@@ -126,6 +126,7 @@ function Mono({ text }: { text: string | null }) {
 function RowActions({ row }: { row: ResourceRow }) {
 	const { orgId, workspaceId, environments, active } = useCells();
 	const navigate = useNavigate();
+	const [, copy] = useCopy();
 	const { resource, address } = row;
 	const env = linkEnvironment(row, environments, active);
 	return (
@@ -167,7 +168,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 			{address !== null && (
 				<DropdownMenuItem
 					onClick={() => {
-						void navigator.clipboard.writeText(address).then(() => toast.success(`Copied ${address}`));
+						copy("address", address, `Copied ${address}`);
 					}}
 				>
 					<CopyIcon className="text-fg3" />
