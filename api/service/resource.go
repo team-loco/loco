@@ -369,13 +369,16 @@ func (s *ResourceServer) ListWorkspaceResources(
 
 	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, genDb.ListResourcesForWorkspaceParams{
 		WorkspaceID:   wsID,
-		Limit:         pageSize,
+		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list resources: %w", err)
 	}
+	dbResources, token := trimPage(dbResources, pageSize, func(row genDb.Resource) (uuid.UUID, time.Time) {
+		return row.ID, row.CreatedAt
+	})
 
 	resourceIDs := make([]uuid.UUID, len(dbResources))
 	for i, dbResource := range dbResources {
@@ -414,12 +417,6 @@ func (s *ResourceServer) ListWorkspaceResources(
 		}
 		resources = append(resources, resource)
 	}
-
-	token := nextPageToken(
-		dbResources,
-		pageSize,
-		func(row genDb.Resource) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
-	)
 
 	return &resourcev1.ListWorkspaceResourcesResponse{
 		Resources:     resources,

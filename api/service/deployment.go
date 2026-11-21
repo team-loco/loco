@@ -540,7 +540,7 @@ func (s *DeploymentServer) ListDeployments(
 			ResourceID: *resourceID, EnvironmentID: environmentID,
 			SystemRead: readable.System, OrganizationIds: readable.Organizations,
 			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-			Since: since, Until: until, PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+			Since: since, Until: until, PageSize: pageSize + 1, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
 		})
 		err = listErr
 		for _, row := range resourceRows {
@@ -551,12 +551,15 @@ func (s *DeploymentServer) ListDeployments(
 			WorkspaceID: *workspaceID, EnvironmentID: *environmentID,
 			SystemRead: readable.System, OrganizationIds: readable.Organizations,
 			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-			Since: since, Until: until, PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+			Since: since, Until: until, PageSize: pageSize + 1, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
 		})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("list deployments: %w", err)
 	}
+	rows, token := trimPage(rows, pageSize, func(row genDb.ListEnvironmentDeploymentsRow) (uuid.UUID, time.Time) {
+		return row.Deployment.ID, row.Deployment.CreatedAt
+	})
 	var deployments []*deploymentv1.Deployment
 	for _, row := range rows {
 		deployment, err := deploymentToProto(genDb.GetDeploymentViewRow(row))
@@ -568,9 +571,6 @@ func (s *DeploymentServer) ListDeployments(
 		}
 		deployments = append(deployments, deployment)
 	}
-	token := nextPageToken(rows, pageSize, func(row genDb.ListEnvironmentDeploymentsRow) (uuid.UUID, time.Time) {
-		return row.Deployment.ID, row.Deployment.CreatedAt
-	})
 	return &deploymentv1.ListDeploymentsResponse{Deployments: deployments, NextPageToken: token}, nil
 }
 

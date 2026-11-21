@@ -200,13 +200,18 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 
 	workspaceList, err := s.queries.ListWorkspacesForUser(ctx, genDb.ListWorkspacesForUserParams{
 		UserID:        p.Entity.ID,
-		Limit:         pageSize,
+		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list user workspaces: %w", err)
 	}
+	workspaceList, token := trimPage(
+		workspaceList,
+		pageSize,
+		func(row genDb.ListWorkspacesForUserRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
+	)
 
 	orgs := orgLimits{queries: s.queries, defaults: s.counts}
 	var workspaces []*workspacev1.Workspace
@@ -217,12 +222,6 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		}
 		workspaces = append(workspaces, workspace)
 	}
-
-	token := nextPageToken(
-		workspaceList,
-		pageSize,
-		func(row genDb.ListWorkspacesForUserRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
-	)
 
 	return &workspacev1.ListUserWorkspacesResponse{
 		Workspaces:    workspaces,
@@ -260,13 +259,18 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		AllWorkspaces: allWorkspaces,
 		WorkspaceIds:  workspaceIDs,
 		ResourceIds:   grantedResourceIDs(p.Scopes),
-		Limit:         pageSize,
+		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list organization workspaces: %w", err)
 	}
+	workspaceList, token := trimPage(
+		workspaceList,
+		pageSize,
+		func(row genDb.ListWorkspacesInOrgRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
+	)
 
 	orgs := orgLimits{queries: s.queries, defaults: s.counts}
 	var workspaces []*workspacev1.Workspace
@@ -288,12 +292,6 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 			Name:    ws.Name,
 		})
 	}
-
-	token := nextPageToken(
-		workspaceList,
-		pageSize,
-		func(row genDb.ListWorkspacesInOrgRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
-	)
 
 	return &workspacev1.ListOrgWorkspacesResponse{
 		Workspaces:    workspaces,
@@ -607,7 +605,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		ctx,
 		genDb.ListWorkspaceMembersWithUserDetailsParams{
 			EntityID:      workspaceID,
-			Limit:         pageSize,
+			Limit:         pageSize + 1,
 			PageToken:     cursor.ID,
 			PageCreatedAt: cursor.CreatedAt,
 		},
@@ -615,6 +613,13 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 	if err != nil {
 		return nil, fmt.Errorf("list workspace members: %w", err)
 	}
+	memberList, token := trimPage(
+		memberList,
+		pageSize,
+		func(m genDb.ListWorkspaceMembersWithUserDetailsRow) (uuid.UUID, time.Time) {
+			return m.UserID, m.JoinedAt
+		},
+	)
 
 	var members []*workspacev1.WorkspaceMemberWithUser
 	for _, member := range memberList {
@@ -629,13 +634,6 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		})
 	}
 
-	token := nextPageToken(
-		memberList,
-		pageSize,
-		func(m genDb.ListWorkspaceMembersWithUserDetailsRow) (uuid.UUID, time.Time) {
-			return m.UserID, m.JoinedAt
-		},
-	)
 	return &workspacev1.ListWorkspaceMembersResponse{
 		Members:       members,
 		NextPageToken: token,

@@ -233,13 +233,16 @@ func (s *OrgServer) ListUserOrgs(
 
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
 		UserID:        userID,
-		Limit:         pageSize,
+		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list organizations: %w", err)
 	}
+	orgs, token := trimPage(orgs, pageSize, func(row genDb.ListOrgsForUserRow) (uuid.UUID, time.Time) {
+		return row.Organization.ID, row.Organization.CreatedAt
+	})
 
 	var orgResponses []*orgv1.Organization
 	for _, org := range orgs {
@@ -248,14 +251,6 @@ func (s *OrgServer) ListUserOrgs(
 		response.MemberCount = new(org.MemberCount)
 		orgResponses = append(orgResponses, response)
 	}
-
-	token := nextPageToken(
-		orgs,
-		pageSize,
-		func(row genDb.ListOrgsForUserRow) (uuid.UUID, time.Time) {
-			return row.Organization.ID, row.Organization.CreatedAt
-		},
-	)
 
 	return &orgv1.ListUserOrgsResponse{
 		Orgs:          orgResponses,
@@ -436,13 +431,16 @@ func (s *OrgServer) ListOrgMembers(
 
 	rows, err := s.queries.ListOrgMembersWithDetails(ctx, genDb.ListOrgMembersWithDetailsParams{
 		EntityID:      orgID,
-		Limit:         pageSize,
+		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list organization members: %w", err)
 	}
+	rows, token := trimPage(rows, pageSize, func(m genDb.ListOrgMembersWithDetailsRow) (uuid.UUID, time.Time) {
+		return m.ID, m.JoinedAt
+	})
 
 	members := make([]*orgv1.OrgMember, len(rows))
 	for i, row := range rows {
@@ -459,9 +457,6 @@ func (s *OrgServer) ListOrgMembers(
 		}
 	}
 
-	token := nextPageToken(rows, pageSize, func(m genDb.ListOrgMembersWithDetailsRow) (uuid.UUID, time.Time) {
-		return m.ID, m.JoinedAt
-	})
 	return &orgv1.ListOrgMembersResponse{
 		Members:       members,
 		NextPageToken: token,

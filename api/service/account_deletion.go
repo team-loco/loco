@@ -53,11 +53,13 @@ func (s *UserServer) GetAccountDeletionImpact(
 	rows, err := s.queries.ListAccountDeletionTokens(ctx, genDb.ListAccountDeletionTokensParams{
 		UserID: p.UserID, SystemRead: readable.System, OrganizationIds: readable.Organizations,
 		WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-		PageSize: pageSize, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
+		PageSize: pageSize + 1, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list account deletion tokens: %w", err)
 	}
+	rows, result.NextPageToken = trimPage(rows, pageSize,
+		func(row genDb.ListAccountDeletionTokensRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt })
 	for _, row := range rows {
 		adminErr := s.authz.Check(ctx, scopes, genDb.EntityScope{
 			EntityType: row.EntityType, EntityID: row.EntityID, Scope: genDb.ScopeAdmin,
@@ -72,8 +74,6 @@ func (s *UserServer) GetAccountDeletionImpact(
 			DisplaySuffix: row.DisplaySuffix, CanRevoke: adminErr == nil,
 		})
 	}
-	result.NextPageToken = nextPageToken(rows, pageSize,
-		func(row genDb.ListAccountDeletionTokensRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt })
 	result.HasInaccessibleOwnedTokens, err = s.queries.HasInaccessibleAccountDeletionTokens(ctx,
 		genDb.HasInaccessibleAccountDeletionTokensParams{
 			UserID: p.UserID, SystemRead: readable.System, OrganizationIds: readable.Organizations,
