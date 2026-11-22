@@ -135,7 +135,6 @@ jobs:
       packages: write
     env:
       GH_TOKEN: ${{ github.token }}
-      COMMIT: ${{ github.sha }}
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -165,7 +164,7 @@ jobs:
           RELEASE_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          mise run release:platform -- --version "$VERSION" --commit "$COMMIT" --repository "${RELEASE_REPOSITORY,,}" > bin/release.json
+          mise run release:platform -- --version "$VERSION" --commit "$GITHUB_SHA" --repository "${RELEASE_REPOSITORY,,}" > bin/release.json
 
       # The release stays a draft, without its tag, until every asset is uploaded.
       - name: Tag the commit and publish the release
@@ -173,7 +172,7 @@ jobs:
           SUMMARY: ${{ inputs.summary }}
         run: |
           gh release create "v$VERSION" \
-            --target "$COMMIT" \
+            --target "$GITHUB_SHA" \
             --title "Release v$VERSION" \
             --notes "$SUMMARY" \
             --generate-notes \
