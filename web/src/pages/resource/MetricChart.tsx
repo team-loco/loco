@@ -90,7 +90,6 @@ function Stat({
 export function MetricChart({
 	name,
 	title,
-	sub,
 	points,
 	isLoading,
 	failed,
@@ -105,7 +104,6 @@ export function MetricChart({
 }: {
 	name: string;
 	title: string;
-	sub?: string | undefined;
 	points: BandPoint[];
 	isLoading: boolean;
 	failed: boolean;
@@ -153,7 +151,9 @@ export function MetricChart({
 		<div className="flex min-w-0 flex-col gap-3.5">
 			<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 				<span className="text-[13.5px] font-medium">{title}</span>
-				{sub !== undefined && <span className="text-[12px] text-fg3">{sub}</span>}
+				{replicas === undefined && !isLoading && data.length > 0 && (
+					<span className="text-[12px] text-fg3">band shows lowest to highest across replicas</span>
+				)}
 			</div>
 			<div className="flex gap-6">
 				<Stat label="Average" value={average === undefined ? "—" : show(average)} isLoading={isLoading} />

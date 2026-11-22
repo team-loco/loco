@@ -266,7 +266,16 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     def metrics(route):
         body = route.request.post_data_json
         if not body.get("byPod"):
-            route.fulfill(json={"series": []})
+            stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 60))
+            band = [
+                {
+                    "resourceId": scaling["scaled"],
+                    "labels": {},
+                    "points": [{"timestamp": stamp, "value": 0.42}],
+                }
+            ]
+            scaled = body["resourceIds"][0] == scaling["scaled"]
+            route.fulfill(json={"series": band if scaled else []})
             return
         pod_requests.append(body)
         stamps = [
@@ -468,9 +477,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(scaled_east.get_by_role("listitem")).to_have_count(SCALED_REPLICAS)
     expect(scaled_east).to_contain_text("avg 0.42 vCPU")
     expect(
-        panel.get_by_text(
-            f"band shows lowest to highest of {SCALED_REPLICAS} replicas", exact=True
-        )
+        panel.get_by_text("band shows lowest to highest across replicas", exact=True)
     ).to_have_count(2)
     expect(scaled_east.locator('[data-slot="replica-key"]')).to_have_count(0)
 

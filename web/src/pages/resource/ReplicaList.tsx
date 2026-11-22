@@ -167,7 +167,9 @@ export function ReplicaList({
 				)}
 			</h3>
 			{replicas.length === 0 && <p className="m-0 text-[12px] text-fg3">No replicas reported</p>}
-			<ul className={cn("m-0 flex list-none flex-wrap p-0", many ? "gap-1" : "gap-2", stale && "opacity-60")}>
+			<ul
+				className={cn("m-0 flex list-none flex-wrap items-start p-0", many ? "gap-1" : "gap-2", stale && "opacity-60")}
+			>
 				{replicas.map((replica) => {
 					const state = replicaState(replica.state);
 					const label = many ? `${replica.name}: ${state.label}` : undefined;
@@ -186,18 +188,22 @@ export function ReplicaList({
 								onClick={() => {
 									onSelect(selected === replica.name ? null : replica.name);
 								}}
-								onMouseEnter={() => {
-									onHover(replica.name);
-								}}
-								onMouseLeave={() => {
-									onHover(null);
-								}}
-								onFocus={() => {
-									onHover(replica.name);
-								}}
-								onBlur={() => {
-									onHover(null);
-								}}
+								{...(many
+									? {}
+									: {
+											onMouseEnter: () => {
+												onHover(replica.name);
+											},
+											onMouseLeave: () => {
+												onHover(null);
+											},
+											onFocus: () => {
+												onHover(replica.name);
+											},
+											onBlur: () => {
+												onHover(null);
+											},
+										})}
 								className={
 									many
 										? cn(

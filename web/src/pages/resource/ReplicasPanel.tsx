@@ -16,15 +16,7 @@ import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { msToTimestamp } from "@/lib/time";
 
-import {
-	chartWindow,
-	deploymentMarkers,
-	RANGE_MS,
-	replicaChart,
-	sharedLimit,
-	type MetricRange,
-	type ReplicaChart,
-} from "./metric";
+import { chartWindow, deploymentMarkers, RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
 import { MetricChart, SERIES, seriesColor } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, REFRESH_MS, type RegionView } from "./model";
@@ -147,11 +139,6 @@ export function ReplicasPanel({
 		const i = lines.indexOf(replica);
 		return i < 0 || lines.length > SERIES ? undefined : seriesColor(i);
 	};
-	const chartedCount = charted.reduce((n, r) => n + (r.status?.replicas.length ?? 0), 0);
-	const bandSub = (loaded: boolean | undefined, lineChart: ReplicaChart | undefined) =>
-		loaded === true && lineChart === undefined && chartedCount > 1
-			? `band shows lowest to highest of ${chartedCount.toString()} replicas`
-			: undefined;
 	const averages = {
 		regions: deployed.map((r) => r.name),
 		workspaceId,
@@ -243,7 +230,6 @@ export function ReplicasPanel({
 						<MetricChart
 							name="CPU"
 							title="CPU"
-							sub={bandSub(cpuPods?.isSuccess, cpuReplicas)}
 							points={cpu.points}
 							isLoading={cpu.isLoading}
 							failed={cpu.error !== null}
@@ -259,7 +245,6 @@ export function ReplicasPanel({
 						<MetricChart
 							name="Memory"
 							title="Memory"
-							sub={bandSub(memoryPods?.isSuccess, memoryReplicas)}
 							points={memory.points}
 							isLoading={memory.isLoading}
 							failed={memory.error !== null}
