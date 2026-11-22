@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/authz/actions"
+	apiDb "github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -199,8 +200,9 @@ func (s *ResourceServer) ListWorkspaceResources(
 	}
 	count := func(ctx context.Context, limit int32) (int64, error) {
 		var n int64
-		scanErr := s.db.QueryRow(ctx, resourceListSQL+" SELECT count(*) FROM (SELECT 1 FROM matched LIMIT $12) capped",
-			append(filter.args(), limit)...).Scan(&n)
+		sql := apiDb.Named("CountMatchedWorkspaceResources",
+			resourceListSQL+" SELECT count(*) FROM (SELECT 1 FROM matched LIMIT $12) capped")
+		scanErr := s.db.QueryRow(ctx, sql, append(filter.args(), limit)...).Scan(&n)
 		return n, scanErr
 	}
 	response.TotalCount, err = totalCount(ctx, req.GetIncludeTotalCount(), count)
@@ -360,7 +362,7 @@ func (s *ResourceServer) resourcePage(
 		args = append(args, after.K1, after.K2, after.Text, after.Name, after.ID)
 	}
 	sql += fmt.Sprintf(" ORDER BY k1 %[1]s, k2 %[1]s, kt %[1]s, name_key, id LIMIT $%[2]d", direction, len(args)+1)
-	rows, err := s.db.Query(ctx, sql, append(args, limit)...)
+	rows, err := s.db.Query(ctx, apiDb.Named("ListWorkspaceResourcesPage", sql), append(args, limit)...)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +429,8 @@ func (s *ResourceServer) resourceFacets(
 	facets := &resourcev1.ResourceFacets{}
 	byStatus := filter
 	byStatus.status, byStatus.notDeployed = "", false
-	statuses, err := s.facetCounts(ctx, byStatus, ` SELECT s, count(*) FROM matched m CROSS JOIN LATERAL (
+	statuses, err := s.facetCounts(ctx, "CountWorkspaceResourcesByStatus", byStatus,
+		` SELECT s, count(*) FROM matched m CROSS JOIN LATERAL (
 	    SELECT DISTINCT s FROM unnest(m.statuses) s WHERE s IS NOT NULL
 	    UNION ALL SELECT '' WHERE cardinality(m.statuses) = 0) x (s)
 	  GROUP BY s ORDER BY s`)
@@ -449,6 +452,7 @@ func (s *ResourceServer) resourceFacets(
 	byRegion.region = ""
 	regions, err := s.facetCounts(
 		ctx,
+		"CountWorkspaceResourcesByRegion",
 		byRegion,
 		` SELECT g, count(m.id) FROM (SELECT DISTINCT unnest(regions) g FROM facts) a
 	  LEFT JOIN matched m ON g = ANY(m.regions) GROUP BY g ORDER BY g`,
@@ -461,7 +465,8 @@ func (s *ResourceServer) resourceFacets(
 	}
 	byType := filter
 	byType.resourceType = ""
-	types, err := s.facetCounts(ctx, byType, " SELECT type, count(*) FROM matched GROUP BY type ORDER BY type")
+	types, err := s.facetCounts(ctx, "CountWorkspaceResourcesByType", byType,
+		" SELECT type, count(*) FROM matched GROUP BY type ORDER BY type")
 	if err != nil {
 		return nil, fmt.Errorf("count resources by type: %w", err)
 	}
@@ -503,8 +508,13 @@ type facetCount struct {
 	count int32
 }
 
-func (s *ResourceServer) facetCounts(ctx context.Context, filter resourceFilter, query string) ([]facetCount, error) {
-	rows, err := s.db.Query(ctx, resourceListSQL+query, filter.args()...)
+func (s *ResourceServer) facetCounts(
+	ctx context.Context,
+	name string,
+	filter resourceFilter,
+	query string,
+) ([]facetCount, error) {
+	rows, err := s.db.Query(ctx, apiDb.Named(name, resourceListSQL+query), filter.args()...)
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	apiDb "github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/internal/logquery"
 )
@@ -61,7 +62,7 @@ WHERE e.org_id = $1`
 // ListAudit reads the events q selects.
 func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, error) {
 	sql, args := auditSQL(q)
-	rows, err := db.Query(ctx, sql, args...)
+	rows, err := db.Query(ctx, apiDb.Named("ListAuditEvents", sql), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +101,7 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 func CountAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) (int64, error) {
 	sql, args := auditSQL(q)
 	var n int64
-	err := db.QueryRow(ctx, "SELECT count(*) FROM ("+sql+") capped", args...).Scan(&n)
+	err := db.QueryRow(ctx, apiDb.Named("CountAuditEvents", "SELECT count(*) FROM ("+sql+") capped"), args...).Scan(&n)
 	return n, err
 }
 
@@ -170,7 +171,7 @@ func FacetAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]Facet, erro
 		" ORDER BY e.seq DESC LIMIT " + b.bind(q.Limit) + ") e" +
 		" CROSS JOIN LATERAL " + facetValues + " f(key, value) WHERE f.value <> '' GROUP BY f.key, f.value" +
 		" ORDER BY f.key, count(*) DESC, f.value"
-	rows, err := db.Query(ctx, sql, b.args...)
+	rows, err := db.Query(ctx, apiDb.Named("CountAuditEventFacets", sql), b.args...)
 	if err != nil {
 		return nil, err
 	}

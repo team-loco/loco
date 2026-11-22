@@ -56,3 +56,24 @@ func TestPoolRecordsQuerySpansUnderTheCaller(t *testing.T) {
 	}
 	t.Fatal("the query recorded no span under the caller's span")
 }
+
+func TestPoolNamesHandBuiltQuerySpans(t *testing.T) {
+	databaseURL := os.Getenv("LOCO_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("LOCO_TEST_DATABASE_URL not set")
+	}
+	recorder := tracingtest.Record(t)
+	pool := newTestPool(t, databaseURL)
+	ctx := tracingtest.StartParent(t)
+	if _, execErr := pool.Exec(ctx, Named("ListProbes", "WITH p AS (SELECT 1) SELECT * FROM p")); execErr != nil {
+		t.Fatal(execErr)
+	}
+	var names []string
+	for _, span := range recorder.Ended() {
+		if span.Name() == "query ListProbes" {
+			return
+		}
+		names = append(names, span.Name())
+	}
+	t.Fatalf("spans %q include no query ListProbes", names)
+}
