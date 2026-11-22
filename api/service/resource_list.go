@@ -15,6 +15,7 @@ import (
 
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -227,14 +228,9 @@ func (s *ResourceServer) readableResources(ctx context.Context, wsID uuid.UUID) 
 	if denied == nil || connect.CodeOf(denied) != connect.CodePermissionDenied {
 		return nil, denied
 	}
-	var granted []uuid.UUID
-	for _, id := range grantedResourceIDs(p.Scopes) {
-		checkErr := check(ctx, s.authz, p, actions.New(actions.GetResource, id))
-		if checkErr == nil {
-			granted = append(granted, id)
-		} else if connect.CodeOf(checkErr) != connect.CodePermissionDenied {
-			return nil, checkErr
-		}
+	granted, err := s.grantedReadableResources(ctx, p)
+	if err != nil {
+		return nil, err
 	}
 	if len(granted) == 0 {
 		return nil, denied
@@ -470,15 +466,36 @@ func (s *ResourceServer) resourceFacets(
 		return nil, fmt.Errorf("count resources by type: %w", err)
 	}
 	for _, c := range types {
-		value, ok := resourcev1.ResourceType_value["RESOURCE_TYPE_"+strings.ToUpper(c.value)]
-		if !ok {
-			return nil, fmt.Errorf("%w: %q", errUnknownResourceType, c.value)
+		resourceType, typeErr := resourceTypeProto(c.value)
+		if typeErr != nil {
+			return nil, typeErr
 		}
-		facets.Types = append(facets.Types, &resourcev1.ResourceTypeCount{
-			Type: resourcev1.ResourceType(value), Count: c.count,
-		})
+		facets.Types = append(facets.Types, &resourcev1.ResourceTypeCount{Type: resourceType, Count: c.count})
 	}
 	return facets, nil
+}
+
+// grantedReadableResources are the resources granted to the caller directly that GetResource lets it read.
+func (s *ResourceServer) grantedReadableResources(ctx context.Context, p reqctx.Principal) ([]uuid.UUID, error) {
+	var granted []uuid.UUID
+	for _, id := range grantedResourceIDs(p.Scopes) {
+		checkErr := check(ctx, s.authz, p, actions.New(actions.GetResource, id))
+		if checkErr == nil {
+			granted = append(granted, id)
+		} else if connect.CodeOf(checkErr) != connect.CodePermissionDenied {
+			return nil, checkErr
+		}
+	}
+	return granted, nil
+}
+
+// resourceTypeProto converts a database resource type name.
+func resourceTypeProto(name string) (resourcev1.ResourceType, error) {
+	value, ok := resourcev1.ResourceType_value["RESOURCE_TYPE_"+strings.ToUpper(name)]
+	if !ok {
+		return 0, fmt.Errorf("%w: %q", errUnknownResourceType, name)
+	}
+	return resourcev1.ResourceType(value), nil
 }
 
 type facetCount struct {

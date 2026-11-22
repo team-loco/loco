@@ -5790,6 +5790,68 @@
         }
       }
     },
+    "/loco.resource.v1.ResourceService/ListOrgResources": {
+      "post": {
+        "tags": [
+          "loco.resource.v1.ResourceService"
+        ],
+        "summary": "ListOrgResources",
+        "description": "ListOrgResources lists, newest first, the resources across an organization's workspaces that the\n caller can read: every resource of a workspace it reads, and the resources granted to it directly.",
+        "operationId": "loco.resource.v1.ResourceService.ListOrgResources",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.resource.v1.ListOrgResourcesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.resource.v1.ListOrgResourcesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.resource.v1.ResourceService/ListRegions": {
       "post": {
         "tags": [
@@ -15650,6 +15712,69 @@
         "additionalProperties": false,
         "description": "GetResourceSlugKey looks up a resource by slug within a workspace."
       },
+      "loco.resource.v1.ListOrgResourcesRequest": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string",
+            "title": "org_id",
+            "format": "uuid"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 200,
+            "minimum": 0,
+            "format": "int32",
+            "description": "default: 50, max: 200"
+          },
+          "pageToken": {
+            "type": "string",
+            "title": "page_token",
+            "description": "next_page_token from the previous page of the same query; empty for the first page."
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 256,
+            "description": "Case-insensitive substring of the resource's name or slug."
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
+          }
+        },
+        "title": "ListOrgResourcesRequest",
+        "additionalProperties": false,
+        "description": "ListOrgResourcesRequest names the organization and the page of its resources to list."
+      },
+      "loco.resource.v1.ListOrgResourcesResponse": {
+        "type": "object",
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.resource.v1.OrgResource"
+            },
+            "title": "resources"
+          },
+          "nextPageToken": {
+            "type": "string",
+            "title": "next_page_token",
+            "description": "empty on the last page"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The resources the query matches, ignoring page_token; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
+          }
+        },
+        "title": "ListOrgResourcesResponse",
+        "additionalProperties": false,
+        "description": "ListOrgResourcesResponse is one page of an organization's resources."
+      },
       "loco.resource.v1.ListRegionsRequest": {
         "type": "object",
         "properties": {
@@ -15834,6 +15959,38 @@
         "title": "ListWorkspaceResourcesResponse",
         "additionalProperties": false,
         "description": "ListWorkspaceResourcesResponse is the response containing the list of resources."
+      },
+      "loco.resource.v1.OrgResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "slug"
+          },
+          "type": {
+            "title": "type",
+            "$ref": "#/components/schemas/loco.resource.v1.ResourceType"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "workspaceName": {
+            "type": "string",
+            "title": "workspace_name"
+          }
+        },
+        "title": "OrgResource",
+        "additionalProperties": false,
+        "description": "OrgResource is a resource with the workspace that holds it."
       },
       "loco.resource.v1.RegionAvailability": {
         "type": "string",
