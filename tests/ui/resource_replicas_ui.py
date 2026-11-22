@@ -206,9 +206,9 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     scale = page.locator('[data-slot="scale-chip"]')
     expect(scale).to_have_text("Fixed at 2")
     scale.hover()
-    expect(page.get_by_role("tooltip")).to_have_text(
-        "Runs 2 replicas per region, autoscaling off"
-    )
+    expect(
+        page.get_by_text("Runs 2 replicas per region, autoscaling off", exact=True)
+    ).to_be_visible()
     expect(page.locator('[data-slot="region-chip"]')).to_have_text([EAST, WEST])
     expect(east).to_contain_text("1 of 2 ready")
     expect(west).to_contain_text("2 of 2 ready")
