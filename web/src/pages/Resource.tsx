@@ -56,6 +56,7 @@ import {
 	depTag,
 	focusRegion,
 	isDeployed,
+	metricsPending,
 	problemRegionOf,
 	regionProblem,
 	useResourceData,
@@ -215,6 +216,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const environment = environmentStatus(resource, environmentId);
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);
 	const deployed = regions.filter(isDeployed);
+	const noMetricsYet = metricsPending(deployed, nowMs);
 	const currents = [
 		...new Map(
 			deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [[r.current.id, r.current] as const])),
@@ -531,7 +533,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						canWrite={canWrite}
 						onRollback={openRollback}
 					/>
-					{deployed.length > 0 && environmentId !== undefined && (
+					{deployed.length > 0 && environmentId !== undefined && !noMetricsYet && (
 						<RangeToggle
 							range={range}
 							onRange={(next) => {
@@ -547,6 +549,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					{deployed.length > 0 && environmentId !== undefined ? (
 						<ReplicasPanel
 							nowMs={nowMs}
+							pendingName={noMetricsYet ? resource.name : undefined}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}
@@ -571,7 +574,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							</EmptyState>
 						</Section>
 					)}
-					{deployed.length > 0 && environmentId !== undefined && (
+					{deployed.length > 0 && environmentId !== undefined && !noMetricsYet && (
 						<TrafficSection
 							nowMs={nowMs}
 							isPublic={resource.domains.length > 0}

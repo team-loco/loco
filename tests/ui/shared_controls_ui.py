@@ -1294,6 +1294,7 @@ def dashboard(page):
                             "environment": "production",
                             "placements": {"us-ca-1": {"cluster": cluster}},
                             "method": "cli",
+                            "age": "1 hour",
                             "spec": {
                                 "platform": "linux/amd64",
                                 "build": {

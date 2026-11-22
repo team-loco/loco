@@ -39,6 +39,7 @@ resource = evidence.seed_resources(
                 {
                     "environment": "production",
                     "status": "running",
+                    "age": "1 hour",
                     "placements": {"us-ca-1": {"ready_replicas": 1}},
                     "spec": {
                         "observability": {"injectOtel": True},

@@ -15,6 +15,7 @@ import {
 	changedSecrets,
 	deploymentsRequest,
 	focusRegion,
+	metricsPending,
 	previousDeploymentId,
 	regionDeployment,
 	statusEnvironmentId,
@@ -164,6 +165,44 @@ describe("previousDeploymentId", () => {
 		expect(previousDeploymentId(dep, "us-ca-1")).toBe("older-ca");
 		expect(previousDeploymentId(dep, "us-va-1")).toBe("");
 		expect(previousDeploymentId(dep, "eu-west-1")).toBe("");
+	});
+});
+
+describe("metricsPending", () => {
+	const NOW_MS = 1_700_000_000_000;
+	const region = (name: string, startedMs: number | undefined, previous = ""): RegionView => ({
+		name,
+		status: undefined,
+		history: [],
+		current: create(DeploymentSchema, {
+			placements: [
+				{
+					region: name,
+					live: true,
+					previousDeploymentId: previous,
+					...(startedMs === undefined ? {} : { startedAt: msToTimestamp(startedMs) }),
+				},
+			],
+		}),
+		serving: undefined,
+		lastGood: undefined,
+	});
+
+	test("holds for a first deployment until two minutes after it started", () => {
+		expect(metricsPending([region("us-ca-1", undefined)], NOW_MS)).toBe(true);
+		expect(metricsPending([region("us-ca-1", NOW_MS - 119_000)], NOW_MS)).toBe(true);
+		expect(metricsPending([region("us-ca-1", NOW_MS - 120_000)], NOW_MS)).toBe(false);
+	});
+
+	test("counts from the region that started first", () => {
+		expect(metricsPending([region("us-ca-1", NOW_MS - 10_000), region("us-va-1", NOW_MS - 300_000)], NOW_MS)).toBe(
+			false,
+		);
+	});
+
+	test("ends once any region ran an earlier deployment", () => {
+		expect(metricsPending([region("us-ca-1", NOW_MS), region("us-va-1", NOW_MS, "older")], NOW_MS)).toBe(false);
+		expect(metricsPending([], NOW_MS)).toBe(false);
 	});
 });
 

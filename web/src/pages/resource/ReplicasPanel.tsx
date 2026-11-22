@@ -60,6 +60,7 @@ export function ReplicasPanel({
 	range,
 	replicaHref,
 	nowMs,
+	pendingName,
 }: {
 	workspaceId: string;
 	environmentId: string;
@@ -70,6 +71,8 @@ export function ReplicasPanel({
 	range: MetricRange;
 	replicaHref: (view: "logs" | "metrics", replica: string) => string | undefined;
 	nowMs: number;
+	/** The resource's name while its metrics have yet to show up. */
+	pendingName: string | undefined;
 }) {
 	const [picked, setPicked] = useState<string | null>(null);
 	const [hovered, setHovered] = useState<string | null>(null);
@@ -196,53 +199,59 @@ export function ReplicasPanel({
 					/>
 				)}
 			</div>
-			<div className="grid grid-cols-1 gap-7 border-t border-line2 pt-3.5 lg:grid-cols-2">
-				{compare ? (
-					<>
-						<RegionAverages {...averages} title="CPU" metricName={CPU_METRIC} limits={cpuLimits} format={formatCpu} />
-						<RegionAverages
-							{...averages}
-							title="Memory"
-							metricName={MEMORY_METRIC}
-							limits={memoryLimits}
-							format={formatMemory}
-						/>
-					</>
-				) : (
-					<>
-						<MetricChart
-							name="CPU"
-							title="CPU"
-							points={cpu.points}
-							isLoading={cpu.isLoading}
-							failed={cpu.error !== null}
-							from={cpuWindow.from}
-							to={cpuWindow.to}
-							markers={markers}
-							limits={single === undefined ? undefined : cpuLimits?.get(single)}
-							replicas={cpuReplicas}
-							picked={hovered ?? picked}
-							lineColor={lineColor}
-							format={formatCpu}
-						/>
-						<MetricChart
-							name="Memory"
-							title="Memory"
-							points={memory.points}
-							isLoading={memory.isLoading}
-							failed={memory.error !== null}
-							from={memoryWindow.from}
-							to={memoryWindow.to}
-							markers={markers}
-							limits={single === undefined ? undefined : memoryLimits?.get(single)}
-							replicas={memoryReplicas}
-							picked={hovered ?? picked}
-							lineColor={lineColor}
-							format={formatMemory}
-						/>
-					</>
-				)}
-			</div>
+			{pendingName !== undefined ? (
+				<p className="m-0 border-t border-line2 pt-[22px] pb-2 text-[13px] text-fg3">
+					CPU, memory and traffic show up a couple of minutes after {pendingName} first starts.
+				</p>
+			) : (
+				<div className="grid grid-cols-1 gap-7 border-t border-line2 pt-3.5 lg:grid-cols-2">
+					{compare ? (
+						<>
+							<RegionAverages {...averages} title="CPU" metricName={CPU_METRIC} limits={cpuLimits} format={formatCpu} />
+							<RegionAverages
+								{...averages}
+								title="Memory"
+								metricName={MEMORY_METRIC}
+								limits={memoryLimits}
+								format={formatMemory}
+							/>
+						</>
+					) : (
+						<>
+							<MetricChart
+								name="CPU"
+								title="CPU"
+								points={cpu.points}
+								isLoading={cpu.isLoading}
+								failed={cpu.error !== null}
+								from={cpuWindow.from}
+								to={cpuWindow.to}
+								markers={markers}
+								limits={single === undefined ? undefined : cpuLimits?.get(single)}
+								replicas={cpuReplicas}
+								picked={hovered ?? picked}
+								lineColor={lineColor}
+								format={formatCpu}
+							/>
+							<MetricChart
+								name="Memory"
+								title="Memory"
+								points={memory.points}
+								isLoading={memory.isLoading}
+								failed={memory.error !== null}
+								from={memoryWindow.from}
+								to={memoryWindow.to}
+								markers={markers}
+								limits={single === undefined ? undefined : memoryLimits?.get(single)}
+								replicas={memoryReplicas}
+								picked={hovered ?? picked}
+								lineColor={lineColor}
+								format={formatMemory}
+							/>
+						</>
+					)}
+				</div>
+			)}
 		</Section>
 	);
 }
