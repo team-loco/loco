@@ -235,11 +235,6 @@ controller:
   # @schema type: integer; minimum: 0; maximum: 2147483647
   healthyAfterSeconds: 300
 
-  # Port serving the controller's Prometheus metrics at /metrics; 0 turns it off.
-  # @schema type: integer; minimum: 0; maximum: 65535
-  metricsPort: 8080
-
-  # Extra container env; OTEL_EXPORTER_OTLP_ENDPOINT exports the controller's own traces over OTLP/HTTP.
   env: []
 
   # @schema skipProperties
@@ -280,10 +275,6 @@ builds:
     replicas: 1
     args:
       - --leader-elect
-    # Port serving the build controller's Prometheus metrics at /metrics; 0 turns it off.
-    # @schema type: integer; minimum: 0; maximum: 65535
-    metricsPort: 8080
-    # Extra container env; OTEL_EXPORTER_OTLP_ENDPOINT exports the build controller's own traces over OTLP/HTTP.
     env: []
     # @schema skipProperties
     podSecurityContext:

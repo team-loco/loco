@@ -179,28 +179,3 @@ tests:
       builds.builderImage.tag: ""
     asserts:
       - notFailedTemplate: {}
-
-  - it: serves the build controller's metrics on the configured port
-    set:
-      builds.controller.metricsPort: 9091
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --metrics-bind-address=:9091
-        template: templates/builds/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].ports
-          content: {containerPort: 9091, name: metrics}
-        template: templates/builds/deployment.yaml
-
-  - it: turns the build controller's metrics off with port 0
-    set:
-      builds.controller.metricsPort: 0
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --metrics-bind-address=0
-        template: templates/builds/deployment.yaml
-      - notExists:
-          path: spec.template.spec.containers[0].ports
-        template: templates/builds/deployment.yaml

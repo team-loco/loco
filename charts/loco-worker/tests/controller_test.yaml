@@ -179,28 +179,3 @@ tests:
       - failedTemplate:
           errorMessage: "registry.pullSecretName applies only to registry.auth static; token mode copies the agent's Secrets"
 
-
-  - it: serves the controller's metrics on the configured port
-    set:
-      controller.metricsPort: 9090
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --metrics-bind-address=:9090
-        template: templates/controller/deployment.yaml
-      - contains:
-          path: spec.template.spec.containers[0].ports
-          content: {containerPort: 9090, name: metrics}
-        template: templates/controller/deployment.yaml
-
-  - it: turns the controller's metrics off with port 0
-    set:
-      controller.metricsPort: 0
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --metrics-bind-address=0
-        template: templates/controller/deployment.yaml
-      - notExists:
-          path: spec.template.spec.containers[0].ports
-        template: templates/controller/deployment.yaml
