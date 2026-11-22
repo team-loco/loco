@@ -1,11 +1,11 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
-import { DeploymentSchema, DeploymentStatus, DeploymentStatusCountSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, DeploymentStatusCountSchema } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { ALL_DEPLOYMENTS, deploymentCounts, deploymentState, filterStatuses } from "./deploymentRows";
 
 function state(status: DeploymentStatus) {
-	return deploymentState(create(DeploymentSchema, { status }));
+	return deploymentState(status);
 }
 
 describe("deploymentState", () => {

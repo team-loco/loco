@@ -1,4 +1,6 @@
-import { DeploymentStatus, type Deployment, type DeploymentStatusCount } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type DeploymentStatusCount } from "@gen/loco/deployment/v1/deployment_pb";
+
+import { isInFlight } from "@/lib/deployment-utils";
 
 import { DAY_MS } from "@/lib/time";
 
@@ -14,7 +16,13 @@ export const DEPLOYMENT_FILTERS: {
 	statuses: DeploymentStatus[];
 }[] = [
 	{ value: "running", label: "Running", statuses: [DeploymentStatus.RUNNING] },
-	{ value: "progress", label: "In progress", statuses: [DeploymentStatus.BUILDING, DeploymentStatus.DEPLOYING] },
+	{
+		value: "progress",
+		label: "In progress",
+		statuses: Object.values(DeploymentStatus).filter(
+			(s): s is DeploymentStatus => typeof s !== "string" && isInFlight(s),
+		),
+	},
 	{
 		value: "failed",
 		label: "Failed",
@@ -22,13 +30,9 @@ export const DEPLOYMENT_FILTERS: {
 	},
 ];
 
-function stateOf(status: DeploymentStatus): DeploymentState {
+export function deploymentState(status: DeploymentStatus): DeploymentState {
 	if (status === DeploymentStatus.SUPERSEDED) return "superseded";
 	return DEPLOYMENT_FILTERS.find((f) => f.statuses.includes(status))?.value ?? "other";
-}
-
-export function deploymentState(d: Deployment): DeploymentState {
-	return stateOf(d.status);
 }
 
 /** The statuses a filter lists; empty for all of them. */
@@ -39,7 +43,7 @@ export function filterStatuses(filter: string): DeploymentStatus[] {
 export function deploymentCounts(counts: readonly DeploymentStatusCount[]): Map<DeploymentState, number> {
 	const states = new Map<DeploymentState, number>();
 	for (const c of counts) {
-		const state = stateOf(c.status);
+		const state = deploymentState(c.status);
 		states.set(state, (states.get(state) ?? 0) + c.count);
 	}
 	return states;

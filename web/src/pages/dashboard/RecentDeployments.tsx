@@ -60,7 +60,7 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 			cell: ({ row: { original: r } }) => (
 				<DeploymentStatusBadge
 					phase={r.deployment.status}
-					superseded={deploymentState(r.deployment) === "superseded"}
+					superseded={deploymentState(r.deployment.status) === "superseded"}
 				/>
 			),
 		},
