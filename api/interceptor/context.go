@@ -8,7 +8,11 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/internal/rpc"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
+
+const requestIDAttr = "loco.request.id"
 
 type contextInterceptor struct{}
 
@@ -26,6 +30,7 @@ func (*contextInterceptor) Interceptor() connect.ServerInterceptor {
 			rid := rpc.ResolveRequestID(info.RequestHeader().Get(rpc.RequestIDHeader))
 			ctx = reqctx.WithRequest(ctx, reqctx.Request{ID: rid, Procedure: spec.Procedure})
 			info.ResponseHeader().Set(rpc.RequestIDHeader, rid)
+			trace.SpanFromContext(ctx).SetAttributes(attribute.String(requestIDAttr, rid))
 			start := time.Now()
 			err := next(ctx, spec, stream)
 			duration := time.Since(start)
