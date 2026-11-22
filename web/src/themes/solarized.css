@@ -69,7 +69,8 @@
 		color: var(--fg3);
 	}
 	& .rounded-card {
-		box-shadow: inset 0 0 0 1px var(--line2);
+		border: 1px solid var(--line2);
+		box-shadow: none;
 	}
 	& [data-slot="empty-state"] {
 		box-shadow:
