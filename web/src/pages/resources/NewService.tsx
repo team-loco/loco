@@ -758,6 +758,7 @@ function ServiceForm({
 				<HealthSection
 					health={form.health}
 					apiError={apiError}
+					pathError={errors.healthPath}
 					timeoutError={errors.healthTimeout}
 					onChange={setHealth}
 				/>
@@ -985,11 +986,13 @@ function CommandSection({
 function HealthSection({
 	health,
 	apiError,
+	pathError,
 	timeoutError,
 	onChange,
 }: {
 	health: HealthForm;
 	apiError: (field: ApiField) => string | null;
+	pathError: string | null;
 	timeoutError: string | null;
 	onChange: (patch: Partial<HealthForm>) => void;
 }) {
@@ -1030,14 +1033,14 @@ function HealthSection({
 					<Field
 						label="Path"
 						className="col-span-full"
-						error={apiError("path")}
+						error={pathError ?? apiError("path")}
 						hint="Loco waits for this path to return 2xx before sending traffic."
 					>
 						<Input
 							value={health.path}
 							className="font-mono"
 							placeholder="/healthz"
-							aria-invalid={apiError("path") !== null}
+							aria-invalid={(pathError ?? apiError("path")) !== null}
 							onChange={(e) => {
 								onChange({ path: e.target.value });
 							}}

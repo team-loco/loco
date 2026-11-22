@@ -124,6 +124,15 @@ test("validateForm leaves health check numbers to the API", () => {
 	expect(firstError(validateForm(loose, "available", 10))).toBeNull();
 });
 
+test("validateForm needs a path for a health check that is on", () => {
+	const empty = { ...form, health: { ...form.health, path: " " } };
+	expect(validateForm(empty, "available", 10).healthPath).toBe("Needs a path");
+	expect(firstError(validateForm(empty, "available", 10))).toBe("Needs a path");
+	expect(
+		validateForm({ ...empty, health: { ...empty.health, enabled: false } }, "available", 10).healthPath,
+	).toBeNull();
+});
+
 test("validateForm rejects a health check timeout that is not below the interval", () => {
 	const health = (interval: string, timeout: string) => ({
 		...form,

@@ -54,6 +54,7 @@ export interface FormErrors {
 	subdomain: string | null;
 	env: string | null;
 	scaling: string | null;
+	healthPath: string | null;
 	healthTimeout: string | null;
 }
 
@@ -164,6 +165,7 @@ export function validateForm(
 		subdomain: subdomainError(form, availability),
 		env: envError(form.vars),
 		scaling: scalingError(form, replicaLimit),
+		healthPath: form.health.enabled && form.health.path.trim() === "" ? "Needs a path" : null,
 		healthTimeout: !checksHealth(form.health) ? null : healthTimeoutError(form.health.interval, form.health.timeout),
 	};
 }
@@ -221,6 +223,7 @@ export function firstError(errors: FormErrors): string | null {
 		errors.subdomain,
 		errors.env,
 		errors.scaling,
+		errors.healthPath,
 		errors.healthTimeout,
 	];
 	return ordered.find((e) => e !== null) ?? null;
