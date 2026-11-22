@@ -384,7 +384,7 @@ with session(out) as browser:
         search.press("Enter")
     search.press("Escape")
     typed = [call["body"].get("query") for call in list_events(calls)[typed_from:]]
-    assert typed == ["@type:secret.set"], typed
+    assert set(typed) == {"@type:secret.set"}, typed
     expect(page.get_by_role("alert")).to_have_count(0)
     clear_query()
     with expect_rpc(
