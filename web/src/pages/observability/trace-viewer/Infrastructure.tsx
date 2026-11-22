@@ -36,7 +36,7 @@ const BYTES_PER_MI = 1_048_576;
 const MILLI_PER_CORE = 1000;
 // Usage past this share of the limit marks the chart as running hot.
 const HOT_SHARE = 0.85;
-const AXIS_WIDTH = 64;
+const AXIS_WIDTH = 72;
 const PLOT_TOP = 8;
 const PLOT_RIGHT = 8;
 const X_AXIS_HEIGHT = 30;
@@ -262,7 +262,7 @@ export function Infrastructure({
 															value: `limit ${fmt(limit)}`,
 															fill: "var(--err)",
 															fontSize: 10.5,
-															position: "insideBottomLeft",
+															position: "insideBottomRight",
 														}}
 													/>
 												)}
