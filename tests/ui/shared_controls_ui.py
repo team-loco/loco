@@ -214,12 +214,24 @@ def assert_sidebar_slide(target):
         const center = rect => rect.top + rect.height / 2;
         const start = center(sidebar.querySelector(selector).getBoundingClientRect());
         const end = center(row.getBoundingClientRect());
-        node.click();
-        let highlight = null;
-        while (!highlight) {
-            await new Promise(requestAnimationFrame);
-            highlight = row.querySelector(selector);
-        }
+        let styled;
+        const highlight = await new Promise(resolve => {
+            // Motion styles the new highlight at its start in the commit's microtasks, before any frame ticks it on.
+            styled = new MutationObserver(records => {
+                const found = row.querySelector(selector);
+                if (records.some(record => record.target === found)) resolve(found);
+            });
+            styled.observe(row, {subtree: true, attributeFilter: ['style']});
+            node.click();
+            // A highlight that does not slide gets no style; the first frame shows where it landed.
+            const frame = () => {
+                const found = row.querySelector(selector);
+                if (found) resolve(found);
+                else requestAnimationFrame(frame);
+            };
+            requestAnimationFrame(frame);
+        });
+        styled.disconnect();
         const first = center(highlight.getBoundingClientRect());
         // Hold the highlight halfway between the two rows, where the slide passes.
         const transform = highlight.style.transform;
