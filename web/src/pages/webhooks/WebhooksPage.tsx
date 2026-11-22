@@ -60,15 +60,18 @@ export function WebhooksPage({
 	const query = useQuery(listWebhooks, { workspaceId });
 	const limits = useOrgLimits(orgId);
 	const remove = useMutation(deleteWebhook);
-	const [{ new: creating, types }, setParams] = useQueryStates({
+	const [{ new: creating, types, hook: openId }, setParams] = useQueryStates({
 		new: parseAsString,
 		types: parseAsString,
+		hook: parseAsString,
 	});
 	const [search, setSearch] = useState("");
 	const setCreating = (open: boolean) => {
 		void setParams({ new: open ? "1" : null, types: open ? types : null }, { history: "replace" });
 	};
-	const [openId, setOpenId] = useState<string | null>(null);
+	const setOpenId = (id: string | null) => {
+		void setParams({ hook: id }, { history: "replace" });
+	};
 	const [deleting, setDeleting] = useState<Webhook | null>(null);
 
 	const webhooks = query.data?.webhooks ?? [];

@@ -124,6 +124,9 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         "button", name="Deliveries for https://hooks.invalid/loco", exact=True
     ).click()
     drawer = page.get_by_role("dialog", name="hooks.invalid", exact=True)
+    expect(page).to_have_url(re.compile(rf"[?&]hook={hook_id}(&|$)"))
+    page.reload()
+    expect(drawer).to_be_visible()
     fields = drawer.locator("dl").first
     values = fields.locator("dd")
     url_copy = fields.get_by_role(

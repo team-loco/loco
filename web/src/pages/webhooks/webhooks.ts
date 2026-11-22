@@ -52,7 +52,7 @@ export function tickStrip(newestFirst: readonly WebhookDelivery[]): TickMark[] {
 	return newestFirst
 		.slice(0, DELIVERY_TICKS)
 		.toReversed()
-		.map((d) => ({ id: d.id, tick: deliveryTick(d), tip: `${d.eventType} · ${deliveryLabel(d)}` }));
+		.map((d) => ({ id: d.id, tick: deliveryTick(d), tip: `${d.eventType}, ${deliveryLabel(d)}` }));
 }
 
 export function deliveryWhen(d: WebhookDelivery, nowMs: number): string {
@@ -80,7 +80,7 @@ export function isPrivateAddress(value: string): boolean {
 
 export function deliveryDetail(d: WebhookDelivery): string | null {
 	if (d.lastError === "" || d.status === STATUS_SUCCEEDED) return null;
-	return `${d.lastError} · ${pluralize(d.attempts, "attempt")}`;
+	return `${d.lastError}, ${pluralize(d.attempts, "attempt")}`;
 }
 
 export function isHttpsUrl(value: string): boolean {
