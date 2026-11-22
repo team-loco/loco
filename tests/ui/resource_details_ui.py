@@ -97,6 +97,7 @@ evidence.seed_deployments(
             "id": deployment,
             "environment": "production",
             "spec": runtime,
+            "age": "10 minutes 30 seconds",
             "placements": {"us-ca-1": {"ready_replicas": 0}},
         }
     ],

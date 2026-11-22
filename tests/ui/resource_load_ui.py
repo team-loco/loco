@@ -32,6 +32,7 @@ resource = evidence.seed_resources(
             "deployments": [
                 {
                     "environment": "production",
+                    "age": "1 hour",
                     "placements": {"us-ca-1": {}},
                     "spec": {
                         "platform": "linux/amd64",

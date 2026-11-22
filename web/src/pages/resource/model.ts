@@ -180,6 +180,22 @@ export function previousDeploymentId(dep: Deployment, region: string): string {
 	return placementIn(dep, region)?.previousDeploymentId ?? "";
 }
 
+/** How long after a resource first starts its metrics take to show up. */
+const METRICS_DELAY_MS = 2 * 60_000;
+
+/** Whether no deployed region has a placement that started METRICS_DELAY_MS or more ago. */
+export function metricsPending(deployed: readonly RegionView[], nowMs: number): boolean {
+	return (
+		deployed.length > 0 &&
+		deployed.every((r) =>
+			[r.current, ...r.history].every((d) => {
+				const startedMs = maybeTsMs(placementIn(d, r.name)?.startedAt);
+				return startedMs === undefined || nowMs - startedMs < METRICS_DELAY_MS;
+			}),
+		)
+	);
+}
+
 /** Time from creation until the deployment turned ready, or until it failed or was canceled. */
 export function tookMs(dep: Deployment): number | undefined {
 	const created = maybeTsMs(dep.createdAt);

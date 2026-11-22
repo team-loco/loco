@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import json
 import re
 import time
@@ -56,7 +57,7 @@ if "replicas" not in state:
                         "id": deployment,
                         "spec": spec,
                         "status": "deploying",
-                        "age": "40 seconds",
+                        "age": "5 minutes",
                         "placements": {
                             region: {
                                 "cluster": clusters[region],
@@ -539,6 +540,93 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(page.locator("#secrets-notice-ov")).to_have_count(0)
     context.unroute("**/loco.secret.v1.SecretService/ListSecrets")
 
+    # A resource that first started under two minutes ago shows a line instead of its charts.
+    fresh_name = "fresh-" + uuid.uuid4().hex[:8]
+    fresh = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": fresh_name,
+                "deployments": [
+                    {
+                        "environment": "production",
+                        "spec": {
+                            "platform": "linux/amd64",
+                            "observability": {"injectOtel": True},
+                            "build": {
+                                "type": "image",
+                                "image": "registry.example.test/fresh:v1",
+                            },
+                            "port": 8080,
+                            "regions": {
+                                EAST: {
+                                    "cpu": "500m",
+                                    "memory": "256Mi",
+                                    "minReplicas": 1,
+                                    "maxReplicas": 1,
+                                }
+                            },
+                        },
+                        "age": "30 seconds",
+                        "placements": {
+                            EAST: {
+                                "cluster": r["clusters"][EAST],
+                                "replicas": [
+                                    {
+                                        "name": f"{fresh_name}-a1",
+                                        "ready": True,
+                                        "state": "Serving",
+                                        "started_at": {"seconds": "{now-20s:s}"},
+                                    }
+                                ],
+                            }
+                        },
+                    }
+                ],
+            }
+        ],
+    )[f"acme/shared/{fresh_name}"]
+    clocked, clocked_page, clocked_errors = open_page(
+        browser, state=state, now=datetime.datetime.now(datetime.UTC)
+    )
+    clocked.route(
+        "**/loco.observability.v1.ObservabilityService/QueryMetrics",
+        lambda route: route.fulfill(json={"series": []}),
+    )
+    clocked_page.goto(state["ui_url"] + resource_path(fresh))
+    fresh_panel = clocked_page.get_by_role("region", name="Replicas", exact=True)
+    expect(fresh_panel).to_contain_text(
+        f"CPU, memory and traffic show up a couple of minutes after {fresh_name} first starts."
+    )
+    expect(fresh_panel.get_by_text("No data in this range", exact=True)).to_have_count(
+        0
+    )
+    fresh_replica = fresh_panel.get_by_role(
+        "region", name=f"Replicas in {EAST}", exact=True
+    ).get_by_role("listitem")
+    expect(fresh_replica).to_have_count(1)
+    expect(fresh_replica).not_to_contain_text("CPU")
+    expect(
+        clocked_page.get_by_role("group", name="Time range", exact=True)
+    ).to_have_count(0)
+    expect(
+        clocked_page.get_by_role("region", name="Traffic", exact=True)
+    ).to_have_count(0)
+    clocked_page.clock.run_for(2 * 60_000)
+    expect(fresh_panel.get_by_text("No data in this range", exact=True)).to_have_count(
+        2
+    )
+    expect(fresh_panel).not_to_contain_text("a couple of minutes")
+    expect(fresh_replica).to_contain_text("CPU —")
+    expect(
+        clocked_page.get_by_role("group", name="Time range", exact=True)
+    ).to_be_visible()
+    expect(
+        clocked_page.get_by_role("region", name="Traffic", exact=True)
+    ).to_be_visible()
+    clocked.close()
+
     narrow, narrow_page, narrow_errors = open_page(browser, state=state, narrow=True)
     narrow.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
     report_replicas()
@@ -550,4 +638,8 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     width = narrow_page.evaluate("document.documentElement.scrollWidth")
     viewport = narrow_page.evaluate("window.innerWidth")
     assert width <= viewport, (width, viewport)
-    assert errors == [] and narrow_errors == [], (errors, narrow_errors)
+    assert errors == clocked_errors == narrow_errors == [], (
+        errors,
+        clocked_errors,
+        narrow_errors,
+    )
