@@ -50,10 +50,7 @@ func ValidateQuery(expr logquery.Expr) error {
 		if !queryFields[field.Key] {
 			return &logquery.SyntaxError{
 				Position: field.Position,
-				Message: fmt.Sprintf(
-					"unknown field @%s; use @actor, @actor_type, @target, @type, @request, @severity, "+
-						"@region, @reason or @resource", field.Key,
-				),
+				Message:  "unknown field @" + field.Key,
 			}
 		}
 		if field.Match != logquery.Equal && field.Match != logquery.Prefix {

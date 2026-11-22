@@ -421,7 +421,7 @@ with session(out) as browser:
         lambda body: body.get("query") == "@wrong:value",
     ):
         search_for("@wrong:value")
-    expect(alert).to_contain_text("unknown field @wrong")
+    expect(alert.locator("span")).to_have_text("unknown field @wrong")
     expect(alert.locator("mark")).to_have_text("@wrong:value")
     page.set_viewport_size(evidence.NARROW)
     expect(alert).to_be_visible()

@@ -57,5 +57,5 @@ A query the API cannot parse fails with `InvalidArgument`, a `google.rpc.BadRequ
 
 ```text
 @type does not compare numbers at position 1
-unknown field @status; use @actor, @actor_type, @target, @type, @request, @severity, @region, @reason or @resource at position 5
+unknown field @status at position 5
 ```
