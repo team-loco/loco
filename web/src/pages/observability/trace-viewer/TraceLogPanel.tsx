@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent, TabsCount } from "@/component
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatClock } from "@/lib/time";
+import { layoutNumber, useLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
 import { LEVEL_LABEL, levelStyle } from "../format";
@@ -23,6 +24,7 @@ import type { useTraceLogs } from "./trace-logs";
 import { descendantIds } from "../flame";
 
 const MIN_HEIGHT = 192;
+const parseHeight = layoutNumber(310, MIN_HEIGHT, 620);
 
 export function TraceLogPanel({
 	trace,
@@ -55,7 +57,7 @@ export function TraceLogPanel({
 	const [scope, setScope] = useState("trace");
 	const [minutes, setMinutes] = useState(10);
 	const events = useTraceEvents(trace, minutes);
-	const [height, setHeight] = useState(310);
+	const [height, setHeight] = useLayout("trace.bottom", parseHeight);
 	const resizeRef = useRef<{ y: number; height: number } | null>(null);
 	const panelRef = useRef<HTMLElement>(null);
 	const rendered = () => panelRef.current?.offsetHeight ?? height;

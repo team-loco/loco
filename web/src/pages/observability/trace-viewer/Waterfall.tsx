@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { layoutNumber, useLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 import { zoomTo, type Zoom } from "../flame";
 import { durationLabel, spanStart, spanError, spanErrorText, type TraceSummary } from "../traces";
@@ -11,6 +12,8 @@ import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
 import { offsetTicks } from "./plot";
 import { SpanTipTrigger } from "./SpanTip";
+
+const parseNameWidth = layoutNumber(340, 160, 640);
 
 export function Waterfall({
 	trace,
@@ -43,7 +46,7 @@ export function Waterfall({
 		error: spanError(span) ? spanErrorText(span) : undefined,
 	});
 	const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
-	const [nameWidth, setNameWidth] = useState(340);
+	const [nameWidth, setNameWidth] = useLayout("trace.span", parseNameWidth);
 	const resizeRef = useRef<{ x: number; width: number } | null>(null);
 
 	const rows = useMemo(() => {

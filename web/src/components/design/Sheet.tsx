@@ -7,7 +7,7 @@ import {
 	SheetDescription as SheetDescriptionBase,
 	SheetTitle as SheetTitleBase,
 } from "@/components/ui/sheet";
-import { useStoredValue } from "@/lib/storage";
+import { layoutNumber, useLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 const sheetWidths = {
@@ -19,6 +19,7 @@ const sheetWidths = {
 const MIN_WIDTH = 380;
 const KEY_STEP = 16;
 const EDGE_GAP = 8;
+const parseDrawerWidth = layoutNumber(0, MIN_WIDTH, Number.POSITIVE_INFINITY);
 
 function clampWidth(width: number): number {
 	return Math.round(Math.min(window.innerWidth - 2 * EDGE_GAP, Math.max(MIN_WIDTH, width)));
@@ -74,12 +75,15 @@ function SheetContent({
 	...props
 }: React.ComponentProps<typeof SheetContentBase> & {
 	size?: keyof typeof sheetWidths;
-	/** Storage key; when set, the drawer's inner edge resizes it and the width is remembered per viewer. */
+	/** Name in the viewer's layout; when set, the drawer's inner edge resizes it and the width is remembered. */
 	resizeKey?: string;
 }) {
-	const [stored, setStored] = useStoredValue(resizeKey ?? "", "");
+	const [width, setWidth] = useLayout(resizeKey === undefined ? null : `drawers.${resizeKey}`, parseDrawerWidth);
 	const resizable = resizeKey !== undefined && side === "right";
-	const width = Number(stored);
+	const stored = width === 0 ? "" : String(width);
+	const setStored = (next: string) => {
+		setWidth(next === "" ? null : Number(next));
+	};
 	return (
 		<SheetContentBase
 			side={side}
