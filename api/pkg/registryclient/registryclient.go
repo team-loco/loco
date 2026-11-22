@@ -226,7 +226,14 @@ func (c *Client) Tags(ctx context.Context, path string) (_ []string, err error) 
 
 func (c *Client) TagDigest(ctx context.Context, path, tag string) (_ string, err error) {
 	ctx, span := tracing.Start(ctx, resolveTagSpan, attribute.String(repositoryAttr, path))
-	defer func() { tracing.End(span, err) }()
+	defer func() {
+		// Callers treat a missing tag as a normal answer.
+		failure := err
+		if errors.Is(failure, ErrTagNotFound) {
+			failure = nil
+		}
+		tracing.End(span, failure)
+	}()
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	repo, err := c.repository(path)

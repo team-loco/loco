@@ -1,6 +1,8 @@
 package registryclient
 
 import (
+	"errors"
+	"net/http"
 	"testing"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -36,12 +38,28 @@ func TestClientNamesEachOperationSpan(t *testing.T) {
 
 func TestClientOperationSpanRecordsAFailure(t *testing.T) {
 	recorder := tracingtest.Record(t)
-	client := newTestRegistry(t).client(t)
-	if _, err := client.TagDigest(tracingtest.StartParent(t), testRepo, "missing"); err == nil {
-		t.Fatal("digest of a missing tag succeeded")
+	server := tracingtest.NewHeaderServer(t, http.StatusInternalServerError)
+	client, err := New(Config{URL: server.URL, Username: testUsername, Password: testPassword, Timeout: testTimeout})
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	if _, err = client.TagDigest(tracingtest.StartParent(t), testRepo, "build-1"); err == nil {
+		t.Fatal("digest from a failing registry succeeded")
 	}
 	span := tracingtest.Operation(t, recorder, resolveTagSpan)
 	if span.Status().Code != codes.Error {
 		t.Fatalf("%s status = %+v, want an error", resolveTagSpan, span.Status())
+	}
+}
+
+func TestClientEndsAMissingTagSpanWithoutError(t *testing.T) {
+	recorder := tracingtest.Record(t)
+	client := newTestRegistry(t).client(t)
+	if _, err := client.TagDigest(tracingtest.StartParent(t), testRepo, "missing"); !errors.Is(err, ErrTagNotFound) {
+		t.Fatalf("digest of a missing tag = %v, want ErrTagNotFound", err)
+	}
+	span := tracingtest.Operation(t, recorder, resolveTagSpan)
+	if span.Status().Code == codes.Error {
+		t.Fatalf("%s status = %+v, want no error", resolveTagSpan, span.Status())
 	}
 }

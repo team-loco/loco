@@ -1,6 +1,7 @@
 package sourcebucket
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 
@@ -31,12 +32,24 @@ func TestBucketNamesEachOperationSpan(t *testing.T) {
 
 func TestBucketOperationSpanRecordsAFailure(t *testing.T) {
 	recorder := tracingtest.Record(t)
-	bucket := newTestBucket(t, tracingtest.NewHeaderServer(t, http.StatusNotFound).URL)
+	bucket := newTestBucket(t, tracingtest.NewHeaderServer(t, http.StatusInternalServerError).URL)
 	if _, err := bucket.ObjectSize(tracingtest.StartParent(t), testKey); err == nil {
-		t.Fatal("object size of a missing object succeeded")
+		t.Fatal("object size from a failing bucket succeeded")
 	}
 	span := tracingtest.Operation(t, recorder, headSpan)
 	if span.Status().Code != codes.Error {
 		t.Fatalf("%s status = %+v, want an error", headSpan, span.Status())
+	}
+}
+
+func TestBucketEndsAMissingObjectSpanWithoutError(t *testing.T) {
+	recorder := tracingtest.Record(t)
+	bucket := newTestBucket(t, tracingtest.NewHeaderServer(t, http.StatusNotFound).URL)
+	if _, err := bucket.ObjectSize(tracingtest.StartParent(t), testKey); !errors.Is(err, ErrObjectNotFound) {
+		t.Fatalf("object size of a missing object = %v, want ErrObjectNotFound", err)
+	}
+	span := tracingtest.Operation(t, recorder, headSpan)
+	if span.Status().Code == codes.Error {
+		t.Fatalf("%s status = %+v, want no error", headSpan, span.Status())
 	}
 }

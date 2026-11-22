@@ -190,7 +190,14 @@ func (b *Bucket) List(ctx context.Context, prefix, startAfter string, limit int3
 
 func (b *Bucket) ObjectSize(ctx context.Context, key string) (_ int64, err error) {
 	ctx, span := b.startSpan(ctx, headSpan)
-	defer func() { tracing.End(span, err) }()
+	defer func() {
+		// Callers treat a missing object as a normal answer.
+		failure := err
+		if errors.Is(failure, ErrObjectNotFound) {
+			failure = nil
+		}
+		tracing.End(span, failure)
+	}()
 	bucket := b.bucket
 	out, err := b.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: &bucket,
