@@ -29,8 +29,7 @@ import (
 const (
 	zeroSHA          = "0000000000000000000000000000000000000000"
 	pullRequestEvent = "pull_request"
-	// dispatchEvent is a manual run, such as a release's: it runs every
-	// workflow and every Go module and shard, and reuses no pass.
+	// dispatchEvent, a release's event, runs every workflow, module and shard and reuses no pass.
 	dispatchEvent = "workflow_dispatch"
 )
 
