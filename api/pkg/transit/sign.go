@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/team-loco/loco/api/pkg/tracing"
 )
 
 const signingKeyType = "ed25519"
@@ -49,13 +51,14 @@ type signingKeyResponse struct {
 	} `json:"data"`
 }
 
-func (s *Signer) readKey(ctx context.Context) (signingKeyResponse, error) {
-	var response signingKeyResponse
-	if err := s.client.checkToken(); err != nil {
+func (s *Signer) readKey(ctx context.Context) (response signingKeyResponse, err error) {
+	ctx, span := startKeySpan(ctx, readKeySpan, s.key)
+	defer func() { tracing.End(span, err) }()
+	if err = s.client.checkToken(); err != nil {
 		return response, err
 	}
 	path := s.client.keyPath("keys", s.key)
-	if err := s.client.do(ctx, http.MethodGet, path, nil, &response); err != nil {
+	if err = s.client.do(ctx, http.MethodGet, path, nil, &response); err != nil {
 		return response, fmt.Errorf("read transit signing key: %w", err)
 	}
 	if response.Data.Type != signingKeyType {
@@ -153,7 +156,9 @@ type signResponse struct {
 	} `json:"data"`
 }
 
-func (s *Signer) Sign(ctx context.Context, keyID string, input []byte) ([]byte, error) {
+func (s *Signer) Sign(ctx context.Context, keyID string, input []byte) (_ []byte, err error) {
+	ctx, span := startKeySpan(ctx, signSpan, s.key)
+	defer func() { tracing.End(span, err) }()
 	version, err := keyVersion(keyID)
 	if err != nil {
 		return nil, err

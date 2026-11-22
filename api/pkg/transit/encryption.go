@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/team-loco/loco/api/pkg/tracing"
 )
 
 const encryptionKeyType = "aes256-gcm96"
@@ -36,13 +38,15 @@ type keyResponse struct {
 }
 
 // KeyID returns v<latest_version> of the key, the version Encrypt encrypts with.
-func (k *EncryptionKey) KeyID(ctx context.Context) (string, error) {
-	if err := k.client.checkToken(); err != nil {
+func (k *EncryptionKey) KeyID(ctx context.Context) (_ string, err error) {
+	ctx, span := startKeySpan(ctx, readKeySpan, k.key)
+	defer func() { tracing.End(span, err) }()
+	if err = k.client.checkToken(); err != nil {
 		return "", err
 	}
 	var response keyResponse
 	path := k.client.keyPath("keys", k.key)
-	if err := k.client.do(ctx, http.MethodGet, path, nil, &response); err != nil {
+	if err = k.client.do(ctx, http.MethodGet, path, nil, &response); err != nil {
 		return "", fmt.Errorf("read transit key: %w", err)
 	}
 	if response.Data.Type != encryptionKeyType || !response.Data.Derived {
@@ -67,8 +71,10 @@ type encryptResponse struct {
 
 // Encrypt checks the key type through KeyID, then encrypts plaintext with the latest version
 // of the key. It returns the version's key id and the vault:v<N>:<base64> ciphertext.
-func (k *EncryptionKey) Encrypt(ctx context.Context, plaintext, derivation []byte) (string, []byte, error) {
-	if _, err := k.KeyID(ctx); err != nil {
+func (k *EncryptionKey) Encrypt(ctx context.Context, plaintext, derivation []byte) (_ string, _ []byte, err error) {
+	ctx, span := startKeySpan(ctx, encryptSpan, k.key)
+	defer func() { tracing.End(span, err) }()
+	if _, err = k.KeyID(ctx); err != nil {
 		return "", nil, err
 	}
 	request := encryptRequest{
@@ -77,7 +83,7 @@ func (k *EncryptionKey) Encrypt(ctx context.Context, plaintext, derivation []byt
 	}
 	var response encryptResponse
 	path := k.client.keyPath("encrypt", k.key)
-	if err := k.client.do(ctx, http.MethodPost, path, request, &response); err != nil {
+	if err = k.client.do(ctx, http.MethodPost, path, request, &response); err != nil {
 		return "", nil, fmt.Errorf("transit encrypt: %w", err)
 	}
 	ciphertext := []byte(response.Data.Ciphertext)
@@ -102,7 +108,13 @@ type decryptResponse struct {
 // Decrypt decrypts ciphertext with the key version it names, which must be keyID. A
 // ciphertext Transit cannot decrypt with derivation, such as one encrypted with another
 // derivation context, fails with ErrDecrypt.
-func (k *EncryptionKey) Decrypt(ctx context.Context, keyID string, ciphertext, derivation []byte) ([]byte, error) {
+func (k *EncryptionKey) Decrypt(
+	ctx context.Context,
+	keyID string,
+	ciphertext, derivation []byte,
+) (_ []byte, err error) {
+	ctx, span := startKeySpan(ctx, decryptSpan, k.key)
+	defer func() { tracing.End(span, err) }()
 	named, err := ciphertextKeyID(ciphertext)
 	if err != nil {
 		return nil, err

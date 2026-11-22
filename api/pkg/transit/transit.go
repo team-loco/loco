@@ -21,6 +21,10 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/team-loco/loco/api/pkg/tracing"
 )
 
 const (
@@ -37,6 +41,12 @@ const (
 	parentSegment    = ".."
 	currentSegment   = "."
 	pathSep          = "/"
+
+	readKeySpan = "transit.read_key"
+	encryptSpan = "transit.encrypt"
+	decryptSpan = "transit.decrypt"
+	signSpan    = "transit.sign"
+	keyAttr     = "loco.transit.key"
 )
 
 var (
@@ -259,6 +269,10 @@ func keyVersion(keyID string) (int, error) {
 		return 0, fmt.Errorf("%w: %q", ErrKeyID, keyID)
 	}
 	return version, nil
+}
+
+func startKeySpan(ctx context.Context, name, key string) (context.Context, trace.Span) {
+	return tracing.Start(ctx, name, attribute.String(keyAttr, key))
 }
 
 func (t *Client) keyPath(operation, key string) string {

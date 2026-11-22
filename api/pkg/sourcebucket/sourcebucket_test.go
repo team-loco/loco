@@ -15,6 +15,7 @@ const (
 	testBucket      = "loco-sources"
 	testAccessKeyID = "key"
 	testSecretKey   = "secret"
+	testKey         = "sources/abc.tar.gz"
 )
 
 func TestPresignPutUsesVirtualHostedStyle(t *testing.T) {
@@ -101,11 +102,10 @@ func TestNewRejectsPartialConfig(t *testing.T) {
 	}
 }
 
-func TestBucketPropagatesTraceContext(t *testing.T) {
-	tracingtest.Record(t)
-	server := tracingtest.NewHeaderServer(t, http.StatusNoContent)
+func newTestBucket(t *testing.T, endpoint string) *Bucket {
+	t.Helper()
 	bucket, err := New(Config{
-		Endpoint:        server.URL,
+		Endpoint:        endpoint,
 		Bucket:          testBucket,
 		Region:          "auto",
 		AccessKeyID:     testAccessKeyID,
@@ -115,8 +115,15 @@ func TestBucketPropagatesTraceContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new bucket: %v", err)
 	}
+	return bucket
+}
+
+func TestBucketPropagatesTraceContext(t *testing.T) {
+	tracingtest.Record(t)
+	server := tracingtest.NewHeaderServer(t, http.StatusNoContent)
+	bucket := newTestBucket(t, server.URL)
 	ctx := tracingtest.StartParent(t)
-	if err := bucket.Delete(ctx, "sources/abc.tar.gz"); err != nil {
+	if err := bucket.Delete(ctx, testKey); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 	tracingtest.AssertContinues(t, server.Traceparent(), ctx)

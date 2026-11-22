@@ -4,10 +4,12 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sync"
 	"testing"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -67,6 +69,41 @@ func (s *HeaderServer) Traceparent() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.traceparent
+}
+
+// Operation returns the last ended span named name, failing unless it has a parent, attrs and an HTTP client child.
+func Operation(
+	t *testing.T,
+	recorder *tracetest.SpanRecorder,
+	name string,
+	attrs ...attribute.KeyValue,
+) sdktrace.ReadOnlySpan {
+	t.Helper()
+	spans := recorder.Ended()
+	var operation sdktrace.ReadOnlySpan
+	for _, span := range spans {
+		if span.Name() == name {
+			operation = span
+		}
+	}
+	if operation == nil {
+		t.Fatalf("no %s span", name)
+	}
+	if !operation.Parent().IsValid() {
+		t.Fatalf("%s span has no parent", name)
+	}
+	for _, attr := range attrs {
+		if !slices.Contains(operation.Attributes(), attr) {
+			t.Fatalf("%s span attributes = %v, want %v", name, operation.Attributes(), attr)
+		}
+	}
+	for _, span := range spans {
+		if span.Parent().SpanID() == operation.SpanContext().SpanID() && span.SpanKind() == trace.SpanKindClient {
+			return operation
+		}
+	}
+	t.Fatalf("no HTTP client span is a child of %s", name)
+	return nil
 }
 
 func AssertContinues(t *testing.T, traceparent string, parent context.Context) {

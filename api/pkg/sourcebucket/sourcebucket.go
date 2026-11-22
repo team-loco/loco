@@ -13,6 +13,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/team-loco/loco/api/pkg/tracing"
+)
+
+const (
+	deleteSpan = "source_bucket.delete"
+	listSpan   = "source_bucket.list"
+	headSpan   = "source_bucket.head"
+	bucketAttr = "aws.s3.bucket"
 )
 
 var ErrObjectNotFound = errors.New("object not found")
@@ -137,9 +148,11 @@ func (b *Bucket) PresignGet(ctx context.Context, key string, ttl time.Duration) 
 	return req.URL, nil
 }
 
-func (b *Bucket) Delete(ctx context.Context, key string) error {
+func (b *Bucket) Delete(ctx context.Context, key string) (err error) {
+	ctx, span := b.startSpan(ctx, deleteSpan)
+	defer func() { tracing.End(span, err) }()
 	bucket := b.bucket
-	_, err := b.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+	_, err = b.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &bucket,
 		Key:    &key,
 	})
@@ -149,7 +162,9 @@ func (b *Bucket) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-func (b *Bucket) List(ctx context.Context, prefix, startAfter string, limit int32) ([]Object, bool, error) {
+func (b *Bucket) List(ctx context.Context, prefix, startAfter string, limit int32) (_ []Object, _ bool, err error) {
+	ctx, span := b.startSpan(ctx, listSpan)
+	defer func() { tracing.End(span, err) }()
 	bucket := b.bucket
 	input := &s3.ListObjectsV2Input{
 		Bucket:  &bucket,
@@ -173,7 +188,16 @@ func (b *Bucket) List(ctx context.Context, prefix, startAfter string, limit int3
 	return objects, truncated, nil
 }
 
-func (b *Bucket) ObjectSize(ctx context.Context, key string) (int64, error) {
+func (b *Bucket) ObjectSize(ctx context.Context, key string) (_ int64, err error) {
+	ctx, span := b.startSpan(ctx, headSpan)
+	defer func() {
+		// Callers treat a missing object as a normal answer.
+		failure := err
+		if errors.Is(failure, ErrObjectNotFound) {
+			failure = nil
+		}
+		tracing.End(span, failure)
+	}()
 	bucket := b.bucket
 	out, err := b.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: &bucket,
@@ -186,6 +210,10 @@ func (b *Bucket) ObjectSize(ctx context.Context, key string) (int64, error) {
 		return 0, fmt.Errorf("head %s: %w", key, err)
 	}
 	return aws.ToInt64(out.ContentLength), nil
+}
+
+func (b *Bucket) startSpan(ctx context.Context, name string) (context.Context, trace.Span) {
+	return tracing.Start(ctx, name, attribute.String(bucketAttr, b.bucket))
 }
 
 func isNotFound(err error) bool {

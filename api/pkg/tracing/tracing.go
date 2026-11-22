@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -13,6 +14,11 @@ const (
 	tracerName     = "github.com/team-loco/loco/api"
 	traceparentKey = "traceparent"
 )
+
+// Start names one outbound operation, whose client calls become its children.
+func Start(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	return otel.Tracer(tracerName).Start(ctx, name, trace.WithAttributes(attrs...)) //nolint:spancheck
+}
 
 func StartRoot(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	opts = append(opts, trace.WithNewRoot())
