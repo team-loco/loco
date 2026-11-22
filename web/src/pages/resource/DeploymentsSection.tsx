@@ -357,23 +357,22 @@ export function DeploymentsSection({
 	});
 	const [hist, setHist] = useQueryState("hist", histParser);
 
-	const regionOrder = (name: string) => {
-		const index = regions.findIndex((r) => r.name === name);
-		return index === -1 ? regions.length : index;
-	};
-	const regionView = (name: string): RegionView =>
-		regions.find((r) => r.name === name) ?? {
-			name,
-			status: undefined,
-			history: [],
-			current: undefined,
-			serving: undefined,
-			lastGood: undefined,
-		};
+	const regionIndex = new Map(regions.map((r, i) => [r.name, i]));
 	const rollouts: RolloutRow[] = deployments.flatMap((dep) => {
 		const [first, ...rest] = [...new Set(dep.placements.map((p) => p.region).filter((r) => r !== ""))]
-			.toSorted((a, b) => regionOrder(a) - regionOrder(b))
-			.map((name) => ({ dep, region: regionView(name), prevId: previousDeploymentId(dep, name) }));
+			.toSorted((a, b) => (regionIndex.get(a) ?? regions.length) - (regionIndex.get(b) ?? regions.length))
+			.map((name) => ({
+				dep,
+				region: regions[regionIndex.get(name) ?? -1] ?? {
+					name,
+					status: undefined,
+					history: [],
+					current: undefined,
+					serving: undefined,
+					lastGood: undefined,
+				},
+				prevId: previousDeploymentId(dep, name),
+			}));
 		return first === undefined ? [] : [{ key: dep.id, rows: [first, ...rest] }];
 	});
 	const deployTable = useDataTable("deployments", {
@@ -451,7 +450,11 @@ export function DeploymentsSection({
 							label="Deployments"
 							loading={history.query.isLoading}
 							className="[--row-h:58px]"
-							empty={<div className="flex h-24 items-center justify-center text-fg3">No deployments yet.</div>}
+							empty={
+								history.query.error === null ? (
+									<div className="flex h-24 items-center justify-center text-fg3">No deployments yet.</div>
+								) : null
+							}
 							onRowClick={(row) => {
 								setOpen(open === row.id ? null : row.id);
 							}}

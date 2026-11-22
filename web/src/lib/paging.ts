@@ -1,5 +1,5 @@
 import { createParser, parseAsArrayOf, parseAsNumberLiteral, parseAsString, useQueryStates } from "nuqs";
-import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { useMemo } from "react";
 
 import { formatCount } from "@/lib/format";
 
@@ -101,23 +101,6 @@ export function usePagedRows<T>(
 		reset: () => {
 			void setPaging({ page: null });
 		},
-	};
-}
-
-export function nextPage(
-	rows: PagedRows<unknown>,
-	isLoading: boolean,
-	hasMore: boolean,
-	loadMore: () => Promise<boolean>,
-	setPaging: Dispatch<SetStateAction<Paging>>,
-): (() => void) | null {
-	if (rows.pager.onNext !== null || !hasMore) return rows.pager.onNext;
-	return () => {
-		// Disabling the button while a page loads would drop its keyboard focus.
-		if (isLoading) return;
-		void loadMore().then((loaded) => {
-			if (loaded) setPaging((current) => ({ ...current, page: current.page + 1 }));
-		});
 	};
 }
 

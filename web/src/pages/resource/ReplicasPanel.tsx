@@ -1,7 +1,11 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueries } from "@tanstack/react-query";
 import { useState } from "react";
-import { queryDeploymentBuckets } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import {
+	listDeployments,
+	queryDeploymentBuckets,
+} from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { EnvironmentStatus, RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Section } from "@/components/design/Page";
@@ -24,6 +28,7 @@ const ALL_REGIONS = "all";
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
 const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
 const MARKER_BUCKETS = 200;
+const WINDOW_DEPLOYMENTS = 200;
 // nowMs ticks once a minute; the window runs a minute past it to cover the charts' newer end.
 const MARKER_LEAD_MS = 60_000;
 
@@ -36,12 +41,16 @@ function currentTarget(region: RegionView): Sizing | undefined {
 	return regionTarget(region.current === undefined ? undefined : getServiceSpec(region.current), region.name);
 }
 
-function regionLimits(regions: RegionView[], size: Size): Map<string, LimitStep[]> | undefined {
+function regionLimits(
+	regions: RegionView[],
+	charted: readonly Deployment[],
+	size: Size,
+): Map<string, LimitStep[]> | undefined {
 	const targets = regions.map(currentTarget);
 	if (sharedLimit(targets.map((t) => (t === undefined ? 0 : size(t)))) === undefined) return undefined;
 	return new Map(
 		regions.map((r, i) => {
-			const deployments = r.current === undefined ? r.history : [...r.history, r.current];
+			const deployments = r.current === undefined ? charted : [...charted, r.current];
 			return [r.name, limitSteps(deployments, r.name, size, targets[i])];
 		}),
 	);
@@ -92,8 +101,16 @@ export function ReplicasPanel({
 	const target = { workspaceId, environmentId, resourceId, region, range };
 	const cpu = useMetricBand({ ...target, metricName: CPU_METRIC });
 	const charted = deployed.filter((r) => selected === null || r.name === selected);
-	const cpuLimits = regionLimits(charted, cpuSize);
-	const memoryLimits = regionLimits(charted, memorySize);
+	const since = msToTimestamp(nowMs - RANGE_MS[range]);
+	// The deployments created in the chart's window draw its limit steps.
+	const windowed =
+		useQuery(
+			listDeployments,
+			{ resourceId, environmentId, since, pageSize: WINDOW_DEPLOYMENTS },
+			{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
+		).data?.deployments ?? [];
+	const cpuLimits = regionLimits(charted, windowed, cpuSize);
+	const memoryLimits = regionLimits(charted, windowed, memorySize);
 	const single = charted.length === 1 ? charted[0]?.name : undefined;
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
 	const buckets = useQuery(
@@ -102,7 +119,7 @@ export function ReplicasPanel({
 			workspaceId,
 			environmentId,
 			resourceIds: [resourceId],
-			since: msToTimestamp(nowMs - RANGE_MS[range]),
+			since,
 			until: msToTimestamp(nowMs + MARKER_LEAD_MS),
 			bucketCount: MARKER_BUCKETS,
 		},
