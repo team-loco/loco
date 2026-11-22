@@ -37,11 +37,20 @@ DRAFT = {
     "edits": {},
 }
 RESOURCES = "**/loco.resource.v1.ResourceService/ListWorkspaceResources"
+DEPLOYMENTS = "**/loco.deployment.v1.DeploymentService/ListDeployments"
 failing = False
+deployments_failing = False
 
 
 def resources(route):
     if failing:
+        route.fulfill(status=500, json={"code": "internal", "message": "boom"})
+    else:
+        route.fallback()
+
+
+def deployments(route):
+    if deployments_failing:
         route.fulfill(status=500, json={"code": "internal", "message": "boom"})
     else:
         route.fallback()
@@ -56,6 +65,7 @@ with session(out) as browser:
         storage={f"loco:drafts:v1:{org}:{workspace}:{production}": json.dumps([DRAFT])},
     )
     page.route(RESOURCES, resources)
+    page.route(DEPLOYMENTS, deployments)
     listed = []
     page.on(
         "request",
@@ -125,6 +135,15 @@ with session(out) as browser:
     failing = False
     alert.get_by_role("button", name="Retry", exact=True).click()
     expect(row).to_be_visible()
+
+    deployments_failing = True
+    page.goto(f"{base}?env=production")
+    card = page.get_by_role("region", name="Deployments", exact=True)
+    failed = card.get_by_role("alert")
+    expect(failed.get_by_role("heading")).to_have_text("Couldn’t load deployments")
+    deployments_failing = False
+    failed.get_by_role("button", name="Retry", exact=True).click()
+    expect(card.get_by_role("table", name="Deployments")).to_be_visible()
 
     page.goto(f"{base}?env=staging")
     docs = page.get_by_role("link", name="Read the docs", exact=True)

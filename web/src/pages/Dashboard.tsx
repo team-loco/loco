@@ -1,6 +1,5 @@
 import { useQueryState } from "nuqs";
 import { useQuery } from "@connectrpc/connect-query";
-import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Link } from "react-router";
@@ -14,7 +13,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
-import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { usePollingWorkspaceResources } from "@/hooks/useWorkspaceDeployments";
 import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
 import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
@@ -54,7 +53,7 @@ export function Dashboard() {
 		{ workspaceId, environmentId: active?.id ?? "", environmentScoped: true, pageSize: 1, includeTotalCount: true },
 		{ enabled: grants === "workspace" && active !== undefined, refetchInterval: TOTAL_POLL_MS },
 	);
-	const granted = useTanstackQuery({ ...useWorkspaceResourcesOptions(orgId, workspaceId), enabled: scoped });
+	const granted = usePollingWorkspaceResources(activeOrgId, activeWorkspaceId, scoped);
 	const data = scoped ? granted : counted;
 	const envTotal = counted.data?.totalCount ?? 0;
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);

@@ -21,10 +21,11 @@ export function resourcesPollMs(resources: readonly Resource[] | undefined): num
 	return (resources ?? []).some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
 }
 
-function usePollingWorkspaceResources(orgId: string | null, workspaceId: string | null) {
+/** The workspace's resources the caller can read, polled faster while one rolls out. */
+export function usePollingWorkspaceResources(orgId: string | null, workspaceId: string | null, enabled = true) {
 	return useQuery({
 		...useWorkspaceResourcesOptions(orgId ?? "", workspaceId ?? ""),
-		enabled: orgId !== null && workspaceId !== null,
+		enabled: enabled && orgId !== null && workspaceId !== null,
 		refetchInterval: (q) => resourcesPollMs(q.state.data?.resources),
 	});
 }

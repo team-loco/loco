@@ -287,13 +287,23 @@ function StatCard({
 
 function AllocatedCard({
 	value,
+	failed,
 	hrefFor,
 	moreHref,
 }: {
 	value: GetEnvironmentAllocationResponse | undefined;
+	failed: boolean;
 	hrefFor: (id: string) => string;
 	moreHref: string;
 }) {
+	if (value === undefined && failed)
+		return (
+			<StatCard label="Allocated" growLeft ariaLabel="Allocated: unavailable" breakdown={null}>
+				<span data-slot="stat-value" className={VALUE}>
+					—
+				</span>
+			</StatCard>
+		);
 	if (value === undefined)
 		return (
 			<StatCard label="Allocated" growLeft ariaLabel="Allocated: loading" breakdown={null}>
@@ -501,7 +511,7 @@ export function Totals({
 		getEnvironmentAllocation,
 		{ workspaceId, environmentId },
 		{ refetchInterval: ALLOCATION_POLL_MS },
-	).data;
+	);
 	const metricsHref = observabilityPath(orgId, workspaceId, "metrics", { env: envName, range: spanMs });
 	const sizeHref = `${resourcesPath(orgId, workspaceId)}?${new URLSearchParams({ env: envName, sort: "size.desc" }).toString()}`;
 	return (
@@ -535,6 +545,14 @@ export function Totals({
 					onRetry={traffic.refetch}
 				/>
 			)}
+			{allocation.error !== null && (
+				<PartialError
+					title="Couldn’t load allocation"
+					detail="The CPU and memory the environment is allocated are missing."
+					error={allocation.error}
+					onRetry={allocation.refetch}
+				/>
+			)}
 			<section
 				aria-label="Totals"
 				className="grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] gap-2.5 sm:auto-rows-[minmax(178px,auto)]"
@@ -558,7 +576,12 @@ export function Totals({
 					/>
 				))}
 				<SoonCard label={SPEND} />
-				<AllocatedCard value={allocation} hrefFor={hrefFor} moreHref={sizeHref} />
+				<AllocatedCard
+					value={allocation.data}
+					failed={allocation.error !== null}
+					hrefFor={hrefFor}
+					moreHref={sizeHref}
+				/>
 			</section>
 		</div>
 	);

@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/design/Button";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { DeploymentActor, DeploymentId } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
@@ -157,6 +158,7 @@ export function RecentDeployments({
 	const total = counted.data === undefined ? undefined : (bucket?.deploymentCount ?? 0);
 	const counts = deploymentCounts(bucket?.statusCounts ?? []);
 	const rows = (listed.data?.deployments ?? []).map((deployment) => ({ deployment }));
+	const error = listed.error ?? counted.error;
 	const hrefOf = (row: DeploymentRow) => resourcePath(orgId, workspaceId, row.deployment.resourceId, { env: envName });
 	const table = useDataTable("dashboard-deployments", {
 		columns: deploymentColumns(hrefOf, nowMs),
@@ -203,7 +205,14 @@ export function RecentDeployments({
 
 	return (
 		<Section title="Deployments" count={total} actions={actions} filters={toolbar}>
-			{total === 0 ? (
+			{error !== null ? (
+				<ErrorState
+					error={error}
+					what="deployments"
+					rpc={listDeployments}
+					onRetry={async () => await Promise.all([listed.refetch(), counted.refetch()])}
+				/>
+			) : total === 0 && rows.length === 0 ? (
 				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
 				<DataTable

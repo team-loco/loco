@@ -20,6 +20,7 @@ workspace = state["workspaces"]["acme/shared"]
 base = f"{state['ui_url']}/org/{org}/wks/{workspace}"
 REQUEST_ID = "00000000-0000-4000-8000-000000000009"
 METRICS = "**/loco.observability.v1.ObservabilityService/QueryMetrics"
+ALLOCATION = "**/loco.resource.v1.ResourceService/GetEnvironmentAllocation"
 failing = False
 
 
@@ -38,11 +39,19 @@ def metrics(route):
     )
 
 
+def allocation(route):
+    if failing:
+        route.fulfill(status=500, json={"code": "internal", "message": "boom"})
+    else:
+        route.fallback()
+
+
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     page.route(METRICS, metrics)
+    page.route(ALLOCATION, allocation)
     listed = []
     page.on(
         "request",
@@ -77,21 +86,27 @@ with session(out) as browser:
     more = allocated.get_by_role("link", name=re.compile(r"^3 more"))
     expect(more).to_be_visible()
     expect(more).to_have_attribute("href", re.compile(r"/resources\?.*sort=size\.desc"))
-    more.click()
-    expect(page).to_have_url(re.compile(r"/resources\?.*sort=size\.desc"))
     # The dashboard lists only the deployments card's page of the last day.
     assert listed and all(
         body.get("pageSize") == 10 and "since" in body for body in listed
     ), listed
+    more.click()
+    expect(page).to_have_url(re.compile(r"/resources\?.*sort=size\.desc"))
 
     failing = True
     page.goto(f"{base}?env=production")
     alert = page.get_by_role("alert").filter(has_text="Couldn’t load metrics")
     expect(alert).to_contain_text("Requests, errors and bandwidth are missing")
     expect(alert.get_by_title("Copy request ID", exact=True)).to_have_text(REQUEST_ID)
+    unallocated = page.get_by_role("alert").filter(has_text="Couldn’t load allocation")
+    expect(unallocated).to_be_visible()
+    expect(page.get_by_role("group", name="Allocated: unavailable")).to_be_visible()
     failing = False
     alert.get_by_role("button", name="Retry", exact=True).click()
     expect(alert).to_have_count(0)
+    unallocated.get_by_role("button", name="Retry", exact=True).click()
+    expect(unallocated).to_have_count(0)
+    expect(allocated).to_contain_text("GiB memory")
     assert not errors, errors
     context.close()
 print("PASS: dashboard totals")
