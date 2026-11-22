@@ -18,11 +18,12 @@ function deployment(status: DeploymentStatus, problem?: { reason: string; messag
 		actorName: "Ada",
 		commit: { sha: "3e8a51d0c1" },
 		createdAt: timestampFromMs(OPENED + 1000),
+		updatedAt: timestampFromMs(OPENED + 1000),
 		placements: [{ region: "us-va-1", ...(problem === undefined ? {} : { problem }) }],
 	});
 }
 
-/** The toast tones, titles and descriptions as a deployment created after the shell opened moves through `steps`. */
+/** The toast tones, titles and descriptions as a deployment changing after the shell opened moves through `steps`. */
 function titles(steps: ReturnType<typeof deployment>[], viewerId = "u-me"): string[][] {
 	let seen = new Map<string, string>();
 	const out: string[][] = [];
@@ -34,13 +35,39 @@ function titles(steps: ReturnType<typeof deployment>[], viewerId = "u-me"): stri
 	return out;
 }
 
-test("a deployment from before the shell opened toasts only once it changes", () => {
-	const old = { ...deployment(DeploymentStatus.DEPLOYING), createdAt: timestampFromMs(OPENED - 1000) };
+test("a deployment that last changed before the shell opened toasts only once it changes", () => {
+	const before = timestampFromMs(OPENED - 1000);
+	const old = { ...deployment(DeploymentStatus.DEPLOYING), createdAt: before, updatedAt: before };
 	const first = deployToasts(new Map(), [old], NAMES, "u-me", OPENED);
 	expect(first.toasts).toEqual([]);
 	const failed = { ...old, status: DeploymentStatus.FAILED };
 	expect(deployToasts(first.seen, [failed], NAMES, "u-me", OPENED).toasts.map((t) => t.title)).toEqual([
 		"api deploy failed",
+	]);
+});
+
+test("a deployment started before the shell opened that fails after it toasts on first sight", () => {
+	const failed = {
+		...deployment(DeploymentStatus.FAILED, { reason: "image_pull_failed", message: "Pull failed." }),
+		createdAt: timestampFromMs(OPENED - 60_000),
+	};
+	expect(deployToasts(new Map(), [failed], NAMES, "u-me", OPENED).toasts.map((t) => t.title)).toEqual([
+		"api deploy failed",
+	]);
+});
+
+test("a new resource's first deploy toasts once its name loads", () => {
+	const d = deployment(DeploymentStatus.DEPLOYING);
+	const unnamed = deployToasts(new Map(), [d], new Map(), "u-me", OPENED);
+	expect(unnamed.toasts).toEqual([]);
+	expect(deployToasts(unnamed.seen, [d], NAMES, "u-me", OPENED).toasts.map((t) => t.title)).toEqual([
+		"api is deploying",
+	]);
+});
+
+test("a problem without a short name says the resource has a problem", () => {
+	expect(titles([deployment(DeploymentStatus.RUNNING, { reason: "something_new", message: "Odd." })])).toEqual([
+		["warning: api has a problem (Odd.)"],
 	]);
 });
 

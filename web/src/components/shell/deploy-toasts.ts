@@ -44,13 +44,15 @@ function standing(d: Deployment, name: string): { state: string; toast?: Shown }
 	if (d.status !== DeploymentStatus.RUNNING && d.status !== DeploymentStatus.DEGRADED) return { state: "done" };
 	if (problem === undefined)
 		return { state: "live", toast: { tone: "live", title: `${name} is live on ${deployRef(d)}`, description: "" } };
-	const reason = (PROBLEM_REASONS[problem.reason] ?? problem.reason).toLowerCase();
-	return { state: `warning:${problem.reason}`, toast: { tone: "warning", title: `${name}: ${reason}`, description } };
+	const reason = PROBLEM_REASONS[problem.reason];
+	const title = reason === undefined ? `${name} has a problem` : `${name}: ${reason.toLowerCase()}`;
+	return { state: `warning:${problem.reason}`, toast: { tone: "warning", title, description } };
 }
 
 /**
  * The toasts for deployments whose state changed since `seen`, and the states to remember.
- * A deployment created before `quietBeforeMs` and not seen yet is remembered without a toast.
+ * A deployment not seen yet whose state last changed before `quietBeforeMs` is remembered without a toast.
+ * A deployment of a resource without a name yet is left unseen, so it toasts once the name loads.
  * The viewer's own deployments get no "is deploying" toast, since their action already said so.
  */
 export function deployToasts(
@@ -64,11 +66,12 @@ export function deployToasts(
 	const toasts: DeployToast[] = [];
 	for (const d of deployments) {
 		const name = names.get(d.resourceId);
-		const { state, toast } = standing(d, name ?? "");
+		if (name === undefined) continue;
+		const { state, toast } = standing(d, name);
 		const known = seen.get(d.id);
-		const quiet = known === undefined && (maybeTsMs(d.createdAt) ?? 0) < quietBeforeMs;
+		const quiet = known === undefined && (maybeTsMs(d.updatedAt) ?? 0) < quietBeforeMs;
 		const own = state === "deploying" && d.actorId === viewerId;
-		if (toast !== undefined && !quiet && !own && name !== undefined && known !== state)
+		if (toast !== undefined && !quiet && !own && known !== state)
 			toasts.push({ ...toast, deploymentId: d.id, resourceId: d.resourceId });
 		next.set(d.id, state);
 	}

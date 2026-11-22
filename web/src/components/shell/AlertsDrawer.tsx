@@ -317,10 +317,10 @@ export function AlertsDrawer() {
 	const [openedAtMs, setOpenedAtMs] = useState(0);
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
-	const heard = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id);
+	const { heard, startedMsRef } = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id);
 	const [shown, setShown] = useState(ACTIVITY_PAGE);
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
-	// Deployments created before the shell showed this environment are known, so they toast only when they change.
+	// Closed, the deployment list covers the 30 minutes before the shell showed this environment, onwards.
 	const [watched, setWatched] = useState(() => ({ environmentId: active?.id, sinceMs: Date.now() }));
 	if (watched.environmentId !== active?.id) setWatched({ environmentId: active?.id, sinceMs: nowMs });
 	const resources = useQuery({
@@ -355,14 +355,14 @@ export function AlertsDrawer() {
 	useEffect(() => {
 		if (fresh === undefined || resourceList === undefined || activeOrgId === null || activeWorkspaceId === null) return;
 		const names = new Map(resourceList.map((r) => [r.id, r.name]));
-		const { seen, toasts } = deployToasts(seenRef.current, fresh, names, viewerId, watched.sinceMs);
+		const { seen, toasts } = deployToasts(seenRef.current, fresh, names, viewerId, startedMsRef.current);
 		seenRef.current = seen;
 		if (open) return;
 		for (const t of toasts)
 			showDeployToast(t, () => {
 				void navigate(resourcePath(activeOrgId, activeWorkspaceId, t.resourceId));
 			});
-	}, [fresh, resourceList, watched.sinceMs, open, viewerId, navigate, activeOrgId, activeWorkspaceId]);
+	}, [fresh, resourceList, startedMsRef, open, viewerId, navigate, activeOrgId, activeWorkspaceId]);
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 
