@@ -32,18 +32,16 @@ export interface AccessChoices {
  * The workspaces and resources the access picker offers for its typed text. Workspaces come from one page of
  * the organization's, searched by the text before any slash. Resources come from one page of the
  * organization's searched by the text, or, for a workspace owner or after a slash, from one page of each target
- * workspace's searched by the text after the slash: the owner's workspace, or the expanded workspace and the
- * first few workspaces whose names match.
+ * workspace's searched by the text after the slash: the owner's workspace, or the first few workspaces whose
+ * names match, one named exactly first.
  */
 export function useAccessChoices({
 	org,
 	scope,
-	expanded,
 	text,
 }: {
 	org: EntityNode | null;
 	scope: EntityNode | null;
-	expanded: EntityNode | null;
 	text: string;
 }): AccessChoices {
 	const transport = useTransport();
@@ -86,9 +84,11 @@ export function useAccessChoices({
 	const targets = ((): EntityNode[] => {
 		if (owned !== null) return slash === -1 || named(owned) ? [owned] : [];
 		if (slash === -1) return [];
-		const exact = expanded !== null && expanded.label.toLowerCase() === wsText.toLowerCase() ? [expanded] : [];
-		const rest = listed.filter((w) => named(w) && w.key !== expanded?.key);
-		return [...exact, ...rest].slice(0, SEARCHED_WORKSPACES);
+		const exact = (w: EntityNode) => (w.label.toLowerCase() === wsText.toLowerCase() ? 0 : 1);
+		return listed
+			.filter(named)
+			.toSorted((a, b) => exact(a) - exact(b))
+			.slice(0, SEARCHED_WORKSPACES);
 	})();
 	const grants = targets.map((w) => scopes.resourceGrants(w.parent?.id ?? orgId, w.id));
 
@@ -116,13 +116,9 @@ export function useAccessChoices({
 			: listedResources;
 		return matching.map((r) => entityNode(EntityType.RESOURCE, r.id, r.name, w));
 	});
-	const orgPage = searchesOrg ? orgResQuery.data : undefined;
-	const resourcesMore = targets.reduce(
-		(sum, _, i) => {
-			const page = resourceQueries[i]?.data;
-			return sum + (page === undefined ? 0 : Math.max(0, page.totalCount - page.resources.length));
-		},
-		orgPage === undefined ? 0 : Math.max(0, orgPage.totalCount - orgPage.resources.length),
+	const resourcesMore = [searchesOrg ? orgResQuery.data : undefined, ...resourceQueries.map((q) => q.data)].reduce(
+		(sum, page) => sum + (page === undefined ? 0 : Math.max(0, page.totalCount - page.resources.length)),
+		0,
 	);
 	const wsPage = wsQuery.data;
 	const workspacesMore =

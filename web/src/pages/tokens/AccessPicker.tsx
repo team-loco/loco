@@ -54,13 +54,12 @@ export function AccessPicker({
 	onChange: (items: AccessItem[]) => void;
 }) {
 	const [q, setQ] = useState("");
-	const [expanded, setExpanded] = useState<EntityNode | null>(null);
 	const [focus, setFocus] = useState(false);
 	const highlightedRef = useRef<EntityNode | undefined>(undefined);
 	const anchorRef = useRef<HTMLDivElement>(null);
 	const levelByKey = new Map(items.map((x) => [x.node.key, x.level]));
 	const query = q.trim().toLowerCase();
-	const choices = useAccessChoices({ org, scope, expanded, text: q.trim() });
+	const choices = useAccessChoices({ org, scope, text: q.trim() });
 
 	const coveredBy = (node: EntityNode, level: Level): string | null => {
 		for (let p = node.parent; p !== null; p = p.parent) {
@@ -100,7 +99,6 @@ export function AccessPicker({
 			: "Add a workspace or resource, e.g. storefront/web";
 
 	const expand = (node: EntityNode) => {
-		setExpanded(node);
 		setQ(`${node.label}/`);
 	};
 
@@ -113,7 +111,6 @@ export function AccessPicker({
 		}
 		onChange([...items, { node, level: 1 }]);
 		setQ("");
-		setExpanded(null);
 	};
 
 	const resourceCount = (n: EntityNode): string | null =>
