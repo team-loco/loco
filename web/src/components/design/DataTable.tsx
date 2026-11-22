@@ -207,15 +207,13 @@ function fitBounds<T extends RowData>(
 	return { minWidth: column.columnDef.minSize ?? MIN_WIDTH, maxWidth: index === 0 ? `min(${max}, 50cqi)` : max };
 }
 
-// Marks the scroll container with its scroll position and the pinned end column's width, which the stylesheet uses to fade the clipped edge, shade pinned columns and outline banded rows.
+// Marks the scroll container with its scroll position and the pinned end column's width, which the stylesheet uses to fade the clipped edge and shade pinned columns.
 function trackScroll(container: HTMLElement | null) {
 	if (container === null) return;
 	const update = () => {
 		const end = container.querySelector<HTMLElement>("thead [data-pin=end]");
 		container.style.setProperty("--pin-end", `${String(end?.offsetWidth ?? 0)}px`);
 		const max = container.scrollWidth - container.clientWidth;
-		container.style.setProperty("--scroll-left", `${String(container.scrollLeft)}px`);
-		container.style.setProperty("--scroll-right", `${String(Math.max(0, max - container.scrollLeft))}px`);
 		if (max <= 1) container.removeAttribute("data-scroll");
 		else
 			container.setAttribute(

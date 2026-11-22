@@ -262,14 +262,15 @@
 	& tr[data-interactive]:focus-visible {
 		--row-ring: 1px solid var(--ring);
 	}
-	/* The outline spans the visible part of the row, so its rounded ends sit on the pinned cells. */
+	/* The row's ring passes under the pinned cells, which draw its rounded ends over their opaque background. */
 	& tbody > tr::after {
 		content: "";
 		position: absolute;
-		inset: 0 var(--scroll-right, 0px) 0 var(--scroll-left, 0px);
-		z-index: 2;
+		inset: 0;
+		z-index: 0;
 		border: var(--row-ring, 0 solid transparent);
 		border-radius: var(--band-radius, 6px);
+		box-shadow: none;
 		pointer-events: none;
 	}
 	& tbody [data-pin] {
@@ -280,13 +281,16 @@
 		position: absolute;
 		inset: 0;
 		z-index: -1;
+		border: var(--row-ring, 0 solid transparent);
 		background: var(--row-tint);
 		pointer-events: none;
 	}
 	& tbody [data-pin="start"]::before {
+		border-right-width: 0;
 		border-radius: var(--band-radius, 6px) 0 0 var(--band-radius, 6px);
 	}
 	& tbody [data-pin="end"]::before {
+		border-left-width: 0;
 		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
 	}
 }
