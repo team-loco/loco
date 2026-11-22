@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from harness import (
     call,
+    copied_text,
     evidence,
     line_starts,
     load_state,
@@ -241,9 +242,7 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
 with session(repo / "tests/ui/out/deployment-progress") as browser:
     sql(state, f"DELETE FROM deployment_activity WHERE deployment_id='{p['current']}';")
     phase("building")
-    context, page, errors = open_page(
-        browser, state=state, permissions=["clipboard-read", "clipboard-write"]
-    )
+    context, page, errors = open_page(browser, state=state)
     page.goto(state["ui_url"] + path)
     panel = page.get_by_role("region", name="Building", exact=True)
     expect(panel).to_be_visible()
@@ -267,7 +266,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         re.compile(r"^\+\d+s after the rollout started")
     )
     panel.get_by_role("button", name="Copy deployment ID", exact=True).click()
-    assert page.evaluate("navigator.clipboard.readText()") == p["current"]
+    assert copied_text(page) == p["current"]
     panel.get_by_role("button", name="What’s being deployed", exact=True).click()
     expect(panel.get_by_text("0.1 vCPU · 128 Mi", exact=True)).to_be_visible()
     expect(panel.get_by_text("/health every 10s", exact=True)).to_be_visible()
@@ -295,7 +294,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(serving).not_to_contain_text(p["current"][-8:])
     serving.get_by_role("button").focus()
     page.keyboard.press("Enter")
-    assert page.evaluate("navigator.clipboard.readText()") == p["previous"]
+    assert copied_text(page) == p["previous"]
     phase("deploying", new_ready=True)
     expect(serving).to_contain_text(p["current"][-8:], timeout=25000)
     expect(serving).to_contain_text(p["previous"][-8:])

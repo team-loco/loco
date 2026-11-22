@@ -6,6 +6,7 @@ from pathlib import Path
 
 from harness import (
     call,
+    copied_text,
     evidence,
     expect_rpc,
     load_state,
@@ -465,7 +466,6 @@ with session(out) as browser:
             "link", name="Dashboard", exact=True
         )
     ).to_have_count(0)
-    context.grant_permissions(["clipboard-read", "clipboard-write"], origin=ui)
     prompt = "Deploy my app to Loco: https://loco.build/skills.md"
     assert prompt in (repo / "docs/content/reference/ai.md").read_text()
     onboard = page.get_by_role("button", name="Onboard your agent to Loco", exact=True)
@@ -474,7 +474,7 @@ with session(out) as browser:
     expect(
         page.get_by_role("button", name="Copied. Paste it into your agent", exact=True)
     ).to_be_visible()
-    assert page.evaluate("navigator.clipboard.readText()") == prompt
+    assert copied_text(page) == prompt
     expect(onboard).to_be_visible()
     page.set_viewport_size(evidence.NARROW)
     page.emulate_media(reduced_motion="reduce")
@@ -483,7 +483,7 @@ with session(out) as browser:
     expect(
         page.get_by_role("button", name="Copied. Paste it into your agent", exact=True)
     ).to_be_visible()
-    assert page.evaluate("navigator.clipboard.readText()") == prompt
+    assert copied_text(page) == prompt
     expect(onboard).to_be_visible()
     page.set_viewport_size(evidence.DESKTOP)
 

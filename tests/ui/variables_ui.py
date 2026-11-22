@@ -6,6 +6,7 @@ from pathlib import Path
 
 from harness import (
     call,
+    copied_text,
     evidence,
     expect_rpc,
     load_state,
@@ -131,9 +132,7 @@ split = evidence.seed_resources(
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
 
 with session(out) as browser:
-    context, page, errors = open_page(
-        browser, state=state, permissions=["clipboard-read", "clipboard-write"]
-    )
+    context, page, errors = open_page(browser, state=state)
     deployments = []
 
     def create_deployment(route):
@@ -181,10 +180,7 @@ with session(out) as browser:
     )
     expect(copy_url).to_be_visible()
     copy_url.click()
-    assert (
-        page.evaluate("navigator.clipboard.readText()")
-        == f"${{{{ {name}.PRIVATE_URL }}}}"
-    )
+    assert copied_text(page) == f"${{{{ {name}.PRIVATE_URL }}}}"
 
     variables.get_by_role("button", name="Add", exact=True).click()
     new_name = variables.get_by_label("Name of new variable", exact=True)

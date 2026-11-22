@@ -6,6 +6,7 @@ from pathlib import Path
 
 from harness import (
     call,
+    copied_text,
     evidence,
     expect_rpc,
     load_state,
@@ -84,9 +85,7 @@ def stored(secret):
 
 
 with session(out) as browser:
-    context, page, errors = open_page(
-        browser, state=state, permissions=["clipboard-read", "clipboard-write"]
-    )
+    context, page, errors = open_page(browser, state=state)
     page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}?env=production")
     page.get_by_role("link", name="Secrets", exact=True).click()
     expect(page).to_have_url(re.compile(r"/secrets\?env=production$"))
@@ -160,9 +159,7 @@ WHERE resource_id='{resource}';""",
 
     row.get_by_role("button", name="Actions for DATABASE_URL", exact=True).click()
     page.get_by_role("menuitem", name="Copy reference", exact=True).click()
-    assert (
-        page.evaluate("navigator.clipboard.readText()") == "${{ secrets.DATABASE_URL }}"
-    )
+    assert copied_text(page) == "${{ secrets.DATABASE_URL }}"
     row.get_by_role("button", name="Actions for DATABASE_URL", exact=True).click()
     page.get_by_role("menuitem", name="Update value", exact=True).click()
     dialog = page.get_by_role("dialog", name="Update DATABASE_URL")

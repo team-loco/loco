@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from harness import (
     call,
+    copied_text,
     evidence,
     expect_rpc,
     load_state,
@@ -151,7 +152,6 @@ with session(out) as browser:
         browser,
         state=state,
         now=NOW,
-        permissions=["clipboard-read", "clipboard-write"],
     )
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
     page.goto(base)
@@ -297,7 +297,7 @@ with session(out) as browser:
     more = page.get_by_role("button", name="More actions", exact=True)
     more.click()
     page.get_by_role("menuitem", name="Copy image reference", exact=True).click()
-    assert page.evaluate("navigator.clipboard.readText()") == image
+    assert copied_text(page) == image
     expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
     more.click()
     restart = page.get_by_role("menuitem", name="Restart all replicas", exact=True)
@@ -358,7 +358,7 @@ with session(out) as browser:
     copy_receipt = page.get_by_title("Copy request ID", exact=True)
     expect(copy_receipt).to_contain_text(receipt)
     copy_receipt.click()
-    assert page.evaluate("navigator.clipboard.readText()") == receipt
+    assert copied_text(page) == receipt
     # Toasts pause their timers while hovered.
     page.mouse.move(0, 0)
     page.clock.fast_forward(8000)

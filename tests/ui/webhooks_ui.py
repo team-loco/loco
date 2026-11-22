@@ -2,7 +2,16 @@ import argparse
 import re
 from pathlib import Path
 
-from harness import call, expect_rpc, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    copied_text,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -31,9 +40,7 @@ def unavailable(route):
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with session(out) as browser:
-    context, page, errors = open_page(
-        browser, state=state, permissions=["clipboard-read", "clipboard-write"]
-    )
+    context, page, errors = open_page(browser, state=state)
     requests = []
     page.on(
         "request",
@@ -128,7 +135,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         (id_copy, hook_id),
     ):
         control.click()
-        assert page.evaluate("navigator.clipboard.readText()") == expected
+        assert copied_text(page) == expected
     left = values.nth(2).bounding_box()["x"]
     assert abs(url_copy.locator("span").first.bounding_box()["x"] - left) < 1
     assert abs(id_copy.locator("span").first.bounding_box()["x"] - left) < 1

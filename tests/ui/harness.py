@@ -2,6 +2,7 @@ import atexit
 import contextlib
 import json
 import os
+import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -9,6 +10,11 @@ import evidence
 from playwright.sync_api import sync_playwright
 
 repo = Path(__file__).resolve().parents[2]
+
+# A clipboard per page; every suite shares one Chromium and its one system clipboard.
+CLIPBOARD_JS = """Object.defineProperty(navigator, "clipboard", {
+  value: { writeText: async text => { window.__copied = String(text); } },
+});"""
 
 
 def load_state(args, name, scenario, *, issuer=None):
@@ -76,6 +82,7 @@ def open_page(
     context.add_init_script(
         f"for (const [key, value] of Object.entries({json.dumps(values)})) localStorage.setItem(key, value);"
     )
+    context.add_init_script(CLIPBOARD_JS)
     page = context.new_page()
     errors = []
     failed_requests = []
@@ -125,6 +132,19 @@ def call(state, method, body, user="owner"):
 
 def sql(state, query):
     return evidence.psql(state, query)
+
+
+def copied_text(page, timeout=5):
+    """Waits for the page's next clipboard write and returns its text."""
+    deadline = time.monotonic() + timeout
+    while (
+        text := page.evaluate(
+            "() => { const text = window.__copied; delete window.__copied; return text; }"
+        )
+    ) is None:
+        assert time.monotonic() < deadline, "the page copied nothing"
+        page.wait_for_timeout(50)
+    return text
 
 
 def wait_for_query(page, check):
