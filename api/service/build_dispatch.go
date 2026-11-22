@@ -163,10 +163,6 @@ func (s *AgentServer) startBuildMessage(
 	if err != nil {
 		return nil, err
 	}
-	var traceparent string
-	if build.Traceparent != nil {
-		traceparent = *build.Traceparent
-	}
 	return &agentv1.SyncResponse{
 		Message: &agentv1.SyncResponse_StartBuild{
 			StartBuild: &agentv1.StartBuild{
@@ -181,7 +177,7 @@ func (s *AgentServer) startBuildMessage(
 				ImageRepository:    build.ImageRepository,
 				CacheRef:           build.CacheRef,
 				RegistryCredential: registryCredential,
-				Traceparent:        traceparent,
+				Traceparent:        build.Traceparent,
 			},
 		},
 	}, nil
