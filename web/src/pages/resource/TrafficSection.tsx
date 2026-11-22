@@ -1,24 +1,19 @@
 import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { keepPreviousData } from "@tanstack/react-query";
-import { useQuery } from "@connectrpc/connect-query";
-import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
-import { queryDeploymentBuckets } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useTraffic } from "@/hooks/useTraffic";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatAxisTime, formatFullTime, msToTimestamp, timeAxis } from "@/lib/time";
+import { formatAxisTime, formatFullTime, timeAxis } from "@/lib/time";
 import { errorShare, latestTraffic, trafficAxis, trafficValue, type TrafficPoint } from "@/lib/traffic";
-import { deploymentMarkers, RANGE_MS, type MetricRange } from "./metric";
-import { REFRESH_MS } from "./model";
+import { RANGE_MS, type MetricRange } from "./metric";
+import { markerLines } from "./MetricChart";
+import { useDeploymentMarkers } from "./useDeploymentMarkers";
 
 const ERROR_NOTE_SHARE = 2;
-const MARKER_BUCKETS = 200;
-const MARKER_LEAD_MS = 60_000;
-const AXIS_FONT = 11;
 
 function TooltipRow({ label, value }: { label: string; value: string }) {
 	return (
@@ -104,23 +99,11 @@ function PublicTraffic({
 		region,
 		spanMs: RANGE_MS[range],
 	});
-	const buckets = useQuery(
-		queryDeploymentBuckets,
-		{
-			workspaceId,
-			environmentId,
-			resourceIds: [resourceId],
-			since: msToTimestamp(nowMs - RANGE_MS[range]),
-			until: msToTimestamp(nowMs + MARKER_LEAD_MS),
-			bucketCount: MARKER_BUCKETS,
-		},
-		{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
-	);
+	const markers = useDeploymentMarkers({ workspaceId, environmentId, resourceId, range, nowMs });
 	const to = traffic.endMs;
 	const from = to - RANGE_MS[range];
 	const latest = latestTraffic(traffic.points, resourceId);
 	const share = errorShare(latest);
-	const markers = deploymentMarkers(buckets.data?.buckets ?? []).filter((m) => m.ms >= from && m.ms <= to);
 	const axis = trafficAxis(Math.max(0, ...traffic.points.map((point) => point.requests ?? 0)), "/s");
 	return (
 		<Section title="Traffic">
@@ -187,15 +170,7 @@ function PublicTraffic({
 										/>
 									}
 								/>
-								{markers.map((m) => (
-									<ReferenceLine
-										key={m.ms}
-										x={m.ms}
-										stroke="var(--fg3)"
-										strokeDasharray="2 3"
-										label={{ value: m.label, position: "insideTopLeft", fontSize: AXIS_FONT, fill: "var(--fg3)" }}
-									/>
-								))}
+								{markerLines(markers, from, to)}
 								<Area
 									dataKey="requests"
 									stroke="var(--series-0)"
