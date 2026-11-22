@@ -11,7 +11,6 @@ import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { Tip } from "@/components/design/Tooltip";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
 import { useTokenPage } from "@/hooks/useTokenPage";
@@ -211,15 +210,15 @@ function AccessRows({
 									{LEVELS.map((l) => {
 										const reason = levelBlocked(current, l, held);
 										return (
-											<Tip key={l} tip={reason}>
-												<ToggleGroupItem
-													value={l.toString()}
-													disabled={busy !== null || reason !== null}
-													className={cn("disabled:opacity-45", PRESSED[l])}
-												>
-													{LEVEL_LABEL[l]}
-												</ToggleGroupItem>
-											</Tip>
+											<ToggleGroupItem
+												key={l}
+												value={l.toString()}
+												disabled={busy !== null || reason !== null}
+												title={reason ?? undefined}
+												className={cn("disabled:opacity-45", PRESSED[l])}
+											>
+												{LEVEL_LABEL[l]}
+											</ToggleGroupItem>
 										);
 									})}
 								</ToggleGroup>
