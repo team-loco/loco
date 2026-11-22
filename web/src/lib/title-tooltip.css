@@ -31,7 +31,7 @@
 	background: var(--raise);
 	border: 2px solid var(--ink);
 	border-radius: 5px;
-	box-shadow: 4px 4px 0 var(--ink);
+	box-shadow: 3px 3px 0 var(--ink);
 	font-weight: 500;
 }
 [data-theme="solarized"] :is(.loco-tip, [data-slot="tooltip-content"]) {

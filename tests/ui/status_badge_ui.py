@@ -124,10 +124,14 @@ BADGE_STYLE = """el => {
     border: parseFloat(s.borderTopWidth),
     borderAlpha: s.borderTopStyle === 'none' ? 0 : alpha(s.borderTopColor),
     fillAlpha: alpha(s.backgroundColor),
+    radius: parseFloat(s.borderTopLeftRadius),
     height: el.getBoundingClientRect().height,
     icon: !!el.querySelector('svg'),
   };
 }"""
+
+
+color_theme = "loco"
 
 
 def expect_badge(row, label, tone):
@@ -137,7 +141,10 @@ def expect_badge(row, label, tone):
     style = badge.evaluate(BADGE_STYLE)
     assert style["icon"], label
     assert style["border"] >= 1 and style["borderAlpha"] > 0, (label, style)
-    assert style["fillAlpha"] > 0, (label, style)
+    if color_theme == "paper":
+        assert style["fillAlpha"] == 0 and style["radius"] >= 99, (label, style)
+    else:
+        assert style["fillAlpha"] > 0, (label, style)
     assert 20 <= style["height"] <= 28, (label, style)
 
 
@@ -216,7 +223,8 @@ def check_activity(page):
 
 
 with session(repo / "tests/ui/out/status-badge") as browser:
-    for color in ("loco", "solarized", "neobrutal"):
+    for color in ("loco", "solarized", "neobrutal", "paper"):
+        color_theme = color
         for mode in ("light", "dark"):
             context, page, errors = open_page(
                 browser,

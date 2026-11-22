@@ -85,8 +85,12 @@
 		font-family: var(--font-mono);
 		letter-spacing: -0.02em;
 	}
-	& :is([data-slot="field-label"], [data-slot="dropdown-menu-label"]) {
+	& [data-slot="field-label"] {
 		font-size: 11.5px;
+		letter-spacing: 0;
+	}
+	& [data-slot="dropdown-menu-label"] {
+		font-family: var(--font-mono);
 		letter-spacing: 0;
 	}
 	& h1 {
