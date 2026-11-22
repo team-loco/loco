@@ -553,6 +553,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
                         "environment": "production",
                         "spec": {
                             "platform": "linux/amd64",
+                            "observability": {"injectOtel": True},
                             "build": {
                                 "type": "image",
                                 "image": "registry.example.test/fresh:v1",
