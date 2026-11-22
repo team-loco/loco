@@ -284,7 +284,11 @@ with session(out) as browser:
 
     search = page.get_by_role("combobox", name="Search and filter")
     suggestions = page.get_by_role("listbox", name="Suggestions")
-    clear_search = page.get_by_role("button", name="Clear", exact=True)
+
+    def clear_query():
+        # Clearing focuses the bar, which opens its suggestions over the table.
+        page.get_by_role("button", name="Clear", exact=True).click()
+        search.press("Escape")
 
     def search_for(text):
         search.fill(text)
@@ -298,7 +302,7 @@ with session(out) as browser:
     ):
         search_for("ledger")
     expect(rows).to_have_count(1)
-    clear_search.click()
+    clear_query()
     expect(rows).to_have_count(4)
     page.get_by_role("button", name="Clear event filter", exact=True).click()
     expect(rows).to_have_count(50)
@@ -334,7 +338,7 @@ with session(out) as browser:
         .locator("tbody tr[data-interactive]")
         .filter(has_text="Created a resource")
     ).to_contain_text("sibling / inventory")
-    clear_search.click()
+    clear_query()
     expect(rows).to_have_count(50)
     # Typing @ lists every audit field; typing a field lists its values with their counts.
     search.fill("@")
@@ -367,7 +371,7 @@ with session(out) as browser:
         ).click()
     search.press("Escape")
     expect(rows.first).to_be_visible()
-    clear_search.click()
+    clear_query()
     # Typing sends nothing until a term is added, so a half-typed field neither reads nor fails.
     typed_from = len(list_events(calls))
     search.fill("")
@@ -382,7 +386,7 @@ with session(out) as browser:
     typed = [call["body"].get("query") for call in list_events(calls)[typed_from:]]
     assert typed == ["@type:secret.set"], typed
     expect(page.get_by_role("alert")).to_have_count(0)
-    clear_search.click()
+    clear_query()
     with expect_rpc(
         page,
         "ListEvents",
@@ -406,7 +410,7 @@ with session(out) as browser:
         search_for("@actor:" + users["owner"]["id"])
     expect(alert).to_have_count(0)
     expect(rows).to_have_count(50)
-    clear_search.click()
+    clear_query()
     with expect_rpc(
         page,
         "ListEvents",
@@ -421,7 +425,7 @@ with session(out) as browser:
     page.reload()
     expect(alert.locator("mark")).to_have_text("@wrong:value")
     page.set_viewport_size(evidence.DESKTOP)
-    clear_search.click()
+    clear_query()
 
     with expect_rpc(
         page,
@@ -436,7 +440,7 @@ with session(out) as browser:
     page.set_viewport_size({"width": 390, "height": 844})
     expect(search).to_be_visible()
     page.set_viewport_size(evidence.DESKTOP)
-    clear_search.click()
+    clear_query()
     expect(rows).to_have_count(50)
     page.get_by_role("button", name="Event", exact=True).click()
     page.get_by_role("option", name=re.compile(r"^Created a resource")).click()
