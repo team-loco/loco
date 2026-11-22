@@ -319,9 +319,9 @@ export function AlertsDrawer() {
 	const { active } = useEnvironments();
 	const [shown, setShown] = useState(ACTIVITY_PAGE);
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
-	// Closed, the deployment list covers the 30 minutes before the shell showed this environment, onwards.
-	const [watched, setWatched] = useState(() => ({ environmentId: active?.id, sinceMs: Date.now() }));
-	if (watched.environmentId !== active?.id) setWatched({ environmentId: active?.id, sinceMs: nowMs });
+	// When the drawer started watching this environment: the event stream starts here, deployments that last
+	// changed before it toast only when they change again, and the closed drawer lists from 30 minutes before it.
+	const [watchedSinceMs] = useState(Date.now);
 	const resources = useQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
 		enabled: activeOrgId !== null && activeWorkspaceId !== null,
@@ -338,11 +338,11 @@ export function AlertsDrawer() {
 			});
 	};
 	const showDeploymentToasts = useEffectEvent(show);
-	const { heard, startedMsRef } = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id, (events) => {
+	const heard = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id, watchedSinceMs, (events) => {
 		const names = new Map((resourceList ?? []).map((r) => [r.id, r.name]));
 		show(events.flatMap((e) => degradedToast(e, names) ?? []));
 	});
-	const sinceMs = Math.floor((openedAtMs || watched.sinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
+	const sinceMs = Math.floor((openedAtMs || watchedSinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
 	const deploymentsQuery = useConnectQuery(
 		listDeployments,
 		{
@@ -367,10 +367,10 @@ export function AlertsDrawer() {
 	useEffect(() => {
 		if (fresh === undefined || resourceList === undefined) return;
 		const names = new Map(resourceList.map((r) => [r.id, r.name]));
-		const { seen, toasts } = deployToasts(seenRef.current, fresh, names, viewerId, startedMsRef.current);
+		const { seen, toasts } = deployToasts(seenRef.current, fresh, names, viewerId, watchedSinceMs);
 		seenRef.current = seen;
 		showDeploymentToasts(toasts);
-	}, [fresh, resourceList, startedMsRef, viewerId]);
+	}, [fresh, resourceList, watchedSinceMs, viewerId]);
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 

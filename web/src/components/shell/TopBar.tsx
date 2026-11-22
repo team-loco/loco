@@ -1,4 +1,6 @@
 import { useSidebar } from "@/components/design/Sidebar";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { AlertsDrawer } from "./AlertsDrawer";
 import { CommandMenu } from "./CommandMenu";
 import { ShellBreadcrumb } from "./ShellBreadcrumb";
@@ -7,6 +9,8 @@ import { SidebarToggle } from "./SidebarToggle";
 export function TopBar() {
 	const { open, isMobile, openMobile } = useSidebar();
 	const sidebarOpen = isMobile ? openMobile : open;
+	const { activeWorkspaceId } = useOrgWorkspace();
+	const { active } = useEnvironments();
 	return (
 		<header
 			data-slot="top-bar"
@@ -14,7 +18,8 @@ export function TopBar() {
 		>
 			<SidebarToggle hideWhenOpen className="hover:bg-panel" />
 			<ShellBreadcrumb />
-			<AlertsDrawer />
+			{/* Each environment gets its own activity drawer, which starts watching for deploys when it mounts. */}
+			<AlertsDrawer key={`${activeWorkspaceId ?? ""}/${active?.id ?? ""}`} />
 			{!sidebarOpen && <CommandMenu />}
 		</header>
 	);
