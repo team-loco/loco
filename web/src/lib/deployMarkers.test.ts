@@ -49,12 +49,12 @@ describe("deployMarkers", () => {
 		);
 		expect(marker?.count).toBe(3);
 		expect(marker?.failed).toBe(true);
-		expect(marker?.tip).toBe("3 deploys · 1 failed\nweb, api, worker +2");
+		expect(marker?.tip).toBe("3 deploys, 1 failed\nweb, api, worker +2");
 	});
 
 	test("names a single failed deployment's version and resource", () => {
 		const [marker] = deployMarkers([single(2, DeploymentStatus.FAILED)], START, END, START + 3 * HOUR_MS);
 		expect(marker?.failed).toBe(true);
-		expect(marker?.tip).toBe("v2 · web\nfailed 1h ago");
+		expect(marker?.tip).toBe("v2, web\nfailed 1h ago");
 	});
 });

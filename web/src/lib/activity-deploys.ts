@@ -121,7 +121,7 @@ export function tookLabel(ms: number): string {
 export function finishedLabel(d: Deployment, nowMs: number): string {
 	const created = maybeTsMs(d.createdAt) ?? nowMs;
 	const end = readyMs(d) ?? maybeTsMs(d.completedAt) ?? created;
-	return `took ${tookLabel(end - created)} · ${agoLabel(end, nowMs)}`;
+	return `took ${tookLabel(end - created)}, ${agoLabel(end, nowMs)}`;
 }
 
 /** The resource/region keys of the deployments in flight. */

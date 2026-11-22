@@ -399,7 +399,7 @@ def activity_deployments(page):
     expect(cards.nth(0)).to_contain_text("Deploy replicas")
     expect(cards.nth(1)).to_contain_text("Deployed")
     expect(cards.nth(1)).to_contain_text("1 of 1 ready")
-    expect(cards.nth(1)).to_contain_text(re.compile(r"took 16s · 7m ago"))
+    expect(cards.nth(1)).to_contain_text(re.compile(r"took 16s, 7m ago"))
     expect(
         cards.nth(0).get_by_role("link", name="Open controls-pilot", exact=True)
     ).to_be_visible()
