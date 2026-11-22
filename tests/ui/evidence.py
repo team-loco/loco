@@ -458,6 +458,10 @@ def validate_spec(spec):
                 raise EvidenceError(f"shot {name}: {field} must be true or false")
         if "color" in shot and not isinstance(shot["color"], str):
             raise EvidenceError(f"shot {name}: color must be a colour theme id")
+        if "root_font" in shot and (
+            not isinstance(shot["root_font"], int) or shot["root_font"] <= 0
+        ):
+            raise EvidenceError(f"shot {name}: root_font must be a font size in pixels")
         crop = shot.get("crop", "viewport")
         valid_crop = crop in ("viewport", "full") or (
             isinstance(crop, dict) and (("selector" in crop) != ("clip" in crop))
@@ -1908,6 +1912,8 @@ def capture(browser, state, shot, theme, narrow, target):
         authenticate(context, state, user["token"])
     if "color" in shot:
         script += f"localStorage.setItem({json.dumps(COLOR_KEY)}, {json.dumps(shot['color'])});"
+    if "root_font" in shot:
+        script += f"document.addEventListener('DOMContentLoaded', () => {{ document.documentElement.style.fontSize = '{shot['root_font']}px'; }});"
     context.add_init_script(script)
 
     def responder(response):

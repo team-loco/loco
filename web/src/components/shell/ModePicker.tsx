@@ -17,6 +17,7 @@ export function ModePicker() {
 			<span>Mode</span>
 			<RadioGroup
 				aria-label="Mode"
+				data-segmented
 				aria-orientation="horizontal"
 				value={mode}
 				onValueChange={(value) => {
@@ -48,7 +49,7 @@ export function ModePicker() {
 						aria-label={item.name}
 						title={item.name}
 						style={{ width: MODE_WIDTH }}
-						className="relative z-3 h-6 shrink-0 justify-center rounded-control-inner bg-transparent p-0 text-fg3 ring-0 hover:ring-0 data-checked:bg-transparent data-checked:text-foreground data-checked:ring-0 dark:bg-transparent dark:data-checked:bg-transparent data-checked:[&>.mt-static]:opacity-0"
+						className="relative z-3 h-[24px] shrink-0 justify-center rounded-control-inner bg-transparent p-0 text-fg3 ring-0 hover:ring-0 data-checked:bg-transparent data-checked:text-foreground data-checked:ring-0 dark:bg-transparent dark:data-checked:bg-transparent data-checked:[&>.mt-static]:opacity-0"
 					>
 						<span aria-hidden className="mt-static">
 							<ThemeIcon mode={MODE_ICONS[item.id]} />
