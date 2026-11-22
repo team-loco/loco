@@ -91,6 +91,9 @@ with session(out) as browser:
     expect(page).to_have_url(re.compile(r"/secrets\?env=production$"))
     expect(page.get_by_role("heading", name="No secrets in production")).to_be_visible()
     expect(
+        page.get_by_role("textbox", name="Search secrets", exact=True)
+    ).to_be_visible()
+    expect(
         page.get_by_text(
             "Secrets belong to production. Any resource here can refer to one from its variables.",
             exact=True,
@@ -111,7 +114,7 @@ with session(out) as browser:
     ).to_be_visible()
     expect(
         dialog.get_by_text(
-            "You won’t be able to see this value again after you save. Keep a copy somewhere safe if you need it.",
+            "You won’t be able to see this value again after you save.",
             exact=True,
         )
     ).to_be_visible()
@@ -131,6 +134,7 @@ with session(out) as browser:
     row = page.get_by_role("row").filter(has_text="DATABASE_URL")
     expect(row).to_contain_text("Not used")
     expect(row).to_contain_text("v1")
+    expect(row).to_contain_text("today")
     assert "hunter2" not in stored("DATABASE_URL")
     expect(
         page.get_by_text(

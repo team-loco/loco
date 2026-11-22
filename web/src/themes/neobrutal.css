@@ -621,3 +621,17 @@
 [data-theme="neobrutal"] [data-status-badge="info"] {
 	--nbf: #88aaee;
 }
+[data-theme="neobrutal"] [data-secret-name] {
+	border: 2px solid var(--ink);
+	border-radius: 4px;
+	background: var(--raise);
+}
+[data-theme="neobrutal"] [data-secret-warn] {
+	border: 2px solid var(--ink);
+	border-radius: 5px;
+	background: #ffdc58;
+	color: #000000;
+	& svg {
+		color: #000000;
+	}
+}

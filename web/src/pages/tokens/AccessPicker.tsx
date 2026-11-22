@@ -102,13 +102,8 @@ export function AccessPicker({
 		setQ(`${node.label}/`);
 	};
 
-	// Picking a workspace the caller holds no access to lists the resources it may hold grants on.
 	const add = (node: EntityNode) => {
-		const lvl = heldLevel(held, node);
-		if (lvl === 0) {
-			if (node.kind === "ws") expand(node);
-			return;
-		}
+		if (heldLevel(held, node) === 0) return;
 		onChange([...items, { node, level: 1 }]);
 		setQ("");
 	};
@@ -124,7 +119,7 @@ export function AccessPicker({
 				return "Organization";
 			case "ws": {
 				const count = resourceCount(n);
-				return count === null ? "Workspace" : `Workspace · ${count}`;
+				return count === null ? "Workspace" : `Workspace: ${count}`;
 			}
 			case "res": {
 				const cov = coveredBy(n, 1);
@@ -138,12 +133,12 @@ export function AccessPicker({
 	const itemKind = (n: EntityNode): string => {
 		switch (n.kind) {
 			case "user":
-				return "User · your profile and account";
+				return "User: your profile and account";
 			case "org":
-				return "Organization · everything in it";
+				return "Organization: everything in it";
 			case "ws": {
 				const count = resourceCount(n);
-				return `Workspace · all ${count ?? "resources"}`;
+				return `Workspace: all ${count ?? "resources"}`;
 			}
 			case "res":
 				return n.parent?.label ?? "Resource";
@@ -176,7 +171,7 @@ export function AccessPicker({
 						const dis = l > lvl;
 						const tip = dis
 							? `You only have ${lvl === 0 ? "no access" : LEVEL_LABEL[lvl]} on ${n.label}`
-							: ALLOWS[n.kind].slice(0, l).join(" · ");
+							: ALLOWS[n.kind].slice(0, l).join(", ");
 						return (
 							<ToggleGroupItem key={l} value={l.toString()} disabled={dis} title={tip} className="disabled:opacity-45">
 								{LEVEL_LABEL[l]}
@@ -255,15 +250,13 @@ export function AccessPicker({
 							<ComboboxGroup key={g.label}>
 								<ComboboxLabel className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">{g.label}</ComboboxLabel>
 								{g.nodes.map((n) => {
-									const lvl = heldLevel(held, n);
-									const noAccess = lvl === 0;
-									const disabled = noAccess && n.kind !== "ws";
+									const noAccess = heldLevel(held, n) === 0;
 									const covered = n.kind === "res" && coveredBy(n, 1) !== null;
 									return (
 										<ComboboxItem
 											key={n.key}
 											value={n}
-											disabled={disabled}
+											disabled={noAccess}
 											title={noAccess ? `You have no access to ${n.label}` : undefined}
 											className={cn(noAccess && "opacity-45", covered && "opacity-50")}
 										>

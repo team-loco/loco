@@ -86,7 +86,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     expect(name).to_have_value("QA Token <script>")
     expect(drawer.get_by_text("Saved as qa-token--script-")).to_be_visible()
 
-    subtitle = drawer.get_by_text("Organization · everything in it", exact=True)
+    subtitle = drawer.get_by_text("Organization: everything in it", exact=True)
     assert subtitle.evaluate("node => node.scrollWidth <= node.clientWidth")
 
     drawer.get_by_role("button", name="Create token", exact=True).click()
@@ -177,7 +177,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     ):
         search.fill("sib")
     workspace = options.get_by_role("option", name=re.compile(r"^sibling"))
-    expect(workspace).to_contain_text("Workspace · 1 resources")
+    expect(workspace).to_contain_text("Workspace: 1 resources")
     expect(options.get_by_role("option", name=re.compile(r"^private"))).to_have_count(0)
     with expect_rpc(
         page,
@@ -307,6 +307,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     expect(options.get_by_role("option", name=re.compile(r"^private"))).to_have_count(0)
     workspace = options.get_by_role("option", name=re.compile(r"^sibling"))
     expect(workspace).to_contain_text("No access")
+    expect(workspace).to_have_attribute("data-disabled", "")
     workspace.get_by_role("button", name="Show resources in sibling").click()
     expect(search).to_have_value("sibling/")
     resource = options.get_by_role("option", name=re.compile(r"^inventory-api"))

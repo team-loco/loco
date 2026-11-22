@@ -8,6 +8,8 @@ import { DAY_MS } from "@/lib/time";
 import {
 	allowsFor,
 	buildHeld,
+	chipName,
+	collapsedNames,
 	customExpiryError,
 	defaultExpirySeconds,
 	expiryOptions,
@@ -118,4 +120,13 @@ describe("held access", () => {
 	test("a system scope covers every entity", () => {
 		expect(heldLevel(buildHeld([scope(EntityType.SYSTEM, "", Scope.ADMIN)]), other)).toBe(3);
 	});
+});
+
+test("access chips name orgs and workspaces and collapse past three names", () => {
+	const org = entityNode(EntityType.ORGANIZATION, "org", "acme", null);
+	const ws = entityNode(EntityType.WORKSPACE, "ws", "shared", org);
+	const res = entityNode(EntityType.RESOURCE, "res", "web", ws);
+	expect([org, ws, res].map(chipName)).toEqual(["acme org", "shared workspace", "web"]);
+	expect(collapsedNames(["a", "b", "c"])).toBe("a, b, c");
+	expect(collapsedNames(["a", "b", "c", "d", "e"])).toBe("a, b, c +2");
 });

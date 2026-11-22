@@ -103,3 +103,7 @@
 [data-theme="solarized"] [data-status-badge] {
 	border-radius: 2px;
 }
+
+[data-theme="solarized"] [data-secret-name] {
+	border-radius: 0;
+}

@@ -103,7 +103,7 @@ export function SecretDialog({
 									type={shown ? "text" : "password"}
 									autoComplete="new-password"
 									value={value}
-									placeholder={updating ? "•••••••• · type the new value" : "value"}
+									placeholder={updating ? "Type the new value" : "value"}
 									onChange={(e) => {
 										setValue(e.target.value);
 									}}
@@ -114,7 +114,6 @@ export function SecretDialog({
 									size="icon-xs"
 									className="absolute right-1.5"
 									aria-label={eyeLabel}
-									title={eyeLabel}
 									disabled={value === ""}
 									onClick={() => {
 										setShown((s) => !s);
@@ -126,12 +125,11 @@ export function SecretDialog({
 						</Field>
 						<div
 							role="note"
+							data-secret-warn=""
 							className="flex items-start gap-2 rounded-[6px] bg-[color-mix(in_oklab,var(--warn)_12%,transparent)] px-3 py-[9px] text-[12.5px] leading-[1.45] text-foreground"
 						>
 							<TriangleAlertIcon className="mt-px size-3.5 shrink-0 text-warn" />
-							<span>
-								You won’t be able to see this value again after you save. Keep a copy somewhere safe if you need it.
-							</span>
+							<span>You won’t be able to see this value again after you save.</span>
 						</div>
 						<span className="text-[12.5px] text-fg3">{secretHint(current, users, updating)}</span>
 						{save.error !== null && (
