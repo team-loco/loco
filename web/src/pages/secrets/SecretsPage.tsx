@@ -173,7 +173,7 @@ export function SecretsPage({
 							art={<SecretsArt environment={environmentName} />}
 							title={`No secrets in ${environmentName}`}
 							subtitle={`Secrets belong to ${environmentName}. Any resource here can refer to one from its variables.`}
-							className="rounded-none border-t border-line2"
+							className="rounded-t-none border-t border-line2"
 						>
 							<div className="mt-1.5 flex flex-wrap justify-center gap-2">
 								{canWrite && (

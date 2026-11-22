@@ -114,6 +114,7 @@ export function SecretDialog({
 									size="icon-xs"
 									className="absolute right-1.5"
 									aria-label={eyeLabel}
+									title={eyeLabel}
 									disabled={value === ""}
 									onClick={() => {
 										setShown((s) => !s);
