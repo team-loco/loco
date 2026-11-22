@@ -127,10 +127,6 @@ export interface PaletteItem {
 const MODE_LIST: SubList = { id: "mode", crumb: "Mode", heading: "Mode", placeholder: "Choose a mode" };
 const THEME_LIST: SubList = { id: "theme", crumb: "Theme", heading: "Theme", placeholder: "Choose a theme" };
 
-function idMeta(id: string): ReactNode {
-	return <span className="font-mono">{id.slice(0, 8)}…</span>;
-}
-
 const RESOURCE_VIEWS: { view: ObservabilityView; label: string; icon: ReactNode }[] = [
 	{ view: "logs", label: "Logs", icon: <ScrollTextIcon /> },
 	{ view: "metrics", label: "Metrics", icon: <ChartLineIcon /> },
@@ -159,9 +155,15 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 	const go = (to: string) => () => {
 		void navigate(to);
 	};
-	const copyId = (what: string, id: string) => () => {
-		copy(id, id, `Copied ${what}`);
-	};
+	const copyItem = (what: string, id: string, keywords: string) => ({
+		label: `Copy ${what}`,
+		keywords: `id uuid ${keywords}`,
+		meta: <span className="font-mono">{id.slice(0, 8)}…</span>,
+		icon: <CopyIcon />,
+		run: () => {
+			copy(id, id, `Copied ${what}`);
+		},
+	});
 	const items: PaletteItem[] = [...pageItems];
 
 	if (activeOrgId !== null && activeWorkspaceId !== null) {
@@ -204,43 +206,28 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 		const copyEnv =
 			activeEnv === undefined
 				? undefined
-				: {
-						label: `Copy ${activeEnv.name} environment ID`,
-						keywords: "id uuid environment env",
-						meta: idMeta(activeEnv.id),
-						icon: <CopyIcon />,
-						run: copyId(`${activeEnv.name} environment ID`, activeEnv.id),
-					};
+				: copyItem(`${activeEnv.name} environment ID`, activeEnv.id, "environment env");
 		if (here !== undefined)
 			items.push({
 				id: "copy-resource-id",
 				group: "Copy",
-				label: `Copy ${here.name} resource ID`,
-				keywords: `id uuid resource service ${here.slug}`,
-				meta: idMeta(here.id),
-				icon: <CopyIcon />,
-				run: copyId(`${here.name} resource ID`, here.id),
+				...copyItem(`${here.name} resource ID`, here.id, `resource service ${here.slug}`),
 			});
 		if (copyEnv !== undefined) items.push({ id: "copy-environment-id", group: "Copy", ...copyEnv });
-		items.push({
-			id: "copy-workspace-id",
-			group: "Copy",
-			label: `Copy ${workspace?.name ?? "workspace"} workspace ID`,
-			keywords: "id uuid workspace project",
-			meta: idMeta(workspaceId),
-			icon: <CopyIcon />,
-			run: copyId(`${workspace?.name ?? "workspace"} workspace ID`, workspaceId),
-		});
+		const workspaceName = workspace?.name ?? "workspace";
 		const orgName = orgs.find((o) => o.id === orgId)?.name ?? "organization";
-		items.push({
-			id: "copy-organization-id",
-			group: "Copy",
-			label: `Copy ${orgName} organization ID`,
-			keywords: "id uuid organization org",
-			meta: idMeta(orgId),
-			icon: <CopyIcon />,
-			run: copyId(`${orgName} organization ID`, orgId),
-		});
+		items.push(
+			{
+				id: "copy-workspace-id",
+				group: "Copy",
+				...copyItem(`${workspaceName} workspace ID`, workspaceId, "workspace project"),
+			},
+			{
+				id: "copy-organization-id",
+				group: "Copy",
+				...copyItem(`${orgName} organization ID`, orgId, "organization org"),
+			},
+		);
 		for (const r of resourceList) {
 			const list: SubList = {
 				id: `resource:${r.id}`,
@@ -272,11 +259,7 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 				items.push({
 					id: `resource-${r.id}-copy`,
 					group: "Resources",
-					label: `Copy ${r.name} resource ID`,
-					keywords: `id uuid ${r.slug}`,
-					meta: idMeta(r.id),
-					icon: <CopyIcon />,
-					run: copyId(`${r.name} resource ID`, r.id),
+					...copyItem(`${r.name} resource ID`, r.id, r.slug),
 					searchOnly: true,
 				});
 			const sub = (key: string, item: Omit<PaletteItem, "id" | "group" | "list">) => {
@@ -300,13 +283,7 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 				icon: <Settings2Icon />,
 				run: go(resourcePath(orgId, workspaceId, r.id, { tab: "settings", env })),
 			});
-			sub("copy-id", {
-				label: "Copy resource ID",
-				keywords: "id uuid",
-				meta: idMeta(r.id),
-				icon: <CopyIcon />,
-				run: copyId(`${r.name} resource ID`, r.id),
-			});
+			sub("copy-id", { ...copyItem(`${r.name} resource ID`, r.id, ""), label: "Copy resource ID" });
 			if (copyEnv !== undefined) sub("copy-environment-id", copyEnv);
 		}
 	}
@@ -507,10 +484,7 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 				(item) =>
 					item.group === group && (item.list ?? null) === (list?.id ?? null) && !(browsing && item.searchOnly === true),
 			);
-			return {
-				group,
-				items: browsing && list === null && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup,
-			};
+			return { group, items: browsing && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
 		});
 
 	return (
@@ -626,13 +600,10 @@ export function PageCommands({ items }: { items: readonly PaletteItem[] }) {
 	if (setPageItems === null) throw new Error("PageCommands must be used inside CommandPaletteProvider");
 	useEffect(() => {
 		setPageItems(items);
-	}, [setPageItems, items]);
-	useEffect(
-		() => () => {
+		return () => {
 			setPageItems([]);
-		},
-		[setPageItems],
-	);
+		};
+	}, [setPageItems, items]);
 	return null;
 }
 
