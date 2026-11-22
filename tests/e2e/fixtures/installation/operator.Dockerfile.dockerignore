@@ -9,6 +9,8 @@
 !k8sapi
 !tools/installation-e2e
 !tools/internal/devicelogin
+!tools/internal/imagepull
+!tools/internal/operatorrepo
 !tests/e2e/fixtures/build-app
 !tests/e2e/fixtures/installation/network-probe.yaml
 **/node_modules
