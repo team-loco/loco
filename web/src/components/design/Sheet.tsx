@@ -25,7 +25,7 @@ function clampWidth(width: number): number {
 	return Math.round(Math.min(window.innerWidth - 2 * EDGE_GAP, Math.max(MIN_WIDTH, width)));
 }
 
-function SheetResizeHandle({ stored, onWidth }: { stored: string; onWidth: (width: string) => void }) {
+function SheetResizeHandle({ width, onWidth }: { width: number; onWidth: (width: number | null) => void }) {
 	const dragRef = useRef(false);
 	const current = (el: HTMLElement) => el.parentElement?.getBoundingClientRect().width ?? MIN_WIDTH;
 	return (
@@ -33,7 +33,7 @@ function SheetResizeHandle({ stored, onWidth }: { stored: string; onWidth: (widt
 			role="separator"
 			aria-orientation="vertical"
 			aria-label="Resize drawer"
-			aria-valuenow={Math.round(Number(stored))}
+			aria-valuenow={width}
 			aria-valuemin={MIN_WIDTH}
 			title="Drag to resize, double-click to reset"
 			tabIndex={0}
@@ -41,17 +41,17 @@ function SheetResizeHandle({ stored, onWidth }: { stored: string; onWidth: (widt
 				const dir = event.key === "ArrowLeft" ? 1 : event.key === "ArrowRight" ? -1 : 0;
 				if (dir === 0) return;
 				event.preventDefault();
-				onWidth(String(clampWidth(current(event.currentTarget) + dir * KEY_STEP)));
+				onWidth(clampWidth(current(event.currentTarget) + dir * KEY_STEP));
 			}}
 			onDoubleClick={() => {
-				onWidth("");
+				onWidth(null);
 			}}
 			onPointerDown={(event) => {
 				event.currentTarget.setPointerCapture(event.pointerId);
 				dragRef.current = true;
 			}}
 			onPointerMove={(event) => {
-				if (dragRef.current) onWidth(String(clampWidth(window.innerWidth - EDGE_GAP - event.clientX)));
+				if (dragRef.current) onWidth(clampWidth(window.innerWidth - EDGE_GAP - event.clientX));
 			}}
 			onPointerUp={() => {
 				dragRef.current = false;
@@ -78,12 +78,8 @@ function SheetContent({
 	/** Name in the viewer's layout; when set, the drawer's inner edge resizes it and the width is remembered. */
 	resizeKey?: string;
 }) {
-	const [width, setWidth] = useLayout(resizeKey === undefined ? null : `drawers.${resizeKey}`, parseDrawerWidth);
+	const [width, setWidth] = useLayout(resizeKey === undefined ? null : `drawer.${resizeKey}`, parseDrawerWidth);
 	const resizable = resizeKey !== undefined && side === "right";
-	const stored = width === 0 ? "" : String(width);
-	const setStored = (next: string) => {
-		setWidth(next === "" ? null : Number(next));
-	};
 	return (
 		<SheetContentBase
 			side={side}
@@ -95,7 +91,7 @@ function SheetContent({
 			{...props}
 			{...(resizable && width > 0 ? { style: { width: `min(${String(width)}px, calc(100vw - 16px))` } } : {})}
 		>
-			{resizable && <SheetResizeHandle stored={stored} onWidth={setStored} />}
+			{resizable && <SheetResizeHandle width={width} onWidth={setWidth} />}
 			{children}
 		</SheetContentBase>
 	);

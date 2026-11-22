@@ -138,7 +138,7 @@ export function useDataTable<T extends RowData>(
 	options: Omit<TableOptions<Features, T>, "features" | "columns"> & { columns: DataColumn<T>[] },
 ): ReactTable<Features, T> {
 	const external = options.onColumnSizingChange !== undefined;
-	const [stored, setStored] = useLayout(external ? null : `tables.${id}`, parseSizing);
+	const [stored, setStored] = useLayout(external ? null : `table.${id}`, parseSizing);
 	const mobile = useIsMobile();
 	const mobileHidden = mobile
 		? options.columns.filter((c) => c.meta?.hideOnMobile === true).map((c): [string, boolean] => [c.id, false])

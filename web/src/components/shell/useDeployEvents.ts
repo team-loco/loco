@@ -46,10 +46,7 @@ export function useDeployEvents(orgId: string | null, workspaceId: string | null
 					});
 				}
 			} catch (error) {
-				const refused =
-					error instanceof ConnectError &&
-					(error.code === Code.PermissionDenied || error.code === Code.Unauthenticated);
-				if (abort.signal.aborted || refused) return;
+				if (error instanceof ConnectError && [Code.PermissionDenied, Code.Unauthenticated].includes(error.code)) return;
 			}
 			if (!abort.signal.aborted) retry = setTimeout(() => void consume(), RETRY_MS);
 		};

@@ -3,7 +3,6 @@ import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -65,24 +64,15 @@ const TOAST_MS = 9000;
 const LIVE_TOAST_MS = 5000;
 
 function showDeployToast(t: DeployToast, onView: () => void) {
-	const options = {
+	const show = { deploying: toast, warning: toast.warning, failed: toast.error, live: toast.success }[t.tone];
+	// Each change replaces the deployment's toast, so every option is set, even when empty.
+	show(t.title, {
 		id: `deploy-${t.deploymentId}`,
-		description: t.description === "" ? undefined : t.description,
+		description: t.description,
 		action: { label: "View", onClick: onView },
-	};
-	switch (t.tone) {
-		case "deploying":
-			toast(t.title, { ...options, icon: <RotateCwIcon className="size-4" />, duration: TOAST_MS });
-			return;
-		case "warning":
-			toast.warning(t.title, { ...options, duration: TOAST_MS });
-			return;
-		case "failed":
-			toast.error(t.title, { ...options, duration: Infinity });
-			return;
-		case "live":
-			toast.success(t.title, { ...options, duration: LIVE_TOAST_MS });
-	}
+		icon: t.tone === "deploying" ? <RotateCwIcon className="size-4" /> : undefined,
+		duration: t.tone === "failed" ? Infinity : t.tone === "live" ? LIVE_TOAST_MS : TOAST_MS,
+	});
 }
 
 function ActivityCard({ children }: { children: ReactNode }) {
@@ -322,49 +312,6 @@ function DeployCard({
 	);
 }
 
-/** Toasts each change of a deployment in the environment; while `suppressed`, the drawer shows it instead. */
-function useDeployToasts({
-	deployments,
-	resources,
-	environmentId,
-	quietBeforeMs,
-	suppressed,
-}: {
-	deployments: readonly Deployment[] | undefined;
-	resources: readonly Resource[] | undefined;
-	environmentId: string | undefined;
-	quietBeforeMs: number;
-	suppressed: boolean;
-}) {
-	const navigate = useNavigate();
-	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const viewerId = useAuth().user?.id ?? "";
-	const seenRef = useRef(new Map<string, string>());
-	// Sonner is outside React, so each new page of deployments syncs into it here; a rerun with no change toasts nothing.
-	useEffect(() => {
-		if (deployments === undefined || resources === undefined || environmentId === undefined) return;
-		const names = new Map(resources.map((r) => [r.id, r.name]));
-		const inEnv = deployments.filter((d) => d.environmentId === environmentId);
-		const { seen, toasts } = deployToasts(seenRef.current, inEnv, names, viewerId, quietBeforeMs);
-		seenRef.current = seen;
-		if (suppressed || activeOrgId === null || activeWorkspaceId === null) return;
-		for (const t of toasts)
-			showDeployToast(t, () => {
-				void navigate(resourcePath(activeOrgId, activeWorkspaceId, t.resourceId));
-			});
-	}, [
-		deployments,
-		resources,
-		environmentId,
-		quietBeforeMs,
-		suppressed,
-		viewerId,
-		navigate,
-		activeOrgId,
-		activeWorkspaceId,
-	]);
-}
-
 export function AlertsDrawer() {
 	const [open, setOpen] = useState(false);
 	const [openedAtMs, setOpenedAtMs] = useState(0);
@@ -399,13 +346,23 @@ export function AlertsDrawer() {
 		},
 	);
 
-	useDeployToasts({
-		deployments: deploymentsQuery.isPlaceholderData ? undefined : deploymentsQuery.data?.deployments,
-		resources: resources.data?.resources,
-		environmentId: active?.id,
-		quietBeforeMs: watched.sinceMs,
-		suppressed: open,
-	});
+	const navigate = useNavigate();
+	const viewerId = useAuth().user?.id ?? "";
+	const seenRef = useRef(new Map<string, string>());
+	const fresh = deploymentsQuery.isPlaceholderData ? undefined : deploymentsQuery.data?.deployments;
+	const resourceList = resources.data?.resources;
+	// Sonner is outside React, so each new page of deployments syncs into it here; while open, the drawer shows changes instead.
+	useEffect(() => {
+		if (fresh === undefined || resourceList === undefined || activeOrgId === null || activeWorkspaceId === null) return;
+		const names = new Map(resourceList.map((r) => [r.id, r.name]));
+		const { seen, toasts } = deployToasts(seenRef.current, fresh, names, viewerId, watched.sinceMs);
+		seenRef.current = seen;
+		if (open) return;
+		for (const t of toasts)
+			showDeployToast(t, () => {
+				void navigate(resourcePath(activeOrgId, activeWorkspaceId, t.resourceId));
+			});
+	}, [fresh, resourceList, watched.sinceMs, open, viewerId, navigate, activeOrgId, activeWorkspaceId]);
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 

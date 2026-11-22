@@ -5,34 +5,12 @@ import { imageTag } from "@/lib/image";
 import { maybeTsMs } from "@/lib/time";
 import { PROBLEM_REASONS } from "@/pages/resource/deployment-progress";
 
-export type DeployToastTone = "deploying" | "warning" | "failed" | "live";
-
 export interface DeployToast {
 	deploymentId: string;
 	resourceId: string;
-	tone: DeployToastTone;
+	tone: "deploying" | "warning" | "failed" | "live";
 	title: string;
 	description: string;
-}
-
-/** Where a deployment stands, as far as toasts tell: a change of state is a toast. */
-function stateOf(d: Deployment): string {
-	const reason = deploymentProblem(d)?.reason;
-	if (isInFlight(d.status)) return reason === undefined ? "deploying" : `failing:${reason}`;
-	switch (d.status) {
-		case DeploymentStatus.FAILED:
-		case DeploymentStatus.CRASHED:
-			return "failed";
-		case DeploymentStatus.RUNNING:
-		case DeploymentStatus.DEGRADED:
-			return reason === undefined ? "live" : `warning:${reason}`;
-		case DeploymentStatus.BUILDING:
-		case DeploymentStatus.DEPLOYING:
-		case DeploymentStatus.CANCELED:
-		case DeploymentStatus.SUPERSEDED:
-		case DeploymentStatus.UNSPECIFIED:
-			return "done";
-	}
 }
 
 /** What the deployment runs: its commit, or its image tag. */
@@ -41,24 +19,33 @@ function deployRef(d: Deployment): string {
 	return sha === "" ? imageTag(deploymentImage(d)) : shortSha(sha);
 }
 
-function toastFor(d: Deployment, state: string, name: string): DeployToast | null {
+type Shown = Pick<DeployToast, "tone" | "title" | "description">;
+
+/** Where a deployment stands, as far as toasts tell, and the toast that says so; a change of `state` is a toast. */
+function standing(d: Deployment, name: string): { state: string; toast?: Shown } {
 	const problem = deploymentProblem(d);
-	const base = { deploymentId: d.id, resourceId: d.resourceId, description: problem?.message ?? "" };
-	if (state === "deploying")
-		return {
-			...base,
-			tone: "deploying",
-			title: `${name} is deploying`,
-			description: `${deploymentActor(d)}, ${deployRef(d)}`,
-		};
-	if (state.startsWith("failing:")) return { ...base, tone: "warning", title: `${name} deploy is failing` };
-	if (state === "failed") return { ...base, tone: "failed", title: `${name} deploy failed` };
-	if (state.startsWith("warning:")) {
-		const reason = problem?.reason ?? "";
-		return { ...base, tone: "warning", title: `${name}: ${(PROBLEM_REASONS[reason] ?? reason).toLowerCase()}` };
-	}
-	if (state === "live") return { ...base, tone: "live", title: `${name} is live on ${deployRef(d)}`, description: "" };
-	return null;
+	const description = problem?.message ?? "";
+	if (isInFlight(d.status))
+		return problem === undefined
+			? {
+					state: "deploying",
+					toast: {
+						tone: "deploying",
+						title: `${name} is deploying`,
+						description: `${deploymentActor(d)}, ${deployRef(d)}`,
+					},
+				}
+			: {
+					state: `failing:${problem.reason}`,
+					toast: { tone: "warning", title: `${name} deploy is failing`, description },
+				};
+	if (d.status === DeploymentStatus.FAILED || d.status === DeploymentStatus.CRASHED)
+		return { state: "failed", toast: { tone: "failed", title: `${name} deploy failed`, description } };
+	if (d.status !== DeploymentStatus.RUNNING && d.status !== DeploymentStatus.DEGRADED) return { state: "done" };
+	if (problem === undefined)
+		return { state: "live", toast: { tone: "live", title: `${name} is live on ${deployRef(d)}`, description: "" } };
+	const reason = (PROBLEM_REASONS[problem.reason] ?? problem.reason).toLowerCase();
+	return { state: `warning:${problem.reason}`, toast: { tone: "warning", title: `${name}: ${reason}`, description } };
 }
 
 /**
@@ -76,15 +63,13 @@ export function deployToasts(
 	const next = new Map(seen);
 	const toasts: DeployToast[] = [];
 	for (const d of deployments) {
-		const state = stateOf(d);
 		const name = names.get(d.resourceId);
+		const { state, toast } = standing(d, name ?? "");
 		const known = seen.get(d.id);
 		const quiet = known === undefined && (maybeTsMs(d.createdAt) ?? 0) < quietBeforeMs;
-		if (!quiet && name !== undefined && known !== state) {
-			const own = state === "deploying" && d.actorId === viewerId;
-			const toast = own ? null : toastFor(d, state, name);
-			if (toast !== null) toasts.push(toast);
-		}
+		const own = state === "deploying" && d.actorId === viewerId;
+		if (toast !== undefined && !quiet && !own && name !== undefined && known !== state)
+			toasts.push({ ...toast, deploymentId: d.id, resourceId: d.resourceId });
 		next.set(d.id, state);
 	}
 	return { seen: next, toasts };
