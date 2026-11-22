@@ -2250,6 +2250,16 @@ with session(out) as browser:
     assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
     personal.click()
     modes = page.get_by_role("radiogroup", name="Mode")
+    expect(modes).to_be_visible()
+    for root_font in ("16px", "20px"):
+        page.evaluate(f"document.documentElement.style.fontSize = '{root_font}'")
+        gaps = modes.evaluate("""group => {
+            const box = group.getBoundingClientRect();
+            const thumb = group.querySelector('.mt-thumb').getBoundingClientRect();
+            return [thumb.top - box.top, box.bottom - thumb.bottom];
+        }""")
+        assert abs(gaps[0] - gaps[1]) <= 1, (root_font, gaps)
+    page.evaluate("document.documentElement.style.fontSize = ''")
     html = page.locator("html")
     dark_class = re.compile(r"\bdark\b")
     modes.get_by_role("radio", name="Dark", exact=True).click()

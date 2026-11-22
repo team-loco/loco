@@ -62,7 +62,8 @@ mise exec -- uv run --script "$E" <command>
    `{"type": {"selector": selector, "text": "value"}}`, `{"press": {"selector": selector, "key": "ArrowLeft"}}`,
    `{"drag": {"selector": selector, "from": [x, y], "to": [x, y]}}`), a crop (`"viewport"`, `"full"`,
    `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`), an optional `"color"`
-   colour theme id (as in `web/src/lib/theme.ts`), `"themes": ["light"]` to capture only some of
+   colour theme id (as in `web/src/lib/theme.ts`), an optional `"root_font"` root font size in
+   pixels (for example `20`), `"themes": ["light"]` to capture only some of
    `light` and `dark` (default both) and `"narrow": true` for an extra 390-pixel-wide
    capture. Set `"signedOut": true` instead of a `user` for a signed-out page; the context has
    no session. `"before": false` skips the before capture for a page that exists only on the
