@@ -259,6 +259,7 @@ type APIConfig struct {
 	HeartbeatInterval     time.Duration
 	SystemAdmins          auth.SystemAdmins
 	TracingEnabled        bool
+	MetricsEnabled        bool
 }
 
 func newAPIConfig() *APIConfig {
@@ -379,6 +380,7 @@ func newAPIConfig() *APIConfig {
 		HeartbeatInterval:     heartbeatInterval,
 		SystemAdmins:          systemAdmins,
 		TracingEnabled:        tracingEnabled,
+		MetricsEnabled:        newMetricsEnabled(),
 	}
 }
 
