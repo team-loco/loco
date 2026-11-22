@@ -1,7 +1,7 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
 import { BuildSchema, BuildStatus } from "@gen/loco/build/v1/build_pb";
-import { DeploymentActorType, DeploymentMethod, DeploymentSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentActorType, DeploymentMethod } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { DAY_MS } from "@/lib/time";
 import { msToTimestamp } from "@/lib/time";
@@ -13,7 +13,6 @@ import {
 	buildStarter,
 	buildTookMs,
 	canCancelBuild,
-	deploymentsByBuild,
 	emptyBuildLogText,
 	formatBuildDuration,
 } from "./builds";
@@ -25,19 +24,6 @@ const MINUTE_MS = 60_000;
 
 function build(status: BuildStatus, fields: MessageInitShape<typeof BuildSchema> = {}) {
 	return create(BuildSchema, { id: BUILD_ID, status, createdAt: msToTimestamp(CREATED_MS), ...fields });
-}
-
-function deployment(id: string, buildId: string | undefined, createdMs: number) {
-	return create(DeploymentSchema, {
-		id,
-		createdAt: msToTimestamp(createdMs),
-		spec: {
-			spec: {
-				case: "service",
-				value: { build: { type: buildId === undefined ? "image" : "dockerfile", image: "x", buildId } },
-			},
-		},
-	});
 }
 
 describe("builds", () => {
@@ -100,15 +86,6 @@ describe("builds", () => {
 			startMs: finished + MINUTE_MS - DAY_MS / 4,
 			endMs: finished + MINUTE_MS,
 		});
-	});
-
-	test("joins each build to its newest deployment", () => {
-		const older = { dep: deployment("dep-old", BUILD_ID, CREATED_MS) };
-		const newer = { dep: deployment("dep-new", BUILD_ID, CREATED_MS + MINUTE_MS) };
-		const image = { dep: deployment("dep-image", undefined, CREATED_MS + 2 * MINUTE_MS) };
-		const joined = deploymentsByBuild([older, image, newer]);
-		expect(joined.get(BUILD_ID)).toBe(newer);
-		expect(joined.size).toBe(1);
 	});
 });
 

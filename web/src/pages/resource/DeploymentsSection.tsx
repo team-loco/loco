@@ -34,7 +34,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { formatCount } from "@/lib/format";
 
-import { buildStatusStyle, deploymentBuildId, deploymentsByBuild } from "./builds";
+import { buildStatusStyle, deploymentBuildId } from "./builds";
 import { BuildDetail, BuildsTable, TIME_CELL, TimeAgo, type BuildActor } from "./BuildsTable";
 import { StepRail } from "./DeploymentProgress";
 import { rolloutSteps } from "./deployment-progress";
@@ -371,7 +371,6 @@ export function DeploymentsSection({
 			.map((name) => ({ dep, region: regionView(name), prevId: previousDeploymentId(dep, name) }));
 		return first === undefined ? [] : [{ key: dep.id, rows: [first, ...rest] }];
 	});
-	const all = rollouts.flatMap((rollout) => rollout.rows);
 	const deployTable = useDataTable("deployments", {
 		columns: rolloutColumns(nowMs, open, setOpen),
 		data: rollouts,
@@ -379,7 +378,6 @@ export function DeploymentsSection({
 		state: { columnVisibility: { region: regions.length > 1 } },
 	});
 
-	const byBuild = deploymentsByBuild(all);
 	const actors = new Map<string, BuildActor>(
 		(membersRes?.members ?? []).map((m) => [
 			m.userId,
@@ -397,21 +395,29 @@ export function DeploymentsSection({
 		}
 		setSelectedBuild(buildId);
 	};
-	const goDeployment = (row: Row) => {
-		void setHist("deploys");
-		setOpen(row.dep.id);
-	};
+	// The build a detail is open for links to the newest deployment built from it.
+	const linkedBuild = selectedBuild ?? openBuild;
+	const built = useQuery(
+		listDeployments,
+		linkedBuild === null || environmentId === undefined
+			? skipToken
+			: { resourceId, environmentId, buildId: linkedBuild, pageSize: 1 },
+	).data?.deployments[0];
 	const buildDeployment = (buildId: string) => {
-		const row = byBuild.get(buildId);
-		return row === undefined
-			? undefined
-			: {
-					tag: depTag(row.dep),
-					onOpen: () => {
-						setSelectedBuild(null);
-						goDeployment(row);
-					},
-				};
+		if (built === undefined || deploymentBuildId(built) !== buildId) return undefined;
+		return {
+			tag: depTag(built),
+			onOpen: () => {
+				setSelectedBuild(null);
+				// A deployment on another page of the table opens as its spec.
+				if (!deployments.some((d) => d.id === built.id)) {
+					onViewSpec(built, deployments);
+					return;
+				}
+				void setHist("deploys");
+				setOpen(built.id);
+			},
+		};
 	};
 
 	return (

@@ -550,6 +550,12 @@ with session(out) as browser:
     ).to_be_visible()
     expect(section.get_by_text("Olivia Owner", exact=True).first).to_be_visible()
     expect(section.get_by_text(BUILD_DIGEST[:19], exact=True).first).to_be_visible()
+    assert any(
+        request["method"] == "ListDeployments"
+        and request["body"].get("buildId") == builds["deployed"]
+        and request["body"].get("pageSize") == 1
+        for request in requests
+    ), requests
     section.get_by_role("button", name="Deployment release-002", exact=True).click()
     expect(page).not_to_have_url(re.compile(r"[?&]hist=builds"))
     expect(
