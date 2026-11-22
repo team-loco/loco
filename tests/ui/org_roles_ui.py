@@ -261,6 +261,10 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(owner_role).to_have_text("Member")
     expect(owner_role).to_be_disabled()
     expect(member_role).to_be_disabled()
+    member_role.hover()
+    expect(page.get_by_role("tooltip")).to_have_text(
+        "Only organization admins can change roles"
+    )
     for user, role in (("owner", "ORG_ROLE_ADMIN"), ("member", "ORG_ROLE_MEMBER")):
         call(
             state,

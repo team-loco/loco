@@ -98,7 +98,7 @@ export function ActiveSessions() {
 										)}
 									</div>
 									{(detail !== "" || ipAddress !== "") && (
-										<span className="text-[12.5px] text-fg3">{[detail, ipAddress].filter(Boolean).join(" · ")}</span>
+										<span className="text-[12.5px] text-fg3">{[detail, ipAddress].filter(Boolean).join(", ")}</span>
 									)}
 									<div className="flex flex-wrap gap-x-3.5 gap-y-0.5 text-[12.5px] text-fg3">
 										{lastUsed !== undefined && (

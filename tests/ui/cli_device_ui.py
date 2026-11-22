@@ -35,7 +35,7 @@ with session(repo / "tests/ui/out/cli-device") as browser:
     page.goto(state["ui_url"] + "/cli/device?code=" + code)
     device = page.locator('dl[aria-label="Requesting device"]')
     expect(device).to_contain_text("Loco CLI on build-box")
-    expect(device).to_contain_text("macOS arm64 · v1.2.3")
+    expect(device).to_contain_text("macOS arm64, v1.2.3")
     expect(device).to_contain_text(ADDRESS)
 
     page.goto(state["ui_url"] + "/cli/device")

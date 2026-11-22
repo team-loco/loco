@@ -151,7 +151,7 @@ export function LimitsSection({
 			where: workspace?.name,
 		},
 		{ key: "tokensPerEntity", label: "API tokens", per: "User, organization, workspace or resource" },
-		{ key: "domainsPerResource", label: "Custom domains", per: "Resource" },
+		{ key: "domainsPerResource", label: "Custom domains", per: "Resource, per environment" },
 		{ key: "secretsPerEnvironment", label: "Secrets", per: "Environment" },
 	];
 	const rows: Row[] = [

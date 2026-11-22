@@ -17,6 +17,7 @@ import { LevelChip } from "@/components/design/LevelChip";
 import { RowMenu } from "@/components/design/RowMenu";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Skeleton } from "@/components/design/Skeleton";
+import { Tip } from "@/components/design/Tooltip";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { agoLabel, formatMonthYear, tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
@@ -62,6 +63,8 @@ function RoleItems({ role, heading = false, onPick }: { role: Role; heading?: bo
 	);
 }
 
+const MENU_TIP = "flex flex-col";
+
 function roleTitle(isMe: boolean, canChangeRoles: boolean): string | undefined {
 	if (!canChangeRoles) return "Only organization admins can change roles";
 	if (isMe) return "Another admin can change your role";
@@ -89,7 +92,7 @@ function Person({ row, now, actions }: { row: TeamRow; now: number; actions: Row
 					<CellText text={invitation.email} className="text-[13.5px] font-medium" />
 					<CellText
 						text={
-							inviter === undefined ? `invited ${sent}` : `invited by ${inviter.email || userLabel(inviter)} · ${sent}`
+							inviter === undefined ? `invited ${sent}` : `invited by ${inviter.email || userLabel(inviter)}, ${sent}`
 						}
 						className="font-mono text-[11.5px] text-fg3"
 					/>
@@ -124,32 +127,33 @@ function RoleCell({ member, actions }: { member: Member; actions: RowActions }) 
 	// The ghost button's padding hangs into the cell's, so its label lines up with the column head.
 	return (
 		<span className="flex min-w-0">
-			<DropdownMenu>
-				<DropdownMenuTrigger
-					render={
-						<Button
-							variant="ghost"
-							size="xs"
-							disabled={roleLocked}
-							aria-label={`Change role for ${memberName(member)}`}
-							title={roleTitle(isMe, actions.canChangeRoles)}
-							className="-ml-2 h-7 gap-1.5 border-transparent px-2 text-[13px] text-foreground hover:border-line2 hover:bg-background aria-expanded:border-line2 aria-expanded:bg-background disabled:opacity-100 disabled:hover:border-transparent disabled:hover:bg-transparent dark:hover:bg-background"
+			<Tip tip={roleTitle(isMe, actions.canChangeRoles)}>
+				<DropdownMenu>
+					<DropdownMenuTrigger
+						render={
+							<Button
+								variant="ghost"
+								size="xs"
+								disabled={roleLocked}
+								aria-label={`Change role for ${memberName(member)}`}
+								className="-ml-2 h-7 gap-1.5 border-transparent px-2 text-[13px] text-foreground hover:border-line2 hover:bg-background aria-expanded:border-line2 aria-expanded:bg-background disabled:opacity-100 disabled:hover:border-transparent disabled:hover:bg-transparent dark:hover:bg-background"
+							/>
+						}
+					>
+						{role}
+						{!roleLocked && <ChevronDownIcon className="text-fg4" />}
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start" className="w-[260px]">
+						<RoleItems
+							role={role}
+							heading
+							onPick={(next) => {
+								actions.onRole(member, next);
+							}}
 						/>
-					}
-				>
-					{role}
-					{!roleLocked && <ChevronDownIcon className="text-fg4" />}
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="start" className="w-[260px]">
-					<RoleItems
-						role={role}
-						heading
-						onPick={(next) => {
-							actions.onRole(member, next);
-						}}
-					/>
-				</DropdownMenuContent>
-			</DropdownMenu>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</Tip>
 		</span>
 	);
 }
@@ -174,7 +178,7 @@ function Workspaces({
 	};
 	if (role === "Admin") {
 		return (
-			<span title="All workspaces · Admin" className="flex min-w-0">
+			<span className="flex min-w-0">
 				<LevelChip level={3} name="All workspaces" nameFirst />
 			</span>
 		);
@@ -255,16 +259,17 @@ function MemberMenuItems({ member, actions }: { member: Member; actions: RowActi
 				)}
 			</DropdownMenuGroup>
 			<DropdownMenuSeparator />
-			<DropdownMenuItem
-				variant="destructive"
-				disabled={!actions.canChangeRoles}
-				title={actions.canChangeRoles ? undefined : "Only organization admins can remove members"}
-				onClick={() => {
-					actions.onRemove(member);
-				}}
-			>
-				Remove from {actions.orgName}
-			</DropdownMenuItem>
+			<Tip tip={actions.canChangeRoles ? null : "Only organization admins can remove members"} className={MENU_TIP}>
+				<DropdownMenuItem
+					variant="destructive"
+					disabled={!actions.canChangeRoles}
+					onClick={() => {
+						actions.onRemove(member);
+					}}
+				>
+					Remove from {actions.orgName}
+				</DropdownMenuItem>
+			</Tip>
 		</>
 	);
 }
@@ -291,27 +296,29 @@ function InvitationMenu({ invitation, now, actions }: { invitation: Invitation; 
 				>
 					Copy invite link
 				</DropdownMenuItem>
-				<DropdownMenuItem
-					disabled={!actions.canManageInvitations}
-					title={manageTitle}
-					onClick={() => {
-						actions.onResend(invitation);
-					}}
-				>
-					{expired ? "Send a new invite" : "Resend invite"}
-				</DropdownMenuItem>
+				<Tip tip={manageTitle} className={MENU_TIP}>
+					<DropdownMenuItem
+						disabled={!actions.canManageInvitations}
+						onClick={() => {
+							actions.onResend(invitation);
+						}}
+					>
+						{expired ? "Send a new invite" : "Resend invite"}
+					</DropdownMenuItem>
+				</Tip>
 			</DropdownMenuGroup>
 			<DropdownMenuSeparator />
-			<DropdownMenuItem
-				variant="destructive"
-				disabled={!actions.canManageInvitations}
-				title={manageTitle}
-				onClick={() => {
-					actions.onRevoke(invitation);
-				}}
-			>
-				Revoke invite
-			</DropdownMenuItem>
+			<Tip tip={manageTitle} className={MENU_TIP}>
+				<DropdownMenuItem
+					variant="destructive"
+					disabled={!actions.canManageInvitations}
+					onClick={() => {
+						actions.onRevoke(invitation);
+					}}
+				>
+					Revoke invite
+				</DropdownMenuItem>
+			</Tip>
 		</RowMenu>
 	);
 }
@@ -369,7 +376,11 @@ function teamColumns(now: number, accessLoading: boolean, actions: RowActions): 
 			cell: ({ row: { original: row } }) => {
 				if (row.kind === "invitation") return <Dash />;
 				const last = row.member.member.lastLoginAt;
-				return <span title="Last recorded sign-in">{last ? agoLabel(tsMs(last), now) : <Dash />}</span>;
+				return (
+					<Tip tip="Last recorded sign-in">
+						<span>{last ? agoLabel(tsMs(last), now) : <Dash />}</span>
+					</Tip>
+				);
 			},
 		},
 		{
