@@ -485,7 +485,7 @@ def check_band(page, scroller, row):
     assert rgb(page, start + 4, top + 1) != card, "the hovered row shows no tint"
     rounded("hovered")
     page.mouse.move(0, 0)
-    # The drawer a click opens would cover the row, so the row takes the selected state directly.
+    # Marks the row selected without opening its drawer.
     row.evaluate("node => node.setAttribute('data-state', 'selected')")
     page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
     rounded("selected")

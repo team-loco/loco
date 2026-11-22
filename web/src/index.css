@@ -237,7 +237,7 @@
 	box-shadow: inset 0 0 0 1px var(--ring);
 }
 
-/* Banded rows sit inside the card as rounded shapes; pinned cells round their own ends over their opaque background. GitHub keeps ruled rows. */
+/* Banded rows sit inside the card as rounded shapes; pinned cells round their own ends over their opaque background. The paper theme keeps ruled rows. */
 :root:not([data-theme="paper"]) [data-slot="data-table"][data-band] {
 	width: auto;
 	margin-inline: 20px;
@@ -260,10 +260,10 @@
 		--row-ring: var(--band-selected-ring, 1px solid var(--line2));
 	}
 	& tr[data-interactive]:focus-visible {
-		--row-ring: 1px solid var(--ring);
+		--row-ring: var(--band-focus-ring, 1px solid var(--ring));
 	}
 	/* The row's ring passes under the pinned cells, which draw its rounded ends over their opaque background. */
-	& tbody > tr::after {
+	& tbody > tr[data-interactive]::after {
 		content: "";
 		position: absolute;
 		inset: 0;

@@ -13,9 +13,8 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
-import { LEVEL_LABEL } from "../format";
+import { LEVEL_LABEL, levelStyle } from "../format";
 import { LogDetail } from "../LogDetail";
-import type { Level } from "../query";
 import type { LogRow } from "../rows";
 import { durationLabel, type TraceSummary } from "../traces";
 import { Infrastructure } from "./Infrastructure";
@@ -24,14 +23,6 @@ import type { useTraceLogs } from "./trace-logs";
 import { descendantIds } from "../flame";
 
 const MIN_HEIGHT = 192;
-
-// The trace's log list tints only errors and warnings.
-const TRACE_LEVEL_BADGE: Record<Level, string> = {
-	error: "bg-bad-bg text-bad-fg",
-	warn: "bg-warn-bg text-warn-fg",
-	info: "bg-panel2 text-fg2",
-	debug: "bg-transparent text-fg3",
-};
 
 export function TraceLogPanel({
 	trace,
@@ -286,7 +277,9 @@ export function TraceLogPanel({
 													<span
 														className={cn(
 															"inline-flex h-5 w-fit items-center rounded-[5px] px-[7px] font-sans text-[12px]",
-															TRACE_LEVEL_BADGE[row.level],
+															row.level === "error" || row.level === "warn"
+																? levelStyle(row.level).badge
+																: "bg-panel2 text-fg2",
 														)}
 													>
 														{LEVEL_LABEL[row.level]}
