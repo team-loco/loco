@@ -3,6 +3,7 @@ package tracing
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -19,6 +20,7 @@ const (
 	tracerName       = "github.com/team-loco/loco/controller"
 	objectNameAttr   = "loco.object.name"
 	requeueAfterAttr = "loco.reconcile.requeue_after"
+	waitingAttr      = "loco.reconcile.waiting"
 )
 
 func start(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
@@ -54,6 +56,19 @@ func Reconcile(
 func Step(ctx context.Context, name string, fn func(context.Context) error) error {
 	ctx, span := start(ctx, name)
 	err := fn(ctx)
+	end(span, err)
+	return err
+}
+
+// Wait runs fn in a child span named name, marking the span waiting instead of failed when fn returns pending.
+func Wait(ctx context.Context, name string, pending error, fn func(context.Context) error) error {
+	ctx, span := start(ctx, name)
+	err := fn(ctx)
+	if errors.Is(err, pending) {
+		span.SetAttributes(attribute.Bool(waitingAttr, true))
+		span.End()
+		return err
+	}
 	end(span, err)
 	return err
 }

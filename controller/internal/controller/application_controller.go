@@ -236,7 +236,7 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure workspace network policies: %w", err)
 	}
 
-	err := tracing.Step(ctx, pullSecretSpan, func(ctx context.Context) error {
+	err := tracing.Wait(ctx, pullSecretSpan, errRegistryPullSecretPending, func(ctx context.Context) error {
 		return r.ensureWorkspacePullSecret(ctx, app)
 	})
 	if errors.Is(err, errRegistryPullSecretPending) {
@@ -248,7 +248,7 @@ func (r *ApplicationReconciler) reconcileResources(
 	}
 
 	var envSecret envSecretMount
-	err = tracing.Step(ctx, envSecretSpan, func(ctx context.Context) (err error) {
+	err = tracing.Wait(ctx, envSecretSpan, errEnvSecretPending, func(ctx context.Context) (err error) {
 		envSecret, err = r.ensureEnvSecret(ctx, app)
 		return err
 	})

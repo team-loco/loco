@@ -20,7 +20,7 @@ import (
 )
 
 var _ = Describe("Application reconcile tracing", func() {
-	It("records the reconcile, its steps and their API calls, failing the step that failed", func() {
+	It("records the reconcile, its steps and their API calls, failing only the step that failed", func() {
 		recorder := tracetest.NewSpanRecorder()
 		previous := otel.GetTracerProvider()
 		otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
@@ -42,7 +42,6 @@ var _ = Describe("Application reconcile tracing", func() {
 				locov1alpha1.KeyPlacementRevision: "1",
 			},
 		}
-		Expect(k8sClient.Create(ctx, staged)).To(Succeed())
 		r := &ApplicationReconciler{
 			Client:                   tracedClient,
 			APIReader:                tracedClient,
@@ -60,10 +59,20 @@ var _ = Describe("Application reconcile tracing", func() {
 			Expect(apierrors.IsNotFound(k8sClient.Get(ctx, req.NamespacedName, app))).To(BeTrue())
 		})
 
+		result, err := r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(envSecretRequeue))
+		waiting := recorder.Ended()
+		Expect(endedSpan(waiting, reconcileSpan).Status().Code).To(Equal(codes.Unset))
+		waitingStep := endedSpan(waiting, envSecretSpan)
+		Expect(waitingStep.Status().Code).To(Equal(codes.Unset))
+		Expect(waitingStep.Attributes()).To(ContainElement(attribute.Bool("loco.reconcile.waiting", true)))
+
+		Expect(k8sClient.Create(ctx, staged)).To(Succeed())
 		_, err = r.Reconcile(ctx, req)
 		Expect(err).To(MatchError(errEnvSecretPlacement))
 
-		spans := recorder.Ended()
+		spans := recorder.Ended()[len(waiting):]
 		root := endedSpan(spans, reconcileSpan)
 		Expect(root.Status().Code).To(Equal(codes.Error))
 		Expect(root.Attributes()).To(ContainElements(
