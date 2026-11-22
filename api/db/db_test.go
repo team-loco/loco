@@ -9,6 +9,7 @@ func TestQueryName(t *testing.T) {
 	cases := map[string]string{
 		"-- name: CountWorkspaceContents :many\nSELECT w.id FROM workspaces w": "CountWorkspaceContents",
 		"-- name: NotifyClusterPlacements :exec\nSELECT pg_notify($1, '')":     "NotifyClusterPlacements",
+		Named("ListAuditEvents", "WITH e AS (SELECT 1) SELECT * FROM e"):       "ListAuditEvents",
 		"select 1": "SELECT",
 		"begin":    "BEGIN",
 	}

@@ -71,3 +71,8 @@ func queryName(ctx context.Context, sql string) string {
 	}
 	return otelpgx.SQLOperationName(ctx, sql)
 }
+
+// Named gives hand-built SQL the sqlc name prefix that queryName reads, ending the name with a space.
+func Named(name, sql string) string {
+	return sqlcNamePrefix + name + " \n" + sql
+}

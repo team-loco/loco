@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz/actions"
+	apiDb "github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -144,7 +145,7 @@ func (s *OrgServer) peoplePage(ctx context.Context, args []any, after personKey,
 		args = append(args, after.Group, after.K1, after.K2, after.ID)
 	}
 	sql += fmt.Sprintf(" ORDER BY grp, k1, k2, id LIMIT $%d", len(args)+1)
-	rows, err := s.db.Query(ctx, sql, append(args, limit)...)
+	rows, err := s.db.Query(ctx, apiDb.Named("ListOrgPeoplePage", sql), append(args, limit)...)
 	if err != nil {
 		return nil, err
 	}
@@ -269,8 +270,8 @@ func (s *OrgServer) countPeople(
 	} {
 		n, err := totalCount(ctx, true, func(ctx context.Context, limit int32) (int64, error) {
 			var n int64
-			err := s.db.QueryRow(ctx, "SELECT count(*) FROM ("+orgPeopleSQL+
-				" SELECT 1 FROM people LIMIT $6) capped", append(c.args, limit)...).Scan(&n)
+			err := s.db.QueryRow(ctx, apiDb.Named("CountOrgPeople", "SELECT count(*) FROM ("+orgPeopleSQL+
+				" SELECT 1 FROM people LIMIT $6) capped"), append(c.args, limit)...).Scan(&n)
 			return n, err
 		})
 		if err != nil {
