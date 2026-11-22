@@ -72,7 +72,7 @@ with session(out) as browser:
     expect(save).to_be_disabled()
     traces = section.get_by_role("textbox", name="Traces retention in days")
     traces.fill("400")
-    expect(section.get_by_text("Enter whole days from 1 to 365")).to_be_visible()
+    expect(section.get_by_text("Whole days, 1 to 365")).to_be_visible()
     expect(save).to_be_disabled()
     row(section, "Traces").get_by_role("button", name="Use limit").click()
     expect(traces).to_have_value("")

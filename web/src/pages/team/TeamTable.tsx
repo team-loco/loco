@@ -89,7 +89,7 @@ function Person({ row, now, actions }: { row: TeamRow; now: number; actions: Row
 					<CellText text={invitation.email} className="text-[13.5px] font-medium" />
 					<CellText
 						text={
-							inviter === undefined ? `invited ${sent}` : `invited by ${inviter.email || userLabel(inviter)} · ${sent}`
+							inviter === undefined ? `invited ${sent}` : `invited by ${inviter.email || userLabel(inviter)}, ${sent}`
 						}
 						className="font-mono text-[11.5px] text-fg3"
 					/>
@@ -174,7 +174,7 @@ function Workspaces({
 	};
 	if (role === "Admin") {
 		return (
-			<span title="All workspaces · Admin" className="flex min-w-0">
+			<span title="All workspaces, Admin" className="flex min-w-0">
 				<LevelChip level={3} name="All workspaces" nameFirst />
 			</span>
 		);

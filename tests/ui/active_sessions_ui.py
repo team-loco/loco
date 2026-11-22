@@ -67,7 +67,7 @@ def verify(state):
         cli_row = sessions.get_by_role("listitem").filter(
             has_text="Loco CLI on build-box"
         )
-        expect(cli_row).to_contain_text("macOS arm64 · v1.2.3 · 203.0.113.9")
+        expect(cli_row).to_contain_text("macOS arm64, v1.2.3, 203.0.113.9")
         expect(cli_row.get_by_text("Active 1h ago", exact=True)).to_be_visible()
         expect(cli_row.get_by_text("Signed in ", exact=False)).to_be_visible()
         assert not page.evaluate(

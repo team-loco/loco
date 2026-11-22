@@ -297,7 +297,9 @@ with session(out) as browser:
                     f"label[for={json.dumps(name.get_attribute('id'))}]"
                 ).click()
                 assert name.evaluate("node => node === document.activeElement")
-                required = "Use 1–63 characters." if tab == "ws" else "Name required"
+                required = (
+                    "Use 1–63 characters." if tab == "ws" else "Use 1–100 characters."
+                )
                 name.fill("")
                 page.get_by_text(required, exact=True).wait_for()
                 assert name.get_attribute("aria-invalid") == "true"

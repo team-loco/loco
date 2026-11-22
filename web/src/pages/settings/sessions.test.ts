@@ -10,7 +10,7 @@ test("names a CLI session by its host, system and version", () => {
 			userAgent: "loco/v1.2.3 (darwin arm64; build-box)",
 			ipAddress: "203.0.113.9",
 		}),
-	).toEqual({ label: "Loco CLI on build-box", detail: "macOS arm64 · v1.2.3", ipAddress: "203.0.113.9" });
+	).toEqual({ label: "Loco CLI on build-box", detail: "macOS arm64, v1.2.3", ipAddress: "203.0.113.9" });
 });
 
 test("falls back to the browser and system for a web session", () => {

@@ -93,7 +93,6 @@ function retentionColumns(
 						{drafts[signal.key] !== "" && (
 							<Button
 								variant="plain-link"
-								className="underline decoration-line2 underline-offset-3"
 								onClick={() => {
 									onDraft({ ...drafts, [signal.key]: "" });
 								}}
@@ -134,7 +133,7 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 		if (raw === "" || limits === undefined) return null;
 		const limit = limits[signal.field];
 		const value = Number(raw);
-		return value >= 1 && value <= limit ? null : `Enter whole days from 1 to ${limit.toString()}`;
+		return value >= 1 && value <= limit ? null : `Whole days, 1 to ${limit.toString()}`;
 	};
 	const initial = initialDrafts(workspace);
 	const changed = drafts === null ? [] : SIGNALS.filter((s) => drafts[s.key] !== initial[s.key]);

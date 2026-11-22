@@ -243,7 +243,7 @@ export function WorkspaceTab({
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
 				title={`Delete ${ws.name}`}
-				text={`This removes ${ws.name}, its environments and everyone's access to it.`}
+				text={`This permanently deletes ${ws.name}, its environments and everyone's access to it.`}
 				target={ws.name}
 				confirmLabel="Delete workspace"
 				pending={remove.isPending}

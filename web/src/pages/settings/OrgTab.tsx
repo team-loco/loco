@@ -179,8 +179,7 @@ export function OrgTab({
 	const name = draft ?? org.name;
 	const nameT = name.trim();
 	const dirty = name !== org.name;
-	const nameErr =
-		nameT === "" ? "Name required" : nameT.length > MAX_NAME ? `Max ${MAX_NAME.toString()} characters` : null;
+	const nameErr = nameT === "" || nameT.length > MAX_NAME ? `Use 1–${MAX_NAME.toString()} characters.` : null;
 	const shownErr = dirty ? nameErr : null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
@@ -396,7 +395,7 @@ export function OrgTab({
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
 				title={`Delete ${org.name}`}
-				text={`This removes ${org.name}, its ${pluralize(workspaceCount ?? 0, "empty workspace")} and all members.`}
+				text={`This permanently deletes ${org.name}, its ${pluralize(workspaceCount ?? 0, "empty workspace")} and all members.`}
 				target={org.name}
 				confirmLabel="Delete organization"
 				pending={remove.isPending}

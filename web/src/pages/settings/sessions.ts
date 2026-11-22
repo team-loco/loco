@@ -24,7 +24,7 @@ const CLI_AGENT = /^(loco|locoadm)\/(\S+) \((\S+) (\S+); ([^()]+)\)$/;
 export interface SessionInfo {
 	/** What the session is: `Chrome on macOS`, `Loco CLI on build-box`. */
 	label: string;
-	/** System and version, such as `macOS arm64 · v1.2.3`; empty when unknown. */
+	/** System and version, such as `macOS arm64, v1.2.3`; empty when unknown. */
 	detail: string;
 	ipAddress: string;
 }
@@ -37,7 +37,7 @@ export function describeSession(session: Pick<Session, "kind" | "userAgent" | "i
 		const [, product, version = "", os = "", arch = "", host = ""] = match;
 		return {
 			label: `${product === "locoadm" ? "locoadm" : "Loco CLI"} on ${host}`,
-			detail: `${SYSTEMS[os] ?? os} ${arch} · ${version}`,
+			detail: `${SYSTEMS[os] ?? os} ${arch}, ${version}`,
 			ipAddress,
 		};
 	}
