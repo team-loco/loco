@@ -38,7 +38,9 @@ export interface TokenData {
 	/** The signed-in user's account and organizations, which the access picker always offers. */
 	roots: EntityNode[];
 	activeOrg: EntityNode | null;
-	/** Every entity the listed tokens' scopes name, with its parents where the caller can read them. */
+	/** The entities the page looked up or knows, with their parents where the caller can read them. */
+	known: Entities;
+	/** known, plus a stand-in labelled by a short ID for each scope entity the page could not look up. */
 	entities: Entities;
 	/** Whether a scope's entity or its parent is still being looked up. */
 	entitiesLoading: boolean;
@@ -162,6 +164,7 @@ export function useTokenData(): TokenData {
 	}
 	const known: EntityNode[] = [
 		...(userNode === null ? [] : [userNode]),
+		...scopeIds(EntityType.SYSTEM).map((id) => entityNode(EntityType.SYSTEM, id, "Platform", null)),
 		...orgNodes.values(),
 		...workspaces.values(),
 		...resources.map((r) =>
@@ -174,13 +177,14 @@ export function useTokenData(): TokenData {
 			),
 		),
 	];
-	const entities = withScopeEntities(new Map(known.map((n) => [n.key, n])), tokenScopes);
+	const found = new Map(known.map((n) => [n.key, n]));
 
 	return {
 		owners,
 		roots: [...(userNode === null ? [] : [userNode]), ...orgNodes.values()],
 		activeOrg,
-		entities,
+		known: found,
+		entities: withScopeEntities(found, tokenScopes),
 		entitiesLoading: [...resourceQueries, ...workspaceQueries].some((q) => q.isPending),
 		held,
 		scopesLoading: treeLoading,

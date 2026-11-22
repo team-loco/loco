@@ -99,17 +99,21 @@ export function AccessPicker({
 			? `Add ${scope.label} or one of its resources…`
 			: "Add a workspace or resource, e.g. storefront/web";
 
-	const add = (node: EntityNode) => {
-		const lvl = heldLevel(held, node);
-		if (lvl === 0) return;
-		onChange([...items, { node, level: 1 }]);
-		setQ("");
-		setExpanded(null);
-	};
-
 	const expand = (node: EntityNode) => {
 		setExpanded(node);
 		setQ(`${node.label}/`);
+	};
+
+	// Picking a workspace the caller holds no access to lists the resources it may hold grants on.
+	const add = (node: EntityNode) => {
+		const lvl = heldLevel(held, node);
+		if (lvl === 0) {
+			if (node.kind === "ws") expand(node);
+			return;
+		}
+		onChange([...items, { node, level: 1 }]);
+		setQ("");
+		setExpanded(null);
 	};
 
 	const resourceCount = (n: EntityNode): string | null =>
@@ -255,20 +259,21 @@ export function AccessPicker({
 								<ComboboxLabel className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">{g.label}</ComboboxLabel>
 								{g.nodes.map((n) => {
 									const lvl = heldLevel(held, n);
-									const disabled = lvl === 0;
+									const noAccess = lvl === 0;
+									const disabled = noAccess && n.kind !== "ws";
 									const covered = n.kind === "res" && coveredBy(n, 1) !== null;
 									return (
 										<ComboboxItem
 											key={n.key}
 											value={n}
 											disabled={disabled}
-											title={disabled ? `You have no access to ${n.label}` : undefined}
-											className={cn(disabled && "opacity-45", covered && "opacity-50")}
+											title={noAccess ? `You have no access to ${n.label}` : undefined}
+											className={cn(noAccess && "opacity-45", covered && "opacity-50")}
 										>
 											<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
 											<span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{n.label}</span>
 											<span className="text-[11.5px] whitespace-nowrap text-fg3">
-												{disabled ? "No access" : resultNote(n)}
+												{noAccess ? "No access" : resultNote(n)}
 											</span>
 											{n.kind === "ws" && (
 												<Button

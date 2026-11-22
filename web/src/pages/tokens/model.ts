@@ -208,8 +208,7 @@ export function withScopeEntities(entities: Entities, scopes: EntityScope[]): En
 	for (const s of scopes) {
 		const key = nodeKey(s.entityType, s.entityId);
 		if (nodes.has(key)) continue;
-		const label = s.entityType === EntityType.SYSTEM ? "Platform" : s.entityId.slice(0, 8);
-		nodes.set(key, entityNode(s.entityType, s.entityId, label, null));
+		nodes.set(key, entityNode(s.entityType, s.entityId, s.entityId.slice(0, 8), null));
 	}
 	return nodes;
 }

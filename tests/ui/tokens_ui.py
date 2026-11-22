@@ -255,7 +255,13 @@ with session(repo / "tests/ui/out/tokens") as browser:
             route.fallback()
 
     page.route("**/loco.workspace.v1.WorkspaceService/GetWorkspace", hold_sibling)
-    page.goto(state["ui_url"] + "/tokens?owner=org")
+    with page.expect_request(
+        lambda request: (
+            request.url.endswith("/GetWorkspace")
+            and (request.post_data_json or {}).get("workspaceId") == sibling
+        )
+    ):
+        page.goto(state["ui_url"] + "/tokens?owner=org")
     page.get_by_role("button", name="Actions for inherits").click()
     page.get_by_role("menuitem", name="Duplicate").click()
     drawer = page.get_by_role("dialog", name="New token")
@@ -269,7 +275,15 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert not errors, errors
     context.close()
 
-    # A member is offered only the workspaces it can read.
+    # A member is not offered a workspace it has no access to, and expanding a workspace it reaches only
+    # through a resource grant lists that resource.
+    member = state["users"]["member"]["id"]
+    inventory = state["tokens_resources"]["acme/sibling/inventory-api"]
+    sql(
+        state,
+        "INSERT INTO user_scopes(user_id,scope,entity_type,entity_id) "
+        f"VALUES ('{member}','read','resource','{inventory}');",
+    )
     context, page, errors = open_page(browser, "member", state=state)
     page.goto(state["ui_url"] + "/tokens?owner=user")
     page.get_by_role("button", name="New token", exact=True).first.click()
@@ -279,6 +293,14 @@ with session(repo / "tests/ui/out/tokens") as browser:
     options = page.get_by_role("listbox")
     expect(options.get_by_role("option", name=re.compile(r"^shared"))).to_be_visible()
     expect(options.get_by_role("option", name=re.compile(r"^private"))).to_have_count(0)
+    workspace = options.get_by_role("option", name=re.compile(r"^sibling"))
+    expect(workspace).to_contain_text("No access")
+    workspace.get_by_role("button", name="Show resources in sibling").click()
+    expect(search).to_have_value("sibling/")
+    resource = options.get_by_role("option", name=re.compile(r"^inventory-api"))
+    expect(resource).not_to_contain_text("No access")
+    resource.click()
+    expect(drawer.get_by_role("group", name="Level for inventory-api")).to_be_visible()
     assert not errors, errors
     context.close()
 

@@ -114,7 +114,7 @@ export function Tokens() {
 	const duplicateDraft = (token: Token): CreateDraft => {
 		const items: AccessItem[] = [];
 		for (const [key, level] of tokenGrants(token)) {
-			const node = data.entities.get(key);
+			const node = data.known.get(key);
 			if (node === undefined) continue;
 			const max = heldLevel(data.held, node);
 			if (max === 0) continue;
