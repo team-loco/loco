@@ -3,6 +3,7 @@ import { createQueryOptions, skipToken, useQuery, useTransport } from "@connectr
 import { useQueries } from "@tanstack/react-query";
 import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment, type ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Secret } from "@gen/loco/secret/v1/secret_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import {
 	ResourceStatus,
@@ -47,6 +48,26 @@ export interface Notice {
 	tone: "info" | "warn" | "bad";
 	title: string;
 	message: string;
+}
+
+/** The secrets the resource reads that changed after its oldest running replica started, by name. */
+export function changedSecrets(
+	secrets: readonly Secret[],
+	resourceId: string,
+	regions: readonly RegionView[],
+): string[] {
+	const starts = regions.flatMap((r) =>
+		(r.status?.replicas ?? []).flatMap((replica) => {
+			const ms = maybeTsMs(replica.startedAt);
+			return ms === undefined || replica.state === "Stopping" || replica.state === "Stopped" ? [] : [ms];
+		}),
+	);
+	if (starts.length === 0) return [];
+	const oldest = Math.min(...starts);
+	return secrets
+		.filter((s) => s.usedBy.some((u) => u.resourceId === resourceId) && tsMs(s.updatedAt) > oldest)
+		.map((s) => s.name)
+		.toSorted();
 }
 
 function depService(dep: Deployment | undefined): ServiceDeploymentSpec | undefined {

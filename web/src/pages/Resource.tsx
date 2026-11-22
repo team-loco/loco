@@ -15,6 +15,7 @@ import {
 	getResource,
 	restartResource,
 } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
@@ -39,7 +40,7 @@ import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, resourcesPath, withEnv } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
-import { NoticeBanner } from "@/pages/resource/Banners";
+import { NoticeBanner, SecretsChangedNotice } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
 import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { DRAWER_EVENT_TYPES, newestFirst, recentWarningCount } from "@/pages/resource/events";
@@ -50,6 +51,7 @@ import { METRIC_RANGES, RANGE_MS } from "@/pages/resource/metric";
 import { RangeToggle } from "@/pages/resource/RangeToggle";
 import {
 	buildRegions,
+	changedSecrets,
 	depImage,
 	depTag,
 	focusRegion,
@@ -154,6 +156,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		refetchOnMount: false,
 	});
 
+	const secretsQuery = useQuery(
+		listSecrets,
+		{ environmentId: environmentId ?? "" },
+		{ enabled: environmentId !== undefined && canListResources },
+	);
+
 	const [modal, setModal] = useState<ModalState | null>(null);
 	const [notice, setNotice] = useState<Notice | null>(null);
 	const [redeploying, setRedeploying] = useState(false);
@@ -228,6 +236,17 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;
 	const canWrite = level >= scopeLevel(Scope.WRITE);
 	const canDelete = level >= scopeLevel(Scope.ADMIN);
+	const staleSecrets = changedSecrets(secretsQuery.data?.secrets ?? [], resourceId, regions);
+	const secretsNotice = (id: string) => (
+		<SecretsChangedNotice
+			id={id}
+			names={staleSecrets}
+			canWrite={canWrite}
+			onRestart={() => {
+				setModal({ kind: "restart" });
+			}}
+		/>
+	);
 
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
@@ -490,6 +509,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				<ErrorState error={error} what="this resource" rpc={getResource} onRetry={refresh} />
 			) : view === "overview" ? (
 				<div className="flex flex-col gap-5">
+					{secretsNotice("secrets-notice-ov")}
 					{problem !== undefined && problemRegion !== undefined && environmentId !== undefined && (
 						<IncidentCard
 							nowMs={nowMs}
@@ -553,6 +573,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					)}
 					{deployed.length > 0 && environmentId !== undefined && (
 						<TrafficSection
+							nowMs={nowMs}
 							isPublic={resource.domains.length > 0}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
@@ -595,6 +616,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					/>
 					<SettingsView
 						resource={resource}
+						secretsNotice={secretsNotice("secrets-notice-set")}
 						onRollback={openRollback}
 						environmentId={environmentId ?? ""}
 						regions={regions}

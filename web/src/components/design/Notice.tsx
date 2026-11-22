@@ -10,10 +10,12 @@ const inlineCode =
 export function Notice({
 	id,
 	className,
+	action,
 	children,
 }: {
 	id?: string | undefined;
 	className?: string | undefined;
+	action?: ReactNode;
 	children: ReactNode;
 }) {
 	return (
@@ -23,7 +25,16 @@ export function Notice({
 			className={cn("border-info-fg bg-info-bg px-3.5 py-2.5 text-base text-info-fg *:[svg]:translate-y-0", className)}
 		>
 			<InfoIcon className="size-[1lh]" />
-			<AlertDescription className={cn("text-base text-info-fg", inlineCode)}>{children}</AlertDescription>
+			<AlertDescription className={cn("text-base text-info-fg", inlineCode)}>
+				{action === undefined ? (
+					children
+				) : (
+					<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+						<span className="min-w-0">{children}</span>
+						{action}
+					</div>
+				)}
+			</AlertDescription>
 		</Alert>
 	);
 }

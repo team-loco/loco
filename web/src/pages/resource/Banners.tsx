@@ -1,8 +1,10 @@
-import { InfoIcon, OctagonAlertIcon, TriangleAlertIcon, Undo2Icon, XIcon } from "lucide-react";
+import { Fragment } from "react";
+import { InfoIcon, OctagonAlertIcon, RotateCwIcon, TriangleAlertIcon, Undo2Icon, XIcon } from "lucide-react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
+import { Notice as InfoNotice } from "@/components/design/Notice";
 import { NEEDS_WRITE } from "@/hooks/useMyScopes";
 import { cn, formatShortId } from "@/lib/utils";
 
@@ -108,5 +110,40 @@ export function ServingBanner({
 				</Button>
 			)}
 		</Banner>
+	);
+}
+
+export function SecretsChangedNotice({
+	id,
+	names,
+	canWrite,
+	onRestart,
+}: {
+	id: string;
+	names: readonly string[];
+	canWrite: boolean;
+	onRestart: () => void;
+}) {
+	if (names.length === 0) return null;
+	return (
+		<InfoNotice
+			id={id}
+			action={
+				canWrite ? (
+					<Button variant="outline" size="sm" onClick={onRestart}>
+						<RotateCwIcon />
+						Restart
+					</Button>
+				) : undefined
+			}
+		>
+			{names.map((name, i) => (
+				<Fragment key={name}>
+					{i > 0 && ", "}
+					<code>{name}</code>
+				</Fragment>
+			))}{" "}
+			changed after this deployment. Restart to use the new {names.length > 1 ? "values" : "value"}.
+		</InfoNotice>
 	);
 }

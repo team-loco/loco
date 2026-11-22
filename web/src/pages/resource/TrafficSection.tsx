@@ -1,17 +1,33 @@
 import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { keepPreviousData } from "@tanstack/react-query";
+import { useQuery } from "@connectrpc/connect-query";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
+import { queryDeploymentBuckets } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useTraffic } from "@/hooks/useTraffic";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatAxisTime, formatFullTime, timeAxis } from "@/lib/time";
-import { errorShare, latestTraffic, trafficAxis, trafficValue } from "@/lib/traffic";
-import { RANGE_MS, type MetricRange } from "./metric";
+import { formatAxisTime, formatFullTime, msToTimestamp, timeAxis } from "@/lib/time";
+import { errorShare, latestTraffic, trafficAxis, trafficValue, type TrafficPoint } from "@/lib/traffic";
+import { deploymentMarkers, RANGE_MS, type MetricRange } from "./metric";
+import { REFRESH_MS } from "./model";
 
 const ERROR_NOTE_SHARE = 2;
+const MARKER_BUCKETS = 200;
+const MARKER_LEAD_MS = 60_000;
+const AXIS_FONT = 11;
+
+function TooltipRow({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="flex justify-between gap-4">
+			<span className="text-fg3">{label}</span>
+			<span className="font-mono text-foreground tabular-nums">{value}</span>
+		</div>
+	);
+}
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string | undefined }) {
 	return (
@@ -25,6 +41,17 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 	);
 }
 
+function trafficTooltip(value: unknown, _name: unknown, item: { payload?: unknown }) {
+	const point = item.payload as TrafficPoint | undefined;
+	return (
+		<div className="grid w-full gap-1">
+			<TooltipRow label="Requests" value={trafficValue(Number(value), "/s")} />
+			<TooltipRow label="Errors" value={trafficValue(errorShare(point), "%")} />
+			<TooltipRow label="p95" value={trafficValue(point?.latency, " ms")} />
+		</div>
+	);
+}
+
 export function TrafficSection({
 	workspaceId,
 	environmentId,
@@ -32,6 +59,7 @@ export function TrafficSection({
 	region,
 	range,
 	isPublic,
+	nowMs,
 }: {
 	workspaceId: string;
 	environmentId: string;
@@ -39,6 +67,7 @@ export function TrafficSection({
 	region: string;
 	range: MetricRange;
 	isPublic: boolean;
+	nowMs: number;
 }) {
 	if (!isPublic) {
 		return (
@@ -49,7 +78,7 @@ export function TrafficSection({
 			</Section>
 		);
 	}
-	return <PublicTraffic {...{ workspaceId, environmentId, resourceId, region, range }} />;
+	return <PublicTraffic {...{ workspaceId, environmentId, resourceId, region, range, nowMs }} />;
 }
 
 function PublicTraffic({
@@ -58,12 +87,14 @@ function PublicTraffic({
 	resourceId,
 	region,
 	range,
+	nowMs,
 }: {
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
 	region: string;
 	range: MetricRange;
+	nowMs: number;
 }) {
 	const timePref = useTimePreferences();
 	const traffic = useTraffic({
@@ -73,10 +104,23 @@ function PublicTraffic({
 		region,
 		spanMs: RANGE_MS[range],
 	});
+	const buckets = useQuery(
+		queryDeploymentBuckets,
+		{
+			workspaceId,
+			environmentId,
+			resourceIds: [resourceId],
+			since: msToTimestamp(nowMs - RANGE_MS[range]),
+			until: msToTimestamp(nowMs + MARKER_LEAD_MS),
+			bucketCount: MARKER_BUCKETS,
+		},
+		{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
+	);
 	const to = traffic.endMs;
 	const from = to - RANGE_MS[range];
 	const latest = latestTraffic(traffic.points, resourceId);
 	const share = errorShare(latest);
+	const markers = deploymentMarkers(buckets.data?.buckets ?? []).filter((m) => m.ms >= from && m.ms <= to);
 	const axis = trafficAxis(Math.max(0, ...traffic.points.map((point) => point.requests ?? 0)), "/s");
 	return (
 		<Section title="Traffic">
@@ -139,10 +183,19 @@ function PublicTraffic({
 												const point = payload[0]?.payload as { time?: number } | undefined;
 												return point?.time === undefined ? "" : formatFullTime(point.time, false, timePref);
 											}}
-											formatter={(value) => trafficValue(Number(value), "/s")}
+											formatter={trafficTooltip}
 										/>
 									}
 								/>
+								{markers.map((m) => (
+									<ReferenceLine
+										key={m.ms}
+										x={m.ms}
+										stroke="var(--fg3)"
+										strokeDasharray="2 3"
+										label={{ value: m.label, position: "insideTopLeft", fontSize: AXIS_FONT, fill: "var(--fg3)" }}
+									/>
+								))}
 								<Area
 									dataKey="requests"
 									stroke="var(--series-0)"

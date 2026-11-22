@@ -3,6 +3,8 @@ import { DeploymentStatus, DeploymentSchema, DeploymentSpecSchema } from "@gen/l
 import { skipToken } from "@connectrpc/connect-query";
 import { describe, expect, test } from "bun:test";
 import { EnvironmentStatusSchema, RegionStatusSchema, ResourceSchema } from "@gen/loco/resource/v1/resource_pb";
+import { ReplicaSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import { SecretSchema, SecretUserSchema } from "@gen/loco/secret/v1/secret_pb";
 
 import { isWorker } from "@/lib/resource-regions";
 
@@ -10,6 +12,7 @@ import { msToTimestamp } from "@/lib/time";
 
 import {
 	buildRegions,
+	changedSecrets,
 	deploymentsRequest,
 	focusRegion,
 	previousDeploymentId,
@@ -242,5 +245,52 @@ describe("statusEnvironmentId", () => {
 	test("takes the first environment when none is requested", () => {
 		expect(statusEnvironmentId(resource, null)).toBe("e-prod");
 		expect(statusEnvironmentId(create(ResourceSchema, {}), null)).toBeUndefined();
+	});
+});
+
+describe("changedSecrets", () => {
+	const START_MS = 1_700_000_000_000;
+	const region = (...replicas: { startedMs: number; state?: string }[]): RegionView => ({
+		name: "us-ca-1",
+		status: create(RegionStatusSchema, {
+			region: "us-ca-1",
+			replicas: replicas.map((r) =>
+				create(ReplicaSchema, { state: r.state ?? "Running", startedAt: msToTimestamp(r.startedMs) }),
+			),
+		}),
+		history: [],
+		current: undefined,
+		serving: undefined,
+		lastGood: undefined,
+	});
+	const secret = (name: string, updatedMs: number, users: string[]) =>
+		create(SecretSchema, {
+			name,
+			updatedAt: msToTimestamp(updatedMs),
+			usedBy: users.map((resourceId) => create(SecretUserSchema, { resourceId })),
+		});
+
+	test("names the secrets this resource reads that changed after its oldest replica started", () => {
+		const secrets = [
+			secret("STRIPE_SECRET_KEY", START_MS + 60_000, [RESOURCE_ID]),
+			secret("DATABASE_URL", START_MS - 60_000, [RESOURCE_ID]),
+			secret("OTHER_KEY", START_MS + 60_000, [PRODUCTION_ID]),
+		];
+		expect(
+			changedSecrets(secrets, RESOURCE_ID, [region({ startedMs: START_MS }, { startedMs: START_MS + 120_000 })]),
+		).toEqual(["STRIPE_SECRET_KEY"]);
+	});
+
+	test("names nothing once every running replica started after the change", () => {
+		const secrets = [secret("STRIPE_SECRET_KEY", START_MS, [RESOURCE_ID])];
+		expect(
+			changedSecrets(secrets, RESOURCE_ID, [
+				region({ startedMs: START_MS + 1_000 }, { startedMs: START_MS - 1_000, state: "Stopping" }),
+			]),
+		).toEqual([]);
+	});
+
+	test("names nothing without a running replica", () => {
+		expect(changedSecrets([secret("STRIPE_SECRET_KEY", START_MS, [RESOURCE_ID])], RESOURCE_ID, [region()])).toEqual([]);
 	});
 });

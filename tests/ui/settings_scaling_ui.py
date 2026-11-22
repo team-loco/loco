@@ -266,6 +266,19 @@ with session(out) as browser:
     assert all(spec["observability"] == {"injectOtel": True} for spec in runtime), (
         runtime
     )
+    # A target off the slider's step shows unchanged and leaves nothing unsaved.
+    for region in regions:
+        sql(
+            state,
+            f"""UPDATE deployments SET spec=jsonb_set(jsonb_set(spec, '{{regions,{region},maxReplicas}}', '3'), '{{regions,{region},scalers}}', '{{"enabled": true, "cpuTarget": 72}}') WHERE id IN ({live});""",
+        )
+    page.reload()
+    section = page.locator("#set-scaling")
+    expect(
+        section.get_by_role("slider", name="CPU target (%)", exact=True)
+    ).to_have_value("72")
+    expect(section.get_by_text("72%", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
     # Regions that scale differently show the first region's values and say saving applies them to all.
     sql(
         state,

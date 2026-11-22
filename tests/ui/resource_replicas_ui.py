@@ -493,6 +493,52 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(west.get_by_role("listitem")).to_have_count(2)
     expect(west).to_contain_text("Last reported")
 
+    # A secret the resource reads that changed after its oldest replica started asks for a restart.
+    changed_at = [time.time()]
+
+    def secrets(route):
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(changed_at[0]))
+        route.fulfill(
+            json={
+                "secrets": [
+                    {
+                        "name": "STRIPE_SECRET_KEY",
+                        "version": 2,
+                        "updatedAt": stamp,
+                        "usedBy": [{"resourceId": r["resource"]}],
+                    },
+                    {
+                        "name": "OTHER_KEY",
+                        "version": 1,
+                        "updatedAt": stamp,
+                        "usedBy": [{"resourceId": str(uuid.uuid4())}],
+                    },
+                ]
+            }
+        )
+
+    context.route("**/loco.secret.v1.SecretService/ListSecrets", secrets)
+    report_replicas()
+    page.reload()
+    notice = page.locator("#secrets-notice-ov")
+    expect(notice).to_have_text(
+        re.compile(
+            r"^STRIPE_SECRET_KEY changed after this deployment\. Restart to use the new value\.\s*Restart$"
+        )
+    )
+    notice.get_by_role("button", name="Restart", exact=True).click()
+    restart = page.get_by_role("dialog", name="Restart replicas-ui?", exact=True)
+    expect(restart).to_be_visible()
+    restart.get_by_role("button", name="Cancel", exact=True).click()
+    page.goto(state["ui_url"] + path + "&tab=settings")
+    expect(page.locator("#secrets-notice-set")).to_contain_text("STRIPE_SECRET_KEY")
+    # A change made before every running replica started shows no notice.
+    changed_at[0] = time.time() - 4 * 3600
+    page.goto(state["ui_url"] + path)
+    expect(page.get_by_role("region", name="Replicas", exact=True)).to_be_visible()
+    expect(page.locator("#secrets-notice-ov")).to_have_count(0)
+    context.unroute("**/loco.secret.v1.SecretService/ListSecrets")
+
     narrow, narrow_page, narrow_errors = open_page(browser, state=state, narrow=True)
     narrow.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
     report_replicas()
