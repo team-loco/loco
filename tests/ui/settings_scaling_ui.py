@@ -276,7 +276,7 @@ with session(out) as browser:
     section = page.locator("#set-scaling")
     expect(
         section.get_by_role("slider", name="CPU target (%)", exact=True)
-    ).to_have_value("72")
+    ).to_have_attribute("aria-valuenow", "72")
     expect(section.get_by_text("72%", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
     # Regions that scale differently show the first region's values and say saving applies them to all.

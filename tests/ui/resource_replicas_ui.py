@@ -527,7 +527,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         )
     )
     notice.get_by_role("button", name="Restart", exact=True).click()
-    restart = page.get_by_role("dialog", name="Restart replicas-ui?", exact=True)
+    restart = page.get_by_role("alertdialog", name="Restart replicas-ui?", exact=True)
     expect(restart).to_be_visible()
     restart.get_by_role("button", name="Cancel", exact=True).click()
     page.goto(state["ui_url"] + path + "&tab=settings")

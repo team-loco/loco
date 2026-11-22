@@ -391,7 +391,7 @@ with session(out) as browser:
     picker.click()
     expect(
         page.get_by_role("menuitemradio", name=re.compile(data["releases"][3][-8:]))
-    ).to_have_text(re.compile(r"· —\s*$"))
+    ).to_have_text(re.compile(r"\) in [a-z0-9-]+(, [a-z0-9-]+)*\s*$"))
     page.keyboard.press("Escape")
     page.keyboard.press("Escape")
     section.get_by_role(
