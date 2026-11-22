@@ -4,10 +4,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { ALL, visibleStatusFilters } from "./table";
 
 export function StatusFilter({
+	label = "Filter by status",
 	counts,
 	status,
 	onStatus,
 }: {
+	label?: string;
 	counts: ReadonlyMap<string, number>;
 	status: string;
 	onStatus: (status: string) => void;
@@ -17,7 +19,7 @@ export function StatusFilter({
 		<ToggleGroup
 			key={counts.has(ALL) ? "counted" : "counting"}
 			variant="segmented"
-			aria-label="Filter by status"
+			aria-label={label}
 			className="max-w-full overflow-x-auto"
 			value={[status]}
 			onValueChange={(v: string[]) => {

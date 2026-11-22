@@ -1,13 +1,53 @@
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type DeploymentBucket } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { deploymentImage } from "@/lib/deployment-utils";
-import { imageVersion } from "@/lib/image";
-import { agoLabel, tsMs } from "@/lib/time";
+import { imageTag } from "@/lib/image";
+import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
 
 const EDGE = 0.015;
-const MAX_NAMES = 3;
 const BAD_SHARE = 0.3;
+
+/** The most resource names a marker's tip lists. */
+export const MARKER_NAMES = 3;
+
+/** A bucket of deployments as charts show it. */
+export interface DeploySummary {
+	/** The deployments' mean creation time. */
+	ms: number;
+	count: number;
+	failed: number;
+	/** The resource names the bucket lists, and how many more it deployed. */
+	names: string[];
+	moreNames: number;
+	/** The bucket's deployment when it holds exactly one. */
+	only: { version: string; resource: string; createdMs: number; failed: boolean } | undefined;
+}
+
+/** The summary of each bucket with a mean creation time. */
+export function deploySummaries(buckets: readonly DeploymentBucket[]): DeploySummary[] {
+	return buckets.flatMap((bucket) => {
+		const ms = maybeTsMs(bucket.meanCreatedAt);
+		if (ms === undefined) return [];
+		const only = bucket.deploymentCount === 1 ? bucket.onlyDeployment : undefined;
+		return [
+			{
+				ms,
+				count: bucket.deploymentCount,
+				failed: bucket.statusCounts.find((c) => c.status === DeploymentStatus.FAILED)?.count ?? 0,
+				names: bucket.resourceNames,
+				moreNames: Math.max(0, bucket.resourceCount - bucket.resourceNames.length),
+				only:
+					only === undefined
+						? undefined
+						: {
+								version: imageTag(only.image),
+								resource: only.resourceName,
+								createdMs: tsMs(only.createdAt),
+								failed: only.status === DeploymentStatus.FAILED,
+							},
+			},
+		];
+	});
+}
 
 export interface DeployMarker {
 	/** Position along the sparkline, 0 to 1. */
@@ -17,60 +57,27 @@ export interface DeployMarker {
 	tip: string;
 }
 
-interface Placed {
-	fraction: number;
-	failed: boolean;
-	version: string;
-	resource: string;
-	createdMs: number;
-}
-
-/** Groups the deployments created in [startMs, endMs) into at most `buckets` markers. */
+/** One sparkline marker per bucket of deployments created in [startMs, endMs). */
 export function deployMarkers(
-	deployments: { deployment: Deployment; resource: { name: string } }[],
+	buckets: readonly DeploymentBucket[],
 	startMs: number,
 	endMs: number,
-	buckets: number,
 	nowMs: number,
 ): DeployMarker[] {
-	const span = endMs - startMs;
-	const groups = new Map<number, Placed[]>();
-	for (const { deployment, resource } of deployments) {
-		const createdMs = tsMs(deployment.createdAt);
-		if (createdMs < startMs || createdMs >= endMs) continue;
-		const fraction = (createdMs - startMs) / span;
-		const bucket = Math.min(buckets - 1, Math.floor(fraction * buckets));
-		const placed: Placed = {
-			fraction,
-			failed: deployment.status === DeploymentStatus.FAILED,
-			version: imageVersion(deploymentImage(deployment)),
-			resource: resource.name,
-			createdMs,
-		};
-		groups.set(bucket, [...(groups.get(bucket) ?? []), placed]);
-	}
-	return [...groups.entries()]
-		.toSorted(([a], [b]) => a - b)
-		.map(([, group]) => {
-			const failures = group.filter((d) => d.failed).length;
-			const mean = group.reduce((sum, d) => sum + d.fraction, 0) / group.length;
-			return {
-				at: Math.min(1 - EDGE, Math.max(EDGE, mean)),
-				failed: group.length === 1 ? failures === 1 : failures / group.length >= BAD_SHARE,
-				count: group.length,
-				tip: markerTip(group, failures, nowMs),
-			};
-		});
+	return deploySummaries(buckets).map((s) => ({
+		at: Math.min(1 - EDGE, Math.max(EDGE, (s.ms - startMs) / (endMs - startMs))),
+		failed: s.only === undefined ? s.failed / s.count >= BAD_SHARE : s.only.failed,
+		count: s.count,
+		tip: markerTip(s, nowMs),
+	}));
 }
 
-function markerTip(group: Placed[], failures: number, nowMs: number): string {
-	const [only] = group;
-	if (group.length === 1 && only !== undefined) {
-		const verb = only.failed ? "failed" : "deployed";
-		return `${only.version} · ${only.resource}\n${verb} ${agoLabel(only.createdMs, nowMs)}`;
+function markerTip(s: DeploySummary, nowMs: number): string {
+	if (s.only !== undefined) {
+		const verb = s.only.failed ? "failed" : "deployed";
+		return `${s.only.version} · ${s.only.resource}\n${verb} ${agoLabel(s.only.createdMs, nowMs)}`;
 	}
-	const names = [...new Set(group.map((d) => d.resource))];
-	const more = names.length > MAX_NAMES ? ` +${(names.length - MAX_NAMES).toString()}` : "";
-	const failed = failures > 0 ? ` · ${failures.toString()} failed` : "";
-	return `${group.length.toString()} deploys${failed}\n${names.slice(0, MAX_NAMES).join(", ")}${more}`;
+	const more = s.moreNames > 0 ? ` +${s.moreNames.toString()}` : "";
+	const failed = s.failed > 0 ? ` · ${s.failed.toString()} failed` : "";
+	return `${s.count.toString()} deploys${failed}\n${s.names.join(", ")}${more}`;
 }

@@ -52,6 +52,11 @@ export function imageVersion(image: string): string {
 	return IMPLICIT_TAG;
 }
 
+/** An image's version for display; "—" without an image. */
+export function imageTag(image: string): string {
+	return image === "" ? "—" : imageVersion(image);
+}
+
 function compactImagePart(part: string, limit: number): string {
 	if (part.length <= limit) return part;
 	return `${part.slice(0, limit - SHORT_SUFFIX_LENGTH - 1)}…${part.slice(-SHORT_SUFFIX_LENGTH)}`;

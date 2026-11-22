@@ -3,32 +3,41 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ArrowRightIcon, RocketIcon } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { Link, useNavigate } from "react-router";
+import { useQuery } from "@connectrpc/connect-query";
+import { keepPreviousData } from "@tanstack/react-query";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { Resource } from "@gen/loco/resource/v1/resource_pb";
+import {
+	listDeployments,
+	queryDeploymentBuckets,
+} from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 
 import { Button } from "@/components/design/Button";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { EmptyState } from "@/components/design/EmptyState";
+import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { DeploymentActor, DeploymentId } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { deploymentRegions } from "@/lib/deployment-utils";
+import { deploymentRegions, isInFlight } from "@/lib/deployment-utils";
 import { observabilityPath, resourcePath } from "@/lib/routes";
-import { agoLabel, DAY_MS, formatStarted, readyMs } from "@/lib/time";
+import { agoLabel, DAY_MS, formatStarted, msToTimestamp, readyMs } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
 	DEPLOYMENT_FILTERS,
+	DEPLOYMENT_LIMIT,
+	DEPLOYMENT_WINDOW_MS,
 	deploymentCounts,
 	deploymentState,
-	filterDeployments,
-	withinWindow,
+	filterStatuses,
 } from "./deploymentRows";
+
+const POLL_MS = 5000;
+const IDLE_POLL_MS = 15_000;
 
 interface DeploymentRow {
 	deployment: Deployment;
-	resource: Resource;
 }
 
 function When({ deployment, nowMs }: { deployment: Deployment; nowMs: number }) {
@@ -51,7 +60,7 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 			cell: ({ row: { original: r } }) => (
 				<DeploymentStatusBadge
 					phase={r.deployment.status}
-					superseded={deploymentState(r.deployment) === "superseded"}
+					superseded={deploymentState(r.deployment.status) === "superseded"}
 				/>
 			),
 		},
@@ -63,7 +72,7 @@ function deploymentColumns(hrefOf: (row: DeploymentRow) => string, nowMs: number
 			meta: { primary: true },
 			cell: ({ row: { original: r } }) => (
 				<CellText
-					text={r.resource.name}
+					text={r.deployment.resourceName}
 					render={<Link to={hrefOf(r)} />}
 					className="text-[14px] font-medium text-foreground"
 				/>
@@ -117,24 +126,40 @@ const deploysParser = parseAsStringLiteral(DEPLOYS_VALUES)
 	.withOptions({ history: "replace" });
 
 export function RecentDeployments({
-	deployments,
 	orgId,
 	workspaceId,
+	environmentId,
 	envName,
 	nowMs,
 }: {
-	deployments: DeploymentRow[];
 	orgId: string;
 	workspaceId: string;
+	environmentId: string;
 	envName: string;
 	nowMs: number;
 }) {
 	const navigate = useNavigate();
 	const [filter, setFilter] = useQueryState("deploys", deploysParser);
-	const recent = withinWindow(deployments, nowMs);
-	const counts = deploymentCounts(recent);
-	const rows = filterDeployments(recent, filter);
-	const hrefOf = (row: DeploymentRow) => resourcePath(orgId, workspaceId, row.resource.id, { env: envName });
+	const since = msToTimestamp(nowMs - DEPLOYMENT_WINDOW_MS);
+	const listed = useQuery(
+		listDeployments,
+		{ workspaceId, environmentId, since, pageSize: DEPLOYMENT_LIMIT, statuses: filterStatuses(filter) },
+		{
+			placeholderData: keepPreviousData,
+			refetchInterval: (q) => (q.state.data?.deployments.some((d) => isInFlight(d.status)) ? POLL_MS : IDLE_POLL_MS),
+		},
+	);
+	const counted = useQuery(
+		queryDeploymentBuckets,
+		{ workspaceId, environmentId, since, until: msToTimestamp(nowMs), bucketCount: 1 },
+		{ placeholderData: keepPreviousData, refetchInterval: IDLE_POLL_MS },
+	);
+	const bucket = counted.data?.buckets[0];
+	const total = counted.data === undefined ? undefined : (bucket?.deploymentCount ?? 0);
+	const counts = deploymentCounts(bucket?.statusCounts ?? []);
+	const rows = (listed.data?.deployments ?? []).map((deployment) => ({ deployment }));
+	const error = listed.error ?? counted.error;
+	const hrefOf = (row: DeploymentRow) => resourcePath(orgId, workspaceId, row.deployment.resourceId, { env: envName });
 	const table = useDataTable("dashboard-deployments", {
 		columns: deploymentColumns(hrefOf, nowMs),
 		data: rows,
@@ -152,11 +177,15 @@ export function RecentDeployments({
 				if (next !== undefined) void setFilter(next);
 			}}
 		>
-			<ToggleGroupItem value={ALL_DEPLOYMENTS} count={recent.length}>
+			<ToggleGroupItem value={ALL_DEPLOYMENTS} count={total}>
 				All
 			</ToggleGroupItem>
 			{DEPLOYMENT_FILTERS.map((o) => (
-				<ToggleGroupItem key={o.value} value={o.value} count={counts.get(o.value) ?? 0}>
+				<ToggleGroupItem
+					key={o.value}
+					value={o.value}
+					count={total === undefined ? undefined : (counts.get(o.value) ?? 0)}
+				>
 					{o.label}
 				</ToggleGroupItem>
 			))}
@@ -175,14 +204,22 @@ export function RecentDeployments({
 	);
 
 	return (
-		<Section title="Deployments" count={recent.length} actions={actions} filters={toolbar}>
-			{recent.length === 0 ? (
+		<Section title="Deployments" count={total} actions={actions} filters={toolbar}>
+			{error !== null ? (
+				<ErrorState
+					error={error}
+					what="deployments"
+					rpc={listDeployments}
+					onRetry={async () => await Promise.all([listed.refetch(), counted.refetch()])}
+				/>
+			) : total === 0 && rows.length === 0 ? (
 				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
 				<DataTable
 					table={table}
 					inset
 					label="Deployments"
+					loading={listed.isPending}
 					className="[--row-h:66px]"
 					onRowClick={(row) => void navigate(hrefOf(row.original))}
 					rowAction="navigate"

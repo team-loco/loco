@@ -1,13 +1,12 @@
 import { create } from "@bufbuild/protobuf";
 import { SizeLimitsSchema, type SizeLimits } from "@gen/loco/config/v1/config_pb";
 
-import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "./quantity";
+import { bytesToMi, formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "./quantity";
 
 // The sizes the forms offer are a UI choice; GetConfig's size limits decide which of them
 // an installation accepts, so the API stays the only source of the limits.
 const CPU_PRESETS = ["100m", "250m", "500m", "1", "2"];
 const MEMORY_PRESETS = ["128Mi", "256Mi", "512Mi", "1Gi", "2Gi", "4Gi"];
-const BYTES_PER_MI = 1_048_576;
 
 export interface SizeOption {
 	value: string;
@@ -27,8 +26,8 @@ export interface ReplicaRange {
 
 export function sizeOptions(limits: SizeLimits | undefined): SizeOptions {
 	const l = limits ?? create(SizeLimitsSchema);
-	const minMemory = Number(l.minMemoryBytes) / BYTES_PER_MI;
-	const maxMemory = Number(l.maxMemoryBytes) / BYTES_PER_MI;
+	const minMemory = bytesToMi(l.minMemoryBytes);
+	const maxMemory = bytesToMi(l.maxMemoryBytes);
 	return {
 		cpu: CPU_PRESETS.filter((p) => within(parseCpuMilli(p), l.minCpuMillis, l.maxCpuMillis)).map((p) => ({
 			value: p,

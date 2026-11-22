@@ -1,5 +1,5 @@
-import { useQuery as useConnectQuery, useTransport } from "@connectrpc/connect-query";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useTransport } from "@connectrpc/connect-query";
+import { useQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
 import { GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -18,13 +18,12 @@ import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
-import { useTokenPage } from "@/hooks/useTokenPage";
-import { resourcesPollMs, useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
-import { tokenPageLabel, tokenPager } from "@/lib/paging";
+import { useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
+import { tokenPageLabel } from "@/lib/paging";
 import { userLabel } from "@/lib/user";
 
 import { ResourceCellContext, resourceColumns, rowPath } from "./columns";
-import { resourcesOrder, shownDrafts, statusCounts, statusInput } from "./query";
+import { resourcesOrder, shownDrafts, statusCounts, statusInput, useResourcePage } from "./query";
 import { ResourceSearch, StatusFilter } from "./ResourceFilters";
 import {
 	ALL,
@@ -94,22 +93,17 @@ export function ResourceTable({
 		query: filter.query.trim(),
 		region: filter.region === ALL ? "" : filter.region,
 	};
-	const listed = useTokenPage(
-		listWorkspaceResources,
+	const draftsOnly = filter.status === DRAFT;
+	const { listed, pager, allRegions } = useResourcePage(
 		{ ...counted, ...order, ...statusInput(filter.status), pageSize: state.size },
-		state.page,
-		{ placeholderData: keepPreviousData, refetchInterval: (q) => resourcesPollMs(q.state.data?.resources) },
 		{ ...counted, includeFacets: true },
-		() => void setState({ page: null }),
+		filter.region === ALL ? undefined : { ...counted, region: "" },
+		state.page,
+		(page) => void setState({ page }),
+		draftsOnly,
 	);
-	const regionsTotal = useConnectQuery(
-		listWorkspaceResources,
-		{ ...counted, region: "", pageSize: 1, includeTotalCount: true },
-		{ enabled: filter.region !== ALL },
-	).data?.totalCount;
 	const resources = listed.query.data?.resources ?? [];
 	const deployments = useCurrentDeployments(resources);
-	const draftsOnly = filter.status === DRAFT;
 	const serverRows = draftsOnly ? [] : buildRows(resources, deployments, environments, active?.id);
 	const draftCount = shownDrafts(drafts, { ...filter, status: DRAFT }).length;
 	const data: ListRow[] = [...serverRows, ...(state.page.length === 0 ? shownDrafts(drafts, filter) : [])];
@@ -132,11 +126,7 @@ export function ResourceTable({
 			void setState({ cols: functionalUpdate(updater, state.cols) });
 		},
 	});
-	const pager = tokenPager(state.page, draftsOnly ? "" : listed.nextPageToken, (page) => {
-		if (!listed.query.isPlaceholderData) void setState({ page });
-	});
 
-	const allRegions = filter.region === ALL ? listed.total : regionsTotal;
 	const regionOptions = [
 		{ value: ALL, label: "All regions", ...(allRegions === undefined ? {} : { count: allRegions }) },
 		...(facets?.regions ?? []).map((r) => ({

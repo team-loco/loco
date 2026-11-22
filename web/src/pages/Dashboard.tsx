@@ -13,18 +13,19 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
+import { usePollingWorkspaceResources } from "@/hooks/useWorkspaceDeployments";
 import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
-import { allocation } from "@/pages/dashboard/allocation";
 import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
 import { draftItems } from "@/pages/dashboard/resourceRows";
 import { ResourcesTable } from "@/pages/dashboard/ResourcesTable";
 import { Totals } from "@/pages/dashboard/Totals";
-import { useDashboardData } from "@/pages/dashboard/useDashboardData";
+import { useEnvironmentRegions } from "@/pages/dashboard/useDashboardData";
 import { DraftSheet } from "@/pages/resources/NewService";
 
 const NOW_TICK_MS = 60_000;
 const SKELETON_ROWS = 4;
+const TOTAL_POLL_MS = 15_000;
 
 function DashboardSkeleton() {
 	return (
@@ -41,17 +42,28 @@ function DashboardSkeleton() {
 export function Dashboard() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
-	const data = useDashboardData(activeOrgId, activeWorkspaceId, active);
+	const { grants, regions } = useEnvironmentRegions(activeOrgId, activeWorkspaceId, active?.id);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
 
 	const orgId = activeOrgId ?? "";
 	const workspaceId = activeWorkspaceId ?? "";
+	const scoped = grants !== undefined && grants !== "workspace";
+	const counted = useQuery(
+		listWorkspaceResources,
+		{ workspaceId, environmentId: active?.id ?? "", environmentScoped: true, pageSize: 1, includeTotalCount: true },
+		{ enabled: grants === "workspace" && active !== undefined, refetchInterval: TOTAL_POLL_MS },
+	);
+	const granted = usePollingWorkspaceResources(activeOrgId, activeWorkspaceId, scoped);
+	const data = scoped ? granted : counted;
+	const envTotal = counted.data?.totalCount ?? 0;
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
 	const [draftId] = useQueryState(DRAFT_PARAM);
 	const defaultRegion = useQuery(getConfig, {}).data?.defaultRegion ?? "";
 	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id, { env: active?.slug ?? null });
 	const otherEnv = environments.find((e) => e.id !== active?.id);
-	const loading = envsLoading || data.isLoading;
+	// Until grants resolve a scoped viewer is indistinguishable from a workspace reader, and the
+	// workspace view queries environment-wide metrics the proxy refuses them.
+	const loading = envsLoading || grants === undefined || data.isLoading;
 	const heading = <h1 className="sr-only">Dashboard</h1>;
 
 	if (data.error !== null) {
@@ -63,14 +75,14 @@ export function Dashboard() {
 		);
 	}
 
-	if (data.scoped) {
+	if (scoped) {
 		return (
 			<Page>
 				{heading}
-				{data.isLoading ? (
+				{granted.isLoading ? (
 					<DashboardSkeleton />
 				) : (
-					<ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={data.resources} />
+					<ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={granted.data?.resources ?? []} />
 				)}
 			</Page>
 		);
@@ -98,7 +110,7 @@ export function Dashboard() {
 			{heading}
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
-			) : data.envResources.length === 0 && drafts.length === 0 ? (
+			) : envTotal === 0 && drafts.length === 0 ? (
 				<EmptyWorkspace
 					envName={active.slug}
 					newHref={newResourcePath(orgId, workspaceId, { env: active.slug })}
@@ -114,18 +126,14 @@ export function Dashboard() {
 						workspaceId={workspaceId}
 						environmentId={active.id}
 						envName={active.slug}
-						deployments={data.envDeployments}
-						value={allocation(data.envResources)}
-						names={new Map(data.resources.map((r) => [r.id, r.name]))}
 						hrefFor={hrefFor}
 						nowMs={nowMs}
 					/>
 					<ResourcesTable
 						key={active.id}
-						envResources={data.envResources}
-						deployments={data.deployments}
-						drafts={draftItems(drafts, data.regions, defaultRegion)}
-						regions={data.regions}
+						total={envTotal}
+						drafts={draftItems(drafts, regions, defaultRegion)}
+						regions={regions}
 						orgId={orgId}
 						workspaceId={workspaceId}
 						environmentId={active.id}
@@ -134,9 +142,9 @@ export function Dashboard() {
 						hrefFor={hrefFor}
 					/>
 					<RecentDeployments
-						deployments={data.envDeployments}
 						orgId={orgId}
 						workspaceId={workspaceId}
+						environmentId={active.id}
 						envName={active.slug}
 						nowMs={nowMs}
 					/>

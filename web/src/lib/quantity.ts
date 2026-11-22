@@ -33,6 +33,10 @@ export function formatCpu(milli: number): string {
 	return `${trimDecimals(milli / MILLI_PER_CORE, CPU_DECIMALS)} vCPU`;
 }
 
+export function bytesToMi(bytes: bigint): number {
+	return Number(bytes) / BYTES_PER_MI;
+}
+
 export function formatMemory(mi: number): string {
 	if (mi >= MI_PER_GI) return `${trimDecimals(mi / MI_PER_GI, GI_DECIMALS)} Gi`;
 	if (mi > 0 && mi < 0.5) return "<1 Mi";

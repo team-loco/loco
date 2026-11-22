@@ -21,10 +21,11 @@ export function resourcesPollMs(resources: readonly Resource[] | undefined): num
 	return (resources ?? []).some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
 }
 
-function usePollingWorkspaceResources(orgId: string | null, workspaceId: string | null) {
+/** The workspace's resources the caller can read, polled faster while one rolls out. */
+export function usePollingWorkspaceResources(orgId: string | null, workspaceId: string | null, enabled = true) {
 	return useQuery({
 		...useWorkspaceResourcesOptions(orgId ?? "", workspaceId ?? ""),
-		enabled: orgId !== null && workspaceId !== null,
+		enabled: enabled && orgId !== null && workspaceId !== null,
 		refetchInterval: (q) => resourcesPollMs(q.state.data?.resources),
 	});
 }
@@ -44,25 +45,28 @@ export function currentDeploymentOptions(transport: Transport, deploymentId: str
 	};
 }
 
-function currentDeploymentIds(resource: Resource): string[] {
+function currentDeploymentIds(resource: Resource, environmentId: string | undefined): string[] {
 	return [
 		...new Set(
-			resource.environmentStatuses.flatMap((e) => e.regions.map((r) => r.deploymentId)).filter((id) => id !== ""),
+			resource.environmentStatuses
+				.filter((e) => environmentId === undefined || e.environmentId === environmentId)
+				.flatMap((e) => e.regions.map((r) => r.deploymentId))
+				.filter((id) => id !== ""),
 		),
 	];
 }
 
-/** The current deployments of each of resources, in resources' order. */
-export function useCurrentDeployments(resources: readonly Resource[]) {
+/** The current deployments of each of resources, in resources' order, in environmentId or every environment. */
+export function useCurrentDeployments(resources: readonly Resource[], environmentId?: string) {
 	const transport = useTransport();
-	const ids = [...new Set(resources.flatMap(currentDeploymentIds))];
+	const ids = [...new Set(resources.flatMap((r) => currentDeploymentIds(r, environmentId)))];
 	const deploymentQueries = useQueries({ queries: ids.map((id) => currentDeploymentOptions(transport, id)) });
 	const byId = new Map(
 		deploymentQueries.flatMap((q) =>
 			q.data?.deployment === undefined ? [] : ([[q.data.deployment.id, q.data.deployment]] as const),
 		),
 	);
-	return resources.map((r) => currentDeploymentIds(r).flatMap((id) => byId.get(id) ?? []));
+	return resources.map((r) => currentDeploymentIds(r, environmentId).flatMap((id) => byId.get(id) ?? []));
 }
 
 export function useWorkspaceEnvironmentDeployments(

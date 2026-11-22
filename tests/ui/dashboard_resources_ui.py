@@ -3,7 +3,7 @@ import json
 import re
 from pathlib import Path
 
-from harness import call, load_state, open_page, repo, session, sql
+from harness import call, expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -37,11 +37,20 @@ DRAFT = {
     "edits": {},
 }
 RESOURCES = "**/loco.resource.v1.ResourceService/ListWorkspaceResources"
+DEPLOYMENTS = "**/loco.deployment.v1.DeploymentService/ListDeployments"
 failing = False
+deployments_failing = False
 
 
 def resources(route):
     if failing:
+        route.fulfill(status=500, json={"code": "internal", "message": "boom"})
+    else:
+        route.fallback()
+
+
+def deployments(route):
+    if deployments_failing:
         route.fulfill(status=500, json={"code": "internal", "message": "boom"})
     else:
         route.fallback()
@@ -56,12 +65,41 @@ with session(out) as browser:
         storage={f"loco:drafts:v1:{org}:{workspace}:{production}": json.dumps([DRAFT])},
     )
     page.route(RESOURCES, resources)
-    page.goto(f"{base}?env=production")
+    page.route(DEPLOYMENTS, deployments)
+    listed = []
+    page.on(
+        "request",
+        lambda request: (
+            listed.append(request.post_data_json or {})
+            if request.url.endswith("/ListDeployments")
+            else None
+        ),
+    )
+    with (
+        expect_rpc(
+            page,
+            "QueryDeploymentBuckets",
+            lambda body: (
+                body.get("groupByResource") is True
+                and len(body.get("resourceIds", [])) > 0
+            ),
+        ),
+        expect_rpc(
+            page, "QueryDeploymentBuckets", lambda body: body.get("bucketCount") == 1
+        ),
+    ):
+        page.goto(f"{base}?env=production")
     table = page.get_by_role("table", name="Resources")
     row = table.get_by_role("row").filter(
         has=page.get_by_role("link", name="svc-1", exact=True)
     )
     expect(row).to_contain_text(re.compile(r"(just now|\d+[mhd] ago)$"))
+    # The table view reads no environment-wide deployment list; the map reads it while shown.
+    assert all(body.get("pageSize") == 10 for body in listed), listed
+    with expect_rpc(page, "ListDeployments", lambda body: body.get("pageSize") == 200):
+        page.get_by_role("button", name="Map", exact=True).click()
+    expect(page.get_by_role("link", name=re.compile(r"^svc-1\b")).first).to_be_visible()
+    page.get_by_role("button", name="Table", exact=True).click()
 
     row.get_by_role("button", name="Actions for svc-1", exact=True).click()
     menu = page.get_by_role("menu")
@@ -97,6 +135,15 @@ with session(out) as browser:
     failing = False
     alert.get_by_role("button", name="Retry", exact=True).click()
     expect(row).to_be_visible()
+
+    deployments_failing = True
+    page.goto(f"{base}?env=production")
+    card = page.get_by_role("region", name="Deployments", exact=True)
+    failed = card.get_by_role("alert")
+    expect(failed.get_by_role("heading")).to_have_text("Couldn’t load deployments")
+    deployments_failing = False
+    failed.get_by_role("button", name="Retry", exact=True).click()
+    expect(card.get_by_role("table", name="Deployments")).to_be_visible()
 
     page.goto(f"{base}?env=staging")
     docs = page.get_by_role("link", name="Read the docs", exact=True)

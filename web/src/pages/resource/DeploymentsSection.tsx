@@ -223,7 +223,7 @@ function rolloutColumns(
 			meta: { fit: true, fitMax: 140 },
 			cell: ({ row: { original: rollout } }) => {
 				const { dep } = leadRow(rollout.rows);
-				return <DeploymentStatusBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />;
+				return <DeploymentStatusBadge phase={dep.status} superseded={deploymentState(dep.status) === "superseded"} />;
 			},
 		},
 		{
