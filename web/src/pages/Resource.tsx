@@ -375,24 +375,27 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	};
 	const logsHref = obsLink("logs");
 	const spec = deployed[0]?.current;
+	const canRedeploy = canWrite && deployed.length > 0 && !redeploying;
+	const askRedeploy = () => {
+		setModal({ kind: "redeploy" });
+	};
+	const askRollback = () => {
+		if (rollbackTarget !== undefined) openRollback(rollbackTarget, focus?.current);
+	};
 	const pageCommands: PageCommand[] = [];
-	if (canWrite && deployed.length > 0 && !redeploying)
+	if (canRedeploy)
 		pageCommands.push({
 			id: "redeploy",
 			label: `Redeploy ${resource.name}`,
 			icon: <RotateCwIcon />,
-			run: () => {
-				setModal({ kind: "redeploy" });
-			},
+			run: askRedeploy,
 		});
 	if (canWrite && rollbackTarget !== undefined)
 		pageCommands.push({
 			id: "rollback",
 			label: `Roll back ${resource.name}`,
 			icon: <Undo2Icon />,
-			run: () => {
-				openRollback(rollbackTarget, focus?.current);
-			},
+			run: askRollback,
 		});
 	if (spec !== undefined)
 		pageCommands.push({
@@ -447,6 +450,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				warnings={recentWarningCount(events, nowMs)}
 				isSettings={view !== "overview"}
 				redeploying={redeploying}
+				canRedeploy={canRedeploy}
 				restarting={restart.isPending}
 				onRestart={() => {
 					setModal({ kind: "restart" });
@@ -458,12 +462,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				onSettings={() => {
 					setView(view === "overview" ? "settings" : "overview");
 				}}
-				onRedeploy={() => {
-					setModal({ kind: "redeploy" });
-				}}
-				onRollback={() => {
-					if (rollbackTarget !== undefined) openRollback(rollbackTarget, focus?.current);
-				}}
+				onRedeploy={askRedeploy}
+				onRollback={askRollback}
 				onScale={() => {
 					setView("scaling");
 				}}

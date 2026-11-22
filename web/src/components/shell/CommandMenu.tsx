@@ -25,7 +25,7 @@ import {
 	WaypointsIcon,
 	WebhookIcon,
 } from "lucide-react";
-import { createContext, use, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, use, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryState } from "nuqs";
 import { useLocation, useNavigate } from "react-router";
 
@@ -628,6 +628,9 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 	const [open, setOpen] = useState(false);
 	const [pageItems, setPageItems] = useState<readonly PaletteItem[]>([]);
 	const items = usePaletteItems(open, pageItems);
+	const openPalette = useCallback(() => {
+		setOpen(true);
+	}, []);
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -642,11 +645,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	return (
-		<OpenPaletteContext
-			value={() => {
-				setOpen(true);
-			}}
-		>
+		<OpenPaletteContext value={openPalette}>
 			<PageItemsContext value={setPageItems}>{children}</PageItemsContext>
 			<CommandDialog open={open} onOpenChange={setOpen} title="Command palette" description={PLACEHOLDER}>
 				<PaletteBody

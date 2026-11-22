@@ -129,7 +129,9 @@ with session(out) as browser:
         page.get_by_role("dialog", name="Redeploy product-catalog?", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
-    expect(palette).to_have_count(0)
+    expect(
+        page.get_by_role("dialog", name="Redeploy product-catalog?", exact=True)
+    ).to_have_count(0)
 
     page.get_by_role("button", name="Search and run commands").click()
     query.fill("logs")
