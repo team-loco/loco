@@ -170,25 +170,29 @@ describe("previousDeploymentId", () => {
 
 describe("metricsPending", () => {
 	const NOW_MS = 1_700_000_000_000;
-	const region = (name: string, startedMs: number | undefined, previous = ""): RegionView => ({
-		name,
-		status: undefined,
-		history: [],
-		current: create(DeploymentSchema, {
+	const deployment = (region: string, startedMs: number | undefined) =>
+		create(DeploymentSchema, {
 			placements: [
 				{
-					region: name,
+					region,
 					live: true,
-					previousDeploymentId: previous,
 					...(startedMs === undefined ? {} : { startedAt: msToTimestamp(startedMs) }),
 				},
 			],
-		}),
-		serving: undefined,
-		lastGood: undefined,
-	});
+		});
+	const region = (name: string, startedMs: number | undefined, ...earlier: (number | undefined)[]): RegionView => {
+		const current = deployment(name, startedMs);
+		return {
+			name,
+			status: undefined,
+			history: [current, ...earlier.map((ms) => deployment(name, ms))],
+			current,
+			serving: undefined,
+			lastGood: undefined,
+		};
+	};
 
-	test("holds for a first deployment until two minutes after it started", () => {
+	test("holds until two minutes after the first start", () => {
 		expect(metricsPending([region("us-ca-1", undefined)], NOW_MS)).toBe(true);
 		expect(metricsPending([region("us-ca-1", NOW_MS - 119_000)], NOW_MS)).toBe(true);
 		expect(metricsPending([region("us-ca-1", NOW_MS - 120_000)], NOW_MS)).toBe(false);
@@ -200,8 +204,12 @@ describe("metricsPending", () => {
 		);
 	});
 
-	test("ends once any region ran an earlier deployment", () => {
-		expect(metricsPending([region("us-ca-1", NOW_MS), region("us-va-1", NOW_MS, "older")], NOW_MS)).toBe(false);
+	test("holds for a redeploy of a first deployment that failed before it started", () => {
+		expect(metricsPending([region("us-ca-1", NOW_MS - 30_000, undefined)], NOW_MS)).toBe(true);
+	});
+
+	test("ends once an earlier deployment started", () => {
+		expect(metricsPending([region("us-ca-1", NOW_MS, NOW_MS - 3_600_000)], NOW_MS)).toBe(false);
 		expect(metricsPending([], NOW_MS)).toBe(false);
 	});
 });

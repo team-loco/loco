@@ -102,6 +102,7 @@ export function ReplicaList({
 	regionPressed,
 	onPickRegion,
 	nowMs,
+	usageHidden,
 }: {
 	workspaceId: string;
 	environmentId: string;
@@ -114,6 +115,7 @@ export function ReplicaList({
 	onHover: (replica: string | null) => void;
 	lineColor: (replica: string) => string | undefined;
 	nowMs: number;
+	usageHidden: boolean;
 }) {
 	const transport = useTransport();
 	const [cpu, memory] = useQueries({
@@ -232,7 +234,7 @@ export function ReplicaList({
 										) : (
 											<span className="mb-0.5 truncate text-[11.5px] text-warn-fg">{`${state.label}${restarts}`}</span>
 										)}
-										{measuring ? (
+										{usageHidden ? null : measuring ? (
 											<Skeleton className="h-3.5 w-28" />
 										) : (
 											<span className="grid grid-cols-[auto_auto] items-baseline justify-start gap-x-2 gap-y-px font-mono text-[12px] tabular-nums">

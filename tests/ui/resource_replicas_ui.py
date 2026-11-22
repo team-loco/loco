@@ -569,7 +569,19 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
                             },
                         },
                         "age": "30 seconds",
-                        "placements": {EAST: {"cluster": r["clusters"][EAST]}},
+                        "placements": {
+                            EAST: {
+                                "cluster": r["clusters"][EAST],
+                                "replicas": [
+                                    {
+                                        "name": f"{fresh_name}-a1",
+                                        "ready": True,
+                                        "state": "Serving",
+                                        "started_at": {"seconds": "{now-20s:s}"},
+                                    }
+                                ],
+                            }
+                        },
                     }
                 ],
             }
@@ -590,6 +602,11 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(fresh_panel.get_by_text("No data in this range", exact=True)).to_have_count(
         0
     )
+    fresh_replica = fresh_panel.get_by_role(
+        "region", name=f"Replicas in {EAST}", exact=True
+    ).get_by_role("listitem")
+    expect(fresh_replica).to_have_count(1)
+    expect(fresh_replica).not_to_contain_text("CPU")
     expect(
         clocked_page.get_by_role("group", name="Time range", exact=True)
     ).to_have_count(0)
@@ -601,6 +618,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         2
     )
     expect(fresh_panel).not_to_contain_text("a couple of minutes")
+    expect(fresh_replica).to_contain_text("CPU —")
     expect(
         clocked_page.get_by_role("group", name="Time range", exact=True)
     ).to_be_visible()

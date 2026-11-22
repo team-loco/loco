@@ -187,6 +187,7 @@ export function ReplicasPanel({
 							onSelect(selected === r.name ? null : r.name);
 						}}
 						nowMs={nowMs}
+						usageHidden={pendingName !== undefined}
 					/>
 				))}
 				{pickedReplica !== undefined && (
