@@ -16,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/pkg/varref"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -402,7 +403,10 @@ func (a *applier) deployBuilds(ctx context.Context, qtx *genDb.Queries) error {
 		}
 		desired := a.desired[service]
 		regions := slices.Sorted(maps.Keys(desired.Regions))
-		if deployErr := a.deploy(ctx, qtx, res, resourceSpec.GetService(), desired, regions); deployErr != nil {
+		deployCtx, span := startServiceSpan(ctx, service)
+		deployErr := a.deploy(deployCtx, qtx, res, resourceSpec.GetService(), desired, regions)
+		tracing.End(span, deployErr)
+		if deployErr != nil {
 			return deployErr
 		}
 	}

@@ -9,15 +9,24 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
+)
+
+const (
+	applyPlanSpan    = "apply.plan"
+	applyServiceSpan = "apply.service"
+	serviceNameAttr  = "loco.service.name"
 )
 
 var (
@@ -41,7 +50,9 @@ func (s *PlanServer) Apply(
 	ctx context.Context,
 	req *planv1.ApplyRequest,
 ) (*planv1.ApplyResponse, error) {
-	planned, err := s.loadPlan(ctx, req.GetFile(), req.GetEnvironmentId(), actions.Apply)
+	planCtx, planSpan := tracing.Start(ctx, applyPlanSpan)
+	planned, err := s.loadPlan(planCtx, req.GetFile(), req.GetEnvironmentId(), actions.Apply)
+	tracing.End(planSpan, err)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +129,10 @@ func (s *PlanServer) Apply(
 			return lockErr
 		}
 		for _, op := range operations {
-			if opErr := a.apply(ctx, qtx, op); opErr != nil {
+			opCtx, span := startServiceSpan(ctx, op.Service)
+			opErr := a.apply(opCtx, qtx, op)
+			tracing.End(span, opErr)
+			if opErr != nil {
 				return opErr
 			}
 		}
@@ -148,6 +162,10 @@ func (s *PlanServer) Apply(
 		Operations:  planOperationsToProto(operations),
 		Deployments: a.started,
 	}, nil
+}
+
+func startServiceSpan(ctx context.Context, service string) (context.Context, trace.Span) {
+	return tracing.Start(ctx, applyServiceSpan, attribute.String(serviceNameAttr, service))
 }
 
 // checkCreatedResources locks the workspace against concurrent creates and refuses the apply when

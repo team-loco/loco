@@ -20,12 +20,21 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/observabilityconfig"
+)
+
+const (
+	planParseSpan         = "plan.parse"
+	planMergeSpan         = "plan.merge"
+	planLoadLiveSpan      = "plan.load_live"
+	planResolveImagesSpan = "plan.resolve_images"
+	planComputeSpan       = "plan.compute"
 )
 
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
@@ -113,7 +122,9 @@ func (s *PlanServer) loadPlan(
 	rawEnvironmentID string,
 	action actions.Action,
 ) (*plannedFile, error) {
+	_, parseSpan := tracing.Start(ctx, planParseSpan)
 	file, err := locofile.Parse(rawFile)
+	tracing.End(parseSpan, err)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidLocofile).WithCause(err)
 	}
@@ -124,7 +135,9 @@ func (s *PlanServer) loadPlan(
 		return nil, err
 	}
 
+	_, mergeSpan := tracing.Start(ctx, planMergeSpan)
 	services, err := locofile.Resolve(file, env.Slug)
+	tracing.End(mergeSpan, err)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidLocofile).WithCause(err)
 	}
@@ -153,6 +166,7 @@ func (s *PlanServer) loadPlan(
 	targets := regionClusters(clusters)
 
 	images := s.resolveImages(ctx, services)
+	_, computeSpan := tracing.Start(ctx, planComputeSpan)
 	plan, err := configplan.Compute(configplan.Input{
 		Partial:          file.Partial,
 		Services:         services,
@@ -167,6 +181,7 @@ func (s *PlanServer) loadPlan(
 		Defaults:         s.defaults,
 		Images:           images,
 	})
+	tracing.End(computeSpan, err)
 	if err != nil {
 		return nil, fmt.Errorf("compute plan: %w", err)
 	}
@@ -234,6 +249,8 @@ func (s *PlanServer) resolveImages(
 	ctx context.Context,
 	services map[string]locofile.Service,
 ) map[string]configplan.ImageResult {
+	ctx, span := tracing.Start(ctx, planResolveImagesSpan)
+	defer span.End()
 	images := map[string]configplan.ImageResult{}
 	for _, service := range services {
 		if service.Image == "" {
@@ -256,7 +273,9 @@ func (s *PlanServer) resolveImages(
 	return images
 }
 
-func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment) (liveEnvironment, error) {
+func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment) (_ liveEnvironment, err error) {
+	ctx, span := tracing.Start(ctx, planLoadLiveSpan)
+	defer func() { tracing.End(span, err) }()
 	resources, err := s.queries.ListWorkspaceServiceResources(ctx, env.WorkspaceID)
 	if err != nil {
 		return liveEnvironment{}, fmt.Errorf("list resources: %w", err)
