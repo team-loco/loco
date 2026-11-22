@@ -133,15 +133,15 @@ with session(repo / "tests/ui/out/tokens") as browser:
         ),
     )
     page.goto(state["ui_url"] + "/tokens?owner=org")
-    page.get_by_role("button", name="New token", exact=True).first.click()
-    drawer = page.get_by_role("dialog", name="New token")
-    search = drawer.locator('input[aria-label="Add a workspace or resource"]')
     with expect_rpc(
         page,
         "loco.resource.v1.ResourceService/ListOrgResources",
         lambda body: body.get("orgId") == org and body.get("pageSize") == 40,
     ):
-        search.focus()
+        page.get_by_role("button", name="New token", exact=True).first.click()
+    drawer = page.get_by_role("dialog", name="New token")
+    search = drawer.locator('input[aria-label="Add a workspace or resource"]')
+    search.focus()
     options = page.get_by_role("listbox")
     expect(
         options.get_by_role("option", name=re.compile(r"^storefront-web"))
