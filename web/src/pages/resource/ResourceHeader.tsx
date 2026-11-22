@@ -119,35 +119,24 @@ function scalingCopy(scaling: Scaling | "differs"): { auto: boolean; label: stri
 
 function ScaleChip({ scaling }: { scaling: Scaling | "differs" }) {
 	const { auto, label, hint } = scalingCopy(scaling);
+	const Icon = auto ? MoveVerticalIcon : PinIcon;
 	const chip = (
-		<>
-			{auto ? (
-				<MoveVerticalIcon aria-hidden className="size-[13px]" />
-			) : (
-				<PinIcon aria-hidden className="size-[13px]" />
+		<span
+			data-slot="scale-chip"
+			data-auto={auto}
+			className={cn(
+				"inline-flex h-6 items-center gap-[5px] rounded-[5px] border border-line bg-panel2 px-2 text-[12.5px] whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring",
+				auto ? "text-foreground" : "text-fg2",
 			)}
+		>
+			<Icon aria-hidden className="size-[13px]" />
 			{label}
-		</>
+		</span>
 	);
-	const className = cn(
-		"inline-flex h-6 items-center gap-[5px] rounded-[5px] border border-line bg-panel2 px-2 text-[12.5px] whitespace-nowrap",
-		auto ? "text-foreground" : "text-fg2",
-	);
-	if (hint === undefined)
-		return (
-			<span data-slot="scale-chip" data-auto={auto} className={className}>
-				{chip}
-			</span>
-		);
+	if (hint === undefined) return chip;
 	return (
 		<Tooltip>
-			<TooltipTrigger
-				render={<span data-slot="scale-chip" data-auto={auto} />}
-				tabIndex={0}
-				className={cn(className, "outline-none focus-visible:ring-2 focus-visible:ring-ring")}
-			>
-				{chip}
-			</TooltipTrigger>
+			<TooltipTrigger render={chip} tabIndex={0} />
 			<TooltipContent>{hint}</TooltipContent>
 		</Tooltip>
 	);

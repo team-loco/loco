@@ -137,10 +137,9 @@ export function ReplicaList({
 	const { ready, desired, previous } = regionReady(region);
 	const measuring = cpu?.isLoading === true || memory?.isLoading === true;
 	const many = replicas.length > MANY_REPLICAS;
-	const limits = new Map(replicas.map((r) => [r.name, replicaLimits(region, r)]));
 	const cpuUsed = replicas.flatMap((r) => {
 		const share = cpuUsage.get(r.name);
-		const milli = limits.get(r.name)?.cpuMilli ?? 0;
+		const milli = replicaLimits(region, r).cpuMilli;
 		return share === undefined || milli <= 0 ? [] : [share * milli];
 	});
 	const average =
@@ -168,19 +167,13 @@ export function ReplicaList({
 				)}
 			</h3>
 			{replicas.length === 0 && <p className="m-0 text-[12px] text-fg3">No replicas reported</p>}
-			<ul
-				className={cn(
-					"m-0 list-none p-0",
-					many ? "flex flex-wrap gap-1" : "flex flex-wrap gap-2",
-					stale && "opacity-60",
-				)}
-			>
+			<ul className={cn("m-0 flex list-none flex-wrap p-0", many ? "gap-1" : "gap-2", stale && "opacity-60")}>
 				{replicas.map((replica) => {
 					const state = replicaState(replica.state);
 					const label = many ? `${replica.name}: ${state.label}` : undefined;
 					const color = lineColor(replica.name);
 					const restarts = replica.restarts > 0 ? `, ${restartCount(replica)}` : "";
-					const limit = limits.get(replica.name);
+					const limit = replicaLimits(region, replica);
 					return (
 						<li key={replica.uid} className={cn("flex min-w-0", !many && "w-[172px] max-w-full")}>
 							<button
@@ -237,13 +230,8 @@ export function ReplicaList({
 											<Skeleton className="h-3.5 w-28" />
 										) : (
 											<span className="grid grid-cols-[auto_auto] items-baseline justify-start gap-x-2 gap-y-px font-mono text-[12px] tabular-nums">
-												<Usage name="CPU" ratio={cpuUsage.get(replica.name)} limit={limit?.cpuMilli ?? 0} kind="cpu" />
-												<Usage
-													name="Mem"
-													ratio={memoryUsage.get(replica.name)}
-													limit={limit?.memoryMi ?? 0}
-													kind="memory"
-												/>
+												<Usage name="CPU" ratio={cpuUsage.get(replica.name)} limit={limit.cpuMilli} kind="cpu" />
+												<Usage name="Mem" ratio={memoryUsage.get(replica.name)} limit={limit.memoryMi} kind="memory" />
 											</span>
 										)}
 									</>
