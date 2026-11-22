@@ -180,3 +180,32 @@ WHERE resource_id = sqlc.arg(resource_id)
   AND cluster_id = sqlc.arg(cluster_id)
   AND NOT desired_deleted
   AND region_status <> sqlc.arg(region_status);
+
+-- name: ListOrgResources :many
+SELECT r.id, r.name, r.slug, r.type, r.created_at, w.id AS workspace_id, w.name AS workspace_name
+FROM resources r
+JOIN workspaces w ON w.id = r.workspace_id
+WHERE w.org_id = sqlc.arg('org_id')
+  AND (sqlc.arg('all_workspaces')::bool
+       OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
+       OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
+  AND (sqlc.arg('query')::text = '' OR r.name ILIKE sqlc.arg('query') OR r.slug ILIKE sqlc.arg('query'))
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (r.created_at, r.id) < (
+         sqlc.narg('page_created_at')::timestamptz,
+         sqlc.narg('page_token')::uuid
+       ))
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT sqlc.arg('row_limit');
+
+-- name: CountOrgResources :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM resources r
+  JOIN workspaces w ON w.id = r.workspace_id
+  WHERE w.org_id = sqlc.arg('org_id')
+    AND (sqlc.arg('all_workspaces')::bool
+         OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
+         OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
+    AND (sqlc.arg('query')::text = '' OR r.name ILIKE sqlc.arg('query') OR r.slug ILIKE sqlc.arg('query'))
+  LIMIT sqlc.arg('row_limit')
+) capped;

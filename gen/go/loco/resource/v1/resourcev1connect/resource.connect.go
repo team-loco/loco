@@ -39,6 +39,9 @@ const (
 	// ResourceServiceListWorkspaceResourcesProcedure is the procedure name of the ResourceService's
 	// ListWorkspaceResources RPC.
 	ResourceServiceListWorkspaceResourcesProcedure = "/loco.resource.v1.ResourceService/ListWorkspaceResources"
+	// ResourceServiceListOrgResourcesProcedure is the procedure name of the ResourceService's
+	// ListOrgResources RPC.
+	ResourceServiceListOrgResourcesProcedure = "/loco.resource.v1.ResourceService/ListOrgResources"
 	// ResourceServiceGetEnvironmentAllocationProcedure is the procedure name of the ResourceService's
 	// GetEnvironmentAllocation RPC.
 	ResourceServiceGetEnvironmentAllocationProcedure = "/loco.resource.v1.ResourceService/GetEnvironmentAllocation"
@@ -96,6 +99,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_resource_v1_resource_proto.Services().ByName("ResourceService").Methods().ByName("ListWorkspaceResources"),
 			Procedure:  ResourceServiceListWorkspaceResourcesProcedure,
+		}
+	})
+	resourceServiceListOrgResourcesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_resource_v1_resource_proto.Services().ByName("ResourceService").Methods().ByName("ListOrgResources"),
+			Procedure:  ResourceServiceListOrgResourcesProcedure,
 		}
 	})
 	resourceServiceGetEnvironmentAllocationSpec = sync.OnceValue(func() connect.Spec {
@@ -163,6 +173,9 @@ type ResourceServiceClient interface {
 	// A caller who cannot list the workspace gets the resources of it that GetResource would return,
 	// with every count over those alone; one who can read none of them is denied.
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
+	// ListOrgResources lists, newest first, the resources across an organization's workspaces that the
+	// caller can read: every resource of a workspace it reads, and the resources granted to it directly.
+	ListOrgResources(context.Context, *v1.ListOrgResourcesRequest) (*v1.ListOrgResourcesResponse, error)
 	// GetEnvironmentAllocation sums the CPU and memory the resources of a workspace are allocated in
 	// an environment. A caller who cannot list the workspace gets the sums over the resources of it
 	// that GetResource would return; one who can read none of them is denied.
@@ -204,6 +217,9 @@ type ResourceServiceHandler interface {
 	// A caller who cannot list the workspace gets the resources of it that GetResource would return,
 	// with every count over those alone; one who can read none of them is denied.
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
+	// ListOrgResources lists, newest first, the resources across an organization's workspaces that the
+	// caller can read: every resource of a workspace it reads, and the resources granted to it directly.
+	ListOrgResources(context.Context, *v1.ListOrgResourcesRequest) (*v1.ListOrgResourcesResponse, error)
 	// GetEnvironmentAllocation sums the CPU and memory the resources of a workspace are allocated in
 	// an environment. A caller who cannot list the workspace gets the sums over the resources of it
 	// that GetResource would return; one who can read none of them is denied.
@@ -235,6 +251,7 @@ func RegisterResourceServiceHandler(server *connect.Server, svc ResourceServiceH
 		connect.Method{Spec: resourceServiceUpdateResourceSpec(), Handler: adapter.updateResource},
 		connect.Method{Spec: resourceServiceDeleteResourceSpec(), Handler: adapter.deleteResource},
 		connect.Method{Spec: resourceServiceListWorkspaceResourcesSpec(), Handler: adapter.listWorkspaceResources},
+		connect.Method{Spec: resourceServiceListOrgResourcesSpec(), Handler: adapter.listOrgResources},
 		connect.Method{Spec: resourceServiceGetEnvironmentAllocationSpec(), Handler: adapter.getEnvironmentAllocation},
 		connect.Method{Spec: resourceServiceListRegionsSpec(), Handler: adapter.listRegions},
 		connect.Method{Spec: resourceServiceGetResourceEnvSpec(), Handler: adapter.getResourceEnv},
@@ -266,6 +283,10 @@ func (UnimplementedResourceServiceHandler) DeleteResource(context.Context, *v1.D
 
 func (UnimplementedResourceServiceHandler) ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.ListWorkspaceResources is not implemented")
+}
+
+func (UnimplementedResourceServiceHandler) ListOrgResources(context.Context, *v1.ListOrgResourcesRequest) (*v1.ListOrgResourcesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.ListOrgResources is not implemented")
 }
 
 func (UnimplementedResourceServiceHandler) GetEnvironmentAllocation(context.Context, *v1.GetEnvironmentAllocationRequest) (*v1.GetEnvironmentAllocationResponse, error) {
@@ -335,6 +356,14 @@ func (c *resourceServiceClient) DeleteResource(ctx context.Context, req *v1.Dele
 func (c *resourceServiceClient) ListWorkspaceResources(ctx context.Context, req *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error) {
 	var res v1.ListWorkspaceResourcesResponse
 	if err := c.client.CallUnary(ctx, resourceServiceListWorkspaceResourcesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *resourceServiceClient) ListOrgResources(ctx context.Context, req *v1.ListOrgResourcesRequest) (*v1.ListOrgResourcesResponse, error) {
+	var res v1.ListOrgResourcesResponse
+	if err := c.client.CallUnary(ctx, resourceServiceListOrgResourcesSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -452,6 +481,18 @@ func (h resourceServiceHandler) listWorkspaceResources(ctx context.Context, _ co
 		return err
 	}
 	res, err := h.svc.ListWorkspaceResources(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h resourceServiceHandler) listOrgResources(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListOrgResourcesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListOrgResources(ctx, &req)
 	if err != nil {
 		return err
 	}

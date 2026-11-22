@@ -21,6 +21,42 @@ func (q *Queries) BumpResourceRevision(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
+const countOrgResources = `-- name: CountOrgResources :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM resources r
+  JOIN workspaces w ON w.id = r.workspace_id
+  WHERE w.org_id = $1
+    AND ($2::bool
+         OR w.id = ANY($3::uuid[])
+         OR r.id = ANY($4::uuid[]))
+    AND ($5::text = '' OR r.name ILIKE $5 OR r.slug ILIKE $5)
+  LIMIT $6
+) capped
+`
+
+type CountOrgResourcesParams struct {
+	OrgID         uuid.UUID   `json:"orgId"`
+	AllWorkspaces bool        `json:"allWorkspaces"`
+	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
+	Query         string      `json:"query"`
+	RowLimit      int32       `json:"rowLimit"`
+}
+
+func (q *Queries) CountOrgResources(ctx context.Context, arg CountOrgResourcesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countOrgResources,
+		arg.OrgID,
+		arg.AllWorkspaces,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+		arg.Query,
+		arg.RowLimit,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createResource = `-- name: CreateResource :one
 
 INSERT INTO resources (workspace_id, slug, name, type, description, spec, spec_version, created_by)
@@ -392,6 +428,82 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 			&i.StartedAt,
 			&i.CompletedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrgResources = `-- name: ListOrgResources :many
+SELECT r.id, r.name, r.slug, r.type, r.created_at, w.id AS workspace_id, w.name AS workspace_name
+FROM resources r
+JOIN workspaces w ON w.id = r.workspace_id
+WHERE w.org_id = $1
+  AND ($2::bool
+       OR w.id = ANY($3::uuid[])
+       OR r.id = ANY($4::uuid[]))
+  AND ($5::text = '' OR r.name ILIKE $5 OR r.slug ILIKE $5)
+  AND ($6::text IS NULL
+       OR (r.created_at, r.id) < (
+         $7::timestamptz,
+         $6::uuid
+       ))
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $8
+`
+
+type ListOrgResourcesParams struct {
+	OrgID         uuid.UUID   `json:"orgId"`
+	AllWorkspaces bool        `json:"allWorkspaces"`
+	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
+	Query         string      `json:"query"`
+	PageToken     *string     `json:"pageToken"`
+	PageCreatedAt *time.Time  `json:"pageCreatedAt"`
+	RowLimit      int32       `json:"rowLimit"`
+}
+
+type ListOrgResourcesRow struct {
+	ID            uuid.UUID    `json:"id"`
+	Name          string       `json:"name"`
+	Slug          string       `json:"slug"`
+	Type          ResourceType `json:"type"`
+	CreatedAt     time.Time    `json:"createdAt"`
+	WorkspaceID   uuid.UUID    `json:"workspaceId"`
+	WorkspaceName string       `json:"workspaceName"`
+}
+
+func (q *Queries) ListOrgResources(ctx context.Context, arg ListOrgResourcesParams) ([]ListOrgResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listOrgResources,
+		arg.OrgID,
+		arg.AllWorkspaces,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+		arg.Query,
+		arg.PageToken,
+		arg.PageCreatedAt,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrgResourcesRow
+	for rows.Next() {
+		var i ListOrgResourcesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Type,
+			&i.CreatedAt,
+			&i.WorkspaceID,
+			&i.WorkspaceName,
 		); err != nil {
 			return nil, err
 		}

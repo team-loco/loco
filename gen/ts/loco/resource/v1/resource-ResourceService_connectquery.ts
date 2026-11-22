@@ -42,6 +42,14 @@ export const deleteResource = ResourceService.method.deleteResource;
 export const listWorkspaceResources = ResourceService.method.listWorkspaceResources;
 
 /**
+ * ListOrgResources lists, newest first, the resources across an organization's workspaces that the
+ * caller can read: every resource of a workspace it reads, and the resources granted to it directly.
+ *
+ * @generated from rpc loco.resource.v1.ResourceService.ListOrgResources
+ */
+export const listOrgResources = ResourceService.method.listOrgResources;
+
+/**
  * GetEnvironmentAllocation sums the CPU and memory the resources of a workspace are allocated in
  * an environment. A caller who cannot list the workspace gets the sums over the resources of it
  * that GetResource would return; one who can read none of them is denied.
