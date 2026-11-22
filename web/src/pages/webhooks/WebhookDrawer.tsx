@@ -18,6 +18,7 @@ import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/compo
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { useTokenPage } from "@/hooks/useTokenPage";
@@ -327,12 +328,16 @@ function DeliveryList({
 							{deliveryLabel(d)}
 						</span>
 						<span className="truncate font-mono text-[12px]">{d.eventType}</span>
-						<span
-							className="text-right font-mono text-[11.5px] whitespace-nowrap text-fg3"
-							title={`${formatDay(d.createdAt, timePref)}, ${formatClock(tsMs(d.createdAt), false, timePref)}`}
-						>
-							{deliveryWhen(d, nowMs)}
-						</span>
+						<Tooltip>
+							<TooltipTrigger
+								render={<span className="text-right font-mono text-[11.5px] whitespace-nowrap text-fg3" />}
+							>
+								{deliveryWhen(d, nowMs)}
+							</TooltipTrigger>
+							<TooltipContent>
+								{formatDay(d.createdAt, timePref)}, {formatClock(tsMs(d.createdAt), false, timePref)}
+							</TooltipContent>
+						</Tooltip>
 						<span className="col-start-4 row-start-1">
 							{(d.status === STATUS_SUCCEEDED || d.status === STATUS_FAILED) && (
 								<Button
