@@ -51,27 +51,39 @@ export type FieldKey =
 	| "duration"
 	| "severity"
 	| "reason"
-	| "actor";
+	| "actor"
+	| "actor_type"
+	| "target"
+	| "request";
+
+/** A page with a query bar: an observability view or the audit log. */
+export type QueryView = ObservabilityView | "audit";
 
 export interface FieldDef {
 	key: FieldKey;
 	label: string;
-	views: ObservabilityView[];
-	negate: ObservabilityView[];
+	views: QueryView[];
+	negate: QueryView[];
 }
 
-const ALL_VIEWS: ObservabilityView[] = ["logs", "metrics", "traces", "events"];
+const ALL_VIEWS: QueryView[] = ["logs", "metrics", "traces", "events", "audit"];
+const REGION_VIEWS: QueryView[] = ["logs", "metrics", "events", "audit"];
+const AUDIT: QueryView[] = ["audit"];
+const EVENT_VIEWS: QueryView[] = ["events", "audit"];
 
 export const FIELDS: FieldDef[] = [
 	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS },
 	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"] },
 	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"] },
 	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"] },
-	{ key: "region", label: "Region", views: ["logs", "metrics", "events"], negate: ["logs", "metrics", "events"] },
-	{ key: "severity", label: "Severity", views: ["events"], negate: ["events"] },
-	{ key: "reason", label: "Reason", views: ["events"], negate: ["events"] },
-	{ key: "actor", label: "Actor", views: ["events"], negate: ["events"] },
-	{ key: "type", label: "Event type", views: ["events"], negate: ["events"] },
+	{ key: "region", label: "Region", views: REGION_VIEWS, negate: REGION_VIEWS },
+	{ key: "severity", label: "Severity", views: EVENT_VIEWS, negate: EVENT_VIEWS },
+	{ key: "reason", label: "Reason", views: EVENT_VIEWS, negate: EVENT_VIEWS },
+	{ key: "actor", label: "Actor", views: EVENT_VIEWS, negate: EVENT_VIEWS },
+	{ key: "actor_type", label: "How the actor signed in", views: AUDIT, negate: AUDIT },
+	{ key: "target", label: "Event subject", views: AUDIT, negate: AUDIT },
+	{ key: "type", label: "Event type", views: EVENT_VIEWS, negate: EVENT_VIEWS },
+	{ key: "request", label: "Request ID", views: AUDIT, negate: AUDIT },
 	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"] },
 	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"] },
 	{ key: "duration", label: "Duration (ms)", views: ["traces"], negate: [] },
@@ -83,11 +95,11 @@ export function fieldDef(key: string): FieldDef | undefined {
 	return FIELDS.find((f) => f.key === key);
 }
 
-export function viewFields(view: ObservabilityView): FieldDef[] {
+export function viewFields(view: QueryView): FieldDef[] {
 	return FIELDS.filter((f) => f.views.includes(view));
 }
 
-export function searchesText(view: ObservabilityView): boolean {
+export function searchesText(view: QueryView): boolean {
 	return view !== "metrics";
 }
 
@@ -231,9 +243,9 @@ export interface TokenSupport {
 const SUPPORTED: TokenSupport = { ok: true, reason: "" };
 
 // The API parses the query for these views, so any field applies.
-const QUERY_VIEWS = new Set<ObservabilityView>(["logs", "traces"]);
+const QUERY_VIEWS = new Set<QueryView>(["logs", "traces", "audit"]);
 
-export function tokenSupport(view: ObservabilityView, tokens: Token[]): TokenSupport[] {
+export function tokenSupport(view: QueryView, tokens: Token[]): TokenSupport[] {
 	return tokens.map((t) => {
 		if (QUERY_VIEWS.has(view)) return SUPPORTED;
 		const def = fieldDef(t.key);
@@ -309,7 +321,7 @@ export function buildBackendQuery(tokens: Token[], text: string, scopedResourceI
 
 const PINNED_KEY_PREFIX = "loco:pinned-queries:v1";
 const RECENT_KEY_PREFIX = "loco:recent-queries:v1";
-const RECENT_VIEWS = new Set<ObservabilityView>(["logs", "metrics", "traces"]);
+const RECENT_VIEWS = new Set<QueryView>(["logs", "metrics", "traces"]);
 const RECENT_KEEP = 8;
 const RECENT_SHOWN = 5;
 
@@ -332,15 +344,15 @@ export function recentQueries(v: unknown): RecentQuery[] {
 	return Array.isArray(v) && v.every(isRecentQuery) ? v : [];
 }
 
-export function recentKey(orgId: string, workspaceId: string, view: ObservabilityView): string | null {
+export function recentKey(orgId: string, workspaceId: string, view: QueryView): string | null {
 	return RECENT_VIEWS.has(view) ? `${RECENT_KEY_PREFIX}:${orgId}/${workspaceId}:${view}` : null;
 }
 
-export function pinnedKey(orgId: string, workspaceId: string, view: ObservabilityView): string {
+export function pinnedKey(orgId: string, workspaceId: string, view: QueryView): string {
 	return `${PINNED_KEY_PREFIX}:${orgId}/${workspaceId}:${view}`;
 }
 
-export function recentQuery(view: ObservabilityView, tokens: Token[], text: string): string {
+export function recentQuery(view: QueryView, tokens: Token[], text: string): string {
 	const support = tokenSupport(view, tokens);
 	return queryStr(
 		tokens.filter((_, i) => support[i]?.ok === true),

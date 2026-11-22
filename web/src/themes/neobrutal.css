@@ -360,11 +360,6 @@
 	box-shadow: 0 0 0 999px color-mix(in oklab, var(--bg) 60%, transparent);
 }
 
-[data-theme="neobrutal"] .audit-search:has([aria-invalid="true"]) {
-	border: 2px solid var(--err);
-	box-shadow: 2px 2px 0 var(--err);
-}
-
 [data-theme="neobrutal"] {
 	& :is(.recharts-line-curve, .recharts-area-curve) {
 		stroke-width: 2.75px;

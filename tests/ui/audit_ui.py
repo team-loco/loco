@@ -101,7 +101,12 @@ def open_page(browser, user, path=None):
 
 
 def list_events(calls):
-    return [call for call in calls if call["method"] == "ListEvents"]
+    """The ListEvents calls that read events, without the ones that count facet values."""
+    return [
+        call
+        for call in calls
+        if call["method"] == "ListEvents" and not call["body"].get("includeFacets")
+    ]
 
 
 with session(out) as browser:
@@ -277,17 +282,23 @@ with session(out) as browser:
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"[?&]event="))
 
-    search = page.get_by_role(
-        "textbox", name="Search request ID, actor or target", exact=True
-    )
+    search = page.get_by_role("combobox", name="Search and filter")
+    suggestions = page.get_by_role("listbox", name="Suggestions")
+    clear_search = page.get_by_role("button", name="Clear", exact=True)
+
+    def search_for(text):
+        search.fill(text)
+        search.press("Enter")
+        search.press("Escape")
+
     with expect_rpc(
         page,
         "ListEvents",
         lambda body: body.get("query") == "(@type:resource.created) ledger",
     ):
-        search.fill("ledger")
+        search_for("ledger")
     expect(rows).to_have_count(1)
-    page.get_by_role("button", name="Clear search", exact=True).click()
+    clear_search.click()
     expect(rows).to_have_count(4)
     page.get_by_role("button", name="Clear event filter", exact=True).click()
     expect(rows).to_have_count(50)
@@ -300,11 +311,11 @@ with session(out) as browser:
         "ListEvents",
         lambda body: body.get("query") == "INVENTORY",
     ):
-        search.fill("INVENTORY")
+        search_for("INVENTORY")
     expect(page.get_by_role("table", name="Audit events")).to_contain_text("inventory")
     # A token that acted is named, with its owner kind beneath, and the search matches its name.
     with expect_rpc(page, "ListEvents", lambda body: body.get("query") == "deploy-bot"):
-        search.fill("deploy-bot")
+        search_for("deploy-bot")
     token_row = (
         page.get_by_role("table", name="Audit events")
         .locator("tbody tr[data-interactive]")
@@ -317,41 +328,17 @@ with session(out) as browser:
     page.keyboard.press("Escape")
     # The search reads the Where column: the sibling workspace names events on its resources.
     with expect_rpc(page, "ListEvents", lambda body: body.get("query") == "sibling"):
-        search.fill("sibling")
+        search_for("sibling")
     expect(
         page.get_by_role("table", name="Audit events")
         .locator("tbody tr[data-interactive]")
         .filter(has_text="Created a resource")
     ).to_contain_text("sibling / inventory")
-    # Typing sends only the query the typing pauses on, so a half-typed field neither reads nor fails.
-    typed_from = len(list_events(calls))
-    search.press("ControlOrMeta+a")
-    with expect_rpc(
-        page,
-        "ListEvents",
-        lambda body: body.get("query") == "@type:secret.set",
-    ):
-        search.press_sequentially("@type:secret.set", delay=20)
-    typed = [call["body"].get("query") for call in list_events(calls)[typed_from:]]
-    assert typed == ["@type:secret.set"], typed
-    expect(page.get_by_role("alert")).to_have_count(0)
-    with expect_rpc(
-        page,
-        "ListEvents",
-        lambda body: body.get("query") == "@type:>1",
-    ) as rejected:
-        search.fill("@type:>1")
-    assert rejected.value.status == 400, rejected.value.status
-    expect(page.get_by_role("alert")).to_contain_text("@type does not compare numbers")
-    expect(rows).to_have_count(0)
-    expect(search).to_have_attribute(
-        "placeholder", "Search, or @type:deployment.* @actor:name"
-    )
-    expect(search).to_have_attribute("aria-invalid", "true")
-    expect(search).to_have_attribute("aria-describedby", "audit-query-error")
-    panel = page.locator("#audit-query-error")
-    expect(panel.locator("mark")).to_have_text("@type:>1")
-    fields = (
+    clear_search.click()
+    expect(rows).to_have_count(50)
+    # Typing @ lists every audit field; typing a field lists its values with their counts.
+    search.fill("@")
+    for key in (
         "actor",
         "actor_type",
         "target",
@@ -361,56 +348,87 @@ with session(out) as browser:
         "region",
         "reason",
         "resource",
-    )
-    expect(panel.get_by_role("button")).to_have_count(len(fields))
-    for field in (f"@{key}:" for key in fields):
+    ):
         expect(
-            panel.get_by_role("button", name=re.compile(re.escape(field)))
-        ).to_be_visible()
-    expect(panel.get_by_role("heading")).to_have_text("@type does not compare numbers")
-    expect(panel).to_contain_text("Use an exact value or a * wildcard.")
-    expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
-    expect(page.get_by_role("table", name="Audit events")).to_have_count(0)
-    expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
+            suggestions.get_by_role("option", name=re.compile(rf"^@{key}\s*[A-Z]"))
+        ).to_have_count(1)
+    expect(suggestions.get_by_role("option")).to_have_count(9)
+    search.fill("@type:resource.cr")
+    expect(
+        suggestions.get_by_role("option").filter(has_text="@type:resource.created")
+    ).to_have_text(re.compile(r"^@type:resource\.created\s*4$"))
+    # A suggested value is written so the API matches it.
+    search.fill("@actor:oliv")
+    with expect_rpc(
+        page, "ListEvents", lambda body: body.get("query") == '@actor:"Olivia Owner"'
+    ):
+        suggestions.get_by_role("option").filter(
+            has_text='@actor:"Olivia Owner"'
+        ).click()
+    search.press("Escape")
+    expect(rows.first).to_be_visible()
+    clear_search.click()
+    # Typing sends nothing until a term is added, so a half-typed field neither reads nor fails.
+    typed_from = len(list_events(calls))
+    search.fill("")
     with expect_rpc(
         page,
         "ListEvents",
-        lambda body: body.get("query") == "@actor:",
+        lambda body: body.get("query") == "@type:secret.set",
     ):
-        panel.get_by_role("button", name=re.compile(r"^@actor:")).click()
-    expect(search).to_be_focused()
-    expect(search).to_have_value("@actor:")
-    assert search.evaluate("node => node.selectionStart") == len("@actor:")
+        search.press_sequentially("@type:secret.set", delay=20)
+        search.press("Enter")
+    search.press("Escape")
+    typed = [call["body"].get("query") for call in list_events(calls)[typed_from:]]
+    assert typed == ["@type:secret.set"], typed
+    expect(page.get_by_role("alert")).to_have_count(0)
+    clear_search.click()
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "@type:>1",
+    ) as rejected:
+        search_for("@type:>1")
+    assert rejected.value.status == 400, rejected.value.status
+    alert = page.get_by_role("alert")
+    expect(alert).to_contain_text("@type does not compare numbers")
+    expect(alert.locator("mark")).to_have_text("@type:>1")
+    expect(rows).to_have_count(0)
+    expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
+    expect(page.get_by_role("table", name="Audit events")).to_have_count(0)
+    expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
+    page.get_by_role("button", name="Remove type >1", exact=True).click()
     with expect_rpc(
         page,
         "ListEvents",
         lambda body: body.get("query") == "@actor:" + users["owner"]["id"],
     ):
-        search.press_sequentially(users["owner"]["id"])
-    expect(search).to_have_attribute("aria-invalid", "false")
-    expect(panel).to_have_count(0)
+        search_for("@actor:" + users["owner"]["id"])
+    expect(alert).to_have_count(0)
     expect(rows).to_have_count(50)
+    clear_search.click()
     with expect_rpc(
         page,
         "ListEvents",
         lambda body: body.get("query") == "@wrong:value",
     ):
-        search.fill("@wrong:value")
-    expect(panel.locator("mark")).to_have_text("@wrong:value")
-    expect(panel).to_contain_text("Pick one of the fields listed.")
+        search_for("@wrong:value")
+    expect(alert).to_contain_text("unknown field @wrong")
+    expect(alert.locator("mark")).to_have_text("@wrong:value")
     page.set_viewport_size(evidence.NARROW)
-    expect(panel.get_by_role("button", name=re.compile(r"^@request:"))).to_be_visible()
+    expect(alert).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     page.reload()
-    expect(search).to_have_attribute("aria-invalid", "true")
+    expect(alert.locator("mark")).to_have_text("@wrong:value")
     page.set_viewport_size(evidence.DESKTOP)
+    clear_search.click()
 
     with expect_rpc(
         page,
         "ListEvents",
         lambda body: body.get("query") == request_id,
     ) as searched:
-        search.fill(request_id)
+        search_for(request_id)
     assert not searched.value.request.post_data_json.get("pageToken")
     expect(rows).to_have_count(1)
     expect(page.get_by_role("table", name="Audit events")).to_contain_text("inventory")
@@ -418,7 +436,7 @@ with session(out) as browser:
     page.set_viewport_size({"width": 390, "height": 844})
     expect(search).to_be_visible()
     page.set_viewport_size(evidence.DESKTOP)
-    page.get_by_role("button", name="Clear search", exact=True).click()
+    clear_search.click()
     expect(rows).to_have_count(50)
     page.get_by_role("button", name="Event", exact=True).click()
     page.get_by_role("option", name=re.compile(r"^Created a resource")).click()
@@ -440,7 +458,7 @@ with session(out) as browser:
     expect(
         page.get_by_text(re.compile(r"^No events match these filters\. Clear filters$"))
     ).to_be_visible()
-    search.fill("no-such-event")
+    search_for("no-such-event")
     page.get_by_role("button", name="Clear filters", exact=True).click()
     expect(search).to_have_value("")
     expect(page).not_to_have_url(re.compile(r"[?&](actor|types|q)="))

@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,9 +11,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/team-loco/loco/api/events"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
-	"github.com/team-loco/loco/internal/logquery"
 )
 
 func TestListEventsRejectsQueriesWithThePosition(t *testing.T) {
@@ -63,42 +60,6 @@ func TestListEventsRejectsAnInvertedRangeOnEndTime(t *testing.T) {
 		got := violations.GetFieldViolations()[0]
 		if got.GetField() != "end_time" || got.GetDescription() != "must be after start_time" {
 			t.Errorf("end %v: violation = %v, want end_time: must be after start_time", end, got)
-		}
-	}
-}
-
-func TestListEventsRejectionListsTheFieldsItAccepts(t *testing.T) {
-	t.Parallel()
-	server := NewEventServer(nil, nil)
-	_, err := server.ListEvents(t.Context(), &eventv1.ListEventsRequest{OrgId: uuid.NewString(), Query: "@status:200"})
-	connectErr, ok := errors.AsType[*connect.Error](err)
-	if !ok {
-		t.Fatalf("err = %v, want a connect error", err)
-	}
-	var metadata map[string]string
-	for _, detail := range connectErr.Details() {
-		value, err := connectproto.UnmarshalErrorDetail(detail)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if info, ok := value.(*errdetails.ErrorInfo); ok && info.GetReason() == querySyntaxReason {
-			metadata = info.GetMetadata()
-		}
-	}
-	fields := strings.Split(metadata["fields"], ",")
-	if len(fields) != len(events.QueryFields) {
-		t.Fatalf("fields = %q, want %d fields", metadata["fields"], len(events.QueryFields))
-	}
-	for _, field := range fields {
-		expr, err := logquery.Parse("@" + field + ":x")
-		if err == nil {
-			err = events.ValidateQuery(expr)
-		}
-		if err != nil {
-			t.Errorf("listed field %q is rejected: %v", field, err)
-		}
-		if metadata["@"+field] == "" {
-			t.Errorf("listed field %q has no description", field)
 		}
 	}
 }

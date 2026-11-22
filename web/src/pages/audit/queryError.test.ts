@@ -4,7 +4,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
 
 import { auditQuery } from "./model";
-import { auditQueryFix, auditSearchError, insertAuditField } from "./queryError";
+import { auditSearchError } from "./queryError";
 
 function rejection(position: number) {
 	return new ConnectError("Unknown field", Code.InvalidArgument, undefined, [
@@ -14,15 +14,7 @@ function rejection(position: number) {
 		},
 		{
 			desc: ErrorInfoSchema,
-			value: create(ErrorInfoSchema, {
-				reason: "QUERY_SYNTAX",
-				metadata: {
-					position: position.toString(),
-					fields: "actor,request",
-					"@actor": "Person or token",
-					"@request": "Request ID",
-				},
-			}),
+			value: create(ErrorInfoSchema, { reason: "QUERY_SYNTAX", metadata: { position: position.toString() } }),
 		},
 	]);
 }
@@ -44,57 +36,20 @@ describe("audit search errors", () => {
 		expect(result?.end).toBe(25);
 		expect(result?.error.position).toBe(12);
 	});
-	test("reads the search fields from the rejection", () => {
-		expect(auditSearchError(rejection(1), [], "", "@unknown:value")?.fields).toEqual([
-			{ key: "actor", label: "Person or token" },
-			{ key: "request", label: "Request ID" },
-		]);
-	});
 	test("highlights a whole word when the server points inside it", () => {
 		const result = auditSearchError(rejection(8), [], "", "@request:foo:bar");
 		expect(result?.start).toBe(0);
 		expect(result?.end).toBe(16);
 	});
-	test("counts Unicode characters and inserts with a UTF-16 input caret", () => {
+	test("counts Unicode characters", () => {
 		const search = "🚀 @unknown:value tail";
 		const result = auditSearchError(rejection(3), [], "", search);
 		expect(result?.start).toBe(2);
 		expect(result?.end).toBe(16);
-		expect(insertAuditField(search, 2, 16, "actor")).toEqual({ query: "🚀 @actor: tail", caret: 10 });
 	});
-	test("inserts at the end when the server expects another term", () => {
+	test("points past the end when the server expects another term", () => {
 		const result = auditSearchError(rejection(6), [], "", "hello");
 		expect(result?.start).toBe(5);
 		expect(result?.end).toBe(5);
-		expect(insertAuditField("hello OR", 8, 8, "type")).toEqual({ query: "hello OR @type:", caret: 15 });
-	});
-});
-
-const fields = [
-	{ key: "actor", label: "Person or token" },
-	{ key: "type", label: "Event type" },
-	{ key: "request", label: "Request ID" },
-];
-
-describe("audit search fixes", () => {
-	test("suggests a field that starts like the unknown one", () => {
-		expect(auditQueryFix("@acter:bob", "unknown field @acter", fields)).toBe("Did you mean @actor?");
-		expect(auditQueryFix("-@req:x", "unknown field @req", fields)).toBe("Did you mean @request?");
-	});
-	test("points at the field list when nothing is close", () => {
-		expect(auditQueryFix("@wrong:value", "unknown field @wrong", fields)).toBe("Pick one of the fields listed.");
-		expect(auditQueryFix("@", "expected a key after @", fields)).toBe("Pick one of the fields listed.");
-	});
-	test("sends environments to the Environment filter", () => {
-		expect(auditQueryFix("@environment:prod", "unknown field @environment", fields)).toBe(
-			"Pick a workspace, then use the Environment filter.",
-		);
-	});
-	test("offers exact values for number comparisons on known fields", () => {
-		expect(auditQueryFix("@type:>1", "@type does not compare numbers", fields)).toBe(
-			"Use an exact value or a * wildcard.",
-		);
-		expect(auditQueryFix("@type:", "expected a value after @type:", fields)).toBeNull();
-		expect(auditQueryFix("hello", 'unexpected ")"', fields)).toBeNull();
 	});
 });

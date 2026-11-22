@@ -1,9 +1,9 @@
-import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
+import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { BoxIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	parseAsArrayOf,
 	parseAsInteger,
@@ -19,7 +19,6 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { PickFilter } from "@/components/design/FilterPopover";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { SearchInput } from "@/components/design/SearchInput";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
@@ -31,8 +30,10 @@ import { msParser, type TimeWindow } from "@/lib/obs-time";
 import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { agoLabel, msToTimestamp } from "@/lib/time";
 import { TimeRangePicker } from "./observability/Toolbar";
-import { AuditQueryError } from "./audit/AuditQueryError";
-import { auditSearchError, insertAuditField } from "./audit/queryError";
+import type { ObsResource } from "./observability/context";
+import { QueryErrorLine, QueryInput } from "./observability/QueryBar";
+import { QUERY_PARSERS, queryStr, type FieldKey } from "./observability/query";
+import { auditSearchError } from "./audit/queryError";
 
 import { AUDIT_FILTER_FIXES, auditLink, auditFilterViolations, type DroppedFilter } from "./audit/link";
 import { DroppedFilters, AuditFilterError } from "./audit/AuditFeedback";
@@ -44,8 +45,7 @@ import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
 import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
 const NOW_TICK_MS = 60_000;
-// Typing commits the search after this pause, so a half-typed query sends no request.
-const SEARCH_DEBOUNCE_MS = 300;
+const NO_RESOURCES = new Map<string, ObsResource>();
 
 const AUDIT_PARAMS = {
 	before: pageTokensParser,
@@ -54,7 +54,7 @@ const AUDIT_PARAMS = {
 	from: msParser,
 	to: msParser,
 	types: parseAsArrayOf(parseAsStringLiteral(AUDIT_EVENT_TYPES)).withDefault([]),
-	q: parseAsString.withDefault(""),
+	q: QUERY_PARSERS.q,
 	actor: parseAsString.withDefault(""),
 	size: parseAsNumberLiteral(PAGE_SIZES).withDefault(PAGE_SIZES[0]),
 	ws: parseAsString.withDefault(""),
@@ -74,7 +74,8 @@ export function Audit() {
 	const [openedAt, setOpenedAt] = useState(Date.now);
 	const now = useNow(NOW_TICK_MS).getTime();
 
-	const { types, q: search, actor, size, ws: wsParam } = params;
+	const { types, actor, size, ws: wsParam } = params;
+	const search = queryStr(params.q.tokens, params.q.text);
 	const range = RANGES.find((r) => r.value === params.range) ?? DEFAULT_RANGE;
 	const { from, to } = params;
 	const custom = from !== null && to !== null && to > from;
@@ -139,21 +140,7 @@ export function Audit() {
 	]);
 	const stack = params.before;
 	const live = params.live === 1 && stack.length === 0 && !custom;
-	// The search box shows draft while a typed search waits to commit to the q parameter.
-	const [draft, setDraft] = useState<string | null>(null);
-	const pendingSearchRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-	const searchRef = useRef<HTMLInputElement>(null);
-	useEffect(
-		() => () => {
-			clearTimeout(pendingSearchRef.current);
-		},
-		[],
-	);
 	const setFilters = (next: Partial<{ [K in keyof typeof params]: (typeof params)[K] | null }>) => {
-		if ("q" in next) {
-			clearTimeout(pendingSearchRef.current);
-			setDraft(null);
-		}
 		void setParams({ ...next, before: null });
 	};
 	const input = {
@@ -166,10 +153,17 @@ export function Audit() {
 		startTime: msToTimestamp(custom ? from : openedAt - range.ms),
 		...(custom ? { endTime: msToTimestamp(to) } : {}),
 	};
+	const enabled = orgId !== "" && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading);
 	const { query, nextPageToken, total } = useTokenPage(listEvents, input, stack, {
-		enabled: orgId !== "" && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading),
+		enabled,
 		refetchInterval: live ? 5000 : false,
 	});
+	const facets = useQuery(listEvents, { ...input, query: "", pageSize: 1, includeFacets: true }, { enabled });
+	// Loco's own events match @actor_type:system, not @actor:system.
+	const valueCounts = (key: FieldKey): [string, number][] =>
+		(facets.data?.facets.find((f) => f.key === key)?.values ?? [])
+			.filter((v) => key !== "actor" || v.value !== "system")
+			.map((v) => [v.value, v.count]);
 	const members = useTanstackQuery({
 		...orgMembersOptions(transport, orgId),
 		enabled: access.org,
@@ -245,7 +239,6 @@ export function Audit() {
 	const last = rows.at(-1);
 	const loading = choicesLoading || query.isLoading;
 	const rejected = query.error === null ? null : auditSearchError(query.error, types, actor, search);
-	const searchRejected = rejected !== null && (draft === null || draft === search);
 	const filterRejected = auditFilterViolations(query.error).length > 0;
 	const timeWindow: TimeWindow = custom ? { kind: "absolute", from, to } : { kind: "relative", spanMs: range.ms };
 	const setWindow = (next: TimeWindow) => {
@@ -288,32 +281,27 @@ export function Audit() {
 					</>
 				}
 			/>
+			<div className="flex flex-col gap-2">
+				<QueryInput
+					valueCounts={valueCounts}
+					state={{
+						orgId,
+						workspaceId,
+						view: "audit",
+						tokens: params.q.tokens,
+						text: params.q.text,
+						setQuery: (tokens, text) => {
+							setFilters({ q: { tokens, text }, event: null });
+						},
+						resourceByName: NO_RESOURCES,
+					}}
+				/>
+				{rejected !== null && <QueryErrorLine error={rejected.error} highlightTo={rejected.end} />}
+			</div>
 			{query.error !== null && rejected === null && !filterRejected ? (
 				<ErrorState error={query.error} what="the audit log" rpc={listEvents} scope="audit" onRetry={query.refetch} />
 			) : (
 				<Section
-					search={
-						<SearchInput
-							aria-label="Search request ID, actor or target"
-							placeholder="Search, or @type:deployment.* @actor:name"
-							className="audit-search"
-							ref={searchRef}
-							aria-invalid={searchRejected}
-							aria-describedby={searchRejected ? "audit-query-error" : undefined}
-							onClear={() => {
-								setFilters({ q: null, event: null });
-							}}
-							value={draft ?? search}
-							onChange={(event) => {
-								const text = event.target.value;
-								setDraft(text);
-								clearTimeout(pendingSearchRef.current);
-								pendingSearchRef.current = setTimeout(() => {
-									setFilters({ q: text, event: null });
-								}, SEARCH_DEBOUNCE_MS);
-							}}
-						/>
-					}
 					filters={
 						<>
 							<EventFilter
@@ -384,23 +372,6 @@ export function Audit() {
 						/>
 					)}
 					{filterRejected && query.error !== null && <AuditFilterError error={query.error} onFix={fixFilter} />}
-					{searchRejected && (
-						<AuditQueryError
-							rejected={rejected}
-							onField={(field) => {
-								const next = insertAuditField(search, rejected.start, rejected.end, field);
-								clearTimeout(pendingSearchRef.current);
-								setDraft(next.query);
-								void setParams({ q: next.query, event: null, before: null }).then(() => {
-									setDraft(null);
-									requestAnimationFrame(() => {
-										searchRef.current?.focus();
-										searchRef.current?.setSelectionRange(next.caret, next.caret);
-									});
-								});
-							}}
-						/>
-					)}
 					{!filterRejected && rejected === null && (
 						<AuditTable
 							rows={rows}
