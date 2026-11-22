@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"time"
@@ -13,9 +14,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/team-loco/loco/controller/internal/tracing"
 	"github.com/team-loco/loco/internal/buildinfo"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	// +kubebuilder:scaffold:imports
@@ -39,10 +40,13 @@ var version string
 func main() {
 	var enableLeaderElection bool
 	var probeAddr string
+	var metricsAddr string
 	var pprofAddr string
 	var reconcilerName string
 	flag.StringVar(&reconcilerName, "reconciler", "",
 		"The reconciler this manager runs: "+reconcilerApplication+" or "+reconcilerBuild+".")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080",
+		"The address the Prometheus metrics endpoint binds to. Use 0 to disable it.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&pprofAddr, "pprof-bind-address", "0",
 		"The address the pprof endpoint binds to, e.g. :6060. Leave as 0 to disable pprof.")
@@ -65,12 +69,26 @@ func main() {
 		setupLog.Error(err, "invalid reconciler configuration")
 		os.Exit(1)
 	}
+	restConfig := ctrl.GetConfigOrDie()
+	if operator.Tracing {
+		provider, tracingErr := startTracing(context.Background(), setup.serviceName, managerVersion)
+		if tracingErr != nil {
+			setupLog.Error(tracingErr, "unable to start tracing")
+			os.Exit(1)
+		}
+		defer func() {
+			if stopErr := stopTracing(provider); stopErr != nil {
+				setupLog.Error(stopErr, "unable to stop tracing")
+			}
+		}()
+		tracing.TraceRequests(restConfig)
+	}
 	ctx, onWatchError := stopOnDeadWatch(ctrl.SetupSignalHandler())
 	setup.cache.DefaultWatchErrorHandler = onWatchError
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		Cache:                  setup.cache,
-		Metrics:                metricsserver.Options{BindAddress: "0"},
+		Metrics:                serveMetrics(metricsAddr),
 		HealthProbeBindAddress: probeAddr,
 		PprofBindAddress:       pprofAddr,
 		LeaderElection:         enableLeaderElection,

@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -45,6 +47,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	"github.com/team-loco/loco/controller/internal/tracing"
 	"github.com/team-loco/loco/internal/clip"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -60,6 +63,25 @@ const (
 	deployingRequeue        = 15 * time.Second
 	envSecretRequeue        = 5 * time.Second
 	maxConcurrentReconciles = 4
+
+	reconcileSpan       = "application.reconcile"
+	finalizerSpan       = "application.finalizer"
+	namespaceSpan       = "application.namespace"
+	networkPoliciesSpan = "application.network_policies"
+	pullSecretSpan      = "application.pull_secret"
+	envSecretSpan       = "application.env_secret"
+	serviceAccountSpan  = "application.service_account"
+	deploymentSpan      = "application.deployment"
+	replicasSpan        = "application.replicas"
+	autoscalerSpan      = "application.autoscaler"
+	serviceSpan         = "application.service"
+	privateServiceSpan  = "application.private_service"
+	gatewayPolicySpan   = "application.gateway_policy"
+	routeSpan           = "application.route"
+	statusSpan          = "application.status"
+	resourceIDAttr      = "loco.resource.id"
+	placementIDAttr     = "loco.placement.id"
+	deploymentIDAttr    = "loco.deployment.id"
 )
 
 var (
@@ -116,6 +138,12 @@ type ApplicationReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	return tracing.Reconcile(ctx, reconcileSpan, req, func(ctx context.Context) (ctrl.Result, error) {
+		return r.reconcile(ctx, req)
+	})
+}
+
+func (r *ApplicationReconciler) reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	slog.DebugContext(ctx, "reconciling application", "namespace", req.Namespace, "name", req.Name)
 
 	// The cache can lag a stop the previous reconcile recorded, and the objects applied follow it.
@@ -126,6 +154,11 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, fmt.Errorf("fetch application: %w", err)
 	}
+	trace.SpanFromContext(ctx).SetAttributes(
+		attribute.String(resourceIDAttr, app.Spec.ResourceID),
+		attribute.String(placementIDAttr, app.PlacementID()),
+		attribute.String(deploymentIDAttr, app.Spec.DeploymentID),
+	)
 
 	if !app.DeletionTimestamp.IsZero() {
 		return r.handleDeletion(ctx, app)
@@ -144,7 +177,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, reconcile.TerminalError(joined)
 	}
 
-	if err := r.ensureFinalizer(ctx, app); err != nil {
+	if err := tracing.Step(ctx, finalizerSpan, func(ctx context.Context) error {
+		return r.ensureFinalizer(ctx, app)
+	}); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -156,7 +191,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		setApplicationProblem(app, locov1alpha1.ProblemApplyFailed, message)
 	}
 
-	if statusErr := r.patchStatus(ctx, app, original); statusErr != nil {
+	statusErr := tracing.Step(ctx, statusSpan, func(ctx context.Context) error {
+		return r.patchStatus(ctx, app, original)
+	})
+	if statusErr != nil {
 		return ctrl.Result{}, errors.Join(err, statusErr)
 	}
 
@@ -186,15 +224,21 @@ func (r *ApplicationReconciler) reconcileResources(
 			}
 		}
 	}()
-	if err := r.ensureNamespace(ctx, app); err != nil {
+	if err := tracing.Step(ctx, namespaceSpan, func(ctx context.Context) error {
+		return r.ensureNamespace(ctx, app)
+	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
 	}
 
-	if err := r.ensureWorkspaceNetworkPolicies(ctx, app); err != nil {
+	if err := tracing.Step(ctx, networkPoliciesSpan, func(ctx context.Context) error {
+		return r.ensureWorkspaceNetworkPolicies(ctx, app)
+	}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure workspace network policies: %w", err)
 	}
 
-	err := r.ensureWorkspacePullSecret(ctx, app)
+	err := tracing.Step(ctx, pullSecretSpan, func(ctx context.Context) error {
+		return r.ensureWorkspacePullSecret(ctx, app)
+	})
 	if errors.Is(err, errRegistryPullSecretPending) {
 		slog.DebugContext(ctx, "waiting for the registry pull secret", "error", err)
 		return ctrl.Result{RequeueAfter: registryPullSecretRequeue}, nil
@@ -203,7 +247,11 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure workspace pull secret: %w", err)
 	}
 
-	envSecret, err := r.ensureEnvSecret(ctx, app)
+	var envSecret envSecretMount
+	err = tracing.Step(ctx, envSecretSpan, func(ctx context.Context) (err error) {
+		envSecret, err = r.ensureEnvSecret(ctx, app)
+		return err
+	})
 	if errors.Is(err, errEnvSecretPending) {
 		slog.DebugContext(ctx, "waiting for environment secrets", "resource", app.Name)
 		return ctrl.Result{RequeueAfter: envSecretRequeue}, nil
@@ -212,45 +260,63 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure secrets: %w", err)
 	}
 
-	err = r.ensureServiceAccount(ctx, app)
+	err = tracing.Step(ctx, serviceAccountSpan, func(ctx context.Context) error {
+		return r.ensureServiceAccount(ctx, app)
+	})
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure service account: %w", err)
 	}
 
-	dep, err := r.ensureDeployment(ctx, app, envSecret)
-	if err != nil {
+	var dep *appsv1ac.DeploymentApplyConfiguration
+	applyDeployment := func(ctx context.Context) (err error) {
+		dep, err = r.ensureDeployment(ctx, app, envSecret)
+		return err
+	}
+	if err = tracing.Step(ctx, deploymentSpan, applyDeployment); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
 	}
 	stopped := stoppedRevision(app) != nil
-	if err = r.observeReplicas(ctx, app, dep, time.Now()); err != nil {
+	if err = tracing.Step(ctx, replicasSpan, func(ctx context.Context) error {
+		return r.observeReplicas(ctx, app, dep, time.Now())
+	}); err != nil {
 		return ctrl.Result{}, err
 	}
 	if !stopped && stoppedRevision(app) != nil {
-		if dep, err = r.ensureDeployment(ctx, app, envSecret); err != nil {
+		if err = tracing.Step(ctx, deploymentSpan, applyDeployment); err != nil {
 			return ctrl.Result{}, fmt.Errorf("stop deployment: %w", err)
 		}
 	}
-	if err = r.ensureAutoscaler(ctx, app, dep); err != nil {
+	if err = tracing.Step(ctx, autoscalerSpan, func(ctx context.Context) error {
+		return r.ensureAutoscaler(ctx, app, dep)
+	}); err != nil {
 		return ctrl.Result{}, err
 	}
 	setReadyReplicas(app)
 
-	err = r.ensureService(ctx, app)
+	err = tracing.Step(ctx, serviceSpan, func(ctx context.Context) error {
+		return r.ensureService(ctx, app)
+	})
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure service: %w", err)
 	}
 
-	err = r.ensurePrivateService(ctx, app)
+	err = tracing.Step(ctx, privateServiceSpan, func(ctx context.Context) error {
+		return r.ensurePrivateService(ctx, app)
+	})
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure private service: %w", err)
 	}
 
-	err = r.ensureGatewayIngressPolicy(ctx, app)
+	err = tracing.Step(ctx, gatewayPolicySpan, func(ctx context.Context) error {
+		return r.ensureGatewayIngressPolicy(ctx, app)
+	})
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure gateway ingress policy: %w", err)
 	}
 
-	err = r.ensureHTTPRoute(ctx, app)
+	err = tracing.Step(ctx, routeSpan, func(ctx context.Context) error {
+		return r.ensureHTTPRoute(ctx, app)
+	})
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure HTTP route: %w", err)
 	}

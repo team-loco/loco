@@ -138,6 +138,11 @@
             "env": {
               "type": "array"
             },
+            "metricsPort": {
+              "type": "integer",
+              "maximum": 65535,
+              "minimum": 0
+            },
             "podSecurityContext": {
               "type": "object"
             },
@@ -426,6 +431,11 @@
             }
           },
           "additionalProperties": false
+        },
+        "metricsPort": {
+          "type": "integer",
+          "maximum": 65535,
+          "minimum": 0
         },
         "minReadySeconds": {
           "type": "integer",

@@ -10,6 +10,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -771,5 +775,22 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		reconcileBuild(r, build)
 		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseFailed))
 		Expect(strings.Contains(build.Status.Message, "does not belong")).To(BeTrue())
+	})
+
+	It("records each reconcile as a span carrying the build", func() {
+		recorder := tracetest.NewSpanRecorder()
+		previous := otel.GetTracerProvider()
+		otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
+		DeferCleanup(func() { otel.SetTracerProvider(previous) })
+
+		build := testBuild("traced")
+		Expect(k8sClient.Create(ctx, build)).To(Succeed())
+		reconcileBuild(testReconciler(), build)
+
+		Expect(recorder.Ended()).To(ContainElement(Satisfy(func(span sdktrace.ReadOnlySpan) bool {
+			return span.Name() == reconcileSpan &&
+				!span.Parent().IsValid() &&
+				slices.Contains(span.Attributes(), attribute.String(buildIDAttr, "traced"))
+		})))
 	})
 })

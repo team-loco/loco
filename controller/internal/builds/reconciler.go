@@ -11,6 +11,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -28,6 +30,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	"github.com/team-loco/loco/controller/internal/tracing"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -42,6 +45,9 @@ const (
 	buildMessageRunning    = "building"
 	buildMessageSucceeded  = "build succeeded"
 	buildMessageJobDeleted = "the build job was deleted before it finished"
+	reconcileSpan          = "build.reconcile"
+	buildIDAttr            = "loco.build.id"
+	resourceIDAttr         = "loco.resource.id"
 )
 
 var (
@@ -85,6 +91,12 @@ type buildResult struct {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=servicecidrs,verbs=get;list;watch
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	return tracing.Reconcile(ctx, reconcileSpan, req, func(ctx context.Context) (ctrl.Result, error) {
+		return r.reconcile(ctx, req)
+	})
+}
+
+func (r *Reconciler) reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	build := &locov1alpha1.Build{}
 	if err := r.Get(ctx, req.NamespacedName, build); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -92,6 +104,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return ctrl.Result{}, fmt.Errorf("get build: %w", err)
 	}
+	trace.SpanFromContext(ctx).SetAttributes(
+		attribute.String(buildIDAttr, build.Spec.BuildID),
+		attribute.String(resourceIDAttr, build.Spec.ResourceID),
+	)
 	if build.Finished() || !build.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
 	}

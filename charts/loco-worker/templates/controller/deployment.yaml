@@ -22,6 +22,7 @@ spec:
                 - args:
                     - --reconciler=application
                     - --health-probe-bind-address=:8081
+                    - --metrics-bind-address={{ if .Values.controller.metricsPort }}:{{ .Values.controller.metricsPort }}{{ else }}0{{ end }}
                     {{- range .Values.controller.args }}
                     - {{ . }}
                     {{- end }}
@@ -70,6 +71,11 @@ spec:
                     initialDelaySeconds: 15
                     periodSeconds: 20
                   name: manager
+                  {{- with .Values.controller.metricsPort }}
+                  ports:
+                    - containerPort: {{ . }}
+                      name: metrics
+                  {{- end }}
                   readinessProbe:
                     httpGet:
                         path: /readyz
