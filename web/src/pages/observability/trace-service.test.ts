@@ -18,7 +18,7 @@ test("names a span by its Loco resource and keeps a differing OTel service name 
 		serviceName: "payments-worker",
 	});
 	expect(traceIdentity(span, "cart")).toEqual({ name: "cart", service: "payments-worker" });
-	expect(traceServiceLabel(span, "cart")).toBe("cart · payments-worker");
+	expect(traceServiceLabel(span, "cart")).toBe("cart (payments-worker)");
 	expect(
 		traceIdentity(create(TraceSpanSchema, { resourceId: "id", serviceName: "cart" }), "cart").service,
 	).toBeUndefined();

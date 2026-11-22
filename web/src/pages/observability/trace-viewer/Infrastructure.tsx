@@ -7,27 +7,39 @@ import { ChartContainer, ChartTooltip } from "@/components/design/Chart";
 import { Spinner } from "@/components/design/Spinner";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
-import { formatHourMinute, timeAxis } from "@/lib/time";
+import { formatClock, formatHourMinute, timeAxis } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatPercent, percentAxis } from "@/lib/compute-chart";
+import { limitAxis } from "@/lib/compute-chart";
+import { formatCpu, formatMemory } from "@/lib/quantity";
 import { trafficValue } from "@/lib/traffic";
 import { cn } from "@/lib/utils";
-import { percentPoints } from "@/pages/resource/metric";
 import { formatDuration } from "@/pages/resource/format";
 import { POD_LABEL } from "@/pages/resource/replicas";
 import { useObs } from "../context";
+import type { EventItem } from "../events";
 import type { TraceSummary } from "../traces";
 import { traceBounds } from "./trace-time";
-import { networkPoints, sampleAt, type InfraPoint } from "./infra-series";
+import { limitOf, networkPoints, sampleAt, valuePoints, type InfraPoint } from "./infra-series";
+import { SpanTipTrigger } from "./SpanTip";
 import { WindowToggle } from "./TraceEvents";
 
 const METRICS = [
+	{ metric: "k8s.pod.cpu.usage", aggregation: "avg", direction: "" },
 	{ metric: "k8s.pod.cpu_limit_utilization", aggregation: "avg", direction: "" },
+	{ metric: "k8s.pod.memory.working_set", aggregation: "avg", direction: "" },
 	{ metric: "k8s.pod.memory.working_set_limit_utilization", aggregation: "avg", direction: "" },
 	{ metric: "k8s.pod.network.io", aggregation: "rate", direction: "receive" },
 	{ metric: "k8s.pod.network.io", aggregation: "rate", direction: "transmit" },
 ];
+const BYTES_PER_MI = 1_048_576;
+const MILLI_PER_CORE = 1000;
+// Usage past this share of the limit marks the chart as running hot.
+const HOT_SHARE = 0.85;
+const AXIS_WIDTH = 64;
+const PLOT_TOP = 8;
+const PLOT_RIGHT = 8;
+const X_AXIS_HEIGHT = 30;
 const networkLabel = (point: InfraPoint | undefined) =>
 	`${trafficValue(point?.value, "")} / ${trafficValue(point?.out, "")} B/s`;
 const CHART_CONFIG = {
@@ -38,11 +50,13 @@ const CHART_CONFIG = {
 export function Infrastructure({
 	trace,
 	selected,
+	events,
 	minutes,
 	onMinutes,
 }: {
 	trace: TraceSummary;
 	selected: TraceSpan;
+	events: EventItem[];
 	minutes: number;
 	onMinutes: (minutes: number) => void;
 }) {
@@ -72,23 +86,51 @@ export function Infrastructure({
 			}),
 		),
 	});
-	const [cpu, memory, incoming, outgoing] = queries.map((query) =>
+	const [cpu, cpuShare, memory, memoryShare, incoming, outgoing] = queries.map((query) =>
 		query.data?.filter((series) => series.labels[POD_LABEL] === pod),
 	);
-	const points = useMemo<InfraPoint[][]>(
-		() => [
-			percentPoints(cpu ?? [], selected.resourceId).map(({ time, pct }) => ({ time, value: pct })),
-			percentPoints(memory ?? [], selected.resourceId).map(({ time, pct }) => ({ time, value: pct })),
-			networkPoints(incoming, outgoing, selected.resourceId),
-		],
-		[cpu, memory, incoming, outgoing, selected.resourceId],
+	const points = useMemo(() => {
+		const id = selected.resourceId;
+		const cpuPoints = valuePoints(cpu, id);
+		const memoryPoints = valuePoints(memory, id);
+		return {
+			cpu: cpuPoints,
+			cpuLimit: limitOf(cpuPoints, valuePoints(cpuShare, id)),
+			memory: memoryPoints,
+			memoryLimit: limitOf(memoryPoints, valuePoints(memoryShare, id)),
+			network: networkPoints(incoming, outgoing, id),
+		};
+	}, [cpu, cpuShare, memory, memoryShare, incoming, outgoing, selected.resourceId]);
+	const marks = events.filter(
+		(event) => event.resourceId === selected.resourceId && event.ts >= from && event.ts <= to,
 	);
 	const started = Date.parse(selected.resourceAttributes["k8s.pod.start_time"] ?? "");
 	const uptime = Number.isFinite(started) && started <= start ? formatDuration(start - started) : null;
 	const panels = [
-		{ title: "CPU", indices: [0], color: "var(--series-0)" },
-		{ title: "Memory", indices: [1], color: "var(--series-1)" },
-		{ title: "Network", indices: [2, 3], color: "var(--series-2)" },
+		{
+			title: "CPU",
+			indices: [0, 1],
+			color: "var(--series-0)",
+			data: points.cpu,
+			limit: points.cpuLimit,
+			fmt: (value: number) => formatCpu(value * MILLI_PER_CORE),
+		},
+		{
+			title: "Memory",
+			indices: [2, 3],
+			color: "var(--series-1)",
+			data: points.memory,
+			limit: points.memoryLimit,
+			fmt: (value: number) => formatMemory(value / BYTES_PER_MI),
+		},
+		{
+			title: "Network",
+			indices: [4, 5],
+			color: "var(--series-2)",
+			data: points.network,
+			limit: undefined,
+			fmt: (value: number) => trafficValue(value, "B/s"),
+		},
 	];
 	return (
 		<section aria-label="Trace infrastructure" className="flex min-w-0 flex-col gap-3 px-5 py-3">
@@ -109,132 +151,166 @@ export function Infrastructure({
 				<p className="m-0 text-[12px] text-fg3">No replica identity was recorded for this span.</p>
 			) : (
 				<div className="grid min-w-0 gap-4 sm:grid-cols-3">
-					{panels.map((panel, index) => {
-						const data = points[index] ?? [];
+					{panels.map((panel) => {
+						const { data, limit, fmt } = panel;
 						const network = panel.title === "Network";
-						const fmt = (value: number | undefined) =>
-							network ? trafficValue(value, "B/s") : value === undefined ? "—" : formatPercent(value);
 						const sample = sampleAt(data, hoverTime ?? start);
 						const peak = data.reduce<number | undefined>(
 							(max, point) =>
 								point.value === undefined ? max : max === undefined ? point.value : Math.max(max, point.value),
 							undefined,
 						);
-						const hot = !network && peak !== undefined && peak > 85;
+						const axis = limit === undefined ? undefined : limitAxis(limit, peak ?? 0);
+						const hot = limit !== undefined && peak !== undefined && peak > limit * HOT_SHARE;
 						const error = panel.indices.map((i) => queries[i]?.error).find((e) => e !== null && e !== undefined);
 						const loading = panel.indices.some((i) => queries[i]?.isLoading === true);
 						return (
 							<section key={panel.title} aria-label={`${panel.title} for ${pod}`} className="min-w-0">
-								<div className="flex min-h-5 items-baseline justify-between gap-2">
-									<h4 className="m-0 text-[12px] font-medium text-fg2">{panel.title}</h4>
-								</div>
-								<div className={cn("h-4 text-[11px] text-fg3", hot && "text-bad-fg")}>
+								<div className="flex min-h-5 items-baseline gap-2">
+									<h4 className="m-0 text-[12.5px] font-normal text-fg2">{panel.title}</h4>
+									<output
+										aria-live="off"
+										aria-label={`${panel.title} at ${hoverTime === null ? "trace start" : "cursor"}`}
+										className="min-w-0 truncate font-mono text-[13px] text-foreground"
+									>
+										{network ? networkLabel(sample) : sample?.value === undefined ? "—" : fmt(sample.value)}
+										{hoverTime !== null && (
+											<span className="text-[11.5px] text-fg3">{` at ${formatHourMinute(hoverTime, timePref)}`}</span>
+										)}
+									</output>
 									{network ? (
-										<span className="inline-flex items-center gap-1">
+										<span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11.5px] text-fg3">
 											<i aria-hidden className="w-2 border-t-2" style={{ borderColor: panel.color }} />
-											In{" "}
+											in
 											<i
 												aria-hidden
 												className="ml-2 w-2 border-t-2 border-dashed"
 												style={{ borderColor: panel.color }}
 											/>
-											Out
+											out
 										</span>
 									) : (
-										`Peak ${fmt(peak)}${hot ? " · High" : ""}`
+										peak !== undefined && (
+											<span className="ml-auto shrink-0 text-[11.5px] whitespace-nowrap text-fg3">
+												peak <span className={cn("font-mono text-fg2", hot && "text-bad-fg")}>{fmt(peak)}</span>
+												{hot && <span className="sr-only">, near the limit</span>}
+											</span>
+										)
 									)}
 								</div>
-								<output
-									aria-live="off"
-									aria-label={`${panel.title} at ${hoverTime === null ? "trace start" : "cursor"}`}
-									className="block h-4 truncate font-mono text-[10px] text-fg2"
-								>
-									{network ? networkLabel(sample) : fmt(sample?.value)}
-									{hoverTime !== null && ` at ${formatHourMinute(hoverTime, timePref)}`}
-								</output>
 								{loading ? (
-									<div role="status" className="flex h-36 items-center justify-center gap-2 text-fg3">
+									<div role="status" className="mt-1 flex h-36 items-center justify-center gap-2 text-fg3">
 										<Spinner />
 										Loading metrics…
 									</div>
 								) : error !== undefined ? (
-									<p role="alert" className="m-0 flex h-36 items-center text-[12px] text-bad-fg">
+									<p role="alert" className="m-0 mt-1 flex h-36 items-center text-[12px] text-bad-fg">
 										{getErrorMessage(error, "Couldn’t load replica metrics")}
 									</p>
 								) : data.length === 0 ? (
-									<div className="flex h-36 items-center justify-center rounded-md border border-dashed border-line text-[12px] text-fg3">
+									<div className="mt-1 flex h-36 items-center justify-center rounded-md border border-dashed border-line text-[12px] text-fg3">
 										No metrics in this range
 									</div>
 								) : (
-									<ChartContainer
-										role="group"
-										aria-label={`${panel.title} usage`}
-										config={CHART_CONFIG}
-										className="tv-infra-chart h-36 w-full aspect-auto"
-									>
-										<ComposedChart
-											data={data}
-											margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-											onMouseMove={(state) => {
-												const time = Number(state.activeLabel);
-												if (Number.isFinite(time)) setHoverTime(time);
-											}}
-											onMouseLeave={() => {
-												setHoverTime(null);
-											}}
+									<div className="relative mt-1">
+										<ChartContainer
+											role="group"
+											aria-label={`${panel.title} usage`}
+											config={CHART_CONFIG}
+											className="tv-infra-chart h-36 w-full aspect-auto"
 										>
-											<CartesianGrid vertical={false} stroke="var(--line)" />
-											<XAxis
-												dataKey="time"
-												type="number"
-												domain={[from, to]}
-												ticks={timeAxis(from, to, timePref)}
-												tickFormatter={(time: number) => formatHourMinute(time, timePref)}
-												tickLine={false}
-												axisLine={false}
-												minTickGap={30}
-											/>
-											<YAxis
-												domain={network ? [0, "auto"] : [0, percentAxis(peak ?? 0).maximum]}
-												tickFormatter={fmt}
-												tickLine={false}
-												axisLine={false}
-												width={network ? 64 : 40}
-											/>
-											<ReferenceArea x1={start} x2={end} fill="var(--fg3)" fillOpacity={0.18} />
-											{!network && (
-												<ReferenceLine
-													y={100}
-													stroke="var(--err)"
-													label={{ value: "Limit 100%", fill: "var(--err)", fontSize: 9, position: "insideTopLeft" }}
+											<ComposedChart
+												data={data}
+												margin={{ top: PLOT_TOP, right: PLOT_RIGHT, bottom: 0, left: 0 }}
+												onMouseMove={(state) => {
+													const time = Number(state.activeLabel);
+													if (Number.isFinite(time)) setHoverTime(time);
+												}}
+												onMouseLeave={() => {
+													setHoverTime(null);
+												}}
+											>
+												<CartesianGrid vertical={false} stroke="var(--line)" />
+												<XAxis
+													dataKey="time"
+													type="number"
+													domain={[from, to]}
+													ticks={timeAxis(from, to, timePref)}
+													tickFormatter={(time: number) => formatHourMinute(time, timePref)}
+													tickLine={false}
+													axisLine={false}
+													minTickGap={30}
+													height={X_AXIS_HEIGHT}
 												/>
-											)}
-											{hoverTime !== null && <ReferenceLine x={hoverTime} stroke="var(--fg3)" />}
-											<ChartTooltip cursor={false} content={() => null} />
-											{network ? (
-												<>
-													<Line dataKey="value" name="In" stroke={panel.color} dot={false} isAnimationActive={false} />
-													<Line
-														dataKey="out"
-														name="Out"
-														stroke={panel.color}
+												<YAxis
+													{...(axis === undefined
+														? { domain: [0, "auto"] }
+														: { domain: [0, axis.maximum], ticks: axis.ticks })}
+													tickFormatter={fmt}
+													tickLine={false}
+													axisLine={false}
+													width={AXIS_WIDTH}
+												/>
+												<ReferenceArea x1={start} x2={end} fill="var(--fg3)" fillOpacity={0.18} />
+												{limit !== undefined && (
+													<ReferenceLine
+														y={limit}
+														stroke="var(--err)"
 														strokeDasharray="4 3"
-														dot={false}
+														strokeOpacity={0.6}
+														label={{
+															value: `limit ${fmt(limit)}`,
+															fill: "var(--err)",
+															fontSize: 10.5,
+															position: "insideBottomLeft",
+														}}
+													/>
+												)}
+												{hoverTime !== null && <ReferenceLine x={hoverTime} stroke="var(--fg3)" />}
+												<ChartTooltip cursor={false} content={() => null} />
+												{network ? (
+													<>
+														<Line
+															dataKey="value"
+															name="In"
+															stroke={panel.color}
+															dot={false}
+															isAnimationActive={false}
+														/>
+														<Line
+															dataKey="out"
+															name="Out"
+															stroke={panel.color}
+															strokeDasharray="4 3"
+															dot={false}
+															isAnimationActive={false}
+														/>
+													</>
+												) : (
+													<Area
+														type="monotone"
+														dataKey="value"
+														stroke={panel.color}
+														fill={panel.color}
+														fillOpacity={0.1}
 														isAnimationActive={false}
 													/>
-												</>
-											) : (
-												<Area
-													type="monotone"
-													dataKey="value"
-													stroke={panel.color}
-													fill={panel.color}
-													fillOpacity={0.1}
-													isAnimationActive={false}
-												/>
-											)}
-										</ComposedChart>
-									</ChartContainer>
+												)}
+											</ComposedChart>
+										</ChartContainer>
+										{marks.length > 0 && (
+											<div
+												role="group"
+												aria-label={`Events on ${panel.title}`}
+												className="pointer-events-none absolute"
+												style={{ top: PLOT_TOP, bottom: X_AXIS_HEIGHT, left: AXIS_WIDTH, right: PLOT_RIGHT }}
+											>
+												{marks.map((event) => (
+													<EventMark key={event.id} event={event} left={(event.ts - from) / (to - from)} />
+												))}
+											</div>
+										)}
+									</div>
 								)}
 							</section>
 						);
@@ -242,5 +318,39 @@ export function Infrastructure({
 				</div>
 			)}
 		</section>
+	);
+}
+
+function EventMark({ event, left }: { event: EventItem; left: number }) {
+	const timePref = useTimePreferences();
+	const warn = event.severity !== "normal";
+	const at = formatClock(event.ts, false, timePref);
+	return (
+		<SpanTipTrigger
+			entries={[{ title: event.title, meta: at }]}
+			render={
+				<button
+					type="button"
+					aria-label={`${event.title}, ${at}`}
+					className="pointer-events-auto absolute inset-y-0 w-2 -translate-x-1/2 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+					style={{ left: `${String(left * 100)}%` }}
+				/>
+			}
+		>
+			<i
+				aria-hidden
+				className={cn(
+					"absolute inset-y-0 left-1/2 border-l-[1.5px] border-dashed",
+					warn ? "border-warn-fg" : "border-fg3",
+				)}
+			/>
+			<i
+				aria-hidden
+				className={cn(
+					"absolute -top-[3px] left-1/2 size-[7px] -translate-x-1/2 rounded-full",
+					warn ? "bg-warn-fg" : "bg-fg3",
+				)}
+			/>
+		</SpanTipTrigger>
 	);
 }

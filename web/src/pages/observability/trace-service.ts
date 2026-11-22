@@ -15,7 +15,7 @@ export function traceIdentity(
 
 export function traceServiceLabel(span: Pick<TraceSpan, "serviceName" | "resourceId">, resourceName?: string): string {
 	const { name, service } = traceIdentity(span, resourceName);
-	return service === undefined ? name : `${name} · ${service}`;
+	return service === undefined ? name : `${name} (${service})`;
 }
 
 export function traceResourceKey(span: Pick<TraceSpan, "resourceId" | "serviceName">): string {

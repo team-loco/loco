@@ -50,20 +50,20 @@ describe("trace overview", () => {
 		const start = Date.UTC(2026, 10, 15, 13, 5);
 		const utc = { zone: "utc", clock: "24" } as const;
 		const bucket = { start, widthSeconds: 60, traces: 42, errors: 3, p50: 12_000_000n, p95: 80_000_000n };
-		expect(countReadout(bucket, utc)).toBe("13:05–13:06 · 42 traces · 3 errors");
+		expect(countReadout(bucket, utc)).toBe("13:05–13:06, 42 traces, 3 errors");
 		expect(countReadout({ ...bucket, widthSeconds: 30, traces: 0, errors: 0 }, utc)).toBe(
-			"13:05:00–13:05:30 · 0 traces",
+			"13:05:00–13:05:30, 0 traces",
 		);
-		expect(countReadout({ ...bucket, traces: 1, errors: 0 }, utc)).toBe("13:05–13:06 · 1 trace");
-		expect(countReadout(bucket, { zone: "utc", clock: "12" })).toStartWith("1:05 PM–1:06 PM · ");
+		expect(countReadout({ ...bucket, traces: 1, errors: 0 }, utc)).toBe("13:05–13:06, 1 trace");
+		expect(countReadout(bucket, { zone: "utc", clock: "12" })).toStartWith("1:05 PM–1:06 PM, ");
 	});
 
 	test("latency readout names the bucket and its percentiles", () => {
 		const start = Date.UTC(2026, 10, 15, 13, 5);
 		const utc = { zone: "utc", clock: "24" } as const;
 		const bucket = { start, widthSeconds: 60, traces: 42, errors: 3, p50: 12_000_000n, p95: 80_000_000n };
-		expect(latencyReadout(bucket, utc)).toBe("13:05–13:06 · p50 12ms · p95 80ms");
-		expect(latencyReadout({ ...bucket, traces: 0 }, utc)).toBe("13:05–13:06 · no traces");
+		expect(latencyReadout(bucket, utc)).toBe("13:05–13:06, p50 12ms, p95 80ms");
+		expect(latencyReadout({ ...bucket, traces: 0 }, utc)).toBe("13:05–13:06, no traces");
 	});
 
 	test("latency axis spans decades so a 500 s outlier keeps millisecond values visible", () => {

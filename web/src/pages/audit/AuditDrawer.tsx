@@ -89,7 +89,7 @@ export function AuditDrawer({
 									<span className="text-[11.5px] text-fg3">
 										{row.actorKind}
 										{row.actor.detail !== "" && row.actor.detail !== row.actorKind && (
-											<span className="font-mono"> · {row.actor.detail}</span>
+											<span className="font-mono">, {row.actor.detail}</span>
 										)}
 									</span>
 								</Item>
@@ -121,7 +121,7 @@ export function AuditDrawer({
 							</dl>
 							<div className="flex flex-wrap gap-2">
 								<Button variant="outline" onClick={onActor}>
-									More by {row.event.actorType === "user" ? row.actor.name.split(" ")[0] : row.actor.name}
+									More by {row.actor.name}
 								</Button>
 								{onResource !== null && (
 									<Button variant="outline" onClick={onResource}>

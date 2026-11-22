@@ -72,7 +72,7 @@ const LOGS_PARAMS = {
 	at: msParser,
 	live: parseAsStringLiteral(["0"]),
 };
-const SAMPLED_KEYS: ReadonlySet<FieldKey> = new Set(["region", "replica", "build", "trace"]);
+const SAMPLED_KEYS: ReadonlySet<FieldKey> = new Set(["region", "replica", "build", "method", "trace"]);
 const TAIL_TICK_MS = 1000;
 const IDLE_TICK_MS = 15_000;
 const FRESH_MS = 1800;
@@ -367,6 +367,7 @@ export function LogsView() {
 			if (key === "region") add(r.region);
 			if (key === "replica") add(r.pod);
 			if (key === "build") add(r.build);
+			if (key === "method") add(r.entry.logAttributes["method"] ?? "");
 			if (key === "trace") add(r.entry.traceId);
 		}
 		return [...m.entries()].toSorted((a, b) => b[1] - a[1]);
@@ -576,7 +577,7 @@ export function LogsView() {
 									<>
 										{`${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""} loaded`}
 										{truncated && volume.data !== undefined && inRange > rows.length && (
-											<span className="text-fg3">{` · ${formatCount(inRange)} lines in range, ${formatCount(BATCH)} per load, Older loads more`}</span>
+											<span className="text-fg3">{`, ${formatCount(inRange)} lines in range, ${formatCount(BATCH)} per load, Older loads more`}</span>
 										)}
 									</>
 								) : (

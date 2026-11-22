@@ -103,6 +103,7 @@ export function LogDetail({
 	const { tokens, text, setQuery, goTo, orgId, workspaceId, resourceById } = useObs();
 	const [attrQ, setAttrQ] = useState("");
 	const [view, setView] = useStoredValue("loco:log-drawer-view", "attributes");
+	const [wrapJson, setWrapJson] = useStoredValue("loco:log-drawer-json-wrap", "on");
 	const showJson = view === "json";
 	const [copied, copy] = useCopy();
 	const style = levelStyle(row.level);
@@ -142,7 +143,7 @@ export function LogDetail({
 							</span>
 						)}
 						<span className="truncate font-mono text-[12px] text-fg3">
-							{[row.replica, row.region].filter((part) => part !== "").join(" · ")}
+							{[row.replica, row.region].filter((part) => part !== "").join(", ")}
 						</span>
 					</div>
 					<div className="flex min-w-0 items-center gap-2">
@@ -313,7 +314,14 @@ export function LogDetail({
 						)}
 					</div>
 					{showJson ? (
-						<CodeBlock language="json" copyLabel="Copy JSON">
+						<CodeBlock
+							language="json"
+							copyLabel="Copy JSON"
+							wrap={wrapJson === "on"}
+							onWrap={(wrap) => {
+								setWrapJson(wrap ? "on" : "off");
+							}}
+						>
 							{json}
 						</CodeBlock>
 					) : (

@@ -44,7 +44,7 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 						entries={rows.map((r) => ({
 							title: r.message,
 							color: r.color,
-							meta: `${r.resourceName} · ${formatClock(r.ts, true, timePref)}`,
+							meta: `${r.resourceName}, ${formatClock(r.ts, true, timePref)}`,
 						}))}
 						render={
 							<button

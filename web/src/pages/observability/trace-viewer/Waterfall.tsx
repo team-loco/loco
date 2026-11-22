@@ -39,7 +39,7 @@ export function Waterfall({
 	const tipEntry = (span: TraceSpan) => ({
 		title: span.name,
 		color: color(span),
-		meta: `${label(span)} · ${durationLabel(span.durationNanos)} · self ${durationLabel(selfTime(span))}`,
+		meta: `${label(span)}, ${durationLabel(span.durationNanos)}, self ${durationLabel(selfTime(span))}`,
 		error: spanError(span) ? spanErrorText(span) : undefined,
 	});
 	const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());

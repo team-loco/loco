@@ -15,7 +15,7 @@ export function SpanLinks({ span }: { span: TraceSpan }) {
 						<li key={`${index.toString()}:${link.spanId}`} className="min-w-0 rounded-lg border border-line p-3">
 							<div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[12px]">
 								<span className="font-mono text-fg3 [overflow-wrap:anywhere]">
-									{link.traceId === span.traceId ? "This trace" : link.traceId || "No trace ID"} ·{" "}
+									{link.traceId === span.traceId ? "This trace" : link.traceId || "No trace ID"},{" "}
 									{link.spanId || "no span ID"}
 								</span>
 								{target !== null && (
