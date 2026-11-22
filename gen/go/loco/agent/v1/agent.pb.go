@@ -1241,12 +1241,14 @@ func (*SyncResponse_CancelBuild) isSyncResponse_Message() {}
 func (*SyncResponse_DeleteWorkspace) isSyncResponse_Message() {}
 
 type Apply struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PlacementId   string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
-	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	ResourceId    string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Application   []byte                 `protobuf:"bytes,4,opt,name=application,proto3" json:"application,omitempty"`
-	EnvSecret     *EnvSecret             `protobuf:"bytes,5,opt,name=env_secret,json=envSecret,proto3" json:"env_secret,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	PlacementId string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	Revision    int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	ResourceId  string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	Application []byte                 `protobuf:"bytes,4,opt,name=application,proto3" json:"application,omitempty"`
+	EnvSecret   *EnvSecret             `protobuf:"bytes,5,opt,name=env_secret,json=envSecret,proto3" json:"env_secret,omitempty"`
+	// traceparent is the W3C trace context of the request that created the placement's deployment, empty outside a trace.
+	Traceparent   string `protobuf:"bytes,6,opt,name=traceparent,proto3" json:"traceparent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1314,6 +1316,13 @@ func (x *Apply) GetEnvSecret() *EnvSecret {
 		return x.EnvSecret
 	}
 	return nil
+}
+
+func (x *Apply) GetTraceparent() string {
+	if x != nil {
+		return x.Traceparent
+	}
+	return ""
 }
 
 // EnvSecret carries the secret values a placement declares, beside the Application that never holds them.
@@ -1445,8 +1454,10 @@ type StartBuild struct {
 	// set in token mode; it is valid while this build is queued or running on the cluster.
 	RegistryCredential string `protobuf:"bytes,10,opt,name=registry_credential,json=registryCredential,proto3" json:"registry_credential,omitempty"`
 	Platform           string `protobuf:"bytes,11,opt,name=platform,proto3" json:"platform,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// traceparent is the W3C trace context of the request that created the build, empty outside a trace.
+	Traceparent   string `protobuf:"bytes,12,opt,name=traceparent,proto3" json:"traceparent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartBuild) Reset() {
@@ -1552,6 +1563,13 @@ func (x *StartBuild) GetRegistryCredential() string {
 func (x *StartBuild) GetPlatform() string {
 	if x != nil {
 		return x.Platform
+	}
+	return ""
+}
+
+func (x *StartBuild) GetTraceparent() string {
+	if x != nil {
+		return x.Traceparent
 	}
 	return ""
 }
@@ -1929,7 +1947,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"startBuild\x12?\n" +
 	"\fcancel_build\x18\x04 \x01(\v2\x1a.loco.agent.v1.CancelBuildH\x00R\vcancelBuild\x125\n" +
 	"\x10delete_workspace\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x0fdeleteWorkspaceB\t\n" +
-	"\amessage\"\xc2\x01\n" +
+	"\amessage\"\xee\x01\n" +
 	"\x05Apply\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
@@ -1937,7 +1955,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"resourceId\x12 \n" +
 	"\vapplication\x18\x04 \x01(\fR\vapplication\x127\n" +
 	"\n" +
-	"env_secret\x18\x05 \x01(\v2\x18.loco.agent.v1.EnvSecretR\tenvSecret\"\x98\x01\n" +
+	"env_secret\x18\x05 \x01(\v2\x18.loco.agent.v1.EnvSecretR\tenvSecret\x12*\n" +
+	"\vtraceparent\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vtraceparent\"\x98\x01\n" +
 	"\tEnvSecret\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x126\n" +
 	"\x04data\x18\x02 \x03(\v2\".loco.agent.v1.EnvSecret.DataEntryR\x04data\x1a7\n" +
@@ -1948,7 +1967,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
 	"\vresource_id\x18\x03 \x01(\tR\n" +
-	"resourceId\"\xfc\x03\n" +
+	"resourceId\"\xa8\x04\n" +
 	"\n" +
 	"StartBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\x12+\n" +
@@ -1964,7 +1983,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x0forganization_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x0eorganizationId\x12/\n" +
 	"\x13registry_credential\x18\n" +
 	" \x01(\tR\x12registryCredential\x12;\n" +
-	"\bplatform\x18\v \x01(\tB\x1f\xbaH\x1cr\x1aR\vlinux/amd64R\vlinux/arm64R\bplatform\"2\n" +
+	"\bplatform\x18\v \x01(\tB\x1f\xbaH\x1cr\x1aR\vlinux/amd64R\vlinux/arm64R\bplatform\x12*\n" +
+	"\vtraceparent\x18\f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vtraceparent\"2\n" +
 	"\vCancelBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xa7\x02\n" +
 	"\tHeartbeat\x128\n" +

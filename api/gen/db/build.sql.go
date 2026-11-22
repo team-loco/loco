@@ -893,6 +893,7 @@ SELECT b.id,
        b.context,
        b.image_repository,
        b.platform,
+       COALESCE(b.traceparent, '')::text AS traceparent,
        COALESCE((
          SELECT p.image_repository || '@' || p.cache_digest
          FROM builds p
@@ -922,6 +923,7 @@ type ListQueuedClusterBuildsRow struct {
 	Context         string    `json:"context"`
 	ImageRepository string    `json:"imageRepository"`
 	Platform        string    `json:"platform"`
+	Traceparent     string    `json:"traceparent"`
 	CacheRef        string    `json:"cacheRef"`
 }
 
@@ -944,6 +946,7 @@ func (q *Queries) ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.U
 			&i.Context,
 			&i.ImageRepository,
 			&i.Platform,
+			&i.Traceparent,
 			&i.CacheRef,
 		); err != nil {
 			return nil, err

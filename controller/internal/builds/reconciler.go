@@ -108,6 +108,7 @@ func (r *Reconciler) reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		attribute.String(buildIDAttr, build.Spec.BuildID),
 		attribute.String(resourceIDAttr, build.Spec.ResourceID),
 	)
+	tracing.Link(ctx, build.Annotations[locov1alpha1.KeyTraceparent])
 	if build.Finished() || !build.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
 	}

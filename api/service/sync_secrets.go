@@ -18,7 +18,13 @@ var (
 	errUnresolvedReference = errors.New("secret env holds a reference to a resource")
 )
 
-type listPlacementsFunc func(ctx context.Context, q *genDb.Queries) ([]genDb.Placement, error)
+type listPlacementsFunc func(ctx context.Context, q *genDb.Queries) ([]syncPlacement, error)
+
+// syncPlacement is a placement with the traceparent of the request that created its deployment.
+type syncPlacement struct {
+	genDb.Placement
+	traceparent string
+}
 
 type secretSnapshot struct {
 	provider     secretkeys.Provider
@@ -41,9 +47,9 @@ func newSecretSnapshot(provider secretkeys.Provider) *secretSnapshot {
 func (s *AgentServer) readPlacements(
 	ctx context.Context,
 	list listPlacementsFunc,
-) ([]genDb.Placement, *secretSnapshot, error) {
+) ([]syncPlacement, *secretSnapshot, error) {
 	snapshot := newSecretSnapshot(s.provider)
-	var placements []genDb.Placement
+	var placements []syncPlacement
 	options := pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
 	err := pgx.BeginTxFunc(ctx, s.db, options, func(tx pgx.Tx) error {
 		q := genDb.New(tx)
@@ -52,7 +58,7 @@ func (s *AgentServer) readPlacements(
 			return err
 		}
 		for _, placement := range listed {
-			if loadErr := snapshot.load(ctx, q, placement); loadErr != nil {
+			if loadErr := snapshot.load(ctx, q, placement.Placement); loadErr != nil {
 				return loadErr
 			}
 		}

@@ -777,20 +777,27 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		Expect(strings.Contains(build.Status.Message, "does not belong")).To(BeTrue())
 	})
 
-	It("records each reconcile as a span carrying the build", func() {
+	It("records each reconcile as a span carrying the build, linked to the request that created it", func() {
 		recorder := tracetest.NewSpanRecorder()
 		previous := otel.GetTracerProvider()
 		otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)))
 		DeferCleanup(func() { otel.SetTracerProvider(previous) })
 
 		build := testBuild("traced")
+		build.Annotations = map[string]string{
+			locov1alpha1.KeyTraceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+		}
 		Expect(k8sClient.Create(ctx, build)).To(Succeed())
 		reconcileBuild(testReconciler(), build)
 
 		Expect(recorder.Ended()).To(ContainElement(Satisfy(func(span sdktrace.ReadOnlySpan) bool {
+			links := span.Links()
 			return span.Name() == reconcileSpan &&
 				!span.Parent().IsValid() &&
-				slices.Contains(span.Attributes(), attribute.String(buildIDAttr, "traced"))
+				slices.Contains(span.Attributes(), attribute.String(buildIDAttr, "traced")) &&
+				len(links) == 1 &&
+				links[0].SpanContext.TraceID().String() == "4bf92f3577b34da6a3ce929d0e0e4736" &&
+				links[0].SpanContext.SpanID().String() == "00f067aa0ba902b7"
 		})))
 	})
 })

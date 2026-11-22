@@ -217,7 +217,7 @@ func (ss *syncSession) sendPlacements(ctx context.Context, ids []uuid.UUID) erro
 	placements, secrets, err := ss.server.readPlacements(ctx, func(
 		ctx context.Context,
 		q *genDb.Queries,
-	) ([]genDb.Placement, error) {
+	) ([]syncPlacement, error) {
 		return listSyncPlacements(ctx, q, ss.clusterID, ids)
 	})
 	if err != nil {
@@ -237,24 +237,25 @@ func listSyncPlacements(
 	q *genDb.Queries,
 	clusterID uuid.UUID,
 	ids []uuid.UUID,
-) ([]genDb.Placement, error) {
+) ([]syncPlacement, error) {
 	rows, err := q.ListPlacementsByIDs(ctx, genDb.ListPlacementsByIDsParams{ClusterID: clusterID, Ids: ids})
 	if err != nil {
 		return nil, err
 	}
-	placements := make([]genDb.Placement, 0, len(rows))
+	placements := make([]syncPlacement, 0, len(rows))
 	for _, row := range rows {
 		placement := row.Placement
 		if row.Suspended {
 			placement.DesiredDeleted = true
 			placement.DesiredSpec = nil
 		}
-		placements = append(placements, placement)
+		placements = append(placements, syncPlacement{Placement: placement, traceparent: row.Traceparent})
 	}
 	return placements, nil
 }
 
-func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placement genDb.Placement) error {
+func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, listed syncPlacement) error {
+	placement := listed.Placement
 	var envSecret *agentv1.EnvSecret
 	if !placement.DesiredDeleted && len(placement.SecretEnv) > 0 {
 		secret, err := secrets.envSecret(ctx, placement)
@@ -282,7 +283,7 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 		}
 		placement.DesiredSpec = spec
 	}
-	msg := placementMessage(placement, envSecret)
+	msg := placementMessage(placement, envSecret, listed.traceparent)
 	if err := ss.sendFn(msg); err != nil {
 		return fmt.Errorf("send placement %s: %w", placement.ID, err)
 	}
@@ -300,7 +301,11 @@ func (ss *syncSession) reject(ctx context.Context, placement genDb.Placement, er
 	delete(ss.sent, placement.ID)
 }
 
-func placementMessage(placement genDb.Placement, envSecret *agentv1.EnvSecret) *agentv1.SyncResponse {
+func placementMessage(
+	placement genDb.Placement,
+	envSecret *agentv1.EnvSecret,
+	traceparent string,
+) *agentv1.SyncResponse {
 	resourceID := placement.ResourceID.String()
 	placementID := placement.ID.String()
 	if placement.DesiredDeleted {
@@ -322,6 +327,7 @@ func placementMessage(placement genDb.Placement, envSecret *agentv1.EnvSecret) *
 				ResourceId:  resourceID,
 				Application: placement.DesiredSpec,
 				EnvSecret:   envSecret,
+				Traceparent: traceparent,
 			},
 		},
 	}

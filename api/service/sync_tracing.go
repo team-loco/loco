@@ -40,19 +40,21 @@ func (s *AgentServer) requestSpan(
 	kind := trace.SpanKindConsumer
 	switch m := msg.GetMessage().(type) {
 	case *agentv1.SyncRequest_Applied:
-		return s.placementSpan(
+		return placementSpan(
 			ctx,
 			clusterID,
 			syncAppliedSpan,
 			kind,
+			s.queries.GetPlacementTraceparent,
 			m.Applied.GetPlacementId(),
 			m.Applied.GetRevision(),
 		)
 	case *agentv1.SyncRequest_Status:
-		return s.placementSpan(ctx, clusterID, syncStatusSpan, kind,
+		return placementSpan(ctx, clusterID, syncStatusSpan, kind, s.queries.GetPlacementTraceparent,
 			m.Status.GetPlacementId(), m.Status.GetObservedRevision())
 	case *agentv1.SyncRequest_BuildStatus:
-		return s.buildSpan(ctx, clusterID, syncBuildStatusSpan, kind, m.BuildStatus.GetBuildId())
+		return buildSpan(ctx, clusterID, syncBuildStatusSpan, kind, s.queries.GetBuildTraceparent,
+			m.BuildStatus.GetBuildId())
 	default:
 		return ctx, noop.Span{}
 	}
@@ -67,28 +69,33 @@ func (s *AgentServer) responseSpan(
 	kind := trace.SpanKindProducer
 	switch m := msg.GetMessage().(type) {
 	case *agentv1.SyncResponse_Apply:
-		return s.placementSpan(ctx, clusterID, syncApplySpan, kind, m.Apply.GetPlacementId(), m.Apply.GetRevision())
+		return placementSpan(ctx, clusterID, syncApplySpan, kind, sent(m.Apply.GetTraceparent()),
+			m.Apply.GetPlacementId(), m.Apply.GetRevision())
 	case *agentv1.SyncResponse_Delete:
-		return s.placementSpan(ctx, clusterID, syncDeleteSpan, kind, m.Delete.GetPlacementId(), m.Delete.GetRevision())
+		return placementSpan(ctx, clusterID, syncDeleteSpan, kind, s.queries.GetPlacementTraceparent,
+			m.Delete.GetPlacementId(), m.Delete.GetRevision())
 	case *agentv1.SyncResponse_StartBuild:
-		return s.buildSpan(ctx, clusterID, syncStartBuildSpan, kind, m.StartBuild.GetBuildId())
+		return buildSpan(ctx, clusterID, syncStartBuildSpan, kind, sent(m.StartBuild.GetTraceparent()),
+			m.StartBuild.GetBuildId())
 	case *agentv1.SyncResponse_CancelBuild:
-		return s.buildSpan(ctx, clusterID, syncCancelBuildSpan, kind, m.CancelBuild.GetBuildId())
+		return buildSpan(ctx, clusterID, syncCancelBuildSpan, kind, s.queries.GetBuildTraceparent,
+			m.CancelBuild.GetBuildId())
 	default:
 		return ctx, noop.Span{}
 	}
 }
 
 // placementSpan starts a root span linked to the request that created the placement's deployment.
-func (s *AgentServer) placementSpan(
+func placementSpan(
 	ctx context.Context,
 	clusterID uuid.UUID,
 	name string,
 	kind trace.SpanKind,
+	origin originFunc,
 	placementID string,
 	revision int64,
 ) (context.Context, trace.Span) {
-	return syncSpan(ctx, name, kind, s.queries.GetPlacementTraceparent, placementID,
+	return syncSpan(ctx, name, kind, origin, placementID,
 		attribute.String(syncClusterIDAttr, clusterID.String()),
 		attribute.String(syncPlacementIDAttr, placementID),
 		attribute.Int64(syncRevisionAttr, revision),
@@ -96,17 +103,28 @@ func (s *AgentServer) placementSpan(
 }
 
 // buildSpan starts a root span linked to the request that created the build.
-func (s *AgentServer) buildSpan(
+func buildSpan(
 	ctx context.Context,
 	clusterID uuid.UUID,
 	name string,
 	kind trace.SpanKind,
+	origin originFunc,
 	buildID string,
 ) (context.Context, trace.Span) {
-	return syncSpan(ctx, name, kind, s.queries.GetBuildTraceparent, buildID,
+	return syncSpan(ctx, name, kind, origin, buildID,
 		attribute.String(syncClusterIDAttr, clusterID.String()),
 		attribute.String(syncBuildIDAttr, buildID),
 	)
+}
+
+// originFunc reads the traceparent of the request that created a placement's deployment or a build.
+type originFunc func(context.Context, uuid.UUID) (*string, error)
+
+// sent is the origin of a message that already carries its traceparent.
+func sent(traceparent string) originFunc {
+	return func(context.Context, uuid.UUID) (*string, error) {
+		return &traceparent, nil
+	}
 }
 
 // syncSpan looks up the originating request only for a recording span, so untraced installs skip the query.
@@ -114,7 +132,7 @@ func syncSpan(
 	ctx context.Context,
 	name string,
 	kind trace.SpanKind,
-	lookup func(context.Context, uuid.UUID) (*string, error),
+	lookup originFunc,
 	rawID string,
 	attrs ...attribute.KeyValue,
 ) (context.Context, trace.Span) {

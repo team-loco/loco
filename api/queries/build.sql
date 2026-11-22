@@ -99,6 +99,7 @@ SELECT b.id,
        b.context,
        b.image_repository,
        b.platform,
+       COALESCE(b.traceparent, '')::text AS traceparent,
        COALESCE((
          SELECT p.image_repository || '@' || p.cache_digest
          FROM builds p

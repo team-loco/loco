@@ -177,6 +177,7 @@ func (s *AgentServer) startBuildMessage(
 				ImageRepository:    build.ImageRepository,
 				CacheRef:           build.CacheRef,
 				RegistryCredential: registryCredential,
+				Traceparent:        build.Traceparent,
 			},
 		},
 	}, nil

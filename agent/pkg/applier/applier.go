@@ -78,6 +78,7 @@ type Placement struct {
 	ResourceID  string
 	Application []byte
 	EnvSecret   *EnvSecret
+	Traceparent string
 }
 
 func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error {
@@ -387,10 +388,14 @@ func applicationApplyConfiguration(
 		locolabels.LabelEnvironmentID: spec.EnvironmentID,
 	})
 	revision := strconv.FormatInt(placement.Revision, 10)
-	obj.SetAnnotations(map[string]string{
+	annotations := map[string]string{
 		locoControllerV1.KeyPlacementID:       placement.ID,
 		locoControllerV1.KeyPlacementRevision: revision,
-	})
+	}
+	if placement.Traceparent != "" {
+		annotations[locoControllerV1.KeyTraceparent] = placement.Traceparent
+	}
+	obj.SetAnnotations(annotations)
 	setErr := unstructured.SetNestedField(obj.Object, specMap, "spec")
 	if setErr != nil {
 		return nil, fmt.Errorf("%w: set spec: %w", ErrInvalidPayload, setErr)

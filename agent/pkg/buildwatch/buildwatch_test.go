@@ -73,6 +73,7 @@ func startMessage(buildID string) *agentv1.StartBuild {
 		Context:         "services/api",
 		ImageRepository: "registry.test/ws-1/app",
 		CacheRef:        "registry.test/ws-1/app@" + testCache,
+		Traceparent:     "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
 	}
 }
 
@@ -125,6 +126,9 @@ func TestCreateMakesOneBuildPerID(t *testing.T) {
 	}
 	if got.Labels[locolabels.LabelBuildID] != testBuildID {
 		t.Fatalf("labels = %v", got.Labels)
+	}
+	if got.Annotations[locoControllerV1.KeyTraceparent] != start.GetTraceparent() {
+		t.Fatalf("annotations = %v, want the start's traceparent", got.Annotations)
 	}
 
 	var list locoControllerV1.BuildList

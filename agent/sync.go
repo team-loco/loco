@@ -276,6 +276,7 @@ func submitPlacement(ctx context.Context, rec *reconciler.Reconciler, msg *agent
 			ResourceID:  m.Apply.GetResourceId(),
 			Application: m.Apply.GetApplication(),
 			EnvSecret:   envSecretOf(m.Apply.GetEnvSecret()),
+			Traceparent: m.Apply.GetTraceparent(),
 		}})
 	case *agentv1.SyncResponse_Delete:
 		slog.InfoContext(ctx, "received placement deletion",

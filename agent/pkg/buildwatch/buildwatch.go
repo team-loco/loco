@@ -146,6 +146,9 @@ func (w *Watcher) create(ctx context.Context, start *agentv1.StartBuild) error {
 			CacheRef:        start.GetCacheRef(),
 		},
 	}
+	if traceparent := start.GetTraceparent(); traceparent != "" {
+		build.Annotations = map[string]string{locoControllerV1.KeyTraceparent: traceparent}
+	}
 	err := w.client.Create(ctx, build, client.FieldOwner(kube.ManagedBy))
 	if apierrors.IsAlreadyExists(err) {
 		return nil

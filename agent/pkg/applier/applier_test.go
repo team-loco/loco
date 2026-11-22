@@ -200,6 +200,36 @@ func TestApplyPlacementRecordsRevisionAndRejectsOlderOnes(t *testing.T) {
 	}
 }
 
+func TestApplyPlacementAnnotatesTheTraceOfItsRevision(t *testing.T) {
+	ctx := context.Background()
+	a := newTestApplier(t)
+	const traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+
+	traced := placement(t, testPlacementID, 1)
+	traced.Traceparent = traceparent
+	if err := a.ApplyPlacement(ctx, traced); err != nil {
+		t.Fatalf("apply traced revision: %v", err)
+	}
+	app, err := a.live(t)
+	if err != nil {
+		t.Fatalf("get Application: %v", err)
+	}
+	if got := app.Annotations[locoControllerV1.KeyTraceparent]; got != traceparent {
+		t.Fatalf("traceparent annotation = %q, want %q", got, traceparent)
+	}
+
+	if applyErr := a.ApplyPlacement(ctx, placement(t, testPlacementID, 2)); applyErr != nil {
+		t.Fatalf("apply untraced revision: %v", applyErr)
+	}
+	app, err = a.live(t)
+	if err != nil {
+		t.Fatalf("get Application: %v", err)
+	}
+	if got, ok := app.Annotations[locoControllerV1.KeyTraceparent]; ok {
+		t.Fatalf("untraced revision kept traceparent annotation %q", got)
+	}
+}
+
 func TestDeletePlacementOnlyDeletesItsOwnApplication(t *testing.T) {
 	ctx := context.Background()
 	a := newTestApplier(t)

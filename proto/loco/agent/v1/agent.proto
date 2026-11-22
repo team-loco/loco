@@ -175,6 +175,8 @@ message Apply {
   string resource_id = 3;
   bytes application = 4;
   EnvSecret env_secret = 5;
+  // traceparent is the W3C trace context of the request that created the placement's deployment, empty outside a trace.
+  string traceparent = 6 [(buf.validate.field).string.max_len = 256];
 }
 
 // EnvSecret carries the secret values a placement declares, beside the Application that never holds them.
@@ -210,6 +212,8 @@ message StartBuild {
     (buf.validate.field).string.in = "linux/amd64",
     (buf.validate.field).string.in = "linux/arm64"
   ];
+  // traceparent is the W3C trace context of the request that created the build, empty outside a trace.
+  string traceparent = 12 [(buf.validate.field).string.max_len = 256];
 }
 
 message CancelBuild {

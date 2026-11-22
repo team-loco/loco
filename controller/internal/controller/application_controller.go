@@ -159,6 +159,7 @@ func (r *ApplicationReconciler) reconcile(ctx context.Context, req ctrl.Request)
 		attribute.String(placementIDAttr, app.PlacementID()),
 		attribute.String(deploymentIDAttr, app.Spec.DeploymentID),
 	)
+	tracing.Link(ctx, app.Annotations[locov1alpha1.KeyTraceparent])
 
 	if !app.DeletionTimestamp.IsZero() {
 		return r.handleDeletion(ctx, app)
