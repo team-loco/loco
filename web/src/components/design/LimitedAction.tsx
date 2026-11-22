@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgSettingsPath } from "@/lib/routes";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { Tip } from "@/components/design/Tooltip";
 import { type LimitTone, type LimitUsage, limitTone, limitPillLabel, limitReason, usageLabel } from "@/lib/limits";
 import { cn } from "@/lib/utils";
 import "./LimitedAction.css";
@@ -43,11 +43,5 @@ export function LimitCount({ usage }: { usage: LimitUsage | null }) {
 
 /** A disabled create action explains its limit in a tooltip. */
 export function LimitedAction({ reason, children }: { reason: string | null; children: ReactElement }) {
-	if (reason === null) return children;
-	return (
-		<Tooltip>
-			<TooltipTrigger render={<span className="inline-flex" />}>{children}</TooltipTrigger>
-			<TooltipContent className="max-w-[280px]">{reason}</TooltipContent>
-		</Tooltip>
-	);
+	return <Tip tip={reason}>{children}</Tip>;
 }
