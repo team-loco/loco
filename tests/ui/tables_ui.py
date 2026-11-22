@@ -1,5 +1,4 @@
 import argparse
-import math
 import re
 import struct
 import zlib
@@ -474,10 +473,10 @@ def check_band(page, scroller, row):
     page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
     cells = row.locator(":scope > td")
     first, last = cells.first.bounding_box(), cells.last.bounding_box()
-    # The outermost whole pixels of the row, which may sit at fractional positions.
-    top, bottom = math.ceil(first["y"]), math.floor(first["y"] + first["height"]) - 1
-    start, end = math.ceil(first["x"]), math.floor(last["x"] + last["width"]) - 1
-    card = rgb(page, start + 4, top - 2)
+    # The row's edges snap to whole pixels.
+    top, bottom = round(first["y"]), round(first["y"] + first["height"]) - 1
+    start, end = round(first["x"]), round(last["x"] + last["width"]) - 1
+    card = rgb(page, start + 4, top - 1)
 
     def rounded(state):
         for x in (start, end):
