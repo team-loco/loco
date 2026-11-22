@@ -213,8 +213,9 @@ function trackScroll(container: HTMLElement | null) {
 	const update = () => {
 		const end = container.querySelector<HTMLElement>("thead [data-pin=end]");
 		container.style.setProperty("--pin-end", `${String(end?.offsetWidth ?? 0)}px`);
-		container.style.setProperty("--scroll-x", `${String(container.scrollLeft)}px`);
 		const max = container.scrollWidth - container.clientWidth;
+		container.style.setProperty("--scroll-left", `${String(container.scrollLeft)}px`);
+		container.style.setProperty("--scroll-right", `${String(Math.max(0, max - container.scrollLeft))}px`);
 		if (max <= 1) container.removeAttribute("data-scroll");
 		else
 			container.setAttribute(

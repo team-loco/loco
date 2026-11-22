@@ -266,9 +266,7 @@
 	& tbody > tr::after {
 		content: "";
 		position: absolute;
-		inset: 0 auto;
-		left: var(--scroll-x, 0px);
-		width: 100cqi;
+		inset: 0 var(--scroll-right, 0px) 0 var(--scroll-left, 0px);
 		z-index: 2;
 		border: var(--row-ring, 0 solid transparent);
 		border-radius: var(--band-radius, 6px);
