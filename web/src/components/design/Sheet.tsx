@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { keepOpenOnToastPress } from "@/components/design/Sonner";
 import {
@@ -25,8 +25,17 @@ function clampWidth(width: number): number {
 	return Math.round(Math.min(window.innerWidth - 2 * EDGE_GAP, Math.max(MIN_WIDTH, width)));
 }
 
-function SheetResizeHandle({ width, onWidth }: { width: number; onWidth: (width: number | null) => void }) {
-	const dragRef = useRef(false);
+function SheetResizeHandle({
+	width,
+	onWidth,
+	onDrag,
+}: {
+	width: number;
+	onWidth: (width: number | null) => void;
+	/** The width during a drag; null when the drag ends. */
+	onDrag: (width: number | null) => void;
+}) {
+	const dragRef = useRef<number | null>(null);
 	const current = (el: HTMLElement) => el.parentElement?.getBoundingClientRect().width ?? MIN_WIDTH;
 	return (
 		<div
@@ -48,16 +57,17 @@ function SheetResizeHandle({ width, onWidth }: { width: number; onWidth: (width:
 			}}
 			onPointerDown={(event) => {
 				event.currentTarget.setPointerCapture(event.pointerId);
-				dragRef.current = true;
+				dragRef.current = width;
 			}}
 			onPointerMove={(event) => {
-				if (dragRef.current) onWidth(clampWidth(window.innerWidth - EDGE_GAP - event.clientX));
-			}}
-			onPointerUp={() => {
-				dragRef.current = false;
+				if (dragRef.current === null) return;
+				dragRef.current = clampWidth(window.innerWidth - EDGE_GAP - event.clientX);
+				onDrag(dragRef.current);
 			}}
 			onLostPointerCapture={() => {
-				dragRef.current = false;
+				if (dragRef.current !== null && dragRef.current > 0) onWidth(dragRef.current);
+				dragRef.current = null;
+				onDrag(null);
 			}}
 			className="group/handle absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize touch-none outline-none"
 		>
@@ -78,7 +88,10 @@ function SheetContent({
 	/** Name in the viewer's layout; when set, the drawer's inner edge resizes it and the width is remembered. */
 	resizeKey?: string;
 }) {
-	const [width, setWidth] = useLayout(resizeKey === undefined ? null : `drawer.${resizeKey}`, parseDrawerWidth);
+	const [savedWidth, setWidth] = useLayout(resizeKey === undefined ? null : `drawer.${resizeKey}`, parseDrawerWidth);
+	// A drag keeps its width here and saves it once when it ends.
+	const [dragged, setDragged] = useState<number | null>(null);
+	const width = dragged ?? savedWidth;
 	const resizable = resizeKey !== undefined && side === "right";
 	return (
 		<SheetContentBase
@@ -91,7 +104,7 @@ function SheetContent({
 			{...props}
 			{...(resizable && width > 0 ? { style: { width: `min(${String(width)}px, calc(100vw - 16px))` } } : {})}
 		>
-			{resizable && <SheetResizeHandle width={width} onWidth={setWidth} />}
+			{resizable && <SheetResizeHandle width={width} onWidth={setWidth} onDrag={setDragged} />}
 			{children}
 		</SheetContentBase>
 	);
