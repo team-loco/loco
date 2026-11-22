@@ -9,6 +9,7 @@ from pathlib import Path
 
 from harness import (
     call,
+    copied_text,
     expect_rpc,
     line_starts,
     load_state,
@@ -415,7 +416,6 @@ with session(out) as browser:
         browser,
         state=state,
         now=now,
-        permissions=["clipboard-read", "clipboard-write"],
         device_scale_factor=2,
         reduced_motion="reduce",
     )
@@ -486,7 +486,7 @@ with session(out) as browser:
     stack = spans[10]["events"][1]["attributes"]["exception.stacktrace"]
     expect(drawer.locator("pre").filter(has_text="TimeoutError")).to_have_text(stack)
     drawer.get_by_role("button", name="Copy stack trace", exact=True).click()
-    assert page.evaluate("navigator.clipboard.readText()") == stack
+    assert copied_text(page) == stack
     attributes = drawer.get_by_role("region", name="Span attributes")
     expect(details.get_by_text(spans[10]["spanId"], exact=True)).to_be_visible()
 
@@ -563,7 +563,7 @@ with session(out) as browser:
     trace_chip.hover()
     expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(trace)
     trace_chip.click()
-    assert page.evaluate("navigator.clipboard.readText()") == trace
+    assert copied_text(page) == trace
     drawer.get_by_role("button", name="More for this trace", exact=True).click()
     expect(
         page.get_by_role("menuitem", name="Copy trace ID", exact=True)
@@ -577,7 +577,7 @@ with session(out) as browser:
         ]
     )
     page.get_by_role("menuitem", name=re.compile("^Copy as JSON")).click()
-    exported = json.loads(page.evaluate("navigator.clipboard.readText()"))
+    exported = json.loads(copied_text(page))
     exported_spans = [
         span
         for resource in exported["resourceSpans"]
@@ -590,7 +590,7 @@ with session(out) as browser:
     )["events"][1]["attributes"]
     drawer.get_by_role("button", name="More for this trace", exact=True).click()
     page.get_by_role("menuitem", name=re.compile("^Copy link")).click()
-    assert page.evaluate("navigator.clipboard.readText()") == page.url
+    assert copied_text(page) == page.url
     drawer.get_by_role("button", name="More for this trace", exact=True).click()
     with page.expect_download() as download_info:
         page.get_by_role("menuitem", name=re.compile("^Download JSON")).click()
@@ -866,7 +866,7 @@ with session(out) as browser:
     failed_drawer.get_by_role(
         "button", name="Copy trace ID " + trace, exact=True
     ).click()
-    assert page.evaluate("navigator.clipboard.readText()") == trace
+    assert copied_text(page) == trace
     mode[0] = "normal"
     failed_drawer.get_by_role("button", name="Retry", exact=True).click()
     expect(drawer).to_be_visible()

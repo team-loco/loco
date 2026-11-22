@@ -4,7 +4,15 @@ import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from harness import load_state, open_page, repo, session, sql, wait_for_query
+from harness import (
+    copied_text,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+    wait_for_query,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -37,9 +45,7 @@ ORDER BY n DESC;""",
 )
 out = Path(args.out)
 with session(out) as browser:
-    context, page, errors = open_page(
-        browser, state=state, permissions=["clipboard-read", "clipboard-write"]
-    )
+    context, page, errors = open_page(browser, state=state)
     now_ms = int(time.time() * 1000)
     page.goto(
         state["ui_url"]
@@ -155,9 +161,7 @@ with session(out) as browser:
     ).to_be_disabled()
     drawer.get_by_role("button", name="Copy message", exact=True).click()
     expect(drawer.get_by_role("button", name="Copied", exact=True)).to_be_visible()
-    assert page.evaluate("navigator.clipboard.readText()").startswith(
-        "Back-off restarting app layer-"
-    )
+    assert copied_text(page).startswith("Back-off restarting app layer-")
     message = drawer.locator("code").first
     assert message.evaluate(
         "el => el.parentElement.scrollWidth <= el.parentElement.clientWidth"
@@ -197,7 +201,7 @@ with session(out) as browser:
     ]
     page.get_by_role("menuitem", name="Copy as JSON", exact=True).click()
     expect(page.get_by_role("menu")).to_have_count(0)
-    raw = page.evaluate("navigator.clipboard.readText()")
+    raw = copied_text(page)
     assert '"request_id": "req-events-ui"' in raw
     drawer.get_by_role("button", name="Event actions", exact=True).click()
     expect(page.get_by_role("menu")).to_be_visible()

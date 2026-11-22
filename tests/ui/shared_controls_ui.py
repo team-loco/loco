@@ -10,6 +10,7 @@ from pathlib import Path
 
 from harness import (
     call,
+    copied_text,
     evidence,
     expect_rpc,
     load_state,
@@ -649,10 +650,9 @@ def log_drawer(page):
     expect(wrap).to_be_focused()
     expect(wrap).to_have_attribute("aria-pressed", "true")
     assert json_view.evaluate("el => el.scrollWidth == el.clientWidth")
-    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
     detail.get_by_role("button", name="Copy JSON", exact=True).press("Enter")
     expect(detail.get_by_role("button", name="Copied", exact=True)).to_be_visible()
-    copied = json.loads(page.evaluate("navigator.clipboard.readText()"))
+    copied = json.loads(copied_text(page))
     assert copied["resource_attributes"]["container.image.name"] == image_digest
     wrap.click()
     expect(wrap).to_have_attribute("aria-pressed", "false")
@@ -795,17 +795,16 @@ def log_paging(page):
     page.keyboard.press("Escape")
     expect(detail).to_have_count(0)
     wait_for_query(page, lambda query: "log" not in query)
-    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
     row = page.get_by_role("row", name=re.compile(r"Paged line 30\b"))
     menu = row.get_by_role("button", name="Line actions", exact=True)
     row.hover()
     menu.click()
     page.get_by_role("menuitem", name="Copy message", exact=True).click()
-    assert page.evaluate("navigator.clipboard.readText()") == "Paged line 30"
+    assert copied_text(page) == "Paged line 30"
     row.hover()
     menu.click()
     page.get_by_role("menuitem", name="Copy as JSON", exact=True).click()
-    copied = json.loads(page.evaluate("navigator.clipboard.readText()"))
+    copied = json.loads(copied_text(page))
     assert copied["message"] == "Paged line 30"
     assert re.search(r"(Z|[+-]\d\d:\d\d)$", copied["timestamp"]), copied
     assert "trace_id" not in copied and "span_id" not in copied, copied

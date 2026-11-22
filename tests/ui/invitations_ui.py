@@ -1,6 +1,15 @@
 import argparse
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    copied_text,
+    evidence,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -15,9 +24,6 @@ path = state["ui_url"] + f"/org/{org}/team"
 
 with session(repo / "tests/ui/out/invitations") as browser:
     context, page, errors = open_page(browser, state=state)
-    context.grant_permissions(
-        ["clipboard-read", "clipboard-write"], origin=state["ui_url"]
-    )
     page.goto(path + "?invite=1")
     email = "invite@acme.test"
     page.get_by_role("textbox", name="Emails").fill(email)
@@ -32,7 +38,7 @@ with session(repo / "tests/ui/out/invitations") as browser:
     invitation = call(state, "loco.org.v1.OrgService/ListInvitations", {"orgId": org})[
         "invitations"
     ][0]
-    assert page.evaluate("navigator.clipboard.readText()") == invitation["link"]
+    assert copied_text(page) == invitation["link"]
     page.get_by_role("button", name="Done", exact=True).click()
     assert invitation["role"] == "ORG_ROLE_ADMIN", invitation
     row = page.get_by_role("row").filter(has_text=email)
@@ -50,7 +56,7 @@ with session(repo / "tests/ui/out/invitations") as browser:
     expect(row.get_by_text("Invited", exact=True)).to_be_visible()
     row.get_by_role("button", name=f"Actions for invite to {email}", exact=True).click()
     page.get_by_role("menuitem", name="Copy invite link", exact=True).click()
-    assert page.evaluate("navigator.clipboard.readText()") == invitation["link"]
+    assert copied_text(page) == invitation["link"]
     assert not errors, errors
     context.close()
     browser.close()
