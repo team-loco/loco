@@ -17,6 +17,7 @@ export function ModePicker() {
 			<span>Mode</span>
 			<RadioGroup
 				aria-label="Mode"
+				data-segmented
 				aria-orientation="horizontal"
 				value={mode}
 				onValueChange={(value) => {
