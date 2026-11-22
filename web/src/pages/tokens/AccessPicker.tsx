@@ -109,7 +109,7 @@ export function AccessPicker({
 	};
 
 	const resourceCount = (n: EntityNode): string | null =>
-		n.resources === undefined ? null : `${n.resources.toString()} resources`;
+		n.resources === undefined ? null : `${n.resources.toString()} ${n.resources === 1 ? "resource" : "resources"}`;
 
 	const resultNote = (n: EntityNode): string => {
 		switch (n.kind) {

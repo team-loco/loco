@@ -177,7 +177,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     ):
         search.fill("sib")
     workspace = options.get_by_role("option", name=re.compile(r"^sibling"))
-    expect(workspace).to_contain_text("Workspace: 1 resources")
+    expect(workspace.get_by_text("Workspace: 1 resource", exact=True)).to_be_visible()
     expect(options.get_by_role("option", name=re.compile(r"^private"))).to_have_count(0)
     with expect_rpc(
         page,
