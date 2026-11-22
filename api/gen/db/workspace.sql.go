@@ -93,6 +93,7 @@ SELECT COUNT(*) FROM (
          OR (($3::bool OR w.id = ANY($4::uuid[]))
              AND w.description ILIKE $6))
     AND (NOT $7::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
+    AND ($8::uuid[] IS NULL OR w.id = ANY($8::uuid[]))
   LIMIT $2
 ) capped
 `
@@ -105,6 +106,7 @@ type CountWorkspacesInOrgParams struct {
 	ResourceIds   []uuid.UUID `json:"resourceIds"`
 	Query         string      `json:"query"`
 	HasResources  bool        `json:"hasResources"`
+	Ids           []uuid.UUID `json:"ids"`
 }
 
 func (q *Queries) CountWorkspacesInOrg(ctx context.Context, arg CountWorkspacesInOrgParams) (int64, error) {
@@ -116,6 +118,7 @@ func (q *Queries) CountWorkspacesInOrg(ctx context.Context, arg CountWorkspacesI
 		arg.ResourceIds,
 		arg.Query,
 		arg.HasResources,
+		arg.Ids,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -450,10 +453,11 @@ WHERE w.org_id = $1
        OR (($3::bool OR w.id = ANY($4::uuid[]))
            AND w.description ILIKE $6))
   AND (NOT $7::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
-  AND ($8::text IS NULL
+  AND ($8::uuid[] IS NULL OR w.id = ANY($8::uuid[]))
+  AND ($9::text IS NULL
        OR (w.created_at, w.id) < (
-         $9::timestamptz,
-         $8::uuid
+         $10::timestamptz,
+         $9::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2
@@ -467,6 +471,7 @@ type ListWorkspacesInOrgParams struct {
 	ResourceIds   []uuid.UUID `json:"resourceIds"`
 	Query         string      `json:"query"`
 	HasResources  bool        `json:"hasResources"`
+	Ids           []uuid.UUID `json:"ids"`
 	PageToken     *string     `json:"pageToken"`
 	PageCreatedAt *time.Time  `json:"pageCreatedAt"`
 }
@@ -494,6 +499,7 @@ func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInO
 		arg.ResourceIds,
 		arg.Query,
 		arg.HasResources,
+		arg.Ids,
 		arg.PageToken,
 		arg.PageCreatedAt,
 	)

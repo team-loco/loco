@@ -33,6 +33,10 @@ func (s *ResourceServer) ListOrgResources(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 	}
+	ids, err := parseIDs("resource_ids", req.GetResourceIds())
+	if err != nil {
+		return nil, err
+	}
 	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
 	resourceIDs, err := s.grantedReadableResources(ctx, p)
 	if err != nil {
@@ -42,7 +46,7 @@ func (s *ResourceServer) ListOrgResources(
 	query := likePattern(req.GetQuery())
 	rows, err := s.queries.ListOrgResources(ctx, genDb.ListOrgResourcesParams{
 		OrgID: orgID, AllWorkspaces: allWorkspaces, WorkspaceIds: workspaceIDs, ResourceIds: resourceIDs,
-		Query: query, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt, RowLimit: pageSize + 1,
+		Query: query, Ids: ids, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt, RowLimit: pageSize + 1,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list organization resources: %w", err)
@@ -64,7 +68,7 @@ func (s *ResourceServer) ListOrgResources(
 	count := func(ctx context.Context, limit int32) (int64, error) {
 		return s.queries.CountOrgResources(ctx, genDb.CountOrgResourcesParams{
 			OrgID: orgID, AllWorkspaces: allWorkspaces, WorkspaceIds: workspaceIDs, ResourceIds: resourceIDs,
-			Query: query, RowLimit: limit,
+			Query: query, Ids: ids, RowLimit: limit,
 		})
 	}
 	response.TotalCount, err = totalCount(ctx, req.GetIncludeTotalCount(), count)

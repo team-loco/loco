@@ -7,8 +7,8 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 
 /** How long a looked-up workspace counts as fresh, so the shell's readers share one request. */
 export const WORKSPACE_STALE_MS = 60_000;
-// The most ListOrgWorkspaces returns in one page.
-const MAX_PAGE = 200;
+// The most ListOrgWorkspaces and ListOrgResources return in one page, and the most IDs they filter by.
+export const MAX_PAGE = 200;
 
 /**
  * One workspace by ID. A caller who reads it gets it from GetWorkspace. An organization member who

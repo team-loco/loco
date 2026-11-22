@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
+	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -161,5 +163,59 @@ func TestListOrgResourcesKeepsToTheCallersGrantsInTheOrganization(t *testing.T) 
 		if got := f.orgResourceNames(t, orgReader, req, 0); len(got) != 0 {
 			t.Errorf("query %q = %v, want none", query, got)
 		}
+	}
+}
+
+func TestListOrgResourcesByIDListsOnlyReadableOnes(t *testing.T) {
+	t.Parallel()
+	f := newResourceListFixture(t)
+	other := f.tenant.workspace(t, "other")
+	remote := f.tenant.resource(t, other, "remote", &resourcev1.ServiceSpec{})
+	ids := []string{f.ids[listAlpha].String(), f.ids[listBeta].String(), remote.String(), uuid.NewString()}
+	member := genDb.EntityScope{
+		EntityType: genDb.EntityTypeOrganization, EntityID: f.tenant.orgID, Scope: genDb.ScopeMember,
+	}
+	for name, tc := range map[string]struct {
+		scopes []genDb.EntityScope
+		want   []string
+	}{
+		"home reader": {
+			[]genDb.EntityScope{
+				member, {EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeRead},
+			},
+			[]string{listBeta, listAlpha},
+		},
+		"resource grantee": {
+			[]genDb.EntityScope{
+				member, {EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeRead},
+			},
+			[]string{listAlpha},
+		},
+		"organization reader": {
+			[]genDb.EntityScope{{EntityType: genDb.EntityTypeOrganization, EntityID: f.tenant.orgID, Scope: genDb.ScopeRead}},
+			[]string{"remote", listBeta, listAlpha},
+		},
+		"member without grants": {[]genDb.EntityScope{member}, nil},
+	} {
+		var got []string
+		for _, n := range f.orgResourceNames(t, tc.scopes, &resourcev1.ListOrgResourcesRequest{ResourceIds: ids}, 0) {
+			got = append(got, strings.Split(n, "@")[0])
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s = %v, want %v", name, got, tc.want)
+		}
+	}
+
+	tooMany := make([]string, 201)
+	for i := range tooMany {
+		tooMany[i] = uuid.NewString()
+	}
+	req := &resourcev1.ListOrgResourcesRequest{OrgId: f.tenant.orgID.String(), ResourceIds: tooMany[:200]}
+	if err := protovalidate.Validate(req); err != nil {
+		t.Errorf("200 resource IDs: %v", err)
+	}
+	req.ResourceIds = tooMany
+	if err := protovalidate.Validate(req); err == nil {
+		t.Error("201 resource IDs were accepted")
 	}
 }

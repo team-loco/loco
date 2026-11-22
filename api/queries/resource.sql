@@ -190,6 +190,7 @@ WHERE w.org_id = sqlc.arg('org_id')
        OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
        OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
   AND (sqlc.arg('query')::text = '' OR r.name ILIKE sqlc.arg('query') OR r.slug ILIKE sqlc.arg('query'))
+  AND (sqlc.narg('ids')::uuid[] IS NULL OR r.id = ANY(sqlc.narg('ids')::uuid[]))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (r.created_at, r.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -207,5 +208,6 @@ SELECT COUNT(*) FROM (
          OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[])
          OR r.id = ANY(sqlc.arg('resource_ids')::uuid[]))
     AND (sqlc.arg('query')::text = '' OR r.name ILIKE sqlc.arg('query') OR r.slug ILIKE sqlc.arg('query'))
+    AND (sqlc.narg('ids')::uuid[] IS NULL OR r.id = ANY(sqlc.narg('ids')::uuid[]))
   LIMIT sqlc.arg('row_limit')
 ) capped;

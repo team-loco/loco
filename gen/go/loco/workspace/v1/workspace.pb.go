@@ -618,7 +618,9 @@ type ListOrgWorkspacesRequest struct {
 	// Matches workspace names and descriptions, ignoring case.
 	Query string `protobuf:"bytes,5,opt,name=query,proto3" json:"query,omitempty"`
 	// Only workspaces that hold at least one resource.
-	HasResources  bool `protobuf:"varint,6,opt,name=has_resources,json=hasResources,proto3" json:"has_resources,omitempty"`
+	HasResources bool `protobuf:"varint,6,opt,name=has_resources,json=hasResources,proto3" json:"has_resources,omitempty"`
+	// Only these workspaces.
+	WorkspaceIds  []string `protobuf:"bytes,7,rep,name=workspace_ids,json=workspaceIds,proto3" json:"workspace_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -693,6 +695,13 @@ func (x *ListOrgWorkspacesRequest) GetHasResources() bool {
 		return x.HasResources
 	}
 	return false
+}
+
+func (x *ListOrgWorkspacesRequest) GetWorkspaceIds() []string {
+	if x != nil {
+		return x.WorkspaceIds
+	}
+	return nil
 }
 
 // ListOrgWorkspacesResponse contains the list of workspaces.
@@ -1422,7 +1431,7 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"workspaces\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x05R\n" +
-	"totalCount\"\xf8\x01\n" +
+	"totalCount\"\xaf\x02\n" +
 	"\x18ListOrgWorkspacesRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
@@ -1431,7 +1440,9 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\x12.\n" +
 	"\x13include_total_count\x18\x04 \x01(\bR\x11includeTotalCount\x12\x1e\n" +
 	"\x05query\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01R\x05query\x12#\n" +
-	"\rhas_resources\x18\x06 \x01(\bR\fhasResources\"\xa2\x01\n" +
+	"\rhas_resources\x18\x06 \x01(\bR\fhasResources\x125\n" +
+	"\rworkspace_ids\x18\a \x03(\tB\x10\xbaH\r\x92\x01\n" +
+	"\x10\xc8\x01\"\x05r\x03\xb0\x01\x01R\fworkspaceIds\"\xa2\x01\n" +
 	"\x19ListOrgWorkspacesResponse\x12<\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
