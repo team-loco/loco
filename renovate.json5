@@ -21,7 +21,7 @@
     },
   ],
   constraints: {
-    mise: "2026.11.5",
+    mise: "2026.11.6",
   },
   pep723: {
     managerFilePatterns: ["/^\\.agents/skills/.+\\.py$/"],
