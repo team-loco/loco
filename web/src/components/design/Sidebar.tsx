@@ -28,17 +28,22 @@ const parseWidth = layoutNumber(WIDTH_DEFAULT, WIDTH_MIN, WIDTH_MAX);
 
 interface SidebarWidth {
 	width: number;
-	setWidth: (width: number) => void;
+	setWidth: (width: number, persist?: boolean) => void;
 	setResizing: (resizing: boolean) => void;
 }
 
 const SidebarWidthContext = createContext<SidebarWidth | null>(null);
 
 function SidebarProvider({ style, className, ...props }: React.ComponentProps<typeof SidebarProviderBase>) {
-	const [width, save] = useLayout("sidebar", parseWidth);
+	const [saved, save] = useLayout("sidebar", parseWidth);
+	const [dragged, setDragged] = useState<number | null>(null);
 	const [resizing, setResizing] = useState(false);
-	const resize = (next: number) => {
-		save(Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, Math.round(next))));
+	const width = dragged ?? saved;
+	// A drag passes persist=false for each move and saves once when it ends.
+	const resize = (next: number, persist = true) => {
+		const clamped = Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, Math.round(next)));
+		setDragged(persist ? null : clamped);
+		if (persist) save(clamped === WIDTH_DEFAULT ? null : clamped);
 	};
 	return (
 		<SidebarWidthContext value={{ width, setWidth: resize, setResizing }}>
@@ -63,6 +68,7 @@ function SidebarResizer() {
 	if (ctx === null) return null;
 	const { width, setWidth, setResizing } = ctx;
 	const end = () => {
+		if (drag !== null) setWidth(width);
 		setDrag(null);
 		setResizing(false);
 	};
@@ -83,7 +89,7 @@ function SidebarResizer() {
 				setResizing(true);
 			}}
 			onPointerMove={(e) => {
-				if (drag !== null) setWidth(drag.startWidth + e.clientX - drag.startX);
+				if (drag !== null) setWidth(drag.startWidth + e.clientX - drag.startX, false);
 			}}
 			onPointerUp={end}
 			onPointerCancel={end}

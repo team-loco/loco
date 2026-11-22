@@ -14,14 +14,21 @@ export function layoutNumber(fallback: number, min: number, max: number): (value
 	return (value) => (typeof value === "number" && value >= min && value <= max ? value : fallback);
 }
 
-/** The size stored under `name` in `loco-layout`, such as `sidebar`; a null `name` stores nothing, and setting null forgets it. */
-export function useLayout<T>(name: string | null, parse: (value: unknown) => T): [T, (next: T | null) => void] {
+/**
+ * The size stored under `name` in `loco-layout`, such as `sidebar`; a null `name` stores nothing.
+ * The setter takes a value or a function of the stored value, and null forgets it.
+ */
+export function useLayout<T>(
+	name: string | null,
+	parse: (value: unknown) => T,
+): [T, (next: T | null | ((current: T) => T | null)) => void] {
 	const [layout, update] = useStoredJSON(name === null ? null : LAYOUT_KEY, asLayout);
-	const set = (next: T | null) => {
+	const set = (next: T | null | ((current: T) => T | null)) => {
 		if (name === null) return;
 		update((current) => {
-			const { [name]: _, ...rest } = current;
-			return next === null ? rest : { ...rest, [name]: next };
+			const { [name]: stored, ...rest } = current;
+			const value = typeof next === "function" ? (next as (current: T) => T | null)(parse(stored)) : next;
+			return value === null ? rest : { ...rest, [name]: value };
 		});
 	};
 	return [parse(name === null ? undefined : layout[name]), set];

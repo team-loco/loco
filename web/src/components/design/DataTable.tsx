@@ -156,7 +156,7 @@ export function useDataTable<T extends RowData>(
 		onColumnSizingChange:
 			options.onColumnSizingChange ??
 			((updater) => {
-				setStored(functionalUpdate(updater, stored));
+				setStored((current) => functionalUpdate(updater, current));
 			}),
 	});
 }

@@ -57,7 +57,10 @@ export function TraceLogPanel({
 	const [scope, setScope] = useState("trace");
 	const [minutes, setMinutes] = useState(10);
 	const events = useTraceEvents(trace, minutes);
-	const [height, setHeight] = useLayout("trace.bottom", parseHeight);
+	const [savedHeight, setHeight] = useLayout("trace.bottom", parseHeight);
+	// A drag keeps its height here and saves it once when it ends.
+	const [dragged, setDragged] = useState<number | null>(null);
+	const height = dragged ?? savedHeight;
 	const resizeRef = useRef<{ y: number; height: number } | null>(null);
 	const panelRef = useRef<HTMLElement>(null);
 	const rendered = () => panelRef.current?.offsetHeight ?? height;
@@ -101,10 +104,12 @@ export function TraceLogPanel({
 					}}
 					onPointerMove={(e) => {
 						if (resizeRef.current !== null)
-							setHeight(clamp(resizeRef.current.height + resizeRef.current.y - e.clientY));
+							setDragged(clamp(resizeRef.current.height + resizeRef.current.y - e.clientY));
 					}}
 					onLostPointerCapture={() => {
 						resizeRef.current = null;
+						if (dragged !== null) setHeight(dragged);
+						setDragged(null);
 					}}
 					onKeyDown={(e) => {
 						if (e.key === "ArrowUp" || e.key === "ArrowDown") {

@@ -46,7 +46,10 @@ export function Waterfall({
 		error: spanError(span) ? spanErrorText(span) : undefined,
 	});
 	const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
-	const [nameWidth, setNameWidth] = useLayout("trace.span", parseNameWidth);
+	const [savedWidth, setNameWidth] = useLayout("trace.span", parseNameWidth);
+	// A drag keeps its width here and saves it once when it ends.
+	const [dragged, setDragged] = useState<number | null>(null);
+	const nameWidth = dragged ?? savedWidth;
 	const resizeRef = useRef<{ x: number; width: number } | null>(null);
 
 	const rows = useMemo(() => {
@@ -95,10 +98,12 @@ export function Waterfall({
 					}}
 					onPointerMove={(e) => {
 						if (resizeRef.current !== null)
-							setNameWidth(clamp(resizeRef.current.width + e.clientX - resizeRef.current.x));
+							setDragged(clamp(resizeRef.current.width + e.clientX - resizeRef.current.x));
 					}}
 					onLostPointerCapture={() => {
 						resizeRef.current = null;
+						if (dragged !== null) setNameWidth(dragged);
+						setDragged(null);
 					}}
 					onKeyDown={(e) => {
 						if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
