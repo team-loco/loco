@@ -325,6 +325,8 @@ export function AlertsDrawer() {
 	const resources = useQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
 		enabled: activeOrgId !== null && activeWorkspaceId !== null,
+		// The drawer remounts for each environment; the workspace's resource list stays the one the shell loaded.
+		refetchOnMount: false,
 	});
 	const navigate = useNavigate();
 	const viewerId = useAuth().user?.id ?? "";
