@@ -456,8 +456,9 @@ with session(out) as browser:
     page.keyboard.press("Enter")
     expect(section.get_by_text("51–100 of 221", exact=False)).to_be_visible()
     expect(section.get_by_text("Pilot page failure", exact=False)).to_have_count(0)
-    for _ in range(2):
-        next_button.click()
+    next_button.click()
+    expect(section.get_by_text("101–150 of 221", exact=False)).to_be_visible()
+    next_button.click()
     expect(section.get_by_text("151–200 of 221", exact=False)).to_be_visible()
     expect(
         section.get_by_role(
