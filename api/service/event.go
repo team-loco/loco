@@ -410,7 +410,7 @@ func (s *EventServer) StreamEvents(
 			query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
 			rows, err = events.ListAudit(pollCtx, s.db, query)
 		}
-		tracing.End(span, err)
+		tracing.EndLive(ctx, span, err)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil

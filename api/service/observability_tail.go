@@ -76,14 +76,12 @@ func (s *ObservabilityServer) tailLoop(
 	cursor := chClient.TailLogCursor{}
 	for {
 		var sendErr error
-		pollCtx, span := tracing.StartLinked(ctx, logsTailPollSpan)
-		sent, err := s.pollTailLogs(pollCtx, query, cursor, func(entry *observabilityv1.LogEntry) error {
+		sent, err := s.pollTailLogs(ctx, query, cursor, func(entry *observabilityv1.LogEntry) error {
 			sendErr = send(&observabilityv1.TailLogsResponse{
 				Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry},
 			})
 			return sendErr
 		})
-		tracing.End(span, err)
 		if sendErr != nil {
 			return sendErr
 		}
@@ -124,7 +122,9 @@ func (s *ObservabilityServer) pollTailLogs(
 		if err := ctx.Err(); err != nil {
 			return sent, err
 		}
-		page, err := s.clickhouse.QueryTailLogPage(ctx, query, cursor)
+		readCtx, span := tracing.StartLinked(ctx, logsTailPollSpan)
+		page, err := s.clickhouse.QueryTailLogPage(readCtx, query, cursor)
+		tracing.EndLive(ctx, span, err)
 		if err != nil {
 			return sent, err
 		}

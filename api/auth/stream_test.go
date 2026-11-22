@@ -156,3 +156,35 @@ func TestGuardStreamTracesEachRecheckAsARootLinkedToTheStream(t *testing.T) {
 		t.Fatalf("recheck status = %+v, want an error", span.Status())
 	}
 }
+
+func TestGuardStreamEndsARecheckCancelledByStopWithoutError(t *testing.T) {
+	recorder := tracingtest.Record(t)
+	var checks atomic.Int32
+	started := make(chan struct{})
+	ctx := WithStreamValidation(t.Context(), StreamConfig{Interval: time.Millisecond, Timeout: time.Hour},
+		func(ctx context.Context) (reqctx.Principal, error) {
+			if checks.Add(1) == 2 {
+				close(started)
+				<-ctx.Done()
+				return reqctx.Principal{}, ctx.Err()
+			}
+			return reqctx.Principal{}, nil
+		})
+	_, stop, err := GuardStream(ctx, func(context.Context) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	if err = stop(); err != nil {
+		t.Fatalf("stop = %v, want a clean end", err)
+	}
+	ended := recorder.Ended()
+	if len(ended) != 2 {
+		t.Fatalf("ended spans = %d, want the initial and the stopped recheck", len(ended))
+	}
+	for _, span := range ended {
+		if span.Status().Code == codes.Error {
+			t.Fatalf("%s status = %+v, want no error", span.Name(), span.Status())
+		}
+	}
+}

@@ -55,8 +55,9 @@ func GuardStream(
 		spanOpts = append(spanOpts, trace.WithAttributes(semconv.RPCMethod(strings.TrimLeft(info.Spec.Procedure, "/"))))
 	}
 	check := func(ctx context.Context) (err error) {
+		stream := ctx
 		ctx, span := tracing.StartLinked(ctx, streamRecheckSpan, spanOpts...)
-		defer func() { tracing.End(span, err) }()
+		defer func() { tracing.EndLive(stream, span, err) }()
 		ctx, cancel := context.WithTimeout(ctx, validation.config.Timeout)
 		defer cancel()
 		principal, err := validation.read(ctx)
