@@ -177,7 +177,8 @@ with session(repo / "tests/ui/out/tokens") as browser:
     ).to_be_visible()
     assert private not in listed, listed
 
-    # ArrowRight on a highlighted workspace lists its resources.
+    # ArrowRight on a highlighted workspace lists its resources; the pointer leaves the list, where hovering moves the highlight.
+    page.mouse.move(0, 0)
     search.fill("sibling")
     expect(
         options.get_by_role("option", name=re.compile(r"^sibling"))
