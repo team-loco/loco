@@ -530,7 +530,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}
-							environment={environment}
 							regions={regions}
 							selected={selectedRegion}
 							onSelect={(region) => {

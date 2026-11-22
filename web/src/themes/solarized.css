@@ -125,3 +125,7 @@
 [data-theme="solarized"] .reg-card {
 	border-radius: 2px;
 }
+
+[data-theme="solarized"] :is([data-slot="scale-chip"], [data-slot="region-chip"]) {
+	border-radius: 0;
+}

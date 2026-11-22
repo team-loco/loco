@@ -189,7 +189,7 @@ with session(out) as browser:
             events.bounding_box()["y"] >= heading["y"] + heading["height"]
         ) == below, viewport
     page.get_by_role("button", name=re.compile(r"^us-ca-1")).click()
-    chart = page.locator('[aria-label^="CPU · us-ca-1: lowest"]')
+    chart = page.locator('[aria-label^="CPU: lowest"]')
     ticks = chart.locator(".recharts-xAxis-tick-labels text")
     expect(ticks.nth(2)).to_be_visible()
     box = chart.bounding_box()

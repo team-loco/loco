@@ -20,7 +20,8 @@ const MARGIN = 4;
 const BAND_OPACITY = 0.14;
 const FULL_REQUEST = 100;
 const LINE_WIDTH = 1.75;
-const SERIES = 8;
+/** The number of distinct series colours a theme defines. */
+export const SERIES = 8;
 
 const CHART_CONFIG = {
 	median: { label: "Median", color: "var(--series-0)" },
@@ -33,8 +34,13 @@ export interface ChartMarker {
 	label: string;
 }
 
+/** The colour of the chart line at this position. */
+export function seriesColor(index: number): string {
+	return `var(--series-${(index % SERIES).toString()})`;
+}
+
 /** The part of a replica's name that tells it apart from its siblings. */
-function shortName(replica: string): string {
+export function shortName(replica: string): string {
 	return replica.split("-").at(-1) ?? replica;
 }
 
@@ -93,6 +99,7 @@ export function MetricChart({
 	limits,
 	replicas,
 	picked,
+	lineColor,
 	format,
 }: {
 	name: string;
@@ -106,6 +113,7 @@ export function MetricChart({
 	limits: LimitStep[] | undefined;
 	replicas?: ReplicaChart | undefined;
 	picked?: string | null;
+	lineColor?: ((replica: string) => string | undefined) | undefined;
 	format: (value: number) => string;
 }) {
 	const timePref = useTimePreferences();
@@ -136,11 +144,17 @@ export function MetricChart({
 	const top = replicas === undefined ? usage.highest : highest?.value;
 	const highestShare =
 		highest?.share === undefined ? undefined : `${Math.round(highest.share * 100).toString()}% of limit`;
+	const highlighted = picked !== null && picked !== undefined && replicas?.replicas.includes(picked) ? picked : null;
 	const tooltipValue = (value: unknown) =>
 		Array.isArray(value) ? value.map((v) => show(Number(v))).join(" – ") : show(Number(value));
 	return (
 		<div className="flex min-w-0 flex-col gap-3.5">
-			<span className="text-[13.5px] font-medium">{title}</span>
+			<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+				<span className="text-[13.5px] font-medium">{title}</span>
+				{replicas === undefined && !isLoading && data.length > 0 && (
+					<span className="text-[12px] text-fg3">band shows lowest to highest across replicas</span>
+				)}
+			</div>
 			<div className="flex gap-6">
 				<Stat label="Average" value={average === undefined ? "—" : show(average)} isLoading={isLoading} />
 				<Stat
@@ -234,9 +248,9 @@ export function MetricChart({
 								dataKey={replica}
 								name={shortName(replica)}
 								type="linear"
-								stroke={`var(--series-${(i % SERIES).toString()})`}
-								strokeWidth={picked === replica ? LINE_WIDTH * 1.6 : LINE_WIDTH}
-								strokeOpacity={picked === null || picked === undefined || picked === replica ? 1 : 0.25}
+								stroke={lineColor?.(replica) ?? seriesColor(i)}
+								strokeWidth={highlighted === replica ? LINE_WIDTH * 1.6 : LINE_WIDTH}
+								strokeOpacity={highlighted === null || highlighted === replica ? 1 : 0.25}
 								dot={false}
 								isAnimationActive={false}
 								connectNulls

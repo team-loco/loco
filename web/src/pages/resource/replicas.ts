@@ -1,36 +1,19 @@
 import type { Replica, ReplicaExit, ReplicaRestart } from "@gen/loco/deployment/v1/deployment_pb";
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
-import { ResourceStatus, type EnvironmentStatus, type RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { readyIn } from "@/lib/activity-deploys";
-import { placementIn } from "@/lib/deployment-utils";
+import { getServiceSpec, placementIn, regionTarget } from "@/lib/deployment-utils";
+import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 
-import type { RegionView } from "./model";
+import { regionDeployment, type RegionView } from "./model";
 
 export const POD_LABEL = "k8s.pod.name";
 /** Two collection intervals of the worker's kubeletstats receiver. */
 const USAGE_FRESH_MS = 120_000;
 
-function unreportedRegions(environment: EnvironmentStatus | undefined): RegionStatus[] {
-	return (environment?.regions ?? []).filter((r) => r.status === ResourceStatus.UNKNOWN);
-}
-
-function lastReportMs(regions: RegionStatus[]): number | undefined {
-	const reported = regions.flatMap((r) => {
-		const ms = maybeTsMs(r.reportedAt);
-		return ms === undefined ? [] : [ms];
-	});
-	return reported.length === 0 ? undefined : Math.min(...reported);
-}
-
-export interface ReadyCount {
-	ready: number;
-	desired: number;
-}
-
 /** The region's ready and desired replicas of its live deployment's current revision, and the other ready ones. */
-export function regionReady(region: RegionView): ReadyCount & { previous: number } {
+export function regionReady(region: RegionView): { ready: number; desired: number; previous: number } {
 	const placement = placementIn(region.current, region.name);
 	if (region.current === undefined || placement === undefined)
 		return { ready: 0, desired: region.status?.desiredReplicas ?? 0, previous: 0 };
@@ -39,27 +22,31 @@ export function regionReady(region: RegionView): ReadyCount & { previous: number
 	return { ready, desired: placement.desiredReplicas, previous };
 }
 
-export function replicaLine(
-	environment: EnvironmentStatus | undefined,
-	nowMs: number,
-	countOf: (region: RegionStatus) => ReadyCount,
-): string {
-	if (environment === undefined) return "Not deployed";
-	const regions = environment.regions;
-	const desired = regions.reduce((sum, r) => sum + countOf(r).desired, 0);
-	const ready = regions.reduce((sum, r) => sum + countOf(r).ready, 0);
-	const counts = `${ready.toString()} of ${desired.toString()} ready`;
-	const regionSuffix = regions.length > 1 ? ` · ${regions.length.toString()} regions` : "";
-	const unreported = unreportedRegions(environment);
-	if (unreported.length === 0) return `${counts}${regionSuffix}`;
-	const reportedMs = lastReportMs(unreported);
-	if (unreported.length === regions.length) {
-		if (reportedMs === undefined) return `Replicas not reported yet${regionSuffix}`;
-		return `${counts} at last report, ${agoLabel(reportedMs, nowMs)}${regionSuffix}`;
-	}
-	const names = unreported.map((r) => r.region).join(", ");
-	const age = reportedMs === undefined ? "never reported" : `last reported ${agoLabel(reportedMs, nowMs)}`;
-	return `${counts}${regionSuffix} · ${names} ${age}`;
+export interface Scaling {
+	min: number;
+	max: number;
+	cpuTarget: number | undefined;
+}
+
+/** The replica range every deployed region runs with, "differs" when regions disagree, undefined when none is deployed. */
+export function sharedScaling(regions: readonly RegionView[]): Scaling | "differs" | undefined {
+	const all = regions.flatMap((r) => {
+		const svc = regionTarget(r.current === undefined ? undefined : getServiceSpec(r.current), r.name);
+		return svc === undefined
+			? []
+			: [{ min: svc.minReplicas ?? 0, max: svc.maxReplicas ?? 0, cpuTarget: svc.scalers?.cpuTarget }];
+	});
+	const first = all[0];
+	if (first === undefined) return undefined;
+	const same = all.every((s) => s.min === first.min && s.max === first.max && s.cpuTarget === first.cpuTarget);
+	return same ? first : "differs";
+}
+
+/** The CPU (millicores) and memory (Mi) limits of the deployment a replica runs, or of the region's current one. */
+export function replicaLimits(region: RegionView, replica: Replica): { cpuMilli: number; memoryMi: number } {
+	const deployment = regionDeployment(region, replica.deploymentId) ?? region.current;
+	const target = regionTarget(deployment === undefined ? undefined : getServiceSpec(deployment), region.name);
+	return { cpuMilli: parseCpuMilli(target?.cpu ?? ""), memoryMi: parseMemMi(target?.memory ?? "") };
 }
 
 /** Each pod's newest value from pod-grouped series, leaving out pods without a recent sample. */
@@ -81,9 +68,9 @@ export function podUsage(series: readonly MetricSeries[], nowMs: number): Map<st
 }
 
 export function exitLabel(exit: ReplicaExit, nowMs: number): string {
-	const label = `${exit.reason} · exit ${exit.exitCode.toString()}`;
+	const label = `${exit.reason}, exit ${exit.exitCode.toString()}`;
 	const at = maybeTsMs(exit.finishedAt);
-	return at === undefined ? label : `${label} · ${agoLabel(at, nowMs)}`;
+	return at === undefined ? label : `${label}, ${agoLabel(at, nowMs)}`;
 }
 
 /** What a replica restarted after, in the controller's cause vocabulary (k8sapi RestartCause). */
@@ -93,11 +80,15 @@ function restartCause(restart: ReplicaRestart): string {
 	return `exit ${restart.exitCode.toString()}`;
 }
 
+export function restartCount(replica: Replica): string {
+	return `${replica.restarts.toString()} ${replica.restarts === 1 ? "restart" : "restarts"}`;
+}
+
 export function restartLabel(replica: Replica, nowMs: number): string {
-	const count = `${replica.restarts.toString()} ${replica.restarts === 1 ? "restart" : "restarts"}`;
+	const count = restartCount(replica);
 	const restart = replica.lastRestart;
 	if (restart === undefined) return count;
 	const at = maybeTsMs(restart.at);
 	const when = at === undefined ? [] : [`last ${agoLabel(at, nowMs)}`];
-	return [count, ...when, restartCause(restart)].join(" · ");
+	return [count, ...when, restartCause(restart)].join(", ");
 }
