@@ -18,7 +18,7 @@ import {
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
-import { PageCommands, type PaletteItem } from "@/components/shell/CommandMenu";
+import { PageCommands, type PageCommand } from "@/components/shell/CommandMenu";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -375,11 +375,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	};
 	const logsHref = obsLink("logs");
 	const spec = deployed[0]?.current;
-	const pageCommands: PaletteItem[] = [];
+	const pageCommands: PageCommand[] = [];
 	if (canWrite && deployed.length > 0 && !redeploying)
 		pageCommands.push({
-			id: "page-redeploy",
-			group: "This page",
+			id: "redeploy",
 			label: `Redeploy ${resource.name}`,
 			icon: <RotateCwIcon />,
 			run: () => {
@@ -388,8 +387,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		});
 	if (canWrite && rollbackTarget !== undefined)
 		pageCommands.push({
-			id: "page-rollback",
-			group: "This page",
+			id: "rollback",
 			label: `Roll back ${resource.name}`,
 			icon: <Undo2Icon />,
 			run: () => {
@@ -398,8 +396,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		});
 	if (spec !== undefined)
 		pageCommands.push({
-			id: "page-view-spec",
-			group: "This page",
+			id: "view-spec",
 			label: "View spec",
 			meta: resource.name,
 			icon: <FileCodeIcon />,
@@ -409,8 +406,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		});
 	pageCommands.push(
 		{
-			id: "page-events",
-			group: "This page",
+			id: "events",
 			label: "Open events",
 			keywords: "warnings activity",
 			meta: resource.name,
@@ -418,8 +414,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			run: openEvents,
 		},
 		{
-			id: "page-settings",
-			group: "This page",
+			id: "settings",
 			label: "Settings",
 			keywords: "variables env scaling",
 			meta: resource.name,
@@ -431,8 +426,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	);
 	if (logsHref !== undefined)
 		pageCommands.push({
-			id: "page-logs",
-			group: "This page",
+			id: "logs",
 			label: `Logs for ${resource.name}`,
 			icon: <ScrollTextIcon />,
 			run: () => {

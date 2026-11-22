@@ -59,7 +59,7 @@ with session(out) as browser:
     copy_org = copy_group.get_by_role(
         "option", name=re.compile("^Copy acme organization ID")
     )
-    expect(copy_org).to_contain_text(org[:8] + "…")
+    expect(copy_org).to_contain_text(org[-8:])
     expect(
         copy_group.get_by_role("option", name=re.compile("^Copy shared workspace ID"))
     ).to_be_visible()
@@ -70,6 +70,7 @@ with session(out) as browser:
     expect(palette).to_have_count(0)
     assert copied_text(page) == org
     expect(page.get_by_text("Copied acme organization ID", exact=True)).to_be_visible()
+    expect(page.get_by_text(org, exact=True)).to_be_visible()
 
     page.get_by_role("button", name="Search and run commands").click()
     query.fill("catalog id")
@@ -127,6 +128,23 @@ with session(out) as browser:
     expect(
         page.get_by_role("dialog", name="Redeploy product-catalog?", exact=True)
     ).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(palette).to_have_count(0)
+
+    page.get_by_role("button", name="Search and run commands").click()
+    query.fill("logs")
+    go_to_logs = results.get_by_role("group", name="Go to").get_by_role(
+        "option", name="Logs", exact=True
+    )
+    for _ in range(results.get_by_role("option").count()):
+        if go_to_logs.get_attribute("aria-selected") == "true":
+            break
+        page.keyboard.press("ArrowDown")
+    expect(go_to_logs).to_have_attribute("aria-selected", "true")
+    page.keyboard.press("Enter")
+    expect(palette).to_have_count(0)
+    expect(page).to_have_url(re.compile(r"/observability\?(.*&)?view=logs(&|$)"))
+    expect(page).not_to_have_url(re.compile(r"[?&]r="))
     assert not errors, errors
     context.close()
 print("PASS: command palette")

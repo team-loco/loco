@@ -69,7 +69,7 @@ import {
 import { shortcutLabel } from "@/lib/keyboard";
 import { colorThemes, modes } from "@/lib/theme";
 import { useTheme } from "@/lib/use-theme";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
 import { useOpenShortcuts } from "./KeyboardShortcuts";
 
@@ -111,7 +111,7 @@ interface SubList {
 	placeholder: string;
 }
 
-export interface PaletteItem {
+interface PaletteItem {
 	id: string;
 	group: (typeof PALETTE_GROUPS)[number];
 	label: string;
@@ -123,6 +123,8 @@ export interface PaletteItem {
 	// Shown only once the person types, so browsing lists each resource once.
 	searchOnly?: boolean;
 }
+
+export type PageCommand = Omit<PaletteItem, "group" | "list" | "searchOnly">;
 
 const MODE_LIST: SubList = { id: "mode", crumb: "Mode", heading: "Mode", placeholder: "Choose a mode" };
 const THEME_LIST: SubList = { id: "theme", crumb: "Theme", heading: "Theme", placeholder: "Choose a theme" };
@@ -158,10 +160,10 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 	const copyItem = (what: string, id: string, keywords: string) => ({
 		label: `Copy ${what}`,
 		keywords: `id uuid ${keywords}`,
-		meta: <span className="font-mono">{id.slice(0, 8)}…</span>,
+		meta: <span className="font-mono">{formatShortId(id)}</span>,
 		icon: <CopyIcon />,
 		run: () => {
-			copy(id, id, `Copied ${what}`);
+			copy(id, id, `Copied ${what}`, id);
 		},
 	});
 	const items: PaletteItem[] = [...pageItems];
@@ -214,18 +216,26 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 				...copyItem(`${here.name} resource ID`, here.id, `resource service ${here.slug}`),
 			});
 		if (copyEnv !== undefined) items.push({ id: "copy-environment-id", group: "Copy", ...copyEnv });
-		const workspaceName = workspace?.name ?? "workspace";
-		const orgName = orgs.find((o) => o.id === orgId)?.name ?? "organization";
+		const workspaceName = workspace?.name;
+		const orgName = orgs.find((o) => o.id === orgId)?.name;
 		items.push(
 			{
 				id: "copy-workspace-id",
 				group: "Copy",
-				...copyItem(`${workspaceName} workspace ID`, workspaceId, "workspace project"),
+				...copyItem(
+					workspaceName === undefined ? "workspace ID" : `${workspaceName} workspace ID`,
+					workspaceId,
+					"workspace project",
+				),
 			},
 			{
 				id: "copy-organization-id",
 				group: "Copy",
-				...copyItem(`${orgName} organization ID`, orgId, "organization org"),
+				...copyItem(
+					orgName === undefined ? "organization ID" : `${orgName} organization ID`,
+					orgId,
+					"organization org",
+				),
 			},
 		);
 		for (const r of resourceList) {
@@ -595,12 +605,12 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 const OpenPaletteContext = createContext<(() => void) | null>(null);
 const PageItemsContext = createContext<((items: readonly PaletteItem[]) => void) | null>(null);
 
-// Lists a page's own commands in the palette while the page shows.
-export function PageCommands({ items }: { items: readonly PaletteItem[] }) {
+// Lists a page's own commands under This page while the page shows.
+export function PageCommands({ items }: { items: readonly PageCommand[] }) {
 	const setPageItems = use(PageItemsContext);
 	if (setPageItems === null) throw new Error("PageCommands must be used inside CommandPaletteProvider");
 	useEffect(() => {
-		setPageItems(items);
+		setPageItems(items.map((item) => ({ ...item, id: `this-page-${item.id}`, group: "This page" })));
 		return () => {
 			setPageItems([]);
 		};
