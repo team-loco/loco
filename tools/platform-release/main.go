@@ -21,7 +21,6 @@ const (
 
 type commandOptions struct {
 	mode, commit, version, repository, address, push, username, password, cache, prebuilt, base, input, output string
-	latest                                                                                                     string
 }
 
 func main() {
@@ -37,7 +36,7 @@ func parseOptions(args []string) (commandOptions, error) {
 	options := commandOptions{}
 	if len(args) == 0 {
 		return options, errors.New(
-			"usage: platform-release {artifacts|bundle|main|local|check-versions|render|gate} [flags]",
+			"usage: platform-release {artifacts|bundle|main|local|check-versions|render} [flags]",
 		)
 	}
 	options.mode = args[0]
@@ -61,9 +60,6 @@ func parseOptions(args []string) (commandOptions, error) {
 		}
 	case "check-versions":
 		flags.StringVar(&options.base, "base", "", "Comparison ref")
-	case gateCommand:
-		flags.StringVar(&options.latest, "latest", "", "Latest release tag, if any")
-		flags.StringVar(&options.commit, "commit", "", "Source commit")
 	case "render":
 		flags.StringVar(&options.input, "manifest", "", "Release manifest JSON")
 		flags.StringVar(&options.output, "output", "", "Bundle output directory")
@@ -137,8 +133,6 @@ func (t *tool) execute(options commandOptions) (any, error) {
 			)
 		}
 		return nil, nil
-	case gateCommand:
-		return nil, t.gate(options.latest, options.commit)
 	case "render":
 		return nil, t.render(options.input, options.output)
 	}

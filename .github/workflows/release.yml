@@ -1,15 +1,11 @@
 name: Release
 
 # Publishes one Loco version: the platform bundle X.Y.Z, then release vX.Y.Z
-# with the CLI binaries and the bundle's release.json, from a main commit
-# whose CI and image builds have passed.
+# with the CLI binaries and the bundle's release.json, from the main commit it
+# is dispatched on, once every CI check passes on that commit.
 on:
   workflow_dispatch:
     inputs:
-      commit:
-        description: Full main commit to release; empty releases the current main head
-        required: false
-        type: string
       version:
         description: Version X.Y.Z without a v prefix; empty bumps the patch of the latest v* tag
         required: false
@@ -31,27 +27,18 @@ jobs:
     name: Check Release Source
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
     outputs:
-      commit: ${{ steps.source.outputs.commit }}
       version: ${{ steps.source.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-tools
-        with:
-          go-cache: release-gate
-
-      - name: Resolve the commit and version and check that they can be released
+      - name: Resolve the version and check that it and the commit can be released
         id: source
         env:
-          GH_TOKEN: ${{ github.token }}
-          INPUT_COMMIT: ${{ inputs.commit }}
           INPUT_VERSION: ${{ inputs.version }}
           SUMMARY: ${{ inputs.summary }}
         run: |
@@ -60,9 +47,7 @@ jobs:
 
           [[ -n "${SUMMARY//[[:space:]]/}" ]] || fail "summary must describe what changed"
 
-          commit=${INPUT_COMMIT:-$(git rev-parse origin/main)}
-          [[ "$commit" =~ ^[a-f0-9]{40}$ ]] || fail "commit must be a full lowercase SHA: $commit"
-          git merge-base --is-ancestor "$commit" origin/main 2>/dev/null || fail "$commit is not on main"
+          [[ "$GITHUB_REF" == refs/heads/main ]] || fail "dispatch the release from main, not $GITHUB_REF"
 
           latest=$(git tag -l 'v*' --sort=-v:refname | sed -n 1p)
           version=$INPUT_VERSION
@@ -75,11 +60,23 @@ jobs:
             fail "tag v$version already exists"
           fi
 
-          go run ./tools/platform-release gate --latest "$latest" --commit "$commit"
-
-          echo "Releasing $version from $commit"
-          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version from $GITHUB_SHA"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  # Every check runs on the dispatched commit, whatever files it changed.
+  ci:
+    name: CI
+    needs: prepare
+    permissions:
+      actions: write
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+      pull-requests: write
+      security-events: write
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
 
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
@@ -99,7 +96,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
           persist-credentials: false
 
       - uses: ./.github/actions/setup-tools
@@ -130,7 +126,7 @@ jobs:
 
   publish:
     name: Publish Release
-    needs: [prepare, build]
+    needs: [prepare, ci, build]
     runs-on: ubuntu-latest
     environment: platform-release
     permissions:
@@ -139,12 +135,11 @@ jobs:
       packages: write
     env:
       GH_TOKEN: ${{ github.token }}
-      COMMIT: ${{ needs.prepare.outputs.commit }}
+      COMMIT: ${{ github.sha }}
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
 

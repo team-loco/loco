@@ -22,10 +22,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
-      - name: Lint the charts changed since the event base with ct
+      - name: Lint the charts changed since the event base, or every chart for a release, with ct
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
+          # A release has no event base and lints every chart.
+          if [ -z "$BASE" ]; then
+            mise run lint:charts --all
+            exit 0
+          fi
           # ct reads both changed files and old chart versions through this ref.
           git update-ref refs/remotes/origin/chart-lint-base "$BASE"
           mise run lint:charts --target-branch chart-lint-base

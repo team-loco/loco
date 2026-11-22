@@ -70,6 +70,8 @@ review:
 		withUsers(filters, selectOwn(filters, "push", nil)), "a workflow without a push list never runs on push")
 	assert.Equal(t, map[string]bool{release: false, review: false},
 		withUsers(filters, selectOwn(filters, "pull_request", []string{})))
+	assert.Equal(t, map[string]bool{release: true, review: true},
+		withUsers(filters, selectOwn(filters, dispatchEvent, nil)), "a dispatch runs every workflow")
 }
 
 func TestWorkflowRunsWheneverAWorkflowItIsForRuns(t *testing.T) {
@@ -138,7 +140,7 @@ func TestChangedFiles(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{}, files, "an empty diff changes nothing")
 
-	_, err = changedFiles(t.Context(), r.dir, "workflow_dispatch", base, head)
+	_, err = changedFiles(t.Context(), r.dir, "schedule", base, head)
 	assert.Error(t, err)
 }
 
