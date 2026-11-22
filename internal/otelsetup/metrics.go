@@ -5,24 +5,18 @@ import (
 	"fmt"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
-// StartMetrics installs a global meter provider exporting Go runtime metrics over OTLP/HTTP, like Start.
+// StartMetrics starts a meter provider exporting Go runtime metrics over OTLP/HTTP, like Start.
 func StartMetrics(ctx context.Context, serviceName, version string) (*sdkmetric.MeterProvider, error) {
 	exporter, err := otlpmetrichttp.New(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("otlp metric exporter: %w", err)
 	}
-	reader := sdkmetric.NewPeriodicReader(exporter, sdkmetric.WithProducer(runtime.NewProducer()))
-	provider, err := newMeterProvider(ctx, reader, serviceName, version)
-	if err != nil {
-		return nil, err
-	}
-	otel.SetMeterProvider(provider)
-	return provider, nil
+	reader := sdkmetric.NewPeriodicReader(exporter, runtimeProducer())
+	return newMeterProvider(ctx, reader, serviceName, version)
 }
 
 // StopMetrics flushes the metrics provider holds and shuts it down.
@@ -33,6 +27,11 @@ func StopMetrics(provider *sdkmetric.MeterProvider) error {
 		return fmt.Errorf("flush metrics: %w", err)
 	}
 	return nil
+}
+
+// runtimeProducer adds the runtime histograms, such as go.schedule.duration, to a reader's collections.
+func runtimeProducer() sdkmetric.ReaderOption {
+	return sdkmetric.WithProducer(runtime.NewProducer())
 }
 
 func newMeterProvider(

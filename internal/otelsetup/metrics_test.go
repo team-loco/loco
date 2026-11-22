@@ -8,12 +8,12 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
-const goroutineCountMetric = "go.goroutine.count"
+var runtimeMetrics = []string{"go.goroutine.count", "go.schedule.duration"}
 
 func TestMeterProviderRecordsGoRuntimeMetrics(t *testing.T) {
 	t.Setenv(serviceNameEnv, "")
 	t.Setenv(resourceAttrEnv, "")
-	reader := sdkmetric.NewManualReader()
+	reader := sdkmetric.NewManualReader(runtimeProducer())
 	provider, err := newMeterProvider(t.Context(), reader, testServiceName, testVersion)
 	if err != nil {
 		t.Fatal(err)
@@ -31,12 +31,15 @@ func TestMeterProviderRecordsGoRuntimeMetrics(t *testing.T) {
 	if got := resourceValue(t, collected.Resource, string(semconv.ServiceNameKey)); got != testServiceName {
 		t.Errorf("service.name = %q, want %q", got, testServiceName)
 	}
+	names := map[string]bool{}
 	for _, scope := range collected.ScopeMetrics {
 		for _, m := range scope.Metrics {
-			if m.Name == goroutineCountMetric {
-				return
-			}
+			names[m.Name] = true
 		}
 	}
-	t.Fatalf("collected metrics lack %s", goroutineCountMetric)
+	for _, name := range runtimeMetrics {
+		if !names[name] {
+			t.Errorf("collected metrics lack %s", name)
+		}
+	}
 }
