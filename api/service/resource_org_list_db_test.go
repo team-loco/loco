@@ -116,3 +116,50 @@ func TestListOrgResourcesListsWhatTheCallerReads(t *testing.T) {
 		t.Error("a caller outside the organization listed its resources")
 	}
 }
+
+func TestListOrgResourcesKeepsToTheCallersGrantsInTheOrganization(t *testing.T) {
+	t.Parallel()
+	f := newResourceListFixture(t)
+	foreign := seedTenant(t, f.pool, f.queries, "foreign@org-resources.test", "foreign")
+	foreignWorkspace := foreign.workspace(t, "abroad")
+	foreignResource := foreign.resource(t, foreignWorkspace, "abroad", &resourcev1.ServiceSpec{})
+	gone := f.tenant.resource(t, f.workspaceID, "gone", &resourcev1.ServiceSpec{})
+	if _, err := f.pool.Exec(context.Background(), "DELETE FROM resources WHERE id = $1", gone); err != nil {
+		t.Fatal(err)
+	}
+	member := genDb.EntityScope{
+		EntityType: genDb.EntityTypeOrganization, EntityID: f.tenant.orgID, Scope: genDb.ScopeMember,
+	}
+	cases := map[string][]genDb.EntityScope{
+		"member without grants": {member},
+		"grants in another organization": {
+			member,
+			{EntityType: genDb.EntityTypeOrganization, EntityID: foreign.orgID, Scope: genDb.ScopeRead},
+			{EntityType: genDb.EntityTypeWorkspace, EntityID: foreignWorkspace, Scope: genDb.ScopeRead},
+			{EntityType: genDb.EntityTypeResource, EntityID: foreignResource, Scope: genDb.ScopeRead},
+		},
+		"resource grant without read": {
+			member,
+			{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeWrite},
+		},
+		"grant on a deleted resource": {
+			member,
+			{EntityType: genDb.EntityTypeResource, EntityID: gone, Scope: genDb.ScopeRead},
+		},
+	}
+	for name, scopes := range cases {
+		if got := f.orgResourceNames(t, scopes, &resourcev1.ListOrgResourcesRequest{}, 0); len(got) != 0 {
+			t.Errorf("%s = %v, want none", name, got)
+		}
+	}
+
+	orgReader := []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeOrganization, EntityID: f.tenant.orgID, Scope: genDb.ScopeRead},
+	}
+	for _, query := range []string{"%", "_"} {
+		req := &resourcev1.ListOrgResourcesRequest{Query: query}
+		if got := f.orgResourceNames(t, orgReader, req, 0); len(got) != 0 {
+			t.Errorf("query %q = %v, want none", query, got)
+		}
+	}
+}
