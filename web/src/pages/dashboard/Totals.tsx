@@ -68,7 +68,7 @@ function share(part: number, total: number): string {
 
 function CardHead({ label, children }: { label: string; children?: ReactNode }) {
 	return (
-		<span className="flex items-center justify-between gap-2 text-[13px] text-fg3">
+		<span data-slot="stat-label" className="flex items-center justify-between gap-2 text-[13px] text-fg3">
 			{label}
 			{children}
 		</span>

@@ -125,7 +125,7 @@
 		border-color: color-mix(in oklch, var(--tn) 40%, transparent);
 		background: transparent;
 	}
-	& [data-slot="stat"]:is(:hover, :focus-within) [data-slot="stat-card"] {
+	& [data-slot="stat"]:is(:hover, :focus-within) [data-slot="stat-card"][tabindex] {
 		box-shadow: 0 8px 24px rgba(66, 74, 83, 0.12);
 	}
 }

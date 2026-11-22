@@ -30,12 +30,16 @@ function RunningSwap({ from, to }: { from: string; to: string }) {
 	return (
 		<div className="flex items-center gap-3.5 rounded-lg bg-panel px-3.5 py-3">
 			<div className="flex min-w-0 flex-col gap-0.5 text-[13px]">
-				<span className="text-[12px] text-fg3">Now running</span>
+				<span data-slot="eyebrow" className="text-[12px] text-fg3">
+					Now running
+				</span>
 				<span className="truncate font-mono text-foreground">{from}</span>
 			</div>
 			<ArrowRightIcon aria-hidden className="size-4 shrink-0 text-fg3" />
 			<div className="flex min-w-0 flex-col gap-0.5 text-[13px]">
-				<span className="text-[12px] text-fg3">Will run</span>
+				<span data-slot="eyebrow" className="text-[12px] text-fg3">
+					Will run
+				</span>
 				<span className="truncate font-mono text-foreground">{to}</span>
 			</div>
 		</div>
