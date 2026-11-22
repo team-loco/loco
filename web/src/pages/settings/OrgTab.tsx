@@ -395,7 +395,7 @@ export function OrgTab({
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
 				title={`Delete ${org.name}`}
-				text={`This permanently deletes every workspace in ${org.name} and everything in them.`}
+				text={`This permanently deletes ${org.name}, its ${pluralize(workspaceCount ?? 0, "empty workspace")} and all members.`}
 				target={org.name}
 				confirmLabel="Delete organization"
 				pending={remove.isPending}
