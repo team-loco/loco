@@ -13,13 +13,21 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/team-loco/loco/api/pkg/registrytoken"
+	"github.com/team-loco/loco/api/pkg/tracing"
 )
 
 const (
 	schemeHTTP  = "http"
 	schemeHTTPS = "https"
+
+	deleteManifestSpan   = "registry.delete_manifest"
+	listRepositoriesSpan = "registry.list_repositories"
+	listTagsSpan         = "registry.list_tags"
+	resolveTagSpan       = "registry.resolve_tag"
+	repositoryAttr       = "loco.registry.repository"
 )
 
 var (
@@ -154,7 +162,9 @@ func isNotFound(err error) bool {
 	return errors.As(err, &transportErr) && transportErr.StatusCode == http.StatusNotFound
 }
 
-func (c *Client) DeleteManifest(ctx context.Context, path, digest string) error {
+func (c *Client) DeleteManifest(ctx context.Context, path, digest string) (err error) {
+	ctx, span := tracing.Start(ctx, deleteManifestSpan, attribute.String(repositoryAttr, path))
+	defer func() { tracing.End(span, err) }()
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	repo, err := c.repository(path)
@@ -173,7 +183,9 @@ func (c *Client) DeleteManifest(ctx context.Context, path, digest string) error 
 	return nil
 }
 
-func (c *Client) Repositories(ctx context.Context, after string, limit int) ([]string, error) {
+func (c *Client) Repositories(ctx context.Context, after string, limit int) (_ []string, err error) {
+	ctx, span := tracing.Start(ctx, listRepositoriesSpan)
+	defer func() { tracing.End(span, err) }()
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	access := repositoryAccess(registrytoken.CatalogRepository, registrytoken.ActionPull)
@@ -188,7 +200,9 @@ func (c *Client) Repositories(ctx context.Context, after string, limit int) ([]s
 	return repos, nil
 }
 
-func (c *Client) Tags(ctx context.Context, path string) ([]string, error) {
+func (c *Client) Tags(ctx context.Context, path string) (_ []string, err error) {
+	ctx, span := tracing.Start(ctx, listTagsSpan, attribute.String(repositoryAttr, path))
+	defer func() { tracing.End(span, err) }()
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	repo, err := c.repository(path)
@@ -210,7 +224,9 @@ func (c *Client) Tags(ctx context.Context, path string) ([]string, error) {
 	return tags, nil
 }
 
-func (c *Client) TagDigest(ctx context.Context, path, tag string) (string, error) {
+func (c *Client) TagDigest(ctx context.Context, path, tag string) (_ string, err error) {
+	ctx, span := tracing.Start(ctx, resolveTagSpan, attribute.String(repositoryAttr, path))
+	defer func() { tracing.End(span, err) }()
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	repo, err := c.repository(path)
