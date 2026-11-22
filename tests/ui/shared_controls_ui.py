@@ -1861,7 +1861,7 @@ def limit_display(page):
                 )
                 page.keyboard.press("Escape")
                 pill.click()
-                expect(page).to_have_url(re.compile(r"scope=org#s-lim$"))
+                expect(page).to_have_url(re.compile(r"[?&]scope=org(?:&[^#]*)?#s-lim$"))
                 limits_section = page.locator("#s-lim")
                 expect(
                     limits_section.get_by_role("heading", name="Limits", exact=True)
