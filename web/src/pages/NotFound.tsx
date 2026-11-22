@@ -1,4 +1,4 @@
-import { CommandIcon, LayoutGridIcon } from "lucide-react";
+import { LayoutGridIcon, SearchIcon } from "lucide-react";
 import { Component, type ComponentProps, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 
@@ -68,7 +68,7 @@ function PaletteButton() {
 	const openPalette = useOpenPalette();
 	return (
 		<Button variant="outline" aria-keyshortcuts="Meta+K Control+K" onClick={openPalette}>
-			<CommandIcon className="text-fg3" aria-hidden />
+			<SearchIcon className="text-fg3" aria-hidden />
 			Command palette
 			<Kbd className="ml-0.5">{SHORTCUT_LABEL}</Kbd>
 		</Button>

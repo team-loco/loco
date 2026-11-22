@@ -100,7 +100,7 @@ function WebhookDetail({
 	const timePref = useTimePreferences();
 	const [filter, setFilter] = useState<Filter>(ALL);
 	const [size, setSize] = useState<number>(PAGE_SIZES[0]);
-	// The drawer's webhook and filter live in component state, so its page tokens do too.
+	// The drawer's filter lives in component state, so its page tokens do too.
 	const [tokens, setTokens] = useState<string[]>([]);
 	const queryClient = useQueryClient();
 	const { query, nextPageToken, total, counts } = useTokenPage(
@@ -182,7 +182,7 @@ function WebhookDetail({
 					</dd>
 					<dt className="text-fg3">Created</dt>
 					<dd className="m-0">
-						{formatDay(webhook.createdAt, timePref)} · {formatClock(tsMs(webhook.createdAt), false, timePref)}
+						{formatDay(webhook.createdAt, timePref)}, {formatClock(tsMs(webhook.createdAt), false, timePref)}
 					</dd>
 					<dt className="text-fg3">ID</dt>
 					<dd className="m-0">
@@ -199,7 +199,7 @@ function WebhookDetail({
 						<>
 							<dt className="text-fg3">Signing</dt>
 							<dd className="m-0">
-								Also signed with the previous secret until {formatDay(webhook.previousSecretExpiresAt, timePref)} ·{" "}
+								Also signed with the previous secret until {formatDay(webhook.previousSecretExpiresAt, timePref)},{" "}
 								{formatClock(tsMs(webhook.previousSecretExpiresAt), false, timePref)}
 							</dd>
 						</>
@@ -329,7 +329,7 @@ function DeliveryList({
 						<span className="truncate font-mono text-[12px]">{d.eventType}</span>
 						<span
 							className="text-right font-mono text-[11.5px] whitespace-nowrap text-fg3"
-							title={`${formatDay(d.createdAt, timePref)} · ${formatClock(tsMs(d.createdAt), false, timePref)}`}
+							title={`${formatDay(d.createdAt, timePref)}, ${formatClock(tsMs(d.createdAt), false, timePref)}`}
 						>
 							{deliveryWhen(d, nowMs)}
 						</span>

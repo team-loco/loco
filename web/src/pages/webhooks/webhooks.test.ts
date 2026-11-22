@@ -72,9 +72,7 @@ test("shows the next attempt for a pending retry and the age otherwise", () => {
 });
 
 test("describes the last error with the attempt count", () => {
-	expect(deliveryDetail(delivery("a", "failed", "endpoint returned 503", 7))).toBe(
-		"endpoint returned 503 · 7 attempts",
-	);
+	expect(deliveryDetail(delivery("a", "failed", "endpoint returned 503", 7))).toBe("endpoint returned 503, 7 attempts");
 	expect(deliveryDetail(delivery("a", "succeeded", "endpoint returned 503", 2))).toBeNull();
 	expect(deliveryDetail(delivery("a", "pending"))).toBeNull();
 });
