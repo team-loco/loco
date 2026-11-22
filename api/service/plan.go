@@ -493,10 +493,7 @@ func liveAutoscaling(scalers *deploymentv1.Scalers) *configplan.Autoscaling {
 	if !scalers.GetEnabled() {
 		return nil
 	}
-	return &configplan.Autoscaling{
-		CPUTarget:    scalers.GetCpuTarget(),
-		MemoryTarget: scalers.GetMemoryTarget(),
-	}
+	return &configplan.Autoscaling{CPUTarget: scalers.GetCpuTarget()}
 }
 
 func boolCompare(a, b bool) int {

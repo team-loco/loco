@@ -130,7 +130,7 @@ func validateAutoscaling(path string, autoscaling *Autoscaling) []error {
 	if autoscaling == nil {
 		return nil
 	}
-	if (autoscaling.CPUTarget == nil) == (autoscaling.MemoryTarget == nil) {
+	if autoscaling.CPUTarget == nil {
 		return []error{&FieldError{Path: path + ".autoscaling", Err: ErrAutoscalingTarget}}
 	}
 	return nil
