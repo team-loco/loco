@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
-	"strings"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectproto"
@@ -12,7 +11,6 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/team-loco/loco/api/events"
 	"github.com/team-loco/loco/internal/logquery"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -62,8 +60,7 @@ const querySyntaxReason = "QUERY_SYNTAX"
 
 // querySyntaxError rejects a query with a BadRequest violation on query and the position as
 // ErrorInfo metadata, so clients can point at the problem. err must hold a *logquery.SyntaxError.
-// Given fields, the metadata also lists their keys in order under "fields" and each description under "@key".
-func querySyntaxError(err error, fields ...events.QueryField) error {
+func querySyntaxError(err error) error {
 	var syntax *logquery.SyntaxError
 	if !errors.As(err, &syntax) {
 		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
@@ -71,19 +68,10 @@ func querySyntaxError(err error, fields ...events.QueryField) error {
 	public := withDetail(connect.NewError(connect.CodeInvalidArgument, syntax.Error()), &errdetails.BadRequest{
 		FieldViolations: []*errdetails.BadRequest_FieldViolation{{Field: "query", Description: syntax.Message}},
 	})
-	metadata := map[string]string{"position": strconv.Itoa(syntax.Position)}
-	if len(fields) > 0 {
-		keys := make([]string, len(fields))
-		for i, f := range fields {
-			keys[i] = f.Key
-			metadata["@"+f.Key] = f.Description
-		}
-		metadata["fields"] = strings.Join(keys, ",")
-	}
 	return withDetail(public, &errdetails.ErrorInfo{
 		Reason:   querySyntaxReason,
 		Domain:   buildErrorDomain,
-		Metadata: metadata,
+		Metadata: map[string]string{"position": strconv.Itoa(syntax.Position)},
 	})
 }
 

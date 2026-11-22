@@ -20,7 +20,7 @@ import { agoLabel } from "@/lib/time";
 import { useStoredJSON } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
-import { useObs } from "./context";
+import { useObs, type ObsResource } from "./context";
 import { levelStyle } from "./format";
 import {
 	addRecent,
@@ -44,6 +44,7 @@ import {
 	type FieldDef,
 	type FieldKey,
 	type QueryError,
+	type QueryView,
 	type Token,
 } from "./query";
 import { Dot } from "./shared";
@@ -73,24 +74,29 @@ const RECENT_SAVE_MS = 1500;
 
 export type ValueCounts = (key: FieldKey) => [string, number][];
 
-function placeholder(view: string): string {
+function placeholder(view: QueryView): string {
 	switch (view) {
 		case "logs":
 			return "Search messages, or type @ to filter by resource, level, replica…";
 		case "metrics":
 			return "Type @resource to filter";
-		default:
+		case "audit":
+			return "Search, or type @ to filter by actor, type, target…";
+		case "traces":
+		case "events":
 			return "Search, or type @resource to filter";
 	}
 }
 
-function searchLabel(view: string, text: string): string {
+function searchLabel(view: QueryView, text: string): string {
 	switch (view) {
 		case "traces":
 			return `Search root span names for “${text}”`;
 		case "events":
+		case "audit":
 			return `Search events for “${text}”`;
-		default:
+		case "logs":
+		case "metrics":
 			return `Search messages for “${text}”`;
 	}
 }
@@ -104,18 +110,33 @@ function useOpenState(onChange: ((open: boolean) => void) | undefined) {
 	return [open, change] as const;
 }
 
-export function QueryBar({
-	valueCounts,
-	sampledKeys,
-	onOpenChange,
-}: {
+interface QueryBarProps {
 	valueCounts: ValueCounts;
 	/** Fields whose counts come from the loaded lines, not the whole range. */
 	sampledKeys?: ReadonlySet<FieldKey>;
 	/** Called whenever the suggestion list opens or closes. */
 	onOpenChange?: (open: boolean) => void;
-}) {
-	const { orgId, workspaceId, view, tokens, text: applied, setQuery, resourceByName } = useObs();
+}
+
+/** The query a bar edits and where its pinned and recent searches are kept. */
+export interface QueryState {
+	orgId: string;
+	workspaceId: string;
+	view: QueryView;
+	tokens: Token[];
+	text: string;
+	setQuery: (tokens: Token[], text: string) => void;
+	resourceByName: ReadonlyMap<string, ObsResource>;
+}
+
+/** The query bar of an observability view, editing the view's query. */
+export function QueryBar(props: QueryBarProps) {
+	const { orgId, workspaceId, view, tokens, text, setQuery, resourceByName } = useObs();
+	return <QueryInput {...props} state={{ orgId, workspaceId, view, tokens, text, setQuery, resourceByName }} />;
+}
+
+export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: QueryBarProps & { state: QueryState }) {
+	const { orgId, workspaceId, view, tokens, text: applied, setQuery, resourceByName } = state;
 	const [text, setText] = useState(applied);
 	const [synced, setSynced] = useState(applied);
 	if (synced !== applied) {

@@ -465,7 +465,7 @@ func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
 		err = events.ValidateQuery(filter)
 	}
 	if err != nil {
-		return nil, querySyntaxError(err, events.QueryFields...)
+		return nil, querySyntaxError(err)
 	}
 	return filter, nil
 }
