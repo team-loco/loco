@@ -35,7 +35,7 @@
 	font-weight: 500;
 }
 [data-theme="solarized"] :is(.loco-tip, [data-slot="tooltip-content"]) {
-	border-color: var(--line2);
+	border: 1px solid var(--line2);
 	border-radius: 0;
 	box-shadow: none;
 	font-family: var(--font-mono);

@@ -85,6 +85,20 @@
 		font-family: var(--font-mono);
 		letter-spacing: -0.02em;
 	}
+	& [data-slot="field-label"] {
+		font-size: 11.5px;
+		letter-spacing: 0;
+	}
+	&
+		:is(
+			[data-slot="dropdown-menu-label"],
+			[data-slot="sidebar-group-label"],
+			[data-slot="stat-label"],
+			[data-slot="eyebrow"]
+		) {
+		font-family: var(--font-mono);
+		letter-spacing: 0;
+	}
 	& h1 {
 		font-size: 26px;
 	}
@@ -106,4 +120,8 @@
 
 [data-theme="solarized"] [data-secret-name] {
 	border-radius: 0;
+}
+
+[data-theme="solarized"] .reg-card {
+	border-radius: 2px;
 }

@@ -68,7 +68,7 @@ function share(part: number, total: number): string {
 
 function CardHead({ label, children }: { label: string; children?: ReactNode }) {
 	return (
-		<span className="flex items-center justify-between gap-2 text-[13px] text-fg3">
+		<span data-slot="stat-label" className="flex items-center justify-between gap-2 text-[13px] text-fg3">
 			{label}
 			{children}
 		</span>
@@ -263,8 +263,9 @@ function StatCard({
 }) {
 	const lifts = breakdown !== null;
 	return (
-		<div className="group/stat relative min-h-[178px]">
+		<div data-slot="stat" className="group/stat relative min-h-[178px]">
 			<div
+				data-slot="stat-card"
 				role="group"
 				tabIndex={lifts ? 0 : undefined}
 				aria-label={ariaLabel}

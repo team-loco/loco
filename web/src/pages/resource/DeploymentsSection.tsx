@@ -124,7 +124,9 @@ function Detail({
 	return (
 		<div className="grid grid-cols-1 gap-6 pt-1.5 pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:pl-9">
 			<div className="flex min-w-0 flex-col gap-1.5">
-				<span className="text-[12px] text-fg3">Rollout</span>
+				<span data-slot="eyebrow" className="text-[12px] text-fg3">
+					Rollout
+				</span>
 				<StepRail
 					steps={rolloutSteps(dep, buildId !== undefined)}
 					note={(step) => {
@@ -137,7 +139,9 @@ function Detail({
 				/>
 			</div>
 			<div className="flex min-w-0 flex-col gap-1.5">
-				<span className="text-[12px] text-fg3">Changes from previous</span>
+				<span data-slot="eyebrow" className="text-[12px] text-fg3">
+					Changes from previous
+				</span>
 				{prevId === "" && <span className="text-[12.5px] text-fg3">First deployment in {region.name}</span>}
 				{prevId !== "" && fetched.isLoading && <span className="text-[12.5px] text-fg3">Loading changes…</span>}
 				{fetched.error !== null && (
