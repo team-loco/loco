@@ -333,7 +333,12 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         )
 
     serving = chip(east, "a1")
-    expect(serving).not_to_contain_text("Serving")
+    expect(serving.get_by_role("button")).to_have_accessible_name(
+        re.compile(r"^a1 Serving ")
+    )
+    expect(serving.get_by_text("Serving", exact=True)).to_have_class(
+        re.compile(r"\bsr-only\b")
+    )
     expect(serving).to_contain_text("CPU 0.23/0.5")
     expect(serving).to_contain_text("Mem 154/256 Mi")
     crashed = chip(east, "b2")
