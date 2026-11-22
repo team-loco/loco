@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	"github.com/team-loco/loco/internal/logquery"
@@ -29,10 +30,11 @@ import (
 )
 
 const (
-	defaultEventPage   = 100
-	streamBatch        = 500
-	streamPollInterval = time.Second
-	cursorBytes        = 8
+	defaultEventPage    = 100
+	streamBatch         = 500
+	streamPollInterval  = time.Second
+	eventStreamPollSpan = "events.stream.poll"
+	cursorBytes         = 8
 )
 
 var ErrInvalidCursor = errors.New("invalid event cursor")
@@ -389,10 +391,11 @@ func (s *EventServer) StreamEvents(
 	defer ticker.Stop()
 	for {
 		var rows []events.AuditEvent
+		pollCtx, span := tracing.StartLinked(ctx, eventStreamPollSpan)
 		if scoped == nil {
 			var all []genDb.Event
 			all, err = s.queries.ListEventsAfter(
-				ctx,
+				pollCtx,
 				genDb.ListEventsAfterParams{AfterPosition: int64(position), MaxRows: streamBatch},
 			)
 			for _, row := range all {
@@ -401,11 +404,13 @@ func (s *EventServer) StreamEvents(
 		} else {
 			query, queryErr := auditQuery(scoped, scope, filter)
 			if queryErr != nil {
+				tracing.End(span, queryErr)
 				return queryErr
 			}
 			query.Stream, query.AfterPosition, query.Limit = true, int64(position), streamBatch
-			rows, err = events.ListAudit(ctx, s.db, query)
+			rows, err = events.ListAudit(pollCtx, s.db, query)
 		}
+		tracing.End(span, err)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil

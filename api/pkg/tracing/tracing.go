@@ -19,6 +19,12 @@ func StartRoot(ctx context.Context, name string, opts ...trace.SpanStartOption) 
 	return otel.Tracer(tracerName).Start(ctx, name, opts...) //nolint:spancheck
 }
 
+// StartLinked starts a root span linked to the caller's span, so work inside a long-open span exports on its own.
+func StartLinked(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	opts = append(opts, trace.WithLinks(trace.LinkFromContext(ctx)))
+	return StartRoot(ctx, name, opts...)
+}
+
 // Link links span to the span that started its work, given that span's stored traceparent.
 func Link(span trace.Span, traceparent *string) {
 	if traceparent == nil {
