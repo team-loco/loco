@@ -56,12 +56,9 @@ const region: RegionView = {
 test("a new pending deployment appears while the region still runs its previous release", () => {
 	const [progress] = progressDeployments([region]);
 	expect(progress?.deployment.id).toBe("pending");
-	expect(progress?.previous?.id).toBe("previous");
 });
 
-test("a failed newest deployment offers the previous running release", () => {
-	const failed = create(DeploymentSchema, { ...pending, status: DeploymentStatus.FAILED });
-	expect(progressDeployments([{ ...region, history: [failed, previous] }])[0]?.previous?.id).toBe("previous");
+test("the newest deployment leads the region's progress", () => {
 	const running = create(DeploymentSchema, { ...pending, status: DeploymentStatus.RUNNING });
 	expect(progressDeployments([{ ...region, history: [running, previous] }])[0]?.deployment).toBe(running);
 });

@@ -2,11 +2,11 @@ import type { DeploymentBucket } from "@gen/loco/deployment/v1/deployment_pb";
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 
 import { formatCount } from "@/lib/format";
-import { imageVersion } from "@/lib/image";
 import { limitAt, type LimitStep } from "@/lib/limit-history";
 import { maybeTsMs } from "@/lib/time";
 
 import type { ChartMarker } from "./MetricChart";
+import { imageTag } from "./model";
 
 export const METRIC_RANGES = ["1h", "6h", "24h"] as const;
 
@@ -27,9 +27,7 @@ export function deploymentMarkers(buckets: readonly DeploymentBucket[]): ChartMa
 		if (ms === undefined) return [];
 		const only = bucket.onlyDeployment;
 		const label =
-			only === undefined
-				? `${formatCount(bucket.deploymentCount)} deployments`
-				: `deployed ${only.image === "" ? "—" : imageVersion(only.image)}`;
+			only === undefined ? `${formatCount(bucket.deploymentCount)} deployments` : `deployed ${imageTag(only.image)}`;
 		return [{ ms, label }];
 	});
 }

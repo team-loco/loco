@@ -24,16 +24,7 @@ export function progressDeployments(regions: readonly RegionView[]) {
 		].toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 		const deployment = history[0];
 		if (deployment === undefined) return [];
-		// A newer deployment the region does not run yet returns to the one it runs.
-		const live = region.current;
-		const previous =
-			live !== undefined &&
-			live.id !== deployment.id &&
-			live.spec !== undefined &&
-			(live.status === DeploymentStatus.RUNNING || live.status === DeploymentStatus.SUPERSEDED)
-				? live
-				: region.lastGood;
-		return [{ region, deployment, previous }];
+		return [{ region, deployment, previous: region.lastGood }];
 	});
 }
 

@@ -57,9 +57,13 @@ export function depImage(dep: Deployment | undefined): string {
 	return depService(dep)?.build?.image ?? "";
 }
 
-export function depTag(dep: Deployment | undefined): string {
-	const image = depImage(dep);
+/** An image's version for display; "—" without an image. */
+export function imageTag(image: string): string {
 	return image === "" ? "—" : imageVersion(image);
+}
+
+export function depTag(dep: Deployment | undefined): string {
+	return imageTag(depImage(dep));
 }
 
 function byNewest(a: Deployment, b: Deployment): number {
