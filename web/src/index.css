@@ -262,31 +262,33 @@
 	& tr[data-interactive]:focus-visible {
 		--row-ring: 1px solid var(--ring);
 	}
-	& tbody > tr::after,
-	& tbody [data-pin]::before {
+	/* The outline spans the visible part of the row, so its rounded ends sit on the pinned cells. */
+	& tbody > tr::after {
 		content: "";
 		position: absolute;
-		inset: 0;
+		inset: 0 auto;
+		left: var(--scroll-x, 0px);
+		width: 100cqi;
+		z-index: 2;
 		border: var(--row-ring, 0 solid transparent);
-		pointer-events: none;
-	}
-	& tbody > tr::after {
-		z-index: 0;
 		border-radius: var(--band-radius, 6px);
+		pointer-events: none;
 	}
 	& tbody [data-pin] {
 		background-image: none;
 	}
 	& tbody [data-pin]::before {
+		content: "";
+		position: absolute;
+		inset: 0;
 		z-index: -1;
 		background: var(--row-tint);
+		pointer-events: none;
 	}
 	& tbody [data-pin="start"]::before {
-		border-right-width: 0;
 		border-radius: var(--band-radius, 6px) 0 0 var(--band-radius, 6px);
 	}
 	& tbody [data-pin="end"]::before {
-		border-left-width: 0;
 		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
 	}
 }
