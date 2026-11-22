@@ -152,6 +152,17 @@ with session(repo / "tests/ui/out/tokens") as browser:
     ).to_contain_text("sibling")
     assert sibling not in listed and private not in listed, listed
 
+    # A search without a slash finds resources in workspaces other than the active one.
+    with expect_rpc(
+        page,
+        "loco.resource.v1.ResourceService/ListOrgResources",
+        lambda body: body.get("query") == "ledg",
+    ):
+        search.fill("ledg")
+    expect(options.get_by_role("option", name=re.compile(r"^ledger"))).to_contain_text(
+        "private"
+    )
+
     with (
         expect_rpc(
             page,
