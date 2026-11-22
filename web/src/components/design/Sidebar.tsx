@@ -180,12 +180,17 @@ function SidebarMenuButton({ className, ...props }: React.ComponentProps<typeof 
 	);
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<typeof SidebarContentBase>) {
+function SidebarContent({ className, children, ...props }: React.ComponentProps<typeof SidebarContentBase>) {
 	const id = useId();
 	return (
 		<MotionConfig reducedMotion="user">
 			<LayoutGroup id={id}>
-				<SidebarContentBase className={cn("isolate", className)} {...props} />
+				<SidebarContentBase className={cn("isolate", className)} {...props}>
+					{/* The highlight slides relative to the list, whatever the page scroll does. */}
+					<motionElement.div layout layoutRoot className="flex flex-col">
+						{children}
+					</motionElement.div>
+				</SidebarContentBase>
 			</LayoutGroup>
 		</MotionConfig>
 	);
