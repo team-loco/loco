@@ -257,17 +257,17 @@
 	}
 	& tr[data-state="selected"] {
 		--row-tint: var(--band-selected, var(--bg));
-		--row-ring: var(--band-selected-ring, inset 0 0 0 1px var(--line2));
+		--row-ring: var(--band-selected-ring, 1px solid var(--line2));
 	}
 	& tr[data-interactive]:focus-visible {
-		--row-ring: inset 0 0 0 1px var(--ring);
+		--row-ring: 1px solid var(--ring);
 	}
 	& tbody > tr::after,
 	& tbody [data-pin]::before {
 		content: "";
 		position: absolute;
 		inset: 0;
-		box-shadow: var(--row-ring, none);
+		border: var(--row-ring, 0 solid transparent);
 		pointer-events: none;
 	}
 	& tbody > tr::after {
@@ -282,11 +282,11 @@
 		background: var(--row-tint);
 	}
 	& tbody [data-pin="start"]::before {
-		right: -2px;
+		border-right-width: 0;
 		border-radius: var(--band-radius, 6px) 0 0 var(--band-radius, 6px);
 	}
 	& tbody [data-pin="end"]::before {
-		left: -2px;
+		border-left-width: 0;
 		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
 	}
 }
