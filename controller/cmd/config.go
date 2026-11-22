@@ -26,6 +26,8 @@ const (
 	envMinReadySeconds        = "LOCO_MIN_READY_SECONDS"
 	envDrainSeconds           = "LOCO_DRAIN_SECONDS"
 	envHealthyAfterSeconds    = "LOCO_HEALTHY_AFTER_SECONDS"
+	envOTLPEndpoint           = "OTEL_EXPORTER_OTLP_ENDPOINT"
+	envOTLPTracesEndpoint     = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
 	decimalBase               = 10
 	portBits                  = 16
 	int31Bits                 = 31
@@ -44,6 +46,8 @@ type operatorConfig struct {
 	WorkspaceNamespacePrefix string
 	RawBuildConfig           string
 	Telemetry                controller.TelemetryConfig
+	// Tracing exports the controller's own traces over OTLP.
+	Tracing bool
 	// Rollout timings are nil when unset; only the application reconciler requires them.
 	MinReadySeconds     *int32
 	DrainSeconds        *int32
@@ -70,6 +74,7 @@ func newOperatorConfig() operatorConfig {
 		WorkspaceNamespacePrefix: os.Getenv(envWorkspacePrefix),
 		RawBuildConfig:           os.Getenv(builds.EnvConfig),
 		Telemetry:                telemetry,
+		Tracing:                  os.Getenv(envOTLPEndpoint) != "" || os.Getenv(envOTLPTracesEndpoint) != "",
 		MinReadySeconds:          secondsEnv(envMinReadySeconds),
 		DrainSeconds:             drainSeconds,
 		HealthyAfterSeconds:      secondsEnv(envHealthyAfterSeconds),

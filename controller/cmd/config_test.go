@@ -23,6 +23,29 @@ func TestOperatorConfigReadsTheTelemetrySettings(t *testing.T) {
 	}
 }
 
+func TestOperatorConfigEnablesTracingWithAnOTLPEndpoint(t *testing.T) {
+	for name, tc := range map[string]struct {
+		env  string
+		want bool
+	}{
+		"no endpoint":     {want: false},
+		"shared endpoint": {env: envOTLPEndpoint, want: true},
+		"traces endpoint": {env: envOTLPTracesEndpoint, want: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
+			t.Setenv(envOTLPEndpoint, "")
+			t.Setenv(envOTLPTracesEndpoint, "")
+			if tc.env != "" {
+				t.Setenv(tc.env, "http://collector.loco.test:4318")
+			}
+			if got := newOperatorConfig().Tracing; got != tc.want {
+				t.Errorf("tracing = %t, want %t", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestOperatorConfigReadsTheGatewayAndWorkspacePrefix(t *testing.T) {
 	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
 	t.Setenv(envGateway, "edge")

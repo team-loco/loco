@@ -5,30 +5,23 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/otelconnect"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/contrib/propagators/autoprop"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/internal/envconfig"
+	"github.com/team-loco/loco/internal/otelsetup"
 )
 
 const (
-	otlpEndpointEnv        = "OTEL_EXPORTER_OTLP_ENDPOINT"
-	otlpTracesEndpointEnv  = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
-	defaultServiceName     = "loco-api"
-	tracingShutdownTimeout = 5 * time.Second
-	rootPath               = "/"
-	healthPath             = "/health"
+	otlpEndpointEnv       = "OTEL_EXPORTER_OTLP_ENDPOINT"
+	otlpTracesEndpointEnv = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+	defaultServiceName    = "loco-api"
+	rootPath              = "/"
+	healthPath            = "/health"
 )
 
 func newTracingEnabled() bool {
@@ -37,64 +30,20 @@ func newTracingEnabled() bool {
 	return endpoint != "" || tracesEndpoint != ""
 }
 
-func newTracingResource(ctx context.Context, version string) (*resource.Resource, error) {
-	res, err := resource.New(ctx,
-		resource.WithAttributes(semconv.ServiceName(defaultServiceName), semconv.ServiceVersion(version)),
-		resource.WithFromEnv(),
-		resource.WithTelemetrySDK(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("tracing resource: %w", err)
-	}
-	return res, nil
-}
-
 func startTracing(ctx context.Context, enabled bool, version string) (*sdktrace.TracerProvider, error) {
 	if !enabled {
 		return nil, nil
 	}
-	exporter, err := otlptracehttp.New(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("otlp trace exporter: %w", err)
-	}
-	res, err := newTracingResource(ctx, version)
-	if err != nil {
-		return nil, err
-	}
-	sampler := sdktrace.ParentBased(rootSampler{})
-	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sampler),
-	)
-	otel.SetTracerProvider(provider)
-	otel.SetTextMapPropagator(autoprop.NewTextMapPropagator())
-	return provider, nil
+	return otelsetup.Start(ctx, defaultServiceName, version)
 }
 
 func stopTracing(provider *sdktrace.TracerProvider) {
 	if provider == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), tracingShutdownTimeout)
-	defer cancel()
-	if err := provider.Shutdown(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to flush traces", "error", err)
+	if err := otelsetup.Stop(provider); err != nil {
+		slog.ErrorContext(context.Background(), "failed to flush traces", "error", err)
 	}
-}
-
-type rootSampler struct{}
-
-func (rootSampler) ShouldSample(p sdktrace.SamplingParameters) sdktrace.SamplingResult {
-	parent := trace.SpanContextFromContext(p.ParentContext)
-	if p.Kind == trace.SpanKindClient {
-		return sdktrace.SamplingResult{Decision: sdktrace.Drop, Tracestate: parent.TraceState()}
-	}
-	return sdktrace.SamplingResult{Decision: sdktrace.RecordAndSample, Tracestate: parent.TraceState()}
-}
-
-func (rootSampler) Description() string {
-	return "DropRootClientSpans"
 }
 
 func traceHTTPRequest(r *http.Request) bool {

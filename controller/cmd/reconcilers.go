@@ -17,6 +17,8 @@ const (
 	reconcilerBuild             = "build"
 	applicationLeaderElectionID = "be6ed5b1.loco.io"
 	buildLeaderElectionID       = "loco-build-controller.loco.io"
+	applicationServiceName      = "loco-controller"
+	buildServiceName            = "loco-build-controller"
 )
 
 var (
@@ -35,6 +37,7 @@ var (
 )
 
 type reconcilerSetup struct {
+	serviceName      string
 	leaderElectionID string
 	cache            cache.Options
 	register         func(ctrl.Manager) error
@@ -108,6 +111,7 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 		return reconciler.SetupWithManager(mgr)
 	}
 	return reconcilerSetup{
+		serviceName:      applicationServiceName,
 		leaderElectionID: applicationLeaderElectionID,
 		cache:            cacheOptions,
 		register:         register,
@@ -143,6 +147,7 @@ func buildSetup(operator operatorConfig) (reconcilerSetup, error) {
 		return reconciler.SetupWithManager(mgr)
 	}
 	return reconcilerSetup{
+		serviceName:      buildServiceName,
 		leaderElectionID: buildLeaderElectionID,
 		cache:            cacheOptions,
 		register:         register,

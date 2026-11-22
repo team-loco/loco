@@ -12,6 +12,19 @@ The delay lets routing remove the retiring endpoint while the process accepts tr
 
 `controller.healthyAfterSeconds`, 300 by default, is how long every replica of a rollout must run without a restart before the rollout counts as healthy. The chart supplies it as `LOCO_HEALTHY_AFTER_SECONDS`.
 
+## Controller metrics and traces
+
+Each controller serves the controller-runtime Prometheus metrics at `/metrics` on port 8080. They include reconcile time (`controller_runtime_reconcile_time_seconds`), work queue depth and wait (`workqueue_depth`, `workqueue_queue_duration_seconds`) and Kubernetes API client latency and rate-limiter wait (`rest_client_request_duration_seconds`, `rest_client_rate_limiter_duration_seconds`). The release namespace denies ingress, so read them with `kubectl port-forward deploy/loco-controller 8080 -n loco-system`. Adding `--metrics-bind-address=0` to `controller.args` or `builds.controller.args` turns the endpoint off; setting either list replaces its default `--leader-elect`, so keep that entry.
+
+Setting `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` in `controller.env` or `builds.controller.env` exports that controller's traces over OTLP/HTTP, as `loco-controller` or `loco-build-controller`; the SDK reads the other `OTEL_*` variables too. Each Application reconcile is an `application.reconcile` span with a child span per step and a client span per Kubernetes API call; each Build reconcile is a `build.reconcile` span. Without either variable the controllers export no traces.
+
+```yaml
+controller:
+  env:
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: http://collector.example.com:4318
+```
+
 ## Resource metrics
 
 The chart installs metrics-server for application autoscaling; set `metrics-server.enabled: false` when the cluster already serves `metrics.k8s.io`.
