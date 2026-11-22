@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { agoLabel, formatDateTime, shortDurationLabel } from "./time";
+import { agoLabel, daysAgoLabel, formatDateTime, shortDurationLabel } from "./time";
 
 test("agoLabel gives just now, then minutes, hours and days", () => {
 	const now = Date.UTC(2026, 0, 10);
@@ -10,6 +10,16 @@ test("agoLabel gives just now, then minutes, hours and days", () => {
 	expect(agoLabel(now - 2 * 86_400_000, now)).toBe("2d ago");
 	expect(agoLabel(now - 26 * 3_600_000, now)).toBe("1d ago");
 	expect(agoLabel(now - 14.9 * 60_000, now)).toBe("14m ago");
+});
+
+test("daysAgoLabel gives today, yesterday, days and then months", () => {
+	const now = Date.UTC(2026, 0, 10);
+	const day = 86_400_000;
+	expect(daysAgoLabel(now - 3_600_000, now)).toBe("today");
+	expect(daysAgoLabel(now - 1.5 * day, now)).toBe("yesterday");
+	expect(daysAgoLabel(now - 5 * day, now)).toBe("5 days ago");
+	expect(daysAgoLabel(now - 45 * day, now)).toBe("a month ago");
+	expect(daysAgoLabel(now - 95 * day, now)).toBe("3 months ago");
 });
 
 test("formatDateTime joins the month, day and clock, with seconds on request", () => {

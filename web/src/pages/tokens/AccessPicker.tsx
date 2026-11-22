@@ -114,7 +114,7 @@ export function AccessPicker({
 	};
 
 	const resourceCount = (n: EntityNode): string | null =>
-		n.resources === undefined ? null : `${n.resources.toString()} resources`;
+		n.resources === undefined ? null : `${n.resources.toString()} ${n.resources === 1 ? "resource" : "resources"}`;
 
 	const resultNote = (n: EntityNode): string => {
 		switch (n.kind) {
@@ -124,7 +124,7 @@ export function AccessPicker({
 				return "Organization";
 			case "ws": {
 				const count = resourceCount(n);
-				return count === null ? "Workspace" : `Workspace · ${count}`;
+				return count === null ? "Workspace" : `Workspace: ${count}`;
 			}
 			case "res": {
 				const cov = coveredBy(n, 1);
@@ -138,12 +138,12 @@ export function AccessPicker({
 	const itemKind = (n: EntityNode): string => {
 		switch (n.kind) {
 			case "user":
-				return "User · your profile and account";
+				return "User: your profile and account";
 			case "org":
-				return "Organization · everything in it";
+				return "Organization: everything in it";
 			case "ws": {
 				const count = resourceCount(n);
-				return `Workspace · all ${count ?? "resources"}`;
+				return `Workspace: all ${count ?? "resources"}`;
 			}
 			case "res":
 				return n.parent?.label ?? "Resource";
@@ -176,7 +176,7 @@ export function AccessPicker({
 						const dis = l > lvl;
 						const tip = dis
 							? `You only have ${lvl === 0 ? "no access" : LEVEL_LABEL[lvl]} on ${n.label}`
-							: ALLOWS[n.kind].slice(0, l).join(" · ");
+							: ALLOWS[n.kind].slice(0, l).join(", ");
 						return (
 							<ToggleGroupItem key={l} value={l.toString()} disabled={dis} title={tip} className="disabled:opacity-45">
 								{LEVEL_LABEL[l]}

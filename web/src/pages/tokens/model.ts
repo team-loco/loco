@@ -251,6 +251,21 @@ export function accessByLevel(chips: readonly AccessChip[]): LevelGroup[] {
 	});
 }
 
+const CHIP_NAMES = 3;
+
+/** How an access chip names a grant: "<name> org", "<name> workspace", or the bare name. */
+export function chipName(node: EntityNode): string {
+	if (node.kind === "org") return `${node.label} org`;
+	if (node.kind === "ws") return `${node.label} workspace`;
+	return node.label;
+}
+
+/** Joins chip names, collapsing past three to "a, b, c +N". */
+export function collapsedNames(names: readonly string[]): string {
+	const shown = names.slice(0, CHIP_NAMES).join(", ");
+	return names.length > CHIP_NAMES ? `${shown} +${(names.length - CHIP_NAMES).toString()}` : shown;
+}
+
 export function accessChips(entities: Entities, token: Token): AccessChip[] {
 	const grants = tokenGrants(token);
 	return sortKeys(entities, [...grants.keys()])

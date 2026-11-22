@@ -18,12 +18,14 @@ import { Page, PageHeader, Section } from "@/components/design/Page";
 import { RowMenu } from "@/components/design/RowMenu";
 import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { useCopy } from "@/hooks/useCopy";
+import { useNow } from "@/hooks/useNow";
 import { toastConnectError } from "@/lib/error-handler";
 import { resourcePath } from "@/lib/routes";
-import { formatStarted, tsMs } from "@/lib/time";
+import { daysAgoLabel, formatStarted, tsMs } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { referenceOf } from "@/pages/resource/variables";
 import { DOCS_URL } from "@/pages/splash/links";
@@ -55,6 +57,7 @@ export function SecretsPage({
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 	const timePref = useTimePreferences();
+	const now = useNow();
 	const [, copy] = useCopy();
 	const query = useQuery(listSecrets, { environmentId });
 	const { data: membersRes } = useTanstackQuery(workspaceMembersOptions(transport, workspaceId));
@@ -87,6 +90,7 @@ export function SecretsPage({
 			canWrite,
 			members,
 			timePref,
+			now,
 			onUpdate: (name) => {
 				setModal({ kind: "edit", name });
 			},
@@ -130,22 +134,6 @@ export function SecretsPage({
 			/>
 			{query.error !== null ? (
 				<ErrorState error={query.error} what="secrets" rpc={listSecrets} onRetry={query.refetch} />
-			) : !query.isPending && secrets.length === 0 ? (
-				<EmptyHero
-					art={<SecretsArt environment={environmentName} />}
-					title={`No secrets in ${environmentName}`}
-					subtitle={`Secrets belong to ${environmentName}. Any resource here can refer to one from its variables.`}
-				>
-					<div className="mt-1.5 flex flex-wrap justify-center gap-2">
-						{canWrite && (
-							<Button onClick={openNew}>
-								<PlusIcon />
-								New secret
-							</Button>
-						)}
-						<DocsButton href={SECRETS_DOCS} />
-					</div>
-				</EmptyHero>
 			) : (
 				<Section
 					filters={
@@ -180,10 +168,29 @@ export function SecretsPage({
 							<Skeleton className="h-9 w-full" />
 							<Skeleton className="h-9 w-full" />
 						</div>
-					) : shown.length === 0 ? (
-						<div className="px-5 py-7 text-center text-[13px] text-fg3">No secrets match.</div>
+					) : secrets.length === 0 ? (
+						<EmptyHero
+							art={<SecretsArt environment={environmentName} />}
+							title={`No secrets in ${environmentName}`}
+							subtitle={`Secrets belong to ${environmentName}. Any resource here can refer to one from its variables.`}
+							className="rounded-t-none border-t border-line2"
+						>
+							<div className="mt-1.5 flex flex-wrap justify-center gap-2">
+								{canWrite && (
+									<Button onClick={openNew}>
+										<PlusIcon />
+										New secret
+									</Button>
+								)}
+								<DocsButton href={SECRETS_DOCS} />
+							</div>
+						</EmptyHero>
 					) : (
-						<DataTable table={table} label="Secrets" />
+						<DataTable
+							table={table}
+							label="Secrets"
+							empty={<div className="px-5 py-7 text-center text-[13px] text-fg3">No secrets match.</div>}
+						/>
 					)}
 				</Section>
 			)}
@@ -251,6 +258,7 @@ function secretColumns({
 	canWrite,
 	members,
 	timePref,
+	now,
 	onUpdate,
 	onCopy,
 	onDelete,
@@ -261,6 +269,7 @@ function secretColumns({
 	canWrite: boolean;
 	members: ReadonlyMap<string, string>;
 	timePref: ReturnType<typeof useTimePreferences>;
+	now: Date;
 	onUpdate: (name: string) => void;
 	onCopy: (name: string) => void;
 	onDelete: (secret: Secret) => void;
@@ -272,7 +281,10 @@ function secretColumns({
 			size: 220,
 			minSize: 140,
 			cell: ({ row: { original: secret } }) => (
-				<span className="inline-block max-w-full rounded-[5px] border border-line bg-panel2 px-[7px] py-0.5 font-mono text-[12.5px] leading-[18px] break-all">
+				<span
+					data-secret-name=""
+					className="inline-block max-w-full rounded-[5px] border border-line bg-panel2 px-[7px] py-0.5 font-mono text-[12.5px] leading-[18px] break-all"
+				>
 					{secret.name}
 				</span>
 			),
@@ -289,12 +301,19 @@ function secretColumns({
 				) : (
 					<span className="flex min-w-0 flex-wrap gap-x-3 gap-y-1">
 						{secret.usedBy.map((user) => (
+							// The link uses its own hover group, so only the hovered link shows its arrow.
 							<Link
 								key={user.resourceId}
-								className="font-mono text-[13px] text-foreground no-underline hover:underline"
+								className="group/used inline-flex items-center font-mono text-[13px] text-foreground no-underline"
 								to={`${resourcePath(orgId, workspaceId, user.resourceId, { env: environmentSlug })}&tab=settings#set-env`}
 							>
 								{user.resourceSlug}
+								<span
+									aria-hidden="true"
+									className="ml-1 text-fg3 opacity-0 transition-opacity group-hover/used:opacity-100 group-focus-visible/used:opacity-100"
+								>
+									→
+								</span>
 							</Link>
 						))}
 					</span>
@@ -316,7 +335,12 @@ function secretColumns({
 			meta: { hideOnMobile: true, fit: true },
 			cell: ({ row: { original: secret } }) => (
 				<span className="flex flex-col">
-					<span>{formatStarted(tsMs(secret.updatedAt), timePref)}</span>
+					<Tooltip>
+						<TooltipTrigger render={<span className="w-fit" />}>
+							{daysAgoLabel(tsMs(secret.updatedAt), now.getTime())}
+						</TooltipTrigger>
+						<TooltipContent>{formatStarted(tsMs(secret.updatedAt), timePref)}</TooltipContent>
+					</Tooltip>
 					<span className="text-[12px] text-fg3">@{setterLabel(secret, members)}</span>
 				</span>
 			),

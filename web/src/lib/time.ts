@@ -168,6 +168,16 @@ export function agoLabel(ms: number, nowMs: number): string {
 	return `${Math.floor(hrs / 24).toString()}d ago`;
 }
 
+/** A relative day: "today", "yesterday", "5 days ago", "a month ago", "3 months ago". */
+export function daysAgoLabel(ms: number, nowMs: number): string {
+	const days = (nowMs - ms) / 86_400_000;
+	if (days < 1) return "today";
+	if (days < 2) return "yesterday";
+	if (days < 30) return `${Math.round(days).toString()} days ago`;
+	if (days < 60) return "a month ago";
+	return `${Math.round(days / 30).toString()} months ago`;
+}
+
 export function shortDurationLabel(ms: number): string {
 	const mins = Math.max(0, Math.round(ms / 60_000));
 	if (mins < 1) return `${Math.max(1, Math.round(ms / 1000)).toString()}s`;

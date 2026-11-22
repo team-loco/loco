@@ -13,15 +13,30 @@ import { cn } from "@/lib/utils";
 
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
-import { accessByLevel, accessChips, expiresLabel, lastUsedLabel, tokenStatus } from "./model";
+import {
+	accessByLevel,
+	accessChips,
+	chipName,
+	collapsedNames,
+	expiresLabel,
+	lastUsedLabel,
+	tokenStatus,
+} from "./model";
 import type { AccessChip, Creator, Entities } from "./model";
 
 function AccessCell({ chips }: { chips: AccessChip[] }) {
 	return (
 		<div className="flex min-w-0 flex-wrap gap-1 *:shrink-0">
 			{accessByLevel(chips).map((g) => {
-				const names = g.nodes.map((n) => (n.kind === "ws" ? `${n.label} workspace` : n.label)).join(", ");
-				return <LevelChip key={g.level} level={g.level} name={names} title={`${LEVEL_LABEL[g.level]} ${names}`} />;
+				const names = g.nodes.map(chipName);
+				return (
+					<LevelChip
+						key={g.level}
+						level={g.level}
+						name={collapsedNames(names)}
+						title={`${LEVEL_LABEL[g.level]} ${names.join(", ")}`}
+					/>
+				);
 			})}
 		</div>
 	);
