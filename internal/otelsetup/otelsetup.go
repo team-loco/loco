@@ -1,4 +1,5 @@
-package main
+// Package otelsetup installs the OpenTelemetry tracer provider Loco's servers export their own traces with.
+package otelsetup
 
 import (
 	"context"
@@ -14,14 +15,44 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const tracingShutdownTimeout = 5 * time.Second
+const shutdownTimeout = 5 * time.Second
 
-// startTracing installs a global tracer provider exporting to the OTLP endpoint the standard OTEL_* variables name.
-func startTracing(ctx context.Context, serviceName, version string) (*sdktrace.TracerProvider, error) {
+// Start installs a global tracer provider exporting over OTLP/HTTP to the endpoint the OTEL_* variables name.
+func Start(ctx context.Context, serviceName, version string) (*sdktrace.TracerProvider, error) {
 	exporter, err := otlptracehttp.New(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("otlp trace exporter: %w", err)
 	}
+	res, err := newResource(ctx, serviceName, version)
+	if err != nil {
+		return nil, err
+	}
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+		sdktrace.WithSampler(Sampler()),
+	)
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(autoprop.NewTextMapPropagator())
+	return provider, nil
+}
+
+// Stop flushes the spans provider holds and shuts it down.
+func Stop(provider *sdktrace.TracerProvider) error {
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	if err := provider.Shutdown(ctx); err != nil {
+		return fmt.Errorf("flush traces: %w", err)
+	}
+	return nil
+}
+
+// Sampler follows the parent's decision and drops client spans without one, such as background polls and watches.
+func Sampler() sdktrace.Sampler {
+	return sdktrace.ParentBased(rootSampler{})
+}
+
+func newResource(ctx context.Context, serviceName, version string) (*resource.Resource, error) {
 	res, err := resource.New(ctx,
 		resource.WithAttributes(semconv.ServiceName(serviceName), semconv.ServiceVersion(version)),
 		resource.WithFromEnv(),
@@ -30,27 +61,9 @@ func startTracing(ctx context.Context, serviceName, version string) (*sdktrace.T
 	if err != nil {
 		return nil, fmt.Errorf("tracing resource: %w", err)
 	}
-	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.ParentBased(rootSampler{})),
-	)
-	otel.SetTracerProvider(provider)
-	otel.SetTextMapPropagator(autoprop.NewTextMapPropagator())
-	return provider, nil
+	return res, nil
 }
 
-func stopTracing(provider *sdktrace.TracerProvider) error {
-	ctx, cancel := context.WithTimeout(context.Background(), tracingShutdownTimeout)
-	defer cancel()
-	if err := provider.Shutdown(ctx); err != nil {
-		return fmt.Errorf("flush traces: %w", err)
-	}
-	return nil
-}
-
-// rootSampler drops client spans outside a reconcile: informer watches, lists and leader election renewals.
-// The API keeps the same sampler in api/tracing.go.
 type rootSampler struct{}
 
 func (rootSampler) ShouldSample(p sdktrace.SamplingParameters) sdktrace.SamplingResult {

@@ -18,6 +18,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/tracing"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/otelsetup"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
@@ -72,13 +73,13 @@ func main() {
 	restConfig := ctrl.GetConfigOrDie()
 	flush := func() {}
 	if operator.Tracing {
-		provider, tracingErr := startTracing(context.Background(), setup.serviceName, managerVersion)
+		provider, tracingErr := otelsetup.Start(context.Background(), setup.serviceName, managerVersion)
 		if tracingErr != nil {
 			setupLog.Error(tracingErr, "unable to start tracing")
 			os.Exit(1)
 		}
 		flush = func() {
-			if stopErr := stopTracing(provider); stopErr != nil {
+			if stopErr := otelsetup.Stop(provider); stopErr != nil {
 				setupLog.Error(stopErr, "unable to stop tracing")
 			}
 		}
