@@ -207,7 +207,7 @@ def mock_telemetry(context):
 def assert_sidebar_slide(target):
     target.hover()
     highlight_selector = '[data-slot="sidebar-highlight"]'
-    traveled = target.evaluate(
+    slide = target.evaluate(
         """async (node, selector) => {
         const sidebar = node.closest('[data-slot="sidebar-content"]');
         const row = node.closest('li');
@@ -220,6 +220,7 @@ def assert_sidebar_slide(target):
             await new Promise(requestAnimationFrame);
             highlight = row.querySelector(selector);
         }
+        const first = center(highlight.getBoundingClientRect());
         // Hold the highlight halfway between the two rows, where the slide passes.
         const transform = highlight.style.transform;
         highlight.style.transform = `translateY(${(start - end) / 2}px)`;
@@ -231,11 +232,16 @@ def assert_sidebar_slide(target):
             .includes(highlight);
         highlight.style.removeProperty('pointer-events');
         highlight.style.transform = transform;
-        return visible;
+        return {visible, start, first};
     }""",
         highlight_selector,
     )
-    assert traveled, f"Sidebar highlight is hidden part way to {target.inner_text()}"
+    assert abs(slide["first"] - slide["start"]) <= 1, (
+        f"Sidebar highlight starts its slide to {target.inner_text()} at y={slide['first']}, not at the item it left (y={slide['start']})"
+    )
+    assert slide["visible"], (
+        f"Sidebar highlight is hidden part way to {target.inner_text()}"
+    )
     expect(target).to_have_attribute("aria-current", "page")
     expect(target.locator("..").locator(highlight_selector)).to_have_css(
         "transform", "none"
@@ -262,6 +268,13 @@ def shell_navigation(page):
     resources = sidebar.get_by_role("link", name="Resources", exact=True)
     dashboard = sidebar.get_by_role("link", name="Dashboard", exact=True)
     assert_sidebar_slide(resources)
+    assert_sidebar_slide(dashboard)
+    assert_sidebar_slide(sidebar.get_by_role("link", name="Settings", exact=True))
+    # Scrolls until the page has moved; the shorter Team page pulls the scroll back to the top.
+    page.wait_for_function(
+        "() => { window.scrollTo(0, document.documentElement.scrollHeight); return window.scrollY > 0; }"
+    )
+    assert_sidebar_slide(sidebar.get_by_role("link", name="Team", exact=True))
     assert_sidebar_slide(dashboard)
     page.emulate_media(reduced_motion="reduce")
     resources.press("Enter")
