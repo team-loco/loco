@@ -107,6 +107,7 @@ export function ResourceHeader({
 	warnings,
 	isSettings,
 	redeploying,
+	canRedeploy,
 	restarting,
 	onRestart,
 	canWrite,
@@ -129,6 +130,7 @@ export function ResourceHeader({
 	warnings: number;
 	isSettings: boolean;
 	redeploying: boolean;
+	canRedeploy: boolean;
 	restarting: boolean;
 	onRestart: () => void;
 	canWrite: boolean;
@@ -150,7 +152,6 @@ export function ResourceHeader({
 	const image = depImage(primary);
 	const since = primary === undefined ? undefined : readyMs(primary);
 	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
-	const canRedeploy = canWrite && deployed.length > 0 && !redeploying;
 	const writeHint = canWrite ? undefined : NEEDS_WRITE;
 
 	return (

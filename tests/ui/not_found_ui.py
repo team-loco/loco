@@ -137,7 +137,7 @@ with session(out) as browser:
 
     top_search.click()
     expect(query).to_be_focused()
-    for group in ("This page", "Actions", "Pages"):
+    for group in ("This page", "Actions", "Copy", "Go to"):
         expect(results.get_by_role("group", name=group)).to_be_visible()
     expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
     for option in (

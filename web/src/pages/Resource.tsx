@@ -2,6 +2,7 @@ import { formatShortId } from "@/lib/utils";
 import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { BellIcon, FileCodeIcon, RotateCwIcon, ScrollTextIcon, Settings2Icon, Undo2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useNavigate, useParams, useSearchParams } from "react-router";
@@ -17,6 +18,7 @@ import {
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
+import { PageCommands, type PageCommand } from "@/components/shell/CommandMenu";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -367,9 +369,77 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const openSpec = (dep: Deployment | undefined, shown: Deployment[] = []) => {
 		if (dep !== undefined) setModal({ kind: "spec", deploymentId: dep.id, compareId: null, shown: [dep, ...shown] });
 	};
+	const openEvents = () => {
+		setEventsSince(Date.now() - EVENTS_DRAWER_WINDOW_MS);
+		setEventsOpen(true);
+	};
+	const logsHref = obsLink("logs");
+	const spec = deployed[0]?.current;
+	const canRedeploy = canWrite && deployed.length > 0 && !redeploying;
+	const askRedeploy = () => {
+		setModal({ kind: "redeploy" });
+	};
+	const askRollback = () => {
+		if (rollbackTarget !== undefined) openRollback(rollbackTarget, focus?.current);
+	};
+	const pageCommands: PageCommand[] = [];
+	if (canRedeploy)
+		pageCommands.push({
+			id: "redeploy",
+			label: `Redeploy ${resource.name}`,
+			icon: <RotateCwIcon />,
+			run: askRedeploy,
+		});
+	if (canWrite && rollbackTarget !== undefined)
+		pageCommands.push({
+			id: "rollback",
+			label: `Roll back ${resource.name}`,
+			icon: <Undo2Icon />,
+			run: askRollback,
+		});
+	if (spec !== undefined)
+		pageCommands.push({
+			id: "view-spec",
+			label: "View spec",
+			meta: resource.name,
+			icon: <FileCodeIcon />,
+			run: () => {
+				openSpec(spec);
+			},
+		});
+	pageCommands.push(
+		{
+			id: "events",
+			label: "Open events",
+			keywords: "warnings activity",
+			meta: resource.name,
+			icon: <BellIcon />,
+			run: openEvents,
+		},
+		{
+			id: "settings",
+			label: "Settings",
+			keywords: "variables env scaling",
+			meta: resource.name,
+			icon: <Settings2Icon />,
+			run: () => {
+				setView("settings");
+			},
+		},
+	);
+	if (logsHref !== undefined)
+		pageCommands.push({
+			id: "logs",
+			label: `Logs for ${resource.name}`,
+			icon: <ScrollTextIcon />,
+			run: () => {
+				void navigate(logsHref);
+			},
+		});
 
 	return (
 		<Page className="gap-5">
+			<PageCommands items={pageCommands} />
 			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
 			<ResourceHeader
 				nowMs={nowMs}
@@ -380,6 +450,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				warnings={recentWarningCount(events, nowMs)}
 				isSettings={view !== "overview"}
 				redeploying={redeploying}
+				canRedeploy={canRedeploy}
 				restarting={restart.isPending}
 				onRestart={() => {
 					setModal({ kind: "restart" });
@@ -387,19 +458,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				canWrite={canWrite}
 				canDelete={canDelete}
 				rollbackTarget={rollbackTarget}
-				onEvents={() => {
-					setEventsSince(Date.now() - EVENTS_DRAWER_WINDOW_MS);
-					setEventsOpen(true);
-				}}
+				onEvents={openEvents}
 				onSettings={() => {
 					setView(view === "overview" ? "settings" : "overview");
 				}}
-				onRedeploy={() => {
-					setModal({ kind: "redeploy" });
-				}}
-				onRollback={() => {
-					if (rollbackTarget !== undefined) openRollback(rollbackTarget, focus?.current);
-				}}
+				onRedeploy={askRedeploy}
+				onRollback={askRollback}
 				onScale={() => {
 					setView("scaling");
 				}}
