@@ -513,7 +513,7 @@ export function RegionsSection({
 								note === undefined ? undefined : (
 									<>
 										{note}
-										{configured && on && name === defaultRegion && " · default"}
+										{configured && on && name === defaultRegion && ", default"}
 									</>
 								)
 							}

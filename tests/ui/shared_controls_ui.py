@@ -1631,6 +1631,14 @@ def traffic_small_values(page):
     labels = ticks.all_text_contents()
     requests = [t for t in labels if t.endswith("/s") and not t.endswith("B/s")]
     assert requests == ["0/s", "0.01/s", "0.02/s", "0.03/s"], labels
+    # Hovering the chart reads errors and p95 at that point next to requests.
+    plot = section.locator(".recharts-surface").first
+    box = plot.bounding_box()
+    plot.hover(position={"x": box["width"] * 0.5, "y": box["height"] * 0.5})
+    tooltip = section.locator(".recharts-tooltip-wrapper")
+    expect(tooltip).to_contain_text("Requests")
+    expect(tooltip).to_contain_text(re.compile(r"Errors\s*0%"))
+    expect(tooltip).to_contain_text(re.compile(r"p95\s*[\d,.]+ ?m?s"))
     page.get_by_role("button", name="24h", exact=True).click()
     axis = section.get_by_role("application").first.locator(
         ".recharts-xAxis-tick-labels text"

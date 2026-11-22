@@ -26,12 +26,9 @@ const COPIED_MS = 1500;
 const YAML_TYPE = "application/yaml";
 
 function optionLabel(dep: Deployment, pref: TimePreferences): string {
-	return [
-		formatShortId(dep.id),
-		deploymentRegions(dep).join(", "),
-		depTag(dep),
-		formatStarted(readyMs(dep), pref),
-	].join(" · ");
+	const started = readyMs(dep);
+	const label = `${formatShortId(dep.id)} (${depTag(dep)}) in ${deploymentRegions(dep).join(", ")}`;
+	return started === undefined ? label : `${label}, started ${formatStarted(started, pref)}`;
 }
 
 function Picker({

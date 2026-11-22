@@ -1,10 +1,7 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { keepPreviousData, useQueries } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-	listDeployments,
-	queryDeploymentBuckets,
-} from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Button } from "@/components/design/Button";
@@ -16,20 +13,18 @@ import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { msToTimestamp } from "@/lib/time";
 
-import { chartWindow, deploymentMarkers, RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
+import { chartWindow, RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
 import { MetricChart, SERIES, seriesColor } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, REFRESH_MS, type RegionView } from "./model";
 import { ReplicaDetail, ReplicaList } from "./ReplicaList";
+import { useDeploymentMarkers } from "./useDeploymentMarkers";
 import { useMetricBand } from "./useMetricBand";
 
 const ALL_REGIONS = "all";
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
 const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
-const MARKER_BUCKETS = 200;
 const WINDOW_DEPLOYMENTS = 200;
-// nowMs ticks once a minute; the window runs a minute past it to cover the charts' newer end.
-const MARKER_LEAD_MS = 60_000;
 
 type Size = (target: Sizing) => number;
 
@@ -95,19 +90,7 @@ export function ReplicasPanel({
 	const memoryLimits = regionLimits(charted, windowed, memorySize);
 	const single = charted.length === 1 ? charted[0]?.name : undefined;
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
-	const buckets = useQuery(
-		queryDeploymentBuckets,
-		{
-			workspaceId,
-			environmentId,
-			resourceIds: [resourceId],
-			since,
-			until: msToTimestamp(nowMs + MARKER_LEAD_MS),
-			bucketCount: MARKER_BUCKETS,
-		},
-		{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
-	);
-	const markers = deploymentMarkers(buckets.data?.buckets ?? []);
+	const markers = useDeploymentMarkers({ workspaceId, environmentId, resourceId, range, nowMs });
 	const transport = useTransport();
 	const [cpuPods, memoryPods] = useQueries({
 		queries: [CPU_METRIC, MEMORY_METRIC].map((metricName) =>

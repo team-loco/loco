@@ -39,6 +39,21 @@ export function seriesColor(index: number): string {
 	return `var(--series-${(index % SERIES).toString()})`;
 }
 
+/** A dashed line with its label for each marker inside the chart's window. */
+export function markerLines(markers: readonly ChartMarker[], from: number, to: number) {
+	return markers
+		.filter((m) => m.ms >= from && m.ms <= to)
+		.map((m) => (
+			<ReferenceLine
+				key={m.ms}
+				x={m.ms}
+				stroke="var(--fg3)"
+				strokeDasharray="2 3"
+				label={{ value: m.label, position: "insideTopLeft", fontSize: AXIS_FONT, fill: "var(--fg3)" }}
+			/>
+		));
+}
+
 /** The part of a replica's name that tells it apart from its siblings. */
 export function shortName(replica: string): string {
 	return replica.split("-").at(-1) ?? replica;
@@ -138,7 +153,6 @@ export function MetricChart({
 		tightest !== undefined && tightestHigh > tightest.limit * WARN_SHARE
 			? `Peaked ${tightestHigh > tightest.limit ? "above" : "within 15% of"} the ${name} limit (${show(tightest.limit)})`
 			: undefined;
-	const shown = markers.filter((m) => m.ms >= from && m.ms <= to);
 	const highest = replicas?.highest;
 	const average = replicas === undefined ? usage.average : replicas.average;
 	const top = replicas === undefined ? usage.highest : highest?.value;
@@ -225,15 +239,7 @@ export function MetricChart({
 								}}
 							/>
 						)}
-						{shown.map((m) => (
-							<ReferenceLine
-								key={m.ms}
-								x={m.ms}
-								stroke="var(--fg3)"
-								strokeDasharray="2 3"
-								label={{ value: m.label, position: "insideTopLeft", fontSize: AXIS_FONT, fill: "var(--fg3)" }}
-							/>
-						))}
+						{markerLines(markers, from, to)}
 						<ChartTooltip
 							content={
 								<ChartTooltipContent

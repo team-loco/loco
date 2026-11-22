@@ -80,6 +80,9 @@ function ImportDialog({
 		>
 			<DialogContent title="Import .env">
 				<DialogBody>
+					<span className="text-[13.5px] text-fg2">
+						Paste the contents of a .env file. Existing keys are overwritten.
+					</span>
 					<Textarea
 						aria-label=".env contents"
 						value={text}

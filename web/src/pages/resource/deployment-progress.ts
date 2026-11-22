@@ -227,5 +227,5 @@ export function replicaSummary(replicas: readonly Replica[]): string {
 		counts.set(label, (counts.get(label) ?? 0) + 1);
 	}
 	const parts = [...counts].map(([label, n]) => `${n.toString()} ${label.toLowerCase()}`);
-	return [`${replicas.length.toString()} replicas`, ...parts].join(" · ");
+	return [`${replicas.length.toString()} replicas`, ...parts].join(", ");
 }

@@ -95,7 +95,7 @@ describe("buildStarter", () => {
 			build(BuildStatus.SUCCEEDED, { actorType: DeploymentActorType.USER, method: DeploymentMethod.CLI }),
 			{ name: "Ada", email: "ada@example.com" },
 		);
-		expect(starter).toEqual({ name: "Ada", detail: "loco deploy · CLI" });
+		expect(starter).toEqual({ name: "Ada", detail: "CLI" });
 	});
 
 	test("labels a token build as an API token", () => {
@@ -107,7 +107,7 @@ describe("buildStarter", () => {
 			}),
 			undefined,
 		);
-		expect(starter.name).toBe("API token · 0000a001");
+		expect(starter.name).toBe("API token (0000a001)");
 	});
 
 	test("names a token build after the token while it exists", () => {

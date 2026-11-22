@@ -10,7 +10,7 @@ test("deployment attribution names the caller and how they deployed", () => {
 		actorName: "Nikhil Kumar",
 		method: DeploymentMethod.CLI,
 	});
-	expect([deploymentActor(deployment), deploymentMethod(deployment)]).toEqual(["Nikhil Kumar", "loco deploy · CLI"]);
+	expect([deploymentActor(deployment), deploymentMethod(deployment)]).toEqual(["Nikhil Kumar", "CLI"]);
 	deployment.actorType = DeploymentActorType.API_TOKEN;
 	deployment.actorName = "release-token";
 	deployment.method = DeploymentMethod.API_TOKEN;

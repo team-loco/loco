@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { ArrowLeftIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
@@ -109,6 +109,7 @@ function jumpToSection() {
 
 export function SettingsView({
 	resource,
+	secretsNotice,
 	environmentId,
 	regions,
 	draft,
@@ -124,6 +125,7 @@ export function SettingsView({
 	onRollback,
 }: {
 	resource: Resource;
+	secretsNotice: ReactNode;
 	environmentId: string;
 	regions: RegionView[];
 	draft: SettingsDraft;
@@ -238,6 +240,7 @@ export function SettingsView({
 			</div>
 			<ServingBanner regions={regions} canWrite={canWrite} onRollback={onRollback} />
 			{managed && <ManagedNotice />}
+			{secretsNotice}
 			{!canWrite && (
 				<Notice id={READ_ONLY_ID}>
 					You can view these settings. Changing them needs write access to this resource.

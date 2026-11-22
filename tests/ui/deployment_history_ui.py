@@ -357,7 +357,7 @@ with session(out) as browser:
     expect(
         deployments.get_by_role("columnheader", name="Deployed", exact=True)
     ).to_be_visible()
-    expect(section.get_by_text("loco deploy · CLI", exact=True).first).to_be_visible()
+    expect(section.get_by_text("CLI", exact=True).first).to_be_visible()
     expect(
         deployments.get_by_role("cell", name="Add the release checklist", exact=True)
     ).to_be_visible()
@@ -391,7 +391,7 @@ with session(out) as browser:
     picker.click()
     expect(
         page.get_by_role("menuitemradio", name=re.compile(data["releases"][3][-8:]))
-    ).to_have_text(re.compile(r"· —\s*$"))
+    ).to_have_text(re.compile(r"\) in [a-z0-9-]+(, [a-z0-9-]+)*\s*$"))
     page.keyboard.press("Escape")
     page.keyboard.press("Escape")
     section.get_by_role(
@@ -407,7 +407,7 @@ with session(out) as browser:
     expect(redeploy_dialog.get_by_text("Now running", exact=True)).to_be_visible()
     expect(
         redeploy_dialog.get_by_text(
-            "with the current values of the secrets it uses", exact=False
+            "Useful after changing a secret or when a replica is stuck.", exact=False
         )
     ).to_be_visible()
     redeploy_dialog.get_by_role("button", name="Cancel", exact=True).click()
@@ -575,12 +575,10 @@ with session(out) as browser:
     ).to_be_visible()
     expect(
         section.get_by_role("tabpanel", name=re.compile(r"^Builds"))
-        .get_by_text("loco deploy · CLI", exact=True)
+        .get_by_text("CLI", exact=True)
         .first
     ).to_be_visible()
-    expect(
-        section.get_by_text(re.compile(r"· loco deploy · CLI$")).first
-    ).to_be_visible()
+    expect(section.get_by_text(re.compile(r"^\S.*, CLI$")).first).to_be_visible()
     section.get_by_role(
         "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True
     ).click()
@@ -740,7 +738,7 @@ with session(out) as browser:
         "dialog", name=re.compile(r"^Roll back history-pilot to .+ in .+\?$")
     )
     summary = rollback_dialog.get_by_text(
-        re.compile(r"^(\d+ changes? · \d+ unchanged|No spec changes · \d+ settings)$")
+        re.compile(r"^(\d+ changes?, \d+ unchanged|No spec changes, \d+ settings)$")
     )
     expect(summary).to_be_visible()
     rollback_dialog.get_by_role("button", name="Show everything", exact=True).click()

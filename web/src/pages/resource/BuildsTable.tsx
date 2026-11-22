@@ -149,7 +149,7 @@ export function BuildDetail({
 		"Not recorded";
 	const message = buildMessage(build);
 	const starter = buildStarter(build, actors.get(build.createdBy));
-	const starterFact = starter.detail === "" ? starter.name : `${starter.name} · ${starter.detail}`;
+	const starterFact = starter.detail === "" ? starter.name : `${starter.name}, ${starter.detail}`;
 	const facts: [string, string][] = [
 		["Build ID", build.id],
 		["Started by", starterFact],

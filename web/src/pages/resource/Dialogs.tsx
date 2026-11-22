@@ -64,12 +64,11 @@ export function RedeployDialogContent({
 				<RunningSwap from={tags} to={tags} />
 				<span className="text-[12.5px] text-fg3">Same spec as the running deployment</span>
 				<span>
-					Starts fresh replicas from the same image in{" "}
+					Creates a new deployment from the same spec, with fresh replicas in{" "}
 					<span className="font-mono text-foreground">
 						{running.flatMap((d) => d.placements.filter((p) => p.live).map((p) => p.region)).join(", ")}
 					</span>
-					, with the current values of the secrets it uses. Useful when a replica is stuck or after changing one of
-					those values.
+					. Useful after changing a secret or when a replica is stuck.
 				</span>
 			</DialogBody>
 			<DialogFooter>
@@ -114,8 +113,8 @@ export function RollbackDialogContent({
 						<div className="flex items-center justify-between gap-3 border-b border-line px-3.5 py-2.5 text-[12.5px] text-fg3">
 							<span>
 								{changes.length === 0
-									? `No spec changes · ${rows.length.toString()} settings`
-									: `${changes.length.toString()} ${changes.length === 1 ? "change" : "changes"} · ${(rows.length - changes.length).toString()} unchanged`}
+									? `No spec changes, ${rows.length.toString()} settings`
+									: `${changes.length.toString()} ${changes.length === 1 ? "change" : "changes"}, ${(rows.length - changes.length).toString()} unchanged`}
 							</span>
 							<Button
 								variant="link"

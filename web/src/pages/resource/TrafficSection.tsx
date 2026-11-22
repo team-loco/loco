@@ -8,10 +8,21 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { useTraffic } from "@/hooks/useTraffic";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatAxisTime, formatFullTime, timeAxis } from "@/lib/time";
-import { errorShare, latestTraffic, trafficAxis, trafficValue } from "@/lib/traffic";
+import { errorShare, latestTraffic, trafficAxis, trafficValue, type TrafficPoint } from "@/lib/traffic";
 import { RANGE_MS, type MetricRange } from "./metric";
+import { markerLines } from "./MetricChart";
+import { useDeploymentMarkers } from "./useDeploymentMarkers";
 
 const ERROR_NOTE_SHARE = 2;
+
+function TooltipRow({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="flex justify-between gap-4">
+			<span className="text-fg3">{label}</span>
+			<span className="font-mono text-foreground tabular-nums">{value}</span>
+		</div>
+	);
+}
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string | undefined }) {
 	return (
@@ -25,6 +36,17 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 	);
 }
 
+function trafficTooltip(value: unknown, _name: unknown, item: { payload?: unknown }) {
+	const point = item.payload as TrafficPoint | undefined;
+	return (
+		<div className="grid w-full gap-1">
+			<TooltipRow label="Requests" value={trafficValue(Number(value), "/s")} />
+			<TooltipRow label="Errors" value={trafficValue(errorShare(point), "%")} />
+			<TooltipRow label="p95" value={trafficValue(point?.latency, " ms")} />
+		</div>
+	);
+}
+
 export function TrafficSection({
 	workspaceId,
 	environmentId,
@@ -32,6 +54,7 @@ export function TrafficSection({
 	region,
 	range,
 	isPublic,
+	nowMs,
 }: {
 	workspaceId: string;
 	environmentId: string;
@@ -39,6 +62,7 @@ export function TrafficSection({
 	region: string;
 	range: MetricRange;
 	isPublic: boolean;
+	nowMs: number;
 }) {
 	if (!isPublic) {
 		return (
@@ -49,7 +73,7 @@ export function TrafficSection({
 			</Section>
 		);
 	}
-	return <PublicTraffic {...{ workspaceId, environmentId, resourceId, region, range }} />;
+	return <PublicTraffic {...{ workspaceId, environmentId, resourceId, region, range, nowMs }} />;
 }
 
 function PublicTraffic({
@@ -58,12 +82,14 @@ function PublicTraffic({
 	resourceId,
 	region,
 	range,
+	nowMs,
 }: {
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
 	region: string;
 	range: MetricRange;
+	nowMs: number;
 }) {
 	const timePref = useTimePreferences();
 	const traffic = useTraffic({
@@ -73,6 +99,7 @@ function PublicTraffic({
 		region,
 		spanMs: RANGE_MS[range],
 	});
+	const markers = useDeploymentMarkers({ workspaceId, environmentId, resourceId, range, nowMs });
 	const to = traffic.endMs;
 	const from = to - RANGE_MS[range];
 	const latest = latestTraffic(traffic.points, resourceId);
@@ -139,10 +166,11 @@ function PublicTraffic({
 												const point = payload[0]?.payload as { time?: number } | undefined;
 												return point?.time === undefined ? "" : formatFullTime(point.time, false, timePref);
 											}}
-											formatter={(value) => trafficValue(Number(value), "/s")}
+											formatter={trafficTooltip}
 										/>
 									}
 								/>
+								{markerLines(markers, from, to)}
 								<Area
 									dataKey="requests"
 									stroke="var(--series-0)"

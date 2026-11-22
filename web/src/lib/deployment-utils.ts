@@ -119,7 +119,7 @@ export function deploymentActor(d: Deployment): string {
 
 export const METHOD_LABEL: Record<DeploymentMethod, string> = {
 	[DeploymentMethod.UNSPECIFIED]: "",
-	[DeploymentMethod.CLI]: "loco deploy · CLI",
+	[DeploymentMethod.CLI]: "CLI",
 	[DeploymentMethod.WEB]: "Dashboard",
 	[DeploymentMethod.API_TOKEN]: "API token",
 };

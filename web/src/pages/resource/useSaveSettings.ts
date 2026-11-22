@@ -215,7 +215,7 @@ export function useSaveSettings({
 				message: [
 					...failures,
 					...(savedRegions.length > 0 ? [`Saved changes in ${savedRegions.join(", ")}.`] : []),
-				].join(" · "),
+				].join("\n"),
 			});
 			return;
 		}
