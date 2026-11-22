@@ -301,6 +301,7 @@ function secretColumns({
 				) : (
 					<span className="flex min-w-0 flex-wrap gap-x-3 gap-y-1">
 						{secret.usedBy.map((user) => (
+							// The link uses its own hover group, so only the hovered link shows its arrow.
 							<Link
 								key={user.resourceId}
 								className="group/used inline-flex items-center font-mono text-[13px] text-foreground no-underline"

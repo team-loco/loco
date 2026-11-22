@@ -255,13 +255,15 @@ export function AccessPicker({
 							<ComboboxGroup key={g.label}>
 								<ComboboxLabel className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">{g.label}</ComboboxLabel>
 								{g.nodes.map((n) => {
-									const noAccess = heldLevel(held, n) === 0;
+									const lvl = heldLevel(held, n);
+									const noAccess = lvl === 0;
+									const disabled = noAccess && n.kind !== "ws";
 									const covered = n.kind === "res" && coveredBy(n, 1) !== null;
 									return (
 										<ComboboxItem
 											key={n.key}
 											value={n}
-											disabled={noAccess && n.kind !== "ws"}
+											disabled={disabled}
 											title={noAccess ? `You have no access to ${n.label}` : undefined}
 											className={cn(noAccess && "opacity-45", covered && "opacity-50")}
 										>
