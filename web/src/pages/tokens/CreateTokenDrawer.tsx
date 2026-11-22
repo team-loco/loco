@@ -30,13 +30,12 @@ import {
 	defaultExpirySeconds,
 	expiryOptions,
 	grantsToScopes,
-	nodeKey,
 	OWNER_KEYS,
 	OWNER_TITLE,
 	sanitizeTokenName,
 	TOKEN_NAME_RE,
 } from "./model";
-import type { EntityNode, Level, OwnerKey } from "./model";
+import type { OwnerKey } from "./model";
 import type { TokenData } from "./useTokenData";
 
 export interface CreateDraft {
@@ -190,11 +189,7 @@ function CreateForm({
 					? "A token with this name already exists."
 					: null);
 	const valid = name !== "" && nameErr === null && items.length > 0 && expiryErr === null;
-	const resolved: { node: EntityNode; level: Level }[] = items.flatMap((it) => {
-		const node = data.tree.nodes.get(it.key);
-		return node === undefined ? [] : [{ node, level: it.level }];
-	});
-	const allows = allowsFor(resolved.map((r) => ({ kind: r.node.kind, level: r.level })));
+	const allows = allowsFor(items.map((r) => ({ kind: r.node.kind, level: r.level })));
 	const submit = async () => {
 		if (name === "") setNameTouched(true);
 		if (mutation.isPending || owner.id === null || !owner.canCreate || !valid) return;
@@ -203,7 +198,7 @@ function CreateForm({
 				name,
 				entityType: owner.entityType,
 				entityId: owner.id,
-				scopes: grantsToScopes(resolved),
+				scopes: grantsToScopes(items),
 				expiresInSec: BigInt(seconds),
 			});
 			onCreated(ownerKey, name, res.token);
@@ -330,18 +325,12 @@ function CreateForm({
 					<span className="text-[13px] font-medium">Permissions</span>
 					<AccessPicker
 						key={ownerKey}
-						tree={data.tree}
+						roots={data.roots}
+						org={data.activeOrg}
 						held={data.held}
 						items={items}
 						allowUser={ownerKey === "user"}
-						resourcesLoading={data.resourcesLoading}
-						resourcesError={data.resourcesError}
-						retryResources={data.retryResources}
-						scope={
-							owner.id === null || ownerKey === "user"
-								? null
-								: (data.tree.nodes.get(nodeKey(owner.entityType, owner.id)) ?? null)
-						}
+						scope={ownerKey === "user" ? null : owner.node}
 						onChange={setItems}
 					/>
 					<span className="text-[12.5px] text-fg3">You can only grant access you hold yourself.</span>
