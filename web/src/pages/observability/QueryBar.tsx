@@ -254,7 +254,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 		const entries = [...typed, ...vals.map(([v, c]): [string, number, string] => [v, c, quoteValue(v)])];
 		const items = entries.map(([v, c, written]) => valueItem(vmDef.key, v, c, neg, written));
 		groups.push({
-			title: `@${vmDef.key} values${sampledKeys?.has(vmDef.key) ? " · counts from loaded lines" : ""}`,
+			title: `@${vmDef.key} values${sampledKeys?.has(vmDef.key) ? ", counts from loaded lines" : ""}`,
 			items,
 		});
 	} else if (km) {

@@ -48,7 +48,7 @@ test("retains event context for filters and raw JSON", () => {
 		data: { region: "us-va-1" },
 	});
 	const scaled = { ...event, type: "resource.scaled", replicas: "3", region: "us-va-1", message: "" };
-	expect(eventSummary(scaled)).toBe("replicas 3 · region us-va-1");
+	expect(eventSummary(scaled)).toBe("replicas 3, region us-va-1");
 	expect(eventSummary({ ...scaled, message: "Scaled by operator" })).toBe("Scaled by operator");
 });
 

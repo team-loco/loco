@@ -471,7 +471,7 @@ export function MetricsView() {
 				key: `deploy-${m.resourceId}-${String(m.t)}`,
 				icon: <RocketIcon />,
 				label: `Deploy ${m.tag}`,
-				sub: `${m.resourceName} · ${m.region} · ${formatHourMinute(m.t, timePref)}`,
+				sub: `${m.resourceName}, ${m.region}, ${formatHourMinute(m.t, timePref)}`,
 				run: () => {
 					void navigate(resourcePath(orgId, workspaceId, m.resourceId));
 				},

@@ -1054,10 +1054,8 @@ with session(out) as browser:
     clock = r"\d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)?"
     tooltips = page.get_by_role("tooltip")
     expect(tooltips).to_have_count(2)
-    expect(tooltips.nth(0)).to_have_text(re.compile(f"^{clock} · 5 traces · 1 error$"))
-    expect(tooltips.nth(1)).to_have_text(
-        re.compile(f"^{clock} · p50 80ms · p95 360ms$")
-    )
+    expect(tooltips.nth(0)).to_have_text(re.compile(f"^{clock}, 5 traces, 1 error$"))
+    expect(tooltips.nth(1)).to_have_text(re.compile(f"^{clock}, p50 80ms, p95 360ms$"))
     chart.hover(position={"x": 2, "y": 2})
     page.mouse.down()
     page.mouse.move(
@@ -1204,7 +1202,9 @@ with session(out) as browser:
     context, page, _ = open_page(browser, state=state, now=now)
     original_spans = json.loads(json.dumps(spans))
     unmapped_failing = failing
-    failing = re.compile(r"^checkout · payment POST \/payments\/authorize, .*, error$")
+    failing = re.compile(
+        r"^checkout \(payment\) POST \/payments\/authorize, .*, error$"
+    )
     for row in spans:
         row["resourceId"] = workspace_id
         row["resourceAttributes"].update(
@@ -1298,10 +1298,16 @@ with session(out) as browser:
         if metric_mode[0] == "empty":
             route.fulfill(json={"series": []})
             return
+        cpu_share = [0.3, 0.92, 0.45]
+        memory_share = [0.4, 0.6, 0.5]
         values = (
-            [0.3, 0.92, 0.45]
+            [share * 0.5 for share in cpu_share]
+            if body["metricName"] == "k8s.pod.cpu.usage"
+            else cpu_share
             if body["metricName"] == "k8s.pod.cpu_limit_utilization"
-            else [0.4, 0.6, 0.5]
+            else [share * 512 * 1024 * 1024 for share in memory_share]
+            if body["metricName"] == "k8s.pod.memory.working_set"
+            else memory_share
             if body["metricName"] == "k8s.pod.memory.working_set_limit_utilization"
             else [1024, 2048, 512]
             if body["attributes"].get("direction") == "receive"
@@ -1316,7 +1322,10 @@ with session(out) as browser:
                     ),
                     "value": value * scale,
                 }
-                for offset, value in zip((-60, 60, 120), values, strict=True)
+                # The API buckets from before the window, so the first point lies outside it.
+                for offset, value in zip(
+                    (-900, -60, 60, 120), [values[0], *values], strict=True
+                )
             ]
 
         route.fulfill(
@@ -1452,7 +1461,7 @@ with session(out) as browser:
     drawer.get_by_role("button", name="This span", exact=True).click()
     expect(log_rows.get_by_role("button")).to_have_count(1)
     drawer.get_by_role("region", name="Flame graph").get_by_role(
-        "button", name=re.compile("^checkout · currency Convert")
+        "button", name=re.compile(r"^checkout \(currency\) Convert")
     ).click()
     expect(
         log_rows.get_by_text("No logs from this span or its children.", exact=True)
@@ -1512,18 +1521,38 @@ with session(out) as browser:
         expect(
             chart.get_by_role("group", name=title + " usage", exact=True)
         ).to_be_visible()
-    expect(cpu.get_by_label("CPU at trace start")).to_have_text("30%")
-    expect(cpu.get_by_text("Peak 92% · High", exact=True)).to_be_visible()
-    expect(memory.get_by_label("Memory at trace start")).to_have_text("40%")
-    expect(memory.get_by_text("Peak 60%", exact=True)).to_be_visible()
-    expect(cpu.get_by_text("Limit 100%", exact=True)).to_be_visible()
-    assert len(metric_requests) == 4, metric_requests
+    expect(cpu.get_by_label("CPU at trace start")).to_have_text("0.15 vCPU")
+    expect(cpu.get_by_text("0.46 vCPU", exact=True)).to_be_visible()
+    expect(cpu).to_contain_text("near the limit")
+    expect(memory.get_by_label("Memory at trace start")).to_have_text("205 Mi")
+    expect(memory.get_by_text("307 Mi", exact=True)).to_be_visible()
+    expect(memory).not_to_contain_text("near the limit")
+    expect(cpu.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
+    expect(memory.get_by_text("limit 512 Mi", exact=True)).to_be_visible()
+    expect(network.get_by_text(re.compile("^limit "))).to_have_count(0)
+    for chart, title in ((cpu, "CPU"), (memory, "Memory"), (network, "Network")):
+        marks = chart.get_by_role("group", name="Events on " + title, exact=True)
+        expect(marks.get_by_role("button")).to_have_count(1)
+        expect(
+            marks.get_by_role("button", name=re.compile("^Restarted in us-ca-1, "))
+        ).to_be_visible()
+    grid = cpu.locator(".recharts-cartesian-grid").bounding_box()
+    band = cpu.locator(".recharts-reference-area").bounding_box()
+    mark = cpu.get_by_role(
+        "button", name=re.compile("^Restarted in us-ca-1, ")
+    ).bounding_box()
+    # The restart is 120s before the trace in a ±10m window; the sub-second trace adds under a pixel.
+    expected = band["x"] - grid["width"] * 120 / 1200
+    assert abs(mark["x"] + mark["width"] / 2 - expected) < 3, (mark, band, grid)
+    assert len(metric_requests) == 6, metric_requests
     assert all(
         request["resourceIds"] == [workspace_id] and request["byPod"]
         for request in metric_requests
     )
     assert {request["metricName"] for request in metric_requests} == {
+        "k8s.pod.cpu.usage",
         "k8s.pod.cpu_limit_utilization",
+        "k8s.pod.memory.working_set",
         "k8s.pod.memory.working_set_limit_utilization",
         "k8s.pod.network.io",
     }
@@ -1541,7 +1570,7 @@ with session(out) as browser:
     page.mouse.move(
         grid["x"] + grid["width"] * 0.55, grid["y"] + grid["height"] / 2, steps=3
     )
-    expect(cpu.get_by_label("CPU at cursor")).to_contain_text("92% at ")
+    expect(cpu.get_by_label("CPU at cursor")).to_contain_text("0.46 vCPU at ")
     expect(cpu.locator("output")).to_have_count(1)
     expect(memory.locator("output")).to_have_count(1)
     expect(cpu.get_by_label("CPU at trace start")).to_have_count(0)
@@ -1552,7 +1581,7 @@ with session(out) as browser:
             ".recharts-yAxis-tick-labels text"
         ).all_text_contents()
     )
-    expect(memory.get_by_label("Memory at cursor")).to_contain_text("60% at ")
+    expect(memory.get_by_label("Memory at cursor")).to_contain_text("307 Mi at ")
     expect(network.get_by_label("Network at cursor")).to_contain_text(" B/s at ")
     cursor_times = [
         chart.get_by_label(title + " at cursor").inner_text().split(" at ")[-1]
@@ -1560,8 +1589,8 @@ with session(out) as browser:
     ]
     assert len(set(cursor_times)) == 1, cursor_times
     page.mouse.move(0, 0)
-    expect(cpu.get_by_label("CPU at trace start")).to_have_text("30%")
-    expect(memory.get_by_label("Memory at trace start")).to_have_text("40%")
+    expect(cpu.get_by_label("CPU at trace start")).to_have_text("0.15 vCPU")
+    expect(memory.get_by_label("Memory at trace start")).to_have_text("205 Mi")
     window = infrastructure.get_by_role("group", name="Infrastructure window")
     expect(window.get_by_role("button", name="±10m", exact=True)).to_have_attribute(
         "aria-pressed", "true"
@@ -1570,15 +1599,18 @@ with session(out) as browser:
     expect(
         network.get_by_role("group", name="Network usage", exact=True)
     ).to_be_visible()
-    assert len(metric_requests) == 8, metric_requests
+    assert len(metric_requests) == 12, metric_requests
     assert all(
         7200
         <= iso_seconds(request["endTime"]) - iso_seconds(request["startTime"])
         <= 7201
-        for request in metric_requests[4:]
+        for request in metric_requests[6:]
     )
+    expect(
+        cpu.get_by_role("group", name="Events on CPU", exact=True).get_by_role("button")
+    ).to_have_count(2)
     drawer.get_by_role("region", name="Flame graph").get_by_role(
-        "button", name=re.compile("^checkout · product-catalog GetProduct")
+        "button", name=re.compile(r"^checkout \(product-catalog\) GetProduct")
     ).click()
     expect(window.get_by_role("button", name="±1h", exact=True)).to_have_attribute(
         "aria-pressed", "true"
@@ -1590,8 +1622,9 @@ with session(out) as browser:
     catalog_cpu = infrastructure.get_by_role(
         "region", name="CPU for catalog-def-456", exact=True
     )
-    expect(catalog_cpu.get_by_label("CPU at trace start")).to_have_text("15%")
-    expect(catalog_cpu.get_by_text("Peak 46%", exact=True)).to_be_visible()
+    expect(catalog_cpu.get_by_label("CPU at trace start")).to_have_text("0.075 vCPU")
+    expect(catalog_cpu.get_by_text("0.23 vCPU", exact=True)).to_be_visible()
+    expect(catalog_cpu).not_to_contain_text("near the limit")
     page.set_viewport_size({"width": 390, "height": 844})
     infrastructure.get_by_role(
         "region", name="Network for catalog-def-456", exact=True

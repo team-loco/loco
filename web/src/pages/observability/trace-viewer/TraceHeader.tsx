@@ -173,7 +173,7 @@ export function TraceHeader({
 											}}
 										/>
 										{rootIdentity?.name}
-										{rootIdentity?.service !== undefined && <span className="text-fg3">· {rootIdentity.service}</span>}
+										{rootIdentity?.service !== undefined && <span className="text-fg3">({rootIdentity.service})</span>}
 									</Link>
 								))}
 							<span title={formatFullTime(start, true, timePref)}>
@@ -222,8 +222,8 @@ export function TraceHeader({
 								key={item.key}
 								{...interactions(item.key)}
 								aria-pressed={pinned === item.key}
-								aria-label={`${item.label} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
-								title={`${item.label} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
+								aria-label={`${item.label}, ${durationLabel(item.nanos)} (${percent(item.share)})`}
+								title={`${item.label}, ${durationLabel(item.nanos)} (${percent(item.share)})`}
 								className={cn(
 									"tv-mseg min-w-1 border-0 p-0 transition-opacity focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:outline-none",
 									highlight !== null && highlight !== item.key && "opacity-25",
@@ -238,7 +238,7 @@ export function TraceHeader({
 									highlight !== null && !rest.some((item) => item.key === highlight) && "opacity-25",
 								)}
 								style={{ flexGrow: Math.max(restShare, 0.012) }}
-								title={`${rest.length.toString()} more · ${percent(restShare)}`}
+								title={`${rest.length.toString()} more, ${percent(restShare)}`}
 							/>
 						)}
 					</div>
@@ -248,7 +248,7 @@ export function TraceHeader({
 								type="button"
 								key={item.key}
 								{...interactions(item.key)}
-								title={`${item.label} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
+								title={`${item.label}, ${durationLabel(item.nanos)} (${percent(item.share)})`}
 								aria-pressed={pinned === item.key}
 								className={cn(
 									"inline-flex h-[22px] min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-left text-[12.5px] transition-opacity hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
@@ -259,7 +259,7 @@ export function TraceHeader({
 								<i className="size-2 shrink-0 rounded-[2px]" style={{ background: item.color }} />
 								<span className="truncate">
 									{item.name}
-									{item.service !== undefined && <span className="text-fg3"> · {item.service}</span>}
+									{item.service !== undefined && <span className="text-fg3"> ({item.service})</span>}
 								</span>
 								<span className="shrink-0 font-mono text-[11.5px] text-fg3">
 									{durationLabel(item.nanos)} ({percent(item.share)})

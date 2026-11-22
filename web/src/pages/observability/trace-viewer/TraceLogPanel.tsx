@@ -305,7 +305,14 @@ export function TraceLogPanel({
 							<TraceEvents trace={trace} events={events} minutes={minutes} onMinutes={setMinutes} />
 						</TabsContent>
 						<TabsContent value="infra" className="min-h-0 flex-1 overflow-auto">
-							<Infrastructure trace={trace} selected={selected} minutes={minutes} onMinutes={setMinutes} />
+							<Infrastructure
+								trace={trace}
+								selected={selected}
+								events={events.items}
+								moreEvents={events.more}
+								minutes={minutes}
+								onMinutes={setMinutes}
+							/>
 						</TabsContent>
 					</>
 				)}

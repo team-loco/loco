@@ -25,6 +25,7 @@ interface CodeBlockProps {
 	copyLabel?: string;
 	lineNumbers?: boolean;
 	wrap?: boolean;
+	onWrap?: (wrap: boolean) => void;
 	children: string;
 	language?: LanguageName | undefined;
 	className?: string | undefined;
@@ -37,6 +38,7 @@ function CodeBlock({
 	copyLabel = "Copy code",
 	lineNumbers = true,
 	wrap = false,
+	onWrap,
 }: CodeBlockProps) {
 	const [copiedKey, copy] = useCopy(COPIED_RESET_MS);
 	const [wrapJson, setWrapJson] = useState(wrap);
@@ -74,7 +76,15 @@ function CodeBlock({
 		>
 			{isJson && (
 				<div className="flex shrink-0 items-center justify-end gap-1 border-b border-line px-2 py-1.5">
-					<ToggleChip variant="button" className="h-6.5 px-2 text-xs" pressed={wrapJson} onPressedChange={setWrapJson}>
+					<ToggleChip
+						variant="button"
+						className="h-6.5 px-2 text-xs"
+						pressed={wrapJson}
+						onPressedChange={(next) => {
+							setWrapJson(next);
+							onWrap?.(next);
+						}}
+					>
 						<TextWrapIcon aria-hidden="true" />
 						Wrap lines
 					</ToggleChip>

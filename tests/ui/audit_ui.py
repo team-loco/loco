@@ -262,7 +262,7 @@ with session(out) as browser:
     expect(drawer.get_by_title("Copy request ID", exact=True)).to_be_visible()
     request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()
     expect(
-        drawer.get_by_role("button", name="More by Olivia", exact=True)
+        drawer.get_by_role("button", name="More by Olivia Owner", exact=True)
     ).to_be_visible()
     # The title and what the event acted on share one line.
     # Both boxes come from one frame, so the drawer's slide-in cannot skew them.

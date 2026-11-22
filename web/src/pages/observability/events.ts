@@ -22,7 +22,7 @@ export function eventSummary(e: RuntimeEvent): string {
 		]
 			.filter(([, value]) => value !== "")
 			.map(([key, value]) => `${key} ${value}`)
-			.join(" · ");
+			.join(", ");
 	for (const [key, label] of [
 		["deploymentId", "deployment"],
 		["buildId", "build"],

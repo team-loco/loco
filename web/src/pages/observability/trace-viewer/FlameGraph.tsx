@@ -68,7 +68,7 @@ export function FlameGraph({
 								{
 									title: b.span.name,
 									color: resourceColor(b.span),
-									meta: `${label(b.span)} · ${durationLabel(b.span.durationNanos)} · self ${durationLabel(selfTime(b.span))}`,
+									meta: `${label(b.span)}, ${durationLabel(b.span.durationNanos)}, self ${durationLabel(selfTime(b.span))}`,
 									error: err ? spanErrorText(b.span) : undefined,
 								},
 							]}

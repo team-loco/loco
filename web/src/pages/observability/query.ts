@@ -45,6 +45,7 @@ export type FieldKey =
 	| "replica"
 	| "build"
 	| "region"
+	| "method"
 	| "type"
 	| "status"
 	| "trace"
@@ -77,6 +78,7 @@ export const FIELDS: FieldDef[] = [
 	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"] },
 	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"] },
 	{ key: "region", label: "Region", views: REGION_VIEWS, negate: REGION_VIEWS },
+	{ key: "method", label: "HTTP method", views: ["logs"], negate: ["logs"] },
 	{ key: "severity", label: "Severity", views: EVENT_VIEWS, negate: EVENT_VIEWS },
 	{ key: "reason", label: "Reason", views: EVENT_VIEWS, negate: EVENT_VIEWS },
 	{ key: "actor", label: "Actor", views: EVENT_VIEWS, negate: EVENT_VIEWS },

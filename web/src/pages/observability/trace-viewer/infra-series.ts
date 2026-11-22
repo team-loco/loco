@@ -7,6 +7,28 @@ export interface InfraPoint {
 	out?: number;
 }
 
+/** The points of a resource's series, oldest first. */
+export function valuePoints(series: MetricSeries[] | undefined, resourceId: string): InfraPoint[] {
+	return networkPoints(series, undefined, resourceId);
+}
+
+/**
+ * The limit usage was measured against: usage over limit utilization, summed over the buckets both
+ * report. A constant limit divides out exactly.
+ */
+export function limitOf(usage: readonly InfraPoint[], utilization: readonly InfraPoint[]): number | undefined {
+	const used = new Map(usage.map((point) => [point.time, point.value]));
+	let total = 0;
+	let share = 0;
+	for (const point of utilization) {
+		const value = used.get(point.time);
+		if (value === undefined || point.value === undefined || point.value <= 0) continue;
+		total += value;
+		share += point.value;
+	}
+	return share > 0 ? total / share : undefined;
+}
+
 export function networkPoints(
 	incoming: MetricSeries[] | undefined,
 	outgoing: MetricSeries[] | undefined,
