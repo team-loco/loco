@@ -1,7 +1,9 @@
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Event } from "@gen/loco/event/v1/event_pb";
 
 import { deploymentActor, deploymentImage, deploymentProblem, isInFlight, shortSha } from "@/lib/deployment-utils";
 import { imageTag } from "@/lib/image";
+import { runtimeEvent } from "@/lib/runtime-events";
 import { maybeTsMs } from "@/lib/time";
 import { PROBLEM_REASONS } from "@/pages/resource/deployment-progress";
 
@@ -42,11 +44,23 @@ function standing(d: Deployment, name: string): { state: string; toast?: Shown }
 	if (d.status === DeploymentStatus.FAILED || d.status === DeploymentStatus.CRASHED)
 		return { state: "failed", toast: { tone: "failed", title: `${name} deploy failed`, description } };
 	if (d.status !== DeploymentStatus.RUNNING && d.status !== DeploymentStatus.DEGRADED) return { state: "done" };
-	if (problem === undefined)
-		return { state: "live", toast: { tone: "live", title: `${name} is live on ${deployRef(d)}`, description: "" } };
-	const reason = PROBLEM_REASONS[problem.reason];
-	const title = reason === undefined ? `${name} has a problem` : `${name}: ${reason.toLowerCase()}`;
-	return { state: `warning:${problem.reason}`, toast: { tone: "warning", title, description } };
+	// Problems on a live deployment toast from their resource.degraded event, see degradedToast.
+	return { state: "live", toast: { tone: "live", title: `${name} is live on ${deployRef(d)}`, description: "" } };
+}
+
+/** The warning toast for a resource.degraded event, such as "api: out of memory"; null for other events or unknown resources. */
+export function degradedToast(event: Event, names: ReadonlyMap<string, string>): DeployToast | null {
+	const name = names.get(event.resourceId);
+	if (event.type !== "resource.degraded" || name === undefined) return null;
+	const { reason, message } = runtimeEvent(event);
+	const short = PROBLEM_REASONS[reason];
+	return {
+		deploymentId: event.deploymentId || event.id,
+		resourceId: event.resourceId,
+		tone: "warning",
+		title: short === undefined ? `${name} has a problem` : `${name}: ${short.toLowerCase()}`,
+		description: message,
+	};
 }
 
 /**

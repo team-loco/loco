@@ -19,6 +19,7 @@ org = state["orgs"]["acme"]["id"]
 workspace = state["workspaces"]["acme/shared"]
 resource = state["resources"]["acme/shared/svc-1"]
 other = state["resources"]["acme/shared/svc-2"]
+old = state["resources"]["acme/shared/svc-3"]
 owner = state["users"]["owner"]["id"]
 environment = sql(
     state,
@@ -35,6 +36,8 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
+    # A fake clock lets the test move time forward to check which toasts dismiss themselves.
+    page.clock.install()
     drawer_reads = []
 
     def record_drawer_read(request):
@@ -86,7 +89,23 @@ jsonb_build_object('environmentId','{environment}'),NOW());""",
     )
     failed = page.locator("[data-sonner-toast]").filter(has_text="svc-2 deploy failed")
     expect(failed).to_be_visible()
-    page.wait_for_timeout(10_000)
+    # A deployment created an hour before the page loaded that runs out of memory toasts from its degraded event.
+    sql(
+        state,
+        f"""UPDATE deployments SET created_at=NOW()-INTERVAL '1 hour',updated_at=NOW()-INTERVAL '1 hour' WHERE resource_id='{old}';
+INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,deployment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
+SELECT 'resource.degraded','{org}','{workspace}','{old}','{environment}',id,'agent','{owner}','resource','req-activity-degraded',
+jsonb_build_object('region','us-ca-1','environmentId','{environment}','reason','out_of_memory','message','The service ran out of memory.'),NOW()
+FROM deployments WHERE resource_id='{old}' ORDER BY created_at DESC LIMIT 1;""",
+    )
+    degraded = page.locator("[data-sonner-toast]").filter(
+        has_text="svc-3: out of memory"
+    )
+    expect(degraded).to_contain_text("The service ran out of memory.")
+    # Warnings dismiss themselves after 9 seconds; a failed deploy stays until dismissed.
+    page.mouse.move(0, 0)
+    page.clock.fast_forward(20_000)
+    expect(degraded).to_have_count(0)
     expect(failed).to_be_visible()
     assert not errors, errors
     context.close()

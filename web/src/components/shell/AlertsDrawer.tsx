@@ -5,7 +5,7 @@ import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentSe
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -45,7 +45,7 @@ import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { problemLogsHref } from "@/pages/resource/deployment-progress";
 
-import { deployToasts, type DeployToast } from "./deploy-toasts";
+import { degradedToast, deployToasts, type DeployToast } from "./deploy-toasts";
 import { useDeployEvents } from "./useDeployEvents";
 
 const CLOCK_TICK_MS = 60_000;
@@ -317,7 +317,6 @@ export function AlertsDrawer() {
 	const [openedAtMs, setOpenedAtMs] = useState(0);
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
-	const { heard, startedMsRef } = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id);
 	const [shown, setShown] = useState(ACTIVITY_PAGE);
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	// Closed, the deployment list covers the 30 minutes before the shell showed this environment, onwards.
@@ -326,6 +325,22 @@ export function AlertsDrawer() {
 	const resources = useQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
 		enabled: activeOrgId !== null && activeWorkspaceId !== null,
+	});
+	const navigate = useNavigate();
+	const viewerId = useAuth().user?.id ?? "";
+	const resourceList = resources.data?.resources;
+	// While the drawer is open it shows these changes, so no toasts show.
+	const show = (toasts: readonly DeployToast[]) => {
+		if (open || activeOrgId === null || activeWorkspaceId === null) return;
+		for (const t of toasts)
+			showDeployToast(t, () => {
+				void navigate(resourcePath(activeOrgId, activeWorkspaceId, t.resourceId));
+			});
+	};
+	const showDeploymentToasts = useEffectEvent(show);
+	const { heard, startedMsRef } = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id, (events) => {
+		const names = new Map((resourceList ?? []).map((r) => [r.id, r.name]));
+		show(events.flatMap((e) => degradedToast(e, names) ?? []));
 	});
 	const sinceMs = Math.floor((openedAtMs || watched.sinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
 	const deploymentsQuery = useConnectQuery(
@@ -346,23 +361,16 @@ export function AlertsDrawer() {
 		},
 	);
 
-	const navigate = useNavigate();
-	const viewerId = useAuth().user?.id ?? "";
 	const seenRef = useRef(new Map<string, string>());
 	const fresh = deploymentsQuery.isPlaceholderData ? undefined : deploymentsQuery.data?.deployments;
-	const resourceList = resources.data?.resources;
-	// Sonner is outside React, so each new page of deployments syncs into it here; while open, the drawer shows changes instead.
+	// Sonner is outside React, so each new page of deployments syncs into it here.
 	useEffect(() => {
-		if (fresh === undefined || resourceList === undefined || activeOrgId === null || activeWorkspaceId === null) return;
+		if (fresh === undefined || resourceList === undefined) return;
 		const names = new Map(resourceList.map((r) => [r.id, r.name]));
 		const { seen, toasts } = deployToasts(seenRef.current, fresh, names, viewerId, startedMsRef.current);
 		seenRef.current = seen;
-		if (open) return;
-		for (const t of toasts)
-			showDeployToast(t, () => {
-				void navigate(resourcePath(activeOrgId, activeWorkspaceId, t.resourceId));
-			});
-	}, [fresh, resourceList, startedMsRef, open, viewerId, navigate, activeOrgId, activeWorkspaceId]);
+		showDeploymentToasts(toasts);
+	}, [fresh, resourceList, startedMsRef, viewerId]);
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 

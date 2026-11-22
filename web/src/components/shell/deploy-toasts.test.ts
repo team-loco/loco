@@ -2,8 +2,9 @@ import { expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { DeploymentActorType, DeploymentSchema, DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
+import { EventSchema } from "@gen/loco/event/v1/event_pb";
 
-import { deployToasts } from "./deploy-toasts";
+import { degradedToast, deployToasts } from "./deploy-toasts";
 
 const NAMES = new Map([["r1", "api"]]);
 const OPENED = 1_800_000_000_000;
@@ -65,13 +66,28 @@ test("a new resource's first deploy toasts once its name loads", () => {
 	]);
 });
 
-test("a problem without a short name says the resource has a problem", () => {
-	expect(titles([deployment(DeploymentStatus.RUNNING, { reason: "something_new", message: "Odd." })])).toEqual([
-		["warning: api has a problem (Odd.)"],
-	]);
+test("a degraded event toasts the problem, whatever the deployment's age", () => {
+	const degraded = (reason: string) =>
+		create(EventSchema, {
+			id: "e1",
+			type: "resource.degraded",
+			resourceId: "r1",
+			deploymentId: "d-yesterday",
+			data: { reason, message: "The service ran out of memory." },
+		});
+	expect(degradedToast(degraded("out_of_memory"), NAMES)).toEqual({
+		deploymentId: "d-yesterday",
+		resourceId: "r1",
+		tone: "warning",
+		title: "api: out of memory",
+		description: "The service ran out of memory.",
+	});
+	expect(degradedToast(degraded("something_new"), NAMES)?.title).toBe("api has a problem");
+	expect(degradedToast(degraded("out_of_memory"), new Map())).toBeNull();
+	expect(degradedToast({ ...degraded("out_of_memory"), type: "resource.recovered" }, NAMES)).toBeNull();
 });
 
-test("a deploy toasts when it starts, fails and retries, and goes live, once per change", () => {
+test("a deploy toasts when it starts, fails and retries, and goes live, once per change; a live problem leaves it live", () => {
 	const oom = { reason: "out_of_memory", message: "The service ran out of memory." };
 	expect(
 		titles([
@@ -87,7 +103,7 @@ test("a deploy toasts when it starts, fails and retries, and goes live, once per
 		[],
 		["warning: api deploy is failing (Pull failed.)"],
 		["live: api is live on 3e8a51d ()"],
-		["warning: api: out of memory (The service ran out of memory.)"],
+		[],
 		[],
 	]);
 });
