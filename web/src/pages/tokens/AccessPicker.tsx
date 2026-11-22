@@ -102,8 +102,13 @@ export function AccessPicker({
 		setQ(`${node.label}/`);
 	};
 
+	// Picking a workspace the caller holds no access to lists the resources it may hold grants on.
 	const add = (node: EntityNode) => {
-		if (heldLevel(held, node) === 0) return;
+		const lvl = heldLevel(held, node);
+		if (lvl === 0) {
+			if (node.kind === "ws") expand(node);
+			return;
+		}
 		onChange([...items, { node, level: 1 }]);
 		setQ("");
 	};
@@ -258,7 +263,7 @@ export function AccessPicker({
 											value={n}
 											disabled={noAccess && n.kind !== "ws"}
 											title={noAccess ? `You have no access to ${n.label}` : undefined}
-											className={cn(noAccess && "cursor-not-allowed opacity-45", covered && "opacity-50")}
+											className={cn(noAccess && "opacity-45", covered && "opacity-50")}
 										>
 											<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
 											<span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{n.label}</span>
