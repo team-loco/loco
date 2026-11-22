@@ -236,3 +236,57 @@
 	pointer-events: none;
 	box-shadow: inset 0 0 0 1px var(--ring);
 }
+
+/* Banded rows sit inside the card as rounded shapes; pinned cells round their own ends over their opaque background. GitHub keeps ruled rows. */
+:root:not([data-theme="paper"]) [data-slot="data-table"][data-band] {
+	width: auto;
+	margin-inline: 20px;
+	& tbody {
+		row-gap: 2px;
+		padding-top: 4px;
+	}
+	& tbody > tr {
+		border-bottom-width: 0;
+		border-radius: var(--band-radius, 6px);
+	}
+	& tr > :first-child {
+		padding-left: 12px;
+	}
+	& tr > :last-child {
+		padding-right: 12px;
+	}
+	& tr[data-state="selected"] {
+		--row-tint: var(--band-selected, var(--bg));
+		--row-ring: var(--band-selected-ring, inset 0 0 0 1px var(--line2));
+	}
+	& tr[data-interactive]:focus-visible {
+		--row-ring: inset 0 0 0 1px var(--ring);
+	}
+	& tbody > tr::after,
+	& tbody [data-pin]::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		box-shadow: var(--row-ring, none);
+		pointer-events: none;
+	}
+	& tbody > tr::after {
+		z-index: 0;
+		border-radius: var(--band-radius, 6px);
+	}
+	& tbody [data-pin] {
+		background-image: none;
+	}
+	& tbody [data-pin]::before {
+		z-index: -1;
+		background: var(--row-tint);
+	}
+	& tbody [data-pin="start"]::before {
+		right: -2px;
+		border-radius: var(--band-radius, 6px) 0 0 var(--band-radius, 6px);
+	}
+	& tbody [data-pin="end"]::before {
+		left: -2px;
+		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
+	}
+}

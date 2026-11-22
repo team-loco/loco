@@ -6,6 +6,9 @@
 	--radius-control: 5px;
 	--radius-card: 5px;
 	--radius-overlay: 5px;
+	--band-radius: 5px;
+	--band-selected: var(--tint);
+	--band-selected-ring: inset 0 0 0 2px var(--ink);
 	--shell: #cfe0fd;
 	--shell-hover: #bcd3fc;
 	--shell-active: #ed707b;
@@ -680,4 +683,23 @@
 		height: 4px;
 		box-shadow: 0 0 0 1.5px var(--ink);
 	}
+}
+
+[data-theme="neobrutal"] [data-level-badge] {
+	border: 1.5px solid var(--ink);
+	border-radius: 4px;
+	box-shadow: none;
+	color: #000000;
+}
+[data-theme="neobrutal"] [data-level-badge="error"] {
+	background: color-mix(in oklch, var(--err) 40%, #ffffff);
+}
+[data-theme="neobrutal"] [data-level-badge="warn"] {
+	background: #ffdc58;
+}
+[data-theme="neobrutal"] [data-level-badge="info"] {
+	background: #bfdcff;
+}
+[data-theme="neobrutal"] [data-level-badge="debug"] {
+	color: var(--fg2);
 }

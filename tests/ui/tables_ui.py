@@ -464,6 +464,27 @@ def check_row_states(page, row):
     row.evaluate("node => cancelAnimationFrame(node.watch)")
 
 
+def check_band(page, scroller, row):
+    """A hovered row is one rounded band whose corners show the card, at both pinned ends while the table scrolls sideways."""
+    scroller.evaluate(
+        "node => { node.scrollLeft = (node.scrollWidth - node.clientWidth) / 2; }"
+    )
+    row.get_by_role("cell").last.hover()
+    page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
+    cells = row.locator(":scope > td")
+    first, last = cells.first.bounding_box(), cells.last.bounding_box()
+    top = first["y"]
+    card = rgb(page, first["x"] + 4, top - 1)
+    tint = rgb(page, first["x"] + 4, top + 1)
+    assert tint != card, "the hovered row shows no tint"
+    assert rgb(page, first["x"], top) == card, "the band's start is square"
+    assert rgb(page, last["x"] + last["width"] - 1, top) == card, (
+        "the band's end is square"
+    )
+    page.mouse.move(0, 0)
+    scroller.evaluate("node => { node.scrollLeft = 0; }")
+
+
 def production_id():
     return sql(
         state,
@@ -744,6 +765,7 @@ def logs(page):
     expect_pointer(page, row.get_by_role("cell").nth(1))
     expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
     check_row_states(page, row)
+    check_band(page, scroller, row)
     table = check_resize(
         page, table, "Time", "Resource", logs_table, "ArrowRight", ("time", "resource")
     )
