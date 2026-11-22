@@ -328,7 +328,12 @@ export function DeploymentsSection({
 		listDeployments,
 		{ resourceId, environmentId: environmentId ?? "", pageSize: deploySize },
 		deployPages,
-		{ enabled: environmentId !== undefined, refetchInterval: REFRESH_MS, placeholderData: keepPreviousData },
+		{
+			enabled: environmentId !== undefined,
+			refetchInterval: REFRESH_MS,
+			staleTime: REFRESH_MS,
+			placeholderData: keepPreviousData,
+		},
 	);
 	const deployPager = tokenPager(deployPages, history.nextPageToken, (pages) => {
 		if (!history.query.isPlaceholderData) setDeployPages(pages ?? []);

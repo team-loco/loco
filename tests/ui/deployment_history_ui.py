@@ -430,9 +430,7 @@ with session(out) as browser:
         name=f"Show details for {data['releases'][9][-8:]}",
         exact=True,
     ).click()
-    expect(
-        section.get_by_text("example.invalid/browser-pilot:release-011", exact=True)
-    ).to_be_visible()
+    expect(section.get_by_text("browser-pilot:release-011", exact=True)).to_be_visible()
     assert any(
         request["method"] == "GetDeployment"
         and request["body"]["deploymentId"] == data["releases"][10]

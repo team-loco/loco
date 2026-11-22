@@ -195,8 +195,10 @@ export function useResourceData(resourceId: string) {
 	const environmentId =
 		active?.id ??
 		(resource === undefined || environmentsLoading ? undefined : statusEnvironmentId(resource, requested));
+	// The history table's first page shares this request and mounts after it.
 	const deploymentsQuery = useQuery(listDeployments, deploymentsRequest(resourceId, environmentId), {
 		refetchInterval: REFRESH_MS,
+		staleTime: REFRESH_MS,
 	});
 	const environment = resource === undefined ? undefined : environmentStatus(resource, environmentId);
 	const currentIds = [
