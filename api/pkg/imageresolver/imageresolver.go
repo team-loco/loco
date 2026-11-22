@@ -15,13 +15,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
+
+	"github.com/team-loco/loco/api/pkg/tracing"
 )
 
 const (
-	tracerName    = "github.com/team-loco/loco/api/pkg/imageresolver"
 	resolveSpan   = "image.resolve"
 	imageNameAttr = "container.image.name"
 	imageRefAttr  = "loco.image.reference"
@@ -43,17 +42,12 @@ func New(timeout time.Duration, maxBytes int64, platform workloadplatform.Platfo
 
 // Resolve wraps one image's registry calls in a span, so a plan's lookups read as one step per image.
 func (r *Resolver) Resolve(ctx context.Context, ref name.Reference) (string, error) {
-	ctx, span := otel.Tracer(tracerName).Start(ctx, resolveSpan)
-	defer span.End()
-	span.SetAttributes(
+	ctx, span := tracing.Start(ctx, resolveSpan,
 		attribute.String(imageNameAttr, ref.Context().Name()),
 		attribute.String(imageRefAttr, ref.String()),
 	)
 	digest, err := r.resolve(ctx, ref)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-	}
+	tracing.End(span, err)
 	return digest, err
 }
 
