@@ -97,6 +97,7 @@ evidence.seed_deployments(
             "id": deployment,
             "environment": "production",
             "spec": runtime,
+            "age": "10 minutes 30 seconds",
             "placements": {"us-ca-1": {"ready_replicas": 0}},
         }
     ],
@@ -112,7 +113,7 @@ COMMIT;""",
 )
 sql(
     state,
-    f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes 30 seconds', started_at = NOW() - INTERVAL '10 minutes 30 seconds' WHERE id='{deployment}'; UPDATE deployment_placements SET started_at = NOW() - INTERVAL '10 minutes 30 seconds' WHERE deployment_id='{deployment}';",
+    f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes 30 seconds', started_at = NOW() - INTERVAL '10 minutes 30 seconds' WHERE id='{deployment}';",
 )
 assert (
     call(
