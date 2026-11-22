@@ -285,15 +285,19 @@ with session(out) as browser:
     search = page.get_by_role("combobox", name="Search and filter")
     suggestions = page.get_by_role("listbox", name="Suggestions")
 
-    def clear_query():
-        # Clearing focuses the bar, which opens its suggestions over the table.
-        page.get_by_role("button", name="Clear", exact=True).click()
+    def close_suggestions():
+        # The open list hides the table from role queries and keeps the bar's width while it closes.
         search.press("Escape")
+        expect(suggestions).to_have_count(0)
+
+    def clear_query():
+        page.get_by_role("button", name="Clear", exact=True).click()
+        close_suggestions()
 
     def search_for(text):
         search.fill(text)
         search.press("Enter")
-        search.press("Escape")
+        close_suggestions()
 
     with expect_rpc(
         page,
@@ -369,7 +373,7 @@ with session(out) as browser:
         suggestions.get_by_role("option").filter(
             has_text='@actor:"Olivia Owner"'
         ).click()
-    search.press("Escape")
+    close_suggestions()
     expect(rows.first).to_be_visible()
     clear_query()
     # Typing sends nothing until a term is added, so a half-typed field neither reads nor fails.
@@ -382,7 +386,7 @@ with session(out) as browser:
     ):
         search.press_sequentially("@type:secret.set", delay=20)
         search.press("Enter")
-    search.press("Escape")
+    close_suggestions()
     typed = [call["body"].get("query") for call in list_events(calls)[typed_from:]]
     assert set(typed) == {"@type:secret.set"}, typed
     expect(page.get_by_role("alert")).to_have_count(0)
