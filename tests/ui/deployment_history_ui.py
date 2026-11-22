@@ -444,6 +444,8 @@ with session(out) as browser:
         exact=True,
     ).click()
     section.get_by_role("button", name="50", exact=True).click()
+    # The pager ignores Next until the 50-row page replaces the 10-row one.
+    expect(section.get_by_text("1–50 of 221", exact=False)).to_be_visible()
     next_button = section.get_by_role("button", name="Next page", exact=True)
     next_button.click()
     section.get_by_text("Pilot page failure", exact=False).wait_for()
