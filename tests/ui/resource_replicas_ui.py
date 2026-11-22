@@ -176,14 +176,19 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
             route.fulfill(json={"series": []})
             return
         pod_requests.append(body)
-        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 30))
+        stamps = [
+            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - ago))
+            for ago in (90, 30)
+        ]
         route.fulfill(
             json={
                 "series": [
                     {
                         "resourceId": r["resource"],
                         "labels": {"k8s.pod.name": pod},
-                        "points": [{"timestamp": stamp, "value": value}],
+                        "points": [
+                            {"timestamp": stamp, "value": value} for stamp in stamps
+                        ],
                     }
                     for pod, value in usage.get(body["metricName"], {}).items()
                     if pod.split("-")[2]
