@@ -39,7 +39,6 @@ const GROUPS: { label: string; kinds: NodeKind[] }[] = [
 export function AccessPicker({
 	roots,
 	org,
-	activeWorkspace,
 	held,
 	items,
 	allowUser,
@@ -48,7 +47,6 @@ export function AccessPicker({
 }: {
 	roots: EntityNode[];
 	org: EntityNode | null;
-	activeWorkspace: EntityNode | null;
 	held: HeldScopes;
 	items: AccessItem[];
 	allowUser: boolean;
@@ -62,7 +60,7 @@ export function AccessPicker({
 	const anchorRef = useRef<HTMLDivElement>(null);
 	const levelByKey = new Map(items.map((x) => [x.node.key, x.level]));
 	const query = q.trim().toLowerCase();
-	const choices = useAccessChoices({ org, scope, activeWorkspace, expanded, text: q.trim() });
+	const choices = useAccessChoices({ org, scope, expanded, text: q.trim() });
 
 	const coveredBy = (node: EntityNode, level: Level): string | null => {
 		for (let p = node.parent; p !== null; p = p.parent) {

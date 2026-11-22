@@ -38,7 +38,6 @@ export interface TokenData {
 	/** The signed-in user's account and organizations, which the access picker always offers. */
 	roots: EntityNode[];
 	activeOrg: EntityNode | null;
-	activeWorkspace: EntityNode | null;
 	/** Every entity the listed tokens' scopes name, with its parents where the caller can read them. */
 	entities: Entities;
 	/** Whether a scope's entity or its parent is still being looked up. */
@@ -181,7 +180,6 @@ export function useTokenData(): TokenData {
 		owners,
 		roots: [...(userNode === null ? [] : [userNode]), ...orgNodes.values()],
 		activeOrg,
-		activeWorkspace,
 		entities,
 		entitiesLoading: [...resourceQueries, ...workspaceQueries].some((q) => q.isPending),
 		held,

@@ -117,7 +117,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert not errors, errors
     context.close()
 
-    # The picker lists one page of workspaces and the resources of only the workspaces it targets.
+    # The picker lists one page of workspaces and one page of the organization's resources, both searched on the server.
     context, page, errors = open_page(
         browser,
         state=state,
@@ -136,19 +136,33 @@ with session(repo / "tests/ui/out/tokens") as browser:
     page.get_by_role("button", name="New token", exact=True).first.click()
     drawer = page.get_by_role("dialog", name="New token")
     search = drawer.locator('input[aria-label="Add a workspace or resource"]')
-    search.focus()
+    with expect_rpc(
+        page,
+        "loco.resource.v1.ResourceService/ListOrgResources",
+        lambda body: body.get("orgId") == org and body.get("pageSize") == 40,
+    ):
+        search.focus()
     options = page.get_by_role("listbox")
     expect(
         options.get_by_role("option", name=re.compile(r"^storefront-web"))
     ).to_be_visible()
     expect(options.get_by_role("option", name=re.compile(r"^private"))).to_be_visible()
-    expect(options.get_by_text("inventory-api", exact=True)).to_have_count(0)
-    assert set(listed) == {shared}, listed
+    expect(
+        options.get_by_role("option", name=re.compile(r"^inventory-api"))
+    ).to_contain_text("sibling")
+    assert sibling not in listed and private not in listed, listed
 
-    with expect_rpc(
-        page,
-        "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces",
-        lambda body: body.get("query") == "sib" and body.get("pageSize") == 40,
+    with (
+        expect_rpc(
+            page,
+            "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces",
+            lambda body: body.get("query") == "sib" and body.get("pageSize") == 40,
+        ),
+        expect_rpc(
+            page,
+            "loco.resource.v1.ResourceService/ListOrgResources",
+            lambda body: body.get("query") == "sib",
+        ),
     ):
         search.fill("sib")
     workspace = options.get_by_role("option", name=re.compile(r"^sibling"))

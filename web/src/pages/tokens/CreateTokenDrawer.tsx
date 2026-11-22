@@ -327,7 +327,6 @@ function CreateForm({
 						key={ownerKey}
 						roots={data.roots}
 						org={data.activeOrg}
-						activeWorkspace={data.activeWorkspace}
 						held={data.held}
 						items={items}
 						allowUser={ownerKey === "user"}
