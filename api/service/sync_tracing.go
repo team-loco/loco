@@ -88,12 +88,11 @@ func (s *AgentServer) placementSpan(
 	placementID string,
 	revision int64,
 ) (context.Context, trace.Span) {
-	return tracing.StartLinked(ctx, name, syncOrigin(ctx, s.queries.GetPlacementTraceparent, placementID),
-		trace.WithSpanKind(kind), trace.WithAttributes(
-			attribute.String(syncClusterIDAttr, clusterID.String()),
-			attribute.String(syncPlacementIDAttr, placementID),
-			attribute.Int64(syncRevisionAttr, revision),
-		))
+	return syncSpan(ctx, name, kind, s.queries.GetPlacementTraceparent, placementID,
+		attribute.String(syncClusterIDAttr, clusterID.String()),
+		attribute.String(syncPlacementIDAttr, placementID),
+		attribute.Int64(syncRevisionAttr, revision),
+	)
 }
 
 // buildSpan starts a root span linked to the request that created the build.
@@ -104,25 +103,33 @@ func (s *AgentServer) buildSpan(
 	kind trace.SpanKind,
 	buildID string,
 ) (context.Context, trace.Span) {
-	return tracing.StartLinked(ctx, name, syncOrigin(ctx, s.queries.GetBuildTraceparent, buildID),
-		trace.WithSpanKind(kind), trace.WithAttributes(
-			attribute.String(syncClusterIDAttr, clusterID.String()),
-			attribute.String(syncBuildIDAttr, buildID),
-		))
+	return syncSpan(ctx, name, kind, s.queries.GetBuildTraceparent, buildID,
+		attribute.String(syncClusterIDAttr, clusterID.String()),
+		attribute.String(syncBuildIDAttr, buildID),
+	)
 }
 
-func syncOrigin(
+// syncSpan looks up the originating request only for a recording span, so untraced installs skip the query.
+func syncSpan(
 	ctx context.Context,
+	name string,
+	kind trace.SpanKind,
 	lookup func(context.Context, uuid.UUID) (*string, error),
 	rawID string,
-) *string {
+	attrs ...attribute.KeyValue,
+) (context.Context, trace.Span) {
+	ctx, span := tracing.StartRoot(ctx, name, trace.WithSpanKind(kind), trace.WithAttributes(attrs...))
+	if !span.IsRecording() {
+		return ctx, span
+	}
 	id, err := uuid.Parse(rawID)
 	if err != nil {
-		return nil
+		return ctx, span
 	}
 	traceparent, err := lookup(ctx, id)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		slog.WarnContext(ctx, "failed to look up the trace that started sync work", "id", id, "error", err)
 	}
-	return traceparent
+	tracing.Link(span, traceparent)
+	return ctx, span
 }

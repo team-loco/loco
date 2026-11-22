@@ -235,11 +235,7 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 	kind := attribute.String(deliveryKindAttr, string(row.Kind))
 	eventType := attribute.String(deliveryEventTypeAttr, row.Type)
 	span.SetAttributes(kind, eventType)
-	if row.Traceparent != nil {
-		if link, ok := tracing.LinkTo(*row.Traceparent); ok {
-			span.AddLink(link)
-		}
-	}
+	tracing.Link(span, row.Traceparent)
 	secrets, err := d.signingSecrets(ctx, row)
 	var sendErr error
 	switch {

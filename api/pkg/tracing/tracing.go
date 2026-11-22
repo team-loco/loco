@@ -19,19 +19,14 @@ func StartRoot(ctx context.Context, name string, opts ...trace.SpanStartOption) 
 	return otel.Tracer(tracerName).Start(ctx, name, opts...) //nolint:spancheck
 }
 
-// StartLinked starts a root span for work a request caused earlier, linked to that request's span.
-func StartLinked(
-	ctx context.Context,
-	name string,
-	traceparent *string,
-	opts ...trace.SpanStartOption,
-) (context.Context, trace.Span) {
-	if traceparent != nil {
-		if link, ok := LinkTo(*traceparent); ok {
-			opts = append(opts, trace.WithLinks(link))
-		}
+// Link links span to the span that started its work, given that span's stored traceparent.
+func Link(span trace.Span, traceparent *string) {
+	if traceparent == nil {
+		return
 	}
-	return StartRoot(ctx, name, opts...)
+	if link, ok := LinkTo(*traceparent); ok {
+		span.AddLink(link)
+	}
 }
 
 func End(span trace.Span, err error) {
