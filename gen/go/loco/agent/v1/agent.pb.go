@@ -1947,7 +1947,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"startBuild\x12?\n" +
 	"\fcancel_build\x18\x04 \x01(\v2\x1a.loco.agent.v1.CancelBuildH\x00R\vcancelBuild\x125\n" +
 	"\x10delete_workspace\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x0fdeleteWorkspaceB\t\n" +
-	"\amessage\"\xe4\x01\n" +
+	"\amessage\"\xee\x01\n" +
 	"\x05Apply\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
@@ -1955,8 +1955,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"resourceId\x12 \n" +
 	"\vapplication\x18\x04 \x01(\fR\vapplication\x127\n" +
 	"\n" +
-	"env_secret\x18\x05 \x01(\v2\x18.loco.agent.v1.EnvSecretR\tenvSecret\x12 \n" +
-	"\vtraceparent\x18\x06 \x01(\tR\vtraceparent\"\x98\x01\n" +
+	"env_secret\x18\x05 \x01(\v2\x18.loco.agent.v1.EnvSecretR\tenvSecret\x12*\n" +
+	"\vtraceparent\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vtraceparent\"\x98\x01\n" +
 	"\tEnvSecret\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x126\n" +
 	"\x04data\x18\x02 \x03(\v2\".loco.agent.v1.EnvSecret.DataEntryR\x04data\x1a7\n" +
@@ -1967,7 +1967,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
 	"\vresource_id\x18\x03 \x01(\tR\n" +
-	"resourceId\"\x9e\x04\n" +
+	"resourceId\"\xa8\x04\n" +
 	"\n" +
 	"StartBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\x12+\n" +
@@ -1983,8 +1983,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x0forganization_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x0eorganizationId\x12/\n" +
 	"\x13registry_credential\x18\n" +
 	" \x01(\tR\x12registryCredential\x12;\n" +
-	"\bplatform\x18\v \x01(\tB\x1f\xbaH\x1cr\x1aR\vlinux/amd64R\vlinux/arm64R\bplatform\x12 \n" +
-	"\vtraceparent\x18\f \x01(\tR\vtraceparent\"2\n" +
+	"\bplatform\x18\v \x01(\tB\x1f\xbaH\x1cr\x1aR\vlinux/amd64R\vlinux/arm64R\bplatform\x12*\n" +
+	"\vtraceparent\x18\f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vtraceparent\"2\n" +
 	"\vCancelBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xa7\x02\n" +
 	"\tHeartbeat\x128\n" +

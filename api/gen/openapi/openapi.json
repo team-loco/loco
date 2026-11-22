@@ -8888,6 +8888,7 @@
           "traceparent": {
             "type": "string",
             "title": "traceparent",
+            "maxLength": 256,
             "description": "traceparent is the W3C trace context of the request that created the placement's deployment, empty outside a trace."
           }
         },
@@ -9348,6 +9349,7 @@
           "traceparent": {
             "type": "string",
             "title": "traceparent",
+            "maxLength": 256,
             "description": "traceparent is the W3C trace context of the request that created the build, empty outside a trace."
           }
         },

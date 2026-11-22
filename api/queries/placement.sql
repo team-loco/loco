@@ -70,7 +70,9 @@ WHERE cluster_id = $1;
 
 -- name: ListPlacementsByIDs :many
 SELECT sqlc.embed(placements),
-       resource_suspended(placements.resource_id)::boolean AS suspended
+       resource_suspended(placements.resource_id)::boolean AS suspended,
+       COALESCE((SELECT d.traceparent FROM deployments d WHERE d.id = placements.deployment_id), '')::text
+         AS traceparent
 FROM placements
 WHERE cluster_id = $1 AND id = ANY(sqlc.arg(ids)::uuid[])
   AND NOT apply_failed

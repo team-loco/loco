@@ -335,7 +335,9 @@ func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID
 
 const listPlacementsByIDs = `-- name: ListPlacementsByIDs :many
 SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_env, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.restarted_at, placements.applied_revision, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready_replicas, placements.problem_reason, placements.status_updated_at, placements.region_status, placements.region_status_since, placements.created_at, placements.updated_at,
-       resource_suspended(placements.resource_id)::boolean AS suspended
+       resource_suspended(placements.resource_id)::boolean AS suspended,
+       COALESCE((SELECT d.traceparent FROM deployments d WHERE d.id = placements.deployment_id), '')::text
+         AS traceparent
 FROM placements
 WHERE cluster_id = $1 AND id = ANY($2::uuid[])
   AND NOT apply_failed
@@ -348,8 +350,9 @@ type ListPlacementsByIDsParams struct {
 }
 
 type ListPlacementsByIDsRow struct {
-	Placement Placement `json:"placement"`
-	Suspended bool      `json:"suspended"`
+	Placement   Placement `json:"placement"`
+	Suspended   bool      `json:"suspended"`
+	Traceparent string    `json:"traceparent"`
 }
 
 func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]ListPlacementsByIDsRow, error) {
@@ -387,6 +390,7 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 			&i.Placement.CreatedAt,
 			&i.Placement.UpdatedAt,
 			&i.Suspended,
+			&i.Traceparent,
 		); err != nil {
 			return nil, err
 		}
