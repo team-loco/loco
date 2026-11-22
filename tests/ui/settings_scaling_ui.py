@@ -173,7 +173,7 @@ with session(out) as browser:
         expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
         expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
 
-    target = defaults["cpuTarget"] - 1
+    target = defaults["cpuTarget"] - 5
     expect(
         section.get_by_text(
             f"Adds replicas when average CPU stays above {target}%, and removes them when it drops, between 1 and 3 per region.",
@@ -215,7 +215,7 @@ with session(out) as browser:
     page.keyboard.press("ArrowLeft")
     save_and_settle()
     for region in regions:
-        assert stored_regions()[region]["scalers"]["cpuTarget"] == target - 1
+        assert stored_regions()[region]["scalers"]["cpuTarget"] == target - 5
 
     section.get_by_role("button", name="Decrease maximum replicas", exact=True).click()
     autoscaling.click()

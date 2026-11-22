@@ -268,7 +268,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     panel.get_by_role("button", name="Copy deployment ID", exact=True).click()
     assert copied_text(page) == p["current"]
     panel.get_by_role("button", name="What’s being deployed", exact=True).click()
-    expect(panel.get_by_text("0.1 vCPU · 128 Mi", exact=True)).to_be_visible()
+    expect(panel.get_by_text("0.1 vCPU, 128 Mi", exact=True)).to_be_visible()
     expect(panel.get_by_text("/health every 10s", exact=True)).to_be_visible()
     phase("deploying")
     page.reload()
@@ -338,7 +338,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(serving).not_to_contain_text(p["current"][-8:])
     incident = page.locator('section[aria-labelledby="incident-title"]')
     expect(incident.get_by_text("Running", exact=True).locator("+ dd")).to_have_text(
-        f"v1 · {p['previous'][-8:]} · 2/2 ready"
+        re.compile(
+            r"^v1, the deployment serving this region, deployed (just now|\d+[mhd] ago)( by .+)?$"
+        )
     )
     phase("failed", survivors=False)
     expect(serving).to_have_text("No ready replicas reported", timeout=25000)
@@ -393,7 +395,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     banner = page.get_by_role("status").filter(
         has_text=f"These settings are from deployment {p['current'][-8:]}, which did not finish in us-ca-1."
     )
-    expect(banner).to_contain_text(f"v1 · {p['previous'][-8:]} still serves.")
+    expect(banner).to_contain_text(f"v1 ({p['previous'][-8:]}) still serves.")
     expect(banner).to_contain_text("image:")
     expect(banner).to_contain_text("health:")
     mutations.clear()

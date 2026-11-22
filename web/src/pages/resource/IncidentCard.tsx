@@ -6,8 +6,9 @@ import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { Button } from "@/components/design/Button";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { HOUR_MS } from "@/lib/obs-time";
-import { agoLabel, formatClock, maybeTsMs, readyMs } from "@/lib/time";
-import { cn, formatShortId } from "@/lib/utils";
+import { deploymentActor } from "@/lib/deployment-utils";
+import { agoLabel, formatClock, maybeTsMs, readyMs, tsMs } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 import { logLevel } from "@/pages/observability/query";
 
@@ -122,7 +123,7 @@ export function IncidentCard({
 	const status = region.status;
 	const current = region.current;
 	const serving = region.serving;
-	const reportedMs = maybeTsMs(status?.reportedAt);
+	const sinceMs = maybeTsMs(status?.statusSince);
 	const failing = (status?.replicas ?? []).filter((r) => !r.ready && r.state !== "Stopping" && r.state !== "Stopped");
 	const [only] = failing.length === 1 ? failing : [];
 	const title =
@@ -131,6 +132,13 @@ export function IncidentCard({
 			: `Replica ${only.name} ${only.restarts > 0 ? "keeps restarting" : `is ${replicaState(only.state).label.toLowerCase()}`}`;
 	const changes = current !== undefined && lastGood !== undefined ? specChanges(lastGood, current) : [];
 	const goodMs = lastGood === undefined ? undefined : readyMs(lastGood);
+	const meta = [
+		sinceMs === undefined ? "not reported yet" : `since ${agoLabel(sinceMs, nowMs)}`,
+		...(only !== undefined && only.restarts > 0
+			? [`${only.restarts.toString()} ${only.restarts === 1 ? "restart" : "restarts"}`]
+			: []),
+	].join(", ");
+	const servingActor = serving === undefined ? "" : deploymentActor(serving);
 
 	return (
 		<section
@@ -142,9 +150,7 @@ export function IncidentCard({
 					<h2 id="incident-title" className="m-0 text-[16px] font-medium tracking-[-0.01em]">
 						{title}
 					</h2>
-					<span className="font-mono text-[12px] text-fg3">
-						{reportedMs === undefined ? "not reported yet" : `updated ${agoLabel(reportedMs, nowMs)}`}
-					</span>
+					<span className="font-mono text-[12px] text-fg3">{meta}</span>
 				</div>
 				<div className="flex gap-2">
 					{logsHref !== undefined && (
@@ -179,11 +185,9 @@ export function IncidentCard({
 						)}
 						{serving !== undefined && (
 							<Fact label="Running">
-								<span className="font-mono">
-									{depTag(serving)} · {formatShortId(serving.id)}
-								</span>
-								{status !== undefined &&
-									` · ${status.readyReplicas.toString()}/${status.desiredReplicas.toString()} ready`}
+								<span className="font-mono">{depTag(serving)}</span>
+								{`, the deployment serving this region, deployed ${agoLabel(maybeTsMs(serving.startedAt) ?? tsMs(serving.createdAt), nowMs)}`}
+								{servingActor !== "" && ` by ${servingActor}`}
 							</Fact>
 						)}
 						{changes.length > 0 && (
@@ -202,10 +206,10 @@ export function IncidentCard({
 							{lastGood === undefined ? (
 								"No earlier healthy deployment in this region"
 							) : (
-								<span className="font-mono">
-									{depTag(lastGood)} · {formatShortId(lastGood.id)}
-									{goodMs !== undefined && ` · ${agoLabel(goodMs, nowMs)}`}
-								</span>
+								<>
+									<span className="font-mono">{depTag(lastGood)}</span>
+									{goodMs !== undefined && `, deployed ${agoLabel(goodMs, nowMs)}`}
+								</>
 							)}
 						</Fact>
 					</dl>

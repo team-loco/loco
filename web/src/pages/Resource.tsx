@@ -316,7 +316,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			setNotice({
 				tone: "bad",
 				title: `Redeploying ${resource.name} failed`,
-				message: failures.join(" · "),
+				message: failures.join("\n"),
 			});
 			return;
 		}
@@ -336,7 +336,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			setNotice({
 				tone: "bad",
 				title: `Rolling back ${resource.name} failed`,
-				message: failures.join(" · "),
+				message: failures.join("\n"),
 			});
 			return;
 		}

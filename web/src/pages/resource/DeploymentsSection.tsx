@@ -87,10 +87,7 @@ function historyMessage(dep: Deployment): string {
 function HistoryKept({ count, tip }: { count: number; tip: string }) {
 	return (
 		<Tooltip>
-			<TooltipTrigger render={<span className="font-sans text-[12px] text-fg3" />}>
-				<span aria-hidden className="mx-1.5">
-					·
-				</span>
+			<TooltipTrigger render={<span className="ml-3 font-sans text-[12px] text-fg3" />}>
 				last {formatCount(count)} kept
 			</TooltipTrigger>
 			<TooltipContent className="max-w-[280px]">{tip}</TooltipContent>

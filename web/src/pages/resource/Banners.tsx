@@ -46,7 +46,7 @@ export function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss:
 			</span>
 			<div className="flex min-w-0 flex-col gap-px">
 				<span className="font-semibold">{notice.title}</span>
-				<span className="break-words">{notice.message}</span>
+				<span className="break-words whitespace-pre-line">{notice.message}</span>
 			</div>
 			<button
 				type="button"
@@ -73,7 +73,7 @@ export function ServingBanner({
 	if (found === undefined) return null;
 	const { region, stopped, serving } = found;
 	const changes = specChanges(serving, stopped);
-	const servingLabel = `${depTag(serving)} · ${formatShortId(serving.id)}`;
+	const servingLabel = `${depTag(serving)} (${formatShortId(serving.id)})`;
 	return (
 		<Banner
 			tone="warn"

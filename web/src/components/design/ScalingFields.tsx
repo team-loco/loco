@@ -86,8 +86,9 @@ export function ScalingFields({
 						label="CPU target (%)"
 						heading="CPU target"
 						value={value.cpuTarget}
-						min={1}
-						max={100}
+						min={10}
+						max={95}
+						step={5}
 						disabled={disabled}
 						onChange={(cpuTarget) => {
 							onChange({ ...value, cpuTarget });

@@ -6,6 +6,7 @@ import {
 } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import {
 	DeploymentStatus,
+	DeploymentTrigger,
 	type Activity,
 	type Deployment,
 	type FinishedRegion,
@@ -160,7 +161,15 @@ function ProgressPanel({
 	const elapsed = deploymentElapsedMs(deployment, nowMs, feed.restart);
 	const commit = deployment.commit?.sha ?? build?.gitCommit;
 	const buildHref = buildId === "" ? undefined : buildLogsHref(buildId);
-	const headline = `Deploy ${commit ? shortSha(commit) : depTag(deployment)}`;
+	const ref = commit ? shortSha(commit) : depTag(deployment);
+	const headline =
+		deployment.trigger === DeploymentTrigger.ROLLBACK
+			? `Rollback to ${ref}`
+			: deployment.trigger === DeploymentTrigger.REDEPLOY
+				? `Redeploy of ${ref}`
+				: deployment.trigger === DeploymentTrigger.SCALE
+					? "Settings change"
+					: `Deploy ${ref}`;
 	const servingId = failed
 		? servingDeployments(region.status?.replicas ?? []).find((d) => d.id !== deployment.id)?.id
 		: undefined;
@@ -171,7 +180,7 @@ function ProgressPanel({
 	if (image !== "") fields.push(["Image", tag === "" ? path : `${path}:${tag}`]);
 	if (digest !== "" || build?.imageDigest) fields.push(["Digest", digest !== "" ? digest : (build?.imageDigest ?? "")]);
 	if (size?.cpu !== undefined && size.memory !== undefined)
-		fields.push(["Size", `${formatCpu(parseCpuMilli(size.cpu))} · ${formatMemory(parseMemMi(size.memory))}`]);
+		fields.push(["Size", `${formatCpu(parseCpuMilli(size.cpu))}, ${formatMemory(parseMemMi(size.memory))}`]);
 	else {
 		if (size?.cpu !== undefined) fields.push(["CPU", formatCpu(parseCpuMilli(size.cpu))]);
 		if (size?.memory !== undefined) fields.push(["Memory", formatMemory(parseMemMi(size.memory))]);
@@ -458,8 +467,8 @@ function FinishedRegions({
 						) : (
 							<span className="text-fg2">
 								previous {depTag(previous)}
-								{previous.commit !== undefined && ` · ${shortSha(previous.commit.sha)}`}
-								{` · deployed ${formatFullTime(maybeTsMs(previous.startedAt) ?? tsMs(previous.createdAt), false, timePref)}`}
+								{previous.commit !== undefined && `, ${shortSha(previous.commit.sha)}`}
+								{`, deployed ${formatFullTime(maybeTsMs(previous.startedAt) ?? tsMs(previous.createdAt), false, timePref)}`}
 							</span>
 						)}
 					</li>

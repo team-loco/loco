@@ -317,5 +317,5 @@ test("replicaSummary counts the replicas in each state", () => {
 	const replicas = ["Serving", "Serving", "Starting", "Failing"].map((state, i) =>
 		create(ReplicaSchema, { name: `web-${i.toString()}`, state }),
 	);
-	expect(replicaSummary(replicas)).toBe("4 replicas · 2 serving · 1 starting · 1 failing");
+	expect(replicaSummary(replicas)).toBe("4 replicas, 2 serving, 1 starting, 1 failing");
 });

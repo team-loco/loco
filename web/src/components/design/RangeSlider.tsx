@@ -11,6 +11,7 @@ export function RangeSlider({
 	value,
 	min,
 	max,
+	step,
 	disabled,
 	onChange,
 }: {
@@ -19,6 +20,7 @@ export function RangeSlider({
 	value: number;
 	min: number;
 	max: number;
+	step: number;
 	disabled?: boolean;
 	onChange: (value: number) => void;
 }) {
@@ -38,6 +40,7 @@ export function RangeSlider({
 				value={[value]}
 				min={min}
 				max={max}
+				step={step}
 				disabled={disabled}
 				format={{ style: "unit", unit: "percent" }}
 				onValueChange={(next) => {
