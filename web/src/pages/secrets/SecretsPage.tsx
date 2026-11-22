@@ -13,7 +13,6 @@ import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { DocsButton } from "@/components/design/DocsButton";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { EmptyHero } from "@/components/design/EmptyHero";
-import { NavArrow } from "@/components/design/NavArrow";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { RowMenu } from "@/components/design/RowMenu";
@@ -169,32 +168,28 @@ export function SecretsPage({
 							<Skeleton className="h-9 w-full" />
 							<Skeleton className="h-9 w-full" />
 						</div>
+					) : secrets.length === 0 ? (
+						<EmptyHero
+							art={<SecretsArt environment={environmentName} />}
+							title={`No secrets in ${environmentName}`}
+							subtitle={`Secrets belong to ${environmentName}. Any resource here can refer to one from its variables.`}
+							className="rounded-none border-t border-line2"
+						>
+							<div className="mt-1.5 flex flex-wrap justify-center gap-2">
+								{canWrite && (
+									<Button onClick={openNew}>
+										<PlusIcon />
+										New secret
+									</Button>
+								)}
+								<DocsButton href={SECRETS_DOCS} />
+							</div>
+						</EmptyHero>
 					) : (
 						<DataTable
 							table={table}
 							label="Secrets"
-							empty={
-								secrets.length === 0 ? (
-									<EmptyHero
-										art={<SecretsArt environment={environmentName} />}
-										title={`No secrets in ${environmentName}`}
-										subtitle={`Secrets belong to ${environmentName}. Any resource here can refer to one from its variables.`}
-										className="pt-12 pb-14"
-									>
-										<div className="mt-1.5 flex flex-wrap justify-center gap-2">
-											{canWrite && (
-												<Button onClick={openNew}>
-													<PlusIcon />
-													New secret
-												</Button>
-											)}
-											<DocsButton href={SECRETS_DOCS} />
-										</div>
-									</EmptyHero>
-								) : (
-									<div className="px-5 py-7 text-center text-[13px] text-fg3">No secrets match.</div>
-								)
-							}
+							empty={<div className="px-5 py-7 text-center text-[13px] text-fg3">No secrets match.</div>}
 						/>
 					)}
 				</Section>
@@ -308,11 +303,16 @@ function secretColumns({
 						{secret.usedBy.map((user) => (
 							<Link
 								key={user.resourceId}
-								className="group/nav inline-flex items-center font-mono text-[13px] text-foreground no-underline"
+								className="group/used inline-flex items-center font-mono text-[13px] text-foreground no-underline"
 								to={`${resourcePath(orgId, workspaceId, user.resourceId, { env: environmentSlug })}&tab=settings#set-env`}
 							>
 								{user.resourceSlug}
-								<NavArrow className="ml-1" />
+								<span
+									aria-hidden="true"
+									className="ml-1 text-fg3 opacity-0 transition-opacity group-hover/used:opacity-100 group-focus-visible/used:opacity-100"
+								>
+									→
+								</span>
 							</Link>
 						))}
 					</span>
