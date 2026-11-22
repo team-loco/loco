@@ -11,7 +11,7 @@ import { formatClock, formatHourMinute, timeAxis } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { getErrorMessage } from "@/lib/error-handler";
 import { limitAxis } from "@/lib/compute-chart";
-import { formatCpu, formatMemory } from "@/lib/quantity";
+import { BYTES_PER_MI, formatCpu, formatMemory, MILLI_PER_CORE } from "@/lib/quantity";
 import { trafficValue } from "@/lib/traffic";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/pages/resource/format";
@@ -32,8 +32,6 @@ const METRICS = [
 	{ metric: "k8s.pod.network.io", aggregation: "rate", direction: "receive" },
 	{ metric: "k8s.pod.network.io", aggregation: "rate", direction: "transmit" },
 ];
-const BYTES_PER_MI = 1_048_576;
-const MILLI_PER_CORE = 1000;
 // Usage past this share of the limit marks the chart as running hot.
 const HOT_SHARE = 0.85;
 const AXIS_WIDTH = 72;
@@ -51,12 +49,14 @@ export function Infrastructure({
 	trace,
 	selected,
 	events,
+	moreEvents,
 	minutes,
 	onMinutes,
 }: {
 	trace: TraceSummary;
 	selected: TraceSpan;
 	events: EventItem[];
+	moreEvents: boolean;
 	minutes: number;
 	onMinutes: (minutes: number) => void;
 }) {
@@ -241,6 +241,7 @@ export function Infrastructure({
 													axisLine={false}
 													minTickGap={30}
 													height={X_AXIS_HEIGHT}
+													allowDataOverflow
 												/>
 												<YAxis
 													{...(axis === undefined
@@ -316,6 +317,9 @@ export function Infrastructure({
 						);
 					})}
 				</div>
+			)}
+			{pod !== "" && moreEvents && (
+				<p className="m-0 text-[12px] text-fg3">Older events in this window aren’t marked.</p>
 			)}
 		</section>
 	);

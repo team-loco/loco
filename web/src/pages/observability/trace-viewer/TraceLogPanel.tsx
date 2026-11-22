@@ -309,6 +309,7 @@ export function TraceLogPanel({
 								trace={trace}
 								selected={selected}
 								events={events.items}
+								moreEvents={events.more}
 								minutes={minutes}
 								onMinutes={setMinutes}
 							/>

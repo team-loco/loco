@@ -1322,7 +1322,10 @@ with session(out) as browser:
                     ),
                     "value": value * scale,
                 }
-                for offset, value in zip((-60, 60, 120), values, strict=True)
+                # The API buckets from before the window, so the first point lies outside it.
+                for offset, value in zip(
+                    (-900, -60, 60, 120), [values[0], *values], strict=True
+                )
             ]
 
         route.fulfill(
@@ -1533,6 +1536,14 @@ with session(out) as browser:
         expect(
             marks.get_by_role("button", name=re.compile("^Restarted in us-ca-1, "))
         ).to_be_visible()
+    grid = cpu.locator(".recharts-cartesian-grid").bounding_box()
+    band = cpu.locator(".recharts-reference-area").bounding_box()
+    mark = cpu.get_by_role(
+        "button", name=re.compile("^Restarted in us-ca-1, ")
+    ).bounding_box()
+    # The restart is 120s before the trace in a ±10m window; the sub-second trace adds under a pixel.
+    expected = band["x"] - grid["width"] * 120 / 1200
+    assert abs(mark["x"] + mark["width"] / 2 - expected) < 3, (mark, band, grid)
     assert len(metric_requests) == 6, metric_requests
     assert all(
         request["resourceIds"] == [workspace_id] and request["byPod"]

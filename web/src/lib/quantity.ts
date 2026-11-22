@@ -1,6 +1,6 @@
-const MILLI_PER_CORE = 1000;
+export const MILLI_PER_CORE = 1000;
 const MI_PER_GI = 1024;
-const BYTES_PER_MI = 1_048_576;
+export const BYTES_PER_MI = 1_048_576;
 const DECIMAL_KILO = 1e3;
 const DECIMAL_MEGA = 1e6;
 const DECIMAL_GIGA = 1e9;
