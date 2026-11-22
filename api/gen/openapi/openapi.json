@@ -18503,6 +18503,24 @@
             "title": "member_count",
             "format": "int32",
             "description": "member_count is how many users hold a direct grant on the workspace. An organization admin\n without one is not counted. GetWorkspace sets it, and ListOrgWorkspaces sets it on each\n workspace the caller can read."
+          },
+          "environmentCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "environment_count",
+            "format": "int32",
+            "description": "environment_count is how many environments the workspace holds. GetWorkspace sets it, and\n ListOrgWorkspaces sets it on each workspace the caller can read."
+          },
+          "webhookCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "webhook_count",
+            "format": "int32",
+            "description": "webhook_count is how many webhooks the workspace holds. GetWorkspace sets it, and\n ListOrgWorkspaces sets it on each workspace the caller can read."
           }
         },
         "title": "Workspace",

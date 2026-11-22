@@ -46,7 +46,13 @@ type Workspace struct {
 	// member_count is how many users hold a direct grant on the workspace. An organization admin
 	// without one is not counted. GetWorkspace sets it, and ListOrgWorkspaces sets it on each
 	// workspace the caller can read.
-	MemberCount   *int32 `protobuf:"varint,12,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
+	MemberCount *int32 `protobuf:"varint,12,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
+	// environment_count is how many environments the workspace holds. GetWorkspace sets it, and
+	// ListOrgWorkspaces sets it on each workspace the caller can read.
+	EnvironmentCount *int32 `protobuf:"varint,13,opt,name=environment_count,json=environmentCount,proto3,oneof" json:"environment_count,omitempty"`
+	// webhook_count is how many webhooks the workspace holds. GetWorkspace sets it, and
+	// ListOrgWorkspaces sets it on each workspace the caller can read.
+	WebhookCount  *int32 `protobuf:"varint,14,opt,name=webhook_count,json=webhookCount,proto3,oneof" json:"webhook_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -161,6 +167,20 @@ func (x *Workspace) GetResourceCount() int32 {
 func (x *Workspace) GetMemberCount() int32 {
 	if x != nil && x.MemberCount != nil {
 		return *x.MemberCount
+	}
+	return 0
+}
+
+func (x *Workspace) GetEnvironmentCount() int32 {
+	if x != nil && x.EnvironmentCount != nil {
+		return *x.EnvironmentCount
+	}
+	return 0
+}
+
+func (x *Workspace) GetWebhookCount() int32 {
+	if x != nil && x.WebhookCount != nil {
+		return *x.WebhookCount
 	}
 	return 0
 }
@@ -1344,7 +1364,7 @@ var File_loco_workspace_v1_workspace_proto protoreflect.FileDescriptor
 
 const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
-	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x04\n" +
+	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\x05\n" +
 	"\tWorkspace\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06org_id\x18\x02 \x01(\tR\x05orgId\x12\x12\n" +
@@ -1361,9 +1381,13 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x13effective_retention\x18\n" +
 	" \x01(\v2 .loco.workspace.v1.RetentionDaysR\x12effectiveRetention\x12*\n" +
 	"\x0eresource_count\x18\v \x01(\x05H\x00R\rresourceCount\x88\x01\x01\x12&\n" +
-	"\fmember_count\x18\f \x01(\x05H\x01R\vmemberCount\x88\x01\x01B\x11\n" +
+	"\fmember_count\x18\f \x01(\x05H\x01R\vmemberCount\x88\x01\x01\x120\n" +
+	"\x11environment_count\x18\r \x01(\x05H\x02R\x10environmentCount\x88\x01\x01\x12(\n" +
+	"\rwebhook_count\x18\x0e \x01(\x05H\x03R\fwebhookCount\x88\x01\x01B\x11\n" +
 	"\x0f_resource_countB\x0f\n" +
-	"\r_member_count\"\x8c\x02\n" +
+	"\r_member_countB\x14\n" +
+	"\x12_environment_countB\x10\n" +
+	"\x0e_webhook_count\"\x8c\x02\n" +
 	"\x17WorkspaceMemberWithUser\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +

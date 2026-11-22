@@ -35,6 +35,8 @@ with session(out) as browser:
         )
 
     expect(in_use("Resources")).to_have_text("0 in shared")
+    expect(in_use("Environments")).to_have_text("1 in shared")
+    expect(in_use("Webhooks")).to_have_text("0 in shared")
     history = [
         "Deployments",
         "Builds",
