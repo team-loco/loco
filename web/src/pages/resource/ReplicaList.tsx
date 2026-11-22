@@ -10,15 +10,15 @@ import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { Button } from "@/components/design/Button";
 import { Skeleton } from "@/components/design/Skeleton";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
-import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
-import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
+import { formatMemory } from "@/lib/quantity";
 import { agoLabel, maybeTsMs, shortDurationLabel } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { replicaState } from "./deployment-progress";
 import { shortName } from "./MetricChart";
 import { depTag, regionDeployment, type RegionView } from "./model";
-import { exitLabel, podUsage, regionReady, restartLabel } from "./replicas";
+import { MAX_REPLICA_LINES } from "./metric";
+import { exitLabel, podUsage, regionReady, replicaLimits, restartCount, restartLabel } from "./replicas";
 
 const USAGE_SPAN_MS = 5 * 60_000;
 const USAGE_METRICS = ["k8s.pod.cpu_limit_utilization", "k8s.pod.memory.working_set_limit_utilization"] as const;
@@ -27,8 +27,6 @@ const MILLI_PER_CORE = 1000;
 const MI_PER_GI = 1024;
 /** Regions with more replicas than this show one small cell per replica. */
 const MANY_REPLICAS = 24;
-/** Regions with more replicas than this show their average CPU. */
-const AVERAGE_FROM = 12;
 
 const CELL_TONE: Record<BadgeTone, string> = {
 	ok: "bg-ok-glyph",
@@ -50,24 +48,42 @@ const GLYPH: Record<BadgeTone, Glyph> = {
 	pill: "off",
 };
 
-/** A quantity in whole units with two decimals, the way the chips print usage. */
-function units(value: number): string {
-	return value.toFixed(2);
-}
-
 /** A limit in whole units without trailing zeros. */
 function limitUnits(value: number): string {
 	return Number(value.toFixed(3)).toString();
 }
 
-function Usage({ name, ratio, limit, unit }: { name: string; ratio: number | undefined; limit: number; unit: string }) {
-	const known = ratio !== undefined && limit > 0;
+/** Usage against its limit, as "0.18/1" for CPU and "0.31/2 Gi" or "96/256 Mi" for memory. */
+function usageText(ratio: number | undefined, limit: number, kind: "cpu" | "memory"): { used: string; limit: string } {
+	if (limit <= 0) return { used: "—", limit: "" };
+	if (kind === "cpu") {
+		const cores = limit / MILLI_PER_CORE;
+		return { used: ratio === undefined ? "—" : (ratio * cores).toFixed(2), limit: `/${limitUnits(cores)}` };
+	}
+	const gi = limit >= MI_PER_GI;
+	const used =
+		ratio === undefined ? "—" : gi ? ((ratio * limit) / MI_PER_GI).toFixed(2) : Math.round(ratio * limit).toString();
+	return { used, limit: `/${formatMemory(limit)}` };
+}
+
+function Usage({
+	name,
+	ratio,
+	limit,
+	kind,
+}: {
+	name: string;
+	ratio: number | undefined;
+	limit: number;
+	kind: "cpu" | "memory";
+}) {
+	const text = usageText(ratio, limit, kind);
 	return (
 		<>
 			<span className="font-sans text-[11px] text-fg3">{name}</span>{" "}
-			<span className={cn("text-foreground", known && ratio >= HIGH_SHARE && "text-warn-fg")}>
-				{known ? units(ratio * limit) : "—"}
-				{limit > 0 && <span className="text-fg4">{`/${limitUnits(limit)}${unit}`}</span>}
+			<span className={cn("text-foreground", ratio !== undefined && ratio >= HIGH_SHARE && "text-warn-fg")}>
+				{text.used}
+				<span className="text-fg4">{text.limit}</span>
 			</span>{" "}
 		</>
 	);
@@ -115,24 +131,21 @@ export function ReplicaList({
 	});
 	const cpuUsage = podUsage(cpu?.data ?? [], nowMs);
 	const memoryUsage = podUsage(memory?.data ?? [], nowMs);
-	const spec = regionTarget(region.current === undefined ? undefined : getServiceSpec(region.current), region.name);
-	const cpuMilli = parseCpuMilli(spec?.cpu ?? "");
-	const memoryMi = parseMemMi(spec?.memory ?? "");
-	const cpuCores = cpuMilli / MILLI_PER_CORE;
-	const memoryGi = memoryMi / MI_PER_GI;
 	const replicas = region.status?.replicas ?? [];
 	const stale = region.status?.status === ResourceStatus.UNKNOWN;
 	const reportedMs = maybeTsMs(region.status?.reportedAt);
 	const { ready, desired, previous } = regionReady(region);
 	const measuring = cpu?.isLoading === true || memory?.isLoading === true;
 	const many = replicas.length > MANY_REPLICAS;
-	const cpuShares = replicas.flatMap((r) => {
+	const limits = new Map(replicas.map((r) => [r.name, replicaLimits(region, r)]));
+	const cpuUsed = replicas.flatMap((r) => {
 		const share = cpuUsage.get(r.name);
-		return share === undefined ? [] : [share];
+		const milli = limits.get(r.name)?.cpuMilli ?? 0;
+		return share === undefined || milli <= 0 ? [] : [share * milli];
 	});
 	const average =
-		replicas.length > AVERAGE_FROM && cpuCores > 0 && cpuShares.length > 0
-			? `avg ${units((cpuShares.reduce((a, b) => a + b, 0) / cpuShares.length) * cpuCores)} vCPU`
+		replicas.length > MAX_REPLICA_LINES && cpuUsed.length > 0
+			? `avg ${(cpuUsed.reduce((a, b) => a + b, 0) / cpuUsed.length / MILLI_PER_CORE).toFixed(2)} vCPU`
 			: undefined;
 	return (
 		<section aria-label={`Replicas in ${region.name}`} className="flex min-w-0 flex-col gap-2">
@@ -166,10 +179,8 @@ export function ReplicaList({
 					const state = replicaState(replica.state);
 					const label = many ? `${replica.name}: ${state.label}` : undefined;
 					const color = lineColor(replica.name);
-					const restarts =
-						replica.restarts > 0
-							? `, ${replica.restarts.toString()} ${replica.restarts === 1 ? "restart" : "restarts"}`
-							: "";
+					const restarts = replica.restarts > 0 ? `, ${restartCount(replica)}` : "";
+					const limit = limits.get(replica.name);
 					return (
 						<li key={replica.uid} className={cn("flex min-w-0", !many && "w-[172px] max-w-full")}>
 							<button
@@ -186,6 +197,12 @@ export function ReplicaList({
 									onHover(replica.name);
 								}}
 								onMouseLeave={() => {
+									onHover(null);
+								}}
+								onFocus={() => {
+									onHover(replica.name);
+								}}
+								onBlur={() => {
 									onHover(null);
 								}}
 								className={
@@ -211,15 +228,22 @@ export function ReplicaList({
 												/>
 											)}
 										</span>
-										{replica.state !== "Serving" && (
+										{replica.state === "Serving" ? (
+											<span className="sr-only">{state.label}</span>
+										) : (
 											<span className="mb-0.5 truncate text-[11.5px] text-warn-fg">{`${state.label}${restarts}`}</span>
 										)}
 										{measuring ? (
 											<Skeleton className="h-3.5 w-28" />
 										) : (
 											<span className="grid grid-cols-[auto_auto] items-baseline justify-start gap-x-2 gap-y-px font-mono text-[12px] tabular-nums">
-												<Usage name="CPU" ratio={cpuUsage.get(replica.name)} limit={cpuCores} unit="" />
-												<Usage name="Mem" ratio={memoryUsage.get(replica.name)} limit={memoryGi} unit=" Gi" />
+												<Usage name="CPU" ratio={cpuUsage.get(replica.name)} limit={limit?.cpuMilli ?? 0} kind="cpu" />
+												<Usage
+													name="Mem"
+													ratio={memoryUsage.get(replica.name)}
+													limit={limit?.memoryMi ?? 0}
+													kind="memory"
+												/>
 											</span>
 										)}
 									</>

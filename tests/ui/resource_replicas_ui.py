@@ -20,6 +20,8 @@ state = load_state(
 )
 workspace = state["workspaces"]["acme/shared"]
 EAST, WEST = "us-ca-1", "us-va-1"
+SCALED_REPLICAS = 13
+SCALED_PODS = [f"scaled-ui-7f9c-p{i:02d}" for i in range(SCALED_REPLICAS)]
 
 if "replicas" not in state:
     spec = {
@@ -75,7 +77,67 @@ if "replicas" not in state:
     }
     evidence.write_json(Path(args.state), state)
 
+if "scaling" not in state:
+    clusters = state["replicas"]["clusters"]
+
+    def scaled_spec(sizes):
+        return {
+            "platform": "linux/amd64",
+            "observability": {"injectOtel": True},
+            "build": {"type": "image", "image": "registry.example.test/scaled:v1"},
+            "port": 8080,
+            "regions": {
+                region: {"cpu": "1", "memory": "2Gi", **size}
+                for region, size in sizes.items()
+            },
+        }
+
+    def deployment(sizes, ready):
+        return {
+            "environment": "production",
+            "id": str(uuid.uuid4()),
+            "spec": scaled_spec(sizes),
+            "status": "running",
+            "age": "1 hour",
+            "placements": {
+                region: {"cluster": clusters[region], "ready_replicas": ready}
+                for region in sizes
+            },
+        }
+
+    autoscaled = {
+        "minReplicas": 2,
+        "maxReplicas": 20,
+        "scalers": {"enabled": True, "cpuTarget": 70},
+    }
+    scaled = deployment({EAST: autoscaled}, SCALED_REPLICAS)
+    mixed = deployment(
+        {
+            EAST: {"minReplicas": 1, "maxReplicas": 1},
+            WEST: {
+                "minReplicas": 1,
+                "maxReplicas": 3,
+                "scalers": {"enabled": True, "cpuTarget": 70},
+            },
+        },
+        1,
+    )
+    seeded = evidence.seed_resources(
+        state,
+        [
+            {"workspace": "acme/shared", "name": "scaled-ui", "deployments": [scaled]},
+            {"workspace": "acme/shared", "name": "mixed-ui", "deployments": [mixed]},
+        ],
+    )
+    state["scaling"] = {
+        "scaled": seeded["acme/shared/scaled-ui"],
+        "scaled_deployment": scaled["id"],
+        "mixed": seeded["acme/shared/mixed-ui"],
+    }
+    evidence.write_json(Path(args.state), state)
+
 r = state["replicas"]
+scaling = state["scaling"]
 path = f"/org/{r['org']}/wks/{workspace}/resource/{r['resource']}?env=production"
 
 
@@ -143,6 +205,37 @@ def report_replicas():
     sql(state, "BEGIN;\n" + "\n".join(statements) + "\nCOMMIT;")
 
 
+def report_scaled():
+    """Writes the autoscaled resource's report: more replicas than the charts draw lines for."""
+    now = int(time.time())
+    deployment = scaling["scaled_deployment"]
+    cluster = r["clusters"][EAST]
+    placement = sql(
+        state,
+        f"SELECT id FROM placements WHERE deployment_id='{deployment}' AND cluster_id='{cluster}';",
+    )
+    replicas = [
+        {
+            "uid": name,
+            "name": name,
+            "node": "node-1",
+            "placement_revision": 1,
+            "deployment_id": deployment,
+            "ready": True,
+            "state": "Serving",
+            "started_at": {"seconds": now - 3600},
+        }
+        for name in SCALED_PODS
+    ]
+    snapshot = {"placementId": placement, "replicas": replicas}
+    sql(
+        state,
+        "INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) "
+        f"VALUES('{deployment}','{cluster}',1,{evidence.sql_literal(json.dumps(snapshot))}) "
+        "ON CONFLICT(deployment_id,cluster_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;",
+    )
+
+
 usage = {
     "k8s.pod.cpu_limit_utilization": {
         "replicas-ui-east-a1": 0.45,
@@ -180,6 +273,22 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
             time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - ago))
             for ago in (90, 30)
         ]
+        if body["resourceIds"][0] == scaling["scaled"]:
+            route.fulfill(
+                json={
+                    "series": [
+                        {
+                            "resourceId": scaling["scaled"],
+                            "labels": {"k8s.pod.name": pod},
+                            "points": [
+                                {"timestamp": stamp, "value": 0.42} for stamp in stamps
+                            ],
+                        }
+                        for pod in SCALED_PODS
+                    ]
+                }
+            )
+            return
         route.fulfill(
             json={
                 "series": [
@@ -226,7 +335,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     serving = chip(east, "a1")
     expect(serving).not_to_contain_text("Serving")
     expect(serving).to_contain_text("CPU 0.23/0.5")
-    expect(serving).to_contain_text("Mem 0.15/0.25 Gi")
+    expect(serving).to_contain_text("Mem 154/256 Mi")
     crashed = chip(east, "b2")
     expect(crashed).to_contain_text("Failing, 4 restarts")
     expect(crashed).to_contain_text("CPU 0.45/0.5")
@@ -336,6 +445,34 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         history.get_by_text(f"First deployment in {WEST}", exact=True)
     ).to_be_visible()
 
+    def resource_path(resource):
+        return f"/org/{r['org']}/wks/{workspace}/resource/{resource}?env=production"
+
+    report_scaled()
+    page.goto(state["ui_url"] + resource_path(scaling["scaled"]))
+    expect(scale).to_have_text("CPU autoscaling 2–20")
+    scale.hover()
+    expect(
+        page.get_by_text(
+            "Scales between 2 and 20 replicas per region, targeting 70% CPU",
+            exact=True,
+        )
+    ).to_be_visible()
+    panel = page.get_by_role("region", name="Replicas", exact=True)
+    scaled_east = panel.get_by_role("region", name=f"Replicas in {EAST}", exact=True)
+    expect(scaled_east.get_by_role("listitem")).to_have_count(SCALED_REPLICAS)
+    expect(scaled_east).to_contain_text("avg 0.42 vCPU")
+    expect(
+        panel.get_by_text(
+            f"band shows lowest to highest of {SCALED_REPLICAS} replicas", exact=True
+        )
+    ).to_have_count(2)
+    expect(scaled_east.locator('[data-slot="replica-key"]')).to_have_count(0)
+
+    page.goto(state["ui_url"] + resource_path(scaling["mixed"]))
+    expect(scale).to_have_text("Scaling differs by region")
+
+    page.goto(state["ui_url"] + path)
     # The evidence API counts a cluster silent after three missed two-hour heartbeats.
     heartbeat(WEST, "7 hours")
     report_replicas()

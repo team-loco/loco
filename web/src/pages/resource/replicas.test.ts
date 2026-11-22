@@ -1,11 +1,17 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
 import { MetricSeriesSchema } from "@gen/loco/observability/v1/observability_pb";
-import { ReplicaExitSchema, ReplicaRestartSchema, ReplicaSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	DeploymentSchema,
+	ReplicaExitSchema,
+	ReplicaRestartSchema,
+	ReplicaSchema,
+} from "@gen/loco/deployment/v1/deployment_pb";
 
 import { msToTimestamp } from "@/lib/time";
 
-import { exitLabel, podUsage, restartLabel } from "./replicas";
+import type { RegionView } from "./model";
+import { exitLabel, podUsage, replicaLimits, restartLabel } from "./replicas";
 
 const NOW_MS = Date.UTC(2026, 9, 11, 12, 0, 0);
 const MINUTE_MS = 60_000;
@@ -63,5 +69,35 @@ describe("restartLabel", () => {
 
 	test("shows only the count before any restart", () => {
 		expect(restartLabel(create(ReplicaSchema, { restarts: 0 }), NOW_MS)).toBe("0 restarts");
+	});
+});
+
+describe("replicaLimits", () => {
+	const sized = (id: string, cpu: string, memory: string) =>
+		create(DeploymentSchema, {
+			id,
+			spec: { spec: { case: "service", value: { regions: { "us-ca-1": { cpu, memory } } } } },
+		});
+	const resized = sized("new", "1", "2Gi");
+	const previous = sized("old", "500m", "256Mi");
+	const region: RegionView = {
+		name: "us-ca-1",
+		status: undefined,
+		current: resized,
+		serving: previous,
+		lastGood: previous,
+		history: [resized, previous],
+	};
+
+	test("takes each replica's limits from the deployment it runs during a resize", () => {
+		const old = create(ReplicaSchema, { name: "web-old", deploymentId: "old" });
+		const fresh = create(ReplicaSchema, { name: "web-new", deploymentId: "new" });
+		expect(replicaLimits(region, old)).toEqual({ cpuMilli: 500, memoryMi: 256 });
+		expect(replicaLimits(region, fresh)).toEqual({ cpuMilli: 1000, memoryMi: 2048 });
+	});
+
+	test("falls back to the current deployment for a replica of an unknown one", () => {
+		const unknown = create(ReplicaSchema, { name: "web-x", deploymentId: "gone" });
+		expect(replicaLimits(region, unknown)).toEqual({ cpuMilli: 1000, memoryMi: 2048 });
 	});
 });

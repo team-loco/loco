@@ -3,9 +3,10 @@ import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 
 import { readyIn } from "@/lib/activity-deploys";
 import { getServiceSpec, placementIn, regionTarget } from "@/lib/deployment-utils";
+import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 
-import type { RegionView } from "./model";
+import { regionDeployment, type RegionView } from "./model";
 
 export const POD_LABEL = "k8s.pod.name";
 /** Two collection intervals of the worker's kubeletstats receiver. */
@@ -46,6 +47,13 @@ export function sharedScaling(regions: readonly RegionView[]): Scaling | "differ
 	return same ? first : "differs";
 }
 
+/** The CPU (millicores) and memory (Mi) limits of the deployment a replica runs, or of the region's current one. */
+export function replicaLimits(region: RegionView, replica: Replica): { cpuMilli: number; memoryMi: number } {
+	const deployment = regionDeployment(region, replica.deploymentId) ?? region.current;
+	const target = regionTarget(deployment === undefined ? undefined : getServiceSpec(deployment), region.name);
+	return { cpuMilli: parseCpuMilli(target?.cpu ?? ""), memoryMi: parseMemMi(target?.memory ?? "") };
+}
+
 /** Each pod's newest value from pod-grouped series, leaving out pods without a recent sample. */
 export function podUsage(series: readonly MetricSeries[], nowMs: number): Map<string, number> {
 	const usage = new Map<string, number>();
@@ -77,8 +85,12 @@ function restartCause(restart: ReplicaRestart): string {
 	return `exit ${restart.exitCode.toString()}`;
 }
 
+export function restartCount(replica: Replica): string {
+	return `${replica.restarts.toString()} ${replica.restarts === 1 ? "restart" : "restarts"}`;
+}
+
 export function restartLabel(replica: Replica, nowMs: number): string {
-	const count = `${replica.restarts.toString()} ${replica.restarts === 1 ? "restart" : "restarts"}`;
+	const count = restartCount(replica);
 	const restart = replica.lastRestart;
 	if (restart === undefined) return count;
 	const at = maybeTsMs(restart.at);

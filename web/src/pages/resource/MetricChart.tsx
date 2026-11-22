@@ -20,7 +20,8 @@ const MARGIN = 4;
 const BAND_OPACITY = 0.14;
 const FULL_REQUEST = 100;
 const LINE_WIDTH = 1.75;
-const SERIES = 8;
+/** The number of distinct series colours a theme defines. */
+export const SERIES = 8;
 
 const CHART_CONFIG = {
 	median: { label: "Median", color: "var(--series-0)" },
@@ -145,6 +146,7 @@ export function MetricChart({
 	const top = replicas === undefined ? usage.highest : highest?.value;
 	const highestShare =
 		highest?.share === undefined ? undefined : `${Math.round(highest.share * 100).toString()}% of limit`;
+	const highlighted = picked !== null && picked !== undefined && replicas?.replicas.includes(picked) ? picked : null;
 	const tooltipValue = (value: unknown) =>
 		Array.isArray(value) ? value.map((v) => show(Number(v))).join(" – ") : show(Number(value));
 	return (
@@ -247,8 +249,8 @@ export function MetricChart({
 								name={shortName(replica)}
 								type="linear"
 								stroke={lineColor?.(replica) ?? seriesColor(i)}
-								strokeWidth={picked === replica ? LINE_WIDTH * 1.6 : LINE_WIDTH}
-								strokeOpacity={picked === null || picked === undefined || picked === replica ? 1 : 0.25}
+								strokeWidth={highlighted === replica ? LINE_WIDTH * 1.6 : LINE_WIDTH}
+								strokeOpacity={highlighted === null || highlighted === replica ? 1 : 0.25}
 								dot={false}
 								isAnimationActive={false}
 								connectNulls

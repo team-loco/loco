@@ -25,7 +25,7 @@ import {
 	type MetricRange,
 	type ReplicaChart,
 } from "./metric";
-import { MetricChart, seriesColor } from "./MetricChart";
+import { MetricChart, SERIES, seriesColor } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, REFRESH_MS, type RegionView } from "./model";
 import { ReplicaDetail, ReplicaList } from "./ReplicaList";
@@ -142,9 +142,10 @@ export function ReplicasPanel({
 		.flatMap((view) => (view.status?.replicas ?? []).map((replica) => ({ region: view, replica })))
 		.find((r) => r.replica.name === picked);
 	const lines = [...new Set([...(cpuReplicas?.replicas ?? []), ...(memoryReplicas?.replicas ?? [])])].toSorted();
+	// Swatches name a line only while every line has its own colour.
 	const lineColor = (replica: string) => {
 		const i = lines.indexOf(replica);
-		return i < 0 ? undefined : seriesColor(i);
+		return i < 0 || lines.length > SERIES ? undefined : seriesColor(i);
 	};
 	const chartedCount = charted.reduce((n, r) => n + (r.status?.replicas.length ?? 0), 0);
 	const bandSub = (loaded: boolean | undefined, lineChart: ReplicaChart | undefined) =>
