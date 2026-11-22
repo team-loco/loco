@@ -25,7 +25,7 @@ import (
 const (
 	testTraceID     = "4bf92f3577b34da6a3ce929d0e0e4736"
 	testParentSpan  = "00f067aa0ba902b7"
-	testTraceparent = "00-" + testTraceID + "-" + testParentSpan + "-01"
+	testTraceparent = "00-" + testTraceID + "-" + testParentSpan + "-00"
 	testVersion     = "sha-test"
 	serviceNameEnv  = "OTEL_SERVICE_NAME"
 	resourceAttrEnv = "OTEL_RESOURCE_ATTRIBUTES"
@@ -214,7 +214,7 @@ func newTracedServer(t *testing.T) *httptest.Server {
 	return srv
 }
 
-func TestRPCSpanContinuesTheIncomingTrace(t *testing.T) {
+func TestRPCSpanStartsItsOwnTraceAndLinksTheCaller(t *testing.T) {
 	recorder := recordGlobalSpans(t)
 	srv := newTracedServer(t)
 	transport := connecthttp.NewTransport(srv.Client(), srv.URL)
@@ -238,11 +238,12 @@ func TestRPCSpanContinuesTheIncomingTrace(t *testing.T) {
 	if len(spans) != 2 || rpcSpan == nil || httpSpan == nil {
 		t.Fatalf("spans = %v, want one HTTP span and one RPC span", spanNames(spans))
 	}
-	if got := httpSpan.Parent().SpanID().String(); got != testParentSpan {
-		t.Errorf("HTTP span parent = %s, want the incoming span %s", got, testParentSpan)
+	if httpSpan.Parent().IsValid() || httpSpan.SpanContext().TraceID().String() == testTraceID {
+		t.Errorf("HTTP span joined the caller's trace %s instead of starting its own", testTraceID)
 	}
-	if got := rpcSpan.SpanContext().TraceID().String(); got != testTraceID {
-		t.Errorf("RPC span trace = %s, want the incoming trace %s", got, testTraceID)
+	links := httpSpan.Links()
+	if len(links) != 1 || links[0].SpanContext.SpanID().String() != testParentSpan {
+		t.Errorf("HTTP span links = %v, want the caller's span %s", links, testParentSpan)
 	}
 	rpcParent := rpcSpan.Parent().SpanID()
 	httpSpanID := httpSpan.SpanContext().SpanID()
