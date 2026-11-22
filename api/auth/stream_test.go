@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/team-loco/loco/api/pkg/tracingtest"
 	"github.com/team-loco/loco/api/reqctx"
 )
 
@@ -125,5 +128,63 @@ func TestGuardStreamStopsWithoutChangingClientCancellation(t *testing.T) {
 	}
 	if err = stop(); err != nil {
 		t.Fatalf("normal stream shutdown = %v", err)
+	}
+}
+
+func TestGuardStreamTracesEachRecheckAsARootLinkedToTheStream(t *testing.T) {
+	recorder := tracingtest.Record(t)
+	ctx := tracingtest.StartParent(t)
+	denied := connect.NewError(connect.CodePermissionDenied, "permission denied")
+	ctx = WithStreamValidation(ctx, StreamConfig{Interval: time.Hour, Timeout: time.Second},
+		func(context.Context) (reqctx.Principal, error) { return reqctx.Principal{}, nil })
+	if _, _, err := GuardStream(ctx, func(context.Context) error { return denied }); err == nil {
+		t.Fatal("stream opened after a denied check")
+	}
+	ended := recorder.Ended()
+	if len(ended) != 1 || ended[0].Name() != streamRecheckSpan {
+		t.Fatalf("ended spans = %v, want one %s", ended, streamRecheckSpan)
+	}
+	span := ended[0]
+	if span.Parent().IsValid() {
+		t.Fatalf("recheck span has parent %v", span.Parent())
+	}
+	stream := trace.SpanContextFromContext(ctx)
+	if links := span.Links(); len(links) != 1 || !links[0].SpanContext.Equal(stream) {
+		t.Fatalf("recheck links = %v, want the stream span %v", links, stream)
+	}
+	if span.Status().Code != codes.Error {
+		t.Fatalf("recheck status = %+v, want an error", span.Status())
+	}
+}
+
+func TestGuardStreamEndsARecheckCancelledByStopWithoutError(t *testing.T) {
+	recorder := tracingtest.Record(t)
+	var checks atomic.Int32
+	started := make(chan struct{})
+	ctx := WithStreamValidation(t.Context(), StreamConfig{Interval: time.Millisecond, Timeout: time.Hour},
+		func(ctx context.Context) (reqctx.Principal, error) {
+			if checks.Add(1) == 2 {
+				close(started)
+				<-ctx.Done()
+				return reqctx.Principal{}, ctx.Err()
+			}
+			return reqctx.Principal{}, nil
+		})
+	_, stop, err := GuardStream(ctx, func(context.Context) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	if err = stop(); err != nil {
+		t.Fatalf("stop = %v, want a clean end", err)
+	}
+	ended := recorder.Ended()
+	if len(ended) != 2 {
+		t.Fatalf("ended spans = %d, want the initial and the stopped recheck", len(ended))
+	}
+	for _, span := range ended {
+		if span.Status().Code == codes.Error {
+			t.Fatalf("%s status = %+v, want no error", span.Name(), span.Status())
+		}
 	}
 }

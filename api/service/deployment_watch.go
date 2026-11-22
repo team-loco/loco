@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
@@ -24,6 +25,7 @@ import (
 const (
 	deploymentActivityBatchSize = 200
 	watchDeploymentMaxDuration  = 30 * time.Minute
+	deploymentWatchPollSpan     = "deployment.watch.poll"
 )
 
 func (s *DeploymentServer) WatchDeployment(
@@ -66,7 +68,9 @@ func (s *DeploymentServer) WatchDeployment(
 		if err = ctx.Err(); err != nil {
 			return err
 		}
-		deployment, activity, readErr := s.readDeployment(ctx, id, cursor)
+		pollCtx, span := tracing.StartLinked(ctx, deploymentWatchPollSpan)
+		deployment, activity, readErr := s.readDeployment(pollCtx, id, cursor)
+		tracing.End(span, readErr)
 		if readErr != nil {
 			return readErr
 		}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/guardrails"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
@@ -21,6 +22,7 @@ const (
 	tailHeartbeatInterval = 5 * time.Second
 	tailPollInterval      = 2 * time.Second
 	tailPageSize          = 100
+	logsTailPollSpan      = "logs.tail.poll"
 )
 
 func (s *ObservabilityServer) TailLogs(
@@ -120,7 +122,9 @@ func (s *ObservabilityServer) pollTailLogs(
 		if err := ctx.Err(); err != nil {
 			return sent, err
 		}
-		page, err := s.clickhouse.QueryTailLogPage(ctx, query, cursor)
+		readCtx, span := tracing.StartLinked(ctx, logsTailPollSpan)
+		page, err := s.clickhouse.QueryTailLogPage(readCtx, query, cursor)
+		tracing.EndLive(ctx, span, err)
 		if err != nil {
 			return sent, err
 		}

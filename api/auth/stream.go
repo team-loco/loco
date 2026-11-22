@@ -3,12 +3,18 @@ package auth
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect/v2"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/reqctx"
 )
+
+const streamRecheckSpan = "stream.recheck"
 
 var errStreamValidation = errors.New("stream credential validation is not configured")
 
@@ -44,7 +50,14 @@ func GuardStream(
 	if !ok || validation.read == nil || validation.config.Interval <= 0 || validation.config.Timeout <= 0 {
 		return nil, nil, errStreamValidation
 	}
-	check := func(ctx context.Context) error {
+	var spanOpts []trace.SpanStartOption
+	if info, ok := connect.CallInfoForServerContext(ctx); ok {
+		spanOpts = append(spanOpts, trace.WithAttributes(semconv.RPCMethod(strings.TrimLeft(info.Spec.Procedure, "/"))))
+	}
+	check := func(ctx context.Context) (err error) {
+		stream := ctx
+		ctx, span := tracing.StartLinked(ctx, streamRecheckSpan, spanOpts...)
+		defer func() { tracing.EndLive(stream, span, err) }()
 		ctx, cancel := context.WithTimeout(ctx, validation.config.Timeout)
 		defer cancel()
 		principal, err := validation.read(ctx)

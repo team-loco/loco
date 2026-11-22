@@ -19,6 +19,12 @@ func StartRoot(ctx context.Context, name string, opts ...trace.SpanStartOption) 
 	return otel.Tracer(tracerName).Start(ctx, name, opts...) //nolint:spancheck
 }
 
+// StartLinked starts a root span linked to the span in ctx.
+func StartLinked(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	opts = append(opts, trace.WithLinks(trace.LinkFromContext(ctx)))
+	return StartRoot(ctx, name, opts...)
+}
+
 // Link links span to the span that started its work, given that span's stored traceparent.
 func Link(span trace.Span, traceparent *string) {
 	if traceparent == nil {
@@ -35,6 +41,14 @@ func End(span trace.Span, err error) {
 		span.SetStatus(codes.Error, err.Error())
 	}
 	span.End()
+}
+
+// EndLive ends span and records err only while ctx is live, leaving a stream's clean end without an error.
+func EndLive(ctx context.Context, span trace.Span, err error) {
+	if ctx.Err() != nil {
+		err = nil
+	}
+	End(span, err)
 }
 
 func Traceparent(ctx context.Context) string {
