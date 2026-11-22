@@ -168,6 +168,11 @@ func run() error {
 		return err
 	}
 	defer stopTracing(tracerProvider)
+	meterProvider, err := startMetrics(context.Background(), ac.MetricsEnabled, ac.Version)
+	if err != nil {
+		return err
+	}
+	defer stopMetrics(meterProvider)
 
 	if err = migrations.Up(context.Background(), ac.Database.URL); err != nil {
 		return err

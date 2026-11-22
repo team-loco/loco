@@ -1,4 +1,4 @@
-// Package otelsetup installs the OpenTelemetry tracer provider Loco's servers export their own traces with.
+// Package otelsetup installs the OpenTelemetry providers Loco's servers export their own traces and metrics with.
 package otelsetup
 
 import (
@@ -59,7 +59,7 @@ func newResource(ctx context.Context, serviceName, version string) (*resource.Re
 		resource.WithTelemetrySDK(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("tracing resource: %w", err)
+		return nil, fmt.Errorf("otel resource: %w", err)
 	}
 	return res, nil
 }
