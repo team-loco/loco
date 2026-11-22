@@ -2,6 +2,7 @@ package interceptor
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/internal/rpc"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const callerRequestID = "caller-request-id"
@@ -82,13 +84,7 @@ func TestContextInterceptorRecordsRequestIDOnFailedRPCSpan(t *testing.T) {
 	if len(spans) != 1 {
 		t.Fatalf("recorded %d spans, want the RPC span", len(spans))
 	}
-	for _, attr := range spans[0].Attributes() {
-		if attr.Key == requestIDAttr {
-			if got := attr.Value.AsString(); got != want {
-				t.Fatalf("span request ID = %q, want %q", got, want)
-			}
-			return
-		}
+	if attr := attribute.String(requestIDAttr, want); !slices.Contains(spans[0].Attributes(), attr) {
+		t.Fatalf("RPC span attributes = %v, want %v", spans[0].Attributes(), attr)
 	}
-	t.Fatalf("RPC span has no %s attribute", requestIDAttr)
 }
