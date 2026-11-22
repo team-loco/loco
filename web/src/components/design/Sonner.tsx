@@ -1,5 +1,5 @@
 import type { Dialog } from "@base-ui/react/dialog";
-import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon, TriangleAlertIcon } from "lucide-react";
 
 import { Toaster as ToasterBase } from "@/components/ui/sonner";
 
@@ -23,6 +23,7 @@ function Toaster() {
 			icons={{
 				success: <CircleCheckIcon className="size-4 text-ok" />,
 				error: <CircleAlertIcon className="size-4 text-err" />,
+				warning: <TriangleAlertIcon className="size-4 text-warn" />,
 				loading: (
 					<span className="size-[13px] animate-spin rounded-full border-[1.6px] border-[color-mix(in_oklch,var(--fg)_18%,transparent)] border-t-fg2 motion-reduce:[animation-duration:2.4s]" />
 				),

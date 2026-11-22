@@ -6,7 +6,7 @@ from harness import load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
-    description="Test the Activity drawer: paging through deployments and degraded and recovered events"
+    description="Test the Activity drawer: paging through deployments, degraded and recovered events, and deploy toasts"
 )
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
@@ -49,6 +49,21 @@ with session(out) as browser:
     expect(page.get_by_role("link", name="svc-1", exact=True).first).to_be_visible()
     page.wait_for_timeout(1000)
     assert drawer_reads == [], drawer_reads
+    # A deployment event while the drawer is closed toasts what changed, with a link to the resource.
+    sql(
+        state,
+        f"""UPDATE deployments SET created_at=NOW() WHERE id=(SELECT id FROM deployments WHERE resource_id='{resource}' ORDER BY created_at DESC LIMIT 1);
+INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
+VALUES('deployment.ready','{org}','{workspace}','{resource}','{environment}','user','{owner}','deployment','req-activity-toast',
+jsonb_build_object('environmentId','{environment}'),NOW());""",
+    )
+    toast = page.locator("[data-sonner-toast]").filter(
+        has_text="svc-1 is live on fixture"
+    )
+    expect(toast).to_be_visible()
+    toast.get_by_role("button", name="View", exact=True).click()
+    expect(page).to_have_url(re.compile(rf"/resource/{resource}"))
+    expect(toast).to_have_count(0)
     activity.click()
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
     expect(drawer.get_by_text("Degraded in us-ca-1", exact=True)).to_be_visible()

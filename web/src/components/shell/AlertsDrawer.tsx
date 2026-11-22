@@ -3,10 +3,12 @@ import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { XIcon, ScrollTextIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router";
+import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
@@ -15,6 +17,7 @@ import { ROLLOUT_STYLE, StatusBadge, resourceStatusStyle, type StatusStyle } fro
 import { PlacementChips } from "@/components/design/PlacementChips";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
@@ -43,6 +46,9 @@ import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { problemLogsHref } from "@/pages/resource/deployment-progress";
 
+import { deployToasts, type DeployToast } from "./deploy-toasts";
+import { useDeployEvents } from "./useDeployEvents";
+
 const CLOCK_TICK_MS = 60_000;
 const POLL_MS = 5000;
 const IDLE_POLL_MS = 15_000;
@@ -55,6 +61,29 @@ const STEP_CLASS: Record<StepState, string> = {
 	skipped: "bg-line",
 };
 const PULSE = "M2 12h4l3-8 6 16 3-8h4";
+const TOAST_MS = 9000;
+const LIVE_TOAST_MS = 5000;
+
+function showDeployToast(t: DeployToast, onView: () => void) {
+	const options = {
+		id: `deploy-${t.deploymentId}`,
+		description: t.description === "" ? undefined : t.description,
+		action: { label: "View", onClick: onView },
+	};
+	switch (t.tone) {
+		case "deploying":
+			toast(t.title, { ...options, icon: <RotateCwIcon className="size-4" />, duration: TOAST_MS });
+			return;
+		case "warning":
+			toast.warning(t.title, { ...options, duration: TOAST_MS });
+			return;
+		case "failed":
+			toast.error(t.title, { ...options, duration: Infinity });
+			return;
+		case "live":
+			toast.success(t.title, { ...options, duration: LIVE_TOAST_MS });
+	}
+}
 
 function ActivityCard({ children }: { children: ReactNode }) {
 	return (
@@ -293,18 +322,65 @@ function DeployCard({
 	);
 }
 
+/** Toasts each change of a deployment in the environment; while `suppressed`, the drawer shows it instead. */
+function useDeployToasts({
+	deployments,
+	resources,
+	environmentId,
+	quietBeforeMs,
+	suppressed,
+}: {
+	deployments: readonly Deployment[] | undefined;
+	resources: readonly Resource[] | undefined;
+	environmentId: string | undefined;
+	quietBeforeMs: number;
+	suppressed: boolean;
+}) {
+	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const viewerId = useAuth().user?.id ?? "";
+	const seenRef = useRef(new Map<string, string>());
+	// Sonner is outside React, so each new page of deployments syncs into it here; a rerun with no change toasts nothing.
+	useEffect(() => {
+		if (deployments === undefined || resources === undefined || environmentId === undefined) return;
+		const names = new Map(resources.map((r) => [r.id, r.name]));
+		const inEnv = deployments.filter((d) => d.environmentId === environmentId);
+		const { seen, toasts } = deployToasts(seenRef.current, inEnv, names, viewerId, quietBeforeMs);
+		seenRef.current = seen;
+		if (suppressed || activeOrgId === null || activeWorkspaceId === null) return;
+		for (const t of toasts)
+			showDeployToast(t, () => {
+				void navigate(resourcePath(activeOrgId, activeWorkspaceId, t.resourceId));
+			});
+	}, [
+		deployments,
+		resources,
+		environmentId,
+		quietBeforeMs,
+		suppressed,
+		viewerId,
+		navigate,
+		activeOrgId,
+		activeWorkspaceId,
+	]);
+}
+
 export function AlertsDrawer() {
 	const [open, setOpen] = useState(false);
 	const [openedAtMs, setOpenedAtMs] = useState(0);
-	const [shown, setShown] = useState(ACTIVITY_PAGE);
-	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
+	const heard = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id);
+	const [shown, setShown] = useState(ACTIVITY_PAGE);
+	const nowMs = useNow(CLOCK_TICK_MS).getTime();
+	// Deployments created before the shell showed this environment are known, so they toast only when they change.
+	const [watched, setWatched] = useState(() => ({ environmentId: active?.id, sinceMs: Date.now() }));
+	if (watched.environmentId !== active?.id) setWatched({ environmentId: active?.id, sinceMs: nowMs });
 	const resources = useQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
 		enabled: activeOrgId !== null && activeWorkspaceId !== null,
 	});
-	const sinceMs = Math.floor(openedAtMs / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
+	const sinceMs = Math.floor((openedAtMs || watched.sinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
 	const deploymentsQuery = useConnectQuery(
 		listDeployments,
 		{
@@ -314,13 +390,22 @@ export function AlertsDrawer() {
 			pageSize: 50,
 		},
 		{
-			enabled: open && activeWorkspaceId !== null && active !== undefined,
+			// Closed, the drawer reads deployments only after a deployment event, and polls only while one is in flight.
+			enabled: (open || heard) && activeWorkspaceId !== null && active !== undefined,
 			placeholderData: keepPreviousData,
 			meta: { persist: false },
 			refetchInterval: (q) =>
-				(q.state.data?.deployments ?? []).some((d) => isInFlight(d.status)) ? POLL_MS : IDLE_POLL_MS,
+				(q.state.data?.deployments ?? []).some((d) => isInFlight(d.status)) ? POLL_MS : open ? IDLE_POLL_MS : false,
 		},
 	);
+
+	useDeployToasts({
+		deployments: deploymentsQuery.isPlaceholderData ? undefined : deploymentsQuery.data?.deployments,
+		resources: resources.data?.resources,
+		environmentId: active?.id,
+		quietBeforeMs: watched.sinceMs,
+		suppressed: open,
+	});
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 
