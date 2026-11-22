@@ -15,7 +15,7 @@ const (
 	traceparentKey = "traceparent"
 )
 
-// Start names one outbound operation, whose client calls become its children.
+// Start names one step of a request; calls made with the returned context become its children.
 func Start(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
 	return otel.Tracer(tracerName).Start(ctx, name, trace.WithAttributes(attrs...)) //nolint:spancheck
 }

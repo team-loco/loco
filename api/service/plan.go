@@ -124,7 +124,7 @@ func (s *PlanServer) loadPlan(
 ) (*plannedFile, error) {
 	_, parseSpan := tracing.Start(ctx, planParseSpan)
 	file, err := locofile.Parse(rawFile)
-	tracing.End(parseSpan, err)
+	parseSpan.End()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidLocofile).WithCause(err)
 	}
@@ -137,7 +137,7 @@ func (s *PlanServer) loadPlan(
 
 	_, mergeSpan := tracing.Start(ctx, planMergeSpan)
 	services, err := locofile.Resolve(file, env.Slug)
-	tracing.End(mergeSpan, err)
+	mergeSpan.End()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidLocofile).WithCause(err)
 	}

@@ -474,7 +474,9 @@ func placeDeployment(
 	target placementTarget,
 	spec *deploymentv1.DeploymentSpec,
 ) error {
+	_, span := tracing.Start(ctx, deploymentRenderSpan)
 	payload, err := render.payload(withPlainEnv(spec, deployment.PlainEnv), deployment.ID, target.region)
+	tracing.End(span, err)
 	if err != nil {
 		return err
 	}
