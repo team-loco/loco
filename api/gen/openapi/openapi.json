@@ -11648,6 +11648,12 @@
             "title": "statuses",
             "uniqueItems": true,
             "description": "Lists only deployments in these statuses; empty lists every status."
+          },
+          "buildId": {
+            "type": "string",
+            "title": "build_id",
+            "format": "uuid",
+            "description": "Lists only deployments whose spec builds from this build."
           }
         },
         "title": "ListDeploymentsRequest",

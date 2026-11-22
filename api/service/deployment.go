@@ -534,6 +534,10 @@ func (s *DeploymentServer) ListDeployments(
 		until = &value
 	}
 	statuses := deploymentStatusNames(req.GetStatuses())
+	var buildID *string
+	if req.GetBuildId() != "" {
+		buildID = new(req.GetBuildId())
+	}
 	readable := s.authz.ReadableEntities(p.Scopes)
 	pageSize := normalizePageSize(req.GetPageSize())
 	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
@@ -552,6 +556,7 @@ func (s *DeploymentServer) ListDeployments(
 			Since:           since,
 			Until:           until,
 			Statuses:        statuses,
+			BuildID:         buildID,
 			PageSize:        pageSize + 1,
 			PageToken:       cursor.ID,
 			PageCreatedAt:   cursor.CreatedAt,
@@ -571,6 +576,7 @@ func (s *DeploymentServer) ListDeployments(
 			Since:           since,
 			Until:           until,
 			Statuses:        statuses,
+			BuildID:         buildID,
 			PageSize:        pageSize + 1,
 			PageToken:       cursor.ID,
 			PageCreatedAt:   cursor.CreatedAt,
@@ -598,7 +604,7 @@ func (s *DeploymentServer) ListDeployments(
 			ResourceID: resourceID, WorkspaceID: workspaceID, EnvironmentID: environmentID,
 			SystemRead: readable.System, OrganizationIds: readable.Organizations,
 			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
-			Since: since, Until: until, Statuses: statuses, RowLimit: limit,
+			Since: since, Until: until, Statuses: statuses, BuildID: buildID, RowLimit: limit,
 		})
 	})
 	if err != nil {

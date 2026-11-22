@@ -48,7 +48,8 @@ SELECT COUNT(*) FROM (
     AND ($8::timestamptz IS NULL OR d.created_at >= $8)
     AND ($9::timestamptz IS NULL OR d.created_at < $9)
     AND (COALESCE(cardinality($10::text[]), 0) = 0 OR d.status::text = ANY($10::text[]))
-  LIMIT $11
+    AND ($11::text IS NULL OR d.spec->'build'->>'buildId' = $11)
+  LIMIT $12
 ) capped
 `
 
@@ -63,6 +64,7 @@ type CountDeploymentsParams struct {
 	Since           *time.Time  `json:"since"`
 	Until           *time.Time  `json:"until"`
 	Statuses        []string    `json:"statuses"`
+	BuildID         *string     `json:"buildId"`
 	RowLimit        int32       `json:"rowLimit"`
 }
 
@@ -78,6 +80,7 @@ func (q *Queries) CountDeployments(ctx context.Context, arg CountDeploymentsPara
 		arg.Since,
 		arg.Until,
 		arg.Statuses,
+		arg.BuildID,
 		arg.RowLimit,
 	)
 	var count int64
@@ -504,13 +507,14 @@ WHERE r.workspace_id = $1
   AND ($7::timestamptz IS NULL OR d.created_at >= $7)
   AND ($8::timestamptz IS NULL OR d.created_at < $8)
   AND (COALESCE(cardinality($9::text[]), 0) = 0 OR d.status::text = ANY($9::text[]))
-  AND ($10::text IS NULL
+  AND ($10::text IS NULL OR d.spec->'build'->>'buildId' = $10)
+  AND ($11::text IS NULL
        OR (d.created_at, d.id) < (
-         $11::timestamptz,
-         $10::uuid
+         $12::timestamptz,
+         $11::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $12
+LIMIT $13
 `
 
 type ListEnvironmentDeploymentsParams struct {
@@ -523,6 +527,7 @@ type ListEnvironmentDeploymentsParams struct {
 	Since           *time.Time  `json:"since"`
 	Until           *time.Time  `json:"until"`
 	Statuses        []string    `json:"statuses"`
+	BuildID         *string     `json:"buildId"`
 	PageToken       *string     `json:"pageToken"`
 	PageCreatedAt   *time.Time  `json:"pageCreatedAt"`
 	PageSize        int32       `json:"pageSize"`
@@ -550,6 +555,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 		arg.Since,
 		arg.Until,
 		arg.Statuses,
+		arg.BuildID,
 		arg.PageToken,
 		arg.PageCreatedAt,
 		arg.PageSize,
@@ -752,13 +758,14 @@ WHERE d.resource_id = $1
   AND ($7::timestamptz IS NULL OR d.created_at >= $7)
   AND ($8::timestamptz IS NULL OR d.created_at < $8)
   AND (COALESCE(cardinality($9::text[]), 0) = 0 OR d.status::text = ANY($9::text[]))
-  AND ($10::text IS NULL
+  AND ($10::text IS NULL OR d.spec->'build'->>'buildId' = $10)
+  AND ($11::text IS NULL
        OR (d.created_at, d.id) < (
-         $11::timestamptz,
-         $10::uuid
+         $12::timestamptz,
+         $11::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $12
+LIMIT $13
 `
 
 type ListResourceDeploymentsParams struct {
@@ -771,6 +778,7 @@ type ListResourceDeploymentsParams struct {
 	Since           *time.Time  `json:"since"`
 	Until           *time.Time  `json:"until"`
 	Statuses        []string    `json:"statuses"`
+	BuildID         *string     `json:"buildId"`
 	PageToken       *string     `json:"pageToken"`
 	PageCreatedAt   *time.Time  `json:"pageCreatedAt"`
 	PageSize        int32       `json:"pageSize"`
@@ -798,6 +806,7 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 		arg.Since,
 		arg.Until,
 		arg.Statuses,
+		arg.BuildID,
 		arg.PageToken,
 		arg.PageCreatedAt,
 		arg.PageSize,

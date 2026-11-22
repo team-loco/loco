@@ -347,3 +347,43 @@ func TestListDeploymentsFiltersByStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestListDeploymentsFiltersByBuild(t *testing.T) {
+	t.Parallel()
+	f := newBucketsFixture(t)
+	build := uuid.New()
+	first := f.seed(t, f.resourceID, genDb.DeploymentStatusSuperseded, bucketsBase.Add(time.Minute), "nginx:1")
+	f.seed(t, f.resourceID, genDb.DeploymentStatusRunning, bucketsBase.Add(2*time.Minute), "nginx:2")
+	redeploy := f.seed(t, f.resourceID, genDb.DeploymentStatusRunning, bucketsBase.Add(3*time.Minute), "nginx:1")
+	for _, id := range []uuid.UUID{first, redeploy} {
+		_, err := f.pool.Exec(t.Context(),
+			`UPDATE deployments SET spec = jsonb_set(spec, '{build,buildId}', to_jsonb($2::text)) WHERE id = $1`,
+			id, build.String())
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	page := f.listDeployments(t, &deploymentv1.ListDeploymentsRequest{
+		ResourceId: f.resourceID.String(), BuildId: build.String(), IncludeTotalCount: true,
+	}, f.readers()...)
+	if got := deploymentIDs(page.GetDeployments()); !slices.Equal(got, []string{redeploy.String(), first.String()}) {
+		t.Fatalf("build's deployments = %v, want %s then %s", got, redeploy, first)
+	}
+	if page.GetTotalCount() != 2 {
+		t.Errorf("total = %d, want 2", page.GetTotalCount())
+	}
+
+	page = f.listDeployments(t, &deploymentv1.ListDeploymentsRequest{
+		WorkspaceId: f.workspaceID.String(), EnvironmentId: f.envID.String(), BuildId: uuid.NewString(),
+	}, f.readers()...)
+	if len(page.GetDeployments()) != 0 {
+		t.Errorf("unknown build listed %v", deploymentIDs(page.GetDeployments()))
+	}
+
+	if err := protovalidate.Validate(&deploymentv1.ListDeploymentsRequest{
+		ResourceId: f.resourceID.String(), BuildId: "not-a-build",
+	}); err == nil {
+		t.Error("accepted a build ID that is not a UUID")
+	}
+}
