@@ -13,7 +13,7 @@ import { currentReplica, readyIn } from "@/lib/activity-deploys";
 import { deploymentProblem, isInFlight } from "@/lib/deployment-utils";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
-import { lastGoodDeployment, type RegionView } from "./model";
+import { regionDeployment, type RegionView } from "./model";
 
 export function progressDeployments(regions: readonly RegionView[]) {
 	return regions.flatMap((region) => {
@@ -24,7 +24,7 @@ export function progressDeployments(regions: readonly RegionView[]) {
 		].toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 		const deployment = history[0];
 		if (deployment === undefined) return [];
-		return [{ region, deployment, previous: lastGoodDeployment({ ...region, current: deployment, history }) }];
+		return [{ region, deployment, previous: region.lastGood }];
 	});
 }
 
@@ -69,7 +69,7 @@ export function servingBehindStop(regions: readonly RegionView[]) {
 		if (status.placementStatus !== PlacementStatus.FAILED && status.placementStatus !== PlacementStatus.CRASHED)
 			continue;
 		const id = servingDeployments(status.replicas).find((d) => d.id !== stopped.id)?.id;
-		const serving = region.history.find((d) => d.id === id);
+		const serving = regionDeployment(region, id);
 		if (serving !== undefined) return { region, stopped, serving };
 	}
 	return undefined;

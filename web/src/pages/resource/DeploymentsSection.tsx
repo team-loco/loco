@@ -1,7 +1,8 @@
 import { deploymentMessage } from "@/hooks/deployment-watch";
 import { skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
-import { useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
@@ -21,34 +22,36 @@ import { PlacementChips } from "@/components/design/PlacementChips";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
+import { useTokenPage } from "@/hooks/useTokenPage";
 import { tookLabel } from "@/lib/activity-deploys";
 import { deploymentProblem, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
-import {
-	formatTotal,
-	nextPage,
-	pagedRows,
-	pageTokensParser,
-	tokenPageLabel,
-	tokenPager,
-	type Paging,
-} from "@/lib/paging";
-import { maybeTsMs, readyMs, tsMs } from "@/lib/time";
+import { formatTotal, pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
+import { maybeTsMs, readyMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { formatCount } from "@/lib/format";
 
-import { buildStatusStyle, deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
+import { buildStatusStyle, deploymentBuildId } from "./builds";
 import { BuildDetail, BuildsTable, TIME_CELL, TimeAgo, type BuildActor } from "./BuildsTable";
 import { StepRail } from "./DeploymentProgress";
 import { rolloutSteps } from "./deployment-progress";
-import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
+import {
+	canRollBackTo,
+	DEFAULT_PAGE_SIZE,
+	depTag,
+	PAGE_SIZES,
+	previousDeploymentId,
+	REFRESH_MS,
+	regionDeployment,
+	tookMs,
+	type RegionView,
+} from "./model";
 import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
 
-const DEFAULT_PAGE_SIZE = 10;
 const BUILD_PAGE_SIZE = 5;
 const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
 const HISTS = ["deploys", "builds"] as const;
@@ -58,7 +61,8 @@ const buildPagesParser = pageTokensParser.withOptions({ history: "replace" });
 interface Row {
 	dep: Deployment;
 	region: RegionView;
-	prev: Deployment | undefined;
+	/** The deployment before this one in the region; empty for the region's first. */
+	prevId: string;
 }
 
 /** The regions of one deployment, one row per region. */
@@ -96,18 +100,24 @@ function HistoryKept({ count, tip }: { count: number; tip: string }) {
 
 function Detail({
 	row,
+	loaded,
 	logsHref,
 	onRollback,
 	onViewSpec,
 	onOpenBuild,
 }: {
 	row: Row;
+	/** The deployments the page already has. */
+	loaded: readonly Deployment[];
 	logsHref: string | undefined;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 	onViewSpec: (dep: Deployment) => void;
 	onOpenBuild: (buildId: string) => void;
 }) {
-	const { dep, region, prev } = row;
+	const { dep, region, prevId } = row;
+	const known = loaded.find((d) => d.id === prevId) ?? regionDeployment(region, prevId);
+	const fetched = useQuery(getDeployment, prevId === "" || known !== undefined ? skipToken : { deploymentId: prevId });
+	const prev = known ?? fetched.data?.deployment;
 	const buildId = deploymentBuildId(dep);
 	const took = tookMs(dep);
 	const changes = prev === undefined ? [] : specChanges(prev, dep);
@@ -128,7 +138,13 @@ function Detail({
 			</div>
 			<div className="flex min-w-0 flex-col gap-1.5">
 				<span className="text-[12px] text-fg3">Changes from previous</span>
-				{prev === undefined && <span className="text-[12.5px] text-fg3">First deployment in {region.name}</span>}
+				{prevId === "" && <span className="text-[12.5px] text-fg3">First deployment in {region.name}</span>}
+				{prevId !== "" && fetched.isLoading && <span className="text-[12.5px] text-fg3">Loading changes…</span>}
+				{fetched.error !== null && (
+					<span role="alert" className="text-[12.5px] text-bad-fg">
+						{getErrorMessage(fetched.error, "Could not load the previous deployment.")}
+					</span>
+				)}
 				{prev !== undefined && changes.length === 0 && (
 					<span className="text-[12.5px] text-fg3">Same spec as {formatShortId(prev.id)}</span>
 				)}
@@ -283,10 +299,6 @@ export function DeploymentsSection({
 	workspaceId,
 	environmentId,
 	regions,
-	hasMore,
-	isLoadingMore,
-	historyError,
-	onLoadMore,
 	logsHref,
 	buildLogsHref,
 	canWrite,
@@ -300,20 +312,33 @@ export function DeploymentsSection({
 	workspaceId: string;
 	environmentId: string | undefined;
 	regions: RegionView[];
-	hasMore: boolean;
-	isLoadingMore: boolean;
-	historyError: unknown;
-	onLoadMore: () => Promise<boolean>;
 	logsHref: string | undefined;
 	buildLogsHref: (buildId: string) => string | undefined;
 	canWrite: boolean;
 	canReadWorkspace: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
-	onViewSpec: (dep: Deployment) => void;
+	/** Opens dep's spec, offering the other deployments on the page to compare with. */
+	onViewSpec: (dep: Deployment, shown: Deployment[]) => void;
 	nowMs: number;
 }) {
 	const transport = useTransport();
-	const [pagination, setPagination] = useState<Paging>({ page: 0, size: DEFAULT_PAGE_SIZE });
+	const [deploySize, setDeploySize] = useState(DEFAULT_PAGE_SIZE);
+	const [deployPages, setDeployPages] = useState<string[]>([]);
+	const history = useTokenPage(
+		listDeployments,
+		{ resourceId, environmentId: environmentId ?? "", pageSize: deploySize },
+		deployPages,
+		{
+			enabled: environmentId !== undefined,
+			refetchInterval: REFRESH_MS,
+			staleTime: REFRESH_MS,
+			placeholderData: keepPreviousData,
+		},
+	);
+	const deployPager = tokenPager(deployPages, history.nextPageToken, (pages) => {
+		if (!history.query.isPlaceholderData) setDeployPages(pages ?? []);
+	});
+	const deployments = history.query.data?.deployments ?? [];
 	const [open, setOpen] = useState<string | null>(null);
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
 	const [buildPages, setBuildPages] = useQueryState("builds", buildPagesParser);
@@ -332,27 +357,31 @@ export function DeploymentsSection({
 	});
 	const [hist, setHist] = useQueryState("hist", histParser);
 
-	const all: Row[] = regions
-		.flatMap((region) =>
-			region.history.map((dep) => ({
+	const regionIndex = new Map(regions.map((r, i) => [r.name, i]));
+	const rollouts: RolloutRow[] = deployments.flatMap((dep) => {
+		const [first, ...rest] = [...new Set(dep.placements.map((p) => p.region).filter((r) => r !== ""))]
+			.toSorted((a, b) => (regionIndex.get(a) ?? regions.length) - (regionIndex.get(b) ?? regions.length))
+			.map((name) => ({
 				dep,
-				region,
-				prev: previousDeployment(region, dep),
-			})),
-		)
-		.toSorted((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt));
-	const rollouts: RolloutRow[] = [...Map.groupBy(all, (row) => row.dep.id).values()].flatMap(([first, ...rest]) =>
-		first === undefined ? [] : [{ key: first.dep.id, rows: [first, ...rest] }],
-	);
-	const deployRows = pagedRows(rollouts, pagination, setPagination, PAGE_SIZES);
+				region: regions[regionIndex.get(name) ?? -1] ?? {
+					name,
+					status: undefined,
+					history: [],
+					current: undefined,
+					serving: undefined,
+					lastGood: undefined,
+				},
+				prevId: previousDeploymentId(dep, name),
+			}));
+		return first === undefined ? [] : [{ key: dep.id, rows: [first, ...rest] }];
+	});
 	const deployTable = useDataTable("deployments", {
 		columns: rolloutColumns(nowMs, open, setOpen),
-		data: deployRows.rows,
+		data: rollouts,
 		getRowId: (rollout) => rollout.key,
 		state: { columnVisibility: { region: regions.length > 1 } },
 	});
 
-	const byBuild = deploymentsByBuild(all);
 	const actors = new Map<string, BuildActor>(
 		(membersRes?.members ?? []).map((m) => [
 			m.userId,
@@ -370,23 +399,29 @@ export function DeploymentsSection({
 		}
 		setSelectedBuild(buildId);
 	};
-	const goDeployment = (row: Row) => {
-		const index = rollouts.findIndex((rollout) => rollout.rows.includes(row));
-		void setHist("deploys");
-		setOpen(rollouts[index]?.key ?? null);
-		setPagination({ page: pageOf(index, pagination.size), size: pagination.size });
-	};
+	// The build a detail is open for links to the newest deployment built from it.
+	const linkedBuild = selectedBuild ?? openBuild;
+	const built = useQuery(
+		listDeployments,
+		linkedBuild === null || environmentId === undefined
+			? skipToken
+			: { resourceId, environmentId, buildId: linkedBuild, pageSize: 1 },
+	).data?.deployments[0];
 	const buildDeployment = (buildId: string) => {
-		const row = byBuild.get(buildId);
-		return row === undefined
-			? undefined
-			: {
-					tag: depTag(row.dep),
-					onOpen: () => {
-						setSelectedBuild(null);
-						goDeployment(row);
-					},
-				};
+		if (built === undefined || deploymentBuildId(built) !== buildId) return undefined;
+		return {
+			tag: depTag(built),
+			onOpen: () => {
+				setSelectedBuild(null);
+				// A deployment on another page of the table opens as its spec.
+				if (!deployments.some((d) => d.id === built.id)) {
+					onViewSpec(built, deployments);
+					return;
+				}
+				void setHist("deploys");
+				setOpen(built.id);
+			},
+		};
 	};
 
 	return (
@@ -400,11 +435,7 @@ export function DeploymentsSection({
 				<div className="px-5 pt-3">
 					<TabsList variant="segmented" aria-label="History">
 						<TabsTrigger value="deploys">
-							Deployments{" "}
-							<TabsCount>
-								{rollouts.length}
-								{hasMore ? "+" : ""}
-							</TabsCount>
+							Deployments <TabsCount>{history.total === undefined ? "—" : formatTotal(history.total)}</TabsCount>
 						</TabsTrigger>
 						<TabsTrigger value="builds">
 							Builds <TabsCount>{builds.total === undefined ? "—" : formatTotal(builds.total)}</TabsCount>
@@ -412,13 +443,18 @@ export function DeploymentsSection({
 					</TabsList>
 				</div>
 				<TabsContent value="deploys" className="pt-1.5">
-					<div aria-busy={isLoadingMore}>
+					<div aria-busy={history.query.isPlaceholderData}>
 						<DataTable
 							table={deployTable}
 							inset
 							label="Deployments"
+							loading={history.query.isLoading}
 							className="[--row-h:58px]"
-							empty={<div className="flex h-24 items-center justify-center text-fg3">No deployments yet.</div>}
+							empty={
+								history.query.error === null ? (
+									<div className="flex h-24 items-center justify-center text-fg3">No deployments yet.</div>
+								) : null
+							}
 							onRowClick={(row) => {
 								setOpen(open === row.id ? null : row.id);
 							}}
@@ -436,9 +472,12 @@ export function DeploymentsSection({
 												)}
 												<Detail
 													row={row}
+													loaded={deployments}
 													logsHref={logsHref}
 													onRollback={onRollback}
-													onViewSpec={onViewSpec}
+													onViewSpec={(dep) => {
+														onViewSpec(dep, deployments);
+													}}
 													onOpenBuild={goBuild}
 												/>
 											</section>
@@ -448,10 +487,17 @@ export function DeploymentsSection({
 						/>
 					</div>
 					<Pager
-						{...deployRows.pager}
+						page={deployPager.page}
+						total={deployments.length}
+						pageSizes={PAGE_SIZES}
+						pageSize={deploySize}
+						onPageSize={(size) => {
+							setDeploySize(size);
+							setDeployPages([]);
+						}}
 						label={
 							<>
-								{`${deployRows.pager.label}${hasMore ? "+" : ""}`}
+								{tokenPageLabel(deployPager.page, deploySize, deployments.length, history.total)}
 								{limits !== undefined && (
 									<HistoryKept
 										count={limits.deploymentHistory}
@@ -460,11 +506,12 @@ export function DeploymentsSection({
 								)}
 							</>
 						}
-						onNext={nextPage(deployRows, isLoadingMore, hasMore, onLoadMore, setPagination)}
+						onPrev={deployPager.onPrev}
+						onNext={deployPager.onNext}
 					/>
-					{historyError !== null && (
+					{history.query.error !== null && (
 						<div role="alert" className="px-5 pb-3 text-bad-fg">
-							{getErrorMessage(historyError, "Could not load older deployments. Try Next again.")}
+							{getErrorMessage(history.query.error, "Could not load deployments.")}
 						</div>
 					)}
 				</TabsContent>

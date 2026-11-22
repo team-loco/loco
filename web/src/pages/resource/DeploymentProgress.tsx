@@ -60,7 +60,7 @@ import {
 } from "./deployment-progress";
 import { ActivityFeed, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
 import { formatFullTime } from "./format";
-import { depImage, depTag, type RegionView } from "./model";
+import { depImage, depTag, regionDeployment, type RegionView } from "./model";
 
 function regionPhase(m: RolloutMember): DeploymentStatus {
 	const placement = placementIn(m.deployment, m.region.name);
@@ -164,7 +164,7 @@ function ProgressPanel({
 	const servingId = failed
 		? servingDeployments(region.status?.replicas ?? []).find((d) => d.id !== deployment.id)?.id
 		: undefined;
-	const servingNow = [region.current, ...region.history].find((d) => d?.id === servingId);
+	const servingNow = regionDeployment(region, servingId);
 	const { path, tag, digest } = parseImage(depImage(deployment));
 	const fields: [string, string][] = [];
 	const image = depImage(deployment);

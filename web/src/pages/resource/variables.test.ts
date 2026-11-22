@@ -10,7 +10,7 @@ function running(region: string, env: Record<string, string>) {
 		spec: { spec: { case: "service", value: { env } } },
 		placements: [create(DeploymentPlacementSchema, { region, live: true })],
 	});
-	return { name: region, status: undefined, history: [current], current, serving: current };
+	return { name: region, status: undefined, history: [current], current, serving: current, lastGood: undefined };
 }
 
 describe("regionsWithDifferentVariables", () => {

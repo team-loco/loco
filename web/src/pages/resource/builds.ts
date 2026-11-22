@@ -96,19 +96,6 @@ export function deploymentBuildId(dep: Deployment): string | undefined {
 	return id === "" ? undefined : id;
 }
 
-export function deploymentsByBuild<T extends { dep: Deployment }>(rows: T[]): Map<string, T> {
-	const byBuild = new Map<string, T>();
-	for (const row of rows.toSorted((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt))) {
-		const id = deploymentBuildId(row.dep);
-		if (id !== undefined && !byBuild.has(id)) byBuild.set(id, row);
-	}
-	return byBuild;
-}
-
-export function pageOf(index: number, size: number): number {
-	return Math.max(0, Math.floor(index / size));
-}
-
 interface BuildStarter {
 	name: string;
 	detail: string;

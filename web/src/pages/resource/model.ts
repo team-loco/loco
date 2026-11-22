@@ -1,5 +1,5 @@
 import { formatShortId } from "@/lib/utils";
-import { createQueryOptions, skipToken, useInfiniteQuery, useQuery, useTransport } from "@connectrpc/connect-query";
+import { createQueryOptions, skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment, type ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
@@ -21,9 +21,9 @@ import { maybeTsMs, tsMs } from "@/lib/time";
 import { configuredRegions } from "@/lib/resource-regions";
 
 export const PAGE_SIZES = [10, 25, 50, 100];
+export const DEFAULT_PAGE_SIZE = 10;
 
-const DEPLOYMENT_HISTORY_SIZE = 200;
-const REFRESH_MS = 15_000;
+export const REFRESH_MS = 15_000;
 
 export interface RegionView {
 	name: string;
@@ -32,10 +32,12 @@ export interface RegionView {
 	current: Deployment | undefined;
 	/** The deployment whose ready replicas serve the region. */
 	serving: Deployment | undefined;
+	/** The deployment a rollback in this region returns to. */
+	lastGood: Deployment | undefined;
 }
 
 export type ModalState =
-	| { kind: "spec"; deploymentId: string; compareId: string | null }
+	| { kind: "spec"; deploymentId: string; compareId: string | null; shown: Deployment[] }
 	| { kind: "rollback"; target: Deployment; current: Deployment | undefined }
 	| { kind: "redeploy" }
 	| { kind: "restart" }
@@ -55,9 +57,13 @@ export function depImage(dep: Deployment | undefined): string {
 	return depService(dep)?.build?.image ?? "";
 }
 
-export function depTag(dep: Deployment | undefined): string {
-	const image = depImage(dep);
+/** An image's version for display; "—" without an image. */
+export function imageTag(image: string): string {
 	return image === "" ? "—" : imageVersion(image);
+}
+
+export function depTag(dep: Deployment | undefined): string {
+	return imageTag(depImage(dep));
 }
 
 function byNewest(a: Deployment, b: Deployment): number {
@@ -86,7 +92,9 @@ export function buildRegions(
 		const current = currentId ? byId(currentId) : history.find((d) => placementIn(d, name)?.live);
 		const servingId = status?.servingDeploymentId;
 		const serving = servingId ? byId(servingId) : undefined;
-		return { name, status, history, current, serving };
+		const lastGoodId = status?.lastGoodDeploymentId;
+		const lastGood = lastGoodId ? byId(lastGoodId) : undefined;
+		return { name, status, history, current, serving, lastGood };
 	});
 }
 
@@ -134,11 +142,10 @@ export function canRollBackTo(dep: Deployment, region: RegionView): boolean {
 	);
 }
 
-export function lastGoodDeployment(region: RegionView): Deployment | undefined {
-	return region.history.find(
-		(d) =>
-			canRollBackTo(d, region) && (d.status === DeploymentStatus.RUNNING || d.status === DeploymentStatus.SUPERSEDED),
-	);
+/** A deployment of the region the page has loaded. */
+export function regionDeployment(region: RegionView, id: string | undefined): Deployment | undefined {
+	if (id === undefined || id === "") return undefined;
+	return [region.current, region.serving, region.lastGood, ...region.history].find((d) => d?.id === id);
 }
 
 export function problemRegionOf(regions: RegionView[]): RegionView | undefined {
@@ -149,12 +156,12 @@ export function problemRegionOf(regions: RegionView[]): RegionView | undefined {
 
 // A healthy region without an earlier release must not hide the rollback a sibling region still offers.
 export function focusRegion(regions: RegionView[]): RegionView | undefined {
-	return problemRegionOf(regions) ?? regions.find((r) => isDeployed(r) && lastGoodDeployment(r) !== undefined);
+	return problemRegionOf(regions) ?? regions.find((r) => isDeployed(r) && r.lastGood !== undefined);
 }
 
-export function previousDeployment(region: RegionView, dep: Deployment): Deployment | undefined {
-	const index = region.history.findIndex((d) => d.id === dep.id);
-	return index === -1 ? undefined : region.history[index + 1];
+/** The deployment before dep in the region, by ID; empty for the region's first deployment. */
+export function previousDeploymentId(dep: Deployment, region: string): string {
+	return placementIn(dep, region)?.previousDeploymentId ?? "";
 }
 
 /** Time from creation until the deployment turned ready, or until it failed or was canceled. */
@@ -165,9 +172,10 @@ export function tookMs(dep: Deployment): number | undefined {
 	return Math.max(0, end - created);
 }
 
+/** The newest page of the environment's deployments, the history table's first page at its default size. */
 export function deploymentsRequest(resourceId: string, environmentId: string | undefined) {
 	if (resourceId === "" || environmentId === undefined) return skipToken;
-	return { resourceId, environmentId, pageSize: DEPLOYMENT_HISTORY_SIZE, pageToken: "" };
+	return { resourceId, environmentId, pageSize: DEFAULT_PAGE_SIZE };
 }
 
 export function statusEnvironmentId(resource: Resource, requested: string | null): string | undefined {
@@ -191,16 +199,16 @@ export function useResourceData(resourceId: string) {
 	const environmentId =
 		active?.id ??
 		(resource === undefined || environmentsLoading ? undefined : statusEnvironmentId(resource, requested));
-	const deploymentsQuery = useInfiniteQuery(listDeployments, deploymentsRequest(resourceId, environmentId), {
-		pageParamKey: "pageToken",
-		getNextPageParam: (last) => (last.nextPageToken === "" ? undefined : last.nextPageToken),
+	// The history table's first page shares this request and mounts after it.
+	const deploymentsQuery = useQuery(listDeployments, deploymentsRequest(resourceId, environmentId), {
 		refetchInterval: REFRESH_MS,
+		staleTime: REFRESH_MS,
 	});
 	const environment = resource === undefined ? undefined : environmentStatus(resource, environmentId);
 	const currentIds = [
 		...new Set(
 			environment?.regions
-				.flatMap((region) => [region.deploymentId, region.servingDeploymentId])
+				.flatMap((region) => [region.deploymentId, region.servingDeploymentId, region.lastGoodDeploymentId])
 				.filter((id) => id !== ""),
 		),
 	];
@@ -217,21 +225,13 @@ export function useResourceData(resourceId: string) {
 			...currentQueries.map(async (query) => await query.refetch()),
 		]);
 	};
-	const loadMoreHistory = async () => {
-		const result = await deploymentsQuery.fetchNextPage();
-		return !result.isError;
-	};
 	return {
 		resource,
 		environmentId,
-		deployments: deploymentsQuery.data?.pages.flatMap((page) => page.deployments) ?? [],
+		deployments: deploymentsQuery.data?.deployments ?? [],
 		currentDeployments: currentQueries.flatMap((query) =>
 			query.data?.deployment === undefined ? [] : [query.data.deployment],
 		),
-		hasMoreHistory: deploymentsQuery.hasNextPage,
-		isLoadingMoreHistory: deploymentsQuery.isFetchingNextPage,
-		historyError: deploymentsQuery.isFetchNextPageError ? deploymentsQuery.error : null,
-		loadMoreHistory,
 		isLoading:
 			resourceQuery.isLoading ||
 			environmentsLoading ||
@@ -239,7 +239,7 @@ export function useResourceData(resourceId: string) {
 			currentQueries.some((query) => query.isLoading),
 		error:
 			resourceQuery.error ??
-			(deploymentsQuery.isFetchNextPageError ? null : deploymentsQuery.error) ??
+			deploymentsQuery.error ??
 			currentQueries.find((query) => query.error !== null)?.error ??
 			null,
 		refresh,
