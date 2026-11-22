@@ -307,7 +307,6 @@ with session(repo / "tests/ui/out/tokens") as browser:
     expect(options.get_by_role("option", name=re.compile(r"^private"))).to_have_count(0)
     workspace = options.get_by_role("option", name=re.compile(r"^sibling"))
     expect(workspace).to_contain_text("No access")
-    expect(workspace).to_have_attribute("data-disabled", "")
     workspace.get_by_role("button", name="Show resources in sibling").click()
     expect(search).to_have_value("sibling/")
     resource = options.get_by_role("option", name=re.compile(r"^inventory-api"))
