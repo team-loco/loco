@@ -14,7 +14,6 @@ import {
 	firstError,
 	healthCheckSpec,
 	scalingSpec,
-	healthSummary,
 	imageError,
 	locoYaml,
 	commandEntries,
@@ -48,7 +47,7 @@ const form: NewResourceForm = {
 		{ id: "1", key: "LOG_LEVEL", value: "info" },
 		{ id: "2", key: "ON", value: "yes: really" },
 	],
-	health: { path: "/healthz", interval: "10", timeout: "3", failAfter: "5" },
+	health: { enabled: true, path: "/healthz", interval: "10", timeout: "3", failAfter: "5" },
 	command: "",
 	args: "-listen=:8080\n-text=hello, world\n\n",
 };
@@ -121,14 +120,23 @@ test("validateForm rejects a port outside 1 through 65535", () => {
 });
 
 test("validateForm leaves health check numbers to the API", () => {
-	const loose = { ...form, health: { path: "healthz", interval: "", timeout: "0", failAfter: "" } };
+	const loose = { ...form, health: { enabled: true, path: "healthz", interval: "", timeout: "0", failAfter: "" } };
 	expect(firstError(validateForm(loose, "available", 10))).toBeNull();
+});
+
+test("validateForm needs a path for a health check that is on", () => {
+	const empty = { ...form, health: { ...form.health, path: " " } };
+	expect(validateForm(empty, "available", 10).healthPath).toBe("Needs a path");
+	expect(firstError(validateForm(empty, "available", 10))).toBe("Needs a path");
+	expect(
+		validateForm({ ...empty, health: { ...empty.health, enabled: false } }, "available", 10).healthPath,
+	).toBeNull();
 });
 
 test("validateForm rejects a health check timeout that is not below the interval", () => {
 	const health = (interval: string, timeout: string) => ({
 		...form,
-		health: { path: "/healthz", interval, timeout, failAfter: "3" },
+		health: { enabled: true, path: "/healthz", interval, timeout, failAfter: "3" },
 	});
 	expect(validateForm(health("10", "10"), "available", 10).healthTimeout).toBe("Must be below the interval");
 	expect(validateForm(health("5", "9"), "available", 10).healthTimeout).toBe("Must be below the interval");
@@ -138,7 +146,7 @@ test("validateForm rejects a health check timeout that is not below the interval
 });
 
 test("validateForm accepts an empty port only for a private service without a health check", () => {
-	const noHealth = { path: "", interval: "", timeout: "", failAfter: "" };
+	const noHealth = { ...form.health, enabled: false };
 	const worker = { ...form, port: "", isPublic: false, health: noHealth };
 	expect(validateForm(worker, "available", 10).port).toBeNull();
 	expect(validateForm({ ...worker, isPublic: true }, "available", 10).port).toBe("A public service needs a port");
@@ -156,7 +164,7 @@ test("firstError reports the first blocking field in form order", () => {
 	expect(validateForm({ ...form, isPublic: false, platformDomain: "" }, "taken", 10).subdomain).toBeNull();
 });
 
-test("healthCheckSpec sends the fields the user set, or no check without a path", () => {
+test("healthCheckSpec sends the fields the user set, or no check when off or without a path", () => {
 	expect(healthCheckSpec(form.health, 4)).toEqual({
 		path: "/healthz",
 		intervalSeconds: 10,
@@ -165,8 +173,7 @@ test("healthCheckSpec sends the fields the user set, or no check without a path"
 		initialDelaySeconds: 4,
 	});
 	expect(healthCheckSpec({ ...form.health, path: "" }, 4)).toBeUndefined();
-	expect(healthSummary(form.health)).toBe("/healthz · every 10s");
-	expect(healthSummary({ ...form.health, path: "" })).toBe("None");
+	expect(healthCheckSpec({ ...form.health, enabled: false }, 4)).toBeUndefined();
 });
 
 test("apiFieldError maps a validation violation to the field it names", () => {
@@ -258,7 +265,10 @@ test("locoYaml quotes values YAML would read as numbers or booleans", () => {
 	expect(yaml).not.toContain("health");
 	expect(yaml.startsWith("version: 1\n")).toBe(true);
 	expect(
-		locoYaml({ schemaUrl: "", form: { ...form, health: { path: "/up", interval: "", timeout: "", failAfter: "2" } } }),
+		locoYaml({
+			schemaUrl: "",
+			form: { ...form, health: { enabled: true, path: "/up", interval: "", timeout: "", failAfter: "2" } },
+		}),
 	).toContain("    health: { path: /up, failThreshold: 2 }\n");
 });
 

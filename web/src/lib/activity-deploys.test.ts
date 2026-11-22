@@ -136,14 +136,14 @@ test("rolloutReadyLabel counts ready replicas of this deployment", () => {
 
 test("finishedLabel gives the run time and when it ended", () => {
 	const d = deployment("d", DeploymentStatus.RUNNING, 7, { startedAt: timestampFromMs(NOW - 7 * MIN + 59_000) });
-	expect(finishedLabel(d, NOW)).toBe("took 59s · 6m ago");
+	expect(finishedLabel(d, NOW)).toBe("took 59s, 6m ago");
 	const now = deployment("d", DeploymentStatus.RUNNING, 1, { startedAt: timestampFromMs(NOW - 10_000) });
-	expect(finishedLabel(now, NOW)).toBe("took 50s · just now");
+	expect(finishedLabel(now, NOW)).toBe("took 50s, just now");
 	const superseded = deployment("d", DeploymentStatus.SUPERSEDED, 7, {
 		startedAt: timestampFromMs(NOW - 7 * MIN + 59_000),
 		completedAt: timestampFromMs(NOW - MIN),
 	});
-	expect(finishedLabel(superseded, NOW)).toBe("took 59s · 6m ago");
+	expect(finishedLabel(superseded, NOW)).toBe("took 59s, 6m ago");
 });
 
 test("tookLabel writes units", () => {

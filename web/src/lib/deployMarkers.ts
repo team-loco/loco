@@ -75,9 +75,9 @@ export function deployMarkers(
 function markerTip(s: DeploySummary, nowMs: number): string {
 	if (s.only !== undefined) {
 		const verb = s.only.failed ? "failed" : "deployed";
-		return `${s.only.version} · ${s.only.resource}\n${verb} ${agoLabel(s.only.createdMs, nowMs)}`;
+		return `${s.only.version}, ${s.only.resource}\n${verb} ${agoLabel(s.only.createdMs, nowMs)}`;
 	}
 	const more = s.moreNames > 0 ? ` +${s.moreNames.toString()}` : "";
-	const failed = s.failed > 0 ? ` · ${s.failed.toString()} failed` : "";
+	const failed = s.failed > 0 ? `, ${s.failed.toString()} failed` : "";
 	return `${s.count.toString()} deploys${failed}\n${s.names.join(", ")}${more}`;
 }

@@ -110,10 +110,7 @@ export function ScalingFields({
 				</Field>
 			)}
 			{autoscaling && (
-				<p className="m-0 text-[12.5px] text-fg3">
-					Adds replicas when average CPU stays above {value.cpuTarget}%, and removes them when it drops, between{" "}
-					{value.replicas} and {value.maxReplicas} per region.
-				</p>
+				<p className="m-0 text-[12.5px] text-fg3">Adds replicas when average CPU stays above {value.cpuTarget}%.</p>
 			)}
 			{error != null && (
 				<p role="alert" className="text-[12.5px] text-bad-fg">

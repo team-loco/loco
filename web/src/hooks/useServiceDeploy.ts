@@ -122,7 +122,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 			if (first !== undefined) {
 				return {
 					error: {
-						message: regions.length === 1 ? first.error! : failures.map((r) => `${r.region}: ${r.error}`).join(" · "),
+						message: regions.length === 1 ? first.error! : failures.map((r) => `${r.region}: ${r.error}`).join(", "),
 						field: apiFieldError(first.cause),
 					},
 					resourceId,

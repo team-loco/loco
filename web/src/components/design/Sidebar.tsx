@@ -15,6 +15,7 @@ import {
 	SidebarProvider as SidebarProviderBase,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { layoutNumber, useLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 const motion = "duration-[220ms] ease-[cubic-bezier(0.2,0.7,0.2,1)]";
@@ -22,26 +23,8 @@ const motion = "duration-[220ms] ease-[cubic-bezier(0.2,0.7,0.2,1)]";
 const WIDTH_MIN = 200;
 const WIDTH_MAX = 360;
 const WIDTH_DEFAULT = 232;
-const WIDTH_KEY = "loco-sidebar-width";
 const KEY_STEP = 8;
-
-function readWidth(): number {
-	try {
-		const saved = Number(localStorage.getItem(WIDTH_KEY));
-		return Number.isFinite(saved) && saved >= WIDTH_MIN && saved <= WIDTH_MAX ? saved : WIDTH_DEFAULT;
-	} catch {
-		return WIDTH_DEFAULT;
-	}
-}
-
-function saveWidth(width: number) {
-	try {
-		if (width === WIDTH_DEFAULT) localStorage.removeItem(WIDTH_KEY);
-		else localStorage.setItem(WIDTH_KEY, String(width));
-	} catch {
-		// Storage is unavailable (private mode); the width just won't persist.
-	}
-}
+const parseWidth = layoutNumber(WIDTH_DEFAULT, WIDTH_MIN, WIDTH_MAX);
 
 interface SidebarWidth {
 	width: number;
@@ -52,13 +35,15 @@ interface SidebarWidth {
 const SidebarWidthContext = createContext<SidebarWidth | null>(null);
 
 function SidebarProvider({ style, className, ...props }: React.ComponentProps<typeof SidebarProviderBase>) {
-	const [width, setWidth] = useState(readWidth);
+	const [saved, save] = useLayout("sidebar", parseWidth);
+	const [dragged, setDragged] = useState<number | null>(null);
 	const [resizing, setResizing] = useState(false);
+	const width = dragged ?? saved;
 	// A drag passes persist=false for each move and saves once when it ends.
 	const resize = (next: number, persist = true) => {
 		const clamped = Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, Math.round(next)));
-		setWidth(clamped);
-		if (persist) saveWidth(clamped);
+		setDragged(persist ? null : clamped);
+		if (persist) save(clamped === WIDTH_DEFAULT ? null : clamped);
 	};
 	return (
 		<SidebarWidthContext value={{ width, setWidth: resize, setResizing }}>
@@ -83,7 +68,7 @@ function SidebarResizer() {
 	if (ctx === null) return null;
 	const { width, setWidth, setResizing } = ctx;
 	const end = () => {
-		saveWidth(width);
+		if (drag !== null) setWidth(width);
 		setDrag(null);
 		setResizing(false);
 	};

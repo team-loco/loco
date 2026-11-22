@@ -119,7 +119,7 @@ export function ResourcesMap({
 							)}
 							<Fact label="Version">{version}</Fact>
 							<Fact label="Replicas">
-								{selected.regions.map((g) => `${g.region} ${g.ready.toString()}/${g.desired.toString()}`).join(" · ")}
+								{selected.regions.map((g) => `${g.region} ${g.ready.toString()}/${g.desired.toString()}`).join(", ")}
 							</Fact>
 							<Fact label="Address">{primaryDomain(selected.resource) ?? "internal only"}</Fact>
 						</SheetBody>

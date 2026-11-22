@@ -7,19 +7,19 @@ const FEATURES: readonly { icon: LucideIcon; title: string; body: string; tech: 
 		icon: Lock,
 		title: "HTTPS by default",
 		body: "Services on the platform domain are served over HTTPS, with certificates renewed before they expire.",
-		tech: "cert-manager · Let's Encrypt",
+		tech: "cert-manager with Let's Encrypt",
 	},
 	{
 		icon: Zap,
 		title: "HTTP/3 at the edge",
 		body: "Envoy terminates TLS and routes each hostname to its service.",
-		tech: "Envoy Gateway · HTTP/3",
+		tech: "Envoy Gateway, HTTP/3",
 	},
 	{
 		icon: RefreshCw,
 		title: "Rolling deploys",
 		body: "Replicas are replaced a quarter at a time and take traffic once their health check passes. Roll back from the dashboard.",
-		tech: "25% surge · 25% max unavailable",
+		tech: "25% surge, 25% max unavailable",
 	},
 	{
 		icon: ShieldCheck,
@@ -31,13 +31,13 @@ const FEATURES: readonly { icon: LucideIcon; title: string; body: string; tech: 
 		icon: Activity,
 		title: "Logs, traces and metrics",
 		body: "Inspect logs, metrics and traces together. Loco configures the OpenTelemetry collector connection by default, and respects your own exporter configuration.",
-		tech: "OpenTelemetry · ClickHouse",
+		tech: "OpenTelemetry and ClickHouse",
 	},
 	{
 		icon: KeyRound,
 		title: "Scoped tokens",
 		body: "Give CI access to one workspace or a few resources, with an expiry.",
-		tech: "organization · workspace · resource",
+		tech: "organization, workspace or resource",
 	},
 ];
 

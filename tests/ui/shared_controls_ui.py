@@ -399,7 +399,7 @@ def activity_deployments(page):
     expect(cards.nth(0)).to_contain_text("Deploy replicas")
     expect(cards.nth(1)).to_contain_text("Deployed")
     expect(cards.nth(1)).to_contain_text("1 of 1 ready")
-    expect(cards.nth(1)).to_contain_text(re.compile(r"took 16s · 7m ago"))
+    expect(cards.nth(1)).to_contain_text(re.compile(r"took 16s, 7m ago"))
     expect(
         cards.nth(0).get_by_role("link", name="Open controls-pilot", exact=True)
     ).to_be_visible()
@@ -1338,7 +1338,7 @@ def dashboard(page):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
         replicas = page.get_by_label(
-            "47 of 48 ready · 1 starting\nus-ca-1: 47/48", exact=True
+            "47 of 48 ready, 1 starting\nus-ca-1: 47/48", exact=True
         )
         expect(replicas).to_be_visible()
         # The authentication init script starts every navigation in light mode.

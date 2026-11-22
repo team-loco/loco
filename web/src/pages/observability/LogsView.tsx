@@ -647,7 +647,7 @@ export function LogsView() {
 						<SheetContent
 							ref={drawerRef}
 							size="wide"
-							resizeKey="loco:log-drawer-width"
+							resizeKey="log"
 							showCloseButton={false}
 							initialFocus={drawerRef}
 							onKeyDown={onListKeyDown}

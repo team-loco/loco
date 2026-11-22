@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { keepOpenOnToastPress } from "@/components/design/Sonner";
 import {
@@ -7,7 +7,7 @@ import {
 	SheetDescription as SheetDescriptionBase,
 	SheetTitle as SheetTitleBase,
 } from "@/components/ui/sheet";
-import { useStoredValue } from "@/lib/storage";
+import { layoutNumber, useLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 const sheetWidths = {
@@ -19,20 +19,30 @@ const sheetWidths = {
 const MIN_WIDTH = 380;
 const KEY_STEP = 16;
 const EDGE_GAP = 8;
+const parseDrawerWidth = layoutNumber(0, MIN_WIDTH, Number.POSITIVE_INFINITY);
 
 function clampWidth(width: number): number {
 	return Math.round(Math.min(window.innerWidth - 2 * EDGE_GAP, Math.max(MIN_WIDTH, width)));
 }
 
-function SheetResizeHandle({ stored, onWidth }: { stored: string; onWidth: (width: string) => void }) {
-	const dragRef = useRef(false);
+function SheetResizeHandle({
+	width,
+	onWidth,
+	onDrag,
+}: {
+	width: number;
+	onWidth: (width: number | null) => void;
+	/** The width during a drag; null when the drag ends. */
+	onDrag: (width: number | null) => void;
+}) {
+	const dragRef = useRef<number | null>(null);
 	const current = (el: HTMLElement) => el.parentElement?.getBoundingClientRect().width ?? MIN_WIDTH;
 	return (
 		<div
 			role="separator"
 			aria-orientation="vertical"
 			aria-label="Resize drawer"
-			aria-valuenow={Math.round(Number(stored))}
+			aria-valuenow={width}
 			aria-valuemin={MIN_WIDTH}
 			title="Drag to resize, double-click to reset"
 			tabIndex={0}
@@ -40,23 +50,24 @@ function SheetResizeHandle({ stored, onWidth }: { stored: string; onWidth: (widt
 				const dir = event.key === "ArrowLeft" ? 1 : event.key === "ArrowRight" ? -1 : 0;
 				if (dir === 0) return;
 				event.preventDefault();
-				onWidth(String(clampWidth(current(event.currentTarget) + dir * KEY_STEP)));
+				onWidth(clampWidth(current(event.currentTarget) + dir * KEY_STEP));
 			}}
 			onDoubleClick={() => {
-				onWidth("");
+				onWidth(null);
 			}}
 			onPointerDown={(event) => {
 				event.currentTarget.setPointerCapture(event.pointerId);
-				dragRef.current = true;
+				dragRef.current = width;
 			}}
 			onPointerMove={(event) => {
-				if (dragRef.current) onWidth(String(clampWidth(window.innerWidth - EDGE_GAP - event.clientX)));
-			}}
-			onPointerUp={() => {
-				dragRef.current = false;
+				if (dragRef.current === null) return;
+				dragRef.current = clampWidth(window.innerWidth - EDGE_GAP - event.clientX);
+				onDrag(dragRef.current);
 			}}
 			onLostPointerCapture={() => {
-				dragRef.current = false;
+				if (dragRef.current !== null && dragRef.current > 0) onWidth(dragRef.current);
+				dragRef.current = null;
+				onDrag(null);
 			}}
 			className="group/handle absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize touch-none outline-none"
 		>
@@ -74,12 +85,14 @@ function SheetContent({
 	...props
 }: React.ComponentProps<typeof SheetContentBase> & {
 	size?: keyof typeof sheetWidths;
-	/** Storage key; when set, the drawer's inner edge resizes it and the width is remembered per viewer. */
+	/** Name in the viewer's layout; when set, the drawer's inner edge resizes it and the width is remembered. */
 	resizeKey?: string;
 }) {
-	const [stored, setStored] = useStoredValue(resizeKey ?? "", "");
+	const [savedWidth, setWidth] = useLayout(resizeKey === undefined ? null : `drawer.${resizeKey}`, parseDrawerWidth);
+	// A drag keeps its width here and saves it once when it ends.
+	const [dragged, setDragged] = useState<number | null>(null);
+	const width = dragged ?? savedWidth;
 	const resizable = resizeKey !== undefined && side === "right";
-	const width = Number(stored);
 	return (
 		<SheetContentBase
 			side={side}
@@ -91,7 +104,7 @@ function SheetContent({
 			{...props}
 			{...(resizable && width > 0 ? { style: { width: `min(${String(width)}px, calc(100vw - 16px))` } } : {})}
 		>
-			{resizable && <SheetResizeHandle stored={stored} onWidth={setStored} />}
+			{resizable && <SheetResizeHandle width={width} onWidth={setWidth} onDrag={setDragged} />}
 			{children}
 		</SheetContentBase>
 	);

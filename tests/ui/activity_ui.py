@@ -241,7 +241,8 @@ def check_scoped_user(browser):
                 route.continue_()
                 return
             method = url.path.rsplit("/", 1)[-1]
-            if method == "TailLogs":
+            # Streams stay open, so fetching one would never return.
+            if method in ("TailLogs", "StreamEvents"):
                 route.continue_()
                 return
             body = route.request.post_data_json
@@ -376,6 +377,10 @@ with session(out) as browser:
             url = url._replace(path=url.path.removeprefix("/api"))
             if url.path.startswith("/loco."):
                 method = url.path.rsplit("/", 1)[-1]
+                # Streams stay open, so fetching one would never return.
+                if method == "StreamEvents":
+                    route.continue_()
+                    return
                 assert method.startswith(("Get", "List", "WhoAmI", "Query")), method
                 body = route.request.post_data_json
                 is_activity = method == "ListEvents" and not body.get("query")

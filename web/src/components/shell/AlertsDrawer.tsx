@@ -4,9 +4,10 @@ import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { XIcon, ScrollTextIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router";
+import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
@@ -15,6 +16,7 @@ import { ROLLOUT_STYLE, StatusBadge, resourceStatusStyle, type StatusStyle } fro
 import { PlacementChips } from "@/components/design/PlacementChips";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
@@ -43,6 +45,9 @@ import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { problemLogsHref } from "@/pages/resource/deployment-progress";
 
+import { degradedToast, deployToasts, type DeployToast } from "./deploy-toasts";
+import { useDeployEvents } from "./useDeployEvents";
+
 const CLOCK_TICK_MS = 60_000;
 const POLL_MS = 5000;
 const IDLE_POLL_MS = 15_000;
@@ -55,6 +60,20 @@ const STEP_CLASS: Record<StepState, string> = {
 	skipped: "bg-line",
 };
 const PULSE = "M2 12h4l3-8 6 16 3-8h4";
+const TOAST_MS = 9000;
+const LIVE_TOAST_MS = 5000;
+
+function showDeployToast(t: DeployToast, onView: () => void) {
+	const show = { deploying: toast, warning: toast.warning, failed: toast.error, live: toast.success }[t.tone];
+	// Each change replaces the deployment's toast, so every option is set, even when empty.
+	show(t.title, {
+		id: `deploy-${t.deploymentId}`,
+		description: t.description,
+		action: { label: "View", onClick: onView },
+		icon: t.tone === "deploying" ? <RotateCwIcon className="size-4" /> : undefined,
+		duration: t.tone === "failed" ? Infinity : t.tone === "live" ? LIVE_TOAST_MS : TOAST_MS,
+	});
+}
 
 function ActivityCard({ children }: { children: ReactNode }) {
 	return (
@@ -296,15 +315,36 @@ function DeployCard({
 export function AlertsDrawer() {
 	const [open, setOpen] = useState(false);
 	const [openedAtMs, setOpenedAtMs] = useState(0);
-	const [shown, setShown] = useState(ACTIVITY_PAGE);
-	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
+	const [shown, setShown] = useState(ACTIVITY_PAGE);
+	const nowMs = useNow(CLOCK_TICK_MS).getTime();
+	// When the drawer started watching this environment: the event stream starts here, deployments that last
+	// changed before it toast only when they change again, and the closed drawer lists from 30 minutes before it.
+	const [watchedSinceMs] = useState(Date.now);
 	const resources = useQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
 		enabled: activeOrgId !== null && activeWorkspaceId !== null,
+		// The drawer remounts for each environment; the workspace's resource list stays the one the shell loaded.
+		refetchOnMount: false,
 	});
-	const sinceMs = Math.floor(openedAtMs / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
+	const navigate = useNavigate();
+	const viewerId = useAuth().user?.id ?? "";
+	const resourceList = resources.data?.resources;
+	// While the drawer is open it shows these changes, so no toasts show.
+	const show = (toasts: readonly DeployToast[]) => {
+		if (open || activeOrgId === null || activeWorkspaceId === null) return;
+		for (const t of toasts)
+			showDeployToast(t, () => {
+				void navigate(resourcePath(activeOrgId, activeWorkspaceId, t.resourceId));
+			});
+	};
+	const showDeploymentToasts = useEffectEvent(show);
+	const heard = useDeployEvents(activeOrgId, activeWorkspaceId, active?.id, watchedSinceMs, (events) => {
+		const names = new Map((resourceList ?? []).map((r) => [r.id, r.name]));
+		show(events.flatMap((e) => degradedToast(e, names) ?? []));
+	});
+	const sinceMs = Math.floor((openedAtMs || watchedSinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
 	const deploymentsQuery = useConnectQuery(
 		listDeployments,
 		{
@@ -314,13 +354,25 @@ export function AlertsDrawer() {
 			pageSize: 50,
 		},
 		{
-			enabled: open && activeWorkspaceId !== null && active !== undefined,
+			// Closed, the drawer reads deployments only after a deployment event, and polls only while one is in flight.
+			enabled: (open || heard) && activeWorkspaceId !== null && active !== undefined,
 			placeholderData: keepPreviousData,
 			meta: { persist: false },
 			refetchInterval: (q) =>
-				(q.state.data?.deployments ?? []).some((d) => isInFlight(d.status)) ? POLL_MS : IDLE_POLL_MS,
+				(q.state.data?.deployments ?? []).some((d) => isInFlight(d.status)) ? POLL_MS : open ? IDLE_POLL_MS : false,
 		},
 	);
+
+	const seenRef = useRef(new Map<string, string>());
+	const fresh = deploymentsQuery.isPlaceholderData ? undefined : deploymentsQuery.data?.deployments;
+	// Sonner is outside React, so each new page of deployments syncs into it here.
+	useEffect(() => {
+		if (fresh === undefined || resourceList === undefined) return;
+		const names = new Map(resourceList.map((r) => [r.id, r.name]));
+		const { seen, toasts } = deployToasts(seenRef.current, fresh, names, viewerId, watchedSinceMs);
+		seenRef.current = seen;
+		showDeploymentToasts(toasts);
+	}, [fresh, resourceList, watchedSinceMs, viewerId]);
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 

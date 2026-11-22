@@ -54,7 +54,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { pageRangeLabel } from "@/lib/paging";
-import { useStoredJSON } from "@/lib/storage";
+import { useLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 export interface DataColumnMeta {
@@ -138,7 +138,7 @@ export function useDataTable<T extends RowData>(
 	options: Omit<TableOptions<Features, T>, "features" | "columns"> & { columns: DataColumn<T>[] },
 ): ReactTable<Features, T> {
 	const external = options.onColumnSizingChange !== undefined;
-	const [stored, setStored] = useStoredJSON(external ? null : `loco.table-widths.${id}`, parseSizing);
+	const [stored, setStored] = useLayout(external ? null : `table.${id}`, parseSizing);
 	const mobile = useIsMobile();
 	const mobileHidden = mobile
 		? options.columns.filter((c) => c.meta?.hideOnMobile === true).map((c): [string, boolean] => [c.id, false])
@@ -248,7 +248,7 @@ export function CellText({
 	className?: string;
 	render?: ReactElement;
 }) {
-	const full = detail === undefined ? text : `${text} · ${detail}`;
+	const full = detail === undefined ? text : `${text}, ${detail}`;
 	const ref = useRef<HTMLElement>(null);
 	const [open, setOpen] = useState(false);
 	return (
@@ -267,7 +267,7 @@ export function CellText({
 				className={cn("block truncate", className)}
 			>
 				{text}
-				{detail !== undefined && <span className="text-fg3"> · {detail}</span>}
+				{detail !== undefined && <span className="text-fg3">, {detail}</span>}
 			</TooltipTrigger>
 			<TooltipContent className="max-w-[min(480px,90vw)] break-all">{full}</TooltipContent>
 		</Tooltip>

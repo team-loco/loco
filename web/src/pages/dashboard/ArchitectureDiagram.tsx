@@ -109,7 +109,7 @@ function ResourceNode({
 			icon={<StatusGlyph glyph={draft ? "draft" : resourceStatusStyle(row.status).glyph} />}
 			title={itemName(row)}
 			sub={draft ? "draft" : sub}
-			meta={row.regions.map((g) => g.region).join(" · ")}
+			meta={row.regions.map((g) => g.region).join(", ")}
 		/>
 	);
 	if (!isDraftItem(row) && onSelect !== undefined) {
@@ -178,7 +178,7 @@ export function ArchitectureDiagram({
 								<NodeText
 									icon={<GlobeIcon className="size-[15px] shrink-0 text-fg3" />}
 									title="Internet"
-									sub="HTTPS · HTTP/3"
+									sub="HTTPS, HTTP/3"
 									meta=""
 								/>
 							</div>
@@ -191,7 +191,7 @@ export function ArchitectureDiagram({
 										icon={<ShieldCheckIcon className="size-[15px] shrink-0 text-fg3" />}
 										title={g.region}
 										sub={domain === "" ? "Gateway" : `*.${domain}`}
-										meta={`${pluralize(g.resources, "route")} · ${pluralize(g.replicas, "replica")}`}
+										meta={`${pluralize(g.resources, "route")}, ${pluralize(g.replicas, "replica")}`}
 									/>
 								</div>
 							);
@@ -217,7 +217,7 @@ export function ArchitectureDiagram({
 									height: MAP_LABEL_H,
 								}}
 							>
-								Internal · no public route
+								Internal only
 							</div>
 						)}
 						{layout.internalNodes.map((node) => (

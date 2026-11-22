@@ -19,6 +19,7 @@ export interface EnvRow {
 }
 
 export interface HealthForm {
+	enabled: boolean;
 	path: string;
 	interval: string;
 	timeout: string;
@@ -53,6 +54,7 @@ export interface FormErrors {
 	subdomain: string | null;
 	env: string | null;
 	scaling: string | null;
+	healthPath: string | null;
 	healthTimeout: string | null;
 }
 
@@ -163,7 +165,8 @@ export function validateForm(
 		subdomain: subdomainError(form, availability),
 		env: envError(form.vars),
 		scaling: scalingError(form, replicaLimit),
-		healthTimeout: form.health.path === "" ? null : healthTimeoutError(form.health.interval, form.health.timeout),
+		healthPath: form.health.enabled && form.health.path.trim() === "" ? "Needs a path" : null,
+		healthTimeout: !checksHealth(form.health) ? null : healthTimeoutError(form.health.interval, form.health.timeout),
 	};
 }
 
@@ -185,7 +188,7 @@ export function portRangeError(port: string): string | null {
 function portError(form: NewResourceForm): string | null {
 	if (form.port.trim() !== "") return portRangeError(form.port);
 	if (form.isPublic) return "A public service needs a port";
-	if (form.health.path !== "") return "A health check needs a port";
+	if (checksHealth(form.health)) return "A health check needs a port";
 	return null;
 }
 
@@ -220,6 +223,7 @@ export function firstError(errors: FormErrors): string | null {
 		errors.subdomain,
 		errors.env,
 		errors.scaling,
+		errors.healthPath,
 		errors.healthTimeout,
 	];
 	return ordered.find((e) => e !== null) ?? null;
@@ -231,12 +235,13 @@ export function commandSummary(value: Pick<NewResourceForm, "command" | "args">)
 	return words.length === 0 ? "Image default" : words.join(" ");
 }
 
-export function healthSummary(health: HealthForm): string {
-	return health.path === "" ? "None" : `${health.path} · every ${health.interval}s`;
+/** Whether the form sends a health check: switched on with a path. */
+export function checksHealth(health: HealthForm): boolean {
+	return health.enabled && health.path !== "";
 }
 
 export function healthCheckSpec(health: HealthForm, initialDelaySeconds: number) {
-	if (health.path === "") return undefined;
+	if (!checksHealth(health)) return undefined;
 	return {
 		path: health.path,
 		intervalSeconds: Number(health.interval),
@@ -335,7 +340,7 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 		if (entries.length > 0) lines.push(`    ${key}: [${entries.map(flow).join(", ")}]`);
 	}
 	if (form.port.trim() !== "") lines.push(`    port: ${yamlInt(form.port)}`);
-	if (form.health.path !== "") lines.push(healthYaml(form.health, flow));
+	if (checksHealth(form.health)) lines.push(healthYaml(form.health, flow));
 	if (form.isPublic && form.subdomain !== "" && form.platformDomain !== "")
 		lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
 	const vars = envVars(form.vars);

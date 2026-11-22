@@ -23,7 +23,7 @@ const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 const GLYPH: Record<LineTone, string> = {
 	command: "$",
-	output: "·",
+	output: "",
 	detail: "",
 	running: "◐",
 	ok: "✓",
