@@ -244,6 +244,8 @@ CREATE TABLE
         plain_env JSONB NOT NULL DEFAULT '{}',
         secret_env JSONB NOT NULL DEFAULT '{}',
         activity_seq BIGINT NOT NULL DEFAULT 0,
+        -- the W3C trace context of the request that created the deployment
+        traceparent TEXT,
         -- insert time, which orders the deployments of a resource
         created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp (),
         started_at TIMESTAMPTZ,
@@ -610,6 +612,8 @@ CREATE TABLE
         -- Set when an API token created the build; created_by records the same token ID.
         api_token_id UUID,
         method deployment_method NOT NULL,
+        -- the W3C trace context of the request that created the build
+        traceparent TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         started_at TIMESTAMPTZ,
         finished_at TIMESTAMPTZ,

@@ -252,9 +252,7 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 	if request, ok := reqctx.RequestFrom(ctx); ok && request.ID != "" {
 		params.RequestID = &request.ID
 	}
-	if traceparent := tracing.Traceparent(ctx); traceparent != "" {
-		params.Traceparent = &traceparent
-	}
+	params.Traceparent = tracing.Origin(ctx)
 	if _, err := q.InsertEvent(ctx, params); err != nil {
 		return fmt.Errorf("insert event: %w", err)
 	}

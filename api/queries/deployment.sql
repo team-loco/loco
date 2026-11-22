@@ -1,8 +1,8 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, plain_env, secret_env, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, plain_env, secret_env, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id, traceparent)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, sqlc.narg(traceparent))
 RETURNING id;
 
 -- name: CreateDeploymentPlacement :exec

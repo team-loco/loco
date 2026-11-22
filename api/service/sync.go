@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -57,10 +58,13 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	go receiveSync(recvCtx, stream, messages, recvErr)
 
 	send := func(msg *agentv1.SyncResponse) error {
-		if err := s.checkSyncGeneration(ctx, cluster.ID, generation); err != nil {
-			return err
+		sendCtx, span := s.responseSpan(ctx, cluster.ID, msg)
+		err := s.checkSyncGeneration(sendCtx, cluster.ID, generation)
+		if err == nil {
+			err = stream.Send(msg)
 		}
-		return stream.Send(msg)
+		tracing.End(span, err)
+		return err
 	}
 	session := newSyncSession(s, cluster.ID, send)
 	session.generation = generation
@@ -324,6 +328,13 @@ func placementMessage(placement genDb.Placement, envSecret *agentv1.EnvSecret) *
 }
 
 func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) error {
+	ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
+	err := ss.dispatch(ctx, msg)
+	tracing.End(span, err)
+	return err
+}
+
+func (ss *syncSession) dispatch(ctx context.Context, msg *agentv1.SyncRequest) error {
 	switch m := msg.GetMessage().(type) {
 	case *agentv1.SyncRequest_Inventory:
 		return ss.reconcileInventory(ctx, m.Inventory)
