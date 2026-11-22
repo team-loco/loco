@@ -6,8 +6,8 @@ import {
 	queryDeploymentBuckets,
 } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { EnvironmentStatus, RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
+import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
@@ -16,12 +16,19 @@ import { limitSteps, type LimitStep, type Sizing } from "@/lib/limit-history";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { msToTimestamp } from "@/lib/time";
 
-import { chartWindow, deploymentMarkers, RANGE_MS, replicaChart, sharedLimit, type MetricRange } from "./metric";
-import { MetricChart } from "./MetricChart";
+import {
+	chartWindow,
+	deploymentMarkers,
+	RANGE_MS,
+	replicaChart,
+	sharedLimit,
+	type MetricRange,
+	type ReplicaChart,
+} from "./metric";
+import { MetricChart, seriesColor } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, REFRESH_MS, type RegionView } from "./model";
 import { ReplicaDetail, ReplicaList } from "./ReplicaList";
-import { regionReady, replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
 const ALL_REGIONS = "all";
@@ -56,27 +63,10 @@ function regionLimits(
 	);
 }
 
-function scaleText(regions: RegionView[]): string {
-	const pairs = regions.flatMap((r) => {
-		const svc = regionTarget(r.current === undefined ? undefined : getServiceSpec(r.current), r.name);
-		return svc === undefined
-			? []
-			: [{ min: svc.minReplicas ?? 0, max: svc.maxReplicas ?? 0, cpu: svc.scalers?.cpuTarget }];
-	});
-	const first = pairs[0];
-	if (first === undefined) return "not deployed";
-	if (pairs.some((p) => p.min !== first.min || p.max !== first.max || p.cpu !== first.cpu))
-		return "scaling differs by region";
-	const { min, max, cpu } = first;
-	if (min === max) return `fixed at ${min.toString()} per region`;
-	return `autoscaling ${min.toString()}–${max.toString()}${cpu === undefined ? "" : `, CPU ${cpu.toString()}%`}`;
-}
-
 export function ReplicasPanel({
 	workspaceId,
 	environmentId,
 	resourceId,
-	environment,
 	regions,
 	selected,
 	onSelect,
@@ -87,7 +77,6 @@ export function ReplicasPanel({
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
-	environment: EnvironmentStatus | undefined;
 	regions: RegionView[];
 	selected: string | null;
 	onSelect: (region: string | null) => void;
@@ -96,6 +85,7 @@ export function ReplicasPanel({
 	nowMs: number;
 }) {
 	const [picked, setPicked] = useState<string | null>(null);
+	const [hovered, setHovered] = useState<string | null>(null);
 	const deployed = regions.filter(isDeployed);
 	const region = selected ?? "";
 	const target = { workspaceId, environmentId, resourceId, region, range };
@@ -147,20 +137,20 @@ export function ReplicasPanel({
 		single === undefined ? undefined : replicaChart(memoryPods?.data ?? [], resourceId, memoryLimits?.get(single));
 	const cpuWindow = chartWindow(cpuReplicas !== undefined, cpuPods?.dataUpdatedAt, cpu, range);
 	const memoryWindow = chartWindow(memoryReplicas !== undefined, memoryPods?.dataUpdatedAt, memory, range);
-	const pickedRegion = deployed.find((r) => r.name === selected);
-	const pickedCount = pickedRegion === undefined ? undefined : regionReady(pickedRegion);
-	const selectedLine =
-		pickedCount === undefined
-			? undefined
-			: `${pickedCount.ready.toString()} of ${pickedCount.desired.toString()} ready in ${selected ?? ""}`;
-	const countOf = (status: RegionStatus) => {
-		const view = regions.find((r) => r.name === status.region);
-		return view === undefined ? { ready: 0, desired: status.desiredReplicas } : regionReady(view);
-	};
 	const compare = selected === null && deployed.length > 1;
 	const pickedReplica = charted
 		.flatMap((view) => (view.status?.replicas ?? []).map((replica) => ({ region: view, replica })))
 		.find((r) => r.replica.name === picked);
+	const lines = [...new Set([...(cpuReplicas?.replicas ?? []), ...(memoryReplicas?.replicas ?? [])])].toSorted();
+	const lineColor = (replica: string) => {
+		const i = lines.indexOf(replica);
+		return i < 0 ? undefined : seriesColor(i);
+	};
+	const chartedCount = charted.reduce((n, r) => n + (r.status?.replicas.length ?? 0), 0);
+	const bandSub = (loaded: boolean | undefined, lineChart: ReplicaChart | undefined) =>
+		loaded === true && lineChart === undefined && chartedCount > 1
+			? `band shows lowest to highest of ${chartedCount.toString()} replicas`
+			: undefined;
 	const averages = {
 		regions: deployed.map((r) => r.name),
 		workspaceId,
@@ -172,10 +162,20 @@ export function ReplicasPanel({
 	return (
 		<Section
 			title="Replicas"
-			meta={`${selectedLine ?? replicaLine(environment, nowMs, countOf)} · ${scaleText(deployed)}`}
 			bodyClassName="flex flex-col gap-4 px-5 pt-[18px] pb-4"
 			actions={
 				<>
+					{(picked !== null || selected !== null) && (
+						<Button
+							variant="plain-link"
+							onClick={() => {
+								setPicked(null);
+								onSelect(null);
+							}}
+						>
+							Show all
+						</Button>
+					)}
 					{deployed.length > 1 && (
 						<ToggleGroup
 							variant="segmented"
@@ -206,6 +206,8 @@ export function ReplicasPanel({
 						region={r}
 						selected={picked}
 						onSelect={setPicked}
+						onHover={setHovered}
+						lineColor={lineColor}
 						regionPressed={selected === r.name}
 						onPickRegion={() => {
 							onSelect(selected === r.name ? null : r.name);
@@ -239,7 +241,8 @@ export function ReplicasPanel({
 					<>
 						<MetricChart
 							name="CPU"
-							title={selected === null ? "CPU" : `CPU · ${selected}`}
+							title="CPU"
+							sub={bandSub(cpuPods?.isSuccess, cpuReplicas)}
 							points={cpu.points}
 							isLoading={cpu.isLoading}
 							failed={cpu.error !== null}
@@ -248,12 +251,14 @@ export function ReplicasPanel({
 							markers={markers}
 							limits={single === undefined ? undefined : cpuLimits?.get(single)}
 							replicas={cpuReplicas}
-							picked={picked}
+							picked={hovered ?? picked}
+							lineColor={lineColor}
 							format={formatCpu}
 						/>
 						<MetricChart
 							name="Memory"
-							title={selected === null ? "Memory" : `Memory · ${selected}`}
+							title="Memory"
+							sub={bandSub(memoryPods?.isSuccess, memoryReplicas)}
 							points={memory.points}
 							isLoading={memory.isLoading}
 							failed={memory.error !== null}
@@ -262,7 +267,8 @@ export function ReplicasPanel({
 							markers={markers}
 							limits={single === undefined ? undefined : memoryLimits?.get(single)}
 							replicas={memoryReplicas}
-							picked={picked}
+							picked={hovered ?? picked}
+							lineColor={lineColor}
 							format={formatMemory}
 						/>
 					</>

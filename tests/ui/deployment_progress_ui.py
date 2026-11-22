@@ -304,8 +304,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         "1 of 2 ready"
     )
     replicas = page.get_by_role("region", name="Replicas", exact=True)
-    expect(replicas).to_contain_text("1 of 2 ready ·")
-    expect(replicas).to_contain_text("1/2 ready · 1 previous")
+    expect(replicas).to_contain_text("1 of 2 ready, 1 previous")
     phase("running")
     # The open watch updates both the replicas and feed without reloading.
     panel = page.get_by_role("region", name="Running", exact=True)
@@ -564,8 +563,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         "0 of 2 ready"
     )
     replicas = page.get_by_role("region", name="Replicas", exact=True)
-    expect(replicas).to_contain_text("0 of 2 ready ·")
-    expect(replicas).to_contain_text("0/2 ready · 2 previous")
+    expect(replicas).to_contain_text("0 of 2 ready, 2 previous")
     assert not errors, errors
     context.close()
 

@@ -8,6 +8,8 @@ import {
 	FileCodeIcon,
 	GlobeIcon,
 	GlobeLockIcon,
+	MoveVerticalIcon,
+	PinIcon,
 	RotateCwIcon,
 	Settings2Icon,
 	Trash2Icon,
@@ -36,11 +38,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { deploymentActor } from "@/lib/deployment-utils";
 import { rolloutState } from "@/lib/resource-status";
 import { agoLabel, readyMs } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
 import { useWidth } from "@/hooks/useWidth";
 
 import { depImage, depTag, isDeployed, type RegionView } from "./model";
+import { sharedScaling, type Scaling } from "./replicas";
 
 interface SwitcherItem {
 	id: string;
@@ -92,6 +96,60 @@ function Switcher({ items, currentId, offset }: { items: SwitcherItem[]; current
 				</Command>
 			</PopoverContent>
 		</Popover>
+	);
+}
+
+function scalingCopy(scaling: Scaling | "differs"): { auto: boolean; label: string; hint: string | undefined } {
+	if (scaling === "differs") return { auto: false, label: "Scaling differs by region", hint: undefined };
+	const { min, max, cpuTarget } = scaling;
+	if (max > min) {
+		const target = cpuTarget === undefined ? "" : `, targeting ${cpuTarget.toString()}% CPU`;
+		return {
+			auto: true,
+			label: `CPU autoscaling ${min.toString()}–${max.toString()}`,
+			hint: `Scales between ${min.toString()} and ${max.toString()} replicas per region${target}`,
+		};
+	}
+	return {
+		auto: false,
+		label: `Fixed at ${min.toString()}`,
+		hint: `Runs ${min.toString()} ${min === 1 ? "replica" : "replicas"} per region, autoscaling off`,
+	};
+}
+
+function ScaleChip({ scaling }: { scaling: Scaling | "differs" }) {
+	const { auto, label, hint } = scalingCopy(scaling);
+	const chip = (
+		<>
+			{auto ? (
+				<MoveVerticalIcon aria-hidden className="size-[13px]" />
+			) : (
+				<PinIcon aria-hidden className="size-[13px]" />
+			)}
+			{label}
+		</>
+	);
+	const className = cn(
+		"inline-flex h-6 items-center gap-[5px] rounded-[5px] border border-line bg-panel2 px-2 text-[12.5px] whitespace-nowrap",
+		auto ? "text-foreground" : "text-fg2",
+	);
+	if (hint === undefined)
+		return (
+			<span data-slot="scale-chip" data-auto={auto} className={className}>
+				{chip}
+			</span>
+		);
+	return (
+		<Tooltip>
+			<TooltipTrigger
+				render={<span data-slot="scale-chip" data-auto={auto} />}
+				tabIndex={0}
+				className={cn(className, "outline-none focus-visible:ring-2 focus-visible:ring-ring")}
+			>
+				{chip}
+			</TooltipTrigger>
+			<TooltipContent>{hint}</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -153,6 +211,7 @@ export function ResourceHeader({
 	const since = primary === undefined ? undefined : readyMs(primary);
 	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
 	const writeHint = canWrite ? undefined : NEEDS_WRITE;
+	const scaling = sharedScaling(deployed);
 
 	return (
 		<div className="flex flex-wrap items-start justify-between gap-4">
@@ -169,6 +228,7 @@ export function ResourceHeader({
 						<RolloutBadge rollout={rolloutState(environment?.regions ?? [])} />
 					</span>
 					{resource.partial !== undefined && <PartialBadge />}
+					{scaling !== undefined && <ScaleChip scaling={scaling} />}
 				</div>
 				<div className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
 					{since !== undefined && primary !== undefined && (
@@ -202,7 +262,17 @@ export function ResourceHeader({
 						</Tooltip>
 					)}
 					{deployed.length > 0 && (
-						<span className="font-mono text-[12px]">{deployed.map((r) => r.name).join(", ")}</span>
+						<span className="flex flex-wrap gap-1.5">
+							{deployed.map((r) => (
+								<span
+									key={r.name}
+									data-slot="region-chip"
+									className="inline-flex h-[22px] items-center rounded-[5px] border border-line bg-panel2 px-2 font-mono text-[12px] text-fg2"
+								>
+									{r.name}
+								</span>
+							))}
+						</span>
 					)}
 				</div>
 			</div>

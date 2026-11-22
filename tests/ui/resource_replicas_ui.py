@@ -203,14 +203,29 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(west.get_by_role("listitem")).to_have_count(2)
     expect(panel.get_by_text("Per-replica status", exact=False)).to_have_count(0)
 
-    serving = east.get_by_role("listitem").filter(has_text="replicas-ui-east-a1")
-    expect(serving).to_contain_text("Serving")
-    expect(serving).to_contain_text("CPU 45% of 0.5 vCPU")
-    expect(serving).to_contain_text("Mem 60% of 256 Mi")
-    crashed = east.get_by_role("listitem").filter(has_text="replicas-ui-east-b2")
-    expect(crashed).to_contain_text("Failing")
-    expect(crashed).to_contain_text("CPU 90% of 0.5 vCPU")
-    unmeasured = west.get_by_role("listitem").filter(has_text="replicas-ui-west-d4")
+    scale = page.locator('[data-slot="scale-chip"]')
+    expect(scale).to_have_text("Fixed at 2")
+    scale.hover()
+    expect(page.get_by_role("tooltip")).to_have_text(
+        "Runs 2 replicas per region, autoscaling off"
+    )
+    expect(page.locator('[data-slot="region-chip"]')).to_have_text([EAST, WEST])
+    expect(east).to_contain_text("1 of 2 ready")
+    expect(west).to_contain_text("2 of 2 ready")
+
+    def chip(region, short):
+        return region.get_by_role("listitem").filter(
+            has=page.get_by_text(short, exact=True)
+        )
+
+    serving = chip(east, "a1")
+    expect(serving).not_to_contain_text("Serving")
+    expect(serving).to_contain_text("CPU 0.23/0.5")
+    expect(serving).to_contain_text("Mem 0.15/0.25 Gi")
+    crashed = chip(east, "b2")
+    expect(crashed).to_contain_text("Failing, 4 restarts")
+    expect(crashed).to_contain_text("CPU 0.45/0.5")
+    unmeasured = chip(west, "d4")
     expect(unmeasured).to_contain_text("CPU —")
     expect(unmeasured).to_contain_text("Mem —")
 
@@ -230,13 +245,13 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         "@replica:replicas-ui-east-a1"
     ], logs_href
     detail = replica_detail(crashed, "replicas-ui-east-b2")
-    expect(detail).to_contain_text("4 restarts · last 5m ago · out of memory")
+    expect(detail).to_contain_text("4 restarts, last 5m ago, out of memory")
     expect(detail).not_to_contain_text("OOMKilled")
     expect(detail).to_contain_text("Up 20m")
-    exited = west.get_by_role("listitem").filter(has_text="replicas-ui-west-c3")
+    exited = chip(west, "c3")
     detail = replica_detail(exited, "replicas-ui-west-c3")
     expect(detail).to_contain_text("0 restarts")
-    expect(detail).to_contain_text("Completed · exit 0")
+    expect(detail).to_contain_text("Completed, exit 0")
     exited.get_by_role("button").click()
     expect(
         panel.get_by_role("region", name="Replica replicas-ui-west-c3")
@@ -245,12 +260,26 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         "button", name=EAST, exact=True
     ).click()
     expect(
-        panel.locator(f'[aria-label^="Memory · {EAST}: one line per replica"]')
+        panel.locator('[aria-label^="Memory: one line per replica"]')
     ).to_be_visible()
     expect(panel.get_by_text("Highest, b2", exact=True)).to_be_visible()
-    panel.get_by_role("group", name="Region", exact=True).get_by_role(
-        "button", name="All regions", exact=True
-    ).click()
+    expect(east.locator('[data-slot="replica-key"]')).to_have_count(2)
+    lines = panel.locator(
+        '[aria-label^="Memory: one line per replica"] .recharts-line-curve'
+    )
+    expect(lines).to_have_count(2)
+    chip(east, "b2").hover()
+    expect(lines.nth(0)).to_have_attribute("stroke-opacity", "0.25")
+    expect(lines.nth(1)).to_have_attribute("stroke-opacity", "1")
+    page.mouse.move(0, 0)
+    show_all = panel.get_by_role("button", name="Show all", exact=True)
+    show_all.click()
+    expect(show_all).to_have_count(0)
+    expect(
+        panel.get_by_role("group", name="Region", exact=True).get_by_role(
+            "button", name="All regions", exact=True
+        )
+    ).to_have_attribute("aria-pressed", "true")
     assert {
         (q.get("region"), q["resourceIds"][0], q["metricName"]) for q in pod_requests
     } >= {

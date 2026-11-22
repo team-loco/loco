@@ -33,8 +33,13 @@ export interface ChartMarker {
 	label: string;
 }
 
+/** The colour of the chart line at this position. */
+export function seriesColor(index: number): string {
+	return `var(--series-${(index % SERIES).toString()})`;
+}
+
 /** The part of a replica's name that tells it apart from its siblings. */
-function shortName(replica: string): string {
+export function shortName(replica: string): string {
 	return replica.split("-").at(-1) ?? replica;
 }
 
@@ -84,6 +89,7 @@ function Stat({
 export function MetricChart({
 	name,
 	title,
+	sub,
 	points,
 	isLoading,
 	failed,
@@ -93,10 +99,12 @@ export function MetricChart({
 	limits,
 	replicas,
 	picked,
+	lineColor,
 	format,
 }: {
 	name: string;
 	title: string;
+	sub?: string | undefined;
 	points: BandPoint[];
 	isLoading: boolean;
 	failed: boolean;
@@ -106,6 +114,7 @@ export function MetricChart({
 	limits: LimitStep[] | undefined;
 	replicas?: ReplicaChart | undefined;
 	picked?: string | null;
+	lineColor?: ((replica: string) => string | undefined) | undefined;
 	format: (value: number) => string;
 }) {
 	const timePref = useTimePreferences();
@@ -140,7 +149,10 @@ export function MetricChart({
 		Array.isArray(value) ? value.map((v) => show(Number(v))).join(" – ") : show(Number(value));
 	return (
 		<div className="flex min-w-0 flex-col gap-3.5">
-			<span className="text-[13.5px] font-medium">{title}</span>
+			<div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+				<span className="text-[13.5px] font-medium">{title}</span>
+				{sub !== undefined && <span className="text-[12px] text-fg3">{sub}</span>}
+			</div>
 			<div className="flex gap-6">
 				<Stat label="Average" value={average === undefined ? "—" : show(average)} isLoading={isLoading} />
 				<Stat
@@ -234,7 +246,7 @@ export function MetricChart({
 								dataKey={replica}
 								name={shortName(replica)}
 								type="linear"
-								stroke={`var(--series-${(i % SERIES).toString()})`}
+								stroke={lineColor?.(replica) ?? seriesColor(i)}
 								strokeWidth={picked === replica ? LINE_WIDTH * 1.6 : LINE_WIDTH}
 								strokeOpacity={picked === null || picked === undefined || picked === replica ? 1 : 0.25}
 								dot={false}

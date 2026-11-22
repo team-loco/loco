@@ -635,3 +635,49 @@
 		color: #000000;
 	}
 }
+
+[data-theme="neobrutal"] {
+	& [data-slot="scale-chip"] {
+		border: 2px solid var(--ink);
+		border-radius: 4px;
+		box-shadow: 2px 2px 0 var(--ink);
+		background: #e4e4e7;
+		color: #000000;
+		font-weight: 600;
+	}
+	& [data-slot="scale-chip"][data-auto="true"] {
+		background: #88aaee;
+	}
+	& [data-slot="region-chip"] {
+		border: 2px solid var(--ink);
+		border-radius: 4px;
+		background: var(--raise);
+		color: var(--fg);
+	}
+	& [data-slot="replica-chip"] {
+		border: 2px solid var(--ink);
+		border-radius: 5px;
+		background: var(--raise);
+		box-shadow: 3px 3px 0 0 var(--ink);
+		transition:
+			transform 120ms ease,
+			box-shadow 120ms ease;
+		&:hover {
+			transform: translate(-1px, -1px);
+			box-shadow: 4px 4px 0 0 var(--ink);
+		}
+		&[aria-pressed="true"] {
+			background: var(--tint);
+			box-shadow: 1px 1px 0 0 var(--ink);
+			transform: translate(2px, 2px);
+		}
+		&[data-bad] {
+			border-color: var(--ink);
+			background: color-mix(in oklch, #ffc800 22%, var(--raise));
+		}
+	}
+	& [data-slot="replica-key"] {
+		height: 4px;
+		box-shadow: 0 0 0 1.5px var(--ink);
+	}
+}
