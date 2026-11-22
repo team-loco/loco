@@ -399,6 +399,7 @@ export function DataTable<T extends RowData>({
 	className,
 	label,
 	inset = false,
+	band = false,
 }: {
 	table: ReactTable<Features, T>;
 	/** Content of the single row shown when there are no rows; null shows none. */
@@ -422,6 +423,8 @@ export function DataTable<T extends RowData>({
 	label?: string;
 	/** Keeps row content 10px inside the card edge instead of 20px; row tints and dividers reach 10px past it. */
 	inset?: boolean;
+	/** Draws rows as rounded bands 20px inside the card edge, with no dividers between them. */
+	band?: boolean;
 }) {
 	const columns = table.getVisibleLeafColumns();
 	const [preview, setPreview] = useState<{ id: string; width: number } | null>(null);
@@ -434,7 +437,12 @@ export function DataTable<T extends RowData>({
 		columns.findIndex((c) => c.columnDef.meta?.primary === true),
 	);
 	const scroller = (
-		<div ref={trackScroll} data-slot="data-table" className="@container relative w-full overflow-x-auto [--row-h:52px]">
+		<div
+			ref={trackScroll}
+			data-slot="data-table"
+			data-band={band ? "" : undefined}
+			className="@container relative w-full overflow-x-auto [--row-h:52px]"
+		>
 			<table
 				data-slot="table"
 				aria-label={label}

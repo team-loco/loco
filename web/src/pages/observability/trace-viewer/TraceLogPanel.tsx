@@ -284,7 +284,9 @@ export function TraceLogPanel({
 													<span
 														className={cn(
 															"inline-flex h-5 w-fit items-center rounded-[5px] px-[7px] font-sans text-[12px]",
-															levelStyle(row.level).badge,
+															row.level === "error" || row.level === "warn"
+																? levelStyle(row.level).badge
+																: "bg-panel2 text-fg2",
 														)}
 													>
 														{LEVEL_LABEL[row.level]}

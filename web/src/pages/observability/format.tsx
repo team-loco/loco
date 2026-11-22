@@ -19,7 +19,6 @@ export interface LevelStyle {
 	badge: string;
 	body: string;
 	dot: string;
-	text: string;
 }
 
 export function levelStyle(level: Level): LevelStyle {
@@ -29,28 +28,24 @@ export function levelStyle(level: Level): LevelStyle {
 				badge: "bg-bad-bg text-bad-fg",
 				body: "text-bad-fg",
 				dot: "bg-err",
-				text: "text-bad-fg",
 			};
 		case "warn":
 			return {
 				badge: "bg-warn-bg text-warn-fg",
 				body: "text-foreground",
 				dot: "bg-lv-warn",
-				text: "text-warn-fg",
 			};
 		case "info":
 			return {
-				badge: "bg-panel2 text-fg2",
+				badge: "bg-info-bg text-info-fg",
 				body: "text-foreground",
 				dot: "bg-lv-info",
-				text: "text-fg3",
 			};
 		case "debug":
 			return {
-				badge: "bg-transparent text-fg3",
+				badge: "text-fg3 shadow-[inset_0_0_0_1px_var(--line)]",
 				body: "text-fg3",
 				dot: "bg-lv-debug",
-				text: "text-fg3",
 			};
 	}
 }

@@ -159,6 +159,7 @@ export function LogTable({
 		<DataTable
 			table={table}
 			label="Log lines"
+			band
 			className="text-[12px] [--row-h:34px] [&_td]:py-1"
 			loading={loading}
 			empty={empty}
@@ -196,7 +197,17 @@ function MessageCell({ row, words }: { row: LogRow; words: string[] }) {
 function Cell({ row, column }: { row: LogRow; column: ColumnKey }) {
 	switch (column) {
 		case "level":
-			return <span className={cn("text-[12.5px]", levelStyle(row.level).text)}>{LEVEL_LABEL[row.level]}</span>;
+			return (
+				<span
+					data-level-badge={row.level}
+					className={cn(
+						"inline-flex h-[19px] items-center rounded-[5px] px-[7px] font-sans text-[11.5px] font-medium whitespace-nowrap",
+						levelStyle(row.level).badge,
+					)}
+				>
+					{LEVEL_LABEL[row.level]}
+				</span>
+			);
 		case "resource":
 			return row.workload ? (
 				<span className="block truncate font-mono text-[12px] text-fg3" title={WORKLOAD_TITLE}>

@@ -236,3 +236,61 @@
 	pointer-events: none;
 	box-shadow: inset 0 0 0 1px var(--ring);
 }
+
+/* Banded rows sit inside the card as rounded shapes; pinned cells round their own ends over their opaque background. The paper theme keeps ruled rows. */
+:root:not([data-theme="paper"]) [data-slot="data-table"][data-band] {
+	width: auto;
+	margin-inline: 20px;
+	& tbody {
+		row-gap: 2px;
+		padding-top: 4px;
+	}
+	& tbody > tr {
+		border-bottom-width: 0;
+		border-radius: var(--band-radius, 6px);
+	}
+	& tr > :first-child {
+		padding-left: 12px;
+	}
+	& tr > :last-child {
+		padding-right: 12px;
+	}
+	& tr[data-state="selected"] {
+		--row-tint: var(--band-selected, var(--bg));
+		--row-ring: var(--band-selected-ring, 1px solid var(--line2));
+	}
+	& tr[data-interactive]:focus-visible {
+		--row-ring: var(--band-focus-ring, 1px solid var(--ring));
+	}
+	/* The row's ring passes under the pinned cells, which draw its rounded ends over their opaque background. */
+	& tbody > tr[data-interactive]::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		border: var(--row-ring, 0 solid transparent);
+		border-radius: var(--band-radius, 6px);
+		box-shadow: none;
+		pointer-events: none;
+	}
+	& tbody [data-pin] {
+		background-image: none;
+	}
+	& tbody [data-pin]::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		border: var(--row-ring, 0 solid transparent);
+		background: var(--row-tint);
+		pointer-events: none;
+	}
+	& tbody [data-pin="start"]::before {
+		border-right-width: 0;
+		border-radius: var(--band-radius, 6px) 0 0 var(--band-radius, 6px);
+	}
+	& tbody [data-pin="end"]::before {
+		border-left-width: 0;
+		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
+	}
+}
