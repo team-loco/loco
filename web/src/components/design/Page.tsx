@@ -95,7 +95,11 @@ export function Section({
 				<h2 id={headingId} className="m-0 flex items-baseline gap-2 text-[18px] font-normal tracking-[-0.02em]">
 					{title}
 				</h2>
-				{count !== undefined && <span className="font-mono text-[12.5px] text-fg3">{count}</span>}
+				{count !== undefined && (
+					<span data-slot="count" className="font-mono text-[12.5px] text-fg3">
+						{count}
+					</span>
+				)}
 				{meta !== undefined && <span className="text-[12.5px] text-fg3">{meta}</span>}
 				{actions !== undefined && (
 					<div className="ml-auto flex flex-wrap items-center justify-end gap-2 self-center">{actions}</div>

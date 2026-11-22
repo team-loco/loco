@@ -81,9 +81,14 @@
 	& [data-slot="button"][data-variant="default"] {
 		box-shadow: inset 0 -2px 0 color-mix(in oklch, var(--fg) 18%, transparent);
 	}
-	& :is(h1, h2, label) {
+	& :is(h1, h2) {
 		font-family: var(--font-mono);
 		letter-spacing: -0.02em;
+	}
+	& :is(label, [data-slot="dropdown-menu-label"]) {
+		font-family: var(--font-mono);
+		font-size: 11.5px;
+		letter-spacing: 0;
 	}
 	& h1 {
 		font-size: 26px;
@@ -106,4 +111,8 @@
 
 [data-theme="solarized"] [data-secret-name] {
 	border-radius: 0;
+}
+
+[data-theme="solarized"] .reg-card {
+	border-radius: 2px;
 }

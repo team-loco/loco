@@ -31,11 +31,11 @@
 	background: var(--raise);
 	border: 2px solid var(--ink);
 	border-radius: 5px;
-	box-shadow: 3px 3px 0 var(--ink);
+	box-shadow: 4px 4px 0 var(--ink);
 	font-weight: 500;
 }
 [data-theme="solarized"] :is(.loco-tip, [data-slot="tooltip-content"]) {
-	border-color: var(--line2);
+	border: 1px solid var(--line2);
 	border-radius: 0;
 	box-shadow: none;
 	font-family: var(--font-mono);

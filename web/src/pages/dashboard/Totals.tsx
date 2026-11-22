@@ -263,8 +263,9 @@ function StatCard({
 }) {
 	const lifts = breakdown !== null;
 	return (
-		<div className="group/stat relative min-h-[178px]">
+		<div data-slot="stat" className="group/stat relative min-h-[178px]">
 			<div
+				data-slot="stat-card"
 				role="group"
 				tabIndex={lifts ? 0 : undefined}
 				aria-label={ariaLabel}
