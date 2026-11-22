@@ -34,6 +34,9 @@ type secretFixture struct {
 	resourceID    uuid.UUID
 }
 
+// secretWorkspace names the workspace newSecretFixture creates.
+const secretWorkspace = "storefront"
+
 func newSecretFixture(t *testing.T) *secretFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
@@ -44,7 +47,7 @@ func newSecretFixture(t *testing.T) *secretFixture {
 		machine:  machine,
 		resolver: openResolver(t, pool),
 	}
-	f.workspaceID = f.workspace(t, "storefront")
+	f.workspaceID = f.workspace(t, secretWorkspace)
 	f.environmentID = f.defaultEnvironment(t, f.workspaceID)
 	f.resourceID = f.resource(t, f.workspaceID, webService, &resourcev1.ServiceSpec{})
 	f.owner = f.tenant.owner(t)

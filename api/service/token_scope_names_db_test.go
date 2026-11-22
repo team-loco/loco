@@ -50,7 +50,7 @@ func TestListTokensNamesTheScopesTheCallerCanRead(t *testing.T) {
 	}
 
 	create(org, org, workspace, resource)
-	if got, want := names(f.owner, org), []string{"secrets", "storefront", webService}; !slices.Equal(got, want) {
+	if got, want := names(f.owner, org), []string{"secrets", secretWorkspace, webService}; !slices.Equal(got, want) {
 		t.Fatalf("organization token scope names = %q, want %q", got, want)
 	}
 
