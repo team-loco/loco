@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -32,6 +33,14 @@ func endedSpan(t *testing.T, recorder *tracetest.SpanRecorder, name string) sdkt
 	return nil
 }
 
+func recordedAttributes(span sdktrace.ReadOnlySpan) map[attribute.Key]attribute.Value {
+	attributes := map[attribute.Key]attribute.Value{}
+	for _, kv := range span.Attributes() {
+		attributes[kv.Key] = kv.Value
+	}
+	return attributes
+}
+
 func TestQueriesRecordClientSpansUnderTheCaller(t *testing.T) {
 	fixture := newQueryFixture(t)
 	recorder := recordSpans(t)
@@ -54,12 +63,8 @@ func TestQueriesRecordClientSpansUnderTheCaller(t *testing.T) {
 		if span.SpanKind() != trace.SpanKindClient {
 			t.Errorf("%s kind = %s, want client", name, span.SpanKind())
 		}
-		attributes := map[string]string{}
-		for _, attribute := range span.Attributes() {
-			attributes[string(attribute.Key)] = attribute.Value.String()
-		}
-		if attributes[string(semconv.DBSystemNameKey)] != "clickhouse" {
-			t.Errorf("%s attributes = %v, want db.system.name clickhouse", name, attributes)
+		if got := recordedAttributes(span)[semconv.DBSystemNameKey].AsString(); got != "clickhouse" {
+			t.Errorf("%s db.system.name = %q, want clickhouse", name, got)
 		}
 	}
 }
@@ -79,8 +84,22 @@ func TestQuerySpanLastsUntilRowsCloseAndRecordsFailures(t *testing.T) {
 	if err := rows.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if span := endedSpan(t, recorder, "Sleep"); span.EndTime().Sub(span.StartTime()) < 200*time.Millisecond {
+	span := endedSpan(t, recorder, "Sleep")
+	if span.EndTime().Sub(span.StartTime()) < 200*time.Millisecond {
 		t.Errorf("span lasted %s, want at least the query's 200ms", span.EndTime().Sub(span.StartTime()))
+	}
+	attributes := recordedAttributes(span)
+	if got := attributes[elapsedKey].AsFloat64(); got < 200 {
+		t.Errorf("%s = %v, want at least the query's 200ms", elapsedKey, got)
+	}
+	if got := attributes[readRowsKey].AsInt64(); got != 1 {
+		t.Errorf("%s = %d, want the 1 row of system.one", readRowsKey, got)
+	}
+	if got := attributes[readBytesKey].AsInt64(); got <= 0 {
+		t.Errorf("%s = %d, want the bytes of system.one", readBytesKey, got)
+	}
+	if got := attributes[semconv.DBResponseReturnedRowsKey].AsInt64(); got != 1 {
+		t.Errorf("%s = %d, want 1", semconv.DBResponseReturnedRowsKey, got)
 	}
 
 	var value uint8
