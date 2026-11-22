@@ -18,6 +18,7 @@ state = load_state(
 org = state["orgs"]["acme"]["id"]
 workspace = state["workspaces"]["acme/shared"]
 resource = state["resources"]["acme/shared/svc-1"]
+other = state["resources"]["acme/shared/svc-2"]
 owner = state["users"]["owner"]["id"]
 environment = sql(
     state,
@@ -52,7 +53,7 @@ with session(out) as browser:
     # A deployment event while the drawer is closed toasts what changed, with a link to the resource.
     sql(
         state,
-        f"""UPDATE deployments SET created_at=NOW() WHERE id=(SELECT id FROM deployments WHERE resource_id='{resource}' ORDER BY created_at DESC LIMIT 1);
+        f"""UPDATE deployments SET created_at=NOW(),updated_at=NOW() WHERE id=(SELECT id FROM deployments WHERE resource_id='{resource}' ORDER BY created_at DESC LIMIT 1);
 INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
 VALUES('deployment.ready','{org}','{workspace}','{resource}','{environment}','user','{owner}','deployment','req-activity-toast',
 jsonb_build_object('environmentId','{environment}'),NOW());""",
@@ -74,6 +75,19 @@ jsonb_build_object('environmentId','{environment}'),NOW());""",
     expect(deployed).to_have_count(8)
     expect(drawer.get_by_role("button", name="Show 2 more")).to_have_count(0)
     assert drawer_reads
+    drawer.get_by_role("button", name="Close activity", exact=True).click()
+    # A deploy that started before the page loaded and fails after it still toasts, until dismissed.
+    sql(
+        state,
+        f"""UPDATE deployments SET status='failed',updated_at=NOW() WHERE id=(SELECT id FROM deployments WHERE resource_id='{other}' ORDER BY created_at DESC LIMIT 1);
+INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
+VALUES('deployment.failed','{org}','{workspace}','{other}','{environment}','user','{owner}','deployment','req-activity-failed',
+jsonb_build_object('environmentId','{environment}'),NOW());""",
+    )
+    failed = page.locator("[data-sonner-toast]").filter(has_text="svc-2 deploy failed")
+    expect(failed).to_be_visible()
+    page.wait_for_timeout(10_000)
+    expect(failed).to_be_visible()
     assert not errors, errors
     context.close()
 print("PASS: activity drawer")
