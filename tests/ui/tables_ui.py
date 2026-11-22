@@ -465,7 +465,7 @@ def check_row_states(page, row):
 
 
 def check_band(page, scroller, row):
-    """A hovered row is one rounded band whose corners show the card, at both pinned ends while the table scrolls sideways."""
+    """While the table scrolls sideways, a hovered or selected row is one rounded band: its corners show the card at both pinned ends, and the selected outline runs unbroken across the row."""
     scroller.evaluate(
         "node => { node.scrollLeft = (node.scrollWidth - node.clientWidth) / 2; }"
     )
@@ -473,15 +473,31 @@ def check_band(page, scroller, row):
     page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
     cells = row.locator(":scope > td")
     first, last = cells.first.bounding_box(), cells.last.bounding_box()
-    top = first["y"]
-    card = rgb(page, first["x"] + 4, top - 1)
-    tint = rgb(page, first["x"] + 4, top + 1)
-    assert tint != card, "the hovered row shows no tint"
-    assert rgb(page, first["x"], top) == card, "the band's start is square"
-    assert rgb(page, last["x"] + last["width"] - 1, top) == card, (
-        "the band's end is square"
-    )
+    top, bottom = first["y"], first["y"] + first["height"] - 1
+    start, end = first["x"], last["x"] + last["width"] - 1
+    card = rgb(page, start + 4, top - 1)
+
+    def rounded(state):
+        for x in (start, end):
+            for y in (top, bottom):
+                assert rgb(page, x, y) == card, (f"the {state} band is square", x, y)
+
+    assert rgb(page, start + 4, top + 1) != card, "the hovered row shows no tint"
+    rounded("hovered")
     page.mouse.move(0, 0)
+    # The drawer a click opens would cover the row, so the row takes the selected state directly.
+    row.evaluate("node => node.setAttribute('data-state', 'selected')")
+    page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
+    rounded("selected")
+    middle = (first["x"] + first["width"] + last["x"]) / 2
+    for y, inside in ((top, top + 3), (bottom, bottom - 3)):
+        line = rgb(page, middle, y)
+        assert line != rgb(page, middle, inside), ("no outline in the middle", y)
+        assert line == rgb(page, start + 10, y) == rgb(page, end - 10, y), (
+            "the outline breaks at a pinned cell",
+            y,
+        )
+    row.evaluate("node => node.removeAttribute('data-state')")
     scroller.evaluate("node => { node.scrollLeft = 0; }")
 
 
