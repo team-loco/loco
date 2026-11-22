@@ -22,17 +22,9 @@ import {
 } from "./columns";
 import { bodyParts, fmtTs, jsonPreview, LEVEL_LABEL, levelStyle } from "./format";
 import { LogRowMenu } from "./LogRowMenu";
-import type { Level } from "./query";
 import { WORKLOAD_TITLE, type LogRow } from "./rows";
 
 const TIME_KEY = "time";
-
-const LEVEL_BADGE: Record<Level, string> = {
-	error: "bg-bad-bg text-bad-fg",
-	warn: "bg-warn-bg text-warn-fg",
-	info: "bg-info-bg text-info-fg",
-	debug: "text-fg3 shadow-[inset_0_0_0_1px_var(--line)]",
-};
 
 function ColumnPicker({ columns, onColumns }: { columns: ColumnKey[]; onColumns: (next: ColumnKey[]) => void }) {
 	const extra = columns.filter((c) => !PICKABLE_COLUMNS.includes(c));
@@ -210,7 +202,7 @@ function Cell({ row, column }: { row: LogRow; column: ColumnKey }) {
 					data-level-badge={row.level}
 					className={cn(
 						"inline-flex h-[19px] items-center rounded-[5px] px-[7px] font-sans text-[11.5px] font-medium whitespace-nowrap",
-						LEVEL_BADGE[row.level],
+						levelStyle(row.level).badge,
 					)}
 				>
 					{LEVEL_LABEL[row.level]}

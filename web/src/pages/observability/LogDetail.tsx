@@ -148,6 +148,7 @@ export function LogDetail({
 					</div>
 					<div className="flex min-w-0 items-center gap-2">
 						<span
+							data-level-badge={row.level}
 							className={cn("inline-flex h-5 shrink-0 items-center rounded-[5px] px-[7px] text-[12px]", style.badge)}
 						>
 							{LEVEL_LABEL[row.level]}

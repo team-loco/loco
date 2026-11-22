@@ -37,13 +37,13 @@ export function levelStyle(level: Level): LevelStyle {
 			};
 		case "info":
 			return {
-				badge: "bg-panel2 text-fg2",
+				badge: "bg-info-bg text-info-fg",
 				body: "text-foreground",
 				dot: "bg-lv-info",
 			};
 		case "debug":
 			return {
-				badge: "bg-transparent text-fg3",
+				badge: "text-fg3 shadow-[inset_0_0_0_1px_var(--line)]",
 				body: "text-fg3",
 				dot: "bg-lv-debug",
 			};
