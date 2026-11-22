@@ -15,6 +15,16 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+)
+
+const (
+	tracerName    = "github.com/team-loco/loco/api/pkg/imageresolver"
+	resolveSpan   = "image.resolve"
+	imageNameAttr = "container.image.name"
+	imageRefAttr  = "loco.image.reference"
 )
 
 var ErrPlatformUnsupported = errors.New("image has no requested platform variant")
@@ -31,7 +41,23 @@ func New(timeout time.Duration, maxBytes int64, platform workloadplatform.Platfo
 	return &Resolver{platform: platform, timeout: timeout, transport: transport, maxBytes: maxBytes}
 }
 
+// Resolve wraps one image's registry calls in a span, so a plan's lookups read as one step per image.
 func (r *Resolver) Resolve(ctx context.Context, ref name.Reference) (string, error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, resolveSpan)
+	defer span.End()
+	span.SetAttributes(
+		attribute.String(imageNameAttr, ref.Context().Name()),
+		attribute.String(imageRefAttr, ref.String()),
+	)
+	digest, err := r.resolve(ctx, ref)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+	return digest, err
+}
+
+func (r *Resolver) resolve(ctx context.Context, ref name.Reference) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
