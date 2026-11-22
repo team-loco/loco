@@ -223,8 +223,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert not errors, errors
     context.close()
 
-    # Token rows are named by one ListOrgResources call, which also names each resource's workspace, through which the
-    # organization grants its access, and Duplicate waits for it.
+    # Duplicate waits for the one ListOrgResources call that names a resource and the workspace its access comes through.
     inventory = state["tokens_resources"]["acme/sibling/inventory-api"]
     call(
         state,

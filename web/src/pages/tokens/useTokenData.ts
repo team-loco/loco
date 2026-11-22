@@ -135,8 +135,7 @@ export function useTokenData(): TokenData {
 		user: wrap(personalOwner, personalTokens),
 	};
 
-	// Each organization lists by ID the workspaces and resources that every token names in the active organization and
-	// that personal tokens, which can reach any organization, name elsewhere. The active workspace is already known.
+	// Each organization lists by ID the workspaces and resources tokens name there; only personal tokens reach others.
 	const tokenScopes = Object.values(owners).flatMap((o) => o.tokens.flatMap((t) => t.scopes));
 	const personalScopes = owners.user.tokens.flatMap((t) => t.scopes);
 	const idsOf = (scopes: EntityScope[], type: EntityType) => [
