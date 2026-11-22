@@ -162,7 +162,7 @@ def expect_running(page):
     expect(badge).to_have_attribute("data-status-badge", "ok")
 
 
-FAILED_UPDATE = "Update failed · previous version serving"
+FAILED_UPDATE = "Update failed, previous version still serving"
 
 
 def expect_badges(scope, labels):

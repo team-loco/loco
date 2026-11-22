@@ -137,7 +137,7 @@ describe("buildRows", () => {
 		expect(cell.tag).toBe("v2");
 		expect(cell.deployedMs).toBe(2500);
 		expect(cell.note).toBe("Back-off restarting");
-		expect(cellSummary(cell)).toBe("2/3 · us-va-1 +1");
+		expect(cellSummary(cell)).toBe("2/3, us-va-1 +1");
 		expect(row?.cells.has("e-stg")).toBe(false);
 		expect(row?.image).toBe("ghcr.io/acme/api");
 		expect(row?.cpuMilli).toBe(500);

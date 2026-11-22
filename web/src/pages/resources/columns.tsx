@@ -69,7 +69,7 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 		cell.deployedMs === 0 ? "" : `deployed ${agoLabel(cell.deployedMs, nowMs)}`,
 	]
 		.filter((s) => s !== "")
-		.join(" · ");
+		.join(", ");
 	return (
 		<Tooltip>
 			<TooltipTrigger
@@ -84,7 +84,7 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 					{cellSummary(cell)}
 					{rollout !== undefined && (
 						<span className={SUMMARY_TONE[rollout.glyph]}>
-							{" · "}
+							{", "}
 							{rollout.short.toLowerCase()}
 						</span>
 					)}
@@ -273,7 +273,7 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			accessorFn: (row) => row.cpuMilli,
 			sortDescFirst: true,
 			cell: ({ row: { original: row } }) => (
-				<Mono text={row.cpuMilli === 0 ? null : `${formatCpu(row.cpuMilli)} · ${formatMemory(row.memMi)}`} />
+				<Mono text={row.cpuMilli === 0 ? null : `${formatCpu(row.cpuMilli)}, ${formatMemory(row.memMi)}`} />
 			),
 		},
 		{

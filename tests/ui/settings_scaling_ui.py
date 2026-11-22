@@ -176,7 +176,7 @@ with session(out) as browser:
     target = defaults["cpuTarget"] - 5
     expect(
         section.get_by_text(
-            f"Adds replicas when average CPU stays above {target}%, and removes them when it drops, between 1 and 3 per region.",
+            f"Adds replicas when average CPU stays above {target}%.",
             exact=True,
         )
     ).to_be_visible()

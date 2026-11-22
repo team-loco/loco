@@ -57,7 +57,7 @@ const BASE_P95_MS = 86;
 const ROLLOUT_P95_MS = 92;
 
 export const ENDPOINT = "api-kwvn.onloco.app";
-export const STRATEGY = `Rolling · ${SURGE_PERCENT}% surge · ${SURGE_PERCENT}% unavailable`;
+export const STRATEGY = `Rolling, ${SURGE_PERCENT}% surge, ${SURGE_PERCENT}% unavailable`;
 
 const DEPLOYED_AT = 17;
 const STAGE_FRAMES = 2;
@@ -100,7 +100,7 @@ export const TERMINAL: readonly TerminalLine[] = [
 ];
 
 export function podLabel({ fresh, phase }: Pod): string {
-	return `${fresh ? NEW_DIGEST : OLD_DIGEST} · ${phase}`;
+	return `${fresh ? NEW_DIGEST : OLD_DIGEST}, ${phase}`;
 }
 
 function pod(n: number, fresh: boolean, phase: PodPhase): Pod {

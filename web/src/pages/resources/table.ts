@@ -165,7 +165,7 @@ export function cellSummary(cell: Pick<EnvCell, "ready" | "desired" | "regions">
 	if (cell.regions.length === 0) return "no region";
 	const [first = "", ...rest] = cell.regions;
 	const more = rest.length > 0 ? ` +${rest.length.toString()}` : "";
-	return `${cell.ready.toString()}/${cell.desired.toString()} · ${first}${more}`;
+	return `${cell.ready.toString()}/${cell.desired.toString()}, ${first}${more}`;
 }
 
 export function replicasLabel(row: ListRow): string | null {

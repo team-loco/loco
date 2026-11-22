@@ -553,11 +553,13 @@ with session(out) as browser:
         drawer.get_by_role("heading", name="Environment variables 3")
     ).to_be_visible()
 
-    health = drawer.get_by_role("button", name=re.compile(r"^Health check"))
-    expect(health).to_have_attribute("aria-expanded", "false")
-    health.click()
-    expect(health).to_have_attribute("aria-expanded", "true")
+    health = drawer.get_by_role("switch", name="Health check", exact=True)
+    expect(health).to_be_checked()
     interval = drawer.get_by_role("textbox", name="Interval, sec")
+    health.click()
+    expect(interval).to_have_count(0)
+    health.click()
+    expect(health).to_be_checked()
     health_path = drawer.get_by_role("textbox", name="Path", exact=True).input_value()
     assert health_path.startswith("/"), health_path
     interval.fill("1x5")
@@ -573,7 +575,6 @@ with session(out) as browser:
         0
     )
     drawer.get_by_role("textbox", name="Fail after, checks").fill("6")
-    expect(health).to_contain_text(f"{health_path} · every 15s")
     start_command = drawer.get_by_role("button", name=re.compile(r"^Start command"))
     expect(start_command).to_contain_text("Image default")
     start_command.click()
@@ -600,14 +601,15 @@ with session(out) as browser:
     expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value(
         "info"
     )
-    expect(health).to_contain_text(f"{health_path} · every 15s")
+    expect(health).to_be_checked()
+    expect(interval).to_have_value("15")
     expect(start_command).to_contain_text("-text=hello world -listen=:8080")
     page.keyboard.press("Escape")
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
     row = draft_row(page, name)
     expect(row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
     expect(row.get_by_text("draft", exact=True)).to_be_visible()
-    expect(row.get_by_text(re.compile(r"^0/\d+ · [a-z]+-[a-z]+-\d"))).to_be_visible()
+    expect(row.get_by_text(re.compile(r"^0/\d+, [a-z]+-[a-z]+-\d"))).to_be_visible()
     expect(row.get_by_role("checkbox")).to_have_count(0)
     expect(row.get_by_role("button")).to_have_count(1)
     row.get_by_role("button", name=f"Actions for {name}", exact=True).click()
@@ -659,14 +661,12 @@ with session(out) as browser:
     expect(node).to_be_visible()
     node.click()
     expect(page).to_have_url(re.compile(r"\?env=production&view=map&draft=[0-9a-f-]+$"))
-    health.click()
     drawer.get_by_role("textbox", name="Timeout, sec").fill("5")
     page.keyboard.press("Escape")
     page.goto(base + "/resources?env=production")
     row.get_by_role("link", name=name, exact=True).focus()
     page.keyboard.press("Enter")
     expect(page).to_have_url(DRAFT_URL)
-    health.click()
     expect(drawer.get_by_role("textbox", name="Timeout, sec")).to_have_value("5")
     drawer.get_by_role("textbox", name="Timeout, sec").fill("4")
     interval.fill("0")
@@ -1015,7 +1015,7 @@ with session(out) as browser:
     )
     expect(
         drawer.get_by_text(
-            "Adds replicas when average CPU stays above 70%, and removes them when it drops, between 2 and 3 per region.",
+            "Adds replicas when average CPU stays above 70%.",
             exact=True,
         )
     ).to_be_visible()

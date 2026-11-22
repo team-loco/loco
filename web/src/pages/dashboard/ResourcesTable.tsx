@@ -195,7 +195,7 @@ function ReplicasCell({ item }: { item: DashboardItem }) {
 	const meter = item.totalReplicas > MAX_PIPS;
 	const ready = item.regions.reduce((n, g) => n + g.ready, 0);
 	const missing = Math.max(0, item.totalReplicas - ready);
-	const summary = `${ready.toString()} of ${item.totalReplicas.toString()} ready${missing ? ` · ${missing.toString()} starting` : ""}`;
+	const summary = `${ready.toString()} of ${item.totalReplicas.toString()} ready${missing ? `, ${missing.toString()} starting` : ""}`;
 	const label = [
 		summary,
 		...item.regions.map((g) => `${g.region}: ${g.ready.toString()}/${g.desired.toString()}`),

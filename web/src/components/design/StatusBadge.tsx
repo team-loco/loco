@@ -99,7 +99,7 @@ export function ResourceStatusBadge({ status }: { status: ResourceStatus | undef
 
 export const ROLLOUT_STYLE: Record<Rollout, StatusStyle & { short: string }> = {
 	updating: { label: "Updating", short: "Updating", glyph: "spin" },
-	failed: { label: "Update failed · previous version serving", short: "Update failed", glyph: "err" },
+	failed: { label: "Update failed, previous version still serving", short: "Update failed", glyph: "err" },
 };
 
 export function RolloutBadge({ rollout, compact = false }: { rollout: Rollout | undefined; compact?: boolean }) {

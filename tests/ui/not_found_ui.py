@@ -496,7 +496,7 @@ with session(out) as browser:
     pods = demo.get_by_text("us-ca-1", exact=True).locator("xpath=..").locator("i")
     pods.first.hover()
     expect(page.locator("[data-slot=tooltip-content]")).to_have_text(
-        "sha256:4be1c09d · ready"
+        "sha256:4be1c09d, ready"
     )
     page.emulate_media(reduced_motion="no-preference")
 

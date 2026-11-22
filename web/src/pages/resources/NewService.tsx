@@ -30,6 +30,7 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
+import { Switch } from "@/components/design/Switch";
 import { CommandFields, type CommandValue } from "@/components/design/CommandFields";
 import { Spinner } from "@/components/design/Spinner";
 import { Textarea } from "@/components/design/Textarea";
@@ -48,7 +49,6 @@ import { DRAFT_PARAM, resourcePath } from "@/lib/routes";
 import {
 	commandSummary,
 	firstError,
-	healthSummary,
 	imageError,
 	envRowErrors,
 	locoYaml,
@@ -85,7 +85,6 @@ const API_FIELD_LABEL: Record<ApiField, string> = {
 	command: "Command",
 	args: "Arguments",
 };
-const HEALTH_FIELDS: ReadonlySet<ApiField> = new Set(["path", "interval", "timeout", "failAfter"]);
 const COMMAND_FIELDS: ReadonlySet<ApiField> = new Set(["command", "args"]);
 
 export function NewService({
@@ -317,7 +316,6 @@ function DraftPanel({
 	const deployment = useServiceDeploy(workspaceId, env);
 	const navigate = useNavigate();
 	const [tried, setTried] = useState(false);
-	const [healthOpen, setHealthOpen] = useState(false);
 	const [commandOpen, setCommandOpen] = useState(false);
 	const [discarding, setDiscarding] = useState(false);
 	const [saveFailed, setSaveFailed] = useState(false);
@@ -390,13 +388,11 @@ function DraftPanel({
 						: resourcePath(orgId, workspaceId, deployment.resourceId, { env: env.slug })
 				}
 				tried={tried}
-				healthOpen={healthOpen}
 				commandOpen={commandOpen}
 				holder={taken.holder(draft)}
 				onTry={() => {
 					setTried(true);
 				}}
-				onHealthOpen={setHealthOpen}
 				onCommandOpen={setCommandOpen}
 				onImage={(image) => {
 					deployment.clearError();
@@ -458,6 +454,7 @@ function defaultHealth(defaults: DefaultServiceConfig): HealthForm {
 	const hc = defaults.healthCheck;
 	const num = (n: number | undefined) => (n === undefined || n === 0 ? "" : n.toString());
 	return {
+		enabled: (hc?.path ?? "") !== "",
 		path: hc?.path ?? "",
 		interval: num(hc?.intervalSeconds),
 		timeout: num(hc?.timeoutSeconds),
@@ -477,11 +474,9 @@ function ServiceForm({
 	deployment,
 	resourceHref,
 	tried,
-	healthOpen,
 	commandOpen,
 	holder,
 	onTry,
-	onHealthOpen,
 	onCommandOpen,
 	onImage,
 	onEdit,
@@ -499,11 +494,9 @@ function ServiceForm({
 	deployment: ReturnType<typeof useServiceDeploy>;
 	resourceHref: string | undefined;
 	tried: boolean;
-	healthOpen: boolean;
 	commandOpen: boolean;
 	holder: string | null;
 	onTry: () => void;
-	onHealthOpen: (open: boolean) => void;
 	onCommandOpen: (open: boolean) => void;
 	onImage: (image: string) => void;
 	onEdit: (edits: DraftEdits) => void;
@@ -565,7 +558,6 @@ function ServiceForm({
 						return;
 					}
 					const field = error?.field?.field;
-					if (field !== undefined && HEALTH_FIELDS.has(field)) onHealthOpen(true);
 					if (field !== undefined && COMMAND_FIELDS.has(field)) onCommandOpen(true);
 				});
 			}}
@@ -765,10 +757,8 @@ function ServiceForm({
 
 				<HealthSection
 					health={form.health}
-					open={healthOpen}
 					apiError={apiError}
 					timeoutError={errors.healthTimeout}
-					onOpenChange={onHealthOpen}
 					onChange={setHealth}
 				/>
 
@@ -994,17 +984,13 @@ function CommandSection({
 
 function HealthSection({
 	health,
-	open,
 	apiError,
 	timeoutError,
-	onOpenChange,
 	onChange,
 }: {
 	health: HealthForm;
-	open: boolean;
 	apiError: (field: ApiField) => string | null;
 	timeoutError: string | null;
-	onOpenChange: (open: boolean) => void;
 	onChange: (patch: Partial<HealthForm>) => void;
 }) {
 	const numeric = (label: string, field: "interval" | "timeout" | "failAfter") => {
@@ -1024,33 +1010,44 @@ function HealthSection({
 		);
 	};
 	return (
-		<Collapsible open={open} onOpenChange={onOpenChange} className="flex flex-col gap-3">
-			<CollapsibleTrigger className="flex w-full items-center gap-2.5 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:outline-none">
-				<span className="text-[14px] font-medium">Health check</span>
-				<span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg3">{healthSummary(health)}</span>
-				{open ? <ChevronDownIcon className="size-3.5 text-fg3" /> : <ChevronRightIcon className="size-3.5 text-fg3" />}
-			</CollapsibleTrigger>
-			<CollapsibleContent className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-				<Field
-					label="Path"
-					className="col-span-full"
-					error={apiError("path")}
-					hint="Loco waits for this path to return 2xx before sending traffic. Leave empty for none."
-				>
-					<Input
-						value={health.path}
-						className="font-mono"
-						placeholder="/healthz"
-						aria-invalid={apiError("path") !== null}
-						onChange={(e) => {
-							onChange({ path: e.target.value });
-						}}
-					/>
-				</Field>
-				{numeric("Interval, sec", "interval")}
-				{numeric("Timeout, sec", "timeout")}
-				{numeric("Fail after, checks", "failAfter")}
-			</CollapsibleContent>
-		</Collapsible>
+		<DrawerSection
+			title="Health check"
+			actions={
+				<Switch
+					aria-label="Health check"
+					checked={health.enabled}
+					onCheckedChange={(enabled) => {
+						onChange({ enabled, path: health.path === "" ? "/healthz" : health.path });
+					}}
+				/>
+			}
+		>
+			<span className="-mt-1 text-[12.5px] text-fg3">
+				Optional. Without one, a replica counts as ready once its process starts.
+			</span>
+			{health.enabled && (
+				<div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+					<Field
+						label="Path"
+						className="col-span-full"
+						error={apiError("path")}
+						hint="Loco waits for this path to return 2xx before sending traffic."
+					>
+						<Input
+							value={health.path}
+							className="font-mono"
+							placeholder="/healthz"
+							aria-invalid={apiError("path") !== null}
+							onChange={(e) => {
+								onChange({ path: e.target.value });
+							}}
+						/>
+					</Field>
+					{numeric("Interval, sec", "interval")}
+					{numeric("Timeout, sec", "timeout")}
+					{numeric("Fail after, checks", "failAfter")}
+				</div>
+			)}
+		</DrawerSection>
 	);
 }

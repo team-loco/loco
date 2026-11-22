@@ -133,12 +133,15 @@ function Breakdown({
 	total,
 	format,
 	moreHref,
+	noun = "resource",
 }: {
 	rows: BreakdownRow[];
 	count?: number;
 	total: number;
 	format: (n: number) => string;
 	moreHref: string;
+	/** What the rows count, such as "public resource". */
+	noun?: string;
 }) {
 	const shown = count > TOP + 1 ? rows.slice(0, TOP) : rows;
 	const restCount = count - shown.length;
@@ -155,7 +158,7 @@ function Breakdown({
 				<div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3.5 pb-2 text-[12px] text-fg3">
 					By resource
 					<span className="flex items-center gap-1.5 font-mono text-[11px]">
-						{pluralize(count, "resource")}
+						{pluralize(count, noun)}
 						<ChevronDownIcon
 							className={cn(
 								EASE,
@@ -410,7 +413,7 @@ function TrafficCard({
 			ariaLabel={state === "loading" ? `${spec.label}: loading` : `${spec.label}: ${shown}, ${comparison}`}
 			breakdown={
 				state === "ready" && names !== undefined && rows.length > 0 && total !== undefined ? (
-					<Breakdown rows={rows} total={total} format={spec.format} moreHref={moreHref} />
+					<Breakdown rows={rows} total={total} format={spec.format} moreHref={moreHref} noun="public resource" />
 				) : null
 			}
 		>

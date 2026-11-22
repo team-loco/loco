@@ -248,7 +248,7 @@ export function CellText({
 	className?: string;
 	render?: ReactElement;
 }) {
-	const full = detail === undefined ? text : `${text} · ${detail}`;
+	const full = detail === undefined ? text : `${text}, ${detail}`;
 	const ref = useRef<HTMLElement>(null);
 	const [open, setOpen] = useState(false);
 	return (
@@ -267,7 +267,7 @@ export function CellText({
 				className={cn("block truncate", className)}
 			>
 				{text}
-				{detail !== undefined && <span className="text-fg3"> · {detail}</span>}
+				{detail !== undefined && <span className="text-fg3">, {detail}</span>}
 			</TooltipTrigger>
 			<TooltipContent className="max-w-[min(480px,90vw)] break-all">{full}</TooltipContent>
 		</Tooltip>

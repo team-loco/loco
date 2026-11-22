@@ -1338,7 +1338,7 @@ def dashboard(page):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
         replicas = page.get_by_label(
-            "47 of 48 ready · 1 starting\nus-ca-1: 47/48", exact=True
+            "47 of 48 ready, 1 starting\nus-ca-1: 47/48", exact=True
         )
         expect(replicas).to_be_visible()
         # The authentication init script starts every navigation in light mode.
