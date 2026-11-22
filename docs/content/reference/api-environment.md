@@ -21,6 +21,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_SHUTDOWN_DRAIN_TIMEOUT` | `30s` | How long shutdown waits for open requests before closing their connections. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | OTLP/HTTP endpoint for the API's own traces. Tracing is off while this and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` are both empty. The OpenTelemetry SDK reads its other `OTEL_*` variables too. |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | empty | OTLP/HTTP endpoint for traces only. |
+| `OTEL_PROPAGATORS` | `tracecontext,baggage` | Trace context formats the API reads from requests and writes to outgoing calls: `tracecontext`, `baggage`, `b3`, `b3multi`, `jaeger`, `xray`, `ottrace` or `none`. Each request starts its own trace and links to the caller's span, so a client cannot choose the trace a request joins or whether it is sampled. |
 
 ## Database and cache
 

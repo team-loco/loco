@@ -10,9 +10,9 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/otelconnect"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
@@ -68,8 +68,7 @@ func startTracing(ctx context.Context, enabled bool, version string) (*sdktrace.
 		sdktrace.WithSampler(sampler),
 	)
 	otel.SetTracerProvider(provider)
-	propagator := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
-	otel.SetTextMapPropagator(propagator)
+	otel.SetTextMapPropagator(autoprop.NewTextMapPropagator())
 	return provider, nil
 }
 
@@ -115,8 +114,16 @@ func traceRPC(_ context.Context, spec connect.Spec) bool {
 	return spec.Procedure != agentv1connect.AgentServiceSyncProcedure
 }
 
+// untrustedCaller starts every request's trace in the API and links it to the caller's span.
+func untrustedCaller(*http.Request) bool {
+	return true
+}
+
 func withServerTracing(next http.Handler) http.Handler {
-	return otelhttp.NewHandler(next, defaultServiceName, otelhttp.WithFilter(traceHTTPRequest))
+	return otelhttp.NewHandler(next, defaultServiceName,
+		otelhttp.WithFilter(traceHTTPRequest),
+		otelhttp.WithPublicEndpointFn(untrustedCaller),
+	)
 }
 
 func newTracingInterceptor() (connect.ServerInterceptor, error) {
