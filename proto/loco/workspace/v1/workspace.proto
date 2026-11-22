@@ -134,6 +134,13 @@ message ListOrgWorkspacesRequest {
   string query = 5 [(buf.validate.field).string.max_len = 200];
   // Only workspaces that hold at least one resource.
   bool has_resources = 6;
+  // Only these workspaces.
+  repeated string workspace_ids = 7 [(buf.validate.field).repeated = {
+    max_items: 200
+    items: {
+      string: {uuid: true}
+    }
+  }];
 }
 
 // ListOrgWorkspacesResponse contains the list of workspaces.

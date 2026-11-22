@@ -429,6 +429,13 @@ message ListOrgResourcesRequest {
   string query = 4 [(buf.validate.field).string.max_len = 256];
   // Sets total_count in the response.
   bool include_total_count = 5;
+  // Only these resources.
+  repeated string resource_ids = 6 [(buf.validate.field).repeated = {
+    max_items: 200
+    items: {
+      string: {uuid: true}
+    }
+  }];
 }
 
 // ListOrgResourcesResponse is one page of an organization's resources.

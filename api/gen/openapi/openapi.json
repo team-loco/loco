@@ -15732,6 +15732,16 @@
             "type": "boolean",
             "title": "include_total_count",
             "description": "Sets total_count in the response."
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids",
+            "maxItems": 200,
+            "description": "Only these resources."
           }
         },
         "title": "ListOrgResourcesRequest",
@@ -18360,6 +18370,16 @@
             "type": "boolean",
             "title": "has_resources",
             "description": "Only workspaces that hold at least one resource."
+          },
+          "workspaceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "workspace_ids",
+            "maxItems": 200,
+            "description": "Only these workspaces."
           }
         },
         "title": "ListOrgWorkspacesRequest",

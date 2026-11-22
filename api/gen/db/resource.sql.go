@@ -30,7 +30,8 @@ SELECT COUNT(*) FROM (
          OR w.id = ANY($3::uuid[])
          OR r.id = ANY($4::uuid[]))
     AND ($5::text = '' OR r.name ILIKE $5 OR r.slug ILIKE $5)
-  LIMIT $6
+    AND ($6::uuid[] IS NULL OR r.id = ANY($6::uuid[]))
+  LIMIT $7
 ) capped
 `
 
@@ -40,6 +41,7 @@ type CountOrgResourcesParams struct {
 	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
 	ResourceIds   []uuid.UUID `json:"resourceIds"`
 	Query         string      `json:"query"`
+	Ids           []uuid.UUID `json:"ids"`
 	RowLimit      int32       `json:"rowLimit"`
 }
 
@@ -50,6 +52,7 @@ func (q *Queries) CountOrgResources(ctx context.Context, arg CountOrgResourcesPa
 		arg.WorkspaceIds,
 		arg.ResourceIds,
 		arg.Query,
+		arg.Ids,
 		arg.RowLimit,
 	)
 	var count int64
@@ -449,13 +452,14 @@ WHERE w.org_id = $1
        OR w.id = ANY($3::uuid[])
        OR r.id = ANY($4::uuid[]))
   AND ($5::text = '' OR r.name ILIKE $5 OR r.slug ILIKE $5)
-  AND ($6::text IS NULL
+  AND ($6::uuid[] IS NULL OR r.id = ANY($6::uuid[]))
+  AND ($7::text IS NULL
        OR (r.created_at, r.id) < (
-         $7::timestamptz,
-         $6::uuid
+         $8::timestamptz,
+         $7::uuid
        ))
 ORDER BY r.created_at DESC, r.id DESC
-LIMIT $8
+LIMIT $9
 `
 
 type ListOrgResourcesParams struct {
@@ -464,6 +468,7 @@ type ListOrgResourcesParams struct {
 	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
 	ResourceIds   []uuid.UUID `json:"resourceIds"`
 	Query         string      `json:"query"`
+	Ids           []uuid.UUID `json:"ids"`
 	PageToken     *string     `json:"pageToken"`
 	PageCreatedAt *time.Time  `json:"pageCreatedAt"`
 	RowLimit      int32       `json:"rowLimit"`
@@ -486,6 +491,7 @@ func (q *Queries) ListOrgResources(ctx context.Context, arg ListOrgResourcesPara
 		arg.WorkspaceIds,
 		arg.ResourceIds,
 		arg.Query,
+		arg.Ids,
 		arg.PageToken,
 		arg.PageCreatedAt,
 		arg.RowLimit,

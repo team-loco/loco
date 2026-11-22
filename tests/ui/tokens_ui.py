@@ -223,7 +223,9 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert not errors, errors
     context.close()
 
-    # Duplicating waits for a resource's workspace, through which the organization grants its access.
+    # Token rows are named by one ListOrgResources call, which also names each resource's workspace, through which the
+    # organization grants its access, and Duplicate waits for it.
+    inventory = state["tokens_resources"]["acme/sibling/inventory-api"]
     call(
         state,
         "loco.token.v1.TokenService/CreateToken",
@@ -235,7 +237,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
             "scopes": [
                 {
                     "entityType": "ENTITY_TYPE_RESOURCE",
-                    "entityId": state["tokens_resources"]["acme/sibling/inventory-api"],
+                    "entityId": inventory,
                     "scope": "SCOPE_READ",
                 }
             ],
@@ -247,18 +249,30 @@ with session(repo / "tests/ui/out/tokens") as browser:
         storage={"loco:active-org:v1": org, "loco:active-workspace:v1": shared},
     )
     held = []
+    lookups = []
+    page.on(
+        "request",
+        lambda request: (
+            lookups.append(request.url.rsplit("/", 1)[1])
+            if re.search(r"/(GetResource|GetWorkspace)$", request.url)
+            and (request.post_data_json or {}).get("workspaceId") != shared
+            else None
+        ),
+    )
 
-    def hold_sibling(route):
-        if (route.request.post_data_json or {}).get("workspaceId") == sibling:
+    def names_inventory(request):
+        return inventory in (request.post_data_json or {}).get("resourceIds", [])
+
+    def hold_lookup(route):
+        if names_inventory(route.request):
             held.append(route)
         else:
             route.fallback()
 
-    page.route("**/loco.workspace.v1.WorkspaceService/GetWorkspace", hold_sibling)
+    page.route("**/loco.resource.v1.ResourceService/ListOrgResources", hold_lookup)
     with page.expect_request(
         lambda request: (
-            request.url.endswith("/GetWorkspace")
-            and (request.post_data_json or {}).get("workspaceId") == sibling
+            request.url.endswith("/ListOrgResources") and names_inventory(request)
         )
     ):
         page.goto(state["ui_url"] + "/tokens?owner=org")
@@ -266,19 +280,18 @@ with session(repo / "tests/ui/out/tokens") as browser:
     page.get_by_role("menuitem", name="Duplicate").click()
     drawer = page.get_by_role("dialog", name="New token")
     expect(drawer).to_have_count(0)
-    assert held, "GetWorkspace for sibling was not requested"
-    for route in held:
-        route.fallback()
-    page.unroute("**/loco.workspace.v1.WorkspaceService/GetWorkspace")
+    assert len(held) == 1, f"{len(held)} ListOrgResources calls named inventory-api"
+    held[0].fallback()
+    page.unroute("**/loco.resource.v1.ResourceService/ListOrgResources")
     expect(drawer.get_by_role("group", name="Level for inventory-api")).to_be_visible()
     expect(drawer.get_by_text("sibling", exact=True)).to_be_visible()
+    assert not lookups, f"token scopes were looked up one by one: {lookups}"
     assert not errors, errors
     context.close()
 
     # A member is not offered a workspace it has no access to, and expanding a workspace it reaches only
     # through a resource grant lists that resource.
     member = state["users"]["member"]["id"]
-    inventory = state["tokens_resources"]["acme/sibling/inventory-api"]
     sql(
         state,
         "INSERT INTO user_scopes(user_id,scope,entity_type,entity_id) "

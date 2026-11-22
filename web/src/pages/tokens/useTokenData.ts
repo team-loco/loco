@@ -1,15 +1,15 @@
 import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { listOrgResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getScopes, listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { EntityType } from "@gen/loco/token/v1/token_pb";
-import type { Token } from "@gen/loco/token/v1/token_pb";
-import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import type { EntityScope, Token } from "@gen/loco/token/v1/token_pb";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useWorkspace } from "@/hooks/useWorkspace";
+import { MAX_PAGE, useWorkspace } from "@/hooks/useWorkspace";
 
 import { buildHeld, entityNode, holds, withScopeEntities } from "./model";
 import type { Entities, EntityNode, HeldScopes, OwnerKey } from "./model";
@@ -135,47 +135,50 @@ export function useTokenData(): TokenData {
 		user: wrap(personalOwner, personalTokens),
 	};
 
-	// Each workspace and resource the scopes name is looked up by ID, with a resource's workspace.
+	// Each organization lists by ID the workspaces and resources that every token names in the active organization and
+	// that personal tokens, which can reach any organization, name elsewhere. The active workspace is already known.
 	const tokenScopes = Object.values(owners).flatMap((o) => o.tokens.flatMap((t) => t.scopes));
-	const scopeIds = (type: EntityType) => [
-		...new Set(tokenScopes.filter((s) => s.entityType === type).map((s) => s.entityId)),
+	const personalScopes = owners.user.tokens.flatMap((t) => t.scopes);
+	const idsOf = (scopes: EntityScope[], type: EntityType) => [
+		...new Set(scopes.filter((s) => s.entityType === type).map((s) => s.entityId)),
 	];
+	const batches = (type: EntityType) =>
+		[...orgNodes.values()].flatMap((org) => {
+			const ids = idsOf(org.id === activeOrgId ? tokenScopes : personalScopes, type).filter(
+				(id) => id !== activeWs?.id,
+			);
+			return Array.from({ length: Math.ceil(ids.length / MAX_PAGE) }, (_, i) => ({
+				org,
+				ids: ids.slice(i * MAX_PAGE, (i + 1) * MAX_PAGE),
+			}));
+		});
+	const resourceBatches = batches(EntityType.RESOURCE);
 	const resourceQueries = useQueries({
-		queries: scopeIds(EntityType.RESOURCE).map((id) => ({
-			...createQueryOptions(getResource, { key: { case: "resourceId", value: id } }, { transport }),
+		queries: resourceBatches.map(({ org, ids }) => ({
+			...createQueryOptions(listOrgResources, { orgId: org.id, resourceIds: ids, pageSize: MAX_PAGE }, { transport }),
 			retry: false,
 		})),
 	});
-	const resources = resourceQueries.flatMap((q) => (q.data?.resource === undefined ? [] : [q.data.resource]));
-	const workspaceIds = [...new Set([...scopeIds(EntityType.WORKSPACE), ...resources.map((r) => r.workspaceId)])].filter(
-		(id) => id !== activeWs?.id,
-	);
 	const workspaceQueries = useQueries({
-		queries: workspaceIds.map((workspaceId) => ({
-			...createQueryOptions(getWorkspace, { workspaceId }, { transport }),
+		queries: batches(EntityType.WORKSPACE).map(({ org, ids }) => ({
+			...createQueryOptions(listOrgWorkspaces, { orgId: org.id, workspaceIds: ids, pageSize: MAX_PAGE }, { transport }),
 			retry: false,
 		})),
 	});
-	const workspaces = new Map<string, EntityNode>();
+	const resources = resourceBatches.flatMap(({ org }, i) =>
+		(resourceQueries[i]?.data?.resources ?? []).map((r) => ({ ...r, org })),
+	);
+	const workspaces = new Map(
+		resources.map((r) => [r.workspaceId, entityNode(EntityType.WORKSPACE, r.workspaceId, r.workspaceName, r.org)]),
+	);
+	for (const w of workspaceQueries.flatMap((q) => q.data?.workspaces ?? [])) workspaces.set(w.id, wsNode(w));
 	if (activeWs !== undefined && activeWorkspace !== null) workspaces.set(activeWs.id, activeWorkspace);
-	for (const q of workspaceQueries) {
-		const w = q.data?.workspace;
-		if (w !== undefined) workspaces.set(w.id, wsNode(w));
-	}
 	const known: EntityNode[] = [
 		...(userNode === null ? [] : [userNode]),
-		...scopeIds(EntityType.SYSTEM).map((id) => entityNode(EntityType.SYSTEM, id, "Platform", null)),
+		...idsOf(tokenScopes, EntityType.SYSTEM).map((id) => entityNode(EntityType.SYSTEM, id, "Platform", null)),
 		...orgNodes.values(),
 		...workspaces.values(),
-		...resources.map((r) =>
-			entityNode(
-				EntityType.RESOURCE,
-				r.id,
-				r.name,
-				workspaces.get(r.workspaceId) ??
-					entityNode(EntityType.WORKSPACE, r.workspaceId, r.workspaceId.slice(0, 8), null),
-			),
-		),
+		...resources.map((r) => entityNode(EntityType.RESOURCE, r.id, r.name, workspaces.get(r.workspaceId) ?? null)),
 	];
 	const found = new Map(known.map((n) => [n.key, n]));
 

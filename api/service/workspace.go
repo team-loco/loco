@@ -273,6 +273,10 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	if cursorErr != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
+	ids, err := parseIDs("workspace_ids", req.GetWorkspaceIds())
+	if err != nil {
+		return nil, err
+	}
 
 	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, p.Scopes, orgID)
 	resourceIDs := grantedResourceIDs(p.Scopes)
@@ -284,6 +288,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		ResourceIds:   resourceIDs,
 		Query:         query,
 		HasResources:  req.GetHasResources(),
+		Ids:           ids,
 		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
@@ -346,6 +351,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 			ResourceIds:   resourceIDs,
 			Query:         query,
 			HasResources:  req.GetHasResources(),
+			Ids:           ids,
 			Limit:         limit,
 		})
 	})

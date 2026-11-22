@@ -75,6 +75,7 @@ WHERE w.org_id = $1
        OR ((sqlc.arg('all_workspaces')::bool OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
            AND w.description ILIKE sqlc.arg('query')))
   AND (NOT sqlc.arg('has_resources')::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
+  AND (sqlc.narg('ids')::uuid[] IS NULL OR w.id = ANY(sqlc.narg('ids')::uuid[]))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -94,6 +95,7 @@ SELECT COUNT(*) FROM (
          OR ((sqlc.arg('all_workspaces')::bool OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
              AND w.description ILIKE sqlc.arg('query')))
     AND (NOT sqlc.arg('has_resources')::bool OR EXISTS (SELECT 1 FROM resources r WHERE r.workspace_id = w.id))
+    AND (sqlc.narg('ids')::uuid[] IS NULL OR w.id = ANY(sqlc.narg('ids')::uuid[]))
   LIMIT $2
 ) capped;
 

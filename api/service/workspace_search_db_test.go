@@ -4,6 +4,9 @@ import (
 	"slices"
 	"testing"
 
+	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
+
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -75,5 +78,50 @@ func TestListOrgWorkspacesSearchesFiltersAndCounts(t *testing.T) {
 	}
 	if ws := got.GetWorkspace(); ws.ResourceCount == nil || ws.GetResourceCount() != 1 || ws.GetMemberCount() != 2 {
 		t.Errorf("get workspace counts %v resources and %v members, want 1 and 2", ws.ResourceCount, ws.MemberCount)
+	}
+}
+
+func TestListOrgWorkspacesByIDListsOnlyReadableOnes(t *testing.T) {
+	t.Parallel()
+	o := newMembershipOrg(t)
+	member := o.api.signUp(t, "member")
+	o.addOrgMember(t, member)
+	o.grantWorkspace(t, member, o.shared)
+	o.createWorkspace(t, "unlisted")
+	ids := []string{o.shared, o.sibling, uuid.NewString()}
+
+	list := func(user membershipUser, ids []string) ([]string, error) {
+		t.Helper()
+		listed, err := user.clients.Workspace.ListOrgWorkspaces(t.Context(), &workspacev1.ListOrgWorkspacesRequest{
+			OrgId: o.orgID, WorkspaceIds: ids, IncludeTotalCount: true,
+		})
+		if err != nil {
+			return nil, err
+		}
+		var got []string
+		for _, ws := range listed.GetWorkspaces() {
+			got = append(got, ws.GetId())
+		}
+		if listed.GetTotalCount() != int32(len(got)) {
+			t.Errorf("%s total %d for %v", user.subject, listed.GetTotalCount(), got)
+		}
+		return got, nil
+	}
+	if got, err := list(o.owner, ids); err != nil || !slices.Equal(got, []string{o.sibling, o.shared}) {
+		t.Errorf("owner lists %v (%v), want sibling and shared", got, err)
+	}
+	if got, err := list(member, ids); err != nil || !slices.Equal(got, []string{o.shared}) {
+		t.Errorf("member lists %v (%v), want only shared", got, err)
+	}
+
+	tooMany := make([]string, 201)
+	for i := range tooMany {
+		tooMany[i] = uuid.NewString()
+	}
+	if got, err := list(o.owner, tooMany[:200]); err != nil || len(got) != 0 {
+		t.Errorf("200 unknown IDs list %v (%v), want none", got, err)
+	}
+	if _, err := list(o.owner, tooMany); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("201 IDs: %v, want invalid argument", err)
 	}
 }

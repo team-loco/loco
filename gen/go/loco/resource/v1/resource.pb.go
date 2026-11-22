@@ -2117,8 +2117,10 @@ type ListOrgResourcesRequest struct {
 	Query string `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
 	// Sets total_count in the response.
 	IncludeTotalCount bool `protobuf:"varint,5,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Only these resources.
+	ResourceIds   []string `protobuf:"bytes,6,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListOrgResourcesRequest) Reset() {
@@ -2184,6 +2186,13 @@ func (x *ListOrgResourcesRequest) GetIncludeTotalCount() bool {
 		return x.IncludeTotalCount
 	}
 	return false
+}
+
+func (x *ListOrgResourcesRequest) GetResourceIds() []string {
+	if x != nil {
+		return x.ResourceIds
+	}
+	return nil
 }
 
 // ListOrgResourcesResponse is one page of an organization's resources.
@@ -3444,7 +3453,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12#\n" +
 	"\rhealth_status\x18\x03 \x01(\tR\fhealthStatus\x12H\n" +
 	"\favailability\x18\x04 \x01(\x0e2$.loco.resource.v1.RegionAvailabilityR\favailabilityJ\x04\b\x02\x10\x03R\n" +
-	"is_default\"\xd2\x01\n" +
+	"is_default\"\x87\x02\n" +
 	"\x17ListOrgResourcesRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
@@ -3452,7 +3461,9 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\x12\x1e\n" +
 	"\x05query\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x05query\x12.\n" +
-	"\x13include_total_count\x18\x05 \x01(\bR\x11includeTotalCount\"\xa0\x01\n" +
+	"\x13include_total_count\x18\x05 \x01(\bR\x11includeTotalCount\x123\n" +
+	"\fresource_ids\x18\x06 \x03(\tB\x10\xbaH\r\x92\x01\n" +
+	"\x10\xc8\x01\"\x05r\x03\xb0\x01\x01R\vresourceIds\"\xa0\x01\n" +
 	"\x18ListOrgResourcesResponse\x12;\n" +
 	"\tresources\x18\x01 \x03(\v2\x1d.loco.resource.v1.OrgResourceR\tresources\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
