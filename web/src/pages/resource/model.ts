@@ -14,7 +14,7 @@ import {
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { needsAttention } from "@/lib/alerts";
 import { getServiceSpec, isInFlight, placementIn } from "@/lib/deployment-utils";
-import { imageVersion } from "@/lib/image";
+import { imageTag } from "@/lib/image";
 import { environmentStatus } from "@/lib/resource-status";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
@@ -55,11 +55,6 @@ function depService(dep: Deployment | undefined): ServiceDeploymentSpec | undefi
 
 export function depImage(dep: Deployment | undefined): string {
 	return depService(dep)?.build?.image ?? "";
-}
-
-/** An image's version for display; "—" without an image. */
-export function imageTag(image: string): string {
-	return image === "" ? "—" : imageVersion(image);
 }
 
 export function depTag(dep: Deployment | undefined): string {

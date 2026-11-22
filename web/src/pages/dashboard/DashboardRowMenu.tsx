@@ -40,7 +40,9 @@ function RollbackItem({
 	onRollBack: (rollback: Rollback) => void;
 }) {
 	const transport = useTransport();
-	const ids = [...new Set((item.environment?.regions ?? []).map((r) => r.lastGoodDeploymentId).filter((id) => id !== ""))];
+	const ids = [
+		...new Set((item.environment?.regions ?? []).map((r) => r.lastGoodDeploymentId).filter((id) => id !== "")),
+	];
 	const lastGood = useQueries({
 		queries: ids.map((deploymentId) => createQueryOptions(getDeployment, { deploymentId }, { transport })),
 	}).flatMap((q) => (q.data?.deployment === undefined ? [] : [q.data.deployment]));

@@ -2,11 +2,11 @@ import type { DeploymentBucket } from "@gen/loco/deployment/v1/deployment_pb";
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 
 import { formatCount } from "@/lib/format";
+import { deploySummaries } from "@/lib/deployMarkers";
 import { limitAt, type LimitStep } from "@/lib/limit-history";
 import { maybeTsMs } from "@/lib/time";
 
 import type { ChartMarker } from "./MetricChart";
-import { imageTag } from "./model";
 
 export const METRIC_RANGES = ["1h", "6h", "24h"] as const;
 
@@ -22,14 +22,10 @@ export const BAND_AGGREGATIONS = ["min", "p50", "max"] as const;
 
 /** A chart marker per bucket of deployments, at their mean creation time, naming the version of a lone one. */
 export function deploymentMarkers(buckets: readonly DeploymentBucket[]): ChartMarker[] {
-	return buckets.flatMap((bucket) => {
-		const ms = maybeTsMs(bucket.meanCreatedAt);
-		if (ms === undefined) return [];
-		const only = bucket.onlyDeployment;
-		const label =
-			only === undefined ? `${formatCount(bucket.deploymentCount)} deployments` : `deployed ${imageTag(only.image)}`;
-		return [{ ms, label }];
-	});
+	return deploySummaries(buckets).map((s) => ({
+		ms: s.ms,
+		label: s.only === undefined ? `${formatCount(s.count)} deployments` : `deployed ${s.only.version}`,
+	}));
 }
 
 export type BandAggregation = (typeof BAND_AGGREGATIONS)[number];
