@@ -100,7 +100,7 @@ function WebhookDetail({
 	const timePref = useTimePreferences();
 	const [filter, setFilter] = useState<Filter>(ALL);
 	const [size, setSize] = useState<number>(PAGE_SIZES[0]);
-	// The drawer's webhook and filter live in component state, so its page tokens do too.
+	// The drawer's filter lives in component state, so its page tokens do too.
 	const [tokens, setTokens] = useState<string[]>([]);
 	const queryClient = useQueryClient();
 	const { query, nextPageToken, total, counts } = useTokenPage(
