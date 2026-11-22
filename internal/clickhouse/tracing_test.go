@@ -4,7 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -54,12 +56,8 @@ func TestQueriesRecordClientSpansUnderTheCaller(t *testing.T) {
 		if span.SpanKind() != trace.SpanKindClient {
 			t.Errorf("%s kind = %s, want client", name, span.SpanKind())
 		}
-		attributes := map[string]string{}
-		for _, attribute := range span.Attributes() {
-			attributes[string(attribute.Key)] = attribute.Value.String()
-		}
-		if attributes[string(semconv.DBSystemNameKey)] != "clickhouse" {
-			t.Errorf("%s attributes = %v, want db.system.name clickhouse", name, attributes)
+		if got := recordedAttributes(span)[semconv.DBSystemNameKey].AsString(); got != "clickhouse" {
+			t.Errorf("%s db.system.name = %q, want clickhouse", name, got)
 		}
 	}
 }
@@ -79,8 +77,19 @@ func TestQuerySpanLastsUntilRowsCloseAndRecordsFailures(t *testing.T) {
 	if err := rows.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if span := endedSpan(t, recorder, "Sleep"); span.EndTime().Sub(span.StartTime()) < 200*time.Millisecond {
+	span := endedSpan(t, recorder, "Sleep")
+	if span.EndTime().Sub(span.StartTime()) < 200*time.Millisecond {
 		t.Errorf("span lasted %s, want at least the query's 200ms", span.EndTime().Sub(span.StartTime()))
+	}
+	attributes := recordedAttributes(span)
+	if got := attributes[elapsedKey].AsFloat64(); got < 200 {
+		t.Errorf("%s = %v, want at least the query's 200ms", elapsedKey, got)
+	}
+	if got := attributes[readRowsKey].AsInt64(); got != 1 {
+		t.Errorf("%s = %d, want the 1 row of system.one", readRowsKey, got)
+	}
+	if got := attributes[semconv.DBResponseReturnedRowsKey].AsInt64(); got != 1 {
+		t.Errorf("%s = %d, want 1", semconv.DBResponseReturnedRowsKey, got)
 	}
 
 	var value uint8
@@ -89,5 +98,36 @@ func TestQuerySpanLastsUntilRowsCloseAndRecordsFailures(t *testing.T) {
 	}
 	if span := endedSpan(t, recorder, "Broken"); span.Status().Code != codes.Error {
 		t.Errorf("broken query span status = %v, want error", span.Status())
+	}
+}
+
+func recordedAttributes(span sdktrace.ReadOnlySpan) map[attribute.Key]attribute.Value {
+	attributes := map[attribute.Key]attribute.Value{}
+	for _, kv := range span.Attributes() {
+		attributes[kv.Key] = kv.Value
+	}
+	return attributes
+}
+
+func TestQuerySpanRecordsWhatClickHouseReports(t *testing.T) {
+	recorder := recordSpans(t)
+	_, span := startQuery(t.Context(), "Stats", "SELECT 1")
+	span.addProgress(&clickhouse.Progress{Rows: 100, Bytes: 4000, Elapsed: 3 * time.Millisecond})
+	span.addProgress(&clickhouse.Progress{Rows: 20, Bytes: 500, Elapsed: 2 * time.Millisecond})
+	span.setProfileInfo(&clickhouse.ProfileInfo{Rows: 7})
+	span.end(nil)
+
+	attributes := recordedAttributes(endedSpan(t, recorder, "Stats"))
+	if got := attributes[readRowsKey].AsInt64(); got != 120 {
+		t.Errorf("%s = %d, want 120", readRowsKey, got)
+	}
+	if got := attributes[readBytesKey].AsInt64(); got != 4500 {
+		t.Errorf("%s = %d, want 4500", readBytesKey, got)
+	}
+	if got := attributes[elapsedKey].AsFloat64(); got != 5 {
+		t.Errorf("%s = %v, want 5", elapsedKey, got)
+	}
+	if got := attributes[semconv.DBResponseReturnedRowsKey].AsInt64(); got != 7 {
+		t.Errorf("%s = %d, want 7", semconv.DBResponseReturnedRowsKey, got)
 	}
 }
