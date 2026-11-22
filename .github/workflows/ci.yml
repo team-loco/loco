@@ -1,5 +1,7 @@
-# Runs every check for a pull request or a push to main, and reports one
-# result, the CI Gate job, which branch protection requires. Each check is a
+# Runs every check for a pull request, a push to main or a release, and
+# reports one result, the CI Gate job, which branch protection requires. A
+# release calls this workflow from its workflow_dispatch run, whose event runs
+# every check on the dispatched commit and reuses no pass. Each check is a
 # reusable workflow called only when the changes job finds a file matching its
 # inputs in .github/ci-paths.yml; a skipped call passes the gate. A check whose
 # pass marker for the same inputs a push to main saved is skipped too; on a
@@ -21,6 +23,7 @@ on:
   push:
     branches:
       - main
+  workflow_call:
 
 permissions: {}
 

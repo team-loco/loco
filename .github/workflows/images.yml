@@ -4,7 +4,7 @@ on:
   workflow_call:
     outputs:
       images:
-        description: The pushed images, with * standing for the image name; empty for a pull request from a fork, which cannot push packages.
+        description: The pushed images, with * standing for the image name; empty for a pull request from a fork, which cannot push packages, and for a release, whose checks build their own.
         value: ${{ jobs.go.outputs.images }}
 
 permissions:

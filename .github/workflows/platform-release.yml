@@ -24,8 +24,9 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: mise run lint:crd-versions "origin/$BASE_REF"
 
+  # A push to main and a release publish the versions their commit pins.
   artifacts:
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: platform-release
     concurrency:

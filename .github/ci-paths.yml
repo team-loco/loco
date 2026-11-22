@@ -3,6 +3,7 @@
 # a workflow's `paths` filter: `*` stays within a directory, `**` crosses
 # directories, `?` makes the preceding character optional, and `{a,b}` matches
 # either word. A workflow without a list for an event never runs on that event.
+# A release's workflow_dispatch run runs every workflow and reuses no pass.
 # A workflow's `for` list names the workflows that use its output; it runs
 # whenever one of them runs.
 #

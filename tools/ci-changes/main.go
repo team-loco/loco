@@ -29,11 +29,14 @@ import (
 const (
 	zeroSHA          = "0000000000000000000000000000000000000000"
 	pullRequestEvent = "pull_request"
+	// dispatchEvent is a manual run, such as a release's: it runs every
+	// workflow and every Go module and shard, and reuses no pass.
+	dispatchEvent = "workflow_dispatch"
 )
 
 func main() {
 	config := flag.String("config", ".github/ci-paths.yml", "path filters for each called workflow")
-	event := flag.String("event", "", "pull_request or push")
+	event := flag.String("event", "", "pull_request, push or workflow_dispatch")
 	base := flag.String("base", "", "pull request base commit, or the commit before a push")
 	head := flag.String("head", "", "pull request head commit, or the pushed commit")
 	markerRefs := flag.String("marker-refs", "",
@@ -57,8 +60,10 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string, 
 	if err != nil {
 		return err
 	}
-	files, err := changedFiles(ctx, ".", event, base, head)
-	if err != nil {
+	var files []string
+	if event == dispatchEvent {
+		lookup = nil
+	} else if files, err = changedFiles(ctx, ".", event, base, head); err != nil {
 		return err
 	}
 	modules, err := resolveGo(ctx, ".", filters)
@@ -243,12 +248,13 @@ func git(ctx context.Context, dir string, args ...string) ([]byte, error) {
 
 // selectOwn reports, for every workflow, whether a changed file matches its
 // filter for the event. Nil files select every workflow with a filter for the
-// event.
+// event; dispatchEvent selects every workflow.
 func selectOwn(all filters, event string, files []string) map[string]bool {
 	selected := map[string]bool{}
 	for workflow, w := range all {
 		_, ok := w.events[event]
-		selected[workflow] = ok && (files == nil || slices.ContainsFunc(files, w.matcher(event)))
+		selected[workflow] = event == dispatchEvent ||
+			ok && (files == nil || slices.ContainsFunc(files, w.matcher(event)))
 	}
 	return selected
 }

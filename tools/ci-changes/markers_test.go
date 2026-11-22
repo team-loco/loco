@@ -162,3 +162,13 @@ func TestAWorkflowWithoutAPassRunsAndNamesItsMarker(t *testing.T) {
 		})
 	}
 }
+
+func TestADispatchRunsEveryWorkflowAndReusesNoPass(t *testing.T) {
+	r := newRepo(t)
+	found := func(context.Context, string) (bool, error) { return true, nil }
+	selected := runSelection(t, r, dispatchEvent, "", "", found)
+	for _, workflow := range []string{"api", "web", "publish", "images"} {
+		assert.Equal(t, "true", selected[workflow], workflow)
+	}
+	assert.JSONEq(t, `["apps","builds","telemetry"]`, selected["e2e-shards"])
+}
