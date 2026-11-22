@@ -899,6 +899,22 @@ func (q *Queries) LockDeployment(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const lockPlacementEnvironment = `-- name: LockPlacementEnvironment :exec
+SELECT e.id FROM environments e JOIN placements p ON p.environment_id = e.id
+WHERE p.id = $1 AND p.cluster_id = $2 FOR KEY SHARE OF e
+`
+
+type LockPlacementEnvironmentParams struct {
+	ID        uuid.UUID `json:"id"`
+	ClusterID uuid.UUID `json:"clusterId"`
+}
+
+// Takes the lock a deployment's foreign key check takes on its environment.
+func (q *Queries) LockPlacementEnvironment(ctx context.Context, arg LockPlacementEnvironmentParams) error {
+	_, err := q.db.Exec(ctx, lockPlacementEnvironment, arg.ID, arg.ClusterID)
+	return err
+}
+
 const lockPlacementResource = `-- name: LockPlacementResource :one
 SELECT r.id FROM resources r JOIN placements p ON p.resource_id = r.id
 WHERE p.id = $1 AND p.cluster_id = $2 FOR UPDATE OF r
