@@ -542,6 +542,7 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 												setList(next);
 												setSelected(items.find((option) => option.list === next.id)?.id ?? "");
 												setQuery("");
+												inputRef.current?.focus();
 											} else {
 												onClose();
 												item.run();
