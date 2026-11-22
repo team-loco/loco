@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 	"k8s.io/client-go/rest"
@@ -21,6 +22,7 @@ const (
 	objectNameAttr   = "loco.object.name"
 	requeueAfterAttr = "loco.reconcile.requeue_after"
 	waitingAttr      = "loco.reconcile.waiting"
+	traceparentKey   = "traceparent"
 )
 
 func start(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
@@ -50,6 +52,15 @@ func Reconcile(
 	}
 	end(span, err)
 	return result, err
+}
+
+// Link links the span in ctx to the span a W3C traceparent names, ignoring an empty or invalid one.
+func Link(ctx context.Context, traceparent string) {
+	carrier := propagation.MapCarrier{traceparentKey: traceparent}
+	origin := trace.SpanContextFromContext(propagation.TraceContext{}.Extract(context.Background(), carrier))
+	if origin.IsValid() {
+		trace.SpanFromContext(ctx).AddLink(trace.Link{SpanContext: origin})
+	}
 }
 
 // Step runs fn in a child span named name.

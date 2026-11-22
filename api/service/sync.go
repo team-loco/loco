@@ -282,7 +282,7 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 		}
 		placement.DesiredSpec = spec
 	}
-	msg := placementMessage(placement, envSecret)
+	msg := placementMessage(placement, envSecret, ss.origin(ctx, placement))
 	if err := ss.sendFn(msg); err != nil {
 		return fmt.Errorf("send placement %s: %w", placement.ID, err)
 	}
@@ -300,7 +300,27 @@ func (ss *syncSession) reject(ctx context.Context, placement genDb.Placement, er
 	delete(ss.sent, placement.ID)
 }
 
-func placementMessage(placement genDb.Placement, envSecret *agentv1.EnvSecret) *agentv1.SyncResponse {
+// origin reads the traceparent stored with the request that created the placement's deployment.
+func (ss *syncSession) origin(ctx context.Context, placement genDb.Placement) string {
+	if placement.DesiredDeleted || placement.DeploymentID == nil {
+		return ""
+	}
+	traceparent, err := ss.server.queries.GetPlacementTraceparent(ctx, placement.ID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		slog.WarnContext(ctx, "failed to look up the trace that created a placement",
+			"placement_id", placement.ID, "error", err)
+	}
+	if traceparent == nil {
+		return ""
+	}
+	return *traceparent
+}
+
+func placementMessage(
+	placement genDb.Placement,
+	envSecret *agentv1.EnvSecret,
+	traceparent string,
+) *agentv1.SyncResponse {
 	resourceID := placement.ResourceID.String()
 	placementID := placement.ID.String()
 	if placement.DesiredDeleted {
@@ -322,6 +342,7 @@ func placementMessage(placement genDb.Placement, envSecret *agentv1.EnvSecret) *
 				ResourceId:  resourceID,
 				Application: placement.DesiredSpec,
 				EnvSecret:   envSecret,
+				Traceparent: traceparent,
 			},
 		},
 	}

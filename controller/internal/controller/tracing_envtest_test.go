@@ -32,7 +32,10 @@ var _ = Describe("Application reconcile tracing", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		app := isolationTestApplication("ws-traced", "traced")
-		app.Annotations = map[string]string{locov1alpha1.KeyPlacementID: "p-traced"}
+		app.Annotations = map[string]string{
+			locov1alpha1.KeyPlacementID: "p-traced",
+			locov1alpha1.KeyTraceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+		}
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef = &locov1alpha1.EnvSecretRef{Name: "env-traced", Revision: 1}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		staged := &corev1.Secret{
@@ -75,6 +78,10 @@ var _ = Describe("Application reconcile tracing", func() {
 		spans := recorder.Ended()[len(waiting):]
 		root := endedSpan(spans, reconcileSpan)
 		Expect(root.Status().Code).To(Equal(codes.Error))
+		Expect(root.Parent().IsValid()).To(BeFalse())
+		Expect(root.Links()).To(HaveLen(1))
+		Expect(root.Links()[0].SpanContext.TraceID().String()).To(Equal("4bf92f3577b34da6a3ce929d0e0e4736"))
+		Expect(root.Links()[0].SpanContext.SpanID().String()).To(Equal("00f067aa0ba902b7"))
 		Expect(root.Attributes()).To(ContainElements(
 			attribute.String(placementIDAttr, "p-traced"),
 			attribute.String(resourceIDAttr, "traced"),

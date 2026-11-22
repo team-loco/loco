@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/pkg/tracingtest"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
@@ -38,8 +39,12 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 		t.Fatalf("deploy: %v", err)
 	}
 	stream := openSync(t.Context(), t, client, f.clusterID)
-	if got := nextResult(t, stream); got.err != nil || got.msg.GetApply() == nil {
+	got := nextResult(t, stream)
+	if got.err != nil || got.msg.GetApply() == nil {
 		t.Fatalf("stream got %v, %v; want an Apply", got.msg, got.err)
+	}
+	if want := tracing.Traceparent(request); got.msg.GetApply().GetTraceparent() != want {
+		t.Errorf("Apply traceparent = %q, want the deploy request's %q", got.msg.GetApply().GetTraceparent(), want)
 	}
 	placement := f.placement(t, f.clusterID)
 	session := newSyncSession(f.agentServer(), f.clusterID, func(*agentv1.SyncResponse) error { return nil })
@@ -106,5 +111,30 @@ func TestBuildStatusSpanLinksToTheRequestThatCreatedTheBuild(t *testing.T) {
 	links := waitForSpan(t, recorder, syncBuildStatusSpan).Links()
 	if len(links) != 1 || links[0].SpanContext.SpanID() != span.SpanContext().SpanID() {
 		t.Fatalf("build status links = %v, want the create request's span %s", links, span.SpanContext().SpanID())
+	}
+}
+
+func TestQueuedBuildIsSentWithTheTraceOfTheRequestThatCreatedIt(t *testing.T) {
+	tracingtest.Record(t)
+	f := newBuildFixture(t)
+	request, span := otel.Tracer(t.Name()).Start(f.ctx, "request")
+	defer span.End()
+	created, err := f.server.CreateBuild(request, &buildv1.CreateBuildRequest{
+		ResourceId: f.resourceID.String(), DockerfilePath: testDockerfile, SourceSize: 10,
+	})
+	if err != nil {
+		t.Fatalf("create build: %v", err)
+	}
+	f.uploadFor(t, created.GetBuildId(), 10)
+	if _, err := f.start(created.GetBuildId()); err != nil {
+		t.Fatalf("start build: %v", err)
+	}
+	session, sent := f.dispatchSession()
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending: %v", err)
+	}
+	starts := startedBuilds(sent.take())
+	if want := tracing.Traceparent(request); len(starts) != 1 || starts[0].GetTraceparent() != want {
+		t.Fatalf("sent %v, want one StartBuild with the create request's traceparent %q", starts, want)
 	}
 }

@@ -8884,6 +8884,11 @@
           "envSecret": {
             "title": "env_secret",
             "$ref": "#/components/schemas/loco.agent.v1.EnvSecret"
+          },
+          "traceparent": {
+            "type": "string",
+            "title": "traceparent",
+            "description": "traceparent is the W3C trace context of the request that created the placement's deployment, empty outside a trace."
           }
         },
         "title": "Apply",
@@ -9339,6 +9344,11 @@
               "linux/amd64",
               "linux/arm64"
             ]
+          },
+          "traceparent": {
+            "type": "string",
+            "title": "traceparent",
+            "description": "traceparent is the W3C trace context of the request that created the build, empty outside a trace."
           }
         },
         "title": "StartBuild",

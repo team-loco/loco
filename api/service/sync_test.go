@@ -119,7 +119,7 @@ func TestPlacementMessage(t *testing.T) {
 		DesiredSpec:     []byte(`{"resource_id":"x"}`),
 	}
 
-	apply := placementMessage(placement, nil).GetApply()
+	apply := placementMessage(placement, nil, "").GetApply()
 	if apply == nil {
 		t.Fatal("live placement did not produce an Apply")
 	}
@@ -130,7 +130,7 @@ func TestPlacementMessage(t *testing.T) {
 
 	placement.DesiredDeleted = true
 	placement.DesiredSpec = nil
-	del := placementMessage(placement, nil).GetDelete()
+	del := placementMessage(placement, nil, "").GetDelete()
 	if del == nil {
 		t.Fatal("deleted placement did not produce a Delete")
 	}
