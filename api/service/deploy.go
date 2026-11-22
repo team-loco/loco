@@ -41,6 +41,8 @@ type newDeployment struct {
 	render   func(spec *deploymentv1.DeploymentSpec, deploymentID uuid.UUID, region string) ([]byte, error)
 }
 
+const deploymentRenderSpan = "deployment.render"
+
 // createDeployment records one deployment with a placement per target region, places each
 // region (or waits for the build), cancels older placements that never ran there, and prunes
 // history when counts are given.
@@ -111,7 +113,9 @@ func createDeployment(
 			return uuid.UUID{}, fmt.Errorf("create deployment placement: %w", createErr)
 		}
 		if placementStatus == genDb.PlacementStatusDeploying {
+			_, renderSpan := tracing.Start(ctx, deploymentRenderSpan)
 			payload, renderErr := d.render(spec, deploymentID, target.region)
+			tracing.End(renderSpan, renderErr)
 			if renderErr != nil {
 				return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, renderErr)
 			}
@@ -470,7 +474,9 @@ func placeDeployment(
 	target placementTarget,
 	spec *deploymentv1.DeploymentSpec,
 ) error {
+	_, span := tracing.Start(ctx, deploymentRenderSpan)
 	payload, err := render.payload(withPlainEnv(spec, deployment.PlainEnv), deployment.ID, target.region)
+	tracing.End(span, err)
 	if err != nil {
 		return err
 	}
