@@ -2,6 +2,7 @@ import { formatShortId } from "@/lib/utils";
 import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { BellIcon, FileCodeIcon, RotateCwIcon, ScrollTextIcon, Settings2Icon, Undo2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useNavigate, useParams, useSearchParams } from "react-router";
@@ -17,6 +18,7 @@ import {
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
+import { PageCommands, type PaletteItem } from "@/components/shell/CommandMenu";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -367,9 +369,80 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const openSpec = (dep: Deployment | undefined, shown: Deployment[] = []) => {
 		if (dep !== undefined) setModal({ kind: "spec", deploymentId: dep.id, compareId: null, shown: [dep, ...shown] });
 	};
+	const openEvents = () => {
+		setEventsSince(Date.now() - EVENTS_DRAWER_WINDOW_MS);
+		setEventsOpen(true);
+	};
+	const logsHref = obsLink("logs");
+	const spec = deployed[0]?.current;
+	const pageCommands: PaletteItem[] = [];
+	if (canWrite && deployed.length > 0 && !redeploying)
+		pageCommands.push({
+			id: "page-redeploy",
+			group: "This page",
+			label: `Redeploy ${resource.name}`,
+			icon: <RotateCwIcon />,
+			run: () => {
+				setModal({ kind: "redeploy" });
+			},
+		});
+	if (canWrite && rollbackTarget !== undefined)
+		pageCommands.push({
+			id: "page-rollback",
+			group: "This page",
+			label: `Roll back ${resource.name}`,
+			icon: <Undo2Icon />,
+			run: () => {
+				openRollback(rollbackTarget, focus?.current);
+			},
+		});
+	if (spec !== undefined)
+		pageCommands.push({
+			id: "page-view-spec",
+			group: "This page",
+			label: "View spec",
+			meta: resource.name,
+			icon: <FileCodeIcon />,
+			run: () => {
+				openSpec(spec);
+			},
+		});
+	pageCommands.push(
+		{
+			id: "page-events",
+			group: "This page",
+			label: "Open events",
+			keywords: "warnings activity",
+			meta: resource.name,
+			icon: <BellIcon />,
+			run: openEvents,
+		},
+		{
+			id: "page-settings",
+			group: "This page",
+			label: "Settings",
+			keywords: "variables env scaling",
+			meta: resource.name,
+			icon: <Settings2Icon />,
+			run: () => {
+				setView("settings");
+			},
+		},
+	);
+	if (logsHref !== undefined)
+		pageCommands.push({
+			id: "page-logs",
+			group: "This page",
+			label: `Logs for ${resource.name}`,
+			icon: <ScrollTextIcon />,
+			run: () => {
+				void navigate(logsHref);
+			},
+		});
 
 	return (
 		<Page className="gap-5">
+			<PageCommands items={pageCommands} />
 			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
 			<ResourceHeader
 				nowMs={nowMs}
@@ -387,10 +460,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				canWrite={canWrite}
 				canDelete={canDelete}
 				rollbackTarget={rollbackTarget}
-				onEvents={() => {
-					setEventsSince(Date.now() - EVENTS_DRAWER_WINDOW_MS);
-					setEventsOpen(true);
-				}}
+				onEvents={openEvents}
 				onSettings={() => {
 					setView(view === "overview" ? "settings" : "overview");
 				}}

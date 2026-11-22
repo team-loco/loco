@@ -3,7 +3,10 @@ import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
+	ArrowRightIcon,
 	Building2Icon,
+	ChevronRightIcon,
+	CopyIcon,
 	KeyboardIcon,
 	SunMoonIcon,
 	TableIcon,
@@ -43,8 +46,10 @@ import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ModeIcon } from "@/components/design/ThemePreview";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useCopy } from "@/hooks/useCopy";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { scorePaletteItem } from "@/lib/command-palette";
 import { environmentStatus } from "@/lib/resource-status";
@@ -73,24 +78,57 @@ import { useNavSections } from "./nav";
 const SHORTCUT_KEY = "k";
 export const SHORTCUT_LABEL = shortcutLabel("K");
 const PLACEHOLDER = "Search resources, pages and actions";
-const PALETTE_GROUPS = ["This page", "Actions", "Resources", "Pages", "Workspaces", "Appearance", "Help"] as const;
-const SEARCH_GROUPS = ["This page", "Actions", "Pages", "Resources", "Workspaces", "Appearance", "Help"] as const;
+const PALETTE_GROUPS = [
+	"This page",
+	"Actions",
+	"Resources",
+	"Copy",
+	"Go to",
+	"Workspaces",
+	"Appearance",
+	"Help",
+] as const;
+const SEARCH_GROUPS = [
+	"This page",
+	"Actions",
+	"Go to",
+	"Resources",
+	"Copy",
+	"Workspaces",
+	"Appearance",
+	"Help",
+] as const;
 const KEY_HINT = "bg-panel2 text-fg3 inset-ring-0";
 const BROWSE_LIMIT = 8;
 // Searching lists this many of the newest workspaces and this many that match the typed text.
 const PALETTE_WORKSPACES = 20;
 
-interface PaletteItem {
+// A list of commands that replaces the main one, such as the modes or one resource's commands.
+interface SubList {
+	id: string;
+	crumb: string;
+	heading: string;
+	placeholder: string;
+}
+
+export interface PaletteItem {
 	id: string;
 	group: (typeof PALETTE_GROUPS)[number];
 	label: string;
 	keywords?: string;
-	meta?: string | undefined;
+	meta?: ReactNode;
 	icon: ReactNode;
-	run: (() => void) | "mode" | "theme";
-	list?: "mode" | "theme";
+	run: (() => void) | SubList;
+	list?: string;
 	// Shown only once the person types, so browsing lists each resource once.
 	searchOnly?: boolean;
+}
+
+const MODE_LIST: SubList = { id: "mode", crumb: "Mode", heading: "Mode", placeholder: "Choose a mode" };
+const THEME_LIST: SubList = { id: "theme", crumb: "Theme", heading: "Theme", placeholder: "Choose a theme" };
+
+function idMeta(id: string): ReactNode {
+	return <span className="font-mono">{id.slice(0, 8)}…</span>;
 }
 
 const RESOURCE_VIEWS: { view: ObservabilityView; label: string; icon: ReactNode }[] = [
@@ -99,15 +137,17 @@ const RESOURCE_VIEWS: { view: ObservabilityView; label: string; icon: ReactNode 
 	{ view: "traces", label: "Traces", icon: <WaypointsIcon /> },
 ];
 
-function usePaletteItems(open: boolean): PaletteItem[] {
+function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): PaletteItem[] {
 	const navigate = useNavigate();
+	const [, copy] = useCopy();
 	const openShortcuts = useOpenShortcuts();
 	const { pathname } = useLocation();
 	const [env] = useQueryState("env");
 	const [, setResourceView] = useQueryState("view", resourceViewParser.withOptions({ history: "replace" }));
 	const { mode, setMode, color, setColor } = useTheme();
 	const { active: activeEnv } = useEnvironments();
-	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId, orgs } = useOrgWorkspace();
+	const { workspace } = useWorkspace(activeOrgId, activeWorkspaceId);
 	const navPages = useNavSections().flatMap((section) => section.pages);
 	const scopes = useMyScopes();
 	const resources = useQuery({
@@ -119,7 +159,10 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	const go = (to: string) => () => {
 		void navigate(to);
 	};
-	const items: PaletteItem[] = [];
+	const copyId = (what: string, id: string) => () => {
+		copy(id, id, `Copied ${what}`);
+	};
+	const items: PaletteItem[] = [...pageItems];
 
 	if (activeOrgId !== null && activeWorkspaceId !== null) {
 		const orgId = activeOrgId;
@@ -156,7 +199,55 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			icon: <PlusIcon />,
 			run: go(newResourcePath(orgId, workspaceId, envParams)),
 		});
-		for (const r of resources.data?.resources ?? []) {
+		const resourceList = resources.data?.resources ?? [];
+		const here = resourceList.find((r) => pathname === resourcePath(orgId, workspaceId, r.id));
+		const copyEnv =
+			activeEnv === undefined
+				? undefined
+				: {
+						label: `Copy ${activeEnv.name} environment ID`,
+						keywords: "id uuid environment env",
+						meta: idMeta(activeEnv.id),
+						icon: <CopyIcon />,
+						run: copyId(`${activeEnv.name} environment ID`, activeEnv.id),
+					};
+		if (here !== undefined)
+			items.push({
+				id: "copy-resource-id",
+				group: "Copy",
+				label: `Copy ${here.name} resource ID`,
+				keywords: `id uuid resource service ${here.slug}`,
+				meta: idMeta(here.id),
+				icon: <CopyIcon />,
+				run: copyId(`${here.name} resource ID`, here.id),
+			});
+		if (copyEnv !== undefined) items.push({ id: "copy-environment-id", group: "Copy", ...copyEnv });
+		items.push({
+			id: "copy-workspace-id",
+			group: "Copy",
+			label: `Copy ${workspace?.name ?? "workspace"} workspace ID`,
+			keywords: "id uuid workspace project",
+			meta: idMeta(workspaceId),
+			icon: <CopyIcon />,
+			run: copyId(`${workspace?.name ?? "workspace"} workspace ID`, workspaceId),
+		});
+		const orgName = orgs.find((o) => o.id === orgId)?.name ?? "organization";
+		items.push({
+			id: "copy-organization-id",
+			group: "Copy",
+			label: `Copy ${orgName} organization ID`,
+			keywords: "id uuid organization org",
+			meta: idMeta(orgId),
+			icon: <CopyIcon />,
+			run: copyId(`${orgName} organization ID`, orgId),
+		});
+		for (const r of resourceList) {
+			const list: SubList = {
+				id: `resource:${r.id}`,
+				crumb: r.name,
+				heading: "Resource",
+				placeholder: `What do you want to do with ${r.name}?`,
+			};
 			items.push({
 				id: `resource-${r.id}`,
 				group: "Resources",
@@ -164,7 +255,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				keywords: `${r.slug} ${r.description ?? ""}`,
 				meta: r.description,
 				icon: <StatusGlyph glyph={resourceStatusStyle(environmentStatus(r, activeEnv?.id)?.status).glyph} />,
-				run: go(resourcePath(orgId, workspaceId, r.id)),
+				run: list,
 			});
 			for (const v of RESOURCE_VIEWS) {
 				items.push({
@@ -177,6 +268,46 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 					searchOnly: true,
 				});
 			}
+			if (r.id !== here?.id)
+				items.push({
+					id: `resource-${r.id}-copy`,
+					group: "Resources",
+					label: `Copy ${r.name} resource ID`,
+					keywords: `id uuid ${r.slug}`,
+					meta: idMeta(r.id),
+					icon: <CopyIcon />,
+					run: copyId(`${r.name} resource ID`, r.id),
+					searchOnly: true,
+				});
+			const sub = (key: string, item: Omit<PaletteItem, "id" | "group" | "list">) => {
+				items.push({ id: `resource-${r.id}-sub-${key}`, group: "Resources", list: list.id, ...item });
+			};
+			sub("open", {
+				label: `Open ${r.name}`,
+				keywords: "overview",
+				icon: <ArrowRightIcon />,
+				run: go(resourcePath(orgId, workspaceId, r.id, { env })),
+			});
+			for (const v of RESOURCE_VIEWS)
+				sub(v.view, {
+					label: v.label,
+					icon: v.icon,
+					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: [r.slug] })),
+				});
+			sub("settings", {
+				label: "Settings",
+				keywords: "variables env scaling",
+				icon: <Settings2Icon />,
+				run: go(resourcePath(orgId, workspaceId, r.id, { tab: "settings", env })),
+			});
+			sub("copy-id", {
+				label: "Copy resource ID",
+				keywords: "id uuid",
+				meta: idMeta(r.id),
+				icon: <CopyIcon />,
+				run: copyId(`${r.name} resource ID`, r.id),
+			});
+			if (copyEnv !== undefined) sub("copy-environment-id", copyEnv);
 		}
 	}
 	items.push({
@@ -223,7 +354,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		const label = page.name === "Settings" ? "Workspace settings" : page.name;
 		items.push({
 			id: `page-${label.toLowerCase()}`,
-			group: "Pages",
+			group: "Go to",
 			label,
 			keywords: page.keywords,
 			icon: page.icon,
@@ -233,7 +364,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	if (activeOrgId !== null) {
 		items.push({
 			id: "page-organization-settings",
-			group: "Pages",
+			group: "Go to",
 			label: "Organization settings",
 			keywords: "org members billing",
 			icon: <Settings2Icon />,
@@ -243,7 +374,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	items.push(
 		{
 			id: "page-organizations",
-			group: "Pages",
+			group: "Go to",
 			label: "Organizations",
 			keywords: "orgs",
 			icon: <Building2Icon />,
@@ -251,7 +382,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		},
 		{
 			id: "page-account",
-			group: "Pages",
+			group: "Go to",
 			label: "Account",
 			keywords: "profile personal settings",
 			icon: <UserIcon />,
@@ -267,7 +398,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			keywords: "appearance dark light system",
 			meta: modes.find((item) => item.id === mode)?.name,
 			icon: <SunMoonIcon />,
-			run: "mode",
+			run: MODE_LIST,
 		},
 		{
 			id: "set-theme",
@@ -276,7 +407,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			keywords: "appearance color colour",
 			meta: colorThemes.find((item) => item.id === color)?.name,
 			icon: <PaletteIcon />,
-			run: "theme",
+			run: THEME_LIST,
 		},
 		{
 			id: "keyboard-shortcuts",
@@ -359,9 +490,9 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 	const workspaceItems = useWorkspaceItems(query);
 	const items = [...commands, ...workspaceItems];
 	const [selected, setSelected] = useState("");
-	const [list, setList] = useState<"mode" | "theme" | null>(null);
+	const [list, setList] = useState<SubList | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
-	const placeholder = list === null ? PLACEHOLDER : `Choose a ${list}`;
+	const placeholder = list?.placeholder ?? PLACEHOLDER;
 	const back = () => {
 		setList(null);
 		setSelected("");
@@ -373,9 +504,13 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 		.filter((group) => !browsing || group !== "Workspaces")
 		.map((group) => {
 			const inGroup = items.filter(
-				(item) => item.group === group && (item.list ?? null) === list && !(browsing && item.searchOnly === true),
+				(item) =>
+					item.group === group && (item.list ?? null) === (list?.id ?? null) && !(browsing && item.searchOnly === true),
 			);
-			return { group, items: browsing && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
+			return {
+				group,
+				items: browsing && list === null && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup,
+			};
 		});
 
 	return (
@@ -406,7 +541,7 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 							aria-label="Back to all commands"
 							onClick={back}
 						>
-							{list === "mode" ? "Mode" : "Theme"}
+							{list.crumb}
 						</Button>
 					) : undefined
 				}
@@ -421,16 +556,17 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 				{groups.map(
 					(g) =>
 						g.items.length > 0 && (
-							<CommandGroup key={g.group} heading={list === "mode" ? "Mode" : list === "theme" ? "Theme" : g.group}>
+							<CommandGroup key={g.group} heading={list?.heading ?? g.group}>
 								{g.items.map((item) => (
 									<CommandItem
 										key={item.id}
 										value={item.id}
 										keywords={[item.label, item.keywords ?? ""]}
 										onSelect={() => {
-											if (typeof item.run === "string") {
-												setList(item.run);
-												setSelected(items.find((option) => option.list === item.run)?.id ?? "");
+											if (typeof item.run !== "function") {
+												const next = item.run;
+												setList(next);
+												setSelected(items.find((option) => option.list === next.id)?.id ?? "");
 												setQuery("");
 											} else {
 												onClose();
@@ -444,10 +580,17 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 										<span className="truncate">{item.label}</span>
 										<CommandShortcut>
 											{item.meta !== undefined && item.meta !== "" && <span className="truncate">{item.meta}</span>}
-											<CornerDownLeftIcon
-												aria-hidden
-												className="size-3 shrink-0 text-fg4 opacity-0 group-data-selected/command-item:opacity-100"
-											/>
+											{typeof item.run === "function" ? (
+												<CornerDownLeftIcon
+													aria-hidden
+													className="size-3 shrink-0 text-fg4 opacity-0 group-data-selected/command-item:opacity-100"
+												/>
+											) : (
+												<ChevronRightIcon
+													aria-hidden
+													className="size-3.5 shrink-0 text-fg4 group-data-selected/command-item:text-fg2"
+												/>
+											)}
 										</CommandShortcut>
 									</CommandItem>
 								))}
@@ -475,6 +618,23 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 }
 
 const OpenPaletteContext = createContext<(() => void) | null>(null);
+const PageItemsContext = createContext<((items: readonly PaletteItem[]) => void) | null>(null);
+
+// Lists a page's own commands in the palette while the page shows.
+export function PageCommands({ items }: { items: readonly PaletteItem[] }) {
+	const setPageItems = use(PageItemsContext);
+	if (setPageItems === null) throw new Error("PageCommands must be used inside CommandPaletteProvider");
+	useEffect(() => {
+		setPageItems(items);
+	}, [setPageItems, items]);
+	useEffect(
+		() => () => {
+			setPageItems([]);
+		},
+		[setPageItems],
+	);
+	return null;
+}
 
 export function useOpenPalette(): () => void {
 	const openPalette = use(OpenPaletteContext);
@@ -484,7 +644,8 @@ export function useOpenPalette(): () => void {
 
 export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 	const [open, setOpen] = useState(false);
-	const items = usePaletteItems(open);
+	const [pageItems, setPageItems] = useState<readonly PaletteItem[]>([]);
+	const items = usePaletteItems(open, pageItems);
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -504,7 +665,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 				setOpen(true);
 			}}
 		>
-			{children}
+			<PageItemsContext value={setPageItems}>{children}</PageItemsContext>
 			<CommandDialog open={open} onOpenChange={setOpen} title="Command palette" description={PLACEHOLDER}>
 				<PaletteBody
 					items={items}
