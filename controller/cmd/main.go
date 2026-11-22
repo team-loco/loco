@@ -70,18 +70,24 @@ func main() {
 		os.Exit(1)
 	}
 	restConfig := ctrl.GetConfigOrDie()
+	flush := func() {}
 	if operator.Tracing {
 		provider, tracingErr := startTracing(context.Background(), setup.serviceName, managerVersion)
 		if tracingErr != nil {
 			setupLog.Error(tracingErr, "unable to start tracing")
 			os.Exit(1)
 		}
-		defer func() {
+		flush = func() {
 			if stopErr := stopTracing(provider); stopErr != nil {
 				setupLog.Error(stopErr, "unable to stop tracing")
 			}
-		}()
+		}
 		tracing.TraceRequests(restConfig)
+	}
+	fail := func(err error, msg string, keysAndValues ...any) {
+		setupLog.Error(err, msg, keysAndValues...)
+		flush()
+		os.Exit(1)
 	}
 	ctx, onWatchError := stopOnDeadWatch(ctrl.SetupSignalHandler())
 	setup.cache.DefaultWatchErrorHandler = onWatchError
@@ -98,28 +104,24 @@ func main() {
 		RetryPeriod:            new(5 * time.Second),
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		fail(err, "unable to start manager")
 	}
 
 	if err := setup.register(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", reconcilerName)
-		os.Exit(1)
+		fail(err, "unable to create controller", "controller", reconcilerName)
 	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		fail(err, "unable to set up health check")
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		fail(err, "unable to set up ready check")
 	}
 
 	setupLog.Info("starting manager", "reconciler", reconcilerName)
 	if err := startManager(ctx, mgr); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		fail(err, "problem running manager")
 	}
+	flush()
 }
