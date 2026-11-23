@@ -377,7 +377,7 @@ export function DeploymentSection({ draft, base, errors, locked, describedBy, on
 							value={restartPolicy}
 							disabled={locked}
 							describedBy={describedBy}
-							className="w-max grid-cols-3"
+							className="w-max! grid-cols-3"
 							onChange={(next) => {
 								const choice = RESTART_CHOICES.find((c) => c.value === next);
 								if (choice !== undefined) onChange({ restartPolicy: choice.value });
