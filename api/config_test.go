@@ -247,6 +247,14 @@ func TestNewAPIConfigReadsEventsRetention(t *testing.T) {
 	}
 }
 
+func TestNewAPIConfigCapsDefaultDatabaseMinConnsAtMax(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("DATABASE_MAX_CONNS", "4")
+	if got := newAPIConfig().Database.MinConns; got != 4 {
+		t.Errorf("database min conns = %d, want 4", got)
+	}
+}
+
 func TestNewAPIConfigPanicsWithoutDatabaseURL(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv("DATABASE_URL", "")

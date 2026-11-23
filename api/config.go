@@ -114,10 +114,10 @@ const (
 	defaultEventsRetention = 90 * 24 * time.Hour
 
 	defaultDatabaseMaxConns         = 25
-	defaultDatabaseMinConns         = 5
+	defaultDatabaseMinConns         = 20
 	defaultDatabaseStatementTimeout = 15 * time.Second
 
-	defaultClickHouseMaxConns        = 5
+	defaultClickHouseMaxConns        = 16
 	defaultClickHouseQueryTimeout    = 10 * time.Second
 	defaultObservabilityLimit        = 1000
 	defaultObservabilityMaxLimit     = 10000
@@ -429,10 +429,11 @@ func newObservabilityConfig() service.ObservabilityConfig {
 }
 
 func newDatabaseConfig() db.Config {
+	maxConns := positiveInt32Env("DATABASE_MAX_CONNS", defaultDatabaseMaxConns)
 	cfg := db.Config{
 		URL:              envconfig.String("DATABASE_URL", ""),
-		MaxConns:         positiveInt32Env("DATABASE_MAX_CONNS", defaultDatabaseMaxConns),
-		MinConns:         nonNegativeInt32Env("DATABASE_MIN_CONNS", defaultDatabaseMinConns),
+		MaxConns:         maxConns,
+		MinConns:         nonNegativeInt32Env("DATABASE_MIN_CONNS", min(defaultDatabaseMinConns, maxConns)),
 		StatementTimeout: envconfig.PositiveDuration("DATABASE_STATEMENT_TIMEOUT", defaultDatabaseStatementTimeout),
 	}
 	if cfg.URL == "" {
