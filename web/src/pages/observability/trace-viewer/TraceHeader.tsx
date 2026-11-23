@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Badge } from "@/components/design/Badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { Button } from "@/components/design/Button";
