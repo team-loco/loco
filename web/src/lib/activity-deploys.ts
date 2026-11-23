@@ -174,7 +174,7 @@ const UNSTARTED_PLACEMENTS: ReadonlySet<PlacementStatus> = new Set([
 	PlacementStatus.DEGRADED,
 ]);
 
-/** Whether a cancel has a region to stop: one the deployment never deployed in that has not ended. */
+/** Whether a cancel has a region to stop: one the deployment never deployed in that has not ended. The API's inFlight (api/service/deployment_cancel.go) owns this rule and its placement check. */
 export function cancelable(d: Deployment): boolean {
 	const serving = d.status === DeploymentStatus.RUNNING || d.status === DeploymentStatus.DEGRADED;
 	return (

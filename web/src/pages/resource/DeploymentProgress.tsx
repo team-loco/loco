@@ -423,10 +423,10 @@ function ProgressPanel({
 			<ConfirmDialog
 				open={confirmingCancel}
 				title={`Cancel ${depTag(deployment)}?`}
-				description="Regions that don't run it yet go back to the version that served them before. Regions that already run it keep it."
+				description="Regions where its replicas haven't all become available yet go back to the version that served them before, or stop running it if none did. Regions where they have keep it."
 				confirmLabel="Cancel deployment"
 				pendingLabel="Canceling…"
-				cancelLabel="Keep deploying"
+				cancelLabel="Keep deployment"
 				pending={cancel.isPending}
 				onConfirm={confirmCancel}
 				onClose={() => {
