@@ -44,7 +44,9 @@ open_page = partial(new_page, state=state)
 
 def expect_not_found(page, path):
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-    logo = page.get_by_role("link", name="Loco dashboard").bounding_box()
+    logo_link = page.get_by_role("link", name="Loco dashboard")
+    expect(logo_link).to_be_visible()
+    logo = logo_link.bounding_box()
     assert abs(logo["x"] + logo["width"] / 2 - page.viewport_size["width"] / 2) <= 1
     chip = page.get_by_text(re.compile("^" + re.escape(path) + r"(\?env=[\w-]+)?$"))
     expect(chip).to_be_visible()
@@ -296,7 +298,9 @@ with session(out) as browser:
 
     page.goto(ui + "/404.html")
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
-    logo = page.get_by_role("link", name="Loco dashboard").bounding_box()
+    logo_link = page.get_by_role("link", name="Loco dashboard")
+    expect(logo_link).to_be_visible()
+    logo = logo_link.bounding_box()
     assert abs(logo["x"] + logo["width"] / 2 - page.viewport_size["width"] / 2) <= 1
     expect(
         page.get_by_role("button", name=re.compile("^Command palette"))
