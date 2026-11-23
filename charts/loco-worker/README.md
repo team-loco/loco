@@ -32,6 +32,8 @@ controller:
 ## Resource metrics
 
 The chart installs metrics-server for application autoscaling; set `metrics-server.enabled: false` when the cluster already serves `metrics.k8s.io`.
+
+The Application and build controllers run `controller.replicas` and `builds.controller.replicas` replicas, 2 by default. `--leader-elect` makes one replica reconcile while the others wait for its lease. Envoy Gateway and metrics-server run 2 replicas. The Gateway's Envoy proxies scale on CPU between `envoyProxy.autoscaling.minReplicas` and `maxReplicas`, 2 to 6 by default, or run `envoyProxy.replicas` with `envoyProxy.autoscaling.enabled: false`. The gateway collector, `otel-col-deploy`, scales from 2 to 4. The agent runs one replica, the schema's maximum: every agent replica uses the cluster's one identity. Each of these components with two or more replicas has a PodDisruptionBudget that lets one pod go at a time, and spreads its replicas across nodes by hostname with `whenUnsatisfiable: ScheduleAnyway`, so a one-node cluster still schedules them.
 If kubelet serving certificates are not signed by the cluster CA, configure CA-signed certificates or explicitly set `metrics-server.args: ["--kubelet-insecure-tls"]` (installation spec: [`workers[].metricsServer.kubeletInsecureTLS: true`](../../docs/content/reference/installation.md)) to disable kubelet certificate verification.
 An unavailable metrics APIService can block API discovery and namespace deletion, so restore metrics-server readiness before tearing down workspaces.
 
