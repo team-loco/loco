@@ -20,5 +20,5 @@ export function statusKey(deployment: Deployment): string {
 
 export function deploymentMessage(deployment: Deployment): string {
 	const problem = deploymentProblem(deployment);
-	return [problem?.message, problem?.detail].filter(Boolean).join(" · ");
+	return [problem?.message, problem?.detail].filter(Boolean).join(", ");
 }

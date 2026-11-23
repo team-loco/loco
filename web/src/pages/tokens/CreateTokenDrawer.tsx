@@ -392,9 +392,7 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 						{`LOCO_TOKEN=${secret.slice(0, SECRET_PREVIEW)}… loco deploy …`}
 					</CodeBlock>
 					<span className="text-[12.5px] text-fg3">
-						Save the token as a CI secret named <code>LOCO_TOKEN</code> and set <code>LOCO_HOST</code> to the API URL.
-						Run <code>loco deploy --yes</code> with <code>--org</code>, <code>--workspace</code> (the workspace ID), and{" "}
-						<code>--env</code>. Deploying needs a workspace write grant.
+						Save it as a CI secret named <code>LOCO_TOKEN</code> and set <code>LOCO_HOST</code> to the API URL.
 					</span>
 				</div>
 			</SheetBody>

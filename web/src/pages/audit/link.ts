@@ -2,7 +2,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { BadRequestSchema } from "@gen/google/rpc/error_details_pb";
 
 import { AUDIT_EVENT_TYPES } from "@/pages/settings/auditEvents";
-import { PAGE_SIZES, RANGES } from "./model";
+import { DEFAULT_RANGE, PAGE_SIZES, RANGES } from "./model";
 
 export interface DroppedFilter {
 	label: string;
@@ -24,32 +24,32 @@ export function auditLink(
 		params.delete(key);
 	};
 	const range = params.get("range");
-	if (range !== null && !RANGES.some((r) => r.value === range)) drop("range", "Time range", "Unknown time range");
+	if (range !== null && !RANGES.some((r) => r.value === range))
+		drop("range", "Time range", `not a range; showing ${DEFAULT_RANGE.label}`);
 	const size = params.get("size");
 	if (size !== null && !PAGE_SIZES.some((s) => s.toString() === size))
-		drop("size", "Rows per page", `Use ${PAGE_SIZES.join(", ")}`);
+		drop("size", "Rows per page", "use 50, 100 or 200; showing 50");
 	const types = params.get("types");
 	if (types !== null) {
 		const values = types.split(",");
 		const known = (v: string) => AUDIT_EVENT_TYPES.some((t) => t === v);
 		for (const value of values.filter((v) => !known(v)))
-			dropped.push({ label: "Event", value, reason: "Unknown event type" });
+			dropped.push({ label: "Event", value, reason: "no such event type" });
 		const kept = values.filter(known);
 		if (kept.length > 0) params.set("types", kept.join(","));
 		else params.delete("types");
 	}
 	const workspace = params.get("ws");
 	if (workspace !== null && workspaces !== undefined && !workspaces.includes(workspace))
-		drop("ws", "Workspace", "Workspace not found");
-	for (const [key, label, ids] of [
-		["res", "Resource", resources],
-		["env", "Environment", environments],
+		drop("ws", "Workspace", "no workspace with this name");
+	for (const [key, label, noun, ids] of [
+		["res", "Resource", "resource", resources],
+		["env", "Environment", "environment", environments],
 	] as const) {
 		const value = params.get(key);
 		if (value === null) continue;
-		if (!params.has("ws") && selectedWorkspace === "")
-			drop(key, label, key === "env" ? "pick a workspace to filter by environment" : "Choose a workspace first");
-		else if (ids !== undefined && !ids.includes(value)) drop(key, label, `${label} not found in this workspace`);
+		if (!params.has("ws") && selectedWorkspace === "") drop(key, label, `pick a workspace to filter by ${noun}`);
+		else if (ids !== undefined && !ids.includes(value)) drop(key, label, `no ${noun} with this name`);
 	}
 	return { search: params.toString(), dropped };
 }

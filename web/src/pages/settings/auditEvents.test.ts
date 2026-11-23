@@ -70,6 +70,6 @@ test("workspace updates say what changed", () => {
 			old: { name: "acme", log_retention_days: null },
 			new: { name: "acme-prod", log_retention_days: 30 },
 		}),
-	).toBe("Updated a workspace name acme → acme-prod · log retention org limit → 30 days");
+	).toBe("Updated a workspace name acme → acme-prod, log retention org limit → 30 days");
 	expect(summary({ name: "acme", old: { name: "acme" }, new: { name: "acme" } })).toBe("Updated a workspace");
 });

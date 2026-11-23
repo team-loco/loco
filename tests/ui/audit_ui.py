@@ -550,7 +550,7 @@ with session(out) as browser:
         page.get_by_role("status").filter(
             has_text="Some filters in this link couldn’t be used"
         )
-    ).to_contain_text("Workspace not found")
+    ).to_contain_text("no workspace with this name")
     expect(rows).to_have_count(50)
     expect(page).not_to_have_url(re.compile(r"[?&](ws|res|env)="))
     page.goto(state["ui_url"] + audit_path + "?before=bad")
