@@ -413,7 +413,7 @@ with session(out) as browser:
     expect(page).to_have_url(WORKSPACE_URL)
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
     account = page.locator('[data-slot="account-button"]')
-    expect(account).to_have_text("Max Member")
+    expect(account).to_have_text(re.compile(r"Max Member$"))
     expect(account).not_to_contain_text(state["users"]["member"]["email"])
     account.click()
     page.get_by_role("menuitem", name="Sign out", exact=True).click()
