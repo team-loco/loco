@@ -26,7 +26,6 @@ import {
 } from "@/components/design/DropdownMenu";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/design/Command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
-import { PartialBadge } from "@/components/design/PartialBadge";
 import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 
@@ -147,7 +146,6 @@ export function ResourceHeader({
 						<Switcher items={switcher} currentId={resource.id} offset={titleWidth + 4} />
 					</div>
 					<ResourceStatusBadge status={environment?.status} />
-					{resource.partial !== undefined && <PartialBadge />}
 				</div>
 				{domain !== undefined && (
 					<a
