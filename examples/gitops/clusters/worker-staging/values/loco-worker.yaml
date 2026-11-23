@@ -8,7 +8,6 @@ global:
 certManager:
   issuer:
     email: admin@example.com
-    # replace with the DNS-01 solver for your DNS provider.
     solvers:
       - dns01:
           cloudflare:

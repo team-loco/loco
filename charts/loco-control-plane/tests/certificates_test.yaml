@@ -14,14 +14,12 @@ templates:
 tests:
   - it: renders configured solvers verbatim
     set:
-      certManager.issuer.solvers:
-        - dns01:
-            webhook: {groupName: acme.example.test, solverName: example}
-    template: templates/cm-issuer.yaml
+      certManager.issuer.solvers: [{dns01: {route53: {region: us-east-1}}}]
     asserts:
       - equal:
           path: spec.acme.solvers
-          value: [{dns01: {webhook: {groupName: acme.example.test, solverName: example}}}]
+          value: [{dns01: {route53: {region: us-east-1}}}]
+        template: templates/cm-issuer.yaml
 
   - it: requires solvers when it creates the ACME issuer
     set:

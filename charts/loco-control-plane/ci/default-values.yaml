@@ -1,7 +1,7 @@
 certManager:
   issuer:
     email: ci@example.invalid
-    solvers: [{dns01: {route53: {region: us-east-1}}}]
+    solvers: [{dns01: {webhook: {groupName: acme.example.invalid, solverName: ci}}}]
 
 ui:
   image:
