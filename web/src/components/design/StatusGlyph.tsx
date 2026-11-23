@@ -27,11 +27,11 @@ function GlyphParts({ glyph }: { glyph: Glyph }) {
 		case "ok":
 			return (
 				<>
-					<circle cx={7} cy={7} r={7} fill="currentColor" />
+					<circle cx={7} cy={7} r={6.1} fill="none" stroke="currentColor" strokeWidth={STROKE} />
 					<path
-						d="M4.2 7.2l1.9 1.9 3.7-4"
+						d="M4.5 7.2l1.7 1.7 3.4-3.6"
 						fill="none"
-						stroke={INK}
+						stroke="currentColor"
 						strokeWidth={STROKE}
 						strokeLinecap="round"
 						strokeLinejoin="round"
