@@ -348,8 +348,8 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     ], query
     expect(logs).to_have_count(1)
     panel.get_by_role("button", name=re.compile(r"^Build\s*,")).click()
-    expect(logs).to_have_count(1)
-    expect(logs).to_have_attribute("href", re.compile(r"@build"))
+    expect(logs).to_have_count(2)
+    expect(logs.last).to_have_attribute("href", re.compile(r"@build"))
     panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     expect(
         panel.get_by_role("region", name="New version", exact=True).get_by_text(
