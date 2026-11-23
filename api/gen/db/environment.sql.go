@@ -166,77 +166,77 @@ func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uui
 	return items, nil
 }
 
-const lockResourceEnvironments = `-- name: LockResourceEnvironments :many
+const lockEnvironment = `-- name: LockEnvironment :one
+WITH workspace_lock AS MATERIALIZED (
+    SELECT w.id FROM workspaces w
+    JOIN environments e ON e.workspace_id = w.id
+    WHERE e.id = $1
+    FOR KEY SHARE OF w
+)
+SELECT e.revision FROM environments e
+JOIN workspace_lock w ON w.id = e.workspace_id
+WHERE e.id = $1
+FOR NO KEY UPDATE OF e
+`
+
+func (q *Queries) LockEnvironment(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, lockEnvironment, id)
+	var revision int64
+	err := row.Scan(&revision)
+	return revision, err
+}
+
+const lockEnvironmentForDeletion = `-- name: LockEnvironmentForDeletion :one
+WITH workspace_lock AS MATERIALIZED (
+    SELECT w.id FROM workspaces w
+    JOIN environments e ON e.workspace_id = w.id
+    WHERE e.id = $1
+    FOR KEY SHARE OF w
+)
+SELECT e.id FROM environments e
+JOIN workspace_lock w ON w.id = e.workspace_id
+WHERE e.id = $1
+FOR UPDATE OF e
+`
+
+func (q *Queries) LockEnvironmentForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockEnvironmentForDeletion, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const lockResourceEnvironments = `-- name: LockResourceEnvironments :exec
 WITH workspace_lock AS MATERIALIZED (
     SELECT w.id FROM workspaces w
     JOIN resources r ON r.workspace_id = w.id
     WHERE r.id = $1
     FOR KEY SHARE OF w
 )
-SELECT e.id, e.revision FROM environments e
+SELECT e.id FROM environments e
 JOIN workspace_lock w ON w.id = e.workspace_id
 ORDER BY e.id
-FOR UPDATE OF e
+FOR NO KEY UPDATE OF e
 `
 
-type LockResourceEnvironmentsRow struct {
-	ID       uuid.UUID `json:"id"`
-	Revision int64     `json:"revision"`
+func (q *Queries) LockResourceEnvironments(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockResourceEnvironments, id)
+	return err
 }
 
-func (q *Queries) LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error) {
-	rows, err := q.db.Query(ctx, lockResourceEnvironments, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []LockResourceEnvironmentsRow
-	for rows.Next() {
-		var i LockResourceEnvironmentsRow
-		if err := rows.Scan(&i.ID, &i.Revision); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const lockWorkspaceEnvironments = `-- name: LockWorkspaceEnvironments :many
+const lockWorkspaceEnvironments = `-- name: LockWorkspaceEnvironments :exec
 WITH workspace_lock AS MATERIALIZED (
     SELECT w.id FROM workspaces w WHERE w.id = $1 FOR KEY SHARE OF w
 )
-SELECT e.id, e.revision FROM environments e
+SELECT e.id FROM environments e
 JOIN workspace_lock w ON w.id = e.workspace_id
 ORDER BY e.id
-FOR UPDATE OF e
+FOR NO KEY UPDATE OF e
 `
 
-type LockWorkspaceEnvironmentsRow struct {
-	ID       uuid.UUID `json:"id"`
-	Revision int64     `json:"revision"`
-}
-
-func (q *Queries) LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error) {
-	rows, err := q.db.Query(ctx, lockWorkspaceEnvironments, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []LockWorkspaceEnvironmentsRow
-	for rows.Next() {
-		var i LockWorkspaceEnvironmentsRow
-		if err := rows.Scan(&i.ID, &i.Revision); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockWorkspaceEnvironments, id)
+	return err
 }
 
 const updateEnvironment = `-- name: UpdateEnvironment :one

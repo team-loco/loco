@@ -327,7 +327,7 @@ func (s *DeploymentServer) CreateDeployment(
 		if lockErr := lockOrganization(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockEnvironment(ctx, qtx, environmentID); lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
@@ -639,7 +639,7 @@ func (s *DeploymentServer) DeleteDeployment(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockEnvironment(ctx, qtx, deployment.EnvironmentID); lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockResource(ctx, qtx, resource.ID); lockErr != nil {

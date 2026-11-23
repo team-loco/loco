@@ -274,7 +274,7 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 				}
 				rollbackOnCleanup(t, gate)
 				workspaceID := f.workspaceID(t)
-				if _, lockErr := f.queries.WithTx(gate).LockWorkspaceEnvironments(ctx, workspaceID); lockErr != nil {
+				if lockErr := f.queries.WithTx(gate).LockWorkspaceEnvironments(ctx, workspaceID); lockErr != nil {
 					t.Fatalf("lock environments: %v", lockErr)
 				}
 

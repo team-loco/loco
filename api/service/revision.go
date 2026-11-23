@@ -13,32 +13,36 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-// Lock order: organization, environments, environment key, resources by id; their builds, deployments, placements last.
+// Lock order: organization, workspace, environments by id, environment key, resources by id;
+// their builds, deployments, placements last. A write locks the environments it changes, or every
+// environment of the workspace when it changes a resource they share.
 
-// lockWorkspaceEnvironments locks every environment of the workspace in ascending id order and
-// returns their revisions by id.
-func lockWorkspaceEnvironments(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	workspaceID uuid.UUID,
-) (map[uuid.UUID]int64, error) {
-	rows, err := qtx.LockWorkspaceEnvironments(ctx, workspaceID)
-	if err != nil {
-		return nil, fmt.Errorf("lock environments: %w", err)
+// lockWorkspaceEnvironments locks every environment of the workspace in ascending id order.
+func lockWorkspaceEnvironments(ctx context.Context, qtx *genDb.Queries, workspaceID uuid.UUID) error {
+	if err := qtx.LockWorkspaceEnvironments(ctx, workspaceID); err != nil {
+		return fmt.Errorf("lock environments: %w", err)
 	}
-	revisions := make(map[uuid.UUID]int64, len(rows))
-	for _, row := range rows {
-		revisions[row.ID] = row.Revision
-	}
-	return revisions, nil
+	return nil
 }
 
 // lockResourceEnvironments is lockWorkspaceEnvironments for the workspace of a resource.
 func lockResourceEnvironments(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
-	if _, err := qtx.LockResourceEnvironments(ctx, resourceID); err != nil {
+	if err := qtx.LockResourceEnvironments(ctx, resourceID); err != nil {
 		return fmt.Errorf("lock environments: %w", err)
 	}
 	return nil
+}
+
+// lockEnvironment locks one environment and returns its revision.
+func lockEnvironment(ctx context.Context, qtx *genDb.Queries, environmentID uuid.UUID) (int64, error) {
+	revision, err := qtx.LockEnvironment(ctx, environmentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrEnvironmentNotFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("lock environment: %w", err)
+	}
+	return revision, nil
 }
 
 // lockResources locks the resources in ascending id order.

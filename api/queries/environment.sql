@@ -36,23 +36,47 @@ UPDATE environments
 SET revision = revision + 1
 WHERE workspace_id = (SELECT r.workspace_id FROM resources r WHERE r.id = $1);
 
--- name: LockWorkspaceEnvironments :many
+-- name: LockWorkspaceEnvironments :exec
 WITH workspace_lock AS MATERIALIZED (
     SELECT w.id FROM workspaces w WHERE w.id = $1 FOR KEY SHARE OF w
 )
-SELECT e.id, e.revision FROM environments e
+SELECT e.id FROM environments e
 JOIN workspace_lock w ON w.id = e.workspace_id
 ORDER BY e.id
-FOR UPDATE OF e;
+FOR NO KEY UPDATE OF e;
 
--- name: LockResourceEnvironments :many
+-- name: LockResourceEnvironments :exec
 WITH workspace_lock AS MATERIALIZED (
     SELECT w.id FROM workspaces w
     JOIN resources r ON r.workspace_id = w.id
     WHERE r.id = $1
     FOR KEY SHARE OF w
 )
-SELECT e.id, e.revision FROM environments e
+SELECT e.id FROM environments e
 JOIN workspace_lock w ON w.id = e.workspace_id
 ORDER BY e.id
+FOR NO KEY UPDATE OF e;
+
+-- name: LockEnvironment :one
+WITH workspace_lock AS MATERIALIZED (
+    SELECT w.id FROM workspaces w
+    JOIN environments e ON e.workspace_id = w.id
+    WHERE e.id = $1
+    FOR KEY SHARE OF w
+)
+SELECT e.revision FROM environments e
+JOIN workspace_lock w ON w.id = e.workspace_id
+WHERE e.id = $1
+FOR NO KEY UPDATE OF e;
+
+-- name: LockEnvironmentForDeletion :one
+WITH workspace_lock AS MATERIALIZED (
+    SELECT w.id FROM workspaces w
+    JOIN environments e ON e.workspace_id = w.id
+    WHERE e.id = $1
+    FOR KEY SHARE OF w
+)
+SELECT e.id FROM environments e
+JOIN workspace_lock w ON w.id = e.workspace_id
+WHERE e.id = $1
 FOR UPDATE OF e;

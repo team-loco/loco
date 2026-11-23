@@ -63,7 +63,7 @@ func (s *DeploymentServer) CancelDeployment(
 			}
 			rollback = &counts
 		}
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockEnvironment(ctx, qtx, deployment.EnvironmentID); lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockResource(ctx, qtx, resource.ID); lockErr != nil {

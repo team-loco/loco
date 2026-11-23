@@ -31,7 +31,7 @@ func TestDeleteEnvironmentRefusesADeploymentThatCommitsWhileItWaits(t *testing.T
 		}
 	})
 	qtx := f.queries.WithTx(tx)
-	if _, err = lockWorkspaceEnvironments(ctx, qtx, workspaceID); err != nil {
+	if err = lockWorkspaceEnvironments(ctx, qtx, workspaceID); err != nil {
 		t.Fatal(err)
 	}
 	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())

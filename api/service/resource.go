@@ -162,7 +162,7 @@ func (s *ResourceServer) CreateResource(
 		); limitErr != nil {
 			return limitErr
 		}
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
+		if lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
 			return lockErr
 		}
 		var createErr error
@@ -485,7 +485,7 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+		if lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
@@ -588,7 +588,7 @@ func (s *ResourceServer) ScaleResource(
 		if lockErr := lockOrganization(ctx, qtx, res.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockEnvironment(ctx, qtx, env.ID); lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {

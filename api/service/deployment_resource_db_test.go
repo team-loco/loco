@@ -34,7 +34,7 @@ func TestDeploymentMergesTheResourceSpecThatCommitsWhileItWaits(t *testing.T) {
 		}
 	})
 	qtx := f.queries.WithTx(tx)
-	if _, err := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); err != nil {
+	if err := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); err != nil {
 		t.Fatal(err)
 	}
 	if err := lockResource(ctx, qtx, f.resourceID); err != nil {
