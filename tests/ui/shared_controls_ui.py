@@ -678,7 +678,7 @@ def log_drawer(page):
     view.get_by_role("button", name="JSON").click()
     expect(detail.get_by_text("@k8s.cluster.name", exact=True)).to_have_count(0)
     expect(detail.get_by_role("textbox", name="Filter attributes")).to_have_count(0)
-    json_view = detail.locator("[data-slot=code-block] pre")
+    json_view = detail.locator("[data-slot=code-block] pre").last
     expect(json_view).to_contain_text(f'"{image_digest}"')
     wrap = detail.get_by_role("button", name="Wrap lines", exact=True)
     expect(wrap).to_have_attribute("aria-pressed", "true")
