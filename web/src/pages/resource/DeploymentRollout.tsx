@@ -3,10 +3,10 @@ import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { Link } from "react-router";
 
 import { Badge, type BadgeTone } from "@/components/design/Badge";
-import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { NavArrow } from "@/components/design/NavArrow";
+import { Notice } from "@/components/design/Notice";
 import { Progress } from "@/components/design/Progress";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useNow } from "@/hooks/useNow";
@@ -88,42 +88,56 @@ export function ProblemBanner({
 	const problemHref = problemLogsHref(logsHref, deployment);
 	const reason = PROBLEM_REASONS[problem.reason];
 	const note = problemNote(deployment, problem.reason, deployTimeoutSeconds);
+	const detail = [problem.detail, problem.replicaName].filter((line) => line !== "");
 	return (
-		<Banner
-			title={reason ?? problem.message}
+		<Notice
 			tone={
 				deployment.status === DeploymentStatus.FAILED || deployment.status === DeploymentStatus.CRASHED ? "bad" : "warn"
 			}
-			className="mx-0 mt-0"
+			role="alert"
+			title={reason ?? problem.message}
+			detail={
+				detail.length > 0 ? (
+					<>
+						{detail.map((line) => (
+							<p key={line} className="m-0 whitespace-pre-wrap">
+								{line}
+							</p>
+						))}
+					</>
+				) : undefined
+			}
+			note={
+				note === "" && serving === undefined ? undefined : (
+					<>
+						{note}
+						{note !== "" && serving !== undefined && " "}
+						{serving !== undefined && (
+							<>
+								<span className="font-mono">{depTag(serving.deployment)}</span>
+								{` is still serving on ${serving.readyReplicas.toString()} ${serving.readyReplicas === 1 ? "replica" : "replicas"}.`}
+							</>
+						)}
+					</>
+				)
+			}
+			action={
+				problemHref === undefined ? undefined : (
+					<Button
+						variant="outline"
+						size="sm"
+						className="group/nav"
+						nativeButton={false}
+						render={<Link to={problemHref} />}
+					>
+						{problem.logsQuery.startsWith("@build") ? "Build logs" : "Replica logs"}
+						<NavArrow className="ml-0" />
+					</Button>
+				)
+			}
 		>
-			{reason !== undefined && <p className="my-1">{problem.message}</p>}
-			{problem.detail !== "" && <p className="my-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{problem.detail}</p>}
-			{problem.replicaName !== "" && <p className="my-1 break-all font-mono text-[12px]">{problem.replicaName}</p>}
-			{(note !== "" || serving !== undefined) && (
-				<p className="my-1">
-					{note}
-					{note !== "" && serving !== undefined && " "}
-					{serving !== undefined && (
-						<>
-							<span className="font-mono">{depTag(serving.deployment)}</span>
-							{` is still serving on ${serving.readyReplicas.toString()} ${serving.readyReplicas === 1 ? "replica" : "replicas"}.`}
-						</>
-					)}
-				</p>
-			)}
-			{problemHref !== undefined && (
-				<Button
-					variant="outline"
-					size="sm"
-					className="group/nav"
-					nativeButton={false}
-					render={<Link to={problemHref} />}
-				>
-					{problem.logsQuery.startsWith("@build") ? "Build logs" : "Replica logs"}
-					<NavArrow className="ml-0" />
-				</Button>
-			)}
-		</Banner>
+			{reason === undefined ? undefined : problem.message}
+		</Notice>
 	);
 }
 

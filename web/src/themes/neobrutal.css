@@ -710,3 +710,31 @@
 [data-theme="neobrutal"] [data-level-badge="debug"] {
 	color: var(--fg2);
 }
+
+[data-theme="neobrutal"] [data-slot="notice"] {
+	grid-template-columns: 26px minmax(0, 1fr) auto;
+	padding: 10px;
+	border: 2px solid var(--ink);
+	border-radius: 6px;
+	box-shadow: 3px 3px 0 0 var(--ink);
+	background: var(--raise);
+	& [data-slot="notice-icon"] {
+		width: 26px;
+		height: 26px;
+		margin-top: 0;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid var(--ink);
+		border-radius: 4px;
+		background: var(--tn);
+		color: #000000;
+	}
+	& [data-slot="notice-title"] {
+		font-weight: 700;
+	}
+	& code {
+		box-shadow: none;
+		border: 1.5px solid var(--ink);
+		border-radius: 3px;
+	}
+}

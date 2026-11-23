@@ -1049,7 +1049,7 @@ with session(out) as browser:
     assert stored == f"{label}|{derived}", stored
     expect(page.get_by_role("heading", level=1)).to_have_text(label)
     panel = page.get_by_role("region", name="Failed", exact=True)
-    problem = panel.get_by_role("status").filter(
+    problem = panel.get_by_role("alert").filter(
         has_text="ImagePullBackOff: manifest unknown"
     )
     expect(

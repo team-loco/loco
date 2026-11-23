@@ -130,3 +130,17 @@
 [data-theme="solarized"] :is([data-slot="scale-chip"], [data-slot="region-chip"]) {
 	border-radius: 0;
 }
+
+[data-theme="solarized"] [data-slot="notice"] {
+	border-radius: 2px;
+	border-color: var(--line2);
+	&[data-tone="warn"] {
+		border-color: color-mix(in oklch, var(--warn) 35%, var(--line2));
+	}
+	&[data-tone="bad"] {
+		border-color: color-mix(in oklch, var(--err) 35%, var(--line2));
+	}
+	& code {
+		border-radius: 2px;
+	}
+}

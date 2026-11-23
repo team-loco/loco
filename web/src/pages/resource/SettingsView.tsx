@@ -242,7 +242,7 @@ export function SettingsView({
 			{managed && <ManagedNotice />}
 			{secretsNotice}
 			{!canWrite && (
-				<Notice id={READ_ONLY_ID}>
+				<Notice id={READ_ONLY_ID} tone="lock">
 					You can view these settings. Changing them needs write access to this resource.
 				</Notice>
 			)}

@@ -397,7 +397,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         and mutations[0]["sourceDeploymentId"] == p["previous"]
     ), mutations
     page.goto(state["ui_url"] + path + "&tab=settings")
-    banner = page.get_by_role("status").filter(
+    banner = page.get_by_role("note").filter(
         has_text=f"These settings are from deployment {p['current'][-8:]}, which did not finish in us-ca-1."
     )
     expect(banner).to_contain_text(f"v1 ({p['previous'][-8:]}) still serves.")
