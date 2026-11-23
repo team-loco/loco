@@ -573,6 +573,13 @@ with session(out) as browser:
     ).to_be_visible()
     expect(section.get_by_text(re.compile(r"^\S.*, CLI$")).first).to_be_visible()
     section.get_by_role(
+        "button", name=f"Actions for build {builds['deployed'][-8:]}", exact=True
+    ).click()
+    expect(
+        page.get_by_role("menuitem", name="Deployments using this build", exact=True)
+    ).to_be_visible()
+    page.keyboard.press("Escape")
+    section.get_by_role(
         "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True
     ).click()
     section.get_by_role(
@@ -607,13 +614,6 @@ with session(out) as browser:
     expect(page.get_by_role("menuitem", name="Cancel build", exact=True)).to_have_count(
         0
     )
-    page.keyboard.press("Escape")
-    section.get_by_role(
-        "button", name=f"Actions for build {builds['deployed'][-8:]}", exact=True
-    ).click()
-    expect(
-        page.get_by_role("menuitem", name="Deployments using this build", exact=True)
-    ).to_be_visible()
     page.keyboard.press("Escape")
     section.get_by_role(
         "button", name=f"Actions for build {builds['awaiting'][-8:]}", exact=True
