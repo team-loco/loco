@@ -94,11 +94,11 @@ failed=()
 running=()
 finish_one() {
 	local heartbeat suite status seconds name rest=()
-	# A read with a timeout loses a partial line; this read blocks while a background loop reports progress.
-	while sleep 60; do echo "still running: ${running[*]}"; done &
+	# A background loop reports progress while this read blocks for the whole line.
+	while sleep 60 >/dev/null; do echo "still running: ${running[*]}"; done &
 	heartbeat=$!
 	read -r suite status seconds <&3
-	kill "$heartbeat"
+	kill "$heartbeat" 2>/dev/null || true
 	wait "$heartbeat" 2>/dev/null || true
 	for name in "${running[@]}"; do
 		if [[ $name != "$suite" ]]; then rest+=("$name"); fi
