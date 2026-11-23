@@ -13,6 +13,20 @@ Paths and commands below are relative to `web/`.
   render and do work in event handlers; for timers or observers use `useSyncExternalStore` or a
   ref callback that returns a cleanup. Follow
   https://github.com/vercel-labs/agent-skills/blob/main/skills/react-best-practices/AGENTS.md.
+- **Simple conditions**: a condition reads at a glance. More than two clauses means the
+  code is missing a name: give the question it answers one variable (`orgPending`) built from
+  query state (`isPending`, `isFetching`, `data`), not from restated permission checks. When a
+  condition needs a comment to explain it, change the data flow, not the comment.
+- **No per-user special cases**: a fix that branches on the kind of user (system admin,
+  workspace grant only) to hide a race or a flash is wrong. Make the page wait on the server's
+  answer the same way for everyone.
+- **Loading**: once the shell has rendered it stays up. Waits inside a page show `PageLoading`
+  (`src/components/design/Page.tsx`); the full-screen `AppLoading` covers only the first
+  sign-in check.
+- **Review**: a web review reads the diff for complexity before correctness. A condition with
+  more than two clauses, a new branch per kind of user, or a new full-screen loading state is a
+  blocking finding. Check what merged the same day in the files the PR touches, so it does not
+  undo it.
 - **Production build**: the dev server does not catch bundling bugs. Any change to
   `build.ts` or dependencies needs `bun run build` and `bun run preview`, loaded in a browser,
   before the PR.
