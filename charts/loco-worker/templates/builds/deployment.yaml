@@ -42,7 +42,6 @@ spec:
                     {{- end }}
                     - name: LOCO_BUILD_CONFIG
                       value: {{ include "loco-worker.buildConfig" . | quote }}
-                    {{- include "loco-worker.goMemLimitEnv" $controller.resources | nindent 20 }}
                     {{- with $controller.env }}
                     {{- toYaml . | nindent 20 }}
                     {{- end }}

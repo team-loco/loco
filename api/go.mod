@@ -10,6 +10,7 @@ require (
 	connectrpc.com/grpcreflect/v2 v2.0.0
 	connectrpc.com/otelconnect v0.12.0
 	connectrpc.com/validate v0.9.0
+	github.com/KimMachineGun/automemlimit v1.0.1
 	github.com/aws/aws-sdk-go-v2 v1.47.8
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.17
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.9
@@ -96,6 +97,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/paulmach/orb v0.14.0 // indirect
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect

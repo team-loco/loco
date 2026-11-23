@@ -140,7 +140,7 @@ api:
     maxPerCaller: 50
   env: {}
   # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2; Go containers have a CPU limit of
-  # at least 2. The chart sets GOMEMLIMIT to 90% of the memory limit, a whole number of Mi or Gi.
+  # at least 2. Loco's Go binaries set their Go memory limit to 90% of the container memory limit.
   # @schema skipProperties
   resources:
     requests:

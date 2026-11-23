@@ -292,39 +292,3 @@ tests:
           value:
             requests: {cpu: 400m, memory: 256Mi}
             limits: {cpu: "2", memory: 1Gi}
-
-  - it: sets the API's Go memory limit to 90% of its container memory limit
-    template: templates/api-deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: GOMEMLIMIT, value: 921MiB}
-
-  - it: follows a memory limit given in Mi
-    set:
-      api.resources.limits.memory: 2000Mi
-    template: templates/api-deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: GOMEMLIMIT, value: 1800MiB}
-
-  - it: rejects a memory limit it cannot turn into a Go memory limit
-    set:
-      api.resources.limits.memory: 1G
-    template: templates/api-deployment.yaml
-    asserts:
-      - failedTemplate:
-          errorMessage: memory limit 1G must be a whole number of Mi or Gi
-
-  - it: takes the API's Go memory limit from api.env when set
-    set:
-      api.env.GOMEMLIMIT: 500MiB
-    template: templates/api-deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: GOMEMLIMIT, value: 500MiB}
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content: {name: GOMEMLIMIT, value: 921MiB}

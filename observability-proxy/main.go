@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/KimMachineGun/automemlimit"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 

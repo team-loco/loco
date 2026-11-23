@@ -41,9 +41,6 @@ spec:
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
-            {{- if not (hasKey .Values.obsProxy.ingest.env "GOMEMLIMIT") }}
-            {{- include "loco-control-plane.goMemLimitEnv" .Values.obsProxy.ingest.resources | nindent 12 }}
-            {{- end }}
             - name: PORT
               value: {{ .Values.obsProxy.ingest.port | quote }}
             - name: CONTROL_PLANE_URL

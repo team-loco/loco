@@ -184,7 +184,6 @@ func (r *Reconciler) fetchContainer(build *locov1alpha1.Build) corev1.Container 
 		})
 		env = append(env, corev1.EnvVar{Name: "DOCKER_CONFIG", Value: buildPullCredsDir})
 	}
-	env = append(env, goMemLimit(cfg.Resources.Fetch)...)
 	if cfg.InsecureRegistry {
 		args = append(args, "--insecure")
 	}
@@ -271,9 +270,7 @@ func (r *Reconciler) pushContainer(build *locov1alpha1.Build) corev1.Container {
 		Image:           cfg.BuilderImage.Reference(),
 		ImagePullPolicy: cfg.BuilderImage.PullPolicy,
 		Args:            args,
-		Env: append(
-			[]corev1.EnvVar{{Name: "DOCKER_CONFIG", Value: buildPushCredsDir}},
-			goMemLimit(cfg.Resources.Push)...),
+		Env:             []corev1.EnvVar{{Name: "DOCKER_CONFIG", Value: buildPushCredsDir}},
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: buildVolumeOut, MountPath: buildOutDir, ReadOnly: true},
 			{Name: buildVolumePushCreds, MountPath: buildPushCredsDir, ReadOnly: true},
@@ -283,15 +280,6 @@ func (r *Reconciler) pushContainer(build *locov1alpha1.Build) corev1.Container {
 		TerminationMessagePath:   buildTerminationLog,
 		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 	}
-}
-
-// goMemLimit leaves 10% of a Go container's memory limit for memory the kernel charges outside the Go heap.
-func goMemLimit(resources corev1.ResourceRequirements) []corev1.EnvVar {
-	limit, ok := resources.Limits[corev1.ResourceMemory]
-	if !ok {
-		return nil
-	}
-	return []corev1.EnvVar{{Name: "GOMEMLIMIT", Value: strconv.FormatInt(limit.Value()/10*9, 10)}}
 }
 
 func (r *Reconciler) buildJob(build *locov1alpha1.Build) (*batchv1.Job, error) {

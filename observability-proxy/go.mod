@@ -5,6 +5,7 @@ go 1.27.4
 require (
 	connectrpc.com/connect/v2 v2.0.2
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0
+	github.com/KimMachineGun/automemlimit v1.0.1
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/clickhouseexporter v0.165.1
 	github.com/prometheus/client_golang v1.25.0
@@ -56,6 +57,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.165.1 // indirect
 	github.com/paulmach/orb v0.14.0 // indirect
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/pressly/goose/v3 v3.29.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect

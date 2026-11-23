@@ -23,6 +23,7 @@ import (
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect/v2"
 	"connectrpc.com/validate"
+	_ "github.com/KimMachineGun/automemlimit"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"

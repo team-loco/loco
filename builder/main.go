@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/KimMachineGun/automemlimit"
+
 	"github.com/team-loco/loco/builder/internal/extract"
 	"github.com/team-loco/loco/builder/internal/isolation"
 	"github.com/team-loco/loco/builder/internal/ocilayout"

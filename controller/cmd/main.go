@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	_ "github.com/KimMachineGun/automemlimit"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
