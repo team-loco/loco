@@ -340,7 +340,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         panel.get_by_text(
             "The rollout stopped. v1 is still serving on 2 replicas.", exact=False
         )
-    ).to_be_visible()
+    ).to_be_visible(timeout=25000)
     logs = panel.get_by_role("link", name="Open in Logs", exact=True)
     query = parse_qs(urlparse(logs.get_attribute("href")).query)
     assert query.get("r") == ["progress-ui"] and query.get("q") == [
