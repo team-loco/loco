@@ -93,6 +93,7 @@ function TraceSession({
 	const [frozenEnd, setFrozenEnd] = useState(Date.now);
 	const bounds = resolveWindow(range, frozenEnd);
 	const scopeReady = scopedResourceIds === null || scopedResourceIds.length > 0;
+	const scopeChosen = workspaceId !== "" && environmentId !== "";
 	const orderBy = params.sort === null ? TraceOrder.START_TIME : TRACE_ORDERS[params.sort];
 	const ascending = params.dir === "asc";
 	const query = queryStr(tokens, text);
@@ -113,7 +114,7 @@ function TraceSession({
 		listTraces,
 		{ ...counted, pageSize: params.size, orderBy, descending: !ascending },
 		params.page,
-		{ enabled: scopeReady && workspaceId !== "" && environmentId !== "", staleTime: Infinity },
+		{ enabled: scopeReady && scopeChosen, staleTime: Infinity },
 		counted,
 		resetPage,
 	);
@@ -154,7 +155,8 @@ function TraceSession({
 	const pager = tokenPager(params.page, listed.nextPageToken, (page) => {
 		void setParams({ page }, { history: "replace" });
 	});
-	const loading = environmentLoading || browse.isLoading || (!scopeReady && resourcesLoading);
+	const listLoading = browse.isLoading || listed.resetting;
+	const loading = environmentLoading || listLoading || (!scopeReady && resourcesLoading);
 	const detailSpans = uniqueSpans(detail.data?.spans ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
 	const open = (id: string) => {
@@ -230,7 +232,7 @@ function TraceSession({
 		/>
 	);
 
-	if (!loading && browse.error !== null && isUnimplemented(browse.error)) {
+	if (!loading && listed.error !== null && isUnimplemented(listed.error)) {
 		return (
 			<>
 				{header}
@@ -242,17 +244,19 @@ function TraceSession({
 			</>
 		);
 	}
-	const rejected = browse.error === null ? null : queryError(browse.error, query);
-	if (!loading && browse.error !== null && rejected === null) {
+	const rejected = listed.error === null ? null : queryError(listed.error, query);
+	if (!loading && listed.error !== null && rejected === null) {
 		return (
 			<>
 				{header}
 				<QueryBar valueCounts={valueCounts} />
-				<ErrorState error={browse.error} what="traces" rpc={listTraces} onRetry={browse.refetch} />
+				<ErrorState error={listed.error} what="traces" rpc={listTraces} onRetry={browse.refetch} />
 			</>
 		);
 	}
-	if (!loading && total === 0 && query === "") {
+	// An unfiltered first page with no rows means the range holds no traces at all.
+	const unfilteredFirstPage = pager.page === 0 && query === "";
+	if (unfilteredFirstPage && browse.data?.summaries.length === 0) {
 		return (
 			<>
 				{header}

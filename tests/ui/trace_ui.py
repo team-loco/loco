@@ -290,7 +290,11 @@ def handle(route):
         )
         return
     if mode[0] == "empty":
-        route.fulfill(json={"spans": []})
+        # The first-trace hero reads the empty first page, so a failed count leaves it shown.
+        route.fulfill(
+            status=503 if body.get("includeTotalCount") else 200,
+            json={"spans": []},
+        )
         return
     if route.request.url.endswith("/QueryTraceBuckets"):
         route.fulfill(json=trace_buckets(body))
@@ -381,6 +385,12 @@ def handle(route):
                 )
                 for index in range(60)
             ]
+        if body.get("pageToken") == "stale":
+            route.fulfill(
+                status=400,
+                json={"code": "invalid_argument", "message": "invalid page_token"},
+            )
+            return
         offset = int(body.get("pageToken", "0"))
         end = offset + body["pageSize"]
         response = {"summaries": summaries[offset:end]}
@@ -980,6 +990,17 @@ with session(out) as browser:
     mode[0] = "paged"
     context, page, _ = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
+    # An old link's rejected page token goes back to the first page without drawing the error.
+    context.add_init_script(
+        "new MutationObserver(() => {"
+        " if (document.body?.innerText.includes('Couldn\u2019t load traces')) window.traceErrorShown = true;"
+        " }).observe(document, { subtree: true, childList: true, characterData: true });"
+    )
+    with expect_rpc(page, "ListTraces", page_request(pageSize=25, pageToken=None)):
+        page.goto(state["ui_url"] + base + "&page=stale")
+    expect(page).not_to_have_url(re.compile(r"page=stale"))
+    expect(page.get_by_text("1–25 of 67", exact=True)).to_be_visible()
+    assert not page.evaluate("window.traceErrorShown === true")
     with expect_rpc(page, "ListTraces", page_request(pageSize=25)):
         page.goto(state["ui_url"] + base)
     assert last_page_request().get("pageSize") == 25
