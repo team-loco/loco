@@ -234,8 +234,13 @@ capabilities:
 {{- toYaml $settings }}
 {{- end }}
 
+{{- /* Takes (list $ <component values>): true when the component's autoscaler is on and the cluster serves the metrics API it reads. */ -}}
+{{- define "loco-control-plane.autoscales" -}}
+{{- if and (dig "autoscaling" "enabled" false (index . 1)) ((index . 0).Capabilities.APIVersions.Has "metrics.k8s.io/v1beta1") }}true{{ end -}}
+{{- end -}}
+
 {{- define "loco-control-plane.minReplicas" -}}
-{{- if dig "autoscaling" "enabled" false . }}{{ .autoscaling.minReplicas }}{{ else }}{{ .replicaCount }}{{ end -}}
+{{- if include "loco-control-plane.autoscales" . }}{{ (index . 1).autoscaling.minReplicas }}{{ else }}{{ (index . 1).replicaCount }}{{ end -}}
 {{- end -}}
 
 {{- define "loco-control-plane.spreadByNode" -}}

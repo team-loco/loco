@@ -26,6 +26,8 @@ tests:
         not: true
 
   - it: hands the API's replicas to a CPU autoscaler with a disruption budget when autoscaling is on
+    capabilities:
+      apiVersions: [metrics.k8s.io/v1beta1]
     set:
       api.autoscaling: {enabled: true, minReplicas: 3, maxReplicas: 9, targetCPUUtilizationPercentage: 65}
     asserts:
@@ -46,7 +48,9 @@ tests:
       - containsDocument: {kind: PodDisruptionBudget, apiVersion: policy/v1, name: loco-control-plane-api, any: true}
         template: templates/scaling.yaml
 
-  - it: autoscales the ingest proxy from two replicas by default
+  - it: autoscales the ingest proxy from two replicas by default when the cluster serves the metrics API
+    capabilities:
+      apiVersions: [metrics.k8s.io/v1beta1]
     asserts:
       - notExists:
           path: spec.replicas
@@ -123,9 +127,11 @@ tests:
         template: templates/openbao.yaml
         documentSelector: {path: kind, value: StatefulSet}
 
-  - it: autoscales the gateway's Envoy proxies from two with a disruption budget and spreads them across nodes
+  - it: autoscales the gateway's Envoy proxies from two with a disruption budget when the cluster serves the metrics API, and spreads them across nodes
     template: templates/gateway.yaml
     documentSelector: {path: kind, value: EnvoyProxy}
+    capabilities:
+      apiVersions: [metrics.k8s.io/v1beta1]
     asserts:
       - notExists:
           path: spec.provider.kubernetes.envoyDeployment.replicas
@@ -165,3 +171,29 @@ tests:
           path: spec.provider.kubernetes.envoyHpa
       - notExists:
           path: spec.provider.kubernetes.envoyPDB
+
+  - it: runs two ingest proxies and two gateway Envoy proxies without autoscalers when the cluster serves no metrics API
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - containsDocument: {kind: HorizontalPodAutoscaler, apiVersion: autoscaling/v2, name: loco-control-plane-obs-proxy-ingest}
+        template: templates/scaling.yaml
+        not: true
+      - containsDocument: {kind: PodDisruptionBudget, apiVersion: policy/v1, name: loco-control-plane-obs-proxy-ingest, any: true}
+        template: templates/scaling.yaml
+      - equal:
+          path: spec.provider.kubernetes.envoyDeployment.replicas
+          value: 2
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - notExists:
+          path: spec.provider.kubernetes.envoyHpa
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - equal:
+          path: spec.provider.kubernetes.envoyPDB
+          value: {maxUnavailable: 1}
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}

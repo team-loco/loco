@@ -7,8 +7,8 @@
 {{- end }}
 {{- range $component, $values := $components }}
 {{- $name := printf "%s-%s" $.Release.Name $component }}
+{{- if include "loco-control-plane.autoscales" (list $ $values) }}
 {{- with $values.autoscaling }}
-{{- if .enabled }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -31,7 +31,7 @@ spec:
           averageUtilization: {{ .targetCPUUtilizationPercentage }}
 {{- end }}
 {{- end }}
-{{- if ge (int (include "loco-control-plane.minReplicas" $values)) 2 }}
+{{- if ge (int (include "loco-control-plane.minReplicas" (list $ $values))) 2 }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
