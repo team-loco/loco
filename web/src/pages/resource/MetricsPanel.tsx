@@ -75,12 +75,12 @@ export function MetricsPanel({
 	pendingName: string | undefined;
 }) {
 	const deployed = regions.filter(isDeployed);
-	const since = msToTimestamp(nowMs - RANGE_MS[range]);
+	const startTime = msToTimestamp(nowMs - RANGE_MS[range]);
 	// The deployments created in the chart's window draw its limit steps.
 	const windowed =
 		useQuery(
 			listDeployments,
-			{ resourceId, environmentId, since, pageSize: WINDOW_DEPLOYMENTS },
+			{ resourceId, environmentId, startTime, pageSize: WINDOW_DEPLOYMENTS },
 			{ placeholderData: keepPreviousData, refetchInterval: REFRESH_MS },
 		).data?.deployments ?? [];
 	const markers = useDeploymentMarkers({ workspaceId, environmentId, resourceId, range, nowMs });
