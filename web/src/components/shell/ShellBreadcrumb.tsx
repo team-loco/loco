@@ -58,7 +58,7 @@ function EnvSwitcher({ children, label }: { children: ReactNode; label: string }
 function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => void }) {
 	const navigate = useNavigate();
 	const transport = useTransport();
-	const { orgs, activeWorkspaceId } = useOrgWorkspace();
+	const { orgs } = useOrgWorkspace();
 	const open = async (orgId: string) => {
 		const { workspaces } = await callUnaryMethod(transport, listOrgWorkspaces, { orgId, pageSize: 1 });
 		const first = workspaces[0];
@@ -88,25 +88,9 @@ function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => voi
 						))}
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						onClick={() => {
-							void navigate(orgSettingsPath(org.id, activeWorkspaceId));
-						}}
-					>
-						<Settings2Icon className="text-fg3" />
-						Organization settings
-					</DropdownMenuItem>
 					<DropdownMenuItem onClick={onCreate}>
 						<PlusIcon className="text-fg3" />
 						New organization
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						onClick={() => {
-							void navigate("/organizations");
-						}}
-					>
-						<ArrowRightIcon className="text-fg3" />
-						All organizations
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>

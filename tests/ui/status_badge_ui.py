@@ -139,13 +139,14 @@ def expect_badge(row, label, tone):
     expect(badge).to_have_text(label)
     expect(badge).to_have_attribute("data-status-badge", tone)
     style = badge.evaluate(BADGE_STYLE)
-    assert style["icon"], label
-    assert style["border"] >= 1 and style["borderAlpha"] > 0, (label, style)
-    if color_theme == "paper":
-        assert style["fillAlpha"] == 0 and style["radius"] >= 99, (label, style)
+    assert not style["icon"], label
+    assert style["fillAlpha"] > 0, (label, style)
+    if color_theme == "neobrutal":
+        assert style["border"] >= 1 and style["borderAlpha"] > 0, (label, style)
     else:
-        assert style["fillAlpha"] > 0, (label, style)
-    assert 20 <= style["height"] <= 28, (label, style)
+        assert style["border"] == 0, (label, style)
+        assert 5 <= style["radius"] <= 6 or color_theme == "solarized", (label, style)
+    assert 19 <= style["height"] <= 24, (label, style)
 
 
 def row_of(page, name):

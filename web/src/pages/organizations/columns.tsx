@@ -91,7 +91,7 @@ export function orgColumns({
 					{org.id === activeOrgId && (
 						<span
 							data-slot="chip"
-							className="inline-flex h-5 shrink-0 items-center rounded-[6px] bg-panel2 px-2 font-mono text-[11px] text-fg2"
+							className="inline-flex h-5 shrink-0 items-center rounded-[6px] bg-foreground/7 px-2 font-mono text-[11px] text-fg2"
 						>
 							current
 						</span>

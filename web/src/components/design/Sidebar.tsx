@@ -82,7 +82,7 @@ function SidebarResizer() {
 			aria-valuemax={WIDTH_MAX}
 			tabIndex={0}
 			data-dragging={drag !== null}
-			className="absolute inset-y-0 right-0 z-10 w-[7px] cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:right-0 after:w-0.5 after:bg-transparent after:transition-colors after:duration-[140ms] hover:after:bg-fg/20 focus-visible:after:bg-fg/20 data-[dragging=true]:after:bg-fg/20"
+			className="absolute inset-y-0 right-0 z-10 w-[7px] cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:right-0 after:w-0.5 after:bg-transparent after:transition-colors after:duration-[140ms] hover:after:bg-foreground/20 focus-visible:after:bg-foreground/20 data-[dragging=true]:after:bg-foreground/20"
 			onPointerDown={(e) => {
 				e.currentTarget.setPointerCapture(e.pointerId);
 				setDrag({ startX: e.clientX, startWidth: width });

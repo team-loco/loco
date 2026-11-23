@@ -1,6 +1,5 @@
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import {
-	BellIcon,
 	BoxesIcon,
 	ChartLineIcon,
 	HistoryIcon,
@@ -52,7 +51,6 @@ const OBSERVABILITY_PAGES: { view: ObservabilityView; name: string; icon: ReactN
 	{ view: "logs", name: "Logs", icon: <ScrollTextIcon /> },
 	{ view: "metrics", name: "Metrics", icon: <ChartLineIcon /> },
 	{ view: "traces", name: "Traces", icon: <WaypointsIcon /> },
-	{ view: "events", name: "Events", icon: <BellIcon /> },
 ];
 
 const NAV_PARAMS = { env: parseAsString, view: observabilityViewParser };
