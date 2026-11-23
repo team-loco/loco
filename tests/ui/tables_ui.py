@@ -802,10 +802,21 @@ def logs(page):
     page.mouse.down()
     page.mouse.move(target["x"] + 20, target["y"] + target["height"] / 2, steps=8)
     page.mouse.up()
-    wait_for_query(
-        page,
-        lambda query: query.get("cols", [""])[0].startswith("level,region,resource"),
-    )
+    try:
+        wait_for_query(
+            page,
+            lambda query: query.get("cols", [""])[0].startswith(
+                "level,region,resource"
+            ),
+        )
+    except PlaywrightTimeout:
+        raise AssertionError(
+            (
+                page.url,
+                table.get_by_role("columnheader").all_inner_texts(),
+                region.get_attribute("class"),
+            )
+        ) from None
     cell = table.get_by_role("cell").nth(3)
     cell.evaluate(
         "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"
