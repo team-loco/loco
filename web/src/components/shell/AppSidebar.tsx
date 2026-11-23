@@ -67,7 +67,6 @@ interface NavItem {
 	to?: string | undefined;
 	href?: string;
 	active: boolean;
-	preload?: (() => Promise<unknown>) | undefined;
 }
 
 const NAME_SEPARATORS = /[\s._-]+/;
@@ -77,11 +76,6 @@ function initials(name: string): string {
 	const first = parts[0]?.[0] ?? "?";
 	const second = parts[1]?.[0] ?? "";
 	return (first + second).toUpperCase();
-}
-
-function preloadPage(load: (() => Promise<unknown>) | undefined) {
-	if (load === undefined) return;
-	load().catch(() => undefined);
 }
 
 export function AppSidebar() {
@@ -168,12 +162,6 @@ export function AppSidebar() {
 											isActive={item.active}
 											aria-current={item.active ? "page" : undefined}
 											render={<Link to={item.to} />}
-											onMouseEnter={() => {
-												preloadPage(item.preload);
-											}}
-											onFocus={() => {
-												preloadPage(item.preload);
-											}}
 										>
 											{item.icon}
 											<span>{item.name}</span>
