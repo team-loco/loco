@@ -122,11 +122,11 @@ with session(out) as browser:
     expect(page.get_by_role("link", name="Audit log", exact=True)).to_be_visible()
     expect(page.locator('[data-slot="app-loader"]')).to_have_count(0)
     page.evaluate(
-        "Promise.all(document.getAnimations().filter((a) => a.animationName === 'enter').map((a) => a.finished))"
+        "Promise.allSettled(document.getAnimations().filter((a) => a.animationName === 'enter').map((a) => a.finished))"
     )
     page.screenshot(path=out / "page-loading-light.png")
     page.evaluate(
-        "document.documentElement.classList.add('dark'), Promise.all(document.getAnimations().filter((a) => a instanceof CSSTransition).map((a) => a.finished))"
+        "document.documentElement.classList.add('dark'), Promise.allSettled(document.getAnimations().filter((a) => a instanceof CSSTransition).map((a) => a.finished))"
     )
     page.screenshot(path=out / "page-loading-dark.png")
     for route in held_audit:
