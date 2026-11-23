@@ -208,6 +208,7 @@ function TraceSession({
 				<Button
 					variant="outline"
 					size="icon"
+					className="size-8"
 					aria-label="Refresh"
 					title="Refresh"
 					disabled={browse.isFetching}
