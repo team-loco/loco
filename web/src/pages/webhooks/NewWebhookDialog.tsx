@@ -50,6 +50,7 @@ export function NewWebhookDialog({
 	onCreated: () => void;
 }) {
 	const [secret, setSecret] = useState<string | null>(null);
+	const [pending, setPending] = useState(false);
 	const nameRef = useRef<HTMLInputElement>(null);
 	const close = () => {
 		setSecret(null);
@@ -58,9 +59,9 @@ export function NewWebhookDialog({
 	return (
 		<Dialog
 			open={open}
-			disablePointerDismissal={secret !== null}
+			disablePointerDismissal={secret !== null || pending}
 			onOpenChange={(next) => {
-				if (!next) close();
+				if (!next && !pending) close();
 			}}
 		>
 			{open && (
@@ -83,6 +84,7 @@ export function NewWebhookDialog({
 							webhook={webhook}
 							nameRef={nameRef}
 							onCancel={close}
+							onPending={setPending}
 							onCreated={(s) => {
 								if (s === null) close();
 								else setSecret(s);
@@ -104,12 +106,14 @@ function NewWebhookForm({
 	webhook,
 	nameRef,
 	onCancel,
+	onPending,
 	onCreated,
 }: {
 	initialTypes: string[];
 	workspaceId: string;
 	nameRef: RefObject<HTMLInputElement | null>;
 	onCancel: () => void;
+	onPending: (pending: boolean) => void;
 	webhook?: Webhook | undefined;
 	onCreated: (secret: string | null) => void;
 }) {
@@ -136,6 +140,7 @@ function NewWebhookForm({
 	const submit = () => {
 		if (!ok || mutation.isPending) return;
 		const input = { workspaceId, name: name.trim(), url: target, eventTypes: mode === "all" ? [] : [...types] };
+		onPending(true);
 		if (webhook !== undefined) {
 			update.mutate(
 				{ ...input, webhookId: webhook.id },
@@ -144,12 +149,18 @@ function NewWebhookForm({
 						toast.success("Saved webhook");
 						onCreated(null);
 					},
+					onSettled: () => {
+						onPending(false);
+					},
 				},
 			);
 		} else {
 			create.mutate(input, {
 				onSuccess: (res) => {
 					onCreated(res.secret);
+				},
+				onSettled: () => {
+					onPending(false);
 				},
 			});
 		}
@@ -233,7 +244,7 @@ function NewWebhookForm({
 				)}
 			</DialogBody>
 			<DialogFooter>
-				<Button type="button" variant="outline" onClick={onCancel}>
+				<Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
 					Cancel
 				</Button>
 				<Button type="submit" disabled={!ok}>
