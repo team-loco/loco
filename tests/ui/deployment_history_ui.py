@@ -326,7 +326,7 @@ with session(out) as browser:
     )
     expect(section.get_by_text("1–10 of 221", exact=False)).to_be_visible()
     expect(
-        section.get_by_role("tab", name=re.compile(r"^Deployments\s*221$"))
+        section.get_by_role("tab", name=re.compile(r"^Deployments$"))
     ).to_be_visible()
     # Requests with since list the chart window's deployments; the rest page the history.
     history_requests = [
@@ -360,7 +360,7 @@ with session(out) as browser:
     expect(deployments.get_by_role("columnheader", name="Message")).to_have_count(0)
     expect(section.get_by_text("CLI", exact=True).first).to_be_visible()
     # The columns menu adds the columns the table hides until asked.
-    section.get_by_role("button", name="Columns", exact=True).click()
+    section.get_by_role("button", name="Add a column", exact=True).click()
     page.get_by_role("menuitemcheckbox", name="Message", exact=True).click()
     page.keyboard.press("Escape")
     expect(
@@ -523,9 +523,9 @@ with session(out) as browser:
         "button", name=f"Build {builds['deployed'][-8:]}", exact=True
     ).click()
     expect(page).to_have_url(re.compile(r"[?&]hist=builds"))
-    expect(
-        section.get_by_role("tab", name=re.compile(r"^Builds\s*6$"))
-    ).to_have_attribute("aria-selected", "true")
+    expect(section.get_by_role("tab", name=re.compile(r"^Builds$"))).to_have_attribute(
+        "aria-selected", "true"
+    )
     expect(section.get_by_text("1–5 of 6", exact=False)).to_be_visible()
     expect(
         section.get_by_role(
@@ -668,7 +668,7 @@ with session(out) as browser:
         state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production"
     )
     section.get_by_role("tab", name=re.compile(r"^Builds")).click()
-    expect(section.get_by_role("tab", name=re.compile(r"^Builds\s*4$"))).to_be_visible()
+    expect(section.get_by_role("tab", name=re.compile(r"^Builds$"))).to_be_visible()
     expect(
         section.get_by_role("button", name=f"Show build {builds['deployed'][-8:]}")
     ).to_have_count(0)
@@ -703,7 +703,7 @@ with session(out) as browser:
     page.get_by_title("Switch environment", exact=True).click()
     page.get_by_role("menuitem", name="staging", exact=True).click()
     section.get_by_role("tab", name=re.compile(r"^Builds")).click()
-    expect(section.get_by_role("tab", name=re.compile(r"^Builds\s*1$"))).to_be_visible()
+    expect(section.get_by_role("tab", name=re.compile(r"^Builds$"))).to_be_visible()
     section.get_by_role(
         "button", name=f"Show build {builds['deployed'][-8:]}", exact=True
     ).click()

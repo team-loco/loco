@@ -384,7 +384,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     page.keyboard.press("Escape")
 
     history = page.get_by_role("tabpanel", name="Deployments")
-    history.get_by_role("button", name="Columns", exact=True).click()
+    history.get_by_role("button", name="Add a column", exact=True).click()
     page.get_by_role("menuitemcheckbox", name="Region(s)", exact=True).click()
     page.keyboard.press("Escape")
     rollout_rows = history.get_by_role("row").filter(has_text=re.compile(EAST))

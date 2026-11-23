@@ -11,7 +11,7 @@ import { msToTimestamp } from "@/lib/time";
 
 import { RANGE_MS, sharedLimit, type MetricRange } from "./metric";
 import { RangeToggle } from "./RangeToggle";
-import { RegionAverages } from "./RegionAverages";
+import { RegionAverages, type AxisScale } from "./RegionAverages";
 import { isDeployed, REFRESH_MS, type RegionView } from "./model";
 import { ReplicaCells } from "./ReplicaCells";
 import { useDeploymentMarkers } from "./useDeploymentMarkers";
@@ -19,6 +19,13 @@ import { useDeploymentMarkers } from "./useDeploymentMarkers";
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
 const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
 const WINDOW_DEPLOYMENTS = 200;
+
+const MI_PER_GI = 1024;
+const MILLI_PER_VCPU = 1000;
+
+const cpuScale = (): AxisScale => ({ divisor: MILLI_PER_VCPU, unit: "vCPU", decimals: 2 });
+const memoryScale = (limit: number): AxisScale =>
+	limit >= MI_PER_GI ? { divisor: MI_PER_GI, unit: "Gi", decimals: 2 } : { divisor: 1, unit: "Mi", decimals: 0 };
 
 type Size = (target: Sizing) => number;
 
@@ -97,6 +104,7 @@ export function MetricsPanel({
 						metricName={CPU_METRIC}
 						limits={regionLimits(deployed, windowed, cpuSize)}
 						format={formatCpu}
+						scale={cpuScale}
 					/>
 					<RegionAverages
 						{...chart}
@@ -104,6 +112,7 @@ export function MetricsPanel({
 						metricName={MEMORY_METRIC}
 						limits={regionLimits(deployed, windowed, memorySize)}
 						format={formatMemory}
+						scale={memoryScale}
 					/>
 				</div>
 			)}

@@ -26,7 +26,7 @@ import {
 	type TableOptions,
 } from "@tanstack/react-table";
 import { NavArrow } from "@/components/design/NavArrow";
-import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, Columns3Icon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, PlusIcon } from "lucide-react";
 import {
 	Fragment,
 	useRef,
@@ -703,9 +703,11 @@ export function DataTableColumnsMenu<T extends RowData>({ table }: { table: Data
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
-				render={<Button variant="ghost" size="icon-sm" aria-label="Columns" title="Columns" className="text-fg3" />}
+				render={
+					<Button variant="ghost" size="icon-sm" aria-label="Add a column" title="Add a column" className="text-fg3" />
+				}
 			>
-				<Columns3Icon />
+				<PlusIcon />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-[220px]">
 				<DropdownMenuGroup>

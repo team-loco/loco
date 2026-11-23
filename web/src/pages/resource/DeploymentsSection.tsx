@@ -19,13 +19,11 @@ import {
 } from "@/components/design/DataTable";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
-import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
 import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
-import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { useCopy } from "@/hooks/useCopy";
 import { useLayout } from "@/lib/layout";
@@ -33,15 +31,20 @@ import { useTokenPage } from "@/hooks/useTokenPage";
 import { tookLabel } from "@/lib/activity-deploys";
 import { deploymentActor, deploymentMethod, deploymentTrigger, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatTotal, pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
+import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { maybeTsMs, readyMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
-import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useOrgLimits } from "@/hooks/useOrgLimits";
-import { formatCount } from "@/lib/format";
 
 import { buildStatusStyle, deploymentBuildId } from "./builds";
-import { BuildDetail, BuildsTable, TIME_CELL, TimeAgo, type BuildActor } from "./BuildsTable";
+import {
+	BuildDetail,
+	BuildsTable,
+	parseVisibility,
+	TIME_CELL,
+	TimeAgo,
+	type BuildActor,
+	type Visibility,
+} from "./BuildsTable";
 import { canRollBackTo, DEFAULT_PAGE_SIZE, depTag, PAGE_SIZES, REFRESH_MS, tookMs, type RegionView } from "./model";
 import { useResourceBuilds } from "./useBuilds";
 
@@ -75,28 +78,10 @@ function historyMessage(dep: Deployment): string {
 	return deploymentMessage(dep) || (dep.commit?.message ?? "");
 }
 
-function HistoryKept({ count, tip }: { count: number; tip: string }) {
-	return (
-		<Tooltip>
-			<TooltipTrigger render={<span className="ml-3 font-sans text-[12px] text-fg3" />}>
-				last {formatCount(count)} kept
-			</TooltipTrigger>
-			<TooltipContent className="max-w-[280px]">{tip}</TooltipContent>
-		</Tooltip>
-	);
-}
+const HISTORY_CARD = "mt-2.5 min-w-0 rounded-card bg-panel pt-1.5";
 
 /** The ids of the columns the table shows when the viewer has not chosen. */
 const HIDDEN_DEPLOY_COLUMNS = ["commit", "region", "trigger", "message", "deployed"];
-
-type Visibility = Record<string, boolean>;
-
-function parseVisibility(value: unknown): Visibility {
-	if (typeof value !== "object" || value === null) return {};
-	return Object.fromEntries(
-		Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"),
-	);
-}
 
 /** Text with a copy button that shows while the row is hovered or the button has focus. */
 function CopyCell({ text, copy, label }: { text: string; copy: string; label: string }) {
@@ -406,8 +391,6 @@ export function DeploymentsSection({
 	const [selectedBuild, setSelectedBuild] = useState<string | null>(null);
 	const selected = useQuery(getBuild, selectedBuild === null ? skipToken : { buildId: selectedBuild });
 	const selectedStatus = selected.data?.build === undefined ? undefined : buildStatusStyle(selected.data.build.status);
-	const { activeOrgId } = useOrgWorkspace();
-	const limits = useOrgLimits(activeOrgId ?? "");
 	const { data: membersRes } = useTanstackQuery({
 		...workspaceMembersOptions(transport, workspaceId),
 		enabled: canReadWorkspace,
@@ -497,21 +480,17 @@ export function DeploymentsSection({
 	};
 
 	return (
-		<Section>
+		<section aria-label="History" className="flex min-w-0 flex-col gap-2.5">
 			<Tabs
 				value={hist}
 				onValueChange={(next: string) => {
 					void setHist(HISTS.find((h) => h === next) ?? "deploys");
 				}}
 			>
-				<div className="flex items-center gap-2 px-5 pt-3">
+				<div className="flex items-center gap-2">
 					<TabsList variant="segmented" aria-label="History">
-						<TabsTrigger value="deploys">
-							Deployments <TabsCount>{history.total === undefined ? "—" : formatTotal(history.total)}</TabsCount>
-						</TabsTrigger>
-						<TabsTrigger value="builds">
-							Builds <TabsCount>{builds.total === undefined ? "—" : formatTotal(builds.total)}</TabsCount>
-						</TabsTrigger>
+						<TabsTrigger value="deploys">Deployments</TabsTrigger>
+						<TabsTrigger value="builds">Builds</TabsTrigger>
 					</TabsList>
 					{buildFilter !== null && hist === "deploys" && (
 						<Button
@@ -528,7 +507,7 @@ export function DeploymentsSection({
 						</Button>
 					)}
 				</div>
-				<TabsContent value="deploys" className="pt-1.5">
+				<TabsContent value="deploys" className={HISTORY_CARD}>
 					<div aria-busy={history.query.isPlaceholderData}>
 						<DataTable
 							table={deployTable}
@@ -551,17 +530,7 @@ export function DeploymentsSection({
 							setDeploySize(size);
 							setDeployPages([]);
 						}}
-						label={
-							<>
-								{tokenPageLabel(deployPager.page, deploySize, deployments.length, history.total)}
-								{limits !== undefined && (
-									<HistoryKept
-										count={limits.deploymentHistory}
-										tip={`Loco keeps the last ${formatCount(limits.deploymentHistory)} deployments for each environment.`}
-									/>
-								)}
-							</>
-						}
+						label={tokenPageLabel(deployPager.page, deploySize, deployments.length, history.total)}
 						onPrev={deployPager.onPrev}
 						onNext={deployPager.onNext}
 					/>
@@ -571,7 +540,7 @@ export function DeploymentsSection({
 						</div>
 					)}
 				</TabsContent>
-				<TabsContent value="builds" className="pt-1.5">
+				<TabsContent value="builds" className={HISTORY_CARD}>
 					<div aria-busy={builds.isFetching}>
 						<BuildsTable
 							builds={builds.builds}
@@ -592,17 +561,7 @@ export function DeploymentsSection({
 						page={buildPager.page}
 						total={builds.builds.length}
 						pageSizes={BUILD_PAGE_SIZES}
-						label={
-							<>
-								{tokenPageLabel(buildPager.page, BUILD_PAGE_SIZE, builds.builds.length, builds.total)}
-								{limits !== undefined && (
-									<HistoryKept
-										count={limits.buildHistory}
-										tip={`Loco keeps the last ${formatCount(limits.buildHistory)} builds for each resource.`}
-									/>
-								)}
-							</>
-						}
+						label={tokenPageLabel(buildPager.page, BUILD_PAGE_SIZE, builds.builds.length, builds.total)}
 						firstLabel="Newest builds"
 						prevLabel="Newer builds"
 						nextLabel="Older builds"
@@ -653,6 +612,6 @@ export function DeploymentsSection({
 					</DialogBody>
 				</DialogContent>
 			</Dialog>
-		</Section>
+		</section>
 	);
 }
