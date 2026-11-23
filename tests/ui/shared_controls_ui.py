@@ -279,9 +279,17 @@ def shell_navigation(page):
     sidebar = page.locator('[data-slot="sidebar-content"]')
     resources = sidebar.get_by_role("link", name="Resources", exact=True)
     dashboard = sidebar.get_by_role("link", name="Dashboard", exact=True)
+
+    def nav_icon(name):
+        return sidebar.locator(f'[data-nav="{name}"] svg > :nth-child(1)')
+
+    expect(nav_icon("Dashboard")).to_have_css("animation-name", "none")
     assert_sidebar_slide(resources)
     assert_sidebar_slide(dashboard)
-    assert_sidebar_slide(sidebar.get_by_role("link", name="Settings", exact=True))
+    settings = sidebar.get_by_role("link", name="Settings", exact=True)
+    assert_sidebar_slide(settings)
+    expect(nav_icon("Settings")).to_have_css("animation-name", "navFrom")
+    expect(nav_icon("Dashboard")).to_have_css("animation-name", "none")
     # Scrolls until the page has moved; the shorter Team page pulls the scroll back to the top.
     page.wait_for_function(
         "() => { window.scrollTo(0, document.documentElement.scrollHeight); return window.scrollY > 0; }"
@@ -294,6 +302,9 @@ def shell_navigation(page):
     expect(sidebar.locator('[data-slot="sidebar-highlight"]')).to_have_css(
         "transform", "none"
     )
+    settings.press("Enter")
+    expect(settings).to_have_attribute("aria-current", "page")
+    expect(nav_icon("Settings")).to_have_css("animation-name", "none")
     activity.hover()
     activity.click()
     page.keyboard.press("Escape")
