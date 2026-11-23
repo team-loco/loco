@@ -118,7 +118,7 @@ func (f *deployFixture) addDomain(t *testing.T, domain string, primary bool) {
 	t.Helper()
 	insert := `
 INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)
-VALUES ($1, $2, $3, 'user_provided', $4)`
+VALUES ($1, $2, $3, 'custom', $4)`
 	if _, err := f.pool.Exec(context.Background(), insert, f.resourceID, f.envID, domain, primary); err != nil {
 		t.Fatalf("add domain %s: %v", domain, err)
 	}

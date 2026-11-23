@@ -55,7 +55,7 @@ func (f *deployFixture) referencedResource(t *testing.T, env map[string]string, 
 		t.Fatalf("deploy %s: %v", referencedService, err)
 	}
 	insert := `INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)
-VALUES ($1, $2, $3, 'user_provided', true)`
+VALUES ($1, $2, $3, 'custom', true)`
 	if _, err = f.pool.Exec(ctx, insert, id, f.envID, referencedDomain); err != nil {
 		t.Fatalf("domain of %s: %v", referencedService, err)
 	}

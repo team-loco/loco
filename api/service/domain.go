@@ -150,7 +150,7 @@ func (s *DomainServer) CreateResourceDomain(
 			ResourceID:     resourceID,
 			EnvironmentID:  environmentID,
 			Domain:         fullDomain,
-			DomainSource:   genDb.DomainSourcePlatformProvided,
+			DomainSource:   genDb.DomainSourceApp,
 			SubdomainLabel: &subdomain,
 			AppDomain:      &appDomain,
 			IsPrimary:      !hasPrimary,
@@ -174,7 +174,7 @@ func (s *DomainServer) CreateResourceDomain(
 			ResourceID:    new(resourceID),
 			SubjectType:   events.SubjectDomain,
 			SubjectID:     new(resourceDomain),
-			Data: domainEventData(fullDomain, genDb.DomainSourcePlatformProvided, !hasPrimary,
+			Data: domainEventData(fullDomain, genDb.DomainSourceApp, !hasPrimary,
 				map[string]any{events.FieldResourceID: resourceID.String()}),
 		})
 	})
@@ -211,7 +211,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	var subdomainLabel *string
 	var appDomain *string
 	if changed {
-		if domainRow.DomainSource == genDb.DomainSourcePlatformProvided {
+		if domainRow.DomainSource == genDb.DomainSourceApp {
 			domain, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
 			if checkErr != nil {
 				return nil, fmt.Errorf("check the resource domain: %w", checkErr)

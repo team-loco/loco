@@ -293,8 +293,8 @@ func TestAddingAndRemovingTheLastDomainRecordEvents(t *testing.T) {
 
 	for _, kind := range []string{events.DomainCreated, events.DomainDeleted} {
 		data := wantEnvironmentEvent(t, f, f.resourceID, f.envID, kind).GetData().AsMap()
-		if data[events.FieldDomainSource] != "platform_provided" || data[events.FieldPrimary] != true {
-			t.Fatalf("%s data = %v, want a primary platform_provided domain", kind, data)
+		if data[events.FieldDomainSource] != "app" || data[events.FieldPrimary] != true {
+			t.Fatalf("%s data = %v, want a primary app domain", kind, data)
 		}
 	}
 	got := domainEvents(t, f, testPrimaryDomain)

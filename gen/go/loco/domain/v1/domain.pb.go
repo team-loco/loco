@@ -28,19 +28,19 @@ const (
 type DomainType int32
 
 const (
-	DomainType_DOMAIN_TYPE_UNSPECIFIED       DomainType = 0
-	DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED DomainType = 1
+	DomainType_DOMAIN_TYPE_UNSPECIFIED DomainType = 0
+	DomainType_DOMAIN_TYPE_APP         DomainType = 1
 )
 
 // Enum value maps for DomainType.
 var (
 	DomainType_name = map[int32]string{
 		0: "DOMAIN_TYPE_UNSPECIFIED",
-		1: "DOMAIN_TYPE_PLATFORM_PROVIDED",
+		1: "DOMAIN_TYPE_APP",
 	}
 	DomainType_value = map[string]int32{
-		"DOMAIN_TYPE_UNSPECIFIED":       0,
-		"DOMAIN_TYPE_PLATFORM_PROVIDED": 1,
+		"DOMAIN_TYPE_UNSPECIFIED": 0,
+		"DOMAIN_TYPE_APP":         1,
 	}
 )
 
@@ -128,8 +128,8 @@ func (x *AppDomain) GetRegions() []string {
 type DomainInput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DomainSource  DomainType             `protobuf:"varint,1,opt,name=domain_source,json=domainSource,proto3,enum=loco.domain.v1.DomainType" json:"domain_source,omitempty"`
-	Subdomain     *string                `protobuf:"bytes,2,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`                  // for PLATFORM_PROVIDED: "myapp"
-	AppDomain     *string                `protobuf:"bytes,3,opt,name=app_domain,json=appDomain,proto3,oneof" json:"app_domain,omitempty"` // for PLATFORM_PROVIDED: an app domain a cluster serves
+	Subdomain     *string                `protobuf:"bytes,2,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`                  // for APP: "myapp"
+	AppDomain     *string                `protobuf:"bytes,3,opt,name=app_domain,json=appDomain,proto3,oneof" json:"app_domain,omitempty"` // for APP: an app domain a cluster serves
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -873,15 +873,15 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x1bloco/domain/v1/domain.proto\x12\x0eloco.domain.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"=\n" +
 	"\tAppDomain\x12\x16\n" +
 	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\x18\n" +
-	"\aregions\x18\x02 \x03(\tR\aregions\"\xa2\x04\n" +
+	"\aregions\x18\x02 \x03(\tR\aregions\"\xea\x03\n" +
 	"\vDomainInput\x12K\n" +
 	"\rdomain_source\x18\x01 \x01(\x0e2\x1a.loco.domain.v1.DomainTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\fdomainSource\x12!\n" +
 	"\tsubdomain\x18\x02 \x01(\tH\x00R\tsubdomain\x88\x01\x01\x12+\n" +
 	"\n" +
-	"app_domain\x18\x03 \x01(\tB\a\xbaH\x04r\x02h\x01H\x01R\tappDomain\x88\x01\x01:\xd8\x02\xbaH\xd4\x02\x1a\xa5\x01\n" +
-	"$platform_provided.subdomain_required\x123subdomain is required for platform-provided domains\x1aHthis.domain_source != 1 || (has(this.subdomain) && this.subdomain != '')\x1a\xa9\x01\n" +
-	"%platform_provided.app_domain_required\x124app_domain is required for platform-provided domains\x1aJthis.domain_source != 1 || (has(this.app_domain) && this.app_domain != '')B\f\n" +
+	"app_domain\x18\x03 \x01(\tB\a\xbaH\x04r\x02h\x01H\x01R\tappDomain\x88\x01\x01:\xa0\x02\xbaH\x9c\x02\x1a\x89\x01\n" +
+	"\x16app.subdomain_required\x12%subdomain is required for app domains\x1aHthis.domain_source != 1 || (has(this.subdomain) && this.subdomain != '')\x1a\x8d\x01\n" +
+	"\x17app.app_domain_required\x12&app_domain is required for app domains\x1aJthis.domain_source != 1 || (has(this.app_domain) && this.app_domain != '')B\f\n" +
 	"\n" +
 	"_subdomainB\r\n" +
 	"\v_app_domain\"\xa4\x03\n" +
@@ -935,11 +935,11 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x1eCheckDomainAvailabilityRequest\x12\x1f\n" +
 	"\x06domain\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06domain\"D\n" +
 	"\x1fCheckDomainAvailabilityResponse\x12!\n" +
-	"\fis_available\x18\x01 \x01(\bR\visAvailable*L\n" +
+	"\fis_available\x18\x01 \x01(\bR\visAvailable*>\n" +
 	"\n" +
 	"DomainType\x12\x1b\n" +
-	"\x17DOMAIN_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
-	"\x1dDOMAIN_TYPE_PLATFORM_PROVIDED\x10\x012\xc4\x05\n" +
+	"\x17DOMAIN_TYPE_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fDOMAIN_TYPE_APP\x10\x012\xc4\x05\n" +
 	"\rDomainService\x12_\n" +
 	"\x0eListAppDomains\x12%.loco.domain.v1.ListAppDomainsRequest\x1a&.loco.domain.v1.ListAppDomainsResponse\x12q\n" +
 	"\x14CreateResourceDomain\x12+.loco.domain.v1.CreateResourceDomainRequest\x1a,.loco.domain.v1.CreateResourceDomainResponse\x12q\n" +

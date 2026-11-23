@@ -45,7 +45,7 @@ CREATE TYPE build_status AS ENUM (
 );
 
 -- Domain source enum (who manages the domain)
-CREATE TYPE domain_source AS ENUM ('platform_provided', 'user_provided');
+CREATE TYPE domain_source AS ENUM ('app', 'custom');
 
 CREATE TYPE cluster_role AS ENUM ('apps', 'builds', 'all');
 
@@ -191,12 +191,12 @@ CREATE TABLE
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         CONSTRAINT domain_source_check CHECK (
             (
-                domain_source = 'platform_provided'
+                domain_source = 'app'
                 AND subdomain_label IS NOT NULL
                 AND app_domain IS NOT NULL
             )
             OR (
-                domain_source = 'user_provided'
+                domain_source = 'custom'
                 AND subdomain_label IS NULL
                 AND app_domain IS NULL
             )
@@ -215,7 +215,7 @@ WHERE
 -- Ensure app subdomain uniqueness
 CREATE UNIQUE INDEX uniq_app_subdomain ON resource_domains (app_domain, subdomain_label)
 WHERE
-    domain_source = 'platform_provided';
+    domain_source = 'app';
 
 CREATE TYPE deployment_actor_type AS ENUM ('user', 'api_token');
 
@@ -440,7 +440,7 @@ SELECT l.resource_id,
            SELECT rd.domain FROM resource_domains rd
            WHERE rd.resource_id = l.resource_id
              AND rd.environment_id = l.environment_id
-             AND rd.domain_source = 'platform_provided'
+             AND rd.domain_source = 'app'
              AND NOT (rd.app_domain = ANY(c.domains))
            ORDER BY rd.domain
        )::text[] AS unserved_domains

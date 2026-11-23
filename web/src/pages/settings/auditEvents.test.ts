@@ -30,12 +30,12 @@ test("role changes appear in the access audit filter", () => {
 });
 
 test("app domains read as public or internal and only user domains read as custom", () => {
-	const app = { domainSource: "platform_provided", primary: true };
+	const app = { domainSource: "app", primary: true };
 	expect(auditLabel("domain.created", app)).toBe("Made a resource public");
 	expect(auditLabel("domain.deleted", app)).toBe("Made a resource internal");
 	expect(auditLabel("domain.created", { ...app, primary: false })).toBe("Added an app domain");
-	expect(auditLabel("domain.created", { domainSource: "user_provided", primary: false })).toBe("Added a custom domain");
-	expect(auditLabel("domain.deleted", { domainSource: "user_provided" })).toBe("Removed a custom domain");
+	expect(auditLabel("domain.created", { domainSource: "custom", primary: false })).toBe("Added a custom domain");
+	expect(auditLabel("domain.deleted", { domainSource: "custom" })).toBe("Removed a custom domain");
 	expect(auditLabel("domain.created")).toBe("Added a domain");
 });
 

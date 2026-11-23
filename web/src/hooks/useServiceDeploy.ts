@@ -61,7 +61,7 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 					? {
 							environmentId: env.id,
 							domain: {
-								domainSource: DomainType.PLATFORM_PROVIDED,
+								domainSource: DomainType.APP,
 								subdomain: form.subdomain,
 								appDomain: form.appDomain,
 							},

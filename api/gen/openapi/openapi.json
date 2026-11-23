@@ -12452,7 +12452,7 @@
               "null"
             ],
             "title": "subdomain",
-            "description": "for PLATFORM_PROVIDED: \"myapp\""
+            "description": "for APP: \"myapp\""
           },
           "appDomain": {
             "type": [
@@ -12461,19 +12461,19 @@
             ],
             "title": "app_domain",
             "format": "hostname",
-            "description": "for PLATFORM_PROVIDED: an app domain a cluster serves"
+            "description": "for APP: an app domain a cluster serves"
           }
         },
         "title": "DomainInput",
         "additionalProperties": false,
-        "description": "DomainInput specifies domain configuration for a resource.\nplatform_provided.app_domain_required // app_domain is required for platform-provided domains\nplatform_provided.subdomain_required // subdomain is required for platform-provided domains\n"
+        "description": "DomainInput specifies domain configuration for a resource.\napp.app_domain_required // app_domain is required for app domains\napp.subdomain_required // subdomain is required for app domains\n"
       },
       "loco.domain.v1.DomainType": {
         "type": "string",
         "title": "DomainType",
         "enum": [
           "DOMAIN_TYPE_UNSPECIFIED",
-          "DOMAIN_TYPE_PLATFORM_PROVIDED"
+          "DOMAIN_TYPE_APP"
         ],
         "description": "DomainType indicates the source of a domain."
       },

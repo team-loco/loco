@@ -201,7 +201,7 @@ export function auditLabel(type: string, data?: JsonObject): string {
 	const domain = DOMAIN_LABELS[type];
 	const source = text(data, "domainSource");
 	if (domain !== undefined && source !== undefined) {
-		if (source === "user_provided") return domain.custom;
+		if (source === "custom") return domain.custom;
 		return domain.app[data?.["primary"] === true ? 0 : 1];
 	}
 	return AUDIT_TYPES[type]?.label ?? type;

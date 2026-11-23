@@ -230,7 +230,7 @@ func (a *applier) createDomain(
 		ResourceID:     resourceID,
 		EnvironmentID:  a.env.ID,
 		Domain:         domain,
-		DomainSource:   genDb.DomainSourcePlatformProvided,
+		DomainSource:   genDb.DomainSourceApp,
 		SubdomainLabel: &label,
 		AppDomain:      &appDomain,
 		IsPrimary:      isPrimary,
@@ -248,7 +248,7 @@ func (a *applier) createDomain(
 		ResourceID:    new(resourceID),
 		SubjectType:   events.SubjectDomain,
 		SubjectID:     new(domainID),
-		Data: domainEventData(domain, genDb.DomainSourcePlatformProvided, isPrimary,
+		Data: domainEventData(domain, genDb.DomainSourceApp, isPrimary,
 			map[string]any{events.FieldResourceID: resourceID.String()}),
 	})
 }

@@ -183,7 +183,7 @@ def fixture():
     resource = seeded["acme/shared/history-pilot"]
     edge = seeded["acme/shared/edge-pilot"]
     rows = [
-        f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,app_domain,is_primary) VALUES ('{edge}','{production}','edge.{APP_DOMAIN}','platform_provided','edge','{APP_DOMAIN}',true);",
+        f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,app_domain,is_primary) VALUES ('{edge}','{production}','edge.{APP_DOMAIN}','app','edge','{APP_DOMAIN}',true);",
         f"INSERT INTO user_scopes (user_id,scope,entity_type,entity_id) VALUES ('{state['users']['resource_reader']['id']}','read','resource','{resource}');",
     ]
     owner_id = state["users"]["owner"]["id"]

@@ -229,7 +229,7 @@ func (s *ResourceServer) createAppDomain(
 		ResourceID:     resourceID,
 		EnvironmentID:  env.ID,
 		Domain:         hostname,
-		DomainSource:   genDb.DomainSourcePlatformProvided,
+		DomainSource:   genDb.DomainSourceApp,
 		SubdomainLabel: &label,
 		AppDomain:      &domain,
 		IsPrimary:      true,
@@ -873,8 +873,8 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 	protoDomains := make([]*domainv1.ResourceDomain, 0, len(domains))
 	for _, d := range domains {
 		domainSource := domainv1.DomainType_DOMAIN_TYPE_UNSPECIFIED
-		if d.DomainSource == genDb.DomainSourcePlatformProvided {
-			domainSource = domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED
+		if d.DomainSource == genDb.DomainSourceApp {
+			domainSource = domainv1.DomainType_DOMAIN_TYPE_APP
 		}
 
 		domain := &domainv1.ResourceDomain{
