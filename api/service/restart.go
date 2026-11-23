@@ -51,7 +51,7 @@ func (s *ResourceServer) RestartResource(
 		if lockErr := ensureOrganizationActive(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockEnvironment(ctx, qtx, environmentID); lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {

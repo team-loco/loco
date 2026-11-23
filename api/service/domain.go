@@ -120,12 +120,12 @@ func (s *DomainServer) CreateResourceDomain(
 
 	var resourceDomain uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockResourceDomains(ctx, qtx, resourceID); lockErr != nil {
-			return lockErr
-		}
 		environmentID, envErr := imperativeDomainEnvironment(ctx, qtx, resourceID)
 		if envErr != nil {
 			return envErr
+		}
+		if lockErr := lockResourceDomains(ctx, qtx, resourceID, environmentID); lockErr != nil {
+			return lockErr
 		}
 		existing, countErr := qtx.GetResourceDomainCount(ctx, genDb.GetResourceDomainCountParams{
 			ResourceID:    resourceID,
@@ -165,7 +165,7 @@ func (s *DomainServer) CreateResourceDomain(
 		if routeErr := s.refreshDomainRouting(ctx, qtx, resourceID, environmentID); routeErr != nil {
 			return routeErr
 		}
-		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
 			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -222,7 +222,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID); lockErr != nil {
+		if lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID, domainRow.EnvironmentID); lockErr != nil {
 			return lockErr
 		}
 		if changed {
@@ -246,7 +246,7 @@ func (s *DomainServer) UpdateResourceDomain(
 			); routeErr != nil {
 				return routeErr
 			}
-			if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, domainRow.ResourceID); bumpErr != nil {
+			if bumpErr := bumpEnvironmentRevision(ctx, qtx, domainRow.EnvironmentID); bumpErr != nil {
 				return bumpErr
 			}
 		}
@@ -283,15 +283,15 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	domainID := uuid.MustParse(req.GetDomainId())
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockResourceDomains(ctx, qtx, resourceID); lockErr != nil {
-			return lockErr
-		}
 		domainRow, getErr := qtx.GetResourceDomainByID(ctx, domainID)
 		if errors.Is(getErr, pgx.ErrNoRows) || (getErr == nil && domainRow.ResourceID != resourceID) {
 			return ErrDomainNotFound
 		}
 		if getErr != nil {
 			return fmt.Errorf("get domain: %w", getErr)
+		}
+		if lockErr := lockResourceDomains(ctx, qtx, resourceID, domainRow.EnvironmentID); lockErr != nil {
+			return lockErr
 		}
 		clearParams := genDb.UpdateResourceDomainPrimaryParams{
 			ResourceID:    resourceID,
@@ -314,7 +314,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		if routeErr := s.refreshDomainRouting(ctx, qtx, resourceID, domainRow.EnvironmentID); routeErr != nil {
 			return routeErr
 		}
-		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, domainRow.EnvironmentID); bumpErr != nil {
 			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -357,7 +357,7 @@ func (s *DomainServer) DeleteResourceDomain(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID)
+		lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID, domainRow.EnvironmentID)
 		if errors.Is(lockErr, ErrResourceNotFound) {
 			return ErrDomainNotFound
 		}
@@ -389,7 +389,7 @@ func (s *DomainServer) DeleteResourceDomain(
 		if routeErr := s.refreshDomainRouting(ctx, qtx, current.ResourceID, current.EnvironmentID); routeErr != nil {
 			return routeErr
 		}
-		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, current.ResourceID); bumpErr != nil {
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, current.EnvironmentID); bumpErr != nil {
 			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -519,8 +519,9 @@ func workspaceDefaultEnvironment(
 	return env, nil
 }
 
-func lockResourceDomains(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
-	if err := lockResourceEnvironments(ctx, qtx, resourceID); err != nil {
+// lockResourceDomains locks the environment that holds the domains and their resource.
+func lockResourceDomains(ctx context.Context, qtx *genDb.Queries, resourceID, environmentID uuid.UUID) error {
+	if _, err := lockEnvironment(ctx, qtx, environmentID); err != nil {
 		return err
 	}
 	return lockResource(ctx, qtx, resourceID)

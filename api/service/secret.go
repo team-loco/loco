@@ -424,16 +424,12 @@ func (s *SecretServer) lockEnvironmentKey(
 	if err := qtx.SetLockTimeout(ctx, timeoutMillis); err != nil {
 		return genDb.EnvironmentKey{}, 0, fmt.Errorf("set lock timeout: %w", err)
 	}
-	revisions, err := lockWorkspaceEnvironments(ctx, qtx, env.WorkspaceID)
+	revision, err := lockEnvironment(ctx, qtx, env.ID)
 	if isPgLockNotAvailable(err) {
 		return genDb.EnvironmentKey{}, 0, ErrSecretLockTimeout
 	}
 	if err != nil {
 		return genDb.EnvironmentKey{}, 0, err
-	}
-	revision, found := revisions[env.ID]
-	if !found {
-		return genDb.EnvironmentKey{}, 0, ErrEnvironmentNotFound
 	}
 	key, err := qtx.LockEnvironmentKey(ctx, env.ID)
 	if isPgLockNotAvailable(err) {

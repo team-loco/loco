@@ -611,7 +611,7 @@ func TestSetSecretsOnAnEnvironmentDeletedWhileWaitingForItsLockIsNotFound(t *tes
 	}
 	rollbackOnCleanup(t, holder)
 	held := f.queries.WithTx(holder)
-	if _, lockErr := held.LockWorkspaceEnvironments(t.Context(), f.workspaceID); lockErr != nil {
+	if lockErr := held.LockWorkspaceEnvironments(t.Context(), f.workspaceID); lockErr != nil {
 		t.Fatalf("hold the environment rows: %v", lockErr)
 	}
 
@@ -679,7 +679,7 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 		{
 			name: "workspace environments",
 			hold: func(ctx context.Context, f *secretFixture, queries *genDb.Queries) error {
-				_, err := queries.LockWorkspaceEnvironments(ctx, f.workspaceID)
+				err := queries.LockWorkspaceEnvironments(ctx, f.workspaceID)
 				return err
 			},
 		},

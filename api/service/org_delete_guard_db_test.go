@@ -125,7 +125,7 @@ func TestOrgDeleteWaitsForEnvironmentWriterBeforeCascading(t *testing.T) {
 	}
 	defer writer.Rollback(context.Background())
 	qtx := genDb.New(writer)
-	if _, err := qtx.LockWorkspaceEnvironments(t.Context(), uuid.MustParse(f.workspaceID)); err != nil {
+	if err := qtx.LockWorkspaceEnvironments(t.Context(), uuid.MustParse(f.workspaceID)); err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)

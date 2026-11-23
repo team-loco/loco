@@ -136,7 +136,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_SECRETS_TRANSIT_CACHE_TTL` | `5m` | How long the API keeps an unwrapped data key in memory. |
 | `LOCO_SECRETS_MAX_VALUE_BYTES` | `65536` | Largest secret value in bytes. |
 | `LOCO_SECRETS_MAX_PLACEMENT_BYTES` | `786432` | Largest total size of the secrets one placement delivers, in bytes. |
-| `LOCO_SECRETS_LOCK_TIMEOUT` | `10s` | How long a secret write waits for the lock on its workspace's environments. |
+| `LOCO_SECRETS_LOCK_TIMEOUT` | `10s` | How long a secret write waits for the locks on its environment and its environment key. |
 | `LOCO_INGEST_TRANSIT_KEY` | required | Transit key that signs ingest tokens. |
 | `LOCO_INGEST_TOKEN_LIFETIME` | `1h` | Lifetime of an ingest token. |
 

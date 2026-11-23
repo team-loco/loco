@@ -98,6 +98,10 @@ func (s *EnvironmentServer) CreateEnvironment(
 		); limitErr != nil {
 			return limitErr
 		}
+		// Waits for a write in progress to every environment, so the new one starts from its result.
+		if lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
+			return lockErr
+		}
 		created, createErr := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 			WorkspaceID: workspaceID,
 			Slug:        slug,
@@ -264,7 +268,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, existing.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockEnvironment(ctx, qtx, envID); lockErr != nil {
 			return lockErr
 		}
 		count, countErr := qtx.CountDeploymentsByEnvironment(ctx, envID)

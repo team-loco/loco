@@ -114,11 +114,17 @@ func (s *PlanServer) Apply(
 		a.platformDomains = planned.platformDomains
 		a.provisioning = len(req.GetProvision()) > 0
 		a.commit = req.GetCommit()
-		revisions, lockErr := lockWorkspaceEnvironments(ctx, qtx, planned.env.WorkspaceID)
+		// Operations can change resources every environment shares; deploying builds changes only this one.
+		if len(operations) > 0 {
+			if lockErr := lockWorkspaceEnvironments(ctx, qtx, planned.env.WorkspaceID); lockErr != nil {
+				return lockErr
+			}
+		}
+		locked, lockErr := lockEnvironment(ctx, qtx, planned.env.ID)
 		if lockErr != nil {
 			return lockErr
 		}
-		if revisions[planned.env.ID] != req.GetRevision() {
+		if locked != req.GetRevision() {
 			return errRevisionMoved
 		}
 		if _, lockErr := lockResources(
@@ -168,9 +174,9 @@ func startServiceSpan(ctx context.Context, service string) (context.Context, tra
 	return tracing.Start(ctx, applyServiceSpan, attribute.String(serviceNameAttr, service))
 }
 
-// checkCreatedResources locks the workspace against concurrent creates and refuses the apply when
-// the services it creates would pass the organization's resource limit. It returns the
-// organization's limits for the operations.
+// checkCreatedResources returns the organization's limits for the operations. When they create
+// services, it locks the workspace against concurrent creates and refuses the apply when the
+// services would pass the organization's resource limit.
 func checkCreatedResources(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -178,9 +184,6 @@ func checkCreatedResources(
 	workspaceID, organizationID uuid.UUID,
 	operations []configplan.Operation,
 ) (limits.Effective, error) {
-	if _, err := qtx.LockWorkspaceForCreate(ctx, workspaceID); err != nil {
-		return limits.Effective{}, fmt.Errorf("lock workspace: %w", err)
-	}
 	effective, err := limits.ForOrg(ctx, qtx, defaults, organizationID)
 	if err != nil {
 		return limits.Effective{}, err
@@ -193,6 +196,9 @@ func checkCreatedResources(
 	}
 	if creates == 0 {
 		return effective, nil
+	}
+	if _, err = qtx.LockWorkspaceForCreate(ctx, workspaceID); err != nil {
+		return limits.Effective{}, fmt.Errorf("lock workspace: %w", err)
 	}
 	existing, err := qtx.CountWorkspaceResources(ctx, workspaceID)
 	if err != nil {
