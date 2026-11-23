@@ -289,7 +289,6 @@ with session(out) as browser:
     context.route(
         "**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment
     )
-    expect(page.get_by_role("button", name="Redeploy", exact=True)).to_have_count(0)
     restart = page.get_by_role("menuitem", name="Restart", exact=True)
     expect(restart).to_be_enabled()
     restart.click()

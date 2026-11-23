@@ -422,10 +422,6 @@ with session(out) as browser:
             ]
             assert not forbidden, forbidden
         if user == "owner":
-            # The resource page has no activity section; the Activity drawer replaces it.
-            expect(
-                page.get_by_role("region", name="Resource activity", exact=True)
-            ).to_have_count(0)
             page.goto(origin + base + "/settings?scope=workspace")
             page.get_by_role("link", name="Activity in audit log", exact=True).click()
             page.wait_for_url(

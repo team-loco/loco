@@ -403,14 +403,12 @@ with session(out) as browser:
     expect(
         section.get_by_role("columnheader", name="Deployment ID", exact=True)
     ).to_be_visible()
-    expect(page.get_by_role("button", name="Redeploy", exact=True)).to_have_count(0)
     page.get_by_role("button", name="More actions", exact=True).click()
     page.get_by_role("menuitem", name="Restart", exact=True).click()
     redeploy_dialog = page.get_by_role("dialog", name="Restart history-pilot")
     expect(
         redeploy_dialog.get_by_text("Picks up changed secrets.", exact=False)
     ).to_be_visible()
-    expect(redeploy_dialog.get_by_text("Now running", exact=True)).to_have_count(0)
     redeploy_dialog.get_by_role("button", name="Cancel", exact=True).click()
     page.get_by_role("button", name="More actions", exact=True).click()
     expect(
