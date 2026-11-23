@@ -248,7 +248,7 @@ export function Team() {
 				{justYou && q.trim() === "" ? (
 					<section
 						aria-labelledby="team-invite-prompt"
-						className="flex flex-col items-center gap-3.5 border-t border-line2 px-6 pt-11 pb-13 text-center"
+						className="mx-3 flex flex-col items-center gap-3.5 border-t border-line2 px-6 pt-11 pb-13 text-center max-md:mx-0"
 					>
 						<TeamArt
 							name={user?.name ?? ""}
