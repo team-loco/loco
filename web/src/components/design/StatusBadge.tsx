@@ -68,14 +68,14 @@ const TONE: Record<Glyph, Tone> = {
 	draft: "neutral",
 };
 
-/** A tinted fill with tone text, like the level badge; a completed deployment is a quiet gray. */
+/** A tinted fill with tone text, like the level badge; a completed deployment is a quiet gray with a thin ring. */
 const TONE_CLASS: Record<Tone, string> = {
 	ok: "[--tn:var(--ok)]",
 	info: "[--tn:var(--info)]",
 	warn: "[--tn:var(--warn)]",
 	err: "[--tn:var(--err)]",
 	neutral: "[--tn:var(--fg4)]",
-	done: "[--tn:var(--fg)] bg-fg/7 text-fg2",
+	done: "[--tn:var(--fg)] bg-fg/7 text-fg2 shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--ok)_35%,var(--line2))]",
 };
 
 export function StatusBadge({ glyph, label, className }: StatusStyle & { className?: string | undefined }) {
