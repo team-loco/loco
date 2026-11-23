@@ -143,10 +143,7 @@ export function TraceHeader({
 							}
 						>
 							<span className="text-[11.5px] text-fg3">Trace</span>
-							<span className="font-mono">
-								{traceId.slice(0, 8)}
-								<span className="text-fg3">…</span>
-							</span>
+							<span className="font-mono">{traceId.slice(0, 8)}</span>
 							<span className="text-fg3 group-hover/tid:text-foreground">
 								{copied === "trace" ? <CheckIcon /> : <CopyIcon />}
 							</span>

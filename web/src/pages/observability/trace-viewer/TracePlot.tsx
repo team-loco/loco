@@ -80,7 +80,7 @@ export function TracePlot({
 							{offset(zoom.a)}–{offset(zoom.b)}
 						</span>
 						<Button
-							variant="outline"
+							variant="ghost"
 							size="sm"
 							onClick={() => {
 								onZoom(FULL_ZOOM);

@@ -243,7 +243,7 @@ export function Waterfall({
 									className="absolute inset-y-0 flex items-center px-2 text-fg3"
 									style={{ [end < zoom.a ? "left" : "right"]: 0 }}
 								>
-									{end < zoom.a ? "←" : "→"} {durationLabel(span.durationNanos)}
+									{end < zoom.a ? `‹ ${durationLabel(span.durationNanos)}` : `${durationLabel(span.durationNanos)} ›`}
 								</span>
 							) : (
 								<>
