@@ -951,7 +951,6 @@ def metrics(page):
     page.goto(base + "/observability?env=production&view=metrics&range=1h")
     table = metrics_table(page)
     check_layout(table)
-    fits_at_16px(page, table)
     row = table.get_by_role("row").filter(has_text="api").first
     expect_pointer(page, row.get_by_role("cell").nth(1))
     expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)

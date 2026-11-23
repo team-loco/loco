@@ -480,6 +480,9 @@
 		border-bottom-width: 0;
 		border-radius: var(--band-radius, 6px);
 	}
+	& tbody > tr[data-ruled] {
+		border-radius: 0;
+	}
 	& tbody > tr[data-ruled]:not(:last-child) {
 		border-bottom-width: 1px;
 	}

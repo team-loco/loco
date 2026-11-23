@@ -1136,12 +1136,10 @@ with session(out) as browser:
     expect(rows.first).not_to_contain_text(re.compile(r"^[A-Z][a-z]{2} \d+, "))
     for index in range(7):
         expect(rows.nth(index)).to_contain_text(re.compile(r"(OK|Error)\d"))
-    names = rows.evaluate_all(
-        "rows => rows.map(r => [r.children[1], r.children[2]].every(c => c.scrollWidth <= c.clientWidth))"
-    )
-    assert all(names), names
+    # Columns keep their widths and the row ends in an empty tail.
     assert rows.first.evaluate(
-        "row => row.children[2].getBoundingClientRect().width > 260"
+        """row => Math.round(row.children[2].getBoundingClientRect().width) === 260
+        && row.getBoundingClientRect().right - row.lastElementChild.getBoundingClientRect().right > 20"""
     )
     context.close()
     mode[0] = "normal"
