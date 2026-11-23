@@ -389,6 +389,12 @@ with session(out) as browser:
         assert (
             download.value.suggested_filename == f"deployment-{deployment_id[-8:]}.yaml"
         )
+    spec_dialog.get_by_role("button", name="Compare with…", exact=True).click()
+    skipped = spec_dialog.locator('[data-slot="skipped-rows"]')
+    expect(skipped).to_have_count(0)
+    spec_dialog.get_by_role("button", name="Diff only", exact=True).click()
+    expect(skipped.first).to_be_visible()
+    spec_dialog.get_by_role("button", name="Stop comparing", exact=True).click()
     picker.click()
     expect(
         page.get_by_role("menuitemradio", name=re.compile(data["releases"][3][-8:]))

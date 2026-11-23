@@ -1,15 +1,11 @@
 import { Fragment } from "react";
-import { RotateCwIcon, Undo2Icon, XIcon } from "lucide-react";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { RotateCwIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { Notice as NoticeBox } from "@/components/design/Notice";
-import { NEEDS_WRITE } from "@/hooks/useMyScopes";
-import { formatShortId } from "@/lib/utils";
 
 import { servingBehindStop } from "./deployment-progress";
-import { canRollBackTo, depTag, type Notice, type RegionView } from "./model";
-import { ABSENT, specChanges } from "./spec";
+import { type Notice, type RegionView } from "./model";
 
 export function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {
 	return (
@@ -28,56 +24,11 @@ export function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss:
 	);
 }
 
-export function ServingBanner({
-	regions,
-	canWrite,
-	onRollback,
-}: {
-	regions: RegionView[];
-	canWrite: boolean;
-	onRollback: (target: Deployment, current: Deployment | undefined) => void;
-}) {
-	const found = servingBehindStop(regions);
-	if (found === undefined) return null;
-	const { region, stopped, serving } = found;
-	const changes = specChanges(serving, stopped);
-	const servingLabel = `${depTag(serving)} (${formatShortId(serving.id)})`;
+export function ServingBanner({ regions }: { regions: RegionView[] }) {
+	if (servingBehindStop(regions) === undefined) return null;
 	return (
-		<NoticeBox
-			id="serving-notice"
-			tone="warn"
-			title={`These settings are from deployment ${formatShortId(stopped.id)}, which did not finish in ${region.name}.`}
-			detail={
-				changes.length > 0 ? (
-					<dl className="m-0 flex flex-col">
-						<dt className="font-sans text-[12.5px]">Serving → these settings</dt>
-						{changes.map((c) => (
-							<dd key={c.label} className="m-0">
-								{c.label}: <span className="text-err">{c.from ?? ABSENT}</span> →{" "}
-								<span className="text-ok">{c.to ?? ABSENT}</span>
-							</dd>
-						))}
-					</dl>
-				) : undefined
-			}
-			action={
-				canRollBackTo(serving, region) ? (
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={!canWrite}
-						title={canWrite ? undefined : NEEDS_WRITE}
-						onClick={() => {
-							onRollback(serving, stopped);
-						}}
-					>
-						<Undo2Icon />
-						Roll back to {depTag(serving)}
-					</Button>
-				) : undefined
-			}
-		>
-			<span className="font-mono">{servingLabel}</span> still serves.
+		<NoticeBox id="serving-notice" tone="warn">
+			These settings are from a newer deployment which hasn’t finished rolling out.
 		</NoticeBox>
 	);
 }

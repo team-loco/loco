@@ -22,26 +22,6 @@ export function regionReady(region: RegionView): { ready: number; desired: numbe
 	return { ready, desired: placement.desiredReplicas, previous };
 }
 
-export interface Scaling {
-	min: number;
-	max: number;
-	cpuTarget: number | undefined;
-}
-
-/** The replica range every deployed region runs with, "differs" when regions disagree, undefined when none is deployed. */
-export function sharedScaling(regions: readonly RegionView[]): Scaling | "differs" | undefined {
-	const all = regions.flatMap((r) => {
-		const svc = regionTarget(r.current === undefined ? undefined : getServiceSpec(r.current), r.name);
-		return svc === undefined
-			? []
-			: [{ min: svc.minReplicas ?? 0, max: svc.maxReplicas ?? 0, cpuTarget: svc.scalers?.cpuTarget }];
-	});
-	const first = all[0];
-	if (first === undefined) return undefined;
-	const same = all.every((s) => s.min === first.min && s.max === first.max && s.cpuTarget === first.cpuTarget);
-	return same ? first : "differs";
-}
-
 /** The CPU (millicores) and memory (Mi) limits of the deployment a replica runs, or of the region's current one. */
 export function replicaLimits(region: RegionView, replica: Replica): { cpuMilli: number; memoryMi: number } {
 	const deployment = regionDeployment(region, replica.deploymentId) ?? region.current;

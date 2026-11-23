@@ -28,7 +28,6 @@ import { Page, Section } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
-import { useCopy } from "@/hooks/useCopy";
 import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
@@ -52,7 +51,6 @@ import { RangeToggle } from "@/pages/resource/RangeToggle";
 import {
 	buildRegions,
 	changedSecrets,
-	depImage,
 	depTag,
 	focusRegion,
 	isDeployed,
@@ -105,7 +103,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { orgId = "" } = useParams<{ orgId: string }>();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
-	const [, copy] = useCopy();
 	const transport = useTransport();
 	const [{ tab: view, env, range, region: selectedRegion }, setParams] = useQueryStates(RESOURCE_PARAMS, {
 		history: "replace",
@@ -465,7 +462,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			<PageCommands items={pageCommands} />
 			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
 			<ResourceHeader
-				nowMs={nowMs}
 				resource={resource}
 				environment={environment}
 				regions={regions}
@@ -492,9 +488,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				}}
 				onViewSpec={() => {
 					openSpec(deployed[0]?.current);
-				}}
-				onCopyImage={() => {
-					copy("image", depImage(deployed[0]?.current), "Copied image reference");
 				}}
 				onDelete={() => {
 					setModal({ kind: "delete" });
@@ -624,7 +617,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					<SettingsView
 						resource={resource}
 						secretsNotice={secretsNotice("secrets-notice-set")}
-						onRollback={openRollback}
 						environmentId={environmentId ?? ""}
 						regions={regions}
 						draft={draft}

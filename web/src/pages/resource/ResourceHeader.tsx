@@ -3,13 +3,8 @@ import {
 	BellIcon,
 	CheckIcon,
 	ChevronsUpDownIcon,
-	CopyIcon,
 	EllipsisIcon,
 	FileCodeIcon,
-	GlobeIcon,
-	GlobeLockIcon,
-	MoveVerticalIcon,
-	PinIcon,
 	RotateCwIcon,
 	Settings2Icon,
 	Trash2Icon,
@@ -32,19 +27,13 @@ import {
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/design/Command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { PartialBadge } from "@/components/design/PartialBadge";
-import { ResourceStatusBadge, RolloutBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
-import { deploymentActor } from "@/lib/deployment-utils";
-import { rolloutState } from "@/lib/resource-status";
-import { agoLabel, readyMs } from "@/lib/time";
-import { cn } from "@/lib/utils";
 
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
 import { useWidth } from "@/hooks/useWidth";
 
-import { depImage, depTag, isDeployed, type RegionView } from "./model";
-import { sharedScaling, type Scaling } from "./replicas";
+import { depTag, isDeployed, type RegionView } from "./model";
 
 interface SwitcherItem {
 	id: string;
@@ -99,48 +88,7 @@ function Switcher({ items, currentId, offset }: { items: SwitcherItem[]; current
 	);
 }
 
-function scalingCopy(scaling: Scaling | "differs"): { auto: boolean; label: string; hint: string | undefined } {
-	if (scaling === "differs") return { auto: false, label: "Scaling differs by region", hint: undefined };
-	const { min, max, cpuTarget } = scaling;
-	if (max > min) {
-		const target = cpuTarget === undefined ? "" : `, targeting ${cpuTarget.toString()}% CPU`;
-		return {
-			auto: true,
-			label: `CPU autoscaling ${min.toString()}–${max.toString()}`,
-			hint: `Scales between ${min.toString()} and ${max.toString()} replicas per region${target}`,
-		};
-	}
-	return {
-		auto: false,
-		label: `Fixed at ${min.toString()}`,
-		hint: `Runs ${min.toString()} ${min === 1 ? "replica" : "replicas"} per region, autoscaling off`,
-	};
-}
-
-function ScaleChip({ scaling }: { scaling: Scaling | "differs" }) {
-	const { auto, label, hint } = scalingCopy(scaling);
-	const Icon = auto ? MoveVerticalIcon : PinIcon;
-	const chip = (
-		<span
-			data-slot="scale-chip"
-			data-auto={auto}
-			className={cn(
-				"inline-flex h-6 items-center gap-[5px] rounded-[5px] border border-line bg-panel2 px-2 text-[12.5px] whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring",
-				auto ? "text-foreground" : "text-fg2",
-			)}
-		>
-			<Icon aria-hidden className="size-[13px]" />
-			{label}
-		</span>
-	);
-	if (hint === undefined) return chip;
-	return (
-		<Tooltip>
-			<TooltipTrigger render={chip} tabIndex={0} />
-			<TooltipContent>{hint}</TooltipContent>
-		</Tooltip>
-	);
-}
+const MENU_ITEM = "min-h-[30px] gap-2 rounded-md px-2 py-1 text-[13px] whitespace-nowrap";
 
 function MenuIcon({ children }: { children: React.ReactNode }) {
 	return <span className="flex text-fg3 [&_svg]:size-[15px]">{children}</span>;
@@ -166,9 +114,7 @@ export function ResourceHeader({
 	onRollback,
 	onScale,
 	onViewSpec,
-	onCopyImage,
 	onDelete,
-	nowMs,
 }: {
 	resource: Resource;
 	environment: EnvironmentStatus | undefined;
@@ -189,18 +135,12 @@ export function ResourceHeader({
 	onRollback: () => void;
 	onScale: () => void;
 	onViewSpec: () => void;
-	onCopyImage: () => void;
 	onDelete: () => void;
-	nowMs: number;
 }) {
 	const [titleWidth, measureTitle] = useWidth();
-	const deployed = regions.filter(isDeployed);
-	const primary = deployed[0]?.current;
-	const image = depImage(primary);
-	const since = primary === undefined ? undefined : readyMs(primary);
+	const primary = regions.find(isDeployed)?.current;
 	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
 	const writeHint = canWrite ? undefined : NEEDS_WRITE;
-	const scaling = sharedScaling(deployed);
 
 	return (
 		<div className="flex flex-wrap items-start justify-between gap-4">
@@ -212,58 +152,20 @@ export function ResourceHeader({
 						</h1>
 						<Switcher items={switcher} currentId={resource.id} offset={titleWidth + 4} />
 					</div>
-					<span className="flex flex-wrap items-center gap-1.5">
-						<ResourceStatusBadge status={environment?.status} />
-						<RolloutBadge rollout={rolloutState(environment?.regions ?? [])} />
-					</span>
+					<ResourceStatusBadge status={environment?.status} />
 					{resource.partial !== undefined && <PartialBadge />}
-					{scaling !== undefined && <ScaleChip scaling={scaling} />}
 				</div>
-				<div className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
-					{since !== undefined && primary !== undefined && (
-						<span>
-							deployed {agoLabel(since, nowMs)} by {deploymentActor(primary)}
-						</span>
-					)}
-					{domain !== undefined ? (
-						<a
-							href={`https://${domain.domain}`}
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label={`Public at ${domain.domain}`}
-							className="flex items-center gap-1.5 font-mono text-[12px] text-fg2 hover:text-foreground"
-						>
-							<GlobeIcon aria-hidden className="size-[13px]" />
-							{domain.domain}
-							<ArrowUpRightIcon aria-hidden className="size-3" />
-						</a>
-					) : (
-						<Tooltip>
-							<TooltipTrigger
-								render={<span aria-label="Not reachable from the internet" />}
-								tabIndex={0}
-								className="flex items-center gap-1.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-							>
-								<GlobeLockIcon aria-hidden className="size-[13px]" />
-								internal only
-							</TooltipTrigger>
-							<TooltipContent>Not reachable from the internet</TooltipContent>
-						</Tooltip>
-					)}
-					{deployed.length > 0 && (
-						<span className="flex flex-wrap gap-1.5">
-							{deployed.map((r) => (
-								<span
-									key={r.name}
-									data-slot="region-chip"
-									className="inline-flex h-[22px] items-center rounded-[5px] border border-line bg-panel2 px-2 font-mono text-[12px] text-fg2"
-								>
-									{r.name}
-								</span>
-							))}
-						</span>
-					)}
-				</div>
+				{domain !== undefined && (
+					<a
+						href={`https://${domain.domain}`}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="-mt-1.5 inline-flex items-center gap-1 self-start font-mono text-[13px] text-fg2 hover:text-foreground"
+					>
+						{domain.domain}
+						<ArrowUpRightIcon aria-hidden className="size-3.5 text-fg3" />
+					</a>
+				)}
 			</div>
 			<div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
 				<Button variant="outline" size="sm" aria-haspopup="dialog" onClick={onEvents}>
@@ -301,8 +203,9 @@ export function ResourceHeader({
 					<DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More actions" />}>
 						<EllipsisIcon />
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-auto min-w-[220px]">
+					<DropdownMenuContent align="end" className="w-auto min-w-[180px] rounded-lg p-1">
 						<DropdownMenuItem
+							className={MENU_ITEM}
 							disabled={!canWrite || rollbackTarget === undefined}
 							title={writeHint}
 							onClick={onRollback}
@@ -313,6 +216,7 @@ export function ResourceHeader({
 							{rollbackTarget === undefined ? "Roll back" : `Roll back to ${depTag(rollbackTarget)}`}
 						</DropdownMenuItem>
 						<DropdownMenuItem
+							className={MENU_ITEM}
 							disabled={!canRedeploy || restarting}
 							title={writeHint ?? "Restart every running replica without creating a deployment"}
 							onClick={onRestart}
@@ -322,26 +226,21 @@ export function ResourceHeader({
 							</MenuIcon>
 							Restart all replicas
 						</DropdownMenuItem>
-						<DropdownMenuItem onClick={onScale}>
+						<DropdownMenuItem className={MENU_ITEM} onClick={onScale}>
 							<MenuIcon>
 								<ChevronsUpDownIcon />
 							</MenuIcon>
 							Scale
 						</DropdownMenuItem>
-						<DropdownMenuItem disabled={primary === undefined} onClick={onViewSpec}>
+						<DropdownMenuItem className={MENU_ITEM} disabled={primary === undefined} onClick={onViewSpec}>
 							<MenuIcon>
 								<FileCodeIcon />
 							</MenuIcon>
 							View spec
 						</DropdownMenuItem>
-						<DropdownMenuItem disabled={image === ""} onClick={onCopyImage}>
-							<MenuIcon>
-								<CopyIcon />
-							</MenuIcon>
-							Copy image reference
-						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
+							className={MENU_ITEM}
 							variant="destructive"
 							disabled={!canDelete}
 							title={canDelete ? undefined : NEEDS_ADMIN}

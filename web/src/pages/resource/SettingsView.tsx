@@ -4,7 +4,6 @@ import { useCallback, useRef, useState, type ReactNode } from "react";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listAppDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
@@ -122,7 +121,6 @@ export function SettingsView({
 	onBack,
 	onDelete,
 	onSaved,
-	onRollback,
 }: {
 	resource: Resource;
 	secretsNotice: ReactNode;
@@ -138,7 +136,6 @@ export function SettingsView({
 	onBack: () => void;
 	onDelete: () => void;
 	onSaved: (notice: NoticeState) => void;
-	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
 	const [current, setCurrent] = useState(() => {
 		const linked = NAV.find((n) => `#${n.id}` === window.location.hash);
@@ -238,7 +235,7 @@ export function SettingsView({
 				</Button>
 				<h2 className="m-0 text-[18px] font-normal tracking-[-0.01em]">Settings</h2>
 			</div>
-			<ServingBanner regions={regions} canWrite={canWrite} onRollback={onRollback} />
+			<ServingBanner regions={regions} />
 			{managed && <ManagedNotice />}
 			{secretsNotice}
 			{!canWrite && (
