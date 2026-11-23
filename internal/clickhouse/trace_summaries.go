@@ -138,7 +138,8 @@ func (c *Client) ListTraces(
 		response.NextPageToken = encodeTraceOffset(offset + int64(limit))
 	}
 	// A page past the end has no rows to carry the total.
-	if req.GetIncludeTotalCount() && len(summaries) == 0 && offset > 0 {
+	pastEnd := len(summaries) == 0 && offset > 0
+	if req.GetIncludeTotalCount() && pastEnd {
 		err := c.scanRow(ctx, "CountTraces", "SELECT count() FROM ("+summaryQuery+")"+settings, summaryArgs, &total)
 		if err != nil {
 			return nil, fmt.Errorf("count trace summaries: %w", err)

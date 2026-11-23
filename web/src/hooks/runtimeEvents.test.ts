@@ -50,7 +50,7 @@ test("warning counts include later pages with the same environment scope", async
 				requests.push(request);
 				return request.pageToken === ""
 					? {
-							events: Array.from({ length: 200 }, (_, i) => ({
+							events: Array.from({ length: 500 }, (_, i) => ({
 								id: i.toString(),
 								type: "resource.degraded",
 								createdAt: msToTimestamp(now),
@@ -81,7 +81,7 @@ test("warning counts include later pages with the same environment scope", async
 				environmentId: "production",
 			}),
 		);
-		expect(recentWarningCount(result.events.map(runtimeEvent), now)).toBe(201);
+		expect(recentWarningCount(result.events.map(runtimeEvent), now)).toBe(501);
 		expect(requests.map((r) => [r.orgId, r.workspaceId, r.resourceId, r.environmentId, r.query, r.pageToken])).toEqual([
 			["org", "workspace", "resource", "production", "(@type:resource.degraded OR @type:resource.recovered)", ""],
 			["org", "workspace", "resource", "production", "(@type:resource.degraded OR @type:resource.recovered)", "next"],

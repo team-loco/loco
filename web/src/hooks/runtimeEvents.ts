@@ -24,7 +24,7 @@ export function runtimeEventsOptions(
 	const input = {
 		...scope,
 		query: warningsOnly ? `${eventTypesQuery(types)} -@severity:normal` : eventTypesQuery(types),
-		pageSize: 200,
+		pageSize: 500,
 		...(startMs === undefined ? {} : { startTime: msToTimestamp(startMs) }),
 		...(endMs === undefined ? {} : { endTime: msToTimestamp(endMs) }),
 	};

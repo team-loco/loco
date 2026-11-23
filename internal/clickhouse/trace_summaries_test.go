@@ -175,10 +175,14 @@ func TestTraceSummaryPages(t *testing.T) {
 		t.Run(fmt.Sprintf("counted=%t", counted), func(t *testing.T) {
 			req := proto.CloneOf(base)
 			req.IncludeTotalCount = counted
+			var wantTotal uint64
+			if counted {
+				wantTotal = 3
+			}
 			var ids []string
 			for page := 0; ; page++ {
 				got := queryTraceSummaries(t, f, req, TraceFilter{}, 1)
-				if counted && got.GetTotalCount() != 3 || !counted && got.GetTotalCount() != 0 {
+				if got.GetTotalCount() != wantTotal {
 					t.Fatalf("page %d count: %v", page, got)
 				}
 				if len(got.GetSummaries()) != 1 {
