@@ -199,11 +199,15 @@ WHERE resource_id='{resource}';""",
 
     search = page.get_by_role("textbox", name="Search secrets", exact=True)
     search.fill(name)
+    expect(page).to_have_url(re.compile(rf"[?&]q={name}(&|$)"))
+    page.reload()
+    expect(search).to_have_value(name)
     expect(page.get_by_role("row").filter(has_text="STRIPE_KEY")).to_have_count(0)
     expect(row).to_be_visible()
     search.fill("nothing-here")
     expect(page.get_by_text("No secrets match.", exact=True)).to_be_visible()
     search.fill("")
+    expect(page).not_to_have_url(re.compile(r"[?&]q="))
 
     row.get_by_role("button", name="Actions for DATABASE_URL", exact=True).click()
     blocked = page.get_by_role("menuitem", name=re.compile(r"^Delete"))
