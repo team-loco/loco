@@ -49,7 +49,7 @@ require (
 	connectrpc.com/connect v1.21.0 // indirect
 	github.com/ClickHouse/ch-go v0.75.0 // indirect
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0 // indirect
-	github.com/KimMachineGun/automemlimit v1.0.1 // indirect
+	github.com/KimMachineGun/automemlimit v1.0.2 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.26 // indirect
