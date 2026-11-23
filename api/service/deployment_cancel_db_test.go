@@ -124,6 +124,26 @@ func TestCancelOfAFirstDeploymentRemovesItsApplication(t *testing.T) {
 	}
 }
 
+func TestCancelOfAFirstDeploymentThatRanButNeverStartedRemovesItsApplication(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true})
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusDegraded {
+		t.Fatalf("deployment = %s, want degraded", got)
+	}
+	if err := f.cancelDeployment(t, id.String()); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusCanceled {
+		t.Fatalf("deployment after cancel = %s, want canceled", got)
+	}
+	if p := f.placement(t, f.clusterID); !p.DesiredDeleted {
+		t.Fatal("canceling a first deployment that never started left its Application in place")
+	}
+}
+
 func TestCancelOfAFinishedDeploymentIsRefused(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

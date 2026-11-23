@@ -158,11 +158,11 @@ func (s *fakeDeploymentService) WatchDeployment(
 	return ctx.Err()
 }
 
-// settle stamps a running deployment's start and a failed or crashed placement's problem.
+// settle stamps a running deployment's start and a failed or crashed placement's problem. A
+// superseded deployment carries no start, as one replaced in a region it never deployed in does.
 func settle(deployment *deploymentv1.Deployment, placement *deploymentv1.DeploymentPlacement) {
 	switch deployment.GetStatus() {
-	case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
-		deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED:
+	case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING:
 		deployment.StartedAt = timestamppb.Now()
 	case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
 		deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED:
@@ -197,9 +197,9 @@ func (s *fakeDeploymentService) ListDeployments(
 	defer f.mu.Unlock()
 	response := &deploymentv1.ListDeploymentsResponse{}
 	for _, id := range slices.Sorted(maps.Keys(f.platform.deploymentOutcomes)) {
-		response.Deployments = append(response.Deployments, &deploymentv1.Deployment{
-			Id: id, Status: f.platform.deploymentOutcomes[id],
-		})
+		deployment := &deploymentv1.Deployment{Id: id, Status: f.platform.deploymentOutcomes[id]}
+		settle(deployment, &deploymentv1.DeploymentPlacement{})
+		response.Deployments = append(response.Deployments, deployment)
 	}
 	return response, nil
 }

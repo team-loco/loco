@@ -85,7 +85,8 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 				case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
 					deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED:
 					// A deployment runs before it starts while its replicas are ready but not yet available.
-					if current.GetStartedAt() == nil {
+					if current.GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING &&
+						current.GetStartedAt() == nil {
 						continue
 					}
 					_, writeErr := fmt.Fprintf(w, "Deployment %s for %s in %s is running.\n",

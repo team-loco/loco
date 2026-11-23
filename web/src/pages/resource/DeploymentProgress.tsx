@@ -297,30 +297,30 @@ function ProgressPanel({
 							<ArrowUpRightIcon />
 						</Button>
 					)}
-					{live ? (
-						cancelable(deployment) && (
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={!canWrite}
-								onClick={() => {
-									setConfirmingCancel(true);
-								}}
-							>
-								Cancel
-							</Button>
-						)
-					) : (
+					{cancelable(deployment) ? (
 						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label="Dismiss"
+							variant="outline"
+							size="sm"
+							disabled={!canWrite}
 							onClick={() => {
-								setDismissed(true);
+								setConfirmingCancel(true);
 							}}
 						>
-							<XIcon />
+							Cancel
 						</Button>
+					) : (
+						!live && (
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								aria-label="Dismiss"
+								onClick={() => {
+									setDismissed(true);
+								}}
+							>
+								<XIcon />
+							</Button>
+						)
 					)}
 				</div>
 			</div>

@@ -167,13 +167,18 @@ export function canceledNote(d: Deployment): string | undefined {
 	return newer === undefined ? undefined : `Superseded by ${formatShortId(newer)}`;
 }
 
-/** Whether a cancel has a region to stop: one the deployment never ran in that is still on its way. */
+const UNSTARTED_PLACEMENTS: ReadonlySet<PlacementStatus> = new Set([
+	PlacementStatus.PENDING,
+	PlacementStatus.DEPLOYING,
+	PlacementStatus.RUNNING,
+	PlacementStatus.DEGRADED,
+]);
+
+/** Whether a cancel has a region to stop: one the deployment never deployed in that has not ended. */
 export function cancelable(d: Deployment): boolean {
+	const serving = d.status === DeploymentStatus.RUNNING || d.status === DeploymentStatus.DEGRADED;
 	return (
-		isInFlight(d.status) &&
-		d.placements.some(
-			(p) =>
-				p.startedAt === undefined && (p.status === PlacementStatus.PENDING || p.status === PlacementStatus.DEPLOYING),
-		)
+		(isInFlight(d.status) || (serving && d.startedAt === undefined)) &&
+		d.placements.some((p) => p.startedAt === undefined && UNSTARTED_PLACEMENTS.has(p.status))
 	);
 }

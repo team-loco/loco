@@ -53,7 +53,8 @@ mise exec -- uv run --script "$E" <command>
    The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths,
    `orgs` maps each organization name to its `id` and `owner`, and `environments` maps
    `org/workspace/slug` to environment IDs. A placement's `status` (for example `"failed"`)
-   overrides the deployment status for that region. A top-level `events` list seeds workspace
+   overrides the deployment status for that region. A deployment with `"started": false` and its placements have no start time, as a deployment
+   that runs before it was ever ready. A top-level `events` list seeds workspace
    events: each has a `type` (such as `resource.degraded` or `deployment.ready`), a `resource`
    (`org/workspace/name`) or a `workspace`, an optional `environment` slug, `actor_type`
    (default `agent`), `data` and `at` (a time placeholder such as `{now-5m}`; default now).

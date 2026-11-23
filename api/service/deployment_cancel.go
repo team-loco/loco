@@ -103,7 +103,7 @@ func (s *DeploymentServer) GetDeploymentCancelImpact(
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return nil, authErr
 	}
-	if deployment.Status != genDb.DeploymentStatusBuilding && deployment.Status != genDb.DeploymentStatusDeploying {
+	if !inFlight(deployment) {
 		return nil, errDeploymentFinished
 	}
 	placements, err := s.queries.ListDeploymentPlacements(ctx, deploymentID)
@@ -134,6 +134,19 @@ func (s *DeploymentServer) GetDeploymentCancelImpact(
 		finished = append(finished, region)
 	}
 	return &deploymentv1.GetDeploymentCancelImpactResponse{FinishedRegions: finished}, nil
+}
+
+// inFlight is whether a deployment can still be canceled: building, deploying, or serving without
+// ever having been ready.
+func inFlight(deployment genDb.Deployment) bool {
+	switch deployment.Status {
+	case genDb.DeploymentStatusBuilding, genDb.DeploymentStatusDeploying:
+		return true
+	case genDb.DeploymentStatusRunning, genDb.DeploymentStatusDegraded:
+		return deployment.StartedAt == nil
+	default:
+		return false
+	}
 }
 
 // unstartedStatuses are where a placement whose revision was never deployed can be canceled.
@@ -167,7 +180,7 @@ func (s *DeploymentServer) cancelDeployment(
 	if err != nil {
 		return nil, fmt.Errorf("read deployment: %w", err)
 	}
-	if deployment.Status != genDb.DeploymentStatusBuilding && deployment.Status != genDb.DeploymentStatusDeploying {
+	if !inFlight(deployment) {
 		return nil, errDeploymentFinished
 	}
 	placements, err := qtx.ListDeploymentPlacements(ctx, deploymentID)

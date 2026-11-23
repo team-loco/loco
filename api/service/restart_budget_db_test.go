@@ -322,9 +322,10 @@ func TestARestartRecordsReadyOnceTheRestartedRevisionIsDeployed(t *testing.T) {
 	}
 }
 
-func TestDeploymentReadyWaitsForEveryRegionToDeploy(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
+// twoRegionDeployment applies a two-region worker and returns its deployment, the second region's
+// cluster, and a report of the worker's placement on a cluster.
+func (f *deployFixture) twoRegionDeployment(t *testing.T) (uuid.UUID, uuid.UUID, func(uuid.UUID, bool)) {
+	t.Helper()
 	f.prepareApply(t)
 	f.addOtherRegionCluster(t)
 	var other uuid.UUID
@@ -343,6 +344,13 @@ func TestDeploymentReadyWaitsForEveryRegionToDeploy(t *testing.T) {
 			Available: true, Healthy: true, Deployed: deployed, ReadyReplicas: 1,
 		})
 	}
+	return id, other, report
+}
+
+func TestDeploymentReadyWaitsForEveryRegionToDeploy(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	id, other, report := f.twoRegionDeployment(t)
 	report(f.clusterID, true)
 	report(other, false)
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusRunning {
@@ -358,5 +366,24 @@ func TestDeploymentReadyWaitsForEveryRegionToDeploy(t *testing.T) {
 	}
 	if regions, ok := ready[0][events.FieldRegions].([]any); !ok || len(regions) != 2 {
 		t.Fatalf("deployment.ready regions = %v, want both", ready[0][events.FieldRegions])
+	}
+}
+
+func TestADeploymentTurnsReadyWhenItsUndeployedRegionIsReplaced(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	id, other, report := f.twoRegionDeployment(t)
+	report(f.clusterID, true)
+	report(other, false)
+	applyOK(t, f, planFileHeader+twoRegionsBiggerCPU, applyOptions{})
+	if ready := f.eventsOf(t, events.DeploymentReady, id); len(ready) != 1 {
+		t.Fatalf("deployment.ready events = %v, want 1 once its only serving region is deployed", ready)
+	}
+	deployment, err := f.queries.GetDeploymentByID(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deployment.StartedAt == nil {
+		t.Fatal("a ready deployment has no start")
 	}
 }
