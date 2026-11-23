@@ -1316,9 +1316,7 @@ with session(out) as browser:
 
     def trace_logs(route):
         log_requests.append(route.request.post_data_json)
-        route.fulfill(
-            json={"entries": log_entries, "totalMatched": str(len(log_entries))}
-        )
+        route.fulfill(json={"entries": log_entries})
 
     context.route("**/loco.observability.v1.ObservabilityService/QueryLogs", trace_logs)
     metric_requests = []
@@ -1973,9 +1971,7 @@ with session(out) as browser:
         context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
         context.route(
             "**/loco.observability.v1.ObservabilityService/QueryLogs",
-            lambda route: route.fulfill(
-                json={"entries": marker_logs, "totalMatched": str(len(marker_logs))}
-            ),
+            lambda route: route.fulfill(json={"entries": marker_logs}),
         )
         page.goto(state["ui_url"] + base)
         page.get_by_role("row", name="Open trace " + root_name, exact=True).click()

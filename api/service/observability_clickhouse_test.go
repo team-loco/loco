@@ -571,6 +571,23 @@ func TestLogQuerySyntaxErrorsAreInvalidArgument(t *testing.T) {
 	}
 }
 
+func TestListTracesRejectsAnInvalidPageToken(t *testing.T) {
+	t.Parallel()
+	ch := newTestClickHouse(t)
+	f := newObservabilityFixture(t)
+	client := f.client(t, ch)
+	now := timestamppb.Now()
+	_, err := client.ListTraces(callerContext(t, workspaceReader), &observabilityv1.ListTracesRequest{
+		Scope:     &observabilityv1.TraceScope{WorkspaceId: f.workspace.String()},
+		StartTime: now,
+		EndTime:   now,
+		PageToken: "not a token",
+	})
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("ListTraces with an invalid page token: %v, want InvalidArgument", err)
+	}
+}
+
 func logBodies(entries []*observabilityv1.LogEntry) []string {
 	bodies := make([]string, 0, len(entries))
 	for _, entry := range entries {
