@@ -75,7 +75,7 @@ const TONE_CLASS: Record<Tone, string> = {
 	warn: "[--tn:var(--warn)]",
 	err: "[--tn:var(--err)]",
 	neutral: "[--tn:var(--fg4)]",
-	done: "[--tn:var(--fg)] bg-[color-mix(in_oklch,var(--fg)_7%,transparent)] text-fg2 shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--ok)_35%,var(--line2))]",
+	done: "[--tn:var(--fg)] bg-foreground/7 text-fg2 shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--ok)_35%,var(--line2))]",
 };
 
 export function StatusBadge({ glyph, label, className }: StatusStyle & { className?: string | undefined }) {
