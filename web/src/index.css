@@ -525,3 +525,9 @@
 		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
 	}
 }
+
+/* A pager under a banded table has no rule and sits inside the card's 12px inset. */
+:root:not([data-theme="paper"]) :has([data-slot="data-table"][data-band]) > [data-slot="pager"] {
+	border-top-width: 0;
+	padding-inline: 12px;
+}
