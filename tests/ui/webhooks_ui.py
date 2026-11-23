@@ -360,7 +360,9 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     expect(named).to_contain_text("Billing alerts")
     expect(named).to_contain_text("hooks.invalid/named")
     named.hover()
-    expect(page.get_by_role("tooltip")).to_have_text("https://hooks.invalid/named")
+    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(
+        "https://hooks.invalid/named"
+    )
     expect(
         page.get_by_role("button", name="Deliveries for https://hooks.invalid/updated")
     ).to_contain_text("hooks.invalid")

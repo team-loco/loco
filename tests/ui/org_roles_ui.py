@@ -247,6 +247,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(member_row).to_contain_text("+1 more")
     page.get_by_role("button", name="Clear workspace filter", exact=True).click()
     expect(member_row.get_by_text("shared", exact=True)).to_be_visible()
+    scopes_before = sum(url.endswith("/GetScopes") for url in requests)
     page.get_by_role("button", name="Actions for Max Member", exact=True).click()
     page.get_by_role("menuitem", name="Workspace access", exact=True).click()
     drawer.get_by_role("button", name=re.compile(r"^Has access")).click()
