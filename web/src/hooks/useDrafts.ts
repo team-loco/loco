@@ -8,6 +8,7 @@ import {
 	parseDrafts,
 	removeDraft,
 	setDraftImage,
+	setDraftName,
 	type Draft,
 	type DraftEdits,
 } from "@/lib/drafts";
@@ -28,6 +29,7 @@ export function useDrafts(orgId: string, workspaceId: string, environmentId: str
 		create: (draft: Draft) => change((all) => addDraft(all, draft)),
 		edit: (id: string, edits: DraftEdits) => change((all) => editDraft(all, id, edits)),
 		setImage: (id: string, image: string) => change((all) => setDraftImage(all, id, image)),
+		setName: (id: string, name: string) => change((all) => setDraftName(all, id, name)),
 		discard: (id: string) => change((all) => removeDraft(all, id)),
 	};
 }

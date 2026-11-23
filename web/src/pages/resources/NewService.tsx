@@ -21,6 +21,7 @@ import { CodeBlock } from "@/components/design/CodeBlock";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
+import { InlineInput } from "@/components/design/InlineInput";
 import { Input } from "@/components/design/Input";
 import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
 import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
@@ -29,7 +30,7 @@ import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } 
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
-import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
+import { AutoscalingSwitch, autoscales, ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
 import { CommandFields, type CommandValue } from "@/components/design/CommandFields";
 import { Spinner } from "@/components/design/Spinner";
@@ -69,6 +70,8 @@ import { DiscardDraftDialog } from "./DiscardDraftDialog";
 const SKELETON_ROWS = 6;
 const REGION_POLL_MS = 15_000;
 const NON_DIGITS_RE = /\D/g;
+const MAX_NAME_LENGTH = 63;
+const NO_NAMES: ReadonlySet<string> = new Set();
 const NETWORK_PUBLIC = "public";
 const NETWORK_INTERNAL = "internal";
 
@@ -320,27 +323,66 @@ function DraftPanel({
 	const [commandOpen, setCommandOpen] = useState(false);
 	const [discarding, setDiscarding] = useState(false);
 	const [saveFailed, setSaveFailed] = useState(false);
+	const [nameText, setNameText] = useState<string | null>(null);
 
 	const draft = store.drafts.find((d) => d.id === draftId);
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
 	const config = configQuery.data;
 	const defaults = config?.serviceDefaults;
+	const persist = (saved: boolean) => {
+		if (!saved && !saveFailed) toast.error("Couldn't save changes to this draft");
+		setSaveFailed(!saved);
+	};
 	const header = (
 		<SheetHeader>
-			<div className="flex min-w-0 flex-col gap-0.5">
+			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 				<div className="flex min-w-0 items-center gap-2.5">
-					<SheetTitle className="truncate text-[22px] font-normal tracking-[-0.02em]">
-						{draft?.name ?? "Draft"}
-					</SheetTitle>
+					{draft === undefined ? (
+						<SheetTitle className="truncate text-[22px] font-normal tracking-[-0.02em]">Draft</SheetTitle>
+					) : (
+						<SheetTitle className="m-0 flex min-w-0 text-[22px] font-normal tracking-[-0.02em]">
+							<InlineInput
+								aria-label="Name"
+								value={nameText ?? draft.name}
+								size={Math.max(6, (nameText ?? draft.name).length + 1)}
+								maxLength={MAX_NAME_LENGTH}
+								autoComplete="off"
+								spellCheck={false}
+								className="-my-0.5 -ml-[5px] max-w-full rounded-[5px] px-[5px] py-px focus:shadow-[inset_0_0_0_1px_var(--line)]"
+								onChange={(e) => {
+									setNameText(e.target.value);
+									if (
+										nameError(e.target.value, NO_NAMES) === null &&
+										derivedSlugError(e.target.value, NO_NAMES) === null
+									) {
+										persist(store.setName(draft.id, e.target.value));
+									}
+								}}
+								onBlur={() => {
+									setNameText(null);
+									if (draft.name !== draft.name.trim()) persist(store.setName(draft.id, draft.name.trim()));
+								}}
+							/>
+						</SheetTitle>
+					)}
 					<span className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-fg2">
 						<StatusGlyph glyph="draft" />
 						Draft
 					</span>
 				</div>
-				{draft?.image && (
-					<span className="truncate font-mono text-[12px] text-fg3" title={draft.image}>
-						{draft.image}
-					</span>
+				{draft !== undefined && (
+					<InlineInput
+						aria-label="Description"
+						placeholder="Add a description"
+						value={draft.edits.description ?? ""}
+						autoComplete="off"
+						wrapperClassName="flex-1"
+						className="-mt-0.5 -ml-1 h-[22px] w-full rounded-[4px] px-1 text-[13.5px] text-fg2 placeholder:text-fg4 focus:text-foreground"
+						onChange={(e) => {
+							deployment.clearError();
+							persist(store.edit(draft.id, { description: e.target.value }));
+						}}
+					/>
 				)}
 			</div>
 		</SheetHeader>
@@ -401,12 +443,7 @@ function DraftPanel({
 				}}
 				onEdit={(edits) => {
 					deployment.clearError();
-					if (!store.edit(draft.id, edits)) {
-						if (!saveFailed) toast.error("Couldn't save changes to this draft");
-						setSaveFailed(true);
-						return;
-					}
-					setSaveFailed(false);
+					persist(store.edit(draft.id, edits));
 				}}
 				onDeployed={(resourceId) => {
 					store.discard(draft.id);
@@ -436,6 +473,31 @@ function DraftPanel({
 				/>
 			)}
 		</>
+	);
+}
+
+function CollapsibleRow({
+	title,
+	summary,
+	open,
+	onOpenChange,
+	children,
+}: {
+	title: string;
+	summary: string;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	children: ReactNode;
+}) {
+	return (
+		<Collapsible open={open} onOpenChange={onOpenChange} className="flex flex-col gap-3">
+			<CollapsibleTrigger className="flex min-h-6 w-full items-center gap-2.5 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:outline-none">
+				<span className="text-[14px] font-medium">{title}</span>
+				<span className="min-w-0 flex-1 truncate text-[12.5px] text-fg3">{summary}</span>
+				{open ? <ChevronDownIcon className="size-3.5 text-fg3" /> : <ChevronRightIcon className="size-3.5 text-fg3" />}
+			</CollapsibleTrigger>
+			<CollapsibleContent className="flex flex-col gap-3">{children}</CollapsibleContent>
+		</Collapsible>
 	);
 }
 
@@ -506,6 +568,9 @@ function ServiceForm({
 }) {
 	const { edits, image, name, slug } = draft;
 	const { deployError, deploy, isPending, resourceId } = deployment;
+	const [scalingOpen, setScalingOpen] = useState(false);
+	const [sizeOpen, setSizeOpen] = useState(false);
+	const [varsOpen, setVarsOpen] = useState(false);
 
 	const selected = draftRegions(draft, regions, defaultRegion);
 	const regionNames = [...new Set([...regions.map((region) => region.region), ...selected])];
@@ -552,6 +617,8 @@ function ServiceForm({
 			onSubmit={(e) => {
 				e.preventDefault();
 				onTry();
+				if (errors.scaling !== null) setScalingOpen(true);
+				if (errors.env !== null) setVarsOpen(true);
 				if (blocker !== null || isPending || resourceId !== undefined) return;
 				void deploy(form, defaults).then(({ error, resourceId: createdResourceId }) => {
 					if (error === null && createdResourceId !== undefined) {
@@ -560,6 +627,8 @@ function ServiceForm({
 					}
 					const field = error?.field?.field;
 					if (field !== undefined && COMMAND_FIELDS.has(field)) onCommandOpen(true);
+					if (field === "replicas") setScalingOpen(true);
+					if (field === "cpu" || field === "memory") setSizeOpen(true);
 				});
 			}}
 		>
@@ -585,17 +654,6 @@ function ServiceForm({
 							aria-invalid={(errors.image ?? apiError("image") ?? imageCheck.error) !== null}
 							onChange={(e) => {
 								onImage(e.target.value);
-							}}
-						/>
-					</Field>
-				</div>
-				<div>
-					<Field label="Description" hint="Optional. Shown under the name in lists.">
-						<Input
-							value={form.description}
-							placeholder="What this service does"
-							onChange={(e) => {
-								set({ description: e.target.value });
 							}}
 						/>
 					</Field>
@@ -693,10 +751,22 @@ function ServiceForm({
 					</div>
 				</DrawerSection>
 
-				<DrawerSection
+				<CollapsibleRow
 					title="Scaling"
-					actions={<AutoscalingSwitch value={form} replicaRange={sizes.replicas} onChange={set} />}
+					summary={
+						autoscales(form)
+							? `Autoscaling, ${form.replicas.toString()} to ${form.maxReplicas.toString()} replicas per region`
+							: `${form.replicas.toString()} ${form.replicas === 1 ? "replica" : "replicas"} per region`
+					}
+					open={scalingOpen}
+					onOpenChange={setScalingOpen}
 				>
+					<AutoscalingSwitch
+						value={form}
+						replicaRange={sizes.replicas}
+						onChange={set}
+						className="w-full justify-between"
+					/>
 					<ScalingFields
 						value={form}
 						replicaRange={sizes.replicas}
@@ -704,16 +774,17 @@ function ServiceForm({
 						error={errors.scaling ?? apiError("replicas")}
 						inDrawer
 					/>
-				</DrawerSection>
+				</CollapsibleRow>
 
-				<DrawerSection
+				<CollapsibleRow
 					title="Size per replica"
-					actions={
-						<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
-							Cost <SoonTag />
-						</span>
-					}
+					summary={`${stepLabel(sizes.cpu, form.cpu)}, ${stepLabel(sizes.memory, form.memory)}`}
+					open={sizeOpen}
+					onOpenChange={setSizeOpen}
 				>
+					<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
+						Cost <SoonTag />
+					</span>
 					<div className="flex flex-col gap-3">
 						<Field label="CPU" aside={<SliderValue text={stepLabel(sizes.cpu, form.cpu)} />} error={apiError("cpu")}>
 							<StepSlider
@@ -740,9 +811,11 @@ function ServiceForm({
 							/>
 						</Field>
 					</div>
-				</DrawerSection>
+				</CollapsibleRow>
 
 				<EnvSection
+					open={varsOpen}
+					onOpenChange={setVarsOpen}
 					rows={form.vars}
 					onChange={(vars) => {
 						set({ vars });
@@ -813,7 +886,17 @@ function FooterError({ blocker, deployError }: { blocker: string | null; deployE
 	);
 }
 
-function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRow[]) => void }) {
+function EnvSection({
+	rows,
+	open,
+	onOpenChange,
+	onChange,
+}: {
+	rows: EnvRow[];
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onChange: (rows: EnvRow[]) => void;
+}) {
 	const rowErrors = envRowErrors(rows);
 	const [pasteOpen, setPasteOpen] = useState(false);
 	const [pasteText, setPasteText] = useState("");
@@ -825,35 +908,27 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 		onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 	};
 	return (
-		<Collapsible open={pasteOpen} onOpenChange={setPasteOpen}>
-			<DrawerSection
-				title={
-					<>
-						Variables <span className="ml-2 font-normal text-fg3">{rows.length}</span>
-					</>
-				}
-				actions={
-					<span className="flex gap-1.5">
-						<CollapsibleTrigger render={<Button variant="outline" size="sm" />}>
-							<ClipboardPasteIcon />
-							Paste .env
-						</CollapsibleTrigger>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								const id = newId();
-								setFocusId(id);
-								onChange([...rows, { id, key: "", value: "" }]);
-							}}
-						>
-							<PlusIcon />
-							Add
-						</Button>
-					</span>
-				}
-			>
+		<CollapsibleRow title="Variables" summary={variablesSummary(rows.length)} open={open} onOpenChange={onOpenChange}>
+			<Collapsible open={pasteOpen} onOpenChange={setPasteOpen} className="flex flex-col gap-3">
+				<span className="flex gap-1.5">
+					<CollapsibleTrigger render={<Button variant="outline" size="sm" />}>
+						<ClipboardPasteIcon />
+						Paste .env
+					</CollapsibleTrigger>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={() => {
+							const id = newId();
+							setFocusId(id);
+							onChange([...rows, { id, key: "", value: "" }]);
+						}}
+					>
+						<PlusIcon />
+						Add
+					</Button>
+				</span>
 				<CollapsibleContent className="flex flex-col gap-2">
 					<Textarea
 						autoFocus
@@ -883,72 +958,77 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 						</Button>
 					</div>
 				</CollapsibleContent>
-				{rows.length === 0 ? (
-					<span className="text-[12.5px] text-fg3">None yet.</span>
-				) : (
-					<ul aria-label="Variables" className="m-0 list-none overflow-hidden rounded-[10px] border border-line p-0">
-						{rows.map((r) => {
-							const label = r.key.trim() === "" ? "variable" : r.key.trim();
-							const rowError = rowErrors.get(r.id);
-							return (
-								<li
-									key={r.id}
-									data-invalid={rowError !== undefined || undefined}
-									className={cn(
-										"grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]",
-										rowError !== undefined && "bg-bad-bg",
-									)}
-								>
-									<span className="flex min-w-0 items-center border-r border-line">
-										<Input
-											autoFocus={r.id === focusId}
-											value={r.key}
-											placeholder="KEY"
-											aria-label="Variable name"
-											autoComplete="off"
-											spellCheck={false}
-											className={ENV_CELL}
-											onChange={(e) => {
-												update(r.id, { key: e.target.value });
-											}}
-										/>
-									</span>
+			</Collapsible>
+			{rows.length === 0 ? (
+				<span className="text-[12.5px] text-fg3">None yet.</span>
+			) : (
+				<ul aria-label="Variables" className="m-0 list-none overflow-hidden rounded-[10px] border border-line p-0">
+					{rows.map((r) => {
+						const label = r.key.trim() === "" ? "variable" : r.key.trim();
+						const rowError = rowErrors.get(r.id);
+						return (
+							<li
+								key={r.id}
+								data-invalid={rowError !== undefined || undefined}
+								className={cn(
+									"grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]",
+									rowError !== undefined && "bg-bad-bg",
+								)}
+							>
+								<span className="flex min-w-0 items-center border-r border-line">
 									<Input
-										value={r.value}
-										placeholder="value"
-										aria-label={`Value of ${label}`}
+										autoFocus={r.id === focusId}
+										value={r.key}
+										placeholder="KEY"
+										aria-label="Variable name"
 										autoComplete="off"
 										spellCheck={false}
 										className={ENV_CELL}
 										onChange={(e) => {
-											update(r.id, { value: e.target.value });
+											update(r.id, { key: e.target.value });
 										}}
 									/>
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon-sm"
-										className="mr-1.5"
-										aria-label={`Remove ${label}`}
-										onClick={() => {
-											onChange(rows.filter((x) => x.id !== r.id));
-										}}
-									>
-										<Trash2Icon />
-									</Button>
-									{rowError !== undefined && (
-										<span className="col-span-full border-t border-line px-3 py-1.5 text-[12.5px] text-bad-fg">
-											{rowError}
-										</span>
-									)}
-								</li>
-							);
-						})}
-					</ul>
-				)}
-			</DrawerSection>
-		</Collapsible>
+								</span>
+								<Input
+									value={r.value}
+									placeholder="value"
+									aria-label={`Value of ${label}`}
+									autoComplete="off"
+									spellCheck={false}
+									className={ENV_CELL}
+									onChange={(e) => {
+										update(r.id, { value: e.target.value });
+									}}
+								/>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon-sm"
+									className="mr-1.5"
+									aria-label={`Remove ${label}`}
+									onClick={() => {
+										onChange(rows.filter((x) => x.id !== r.id));
+									}}
+								>
+									<Trash2Icon />
+								</Button>
+								{rowError !== undefined && (
+									<span className="col-span-full border-t border-line px-3 py-1.5 text-[12.5px] text-bad-fg">
+										{rowError}
+									</span>
+								)}
+							</li>
+						);
+					})}
+				</ul>
+			)}
+		</CollapsibleRow>
 	);
+}
+
+function variablesSummary(count: number): string {
+	if (count === 0) return "None";
+	return `${count.toString()} ${count === 1 ? "variable" : "variables"}`;
 }
 
 const ENV_CELL =
@@ -968,20 +1048,13 @@ function CommandSection({
 	onChange: (patch: Partial<CommandValue>) => void;
 }) {
 	return (
-		<Collapsible open={open} onOpenChange={onOpenChange} className="flex flex-col gap-3">
-			<CollapsibleTrigger className="flex w-full items-center gap-2.5 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:outline-none">
-				<span className="text-[14px] font-medium">Start command</span>
-				<span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg3">{commandSummary(value)}</span>
-				{open ? <ChevronDownIcon className="size-3.5 text-fg3" /> : <ChevronRightIcon className="size-3.5 text-fg3" />}
-			</CollapsibleTrigger>
-			<CollapsibleContent>
-				<CommandFields
-					value={value}
-					errors={{ command: apiError("command"), args: apiError("args") }}
-					onChange={onChange}
-				/>
-			</CollapsibleContent>
-		</Collapsible>
+		<CollapsibleRow title="Start command" summary={commandSummary(value)} open={open} onOpenChange={onOpenChange}>
+			<CommandFields
+				value={value}
+				errors={{ command: apiError("command"), args: apiError("args") }}
+				onChange={onChange}
+			/>
+		</CollapsibleRow>
 	);
 }
 

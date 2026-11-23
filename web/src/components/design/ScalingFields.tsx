@@ -1,5 +1,6 @@
 import type { Scaling } from "@/lib/new-resource";
 import type { ReplicaRange } from "@/lib/sizing";
+import { cn } from "@/lib/utils";
 
 import { Field } from "./Field";
 import { RangeSlider } from "./RangeSlider";
@@ -15,16 +16,18 @@ export function AutoscalingSwitch({
 	replicaRange,
 	onChange,
 	disabled = false,
+	className,
 }: {
 	value: Scaling;
 	replicaRange: ReplicaRange | null;
 	onChange: (value: Scaling) => void;
 	disabled?: boolean;
+	className?: string;
 }) {
 	const on = autoscales(value);
 	const limit = replicaRange?.max ?? value.maxReplicas;
 	return (
-		<span className="flex items-center gap-2.5 text-[13px] text-fg2">
+		<span className={cn("flex items-center gap-2.5 text-[13px] text-fg2", className)}>
 			Autoscaling
 			<Switch
 				aria-label="Autoscaling"
