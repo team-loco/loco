@@ -58,6 +58,7 @@ function RegionLogs({
 			</span>
 			<div
 				aria-label={`Last log lines in ${region}`}
+				data-slot="incident-log"
 				className="flex flex-col rounded-lg bg-background py-2.5 font-mono text-[11.5px] leading-normal ring-1 ring-line"
 			>
 				{logs.isLoading && <span className="px-3 text-fg3">Loading…</span>}
@@ -115,7 +116,8 @@ export function IncidentCard({
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
-	logsHref: string | undefined;
+	/** Logs of one replica, or of the resource when `replica` is null. */
+	logsHref: (replica: string | null) => string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 	nowMs: number;
@@ -139,6 +141,7 @@ export function IncidentCard({
 			: []),
 	].join(", ");
 	const servingActor = serving === undefined ? "" : deploymentActor(serving);
+	const logs = logsHref(only?.name ?? null);
 
 	return (
 		<section
@@ -153,8 +156,8 @@ export function IncidentCard({
 					<span className="font-mono text-[12px] text-fg3">{meta}</span>
 				</div>
 				<div className="flex gap-2">
-					{logsHref !== undefined && (
-						<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
+					{logs !== undefined && (
+						<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logs} />}>
 							<ScrollTextIcon />
 							Logs
 						</Button>

@@ -107,7 +107,8 @@ function Detail({
 	/** The deployments the page already has. */
 	loaded: readonly Deployment[];
 	logsHref: string | undefined;
-	onRollback: (target: Deployment, current: Deployment | undefined) => void;
+	/** Absent without write access. */
+	onRollback: ((target: Deployment, current: Deployment | undefined) => void) | undefined;
 	onViewSpec: (dep: Deployment) => void;
 	onOpenBuild: (buildId: string) => void;
 }) {
@@ -159,7 +160,7 @@ function Detail({
 				))}
 			</div>
 			<div className="flex flex-wrap items-start gap-2 md:flex-col md:items-stretch">
-				{canRollBackTo(dep, region) && (
+				{onRollback !== undefined && canRollBackTo(dep, region) && (
 					<Button
 						variant="outline"
 						size="sm"
@@ -475,7 +476,7 @@ export function DeploymentsSection({
 													row={row}
 													loaded={deployments}
 													logsHref={logsHref}
-													onRollback={onRollback}
+													onRollback={canWrite ? onRollback : undefined}
 													onViewSpec={(dep) => {
 														onViewSpec(dep, deployments);
 													}}

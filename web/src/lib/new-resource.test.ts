@@ -273,10 +273,10 @@ test("locoYaml quotes values YAML would read as numbers or booleans", () => {
 });
 
 test("imageError asks for an image reference before the drawer opens", () => {
-	expect(imageError("  ")).toBe("Enter an image");
+	expect(imageError("  ")).toBe("Enter a container image.");
 	expect(imageError("Not An Image")).toBe("An image reference can't contain spaces");
 	expect(imageError("UPPER/Case")).toBe("Use lowercase letters in the image reference");
-	expect(imageError("nope::bad")).toBe("Use registry/repository:tag");
+	expect(imageError("nope::bad")).toBe("Invalid image reference. Use a repository with a tag or digest.");
 	expect(imageError(" ghcr.io/acme/web:1.4.2 ")).toBeNull();
 });
 

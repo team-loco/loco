@@ -1,12 +1,12 @@
 import type { Activity, Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
-import { LogsIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Badge, type BadgeTone } from "@/components/design/Badge";
 import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
+import { NavArrow } from "@/components/design/NavArrow";
 import { Progress } from "@/components/design/Progress";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useNow } from "@/hooks/useNow";
@@ -46,19 +46,48 @@ function followActivity(node: HTMLDivElement) {
 	};
 }
 
+/** A deadline as "10-minute" or "90-second". */
+function deadlineLabel(seconds: number): string {
+	return seconds % 60 === 0 ? `${(seconds / 60).toString()}-minute` : `${seconds.toString()}-second`;
+}
+
+/** The note after a deployment's problem: what Loco does next. */
+function problemNote(deployment: Deployment, reason: string, deployTimeoutSeconds: number | undefined): string {
+	switch (deployment.status) {
+		case DeploymentStatus.FAILED:
+		case DeploymentStatus.CRASHED:
+			return reason === "build_failed" ? "Nothing was deployed." : "The rollout stopped.";
+		case DeploymentStatus.RUNNING:
+		case DeploymentStatus.DEGRADED:
+			return "The deployment stays running. This clears once its replicas stop restarting.";
+		case DeploymentStatus.BUILDING:
+		case DeploymentStatus.DEPLOYING:
+			return deployTimeoutSeconds === undefined || deployTimeoutSeconds <= 0
+				? "Loco keeps retrying until the rollout deadline."
+				: `Loco keeps retrying until the ${deadlineLabel(deployTimeoutSeconds)} rollout deadline.`;
+		case DeploymentStatus.CANCELED:
+		case DeploymentStatus.SUPERSEDED:
+		case DeploymentStatus.UNSPECIFIED:
+			return "";
+	}
+}
+
 export function ProblemBanner({
 	deployment,
 	logsHref,
 	serving,
+	deployTimeoutSeconds,
 }: {
 	deployment: Deployment;
 	logsHref: string | undefined;
-	serving: Deployment | undefined;
+	serving: { deployment: Deployment; readyReplicas: number } | undefined;
+	deployTimeoutSeconds: number | undefined;
 }) {
 	const problem = deploymentProblem(deployment);
 	if (problem === undefined) return null;
 	const problemHref = problemLogsHref(logsHref, deployment);
 	const reason = PROBLEM_REASONS[problem.reason];
+	const note = problemNote(deployment, problem.reason, deployTimeoutSeconds);
 	return (
 		<Banner
 			title={reason ?? problem.message}
@@ -68,17 +97,30 @@ export function ProblemBanner({
 			className="mx-0 mt-0"
 		>
 			{reason !== undefined && <p className="my-1">{problem.message}</p>}
-			{serving !== undefined && (
-				<p className="my-1">
-					<span className="font-mono">{depTag(serving)}</span> is still serving traffic.
-				</p>
-			)}
 			{problem.detail !== "" && <p className="my-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{problem.detail}</p>}
 			{problem.replicaName !== "" && <p className="my-1 break-all font-mono text-[12px]">{problem.replicaName}</p>}
+			{(note !== "" || serving !== undefined) && (
+				<p className="my-1">
+					{note}
+					{note !== "" && serving !== undefined && " "}
+					{serving !== undefined && (
+						<>
+							<span className="font-mono">{depTag(serving.deployment)}</span>
+							{` is still serving on ${serving.readyReplicas.toString()} ${serving.readyReplicas === 1 ? "replica" : "replicas"}.`}
+						</>
+					)}
+				</p>
+			)}
 			{problemHref !== undefined && (
-				<Button variant="outline" size="sm" nativeButton={false} render={<Link to={problemHref} />}>
-					<LogsIcon />
-					View logs
+				<Button
+					variant="outline"
+					size="sm"
+					className="group/nav"
+					nativeButton={false}
+					render={<Link to={problemHref} />}
+				>
+					{problem.logsQuery.startsWith("@build") ? "Build logs" : "Replica logs"}
+					<NavArrow className="ml-0" />
 				</Button>
 			)}
 		</Banner>

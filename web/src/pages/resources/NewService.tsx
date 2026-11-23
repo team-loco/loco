@@ -170,7 +170,8 @@ function ImageStep({
 	const scopes = useMyScopes();
 	const [edited, setEdited] = useState(false);
 	const error = imageError(image);
-	const shown = edited ? error : null;
+	const shown =
+		edited && error !== null && image.trim() !== "" ? "Use registry/repository:tag or an @sha256 digest." : null;
 	const nameErr = nameError(name, taken.names) ?? derivedSlugError(name, taken.slugs);
 
 	const waiting = scopes.isLoading || loading;
@@ -701,6 +702,7 @@ function ServiceForm({
 						replicaRange={sizes.replicas}
 						onChange={set}
 						error={errors.scaling ?? apiError("replicas")}
+						inDrawer
 					/>
 				</DrawerSection>
 
@@ -827,7 +829,7 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 			<DrawerSection
 				title={
 					<>
-						Environment variables <span className="ml-2 font-normal text-fg3">{rows.length}</span>
+						Variables <span className="ml-2 font-normal text-fg3">{rows.length}</span>
 					</>
 				}
 				actions={
@@ -859,7 +861,7 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 						value={pasteText}
 						aria-label="Paste .env"
 						className="font-mono"
-						placeholder={"DATABASE_URL=postgres://…\nLOG_LEVEL=info"}
+						placeholder="KEY=value"
 						spellCheck={false}
 						onChange={(e) => {
 							setPasteText(e.target.value);
@@ -877,7 +879,7 @@ function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRo
 								setPasteOpen(false);
 							}}
 						>
-							{`Add ${pasted.length.toString()}`}
+							{pasted.length === 0 ? "Add" : `Add ${pasted.length.toString()}`}
 						</Button>
 					</div>
 				</CollapsibleContent>

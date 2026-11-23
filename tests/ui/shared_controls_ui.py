@@ -1583,8 +1583,8 @@ def traffic(page):
             ).to_have_count(1)
             expect(section.get_by_role("alert")).to_have_count(0)
         else:
-            expect(section).to_contain_text("10%")
-            expect(section).to_contain_text("10/s")
+            expect(section).to_contain_text("10 %")
+            expect(section).to_contain_text("10 req/s")
             expect(section).to_contain_text("190 ms")
     traffic_empty = False
     sql(
@@ -1634,7 +1634,7 @@ def traffic_small_values(page):
         "link", name="dashboard-0", exact=True
     ).click()
     section = page.get_by_role("region", name="Traffic", exact=True)
-    expect(section.get_by_text("<0.01/s", exact=True)).to_have_count(1)
+    expect(section.get_by_text("<0.01 req/s", exact=True)).to_have_count(1)
     expect(section.get_by_text("800 ms", exact=True)).to_have_count(1)
     expect(section.get_by_text("B/s", exact=False)).to_have_count(0)
     ticks = section.locator(

@@ -348,6 +348,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	};
 
 	const handleRollback = async (target: Deployment) => {
+		if (!canWrite) return;
 		const failures = await redeployFrom(
 			[{ deployment: target, regions: deploymentRegions(target) }],
 			DeploymentTrigger.ROLLBACK,
@@ -385,6 +386,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	};
 
 	const openRollback = (target: Deployment, current: Deployment | undefined) => {
+		if (!canWrite) return;
 		setModal({ kind: "rollback", target, current });
 	};
 	const openSpec = (dep: Deployment | undefined, shown: Deployment[] = []) => {
@@ -521,12 +523,13 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}
-							logsHref={obsLink("logs")}
+							logsHref={(replica) => obsLink("logs", replica === null ? null : { key: "replica", value: replica })}
 							canWrite={canWrite}
 							onRollback={openRollback}
 						/>
 					)}
 					<DeploymentProgress
+						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}
@@ -611,6 +614,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			) : (
 				<div className="flex flex-col gap-5">
 					<DeploymentProgress
+						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}

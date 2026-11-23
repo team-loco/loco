@@ -342,6 +342,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             r"^v1, the deployment serving this region, deployed (just now|\d+[mhd] ago)( by .+)?$"
         )
     )
+    incident_logs = incident.get_by_role("link", name="Logs", exact=True)
+    incident_query = parse_qs(urlparse(incident_logs.get_attribute("href")).query)
+    assert incident_query.get("q") == ["@replica:progress-new-1"], incident_query
     phase("failed", survivors=False)
     expect(serving).to_have_text("No ready replicas reported", timeout=25000)
     phase("failed")
@@ -353,10 +356,12 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         ).first
     ).to_be_visible()
     expect(
-        panel.get_by_text("v1 is still serving traffic.", exact=True)
+        panel.get_by_text(
+            "The rollout stopped. v1 is still serving on 2 replicas.", exact=True
+        )
     ).to_be_visible()
     expect(panel.get_by_role("link", name="Build logs", exact=True)).to_be_visible()
-    logs = panel.get_by_role("link", name="View logs", exact=True)
+    logs = panel.get_by_role("link", name="Replica logs", exact=True)
     query = parse_qs(urlparse(logs.get_attribute("href")).query)
     assert query.get("r") == ["progress-ui"] and query.get("q") == [
         "@replica:progress-new-1"
@@ -428,7 +433,13 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         timeout=25000
     )
     expect(panel.get_by_role("heading", name="Running", exact=True)).to_be_visible()
-    expect(panel.get_by_role("link", name="View logs", exact=True)).to_have_count(1)
+    expect(
+        panel.get_by_text(
+            "The deployment stays running. This clears once its replicas stop restarting.",
+            exact=True,
+        )
+    ).to_be_visible()
+    expect(panel.get_by_role("link", name="Replica logs", exact=True)).to_have_count(1)
     assert not errors, errors
     context.close()
 
@@ -439,7 +450,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(
         panel.get_by_role("button", name="Roll back to v1", exact=True)
     ).to_be_disabled()
-    expect(panel.get_by_role("link", name="View logs", exact=True)).to_be_visible()
+    expect(panel.get_by_role("link", name="Replica logs", exact=True)).to_be_visible()
     assert panel.bounding_box()["width"] <= page.viewport_size["width"]
     meta = panel.locator("[data-meta-line]")
     assert len(line_starts(meta)) > 1, "the deployment meta line fits on one line"

@@ -178,6 +178,9 @@ export function ReplicaList({
 					const color = lineColor(replica.name);
 					const restarts = replica.restarts > 0 ? `, ${restartCount(replica)}` : "";
 					const limit = replicaLimits(region, replica);
+					const high = [cpuUsage.get(replica.name), memoryUsage.get(replica.name)].some(
+						(ratio) => ratio !== undefined && ratio >= HIGH_SHARE,
+					);
 					return (
 						<li key={replica.uid} className={cn("flex min-w-0", !many && "w-[172px] max-w-full")}>
 							<button
@@ -210,7 +213,7 @@ export function ReplicaList({
 									many
 										? cn(
 												"size-3.5 rounded-[3px] border-0 p-0 aria-pressed:ring-2 aria-pressed:ring-ring aria-pressed:ring-offset-1",
-												CELL_TONE[state.tone],
+												CELL_TONE[high && state.tone === "ok" ? "warn" : state.tone],
 											)
 										: "flex min-w-0 flex-1 flex-col gap-1 rounded-lg border border-line bg-background px-3 py-[9px] text-left hover:border-fg4 aria-pressed:border-foreground data-bad:border-warn/50 data-bad:aria-pressed:border-warn"
 								}
@@ -273,6 +276,7 @@ export function ReplicaDetail({
 	return (
 		<section
 			aria-label={`Replica ${replica.name}`}
+			data-slot="replica-detail"
 			className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg bg-background px-3.5 py-2.5 text-[12.5px]"
 		>
 			<span className="flex min-w-0 items-center gap-2">

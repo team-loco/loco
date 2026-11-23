@@ -44,12 +44,15 @@ export function ScalingFields({
 	onChange,
 	disabled = false,
 	error,
+	inDrawer = false,
 }: {
 	value: Scaling;
 	replicaRange: ReplicaRange | null;
 	onChange: (value: Scaling) => void;
 	disabled?: boolean;
 	error?: string | null;
+	/** The new-resource drawer's shorter autoscaling hint. */
+	inDrawer?: boolean;
 }) {
 	const autoscaling = autoscales(value);
 	const limit = replicaRange?.max ?? value.maxReplicas;
@@ -110,7 +113,11 @@ export function ScalingFields({
 				</Field>
 			)}
 			{autoscaling && (
-				<p className="m-0 text-[12.5px] text-fg3">Adds replicas when average CPU stays above {value.cpuTarget}%.</p>
+				<p className="m-0 text-[12.5px] text-fg3">
+					{inDrawer
+						? `Adds replicas when average CPU stays above ${value.cpuTarget.toString()}%.`
+						: `Adds replicas when average CPU stays above ${value.cpuTarget.toString()}%, and removes them when it drops, between ${value.replicas.toString()} and ${value.maxReplicas.toString()} per region.`}
+				</p>
 			)}
 			{error != null && (
 				<p role="alert" className="text-[12.5px] text-bad-fg">

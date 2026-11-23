@@ -146,11 +146,11 @@ function subdomainError(form: NewResourceForm, availability: DomainCheck["state"
 
 export function imageError(image: string): string | null {
 	const trimmed = image.trim();
-	if (trimmed === "") return "Enter an image";
+	if (trimmed === "") return "Enter a container image.";
 	if (/\s/.test(trimmed)) return "An image reference can't contain spaces";
 	if (IMAGE_RE.test(trimmed)) return null;
 	if (IMAGE_RE.test(trimmed.toLowerCase())) return "Use lowercase letters in the image reference";
-	return "Use registry/repository:tag";
+	return "Invalid image reference. Use a repository with a tag or digest.";
 }
 
 export function validateForm(

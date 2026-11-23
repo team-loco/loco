@@ -675,6 +675,9 @@ with session(out) as browser:
         name=f"Show details for {data['releases'][1][-8:]}",
         exact=True,
     ).click()
+    expect(
+        section.get_by_role("button", name="Roll back to this", exact=True)
+    ).to_be_visible()
     source_link = section.get_by_role(
         "button", name=f"Build {builds['deployed'][-8:]}", exact=True
     )
@@ -829,6 +832,17 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(reader_page.get_by_text("Not deployed yet", exact=True)).to_have_count(0)
+    reader_section.get_by_role(
+        "button",
+        name=f"Show details for {data['releases'][1][-8:]}",
+        exact=True,
+    ).click()
+    expect(
+        reader_section.get_by_role("button", name="View spec", exact=True)
+    ).to_be_visible()
+    expect(
+        reader_section.get_by_role("button", name="Roll back to this", exact=True)
+    ).to_have_count(0)
     redeploy = reader_page.get_by_role("button", name="Redeploy", exact=True)
     expect(redeploy).to_be_disabled()
     expect(redeploy).to_have_attribute("title", "Needs write access to this resource")
