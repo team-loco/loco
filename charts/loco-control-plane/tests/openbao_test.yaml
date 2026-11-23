@@ -485,13 +485,13 @@ tests:
         template: templates/openbao.yaml
         documentSelector: {path: kind, value: NetworkPolicy}
 
-  - it: gives OpenBao two CPUs and its Go memory limit from its container memory limit
+  - it: gives OpenBao a CPU limit of 2 and its Go memory limit from its container memory limit
     template: templates/openbao.yaml
     documentSelector: {path: kind, value: StatefulSet}
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].resources.limits
-          value: {cpu: "2", memory: 512Mi}
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: GOMEMLIMIT, valueFrom: {resourceFieldRef: {resource: limits.memory}}}

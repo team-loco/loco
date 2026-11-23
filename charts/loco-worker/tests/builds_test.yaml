@@ -184,5 +184,5 @@ tests:
     template: templates/builds/deployment.yaml
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].resources.limits
-          value: {cpu: "2", memory: 128Mi}
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"

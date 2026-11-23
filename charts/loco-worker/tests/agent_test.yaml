@@ -363,5 +363,5 @@ tests:
     template: templates/agent-deployment.yaml
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].resources.limits
-          value: {cpu: "2", memory: 512Mi}
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"

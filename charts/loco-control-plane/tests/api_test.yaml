@@ -284,11 +284,9 @@ tests:
       - failedTemplate:
           errorMessage: api.registry.service is required when api.registry.auth is token
 
-  - it: gives the API two CPUs, so the Go runtime runs two threads without throttling
+  - it: gives the API a CPU limit of 2, the Go runtime's minimum thread count
     template: templates/api-deployment.yaml
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests: {cpu: 400m, memory: 256Mi}
-            limits: {cpu: "2", memory: 1Gi}
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"

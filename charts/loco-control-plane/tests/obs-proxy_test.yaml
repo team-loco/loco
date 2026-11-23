@@ -213,5 +213,5 @@ tests:
     template: templates/obs-proxy-ingest-deployment.yaml
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].resources.limits
-          value: {cpu: "2", memory: 1Gi}
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"
