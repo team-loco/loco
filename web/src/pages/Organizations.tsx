@@ -118,6 +118,7 @@ export function Organizations() {
 				<DataTable
 					table={table}
 					label="Organizations"
+					band
 					onRowClick={(row) => {
 						setActiveOrg(row.id);
 					}}

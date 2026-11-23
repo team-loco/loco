@@ -194,7 +194,7 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 				)
 			}
 		>
-			<SettingsCard className="pt-1">
+			<SettingsCard>
 				<form
 					className="contents"
 					onSubmit={(e) => {
@@ -202,8 +202,8 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 						submit();
 					}}
 				>
-					<DataTable table={table} label="Retention" />
-					<div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-[12.5px] text-fg3">
+					<DataTable table={table} label="Retention" band />
+					<div className="mx-3 flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-[12.5px] text-fg3">
 						<p className="m-0">
 							A change applies to telemetry ingested after it. Stored telemetry keeps the retention it was written with.
 						</p>

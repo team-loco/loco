@@ -75,6 +75,7 @@ function Pager({
 	const sizes = pageSizes.length > 1 && pageSize !== undefined && onPageSize !== undefined;
 	return (
 		<div
+			data-slot="pager"
 			className={cn(
 				"flex flex-wrap items-center gap-2 border-t border-line2 px-5 pt-2 pb-2.5 text-[12.5px] text-fg2",
 				className,

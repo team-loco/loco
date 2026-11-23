@@ -532,7 +532,7 @@ export function DeploymentsSection({
 					<div aria-busy={history.query.isPlaceholderData}>
 						<DataTable
 							table={deployTable}
-							inset
+							band
 							label="Deployments"
 							loading={history.query.isLoading}
 							empty={

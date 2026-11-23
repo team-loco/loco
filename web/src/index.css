@@ -461,8 +461,16 @@
 :root:not([data-theme="paper"]) [data-slot="data-table"][data-band] {
 	width: auto;
 	margin-inline: 12px;
+	padding-block: 2px 8px;
+	--row-h: 36px;
 	@media (max-width: 767px) {
 		margin-inline: 0;
+	}
+	& thead th {
+		height: 38px;
+	}
+	& tbody td {
+		padding-block: 6px;
 	}
 	& tbody {
 		row-gap: 2px;
@@ -516,4 +524,10 @@
 		border-left-width: 0;
 		border-radius: 0 var(--band-radius, 6px) var(--band-radius, 6px) 0;
 	}
+}
+
+/* A pager under a banded table has no rule and sits inside the card's 12px inset. */
+:root:not([data-theme="paper"]) :has([data-slot="data-table"][data-band]) > [data-slot="pager"] {
+	border-top-width: 0;
+	padding-inline: 12px;
 }

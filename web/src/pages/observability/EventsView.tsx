@@ -243,6 +243,7 @@ export function EventsView() {
 					<DataTable
 						table={table}
 						label="Events"
+						band
 						loading={loading}
 						empty={<div className="px-6 py-7 text-center text-[13px] text-fg3">No events match.</div>}
 						activeRowId={selItem?.id ?? null}

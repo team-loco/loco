@@ -653,6 +653,7 @@ export function MetricsView() {
 					<DataTable
 						table={table}
 						label="By resource and region"
+						band
 						className="text-[12.5px] [--row-h:38px] [&_td]:py-1"
 						empty={<p className="px-3 py-6 text-center text-fg3">Nothing matches these filters.</p>}
 						onRowClick={(row) => {

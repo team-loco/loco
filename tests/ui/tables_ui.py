@@ -1100,8 +1100,8 @@ def settings(page):
     check_table(
         page,
         named_table("Environments", "Staging EU West"),
-        "Manage resources",
         "Description",
+        "Name",
         clickable=False,
     )
     check_table(

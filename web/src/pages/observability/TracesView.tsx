@@ -492,6 +492,7 @@ function TraceList({
 		<DataTable
 			table={table}
 			label="Traces"
+			band
 			className="text-[12px] [--row-h:34px] [&_td]:py-1"
 			loading={loading}
 			empty={empty}

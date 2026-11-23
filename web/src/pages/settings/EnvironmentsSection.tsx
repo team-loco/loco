@@ -77,28 +77,11 @@ function environmentColumns({
 				),
 		},
 		{
-			id: "manageResources",
-			size: 160,
-			meta: { align: "end", label: "Manage resources", hideOnMobile: true },
-			cell: ({ row: { original: env } }) => (
-				<ManageLink to={withEnv(resourcesPath(orgId, workspaceId), env.slug)} icon={<BoxIcon />}>
-					Manage resources
-				</ManageLink>
-			),
-		},
-		{
-			id: "manageSecrets",
-			size: 150,
-			meta: { align: "end", label: "Manage secrets", hideOnMobile: true },
-			cell: ({ row: { original: env } }) => (
-				<ManageLink to={withEnv(secretsPath(orgId, workspaceId), env.slug)} icon={<LockIcon />}>
-					Manage secrets
-				</ManageLink>
-			),
-		},
-		{
 			id: "actions",
-			meta: { pinEnd: true, label: "Actions" },
+			header: "",
+			minSize: 100,
+			enableResizing: false,
+			meta: { align: "end", fit: true, label: "Actions" },
 			cell: ({ row: { original: env } }) => {
 				const blocked = deleteBlocked(env);
 				const button = (
@@ -115,27 +98,35 @@ function environmentColumns({
 					</Button>
 				);
 				return (
-					<span className="flex">
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label={`Edit ${env.name}`}
-							disabled={!canWrite}
-							title={canWrite ? undefined : `Requires Write on ${workspaceName}`}
-							onClick={() => {
-								onEdit(env);
-							}}
-						>
-							<PencilIcon />
-						</Button>
-						{blocked === null ? (
-							button
-						) : (
-							<Tooltip>
-								<TooltipTrigger render={<span className="inline-flex" />}>{button}</TooltipTrigger>
-								<TooltipContent>{blocked}</TooltipContent>
-							</Tooltip>
-						)}
+					<span className="flex items-center gap-2">
+						<ManageLink to={withEnv(resourcesPath(orgId, workspaceId), env.slug)} icon={<BoxIcon />}>
+							Manage resources
+						</ManageLink>
+						<ManageLink to={withEnv(secretsPath(orgId, workspaceId), env.slug)} icon={<LockIcon />}>
+							Manage secrets
+						</ManageLink>
+						<span className="ml-1 flex gap-0.5">
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								aria-label={`Edit ${env.name}`}
+								disabled={!canWrite}
+								title={canWrite ? undefined : `Requires Write on ${workspaceName}`}
+								onClick={() => {
+									onEdit(env);
+								}}
+							>
+								<PencilIcon />
+							</Button>
+							{blocked === null ? (
+								button
+							) : (
+								<Tooltip>
+									<TooltipTrigger render={<span className="inline-flex" />}>{button}</TooltipTrigger>
+									<TooltipContent>{blocked}</TooltipContent>
+								</Tooltip>
+							)}
+						</span>
 					</span>
 				);
 			},
@@ -145,7 +136,7 @@ function environmentColumns({
 
 function ManageLink({ to, icon, children }: { to: string; icon: ReactNode; children: string }) {
 	return (
-		<Button variant="outline" size="sm" className="h-7" nativeButton={false} render={<Link to={to} />}>
+		<Button variant="outline" size="sm" className="h-7 max-md:hidden" nativeButton={false} render={<Link to={to} />}>
 			{icon}
 			{children}
 		</Button>
@@ -246,7 +237,7 @@ export function EnvironmentsSection({
 				</LimitedAction>
 			}
 		>
-			<SettingsCard className="pt-1">
+			<SettingsCard>
 				{envsQuery.isPending ? (
 					<div className="flex flex-col gap-2 px-5 py-3">
 						<Skeleton className="h-9 w-full" />
@@ -255,10 +246,10 @@ export function EnvironmentsSection({
 				) : environments.length === 0 ? (
 					<div className="px-5 py-7 text-fg3">No environments yet.</div>
 				) : (
-					<DataTable table={table} label="Environments" />
+					<DataTable table={table} label="Environments" band />
 				)}
 				{permissionNote !== null && (
-					<p className="m-0 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">{permissionNote}</p>
+					<p className="m-0 mx-3 border-t border-line2 pt-3 pb-3 text-[12.5px] text-fg3">{permissionNote}</p>
 				)}
 			</SettingsCard>
 
