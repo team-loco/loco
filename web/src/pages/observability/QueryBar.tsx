@@ -468,7 +468,10 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 						</Button>
 					)}
 				</div>
-				<ComboboxContent anchor={anchor} className="w-[min(520px,var(--anchor-width))] min-w-0 p-1.5">
+				<ComboboxContent
+					anchor={anchor}
+					className="w-[min(520px,var(--anchor-width))] min-w-0 p-1.5 data-[chips=true]:min-w-0"
+				>
 					<ComboboxList aria-label="Suggestions">
 						{groups
 							.filter((g) => g.items.length > 0)
