@@ -329,6 +329,10 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(
         page.get_by_role("button", name="Change role for Max Member", exact=True)
     ).to_be_disabled()
+    assert not errors, errors
+    context.close()
+    context, page, errors = open_page(browser, "member", state=state)
+    page.goto(path)
     page.get_by_role(
         "button", name="All workspace access for Max Member", exact=True
     ).click()
