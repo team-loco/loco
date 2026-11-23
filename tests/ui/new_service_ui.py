@@ -387,6 +387,8 @@ with session(out) as browser:
         drawer.get_by_role("button", name="us-va-1 degraded", exact=True)
     ).to_be_enabled()
     expect(last_region).to_have_attribute("aria-disabled", "true")
+    # The app blanks a title while the pointer is over its element.
+    page.mouse.move(0, 0)
     expect(last_region).to_have_attribute(
         "title", "A resource needs at least one region"
     )
