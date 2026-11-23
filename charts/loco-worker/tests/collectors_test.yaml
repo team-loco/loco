@@ -427,3 +427,25 @@ tests:
       - matchRegex:
           path: data.relay
           pattern: 'k8s_attributes/route_namespace'
+
+  - it: gives every collector requests, two CPUs and a Go memory limit below its memory limit
+    asserts:
+      - equal: &collectorResources
+          path: spec.template.spec.containers[0].resources.limits
+          value: {cpu: "2", memory: 512Mi}
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - equal: *collectorResources
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - equal: *collectorResources
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - exists: &collectorRequests
+          path: spec.template.spec.containers[0].resources.requests.cpu
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - exists: *collectorRequests
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - contains: &collectorMemLimit
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, value: 409MiB}
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - contains: *collectorMemLimit
+        template: charts/otel-col-cluster/templates/statefulset.yaml

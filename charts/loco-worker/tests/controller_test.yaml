@@ -179,3 +179,13 @@ tests:
       - failedTemplate:
           errorMessage: "registry.pullSecretName applies only to registry.auth static; token mode copies the agent's Secrets"
 
+
+  - it: gives the controller two CPUs and a Go memory limit below its memory limit
+    template: templates/controller/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits
+          value: {cpu: "2", memory: 256Mi}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, value: 230MiB}

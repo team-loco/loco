@@ -487,6 +487,9 @@
           },
           "additionalProperties": false
         },
+        "resources": {
+          "type": "object"
+        },
         "service": {
           "type": "object"
         },

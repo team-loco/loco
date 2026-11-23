@@ -58,6 +58,7 @@ spec:
                     - name: REGISTRY_PULL_SECRET_NAME
                       value: {{ . | quote }}
                     {{- end }}
+                    {{- include "loco-worker.goMemLimitEnv" .Values.controller.resources | nindent 20 }}
                     {{- with .Values.controller.env }}
                     {{- toYaml . | nindent 20 }}
                     {{- end }}

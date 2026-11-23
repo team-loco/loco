@@ -233,3 +233,21 @@ capabilities:
 {{- end }}
 {{- toYaml $settings }}
 {{- end }}
+
+{{- /* A GOMEMLIMIT env entry for a Go container: 90% of its memory limit, given in Mi or Gi. */ -}}
+{{- define "loco-control-plane.goMemLimitEnv" -}}
+{{- with (.limits).memory }}
+{{- $limit := toString . -}}
+{{- $mib := 0 -}}
+{{- if hasSuffix "Gi" $limit -}}
+{{- $mib = mul (trimSuffix "Gi" $limit | atoi) 1024 -}}
+{{- else if hasSuffix "Mi" $limit -}}
+{{- $mib = trimSuffix "Mi" $limit | atoi -}}
+{{- end -}}
+{{- if not $mib -}}
+{{- fail (printf "memory limit %s must be a whole number of Mi or Gi" $limit) -}}
+{{- end }}
+- name: GOMEMLIMIT
+  value: {{ printf "%dMiB" (div (mul $mib 9) 10) | quote }}
+{{- end }}
+{{- end }}

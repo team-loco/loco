@@ -179,3 +179,13 @@ tests:
       builds.builderImage.tag: ""
     asserts:
       - notFailedTemplate: {}
+
+  - it: gives the build controller two CPUs and a Go memory limit below its memory limit
+    template: templates/builds/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits
+          value: {cpu: "2", memory: 128Mi}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, value: 115MiB}

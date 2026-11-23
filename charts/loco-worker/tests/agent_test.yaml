@@ -358,3 +358,13 @@ tests:
     asserts:
       - failedTemplate: {}
         template: templates/agent-deployment.yaml
+
+  - it: gives the agent two CPUs and a Go memory limit below its memory limit
+    template: templates/agent-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits
+          value: {cpu: "2", memory: 512Mi}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, value: 460MiB}

@@ -484,3 +484,14 @@ tests:
           content: {podSelector: {matchLabels: {app: loco-control-plane-openbao-snapshot}}}
         template: templates/openbao.yaml
         documentSelector: {path: kind, value: NetworkPolicy}
+
+  - it: gives OpenBao two CPUs and a Go memory limit below its memory limit
+    template: templates/openbao.yaml
+    documentSelector: {path: kind, value: StatefulSet}
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits
+          value: {cpu: "2", memory: 512Mi}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, value: 460MiB}

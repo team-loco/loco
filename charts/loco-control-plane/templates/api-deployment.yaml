@@ -48,11 +48,7 @@ spec:
               value: {{ $value | quote }}
             {{- end }}
             {{- if not (hasKey .Values.api.env "GOMEMLIMIT") }}
-            - name: GOMEMLIMIT
-              valueFrom:
-                resourceFieldRef:
-                  containerName: api
-                  resource: limits.memory
+            {{- include "loco-control-plane.goMemLimitEnv" .Values.api.resources | nindent 12 }}
             {{- end }}
             - name: APP_PORT
               value: {{ printf "0.0.0.0:%v" .Values.api.port | quote }}

@@ -13,7 +13,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `APP_ENV` | empty | `PRODUCTION` writes JSON logs to stdout at `LOG_LEVEL` and refuses CORS requests from loopback origins. Any other value writes human-readable logs to stderr. |
 | `APP_PORT` | empty | Listen address, such as `:8000`. Empty listens on port 80. |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`, for the JSON logs of `APP_ENV=PRODUCTION`. |
-| `GOMEMLIMIT` | none | Go runtime soft memory limit, such as `900MiB`. The chart sets it to the container memory limit. `GOMAXPROCS` follows the container CPU limit, at least 2, without being set. |
+| `GOMEMLIMIT` | none | Go runtime soft memory limit, such as `900MiB`. The chart sets it to 90% of the container memory limit. `GOMAXPROCS` follows the container CPU limit, at least 2, without being set. |
 | `PPROF_ADDR` | empty | Address of a Go pprof server. Empty runs none. |
 | `CORS_ALLOWED_ORIGINS` | empty | Comma-separated browser origins allowed to call the API. The `WEB_URL` origin is always allowed. |
 | `WEB_URL` | empty | Dashboard origin. Required when `AUTH_ISSUERS` configures a dashboard client; invitation links point at it. |

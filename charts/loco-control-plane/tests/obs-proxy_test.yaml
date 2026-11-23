@@ -208,3 +208,13 @@ tests:
       - equal:
           path: spec.ingress[0].ports
           value: [{protocol: TCP, port: 4317}, {protocol: TCP, port: 4318}]
+
+  - it: gives the ingest proxy two CPUs and a Go memory limit below its memory limit
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits
+          value: {cpu: "2", memory: 1Gi}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, value: 921MiB}

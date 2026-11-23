@@ -58,3 +58,10 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --kubelet-insecure-tls
         template: charts/metrics-server/templates/deployment.yaml
+
+  - it: bounds the metrics server's memory without a CPU limit
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value: {requests: {cpu: 100m, memory: 200Mi}, limits: {memory: 512Mi}}
+        template: charts/metrics-server/templates/deployment.yaml
