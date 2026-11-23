@@ -1072,11 +1072,11 @@ def pin_needs_applied_query(page):
     )
     expect(page.get_by_text("Text search doesn't filter metrics")).to_be_visible()
     expect(page.get_by_role("button", name="Clear", exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name="Pin search")).to_have_count(0)
+    expect(page.get_by_role("button", name="Pin this search")).to_have_count(0)
     page.goto(
         state["ui_url"] + base + "/observability?env=production&view=logs&q=checkout"
     )
-    expect(page.get_by_role("button", name="Pin search")).to_be_visible()
+    expect(page.get_by_role("button", name="Pin this search")).to_be_visible()
     expect(page.locator('input[aria-label="Search and filter"]')).to_have_value(
         "checkout"
     )
@@ -1085,7 +1085,7 @@ def pin_needs_applied_query(page):
     search.fill("checkout @lev")
     expect(page.get_by_role("option", name=re.compile(r"^@level"))).to_be_visible()
     expect(page.get_by_role("button", name="Clear", exact=True)).to_have_count(0)
-    expect(page.get_by_role("button", name="Pin search")).to_have_count(0)
+    expect(page.get_by_role("button", name="Pin this search")).to_have_count(0)
     search.press("Escape")
 
 

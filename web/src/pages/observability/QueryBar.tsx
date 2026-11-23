@@ -435,6 +435,24 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 							Text search doesn&apos;t filter {view}
 						</span>
 					)}
+					{(pinned || appliedRecent !== "") && (
+						<Button
+							variant="ghost"
+							size="icon-xs"
+							aria-label={pinned ? "Unpin this search" : "Pin this search"}
+							title={pinned ? "Unpin this search" : "Pin this search"}
+							onClick={(e) => {
+								e.stopPropagation();
+								updatePinned((list) =>
+									pinned ? list.filter((x) => x !== curQuery) : [curQuery, ...list].slice(0, MAX_PINNED),
+								);
+								toast.success(pinned ? "Unpinned" : "Pinned");
+							}}
+							className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
+						>
+							<StarIcon className={cn("size-[15px]", pinned && "fill-current")} />
+						</Button>
+					)}
 					{curQuery !== "" && (
 						<Button
 							variant="plain-link"
@@ -447,24 +465,6 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 							className="px-1 text-[12px] text-fg3"
 						>
 							Clear
-						</Button>
-					)}
-					{(pinned || appliedRecent !== "") && (
-						<Button
-							variant="ghost"
-							size="icon-xs"
-							aria-label={pinned ? "Unpin search" : "Pin search"}
-							title={pinned ? "Unpin search" : "Pin search"}
-							onClick={(e) => {
-								e.stopPropagation();
-								updatePinned((list) =>
-									pinned ? list.filter((x) => x !== curQuery) : [curQuery, ...list].slice(0, MAX_PINNED),
-								);
-								toast.success(pinned ? "Unpinned" : "Pinned");
-							}}
-							className={cn(pinned ? "text-warn hover:text-warn" : "text-fg3")}
-						>
-							<StarIcon className={cn("size-[15px]", pinned && "fill-current")} />
 						</Button>
 					)}
 				</div>

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 import { Badge } from "@/components/design/Badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { Button } from "@/components/design/Button";
@@ -112,6 +113,7 @@ export function TraceHeader({
 		setTimeout(() => {
 			URL.revokeObjectURL(url);
 		}, 1000);
+		toast.success(`Downloaded trace-${traceId.slice(0, 8)}.json`);
 	};
 	return (
 		<header
@@ -291,59 +293,60 @@ export function TraceHeader({
 				</div>
 			)}
 			<div className="col-start-2 row-start-1 flex min-[1180px]:col-start-3">
-				<DropdownMenu>
-					<DropdownMenuTrigger
-						render={<Button variant="ghost" size="icon-sm" aria-label="More for this trace" title="More" />}
-					>
-						<EllipsisIcon />
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-[250px]">
-						<DropdownMenuItem
-							className="items-start"
-							onClick={() => {
-								goTo("logs", {
-									range: aroundWindow(start, Date.now()),
-									tokens: [{ key: "trace", value: traceId, neg: false }],
-								});
-							}}
+				{trace !== undefined && (
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={<Button variant="ghost" size="icon-sm" aria-label="More for this trace" title="More" />}
 						>
-							<ScrollTextIcon />
-							<MenuLabel sub="Filter logs by @trace">Logs for this trace</MenuLabel>
-						</DropdownMenuItem>
-						{resource !== undefined && (
+							<EllipsisIcon />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-[250px]">
 							<DropdownMenuItem
 								className="items-start"
-								render={<Link to={resourcePath(orgId, workspaceId, resource.id)} />}
+								onClick={() => {
+									goTo("logs", {
+										range: aroundWindow(start, Date.now()),
+										tokens: [{ key: "trace", value: traceId, neg: false }],
+									});
+								}}
 							>
-								<BoxIcon />
-								<MenuLabel sub="Resource page">Open {resource.raw.name}</MenuLabel>
+								<ScrollTextIcon />
+								<MenuLabel sub="Filter logs by @trace">Logs for this trace</MenuLabel>
 							</DropdownMenuItem>
-						)}
-						<DropdownMenuItem
-							className="items-start"
-							disabled={trace === undefined}
-							onClick={() => {
-								if (trace !== undefined) copy("json", traceJson(trace.spans), "Copied trace JSON");
-							}}
-						>
-							<BracesIcon />
-							<MenuLabel sub={`${(trace?.spans.length ?? 0).toString()} spans, OTLP shape`}>Copy as JSON</MenuLabel>
-						</DropdownMenuItem>
-						<DropdownMenuItem className="items-start" disabled={trace === undefined} onClick={download}>
-							<DownloadIcon />
-							<MenuLabel sub={`trace-${traceId.slice(0, 8)}….json`}>Download JSON</MenuLabel>
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							className="items-start"
-							onClick={() => {
-								copy("link", window.location.href, "Copied trace link");
-							}}
-						>
-							<LinkIcon />
-							<MenuLabel sub="This trace and span">Copy link</MenuLabel>
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+							{resource !== undefined && (
+								<DropdownMenuItem
+									className="items-start"
+									render={<Link to={resourcePath(orgId, workspaceId, resource.id)} />}
+								>
+									<BoxIcon />
+									<MenuLabel sub="Resource page">Open {resource.raw.name}</MenuLabel>
+								</DropdownMenuItem>
+							)}
+							<DropdownMenuItem
+								className="items-start"
+								onClick={() => {
+									copy("json", traceJson(trace.spans), "Copied trace as JSON");
+								}}
+							>
+								<BracesIcon />
+								<MenuLabel sub={`${trace.spans.length.toString()} spans, OTLP shape`}>Copy as JSON</MenuLabel>
+							</DropdownMenuItem>
+							<DropdownMenuItem className="items-start" onClick={download}>
+								<DownloadIcon />
+								<MenuLabel sub={`trace-${traceId.slice(0, 8)}….json`}>Download JSON</MenuLabel>
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								className="items-start"
+								onClick={() => {
+									copy("link", window.location.href, "Copied link");
+								}}
+							>
+								<LinkIcon />
+								<MenuLabel sub="This trace and span">Copy link</MenuLabel>
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)}
 				<Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
 					<XIcon />
 				</Button>

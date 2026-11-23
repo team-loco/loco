@@ -1,6 +1,9 @@
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { Link, useLocation } from "react-router";
 
+import { NavArrow } from "@/components/design/NavArrow";
+import { cn } from "@/lib/utils";
+
 import { spanLinkSearch } from "./traces";
 
 export function SpanLinks({ span }: { span: TraceSpan }) {
@@ -11,22 +14,15 @@ export function SpanLinks({ span }: { span: TraceSpan }) {
 			<ol className="m-0 flex list-none flex-col gap-3 p-0">
 				{links.map((link, index) => {
 					const target = spanLinkSearch(search, link.traceId, link.spanId);
-					return (
-						<li key={`${index.toString()}:${link.spanId}`} className="min-w-0 rounded-lg border border-line p-3">
-							<div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[12px]">
+					const body = (
+						<>
+							<span className="mb-2 flex items-center text-[12px]">
 								<span className="font-mono text-fg3 [overflow-wrap:anywhere]">
 									{link.traceId === span.traceId ? "This trace" : link.traceId || "No trace ID"},{" "}
 									{link.spanId || "no span ID"}
 								</span>
-								{target !== null && (
-									<Link
-										to={target}
-										className="rounded-sm text-primary underline underline-offset-2 hover:text-fg2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-									>
-										Open linked span
-									</Link>
-								)}
-							</div>
+								{target !== null && <NavArrow />}
+							</span>
 							<dl className="m-0">
 								{Object.entries(link.attributes).map(([key, value]) => (
 									<div
@@ -38,6 +34,24 @@ export function SpanLinks({ span }: { span: TraceSpan }) {
 									</div>
 								))}
 							</dl>
+						</>
+					);
+					const card = "block min-w-0 rounded-lg border border-line p-3";
+					return (
+						<li key={`${index.toString()}:${link.spanId}`} className="min-w-0">
+							{target === null ? (
+								<div className={card}>{body}</div>
+							) : (
+								<Link
+									to={target}
+									className={cn(
+										card,
+										"group/nav text-foreground no-underline hover:border-line2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+									)}
+								>
+									{body}
+								</Link>
+							)}
 						</li>
 					);
 				})}

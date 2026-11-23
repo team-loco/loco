@@ -185,7 +185,6 @@ export function EventsView() {
 		return (
 			<>
 				{header}
-				<QueryBar valueCounts={valueCounts} />
 				<ObsHero
 					view="events"
 					title={hasResources ? "No events in this range" : "No events yet"}

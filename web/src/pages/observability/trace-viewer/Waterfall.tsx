@@ -6,7 +6,7 @@ import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { layoutNumber, useLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
-import { zoomTo, type Zoom } from "../flame";
+import { descendantIds, lineage, zoomTo, type Zoom } from "../flame";
 import { durationLabel, spanStart, spanError, spanErrorText, type TraceSummary } from "../traces";
 import { traceResourceKey } from "../trace-service";
 import { useTraceResources } from "./TraceColors";
@@ -61,6 +61,8 @@ export function Waterfall({
 			return visible;
 		});
 	}, [all, collapsed]);
+
+	const related = useMemo(() => lineage(trace, selected.spanId), [trace, selected.spanId]);
 
 	const toggle = (id: string) => {
 		setCollapsed((prev) => {
@@ -132,6 +134,7 @@ export function Waterfall({
 						className={cn(
 							"tv-waterfall-row flex h-[30px] items-stretch border-b border-line last:border-0",
 							selected.spanId === span.spanId && "bg-panel2",
+							!related.has(span.spanId) && "opacity-45",
 							highlight !== null && traceResourceKey(span) !== highlight && "opacity-30",
 							linkedSpan === span.spanId && "ring-2 ring-inset ring-info",
 						)}
@@ -203,7 +206,11 @@ export function Waterfall({
 								}
 							>
 								{span.name}
-								{collapsed.has(span.spanId) && ` (${children.toString()})`}
+								{collapsed.has(span.spanId) && children > 0 && (
+									<span className="ml-1.5 rounded-[4px] bg-panel2 px-[5px] font-mono text-[11px] text-fg3">
+										+{descendantIds(trace, span.spanId, childrenById).size - 1}
+									</span>
+								)}
 								<span className="ml-2 text-[10px] text-fg3">{label(span)}</span>
 							</SpanTipTrigger>
 						</div>
