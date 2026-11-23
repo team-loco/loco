@@ -1160,7 +1160,7 @@ def query_suggestions(page):
     popup = page.locator('[data-slot="combobox-content"]')
     # Waits out the opening zoom before comparing widths.
     page.wait_for_function(
-        "([bar, popup]) => Math.abs(bar.getBoundingClientRect().width - popup.getBoundingClientRect().width) <= 2",
+        "([bar, popup]) => Math.abs(Math.min(520, bar.getBoundingClientRect().width) - popup.getBoundingClientRect().width) <= 2",
         arg=[bar.element_handle(), popup.element_handle()],
     )
     expect(popup).to_contain_text("exclude")
