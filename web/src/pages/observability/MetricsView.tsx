@@ -71,6 +71,7 @@ const TRAFFIC_CARDS = [
 		key: "req",
 		title: "Requests",
 		column: "Requests",
+		width: 110,
 		unit: "req/s",
 		axisUnit: " req/s",
 		value: (p: TrafficPoint) => p.requests,
@@ -80,6 +81,7 @@ const TRAFFIC_CARDS = [
 		key: "err",
 		title: "5xx responses",
 		column: "5xx",
+		width: 90,
 		unit: "%",
 		axisUnit: "%",
 		value: errorShare,
@@ -89,6 +91,7 @@ const TRAFFIC_CARDS = [
 		key: "lat",
 		title: "Latency, p95",
 		column: "p95",
+		width: 100,
 		unit: "ms",
 		axisUnit: " ms",
 		value: (p: TrafficPoint) => p.latency,
@@ -654,6 +657,8 @@ export function MetricsView() {
 						table={table}
 						label="By resource and region"
 						band
+						tail
+						separators
 						className="text-[12.5px] [--row-h:38px] [&_td]:py-1"
 						empty={<p className="px-3 py-6 text-center text-fg3">Nothing matches these filters.</p>}
 						onRowClick={(row) => {
@@ -686,8 +691,7 @@ function placementColumns(
 			accessorFn: (p) => p.resource.raw.name,
 			sortFn: (a, b) => a.original.resource.raw.name.localeCompare(b.original.resource.raw.name),
 			header: "Resource",
-			size: 140,
-			meta: { grow: true },
+			size: 150,
 			cell: ({ row: { original: p } }) => (
 				<span className="flex min-w-0 items-center gap-1.5">
 					<span className="size-2 shrink-0 rounded-[2px]" style={{ background: p.resource.color }} />
@@ -700,14 +704,14 @@ function placementColumns(
 			accessorFn: (p) => p.region,
 			sortFn: (a, b) => a.original.region.localeCompare(b.original.region),
 			header: "Region",
-			meta: { fit: true },
+			size: 130,
 			cell: ({ row }) => <CellText text={row.original.region} className="font-mono text-fg2" />,
 		},
 		{
 			id: "replicas",
 			accessorFn: (p) => p.ready ?? -1,
 			header: "Replicas",
-			meta: { fit: true },
+			size: 110,
 			sortDescFirst: true,
 			cell: ({ row: { original: p } }) => {
 				const short = p.ready !== null && p.desired !== null && p.ready < p.desired;
@@ -722,7 +726,7 @@ function placementColumns(
 			id: "cpu",
 			accessorFn: (p) => cpu.get(p.key)?.v ?? -1,
 			header: "CPU (latest)",
-			size: 180,
+			size: 230,
 			sortDescFirst: true,
 			cell: ({ row }) => <Meter value={cpu.get(row.original.key)} format={CPU.format} />,
 		},
@@ -730,7 +734,7 @@ function placementColumns(
 			id: "mem",
 			accessorFn: (p) => mem.get(p.key)?.v ?? -1,
 			header: "Memory (latest)",
-			size: 180,
+			size: 220,
 			sortDescFirst: true,
 			cell: ({ row }) => <Meter value={mem.get(row.original.key)} format={MEMORY.format} />,
 		},
@@ -740,7 +744,7 @@ function placementColumns(
 				id: card.key,
 				accessorFn: (p) => latest(p) ?? -1,
 				header: card.column,
-				meta: { fit: true },
+				size: card.width,
 				sortDescFirst: true,
 				cell: ({ row }) => {
 					const value = latest(row.original);

@@ -210,11 +210,18 @@ def check_create_dialogs(page):
             page.get_by_role("dialog").get_by_role("textbox", name=field, exact=True)
         ).to_be_focused()
         if button == "New workspace":
-            page.get_by_role(
+            workspace_dialog = page.get_by_role(
                 "dialog", name="New workspace in acme", exact=True
-            ).get_by_text(
+            )
+            workspace_dialog.get_by_text(
                 "A workspace is a project inside acme.", exact=False
             ).wait_for()
+            expect(
+                workspace_dialog.get_by_role("button", name="Close", exact=True)
+            ).to_have_count(0)
+            expect(
+                workspace_dialog.get_by_text("Organization", exact=True)
+            ).to_have_count(0)
         page.keyboard.press("Escape")
         expect(opener).to_be_focused()
     page.goto(state["ui_url"] + "/tokens?new=1")

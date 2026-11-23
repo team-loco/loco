@@ -185,20 +185,22 @@ function maxOf<T extends RowData>(column: Column<Features, T>): number {
 	return column.columnDef.maxSize ?? (column.columnDef.meta?.grow === true ? Infinity : MAX_WIDTH);
 }
 
-export function gridTracks<T extends RowData>(columns: Column<Features, T>[], sizing: ColumnSizingState): string {
-	const growIndex = growIndexOf(columns, sizing);
-	return columns
-		.map((column, index) => {
-			const size = widthOf(column, sizing);
-			const resized = column.id in sizing;
-			const fit = column.columnDef.meta?.fit === true && !resized;
-			if (column.columnDef.meta?.pinEnd === true)
-				return index === growIndex ? "minmax(max-content,1fr)" : "max-content";
-			if (index === growIndex) return `minmax(${String(fit ? (column.columnDef.minSize ?? MIN_WIDTH) : size)}px,1fr)`;
-			if (fit) return "max-content";
-			return `${String(size)}px`;
-		})
-		.join(" ");
+export function gridTracks<T extends RowData>(
+	columns: Column<Features, T>[],
+	sizing: ColumnSizingState,
+	tail = false,
+): string {
+	const growIndex = tail ? -1 : growIndexOf(columns, sizing);
+	const tracks = columns.map((column, index) => {
+		const size = widthOf(column, sizing);
+		const resized = column.id in sizing;
+		const fit = column.columnDef.meta?.fit === true && !resized;
+		if (column.columnDef.meta?.pinEnd === true) return index === growIndex ? "minmax(max-content,1fr)" : "max-content";
+		if (index === growIndex) return `minmax(${String(fit ? (column.columnDef.minSize ?? MIN_WIDTH) : size)}px,1fr)`;
+		if (fit) return "max-content";
+		return `${String(size)}px`;
+	});
+	return (tail ? [...tracks, "minmax(0,1fr)"] : tracks).join(" ");
 }
 
 // A fit column's cells cap the width they ask for, so its track spans the widest cell up to `maxSize`;
@@ -437,12 +439,16 @@ function fromControl(event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>
 }
 
 const ROW = "col-span-full grid grid-cols-subgrid border-b border-line2";
-const SKELETON_ROWS = [0, 1, 2, 3, 4];
+const BAR = <Skeleton className="h-3 w-full" />;
 
 export function DataTable<T extends RowData>({
 	table,
 	empty = null,
 	loading = false,
+	skeleton,
+	skeletonRows = 5,
+	tail = false,
+	separators = false,
 	activeRowId,
 	onRowClick,
 	onRowHover,
@@ -461,6 +467,13 @@ export function DataTable<T extends RowData>({
 	/** Content of the single row shown when there are no rows; null shows none. */
 	empty?: ReactNode;
 	loading?: boolean;
+	/** The content of one loading row: a ruled row holding one bar by default, an unruled row when given. */
+	skeleton?: ReactNode;
+	skeletonRows?: number;
+	/** Keeps every column at its width and leaves the rest of the row empty, instead of widening one column. */
+	tail?: boolean;
+	/** Draws the lines between header cells at all times, not only while the pointer is over the header. */
+	separators?: boolean;
 	/** The row whose details are open; it shows as selected. */
 	activeRowId?: string | null;
 	onRowClick?: (row: Row<Features, T>) => void;
@@ -501,7 +514,7 @@ export function DataTable<T extends RowData>({
 	const sizing =
 		preview === null ? table.state.columnSizing : { ...table.state.columnSizing, [preview.id]: preview.width };
 	const rows = table.getRowModel().rows;
-	const growIndex = growIndexOf(columns, sizing);
+	const growIndex = tail ? -1 : growIndexOf(columns, sizing);
 	const primaryIndex = Math.max(
 		0,
 		columns.findIndex((c) => c.columnDef.meta?.primary === true),
@@ -511,6 +524,7 @@ export function DataTable<T extends RowData>({
 			ref={trackScroll}
 			data-slot="data-table"
 			data-band={band ? "" : undefined}
+			data-separators={separators ? "" : undefined}
 			className="@container relative w-full overflow-x-auto [--row-h:52px]"
 		>
 			<table
@@ -523,7 +537,7 @@ export function DataTable<T extends RowData>({
 						: "[&_tr>:first-child]:pl-5 [&_tr>:last-child]:pr-5",
 					className,
 				)}
-				style={{ gridTemplateColumns: gridTracks(columns, sizing) }}
+				style={{ gridTemplateColumns: gridTracks(columns, sizing, tail) }}
 			>
 				<TableHeader role="rowgroup" className="col-span-full grid grid-cols-subgrid [&_tr]:border-line2">
 					{table.getHeaderGroups().map((group) => (
@@ -548,10 +562,15 @@ export function DataTable<T extends RowData>({
 				</TableHeader>
 				<TableBody role="rowgroup" className="col-span-full grid grid-cols-subgrid [&_tr:last-child]:border-0">
 					{loading &&
-						SKELETON_ROWS.map((i) => (
-							<TableRow role="row" key={i} className={cn(ROW, "hover:bg-transparent")}>
+						Array.from({ length: skeletonRows }, (_, i) => (
+							<TableRow
+								role="row"
+								key={i}
+								data-ruled={skeleton === undefined ? "" : undefined}
+								className={cn(ROW, "hover:bg-transparent", skeleton !== undefined && "border-b-0")}
+							>
 								<TableCell role="cell" className="col-span-full flex h-(--row-h) items-center">
-									<Skeleton className="h-3 w-full" />
+									{skeleton ?? BAR}
 								</TableCell>
 							</TableRow>
 						))}

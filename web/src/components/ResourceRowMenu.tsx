@@ -19,11 +19,13 @@ export function ResourceRowMenu({
 	resource,
 	workspaceId,
 	title,
+	monoTitle = false,
 	children,
 }: {
 	resource: Resource;
 	workspaceId: string;
 	title?: ReactNode;
+	monoTitle?: boolean;
 	children: ReactNode;
 }) {
 	const queryClient = useQueryClient();
@@ -47,7 +49,7 @@ export function ResourceRowMenu({
 
 	return (
 		<>
-			<RowMenu label={`Actions for ${resource.name}`} title={title}>
+			<RowMenu label={`Actions for ${resource.name}`} title={title} monoTitle={monoTitle}>
 				{children}
 				<DropdownMenuItem
 					variant="destructive"

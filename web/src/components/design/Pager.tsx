@@ -48,6 +48,7 @@ function Pager({
 	onNext,
 	onLast,
 	text,
+	loading = false,
 	className,
 }: {
 	label: ReactNode;
@@ -69,9 +70,11 @@ function Pager({
 	onLast?: (() => void) | null | undefined;
 	/** Shows text buttons with these labels instead of chevrons; the first-page button shows only when it can act. */
 	text?: { first: string; prev: string; next: string } | undefined;
+	/** Keeps the pager under loading rows, with its controls disabled. */
+	loading?: boolean | undefined;
 	className?: string | undefined;
 }) {
-	if (total === 0 && onPrev === null && onNext === null) return null;
+	if (total === 0 && onPrev === null && onNext === null && !loading) return null;
 	const sizes = pageSizes.length > 1 && pageSize !== undefined && onPageSize !== undefined;
 	return (
 		<div
@@ -89,6 +92,7 @@ function Pager({
 					<ToggleGroup
 						variant="segmented"
 						aria-label="Rows per page"
+						disabled={loading}
 						value={[String(pageSize)]}
 						onValueChange={(v: string[]) => {
 							const n = Number(v[0]);

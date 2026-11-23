@@ -80,7 +80,7 @@ export function ColumnResizeHandle({
 			className={cn(
 				"absolute top-2 bottom-2 w-2 cursor-col-resize touch-none rounded-sm outline-none after:absolute after:inset-y-0 after:w-px",
 				atStart ? "left-0 after:left-[3px]" : "right-0 after:right-[3px]",
-				"after:bg-line2 after:opacity-0 after:transition-opacity after:duration-120 in-[[data-slot=table-header]:hover]:after:opacity-100 hover:after:bg-fg3 hover:after:opacity-100 focus-visible:after:bg-foreground focus-visible:after:opacity-100",
+				"after:bg-line2 after:opacity-0 after:transition-opacity after:duration-120 in-[[data-slot=table-header]:hover]:after:opacity-100 in-[[data-separators]]:after:opacity-100 hover:after:bg-fg3 hover:after:opacity-100 focus-visible:after:bg-foreground focus-visible:after:opacity-100",
 			)}
 		/>
 	);

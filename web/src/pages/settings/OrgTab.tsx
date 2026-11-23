@@ -401,7 +401,7 @@ export function OrgTab({
 				/>
 			)}
 
-			<CreateScopeDialog kind={newOpen ? "workspace" : null} onOpenChange={setNewOpen} />
+			<CreateScopeDialog kind={newOpen ? "workspace" : null} fixedOrgId={org.id} onOpenChange={setNewOpen} />
 			<ConfirmDeleteDialog
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}

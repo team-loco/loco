@@ -274,6 +274,7 @@ export function Team() {
 						{...pager}
 						label={tokenPageLabel(pager.page, size, rows.length, people.total)}
 						total={rows.length}
+						loading={isLoading}
 						pageSizes={PAGE_SIZES}
 						pageSize={size}
 						onPageSize={(next) => {

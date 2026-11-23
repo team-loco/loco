@@ -352,7 +352,7 @@ function secretColumns({
 			id: "menu",
 			meta: { pinEnd: true, label: "Actions" },
 			cell: ({ row: { original: secret } }) => (
-				<RowMenu label={`Actions for ${secret.name}`} title={<span className="font-mono">{secret.name}</span>}>
+				<RowMenu label={`Actions for ${secret.name}`} title={secret.name} monoTitle>
 					{canWrite && (
 						<DropdownMenuItem
 							onClick={() => {

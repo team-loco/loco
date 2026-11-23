@@ -13,6 +13,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/design/Button";
 import { ErrorState } from "@/components/design/ErrorState";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { Skeleton } from "@/components/design/Skeleton";
 import { Pager } from "@/components/design/Pager";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
@@ -245,6 +246,8 @@ export function EventsView() {
 						label="Events"
 						band
 						loading={loading}
+						skeleton={EVENT_SKELETON}
+						skeletonRows={8}
 						empty={<div className="px-6 py-7 text-center text-[13px] text-fg3">No events match.</div>}
 						activeRowId={selItem?.id ?? null}
 						onRowClick={(row) => {
@@ -402,6 +405,18 @@ function useSeverityCount(
 function countLabel(count: number | undefined): string | undefined {
 	return count === undefined ? undefined : formatTotal(count);
 }
+
+const EVENT_SKELETON = (
+	<div className="grid w-full grid-cols-[88px_minmax(0,1fr)_150px_96px] items-center gap-x-4">
+		<Skeleton className="size-4 rounded-full" />
+		<span className="flex flex-col gap-1.5">
+			<Skeleton className="h-3 w-[45%]" />
+			<Skeleton className="h-2.5 w-[65%]" />
+		</span>
+		<Skeleton className="h-3 w-[60px]" />
+		<Skeleton className="h-3 w-14 justify-self-end" />
+	</div>
+);
 
 const EVENT_LEVEL: Record<Severity, Level> = { error: "error", warning: "warn", normal: "info" };
 
