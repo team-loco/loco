@@ -87,6 +87,15 @@ def draft_row(page, name):
     )
 
 
+def expand(drawer, title):
+    """Opens a collapsed drawer section and returns its header button."""
+    header = drawer.get_by_role("button", name=re.compile(rf"^{title}\b"))
+    if header.get_attribute("aria-expanded") != "true":
+        header.click()
+    expect(header).to_have_attribute("aria-expanded", "true")
+    return header
+
+
 def seeded_draft(name, image):
     return {
         "id": str(uuid.uuid4()),
@@ -212,6 +221,7 @@ with session(out) as browser:
     ).to_have_count(0)
     for route in pending_config:
         route.continue_()
+    expand(drawer, "Scaling")
     expect(drawer.get_by_role("group", name="Replicas", exact=True)).to_be_visible()
     assert not errors, errors
     context.close()
@@ -364,8 +374,34 @@ with session(out) as browser:
 
     expect(page).to_have_url(DRAFT_URL)
     drawer = page.get_by_role("dialog", name=name, exact=True)
-    expect(drawer.get_by_text(image, exact=True)).to_be_visible()
+    expect(
+        drawer.get_by_role("textbox", name="Container image", exact=True)
+    ).to_have_value(image)
     expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
+    assert stored_drafts(page) == [name], stored_drafts(page)
+    # The name and description are edited in the header.
+    name_field = page.get_by_role("textbox", name="Name", exact=True)
+    expect(name_field).to_have_value(name)
+    description = drawer.get_by_role("textbox", name="Description", exact=True)
+    expect(description).to_have_value("")
+    expect(description).to_have_attribute("placeholder", "Add a description")
+    expect(
+        drawer.get_by_text("Optional. Shown under the name in lists.")
+    ).to_have_count(0)
+    renamed = f"{name}-renamed"
+    name_field.fill(renamed)
+    expect(page.get_by_role("dialog", name=renamed, exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("button", name=f"Deploy {renamed}", exact=True)
+    ).to_be_visible()
+    assert stored_drafts(page) == [renamed], stored_drafts(page)
+    # An empty name is not kept; leaving the field restores the last name.
+    name_field.fill("")
+    name_field.blur()
+    expect(name_field).to_have_value(renamed)
+    name_field.fill(name)
+    name_field.blur()
+    expect(page.get_by_role("dialog", name=name, exact=True)).to_be_visible()
     assert stored_drafts(page) == [name], stored_drafts(page)
     last_region = drawer.get_by_role("button", name="us-ca-1", exact=True)
     expect(last_region).to_have_attribute("aria-pressed", "true")
@@ -427,15 +463,18 @@ with session(out) as browser:
     port = drawer.get_by_role("textbox", name="Port", exact=True)
     expect(port).to_have_value("")
     port.fill("8080")
+    scaling = expand(drawer, "Scaling")
     expect(
         drawer.get_by_role("button", name="Decrease replicas", exact=True)
     ).to_be_disabled()
     drawer.get_by_role("button", name="Increase replicas", exact=True).click()
     replicas = drawer.get_by_role("group", name="Replicas", exact=True)
     expect(replicas.get_by_text("2", exact=True)).to_be_visible()
+    expect(scaling).to_contain_text("2 replicas per region")
     expect(drawer.get_by_text("Runs exactly 2 per region.", exact=True)).to_have_count(
         0
     )
+    size = expand(drawer, "Size per replica")
     cpu = drawer.get_by_role("slider", name="CPU", exact=True)
     memory = drawer.get_by_role("slider", name="Memory", exact=True)
     expect(cpu).to_have_attribute("max", "4")
@@ -455,7 +494,11 @@ with session(out) as browser:
     for _ in range(3):
         page.keyboard.press("ArrowRight")
     expect(memory).to_have_attribute("aria-valuetext", "1 Gi")
+    expect(size).to_contain_text("0.5 vCPU, 1 Gi")
 
+    variables_header = drawer.get_by_role("button", name=re.compile(r"^Variables\b"))
+    expect(variables_header).to_contain_text("None")
+    expand(drawer, "Variables")
     drawer.get_by_role("button", name="Paste .env", exact=True).click()
     paste = drawer.get_by_role("textbox", name="Paste .env")
     paste_trigger = drawer.get_by_role("button", name="Paste .env", exact=True)
@@ -477,6 +520,7 @@ with session(out) as browser:
     expect(paste).to_have_count(0)
     variables = drawer.get_by_role("list", name="Variables")
     names = variables.get_by_role("textbox", name="Variable name")
+    expect(variables_header).to_contain_text("2 variables")
     expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
     expect(names.nth(1)).to_have_value("LOG_LEVEL")
     expect(variables.get_by_role("textbox", name="Value of LOG_LEVEL")).to_have_value(
@@ -553,7 +597,7 @@ with session(out) as browser:
     drawer.get_by_role("button", name="Add", exact=True).click()
     names.nth(2).fill("EMPTY_FLAG")
     expect(variables.locator("[data-invalid]")).to_have_count(0)
-    expect(drawer.get_by_role("heading", name="Variables 3")).to_be_visible()
+    expect(variables_header).to_contain_text("3 variables")
 
     health = drawer.get_by_role("switch", name="Health check", exact=True)
     expect(health).to_be_checked()
@@ -596,6 +640,11 @@ with session(out) as browser:
 
     page.reload()
     expect(page).to_have_url(DRAFT_URL)
+    for title in ("Scaling", "Size per replica", "Variables"):
+        expect(
+            drawer.get_by_role("button", name=re.compile(rf"^{title}\b"))
+        ).to_have_attribute("aria-expanded", "false")
+        expand(drawer, title)
     expect(secret_value).to_have_value("${{ secrets.STRIPE_API_KEY }}")
     expect(replicas.get_by_text("2", exact=True)).to_be_visible()
     expect(memory).to_have_attribute("aria-valuetext", "1 Gi")
@@ -1013,8 +1062,10 @@ with session(out) as browser:
     drawer = page.get_by_role("dialog", name=label, exact=True)
     assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
     drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
+    scaling = expand(drawer, "Scaling")
     drawer.get_by_role("button", name="Increase replicas", exact=True).click()
     drawer.get_by_role("switch", name="Autoscaling", exact=True).click()
+    expect(scaling).to_contain_text("Autoscaling, 2 to 3 replicas per region")
     increase_max = drawer.get_by_role(
         "button", name="Increase maximum replicas", exact=True
     )

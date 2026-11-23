@@ -2,6 +2,7 @@ import { RegionAvailability, ResourceStatus, type RegionInfo } from "@gen/loco/r
 
 import type { NewResourceForm } from "@/lib/new-resource";
 import { statusRank } from "@/lib/resource-status";
+import { slug } from "@/lib/slug";
 
 export type DraftEdits = Partial<Omit<NewResourceForm, "image" | "name" | "slug">>;
 
@@ -52,6 +53,10 @@ export function editDraft(drafts: readonly Draft[], id: string, edits: DraftEdit
 
 export function setDraftImage(drafts: readonly Draft[], id: string, image: string): Draft[] {
 	return drafts.map((d) => (d.id === id ? { ...d, image } : d));
+}
+
+export function setDraftName(drafts: readonly Draft[], id: string, name: string): Draft[] {
+	return drafts.map((d) => (d.id === id ? { ...d, name, slug: slug(name) } : d));
 }
 
 export function removeDraft(drafts: readonly Draft[], id: string): Draft[] {
