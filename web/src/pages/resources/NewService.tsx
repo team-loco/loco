@@ -17,7 +17,6 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { RegionCard, RegionCards } from "@/components/design/RegionCards";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/design/Collapsible";
 import { Button } from "@/components/design/Button";
-import { CodeBlock } from "@/components/design/CodeBlock";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
@@ -52,7 +51,6 @@ import {
 	firstError,
 	imageError,
 	envRowErrors,
-	locoYaml,
 	mergeEnv,
 	nameFromImage,
 	servedDomains,
@@ -417,7 +415,6 @@ function DraftPanel({
 		return (
 			<ServiceForm
 				env={env}
-				schemaUrl={config.schemaUrl}
 				regions={regionsQuery.data.regions}
 				defaultRegion={config.defaultRegion}
 				appDomains={domainsQuery.data?.appDomains ?? []}
@@ -530,7 +527,6 @@ function ServiceForm({
 	draft,
 	defaults,
 	sizes,
-	schemaUrl,
 	regions,
 	defaultRegion,
 	appDomains,
@@ -550,7 +546,6 @@ function ServiceForm({
 	draft: Draft;
 	defaults: DefaultServiceConfig;
 	sizes: SizeOptions;
-	schemaUrl: string;
 	regions: RegionInfo[];
 	defaultRegion: string;
 	appDomains: AppDomain[];
@@ -837,14 +832,6 @@ function ServiceForm({
 					timeoutError={errors.healthTimeout}
 					onChange={setHealth}
 				/>
-
-				<details className="group flex flex-col gap-2.5">
-					<summary className="w-fit font-mono text-[13.5px] font-medium">loco.yaml</summary>
-					<div className="mt-2.5 flex flex-col gap-2.5">
-						<CodeBlock copyLabel="Copy command" lineNumbers={false}>{`loco deploy --env ${env.slug}`}</CodeBlock>
-						<CodeBlock copyLabel="Copy loco.yaml">{locoYaml({ schemaUrl, form })}</CodeBlock>
-					</div>
-				</details>
 			</SheetBody>
 			<SheetFooter className="flex-wrap items-center">
 				<span className="flex min-w-0 flex-1 flex-col gap-0.5 text-[12.5px] text-fg3 max-sm:basis-full">

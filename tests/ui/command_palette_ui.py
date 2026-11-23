@@ -48,6 +48,11 @@ with session(out) as browser:
         results.get_by_role("option", name="product-catalog", exact=True)
     ).to_have_count(1)
 
+    query.fill("bulk")
+    expect(
+        results.get_by_role("group", name="Resources").get_by_role("option")
+    ).to_have_count(6)
+
     query.fill("no such command")
     expect(palette.get_by_text("Nothing matches.", exact=True)).to_be_visible()
     expect(

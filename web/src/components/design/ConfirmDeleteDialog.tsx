@@ -100,7 +100,7 @@ function ConfirmBody({
 				{children}
 				<label className="flex flex-col gap-1.5">
 					<span className="text-[12.5px] text-fg2">
-						Type <span className="font-semibold text-foreground">{target}</span> to confirm
+						Type <span className="font-mono text-foreground">{target}</span> to confirm
 					</span>
 					<Input
 						ref={inputRef}

@@ -608,6 +608,7 @@ with session(out) as browser:
     expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
     expect(rows).to_have_count(0)
     expect(search).to_be_visible()
+    assert alert.bounding_box()["y"] < search.bounding_box()["y"]
     alert.get_by_title("Copy request ID", exact=True).click()
     page.mouse.move(0, 0)
     assert copied_text(page) == request_id

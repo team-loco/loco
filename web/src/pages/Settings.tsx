@@ -37,7 +37,7 @@ const NO_DRAFTS: Drafts = { workspace: null, org: null, account: null };
 function DirtyDot() {
 	return (
 		<>
-			<span aria-hidden className="size-1.5 rounded-full bg-warn-fg" />
+			<span aria-hidden className="size-1.5 rounded-full bg-warn" />
 			<span className="sr-only">(unsaved changes)</span>
 		</>
 	);

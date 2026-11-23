@@ -316,10 +316,26 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(row).to_be_focused()
     page.keyboard.press("Enter")
     expect(page).to_have_url(re.compile(rf"/org/{org}/wks/"))
+    call(
+        state,
+        "loco.workspace.v1.WorkspaceService/CreateMember",
+        {
+            "workspaceId": sibling,
+            "userId": state["users"]["member"]["id"],
+            "scopes": ["read"],
+        },
+    )
     page.goto(path)
     expect(
         page.get_by_role("button", name="Change role for Max Member", exact=True)
     ).to_be_disabled()
+    page.get_by_role(
+        "button", name="All workspace access for Max Member", exact=True
+    ).click()
+    own_drawer = page.get_by_role("dialog", name="Max Member")
+    own_sibling = own_drawer.get_by_role("group", name="Access to sibling", exact=True)
+    expect(own_sibling).to_be_visible()
+    expect(own_sibling.get_by_role("button", name="None", exact=True)).to_be_disabled()
     assert not errors, errors
     context.close()
 

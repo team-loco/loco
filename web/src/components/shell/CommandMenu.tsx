@@ -100,6 +100,7 @@ const SEARCH_GROUPS = [
 ] as const;
 const KEY_HINT = "bg-panel2 text-fg3 inset-ring-0";
 const BROWSE_LIMIT = 8;
+const SEARCH_LIMIT = 6;
 // Searching lists this many of the newest workspaces and this many that match the typed text.
 const PALETTE_WORKSPACES = 20;
 
@@ -494,7 +495,14 @@ function PaletteBody({ items: commands, onClose }: { items: readonly PaletteItem
 				(item) =>
 					item.group === group && (item.list ?? null) === (list?.id ?? null) && !(browsing && item.searchOnly === true),
 			);
-			return { group, items: browsing && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
+			if (browsing) return { group, items: group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
+			if (list !== null) return { group, items: inGroup };
+			const scored = inGroup.map((item) => ({
+				item,
+				score: scorePaletteItem(item.id, query, [item.label, item.keywords ?? ""]),
+			}));
+			const best = scored.filter((entry) => entry.score > 0).toSorted((a, b) => b.score - a.score);
+			return { group, items: best.slice(0, SEARCH_LIMIT).map((entry) => entry.item) };
 		});
 
 	return (
