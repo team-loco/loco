@@ -34,7 +34,9 @@ with session(out) as browser:
     query = palette.get_by_role("combobox", name="Search resources, pages and actions")
 
     query.fill("log")
-    expect(results.get_by_role("option", name="Logs for api")).to_be_visible()
+    expect(
+        results.get_by_role("group", name="Resources").get_by_role("option")
+    ).to_have_count(6)
     expect(results.get_by_role("option").first).to_have_accessible_name(
         re.compile("^Logs")
     )

@@ -240,6 +240,7 @@ export function Audit() {
 	const loading = choicesLoading || query.isLoading;
 	const rejected = query.error === null ? null : auditSearchError(query.error, types, actor, search);
 	const filterRejected = auditFilterViolations(query.error).length > 0;
+	const loadError = rejected === null && !filterRejected ? query.error : null;
 	const timeWindow: TimeWindow = custom ? { kind: "absolute", from, to } : { kind: "relative", spanMs: range.ms };
 	const setWindow = (next: TimeWindow) => {
 		const preset = next.kind === "relative" ? RANGES.find((r) => r.ms === next.spanMs) : undefined;
@@ -281,6 +282,9 @@ export function Audit() {
 					</>
 				}
 			/>
+			{loadError !== null && (
+				<ErrorState error={loadError} what="the audit log" rpc={listEvents} scope="audit" onRetry={query.refetch} />
+			)}
 			<div className="flex flex-col gap-2">
 				<QueryInput
 					valueCounts={valueCounts}
@@ -298,9 +302,7 @@ export function Audit() {
 				/>
 				{rejected !== null && <QueryErrorLine error={rejected.error} highlightTo={rejected.end} />}
 			</div>
-			{query.error !== null && rejected === null && !filterRejected ? (
-				<ErrorState error={query.error} what="the audit log" rpc={listEvents} scope="audit" onRetry={query.refetch} />
-			) : (
+			{loadError === null && (
 				<Section
 					filters={
 						<>

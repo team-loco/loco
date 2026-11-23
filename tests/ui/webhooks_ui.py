@@ -129,9 +129,9 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     expect(drawer).to_be_visible()
     fields = drawer.locator("dl").first
     values = fields.locator("dd")
-    url_copy = fields.get_by_role(
-        "button", name="https://hooks.invalid/loco", exact=True
-    )
+    url_text = fields.get_by_text("https://hooks.invalid/loco", exact=True)
+    expect(url_text).to_be_visible()
+    url_copy = fields.get_by_role("button", name="Copy URL", exact=True)
     id_copy = fields.get_by_role("button", name=hook_id, exact=True)
     for control, expected in (
         (url_copy, "https://hooks.invalid/loco"),
@@ -140,7 +140,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         control.click()
         assert copied_text(page) == expected
     left = values.nth(2).bounding_box()["x"]
-    assert abs(url_copy.locator("span").first.bounding_box()["x"] - left) < 1
+    assert abs(url_text.bounding_box()["x"] - left) < 1
     assert abs(id_copy.locator("span").first.bounding_box()["x"] - left) < 1
     deliveries = drawer.get_by_role("list", name="Deliveries", exact=True)
     expect(deliveries.locator("li")).to_have_count(25)

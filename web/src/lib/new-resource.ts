@@ -9,8 +9,6 @@ import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/app-domain";
 import { slug } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
-const DIGITS_RE = /^\d+$/;
-const LOCO_YAML_VERSION = 1;
 
 export interface EnvRow {
 	id: string;
@@ -283,79 +281,4 @@ export function apiFieldError(err: unknown): ApiFieldError | null {
 		if (field !== undefined) return { field, message: message.charAt(0).toUpperCase() + message.slice(1) };
 	}
 	return null;
-}
-
-const BLOCK_PLAIN_RE = /^[A-Za-z0-9_./-][A-Za-z0-9_./:@-]*$/;
-const FLOW_PLAIN_RE = /^[A-Za-z0-9_./-]+$/;
-const YAML_SPECIAL_RE =
-	/^([-+.]?[\d._]+([eE][-+]?\d+)?|\d+(:\d+)+|0x[\da-f]+|0o[0-7]+|y|yes|n|no|true|false|on|off|null|~|\.inf|\.nan)$/i;
-
-function scalar(value: string, plain: RegExp): string {
-	return plain.test(value) && !YAML_SPECIAL_RE.test(value) && !value.endsWith(":") ? value : JSON.stringify(value);
-}
-
-function yamlInt(value: string): string {
-	return DIGITS_RE.test(value) ? value : JSON.stringify(value);
-}
-
-function healthYaml(health: HealthForm, flow: (v: string) => string): string {
-	const fields = [
-		`path: ${flow(health.path)}`,
-		...(
-			[
-				["interval", health.interval],
-				["timeout", health.timeout],
-				["failThreshold", health.failAfter],
-			] as const
-		)
-			.filter(([, v]) => v !== "")
-			.map(([k, v]) => `${k}: ${yamlInt(v)}`),
-	];
-	return `    health: { ${fields.join(", ")} }`;
-}
-
-export interface LocoYamlInput {
-	schemaUrl: string;
-	form: NewResourceForm;
-}
-
-export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
-	const name = scalar(form.slug, BLOCK_PLAIN_RE);
-	const flow = (v: string) => scalar(v, FLOW_PLAIN_RE);
-	const replicas = form.replicas.toString();
-	const lines = [
-		...(schemaUrl === "" ? [] : [`# yaml-language-server: $schema=${schemaUrl}`]),
-		`version: ${LOCO_YAML_VERSION.toString()}`,
-		`partial: ${scalar(form.slug, FLOW_PLAIN_RE)}`,
-		"",
-		"services:",
-		`  ${name}:`,
-		`    image: ${scalar(form.image.trim(), BLOCK_PLAIN_RE)}`,
-	];
-	for (const [key, text] of [
-		["command", form.command],
-		["args", form.args],
-	] as const) {
-		const entries = commandEntries(text);
-		if (entries.length > 0) lines.push(`    ${key}: [${entries.map(flow).join(", ")}]`);
-	}
-	if (form.port.trim() !== "") lines.push(`    port: ${yamlInt(form.port)}`);
-	if (checksHealth(form.health)) lines.push(healthYaml(form.health, flow));
-	if (form.isPublic && form.subdomain !== "" && form.appDomain !== "")
-		lines.push(`    domains: [${flow(`${form.subdomain}.${form.appDomain}`)}]`);
-	const vars = envVars(form.vars);
-	if (vars.length > 0) {
-		lines.push("    env:");
-		for (const [key, value] of vars) lines.push(`      ${scalar(key, FLOW_PLAIN_RE)}: ${JSON.stringify(value)}`);
-	}
-	if (form.regions.length > 0) lines.push("    regions:");
-	const autoscaling =
-		form.maxReplicas === form.replicas ? "" : `, autoscaling: { cpuTarget: ${form.cpuTarget.toString()} }`;
-	for (const region of form.regions) {
-		const sizing = `cpu: ${flow(form.cpu)}, memory: ${flow(form.memory)}`;
-		lines.push(
-			`      ${flow(region)}: { ${sizing}, replicas: { min: ${replicas}, max: ${form.maxReplicas.toString()} }${autoscaling} }`,
-		);
-	}
-	return `${lines.join("\n")}\n`;
 }

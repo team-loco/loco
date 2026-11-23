@@ -56,7 +56,7 @@
 	--sh-keyword: #be185d;
 	--sh-class: #047857;
 	--sh-sign: var(--ink);
-	--logo: var(--fg);
+	--logo: var(--btn);
 	--theme-accent: var(--btn);
 }
 

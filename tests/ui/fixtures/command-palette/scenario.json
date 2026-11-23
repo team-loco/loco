@@ -70,6 +70,174 @@
           }
         }
       ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "bulk-1",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-ca-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "bulk-2",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-ca-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "bulk-3",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-ca-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "bulk-4",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-ca-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "bulk-5",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-ca-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "bulk-6",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-ca-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }

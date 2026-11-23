@@ -204,7 +204,7 @@ export function ImportDialog({
 						<span className="text-fg2">Each line becomes a secret. Names that exist get a new version.</span>
 						<Textarea
 							aria-label=".env contents"
-							className="resize-none bg-panel font-mono text-[12.5px]"
+							className="resize-y bg-panel font-mono text-[12.5px]"
 							rows={8}
 							spellCheck={false}
 							placeholder="DATABASE_URL=postgres://…"

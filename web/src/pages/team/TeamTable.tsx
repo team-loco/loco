@@ -164,7 +164,6 @@ function Workspaces({
 	accessLoading: boolean;
 	actions: RowActions;
 }) {
-	const isMe = member.member.user?.id === actions.meId;
 	const role = roleOf(member.member.scopes);
 	const granted = member.workspaces.toSorted(
 		(a, b) =>
@@ -187,9 +186,9 @@ function Workspaces({
 		return accessLoading ? (
 			<Skeleton className="h-5 w-32" />
 		) : (
-			<Button variant="outline" size="xs" disabled={isMe} onClick={openAccess} className="text-fg3">
+			<button type="button" onClick={openAccess} className="text-[12.5px] text-fg3 hover:text-foreground">
 				No access
-			</Button>
+			</button>
 		);
 	}
 	return (
@@ -199,7 +198,6 @@ function Workspaces({
 				<Button
 					variant="outline"
 					size="xs"
-					disabled={isMe}
 					onClick={openAccess}
 					aria-label={`All workspace access for ${memberName(member)}`}
 					className="shrink-0 font-mono text-[11.5px] text-fg2"

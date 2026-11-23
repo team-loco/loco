@@ -11,13 +11,14 @@ import {
 import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
-import { RotateCwIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, RotateCwIcon } from "lucide-react";
 import { CopyId } from "@/components/design/CopyId";
 import { Pager } from "@/components/design/Pager";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useCopy } from "@/hooks/useCopy";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { useTokenPage } from "@/hooks/useTokenPage";
@@ -49,6 +50,24 @@ const FILTERS = [
 	{ value: FAILING, label: "Failing" },
 ] as const;
 type Filter = (typeof FILTERS)[number]["value"];
+
+function UrlCopy({ url }: { url: string }) {
+	const [copied, copy] = useCopy(1500);
+	return (
+		<Button
+			variant="ghost"
+			size="icon-xs"
+			title="Copy URL"
+			aria-label="Copy URL"
+			onClick={() => {
+				copy(url, url, "Copied URL");
+			}}
+			className="shrink-0"
+		>
+			{copied === url ? <CheckIcon /> : <CopyIcon />}
+		</Button>
+	);
+}
 
 export function WebhookDrawer({
 	workspaceId,
@@ -153,14 +172,8 @@ function WebhookDetail({
 				<dl className="grid grid-cols-[84px_minmax(0,1fr)] text-[12.5px] leading-[22px] [&>*]:border-line [&>*]:py-2 [&>:not(:nth-last-child(-n+2))]:border-b">
 					<dt className="text-fg3">URL</dt>
 					<dd className="m-0 flex min-w-0 items-start gap-1 font-mono">
-						<CopyId
-							value={webhook.url}
-							title="Copy URL"
-							toastText="Copied URL"
-							className="h-auto max-w-full justify-start border-0 px-0 py-0 font-mono text-[12.5px] font-normal whitespace-normal"
-						>
-							<span className="break-all text-left">{webhook.url}</span>
-						</CopyId>
+						<span className="min-w-0 break-all">{webhook.url}</span>
+						<UrlCopy url={webhook.url} />
 					</dd>
 					<dt className="text-fg3">Events</dt>
 					<dd className="m-0">

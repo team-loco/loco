@@ -564,13 +564,6 @@ with session(out) as browser:
         expect(log_level).to_have_value("infox")
         log_level.fill("info")
         expect(save_failed).to_have_count(0, timeout=10_000)
-    drawer.get_by_text("loco.yaml", exact=True).first.click()
-    expect(
-        drawer.get_by_text(
-            'STRIPE_API_KEY: "${{ secrets.STRIPE_API_KEY }}"', exact=False
-        )
-    ).to_be_visible()
-    drawer.get_by_text("loco.yaml", exact=True).first.click()
     secret_value.scroll_into_view_if_needed()
     drawer.get_by_role("button", name="Add", exact=True).click()
     expect(names.nth(2)).to_be_focused()
@@ -626,13 +619,6 @@ with session(out) as browser:
         "-text=hello world\n\n-listen=:8080\n"
     )
     expect(start_command).to_contain_text("-text=hello world -listen=:8080")
-    drawer.get_by_text("loco.yaml", exact=True).first.click()
-    expect(
-        drawer.get_by_text('args: ["-text=hello world", "-listen=:8080"]', exact=False)
-    ).to_be_visible()
-    for copy in ("Copy command", "Copy loco.yaml"):
-        expect(drawer.get_by_role("button", name=copy, exact=True)).to_have_count(1)
-    drawer.get_by_text("loco.yaml", exact=True).first.click()
     expect(drawer.get_by_text("To production", exact=True)).to_be_visible()
     assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
 

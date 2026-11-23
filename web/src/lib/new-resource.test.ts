@@ -15,7 +15,6 @@ import {
 	healthCheckSpec,
 	scalingSpec,
 	imageError,
-	locoYaml,
 	commandEntries,
 	commandSummary,
 	commandText,
@@ -200,29 +199,6 @@ test("apiFieldError maps a validation violation to the field it names", () => {
 	expect(apiFieldError(new Error("offline"))).toBeNull();
 });
 
-test("locoYaml writes a loco.yaml that parses to the form", () => {
-	const yaml = locoYaml({ schemaUrl: "https://loco.test/schemas/loco.v1.json", form });
-	expect(yaml.split("\n")[0]).toBe("# yaml-language-server: $schema=https://loco.test/schemas/loco.v1.json");
-	expect(Bun.YAML.parse(yaml)).toEqual({
-		version: 1,
-		partial: "web",
-		services: {
-			web: {
-				image: "ghcr.io/acme/web:1.4.2",
-				args: ["-listen=:8080", "-text=hello, world"],
-				port: 8080,
-				health: { path: "/healthz", interval: 10, timeout: 3, failThreshold: 5 },
-				domains: ["web.example.com"],
-				env: { LOG_LEVEL: "info", ON: "yes: really" },
-				regions: {
-					"us-va-1": { cpu: "250m", memory: "512Mi", replicas: { min: 2, max: 2 } },
-					"us-ca-1": { cpu: "250m", memory: "512Mi", replicas: { min: 2, max: 2 } },
-				},
-			},
-		},
-	});
-});
-
 test("commandSummary joins the entries or names the image default", () => {
 	expect(commandSummary({ command: "", args: "" })).toBe("Image default");
 	expect(commandSummary({ command: "/http-echo", args: "-text=hi\n" })).toBe("/http-echo -text=hi");
@@ -239,52 +215,12 @@ test("commandEntries keeps one entry per line as typed", () => {
 	expect(commandEntries(commandText(["-text=a, b", "$(PORT)"]))).toEqual(["-text=a, b", "$(PORT)"]);
 });
 
-test("locoYaml omits domains until the subdomain and app domain are known", () => {
-	const yaml = (patch: Partial<typeof form>) =>
-		Bun.YAML.parse(locoYaml({ schemaUrl: "", form: { ...form, isPublic: true, ...patch } })) as {
-			services: Record<string, { domains?: string[] }>;
-		};
-	const domains = (patch: Partial<typeof form>) => Object.values(yaml(patch).services)[0]?.domains;
-	expect(domains({ subdomain: "web", appDomain: "" })).toBeUndefined();
-	expect(domains({ subdomain: "", appDomain: "loco.test" })).toBeUndefined();
-	expect(domains({ subdomain: "web", appDomain: "loco.test" })).toEqual(["web.loco.test"]);
-});
-
-test("locoYaml writes the command", () => {
-	const yaml = locoYaml({ schemaUrl: "", form: { ...form, command: "/bin/sh\n-c", args: "exec app: now" } });
-	expect(yaml).toContain('    command: [/bin/sh, -c]\n    args: ["exec app: now"]\n');
-});
-
-test("locoYaml quotes values YAML would read as numbers or booleans", () => {
-	const yaml = locoYaml({
-		schemaUrl: "",
-		form: { ...form, cpu: "1", isPublic: false, vars: [], health: { ...form.health, path: "" }, regions: ["on"] },
-	});
-	expect(yaml).toContain('"on": { cpu: "1", memory: 512Mi');
-	expect(yaml).not.toContain("domains");
-	expect(yaml).not.toContain("health");
-	expect(yaml.startsWith("version: 1\n")).toBe(true);
-	expect(
-		locoYaml({
-			schemaUrl: "",
-			form: { ...form, health: { enabled: true, path: "/up", interval: "", timeout: "", failAfter: "2" } },
-		}),
-	).toContain("    health: { path: /up, failThreshold: 2 }\n");
-});
-
 test("imageError asks for an image reference before the drawer opens", () => {
 	expect(imageError("  ")).toBe("Enter a container image.");
 	expect(imageError("Not An Image")).toBe("An image reference can't contain spaces");
 	expect(imageError("UPPER/Case")).toBe("Use lowercase letters in the image reference");
 	expect(imageError("nope::bad")).toBe("Invalid image reference. Use a repository with a tag or digest.");
 	expect(imageError(" ghcr.io/acme/web:1.4.2 ")).toBeNull();
-});
-
-test("the YAML keeps a secret reference as the variable's value", () => {
-	const vars = [row("LOG_LEVEL", "info"), row("API_KEY", "${{ secrets.API_KEY }}")];
-	const yaml = locoYaml({ schemaUrl: "", form: { ...form, vars } });
-	expect(yaml).toContain('LOG_LEVEL: "info"');
-	expect(yaml).toContain('API_KEY: "${{ secrets.API_KEY }}"');
 });
 
 test("apiFieldError decodes image resolution details", () => {
@@ -328,10 +264,6 @@ test("form scaling sends fixed replicas or CPU autoscaling", () => {
 		minReplicas: 2,
 		maxReplicas: 5,
 		scalers: { enabled: true, cpuTarget: 70 },
-	});
-	const yaml = Bun.YAML.parse(locoYaml({ schemaUrl: "", form: autoscaled }));
-	expect(yaml).toMatchObject({
-		services: { web: { regions: { "us-va-1": { replicas: { min: 2, max: 5 }, autoscaling: { cpuTarget: 70 } } } } },
 	});
 	for (const patch of [{ replicas: 0 }, { maxReplicas: 1 }, { cpuTarget: 0 }, { cpuTarget: 101 }, { cpuTarget: 1.5 }]) {
 		expect(validateForm({ ...autoscaled, ...patch }, "available", 10).scaling).not.toBeNull();
