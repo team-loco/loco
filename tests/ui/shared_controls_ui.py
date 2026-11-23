@@ -269,10 +269,11 @@ def shell_navigation(page):
     )
     activity.click()
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
-    expect(drawer).to_contain_text("Nothing needs attention.")
-    events = drawer.get_by_role("link", name="All events", exact=True)
-    expect(events).to_have_attribute("href", re.compile(r"range=24h"))
-    expect(events).to_be_visible()
+    expect(drawer).to_contain_text("Nothing here yet.")
+    expect(drawer.get_by_role("button", name="Warnings", exact=True)).to_be_visible()
+    expect(
+        drawer.get_by_role("button", name="Resource: All resources", exact=True)
+    ).to_be_visible()
     drawer.get_by_role("button", name="Close workspace activity", exact=True).click()
     expect(drawer).not_to_be_visible()
     expect(activity).to_be_focused()
@@ -1366,9 +1367,7 @@ def dashboard(page):
     ):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
-        replicas = page.get_by_label(
-            "47 of 48 ready, 1 starting\nus-ca-1: 47/48", exact=True
-        )
+        replicas = page.get_by_label("us-ca-1: 47/48", exact=True)
         expect(replicas).to_be_visible()
         # The authentication init script starts every navigation in light mode.
         if mode == "dark":
@@ -1526,12 +1525,10 @@ def dashboard(page):
         f"UPDATE placements SET ready_replicas=48 FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.slug='dashboard-0';",
     )
     page.reload()
-    ready = page.get_by_label("48 of 48 ready\nus-ca-1: 48/48", exact=True)
+    ready = page.get_by_label("us-ca-1: 48/48", exact=True)
     expect(ready).to_be_visible()
     ready.focus()
-    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(
-        "48 of 48 ready us-ca-1: 48/48"
-    )
+    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text("us-ca-1: 48/48")
     page.keyboard.press("Escape")
     page.evaluate(
         "localStorage.setItem('loco:color:v1', 'loco'); localStorage.setItem('loco:mode:v1', 'light')"

@@ -900,6 +900,7 @@ with session(out) as browser:
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
     expect(drawer).to_have_count(0)
     panel = page.get_by_role("region", name="Deploying", exact=True)
+    panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     new_version = panel.get_by_role("region", name="New version", exact=True)
     expect(new_version.get_by_text("service-new-1", exact=True)).to_be_visible()
     expect(new_version.get_by_text("worker-east-1", exact=True)).to_be_visible()
@@ -1088,20 +1089,21 @@ with session(out) as browser:
     )
     assert stored == f"{label}|{derived}", stored
     expect(page.get_by_role("heading", level=1)).to_have_text(label)
-    panel = page.get_by_role("region", name="Failed", exact=True)
+    panel = page.get_by_role("region", name="Deploy failed", exact=True)
     problem = panel.get_by_role("alert").filter(
         has_text="ImagePullBackOff: manifest unknown"
     )
     expect(
-        problem.get_by_text("ImagePullBackOff: manifest unknown", exact=True)
+        problem.get_by_text("ImagePullBackOff: manifest unknown", exact=False).first
     ).to_be_visible()
     expect(problem.get_by_text("service-new-1", exact=True)).to_be_visible()
+    panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     expect(
         panel.get_by_role("region", name="New version", exact=True).get_by_text(
             "Failing", exact=True
         )
     ).to_be_visible()
-    expect(panel.get_by_role("link", name="Replica logs", exact=True)).to_have_count(1)
+    expect(panel.get_by_role("link", name="Open in Logs", exact=True)).to_have_count(2)
     sizing = deployments[0]["spec"]["service"]["regions"]["us-ca-1"]
     assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 3, sizing
     assert sizing["scalers"] == {"enabled": True, "cpuTarget": 70}, sizing
@@ -1152,10 +1154,12 @@ with session(out) as browser:
     expect(drawer).to_have_count(0)
     panel = page.get_by_role("region", name="Deploying", exact=True)
     expect(panel).to_have_count(1)
-    expect(panel).to_contain_text("Rolling out to 2 regions")
-    chips = panel.get_by_role("group", name="Rollout regions", exact=True)
-    expect(chips.get_by_role("button", name="us-ca-1")).to_be_visible()
-    expect(chips.get_by_role("button", name="us-va-1")).to_be_visible()
+    lanes = panel.get_by_role("list", name="Regions", exact=True).get_by_role(
+        "listitem"
+    )
+    expect(lanes).to_have_count(2)
+    expect(lanes.nth(0)).to_contain_text("us-ca-1")
+    expect(lanes.nth(1)).to_contain_text("us-va-1")
     assert len(regional_requests) == 1, regional_requests
     assert sorted(regional_requests[0]["regions"]) == ["us-ca-1", "us-va-1"]
     assert sorted(regional_requests[0]["spec"]["service"]["regions"]) == [

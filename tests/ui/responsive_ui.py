@@ -1,4 +1,5 @@
 import argparse
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -309,8 +310,11 @@ with session(out) as browser:
         page.locator("[data-slot=sheet-content]").wait_for()
         page.screenshot(path=out / f"{mode}-neobrutal-sheet.png")
         page.keyboard.press("Escape")
-        copy = page.locator("[data-slot=tooltip-trigger]").first
-        copy.hover()
+        page.get_by_role("button", name=re.compile(r"^Workspace activity, ")).click()
+        close = page.get_by_role(
+            "dialog", name="Workspace activity", exact=True
+        ).get_by_role("button", name="Close workspace activity", exact=True)
+        close.hover()
         tooltip = page.locator("[data-slot=tooltip-content]")
         expect(tooltip).to_be_visible()
         assert tooltip.evaluate("el => getComputedStyle(el).borderTopWidth") == "2px"
