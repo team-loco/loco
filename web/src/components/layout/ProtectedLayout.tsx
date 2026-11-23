@@ -15,6 +15,7 @@ import { useStoredValue } from "@/lib/storage";
 import { getOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
+import { EntityType } from "@gen/loco/token/v1/token_pb";
 import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { Navigate, useLocation, useParams } from "react-router";
@@ -74,6 +75,15 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				scopes.orgMember(orgParam),
 		},
 	);
+	// An organization the caller reaches only through a system-wide scope exists once its list or the lookup says so.
+	const orgUndecided =
+		orgParam !== undefined &&
+		!scopes.isLoading &&
+		scopes.orgMember(orgParam) &&
+		!scopes.scopes.some((s) => s.entityType === EntityType.ORGANIZATION && s.entityId === orgParam) &&
+		!(orgs?.some((o) => o.id === orgParam) ?? false) &&
+		urlOrg.data === undefined &&
+		urlOrg.error === null;
 	const routeNotFound =
 		workspacesSettled &&
 		orgParam !== undefined &&
@@ -106,6 +116,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				<CommandPaletteProvider>
 					{routeNotFound ? (
 						<NotFound unknownWorkspace />
+					) : orgUndecided ? (
+						<AppLoading />
 					) : (
 						<NotFoundBoundary path={pathname}>
 							<AppShell>{children}</AppShell>

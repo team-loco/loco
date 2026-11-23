@@ -42,6 +42,13 @@ TITLE = "Nothing lives at this address"
 open_page = partial(new_page, state=state)
 
 
+# Records whether the app shell's sidebar was ever added to the page, however briefly.
+SHELL_SEEN_JS = """window.shellSeen = false;
+new MutationObserver(records => { for (const record of records) for (const node of record.addedNodes)
+  if (node.nodeType === 1 && (node.matches('[data-slot="sidebar-content"]') || node.querySelector('[data-slot="sidebar-content"]'))) window.shellSeen = true;
+}).observe(document, {childList: true, subtree: true});"""
+
+
 def expect_not_found(page, path):
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
     logo_link = page.get_by_role("link", name="Loco dashboard")
@@ -442,13 +449,17 @@ with session(out) as browser:
         f"'{uuid.UUID(int=0)}');",
     )
     context, page, errors = open_page(browser, "resource_reader")
-    for path in (
-        f"/org/{uuid.UUID(int=0)}/team",
-        f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}",
-        f"/org/{org}/wks/{uuid.UUID(int=0)}",
+    context.add_init_script(SHELL_SEEN_JS)
+    # A missing organization goes straight to the not-found page; a missing workspace shows the shell while it is looked up.
+    for path, org_missing in (
+        (f"/org/{uuid.UUID(int=0)}/team", True),
+        (f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}", True),
+        (f"/org/{org}/wks/{uuid.UUID(int=0)}", False),
     ):
         page.goto(ui + path)
         expect_not_found(page, path)
+        if org_missing:
+            assert not page.evaluate("window.shellSeen"), path
     page.goto(ui + f"/org/{org}/team")
     expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
