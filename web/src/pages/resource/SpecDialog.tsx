@@ -1,6 +1,6 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { formatStarted, readyMs, type TimePreferences } from "@/lib/time";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -8,6 +8,7 @@ import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Code } from "@/components/design/CodeBlock";
 import { DialogContent, DialogTitle } from "@/components/design/Dialog";
+import { ToggleChip } from "@/components/design/ToggleChip";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -20,7 +21,7 @@ import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { depTag } from "./model";
-import { diffLines, sideBySide, specText } from "./spec";
+import { changedOnly, diffLines, sideBySide, specText, type SideBySideRow } from "./spec";
 
 const COPIED_MS = 1500;
 const YAML_TYPE = "application/yaml";
@@ -92,9 +93,10 @@ function Single({ text }: { text: string }) {
 	);
 }
 
-function Compare({ from, to }: { from: string; to: string }) {
-	const rows = sideBySide(diffLines(from, to).lines);
-	const side = (cell: (typeof rows)[number]["left"], tone: "add" | "del") => {
+function Compare({ from, to, diffOnly }: { from: string; to: string; diffOnly: boolean }) {
+	const all = sideBySide(diffLines(from, to).lines);
+	const rows = diffOnly ? changedOnly(all) : all;
+	const side = (cell: SideBySideRow["left"], tone: "add" | "del") => {
 		const cls =
 			cell === null
 				? "bg-panel2"
@@ -117,8 +119,18 @@ function Compare({ from, to }: { from: string; to: string }) {
 					key={i}
 					className="grid grid-cols-[40px_minmax(0,1fr)_40px_minmax(0,1fr)] [&>span:nth-child(3)]:border-l [&>span:nth-child(3)]:border-line"
 				>
-					{side(r.left, "del")}
-					{side(r.right, "add")}
+					{"skipped" in r ? (
+						<span
+							data-slot="skipped-rows"
+							title={`${r.skipped.toString()} unchanged ${r.skipped === 1 ? "line" : "lines"}`}
+							className="col-span-4 h-2 bg-[repeating-linear-gradient(-45deg,transparent_0_4px,color-mix(in_oklch,var(--fg)_7%,transparent)_4px_5px)]"
+						/>
+					) : (
+						<>
+							{side(r.left, "del")}
+							{side(r.right, "add")}
+						</>
+					)}
 				</div>
 			))}
 		</>
@@ -139,6 +151,7 @@ export function SpecDialogContent({
 	onChange: (deploymentId: string, compareId: string | null) => void;
 }) {
 	const [copiedKey, copy] = useCopy(COPIED_MS);
+	const [diffOnly, setDiffOnly] = useState(false);
 	const a = deployments.find((d) => d.id === deploymentId) ?? deployments[0];
 	if (a === undefined) return null;
 	const b = compareId === null ? undefined : deployments.find((d) => d.id === compareId);
@@ -186,6 +199,14 @@ export function SpecDialogContent({
 						<span className="font-mono text-[12px]">
 							<span className="text-ok-fg">+{diff.add}</span> <span className="text-bad-fg">−{diff.del}</span>
 						</span>
+						<ToggleChip
+							variant="button"
+							className="h-7 px-2.5 text-[12.5px]"
+							pressed={diffOnly}
+							onPressedChange={setDiffOnly}
+						>
+							Diff only
+						</ToggleChip>
 						<Button
 							variant="plain-link"
 							onClick={() => {
@@ -219,7 +240,7 @@ export function SpecDialogContent({
 				</Button>
 			</div>
 			<div className="min-h-0 overflow-auto bg-panel pt-2 pb-3 font-mono text-[12.5px] leading-5">
-				{b === undefined ? <Single text={aText} /> : <Compare from={aText} to={specText(b)} />}
+				{b === undefined ? <Single text={aText} /> : <Compare from={aText} to={specText(b)} diffOnly={diffOnly} />}
 			</div>
 		</DialogContent>
 	);

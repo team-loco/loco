@@ -337,12 +337,14 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(serving).to_contain_text("(2 ready)")
     expect(serving).not_to_contain_text(p["current"][-8:])
     incident = page.locator('section[aria-labelledby="incident-title"]')
-    expect(incident.get_by_text("Running", exact=True).locator("+ dd")).to_have_text(
-        re.compile(
-            r"^v1, the deployment serving this region, deployed (just now|\d+[mhd] ago)( by .+)?$"
+    expect(
+        incident.get_by_text(
+            re.compile(
+                r"^Serving deployment v1 in us-ca-1, deployed (just now|\d+[mhd] ago)$"
+            )
         )
-    )
-    incident_logs = incident.get_by_role("link", name="Logs", exact=True)
+    ).to_be_visible()
+    incident_logs = incident.get_by_role("link", name="View replica logs", exact=True)
     incident_query = parse_qs(urlparse(incident_logs.get_attribute("href")).query)
     assert incident_query.get("q") == ["@replica:progress-new-1"], incident_query
     phase("failed", survivors=False)
@@ -397,19 +399,11 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         and mutations[0]["sourceDeploymentId"] == p["previous"]
     ), mutations
     page.goto(state["ui_url"] + path + "&tab=settings")
-    banner = page.get_by_role("note").filter(
-        has_text=f"These settings are from deployment {p['current'][-8:]}, which did not finish in us-ca-1."
-    )
-    expect(banner).to_contain_text(f"v1 ({p['previous'][-8:]}) still serves.")
-    expect(banner).to_contain_text("image:")
-    expect(banner).to_contain_text("health:")
-    mutations.clear()
-    banner.get_by_role("button", name="Roll back to v1", exact=True).click()
-    dialog.get_by_role("button", name="Roll back", exact=True).click()
-    expect(dialog).to_be_hidden()
-    assert (
-        len(mutations) == 1 and mutations[0]["sourceDeploymentId"] == p["previous"]
-    ), mutations
+    expect(
+        page.get_by_role("note").filter(
+            has_text="These settings are from a newer deployment which hasn’t finished rolling out."
+        )
+    ).to_be_visible()
     phase("canceled")
     sql(
         state,

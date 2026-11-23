@@ -20,7 +20,7 @@ import {
 	type ColumnKey,
 	type ColumnWidths,
 } from "./columns";
-import { bodyParts, fmtTs, jsonPreview, LEVEL_LABEL, levelStyle } from "./format";
+import { bodyParts, fmtTs, jsonPreview, LevelBadge, levelStyle } from "./format";
 import { LogRowMenu } from "./LogRowMenu";
 import { WORKLOAD_TITLE, type LogRow } from "./rows";
 
@@ -197,17 +197,7 @@ function MessageCell({ row, words }: { row: LogRow; words: string[] }) {
 function Cell({ row, column }: { row: LogRow; column: ColumnKey }) {
 	switch (column) {
 		case "level":
-			return (
-				<span
-					data-level-badge={row.level}
-					className={cn(
-						"inline-flex h-[19px] items-center rounded-[5px] px-[7px] font-sans text-[11.5px] font-medium whitespace-nowrap",
-						levelStyle(row.level).badge,
-					)}
-				>
-					{LEVEL_LABEL[row.level]}
-				</span>
-			);
+			return <LevelBadge level={row.level} />;
 		case "resource":
 			return row.workload ? (
 				<span className="block truncate font-mono text-[12px] text-fg3" title={WORKLOAD_TITLE}>

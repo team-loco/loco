@@ -129,7 +129,7 @@ export function diffLines(from: string, to: string): { lines: DiffLine[]; add: n
 	return { lines, add, del };
 }
 
-interface SideBySideRow {
+export interface SideBySideRow {
 	left: { n: number; text: string; changed: boolean } | null;
 	right: { n: number; text: string; changed: boolean } | null;
 }
@@ -170,6 +170,47 @@ export function sideBySide(lines: DiffLine[]): SideBySideRow[] {
 		}
 	}
 	return rows;
+}
+
+/** A run of unchanged rows left out of a changes-only view. */
+export interface SkippedRows {
+	skipped: number;
+}
+
+function leadingSpaces(cell: SideBySideRow["left"]): number {
+	return cell === null ? Infinity : cell.text.length - cell.text.trimStart().length;
+}
+
+/** The changed rows with the keys they sit under, and a marker for each run of rows left out. */
+export function changedOnly(rows: SideBySideRow[]): (SideBySideRow | SkippedRows)[] {
+	const keep = new Set<number>();
+	rows.forEach((row, i) => {
+		if (row.left?.changed !== true && row.right?.changed !== true) return;
+		keep.add(i);
+		let level = Math.min(leadingSpaces(row.left), leadingSpaces(row.right));
+		for (let j = i - 1; j >= 0 && level > 0; j--) {
+			const above = rows[j];
+			if (above === undefined || above.left?.changed === true || above.right?.changed === true) continue;
+			const d = leadingSpaces(above.left);
+			if (d < level) {
+				keep.add(j);
+				level = d;
+			}
+		}
+	});
+	const out: (SideBySideRow | SkippedRows)[] = [];
+	let skipped = 0;
+	rows.forEach((row, i) => {
+		if (!keep.has(i)) {
+			skipped++;
+			return;
+		}
+		if (skipped > 0) out.push({ skipped });
+		skipped = 0;
+		out.push(row);
+	});
+	if (skipped > 0) out.push({ skipped });
+	return out;
 }
 
 interface SpecChange {

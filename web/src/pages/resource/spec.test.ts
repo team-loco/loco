@@ -7,7 +7,7 @@ import {
 	type Deployment,
 } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { diffLines, sideBySide, specChanges, specRows, toYaml } from "./spec";
+import { changedOnly, diffLines, sideBySide, specChanges, specRows, toYaml } from "./spec";
 
 function deployment(image: string, replicas: number, env: Record<string, string>): Deployment {
 	return create(DeploymentSchema, {
@@ -34,6 +34,22 @@ describe("sideBySide", () => {
 			{ left: { n: 2, text: "b", changed: true }, right: { n: 2, text: "B", changed: true } },
 			{ left: { n: 3, text: "c", changed: false }, right: { n: 3, text: "c", changed: false } },
 			{ left: null, right: { n: 4, text: "d", changed: true } },
+		]);
+	});
+});
+
+describe("changedOnly", () => {
+	test("keeps changed rows and the keys they sit under, and counts what it leaves out", () => {
+		const from = ["a:", "  x: 1", "  y: 2", "b:", "  c:", "    z: 3", "    w: 4", "d: 5"].join("\n");
+		const to = from.replace("w: 4", "w: 9");
+		const rows = changedOnly(sideBySide(diffLines(from, to).lines));
+		expect(rows.map((r) => ("skipped" in r ? r.skipped : (r.left?.text ?? r.right?.text)))).toEqual([
+			3,
+			"b:",
+			"  c:",
+			1,
+			"    w: 4",
+			1,
 		]);
 	});
 });

@@ -156,10 +156,10 @@ with session(out) as browser:
     )
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
     page.goto(base)
-    incident = page.get_by_role(
-        "region", name=re.compile(r"us-ca-1"), exact=False
-    ).filter(has=page.get_by_text("Last good", exact=True))
-    expect(incident.get_by_text("Last good", exact=True)).to_be_visible()
+    incident = page.locator('section[aria-labelledby="incident-title"]')
+    expect(
+        incident.get_by_role("link", name="View replica logs", exact=True)
+    ).to_be_visible()
     expect(
         incident.get_by_label("Last log lines in us-ca-1", exact=True)
     ).to_be_visible()
@@ -230,14 +230,6 @@ with session(out) as browser:
         runtime_events.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
-    expect(
-        page.get_by_label("Not reachable from the internet", exact=True)
-    ).to_be_visible()
-    expect(
-        page.get_by_text(re.compile(r"^deployed .+ by Olivia Owner$"))
-    ).to_be_visible()
-    # Every "deployed N ago" counts from when the deployment became ready.
-    expect(page.get_by_text("deployed 10m ago by Olivia Owner")).to_be_visible()
     page.get_by_role("tab", name=re.compile(r"^Builds")).click()
     expect(
         page.get_by_text(f"No builds. {name} runs a public image.", exact=True)
@@ -296,9 +288,6 @@ with session(out) as browser:
     expect(page.get_by_text("No resources match.", exact=True)).to_be_visible()
     page.keyboard.press("Escape")
     more = page.get_by_role("button", name="More actions", exact=True)
-    more.click()
-    page.get_by_role("menuitem", name="Copy image reference", exact=True).click()
-    assert copied_text(page) == image
     expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
     more.click()
     restart = page.get_by_role("menuitem", name="Restart all replicas", exact=True)

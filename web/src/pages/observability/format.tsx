@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { formatDateTime, type TimePreferences } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 import type { Level } from "./query";
 
@@ -48,6 +49,20 @@ export function levelStyle(level: Level): LevelStyle {
 				dot: "bg-lv-debug",
 			};
 	}
+}
+
+export function LevelBadge({ level }: { level: Level }) {
+	return (
+		<span
+			data-level-badge={level}
+			className={cn(
+				"inline-flex h-[19px] items-center rounded-[5px] px-[7px] font-sans text-[11.5px] font-medium whitespace-nowrap",
+				levelStyle(level).badge,
+			)}
+		>
+			{LEVEL_LABEL[level]}
+		</span>
+	);
 }
 
 export type JsonObject = Record<string, unknown>;

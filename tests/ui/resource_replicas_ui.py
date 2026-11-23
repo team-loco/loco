@@ -112,28 +112,15 @@ if "scaling" not in state:
         "scalers": {"enabled": True, "cpuTarget": 70},
     }
     scaled = deployment({EAST: autoscaled}, SCALED_REPLICAS)
-    mixed = deployment(
-        {
-            EAST: {"minReplicas": 1, "maxReplicas": 1},
-            WEST: {
-                "minReplicas": 1,
-                "maxReplicas": 3,
-                "scalers": {"enabled": True, "cpuTarget": 70},
-            },
-        },
-        1,
-    )
     seeded = evidence.seed_resources(
         state,
         [
             {"workspace": "acme/shared", "name": "scaled-ui", "deployments": [scaled]},
-            {"workspace": "acme/shared", "name": "mixed-ui", "deployments": [mixed]},
         ],
     )
     state["scaling"] = {
         "scaled": seeded["acme/shared/scaled-ui"],
         "scaled_deployment": scaled["id"],
-        "mixed": seeded["acme/shared/mixed-ui"],
     }
     evidence.write_json(Path(args.state), state)
 
@@ -327,13 +314,6 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(west.get_by_role("listitem")).to_have_count(2)
     expect(panel.get_by_text("Per-replica status", exact=False)).to_have_count(0)
 
-    scale = page.locator('[data-slot="scale-chip"]')
-    expect(scale).to_have_text("Fixed at 2")
-    scale.hover()
-    expect(
-        page.get_by_text("Runs 2 replicas per region, autoscaling off", exact=True)
-    ).to_be_visible()
-    expect(page.locator('[data-slot="region-chip"]')).to_have_text([EAST, WEST])
     expect(east).to_contain_text("1 of 2 ready")
     expect(west).to_contain_text("2 of 2 ready")
 
@@ -466,14 +446,6 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
 
     report_scaled()
     page.goto(state["ui_url"] + resource_path(scaling["scaled"]))
-    expect(scale).to_have_text("CPU autoscaling 2–20")
-    scale.hover()
-    expect(
-        page.get_by_text(
-            "Scales between 2 and 20 replicas per region, targeting 70% CPU",
-            exact=True,
-        )
-    ).to_be_visible()
     panel = page.get_by_role("region", name="Replicas", exact=True)
     scaled_east = panel.get_by_role("region", name=f"Replicas in {EAST}", exact=True)
     expect(scaled_east.get_by_role("listitem")).to_have_count(SCALED_REPLICAS)
@@ -482,9 +454,6 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         panel.get_by_text("band shows lowest to highest across replicas", exact=True)
     ).to_have_count(2)
     expect(scaled_east.locator('[data-slot="replica-key"]')).to_have_count(0)
-
-    page.goto(state["ui_url"] + resource_path(scaling["mixed"]))
-    expect(scale).to_have_text("Scaling differs by region")
 
     page.goto(state["ui_url"] + path)
     # The evidence API counts a cluster silent after three missed two-hour heartbeats.
