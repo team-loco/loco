@@ -114,10 +114,10 @@ const (
 	defaultEventsRetention = 90 * 24 * time.Hour
 
 	defaultDatabaseMaxConns         = 25
-	defaultDatabaseMinConns         = 5
+	defaultDatabaseMinConns         = 20
 	defaultDatabaseStatementTimeout = 15 * time.Second
 
-	defaultClickHouseMaxConns        = 5
+	defaultClickHouseMaxConns        = 16
 	defaultClickHouseQueryTimeout    = 10 * time.Second
 	defaultObservabilityLimit        = 1000
 	defaultObservabilityMaxLimit     = 10000

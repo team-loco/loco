@@ -247,6 +247,19 @@ func TestNewAPIConfigReadsEventsRetention(t *testing.T) {
 	}
 }
 
+func TestDefaultPoolsHoldADashboardBurst(t *testing.T) {
+	// A dashboard page load runs about 14 PostgreSQL queries and 9 ClickHouse queries at once.
+	const postgresBurst, clickHouseBurst = 14, 9
+	clearAPIConfigEnv(t)
+	ac := newAPIConfig()
+	if ac.Database.MinConns < postgresBurst {
+		t.Errorf("database min conns = %d, want at least %d", ac.Database.MinConns, postgresBurst)
+	}
+	if ac.ClickHouse.MaxConns < clickHouseBurst {
+		t.Errorf("clickhouse max conns = %d, want at least %d", ac.ClickHouse.MaxConns, clickHouseBurst)
+	}
+}
+
 func TestNewAPIConfigPanicsWithoutDatabaseURL(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv("DATABASE_URL", "")

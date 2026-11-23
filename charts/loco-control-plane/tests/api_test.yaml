@@ -283,3 +283,35 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: api.registry.service is required when api.registry.auth is token
+
+  - it: gives the API two CPUs, so the Go runtime runs two threads without throttling
+    template: templates/api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "2", memory: 1Gi}
+
+  - it: sets the API's Go memory limit from its container memory limit
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GOMEMLIMIT
+            valueFrom: {resourceFieldRef: {containerName: api, resource: limits.memory}}
+
+  - it: takes the API's Go memory limit from api.env when set
+    set:
+      api.env.GOMEMLIMIT: 500MiB
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, value: 500MiB}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GOMEMLIMIT
+            valueFrom: {resourceFieldRef: {containerName: api, resource: limits.memory}}
