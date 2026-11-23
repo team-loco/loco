@@ -311,8 +311,8 @@ function AllocatedCard({
 	if (value === undefined)
 		return (
 			<StatCard label="Allocated" growLeft ariaLabel="Allocated: loading" breakdown={null}>
-				<Skeleton className="my-1 h-[30px] w-24" />
-				<Skeleton className="h-[14px] w-40" />
+				<Skeleton className="my-1 h-[30px] w-24 max-w-full" />
+				<Skeleton className="h-[14px] w-40 max-w-full" />
 			</StatCard>
 		);
 	const cpuMilli = Number(value.cpuMillicores);
@@ -419,8 +419,8 @@ function TrafficCard({
 		>
 			{state === "loading" ? (
 				<>
-					<Skeleton className="my-1 h-[30px] w-24" />
-					<Skeleton className="h-[14px] w-40" />
+					<Skeleton className="my-1 h-[30px] w-24 max-w-full" />
+					<Skeleton className="h-[14px] w-40 max-w-full" />
 				</>
 			) : (
 				<>
