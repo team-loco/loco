@@ -480,7 +480,7 @@ export function DeploymentsSection({
 	};
 
 	return (
-		<div className="flex min-w-0 flex-col gap-2.5">
+		<section aria-label="History" className="flex min-w-0 flex-col gap-2.5">
 			<Tabs
 				value={hist}
 				onValueChange={(next: string) => {
@@ -612,6 +612,6 @@ export function DeploymentsSection({
 					</DialogBody>
 				</DialogContent>
 			</Dialog>
-		</div>
+		</section>
 	);
 }
