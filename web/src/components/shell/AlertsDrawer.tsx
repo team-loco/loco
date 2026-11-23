@@ -6,7 +6,7 @@ import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deplo
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
-import { parseAsString, useQueryState } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "@/lib/toast";
@@ -56,6 +56,9 @@ import { degradedToast, deployToasts, type DeployToast } from "./deploy-toasts";
 import { useDeployEvents } from "./useDeployEvents";
 
 const CLOCK_TICK_MS = 60_000;
+const LEVEL_PARSER = parseAsStringLiteral(["all", "warn"] as const satisfies readonly ActivityLevel[]).withDefault(
+	"all",
+);
 const POLL_MS = 5000;
 const IDLE_POLL_MS = 15_000;
 const STEP_NAMES = { build: "Build image", deploy: "Deploy replicas" } as const;
@@ -345,7 +348,7 @@ export function AlertsDrawer() {
 	// The drawer is open while the page's address carries the activity parameter, whose value names the resource it shows.
 	const [activity, setActivity] = useQueryState(ACTIVITY_PARAM, parseAsString);
 	const open = activity !== null;
-	const [level, setLevel] = useState<ActivityLevel>("all");
+	const [level, setLevel] = useQueryState("activity-level", LEVEL_PARSER);
 	const [openedAtMs, setOpenedAtMs] = useState(0);
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
@@ -376,7 +379,10 @@ export function AlertsDrawer() {
 		const names = new Map((resourceList ?? []).map((r) => [r.id, r.name]));
 		show(events.flatMap((e) => degradedToast(e, names) ?? []));
 	});
-	const sinceMs = Math.floor((openedAtMs || watchedSinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS - RECENT_MS;
+	const openedTickMs = Math.floor((openedAtMs || watchedSinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS;
+	const sinceMs = openedTickMs - RECENT_MS;
+	// The day before the drawer opened, rounded to the clock tick so the query key is stable.
+	const eventsSinceMs = openedTickMs - DAY_MS;
 	const deploymentsQuery = useConnectQuery(
 		listDeployments,
 		{
@@ -435,6 +441,7 @@ export function AlertsDrawer() {
 	const openChange = (next: boolean) => {
 		if (next) setOpenedAtMs(Date.now());
 		void setActivity(next ? "" : null);
+		if (!next) void setLevel(null);
 	};
 	const pickResource = (slug: string) => {
 		void setActivity(slug, { history: "replace" });
@@ -524,7 +531,7 @@ export function AlertsDrawer() {
 							aria-label="Level"
 							value={[level]}
 							onValueChange={(v: string[]) => {
-								setLevel(v[0] === "warn" ? "warn" : "all");
+								void setLevel(v[0] === "warn" ? "warn" : "all", { history: "replace" });
 							}}
 						>
 							<ToggleGroupItem value="all">All</ToggleGroupItem>
@@ -559,7 +566,7 @@ export function AlertsDrawer() {
 								resources={byId}
 								resourceId={shownResource?.id}
 								level={level}
-								sinceMs={Math.floor((openedAtMs || watchedSinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS - DAY_MS}
+								sinceMs={eventsSinceMs}
 								resourceHref={(id) => resourcePath(activeOrgId, activeWorkspaceId, id)}
 								logsHref={(slug) =>
 									observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [slug] })

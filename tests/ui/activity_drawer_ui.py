@@ -82,6 +82,7 @@ jsonb_build_object('environmentId','{environment}'),NOW());""",
     assert drawer_reads
     # The Warnings level keeps the degraded event and drops the recovered one; the resource filter scopes the drawer and its title.
     drawer.get_by_role("button", name="Warnings", exact=True).click()
+    expect(page).to_have_url(re.compile(r"[?&]activity-level=warn"))
     expect(drawer.get_by_text("Recovered in us-ca-1", exact=True)).to_have_count(0)
     expect(drawer.get_by_text("Degraded in us-ca-1", exact=True)).to_be_visible()
     drawer.get_by_role("button", name="Resource: All resources", exact=True).click()
