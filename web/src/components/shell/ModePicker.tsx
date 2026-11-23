@@ -1,14 +1,15 @@
+import { MonitorIcon, MoonIcon, SunIcon, type LucideIcon } from "lucide-react";
+
 import { RadioCard, RadioGroup } from "@/components/design/RadioGroup";
 import { modes, parseMode, type Mode } from "@/lib/theme";
 import { useTheme } from "@/lib/use-theme";
 
-import { ThemeIcon } from "./ThemeIcon";
 import "./ModePicker.css";
 
 const MODE_WIDTH = 30;
 const MODE_PADDING = 2;
 
-const MODE_ICONS: Record<Mode, "sun" | "moon" | "monitor"> = { system: "monitor", light: "sun", dark: "moon" };
+const MODE_ICONS: Record<Mode, LucideIcon> = { system: MonitorIcon, light: SunIcon, dark: MoonIcon };
 
 export function ModePicker() {
 	const { mode, setMode } = useTheme();
@@ -37,25 +38,23 @@ export function ModePicker() {
 						width: MODE_WIDTH,
 						left: MODE_PADDING + modes.findIndex((item) => item.id === mode) * MODE_WIDTH,
 					}}
-				>
-					<span className="scale-110">
-						<ThemeIcon mode={MODE_ICONS[mode]} />
-					</span>
-				</span>
-				{modes.map((item) => (
-					<RadioCard
-						key={item.id}
-						value={item.id}
-						aria-label={item.name}
-						title={item.name}
-						style={{ width: MODE_WIDTH }}
-						className="relative z-3 h-[24px] shrink-0 justify-center rounded-control-inner bg-transparent p-0 text-fg3 ring-0 hover:ring-0 data-checked:bg-transparent data-checked:text-foreground data-checked:ring-0 dark:bg-transparent dark:data-checked:bg-transparent data-checked:[&>.mt-static]:opacity-0"
-					>
-						<span aria-hidden className="mt-static">
-							<ThemeIcon mode={MODE_ICONS[item.id]} />
-						</span>
-					</RadioCard>
-				))}
+				/>
+				{modes.map((item) => {
+					const Icon = MODE_ICONS[item.id];
+					return (
+						<RadioCard
+							key={item.id}
+							value={item.id}
+							aria-label={item.name}
+							title={item.name}
+							style={{ width: MODE_WIDTH }}
+							data-m={item.id}
+							className="relative z-3 h-[24px] shrink-0 justify-center rounded-control-inner bg-transparent p-0 text-fg3 ring-0 hover:ring-0 data-checked:bg-transparent data-checked:text-foreground data-checked:ring-0 dark:bg-transparent dark:data-checked:bg-transparent"
+						>
+							<Icon aria-hidden className="size-[15px]" />
+						</RadioCard>
+					);
+				})}
 			</RadioGroup>
 		</div>
 	);

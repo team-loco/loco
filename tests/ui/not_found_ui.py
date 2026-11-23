@@ -190,55 +190,37 @@ with session(out) as browser:
     dark = mode.get_by_role("radio", name="Dark", exact=True)
     system = mode.get_by_role("radio", name="System", exact=True)
     expect(light).to_have_attribute("aria-checked", "true")
-    icon = mode.locator(".mt-thumb .theme-icon")
-    expect(icon).to_have_attribute("data-mode", "sun")
-    icon.evaluate("""node => {
-                window.modeIcon = node;
-                window.modeTransitions = [];
-                node.addEventListener('transitionrun', event => window.modeTransitions.push(event.propertyName));
-            }""")
+
+    def icon_animation(radio):
+        return radio.locator("svg").evaluate(
+            "node => getComputedStyle(node).animationName"
+        )
+
     page.evaluate("window.modeSounds = []")
     dark.click()
     expect(dark).to_have_attribute("aria-checked", "true")
-    expect(icon).to_have_attribute("data-mode", "moon")
-    page.wait_for_function("() => window.modeTransitions.includes('transform')")
+    assert icon_animation(dark) == "mt-moon"
     expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
     dark.focus()
     page.keyboard.press("ArrowLeft")
     expect(light).to_be_focused()
-    expect(icon).to_have_attribute("data-mode", "sun")
     expect(light).to_have_attribute("aria-checked", "true")
+    assert icon_animation(light) == "mt-sun"
     expect(page.locator("html")).not_to_have_class(re.compile(r"\bdark\b"))
     page.keyboard.press("ArrowLeft")
     expect(system).to_be_focused()
-    expect(icon).to_have_attribute("data-mode", "monitor")
     expect(system).to_have_attribute("aria-checked", "true")
+    assert icon_animation(system) == "mt-sys"
     assert page.evaluate("localStorage.getItem('loco:mode:v1')") is None
     assert page.evaluate("window.modeSounds") == [
         "darkMode.wav",
         "lightMode.wav",
     ]
-    assert icon.evaluate("node => node === window.modeIcon")
     page.emulate_media(reduced_motion="reduce")
-    page.evaluate("window.modeTransitions = []")
-    for radio, glyph in ((light, "sun"), (dark, "moon"), (system, "monitor")):
+    for radio in (light, dark, system):
         radio.click()
-        expect(icon).to_have_attribute("data-mode", glyph)
-        expect(icon).to_have_css("transition-duration", "0s")
-        assert (
-            icon.evaluate(
-                "node => getComputedStyle(node, '::before').transitionDuration"
-            )
-            == "0s"
-        )
-        assert (
-            icon.evaluate(
-                "node => getComputedStyle(node, '::after').transitionDuration"
-            )
-            == "0s"
-        )
-    assert page.evaluate("window.modeTransitions") == []
-    assert icon.evaluate("node => node === window.modeIcon")
+        expect(radio).to_have_attribute("aria-checked", "true")
+        assert icon_animation(radio) == "none"
     page.emulate_media(reduced_motion="no-preference")
     page.keyboard.press("Escape")
     top_search.click()
