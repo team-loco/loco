@@ -77,7 +77,7 @@ func (f *fixture) installFlux(
 		"--domain",
 		"apps.installation.test",
 		"--platform-domain",
-		"workers.installation.test",
+		fixturePlatformDomain,
 		"--region",
 		fixtureRegion,
 		"--admin",

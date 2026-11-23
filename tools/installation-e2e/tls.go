@@ -80,8 +80,8 @@ func verifyTLSMinimum(ctx context.Context, hostname string) (result error) {
 		{fixtureWebHost + ":443", fixtureWebHost},
 		{fixtureIngestHost + ":443", fixtureIngestHost},
 		{hostname + ":443", hostname},
-		// Reach the worker's platform listener without depending on public DNS for loco.build.
-		{hostname + ":443", "probe.loco.build"},
+		// Reach the worker's platform listener by its server name, without DNS for the platform domain.
+		{hostname + ":443", "probe." + fixturePlatformDomain},
 	} {
 		if err := waitTLS13(ctx, target.address, target.serverName, roots); err != nil {
 			return fmt.Errorf("TLS minimum for %s: %w", target.serverName, err)
