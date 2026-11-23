@@ -186,3 +186,10 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].resources.limits.cpu
           value: "2"
+
+  - it: gives the fetch and push steps a CPU limit of 2 and BuildKit 1 CPU and 1Gi with a 4 CPU limit
+    template: templates/builds/deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].env[?(@.name == "LOCO_BUILD_CONFIG")].value
+          pattern: '"resources":\{"build":\{"limits":\{"cpu":"4","memory":"4Gi"\},"requests":\{"cpu":"1","memory":"1Gi"\}\},"fetch":\{"limits":\{"cpu":"2","memory":"256Mi"\},[^}]*\}\},"push":\{"limits":\{"cpu":"2","memory":"512Mi"\}'
