@@ -2,7 +2,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { GlobeIcon, ShieldCheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import { listAppDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
 import { Button } from "@/components/design/Button";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
@@ -150,8 +150,8 @@ export function ArchitectureDiagram({
 	onSelect?: (item: EnvResource) => void;
 	dimmed?: (item: DashboardItem) => boolean;
 }) {
-	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
-	const platformDomains = domainsRes?.platformDomains ?? [];
+	const { data: domainsRes } = useQuery(listAppDomains, { environmentId });
+	const appDomains = domainsRes?.appDomains ?? [];
 	const [available, measure] = useWidth();
 	const layout = mapLayout(rows, regionOrder, available);
 	const more = (n: number, p: MapPoint) => (
@@ -184,7 +184,7 @@ export function ArchitectureDiagram({
 							</div>
 						)}
 						{layout.gateways.map((g) => {
-							const domain = servedDomains(platformDomains, [g.region])[0] ?? "";
+							const domain = servedDomains(appDomains, [g.region])[0] ?? "";
 							return (
 								<div key={g.region} className={EDGE_NODE} style={box(g)}>
 									<NodeText

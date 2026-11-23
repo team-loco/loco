@@ -73,9 +73,9 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 			_, callErr := domains.server.DeleteResourceDomain(ctx, &domainv1.DeleteResourceDomainRequest{DomainId: id})
 			return callErr
 		}},
-		{name: "ListPlatformDomains", existing: f.envID.String(), call: func(ctx context.Context, id string) error {
-			req := &domainv1.ListPlatformDomainsRequest{EnvironmentId: id}
-			_, callErr := domains.server.ListPlatformDomains(ctx, req)
+		{name: "ListAppDomains", existing: f.envID.String(), call: func(ctx context.Context, id string) error {
+			req := &domainv1.ListAppDomainsRequest{EnvironmentId: id}
+			_, callErr := domains.server.ListAppDomains(ctx, req)
 			return callErr
 		}},
 		{name: "GetEnvironment", existing: f.envID.String(), call: func(ctx context.Context, id string) error {

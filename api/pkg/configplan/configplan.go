@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/team-loco/loco/api/pkg/platformdomain"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/varref"
 	"github.com/team-loco/loco/internal/locofile"
@@ -64,7 +64,7 @@ type Input struct {
 	Disabled         []string
 	FileEnvironments []string
 	Environments     []string
-	Clusters         []platformdomain.Cluster
+	Clusters         []appdomain.Cluster
 	References       varref.Environment
 	SecretSizes      map[string]int64
 	MaxSecretBytes   int64
@@ -332,9 +332,9 @@ func Update(current Service, desired State) Operation {
 	}
 }
 
-func ValidateState(name string, desired State, clusters []platformdomain.Cluster) []Error {
+func ValidateState(name string, desired State, clusters []appdomain.Cluster) []Error {
 	errs := validateDesired(name, desired)
-	var targets []platformdomain.Cluster
+	var targets []appdomain.Cluster
 	for _, region := range slices.Sorted(maps.Keys(desired.Regions)) {
 		if err := validateRegion(region, desired.Regions[region], clusters); err != nil {
 			errs = append(errs, Error{Service: name, Path: pathRegions + "." + region, Err: err})
@@ -347,7 +347,7 @@ func ValidateState(name string, desired State, clusters []platformdomain.Cluster
 		}
 	}
 	for _, domain := range desired.Domains {
-		if _, _, err := platformdomain.Check(domain, clusters, targets); err != nil {
+		if _, _, err := appdomain.Check(domain, clusters, targets); err != nil {
 			errs = append(errs, Error{Service: name, Path: pathDomains, Err: err})
 		}
 	}

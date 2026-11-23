@@ -1,9 +1,9 @@
-# with --port and no cluster serving a platform domain in the default region, deploy cannot name a
+# with --port and no cluster serving an app domain in the default region, deploy cannot name a
 # public hostname and applies nothing.
-fakeapi no-platform-domain
+fakeapi no-app-domain
 cd app
 ! exec loco deploy --port 8080 --yes
-stderr '(?i)no cluster of the environment serves a platform domain in the region: us-ca-1 in production'
+stderr '(?i)no cluster of the environment serves an app domain in the region: us-ca-1 in production'
 ! fakeapi applied 7
 
 -- home/.loco/credentials.json --

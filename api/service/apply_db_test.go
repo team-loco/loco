@@ -21,10 +21,10 @@ import (
 )
 
 const (
-	testPlatformDomain = "loco.test"
-	applyWorker        = "worker"
-	applyWorkerDomain  = "worker.loco.test"
-	applyFileWorker    = `  worker:
+	testLocoAppDomain = "loco.test"
+	applyWorker       = "worker"
+	applyWorkerDomain = "worker.loco.test"
+	applyFileWorker   = `  worker:
     image: nginx:1.27
     port: 8080
     domains: [worker.loco.test]
@@ -96,7 +96,7 @@ func applyFile(
 
 func (f *deployFixture) prepareApply(t *testing.T) {
 	t.Helper()
-	f.serveDomains(t, testPlatformDomain)
+	f.serveDomains(t, testLocoAppDomain)
 }
 
 func (f *deployFixture) applyScopes(t *testing.T) []genDb.EntityScope {
@@ -203,7 +203,7 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 	if len(domains) != 1 || domains[0].Domain != applyWorkerDomain || !domains[0].IsPrimary ||
 		domains[0].DomainSource != genDb.DomainSourcePlatformProvided ||
 		derefString(domains[0].SubdomainLabel) != applyWorker {
-		t.Fatalf("domains = %+v, want the primary platform domain %s", domains, applyWorkerDomain)
+		t.Fatalf("domains = %+v, want the primary app domain %s", domains, applyWorkerDomain)
 	}
 
 	deploymentID := uuid.MustParse(resp.GetDeployments()[0].GetDeploymentId())

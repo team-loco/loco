@@ -12,9 +12,9 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
-	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/tracing"
 	"github.com/team-loco/loco/api/pkg/varref"
@@ -35,22 +35,22 @@ var errNoBuildToDeploy = errors.New("the service has no build to deploy")
 // request named per service; deployed records the services the operations have deployed;
 // provisioning creates services without deploying them.
 type applier struct {
-	regionTargets   *resourcev1.RegionTargets
-	env             genDb.Environment
-	organizationID  uuid.UUID
-	partial         string
-	live            liveEnvironment
-	desired         map[string]configplan.State
-	resolved        map[string]varref.Resolved
-	builds          map[string]*deploymentv1.BuildSource
-	deployed        map[string]bool
-	platformDomains []string
-	defaults        servicedefaults.Defaults
-	started         []*planv1.StartedDeployment
-	provisioning    bool
-	silentAfter     time.Duration
-	commit          *deploymentv1.SourceCommit
-	counts          limits.Effective
+	regionTargets  *resourcev1.RegionTargets
+	env            genDb.Environment
+	organizationID uuid.UUID
+	partial        string
+	live           liveEnvironment
+	desired        map[string]configplan.State
+	resolved       map[string]varref.Resolved
+	builds         map[string]*deploymentv1.BuildSource
+	deployed       map[string]bool
+	appDomains     []string
+	defaults       servicedefaults.Defaults
+	started        []*planv1.StartedDeployment
+	provisioning   bool
+	silentAfter    time.Duration
+	commit         *deploymentv1.SourceCommit
+	counts         limits.Effective
 }
 
 // newApplier returns an applier for one environment with the organization's limits; the caller
@@ -222,7 +222,7 @@ func (a *applier) createDomain(
 	domain string,
 	isPrimary bool,
 ) (uuid.UUID, error) {
-	platformDomain, label, err := platformdomain.Match(domain, a.platformDomains)
+	appDomain, label, err := appdomain.Match(domain, a.appDomains)
 	if err != nil {
 		return uuid.UUID{}, &invalidInputError{public: publicInvalidRequest, err: err}
 	}
@@ -232,7 +232,7 @@ func (a *applier) createDomain(
 		Domain:         domain,
 		DomainSource:   genDb.DomainSourcePlatformProvided,
 		SubdomainLabel: &label,
-		PlatformDomain: &platformDomain,
+		AppDomain:      &appDomain,
 		IsPrimary:      isPrimary,
 	})
 	if isDomainTaken(err) {

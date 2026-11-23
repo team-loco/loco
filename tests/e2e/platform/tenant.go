@@ -336,9 +336,9 @@ func SourceService(domains ...string) locofile.Service {
 	return service
 }
 
-// Host is a workspace-owned hostname under the platform domain.
+// Host is a workspace-owned hostname under the app domain.
 func (w *Workspace) Host(name string) string {
-	return name + "-" + w.ID + "." + platformDomain
+	return name + "-" + w.ID + "." + appDomain
 }
 
 // CopyFixture copies a fixture of tests/e2e/fixtures into dir.

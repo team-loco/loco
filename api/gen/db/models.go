@@ -972,7 +972,7 @@ type ResourceDomain struct {
 	Domain         string       `json:"domain"`
 	DomainSource   DomainSource `json:"domainSource"`
 	SubdomainLabel *string      `json:"subdomainLabel"`
-	PlatformDomain *string      `json:"platformDomain"`
+	AppDomain      *string      `json:"appDomain"`
 	IsPrimary      bool         `json:"isPrimary"`
 	CreatedAt      time.Time    `json:"createdAt"`
 	UpdatedAt      time.Time    `json:"updatedAt"`

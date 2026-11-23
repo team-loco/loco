@@ -206,23 +206,23 @@ func quickDomain(cmd *cobra.Command, t cmdutil.Target, name, region string, hasP
 	}
 	if !private && domain == "" {
 		ctx := cmd.Context()
-		platformDomain, domainErr := servedDomain(ctx, t, region)
+		appDomain, domainErr := servedDomain(ctx, t, region)
 		if domainErr != nil {
 			return "", domainErr
 		}
-		return generatedDomain(ctx, t, name, platformDomain)
+		return generatedDomain(ctx, t, name, appDomain)
 	}
 	return domain, nil
 }
 
-func generatedDomain(ctx context.Context, t cmdutil.Target, name, platformDomain string) (string, error) {
+func generatedDomain(ctx context.Context, t cmdutil.Target, name, appDomain string) (string, error) {
 	base := domainBase(name)
-	existing, err := existingGeneratedDomain(ctx, t, name, base, platformDomain)
+	existing, err := existingGeneratedDomain(ctx, t, name, base, appDomain)
 	if err != nil || existing != "" {
 		return existing, err
 	}
 	client := t.Clients.Domain
-	candidate := base + domainSuffix(t.WorkspaceID, name) + "." + platformDomain
+	candidate := base + domainSuffix(t.WorkspaceID, name) + "." + appDomain
 	request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
 	response, checkErr := client.CheckDomainAvailability(ctx, request)
 	if checkErr != nil {
@@ -234,7 +234,7 @@ func generatedDomain(ctx context.Context, t cmdutil.Target, name, platformDomain
 	return candidate, nil
 }
 
-func existingGeneratedDomain(ctx context.Context, t cmdutil.Target, name, base, platformDomain string) (string, error) {
+func existingGeneratedDomain(ctx context.Context, t cmdutil.Target, name, base, appDomain string) (string, error) {
 	res, err := t.Service(ctx, name)
 	if connect.CodeOf(err) == connect.CodeNotFound {
 		return "", nil
@@ -244,10 +244,10 @@ func existingGeneratedDomain(ctx context.Context, t cmdutil.Target, name, base, 
 	}
 	for _, assigned := range res.GetDomains() {
 		domain := assigned.GetDomain()
-		if !strings.HasPrefix(domain, base) || !strings.HasSuffix(domain, "."+platformDomain) {
+		if !strings.HasPrefix(domain, base) || !strings.HasSuffix(domain, "."+appDomain) {
 			continue
 		}
-		if isDomainSuffix(strings.TrimSuffix(strings.TrimPrefix(domain, base), "."+platformDomain)) {
+		if isDomainSuffix(strings.TrimSuffix(strings.TrimPrefix(domain, base), "."+appDomain)) {
 			return domain, nil
 		}
 	}

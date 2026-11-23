@@ -2,7 +2,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { CheckIcon, CopyIcon, GlobeIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import { listAppDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
 import { Button } from "@/components/design/Button";
 import { DocsButton } from "@/components/design/DocsButton";
@@ -66,13 +66,13 @@ function DeployCommand() {
 
 export function ResourcesEmpty({ environmentId, newHref }: { environmentId: string | undefined; newHref: string }) {
 	const domainsQuery = useQuery(
-		listPlatformDomains,
+		listAppDomains,
 		{ environmentId: environmentId ?? "" },
 		{ enabled: environmentId !== undefined },
 	);
 	return (
 		<EmptyHero
-			art={<ResourcesArt domain={domainsQuery.data?.platformDomains[0]?.domain} newHref={newHref} />}
+			art={<ResourcesArt domain={domainsQuery.data?.appDomains[0]?.domain} newHref={newHref} />}
 			title="Deploy your first resource"
 			subtitle="Run loco deploy in a folder with a Dockerfile, or start from an image."
 		>

@@ -36,7 +36,7 @@ boot_seconds = time.monotonic() - started
 workspace_id = state["workspaces"]["acme/shared"]
 
 BUILD_DIGEST = "sha256:" + "7c41e9b2" * 8
-PLATFORM_DOMAIN = "apps.e2e.test"
+APP_DOMAIN = "apps.e2e.test"
 BUILD_LOG = [
     ("LOG_LEVEL_INFO", "#1 [internal] load build definition from Dockerfile"),
     ("LOG_LEVEL_ERROR", "Pilot build step failed"),
@@ -66,7 +66,7 @@ def fixture():
             state,
             region,
             name="browser-pilot",
-            domains=[PLATFORM_DOMAIN] if index == 0 else [],
+            domains=[APP_DOMAIN] if index == 0 else [],
         )
         for index, region in enumerate(("us-ca-1", "us-va-1", "us-ca-1"))
     ]
@@ -183,7 +183,7 @@ def fixture():
     resource = seeded["acme/shared/history-pilot"]
     edge = seeded["acme/shared/edge-pilot"]
     rows = [
-        f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,platform_domain,is_primary) VALUES ('{edge}','{production}','edge.{PLATFORM_DOMAIN}','platform_provided','edge','{PLATFORM_DOMAIN}',true);",
+        f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,app_domain,is_primary) VALUES ('{edge}','{production}','edge.{APP_DOMAIN}','platform_provided','edge','{APP_DOMAIN}',true);",
         f"INSERT INTO user_scopes (user_id,scope,entity_type,entity_id) VALUES ('{state['users']['resource_reader']['id']}','read','resource','{resource}');",
     ]
     owner_id = state["users"]["owner"]["id"]
@@ -777,19 +777,17 @@ with session(out) as browser:
     )
     networking = page.get_by_role("region", name="Networking")
     regional = networking.get_by_role(
-        "list", name=f"Regional hostnames of edge.{PLATFORM_DOMAIN}", exact=True
+        "list", name=f"Regional hostnames of edge.{APP_DOMAIN}", exact=True
     )
     expect(regional.get_by_role("listitem")).to_have_count(1)
-    expect(regional.get_by_role("listitem")).to_have_text(
-        f"edge.us-ca-1.{PLATFORM_DOMAIN}"
-    )
+    expect(regional.get_by_role("listitem")).to_have_text(f"edge.us-ca-1.{APP_DOMAIN}")
     expect(
-        regional.get_by_role("button", name=f"edge.us-ca-1.{PLATFORM_DOMAIN}")
-    ).to_have_attribute("title", f"Copy edge.us-ca-1.{PLATFORM_DOMAIN}")
+        regional.get_by_role("button", name=f"edge.us-ca-1.{APP_DOMAIN}")
+    ).to_have_attribute("title", f"Copy edge.us-ca-1.{APP_DOMAIN}")
     networking.get_by_role("textbox", name="Subdomain", exact=True).fill("edge-v2")
     expect(
         networking.get_by_text(
-            "No platform domain is served in every region of edge-pilot",
+            "No app domain is served in every region of edge-pilot",
             exact=True,
         )
     ).to_be_visible()

@@ -103,7 +103,7 @@ type ApplicationReconciler struct {
 	PullSecretName    string
 	RegistryTokenMode bool
 	Gateway           string
-	// AppDomains are the app platform domains the gateway serves; a hostname one label under one
+	// AppDomains are the app domains the gateway serves; a hostname one label under one
 	// of them also gets the same label under the application's region.
 	AppDomains               []string
 	WorkspaceNamespacePrefix string

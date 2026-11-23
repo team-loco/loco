@@ -69,6 +69,7 @@ jobs:
             --set builds.builderImage.tag="$IMAGE_TAG" \
             --set certManager.existingTLSSecret=ci-tls \
             --set global.region=ci \
+            --set global.domain.platform=workers.ci.invalid \
             --set global.exporter.endpoint=http://ci.invalid
 
       - name: Check Helm release status

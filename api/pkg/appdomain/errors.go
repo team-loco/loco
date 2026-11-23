@@ -1,4 +1,4 @@
-package platformdomain
+package appdomain
 
 import (
 	"connectrpc.com/connect/v2"
@@ -9,7 +9,7 @@ import (
 var (
 	ErrCustomDomain = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
-		"domain is not under a platform domain any cluster serves",
+		"domain is not under an app domain any cluster serves",
 	)
 	ErrDomainNotServed = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
@@ -17,6 +17,6 @@ var (
 	)
 	ErrNotSingleLabel = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
-		"domain must be a single label under its platform domain",
+		"domain must be a single label under its app domain",
 	)
 )

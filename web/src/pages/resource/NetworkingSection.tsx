@@ -10,7 +10,7 @@ import {
 	updateResourceDomain,
 } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
-import { DomainType, type PlatformDomain, type ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
+import { DomainType, type AppDomain, type ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
@@ -23,11 +23,11 @@ import {
 } from "@/components/design/DropdownMenu";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
-import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
+import { AppDomainInput } from "@/components/design/AppDomainInput";
 import { Switch } from "@/components/design/Switch";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { toastConnectError } from "@/lib/error-handler";
-import { domainCoverage, regionalHostname } from "@/lib/platform-domain";
+import { domainCoverage, regionalHostname } from "@/lib/app-domain";
 import { LimitedAction, LimitUsageText } from "@/components/design/LimitedAction";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
@@ -61,7 +61,7 @@ function DomainRow({
 	const removeBlocked = domain.isPrimary && !onlyDomain;
 	const { serving, missing } = domainCoverage(served, running);
 	const regional = domain.isPrimary
-		? serving.flatMap((region) => regionalHostname(domain.domain, domain.platformDomain ?? "", region) ?? [])
+		? serving.flatMap((region) => regionalHostname(domain.domain, domain.appDomain ?? "", region) ?? [])
 		: [];
 
 	const saveEdit = async () => {
@@ -237,7 +237,7 @@ function AddDomainForm({
 	slug: string;
 	own: readonly string[];
 	usage: LimitUsage | null;
-	options: PlatformDomain[];
+	options: AppDomain[];
 	regions: readonly RegionInfo[];
 	running: readonly string[];
 	locked: boolean;
@@ -249,8 +249,8 @@ function AddDomainForm({
 	const create = useMutation(createResourceDomain);
 	const blocked = limitReason(usage);
 	const served = options.filter((d) => domainCoverage(d.regions, running).missing.length === 0);
-	const platformDomain = (served.find((d) => d.domain === picked) ?? served[0])?.domain ?? "";
-	const check = useDomainAvailability(subdomain, platformDomain, own);
+	const appDomain = (served.find((d) => d.domain === picked) ?? served[0])?.domain ?? "";
+	const check = useDomainAvailability(subdomain, appDomain, own);
 	const unservedId = useId();
 	const unserved = served.length === 0;
 
@@ -263,7 +263,7 @@ function AddDomainForm({
 				create.mutate(
 					{
 						resourceId,
-						domain: { domainSource: DomainType.PLATFORM_PROVIDED, subdomain, platformDomain },
+						domain: { domainSource: DomainType.PLATFORM_PROVIDED, subdomain, appDomain },
 					},
 					{
 						onSuccess: () => {
@@ -277,10 +277,10 @@ function AddDomainForm({
 				);
 			}}
 		>
-			<PlatformDomainInput
+			<AppDomainInput
 				className="max-w-[460px] min-w-[240px] flex-1"
 				subdomain={subdomain}
-				platformDomain={platformDomain}
+				appDomain={appDomain}
 				options={served}
 				regions={regions}
 				check={check}
@@ -289,7 +289,7 @@ function AddDomainForm({
 				disabled={locked}
 				describedBy={[unserved ? unservedId : undefined, describedBy].filter(Boolean).join(" ") || undefined}
 				onSubdomainChange={setSubdomain}
-				onPlatformDomainChange={setPicked}
+				onAppDomainChange={setPicked}
 			/>
 			<LimitedAction reason={blocked}>
 				<Button
@@ -302,7 +302,7 @@ function AddDomainForm({
 			</LimitedAction>
 			{unserved && (
 				<span id={unservedId} className="w-full text-[12.5px] text-fg3">
-					No platform domain is served in every region of {resourceName}
+					No app domain is served in every region of {resourceName}
 				</span>
 			)}
 		</form>
@@ -318,7 +318,7 @@ export function NetworkingSection({
 	onChange,
 	resourceId,
 	domains,
-	platformDomains,
+	appDomains,
 	regions,
 	served,
 	worker,
@@ -327,7 +327,7 @@ export function NetworkingSection({
 	resourceId: string;
 	worker: boolean;
 	domains: ResourceDomain[];
-	platformDomains: PlatformDomain[];
+	appDomains: AppDomain[];
 	regions: readonly RegionInfo[];
 	served: string[];
 	onDomainsChanged: () => void;
@@ -340,10 +340,10 @@ export function NetworkingSection({
 	const running = Object.keys(base.regions).filter((r) => base.regions[r] === true);
 	const isPublic = draft.isPublic ?? base.isPublic;
 	const adding = isPublic && !base.isPublic;
-	const platformDomain = draft.platformDomain ?? served[0] ?? "";
+	const appDomain = draft.appDomain ?? served[0] ?? "";
 	const subdomain = draft.subdomain ?? "";
-	const check = useDomainAvailability(adding ? subdomain : "", platformDomain, own);
-	const draftError = check.state === "empty" ? (errors.subdomain ?? errors.platformDomain) : undefined;
+	const check = useDomainAvailability(adding ? subdomain : "", appDomain, own);
+	const draftError = check.state === "empty" ? (errors.subdomain ?? errors.appDomain) : undefined;
 
 	if (worker) {
 		return (
@@ -372,7 +372,7 @@ export function NetworkingSection({
 					aria-label="Public"
 					aria-describedby={describedBy}
 					onCheckedChange={(checked: boolean) => {
-						onChange({ isPublic: checked, platformDomain, subdomain: draft.subdomain ?? base.slug });
+						onChange({ isPublic: checked, appDomain, subdomain: draft.subdomain ?? base.slug });
 					}}
 				/>
 			</div>
@@ -392,19 +392,19 @@ export function NetworkingSection({
 			{adding && (
 				<div className="flex min-w-0 flex-col gap-1.5">
 					<span className="text-[13px] font-medium">Domain</span>
-					<PlatformDomainInput
+					<AppDomainInput
 						className="max-w-[460px]"
 						subdomain={subdomain}
-						platformDomain={platformDomain}
-						options={platformDomains.filter((d) => served.includes(d.domain))}
+						appDomain={appDomain}
+						options={appDomains.filter((d) => served.includes(d.domain))}
 						regions={regions}
 						check={check}
 						owner={base.name}
 						onSubdomainChange={(next) => {
 							onChange({ subdomain: next });
 						}}
-						onPlatformDomainChange={(next) => {
-							onChange({ platformDomain: next });
+						onAppDomainChange={(next) => {
+							onChange({ appDomain: next });
 						}}
 					/>
 					{draftError !== undefined && <span className="text-[12.5px] text-bad-fg">{draftError}</span>}
@@ -421,7 +421,7 @@ export function NetworkingSection({
 							<DomainRow
 								key={d.id}
 								domain={d}
-								served={platformDomains.find((p) => p.domain === d.platformDomain)?.regions ?? []}
+								served={appDomains.find((p) => p.domain === d.appDomain)?.regions ?? []}
 								running={running}
 								onlyDomain={sorted.length === 1}
 								managed={locked}
@@ -437,7 +437,7 @@ export function NetworkingSection({
 							slug={base.slug}
 							own={own}
 							usage={usage}
-							options={platformDomains}
+							options={appDomains}
 							regions={regions}
 							running={running}
 							locked={locked}

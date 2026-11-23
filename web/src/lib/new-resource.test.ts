@@ -3,7 +3,7 @@ import { create, toBinary } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
 import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
-import { PlatformDomainSchema } from "@gen/loco/domain/v1/domain_pb";
+import { AppDomainSchema } from "@gen/loco/domain/v1/domain_pb";
 
 import { draftSizing, parseDrafts } from "./drafts";
 
@@ -41,7 +41,7 @@ const form: NewResourceForm = {
 	cpuTarget: 70,
 	isPublic: true,
 	subdomain: "web",
-	platformDomain: "example.com",
+	appDomain: "example.com",
 	port: "8080",
 	vars: [
 		{ id: "1", key: "LOG_LEVEL", value: "info" },
@@ -62,8 +62,8 @@ test("nameFromImage slugs the repository and skips taken names", () => {
 
 test("servedDomains keeps only domains every selected region serves", () => {
 	const domains = [
-		create(PlatformDomainSchema, { domain: "a.test", regions: ["us-va-1", "us-ca-1"] }),
-		create(PlatformDomainSchema, { domain: "b.test", regions: ["us-va-1"] }),
+		create(AppDomainSchema, { domain: "a.test", regions: ["us-va-1", "us-ca-1"] }),
+		create(AppDomainSchema, { domain: "b.test", regions: ["us-va-1"] }),
 	];
 	expect(servedDomains(domains, ["us-va-1", "us-ca-1"])).toEqual(["a.test"]);
 	expect(servedDomains(domains, ["us-va-1"])).toEqual(["a.test", "b.test"]);
@@ -157,11 +157,11 @@ test("firstError reports the first blocking field in form order", () => {
 	const errors = validateForm({ ...form, regions: [], subdomain: "Bad_Sub", vars: [row("", "x")] }, "empty", 10);
 	expect([errors.regions, errors.subdomain, errors.env].every((e) => e !== null)).toBe(true);
 	expect(firstError(errors)).toBe("Choose at least one region");
-	expect(validateForm({ ...form, platformDomain: "" }, "empty", 10).subdomain).toBe(
-		"No platform domain is served in every selected region",
+	expect(validateForm({ ...form, appDomain: "" }, "empty", 10).subdomain).toBe(
+		"No app domain is served in every selected region",
 	);
 	expect(validateForm(form, "taken", 10).subdomain).toBe("web.example.com is taken");
-	expect(validateForm({ ...form, isPublic: false, platformDomain: "" }, "taken", 10).subdomain).toBeNull();
+	expect(validateForm({ ...form, isPublic: false, appDomain: "" }, "taken", 10).subdomain).toBeNull();
 });
 
 test("healthCheckSpec sends the fields the user set, or no check when off or without a path", () => {
@@ -239,15 +239,15 @@ test("commandEntries keeps one entry per line as typed", () => {
 	expect(commandEntries(commandText(["-text=a, b", "$(PORT)"]))).toEqual(["-text=a, b", "$(PORT)"]);
 });
 
-test("locoYaml omits domains until the subdomain and platform domain are known", () => {
+test("locoYaml omits domains until the subdomain and app domain are known", () => {
 	const yaml = (patch: Partial<typeof form>) =>
 		Bun.YAML.parse(locoYaml({ schemaUrl: "", form: { ...form, isPublic: true, ...patch } })) as {
 			services: Record<string, { domains?: string[] }>;
 		};
 	const domains = (patch: Partial<typeof form>) => Object.values(yaml(patch).services)[0]?.domains;
-	expect(domains({ subdomain: "web", platformDomain: "" })).toBeUndefined();
-	expect(domains({ subdomain: "", platformDomain: "loco.test" })).toBeUndefined();
-	expect(domains({ subdomain: "web", platformDomain: "loco.test" })).toEqual(["web.loco.test"]);
+	expect(domains({ subdomain: "web", appDomain: "" })).toBeUndefined();
+	expect(domains({ subdomain: "", appDomain: "loco.test" })).toBeUndefined();
+	expect(domains({ subdomain: "web", appDomain: "loco.test" })).toEqual(["web.loco.test"]);
 });
 
 test("locoYaml writes the command", () => {

@@ -225,8 +225,7 @@ capabilities:
 {{- $_ := set $settings $env $value }}
 {{- end }}
 {{- end }}
-{{- $platform := default (regexReplaceAll "^[^.]+[.]" $.Values.controlPlaneHostname "") $.Values.platformDomain }}
-{{- $_ := set $settings "LOCO_PLATFORM_DOMAIN" $platform }}
+{{- $_ := set $settings "LOCO_PLATFORM_DOMAIN" (required "platformDomain is required: the workers' own gateway domain, their chart's global.domain.platform, such as workers.loco.build" $.Values.platformDomain) }}
 {{- with $.Values.defaultRegion }}
 {{- $_ := set $settings "LOCO_DEFAULT_REGION" . }}
 {{- end }}

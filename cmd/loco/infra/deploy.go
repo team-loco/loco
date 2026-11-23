@@ -44,7 +44,7 @@ func BuildDeployCmd() *cobra.Command {
 		Long: `Deploy from the current directory. If it has no loco.yaml, Loco deploys one
 service using API defaults for the region and resources. Without --port the service
 runs as a worker and takes no traffic. With --port it gets a public hostname under a
-platform domain: the directory name turned into a safe service name with a four-letter
+app domain: the directory name turned into a safe service name with a four-letter
 suffix. It uses Dockerfile in that directory for a source build. In a terminal, it
 asks for the service name. No file is written. Set --name, --region, --domain,
 --dockerfile, or --context to override those choices; --private omits the public

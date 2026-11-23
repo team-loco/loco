@@ -1,3 +1,5 @@
+platformDomain: workers.ci.invalid
+
 certManager:
   issuer:
     email: ci@example.invalid

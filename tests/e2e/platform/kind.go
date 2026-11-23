@@ -134,7 +134,7 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 		"--kubeconfig", p.kubeconfig, "--kube-context", p.kubeContext, "--namespace", locoNamespace,
 		"--values", filepath.Join(p.root, "charts", "loco-worker", "tests", "kind-values.yaml"),
 		"--values", filepath.Join(p.root, "tests", "e2e", "worker-values.yaml"),
-		setFlag, "global.domain.apps={" + platformDomain + "}",
+		setFlag, "global.domain.apps={" + appDomain + "}",
 		setFlag, "global.domain.platform=" + WorkerPlatformDomain,
 		setFlag, "global.region=" + clusterRegion,
 		setFlag, "certManager.existingTLSSecret=" + gatewayTLSSecret,
@@ -247,8 +247,8 @@ func (p *Platform) gatewayTLSSecret(ctx context.Context) error {
 	key := filepath.Join(p.dir, "gateway-tls.key")
 	cert := filepath.Join(p.dir, "gateway-tls.crt")
 	if _, err := p.Command(ctx, "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
-		"-subj", "/CN=*."+platformDomain,
-		"-addext", "subjectAltName=DNS:*."+platformDomain+",DNS:*."+clusterRegion+"."+platformDomain,
+		"-subj", "/CN=*."+appDomain,
+		"-addext", "subjectAltName=DNS:*."+appDomain+",DNS:*."+clusterRegion+"."+appDomain,
 		"-keyout", key, "-out", cert); err != nil {
 		return err
 	}

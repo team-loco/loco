@@ -59,11 +59,11 @@ exporter_extensions() {
 
 region=obs-stack-region
 ingest_endpoint=http://host.docker.internal:$ingest_http_port
-manifest=$(helm template loco-worker "$chart" --namespace "$namespace" --set global.region="$region" \
+manifest=$(helm template loco-worker "$chart" --namespace "$namespace" --set global.region="$region" --set global.domain.platform=workers.obs-stack.test \
 	--set global.exporter.endpoint="$ingest_endpoint" --set global.exporter.ingestToken.enabled=true --set agent.image.tag="$1" --set controller.image.tag="$1" \
 	--set cluster.role=apps --set certManager.existingTLSSecret=unused)
 control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_chart" \
-	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
+	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" --set platformDomain=workers.obs-stack.test \
 	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false --set certManager.enabled=false \
 	--set clickhouse.enabled=true --set openbao.enabled=false \
 	--set openbao.external.address=https://openbao.obs-stack.test:8200 --set openbao.external.caSecret.name=obs-stack-openbao-ca)

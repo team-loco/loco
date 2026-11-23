@@ -13,12 +13,12 @@ export interface CheckResult {
 
 export function domainCheck(
 	subdomain: string,
-	platformDomain: string,
+	appDomain: string,
 	own: readonly string[],
 	result: CheckResult,
 ): DomainCheck {
-	const host = `${subdomain}.${platformDomain}`;
-	if (subdomain === "" || platformDomain === "") return { state: "empty", host };
+	const host = `${subdomain}.${appDomain}`;
+	if (subdomain === "" || appDomain === "") return { state: "empty", host };
 	if (subdomain.length > MAX_SUBDOMAIN_LENGTH) return { state: "long", host };
 	if (!SUBDOMAIN_RE.test(subdomain)) return { state: "invalid", host };
 	if (own.includes(host)) return { state: "mine", host };
@@ -34,9 +34,9 @@ export function domainCoverage(served: readonly string[], running: readonly stri
 	};
 }
 
-/** The hostname a region's gateway also answers for `hostname` when it is one label under `platformDomain`, else null. */
-export function regionalHostname(hostname: string, platformDomain: string, region: string): string | null {
+/** The hostname a region's gateway also answers for `hostname` when it is one label under `appDomain`, else null. */
+export function regionalHostname(hostname: string, appDomain: string, region: string): string | null {
 	const dot = hostname.indexOf(".");
-	if (dot < 1 || hostname.slice(dot + 1) !== platformDomain) return null;
-	return `${hostname.slice(0, dot)}.${region}.${platformDomain}`;
+	if (dot < 1 || hostname.slice(dot + 1) !== appDomain) return null;
+	return `${hostname.slice(0, dot)}.${region}.${appDomain}`;
 }

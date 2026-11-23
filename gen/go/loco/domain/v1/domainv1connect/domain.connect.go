@@ -24,9 +24,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// DomainServiceListPlatformDomainsProcedure is the procedure name of the DomainService's
-	// ListPlatformDomains RPC.
-	DomainServiceListPlatformDomainsProcedure = "/loco.domain.v1.DomainService/ListPlatformDomains"
+	// DomainServiceListAppDomainsProcedure is the procedure name of the DomainService's ListAppDomains
+	// RPC.
+	DomainServiceListAppDomainsProcedure = "/loco.domain.v1.DomainService/ListAppDomains"
 	// DomainServiceCreateResourceDomainProcedure is the procedure name of the DomainService's
 	// CreateResourceDomain RPC.
 	DomainServiceCreateResourceDomainProcedure = "/loco.domain.v1.DomainService/CreateResourceDomain"
@@ -45,11 +45,11 @@ const (
 )
 
 var (
-	domainServiceListPlatformDomainsSpec = sync.OnceValue(func() connect.Spec {
+	domainServiceListAppDomainsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("ListPlatformDomains"),
-			Procedure:  DomainServiceListPlatformDomainsProcedure,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("ListAppDomains"),
+			Procedure:  DomainServiceListAppDomainsProcedure,
 		}
 	})
 	domainServiceCreateResourceDomainSpec = sync.OnceValue(func() connect.Spec {
@@ -91,8 +91,8 @@ var (
 
 // DomainServiceClient is a client for the loco.domain.v1.DomainService service.
 type DomainServiceClient interface {
-	// ListPlatformDomains lists the domains the clusters an environment deploys to serve.
-	ListPlatformDomains(context.Context, *v1.ListPlatformDomainsRequest) (*v1.ListPlatformDomainsResponse, error)
+	// ListAppDomains lists the domains the clusters an environment deploys to serve.
+	ListAppDomains(context.Context, *v1.ListAppDomainsRequest) (*v1.ListAppDomainsResponse, error)
 	// Resource Domain Management
 	// CreateResourceDomain assigns a domain to a resource.
 	CreateResourceDomain(context.Context, *v1.CreateResourceDomainRequest) (*v1.CreateResourceDomainResponse, error)
@@ -115,8 +115,8 @@ func NewDomainServiceClient(client *connect.Client) DomainServiceClient {
 
 // DomainServiceHandler is an implementation of the loco.domain.v1.DomainService service.
 type DomainServiceHandler interface {
-	// ListPlatformDomains lists the domains the clusters an environment deploys to serve.
-	ListPlatformDomains(context.Context, *v1.ListPlatformDomainsRequest) (*v1.ListPlatformDomainsResponse, error)
+	// ListAppDomains lists the domains the clusters an environment deploys to serve.
+	ListAppDomains(context.Context, *v1.ListAppDomainsRequest) (*v1.ListAppDomainsResponse, error)
 	// Resource Domain Management
 	// CreateResourceDomain assigns a domain to a resource.
 	CreateResourceDomain(context.Context, *v1.CreateResourceDomainRequest) (*v1.CreateResourceDomainResponse, error)
@@ -136,7 +136,7 @@ type DomainServiceHandler interface {
 func RegisterDomainServiceHandler(server *connect.Server, svc DomainServiceHandler) {
 	adapter := domainServiceHandler{svc: svc}
 	server.Register(
-		connect.Method{Spec: domainServiceListPlatformDomainsSpec(), Handler: adapter.listPlatformDomains},
+		connect.Method{Spec: domainServiceListAppDomainsSpec(), Handler: adapter.listAppDomains},
 		connect.Method{Spec: domainServiceCreateResourceDomainSpec(), Handler: adapter.createResourceDomain},
 		connect.Method{Spec: domainServiceUpdateResourceDomainSpec(), Handler: adapter.updateResourceDomain},
 		connect.Method{Spec: domainServiceSetPrimaryResourceDomainSpec(), Handler: adapter.setPrimaryResourceDomain},
@@ -148,8 +148,8 @@ func RegisterDomainServiceHandler(server *connect.Server, svc DomainServiceHandl
 // UnimplementedDomainServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedDomainServiceHandler struct{}
 
-func (UnimplementedDomainServiceHandler) ListPlatformDomains(context.Context, *v1.ListPlatformDomainsRequest) (*v1.ListPlatformDomainsResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.ListPlatformDomains is not implemented")
+func (UnimplementedDomainServiceHandler) ListAppDomains(context.Context, *v1.ListAppDomainsRequest) (*v1.ListAppDomainsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.ListAppDomains is not implemented")
 }
 
 func (UnimplementedDomainServiceHandler) CreateResourceDomain(context.Context, *v1.CreateResourceDomainRequest) (*v1.CreateResourceDomainResponse, error) {
@@ -176,9 +176,9 @@ type domainServiceClient struct {
 	client *connect.Client
 }
 
-func (c *domainServiceClient) ListPlatformDomains(ctx context.Context, req *v1.ListPlatformDomainsRequest) (*v1.ListPlatformDomainsResponse, error) {
-	var res v1.ListPlatformDomainsResponse
-	if err := c.client.CallUnary(ctx, domainServiceListPlatformDomainsSpec(), req, &res); err != nil {
+func (c *domainServiceClient) ListAppDomains(ctx context.Context, req *v1.ListAppDomainsRequest) (*v1.ListAppDomainsResponse, error) {
+	var res v1.ListAppDomainsResponse
+	if err := c.client.CallUnary(ctx, domainServiceListAppDomainsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -226,12 +226,12 @@ func (c *domainServiceClient) CheckDomainAvailability(ctx context.Context, req *
 
 type domainServiceHandler struct{ svc DomainServiceHandler }
 
-func (h domainServiceHandler) listPlatformDomains(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.ListPlatformDomainsRequest
+func (h domainServiceHandler) listAppDomains(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListAppDomainsRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
 	}
-	res, err := h.svc.ListPlatformDomains(ctx, &req)
+	res, err := h.svc.ListAppDomains(ctx, &req)
 	if err != nil {
 		return err
 	}

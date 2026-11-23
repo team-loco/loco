@@ -319,6 +319,7 @@ func (f *failover) render(t *testing.T, name, domain string) *layout {
 	}
 	values := writeFile(t, name+"-values.yaml", fmt.Sprintf(`gatewayNamespace: %s
 controlPlaneHostname: %s
+platformDomain: workers.e2e.test.local
 gateway:
   name: %s
 certManager:

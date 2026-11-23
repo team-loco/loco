@@ -51,7 +51,7 @@ spec:
               loco.io/app: "true"
     {{- end }}
     - name: https-platform
-      hostname: {{ printf "*.%s" .Values.global.domain.platform | quote }}
+      hostname: {{ printf "*.%s" (include "loco-worker.platformDomain" .) | quote }}
       protocol: HTTPS
       port: 443
       allowedRoutes:
@@ -71,7 +71,7 @@ spec:
             kind: Secret
             group: ""
     - name: http-platform
-      hostname: {{ printf "*.%s" .Values.global.domain.platform | quote }}
+      hostname: {{ printf "*.%s" (include "loco-worker.platformDomain" .) | quote }}
       protocol: HTTP
       port: 80
       allowedRoutes:

@@ -20,8 +20,8 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 	"github.com/team-loco/loco/api/pkg/converter"
-	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/varref"
 	"github.com/team-loco/loco/api/reqctx"
@@ -177,7 +177,7 @@ func (s *ResourceServer) CreateResource(
 			return bumpErr
 		}
 		if req.GetDomain() != nil {
-			if domainErr := s.createPlatformDomain(ctx, qtx, resourceID, workspaceID, req); domainErr != nil {
+			if domainErr := s.createAppDomain(ctx, qtx, resourceID, workspaceID, req); domainErr != nil {
 				return domainErr
 			}
 		}
@@ -196,7 +196,7 @@ func (s *ResourceServer) CreateResource(
 	return &resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}, nil
 }
 
-func (s *ResourceServer) createPlatformDomain(
+func (s *ResourceServer) createAppDomain(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	resourceID uuid.UUID,
@@ -219,8 +219,8 @@ func (s *ResourceServer) createPlatformDomain(
 	if err != nil {
 		return fmt.Errorf("list domain clusters: %w", err)
 	}
-	hostname := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
-	platform, label, err := platformdomain.Check(hostname, check.clusters, check.targets)
+	hostname := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetAppDomain()
+	domain, label, err := appdomain.Check(hostname, check.clusters, check.targets)
 	if err != nil {
 		return fmt.Errorf("check the resource domain: %w", err)
 	}
@@ -231,7 +231,7 @@ func (s *ResourceServer) createPlatformDomain(
 		Domain:         hostname,
 		DomainSource:   genDb.DomainSourcePlatformProvided,
 		SubdomainLabel: &label,
-		PlatformDomain: &platform,
+		AppDomain:      &domain,
 		IsPrimary:      true,
 	})
 	if isDomainTaken(err) {
@@ -888,7 +888,7 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 		}
 
 		domain.SubdomainLabel = d.SubdomainLabel
-		domain.PlatformDomain = d.PlatformDomain
+		domain.AppDomain = d.AppDomain
 
 		protoDomains = append(protoDomains, domain)
 	}

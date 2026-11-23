@@ -1060,16 +1060,16 @@ def seed_events(state, events):
 
 
 def seed_domains(state, resource_id, domains):
-    """Inserts each platform domain; the first in an environment is its primary and makes the resource public."""
+    """Inserts each app domain; the first in an environment is its primary and makes the resource public."""
     q = sql_literal
     rows, primary = [], set()
     for entry in domains:
-        label, platform = entry["domain"].split(".", 1)
+        label, app_domain = entry["domain"].split(".", 1)
         environment = entry["environment"]
         rows.append(
             "INSERT INTO resource_domains(resource_id,environment_id,domain,domain_source,subdomain_label,"
-            "platform_domain,is_primary) SELECT r.id,e.id,"
-            f"{q(entry['domain'])},'platform_provided',{q(label)},{q(platform)},{str(environment not in primary).lower()} "
+            "app_domain,is_primary) SELECT r.id,e.id,"
+            f"{q(entry['domain'])},'platform_provided',{q(label)},{q(app_domain)},{str(environment not in primary).lower()} "
             f"FROM resources r JOIN environments e ON e.workspace_id=r.workspace_id "
             f"WHERE r.id={q(resource_id)} AND e.slug={q(environment)};"
         )

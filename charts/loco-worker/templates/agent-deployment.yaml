@@ -99,7 +99,7 @@ spec:
             - name: LOCO_APP_DOMAINS
               value: {{ join "," .Values.global.domain.apps | quote }}
             - name: LOCO_PLATFORM_DOMAIN
-              value: {{ .Values.global.domain.platform | quote }}
+              value: {{ include "loco-worker.platformDomain" . | quote }}
             - name: LOCO_REGION
               value: {{ required "global.region is required" .Values.global.region | quote }}
             - name: LOCO_REGISTRY_AUTH

@@ -33,14 +33,14 @@ state = load_state(
 workspace = state["workspaces"]["acme/shared"]
 org = state["orgs"]["acme"]["id"]
 suffix = uuid.uuid4().hex[:6]
-platform_domain = "apps.e2e.test"
+app_domain = "apps.e2e.test"
 sql(state, "UPDATE clusters SET is_active=false WHERE provider='fixture';")
 clusters = {
     health: evidence.seed_cluster(
         state,
         region,
         name=f"{health}-{suffix}",
-        domains=[platform_domain],
+        domains=[app_domain],
         health=health,
         default=health == "healthy",
     )
@@ -435,11 +435,9 @@ with session(out) as browser:
     expect(last_region).to_be_focused()
     page.keyboard.press("Space")
     expect(last_region).to_have_attribute("aria-pressed", "true")
-    drawer.get_by_role(
-        "button", name=f"Platform domain: {platform_domain}", exact=True
-    ).click()
+    drawer.get_by_role("button", name=f"App domain: {app_domain}", exact=True).click()
     domain_option = page.get_by_role(
-        "menuitemradio", name=re.compile(rf"^{re.escape(platform_domain)}")
+        "menuitemradio", name=re.compile(rf"^{re.escape(app_domain)}")
     )
     expect(domain_option.get_by_text("us-ca-1", exact=True)).to_be_visible()
     expect(domain_option.get_by_text("healthy", exact=True)).to_have_count(0)
@@ -451,13 +449,13 @@ with session(out) as browser:
     subdomain = drawer.get_by_role("textbox", name="Subdomain")
     expect(subdomain).to_have_value(name)
     expect(
-        drawer.get_by_text(f"{name}.{platform_domain} is available", exact=True)
+        drawer.get_by_text(f"{name}.{app_domain} is available", exact=True)
     ).to_be_visible()
     subdomain.fill("x" * 64)
     expect(drawer.get_by_text("Use at most 63 characters", exact=True)).to_be_visible()
     subdomain.fill(name)
     expect(
-        drawer.get_by_text(f"{name}.{platform_domain} is available", exact=True)
+        drawer.get_by_text(f"{name}.{app_domain} is available", exact=True)
     ).to_be_visible()
     # Nothing defaults a port, and a public service needs one.
     port = drawer.get_by_role("textbox", name="Port", exact=True)
@@ -870,7 +868,7 @@ with session(out) as browser:
     )
     page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
     # The drawer learns of the retained resource before it is deleted elsewhere.
-    taken = f"{name}.{platform_domain} is taken"
+    taken = f"{name}.{app_domain} is taken"
     expect(drawer.get_by_text(taken, exact=True).first).to_be_visible()
     expect(drawer.get_by_role("alert")).to_have_text("Deployment creation unavailable.")
     orphan = sql(state, f"SELECT id FROM resources WHERE slug='{name}';")
@@ -884,7 +882,7 @@ with session(out) as browser:
     draft_row(page, name).get_by_role("link", name=name, exact=True).click()
     expect(page).to_have_url(DRAFT_URL)
     expect(
-        drawer.get_by_text(f"{name}.{platform_domain} is available", exact=True)
+        drawer.get_by_text(f"{name}.{app_domain} is available", exact=True)
     ).to_be_visible()
     expect(drawer.get_by_text(taken, exact=True)).to_have_count(0)
     expect(drawer.get_by_text("already uses this name")).to_have_count(0)
@@ -964,9 +962,9 @@ with session(out) as browser:
     ) == (health_path, 15, 4, 6), check
     domain = sql(
         state,
-        f"SELECT subdomain_label || '.' || platform_domain FROM resource_domains WHERE resource_id='{resource}';",
+        f"SELECT subdomain_label || '.' || app_domain FROM resource_domains WHERE resource_id='{resource}';",
     )
-    assert domain == f"{name}.{platform_domain}", domain
+    assert domain == f"{name}.{app_domain}", domain
     assert not errors, errors
     context.close()
 
