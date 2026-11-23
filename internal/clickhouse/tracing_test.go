@@ -46,10 +46,11 @@ func TestQueriesRecordClientSpansUnderTheCaller(t *testing.T) {
 	recorder := recordSpans(t)
 	ctx, parent := otel.Tracer("test").Start(t.Context(), "request")
 	_, err := fixture.client.QueryLogs(ctx, LogQuery{
-		WorkspaceID: testWorkspaceID,
-		Start:       fixture.start,
-		End:         fixture.end,
-		Limit:       testPageSize,
+		WorkspaceID:  testWorkspaceID,
+		Start:        fixture.start,
+		End:          fixture.end,
+		Limit:        testPageSize,
+		CountMatches: true,
 	})
 	parent.End()
 	if err != nil {
@@ -65,6 +66,28 @@ func TestQueriesRecordClientSpansUnderTheCaller(t *testing.T) {
 		}
 		if got := recordedAttributes(span)[semconv.DBSystemNameKey].AsString(); got != "clickhouse" {
 			t.Errorf("%s db.system.name = %q, want clickhouse", name, got)
+		}
+	}
+}
+
+func TestQueryLogsCountsOnlyWhenAsked(t *testing.T) {
+	fixture := newQueryFixture(t)
+	recorder := recordSpans(t)
+	response, err := fixture.client.QueryLogs(t.Context(), LogQuery{
+		WorkspaceID: testWorkspaceID,
+		Start:       fixture.start,
+		End:         fixture.end,
+		Limit:       testPageSize,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetEntries()) == 0 || response.GetTotalCount() != 0 {
+		t.Fatalf("response = %v, want entries and no total", response)
+	}
+	for _, span := range recorder.Ended() {
+		if span.Name() == "CountLogs" {
+			t.Fatal("QueryLogs counted matches without CountMatches")
 		}
 	}
 }

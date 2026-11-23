@@ -5,7 +5,7 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 
 const DELETIONS = "@type:resource.deleted";
-const PAGE_SIZE = 500;
+const PAGE_SIZE = 200;
 
 /** The names the audit log recorded for the workspace's deleted resources, for callers who may read it. */
 export function useDeletedResourceNames(orgId: string, workspaceId: string, enabled: boolean): Map<string, string> {

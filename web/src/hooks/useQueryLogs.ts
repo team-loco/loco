@@ -47,8 +47,8 @@ export function logsQueryOptions(
 		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
 		query,
-		limit,
-		cursor,
+		pageSize: limit,
+		pageToken: cursor,
 		order,
 		startTime,
 		endTime,
@@ -82,15 +82,17 @@ export function logsQueryOptions(
 				if (cursor === "") {
 					const half = Math.max(1, Math.floor(limit / 2));
 					const [older, newer] = await Promise.all([
-						client.queryLogs({ ...request, endTime: before, limit: half, order: LogOrder.NEWEST_FIRST }, { signal }),
-						client.queryLogs({ ...request, startTime: target, limit: half, order: LogOrder.OLDEST_FIRST }, { signal }),
+						client.queryLogs({ ...request, endTime: before, pageSize: half, order: LogOrder.NEWEST_FIRST }, { signal }),
+						client.queryLogs(
+							{ ...request, startTime: target, pageSize: half, order: LogOrder.OLDEST_FIRST },
+							{ signal },
+						),
 					]);
 					return {
 						...older,
 						entries: [...older.entries, ...newer.entries],
-						totalMatched: older.totalMatched + newer.totalMatched,
-						olderCursor: older.nextCursor,
-						newerCursor: newer.nextCursor,
+						olderCursor: older.nextPageToken,
+						newerCursor: newer.nextPageToken,
 					};
 				}
 				if (order === LogOrder.OLDEST_FIRST) request.startTime = target;
@@ -99,8 +101,8 @@ export function logsQueryOptions(
 			const response = await client.queryLogs(request, { signal });
 			return {
 				...response,
-				olderCursor: order === LogOrder.OLDEST_FIRST ? "" : response.nextCursor,
-				newerCursor: order === LogOrder.OLDEST_FIRST ? response.nextCursor : "",
+				olderCursor: order === LogOrder.OLDEST_FIRST ? "" : response.nextPageToken,
+				newerCursor: order === LogOrder.OLDEST_FIRST ? response.nextPageToken : "",
 			};
 		},
 		enabled: enabled && workspaceId !== "" && (allEnvironments || environmentId !== ""),
@@ -128,7 +130,6 @@ export function useQueryLogs(options: UseQueryLogsOptions) {
 	const query = useQuery(logsQueryOptions(transport, options));
 	return {
 		entries: query.data?.entries ?? [],
-		totalMatched: query.data === undefined ? null : Number(query.data.totalMatched),
 		olderCursor: query.data?.olderCursor ?? "",
 		newerCursor: query.data?.newerCursor ?? "",
 		isLoading: query.isLoading,

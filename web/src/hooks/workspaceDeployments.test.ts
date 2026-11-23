@@ -47,14 +47,14 @@ describe("workspace environment deployments", () => {
 			await client.query(
 				workspaceDeploymentsOptions(transport, "workspace", "production", { sinceMs: 60_000, untilMs: 120_000 }),
 			);
-			expect(requests.map((r) => [r.since?.seconds, r.until?.seconds])).toEqual([
+			expect(requests.map((r) => [r.startTime?.seconds, r.endTime?.seconds])).toEqual([
 				[60n, 120n],
 				[60n, 120n],
 			]);
 			await client.query(
 				workspaceDeploymentsOptions(transport, "workspace", "production", { sinceMs: 60_000, untilMs: undefined }),
 			);
-			expect(requests.at(-1)?.until).toBeUndefined();
+			expect(requests.at(-1)?.endTime).toBeUndefined();
 		} finally {
 			client.clear();
 		}

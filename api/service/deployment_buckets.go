@@ -29,19 +29,19 @@ func (s *DeploymentServer) QueryDeploymentBuckets(
 	if err != nil {
 		return nil, err
 	}
-	if err = req.GetSince().CheckValid(); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, "invalid since").WithCause(err)
+	if err = req.GetStartTime().CheckValid(); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "invalid start_time").WithCause(err)
 	}
-	if err = req.GetUntil().CheckValid(); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, "invalid until").WithCause(err)
+	if err = req.GetEndTime().CheckValid(); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "invalid end_time").WithCause(err)
 	}
 	readable := s.authz.ReadableEntities(p.Scopes)
 	rows, err := s.queries.QueryDeploymentBuckets(ctx, genDb.QueryDeploymentBucketsParams{
 		WorkspaceID:       uuid.MustParse(req.GetWorkspaceId()),
 		EnvironmentID:     uuid.MustParse(req.GetEnvironmentId()),
 		FilterResourceIds: resourceIDs,
-		Since:             req.GetSince().AsTime(),
-		Until:             req.GetUntil().AsTime(),
+		Since:             req.GetStartTime().AsTime(),
+		Until:             req.GetEndTime().AsTime(),
 		BucketCount:       req.GetBucketCount(),
 		GroupByResource:   req.GetGroupByResource(),
 		MaxResourceNames:  req.GetMaxResourceNames(),

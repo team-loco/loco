@@ -495,7 +495,7 @@ func TestIdleLogTailClosesAfterRevocation(t *testing.T) {
 		ctx,
 		&observabilityv1.TailLogsRequest{
 			WorkspaceId: workspaceID.String(),
-			Since:       timestamppb.New(started.Add(-time.Second)),
+			StartTime:   timestamppb.New(started.Add(-time.Second)),
 		},
 	)
 	if err != nil {

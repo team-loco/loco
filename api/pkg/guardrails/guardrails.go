@@ -16,8 +16,8 @@ import (
 
 var (
 	errNonCanonicalID = errors.New("IDs must be lowercase UUIDs")
-	errSinceTooOld    = errors.New("since is older than the maximum time range")
-	errSinceInFuture  = errors.New("since is in the future")
+	errStartTooOld    = errors.New("start_time is older than the maximum time range")
+	errStartInFuture  = errors.New("start_time is in the future")
 	errTimestampRange = errors.New("timestamp is outside nanosecond precision range")
 	errTooManyBuckets = errors.New("time range holds too many buckets")
 )
@@ -65,15 +65,15 @@ func ValidateTailRequest(req *observabilityv1.TailLogsRequest, limits Limits, no
 	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
-	if req.GetSince() == nil {
+	if req.GetStartTime() == nil {
 		return nil
 	}
-	since := req.GetSince().AsTime()
-	if since.After(now) {
-		return errSinceInFuture
+	start := req.GetStartTime().AsTime()
+	if start.After(now) {
+		return errStartInFuture
 	}
-	if now.Sub(since) > limits.MaxTimeRange {
-		return fmt.Errorf("%w of %v", errSinceTooOld, limits.MaxTimeRange)
+	if now.Sub(start) > limits.MaxTimeRange {
+		return fmt.Errorf("%w of %v", errStartTooOld, limits.MaxTimeRange)
 	}
 	return nil
 }

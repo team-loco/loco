@@ -52,8 +52,8 @@ func (s *ObservabilityServer) TailLogs(
 	ctx, cancel := context.WithTimeout(ctx, s.cfg.MaxTailDuration)
 	defer cancel()
 	query.Start, query.Limit = started.Add(-defaultTailLookback), tailPageSize
-	if req.GetSince() != nil {
-		query.Start = req.GetSince().AsTime()
+	if req.GetStartTime() != nil {
+		query.Start = req.GetStartTime().AsTime()
 	}
 	return s.tailLoop(ctx, query, func(response *observabilityv1.TailLogsResponse) error {
 		if contextErr := ctx.Err(); contextErr != nil {

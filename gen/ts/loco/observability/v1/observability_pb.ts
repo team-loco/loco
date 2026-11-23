@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/observability/v1/observability.proto.
  */
 export const file_loco_observability_v1_observability: GenFile = /*@__PURE__*/
-  fileDesc("Cilsb2NvL29ic2VydmFiaWxpdHkvdjEvb2JzZXJ2YWJpbGl0eS5wcm90bxIVbG9jby5vYnNlcnZhYmlsaXR5LnYxIuQDChZRdWVyeUxvZ0J1Y2tldHNSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoMcmVzb3VyY2VfaWRzGAIgAygJQg26SAqSAQciBXIDsAEBEjYKCnN0YXJ0X3RpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESNAoIZW5kX3RpbWUYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESFwoFcXVlcnkYBSABKAlCCLpIBXIDKIAgEiEKEGludGVydmFsX3NlY29uZHMYBiABKAVCB7pIBBoCKAESQwoIZ3JvdXBfYnkYByABKA4yJS5sb2NvLm9ic2VydmFiaWxpdHkudjEuTG9nQnVja2V0R3JvdXBCCrpIB4IBBBABIAASIwoOZW52aXJvbm1lbnRfaWQYCCABKAlCC7pICNgBAXIDsAEBOnG6SG4abAoYdGltZV9yYW5nZS5zdGFydF9sdGVfZW5kEi5zdGFydF90aW1lIG11c3QgYmUgYmVmb3JlIG9yIGVxdWFsIHRvIGVuZF90aW1lGiB0aGlzLnN0YXJ0X3RpbWUgPD0gdGhpcy5lbmRfdGltZSJMChdRdWVyeUxvZ0J1Y2tldHNSZXNwb25zZRIxCgdidWNrZXRzGAEgAygLMiAubG9jby5vYnNlcnZhYmlsaXR5LnYxLkxvZ0J1Y2tldCKPAQoJTG9nQnVja2V0Ei4KCnN0YXJ0X3RpbWUYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWNvdW50GAIgASgEEi4KBWxldmVsGAMgASgOMh8ubG9jby5vYnNlcnZhYmlsaXR5LnYxLkxvZ0xldmVsEhMKC3Jlc291cmNlX2lkGAQgASgJItEDChBRdWVyeUxvZ3NSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoMcmVzb3VyY2VfaWRzGAIgAygJQg26SAqSAQciBXIDsAEBEjYKCnN0YXJ0X3RpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESNAoIZW5kX3RpbWUYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESFwoFcXVlcnkYBSABKAlCCLpIBXIDKIAgEhkKBWxpbWl0GAggASgFQgq6SAcaBRiQTigAEg4KBmN1cnNvchgJIAEoCRIuCgVvcmRlchgKIAEoDjIfLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5Mb2dPcmRlchIjCg5lbnZpcm9ubWVudF9pZBgNIAEoCUILukgI2AEBcgOwAQE6cbpIbhpsChh0aW1lX3JhbmdlLnN0YXJ0X2x0ZV9lbmQSLnN0YXJ0X3RpbWUgbXVzdCBiZSBiZWZvcmUgb3IgZXF1YWwgdG8gZW5kX3RpbWUaIHRoaXMuc3RhcnRfdGltZSA8PSB0aGlzLmVuZF90aW1lInEKEVF1ZXJ5TG9nc1Jlc3BvbnNlEjAKB2VudHJpZXMYASADKAsyHy5sb2NvLm9ic2VydmFiaWxpdHkudjEuTG9nRW50cnkSEwoLbmV4dF9jdXJzb3IYAiABKAkSFQoNdG90YWxfbWF0Y2hlZBgDIAEoAyLCAwoITG9nRW50cnkSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgVsZXZlbBgCIAEoDjIfLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5Mb2dMZXZlbBIMCgRib2R5GAMgASgJEhMKC3Jlc291cmNlX2lkGAQgASgJEhAKCHRyYWNlX2lkGAUgASgJEg8KB3NwYW5faWQYBiABKAkSVAoTcmVzb3VyY2VfYXR0cmlidXRlcxgHIAMoCzI3LmxvY28ub2JzZXJ2YWJpbGl0eS52MS5Mb2dFbnRyeS5SZXNvdXJjZUF0dHJpYnV0ZXNFbnRyeRJKCg5sb2dfYXR0cmlidXRlcxgIIAMoCzIyLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5Mb2dFbnRyeS5Mb2dBdHRyaWJ1dGVzRW50cnkaOQoXUmVzb3VyY2VBdHRyaWJ1dGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARo0ChJMb2dBdHRyaWJ1dGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASK/AQoPVGFpbExvZ3NSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoMcmVzb3VyY2VfaWRzGAIgAygJQg26SAqSAQciBXIDsAEBEhcKBXF1ZXJ5GAMgASgJQgi6SAVyAyiAIBIpCgVzaW5jZRgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASIwoOZW52aXJvbm1lbnRfaWQYCSABKAlCC7pICNgBAXIDsAEBIoQBChBUYWlsTG9nc1Jlc3BvbnNlEjAKBWVudHJ5GAEgASgLMh8ubG9jby5vYnNlcnZhYmlsaXR5LnYxLkxvZ0VudHJ5SAASNQoJaGVhcnRiZWF0GAIgASgLMiAubG9jby5vYnNlcnZhYmlsaXR5LnYxLkhlYXJ0YmVhdEgAQgcKBWV2ZW50IjoKCUhlYXJ0YmVhdBItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIvoGChNRdWVyeU1ldHJpY3NSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoMcmVzb3VyY2VfaWRzGAIgAygJQg26SAqSAQciBXIDsAEBEjYKCnN0YXJ0X3RpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESNAoIZW5kX3RpbWUYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESHAoLbWV0cmljX25hbWUYBSABKAlCB7pIBHICEAESIQoQaW50ZXJ2YWxfc2Vjb25kcxgGIAEoBUIHukgEGgIoARLAAQoLYWdncmVnYXRpb24YByABKAlCqgG6SKYBugGiAQoYYWdncmVnYXRpb24udmFsaWRfdmFsdWVzEkNhZ2dyZWdhdGlvbiBtdXN0IGJlIG9uZSBvZjogYXZnLCBzdW0sIG1pbiwgbWF4LCBwNTAsIHA5NSwgcDk5LCByYXRlGkF0aGlzIGluIFsnYXZnJywgJ3N1bScsICdtaW4nLCAnbWF4JywgJ3A1MCcsICdwOTUnLCAncDk5JywgJ3JhdGUnXRIjCg5lbnZpcm9ubWVudF9pZBgIIAEoCUILukgI2AEBcgOwAQESDgoGcmVnaW9uGAkgASgJEk4KCmF0dHJpYnV0ZXMYCiADKAsyOi5sb2NvLm9ic2VydmFiaWxpdHkudjEuUXVlcnlNZXRyaWNzUmVxdWVzdC5BdHRyaWJ1dGVzRW50cnkSDgoGYnlfcG9kGAsgASgIGjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBOuMBukjfARpsChh0aW1lX3JhbmdlLnN0YXJ0X2x0ZV9lbmQSLnN0YXJ0X3RpbWUgbXVzdCBiZSBiZWZvcmUgb3IgZXF1YWwgdG8gZW5kX3RpbWUaIHRoaXMuc3RhcnRfdGltZSA8PSB0aGlzLmVuZF90aW1lGm8KGWJ5X3BvZC5uZWVkc19vbmVfcmVzb3VyY2USJGJ5X3BvZCBuZWVkcyBleGFjdGx5IG9uZSByZXNvdXJjZV9pZBosIXRoaXMuYnlfcG9kIHx8IHNpemUodGhpcy5yZXNvdXJjZV9pZHMpID09IDEiSwoUUXVlcnlNZXRyaWNzUmVzcG9uc2USMwoGc2VyaWVzGAEgAygLMiMubG9jby5vYnNlcnZhYmlsaXR5LnYxLk1ldHJpY1NlcmllcyLHAQoMTWV0cmljU2VyaWVzEhMKC3Jlc291cmNlX2lkGAEgASgJEj8KBmxhYmVscxgCIAMoCzIvLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5NZXRyaWNTZXJpZXMuTGFiZWxzRW50cnkSMgoGcG9pbnRzGAMgAygLMiIubG9jby5vYnNlcnZhYmlsaXR5LnYxLk1ldHJpY1BvaW50Gi0KC0xhYmVsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSwoLTWV0cmljUG9pbnQSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgV2YWx1ZRgCIAEoASJ2CgpUcmFjZVNjb3BlEh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoMcmVzb3VyY2VfaWRzGAIgAygJQg26SAqSAQciBXIDsAEBEiMKDmVudmlyb25tZW50X2lkGAMgASgJQgu6SAjYAQFyA7ABASLPAwoRTGlzdFRyYWNlc1JlcXVlc3QSOAoFc2NvcGUYASABKAsyIS5sb2NvLm9ic2VydmFiaWxpdHkudjEuVHJhY2VTY29wZUIGukgDyAEBEjYKCnN0YXJ0X3RpbWUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESNAoIZW5kX3RpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESFwoFcXVlcnkYBCABKAlCCLpIBXIDKIAgEhkKBWxpbWl0GAUgASgFQgq6SAcaBRiQTigAEj8KBHNvcnQYCiABKA4yJy5sb2NvLm9ic2VydmFiaWxpdHkudjEuVHJhY2VTdW1tYXJ5U29ydEIIukgFggECEAESEQoJYXNjZW5kaW5nGAsgASgIEhcKBm9mZnNldBgMIAEoBUIHukgEGgIoADpxukhuGmwKGHRpbWVfcmFuZ2Uuc3RhcnRfbHRlX2VuZBIuc3RhcnRfdGltZSBtdXN0IGJlIGJlZm9yZSBvciBlcXVhbCB0byBlbmRfdGltZRogdGhpcy5zdGFydF90aW1lIDw9IHRoaXMuZW5kX3RpbWUiYQoSTGlzdFRyYWNlc1Jlc3BvbnNlEjYKCXN1bW1hcmllcxgBIAMoCzIjLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVN1bW1hcnkSEwoLdG90YWxfY291bnQYAiABKAQi8QIKGFF1ZXJ5VHJhY2VCdWNrZXRzUmVxdWVzdBI4CgVzY29wZRgBIAEoCzIhLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNjb3BlQga6SAPIAQESNgoKc3RhcnRfdGltZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARI0CghlbmRfdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARIXCgVxdWVyeRgEIAEoCUIIukgFcgMogCASIQoQaW50ZXJ2YWxfc2Vjb25kcxgJIAEoBUIHukgEGgIoATpxukhuGmwKGHRpbWVfcmFuZ2Uuc3RhcnRfbHRlX2VuZBIuc3RhcnRfdGltZSBtdXN0IGJlIGJlZm9yZSBvciBlcXVhbCB0byBlbmRfdGltZRogdGhpcy5zdGFydF90aW1lIDw9IHRoaXMuZW5kX3RpbWUigwEKGVF1ZXJ5VHJhY2VCdWNrZXRzUmVzcG9uc2USMwoHYnVja2V0cxgBIAMoCzIiLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZUJ1Y2tldBIxCgV0b3RhbBgCIAEoCzIiLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZUJ1Y2tldCKfAQoLVHJhY2VCdWNrZXQSLgoKc3RhcnRfdGltZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLdHJhY2VfY291bnQYAiABKAQSEwoLZXJyb3JfY291bnQYAyABKAQSGgoScDUwX2R1cmF0aW9uX25hbm9zGAQgASgEEhoKEnA5NV9kdXJhdGlvbl9uYW5vcxgFIAEoBCKWAQoPR2V0VHJhY2VSZXF1ZXN0EjgKBXNjb3BlGAEgASgLMiEubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU2NvcGVCBrpIA8gBARJJCgh0cmFjZV9pZBgCIAEoCUI3ukg0cjIyDl5bMC05YS1mXXszMn0kWiAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCJDChBHZXRUcmFjZVJlc3BvbnNlEi8KBXNwYW5zGAEgAygLMiAubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU3BhbiKNAgoMVHJhY2VTdW1tYXJ5EhAKCHRyYWNlX2lkGAEgASgJEhYKDnJvb3Rfc3Bhbl9uYW1lGAIgASgJEhQKDHNlcnZpY2VfbmFtZRgDIAEoCRITCgtyZXNvdXJjZV9pZBgEIAEoCRIuCgpzdGFydF90aW1lGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5kdXJhdGlvbl9uYW5vcxgGIAEoBBIyCgZzdGF0dXMYByABKA4yIi5sb2NvLm9ic2VydmFiaWxpdHkudjEuVHJhY2VTdGF0dXMSEgoKc3Bhbl9jb3VudBgIIAEoBBIYChBodHRwX3N0YXR1c19jb2RlGAkgASgNIt8FCglUcmFjZVNwYW4SEAoIdHJhY2VfaWQYASABKAkSDwoHc3Bhbl9pZBgCIAEoCRIWCg5wYXJlbnRfc3Bhbl9pZBgDIAEoCRIMCgRuYW1lGAQgASgJEgwKBGtpbmQYBSABKAkSFAoMc2VydmljZV9uYW1lGAYgASgJEi4KCnN0YXJ0X3RpbWUYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmR1cmF0aW9uX25hbm9zGAggASgEEhMKC3N0YXR1c19jb2RlGAkgASgJEhYKDnN0YXR1c19tZXNzYWdlGAogASgJEhQKDHdvcmtzcGFjZV9pZBgLIAEoCRIWCg5lbnZpcm9ubWVudF9pZBgMIAEoCRITCgtyZXNvdXJjZV9pZBgNIAEoCRJVChNyZXNvdXJjZV9hdHRyaWJ1dGVzGA4gAygLMjgubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU3Bhbi5SZXNvdXJjZUF0dHJpYnV0ZXNFbnRyeRJNCg9zcGFuX2F0dHJpYnV0ZXMYDyADKAsyNC5sb2NvLm9ic2VydmFiaWxpdHkudjEuVHJhY2VTcGFuLlNwYW5BdHRyaWJ1dGVzRW50cnkSEgoKc2NvcGVfbmFtZRgQIAEoCRIVCg1zY29wZV92ZXJzaW9uGBEgASgJEjUKBmV2ZW50cxgSIAMoCzIlLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNwYW5FdmVudBIzCgVsaW5rcxgTIAMoCzIkLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNwYW5MaW5rGjkKF1Jlc291cmNlQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaNQoTU3BhbkF0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIssBCg5UcmFjZVNwYW5FdmVudBIMCgRuYW1lGAEgASgJEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASSQoKYXR0cmlidXRlcxgDIAMoCzI1LmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNwYW5FdmVudC5BdHRyaWJ1dGVzRW50cnkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEirwEKDVRyYWNlU3BhbkxpbmsSEAoIdHJhY2VfaWQYASABKAkSDwoHc3Bhbl9pZBgCIAEoCRJICgphdHRyaWJ1dGVzGAMgAygLMjQubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU3BhbkxpbmsuQXR0cmlidXRlc0VudHJ5GjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBKm0KDkxvZ0J1Y2tldEdyb3VwEiAKHExPR19CVUNLRVRfR1JPVVBfVU5TUEVDSUZJRUQQABIaChZMT0dfQlVDS0VUX0dST1VQX0xFVkVMEAESHQoZTE9HX0JVQ0tFVF9HUk9VUF9SRVNPVVJDRRACKncKCExvZ0xldmVsEhkKFUxPR19MRVZFTF9VTlNQRUNJRklFRBAAEhMKD0xPR19MRVZFTF9ERUJVRxABEhIKDkxPR19MRVZFTF9JTkZPEAISEgoOTE9HX0xFVkVMX1dBUk4QAxITCg9MT0dfTEVWRUxfRVJST1IQBCpdCghMb2dPcmRlchIZChVMT0dfT1JERVJfVU5TUEVDSUZJRUQQABIaChZMT0dfT1JERVJfTkVXRVNUX0ZJUlNUEAESGgoWTE9HX09SREVSX09MREVTVF9GSVJTVBACKv8BChBUcmFjZVN1bW1hcnlTb3J0EiIKHlRSQUNFX1NVTU1BUllfU09SVF9VTlNQRUNJRklFRBAAEiEKHVRSQUNFX1NVTU1BUllfU09SVF9TVEFSVF9USU1FEAESHwobVFJBQ0VfU1VNTUFSWV9TT1JUX0RVUkFUSU9OEAISIAocVFJBQ0VfU1VNTUFSWV9TT1JUX09QRVJBVElPThADEh8KG1RSQUNFX1NVTU1BUllfU09SVF9SRVNPVVJDRRAEEh0KGVRSQUNFX1NVTU1BUllfU09SVF9TVEFUVVMQBRIhCh1UUkFDRV9TVU1NQVJZX1NPUlRfU1BBTl9DT1VOVBAGKlgKC1RyYWNlU3RhdHVzEhwKGFRSQUNFX1NUQVRVU19VTlNQRUNJRklFRBAAEhMKD1RSQUNFX1NUQVRVU19PSxABEhYKElRSQUNFX1NUQVRVU19FUlJPUhACMugFChRPYnNlcnZhYmlsaXR5U2VydmljZRJeCglRdWVyeUxvZ3MSJy5sb2NvLm9ic2VydmFiaWxpdHkudjEuUXVlcnlMb2dzUmVxdWVzdBooLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5RdWVyeUxvZ3NSZXNwb25zZRJwCg9RdWVyeUxvZ0J1Y2tldHMSLS5sb2NvLm9ic2VydmFiaWxpdHkudjEuUXVlcnlMb2dCdWNrZXRzUmVxdWVzdBouLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5RdWVyeUxvZ0J1Y2tldHNSZXNwb25zZRJdCghUYWlsTG9ncxImLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UYWlsTG9nc1JlcXVlc3QaJy5sb2NvLm9ic2VydmFiaWxpdHkudjEuVGFpbExvZ3NSZXNwb25zZTABEmcKDFF1ZXJ5TWV0cmljcxIqLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5RdWVyeU1ldHJpY3NSZXF1ZXN0GisubG9jby5vYnNlcnZhYmlsaXR5LnYxLlF1ZXJ5TWV0cmljc1Jlc3BvbnNlEmEKCkxpc3RUcmFjZXMSKC5sb2NvLm9ic2VydmFiaWxpdHkudjEuTGlzdFRyYWNlc1JlcXVlc3QaKS5sb2NvLm9ic2VydmFiaWxpdHkudjEuTGlzdFRyYWNlc1Jlc3BvbnNlEnYKEVF1ZXJ5VHJhY2VCdWNrZXRzEi8ubG9jby5vYnNlcnZhYmlsaXR5LnYxLlF1ZXJ5VHJhY2VCdWNrZXRzUmVxdWVzdBowLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5RdWVyeVRyYWNlQnVja2V0c1Jlc3BvbnNlElsKCEdldFRyYWNlEiYubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldFRyYWNlUmVxdWVzdBonLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5HZXRUcmFjZVJlc3BvbnNlQkhaRmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vb2JzZXJ2YWJpbGl0eS92MTtvYnNlcnZhYmlsaXR5djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Cilsb2NvL29ic2VydmFiaWxpdHkvdjEvb2JzZXJ2YWJpbGl0eS5wcm90bxIVbG9jby5vYnNlcnZhYmlsaXR5LnYxIuQDChZRdWVyeUxvZ0J1Y2tldHNSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoMcmVzb3VyY2VfaWRzGAIgAygJQg26SAqSAQciBXIDsAEBEjYKCnN0YXJ0X3RpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESNAoIZW5kX3RpbWUYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESFwoFcXVlcnkYBSABKAlCCLpIBXIDKIAgEiEKEGludGVydmFsX3NlY29uZHMYBiABKAVCB7pIBBoCKAESQwoIZ3JvdXBfYnkYByABKA4yJS5sb2NvLm9ic2VydmFiaWxpdHkudjEuTG9nQnVja2V0R3JvdXBCCrpIB4IBBBABIAASIwoOZW52aXJvbm1lbnRfaWQYCCABKAlCC7pICNgBAXIDsAEBOnG6SG4abAoYdGltZV9yYW5nZS5zdGFydF9sdGVfZW5kEi5zdGFydF90aW1lIG11c3QgYmUgYmVmb3JlIG9yIGVxdWFsIHRvIGVuZF90aW1lGiB0aGlzLnN0YXJ0X3RpbWUgPD0gdGhpcy5lbmRfdGltZSJMChdRdWVyeUxvZ0J1Y2tldHNSZXNwb25zZRIxCgdidWNrZXRzGAEgAygLMiAubG9jby5vYnNlcnZhYmlsaXR5LnYxLkxvZ0J1Y2tldCKPAQoJTG9nQnVja2V0Ei4KCnN0YXJ0X3RpbWUYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWNvdW50GAIgASgEEi4KBWxldmVsGAMgASgOMh8ubG9jby5vYnNlcnZhYmlsaXR5LnYxLkxvZ0xldmVsEhMKC3Jlc291cmNlX2lkGAQgASgJIvYDChBRdWVyeUxvZ3NSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoMcmVzb3VyY2VfaWRzGAIgAygJQg26SAqSAQciBXIDsAEBEjYKCnN0YXJ0X3RpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESNAoIZW5kX3RpbWUYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESFwoFcXVlcnkYBSABKAlCCLpIBXIDKIAgEh0KCXBhZ2Vfc2l6ZRgIIAEoBUIKukgHGgUYkE4oABISCgpwYWdlX3Rva2VuGAkgASgJEi4KBW9yZGVyGAogASgOMh8ubG9jby5vYnNlcnZhYmlsaXR5LnYxLkxvZ09yZGVyEiMKDmVudmlyb25tZW50X2lkGA0gASgJQgu6SAjYAQFyA7ABARIbChNpbmNsdWRlX3RvdGFsX2NvdW50GA4gASgIOnG6SG4abAoYdGltZV9yYW5nZS5zdGFydF9sdGVfZW5kEi5zdGFydF90aW1lIG11c3QgYmUgYmVmb3JlIG9yIGVxdWFsIHRvIGVuZF90aW1lGiB0aGlzLnN0YXJ0X3RpbWUgPD0gdGhpcy5lbmRfdGltZSJzChFRdWVyeUxvZ3NSZXNwb25zZRIwCgdlbnRyaWVzGAEgAygLMh8ubG9jby5vYnNlcnZhYmlsaXR5LnYxLkxvZ0VudHJ5EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoAyLCAwoITG9nRW50cnkSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgVsZXZlbBgCIAEoDjIfLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5Mb2dMZXZlbBIMCgRib2R5GAMgASgJEhMKC3Jlc291cmNlX2lkGAQgASgJEhAKCHRyYWNlX2lkGAUgASgJEg8KB3NwYW5faWQYBiABKAkSVAoTcmVzb3VyY2VfYXR0cmlidXRlcxgHIAMoCzI3LmxvY28ub2JzZXJ2YWJpbGl0eS52MS5Mb2dFbnRyeS5SZXNvdXJjZUF0dHJpYnV0ZXNFbnRyeRJKCg5sb2dfYXR0cmlidXRlcxgIIAMoCzIyLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5Mb2dFbnRyeS5Mb2dBdHRyaWJ1dGVzRW50cnkaOQoXUmVzb3VyY2VBdHRyaWJ1dGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARo0ChJMb2dBdHRyaWJ1dGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLEAQoPVGFpbExvZ3NSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoMcmVzb3VyY2VfaWRzGAIgAygJQg26SAqSAQciBXIDsAEBEhcKBXF1ZXJ5GAMgASgJQgi6SAVyAyiAIBIuCgpzdGFydF90aW1lGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIjCg5lbnZpcm9ubWVudF9pZBgJIAEoCUILukgI2AEBcgOwAQEihAEKEFRhaWxMb2dzUmVzcG9uc2USMAoFZW50cnkYASABKAsyHy5sb2NvLm9ic2VydmFiaWxpdHkudjEuTG9nRW50cnlIABI1CgloZWFydGJlYXQYAiABKAsyIC5sb2NvLm9ic2VydmFiaWxpdHkudjEuSGVhcnRiZWF0SABCBwoFZXZlbnQiOgoJSGVhcnRiZWF0Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi+gYKE1F1ZXJ5TWV0cmljc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIjCgxyZXNvdXJjZV9pZHMYAiADKAlCDbpICpIBByIFcgOwAQESNgoKc3RhcnRfdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARI0CghlbmRfdGltZRgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARIcCgttZXRyaWNfbmFtZRgFIAEoCUIHukgEcgIQARIhChBpbnRlcnZhbF9zZWNvbmRzGAYgASgFQge6SAQaAigBEsABCgthZ2dyZWdhdGlvbhgHIAEoCUKqAbpIpgG6AaIBChhhZ2dyZWdhdGlvbi52YWxpZF92YWx1ZXMSQ2FnZ3JlZ2F0aW9uIG11c3QgYmUgb25lIG9mOiBhdmcsIHN1bSwgbWluLCBtYXgsIHA1MCwgcDk1LCBwOTksIHJhdGUaQXRoaXMgaW4gWydhdmcnLCAnc3VtJywgJ21pbicsICdtYXgnLCAncDUwJywgJ3A5NScsICdwOTknLCAncmF0ZSddEiMKDmVudmlyb25tZW50X2lkGAggASgJQgu6SAjYAQFyA7ABARIOCgZyZWdpb24YCSABKAkSTgoKYXR0cmlidXRlcxgKIAMoCzI6LmxvY28ub2JzZXJ2YWJpbGl0eS52MS5RdWVyeU1ldHJpY3NSZXF1ZXN0LkF0dHJpYnV0ZXNFbnRyeRIOCgZieV9wb2QYCyABKAgaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAE64wG6SN8BGmwKGHRpbWVfcmFuZ2Uuc3RhcnRfbHRlX2VuZBIuc3RhcnRfdGltZSBtdXN0IGJlIGJlZm9yZSBvciBlcXVhbCB0byBlbmRfdGltZRogdGhpcy5zdGFydF90aW1lIDw9IHRoaXMuZW5kX3RpbWUabwoZYnlfcG9kLm5lZWRzX29uZV9yZXNvdXJjZRIkYnlfcG9kIG5lZWRzIGV4YWN0bHkgb25lIHJlc291cmNlX2lkGiwhdGhpcy5ieV9wb2QgfHwgc2l6ZSh0aGlzLnJlc291cmNlX2lkcykgPT0gMSJLChRRdWVyeU1ldHJpY3NSZXNwb25zZRIzCgZzZXJpZXMYASADKAsyIy5sb2NvLm9ic2VydmFiaWxpdHkudjEuTWV0cmljU2VyaWVzIscBCgxNZXRyaWNTZXJpZXMSEwoLcmVzb3VyY2VfaWQYASABKAkSPwoGbGFiZWxzGAIgAygLMi8ubG9jby5vYnNlcnZhYmlsaXR5LnYxLk1ldHJpY1Nlcmllcy5MYWJlbHNFbnRyeRIyCgZwb2ludHMYAyADKAsyIi5sb2NvLm9ic2VydmFiaWxpdHkudjEuTWV0cmljUG9pbnQaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJLCgtNZXRyaWNQb2ludBItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBXZhbHVlGAIgASgBInYKClRyYWNlU2NvcGUSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIjCgxyZXNvdXJjZV9pZHMYAiADKAlCDbpICpIBByIFcgOwAQESIwoOZW52aXJvbm1lbnRfaWQYAyABKAlCC7pICNgBAXIDsAEBIvMDChFMaXN0VHJhY2VzUmVxdWVzdBI4CgVzY29wZRgBIAEoCzIhLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNjb3BlQga6SAPIAQESNgoKc3RhcnRfdGltZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARI0CghlbmRfdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARIXCgVxdWVyeRgEIAEoCUIIukgFcgMogCASHQoJcGFnZV9zaXplGAUgASgFQgq6SAcaBRjIASgAEhsKCnBhZ2VfdG9rZW4YDCABKAlCB7pIBHICGEASPQoIb3JkZXJfYnkYCiABKA4yIS5sb2NvLm9ic2VydmFiaWxpdHkudjEuVHJhY2VPcmRlckIIukgFggECEAESEgoKZGVzY2VuZGluZxgLIAEoCBIbChNpbmNsdWRlX3RvdGFsX2NvdW50GA0gASgIOnG6SG4abAoYdGltZV9yYW5nZS5zdGFydF9sdGVfZW5kEi5zdGFydF90aW1lIG11c3QgYmUgYmVmb3JlIG9yIGVxdWFsIHRvIGVuZF90aW1lGiB0aGlzLnN0YXJ0X3RpbWUgPD0gdGhpcy5lbmRfdGltZSJ6ChJMaXN0VHJhY2VzUmVzcG9uc2USNgoJc3VtbWFyaWVzGAEgAygLMiMubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU3VtbWFyeRITCgt0b3RhbF9jb3VudBgCIAEoBBIXCg9uZXh0X3BhZ2VfdG9rZW4YAyABKAki8QIKGFF1ZXJ5VHJhY2VCdWNrZXRzUmVxdWVzdBI4CgVzY29wZRgBIAEoCzIhLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNjb3BlQga6SAPIAQESNgoKc3RhcnRfdGltZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARI0CghlbmRfdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARIXCgVxdWVyeRgEIAEoCUIIukgFcgMogCASIQoQaW50ZXJ2YWxfc2Vjb25kcxgJIAEoBUIHukgEGgIoATpxukhuGmwKGHRpbWVfcmFuZ2Uuc3RhcnRfbHRlX2VuZBIuc3RhcnRfdGltZSBtdXN0IGJlIGJlZm9yZSBvciBlcXVhbCB0byBlbmRfdGltZRogdGhpcy5zdGFydF90aW1lIDw9IHRoaXMuZW5kX3RpbWUigwEKGVF1ZXJ5VHJhY2VCdWNrZXRzUmVzcG9uc2USMwoHYnVja2V0cxgBIAMoCzIiLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZUJ1Y2tldBIxCgV0b3RhbBgCIAEoCzIiLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZUJ1Y2tldCKfAQoLVHJhY2VCdWNrZXQSLgoKc3RhcnRfdGltZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLdHJhY2VfY291bnQYAiABKAQSEwoLZXJyb3JfY291bnQYAyABKAQSGgoScDUwX2R1cmF0aW9uX25hbm9zGAQgASgEEhoKEnA5NV9kdXJhdGlvbl9uYW5vcxgFIAEoBCKWAQoPR2V0VHJhY2VSZXF1ZXN0EjgKBXNjb3BlGAEgASgLMiEubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU2NvcGVCBrpIA8gBARJJCgh0cmFjZV9pZBgCIAEoCUI3ukg0cjIyDl5bMC05YS1mXXszMn0kWiAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCJDChBHZXRUcmFjZVJlc3BvbnNlEi8KBXNwYW5zGAEgAygLMiAubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU3BhbiKNAgoMVHJhY2VTdW1tYXJ5EhAKCHRyYWNlX2lkGAEgASgJEhYKDnJvb3Rfc3Bhbl9uYW1lGAIgASgJEhQKDHNlcnZpY2VfbmFtZRgDIAEoCRITCgtyZXNvdXJjZV9pZBgEIAEoCRIuCgpzdGFydF90aW1lGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5kdXJhdGlvbl9uYW5vcxgGIAEoBBIyCgZzdGF0dXMYByABKA4yIi5sb2NvLm9ic2VydmFiaWxpdHkudjEuVHJhY2VTdGF0dXMSEgoKc3Bhbl9jb3VudBgIIAEoBBIYChBodHRwX3N0YXR1c19jb2RlGAkgASgNIt8FCglUcmFjZVNwYW4SEAoIdHJhY2VfaWQYASABKAkSDwoHc3Bhbl9pZBgCIAEoCRIWCg5wYXJlbnRfc3Bhbl9pZBgDIAEoCRIMCgRuYW1lGAQgASgJEgwKBGtpbmQYBSABKAkSFAoMc2VydmljZV9uYW1lGAYgASgJEi4KCnN0YXJ0X3RpbWUYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmR1cmF0aW9uX25hbm9zGAggASgEEhMKC3N0YXR1c19jb2RlGAkgASgJEhYKDnN0YXR1c19tZXNzYWdlGAogASgJEhQKDHdvcmtzcGFjZV9pZBgLIAEoCRIWCg5lbnZpcm9ubWVudF9pZBgMIAEoCRITCgtyZXNvdXJjZV9pZBgNIAEoCRJVChNyZXNvdXJjZV9hdHRyaWJ1dGVzGA4gAygLMjgubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU3Bhbi5SZXNvdXJjZUF0dHJpYnV0ZXNFbnRyeRJNCg9zcGFuX2F0dHJpYnV0ZXMYDyADKAsyNC5sb2NvLm9ic2VydmFiaWxpdHkudjEuVHJhY2VTcGFuLlNwYW5BdHRyaWJ1dGVzRW50cnkSEgoKc2NvcGVfbmFtZRgQIAEoCRIVCg1zY29wZV92ZXJzaW9uGBEgASgJEjUKBmV2ZW50cxgSIAMoCzIlLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNwYW5FdmVudBIzCgVsaW5rcxgTIAMoCzIkLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNwYW5MaW5rGjkKF1Jlc291cmNlQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaNQoTU3BhbkF0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIssBCg5UcmFjZVNwYW5FdmVudBIMCgRuYW1lGAEgASgJEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASSQoKYXR0cmlidXRlcxgDIAMoCzI1LmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UcmFjZVNwYW5FdmVudC5BdHRyaWJ1dGVzRW50cnkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEirwEKDVRyYWNlU3BhbkxpbmsSEAoIdHJhY2VfaWQYASABKAkSDwoHc3Bhbl9pZBgCIAEoCRJICgphdHRyaWJ1dGVzGAMgAygLMjQubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRyYWNlU3BhbkxpbmsuQXR0cmlidXRlc0VudHJ5GjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBKm0KDkxvZ0J1Y2tldEdyb3VwEiAKHExPR19CVUNLRVRfR1JPVVBfVU5TUEVDSUZJRUQQABIaChZMT0dfQlVDS0VUX0dST1VQX0xFVkVMEAESHQoZTE9HX0JVQ0tFVF9HUk9VUF9SRVNPVVJDRRACKncKCExvZ0xldmVsEhkKFUxPR19MRVZFTF9VTlNQRUNJRklFRBAAEhMKD0xPR19MRVZFTF9ERUJVRxABEhIKDkxPR19MRVZFTF9JTkZPEAISEgoOTE9HX0xFVkVMX1dBUk4QAxITCg9MT0dfTEVWRUxfRVJST1IQBCpdCghMb2dPcmRlchIZChVMT0dfT1JERVJfVU5TUEVDSUZJRUQQABIaChZMT0dfT1JERVJfTkVXRVNUX0ZJUlNUEAESGgoWTE9HX09SREVSX09MREVTVF9GSVJTVBACKsgBCgpUcmFjZU9yZGVyEhsKF1RSQUNFX09SREVSX1VOU1BFQ0lGSUVEEAASGgoWVFJBQ0VfT1JERVJfU1RBUlRfVElNRRABEhgKFFRSQUNFX09SREVSX0RVUkFUSU9OEAISGQoVVFJBQ0VfT1JERVJfT1BFUkFUSU9OEAMSGAoUVFJBQ0VfT1JERVJfUkVTT1VSQ0UQBBIWChJUUkFDRV9PUkRFUl9TVEFUVVMQBRIaChZUUkFDRV9PUkRFUl9TUEFOX0NPVU5UEAYqWAoLVHJhY2VTdGF0dXMSHAoYVFJBQ0VfU1RBVFVTX1VOU1BFQ0lGSUVEEAASEwoPVFJBQ0VfU1RBVFVTX09LEAESFgoSVFJBQ0VfU1RBVFVTX0VSUk9SEAIy6AUKFE9ic2VydmFiaWxpdHlTZXJ2aWNlEl4KCVF1ZXJ5TG9ncxInLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5RdWVyeUxvZ3NSZXF1ZXN0GigubG9jby5vYnNlcnZhYmlsaXR5LnYxLlF1ZXJ5TG9nc1Jlc3BvbnNlEnAKD1F1ZXJ5TG9nQnVja2V0cxItLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5RdWVyeUxvZ0J1Y2tldHNSZXF1ZXN0Gi4ubG9jby5vYnNlcnZhYmlsaXR5LnYxLlF1ZXJ5TG9nQnVja2V0c1Jlc3BvbnNlEl0KCFRhaWxMb2dzEiYubG9jby5vYnNlcnZhYmlsaXR5LnYxLlRhaWxMb2dzUmVxdWVzdBonLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5UYWlsTG9nc1Jlc3BvbnNlMAESZwoMUXVlcnlNZXRyaWNzEioubG9jby5vYnNlcnZhYmlsaXR5LnYxLlF1ZXJ5TWV0cmljc1JlcXVlc3QaKy5sb2NvLm9ic2VydmFiaWxpdHkudjEuUXVlcnlNZXRyaWNzUmVzcG9uc2USYQoKTGlzdFRyYWNlcxIoLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5MaXN0VHJhY2VzUmVxdWVzdBopLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5MaXN0VHJhY2VzUmVzcG9uc2USdgoRUXVlcnlUcmFjZUJ1Y2tldHMSLy5sb2NvLm9ic2VydmFiaWxpdHkudjEuUXVlcnlUcmFjZUJ1Y2tldHNSZXF1ZXN0GjAubG9jby5vYnNlcnZhYmlsaXR5LnYxLlF1ZXJ5VHJhY2VCdWNrZXRzUmVzcG9uc2USWwoIR2V0VHJhY2USJi5sb2NvLm9ic2VydmFiaWxpdHkudjEuR2V0VHJhY2VSZXF1ZXN0GicubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldFRyYWNlUmVzcG9uc2VCSFpGZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9vYnNlcnZhYmlsaXR5L3YxO29ic2VydmFiaWxpdHl2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.observability.v1.QueryLogBucketsRequest
@@ -243,18 +243,18 @@ export type QueryLogsRequest = Message<"loco.observability.v1.QueryLogsRequest">
   query: string;
 
   /**
-   * Max rows to return (clamped by guardrails).
+   * Log lines per page: 0 for the API's default, at most 10,000.
    *
-   * @generated from field: int32 limit = 8;
+   * @generated from field: int32 page_size = 8;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * Opaque cursor for pagination (from previous response). Empty for first request.
+   * next_page_token from the previous page of the same query and order; empty for the first page.
    *
-   * @generated from field: string cursor = 9;
+   * @generated from field: string page_token = 9;
    */
-  cursor: string;
+  pageToken: string;
 
   /**
    * Ordering of results (newest/oldest first).
@@ -267,6 +267,13 @@ export type QueryLogsRequest = Message<"loco.observability.v1.QueryLogsRequest">
    * @generated from field: string environment_id = 13;
    */
   environmentId: string;
+
+  /**
+   * Sets total_count in the response.
+   *
+   * @generated from field: bool include_total_count = 14;
+   */
+  includeTotalCount: boolean;
 };
 
 /**
@@ -312,18 +319,18 @@ export type QueryLogsRequestJson = {
   query?: string;
 
   /**
-   * Max rows to return (clamped by guardrails).
+   * Log lines per page: 0 for the API's default, at most 10,000.
    *
-   * @generated from field: int32 limit = 8;
+   * @generated from field: int32 page_size = 8;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * Opaque cursor for pagination (from previous response). Empty for first request.
+   * next_page_token from the previous page of the same query and order; empty for the first page.
    *
-   * @generated from field: string cursor = 9;
+   * @generated from field: string page_token = 9;
    */
-  cursor?: string;
+  pageToken?: string;
 
   /**
    * Ordering of results (newest/oldest first).
@@ -336,6 +343,13 @@ export type QueryLogsRequestJson = {
    * @generated from field: string environment_id = 13;
    */
   environmentId?: string;
+
+  /**
+   * Sets total_count in the response.
+   *
+   * @generated from field: bool include_total_count = 14;
+   */
+  includeTotalCount?: boolean;
 };
 
 /**
@@ -359,18 +373,18 @@ export type QueryLogsResponse = Message<"loco.observability.v1.QueryLogsResponse
   entries: LogEntry[];
 
   /**
-   * Opaque cursor for fetching the next page. Empty if no more results.
+   * Empty on the last page.
    *
-   * @generated from field: string next_cursor = 2;
+   * @generated from field: string next_page_token = 2;
    */
-  nextCursor: string;
+  nextPageToken: string;
 
   /**
-   * Approximate count of total matched rows (best-effort, may not be exact).
+   * The log lines the query matches, ignoring page_token; set when include_total_count is.
    *
-   * @generated from field: int64 total_matched = 3;
+   * @generated from field: int64 total_count = 3;
    */
-  totalMatched: bigint;
+  totalCount: bigint;
 };
 
 /**
@@ -387,18 +401,18 @@ export type QueryLogsResponseJson = {
   entries?: LogEntryJson[];
 
   /**
-   * Opaque cursor for fetching the next page. Empty if no more results.
+   * Empty on the last page.
    *
-   * @generated from field: string next_cursor = 2;
+   * @generated from field: string next_page_token = 2;
    */
-  nextCursor?: string;
+  nextPageToken?: string;
 
   /**
-   * Approximate count of total matched rows (best-effort, may not be exact).
+   * The log lines the query matches, ignoring page_token; set when include_total_count is.
    *
-   * @generated from field: int64 total_matched = 3;
+   * @generated from field: int64 total_count = 3;
    */
-  totalMatched?: string;
+  totalCount?: string;
 };
 
 /**
@@ -566,9 +580,11 @@ export type TailLogsRequest = Message<"loco.observability.v1.TailLogsRequest"> &
   query: string;
 
   /**
-   * @generated from field: google.protobuf.Timestamp since = 6;
+   * The earliest log line to send; empty starts shortly before the call.
+   *
+   * @generated from field: google.protobuf.Timestamp start_time = 6;
    */
-  since?: Timestamp | undefined;
+  startTime?: Timestamp | undefined;
 
   /**
    * @generated from field: string environment_id = 9;
@@ -605,9 +621,11 @@ export type TailLogsRequestJson = {
   query?: string;
 
   /**
-   * @generated from field: google.protobuf.Timestamp since = 6;
+   * The earliest log line to send; empty starts shortly before the call.
+   *
+   * @generated from field: google.protobuf.Timestamp start_time = 6;
    */
-  since?: TimestampJson;
+  startTime?: TimestampJson;
 
   /**
    * @generated from field: string environment_id = 9;
@@ -1113,24 +1131,33 @@ export type ListTracesRequest = Message<"loco.observability.v1.ListTracesRequest
   query: string;
 
   /**
-   * @generated from field: int32 limit = 5;
+   * @generated from field: int32 page_size = 5;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * @generated from field: loco.observability.v1.TraceSummarySort sort = 10;
+   * next_page_token from the previous page of the same query and order; empty for the first page.
+   *
+   * @generated from field: string page_token = 12;
    */
-  sort: TraceSummarySort;
+  pageToken: string;
 
   /**
-   * @generated from field: bool ascending = 11;
+   * @generated from field: loco.observability.v1.TraceOrder order_by = 10;
    */
-  ascending: boolean;
+  orderBy: TraceOrder;
 
   /**
-   * @generated from field: int32 offset = 12;
+   * @generated from field: bool descending = 11;
    */
-  offset: number;
+  descending: boolean;
+
+  /**
+   * Sets total_count in the response.
+   *
+   * @generated from field: bool include_total_count = 13;
+   */
+  includeTotalCount: boolean;
 };
 
 /**
@@ -1162,24 +1189,33 @@ export type ListTracesRequestJson = {
   query?: string;
 
   /**
-   * @generated from field: int32 limit = 5;
+   * @generated from field: int32 page_size = 5;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * @generated from field: loco.observability.v1.TraceSummarySort sort = 10;
+   * next_page_token from the previous page of the same query and order; empty for the first page.
+   *
+   * @generated from field: string page_token = 12;
    */
-  sort?: TraceSummarySortJson;
+  pageToken?: string;
 
   /**
-   * @generated from field: bool ascending = 11;
+   * @generated from field: loco.observability.v1.TraceOrder order_by = 10;
    */
-  ascending?: boolean;
+  orderBy?: TraceOrderJson;
 
   /**
-   * @generated from field: int32 offset = 12;
+   * @generated from field: bool descending = 11;
    */
-  offset?: number;
+  descending?: boolean;
+
+  /**
+   * Sets total_count in the response.
+   *
+   * @generated from field: bool include_total_count = 13;
+   */
+  includeTotalCount?: boolean;
 };
 
 /**
@@ -1199,9 +1235,18 @@ export type ListTracesResponse = Message<"loco.observability.v1.ListTracesRespon
   summaries: TraceSummary[];
 
   /**
+   * The traces the query matches, ignoring page_token; set when include_total_count is.
+   *
    * @generated from field: uint64 total_count = 2;
    */
   totalCount: bigint;
+
+  /**
+   * Empty on the last page.
+   *
+   * @generated from field: string next_page_token = 3;
+   */
+  nextPageToken: string;
 };
 
 /**
@@ -1214,9 +1259,18 @@ export type ListTracesResponseJson = {
   summaries?: TraceSummaryJson[];
 
   /**
+   * The traces the query matches, ignoring page_token; set when include_total_count is.
+   *
    * @generated from field: uint64 total_count = 2;
    */
   totalCount?: string;
+
+  /**
+   * Empty on the last page.
+   *
+   * @generated from field: string next_page_token = 3;
+   */
+  nextPageToken?: string;
 };
 
 /**
@@ -2025,54 +2079,60 @@ export const LogOrderSchema: GenEnum<LogOrder, LogOrderJson> = /*@__PURE__*/
   enumDesc(file_loco_observability_v1_observability, 2);
 
 /**
- * @generated from enum loco.observability.v1.TraceSummarySort
+ * TraceOrder is what ListTraces sorts by. Ties sort by trace ID, ascending.
+ *
+ * @generated from enum loco.observability.v1.TraceOrder
  */
-export enum TraceSummarySort {
+export enum TraceOrder {
   /**
-   * @generated from enum value: TRACE_SUMMARY_SORT_UNSPECIFIED = 0;
+   * Newest first: start time, descending, whatever descending says.
+   *
+   * @generated from enum value: TRACE_ORDER_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: TRACE_SUMMARY_SORT_START_TIME = 1;
+   * @generated from enum value: TRACE_ORDER_START_TIME = 1;
    */
   START_TIME = 1,
 
   /**
-   * @generated from enum value: TRACE_SUMMARY_SORT_DURATION = 2;
+   * @generated from enum value: TRACE_ORDER_DURATION = 2;
    */
   DURATION = 2,
 
   /**
-   * @generated from enum value: TRACE_SUMMARY_SORT_OPERATION = 3;
+   * @generated from enum value: TRACE_ORDER_OPERATION = 3;
    */
   OPERATION = 3,
 
   /**
-   * @generated from enum value: TRACE_SUMMARY_SORT_RESOURCE = 4;
+   * @generated from enum value: TRACE_ORDER_RESOURCE = 4;
    */
   RESOURCE = 4,
 
   /**
-   * @generated from enum value: TRACE_SUMMARY_SORT_STATUS = 5;
+   * @generated from enum value: TRACE_ORDER_STATUS = 5;
    */
   STATUS = 5,
 
   /**
-   * @generated from enum value: TRACE_SUMMARY_SORT_SPAN_COUNT = 6;
+   * @generated from enum value: TRACE_ORDER_SPAN_COUNT = 6;
    */
   SPAN_COUNT = 6,
 }
 
 /**
- * @generated from enum loco.observability.v1.TraceSummarySort
+ * TraceOrder is what ListTraces sorts by. Ties sort by trace ID, ascending.
+ *
+ * @generated from enum loco.observability.v1.TraceOrder
  */
-export type TraceSummarySortJson = "TRACE_SUMMARY_SORT_UNSPECIFIED" | "TRACE_SUMMARY_SORT_START_TIME" | "TRACE_SUMMARY_SORT_DURATION" | "TRACE_SUMMARY_SORT_OPERATION" | "TRACE_SUMMARY_SORT_RESOURCE" | "TRACE_SUMMARY_SORT_STATUS" | "TRACE_SUMMARY_SORT_SPAN_COUNT";
+export type TraceOrderJson = "TRACE_ORDER_UNSPECIFIED" | "TRACE_ORDER_START_TIME" | "TRACE_ORDER_DURATION" | "TRACE_ORDER_OPERATION" | "TRACE_ORDER_RESOURCE" | "TRACE_ORDER_STATUS" | "TRACE_ORDER_SPAN_COUNT";
 
 /**
- * Describes the enum loco.observability.v1.TraceSummarySort.
+ * Describes the enum loco.observability.v1.TraceOrder.
  */
-export const TraceSummarySortSchema: GenEnum<TraceSummarySort, TraceSummarySortJson> = /*@__PURE__*/
+export const TraceOrderSchema: GenEnum<TraceOrder, TraceOrderJson> = /*@__PURE__*/
   enumDesc(file_loco_observability_v1_observability, 3);
 
 /**

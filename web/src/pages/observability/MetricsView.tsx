@@ -316,12 +316,12 @@ function usePlacementSizing(rows: Placement[], recent: Deployment[], environment
 		return starts.length > 0 && starts.every((t) => t > from);
 	};
 	const earlierFor = [...new Set(rows.filter(startsInWindow).map((p) => p.resource.id))];
-	const until = timestampFromMs(Math.floor(from / HOUR_MS) * HOUR_MS);
+	const endTime = timestampFromMs(Math.floor(from / HOUR_MS) * HOUR_MS);
 	const earlierQueries = useQueries({
 		queries: earlierFor.map((resourceId) =>
 			createQueryOptions(
 				listDeployments,
-				{ resourceId, environmentId, until, pageSize: EARLIER_DEPLOYS },
+				{ resourceId, environmentId, endTime, pageSize: EARLIER_DEPLOYS },
 				{ transport },
 			),
 		),

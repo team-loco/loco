@@ -1,8 +1,8 @@
 import { useListNavigation } from "@/hooks/useListNavigation";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { listTraces } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
-import { TraceStatus, TraceSummarySort, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
-import { useState, type ReactNode } from "react";
+import { TraceOrder, TraceStatus, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
+import { useCallback, useState, type ReactNode } from "react";
 import { functionalUpdate } from "@tanstack/react-table";
 import { RefreshCwIcon, ZoomOutIcon } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -16,13 +16,13 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useGetTrace } from "@/hooks/useGetTrace";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
-import { useListTraces } from "@/hooks/useListTraces";
+import { useTokenPage } from "@/hooks/useTokenPage";
 import { useTraceBuckets } from "@/hooks/useTraceBuckets";
 import { isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { resolveWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
-import { pageRangeLabel, pagingParsers, type Paging } from "@/lib/paging";
-import { formatClock, formatIsoDate } from "@/lib/time";
+import { pageTokensParser, pagingParsers, tokenPageLabel, tokenPager } from "@/lib/paging";
+import { formatClock, formatIsoDate, msToTimestamp } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { widthsParser, type ColumnWidths } from "./columns";
@@ -42,8 +42,10 @@ import { TRACE_ID_PATTERN, durationLabel, spansMayArrive, summarizeTraces, times
 
 const SORT_IDS = ["duration", "operation", "resource", "status", "spans"] as const;
 const DEFAULT_PAGE_SIZE = 25;
+// Page tokens sit in the obs view's page parameter, which query and range changes clear.
 const TRACES_PARAMS = {
-	...pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE),
+	page: pageTokensParser,
+	size: pagingParsers(PAGE_SIZES, DEFAULT_PAGE_SIZE).size,
 	...WINDOW_PARSERS,
 	...QUERY_PARSERS,
 	sort: parseAsStringLiteral(SORT_IDS),
@@ -57,12 +59,12 @@ const ARRIVAL_POLL_MS = 5000;
 
 type SortId = (typeof SORT_IDS)[number];
 const START_TIME = "when";
-const TRACE_SORTS: Record<SortId, TraceSummarySort> = {
-	duration: TraceSummarySort.DURATION,
-	operation: TraceSummarySort.OPERATION,
-	resource: TraceSummarySort.RESOURCE,
-	status: TraceSummarySort.STATUS,
-	spans: TraceSummarySort.SPAN_COUNT,
+const TRACE_ORDERS: Record<SortId, TraceOrder> = {
+	duration: TraceOrder.DURATION,
+	operation: TraceOrder.OPERATION,
+	resource: TraceOrder.RESOURCE,
+	status: TraceOrder.STATUS,
+	spans: TraceOrder.SPAN_COUNT,
 };
 
 export function TracesView() {
@@ -83,16 +85,15 @@ function TraceSession({
 	const { workspaceId, resources, resourcesLoading, scopedResourceIds, resourceById, range, tokens, text, setQuery } =
 		useObs();
 	const [params, setParams] = useQueryStates(TRACES_PARAMS);
-	const setPaging = (next: Paging) => {
-		void setParams(next, { history: "replace" });
-	};
+	const resetPage = useCallback(() => {
+		void setParams({ page: null }, { history: "replace" });
+	}, [setParams]);
 	const { active, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = active?.id ?? "";
 	const [frozenEnd, setFrozenEnd] = useState(Date.now);
 	const bounds = resolveWindow(range, frozenEnd);
 	const scopeReady = scopedResourceIds === null || scopedResourceIds.length > 0;
-	const paging = { page: params.page, size: params.size };
-	const sort = params.sort === null ? TraceSummarySort.START_TIME : TRACE_SORTS[params.sort];
+	const orderBy = params.sort === null ? TraceOrder.START_TIME : TRACE_ORDERS[params.sort];
 	const ascending = params.dir === "asc";
 	const query = queryStr(tokens, text);
 	const filters = {
@@ -102,15 +103,21 @@ function TraceSession({
 		start: bounds.from,
 		end: bounds.to,
 	};
-	const browse = useListTraces({
-		...filters,
+	const counted = {
+		scope: { workspaceId, environmentId, resourceIds: filters.resourceIds },
+		startTime: msToTimestamp(bounds.from),
+		endTime: msToTimestamp(bounds.to),
 		query,
-		limit: paging.size,
-		offset: paging.page * paging.size,
-		sort,
-		ascending,
-		enabled: scopeReady,
-	});
+	};
+	const listed = useTokenPage(
+		listTraces,
+		{ ...counted, pageSize: params.size, orderBy, descending: !ascending },
+		params.page,
+		{ enabled: scopeReady && workspaceId !== "" && environmentId !== "", staleTime: Infinity },
+		counted,
+		resetPage,
+	);
+	const browse = listed.query;
 	const widthSeconds = bucketSeconds(bounds.to - bounds.from);
 	const overview = useTraceBuckets({
 		...filters,
@@ -141,13 +148,12 @@ function TraceSession({
 	});
 
 	const traces = scopeReady ? (browse.data?.summaries ?? []) : [];
-	const total = scopeReady ? Number(browse.data?.totalCount ?? 0n) : 0;
+	const total = scopeReady && listed.counts !== undefined ? Number(listed.counts.totalCount) : undefined;
 	const countLabel = (count: bigint | undefined) => (count === undefined ? undefined : formatCount(Number(count)));
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
-	const go = (page: number) => () => {
-		setPaging({ page, size: paging.size });
-	};
-	const pages = Math.max(1, Math.ceil(total / paging.size));
+	const pager = tokenPager(params.page, listed.nextPageToken, (page) => {
+		void setParams({ page }, { history: "replace" });
+	});
 	const loading = environmentLoading || browse.isLoading || (!scopeReady && resourcesLoading);
 	const detailSpans = uniqueSpans(detail.data?.spans ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
@@ -324,20 +330,18 @@ function TraceSession({
 					empty={rejected === null ? <NoMatches title="No requests match." /> : null}
 				/>
 				<Pager
-					label={traces.length > 0 ? pageRangeLabel(paging.page, paging.size, total) : "0"}
-					page={paging.page}
-					pages={pages}
+					label={tokenPageLabel(pager.page, params.size, traces.length, total)}
+					page={pager.page}
 					loading={loading}
-					total={total}
+					total={traces.length}
 					pageSizes={PAGE_SIZES}
-					pageSize={paging.size}
+					pageSize={params.size}
 					onPageSize={(size) => {
-						setPaging({ page: 0, size });
+						void setParams({ page: null, size }, { history: "replace" });
 					}}
-					onFirst={!loading && paging.page > 0 ? go(0) : null}
-					onPrev={!loading && paging.page > 0 ? go(paging.page - 1) : null}
-					onNext={!loading && paging.page < pages - 1 ? go(paging.page + 1) : null}
-					onLast={!loading && paging.page < pages - 1 ? go(pages - 1) : null}
+					onFirst={loading ? null : pager.onFirst}
+					onPrev={loading ? null : pager.onPrev}
+					onNext={loading ? null : pager.onNext}
 				/>
 			</section>
 			<TraceDrawer

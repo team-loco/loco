@@ -2,8 +2,11 @@ package clickhouse
 
 import (
 	"context"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,23 +47,30 @@ func buildTraceSummaryQuery(req traceRequest, filter TraceFilter, b *positionalB
 	return query
 }
 
+// ErrInvalidTracePageToken rejects a ListTraces page_token no response returned.
+var ErrInvalidTracePageToken = errors.New("invalid trace page token")
+
 func (c *Client) ListTraces(
 	ctx context.Context,
 	req *observabilityv1.ListTracesRequest,
 	filter TraceFilter,
 	limit int32,
 ) (*observabilityv1.ListTracesResponse, error) {
+	offset, err := decodeTraceOffset(req.GetPageToken())
+	if err != nil {
+		return nil, err
+	}
 	b := &positionalBinder{}
 	query := buildTraceSummaryQuery(req, filter, b)
 	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(c.queryTimeout.Seconds()))
 	summaryQuery, summaryArgs := query, slices.Clone(b.args)
 	sort := "start_time"
-	switch req.GetSort() {
-	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION:
+	switch req.GetOrderBy() {
+	case observabilityv1.TraceOrder_TRACE_ORDER_DURATION:
 		sort = "duration_nanos"
-	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_OPERATION:
+	case observabilityv1.TraceOrder_TRACE_ORDER_OPERATION:
 		sort = "root.1"
-	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_RESOURCE:
+	case observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE:
 		sort = "root.2"
 		if len(filter.Resources) > 0 {
 			choices := make([]string, 0, 2*len(filter.Resources)+1)
@@ -70,19 +80,23 @@ func (c *Client) ListTraces(
 			}
 			sort = "multiIf(" + strings.Join(append(choices, sort), ", ") + ")"
 		}
-	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_STATUS:
+	case observabilityv1.TraceOrder_TRACE_ORDER_STATUS:
 		sort = "root.4"
-	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_SPAN_COUNT:
+	case observabilityv1.TraceOrder_TRACE_ORDER_SPAN_COUNT:
 		sort = "span_count"
 	}
-	direction := " DESC"
-	if req.GetAscending() {
-		direction = " ASC"
+	direction := " ASC"
+	if req.GetDescending() || req.GetOrderBy() == observabilityv1.TraceOrder_TRACE_ORDER_UNSPECIFIED {
+		direction = " DESC"
 	}
-	// The window count totals every matching trace before LIMIT, so one aggregation serves the page and its total.
-	query = "SELECT TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4, " +
-		"count() OVER () FROM (" + query + ") ORDER BY " + sort + direction + ", TraceId ASC LIMIT ? OFFSET ?" + settings
-	b.args = append(b.args, limit, req.GetOffset())
+	columns := "TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4"
+	if req.GetIncludeTotalCount() {
+		// The window count totals every matching trace before LIMIT, so one aggregation serves the page and its total.
+		columns += ", count() OVER ()"
+	}
+	query = "SELECT " + columns + " FROM (" + query + ") ORDER BY " + sort + direction +
+		", TraceId ASC LIMIT ? OFFSET ?" + settings
+	b.args = append(b.args, limit+pageLookahead, offset)
 	rows, err := c.query(ctx, "ListTraces", query, b.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query trace summaries: %w", err)
@@ -96,18 +110,11 @@ func (c *Client) ListTraces(
 		var httpStatus uint32
 		var start time.Time
 		var duration, count uint64
-		if err := rows.Scan(
-			&id,
-			&name,
-			&service,
-			&resource,
-			&start,
-			&duration,
-			&status,
-			&count,
-			&httpStatus,
-			&total,
-		); err != nil {
+		dest := []any{&id, &name, &service, &resource, &start, &duration, &status, &count, &httpStatus}
+		if req.GetIncludeTotalCount() {
+			dest = append(dest, &total)
+		}
+		if err := rows.Scan(dest...); err != nil {
 			return nil, fmt.Errorf("scan trace summary: %w", err)
 		}
 		summaries = append(summaries, &observabilityv1.TraceSummary{
@@ -125,12 +132,38 @@ func (c *Client) ListTraces(
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("trace summary rows: %w", err)
 	}
+	response := &observabilityv1.ListTracesResponse{Summaries: summaries}
+	if int32(len(summaries)) > limit {
+		response.Summaries = summaries[:limit]
+		response.NextPageToken = encodeTraceOffset(offset + int64(limit))
+	}
 	// A page past the end has no rows to carry the total.
-	if len(summaries) == 0 && req.GetOffset() > 0 {
+	if req.GetIncludeTotalCount() && len(summaries) == 0 && offset > 0 {
 		err := c.scanRow(ctx, "CountTraces", "SELECT count() FROM ("+summaryQuery+")"+settings, summaryArgs, &total)
 		if err != nil {
 			return nil, fmt.Errorf("count trace summaries: %w", err)
 		}
 	}
-	return &observabilityv1.ListTracesResponse{Summaries: summaries, TotalCount: total}, nil
+	response.TotalCount = total
+	return response, nil
+}
+
+// A ListTraces page token holds the offset of the page's first trace.
+func encodeTraceOffset(offset int64) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(offset, 10)))
+}
+
+func decodeTraceOffset(token string) (int64, error) {
+	if token == "" {
+		return 0, nil
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return 0, ErrInvalidTracePageToken
+	}
+	offset, err := strconv.ParseInt(string(decoded), 10, 64)
+	if err != nil || offset <= 0 {
+		return 0, ErrInvalidTracePageToken
+	}
+	return offset, nil
 }

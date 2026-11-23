@@ -519,18 +519,18 @@ func (s *DeploymentServer) ListDeployments(
 		*field.target = &id
 	}
 	var since, until *time.Time
-	if req.GetSince() != nil {
-		if err = req.GetSince().CheckValid(); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, "invalid since").WithCause(err)
+	if req.GetStartTime() != nil {
+		if err = req.GetStartTime().CheckValid(); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, "invalid start_time").WithCause(err)
 		}
-		value := req.GetSince().AsTime()
+		value := req.GetStartTime().AsTime()
 		since = &value
 	}
-	if req.GetUntil() != nil {
-		if err = req.GetUntil().CheckValid(); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, "invalid until").WithCause(err)
+	if req.GetEndTime() != nil {
+		if err = req.GetEndTime().CheckValid(); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, "invalid end_time").WithCause(err)
 		}
-		value := req.GetUntil().AsTime()
+		value := req.GetEndTime().AsTime()
 		until = &value
 	}
 	statuses := deploymentStatusNames(req.GetStatuses())

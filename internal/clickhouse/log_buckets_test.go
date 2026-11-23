@@ -36,7 +36,7 @@ func TestLogBuckets(t *testing.T) {
 	q := LogQuery{WorkspaceID: testWorkspaceID, EnvironmentID: testEnvironmentID, Start: start,
 		End: start.Add(2 * time.Minute), Filter: mustParse(t, marker), Limit: 1}
 	page, err := f.client.QueryLogs(t.Context(), q)
-	if err != nil || len(page.GetEntries()) != 1 || page.GetNextCursor() == "" {
+	if err != nil || len(page.GetEntries()) != 1 || page.GetNextPageToken() == "" {
 		t.Fatalf("page: %v, %v", page, err)
 	}
 	for _, group := range []observabilityv1.LogBucketGroup{

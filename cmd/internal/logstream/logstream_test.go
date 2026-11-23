@@ -48,7 +48,7 @@ func (p *fakeProxy) QueryLogs(
 		slices.Reverse(entries)
 	}
 	offset := 0
-	if req.GetCursor() != "" {
+	if req.GetPageToken() != "" {
 		offset = p.pageSize
 	}
 	end := len(entries)
@@ -57,7 +57,7 @@ func (p *fakeProxy) QueryLogs(
 		end = p.pageSize
 		next = "page-2"
 	}
-	return &observabilityv1.QueryLogsResponse{Entries: entries[offset:end], NextCursor: next}, nil
+	return &observabilityv1.QueryLogsResponse{Entries: entries[offset:end], NextPageToken: next}, nil
 }
 
 func (p *fakeProxy) TailLogs(
@@ -181,8 +181,8 @@ func TestBackfillLeavesPageSizesToTheAPIAndTrimsTheLastPage(t *testing.T) {
 		t.Fatalf("%d queries, want 2 pages", len(proxy.queries))
 	}
 	for _, query := range proxy.queries {
-		if query.GetLimit() != 0 {
-			t.Fatalf("page limit = %d, want the API's default", query.GetLimit())
+		if query.GetPageSize() != 0 {
+			t.Fatalf("page size = %d, want the API's default", query.GetPageSize())
 		}
 	}
 
@@ -246,8 +246,8 @@ func (p *windowProxy) TailLogs(
 	stream observabilityv1connect.ObservabilityServiceTailLogsServerStream,
 ) error {
 	after := p.now.Add(-proxyTailLookback)
-	if since := req.GetSince(); since != nil {
-		after = since.AsTime()
+	if start := req.GetStartTime(); start != nil {
+		after = start.AsTime()
 	}
 	for _, e := range p.live {
 		if !e.GetTimestamp().AsTime().After(after) {

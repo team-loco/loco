@@ -44,7 +44,7 @@ with session(out) as browser:
         if request.url.endswith(".DeploymentService/ListDeployments"):
             body = request.post_data_json
             # The dashboard's Deployments card lists 10 rows of the last day; the drawer lists more.
-            if "since" in body and body.get("pageSize") != 10:
+            if "startTime" in body and body.get("pageSize") != 10:
                 drawer_reads.append(body)
 
     page.on("request", record_drawer_read)

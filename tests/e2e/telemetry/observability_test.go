@@ -622,7 +622,9 @@ func (o *observed) logsRequest(workspace string, resources ...string) *observabi
 		StartTime:   timestamppb.New(o.trafficStarted.Add(-queryWindow)),
 		EndTime:     timestamppb.Now(),
 		Query:       logquery.Quote("trace_id=" + o.traceID),
-		Limit:       proxyLimit,
+		PageSize:    proxyLimit,
+
+		IncludeTotalCount: true,
 	}
 }
 
@@ -781,9 +783,10 @@ func (o *observed) traceSummary(t *testing.T) {
 			StartTime: timestamppb.New(trafficStarted.Add(-queryWindow)),
 			EndTime:   timestamppb.Now(),
 			Query:     "@trace:" + traceID + " @http.request.method:GET",
-			Limit:     1,
-			Sort:      observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_STATUS,
-			Ascending: true,
+			PageSize:  1,
+			OrderBy:   observabilityv1.TraceOrder_TRACE_ORDER_STATUS,
+
+			IncludeTotalCount: true,
 		})
 		if err != nil {
 			return err
@@ -985,8 +988,8 @@ func (o *observed) scopedLogs(t *testing.T) {
 			if len(logs.GetEntries()) == 0 {
 				return fmt.Errorf("region %s returned no entries", region)
 			}
-			if logs.GetTotalMatched() < int64(len(logs.GetEntries())) {
-				return fmt.Errorf("total_matched = %d for %d entries", logs.GetTotalMatched(), len(logs.GetEntries()))
+			if logs.GetTotalCount() < int64(len(logs.GetEntries())) {
+				return fmt.Errorf("total_count = %d for %d entries", logs.GetTotalCount(), len(logs.GetEntries()))
 			}
 			excluded := o.logsRequest(w.ID, resourceID)
 			excluded.Query += " -@region:" + logquery.Quote(region)
@@ -996,8 +999,8 @@ func (o *observed) scopedLogs(t *testing.T) {
 			if len(logs.GetEntries()) != 0 {
 				return fmt.Errorf("excluding region %s returned %d entries", region, len(logs.GetEntries()))
 			}
-			if logs.GetTotalMatched() != 0 {
-				return fmt.Errorf("excluded region total_matched = %d, want 0", logs.GetTotalMatched())
+			if logs.GetTotalCount() != 0 {
+				return fmt.Errorf("excluded region total_count = %d, want 0", logs.GetTotalCount())
 			}
 			return nil
 		},

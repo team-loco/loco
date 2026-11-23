@@ -23,6 +23,8 @@ import (
 // maxResourceReadChecks bounds the permission checks one request naming resources can cause.
 const maxResourceReadChecks = 100
 
+const defaultTracePageSize = 50
+
 var errObservabilityUnavailable = errors.New("observability is unavailable")
 
 var _ observabilityv1connect.ObservabilityServiceHandler = (*ObservabilityServer)(nil)
@@ -63,8 +65,8 @@ func (s *ObservabilityServer) QueryLogs(
 		return nil, err
 	}
 	query.Start, query.End = req.GetStartTime().AsTime(), req.GetEndTime().AsTime()
-	query.Limit = guardrails.ClampLimit(req.GetLimit(), s.cfg.Limits)
-	query.Cursor, query.Order = req.GetCursor(), req.GetOrder()
+	query.Limit = guardrails.ClampLimit(req.GetPageSize(), s.cfg.Limits)
+	query.Cursor, query.Order, query.CountMatches = req.GetPageToken(), req.GetOrder(), req.GetIncludeTotalCount()
 	response, err := s.clickhouse.QueryLogs(ctx, query)
 	if errors.Is(err, chClient.ErrInvalidLogCursor) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
@@ -193,13 +195,20 @@ func (s *ObservabilityServer) ListTraces(
 	if err != nil {
 		return nil, err
 	}
-	if req.GetSort() == observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_RESOURCE && len(filter.Resources) == 0 {
+	if req.GetOrderBy() == observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE && len(filter.Resources) == 0 {
 		filter.Resources, err = s.resourceNames(ctx, req.GetScope().GetWorkspaceId())
 		if err != nil {
 			return nil, err
 		}
 	}
-	response, err := s.clickhouse.ListTraces(ctx, req, filter, guardrails.ClampLimit(req.GetLimit(), s.cfg.Limits))
+	pageSize := req.GetPageSize()
+	if pageSize == 0 {
+		pageSize = defaultTracePageSize
+	}
+	response, err := s.clickhouse.ListTraces(ctx, req, filter, pageSize)
+	if errors.Is(err, chClient.ErrInvalidTracePageToken) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list traces: %w", err)
 	}

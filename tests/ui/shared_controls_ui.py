@@ -136,7 +136,7 @@ def mock_telemetry(context):
     context.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
         lambda route: route.fulfill(
-            json={"entries": logs, "totalMatched": str(len(logs))}
+            json={"entries": logs, "totalCount": str(len(logs))}
         ),
     )
 
@@ -461,7 +461,7 @@ def log_columns(page):
     ]
     page.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
-        lambda route: route.fulfill(json={"entries": entries, "totalMatched": "3"}),
+        lambda route: route.fulfill(json={"entries": entries, "totalCount": "3"}),
     )
     page.goto(
         state["ui_url"]
@@ -507,7 +507,7 @@ def log_columns(page):
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
     page.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
-        lambda route: route.fulfill(json={"entries": [], "totalMatched": "0"}),
+        lambda route: route.fulfill(json={"entries": [], "totalCount": "0"}),
     )
     logs_url = state["ui_url"] + base + "/observability?env=production&view=logs&live=0"
     page.goto(logs_url + "&q=no-such-line")
@@ -546,7 +546,7 @@ def workload_logs(page):
     ]
     page.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
-        lambda route: route.fulfill(json={"entries": entries, "totalMatched": "2"}),
+        lambda route: route.fulfill(json={"entries": entries, "totalCount": "2"}),
     )
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     lines = page.get_by_role("region", name="Log lines")
@@ -605,7 +605,7 @@ def template_logs(page):
     ]
     page.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
-        lambda route: route.fulfill(json={"entries": entries, "totalMatched": "1"}),
+        lambda route: route.fulfill(json={"entries": entries, "totalCount": "1"}),
     )
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     rendered = "GetCartAsync called with userId=u-42 in {region}"
@@ -636,7 +636,7 @@ def log_drawer(page):
     ]
     page.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
-        lambda route: route.fulfill(json={"entries": entries, "totalMatched": "1"}),
+        lambda route: route.fulfill(json={"entries": entries, "totalCount": "1"}),
     )
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     row = page.get_by_role("region", name="Log lines").get_by_role(
@@ -757,7 +757,7 @@ def live_focus(page):
     expect(live).to_be_focused()
     assert len(held) == 1, len(held)
     # A held route cannot fall back to the context mock; answer it here.
-    held[0].fulfill(json={"entries": [], "totalMatched": "0"})
+    held[0].fulfill(json={"entries": [], "totalCount": "0"})
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
     expect(live).to_have_attribute("aria-pressed", "true")
     expect(live).to_be_focused()
@@ -802,7 +802,7 @@ def log_paging(page):
     ]
     page.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
-        lambda route: route.fulfill(json={"entries": many, "totalMatched": "0"}),
+        lambda route: route.fulfill(json={"entries": many, "totalCount": "0"}),
     )
     page.goto(
         state["ui_url"]
@@ -902,7 +902,7 @@ def log_cap(page):
     page.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
         lambda route: route.fulfill(
-            json={"entries": rows, "totalMatched": "0", "nextCursor": "more"}
+            json={"entries": rows, "totalCount": "0", "nextPageToken": "more"}
         ),
     )
     page.goto(

@@ -74,8 +74,8 @@ describe("regional control-plane queries", () => {
 
 	test("tails from a given time and from now by default", () => {
 		const sinceMs = 1_760_000_000_123;
-		expect(tailLogsRequest({ ...logOptions, sinceMs }).since).toEqual(msToTimestamp(sinceMs));
-		expect(tailLogsRequest(logOptions).since).toBeUndefined();
+		expect(tailLogsRequest({ ...logOptions, sinceMs }).startTime).toEqual(msToTimestamp(sinceMs));
+		expect(tailLogsRequest(logOptions).startTime).toBeUndefined();
 	});
 
 	test("waits for an environment before enabling dashboard metrics", () => {
@@ -138,7 +138,7 @@ describe("regional control-plane queries", () => {
 					const newer = request.order === LogOrder.OLDEST_FIRST;
 					return {
 						entries: [{ body: newer ? "after target" : "before target" }],
-						nextCursor: newer ? "newer-cursor" : "older-cursor",
+						nextPageToken: newer ? "newer-cursor" : "older-cursor",
 					};
 				},
 			});
@@ -182,7 +182,7 @@ describe("regional control-plane queries", () => {
 					received.push(request);
 					return {
 						entries: request.endTime?.seconds === BigInt(resumed / 1000) ? [{ body: "arrived while paused" }] : [],
-						nextCursor: "latest-older",
+						nextPageToken: "latest-older",
 					};
 				},
 			});
@@ -206,7 +206,7 @@ describe("regional control-plane queries", () => {
 			);
 			expect(received).toHaveLength(1);
 			const request = received[0];
-			expect(request?.cursor).toBe("");
+			expect(request?.pageToken).toBe("");
 			expect(request?.order).toBe(LogOrder.NEWEST_FIRST);
 			expect(request?.startTime).toEqual(msToTimestamp(resumed - 60 * 60_000));
 			expect(request?.endTime).toEqual(msToTimestamp(resumed));
@@ -233,7 +233,7 @@ describe("regional control-plane queries", () => {
 					const latest = request.endTime?.seconds === BigInt(resumed / 1000);
 					return {
 						entries: [{ body: latest ? "pause gap" : "history", timestamp: msToTimestamp(latest ? resumed : target) }],
-						nextCursor: "older-history",
+						nextPageToken: "older-history",
 					};
 				},
 			});
@@ -291,7 +291,7 @@ describe("regional control-plane queries", () => {
 			router.service(ObservabilityService, {
 				queryLogs(request) {
 					received.push(request);
-					return { entries: [{ body: "history" }], nextCursor: "opaque/not-a-date" };
+					return { entries: [{ body: "history" }], nextPageToken: "opaque/not-a-date" };
 				},
 			});
 		});
@@ -303,9 +303,9 @@ describe("regional control-plane queries", () => {
 		expect(received).toHaveLength(1);
 		expect(received[0]?.resourceIds).toEqual([]);
 		expect(received[0]?.query).toBe(logOptions.query);
-		expect(response.nextCursor).toBe("opaque/not-a-date");
-		await client.query(logsQueryOptions(transport, { ...logOptions, cursor: response.nextCursor }));
-		expect(received[1]?.cursor).toBe("opaque/not-a-date");
+		expect(response.nextPageToken).toBe("opaque/not-a-date");
+		await client.query(logsQueryOptions(transport, { ...logOptions, cursor: response.nextPageToken }));
+		expect(received[1]?.pageToken).toBe("opaque/not-a-date");
 		client.clear();
 	});
 

@@ -248,13 +248,13 @@ func TestListDeploymentsWorkspaceEnvironment(t *testing.T) {
 
 	request.PageToken = ""
 	request.PageSize = 200
-	request.Since = timestamppb.New(base.Add(time.Hour))
-	request.Until = timestamppb.New(base.Add(5 * time.Hour))
+	request.StartTime = timestamppb.New(base.Add(time.Hour))
+	request.EndTime = timestamppb.New(base.Add(5 * time.Hour))
 	page := f.listDeployments(t, request, grants...)
 	if ids := deploymentIDs(page.GetDeployments()); !slices.Equal(ids, visible[1:2]) {
 		t.Fatalf("window = %v, want %v", ids, visible[1:2])
 	}
-	request.Since, request.Until = nil, nil
+	request.StartTime, request.EndTime = nil, nil
 	for _, scope := range []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: func() uuid.UUID {
@@ -300,7 +300,7 @@ func TestListDeploymentsScopeAndWindowValidation(t *testing.T) {
 		{WorkspaceId: id},
 		{ResourceId: id, WorkspaceId: id, EnvironmentId: id},
 		{ResourceId: "bad-resource-id"},
-		{ResourceId: id, Since: timestamppb.Now(), Until: timestamppb.New(time.Time{})},
+		{ResourceId: id, StartTime: timestamppb.Now(), EndTime: timestamppb.New(time.Time{})},
 	} {
 		if err := protovalidate.Validate(request); err == nil {
 			t.Fatalf("accepted invalid request: %v", request)
@@ -310,7 +310,7 @@ func TestListDeploymentsScopeAndWindowValidation(t *testing.T) {
 		{ResourceId: id},
 		{ResourceId: id, EnvironmentId: id},
 		{WorkspaceId: id, EnvironmentId: id},
-		{WorkspaceId: id, EnvironmentId: id, Since: timestamppb.New(time.Time{}), Until: timestamppb.Now()},
+		{WorkspaceId: id, EnvironmentId: id, StartTime: timestamppb.New(time.Time{}), EndTime: timestamppb.Now()},
 	} {
 		if err := protovalidate.Validate(request); err != nil {
 			t.Fatal(err)

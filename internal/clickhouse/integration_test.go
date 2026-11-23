@@ -213,7 +213,7 @@ func (f *queryFixture) page(t *testing.T, q LogQuery, cursor string) ([]*observa
 	if err != nil {
 		t.Fatalf("QueryLogs: %v", err)
 	}
-	return response.GetEntries(), response.GetNextCursor()
+	return response.GetEntries(), response.GetNextPageToken()
 }
 
 func (f *queryFixture) allPages(t *testing.T, q LogQuery) []string {
@@ -551,7 +551,7 @@ func TestLogPagesKeepEqualTimestampsAcrossMerges(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			entries, next := response.GetEntries(), response.GetNextCursor()
+			entries, next := response.GetEntries(), response.GetNextPageToken()
 			count += len(entries)
 			if page == 0 {
 				if err := f.conn.Exec(t.Context(), "OPTIMIZE TABLE otel_logs FINAL"); err != nil {
@@ -660,7 +660,7 @@ func TestQueryLogsCountsMatchesAcrossPages(t *testing.T) {
 				observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
 			} {
 				q := tc.query
-				q.Start, q.Limit, q.Order = f.start, testPageSize, order
+				q.Start, q.Limit, q.Order, q.CountMatches = f.start, testPageSize, order, true
 				if q.End.IsZero() {
 					q.End = f.end
 				}
@@ -670,11 +670,11 @@ func TestQueryLogsCountsMatchesAcrossPages(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					if got := response.GetTotalMatched(); got != tc.want {
-						t.Fatalf("total_matched = %d, want %d", got, tc.want)
+					if got := response.GetTotalCount(); got != tc.want {
+						t.Fatalf("total_count = %d, want %d", got, tc.want)
 					}
 					entries += int64(len(response.GetEntries()))
-					q.Cursor = response.GetNextCursor()
+					q.Cursor = response.GetNextPageToken()
 					if q.Cursor == "" {
 						break
 					}

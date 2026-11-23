@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -62,14 +63,13 @@ func TestTraceSummaries(t *testing.T) {
 		{name: "unknown resource", query: "@resource:missing"},
 		{name: "groups", query: "(@status:error OR @duration:<1500) -post", want: []int{2, 1}},
 		{name: "duration descending", change: func(r *observabilityv1.ListTracesRequest) {
-			r.Sort = observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION
+			r.OrderBy, r.Descending = observabilityv1.TraceOrder_TRACE_ORDER_DURATION, true
 		}, want: []int{1, 2, 3}},
 		{name: "duration ascending", change: func(r *observabilityv1.ListTracesRequest) {
-			r.Sort = observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION
-			r.Ascending = true
+			r.OrderBy = observabilityv1.TraceOrder_TRACE_ORDER_DURATION
 		}, want: []int{2, 3, 1}},
 		{name: "start ascending", change: func(r *observabilityv1.ListTracesRequest) {
-			r.Ascending = true
+			r.OrderBy = observabilityv1.TraceOrder_TRACE_ORDER_START_TIME
 		}, want: []int{1, 2, 3}},
 		{name: "empty workspace", change: func(r *observabilityv1.ListTracesRequest) {
 			r.Scope.WorkspaceId = testUnknownWorkspaceID
@@ -99,31 +99,31 @@ func TestTraceSummaries(t *testing.T) {
 func TestTraceSummarySortColumns(t *testing.T) {
 	f, base := newTraceSummaryFixture(t)
 	for _, tc := range []struct {
-		sort                  observabilityv1.TraceSummarySort
+		order                 observabilityv1.TraceOrder
 		ascending, descending []int
 	}{
-		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_START_TIME, []int{1, 2, 3}, []int{2, 3, 1}},
-		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION, []int{2, 3, 1}, []int{1, 2, 3}},
-		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_OPERATION, []int{1, 2, 3}, []int{3, 2, 1}},
-		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_RESOURCE, []int{3, 1, 2}, []int{1, 2, 3}},
-		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_STATUS, []int{3, 2, 1}, []int{1, 2, 3}},
-		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_SPAN_COUNT, []int{2, 3, 1}, []int{1, 2, 3}},
+		{observabilityv1.TraceOrder_TRACE_ORDER_START_TIME, []int{1, 2, 3}, []int{2, 3, 1}},
+		{observabilityv1.TraceOrder_TRACE_ORDER_DURATION, []int{2, 3, 1}, []int{1, 2, 3}},
+		{observabilityv1.TraceOrder_TRACE_ORDER_OPERATION, []int{1, 2, 3}, []int{3, 2, 1}},
+		{observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE, []int{3, 1, 2}, []int{1, 2, 3}},
+		{observabilityv1.TraceOrder_TRACE_ORDER_STATUS, []int{3, 2, 1}, []int{1, 2, 3}},
+		{observabilityv1.TraceOrder_TRACE_ORDER_SPAN_COUNT, []int{2, 3, 1}, []int{1, 2, 3}},
 	} {
-		for _, ascending := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s/%t", tc.sort, ascending), func(t *testing.T) {
+		for _, descending := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/%t", tc.order, descending), func(t *testing.T) {
 				req := proto.CloneOf(base)
-				req.Sort, req.Ascending = tc.sort, ascending
-				want := tc.descending
-				if ascending {
-					want = tc.ascending
+				req.OrderBy, req.Descending = tc.order, descending
+				want := tc.ascending
+				if descending {
+					want = tc.descending
 				}
-				for offset, id := range want {
-					req.Offset = int32(offset)
+				for page, id := range want {
 					filter := TraceFilter{Resources: []ResourceName{{ID: testResourceID, Name: "aaa"}}}
 					result := queryTraceSummaries(t, f, req, filter, 1)
+					req.PageToken = result.GetNextPageToken()
 					if len(result.GetSummaries()) != 1 ||
 						result.GetSummaries()[0].GetTraceId() != fmt.Sprintf("%032x", id) {
-						t.Fatalf("offset %d: %v, want trace %d", offset, result, id)
+						t.Fatalf("page %d: %v, want trace %d", page, result, id)
 					}
 					if id == 2 && result.GetSummaries()[0].GetHttpStatusCode() != 200 {
 						t.Fatalf("HTTP code: %v", result.GetSummaries()[0])
@@ -170,31 +170,46 @@ func traceFilter(t *testing.T, query string) TraceFilter {
 
 func TestTraceSummaryPages(t *testing.T) {
 	f, base := newTraceSummaryFixture(t)
-	req := proto.CloneOf(base)
-	var ids []string
-	for offset := range 4 {
-		req.Offset = int32(offset)
-		got := queryTraceSummaries(t, f, req, TraceFilter{}, 1)
-		if got.GetTotalCount() != 3 {
-			t.Fatalf("count: %v", got)
-		}
-		if offset == 3 {
-			if len(got.GetSummaries()) != 0 {
-				t.Fatal("expected empty page past end")
-			}
-			continue
-		}
-		if len(got.GetSummaries()) != 1 {
-			t.Fatalf("page: %v", got)
-		}
-		ids = append(ids, got.GetSummaries()[0].GetTraceId())
-		if offset == 2 && got.GetSummaries()[0].GetSpanCount() != 2 {
-			t.Fatal("split trace")
-		}
-	}
 	want := []string{fmt.Sprintf("%032x", 2), fmt.Sprintf("%032x", 3), fmt.Sprintf("%032x", 1)}
-	if !slices.Equal(ids, want) {
-		t.Fatalf("trace pages = %v, want %v", ids, want)
+	for _, counted := range []bool{false, true} {
+		t.Run(fmt.Sprintf("counted=%t", counted), func(t *testing.T) {
+			req := proto.CloneOf(base)
+			req.IncludeTotalCount = counted
+			var ids []string
+			for page := 0; ; page++ {
+				got := queryTraceSummaries(t, f, req, TraceFilter{}, 1)
+				if counted && got.GetTotalCount() != 3 || !counted && got.GetTotalCount() != 0 {
+					t.Fatalf("page %d count: %v", page, got)
+				}
+				if len(got.GetSummaries()) != 1 {
+					t.Fatalf("page %d: %v", page, got)
+				}
+				ids = append(ids, got.GetSummaries()[0].GetTraceId())
+				if page == 2 && got.GetSummaries()[0].GetSpanCount() != 2 {
+					t.Fatal("split trace")
+				}
+				if got.GetNextPageToken() == "" {
+					break
+				}
+				req.PageToken = got.GetNextPageToken()
+			}
+			if !slices.Equal(ids, want) {
+				t.Fatalf("trace pages = %v, want %v", ids, want)
+			}
+		})
+	}
+	req := proto.CloneOf(base)
+	req.PageToken = encodeTraceOffset(int64(len(want)))
+	got := queryTraceSummaries(t, f, req, TraceFilter{}, 1)
+	if len(got.GetSummaries()) != 0 || got.GetTotalCount() != 3 {
+		t.Fatalf("page past the end: %v", got)
+	}
+	for _, token := range []string{"not base64!", encodeTraceOffset(0), "LTE"} {
+		req.PageToken = token
+		_, err := f.client.ListTraces(t.Context(), req, TraceFilter{}, 1)
+		if !errors.Is(err, ErrInvalidTracePageToken) {
+			t.Errorf("token %q: err = %v, want ErrInvalidTracePageToken", token, err)
+		}
 	}
 }
 
@@ -345,6 +360,8 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 		Scope:     &observabilityv1.TraceScope{WorkspaceId: testWorkspaceID},
 		StartTime: timestamppb.New(start),
 		EndTime:   timestamppb.New(start.Add(5 * time.Second)),
+
+		IncludeTotalCount: true,
 	}
 	base.Scope.EnvironmentId = testEnvironmentID
 	return f, base
