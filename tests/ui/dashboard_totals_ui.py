@@ -83,6 +83,10 @@ with session(out) as browser:
     allocated = page.get_by_role("group", name=re.compile(r"^Allocated: "))
     expect(allocated).to_contain_text("GiB memory")
     allocated.focus()
+    # The breakdown clips its links until it has opened.
+    allocated.evaluate(
+        "node => Promise.all(node.getAnimations({subtree: true}).map(animation => animation.finished))"
+    )
     more = allocated.get_by_role("link", name=re.compile(r"^3 more"))
     expect(more).to_be_visible()
     expect(more).to_have_attribute("href", re.compile(r"/resources\?.*sort=size\.desc"))
