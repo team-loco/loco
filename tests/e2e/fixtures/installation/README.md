@@ -8,7 +8,7 @@ The baseline is the newest stable published release. Its bundle must have the v2
 
 Flux reconciles the bundle's control-plane entry point, then its combined entry point after registration. The operator uses the CLI from the same published release for the baseline phase. Its downloaded binary is checked against that release’s checksum manifest. It signs in with the device flow and a verified Dex identity under closed signup. `locoadm cluster create --kube-context fixture` writes the join-token Secret directly through its Kubernetes client; the token stays outside the configuration artifact. Secret encryption and Flux decryption belong to operator tooling and are outside this test.
 
-The fixture activates the head CLI after the upgrade reconciles. Enrollment supplies a tier only when the published CLI exposes that flag.
+The fixture activates the head CLI after the upgrade reconciles.
 
 Upgrade checks compare agent identity, seal material and initialization material before and after reconciliation. A transit ciphertext created before the upgrade must decrypt afterwards, and the ingest signing key must retain its public identity. A fresh operator login and a 72-hour token issuance exercise the upgraded CLI against the running API.
 
