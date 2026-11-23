@@ -115,7 +115,8 @@ export function IncidentCard({
 	workspaceId: string;
 	environmentId: string;
 	resourceId: string;
-	logsHref: string | undefined;
+	/** Logs of one replica, or of the resource when `replica` is null. */
+	logsHref: (replica: string | null) => string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 	nowMs: number;
@@ -139,6 +140,7 @@ export function IncidentCard({
 			: []),
 	].join(", ");
 	const servingActor = serving === undefined ? "" : deploymentActor(serving);
+	const logs = logsHref(only?.name ?? null);
 
 	return (
 		<section
@@ -153,8 +155,8 @@ export function IncidentCard({
 					<span className="font-mono text-[12px] text-fg3">{meta}</span>
 				</div>
 				<div className="flex gap-2">
-					{logsHref !== undefined && (
-						<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
+					{logs !== undefined && (
+						<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logs} />}>
 							<ScrollTextIcon />
 							Logs
 						</Button>

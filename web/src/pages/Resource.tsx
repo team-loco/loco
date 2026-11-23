@@ -523,7 +523,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}
-							logsHref={obsLink("logs")}
+							logsHref={(replica) => obsLink("logs", replica === null ? null : { key: "replica", value: replica })}
 							canWrite={canWrite}
 							onRollback={openRollback}
 						/>

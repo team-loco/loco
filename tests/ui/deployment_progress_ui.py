@@ -342,6 +342,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             r"^v1, the deployment serving this region, deployed (just now|\d+[mhd] ago)( by .+)?$"
         )
     )
+    incident_logs = incident.get_by_role("link", name="Logs", exact=True)
+    incident_query = parse_qs(urlparse(incident_logs.get_attribute("href")).query)
+    assert incident_query.get("q") == ["@replica:progress-new-1"], incident_query
     phase("failed", survivors=False)
     expect(serving).to_have_text("No ready replicas reported", timeout=25000)
     phase("failed")
