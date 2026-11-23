@@ -2,9 +2,9 @@ import { createQueryOptions, useMutation, useTransport } from "@connectrpc/conne
 import { listSessions, revokeSession } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { SessionKind, type ListSessionsResponse } from "@gen/loco/user/v1/user_pb";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MonitorIcon, TerminalIcon } from "lucide-react";
+import { LogOutIcon, MonitorIcon, SmartphoneIcon, TerminalIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
@@ -17,6 +17,8 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { SettingsCard } from "./parts";
 import { LogoutConfirm } from "./LogoutConfirm";
 import { activeLabel, describeSession } from "./sessions";
+
+const signedOutIcon = <LogOutIcon className="size-4" />;
 
 function SessionTime({ ms, label, pref }: { ms: number; label: string; pref: TimePreferences }) {
 	return (
@@ -40,12 +42,13 @@ export function ActiveSessions() {
 	const [loggingOut, setLoggingOut] = useState(false);
 	const revoke = useMutation(revokeSession, {
 		async onSuccess(_, { sessionId }) {
+			const revoked = sessions.data?.sessions.find((session) => session.id === sessionId);
 			await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
 			queryClient.setQueryData<ListSessionsResponse>(options.queryKey, (data) =>
 				data === undefined ? data : { ...data, sessions: data.sessions.filter((session) => session.id !== sessionId) },
 			);
 			setAsking(null);
-			toast.success("Session signed out");
+			if (revoked !== undefined) toast(`Signed out ${describeSession(revoked).label}`, { icon: signedOutIcon });
 		},
 	});
 
@@ -82,7 +85,12 @@ export function ActiveSessions() {
 				<ul aria-labelledby="active-sessions-title" className="divide-y divide-line">
 					{rows.map((session) => {
 						const { label, detail, ipAddress } = describeSession(session);
-						const Icon = session.kind === SessionKind.CLI ? TerminalIcon : MonitorIcon;
+						const Icon =
+							session.kind === SessionKind.CLI
+								? TerminalIcon
+								: /iPhone|Android/.test(session.userAgent)
+									? SmartphoneIcon
+									: MonitorIcon;
 						const lastUsed = maybeTsMs(session.lastUsedAt);
 						const created = maybeTsMs(session.createdAt);
 						return (
@@ -92,7 +100,7 @@ export function ActiveSessions() {
 									<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
 										<span className="text-[13.5px] font-medium">{label}</span>
 										{session.current && (
-											<Badge size="sm" tone="info">
+											<Badge size="sm" tone="info" className="sess-this">
 												This browser
 											</Badge>
 										)}

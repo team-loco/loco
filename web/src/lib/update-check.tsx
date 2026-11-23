@@ -1,5 +1,5 @@
 import { RotateCwIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 // How often an open tab asks whether a newer dashboard build is being served.
 const CHECK_INTERVAL_MS = 5 * 60_000;

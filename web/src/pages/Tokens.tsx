@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { EntityType, type Token } from "@gen/loco/token/v1/token_pb";

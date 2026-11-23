@@ -6,7 +6,7 @@ import { TokenSchema, type Token } from "@gen/loco/token/v1/token_pb";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/design/Button";
@@ -200,7 +200,10 @@ export function DeleteAccount({ user }: { user: User }) {
 						<ul aria-label="Organizations needing an administrator" className="list-none divide-y divide-line">
 							{blockers.map((org) => (
 								<li key={org.orgId} className="py-2">
-									<Link className="text-sm underline" to={`/org/${org.orgId}/team`}>
+									<Link
+										className="text-sm text-foreground no-underline after:opacity-0 after:transition-opacity after:duration-120 after:content-['_→'/''] hover:after:opacity-100 motion-reduce:after:transition-none"
+										to={`/org/${org.orgId}/team`}
+									>
 										{org.orgName}
 									</Link>
 								</li>

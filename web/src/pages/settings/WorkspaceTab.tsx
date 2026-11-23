@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRightIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { CopyId } from "@/components/design/CopyId";
@@ -187,6 +187,8 @@ export function WorkspaceTab({
 								"ID",
 								<CopyId
 									key="id"
+									title="Copy ID"
+									toastText="Copied ID"
 									value={ws.id}
 									className="h-6 max-w-full bg-panel2 px-2 font-mono text-[12px] font-normal"
 								>
@@ -242,7 +244,7 @@ export function WorkspaceTab({
 			<ConfirmDeleteDialog
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
-				title={`Delete ${ws.name}`}
+				title={`Delete ${ws.name}?`}
 				text={`This permanently deletes ${ws.name}, its environments and everyone's access to it.`}
 				target={ws.name}
 				confirmLabel="Delete workspace"

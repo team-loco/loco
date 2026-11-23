@@ -10,7 +10,7 @@ import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsNumberLiteral, parseAsString, useQueryStates } from "nuqs";
 import { Link } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
@@ -20,7 +20,7 @@ import { CellText, DataTable, useDataTable, type DataColumn } from "@/components
 import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
-import { LimitedAction } from "@/components/design/LimitedAction";
+import { LimitedAction, LimitUsageCount } from "@/components/design/LimitedAction";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { SaveBar } from "@/components/design/SaveBar";
@@ -33,7 +33,7 @@ import { useOrgLimitDetails } from "@/hooks/useOrgLimits";
 import { useTokenPage } from "@/hooks/useTokenPage";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatCount, pluralize } from "@/lib/format";
-import { limitReason, limitUsage, usageLabel } from "@/lib/limits";
+import { limitReason, limitUsage } from "@/lib/limits";
 import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
@@ -286,6 +286,8 @@ export function OrgTab({
 								"ID",
 								<CopyId
 									key="id"
+									title="Copy ID"
+									toastText="Copied ID"
 									value={org.id}
 									className="h-6 max-w-full bg-panel2 px-2 font-mono text-[12px] font-normal"
 								>
@@ -298,9 +300,15 @@ export function OrgTab({
 								memberCount === undefined ? (
 									"—"
 								) : (
-									<Link key="members" to={`/org/${org.id}/team`} className="text-foreground hover:text-fg2">
-										{memberCount === 1 ? "1 person" : `${formatCount(memberCount)} people`} →
-									</Link>
+									<Button
+										key="members"
+										variant="link"
+										className="h-auto p-0 text-[13px]"
+										nativeButton={false}
+										render={<Link to={`/org/${org.id}/team`} />}
+									>
+										{memberCount === 1 ? "1 person" : `${formatCount(memberCount)} people`}
+									</Button>
 								),
 							],
 						]}
@@ -310,7 +318,7 @@ export function OrgTab({
 
 			<Section
 				title="Workspaces"
-				count={workspaceUsage === null ? workspaceCount : usageLabel(workspaceUsage)}
+				count={workspaceUsage === null ? workspaceCount : <LimitUsageCount usage={workspaceUsage} />}
 				className="max-w-[960px]"
 				actions={<LimitedAction reason={newBlocked}>{newButton}</LimitedAction>}
 				search={
@@ -394,7 +402,7 @@ export function OrgTab({
 			<ConfirmDeleteDialog
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
-				title={`Delete ${org.name}`}
+				title={`Delete ${org.name}?`}
 				text={`This permanently deletes ${org.name}, its ${pluralize(workspaceCount ?? 0, "empty workspace")} and all members.`}
 				target={org.name}
 				confirmLabel="Delete organization"

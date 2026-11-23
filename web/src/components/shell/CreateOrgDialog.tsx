@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { field } from "@gen/buf/validate/validate_pb";
 import { createOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";

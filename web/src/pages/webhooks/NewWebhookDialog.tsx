@@ -1,7 +1,7 @@
 import { useMutation } from "@connectrpc/connect-query";
 import type { Webhook } from "@gen/loco/webhook/v1/webhook_pb";
 import { createWebhook, updateWebhook } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { useId, useRef, useState, type RefObject } from "react";
 

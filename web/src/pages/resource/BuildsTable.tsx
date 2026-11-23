@@ -5,7 +5,7 @@ import { useMutation } from "@connectrpc/connect-query";
 import { RocketIcon, ScrollTextIcon, XIcon } from "lucide-react";
 import { Fragment, useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { cancelBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { BuildStatus, type Build } from "@gen/loco/build/v1/build_pb";
 

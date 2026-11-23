@@ -3,7 +3,7 @@ import type { Webhook } from "@gen/loco/webhook/v1/webhook_pb";
 import { rotateWebhookSecret, sendTestEvent } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
 import { useCopy } from "@/hooks/useCopy";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";

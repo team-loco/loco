@@ -5,20 +5,23 @@ import { RadioGroup, RadioCard } from "@/components/design/RadioGroup";
 import { ModeIcon, ThemePreview } from "@/components/design/ThemePreview";
 import { useStoredValue } from "@/lib/storage";
 import { colorThemes, modes, soundsKey } from "@/lib/theme";
+import { toast, toastsKey } from "@/lib/toast";
 import { useTheme } from "@/lib/use-theme";
 
 import { SettingsCard, SettingsSection } from "./parts";
 
-const modeGrid = "grid-cols-[repeat(auto-fill,200px)]";
+const modeGrid = "grid-cols-[repeat(3,minmax(0,200px))]";
 const colorGrid = "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]";
 const label = "text-[13px] font-medium";
 
 export function AppearanceSection() {
 	const { mode, setMode, color, setColor } = useTheme();
 	const [sounds, setSounds] = useStoredValue(soundsKey, "on");
+	const [toasts, setToasts] = useStoredValue(toastsKey, "on");
 	const modeLabelId = useId();
 	const colorLabelId = useId();
 	const soundsLabelId = useId();
+	const toastsLabelId = useId();
 
 	return (
 		<SettingsSection title="Appearance" meta="saved in this browser">
@@ -80,6 +83,24 @@ export function AppearanceSection() {
 						aria-labelledby={soundsLabelId}
 						onCheckedChange={(checked: boolean) => {
 							setSounds(checked ? "on" : "off");
+						}}
+					/>
+				</div>
+				<div className="flex items-center justify-between gap-4">
+					<span className="flex flex-col gap-0.5">
+						<span id={toastsLabelId} className={label}>
+							Toasts
+						</span>
+						<span className="text-[12.5px] text-fg3">
+							Show a notice in the corner when an action finishes. Errors always show.
+						</span>
+					</span>
+					<Switch
+						checked={toasts !== "off"}
+						aria-labelledby={toastsLabelId}
+						onCheckedChange={(checked: boolean) => {
+							setToasts(checked ? "on" : "off");
+							if (checked) toast.success("Toasts are on");
 						}}
 					/>
 				</div>

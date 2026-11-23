@@ -8,7 +8,7 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { ActivityIcon, ChevronsUpDownIcon, RotateCwIcon, ScrollTextIcon, Settings2Icon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { Dialog } from "@/components/design/Dialog";

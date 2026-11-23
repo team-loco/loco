@@ -1,5 +1,5 @@
 import { useQuery as useRpcQuery } from "@connectrpc/connect-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";

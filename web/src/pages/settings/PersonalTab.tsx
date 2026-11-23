@@ -5,7 +5,7 @@ import type { User } from "@gen/loco/user/v1/user_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRoundIcon } from "lucide-react";
 import { Link } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { CopyId } from "@/components/design/CopyId";
 import { Field } from "@/components/design/Field";
@@ -93,6 +93,8 @@ export function PersonalTab({
 								"ID",
 								<CopyId
 									key="id"
+									title="Copy ID"
+									toastText="Copied ID"
 									value={user.id}
 									className="h-6 max-w-full bg-panel2 px-2 font-mono text-[12px] font-normal"
 								>

@@ -13,7 +13,7 @@ import {
 import { ArrowUpRightIcon, ChevronDownIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/design/Button";
 import { Checkbox } from "@/components/design/Checkbox";

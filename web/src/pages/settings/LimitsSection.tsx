@@ -93,12 +93,12 @@ const COLUMNS: DataColumn<Row>[] = [
 		meta: { align: "end", fit: true },
 		cell: ({ row: { original: row } }) => (
 			<span className="inline-flex items-center justify-end gap-2 font-mono whitespace-nowrap">
+				{row.value}
 				{row.raised && (
-					<Badge tone="info" size="sm">
+					<Badge tone="info" size="sm" className="lim-tag">
 						Raised
 					</Badge>
 				)}
-				{row.value}
 			</span>
 		),
 	},

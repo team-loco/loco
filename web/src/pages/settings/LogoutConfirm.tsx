@@ -9,6 +9,7 @@ export function LogoutConfirm({ open, onClose }: { open: boolean; onClose: () =>
 			title="Log out?"
 			description="You will need to sign in again to use Loco in this browser."
 			confirmLabel="Log out"
+			confirmVariant="default"
 			onConfirm={() => {
 				void logout();
 			}}

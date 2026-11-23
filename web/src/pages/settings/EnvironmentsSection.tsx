@@ -12,7 +12,7 @@ import { BoxIcon, LockIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-reac
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { Link } from "react-router";
 import { useState, type ReactNode } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Button } from "@/components/design/Button";
@@ -28,9 +28,9 @@ import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { derivedSlugError, nameError } from "@/lib/slug";
-import { LimitedAction } from "@/components/design/LimitedAction";
+import { LimitedAction, LimitUsageCount } from "@/components/design/LimitedAction";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
-import { limitReason, limitUsage, usageLabel } from "@/lib/limits";
+import { limitReason, limitUsage } from "@/lib/limits";
 
 import { deleteDescription, resourcesPerEnvironment } from "./environments";
 import { SettingsCard, SettingsSection } from "./parts";
@@ -61,7 +61,7 @@ function environmentColumns({
 			size: 110,
 			minSize: 100,
 			meta: { grow: true },
-			cell: ({ row: { original: env } }) => <CellText text={env.name} className="font-mono text-[12.5px]" />,
+			cell: ({ row: { original: env } }) => <CellText text={env.name} className="text-[13px]" />,
 		},
 		{
 			id: "description",
@@ -229,7 +229,7 @@ export function EnvironmentsSection({
 	return (
 		<SettingsSection
 			title="Environments"
-			count={usage === null ? undefined : usageLabel(usage)}
+			count={usage === null ? undefined : <LimitUsageCount usage={usage} />}
 			actions={
 				<LimitedAction reason={createBlocked}>
 					<Button

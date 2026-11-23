@@ -6,7 +6,7 @@ import { CopyIcon, PencilIcon, PlusIcon, Trash2Icon, UploadIcon } from "lucide-r
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
