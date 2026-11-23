@@ -217,13 +217,13 @@ def last_page_request():
     return next(
         row
         for row in reversed(recorded)
-        if "startTime" in row and row.get("limit") in (25, 50, 100)
+        if "startTime" in row and row.get("pageSize") in (25, 50, 100)
     )
 
 
 def page_request(**fields):
     return lambda body: (
-        body.get("limit") in (25, 50, 100)
+        body.get("pageSize") in (25, 50, 100)
         and all(body.get(key) == value for key, value in fields.items())
     )
 
@@ -290,7 +290,11 @@ def handle(route):
         )
         return
     if mode[0] == "empty":
-        route.fulfill(json={"spans": []})
+        # The first-trace hero reads the empty first page, so a failed count leaves it shown.
+        route.fulfill(
+            status=503 if body.get("includeTotalCount") else 200,
+            json={"spans": []},
+        )
         return
     if route.request.url.endswith("/QueryTraceBuckets"):
         route.fulfill(json=trace_buckets(body))
@@ -381,13 +385,20 @@ def handle(route):
                 )
                 for index in range(60)
             ]
-        offset = body.get("offset", 0)
-        route.fulfill(
-            json={
-                "totalCount": str(len(summaries)),
-                "summaries": summaries[offset : offset + body["limit"]],
-            }
-        )
+        if body.get("pageToken") == "stale":
+            route.fulfill(
+                status=400,
+                json={"code": "invalid_argument", "message": "invalid page_token"},
+            )
+            return
+        offset = int(body.get("pageToken", "0"))
+        end = offset + body["pageSize"]
+        response = {"summaries": summaries[offset:end]}
+        if end < len(summaries):
+            response["nextPageToken"] = str(end)
+        if body.get("includeTotalCount"):
+            response["totalCount"] = str(len(summaries))
+        route.fulfill(json=response)
         return
     if body.get("traceId") == linked_trace:
         route.fulfill(
@@ -850,7 +861,9 @@ with session(out) as browser:
     with expect_rpc(
         page,
         "ListTraces",
-        lambda body: body.get("query") == "@trace:invalid" and body.get("limit") == 25,
+        lambda body: (
+            body.get("query") == "@trace:invalid" and body.get("pageSize") == 25
+        ),
     ) as filtered:
         page.goto(state["ui_url"] + base + "&q=" + urllib.parse.quote("@trace:invalid"))
     assert filtered.value.request.post_data_json["query"] == "@trace:invalid"
@@ -977,9 +990,20 @@ with session(out) as browser:
     mode[0] = "paged"
     context, page, _ = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
-    with expect_rpc(page, "ListTraces", page_request(limit=25)):
+    # An old link's rejected page token goes back to the first page without drawing the error.
+    context.add_init_script(
+        "new MutationObserver(() => {"
+        " if (document.body?.innerText.includes('Couldn\u2019t load traces')) window.traceErrorShown = true;"
+        " }).observe(document, { subtree: true, childList: true, characterData: true });"
+    )
+    with expect_rpc(page, "ListTraces", page_request(pageSize=25, pageToken=None)):
+        page.goto(state["ui_url"] + base + "&page=stale")
+    expect(page).not_to_have_url(re.compile(r"page=stale"))
+    expect(page.get_by_text("1–25 of 67", exact=True)).to_be_visible()
+    assert not page.evaluate("window.traceErrorShown === true")
+    with expect_rpc(page, "ListTraces", page_request(pageSize=25)):
         page.goto(state["ui_url"] + base)
-    assert last_page_request().get("limit") == 25
+    assert last_page_request().get("pageSize") == 25
     expect(page.get_by_text("1–25 of 67", exact=True)).to_be_visible()
     expect(
         page.get_by_role("region", name="Trace list").locator(
@@ -994,13 +1018,14 @@ with session(out) as browser:
         "([node, width]) => Math.abs(node.getBoundingClientRect().width - width) <= 1",
         arg=[root_span.element_handle(), width + 16],
     )
-    with expect_rpc(page, "ListTraces", page_request(offset=25)):
+    with expect_rpc(page, "ListTraces", page_request(pageToken="25")):
         page.get_by_role("button", name="Next page", exact=True).click()
-    assert last_page_request()["offset"] == 25
+    assert last_page_request()["pageToken"] == "25"
     expect(page.get_by_text("26–50 of 67", exact=True)).to_be_visible()
-    with expect_rpc(page, "ListTraces", page_request(offset=50)):
-        page.get_by_role("button", name="Last page", exact=True).click()
-    assert last_page_request()["offset"] == 50
+    with expect_rpc(page, "ListTraces", page_request(pageToken="50")):
+        page.get_by_role("button", name="Next page", exact=True).click()
+    assert last_page_request()["pageToken"] == "50"
+    expect(page.get_by_role("button", name="Next page", exact=True)).to_be_disabled()
     expect(
         page.get_by_role("region", name="Trace list").locator(
             'tr[aria-label^="Open trace "]'
@@ -1011,19 +1036,19 @@ with session(out) as browser:
     with expect_rpc(
         page,
         "ListTraces",
-        page_request(sort="TRACE_SUMMARY_SORT_DURATION", ascending=None, offset=None),
+        page_request(orderBy="TRACE_ORDER_DURATION", descending=True, pageToken=None),
     ):
         page.get_by_role("button", name="Duration", exact=True).click()
-    assert last_page_request().get("offset", 0) == 0
-    assert last_page_request()["sort"] == "TRACE_SUMMARY_SORT_DURATION"
-    assert not last_page_request().get("ascending")
+    assert "pageToken" not in last_page_request()
+    assert last_page_request()["orderBy"] == "TRACE_ORDER_DURATION"
+    assert last_page_request()["descending"] is True
     with expect_rpc(
         page,
         "ListTraces",
-        page_request(sort="TRACE_SUMMARY_SORT_DURATION", ascending=True),
+        page_request(orderBy="TRACE_ORDER_DURATION", descending=None),
     ):
         page.get_by_role("button", name="Duration", exact=True).click()
-    assert last_page_request()["ascending"] is True
+    assert not last_page_request().get("descending")
     for label, key in [
         ("Root span", "OPERATION"),
         ("Resource", "RESOURCE"),
@@ -1033,18 +1058,18 @@ with session(out) as browser:
         with expect_rpc(
             page,
             "ListTraces",
-            page_request(sort="TRACE_SUMMARY_SORT_" + key, ascending=None),
+            page_request(orderBy="TRACE_ORDER_" + key, descending=True),
         ):
             page.get_by_role("button", name=label, exact=True).click()
-        assert last_page_request()["sort"] == "TRACE_SUMMARY_SORT_" + key
-        assert not last_page_request().get("ascending")
+        assert last_page_request()["orderBy"] == "TRACE_ORDER_" + key
+        assert last_page_request()["descending"] is True
         with expect_rpc(
             page,
             "ListTraces",
-            page_request(sort="TRACE_SUMMARY_SORT_" + key, ascending=True),
+            page_request(orderBy="TRACE_ORDER_" + key, descending=None),
         ):
             page.get_by_role("button", name=label, exact=True).click()
-        assert last_page_request()["ascending"] is True
+        assert not last_page_request().get("descending")
     sent = len(recorded)
     with (
         expect_rpc(page, "ListTraces", page_request(query="@status:error")),
@@ -1057,7 +1082,7 @@ with session(out) as browser:
         page.get_by_role("button", name=re.compile(r"^Errors")).click()
     assert last_page_request()["query"] == "@status:error"
     expect(page.get_by_role("button", name=re.compile(r"^All\s*67$"))).to_be_visible()
-    lists = [row for row in recorded[sent:] if "limit" in row]
+    lists = [row for row in recorded[sent:] if row.get("pageSize") in (25, 50, 100)]
     assert len(lists) == 1, lists
     # The All count comes from the unfiltered histogram the All tab already loaded.
     histograms = [row for row in recorded[sent:] if "intervalSeconds" in row]
@@ -1066,7 +1091,9 @@ with session(out) as browser:
     with expect_rpc(
         page,
         "ListTraces",
-        lambda body: body.get("query") == "@duration:>100" and body.get("limit") == 25,
+        lambda body: (
+            body.get("query") == "@duration:>100" and body.get("pageSize") == 25
+        ),
     ):
         page.goto(state["ui_url"] + base + "&q=" + urllib.parse.quote("@duration:>100"))
     wait_for_query(page, lambda query: query.get("q") == ["@duration:>100"])
@@ -1310,9 +1337,7 @@ with session(out) as browser:
 
     def trace_logs(route):
         log_requests.append(route.request.post_data_json)
-        route.fulfill(
-            json={"entries": log_entries, "totalMatched": str(len(log_entries))}
-        )
+        route.fulfill(json={"entries": log_entries})
 
     context.route("**/loco.observability.v1.ObservabilityService/QueryLogs", trace_logs)
     metric_requests = []
@@ -1967,9 +1992,7 @@ with session(out) as browser:
         context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
         context.route(
             "**/loco.observability.v1.ObservabilityService/QueryLogs",
-            lambda route: route.fulfill(
-                json={"entries": marker_logs, "totalMatched": str(len(marker_logs))}
-            ),
+            lambda route: route.fulfill(json={"entries": marker_logs}),
         )
         page.goto(state["ui_url"] + base)
         page.get_by_role("row", name="Open trace " + root_name, exact=True).click()

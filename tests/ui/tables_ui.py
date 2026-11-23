@@ -722,9 +722,7 @@ def mock_telemetry(page):
     ]
     page.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogs",
-        lambda route: route.fulfill(
-            json={"entries": entries, "totalMatched": str(len(entries))}
-        ),
+        lambda route: route.fulfill(json={"entries": entries}),
     )
     summaries = [
         {

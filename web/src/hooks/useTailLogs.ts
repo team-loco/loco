@@ -39,7 +39,7 @@ export function tailLogsRequest({
 		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
 		query,
-		since: sinceMs === undefined ? undefined : msToTimestamp(sinceMs),
+		startTime: sinceMs === undefined ? undefined : msToTimestamp(sinceMs),
 	};
 }
 

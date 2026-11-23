@@ -169,9 +169,10 @@ func TestTraceSummaryValidation(t *testing.T) {
 		name   string
 		change func(*observabilityv1.ListTracesRequest)
 	}{
-		{"negative offset", func(r *observabilityv1.ListTracesRequest) { r.Offset = -1 }},
-		{"invalid sort", func(r *observabilityv1.ListTracesRequest) {
-			r.Sort = observabilityv1.TraceSummarySort(99)
+		{"excessive page size", func(r *observabilityv1.ListTracesRequest) { r.PageSize = 201 }},
+		{"long page token", func(r *observabilityv1.ListTracesRequest) { r.PageToken = strings.Repeat("a", 65) }},
+		{"invalid order", func(r *observabilityv1.ListTracesRequest) {
+			r.OrderBy = observabilityv1.TraceOrder(99)
 		}},
 		{"long query", func(r *observabilityv1.ListTracesRequest) {
 			r.Query = strings.Repeat("a", logquery.MaxLength+1)

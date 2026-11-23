@@ -47,7 +47,7 @@ func TestLogLevelAgreesAcrossFilterBucketsAndEntries(t *testing.T) {
 	}
 
 	base := LogQuery{WorkspaceID: testWorkspaceID, Start: f.start, End: f.end, Filter: mustParse(t, marker),
-		Limit: testFullPage}
+		Limit: testFullPage, CountMatches: true}
 	buckets, err := f.client.QueryLogBuckets(t.Context(), base, int32(testDataAge.Seconds()),
 		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL)
 	if err != nil {
@@ -73,8 +73,8 @@ func TestLogLevelAgreesAcrossFilterBucketsAndEntries(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if uint64(len(page.GetEntries())) != want[level] || uint64(page.GetTotalMatched()) != want[level] {
-			t.Errorf("%s returned %d of %d rows, want %d", query, len(page.GetEntries()), page.GetTotalMatched(),
+		if uint64(len(page.GetEntries())) != want[level] || uint64(page.GetTotalCount()) != want[level] {
+			t.Errorf("%s returned %d of %d rows, want %d", query, len(page.GetEntries()), page.GetTotalCount(),
 				want[level])
 		}
 		for _, entry := range page.GetEntries() {

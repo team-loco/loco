@@ -143,10 +143,10 @@ export function RecentDeployments({
 	const navigate = useNavigate();
 	const { search } = useLocation();
 	const [filter, setFilter] = useQueryState("deploys", deploysParser);
-	const since = msToTimestamp(nowMs - DEPLOYMENT_WINDOW_MS);
+	const startTime = msToTimestamp(nowMs - DEPLOYMENT_WINDOW_MS);
 	const listed = useQuery(
 		listDeployments,
-		{ workspaceId, environmentId, since, pageSize: DEPLOYMENT_LIMIT, statuses: filterStatuses(filter) },
+		{ workspaceId, environmentId, startTime, pageSize: DEPLOYMENT_LIMIT, statuses: filterStatuses(filter) },
 		{
 			placeholderData: keepPreviousData,
 			refetchInterval: (q) => (q.state.data?.deployments.some((d) => isInFlight(d.status)) ? POLL_MS : IDLE_POLL_MS),
@@ -154,7 +154,7 @@ export function RecentDeployments({
 	);
 	const counted = useQuery(
 		queryDeploymentBuckets,
-		{ workspaceId, environmentId, since, until: msToTimestamp(nowMs), bucketCount: 1 },
+		{ workspaceId, environmentId, startTime, endTime: msToTimestamp(nowMs), bucketCount: 1 },
 		{ placeholderData: keepPreviousData, refetchInterval: IDLE_POLL_MS },
 	);
 	const bucket = counted.data?.buckets[0];

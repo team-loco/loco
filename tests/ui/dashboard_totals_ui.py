@@ -92,7 +92,7 @@ with session(out) as browser:
     expect(more).to_have_attribute("href", re.compile(r"/resources\?.*sort=size\.desc"))
     # The dashboard lists only the deployments card's page of the last day.
     assert listed and all(
-        body.get("pageSize") == 10 and "since" in body for body in listed
+        body.get("pageSize") == 10 and "startTime" in body for body in listed
     ), listed
     more.click()
     expect(page).to_have_url(re.compile(r"/resources\?.*sort=size\.desc"))

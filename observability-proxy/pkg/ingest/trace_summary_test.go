@@ -38,6 +38,8 @@ func TestIngestedTraceSummaryStatus(t *testing.T) {
 				},
 				StartTime: timestamppb.New(now.Add(-testWindow)),
 				EndTime:   timestamppb.New(now.Add(testWindow)),
+
+				IncludeTotalCount: true,
 			}
 			spans, err := reader.GetTrace(
 				t.Context(),

@@ -125,8 +125,8 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 	}
 
 	buckets := f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
-		Since:            timestamppb.New(bucketsBase),
-		Until:            timestamppb.New(until),
+		StartTime:        timestamppb.New(bucketsBase),
+		EndTime:          timestamppb.New(until),
 		BucketCount:      12,
 		MaxResourceNames: 2,
 	}, f.readers())
@@ -182,7 +182,7 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeRead},
 	}
 	buckets = f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
-		Since: timestamppb.New(bucketsBase), Until: timestamppb.New(until), BucketCount: 12,
+		StartTime: timestamppb.New(bucketsBase), EndTime: timestamppb.New(until), BucketCount: 12,
 	}, workspace)
 	if buckets[1].GetDeploymentCount() != 4 || len(buckets[1].GetResourceNames()) != 0 {
 		t.Errorf("workspace reader's bucket 1 = %v, want four deployments and no names", buckets[1])
@@ -194,7 +194,7 @@ func TestQueryDeploymentBucketsSummarizesEachBucket(t *testing.T) {
 	}
 	org := []genDb.EntityScope{{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeRead}}
 	buckets = f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
-		Since: timestamppb.New(bucketsBase), Until: timestamppb.New(until), BucketCount: 12,
+		StartTime: timestamppb.New(bucketsBase), EndTime: timestamppb.New(until), BucketCount: 12,
 	}, org)
 	if buckets[1].GetDeploymentCount() != 4 {
 		t.Errorf("organization reader's bucket 1 = %v, want four deployments", buckets[1])
@@ -208,8 +208,8 @@ func TestQueryDeploymentBucketsCoversThirtyDays(t *testing.T) {
 	f.seed(t, f.resourceID, genDb.DeploymentStatusRunning, until.Add(-time.Microsecond), "nginx:1")
 
 	buckets := f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
-		Since:       timestamppb.New(bucketsBase),
-		Until:       timestamppb.New(until),
+		StartTime:   timestamppb.New(bucketsBase),
+		EndTime:     timestamppb.New(until),
 		BucketCount: 200,
 	}, f.readers())
 
@@ -229,8 +229,8 @@ func TestQueryDeploymentBucketsGroupsByResource(t *testing.T) {
 
 	buckets := f.query(t, &deploymentv1.QueryDeploymentBucketsRequest{
 		ResourceIds:      []string{f.resourceID.String(), f.web.String(), f.hidden.String()},
-		Since:            timestamppb.New(bucketsBase),
-		Until:            timestamppb.New(bucketsBase.Add(time.Hour)),
+		StartTime:        timestamppb.New(bucketsBase),
+		EndTime:          timestamppb.New(bucketsBase.Add(time.Hour)),
 		BucketCount:      4,
 		GroupByResource:  true,
 		MaxResourceNames: 3,
@@ -263,7 +263,7 @@ func TestQueryDeploymentBucketsValidation(t *testing.T) {
 	valid := func() *deploymentv1.QueryDeploymentBucketsRequest {
 		return &deploymentv1.QueryDeploymentBucketsRequest{
 			WorkspaceId: id, EnvironmentId: id, BucketCount: 12,
-			Since: timestamppb.New(bucketsBase), Until: timestamppb.New(bucketsBase.Add(time.Hour)),
+			StartTime: timestamppb.New(bucketsBase), EndTime: timestamppb.New(bucketsBase.Add(time.Hour)),
 		}
 	}
 	if err := protovalidate.Validate(valid()); err != nil {
@@ -276,15 +276,15 @@ func TestQueryDeploymentBucketsValidation(t *testing.T) {
 	for name, change := range map[string]func(*deploymentv1.QueryDeploymentBucketsRequest){
 		"no buckets":       func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.BucketCount = 0 },
 		"too many buckets": func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.BucketCount = 201 },
-		"no since":         func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.Since = nil },
-		"no until":         func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.Until = nil },
-		"empty window":     func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.Until = r.GetSince() },
+		"no start_time":    func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.StartTime = nil },
+		"no end_time":      func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.EndTime = nil },
+		"empty window":     func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.EndTime = r.GetStartTime() },
 		"many resources":   func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.ResourceIds = tooMany },
 		"too many names":   func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.MaxResourceNames = 21 },
 		"no environment":   func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.EnvironmentId = "" },
 		"group everything": func(r *deploymentv1.QueryDeploymentBucketsRequest) { r.GroupByResource = true },
 		"over thirty days": func(r *deploymentv1.QueryDeploymentBucketsRequest) {
-			r.Until = timestamppb.New(bucketsBase.Add(30*24*time.Hour + time.Second))
+			r.EndTime = timestamppb.New(bucketsBase.Add(30*24*time.Hour + time.Second))
 		},
 	} {
 		req := valid()

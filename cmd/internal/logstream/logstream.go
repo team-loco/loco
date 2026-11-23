@@ -107,7 +107,7 @@ func (c *Client) query(
 	startTime := timestamppb.New(start)
 	endTime := timestamppb.New(end)
 	var entries []*observabilityv1.LogEntry
-	cursor := ""
+	pageToken := ""
 	for {
 		req := &observabilityv1.QueryLogsRequest{
 			WorkspaceId: filter.WorkspaceID,
@@ -115,7 +115,7 @@ func (c *Client) query(
 			Query:       filter.Query,
 			StartTime:   startTime,
 			EndTime:     endTime,
-			Cursor:      cursor,
+			PageToken:   pageToken,
 			Order:       order,
 		}
 
@@ -125,8 +125,8 @@ func (c *Client) query(
 		}
 		page := resp.GetEntries()
 		entries = append(entries, page...)
-		cursor = resp.GetNextCursor()
-		if cursor == "" || (limit > 0 && len(entries) >= int(limit)) {
+		pageToken = resp.GetNextPageToken()
+		if pageToken == "" || (limit > 0 && len(entries) >= int(limit)) {
 			return entries, nil
 		}
 	}
@@ -140,7 +140,7 @@ func (c *Client) Tail(ctx context.Context, filter Filter, since time.Time, emit 
 			WorkspaceId: filter.WorkspaceID,
 			ResourceIds: filter.ResourceIDs,
 			Query:       filter.Query,
-			Since:       start,
+			StartTime:   start,
 		}
 
 		stream, err := c.Observability.TailLogs(ctx, req)

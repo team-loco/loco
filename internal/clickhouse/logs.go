@@ -35,6 +35,8 @@ type LogQuery struct {
 	Limit         int32
 	Cursor        string
 	Order         observabilityv1.LogOrder
+	// CountMatches sets the response's total_count.
+	CountMatches bool
 }
 
 type logPage struct {
@@ -53,6 +55,10 @@ func (c *Client) QueryLogs(ctx context.Context, q LogQuery) (*observabilityv1.Qu
 	if err != nil {
 		return nil, err
 	}
+	response := &observabilityv1.QueryLogsResponse{Entries: page.entries, NextPageToken: page.nextCursor}
+	if !q.CountMatches {
+		return response, nil
+	}
 	b := &positionalBinder{}
 	where := logFilters(q, b)
 	where = append(where, "Timestamp <= fromUnixTimestamp64Nano("+b.num(q.End.UnixNano())+")")
@@ -62,9 +68,8 @@ func (c *Client) QueryLogs(ctx context.Context, q LogQuery) (*observabilityv1.Qu
 	if err := c.scanRow(ctx, "CountLogs", countQuery, b.args, &total); err != nil {
 		return nil, fmt.Errorf("count matching logs: %w", err)
 	}
-	return &observabilityv1.QueryLogsResponse{
-		Entries: page.entries, NextCursor: page.nextCursor, TotalMatched: int64(total),
-	}, nil
+	response.TotalCount = int64(total)
+	return response, nil
 }
 
 func (c *Client) queryLogPage(

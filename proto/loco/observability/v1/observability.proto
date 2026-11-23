@@ -95,13 +95,13 @@ message QueryLogsRequest {
   // docs/content/reference/log-queries.md describes the syntax. Empty matches every log.
   string query = 5 [(buf.validate.field).string.max_bytes = 4096];
 
-  // Max rows to return (clamped by guardrails).
-  int32 limit = 8 [(buf.validate.field).int32 = {
+  // Log lines per page: 0 for the API's default, at most 10,000.
+  int32 page_size = 8 [(buf.validate.field).int32 = {
     gte: 0
     lte: 10000
   }];
-  // Opaque cursor for pagination (from previous response). Empty for first request.
-  string cursor = 9;
+  // next_page_token from the previous page of the same query and order; empty for the first page.
+  string page_token = 9;
 
   // Ordering of results (newest/oldest first).
   LogOrder order = 10;
@@ -110,6 +110,8 @@ message QueryLogsRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+  // Sets total_count in the response.
+  bool include_total_count = 14;
 
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
@@ -132,10 +134,10 @@ enum LogOrder {
 message QueryLogsResponse {
   // Log entries matching the query.
   repeated LogEntry entries = 1;
-  // Opaque cursor for fetching the next page. Empty if no more results.
-  string next_cursor = 2;
-  // Approximate count of total matched rows (best-effort, may not be exact).
-  int64 total_matched = 3;
+  // Empty on the last page.
+  string next_page_token = 2;
+  // The log lines the query matches, ignoring page_token; set when include_total_count is.
+  int64 total_count = 3;
 }
 
 // LogEntry represents a single log record.
@@ -169,7 +171,8 @@ message TailLogsRequest {
   // Log query: free text matched in the body, @key:value fields, AND, OR, - and parentheses.
   // docs/content/reference/log-queries.md describes the syntax. Empty matches every log.
   string query = 3 [(buf.validate.field).string.max_bytes = 4096];
-  google.protobuf.Timestamp since = 6;
+  // The earliest log line to send; empty starts shortly before the call.
+  google.protobuf.Timestamp start_time = 6;
   string environment_id = 9 [
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
@@ -289,13 +292,16 @@ message ListTracesRequest {
   // and span or resource attributes, with AND, OR, - and parentheses.
   // docs/content/reference/log-queries.md describes the syntax. Empty matches every trace.
   string query = 4 [(buf.validate.field).string.max_bytes = 4096];
-  int32 limit = 5 [(buf.validate.field).int32 = {
+  int32 page_size = 5 [(buf.validate.field).int32 = {
     gte: 0
-    lte: 10000
+    lte: 200
   }];
-  TraceSummarySort sort = 10 [(buf.validate.field).enum.defined_only = true];
-  bool ascending = 11;
-  int32 offset = 12 [(buf.validate.field).int32.gte = 0];
+  // next_page_token from the previous page of the same query and order; empty for the first page.
+  string page_token = 12 [(buf.validate.field).string.max_len = 64];
+  TraceOrder order_by = 10 [(buf.validate.field).enum.defined_only = true];
+  bool descending = 11;
+  // Sets total_count in the response.
+  bool include_total_count = 13;
 
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
@@ -306,7 +312,10 @@ message ListTracesRequest {
 
 message ListTracesResponse {
   repeated TraceSummary summaries = 1;
+  // The traces the query matches, ignoring page_token; set when include_total_count is.
   uint64 total_count = 2;
+  // Empty on the last page.
+  string next_page_token = 3;
 }
 
 message QueryTraceBucketsRequest {
@@ -356,14 +365,16 @@ message GetTraceResponse {
   repeated TraceSpan spans = 1;
 }
 
-enum TraceSummarySort {
-  TRACE_SUMMARY_SORT_UNSPECIFIED = 0;
-  TRACE_SUMMARY_SORT_START_TIME = 1;
-  TRACE_SUMMARY_SORT_DURATION = 2;
-  TRACE_SUMMARY_SORT_OPERATION = 3;
-  TRACE_SUMMARY_SORT_RESOURCE = 4;
-  TRACE_SUMMARY_SORT_STATUS = 5;
-  TRACE_SUMMARY_SORT_SPAN_COUNT = 6;
+// TraceOrder is what ListTraces sorts by. Ties sort by trace ID, ascending.
+enum TraceOrder {
+  // Newest first: start time, descending, whatever descending says.
+  TRACE_ORDER_UNSPECIFIED = 0;
+  TRACE_ORDER_START_TIME = 1;
+  TRACE_ORDER_DURATION = 2;
+  TRACE_ORDER_OPERATION = 3;
+  TRACE_ORDER_RESOURCE = 4;
+  TRACE_ORDER_STATUS = 5;
+  TRACE_ORDER_SPAN_COUNT = 6;
 }
 
 enum TraceStatus {

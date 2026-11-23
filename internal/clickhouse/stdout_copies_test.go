@@ -75,7 +75,7 @@ func TestLogQueriesHideStdoutCopiesOfOTLPLogs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			q := LogQuery{
 				WorkspaceID: testUnknownWorkspaceID, Start: test.start, End: window.Add(time.Minute),
-				Limit: testFullPage, Order: observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+				Limit: testFullPage, Order: observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST, CountMatches: true,
 			}
 			page, err := f.client.QueryLogs(t.Context(), q)
 			if err != nil {
@@ -85,8 +85,8 @@ func TestLogQueriesHideStdoutCopiesOfOTLPLogs(t *testing.T) {
 			for _, entry := range page.GetEntries() {
 				bodies = append(bodies, entry.GetBody())
 			}
-			if !slices.Equal(bodies, test.want) || page.GetTotalMatched() != int64(len(test.want)) {
-				t.Fatalf("logs %q (total %d), want %q", bodies, page.GetTotalMatched(), test.want)
+			if !slices.Equal(bodies, test.want) || page.GetTotalCount() != int64(len(test.want)) {
+				t.Fatalf("logs %q (total %d), want %q", bodies, page.GetTotalCount(), test.want)
 			}
 			buckets, err := f.client.QueryLogBuckets(t.Context(), q, 3600,
 				observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL)

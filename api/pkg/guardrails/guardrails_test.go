@@ -18,7 +18,7 @@ const (
 	testEnvironmentID        = "66666666-7777-8888-9999-000000000000"
 	testMaxRange             = 24 * time.Hour
 	testWorkspaceAggregation = "max"
-	testTraceLimit           = 10000
+	testTracePageSize        = 200
 	malformedID              = "invalid"
 )
 
@@ -42,25 +42,25 @@ func tailRequest(now time.Time, change func(*observabilityv1.TailLogsRequest)) e
 	)
 }
 
-func TestValidateTailRequestChecksSince(t *testing.T) {
+func TestValidateTailRequestChecksStartTime(t *testing.T) {
 	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
 	since := func(at *timestamppb.Timestamp) func(*observabilityv1.TailLogsRequest) {
-		return func(r *observabilityv1.TailLogsRequest) { r.Since = at }
+		return func(r *observabilityv1.TailLogsRequest) { r.StartTime = at }
 	}
 
 	if err := tailRequest(now, since(timestamppb.New(now.Add(-time.Minute)))); err != nil {
-		t.Errorf("since a minute ago rejected: %v", err)
+		t.Errorf("start_time a minute ago rejected: %v", err)
 	}
 	if err := tailRequest(now, since(nil)); err != nil {
-		t.Errorf("no since rejected: %v", err)
+		t.Errorf("no start_time rejected: %v", err)
 	}
 	old := timestamppb.New(now.Add(-testMaxRange - time.Second))
-	if err := tailRequest(now, since(old)); !errors.Is(err, errSinceTooOld) {
-		t.Errorf("since beyond the maximum range = %v, want errSinceTooOld", err)
+	if err := tailRequest(now, since(old)); !errors.Is(err, errStartTooOld) {
+		t.Errorf("start_time beyond the maximum range = %v, want errStartTooOld", err)
 	}
 	future := timestamppb.New(now.Add(time.Minute))
-	if err := tailRequest(now, since(future)); !errors.Is(err, errSinceInFuture) {
-		t.Errorf("since in the future = %v, want errSinceInFuture", err)
+	if err := tailRequest(now, since(future)); !errors.Is(err, errStartInFuture) {
+		t.Errorf("start_time in the future = %v, want errStartInFuture", err)
 	}
 }
 
@@ -113,8 +113,11 @@ func TestValidateListTracesRequest(t *testing.T) {
 			valid:  true,
 			change: func(r *observabilityv1.ListTracesRequest) { r.StartTime = r.GetEndTime() },
 		},
-		{name: "negative limit", change: func(r *observabilityv1.ListTracesRequest) { r.Limit = -1 }},
-		{name: "excessive limit", change: func(r *observabilityv1.ListTracesRequest) { r.Limit = testTraceLimit + 1 }},
+		{name: "negative page size", change: func(r *observabilityv1.ListTracesRequest) { r.PageSize = -1 }},
+		{
+			name:   "excessive page size",
+			change: func(r *observabilityv1.ListTracesRequest) { r.PageSize = testTracePageSize + 1 },
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

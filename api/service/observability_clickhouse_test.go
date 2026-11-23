@@ -230,7 +230,7 @@ func TestResourceReadersSeeOnlyTheirResourceInTheNamedWorkspace(t *testing.T) {
 		t.Run(tc.workspace.String(), func(t *testing.T) {
 			response, err := client.QueryLogs(callerContext(t, resourceReader), &observabilityv1.QueryLogsRequest{
 				WorkspaceId: tc.workspace.String(), ResourceIds: []string{f.resource.String()},
-				StartTime: timestamppb.New(timestamp), EndTime: timestamppb.New(timestamp), Limit: 2,
+				StartTime: timestamppb.New(timestamp), EndTime: timestamppb.New(timestamp), PageSize: 2,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -288,7 +288,9 @@ func TestGetTraceReadsTheWholeTraceInTheWorkspace(t *testing.T) {
 		Scope:     scope,
 		StartTime: timestamppb.New(now),
 		EndTime:   timestamppb.New(now),
-		Limit:     1,
+		PageSize:  1,
+
+		IncludeTotalCount: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -398,19 +400,19 @@ func TestQueryAndTailLogsApplyEveryQueryAlike(t *testing.T) {
 			sorted := slices.Sorted(slices.Values(want))
 			queried, err := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
 				WorkspaceId: f.workspace.String(), StartTime: timestamppb.New(at), EndTime: timestamppb.New(at),
-				Limit: 100, Query: query,
+				PageSize: 100, Query: query, IncludeTotalCount: true,
 			})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := queried.GetTotalMatched(); got != int64(len(want)) {
-				t.Errorf("QueryLogs total_matched = %d, want %d", got, len(want))
+			if got := queried.GetTotalCount(); got != int64(len(want)) {
+				t.Errorf("QueryLogs total_count = %d, want %d", got, len(want))
 			}
 			if got := logBodies(queried.GetEntries()); !slices.Equal(got, sorted) {
 				t.Errorf("QueryLogs bodies = %v, want %v", got, sorted)
 			}
 			stream, err := client.TailLogs(ctx, &observabilityv1.TailLogsRequest{
-				WorkspaceId: f.workspace.String(), Since: timestamppb.New(at), Query: query,
+				WorkspaceId: f.workspace.String(), StartTime: timestamppb.New(at), Query: query,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -498,7 +500,7 @@ func TestListTracesAndBucketsApplyEveryQueryAlike(t *testing.T) {
 			t.Parallel()
 			ctx := callerContext(t, workspaceReader)
 			list, err := client.ListTraces(ctx, &observabilityv1.ListTracesRequest{
-				Scope: scope, StartTime: timestamppb.New(at), EndTime: timestamppb.New(at), Query: query, Limit: 100,
+				Scope: scope, StartTime: timestamppb.New(at), EndTime: timestamppb.New(at), Query: query, PageSize: 100,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -566,6 +568,24 @@ func TestLogQuerySyntaxErrorsAreInvalidArgument(t *testing.T) {
 		if want := tc.message + " at position " + tc.position; connectErr.Message() != want {
 			t.Errorf("%s message = %q, want %q", rpc, connectErr.Message(), want)
 		}
+	}
+}
+
+func TestListTracesRejectsAnInvalidPageToken(t *testing.T) {
+	t.Parallel()
+	ch := newTestClickHouse(t)
+	f := newObservabilityFixture(t)
+	client := f.client(t, ch)
+	now := timestamppb.Now()
+	_, err := client.ListTraces(callerContext(t, workspaceReader), &observabilityv1.ListTracesRequest{
+		Scope:     &observabilityv1.TraceScope{WorkspaceId: f.workspace.String()},
+		StartTime: now,
+		EndTime:   now,
+		PageToken: "not a token",
+	})
+	connectErr, _ := errors.AsType[*connect.Error](err)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument || connectErr.Message() != publicInvalidPageToken {
+		t.Fatalf("ListTraces with an invalid page token: %v, want InvalidArgument %q", err, publicInvalidPageToken)
 	}
 }
 

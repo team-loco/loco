@@ -1559,9 +1559,9 @@ type ListDeploymentsRequest struct {
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	EnvironmentId string                 `protobuf:"bytes,4,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	// The window includes since and excludes until, using deployment creation time.
-	Since *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
-	Until *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=until,proto3" json:"until,omitempty"`
+	// The window includes start_time and excludes end_time, using deployment creation time.
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	// Sets total_count in the response.
 	IncludeTotalCount bool `protobuf:"varint,8,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
 	// Lists only deployments in these statuses; empty lists every status.
@@ -1637,16 +1637,16 @@ func (x *ListDeploymentsRequest) GetWorkspaceId() string {
 	return ""
 }
 
-func (x *ListDeploymentsRequest) GetSince() *timestamppb.Timestamp {
+func (x *ListDeploymentsRequest) GetStartTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Since
+		return x.StartTime
 	}
 	return nil
 }
 
-func (x *ListDeploymentsRequest) GetUntil() *timestamppb.Timestamp {
+func (x *ListDeploymentsRequest) GetEndTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Until
+		return x.EndTime
 	}
 	return nil
 }
@@ -1735,7 +1735,7 @@ func (x *ListDeploymentsResponse) GetTotalCount() int32 {
 	return 0
 }
 
-// QueryDeploymentBucketsRequest splits [since, until), at most 30 days, into bucket_count equal
+// QueryDeploymentBucketsRequest splits [start_time, end_time), at most 30 days, into bucket_count equal
 // buckets by deployment creation time.
 type QueryDeploymentBucketsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1743,8 +1743,8 @@ type QueryDeploymentBucketsRequest struct {
 	EnvironmentId string                 `protobuf:"bytes,2,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	// Counts only these resources' deployments; empty counts every resource.
 	ResourceIds []string               `protobuf:"bytes,3,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
-	Since       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=since,proto3" json:"since,omitempty"`
-	Until       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=until,proto3" json:"until,omitempty"`
+	StartTime   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	BucketCount int32                  `protobuf:"varint,6,opt,name=bucket_count,json=bucketCount,proto3" json:"bucket_count,omitempty"`
 	// Summarizes each resource of resource_ids in its own series of buckets.
 	GroupByResource bool `protobuf:"varint,7,opt,name=group_by_resource,json=groupByResource,proto3" json:"group_by_resource,omitempty"`
@@ -1805,16 +1805,16 @@ func (x *QueryDeploymentBucketsRequest) GetResourceIds() []string {
 	return nil
 }
 
-func (x *QueryDeploymentBucketsRequest) GetSince() *timestamppb.Timestamp {
+func (x *QueryDeploymentBucketsRequest) GetStartTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Since
+		return x.StartTime
 	}
 	return nil
 }
 
-func (x *QueryDeploymentBucketsRequest) GetUntil() *timestamppb.Timestamp {
+func (x *QueryDeploymentBucketsRequest) GetEndTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Until
+		return x.EndTime
 	}
 	return nil
 }
@@ -3400,7 +3400,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x15GetDeploymentResponse\x12>\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
-	"deployment\"\xde\x06\n" +
+	"deployment\"\x85\a\n" +
 	"\x16ListDeploymentsRequest\x12,\n" +
 	"\vresource_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12'\n" +
@@ -3409,32 +3409,34 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\x122\n" +
 	"\x0eenvironment_id\x18\x04 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12.\n" +
-	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
-	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
-	"\x05until\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12.\n" +
+	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x129\n" +
+	"\n" +
+	"start_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
+	"\bend_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12.\n" +
 	"\x13include_total_count\x18\b \x01(\bR\x11includeTotalCount\x12S\n" +
 	"\bstatuses\x18\t \x03(\x0e2$.loco.deployment.v1.DeploymentStatusB\x11\xbaH\x0e\x92\x01\v\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\bstatuses\x12&\n" +
 	"\bbuild_id\x18\n" +
-	" \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\abuildId:\xd8\x02\xbaH\xd4\x02\x1a\xdb\x01\n" +
-	"\x16list_deployments.scope\x127provide resource_id or workspace_id with environment_id\x1a\x87\x01(this.resource_id != '' && this.workspace_id == '') || (this.resource_id == '' && this.workspace_id != '' && this.environment_id != '')\x1at\n" +
-	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\xa4\x01\n" +
+	" \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\abuildId:\xf1\x02\xbaH\xed\x02\x1a\xdb\x01\n" +
+	"\x16list_deployments.scope\x127provide resource_id or workspace_id with environment_id\x1a\x87\x01(this.resource_id != '' && this.workspace_id == '') || (this.resource_id == '' && this.workspace_id != '' && this.environment_id != '')\x1a\x8c\x01\n" +
+	"\x17list_deployments.window\x12 start_time must precede end_time\x1aO!has(this.start_time) || !has(this.end_time) || this.start_time < this.end_time\"\xa4\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
 	"\vtotal_count\x18\x03 \x01(\x05R\n" +
-	"totalCount\"\xa1\x06\n" +
+	"totalCount\"\xc7\x06\n" +
 	"\x1dQueryDeploymentBucketsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12/\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x124\n" +
-	"\fresource_ids\x18\x03 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\x18\x01\"\x05r\x03\xb0\x01\x01R\vresourceIds\x128\n" +
-	"\x05since\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\x05since\x128\n" +
-	"\x05until\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\x05until\x12-\n" +
+	"\fresource_ids\x18\x03 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\x18\x01\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12A\n" +
+	"\n" +
+	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
+	"\bend_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12-\n" +
 	"\fbucket_count\x18\x06 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x01R\vbucketCount\x12*\n" +
 	"\x11group_by_resource\x18\a \x01(\bR\x0fgroupByResource\x127\n" +
-	"\x12max_resource_names\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x14(\x00R\x10maxResourceNames:\xe3\x02\xbaH\xdf\x02\x1aT\n" +
-	"\x1fquery_deployment_buckets.window\x12\x18since must precede until\x1a\x17this.since < this.until\x1aw\n" +
-	"&query_deployment_buckets.window_length\x12 the window spans at most 30 days\x1a+this.until - this.since <= duration('720h')\x1a\x8d\x01\n" +
+	"\x12max_resource_names\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x14(\x00R\x10maxResourceNames:\xfb\x02\xbaH\xf7\x02\x1ad\n" +
+	"\x1fquery_deployment_buckets.window\x12 start_time must precede end_time\x1a\x1fthis.start_time < this.end_time\x1a\x7f\n" +
+	"&query_deployment_buckets.window_length\x12 the window spans at most 30 days\x1a3this.end_time - this.start_time <= duration('720h')\x1a\x8d\x01\n" +
 	"*query_deployment_buckets.group_by_resource\x12'group_by_resource requires resource_ids\x1a6!this.group_by_resource || size(this.resource_ids) > 0\"`\n" +
 	"\x1eQueryDeploymentBucketsResponse\x12>\n" +
 	"\abuckets\x18\x01 \x03(\v2$.loco.deployment.v1.DeploymentBucketR\abuckets\"\xaa\x03\n" +
@@ -3687,12 +3689,12 @@ var file_loco_deployment_v1_deployment_proto_depIdxs = []int32{
 	2,  // 26: loco.deployment.v1.CreateDeploymentRequest.trigger:type_name -> loco.deployment.v1.DeploymentTrigger
 	8,  // 27: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
 	14, // 28: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	47, // 29: loco.deployment.v1.ListDeploymentsRequest.since:type_name -> google.protobuf.Timestamp
-	47, // 30: loco.deployment.v1.ListDeploymentsRequest.until:type_name -> google.protobuf.Timestamp
+	47, // 29: loco.deployment.v1.ListDeploymentsRequest.start_time:type_name -> google.protobuf.Timestamp
+	47, // 30: loco.deployment.v1.ListDeploymentsRequest.end_time:type_name -> google.protobuf.Timestamp
 	0,  // 31: loco.deployment.v1.ListDeploymentsRequest.statuses:type_name -> loco.deployment.v1.DeploymentStatus
 	14, // 32: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
-	47, // 33: loco.deployment.v1.QueryDeploymentBucketsRequest.since:type_name -> google.protobuf.Timestamp
-	47, // 34: loco.deployment.v1.QueryDeploymentBucketsRequest.until:type_name -> google.protobuf.Timestamp
+	47, // 33: loco.deployment.v1.QueryDeploymentBucketsRequest.start_time:type_name -> google.protobuf.Timestamp
+	47, // 34: loco.deployment.v1.QueryDeploymentBucketsRequest.end_time:type_name -> google.protobuf.Timestamp
 	24, // 35: loco.deployment.v1.QueryDeploymentBucketsResponse.buckets:type_name -> loco.deployment.v1.DeploymentBucket
 	47, // 36: loco.deployment.v1.DeploymentBucket.mean_created_at:type_name -> google.protobuf.Timestamp
 	25, // 37: loco.deployment.v1.DeploymentBucket.status_counts:type_name -> loco.deployment.v1.DeploymentStatusCount

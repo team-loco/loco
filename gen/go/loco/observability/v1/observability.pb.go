@@ -182,64 +182,66 @@ func (LogOrder) EnumDescriptor() ([]byte, []int) {
 	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{2}
 }
 
-type TraceSummarySort int32
+// TraceOrder is what ListTraces sorts by. Ties sort by trace ID, ascending.
+type TraceOrder int32
 
 const (
-	TraceSummarySort_TRACE_SUMMARY_SORT_UNSPECIFIED TraceSummarySort = 0
-	TraceSummarySort_TRACE_SUMMARY_SORT_START_TIME  TraceSummarySort = 1
-	TraceSummarySort_TRACE_SUMMARY_SORT_DURATION    TraceSummarySort = 2
-	TraceSummarySort_TRACE_SUMMARY_SORT_OPERATION   TraceSummarySort = 3
-	TraceSummarySort_TRACE_SUMMARY_SORT_RESOURCE    TraceSummarySort = 4
-	TraceSummarySort_TRACE_SUMMARY_SORT_STATUS      TraceSummarySort = 5
-	TraceSummarySort_TRACE_SUMMARY_SORT_SPAN_COUNT  TraceSummarySort = 6
+	// Newest first: start time, descending, whatever descending says.
+	TraceOrder_TRACE_ORDER_UNSPECIFIED TraceOrder = 0
+	TraceOrder_TRACE_ORDER_START_TIME  TraceOrder = 1
+	TraceOrder_TRACE_ORDER_DURATION    TraceOrder = 2
+	TraceOrder_TRACE_ORDER_OPERATION   TraceOrder = 3
+	TraceOrder_TRACE_ORDER_RESOURCE    TraceOrder = 4
+	TraceOrder_TRACE_ORDER_STATUS      TraceOrder = 5
+	TraceOrder_TRACE_ORDER_SPAN_COUNT  TraceOrder = 6
 )
 
-// Enum value maps for TraceSummarySort.
+// Enum value maps for TraceOrder.
 var (
-	TraceSummarySort_name = map[int32]string{
-		0: "TRACE_SUMMARY_SORT_UNSPECIFIED",
-		1: "TRACE_SUMMARY_SORT_START_TIME",
-		2: "TRACE_SUMMARY_SORT_DURATION",
-		3: "TRACE_SUMMARY_SORT_OPERATION",
-		4: "TRACE_SUMMARY_SORT_RESOURCE",
-		5: "TRACE_SUMMARY_SORT_STATUS",
-		6: "TRACE_SUMMARY_SORT_SPAN_COUNT",
+	TraceOrder_name = map[int32]string{
+		0: "TRACE_ORDER_UNSPECIFIED",
+		1: "TRACE_ORDER_START_TIME",
+		2: "TRACE_ORDER_DURATION",
+		3: "TRACE_ORDER_OPERATION",
+		4: "TRACE_ORDER_RESOURCE",
+		5: "TRACE_ORDER_STATUS",
+		6: "TRACE_ORDER_SPAN_COUNT",
 	}
-	TraceSummarySort_value = map[string]int32{
-		"TRACE_SUMMARY_SORT_UNSPECIFIED": 0,
-		"TRACE_SUMMARY_SORT_START_TIME":  1,
-		"TRACE_SUMMARY_SORT_DURATION":    2,
-		"TRACE_SUMMARY_SORT_OPERATION":   3,
-		"TRACE_SUMMARY_SORT_RESOURCE":    4,
-		"TRACE_SUMMARY_SORT_STATUS":      5,
-		"TRACE_SUMMARY_SORT_SPAN_COUNT":  6,
+	TraceOrder_value = map[string]int32{
+		"TRACE_ORDER_UNSPECIFIED": 0,
+		"TRACE_ORDER_START_TIME":  1,
+		"TRACE_ORDER_DURATION":    2,
+		"TRACE_ORDER_OPERATION":   3,
+		"TRACE_ORDER_RESOURCE":    4,
+		"TRACE_ORDER_STATUS":      5,
+		"TRACE_ORDER_SPAN_COUNT":  6,
 	}
 )
 
-func (x TraceSummarySort) Enum() *TraceSummarySort {
-	p := new(TraceSummarySort)
+func (x TraceOrder) Enum() *TraceOrder {
+	p := new(TraceOrder)
 	*p = x
 	return p
 }
 
-func (x TraceSummarySort) String() string {
+func (x TraceOrder) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (TraceSummarySort) Descriptor() protoreflect.EnumDescriptor {
+func (TraceOrder) Descriptor() protoreflect.EnumDescriptor {
 	return file_loco_observability_v1_observability_proto_enumTypes[3].Descriptor()
 }
 
-func (TraceSummarySort) Type() protoreflect.EnumType {
+func (TraceOrder) Type() protoreflect.EnumType {
 	return &file_loco_observability_v1_observability_proto_enumTypes[3]
 }
 
-func (x TraceSummarySort) Number() protoreflect.EnumNumber {
+func (x TraceOrder) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use TraceSummarySort.Descriptor instead.
-func (TraceSummarySort) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use TraceOrder.Descriptor instead.
+func (TraceOrder) EnumDescriptor() ([]byte, []int) {
 	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{3}
 }
 
@@ -519,15 +521,17 @@ type QueryLogsRequest struct {
 	// Log query: free text matched in the body, @key:value fields, AND, OR, - and parentheses.
 	// docs/content/reference/log-queries.md describes the syntax. Empty matches every log.
 	Query string `protobuf:"bytes,5,opt,name=query,proto3" json:"query,omitempty"`
-	// Max rows to return (clamped by guardrails).
-	Limit int32 `protobuf:"varint,8,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Opaque cursor for pagination (from previous response). Empty for first request.
-	Cursor string `protobuf:"bytes,9,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// Log lines per page: 0 for the API's default, at most 10,000.
+	PageSize int32 `protobuf:"varint,8,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// next_page_token from the previous page of the same query and order; empty for the first page.
+	PageToken string `protobuf:"bytes,9,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Ordering of results (newest/oldest first).
 	Order         LogOrder `protobuf:"varint,10,opt,name=order,proto3,enum=loco.observability.v1.LogOrder" json:"order,omitempty"`
 	EnvironmentId string   `protobuf:"bytes,13,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,14,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *QueryLogsRequest) Reset() {
@@ -595,16 +599,16 @@ func (x *QueryLogsRequest) GetQuery() string {
 	return ""
 }
 
-func (x *QueryLogsRequest) GetLimit() int32 {
+func (x *QueryLogsRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *QueryLogsRequest) GetCursor() string {
+func (x *QueryLogsRequest) GetPageToken() string {
 	if x != nil {
-		return x.Cursor
+		return x.PageToken
 	}
 	return ""
 }
@@ -623,15 +627,22 @@ func (x *QueryLogsRequest) GetEnvironmentId() string {
 	return ""
 }
 
+func (x *QueryLogsRequest) GetIncludeTotalCount() bool {
+	if x != nil {
+		return x.IncludeTotalCount
+	}
+	return false
+}
+
 // QueryLogsResponse contains the results of a log query.
 type QueryLogsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Log entries matching the query.
 	Entries []*LogEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
-	// Opaque cursor for fetching the next page. Empty if no more results.
-	NextCursor string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
-	// Approximate count of total matched rows (best-effort, may not be exact).
-	TotalMatched  int64 `protobuf:"varint,3,opt,name=total_matched,json=totalMatched,proto3" json:"total_matched,omitempty"`
+	// Empty on the last page.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// The log lines the query matches, ignoring page_token; set when include_total_count is.
+	TotalCount    int64 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -673,16 +684,16 @@ func (x *QueryLogsResponse) GetEntries() []*LogEntry {
 	return nil
 }
 
-func (x *QueryLogsResponse) GetNextCursor() string {
+func (x *QueryLogsResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextCursor
+		return x.NextPageToken
 	}
 	return ""
 }
 
-func (x *QueryLogsResponse) GetTotalMatched() int64 {
+func (x *QueryLogsResponse) GetTotalCount() int64 {
 	if x != nil {
-		return x.TotalMatched
+		return x.TotalCount
 	}
 	return 0
 }
@@ -804,8 +815,9 @@ type TailLogsRequest struct {
 	ResourceIds []string `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
 	// Log query: free text matched in the body, @key:value fields, AND, OR, - and parentheses.
 	// docs/content/reference/log-queries.md describes the syntax. Empty matches every log.
-	Query         string                 `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
-	Since         *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
+	Query string `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
+	// The earliest log line to send; empty starts shortly before the call.
+	StartTime     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	EnvironmentId string                 `protobuf:"bytes,9,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -862,9 +874,9 @@ func (x *TailLogsRequest) GetQuery() string {
 	return ""
 }
 
-func (x *TailLogsRequest) GetSince() *timestamppb.Timestamp {
+func (x *TailLogsRequest) GetStartTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Since
+		return x.StartTime
 	}
 	return nil
 }
@@ -1379,13 +1391,16 @@ type ListTracesRequest struct {
 	// Trace query: free text matched in the root span name, @status, @duration, @trace, @resource
 	// and span or resource attributes, with AND, OR, - and parentheses.
 	// docs/content/reference/log-queries.md describes the syntax. Empty matches every trace.
-	Query         string           `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
-	Limit         int32            `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
-	Sort          TraceSummarySort `protobuf:"varint,10,opt,name=sort,proto3,enum=loco.observability.v1.TraceSummarySort" json:"sort,omitempty"`
-	Ascending     bool             `protobuf:"varint,11,opt,name=ascending,proto3" json:"ascending,omitempty"`
-	Offset        int32            `protobuf:"varint,12,opt,name=offset,proto3" json:"offset,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Query    string `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
+	PageSize int32  `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// next_page_token from the previous page of the same query and order; empty for the first page.
+	PageToken  string     `protobuf:"bytes,12,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	OrderBy    TraceOrder `protobuf:"varint,10,opt,name=order_by,json=orderBy,proto3,enum=loco.observability.v1.TraceOrder" json:"order_by,omitempty"`
+	Descending bool       `protobuf:"varint,11,opt,name=descending,proto3" json:"descending,omitempty"`
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,13,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListTracesRequest) Reset() {
@@ -1446,38 +1461,48 @@ func (x *ListTracesRequest) GetQuery() string {
 	return ""
 }
 
-func (x *ListTracesRequest) GetLimit() int32 {
+func (x *ListTracesRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListTracesRequest) GetSort() TraceSummarySort {
+func (x *ListTracesRequest) GetPageToken() string {
 	if x != nil {
-		return x.Sort
+		return x.PageToken
 	}
-	return TraceSummarySort_TRACE_SUMMARY_SORT_UNSPECIFIED
+	return ""
 }
 
-func (x *ListTracesRequest) GetAscending() bool {
+func (x *ListTracesRequest) GetOrderBy() TraceOrder {
 	if x != nil {
-		return x.Ascending
+		return x.OrderBy
+	}
+	return TraceOrder_TRACE_ORDER_UNSPECIFIED
+}
+
+func (x *ListTracesRequest) GetDescending() bool {
+	if x != nil {
+		return x.Descending
 	}
 	return false
 }
 
-func (x *ListTracesRequest) GetOffset() int32 {
+func (x *ListTracesRequest) GetIncludeTotalCount() bool {
 	if x != nil {
-		return x.Offset
+		return x.IncludeTotalCount
 	}
-	return 0
+	return false
 }
 
 type ListTracesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Summaries     []*TraceSummary        `protobuf:"bytes,1,rep,name=summaries,proto3" json:"summaries,omitempty"`
-	TotalCount    uint64                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Summaries []*TraceSummary        `protobuf:"bytes,1,rep,name=summaries,proto3" json:"summaries,omitempty"`
+	// The traces the query matches, ignoring page_token; set when include_total_count is.
+	TotalCount uint64 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// Empty on the last page.
+	NextPageToken string `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1524,6 +1549,13 @@ func (x *ListTracesResponse) GetTotalCount() uint64 {
 		return x.TotalCount
 	}
 	return 0
+}
+
+func (x *ListTracesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
 }
 
 type QueryTraceBucketsRequest struct {
@@ -2279,7 +2311,7 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x04R\x05count\x125\n" +
 	"\x05level\x18\x03 \x01(\x0e2\x1f.loco.observability.v1.LogLevelR\x05level\x12\x1f\n" +
 	"\vresource_id\x18\x04 \x01(\tR\n" +
-	"resourceId\"\xab\x04\n" +
+	"resourceId\"\xe9\x04\n" +
 	"\x10QueryLogsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
@@ -2287,19 +2319,21 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\n" +
 	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
 	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12\x1e\n" +
-	"\x05query\x18\x05 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12 \n" +
-	"\x05limit\x18\b \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90N(\x00R\x05limit\x12\x16\n" +
-	"\x06cursor\x18\t \x01(\tR\x06cursor\x125\n" +
+	"\x05query\x18\x05 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12'\n" +
+	"\tpage_size\x18\b \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N(\x00R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\t \x01(\tR\tpageToken\x125\n" +
 	"\x05order\x18\n" +
 	" \x01(\x0e2\x1f.loco.observability.v1.LogOrderR\x05order\x122\n" +
-	"\x0eenvironment_id\x18\r \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId:q\xbaHn\x1al\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"\x94\x01\n" +
+	"\x0eenvironment_id\x18\r \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12.\n" +
+	"\x13include_total_count\x18\x0e \x01(\bR\x11includeTotalCount:q\xbaHn\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"\x97\x01\n" +
 	"\x11QueryLogsResponse\x129\n" +
-	"\aentries\x18\x01 \x03(\v2\x1f.loco.observability.v1.LogEntryR\aentries\x12\x1f\n" +
-	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor\x12#\n" +
-	"\rtotal_matched\x18\x03 \x01(\x03R\ftotalMatched\"\xb2\x04\n" +
+	"\aentries\x18\x01 \x03(\v2\x1f.loco.observability.v1.LogEntryR\aentries\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x03R\n" +
+	"totalCount\"\xb2\x04\n" +
 	"\bLogEntry\x128\n" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x125\n" +
 	"\x05level\x18\x02 \x01(\x0e2\x1f.loco.observability.v1.LogLevelR\x05level\x12\x12\n" +
@@ -2315,13 +2349,14 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
 	"\x12LogAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf6\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xff\x01\n" +
 	"\x0fTailLogsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12\x1e\n" +
-	"\x05query\x18\x03 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x120\n" +
-	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x122\n" +
+	"\x05query\x18\x03 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x129\n" +
+	"\n" +
+	"start_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x122\n" +
 	"\x0eenvironment_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\x96\x01\n" +
 	"\x10TailLogsResponse\x127\n" +
 	"\x05entry\x18\x01 \x01(\v2\x1f.loco.observability.v1.LogEntryH\x00R\x05entry\x12@\n" +
@@ -2371,24 +2406,29 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x122\n" +
-	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\x91\x04\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\xd2\x04\n" +
 	"\x11ListTracesRequest\x12?\n" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12A\n" +
 	"\n" +
 	"start_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
 	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12\x1e\n" +
-	"\x05query\x18\x04 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12 \n" +
-	"\x05limit\x18\x05 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90N(\x00R\x05limit\x12E\n" +
-	"\x04sort\x18\n" +
-	" \x01(\x0e2'.loco.observability.v1.TraceSummarySortB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04sort\x12\x1c\n" +
-	"\tascending\x18\v \x01(\bR\tascending\x12\x1f\n" +
-	"\x06offset\x18\f \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset:q\xbaHn\x1al\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"x\n" +
+	"\x05query\x18\x04 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x12'\n" +
+	"\tpage_size\x18\x05 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12&\n" +
+	"\n" +
+	"page_token\x18\f \x01(\tB\a\xbaH\x04r\x02\x18@R\tpageToken\x12F\n" +
+	"\border_by\x18\n" +
+	" \x01(\x0e2!.loco.observability.v1.TraceOrderB\b\xbaH\x05\x82\x01\x02\x10\x01R\aorderBy\x12\x1e\n" +
+	"\n" +
+	"descending\x18\v \x01(\bR\n" +
+	"descending\x12.\n" +
+	"\x13include_total_count\x18\r \x01(\bR\x11includeTotalCount:q\xbaHn\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"\xa0\x01\n" +
 	"\x12ListTracesResponse\x12A\n" +
 	"\tsummaries\x18\x01 \x03(\v2#.loco.observability.v1.TraceSummaryR\tsummaries\x12\x1f\n" +
 	"\vtotal_count\x18\x02 \x01(\x04R\n" +
-	"totalCount\"\xa4\x03\n" +
+	"totalCount\x12&\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tR\rnextPageToken\"\xa4\x03\n" +
 	"\x18QueryTraceBucketsRequest\x12?\n" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12A\n" +
 	"\n" +
@@ -2489,15 +2529,16 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\bLogOrder\x12\x19\n" +
 	"\x15LOG_ORDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16LOG_ORDER_NEWEST_FIRST\x10\x01\x12\x1a\n" +
-	"\x16LOG_ORDER_OLDEST_FIRST\x10\x02*\xff\x01\n" +
-	"\x10TraceSummarySort\x12\"\n" +
-	"\x1eTRACE_SUMMARY_SORT_UNSPECIFIED\x10\x00\x12!\n" +
-	"\x1dTRACE_SUMMARY_SORT_START_TIME\x10\x01\x12\x1f\n" +
-	"\x1bTRACE_SUMMARY_SORT_DURATION\x10\x02\x12 \n" +
-	"\x1cTRACE_SUMMARY_SORT_OPERATION\x10\x03\x12\x1f\n" +
-	"\x1bTRACE_SUMMARY_SORT_RESOURCE\x10\x04\x12\x1d\n" +
-	"\x19TRACE_SUMMARY_SORT_STATUS\x10\x05\x12!\n" +
-	"\x1dTRACE_SUMMARY_SORT_SPAN_COUNT\x10\x06*X\n" +
+	"\x16LOG_ORDER_OLDEST_FIRST\x10\x02*\xc8\x01\n" +
+	"\n" +
+	"TraceOrder\x12\x1b\n" +
+	"\x17TRACE_ORDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16TRACE_ORDER_START_TIME\x10\x01\x12\x18\n" +
+	"\x14TRACE_ORDER_DURATION\x10\x02\x12\x19\n" +
+	"\x15TRACE_ORDER_OPERATION\x10\x03\x12\x18\n" +
+	"\x14TRACE_ORDER_RESOURCE\x10\x04\x12\x16\n" +
+	"\x12TRACE_ORDER_STATUS\x10\x05\x12\x1a\n" +
+	"\x16TRACE_ORDER_SPAN_COUNT\x10\x06*X\n" +
 	"\vTraceStatus\x12\x1c\n" +
 	"\x18TRACE_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fTRACE_STATUS_OK\x10\x01\x12\x16\n" +
@@ -2530,7 +2571,7 @@ var file_loco_observability_v1_observability_proto_goTypes = []any{
 	(LogBucketGroup)(0),               // 0: loco.observability.v1.LogBucketGroup
 	(LogLevel)(0),                     // 1: loco.observability.v1.LogLevel
 	(LogOrder)(0),                     // 2: loco.observability.v1.LogOrder
-	(TraceSummarySort)(0),             // 3: loco.observability.v1.TraceSummarySort
+	(TraceOrder)(0),                   // 3: loco.observability.v1.TraceOrder
 	(TraceStatus)(0),                  // 4: loco.observability.v1.TraceStatus
 	(*QueryLogBucketsRequest)(nil),    // 5: loco.observability.v1.QueryLogBucketsRequest
 	(*QueryLogBucketsResponse)(nil),   // 6: loco.observability.v1.QueryLogBucketsResponse
@@ -2582,7 +2623,7 @@ var file_loco_observability_v1_observability_proto_depIdxs = []int32{
 	1,  // 11: loco.observability.v1.LogEntry.level:type_name -> loco.observability.v1.LogLevel
 	30, // 12: loco.observability.v1.LogEntry.resource_attributes:type_name -> loco.observability.v1.LogEntry.ResourceAttributesEntry
 	31, // 13: loco.observability.v1.LogEntry.log_attributes:type_name -> loco.observability.v1.LogEntry.LogAttributesEntry
-	38, // 14: loco.observability.v1.TailLogsRequest.since:type_name -> google.protobuf.Timestamp
+	38, // 14: loco.observability.v1.TailLogsRequest.start_time:type_name -> google.protobuf.Timestamp
 	10, // 15: loco.observability.v1.TailLogsResponse.entry:type_name -> loco.observability.v1.LogEntry
 	13, // 16: loco.observability.v1.TailLogsResponse.heartbeat:type_name -> loco.observability.v1.Heartbeat
 	38, // 17: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
@@ -2596,7 +2637,7 @@ var file_loco_observability_v1_observability_proto_depIdxs = []int32{
 	18, // 25: loco.observability.v1.ListTracesRequest.scope:type_name -> loco.observability.v1.TraceScope
 	38, // 26: loco.observability.v1.ListTracesRequest.start_time:type_name -> google.protobuf.Timestamp
 	38, // 27: loco.observability.v1.ListTracesRequest.end_time:type_name -> google.protobuf.Timestamp
-	3,  // 28: loco.observability.v1.ListTracesRequest.sort:type_name -> loco.observability.v1.TraceSummarySort
+	3,  // 28: loco.observability.v1.ListTracesRequest.order_by:type_name -> loco.observability.v1.TraceOrder
 	26, // 29: loco.observability.v1.ListTracesResponse.summaries:type_name -> loco.observability.v1.TraceSummary
 	18, // 30: loco.observability.v1.QueryTraceBucketsRequest.scope:type_name -> loco.observability.v1.TraceScope
 	38, // 31: loco.observability.v1.QueryTraceBucketsRequest.start_time:type_name -> google.protobuf.Timestamp

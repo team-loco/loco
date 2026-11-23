@@ -11706,13 +11706,13 @@
             "title": "workspace_id",
             "format": "uuid"
           },
-          "since": {
-            "title": "since",
-            "description": "The window includes since and excludes until, using deployment creation time.",
+          "startTime": {
+            "title": "start_time",
+            "description": "The window includes start_time and excludes end_time, using deployment creation time.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
-          "until": {
-            "title": "until",
+          "endTime": {
+            "title": "end_time",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "includeTotalCount": {
@@ -11738,7 +11738,7 @@
         },
         "title": "ListDeploymentsRequest",
         "additionalProperties": false,
-        "description": "ListDeploymentsRequest is the request to list deployments.\nlist_deployments.scope // provide resource_id or workspace_id with environment_id\nlist_deployments.window // since must precede until\n"
+        "description": "ListDeploymentsRequest is the request to list deployments.\nlist_deployments.scope // provide resource_id or workspace_id with environment_id\nlist_deployments.window // start_time must precede end_time\n"
       },
       "loco.deployment.v1.ListDeploymentsResponse": {
         "type": "object",
@@ -11853,12 +11853,12 @@
             "uniqueItems": true,
             "description": "Counts only these resources' deployments; empty counts every resource."
           },
-          "since": {
-            "title": "since",
+          "startTime": {
+            "title": "start_time",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
-          "until": {
-            "title": "until",
+          "endTime": {
+            "title": "end_time",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "bucketCount": {
@@ -11884,11 +11884,11 @@
         },
         "title": "QueryDeploymentBucketsRequest",
         "required": [
-          "since",
-          "until"
+          "startTime",
+          "endTime"
         ],
         "additionalProperties": false,
-        "description": "QueryDeploymentBucketsRequest splits [since, until), at most 30 days, into bucket_count equal\n buckets by deployment creation time.\nquery_deployment_buckets.group_by_resource // group_by_resource requires resource_ids\nquery_deployment_buckets.window // since must precede until\nquery_deployment_buckets.window_length // the window spans at most 30 days\n"
+        "description": "QueryDeploymentBucketsRequest splits [start_time, end_time), at most 30 days, into bucket_count equal\n buckets by deployment creation time.\nquery_deployment_buckets.group_by_resource // group_by_resource requires resource_ids\nquery_deployment_buckets.window // start_time must precede end_time\nquery_deployment_buckets.window_length // the window spans at most 30 days\n"
       },
       "loco.deployment.v1.QueryDeploymentBucketsResponse": {
         "type": "object",
@@ -13351,26 +13351,31 @@
             "title": "query",
             "description": "Trace query: free text matched in the root span name, @status, @duration, @trace, @resource\n and span or resource attributes, with AND, OR, - and parentheses.\n docs/content/reference/log-queries.md describes the syntax. Empty matches every trace.\nstring.max_bytes = 4096\n"
           },
-          "limit": {
+          "pageSize": {
             "type": "integer",
-            "title": "limit",
-            "maximum": 10000,
+            "title": "page_size",
+            "maximum": 200,
             "minimum": 0,
             "format": "int32"
           },
-          "sort": {
-            "title": "sort",
-            "$ref": "#/components/schemas/loco.observability.v1.TraceSummarySort"
+          "pageToken": {
+            "type": "string",
+            "title": "page_token",
+            "maxLength": 64,
+            "description": "next_page_token from the previous page of the same query and order; empty for the first page."
           },
-          "ascending": {
+          "orderBy": {
+            "title": "order_by",
+            "$ref": "#/components/schemas/loco.observability.v1.TraceOrder"
+          },
+          "descending": {
             "type": "boolean",
-            "title": "ascending"
+            "title": "descending"
           },
-          "offset": {
-            "type": "integer",
-            "title": "offset",
-            "minimum": 0,
-            "format": "int32"
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
           }
         },
         "title": "ListTracesRequest",
@@ -13395,7 +13400,13 @@
           "totalCount": {
             "type": "string",
             "title": "total_count",
-            "format": "int64"
+            "format": "int64",
+            "description": "The traces the query matches, ignoring page_token; set when include_total_count is."
+          },
+          "nextPageToken": {
+            "type": "string",
+            "title": "next_page_token",
+            "description": "Empty on the last page."
           }
         },
         "title": "ListTracesResponse",
@@ -13678,18 +13689,18 @@
             "title": "query",
             "description": "Log query: free text matched in the body, @key:value fields, AND, OR, - and parentheses.\n docs/content/reference/log-queries.md describes the syntax. Empty matches every log.\nstring.max_bytes = 4096\n"
           },
-          "limit": {
+          "pageSize": {
             "type": "integer",
-            "title": "limit",
+            "title": "page_size",
             "maximum": 10000,
             "minimum": 0,
             "format": "int32",
-            "description": "Max rows to return (clamped by guardrails)."
+            "description": "Log lines per page: 0 for the API's default, at most 10,000."
           },
-          "cursor": {
+          "pageToken": {
             "type": "string",
-            "title": "cursor",
-            "description": "Opaque cursor for pagination (from previous response). Empty for first request."
+            "title": "page_token",
+            "description": "next_page_token from the previous page of the same query and order; empty for the first page."
           },
           "order": {
             "title": "order",
@@ -13700,6 +13711,11 @@
             "type": "string",
             "title": "environment_id",
             "format": "uuid"
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
           }
         },
         "title": "QueryLogsRequest",
@@ -13721,16 +13737,16 @@
             "title": "entries",
             "description": "Log entries matching the query."
           },
-          "nextCursor": {
+          "nextPageToken": {
             "type": "string",
-            "title": "next_cursor",
-            "description": "Opaque cursor for fetching the next page. Empty if no more results."
+            "title": "next_page_token",
+            "description": "Empty on the last page."
           },
-          "totalMatched": {
+          "totalCount": {
             "type": "string",
-            "title": "total_matched",
+            "title": "total_count",
             "format": "int64",
-            "description": "Approximate count of total matched rows (best-effort, may not be exact)."
+            "description": "The log lines the query matches, ignoring page_token; set when include_total_count is."
           }
         },
         "title": "QueryLogsResponse",
@@ -13912,8 +13928,9 @@
             "title": "query",
             "description": "Log query: free text matched in the body, @key:value fields, AND, OR, - and parentheses.\n docs/content/reference/log-queries.md describes the syntax. Empty matches every log.\nstring.max_bytes = 4096\n"
           },
-          "since": {
-            "title": "since",
+          "startTime": {
+            "title": "start_time",
+            "description": "The earliest log line to send; empty starts shortly before the call.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
           "environmentId": {
@@ -13981,6 +13998,20 @@
         "title": "TraceBucket",
         "additionalProperties": false,
         "description": "TraceBucket summarizes the traces that start within one bucket. Durations are the\n TraceSummary.duration_nanos of those traces."
+      },
+      "loco.observability.v1.TraceOrder": {
+        "type": "string",
+        "title": "TraceOrder",
+        "enum": [
+          "TRACE_ORDER_UNSPECIFIED",
+          "TRACE_ORDER_START_TIME",
+          "TRACE_ORDER_DURATION",
+          "TRACE_ORDER_OPERATION",
+          "TRACE_ORDER_RESOURCE",
+          "TRACE_ORDER_STATUS",
+          "TRACE_ORDER_SPAN_COUNT"
+        ],
+        "description": "TraceOrder is what ListTraces sorts by. Ties sort by trace ID, ascending."
       },
       "loco.observability.v1.TraceScope": {
         "type": "object",
@@ -14206,19 +14237,6 @@
         },
         "title": "TraceSummary",
         "additionalProperties": false
-      },
-      "loco.observability.v1.TraceSummarySort": {
-        "type": "string",
-        "title": "TraceSummarySort",
-        "enum": [
-          "TRACE_SUMMARY_SORT_UNSPECIFIED",
-          "TRACE_SUMMARY_SORT_START_TIME",
-          "TRACE_SUMMARY_SORT_DURATION",
-          "TRACE_SUMMARY_SORT_OPERATION",
-          "TRACE_SUMMARY_SORT_RESOURCE",
-          "TRACE_SUMMARY_SORT_STATUS",
-          "TRACE_SUMMARY_SORT_SPAN_COUNT"
-        ]
       },
       "loco.org.v1.CreateOrgRequest": {
         "type": "object",

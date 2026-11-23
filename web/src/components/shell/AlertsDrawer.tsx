@@ -388,7 +388,7 @@ export function AlertsDrawer() {
 		{
 			workspaceId: activeWorkspaceId ?? "",
 			environmentId: active?.id ?? "",
-			since: timestampFromMs(sinceMs),
+			startTime: timestampFromMs(sinceMs),
 			pageSize: 50,
 		},
 		{

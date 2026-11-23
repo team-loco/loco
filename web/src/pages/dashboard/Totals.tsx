@@ -489,8 +489,8 @@ export function Totals({
 		{
 			workspaceId,
 			environmentId,
-			since: msToTimestamp(windows.current.startMs),
-			until: msToTimestamp(windows.current.endMs),
+			startTime: msToTimestamp(windows.current.startMs),
+			endTime: msToTimestamp(windows.current.endMs),
 			bucketCount: RANGE_BUCKETS[range],
 			maxResourceNames: MARKER_NAMES,
 		},

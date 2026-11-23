@@ -22,8 +22,8 @@ export function workspaceDeploymentsOptions(
 		workspaceId,
 		environmentId,
 		pageSize: PAGE_SIZE,
-		...(created === undefined ? {} : { since: timestampFromMs(created.sinceMs) }),
-		...(created?.untilMs === undefined ? {} : { until: timestampFromMs(created.untilMs) }),
+		...(created === undefined ? {} : { startTime: timestampFromMs(created.sinceMs) }),
+		...(created?.untilMs === undefined ? {} : { endTime: timestampFromMs(created.untilMs) }),
 	};
 	const client = createClient(DeploymentService, transport);
 	const key = createConnectQueryKey({ schema: listDeployments, input, transport, cardinality: "finite" });

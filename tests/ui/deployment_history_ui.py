@@ -328,13 +328,13 @@ with session(out) as browser:
     expect(
         section.get_by_role("tab", name=re.compile(r"^Deployments$"))
     ).to_be_visible()
-    # Requests with since list the chart window's deployments; the rest page the history.
+    # Requests with startTime list the chart window's deployments; the rest page the history.
     history_requests = [
         request["body"]
         for request in requests
         if request["method"] == "ListDeployments"
         and request["body"].get("resourceId") == data["resource"]
-        and "since" not in request["body"]
+        and "startTime" not in request["body"]
     ]
     assert history_requests and all(
         body.get("pageSize") in (1, 10) and not body.get("pageToken")
