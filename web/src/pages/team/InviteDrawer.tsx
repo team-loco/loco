@@ -141,22 +141,24 @@ function InviteForm({
 					/>
 				</Field>
 				<Field label="Role" hint={ROLE_HINT[role]}>
-					<ToggleGroup
-						variant="segmented"
-						aria-label="Role"
-						className="w-fit"
-						value={[role]}
-						onValueChange={(next: string[]) => {
-							const picked = next[0];
-							if (picked !== undefined) setRole(picked === "Admin" ? "Admin" : "Member");
-						}}
-					>
-						{ROLE_OPTIONS.map((o) => (
-							<ToggleGroupItem key={o.value} value={o.value}>
-								{o.label}
-							</ToggleGroupItem>
-						))}
-					</ToggleGroup>
+					<div>
+						<ToggleGroup
+							variant="segmented"
+							aria-label="Role"
+							className="w-fit"
+							value={[role]}
+							onValueChange={(next: string[]) => {
+								const picked = next[0];
+								if (picked !== undefined) setRole(picked === "Admin" ? "Admin" : "Member");
+							}}
+						>
+							{ROLE_OPTIONS.map((o) => (
+								<ToggleGroupItem key={o.value} value={o.value}>
+									{o.label}
+								</ToggleGroupItem>
+							))}
+						</ToggleGroup>
+					</div>
 				</Field>
 				{chips.length > 0 && (
 					<ul aria-label="Addresses" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
