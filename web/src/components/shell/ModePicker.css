@@ -1,6 +1,6 @@
 .mt-thumb {
 	position: absolute;
-	z-index: 4;
+	z-index: 2;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -20,8 +20,53 @@
 		0 0 0 1px var(--line2),
 		0 1px 3px color-mix(in oklch, var(--bg) 40%, transparent);
 }
+@media (prefers-reduced-motion: no-preference) {
+	.umode [data-m="light"][data-checked] svg {
+		animation: mt-sun 600ms cubic-bezier(0.3, 1.4, 0.5, 1);
+	}
+	.umode [data-m="dark"][data-checked] svg {
+		transform-origin: 60% 40%;
+		animation: mt-moon 600ms cubic-bezier(0.3, 1.4, 0.5, 1);
+	}
+	.umode [data-m="system"][data-checked] svg {
+		animation: mt-sys 420ms cubic-bezier(0.3, 1.4, 0.5, 1);
+	}
+}
 @media (prefers-reduced-motion: reduce) {
 	.mt-thumb {
 		transition: none;
+	}
+}
+@keyframes mt-sun {
+	from {
+		transform: rotate(-90deg) scale(0.5);
+		opacity: 0.3;
+	}
+	to {
+		transform: none;
+		opacity: 1;
+	}
+}
+@keyframes mt-moon {
+	0% {
+		transform: rotate(50deg) scale(0.6);
+		opacity: 0.3;
+	}
+	60% {
+		transform: rotate(-12deg) scale(1.05);
+	}
+	100% {
+		transform: none;
+		opacity: 1;
+	}
+}
+@keyframes mt-sys {
+	from {
+		transform: translateY(3px) scale(0.7);
+		opacity: 0.3;
+	}
+	to {
+		transform: none;
+		opacity: 1;
 	}
 }
