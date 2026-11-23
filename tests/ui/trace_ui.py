@@ -468,7 +468,7 @@ with session(out) as browser:
     page.mouse.up()
     narrow = drawer.bounding_box()["width"]
     assert narrow < before - 150, (before, narrow)
-    handle.dblclick()
+    handle.dispatch_event("dblclick")
     page.wait_for_function(
         "([el, w]) => el.getBoundingClientRect().width > w",
         arg=[drawer.element_handle(), narrow + 150],
