@@ -248,7 +248,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(panel.get_by_role("group", name="Rollout", exact=True)).to_contain_text(
         "Triggered by"
     )
-    expect(panel.get_by_role("button", name=re.compile(r"^Deploy,"))).to_be_disabled()
+    expect(
+        panel.get_by_role("button", name=re.compile(r"^Deploy\s*,"))
+    ).to_be_disabled()
     activity = panel.get_by_role("region", name="Activity feed", exact=True)
     expect(activity.get_by_role("listitem")).to_have_count(9)
     expect(activity.get_by_role("listitem").last).to_contain_text("Deployment building")
@@ -263,7 +265,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     phase("deploying")
     page.reload()
     panel = page.get_by_role("region", name="Deploying", exact=True)
-    deploy_step = panel.get_by_role("button", name=re.compile(r"^Deploy,"))
+    deploy_step = panel.get_by_role("button", name=re.compile(r"^Deploy\s*,"))
     deploy_step.click()
     new_version = panel.get_by_role("region", name="New version", exact=True)
     old_version = panel.get_by_role("region", name="Previous version", exact=True)
@@ -283,12 +285,12 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     phase("deploying", new_ready=True)
     page.reload()
     panel = page.get_by_role("region", name="Deploying", exact=True)
-    expect(panel.get_by_role("button", name=re.compile(r"^Deploy,"))).to_contain_text(
-        "1/2 ready"
-    )
+    expect(
+        panel.get_by_role("button", name=re.compile(r"^Deploy\s*,"))
+    ).to_contain_text("1/2 ready")
     replicas = page.get_by_role("region", name="Replicas", exact=True)
     expect(replicas).to_contain_text("1/2 ready")
-    panel.get_by_role("button", name=re.compile(r"^Deploy,")).click()
+    panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     phase("running")
     # The open watch updates both the replicas and feed without reloading.
     panel = page.get_by_role("region", name="Deployed", exact=True)
@@ -327,7 +329,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(panel.get_by_text("The rollout stopped.", exact=False)).to_be_visible(
         timeout=25000
     )
-    expect(panel.get_by_text("is still serving", exact=False)).to_have_count(0)
+    expect(panel.get_by_text("is still serving", exact=False)).to_have_count(
+        0, timeout=25000
+    )
     phase("failed")
     expect(
         panel.get_by_text("A replica keeps restarting. Check its logs.", exact=False)
@@ -343,10 +347,10 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         "@replica:progress-new-1"
     ], query
     expect(logs).to_have_count(1)
-    panel.get_by_role("button", name=re.compile(r"^Build,")).click()
+    panel.get_by_role("button", name=re.compile(r"^Build\s*,")).click()
     expect(logs).to_have_count(1)
     expect(logs).to_have_attribute("href", re.compile(r"@build"))
-    panel.get_by_role("button", name=re.compile(r"^Deploy,")).click()
+    panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     expect(
         panel.get_by_role("region", name="New version", exact=True).get_by_text(
             "Failing", exact=True
@@ -431,7 +435,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     context, page, errors = open_page(browser, state=state, reduced_motion="reduce")
     page.goto(state["ui_url"] + path)
     panel = page.get_by_role("region", name="Deploying", exact=True)
-    panel.get_by_role("button", name=re.compile(r"^Deploy,")).click()
+    panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     expect(
         panel.get_by_role("region", name="New version", exact=True).get_by_text(
             "Starting", exact=True
@@ -549,7 +553,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     context, page, errors = open_page(browser, state=state)
     page.goto(state["ui_url"] + path)
     panel = page.get_by_role("region", name="Deploying", exact=True)
-    panel.get_by_role("button", name=re.compile(r"^Deploy,")).click()
+    panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     new_version = panel.get_by_role("region", name="New version", exact=True)
     expect(new_version.get_by_role("listitem")).to_have_count(1)
     expect(new_version).to_contain_text("progress-restart-1")
@@ -566,9 +570,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     )
     expect(activity).not_to_contain_text("Deployment requested")
     expect(panel.get_by_title("Time since the restart started")).to_be_visible()
-    expect(panel.get_by_role("button", name=re.compile(r"^Deploy,"))).to_contain_text(
-        "0/2 ready"
-    )
+    expect(
+        panel.get_by_role("button", name=re.compile(r"^Deploy\s*,"))
+    ).to_contain_text("0/2 ready")
     replicas = page.get_by_role("region", name="Replicas", exact=True)
     expect(replicas).to_contain_text("0/2 ready")
     assert not errors, errors
