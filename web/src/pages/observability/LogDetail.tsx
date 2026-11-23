@@ -4,7 +4,6 @@ import { Link } from "react-router";
 import {
 	BoxIcon,
 	ChartLineIcon,
-	CheckIcon,
 	ClockIcon,
 	Columns3Icon,
 	CopyIcon,
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
-import { CodeBlock } from "@/components/design/CodeBlock";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -39,7 +37,7 @@ import { useObs } from "./context";
 import { bodyParts, LEVEL_LABEL, levelStyle } from "./format";
 import { queryKeyReason, quoteValue, withToken, type Token } from "./query";
 import { logJson, logMessageText, WORKLOAD_TITLE, type LogRow } from "./rows";
-import { CopyButton, PanelNav } from "./shared";
+import { CopyButton, PanelNav, PlainCode } from "./shared";
 
 const NUMERIC_RE = /^\d+(\.\d+)?$/;
 const AROUND_LABEL = `±${String(AROUND_MS / MINUTE_MS)} minutes`;
@@ -265,28 +263,16 @@ export function LogDetail({
 			<div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-6 pt-5 pb-6">
 				<section aria-label="Message" className="flex flex-col gap-2">
 					<h3 className="m-0 text-[12.5px] font-normal text-fg3">Message</h3>
-					<div data-slot="code-block" className="relative rounded-lg bg-panel shadow-[inset_0_0_0_1px_var(--line)]">
-						<Button
-							variant="ghost"
-							size="icon-xs"
-							aria-label="Copy message"
-							title="Copy message"
-							onClick={() => {
-								copy("msg", msgText, "Copied message");
-							}}
-							className={cn("absolute top-2 right-2", copied === "msg" ? "text-ok-fg" : "text-fg3")}
-						>
-							{copied === "msg" ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-						</Button>
-						<div
-							className={cn(
-								"max-h-[280px] overflow-auto py-3 pr-11 pl-3.5 font-mono text-[12.5px] leading-[1.55] break-words whitespace-pre-wrap",
-								row.json !== null ? "text-foreground" : style.body,
-							)}
-						>
-							{row.json !== null ? msgText : bodyParts(row.message, words)}
-						</div>
-					</div>
+					<PlainCode
+						copied={copied === "msg"}
+						copyLabel="Copy message"
+						onCopy={() => {
+							copy("msg", msgText, "Copied message");
+						}}
+						className={row.json !== null ? undefined : style.body}
+					>
+						{row.json !== null ? msgText : bodyParts(row.message, words)}
+					</PlainCode>
 				</section>
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
@@ -315,16 +301,19 @@ export function LogDetail({
 						)}
 					</div>
 					{showJson ? (
-						<CodeBlock
-							language="json"
+						<PlainCode
+							copied={copied === "json"}
 							copyLabel="Copy JSON"
+							onCopy={() => {
+								copy("json", json, "Copied as JSON");
+							}}
 							wrap={wrapJson === "on"}
 							onWrap={(wrap) => {
 								setWrapJson(wrap ? "on" : "off");
 							}}
 						>
 							{json}
-						</CodeBlock>
+						</PlainCode>
 					) : (
 						<div className="grid grid-cols-[fit-content(45%)_minmax(0,1fr)_auto]">
 							{attrs.length === 0 && <div className="py-2 text-sm text-fg3">No attributes match.</div>}

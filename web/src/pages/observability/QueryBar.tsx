@@ -84,7 +84,7 @@ function placeholder(view: QueryView): string {
 			return "Search, or type @ to filter by actor, type, target…";
 		case "traces":
 		case "events":
-			return "Search, or type @resource to filter";
+			return "Type @resource to filter";
 	}
 }
 
@@ -468,7 +468,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 						</Button>
 					)}
 				</div>
-				<ComboboxContent anchor={anchor} className="p-1.5">
+				<ComboboxContent anchor={anchor} className="w-[min(520px,var(--anchor-width))] min-w-0 p-1.5">
 					<ComboboxList aria-label="Suggestions">
 						{groups
 							.filter((g) => g.items.length > 0)

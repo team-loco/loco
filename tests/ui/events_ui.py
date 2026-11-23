@@ -136,21 +136,10 @@ with session(out) as browser:
             "button", name="Only events with reason restarting", exact=True
         )
     ).to_be_visible()
-    assert (
-        drawer.locator("code")
-        .first.locator(".sh__line")
-        .first.evaluate("el => getComputedStyle(el, '::before').content")
-        == "none"
-    )
     raw_event = drawer.get_by_role("region", name="Raw event")
     expect(raw_event).to_contain_text('"actor_type": "user"')
-    raw_code = raw_event.locator("pre")
-    wrap = raw_event.get_by_role("button", name="Wrap lines", exact=True)
-    expect(wrap).to_have_attribute("aria-pressed", "false")
-    assert raw_code.evaluate("el => el.scrollWidth > el.clientWidth")
-    wrap.click()
-    expect(wrap).to_have_attribute("aria-pressed", "true")
-    assert raw_code.evaluate("el => el.scrollWidth == el.clientWidth")
+    assert raw_event.locator("pre").evaluate("el => el.scrollWidth > el.clientWidth")
+    expect(raw_event.get_by_role("button", name="Wrap lines")).to_have_count(0)
     wait_for_query(page, lambda query: "event" in query)
     first = parse_qs(urlparse(page.url).query)["event"]
     page.keyboard.press("ArrowDown")
@@ -163,10 +152,8 @@ with session(out) as browser:
     drawer.get_by_role("button", name="Copy message", exact=True).click()
     expect(drawer.get_by_role("button", name="Copied", exact=True)).to_be_visible()
     assert copied_text(page).startswith("Back-off restarting app layer-")
-    message = drawer.locator("code").first
-    assert message.evaluate(
-        "el => el.parentElement.scrollWidth <= el.parentElement.clientWidth"
-    )
+    message = drawer.locator("[data-slot=code-block] pre").first
+    assert message.evaluate("el => el.scrollWidth <= el.clientWidth")
     subscribe = drawer.get_by_role("link", name="Subscribe", exact=True)
     target = urlparse(subscribe.get_attribute("href"))
     assert target.path == base + "/webhooks"
