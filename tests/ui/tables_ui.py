@@ -795,13 +795,7 @@ def logs(page):
     expect(
         table.get_by_role("columnheader", name="Message", exact=True)
     ).to_have_attribute("draggable", "false")
-    region.scroll_into_view_if_needed()
-    source = region.bounding_box()
-    target = resource.bounding_box()
-    page.mouse.move(source["x"] + 20, source["y"] + source["height"] / 2)
-    page.mouse.down()
-    page.mouse.move(target["x"] + 20, target["y"] + target["height"] / 2, steps=8)
-    page.mouse.up()
+    region.drag_to(resource)
     try:
         wait_for_query(
             page,
