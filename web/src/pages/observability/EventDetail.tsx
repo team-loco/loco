@@ -1,15 +1,4 @@
-import {
-	ChevronDownIcon,
-	ChevronUpIcon,
-	HammerIcon,
-	MinusIcon,
-	PlusIcon,
-	RocketIcon,
-	RotateCwIcon,
-	ScalingIcon,
-	WebhookIcon,
-	XIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon, WebhookIcon, XIcon } from "lucide-react";
 import type { KeyboardEventHandler } from "react";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { Link } from "react-router";
@@ -38,11 +27,6 @@ import { eventDataLabel, eventJson, eventValue, severityStyle, type EventItem } 
 import { quoteValue, withToken } from "./query";
 
 export function EventIcon({ item }: { item: EventItem }) {
-	const icon = "size-3.5 text-fg3";
-	if (item.type === "deployment.created") return <RocketIcon aria-hidden className={icon} />;
-	if (item.type === "resource.scaled") return <ScalingIcon aria-hidden className={icon} />;
-	if (item.type === "resource.restarted") return <RotateCwIcon aria-hidden className={icon} />;
-	if (item.type.startsWith("build.") && item.severity === "normal") return <HammerIcon aria-hidden className={icon} />;
 	return (
 		<StatusGlyph
 			glyph={item.type === "resource.recovered" ? "ok" : severityStyle(item.severity).glyph}

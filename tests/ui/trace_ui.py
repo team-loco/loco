@@ -559,7 +559,7 @@ with session(out) as browser:
     page.mouse.move(0, 0)
     expect(page.locator('[data-slot="tooltip-content"]')).to_have_count(0)
     trace_chip = drawer.get_by_role("button", name="Copy trace ID " + trace, exact=True)
-    expect(trace_chip).to_have_text("Trace" + trace[:8] + "…")
+    expect(trace_chip).to_have_text("Trace" + trace[:8])
     trace_chip.hover()
     expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(trace)
     trace_chip.click()
@@ -877,7 +877,7 @@ with session(out) as browser:
     ).to_be_visible()
     expect(
         failed_drawer.get_by_role("button", name="Copy trace ID " + trace, exact=True)
-    ).to_have_text("Trace" + trace[:8] + "…")
+    ).to_have_text("Trace" + trace[:8])
     failed_drawer.get_by_role(
         "button", name="Copy trace ID " + trace, exact=True
     ).click()

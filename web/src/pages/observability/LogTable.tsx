@@ -221,7 +221,7 @@ function Cell({ row, column }: { row: LogRow; column: ColumnKey }) {
 			return value === "" ? (
 				<span className="text-fg4">—</span>
 			) : (
-				<CellText text={value} className="font-mono text-fg2" />
+				<CellText text={column === "duration" ? `${value} ms` : value} className="font-mono text-fg2" />
 			);
 		}
 	}

@@ -28,7 +28,7 @@ export function TimeZoneControl({
 			className="max-w-full flex-wrap self-start"
 		>
 			<ToggleGroupItem value="local" className="h-auto min-h-[26px] whitespace-normal">
-				Local, {short ? localZoneShort : localZone}
+				Local ({short ? localZoneShort : localZone})
 			</ToggleGroupItem>
 			<ToggleGroupItem value="utc">UTC</ToggleGroupItem>
 		</ToggleGroup>

@@ -26,7 +26,7 @@ import { formatCount } from "@/lib/format";
 import { pagingParsers } from "@/lib/paging";
 import { createLogHistory, moveLogHistory, oldestLogHistory } from "@/lib/log-history";
 import { DAY_MS, msToTimestamp } from "@/lib/time";
-import { msParser, windowLabel, windowSpan } from "@/lib/obs-time";
+import { DEFAULT_SPAN_MS, msParser, windowLabel, windowSpan } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
 
 import { columnsParser, widthsParser, type ColumnKey } from "./columns";
@@ -212,6 +212,12 @@ export function LogsView() {
 	};
 	const handleToggleTail = () => {
 		setFreezeTs(null);
+		if (!canTail) {
+			setRange({ kind: "relative", spanMs: DEFAULT_SPAN_MS });
+			void setParams({ live: null });
+			setPlayback({ ...currentPlayback, on: true, pending: null, paused: null });
+			return;
+		}
 		if (tail) {
 			void setParams({ page: 0, log: selectedKey, live: "0" });
 			setPlayback({
@@ -402,10 +408,8 @@ export function LogsView() {
 					<LiveButton
 						on={tail}
 						pending={playback.pending !== null}
-						disabled={!canTail || cursor !== "" || backend.impossible}
-						title={
-							canTail ? (tail ? "Pause live tail" : "Stream new logs as they arrive") : "Return to latest to go live"
-						}
+						disabled={(canTail && cursor !== "") || backend.impossible}
+						title={tail ? "Pause live tail" : "Stream new logs as they arrive"}
 						onToggle={handleToggleTail}
 					/>
 				</>

@@ -765,6 +765,22 @@ def live_focus(page):
     page.keyboard.press("Enter")
     expect(live).to_have_attribute("aria-pressed", "false")
 
+    now_ms = int(datetime.now(UTC).timestamp() * 1000)
+    page.goto(
+        state["ui_url"]
+        + base
+        + f"/observability?env=production&view=logs&from={now_ms - 7_200_000}&to={now_ms - 3_600_000}"
+    )
+    expect(live).to_be_enabled()
+    expect(live).to_have_attribute("aria-pressed", "false")
+    live.click()
+    wait_for_query(
+        page,
+        lambda query: "from" not in query and "to" not in query,
+    )
+    expect(live).to_have_attribute("aria-pressed", "true")
+    expect(live).to_have_text("Pause")
+
 
 def log_paging(page):
     now = datetime.now(UTC)
