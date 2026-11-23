@@ -1385,10 +1385,28 @@ def dashboard(page):
                 )
                 gaps = modes.evaluate("""group => {
                     const box = group.getBoundingClientRect();
+                    const pad = parseFloat(getComputedStyle(group).paddingLeft) + group.clientTop;
                     const thumb = group.querySelector('.mt-thumb').getBoundingClientRect();
-                    return [thumb.top - box.top, box.bottom - thumb.bottom];
+                    const item = group.querySelector('[data-checked]');
+                    const cell = item.getBoundingClientRect();
+                    const icon = item.querySelector('svg').getBoundingClientRect();
+                    return {
+                        pad,
+                        top: thumb.top - box.top,
+                        bottom: box.bottom - thumb.bottom,
+                        left: thumb.left - box.left,
+                        right: box.right - thumb.right,
+                        cellLeft: cell.left - box.left,
+                        iconOffset: (icon.left + icon.width / 2) - (thumb.left + thumb.width / 2),
+                    };
                 }""")
-                assert abs(gaps[0] - gaps[1]) <= 1, (color, root_font, gaps)
+                where = (color, root_font, gaps)
+                assert abs(gaps["top"] - gaps["pad"]) <= 1, where
+                assert abs(gaps["bottom"] - gaps["pad"]) <= 1, where
+                assert abs(gaps["left"] - gaps["cellLeft"]) <= 1, where
+                assert gaps["left"] >= gaps["pad"] - 1, where
+                assert gaps["right"] >= gaps["pad"] - 1, where
+                assert abs(gaps["iconOffset"]) <= 1, where
             page.evaluate("document.documentElement.style.fontSize = ''")
             modes.get_by_role("radio", name="Dark", exact=True).click()
             page.keyboard.press("Escape")
