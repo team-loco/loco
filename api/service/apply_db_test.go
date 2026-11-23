@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	testLocoAppDomain = "loco.test"
+	applyAppDomain    = "loco.test"
 	applyWorker       = "worker"
 	applyWorkerDomain = "worker.loco.test"
 	applyFileWorker   = `  worker:
@@ -96,7 +96,7 @@ func applyFile(
 
 func (f *deployFixture) prepareApply(t *testing.T) {
 	t.Helper()
-	f.serveDomains(t, testLocoAppDomain)
+	f.serveDomains(t, applyAppDomain)
 }
 
 func (f *deployFixture) applyScopes(t *testing.T) []genDb.EntityScope {

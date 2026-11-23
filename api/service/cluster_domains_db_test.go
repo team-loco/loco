@@ -125,7 +125,7 @@ func TestRegisterRejectsAnInvalidDomain(t *testing.T) {
 func TestPlanRejectsADomainOneRegionsClusterDoesNotServe(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.serveDomains(t, testLocoAppDomain)
+	f.serveDomains(t, applyAppDomain)
 	f.addRegionCluster(t, otherAppDomain)
 
 	resp, err := plan(t, f, planFileHeader+domainsTwoRegionFile, f.workspaceReadScopes(t))

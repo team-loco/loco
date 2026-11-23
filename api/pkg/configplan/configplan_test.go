@@ -510,7 +510,7 @@ func TestDomainNoClusterServesIsACustomDomain(t *testing.T) {
 	onlyError(t, compute(t, in), appdomain.ErrCustomDomain)
 }
 
-func TestDomainMoreThanOneLabelUnderAAppDomainIsAnError(t *testing.T) {
+func TestDomainMoreThanOneLabelUnderAnAppDomainIsAnError(t *testing.T) {
 	service := fileService()
 	service.Domains = []string{"api.stage.example.com"}
 	in := input(map[string]locofile.Service{webService: service})

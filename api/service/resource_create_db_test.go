@@ -18,7 +18,7 @@ func TestCreateResourceWithoutADomain(t *testing.T) {
 	testCreateResourceDomain(t, false, false)
 }
 
-func TestCreateResourceWithAAppDomain(t *testing.T) {
+func TestCreateResourceWithAnAppDomain(t *testing.T) {
 	t.Parallel()
 	testCreateResourceDomain(t, true, false)
 }
