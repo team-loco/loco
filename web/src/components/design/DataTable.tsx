@@ -72,6 +72,8 @@ export interface DataColumnMeta {
 	primary?: boolean;
 	/** Keeps the column at the right edge while the table scrolls sideways, end-aligned and as wide as its content; the first column always stays at the left. */
 	pinEnd?: boolean;
+	/** Puts the resize handle on the column's left edge, so dragging left widens it: for a last column that grows leftward. */
+	growsLeft?: boolean;
 	/** Hides the column below 768px. */
 	hideOnMobile?: boolean;
 	/** Names the column when its header is not plain text. */
@@ -416,6 +418,7 @@ function DataTableHead<T extends RowData>({
 						}));
 					}}
 					onDrag={onPreview}
+					atStart={column.columnDef.meta?.growsLeft === true}
 				/>
 			)}
 		</TableHead>
@@ -572,7 +575,7 @@ export function DataTable<T extends RowData>({
 									{opensGroup && (
 										<TableRow role="row" data-group="" className={cn(ROW, "border-b-0 hover:bg-transparent")}>
 											<TableCell role="cell" className="col-span-full pt-4 pb-1.5 text-[12px] text-fg3">
-												<span className="sticky left-5">{group}</span>
+												<span className={band ? undefined : "sticky left-5"}>{group}</span>
 											</TableCell>
 										</TableRow>
 									)}

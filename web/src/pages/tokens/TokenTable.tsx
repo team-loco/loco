@@ -210,6 +210,7 @@ export function TokenTable({
 		<DataTable
 			table={table}
 			label="Tokens"
+			band
 			loading={isLoading}
 			empty={empty}
 			rowClassName={(row) => tokenStatus(row.original, now) === "expired" && "opacity-65"}
