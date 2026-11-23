@@ -350,6 +350,8 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     name.fill("Billing alerts")
     creation.get_by_role("button", name="Create webhook", exact=True).click()
     signing = page.get_by_role("dialog", name="Signing secret", exact=True)
+    page.mouse.click(5, 5)
+    expect(signing).to_be_visible()
     expect(signing.get_by_role("button", name="Close", exact=True)).to_have_count(0)
     page.mouse.click(5, 5)
     expect(signing).to_be_visible()
