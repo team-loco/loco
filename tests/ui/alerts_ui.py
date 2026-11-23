@@ -70,13 +70,14 @@ with session(out) as browser:
     )
     expect(card.get_by_text("Degraded", exact=True)).to_be_visible()
     expect(card.get_by_text("started 3h ago", exact=True)).to_be_visible()
+    expect(card.get_by_text(REGION, exact=True)).to_be_visible()
     expect(
         card.get_by_role("link", name="Open alerts-ui", exact=True)
-    ).to_have_attribute("data-variant", "default")
+    ).to_have_attribute("data-variant", "outline")
     expect(card.get_by_role("link", name="Logs", exact=True)).to_have_attribute(
         "data-variant", "outline"
     )
-    close = drawer.get_by_role("button", name="Close activity", exact=True)
+    close = drawer.get_by_role("button", name="Close workspace activity", exact=True)
     close.hover()
     tooltip = page.locator("[data-slot=tooltip-content]")
     expect(tooltip).to_contain_text("Close")

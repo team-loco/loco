@@ -5,6 +5,7 @@ import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceS
 import { Link } from "react-router";
 
 import { EmptyState } from "@/components/design/EmptyState";
+import { NavArrow } from "@/components/design/NavArrow";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Page, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -95,8 +96,9 @@ export function Dashboard() {
 				<Section>
 					<EmptyState title="No environments yet">
 						Create one in{" "}
-						<Link to={settingsPath(orgId, workspaceId, "workspace")} className="text-foreground underline">
+						<Link to={settingsPath(orgId, workspaceId, "workspace")} className="group/nav text-foreground">
 							workspace settings
+							<NavArrow className="ml-1 inline-block" />
 						</Link>{" "}
 						to start deploying.
 					</EmptyState>
@@ -112,9 +114,9 @@ export function Dashboard() {
 				<DashboardSkeleton />
 			) : envTotal === 0 && drafts.length === 0 ? (
 				<EmptyWorkspace
-					envName={active.slug}
+					envName={active.name}
 					newHref={newResourcePath(orgId, workspaceId, { env: active.slug })}
-					otherEnvName={otherEnv?.slug ?? null}
+					otherEnvName={otherEnv?.name ?? null}
 					onSwitchEnv={() => {
 						if (otherEnv !== undefined) setActive(otherEnv);
 					}}
@@ -145,7 +147,8 @@ export function Dashboard() {
 						orgId={orgId}
 						workspaceId={workspaceId}
 						environmentId={active.id}
-						envName={active.slug}
+						envSlug={active.slug}
+						envName={active.name}
 						nowMs={nowMs}
 					/>
 				</>

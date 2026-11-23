@@ -1,8 +1,13 @@
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Event } from "@gen/loco/event/v1/event_pb";
 
-import { deploymentActor, deploymentImage, deploymentProblem, isInFlight, shortSha } from "@/lib/deployment-utils";
-import { imageTag } from "@/lib/image";
+import {
+	deploymentActor,
+	deploymentHeadline,
+	deploymentProblem,
+	deploymentRef,
+	isInFlight,
+} from "@/lib/deployment-utils";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { maybeTsMs } from "@/lib/time";
 import { PROBLEM_REASONS } from "@/pages/resource/deployment-progress";
@@ -13,12 +18,6 @@ export interface DeployToast {
 	tone: "deploying" | "warning" | "failed" | "live";
 	title: string;
 	description: string;
-}
-
-/** What the deployment runs: its commit, or its image tag. */
-function deployRef(d: Deployment): string {
-	const sha = d.commit?.sha ?? "";
-	return sha === "" ? imageTag(deploymentImage(d)) : shortSha(sha);
 }
 
 type Shown = Pick<DeployToast, "tone" | "title" | "description">;
@@ -34,7 +33,7 @@ function standing(d: Deployment, name: string): { state: string; toast?: Shown }
 					toast: {
 						tone: "deploying",
 						title: `${name} is deploying`,
-						description: `${deploymentActor(d)}, ${deployRef(d)}`,
+						description: `${deploymentActor(d)}, ${deploymentHeadline(d)}`,
 					},
 				}
 			: {
@@ -45,7 +44,7 @@ function standing(d: Deployment, name: string): { state: string; toast?: Shown }
 		return { state: "failed", toast: { tone: "failed", title: `${name} deploy failed`, description } };
 	if (d.status !== DeploymentStatus.RUNNING && d.status !== DeploymentStatus.DEGRADED) return { state: "done" };
 	// Problems on a live deployment toast from their resource.degraded event, see degradedToast.
-	return { state: "live", toast: { tone: "live", title: `${name} is live on ${deployRef(d)}`, description: "" } };
+	return { state: "live", toast: { tone: "live", title: `${name} is live on ${deploymentRef(d)}`, description: "" } };
 }
 
 /** The warning toast for a resource.degraded event, such as "api: out of memory"; null for other events or unknown resources. */

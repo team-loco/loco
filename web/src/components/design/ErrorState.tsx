@@ -19,6 +19,7 @@ import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useAuth } from "@/auth/AuthProvider";
 import { BASE_URL } from "@/auth/connect-transport";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useCopy } from "@/hooks/useCopy";
@@ -175,6 +176,14 @@ function Internal({
 }) {
 	const timePref = useTimePreferences();
 	const [copied, copy] = useCopy(1400);
+	const { activeOrgId, activeWorkspaceId, orgs } = useOrgWorkspace();
+	const { workspace } = useWorkspace(activeOrgId, activeWorkspaceId);
+	const { active } = useEnvironments();
+	const scope = Object.entries({
+		Org: orgs.find((o) => o.id === activeOrgId)?.name,
+		Workspace: workspace?.name,
+		Env: active?.name,
+	}).flatMap(([label, name]) => (name === undefined ? [] : [`${label}: ${name}`]));
 	const id = requestId(error);
 	const at = firstShown(error);
 	const code = codeName(error);
@@ -183,6 +192,7 @@ function Internal({
 		`Call: ${rpc}`,
 		`Code: ${code}`,
 		`Time: ${at.toISOString()}`,
+		...(scope.length === 0 ? [] : [scope.join("  ")]),
 		`Page: ${window.location.href}`,
 	].join("\n");
 	return (

@@ -273,7 +273,7 @@ def shell_navigation(page):
     events = drawer.get_by_role("link", name="All events", exact=True)
     expect(events).to_have_attribute("href", re.compile(r"range=24h"))
     expect(events).to_be_visible()
-    drawer.get_by_role("button", name="Close activity", exact=True).click()
+    drawer.get_by_role("button", name="Close workspace activity", exact=True).click()
     expect(drawer).not_to_be_visible()
     expect(activity).to_be_focused()
     sidebar = page.locator('[data-slot="sidebar-content"]')

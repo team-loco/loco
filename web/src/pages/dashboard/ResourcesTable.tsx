@@ -175,15 +175,7 @@ function NameCell({ item }: { item: DashboardItem }) {
 	const draft = isDraftItem(item);
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
-			<CellText
-				text={itemName(item)}
-				render={<Link to={hrefFor(item)} />}
-				className={cn(
-					NAME_CLASS,
-					"underline-offset-3 group-hover/row:underline",
-					draft && "underline decoration-fg4 decoration-dashed",
-				)}
-			/>
+			<CellText text={itemName(item)} render={<Link to={hrefFor(item)} />} className={NAME_CLASS} />
 			<CellText text={draft ? DRAFT_NOTE : (item.resource.description ?? "")} className="text-[12.5px] text-fg3" />
 		</div>
 	);
@@ -651,7 +643,7 @@ export function ResourcesTable({
 	const query = filter.query.trim();
 	const empty = (
 		<p className="m-0 py-7 text-center text-[13px] text-fg3">
-			{query === "" ? "No resources with this status." : `Nothing matches “${query}”.`}{" "}
+			{query === "" ? "No resources match these filters." : `Nothing matches “${query}”.`}{" "}
 			<Button variant="plain-link" onClick={clearFilters}>
 				Clear filters
 			</Button>

@@ -6,7 +6,6 @@ import {
 } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import {
 	DeploymentStatus,
-	DeploymentTrigger,
 	type Activity,
 	type Deployment,
 	type FinishedRegion,
@@ -30,6 +29,7 @@ import { useNow } from "@/hooks/useNow";
 import { cancelable, canceledNote, placementReadyLabel, rolloutReadyLabel } from "@/lib/activity-deploys";
 import {
 	deploymentActor,
+	deploymentHeadline,
 	deploymentProblem,
 	getServiceSpec,
 	isInFlight,
@@ -164,14 +164,7 @@ function ProgressPanel({
 	const commit = deployment.commit?.sha ?? build?.gitCommit;
 	const buildHref = buildId === "" ? undefined : buildLogsHref(buildId);
 	const ref = commit ? shortSha(commit) : depTag(deployment);
-	const headline =
-		deployment.trigger === DeploymentTrigger.ROLLBACK
-			? `Rollback to ${ref}`
-			: deployment.trigger === DeploymentTrigger.REDEPLOY
-				? `Redeploy of ${ref}`
-				: deployment.trigger === DeploymentTrigger.SCALE
-					? "Settings change"
-					: `Deploy ${ref}`;
+	const headline = deploymentHeadline(deployment, ref);
 	const servingCount =
 		failed || (live && problem !== undefined)
 			? servingDeployments(region.status?.replicas ?? []).find((d) => d.id !== deployment.id)

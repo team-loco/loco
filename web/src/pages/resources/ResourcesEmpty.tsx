@@ -29,7 +29,7 @@ function ResourcesArt({ domain, newHref }: { domain: string | undefined; newHref
 				<ShieldCheckIcon />
 				<span className="font-mono">{domain === undefined ? "Gateway" : `*.${domain}`}</span>
 			</Node>
-			<span aria-hidden className="w-9 animate-pulse border-t border-dashed border-fg3" />
+			<span aria-hidden className="w-9 border-t border-dashed border-fg3" />
 			<Link
 				to={newHref}
 				aria-label="New resource"

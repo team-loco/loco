@@ -99,7 +99,7 @@ test("a deploy toasts when it starts, fails and retries, and goes live, once per
 			deployment(DeploymentStatus.SUPERSEDED),
 		]),
 	).toEqual([
-		["deploying: api is deploying (Ada, 3e8a51d)"],
+		["deploying: api is deploying (Ada, Deploy 3e8a51d)"],
 		[],
 		["warning: api deploy is failing (Pull failed.)"],
 		["live: api is live on 3e8a51d ()"],

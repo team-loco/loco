@@ -129,12 +129,14 @@ export function RecentDeployments({
 	orgId,
 	workspaceId,
 	environmentId,
+	envSlug,
 	envName,
 	nowMs,
 }: {
 	orgId: string;
 	workspaceId: string;
 	environmentId: string;
+	envSlug: string;
 	envName: string;
 	nowMs: number;
 }) {
@@ -159,7 +161,7 @@ export function RecentDeployments({
 	const counts = deploymentCounts(bucket?.statusCounts ?? []);
 	const rows = (listed.data?.deployments ?? []).map((deployment) => ({ deployment }));
 	const error = listed.error ?? counted.error;
-	const hrefOf = (row: DeploymentRow) => resourcePath(orgId, workspaceId, row.deployment.resourceId, { env: envName });
+	const hrefOf = (row: DeploymentRow) => resourcePath(orgId, workspaceId, row.deployment.resourceId, { env: envSlug });
 	const table = useDataTable("dashboard-deployments", {
 		columns: deploymentColumns(hrefOf, nowMs),
 		data: rows,
@@ -196,7 +198,7 @@ export function RecentDeployments({
 			variant="outline"
 			size="sm"
 			nativeButton={false}
-			render={<Link to={observabilityPath(orgId, workspaceId, "events", { env: envName, range: DAY_MS })} />}
+			render={<Link to={observabilityPath(orgId, workspaceId, "events", { env: envSlug, range: DAY_MS })} />}
 		>
 			View all
 			<ArrowRightIcon />
