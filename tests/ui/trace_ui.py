@@ -459,8 +459,8 @@ with session(out) as browser:
     page.keyboard.press("ArrowUp")
     expect(page).to_have_url(re.compile("trace=" + trace))
     before = drawer.bounding_box()["width"]
-    handle = drawer.get_by_role("separator", name="Resize drawer")
-    box = handle.bounding_box()
+    grip = drawer.get_by_role("separator", name="Resize drawer")
+    box = grip.bounding_box()
     x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
     page.mouse.move(x, y)
     page.mouse.down()
@@ -468,7 +468,7 @@ with session(out) as browser:
     page.mouse.up()
     narrow = drawer.bounding_box()["width"]
     assert narrow < before - 150, (before, narrow)
-    handle.dispatch_event("dblclick")
+    grip.dispatch_event("dblclick")
     page.wait_for_function(
         "([el, w]) => el.getBoundingClientRect().width > w",
         arg=[drawer.element_handle(), narrow + 150],
