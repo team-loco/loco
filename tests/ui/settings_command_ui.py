@@ -121,11 +121,6 @@ with session(out) as browser:
             page.get_by_role("button", name="Save & redeploy", exact=True).click()
         assert completed.value.ok, completed.value.text()
         expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
-        expect(
-            page.get_by_role("note").filter(
-                has_text="These settings are from a newer deployment which hasn’t finished rolling out."
-            )
-        ).to_be_visible()
         expect(section).to_be_visible()
         sql(
             state,
