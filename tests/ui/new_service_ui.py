@@ -620,6 +620,9 @@ with session(out) as browser:
     ).to_be_visible()
     page.get_by_role("menuitem", name="Edit draft", exact=True).click()
     expect(page).to_have_url(DRAFT_URL)
+    # Escape reaches the drawer only once the menu has gone and the drawer is open.
+    expect(page.get_by_role("menu")).to_have_count(0)
+    expect(page.get_by_role("dialog", name=name, exact=True)).to_be_visible()
     page.keyboard.press("Escape")
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
     listed = len(
