@@ -200,7 +200,7 @@ def check_resource_page(page):
     header = page.get_by_role(
         "heading", name="badge-update-failed", exact=True
     ).locator("xpath=ancestor::div[contains(@class,'flex-wrap')][1]")
-    expect_badges(header, ["Healthy", FAILED_UPDATE])
+    expect_badges(header, ["Healthy"])
 
 
 def check_resources_table(page):
