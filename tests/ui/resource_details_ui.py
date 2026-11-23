@@ -477,7 +477,7 @@ with session(out) as browser:
         status=503, json={"code": "unavailable", "message": "Try again"}
     )
     expect(page.get_by_text("Try again.", exact=True)).to_be_visible()
-    expect(dialog.get_by_role("textbox")).to_have_value(name)
+    expect(dialog.get_by_role("textbox")).to_have_value(display_name)
     expect(confirm).to_be_enabled()
     context.unroute(delete_rpc)
     confirm.click()
