@@ -41,7 +41,6 @@ export type ModalState =
 	| { kind: "spec"; deploymentId: string; compareId: string | null; shown: Deployment[] }
 	| { kind: "rollback"; target: Deployment; current: Deployment | undefined }
 	| { kind: "redeploy" }
-	| { kind: "restart" }
 	| { kind: "delete" };
 
 export interface Notice {

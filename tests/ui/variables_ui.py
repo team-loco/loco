@@ -281,9 +281,10 @@ with session(out) as browser:
     assert deployments[3]["spec"]["service"].get("env", {}) == {}, deployments[3]
 
     page.goto(base + "?env=production")
-    page.get_by_role("button", name="Redeploy", exact=True).click()
-    dialog = page.get_by_role("dialog", name=f"Redeploy {name}?")
-    dialog.get_by_role("button", name="Redeploy", exact=True).click()
+    page.get_by_role("button", name="More actions", exact=True).click()
+    page.get_by_role("menuitem", name="Restart", exact=True).click()
+    dialog = page.get_by_role("dialog", name=f"Restart {name}", exact=True)
+    dialog.get_by_role("button", name="Restart", exact=True).click()
     expect(dialog).to_have_count(0)
     expect(
         page.locator("[data-sonner-toast]").filter(has_text=f"Redeploying {name}")

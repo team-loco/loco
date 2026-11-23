@@ -8,9 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from harness import (
     call,
-    copied_text,
     evidence,
-    expect_rpc,
     load_state,
     open_page,
     repo,
@@ -214,22 +212,15 @@ with session(out) as browser:
     ).get_attribute("href")
     assert parse_qs(urlparse(metrics_href).query)["range"] == ["6h"], metrics_href
     page.get_by_role("button", name=re.compile(r"^Events")).click()
-    runtime_events = page.get_by_role("dialog", name="Events", exact=True)
-    expect(runtime_events.get_by_text("restarting", exact=True)).to_be_visible()
+    expect(page).to_have_url(re.compile(rf"[?&]activity={name}(&|$)"))
+    scoped = page.get_by_role("dialog", name=f"{name} activity", exact=True)
+    expect(scoped).to_be_visible()
     expect(
-        runtime_events.get_by_text("The service exited with code 1.", exact=True)
-    ).to_be_visible()
-    expect(runtime_events.get_by_text("Last 7 days", exact=True)).to_be_visible()
-    with expect_rpc(
-        page,
-        "ListEvents",
-        lambda body: body.get("query", "").endswith(" -@severity:normal"),
-    ):
-        runtime_events.get_by_role("button", name="Warnings", exact=True).click()
-    expect(
-        runtime_events.get_by_text("The service exited with code 1.", exact=True)
+        scoped.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
+    expect(scoped).to_have_count(0)
+    expect(page).not_to_have_url(re.compile(r"[?&]activity="))
     page.get_by_role("tab", name=re.compile(r"^Builds")).click()
     expect(
         page.get_by_text(f"No builds. {name} runs a public image.", exact=True)
@@ -289,71 +280,45 @@ with session(out) as browser:
     more = page.get_by_role("button", name="More actions", exact=True)
     expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
     more.click()
-    restart = page.get_by_role("menuitem", name="Restart all replicas", exact=True)
+    created = []
+
+    def create_deployment(route):
+        created.append(route.request.post_data_json)
+        route.fulfill(json={})
+
+    context.route(
+        "**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment
+    )
+    expect(page.get_by_role("button", name="Redeploy", exact=True)).to_have_count(0)
+    restart = page.get_by_role("menuitem", name="Restart", exact=True)
     expect(restart).to_be_enabled()
     restart.click()
-    confirm = page.get_by_role("alertdialog", name=f"Restart {name}?")
-    expect(confirm).to_contain_text(
-        f"every replica of {name} in the production environment"
-    )
+    confirm = page.get_by_role("dialog", name=f"Restart {name}", exact=True)
+    expect(confirm).to_contain_text("Replaces every replica in")
+    expect(confirm).to_contain_text("Picks up changed secrets.")
     confirm.get_by_role("button", name="Cancel", exact=True).click()
     expect(confirm).to_have_count(0)
-    assert (
-        sql(
-            state,
-            f"SELECT COUNT(*) FROM events WHERE type='resource.restarted' AND resource_id='{resource}';",
-        )
-        == "0"
-    )
+    assert created == [], created
     more.click()
     restart.click()
-    with expect_rpc(
-        page, "RestartResource", lambda body: body.get("resourceId") == resource
-    ) as restarted:
-        confirm.get_by_role("button", name="Restart all replicas", exact=True).click()
-    assert restarted.value.ok, restarted.value.text()
-    expect(page.get_by_text(f"Restarting {name}", exact=True)).to_be_visible()
-    assert (
-        sql(
-            state,
-            f"SELECT deployment_id FROM placements WHERE resource_id='{resource}';",
-        )
-        == deployment
-    )
-    assert (
-        sql(
-            state,
-            f"SELECT COUNT(*) FROM events WHERE type='resource.restarted' AND resource_id='{resource}' AND environment_id='{production}';",
-        )
-        == "1"
-    )
-    receipt = "01a1e000-1234-7000-8000-000000000123"
-    failed_restart = "**/loco.resource.v1.ResourceService/RestartResource"
+    confirm.get_by_role("button", name="Restart", exact=True).click()
+    expect(page.get_by_text(f"Redeploying {name}", exact=True)).to_be_visible()
+    assert len(created) == 1, created
+    assert created[0]["resourceId"] == resource, created
+    assert created[0]["trigger"] == "DEPLOYMENT_TRIGGER_REDEPLOY", created
+    assert created[0]["sourceDeploymentId"] == deployment, created
+    context.unroute("**/loco.deployment.v1.DeploymentService/CreateDeployment")
     context.route(
-        failed_restart,
+        "**/loco.deployment.v1.DeploymentService/CreateDeployment",
         lambda route: route.fulfill(
-            status=500,
-            headers={
-                "x-loco-request-id": receipt,
-                "access-control-expose-headers": "x-loco-request-id",
-            },
-            json={"code": "internal", "message": "internal error"},
+            status=500, json={"code": "internal", "message": "internal error"}
         ),
     )
     more.click()
-    page.get_by_role("menuitem", name="Restart all replicas", exact=True).click()
-    confirm.get_by_role("button", name="Restart all replicas", exact=True).click()
-    expect(page.get_by_text(f"Couldn’t restart {name}", exact=True)).to_be_visible()
-    page.mouse.move(0, 0)
-    copy_receipt = page.get_by_title("Copy request ID", exact=True)
-    expect(copy_receipt).to_contain_text(receipt)
-    copy_receipt.click()
-    assert copied_text(page) == receipt
-    # Toasts pause their timers while hovered.
-    page.mouse.move(0, 0)
-    page.clock.fast_forward(8000)
-    expect(copy_receipt).to_be_visible()
-    context.unroute(failed_restart)
+    restart.click()
+    confirm.get_by_role("button", name="Restart", exact=True).click()
+    expect(page.get_by_text(f"Redeploying {name} failed", exact=True)).to_be_visible()
+    context.unroute("**/loco.deployment.v1.DeploymentService/CreateDeployment")
     sql(
         state,
         f"UPDATE deployment_placements SET status='running' WHERE deployment_id='{deployment}'; UPDATE deployments SET status='running' WHERE id='{deployment}';",

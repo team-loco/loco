@@ -127,6 +127,7 @@ with session(out) as browser:
     page.get_by_role("button", name="Close sidebar").click()
     top_search = header.get_by_role("button", name="Search and run commands")
     expect(top_search).to_be_visible()
+    expect(top_search).to_contain_text("Search or jump to…")
     header.get_by_role("button", name="Open sidebar").click()
     expect(top_search).to_have_count(0)
     top_search = search_button

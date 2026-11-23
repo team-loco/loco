@@ -342,37 +342,15 @@ def check_scoped_user(browser):
 
 
 with session(out) as browser:
-    for user, scene, path, title in [
-        (
-            "owner",
-            "resource-owner",
-            base + "/resource/" + activity["resourceId"],
-            "Resource activity",
-        ),
-        ("member", "org-member", base + "/settings?scope=org", ""),
-        (
-            "workspace_admin",
-            "workspace",
-            base + "/settings?scope=workspace",
-            "Activity",
-        ),
-        (
-            "resource_reader",
-            "resource",
-            base + "/resource/" + activity["resourceId"],
-            "Resource activity",
-        ),
+    for user, scene, path in [
+        ("owner", "resource-owner", base + "/resource/" + activity["resourceId"]),
+        ("member", "org-member", base + "/settings?scope=org"),
+        ("workspace_admin", "workspace", base + "/settings?scope=workspace"),
     ]:
         context, page, errors = open_page(browser, user, state=state, viewport=VIEWPORT)
         recorded = []
-        mode = {
-            "fail_older": False,
-            "hold_initial": scene == "resource",
-            "fail_initial": False,
-        }
-        held = []
 
-        def route_request(route, *, mode=mode, held=held, recorded=recorded):
+        def route_request(route, *, recorded=recorded):
             url = urllib.parse.urlparse(route.request.url)
             url = url._replace(path=url.path.removeprefix("/api"))
             if url.path.startswith("/loco."):
@@ -383,30 +361,6 @@ with session(out) as browser:
                     return
                 assert method.startswith(("Get", "List", "WhoAmI", "Query")), method
                 body = route.request.post_data_json
-                is_activity = method == "ListEvents" and not body.get("query")
-                if is_activity and mode["hold_initial"]:
-                    held.append(route)
-                    return
-                if is_activity and (
-                    (mode["fail_older"] and body.get("pageToken"))
-                    or (mode["fail_initial"] and not body.get("pageToken"))
-                ):
-                    recorded.append(
-                        {
-                            "method": method,
-                            "body": body,
-                            "status": 503,
-                            "controlledFailure": True,
-                        }
-                    )
-                    route.fulfill(
-                        status=503,
-                        json={
-                            "code": "unavailable",
-                            "message": "Activity is temporarily unavailable",
-                        },
-                    )
-                    return
                 response = route.fetch()
                 recorded.append(
                     {"method": method, "body": body, "status": response.status}
@@ -433,24 +387,6 @@ with session(out) as browser:
         marker = "checkout" if scene.startswith("resource") else "Settings"
         page.get_by_text(marker, exact=True).first.wait_for()
         page.locator("[role=status][aria-busy]").wait_for(state="detached")
-        if mode["hold_initial"]:
-            panel = page.get_by_role("region", name=title, exact=True)
-            expect(panel.locator("[data-slot=skeleton]")).to_have_count(3)
-            expect(panel.get_by_role("listitem")).to_have_count(0)
-            assert len(held) == 1
-            mode["hold_initial"] = False
-            mode["fail_initial"] = True
-            held[0].fulfill(
-                status=503,
-                json={
-                    "code": "unavailable",
-                    "message": "Activity is temporarily unavailable",
-                },
-            )
-            panel.get_by_role("alert").wait_for()
-            expect(panel.get_by_role("listitem")).to_have_count(0)
-            mode["fail_initial"] = False
-            panel.get_by_role("button", name="Retry", exact=True).click()
         if user == "member":
             assert any(
                 request["method"] == "GetOrg" and request["status"] == 200
@@ -485,106 +421,11 @@ with session(out) as browser:
                 )
             ]
             assert not forbidden, forbidden
-        if user in ("member", "workspace_admin"):
-            assert not errors, errors
-            results.append(
-                {"user": user, "scene": scene, "requests": recorded, "errors": errors}
-            )
-            context.unroute_all(behavior="wait")
-            context.close()
-            continue
-        panel = page.get_by_role("region", name=title, exact=True)
-        expect(panel.get_by_role("listitem")).to_have_count(10)
-        expect(panel).to_contain_text("Olivia Owner restarted a resource")
-        expect(panel).not_to_contain_text("STAGING_ONLY")
-        reads = [
-            request["body"]
-            for request in recorded
-            if request["method"] == "ListEvents" and not request["body"].get("query")
-        ]
-        assert reads and all(request.get("environmentId") for request in reads), reads
-        # Only someone who can open the full audit log for the workspace gets the link to it.
-        expect(
-            panel.get_by_role("link", name="View all in audit log", exact=True)
-        ).to_have_count(1 if user == "owner" else 0)
-        if user == "resource_reader":
-            forbidden = [
-                request
-                for request in recorded
-                if request["method"] in ("GetOrg", "ListOrgMembers")
-                or (
-                    request["method"] == "ListOrgWorkspaces"
-                    and request["body"].get("orgId") == activity["orgId"]
-                )
-            ]
-            assert not forbidden, forbidden
-            assert (
-                "other-company"
-                not in page.locator("nav[aria-label=breadcrumb]").inner_text()
-            )
-            assert any(
-                request["method"] == "ListEnvironments" and request["status"] == 200
-                for request in recorded
-            )
-            assert not [
-                request
-                for request in recorded
-                if request["status"] >= 400 and not request.get("controlledFailure")
-            ], recorded
-        panel.evaluate(
-            '(element) => element.scrollIntoView({block: "start", behavior: "instant"})'
-        )
-        if scene == "resource":
-            loaded_rows = panel.get_by_role("listitem").all_text_contents()
-            mode["fail_older"] = True
-            panel.get_by_role("button", name="Show older", exact=True).click()
-            panel.get_by_role("alert").wait_for()
-            expect(panel.get_by_role("listitem")).to_have_text(loaded_rows)
-            cursor = [
-                request["body"]["pageToken"]
-                for request in recorded
-                if request.get("controlledFailure")
-            ][-1]
-            mode["fail_older"] = False
-            panel.get_by_role("button", name="Retry", exact=True).click()
-            expect(panel.get_by_role("listitem")).to_have_count(20)
-            assert panel.get_by_role("listitem").all_text_contents()[:10] == loaded_rows
-            retries = [
-                request
-                for request in recorded
-                if request["method"] == "ListEvents"
-                and request["status"] == 200
-                and request["body"].get("pageToken")
-            ]
-            assert retries[-1]["body"]["pageToken"] == cursor, retries[-1]
         if user == "owner":
-            panel.get_by_role("link", name="View all in audit log", exact=True).click()
-            page.wait_for_url(
-                "**/org/"
-                + activity["orgId"]
-                + "/audit?range=90d&ws="
-                + activity["workspaceId"]
-                + "&res="
-                + activity["resourceId"]
-                + "&env=*"
-            )
-            page.get_by_role("table", name="Audit events").locator(
-                "tbody tr[data-interactive]"
-            ).first.wait_for()
+            # The resource page has no activity section; the Activity drawer replaces it.
             expect(
-                page.get_by_role("button", name="checkout", exact=True)
-            ).to_be_visible()
-            reads = [
-                request["body"]
-                for request in recorded
-                if request["method"] == "ListEvents"
-                and request["body"].get("startTime")
-            ]
-            assert (
-                reads
-                and reads[0]["workspaceId"] == activity["workspaceId"]
-                and reads[0]["resourceId"] == activity["resourceId"]
-            ), reads
+                page.get_by_role("region", name="Resource activity", exact=True)
+            ).to_have_count(0)
             page.goto(origin + base + "/settings?scope=workspace")
             page.get_by_role("link", name="Activity in audit log", exact=True).click()
             page.wait_for_url(

@@ -667,20 +667,21 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 	);
 }
 
+/** The command field centred in the top bar while the sidebar is closed. */
 export function CommandMenu() {
 	const openPalette = useOpenPalette();
 
 	return (
-		<Button
-			variant="outline"
+		<button
+			type="button"
 			aria-label="Search and run commands"
 			aria-keyshortcuts="Meta+K Control+K"
 			onClick={openPalette}
-			className="px-2 text-fg3 hover:text-fg2 md:pr-2 md:pl-2.5"
+			className="absolute top-1/2 left-1/2 flex h-[30px] w-[min(520px,44vw)] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-[7px] border border-line bg-panel pr-1.5 pl-2.5 text-[13px] text-fg3 transition-colors hover:border-line2 hover:text-fg2 max-[760px]:hidden"
 		>
-			<SearchIcon aria-hidden />
-			<span className="hidden md:inline">Search</span>
-			<Kbd className="ml-3.5 hidden md:inline-flex">{SHORTCUT_LABEL}</Kbd>
-		</Button>
+			<SearchIcon aria-hidden className="size-3.5" />
+			<span className="min-w-0 flex-1 truncate text-left">Search or jump to…</span>
+			<Kbd className="bg-transparent text-[11px] text-fg3">{SHORTCUT_LABEL}</Kbd>
+		</button>
 	);
 }
