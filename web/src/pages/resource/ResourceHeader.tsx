@@ -26,14 +26,13 @@ import {
 } from "@/components/design/DropdownMenu";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/design/Command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
-import { PartialBadge } from "@/components/design/PartialBadge";
 import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
 import { useWidth } from "@/hooks/useWidth";
 
-import { depTag, isDeployed, type RegionView } from "./model";
+import { isDeployed, type RegionView } from "./model";
 
 interface SwitcherItem {
 	id: string;
@@ -147,7 +146,6 @@ export function ResourceHeader({
 						<Switcher items={switcher} currentId={resource.id} offset={titleWidth + 4} />
 					</div>
 					<ResourceStatusBadge status={environment?.status} />
-					{resource.partial !== undefined && <PartialBadge />}
 				</div>
 				{domain !== undefined && (
 					<a
@@ -197,7 +195,7 @@ export function ResourceHeader({
 							<MenuIcon>
 								<Undo2Icon />
 							</MenuIcon>
-							{rollbackTarget === undefined ? "Roll back" : `Roll back to ${depTag(rollbackTarget)}`}
+							Roll back
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							className={MENU_ITEM}

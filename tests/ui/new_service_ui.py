@@ -411,7 +411,7 @@ with session(out) as browser:
         [
             last_region.element_handle(),
             last_region.get_by_text("us-ca-1", exact=True).element_handle(),
-            last_region.locator("svg").element_handle(),
+            last_region.locator(".reg-cb").element_handle(),
         ],
     )
     for content, middle in zip(("name", "check mark"), middles[1:], strict=True):

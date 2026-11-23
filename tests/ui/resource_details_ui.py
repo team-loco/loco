@@ -256,7 +256,7 @@ with session(out) as browser:
     expect(page.get_by_text("No resources match.", exact=True)).to_be_visible()
     page.keyboard.press("Escape")
     more = page.get_by_role("button", name="More actions", exact=True)
-    expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
+    expect(page.get_by_text("Managed by loco.yaml")).to_have_count(0)
     more.click()
     created = []
 
@@ -365,7 +365,7 @@ with session(out) as browser:
     delete = page.get_by_role("button", name="Delete resource", exact=True)
     expect(delete).to_be_enabled()
     delete.click()
-    dialog = page.get_by_role("alertdialog", name=f"Delete {display_name}?", exact=True)
+    dialog = page.get_by_role("alertdialog", name=f"Delete {display_name}", exact=True)
     expect(
         dialog.get_by_text(f"Type {display_name} to confirm", exact=True)
     ).to_be_visible()

@@ -121,7 +121,10 @@ with session(out) as browser:
             page.get_by_role("button", name="Save & redeploy", exact=True).click()
         assert completed.value.ok, completed.value.text()
         expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+        # The new deployment shows on the overview, as the design's deploy card does.
+        page.get_by_role("button", name="Overview", exact=True).click()
         expect(page.get_by_role("region", name="Deploying", exact=True)).to_be_visible()
+        page.get_by_role("button", name="Resource settings", exact=True).click()
         expect(section).to_be_visible()
         sql(
             state,

@@ -199,7 +199,11 @@ with session(out) as browser:
 
     sql(state, f"UPDATE resources SET partial='app' WHERE id='{resource}';")
     page.reload()
-    expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
+    expect(
+        page.get_by_role("note").filter(
+            has_text="Managed by loco.yaml. Change settings"
+        )
+    ).to_be_visible()
     expect(west).to_be_disabled()
     sql(
         state,
