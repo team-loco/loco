@@ -21,7 +21,6 @@ import {
 	problemLogsHref,
 	progressDeployments,
 	replicaState,
-	regionLogsHref,
 	rolloutHeadline,
 	rolloutActivity,
 	rolloutSteps,
@@ -316,9 +315,4 @@ test("a headline says the action by kind and the outcome by state", () => {
 		when: "after 1m 4s",
 	});
 	expect(at(DeploymentStatus.CANCELED).title).toBe("Deploy canceled");
-});
-
-test("a region's logs link filters to the region", () => {
-	expect(regionLogsHref("/logs?range=1h", "east")).toBe("/logs?range=1h&q=%40region%3Aeast");
-	expect(regionLogsHref(undefined, "east")).toBeUndefined();
 });

@@ -538,6 +538,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
+						regionLogsHref={(region) => obsLink("logs", { key: "region", value: region })}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
 						onCompare={compareSpecs}
@@ -623,6 +624,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
+						regionLogsHref={(region) => obsLink("logs", { key: "region", value: region })}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
 						onCompare={compareSpecs}

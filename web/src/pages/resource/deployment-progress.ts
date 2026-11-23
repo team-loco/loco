@@ -270,15 +270,6 @@ export function rolloutHeadline(
 	}
 }
 
-/** The logs page filtered to one region's replicas. */
-export function regionLogsHref(logsHref: string | undefined, region: string): string | undefined {
-	if (logsHref === undefined) return undefined;
-	const [path, search] = logsHref.split("?");
-	const params = new URLSearchParams(search);
-	params.set("q", `@region:${region}`);
-	return `${path}?${params}`;
-}
-
 /** The state of a region's deploy step from the region's placement and the deployment's own deploy step. */
 export function laneState(placement: DeploymentStatus, deploy: StepState, failing: boolean): FlowState {
 	if (deploy === "pending") return "pending";

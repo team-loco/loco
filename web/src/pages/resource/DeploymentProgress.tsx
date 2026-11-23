@@ -44,7 +44,6 @@ import {
 	deploymentElapsedMs,
 	laneState,
 	progressDeployments,
-	regionLogsHref,
 	rolloutActivity,
 	rolloutHeadline,
 	rolloutSteps,
@@ -82,6 +81,7 @@ const HEADLINE_GLYPH: Record<"run" | "ok" | "warn" | "err" | "off", Glyph> = {
 function ProgressPanel({
 	members,
 	logsHref,
+	regionLogsHref,
 	buildLogsHref,
 	canWrite,
 	onCompare,
@@ -90,6 +90,8 @@ function ProgressPanel({
 	members: readonly [RolloutMember, ...RolloutMember[]];
 	deployTimeoutSeconds: number | undefined;
 	logsHref: string | undefined;
+	/** The logs of one region's replicas. */
+	regionLogsHref: (region: string) => string | undefined;
 	buildLogsHref: (buildId: string) => string | undefined;
 	canWrite: boolean;
 	/** Opens the spec of `to` compared with the spec of `from`. */
@@ -233,7 +235,7 @@ function ProgressPanel({
 	};
 	const openRegion = openStep?.startsWith("rg:") === true ? openStep.slice(3) : undefined;
 	const detailNote = openStep === "build" ? stepNote(buildStep) : stepNote(steps.find((step) => step.key === "deploy"));
-	const detailHref = openStep === "build" ? buildHref : regionLogsHref(logsHref, openRegion ?? "");
+	const detailHref = openStep === "build" ? buildHref : regionLogsHref(openRegion ?? "");
 	return (
 		<section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-4 rounded-card bg-panel px-5 py-[18px]">
 			<div className="flex flex-wrap items-start gap-3">
@@ -442,6 +444,7 @@ function FinishedRegions({
 export function DeploymentProgress({
 	regions,
 	logsHref,
+	regionLogsHref,
 	buildLogsHref,
 	canWrite,
 	onCompare,
@@ -451,6 +454,8 @@ export function DeploymentProgress({
 	/** The resource's rollout deadline. */
 	deployTimeoutSeconds: number | undefined;
 	logsHref: string | undefined;
+	/** The logs of one region's replicas. */
+	regionLogsHref: (region: string) => string | undefined;
 	buildLogsHref: (buildId: string) => string | undefined;
 	canWrite: boolean;
 	/** Opens the spec of `to` compared with the spec of `from`. */
@@ -475,6 +480,7 @@ export function DeploymentProgress({
 				key={first.deployment.id}
 				members={[first, ...rest]}
 				logsHref={logsHref}
+				regionLogsHref={regionLogsHref}
 				buildLogsHref={buildLogsHref}
 				canWrite={canWrite}
 				onCompare={onCompare}
