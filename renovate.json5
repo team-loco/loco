@@ -26,6 +26,7 @@
   pep723: {
     managerFilePatterns: ["/^\\.agents/skills/.+\\.py$/"],
   },
+  abandonmentThreshold: "6 months",
   osvVulnerabilityAlerts: true,
   vulnerabilityAlerts: {
     labels: ["dependencies", "security"],
