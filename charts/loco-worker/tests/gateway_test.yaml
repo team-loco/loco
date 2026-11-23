@@ -129,8 +129,12 @@ tests:
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
 
-  - it: gives Envoy Gateway's controller its Go memory limit from its container memory limit
+  - it: gives Envoy Gateway's controller a 150m CPU request and its Go memory limit from its container memory limit
     asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 150m
+        template: charts/gateway-helm/templates/envoy-gateway-deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: GOMEMLIMIT, valueFrom: {resourceFieldRef: {resource: limits.memory}}}
