@@ -900,6 +900,7 @@ with session(out) as browser:
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
     expect(drawer).to_have_count(0)
     panel = page.get_by_role("region", name="Deploying", exact=True)
+    panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     new_version = panel.get_by_role("region", name="New version", exact=True)
     expect(new_version.get_by_text("service-new-1", exact=True)).to_be_visible()
     expect(new_version.get_by_text("worker-east-1", exact=True)).to_be_visible()
@@ -1152,10 +1153,12 @@ with session(out) as browser:
     expect(drawer).to_have_count(0)
     panel = page.get_by_role("region", name="Deploying", exact=True)
     expect(panel).to_have_count(1)
-    expect(panel).to_contain_text("Rolling out to 2 regions")
-    chips = panel.get_by_role("group", name="Rollout regions", exact=True)
-    expect(chips.get_by_role("button", name="us-ca-1")).to_be_visible()
-    expect(chips.get_by_role("button", name="us-va-1")).to_be_visible()
+    lanes = panel.get_by_role("list", name="Regions", exact=True).get_by_role(
+        "listitem"
+    )
+    expect(lanes).to_have_count(2)
+    expect(lanes.nth(0)).to_contain_text("us-ca-1")
+    expect(lanes.nth(1)).to_contain_text("us-va-1")
     assert len(regional_requests) == 1, regional_requests
     assert sorted(regional_requests[0]["regions"]) == ["us-ca-1", "us-va-1"]
     assert sorted(regional_requests[0]["spec"]["service"]["regions"]) == [
