@@ -67,6 +67,262 @@
 	backdrop-filter: none;
 }
 
+/* The active nav icon moves once when its page is reached by navigation, never on first load. */
+[data-nav] svg {
+	overflow: visible;
+}
+[data-nav] svg > * {
+	transform-box: view-box;
+	transition:
+		transform 0.32s cubic-bezier(0.3, 0.7, 0.3, 1),
+		fill-opacity 0.25s ease;
+}
+[data-nav="Dashboard"] svg > :nth-child(1) {
+	fill: currentColor;
+	fill-opacity: 0;
+}
+[data-nav="Dashboard"][data-active] svg > :nth-child(1) {
+	fill-opacity: 1;
+}
+[data-nav="Resources"][data-active] svg > :nth-child(n + 9) {
+	transform: translateY(-2px);
+}
+[data-nav="Secrets"] svg > :nth-child(3) {
+	transform-origin: 7px 10px;
+}
+[data-nav="Secrets"][data-active] svg > :nth-child(3) {
+	transform: translateY(-2px) rotate(-16deg);
+}
+[data-nav="Settings"][data-active] svg > :nth-child(1) {
+	transform: translateX(-6px);
+}
+[data-nav="Settings"][data-active] svg > :nth-child(2) {
+	transform: translateX(6px);
+}
+[data-nav="Settings"][data-active] svg > :nth-child(3) {
+	transform: translateX(-10px);
+}
+[data-nav="Settings"][data-active] svg > :nth-child(4) {
+	transform: translateX(10px);
+}
+[data-nav="Team"][data-active] svg > :nth-child(n + 3) {
+	transform: translateX(1.5px);
+}
+[data-nav="Tokens"][data-active] svg > * {
+	transform-origin: 12px 12px;
+	transform: rotate(-20deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	[data-navigated] [data-nav="Dashboard"][data-active] svg > :nth-child(1) {
+		animation: navFill 0.3s ease both;
+	}
+	[data-navigated] [data-nav="Resources"][data-active] svg > :nth-child(n + 9) {
+		animation: navLift 0.34s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	[data-navigated] [data-nav="Logs"][data-active] svg > :nth-child(-n + 2) {
+		stroke-dasharray: 6;
+		animation: navDraw6 0.32s ease both;
+	}
+	[data-navigated] [data-nav="Logs"][data-active] svg > :nth-child(1) {
+		animation-delay: 0.12s;
+	}
+	[data-navigated] [data-nav="Metrics"][data-active] svg > :nth-child(2) {
+		stroke-dasharray: 18;
+		animation: navDraw18 0.45s ease both;
+	}
+	[data-navigated]
+		:is(
+			[data-nav="Traces"][data-active] svg > :nth-child(2),
+			[data-nav="Traces"][data-active] svg > :nth-child(4),
+			[data-nav="Traces"][data-active] svg > :nth-child(6)
+		) {
+		stroke-dasharray: 11;
+		animation: navDraw11 0.25s ease both;
+	}
+	[data-navigated] [data-nav="Traces"][data-active] svg > :nth-child(4) {
+		animation-delay: 0.12s;
+	}
+	[data-navigated] [data-nav="Traces"][data-active] svg > :nth-child(6) {
+		animation-delay: 0.24s;
+	}
+	[data-navigated] [data-nav="Events"][data-active] svg > :nth-child(1) {
+		transform-origin: 12px 3px;
+		animation: navBell 0.7s ease;
+	}
+	[data-navigated] [data-nav="Events"][data-active] svg > :nth-child(2) {
+		animation: navClap 0.7s ease;
+	}
+	[data-navigated] [data-nav="Secrets"][data-active] svg > :nth-child(3) {
+		animation: navLock 0.45s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	[data-navigated] [data-nav="Webhooks"][data-active] svg > * {
+		transform-origin: 12px 12px;
+		animation: navTurn 0.6s cubic-bezier(0.3, 0.7, 0.3, 1);
+	}
+	[data-navigated] [data-nav="Settings"][data-active] svg > * {
+		animation: navFrom 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+	[data-navigated] [data-nav="Team"][data-active] svg > :nth-child(n + 3) {
+		animation: navStep 0.3s ease both;
+	}
+	[data-navigated] [data-nav="Audit log"][data-active] svg > :nth-child(3) {
+		transform-origin: 12px 12px;
+		animation: navWind 0.7s cubic-bezier(0.3, 0.7, 0.3, 1);
+	}
+	[data-navigated] [data-nav="Audit log"][data-active] svg > :nth-child(-n + 2) {
+		transform-origin: 12px 12px;
+		animation: navRewind 0.7s cubic-bezier(0.3, 0.7, 0.3, 1);
+	}
+	[data-navigated] [data-nav="Tokens"][data-active] svg > * {
+		animation: navKey 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-nav] svg > * {
+		transition: none !important;
+		animation: none !important;
+	}
+}
+@keyframes navFill {
+	from {
+		fill-opacity: 0;
+	}
+	to {
+		fill-opacity: 1;
+	}
+}
+@keyframes navLift {
+	from {
+		transform: none;
+	}
+	to {
+		transform: translateY(-2px);
+	}
+}
+@keyframes navDraw6 {
+	from {
+		stroke-dashoffset: 6;
+	}
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+@keyframes navDraw18 {
+	from {
+		stroke-dashoffset: 18;
+	}
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+@keyframes navDraw11 {
+	from {
+		stroke-dashoffset: 11;
+	}
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+@keyframes navBell {
+	0%,
+	100% {
+		transform: none;
+	}
+	15% {
+		transform: rotate(14deg);
+	}
+	30% {
+		transform: rotate(-12deg);
+	}
+	45% {
+		transform: rotate(8deg);
+	}
+	60% {
+		transform: rotate(-5deg);
+	}
+	75% {
+		transform: rotate(2deg);
+	}
+}
+@keyframes navClap {
+	0%,
+	100% {
+		transform: none;
+	}
+	15% {
+		transform: translateX(-1.6px);
+	}
+	30% {
+		transform: translateX(1.6px);
+	}
+	45% {
+		transform: translateX(-1px);
+	}
+	60% {
+		transform: translateX(0.6px);
+	}
+}
+@keyframes navLock {
+	0% {
+		transform: none;
+	}
+	45% {
+		transform: translateY(-2px);
+	}
+	100% {
+		transform: translateY(-2px) rotate(-16deg);
+	}
+}
+@keyframes navTurn {
+	from {
+		transform: rotate(-120deg);
+	}
+	to {
+		transform: none;
+	}
+}
+@keyframes navFrom {
+	from {
+		transform: none;
+	}
+}
+@keyframes navStep {
+	from {
+		transform: none;
+	}
+	to {
+		transform: translateX(1.5px);
+	}
+}
+@keyframes navWind {
+	from {
+		transform: rotate(360deg);
+	}
+	to {
+		transform: none;
+	}
+}
+@keyframes navRewind {
+	0% {
+		transform: none;
+	}
+	40% {
+		transform: rotate(-30deg);
+	}
+	100% {
+		transform: none;
+	}
+}
+@keyframes navKey {
+	from {
+		transform: none;
+	}
+	to {
+		transform: rotate(-20deg);
+	}
+}
+
 @keyframes pulse-soft {
 	0%,
 	100% {

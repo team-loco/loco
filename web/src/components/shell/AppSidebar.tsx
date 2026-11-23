@@ -12,7 +12,7 @@ import {
 	ArrowUpRightIcon,
 	UserIcon,
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
@@ -86,6 +86,13 @@ export function AppSidebar() {
 	const openPalette = useOpenPalette();
 	const { isMobile, setOpenMobile } = useSidebar();
 	const { pathname } = useLocation();
+	// Active-icon motion plays for navigation, not for the page the app loaded on.
+	const [seenPath, setSeenPath] = useState(pathname);
+	const [navigated, setNavigated] = useState(false);
+	if (seenPath !== pathname) {
+		setSeenPath(pathname);
+		setNavigated(true);
+	}
 	// The mobile sheet closes on every navigation, however it started.
 	useEffect(() => {
 		setOpenMobile(false);
@@ -143,7 +150,7 @@ export function AppSidebar() {
 					<Kbd className="text-fg3 inset-ring-0">{SHORTCUT_LABEL}</Kbd>
 				</SidebarMenuButton>
 			</div>
-			<SidebarContent className="gap-0 px-3 pt-3 pb-3">
+			<SidebarContent className="gap-0 px-3 pt-3 pb-3" data-navigated={navigated ? "" : undefined}>
 				{sections.map((section) => (
 					<SidebarGroup key={section.label ?? "root"} className="p-0">
 						{section.label !== undefined && <SidebarGroupLabel>{section.label}</SidebarGroupLabel>}
@@ -160,6 +167,7 @@ export function AppSidebar() {
 									) : item.to !== undefined ? (
 										<SidebarMenuButton
 											isActive={item.active}
+											data-nav={item.name}
 											aria-current={item.active ? "page" : undefined}
 											render={<Link to={item.to} />}
 										>
