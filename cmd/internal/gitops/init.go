@@ -156,6 +156,27 @@ func renderYAML(data []byte, replacements *strings.Replacer) ([]byte, error) {
 	}
 }
 
+// operatorSolverValues are the example values files whose ACME solvers the operator chooses.
+var operatorSolverValues = map[string]bool{
+	"clusters/control-plane/values/loco-control-plane.yaml": true,
+	"clusters/worker-staging/values/loco-worker.yaml":       true,
+}
+
+// clearSolvers empties certManager.issuer.solvers in a values file.
+func clearSolvers(data []byte) ([]byte, error) {
+	var values map[string]any
+	if err := yaml.Unmarshal(data, &values); err != nil {
+		return nil, err
+	}
+	certManager, ok := values["certManager"].(map[string]any)
+	issuer, isMap := certManager["issuer"].(map[string]any)
+	if !ok || !isMap {
+		return nil, errors.New("example values have no certManager.issuer")
+	}
+	issuer["solvers"] = []any{}
+	return yaml.Marshal(values)
+}
+
 func copyExample(options InitOptions, repository, pin string, replacements *strings.Replacer) error {
 	return fs.WalkDir(example.Files, ".", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -185,6 +206,12 @@ func copyExample(options InitOptions, repository, pin string, replacements *stri
 				spec["ref"] = map[string]string{"digest": "sha256:" + pin}
 			}
 			data, err = yaml.Marshal(source)
+			if err != nil {
+				return err
+			}
+		}
+		if operatorSolverValues[path] {
+			data, err = clearSolvers(data)
 			if err != nil {
 				return err
 			}

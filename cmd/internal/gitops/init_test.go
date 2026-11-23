@@ -84,6 +84,28 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 			t.Fatal("scaffold omitted a reconciliation layer")
 		}
 	}
+	for _, values := range []string{
+		filepath.Join("control-plane", "values", "loco-control-plane.yaml"),
+		filepath.Join("worker-staging", "values", "loco-worker.yaml"),
+	} {
+		data, readErr := os.ReadFile(filepath.Join(options.Output, "clusters", values))
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		var parsed struct {
+			CertManager struct {
+				Issuer struct {
+					Solvers *[]any `json:"solvers"`
+				} `json:"issuer"`
+			} `json:"certManager"`
+		}
+		if readErr = yaml.Unmarshal(data, &parsed); readErr != nil {
+			t.Fatal(readErr)
+		}
+		if solvers := parsed.CertManager.Issuer.Solvers; solvers == nil || len(*solvers) != 0 {
+			t.Fatalf("%s scaffolds ACME solvers %v, want an empty list the operator fills", values, solvers)
+		}
+	}
 	cohort, err := os.ReadFile(filepath.Join(options.Output, "releases", "workers-staging.yaml"))
 	if err != nil {
 		t.Fatal(err)

@@ -263,6 +263,8 @@ func checkCombinedCharts(ctx context.Context, root, output string) error {
 		chart := "loco-" + role
 		args := chartArgs(root, chart, filepath.Join(output, "bases", role, "values", "values.yaml"),
 			filepath.Join(output, "clusters", "combined", "values", chart+".yaml"))
+		args = append(args, "--set-json",
+			`certManager.issuer.solvers=[{"dns01":{"webhook":{"groupName":"acme.test","solverName":"check"}}}]`)
 		rendered, err := command(ctx, root, nil, "helm", args...)
 		if err != nil {
 			return err

@@ -41,7 +41,7 @@ The repository has `releases/control-plane.yaml`, staging and production worker 
 
 ### Configure certificate solvers
 
-Both charts create a Let's Encrypt ACME ClusterIssuer by default and fail to render until `certManager.issuer.solvers` holds cert-manager's [solver list](https://cert-manager.io/docs/configuration/acme/#solvers). Loco assumes no DNS provider. The worker Certificate covers wildcard names, which ACME issues only through DNS-01, so configure a DNS-01 solver for your DNS provider. The generated values carry this Cloudflare example; replace it with your provider's solver:
+Both charts create a Let's Encrypt ACME ClusterIssuer by default and fail to render until `certManager.issuer.solvers` holds cert-manager's [solver list](https://cert-manager.io/docs/configuration/acme/#solvers). Loco assumes no DNS provider. The worker Certificate covers wildcard names, which ACME issues only through DNS-01, so configure a DNS-01 solver for your DNS provider. The generated values set `solvers: []`, and both charts refuse to render until you replace it with your provider's solver, as in this Cloudflare example:
 
 ```yaml
 certManager:
