@@ -119,10 +119,10 @@ with session(out) as browser:
         lambda route: environments.append(route),
         times=1,
     )
-    page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}")
 
     # Reproduce a lazy import that exceeds Playwright's default assertion timeout,
-    # with the workspace's environments arriving while it loads.
+    # with the workspace's environments arriving while it loads. The shell starts
+    # the download as soon as it mounts.
     def delayed_audit(route):
         response = route.fetch()
         page.wait_for_timeout(6000)
@@ -131,7 +131,13 @@ with session(out) as browser:
     audit_module = re.compile(r"/assets/Audit-[^/]+\.js$")
     page.route(audit_module, delayed_audit, times=1)
     with page.expect_request(audit_module):
-        page.get_by_role("link", name="Audit log", exact=True).click()
+        page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}")
+    page.get_by_role("link", name="Audit log", exact=True).click()
+    # The page's placeholder loads inside the shell; the sidebar stays on screen.
+    expect(page.locator('[data-slot="page-loader"]')).to_be_visible()
+    expect(page.get_by_role("link", name="Audit log", exact=True)).to_be_visible()
+    expect(page.locator('[data-slot="app-loader"]')).to_have_count(0)
+    page.screenshot(path=out / "page-loading.png")
     assert environments, "the workspace's environments loaded before the click"
     environments[0].continue_()
     page.wait_for_url("**" + audit_path)
