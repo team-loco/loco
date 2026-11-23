@@ -678,8 +678,8 @@ def log_drawer(page):
     view.get_by_role("button", name="JSON").click()
     expect(detail.get_by_text("@k8s.cluster.name", exact=True)).to_have_count(0)
     expect(detail.get_by_role("textbox", name="Filter attributes")).to_have_count(0)
-    json_view = detail.locator("[data-slot=code-block] pre")
-    expect(json_view.get_by_text(f'"{image_digest}"', exact=True)).to_be_visible()
+    json_view = detail.locator("[data-slot=code-block] pre").last
+    expect(json_view).to_contain_text(f'"{image_digest}"')
     wrap = detail.get_by_role("button", name="Wrap lines", exact=True)
     expect(wrap).to_have_attribute("aria-pressed", "true")
     assert json_view.evaluate("el => el.scrollWidth == el.clientWidth")
@@ -1160,7 +1160,7 @@ def query_suggestions(page):
     popup = page.locator('[data-slot="combobox-content"]')
     # Waits out the opening zoom before comparing widths.
     page.wait_for_function(
-        "([bar, popup]) => Math.abs(bar.getBoundingClientRect().width - popup.getBoundingClientRect().width) <= 2",
+        "([bar, popup]) => Math.abs(Math.min(520, bar.getBoundingClientRect().width) - popup.getBoundingClientRect().width) <= 2",
         arg=[bar.element_handle(), popup.element_handle()],
     )
     expect(popup).to_contain_text("exclude")

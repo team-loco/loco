@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from "react";
-import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, TextWrapIcon, XIcon } from "lucide-react";
 
 import { HistogramSlider } from "@/components/design/Slider";
 import { Button } from "@/components/design/Button";
@@ -143,6 +143,65 @@ export function CopyButton({
 		>
 			{copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
 		</Button>
+	);
+}
+
+/** A plain monospace block with a copy button in its corner and, when `onWrap` is set, a wrap button beside it. */
+export function PlainCode({
+	children,
+	copied,
+	copyLabel,
+	onCopy,
+	wrap = true,
+	onWrap,
+	className,
+}: {
+	children: ReactNode;
+	copied: boolean;
+	copyLabel: string;
+	onCopy: () => void;
+	wrap?: boolean;
+	onWrap?: ((wrap: boolean) => void) | undefined;
+	className?: string | undefined;
+}) {
+	return (
+		<div data-slot="code-block" className="relative rounded-lg bg-panel shadow-[inset_0_0_0_1px_var(--line)]">
+			{onWrap !== undefined && (
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					aria-label="Wrap lines"
+					title="Wrap lines"
+					aria-pressed={wrap}
+					onClick={() => {
+						onWrap(!wrap);
+					}}
+					className={cn("absolute top-1.5 right-[38px]", wrap ? "text-foreground" : "text-fg3")}
+				>
+					<TextWrapIcon className="size-3.5" />
+				</Button>
+			)}
+			<Button
+				variant="ghost"
+				size="icon-xs"
+				aria-label={copied ? "Copied" : copyLabel}
+				title={copyLabel}
+				onClick={onCopy}
+				className={cn("absolute top-1.5 right-1.5", copied ? "text-ok-fg" : "text-fg3")}
+			>
+				{copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
+			</Button>
+			<pre
+				className={cn(
+					"m-0 max-h-[320px] overflow-auto py-3 pl-3.5 font-mono text-[11.5px] leading-[1.55] text-foreground",
+					onWrap === undefined ? "pr-11" : "pr-[76px]",
+					wrap ? "break-words whitespace-pre-wrap" : "whitespace-pre",
+					className,
+				)}
+			>
+				{children}
+			</pre>
+		</div>
 	);
 }
 

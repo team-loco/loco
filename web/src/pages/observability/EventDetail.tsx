@@ -4,7 +4,6 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
-import { CodeBlock } from "@/components/design/CodeBlock";
 import { CopyId } from "@/components/design/CopyId";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { NavArrow } from "@/components/design/NavArrow";
@@ -23,6 +22,7 @@ import { agoLabel, formatFullTime } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
 import { useObs } from "./context";
+import { PlainCode } from "./shared";
 import { eventDataLabel, eventJson, eventValue, severityStyle, type EventItem } from "./events";
 import { quoteValue, withToken } from "./query";
 
@@ -65,7 +65,7 @@ function EventBody({ item, onPrev, onNext, onClose }: Omit<Props, "item" | "onKe
 	const admin = useMyScopes().workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.ADMIN);
 	const pref = useTimePreferences();
 	const now = useNow();
-	const [, copy] = useCopy();
+	const [copied, copy] = useCopy();
 	const raw = eventJson(item);
 	const envSlug = environments.find((e) => e.id === item.environmentId)?.slug ?? null;
 	const environment = envSlug ?? item.environmentId;
@@ -210,9 +210,15 @@ function EventBody({ item, onPrev, onNext, onClose }: Omit<Props, "item" | "onKe
 					)}
 				</div>
 				{item.message !== "" && (
-					<CodeBlock className="shrink-0" copyLabel="Copy message" lineNumbers={false} wrap>
+					<PlainCode
+						copied={copied === "msg"}
+						copyLabel="Copy message"
+						onCopy={() => {
+							copy("msg", item.message);
+						}}
+					>
 						{item.message}
-					</CodeBlock>
+					</PlainCode>
 				)}
 				<section aria-label="Attributes" className="flex min-w-0 flex-col gap-1">
 					<h3 className="m-0 text-[12.5px] font-normal text-fg3">Attributes</h3>
@@ -283,14 +289,17 @@ function EventBody({ item, onPrev, onNext, onClose }: Omit<Props, "item" | "onKe
 				</section>
 				<section aria-label="Raw event" className="flex min-w-0 flex-col gap-1">
 					<h3 className="m-0 text-[12.5px] font-normal text-fg3">Raw event</h3>
-					<CodeBlock
-						language="json"
-						lineNumbers={false}
-						className="max-h-[min(60vh,640px)] shrink-0"
+					<PlainCode
+						copied={copied === "raw"}
 						copyLabel="Copy raw event"
+						onCopy={() => {
+							copy("raw", raw);
+						}}
+						wrap={false}
+						className="max-h-[min(60vh,640px)] text-[12px]"
 					>
 						{raw}
-					</CodeBlock>
+					</PlainCode>
 				</section>
 			</SheetBody>
 		</>
