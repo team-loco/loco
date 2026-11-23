@@ -37,6 +37,7 @@ import {
 	type MouseEvent,
 	type ReactElement,
 	type ReactNode,
+	type RefObject,
 } from "react";
 
 import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
@@ -292,39 +293,44 @@ function pinOf<T extends RowData>(column: Column<Features, T>, index: number): "
 }
 
 interface ColumnDrag {
-	from: string;
+	/** The column being dragged; a ref, so a dragover right after the drag starts already sees it. */
+	fromRef: RefObject<string | null>;
+	/** The column the pointer is over. */
 	over: string | null;
+	setOver: (id: string | null) => void;
 }
 
 // Drag attributes for the header of column id; only a movable column drags or accepts a drop.
 function columnMoveProps(
 	id: string,
 	movable: boolean,
-	drag: ColumnDrag | null,
-	setDrag: (next: ColumnDrag | null) => void,
+	drag: ColumnDrag,
 	onMove: (from: string, to: string) => void,
 ): HTMLAttributes<HTMLElement> {
-	const target = movable && drag !== null && drag.over === id && drag.from !== id;
+	const target = movable && drag.over === id && drag.fromRef.current !== id;
 	return {
 		draggable: movable,
 		className: cn(movable && "cursor-grab", target && "rounded-md bg-panel2"),
 		onDragStart: (event) => {
 			event.dataTransfer.effectAllowed = "move";
 			event.dataTransfer.setData("text/plain", id);
-			setDrag({ from: id, over: null });
+			drag.fromRef.current = id;
 		},
 		onDragOver: (event) => {
-			if (drag === null || !movable) return;
+			if (drag.fromRef.current === null || !movable) return;
 			event.preventDefault();
-			if (drag.over !== id) setDrag({ ...drag, over: id });
+			if (drag.over !== id) drag.setOver(id);
 		},
 		onDrop: (event) => {
 			event.preventDefault();
-			if (drag !== null && movable && drag.from !== id) onMove(drag.from, id);
-			setDrag(null);
+			const from = drag.fromRef.current;
+			if (from !== null && movable && from !== id) onMove(from, id);
+			drag.fromRef.current = null;
+			drag.setOver(null);
 		},
 		onDragEnd: () => {
-			setDrag(null);
+			drag.fromRef.current = null;
+			drag.setOver(null);
 		},
 	};
 }
@@ -476,7 +482,8 @@ export function DataTable<T extends RowData>({
 	onColumnMove?: (from: string, to: string) => void;
 }) {
 	const columns = table.getVisibleLeafColumns();
-	const [drag, setDrag] = useState<ColumnDrag | null>(null);
+	const fromRef = useRef<string | null>(null);
+	const [over, setOver] = useState<string | null>(null);
 	const moveProps =
 		onColumnMove === undefined
 			? undefined
@@ -484,8 +491,7 @@ export function DataTable<T extends RowData>({
 					columnMoveProps(
 						id,
 						columns.find((c) => c.id === id)?.columnDef.meta?.movable === true,
-						drag,
-						setDrag,
+						{ fromRef, over, setOver },
 						onColumnMove,
 					);
 	const [preview, setPreview] = useState<{ id: string; width: number } | null>(null);
