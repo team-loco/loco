@@ -348,6 +348,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	};
 
 	const handleRollback = async (target: Deployment) => {
+		if (!canWrite) return;
 		const failures = await redeployFrom(
 			[{ deployment: target, regions: deploymentRegions(target) }],
 			DeploymentTrigger.ROLLBACK,
@@ -385,6 +386,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	};
 
 	const openRollback = (target: Deployment, current: Deployment | undefined) => {
+		if (!canWrite) return;
 		setModal({ kind: "rollback", target, current });
 	};
 	const openSpec = (dep: Deployment | undefined, shown: Deployment[] = []) => {
