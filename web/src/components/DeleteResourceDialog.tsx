@@ -24,7 +24,7 @@ export function DeleteResourceDialog({
 			onOpenChange={onOpenChange}
 			title={`Delete ${resource.name}?`}
 			text={`${running}Deleting it stops its compute right away and releases its domains in every environment. Its logs, metrics and traces may stay queryable for a while. This can't be undone.`}
-			target={resource.slug}
+			target={resource.name}
 			confirmLabel={confirmLabel}
 			pending={pending}
 			onConfirm={onConfirm}

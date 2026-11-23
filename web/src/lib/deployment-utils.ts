@@ -2,6 +2,7 @@ import {
 	DeploymentActorType,
 	DeploymentMethod,
 	DeploymentStatus,
+	DeploymentTrigger,
 	PlacementStatus,
 	type Deployment,
 	type DeploymentPlacement,
@@ -10,6 +11,8 @@ import {
 	type RegionDeploymentTarget,
 	type ServiceDeploymentSpec,
 } from "@gen/loco/deployment/v1/deployment_pb";
+
+import { imageTag } from "@/lib/image";
 
 export function getServiceSpec(deployment: Deployment): ServiceDeploymentSpec | undefined {
 	if (!deployment.spec?.spec) {
@@ -130,4 +133,25 @@ export function deploymentMethod(d: Deployment): string {
 
 export function shortSha(sha: string): string {
 	return sha.slice(0, 7);
+}
+
+/** What the deployment runs: its commit, or its image tag. */
+export function deploymentRef(d: Deployment): string {
+	const sha = d.commit?.sha ?? "";
+	return sha === "" ? imageTag(deploymentImage(d)) : shortSha(sha);
+}
+
+/** What the deployment does, such as "Deploy 3e8a51d" or "Rollback to v1.2". */
+export function deploymentHeadline(d: Deployment, ref = deploymentRef(d)): string {
+	switch (d.trigger) {
+		case DeploymentTrigger.ROLLBACK:
+			return `Rollback to ${ref}`;
+		case DeploymentTrigger.REDEPLOY:
+			return `Redeploy of ${ref}`;
+		case DeploymentTrigger.SCALE:
+			return "Settings change";
+		case DeploymentTrigger.DEPLOY:
+		case DeploymentTrigger.UNSPECIFIED:
+			return `Deploy ${ref}`;
+	}
 }

@@ -123,7 +123,7 @@ function NameCell({ row }: { row: ListRow }) {
 			<CellText
 				text={rowName(row)}
 				render={<Link to={rowPath(row, orgId, workspaceId, search)} />}
-				className="text-[14.5px] font-medium text-foreground underline-offset-3 group-hover/row:underline"
+				className="text-[14.5px] font-medium text-foreground"
 			/>
 			<CellText text={draft ? DRAFT_NOTE : (row.resource.description ?? "")} className="text-[12.5px] text-fg3" />
 		</div>
@@ -180,7 +180,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 			{address !== null && (
 				<DropdownMenuItem
 					onClick={() => {
-						copy("address", address, `Copied ${address}`);
+						copy("address", `https://${address}`, `Copied https://${address}`);
 					}}
 				>
 					<CopyIcon className="text-fg3" />

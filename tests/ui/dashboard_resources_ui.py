@@ -3,7 +3,16 @@ import json
 import re
 from pathlib import Path
 
-from harness import call, expect_rpc, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    copied_text,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -141,11 +150,23 @@ with session(out) as browser:
     card = page.get_by_role("region", name="Deployments", exact=True)
     failed = card.get_by_role("alert")
     expect(failed.get_by_role("heading")).to_have_text("Couldn’t load deployments")
+    # The copied details name the organization, workspace and environment the failure happened in.
+    failed.get_by_role("button", name="Copy details", exact=True).click()
+    scope = sql(
+        state,
+        f"SELECT 'Org: ' || o.name || '  Workspace: ' || w.name || '  Env: ' || e.name FROM environments e "
+        f"JOIN workspaces w ON w.id=e.workspace_id JOIN organizations o ON o.id=w.org_id WHERE e.id='{production}';",
+    )
+    assert scope in copied_text(page).splitlines(), scope
     deployments_failing = False
     failed.get_by_role("button", name="Retry", exact=True).click()
     expect(card.get_by_role("table", name="Deployments")).to_be_visible()
 
     page.goto(f"{base}?env=staging")
+    # The empty environment is named by its name; its slug stays in the URL.
+    expect(
+        page.get_by_text("Nothing is deployed to Staging.", exact=False)
+    ).to_be_visible()
     docs = page.get_by_role("link", name="Read the docs", exact=True)
     expect(docs).to_have_attribute("target", "_blank")
     assert not errors, errors

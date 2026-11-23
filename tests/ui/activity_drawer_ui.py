@@ -74,11 +74,13 @@ jsonb_build_object('environmentId','{environment}'),NOW());""",
     expect(drawer.get_by_text("Recovered in us-ca-1", exact=True)).to_be_visible()
     deployed = drawer.get_by_text("Deployed", exact=True)
     expect(deployed).to_have_count(6)
+    # A deploy card says what the deployment runs, not its commit message.
+    expect(drawer.get_by_text("Deploy fixture", exact=True).first).to_be_visible()
     drawer.get_by_role("button", name="Show 2 more", exact=True).click()
     expect(deployed).to_have_count(8)
     expect(drawer.get_by_role("button", name="Show 2 more")).to_have_count(0)
     assert drawer_reads
-    drawer.get_by_role("button", name="Close activity", exact=True).click()
+    drawer.get_by_role("button", name="Close workspace activity", exact=True).click()
     # A deploy that started before the page loaded and fails after it still toasts, until dismissed.
     sql(
         state,

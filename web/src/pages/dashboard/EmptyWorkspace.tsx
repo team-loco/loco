@@ -12,6 +12,7 @@ const TOP_STROKE = "color-mix(in oklch, var(--info) 70%, var(--bg))";
 const SIDE_FILL = "color-mix(in oklch, var(--panel2) 70%, var(--line2))";
 const ISO = (y: number) => `matrix(2 1 -2 1 60 ${y.toString()})`;
 const HATCH = [4, 6.5, 9, 11.5, 14, 16.5];
+const FLOOR = Array.from({ length: 13 }, (_, i) => i * 4 - 14);
 const PODS = [
 	[4, 4],
 	[10.5, 4],
@@ -38,6 +39,13 @@ function Tile({ y, stroke, top }: { y: number; stroke: string; top: string }) {
 				fill={top}
 				{...line}
 			/>
+			<path
+				d={`M20 ${(y + 26).toString()} L60 ${(y + 6).toString()} L100 ${(y + 26).toString()} M60 ${y.toString()} V${(y + 6).toString()}`}
+				fill="none"
+				strokeDasharray="2 2.5"
+				opacity={0.45}
+				{...line}
+			/>
 		</>
 	);
 }
@@ -45,7 +53,32 @@ function Tile({ y, stroke, top }: { y: number; stroke: string; top: string }) {
 function StackArt() {
 	const fine = { vectorEffect: "non-scaling-stroke" as const, strokeWidth: 1 };
 	return (
-		<svg viewBox="0 0 120 100" width={172} height={143} aria-hidden="true" className="block">
+		<svg viewBox="-26 0 176 122" width={200} height={139} aria-hidden="true" className="block overflow-visible">
+			<defs>
+				<radialGradient id="empty-stack-fade" cx="50%" cy="50%" r="50%">
+					<stop offset={0.35} stopColor="#fff" />
+					<stop offset={1} stopColor="#000" />
+				</radialGradient>
+				<mask id="empty-stack-floor" maskUnits="userSpaceOnUse" x={-16} y={-16} width={52} height={52}>
+					<rect x={-14} y={-14} width={48} height={48} fill="url(#empty-stack-fade)" />
+				</mask>
+			</defs>
+			<g transform={ISO(52)} mask="url(#empty-stack-floor)">
+				<g stroke="var(--fg4)" fill="none" opacity={0.6}>
+					{FLOOR.map((v) => (
+						<path key={v} d={`M${v.toString()} -14 V34 M-14 ${v.toString()} H34`} {...fine} />
+					))}
+				</g>
+				<rect
+					width={20}
+					height={20}
+					fill="var(--fg)"
+					fillOpacity={0.06}
+					stroke="var(--fg4)"
+					strokeDasharray="2 2.5"
+					{...fine}
+				/>
+			</g>
 			<Tile y={46} stroke={TILE_STROKE} top="var(--bg)" />
 			<g transform={ISO(46)} stroke={TILE_STROKE} opacity={0.6}>
 				{HATCH.map((x) => (
@@ -60,8 +93,9 @@ function StackArt() {
 			</g>
 			<Tile y={18} stroke={TOP_STROKE} top="color-mix(in oklch, var(--info) 10%, var(--bg))" />
 			<g transform={ISO(18)} fill="none" stroke="var(--info)">
-				<circle cx={10} cy={10} r={6} {...fine} />
+				<circle cx={10} cy={10} r={6} {...fine} strokeWidth={1.2} />
 				<path d="M4 10 H16 M5.2 6.8 H14.8 M5.2 13.2 H14.8" opacity={0.75} {...fine} />
+				<ellipse cx={10} cy={10} rx={2.7} ry={6} {...fine} />
 			</g>
 		</svg>
 	);

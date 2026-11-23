@@ -13,7 +13,8 @@ import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { ROLLOUT_STYLE, StatusBadge, resourceStatusStyle, type StatusStyle } from "@/components/design/StatusBadge";
-import { PlacementChips } from "@/components/design/PlacementChips";
+import { NavArrow } from "@/components/design/NavArrow";
+import { PlacementChips, RegionChip } from "@/components/design/PlacementChips";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { useAuth } from "@/auth/AuthProvider";
@@ -39,11 +40,11 @@ import {
 	type StepState,
 } from "@/lib/activity-deploys";
 import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
-import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { deploymentHeadline, deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { problemLogsHref } from "@/pages/resource/deployment-progress";
+import { PROBLEM_REASONS, problemLogsHref } from "@/pages/resource/deployment-progress";
 
 import { degradedToast, deployToasts, type DeployToast } from "./deploy-toasts";
 import { useDeployEvents } from "./useDeployEvents";
@@ -86,26 +87,20 @@ function ActivityCard({ children }: { children: ReactNode }) {
 function CardName({
 	name,
 	href,
-	region = "",
 	note,
 	onNavigate,
 }: {
 	name: string;
 	href: string;
-	region?: string;
 	note: string;
 	onNavigate: () => void;
 }) {
 	return (
 		<div className="flex min-w-0 items-baseline gap-2">
-			<Link
-				to={href}
-				onClick={onNavigate}
-				className="shrink-0 text-[15.5px] font-medium underline-offset-[3px] hover:underline"
-			>
+			<Link to={href} onClick={onNavigate} className="group/nav flex shrink-0 text-[15.5px] font-medium">
 				{name}
+				<NavArrow />
 			</Link>
-			{region !== "" && <span className="shrink-0 font-mono text-[12px] text-fg3">{region}</span>}
 			{note !== "" && <span className="min-w-0 truncate text-[13px] text-fg3">{note}</span>}
 		</div>
 	);
@@ -125,28 +120,26 @@ function CardActions({
 	resourceHref,
 	logsHref,
 	logsLabel = "Logs",
-	primary = false,
 	onNavigate,
 }: {
 	name: string;
 	resourceHref: string;
 	logsHref: string;
 	logsLabel?: string;
-	primary?: boolean;
 	onNavigate: () => void;
 }) {
 	return (
 		<div className="mt-0.5 flex gap-1.5">
 			{[
-				{ to: resourceHref, label: `Open ${name}`, solid: primary },
-				{ to: logsHref, label: logsLabel, icon: <ScrollTextIcon className="text-fg3" />, solid: false },
+				{ to: resourceHref, label: `Open ${name}` },
+				{ to: logsHref, label: logsLabel, icon: <ScrollTextIcon className="text-fg3" /> },
 			].map((action) => (
 				<Button
 					key={action.label}
-					variant={action.solid ? "default" : "outline"}
+					variant="outline"
 					nativeButton={false}
 					render={<Link to={action.to} onClick={onNavigate} />}
-					className={cn("h-7 px-2.5 text-[12.5px]", !action.solid && "bg-background")}
+					className="h-7 bg-background px-2.5 text-[12.5px]"
 				>
 					{action.icon}
 					{action.label}
@@ -180,19 +173,16 @@ function AlertCard({
 					<span className="font-mono text-[12px] text-fg3">started {agoLabel(alert.sinceMs, nowMs)}</span>
 				)}
 			</div>
-			<CardName
-				name={alert.name}
-				href={resourceHref}
-				region={alert.region}
-				note={alert.description}
-				onNavigate={onNavigate}
-			/>
+			<CardName name={alert.name} href={resourceHref} note={alert.description} onNavigate={onNavigate} />
+			<div className="flex">
+				<RegionChip>{alert.region}</RegionChip>
+			</div>
 			{alert.message !== "" && (
 				<p className="m-0 rounded-[6px] bg-background px-3 py-2.5 font-mono text-[12px] leading-[1.55] break-words text-foreground">
 					{alert.message}
 				</p>
 			)}
-			<CardActions name={alert.name} resourceHref={resourceHref} logsHref={logsHref} primary onNavigate={onNavigate} />
+			<CardActions name={alert.name} resourceHref={resourceHref} logsHref={logsHref} onNavigate={onNavigate} />
 		</ActivityCard>
 	);
 }
@@ -248,6 +238,7 @@ function DeployCard({
 	const nowMs = useNow(running ? 1000 : CLOCK_TICK_MS).getTime();
 	const phase = deployPhase(deployment);
 	const problem = deploymentProblem(deployment);
+	const reason = problem === undefined ? undefined : PROBLEM_REASONS[problem.reason];
 	const steps = deploySteps(deployment);
 	const created = maybeTsMs(deployment.createdAt) ?? nowMs;
 	const buildLogs =
@@ -264,7 +255,7 @@ function DeployCard({
 					{running ? clockLabel(nowMs - created) : finishedLabel(deployment, nowMs)}
 				</span>
 			</div>
-			<CardName name={name} href={resourceHref} note={deployment.commit?.message ?? ""} onNavigate={onNavigate} />
+			<CardName name={name} href={resourceHref} note={deploymentHeadline(deployment)} onNavigate={onNavigate} />
 			<PlacementChips placements={deployment.placements} />
 			{running ? (
 				<div className="flex items-center gap-2.5 text-[13px]">
@@ -290,9 +281,13 @@ function DeployCard({
 								: "text-warn",
 						)}
 					>
-						{problem.message}
+						{reason ?? problem.message}
 					</b>
-					{problem.detail !== "" && <span className="text-fg2">{problem.detail}</span>}
+					{reason !== undefined ? (
+						<span className="text-fg2">{problem.message}</span>
+					) : (
+						problem.detail !== "" && <span className="text-fg2">{problem.detail}</span>
+					)}
 				</div>
 			) : (
 				deployment.status !== DeploymentStatus.FAILED &&
@@ -463,7 +458,7 @@ export function AlertsDrawer() {
 									<Button
 										variant="ghost"
 										size="icon-sm"
-										aria-label="Close activity"
+										aria-label="Close workspace activity"
 										onClick={close}
 										className="absolute top-[18px] right-4"
 									/>
@@ -492,7 +487,7 @@ export function AlertsDrawer() {
 							))}
 							<HealthEventCards
 								workspaceId={activeWorkspaceId}
-								names={new Map([...byId].map(([id, r]) => [id, r.slug]))}
+								names={new Map([...byId].map(([id, r]) => [id, r.name]))}
 								sinceMs={sinceMs}
 								resourceHref={(id) => resourcePath(activeOrgId, activeWorkspaceId, id)}
 								nowMs={nowMs}

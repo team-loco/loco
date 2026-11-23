@@ -435,7 +435,9 @@ with session(out) as browser:
     expect(delete).to_be_enabled()
     delete.click()
     dialog = page.get_by_role("alertdialog", name=f"Delete {display_name}?", exact=True)
-    expect(dialog.get_by_text(f"Type {name} to confirm", exact=True)).to_be_visible()
+    expect(
+        dialog.get_by_text(f"Type {display_name} to confirm", exact=True)
+    ).to_be_visible()
     expect(
         dialog.get_by_text("Deleting here causes drift", exact=False)
     ).to_be_visible()
@@ -449,18 +451,18 @@ with session(out) as browser:
     expect(
         dialog.get_by_role("button", name=f"Delete {display_name}", exact=True)
     ).to_be_disabled()
-    dialog.get_by_role("textbox").fill(name.upper())
+    dialog.get_by_role("textbox").fill(display_name.upper())
     expect(
         dialog.get_by_role("button", name=f"Delete {display_name}", exact=True)
     ).to_be_disabled()
-    dialog.get_by_role("textbox").fill(f" {name} ")
+    dialog.get_by_role("textbox").fill(f" {display_name} ")
     expect(
         dialog.get_by_role("button", name=f"Delete {display_name}", exact=True)
     ).to_be_enabled()
     page.keyboard.press("Escape")
     expect(delete).to_be_focused()
     delete.click()
-    dialog.get_by_role("textbox").fill(name)
+    dialog.get_by_role("textbox").fill(display_name)
     held_delete = []
     delete_rpc = "**/loco.resource.v1.ResourceService/DeleteResource"
     context.route(delete_rpc, lambda route: held_delete.append(route))
@@ -475,7 +477,7 @@ with session(out) as browser:
         status=503, json={"code": "unavailable", "message": "Try again"}
     )
     expect(page.get_by_text("Try again.", exact=True)).to_be_visible()
-    expect(dialog.get_by_role("textbox")).to_have_value(name)
+    expect(dialog.get_by_role("textbox")).to_have_value(display_name)
     expect(confirm).to_be_enabled()
     context.unroute(delete_rpc)
     confirm.click()
