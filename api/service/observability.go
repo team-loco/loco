@@ -207,7 +207,7 @@ func (s *ObservabilityServer) ListTraces(
 	}
 	response, err := s.clickhouse.ListTraces(ctx, req, filter, pageSize)
 	if errors.Is(err, chClient.ErrInvalidTracePageToken) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("list traces: %w", err)

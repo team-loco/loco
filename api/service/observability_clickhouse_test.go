@@ -583,8 +583,9 @@ func TestListTracesRejectsAnInvalidPageToken(t *testing.T) {
 		EndTime:   now,
 		PageToken: "not a token",
 	})
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("ListTraces with an invalid page token: %v, want InvalidArgument", err)
+	connectErr, _ := errors.AsType[*connect.Error](err)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument || connectErr.Message() != publicInvalidPageToken {
+		t.Fatalf("ListTraces with an invalid page token: %v, want InvalidArgument %q", err, publicInvalidPageToken)
 	}
 }
 
