@@ -522,7 +522,7 @@ def resources_table(page):
 
 
 def show_all_columns(page, table):
-    button = table.get_by_role("button", name="Columns", exact=True)
+    button = table.get_by_role("button", name="Add a column", exact=True)
     created = page.get_by_role("menuitemcheckbox", name="Created")
     # Focus without scrolling and open with Enter, so the test itself never moves the table.
     button.evaluate("node => node.focus({ preventScroll: true })")
@@ -585,7 +585,7 @@ def resources(page):
     assert scroller.evaluate("node => node.scrollLeft") == 0
     assert scroller.evaluate("node => node.offsetHeight - node.clientHeight") > 0
     check_scroll_end(table)
-    columns = table.get_by_role("button", name="Columns", exact=True)
+    columns = table.get_by_role("button", name="Add a column", exact=True)
     row = table.get_by_role("row").filter(has_text="api").first
     actions = row.get_by_role("button", name="Actions for api", exact=True)
     on_top(columns)

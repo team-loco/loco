@@ -360,7 +360,7 @@ with session(out) as browser:
     expect(deployments.get_by_role("columnheader", name="Message")).to_have_count(0)
     expect(section.get_by_text("CLI", exact=True).first).to_be_visible()
     # The columns menu adds the columns the table hides until asked.
-    section.get_by_role("button", name="Columns", exact=True).click()
+    section.get_by_role("button", name="Add a column", exact=True).click()
     page.get_by_role("menuitemcheckbox", name="Message", exact=True).click()
     page.keyboard.press("Escape")
     expect(

@@ -1938,7 +1938,7 @@ def resources(page):
             name.press("Enter")
             expect(table.get_by_role("row").nth(1)).to_contain_text("controls-alpha")
             first_click_sorts_descending(table, "Size", "controls-zeta")
-            table.get_by_role("button", name="Columns", exact=True).click()
+            table.get_by_role("button", name="Add a column", exact=True).click()
             created = page.get_by_role("menuitemcheckbox", name="Created")
             created.click()
             expect(created).to_have_attribute("aria-checked", "true")
@@ -1949,10 +1949,10 @@ def resources(page):
 def title_tooltip(page):
     page.goto(state["ui_url"] + base + "/resources?env=production")
     tip = page.get_by_role("tooltip")
-    columns = page.get_by_role("button", name="Columns", exact=True)
+    columns = page.get_by_role("button", name="Add a column", exact=True)
     started = time.monotonic()
     columns.hover()
-    expect(tip).to_have_text("Columns")
+    expect(tip).to_have_text("Add a column")
     assert time.monotonic() - started >= 0.3
     expect(columns).not_to_have_attribute("title", re.compile(".+"))
     expect(columns).to_have_attribute("aria-describedby", re.compile(r"\bloco-tip\b"))
@@ -1961,8 +1961,8 @@ def title_tooltip(page):
     expect(columns).not_to_have_attribute("aria-describedby", re.compile(".+"))
     page.mouse.move(0, 0)
     columns.focus()
-    expect(tip).to_have_text("Columns")
-    expect(columns).to_have_attribute("title", "Columns")
+    expect(tip).to_have_text("Add a column")
+    expect(columns).to_have_attribute("title", "Add a column")
     columns.blur()
     expect(tip).to_have_count(0)
     page.evaluate(

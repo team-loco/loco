@@ -14,7 +14,15 @@ import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { CopyButton } from "@/components/design/CopyButton";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
-import { CellText, DataTable, expandColumn, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { functionalUpdate } from "@tanstack/react-table";
+import {
+	CellText,
+	DataTable,
+	DataTableColumnsMenu,
+	expandColumn,
+	useDataTable,
+	type DataColumn,
+} from "@/components/design/DataTable";
 import { StatusBadge } from "@/components/design/StatusBadge";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
@@ -34,6 +42,7 @@ import {
 	formatBuildDuration,
 } from "./builds";
 import { formatFullTime } from "./format";
+import { useLayout } from "@/lib/layout";
 import { BUILD_LOG_LIMIT, useBuildLog } from "./useBuilds";
 
 export interface BuildActor {
@@ -320,6 +329,15 @@ export function TimeAgo({ ms, nowMs }: { ms: number | undefined; nowMs: number }
 
 export const TIME_CELL = "font-mono text-[12px] text-fg2";
 
+export type Visibility = Record<string, boolean>;
+
+export function parseVisibility(value: unknown): Visibility {
+	if (typeof value !== "object" || value === null) return {};
+	return Object.fromEntries(
+		Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"),
+	);
+}
+
 function buildColumns(
 	actors: ReadonlyMap<string, BuildActor>,
 	nowMs: number,
@@ -336,6 +354,7 @@ function buildColumns(
 			header: "Status",
 			size: 140,
 			minSize: 90,
+			enableHiding: false,
 			cell: ({ row: { original: build } }) => <StatusBadge {...buildStatusStyle(build.status)} />,
 		},
 		{
@@ -343,6 +362,7 @@ function buildColumns(
 			header: "Build",
 			size: 100,
 			minSize: 80,
+			enableHiding: false,
 			meta: { cellClassName: "font-mono text-[12.5px]" },
 			cell: ({ row: { original: build } }) => formatShortId(build.id),
 		},
@@ -402,7 +422,7 @@ function buildColumns(
 		},
 		{
 			id: "actions",
-			header: "",
+			header: ({ table }) => <DataTableColumnsMenu table={table} />,
 			meta: { label: "Actions", pinEnd: true },
 			enableHiding: false,
 			cell: ({ row: { original: build } }) => (
@@ -445,6 +465,8 @@ export function BuildsTable({
 	onCanceled: () => void;
 	emptyText: string;
 }) {
+	const [shownColumns, setShownColumns] = useLayout("tables.history.builds", parseVisibility);
+	const columnVisibility: Visibility = { took: false, ...shownColumns };
 	const table = useDataTable("builds", {
 		columns: buildColumns(actors, nowMs, openId, onOpen, {
 			canWrite,
@@ -454,6 +476,10 @@ export function BuildsTable({
 		}),
 		data: builds,
 		getRowId: (build) => build.id,
+		state: { columnVisibility },
+		onColumnVisibilityChange: (updater) => {
+			setShownColumns(functionalUpdate(updater, columnVisibility));
+		},
 	});
 	return (
 		<DataTable
