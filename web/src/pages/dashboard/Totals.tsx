@@ -521,9 +521,9 @@ export function Totals({
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-between gap-2">
-				<p className="m-0 flex items-baseline gap-2 text-[12.5px]">
-					<span className="font-medium text-foreground">Public traffic</span>
-					<span className="text-fg3">Requests from the internet</span>
+				<p className="m-0 flex items-baseline gap-2 text-[12.5px] text-fg3">
+					<span className="text-[13px]">Public traffic</span>
+					<span>Requests from the internet</span>
 				</p>
 				<ToggleGroup
 					variant="segmented"

@@ -1,7 +1,10 @@
 import { Server } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type CSSProperties } from "react";
 
-import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import type { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
+
+import { resourceStatusStyle } from "@/components/design/StatusBadge";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +56,20 @@ function Fact({ label, value }: { label: string; value: string }) {
 			<span>{label}</span>
 			<span className="truncate font-mono text-[12.5px] text-foreground">{value}</span>
 		</div>
+	);
+}
+
+function DemoStatus({ status }: { status: ResourceStatus }) {
+	const { label, glyph } = resourceStatusStyle(status);
+	const tone = glyph === "spin" ? "var(--info)" : "var(--ok)";
+	return (
+		<span
+			style={{ "--tn": tone } as CSSProperties}
+			className="inline-flex h-6 items-center gap-1.5 rounded-[5px] bg-[color-mix(in_oklch,var(--tn)_12%,var(--bg))] pr-[9px] pl-1.5 text-[12.5px] font-medium shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--tn)_28%,transparent)]"
+		>
+			<StatusGlyph glyph={glyph} className="size-[13px]" />
+			{label}
+		</span>
 	);
 }
 
@@ -151,7 +168,7 @@ export function DeployDemo() {
 						</span>
 					</div>
 					<div className="flex items-center gap-2.5">
-						<ResourceStatusBadge status={status} />
+						<DemoStatus status={status} />
 						<span className="font-mono text-sm text-fg3">
 							{ready}/{desired} ready
 						</span>
