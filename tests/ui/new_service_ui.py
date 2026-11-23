@@ -1061,7 +1061,7 @@ with session(out) as browser:
             "Failing", exact=True
         )
     ).to_be_visible()
-    expect(panel.get_by_role("link", name="View logs", exact=True)).to_have_count(1)
+    expect(panel.get_by_role("link", name="Replica logs", exact=True)).to_have_count(1)
     sizing = deployments[0]["spec"]["service"]["regions"]["us-ca-1"]
     assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 3, sizing
     assert sizing["scalers"] == {"enabled": True, "cpuTarget": 70}, sizing

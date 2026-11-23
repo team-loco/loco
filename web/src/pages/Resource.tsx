@@ -529,6 +529,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						/>
 					)}
 					<DeploymentProgress
+						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}
@@ -613,6 +614,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			) : (
 				<div className="flex flex-col gap-5">
 					<DeploymentProgress
+						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}

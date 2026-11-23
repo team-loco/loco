@@ -82,8 +82,10 @@ function ProgressPanel({
 	buildLogsHref,
 	canWrite,
 	onRollback,
+	deployTimeoutSeconds,
 }: {
 	members: readonly [RolloutMember, ...RolloutMember[]];
+	deployTimeoutSeconds: number | undefined;
 	logsHref: string | undefined;
 	buildLogsHref: (buildId: string) => string | undefined;
 	canWrite: boolean;
@@ -170,10 +172,15 @@ function ProgressPanel({
 				: deployment.trigger === DeploymentTrigger.SCALE
 					? "Settings change"
 					: `Deploy ${ref}`;
-	const servingId = failed
-		? servingDeployments(region.status?.replicas ?? []).find((d) => d.id !== deployment.id)?.id
-		: undefined;
-	const servingNow = regionDeployment(region, servingId);
+	const servingCount =
+		failed || (live && problem !== undefined)
+			? servingDeployments(region.status?.replicas ?? []).find((d) => d.id !== deployment.id)
+			: undefined;
+	const servingDeployment = regionDeployment(region, servingCount?.id);
+	const servingNow =
+		servingDeployment === undefined || servingCount === undefined
+			? undefined
+			: { deployment: servingDeployment, readyReplicas: servingCount.readyReplicas };
 	const { path, tag, digest } = parseImage(depImage(deployment));
 	const fields: [string, string][] = [];
 	const image = depImage(deployment);
@@ -352,7 +359,12 @@ function ProgressPanel({
 					Disconnected. Reconnecting… {connectionError}
 				</p>
 			)}
-			<ProblemBanner deployment={deployment} logsHref={logsHref} serving={servingNow} />
+			<ProblemBanner
+				deployment={deployment}
+				logsHref={logsHref}
+				serving={servingNow}
+				deployTimeoutSeconds={deployTimeoutSeconds}
+			/>
 			<div className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
 				<div className="flex min-w-0 flex-col gap-4">
 					<StepRail steps={steps} note={stepNote} />
@@ -520,8 +532,11 @@ export function DeploymentProgress({
 	buildLogsHref,
 	canWrite,
 	onRollback,
+	deployTimeoutSeconds,
 }: {
 	regions: RegionView[];
+	/** The resource's rollout deadline. */
+	deployTimeoutSeconds: number | undefined;
 	logsHref: string | undefined;
 	buildLogsHref: (buildId: string) => string | undefined;
 	canWrite: boolean;
@@ -549,6 +564,7 @@ export function DeploymentProgress({
 				buildLogsHref={buildLogsHref}
 				canWrite={canWrite}
 				onRollback={onRollback}
+				deployTimeoutSeconds={deployTimeoutSeconds}
 			/>
 		);
 	});
