@@ -30,7 +30,6 @@ import { NavArrow } from "@/components/design/NavArrow";
 import { Skeleton } from "@/components/design/Skeleton";
 import { DeployMarkers } from "@/components/design/DeployMarkers";
 import { PartialError } from "@/components/design/ErrorState";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deployMarkers, MARKER_NAMES } from "@/lib/deployMarkers";
@@ -42,7 +41,6 @@ import { cn } from "@/lib/utils";
 import { trafficResourceName } from "./trafficNames";
 import { useDeletedResourceNames } from "./useDeletedResourceNames";
 
-const SPEND = "Spend";
 const TOP = 5;
 const PERCENT = 100;
 const ALLOCATION_POLL_MS = 15_000;
@@ -72,19 +70,6 @@ function CardHead({ label, children }: { label: string; children?: ReactNode }) 
 			{label}
 			{children}
 		</span>
-	);
-}
-
-function SoonCard({ label }: { label: string }) {
-	return (
-		<div role="group" className={cn(CARD, "text-fg4")} aria-label={`${label}: not available yet`}>
-			<CardHead label={label}>
-				<SoonTag />
-			</CardHead>
-			<span data-slot="stat-value" className={VALUE} aria-hidden="true">
-				—
-			</span>
-		</div>
 	);
 }
 
@@ -579,7 +564,6 @@ export function Totals({
 						nowMs={nowMs}
 					/>
 				))}
-				<SoonCard label={SPEND} />
 				<AllocatedCard
 					value={allocation.data}
 					failed={allocation.error !== null}
