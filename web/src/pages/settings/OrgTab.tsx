@@ -321,17 +321,19 @@ export function OrgTab({
 				count={workspaceUsage === null ? workspaceCount : <LimitUsageCount usage={workspaceUsage} />}
 				className="max-w-[960px]"
 				actions={<LimitedAction reason={newBlocked}>{newButton}</LimitedAction>}
-				search={
-					<SearchInput
-						aria-label="Search workspaces"
-						placeholder="Search workspaces"
-						value={params.q}
-						onChange={(e) => {
-							void setParams({ q: e.target.value, pages: null });
-						}}
-					/>
-				}
 			>
+				<div className="flex justify-end px-3 py-2.5">
+					<div className="max-w-[280px] flex-[1_1_160px] max-sm:max-w-none">
+						<SearchInput
+							aria-label="Search workspaces"
+							placeholder="Search workspaces"
+							value={params.q}
+							onChange={(e) => {
+								void setParams({ q: e.target.value, pages: null });
+							}}
+						/>
+					</div>
+				</div>
 				{listed.query.isPending ? (
 					<div className="flex flex-col gap-2 px-5 py-3">
 						<Skeleton className="h-9 w-full" />

@@ -173,11 +173,7 @@ export function EnvironmentsSection({
 			: limitUsage(environments.length, limits?.environmentsPerWorkspace, "environments", "workspace");
 	const createBlocked = canWrite ? limitReason(usage) : `Requires Write on ${workspaceName}`;
 	const counts = resourcesPerEnvironment(resourcesQuery.data?.resources ?? []);
-	const envsKey = createConnectQueryKey({
-		schema: listEnvironments,
-		input: { workspaceId },
-		cardinality: "finite",
-	});
+	const envsKey = createConnectQueryKey({ schema: listEnvironments, input: { workspaceId }, cardinality: "finite" });
 	const permissionNote = !canWrite
 		? `Requires Write on ${workspaceName} to add or edit environments.`
 		: !canAdmin
@@ -253,7 +249,7 @@ export function EnvironmentsSection({
 					<DataTable table={table} label="Environments" band />
 				)}
 				{permissionNote !== null && (
-					<p className="m-0 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">{permissionNote}</p>
+					<p className="m-0 mx-3 border-t border-line2 pt-3 pb-3 text-[12.5px] text-fg3">{permissionNote}</p>
 				)}
 			</SettingsCard>
 
@@ -354,11 +350,7 @@ function EnvironmentForm({
 			return;
 		}
 		create.mutate(
-			{
-				workspaceId,
-				name,
-				description: description === "" ? undefined : description,
-			},
+			{ workspaceId, name, description: description === "" ? undefined : description },
 			{
 				onSuccess: () => {
 					toast.success(`Created ${name}`);
