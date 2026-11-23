@@ -356,6 +356,7 @@ with session(out) as browser:
     page.get_by_role("menuitem", name="Restart all replicas", exact=True).click()
     confirm.get_by_role("button", name="Restart all replicas", exact=True).click()
     expect(page.get_by_text(f"Couldn’t restart {name}", exact=True)).to_be_visible()
+    page.mouse.move(0, 0)
     copy_receipt = page.get_by_title("Copy request ID", exact=True)
     expect(copy_receipt).to_contain_text(receipt)
     copy_receipt.click()
