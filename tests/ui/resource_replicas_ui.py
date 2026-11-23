@@ -307,88 +307,47 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     report_replicas()
     page.goto(state["ui_url"] + path)
 
-    panel = page.get_by_role("region", name="Replicas", exact=True)
-    east = panel.get_by_role("region", name=f"Replicas in {EAST}", exact=True)
-    west = panel.get_by_role("region", name=f"Replicas in {WEST}", exact=True)
-    expect(east.get_by_role("listitem")).to_have_count(2)
-    expect(west.get_by_role("listitem")).to_have_count(2)
+    panel = page.get_by_role("region", name="Metrics", exact=True)
+    east = panel.get_by_role("group", name=f"Replicas in {EAST}", exact=True)
+    west = panel.get_by_role("group", name=f"Replicas in {WEST}", exact=True)
+    expect(east.get_by_role("button")).to_have_count(2)
+    expect(west.get_by_role("button")).to_have_count(2)
     expect(panel.get_by_text("Per-replica status", exact=False)).to_have_count(0)
 
     expect(east).to_contain_text("1/2 ready")
     expect(west).to_contain_text("2/2 ready")
+    expect(panel.get_by_text("average per region", exact=True)).to_have_count(2)
 
-    def chip(region, short):
-        return region.get_by_role("listitem").filter(
-            has=page.get_by_text(short, exact=True)
-        )
+    def cell(region, short):
+        return region.get_by_role("button", name=re.compile(rf"^{short}, "))
 
-    serving = chip(east, "a1")
-    expect(serving.get_by_role("button")).to_have_accessible_name(
-        re.compile(r"^a1 Serving ")
-    )
-    expect(serving.get_by_text("Serving", exact=True)).to_have_class(
-        re.compile(r"\bsr-only\b")
-    )
-    expect(serving).to_contain_text("CPU 0.23/0.5")
-    expect(serving).to_contain_text("Mem 154/256 Mi")
-    crashed = chip(east, "b2")
-    expect(crashed).to_contain_text("Failing, 4 restarts")
-    expect(crashed).to_contain_text("CPU 0.45/0.5")
-    unmeasured = chip(west, "d4")
-    expect(unmeasured).to_contain_text("CPU —")
-    expect(unmeasured).to_contain_text("Mem —")
+    def replica_popover(region, short):
+        cell(region, short).click()
+        popover = page.locator('[data-slot="popover-content"][data-open]')
+        expect(popover).to_be_visible()
+        return popover
 
-    def replica_detail(item, name):
-        item.get_by_role("button").click()
-        detail = panel.get_by_role("region", name=f"Replica {name}", exact=True)
-        expect(detail).to_be_visible()
-        return detail
-
-    detail = replica_detail(serving, "replicas-ui-east-a1")
-    expect(detail).to_contain_text("0 restarts")
-    expect(detail).to_contain_text("Up 3h")
-    logs_href = detail.get_by_role("link", name="Logs", exact=True).get_attribute(
-        "href"
-    )
+    popover = replica_popover(east, "a1")
+    expect(popover).to_contain_text("a1")
+    expect(popover).to_contain_text("Serving")
+    expect(popover).to_contain_text("CPU 0.23/0.5 vCPU")
+    expect(popover).to_contain_text("Mem 154/256 Mi")
+    logs_href = popover.get_by_role(
+        "link", name="Replica logs", exact=True
+    ).get_attribute("href")
     assert parse_qs(urlparse(logs_href).query)["q"] == [
         "@replica:replicas-ui-east-a1"
     ], logs_href
-    detail = replica_detail(crashed, "replicas-ui-east-b2")
-    expect(detail).to_contain_text("4 restarts, last 5m ago, out of memory")
-    expect(detail).not_to_contain_text("OOMKilled")
-    expect(detail).to_contain_text("Up 20m")
-    exited = chip(west, "c3")
-    detail = replica_detail(exited, "replicas-ui-west-c3")
-    expect(detail).to_contain_text("0 restarts")
-    expect(detail).to_contain_text("Completed, exit 0")
-    exited.get_by_role("button").click()
-    expect(
-        panel.get_by_role("region", name="Replica replicas-ui-west-c3")
-    ).to_have_count(0)
-    panel.get_by_role("group", name="Region", exact=True).get_by_role(
-        "button", name=EAST, exact=True
-    ).click()
-    expect(
-        panel.locator('[aria-label^="Memory: one line per replica"]')
-    ).to_be_visible()
-    expect(panel.get_by_text("Highest, b2", exact=True)).to_be_visible()
-    expect(east.locator('[data-slot="replica-key"]')).to_have_count(2)
-    lines = panel.locator(
-        '[aria-label^="Memory: one line per replica"] .recharts-line-curve'
-    )
-    expect(lines).to_have_count(2)
-    chip(east, "b2").hover()
-    expect(lines.nth(0)).to_have_attribute("stroke-opacity", "0.25")
-    expect(lines.nth(1)).to_have_attribute("stroke-opacity", "1")
-    page.mouse.move(0, 0)
-    show_all = panel.get_by_role("button", name="Show all", exact=True)
-    show_all.click()
-    expect(show_all).to_have_count(0)
-    expect(
-        panel.get_by_role("group", name="Region", exact=True).get_by_role(
-            "button", name="All regions", exact=True
-        )
-    ).to_have_attribute("aria-pressed", "true")
+    popover.get_by_role("button", name="Close", exact=True).click()
+    expect(page.locator('[data-slot="popover-content"][data-open]')).to_have_count(0)
+    popover = replica_popover(east, "b2")
+    expect(popover).to_contain_text("Failing, 4 restarts")
+    expect(popover).to_contain_text("CPU 0.45/0.5 vCPU")
+    page.keyboard.press("Escape")
+    popover = replica_popover(west, "d4")
+    expect(popover).to_contain_text("CPU —")
+    expect(popover).to_contain_text("Mem —")
+    page.keyboard.press("Escape")
     assert {
         (q.get("region"), q["resourceIds"][0], q["metricName"]) for q in pod_requests
     } >= {
@@ -438,22 +397,21 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
 
     report_scaled()
     page.goto(state["ui_url"] + resource_path(scaling["scaled"]))
-    panel = page.get_by_role("region", name="Replicas", exact=True)
-    scaled_east = panel.get_by_role("region", name=f"Replicas in {EAST}", exact=True)
-    expect(scaled_east.get_by_role("listitem")).to_have_count(SCALED_REPLICAS)
+    panel = page.get_by_role("region", name="Metrics", exact=True)
+    scaled_east = panel.get_by_role("group", name=f"Replicas in {EAST}", exact=True)
+    expect(scaled_east.get_by_role("button")).to_have_count(SCALED_REPLICAS)
     expect(scaled_east).not_to_contain_text("avg")
-    expect(
-        panel.get_by_text("band shows lowest to highest across replicas", exact=True)
-    ).to_have_count(2)
-    expect(scaled_east.locator('[data-slot="replica-key"]')).to_have_count(0)
+    expect(panel.locator('[aria-label="CPU: average"]')).to_be_visible()
+    expect(panel.locator('[aria-label="Memory: average"]')).to_be_visible()
+    expect(panel.get_by_text("average", exact=True)).to_have_count(2)
 
     page.goto(state["ui_url"] + path)
     # The evidence API counts a cluster silent after three missed two-hour heartbeats.
     heartbeat(WEST, "7 hours")
     report_replicas()
     page.reload()
-    west = page.get_by_role("region", name=f"Replicas in {WEST}", exact=True)
-    expect(west.get_by_role("listitem")).to_have_count(2)
+    west = page.get_by_role("group", name=f"Replicas in {WEST}", exact=True)
+    expect(west.get_by_role("button")).to_have_count(2)
     expect(west).to_contain_text("Last reported")
 
     # A secret the resource reads that changed after its oldest replica started asks for a restart.
@@ -498,7 +456,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     # A change made before every running replica started shows no notice.
     changed_at[0] = time.time() - 4 * 3600
     page.goto(state["ui_url"] + path)
-    expect(page.get_by_role("region", name="Replicas", exact=True)).to_be_visible()
+    expect(page.get_by_role("region", name="Metrics", exact=True)).to_be_visible()
     expect(page.locator("#secrets-notice-ov")).to_have_count(0)
     context.unroute("**/loco.secret.v1.SecretService/ListSecrets")
 
@@ -557,35 +515,33 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         lambda route: route.fulfill(json={"series": []}),
     )
     clocked_page.goto(state["ui_url"] + resource_path(fresh))
-    fresh_panel = clocked_page.get_by_role("region", name="Replicas", exact=True)
+    fresh_panel = clocked_page.get_by_role("region", name="Metrics", exact=True)
     expect(fresh_panel).to_contain_text(
-        f"CPU, memory and traffic show up a couple of minutes after {fresh_name} first starts."
+        f"CPU and memory show up a couple of minutes after {fresh_name} first starts."
     )
     expect(fresh_panel.get_by_text("No data in this range", exact=True)).to_have_count(
         0
     )
     fresh_replica = fresh_panel.get_by_role(
-        "region", name=f"Replicas in {EAST}", exact=True
-    ).get_by_role("listitem")
+        "group", name=f"Replicas in {EAST}", exact=True
+    ).get_by_role("button")
     expect(fresh_replica).to_have_count(1)
-    expect(fresh_replica).not_to_contain_text("CPU")
+    fresh_replica.click()
+    fresh_popover = clocked_page.locator('[data-slot="popover-content"][data-open]')
+    expect(fresh_popover).not_to_contain_text("CPU")
+    clocked_page.keyboard.press("Escape")
     expect(
         clocked_page.get_by_role("group", name="Time range", exact=True)
-    ).to_have_count(0)
-    expect(
-        clocked_page.get_by_role("region", name="Traffic", exact=True)
     ).to_have_count(0)
     clocked_page.clock.run_for(2 * 60_000)
     expect(fresh_panel.get_by_text("No data in this range", exact=True)).to_have_count(
         2
     )
     expect(fresh_panel).not_to_contain_text("a couple of minutes")
-    expect(fresh_replica).to_contain_text("CPU —")
+    fresh_replica.click()
+    expect(fresh_popover).to_contain_text("CPU —")
     expect(
         clocked_page.get_by_role("group", name="Time range", exact=True)
-    ).to_be_visible()
-    expect(
-        clocked_page.get_by_role("region", name="Traffic", exact=True)
     ).to_be_visible()
     clocked.close()
 
@@ -594,9 +550,9 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     report_replicas()
     narrow_page.goto(state["ui_url"] + path)
     narrow_east = narrow_page.get_by_role(
-        "region", name=f"Replicas in {EAST}", exact=True
+        "group", name=f"Replicas in {EAST}", exact=True
     )
-    expect(narrow_east.get_by_role("listitem")).to_have_count(2)
+    expect(narrow_east.get_by_role("button")).to_have_count(2)
     width = narrow_page.evaluate("document.documentElement.scrollWidth")
     viewport = narrow_page.evaluate("window.innerWidth")
     assert width <= viewport, (width, viewport)

@@ -18,3 +18,8 @@ export function formatDuration(ms: number): string {
 	}
 	return `${Math.max(1, mins).toString()}m`;
 }
+
+/** The part of a replica's name that tells it apart from its siblings. */
+export function shortName(replica: string): string {
+	return replica.split("-").at(-1) ?? replica;
+}

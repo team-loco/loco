@@ -11,8 +11,7 @@ import {
 	type FinishedRegion,
 } from "@gen/loco/deployment/v1/deployment_pb";
 import { ChevronDownIcon, GitCompareIcon, XIcon } from "lucide-react";
-import { useId, useState } from "react";
-import { Link } from "react-router";
+import { useId, useState, type ReactElement } from "react";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/design/Button";
@@ -52,7 +51,7 @@ import {
 	triggeredByLabel,
 	type RolloutStep,
 } from "./deployment-progress";
-import { ActivityFeed, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
+import { LogsLink, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
 import { formatFullTime } from "./format";
 import { depImage, depTag, regionDeployment, tookMs, type RegionView } from "./model";
 import { RolloutFlow, type FlowNode } from "./RolloutFlow";
@@ -80,6 +79,7 @@ const HEADLINE_GLYPH: Record<"run" | "ok" | "warn" | "err" | "off", Glyph> = {
 
 function ProgressPanel({
 	members,
+	workspaceId,
 	logsHref,
 	regionLogsHref,
 	buildLogsHref,
@@ -88,6 +88,7 @@ function ProgressPanel({
 	deployTimeoutSeconds,
 }: {
 	members: readonly [RolloutMember, ...RolloutMember[]];
+	workspaceId: string;
 	deployTimeoutSeconds: number | undefined;
 	logsHref: string | undefined;
 	/** The logs of one region's replicas. */
@@ -312,6 +313,7 @@ function ProgressPanel({
 			)}
 			<ProblemBanner
 				deployment={deployment}
+				workspaceId={workspaceId}
 				logsHref={logsHref}
 				serving={servingNow}
 				deployTimeoutSeconds={deployTimeoutSeconds}
@@ -327,24 +329,11 @@ function ProgressPanel({
 				/>
 				{openStep !== null && (
 					<div className="relative flex flex-col gap-2.5 rounded-lg bg-background px-3.5 py-3 ring-1 ring-line animate-in fade-in-0 slide-in-from-top-1 motion-reduce:animate-none">
-						{detailNote !== "" && <p className="m-0 pr-24 font-mono text-[12px] text-fg2">{detailNote}</p>}
+						{detailNote !== "" && <p className="m-0 pr-56 font-mono text-[12px] text-fg2">{detailNote}</p>}
 						{openRegion !== undefined && <ReplicaGroups deployment={deployment} region={openRegion} />}
-						{detailHref !== undefined && (
-							<Button
-								variant="link"
-								nativeButton={false}
-								className="absolute top-2.5 right-3.5"
-								render={<Link to={detailHref} />}
-							>
-								Open in Logs
-							</Button>
-						)}
+						{detailHref !== undefined && <LogsLink href={detailHref} />}
 					</div>
 				)}
-				<ActivityFeed
-					startMs={feed.restart === undefined ? maybeTsMs(deployment.createdAt) : feed.restart.startMs}
-					activity={feed.entries}
-				/>
 			</div>
 			{fields.length > 0 && (
 				<Collapsible>
@@ -443,6 +432,8 @@ function FinishedRegions({
 
 export function DeploymentProgress({
 	regions,
+	workspaceId,
+	fallback,
 	logsHref,
 	regionLogsHref,
 	buildLogsHref,
@@ -451,6 +442,9 @@ export function DeploymentProgress({
 	deployTimeoutSeconds,
 }: {
 	regions: RegionView[];
+	workspaceId: string;
+	/** Shown while no deployment has a card. */
+	fallback?: ReactElement | undefined;
 	/** The resource's rollout deadline. */
 	deployTimeoutSeconds: number | undefined;
 	logsHref: string | undefined;
@@ -473,12 +467,13 @@ export function DeploymentProgress({
 		if (!showsCard(current, nowMs)) return [];
 		return [{ region, deployment: current, previous, activity: watched.activity, connectionError: watched.error }];
 	});
-	return [...Map.groupBy(members, (m) => m.deployment.id).values()].map(([first, ...rest]) => {
+	const panels = [...Map.groupBy(members, (m) => m.deployment.id).values()].map(([first, ...rest]) => {
 		if (first === undefined) return null;
 		return (
 			<ProgressPanel
 				key={first.deployment.id}
 				members={[first, ...rest]}
+				workspaceId={workspaceId}
 				logsHref={logsHref}
 				regionLogsHref={regionLogsHref}
 				buildLogsHref={buildLogsHref}
@@ -488,4 +483,5 @@ export function DeploymentProgress({
 			/>
 		);
 	});
+	return <>{panels.length > 0 ? panels : fallback}</>;
 }

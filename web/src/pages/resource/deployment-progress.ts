@@ -1,4 +1,3 @@
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import {
 	DeploymentStatus,
 	DeploymentTrigger,
@@ -107,19 +106,6 @@ export function stoppingCountdown(replica: Replica, nowMs: number) {
 		seconds: Math.ceil(remaining / 1000),
 		percent: duration === undefined ? undefined : duration === 0 ? 0 : (remaining / duration) * 100,
 	};
-}
-
-/** How long after the rollout started an activity entry happened, as "+42s", "+1m 05s" or "+1h 02m". */
-export function activityTime(at: Timestamp | undefined, startMs: number | undefined): string {
-	const atMs = maybeTsMs(at);
-	if (atMs === undefined || startMs === undefined) return "—";
-	const total = Math.max(0, Math.floor((atMs - startMs) / 1000));
-	const h = Math.floor(total / 3600);
-	const m = Math.floor((total % 3600) / 60);
-	const s = total % 60;
-	if (h > 0) return `+${h.toString()}h ${m.toString().padStart(2, "0")}m`;
-	if (m > 0) return `+${m.toString()}m ${s.toString().padStart(2, "0")}s`;
-	return `+${s.toString()}s`;
 }
 
 /** A region's activity for its newest revision; a restart's feed leaves out earlier revisions and the build. */

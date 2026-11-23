@@ -908,12 +908,6 @@ with session(out) as browser:
     expect(
         panel.get_by_role("region", name="Previous version", exact=True)
     ).to_have_count(0)
-    activity = panel.get_by_role("region", name="Activity feed", exact=True)
-    expect(activity.get_by_role("listitem")).to_have_count(2)
-    expect(activity.get_by_role("listitem").last).to_contain_text(
-        "Starting application; waiting for readiness."
-    )
-    expect(activity.get_by_role("listitem").last).to_contain_text("service-new-1")
     page.wait_for_function(
         f"() => localStorage.getItem({json.dumps(drafts_key)}) === null"
     )

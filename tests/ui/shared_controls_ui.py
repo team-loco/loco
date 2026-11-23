@@ -1568,7 +1568,6 @@ def dashboard_counts(page):
 def traffic(page):
     global traffic_empty
     totals = page.get_by_role("region", name="Totals", exact=True)
-    section = page.get_by_role("region", name="Traffic", exact=True)
     for empty in (False, True):
         traffic_empty = empty
         page.goto(state["ui_url"] + base + "?env=production")
@@ -1599,18 +1598,6 @@ def traffic(page):
                 expect(
                     card.get_by_role("link", name=re.compile(re.escape(name)))
                 ).to_have_count(0)
-        page.get_by_role("region", name="Resources", exact=True).get_by_role(
-            "link", name="dashboard-0", exact=True
-        ).click()
-        if empty:
-            expect(
-                section.get_by_text("No data in this range", exact=True)
-            ).to_have_count(1)
-            expect(section.get_by_role("alert")).to_have_count(0)
-        else:
-            expect(section).to_contain_text("10 %")
-            expect(section).to_contain_text("10 req/s")
-            expect(section).to_contain_text("190 ms")
     traffic_empty = False
     sql(
         state,
@@ -1621,73 +1608,6 @@ def traffic(page):
         '[data-slot="deploy-marker"][data-failed]'
     )
     expect(failed.first).to_have_attribute("aria-label", re.compile(r"failed"))
-
-
-def traffic_small_values(page):
-    # Values by minute from the start of the window; the latest bucket is the readout.
-    small = {
-        "cluster.upstream_rq_completed": {10: 0.03, 30: 0.02, 50: 0.004},
-        "cluster.upstream_rq_xx": {10: 0.0, 30: 0.0, 50: 0.0},
-        "cluster.upstream_cx_rx_bytes_total": {10: 0.03, 30: 0.02, 50: 0.004},
-        "cluster.upstream_rq_time": {10: 2400, 30: 1200, 50: 800},
-    }
-
-    def metrics(route):
-        body = route.request.post_data_json
-        values = small.get(body["metricName"])
-        if values is None:
-            route.fallback()
-            return
-        start = datetime.fromisoformat(body["startTime"].replace("Z", "+00:00"))
-        start = start.replace(second=0, microsecond=0)
-        points = [
-            {"timestamp": stamp(start, timedelta(minutes=-minute)), "value": value}
-            for minute, value in values.items()
-        ]
-        route.fulfill(
-            json={
-                "series": [
-                    {"resourceId": rid, "points": points}
-                    for rid in body.get("resourceIds") or [resource]
-                ]
-            }
-        )
-
-    page.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
-    page.goto(state["ui_url"] + base + "?env=production")
-    page.get_by_role("region", name="Resources", exact=True).get_by_role(
-        "link", name="dashboard-0", exact=True
-    ).click()
-    section = page.get_by_role("region", name="Traffic", exact=True)
-    expect(section.get_by_text("<0.01 req/s", exact=True)).to_have_count(1)
-    expect(section.get_by_text("800 ms", exact=True)).to_have_count(1)
-    expect(section.get_by_text("B/s", exact=False)).to_have_count(0)
-    ticks = section.locator(
-        ".recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value"
-    )
-    expect(ticks).not_to_have_count(0)
-    labels = ticks.all_text_contents()
-    requests = [t for t in labels if t.endswith("/s") and not t.endswith("B/s")]
-    assert requests == ["0/s", "0.01/s", "0.02/s", "0.03/s"], labels
-    # Hovering the chart reads errors and p95 at that point next to requests.
-    plot = section.locator(".recharts-surface").first
-    box = plot.bounding_box()
-    plot.hover(position={"x": box["width"] * 0.5, "y": box["height"] * 0.5})
-    tooltip = section.locator(".recharts-tooltip-wrapper")
-    expect(tooltip).to_contain_text("Requests")
-    expect(tooltip).to_contain_text(re.compile(r"Errors\s*0%"))
-    expect(tooltip).to_contain_text(re.compile(r"p95\s*[\d,.]+ ?m?s"))
-    page.get_by_role("button", name="24h", exact=True).click()
-    axis = section.get_by_role("application").first.locator(
-        ".recharts-xAxis-tick-labels text"
-    )
-    expect(axis.nth(2)).to_be_visible()
-    labels = axis.all_text_contents()
-    assert all(re.fullmatch(r"[A-Z][a-z]{2} \d+ \d\d:\d\d", t) for t in labels), labels
-    times = [int(t[-5:-3]) * 60 + int(t[-2:]) for t in labels[1:-1]]
-    gaps = {(b - a) % 1440 for a, b in zip(times, times[1:], strict=False)}
-    assert len(gaps) == 1, (labels, gaps)
-    page.unroute("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
 
 
 def metrics_many(page):
@@ -2379,7 +2299,6 @@ with session(out) as browser:
         dashboard,
         dashboard_counts,
         traffic,
-        traffic_small_values,
         metrics_many,
     ):
         check(page)
