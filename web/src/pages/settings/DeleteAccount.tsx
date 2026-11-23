@@ -146,7 +146,7 @@ export function DeleteAccount({ user }: { user: User }) {
 												Revoke
 											</Button>
 										) : (
-											<span className="text-xs text-fg3">An owner administrator can revoke</span>
+											<span className="text-xs text-fg3">Only an owner can revoke this</span>
 										)}
 									</li>
 								))}

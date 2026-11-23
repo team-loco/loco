@@ -7,10 +7,10 @@ import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { CopyButton } from "@/components/design/CopyButton";
 import { Field } from "@/components/design/Field";
-import { SegmentedChoice } from "@/components/design/SegmentedChoice";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Textarea } from "@/components/design/Textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -141,14 +141,22 @@ function InviteForm({
 					/>
 				</Field>
 				<Field label="Role" hint={ROLE_HINT[role]}>
-					<SegmentedChoice
-						label="Role"
-						options={ROLE_OPTIONS}
-						value={role}
-						onChange={(next) => {
-							setRole(next === "Admin" ? "Admin" : "Member");
+					<ToggleGroup
+						variant="segmented"
+						aria-label="Role"
+						className="w-fit"
+						value={[role]}
+						onValueChange={(next: string[]) => {
+							const picked = next[0];
+							if (picked !== undefined) setRole(picked === "Admin" ? "Admin" : "Member");
 						}}
-					/>
+					>
+						{ROLE_OPTIONS.map((o) => (
+							<ToggleGroupItem key={o.value} value={o.value}>
+								{o.label}
+							</ToggleGroupItem>
+						))}
+					</ToggleGroup>
 				</Field>
 				{chips.length > 0 && (
 					<ul aria-label="Addresses" className="m-0 flex list-none flex-wrap gap-1.5 p-0">

@@ -33,7 +33,7 @@ export function deleteBody(name: string): string {
 
 /** Why a secret cannot be deleted while resources read it. */
 export function deleteBlocked(users: string[]): string {
-	return `Read by ${list(users)}. Remove the reference and redeploy first.`;
+	return `Read by ${users.join(", ")}. Remove the reference and redeploy first.`;
 }
 
 export interface ImportPreview {
