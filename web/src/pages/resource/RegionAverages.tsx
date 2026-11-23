@@ -192,8 +192,8 @@ export function RegionAverages({
 	const resized = data.some((row) => row["limit"] !== limit);
 	const peak = Math.max(0, ...data.flatMap((row) => regions.map((region) => row[region] ?? 0)));
 	const top = Math.max(limit, ...data.map((row) => row["limit"] ?? 0));
-	const max = chartMax(peak, top);
 	const axisScale = absolute ? scale(limit) : { divisor: 1, unit: "%", decimals: 0 };
+	const max = chartMax(peak / axisScale.divisor, top / axisScale.divisor) * axisScale.divisor;
 	const limitNumber = String(Number(axisNumber(limit, axisScale)));
 	const limitLabel = `limit ${limitNumber}${axisScale.unit === "%" ? "%" : ` ${axisScale.unit}`}`;
 	const latest = (region: string) => data.findLast((row) => row[region] !== undefined)?.[region];
