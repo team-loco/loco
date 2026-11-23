@@ -27,20 +27,9 @@ api:
     # @schema required; minLength: 1
     tag: ""
   imagePullPolicy: Always
-  # Replicas when autoscaling is off. More than one needs CACHE_TYPE=valkey, so a sign-in can start and finish on different replicas.
+  # More than one replica needs CACHE_TYPE=valkey, so a sign-in can start and finish on different replicas.
   # @schema minimum: 0
   replicaCount: 1
-  # A CPU-utilization autoscaler; replaces replicaCount when enabled and the cluster serves the metrics.k8s.io API. Needs CACHE_TYPE=valkey.
-  # @schema additionalProperties: false
-  autoscaling:
-    enabled: false
-    # @schema minimum: 1
-    minReplicas: 2
-    # @schema minimum: 1
-    maxReplicas: 6
-    # Percent of the CPU request.
-    # @schema minimum: 1
-    targetCPUUtilizationPercentage: 70
   port: 8000
   # @schema required; minLength: 1
   existingSecret: ""

@@ -8,27 +8,6 @@
         "existingSecret"
       ],
       "properties": {
-        "autoscaling": {
-          "type": "object",
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "maxReplicas": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "minReplicas": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "targetCPUUtilizationPercentage": {
-              "type": "integer",
-              "minimum": 1
-            }
-          },
-          "additionalProperties": false
-        },
         "clickhouse": {
           "type": "object",
           "properties": {

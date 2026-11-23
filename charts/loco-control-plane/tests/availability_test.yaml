@@ -12,41 +12,15 @@ templates:
   - templates/gateway.yaml
   - templates/scaling.yaml
 tests:
-  - it: runs one API replica and no API autoscaler or disruption budget by default
+  - it: runs one API replica and no API disruption budget by default
     asserts:
       - equal:
           path: spec.replicas
           value: 1
         template: templates/api-deployment.yaml
-      - containsDocument: {kind: HorizontalPodAutoscaler, apiVersion: autoscaling/v2, name: loco-control-plane-api}
-        template: templates/scaling.yaml
-        not: true
       - containsDocument: {kind: PodDisruptionBudget, apiVersion: policy/v1, name: loco-control-plane-api}
         template: templates/scaling.yaml
         not: true
-
-  - it: hands the API's replicas to a CPU autoscaler with a disruption budget when autoscaling is on
-    capabilities:
-      apiVersions: [metrics.k8s.io/v1beta1]
-    set:
-      api.autoscaling: {enabled: true, minReplicas: 3, maxReplicas: 9, targetCPUUtilizationPercentage: 65}
-    asserts:
-      - notExists:
-          path: spec.replicas
-        template: templates/api-deployment.yaml
-      - equal:
-          path: spec
-          value:
-            scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: loco-control-plane-api}
-            minReplicas: 3
-            maxReplicas: 9
-            metrics:
-              - type: Resource
-                resource: {name: cpu, target: {type: Utilization, averageUtilization: 65}}
-        template: templates/scaling.yaml
-        documentSelector: {path: spec.scaleTargetRef.name, value: loco-control-plane-api}
-      - containsDocument: {kind: PodDisruptionBudget, apiVersion: policy/v1, name: loco-control-plane-api, any: true}
-        template: templates/scaling.yaml
 
   - it: autoscales the ingest proxy from two replicas by default when the cluster serves the metrics API
     capabilities:
