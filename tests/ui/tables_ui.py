@@ -795,22 +795,16 @@ def logs(page):
     expect(
         table.get_by_role("columnheader", name="Message", exact=True)
     ).to_have_attribute("draggable", "false")
-    region.drag_to(resource)
-    try:
-        wait_for_query(
-            page,
-            lambda query: query.get("cols", [""])[0].startswith(
-                "level,region,resource"
-            ),
-        )
-    except PlaywrightTimeout:
-        raise AssertionError(
-            (
-                page.url,
-                table.get_by_role("columnheader").all_inner_texts(),
-                region.get_attribute("class"),
-            )
-        ) from None
+    # Headless Chromium starts no native drag from synthetic mouse input, so the drag events are sent directly.
+    transfer = page.evaluate_handle("() => new DataTransfer()")
+    region.dispatch_event("dragstart", {"dataTransfer": transfer})
+    resource.dispatch_event("dragover", {"dataTransfer": transfer})
+    resource.dispatch_event("drop", {"dataTransfer": transfer})
+    region.dispatch_event("dragend", {"dataTransfer": transfer})
+    wait_for_query(
+        page,
+        lambda query: query.get("cols", [""])[0].startswith("level,region,resource"),
+    )
     cell = table.get_by_role("cell").nth(3)
     cell.evaluate(
         "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"
