@@ -80,7 +80,7 @@ const FRESH_MS = 1800;
 const LEVEL_COLOR: Record<Level, string> = {
 	error: "var(--err)",
 	warn: "var(--lv-warn)",
-	info: "var(--lv-info)",
+	info: "var(--series-2)",
 	debug: "var(--lv-debug)",
 };
 

@@ -13,6 +13,7 @@ from harness import (
     repo,
     session,
     sql,
+    wait_for_query,
 )
 from playwright.sync_api import TimeoutError as PlaywrightTimeout, expect
 
@@ -788,6 +789,22 @@ def logs(page):
         page, table, "Time", "Resource", logs_table, "ArrowRight", ("time", "resource")
     )
     check_shrink(page, table, "Message")
+    region = table.get_by_role("columnheader", name="Region", exact=True)
+    resource = table.get_by_role("columnheader", name="Resource", exact=True)
+    expect(region).to_have_attribute("draggable", "true")
+    expect(
+        table.get_by_role("columnheader", name="Message", exact=True)
+    ).to_have_attribute("draggable", "false")
+    # Headless Chromium starts no native drag from synthetic mouse input, so the drag events are sent directly.
+    transfer = page.evaluate_handle("() => new DataTransfer()")
+    region.dispatch_event("dragstart", {"dataTransfer": transfer})
+    resource.dispatch_event("dragover", {"dataTransfer": transfer})
+    resource.dispatch_event("drop", {"dataTransfer": transfer})
+    region.dispatch_event("dragend", {"dataTransfer": transfer})
+    wait_for_query(
+        page,
+        lambda query: query.get("cols", [""])[0].startswith("level,region,resource"),
+    )
     cell = table.get_by_role("cell").nth(3)
     cell.evaluate(
         "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"

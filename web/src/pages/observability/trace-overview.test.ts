@@ -2,11 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	bucketSeconds,
-	countReadout,
+	bucketReadout,
 	durationTick,
 	errorRateLabel,
 	filledRuns,
-	latencyReadout,
 	logPosition,
 	logScale,
 	niceTicks,
@@ -46,24 +45,27 @@ describe("trace overview", () => {
 		expect(durationTick(100)).toBe("100ns");
 	});
 
-	test("count readout names the bucket and its counts", () => {
+	test("bucket readout names the span, counts and percentiles", () => {
 		const start = Date.UTC(2026, 10, 15, 13, 5);
 		const utc = { zone: "utc", clock: "24" } as const;
 		const bucket = { start, widthSeconds: 60, traces: 42, errors: 3, p50: 12_000_000n, p95: 80_000_000n };
-		expect(countReadout(bucket, utc)).toBe("13:05–13:06, 42 traces, 3 errors");
-		expect(countReadout({ ...bucket, widthSeconds: 30, traces: 0, errors: 0 }, utc)).toBe(
-			"13:05:00–13:05:30, 0 traces",
-		);
-		expect(countReadout({ ...bucket, traces: 1, errors: 0 }, utc)).toBe("13:05–13:06, 1 trace");
-		expect(countReadout(bucket, { zone: "utc", clock: "12" })).toStartWith("1:05 PM–1:06 PM, ");
-	});
-
-	test("latency readout names the bucket and its percentiles", () => {
-		const start = Date.UTC(2026, 10, 15, 13, 5);
-		const utc = { zone: "utc", clock: "24" } as const;
-		const bucket = { start, widthSeconds: 60, traces: 42, errors: 3, p50: 12_000_000n, p95: 80_000_000n };
-		expect(latencyReadout(bucket, utc)).toBe("13:05–13:06, p50 12ms, p95 80ms");
-		expect(latencyReadout({ ...bucket, traces: 0 }, utc)).toBe("13:05–13:06, no traces");
+		expect(bucketReadout(bucket, utc)).toEqual({
+			title: "13:05–13:06",
+			rows: [
+				["Traces", "42"],
+				["Errors", "3"],
+				["p50", "12ms"],
+				["p95", "80ms"],
+			],
+		});
+		expect(bucketReadout({ ...bucket, widthSeconds: 30, traces: 0, errors: 0 }, utc)).toEqual({
+			title: "13:05:00–13:05:30",
+			rows: [
+				["Traces", "0"],
+				["Errors", "0"],
+			],
+		});
+		expect(bucketReadout(bucket, { zone: "utc", clock: "12" }).title).toBe("1:05 PM–1:06 PM");
 	});
 
 	test("latency axis spans decades so a 500 s outlier keeps millisecond values visible", () => {

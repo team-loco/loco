@@ -32,10 +32,12 @@ import {
 	useRef,
 	useState,
 	type CSSProperties,
+	type HTMLAttributes,
 	type KeyboardEvent,
 	type MouseEvent,
 	type ReactElement,
 	type ReactNode,
+	type RefObject,
 } from "react";
 
 import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
@@ -74,6 +76,8 @@ export interface DataColumnMeta {
 	hideOnMobile?: boolean;
 	/** Names the column when its header is not plain text. */
 	label?: string;
+	/** Lets the viewer drag the header onto another movable column's header to reorder them; needs the table's `onColumnMove`. */
+	movable?: boolean;
 	cellClassName?: string;
 	defaultHidden?: boolean;
 }
@@ -288,6 +292,49 @@ function pinOf<T extends RowData>(column: Column<Features, T>, index: number): "
 	return column.columnDef.meta?.pinEnd === true ? "end" : undefined;
 }
 
+interface ColumnDrag {
+	/** The column being dragged; a ref, so a dragover right after the drag starts already sees it. */
+	fromRef: RefObject<string | null>;
+	/** The column the pointer is over. */
+	over: string | null;
+	setOver: (id: string | null) => void;
+}
+
+// Drag attributes for the header of column id; only a movable column drags or accepts a drop.
+function columnMoveProps(
+	id: string,
+	movable: boolean,
+	drag: ColumnDrag,
+	onMove: (from: string, to: string) => void,
+): HTMLAttributes<HTMLElement> {
+	const target = movable && drag.over === id && drag.fromRef.current !== id;
+	return {
+		draggable: movable,
+		className: cn(movable && "cursor-grab", target && "rounded-md bg-panel2"),
+		onDragStart: (event) => {
+			event.dataTransfer.effectAllowed = "move";
+			event.dataTransfer.setData("text/plain", id);
+			drag.fromRef.current = id;
+		},
+		onDragOver: (event) => {
+			if (drag.fromRef.current === null || !movable) return;
+			event.preventDefault();
+			if (drag.over !== id) drag.setOver(id);
+		},
+		onDrop: (event) => {
+			event.preventDefault();
+			const from = drag.fromRef.current;
+			if (from !== null && movable && from !== id) onMove(from, id);
+			drag.fromRef.current = null;
+			drag.setOver(null);
+		},
+		onDragEnd: () => {
+			drag.fromRef.current = null;
+			drag.setOver(null);
+		},
+	};
+}
+
 // Header and column objects keep their identity while table state changes, so the
 // React Compiler would skip re-rendering a head that read its sort and width itself.
 function DataTableHead<T extends RowData>({
@@ -298,7 +345,9 @@ function DataTableHead<T extends RowData>({
 	bounds,
 	grow,
 	onPreview,
+	moveProps,
 }: {
+	moveProps: ((id: string) => HTMLAttributes<HTMLElement>) | undefined;
 	header: Header<Features, T>;
 	sorted: false | SortDirection;
 	width: number;
@@ -308,6 +357,7 @@ function DataTableHead<T extends RowData>({
 	onPreview: (width: number | null) => void;
 }) {
 	const { column } = header;
+	const { className: moveClass, ...moveHandlers } = moveProps?.(column.id) ?? {};
 	const align = alignOf(column);
 	const label = <Template render={column.columnDef.header} context={header.getContext()} />;
 	const Arrow = sorted === "desc" ? ArrowDownIcon : ArrowUpIcon;
@@ -323,9 +373,11 @@ function DataTableHead<T extends RowData>({
 				sorted !== false && "text-foreground",
 				align === "end" && "justify-end",
 				pin !== undefined && PINNED,
+				moveClass,
 			)}
 			style={bounds}
 			aria-sort={sorted === false ? undefined : ARIA_SORT[sorted]}
+			{...moveHandlers}
 		>
 			{column.getCanSort() ? (
 				<button
@@ -400,6 +452,7 @@ export function DataTable<T extends RowData>({
 	label,
 	inset = false,
 	band = false,
+	onColumnMove,
 }: {
 	table: ReactTable<Features, T>;
 	/** Content of the single row shown when there are no rows; null shows none. */
@@ -425,8 +478,22 @@ export function DataTable<T extends RowData>({
 	inset?: boolean;
 	/** Draws rows as rounded bands 12px inside the card edge, with no dividers between them. */
 	band?: boolean;
+	/** Called when a movable column's header is dropped on another's, with the dragged and target column ids. */
+	onColumnMove?: (from: string, to: string) => void;
 }) {
 	const columns = table.getVisibleLeafColumns();
+	const fromRef = useRef<string | null>(null);
+	const [over, setOver] = useState<string | null>(null);
+	const moveProps =
+		onColumnMove === undefined
+			? undefined
+			: (id: string) =>
+					columnMoveProps(
+						id,
+						columns.find((c) => c.id === id)?.columnDef.meta?.movable === true,
+						{ fromRef, over, setOver },
+						onColumnMove,
+					);
 	const [preview, setPreview] = useState<{ id: string; width: number } | null>(null);
 	const sizing =
 		preview === null ? table.state.columnSizing : { ...table.state.columnSizing, [preview.id]: preview.width };
@@ -467,6 +534,7 @@ export function DataTable<T extends RowData>({
 									pin={pinOf(header.column, index)}
 									bounds={fitBounds(header.column, sizing, index)}
 									grow={index === growIndex}
+									moveProps={moveProps}
 									onPreview={(width) => {
 										setPreview(width === null ? null : { id: header.column.id, width });
 									}}

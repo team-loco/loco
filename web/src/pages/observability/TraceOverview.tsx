@@ -10,14 +10,14 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { cn } from "@/lib/utils";
 
 import {
-	countReadout,
+	bucketReadout,
 	durationTick,
 	errorRateLabel,
 	filledRuns,
-	latencyReadout,
 	logPosition,
 	logScale,
 	niceTicks,
+	type Readout,
 } from "./trace-overview";
 import { durationLabel } from "./traces";
 
@@ -135,7 +135,7 @@ export function TraceOverview({
 			setHover(null);
 		},
 	};
-	const overlay = (readout: (b: Bucket) => string) => (
+	const overlay = () => (
 		<>
 			{hover !== null && (
 				<span
@@ -145,16 +145,11 @@ export function TraceOverview({
 				/>
 			)}
 			{hovered !== undefined && brush === null && (
-				<span
-					role="tooltip"
-					className={cn(
-						"pointer-events-none absolute top-1 z-10 rounded-[5px] bg-foreground px-2 py-[3px] font-mono text-[11.5px] whitespace-nowrap text-background",
-						(hover ?? 0) / n < 0.5 ? "translate-x-2" : "-translate-x-[calc(100%+8px)]",
-					)}
-					style={{ left: pct(((hover ?? 0) + 0.5) / n) }}
-				>
-					{readout(hovered)}
-				</span>
+				<TraceTooltip
+					readout={bucketReadout({ ...hovered, widthSeconds }, timePref)}
+					left={pct(((hover ?? 0) + 0.5) / n)}
+					flip={(hover ?? 0) / n > 0.6}
+				/>
 			)}
 			{brush !== null && (
 				<span
@@ -189,7 +184,7 @@ export function TraceOverview({
 				}
 				legend={
 					<>
-						<Swatch className="h-2 w-2 rounded-[2px] bg-lv-info">OK</Swatch>
+						<Swatch className="h-2 w-2 rounded-[2px] bg-(--series-2)">OK</Swatch>
 						<Swatch className="h-2 w-2 rounded-[2px] bg-err">Error</Swatch>
 					</>
 				}
@@ -215,14 +210,14 @@ export function TraceOverview({
 						/>
 						<i
 							className={cn(
-								"block rounded-[1px] bg-lv-info transition-[height] duration-300 motion-reduce:transition-none",
+								"block rounded-[1px] bg-(--series-2) transition-[height] duration-300 motion-reduce:transition-none",
 								b.traces === b.errors && "hidden",
 							)}
 							style={{ height: pct((b.traces - b.errors) / countMax) }}
 						/>
 					</span>
 				))}
-				{overlay((b) => countReadout({ ...b, widthSeconds }, timePref))}
+				{overlay()}
 			</OverviewCard>
 			<OverviewCard
 				title="Latency"
@@ -249,8 +244,29 @@ export function TraceOverview({
 					{lines("p50", "stroke-info")}
 					{lines("p95", "stroke-warn", DASH)}
 				</svg>
-				{overlay((b) => latencyReadout({ ...b, widthSeconds }, timePref))}
+				{overlay()}
 			</OverviewCard>
+		</div>
+	);
+}
+
+function TraceTooltip({ readout, left, flip }: { readout: Readout; left: string; flip: boolean }) {
+	return (
+		<div
+			role="tooltip"
+			className={cn(
+				"pointer-events-none absolute top-10 z-10 flex min-w-[140px] flex-col gap-1 rounded-lg border border-line bg-background px-2.5 py-2 text-[12px] whitespace-nowrap text-foreground shadow-popover",
+				flip ? "-translate-x-[calc(100%+12px)]" : "translate-x-3",
+			)}
+			style={{ left }}
+		>
+			<span className="font-mono text-[11px] text-fg3">{readout.title}</span>
+			{readout.rows.map(([label, value]) => (
+				<span key={label} className="flex justify-between gap-4 text-fg2">
+					<span>{label}</span>
+					<span className="font-mono text-foreground">{value}</span>
+				</span>
+			))}
 		</div>
 	);
 }

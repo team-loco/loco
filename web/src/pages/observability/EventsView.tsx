@@ -26,15 +26,15 @@ import { resolveWindow } from "@/lib/obs-time";
 import { newResourcePath } from "@/lib/routes";
 import { agoLabel, msToTimestamp } from "@/lib/time";
 import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, runtimeEvent } from "@/lib/runtime-events";
-import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
-import { EventDetail, EventIcon } from "./EventDetail";
+import { EventDetail } from "./EventDetail";
 import { eventItem, type EventItem, type Severity } from "./events";
 import { coalesced } from "./coalesce";
 import { eventsQuery } from "./eventsQuery";
 import { ObsHero, WidenRangeButton } from "./ObsEmpty";
-import { liveTokens, type FieldKey, type Token } from "./query";
+import { LevelBadge } from "./format";
+import { liveTokens, type FieldKey, type Level, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
 import { LiveButton } from "./Toolbar";
@@ -402,20 +402,17 @@ function countLabel(count: number | undefined): string | undefined {
 	return count === undefined ? undefined : formatTotal(count);
 }
 
+const EVENT_LEVEL: Record<Severity, Level> = { error: "error", warning: "warn", normal: "info" };
+
 function eventColumns(nowMs: number): DataColumn<EventItem>[] {
 	return [
 		{
 			id: "severity",
-			size: 40,
-			minSize: 40,
+			header: "Level",
+			size: 88,
 			enableResizing: false,
-			meta: { label: "Severity", fit: true },
-			cell: ({ row: { original: e } }) => (
-				<>
-					<EventIcon item={e} />
-					<span className="sr-only">{e.severity}</span>
-				</>
-			),
+			meta: { label: "Level", fit: true },
+			cell: ({ row: { original: e } }) => <LevelBadge level={EVENT_LEVEL[e.severity]} />,
 		},
 		{
 			id: "event",
@@ -424,7 +421,7 @@ function eventColumns(nowMs: number): DataColumn<EventItem>[] {
 			meta: { grow: true, primary: true },
 			cell: ({ row: { original: e } }) => (
 				<span className="flex min-w-0 flex-col gap-0.5">
-					<CellText text={e.title} className={cn("text-[13.5px]", e.severity === "error" && "text-bad-fg")} />
+					<CellText text={e.title} className="text-[13px]" />
 					<CellText text={e.detail} className="font-mono text-[11.5px] text-fg3" />
 				</span>
 			),
@@ -434,7 +431,7 @@ function eventColumns(nowMs: number): DataColumn<EventItem>[] {
 			header: "Resource",
 			size: 160,
 			meta: { fit: true, fitMax: 280 },
-			cell: ({ row }) => <CellText text={row.original.resourceName} className="text-fg2" />,
+			cell: ({ row }) => <CellText text={row.original.resourceName} className="text-[13px] text-fg2" />,
 		},
 		{
 			id: "time",
