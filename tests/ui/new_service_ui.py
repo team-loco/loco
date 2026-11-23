@@ -354,7 +354,7 @@ with session(out) as browser:
     expect(ask.get_by_role("textbox", name="Name")).to_have_count(0)
     image_input.fill("not an image!")
     expect(
-        ask.get_by_text("An image reference can't contain spaces", exact=True)
+        ask.get_by_text("Use registry/repository:tag or an @sha256 digest.", exact=True)
     ).to_be_visible()
     expect(ask.get_by_role("button", name="Continue", exact=True)).to_be_disabled()
     image_input.fill(image)
@@ -465,7 +465,9 @@ with session(out) as browser:
     expect(paste).not_to_be_visible()
     page.keyboard.press("Space")
     expect(paste).to_be_visible()
-    expect(drawer.get_by_role("button", name="Add 0", exact=True)).to_be_disabled()
+    expect(
+        page.locator(f'[id="{panel_id}"]').get_by_role("button", name="Add", exact=True)
+    ).to_be_disabled()
     paste.fill(
         '# billing\n\nexport STRIPE_API_KEY="sk_test"\nLOG_LEVEL=debug\nnot a variable\nLOG_LEVEL=info'
     )
@@ -549,9 +551,7 @@ with session(out) as browser:
     drawer.get_by_role("button", name="Add", exact=True).click()
     names.nth(2).fill("EMPTY_FLAG")
     expect(variables.locator("[data-invalid]")).to_have_count(0)
-    expect(
-        drawer.get_by_role("heading", name="Environment variables 3")
-    ).to_be_visible()
+    expect(drawer.get_by_role("heading", name="Variables 3")).to_be_visible()
 
     health = drawer.get_by_role("switch", name="Health check", exact=True)
     expect(health).to_be_checked()
