@@ -1089,20 +1089,21 @@ with session(out) as browser:
     )
     assert stored == f"{label}|{derived}", stored
     expect(page.get_by_role("heading", level=1)).to_have_text(label)
-    panel = page.get_by_role("region", name="Failed", exact=True)
+    panel = page.get_by_role("region", name="Deploy failed", exact=True)
     problem = panel.get_by_role("alert").filter(
         has_text="ImagePullBackOff: manifest unknown"
     )
     expect(
-        problem.get_by_text("ImagePullBackOff: manifest unknown", exact=True)
+        problem.get_by_text("ImagePullBackOff: manifest unknown", exact=False).first
     ).to_be_visible()
     expect(problem.get_by_text("service-new-1", exact=True)).to_be_visible()
+    panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     expect(
         panel.get_by_role("region", name="New version", exact=True).get_by_text(
             "Failing", exact=True
         )
     ).to_be_visible()
-    expect(panel.get_by_role("link", name="Replica logs", exact=True)).to_have_count(1)
+    expect(panel.get_by_role("link", name="Open in Logs", exact=True)).to_have_count(2)
     sizing = deployments[0]["spec"]["service"]["regions"]["us-ca-1"]
     assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 3, sizing
     assert sizing["scalers"] == {"enabled": True, "cpuTarget": 70}, sizing
