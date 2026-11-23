@@ -99,3 +99,13 @@ app.kubernetes.io/name: loco-build-controller
 {{- end -}}
 {{- .Values.registry.auth -}}
 {{- end -}}
+
+{{- define "loco-worker.spreadByNode" -}}
+- maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+  labelSelector:
+    matchLabels:
+      {{- toYaml . | nindent 6 }}
+{{- end -}}
+

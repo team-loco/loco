@@ -1,0 +1,60 @@
+{{- $components := dict "api" .Values.api }}
+{{- if .Values.obsProxy.enabled }}
+{{- $_ := set $components "obs-proxy-ingest" .Values.obsProxy.ingest }}
+{{- end }}
+{{- if .Values.ui.enabled }}
+{{- $_ := set $components "ui" .Values.ui }}
+{{- end }}
+{{- range $component, $values := $components }}
+{{- $name := printf "%s-%s" $.Release.Name $component }}
+{{- with $values.autoscaling }}
+{{- if .enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ .minReplicas }}
+  maxReplicas: {{ .maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}
+{{- if ge (int (include "loco-control-plane.minReplicas" $values)) 2 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+{{- end }}
+{{- end }}
+{{- if and .Values.openbao.enabled (ge (int .Values.openbao.replicas) 2) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "loco-control-plane.openbaoName" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: {{ include "loco-control-plane.openbaoName" . }}
+{{- end }}

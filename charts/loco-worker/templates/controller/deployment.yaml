@@ -84,4 +84,6 @@ spec:
                 {{- toYaml .Values.controller.podSecurityContext | nindent 16 }}
             serviceAccountName: loco-controller
             terminationGracePeriodSeconds: 10
+            topologySpreadConstraints:
+                {{- include "loco-worker.spreadByNode" (dict "app.kubernetes.io/name" "loco-controller") | nindent 16 }}
 {{- end }}

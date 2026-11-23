@@ -1,0 +1,22 @@
+{{- $controllers := dict }}
+{{- if include "loco-worker.runsApps" . }}
+{{- $_ := set $controllers "loco-controller" .Values.controller.replicas }}
+{{- end }}
+{{- if include "loco-worker.runsBuilds" . }}
+{{- $_ := set $controllers "loco-build-controller" .Values.builds.controller.replicas }}
+{{- end }}
+{{- range $name, $replicas := $controllers }}
+{{- if ge (int $replicas) 2 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+{{- end }}
+{{- end }}

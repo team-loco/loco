@@ -18,9 +18,33 @@ spec:
     type: Kubernetes
     kubernetes:
       envoyDeployment:
+        {{- if not .Values.gateway.autoscaling.enabled }}
+        replicas: {{ .Values.gateway.replicaCount }}
+        {{- end }}
+        pod:
+          topologySpreadConstraints:
+            {{- include "loco-control-plane.spreadByNode" (dict "gateway.envoyproxy.io/owning-gateway-name" .Values.gateway.name "gateway.envoyproxy.io/owning-gateway-namespace" .Values.gatewayNamespace) | nindent 12 }}
         container:
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
+      {{- with .Values.gateway.autoscaling }}
+      {{- if .enabled }}
+      envoyHpa:
+        minReplicas: {{ .minReplicas }}
+        maxReplicas: {{ .maxReplicas }}
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: {{ .targetCPUUtilizationPercentage }}
+      {{- end }}
+      {{- end }}
+      {{- if ge (int (include "loco-control-plane.minReplicas" .Values.gateway)) 2 }}
+      envoyPDB:
+        maxUnavailable: 1
+      {{- end }}
       {{- with .Values.gateway.service }}
       envoyService:
         {{- toYaml . | nindent 8 }}

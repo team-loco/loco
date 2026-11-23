@@ -7,7 +7,8 @@ ui:
     repository: ghcr.io/team-loco/loco-ui
     tag: ""
   imagePullPolicy: Always
-  replicaCount: 1
+  # @schema minimum: 0
+  replicaCount: 2
   port: 8080
   # @schema skipProperties
   resources:
@@ -26,7 +27,20 @@ api:
     # @schema required; minLength: 1
     tag: ""
   imagePullPolicy: Always
+  # Replicas when autoscaling is off. More than one needs CACHE_TYPE=valkey, so a sign-in can start and finish on different replicas.
+  # @schema minimum: 0
   replicaCount: 1
+  # A CPU-utilization autoscaler; replaces replicaCount when enabled. Needs CACHE_TYPE=valkey.
+  # @schema additionalProperties: false
+  autoscaling:
+    enabled: false
+    # @schema minimum: 1
+    minReplicas: 2
+    # @schema minimum: 1
+    maxReplicas: 6
+    # Percent of the CPU request.
+    # @schema minimum: 1
+    targetCPUUtilizationPercentage: 70
   port: 8000
   # @schema required; minLength: 1
   existingSecret: ""
@@ -177,6 +191,20 @@ gateway:
   name: loco-control-plane
   className: loco-control-plane
   service: {}
+  # Envoy replicas when autoscaling is off.
+  # @schema minimum: 0
+  replicaCount: 2
+  # A CPU-utilization autoscaler for the Envoy Deployment; replaces replicaCount when enabled.
+  # @schema additionalProperties: false
+  autoscaling:
+    enabled: true
+    # @schema minimum: 1
+    minReplicas: 2
+    # @schema minimum: 1
+    maxReplicas: 6
+    # Percent of the CPU request.
+    # @schema minimum: 1
+    targetCPUUtilizationPercentage: 70
   # Envoy's container in the gateway's Envoy Deployment.
   # @schema skipProperties
   resources:
@@ -212,7 +240,20 @@ obsProxy:
   imagePullPolicy: Always
   # @schema additionalProperties: false
   ingest:
-    replicaCount: 1
+    # Replicas when autoscaling is off.
+    # @schema minimum: 0
+    replicaCount: 2
+    # A CPU-utilization autoscaler; replaces replicaCount when enabled.
+    # @schema additionalProperties: false
+    autoscaling:
+      enabled: true
+      # @schema minimum: 1
+      minReplicas: 2
+      # @schema minimum: 1
+      maxReplicas: 6
+      # Percent of the CPU request.
+      # @schema minimum: 1
+      targetCPUUtilizationPercentage: 70
     # @schema skipProperties
     resources:
       requests:

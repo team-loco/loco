@@ -1,0 +1,160 @@
+suite: availability
+templates: ["**/*"]
+release:
+  name: loco-worker
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+tests:
+  - it: runs two of each controller, one pod of each going at a time, spread across nodes
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: templates/controller/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: templates/builds/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+      - equal:
+          path: spec
+          value: {maxUnavailable: 1, selector: {matchLabels: {app.kubernetes.io/name: loco-controller}}}
+        template: templates/disruption-budgets.yaml
+        documentSelector: {path: metadata.name, value: loco-controller}
+      - equal:
+          path: spec
+          value: {maxUnavailable: 1, selector: {matchLabels: {app.kubernetes.io/name: loco-build-controller}}}
+        template: templates/disruption-budgets.yaml
+        documentSelector: {path: metadata.name, value: loco-build-controller}
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints
+          value:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: {matchLabels: {app.kubernetes.io/name: loco-controller}}
+        template: templates/controller/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+          value: {app.kubernetes.io/name: loco-build-controller}
+        template: templates/builds/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+
+  - it: elects one leader among the controller replicas
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/controller/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --leader-elect
+        template: templates/builds/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+
+  - it: gives a controller with one replica no disruption budget
+    set:
+      controller.replicas: 1
+      builds.controller.replicas: 1
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/disruption-budgets.yaml
+
+  - it: refuses a second agent, which would share the cluster's identity
+    set:
+      global.replicas.agent: 2
+    asserts:
+      - failedTemplate:
+          errorPattern: "/global/replicas/agent': maximum"
+
+  - it: autoscales the worker gateway's Envoy proxies from two with a disruption budget and spreads them across nodes
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: EnvoyProxy}
+    asserts:
+      - notExists:
+          path: spec.provider.kubernetes.envoyDeployment.replicas
+      - equal:
+          path: spec.provider.kubernetes.envoyHpa
+          value:
+            minReplicas: 2
+            maxReplicas: 6
+            metrics:
+              - type: Resource
+                resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+      - equal:
+          path: spec.provider.kubernetes.envoyPDB
+          value: {maxUnavailable: 1}
+      - equal:
+          path: spec.provider.kubernetes.envoyDeployment.pod.topologySpreadConstraints[0]
+          value:
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                gateway.envoyproxy.io/owning-gateway-name: eg
+                gateway.envoyproxy.io/owning-gateway-namespace: loco-system
+
+  - it: runs a fixed number of worker Envoy proxies when autoscaling is off
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: EnvoyProxy}
+    set:
+      envoyProxy.autoscaling.enabled: false
+      envoyProxy.replicas: 1
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.envoyDeployment.replicas
+          value: 1
+      - notExists:
+          path: spec.provider.kubernetes.envoyHpa
+      - notExists:
+          path: spec.provider.kubernetes.envoyPDB
+
+  - it: runs two Envoy Gateway controllers with a disruption budget, spread across nodes
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: charts/gateway-helm/templates/envoy-gateway-deployment.yaml
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+          value: {control-plane: envoy-gateway}
+        template: charts/gateway-helm/templates/envoy-gateway-deployment.yaml
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        template: charts/gateway-helm/templates/envoy-gateway-poddisruptionbudget.yaml
+
+  - it: runs two metrics servers with a disruption budget, spread across nodes
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: charts/metrics-server/templates/deployment.yaml
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+          value: {app.kubernetes.io/name: metrics-server}
+        template: charts/metrics-server/templates/deployment.yaml
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        template: charts/metrics-server/templates/pdb.yaml
+
+  - it: autoscales the gateway collector from two with a disruption budget, spread across nodes
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+        template: charts/otel-col-deploy/templates/hpa.yaml
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+        template: charts/otel-col-deploy/templates/pdb.yaml
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+          value: {app.kubernetes.io/name: otel-col-deploy}
+        template: charts/otel-col-deploy/templates/statefulset.yaml

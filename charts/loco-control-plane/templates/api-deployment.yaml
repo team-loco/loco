@@ -7,7 +7,9 @@ metadata:
   name: {{ .Release.Name }}-api
   namespace: {{ .Release.Namespace }}
 spec:
+  {{- if not .Values.api.autoscaling.enabled }}
   replicas: {{ .Values.api.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}-api
@@ -18,6 +20,8 @@ spec:
     spec:
       serviceAccountName: {{ include "loco-control-plane.apiServiceAccount" . }}
       automountServiceAccountToken: false
+      topologySpreadConstraints:
+        {{- include "loco-control-plane.spreadByNode" (dict "app" (printf "%s-api" .Release.Name)) | nindent 8 }}
       securityContext:
         runAsNonRoot: true
         seccompProfile:

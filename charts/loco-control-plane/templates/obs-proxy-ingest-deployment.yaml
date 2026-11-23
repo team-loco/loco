@@ -10,7 +10,9 @@ spec:
   selector:
     matchLabels:
       app: {{ .Release.Name }}-obs-proxy-ingest
+  {{- if not .Values.obsProxy.ingest.autoscaling.enabled }}
   replicas: {{ .Values.obsProxy.ingest.replicaCount }}
+  {{- end }}
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -23,6 +25,8 @@ spec:
         app.kubernetes.io/component: observability-proxy
     spec:
       automountServiceAccountToken: false
+      topologySpreadConstraints:
+        {{- include "loco-control-plane.spreadByNode" (dict "app" (printf "%s-obs-proxy-ingest" .Release.Name)) | nindent 8 }}
       securityContext:
         runAsNonRoot: true
         seccompProfile:
