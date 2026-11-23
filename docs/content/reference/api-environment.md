@@ -32,7 +32,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `DATABASE_URL` | required | PostgreSQL connection string. Startup migrations run over it, so use a direct connection. |
 | `DATABASE_LISTEN_URL` | `DATABASE_URL` | Connection for `LISTEN` notifications. Set it to a direct connection when `DATABASE_URL` goes through a transaction pooler. |
 | `DATABASE_MAX_CONNS` | `25` | Largest connection pool size. |
-| `DATABASE_MIN_CONNS` | `20` | Connections the pool keeps open, so a burst of queries from a page load finds them ready. Connections above it close after 10 minutes idle. Must not exceed `DATABASE_MAX_CONNS`; unset, it is 20 or `DATABASE_MAX_CONNS`, whichever is smaller. Each API replica holds this many PostgreSQL connections. |
+| `DATABASE_MIN_CONNS` | `20` | Connections the pool keeps open, so a burst of queries from a page load finds them ready. Must not exceed `DATABASE_MAX_CONNS`; unset, it is 20 or `DATABASE_MAX_CONNS`, whichever is smaller. Each API replica holds this many PostgreSQL connections. |
 | `DATABASE_STATEMENT_TIMEOUT` | `15s` | PostgreSQL `statement_timeout` of each pooled connection. |
 | `LOCO_PLACEMENT_POLL_INTERVAL` | `5s` | How often agent streams recheck placements in case a notification was missed. |
 | `LOCO_ACTIVITY_POLL_INTERVAL` | `30s` | How often deployment watches recheck activity in case a notification was missed. |

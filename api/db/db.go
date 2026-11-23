@@ -16,7 +16,7 @@ const (
 	statementTimeoutParam = "statement_timeout"
 	maxConnLifetime       = time.Hour
 	maxConnLifetimeJitter = 5 * time.Minute
-	maxConnIdleTime       = 10 * time.Minute
+	maxConnIdleTime       = 2 * time.Minute
 	connectTimeout        = 5 * time.Second
 	sqlcNamePrefix        = "-- name: "
 )
