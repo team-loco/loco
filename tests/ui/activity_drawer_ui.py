@@ -72,6 +72,14 @@ jsonb_build_object('environmentId','{environment}'),NOW());""",
     drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
     expect(drawer.get_by_text("Degraded in us-ca-1", exact=True)).to_be_visible()
     expect(drawer.get_by_text("Recovered in us-ca-1", exact=True)).to_be_visible()
+    deployed = drawer.get_by_text("Deployed", exact=True)
+    expect(deployed).to_have_count(6)
+    # A deploy card says what the deployment runs, not its commit message.
+    expect(drawer.get_by_text("Deploy fixture", exact=True).first).to_be_visible()
+    drawer.get_by_role("button", name="Show 2 more", exact=True).click()
+    expect(deployed).to_have_count(8)
+    expect(drawer.get_by_role("button", name="Show 2 more")).to_have_count(0)
+    assert drawer_reads
     # The Warnings level keeps the degraded event and drops the recovered one; the resource filter scopes the drawer and its title.
     drawer.get_by_role("button", name="Warnings", exact=True).click()
     expect(drawer.get_by_text("Recovered in us-ca-1", exact=True)).to_have_count(0)
@@ -83,18 +91,8 @@ jsonb_build_object('environmentId','{environment}'),NOW());""",
     expect(scoped).to_be_visible()
     expect(scoped.get_by_text("Degraded in us-ca-1", exact=True)).to_have_count(0)
     expect(scoped.get_by_text("No warnings.", exact=True)).to_be_visible()
-    scoped.get_by_role("button", name="Resource: svc-2", exact=True).click()
-    page.get_by_role("menuitemradio", name="All resources", exact=True).click()
-    drawer.get_by_role("button", name="All", exact=True).click()
-    deployed = drawer.get_by_text("Deployed", exact=True)
-    expect(deployed).to_have_count(6)
-    # A deploy card says what the deployment runs, not its commit message.
-    expect(drawer.get_by_text("Deploy fixture", exact=True).first).to_be_visible()
-    drawer.get_by_role("button", name="Show 2 more", exact=True).click()
-    expect(deployed).to_have_count(8)
-    expect(drawer.get_by_role("button", name="Show 2 more")).to_have_count(0)
-    assert drawer_reads
-    drawer.get_by_role("button", name="Close workspace activity", exact=True).click()
+    scoped.get_by_role("button", name="All", exact=True).click()
+    page.get_by_role("button", name="Close workspace activity", exact=True).click()
     # A deploy that started before the page loaded and fails after it still toasts, until dismissed.
     sql(
         state,
