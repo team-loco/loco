@@ -43,7 +43,10 @@ tests:
         template: templates/builds/deployment.yaml
         documentSelector: {path: kind, value: Deployment}
 
-  - it: elects one leader among the controller replicas
+  - it: elects one leader among the controller replicas when their args are overridden
+    set:
+      controller.args: [--metrics-bind-address=0]
+      builds.controller.args: [--metrics-bind-address=0]
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args

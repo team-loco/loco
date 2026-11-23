@@ -279,8 +279,8 @@ controller:
     tag: ""
     pullPolicy: Always
 
-  args:
-    - --leader-elect
+  # @schema item: string
+  args: []
 
   # Seconds a new application replica must stay ready before a rollout replaces an old one.
   # @schema type: integer; minimum: 0
@@ -334,8 +334,8 @@ builds:
     # One replica holds the leader lease; the others wait to take over.
     # @schema minimum: 0
     replicas: 2
-    args:
-      - --leader-elect
+    # @schema item: string
+    args: []
     env: []
     # @schema skipProperties
     podSecurityContext:
