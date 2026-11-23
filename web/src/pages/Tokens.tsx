@@ -151,10 +151,21 @@ export function Tokens() {
 
 	const listError = current.error ?? data.scopesError;
 	const firstRunEmpty = owner.canList && (listError === null || listError === undefined) && tokens.length === 0;
+	const intro = firstRun(owner);
 	const empty = (() => {
 		if (!owner.canList) {
 			if (data.scopesLoading) return null;
 			return <div className="py-7 text-center text-fg3">{`You don't have access to ${owner.label} tokens.`}</div>;
+		}
+		if (firstRunEmpty) {
+			return (
+				<EmptyHero art={<TokensArt />} title={intro.title} subtitle={intro.body} className="rounded-none">
+					<span className="flex flex-wrap justify-center gap-2">
+						<LimitedAction reason={createBlocked}>{newTokenButton}</LimitedAction>
+						<DocsButton href={TOKEN_DOCS} />
+					</span>
+				</EmptyHero>
+			);
 		}
 		if (tokens.length > 0) {
 			return (
@@ -178,7 +189,6 @@ export function Tokens() {
 		}
 		return null;
 	})();
-	const intro = firstRun(owner);
 
 	return (
 		<Page>
@@ -245,18 +255,6 @@ export function Tokens() {
 						onRetry={current.refetch}
 						className="rounded-none border-t border-line2"
 					/>
-				) : firstRunEmpty && !current.isLoading ? (
-					<EmptyHero
-						art={<TokensArt />}
-						title={intro.title}
-						subtitle={intro.body}
-						className="rounded-none border-t border-line2"
-					>
-						<span className="flex flex-wrap justify-center gap-2">
-							<LimitedAction reason={createBlocked}>{newTokenButton}</LimitedAction>
-							<DocsButton href={TOKEN_DOCS} />
-						</span>
-					</EmptyHero>
 				) : (
 					<>
 						<TokenTable

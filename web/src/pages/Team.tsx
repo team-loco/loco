@@ -248,7 +248,7 @@ export function Team() {
 				{justYou && q.trim() === "" ? (
 					<section
 						aria-labelledby="team-invite-prompt"
-						className="flex flex-col items-center gap-3.5 border-t border-line2 px-6 pt-11 pb-13 text-center"
+						className="mx-3 flex flex-col items-center gap-3.5 border-t border-line2 px-6 pt-11 pb-13 text-center max-md:mx-0"
 					>
 						<TeamArt
 							name={user?.name ?? ""}
@@ -259,7 +259,7 @@ export function Team() {
 							}}
 						/>
 						<h2 id="team-invite-prompt" className="m-0 mt-2.5 text-2xl font-normal tracking-[-0.03em]">
-							It's just you so far
+							It’s just you so far
 						</h2>
 						<p className="m-0 max-w-[34em] text-[14px] leading-[1.55] text-fg3">
 							Invite people to {orgName} and choose which workspaces they can see.

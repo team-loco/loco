@@ -1,6 +1,6 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { setSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
-import { EyeIcon, EyeOffIcon, TriangleAlertIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/lib/toast";
 
@@ -8,6 +8,7 @@ import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Textarea } from "@/components/design/Textarea";
 import { getErrorMessage } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
@@ -72,7 +73,10 @@ export function SecretDialog({
 				}
 			}}
 		>
-			<DialogContent title={updating ? `Update ${current}` : `New secret in ${environmentName}`}>
+			<DialogContent
+				title={updating ? `Update ${current}` : `New secret in ${environmentName}`}
+				showCloseButton={false}
+			>
 				<form
 					noValidate
 					onSubmit={(e) => {
@@ -129,7 +133,7 @@ export function SecretDialog({
 							data-secret-warn=""
 							className="flex items-start gap-2 rounded-[6px] bg-[color-mix(in_oklab,var(--warn)_12%,transparent)] px-3 py-[9px] text-[12.5px] leading-[1.45] text-foreground"
 						>
-							<TriangleAlertIcon className="mt-px size-3.5 shrink-0 text-warn" />
+							<StatusGlyph glyph="warn" className="mt-px" />
 							<span>You won’t be able to see this value again after you save.</span>
 						</div>
 						<span className="text-[12.5px] text-fg3">{secretHint(current, users, updating)}</span>
@@ -182,7 +186,7 @@ export function ImportDialog({
 				}
 			}}
 		>
-			<DialogContent title={`Import .env into ${environmentName}`}>
+			<DialogContent title={`Import .env into ${environmentName}`} showCloseButton={false}>
 				<form
 					noValidate
 					onSubmit={(e) => {
@@ -204,7 +208,7 @@ export function ImportDialog({
 						<span className="text-fg2">Each line becomes a secret. Names that exist get a new version.</span>
 						<Textarea
 							aria-label=".env contents"
-							className="resize-y bg-panel font-mono text-[12.5px]"
+							className="resize-y font-mono text-[12.5px]"
 							rows={8}
 							spellCheck={false}
 							placeholder="DATABASE_URL=postgres://…"

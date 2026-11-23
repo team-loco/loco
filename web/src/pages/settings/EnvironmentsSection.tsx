@@ -364,7 +364,10 @@ function EnvironmentForm({
 	};
 
 	return (
-		<DialogContent title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.name}`}>
+		<DialogContent
+			title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.name}`}
+			showCloseButton={false}
+		>
 			<form
 				className="contents"
 				onSubmit={(e) => {
@@ -378,7 +381,6 @@ function EnvironmentForm({
 							autoFocus
 							autoComplete="off"
 							value={rawName}
-							placeholder="Staging"
 							aria-invalid={nameErr !== null}
 							className="h-9 text-[13.5px]"
 							onChange={(e) => {

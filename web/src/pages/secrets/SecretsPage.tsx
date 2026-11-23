@@ -167,29 +167,33 @@ export function SecretsPage({
 							<Skeleton className="h-9 w-full" />
 							<Skeleton className="h-9 w-full" />
 						</div>
-					) : secrets.length === 0 ? (
-						<EmptyHero
-							art={<SecretsArt environment={environmentName} />}
-							title={`No secrets in ${environmentName}`}
-							subtitle={`Secrets belong to ${environmentName}. Any resource here can refer to one from its variables.`}
-							className="rounded-t-none border-t border-line2"
-						>
-							<div className="mt-1.5 flex flex-wrap justify-center gap-2">
-								{canWrite && (
-									<Button onClick={openNew}>
-										<PlusIcon />
-										New secret
-									</Button>
-								)}
-								<DocsButton href={SECRETS_DOCS} />
-							</div>
-						</EmptyHero>
 					) : (
 						<DataTable
 							table={table}
 							label="Secrets"
 							band
-							empty={<div className="px-5 py-7 text-center text-[13px] text-fg3">No secrets match.</div>}
+							empty={
+								secrets.length === 0 ? (
+									<EmptyHero
+										art={<SecretsArt environment={environmentName} />}
+										title={`No secrets in ${environmentName}`}
+										subtitle={`Secrets belong to ${environmentName}. Any resource here can refer to one from its variables.`}
+										className="rounded-none"
+									>
+										<div className="mt-1.5 flex flex-wrap justify-center gap-2">
+											{canWrite && (
+												<Button onClick={openNew}>
+													<PlusIcon />
+													New secret
+												</Button>
+											)}
+											<DocsButton href={SECRETS_DOCS} />
+										</div>
+									</EmptyHero>
+								) : (
+									<div className="px-5 py-7 text-center text-[13px] text-fg3">No secrets match.</div>
+								)
+							}
 						/>
 					)}
 				</Section>

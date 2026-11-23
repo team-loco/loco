@@ -28,7 +28,7 @@ describe("secretHint", () => {
 
 describe("deleteBlocked", () => {
 	test("names the resources that keep a secret from being deleted", () => {
-		expect(deleteBlocked(["api", "web"])).toBe("Read by api and web. Remove the reference and redeploy first.");
+		expect(deleteBlocked(["api", "web"])).toBe("Read by api, web. Remove the reference and redeploy first.");
 	});
 });
 

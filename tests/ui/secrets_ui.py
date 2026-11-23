@@ -90,6 +90,7 @@ with session(out) as browser:
     page.get_by_role("link", name="Secrets", exact=True).click()
     expect(page).to_have_url(re.compile(r"/secrets\?env=production$"))
     expect(page.get_by_role("heading", name="No secrets in production")).to_be_visible()
+    expect(page.get_by_role("columnheader", name="Used by", exact=True)).to_be_visible()
     expect(
         page.get_by_role("textbox", name="Search secrets", exact=True)
     ).to_be_visible()

@@ -349,7 +349,7 @@ with session(out) as browser:
             page.get_by_role("button", name=re.compile(rf"^{view}\s*1$"))
         ).to_be_visible()
     expect(page.get_by_role("row")).to_have_count(2)
-    prompt = page.get_by_role("region", name="It's just you so far")
+    prompt = page.get_by_role("region", name="It’s just you so far")
     expect(prompt).to_be_visible()
     expect(prompt.get_by_role("button", name="Invite", exact=True)).to_be_visible()
     expect(prompt.get_by_role("link", name="Docs")).to_be_visible()
@@ -370,7 +370,7 @@ with session(out) as browser:
         re.compile(rf"/org/{created_org}/wks/[0-9a-f-]+(\?env=[\w-]+)?$")
     )
     page.goto(ui + f"/org/{created_org}/team")
-    expect(page.get_by_role("region", name="It's just you so far")).to_be_visible()
+    expect(page.get_by_role("region", name="It’s just you so far")).to_be_visible()
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
     # Hold the API until the loading overlay shows, so the code below is read while the
     # overlay fades out and must stay the only exposed status.
