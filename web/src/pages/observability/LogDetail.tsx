@@ -399,6 +399,7 @@ function AttributeRow({
 			<span className="flex gap-px self-center opacity-40 group-focus-within/attr:opacity-100 group-hover/attr:opacity-100">
 				<AttrAction
 					label={reason ?? `Only ${key} ${value}`}
+					tip={reason ?? "Only this value"}
 					disabled={reason !== null}
 					onClick={() => {
 						onFilter(false);
@@ -408,6 +409,7 @@ function AttributeRow({
 				</AttrAction>
 				<AttrAction
 					label={reason ?? `Hide ${key} ${value}`}
+					tip={reason ?? "Hide this value"}
 					disabled={reason !== null}
 					onClick={() => {
 						onFilter(true);
@@ -418,6 +420,7 @@ function AttributeRow({
 				{onColumn !== undefined && (
 					<AttrAction
 						label={isColumn ? "Already a column" : `Add ${key} as a column`}
+						tip={isColumn ? "Already a column" : "Add as a column"}
 						disabled={attribute.column === undefined || isColumn}
 						onClick={onColumn}
 					>
@@ -432,11 +435,13 @@ function AttributeRow({
 
 function AttrAction({
 	label,
+	tip,
 	disabled,
 	onClick,
 	children,
 }: {
 	label: string;
+	tip: string;
 	disabled: boolean;
 	onClick: () => void;
 	children: React.ReactNode;
@@ -446,7 +451,7 @@ function AttrAction({
 			variant="ghost"
 			size="icon-xs"
 			aria-label={label}
-			title={label}
+			title={tip}
 			disabled={disabled}
 			onClick={onClick}
 			className="size-5 text-fg2 hover:text-foreground [&_svg]:size-3"

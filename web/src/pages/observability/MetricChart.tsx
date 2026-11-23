@@ -246,6 +246,7 @@ export function MetricChart({
 	height,
 	actions,
 	unit,
+	markerMenu = false,
 }: {
 	title: string;
 	series: ChartSeries[];
@@ -258,6 +259,8 @@ export function MetricChart({
 	actions: (t: number) => PinAction[];
 	/** Plots values in this unit from zero; without one, values are percentages of each series' limit. */
 	unit?: string;
+	/** Lists the markers in a menu under the chart. */
+	markerMenu?: boolean;
 }) {
 	const timePref = useTimePreferences();
 	const [pin, setPin] = useState<{ t: number; dx: number; dy: number } | null>(null);
@@ -433,7 +436,7 @@ export function MetricChart({
 					/>
 				)}
 			</DropdownMenu>
-			{markers.length > 0 && <MetricEvents title={title} markers={markers} actions={actions} />}
+			{markerMenu && markers.length > 0 && <MetricEvents title={title} markers={markers} actions={actions} />}
 		</>
 	);
 }

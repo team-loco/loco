@@ -249,7 +249,6 @@ function TraceSession({
 		return (
 			<>
 				{header}
-				<QueryBar valueCounts={valueCounts} />
 				<ObsHero
 					view="traces"
 					title="Send your first trace"

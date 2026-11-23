@@ -2,6 +2,7 @@ import type { SetTraceZoom } from "./useTraceZoom";
 import { useTraceResources } from "./TraceColors";
 import { useMemo, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
+import { useLayout } from "@/lib/layout";
 import { descendantIds, type Zoom } from "../flame";
 import type { LogRow } from "../rows";
 import type { TraceSummary } from "../traces";
@@ -40,7 +41,7 @@ export function TraceLogs({
 	const [nearLog, setNearLog] = useState<string | null>(null);
 	const [opened, setOpened] = useState<LogRow | null>(null);
 	const [tab, setTab] = useState("logs");
-	const [collapsed, setCollapsed] = useState(false);
+	const [collapsed, setCollapsed] = useLayout("trace.bottomCollapsed", (value) => value === true);
 	const ids = useMemo(
 		() => (hoverSpan === null ? new Set<string>() : descendantIds(trace, hoverSpan, children)),
 		[trace, hoverSpan, children],

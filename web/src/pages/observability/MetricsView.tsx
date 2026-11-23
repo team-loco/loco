@@ -108,7 +108,7 @@ const WARN_PERCENT = 85;
 // A click this close to a deploy line, as a share of the range, offers that deploy.
 const DEPLOY_PICK_SHARE = 0.02;
 
-const SORT_KEYS = ["resource", "region", "replicas", "cpu", "mem"] as const;
+const SORT_KEYS = ["resource", "region", "replicas", "cpu", "mem", "req", "err", "lat"] as const;
 const metricSortParser = sortParser(SORT_KEYS, {
 	id: "cpu",
 	desc: true,
@@ -597,6 +597,7 @@ export function MetricsView() {
 									markers={markers}
 									height={CHART_HEIGHT}
 									actions={actions}
+									markerMenu
 								/>
 							)}
 						</section>
@@ -732,19 +733,24 @@ function placementColumns(
 			sortDescFirst: true,
 			cell: ({ row }) => <Meter value={mem.get(row.original.key)} format={MEMORY.format} />,
 		},
-		...TRAFFIC_CARDS.map((card): DataColumn<Placement> => ({
-			id: card.key,
-			header: card.column,
-			meta: { fit: true },
-			cell: ({ row }) => {
-				const value = traffic[card.key].find((s) => s.key === row.original.key)?.points.at(-1)?.v;
-				return (
-					<span className={cn("font-mono", value === undefined ? "text-fg4" : "text-fg2")}>
-						{value === undefined ? "—" : card.format(value)}
-					</span>
-				);
-			},
-		})),
+		...TRAFFIC_CARDS.map((card): DataColumn<Placement> => {
+			const latest = (p: Placement) => traffic[card.key].find((s) => s.key === p.key)?.points.at(-1)?.v;
+			return {
+				id: card.key,
+				accessorFn: (p) => latest(p) ?? -1,
+				header: card.column,
+				meta: { fit: true },
+				sortDescFirst: true,
+				cell: ({ row }) => {
+					const value = latest(row.original);
+					return (
+						<span className={cn("font-mono", value === undefined ? "text-fg4" : "text-fg2")}>
+							{value === undefined ? "—" : card.format(value)}
+						</span>
+					);
+				},
+			};
+		}),
 	];
 }
 

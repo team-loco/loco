@@ -53,6 +53,7 @@ with session(out) as browser:
         + f"/observability?view=events&live=0&from={now_ms - 3 * 3600_000}&to={now_ms - 2 * 3600_000}"
     )
     expect(page.get_by_text("No events in this range", exact=True)).to_be_visible()
+    expect(page.get_by_role("combobox", name="Search and filter")).to_have_count(0)
     expect(
         page.get_by_text(
             "Deploys, restarts, failed health checks and scaling in production show up here as they happen.",
@@ -104,7 +105,7 @@ with session(out) as browser:
     events.get_by_role("row", name="Deploy ready in us-ca-1", exact=True).click()
     ready = page.get_by_role("dialog", name="Deploy ready in us-ca-1", exact=True)
     link = ready.get_by_role("region", name="Attributes").get_by_role(
-        "link", name="7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a", exact=True
+        "link", name="7c41e90a", exact=True
     )
     expect(link).to_have_attribute(
         "href", re.compile(rf"{base}/resource/{resource}\?env=production$")

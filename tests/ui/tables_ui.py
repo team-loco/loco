@@ -946,6 +946,12 @@ def metrics(page):
     api = table.get_by_role("row").filter(has_text="api").first
     for latest in ("2/s", "25.00%", "120 ms"):
         expect(api.get_by_role("cell", name=latest, exact=True)).to_be_visible()
+    for column in ("Requests", "5xx", "p95"):
+        button = page.get_by_role("button", name=column, exact=True)
+        button.click()
+        expect(table.get_by_role("columnheader").filter(has=button)).to_have_attribute(
+            "aria-sort", "descending"
+        )
     table = check_resize(page, table, "CPU (latest)", "Region", metrics_table)
     table.get_by_role("row").filter(has_text="api").first.get_by_role("cell").nth(
         1

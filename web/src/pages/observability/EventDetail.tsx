@@ -18,6 +18,7 @@ import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
 import { CopyId } from "@/components/design/CopyId";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
+import { NavArrow } from "@/components/design/NavArrow";
 import { RowMenu } from "@/components/design/RowMenu";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -92,7 +93,7 @@ function EventBody({ item, onPrev, onNext, onClose }: Omit<Props, "item" | "onKe
 		{ key: "reason", value: item.reason, filter: true },
 		{
 			key: "deployment",
-			value: item.event.deploymentId,
+			value: item.event.deploymentId.slice(0, 8),
 			filter: false,
 			href: resourcePath(orgId, workspaceId, item.resourceId, { env: envSlug }),
 		},
@@ -244,11 +245,9 @@ function EventBody({ item, onPrev, onNext, onClose }: Omit<Props, "item" | "onKe
 									{field.href === undefined ? (
 										field.value
 									) : (
-										<Link
-											to={field.href}
-											className="underline decoration-fg3/60 underline-offset-[3px] hover:decoration-current"
-										>
+										<Link to={field.href} className="group/nav text-foreground no-underline">
 											{field.value}
+											<NavArrow />
 										</Link>
 									)}
 								</dd>

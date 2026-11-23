@@ -595,6 +595,9 @@ with session(out) as browser:
     with page.expect_download() as download_info:
         page.get_by_role("menuitem", name=re.compile("^Download JSON")).click()
     assert download_info.value.suggested_filename == f"trace-{trace}.json"
+    expect(
+        page.get_by_text(f"Downloaded trace-{trace[:8]}.json", exact=True)
+    ).to_be_visible()
     ranking = drawer.get_by_role("group", name="Time spent per resource")
     expect(ranking.get_by_role("button", name="+7 more", exact=True)).to_be_visible()
     expect(ranking.get_by_role("button").filter(has_text="payment")).to_contain_text(
@@ -706,6 +709,7 @@ with session(out) as browser:
         "button", name="Collapse POST /api/checkout", exact=True
     ).first.click()
     expect(waterfall.locator("[data-span]")).to_have_count(1)
+    expect(waterfall.locator("[data-span]").first).to_contain_text(f"+{len(spans) - 1}")
     waterfall.get_by_role(
         "button", name="Expand POST /api/checkout", exact=True
     ).click()
@@ -717,6 +721,16 @@ with session(out) as browser:
     expect(waterfall.locator("[data-span]").nth(2)).to_be_focused()
     page.keyboard.press("k")
     expect(waterfall.locator("[data-span]").nth(1)).to_be_focused()
+    # Selecting a leaf dims the rows outside its ancestors and descendants.
+    for _ in range(3):
+        page.keyboard.press("j")
+    expect(waterfall.locator("[data-span]").nth(4)).to_be_focused()
+    expect(waterfall.locator(f'[data-span-id="{spans[3]["spanId"]}"]')).to_have_css(
+        "opacity", "1"
+    )
+    expect(waterfall.locator(f'[data-span-id="{spans[5]["spanId"]}"]')).to_have_css(
+        "opacity", "0.45"
+    )
     waterfall.get_by_role("separator", name="Resize span column").press("ArrowRight")
     expect(
         waterfall.get_by_role("separator", name="Resize span column")
@@ -741,9 +755,10 @@ with session(out) as browser:
     attributes.get_by_role("tab", name="Links", exact=True).click()
     links = drawer.get_by_role("region", name="Span links")
     expect(links.get_by_role("listitem")).to_have_count(2)
+    expect(links.get_by_role("link")).to_have_count(2)
     expect(links).to_contain_text("link.reason")
     expect(links).to_contain_text(linked_trace)
-    links.get_by_role("link", name="Open linked span", exact=True).first.click()
+    links.get_by_role("link").first.click()
     expect(page).to_have_url(re.compile("span=" + spans[5]["spanId"]))
     expect(drawer.get_by_role("region", name="Selected span")).to_contain_text(
         "GetProduct · OLJCESPC7Z"
@@ -754,7 +769,7 @@ with session(out) as browser:
     ).dblclick()
     expect(drawer.get_by_role("button", name="Reset zoom", exact=True)).to_be_visible()
     attributes.get_by_role("tab", name="Links", exact=True).click()
-    links.get_by_role("link", name="Open linked span", exact=True).nth(1).click()
+    links.get_by_role("link").nth(1).click()
     wait_for_query(
         page,
         lambda query: (
@@ -877,6 +892,7 @@ with session(out) as browser:
     expect(
         gone.get_by_role("heading", name="This trace is no longer available")
     ).to_be_visible()
+    expect(gone.get_by_role("button", name="More for this trace")).to_have_count(0)
     page.goto(state["ui_url"] + base + "&trace=4bf92f35")
     malformed = page.get_by_role("dialog")
     expect(malformed.get_by_role("heading", name="Trace not found")).to_be_visible()
@@ -900,6 +916,7 @@ with session(out) as browser:
     mode[0] = "empty"
     page.get_by_role("button", name="Refresh", exact=True).click()
     page.get_by_text("Send your first trace", exact=True).wait_for()
+    expect(page.get_by_role("combobox", name="Search and filter")).to_have_count(0)
     expect(
         page.get_by_text(
             "Loco configures the collector connection by default. Add instrumentation to your app, or configure its SDK endpoint yourself.",
@@ -1473,6 +1490,9 @@ with session(out) as browser:
     assert int(resize.get_attribute("aria-valuenow")) > height
     drawer.get_by_role("button", name="Collapse bottom panel").click()
     expect(drawer.get_by_role("button", name="Expand bottom panel")).to_be_visible()
+    assert page.evaluate(
+        "JSON.parse(localStorage.getItem('loco-layout'))['trace.bottomCollapsed']"
+    )
     drawer.get_by_role("button", name="Expand bottom panel").click()
     drawer.get_by_role("tab", name="Infrastructure", exact=True).click()
     expect(drawer.get_by_role("tablist", name="Trace bottom panel")).to_be_visible()
@@ -1837,14 +1857,14 @@ with session(out) as browser:
     expect(page.locator('[data-slot="combobox-content"]')).to_contain_text(
         "@duration:>500 compare"
     )
-    expect(page.get_by_role("button", name="Pin search")).to_have_count(0)
+    expect(page.get_by_role("button", name="Pin this search")).to_have_count(0)
     search.fill("")
     page.keyboard.press("Escape")
-    expect(page.get_by_role("button", name="Pin search")).to_have_count(0)
+    expect(page.get_by_role("button", name="Pin this search")).to_have_count(0)
     page.goto(state["ui_url"] + base + "&q=checkout")
     expect(search).to_have_value("checkout")
     page.clock.run_for(recent_save_ms)
-    page.get_by_role("button", name="Pin search").click()
+    page.get_by_role("button", name="Pin this search").click()
     expect(
         page.locator("[data-sonner-toast]").filter(has_text="Pinned")
     ).to_be_visible()
