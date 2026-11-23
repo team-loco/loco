@@ -196,6 +196,12 @@ with session(out) as browser:
             "node => getComputedStyle(node).animationName"
         )
 
+    # The sliding thumb sits under the selected icon, not over it.
+    assert light.locator("svg").evaluate("""node => {
+        const box = node.getBoundingClientRect();
+        return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    }""")
+
     page.evaluate("window.modeSounds = []")
     dark.click()
     expect(dark).to_have_attribute("aria-checked", "true")
