@@ -291,8 +291,42 @@ function pinOf<T extends RowData>(column: Column<Features, T>, index: number): "
 	return column.columnDef.meta?.pinEnd === true ? "end" : undefined;
 }
 
-interface ColumnMove {
-	props: (id: string) => HTMLAttributes<HTMLElement> & { draggable: boolean };
+interface ColumnDrag {
+	from: string;
+	over: string | null;
+}
+
+// Drag attributes for the header of column id; only a movable column drags or accepts a drop.
+function columnMoveProps(
+	id: string,
+	movable: boolean,
+	drag: ColumnDrag | null,
+	setDrag: (next: ColumnDrag | null) => void,
+	onMove: (from: string, to: string) => void,
+): HTMLAttributes<HTMLElement> {
+	const target = movable && drag !== null && drag.over === id && drag.from !== id;
+	return {
+		draggable: movable,
+		className: cn(movable && "cursor-grab", target && "rounded-md bg-panel2"),
+		onDragStart: (event) => {
+			event.dataTransfer.effectAllowed = "move";
+			event.dataTransfer.setData("text/plain", id);
+			setDrag({ from: id, over: null });
+		},
+		onDragOver: (event) => {
+			if (drag === null || !movable) return;
+			event.preventDefault();
+			if (drag.over !== id) setDrag({ ...drag, over: id });
+		},
+		onDrop: (event) => {
+			event.preventDefault();
+			if (drag !== null && movable && drag.from !== id) onMove(drag.from, id);
+			setDrag(null);
+		},
+		onDragEnd: () => {
+			setDrag(null);
+		},
+	};
 }
 
 // Header and column objects keep their identity while table state changes, so the
@@ -305,9 +339,9 @@ function DataTableHead<T extends RowData>({
 	bounds,
 	grow,
 	onPreview,
-	move,
+	moveProps,
 }: {
-	move: ColumnMove | null;
+	moveProps: ((id: string) => HTMLAttributes<HTMLElement>) | undefined;
 	header: Header<Features, T>;
 	sorted: false | SortDirection;
 	width: number;
@@ -317,7 +351,7 @@ function DataTableHead<T extends RowData>({
 	onPreview: (width: number | null) => void;
 }) {
 	const { column } = header;
-	const { className: moveClass, ...moveHandlers } = move?.props(column.id) ?? {};
+	const { className: moveClass, ...moveHandlers } = moveProps?.(column.id) ?? {};
 	const align = alignOf(column);
 	const label = <Template render={column.columnDef.header} context={header.getContext()} />;
 	const Arrow = sorted === "desc" ? ArrowDownIcon : ArrowUpIcon;
@@ -442,39 +476,18 @@ export function DataTable<T extends RowData>({
 	onColumnMove?: (from: string, to: string) => void;
 }) {
 	const columns = table.getVisibleLeafColumns();
-	const [drag, setDrag] = useState<{ from: string; over: string | null } | null>(null);
-	const movable = (id: string) => columns.find((c) => c.id === id)?.columnDef.meta?.movable === true;
-	const move: ColumnMove | null =
+	const [drag, setDrag] = useState<ColumnDrag | null>(null);
+	const moveProps =
 		onColumnMove === undefined
-			? null
-			: {
-					props: (id) => {
-						const can = movable(id);
-						const target = can && drag !== null && drag.over === id && drag.from !== id;
-						return {
-							draggable: can,
-							className: cn(can && "cursor-grab", target && "rounded-md bg-panel2"),
-							onDragStart: (event) => {
-								event.dataTransfer.effectAllowed = "move";
-								event.dataTransfer.setData("text/plain", id);
-								setDrag({ from: id, over: null });
-							},
-							onDragOver: (event) => {
-								if (drag === null || !can) return;
-								event.preventDefault();
-								if (drag.over !== id) setDrag({ ...drag, over: id });
-							},
-							onDrop: (event) => {
-								event.preventDefault();
-								if (drag !== null && can && drag.from !== id) onColumnMove(drag.from, id);
-								setDrag(null);
-							},
-							onDragEnd: () => {
-								setDrag(null);
-							},
-						};
-					},
-				};
+			? undefined
+			: (id: string) =>
+					columnMoveProps(
+						id,
+						columns.find((c) => c.id === id)?.columnDef.meta?.movable === true,
+						drag,
+						setDrag,
+						onColumnMove,
+					);
 	const [preview, setPreview] = useState<{ id: string; width: number } | null>(null);
 	const sizing =
 		preview === null ? table.state.columnSizing : { ...table.state.columnSizing, [preview.id]: preview.width };
@@ -515,7 +528,7 @@ export function DataTable<T extends RowData>({
 									pin={pinOf(header.column, index)}
 									bounds={fitBounds(header.column, sizing, index)}
 									grow={index === growIndex}
-									move={move}
+									moveProps={moveProps}
 									onPreview={(width) => {
 										setPreview(width === null ? null : { id: header.column.id, width });
 									}}
