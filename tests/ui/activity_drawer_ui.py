@@ -80,7 +80,20 @@ jsonb_build_object('environmentId','{environment}'),NOW());""",
     expect(deployed).to_have_count(8)
     expect(drawer.get_by_role("button", name="Show 2 more")).to_have_count(0)
     assert drawer_reads
-    drawer.get_by_role("button", name="Close workspace activity", exact=True).click()
+    # The Warnings level keeps the degraded event and drops the recovered one; the resource filter scopes the drawer and its title.
+    drawer.get_by_role("button", name="Warnings", exact=True).click()
+    expect(page).to_have_url(re.compile(r"[?&]activity-level=warn"))
+    expect(drawer.get_by_text("Recovered in us-ca-1", exact=True)).to_have_count(0)
+    expect(drawer.get_by_text("Degraded in us-ca-1", exact=True)).to_be_visible()
+    drawer.get_by_role("button", name="Resource: All resources", exact=True).click()
+    page.get_by_role("menuitemradio", name="svc-2", exact=True).click()
+    expect(page).to_have_url(re.compile(r"[?&]activity=svc-2"))
+    scoped = page.get_by_role("dialog", name="svc-2 activity", exact=True)
+    expect(scoped).to_be_visible()
+    expect(scoped.get_by_text("Degraded in us-ca-1", exact=True)).to_have_count(0)
+    expect(scoped.get_by_text("No warnings.", exact=True)).to_be_visible()
+    scoped.get_by_role("button", name="All", exact=True).click()
+    page.get_by_role("button", name="Close workspace activity", exact=True).click()
     # A deploy that started before the page loaded and fails after it still toasts, until dismissed.
     sql(
         state,

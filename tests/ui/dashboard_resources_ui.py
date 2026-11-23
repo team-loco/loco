@@ -124,6 +124,15 @@ with session(out) as browser:
             "Delete",
         ]
     )
+    # View events opens the activity drawer on this resource.
+    menu.get_by_role("menuitem", name="View events", exact=True).click()
+    expect(page).to_have_url(re.compile(r"[?&]activity=svc-1"))
+    expect(
+        page.get_by_role("dialog", name="svc-1 activity", exact=True)
+    ).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page).not_to_have_url(re.compile(r"[?&]activity="))
+    row.get_by_role("button", name="Actions for svc-1", exact=True).click()
     menu.get_by_role("menuitem", name="Scale", exact=True).click()
     expect(page).to_have_url(re.compile(r"[?&]tab=scaling"))
 

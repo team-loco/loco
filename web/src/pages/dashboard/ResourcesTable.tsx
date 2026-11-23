@@ -185,13 +185,7 @@ function ReplicasCell({ item }: { item: DashboardItem }) {
 	if (isDraftItem(item)) return <span className="font-mono text-[12px] text-fg4">—</span>;
 	const degraded = item.status === ResourceStatus.DEGRADED;
 	const meter = item.totalReplicas > MAX_PIPS;
-	const ready = item.regions.reduce((n, g) => n + g.ready, 0);
-	const missing = Math.max(0, item.totalReplicas - ready);
-	const summary = `${ready.toString()} of ${item.totalReplicas.toString()} ready${missing ? `, ${missing.toString()} starting` : ""}`;
-	const label = [
-		summary,
-		...item.regions.map((g) => `${g.region}: ${g.ready.toString()}/${g.desired.toString()}`),
-	].join("\n");
+	const label = item.regions.map((g) => `${g.region}: ${g.ready.toString()}/${g.desired.toString()}`).join("\n");
 	const replicas = (
 		<div className="flex flex-col">
 			{item.regions.map((g) => (

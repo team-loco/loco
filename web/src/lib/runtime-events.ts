@@ -20,6 +20,9 @@ export type RuntimeEvent = {
 
 export const RUNTIME_EVENT_TYPES = ["resource.degraded", "resource.recovered"];
 
+/** The events the Activity drawer lists for the resources. */
+export const ACTIVITY_EVENT_TYPES = [...RUNTIME_EVENT_TYPES, "resource.restarted", "resource.scaled"];
+
 /** Types the API records with an environment, so ListEvents can filter them by one. */
 export const ENVIRONMENT_EVENT_TYPES = [
 	...RUNTIME_EVENT_TYPES,

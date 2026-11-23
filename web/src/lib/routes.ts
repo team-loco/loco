@@ -19,6 +19,15 @@ export function switchWorkspacePath(pathname: string, search: string, orgId: str
 	return `${workspacePath(orgId, workspaceId, rest)}${serializeEnv(search, { env: null })}`;
 }
 
+export const ACTIVITY_PARAM = "activity";
+
+const serializeActivity = createSerializer({ [ACTIVITY_PARAM]: parseAsString });
+
+/** The search string that opens the Activity drawer on top of the page, for one resource's slug or all of them. */
+export function activitySearch(search: string | URLSearchParams, resourceSlug = ""): string {
+	return serializeActivity(search, { [ACTIVITY_PARAM]: resourceSlug });
+}
+
 export const SETTINGS_SCOPES = ["org", "workspace", "personal"] as const;
 export type SettingsScope = (typeof SETTINGS_SCOPES)[number];
 
