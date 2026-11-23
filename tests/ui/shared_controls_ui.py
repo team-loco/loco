@@ -548,6 +548,7 @@ def workload_logs(page):
     expect(page.get_by_role("option", name=re.compile(r"kafka"))).to_have_count(0)
     search.press("Escape")
     workload_row.click()
+    page.mouse.move(0, 0)
     detail = page.get_by_role("dialog")
     expect(
         detail.get_by_title("Kubernetes workload, not a Loco resource")

@@ -436,6 +436,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     )
 
     page.get_by_role("button", name="Workspace activity", exact=False).click()
+    page.mouse.move(0, 0)
     drawer = page.get_by_role("dialog")
     cards = (
         drawer.get_by_role("listitem")

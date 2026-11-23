@@ -283,6 +283,7 @@ with session(out) as browser:
     expect(
         drawer.get_by_role("button", name="Newer event", exact=True)
     ).to_be_disabled()
+    page.mouse.move(0, 0)
     expect(drawer.get_by_title("Copy request ID", exact=True)).to_be_visible()
     request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()
     expect(
@@ -299,6 +300,7 @@ with session(out) as browser:
     )
     assert gap["left"] >= 0 and gap["top"] < 0, gap
     drawer.get_by_role("button", name="Older event", exact=True).click()
+    page.mouse.move(0, 0)
     expect(drawer.get_by_title("Copy request ID", exact=True)).not_to_have_text(
         request_id
     )

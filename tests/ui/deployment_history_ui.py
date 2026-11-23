@@ -366,6 +366,7 @@ with session(out) as browser:
         name=f"Show details for {data['releases'][0][-8:]}",
         exact=True,
     ).click()
+    page.mouse.move(0, 0)
     expect(
         section.get_by_role("button", name="Copy SHA", exact=True)
     ).to_have_attribute("title", f"Copy {'7c41e9a'.ljust(40, '0')}")
@@ -872,6 +873,7 @@ with session(out) as browser:
     ).click()
     row_delete = writer_page.get_by_role("menuitem", name="Delete", exact=True)
     expect(row_delete).to_be_disabled()
+    writer_page.mouse.move(0, 0)
     expect(row_delete).to_have_attribute("title", needs_admin)
     writer_page.keyboard.press("Escape")
     writer_page.goto(

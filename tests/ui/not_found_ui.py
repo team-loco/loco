@@ -442,12 +442,14 @@ with session(out) as browser:
         f"'{uuid.UUID(int=0)}');",
     )
     context, page, errors = open_page(browser, "resource_reader")
-    for path in (
-        f"/org/{uuid.UUID(int=0)}/team",
-        f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}",
-        f"/org/{org}/wks/{uuid.UUID(int=0)}",
+    # The shell shows the page while the lookup that finds it absent is in flight.
+    for path, lookup in (
+        (f"/org/{uuid.UUID(int=0)}/team", "GetOrg"),
+        (f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}", "GetOrg"),
+        (f"/org/{org}/wks/{uuid.UUID(int=0)}", "GetWorkspace"),
     ):
-        page.goto(ui + path)
+        with expect_rpc(page, lookup, lambda body: True):
+            page.goto(ui + path)
         expect_not_found(page, path)
     page.goto(ui + f"/org/{org}/team")
     expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
