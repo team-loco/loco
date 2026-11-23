@@ -39,7 +39,7 @@ func TestBuildDispatch(t *testing.T) {
 		Name:        name,
 		Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Domain: &domainv1.DomainInput{
-			DomainSource: domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+			DomainSource: domainv1.DomainType_DOMAIN_TYPE_APP,
 			Subdomain:    new(name),
 			AppDomain:    new(p.Domain),
 		},

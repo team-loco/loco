@@ -201,7 +201,7 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 		t.Fatalf("list domains: %v", err)
 	}
 	if len(domains) != 1 || domains[0].Domain != applyWorkerDomain || !domains[0].IsPrimary ||
-		domains[0].DomainSource != genDb.DomainSourcePlatformProvided ||
+		domains[0].DomainSource != genDb.DomainSourceApp ||
 		derefString(domains[0].SubdomainLabel) != applyWorker {
 		t.Fatalf("domains = %+v, want the primary app domain %s", domains, applyWorkerDomain)
 	}

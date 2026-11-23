@@ -29,7 +29,7 @@ func TestWireRejectsTrafficSettingsWithoutAPort(t *testing.T) {
 	}
 	domain := create(&resourcev1.ServiceSpec{Regions: regions})
 	domain.Domain = &domainv1.DomainInput{
-		DomainSource: domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+		DomainSource: domainv1.DomainType_DOMAIN_TYPE_APP,
 		Subdomain:    new("worker"),
 		AppDomain:    new("example.com"),
 	}

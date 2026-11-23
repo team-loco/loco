@@ -224,7 +224,7 @@ func TestAppSubdomainIsUniquePerDomain(t *testing.T) {
 	duplicate := `
 INSERT INTO resource_domains
     (resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
-VALUES ($1, $2, 'api-copy.example.com', 'platform_provided', 'api', 'example.com', false)`
+VALUES ($1, $2, 'api-copy.example.com', 'app', 'api', 'example.com', false)`
 	_, err := f.pool.Exec(context.Background(), duplicate, f.resourceID, f.envID)
 	if !isUniqueViolation(err, pgAppSubdomainUnique) {
 		t.Fatalf("insert a second api label under example.com: err = %v, want a unique violation", err)
@@ -294,7 +294,7 @@ func TestAClusterThatStopsServingADomainKeepsTheHostnameAndDegradesTheRegion(t *
 	insert := `
 INSERT INTO resource_domains
     (resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
-VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
+VALUES ($1, $2, $3, 'app', 'app', $4, true)`
 	_, err := f.pool.Exec(
 		context.Background(),
 		insert,
@@ -340,7 +340,7 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 
 func (c *domainClient) addUnder(label, appDomain string) error {
 	input := &domainv1.DomainInput{
-		DomainSource: domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+		DomainSource: domainv1.DomainType_DOMAIN_TYPE_APP,
 		Subdomain:    &label,
 		AppDomain:    &appDomain,
 	}

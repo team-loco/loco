@@ -88,7 +88,7 @@ func newResourceListFixture(t *testing.T) *resourceListFixture {
 	beta := f.deployResource(t, listBeta, f.stagingCluster, f.stagingID, testRegion, 3)
 	f.exec(t, "UPDATE deployments SET started_at = $2 WHERE id = $1", beta, start.Add(4*time.Hour))
 	f.exec(t, `INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)
-		VALUES ($1, $2, 'beta.example.test', 'user_provided', true)`, f.ids[listBeta], f.stagingID)
+		VALUES ($1, $2, 'beta.example.test', 'custom', true)`, f.ids[listBeta], f.stagingID)
 
 	epsilon := f.deployResource(t, listEpsilon, f.clusterID, f.envID, testRegion, 1)
 	f.exec(t, "UPDATE deployment_placements SET status = 'canceled' WHERE deployment_id = $1", epsilon)

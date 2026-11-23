@@ -140,7 +140,7 @@ export function useSaveSettings({
 					await addDomain.mutateAsync({
 						resourceId,
 						domain: {
-							domainSource: DomainType.PLATFORM_PROVIDED,
+							domainSource: DomainType.APP,
 							subdomain: draft.subdomain ?? "",
 							appDomain: draft.appDomain ?? "",
 						},

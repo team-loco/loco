@@ -282,8 +282,8 @@ func (ns NullDeploymentTrigger) Value() (driver.Value, error) {
 type DomainSource string
 
 const (
-	DomainSourcePlatformProvided DomainSource = "platform_provided"
-	DomainSourceUserProvided     DomainSource = "user_provided"
+	DomainSourceApp    DomainSource = "app"
+	DomainSourceCustom DomainSource = "custom"
 )
 
 func (e *DomainSource) Scan(src interface{}) error {

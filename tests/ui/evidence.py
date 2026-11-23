@@ -1069,7 +1069,7 @@ def seed_domains(state, resource_id, domains):
         rows.append(
             "INSERT INTO resource_domains(resource_id,environment_id,domain,domain_source,subdomain_label,"
             "app_domain,is_primary) SELECT r.id,e.id,"
-            f"{q(entry['domain'])},'platform_provided',{q(label)},{q(app_domain)},{str(environment not in primary).lower()} "
+            f"{q(entry['domain'])},'app',{q(label)},{q(app_domain)},{str(environment not in primary).lower()} "
             f"FROM resources r JOIN environments e ON e.workspace_id=r.workspace_id "
             f"WHERE r.id={q(resource_id)} AND e.slug={q(environment)};"
         )

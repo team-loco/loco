@@ -67,7 +67,7 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 		}
 		label := "private"
 		input = &domainv1.DomainInput{
-			DomainSource: domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+			DomainSource: domainv1.DomainType_DOMAIN_TYPE_APP,
 			AppDomain:    new(testAppDomain), Subdomain: &label,
 		}
 	}

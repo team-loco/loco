@@ -11,7 +11,7 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/domain/v1;domainv1";
 // DomainType indicates the source of a domain.
 enum DomainType {
   DOMAIN_TYPE_UNSPECIFIED = 0;
-  DOMAIN_TYPE_PLATFORM_PROVIDED = 1;
+  DOMAIN_TYPE_APP = 1;
 }
 
 // --- Messages ---
@@ -28,17 +28,17 @@ message DomainInput {
     defined_only: true
     not_in: [0]
   }];
-  optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
-  optional string app_domain = 3 [(buf.validate.field).string.hostname = true]; // for PLATFORM_PROVIDED: an app domain a cluster serves
+  optional string subdomain = 2; // for APP: "myapp"
+  optional string app_domain = 3 [(buf.validate.field).string.hostname = true]; // for APP: an app domain a cluster serves
 
   option (buf.validate.message).cel = {
-    id: "platform_provided.subdomain_required"
-    message: "subdomain is required for platform-provided domains"
+    id: "app.subdomain_required"
+    message: "subdomain is required for app domains"
     expression: "this.domain_source != 1 || (has(this.subdomain) && this.subdomain != '')"
   };
   option (buf.validate.message).cel = {
-    id: "platform_provided.app_domain_required"
-    message: "app_domain is required for platform-provided domains"
+    id: "app.app_domain_required"
+    message: "app_domain is required for app domains"
     expression: "this.domain_source != 1 || (has(this.app_domain) && this.app_domain != '')"
   };
 }

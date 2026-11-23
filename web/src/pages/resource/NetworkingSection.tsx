@@ -263,7 +263,7 @@ function AddDomainForm({
 				create.mutate(
 					{
 						resourceId,
-						domain: { domainSource: DomainType.PLATFORM_PROVIDED, subdomain, appDomain },
+						domain: { domainSource: DomainType.APP, subdomain, appDomain },
 					},
 					{
 						onSuccess: () => {
