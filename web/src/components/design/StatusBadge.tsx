@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Rollout } from "@/lib/resource-status";
 import { cn } from "@/lib/utils";
 
-import { type Glyph, StatusGlyph } from "./StatusGlyph";
+import type { Glyph } from "./StatusGlyph";
 
 export interface StatusStyle {
 	label: string;
@@ -44,7 +44,7 @@ export function deploymentPhaseStyle(phase: DeploymentStatus | undefined): Statu
 		case DeploymentStatus.CRASHED:
 			return { label: "Crashed", glyph: "err" };
 		case DeploymentStatus.SUPERSEDED:
-			return { label: "Superseded", glyph: "off" };
+			return { label: "Completed", glyph: "done" };
 		case DeploymentStatus.FAILED:
 			return { label: "Failed", glyph: "err" };
 		case DeploymentStatus.CANCELED:
@@ -56,10 +56,11 @@ export function deploymentPhaseStyle(phase: DeploymentStatus | undefined): Statu
 	}
 }
 
-type Tone = "ok" | "info" | "warn" | "err" | "neutral";
+type Tone = "ok" | "done" | "info" | "warn" | "err" | "neutral";
 
 const TONE: Record<Glyph, Tone> = {
 	ok: "ok",
+	done: "done",
 	spin: "info",
 	warn: "warn",
 	err: "err",
@@ -67,12 +68,14 @@ const TONE: Record<Glyph, Tone> = {
 	draft: "neutral",
 };
 
-const TONE_VAR: Record<Tone, string> = {
+/** A tinted fill with tone text, like the level badge; a completed deployment is a quiet gray. */
+const TONE_CLASS: Record<Tone, string> = {
 	ok: "[--tn:var(--ok)]",
 	info: "[--tn:var(--info)]",
 	warn: "[--tn:var(--warn)]",
 	err: "[--tn:var(--err)]",
 	neutral: "[--tn:var(--fg4)]",
+	done: "[--tn:var(--fg)] bg-fg/7 text-fg2",
 };
 
 export function StatusBadge({ glyph, label, className }: StatusStyle & { className?: string | undefined }) {
@@ -82,12 +85,11 @@ export function StatusBadge({ glyph, label, className }: StatusStyle & { classNa
 			variant="outline"
 			data-status-badge={tone}
 			className={cn(
-				"h-6 justify-start gap-1.5 rounded-[5px] border-[color-mix(in_oklch,var(--tn)_28%,transparent)] bg-[color-mix(in_oklch,var(--tn)_12%,var(--bg))] py-0 pr-[9px] pl-1.5 text-[12.5px] font-medium text-foreground",
-				TONE_VAR[tone],
+				"h-5 justify-start gap-0 rounded-[5px] border-0 bg-[color-mix(in_oklch,var(--tn)_13%,transparent)] px-[7px] py-0 text-[12px] font-medium text-[color:color-mix(in_oklch,var(--tn)_72%,var(--fg))]",
+				TONE_CLASS[tone],
 				className,
 			)}
 		>
-			<StatusGlyph glyph={glyph} className="size-[13px]" />
 			{label}
 		</Badge>
 	);
@@ -108,7 +110,7 @@ export function RolloutBadge({ rollout, compact = false }: { rollout: Rollout | 
 	return <StatusBadge glyph={glyph} label={compact ? short : label} />;
 }
 
-const SUPERSEDED: StatusStyle = { label: "Superseded", glyph: "off" };
+const SUPERSEDED: StatusStyle = { label: "Completed", glyph: "done" };
 
 export function DeploymentStatusBadge({
 	phase,

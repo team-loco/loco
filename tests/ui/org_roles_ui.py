@@ -94,7 +94,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(page.get_by_role("menuitem", name="acme", exact=True)).to_be_visible()
     expect(
         page.get_by_role("menuitem", name="Organization settings", exact=True)
-    ).to_be_visible()
+    ).to_have_count(0)
     page.get_by_role("menuitem", name="New organization", exact=True).click()
     sidebar_name = "sidebar-" + uuid.uuid4().hex[:8]
     name.fill(sidebar_name)

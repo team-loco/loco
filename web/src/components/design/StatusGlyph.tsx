@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type Glyph = "ok" | "spin" | "warn" | "err" | "off" | "draft";
+type Glyph = "ok" | "done" | "spin" | "warn" | "err" | "off" | "draft";
 
 const INK = "var(--bg)";
 const STROKE = 1.6;
@@ -8,6 +8,7 @@ const STROKE = 1.6;
 function glyphClass(glyph: Glyph): string {
 	switch (glyph) {
 		case "ok":
+		case "done":
 			return "text-ok-glyph";
 		case "spin":
 			return "animate-spin text-info motion-reduce:animate-none";
@@ -25,6 +26,7 @@ function glyphClass(glyph: Glyph): string {
 function GlyphParts({ glyph }: { glyph: Glyph }) {
 	switch (glyph) {
 		case "ok":
+		case "done":
 			return (
 				<>
 					<circle cx={7} cy={7} r={6.1} fill="none" stroke="currentColor" strokeWidth={STROKE} />

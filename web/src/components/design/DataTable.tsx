@@ -423,7 +423,7 @@ export function DataTable<T extends RowData>({
 	label?: string;
 	/** Keeps row content 10px inside the card edge instead of 20px; row tints and dividers reach 10px past it. */
 	inset?: boolean;
-	/** Draws rows as rounded bands 20px inside the card edge, with no dividers between them. */
+	/** Draws rows as rounded bands 12px inside the card edge, with no dividers between them. */
 	band?: boolean;
 }) {
 	const columns = table.getVisibleLeafColumns();

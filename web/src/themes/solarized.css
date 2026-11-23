@@ -107,7 +107,6 @@
 
 [data-theme="solarized"] [data-slot="sidebar-highlight"] {
 	border-radius: 2px;
-	box-shadow: inset 2px 0 var(--fg);
 }
 
 [data-theme="solarized"] .dwa {
