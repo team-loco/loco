@@ -27,7 +27,7 @@ export function SegmentedChoice({
 			variant="segmented"
 			aria-label={label}
 			aria-describedby={describedBy}
-			className={cn("grid w-full grid-cols-4 sm:flex", className)}
+			className={cn("grid w-full grid-cols-4 sm:flex sm:w-max", className)}
 			value={value === "" ? [] : [value]}
 			disabled={disabled}
 			onValueChange={(next: string[]) => {
@@ -38,7 +38,7 @@ export function SegmentedChoice({
 			}}
 		>
 			{options.map((o) => (
-				<ToggleGroupItem key={o.value} value={o.value} className="flex-auto px-1.5">
+				<ToggleGroupItem key={o.value} value={o.value}>
 					{o.label}
 				</ToggleGroupItem>
 			))}
