@@ -79,10 +79,9 @@ function environmentColumns({
 		{
 			id: "actions",
 			header: "",
-			size: 400,
-			minSize: 160,
+			minSize: 100,
 			enableResizing: false,
-			meta: { align: "end", label: "Actions" },
+			meta: { align: "end", fit: true, label: "Actions" },
 			cell: ({ row: { original: env } }) => {
 				const blocked = deleteBlocked(env);
 				const button = (
