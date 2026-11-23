@@ -58,6 +58,7 @@ function RegionLogs({
 			</span>
 			<div
 				aria-label={`Last log lines in ${region}`}
+				data-slot="incident-log"
 				className="flex flex-col rounded-lg bg-background py-2.5 font-mono text-[11.5px] leading-normal ring-1 ring-line"
 			>
 				{logs.isLoading && <span className="px-3 text-fg3">Loading…</span>}

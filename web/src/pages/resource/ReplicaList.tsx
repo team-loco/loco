@@ -276,6 +276,7 @@ export function ReplicaDetail({
 	return (
 		<section
 			aria-label={`Replica ${replica.name}`}
+			data-slot="replica-detail"
 			className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg bg-background px-3.5 py-2.5 text-[12.5px]"
 		>
 			<span className="flex min-w-0 items-center gap-2">

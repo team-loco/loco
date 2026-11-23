@@ -658,6 +658,12 @@
 		background: var(--raise);
 		color: var(--fg);
 	}
+	& :is([data-slot="incident-log"], [data-slot="replica-detail"]) {
+		border: 2px solid var(--ink);
+		border-radius: 5px;
+		background: var(--raise);
+		box-shadow: 3px 3px 0 0 var(--ink);
+	}
 	& [data-slot="replica-chip"] {
 		border: 2px solid var(--ink);
 		border-radius: 5px;
