@@ -1385,7 +1385,7 @@ def dashboard(page):
                 )
                 gaps = modes.evaluate("""group => {
                     const box = group.getBoundingClientRect();
-                    const pad = parseFloat(getComputedStyle(group).paddingLeft);
+                    const pad = parseFloat(getComputedStyle(group).paddingLeft) + group.clientTop;
                     const thumb = group.querySelector('.mt-thumb').getBoundingClientRect();
                     const item = group.querySelector('[data-checked]');
                     const cell = item.getBoundingClientRect();
