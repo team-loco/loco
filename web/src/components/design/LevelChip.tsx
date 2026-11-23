@@ -18,7 +18,7 @@ export function LevelChip({
 		<span
 			title={title}
 			data-slot="chip"
-			className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md bg-fg/7 px-2 text-[12px] whitespace-nowrap text-fg2"
+			className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md bg-[color-mix(in_oklch,var(--fg)_7%,transparent)] px-2 text-[12px] whitespace-nowrap text-fg2"
 		>
 			{nameFirst ? nameText : levelText}
 			{nameFirst ? levelText : nameText}
