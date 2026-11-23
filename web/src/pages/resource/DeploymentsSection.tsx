@@ -237,6 +237,7 @@ function rolloutColumns({
 				return (
 					<Button
 						variant="plain-link"
+						aria-label={`Build ${formatShortId(buildId)}`}
 						className="font-mono text-[12px] text-foreground hover:text-brand"
 						onClick={() => {
 							onOpenBuild(buildId);
