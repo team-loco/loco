@@ -8,6 +8,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 )
@@ -120,8 +122,11 @@ func (s *fakeDeploymentService) WatchDeployment(
 	placement.Status = deploymentv1.PlacementStatus(
 		deploymentv1.PlacementStatus_value["PLACEMENT_STATUS_"+strings.TrimPrefix(outcome.String(), "DEPLOYMENT_STATUS_")],
 	)
-	if outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
-		placement.Problem = &deploymentv1.Problem{Message: fakeFailedMessage, Detail: "exit 1"}
+	settle(deployment, placement)
+	if outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED && req.GetAfterSeq() < offset+2 {
+		if err := sendUnstarted(stream, deployment.GetId()); err != nil {
+			return err
+		}
 	}
 	if len(finalPlacements) > 0 {
 		deployment.Placements = finalPlacements
@@ -151,6 +156,29 @@ func (s *fakeDeploymentService) WatchDeployment(
 	}
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+// settle stamps a running deployment's start and a failed or crashed placement's problem.
+func settle(deployment *deploymentv1.Deployment, placement *deploymentv1.DeploymentPlacement) {
+	switch deployment.GetStatus() {
+	case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED:
+		deployment.StartedAt = timestamppb.Now()
+	case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
+		deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED:
+		placement.Problem = &deploymentv1.Problem{Message: fakeFailedMessage, Detail: "exit 1"}
+	}
+}
+
+// sendUnstarted sends the running a deployment shows before it starts, which a crash can follow.
+func sendUnstarted(stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream, id string) error {
+	return stream.Send(&deploymentv1.WatchDeploymentResponse{Deployment: &deploymentv1.Deployment{
+		Id:     id,
+		Status: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		Placements: []*deploymentv1.DeploymentPlacement{
+			{Region: fakeDefaultRegion, Status: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING},
+		},
+	}})
 }
 
 func (s *fakeDeploymentService) ListDeployments(

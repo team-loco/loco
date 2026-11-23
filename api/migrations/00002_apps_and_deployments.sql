@@ -246,8 +246,11 @@ CREATE TABLE
         activity_seq BIGINT NOT NULL DEFAULT 0,
         -- the W3C trace context of the request that created the deployment
         traceparent TEXT,
+        -- serving, with every serving placement's current revision deployed
+        ready BOOLEAN NOT NULL DEFAULT false,
         -- insert time, which orders the deployments of a resource
         created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp (),
+        -- when the deployment first became ready
         started_at TIMESTAMPTZ,
         completed_at TIMESTAMPTZ,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -275,6 +278,9 @@ CREATE TABLE
         -- '' while the build runs
         image TEXT NOT NULL,
         superseded_by UUID REFERENCES deployments (id) ON DELETE SET NULL,
+        -- the current revision became healthy with every replica available
+        deployed BOOLEAN NOT NULL DEFAULT false,
+        -- when the placement was first deployed
         started_at TIMESTAMPTZ,
         completed_at TIMESTAMPTZ,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),

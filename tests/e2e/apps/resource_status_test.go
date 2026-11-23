@@ -457,6 +457,14 @@ func waitRolloutFinished(t *testing.T, w *platform.Workspace, app string) {
 			current.status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY {
 			return fmt.Errorf("deployment %v, status %v", current.region.GetPlacementStatus(), current.status)
 		}
+		var started bool
+		if err := p.DB.QueryRow(ctx, "SELECT started_at IS NOT NULL FROM deployments WHERE id = $1",
+			current.region.GetDeploymentId()).Scan(&started); err != nil {
+			return err
+		}
+		if !started {
+			return errors.New("deployment running but not yet started")
+		}
 		return nil
 	})
 }

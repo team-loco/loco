@@ -268,7 +268,7 @@ WITH restarted AS (
     RETURNING cluster_id, deployment_id
 ), deploying AS (
     UPDATE deployment_placements dp
-    SET status = 'deploying', completed_at = NULL, updated_at = NOW()
+    SET status = 'deploying', deployed = false, completed_at = NULL, updated_at = NOW()
     FROM restarted
     WHERE dp.deployment_id = restarted.deployment_id AND dp.cluster_id = restarted.cluster_id
 )

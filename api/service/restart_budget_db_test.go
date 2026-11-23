@@ -274,3 +274,89 @@ func TestARunningPlacementStartsOnceItsRevisionIsDeployed(t *testing.T) {
 		t.Fatalf("rollback target = %v, want the deployed %s", target, second)
 	}
 }
+
+func TestAStartedDeploymentServesUntilItsReplacementIsDeployed(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	first := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
+	second := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	if got := f.placementStatus(t, second); got != genDb.PlacementStatusRunning {
+		t.Fatalf("replacement = %s, want running", got)
+	}
+	if got := f.placementStatus(t, first); got != genDb.PlacementStatusRunning {
+		t.Fatalf("previous deployment before its replacement was deployed = %s, want running", got)
+	}
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
+	if got := f.placementStatus(t, first); got != genDb.PlacementStatusSuperseded {
+		t.Fatalf("previous deployment once its replacement was deployed = %s, want superseded", got)
+	}
+}
+
+func TestARestartRecordsReadyOnceTheRestartedRevisionIsDeployed(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true})
+	for range 3 {
+		f.reportStatus(t, stoppedReport())
+	}
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusCrashed {
+		t.Fatalf("deployment = %s, want crashed", got)
+	}
+	if err := restartResource(t, f, f.envID, "", genDb.ScopeWrite); err != nil {
+		t.Fatal(err)
+	}
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusRunning {
+		t.Fatalf("restarted deployment = %s, want running", got)
+	}
+	if ready := f.eventsOf(t, events.DeploymentReady, id); len(ready) != 1 {
+		t.Fatalf("deployment.ready events = %d before the restarted revision was deployed, want 1", len(ready))
+	}
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
+	if ready := f.eventsOf(t, events.DeploymentReady, id); len(ready) != 2 {
+		t.Fatalf("deployment.ready events = %d once the restarted revision was deployed, want 2", len(ready))
+	}
+}
+
+func TestDeploymentReadyWaitsForEveryRegionToDeploy(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	f.addOtherRegionCluster(t)
+	var other uuid.UUID
+	if err := f.pool.QueryRow(t.Context(), `SELECT id FROM clusters WHERE region = $1`, otherRegion).
+		Scan(&other); err != nil {
+		t.Fatal(err)
+	}
+	id := uuid.MustParse(
+		applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId())
+	worker, _ := f.resourceByName(t, applyWorker)
+	report := func(cluster uuid.UUID, deployed bool) {
+		t.Helper()
+		p := f.placementOf(t, worker.ID, cluster)
+		f.agentServer().recordStatus(t.Context(), cluster, 0, &agentv1.PlacementStatus{
+			PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
+			Available: true, Healthy: true, Deployed: deployed, ReadyReplicas: 1,
+		})
+	}
+	report(f.clusterID, true)
+	report(other, false)
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusRunning {
+		t.Fatalf("deployment = %s, want running", got)
+	}
+	if ready := f.eventsOf(t, events.DeploymentReady, id); len(ready) != 0 {
+		t.Fatalf("deployment.ready events = %v while %s is not deployed", ready, otherRegion)
+	}
+	report(other, true)
+	ready := f.eventsOf(t, events.DeploymentReady, id)
+	if len(ready) != 1 {
+		t.Fatalf("deployment.ready events = %v, want 1 once every region deployed", ready)
+	}
+	if regions, ok := ready[0][events.FieldRegions].([]any); !ok || len(regions) != 2 {
+		t.Fatalf("deployment.ready regions = %v, want both", ready[0][events.FieldRegions])
+	}
+}

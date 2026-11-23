@@ -106,6 +106,8 @@ type Querier interface {
 	DeleteWebSessionByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
+	// Records that a running placement's current revision became healthy with every replica available.
+	DeployDeploymentPlacement(ctx context.Context, arg DeployDeploymentPlacementParams) (int64, error)
 	EnrollCluster(ctx context.Context, arg EnrollClusterParams) (EnrollClusterRow, error)
 	// Locks each build's resource before the build, in resource id order.
 	ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]ExpireAwaitingUploadBuildsRow, error)
@@ -365,8 +367,6 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
-	// Records when a running placement's revision first became healthy with every replica available.
-	StartDeploymentPlacement(ctx context.Context, arg StartDeploymentPlacementParams) (int64, error)
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
 	// Retires the older deployments' placements in the cluster's region: one that never ran is canceled,
 	// one that ran is superseded. Without include_started only the never-started ones change. The

@@ -732,6 +732,7 @@ type Deployment struct {
 	SecretEnv          map[string]string    `json:"secretEnv"`
 	ActivitySeq        int64                `json:"activitySeq"`
 	Traceparent        *string              `json:"traceparent"`
+	Ready              bool                 `json:"ready"`
 	CreatedAt          time.Time            `json:"createdAt"`
 	StartedAt          *time.Time           `json:"startedAt"`
 	CompletedAt        *time.Time           `json:"completedAt"`
@@ -759,6 +760,7 @@ type DeploymentPlacement struct {
 	Status       PlacementStatus `json:"status"`
 	Image        string          `json:"image"`
 	SupersededBy *uuid.UUID      `json:"supersededBy"`
+	Deployed     bool            `json:"deployed"`
 	StartedAt    *time.Time      `json:"startedAt"`
 	CompletedAt  *time.Time      `json:"completedAt"`
 	UpdatedAt    time.Time       `json:"updatedAt"`

@@ -394,7 +394,7 @@ func (q *Queries) ListEnvironmentAllocation(ctx context.Context, arg ListEnviron
 }
 
 const listLatestResourceDeployments = `-- name: ListLatestResourceDeployments :many
-SELECT DISTINCT ON (environment_id) id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, traceparent, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT DISTINCT ON (environment_id) id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, traceparent, ready, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
 ORDER BY environment_id, created_at DESC, id DESC
 `
@@ -428,6 +428,7 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 			&i.SecretEnv,
 			&i.ActivitySeq,
 			&i.Traceparent,
+			&i.Ready,
 			&i.CreatedAt,
 			&i.StartedAt,
 			&i.CompletedAt,

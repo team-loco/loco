@@ -183,6 +183,47 @@ func TestCancelKeepsARegionThatAlreadyRuns(t *testing.T) {
 	}
 }
 
+func TestCancelRevertsARegionThatRunsButNeverStarted(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	f.addOtherRegionCluster(t)
+	var other uuid.UUID
+	if err := f.pool.QueryRow(t.Context(), `SELECT id FROM clusters WHERE region = $1`, otherRegion).
+		Scan(&other); err != nil {
+		t.Fatal(err)
+	}
+	first := applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId()
+	f.finishRollouts(t)
+	second := applyOK(t, f, planFileHeader+twoRegionsBiggerCPU, applyOptions{}).GetDeployments()[0].GetDeploymentId()
+	worker, _ := f.resourceByName(t, applyWorker)
+	p := f.placementOf(t, worker.ID, f.clusterID)
+	f.agentServer().recordStatus(t.Context(), p.ClusterID, 0, &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
+		Available: true, Healthy: true, ReadyReplicas: 1,
+	})
+	if regions := placementRegions(f.getDeployment(t, second)); regions[testRegion] !=
+		deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
+		t.Fatalf("placements before cancel = %v, want %s running", regions, testRegion)
+	}
+	if finished := f.cancelImpact(t, second); len(finished) != 0 {
+		t.Fatalf("finished regions = %v, want none before the region started", finished)
+	}
+	if err := f.cancelDeployment(t, second); err != nil {
+		t.Fatal(err)
+	}
+	for _, cluster := range []uuid.UUID{f.clusterID, other} {
+		if p := f.placementOf(t, worker.ID, cluster); p.DeploymentID.String() != first {
+			t.Fatalf("region deployment = %s, want %s", p.DeploymentID, first)
+		}
+	}
+	regions := placementRegions(f.getDeployment(t, second))
+	if regions[testRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_CANCELED ||
+		regions[otherRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_CANCELED {
+		t.Fatalf("placements after cancel = %v, want both canceled", regions)
+	}
+}
+
 func TestCancelWhileBuildingCancelsTheBuild(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)

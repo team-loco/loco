@@ -84,12 +84,20 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 				switch current.GetStatus() {
 				case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
 					deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED:
+					// A deployment runs before it starts while its replicas are ready but not yet available.
+					if current.GetStartedAt() == nil {
+						continue
+					}
 					_, writeErr := fmt.Fprintf(w, "Deployment %s for %s in %s is running.\n",
 						id, deployment.GetService(), regionList(deployment))
 					return errors.Join(writeErr, stream.Close())
 				case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
+					deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED,
 					deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED:
 					outcome := "failed"
+					if current.GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED {
+						outcome = "crashed"
+					}
 					if current.GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED {
 						outcome = "was canceled"
 						if by := current.GetCanceledByName(); by != "" {

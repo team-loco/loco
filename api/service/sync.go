@@ -781,13 +781,13 @@ func (*AgentServer) applyPlacementReport(
 	if next != genDb.PlacementStatusRunning || !status.GetDeployed() {
 		return nil
 	}
-	started, startErr := qtx.StartDeploymentPlacement(ctx, genDb.StartDeploymentPlacementParams{
+	deployed, deployErr := qtx.DeployDeploymentPlacement(ctx, genDb.DeployDeploymentPlacementParams{
 		DeploymentID: deployment.ID, ClusterID: clusterID,
 	})
-	if startErr != nil {
-		return fmt.Errorf("start placement: %w", startErr)
+	if deployErr != nil {
+		return fmt.Errorf("record placement deployed: %w", deployErr)
 	}
-	if started > 0 {
+	if deployed > 0 {
 		if recordErr := recordDeploymentStatus(ctx, qtx, deployment.ID, reportCause(status)); recordErr != nil {
 			return recordErr
 		}
@@ -832,14 +832,11 @@ func advancePlacementStatus(
 }
 
 // deploymentStatusEvent is the event a deployment's aggregate transition records, if any. A
-// deployment is ready once it serves and a region deployed it, whether every replica is healthy yet or not.
+// deployment is ready once it serves and every serving region deployed it, whether every replica is healthy yet or not.
 func deploymentStatusEvent(row genDb.RecomputeDeploymentStatusRow) (string, bool) {
 	previous, status := row.PreviousStatus, row.Status
-	ready := func(s genDb.DeploymentStatus, started bool) bool {
-		return started && (s == genDb.DeploymentStatusRunning || s == genDb.DeploymentStatusDegraded)
-	}
 	switch {
-	case ready(status, row.Started) && !ready(previous, row.PreviouslyStarted):
+	case row.Ready && !row.PreviouslyReady:
 		return events.DeploymentReady, true
 	case status == previous:
 		return "", false
