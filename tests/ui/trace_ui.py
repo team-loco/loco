@@ -458,6 +458,21 @@ with session(out) as browser:
     expect(page).not_to_have_url(re.compile("trace=" + trace))
     page.keyboard.press("ArrowUp")
     expect(page).to_have_url(re.compile("trace=" + trace))
+    before = drawer.bounding_box()["width"]
+    handle = drawer.get_by_role("separator", name="Resize drawer")
+    box = handle.bounding_box()
+    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x + 200, y, steps=5)
+    page.mouse.up()
+    narrow = drawer.bounding_box()["width"]
+    assert narrow < before - 150, (before, narrow)
+    handle.dblclick()
+    page.wait_for_function(
+        "([el, w]) => el.getBoundingClientRect().width > w",
+        arg=[drawer.element_handle(), narrow + 150],
+    )
     flame = drawer.get_by_role("region", name="Flame graph")
     expect(flame.get_by_role("button")).to_have_count(len(spans))
     bottom = drawer.get_by_role("region", name="Trace bottom panel", exact=True)
