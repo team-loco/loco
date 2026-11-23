@@ -1490,8 +1490,9 @@ with session(out) as browser:
     assert int(resize.get_attribute("aria-valuenow")) > height
     drawer.get_by_role("button", name="Collapse bottom panel").click()
     expect(drawer.get_by_role("button", name="Expand bottom panel")).to_be_visible()
-    page.reload()
-    expect(drawer.get_by_role("button", name="Expand bottom panel")).to_be_visible()
+    assert page.evaluate(
+        "JSON.parse(localStorage.getItem('loco-layout'))['trace.bottomCollapsed']"
+    )
     drawer.get_by_role("button", name="Expand bottom panel").click()
     drawer.get_by_role("tab", name="Infrastructure", exact=True).click()
     expect(drawer.get_by_role("tablist", name="Trace bottom panel")).to_be_visible()

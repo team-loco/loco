@@ -947,7 +947,7 @@ def metrics(page):
     for latest in ("2/s", "25.00%", "120 ms"):
         expect(api.get_by_role("cell", name=latest, exact=True)).to_be_visible()
     for column in ("Requests", "5xx", "p95"):
-        button = table.get_by_role("button", name=column, exact=True)
+        button = page.get_by_role("button", name=column, exact=True)
         button.click()
         expect(table.get_by_role("columnheader").filter(has=button)).to_have_attribute(
             "aria-sort", "descending"
