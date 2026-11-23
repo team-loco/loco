@@ -186,26 +186,6 @@ func (q *Queries) LockEnvironment(ctx context.Context, id uuid.UUID) (int64, err
 	return revision, err
 }
 
-const lockEnvironmentForDeletion = `-- name: LockEnvironmentForDeletion :one
-WITH workspace_lock AS MATERIALIZED (
-    SELECT w.id FROM workspaces w
-    JOIN environments e ON e.workspace_id = w.id
-    WHERE e.id = $1
-    FOR KEY SHARE OF w
-)
-SELECT e.id FROM environments e
-JOIN workspace_lock w ON w.id = e.workspace_id
-WHERE e.id = $1
-FOR UPDATE OF e
-`
-
-func (q *Queries) LockEnvironmentForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, lockEnvironmentForDeletion, id)
-	var id_2 uuid.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
-}
-
 const lockResourceEnvironments = `-- name: LockResourceEnvironments :exec
 WITH workspace_lock AS MATERIALIZED (
     SELECT w.id FROM workspaces w

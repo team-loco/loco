@@ -268,7 +268,6 @@ type Querier interface {
 	LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	LockDeployment(ctx context.Context, id uuid.UUID) error
 	LockEnvironment(ctx context.Context, id uuid.UUID) (int64, error)
-	LockEnvironmentForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockEventStreamCounter(ctx context.Context) (int64, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error

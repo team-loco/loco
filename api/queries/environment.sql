@@ -68,15 +68,3 @@ SELECT e.revision FROM environments e
 JOIN workspace_lock w ON w.id = e.workspace_id
 WHERE e.id = $1
 FOR NO KEY UPDATE OF e;
-
--- name: LockEnvironmentForDeletion :one
-WITH workspace_lock AS MATERIALIZED (
-    SELECT w.id FROM workspaces w
-    JOIN environments e ON e.workspace_id = w.id
-    WHERE e.id = $1
-    FOR KEY SHARE OF w
-)
-SELECT e.id FROM environments e
-JOIN workspace_lock w ON w.id = e.workspace_id
-WHERE e.id = $1
-FOR UPDATE OF e;

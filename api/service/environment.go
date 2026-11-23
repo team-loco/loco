@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -270,12 +268,8 @@ func (s *EnvironmentServer) DeleteEnvironment(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		_, lockErr := qtx.LockEnvironmentForDeletion(ctx, envID)
-		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return ErrEnvironmentNotFound
-		}
-		if lockErr != nil {
-			return fmt.Errorf("lock environment: %w", lockErr)
+		if _, lockErr := lockEnvironment(ctx, qtx, envID); lockErr != nil {
+			return lockErr
 		}
 		count, countErr := qtx.CountDeploymentsByEnvironment(ctx, envID)
 		if countErr != nil {
