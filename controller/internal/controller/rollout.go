@@ -161,10 +161,11 @@ func (r *ApplicationReconciler) observeReplicas(
 	if rollout.Stopped == nil && placed && previous.ProvenRevision != revision {
 		rollout.Stopped = exhausted
 	}
-	r.observeHealth(rollout, current, revision, now)
+	settled := rolloutSettled(dep, app)
+	r.observeHealth(rollout, current, revision, settled, now)
 	rollout.Problem = replicaProblem(current, policy, r.HealthyAfter, now)
 	if placed {
-		observeDeadline(rollout, previous, revision, app.Spec.ServiceSpec.DeployTimeoutSeconds, now)
+		observeDeadline(rollout, previous, revision, settled, app.Spec.ServiceSpec.DeployTimeoutSeconds, now)
 	}
 	if stopped := cmp.Or(rollout.Stopped, exhausted); stopped != nil {
 		rollout.Problem = &locov1alpha1.Problem{
@@ -229,15 +230,16 @@ func observeReplica(
 	return replica
 }
 
-// observeDeadline records the revision as deployed once it is healthy, and until then holds it to
-// the deadline its deploy timeout set when the controller first observed it, stopping it past that.
+// observeDeadline records the revision as deployed once it is healthy and settled, and until then holds
+// it to the deadline its deploy timeout set when the controller first observed it, stopping it past that.
 func observeDeadline(
 	rollout, previous *locov1alpha1.RolloutStatus,
 	revision int64,
+	settled bool,
 	timeoutSeconds int32,
 	now time.Time,
 ) {
-	if rollout.Healthy {
+	if rollout.Healthy && settled {
 		rollout.DeployedRevision = revision
 	}
 	if rollout.DeployedRevision == revision {
@@ -258,11 +260,12 @@ func observeDeadline(
 }
 
 // observeHealth marks an available rollout healthy once no current replica restarted within
-// HealthyAfter, and its revision proven once every current replica has also served that long.
+// HealthyAfter, and its settled revision proven once every current replica has also served that long.
 func (r *ApplicationReconciler) observeHealth(
 	rollout *locov1alpha1.RolloutStatus,
 	current []observedReplica,
 	revision int64,
+	settled bool,
 	now time.Time,
 ) {
 	if rollout.Stopped != nil {
@@ -289,7 +292,7 @@ func (r *ApplicationReconciler) observeHealth(
 			return
 		}
 	}
-	if len(current) > 0 {
+	if settled && len(current) > 0 {
 		rollout.ProvenRevision = revision
 	}
 }

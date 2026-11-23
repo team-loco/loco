@@ -120,7 +120,7 @@ type RolloutStatus struct {
 	// ProvenRevision is the newest placement revision whose replicas all served for the health window
 	// without a restart.
 	ProvenRevision int64 `json:"provenRevision,omitzero"`
-	// DeployedRevision is the newest placement revision that became healthy.
+	// DeployedRevision is the newest placement revision that became healthy with every replica available.
 	DeployedRevision int64 `json:"deployedRevision,omitzero"`
 	// Deadline is set while the current placement revision has not become healthy.
 	Deadline *DeployDeadline `json:"deadline,omitempty"`

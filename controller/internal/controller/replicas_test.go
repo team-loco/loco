@@ -182,6 +182,13 @@ func TestRolloutAvailable(t *testing.T) {
 	if !rolloutAvailable(dep, app) {
 		t.Fatal("service waited for a ready replica to become available")
 	}
+	if rolloutSettled(dep, app) {
+		t.Fatal("settled with a replica not yet available")
+	}
+	dep.Status.WithReplicas(3).WithReadyReplicas(3)
+	if rolloutAvailable(dep, app) {
+		t.Fatal("service accepted an old counted replica")
+	}
 }
 
 func TestReplicaDetailClipping(t *testing.T) {

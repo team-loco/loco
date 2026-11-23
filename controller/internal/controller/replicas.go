@@ -142,10 +142,20 @@ func classifyReplica(pod *corev1.Pod, events *podEvent, now time.Time) loco.Repl
 	return result
 }
 
+// rolloutAvailable counts a service's ready replicas, which its readiness probe gates, and a worker's available ones.
 func rolloutAvailable(dep *appsv1ac.DeploymentApplyConfiguration, app *loco.Application) bool {
+	return rolloutCounted(dep, app, app.Spec.ServiceSpec.Deployment.Port != nil)
+}
+
+// rolloutSettled is whether every desired replica has stayed ready for minReadySeconds.
+func rolloutSettled(dep *appsv1ac.DeploymentApplyConfiguration, app *loco.Application) bool {
+	return rolloutCounted(dep, app, false)
+}
+
+func rolloutCounted(dep *appsv1ac.DeploymentApplyConfiguration, app *loco.Application, ready bool) bool {
 	revision, ok := app.PlacementRevision()
 	return ok && app.Status.ObservedPlacementRevision == revision &&
-		deploymentReady(dep, ptr.Deref(dep.Spec.Replicas, 0), app.Spec.ServiceSpec.Deployment.Port != nil)
+		deploymentReady(dep, ptr.Deref(dep.Spec.Replicas, 0), ready)
 }
 
 func shutdownOutcome(pod *corev1.Pod, now time.Time, result loco.ReplicaStatus) loco.ReplicaStatus {

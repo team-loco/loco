@@ -198,26 +198,26 @@ func TestHealthWaitsForQuietReplicas(t *testing.T) {
 	quiet := observedReplica{status: loco.ReplicaStatus{}}
 
 	rollout := &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{quiet}, 2, now)
+	r.observeHealth(rollout, []observedReplica{quiet}, 2, true, now)
 	if !rollout.Healthy || rollout.HealthyAt != nil {
 		t.Fatalf("rollout without restarts = %+v, want healthy at once", rollout)
 	}
 
 	rollout = &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{quiet, restarted}, 2, now)
+	r.observeHealth(rollout, []observedReplica{quiet, restarted}, 2, true, now)
 	wantAt := restartedAt.Add(testHealthyAfter)
 	if rollout.Healthy || rollout.HealthyAt == nil || !rollout.HealthyAt.Time.Equal(wantAt) {
 		t.Fatalf("rollout after a restart = %+v, want healthy at %s", rollout, wantAt)
 	}
 
 	rollout = &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{restarted}, 2, wantAt)
+	r.observeHealth(rollout, []observedReplica{restarted}, 2, true, wantAt)
 	if !rollout.Healthy {
 		t.Fatalf("rollout at %s = %+v, want healthy", wantAt, rollout)
 	}
 
 	rollout = &loco.RolloutStatus{Available: false}
-	r.observeHealth(rollout, []observedReplica{quiet}, 2, now)
+	r.observeHealth(rollout, []observedReplica{quiet}, 2, true, now)
 	if rollout.Healthy || rollout.HealthyAt != nil {
 		t.Fatalf("unavailable rollout = %+v, want not healthy", rollout)
 	}
@@ -244,7 +244,7 @@ func TestRevisionIsProvenOnceEveryReplicaServedForTheHealthWindow(t *testing.T) 
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			rollout := &loco.RolloutStatus{Available: true, ProvenRevision: 1}
-			r.observeHealth(rollout, tt.replicas, 2, now)
+			r.observeHealth(rollout, tt.replicas, 2, true, now)
 			if rollout.ProvenRevision != tt.want {
 				t.Fatalf("proven revision = %d, want %d", rollout.ProvenRevision, tt.want)
 			}

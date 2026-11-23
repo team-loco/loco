@@ -194,9 +194,9 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 })
 
 // serveReplica creates a ready replica of the revision.
-func serveReplica(app *locov1alpha1.Application, name, revision string) {
+func serveReplica(app *locov1alpha1.Application, name string) *corev1.Pod {
 	GinkgoHelper()
-	pod := createReplicaAt(app, name, testImage, revision)
+	pod := createReplica(app, name)
 	setContainerState(pod, corev1.PodRunning, corev1.ContainerState{
 		Running: &corev1.ContainerStateRunning{StartedAt: metav1.Now()},
 	})
@@ -206,20 +206,21 @@ func serveReplica(app *locov1alpha1.Application, name, revision string) {
 		{Type: corev1.PodReady, Status: corev1.ConditionTrue, LastTransitionTime: metav1.Now()},
 	}
 	Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+	return pod
 }
 
-// setRolloutCounts stands in for the Deployment controller's replica counts once every desired
-// replica is updated.
-func setRolloutCounts(app *locov1alpha1.Application, total, ready, available int32) {
+// setRolloutCounts stands in for the Deployment controller once every desired replica is updated.
+func setRolloutCounts(app *locov1alpha1.Application, ready, available int32) {
 	GinkgoHelper()
 	dep := appDeployment(app)
+	replicas := app.Spec.ServiceSpec.Resources.Replicas.Min
 	dep.Status.ObservedGeneration = dep.Generation
-	dep.Status.Replicas, dep.Status.UpdatedReplicas = total, app.Spec.ServiceSpec.Resources.Replicas.Min
+	dep.Status.Replicas, dep.Status.UpdatedReplicas = replicas, replicas
 	dep.Status.ReadyReplicas, dep.Status.AvailableReplicas = ready, available
 	Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
 }
 
-var _ = Describe("Application whose replicas are ready but not yet available", func() {
+var _ = Describe("Application whose first revision is ready but not yet available", func() {
 	var r *ApplicationReconciler
 
 	BeforeEach(func() {
@@ -236,55 +237,41 @@ var _ = Describe("Application whose replicas are ready but not yet available", f
 		}
 	})
 
-	It("deploys a service's first revision once its replicas are ready", func() {
+	It("reports a service healthy once its replicas are ready and deployed once they are available", func() {
 		app := deadlineApp("first-deploy-ready", 1)
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
-		serveReplica(app, "first-deploy-ready-replica", "2")
-		setRolloutCounts(app, 1, 1, 0)
+		serveReplica(app, "first-deploy-ready-replica")
+		setRolloutCounts(app, 1, 0)
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Available).To(BeTrue())
 		Expect(app.Status.Rollout.Healthy).To(BeTrue())
-		Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+		Expect(app.Status.Rollout.DeployedRevision).To(BeZero())
+		Expect(app.Status.Rollout.Deadline).NotTo(BeNil())
 
-		By("staying healthy while the Deployment has not yet counted the replica available")
+		setRolloutCounts(app, 1, 1)
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Available).To(BeTrue())
 		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+		Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+		Expect(app.Status.Rollout.Deadline).To(BeNil())
 	})
 
-	It("waits for a redeploy's replicas to become available while the previous version serves", func() {
-		app := deadlineApp("redeploy-ready", 1)
+	It("stops a service that crashes after its replicas became ready but before they were available", func() {
+		app := deadlineApp("first-deploy-crash", 1)
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
-		createReplicaSet(app, "redeploy-ready-previous", "1", 1)
-		serveReplica(app, "redeploy-ready-old", "1")
-		serveReplica(app, "redeploy-ready-new", "2")
-		setRolloutCounts(app, 2, 2, 1)
+		pod := serveReplica(app, "first-deploy-crash-replica")
+		setRolloutCounts(app, 1, 0)
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Available).To(BeFalse())
-		Expect(app.Status.Rollout.DeployedRevision).To(BeZero())
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
 
-		setRolloutCounts(app, 1, 1, 1)
-		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Available).To(BeTrue())
-		Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
-	})
-
-	It("waits for a worker's replicas to become available", func() {
-		app := deadlineApp("worker-ready", 1)
-		app.Spec.ServiceSpec.Deployment.Port = nil
-		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		reconcileStuckApp(r, app)
-		serveReplica(app, "worker-ready-replica", "2")
-		setRolloutCounts(app, 1, 1, 0)
-		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Available).To(BeFalse())
-		Expect(app.Status.Rollout.DeployedRevision).To(BeZero())
-
-		setRolloutCounts(app, 1, 1, 1)
-		reconcileStuckApp(r, app)
-		Expect(app.Status.Rollout.Available).To(BeTrue())
-		Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+		setRolloutCounts(app, 0, 0)
+		restartTo(r, app, pod, testRestartPolicy.MaxRestarts+1)
+		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
+		Expect(app.Status.Rollout.Stopped.Reason).To(Equal(locov1alpha1.ProblemRestartsExhausted))
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
+		dep := appDeployment(app)
+		Expect(dep.Spec.Paused).To(BeTrue())
+		Expect(*dep.Spec.Replicas).To(BeZero())
 	})
 })

@@ -916,9 +916,8 @@ func keepsRunning(
 		app.Status.Rollout.DeployedRevision == stopped.PlacementRevision
 }
 
-// deploymentReady counts a service's ready replicas, since its readiness probe gates them and an old
-// replica stays in the total until the new ones are available; a worker has only minReadySeconds.
-func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32, service bool) bool {
+// deploymentReady is whether every desired replica is updated and counted, as ready or as available.
+func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32, ready bool) bool {
 	if dep.Status == nil {
 		return false
 	}
@@ -926,7 +925,7 @@ func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32,
 	observed := ptr.Deref(dep.Status.ObservedGeneration, 0)
 	updated := ptr.Deref(dep.Status.UpdatedReplicas, 0)
 	counted := ptr.Deref(dep.Status.AvailableReplicas, 0)
-	if service {
+	if ready {
 		counted = ptr.Deref(dep.Status.ReadyReplicas, 0)
 	}
 	total := ptr.Deref(dep.Status.Replicas, 0)
