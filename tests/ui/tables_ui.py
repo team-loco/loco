@@ -13,6 +13,7 @@ from harness import (
     repo,
     session,
     sql,
+    wait_for_query,
 )
 from playwright.sync_api import TimeoutError as PlaywrightTimeout, expect
 
@@ -788,6 +789,13 @@ def logs(page):
         page, table, "Time", "Resource", logs_table, "ArrowRight", ("time", "resource")
     )
     check_shrink(page, table, "Message")
+    table.get_by_role("columnheader", name="Region", exact=True).drag_to(
+        table.get_by_role("columnheader", name="Resource", exact=True)
+    )
+    wait_for_query(
+        page,
+        lambda query: query.get("cols", [""])[0].startswith("level,region,resource"),
+    )
     cell = table.get_by_role("cell").nth(3)
     cell.evaluate(
         "node => node.scrollIntoView({ block: 'center', behavior: 'instant' })"

@@ -32,6 +32,7 @@ import {
 	useRef,
 	useState,
 	type CSSProperties,
+	type HTMLAttributes,
 	type KeyboardEvent,
 	type MouseEvent,
 	type ReactElement,
@@ -74,6 +75,8 @@ export interface DataColumnMeta {
 	hideOnMobile?: boolean;
 	/** Names the column when its header is not plain text. */
 	label?: string;
+	/** Lets the viewer drag the header onto another movable column's header to reorder them; needs the table's `onColumnMove`. */
+	movable?: boolean;
 	cellClassName?: string;
 	defaultHidden?: boolean;
 }
@@ -288,6 +291,10 @@ function pinOf<T extends RowData>(column: Column<Features, T>, index: number): "
 	return column.columnDef.meta?.pinEnd === true ? "end" : undefined;
 }
 
+interface ColumnMove {
+	props: (id: string) => HTMLAttributes<HTMLElement> & { draggable: boolean };
+}
+
 // Header and column objects keep their identity while table state changes, so the
 // React Compiler would skip re-rendering a head that read its sort and width itself.
 function DataTableHead<T extends RowData>({
@@ -298,7 +305,9 @@ function DataTableHead<T extends RowData>({
 	bounds,
 	grow,
 	onPreview,
+	move,
 }: {
+	move: ColumnMove | null;
 	header: Header<Features, T>;
 	sorted: false | SortDirection;
 	width: number;
@@ -308,6 +317,7 @@ function DataTableHead<T extends RowData>({
 	onPreview: (width: number | null) => void;
 }) {
 	const { column } = header;
+	const { className: moveClass, ...moveHandlers } = move?.props(column.id) ?? {};
 	const align = alignOf(column);
 	const label = <Template render={column.columnDef.header} context={header.getContext()} />;
 	const Arrow = sorted === "desc" ? ArrowDownIcon : ArrowUpIcon;
@@ -323,9 +333,11 @@ function DataTableHead<T extends RowData>({
 				sorted !== false && "text-foreground",
 				align === "end" && "justify-end",
 				pin !== undefined && PINNED,
+				moveClass,
 			)}
 			style={bounds}
 			aria-sort={sorted === false ? undefined : ARIA_SORT[sorted]}
+			{...moveHandlers}
 		>
 			{column.getCanSort() ? (
 				<button
@@ -400,6 +412,7 @@ export function DataTable<T extends RowData>({
 	label,
 	inset = false,
 	band = false,
+	onColumnMove,
 }: {
 	table: ReactTable<Features, T>;
 	/** Content of the single row shown when there are no rows; null shows none. */
@@ -425,8 +438,43 @@ export function DataTable<T extends RowData>({
 	inset?: boolean;
 	/** Draws rows as rounded bands 12px inside the card edge, with no dividers between them. */
 	band?: boolean;
+	/** Called when a movable column's header is dropped on another's, with the dragged and target column ids. */
+	onColumnMove?: (from: string, to: string) => void;
 }) {
 	const columns = table.getVisibleLeafColumns();
+	const [drag, setDrag] = useState<{ from: string; over: string | null } | null>(null);
+	const movable = (id: string) => columns.find((c) => c.id === id)?.columnDef.meta?.movable === true;
+	const move: ColumnMove | null =
+		onColumnMove === undefined
+			? null
+			: {
+					props: (id) => {
+						const can = movable(id);
+						const target = can && drag !== null && drag.over === id && drag.from !== id;
+						return {
+							draggable: can,
+							className: cn(can && "cursor-grab", target && "rounded-md bg-panel2"),
+							onDragStart: (event) => {
+								event.dataTransfer.effectAllowed = "move";
+								event.dataTransfer.setData("text/plain", id);
+								setDrag({ from: id, over: null });
+							},
+							onDragOver: (event) => {
+								if (drag === null || !can) return;
+								event.preventDefault();
+								if (drag.over !== id) setDrag({ ...drag, over: id });
+							},
+							onDrop: (event) => {
+								event.preventDefault();
+								if (drag !== null && can && drag.from !== id) onColumnMove(drag.from, id);
+								setDrag(null);
+							},
+							onDragEnd: () => {
+								setDrag(null);
+							},
+						};
+					},
+				};
 	const [preview, setPreview] = useState<{ id: string; width: number } | null>(null);
 	const sizing =
 		preview === null ? table.state.columnSizing : { ...table.state.columnSizing, [preview.id]: preview.width };
@@ -467,6 +515,7 @@ export function DataTable<T extends RowData>({
 									pin={pinOf(header.column, index)}
 									bounds={fitBounds(header.column, sizing, index)}
 									grow={index === growIndex}
+									move={move}
 									onPreview={(width) => {
 										setPreview(width === null ? null : { id: header.column.id, width });
 									}}

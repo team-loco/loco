@@ -50,10 +50,6 @@ export function durationTick(nanos: number): string {
 		.replace(/\.(?=\D)/, "");
 }
 
-function traceCount(n: number, word: string): string {
-	return `${formatCount(n)} ${word}${n === 1 ? "" : "s"}`;
-}
-
 export interface BucketReadout {
 	start: number;
 	widthSeconds: number;
@@ -69,19 +65,19 @@ function bucketRange(b: BucketReadout, pref: TimePreferences): string {
 	return `${clock(b.start)}–${clock(b.start + b.widthSeconds * 1000)}`;
 }
 
-/** "13:05–13:06, 42 traces, 3 errors" */
-export function countReadout(b: BucketReadout, pref: TimePreferences): string {
-	const parts = [bucketRange(b, pref), traceCount(b.traces, "trace")];
-	if (b.errors > 0) parts.push(traceCount(b.errors, "error"));
-	return parts.join(", ");
+export interface Readout {
+	title: string;
+	rows: [label: string, value: string][];
 }
 
-/** "13:05–13:06, p50 12ms, p95 80ms" */
-export function latencyReadout(b: BucketReadout, pref: TimePreferences): string {
-	const parts = [bucketRange(b, pref)];
-	if (b.traces > 0) parts.push(`p50 ${durationLabel(b.p50)}`, `p95 ${durationLabel(b.p95)}`);
-	else parts.push("no traces");
-	return parts.join(", ");
+/** The bucket's time span with its trace and error counts, and its percentiles when it has traces. */
+export function bucketReadout(b: BucketReadout, pref: TimePreferences): Readout {
+	const rows: Readout["rows"] = [
+		["Traces", formatCount(b.traces)],
+		["Errors", formatCount(b.errors)],
+	];
+	if (b.traces > 0) rows.push(["p50", durationLabel(b.p50)], ["p95", durationLabel(b.p95)]);
+	return { title: bucketRange(b, pref), rows };
 }
 
 export interface LogScale {

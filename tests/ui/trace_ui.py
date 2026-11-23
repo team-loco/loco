@@ -1071,8 +1071,10 @@ with session(out) as browser:
     clock = r"\d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)?"
     tooltips = page.get_by_role("tooltip")
     expect(tooltips).to_have_count(2)
-    expect(tooltips.nth(0)).to_have_text(re.compile(f"^{clock}, 5 traces, 1 error$"))
-    expect(tooltips.nth(1)).to_have_text(re.compile(f"^{clock}, p50 80ms, p95 360ms$"))
+    for tooltip in (tooltips.nth(0), tooltips.nth(1)):
+        expect(tooltip).to_have_text(
+            re.compile(f"^{clock}Traces5Errors1p5080msp95360ms$")
+        )
     chart.hover(position={"x": 2, "y": 2})
     page.mouse.down()
     page.mouse.move(

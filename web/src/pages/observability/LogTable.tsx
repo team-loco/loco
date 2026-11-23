@@ -98,7 +98,7 @@ function logColumns({
 			size: columnWidth(c),
 			minSize: MIN_COLUMN_WIDTH,
 			maxSize: MAX_COLUMN_WIDTH,
-			meta: { label: columnLabel(c), fit: true, fitMax: columnWidth(c) },
+			meta: { label: columnLabel(c), fit: true, fitMax: columnWidth(c), movable: true },
 			cell: ({ row }) => <Cell row={row.original} column={c} />,
 		})),
 		{
@@ -163,6 +163,11 @@ export function LogTable({
 			className="text-[12px] [--row-h:34px] [&_td]:py-1"
 			loading={loading}
 			empty={empty}
+			onColumnMove={(from, to) => {
+				const next = columns.filter((c) => c !== from);
+				next.splice(columns.indexOf(to), 0, from);
+				onColumns(next);
+			}}
 			activeRowId={selectedKey}
 			onRowClick={(row) => {
 				onSelect(row.id);
