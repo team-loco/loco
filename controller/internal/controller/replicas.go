@@ -145,7 +145,7 @@ func classifyReplica(pod *corev1.Pod, events *podEvent, now time.Time) loco.Repl
 func rolloutAvailable(dep *appsv1ac.DeploymentApplyConfiguration, app *loco.Application) bool {
 	revision, ok := app.PlacementRevision()
 	return ok && app.Status.ObservedPlacementRevision == revision &&
-		deploymentReady(dep, ptr.Deref(dep.Spec.Replicas, 0))
+		deploymentReady(dep, ptr.Deref(dep.Spec.Replicas, 0), app.Spec.ServiceSpec.Deployment.Port != nil)
 }
 
 func shutdownOutcome(pod *corev1.Pod, now time.Time, result loco.ReplicaStatus) loco.ReplicaStatus {

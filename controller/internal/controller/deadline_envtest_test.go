@@ -192,3 +192,99 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(app.Status.Rollout.Deadline.PlacementRevision).To(Equal(int64(3)))
 	})
 })
+
+// serveReplica creates a ready replica of the revision.
+func serveReplica(app *locov1alpha1.Application, name, revision string) {
+	GinkgoHelper()
+	pod := createReplicaAt(app, name, testImage, revision)
+	setContainerState(pod, corev1.PodRunning, corev1.ContainerState{
+		Running: &corev1.ContainerStateRunning{StartedAt: metav1.Now()},
+	})
+	pod.Status.ContainerStatuses[0].Ready = true
+	pod.Status.Conditions = []corev1.PodCondition{
+		{Type: corev1.PodScheduled, Status: corev1.ConditionTrue},
+		{Type: corev1.PodReady, Status: corev1.ConditionTrue, LastTransitionTime: metav1.Now()},
+	}
+	Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+}
+
+// setRolloutCounts stands in for the Deployment controller's replica counts once every desired
+// replica is updated.
+func setRolloutCounts(app *locov1alpha1.Application, total, ready, available int32) {
+	GinkgoHelper()
+	dep := appDeployment(app)
+	dep.Status.ObservedGeneration = dep.Generation
+	dep.Status.Replicas, dep.Status.UpdatedReplicas = total, app.Spec.ServiceSpec.Resources.Replicas.Min
+	dep.Status.ReadyReplicas, dep.Status.AvailableReplicas = ready, available
+	Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+}
+
+var _ = Describe("Application whose replicas are ready but not yet available", func() {
+	var r *ApplicationReconciler
+
+	BeforeEach(func() {
+		r = &ApplicationReconciler{
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Client:                   k8sClient,
+			APIReader:                k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			LocoNamespace:            testNamespace,
+			Telemetry:                testTelemetry(),
+			MinReadySeconds:          testMinReadySeconds,
+			HealthyAfter:             testHealthyAfter,
+		}
+	})
+
+	It("deploys a service's first revision once its replicas are ready", func() {
+		app := deadlineApp("first-deploy-ready", 1)
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		serveReplica(app, "first-deploy-ready-replica", "2")
+		setRolloutCounts(app, 1, 1, 0)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeTrue())
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+		Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+
+		By("staying healthy while the Deployment has not yet counted the replica available")
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeTrue())
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+	})
+
+	It("waits for a redeploy's replicas to become available while the previous version serves", func() {
+		app := deadlineApp("redeploy-ready", 1)
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		createReplicaSet(app, "redeploy-ready-previous", "1", 1)
+		serveReplica(app, "redeploy-ready-old", "1")
+		serveReplica(app, "redeploy-ready-new", "2")
+		setRolloutCounts(app, 2, 2, 1)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.DeployedRevision).To(BeZero())
+
+		setRolloutCounts(app, 1, 1, 1)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeTrue())
+		Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+	})
+
+	It("waits for a worker's replicas to become available", func() {
+		app := deadlineApp("worker-ready", 1)
+		app.Spec.ServiceSpec.Deployment.Port = nil
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		serveReplica(app, "worker-ready-replica", "2")
+		setRolloutCounts(app, 1, 1, 0)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.DeployedRevision).To(BeZero())
+
+		setRolloutCounts(app, 1, 1, 1)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeTrue())
+		Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+	})
+})

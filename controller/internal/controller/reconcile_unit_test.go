@@ -228,7 +228,7 @@ func TestDeploymentReady(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := deploymentReady(tc.dep, 2); got != tc.want {
+			if got := deploymentReady(tc.dep, 2, false); got != tc.want {
 				t.Errorf("deploymentReady = %v, want %v", got, tc.want)
 			}
 		})

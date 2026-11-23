@@ -62,6 +62,7 @@ var _ = Describe("Replica rollout reports", func() {
 			WithStatus(appsv1ac.DeploymentStatus().
 				WithObservedGeneration(stored.Generation).
 				WithUpdatedReplicas(2).
+				WithReadyReplicas(2).
 				WithAvailableReplicas(2).
 				WithReplicas(3))
 		Expect(r.observeReplicas(ctx, app, dep, time.Now())).To(Succeed())

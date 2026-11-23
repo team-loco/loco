@@ -290,7 +290,7 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithGeneration(1).
 		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1)).
 		WithStatus(appsv1ac.DeploymentStatus().WithObservedGeneration(1).
-			WithReplicas(1).WithUpdatedReplicas(1).WithAvailableReplicas(1))
+			WithReplicas(1).WithUpdatedReplicas(1).WithReadyReplicas(1).WithAvailableReplicas(1))
 	restart := func() {
 		t.Helper()
 		pod.Status.ContainerStatuses[0].RestartCount++

@@ -916,16 +916,21 @@ func keepsRunning(
 		app.Status.Rollout.DeployedRevision == stopped.PlacementRevision
 }
 
-func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32) bool {
+// deploymentReady counts a service's ready replicas, since its readiness probe gates them and an old
+// replica stays in the total until the new ones are available; a worker has only minReadySeconds.
+func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32, service bool) bool {
 	if dep.Status == nil {
 		return false
 	}
 	generation := ptr.Deref(dep.Generation, 0)
 	observed := ptr.Deref(dep.Status.ObservedGeneration, 0)
 	updated := ptr.Deref(dep.Status.UpdatedReplicas, 0)
-	available := ptr.Deref(dep.Status.AvailableReplicas, 0)
+	counted := ptr.Deref(dep.Status.AvailableReplicas, 0)
+	if service {
+		counted = ptr.Deref(dep.Status.ReadyReplicas, 0)
+	}
 	total := ptr.Deref(dep.Status.Replicas, 0)
-	return generation > 0 && observed == generation && updated == replicas && available == replicas && total == replicas
+	return generation > 0 && observed == generation && updated == replicas && counted == replicas && total == replicas
 }
 
 func setReadyReplicas(app *locov1alpha1.Application) {
