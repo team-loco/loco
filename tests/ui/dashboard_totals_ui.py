@@ -85,7 +85,7 @@ with session(out) as browser:
     allocated.focus()
     # The breakdown clips its links until it has opened.
     allocated.evaluate(
-        "node => Promise.all(node.getAnimations({subtree: true}).map(animation => animation.finished))"
+        "node => Promise.allSettled(node.getAnimations({subtree: true}).map(animation => animation.finished))"
     )
     more = allocated.get_by_role("link", name=re.compile(r"^3 more"))
     expect(more).to_be_visible()

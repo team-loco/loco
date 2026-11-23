@@ -1463,7 +1463,7 @@ with session(out) as browser:
     payment_log.hover()
     expect(failing_button).to_have_attribute("data-linked", "true")
     assert payment_log.evaluate(
-        "async row => { await Promise.all(row.getAnimations().map(a => a.finished)); return getComputedStyle(row).boxShadow.split(/,(?![^(]*\\))/).every(part => {const x = part.replace(/[a-z]+\\([^)]*\\)/g, '').match(/-?[0-9.]+px/); return x === null || parseFloat(x[0]) === 0}) }"
+        "async row => { await Promise.allSettled(row.getAnimations().map(a => a.finished)); return getComputedStyle(row).boxShadow.split(/,(?![^(]*\\))/).every(part => {const x = part.replace(/[a-z]+\\([^)]*\\)/g, '').match(/-?[0-9.]+px/); return x === null || parseFloat(x[0]) === 0}) }"
     ), payment_log.evaluate("row => getComputedStyle(row).boxShadow")
     # Clear enter-driven state while keeping the pointer inside the row. The next
     # native movement must restore linking without another mouseenter event.

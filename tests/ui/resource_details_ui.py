@@ -305,7 +305,7 @@ with session(out) as browser:
     dialog = page.get_by_role("dialog")
     expect(dialog).to_be_visible()
     dialog.evaluate(
-        "node => Promise.all(node.getAnimations({subtree: true}).map(animation => animation.finished))"
+        "node => Promise.allSettled(node.getAnimations({subtree: true}).map(animation => animation.finished))"
     )
     geometry = dialog.locator(".overflow-auto").evaluate(
         "e => ({height:e.clientHeight, content:e.scrollHeight, width:e.clientWidth})"
