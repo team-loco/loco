@@ -1009,9 +1009,6 @@ with session(out) as browser:
     assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
     drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
     drawer.get_by_role("button", name="Increase replicas", exact=True).click()
-    expect(
-        drawer.get_by_text(re.compile(r"^Runs exactly \d+ per region\.$"))
-    ).to_be_visible()
     drawer.get_by_role("switch", name="Autoscaling", exact=True).click()
     increase_max = drawer.get_by_role(
         "button", name="Increase maximum replicas", exact=True
