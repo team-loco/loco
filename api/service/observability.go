@@ -23,8 +23,6 @@ import (
 // maxResourceReadChecks bounds the permission checks one request naming resources can cause.
 const maxResourceReadChecks = 100
 
-const defaultTracePageSize = 50
-
 var errObservabilityUnavailable = errors.New("observability is unavailable")
 
 var _ observabilityv1connect.ObservabilityServiceHandler = (*ObservabilityServer)(nil)
@@ -201,11 +199,7 @@ func (s *ObservabilityServer) ListTraces(
 			return nil, err
 		}
 	}
-	pageSize := req.GetPageSize()
-	if pageSize == 0 {
-		pageSize = defaultTracePageSize
-	}
-	response, err := s.clickhouse.ListTraces(ctx, req, filter, pageSize)
+	response, err := s.clickhouse.ListTraces(ctx, req, filter, normalizePageSize(req.GetPageSize()))
 	if errors.Is(err, chClient.ErrInvalidTracePageToken) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 	}
