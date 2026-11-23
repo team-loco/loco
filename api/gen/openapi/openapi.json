@@ -12986,7 +12986,7 @@
           "pageSize": {
             "type": "integer",
             "title": "page_size",
-            "maximum": 200,
+            "maximum": 500,
             "minimum": 0,
             "format": "int32"
           },
