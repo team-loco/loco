@@ -3,7 +3,7 @@ import { deleteSecrets, listSecrets } from "@gen/loco/secret/v1/secret-SecretSer
 import type { Secret } from "@gen/loco/secret/v1/secret_pb";
 import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
 import { CopyIcon, PencilIcon, PlusIcon, Trash2Icon, UploadIcon } from "lucide-react";
-import { parseAsStringLiteral, useQueryStates } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
@@ -35,7 +35,7 @@ import { SecretsArt } from "./SecretsArt";
 import { deleteBlocked, deleteBody, matchesSearch, setterLabel } from "./secrets";
 
 const SECRETS_DOCS = `${DOCS_URL}/operations/variables/`;
-const MODAL_PARAMS = { new: parseAsStringLiteral(["1"]) };
+const PAGE_PARAMS = { new: parseAsStringLiteral(["1"]), q: parseAsString.withDefault("") };
 
 type Modal = { kind: "edit"; name: string | null } | { kind: "import" } | { kind: "delete"; secret: Secret };
 
@@ -62,9 +62,8 @@ export function SecretsPage({
 	const query = useQuery(listSecrets, { environmentId });
 	const { data: membersRes } = useTanstackQuery(workspaceMembersOptions(transport, workspaceId));
 	const remove = useMutation(deleteSecrets);
-	const [{ new: linkedNew }, setParams] = useQueryStates(MODAL_PARAMS, { history: "replace" });
+	const [{ new: linkedNew, q: search }, setParams] = useQueryStates(PAGE_PARAMS, { history: "replace" });
 	const [modal, setModal] = useState<Modal | null>(null);
-	const [search, setSearch] = useState("");
 
 	const secrets = query.data?.secrets ?? [];
 	const shown = secrets.filter((secret) => matchesSearch(secret, search));
@@ -155,10 +154,10 @@ export function SecretsPage({
 							placeholder="Search by name or resource"
 							value={search}
 							onClear={() => {
-								setSearch("");
+								void setParams({ q: null });
 							}}
 							onChange={(e) => {
-								setSearch(e.target.value);
+								void setParams({ q: e.target.value });
 							}}
 						/>
 					}
@@ -325,7 +324,9 @@ function secretColumns({
 			size: 90,
 			minSize: 70,
 			meta: { hideOnMobile: true, fit: true, cellClassName: "font-mono" },
-			cell: ({ row: { original: secret } }) => <CellText text={`v${secret.version.toString()}`} />,
+			cell: ({ row: { original: secret } }) => (
+				<CellText className="text-[12.5px] text-fg2" text={`v${secret.version.toString()}`} />
+			),
 		},
 		{
 			id: "updated",
@@ -341,7 +342,7 @@ function secretColumns({
 						</TooltipTrigger>
 						<TooltipContent>{formatStarted(tsMs(secret.updatedAt), timePref)}</TooltipContent>
 					</Tooltip>
-					<span className="text-[12px] text-fg3">@{setterLabel(secret, members)}</span>
+					<span className="text-[11.5px] text-fg3">@{setterLabel(secret, members)}</span>
 				</span>
 			),
 		},
