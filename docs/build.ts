@@ -74,6 +74,19 @@ config = config.replace(
   "script-src 'self';",
   `script-src 'self' ${Array.from(hashes).sort().join(" ")};`,
 );
+// An image built for an API on another origin must be allowed to call it.
+const apiURL = process.env.PUBLIC_API_URL ?? "";
+if (URL.canParse(apiURL)) {
+  assert.equal(
+    config.split("connect-src 'self';").length,
+    2,
+    "UI must have one connect policy",
+  );
+  config = config.replace(
+    "connect-src 'self';",
+    `connect-src 'self' ${new URL(apiURL).origin};`,
+  );
+}
 const sections = new Set([
   "docs",
   ...(await readdir(join(docs, "site"), { withFileTypes: true }))

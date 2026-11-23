@@ -225,6 +225,11 @@ def test_ui_splash_is_indexable(ui):
     assert 'name="robots"' not in ui[1]
 
 
+def test_ui_may_call_the_built_api(ui):
+    policy = ui[2]["Content-Security-Policy"]
+    assert f"connect-src 'self' https://{API_HOST};" in policy
+
+
 def test_runtime_config_is_the_mounted_file(url):
     assert response(url + "/runtime-config.js", UI_HOST)[:2] == (200, RUNTIME_CONFIG)
 
