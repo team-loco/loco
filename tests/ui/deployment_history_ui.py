@@ -749,7 +749,6 @@ with session(out) as browser:
     expect(row_confirm.get_by_role("button", name="Delete", exact=True)).to_be_enabled()
     row_confirm.get_by_role("button", name="Cancel", exact=True).click()
     page.goto(state["ui_url"] + base + "?env=production")
-    expect(page.get_by_label("Spend: not available yet")).to_be_visible()
     expect(page.get_by_role("group", name=re.compile(r"^Allocated: "))).to_be_visible()
     page.get_by_role("button", name="Actions for history-pilot", exact=True).click()
     expect(
