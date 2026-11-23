@@ -16,14 +16,14 @@ export function SpanLinks({ span }: { span: TraceSpan }) {
 					const target = spanLinkSearch(search, link.traceId, link.spanId);
 					const body = (
 						<>
-							<span className="mb-2 flex items-center text-[12px]">
+							<span className="flex items-center text-[12px]">
 								<span className="font-mono text-fg3 [overflow-wrap:anywhere]">
 									{link.traceId === span.traceId ? "This trace" : link.traceId || "No trace ID"},{" "}
 									{link.spanId || "no span ID"}
 								</span>
 								{target !== null && <NavArrow />}
 							</span>
-							<dl className="m-0">
+							<dl className="m-0 mt-2 empty:hidden">
 								{Object.entries(link.attributes).map(([key, value]) => (
 									<div
 										key={key}
