@@ -13,7 +13,6 @@ templates:
   - templates/obs-proxy-ingest-network-policy.yaml
   - templates/cm-cert.yaml
   - templates/cm-issuer.yaml
-  - templates/cloudflare-secret.yaml
 tests:
   - it: creates its Gateway and GatewayClass in the gateway namespace
     set:

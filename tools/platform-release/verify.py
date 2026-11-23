@@ -118,7 +118,12 @@ def main():
         name = "loco-worker"
         hr = json.loads(files["layers/worker/" + name + "-helmrelease.yaml"])
         values = hr["spec"]["values"]
-        values["certManager"] = {"issuer": {"email": "release-test@example.invalid"}}
+        values["certManager"] = {
+            "issuer": {
+                "email": "release-test@example.invalid",
+                "solvers": [{"dns01": {"route53": {"region": "us-east-1"}}}],
+            }
+        }
         values["global"] = {
             "region": "release-test-region",
             "exporter": {"endpoint": "https://ingest.release-test.example.invalid"},
@@ -186,7 +191,12 @@ def main():
                 "gateway chart rendered CRD management resources despite independent CRD ownership"
             )
         cp_values = {
-            "certManager": {"issuer": {"email": "ops@example.test"}},
+            "certManager": {
+                "issuer": {
+                    "email": "ops@example.test",
+                    "solvers": [{"dns01": {"route53": {"region": "us-east-1"}}}],
+                }
+            },
             "openbao": {
                 "seal": {"static": {"existingSecret": {"name": "openbao-seal"}}},
                 "snapshots": {

@@ -35,9 +35,27 @@ locoadm init --output ./fleet \
 
 For a control plane and worker on one cluster, add `--single-cluster --name local`. Bootstrap Flux against `clusters/local/`; the combined base selects `./all` and supplies both releases’ values.
 
-`init` generates a static OpenBao seal key and writes it and the API environment as plaintext Secret files with mode `0600`. Encrypt these files before committing, or deliver the named Secrets through External Secrets. Core has no SOPS dependency; the generated README documents operator-managed encryption and Flux decryption. Join tokens are applied directly to worker clusters. Review the generated values and supply storage, database, OIDC, registry and DNS credentials before reconciliation. Chart defaults define shared settings; each cluster overrides them in `values/`.
+`init` generates a static OpenBao seal key and writes it and the API environment as plaintext Secret files with mode `0600`. Encrypt these files before committing, or deliver the named Secrets through External Secrets. Core has no SOPS dependency; the generated README documents operator-managed encryption and Flux decryption. Join tokens are applied directly to worker clusters. Review the generated values and supply storage, database, OIDC, registry and DNS credentials, and the [certificate solvers](#configure-certificate-solvers), before reconciliation. Chart defaults define shared settings; each cluster overrides them in `values/`.
 
 The repository has `releases/control-plane.yaml`, staging and production worker cohorts, and shared role defaults under `bases/`, and one directory under `clusters/` per cluster. Each cluster kustomization selects exactly one release cohort file, references a role base and provides a small values file with endpoints, domains, administrator and region settings. Staging can follow stable releases through a semver range. Production pins an exact bundle digest.
+
+### Configure certificate solvers
+
+Both charts create a Let's Encrypt ACME ClusterIssuer by default and fail to render until `certManager.issuer.solvers` holds cert-manager's [solver list](https://cert-manager.io/docs/configuration/acme/#solvers). Loco assumes no DNS provider. The worker Certificate covers wildcard names, which ACME issues only through DNS-01, so configure a DNS-01 solver for your DNS provider. The generated values carry this Cloudflare example; replace it with your provider's solver:
+
+```yaml
+certManager:
+  issuer:
+    email: admin@example.com
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+```
+
+The charts create no solver credentials. Deliver any Secret a solver references to the `cert-manager` namespace with the other cluster Secrets. To skip ACME, set `certManager.issuer.create: false` with the `name` and `kind` of an existing issuer, or serve your own TLS Secret with the worker's `certManager.existingTLSSecret` or the control plane's `gateway.tlsSecretName`.
 
 ## Bootstrap Flux
 

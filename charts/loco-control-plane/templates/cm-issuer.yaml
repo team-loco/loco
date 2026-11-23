@@ -15,6 +15,9 @@ spec:
     server: {{ .Values.certManager.issuer.server }}
     privateKeySecretRef:
       name: {{ .Values.certManager.issuer.name }}-key
+    {{- if not .Values.certManager.issuer.solvers }}
+    {{- fail "certManager.issuer.solvers is required for an ACME issuer" }}
+    {{- end }}
     solvers:
       {{- toYaml .Values.certManager.issuer.solvers | nindent 6 }}
   {{- else }}

@@ -11,18 +11,25 @@ templates:
   - templates/gateway.yaml
   - templates/cm-cert.yaml
   - templates/cm-issuer.yaml
-  - templates/cloudflare-secret.yaml
 tests:
-  - it: renders configured solvers verbatim, without a Cloudflare Secret
+  - it: renders configured solvers verbatim
     set:
-      certManager.issuer.solvers: [{dns01: {route53: {region: us-east-1}}}]
+      certManager.issuer.solvers:
+        - dns01:
+            webhook: {groupName: acme.example.test, solverName: example}
+    template: templates/cm-issuer.yaml
     asserts:
       - equal:
           path: spec.acme.solvers
-          value: [{dns01: {route53: {region: us-east-1}}}]
-        template: templates/cm-issuer.yaml
-      - hasDocuments: {count: 0}
-        template: templates/cloudflare-secret.yaml
+          value: [{dns01: {webhook: {groupName: acme.example.test, solverName: example}}}]
+
+  - it: requires solvers when it creates the ACME issuer
+    set:
+      certManager.issuer.solvers: []
+    template: templates/cm-issuer.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: certManager.issuer.solvers is required for an ACME issuer
 
   - it: issues from ACME with the operator's email by default
     template: templates/cm-issuer.yaml
@@ -30,23 +37,6 @@ tests:
       - equal:
           path: spec.acme.email
           value: ci@example.invalid
-
-  - it: reads the Cloudflare token from the Secret the chart renders
-    set:
-      secrets.cloudflareToken: token
-    asserts:
-      - equal:
-          path: spec.acme.solvers[0].dns01.cloudflare.apiTokenSecretRef
-          value: {name: cloudflare-api-token-secret, key: api-token}
-        template: templates/cm-issuer.yaml
-      - equal:
-          path: metadata
-          value: {name: cloudflare-api-token-secret, namespace: cert-manager}
-        template: templates/cloudflare-secret.yaml
-      - equal:
-          path: stringData.api-token
-          value: token
-        template: templates/cloudflare-secret.yaml
 
   - it: puts the Certificate in the gateway namespace
     template: templates/cm-cert.yaml
@@ -121,10 +111,9 @@ tests:
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: Gateway}
 
-  - it: needs no token or email for a self-signed issuer
+  - it: needs no solvers or email for a self-signed issuer
     set:
-      certManager.issuer: {type: selfSigned, email: "", name: local}
-      secrets.cloudflareToken: token
+      certManager.issuer: {type: selfSigned, email: "", name: local, solvers: []}
     asserts:
       - equal:
           path: spec
@@ -134,18 +123,13 @@ tests:
           path: spec.issuerRef.name
           value: local
         template: templates/cm-cert.yaml
-      - hasDocuments: {count: 0}
-        template: templates/cloudflare-secret.yaml
 
-  - it: renders only the Certificate for an existing issuer
+  - it: renders only the Certificate for an existing issuer, without solvers
     set:
-      certManager.issuer: {create: false, name: shared, kind: Issuer}
-      secrets.cloudflareToken: token
+      certManager.issuer: {create: false, name: shared, kind: Issuer, solvers: []}
     asserts:
       - hasDocuments: {count: 0}
         template: templates/cm-issuer.yaml
-      - hasDocuments: {count: 0}
-        template: templates/cloudflare-secret.yaml
       - equal:
           path: spec.issuerRef
           value: {name: shared, kind: Issuer}
@@ -162,14 +146,12 @@ tests:
   - it: renders no cert-manager objects with an existing TLS Secret, and serves that Secret
     set:
       gateway.tlsSecretName: regional-tls
-      secrets.cloudflareToken: token
+      certManager.issuer.solvers: []
     asserts:
       - hasDocuments: {count: 0}
         template: templates/cm-cert.yaml
       - hasDocuments: {count: 0}
         template: templates/cm-issuer.yaml
-      - hasDocuments: {count: 0}
-        template: templates/cloudflare-secret.yaml
       - equal:
           path: spec.listeners[*].tls.certificateRefs[0].name
           value: regional-tls
@@ -179,14 +161,11 @@ tests:
   - it: serves plain HTTP on port 80 without cert-manager objects
     set:
       certManager.enabled: false
-      secrets.cloudflareToken: token
     asserts:
       - hasDocuments: {count: 0}
         template: templates/cm-cert.yaml
       - hasDocuments: {count: 0}
         template: templates/cm-issuer.yaml
-      - hasDocuments: {count: 0}
-        template: templates/cloudflare-secret.yaml
       - equal:
           path: spec.listeners[*].protocol
           value: HTTP

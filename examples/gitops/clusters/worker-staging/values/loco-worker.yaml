@@ -8,6 +8,13 @@ global:
 certManager:
   issuer:
     email: admin@example.com
+    # replace with the DNS-01 solver for your DNS provider.
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
 env:
   CONTROL_PLANE_URL: https://api.example.com
   LOCO_REGISTRY_HOST: registry.example.com

@@ -401,30 +401,7 @@
             "solvers": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "dns01": {
-                    "type": "object",
-                    "properties": {
-                      "cloudflare": {
-                        "type": "object",
-                        "properties": {
-                          "apiTokenSecretRef": {
-                            "type": "object",
-                            "properties": {
-                              "key": {
-                                "type": "string"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+                "type": "object"
               }
             },
             "type": {
@@ -884,15 +861,6 @@
     },
     "platformDomain": {
       "type": "string"
-    },
-    "secrets": {
-      "type": "object",
-      "properties": {
-        "cloudflareToken": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
     },
     "ui": {
       "allOf": [
