@@ -469,7 +469,8 @@ def check_band(page, scroller, row):
     scroller.evaluate(
         "node => { node.scrollLeft = (node.scrollWidth - node.clientWidth) / 2; }"
     )
-    row.get_by_role("cell").last.hover()
+    # In the last cell's corner, clear of the row menu button whose tooltip covers the band's corner.
+    row.get_by_role("cell").last.hover(position={"x": 3, "y": 3})
     page.evaluate(f"() => {TRANSITIONS}.forEach(a => a.finish())")
     cells = row.locator(":scope > td")
     first, last = cells.first.bounding_box(), cells.last.bounding_box()
