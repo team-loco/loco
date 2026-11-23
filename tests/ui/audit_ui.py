@@ -125,7 +125,9 @@ with session(out) as browser:
         "Promise.all(document.getAnimations().filter((a) => a.animationName === 'enter').map((a) => a.finished))"
     )
     page.screenshot(path=out / "page-loading-light.png")
-    page.evaluate("document.documentElement.classList.add('dark')")
+    page.evaluate(
+        "document.documentElement.classList.add('dark'), Promise.all(document.getAnimations().filter((a) => a instanceof CSSTransition).map((a) => a.finished))"
+    )
     page.screenshot(path=out / "page-loading-dark.png")
     for route in held_audit:
         route.continue_()
