@@ -8,7 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -79,5 +81,32 @@ func TestStatusReportDoesNotWaitForAWriteToItsEnvironment(t *testing.T) {
 
 	if got := f.placement(t, f.clusterID).ReadyReplicas; got != 1 {
 		t.Fatalf("ready replicas = %d, want the reported 1", got)
+	}
+}
+
+func TestCreateEnvironmentWaitsForAWriteToEveryEnvironment(t *testing.T) {
+	t.Parallel()
+	f := newWebhookFixture(t)
+	writer, err := f.pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rollbackOnCleanup(t, writer)
+	if err = lockWorkspaceEnvironments(t.Context(), genDb.New(writer), uuid.MustParse(f.workspaceID)); err != nil {
+		t.Fatal(err)
+	}
+	server := NewEnvironmentServer(f.pool, genDb.New(f.pool), limits.Defaults())
+	created := make(chan error, 1)
+	go func() {
+		_, createErr := server.CreateEnvironment(f.owner, newEnvironmentRequest(f.workspaceID))
+		created <- createErr
+	}()
+
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	if err = writer.Commit(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if createErr := <-created; createErr != nil {
+		t.Fatalf("create environment: %v", createErr)
 	}
 }

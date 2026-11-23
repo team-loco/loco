@@ -100,6 +100,10 @@ func (s *EnvironmentServer) CreateEnvironment(
 		); limitErr != nil {
 			return limitErr
 		}
+		// Waits for a write in progress to every environment, so the new one starts from its result.
+		if lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
+			return lockErr
+		}
 		created, createErr := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 			WorkspaceID: workspaceID,
 			Slug:        slug,
