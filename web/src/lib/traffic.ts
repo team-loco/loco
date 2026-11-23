@@ -82,14 +82,21 @@ function inSeconds(value: number, unit: string): { value: number; unit: string }
 		: { value, unit };
 }
 
-export function trafficValue(value: number | undefined, unit: string): string {
-	if (value === undefined) return "—";
+/** A traffic value and its unit, kept apart; the number is "—" without a value. */
+export function trafficParts(value: number | undefined, unit: string): { number: string; unit: string } {
+	if (value === undefined) return { number: "—", unit: "" };
 	const shown = inSeconds(value, unit);
-	if (shown.value > 0 && shown.value < SMALLEST_SHOWN) return `<${String(SMALLEST_SHOWN)}${shown.unit}`;
+	if (shown.value > 0 && shown.value < SMALLEST_SHOWN)
+		return { number: `<${String(SMALLEST_SHOWN)}`, unit: shown.unit };
 	const number = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, notation: "compact" }).format(
 		shown.value,
 	);
-	return `${number}${shown.unit}`;
+	return { number, unit: shown.unit };
+}
+
+export function trafficValue(value: number | undefined, unit: string): string {
+	const { number, unit: shown } = trafficParts(value, unit);
+	return `${number}${shown}`;
 }
 
 function niceStep(raw: number): number {

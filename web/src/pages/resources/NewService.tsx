@@ -701,6 +701,7 @@ function ServiceForm({
 						replicaRange={sizes.replicas}
 						onChange={set}
 						error={errors.scaling ?? apiError("replicas")}
+						inDrawer
 					/>
 				</DrawerSection>
 

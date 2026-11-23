@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { useTraffic } from "@/hooks/useTraffic";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatAxisTime, formatFullTime, timeAxis } from "@/lib/time";
-import { errorShare, latestTraffic, trafficAxis, trafficValue, type TrafficPoint } from "@/lib/traffic";
+import { errorShare, latestTraffic, trafficAxis, trafficParts, trafficValue, type TrafficPoint } from "@/lib/traffic";
 import { RANGE_MS, type MetricRange } from "./metric";
 import { markerLines } from "./MetricChart";
 import { useDeploymentMarkers } from "./useDeploymentMarkers";
@@ -24,12 +24,23 @@ function TooltipRow({ label, value }: { label: string; value: string }) {
 	);
 }
 
-function Stat({ label, value, note }: { label: string; value: string; note?: string | undefined }) {
+function Stat({
+	label,
+	value,
+	note,
+}: {
+	label: string;
+	value: { number: string; unit: string };
+	note?: string | undefined;
+}) {
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
 			<span className="text-[12.5px] text-fg3">{label}</span>
 			<span className="flex items-baseline gap-1.5">
-				<span className="font-mono text-[22px] leading-[1.1] font-light tracking-[-0.03em] tabular-nums">{value}</span>
+				<span className="font-mono text-[22px] leading-[1.1] font-light tracking-[-0.03em] tabular-nums">
+					{value.number}
+				</span>{" "}
+				{value.unit !== "" && <span className="text-[12px] whitespace-nowrap text-fg3">{value.unit.trim()}</span>}
 				{note !== undefined && <span className="text-[12px] whitespace-nowrap text-warn-fg">{note}</span>}
 			</span>
 		</div>
@@ -119,15 +130,15 @@ function PublicTraffic({
 			) : (
 				<div className="flex min-w-0 flex-col gap-3.5 px-5 pt-[18px] pb-3">
 					<div className="flex flex-wrap gap-7">
-						<Stat label="Requests" value={trafficValue(latest?.requests, "/s")} />
+						<Stat label="Requests" value={trafficParts(latest?.requests, " req/s")} />
 						<Stat
 							label="Errors"
-							value={trafficValue(share, "%")}
+							value={trafficParts(share, "%")}
 							note={
 								share !== undefined && share > ERROR_NOTE_SHARE ? `above ${ERROR_NOTE_SHARE.toString()}%` : undefined
 							}
 						/>
-						<Stat label="p95" value={trafficValue(latest?.latency, " ms")} />
+						<Stat label="p95" value={trafficParts(latest?.latency, " ms")} />
 					</div>
 					{traffic.isLoading ? (
 						<Skeleton className="h-[150px] w-full" />

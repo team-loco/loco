@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import uuid
 from pathlib import Path
 
@@ -176,8 +177,9 @@ with session(out) as browser:
     target = defaults["cpuTarget"] - 5
     expect(
         section.get_by_text(
-            f"Adds replicas when average CPU stays above {target}%.",
-            exact=True,
+            re.compile(
+                rf"^Adds replicas when average CPU stays above {target}%, and removes them when it drops, between \d+ and \d+ per region\.$"
+            )
         )
     ).to_be_visible()
     expect(page.locator("#set-size")).to_contain_text("1–3 × (")
