@@ -207,6 +207,10 @@ def mock_telemetry(context):
 def assert_sidebar_slide(target):
     target.hover()
     highlight_selector = '[data-slot="sidebar-highlight"]'
+    # Rows that load late, such as the workspace links an organization page adds, slide the highlight to its row's new place.
+    expect(
+        target.page.locator(f'[data-slot="sidebar-content"] {highlight_selector}')
+    ).to_have_css("transform", "none")
     slide = target.evaluate(
         """async (node, selector) => {
         const sidebar = node.closest('[data-slot="sidebar-content"]');
