@@ -10,6 +10,8 @@ export function SliderValue({ text }: { text: string }) {
 	return <span className="font-mono text-[12.5px] text-foreground">{text}</span>;
 }
 
+const optionLabel = (option: { label: string }) => option.label;
+
 // Built on the Base UI primitive because the stock shadcn slider cannot label its thumb.
 export function StepSlider({
 	label,
@@ -18,6 +20,7 @@ export function StepSlider({
 	onChange,
 	disabled = false,
 	describedBy,
+	tickLabel = optionLabel,
 }: {
 	label: string;
 	options: readonly { value: string; label: string }[];
@@ -25,6 +28,8 @@ export function StepSlider({
 	onChange: (value: string) => void;
 	disabled?: boolean;
 	describedBy?: string | undefined;
+	/** The text under each step; defaults to the option's label. */
+	tickLabel?: (option: { value: string; label: string }) => string;
 }) {
 	const index = options.findIndex((o) => o.value === value);
 	return (
@@ -70,7 +75,7 @@ export function StepSlider({
 						data-on={i === index ? "" : undefined}
 						style={{ left: `${(i / Math.max(1, options.length - 1)) * 100}%` }}
 					>
-						{o.label}
+						{tickLabel(o)}
 					</span>
 				))}
 			</span>

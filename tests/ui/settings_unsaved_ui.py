@@ -82,7 +82,7 @@ with session(out) as browser:
 
     page.locator("#set-health input").first.fill("/deleted")
     page.get_by_role("button", name="Delete resource", exact=True).click()
-    delete = page.get_by_role("alertdialog", name=f"Delete {display_name}?", exact=True)
+    delete = page.get_by_role("alertdialog", name=f"Delete {display_name}", exact=True)
     delete.get_by_role("textbox").fill(display_name)
     delete.get_by_role("button", name=f"Delete {display_name}", exact=True).click()
     expect(page).to_have_url(

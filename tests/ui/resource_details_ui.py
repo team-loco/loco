@@ -365,7 +365,7 @@ with session(out) as browser:
     delete = page.get_by_role("button", name="Delete resource", exact=True)
     expect(delete).to_be_enabled()
     delete.click()
-    dialog = page.get_by_role("alertdialog", name=f"Delete {display_name}?", exact=True)
+    dialog = page.get_by_role("alertdialog", name=f"Delete {display_name}", exact=True)
     expect(
         dialog.get_by_text(f"Type {display_name} to confirm", exact=True)
     ).to_be_visible()

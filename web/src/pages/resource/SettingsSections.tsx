@@ -40,7 +40,7 @@ export interface SectionProps {
 	onChange: (patch: Partial<SettingsDraft>) => void;
 }
 
-const grid2 = "grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),1fr))] gap-x-[18px] gap-y-3.5";
+const grid2 = "grid grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-x-[18px] gap-y-3.5";
 
 export function SettingsBlock({
 	id,
@@ -211,6 +211,7 @@ export function SizeSection({
 				<Field label="CPU" aside={<SliderValue text={stepLabel(cpuOptions, draft.cpu ?? base.cpu)} />}>
 					<StepSlider
 						label="CPU"
+						tickLabel={(option) => option.label.replace(" vCPU", "")}
 						options={cpuOptions}
 						value={draft.cpu ?? base.cpu}
 						disabled={locked}
@@ -376,7 +377,7 @@ export function DeploymentSection({ draft, base, errors, locked, describedBy, on
 							value={restartPolicy}
 							disabled={locked}
 							describedBy={describedBy}
-							className="grid-cols-3"
+							className="w-max grid-cols-3"
 							onChange={(next) => {
 								const choice = RESTART_CHOICES.find((c) => c.value === next);
 								if (choice !== undefined) onChange({ restartPolicy: choice.value });

@@ -511,16 +511,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				</div>
 			) : (
 				<div className="flex flex-col gap-5">
-					<DeploymentProgress
-						workspaceId={resource.workspaceId}
-						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
-						regions={regions}
-						logsHref={obsLink("logs")}
-						regionLogsHref={(region) => obsLink("logs", { key: "region", value: region })}
-						buildLogsHref={buildLogsHref}
-						canWrite={canWrite}
-						onCompare={compareSpecs}
-					/>
 					<SettingsView
 						resource={resource}
 						secretsNotice={secretsNotice("secrets-notice-set")}
@@ -593,6 +583,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				}}
 				resource={resource}
 				confirmLabel={`Delete ${resource.name}`}
+				asQuestion={false}
 				pending={del.isPending}
 				onConfirm={handleDelete}
 			/>

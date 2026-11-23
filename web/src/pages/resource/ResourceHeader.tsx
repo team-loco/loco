@@ -33,7 +33,7 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
 import { useWidth } from "@/hooks/useWidth";
 
-import { depTag, isDeployed, type RegionView } from "./model";
+import { isDeployed, type RegionView } from "./model";
 
 interface SwitcherItem {
 	id: string;
@@ -197,7 +197,7 @@ export function ResourceHeader({
 							<MenuIcon>
 								<Undo2Icon />
 							</MenuIcon>
-							{rollbackTarget === undefined ? "Roll back" : `Roll back to ${depTag(rollbackTarget)}`}
+							Roll back
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							className={MENU_ITEM}

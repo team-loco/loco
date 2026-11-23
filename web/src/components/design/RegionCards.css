@@ -1,59 +1,81 @@
 .reg-cards {
-	display: grid;
-	align-items: stretch;
-	grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr));
-	gap: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	max-width: 520px;
+	padding: 0;
+	overflow: hidden;
+	border-radius: 10px;
+	box-shadow: inset 0 0 0 1px var(--line);
 }
 .reg-card {
-	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 10px;
 	height: auto;
-	min-height: 44px;
-	flex-direction: column;
-	align-items: flex-start;
-	justify-content: center;
-	gap: 2px;
-	padding: 7px 28px 7px 12px;
-	border: 1px solid var(--line2);
-	border-radius: 8px;
-	background: var(--bg);
-	color: var(--fg3);
-	text-align: left;
+	min-height: 42px;
+	padding: 0 14px;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	color: var(--fg);
+	font-size: 13.5px;
 	font-weight: 400;
+	text-align: left;
 	white-space: normal;
-	transition:
-		border-color 120ms ease,
-		color 120ms ease,
-		background 120ms ease,
-		box-shadow 120ms ease;
+}
+.reg-card + .reg-card {
+	border-top: 1px solid var(--line);
 }
 .reg-card:hover {
+	background: var(--panel);
 	color: var(--fg);
-	border-color: var(--fg4);
-	background: var(--bg);
 }
 .reg-card[aria-pressed="true"] {
-	color: var(--fg);
-	border-color: var(--fg);
-	box-shadow: inset 0 0 0 1px var(--fg);
-	background: color-mix(in oklch, var(--fg) 7%, var(--bg));
+	background: none;
+	box-shadow: none;
 }
-.reg-check {
-	display: none;
+.reg-card[aria-pressed="true"]:hover {
+	background: var(--panel);
+}
+.reg-cb {
+	position: relative;
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+	border-radius: 4px;
+	background: var(--bg);
+	box-shadow: inset 0 0 0 1.5px var(--line2);
+}
+.reg-cb::after {
+	content: "";
 	position: absolute;
-	top: 50%;
-	right: 8px;
-	translate: 0 -50%;
-	width: 14px;
-	height: 14px;
+	top: 2.5px;
+	left: 5.5px;
+	width: 4px;
+	height: 8px;
+	border: solid var(--btn-fg);
+	border-width: 0 1.75px 1.75px 0;
+	opacity: 0;
+	transform: rotate(45deg);
 }
-.reg-card[aria-pressed="true"] .reg-check {
-	display: block;
+.reg-card[aria-pressed="true"] .reg-cb {
+	background: var(--btn);
+	box-shadow: none;
+}
+.reg-card[aria-pressed="true"] .reg-cb::after {
+	opacity: 1;
 }
 .reg-card[aria-disabled="true"] {
 	cursor: default;
 	opacity: 1;
 }
+.reg-card[aria-disabled="true"] .reg-cb {
+	opacity: 0.55;
+}
 .reg-note {
+	margin-left: auto;
 	font-size: 11.5px;
 	color: var(--fg3);
 }
@@ -65,9 +87,4 @@
 }
 .reg-note[data-tone="warn"] {
 	color: color-mix(in oklch, var(--warn) 70%, var(--fg));
-}
-@media (prefers-reduced-motion: reduce) {
-	.reg-card {
-		transition: none;
-	}
 }

@@ -78,7 +78,7 @@ function ImportDialog({
 				if (!next) close();
 			}}
 		>
-			<DialogContent title="Import .env">
+			<DialogContent title="Import .env" showCloseButton={false}>
 				<DialogBody>
 					<span className="text-[13.5px] text-fg2">
 						Paste the contents of a .env file. Existing keys are overwritten.
