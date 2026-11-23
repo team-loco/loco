@@ -12,7 +12,6 @@ import type { Glyph } from "@/components/design/StatusGlyph";
 import type { Alert } from "@/lib/alerts";
 import { deploymentProblem, desiredReplicas, getServiceSpec, isInFlight, placementPhase } from "@/lib/deployment-utils";
 import { environmentStatus } from "@/lib/resource-status";
-import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
 import { agoLabel, maybeTsMs, readyMs, tsMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
 
@@ -41,13 +40,20 @@ export function activityDeployments(deployments: readonly Deployment[], nowMs: n
 		.toSorted((a, b) => ORDER[a.status] - ORDER[b.status] || created(b) - created(a));
 }
 
-/** The degraded and recovered events from the last 30 minutes, newest first. */
-export function recentHealthEvents<T extends { type: string; timestamp: Timestamp | undefined }>(
+export type ActivityLevel = "all" | "warn";
+
+/** Whether an event is a warning or an error, the events the Warnings level keeps. */
+function isWarningSeverity(severity: string): boolean {
+	return severity === "warning" || severity === "error";
+}
+
+/** The events the drawer lists at a level, newest first. */
+export function activityEvents<T extends { severity: string; timestamp: Timestamp | undefined }>(
 	events: readonly T[],
-	nowMs: number,
+	level: ActivityLevel,
 ): T[] {
 	return events
-		.filter((e) => RUNTIME_EVENT_TYPES.includes(e.type) && nowMs - tsMs(e.timestamp) < RECENT_MS)
+		.filter((e) => level === "all" || isWarningSeverity(e.severity))
 		.toSorted((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp));
 }
 

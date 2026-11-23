@@ -7,7 +7,7 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { ActivityIcon, ChevronsUpDownIcon, RotateCwIcon, ScrollTextIcon, Settings2Icon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { toast } from "@/lib/toast";
 
 import { ResourceRowMenu } from "@/components/ResourceRowMenu";
@@ -18,7 +18,7 @@ import { invalidateDeploys } from "@/hooks/workspaceDeployments";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { pluralize } from "@/lib/format";
 import { toastConnectError } from "@/lib/error-handler";
-import { observabilityPath, resourcePath } from "@/lib/routes";
+import { activitySearch, observabilityPath, resourcePath } from "@/lib/routes";
 import { RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { buildRegions, depTag, focusRegion } from "@/pages/resource/model";
 
@@ -83,8 +83,8 @@ export function DashboardRowMenu({
 	const restart = useMutation(restartResource);
 	const [rollback, setRollback] = useState<Rollback | null>(null);
 	const canWrite = useMyScopes().resourceLevel(orgId, workspaceId, resource.id) >= scopeLevel(Scope.WRITE);
-	const obs = (view: "logs" | "events") =>
-		observabilityPath(orgId, workspaceId, view, { env: envName, r: [resource.slug] });
+	const { search } = useLocation();
+	const logsPath = observabilityPath(orgId, workspaceId, "logs", { env: envName, r: [resource.slug] });
 
 	const refresh = async () => {
 		await invalidateDeploys(queryClient, transport, workspaceId, resource.id);
@@ -126,11 +126,11 @@ export function DashboardRowMenu({
 	return (
 		<>
 			<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.name}>
-				<DropdownMenuItem onClick={() => void navigate(obs("logs"))}>
+				<DropdownMenuItem onClick={() => void navigate(logsPath)}>
 					<ScrollTextIcon className="text-fg3" />
 					View logs
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => void navigate(obs("events"))}>
+				<DropdownMenuItem onClick={() => void navigate({ search: activitySearch(search, resource.slug) })}>
 					<ActivityIcon className="text-fg3" />
 					View events
 				</DropdownMenuItem>

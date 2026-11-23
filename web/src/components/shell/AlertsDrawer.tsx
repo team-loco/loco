@@ -3,32 +3,36 @@ import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { useQuery as useConnectQuery } from "@connectrpc/connect-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
+import { parseAsString, useQueryState } from "nuqs";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
-import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { FilterMenu } from "@/components/design/FilterMenu";
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { ROLLOUT_STYLE, StatusBadge, resourceStatusStyle, type StatusStyle } from "@/components/design/StatusBadge";
 import { NavArrow } from "@/components/design/NavArrow";
 import { PlacementChips, RegionChip } from "@/components/design/PlacementChips";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
-import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
+import { ACTIVITY_EVENT_TYPES } from "@/lib/runtime-events";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import {
 	ACTIVITY_PAGE,
 	RECENT_MS,
 	activityDeployments,
-	recentHealthEvents,
+	activityEvents,
 	clockLabel,
 	deployPhase,
 	deploySteps,
@@ -37,13 +41,15 @@ import {
 	rollingOutRegions,
 	runningDeployRegions,
 	withoutRunningDeploys,
+	type ActivityLevel,
 	type StepState,
 } from "@/lib/activity-deploys";
 import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
 import { deploymentHeadline, deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
-import { buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
-import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
+import { ACTIVITY_PARAM, buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
+import { agoLabel, DAY_MS, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { asSeverity, eventItem, severityStyle } from "@/pages/observability/events";
 import { PROBLEM_REASONS, problemLogsHref } from "@/pages/resource/deployment-progress";
 
 import { degradedToast, deployToasts, type DeployToast } from "./deploy-toasts";
@@ -187,34 +193,62 @@ function AlertCard({
 	);
 }
 
-function HealthEventCards({
+const SEVERITY_LABEL = { error: "Error", warning: "Warning", normal: "Info" } as const;
+
+function EventCards({
 	workspaceId,
-	names,
+	resources,
+	resourceId,
+	level,
 	sinceMs,
 	resourceHref,
+	logsHref,
 	nowMs,
 	onNavigate,
 }: {
 	workspaceId: string;
-	names: ReadonlyMap<string, string>;
+	resources: ReadonlyMap<string, Resource>;
+	resourceId: string | undefined;
+	level: ActivityLevel;
 	sinceMs: number;
 	resourceHref: (resourceId: string) => string;
+	logsHref: (slug: string) => string;
 	nowMs: number;
 	onNavigate: () => void;
 }) {
-	const { events } = useWorkspaceEvents(workspaceId, names, { types: RUNTIME_EVENT_TYPES, startMs: sinceMs });
-	return recentHealthEvents(events, nowMs).map((e) => (
-		<ActivityCard key={e.id}>
-			<div className="flex items-center justify-between gap-2.5">
-				<span className="inline-flex items-center gap-2 text-[12.5px] font-medium whitespace-nowrap">
-					<StatusGlyph glyph={e.type === "resource.degraded" ? "warn" : "ok"} />
-					{e.title}
-				</span>
-				<span className="font-mono text-[12px] text-fg3">{agoLabel(tsMs(e.timestamp), nowMs)}</span>
-			</div>
-			<CardName name={e.resourceName} href={resourceHref(e.resourceId)} note={e.reason} onNavigate={onNavigate} />
-		</ActivityCard>
-	));
+	const names = new Map([...resources].map(([id, r]) => [id, r.name]));
+	const { events } = useWorkspaceEvents(workspaceId, names, {
+		types: ACTIVITY_EVENT_TYPES,
+		...(resourceId === undefined ? {} : { resourceIds: [resourceId] }),
+		startMs: sinceMs,
+	});
+	return activityEvents(events.map(eventItem), level).map((e) => {
+		const severity = asSeverity(e.severity);
+		return (
+			<ActivityCard key={e.id}>
+				<div className="flex items-center justify-between gap-2.5">
+					<span className="inline-flex items-center gap-2 text-[13px]">
+						<StatusGlyph glyph={e.type === "resource.recovered" ? "ok" : severityStyle(severity).glyph} />
+						{SEVERITY_LABEL[severity]}
+					</span>
+					<span className="font-mono text-[12px] text-fg3">{agoLabel(e.ts, nowMs)}</span>
+				</div>
+				<CardName name={e.resourceName} href={resourceHref(e.resourceId)} note={e.title} onNavigate={onNavigate} />
+				{e.detail !== "" && <span className="font-mono text-[12px] break-words text-fg2">{e.detail}</span>}
+				<div className="mt-0.5 flex">
+					<Button
+						variant="outline"
+						nativeButton={false}
+						render={<Link to={logsHref(resources.get(e.resourceId)?.slug ?? "")} onClick={onNavigate} />}
+						className="h-7 bg-background px-2.5 text-[12.5px]"
+					>
+						<ScrollTextIcon className="text-fg3" />
+						Logs
+					</Button>
+				</div>
+			</ActivityCard>
+		);
+	});
 }
 
 function DeployCard({
@@ -308,7 +342,10 @@ function DeployCard({
 }
 
 export function AlertsDrawer() {
-	const [open, setOpen] = useState(false);
+	// The drawer is open while the page's address carries the activity parameter, whose value names the resource it shows.
+	const [activity, setActivity] = useQueryState(ACTIVITY_PARAM, parseAsString);
+	const open = activity !== null;
+	const [level, setLevel] = useState<ActivityLevel>("all");
 	const [openedAtMs, setOpenedAtMs] = useState(0);
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
@@ -376,7 +413,6 @@ export function AlertsDrawer() {
 	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter(
 		(d) => byId.has(d.resourceId) && d.environmentId === active.id,
 	);
-	const finished = deployments.filter((d) => !isInFlight(d.status));
 	const ready = new Map<string, number>();
 	for (const region of (resources.data?.resources ?? []).flatMap((r) =>
 		r.environmentStatuses.flatMap((e) => e.regions),
@@ -387,12 +423,21 @@ export function AlertsDrawer() {
 		open && deploymentsQuery.data !== undefined
 			? runningDeployRegions(deployments)
 			: rollingOutRegions(resources.data?.resources ?? [], active.id);
-	const alerts = withoutRunningDeploys(buildAlerts(resources.data?.resources ?? [], active.id), running);
-	const count = alertedResourceCount(alerts);
+	const allAlerts = withoutRunningDeploys(buildAlerts(resources.data?.resources ?? [], active.id), running);
+	const count = alertedResourceCount(allAlerts);
+	const shownResource = (resources.data?.resources ?? []).find((r) => r.slug === activity);
+	const matches = (resourceId: string) => shownResource === undefined || shownResource.id === resourceId;
+	const alerts = allAlerts.filter((a) => matches(a.resourceId));
+	const levelMatches = (d: Deployment) => level === "all" || ["warn", "err"].includes(deployPhase(d).glyph);
+	const shownDeployments = deployments.filter((d) => matches(d.resourceId) && levelMatches(d));
+	const finishedShown = shownDeployments.filter((d) => !isInFlight(d.status));
 	const envParams = { env: active.slug };
 	const openChange = (next: boolean) => {
 		if (next) setOpenedAtMs(Date.now());
-		setOpen(next);
+		void setActivity(next ? "" : null);
+	};
+	const pickResource = (slug: string) => {
+		void setActivity(slug, { history: "replace" });
 	};
 	const close = () => {
 		openChange(false);
@@ -450,8 +495,9 @@ export function AlertsDrawer() {
 			<Sheet open={open} onOpenChange={openChange}>
 				<SheetContent showCloseButton={false}>
 					<SheetHeader>
-						<SheetTitle className="text-[26px] leading-[1.15] tracking-[-0.03em]">Workspace activity</SheetTitle>
-						{count > 0 && <span className="act-n act-heading-count font-mono">{count}</span>}
+						<SheetTitle className="text-[26px] leading-[1.15] tracking-[-0.03em]">
+							{shownResource === undefined ? "Workspace activity" : `${shownResource.name} activity`}
+						</SheetTitle>
 						<Tooltip>
 							<TooltipTrigger
 								render={
@@ -472,9 +518,32 @@ export function AlertsDrawer() {
 							</TooltipContent>
 						</Tooltip>
 					</SheetHeader>
+					<div className="flex shrink-0 items-center gap-2 px-4 pt-3">
+						<ToggleGroup
+							variant="segmented"
+							aria-label="Level"
+							value={[level]}
+							onValueChange={(v: string[]) => {
+								setLevel(v[0] === "warn" ? "warn" : "all");
+							}}
+						>
+							<ToggleGroupItem value="all">All</ToggleGroupItem>
+							<ToggleGroupItem value="warn">Warnings</ToggleGroupItem>
+						</ToggleGroup>
+						<FilterMenu
+							label="Resource"
+							value={shownResource?.slug ?? ""}
+							allValue=""
+							options={[
+								{ value: "", label: "All resources" },
+								...(resources.data?.resources ?? []).map((r) => ({ value: r.slug, label: r.name })),
+							]}
+							onChange={pickResource}
+						/>
+					</div>
 					<SheetBody className="p-4">
 						<ul className="flex flex-col gap-2.5">
-							{deployments.filter((d) => isInFlight(d.status)).map(deployCard)}
+							{shownDeployments.filter((d) => isInFlight(d.status)).map(deployCard)}
 							{alerts.map((a) => (
 								<AlertCard
 									key={a.key}
@@ -485,16 +554,21 @@ export function AlertsDrawer() {
 									onNavigate={close}
 								/>
 							))}
-							<HealthEventCards
+							<EventCards
 								workspaceId={activeWorkspaceId}
-								names={new Map([...byId].map(([id, r]) => [id, r.name]))}
-								sinceMs={sinceMs}
+								resources={byId}
+								resourceId={shownResource?.id}
+								level={level}
+								sinceMs={Math.floor((openedAtMs || watchedSinceMs) / CLOCK_TICK_MS) * CLOCK_TICK_MS - DAY_MS}
 								resourceHref={(id) => resourcePath(activeOrgId, activeWorkspaceId, id)}
+								logsHref={(slug) =>
+									observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [slug] })
+								}
 								nowMs={nowMs}
 								onNavigate={close}
 							/>
-							{finished.slice(0, shown).map(deployCard)}
-							{finished.length > shown && (
+							{finishedShown.slice(0, shown).map(deployCard)}
+							{finishedShown.length > shown && (
 								<li className="flex justify-center">
 									<Button
 										variant="ghost"
@@ -502,29 +576,15 @@ export function AlertsDrawer() {
 											setShown(shown + ACTIVITY_PAGE);
 										}}
 									>
-										Show {Math.min(ACTIVITY_PAGE, finished.length - shown)} more
+										Show {Math.min(ACTIVITY_PAGE, finishedShown.length - shown)} more
 									</Button>
 								</li>
 							)}
 							<li className="hidden px-2 py-12 text-center text-[13.5px] text-fg3 only:block">
-								Nothing needs attention.
+								{level === "warn" ? "No warnings." : "Nothing here yet."}
 							</li>
 						</ul>
 					</SheetBody>
-					<SheetFooter>
-						<Button
-							variant="link"
-							nativeButton={false}
-							render={
-								<Link
-									to={observabilityPath(activeOrgId, activeWorkspaceId, "events", { ...envParams, range: DAY_MS })}
-									onClick={close}
-								/>
-							}
-						>
-							All events
-						</Button>
-					</SheetFooter>
 				</SheetContent>
 			</Sheet>
 		</>

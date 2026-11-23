@@ -2,7 +2,7 @@ import { deploymentMessage } from "@/hooks/deployment-watch";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ArrowRightIcon, RocketIcon } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useQuery } from "@connectrpc/connect-query";
 import { keepPreviousData } from "@tanstack/react-query";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
@@ -20,8 +20,8 @@ import { DeploymentActor, DeploymentId } from "@/components/design/DeploymentOri
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentRegions, isInFlight } from "@/lib/deployment-utils";
-import { observabilityPath, resourcePath } from "@/lib/routes";
-import { agoLabel, DAY_MS, formatStarted, msToTimestamp, readyMs } from "@/lib/time";
+import { activitySearch, resourcePath } from "@/lib/routes";
+import { agoLabel, formatStarted, msToTimestamp, readyMs } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -141,6 +141,7 @@ export function RecentDeployments({
 	nowMs: number;
 }) {
 	const navigate = useNavigate();
+	const { search } = useLocation();
 	const [filter, setFilter] = useQueryState("deploys", deploysParser);
 	const since = msToTimestamp(nowMs - DEPLOYMENT_WINDOW_MS);
 	const listed = useQuery(
@@ -194,12 +195,7 @@ export function RecentDeployments({
 		</ToggleGroup>
 	);
 	const actions = (
-		<Button
-			variant="outline"
-			size="sm"
-			nativeButton={false}
-			render={<Link to={observabilityPath(orgId, workspaceId, "events", { env: envSlug, range: DAY_MS })} />}
-		>
+		<Button variant="outline" size="sm" nativeButton={false} render={<Link to={{ search: activitySearch(search) }} />}>
 			View all
 			<ArrowRightIcon />
 		</Button>

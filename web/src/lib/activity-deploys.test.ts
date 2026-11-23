@@ -6,7 +6,7 @@ import { ResourceSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_p
 
 import {
 	activityDeployments,
-	recentHealthEvents,
+	activityEvents,
 	deployPhase,
 	deploySteps,
 	finishedLabel,
@@ -64,17 +64,19 @@ describe("activityDeployments", () => {
 	});
 });
 
-describe("recentHealthEvents", () => {
-	const at = (type: string, minutesAgo: number) => ({ type, timestamp: timestampFromMs(NOW - minutesAgo * MIN) });
+describe("activityEvents", () => {
+	const at = (severity: string, minutesAgo: number) => ({
+		severity,
+		timestamp: timestampFromMs(NOW - minutesAgo * MIN),
+	});
+	const events = [at("info", 5), at("warning", 20), at("error", 45), at("info", 1)];
 
-	test("keeps degraded and recovered events from the last 30 minutes, newest first", () => {
-		const events = [
-			at("resource.degraded", 20),
-			at("deployment.ready", 1),
-			at("resource.recovered", 5),
-			at("resource.degraded", 45),
-		];
-		expect(recentHealthEvents(events, NOW).map((e) => e.type)).toEqual(["resource.recovered", "resource.degraded"]);
+	test("lists every event newest first at the all level", () => {
+		expect(activityEvents(events, "all").map((e) => e.severity)).toEqual(["info", "info", "warning", "error"]);
+	});
+
+	test("keeps only warnings and errors at the warnings level", () => {
+		expect(activityEvents(events, "warn").map((e) => e.severity)).toEqual(["warning", "error"]);
 	});
 });
 
