@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { chartMax, fitLabel, placeMarkers } from "./chart-layout";
+import { chartMax, fitLabel, limitLabelX, placeMarkers } from "./chart-layout";
 
 describe("chartMax", () => {
 	test("leaves room above the limit", () => {
@@ -36,5 +36,12 @@ describe("placeMarkers", () => {
 		expect(placed.map((p) => p.label)).toEqual(["deplo…", "deployed 3.2.0", "crash loop started"]);
 		expect(placed[2]?.flip).toBe(true);
 		expect(placed[1]!.textX + 14 * 6).toBeLessThanOrEqual(380 - 4);
+	});
+});
+
+describe("limitLabelX", () => {
+	test("moves past a marker line that would cross the label", () => {
+		expect(limitLabelX(40, 100, [20, 300], 400)).toBe(40);
+		expect(limitLabelX(40, 100, [90, 300], 400)).toBe(95);
 	});
 });

@@ -11,7 +11,7 @@ import { limitAt, type LimitStep } from "@/lib/limit-history";
 import { formatAxisTime, timeAxis } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
-import { chartMax, placeMarkers } from "./chart-layout";
+import { chartMax, limitLabelX, placeMarkers } from "./chart-layout";
 import { formatFullTime } from "./format";
 import { percentPoints, RANGE_MS, type ChartMarker, type MetricRange } from "./metric";
 
@@ -22,6 +22,7 @@ const CHAR_PX = 6;
 const MARKER_BAND = 14;
 const LIMIT_LABEL_X = 40;
 const LABEL_HEIGHT = 13;
+const NUMBER_HEIGHT = 14;
 const GRID_QUARTERS = [0, 0.25, 0.5, 0.75];
 const ERR_LINE = "color-mix(in oklch, var(--err) 55%, transparent)";
 const ERR_LABEL = "color-mix(in oklch, var(--err) 80%, var(--fg2))";
@@ -65,6 +66,16 @@ function ChartAnnotations({
 	const placed = placeMarkers(inRange, area.x, area.x + area.width, CHAR_PX);
 	const limitY = yAt(limit);
 	const labelWidth = limitLabel.length * CHAR_PX + 6;
+	const labelX = limitLabelX(
+		area.x + LIMIT_LABEL_X,
+		labelWidth,
+		inRange.map((m) => m.x),
+		area.x + area.width,
+	);
+	const numbers = GRID_QUARTERS.filter((q) => {
+		const tickY = yAt(max * q);
+		return limitY < tickY - NUMBER_HEIGHT || limitY > tickY + 1;
+	});
 	return (
 		<g pointerEvents="none" fontFamily="var(--font-mono)" fontSize={10}>
 			{inRange.map((m) => (
@@ -93,7 +104,7 @@ function ChartAnnotations({
 					</text>
 				</g>
 			))}
-			{GRID_QUARTERS.map((q) => (
+			{numbers.map((q) => (
 				<text key={q} x={area.x + 2} y={yAt(max * q) - 4} fill="var(--fg4)">
 					{axisNumber(max * q, scale)}
 				</text>
@@ -102,14 +113,14 @@ function ChartAnnotations({
 				<line x1={area.x} x2={area.x + area.width} y1={limitY} y2={limitY} stroke={ERR_LINE} strokeDasharray="4 4" />
 			)}
 			<rect
-				x={area.x + LIMIT_LABEL_X - 3}
+				x={labelX - 3}
 				y={limitY - LABEL_HEIGHT - 2}
 				width={labelWidth}
 				height={LABEL_HEIGHT}
 				rx={3}
 				fill="var(--panel)"
 			/>
-			<text x={area.x + LIMIT_LABEL_X} y={limitY - 6} fill={ERR_LABEL}>
+			<text x={labelX} y={limitY - 6} fill={ERR_LABEL}>
 				{limitLabel}
 			</text>
 		</g>

@@ -57,3 +57,10 @@ export function placeMarkers(
 	});
 	return placed;
 }
+
+/** Where the limit's label starts: the first spot from `start` onward where no marker line crosses it. */
+export function limitLabelX(start: number, width: number, lines: readonly number[], right: number): number {
+	const crossed = (x: number) => lines.some((line) => line >= x - MARKER_GAP_PX && line <= x + width + MARKER_GAP_PX);
+	const candidates = [start, ...lines.toSorted((a, b) => a - b).map((line) => line + MARKER_PAD_PX)];
+	return candidates.find((x) => x >= start && x + width <= right && !crossed(x)) ?? start;
+}
