@@ -201,7 +201,7 @@ export function TimeRangePicker({
 						</Button>
 					</div>
 					<div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
-						<span className="text-[12px] text-fg3">Time zone</span>
+						<span className="text-[12.5px] font-medium">Time zone</span>
 						<TimeZoneControl
 							short
 							onChange={(zone) => {
@@ -212,7 +212,7 @@ export function TimeRangePicker({
 						/>
 					</div>
 					<div className="flex items-center justify-between gap-2">
-						<span className="text-[12px] text-fg3">Clock</span>
+						<span className="text-[12.5px] font-medium">Clock</span>
 						<ToggleGroup
 							variant="segmented"
 							aria-label="Clock"

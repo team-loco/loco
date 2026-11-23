@@ -1,4 +1,4 @@
-import { CopyIcon, EllipsisIcon } from "lucide-react";
+import { EllipsisIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import {
@@ -36,7 +36,6 @@ export function LogRowMenu({ row }: { row: LogRow }) {
 						copy("msg", logMessageText(row), "Copied message");
 					}}
 				>
-					<CopyIcon />
 					Copy message
 				</DropdownMenuItem>
 				<DropdownMenuItem
@@ -44,7 +43,6 @@ export function LogRowMenu({ row }: { row: LogRow }) {
 						copy("json", logJson(row, timePref), "Copied as JSON");
 					}}
 				>
-					<CopyIcon />
 					Copy as JSON
 				</DropdownMenuItem>
 			</DropdownMenuContent>
