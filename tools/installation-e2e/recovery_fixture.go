@@ -101,7 +101,8 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 			token:    material.GenerateRootToken,
 		}
 		defer source.client.CloseIdleConnections()
-		sourceForward, source.endpoint, err = forwardBao(ctx, source, controlNamespace, "service/"+sourceBao)
+		direct := source
+		sourceForward, source.endpoint, err = forwardBao(ctx, direct, controlNamespace, "service/"+sourceBao)
 		if err != nil {
 			return err
 		}
@@ -114,7 +115,10 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 		if err != nil {
 			return err
 		}
-		if err = recoveryProof(ctx, source, &source, upgradeToCurrent, paths[0], paths[1]); err != nil {
+		upgrade := func(ctx context.Context) error {
+			return upgradeSource(ctx, direct, &source, &sourceForward)
+		}
+		if err = recoveryProof(ctx, source, &source, upgrade, paths[0], paths[1]); err != nil {
 			return err
 		}
 
@@ -196,6 +200,23 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 	}
 	fmt.Println("Encrypted recovery restore passed: existing Transit ciphertext and ingest signing identity recovered.")
 	return nil
+}
+
+// upgradeSource upgrades and forwards to OpenBao again, since the upgrade can replace the forwarded pod.
+func upgradeSource(ctx context.Context, direct baoClient, source *baoClient, forward **exec.Cmd) error {
+	if err := upgradeToCurrent(ctx); err != nil {
+		return err
+	}
+	if _, err := kubectl(ctx, "-n", controlNamespace, "rollout", "status", "statefulset/"+sourceBao,
+		"--timeout=300s"); err != nil {
+		return err
+	}
+	if err := stopProcess(*forward); err != nil && !errors.As(err, new(*exec.ExitError)) {
+		return err
+	}
+	var err error
+	*forward, source.endpoint, err = forwardBao(ctx, direct, controlNamespace, "service/"+sourceBao)
+	return err
 }
 
 func recoveryTransitPaths(ctx context.Context) ([2]string, error) {
