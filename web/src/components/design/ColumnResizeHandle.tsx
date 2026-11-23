@@ -48,6 +48,9 @@ export function ColumnResizeHandle({
 					end(false);
 				}
 			}}
+			onMouseDown={(event) => {
+				event.preventDefault();
+			}}
 			onPointerDown={(event) => {
 				event.currentTarget.setPointerCapture(event.pointerId);
 				const start = measured(event.currentTarget);
