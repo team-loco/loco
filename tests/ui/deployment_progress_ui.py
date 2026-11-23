@@ -251,12 +251,6 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(
         panel.get_by_role("button", name=re.compile(r"^Deploy\s*,"))
     ).to_be_disabled()
-    activity = panel.get_by_role("region", name="Activity feed", exact=True)
-    expect(activity.get_by_role("listitem")).to_have_count(9)
-    expect(activity.get_by_role("listitem").last).to_contain_text("Deployment building")
-    expect(activity.get_by_role("listitem").first).to_contain_text(
-        re.compile(r"^\+\d+s after the rollout started")
-    )
     panel.get_by_title("Copy deployment ID").click()
     assert copied_text(page) == p["current"]
     panel.get_by_role("button", name="Spec", exact=True).click()
@@ -288,7 +282,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(
         panel.get_by_role("button", name=re.compile(r"^Deploy\s*,"))
     ).to_contain_text("1/2 ready")
-    replicas = page.get_by_role("region", name="Replicas", exact=True)
+    replicas = page.get_by_role("region", name="Metrics", exact=True)
     expect(replicas).to_contain_text("1/2 ready")
     panel.get_by_role("button", name=re.compile(r"^Deploy\s*,")).click()
     phase("running")
@@ -306,25 +300,12 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(stopped).to_have_count(2)
     for row in stopped.all():
         expect(row.get_by_text("Stopped", exact=True)).to_be_visible()
-    expect(
-        panel.get_by_role("region", name="Activity feed", exact=True)
-        .get_by_role("listitem")
-        .last
-    ).to_contain_text("Deployment running")
     phase("failed")
     page.reload()
     panel = page.get_by_role("region", name="Deploy failed", exact=True)
     incident = page.locator('section[aria-labelledby="incident-title"]')
-    expect(
-        incident.get_by_text(
-            re.compile(
-                r"^Serving deployment v1 in us-ca-1, deployed (just now|\d+[mhd] ago)$"
-            )
-        )
-    ).to_be_visible()
-    incident_logs = incident.get_by_role("link", name="View replica logs", exact=True)
-    incident_query = parse_qs(urlparse(incident_logs.get_attribute("href")).query)
-    assert incident_query.get("q") == ["@replica:progress-new-1"], incident_query
+    expect(panel).to_be_visible()
+    expect(incident).to_have_count(0)
     phase("failed", survivors=False)
     expect(panel.get_by_text("The rollout stopped.", exact=False)).to_be_visible(
         timeout=25000
@@ -356,6 +337,24 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             "Failing", exact=True
         )
     ).to_be_visible()
+    # The incident card shows once no deploy card does.
+    sql(
+        state,
+        f"UPDATE deployments SET updated_at=NOW()-INTERVAL '10 minutes',completed_at=NOW()-INTERVAL '10 minutes' WHERE id='{p['current']}';",
+    )
+    page.reload()
+    expect(panel).to_have_count(0)
+    incident = page.locator('section[aria-labelledby="incident-title"]')
+    expect(
+        incident.get_by_text(
+            re.compile(
+                r"^Serving deployment v1 in us-ca-1, deployed (just now|\d+[mhd] ago)$"
+            )
+        )
+    ).to_be_visible()
+    incident_logs = incident.get_by_role("link", name="View replica logs", exact=True)
+    incident_query = parse_qs(urlparse(incident_logs.get_attribute("href")).query)
+    assert incident_query.get("q") == ["@replica:progress-new-1"], incident_query
     incident.get_by_role("button", name="Roll back", exact=True).click()
     dialog = page.get_by_role("dialog", name="Roll back progress-ui", exact=True)
     expect(dialog).to_be_visible()
@@ -418,16 +417,17 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     context.close()
 
     phase("failed")
+    sql(
+        state,
+        f"UPDATE deployments SET updated_at=NOW()-INTERVAL '10 minutes',completed_at=NOW()-INTERVAL '10 minutes' WHERE id='{p['current']}';",
+    )
     context, page, errors = open_page(browser, "member", narrow=True, state=state)
     page.goto(state["ui_url"] + path)
-    panel = page.get_by_role("region", name="Deploy failed", exact=True)
+    incident = page.locator('section[aria-labelledby="incident-title"]')
     expect(
-        page.locator('section[aria-labelledby="incident-title"]').get_by_role(
-            "button", name="Roll back", exact=True
-        )
+        incident.get_by_role("button", name="Roll back", exact=True)
     ).to_be_disabled()
-    expect(panel.get_by_role("link", name="Open in Logs", exact=True)).to_be_visible()
-    assert panel.bounding_box()["width"] <= page.viewport_size["width"]
+    assert incident.bounding_box()["width"] <= page.viewport_size["width"]
     assert not errors, errors
     context.close()
 
@@ -560,20 +560,11 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     previous_version = panel.get_by_role("region", name="Previous version", exact=True)
     expect(previous_version.get_by_role("listitem")).to_have_count(2)
     expect(previous_version).not_to_contain_text("progress-old-1")
-    activity = panel.get_by_role("region", name="Activity feed", exact=True)
-    expect(activity.get_by_role("listitem")).to_have_count(2)
-    expect(activity.get_by_role("listitem").first).to_contain_text(
-        "+0s after the rollout started"
-    )
-    expect(activity.get_by_role("listitem").last).to_contain_text(
-        "+2s after the rollout started"
-    )
-    expect(activity).not_to_contain_text("Deployment requested")
     expect(panel.get_by_title("Time since the restart started")).to_be_visible()
     expect(
         panel.get_by_role("button", name=re.compile(r"^Deploy\s*,"))
     ).to_contain_text("0/2 ready")
-    replicas = page.get_by_role("region", name="Replicas", exact=True)
+    replicas = page.get_by_role("region", name="Metrics", exact=True)
     expect(replicas).to_contain_text("0/2 ready")
     assert not errors, errors
     context.close()

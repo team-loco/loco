@@ -1,5 +1,4 @@
 import { formatShortId } from "@/lib/utils";
-import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { BellIcon, FileCodeIcon, RotateCwIcon, ScrollTextIcon, Settings2Icon, Undo2Icon } from "lucide-react";
@@ -40,8 +39,7 @@ import { createDeployments, currentSources, toastRedeploying, type DeploymentSou
 import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
-import { METRIC_RANGES, RANGE_MS } from "@/pages/resource/metric";
-import { RangeToggle } from "@/pages/resource/RangeToggle";
+import { METRIC_RANGES } from "@/pages/resource/metric";
 import {
 	buildRegions,
 	changedSecrets,
@@ -56,7 +54,7 @@ import {
 	type ModalState,
 	type Notice,
 } from "@/pages/resource/model";
-import { ReplicasPanel } from "@/pages/resource/ReplicasPanel";
+import { MetricsPanel } from "@/pages/resource/MetricsPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { DeploymentProgress } from "@/pages/resource/DeploymentProgress";
@@ -76,7 +74,6 @@ const RESOURCE_PARAMS = {
 	tab: parseAsStringLiteral(VIEWS).withDefault("overview"),
 	env: parseAsString,
 	range: parseAsStringLiteral(METRIC_RANGES).withDefault("1h"),
-	region: parseAsString,
 };
 
 export function Resource() {
@@ -97,7 +94,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const transport = useTransport();
-	const [{ tab: view, env, range, region: selectedRegion }, setParams] = useQueryStates(RESOURCE_PARAMS, {
+	const [{ tab: view, env, range }, setParams] = useQueryStates(RESOURCE_PARAMS, {
 		history: "replace",
 	});
 	const {
@@ -228,12 +225,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const obsLink = (
 		obsView: "logs" | "metrics",
 		filter: { key: string; value: string } | null = null,
-		rangeMs?: number,
 	): string | undefined =>
 		hasWs
 			? observabilityPath(activeOrgId, activeWorkspaceId, obsView, {
 					...envParam,
-					...(rangeMs === undefined ? {} : { range: rangeMs }),
 					r: [resource.slug],
 					q: filter === null ? null : queryStr([{ key: filter.key, value: quoteValue(filter.value), neg: false }], ""),
 				})
@@ -406,6 +401,22 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			},
 		});
 
+	const incident =
+		problem !== undefined && problemRegion !== undefined && environmentId !== undefined ? (
+			<IncidentCard
+				nowMs={nowMs}
+				problem={problem}
+				region={problemRegion}
+				lastGood={problemRegion.lastGood}
+				workspaceId={resource.workspaceId}
+				environmentId={environmentId}
+				resourceId={resource.id}
+				logsHref={(replica) => obsLink("logs", replica === null ? null : { key: "replica", value: replica })}
+				canWrite={canWrite}
+				onRollback={openRollback}
+			/>
+		) : undefined;
+
 	return (
 		<Page className="gap-5">
 			<PageCommands items={pageCommands} />
@@ -451,21 +462,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			) : view === "overview" ? (
 				<div className="flex flex-col gap-5">
 					{secretsNotice("secrets-notice-ov")}
-					{problem !== undefined && problemRegion !== undefined && environmentId !== undefined && (
-						<IncidentCard
-							nowMs={nowMs}
-							problem={problem}
-							region={problemRegion}
-							lastGood={problemRegion.lastGood}
-							workspaceId={resource.workspaceId}
-							environmentId={environmentId}
-							resourceId={resource.id}
-							logsHref={(replica) => obsLink("logs", replica === null ? null : { key: "replica", value: replica })}
-							canWrite={canWrite}
-							onRollback={openRollback}
-						/>
-					)}
 					<DeploymentProgress
+						workspaceId={resource.workspaceId}
+						fallback={incident}
 						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
@@ -474,39 +473,19 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						canWrite={canWrite}
 						onCompare={compareSpecs}
 					/>
-					{deployed.length > 0 && environmentId !== undefined && !noMetricsYet && (
-						<RangeToggle
-							range={range}
-							onRange={(next) => {
-								void setParams({ range: next });
-							}}
-							metricsHref={obsLink(
-								"metrics",
-								selectedRegion === null ? null : { key: "region", value: selectedRegion },
-								RANGE_MS[range],
-							)}
-						/>
-					)}
 					{deployed.length > 0 && environmentId !== undefined ? (
-						<ReplicasPanel
+						<MetricsPanel
 							nowMs={nowMs}
 							pendingName={noMetricsYet ? resource.name : undefined}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}
 							regions={regions}
-							selected={selectedRegion}
-							onSelect={(region) => {
-								void setParams({ region });
-							}}
 							range={range}
-							replicaHref={(obsView, replica) =>
-								obsLink(
-									obsView,
-									{ key: "replica", value: replica },
-									obsView === "metrics" ? RANGE_MS[range] : undefined,
-								)
-							}
+							onRange={(next) => {
+								void setParams({ range: next });
+							}}
+							replicaLogsHref={(replica) => obsLink("logs", { key: "replica", value: replica })}
 						/>
 					) : (
 						<Section>
@@ -514,17 +493,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 								Run <code className="font-mono">loco deploy</code> to create the first deployment of {resource.name}.
 							</EmptyState>
 						</Section>
-					)}
-					{deployed.length > 0 && environmentId !== undefined && !noMetricsYet && (
-						<TrafficSection
-							nowMs={nowMs}
-							isPublic={resource.domains.length > 0}
-							workspaceId={resource.workspaceId}
-							environmentId={environmentId}
-							resourceId={resource.id}
-							region={selectedRegion ?? ""}
-							range={range}
-						/>
 					)}
 					<DeploymentsSection
 						resourceName={resource.name}
@@ -544,6 +512,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			) : (
 				<div className="flex flex-col gap-5">
 					<DeploymentProgress
+						workspaceId={resource.workspaceId}
 						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}

@@ -4,8 +4,7 @@ import { queryDeploymentBuckets } from "@gen/loco/deployment/v1/deployment-Deplo
 
 import { msToTimestamp } from "@/lib/time";
 
-import { deploymentMarkers, RANGE_MS, type MetricRange } from "./metric";
-import type { ChartMarker } from "./MetricChart";
+import { deploymentMarkers, RANGE_MS, type ChartMarker, type MetricRange } from "./metric";
 import { REFRESH_MS } from "./model";
 
 const MARKER_BUCKETS = 200;

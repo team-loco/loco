@@ -1,4 +1,4 @@
-import type { Activity, Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { Link } from "react-router";
 
@@ -8,11 +8,16 @@ import { CopyId } from "@/components/design/CopyId";
 import { Progress } from "@/components/design/Progress";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useNow } from "@/hooks/useNow";
+import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { deploymentProblem, placementIn } from "@/lib/deployment-utils";
+import { HOUR_MS } from "@/lib/obs-time";
+import { formatClock, maybeTsMs } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { cn, formatShortId } from "@/lib/utils";
+import { LevelBadge } from "@/pages/observability/format";
+import { logLevel, type Level } from "@/pages/observability/query";
 
 import {
-	activityTime,
 	groupReplicas,
 	problemLogsHref,
 	PROBLEM_REASONS,
@@ -20,28 +25,6 @@ import {
 	stoppingCountdown,
 } from "./deployment-progress";
 import { depTag } from "./model";
-
-// Keeps the feed scrolled to the newest entry while the reader is at the bottom.
-function followActivity(node: HTMLDivElement) {
-	let following = true;
-	const scroll = () => {
-		following = node.scrollHeight - node.clientHeight - node.scrollTop <= 8;
-	};
-	const follow = () => {
-		if (following) node.scrollTop = node.scrollHeight;
-	};
-	const mutations = new MutationObserver(follow);
-	const resize = new ResizeObserver(follow);
-	mutations.observe(node, { childList: true, subtree: true, characterData: true });
-	resize.observe(node);
-	node.addEventListener("scroll", scroll, { passive: true });
-	follow();
-	return () => {
-		mutations.disconnect();
-		resize.disconnect();
-		node.removeEventListener("scroll", scroll);
-	};
-}
 
 /** A deadline as "10-minute" or "90-second". */
 function deadlineLabel(seconds: number): string {
@@ -69,20 +52,107 @@ function problemNote(deployment: Deployment, reason: string, deployTimeoutSecond
 	}
 }
 
+const PROBLEM_LOG_LINES = 4;
+
+interface Line {
+	ms: number | undefined;
+	level: Level;
+	message: string;
+	/** The replica a line is about. */
+	replica?: string;
+}
+
+/** The link to the logs, with the replica logs that are not available yet beside it. */
+export function LogsLink({ href, className }: { href: string; className?: string }) {
+	return (
+		<span className={cn("absolute top-2.5 right-3.5 flex items-center gap-3 font-sans", className)}>
+			<span className="flex items-center gap-1.5 text-[12px] text-fg3">
+				Replica logs
+				<SoonTag />
+			</span>
+			<Button variant="link" nativeButton={false} render={<Link to={href} />}>
+				Open in Logs
+			</Button>
+		</span>
+	);
+}
+
+/** The latest lines of the problem's logs, or the problem's own detail while there are none. */
+function ProblemLog({
+	deployment,
+	workspaceId,
+	query,
+	detail,
+	replica,
+	failed,
+	href,
+}: {
+	deployment: Deployment;
+	workspaceId: string;
+	query: string;
+	detail: string;
+	replica: string;
+	failed: boolean;
+	href: string | undefined;
+}) {
+	const timePref = useTimePreferences();
+	const logs = useQueryLogs({
+		workspaceId,
+		environmentId: deployment.environmentId,
+		resourceIds: [deployment.resourceId],
+		spanMs: HOUR_MS,
+		query,
+		limit: PROBLEM_LOG_LINES,
+		enabled: query !== "",
+	});
+	const found: Line[] = logs.entries
+		.toReversed()
+		.map((entry) => ({ ms: maybeTsMs(entry.timestamp), level: logLevel(entry.level), message: entry.body }));
+	const lines: Line[] =
+		found.length > 0 || detail === ""
+			? found
+			: [{ ms: undefined, level: failed ? "error" : "warn", message: detail, replica }];
+	if (lines.length === 0 && href === undefined) return null;
+	return (
+		<div
+			aria-label="Last log lines"
+			className="relative flex min-h-9 flex-col rounded-lg bg-background py-2.5 font-mono text-[11.5px] leading-normal ring-1 ring-line"
+		>
+			{lines.map((line, i) => (
+				<div
+					key={`${String(line.ms)}-${i.toString()}`}
+					className="grid grid-cols-[62px_72px_minmax(0,1fr)] items-center gap-2.5 px-3 py-[3px]"
+				>
+					<span className="text-fg3">{line.ms === undefined ? "" : formatClock(line.ms, false, timePref)}</span>
+					<span>
+						<LevelBadge level={line.level} />
+					</span>
+					<span className="[overflow-wrap:anywhere] whitespace-pre-wrap">
+						<span>{line.message}</span>
+						{line.replica !== undefined && line.replica !== "" && <span className="ml-2 text-fg3">{line.replica}</span>}
+					</span>
+				</div>
+			))}
+			{href !== undefined && <LogsLink href={href} />}
+		</div>
+	);
+}
+
 export function ProblemBanner({
 	deployment,
+	workspaceId,
 	logsHref,
 	serving,
 	deployTimeoutSeconds,
 }: {
 	deployment: Deployment;
+	workspaceId: string;
 	logsHref: string | undefined;
 	serving: { deployment: Deployment; readyReplicas: number } | undefined;
 	deployTimeoutSeconds: number | undefined;
 }) {
 	const problem = deploymentProblem(deployment);
 	if (problem === undefined) return null;
-	const problemHref = problemLogsHref(logsHref, deployment);
 	const reason = PROBLEM_REASONS[problem.reason];
 	const note = problemNote(deployment, problem.reason, deployTimeoutSeconds);
 	const servingNote =
@@ -90,32 +160,22 @@ export function ProblemBanner({
 			? ""
 			: `${depTag(serving.deployment)} is still serving on ${serving.readyReplicas.toString()} ${serving.readyReplicas === 1 ? "replica" : "replicas"}.`;
 	const sub = [reason === undefined ? "" : problem.message, note, servingNote].filter((part) => part !== "").join(" ");
-	const detail = [problem.detail, problem.replicaName].filter((line) => line !== "");
+	const failed = deployment.status === DeploymentStatus.FAILED || deployment.status === DeploymentStatus.CRASHED;
 	return (
 		<div role="alert" className="flex flex-col gap-2.5">
 			<div className="flex min-w-0 flex-col gap-1">
 				<span className="text-[14px] font-[550]">{reason ?? problem.message}</span>
 				{sub !== "" && <span className="text-[13px] text-fg3">{sub}</span>}
 			</div>
-			{(detail.length > 0 || problemHref !== undefined) && (
-				<div className="relative rounded-lg bg-background py-2.5 pr-28 pl-3 font-mono text-[11.5px] leading-normal ring-1 ring-line">
-					{detail.map((line) => (
-						<p key={line} className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
-							{line}
-						</p>
-					))}
-					{problemHref !== undefined && (
-						<Button
-							variant="link"
-							nativeButton={false}
-							className="absolute top-2.5 right-3.5 font-sans"
-							render={<Link to={problemHref} />}
-						>
-							Open in Logs
-						</Button>
-					)}
-				</div>
-			)}
+			<ProblemLog
+				deployment={deployment}
+				workspaceId={workspaceId}
+				query={problem.logsQuery}
+				detail={problem.detail}
+				replica={problem.replicaName}
+				failed={failed}
+				href={problemLogsHref(logsHref, deployment)}
+			/>
 		</div>
 	);
 }
@@ -213,46 +273,5 @@ export function ReplicaGroups({ deployment, region }: { deployment: Deployment; 
 					</section>
 				))}
 		</div>
-	);
-}
-
-export function ActivityFeed({ startMs, activity }: { startMs: number | undefined; activity: readonly Activity[] }) {
-	return (
-		<section aria-label="Deployment activity" className="min-w-0">
-			<div className="mb-2 flex items-center justify-between gap-2">
-				<h3 className="m-0 text-[12px] font-medium text-fg3">Activity</h3>
-				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
-					Replica logs
-					<SoonTag />
-				</span>
-			</div>
-			<div
-				ref={followActivity}
-				// oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The scroll region needs keyboard access.
-				tabIndex={0}
-				role="region"
-				aria-label="Activity feed"
-				className="max-h-64 overflow-y-auto overscroll-contain rounded-lg border border-line bg-background p-3 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-ring"
-			>
-				{activity.length === 0 && <p className="m-0 text-[12px] text-fg3">Waiting for activity…</p>}
-				<ol className="m-0 flex list-none flex-col gap-1 p-0">
-					{activity.map((entry) => (
-						<li
-							key={String(entry.seq)}
-							className="grid min-h-[22px] grid-cols-[3.6rem_minmax(0,1fr)] items-center gap-2.5 text-[12px]"
-						>
-							<span className="font-mono text-fg3 tabular-nums" title="Time since the rollout started">
-								{activityTime(entry.at, startMs)}
-								<span className="sr-only"> after the rollout started</span>
-							</span>
-							<span className="font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">
-								{entry.replicaName !== "" && <span className="mr-2 text-fg3">{entry.replicaName}</span>}
-								{entry.message}
-							</span>
-						</li>
-					))}
-				</ol>
-			</div>
-		</section>
 	);
 }

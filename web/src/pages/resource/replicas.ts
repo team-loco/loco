@@ -1,10 +1,10 @@
-import type { Replica, ReplicaExit, ReplicaRestart } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Replica } from "@gen/loco/deployment/v1/deployment_pb";
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 
 import { readyIn } from "@/lib/activity-deploys";
 import { getServiceSpec, placementIn, regionTarget } from "@/lib/deployment-utils";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
-import { agoLabel, maybeTsMs } from "@/lib/time";
+import { maybeTsMs } from "@/lib/time";
 
 import { regionDeployment, type RegionView } from "./model";
 
@@ -46,28 +46,6 @@ export function podUsage(series: readonly MetricSeries[], nowMs: number): Map<st
 	return usage;
 }
 
-export function exitLabel(exit: ReplicaExit, nowMs: number): string {
-	const label = `${exit.reason}, exit ${exit.exitCode.toString()}`;
-	const at = maybeTsMs(exit.finishedAt);
-	return at === undefined ? label : `${label}, ${agoLabel(at, nowMs)}`;
-}
-
-/** What a replica restarted after, in the controller's cause vocabulary (k8sapi RestartCause). */
-function restartCause(restart: ReplicaRestart): string {
-	if (restart.cause === "health_check") return "health check";
-	if (restart.cause === "out_of_memory") return "out of memory";
-	return `exit ${restart.exitCode.toString()}`;
-}
-
 export function restartCount(replica: Replica): string {
 	return `${replica.restarts.toString()} ${replica.restarts === 1 ? "restart" : "restarts"}`;
-}
-
-export function restartLabel(replica: Replica, nowMs: number): string {
-	const count = restartCount(replica);
-	const restart = replica.lastRestart;
-	if (restart === undefined) return count;
-	const at = maybeTsMs(restart.at);
-	const when = at === undefined ? [] : [`last ${agoLabel(at, nowMs)}`];
-	return [count, ...when, restartCause(restart)].join(", ");
 }

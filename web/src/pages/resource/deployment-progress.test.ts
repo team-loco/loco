@@ -13,7 +13,6 @@ import { RegionStatusSchema } from "@gen/loco/resource/v1/resource_pb";
 import { expect, test } from "bun:test";
 
 import {
-	activityTime,
 	CARD_LINGER_MS,
 	clockLabel,
 	deploymentElapsedMs,
@@ -155,14 +154,6 @@ test("stopping countdown uses the reported interval and clamps clock skew and ex
 	});
 	expect(stoppingCountdown({ ...replica, stateDeadline: undefined }, 25000)).toBeUndefined();
 	expect(stoppingCountdown({ ...replica, state: "Stopped" }, 25000)).toBeUndefined();
-});
-
-test("activity time reads as a duration since the rollout started", () => {
-	expect(activityTime(timestampFromMs(43000), 1000)).toBe("+42s");
-	expect(activityTime(timestampFromMs(66000), 1000)).toBe("+1m 05s");
-	expect(activityTime(timestampFromMs(3662000), 1000)).toBe("+1h 01m");
-	expect(activityTime(undefined, 1000)).toBe("—");
-	expect(activityTime(timestampFromMs(1000), undefined)).toBe("—");
 });
 
 test("a restart's feed shows only its own revision in the region", () => {

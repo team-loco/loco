@@ -4,7 +4,6 @@ import json
 import re
 import uuid
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 from harness import (
     call,
@@ -111,7 +110,7 @@ COMMIT;""",
 )
 sql(
     state,
-    f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes 30 seconds', started_at = NOW() - INTERVAL '10 minutes 30 seconds' WHERE id='{deployment}';",
+    f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes 30 seconds', started_at = NOW() - INTERVAL '10 minutes 30 seconds', updated_at = NOW() - INTERVAL '10 minutes' WHERE id='{deployment}';",
 )
 assert (
     call(
@@ -122,7 +121,7 @@ assert (
     == "production"
 )
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
-USAGE = {"min": 0.5, "p50": 0.6, "max": 0.9}
+USAGE = 0.9
 NOW = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
 STAMP = NOW.isoformat()
 
@@ -132,7 +131,7 @@ def metrics(route):
     if body.get("byPod"):
         route.fulfill(json={"series": []})
         return
-    value = USAGE[body["aggregation"]] if "cpu" in body["metricName"] else 0.25
+    value = USAGE if "cpu" in body["metricName"] else 0.25
     route.fulfill(
         json={
             "series": [
@@ -163,17 +162,6 @@ with session(out) as browser:
     ).to_be_visible()
     expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
     expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
-    warning = page.get_by_label(
-        "Peaked within 15% of the CPU limit (0.5 vCPU)", exact=True
-    )
-    expect(warning).to_have_count(1)
-    warning.hover()
-    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(
-        "Peaked within 15% of the CPU limit (0.5 vCPU)"
-    )
-    traffic = page.get_by_role("region", name="Traffic", exact=True)
-    expect(traffic).to_contain_text("Traffic is recorded for public services.")
-    expect(traffic.get_by_role("img")).to_have_count(0)
     title = page.get_by_role("heading", name=name, exact=True)
     events = page.get_by_role("button", name=re.compile(r"^Events"))
     for viewport, below in (
@@ -187,8 +175,7 @@ with session(out) as browser:
         assert (
             events.bounding_box()["y"] >= heading["y"] + heading["height"]
         ) == below, viewport
-    page.get_by_role("button", name=re.compile(r"^us-ca-1")).click()
-    chart = page.locator('[aria-label^="CPU: lowest"]')
+    chart = page.locator('[aria-label="CPU: average"]')
     ticks = chart.locator(".recharts-xAxis-tick-labels text")
     expect(ticks.nth(2)).to_be_visible()
     box = chart.bounding_box()
@@ -196,21 +183,12 @@ with session(out) as browser:
     assert first["x"] >= box["x"], (first, box)
     assert last["x"] + last["width"] <= box["x"] + box["width"], (last, box)
     assert first["x"] + first["width"] < last["x"], (first, last)
-    metrics_href = page.get_by_role(
-        "link", name="All metrics", exact=True
-    ).get_attribute("href")
-    assert parse_qs(urlparse(metrics_href).query)["q"] == ["@region:us-ca-1"], (
-        metrics_href
-    )
-    replicas = page.get_by_role("region", name="Replicas", exact=True)
-    expect(replicas.get_by_role("group", name="Time range")).to_have_count(0)
-    page.get_by_role("group", name="Time range").get_by_role(
+    metrics_panel = page.get_by_role("region", name="Metrics", exact=True)
+    expect(metrics_panel.get_by_role("group", name="Time range")).to_be_visible()
+    metrics_panel.get_by_role("group", name="Time range").get_by_role(
         "button", name="6h", exact=True
     ).click()
-    metrics_href = page.get_by_role(
-        "link", name="All metrics", exact=True
-    ).get_attribute("href")
-    assert parse_qs(urlparse(metrics_href).query)["range"] == ["6h"], metrics_href
+    expect(page).to_have_url(re.compile(r"range=6h"))
     page.get_by_role("button", name=re.compile(r"^Events")).click()
     expect(page).to_have_url(re.compile(rf"[?&]activity={name}(&|$)"))
     scoped = page.get_by_role("dialog", name=f"{name} activity", exact=True)
