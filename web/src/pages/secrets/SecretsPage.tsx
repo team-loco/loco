@@ -188,6 +188,7 @@ export function SecretsPage({
 						<DataTable
 							table={table}
 							label="Secrets"
+							band
 							empty={<div className="px-5 py-7 text-center text-[13px] text-fg3">No secrets match.</div>}
 						/>
 					)}
@@ -280,10 +281,7 @@ function secretColumns({
 			size: 220,
 			minSize: 140,
 			cell: ({ row: { original: secret } }) => (
-				<span
-					data-secret-name=""
-					className="inline-block max-w-full rounded-[5px] border border-line bg-panel2 px-[7px] py-0.5 font-mono text-[12.5px] leading-[18px] break-all"
-				>
+				<span data-secret-name="" className="inline-block max-w-full font-mono text-[12.5px] leading-[18px] break-all">
 					{secret.name}
 				</span>
 			),
@@ -335,14 +333,14 @@ function secretColumns({
 			minSize: 110,
 			meta: { hideOnMobile: true, fit: true },
 			cell: ({ row: { original: secret } }) => (
-				<span className="flex flex-col">
+				<span className="flex items-baseline gap-1.5 whitespace-nowrap">
 					<Tooltip>
 						<TooltipTrigger render={<span className="w-fit" />}>
 							{daysAgoLabel(tsMs(secret.updatedAt), now.getTime())}
 						</TooltipTrigger>
 						<TooltipContent>{formatStarted(tsMs(secret.updatedAt), timePref)}</TooltipContent>
 					</Tooltip>
-					<span className="text-[11.5px] text-fg3">@{setterLabel(secret, members)}</span>
+					<span className="text-[12px] text-fg3">{setterLabel(secret, members)}</span>
 				</span>
 			),
 		},

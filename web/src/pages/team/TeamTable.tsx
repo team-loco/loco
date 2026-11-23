@@ -122,7 +122,7 @@ function RoleCell({ member, actions }: { member: Member; actions: RowActions }) 
 	const isMe = member.member.user?.id === actions.meId;
 	const role = roleOf(member.member.scopes);
 	const roleLocked = isMe || !actions.canChangeRoles;
-	// The ghost button's padding hangs into the cell's, so its label lines up with the column head.
+	// A locked role shows as plain text whose padding hangs into the cell's, so its label lines up with the column head; an editable one is an outlined button.
 	return (
 		<span className="flex min-w-0">
 			<DropdownMenu>
@@ -134,7 +134,10 @@ function RoleCell({ member, actions }: { member: Member; actions: RowActions }) 
 							disabled={roleLocked}
 							aria-label={`Change role for ${memberName(member)}`}
 							title={roleTitle(isMe, actions.canChangeRoles)}
-							className="-ml-2 h-7 gap-1.5 border-transparent px-2 text-[13px] text-foreground hover:border-line2 hover:bg-background aria-expanded:border-line2 aria-expanded:bg-background disabled:opacity-100 disabled:hover:border-transparent disabled:hover:bg-transparent dark:hover:bg-background"
+							className={cn(
+								"h-7 gap-1.5 border-line2 bg-background px-2 text-[13px] text-foreground hover:border-fg3 hover:bg-background aria-expanded:border-fg3 aria-expanded:bg-background dark:hover:bg-background",
+								"disabled:-ml-2 disabled:border-transparent disabled:bg-transparent disabled:opacity-100 disabled:hover:border-transparent disabled:hover:bg-transparent",
+							)}
 						/>
 					}
 				>
@@ -420,5 +423,5 @@ export function TeamTable({
 		getRowId: (row) =>
 			row.kind === "invitation" ? `invitation:${row.invitation.id}` : `member:${row.member.member.user?.id ?? ""}`,
 	});
-	return <DataTable table={table} label="People" loading={isLoading} empty={empty} />;
+	return <DataTable table={table} label="People" band loading={isLoading} empty={empty} />;
 }

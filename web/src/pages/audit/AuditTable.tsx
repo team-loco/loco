@@ -67,6 +67,7 @@ function auditColumns(nowMs: number): DataColumn<AuditRow>[] {
 			size: 240,
 			minSize: 90,
 			maxSize: 640,
+			meta: { growsLeft: true },
 			cell: ({ row: { original: row } }) => (
 				<span className="flex min-w-0 items-center gap-2 font-mono text-[12px] text-fg2">
 					<CellText text={row.where} />
@@ -115,6 +116,7 @@ export function AuditTable({
 		<DataTable
 			table={table}
 			label="Audit events"
+			band
 			className="[--row-h:48px] [&_td]:py-1.5"
 			loading={loading}
 			activeRowId={selectedId}

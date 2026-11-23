@@ -213,7 +213,7 @@ WHERE resource_id='{resource}';""",
     blocked = page.get_by_role("menuitem", name=re.compile(r"^Delete"))
     expect(blocked).to_be_disabled()
     expect(blocked).to_contain_text(
-        f"Read by {name}. Remove the reference and deploy first."
+        f"Read by {name}. Remove the reference and redeploy first."
     )
     call(
         state,

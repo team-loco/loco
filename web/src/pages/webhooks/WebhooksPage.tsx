@@ -185,6 +185,7 @@ export function WebhooksPage({
 						<DataTable
 							table={table}
 							label="Webhooks"
+							band
 							activeRowId={openId}
 							onRowClick={(row) => {
 								setOpenId(row.id);

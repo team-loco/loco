@@ -461,6 +461,9 @@
 :root:not([data-theme="paper"]) [data-slot="data-table"][data-band] {
 	width: auto;
 	margin-inline: 12px;
+	@media (max-width: 767px) {
+		margin-inline: 0;
+	}
 	& tbody {
 		row-gap: 2px;
 		padding-top: 4px;

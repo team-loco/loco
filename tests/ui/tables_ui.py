@@ -190,7 +190,7 @@ LAYOUT_JS = """table => {
     if (i === g || Number.isNaN(max) || head.getBoundingClientRect().width >= max - 1 || !growRoom) return;
     if (cutIn(i).some(cut)) problems.push(`fit column ${head.textContent} truncates while the grow column has room`);
   });
-  const first = table.querySelector('tbody tr');
+  const first = table.querySelector('tbody tr:not([data-group])');
   heads.forEach((head, i) => {
     const label = head.querySelector('button > span, :scope > span');
     const content = first?.children[i]?.firstElementChild;
@@ -316,7 +316,7 @@ def scroller_of(page, table):
 
 
 def drag_handle(page, table, label, dx):
-    """Drags the column's handle `dx` pixels and returns the column's width before the pointer is released."""
+    """Drags the column's handle `dx` pixels toward widening it and returns the column's width before the pointer is released."""
     handle = table.get_by_role("separator", name=f"Resize {label}")
     handle.evaluate(
         "node => node.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' })"
@@ -326,6 +326,10 @@ def drag_handle(page, table, label, dx):
     handle.hover()
     box = handle.bounding_box()
     x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    head = table.get_by_role("columnheader", name=label, exact=True).bounding_box()
+    if x < head["x"] + head["width"] / 2:
+        # The last column's handle sits on its left edge, so dragging left widens it.
+        dx = -dx
     start = head_width(table, label)
     page.mouse.move(x, y)
     page.mouse.down()

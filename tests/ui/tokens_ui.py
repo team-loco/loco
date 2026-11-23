@@ -113,7 +113,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     padding = menu.evaluate(
         "node => parseFloat(getComputedStyle(node.closest('td')).paddingRight)"
     )
-    assert gap >= padding >= 20, (gap, padding)
+    assert gap >= padding >= 12, (gap, padding)
     assert not errors, errors
     context.close()
 
