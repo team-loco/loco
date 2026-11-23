@@ -51,6 +51,7 @@ import { RangeToggle } from "@/pages/resource/RangeToggle";
 import {
 	buildRegions,
 	changedSecrets,
+	canRollBackTo,
 	depTag,
 	focusRegion,
 	isDeployed,
@@ -285,6 +286,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				.map((d) => [d.id, d]),
 		).values(),
 	];
+
+	/** The deployments that run in the same regions as `target` and can be rolled back to. */
+	const rollbackOptions = (target: Deployment) => {
+		const names = deploymentRegions(target);
+		const targetRegions = regions.filter((r) => names.includes(r.name));
+		return specDeployments.filter(
+			(d) => deploymentRegions(d).join() === names.join() && targetRegions.every((r) => canRollBackTo(d, r)),
+		);
+	};
 
 	const redeployFrom = async (sources: { deployment: Deployment; regions: string[] }[], trigger: DeploymentTrigger) => {
 		const failures: string[] = [];
@@ -678,6 +688,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						resourceName={resource.name}
 						target={modal.target}
 						current={modal.current}
+						options={rollbackOptions(modal.target)}
+						onTarget={(target) => {
+							setModal({ ...modal, target });
+						}}
 						pending={deploy.isPending}
 						onConfirm={() => void handleRollback(modal.target)}
 					/>

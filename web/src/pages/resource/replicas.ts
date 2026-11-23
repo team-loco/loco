@@ -12,14 +12,13 @@ export const POD_LABEL = "k8s.pod.name";
 /** Two collection intervals of the worker's kubeletstats receiver. */
 const USAGE_FRESH_MS = 120_000;
 
-/** The region's ready and desired replicas of its live deployment's current revision, and the other ready ones. */
-export function regionReady(region: RegionView): { ready: number; desired: number; previous: number } {
+/** The region's ready and desired replicas of its live deployment's current revision. */
+export function regionReady(region: RegionView): { ready: number; desired: number } {
 	const placement = placementIn(region.current, region.name);
 	if (region.current === undefined || placement === undefined)
-		return { ready: 0, desired: region.status?.desiredReplicas ?? 0, previous: 0 };
+		return { ready: 0, desired: region.status?.desiredReplicas ?? 0 };
 	const ready = readyIn(region.current, placement);
-	const previous = placement.replicas.filter((r) => r.ready).length - ready;
-	return { ready, desired: placement.desiredReplicas, previous };
+	return { ready, desired: placement.desiredReplicas };
 }
 
 /** The CPU (millicores) and memory (Mi) limits of the deployment a replica runs, or of the region's current one. */
