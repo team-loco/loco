@@ -6,7 +6,7 @@ The agent reads `agent.joinToken.existingSecret` (key `agent.joinToken.secretKey
 
 ## Resources
 
-The Go runtime sets `GOMAXPROCS` from the container CPU limit, rounding a limit below 2 up to 2. The agent, both controllers, the builder's fetch and push steps and the OpenTelemetry collectors therefore have a CPU limit of at least 2; Envoy, Envoy Gateway and the metrics server have none. The chart sets `GOMEMLIMIT` to 90% of the agent's and the controllers' memory limits, which must be a whole number of `Mi` or `Gi`; the build controller sets it on the fetch and push steps and the collector chart sets 80% on each collector. Each build's BuildKit step requests 1 CPU and 1Gi and may use 4 CPUs and 4Gi.
+The Go runtime sets `GOMAXPROCS` from the container CPU limit, rounding a limit below 2 up to 2. The agent, both controllers, the builder's fetch and push steps and the OpenTelemetry collectors have a CPU limit of at least 2; Envoy, Envoy Gateway and the metrics server have none. The chart sets `GOMEMLIMIT` to 90% of the agent's and the controllers' memory limits, which must be a whole number of `Mi` or `Gi`; the build controller sets it on the fetch and push steps and the collector chart sets 80% on each collector. Each build's BuildKit step requests 1 CPU and 1Gi and may use 4 CPUs and 4Gi.
 
 ## Application rollouts
 

@@ -15,8 +15,8 @@ global:
   cloudProvider:
     annotations: {}
 
-  # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2, so Go containers get a CPU limit
-  # of at least 2. The chart sets GOMEMLIMIT to 90% of the memory limit, a whole number of Mi or Gi.
+  # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2; Go containers have a CPU limit of
+  # at least 2. The chart sets GOMEMLIMIT to 90% of the memory limit, a whole number of Mi or Gi.
   # @schema additionalProperties: false
   resources:
     # @schema skipProperties
