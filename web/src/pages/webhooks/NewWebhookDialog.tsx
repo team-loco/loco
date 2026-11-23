@@ -53,7 +53,6 @@ export function NewWebhookDialog({
 	const [pending, setPending] = useState(false);
 	const nameRef = useRef<HTMLInputElement>(null);
 	const close = () => {
-		if (pending) return;
 		setSecret(null);
 		onClose();
 	};
@@ -62,7 +61,7 @@ export function NewWebhookDialog({
 			open={open}
 			disablePointerDismissal={secret !== null || pending}
 			onOpenChange={(next) => {
-				if (!next) close();
+				if (!next && !pending) close();
 			}}
 		>
 			{open && (
@@ -245,7 +244,7 @@ function NewWebhookForm({
 				)}
 			</DialogBody>
 			<DialogFooter>
-				<Button type="button" variant="outline" onClick={onCancel}>
+				<Button type="button" variant="outline" disabled={mutation.isPending} onClick={onCancel}>
 					Cancel
 				</Button>
 				<Button type="submit" disabled={!ok}>
