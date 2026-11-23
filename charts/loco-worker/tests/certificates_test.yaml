@@ -9,12 +9,9 @@ set:
 templates:
   - templates/cm-issuer.yaml
   - templates/cm-cert.yaml
-  - templates/cloudflare-secret.yml
   - templates/gateway.yaml
 tests:
-  - it: issues from ACME by default, with the Cloudflare token the values give
-    set:
-      secrets.cloudflareToken: cloudflare-token
+  - it: issues from ACME by default
     asserts:
       - equal:
           path: spec.acme.email
@@ -31,35 +28,14 @@ tests:
           path: metadata.name
           value: letsencrypt-prod
         template: templates/cm-issuer.yaml
-      - equal:
-          path: stringData.api-token
-          value: cloudflare-token
-        template: templates/cloudflare-secret.yml
 
-  - it: solves with Cloudflare DNS-01 by default
-    asserts:
-      - equal:
-          path: spec.acme.solvers
-          value:
-            - dns01:
-                cloudflare:
-                  apiTokenSecretRef: {name: cloudflare-api-token-secret, key: api-token}
-        template: templates/cm-issuer.yaml
-
-  - it: renders configured Route53 solvers verbatim
+  - it: requires solvers when it creates the ACME issuer
     set:
-      certManager.issuer.solvers: [{dns01: {route53: {region: us-east-1}}}]
+      certManager.issuer.solvers: []
+    template: templates/cm-issuer.yaml
     asserts:
-      - equal:
-          path: spec.acme.solvers
-          value: [{dns01: {route53: {region: us-east-1}}}]
-        template: templates/cm-issuer.yaml
-      - hasDocuments:
-          count: 1
-        template: templates/cm-cert.yaml
-      - hasDocuments:
-          count: 0
-        template: templates/cloudflare-secret.yml
+      - failedTemplate:
+          errorMessage: certManager.issuer.solvers is required for an ACME issuer
 
   - it: renders configured HTTP-01 solvers verbatim
     set:
@@ -78,25 +54,11 @@ tests:
       - hasDocuments:
           count: 1
         template: templates/cm-cert.yaml
-      - hasDocuments:
-          count: 0
-        template: templates/cloudflare-secret.yml
 
-  - it: renders no Cloudflare Secret without a token
-    asserts:
-      - hasDocuments:
-          count: 0
-        template: templates/cloudflare-secret.yml
-      - hasDocuments:
-          count: 1
-        template: templates/cm-issuer.yaml
-      - hasDocuments:
-          count: 1
-        template: templates/cm-cert.yaml
-
-  - it: needs no ACME credentials for a self-signed issuer
+  - it: needs no ACME email or solvers for a self-signed issuer
     set:
       certManager.issuer.email: ""
+      certManager.issuer.solvers: []
       certManager.issuer.name: local
       certManager.issuer.type: selfSigned
     asserts:
@@ -112,23 +74,19 @@ tests:
           value: {name: local, kind: ClusterIssuer}
         template: templates/cm-cert.yaml
 
-  - it: references an existing ClusterIssuer without creating credentials
+  - it: references an existing ClusterIssuer without solvers
     set:
-      certManager.issuer: {create: false, name: operator-issuer, kind: ClusterIssuer}
-      secrets.cloudflareToken: cloudflare-token
+      certManager.issuer: {create: false, name: operator-issuer, kind: ClusterIssuer, solvers: []}
     asserts:
       - hasDocuments:
           count: 0
         template: templates/cm-issuer.yaml
-      - hasDocuments:
-          count: 0
-        template: templates/cloudflare-secret.yml
       - equal:
           path: spec.issuerRef
           value: {name: operator-issuer, kind: ClusterIssuer}
         template: templates/cm-cert.yaml
 
-  - it: references an existing namespaced Issuer without creating credentials
+  - it: references an existing namespaced Issuer
     set:
       certManager.issuer: {create: false, name: operator-issuer, kind: Issuer}
     asserts:
@@ -143,7 +101,7 @@ tests:
   - it: renders no certificate resources with an existing TLS Secret, and serves that Secret
     set:
       certManager.existingTLSSecret: operator-tls
-      secrets.cloudflareToken: cloudflare-token
+      certManager.issuer.solvers: []
     asserts:
       - hasDocuments:
           count: 0
@@ -151,9 +109,6 @@ tests:
       - hasDocuments:
           count: 0
         template: templates/cm-cert.yaml
-      - hasDocuments:
-          count: 0
-        template: templates/cloudflare-secret.yml
       - equal:
           path: spec.listeners[?(@.protocol == "HTTPS")].tls.certificateRefs
           value: [{name: operator-tls, kind: Secret, group: ""}]

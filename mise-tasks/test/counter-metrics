@@ -96,7 +96,7 @@ helm template loco-worker "$root/charts/loco-worker" --set global.region=counter
     --set global.exporter.endpoint="http://host.docker.internal:$otlp_http_port" \
     --set global.exporter.ingestToken.enabled=true \
     --set agent.image.tag=counter-test --set controller.image.tag=counter-test --set cluster.role=apps \
-    --set certManager.issuer.email=counter-test@example.test |
+    --set certManager.existingTLSSecret=unused |
     yq 'select(.kind == "ConfigMap" and .metadata.name == "otel-col-daemon-agent") | .data.relay' |
     yq '
         [.exporters[] | (.sending_queue.storage, .auth.authenticator) | select(. != null)] as $used |

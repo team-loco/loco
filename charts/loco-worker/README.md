@@ -35,11 +35,27 @@ An unavailable metrics APIService can block API discovery and namespace deletion
 
 Envoy Gateway uses `GatewayNamespace` deployment mode so each proxy runs beside its Gateway. Application ingress policies require that placement. When reusing a controller, keep `config.envoyGateway.provider.kubernetes.deploy.type: GatewayNamespace`; the chart's bundled controller defaults to this mode.
 
-The Gateway terminates TLS with a Secret in the Helm release's namespace. By default the chart creates a Let's Encrypt ACME ClusterIssuer, a wildcard Certificate, and a Cloudflare API-token Secret. Set `certManager.issuer.email` and `secrets.cloudflareToken` for this mode. The Cloudflare Secret renders only when the token is set.
+The Gateway terminates TLS with a Secret in the Helm release's namespace. By default the chart creates a Let's Encrypt ACME ClusterIssuer and a wildcard Certificate. This mode needs `certManager.issuer.email` and `certManager.issuer.solvers`, cert-manager's own `solvers` list, and rendering fails without them. The chart renders the list verbatim and creates no credentials. Create any Secret a solver references in the `cert-manager` namespace yourself.
 
-To solve challenges another way, set `certManager.issuer.solvers` to cert-manager's own `solvers` list, for example Route53, Cloud DNS, Azure DNS, DigitalOcean, a webhook solver, or HTTP-01 through `gatewayHTTPRoute`. The list replaces the Cloudflare default and renders verbatim.
+The Certificate covers wildcard names, which ACME issues only through DNS-01, so use a DNS-01 solver for your DNS provider, for example Cloudflare, Route53, Cloud DNS, Azure DNS, DigitalOcean or a webhook solver. This one reads a Cloudflare API token from the Secret `cloudflare-api-token`:
 
-For a local installation, issue a self-signed certificate without ACME or Cloudflare:
+```yaml
+certManager:
+  issuer:
+    email: ops@example.com
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+```
+
+```sh
+kubectl -n cert-manager create secret generic cloudflare-api-token --from-literal=api-token="$TOKEN"
+```
+
+For a local installation, issue a self-signed certificate without ACME:
 
 ```yaml
 certManager:
@@ -60,7 +76,7 @@ certManager:
     kind: ClusterIssuer
 ```
 
-To use an existing TLS Secret, set its name. This skips the chart's Certificate, ClusterIssuer and Cloudflare Secret. The supplied Secret must exist in the release's namespace and cover every configured Gateway hostname.
+To use an existing TLS Secret, set its name. This skips the chart's Certificate and ClusterIssuer. The supplied Secret must exist in the release's namespace and cover every configured Gateway hostname.
 
 ```yaml
 certManager:

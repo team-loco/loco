@@ -6,6 +6,7 @@ global:
 certManager:
   issuer:
     email: ci@example.invalid
+    solvers: [{dns01: {route53: {region: us-east-1}}}]
 
 agent:
   image:

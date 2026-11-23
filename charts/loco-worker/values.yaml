@@ -104,13 +104,9 @@ certManager:
     name: letsencrypt-prod
     email: ""  # required for an acme issuer
     server: https://acme-v02.api.letsencrypt.org/directory
+    # cert-manager ACME solvers, required when the chart creates the ACME issuer.
     # @schema item: object
-    solvers:
-      - dns01:
-          cloudflare:
-            apiTokenSecretRef:
-              name: cloudflare-api-token-secret
-              key: api-token
+    solvers: []
 
 # @schema additionalProperties: false
 cluster:
@@ -147,10 +143,6 @@ agent:
   reconnectMaxDelay: 30s
   healthyStreamDuration: 1m
   registryCredentialCheckInterval: 5m
-
-# @schema additionalProperties: false
-secrets:
-  cloudflareToken: ""
 
 env:
   LOG_LEVEL: debug

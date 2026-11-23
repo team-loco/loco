@@ -177,17 +177,9 @@ certManager:
     name: letsencrypt-prod
     email: ""
     server: https://acme-v02.api.letsencrypt.org/directory
+    # cert-manager ACME solvers, required when the chart creates the ACME issuer.
     # @schema item: object
-    solvers:
-      - dns01:
-          cloudflare:
-            apiTokenSecretRef:
-              name: cloudflare-api-token-secret
-              key: api-token
-
-# @schema additionalProperties: false
-secrets:
-  cloudflareToken: ""
+    solvers: []
 
 # @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {image: {properties: {tag: {minLength: 1}}}}}}]
 obsProxy:
