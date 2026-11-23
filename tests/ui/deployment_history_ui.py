@@ -575,10 +575,14 @@ with session(out) as browser:
     section.get_by_role(
         "button", name=f"Actions for build {builds['deployed'][-8:]}", exact=True
     ).click()
+    page.get_by_role(
+        "menuitem", name="Deployments using this build", exact=True
+    ).click()
     expect(
-        page.get_by_role("menuitem", name="Deployments using this build", exact=True)
+        section.get_by_role("button", name="Clear build filter", exact=True)
     ).to_be_visible()
-    page.keyboard.press("Escape")
+    section.get_by_role("button", name="Clear build filter", exact=True).click()
+    section.get_by_role("tab", name=re.compile(r"^Builds")).click()
     section.get_by_role(
         "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True
     ).click()

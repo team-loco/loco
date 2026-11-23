@@ -582,6 +582,7 @@ export function DeploymentsSection({
 							openId={openBuild}
 							onOpen={setOpenBuild}
 							deploymentFor={buildDeployment}
+							onShowDeployments={showBuildDeployments}
 							logsHref={buildLogsHref}
 							onCanceled={builds.refresh}
 							emptyText={imageOnly ? `No builds. ${resourceName} runs a public image.` : "No builds yet."}

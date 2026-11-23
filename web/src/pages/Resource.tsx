@@ -26,7 +26,7 @@ import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { deploymentRegions, specForRegions } from "@/lib/deployment-utils";
+import { deploymentRegions } from "@/lib/deployment-utils";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
 import { configuredRegions } from "@/lib/resource-regions";
@@ -36,6 +36,7 @@ import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner, SecretsChangedNotice } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
+import { createDeployments, currentSources, toastRedeploying, type DeploymentSource } from "@/pages/resource/redeploy";
 import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
@@ -191,12 +192,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);
 	const deployed = regions.filter(isDeployed);
 	const noMetricsYet = metricsPending(deployed, nowMs);
-	const currents = [
-		...new Map(
-			deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [[r.current.id, r.current] as const])),
-		).values(),
-	];
-	const currentRegions = (d: Deployment) => deployed.filter((r) => r.current?.id === d.id).map((r) => r.name);
+	const redeploySources = currentSources(regions);
+	const currents = redeploySources.map((s) => s.deployment);
 	const events = newestFirst((eventsQuery.data?.events ?? []).map(runtimeEvent));
 	const base = baseline(
 		resource.slug,
@@ -272,34 +269,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		);
 	};
 
-	const redeployFrom = async (sources: { deployment: Deployment; regions: string[] }[], trigger: DeploymentTrigger) => {
-		const failures: string[] = [];
-		for (const { deployment: d, regions: targets } of sources) {
-			if (d.spec === undefined) continue;
-			try {
-				await deploy.mutateAsync({
-					resourceId,
-					regions: targets,
-					spec: specForRegions(d.spec, targets),
-					environmentId: d.environmentId,
-					commit: d.commit,
-					trigger,
-					sourceDeploymentId: d.id,
-				});
-			} catch (err) {
-				failures.push(`${targets.join(", ")}: ${getErrorMessage(err, "Failed to create deployment")}`);
-			}
-		}
+	const redeployFrom = async (sources: DeploymentSource[], trigger: DeploymentTrigger) => {
+		const failures = await createDeployments(deploy.mutateAsync, resourceId, sources, trigger);
 		void refresh();
 		return failures;
 	};
 
 	const handleRedeploy = async () => {
 		setRedeploying(true);
-		const failures = await redeployFrom(
-			currents.map((d) => ({ deployment: d, regions: currentRegions(d) })),
-			DeploymentTrigger.REDEPLOY,
-		);
+		const failures = await redeployFrom(redeploySources, DeploymentTrigger.REDEPLOY);
 		setRedeploying(false);
 		setModal(null);
 		if (failures.length > 0) {
@@ -310,10 +288,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			});
 			return;
 		}
-		const tags = [...new Set(currents.map((d) => depTag(d)))].join(", ");
-		toast.info(`Redeploying ${resource.name}`, {
-			description: `New deployment from ${tags} in ${currents.flatMap(currentRegions).join(", ")}.`,
-		});
+		toastRedeploying(resource.name, redeploySources);
 	};
 
 	const handleRollback = async (target: Deployment) => {

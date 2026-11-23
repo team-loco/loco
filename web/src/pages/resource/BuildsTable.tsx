@@ -253,13 +253,13 @@ function CancelBuildDialog({
 
 function BuildActions({
 	build,
-	deployment,
+	onShowDeployments,
 	logsHref,
 	canWrite,
 	onCanceled,
 }: {
 	build: Build;
-	deployment: BuildDeploymentLink | undefined;
+	onShowDeployments: (buildId: string) => void;
 	logsHref: string | undefined;
 	canWrite: boolean;
 	onCanceled: () => void;
@@ -274,8 +274,12 @@ function BuildActions({
 						Build logs
 					</DropdownMenuItem>
 				)}
-				{deployment !== undefined && (
-					<DropdownMenuItem onClick={deployment.onOpen}>
+				{build.status === BuildStatus.SUCCEEDED && (
+					<DropdownMenuItem
+						onClick={() => {
+							onShowDeployments(build.id);
+						}}
+					>
 						<RocketIcon className="text-fg3" />
 						Deployments using this build
 					</DropdownMenuItem>
@@ -321,8 +325,7 @@ function buildColumns(
 	nowMs: number,
 	openId: string | null,
 	onOpen: (id: string | null) => void,
-	actions: Pick<Parameters<typeof BuildActions>[0], "canWrite" | "onCanceled"> & {
-		deploymentFor: (buildId: string) => BuildDeploymentLink | undefined;
+	actions: Pick<Parameters<typeof BuildActions>[0], "canWrite" | "onCanceled" | "onShowDeployments"> & {
 		logsHref: (buildId: string) => string | undefined;
 	},
 ): DataColumn<Build>[] {
@@ -405,7 +408,7 @@ function buildColumns(
 			cell: ({ row: { original: build } }) => (
 				<BuildActions
 					build={build}
-					deployment={actions.deploymentFor(build.id)}
+					onShowDeployments={actions.onShowDeployments}
 					logsHref={actions.logsHref(build.id)}
 					canWrite={actions.canWrite}
 					onCanceled={actions.onCanceled}
@@ -424,6 +427,7 @@ export function BuildsTable({
 	openId,
 	onOpen,
 	deploymentFor,
+	onShowDeployments,
 	logsHref,
 	onCanceled,
 	emptyText,
@@ -436,6 +440,7 @@ export function BuildsTable({
 	openId: string | null;
 	onOpen: (id: string | null) => void;
 	deploymentFor: (buildId: string) => BuildDeploymentLink | undefined;
+	onShowDeployments: (buildId: string) => void;
 	logsHref: (buildId: string) => string | undefined;
 	onCanceled: () => void;
 	emptyText: string;
@@ -444,7 +449,7 @@ export function BuildsTable({
 		columns: buildColumns(actors, nowMs, openId, onOpen, {
 			canWrite,
 			onCanceled,
-			deploymentFor,
+			onShowDeployments,
 			logsHref,
 		}),
 		data: builds,

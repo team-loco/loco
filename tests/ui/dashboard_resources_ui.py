@@ -132,6 +132,30 @@ with session(out) as browser:
     ).to_be_visible()
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"[?&]activity="))
+    # Restart asks first, then creates a redeploy of the running deployment.
+    created = []
+
+    def create_deployment(route):
+        created.append(route.request.post_data_json)
+        route.fulfill(json={})
+
+    page.route(
+        "**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment
+    )
+    row.get_by_role("button", name="Actions for svc-1", exact=True).click()
+    menu.get_by_role("menuitem", name=re.compile(r"^Restart")).click()
+    confirm = page.get_by_role("dialog", name="Restart svc-1", exact=True)
+    expect(confirm).to_contain_text("Picks up changed secrets.")
+    confirm.get_by_role("button", name="Cancel", exact=True).click()
+    expect(confirm).to_have_count(0)
+    assert created == [], created
+    row.get_by_role("button", name="Actions for svc-1", exact=True).click()
+    menu.get_by_role("menuitem", name=re.compile(r"^Restart")).click()
+    confirm.get_by_role("button", name="Restart", exact=True).click()
+    expect(page.get_by_text("Redeploying svc-1", exact=True)).to_be_visible()
+    assert len(created) == 1, created
+    assert created[0]["trigger"] == "DEPLOYMENT_TRIGGER_REDEPLOY", created
+    page.unroute("**/loco.deployment.v1.DeploymentService/CreateDeployment")
     row.get_by_role("button", name="Actions for svc-1", exact=True).click()
     menu.get_by_role("menuitem", name="Scale", exact=True).click()
     expect(page).to_have_url(re.compile(r"[?&]tab=scaling"))

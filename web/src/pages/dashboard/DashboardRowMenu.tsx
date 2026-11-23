@@ -2,7 +2,6 @@ import { createQueryOptions, useMutation, useTransport } from "@connectrpc/conne
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { createDeployment, getDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentTrigger, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { restartResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { ActivityIcon, ChevronsUpDownIcon, RotateCwIcon, ScrollTextIcon, Settings2Icon, Undo2Icon } from "lucide-react";
@@ -19,8 +18,9 @@ import { deploymentRegions } from "@/lib/deployment-utils";
 import { pluralize } from "@/lib/format";
 import { toastConnectError } from "@/lib/error-handler";
 import { activitySearch, observabilityPath, resourcePath } from "@/lib/routes";
-import { RollbackDialogContent } from "@/pages/resource/Dialogs";
+import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { buildRegions, depTag, focusRegion } from "@/pages/resource/model";
+import { createDeployments, currentSources, toastRedeploying, type DeploymentSource } from "@/pages/resource/redeploy";
 
 import type { EnvResource } from "./useDashboardData";
 
@@ -80,8 +80,8 @@ export function DashboardRowMenu({
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 	const deploy = useMutation(createDeployment);
-	const restart = useMutation(restartResource);
 	const [rollback, setRollback] = useState<Rollback | null>(null);
+	const [restarting, setRestarting] = useState<DeploymentSource[] | null>(null);
 	const canWrite = useMyScopes().resourceLevel(orgId, workspaceId, resource.id) >= scopeLevel(Scope.WRITE);
 	const { search } = useLocation();
 	const logsPath = observabilityPath(orgId, workspaceId, "logs", { env: envName, r: [resource.slug] });
@@ -109,14 +109,12 @@ export function DashboardRowMenu({
 		}
 	};
 
-	const doRestart = async (environmentId: string) => {
-		try {
-			await restart.mutateAsync({ resourceId: resource.id, environmentId });
-			toast.success(`Restarting ${resource.name}`);
-			await refresh();
-		} catch (err) {
-			toastConnectError(err, "Failed to restart replicas");
-		}
+	const restart = async (sources: DeploymentSource[]) => {
+		const failures = await createDeployments(deploy.mutateAsync, resource.id, sources, DeploymentTrigger.REDEPLOY);
+		setRestarting(null);
+		await refresh();
+		if (failures.length > 0) toastConnectError(new Error(failures.join("\n")), `Failed to restart ${resource.name}`);
+		else toastRedeploying(resource.name, sources);
 	};
 
 	const rollingOut = item.status === ResourceStatus.DEPLOYING;
@@ -136,10 +134,10 @@ export function DashboardRowMenu({
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
-					disabled={!canWrite || last === undefined || rollingOut || restart.isPending}
+					disabled={!canWrite || last === undefined || rollingOut || deploy.isPending}
 					title={canWrite ? undefined : NEEDS_WRITE}
 					onClick={() => {
-						if (last !== undefined) void doRestart(last.environmentId);
+						setRestarting(currentSources(buildRegions(resource, [], item.environment, item.deployments)));
 					}}
 				>
 					<RotateCwIcon className="text-fg3" />
@@ -159,6 +157,21 @@ export function DashboardRowMenu({
 					Settings
 				</DropdownMenuItem>
 			</ResourceRowMenu>
+			<Dialog
+				open={restarting !== null}
+				onOpenChange={(open: boolean) => {
+					if (!open) setRestarting(null);
+				}}
+			>
+				{restarting !== null && (
+					<RedeployDialogContent
+						resourceName={resource.name}
+						running={restarting.map((s) => s.deployment)}
+						pending={deploy.isPending}
+						onConfirm={() => void restart(restarting)}
+					/>
+				)}
+			</Dialog>
 			<Dialog
 				open={rollback !== null}
 				onOpenChange={(open: boolean) => {
