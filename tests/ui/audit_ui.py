@@ -111,6 +111,29 @@ def list_events(calls):
 
 
 with session(out) as browser:
+    # Opening a page directly shows its placeholder inside the shell while its code loads.
+    context, page, calls, errors = open_page(browser, "owner")
+    held_audit = []
+    page.route(
+        re.compile(r"/assets/Audit-[^/]+\.js$"), lambda route: held_audit.append(route)
+    )
+    page.goto(state["ui_url"] + audit_path)
+    expect(page.locator('[data-slot="page-loader"]')).to_be_visible()
+    expect(page.get_by_role("link", name="Audit log", exact=True)).to_be_visible()
+    expect(page.locator('[data-slot="app-loader"]')).to_have_count(0)
+    page.evaluate(
+        "Promise.all(document.getAnimations().filter((a) => a.animationName === 'enter').map((a) => a.finished))"
+    )
+    page.screenshot(path=out / "page-loading-light.png")
+    page.evaluate(
+        "document.documentElement.classList.add('dark'), Promise.all(document.getAnimations().filter((a) => a instanceof CSSTransition).map((a) => a.finished))"
+    )
+    page.screenshot(path=out / "page-loading-dark.png")
+    for route in held_audit:
+        route.continue_()
+    expect(page.get_by_role("table", name="Audit events")).to_be_visible()
+    context.close()
+
     # Organization admins read the whole organization from the sidebar entry.
     context, page, calls, errors = open_page(browser, "owner")
     environments = []
@@ -119,10 +142,10 @@ with session(out) as browser:
         lambda route: environments.append(route),
         times=1,
     )
-    page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}")
 
     # Reproduce a lazy import that exceeds Playwright's default assertion timeout,
-    # with the workspace's environments arriving while it loads.
+    # with the workspace's environments arriving while it loads. The shell starts
+    # the download as soon as it mounts.
     def delayed_audit(route):
         response = route.fetch()
         page.wait_for_timeout(6000)
@@ -131,7 +154,8 @@ with session(out) as browser:
     audit_module = re.compile(r"/assets/Audit-[^/]+\.js$")
     page.route(audit_module, delayed_audit, times=1)
     with page.expect_request(audit_module):
-        page.get_by_role("link", name="Audit log", exact=True).click()
+        page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}")
+    page.get_by_role("link", name="Audit log", exact=True).click()
     assert environments, "the workspace's environments loaded before the click"
     environments[0].continue_()
     page.wait_for_url("**" + audit_path)

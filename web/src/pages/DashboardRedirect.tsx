@@ -1,7 +1,7 @@
 import { Navigate } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
-import { AppLoading } from "@/context/AppLoader";
+import { PageLoading } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { workspacePath } from "@/lib/routes";
 
@@ -21,5 +21,5 @@ export function DashboardRedirect() {
 		return <Navigate to="/organizations" replace />;
 	}
 
-	return <AppLoading />;
+	return <PageLoading />;
 }

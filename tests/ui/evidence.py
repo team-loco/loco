@@ -52,7 +52,7 @@ STEP_TIMEOUT_MS = 15000
 BROWSER_CHECK_TIMEOUT_MS = 5000
 BROWSER_CONNECT_TIMEOUT_MS = 15000
 SETTLE_TIMEOUT_MS = 10000
-APP_LOADER = '[data-slot="app-loader"]'
+APP_LOADER = '[data-slot="app-loader"], [data-slot="page-loader"]'
 LOG_TAIL_LINES = 40
 DISCOVERY_PATH = "/dex/.well-known/openid-configuration"
 AUTHORIZATION_PATH = "/dex/auth"

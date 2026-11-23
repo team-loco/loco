@@ -20,7 +20,6 @@ import { useLocation } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
-import { pageImporters } from "@/lib/lazy-pages";
 import { WINDOW_PARSERS } from "@/lib/obs-time";
 import { carriedQuery, QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 import {
@@ -42,7 +41,6 @@ export interface NavPage {
 	keywords: string;
 	to: string | undefined;
 	active: boolean;
-	preload: () => Promise<unknown>;
 }
 
 export interface NavSection {
@@ -84,7 +82,6 @@ export function useNavSections(): NavSection[] {
 					keywords: "home overview",
 					to: wsBase !== null ? withEnv(wsBase, env) : undefined,
 					active: pathname === wsBase,
-					preload: pageImporters.Dashboard,
 				},
 				{
 					name: "Resources",
@@ -92,7 +89,6 @@ export function useNavSections(): NavSection[] {
 					keywords: "services inventory",
 					to: hasWs ? withEnv(resourcesPath(activeOrgId, activeWorkspaceId), env) : undefined,
 					active: hasWs && inResourcesSection(pathname, activeOrgId, activeWorkspaceId),
-					preload: pageImporters.Resources,
 				},
 			],
 		},
@@ -113,7 +109,6 @@ export function useNavSections(): NavSection[] {
 						)
 					: undefined,
 				active: onObs && view === page.view,
-				preload: pageImporters.Observability,
 			})),
 		},
 		{
@@ -127,7 +122,6 @@ export function useNavSections(): NavSection[] {
 								keywords: "environment credentials keys",
 								to: withEnv(secretsPath(activeOrgId, activeWorkspaceId), env),
 								active: pathname.endsWith("/secrets"),
-								preload: pageImporters.Secrets,
 							},
 						]
 					: []),
@@ -139,7 +133,6 @@ export function useNavSections(): NavSection[] {
 								keywords: "events subscriptions endpoints",
 								to: webhooksPath(activeOrgId, activeWorkspaceId),
 								active: pathname.endsWith("/webhooks"),
-								preload: pageImporters.Webhooks,
 							},
 						]
 					: []),
@@ -149,7 +142,6 @@ export function useNavSections(): NavSection[] {
 					keywords: "workspace environments",
 					to: wsBase !== null ? withEnv(`${wsBase}/settings`, env) : undefined,
 					active: pathname.endsWith("/settings"),
-					preload: pageImporters.Settings,
 				},
 			],
 		},
@@ -162,7 +154,6 @@ export function useNavSections(): NavSection[] {
 					keywords: "members people",
 					to: activeOrgId !== null ? `/org/${activeOrgId}/team` : undefined,
 					active: pathname.endsWith("/team"),
-					preload: pageImporters.Team,
 				},
 				...(audit.visible && activeOrgId !== null
 					? [
@@ -172,7 +163,6 @@ export function useNavSections(): NavSection[] {
 								keywords: "events activity history changes",
 								to: auditPath(activeOrgId),
 								active: pathname === auditPath(activeOrgId),
-								preload: pageImporters.Audit,
 							},
 						]
 					: []),
@@ -182,7 +172,6 @@ export function useNavSections(): NavSection[] {
 					keywords: "api keys access",
 					to: "/tokens",
 					active: pathname === "/tokens",
-					preload: pageImporters.Tokens,
 				},
 			],
 		},
