@@ -31,14 +31,16 @@ func (f *deployFixture) getDeployment(t *testing.T, id string) *deploymentv1.Dep
 	return resp.GetDeployment()
 }
 
-func (f *deployFixture) addOtherRegionCluster(t *testing.T) {
+func (f *deployFixture) addOtherRegionCluster(t *testing.T) uuid.UUID {
 	t.Helper()
 	addCluster := `
 INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat)
-VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW())`
-	if _, err := f.pool.Exec(context.Background(), addCluster, otherRegion); err != nil {
+VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
+	var id uuid.UUID
+	if err := f.pool.QueryRow(context.Background(), addCluster, otherRegion).Scan(&id); err != nil {
 		t.Fatalf("add cluster: %v", err)
 	}
+	return id
 }
 
 // placementRegions lists the regions of a deployment and their statuses.

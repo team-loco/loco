@@ -260,13 +260,7 @@ func TestApplyUpdateAddsAndRemovesRegions(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
-	var otherCluster uuid.UUID
-	addCluster := `
-INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat)
-VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
-	if err := f.pool.QueryRow(context.Background(), addCluster, otherRegion).Scan(&otherCluster); err != nil {
-		t.Fatalf("add cluster: %v", err)
-	}
+	f.addOtherRegionCluster(t)
 	applyOK(t, f, planFileHeader+applyFileOtherRegion, applyOptions{})
 
 	f.finishRollouts(t)

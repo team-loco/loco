@@ -207,12 +207,7 @@ func TestCancelRevertsARegionThatRunsButNeverStarted(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
-	f.addOtherRegionCluster(t)
-	var other uuid.UUID
-	if err := f.pool.QueryRow(t.Context(), `SELECT id FROM clusters WHERE region = $1`, otherRegion).
-		Scan(&other); err != nil {
-		t.Fatal(err)
-	}
+	other := f.addOtherRegionCluster(t)
 	first := applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId()
 	f.finishRollouts(t)
 	second := applyOK(t, f, planFileHeader+twoRegionsBiggerCPU, applyOptions{}).GetDeployments()[0].GetDeploymentId()
@@ -338,11 +333,7 @@ func TestCancelKeepsABuildAnotherDeploymentWaitsFor(t *testing.T) {
 func twoRegionRollout(t *testing.T, f *deployFixture) (first, second string, worker genDb.Resource, other uuid.UUID) {
 	t.Helper()
 	f.prepareApply(t)
-	f.addOtherRegionCluster(t)
-	row := f.pool.QueryRow(t.Context(), `SELECT id FROM clusters WHERE region = $1`, otherRegion)
-	if err := row.Scan(&other); err != nil {
-		t.Fatal(err)
-	}
+	other = f.addOtherRegionCluster(t)
 	first = applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId()
 	f.finishRollouts(t)
 	second = applyOK(t, f, planFileHeader+twoRegionsBiggerCPU, applyOptions{}).GetDeployments()[0].GetDeploymentId()

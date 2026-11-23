@@ -327,12 +327,7 @@ func TestARestartRecordsReadyOnceTheRestartedRevisionIsDeployed(t *testing.T) {
 func (f *deployFixture) twoRegionDeployment(t *testing.T) (uuid.UUID, uuid.UUID, func(uuid.UUID, bool)) {
 	t.Helper()
 	f.prepareApply(t)
-	f.addOtherRegionCluster(t)
-	var other uuid.UUID
-	if err := f.pool.QueryRow(t.Context(), `SELECT id FROM clusters WHERE region = $1`, otherRegion).
-		Scan(&other); err != nil {
-		t.Fatal(err)
-	}
+	other := f.addOtherRegionCluster(t)
 	id := uuid.MustParse(
 		applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId())
 	worker, _ := f.resourceByName(t, applyWorker)
