@@ -403,13 +403,11 @@ with session(out) as browser:
     expect(
         section.get_by_role("columnheader", name="Deployment ID", exact=True)
     ).to_be_visible()
-    page.get_by_role("button", name="Redeploy", exact=True).click()
-    redeploy_dialog = page.get_by_role("dialog", name="Redeploy history-pilot?")
-    expect(redeploy_dialog.get_by_text("Now running", exact=True)).to_be_visible()
+    page.get_by_role("button", name="More actions", exact=True).click()
+    page.get_by_role("menuitem", name="Restart", exact=True).click()
+    redeploy_dialog = page.get_by_role("dialog", name="Restart history-pilot")
     expect(
-        redeploy_dialog.get_by_text(
-            "Useful after changing a secret or when a replica is stuck.", exact=False
-        )
+        redeploy_dialog.get_by_text("Picks up changed secrets.", exact=False)
     ).to_be_visible()
     redeploy_dialog.get_by_role("button", name="Cancel", exact=True).click()
     page.get_by_role("button", name="More actions", exact=True).click()
@@ -575,6 +573,17 @@ with session(out) as browser:
     ).to_be_visible()
     expect(section.get_by_text(re.compile(r"^\S.*, CLI$")).first).to_be_visible()
     section.get_by_role(
+        "button", name=f"Actions for build {builds['deployed'][-8:]}", exact=True
+    ).click()
+    page.get_by_role(
+        "menuitem", name="Deployments using this build", exact=True
+    ).click()
+    expect(
+        section.get_by_role("button", name="Clear build filter", exact=True)
+    ).to_be_visible()
+    section.get_by_role("button", name="Clear build filter", exact=True).click()
+    section.get_by_role("tab", name=re.compile(r"^Builds")).click()
+    section.get_by_role(
         "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True
     ).click()
     section.get_by_role(
@@ -600,6 +609,23 @@ with session(out) as browser:
     expect(
         section.get_by_role("button", name="Cancel build", exact=True)
     ).to_have_count(0)
+    section.get_by_role(
+        "button", name=f"Actions for build {builds['failed'][-8:]}", exact=True
+    ).click()
+    expect(
+        page.get_by_role("menuitem", name="Build logs", exact=True)
+    ).to_have_attribute("href", re.compile(f"q=@build:{builds['failed']}"))
+    expect(page.get_by_role("menuitem", name="Cancel build", exact=True)).to_have_count(
+        0
+    )
+    page.keyboard.press("Escape")
+    section.get_by_role(
+        "button", name=f"Actions for build {builds['awaiting'][-8:]}", exact=True
+    ).click()
+    page.get_by_role("menuitem", name="Cancel build", exact=True).click()
+    keep = page.get_by_role("alertdialog", name=re.compile(r"^Cancel build"))
+    keep.get_by_role("button", name="Keep building", exact=True).click()
+    expect(keep).to_have_count(0)
     section.get_by_role(
         "button", name=f"Show build {builds['awaiting'][-8:]}", exact=True
     ).click()
@@ -823,10 +849,10 @@ with session(out) as browser:
         reader_page.get_by_role("menuitem", name="Roll back to this", exact=True)
     ).to_have_count(0)
     reader_page.keyboard.press("Escape")
-    redeploy = reader_page.get_by_role("button", name="Redeploy", exact=True)
-    expect(redeploy).to_be_disabled()
-    expect(redeploy).to_have_attribute("title", "Needs write access to this resource")
     reader_page.get_by_role("button", name="More actions", exact=True).click()
+    restart = reader_page.get_by_role("menuitem", name="Restart", exact=True)
+    expect(restart).to_be_disabled()
+    expect(restart).to_have_attribute("title", "Needs write access to this resource")
     expect(
         reader_page.get_by_role("menuitem", name=re.compile(r"^Roll back"))
     ).to_be_disabled()
@@ -858,10 +884,10 @@ with session(out) as browser:
     writer_page.goto(
         state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production"
     )
-    expect(
-        writer_page.get_by_role("button", name="Redeploy", exact=True)
-    ).to_be_enabled()
     writer_page.get_by_role("button", name="More actions", exact=True).click()
+    expect(
+        writer_page.get_by_role("menuitem", name="Restart", exact=True)
+    ).to_be_enabled()
     expect(
         writer_page.get_by_role("menuitem", name="Delete resource", exact=True)
     ).to_be_disabled()

@@ -12,6 +12,8 @@ import { BuildStatus, type Build } from "@gen/loco/build/v1/build_pb";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { CopyButton } from "@/components/design/CopyButton";
+import { DropdownMenuItem } from "@/components/design/DropdownMenu";
+import { RowMenu } from "@/components/design/RowMenu";
 import { CellText, DataTable, expandColumn, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { StatusBadge } from "@/components/design/StatusBadge";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
@@ -123,25 +125,6 @@ export function BuildDetail({
 	onCanceled: () => void;
 }) {
 	const [confirming, setConfirming] = useState(false);
-	const cancel = useMutation(cancelBuild);
-
-	const confirmCancel = () => {
-		const short = formatShortId(build.id);
-		cancel.mutate(
-			{ buildId: build.id },
-			{
-				onSuccess: () => {
-					toast.success(`Canceled build ${short}`);
-					setConfirming(false);
-					onCanceled();
-				},
-				onError: (err) => {
-					toastConnectError(err, `Could not cancel build ${short}`);
-				},
-			},
-		);
-	};
-
 	const { environments } = useEnvironments();
 	const origin =
 		environments.find((environment) => environment.id === build.originEnvironmentId)?.slug ??
@@ -213,18 +196,113 @@ export function BuildDetail({
 					</div>
 				</div>
 			</div>
-			<ConfirmDialog
+			<CancelBuildDialog
+				build={build}
 				open={confirming}
-				title={`Cancel build ${formatShortId(build.id)}?`}
-				description="The build stops and produces no image."
-				confirmLabel="Cancel build"
-				pendingLabel="Canceling…"
-				cancelLabel="Keep building"
-				pending={cancel.isPending}
-				onConfirm={confirmCancel}
 				onClose={() => {
 					setConfirming(false);
 				}}
+				onCanceled={onCanceled}
+			/>
+		</>
+	);
+}
+
+function CancelBuildDialog({
+	build,
+	open,
+	onClose,
+	onCanceled,
+}: {
+	build: Build;
+	open: boolean;
+	onClose: () => void;
+	onCanceled: () => void;
+}) {
+	const cancel = useMutation(cancelBuild);
+	const short = formatShortId(build.id);
+	const confirmCancel = () => {
+		cancel.mutate(
+			{ buildId: build.id },
+			{
+				onSuccess: () => {
+					toast.success(`Canceled build ${short}`);
+					onClose();
+					onCanceled();
+				},
+				onError: (err) => {
+					toastConnectError(err, `Could not cancel build ${short}`);
+				},
+			},
+		);
+	};
+	return (
+		<ConfirmDialog
+			open={open}
+			title={`Cancel build ${short}?`}
+			description="The build stops and produces no image."
+			confirmLabel="Cancel build"
+			pendingLabel="Canceling…"
+			cancelLabel="Keep building"
+			pending={cancel.isPending}
+			onConfirm={confirmCancel}
+			onClose={onClose}
+		/>
+	);
+}
+
+function BuildActions({
+	build,
+	onShowDeployments,
+	logsHref,
+	canWrite,
+	onCanceled,
+}: {
+	build: Build;
+	onShowDeployments: (buildId: string) => void;
+	logsHref: string | undefined;
+	canWrite: boolean;
+	onCanceled: () => void;
+}) {
+	const [confirming, setConfirming] = useState(false);
+	return (
+		<>
+			<RowMenu label={`Actions for build ${formatShortId(build.id)}`}>
+				{logsHref !== undefined && (
+					<DropdownMenuItem render={<Link to={logsHref} />}>
+						<ScrollTextIcon className="text-fg3" />
+						Build logs
+					</DropdownMenuItem>
+				)}
+				{build.status === BuildStatus.SUCCEEDED && (
+					<DropdownMenuItem
+						onClick={() => {
+							onShowDeployments(build.id);
+						}}
+					>
+						<RocketIcon className="text-fg3" />
+						Deployments using this build
+					</DropdownMenuItem>
+				)}
+				{canWrite && canCancelBuild(build.status) && (
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => {
+							setConfirming(true);
+						}}
+					>
+						<XIcon />
+						Cancel build
+					</DropdownMenuItem>
+				)}
+			</RowMenu>
+			<CancelBuildDialog
+				build={build}
+				open={confirming}
+				onClose={() => {
+					setConfirming(false);
+				}}
+				onCanceled={onCanceled}
 			/>
 		</>
 	);
@@ -247,6 +325,9 @@ function buildColumns(
 	nowMs: number,
 	openId: string | null,
 	onOpen: (id: string | null) => void,
+	actions: Pick<Parameters<typeof BuildActions>[0], "canWrite" | "onCanceled" | "onShowDeployments"> & {
+		logsHref: (buildId: string) => string | undefined;
+	},
 ): DataColumn<Build>[] {
 	return [
 		expandColumn(openId, onOpen, (build) => `build ${formatShortId(build.id)}`),
@@ -319,6 +400,21 @@ function buildColumns(
 			meta: { align: "end", cellClassName: TIME_CELL },
 			cell: ({ row: { original: build } }) => <TimeAgo ms={maybeTsMs(build.createdAt)} nowMs={nowMs} />,
 		},
+		{
+			id: "actions",
+			header: "",
+			meta: { label: "Actions", pinEnd: true },
+			enableHiding: false,
+			cell: ({ row: { original: build } }) => (
+				<BuildActions
+					build={build}
+					onShowDeployments={actions.onShowDeployments}
+					logsHref={actions.logsHref(build.id)}
+					canWrite={actions.canWrite}
+					onCanceled={actions.onCanceled}
+				/>
+			),
+		},
 	];
 }
 
@@ -331,6 +427,7 @@ export function BuildsTable({
 	openId,
 	onOpen,
 	deploymentFor,
+	onShowDeployments,
 	logsHref,
 	onCanceled,
 	emptyText,
@@ -343,12 +440,18 @@ export function BuildsTable({
 	openId: string | null;
 	onOpen: (id: string | null) => void;
 	deploymentFor: (buildId: string) => BuildDeploymentLink | undefined;
+	onShowDeployments: (buildId: string) => void;
 	logsHref: (buildId: string) => string | undefined;
 	onCanceled: () => void;
 	emptyText: string;
 }) {
 	const table = useDataTable("builds", {
-		columns: buildColumns(actors, nowMs, openId, onOpen),
+		columns: buildColumns(actors, nowMs, openId, onOpen, {
+			canWrite,
+			onCanceled,
+			onShowDeployments,
+			logsHref,
+		}),
 		data: builds,
 		getRowId: (build) => build.id,
 	});

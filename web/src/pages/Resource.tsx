@@ -10,17 +10,12 @@ import { toast } from "@/lib/toast";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentTrigger, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import {
-	deleteResource,
-	getResource,
-	restartResource,
-} from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { deleteResource, getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
 import { PageCommands, type PageCommand } from "@/components/shell/CommandMenu";
-import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
@@ -31,20 +26,19 @@ import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { deploymentRegions, specForRegions } from "@/lib/deployment-utils";
+import { deploymentRegions } from "@/lib/deployment-utils";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
 import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
-import { buildLogsPath, observabilityPath, resourcePath, resourcesPath, withEnv } from "@/lib/routes";
+import { activitySearch, buildLogsPath, observabilityPath, resourcePath, resourcesPath, withEnv } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner, SecretsChangedNotice } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
+import { createDeployments, currentSources, toastRedeploying, type DeploymentSource } from "@/pages/resource/redeploy";
 import { RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
-import { DRAWER_EVENT_TYPES, newestFirst, recentWarningCount } from "@/pages/resource/events";
-import { ActivityPanel } from "@/pages/resource/ActivityPanel";
-import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
+import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
 import { METRIC_RANGES, RANGE_MS } from "@/pages/resource/metric";
 import { RangeToggle } from "@/pages/resource/RangeToggle";
@@ -73,7 +67,6 @@ import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 
 const EVENTS_REFRESH_MS = 30_000;
-const EVENTS_DRAWER_WINDOW_MS = 7 * 24 * 3_600_000;
 const CLOCK_TICK_MS = 60_000;
 
 const VIEWS = ["overview", ...SETTINGS_FOCUSES] as const;
@@ -101,7 +94,6 @@ export function Resource() {
 }
 
 function ResourcePage({ resourceId }: { resourceId: string }) {
-	const { orgId = "" } = useParams<{ orgId: string }>();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const transport = useTransport();
@@ -130,19 +122,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		...runtimeEventsOptions(transport, eventScope),
 		refetchInterval: EVENTS_REFRESH_MS,
 	});
-	const [eventsTab, setEventsTab] = useState<EventsTab>("all");
-	// The drawer's window starts when it opens.
-	const [eventsSince, setEventsSince] = useState<number | null>(null);
-	const drawerEventsOptions = runtimeEventsOptions(transport, eventScope, {
-		types: DRAWER_EVENT_TYPES,
-		warningsOnly: eventsTab === "warnings",
-		startMs: eventsSince ?? undefined,
-	});
-	const drawerEventsQuery = useTanstackQuery({
-		...drawerEventsOptions,
-		enabled: drawerEventsOptions.enabled === true && eventsSince !== null,
-		refetchInterval: EVENTS_REFRESH_MS,
-	});
 
 	const canListResources =
 		activeOrgId !== null &&
@@ -164,11 +143,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const [modal, setModal] = useState<ModalState | null>(null);
 	const [notice, setNotice] = useState<Notice | null>(null);
 	const [redeploying, setRedeploying] = useState(false);
-	const [eventsOpen, setEventsOpen] = useState(false);
 	const [draft, setDraft] = useState<SettingsDraft>({});
 	const deploy = useMutation(createDeployment);
 	const del = useMutation(deleteResource);
-	const restart = useMutation(restartResource);
 
 	const [search] = useSearchParams();
 	const rawTab = search.get("tab");
@@ -215,12 +192,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);
 	const deployed = regions.filter(isDeployed);
 	const noMetricsYet = metricsPending(deployed, nowMs);
-	const currents = [
-		...new Map(
-			deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [[r.current.id, r.current] as const])),
-		).values(),
-	];
-	const currentRegions = (d: Deployment) => deployed.filter((r) => r.current?.id === d.id).map((r) => r.name);
+	const redeploySources = currentSources(regions);
+	const currents = redeploySources.map((s) => s.deployment);
 	const events = newestFirst((eventsQuery.data?.events ?? []).map(runtimeEvent));
 	const base = baseline(
 		resource.slug,
@@ -243,7 +216,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			names={staleSecrets}
 			canWrite={canWrite}
 			onRestart={() => {
-				setModal({ kind: "restart" });
+				setModal({ kind: "redeploy" });
 			}}
 		/>
 	);
@@ -253,7 +226,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const buildLogsHref = (buildId: string) =>
 		hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined;
 	const obsLink = (
-		obsView: "logs" | "metrics" | "events",
+		obsView: "logs" | "metrics",
 		filter: { key: string; value: string } | null = null,
 		rangeMs?: number,
 	): string | undefined =>
@@ -296,48 +269,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		);
 	};
 
-	const redeployFrom = async (sources: { deployment: Deployment; regions: string[] }[], trigger: DeploymentTrigger) => {
-		const failures: string[] = [];
-		for (const { deployment: d, regions: targets } of sources) {
-			if (d.spec === undefined) continue;
-			try {
-				await deploy.mutateAsync({
-					resourceId,
-					regions: targets,
-					spec: specForRegions(d.spec, targets),
-					environmentId: d.environmentId,
-					commit: d.commit,
-					trigger,
-					sourceDeploymentId: d.id,
-				});
-			} catch (err) {
-				failures.push(`${targets.join(", ")}: ${getErrorMessage(err, "Failed to create deployment")}`);
-			}
-		}
+	const redeployFrom = async (sources: DeploymentSource[], trigger: DeploymentTrigger) => {
+		const failures = await createDeployments(deploy.mutateAsync, resourceId, sources, trigger);
 		void refresh();
 		return failures;
 	};
 
-	const handleRestart = async () => {
-		if (environmentId === undefined) return;
-		try {
-			await restart.mutateAsync({ resourceId, environmentId });
-			toast.success(`Restarting ${resource.name}`);
-			void refresh();
-		} catch (err) {
-			toastConnectError(err, `Couldn’t restart ${resource.name}`, {
-				duration: Infinity,
-			});
-		}
-		setModal(null);
-	};
-
 	const handleRedeploy = async () => {
 		setRedeploying(true);
-		const failures = await redeployFrom(
-			currents.map((d) => ({ deployment: d, regions: currentRegions(d) })),
-			DeploymentTrigger.REDEPLOY,
-		);
+		const failures = await redeployFrom(redeploySources, DeploymentTrigger.REDEPLOY);
 		setRedeploying(false);
 		setModal(null);
 		if (failures.length > 0) {
@@ -348,10 +288,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			});
 			return;
 		}
-		const tags = [...new Set(currents.map((d) => depTag(d)))].join(", ");
-		toast.info(`Redeploying ${resource.name}`, {
-			description: `New deployment from ${tags} in ${currents.flatMap(currentRegions).join(", ")}.`,
-		});
+		toastRedeploying(resource.name, redeploySources);
 	};
 
 	const handleRollback = async (target: Deployment) => {
@@ -403,8 +340,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		setModal({ kind: "spec", deploymentId: from.id, compareId: to.id, shown: [from, to] });
 	};
 	const openEvents = () => {
-		setEventsSince(Date.now() - EVENTS_DRAWER_WINDOW_MS);
-		setEventsOpen(true);
+		void navigate({ search: activitySearch(search, resource.slug) });
 	};
 	const logsHref = obsLink("logs");
 	const spec = deployed[0]?.current;
@@ -419,7 +355,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	if (canRedeploy)
 		pageCommands.push({
 			id: "redeploy",
-			label: `Redeploy ${resource.name}`,
+			label: `Restart ${resource.name}`,
 			icon: <RotateCwIcon />,
 			run: askRedeploy,
 		});
@@ -481,12 +417,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				switcher={switcher}
 				warnings={recentWarningCount(events, nowMs)}
 				isSettings={view !== "overview"}
-				redeploying={redeploying}
 				canRedeploy={canRedeploy}
-				restarting={restart.isPending}
-				onRestart={() => {
-					setModal({ kind: "restart" });
-				}}
 				canWrite={canWrite}
 				canDelete={canDelete}
 				rollbackTarget={rollbackTarget}
@@ -609,14 +540,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						onViewSpec={openSpec}
 						onCompareSpec={compareSpecs}
 					/>
-					<ActivityPanel
-						key={resource.id}
-						orgId={orgId}
-						workspaceId={resource.workspaceId}
-						resourceId={resource.id}
-						environmentId={environmentId}
-						nowMs={nowMs}
-					/>
 				</div>
 			) : (
 				<div className="flex flex-col gap-5">
@@ -655,21 +578,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				</div>
 			)}
 
-			<EventsDrawer
-				nowMs={nowMs}
-				open={eventsOpen}
-				onOpenChange={setEventsOpen}
-				tab={eventsTab}
-				onTab={setEventsTab}
-				resourceName={resource.name}
-				events={(drawerEventsQuery.data?.events ?? []).map(runtimeEvent)}
-				isLoading={drawerEventsQuery.isLoading}
-				error={drawerEventsQuery.error}
-				eventsHref={obsLink("events")}
-			/>
-
 			<Dialog
-				open={modal !== null && modal.kind !== "delete" && modal.kind !== "restart"}
+				open={modal !== null && modal.kind !== "delete"}
 				onOpenChange={(open: boolean) => {
 					if (!open) setModal(null);
 				}}
@@ -707,23 +617,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					/>
 				)}
 			</Dialog>
-			<ConfirmDialog
-				open={modal?.kind === "restart"}
-				title={`Restart ${resource.name}?`}
-				description={
-					<>
-						Restarts every replica of <span className="text-foreground">{resource.name}</span> in the{" "}
-						<span className="font-mono text-foreground">{environment?.environmentSlug ?? ""}</span> environment.
-					</>
-				}
-				confirmLabel="Restart all replicas"
-				pendingLabel="Restarting…"
-				pending={restart.isPending}
-				onConfirm={() => void handleRestart()}
-				onClose={() => {
-					setModal(null);
-				}}
-			/>
 			<DeleteResourceDialog
 				open={modal?.kind === "delete"}
 				onOpenChange={(open) => {

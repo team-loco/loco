@@ -116,7 +116,7 @@ with session(out) as browser:
 
     page.get_by_role("button", name="Search and run commands").click()
     this_page = results.get_by_role("group", name="This page")
-    for option in ("Redeploy product-catalog", "Logs for product-catalog"):
+    for option in ("Restart product-catalog", "Logs for product-catalog"):
         expect(this_page.get_by_role("option", name=option, exact=True)).to_be_visible()
     for option in ("View spec", "Open events", "Settings"):
         expect(
@@ -125,14 +125,14 @@ with session(out) as browser:
     expect(
         results.get_by_role("group", name="Copy").get_by_role("option").first
     ).to_have_accessible_name(re.compile("^Copy product-catalog resource ID"))
-    this_page.get_by_role("option", name="Redeploy product-catalog", exact=True).click()
+    this_page.get_by_role("option", name="Restart product-catalog", exact=True).click()
     expect(palette).to_have_count(0)
     expect(
-        page.get_by_role("dialog", name="Redeploy product-catalog?", exact=True)
+        page.get_by_role("dialog", name="Restart product-catalog", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
     expect(
-        page.get_by_role("dialog", name="Redeploy product-catalog?", exact=True)
+        page.get_by_role("dialog", name="Restart product-catalog", exact=True)
     ).to_have_count(0)
 
     page.get_by_role("button", name="Search and run commands").click()

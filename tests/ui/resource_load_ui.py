@@ -120,12 +120,9 @@ with session(out) as browser:
     expect(replicas).to_be_visible()
     expect(replicas.locator("[data-slot=skeleton]").first).to_be_visible()
     expect(replicas.get_by_text("—", exact=True)).to_have_count(0)
-    activity = page.get_by_role("region", name="Resource activity", exact=True)
-    expect(activity.get_by_text("No changes yet.")).to_have_count(0)
     for route in held:
         route.continue_()
     context.unroute_all(behavior="wait")
-    expect(activity.get_by_text("No changes yet.")).to_be_visible()
     page.wait_for_timeout(3000)
     counts = collections.Counter(calls)
     repeated = {call[0]: n for call, n in counts.items() if n > 1}

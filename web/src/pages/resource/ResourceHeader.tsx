@@ -101,10 +101,7 @@ export function ResourceHeader({
 	switcher,
 	warnings,
 	isSettings,
-	redeploying,
 	canRedeploy,
-	restarting,
-	onRestart,
 	canWrite,
 	canDelete,
 	rollbackTarget,
@@ -122,10 +119,7 @@ export function ResourceHeader({
 	switcher: SwitcherItem[];
 	warnings: number;
 	isSettings: boolean;
-	redeploying: boolean;
 	canRedeploy: boolean;
-	restarting: boolean;
-	onRestart: () => void;
 	canWrite: boolean;
 	canDelete: boolean;
 	rollbackTarget: Deployment | undefined;
@@ -189,16 +183,6 @@ export function ResourceHeader({
 					<Settings2Icon />
 					Resource settings
 				</ToggleChip>
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={!canRedeploy}
-					title={writeHint ?? "Create a new deployment from the current one"}
-					onClick={onRedeploy}
-				>
-					<RotateCwIcon />
-					{redeploying ? "Redeploying…" : "Redeploy"}
-				</Button>
 				<DropdownMenu>
 					<DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More actions" />}>
 						<EllipsisIcon />
@@ -217,14 +201,14 @@ export function ResourceHeader({
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							className={MENU_ITEM}
-							disabled={!canRedeploy || restarting}
-							title={writeHint ?? "Restart every running replica without creating a deployment"}
-							onClick={onRestart}
+							disabled={!canRedeploy}
+							title={writeHint ?? "Create a new deployment from the current one"}
+							onClick={onRedeploy}
 						>
 							<MenuIcon>
 								<RotateCwIcon />
 							</MenuIcon>
-							Restart all replicas
+							Restart
 						</DropdownMenuItem>
 						<DropdownMenuItem className={MENU_ITEM} onClick={onScale}>
 							<MenuIcon>

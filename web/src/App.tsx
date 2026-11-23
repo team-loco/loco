@@ -280,7 +280,6 @@ function AppRoutes() {
 							}
 						/>
 						<Route path="observability" element={<Observability />} />
-						<Route path="events" element={<Navigate to="../observability?view=events" relative="path" replace />} />
 						<Route
 							path="settings"
 							element={

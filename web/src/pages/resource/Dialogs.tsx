@@ -68,24 +68,19 @@ export function RedeployDialogContent({
 	pending: boolean;
 	onConfirm: () => void;
 }) {
-	const tags = [...new Set(running.map((d) => depTag(d)))].join(", ");
+	const regions = running.flatMap((d) => d.placements.filter((p) => p.live).map((p) => p.region)).join(", ");
 	return (
-		<DialogContent title={`Redeploy ${resourceName}?`} showCloseButton={false}>
-			<DialogBody className="gap-3.5 leading-normal text-fg2">
-				<RunningSwap from={tags} to={tags} />
-				<span className="text-[12.5px] text-fg3">Same spec as the running deployment</span>
+		<DialogContent title={`Restart ${resourceName}`} showCloseButton={false}>
+			<DialogBody className="leading-normal text-fg2">
 				<span>
-					Creates a new deployment from the same spec, with fresh replicas in{" "}
-					<span className="font-mono text-foreground">
-						{running.flatMap((d) => d.placements.filter((p) => p.live).map((p) => p.region)).join(", ")}
-					</span>
-					. Useful after changing a secret or when a replica is stuck.
+					Replaces every replica in <span className="font-mono text-foreground">{regions}</span> with a fresh one from
+					the same spec. Picks up changed secrets.
 				</span>
 			</DialogBody>
 			<DialogFooter>
 				<DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
 				<Button disabled={pending} onClick={onConfirm}>
-					{pending ? "Redeploying…" : "Redeploy"}
+					{pending ? "Restarting…" : "Restart"}
 				</Button>
 			</DialogFooter>
 		</DialogContent>
