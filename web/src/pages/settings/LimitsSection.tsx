@@ -191,7 +191,7 @@ export function LimitsSection({
 	return (
 		<SettingsSection id="s-lim" title="Limits">
 			<SettingsCard>
-				<DataTable table={table} label="Limits" className="[&_tr[data-group]]:border-t" groupBy={(row) => row.group} />
+				<DataTable table={table} label="Limits" band groupBy={(row) => row.group} />
 			</SettingsCard>
 		</SettingsSection>
 	);

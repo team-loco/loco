@@ -345,6 +345,7 @@ export function OrgTab({
 					<DataTable
 						table={table}
 						label="Workspaces"
+						band
 						onRowClick={({ original: w }) => {
 							onOpenWorkspace(w);
 						}}
