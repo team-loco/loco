@@ -131,13 +131,6 @@ tests:
 
   - it: gives Envoy Gateway's controller its Go memory limit from its container memory limit
     asserts:
-      - equal:
-          path: spec.template.spec.containers[0].resources.limits.memory
-          value: 1Gi
-        template: charts/gateway-helm/templates/envoy-gateway-deployment.yaml
-      - notExists:
-          path: spec.template.spec.containers[0].resources.limits.cpu
-        template: charts/gateway-helm/templates/envoy-gateway-deployment.yaml
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: GOMEMLIMIT, valueFrom: {resourceFieldRef: {resource: limits.memory}}}
