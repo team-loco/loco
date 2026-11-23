@@ -108,4 +108,3 @@ app.kubernetes.io/name: loco-build-controller
     matchLabels:
       {{- toYaml . | nindent 6 }}
 {{- end -}}
-
