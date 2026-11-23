@@ -27,6 +27,7 @@ import { levelOf, ROLE_HINT, roleLabel, roleOf, untilLabel, type Member, type Ro
 
 export interface RowActions {
 	meId: string;
+	workspaceFilter: string;
 	orgName: string;
 	canManageInvitations: boolean;
 	canChangeRoles: boolean;
@@ -166,7 +167,10 @@ function Workspaces({
 	const isMe = member.member.user?.id === actions.meId;
 	const role = roleOf(member.member.scopes);
 	const granted = member.workspaces.toSorted(
-		(a, b) => levelOf(b.scopes) - levelOf(a.scopes) || a.name.localeCompare(b.name),
+		(a, b) =>
+			Number(b.id === actions.workspaceFilter) - Number(a.id === actions.workspaceFilter) ||
+			levelOf(b.scopes) - levelOf(a.scopes) ||
+			a.name.localeCompare(b.name),
 	);
 	const first = granted[0];
 	const openAccess = () => {
@@ -335,7 +339,11 @@ function teamColumns(now: number, accessLoading: boolean, actions: RowActions): 
 			cell: ({ row: { original: row } }) => {
 				const expired = row.kind === "invitation" && tsMs(row.invitation.expiresAt) <= now;
 				return (
-					<Badge size="sm" tone={row.kind === "member" || expired ? "muted" : "info"}>
+					<Badge
+						size="sm"
+						tone={row.kind === "member" || expired ? "muted" : "info"}
+						className={row.kind === "member" ? "text-fg2" : undefined}
+					>
 						{row.kind === "member" ? "Member" : expired ? "Expired" : "Invited"}
 					</Badge>
 				);

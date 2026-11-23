@@ -19,6 +19,7 @@ import { SearchInput } from "@/components/design/SearchInput";
 import { parseAsString, useQueryStates } from "nuqs";
 import { WebhookActions } from "./WebhookActions";
 import { Skeleton } from "@/components/design/Skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { useTokenPage } from "@/hooks/useTokenPage";
@@ -268,23 +269,28 @@ function webhookColumns({
 			cell: ({ row: { original: webhook } }) => {
 				const url = new URL(webhook.url);
 				return (
-					<button
-						type="button"
-						aria-label={`Deliveries for ${webhook.url}`}
-						className="block w-full min-w-0 text-left font-mono"
-						onClick={() => {
-							onOpen(webhook.id);
-						}}
-					>
-						<CellText
-							text={webhook.name === "" ? url.host : webhook.name}
-							className={cn("text-[13px]", webhook.name !== "" && "font-sans")}
-						/>
-						<CellText
-							text={`${webhook.name === "" ? "" : url.host}${url.pathname}${url.search}`}
-							className="text-[11.5px] text-fg3"
-						/>
-					</button>
+					<Tooltip>
+						<TooltipTrigger
+							render={
+								<button
+									type="button"
+									aria-label={`Deliveries for ${webhook.url}`}
+									className="block w-full min-w-0 text-left font-mono"
+									onClick={() => {
+										onOpen(webhook.id);
+									}}
+								/>
+							}
+						>
+							<span className={cn("block truncate text-[13px]", webhook.name !== "" && "font-sans")}>
+								{webhook.name === "" ? url.host : webhook.name}
+							</span>
+							<span className="block truncate text-[11.5px] text-fg3">
+								{`${webhook.name === "" ? "" : url.host}${url.pathname}${url.search}`}
+							</span>
+						</TooltipTrigger>
+						<TooltipContent className="font-mono break-all">{webhook.url}</TooltipContent>
+					</Tooltip>
 				);
 			},
 		},

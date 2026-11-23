@@ -5,6 +5,7 @@ import {
 	listOrgWorkspaces,
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { keepPreviousData } from "@tanstack/react-query";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useState } from "react";
 
 import { Pager } from "@/components/design/Pager";
@@ -28,7 +29,10 @@ const PRESSED: Record<Level, string> = {
 	2: "data-pressed:text-info-fg aria-pressed:text-info-fg",
 	3: "data-pressed:text-warn-fg aria-pressed:text-warn-fg",
 };
-type Show = "has" | "all";
+const ACCESS_PARAMS = {
+	aq: parseAsString.withDefault(""),
+	af: parseAsStringLiteral(["has", "all"] as const),
+};
 
 export function WorkspaceAccessDrawer({
 	orgId,
@@ -45,12 +49,15 @@ export function WorkspaceAccessDrawer({
 }) {
 	const [shown, setShown] = useState<Member | null>(member);
 	if (member !== null && member !== shown) setShown(member);
+	const [, setAccessParams] = useQueryStates(ACCESS_PARAMS, { history: "replace" });
 	const user = shown?.member.user;
 	return (
 		<Sheet
 			open={member !== null}
 			onOpenChange={(open) => {
-				if (!open) onClose();
+				if (open) return;
+				void setAccessParams({ aq: null, af: null });
+				onClose();
 			}}
 		>
 			<SheetContent size="wide">
@@ -88,8 +95,8 @@ function AccessRows({
 	const create = useMutation(createMember);
 	const remove = useMutation(deleteMember);
 	const [busy, setBusy] = useState<string | null>(null);
-	const [show, setShow] = useState<Show>(member.workspaces.length > 0 ? "has" : "all");
-	const [q, setQ] = useState("");
+	const [{ aq: q, af }, setAccessParams] = useQueryStates(ACCESS_PARAMS, { history: "replace" });
+	const show = af ?? (member.workspaces.length > 0 ? "has" : "all");
 	const userId = member.member.user?.id ?? "";
 	const query = q.trim();
 	const granted = member.workspaces.filter((w) => w.name.toLowerCase().includes(query.toLowerCase()));
@@ -151,7 +158,7 @@ function AccessRows({
 					value={[show]}
 					onValueChange={(v: string[]) => {
 						if (v[0] === "has" || v[0] === "all") {
-							setShow(v[0]);
+							void setAccessParams({ af: v[0] });
 							resetPage();
 						}
 					}}
@@ -169,11 +176,11 @@ function AccessRows({
 				<SearchInput
 					value={q}
 					onChange={(e) => {
-						setQ(e.target.value);
+						void setAccessParams({ aq: e.target.value });
 						resetPage();
 					}}
 					onClear={() => {
-						setQ("");
+						void setAccessParams({ aq: null });
 						resetPage();
 					}}
 					placeholder="Search workspaces"

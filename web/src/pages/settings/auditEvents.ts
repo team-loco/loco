@@ -290,7 +290,7 @@ export function auditDetail(event: DetailFields, users: ReadonlyMap<string, Audi
 		case "member.added": {
 			const scopes = strings(data, "scopes");
 			const member = memberName(event.subjectId, users);
-			return scopes.length === 0 ? member : `${member} · ${scopes.join(", ")}`;
+			return scopes.length === 0 ? member : `${member} as ${scopes.join(", ")}`;
 		}
 		case "member.removed": {
 			return memberName(event.subjectId, users);
@@ -310,7 +310,7 @@ export function auditDetail(event: DetailFields, users: ReadonlyMap<string, Audi
 		case "workspace.updated": {
 			const changes = workspaceChanges(data);
 			if (changes.length === 1) return changes[0]?.values;
-			return changes.map((c) => `${c.field} ${c.values}`.trim()).join(" · ");
+			return changes.map((c) => `${c.field} ${c.values}`.trim()).join(", ");
 		}
 		default: {
 			return text(data, "name") ?? text(data, "domain") ?? text(data, "email") ?? text(data, "url");

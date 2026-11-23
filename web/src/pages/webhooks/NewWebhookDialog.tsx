@@ -58,6 +58,7 @@ export function NewWebhookDialog({
 	return (
 		<Dialog
 			open={open}
+			disablePointerDismissal={secret !== null}
 			onOpenChange={(next) => {
 				if (!next) close();
 			}}
@@ -72,6 +73,7 @@ export function NewWebhookDialog({
 								: "Edit webhook"
 					}
 					className={secret === null ? "w-[560px]" : undefined}
+					showCloseButton={secret === null}
 					initialFocus={nameRef}
 				>
 					{secret === null ? (
@@ -255,7 +257,10 @@ function EventPicker({
 	selected: ReadonlySet<string>;
 	onChange: (next: ReadonlySet<string>) => void;
 }) {
-	const [opened, setOpened] = useState<string | null>(null);
+	const [opened, setOpened] = useState<string | null>(() => {
+		const [first] = selected;
+		return GROUPS.find((g) => first !== undefined && g.types.includes(first))?.label ?? null;
+	});
 	const id = useId();
 	return (
 		<>

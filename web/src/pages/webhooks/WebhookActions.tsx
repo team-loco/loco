@@ -155,6 +155,7 @@ function RotateSecret({
 	return (
 		<Dialog
 			open={open}
+			disablePointerDismissal={secret !== undefined}
 			onOpenChange={(next) => {
 				if (!next && !rotate.isPending) close();
 			}}

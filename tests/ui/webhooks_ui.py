@@ -293,6 +293,8 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     held.pop().continue_()
     secret_dialog = page.get_by_role("dialog", name="New signing secret", exact=True)
     expect(secret_dialog.get_by_text(re.compile(r"^whsec_"))).to_be_visible()
+    page.mouse.click(5, 5)
+    expect(secret_dialog).to_be_visible()
     secret_dialog.get_by_role("button", name="Done", exact=True).click()
     assert any(
         method == "RotateWebhookSecret" and body["gracePeriodSeconds"] == 3600
@@ -323,6 +325,12 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     builds = creation.get_by_role("checkbox", name=re.compile(r"^Builds "))
     expect(builds).to_have_attribute("aria-checked", "mixed")
     expect(builds).to_have_accessible_name(re.compile(r"^Builds 1 of \d+$"))
+    expect(
+        creation.get_by_role("button", name="Hide builds events", exact=True)
+    ).to_have_attribute("aria-expanded", "true")
+    expect(
+        creation.get_by_role("checkbox", name="build.failed", exact=True)
+    ).to_be_checked()
     expect(creation.get_by_text(re.compile(r"^1 of \d+ events$"))).to_be_visible()
     name = creation.get_by_role("textbox", name="Name (optional)", exact=True)
     expect(name).to_be_focused()
@@ -341,14 +349,20 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     endpoint.fill("https://hooks.invalid/named")
     name.fill("Billing alerts")
     creation.get_by_role("button", name="Create webhook", exact=True).click()
-    page.get_by_role("dialog", name="Signing secret", exact=True).get_by_role(
-        "button", name="Done", exact=True
-    ).click()
+    signing = page.get_by_role("dialog", name="Signing secret", exact=True)
+    expect(signing.get_by_role("button", name="Close", exact=True)).to_have_count(0)
+    page.mouse.click(5, 5)
+    expect(signing).to_be_visible()
+    signing.get_by_role("button", name="Done", exact=True).click()
     named = page.get_by_role(
         "button", name="Deliveries for https://hooks.invalid/named", exact=True
     )
     expect(named).to_contain_text("Billing alerts")
     expect(named).to_contain_text("hooks.invalid/named")
+    named.hover()
+    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(
+        "https://hooks.invalid/named"
+    )
     expect(
         page.get_by_role("button", name="Deliveries for https://hooks.invalid/updated")
     ).to_contain_text("hooks.invalid")

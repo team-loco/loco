@@ -221,6 +221,7 @@ export function Team() {
 					empty={empty}
 					actions={{
 						meId,
+						workspaceFilter: wsFilter,
 						orgName,
 						canManageInvitations: canInvite,
 						canChangeRoles,
