@@ -54,6 +54,7 @@ export function TraceDrawer({
 				initialFocus={popupRef}
 				onKeyDown={onKeyDown}
 				size="full"
+				resizeKey="trace"
 				className="outline-none data-[side=right]:w-[min(1480px,calc(100vw-16px))]"
 				showCloseButton={false}
 			>

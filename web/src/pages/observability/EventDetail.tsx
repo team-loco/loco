@@ -52,7 +52,7 @@ export function EventDetail({ item, onKeyDown, ...nav }: Props) {
 				if (!open) nav.onClose();
 			}}
 		>
-			<SheetContent size="wide" showCloseButton={false} onKeyDown={onKeyDown}>
+			<SheetContent size="wide" resizeKey="event" showCloseButton={false} onKeyDown={onKeyDown}>
 				{shown !== null && <EventBody item={shown} {...nav} />}
 			</SheetContent>
 		</Sheet>
