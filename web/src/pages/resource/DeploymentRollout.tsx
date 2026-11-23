@@ -5,8 +5,6 @@ import { Link } from "react-router";
 import { Badge, type BadgeTone } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
-import { NavArrow } from "@/components/design/NavArrow";
-import { Notice } from "@/components/design/Notice";
 import { Progress } from "@/components/design/Progress";
 import { SoonTag } from "@/components/design/SoonTag";
 import { useNow } from "@/hooks/useNow";
@@ -19,7 +17,6 @@ import {
 	problemLogsHref,
 	PROBLEM_REASONS,
 	replicaState,
-	replicaSummary,
 	stoppingCountdown,
 } from "./deployment-progress";
 import { depTag } from "./model";
@@ -88,56 +85,38 @@ export function ProblemBanner({
 	const problemHref = problemLogsHref(logsHref, deployment);
 	const reason = PROBLEM_REASONS[problem.reason];
 	const note = problemNote(deployment, problem.reason, deployTimeoutSeconds);
+	const servingNote =
+		serving === undefined
+			? ""
+			: `${depTag(serving.deployment)} is still serving on ${serving.readyReplicas.toString()} ${serving.readyReplicas === 1 ? "replica" : "replicas"}.`;
+	const sub = [reason === undefined ? "" : problem.message, note, servingNote].filter((part) => part !== "").join(" ");
 	const detail = [problem.detail, problem.replicaName].filter((line) => line !== "");
 	return (
-		<Notice
-			tone={
-				deployment.status === DeploymentStatus.FAILED || deployment.status === DeploymentStatus.CRASHED ? "bad" : "warn"
-			}
-			role="alert"
-			title={reason ?? problem.message}
-			detail={
-				detail.length > 0 ? (
-					<>
-						{detail.map((line) => (
-							<p key={line} className="m-0 whitespace-pre-wrap">
-								{line}
-							</p>
-						))}
-					</>
-				) : undefined
-			}
-			note={
-				note === "" && serving === undefined ? undefined : (
-					<>
-						{note}
-						{note !== "" && serving !== undefined && " "}
-						{serving !== undefined && (
-							<>
-								<span className="font-mono">{depTag(serving.deployment)}</span>
-								{` is still serving on ${serving.readyReplicas.toString()} ${serving.readyReplicas === 1 ? "replica" : "replicas"}.`}
-							</>
-						)}
-					</>
-				)
-			}
-			action={
-				problemHref === undefined ? undefined : (
-					<Button
-						variant="outline"
-						size="sm"
-						className="group/nav"
-						nativeButton={false}
-						render={<Link to={problemHref} />}
-					>
-						{problem.logsQuery.startsWith("@build") ? "Build logs" : "Replica logs"}
-						<NavArrow className="ml-0" />
-					</Button>
-				)
-			}
-		>
-			{reason === undefined ? undefined : problem.message}
-		</Notice>
+		<div role="alert" className="flex flex-col gap-2.5">
+			<div className="flex min-w-0 flex-col gap-1">
+				<span className="text-[14px] font-[550]">{reason ?? problem.message}</span>
+				{sub !== "" && <span className="text-[13px] text-fg3">{sub}</span>}
+			</div>
+			{(detail.length > 0 || problemHref !== undefined) && (
+				<div className="relative rounded-lg bg-background py-2.5 pr-28 pl-3 font-mono text-[11.5px] leading-normal ring-1 ring-line">
+					{detail.map((line) => (
+						<p key={line} className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
+							{line}
+						</p>
+					))}
+					{problemHref !== undefined && (
+						<Button
+							variant="link"
+							nativeButton={false}
+							className="absolute top-2.5 right-3.5 font-sans"
+							render={<Link to={problemHref} />}
+						>
+							Open in Logs
+						</Button>
+					)}
+				</div>
+			)}
+		</div>
 	);
 }
 
@@ -164,12 +143,9 @@ export function ReplicaGroups({ deployment, region }: { deployment: Deployment; 
 				.filter((group, i) => i === 0 || group.replicas.length > 0)
 				.map((group) => (
 					<section key={group.label} aria-label={group.label}>
-						<h3 className="mt-0 mb-1.5 text-[12px] font-medium text-fg3">
-							{group.label} <span className="font-mono">({group.replicas.length})</span>
-						</h3>
+						<h3 className="mt-0 mb-1.5 text-[12px] font-medium text-fg3">{group.label}</h3>
 						{group.replicas.length > LISTED_REPLICAS && (
 							<div className="mb-1.5 flex flex-col gap-1.5">
-								<p className="m-0 text-[12px] text-fg2">{replicaSummary(group.replicas)}</p>
 								<ul aria-label={`${group.label} replica states`} className="m-0 flex list-none flex-wrap gap-1 p-0">
 									{group.replicas.map((replica) => {
 										const state = replicaState(replica.state);
@@ -259,28 +235,18 @@ export function ActivityFeed({ startMs, activity }: { startMs: number | undefine
 				className="max-h-64 overflow-y-auto overscroll-contain rounded-lg border border-line bg-background p-3 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-ring"
 			>
 				{activity.length === 0 && <p className="m-0 text-[12px] text-fg3">Waiting for activity…</p>}
-				<ol className="m-0 flex list-none flex-col gap-2 p-0">
+				<ol className="m-0 flex list-none flex-col gap-1 p-0">
 					{activity.map((entry) => (
 						<li
 							key={String(entry.seq)}
-							className="grid grid-cols-[3.5rem_0.5rem_minmax(0,1fr)] items-baseline gap-2 text-[12px]"
+							className="grid min-h-[22px] grid-cols-[3.6rem_minmax(0,1fr)] items-center gap-2.5 text-[12px]"
 						>
 							<span className="font-mono text-fg3 tabular-nums" title="Time since the rollout started">
 								{activityTime(entry.at, startMs)}
 								<span className="sr-only"> after the rollout started</span>
 							</span>
-							<span
-								className={cn(
-									"size-1.5 self-start mt-1.5 rounded-full bg-info",
-									entry.severity === "ok" && "bg-ok-glyph",
-									entry.severity === "warn" && "bg-warn",
-									entry.severity === "error" && "bg-bad-fg",
-								)}
-							>
-								<span className="sr-only">{entry.severity}</span>
-							</span>
-							<span className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-								{entry.replicaName !== "" && <span className="mr-2 font-mono text-fg3">{entry.replicaName}</span>}
+							<span className="font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">
+								{entry.replicaName !== "" && <span className="mr-2 text-fg3">{entry.replicaName}</span>}
 								{entry.message}
 							</span>
 						</li>

@@ -170,7 +170,7 @@ export function reportedReadyLabel(d: Deployment, ready: ReadonlyMap<string, num
 export function canceledNote(d: Deployment): string | undefined {
 	if (d.canceledByName !== "") return `Canceled by ${d.canceledByName}`;
 	const newer = d.placements.find((p) => p.supersededBy !== "")?.supersededBy;
-	return newer === undefined ? undefined : `Superseded by ${formatShortId(newer)}`;
+	return newer === undefined ? undefined : `Replaced by ${formatShortId(newer)}`;
 }
 
 const UNSTARTED_PLACEMENTS: ReadonlySet<PlacementStatus> = new Set([

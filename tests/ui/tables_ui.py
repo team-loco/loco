@@ -1033,18 +1033,8 @@ def history(page):
     )
     page.goto(base + f"/resource/{resource}?env=production")
     reopen = named_table("Deployments", "Running")
-    table = check_table(page, reopen, "Deployed by", "Version")
-    width = scroller_of(page, table).evaluate("node => node.scrollWidth")
-    table.locator("tbody tr[data-interactive]").first.get_by_role("cell").nth(4).click()
-    expect(
-        table.get_by_role("button", name=re.compile("^Hide details for"))
-    ).to_be_visible()
-    expect(
-        table.get_by_role("button", name="View spec", exact=True).first
-    ).to_be_visible()
+    table = check_table(page, reopen, "Deployed by", "Status", clickable=False)
     check_layout(table)
-    # Expanded details never widen the columns.
-    assert scroller_of(page, table).evaluate("node => node.scrollWidth") == width
     page.get_by_role("tab", name=re.compile(r"^Builds")).click()
     reopen = named_table("Builds", "Olivia Owner")
     table = check_table(page, reopen, "Started by", "Status", "ArrowLeft")

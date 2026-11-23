@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { replicaState } from "./deployment-progress";
 import { shortName } from "./MetricChart";
 import { depTag, regionDeployment, type RegionView } from "./model";
-import { MAX_REPLICA_LINES } from "./metric";
 import { exitLabel, podUsage, regionReady, replicaLimits, restartCount, restartLabel } from "./replicas";
 
 const USAGE_SPAN_MS = 5 * 60_000;
@@ -136,18 +135,9 @@ export function ReplicaList({
 	const replicas = region.status?.replicas ?? [];
 	const stale = region.status?.status === ResourceStatus.UNKNOWN;
 	const reportedMs = maybeTsMs(region.status?.reportedAt);
-	const { ready, desired, previous } = regionReady(region);
+	const { ready, desired } = regionReady(region);
 	const measuring = cpu?.isLoading === true || memory?.isLoading === true;
 	const many = replicas.length > MANY_REPLICAS;
-	const cpuUsed = replicas.flatMap((r) => {
-		const share = cpuUsage.get(r.name);
-		const milli = replicaLimits(region, r).cpuMilli;
-		return share === undefined || milli <= 0 ? [] : [share * milli];
-	});
-	const average =
-		replicas.length > MAX_REPLICA_LINES && cpuUsed.length > 0
-			? `avg ${(cpuUsed.reduce((a, b) => a + b, 0) / cpuUsed.length / MILLI_PER_CORE).toFixed(2)} vCPU`
-			: undefined;
 	return (
 		<section aria-label={`Replicas in ${region.name}`} className="flex min-w-0 flex-col gap-2">
 			<h3 className="m-0 flex flex-wrap items-baseline gap-x-2 text-[12px] font-normal text-fg3">
@@ -158,11 +148,7 @@ export function ReplicaList({
 					className="-ml-1.5 flex items-baseline gap-2 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-left hover:bg-background aria-pressed:bg-background"
 				>
 					<span className="font-mono text-[12.5px] font-medium text-foreground">{region.name}</span>
-					<span>
-						{`${ready.toString()} of ${desired.toString()} ready`}
-						{previous > 0 && `, ${previous.toString()} previous`}
-					</span>
-					{average !== undefined && <span className="font-mono">{average}</span>}
+					<span>{`${ready.toString()}/${desired.toString()} ready`}</span>
 				</button>
 				{stale && (
 					<span>{reportedMs === undefined ? "Not reported yet" : `Last reported ${agoLabel(reportedMs, nowMs)}`}</span>

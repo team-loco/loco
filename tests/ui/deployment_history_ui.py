@@ -343,7 +343,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Show details for {data['releases'][0][-8:]}",
+            name=f"Actions for {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -355,24 +355,23 @@ with session(out) as browser:
         deployments.get_by_role("columnheader", name="Started", exact=True)
     ).to_be_visible()
     expect(
-        deployments.get_by_role("columnheader", name="Deployed", exact=True)
+        deployments.get_by_role("columnheader", name="Duration", exact=True)
     ).to_be_visible()
+    expect(deployments.get_by_role("columnheader", name="Message")).to_have_count(0)
     expect(section.get_by_text("CLI", exact=True).first).to_be_visible()
+    # The columns menu adds the columns the table hides until asked.
+    section.get_by_role("button", name="Columns", exact=True).click()
+    page.get_by_role("menuitemcheckbox", name="Message", exact=True).click()
+    page.keyboard.press("Escape")
     expect(
         deployments.get_by_role("cell", name="Add the release checklist", exact=True)
     ).to_be_visible()
     section.get_by_role(
         "button",
-        name=f"Show details for {data['releases'][0][-8:]}",
+        name=f"Actions for {data['releases'][0][-8:]}",
         exact=True,
     ).click()
-    page.mouse.move(0, 0)
-    expect(
-        section.get_by_role("button", name="Copy SHA", exact=True)
-    ).to_have_attribute("title", f"Copy {'7c41e9a'.ljust(40, '0')}")
-    steps = section.get_by_role("list", name="Rollout steps", exact=True)
-    expect(steps.get_by_text("Deploy replicas", exact=False)).to_be_visible()
-    section.get_by_role("button", name="View spec", exact=True).click()
+    page.get_by_role("menuitem", name="View spec", exact=True).click()
     spec_dialog = page.get_by_role(
         "dialog", name="history-pilot deployment spec", exact=True
     )
@@ -401,13 +400,8 @@ with session(out) as browser:
     ).to_have_text(re.compile(r"\) in [a-z0-9-]+(, [a-z0-9-]+)*\s*$"))
     page.keyboard.press("Escape")
     page.keyboard.press("Escape")
-    section.get_by_role(
-        "button",
-        name=f"Hide details for {data['releases'][0][-8:]}",
-        exact=True,
-    ).click()
     expect(
-        section.get_by_role("columnheader", name="Region", exact=True)
+        section.get_by_role("columnheader", name="Deployment ID", exact=True)
     ).to_be_visible()
     page.get_by_role("button", name="Redeploy", exact=True).click()
     redeploy_dialog = page.get_by_role("dialog", name="Redeploy history-pilot?")
@@ -424,32 +418,10 @@ with session(out) as browser:
     ).to_be_enabled()
     page.keyboard.press("Escape")
     assert any(
-        request["method"] == "GetDeployment"
-        and request["body"]["deploymentId"] == data["releases"][-1]
-        for request in requests
-    )
-    assert any(
         request["method"] == "QueryDeploymentBuckets"
         and request["body"].get("resourceIds") == [data["resource"]]
         for request in requests
     ), requests
-    # The tenth row's previous deployment is on the next page, so its diff fetches it by ID.
-    section.get_by_role(
-        "button",
-        name=f"Show details for {data['releases'][9][-8:]}",
-        exact=True,
-    ).click()
-    expect(section.get_by_text("browser-pilot:release-011", exact=True)).to_be_visible()
-    assert any(
-        request["method"] == "GetDeployment"
-        and request["body"]["deploymentId"] == data["releases"][10]
-        for request in requests
-    )
-    section.get_by_role(
-        "button",
-        name=f"Hide details for {data['releases'][9][-8:]}",
-        exact=True,
-    ).click()
     section.get_by_role("button", name="50", exact=True).click()
     # The pager ignores Next until the 50-row page replaces the 10-row one.
     expect(section.get_by_text("1–50 of 221", exact=False)).to_be_visible()
@@ -465,7 +437,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Show details for {data['releases'][50][-8:]}",
+            name=f"Actions for {data['releases'][50][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -475,7 +447,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Show details for {data['releases'][100][-8:]}",
+            name=f"Actions for {data['releases'][100][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -484,7 +456,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Show details for {data['releases'][150][-8:]}",
+            name=f"Actions for {data['releases'][150][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -493,7 +465,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Show details for {data['releases'][220][-8:]}",
+            name=f"Actions for {data['releases'][220][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -513,7 +485,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Show details for {data['staging_release'][-8:]}",
+            name=f"Actions for {data['staging_release'][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -522,7 +494,7 @@ with session(out) as browser:
     expect(section.get_by_role("button", name="Next page", exact=True)).to_be_disabled()
     assert not section.get_by_role(
         "button",
-        name=f"Show details for {data['releases'][220][-8:]}",
+        name=f"Actions for {data['releases'][220][-8:]}",
         exact=True,
     ).count()
     assert any(
@@ -532,33 +504,23 @@ with session(out) as browser:
         for request in requests
     )
     expect(next_button).to_be_disabled()
-    assert any(
-        request["method"] == "GetDeployment"
-        and request["body"]["deploymentId"] == data["staging_release"]
-        for request in requests
-    )
     environment_switcher.click()
     page.get_by_role("menuitem", name="production", exact=True).click()
     expect(
         section.get_by_role(
             "button",
-            name=f"Show details for {data['releases'][0][-8:]}",
+            name=f"Actions for {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
     expect(
         section.get_by_role(
             "button",
-            name=f"Show details for {data['releases'][150][-8:]}",
+            name=f"Actions for {data['releases'][150][-8:]}",
             exact=True,
         )
     ).to_have_count(0)
     builds = data["builds"]
-    section.get_by_role(
-        "button",
-        name=f"Show details for {data['releases'][1][-8:]}",
-        exact=True,
-    ).click()
     section.get_by_role(
         "button", name=f"Build {builds['deployed'][-8:]}", exact=True
     ).click()
@@ -583,12 +545,23 @@ with session(out) as browser:
     section.get_by_role("button", name="Deployment release-002", exact=True).click()
     expect(page).not_to_have_url(re.compile(r"[?&]hist=builds"))
     expect(
+        section.get_by_role("button", name="Clear build filter", exact=True)
+    ).to_be_visible()
+    expect(
         section.get_by_role(
             "button",
-            name=f"Hide details for {data['releases'][1][-8:]}",
+            name=f"Actions for {data['releases'][1][-8:]}",
             exact=True,
         )
     ).to_be_visible()
+    expect(
+        section.get_by_role(
+            "button",
+            name=f"Actions for {data['releases'][0][-8:]}",
+            exact=True,
+        )
+    ).to_have_count(0)
+    section.get_by_role("button", name="Clear build filter", exact=True).click()
     section.get_by_role("tab", name=re.compile(r"^Builds")).click()
     expect(
         section.get_by_role("tabpanel", name=re.compile(r"^Builds")).get_by_role(
@@ -679,12 +652,13 @@ with session(out) as browser:
     section.get_by_role("tab", name=re.compile(r"^Deployments")).click()
     section.get_by_role(
         "button",
-        name=f"Show details for {data['releases'][1][-8:]}",
+        name=f"Actions for {data['releases'][1][-8:]}",
         exact=True,
     ).click()
     expect(
-        section.get_by_role("button", name="Roll back to this", exact=True)
+        page.get_by_role("menuitem", name="Roll back to this", exact=True)
     ).to_be_visible()
+    page.keyboard.press("Escape")
     source_link = section.get_by_role(
         "button", name=f"Build {builds['deployed'][-8:]}", exact=True
     )
@@ -760,7 +734,7 @@ with session(out) as browser:
     ).to_be_enabled()
     page.get_by_role("menuitem", name=re.compile(r"^Roll back")).click()
     rollback_dialog = page.get_by_role(
-        "dialog", name=re.compile(r"^Roll back history-pilot to .+ in .+\?$")
+        "dialog", name="Roll back history-pilot", exact=True
     )
     summary = rollback_dialog.get_by_text(
         re.compile(r"^(\d+ changes?, \d+ unchanged|No spec changes, \d+ settings)$")
@@ -832,22 +806,23 @@ with session(out) as browser:
     expect(
         reader_section.get_by_role(
             "button",
-            name=f"Show details for {data['releases'][0][-8:]}",
+            name=f"Actions for {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
     expect(reader_page.get_by_text("Not deployed yet", exact=True)).to_have_count(0)
     reader_section.get_by_role(
         "button",
-        name=f"Show details for {data['releases'][1][-8:]}",
+        name=f"Actions for {data['releases'][1][-8:]}",
         exact=True,
     ).click()
     expect(
-        reader_section.get_by_role("button", name="View spec", exact=True)
+        reader_page.get_by_role("menuitem", name="View spec", exact=True)
     ).to_be_visible()
     expect(
-        reader_section.get_by_role("button", name="Roll back to this", exact=True)
+        reader_page.get_by_role("menuitem", name="Roll back to this", exact=True)
     ).to_have_count(0)
+    reader_page.keyboard.press("Escape")
     redeploy = reader_page.get_by_role("button", name="Redeploy", exact=True)
     expect(redeploy).to_be_disabled()
     expect(redeploy).to_have_attribute("title", "Needs write access to this resource")

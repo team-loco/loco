@@ -314,8 +314,8 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(west.get_by_role("listitem")).to_have_count(2)
     expect(panel.get_by_text("Per-replica status", exact=False)).to_have_count(0)
 
-    expect(east).to_contain_text("1 of 2 ready")
-    expect(west).to_contain_text("2 of 2 ready")
+    expect(east).to_contain_text("1/2 ready")
+    expect(west).to_contain_text("2/2 ready")
 
     def chip(region, short):
         return region.get_by_role("listitem").filter(
@@ -398,19 +398,15 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
 
     card = page.get_by_role("region", name="Deploying", exact=True)
     expect(card).to_have_count(1)
-    expect(card).to_contain_text("Rolling out to 2 regions")
-    expect(card).to_contain_text("3 of 4 ready in 2 regions")
-    chips = card.get_by_role("group", name="Rollout regions", exact=True)
-    expect(chips.get_by_role("button")).to_have_count(2)
+    lanes = card.get_by_role("list", name="Regions", exact=True).get_by_role("listitem")
+    expect(lanes).to_have_count(2)
     for name in (EAST, WEST):
-        expect(chips.get_by_role("button", name=name)).to_contain_text(
-            re.compile(r"\d/2$")
-        )
-    chips.get_by_role("button", name=WEST).click()
+        expect(lanes.filter(has_text=name)).to_contain_text(re.compile(r"\d/2 ready"))
+    lanes.filter(has_text=WEST).get_by_role("button").click()
     expect(card.get_by_role("region", name="New version", exact=True)).to_contain_text(
         "replicas-ui-west-c3"
     )
-    chips.get_by_role("button", name=EAST).click()
+    lanes.filter(has_text=EAST).get_by_role("button").click()
     expect(card.get_by_role("region", name="New version", exact=True)).to_contain_text(
         "replicas-ui-east-b2"
     )
@@ -429,17 +425,13 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     page.keyboard.press("Escape")
 
     history = page.get_by_role("tabpanel", name="Deployments")
-    rollout_rows = history.get_by_role("row").filter(has_text="v2")
+    history.get_by_role("button", name="Columns", exact=True).click()
+    page.get_by_role("menuitemcheckbox", name="Region(s)", exact=True).click()
+    page.keyboard.press("Escape")
+    rollout_rows = history.get_by_role("row").filter(has_text=re.compile(EAST))
     expect(rollout_rows).to_have_count(1)
     expect(rollout_rows.first).to_contain_text(EAST)
     expect(rollout_rows.first).to_contain_text(WEST)
-    rollout_rows.first.get_by_role("button", name="Show details", exact=False).click()
-    expect(
-        history.get_by_text(f"First deployment in {EAST}", exact=True)
-    ).to_be_visible()
-    expect(
-        history.get_by_text(f"First deployment in {WEST}", exact=True)
-    ).to_be_visible()
 
     def resource_path(resource):
         return f"/org/{r['org']}/wks/{workspace}/resource/{resource}?env=production"
@@ -449,7 +441,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     panel = page.get_by_role("region", name="Replicas", exact=True)
     scaled_east = panel.get_by_role("region", name=f"Replicas in {EAST}", exact=True)
     expect(scaled_east.get_by_role("listitem")).to_have_count(SCALED_REPLICAS)
-    expect(scaled_east).to_contain_text("avg 0.42 vCPU")
+    expect(scaled_east).not_to_contain_text("avg")
     expect(
         panel.get_by_text("band shows lowest to highest across replicas", exact=True)
     ).to_have_count(2)

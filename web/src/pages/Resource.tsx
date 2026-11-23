@@ -51,6 +51,7 @@ import { RangeToggle } from "@/pages/resource/RangeToggle";
 import {
 	buildRegions,
 	changedSecrets,
+	canRollBackTo,
 	depTag,
 	focusRegion,
 	isDeployed,
@@ -286,6 +287,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		).values(),
 	];
 
+	/** The deployments that run in the same regions as `target` and can be rolled back to. */
+	const rollbackOptions = (target: Deployment) => {
+		const names = deploymentRegions(target);
+		const targetRegions = regions.filter((r) => names.includes(r.name));
+		return specDeployments.filter(
+			(d) => deploymentRegions(d).join() === names.join() && targetRegions.every((r) => canRollBackTo(d, r)),
+		);
+	};
+
 	const redeployFrom = async (sources: { deployment: Deployment; regions: string[] }[], trigger: DeploymentTrigger) => {
 		const failures: string[] = [];
 		for (const { deployment: d, regions: targets } of sources) {
@@ -388,6 +398,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	};
 	const openSpec = (dep: Deployment | undefined, shown: Deployment[] = []) => {
 		if (dep !== undefined) setModal({ kind: "spec", deploymentId: dep.id, compareId: null, shown: [dep, ...shown] });
+	};
+	const compareSpecs = (from: Deployment, to: Deployment) => {
+		setModal({ kind: "spec", deploymentId: from.id, compareId: to.id, shown: [from, to] });
 	};
 	const openEvents = () => {
 		setEventsSince(Date.now() - EVENTS_DRAWER_WINDOW_MS);
@@ -525,9 +538,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
+						regionLogsHref={(region) => obsLink("logs", { key: "region", value: region })}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
-						onRollback={openRollback}
+						onCompare={compareSpecs}
 					/>
 					{deployed.length > 0 && environmentId !== undefined && !noMetricsYet && (
 						<RangeToggle
@@ -588,12 +602,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						resourceId={resource.id}
 						workspaceId={resource.workspaceId}
 						regions={regions}
-						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
 						canReadWorkspace={canListResources}
 						onRollback={openRollback}
 						onViewSpec={openSpec}
+						onCompareSpec={compareSpecs}
 					/>
 					<ActivityPanel
 						key={resource.id}
@@ -610,9 +624,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						deployTimeoutSeconds={resource.failurePolicy?.deployTimeoutSeconds}
 						regions={regions}
 						logsHref={obsLink("logs")}
+						regionLogsHref={(region) => obsLink("logs", { key: "region", value: region })}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
-						onRollback={openRollback}
+						onCompare={compareSpecs}
 					/>
 					<SettingsView
 						resource={resource}
@@ -675,6 +690,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						resourceName={resource.name}
 						target={modal.target}
 						current={modal.current}
+						options={rollbackOptions(modal.target)}
+						onTarget={(target) => {
+							setModal({ ...modal, target });
+						}}
 						pending={deploy.isPending}
 						onConfirm={() => void handleRollback(modal.target)}
 					/>

@@ -1,13 +1,24 @@
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, ChevronsUpDownIcon } from "lucide-react";
 import { useState } from "react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Button } from "@/components/design/Button";
 import { DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "@/components/design/DropdownMenu";
+import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
+import { useNow } from "@/hooks/useNow";
+import { agoLabel, readyMs } from "@/lib/time";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn } from "@/lib/utils";
 
 import { depTag } from "./model";
+
 import { specRows } from "./spec";
 
 function DiffCell({ value, tone }: { value: string | null; tone: "add" | "del" | "same" }) {
@@ -81,16 +92,77 @@ export function RedeployDialogContent({
 	);
 }
 
+const NO_OPTIONS: readonly Deployment[] = [];
+
+function RollbackOption({ deployment }: { deployment: Deployment }) {
+	const started = readyMs(deployment);
+	const nowMs = useNow().getTime();
+	return (
+		<>
+			<span className="font-mono text-[12.5px]">{depTag(deployment)}</span>
+			<DeploymentStatusBadge phase={deployment.status} />
+			<span className="text-[12px] text-fg3">{started === undefined ? "" : agoLabel(started, nowMs)}</span>
+		</>
+	);
+}
+
+/** Picks the deployment to roll back to among the ones the region can run again. */
+function RollbackPicker({
+	target,
+	options,
+	onTarget,
+}: {
+	target: Deployment;
+	options: readonly Deployment[];
+	onTarget: (deployment: Deployment) => void;
+}) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<span data-slot="eyebrow" className="text-[12px] text-fg3">
+				Roll back to
+			</span>
+			<DropdownMenu>
+				<DropdownMenuTrigger
+					render={<Button variant="outline" aria-label="Roll back to" className="h-9 justify-start gap-2.5" />}
+				>
+					<RollbackOption deployment={target} />
+					<ChevronsUpDownIcon className="ml-auto text-fg3" />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="start" className="max-h-72 w-auto min-w-[320px]">
+					<DropdownMenuRadioGroup
+						value={target.id}
+						onValueChange={(id: string) => {
+							const next = options.find((d) => d.id === id);
+							if (next !== undefined) onTarget(next);
+						}}
+					>
+						{options.map((d) => (
+							<DropdownMenuRadioItem key={d.id} value={d.id} className="gap-2.5">
+								<RollbackOption deployment={d} />
+							</DropdownMenuRadioItem>
+						))}
+					</DropdownMenuRadioGroup>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</div>
+	);
+}
+
 export function RollbackDialogContent({
 	resourceName,
 	target,
 	current,
+	options = NO_OPTIONS,
+	onTarget,
 	pending,
 	onConfirm,
 }: {
 	resourceName: string;
 	target: Deployment;
 	current: Deployment | undefined;
+	/** The deployments the region can roll back to, target included; a single one offers no choice. */
+	options?: readonly Deployment[];
+	onTarget?: (deployment: Deployment) => void;
 	pending: boolean;
 	onConfirm: () => void;
 }) {
@@ -100,12 +172,11 @@ export function RollbackDialogContent({
 	const shown = everything ? rows : changes;
 	const regions = deploymentRegions(target).join(", ");
 	return (
-		<DialogContent
-			size="wide"
-			title={`Roll back ${resourceName} to ${depTag(target)} in ${regions}?`}
-			showCloseButton={false}
-		>
+		<DialogContent size="wide" title={`Roll back ${resourceName}`} showCloseButton={false}>
 			<DialogBody className="gap-3.5 leading-normal text-fg2">
+				{options.length > 1 && onTarget !== undefined && (
+					<RollbackPicker target={target} options={options} onTarget={onTarget} />
+				)}
 				{current === undefined ? (
 					<RunningSwap from="—" to={depTag(target)} />
 				) : (
@@ -167,7 +238,7 @@ export function RollbackDialogContent({
 				<span>
 					Creates a new deployment in <span className="font-mono text-foreground">{regions}</span> from the spec of{" "}
 					<span className="font-mono text-foreground">{depTag(target)}</span>.
-					{current !== undefined && " The running deployment is superseded once the new replicas are ready."}
+					{current !== undefined && " The running deployment is replaced once the new replicas are ready."}
 				</span>
 			</DialogBody>
 			<DialogFooter>
