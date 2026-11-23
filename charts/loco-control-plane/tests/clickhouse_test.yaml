@@ -50,19 +50,6 @@ tests:
           path: spec.configuration.profiles["loco_ingest/profile"]
           value: default
 
-  - it: caps the API reader's concurrent queries at the API's ClickHouse pool size
-    template: charts/clickhouse/templates/chi.yaml
-    asserts:
-      - equal:
-          path: spec.configuration.users["loco_reader/profile"]
-          value: loco_reader
-      - equal:
-          path: spec.configuration.profiles["loco_reader/max_concurrent_queries_for_user"]
-          value: "16"
-      - equal:
-          path: spec.configuration.profiles["loco_reader/profile"]
-          value: default
-
   - it: wires the API and the proxy to the user each grant needs
     asserts:
       - contains:

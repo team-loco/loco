@@ -128,8 +128,8 @@ api:
     # @schema type: string; pattern: ^$|^[+]?([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)(([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h))*$; not: {pattern: '^[+]?([0]*([.][0]*)?(ns|us|µs|μs|ms|s|m|h))+$'}
     maxTtl: ""
   env: {}
-  # The Go runtime sets GOMAXPROCS from the CPU limit (at least 2) and the chart sets GOMEMLIMIT
-  # from the memory limit.
+  # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2. The chart sets GOMEMLIMIT to the
+  # memory limit; memory the kernel charges outside the Go heap, such as page cache, is not counted.
   # @schema skipProperties
   resources:
     requests:
@@ -342,15 +342,10 @@ clickhouse:
         {{- end }}
       </clickhouse>
     # Every OTLP batch is an insert; logging each one would grow system.query_log with ingest volume.
-    # loco_reader's limit matches the API's CLICKHOUSE_MAX_CONNS default of 16; ClickHouse rejects
-    # queries past it, so raise it with api.replicaCount or CLICKHOUSE_MAX_CONNS.
     profiles:
       loco_ingest:
         profile: default
         log_queries: "0"
-      loco_reader:
-        profile: default
-        max_concurrent_queries_for_user: "16"
     # keep the database in these grants in sync with clickhouse.clickhouse.database above
     users:
       - name: loco_migrator
@@ -366,7 +361,6 @@ clickhouse:
         password_secret_name: loco-clickhouse-reader
         grants:
           - "GRANT SELECT ON loco_obs.*"
-        profile: loco_reader
 
 # @schema additionalProperties: false
 openbao:
