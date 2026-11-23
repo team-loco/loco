@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 import { useQueryState } from "nuqs";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
-import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
-import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
+import { listAppDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import type { AppDomain } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
@@ -23,7 +23,7 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
 import { InlineInput } from "@/components/design/InlineInput";
 import { Input } from "@/components/design/Input";
-import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
+import { AppDomainInput } from "@/components/design/AppDomainInput";
 import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
 import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
@@ -316,7 +316,7 @@ function DraftPanel({
 		{ environmentId: env.id },
 		{ refetchInterval: open ? REGION_POLL_MS : false, refetchOnWindowFocus: open },
 	);
-	const domainsQuery = useRpcQuery(listPlatformDomains, { environmentId: env.id });
+	const domainsQuery = useRpcQuery(listAppDomains, { environmentId: env.id });
 	const deployment = useServiceDeploy(workspaceId, env);
 	const navigate = useNavigate();
 	const [tried, setTried] = useState(false);
@@ -420,7 +420,7 @@ function DraftPanel({
 				schemaUrl={config.schemaUrl}
 				regions={regionsQuery.data.regions}
 				defaultRegion={config.defaultRegion}
-				platformDomains={domainsQuery.data?.platformDomains ?? []}
+				appDomains={domainsQuery.data?.appDomains ?? []}
 				draft={draft}
 				defaults={defaults}
 				sizes={sizeOptions(config.sizeLimits)}
@@ -533,7 +533,7 @@ function ServiceForm({
 	schemaUrl,
 	regions,
 	defaultRegion,
-	platformDomains,
+	appDomains,
 	deployment,
 	resourceHref,
 	tried,
@@ -553,7 +553,7 @@ function ServiceForm({
 	schemaUrl: string;
 	regions: RegionInfo[];
 	defaultRegion: string;
-	platformDomains: PlatformDomain[];
+	appDomains: AppDomain[];
 	deployment: ReturnType<typeof useServiceDeploy>;
 	resourceHref: string | undefined;
 	tried: boolean;
@@ -575,7 +575,7 @@ function ServiceForm({
 	const selected = draftRegions(draft, regions, defaultRegion);
 	const regionNames = [...new Set([...regions.map((region) => region.region), ...selected])];
 	const size = draftSizing(draft, defaults);
-	const served = servedDomains(platformDomains, selected);
+	const served = servedDomains(appDomains, selected);
 	const form: NewResourceForm = {
 		image,
 		name,
@@ -589,7 +589,7 @@ function ServiceForm({
 		cpuTarget: size.cpuTarget,
 		isPublic: draftIsPublic(draft),
 		subdomain: edits.subdomain ?? slug,
-		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
+		appDomain: served.find((d) => d === edits.appDomain) ?? served[0] ?? "",
 		port: edits.port ?? "",
 		vars: edits.vars ?? [],
 		health: edits.health ?? defaultHealth(defaults),
@@ -597,7 +597,7 @@ function ServiceForm({
 		args: edits.args ?? "",
 	};
 	const imageCheck = useImageCheck(env.workspaceId, image);
-	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.platformDomain, []);
+	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.appDomain, []);
 	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const shown = (e: string | null, field: keyof NewResourceForm) => (tried || field in edits ? e : null);
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);
@@ -709,25 +709,25 @@ function ServiceForm({
 				>
 					<span className="-mt-1 text-[12.5px] text-fg3">
 						{form.isPublic
-							? "Gets an HTTPS address on a platform domain."
+							? "Gets an HTTPS address on an app domain."
 							: `Reachable only by other resources in ${env.name}.`}
 					</span>
 					<div className="grid grid-cols-1 items-start gap-x-4 gap-y-3 sm:grid-cols-[minmax(0,1fr)_110px]">
 						{form.isPublic && (
 							<div className="flex min-w-0 flex-col gap-1.5">
 								<span className="text-[13px] font-medium">Address</span>
-								<PlatformDomainInput
+								<AppDomainInput
 									subdomain={form.subdomain}
-									platformDomain={form.platformDomain}
-									options={platformDomains.filter((d) => served.includes(d.domain))}
+									appDomain={form.appDomain}
+									options={appDomains.filter((d) => served.includes(d.domain))}
 									regions={regions}
 									check={check}
 									placeholder={name}
 									onSubdomainChange={(subdomain) => {
 										set({ subdomain });
 									}}
-									onPlatformDomainChange={(platformDomain) => {
-										set({ platformDomain });
+									onAppDomainChange={(appDomain) => {
+										set({ appDomain });
 									}}
 								/>
 								{subdomainError !== null && <span className="text-[12.5px] text-bad-fg">{subdomainError}</span>}

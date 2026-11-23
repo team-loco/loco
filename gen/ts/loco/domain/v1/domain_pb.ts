@@ -13,14 +13,14 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/domain/v1/domain.proto.
  */
 export const file_loco_domain_v1_domain: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2RvbWFpbi92MS9kb21haW4ucHJvdG8SDmxvY28uZG9tYWluLnYxIjEKDlBsYXRmb3JtRG9tYWluEg4KBmRvbWFpbhgBIAEoCRIPCgdyZWdpb25zGAIgAygJIpwECgtEb21haW5JbnB1dBI9Cg1kb21haW5fc291cmNlGAEgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZUIKukgHggEEEAEgABIWCglzdWJkb21haW4YAiABKAlIAIgBARIlCg9wbGF0Zm9ybV9kb21haW4YAyABKAlCB7pIBHICaAFIAYgBATrsArpI6AIapQEKJHBsYXRmb3JtX3Byb3ZpZGVkLnN1YmRvbWFpbl9yZXF1aXJlZBIzc3ViZG9tYWluIGlzIHJlcXVpcmVkIGZvciBwbGF0Zm9ybS1wcm92aWRlZCBkb21haW5zGkh0aGlzLmRvbWFpbl9zb3VyY2UgIT0gMSB8fCAoaGFzKHRoaXMuc3ViZG9tYWluKSAmJiB0aGlzLnN1YmRvbWFpbiAhPSAnJykavQEKKnBsYXRmb3JtX3Byb3ZpZGVkLnBsYXRmb3JtX2RvbWFpbl9yZXF1aXJlZBI5cGxhdGZvcm1fZG9tYWluIGlzIHJlcXVpcmVkIGZvciBwbGF0Zm9ybS1wcm92aWRlZCBkb21haW5zGlR0aGlzLmRvbWFpbl9zb3VyY2UgIT0gMSB8fCAoaGFzKHRoaXMucGxhdGZvcm1fZG9tYWluKSAmJiB0aGlzLnBsYXRmb3JtX2RvbWFpbiAhPSAnJylCDAoKX3N1YmRvbWFpbkISChBfcGxhdGZvcm1fZG9tYWluIswCCg5SZXNvdXJjZURvbWFpbhIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRIOCgZkb21haW4YAyABKAkSMQoNZG9tYWluX3NvdXJjZRgEIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSHAoPc3ViZG9tYWluX2xhYmVsGAUgASgJSACIAQESHAoPcGxhdGZvcm1fZG9tYWluGAYgASgJSAGIAQESEgoKaXNfcHJpbWFyeRgHIAEoCBIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEISChBfc3ViZG9tYWluX2xhYmVsQhIKEF9wbGF0Zm9ybV9kb21haW4iPgoaTGlzdFBsYXRmb3JtRG9tYWluc1JlcXVlc3QSIAoOZW52aXJvbm1lbnRfaWQYASABKAlCCLpIBXIDsAEBIlcKG0xpc3RQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRI4ChBwbGF0Zm9ybV9kb21haW5zGAEgAygLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4icQobQ3JlYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIzCgZkb21haW4YAiABKAsyGy5sb2NvLmRvbWFpbi52MS5Eb21haW5JbnB1dEIGukgDyAEBIjEKHENyZWF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USEQoJZG9tYWluX2lkGAEgASgJIpQBChtVcGRhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QSGwoJZG9tYWluX2lkGAEgASgJQgi6SAVyA7ABARIvCgt1cGRhdGVfbWFzaxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2sSHAoGZG9tYWluGAMgASgJQge6SARyAhABSACIAQFCCQoHX2RvbWFpbiIxChxVcGRhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEhEKCWRvbWFpbl9pZBgBIAEoCSJdCh9TZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIkoKIFNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlc3BvbnNlEhMKC3Jlc291cmNlX2lkGAEgASgJEhEKCWRvbWFpbl9pZBgCIAEoCSI6ChtEZWxldGVSZXNvdXJjZURvbWFpblJlcXVlc3QSGwoJZG9tYWluX2lkGAEgASgJQgi6SAVyA7ABASIeChxEZWxldGVSZXNvdXJjZURvbWFpblJlc3BvbnNlIjkKHkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBIXCgZkb21haW4YASABKAlCB7pIBHICEAEiNwofQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZRIUCgxpc19hdmFpbGFibGUYASABKAgqTAoKRG9tYWluVHlwZRIbChdET01BSU5fVFlQRV9VTlNQRUNJRklFRBAAEiEKHURPTUFJTl9UWVBFX1BMQVRGT1JNX1BST1ZJREVEEAEy0wUKDURvbWFpblNlcnZpY2USbgoTTGlzdFBsYXRmb3JtRG9tYWlucxIqLmxvY28uZG9tYWluLnYxLkxpc3RQbGF0Zm9ybURvbWFpbnNSZXF1ZXN0GisubG9jby5kb21haW4udjEuTGlzdFBsYXRmb3JtRG9tYWluc1Jlc3BvbnNlEnEKFENyZWF0ZVJlc291cmNlRG9tYWluEisubG9jby5kb21haW4udjEuQ3JlYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuQ3JlYXRlUmVzb3VyY2VEb21haW5SZXNwb25zZRJxChRVcGRhdGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USfQoYU2V0UHJpbWFyeVJlc291cmNlRG9tYWluEi8ubG9jby5kb21haW4udjEuU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVxdWVzdBowLmxvY28uZG9tYWluLnYxLlNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlc3BvbnNlEnEKFERlbGV0ZVJlc291cmNlRG9tYWluEisubG9jby5kb21haW4udjEuRGVsZXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuRGVsZXRlUmVzb3VyY2VEb21haW5SZXNwb25zZRJ6ChdDaGVja0RvbWFpbkF2YWlsYWJpbGl0eRIuLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9kb21haW4vdjE7ZG9tYWludjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL2RvbWFpbi92MS9kb21haW4ucHJvdG8SDmxvY28uZG9tYWluLnYxIiwKCUFwcERvbWFpbhIOCgZkb21haW4YASABKAkSDwoHcmVnaW9ucxgCIAMoCSL+AwoLRG9tYWluSW5wdXQSPQoNZG9tYWluX3NvdXJjZRgBIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGVCCrpIB4IBBBABIAASFgoJc3ViZG9tYWluGAIgASgJSACIAQESIAoKYXBwX2RvbWFpbhgDIAEoCUIHukgEcgJoAUgBiAEBOtgCukjUAhqlAQokcGxhdGZvcm1fcHJvdmlkZWQuc3ViZG9tYWluX3JlcXVpcmVkEjNzdWJkb21haW4gaXMgcmVxdWlyZWQgZm9yIHBsYXRmb3JtLXByb3ZpZGVkIGRvbWFpbnMaSHRoaXMuZG9tYWluX3NvdXJjZSAhPSAxIHx8IChoYXModGhpcy5zdWJkb21haW4pICYmIHRoaXMuc3ViZG9tYWluICE9ICcnKRqpAQolcGxhdGZvcm1fcHJvdmlkZWQuYXBwX2RvbWFpbl9yZXF1aXJlZBI0YXBwX2RvbWFpbiBpcyByZXF1aXJlZCBmb3IgcGxhdGZvcm0tcHJvdmlkZWQgZG9tYWlucxpKdGhpcy5kb21haW5fc291cmNlICE9IDEgfHwgKGhhcyh0aGlzLmFwcF9kb21haW4pICYmIHRoaXMuYXBwX2RvbWFpbiAhPSAnJylCDAoKX3N1YmRvbWFpbkINCgtfYXBwX2RvbWFpbiLCAgoOUmVzb3VyY2VEb21haW4SCgoCaWQYASABKAkSEwoLcmVzb3VyY2VfaWQYAiABKAkSDgoGZG9tYWluGAMgASgJEjEKDWRvbWFpbl9zb3VyY2UYBCABKA4yGi5sb2NvLmRvbWFpbi52MS5Eb21haW5UeXBlEhwKD3N1YmRvbWFpbl9sYWJlbBgFIAEoCUgAiAEBEhcKCmFwcF9kb21haW4YBiABKAlIAYgBARISCgppc19wcmltYXJ5GAcgASgIEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhIKEF9zdWJkb21haW5fbGFiZWxCDQoLX2FwcF9kb21haW4iOQoVTGlzdEFwcERvbWFpbnNSZXF1ZXN0EiAKDmVudmlyb25tZW50X2lkGAEgASgJQgi6SAVyA7ABASJIChZMaXN0QXBwRG9tYWluc1Jlc3BvbnNlEi4KC2FwcF9kb21haW5zGAEgAygLMhkubG9jby5kb21haW4udjEuQXBwRG9tYWluInEKG0NyZWF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESMwoGZG9tYWluGAIgASgLMhsubG9jby5kb21haW4udjEuRG9tYWluSW5wdXRCBrpIA8gBASIxChxDcmVhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEhEKCWRvbWFpbl9pZBgBIAEoCSKUAQobVXBkYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0EhsKCWRvbWFpbl9pZBgBIAEoCUIIukgFcgOwAQESLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhwKBmRvbWFpbhgDIAEoCUIHukgEcgIQAUgAiAEBQgkKB19kb21haW4iMQocVXBkYXRlUmVzb3VyY2VEb21haW5SZXNwb25zZRIRCglkb21haW5faWQYASABKAkiXQofU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESGwoJZG9tYWluX2lkGAIgASgJQgi6SAVyA7ABASJKCiBTZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXNwb25zZRITCgtyZXNvdXJjZV9pZBgBIAEoCRIRCglkb21haW5faWQYAiABKAkiOgobRGVsZXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0EhsKCWRvbWFpbl9pZBgBIAEoCUIIukgFcgOwAQEiHgocRGVsZXRlUmVzb3VyY2VEb21haW5SZXNwb25zZSI5Ch5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QSFwoGZG9tYWluGAEgASgJQge6SARyAhABIjcKH0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USFAoMaXNfYXZhaWxhYmxlGAEgASgIKkwKCkRvbWFpblR5cGUSGwoXRE9NQUlOX1RZUEVfVU5TUEVDSUZJRUQQABIhCh1ET01BSU5fVFlQRV9QTEFURk9STV9QUk9WSURFRBABMsQFCg1Eb21haW5TZXJ2aWNlEl8KDkxpc3RBcHBEb21haW5zEiUubG9jby5kb21haW4udjEuTGlzdEFwcERvbWFpbnNSZXF1ZXN0GiYubG9jby5kb21haW4udjEuTGlzdEFwcERvbWFpbnNSZXNwb25zZRJxChRDcmVhdGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkNyZWF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLkNyZWF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2UScQoUVXBkYXRlUmVzb3VyY2VEb21haW4SKy5sb2NvLmRvbWFpbi52MS5VcGRhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5VcGRhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEn0KGFNldFByaW1hcnlSZXNvdXJjZURvbWFpbhIvLmxvY28uZG9tYWluLnYxLlNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlcXVlc3QaMC5sb2NvLmRvbWFpbi52MS5TZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXNwb25zZRJxChREZWxldGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkRlbGV0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLkRlbGV0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USegoXQ2hlY2tEb21haW5BdmFpbGFiaWxpdHkSLi5sb2NvLmRvbWFpbi52MS5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QaLy5sb2NvLmRvbWFpbi52MS5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZG9tYWluL3YxO2RvbWFpbnYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
- * PlatformDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it.
+ * AppDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it.
  *
- * @generated from message loco.domain.v1.PlatformDomain
+ * @generated from message loco.domain.v1.AppDomain
  */
-export type PlatformDomain = Message<"loco.domain.v1.PlatformDomain"> & {
+export type AppDomain = Message<"loco.domain.v1.AppDomain"> & {
   /**
    * @generated from field: string domain = 1;
    */
@@ -33,11 +33,11 @@ export type PlatformDomain = Message<"loco.domain.v1.PlatformDomain"> & {
 };
 
 /**
- * PlatformDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it.
+ * AppDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it.
  *
- * @generated from message loco.domain.v1.PlatformDomain
+ * @generated from message loco.domain.v1.AppDomain
  */
-export type PlatformDomainJson = {
+export type AppDomainJson = {
   /**
    * @generated from field: string domain = 1;
    */
@@ -50,10 +50,10 @@ export type PlatformDomainJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.PlatformDomain.
- * Use `create(PlatformDomainSchema)` to create a new message.
+ * Describes the message loco.domain.v1.AppDomain.
+ * Use `create(AppDomainSchema)` to create a new message.
  */
-export const PlatformDomainSchema: GenMessage<PlatformDomain, {jsonType: PlatformDomainJson}> = /*@__PURE__*/
+export const AppDomainSchema: GenMessage<AppDomain, {jsonType: AppDomainJson}> = /*@__PURE__*/
   messageDesc(file_loco_domain_v1_domain, 0);
 
 /**
@@ -75,11 +75,11 @@ export type DomainInput = Message<"loco.domain.v1.DomainInput"> & {
   subdomain?: string | undefined;
 
   /**
-   * for PLATFORM_PROVIDED: a domain a cluster serves
+   * for PLATFORM_PROVIDED: an app domain a cluster serves
    *
-   * @generated from field: optional string platform_domain = 3;
+   * @generated from field: optional string app_domain = 3;
    */
-  platformDomain?: string | undefined;
+  appDomain?: string | undefined;
 };
 
 /**
@@ -101,11 +101,11 @@ export type DomainInputJson = {
   subdomain?: string;
 
   /**
-   * for PLATFORM_PROVIDED: a domain a cluster serves
+   * for PLATFORM_PROVIDED: an app domain a cluster serves
    *
-   * @generated from field: optional string platform_domain = 3;
+   * @generated from field: optional string app_domain = 3;
    */
-  platformDomain?: string;
+  appDomain?: string;
 };
 
 /**
@@ -147,9 +147,9 @@ export type ResourceDomain = Message<"loco.domain.v1.ResourceDomain"> & {
   subdomainLabel?: string | undefined;
 
   /**
-   * @generated from field: optional string platform_domain = 6;
+   * @generated from field: optional string app_domain = 6;
    */
-  platformDomain?: string | undefined;
+  appDomain?: string | undefined;
 
   /**
    * @generated from field: bool is_primary = 7;
@@ -199,9 +199,9 @@ export type ResourceDomainJson = {
   subdomainLabel?: string;
 
   /**
-   * @generated from field: optional string platform_domain = 6;
+   * @generated from field: optional string app_domain = 6;
    */
-  platformDomain?: string;
+  appDomain?: string;
 
   /**
    * @generated from field: bool is_primary = 7;
@@ -227,11 +227,11 @@ export const ResourceDomainSchema: GenMessage<ResourceDomain, {jsonType: Resourc
   messageDesc(file_loco_domain_v1_domain, 2);
 
 /**
- * ListPlatformDomainsRequest names the environment whose clusters' domains to list.
+ * ListAppDomainsRequest names the environment whose clusters' domains to list.
  *
- * @generated from message loco.domain.v1.ListPlatformDomainsRequest
+ * @generated from message loco.domain.v1.ListAppDomainsRequest
  */
-export type ListPlatformDomainsRequest = Message<"loco.domain.v1.ListPlatformDomainsRequest"> & {
+export type ListAppDomainsRequest = Message<"loco.domain.v1.ListAppDomainsRequest"> & {
   /**
    * @generated from field: string environment_id = 1;
    */
@@ -239,11 +239,11 @@ export type ListPlatformDomainsRequest = Message<"loco.domain.v1.ListPlatformDom
 };
 
 /**
- * ListPlatformDomainsRequest names the environment whose clusters' domains to list.
+ * ListAppDomainsRequest names the environment whose clusters' domains to list.
  *
- * @generated from message loco.domain.v1.ListPlatformDomainsRequest
+ * @generated from message loco.domain.v1.ListAppDomainsRequest
  */
-export type ListPlatformDomainsRequestJson = {
+export type ListAppDomainsRequestJson = {
   /**
    * @generated from field: string environment_id = 1;
    */
@@ -251,41 +251,41 @@ export type ListPlatformDomainsRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.ListPlatformDomainsRequest.
- * Use `create(ListPlatformDomainsRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.ListAppDomainsRequest.
+ * Use `create(ListAppDomainsRequestSchema)` to create a new message.
  */
-export const ListPlatformDomainsRequestSchema: GenMessage<ListPlatformDomainsRequest, {jsonType: ListPlatformDomainsRequestJson}> = /*@__PURE__*/
+export const ListAppDomainsRequestSchema: GenMessage<ListAppDomainsRequest, {jsonType: ListAppDomainsRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_domain_v1_domain, 3);
 
 /**
- * ListPlatformDomainsResponse contains the domains the environment's clusters serve.
+ * ListAppDomainsResponse contains the domains the environment's clusters serve.
  *
- * @generated from message loco.domain.v1.ListPlatformDomainsResponse
+ * @generated from message loco.domain.v1.ListAppDomainsResponse
  */
-export type ListPlatformDomainsResponse = Message<"loco.domain.v1.ListPlatformDomainsResponse"> & {
+export type ListAppDomainsResponse = Message<"loco.domain.v1.ListAppDomainsResponse"> & {
   /**
-   * @generated from field: repeated loco.domain.v1.PlatformDomain platform_domains = 1;
+   * @generated from field: repeated loco.domain.v1.AppDomain app_domains = 1;
    */
-  platformDomains: PlatformDomain[];
+  appDomains: AppDomain[];
 };
 
 /**
- * ListPlatformDomainsResponse contains the domains the environment's clusters serve.
+ * ListAppDomainsResponse contains the domains the environment's clusters serve.
  *
- * @generated from message loco.domain.v1.ListPlatformDomainsResponse
+ * @generated from message loco.domain.v1.ListAppDomainsResponse
  */
-export type ListPlatformDomainsResponseJson = {
+export type ListAppDomainsResponseJson = {
   /**
-   * @generated from field: repeated loco.domain.v1.PlatformDomain platform_domains = 1;
+   * @generated from field: repeated loco.domain.v1.AppDomain app_domains = 1;
    */
-  platformDomains?: PlatformDomainJson[];
+  appDomains?: AppDomainJson[];
 };
 
 /**
- * Describes the message loco.domain.v1.ListPlatformDomainsResponse.
- * Use `create(ListPlatformDomainsResponseSchema)` to create a new message.
+ * Describes the message loco.domain.v1.ListAppDomainsResponse.
+ * Use `create(ListAppDomainsResponseSchema)` to create a new message.
  */
-export const ListPlatformDomainsResponseSchema: GenMessage<ListPlatformDomainsResponse, {jsonType: ListPlatformDomainsResponseJson}> = /*@__PURE__*/
+export const ListAppDomainsResponseSchema: GenMessage<ListAppDomainsResponse, {jsonType: ListAppDomainsResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_domain_v1_domain, 4);
 
 /**
@@ -677,14 +677,14 @@ export const DomainTypeSchema: GenEnum<DomainType, DomainTypeJson> = /*@__PURE__
  */
 export const DomainService: GenService<{
   /**
-   * ListPlatformDomains lists the domains the clusters an environment deploys to serve.
+   * ListAppDomains lists the domains the clusters an environment deploys to serve.
    *
-   * @generated from rpc loco.domain.v1.DomainService.ListPlatformDomains
+   * @generated from rpc loco.domain.v1.DomainService.ListAppDomains
    */
-  listPlatformDomains: {
+  listAppDomains: {
     methodKind: "unary";
-    input: typeof ListPlatformDomainsRequestSchema;
-    output: typeof ListPlatformDomainsResponseSchema;
+    input: typeof ListAppDomainsRequestSchema;
+    output: typeof ListAppDomainsResponseSchema;
   },
   /**
    * Resource Domain Management

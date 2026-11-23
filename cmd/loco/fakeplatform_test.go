@@ -52,7 +52,7 @@ const (
 	fakeImageDigest     = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
 	fakeDeletedDigest   = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 	fakeDockerfile      = "Dockerfile"
-	fakePlatformDomain  = "onloco.test"
+	fakeAppDomain       = "onloco.test"
 	fakeDefaultRegion   = "us-ca-1"
 	fakeSecondaryRegion = "us-va-1"
 	uploadModeOK        = "ok"
@@ -98,7 +98,7 @@ type fakePlatform struct {
 	revisionMoves     bool
 	imagesMove        bool
 	clusterHeld       bool
-	noPlatformDomain  bool
+	noAppDomain       bool
 	secrets           map[fakeSecretKey]fakeSecret
 	revision          int64
 	restarts          []*resourcev1.RestartResourceRequest
@@ -412,23 +412,23 @@ type fakeDomainService struct {
 	api *fakeAPI
 }
 
-func (s *fakeDomainService) ListPlatformDomains(
+func (s *fakeDomainService) ListAppDomains(
 	ctx context.Context,
-	_ *domainv1.ListPlatformDomainsRequest,
-) (*domainv1.ListPlatformDomainsResponse, error) {
+	_ *domainv1.ListAppDomainsRequest,
+) (*domainv1.ListAppDomainsResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
 	if _, _, err := s.api.authenticate(
-		connect.Spec{Procedure: domainv1connect.DomainServiceListPlatformDomainsProcedure},
+		connect.Spec{Procedure: domainv1connect.DomainServiceListAppDomainsProcedure},
 		info.RequestHeader(),
 	); err != nil {
 		return nil, err
 	}
-	resp := &domainv1.ListPlatformDomainsResponse{}
+	resp := &domainv1.ListAppDomainsResponse{}
 	s.api.mu.Lock()
 	defer s.api.mu.Unlock()
-	if !s.api.platform.noPlatformDomain {
-		platformDomain := &domainv1.PlatformDomain{Domain: fakePlatformDomain, Regions: []string{fakeDefaultRegion}}
-		resp.PlatformDomains = []*domainv1.PlatformDomain{platformDomain}
+	if !s.api.platform.noAppDomain {
+		appDomain := &domainv1.AppDomain{Domain: fakeAppDomain, Regions: []string{fakeDefaultRegion}}
+		resp.AppDomains = []*domainv1.AppDomain{appDomain}
 	}
 	return resp, nil
 }

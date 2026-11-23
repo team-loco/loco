@@ -26,7 +26,7 @@ Loco runs as multi-tenant SaaS, as a dedicated installation or self-hosted. See 
 - Deploy from a `Dockerfile` with `loco deploy`, or deploy a public image with `--image`. See [install](https://docs.loco.build/getting-started/install/) and [connect](https://docs.loco.build/getting-started/connect/).
 - Keep services, regions, sizing and domains in a [`loco.yaml`](https://docs.loco.build/deployment/loco-yaml/) and preview changes with `loco infra plan`.
 - Separate staging and production with [environments](https://docs.loco.build/deployment/environments/) that have their own configuration and secrets.
-- Give public services a hostname under a platform domain, with HTTPS routing. Private services accept traffic only from inside their workspace.
+- Give public services a hostname under an app domain, with HTTPS routing. Private services accept traffic only from inside their workspace.
 - Keep secrets per environment with `loco secret`; services read them through `${{ secrets.NAME }}` in their variables, and no command prints a value.
 - Scale replicas, CPU and memory with `loco resource scale`, or autoscale on CPU or memory.
 - Read logs, metrics and traces in the dashboard and the CLI. See [application operations](https://docs.loco.build/operations/applications/).

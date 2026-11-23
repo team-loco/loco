@@ -2,6 +2,10 @@
 {{- default (printf "%s-tls" .Release.Name) .Values.certManager.existingTLSSecret -}}
 {{- end -}}
 
+{{- define "loco-worker.platformDomain" -}}
+{{- required "global.domain.platform is required: the workers' own gateway domain, such as workers.loco.build" .Values.global.domain.platform -}}
+{{- end -}}
+
 {{- define "loco-worker.gateway" -}}
 eg
 {{- end -}}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/team-loco/loco/api/pkg/platformdomain"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -45,8 +45,8 @@ func validateDesired(name string, desired State) []Error {
 	return errs
 }
 
-func validateRegion(name string, target Region, clusters []platformdomain.Cluster) error {
-	if !slices.ContainsFunc(clusters, func(cluster platformdomain.Cluster) bool { return cluster.Region == name }) {
+func validateRegion(name string, target Region, clusters []appdomain.Cluster) error {
+	if !slices.ContainsFunc(clusters, func(cluster appdomain.Cluster) bool { return cluster.Region == name }) {
 		return fmt.Errorf("%w: %s", ErrUnknownRegion, name)
 	}
 	var scalers locoControllerV1.ScalersSpec

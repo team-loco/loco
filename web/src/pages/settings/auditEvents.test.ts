@@ -29,11 +29,11 @@ test("role changes appear in the access audit filter", () => {
 	expect(typesIn("access")).toContain("org_member.role_changed");
 });
 
-test("platform domains read as public or internal and only user domains read as custom", () => {
-	const platform = { domainSource: "platform_provided", primary: true };
-	expect(auditLabel("domain.created", platform)).toBe("Made a resource public");
-	expect(auditLabel("domain.deleted", platform)).toBe("Made a resource internal");
-	expect(auditLabel("domain.created", { ...platform, primary: false })).toBe("Added a platform domain");
+test("app domains read as public or internal and only user domains read as custom", () => {
+	const app = { domainSource: "platform_provided", primary: true };
+	expect(auditLabel("domain.created", app)).toBe("Made a resource public");
+	expect(auditLabel("domain.deleted", app)).toBe("Made a resource internal");
+	expect(auditLabel("domain.created", { ...app, primary: false })).toBe("Added an app domain");
 	expect(auditLabel("domain.created", { domainSource: "user_provided", primary: false })).toBe("Added a custom domain");
 	expect(auditLabel("domain.deleted", { domainSource: "user_provided" })).toBe("Removed a custom domain");
 	expect(auditLabel("domain.created")).toBe("Added a domain");

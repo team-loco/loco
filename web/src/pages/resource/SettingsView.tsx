@@ -2,7 +2,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { ArrowLeftIcon } from "lucide-react";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import { listAppDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -178,7 +178,7 @@ export function SettingsView({
 	const [confirming, setConfirming] = useState<"internal" | null>(null);
 	const regionsQuery = useQuery(listRegions, { environmentId }, { enabled: canReadWorkspace && environmentId !== "" });
 	const domainsQuery = useQuery(
-		listPlatformDomains,
+		listAppDomains,
 		{ environmentId },
 		{ enabled: canReadWorkspace && environmentId !== "" },
 	);
@@ -193,7 +193,7 @@ export function SettingsView({
 	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
 	const want = resolved(draft, base);
 	const onRegions = Object.keys(want.regions).filter((r) => want.regions[r] === true);
-	const served = servedDomains(domainsQuery.data?.platformDomains ?? [], onRegions);
+	const served = servedDomains(domainsQuery.data?.appDomains ?? [], onRegions);
 	const { activeOrgId } = useOrgWorkspace();
 	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
 	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
@@ -290,7 +290,7 @@ export function SettingsView({
 						{...props}
 						resourceId={resource.id}
 						domains={resource.domains}
-						platformDomains={domainsQuery.data?.platformDomains ?? []}
+						appDomains={domainsQuery.data?.appDomains ?? []}
 						regions={regionsQuery.data?.regions ?? []}
 						served={served}
 						worker={worker}

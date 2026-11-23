@@ -2795,14 +2795,14 @@
         }
       }
     },
-    "/loco.domain.v1.DomainService/ListPlatformDomains": {
+    "/loco.domain.v1.DomainService/ListAppDomains": {
       "post": {
         "tags": [
           "loco.domain.v1.DomainService"
         ],
-        "summary": "ListPlatformDomains",
-        "description": "ListPlatformDomains lists the domains the clusters an environment deploys to serve.",
-        "operationId": "loco.domain.v1.DomainService.ListPlatformDomains",
+        "summary": "ListAppDomains",
+        "description": "ListAppDomains lists the domains the clusters an environment deploys to serve.",
+        "operationId": "loco.domain.v1.DomainService.ListAppDomains",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -2827,7 +2827,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/loco.domain.v1.ListPlatformDomainsRequest"
+                "$ref": "#/components/schemas/loco.domain.v1.ListAppDomainsRequest"
               }
             }
           },
@@ -2849,7 +2849,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/loco.domain.v1.ListPlatformDomainsResponse"
+                  "$ref": "#/components/schemas/loco.domain.v1.ListAppDomainsResponse"
                 }
               }
             }
@@ -12339,6 +12339,25 @@
         "title": "WatchDeploymentResponse",
         "additionalProperties": false
       },
+      "loco.domain.v1.AppDomain": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "domain"
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "regions"
+          }
+        },
+        "title": "AppDomain",
+        "additionalProperties": false,
+        "description": "AppDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it."
+      },
       "loco.domain.v1.CheckDomainAvailabilityRequest": {
         "type": "object",
         "properties": {
@@ -12435,19 +12454,19 @@
             "title": "subdomain",
             "description": "for PLATFORM_PROVIDED: \"myapp\""
           },
-          "platformDomain": {
+          "appDomain": {
             "type": [
               "string",
               "null"
             ],
-            "title": "platform_domain",
+            "title": "app_domain",
             "format": "hostname",
-            "description": "for PLATFORM_PROVIDED: a domain a cluster serves"
+            "description": "for PLATFORM_PROVIDED: an app domain a cluster serves"
           }
         },
         "title": "DomainInput",
         "additionalProperties": false,
-        "description": "DomainInput specifies domain configuration for a resource.\nplatform_provided.platform_domain_required // platform_domain is required for platform-provided domains\nplatform_provided.subdomain_required // subdomain is required for platform-provided domains\n"
+        "description": "DomainInput specifies domain configuration for a resource.\nplatform_provided.app_domain_required // app_domain is required for platform-provided domains\nplatform_provided.subdomain_required // subdomain is required for platform-provided domains\n"
       },
       "loco.domain.v1.DomainType": {
         "type": "string",
@@ -12458,7 +12477,7 @@
         ],
         "description": "DomainType indicates the source of a domain."
       },
-      "loco.domain.v1.ListPlatformDomainsRequest": {
+      "loco.domain.v1.ListAppDomainsRequest": {
         "type": "object",
         "properties": {
           "environmentId": {
@@ -12467,43 +12486,24 @@
             "format": "uuid"
           }
         },
-        "title": "ListPlatformDomainsRequest",
+        "title": "ListAppDomainsRequest",
         "additionalProperties": false,
-        "description": "ListPlatformDomainsRequest names the environment whose clusters' domains to list."
+        "description": "ListAppDomainsRequest names the environment whose clusters' domains to list."
       },
-      "loco.domain.v1.ListPlatformDomainsResponse": {
+      "loco.domain.v1.ListAppDomainsResponse": {
         "type": "object",
         "properties": {
-          "platformDomains": {
+          "appDomains": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/loco.domain.v1.PlatformDomain"
+              "$ref": "#/components/schemas/loco.domain.v1.AppDomain"
             },
-            "title": "platform_domains"
+            "title": "app_domains"
           }
         },
-        "title": "ListPlatformDomainsResponse",
+        "title": "ListAppDomainsResponse",
         "additionalProperties": false,
-        "description": "ListPlatformDomainsResponse contains the domains the environment's clusters serve."
-      },
-      "loco.domain.v1.PlatformDomain": {
-        "type": "object",
-        "properties": {
-          "domain": {
-            "type": "string",
-            "title": "domain"
-          },
-          "regions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "title": "regions"
-          }
-        },
-        "title": "PlatformDomain",
-        "additionalProperties": false,
-        "description": "PlatformDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it."
+        "description": "ListAppDomainsResponse contains the domains the environment's clusters serve."
       },
       "loco.domain.v1.ResourceDomain": {
         "type": "object",
@@ -12531,12 +12531,12 @@
             ],
             "title": "subdomain_label"
           },
-          "platformDomain": {
+          "appDomain": {
             "type": [
               "string",
               "null"
             ],
-            "title": "platform_domain"
+            "title": "app_domain"
           },
           "isPrimary": {
             "type": "boolean",

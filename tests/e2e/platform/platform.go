@@ -49,7 +49,7 @@ type Platform struct {
 	Namespace string
 	// BuildNamespace is the namespace build Jobs run in.
 	BuildNamespace string
-	// Domain is the platform domain the Gateway serves.
+	// Domain is the app domain the Gateway serves.
 	Domain string
 	// TargetPlatform is read from the kind worker nodes, independently of the API host.
 	TargetPlatform string
@@ -150,7 +150,7 @@ func New(features Features) *Platform {
 	p.values = readValues(c.root)
 	p.Namespace = locoNamespace
 	p.BuildNamespace = p.values.buildNamespace
-	p.Domain = platformDomain
+	p.Domain = appDomain
 	p.Region = clusterRegion
 	p.GatewayHostname = clusterRegion + "." + WorkerPlatformDomain
 	p.APIURL = "http://127.0.0.1:" + strconv.Itoa(p.ports.api)

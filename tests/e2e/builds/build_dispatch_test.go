@@ -39,9 +39,9 @@ func TestBuildDispatch(t *testing.T) {
 		Name:        name,
 		Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Domain: &domainv1.DomainInput{
-			DomainSource:   domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
-			Subdomain:      new(name),
-			PlatformDomain: new(p.Domain),
+			DomainSource: domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+			Subdomain:    new(name),
+			AppDomain:    new(p.Domain),
 		},
 		Spec: &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{
 			Routing: &resourcev1.RoutingConfig{Port: new(int32(8080)), PathPrefix: "/"},

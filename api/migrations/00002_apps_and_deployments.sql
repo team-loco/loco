@@ -185,7 +185,7 @@ CREATE TABLE
         domain TEXT NOT NULL UNIQUE,
         domain_source domain_source NOT NULL,
         subdomain_label TEXT,
-        platform_domain TEXT,
+        app_domain TEXT,
         is_primary BOOLEAN NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -193,12 +193,12 @@ CREATE TABLE
             (
                 domain_source = 'platform_provided'
                 AND subdomain_label IS NOT NULL
-                AND platform_domain IS NOT NULL
+                AND app_domain IS NOT NULL
             )
             OR (
                 domain_source = 'user_provided'
                 AND subdomain_label IS NULL
-                AND platform_domain IS NULL
+                AND app_domain IS NULL
             )
         )
     );
@@ -212,8 +212,8 @@ CREATE UNIQUE INDEX uniq_resource_primary_domain ON resource_domains (resource_i
 WHERE
     is_primary = true;
 
--- Ensure platform subdomain uniqueness
-CREATE UNIQUE INDEX uniq_platform_subdomain ON resource_domains (platform_domain, subdomain_label)
+-- Ensure app subdomain uniqueness
+CREATE UNIQUE INDEX uniq_app_subdomain ON resource_domains (app_domain, subdomain_label)
 WHERE
     domain_source = 'platform_provided';
 
@@ -441,7 +441,7 @@ SELECT l.resource_id,
            WHERE rd.resource_id = l.resource_id
              AND rd.environment_id = l.environment_id
              AND rd.domain_source = 'platform_provided'
-             AND NOT (rd.platform_domain = ANY(c.domains))
+             AND NOT (rd.app_domain = ANY(c.domains))
            ORDER BY rd.domain
        )::text[] AS unserved_domains
 FROM live_deployment_placements l
@@ -451,7 +451,7 @@ LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l
     AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted;
 
 -- +goose StatementBegin
--- What overrides a region's replica-based status: a cluster cause, unserved platform domains, or '' for none.
+-- What overrides a region's replica-based status: a cluster cause, unserved app domains, or '' for none.
 CREATE FUNCTION region_status_cause (
     last_heartbeat TIMESTAMPTZ, health_status TEXT, silent_after INTERVAL,
     ready INT, desired INT, placement placement_status, unserved_domains INT

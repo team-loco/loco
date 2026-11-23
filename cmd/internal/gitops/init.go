@@ -23,9 +23,9 @@ import (
 )
 
 type InitOptions struct {
-	Output, API, Web, Domain, Region, Admin, Bundle, APIEnvFile string
-	SingleCluster                                               bool
-	Name                                                        string
+	Output, API, Web, Domain, PlatformDomain, Region, Admin, Bundle, APIEnvFile string
+	SingleCluster                                                               bool
+	Name                                                                        string
 }
 
 func Init(options InitOptions) error {
@@ -44,8 +44,9 @@ func Init(options InitOptions) error {
 		}
 		endpoints = append(endpoints, endpoint)
 	}
-	if options.Output == "" || options.Domain == "" || options.Region == "" || options.Admin == "" {
-		return errors.New("output, domain, region and admin are required")
+	if options.Output == "" || options.Domain == "" || options.PlatformDomain == "" || options.Region == "" ||
+		options.Admin == "" {
+		return errors.New("output, domain, platform-domain, region and admin are required")
 	}
 	repository, pin, ok := strings.Cut(options.Bundle, "@sha256:")
 	_, pinErr := hex.DecodeString(pin)
@@ -75,6 +76,8 @@ func Init(options InitOptions) error {
 		webURL.Hostname(),
 		"apps.example.com",
 		options.Domain,
+		"workers.example.com",
+		options.PlatformDomain,
 		"us-ca-1",
 		options.Region,
 		"admin@example.com",

@@ -16,9 +16,9 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
-	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/tracing"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -79,12 +79,12 @@ func NewPlanServer(
 // plannedFile is a loco.yaml file planned against one environment: the parsed file, the
 // environment, the services the environment runs and the plan.
 type plannedFile struct {
-	file            *locofile.File
-	env             genDb.Environment
-	live            liveEnvironment
-	platformDomains []string
-	images          map[string]string
-	plan            configplan.Plan
+	file       *locofile.File
+	env        genDb.Environment
+	live       liveEnvironment
+	appDomains []string
+	images     map[string]string
+	plan       configplan.Plan
 }
 
 // liveEnvironment is every service of the workspace as the environment runs it, with the rows
@@ -191,12 +191,12 @@ func (s *PlanServer) loadPlan(
 		plan.Desired = nil
 	}
 	return &plannedFile{
-		file:            file,
-		env:             env,
-		live:            live,
-		platformDomains: platformdomain.Served(targets),
-		images:          pinnedImages(images),
-		plan:            plan,
+		file:       file,
+		env:        env,
+		live:       live,
+		appDomains: appdomain.Served(targets),
+		images:     pinnedImages(images),
+		plan:       plan,
 	}, nil
 }
 

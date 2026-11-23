@@ -91,14 +91,14 @@ const pgDeadlockDetected = "40P01"
 // Unique constraints whose violation is a client error. Postgres names an inline UNIQUE
 // <table>_<columns>_key; the rest are the index names in api/migrations.
 const (
-	pgEnvironmentNameUnique   = "uniq_environments_workspace_lower_name"
-	pgEnvironmentSlugUnique   = "environments_workspace_id_slug_key"
-	pgResourceNameUnique      = "uniq_resources_workspace_lower_name"
-	pgResourceSlugUnique      = "resources_workspace_id_slug_key"
-	pgDomainUnique            = "resource_domains_domain_key"
-	pgPlatformSubdomainUnique = "uniq_platform_subdomain"
-	pgOpenInvitationUnique    = "invitations_open_idx"
-	pgClusterKeyUnique        = "clusters_cluster_key_key"
+	pgEnvironmentNameUnique = "uniq_environments_workspace_lower_name"
+	pgEnvironmentSlugUnique = "environments_workspace_id_slug_key"
+	pgResourceNameUnique    = "uniq_resources_workspace_lower_name"
+	pgResourceSlugUnique    = "resources_workspace_id_slug_key"
+	pgDomainUnique          = "resource_domains_domain_key"
+	pgAppSubdomainUnique    = "uniq_app_subdomain"
+	pgOpenInvitationUnique  = "invitations_open_idx"
+	pgClusterKeyUnique      = "clusters_cluster_key_key"
 )
 
 func isUniqueViolation(err error, constraint string) bool {
@@ -108,7 +108,7 @@ func isUniqueViolation(err error, constraint string) bool {
 
 // isDomainTaken reports whether a resource_domains write hit another resource's hostname.
 func isDomainTaken(err error) bool {
-	return isUniqueViolation(err, pgDomainUnique) || isUniqueViolation(err, pgPlatformSubdomainUnique)
+	return isUniqueViolation(err, pgDomainUnique) || isUniqueViolation(err, pgAppSubdomainUnique)
 }
 
 const (

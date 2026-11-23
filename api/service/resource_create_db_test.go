@@ -18,12 +18,12 @@ func TestCreateResourceWithoutADomain(t *testing.T) {
 	testCreateResourceDomain(t, false, false)
 }
 
-func TestCreateResourceWithAPlatformDomain(t *testing.T) {
+func TestCreateResourceWithAnAppDomain(t *testing.T) {
 	t.Parallel()
 	testCreateResourceDomain(t, true, false)
 }
 
-func TestCreateResourceWithAStagingPlatformDomain(t *testing.T) {
+func TestCreateResourceWithAStagingAppDomain(t *testing.T) {
 	t.Parallel()
 	testCreateResourceDomain(t, true, true)
 }
@@ -55,7 +55,7 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 	var requestedEnvironment *string
 	wantEnvironment := f.envID
 	if platform {
-		f.serveDomains(t, testDomainPlatform)
+		f.serveDomains(t, testAppDomain)
 		if staging {
 			wantEnvironment = f.addStagingEnvironment(t)
 			requestedEnvironment = new(wantEnvironment.String())
@@ -67,8 +67,8 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 		}
 		label := "private"
 		input = &domainv1.DomainInput{
-			DomainSource:   domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
-			PlatformDomain: new(testDomainPlatform), Subdomain: &label,
+			DomainSource: domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+			AppDomain:    new(testAppDomain), Subdomain: &label,
 		}
 	}
 	req := &resourcev1.CreateResourceRequest{

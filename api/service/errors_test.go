@@ -111,8 +111,8 @@ func TestUniqueViolationMatchesOnlyItsConstraint(t *testing.T) {
 	if isUniqueViolation(violation(pgDomainUnique), pgResourceNameUnique) {
 		t.Fatal("a violation of another constraint matched")
 	}
-	if !isDomainTaken(violation(pgPlatformSubdomainUnique)) {
-		t.Fatal("a taken platform subdomain is not a taken domain")
+	if !isDomainTaken(violation(pgAppSubdomainUnique)) {
+		t.Fatal("a taken app subdomain is not a taken domain")
 	}
 	if isDomainTaken(violation("uniq_resource_primary_domain")) {
 		t.Fatal("a second primary domain was reported as a taken domain")

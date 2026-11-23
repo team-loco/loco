@@ -19,8 +19,8 @@ spec:
         {{- range .Values.global.domain.apps }}
         - {{ printf "*.%s.%s" $region . | quote }}
         {{- end }}
-        - {{ printf "*.%s" .Values.global.domain.platform | quote }}
-        - {{ printf "*.%s.%s" $region .Values.global.domain.platform | quote }}
+        - {{ printf "*.%s" (include "loco-worker.platformDomain" .) | quote }}
+        - {{ printf "*.%s.%s" $region (include "loco-worker.platformDomain" .) | quote }}
         {{- range .Values.certManager.additionalDNSNames }}
         - {{ . | quote }}
         {{- end }}

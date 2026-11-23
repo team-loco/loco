@@ -199,7 +199,7 @@ func TestIngress(t *testing.T) {
 		if err := json.Unmarshal([]byte(result.Stdout), &plan); err != nil {
 			t.Fatalf("decode the plan: %v\n%s", err, result.Output())
 		}
-		want := "domain is not under a platform domain any cluster serves: " + host
+		want := "domain is not under an app domain any cluster serves: " + host
 		if !slices.ContainsFunc(plan.Errors, func(e struct {
 			Message string `json:"message"`
 		}) bool {

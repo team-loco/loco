@@ -146,9 +146,10 @@ api:
 # Gateway namespace where the Envoy Gateway is deployed
 gatewayNamespace: loco-system
 controlPlaneHostname: api.loco.build
-# The workers' platform domain, their chart's global.domain.platform. A cluster serving it records
-# <region>.<platformDomain> as its gateway hostname. Empty takes controlPlaneHostname without its
-# first label: loco.build for api.loco.build.
+# Required: the platform domain, the workers' own gateway domain and their chart's
+# global.domain.platform, such as workers.loco.build. Loco owns it and keeps it apart from the app
+# domains customer services are named under. A cluster serving it records
+# <region>.<platformDomain> as its gateway hostname.
 platformDomain: ""
 # Region code new services default to (the API's LOCO_DEFAULT_REGION); empty sets none.
 defaultRegion: ""

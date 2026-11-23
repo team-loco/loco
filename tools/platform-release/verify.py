@@ -126,6 +126,7 @@ def main():
         }
         values["global"] = {
             "region": "release-test-region",
+            "domain": {"platform": "workers.release-test.example.invalid"},
             "exporter": {"endpoint": "https://ingest.release-test.example.invalid"},
         }
         path = temp / (name + "-values.json")
@@ -191,6 +192,7 @@ def main():
                 "gateway chart rendered CRD management resources despite independent CRD ownership"
             )
         cp_values = {
+            "platformDomain": "workers.example.test",
             "certManager": {
                 "issuer": {
                     "email": "ops@example.test",

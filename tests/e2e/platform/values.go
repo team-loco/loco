@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	locoNamespace  = "loco-system"
-	platformDomain = "e2e.test.local"
+	locoNamespace = "loco-system"
+	appDomain     = "e2e.test.local"
 	// WorkerPlatformDomain is the worker chart's global.domain.platform and the API's
 	// LOCO_PLATFORM_DOMAIN.
 	WorkerPlatformDomain = "e2e-platform.test.local"

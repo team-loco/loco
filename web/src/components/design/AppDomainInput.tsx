@@ -1,6 +1,6 @@
 import { CheckIcon, ChevronsUpDownIcon, XIcon } from "lucide-react";
 import { useId, type ReactNode } from "react";
-import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
+import type { AppDomain } from "@gen/loco/domain/v1/domain_pb";
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
@@ -14,7 +14,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { RegionHealth } from "@/components/design/RegionHealth";
 import { getErrorMessage } from "@/lib/error-handler";
-import { MAX_SUBDOMAIN_LENGTH, type DomainCheck } from "@/lib/platform-domain";
+import { MAX_SUBDOMAIN_LENGTH, type DomainCheck } from "@/lib/app-domain";
 import { cn } from "@/lib/utils";
 
 function statusLine(check: DomainCheck, owner: string): { tone: "ok" | "bad" | "muted"; text: ReactNode } | null {
@@ -38,9 +38,9 @@ function statusLine(check: DomainCheck, owner: string): { tone: "ok" | "bad" | "
 	}
 }
 
-export function PlatformDomainInput({
+export function AppDomainInput({
 	subdomain,
-	platformDomain,
+	appDomain,
 	options,
 	regions,
 	check,
@@ -50,11 +50,11 @@ export function PlatformDomainInput({
 	describedBy,
 	className,
 	onSubdomainChange,
-	onPlatformDomainChange,
+	onAppDomainChange,
 }: {
 	subdomain: string;
-	platformDomain: string;
-	options: PlatformDomain[];
+	appDomain: string;
+	options: AppDomain[];
 	regions: readonly RegionInfo[];
 	check: DomainCheck;
 	owner?: string;
@@ -63,7 +63,7 @@ export function PlatformDomainInput({
 	describedBy?: string | undefined;
 	className?: string;
 	onSubdomainChange: (subdomain: string) => void;
-	onPlatformDomainChange: (platformDomain: string) => void;
+	onAppDomainChange: (appDomain: string) => void;
 }) {
 	const statusId = useId();
 	const status = statusLine(check, owner);
@@ -88,7 +88,7 @@ export function PlatformDomainInput({
 				<InputGroupAddon align="inline-end" className="gap-0.5 pr-1">
 					<InputGroupText>.</InputGroupText>
 					{options.length === 0 ? (
-						<InputGroupText>no platform domain</InputGroupText>
+						<InputGroupText>no app domain</InputGroupText>
 					) : (
 						<DropdownMenu>
 							<DropdownMenuTrigger
@@ -98,15 +98,15 @@ export function PlatformDomainInput({
 										variant="ghost"
 										size="xs"
 										className="bg-panel2 font-mono text-[12.5px] text-foreground"
-										aria-label={`Platform domain: ${platformDomain}`}
+										aria-label={`App domain: ${appDomain}`}
 									/>
 								}
 							>
-								{platformDomain}
+								{appDomain}
 								<ChevronsUpDownIcon className="text-fg3" />
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" className="w-auto min-w-[260px]">
-								<DropdownMenuRadioGroup value={platformDomain} onValueChange={onPlatformDomainChange}>
+								<DropdownMenuRadioGroup value={appDomain} onValueChange={onAppDomainChange}>
 									{options.map((d) => (
 										<DropdownMenuRadioItem key={d.domain} value={d.domain}>
 											<span className="flex flex-col gap-px">

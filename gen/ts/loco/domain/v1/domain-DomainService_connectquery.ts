@@ -5,11 +5,11 @@
 import { DomainService } from "./domain_pb";
 
 /**
- * ListPlatformDomains lists the domains the clusters an environment deploys to serve.
+ * ListAppDomains lists the domains the clusters an environment deploys to serve.
  *
- * @generated from rpc loco.domain.v1.DomainService.ListPlatformDomains
+ * @generated from rpc loco.domain.v1.DomainService.ListAppDomains
  */
-export const listPlatformDomains = DomainService.method.listPlatformDomains;
+export const listAppDomains = DomainService.method.listAppDomains;
 
 /**
  * Resource Domain Management

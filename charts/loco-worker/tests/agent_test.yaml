@@ -38,6 +38,13 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_PLATFORM_DOMAIN, value: platform.test}
         template: templates/agent-deployment.yaml
+  - it: requires the platform domain
+    set:
+      global.domain.platform: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "global.domain.platform is required"
+        template: templates/gateway.yaml
   - it: reads the app domains, Gateway and Certificate the chart renders
     asserts:
       - contains:

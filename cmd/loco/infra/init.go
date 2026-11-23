@@ -33,8 +33,8 @@ var (
 		"no default region: set LOCO_DEFAULT_REGION on the API to a region code the environment lists; " +
 			"without it the environment needs exactly one available region",
 	)
-	errNoSchemaURL      = errors.New("the API reports no schema URL")
-	errNoPlatformDomain = errors.New("no cluster of the environment serves a platform domain in the region")
+	errNoSchemaURL = errors.New("the API reports no schema URL")
+	errNoAppDomain = errors.New("no cluster of the environment serves an app domain in the region")
 )
 
 func buildInitCmd() *cobra.Command {
@@ -190,15 +190,15 @@ func servedDomain(ctx context.Context, t cmdutil.Target, region string) (string,
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	req := &domainv1.ListPlatformDomainsRequest{EnvironmentId: t.Environment.GetId()}
-	resp, err := t.Clients.Domain.ListPlatformDomains(ctx, req)
+	req := &domainv1.ListAppDomainsRequest{EnvironmentId: t.Environment.GetId()}
+	resp, err := t.Clients.Domain.ListAppDomains(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("could not list platform domains from the API: %w", err)
+		return "", fmt.Errorf("could not list app domains from the API: %w", err)
 	}
-	for _, domain := range resp.GetPlatformDomains() {
+	for _, domain := range resp.GetAppDomains() {
 		if slices.Contains(domain.GetRegions(), region) {
 			return domain.GetDomain(), nil
 		}
 	}
-	return "", fmt.Errorf("%w: %s in %s", errNoPlatformDomain, region, t.Environment.GetSlug())
+	return "", fmt.Errorf("%w: %s in %s", errNoAppDomain, region, t.Environment.GetSlug())
 }

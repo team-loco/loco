@@ -223,7 +223,7 @@ func TestRegionStatus(t *testing.T) {
 			message: regionMessageClusterUnhealthy,
 		},
 		{
-			name: "cluster that does not serve the platform domains",
+			name: "cluster that does not serve the app domains",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.PlacementStatusRunning, 2, degraded)
 				row.StatusCause = statusCauseDomainsUnserved

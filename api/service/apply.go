@@ -111,7 +111,7 @@ func (s *PlanServer) Apply(
 		a.desired = plan.Desired
 		a.resolved = plan.Resolved
 		a.builds = builds
-		a.platformDomains = planned.platformDomains
+		a.appDomains = planned.appDomains
 		a.provisioning = len(req.GetProvision()) > 0
 		a.commit = req.GetCommit()
 		// Operations can change resources every environment shares; deploying builds changes only this one.

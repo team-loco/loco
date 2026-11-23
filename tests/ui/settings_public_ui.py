@@ -22,7 +22,7 @@ name, resource, base = seed_settings_resource(state, "public")
 domain = f"{name}.apps.example.test"
 sql(
     state,
-    f"""INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, platform_domain, is_primary)
+    f"""INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
 SELECT '{resource}', id, '{domain}', 'platform_provided', '{name}', 'apps.example.test', true
 FROM environments WHERE workspace_id='{workspace}' AND slug='production';""",
 )

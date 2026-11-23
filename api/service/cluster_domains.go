@@ -13,25 +13,25 @@ import (
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/platformdomain"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-func platformCluster(cluster genDb.ListEligibleClustersRow) platformdomain.Cluster {
-	return platformdomain.Cluster{Name: cluster.Name, Region: cluster.Region, Domains: cluster.Domains}
+func domainCluster(cluster genDb.ListEligibleClustersRow) appdomain.Cluster {
+	return appdomain.Cluster{Name: cluster.Name, Region: cluster.Region, Domains: cluster.Domains}
 }
 
-func regionClusters(eligible []genDb.ListEligibleClustersRow) []platformdomain.Cluster {
-	clusters := make([]platformdomain.Cluster, 0, len(eligible))
+func regionClusters(eligible []genDb.ListEligibleClustersRow) []appdomain.Cluster {
+	clusters := make([]appdomain.Cluster, 0, len(eligible))
 	for _, cluster := range eligible {
-		clusters = append(clusters, platformCluster(cluster))
+		clusters = append(clusters, domainCluster(cluster))
 	}
 	return clusters
 }
 
 type domainCheck struct {
-	clusters []platformdomain.Cluster
-	targets  []platformdomain.Cluster
+	clusters []appdomain.Cluster
+	targets  []appdomain.Cluster
 }
 
 func resourceDomainCheck(
@@ -46,26 +46,26 @@ func resourceDomainCheck(
 	if err != nil {
 		return domainCheck{}, err
 	}
-	targets := map[uuid.UUID]platformdomain.Cluster{}
+	targets := map[uuid.UUID]appdomain.Cluster{}
 	for _, region := range regions {
 		cluster, found := clusterForRegion(eligible, region)
 		if !found {
 			continue
 		}
-		targets[cluster.ID] = platformCluster(cluster)
+		targets[cluster.ID] = domainCluster(cluster)
 	}
 	placed, err := q.ListClusterDomains(ctx, placedClusters)
 	if err != nil {
 		return domainCheck{}, fmt.Errorf("list placement cluster domains: %w", err)
 	}
 	for _, cluster := range placed {
-		targets[cluster.ID] = platformdomain.Cluster{
+		targets[cluster.ID] = appdomain.Cluster{
 			Name:    cluster.Name,
 			Region:  cluster.Region,
 			Domains: cluster.Domains,
 		}
 	}
-	ordered := slices.SortedFunc(maps.Values(targets), func(a, b platformdomain.Cluster) int {
+	ordered := slices.SortedFunc(maps.Values(targets), func(a, b appdomain.Cluster) int {
 		return strings.Compare(a.Region+"/"+a.Name, b.Region+"/"+b.Name)
 	})
 	return domainCheck{clusters: regionClusters(eligible), targets: ordered}, nil

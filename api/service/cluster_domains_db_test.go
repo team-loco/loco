@@ -21,7 +21,7 @@ import (
 
 const (
 	domainsSecondCluster  = "eu-cluster"
-	domainsOtherPlatform  = "example.org"
+	otherAppDomain        = "example.org"
 	domainsServedHostname = "app.example.com"
 	domainsFirst          = "a.test"
 	domainsSecond         = "b.test"
@@ -125,8 +125,8 @@ func TestRegisterRejectsAnInvalidDomain(t *testing.T) {
 func TestPlanRejectsADomainOneRegionsClusterDoesNotServe(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.serveDomains(t, testPlatformDomain)
-	f.addRegionCluster(t, domainsOtherPlatform)
+	f.serveDomains(t, applyAppDomain)
+	f.addRegionCluster(t, otherAppDomain)
 
 	resp, err := plan(t, f, planFileHeader+domainsTwoRegionFile, f.workspaceReadScopes(t))
 	if err != nil {
@@ -163,7 +163,7 @@ func TestPlanRejectsADomainNoClusterServes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
-	want := "domain is not under a platform domain any cluster serves: new.loco.test"
+	want := "domain is not under an app domain any cluster serves: new.loco.test"
 	if len(resp.GetErrors()) != 1 || resp.GetErrors()[0].GetMessage() != want {
 		t.Fatalf("errors = %v, want %q", resp.GetErrors(), want)
 	}
@@ -173,7 +173,7 @@ func TestCreateResourceDomainNamesTheClustersMissingTheDomain(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
-	f.addRegionCluster(t, domainsOtherPlatform)
+	f.addRegionCluster(t, otherAppDomain)
 	seedDeployment(t, f, domainsTwoRegionSpec)
 
 	err := client.add(domainsServedHostname)
@@ -207,31 +207,31 @@ func TestCreateResourceDomainNeedsTheDomainOnTheClusterThatRunsIt(t *testing.T) 
 	}
 }
 
-func TestPlatformSubdomainIsUniquePerDomain(t *testing.T) {
+func TestAppSubdomainIsUniquePerDomain(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
-	f.serveDomains(t, testDomainPlatform, domainsOtherPlatform)
+	f.serveDomains(t, testAppDomain, otherAppDomain)
 
-	if err := client.add("api." + testDomainPlatform); err != nil {
-		t.Fatalf("add api.%s: %v", testDomainPlatform, err)
+	if err := client.add("api." + testAppDomain); err != nil {
+		t.Fatalf("add api.%s: %v", testAppDomain, err)
 	}
-	if err := client.addUnder("api", domainsOtherPlatform); err != nil {
-		t.Fatalf("add the same label under %s: %v", domainsOtherPlatform, err)
+	if err := client.addUnder("api", otherAppDomain); err != nil {
+		t.Fatalf("add the same label under %s: %v", otherAppDomain, err)
 	}
-	wantCode(t, client.add("api."+testDomainPlatform), connect.CodeAlreadyExists)
+	wantCode(t, client.add("api."+testAppDomain), connect.CodeAlreadyExists)
 
 	duplicate := `
 INSERT INTO resource_domains
-    (resource_id, environment_id, domain, domain_source, subdomain_label, platform_domain, is_primary)
+    (resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
 VALUES ($1, $2, 'api-copy.example.com', 'platform_provided', 'api', 'example.com', false)`
 	_, err := f.pool.Exec(context.Background(), duplicate, f.resourceID, f.envID)
-	if !isUniqueViolation(err, pgPlatformSubdomainUnique) {
+	if !isUniqueViolation(err, pgAppSubdomainUnique) {
 		t.Fatalf("insert a second api label under example.com: err = %v, want a unique violation", err)
 	}
 }
 
-func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testing.T) {
+func TestListAppDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
@@ -242,14 +242,14 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 
 	scopes := f.workspaceReadScopes(t)
 	ctx := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
-	resp, err := client.server.ListPlatformDomains(ctx, &domainv1.ListPlatformDomainsRequest{
+	resp, err := client.server.ListAppDomains(ctx, &domainv1.ListAppDomainsRequest{
 		EnvironmentId: f.envID.String(),
 	})
 	if err != nil {
-		t.Fatalf("ListPlatformDomains: %v", err)
+		t.Fatalf("ListAppDomains: %v", err)
 	}
 	got := map[string][]string{}
-	for _, domain := range resp.GetPlatformDomains() {
+	for _, domain := range resp.GetAppDomains() {
 		got[domain.GetDomain()] = domain.GetRegions()
 	}
 	want := map[string][]string{domainsFirst: {testRegion}, domainsSecond: {testRegion, statusSecondRegion}}
@@ -262,16 +262,16 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 		}
 	}
 
-	resp, err = client.server.ListPlatformDomains(ctx, &domainv1.ListPlatformDomainsRequest{
+	resp, err = client.server.ListAppDomains(ctx, &domainv1.ListAppDomainsRequest{
 		EnvironmentId: staging.String(),
 	})
 	if err != nil {
-		t.Fatalf("ListPlatformDomains staging: %v", err)
+		t.Fatalf("ListAppDomains staging: %v", err)
 	}
-	if len(resp.GetPlatformDomains()) != len(want) {
-		t.Fatalf("staging domains = %v, want the same eligible domains as production", resp.GetPlatformDomains())
+	if len(resp.GetAppDomains()) != len(want) {
+		t.Fatalf("staging domains = %v, want the same eligible domains as production", resp.GetAppDomains())
 	}
-	for _, domain := range resp.GetPlatformDomains() {
+	for _, domain := range resp.GetAppDomains() {
 		if !slices.Equal(domain.GetRegions(), want[domain.GetDomain()]) {
 			t.Fatalf("staging domain = %v, want the same eligible regions as production", domain)
 		}
@@ -281,7 +281,7 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeAdmin},
 	}
 	denied := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: resourceScopes})
-	_, err = client.server.ListPlatformDomains(denied, &domainv1.ListPlatformDomainsRequest{
+	_, err = client.server.ListAppDomains(denied, &domainv1.ListAppDomainsRequest{
 		EnvironmentId: f.envID.String(),
 	})
 	wantCode(t, err, connect.CodeNotFound)
@@ -290,10 +290,10 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 func TestAClusterThatStopsServingADomainKeepsTheHostnameAndDegradesTheRegion(t *testing.T) {
 	t.Parallel()
 	f := newResourceStatusFixture(t)
-	f.setClusterDomains(t, f.clusterID, testDomainPlatform)
+	f.setClusterDomains(t, f.clusterID, testAppDomain)
 	insert := `
 INSERT INTO resource_domains
-    (resource_id, environment_id, domain, domain_source, subdomain_label, platform_domain, is_primary)
+    (resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
 VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 	_, err := f.pool.Exec(
 		context.Background(),
@@ -301,7 +301,7 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 		f.resourceID,
 		f.envID,
 		domainsServedHostname,
-		testDomainPlatform,
+		testAppDomain,
 	)
 	if err != nil {
 		t.Fatalf("assign hostname: %v", err)
@@ -329,7 +329,7 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, &agentv1.Heartbeat{
 		Role:    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 		Health:  &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
-		Domains: []string{testDomainPlatform},
+		Domains: []string{testAppDomain},
 	})
 	f.heartbeat(t, f.clusterID, time.Now(), clusterHealthHealthy)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
@@ -338,11 +338,11 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 	})
 }
 
-func (c *domainClient) addUnder(label, platformDomain string) error {
+func (c *domainClient) addUnder(label, appDomain string) error {
 	input := &domainv1.DomainInput{
-		DomainSource:   domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
-		Subdomain:      &label,
-		PlatformDomain: &platformDomain,
+		DomainSource: domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+		Subdomain:    &label,
+		AppDomain:    &appDomain,
 	}
 	resourceID := c.f.resourceID.String()
 	req := &domainv1.CreateResourceDomainRequest{ResourceId: resourceID, Domain: input}

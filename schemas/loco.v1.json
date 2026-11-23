@@ -484,7 +484,7 @@
             "type": "string"
           },
           "type": "array",
-          "description": "Hostnames routed to the service. The first is primary. Platform domains end in an active platform domain. Needs port."
+          "description": "Hostnames routed to the service. The first is primary. Each is one label under an app domain a cluster serves. Needs port."
         },
         "env": {
           "additionalProperties": {

@@ -288,7 +288,7 @@ var (
 
 	// domains
 
-	ListPlatformDomains = Action{
+	ListAppDomains = Action{
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}

@@ -32,7 +32,7 @@ INSERT INTO resource_domains (
     domain,
     domain_source,
     subdomain_label,
-    platform_domain,
+    app_domain,
     is_primary
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -45,7 +45,7 @@ type CreateResourceDomainParams struct {
 	Domain         string       `json:"domain"`
 	DomainSource   DomainSource `json:"domainSource"`
 	SubdomainLabel *string      `json:"subdomainLabel"`
-	PlatformDomain *string      `json:"platformDomain"`
+	AppDomain      *string      `json:"appDomain"`
 	IsPrimary      bool         `json:"isPrimary"`
 }
 
@@ -56,7 +56,7 @@ func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDo
 		arg.Domain,
 		arg.DomainSource,
 		arg.SubdomainLabel,
-		arg.PlatformDomain,
+		arg.AppDomain,
 		arg.IsPrimary,
 	)
 	var id uuid.UUID
@@ -99,7 +99,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain,
+    rd.app_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -117,7 +117,7 @@ func (q *Queries) GetResourceDomainByID(ctx context.Context, id uuid.UUID) (Reso
 		&i.Domain,
 		&i.DomainSource,
 		&i.SubdomainLabel,
-		&i.PlatformDomain,
+		&i.AppDomain,
 		&i.IsPrimary,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -149,7 +149,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain,
+    rd.app_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -179,7 +179,7 @@ func (q *Queries) ListEnvironmentResourceDomains(ctx context.Context, arg ListEn
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
-			&i.PlatformDomain,
+			&i.AppDomain,
 			&i.IsPrimary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -202,7 +202,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain,
+    rd.app_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -227,7 +227,7 @@ func (q *Queries) ListResourceDomains(ctx context.Context, resourceID uuid.UUID)
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
-			&i.PlatformDomain,
+			&i.AppDomain,
 			&i.IsPrimary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -250,7 +250,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain,
+    rd.app_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -275,7 +275,7 @@ func (q *Queries) ListResourceDomainsForResources(ctx context.Context, resourceI
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
-			&i.PlatformDomain,
+			&i.AppDomain,
 			&i.IsPrimary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -333,7 +333,7 @@ const updateResourceDomain = `-- name: UpdateResourceDomain :one
 UPDATE resource_domains
 SET domain = $2,
     subdomain_label = $3,
-    platform_domain = $4,
+    app_domain = $4,
     updated_at = NOW()
 WHERE id = $1
 RETURNING id
@@ -343,7 +343,7 @@ type UpdateResourceDomainParams struct {
 	ID             uuid.UUID `json:"id"`
 	Domain         string    `json:"domain"`
 	SubdomainLabel *string   `json:"subdomainLabel"`
-	PlatformDomain *string   `json:"platformDomain"`
+	AppDomain      *string   `json:"appDomain"`
 }
 
 func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error) {
@@ -351,7 +351,7 @@ func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDo
 		arg.ID,
 		arg.Domain,
 		arg.SubdomainLabel,
-		arg.PlatformDomain,
+		arg.AppDomain,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)

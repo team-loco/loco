@@ -1,11 +1,11 @@
 import { ConnectError } from "@connectrpc/connect";
 import { BadRequestSchema } from "@gen/google/rpc/error_details_pb";
 import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
-import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
+import type { AppDomain } from "@gen/loco/domain/v1/domain_pb";
 
 import { isEnvKey } from "@/lib/dotenv";
 import { parseImage } from "@/lib/image";
-import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/platform-domain";
+import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/app-domain";
 import { slug } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
@@ -39,7 +39,7 @@ export interface NewResourceForm {
 	cpuTarget: number;
 	isPublic: boolean;
 	subdomain: string;
-	platformDomain: string;
+	appDomain: string;
 	port: string;
 	vars: EnvRow[];
 	health: HealthForm;
@@ -86,7 +86,7 @@ export function nameFromImage(image: string, taken: ReadonlySet<string>): string
 	return name;
 }
 
-export function servedDomains(domains: PlatformDomain[], regions: string[]): string[] {
+export function servedDomains(domains: AppDomain[], regions: string[]): string[] {
 	return domains.filter((d) => regions.every((r) => d.regions.includes(r))).map((d) => d.domain);
 }
 
@@ -137,10 +137,10 @@ export function mergeEnv(rows: EnvRow[], pairs: [string, string][], newId: () =>
 
 function subdomainError(form: NewResourceForm, availability: DomainCheck["state"]): string | null {
 	if (!form.isPublic) return null;
-	if (form.platformDomain === "") return "No platform domain is served in every selected region";
+	if (form.appDomain === "") return "No app domain is served in every selected region";
 	if (form.subdomain === "") return "Enter a subdomain";
 	if (!SUBDOMAIN_RE.test(form.subdomain)) return "Use lowercase letters, digits and hyphens";
-	if (availability === "taken") return `${form.subdomain}.${form.platformDomain} is taken`;
+	if (availability === "taken") return `${form.subdomain}.${form.appDomain} is taken`;
 	return null;
 }
 
@@ -341,8 +341,8 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 	}
 	if (form.port.trim() !== "") lines.push(`    port: ${yamlInt(form.port)}`);
 	if (checksHealth(form.health)) lines.push(healthYaml(form.health, flow));
-	if (form.isPublic && form.subdomain !== "" && form.platformDomain !== "")
-		lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
+	if (form.isPublic && form.subdomain !== "" && form.appDomain !== "")
+		lines.push(`    domains: [${flow(`${form.subdomain}.${form.appDomain}`)}]`);
 	const vars = envVars(form.vars);
 	if (vars.length > 0) {
 		lines.push("    env:");

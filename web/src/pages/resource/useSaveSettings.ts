@@ -44,7 +44,7 @@ const SPEC_KEYS = [
 	"observability",
 ] as const;
 
-const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;
+const DOMAIN_KEYS = ["isPublic", "subdomain", "appDomain"] as const;
 
 const VARIABLE_KEYS = ["added", "env", "removedEnv"] as const;
 
@@ -142,7 +142,7 @@ export function useSaveSettings({
 						domain: {
 							domainSource: DomainType.PLATFORM_PROVIDED,
 							subdomain: draft.subdomain ?? "",
-							platformDomain: draft.platformDomain ?? "",
+							appDomain: draft.appDomain ?? "",
 						},
 					}),
 			);

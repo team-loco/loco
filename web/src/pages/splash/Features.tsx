@@ -6,7 +6,7 @@ const FEATURES: readonly { icon: LucideIcon; title: string; body: string; tech: 
 	{
 		icon: Lock,
 		title: "HTTPS by default",
-		body: "Services on the platform domain are served over HTTPS, with certificates renewed before they expire.",
+		body: "Services on the app domain are served over HTTPS, with certificates renewed before they expire.",
 		tech: "cert-manager with Let's Encrypt",
 	},
 	{

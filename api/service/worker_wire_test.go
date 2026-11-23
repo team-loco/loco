@@ -29,9 +29,9 @@ func TestWireRejectsTrafficSettingsWithoutAPort(t *testing.T) {
 	}
 	domain := create(&resourcev1.ServiceSpec{Regions: regions})
 	domain.Domain = &domainv1.DomainInput{
-		DomainSource:   domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
-		Subdomain:      new("worker"),
-		PlatformDomain: new("example.com"),
+		DomainSource: domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+		Subdomain:    new("worker"),
+		AppDomain:    new("example.com"),
 	}
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage}
 	prefixed := &resourcev1.ServiceSpec{Regions: regions, Routing: &resourcev1.RoutingConfig{PathPrefix: "/"}}

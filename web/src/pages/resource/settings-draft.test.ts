@@ -434,18 +434,12 @@ describe("validateDraft", () => {
 		expect(validateDraft({ cpu: "1", scaling: { [EAST]: scaling(4) } }, base, regions, SERVED, 10)).toEqual({});
 	});
 
-	test("needs a served platform domain and a valid subdomain to go public", () => {
+	test("needs a served app domain and a valid subdomain to go public", () => {
 		const privateBase = baseline("shop", "shop", "", regions, [], false, defaults, POLICY);
 		expect(
-			validateDraft(
-				{ isPublic: true, subdomain: "Shop!", platformDomain: "other.dev" },
-				privateBase,
-				regions,
-				SERVED,
-				10,
-			),
+			validateDraft({ isPublic: true, subdomain: "Shop!", appDomain: "other.dev" }, privateBase, regions, SERVED, 10),
 		).toEqual({
-			platformDomain: "No platform domain is served in every region",
+			appDomain: "No app domain is served in every region",
 			subdomain: "Use lowercase letters, digits and hyphens",
 		});
 	});

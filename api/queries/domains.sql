@@ -5,7 +5,7 @@ INSERT INTO resource_domains (
     domain,
     domain_source,
     subdomain_label,
-    platform_domain,
+    app_domain,
     is_primary
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -30,7 +30,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain,
+    rd.app_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -45,7 +45,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain,
+    rd.app_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -61,7 +61,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain,
+    rd.app_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -77,7 +77,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain,
+    rd.app_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -109,7 +109,7 @@ RETURNING id;
 UPDATE resource_domains
 SET domain = $2,
     subdomain_label = sqlc.narg('subdomain_label'),
-    platform_domain = sqlc.narg('platform_domain'),
+    app_domain = sqlc.narg('app_domain'),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id;

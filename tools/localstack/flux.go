@@ -339,7 +339,8 @@ func (cfg config) initializeRepo(ctx context.Context, repo operatorrepo.Reposito
 	}
 	if _, err = cfg.locoadm(ctx, "init", "--single-cluster", "--name", repo.Cluster,
 		"--output", repo.Path, "--api", cfg.apiURL(), "--web", "http://localhost:"+cfg.WebPort,
-		"--domain", "apps."+cfg.Domain, "--region", localIdentity, "--admin", "dev@loco.test",
+		"--domain", "apps."+cfg.Domain, "--platform-domain", "workers."+cfg.Domain,
+		"--region", localIdentity, "--admin", "dev@loco.test",
 		"--bundle", "oci://"+bundle, "--api-env-file", env); err != nil {
 		return err
 	}

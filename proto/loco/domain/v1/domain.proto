@@ -16,8 +16,8 @@ enum DomainType {
 
 // --- Messages ---
 
-// PlatformDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it.
-message PlatformDomain {
+// AppDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it.
+message AppDomain {
   string domain = 1;
   repeated string regions = 2;
 }
@@ -29,7 +29,7 @@ message DomainInput {
     not_in: [0]
   }];
   optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
-  optional string platform_domain = 3 [(buf.validate.field).string.hostname = true]; // for PLATFORM_PROVIDED: a domain a cluster serves
+  optional string app_domain = 3 [(buf.validate.field).string.hostname = true]; // for PLATFORM_PROVIDED: an app domain a cluster serves
 
   option (buf.validate.message).cel = {
     id: "platform_provided.subdomain_required"
@@ -37,9 +37,9 @@ message DomainInput {
     expression: "this.domain_source != 1 || (has(this.subdomain) && this.subdomain != '')"
   };
   option (buf.validate.message).cel = {
-    id: "platform_provided.platform_domain_required"
-    message: "platform_domain is required for platform-provided domains"
-    expression: "this.domain_source != 1 || (has(this.platform_domain) && this.platform_domain != '')"
+    id: "platform_provided.app_domain_required"
+    message: "app_domain is required for platform-provided domains"
+    expression: "this.domain_source != 1 || (has(this.app_domain) && this.app_domain != '')"
   };
 }
 
@@ -50,7 +50,7 @@ message ResourceDomain {
   string domain = 3;
   DomainType domain_source = 4;
   optional string subdomain_label = 5;
-  optional string platform_domain = 6;
+  optional string app_domain = 6;
   bool is_primary = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
@@ -60,8 +60,8 @@ message ResourceDomain {
 
 // DomainService manages domains for resources.
 service DomainService {
-  // ListPlatformDomains lists the domains the clusters an environment deploys to serve.
-  rpc ListPlatformDomains(ListPlatformDomainsRequest) returns (ListPlatformDomainsResponse);
+  // ListAppDomains lists the domains the clusters an environment deploys to serve.
+  rpc ListAppDomains(ListAppDomainsRequest) returns (ListAppDomainsResponse);
 
   // Resource Domain Management
   // CreateResourceDomain assigns a domain to a resource.
@@ -78,16 +78,16 @@ service DomainService {
   rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
 }
 
-// --- Platform Domain Requests/Responses ---
+// --- App Domain Requests/Responses ---
 
-// ListPlatformDomainsRequest names the environment whose clusters' domains to list.
-message ListPlatformDomainsRequest {
+// ListAppDomainsRequest names the environment whose clusters' domains to list.
+message ListAppDomainsRequest {
   string environment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-// ListPlatformDomainsResponse contains the domains the environment's clusters serve.
-message ListPlatformDomainsResponse {
-  repeated PlatformDomain platform_domains = 1;
+// ListAppDomainsResponse contains the domains the environment's clusters serve.
+message ListAppDomainsResponse {
+  repeated AppDomain app_domains = 1;
 }
 
 // --- Resource Domain Management ---

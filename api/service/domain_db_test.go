@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	testSecondDomain   = "alt.example.com"
-	testDomainPlatform = "example.com"
-	domainRaceRounds   = 25
+	testSecondDomain = "alt.example.com"
+	testAppDomain    = "example.com"
+	domainRaceRounds = 25
 )
 
 type domainClient struct {
@@ -40,7 +40,7 @@ func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 	scoped := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
 	// Domain tests outlast one heartbeat window on a loaded machine; heartbeat eligibility has its own tests.
 	server := NewDomainServer(f.pool, f.queries, testServiceDefaults(), time.Hour, limits.Defaults())
-	f.serveDomains(t, testDomainPlatform)
+	f.serveDomains(t, testAppDomain)
 	return &domainClient{server: server, ctx: scoped, f: f}
 }
 
@@ -61,8 +61,8 @@ func (c *domainClient) removeByID(id string) error {
 }
 
 func (c *domainClient) add(domain string) error {
-	label := strings.TrimSuffix(domain, "."+testDomainPlatform)
-	return c.addUnder(label, testDomainPlatform)
+	label := strings.TrimSuffix(domain, "."+testAppDomain)
+	return c.addUnder(label, testAppDomain)
 }
 
 func removeDomain(t *testing.T, f *deployFixture, domain string) error {
@@ -83,7 +83,7 @@ func TestDomainNeedsAPort(t *testing.T) {
 	); err != nil {
 		t.Fatalf("drop the port: %v", err)
 	}
-	err := client.add("worker." + testDomainPlatform)
+	err := client.add("worker." + testAppDomain)
 	if !errors.Is(err, errDomainWithoutPort) {
 		t.Fatalf("domain on a portless service error = %v, want %v", err, errDomainWithoutPort)
 	}
@@ -138,7 +138,7 @@ func TestDomainUsesTheDefaultEnvironmentsDeploymentPorts(t *testing.T) {
 			if _, err = recordTestDeployment(t.Context(), f.queries, counts, params, serviceSpecPayload); err != nil {
 				t.Fatal(err)
 			}
-			err = client.add("runtime." + testDomainPlatform)
+			err = client.add("runtime." + testAppDomain)
 			if tc.runtimePort && err != nil {
 				t.Fatalf("domain on web deployment: %v", err)
 			}

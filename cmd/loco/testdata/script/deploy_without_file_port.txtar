@@ -5,7 +5,7 @@ fakeapi plan plan.json
 cd app
 exec loco deploy --port 8080 --yes
 stdout '^app: https://app-[a-z]{4}\.onloco\.test$'
-fakeapi called ListPlatformDomains 'Bearer test-token'
+fakeapi called ListAppDomains 'Bearer test-token'
 fakeapi called CheckDomainAvailability 'Bearer test-token'
 
 -- home/.loco/credentials.json --

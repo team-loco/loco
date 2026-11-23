@@ -127,18 +127,18 @@ export function typesIn(category: AuditCategory | "all"): string[] {
 		.map(([type]) => type);
 }
 
-// A platform domain is the resource's public address; the first one makes it public and removing it makes it internal.
-const DOMAIN_LABELS: Record<string, { platform: [primary: string, other: string]; custom: string }> = {
+// An app domain is the resource's public address; the first one makes it public and removing it makes it internal.
+const DOMAIN_LABELS: Record<string, { app: [primary: string, other: string]; custom: string }> = {
 	"domain.created": {
-		platform: ["Made a resource public", "Added a platform domain"],
+		app: ["Made a resource public", "Added an app domain"],
 		custom: "Added a custom domain",
 	},
 	"domain.updated": {
-		platform: ["Updated a platform domain", "Updated a platform domain"],
+		app: ["Updated an app domain", "Updated an app domain"],
 		custom: "Updated a custom domain",
 	},
 	"domain.deleted": {
-		platform: ["Made a resource internal", "Removed a platform domain"],
+		app: ["Made a resource internal", "Removed an app domain"],
 		custom: "Removed a custom domain",
 	},
 };
@@ -202,7 +202,7 @@ export function auditLabel(type: string, data?: JsonObject): string {
 	const source = text(data, "domainSource");
 	if (domain !== undefined && source !== undefined) {
 		if (source === "user_provided") return domain.custom;
-		return domain.platform[data?.["primary"] === true ? 0 : 1];
+		return domain.app[data?.["primary"] === true ? 0 : 1];
 	}
 	return AUDIT_TYPES[type]?.label ?? type;
 }

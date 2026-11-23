@@ -8,8 +8,8 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 	"github.com/team-loco/loco/api/pkg/configplan"
-	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/varref"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -162,7 +162,7 @@ func (s *ResourceServer) updateRegions(
 		}
 		a.resolved = map[string]varref.Resolved{res.Slug: storedResolution(runtime[0].Deployment)}
 		a.builds = builds
-		a.platformDomains = platformdomain.Served(targets)
+		a.appDomains = appdomain.Served(targets)
 		a.commit = commit
 		a.regionTargets = req.GetRegions()
 		if applyErr := a.apply(ctx, qtx, configplan.Update(current, desired)); applyErr != nil {

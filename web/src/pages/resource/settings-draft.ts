@@ -27,7 +27,7 @@ import {
 	scalingSpec,
 	type Scaling,
 } from "@/lib/new-resource";
-import { SUBDOMAIN_RE } from "@/lib/platform-domain";
+import { SUBDOMAIN_RE } from "@/lib/app-domain";
 import { nameError } from "@/lib/slug";
 
 import { isDeployed, type RegionView } from "./model";
@@ -115,7 +115,7 @@ export interface SettingsDraft {
 	removedEnv?: string[];
 	isPublic?: boolean;
 	subdomain?: string;
-	platformDomain?: string;
+	appDomain?: string;
 }
 
 export interface Baseline {
@@ -383,8 +383,8 @@ export function validateDraft(
 		errors.regions =
 			"Save region, size and scaling changes separately from image, port, health, observability and domain changes";
 	if (domainsChange(draft, base) === "add") {
-		if (draft.platformDomain === undefined || !served.includes(draft.platformDomain))
-			errors.platformDomain = "No platform domain is served in every region";
+		if (draft.appDomain === undefined || !served.includes(draft.appDomain))
+			errors.appDomain = "No app domain is served in every region";
 		if (!SUBDOMAIN_RE.test(draft.subdomain ?? "")) errors.subdomain = "Use lowercase letters, digits and hyphens";
 	}
 	return errors;

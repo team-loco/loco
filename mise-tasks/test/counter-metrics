@@ -92,7 +92,7 @@ CONTROL_PLANE_URL="http://$LOCO_TEST_COUNTER_CONTROL_PLANE_ADDR" PORT="$proxy_po
 proxy_pid=$!
 wait_for curl -sf "http://127.0.0.1:$proxy_port/readyz"
 
-helm template loco-worker "$root/charts/loco-worker" --set global.region=counter-test \
+helm template loco-worker "$root/charts/loco-worker" --set global.region=counter-test --set global.domain.platform=workers.counter-test.test \
     --set global.exporter.endpoint="http://host.docker.internal:$otlp_http_port" \
     --set global.exporter.ingestToken.enabled=true \
     --set agent.image.tag=counter-test --set controller.image.tag=counter-test --set cluster.role=apps \

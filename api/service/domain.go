@@ -19,8 +19,8 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/api/pkg/appdomain"
 	"github.com/team-loco/loco/api/pkg/converter"
-	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -71,13 +71,13 @@ func NewDomainServer(
 	}
 }
 
-// ListPlatformDomains lists the platform domains the clusters an environment deploys to serve.
-func (s *DomainServer) ListPlatformDomains(
+// ListAppDomains lists the app domains the clusters an environment deploys to serve.
+func (s *DomainServer) ListAppDomains(
 	ctx context.Context,
-	req *domainv1.ListPlatformDomainsRequest,
-) (*domainv1.ListPlatformDomainsResponse, error) {
+	req *domainv1.ListAppDomainsRequest,
+) (*domainv1.ListAppDomainsResponse, error) {
 	environmentID := uuid.MustParse(req.GetEnvironmentId())
-	_, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, actions.ListPlatformDomains)
+	_, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, actions.ListAppDomains)
 	if err != nil {
 		return nil, err
 	}
@@ -86,18 +86,18 @@ func (s *DomainServer) ListPlatformDomains(
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 	clusters := regionClusters(eligible)
-	served := platformdomain.Served(clusters)
-	domains := make([]*domainv1.PlatformDomain, 0, len(served))
+	served := appdomain.Served(clusters)
+	domains := make([]*domainv1.AppDomain, 0, len(served))
 	for _, domain := range served {
-		platformDomain := &domainv1.PlatformDomain{Domain: domain}
+		appDomain := &domainv1.AppDomain{Domain: domain}
 		for _, cluster := range clusters {
 			if slices.Contains(cluster.Domains, domain) {
-				platformDomain.Regions = append(platformDomain.Regions, cluster.Region)
+				appDomain.Regions = append(appDomain.Regions, cluster.Region)
 			}
 		}
-		domains = append(domains, platformDomain)
+		domains = append(domains, appDomain)
 	}
-	return &domainv1.ListPlatformDomainsResponse{PlatformDomains: domains}, nil
+	return &domainv1.ListAppDomainsResponse{AppDomains: domains}, nil
 }
 
 // CreateResourceDomain adds a new domain to a resource
@@ -112,8 +112,8 @@ func (s *DomainServer) CreateResourceDomain(
 	if err = authorize(ctx, s.authz, actions.AddDomain, resourceID); err != nil {
 		return nil, err
 	}
-	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
-	platformDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
+	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetAppDomain()
+	appDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
 	if err != nil {
 		return nil, fmt.Errorf("check the resource domain: %w", err)
 	}
@@ -152,7 +152,7 @@ func (s *DomainServer) CreateResourceDomain(
 			Domain:         fullDomain,
 			DomainSource:   genDb.DomainSourcePlatformProvided,
 			SubdomainLabel: &subdomain,
-			PlatformDomain: &platformDomain,
+			AppDomain:      &appDomain,
 			IsPrimary:      !hasPrimary,
 		})
 		if isDomainTaken(createErr) {
@@ -209,15 +209,15 @@ func (s *DomainServer) UpdateResourceDomain(
 
 	changed := req.GetDomain() != "" && req.GetDomain() != domainRow.Domain
 	var subdomainLabel *string
-	var platformDomain *string
+	var appDomain *string
 	if changed {
 		if domainRow.DomainSource == genDb.DomainSourcePlatformProvided {
-			platform, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
+			domain, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
 			if checkErr != nil {
 				return nil, fmt.Errorf("check the resource domain: %w", checkErr)
 			}
 			subdomainLabel = &label
-			platformDomain = &platform
+			appDomain = &domain
 		}
 	}
 
@@ -230,7 +230,7 @@ func (s *DomainServer) UpdateResourceDomain(
 				ID:             domainID,
 				Domain:         req.GetDomain(),
 				SubdomainLabel: subdomainLabel,
-				PlatformDomain: platformDomain,
+				AppDomain:      appDomain,
 			})
 			if isDomainTaken(updateErr) {
 				return ErrDomainAlreadyExists
@@ -484,7 +484,7 @@ func (s *DomainServer) checkResourceDomain(
 	if err != nil {
 		return "", "", fmt.Errorf("list domain clusters: %w", err)
 	}
-	return platformdomain.Check(hostname, check.clusters, check.targets)
+	return appdomain.Check(hostname, check.clusters, check.targets)
 }
 
 // imperativeDomainEnvironment resolves the production environment for domain RPCs
