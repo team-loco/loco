@@ -233,18 +233,20 @@ func TestRevisionIsProvenOnceEveryReplicaServedForTheHealthWindow(t *testing.T) 
 	for _, tt := range []struct {
 		name     string
 		replicas []observedReplica
+		settled  bool
 		want     int64
 	}{
-		{"every replica served the window", []observedReplica{serving(testHealthyAfter), serving(time.Hour)}, 2},
-		{"a replica became ready recently", []observedReplica{serving(time.Hour), serving(time.Minute)}, 1},
+		{"every replica served the window", []observedReplica{serving(testHealthyAfter), serving(time.Hour)}, true, 2},
+		{"a replica is not yet available", []observedReplica{serving(testHealthyAfter), serving(time.Hour)}, false, 1},
+		{"a replica became ready recently", []observedReplica{serving(time.Hour), serving(time.Minute)}, true, 1},
 		{"a replica is starting", []observedReplica{serving(time.Hour), {status: loco.ReplicaStatus{
 			State: loco.ReplicaStarting, StateSince: new(metav1.NewTime(now.Add(-time.Hour))),
-		}}}, 1},
-		{"no replica", nil, 1},
+		}}}, true, 1},
+		{"no replica", nil, true, 1},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			rollout := &loco.RolloutStatus{Available: true, ProvenRevision: 1}
-			r.observeHealth(rollout, tt.replicas, 2, true, now)
+			r.observeHealth(rollout, tt.replicas, 2, tt.settled, now)
 			if rollout.ProvenRevision != tt.want {
 				t.Fatalf("proven revision = %d, want %d", rollout.ProvenRevision, tt.want)
 			}

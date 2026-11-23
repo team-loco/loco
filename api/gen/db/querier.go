@@ -365,6 +365,8 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
+	// Records when a running placement's revision first became healthy with every replica available.
+	StartDeploymentPlacement(ctx context.Context, arg StartDeploymentPlacementParams) (int64, error)
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
 	// Retires the older deployments' placements in the cluster's region: one that never ran is canceled,
 	// one that ran is superseded. Without include_started only the never-started ones change. The

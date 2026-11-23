@@ -778,10 +778,21 @@ func (*AgentServer) applyPlacementReport(
 			return transitionErr
 		}
 	}
-	if next == genDb.PlacementStatusRunning {
-		return supersedePlacements(ctx, qtx, deployment.ID, clusterID, true)
+	if next != genDb.PlacementStatusRunning || !status.GetDeployed() {
+		return nil
 	}
-	return nil
+	started, startErr := qtx.StartDeploymentPlacement(ctx, genDb.StartDeploymentPlacementParams{
+		DeploymentID: deployment.ID, ClusterID: clusterID,
+	})
+	if startErr != nil {
+		return fmt.Errorf("start placement: %w", startErr)
+	}
+	if started > 0 {
+		if recordErr := recordDeploymentStatus(ctx, qtx, deployment.ID, reportCause(status)); recordErr != nil {
+			return recordErr
+		}
+	}
+	return supersedePlacements(ctx, qtx, deployment.ID, clusterID, true)
 }
 
 // transitionCause is why a placement moved: the message events carry and, when the controller
@@ -821,13 +832,14 @@ func advancePlacementStatus(
 }
 
 // deploymentStatusEvent is the event a deployment's aggregate transition records, if any. A
-// deployment is ready once it serves, whether every replica is healthy yet or not.
-func deploymentStatusEvent(previous, status genDb.DeploymentStatus) (string, bool) {
-	serving := func(s genDb.DeploymentStatus) bool {
-		return s == genDb.DeploymentStatusRunning || s == genDb.DeploymentStatusDegraded
+// deployment is ready once it serves and a region deployed it, whether every replica is healthy yet or not.
+func deploymentStatusEvent(row genDb.RecomputeDeploymentStatusRow) (string, bool) {
+	previous, status := row.PreviousStatus, row.Status
+	ready := func(s genDb.DeploymentStatus, started bool) bool {
+		return started && (s == genDb.DeploymentStatusRunning || s == genDb.DeploymentStatusDegraded)
 	}
 	switch {
-	case serving(status) && !serving(previous):
+	case ready(status, row.Started) && !ready(previous, row.PreviouslyStarted):
 		return events.DeploymentReady, true
 	case status == previous:
 		return "", false
@@ -852,7 +864,7 @@ func recordDeploymentStatus(
 	if err != nil {
 		return fmt.Errorf("recompute deployment status: %w", err)
 	}
-	kind, recorded := deploymentStatusEvent(status.PreviousStatus, status.Status)
+	kind, recorded := deploymentStatusEvent(status)
 	if !recorded {
 		return nil
 	}

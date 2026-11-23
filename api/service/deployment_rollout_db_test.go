@@ -21,7 +21,7 @@ func TestDeploymentRolloutLifecycle(t *testing.T) {
 	}
 	p := f.placement(t, f.clusterID)
 	report := &agentv1.PlacementStatus{
-		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true, Healthy: true,
+		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true, Healthy: true, Deployed: true,
 	}
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	second, err := f.deploy(ctx, staticSpec)
@@ -100,6 +100,7 @@ func TestDeploymentProblemLifecycle(t *testing.T) {
 	}
 	report.Available = true
 	report.Healthy = true
+	report.Deployed = true
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	report.Problem = nil

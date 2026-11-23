@@ -136,6 +136,14 @@ func (s *DeploymentServer) GetDeploymentCancelImpact(
 	return &deploymentv1.GetDeploymentCancelImpactResponse{FinishedRegions: finished}, nil
 }
 
+// unstartedStatuses are where a placement whose revision was never deployed can be canceled.
+var unstartedStatuses = []genDb.PlacementStatus{
+	genDb.PlacementStatusPending,
+	genDb.PlacementStatusDeploying,
+	genDb.PlacementStatusRunning,
+	genDb.PlacementStatusDegraded,
+}
+
 // finishedPlacements are the regions that already run the deployment and keep it on a cancel.
 func finishedPlacements(placements []genDb.DeploymentPlacement) []genDb.DeploymentPlacement {
 	var finished []genDb.DeploymentPlacement
@@ -179,18 +187,18 @@ func (s *DeploymentServer) cancelDeployment(
 		if placement.StartedAt != nil {
 			continue
 		}
-		if placement.Status != genDb.PlacementStatusPending && placement.Status != genDb.PlacementStatusDeploying {
+		if !slices.Contains(unstartedStatuses, placement.Status) {
 			continue
 		}
 		if _, setErr := qtx.SetDeploymentPlacementStatus(ctx, genDb.SetDeploymentPlacementStatusParams{
 			Status:       genDb.PlacementStatusCanceled,
 			DeploymentID: deploymentID,
 			ClusterID:    placement.ClusterID,
-			FromStatuses: placementStatusNames(genDb.PlacementStatusPending, genDb.PlacementStatusDeploying),
+			FromStatuses: placementStatusNames(unstartedStatuses...),
 		}); setErr != nil {
 			return nil, fmt.Errorf("cancel placement in %s: %w", placement.Region, setErr)
 		}
-		if placement.Status == genDb.PlacementStatusDeploying {
+		if placement.Status != genDb.PlacementStatusPending {
 			if revertErr := revertPlacement(ctx, qtx, render, deployment, placement); revertErr != nil {
 				return nil, revertErr
 			}

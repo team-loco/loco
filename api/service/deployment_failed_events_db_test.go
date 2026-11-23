@@ -220,6 +220,7 @@ func TestDeploymentFailedNotRecordedForOtherOutcomes(t *testing.T) {
 		ObservedRevision: placement.DesiredRevision,
 		Available:        true,
 		Healthy:          true,
+		Deployed:         true,
 	})
 	canceled := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	latest := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
@@ -259,6 +260,7 @@ func TestDeploymentReadyRecordedOnceAcrossConcurrentReports(t *testing.T) {
 					ObservedRevision: placement.DesiredRevision,
 					Available:        true,
 					Healthy:          true,
+					Deployed:         true,
 				}
 				var wg sync.WaitGroup
 				for range 8 {

@@ -287,10 +287,12 @@ spec:
               rollout:
                 properties:
                   available:
+                    description: 'Available is every desired replica of the current
+                      revision counted: ready for a service, available for a worker.'
                     type: boolean
                   deadline:
                     description: Deadline is set while the current placement revision
-                      has not become healthy.
+                      has not become healthy with every replica available.
                     properties:
                       at:
                         format: date-time
@@ -304,7 +306,7 @@ spec:
                     type: object
                   deployedRevision:
                     description: DeployedRevision is the newest placement revision
-                      that became healthy.
+                      that became healthy with every replica available.
                     format: int64
                     type: integer
                   desiredReplicas:

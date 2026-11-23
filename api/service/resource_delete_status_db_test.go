@@ -33,7 +33,7 @@ func TestDeleteResourceAndStatusReportDoNotDeadlock(t *testing.T) {
 	writers.Go(func() {
 		f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 			PlacementId: p.ID.String(), DeploymentId: created.GetDeploymentId(), ObservedRevision: p.DesiredRevision,
-			Available: true, Healthy: true, ReadyReplicas: 1,
+			Available: true, Healthy: true, Deployed: true, ReadyReplicas: 1,
 			Replicas: []*deploymentv1.Replica{{Uid: "pod", DeploymentId: created.GetDeploymentId(), Ready: true,
 				State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}},
 		})

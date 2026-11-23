@@ -2,9 +2,11 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -102,7 +104,7 @@ func TestARunningServiceStoppedForRestartsCrashesOnceAndRestartsAgain(t *testing
 	t.Parallel()
 	f := newDeployFixture(t)
 	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
-	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
 
 	f.reportStatus(t, &agentv1.PlacementStatus{Available: true})
 	if got := f.placementStatus(t, id); got != genDb.PlacementStatusDegraded {
@@ -111,7 +113,7 @@ func TestARunningServiceStoppedForRestartsCrashesOnceAndRestartsAgain(t *testing
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusDegraded {
 		t.Fatalf("deployment after a restart = %s, want degraded", got)
 	}
-	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusRunning {
 		t.Fatalf("deployment after a quiet window = %s, want running", got)
 	}
@@ -151,7 +153,7 @@ func TestARunningServiceStoppedForRestartsCrashesOnceAndRestartsAgain(t *testing
 	if got := f.placementStatus(t, id); got != genDb.PlacementStatusDeploying {
 		t.Fatalf("placement after a restart = %s, want deploying", got)
 	}
-	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusRunning {
 		t.Fatalf("deployment after the restart rolled out = %s, want running", got)
 	}
@@ -161,7 +163,7 @@ func TestARolloutStoppedForRestartsFails(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
-	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
 	report := stoppedReport()
 	report.Stopped.Rollout = true
 	f.reportStatus(t, report)
@@ -204,5 +206,71 @@ func TestARolloutStoppedAtItsDeployTimeoutFailsWithoutAFallback(t *testing.T) {
 	}
 	if crashed := f.eventsOf(t, events.DeploymentCrashed, id); len(crashed) != 0 {
 		t.Fatalf("a deploy timeout recorded deployment.crashed: %v", crashed)
+	}
+}
+
+func TestARunningPlacementStartsOnceItsRevisionIsDeployed(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	started := func(id uuid.UUID) bool {
+		t.Helper()
+		placement, err := f.queries.GetDeploymentPlacement(t.Context(), genDb.GetDeploymentPlacementParams{
+			DeploymentID: id, ClusterID: f.clusterID,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		deployment, err := f.queries.GetDeploymentByID(t.Context(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (placement.StartedAt != nil) != (deployment.StartedAt != nil) {
+			t.Fatalf("placement started %v, deployment started %v", placement.StartedAt, deployment.StartedAt)
+		}
+		return placement.StartedAt != nil
+	}
+	rollbackTarget := func(id uuid.UUID) *uuid.UUID {
+		t.Helper()
+		previous, err := f.queries.PreviousLiveDeploymentForCluster(t.Context(),
+			genDb.PreviousLiveDeploymentForClusterParams{DeploymentID: id, ClusterID: f.clusterID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &previous.ID
+	}
+
+	first := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	if got := f.placementStatus(t, first); got != genDb.PlacementStatusRunning {
+		t.Fatalf("healthy placement = %s, want running", got)
+	}
+	if started(first) {
+		t.Fatal("a placement not yet deployed started")
+	}
+	if ready := f.eventsOf(t, events.DeploymentReady, first); len(ready) != 0 {
+		t.Fatalf("deployment.ready events = %d before the revision was deployed", len(ready))
+	}
+	second := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	if target := rollbackTarget(second); target != nil {
+		t.Fatalf("rollback target = %s, want none before a deployment was deployed", target)
+	}
+	if got := f.deploymentStatus(t, first); got != genDb.DeploymentStatusCanceled {
+		t.Fatalf("replaced deployment that was never deployed = %s, want canceled", got)
+	}
+
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true, Deployed: true})
+	if !started(second) {
+		t.Fatal("a deployed placement did not start")
+	}
+	if ready := f.eventsOf(t, events.DeploymentReady, second); len(ready) != 1 {
+		t.Fatalf("deployment.ready events = %d, want 1 once deployed", len(ready))
+	}
+	third := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	if target := rollbackTarget(third); target == nil || *target != second {
+		t.Fatalf("rollback target = %v, want the deployed %s", target, second)
 	}
 }

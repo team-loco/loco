@@ -1215,16 +1215,15 @@ func (q *Queries) QueryDeploymentBuckets(ctx context.Context, arg QueryDeploymen
 
 const recomputeDeploymentStatus = `-- name: RecomputeDeploymentStatus :one
 WITH previous AS (
-    SELECT locked.id, locked.status FROM deployments locked WHERE locked.id = $1 FOR UPDATE
+    SELECT locked.id, locked.status, locked.started_at FROM deployments locked WHERE locked.id = $1 FOR UPDATE
 ), next AS (
     SELECT deployment_status_from_placements($1) AS status
 )
 UPDATE deployments d
 SET status = next.status,
-    started_at = CASE
-        WHEN next.status IN ('running', 'degraded') THEN COALESCE(d.started_at, NOW())
-        ELSE d.started_at
-    END,
+    started_at = COALESCE(d.started_at, (
+        SELECT MIN(dp.started_at) FROM deployment_placements dp WHERE dp.deployment_id = d.id
+    )),
     completed_at = CASE
         WHEN next.status IN ('failed', 'canceled', 'superseded') THEN COALESCE(d.completed_at, NOW())
         ELSE NULL
@@ -1232,18 +1231,26 @@ SET status = next.status,
     updated_at = CASE WHEN next.status <> previous.status THEN NOW() ELSE d.updated_at END
 FROM previous, next
 WHERE d.id = previous.id
-RETURNING previous.status AS previous_status, d.status
+RETURNING previous.status AS previous_status, d.status,
+    (previous.started_at IS NOT NULL)::bool AS previously_started, (d.started_at IS NOT NULL)::bool AS started
 `
 
 type RecomputeDeploymentStatusRow struct {
-	PreviousStatus DeploymentStatus `json:"previousStatus"`
-	Status         DeploymentStatus `json:"status"`
+	PreviousStatus    DeploymentStatus `json:"previousStatus"`
+	Status            DeploymentStatus `json:"status"`
+	PreviouslyStarted bool             `json:"previouslyStarted"`
+	Started           bool             `json:"started"`
 }
 
 func (q *Queries) RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error) {
 	row := q.db.QueryRow(ctx, recomputeDeploymentStatus, id)
 	var i RecomputeDeploymentStatusRow
-	err := row.Scan(&i.PreviousStatus, &i.Status)
+	err := row.Scan(
+		&i.PreviousStatus,
+		&i.Status,
+		&i.PreviouslyStarted,
+		&i.Started,
+	)
 	return i, err
 }
 
@@ -1285,10 +1292,6 @@ func (q *Queries) SetDeploymentCanceledBy(ctx context.Context, arg SetDeployment
 const setDeploymentPlacementStatus = `-- name: SetDeploymentPlacementStatus :execrows
 UPDATE deployment_placements
 SET status = $1,
-    started_at = CASE
-        WHEN $1::placement_status IN ('running', 'degraded') THEN COALESCE(started_at, NOW())
-        ELSE started_at
-    END,
     completed_at = CASE
         WHEN $1::placement_status IN ('failed', 'canceled', 'superseded') THEN COALESCE(completed_at, NOW())
         ELSE NULL
@@ -1313,6 +1316,29 @@ func (q *Queries) SetDeploymentPlacementStatus(ctx context.Context, arg SetDeplo
 		arg.ClusterID,
 		arg.FromStatuses,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const startDeploymentPlacement = `-- name: StartDeploymentPlacement :execrows
+UPDATE deployment_placements
+SET started_at = NOW(), updated_at = NOW()
+WHERE deployment_id = $1
+  AND cluster_id = $2
+  AND status = 'running'
+  AND started_at IS NULL
+`
+
+type StartDeploymentPlacementParams struct {
+	DeploymentID uuid.UUID `json:"deploymentId"`
+	ClusterID    uuid.UUID `json:"clusterId"`
+}
+
+// Records when a running placement's revision first became healthy with every replica available.
+func (q *Queries) StartDeploymentPlacement(ctx context.Context, arg StartDeploymentPlacementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, startDeploymentPlacement, arg.DeploymentID, arg.ClusterID)
 	if err != nil {
 		return 0, err
 	}

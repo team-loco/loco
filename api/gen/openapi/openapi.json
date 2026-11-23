@@ -9152,7 +9152,8 @@
           },
           "available": {
             "type": "boolean",
-            "title": "available"
+            "title": "available",
+            "description": "Every desired replica of the observed revision counted: ready for a service, available for a worker."
           },
           "replicas": {
             "type": "array",
@@ -9188,6 +9189,11 @@
             "title": "failure_policy",
             "description": "The observed revision's failure policy.",
             "$ref": "#/components/schemas/loco.deployment.v1.FailurePolicy"
+          },
+          "deployed": {
+            "type": "boolean",
+            "title": "deployed",
+            "description": "Set once the observed revision became healthy with every replica available."
           }
         },
         "title": "PlacementStatus",

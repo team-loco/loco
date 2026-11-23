@@ -83,10 +83,6 @@ func TestRecomputeDeploymentStatusAggregatesPlacements(t *testing.T) {
 			if (row.CompletedAt != nil) != terminal {
 				t.Fatalf("completed at = %v for %s", row.CompletedAt, tt.want)
 			}
-			started := tt.want == genDb.DeploymentStatusRunning || tt.want == genDb.DeploymentStatusDegraded
-			if started && row.StartedAt == nil {
-				t.Fatalf("started at unset for %s", tt.want)
-			}
 		})
 	}
 }

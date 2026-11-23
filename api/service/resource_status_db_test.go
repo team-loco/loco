@@ -129,6 +129,7 @@ func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID, replica
 	f.report(t, f.envID, clusterID, &agentv1.PlacementStatus{
 		Available:     true,
 		Healthy:       true,
+		Deployed:      true,
 		ReadyReplicas: replicas,
 	})
 }
@@ -401,6 +402,7 @@ func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 	f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
 		Available:     true,
 		Healthy:       true,
+		Deployed:      true,
 		ReadyReplicas: statusTwoReplicas,
 		Replicas:      readyReplicas(previous, statusTwoReplicas),
 	})
@@ -439,7 +441,7 @@ func TestOverlappingRolloutReadsNoMoreReadyThanDesired(t *testing.T) {
 			f.deployProduction(t, desired)
 			previous := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
 			f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
-				Available: true, Healthy: true, ReadyReplicas: desired,
+				Available: true, Healthy: true, Deployed: true, ReadyReplicas: desired,
 				Replicas: readyReplicas(previous, desired),
 			})
 
