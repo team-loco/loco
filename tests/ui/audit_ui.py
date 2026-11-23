@@ -111,6 +111,22 @@ def list_events(calls):
 
 
 with session(out) as browser:
+    # Opening a page directly shows its placeholder inside the shell while its code loads.
+    context, page, calls, errors = open_page(browser, "owner")
+    held_audit = []
+    page.route(
+        re.compile(r"/assets/Audit-[^/]+\.js$"), lambda route: held_audit.append(route)
+    )
+    page.goto(state["ui_url"] + audit_path)
+    expect(page.locator('[data-slot="page-loader"]')).to_be_visible()
+    expect(page.get_by_role("link", name="Audit log", exact=True)).to_be_visible()
+    expect(page.locator('[data-slot="app-loader"]')).to_have_count(0)
+    page.screenshot(path=out / "page-loading.png")
+    for route in held_audit:
+        route.continue_()
+    expect(page.get_by_role("table", name="Audit events")).to_be_visible()
+    context.close()
+
     # Organization admins read the whole organization from the sidebar entry.
     context, page, calls, errors = open_page(browser, "owner")
     environments = []
@@ -133,11 +149,6 @@ with session(out) as browser:
     with page.expect_request(audit_module):
         page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}")
     page.get_by_role("link", name="Audit log", exact=True).click()
-    # The page's placeholder loads inside the shell; the sidebar stays on screen.
-    expect(page.locator('[data-slot="page-loader"]')).to_be_visible()
-    expect(page.get_by_role("link", name="Audit log", exact=True)).to_be_visible()
-    expect(page.locator('[data-slot="app-loader"]')).to_have_count(0)
-    page.screenshot(path=out / "page-loading.png")
     assert environments, "the workspace's environments loaded before the click"
     environments[0].continue_()
     page.wait_for_url("**" + audit_path)

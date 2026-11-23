@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react";
 
+import { Skeleton } from "@/components/design/Skeleton";
 import { cn } from "@/lib/utils";
 
 export function Page({ className, children }: { className?: string; children: ReactNode }) {
@@ -12,6 +13,17 @@ export function Page({ className, children }: { className?: string; children: Re
 		>
 			{children}
 		</div>
+	);
+}
+
+export function PageLoading() {
+	return (
+		<Page>
+			<div data-slot="page-loader" role="status" aria-busy aria-label="Loading" className="contents">
+				<Skeleton className="h-8 w-56" />
+				<Skeleton className="h-64 w-full rounded-card" />
+			</div>
+		</Page>
 	);
 }
 

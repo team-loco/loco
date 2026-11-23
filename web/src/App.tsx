@@ -1,6 +1,7 @@
 import { AuthProvider, QUERY_CACHE_KEY } from "@/auth/AuthProvider";
 import { PageTitle } from "@/components/PageTitle";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageLoading } from "@/components/design/Page";
 import { Toaster } from "@/components/design/Sonner";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Login } from "@/pages/Login";
@@ -122,7 +123,7 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 		{ orgId: org ?? "", pageSize: 1 },
 		{ enabled: to === "settings" && org !== null && !scopes.isLoading && scopes.orgMember(org) },
 	);
-	if (!workspacesSettled || scopes.isLoading || first.isLoading) return <AppLoading />;
+	if (!workspacesSettled || scopes.isLoading || first.isLoading) return <PageLoading />;
 	if (org === null) return <Navigate to="/organizations" replace />;
 	if (to === "team") return <Navigate to={`/org/${org}/team`} replace />;
 	const ws = first.data?.workspaces[0]?.id;
@@ -141,7 +142,7 @@ function NoRoute(): never {
 
 function ProfileRedirect() {
 	const { activeOrgId, activeWorkspaceId, workspacesSettled } = useOrgWorkspace();
-	if (!workspacesSettled) return <AppLoading />;
+	if (!workspacesSettled) return <PageLoading />;
 	const to = accountSettingsPath(activeOrgId, activeWorkspaceId);
 	if (to !== PROFILE_PATH) return <Navigate to={to} replace />;
 	return (
