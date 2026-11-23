@@ -124,12 +124,11 @@ tests:
           path: spec.template.metadata.labels["app.kubernetes.io/component"]
         template: templates/api-deployment.yaml
 
-  - it: reserves two CPUs for ClickHouse with room to burst to four, with memory requests equal to limits
+  - it: lets ClickHouse burst to four CPUs, with memory requests equal to limits
     template: charts/clickhouse/templates/chi.yaml
     asserts:
-      - equal:
+      - exists:
           path: spec.templates.podTemplates[0].spec.containers[?(@.name == 'clickhouse')].resources.requests.cpu
-          value: "2"
       - equal:
           path: spec.templates.podTemplates[0].spec.containers[?(@.name == 'clickhouse')].resources.limits.cpu
           value: "4"

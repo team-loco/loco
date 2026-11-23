@@ -3,7 +3,7 @@ module github.com/team-loco/loco/controller
 go 1.27.4
 
 require (
-	github.com/KimMachineGun/automemlimit v1.0.1
+	github.com/go-logr/logr v1.4.4
 	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
 	github.com/team-loco/loco v0.0.0
@@ -24,6 +24,7 @@ require (
 replace github.com/team-loco/loco/k8sapi => ../k8sapi
 
 require (
+	github.com/KimMachineGun/automemlimit v1.0.1 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -34,7 +35,6 @@ require (
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
-	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v1.0.2 // indirect

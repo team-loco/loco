@@ -3,12 +3,12 @@ module github.com/team-loco/loco/builder
 go 1.27.4
 
 require (
-	github.com/KimMachineGun/automemlimit v1.0.1
 	github.com/google/go-containerregistry v0.22.1
 	github.com/team-loco/loco v0.0.0
 )
 
 require (
+	github.com/KimMachineGun/automemlimit v1.0.1 // indirect
 	github.com/docker/cli v29.7.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/klauspost/compress v1.20.3 // indirect

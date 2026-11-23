@@ -5,7 +5,6 @@ go 1.27.4
 require (
 	connectrpc.com/connect/v2 v2.0.2
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0
-	github.com/KimMachineGun/automemlimit v1.0.1
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/clickhouseexporter v0.165.1
 	github.com/prometheus/client_golang v1.25.0
@@ -28,6 +27,7 @@ require (
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2 // indirect
 	github.com/ClickHouse/ch-go v0.75.0 // indirect
+	github.com/KimMachineGun/automemlimit v1.0.1 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v7 v7.0.3 // indirect

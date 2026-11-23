@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"log/slog"
 	"os"
 	"time"
 
-	_ "github.com/KimMachineGun/automemlimit"
+	"github.com/go-logr/logr"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/tracing"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/gomemlimit"
 	"github.com/team-loco/loco/internal/otelsetup"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	// +kubebuilder:scaffold:imports
@@ -62,6 +64,7 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	gomemlimit.Set(slog.New(logr.ToSlogHandler(setupLog)))
 	managerVersion := buildinfo.Version(version)
 	setupLog.Info("starting loco controller", "version", managerVersion)
 

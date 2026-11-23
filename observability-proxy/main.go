@@ -13,12 +13,12 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/KimMachineGun/automemlimit"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
+	"github.com/team-loco/loco/internal/gomemlimit"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
@@ -152,6 +152,7 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
+	gomemlimit.Set(logger)
 
 	proxyVersion := buildinfo.Version(version)
 	logStartup(logger, cfg, proxyVersion)

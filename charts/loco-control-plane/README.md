@@ -117,7 +117,7 @@ For in-cluster ClickHouse, Helm renders Secrets named by `clickhouse.clickhouse.
 
 `openbao.setup.ttlSecondsAfterFinished` cleans the completed OpenBao setup Job after 3600 seconds by default. `openbao.setup.timeoutSeconds` bounds setup. Flux drift detection ignores the Job so TTL cleanup does not cause another run.
 
-The API requests 400m CPU and 256Mi memory and is limited to 2 CPUs and 1Gi. The Go runtime sets `GOMAXPROCS` from the CPU limit, rounding a limit below 2 up to 2. Every Go container (the API, the ingest proxy and OpenBao) has a CPU limit of at least 2. The API and the ingest proxy set their Go memory limit to 90% of the container memory limit at startup; `GOMEMLIMIT` in `api.env` or `obsProxy.ingest.env` replaces it. OpenBao gets `GOMEMLIMIT` equal to its memory limit. ClickHouse requests 2 CPUs and 4Gi and is limited to 4 CPUs and 4Gi.
+The API requests 400m CPU and 256Mi memory and is limited to 2 CPUs and 1Gi. The Go runtime sets `GOMAXPROCS` from the CPU limit, rounding a limit below 2 up to 2. Every Go container (the API, the ingest proxy and OpenBao) has a CPU limit of at least 2. The API and the ingest proxy set their Go memory limit at startup to 90% of the container memory limit. In `api.env` or `obsProxy.ingest.env`, `GOMEMLIMIT` replaces it, and `AUTOMEMLIMIT` sets another share in (0, 1] or turns it `off`. OpenBao gets `GOMEMLIMIT` equal to its memory limit. ClickHouse requests 1 CPU and 4Gi and is limited to 4 CPUs and 4Gi.
 
 With an external ClickHouse, leave `clickhouse.enabled: false` and name Secrets holding each user's URL in `api.clickhouse.existingSecret` (read-only), `obsProxy.ingest.clickhouse.migratorExistingSecret` and `obsProxy.ingest.clickhouse.existingSecret`.
 

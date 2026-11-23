@@ -10,7 +10,6 @@ require (
 	connectrpc.com/grpcreflect/v2 v2.0.0
 	connectrpc.com/otelconnect v0.12.0
 	connectrpc.com/validate v0.9.0
-	github.com/KimMachineGun/automemlimit v1.0.1
 	github.com/aws/aws-sdk-go-v2 v1.47.8
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.17
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.9
@@ -50,6 +49,7 @@ require (
 	connectrpc.com/connect v1.21.0 // indirect
 	github.com/ClickHouse/ch-go v0.75.0 // indirect
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0 // indirect
+	github.com/KimMachineGun/automemlimit v1.0.1 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.26 // indirect
