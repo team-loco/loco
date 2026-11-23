@@ -141,6 +141,21 @@ export function deploymentRef(d: Deployment): string {
 	return sha === "" ? imageTag(deploymentImage(d)) : shortSha(sha);
 }
 
+/** What started the deployment, such as "Rollback" or "Deploy". */
+export function deploymentTrigger(d: Deployment): string {
+	switch (d.trigger) {
+		case DeploymentTrigger.ROLLBACK:
+			return "Rollback";
+		case DeploymentTrigger.REDEPLOY:
+			return "Redeploy";
+		case DeploymentTrigger.SCALE:
+			return "Settings change";
+		case DeploymentTrigger.DEPLOY:
+		case DeploymentTrigger.UNSPECIFIED:
+			return "Deploy";
+	}
+}
+
 /** What the deployment does, such as "Deploy 3e8a51d" or "Rollback to v1.2". */
 export function deploymentHeadline(d: Deployment, ref = deploymentRef(d)): string {
 	switch (d.trigger) {

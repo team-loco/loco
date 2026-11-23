@@ -1,55 +1,48 @@
 import { deploymentMessage } from "@/hooks/deployment-watch";
 import { skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
-import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
+import { functionalUpdate } from "@tanstack/react-table";
+import { CheckIcon, CopyIcon, FileCodeIcon, GitCompareIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { Link } from "react-router";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Button } from "@/components/design/Button";
-import { CopyId } from "@/components/design/CopyId";
-import { CellText, DataTable, expandColumn, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import {
+	CellText,
+	DataTable,
+	DataTableColumnsMenu,
+	useDataTable,
+	type DataColumn,
+} from "@/components/design/DataTable";
+import { DropdownMenuItem } from "@/components/design/DropdownMenu";
+import { RowMenu } from "@/components/design/RowMenu";
 import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
 import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
-import { DeploymentActor } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
-import { PlacementChips } from "@/components/design/PlacementChips";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
+import { useCopy } from "@/hooks/useCopy";
+import { useLayout } from "@/lib/layout";
 import { useTokenPage } from "@/hooks/useTokenPage";
 import { tookLabel } from "@/lib/activity-deploys";
-import { deploymentProblem, isInFlight } from "@/lib/deployment-utils";
+import { deploymentActor, deploymentMethod, deploymentTrigger, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatTotal, pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { maybeTsMs, readyMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
-import { deploymentState } from "@/pages/dashboard/deploymentRows";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { formatCount } from "@/lib/format";
 
 import { buildStatusStyle, deploymentBuildId } from "./builds";
 import { BuildDetail, BuildsTable, TIME_CELL, TimeAgo, type BuildActor } from "./BuildsTable";
-import { StepRail } from "./DeploymentProgress";
-import { rolloutSteps } from "./deployment-progress";
-import {
-	canRollBackTo,
-	DEFAULT_PAGE_SIZE,
-	depTag,
-	PAGE_SIZES,
-	previousDeploymentId,
-	REFRESH_MS,
-	regionDeployment,
-	tookMs,
-	type RegionView,
-} from "./model";
-import { ABSENT, specChanges } from "./spec";
+import { canRollBackTo, DEFAULT_PAGE_SIZE, depTag, PAGE_SIZES, REFRESH_MS, tookMs, type RegionView } from "./model";
 import { useResourceBuilds } from "./useBuilds";
 
 const BUILD_PAGE_SIZE = 5;
@@ -61,8 +54,6 @@ const buildPagesParser = pageTokensParser.withOptions({ history: "replace" });
 interface Row {
 	dep: Deployment;
 	region: RegionView;
-	/** The deployment before this one in the region; empty for the region's first. */
-	prevId: string;
 }
 
 /** The regions of one deployment, one row per region. */
@@ -95,179 +86,221 @@ function HistoryKept({ count, tip }: { count: number; tip: string }) {
 	);
 }
 
-function Detail({
-	row,
-	loaded,
-	logsHref,
-	onRollback,
-	onViewSpec,
-	onOpenBuild,
-}: {
-	row: Row;
-	/** The deployments the page already has. */
-	loaded: readonly Deployment[];
-	logsHref: string | undefined;
-	/** Absent without write access. */
-	onRollback: ((target: Deployment, current: Deployment | undefined) => void) | undefined;
-	onViewSpec: (dep: Deployment) => void;
-	onOpenBuild: (buildId: string) => void;
-}) {
-	const { dep, region, prevId } = row;
-	const known = loaded.find((d) => d.id === prevId) ?? regionDeployment(region, prevId);
-	const fetched = useQuery(getDeployment, prevId === "" || known !== undefined ? skipToken : { deploymentId: prevId });
-	const prev = known ?? fetched.data?.deployment;
-	const buildId = deploymentBuildId(dep);
-	const took = tookMs(dep);
-	const changes = prev === undefined ? [] : specChanges(prev, dep);
-	return (
-		<div className="grid grid-cols-1 gap-6 pt-1.5 pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:pl-9">
-			<div className="flex min-w-0 flex-col gap-1.5">
-				<span data-slot="eyebrow" className="text-[12px] text-fg3">
-					Rollout
-				</span>
-				<StepRail
-					steps={rolloutSteps(dep, buildId !== undefined)}
-					note={(step) => {
-						if (step.state === "failed") return deploymentProblem(dep)?.message ?? "";
-						if (step.state === "stopped") return "Canceled";
-						return step.key === "deploy" && step.state === "done" && took !== undefined
-							? `took ${tookLabel(took)}`
-							: "";
-					}}
-				/>
-			</div>
-			<div className="flex min-w-0 flex-col gap-1.5">
-				<span data-slot="eyebrow" className="text-[12px] text-fg3">
-					Changes from previous
-				</span>
-				{prevId === "" && <span className="text-[12.5px] text-fg3">First deployment in {region.name}</span>}
-				{prevId !== "" && fetched.isLoading && <span className="text-[12.5px] text-fg3">Loading changes…</span>}
-				{fetched.error !== null && (
-					<span role="alert" className="text-[12.5px] text-bad-fg">
-						{getErrorMessage(fetched.error, "Could not load the previous deployment.")}
-					</span>
-				)}
-				{prev !== undefined && changes.length === 0 && (
-					<span className="text-[12.5px] text-fg3">Same spec as {formatShortId(prev.id)}</span>
-				)}
-				{changes.map((c) => (
-					<div key={c.label} className="flex min-w-0 flex-wrap gap-x-2 font-mono text-[12px]">
-						<span className="text-fg3">{c.label}</span>
-						<span className="break-all text-bad-fg">{c.from ?? ABSENT}</span>
-						<span className="text-fg3">→</span>
-						<span className="break-all text-ok-fg">{c.to ?? ABSENT}</span>
-					</div>
-				))}
-			</div>
-			<div className="flex flex-wrap items-start gap-2 md:flex-col md:items-stretch">
-				{onRollback !== undefined && canRollBackTo(dep, region) && (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => {
-							onRollback(dep, region.current);
-						}}
-					>
-						<Undo2Icon />
-						Roll back to this
-					</Button>
-				)}
-				{logsHref !== undefined && (
-					<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
-						<ScrollTextIcon />
-						Logs
-					</Button>
-				)}
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => {
-						onViewSpec(dep);
-					}}
-				>
-					<FileCodeIcon />
-					View spec
-				</Button>
-				{dep.commit !== undefined && (
-					<CopyId value={dep.commit.sha} className="h-[30px] px-2.5 text-[12.5px] text-fg2">
-						Copy SHA
-					</CopyId>
-				)}
-				{buildId !== undefined && (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => {
-							onOpenBuild(buildId);
-						}}
-					>
-						<HammerIcon />
-						Build <span className="font-mono">{formatShortId(buildId)}</span>
-					</Button>
-				)}
-			</div>
-		</div>
+/** The ids of the columns the table shows when the viewer has not chosen. */
+const HIDDEN_DEPLOY_COLUMNS = ["commit", "region", "trigger", "message", "deployed"];
+
+type Visibility = Record<string, boolean>;
+
+function parseVisibility(value: unknown): Visibility {
+	if (typeof value !== "object" || value === null) return {};
+	return Object.fromEntries(
+		Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"),
 	);
 }
 
-function rolloutColumns(
-	nowMs: number,
-	open: string | null,
-	setOpen: (key: string | null) => void,
-): DataColumn<RolloutRow>[] {
+/** Text with a copy button that shows while the row is hovered or the button has focus. */
+function CopyCell({ text, copy, label }: { text: string; copy: string; label: string }) {
+	const [copied, copyText] = useCopy();
+	return (
+		<span className="flex min-w-0 items-center gap-1">
+			<CellText text={text} className="font-mono text-[12px] text-foreground" />
+			<Button
+				variant="ghost"
+				size="icon-xs"
+				aria-label={copied === null ? label : "Copied"}
+				title={label}
+				className="size-5 opacity-0 focus-visible:opacity-100 [tr:hover_&]:opacity-100"
+				onClick={() => {
+					copyText(copy, copy);
+				}}
+			>
+				{copied === null ? <CopyIcon /> : <CheckIcon />}
+			</Button>
+		</span>
+	);
+}
+
+function DeployedBy({ deployment }: { deployment: Deployment }) {
+	const method = deploymentMethod(deployment);
+	return (
+		<span className="flex min-w-0 items-baseline gap-2">
+			<CellText text={deploymentActor(deployment)} className="text-[13px] text-foreground" />
+			{method !== "" && <span className="shrink-0 text-[12px] text-fg3">{method}</span>}
+		</span>
+	);
+}
+
+function RolloutActions({
+	rollout,
+	canWrite,
+	onRollback,
+	onViewSpec,
+	onCompareSpec,
+}: {
+	rollout: RolloutRow;
+	canWrite: boolean;
+	onRollback: (target: Deployment, current: Deployment | undefined) => void;
+	onViewSpec: (dep: Deployment) => void;
+	onCompareSpec: (dep: Deployment, current: Deployment) => void;
+}) {
+	const dep = rollout.rows[0].dep;
+	const current = rollout.rows.find((r) => r.region.current !== undefined && r.region.current.id !== dep.id)?.region
+		.current;
+	return (
+		<RowMenu label={`Actions for ${formatShortId(dep.id)}`}>
+			{canWrite &&
+				rollout.rows
+					.filter((r) => canRollBackTo(r.dep, r.region))
+					.map((r) => (
+						<DropdownMenuItem
+							key={r.region.name}
+							onClick={() => {
+								onRollback(r.dep, r.region.current);
+							}}
+						>
+							<Undo2Icon className="text-fg3" />
+							{rollout.rows.length > 1 ? `Roll back to this in ${r.region.name}` : "Roll back to this"}
+						</DropdownMenuItem>
+					))}
+			<DropdownMenuItem
+				onClick={() => {
+					onViewSpec(dep);
+				}}
+			>
+				<FileCodeIcon className="text-fg3" />
+				View spec
+			</DropdownMenuItem>
+			{current !== undefined && (
+				<DropdownMenuItem
+					onClick={() => {
+						onCompareSpec(dep, current);
+					}}
+				>
+					<GitCompareIcon className="text-fg3" />
+					Compare spec with current
+				</DropdownMenuItem>
+			)}
+		</RowMenu>
+	);
+}
+
+function rolloutColumns({
+	nowMs,
+	canWrite,
+	onRollback,
+	onViewSpec,
+	onCompareSpec,
+	onOpenBuild,
+}: {
+	nowMs: number;
+	canWrite: boolean;
+	onRollback: (target: Deployment, current: Deployment | undefined) => void;
+	onViewSpec: (dep: Deployment) => void;
+	onCompareSpec: (dep: Deployment, current: Deployment) => void;
+	onOpenBuild: (buildId: string) => void;
+}): DataColumn<RolloutRow>[] {
+	const lead = (rollout: RolloutRow) => leadRow(rollout.rows).dep;
 	return [
-		expandColumn(open, setOpen, (rollout) => `details for ${formatShortId(rollout.rows[0].dep.id)}`),
+		{
+			id: "id",
+			header: "Deployment ID",
+			size: 130,
+			minSize: 100,
+			meta: { fit: true, fitMax: 160, label: "Deployment ID" },
+			enableHiding: false,
+			cell: ({ row: { original: rollout } }) => (
+				<CopyCell
+					text={formatShortId(rollout.rows[0].dep.id)}
+					copy={rollout.rows[0].dep.id}
+					label="Copy deployment ID"
+				/>
+			),
+		},
 		{
 			id: "status",
 			header: "Status",
 			size: 110,
 			minSize: 90,
 			meta: { fit: true, fitMax: 140 },
-			cell: ({ row: { original: rollout } }) => {
-				const { dep } = leadRow(rollout.rows);
-				return <DeploymentStatusBadge phase={dep.status} superseded={deploymentState(dep.status) === "superseded"} />;
-			},
+			enableHiding: false,
+			cell: ({ row: { original: rollout } }) => <DeploymentStatusBadge phase={lead(rollout).status} />,
 		},
 		{
-			id: "version",
-			header: "Version",
-			size: 130,
-			minSize: 90,
-			meta: { fit: true, fitMax: 160 },
-			cell: ({ row: { original: rollout } }) => (
-				<CellText text={depTag(leadRow(rollout.rows).dep)} className="font-mono text-[12.5px] text-foreground" />
-			),
+			id: "build",
+			header: "Build",
+			size: 110,
+			minSize: 80,
+			meta: { fit: true, fitMax: 140 },
+			cell: ({ row: { original: rollout } }) => {
+				const buildId = deploymentBuildId(lead(rollout));
+				if (buildId === undefined) return <span className="text-fg3">—</span>;
+				return (
+					<Button
+						variant="plain-link"
+						className="font-mono text-[12px] text-foreground hover:text-brand"
+						onClick={() => {
+							onOpenBuild(buildId);
+						}}
+					>
+						{formatShortId(buildId)}
+					</Button>
+				);
+			},
 		},
 		{
 			id: "actor",
 			header: "Deployed by",
-			size: 120,
+			size: 200,
+			minSize: 120,
+			meta: { grow: true },
+			cell: ({ row: { original: rollout } }) => <DeployedBy deployment={lead(rollout)} />,
+		},
+		{
+			id: "commit",
+			header: "Commit",
+			size: 110,
 			minSize: 90,
-			cell: ({ row: { original: rollout } }) => <DeploymentActor deployment={leadRow(rollout.rows).dep} />,
+			meta: { fit: true, fitMax: 160, defaultHidden: true },
+			cell: ({ row: { original: rollout } }) => {
+				const dep = lead(rollout);
+				return dep.commit === undefined ? (
+					<CellText text={depTag(dep)} className="font-mono text-[12px] text-foreground" />
+				) : (
+					<CopyCell text={depTag(dep)} copy={dep.commit.sha} label="Copy SHA" />
+				);
+			},
 		},
 		{
 			id: "region",
-			header: "Region",
+			header: "Region(s)",
 			size: 120,
 			minSize: 100,
-			meta: { fit: true, fitMax: 160 },
+			meta: { fit: true, fitMax: 160, defaultHidden: true },
 			cell: ({ row: { original: rollout } }) => (
-				<PlacementChips placements={leadRow(rollout.rows).dep.placements} className="flex-col items-start" />
+				<CellText text={rollout.rows.map((r) => r.region.name).join(", ")} className="font-mono text-[12px] text-fg2" />
+			),
+		},
+		{
+			id: "trigger",
+			header: "Trigger",
+			size: 100,
+			minSize: 80,
+			meta: { fit: true, fitMax: 140, defaultHidden: true },
+			cell: ({ row: { original: rollout } }) => (
+				<CellText text={deploymentTrigger(lead(rollout))} className="text-fg2" />
 			),
 		},
 		{
 			id: "message",
 			header: "Message",
-			size: 80,
+			size: 160,
 			minSize: 72,
-			meta: { grow: true },
-			cell: ({ row: { original: rollout } }) => (
-				<CellText text={historyMessage(leadRow(rollout.rows).dep)} className="text-fg2" />
-			),
+			meta: { defaultHidden: true },
+			cell: ({ row: { original: rollout } }) => <CellText text={historyMessage(lead(rollout))} className="text-fg2" />,
 		},
 		{
 			id: "took",
-			header: "Took",
+			header: "Duration",
 			size: 88,
 			minSize: 88,
 			meta: { align: "end", cellClassName: TIME_CELL },
@@ -279,7 +312,7 @@ function rolloutColumns(
 		{
 			id: "started",
 			header: "Started",
-			size: 84,
+			size: 100,
 			minSize: 72,
 			meta: { align: "end", cellClassName: TIME_CELL },
 			cell: ({ row: { original: rollout } }) => <TimeAgo ms={maybeTsMs(rollout.rows[0].dep.createdAt)} nowMs={nowMs} />,
@@ -287,10 +320,25 @@ function rolloutColumns(
 		{
 			id: "deployed",
 			header: "Deployed",
-			size: 84,
+			size: 100,
 			minSize: 72,
-			meta: { align: "end", cellClassName: TIME_CELL },
+			meta: { align: "end", cellClassName: TIME_CELL, defaultHidden: true },
 			cell: ({ row: { original: rollout } }) => <TimeAgo ms={readyMs(rollout.rows[0].dep)} nowMs={nowMs} />,
+		},
+		{
+			id: "actions",
+			header: ({ table }) => <DataTableColumnsMenu table={table} />,
+			meta: { label: "Actions", pinEnd: true },
+			enableHiding: false,
+			cell: ({ row: { original: rollout } }) => (
+				<RolloutActions
+					rollout={rollout}
+					canWrite={canWrite}
+					onRollback={onRollback}
+					onViewSpec={onViewSpec}
+					onCompareSpec={onCompareSpec}
+				/>
+			),
 		},
 	];
 }
@@ -301,12 +349,12 @@ export function DeploymentsSection({
 	workspaceId,
 	environmentId,
 	regions,
-	logsHref,
 	buildLogsHref,
 	canWrite,
 	canReadWorkspace,
 	onRollback,
 	onViewSpec,
+	onCompareSpec,
 	nowMs,
 }: {
 	resourceId: string;
@@ -314,21 +362,28 @@ export function DeploymentsSection({
 	workspaceId: string;
 	environmentId: string | undefined;
 	regions: RegionView[];
-	logsHref: string | undefined;
 	buildLogsHref: (buildId: string) => string | undefined;
 	canWrite: boolean;
 	canReadWorkspace: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 	/** Opens dep's spec, offering the other deployments on the page to compare with. */
 	onViewSpec: (dep: Deployment, shown: Deployment[]) => void;
+	/** Opens dep's spec compared with the spec of `current`. */
+	onCompareSpec: (dep: Deployment, current: Deployment) => void;
 	nowMs: number;
 }) {
 	const transport = useTransport();
 	const [deploySize, setDeploySize] = useState(DEFAULT_PAGE_SIZE);
 	const [deployPages, setDeployPages] = useState<string[]>([]);
+	const [buildFilter, setBuildFilter] = useState<string | null>(null);
 	const history = useTokenPage(
 		listDeployments,
-		{ resourceId, environmentId: environmentId ?? "", pageSize: deploySize },
+		{
+			resourceId,
+			environmentId: environmentId ?? "",
+			pageSize: deploySize,
+			...(buildFilter === null ? {} : { buildId: buildFilter }),
+		},
 		deployPages,
 		{
 			enabled: environmentId !== undefined,
@@ -341,7 +396,6 @@ export function DeploymentsSection({
 		if (!history.query.isPlaceholderData) setDeployPages(pages ?? []);
 	});
 	const deployments = history.query.data?.deployments ?? [];
-	const [open, setOpen] = useState<string | null>(null);
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
 	const [buildPages, setBuildPages] = useQueryState("builds", buildPagesParser);
 	const builds = useResourceBuilds(resourceId, environmentId, BUILD_PAGE_SIZE, buildPages);
@@ -373,15 +427,39 @@ export function DeploymentsSection({
 					serving: undefined,
 					lastGood: undefined,
 				},
-				prevId: previousDeploymentId(dep, name),
 			}));
 		return first === undefined ? [] : [{ key: dep.id, rows: [first, ...rest] }];
 	});
+	const goBuild = (buildId: string) => {
+		if (builds.builds.some((build) => build.id === buildId)) {
+			void setHist("builds");
+			setOpenBuild(buildId);
+			return;
+		}
+		setSelectedBuild(buildId);
+	};
+	const [shownColumns, setShownColumns] = useLayout("tables.history.deployments", parseVisibility);
+	const columnVisibility: Visibility = {
+		...Object.fromEntries(HIDDEN_DEPLOY_COLUMNS.map((id) => [id, false])),
+		...shownColumns,
+	};
 	const deployTable = useDataTable("deployments", {
-		columns: rolloutColumns(nowMs, open, setOpen),
+		columns: rolloutColumns({
+			nowMs,
+			canWrite,
+			onRollback,
+			onViewSpec: (dep) => {
+				onViewSpec(dep, deployments);
+			},
+			onCompareSpec,
+			onOpenBuild: goBuild,
+		}),
 		data: rollouts,
 		getRowId: (rollout) => rollout.key,
-		state: { columnVisibility: { region: regions.length > 1 } },
+		state: { columnVisibility },
+		onColumnVisibilityChange: (updater) => {
+			setShownColumns(functionalUpdate(updater, columnVisibility));
+		},
 	});
 
 	const actors = new Map<string, BuildActor>(
@@ -393,14 +471,6 @@ export function DeploymentsSection({
 	const running = regions.flatMap((r) => (r.current === undefined ? [] : [r.current]));
 	const imageOnly = running.length > 0 && running.every((dep) => deploymentBuildId(dep) === undefined);
 
-	const goBuild = (buildId: string) => {
-		if (builds.builds.some((build) => build.id === buildId)) {
-			void setHist("builds");
-			setOpenBuild(buildId);
-			return;
-		}
-		setSelectedBuild(buildId);
-	};
 	// The build a detail is open for links to the newest deployment built from it.
 	const linkedBuild = selectedBuild ?? openBuild;
 	const built = useQuery(
@@ -409,19 +479,18 @@ export function DeploymentsSection({
 			? skipToken
 			: { resourceId, environmentId, buildId: linkedBuild, pageSize: 1 },
 	).data?.deployments[0];
+	const showBuildDeployments = (buildId: string) => {
+		void setHist("deploys");
+		setBuildFilter(buildId);
+		setDeployPages([]);
+	};
 	const buildDeployment = (buildId: string) => {
 		if (built === undefined || deploymentBuildId(built) !== buildId) return undefined;
 		return {
 			tag: depTag(built),
 			onOpen: () => {
 				setSelectedBuild(null);
-				// A deployment on another page of the table opens as its spec.
-				if (!deployments.some((d) => d.id === built.id)) {
-					onViewSpec(built, deployments);
-					return;
-				}
-				void setHist("deploys");
-				setOpen(built.id);
+				showBuildDeployments(buildId);
 			},
 		};
 	};
@@ -434,7 +503,7 @@ export function DeploymentsSection({
 					void setHist(HISTS.find((h) => h === next) ?? "deploys");
 				}}
 			>
-				<div className="px-5 pt-3">
+				<div className="flex items-center gap-2 px-5 pt-3">
 					<TabsList variant="segmented" aria-label="History">
 						<TabsTrigger value="deploys">
 							Deployments <TabsCount>{history.total === undefined ? "—" : formatTotal(history.total)}</TabsCount>
@@ -443,6 +512,20 @@ export function DeploymentsSection({
 							Builds <TabsCount>{builds.total === undefined ? "—" : formatTotal(builds.total)}</TabsCount>
 						</TabsTrigger>
 					</TabsList>
+					{buildFilter !== null && hist === "deploys" && (
+						<Button
+							variant="outline"
+							size="sm"
+							aria-label="Clear build filter"
+							onClick={() => {
+								setBuildFilter(null);
+								setDeployPages([]);
+							}}
+						>
+							Build <span className="font-mono">{formatShortId(buildFilter)}</span>
+							<XIcon className="text-fg3" />
+						</Button>
+					)}
 				</div>
 				<TabsContent value="deploys" className="pt-1.5">
 					<div aria-busy={history.query.isPlaceholderData}>
@@ -451,40 +534,10 @@ export function DeploymentsSection({
 							inset
 							label="Deployments"
 							loading={history.query.isLoading}
-							className="[--row-h:58px]"
 							empty={
 								history.query.error === null ? (
 									<div className="flex h-24 items-center justify-center text-fg3">No deployments yet.</div>
 								) : null
-							}
-							onRowClick={(row) => {
-								setOpen(open === row.id ? null : row.id);
-							}}
-							renderExpanded={({ id, original: { rows } }) =>
-								open === id
-									? rows.map((row) => (
-											<section
-												key={row.region.name}
-												aria-label={rows.length > 1 ? `Deployment in ${row.region.name}` : undefined}
-											>
-												{rows.length > 1 && (
-													<h3 className="m-0 pt-3 font-mono text-[12px] font-medium text-fg2 md:pl-9">
-														{row.region.name}
-													</h3>
-												)}
-												<Detail
-													row={row}
-													loaded={deployments}
-													logsHref={logsHref}
-													onRollback={canWrite ? onRollback : undefined}
-													onViewSpec={(dep) => {
-														onViewSpec(dep, deployments);
-													}}
-													onOpenBuild={goBuild}
-												/>
-											</section>
-										))
-									: null
 							}
 						/>
 					</div>

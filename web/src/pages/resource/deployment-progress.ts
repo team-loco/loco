@@ -1,16 +1,16 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import {
 	DeploymentStatus,
+	DeploymentTrigger,
 	PlacementStatus,
 	type Activity,
 	type Deployment,
-	type DeploymentPlacement,
 	type Replica,
 } from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { BadgeTone } from "@/components/design/Badge";
-import { currentReplica, readyIn } from "@/lib/activity-deploys";
-import { deploymentProblem, isInFlight } from "@/lib/deployment-utils";
+import { currentReplica, tookLabel } from "@/lib/activity-deploys";
+import { deploymentActor, deploymentMethod, deploymentProblem, isInFlight } from "@/lib/deployment-utils";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
 import { regionDeployment, type RegionView } from "./model";
@@ -198,11 +198,6 @@ export function rolloutSteps(deployment: Deployment, built: boolean): RolloutSte
 	];
 }
 
-export function readyLabel(deployment: Deployment, placement: DeploymentPlacement | undefined): string {
-	const ready = placement === undefined ? 0 : readyIn(deployment, placement);
-	return `${ready.toString()} of ${(placement?.desiredReplicas ?? 0).toString()} ready`;
-}
-
 /** Short names for the problem reasons k8sapi/v1alpha1/problems.go defines. */
 export const PROBLEM_REASONS: Record<string, string> = {
 	build_failed: "Build failed",
@@ -219,13 +214,97 @@ export const PROBLEM_REASONS: Record<string, string> = {
 	unclean_shutdown: "Unclean shutdown",
 };
 
-/** How many replicas there are and how many are in each state. */
-export function replicaSummary(replicas: readonly Replica[]): string {
-	const counts = new Map<string, number>();
-	for (const replica of replicas) {
-		const label = replicaState(replica.state).label;
-		counts.set(label, (counts.get(label) ?? 0) + 1);
+/** The state of one node in the rollout graph. */
+export type FlowState = StepState | "retry" | "skipped";
+
+type Tone = "run" | "ok" | "warn" | "err" | "off";
+
+/** [in flight, finished, failed or canceled] for what the deployment does. */
+function rolloutVerbs(deployment: Deployment): [string, string, string] {
+	switch (deployment.trigger) {
+		case DeploymentTrigger.ROLLBACK:
+			return ["Rolling back", "Rolled back", "Rollback"];
+		case DeploymentTrigger.REDEPLOY:
+			return ["Restarting", "Restarted", "Restart"];
+		case DeploymentTrigger.DEPLOY:
+		case DeploymentTrigger.SCALE:
+		case DeploymentTrigger.UNSPECIFIED:
+			return ["Deploying", "Deployed", "Deploy"];
 	}
-	const parts = [...counts].map(([label, n]) => `${n.toString()} ${label.toLowerCase()}`);
-	return [`${replicas.length.toString()} replicas`, ...parts].join(", ");
+}
+
+/** What happened to a deployment in words: the action by kind, the outcome by state, and how long it took. */
+export function rolloutHeadline(
+	deployment: Deployment,
+	elapsedMs: number | undefined,
+): { title: string; tone: Tone; when: string } {
+	const [doing, done, name] = rolloutVerbs(deployment);
+	const problem = deploymentProblem(deployment) !== undefined;
+	const length = elapsedMs === undefined ? "" : tookLabel(elapsedMs);
+	switch (deployment.status) {
+		case DeploymentStatus.BUILDING:
+			return {
+				title: problem ? `${name} failing` : "Building",
+				tone: problem ? "warn" : "run",
+				when: elapsedMs === undefined ? "" : clockLabel(elapsedMs),
+			};
+		case DeploymentStatus.DEPLOYING:
+			return {
+				title: problem ? `${name} failing` : doing,
+				tone: problem ? "warn" : "run",
+				when: elapsedMs === undefined ? "" : clockLabel(elapsedMs),
+			};
+		case DeploymentStatus.RUNNING:
+		case DeploymentStatus.DEGRADED:
+		case DeploymentStatus.SUPERSEDED:
+			return problem || deployment.status === DeploymentStatus.DEGRADED
+				? { title: `${done}, degraded`, tone: "warn", when: `in ${length}` }
+				: { title: done, tone: "ok", when: `in ${length}` };
+		case DeploymentStatus.FAILED:
+		case DeploymentStatus.CRASHED:
+			return { title: `${name} failed`, tone: "err", when: `after ${length}` };
+		case DeploymentStatus.CANCELED:
+			return { title: `${name} canceled`, tone: "off", when: `after ${length}` };
+		case DeploymentStatus.UNSPECIFIED:
+			return { title: "Waiting to build", tone: "run", when: "" };
+	}
+}
+
+/** The logs page filtered to one region's replicas. */
+export function regionLogsHref(logsHref: string | undefined, region: string): string | undefined {
+	if (logsHref === undefined) return undefined;
+	const [path, search] = logsHref.split("?");
+	const params = new URLSearchParams(search);
+	params.set("q", `@region:${region}`);
+	return `${path}?${params}`;
+}
+
+/** The state of a region's deploy step from the region's placement and the deployment's own deploy step. */
+export function laneState(placement: DeploymentStatus, deploy: StepState, failing: boolean): FlowState {
+	if (deploy === "pending") return "pending";
+	switch (placement) {
+		case DeploymentStatus.RUNNING:
+		case DeploymentStatus.SUPERSEDED:
+			return "done";
+		case DeploymentStatus.FAILED:
+		case DeploymentStatus.CRASHED:
+			return "failed";
+		case DeploymentStatus.CANCELED:
+			return "stopped";
+		case DeploymentStatus.DEGRADED:
+			return deploy === "failed" ? "failed" : "retry";
+		case DeploymentStatus.BUILDING:
+		case DeploymentStatus.DEPLOYING:
+		case DeploymentStatus.UNSPECIFIED:
+			return failing ? "retry" : "active";
+	}
+}
+
+const VIA: Record<string, string> = { Dashboard: "dashboard", "API token": "API", CLI: "CLI" };
+
+/** Who started a deployment and how, such as "Triggered by Jamie Lee via CLI". */
+export function triggeredByLabel(deployment: Deployment): string {
+	const who = deploymentActor(deployment);
+	const method = deploymentMethod(deployment);
+	return method === "" ? `Triggered by ${who}` : `Triggered by ${who} via ${VIA[method] ?? method}`;
 }

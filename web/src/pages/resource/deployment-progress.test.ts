@@ -5,6 +5,7 @@ import {
 	DeploymentPlacementSchema,
 	DeploymentSchema,
 	DeploymentStatus,
+	DeploymentTrigger,
 	PlacementStatus,
 	ReplicaSchema,
 } from "@gen/loco/deployment/v1/deployment_pb";
@@ -19,9 +20,9 @@ import {
 	groupReplicas,
 	problemLogsHref,
 	progressDeployments,
-	readyLabel,
 	replicaState,
-	replicaSummary,
+	regionLogsHref,
+	rolloutHeadline,
 	rolloutActivity,
 	rolloutSteps,
 	showsCard,
@@ -264,19 +265,6 @@ test("rollout steps follow the deployment phase", () => {
 	).toEqual(["deploy"]);
 });
 
-test("the ready line counts the current revision's ready replicas against the desired count", () => {
-	const r = (ready: boolean, placementRevision: bigint, deploymentId = "next") =>
-		create(ReplicaSchema, { ready, placementRevision, deploymentId });
-	const deployment = create(DeploymentSchema, { id: "next" });
-	const placement = create(DeploymentPlacementSchema, {
-		desiredReplicas: 2,
-		currentRevision: 3n,
-		replicas: [r(true, 3n), r(false, 3n), r(true, 2n), r(true, 3n, "old")],
-	});
-	expect(readyLabel(deployment, placement)).toBe("1 of 2 ready");
-	expect(readyLabel(deployment, undefined)).toBe("0 of 0 ready");
-});
-
 test("a feed is ordered by event time, then arrival", () => {
 	const entry = (seq: number, atMs: number) =>
 		create(ActivitySchema, { seq: BigInt(seq), region: "east", revision: 2n, at: timestampFromMs(atMs) });
@@ -313,9 +301,24 @@ test("a stopped live deployment names the older deployment its region still serv
 	expect(servingBehindStop([stopped(status(PlacementStatus.DEPLOYING, ["previous"]))])).toBeUndefined();
 });
 
-test("replicaSummary counts the replicas in each state", () => {
-	const replicas = ["Serving", "Serving", "Starting", "Failing"].map((state, i) =>
-		create(ReplicaSchema, { name: `web-${i.toString()}`, state }),
-	);
-	expect(replicaSummary(replicas)).toBe("4 replicas, 2 serving, 1 starting, 1 failing");
+test("a headline says the action by kind and the outcome by state", () => {
+	const at = (status: DeploymentStatus, trigger = DeploymentTrigger.DEPLOY) =>
+		rolloutHeadline(create(DeploymentSchema, { status, trigger }), 64_000);
+	expect(at(DeploymentStatus.DEPLOYING)).toEqual({ title: "Deploying", tone: "run", when: "1:04" });
+	expect(at(DeploymentStatus.BUILDING)).toEqual({ title: "Building", tone: "run", when: "1:04" });
+	expect(at(DeploymentStatus.DEPLOYING, DeploymentTrigger.ROLLBACK).title).toBe("Rolling back");
+	expect(at(DeploymentStatus.RUNNING)).toEqual({ title: "Deployed", tone: "ok", when: "in 1m 4s" });
+	expect(at(DeploymentStatus.RUNNING, DeploymentTrigger.REDEPLOY).title).toBe("Restarted");
+	expect(at(DeploymentStatus.DEGRADED)).toEqual({ title: "Deployed, degraded", tone: "warn", when: "in 1m 4s" });
+	expect(at(DeploymentStatus.FAILED, DeploymentTrigger.ROLLBACK)).toEqual({
+		title: "Rollback failed",
+		tone: "err",
+		when: "after 1m 4s",
+	});
+	expect(at(DeploymentStatus.CANCELED).title).toBe("Deploy canceled");
+});
+
+test("a region's logs link filters to the region", () => {
+	expect(regionLogsHref("/logs?range=1h", "east")).toBe("/logs?range=1h&q=%40region%3Aeast");
+	expect(regionLogsHref(undefined, "east")).toBeUndefined();
 });

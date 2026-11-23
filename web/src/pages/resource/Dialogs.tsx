@@ -167,7 +167,7 @@ export function RollbackDialogContent({
 				<span>
 					Creates a new deployment in <span className="font-mono text-foreground">{regions}</span> from the spec of{" "}
 					<span className="font-mono text-foreground">{depTag(target)}</span>.
-					{current !== undefined && " The running deployment is superseded once the new replicas are ready."}
+					{current !== undefined && " The running deployment is replaced once the new replicas are ready."}
 				</span>
 			</DialogBody>
 			<DialogFooter>

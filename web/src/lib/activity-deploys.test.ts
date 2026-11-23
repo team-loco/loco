@@ -256,7 +256,7 @@ describe("canceledNote", () => {
 		const d = deployment("d", DeploymentStatus.CANCELED, 1, {
 			placements: [{ region: "us-va-1", supersededBy: newer }],
 		});
-		expect(canceledNote(d)).toBe(`Superseded by ${formatShortId(newer)}`);
+		expect(canceledNote(d)).toBe(`Replaced by ${formatShortId(newer)}`);
 	});
 	test("says nothing for a deployment canceled with its service", () => {
 		expect(canceledNote(deployment("d", DeploymentStatus.CANCELED, 1))).toBeUndefined();

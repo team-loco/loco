@@ -389,6 +389,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const openSpec = (dep: Deployment | undefined, shown: Deployment[] = []) => {
 		if (dep !== undefined) setModal({ kind: "spec", deploymentId: dep.id, compareId: null, shown: [dep, ...shown] });
 	};
+	const compareSpecs = (from: Deployment, to: Deployment) => {
+		setModal({ kind: "spec", deploymentId: from.id, compareId: to.id, shown: [from, to] });
+	};
 	const openEvents = () => {
 		setEventsSince(Date.now() - EVENTS_DRAWER_WINDOW_MS);
 		setEventsOpen(true);
@@ -527,7 +530,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
-						onRollback={openRollback}
+						onCompare={compareSpecs}
 					/>
 					{deployed.length > 0 && environmentId !== undefined && !noMetricsYet && (
 						<RangeToggle
@@ -588,12 +591,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						resourceId={resource.id}
 						workspaceId={resource.workspaceId}
 						regions={regions}
-						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
 						canReadWorkspace={canListResources}
 						onRollback={openRollback}
 						onViewSpec={openSpec}
+						onCompareSpec={compareSpecs}
 					/>
 					<ActivityPanel
 						key={resource.id}
@@ -612,7 +615,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						logsHref={obsLink("logs")}
 						buildLogsHref={buildLogsHref}
 						canWrite={canWrite}
-						onRollback={openRollback}
+						onCompare={compareSpecs}
 					/>
 					<SettingsView
 						resource={resource}
