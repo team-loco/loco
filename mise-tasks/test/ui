@@ -93,10 +93,13 @@ run_suite() {
 failed=()
 running=()
 finish_one() {
-	local suite status seconds name rest=()
-	while ! read -r -t 60 suite status seconds <&3; do
-		echo "still running: ${running[*]}"
-	done
+	local heartbeat suite status seconds name rest=()
+	# A background loop reports progress while this read blocks for the whole line.
+	while sleep 60 >/dev/null; do echo "still running: ${running[*]}"; done &
+	heartbeat=$!
+	read -r suite status seconds <&3
+	kill "$heartbeat" 2>/dev/null || true
+	wait "$heartbeat" 2>/dev/null || true
 	for name in "${running[@]}"; do
 		if [[ $name != "$suite" ]]; then rest+=("$name"); fi
 	done
