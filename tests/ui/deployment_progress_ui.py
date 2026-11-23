@@ -388,7 +388,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         state,
         f"UPDATE deployments SET canceled_by_type='user',canceled_by_id='{owner['id']}' WHERE id='{p['current']}';",
     )
-    page.reload()
+    page.goto(state["ui_url"] + path)
     canceled = page.get_by_role("region", name="Deploy canceled", exact=True)
     expect(canceled).to_be_visible()
     expect(canceled.get_by_text("Canceled by Olivia Owner", exact=True)).to_be_visible()
