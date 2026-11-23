@@ -234,6 +234,7 @@ func testBuildkitStartup(t *testing.T, jobName string) {
 	buildkit.Command = []string{"sh", "-c", buildkitStartupProbe, "startup-probe", launcher}
 	buildkit.Args = nil
 	buildkit.VolumeMounts = nil
+	buildkit.Resources = corev1.ResourceRequirements{}
 	spec.InitContainers = nil
 	spec.Containers = []corev1.Container{buildkit}
 	spec.Volumes = nil
@@ -297,6 +298,7 @@ func testBuildStepIsolation(t *testing.T, jobName string) {
 	probe.Command = []string{"sh", "-c", isolationProbe}
 	probe.Args = nil
 	probe.VolumeMounts = nil
+	probe.Resources = corev1.ResourceRequirements{}
 	spec.InitContainers = spec.InitContainers[:1]
 	spec.Containers = []corev1.Container{probe}
 	names := make([]string, 0, copies)
