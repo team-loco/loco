@@ -789,9 +789,19 @@ def logs(page):
         page, table, "Time", "Resource", logs_table, "ArrowRight", ("time", "resource")
     )
     check_shrink(page, table, "Message")
-    table.get_by_role("columnheader", name="Region", exact=True).drag_to(
-        table.get_by_role("columnheader", name="Resource", exact=True)
-    )
+    region = table.get_by_role("columnheader", name="Region", exact=True)
+    resource = table.get_by_role("columnheader", name="Resource", exact=True)
+    expect(region).to_have_attribute("draggable", "true")
+    expect(
+        table.get_by_role("columnheader", name="Message", exact=True)
+    ).to_have_attribute("draggable", "false")
+    region.scroll_into_view_if_needed()
+    source = region.bounding_box()
+    target = resource.bounding_box()
+    page.mouse.move(source["x"] + 20, source["y"] + source["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(target["x"] + 20, target["y"] + target["height"] / 2, steps=8)
+    page.mouse.up()
     wait_for_query(
         page,
         lambda query: query.get("cols", [""])[0].startswith("level,region,resource"),
