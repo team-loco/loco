@@ -482,6 +482,19 @@
 	}
 }
 
+[data-theme="neobrutal"] .sess-this {
+	border: 1.5px solid var(--ink);
+	border-radius: 3px;
+	background: var(--btn);
+	color: var(--btn-fg);
+}
+[data-theme="neobrutal"] .lim-tag {
+	border: 2px solid var(--ink);
+	border-radius: 5px;
+	background: var(--raise);
+	color: var(--fg);
+}
+
 [data-theme="neobrutal"] .umode .mt-thumb {
 	color: var(--btn-fg);
 	border-radius: 3px;

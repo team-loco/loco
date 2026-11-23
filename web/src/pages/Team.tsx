@@ -12,7 +12,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { DocsButton } from "@/components/design/DocsButton";

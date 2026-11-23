@@ -1,6 +1,15 @@
 import argparse
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    copied_text,
+    evidence,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 SCENARIO = "tests/ui/fixtures/deployment-history/scenario.json"
@@ -104,6 +113,23 @@ def verify(state):
         context.unroute(REVOKE_SESSION)
         confirm.click()
         expect(cli_row).to_have_count(0)
+        toast = page.locator("[data-sonner-toast]")
+        expect(
+            toast.filter(has_text="Signed out Loco CLI on build-box")
+        ).to_be_visible()
+
+        toasts = page.get_by_role("switch", name="Toasts", exact=True)
+        copy_id = page.get_by_title("Copy ID", exact=True)
+        toasts.click()
+        expect(toasts).not_to_be_checked()
+        copy_id.click()
+        assert copied_text(page) == owner["id"]
+        expect(page.get_by_title("Copied", exact=True)).to_be_visible()
+        expect(toast.filter(has_text="Copied ID")).to_have_count(0)
+        toasts.click()
+        expect(toast.filter(has_text="Toasts are on")).to_be_visible()
+        copy_id.click()
+        expect(toast.filter(has_text="Copied ID")).to_be_visible()
         expect(current.get_by_text("This browser", exact=True)).to_be_visible()
         expect(page.get_by_role("button", name="Log out", exact=True)).to_have_count(1)
         expect(

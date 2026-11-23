@@ -5,7 +5,7 @@ import type { RetentionDays, UpdateWorkspaceRequest, Workspace } from "@gen/loco
 import { useQueryClient } from "@tanstack/react-query";
 import { PencilIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/design/Button";
 import { DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
@@ -203,7 +203,7 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 					}}
 				>
 					<DataTable table={table} label="Retention" />
-					<div className="flex flex-wrap items-center justify-between gap-3 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">
+					<div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-[12.5px] text-fg3">
 						<p className="m-0">
 							A change applies to telemetry ingested after it. Stored telemetry keeps the retention it was written with.
 						</p>

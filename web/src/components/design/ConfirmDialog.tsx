@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import type { ButtonVariant } from "./Button";
+
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -20,6 +22,7 @@ export function ConfirmDialog({
 	pendingLabel,
 	pending = false,
 	cancelLabel = "Cancel",
+	confirmVariant,
 	onConfirm,
 	onClose,
 }: {
@@ -31,6 +34,7 @@ export function ConfirmDialog({
 	pendingLabel?: string;
 	pending?: boolean;
 	cancelLabel?: string;
+	confirmVariant?: ButtonVariant;
 	onConfirm: () => void;
 	onClose: () => void;
 }) {
@@ -49,7 +53,7 @@ export function ConfirmDialog({
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={pending}>{cancelLabel}</AlertDialogCancel>
-					<AlertDialogAction disabled={pending} onClick={onConfirm}>
+					<AlertDialogAction variant={confirmVariant} disabled={pending} onClick={onConfirm}>
 						{pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
 					</AlertDialogAction>
 				</AlertDialogFooter>

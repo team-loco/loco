@@ -2,7 +2,7 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { createConnectQueryKey, useMutation } from "@connectrpc/connect-query";
 import type { Webhook, WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
 	listWebhooks,
 	redeliverWebhookDelivery,

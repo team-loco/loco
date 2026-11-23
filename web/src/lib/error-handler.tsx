@@ -1,5 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { CopyId } from "@/components/design/CopyId";
 

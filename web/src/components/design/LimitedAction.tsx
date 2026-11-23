@@ -22,6 +22,12 @@ export function LimitUsageText({ usage, className }: { usage: LimitUsage | null;
 	);
 }
 
+/** "used / max", tinted amber or red from 90% of the limit. */
+export function LimitUsageCount({ usage }: { usage: LimitUsage }) {
+	const tone = limitTone(usage);
+	return <span className={tone === null ? undefined : LIMIT_TONE_TEXT[tone]}>{usageLabel(usage)}</span>;
+}
+
 export function LimitCount({ usage }: { usage: LimitUsage | null }) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const tone = limitTone(usage);

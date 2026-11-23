@@ -63,7 +63,7 @@ export function Section({
 }: {
 	id?: string;
 	title?: ReactNode;
-	count?: number | string | undefined;
+	count?: ReactNode;
 	meta?: ReactNode;
 	actions?: ReactNode;
 	filters?: ReactNode;

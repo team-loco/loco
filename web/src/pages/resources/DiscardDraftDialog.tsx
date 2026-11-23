@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 

@@ -49,6 +49,13 @@ export default defineConfig([
 			"no-restricted-imports": [
 				"error",
 				{
+					paths: [
+						{
+							name: "sonner",
+							importNames: ["toast"],
+							message: 'Import toast from "@/lib/toast", which follows the Toasts setting.',
+						},
+					],
 					patterns: [
 						{
 							group: ["@/components/ui/*"],

@@ -1,7 +1,7 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { EllipsisIcon } from "lucide-react";
 import { useId, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
 	checkDomainAvailability,
 	createResourceDomain,

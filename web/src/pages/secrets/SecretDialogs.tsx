@@ -2,7 +2,7 @@ import { useMutation } from "@connectrpc/connect-query";
 import { setSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { EyeIcon, EyeOffIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
