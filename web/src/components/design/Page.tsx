@@ -18,7 +18,7 @@ export function Page({ className, children }: { className?: string; children: Re
 
 export function PageLoading() {
 	return (
-		<Page>
+		<Page className="animate-in fade-in fill-mode-backwards delay-150">
 			<div data-slot="page-loader" role="status" aria-busy aria-label="Loading" className="contents">
 				<Skeleton className="h-8 w-56" />
 				<Skeleton className="h-64 w-full rounded-card" />
