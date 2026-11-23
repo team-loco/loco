@@ -1525,12 +1525,10 @@ def dashboard(page):
         f"UPDATE placements SET ready_replicas=48 FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.slug='dashboard-0';",
     )
     page.reload()
-    ready = page.get_by_label("48 of 48 ready\nus-ca-1: 48/48", exact=True)
+    ready = page.get_by_label("us-ca-1: 48/48", exact=True)
     expect(ready).to_be_visible()
     ready.focus()
-    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(
-        "48 of 48 ready us-ca-1: 48/48"
-    )
+    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text("us-ca-1: 48/48")
     page.keyboard.press("Escape")
     page.evaluate(
         "localStorage.setItem('loco:color:v1', 'loco'); localStorage.setItem('loco:mode:v1', 'light')"
