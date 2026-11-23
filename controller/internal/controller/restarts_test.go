@@ -198,26 +198,26 @@ func TestHealthWaitsForQuietReplicas(t *testing.T) {
 	quiet := observedReplica{status: loco.ReplicaStatus{}}
 
 	rollout := &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{quiet}, 2, now)
+	r.observeHealth(rollout, []observedReplica{quiet}, 2, true, now)
 	if !rollout.Healthy || rollout.HealthyAt != nil {
 		t.Fatalf("rollout without restarts = %+v, want healthy at once", rollout)
 	}
 
 	rollout = &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{quiet, restarted}, 2, now)
+	r.observeHealth(rollout, []observedReplica{quiet, restarted}, 2, true, now)
 	wantAt := restartedAt.Add(testHealthyAfter)
 	if rollout.Healthy || rollout.HealthyAt == nil || !rollout.HealthyAt.Time.Equal(wantAt) {
 		t.Fatalf("rollout after a restart = %+v, want healthy at %s", rollout, wantAt)
 	}
 
 	rollout = &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{restarted}, 2, wantAt)
+	r.observeHealth(rollout, []observedReplica{restarted}, 2, true, wantAt)
 	if !rollout.Healthy {
 		t.Fatalf("rollout at %s = %+v, want healthy", wantAt, rollout)
 	}
 
 	rollout = &loco.RolloutStatus{Available: false}
-	r.observeHealth(rollout, []observedReplica{quiet}, 2, now)
+	r.observeHealth(rollout, []observedReplica{quiet}, 2, true, now)
 	if rollout.Healthy || rollout.HealthyAt != nil {
 		t.Fatalf("unavailable rollout = %+v, want not healthy", rollout)
 	}
@@ -233,18 +233,20 @@ func TestRevisionIsProvenOnceEveryReplicaServedForTheHealthWindow(t *testing.T) 
 	for _, tt := range []struct {
 		name     string
 		replicas []observedReplica
+		settled  bool
 		want     int64
 	}{
-		{"every replica served the window", []observedReplica{serving(testHealthyAfter), serving(time.Hour)}, 2},
-		{"a replica became ready recently", []observedReplica{serving(time.Hour), serving(time.Minute)}, 1},
+		{"every replica served the window", []observedReplica{serving(testHealthyAfter), serving(time.Hour)}, true, 2},
+		{"a replica is not yet available", []observedReplica{serving(testHealthyAfter), serving(time.Hour)}, false, 1},
+		{"a replica became ready recently", []observedReplica{serving(time.Hour), serving(time.Minute)}, true, 1},
 		{"a replica is starting", []observedReplica{serving(time.Hour), {status: loco.ReplicaStatus{
 			State: loco.ReplicaStarting, StateSince: new(metav1.NewTime(now.Add(-time.Hour))),
-		}}}, 1},
-		{"no replica", nil, 1},
+		}}}, true, 1},
+		{"no replica", nil, true, 1},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			rollout := &loco.RolloutStatus{Available: true, ProvenRevision: 1}
-			r.observeHealth(rollout, tt.replicas, 2, now)
+			r.observeHealth(rollout, tt.replicas, 2, tt.settled, now)
 			if rollout.ProvenRevision != tt.want {
 				t.Fatalf("proven revision = %d, want %d", rollout.ProvenRevision, tt.want)
 			}
@@ -290,7 +292,7 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithGeneration(1).
 		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1)).
 		WithStatus(appsv1ac.DeploymentStatus().WithObservedGeneration(1).
-			WithReplicas(1).WithUpdatedReplicas(1).WithAvailableReplicas(1))
+			WithReplicas(1).WithUpdatedReplicas(1).WithReadyReplicas(1).WithAvailableReplicas(1))
 	restart := func() {
 		t.Helper()
 		pod.Status.ContainerStatuses[0].RestartCount++

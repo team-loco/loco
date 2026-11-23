@@ -497,7 +497,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     panel.get_by_role("button", name="Cancel", exact=True).click()
     dialog = page.get_by_role("alertdialog")
     expect(dialog).to_contain_text("go back to the version that served them before")
-    dialog.get_by_role("button", name="Keep deploying", exact=True).click()
+    dialog.get_by_role("button", name="Keep deployment", exact=True).click()
     expect(dialog).to_be_hidden()
     assert cancels == [], cancels
     panel.get_by_role("button", name="Cancel", exact=True).click()
@@ -506,6 +506,29 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     ).click()
     expect(page.get_by_role("alertdialog")).to_be_hidden()
     assert cancels == [{"deploymentId": p["current"]}], cancels
+    assert not errors, errors
+    context.close()
+
+    phase("running")
+    sql(
+        state,
+        f"UPDATE deployments SET started_at=NULL WHERE id='{p['current']}';"
+        f"UPDATE deployment_placements SET started_at=NULL WHERE deployment_id='{p['current']}';",
+    )
+    context, page, errors = open_page(browser, state=state)
+    page.goto(state["ui_url"] + path)
+    panel = page.get_by_role("region", name="Running", exact=True)
+    expect(panel.get_by_role("button", name="Cancel", exact=True)).to_be_visible()
+    expect(panel.get_by_role("button", name="Dismiss", exact=True)).to_have_count(0)
+    sql(
+        state,
+        f"UPDATE deployments SET started_at=NOW() WHERE id='{p['current']}';"
+        f"UPDATE deployment_placements SET started_at=NOW() WHERE deployment_id='{p['current']}';",
+    )
+    page.reload()
+    panel = page.get_by_role("region", name="Running", exact=True)
+    expect(panel.get_by_role("button", name="Dismiss", exact=True)).to_be_visible()
+    expect(panel.get_by_role("button", name="Cancel", exact=True)).to_have_count(0)
     assert not errors, errors
     context.close()
 

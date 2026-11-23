@@ -146,13 +146,7 @@ func TestListDeploymentsPreviousIsInTheSameRegion(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
-	var regionCluster uuid.UUID
-	addCluster := `
-INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat)
-VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
-	if err := f.pool.QueryRow(ctx, addCluster, otherRegion).Scan(&regionCluster); err != nil {
-		t.Fatalf("add cluster: %v", err)
-	}
+	regionCluster := f.addOtherRegionCluster(t)
 
 	first, err := f.deploy(ctx, staticSpec)
 	if err != nil {

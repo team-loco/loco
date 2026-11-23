@@ -346,7 +346,7 @@ func TestRunningOnAnotherClusterSupersedesTheRegionsPreviousDeployment(t *testin
 		p := f.placement(t, clusterID)
 		f.agentServer().recordStatus(ctx, clusterID, 0, &agentv1.PlacementStatus{
 			PlacementId: p.ID.String(), DeploymentId: deploymentID.String(),
-			ObservedRevision: p.DesiredRevision, Available: true, Healthy: true,
+			ObservedRevision: p.DesiredRevision, Available: true, Healthy: true, Deployed: true,
 		})
 	}
 	first, err := f.deploy(ctx, staticSpec)

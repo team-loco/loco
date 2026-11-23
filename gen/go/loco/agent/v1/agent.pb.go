@@ -816,10 +816,11 @@ type PlacementStatus struct {
 	ObservedRevision int64                  `protobuf:"varint,2,opt,name=observed_revision,json=observedRevision,proto3" json:"observed_revision,omitempty"`
 	ReadyReplicas    int32                  `protobuf:"varint,4,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
 	DesiredReplicas  int32                  `protobuf:"varint,9,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
-	Available        bool                   `protobuf:"varint,10,opt,name=available,proto3" json:"available,omitempty"`
-	Replicas         []*v11.Replica         `protobuf:"bytes,12,rep,name=replicas,proto3" json:"replicas,omitempty"`
-	Problem          *ProblemReport         `protobuf:"bytes,13,opt,name=problem,proto3" json:"problem,omitempty"`
-	DeploymentId     string                 `protobuf:"bytes,14,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	// Every desired replica of the observed revision counted: ready for a service, available for a worker.
+	Available    bool           `protobuf:"varint,10,opt,name=available,proto3" json:"available,omitempty"`
+	Replicas     []*v11.Replica `protobuf:"bytes,12,rep,name=replicas,proto3" json:"replicas,omitempty"`
+	Problem      *ProblemReport `protobuf:"bytes,13,opt,name=problem,proto3" json:"problem,omitempty"`
+	DeploymentId string         `protobuf:"bytes,14,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	// Available with no current replica restarted within the controller's health window.
 	Healthy bool `protobuf:"varint,15,opt,name=healthy,proto3" json:"healthy,omitempty"`
 	// When an available placement becomes healthy if no replica restarts again.
@@ -828,6 +829,8 @@ type PlacementStatus struct {
 	Stopped *StoppedRevision `protobuf:"bytes,17,opt,name=stopped,proto3" json:"stopped,omitempty"`
 	// The observed revision's failure policy.
 	FailurePolicy *v11.FailurePolicy `protobuf:"bytes,18,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
+	// Set once the observed revision became healthy with every replica available.
+	Deployed      bool `protobuf:"varint,20,opt,name=deployed,proto3" json:"deployed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -944,6 +947,13 @@ func (x *PlacementStatus) GetFailurePolicy() *v11.FailurePolicy {
 		return x.FailurePolicy
 	}
 	return nil
+}
+
+func (x *PlacementStatus) GetDeployed() bool {
+	if x != nil {
+		return x.Deployed
+	}
+	return false
 }
 
 // StoppedRevision is a placement revision the controller stopped.
@@ -1911,7 +1921,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xcc\x04\n" +
+	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xe8\x04\n" +
 	"\x0fPlacementStatus\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12+\n" +
 	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12%\n" +
@@ -1926,7 +1936,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"healthy_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\thealthyAt\x128\n" +
 	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\x12H\n" +
-	"\x0efailure_policy\x18\x12 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\v\x10\fJ\x04\b\x13\x10\x14\"\xc5\x02\n" +
+	"\x0efailure_policy\x18\x12 \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicy\x12\x1a\n" +
+	"\bdeployed\x18\x14 \x01(\bR\bdeployedJ\x04\b\v\x10\fJ\x04\b\x13\x10\x14\"\xc5\x02\n" +
 	"\x0fStoppedRevision\x12-\n" +
 	"\x12placement_revision\x18\x01 \x01(\x03R\x11placementRevision\x121\n" +
 	"\x06reason\x18\a \x01(\x0e2\x19.loco.agent.v1.StopReasonR\x06reason\x12!\n" +

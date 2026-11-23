@@ -201,6 +201,7 @@ func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
 			ObservedRevision: revision,
 			Available:        true,
 			Healthy:          true,
+			Deployed:         true,
 			ReadyReplicas:    1,
 		}
 	}

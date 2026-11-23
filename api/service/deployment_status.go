@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -52,7 +53,7 @@ func placementStatusNames(statuses ...genDb.PlacementStatus) []string {
 }
 
 // recomputeDeploymentStatus locks a deployment, then stores the aggregate of its placements as
-// committed when the lock is granted.
+// committed when the lock is granted, and records deployment.ready when the deployment turns ready.
 func recomputeDeploymentStatus(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -64,6 +65,11 @@ func recomputeDeploymentStatus(
 	status, err := qtx.RecomputeDeploymentStatus(ctx, id)
 	if err != nil {
 		return genDb.RecomputeDeploymentStatusRow{}, fmt.Errorf("recompute deployment %s: %w", id, err)
+	}
+	if status.Ready && !status.PreviouslyReady {
+		if err := recordDeploymentEvent(ctx, qtx, id, events.DeploymentReady, status, transitionCause{}); err != nil {
+			return genDb.RecomputeDeploymentStatusRow{}, err
+		}
 	}
 	return status, nil
 }

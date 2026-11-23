@@ -49,6 +49,7 @@ func (f *deployFixture) reportRollout(t *testing.T, ready bool) {
 		ObservedRevision: p.DesiredRevision,
 		Available:        ready,
 		Healthy:          ready,
+		Deployed:         ready,
 		ReadyReplicas:    1,
 	})
 }
@@ -101,6 +102,7 @@ func (f *deployFixture) finishRollouts(t *testing.T) {
 				ObservedRevision: r.revision,
 				Available:        true,
 				Healthy:          true,
+				Deployed:         true,
 				ReadyReplicas:    1,
 			})
 	}

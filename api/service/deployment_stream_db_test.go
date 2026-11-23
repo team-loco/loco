@@ -245,6 +245,7 @@ func TestDeploymentStreamFollowsFailedDeploymentRecovery(t *testing.T) {
 		DesiredReplicas:  1,
 		Available:        true,
 		Healthy:          true,
+		Deployed:         true,
 	})
 	for {
 		event, err := stream.Receive()

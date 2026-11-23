@@ -33,6 +33,7 @@ func TestServingDeploymentFollowsAcceptedObservation(t *testing.T) {
 		ObservedRevision: firstPlacement.DesiredRevision,
 		Available:        true,
 		Healthy:          true,
+		Deployed:         true,
 		ReadyReplicas:    1,
 		Replicas: []*deploymentv1.Replica{
 			{
@@ -378,7 +379,7 @@ func TestServingObservationSpansBuildAndRetiringCluster(t *testing.T) {
 	server := f.agentServer()
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: old.ID.String(), DeploymentId: first.String(), ObservedRevision: old.DesiredRevision,
-		ReadyReplicas: 1, Available: true, Healthy: true,
+		ReadyReplicas: 1, Available: true, Healthy: true, Deployed: true,
 		Replicas: []*deploymentv1.Replica{{Uid: "old-region-pod", DeploymentId: first.String(), Ready: true,
 			State: string(loco.ReplicaServing), PlacementRevision: old.DesiredRevision}},
 	})
@@ -414,7 +415,7 @@ func TestServingObservationSpansBuildAndRetiringCluster(t *testing.T) {
 	current := f.placement(t, f.otherCluster)
 	server.recordStatus(ctx, f.otherCluster, 0, &agentv1.PlacementStatus{
 		PlacementId: current.ID.String(), DeploymentId: next.String(), ObservedRevision: current.DesiredRevision,
-		ReadyReplicas: 1, Available: true, Healthy: true,
+		ReadyReplicas: 1, Available: true, Healthy: true, Deployed: true,
 		Replicas: []*deploymentv1.Replica{{Uid: "new-region-pod", DeploymentId: next.String(), Ready: true,
 			State: string(loco.ReplicaServing), PlacementRevision: current.DesiredRevision}},
 	})
@@ -450,7 +451,7 @@ func TestSuspensionInvalidatesServingObservationUntilNewReport(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	report := &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), DeploymentId: id.String(), ObservedRevision: p.DesiredRevision,
-		ReadyReplicas: 1, Available: true, Healthy: true,
+		ReadyReplicas: 1, Available: true, Healthy: true, Deployed: true,
 		Replicas: []*deploymentv1.Replica{{Uid: "suspended-pod", DeploymentId: id.String(), Ready: true,
 			State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}},
 	}

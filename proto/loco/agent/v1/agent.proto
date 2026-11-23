@@ -113,6 +113,7 @@ message PlacementStatus {
   int64 observed_revision = 2;
   int32 ready_replicas = 4;
   int32 desired_replicas = 9;
+  // Every desired replica of the observed revision counted: ready for a service, available for a worker.
   bool available = 10;
   reserved 11, 19;
   repeated loco.deployment.v1.Replica replicas = 12;
@@ -126,6 +127,8 @@ message PlacementStatus {
   StoppedRevision stopped = 17;
   // The observed revision's failure policy.
   loco.deployment.v1.FailurePolicy failure_policy = 18;
+  // Set once the observed revision became healthy with every replica available.
+  bool deployed = 20;
 }
 
 // StopReason is why the controller stopped a placement revision.

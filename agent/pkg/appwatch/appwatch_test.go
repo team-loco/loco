@@ -300,10 +300,11 @@ func TestRolloutForwarding(t *testing.T) {
 		RestartPolicy: deploymentv1.RestartPolicy_RESTART_POLICY_ON_FAILURE, MaxRestarts: 3, DeployTimeoutSeconds: 120,
 	}
 	application.Status.Rollout = &locoControllerV1.RolloutStatus{
-		DesiredReplicas: 2,
-		Available:       true,
-		Healthy:         true,
-		HealthyAt:       &at,
+		DesiredReplicas:  2,
+		Available:        true,
+		Healthy:          true,
+		HealthyAt:        &at,
+		DeployedRevision: 5,
 		Stopped: &locoControllerV1.StoppedRevision{
 			PlacementRevision: 5,
 			Reason:            locoControllerV1.ProblemRestartsExhausted,
@@ -359,6 +360,7 @@ func TestRolloutForwarding(t *testing.T) {
 		Available:        true,
 		Healthy:          true,
 		HealthyAt:        timestamppb.New(at.Time),
+		Deployed:         true,
 		Stopped: &agentv1.StoppedRevision{
 			PlacementRevision: 5,
 			Reason:            agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED,

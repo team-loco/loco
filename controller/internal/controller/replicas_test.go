@@ -144,6 +144,7 @@ func TestReplicaState(t *testing.T) {
 func TestRolloutAvailable(t *testing.T) {
 	app := &loco.Application{
 		Annotations: map[string]string{loco.KeyPlacementRevision: "2"},
+		Spec:        loco.ApplicationSpec{ServiceSpec: &loco.ServiceSpec{Deployment: &loco.ServiceDeploymentSpec{}}},
 		Status:      loco.ApplicationStatus{ObservedPlacementRevision: 2},
 	}
 	dep := appsv1ac.Deployment("app", "ns").
@@ -171,6 +172,22 @@ func TestRolloutAvailable(t *testing.T) {
 	app.Status.ObservedPlacementRevision = 1
 	if rolloutAvailable(dep, app) {
 		t.Fatal("accepted revision mismatch")
+	}
+	app.Status.ObservedPlacementRevision = 2
+	dep.Status.WithAvailableReplicas(1).WithReadyReplicas(2)
+	if rolloutAvailable(dep, app) {
+		t.Fatal("worker accepted a ready replica that is not yet available")
+	}
+	app.Spec.ServiceSpec.Deployment.Port = new(int32(8000))
+	if !rolloutAvailable(dep, app) {
+		t.Fatal("service waited for a ready replica to become available")
+	}
+	if rolloutSettled(dep, app) {
+		t.Fatal("settled with a replica not yet available")
+	}
+	dep.Status.WithReplicas(3).WithReadyReplicas(3)
+	if rolloutAvailable(dep, app) {
+		t.Fatal("service accepted an old counted replica")
 	}
 }
 

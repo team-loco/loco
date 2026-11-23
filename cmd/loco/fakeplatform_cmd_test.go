@@ -130,7 +130,7 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 
 func setDeploymentOutcome(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
 	if neg || len(args) < 3 {
-		ts.Fatalf("usage: fakeapi deployment <id> <running|failed|canceled|deploying> " +
+		ts.Fatalf("usage: fakeapi deployment <id> <running|degraded|failed|crashed|canceled|deploying> " +
 			"[<region>=<placement status>...] [canceled-by=<name>] [superseded-by=<id>]")
 	}
 	phase, ok := deploymentv1.DeploymentStatus_value["DEPLOYMENT_STATUS_"+strings.ToUpper(args[2])]

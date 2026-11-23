@@ -37,6 +37,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		ObservedRevision: placement.DesiredRevision,
 		Available:        true,
 		Healthy:          true,
+		Deployed:         true,
 		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)},
 	}
 	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
@@ -157,6 +158,7 @@ func TestListRuntimeEventTimeBoundariesAtEveryScope(t *testing.T) {
 		ObservedRevision: placement.DesiredRevision,
 		Available:        true,
 		Healthy:          true,
+		Deployed:         true,
 		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemOutOfMemory)},
 	})
 	parents, err := f.queries.GetWorkspaceOrganizationIDByResourceID(t.Context(), f.resourceID)
@@ -206,6 +208,7 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	report := &agentv1.PlacementStatus{PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision,
 		Available: true,
 		Healthy:   true,
+		Deployed:  true,
 		Problem:   &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
 	oldServer.recordStatus(t.Context(), f.clusterID, 0, report)
 	// The old handler passed its preflight before the new stream connected.
@@ -283,6 +286,7 @@ func TestProblemEventsAcrossPlacementRevisions(t *testing.T) {
 		ObservedRevision: p.DesiredRevision,
 		Available:        true,
 		Healthy:          true,
+		Deployed:         true,
 		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)},
 	}
 	server := f.agentServer()
@@ -442,7 +446,7 @@ func TestRuntimeEventsCarryTheirDeploymentID(t *testing.T) {
 	placement := f.placement(t, f.clusterID)
 	report := &agentv1.PlacementStatus{
 		PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision,
-		Available: true, Healthy: true,
+		Available: true, Healthy: true, Deployed: true,
 		Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemOutOfMemory)},
 	}
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)

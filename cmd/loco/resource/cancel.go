@@ -46,9 +46,7 @@ Examples:
 			}
 			var inFlight *deploymentv1.Deployment
 			for _, deployment := range listed.GetDeployments() {
-				status := deployment.GetStatus()
-				if status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_BUILDING ||
-					status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING {
+				if cancelable(deployment) {
 					inFlight = deployment
 					break
 				}
@@ -69,4 +67,19 @@ Examples:
 	cmdutil.AddWorkspaceFlags(cmd)
 	cmdutil.AddEnvironmentFlag(cmd)
 	return cmd
+}
+
+// cancelable is whether a deployment still builds or rolls out, or serves without ever having been ready.
+// The API's inFlight (api/service/deployment_cancel.go) owns this rule and the placement check behind it.
+func cancelable(deployment *deploymentv1.Deployment) bool {
+	switch deployment.GetStatus() {
+	case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_BUILDING,
+		deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING:
+		return true
+	case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED:
+		return deployment.GetStartedAt() == nil
+	default:
+		return false
+	}
 }

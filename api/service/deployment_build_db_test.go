@@ -352,7 +352,7 @@ func TestBuildingDeploymentPreservesPreviousPlacement(t *testing.T) {
 	}
 	p := f.placement(t, f.otherCluster)
 	f.agentServer().recordStatus(f.ctx, f.otherCluster, 0, &agentv1.PlacementStatus{
-		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true, Healthy: true,
+		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true, Healthy: true, Deployed: true,
 	})
 	buildID := f.queued(t)
 	id := deployBuild(t, f, buildID)
@@ -433,7 +433,7 @@ func TestABuildingDeploymentShowsTheServingReplicas(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	f.agentServer().recordStatus(f.ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), DeploymentId: serving.String(), ObservedRevision: p.DesiredRevision,
-		ReadyReplicas: 1, Available: true, Healthy: true,
+		ReadyReplicas: 1, Available: true, Healthy: true, Deployed: true,
 		Replicas: []*deploymentv1.Replica{{Uid: "serving-pod", DeploymentId: serving.String(), Ready: true,
 			State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}},
 	})

@@ -103,7 +103,7 @@ type StoppedRevision struct {
 	Rollout bool `json:"rollout,omitzero"`
 }
 
-// DeployDeadline is when a placement revision must become healthy.
+// DeployDeadline is when a placement revision must become healthy with every replica available.
 type DeployDeadline struct {
 	PlacementRevision int64       `json:"placementRevision"`
 	At                metav1.Time `json:"at"`
@@ -111,7 +111,8 @@ type DeployDeadline struct {
 
 type RolloutStatus struct {
 	DesiredReplicas int32 `json:"desiredReplicas,omitzero"`
-	Available       bool  `json:"available,omitzero"`
+	// Available is every desired replica of the current revision counted: ready for a service, available for a worker.
+	Available bool `json:"available,omitzero"`
 	// Healthy is Available with no current replica restarted within the controller's health window.
 	Healthy bool `json:"healthy,omitzero"`
 	// HealthyAt is when an available rollout becomes healthy if no replica restarts again.
@@ -120,9 +121,9 @@ type RolloutStatus struct {
 	// ProvenRevision is the newest placement revision whose replicas all served for the health window
 	// without a restart.
 	ProvenRevision int64 `json:"provenRevision,omitzero"`
-	// DeployedRevision is the newest placement revision that became healthy.
+	// DeployedRevision is the newest placement revision that became healthy with every replica available.
 	DeployedRevision int64 `json:"deployedRevision,omitzero"`
-	// Deadline is set while the current placement revision has not become healthy.
+	// Deadline is set while the current placement revision has not become healthy with every replica available.
 	Deadline *DeployDeadline `json:"deadline,omitempty"`
 	// +listType=map
 	// +listMapKey=uid

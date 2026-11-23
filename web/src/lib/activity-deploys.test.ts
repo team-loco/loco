@@ -276,8 +276,19 @@ describe("cancelable", () => {
 		);
 		expect(cancelable(d)).toBe(false);
 	});
+	test("a deployment that runs but was never ready can", () => {
+		const d = deployment("d", DeploymentStatus.DEGRADED, 1, {}, { status: PlacementStatus.DEGRADED });
+		expect(cancelable(d)).toBe(true);
+	});
 	test("a finished deployment cannot", () => {
-		const d = deployment("d", DeploymentStatus.RUNNING, 1, {}, { status: PlacementStatus.RUNNING });
+		const started = timestampFromMs(NOW - MIN);
+		const d = deployment(
+			"d",
+			DeploymentStatus.RUNNING,
+			1,
+			{ startedAt: started },
+			{ status: PlacementStatus.RUNNING, startedAt: started },
+		);
 		expect(cancelable(d)).toBe(false);
 	});
 });

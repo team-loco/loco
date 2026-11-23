@@ -297,30 +297,30 @@ function ProgressPanel({
 							<ArrowUpRightIcon />
 						</Button>
 					)}
-					{live ? (
-						cancelable(deployment) && (
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={!canWrite}
-								onClick={() => {
-									setConfirmingCancel(true);
-								}}
-							>
-								Cancel
-							</Button>
-						)
-					) : (
+					{cancelable(deployment) ? (
 						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label="Dismiss"
+							variant="outline"
+							size="sm"
+							disabled={!canWrite}
 							onClick={() => {
-								setDismissed(true);
+								setConfirmingCancel(true);
 							}}
 						>
-							<XIcon />
+							Cancel
 						</Button>
+					) : (
+						!live && (
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								aria-label="Dismiss"
+								onClick={() => {
+									setDismissed(true);
+								}}
+							>
+								<XIcon />
+							</Button>
+						)
 					)}
 				</div>
 			</div>
@@ -428,10 +428,10 @@ function ProgressPanel({
 			<ConfirmDialog
 				open={confirmingCancel}
 				title={`Cancel ${depTag(deployment)}?`}
-				description="Regions that don't run it yet go back to the version that served them before. Regions that already run it keep it."
+				description="Regions where its replicas haven't all become available yet go back to the version that served them before, or stop running it if none did. Regions where they have keep it."
 				confirmLabel="Cancel deployment"
 				pendingLabel="Canceling…"
-				cancelLabel="Keep deploying"
+				cancelLabel="Keep deployment"
 				pending={cancel.isPending}
 				onConfirm={confirmCancel}
 				onClose={() => {

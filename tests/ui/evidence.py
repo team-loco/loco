@@ -1104,6 +1104,7 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
         status = deployment.get("status", "running")
         live = deployment.get("live", True)
         created = f"NOW()-{q(deployment.get('age', '0 seconds'))}::interval"
+        started = created if deployment.get("started", True) else "NULL"
         if "build" in deployment:
             build_id = str(uuid.uuid4())
             runtime = {**runtime, "build": {**runtime["build"], "buildId": build_id}}
@@ -1136,7 +1137,7 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
             "actor_type,actor_id,method,created_at,started_at) "
             f"VALUES({q(deployment_id)},{q(resource_id)},{q(status)},{q(environment)},{q(json.dumps(runtime))},"
             f"1,{q(deployment.get('trigger', 'deploy'))},'user',{q(actor)},{q(deployment.get('method', 'web'))},"
-            f"{created},{created});"
+            f"{created},{started});"
         )
         for region, sizing in runtime["regions"].items():
             placement = deployment.get("placements", {}).get(region, {})
@@ -1151,7 +1152,7 @@ def seed_deployments(state, resource_id, deployments, user="owner", then=()):
             rows.append(
                 "INSERT INTO deployment_placements(deployment_id,cluster_id,region,replicas,status,image,started_at) "
                 f"VALUES({q(deployment_id)},{q(cluster)},{q(region)},{sizing['minReplicas']},"
-                f"{q(placement_status)},{q(image)},{created});"
+                f"{q(placement_status)},{q(image)},{started});"
             )
             placement_id = str(uuid.uuid4())
             if "replicas" in placement or "problem" in placement:

@@ -66,6 +66,7 @@ func (f *deployFixture) reportPlacement(t *testing.T, p genDb.Placement, ready b
 		ObservedRevision: p.DesiredRevision,
 		Available:        ready,
 		Healthy:          ready,
+		Deployed:         ready,
 		ReadyReplicas:    1,
 	})
 }
@@ -120,6 +121,26 @@ func TestCancelOfAFirstDeploymentRemovesItsApplication(t *testing.T) {
 	}
 	if p := f.placement(t, f.clusterID); !p.DesiredDeleted {
 		t.Fatal("canceling the only deployment left its Application in place")
+	}
+}
+
+func TestCancelOfAFirstDeploymentThatRanButNeverStartedRemovesItsApplication(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	f.reportStatus(t, &agentv1.PlacementStatus{Available: true})
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusDegraded {
+		t.Fatalf("deployment = %s, want degraded", got)
+	}
+	if err := f.cancelDeployment(t, id.String()); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusCanceled {
+		t.Fatalf("deployment after cancel = %s, want canceled", got)
+	}
+	if p := f.placement(t, f.clusterID); !p.DesiredDeleted {
+		t.Fatal("canceling a first deployment that never started left its Application in place")
 	}
 }
 
@@ -179,6 +200,42 @@ func TestCancelKeepsARegionThatAlreadyRuns(t *testing.T) {
 	if regions[testRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING ||
 		regions[otherRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_CANCELED {
 		t.Fatalf("placements after cancel = %v", regions)
+	}
+}
+
+func TestCancelRevertsARegionThatRunsButNeverStarted(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	other := f.addOtherRegionCluster(t)
+	first := applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId()
+	f.finishRollouts(t)
+	second := applyOK(t, f, planFileHeader+twoRegionsBiggerCPU, applyOptions{}).GetDeployments()[0].GetDeploymentId()
+	worker, _ := f.resourceByName(t, applyWorker)
+	p := f.placementOf(t, worker.ID, f.clusterID)
+	f.agentServer().recordStatus(t.Context(), p.ClusterID, 0, &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
+		Available: true, Healthy: true, ReadyReplicas: 1,
+	})
+	if regions := placementRegions(f.getDeployment(t, second)); regions[testRegion] !=
+		deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
+		t.Fatalf("placements before cancel = %v, want %s running", regions, testRegion)
+	}
+	if finished := f.cancelImpact(t, second); len(finished) != 0 {
+		t.Fatalf("finished regions = %v, want none before the region started", finished)
+	}
+	if err := f.cancelDeployment(t, second); err != nil {
+		t.Fatal(err)
+	}
+	for _, cluster := range []uuid.UUID{f.clusterID, other} {
+		if p := f.placementOf(t, worker.ID, cluster); p.DeploymentID.String() != first {
+			t.Fatalf("region deployment = %s, want %s", p.DeploymentID, first)
+		}
+	}
+	regions := placementRegions(f.getDeployment(t, second))
+	if regions[testRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_CANCELED ||
+		regions[otherRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_CANCELED {
+		t.Fatalf("placements after cancel = %v, want both canceled", regions)
 	}
 }
 
@@ -276,11 +333,7 @@ func TestCancelKeepsABuildAnotherDeploymentWaitsFor(t *testing.T) {
 func twoRegionRollout(t *testing.T, f *deployFixture) (first, second string, worker genDb.Resource, other uuid.UUID) {
 	t.Helper()
 	f.prepareApply(t)
-	f.addOtherRegionCluster(t)
-	row := f.pool.QueryRow(t.Context(), `SELECT id FROM clusters WHERE region = $1`, otherRegion)
-	if err := row.Scan(&other); err != nil {
-		t.Fatal(err)
-	}
+	other = f.addOtherRegionCluster(t)
 	first = applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{}).GetDeployments()[0].GetDeploymentId()
 	f.finishRollouts(t)
 	second = applyOK(t, f, planFileHeader+twoRegionsBiggerCPU, applyOptions{}).GetDeployments()[0].GetDeploymentId()

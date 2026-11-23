@@ -201,10 +201,6 @@ WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
 -- name: SetDeploymentPlacementStatus :execrows
 UPDATE deployment_placements
 SET status = sqlc.arg(status),
-    started_at = CASE
-        WHEN sqlc.arg(status)::placement_status IN ('running', 'degraded') THEN COALESCE(started_at, NOW())
-        ELSE started_at
-    END,
     completed_at = CASE
         WHEN sqlc.arg(status)::placement_status IN ('failed', 'canceled', 'superseded') THEN COALESCE(completed_at, NOW())
         ELSE NULL
@@ -213,6 +209,15 @@ SET status = sqlc.arg(status),
 WHERE deployment_id = sqlc.arg(deployment_id)
   AND cluster_id = sqlc.arg(cluster_id)
   AND status::text = ANY(sqlc.arg(from_statuses)::text[]);
+
+-- name: DeployDeploymentPlacement :execrows
+-- Records that a running placement's current revision became healthy with every replica available.
+UPDATE deployment_placements
+SET deployed = true, started_at = COALESCE(started_at, NOW()), updated_at = NOW()
+WHERE deployment_id = sqlc.arg(deployment_id)
+  AND cluster_id = sqlc.arg(cluster_id)
+  AND status = 'running'
+  AND NOT deployed;
 
 -- name: SupersedePlacements :many
 -- Retires the older deployments' placements in the cluster's region: one that never ran is canceled,
@@ -244,16 +249,18 @@ RETURNING old.deployment_id;
 
 -- name: RecomputeDeploymentStatus :one
 WITH previous AS (
-    SELECT locked.id, locked.status FROM deployments locked WHERE locked.id = $1 FOR UPDATE
+    SELECT locked.id, locked.status, locked.ready FROM deployments locked WHERE locked.id = $1 FOR UPDATE
 ), next AS (
-    SELECT deployment_status_from_placements($1) AS status
+    SELECT status, status IN ('running', 'degraded') AND NOT EXISTS (
+        SELECT 1 FROM deployment_placements dp
+        WHERE dp.deployment_id = $1 AND dp.status IN ('running', 'degraded') AND NOT dp.deployed
+    ) AS ready
+    FROM (SELECT deployment_status_from_placements($1) AS status) s
 )
 UPDATE deployments d
 SET status = next.status,
-    started_at = CASE
-        WHEN next.status IN ('running', 'degraded') THEN COALESCE(d.started_at, NOW())
-        ELSE d.started_at
-    END,
+    ready = next.ready,
+    started_at = CASE WHEN next.ready THEN COALESCE(d.started_at, NOW()) ELSE d.started_at END,
     completed_at = CASE
         WHEN next.status IN ('failed', 'canceled', 'superseded') THEN COALESCE(d.completed_at, NOW())
         ELSE NULL
@@ -261,7 +268,7 @@ SET status = next.status,
     updated_at = CASE WHEN next.status <> previous.status THEN NOW() ELSE d.updated_at END
 FROM previous, next
 WHERE d.id = previous.id
-RETURNING previous.status AS previous_status, d.status;
+RETURNING previous.status AS previous_status, d.status, previous.ready AS previously_ready, d.ready;
 
 -- name: GetDeploymentEvent :one
 -- creator_* is NULL when the creating user, or the API token that names it, no longer exists.

@@ -150,6 +150,8 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		status.DesiredReplicas = rollout.DesiredReplicas
 		status.Available = rollout.Available
 		status.Healthy = rollout.Healthy
+		deployed := rollout.DeployedRevision
+		status.Deployed = deployed != 0 && deployed == app.Status.ObservedPlacementRevision
 		if rollout.HealthyAt != nil {
 			status.HealthyAt = timestamppb.New(rollout.HealthyAt.Time)
 		}

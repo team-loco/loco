@@ -47,6 +47,7 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 		ObservedRevision: 1,
 		Available:        true,
 		Healthy:          true,
+		Deployed:         true,
 		ReadyReplicas:    1,
 	})
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
@@ -132,6 +133,7 @@ func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
 		ObservedRevision: 1,
 		Available:        true,
 		Healthy:          true,
+		Deployed:         true,
 		ReadyReplicas:    1,
 	})
 	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusFailed {
