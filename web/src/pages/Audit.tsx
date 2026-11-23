@@ -439,6 +439,7 @@ export function Audit() {
 							prevLabel="Newer events"
 							nextLabel="Older events"
 							text={{ first: "Newest", prev: "Newer", next: "Older" }}
+							loading={loading}
 							onFirst={pager.onFirst}
 							onPrev={pager.onPrev}
 							onNext={pager.onNext}

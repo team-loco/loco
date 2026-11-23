@@ -250,6 +250,9 @@ with session(out) as browser:
     time_range.get_by_role("button", name=re.compile(r"Past 30 days")).click()
     events = page.get_by_role("table", name="Audit events")
     expect(events.locator("tbody tr[data-interactive]")).to_have_count(0)
+    pager = page.locator('[data-slot="pager"]')
+    expect(pager).to_be_visible()
+    expect(pager.get_by_role("button", name="Older events")).to_be_disabled()
     expect(events.locator("tbody tr[data-interactive]").first).to_be_visible(
         timeout=10000
     )

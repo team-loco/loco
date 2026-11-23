@@ -142,7 +142,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 	const { resource, address } = row;
 	const env = linkEnvironment(row, environments, active);
 	return (
-		<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.name}>
+		<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.name} monoTitle>
 			{row.cells.size === 0 && (
 				<DropdownMenuItem onClick={() => void navigate(resourcePath(orgId, workspaceId, resource.id))}>
 					<RocketIcon className="text-fg3" />
@@ -201,7 +201,7 @@ function DraftActions({ row }: { row: DraftRow }) {
 	const { draft } = row;
 	return (
 		<>
-			<RowMenu label={`Actions for ${draft.name}`} title={draft.name}>
+			<RowMenu label={`Actions for ${draft.name}`} title={draft.name} monoTitle>
 				<DropdownMenuItem onClick={() => void navigate(draftSearch(search, draft.id))}>
 					<PencilIcon className="text-fg3" />
 					Edit draft

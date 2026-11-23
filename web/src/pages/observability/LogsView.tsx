@@ -591,6 +591,7 @@ export function LogsView() {
 							page={curPage}
 							pages={pages}
 							more={truncated}
+							loading={isLoading}
 							total={rows.length}
 							pageSizes={LOG_PAGE_SIZES}
 							pageSize={size}

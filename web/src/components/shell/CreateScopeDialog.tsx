@@ -20,9 +20,12 @@ export type ScopeKind = "org" | "workspace";
 
 export function CreateScopeDialog({
 	kind,
+	fixedOrgId,
 	onOpenChange,
 }: {
 	kind: ScopeKind | null;
+	/** Opened from a page of this organization: the workspace goes there, with no organization choice and no close button. */
+	fixedOrgId?: string;
 	onOpenChange: (open: boolean) => void;
 }) {
 	const navigate = useNavigate();
@@ -41,6 +44,7 @@ export function CreateScopeDialog({
 		<Dialog open={kind !== null} onOpenChange={onOpenChange}>
 			{kind !== null && (
 				<CreateWorkspaceForm
+					fixedOrgId={fixedOrgId}
 					onDone={() => {
 						onOpenChange(false);
 					}}
@@ -50,14 +54,16 @@ export function CreateScopeDialog({
 	);
 }
 
-function CreateWorkspaceForm({ onDone }: { onDone: () => void }) {
+function CreateWorkspaceForm({ fixedOrgId, onDone }: { fixedOrgId: string | undefined; onDone: () => void }) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const { orgs, activeOrgId } = useOrgWorkspace();
 	const [name, setName] = useState("");
 	const nameRef = useRef<HTMLInputElement>(null);
 	const [description, setDescription] = useState("");
-	const [orgId, setOrgId] = useState(activeOrgId ?? orgs[0]?.id ?? "");
+	const [pickedOrgId, setPickedOrgId] = useState(activeOrgId ?? orgs[0]?.id ?? "");
+	const orgId = fixedOrgId ?? pickedOrgId;
+	const choosable = fixedOrgId === undefined && orgs.length > 1;
 	const wsMutation = useMutation(createWorkspace);
 	const pending = wsMutation.isPending;
 
@@ -84,7 +90,11 @@ function CreateWorkspaceForm({ onDone }: { onDone: () => void }) {
 	};
 
 	return (
-		<DialogContent title={`New workspace in ${orgName}`} initialFocus={nameRef}>
+		<DialogContent
+			title={`New workspace in ${orgName}`}
+			showCloseButton={fixedOrgId === undefined}
+			initialFocus={nameRef}
+		>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -97,7 +107,7 @@ function CreateWorkspaceForm({ onDone }: { onDone: () => void }) {
 						A workspace is a project inside {orgName}. Its resources, environments, members, tokens and webhooks live
 						here.
 					</p>
-					{orgs.length > 1 && (
+					{choosable && (
 						<div className="flex flex-col gap-1.5">
 							<span className="font-semibold">Organization</span>
 							<ToggleGroup
@@ -105,7 +115,7 @@ function CreateWorkspaceForm({ onDone }: { onDone: () => void }) {
 								value={[orgId]}
 								onValueChange={(v: string[]) => {
 									const next = v[0];
-									if (next !== undefined) setOrgId(next);
+									if (next !== undefined) setPickedOrgId(next);
 								}}
 							>
 								{orgs.map((o) => (

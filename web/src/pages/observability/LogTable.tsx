@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/design/Button";
 import { Checkbox } from "@/components/design/Checkbox";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { Skeleton } from "@/components/design/Skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,15 @@ import { LogRowMenu } from "./LogRowMenu";
 import { WORKLOAD_TITLE, type LogRow } from "./rows";
 
 const TIME_KEY = "time";
+
+const LOG_SKELETON = (
+	<div className="grid w-full grid-cols-[112px_92px_130px_minmax(0,1fr)] items-center gap-3">
+		<Skeleton className="h-3 w-[84px]" />
+		<Skeleton className="h-3 w-11" />
+		<Skeleton className="h-3 w-16" />
+		<Skeleton className="h-3 w-[70%]" />
+	</div>
+);
 
 function ColumnPicker({ columns, onColumns }: { columns: ColumnKey[]; onColumns: (next: ColumnKey[]) => void }) {
 	const extra = columns.filter((c) => !PICKABLE_COLUMNS.includes(c));
@@ -162,6 +172,9 @@ export function LogTable({
 			band
 			className="text-[12px] [--row-h:34px] [&_td]:py-1"
 			loading={loading}
+			skeleton={LOG_SKELETON}
+			skeletonRows={10}
+			separators
 			empty={empty}
 			onColumnMove={(from, to) => {
 				const next = columns.filter((c) => c !== from);

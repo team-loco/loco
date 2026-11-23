@@ -70,7 +70,7 @@ function TokenMenu({
 	onRevoke: () => void;
 }) {
 	return (
-		<RowMenu label={`Actions for ${token.name}`} title={<span className="font-mono">{token.name}</span>}>
+		<RowMenu label={`Actions for ${token.name}`} title={token.name} monoTitle>
 			<DropdownMenuItem disabled={!canDuplicate} onClick={onDuplicate}>
 				<CopyIcon />
 				Duplicate

@@ -326,6 +326,7 @@ function TraceSession({
 					label={traces.length > 0 ? pageRangeLabel(paging.page, paging.size, total) : "0"}
 					page={paging.page}
 					pages={pages}
+					loading={loading}
 					total={total}
 					pageSizes={PAGE_SIZES}
 					pageSize={paging.size}
@@ -387,11 +388,10 @@ function traceColumns({
 			id: "resource",
 			accessorFn: (t) => t.resourceId,
 			header: "Resource",
-			size: 150,
+			size: 110,
 			minSize: 100,
 			maxSize: 640,
 			sortDescFirst: true,
-			meta: { fit: true, fitMax: 240 },
 			cell: ({ row }) => {
 				const { name, service } = resourceName(row.original);
 				return <CellText text={name} detail={service} className="text-[12.5px]" />;
@@ -403,7 +403,7 @@ function traceColumns({
 			header: "Root span",
 			size: 260,
 			sortDescFirst: true,
-			meta: { grow: true, primary: true },
+			meta: { primary: true },
 			cell: ({ row }) => (
 				<CellText text={row.original.rootSpanName || "Unnamed span"} className="font-mono text-foreground" />
 			),
@@ -495,6 +495,8 @@ function TraceList({
 			band
 			className="text-[12px] [--row-h:34px] [&_td]:py-1"
 			loading={loading}
+			tail
+			separators
 			empty={empty}
 			activeRowId={openId}
 			onRowClick={(row) => {
