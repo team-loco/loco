@@ -432,6 +432,11 @@ with session(out) as browser:
         f"'{uuid.UUID(int=0)}');",
     )
     context, page, errors = open_page(browser, "resource_reader")
+    # The shell never draws for an address whose organization or workspace is still being looked up.
+    context.add_init_script("""window.shellDraws = 0;
+            new MutationObserver(() => {
+                if (document.querySelector('[data-slot="sidebar-content"]')) window.shellDraws++;
+            }).observe(document, { childList: true, subtree: true });""")
     for path in (
         f"/org/{uuid.UUID(int=0)}/team",
         f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}",
@@ -439,6 +444,7 @@ with session(out) as browser:
     ):
         page.goto(ui + path)
         expect_not_found(page, path)
+        assert page.evaluate("window.shellDraws") == 0, path
     page.goto(ui + f"/org/{org}/team")
     expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)

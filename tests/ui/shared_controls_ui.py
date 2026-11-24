@@ -297,7 +297,18 @@ def shell_navigation(page):
     page.wait_for_function(
         "() => { window.scrollTo(0, document.documentElement.scrollHeight); return window.scrollY > 0; }"
     )
+    # The workspace links stay in the sidebar while an organization page opens.
+    page.evaluate("""() => {
+        window.navGaps = 0;
+        new MutationObserver(() => {
+            const nav = document.querySelector('[data-slot="sidebar-content"]');
+            const linked = href => nav?.querySelector(`a[href*="${href}"]`);
+            if (nav && !(linked("/resources") && linked("/secrets"))) window.navGaps++;
+        }).observe(document.body, { childList: true, subtree: true, attributes: true });
+    }""")
     assert_sidebar_slide(sidebar.get_by_role("link", name="Team", exact=True))
+    expect(page).to_have_url(re.compile(r"/team"))
+    assert page.evaluate("window.navGaps") == 0
     assert_sidebar_slide(dashboard)
     page.emulate_media(reduced_motion="reduce")
     resources.press("Enter")
