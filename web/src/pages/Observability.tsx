@@ -10,12 +10,18 @@ import { EventsView } from "./observability/EventsView";
 import { LogsView } from "./observability/LogsView";
 import { MetricsView } from "./observability/MetricsView";
 import { TracesView } from "./observability/TracesView";
+import { ViewHeader } from "./observability/ViewHeader";
 
 function ViewBody({ view }: { view: ObservabilityView }) {
-	const { resources, resourcesLoading, scopedResourceIds } = useObs();
+	const { noResources } = useObs();
 	// Events also record what happens before the first deploy; every other view reads from a deployed resource.
-	if (view !== "events" && !resourcesLoading && scopedResourceIds === null && resources.length === 0) {
-		return <EmptyWorkspace />;
+	if (view !== "events" && noResources) {
+		return (
+			<>
+				<ViewHeader />
+				<EmptyWorkspace wholeWorkspace />
+			</>
+		);
 	}
 	switch (view) {
 		case "logs":

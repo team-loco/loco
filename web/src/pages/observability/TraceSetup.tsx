@@ -25,8 +25,9 @@ const SNIPPETS: { language: string; highlight: LanguageName; code: string }[] = 
 		language: "Go",
 		highlight: "go",
 		code: [
-			"go get go.opentelemetry.io/otel/sdk go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp \\",
-			"  go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+			"go get go.opentelemetry.io/otel/sdk",
+			"go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp",
+			"go get go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
 			"",
 			"// main.go",
 			"exporter, err := otlptracehttp.New(ctx)",

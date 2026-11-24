@@ -115,7 +115,7 @@ export function Resources() {
 		}
 		if (scoped)
 			return <ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={granted.data?.resources ?? []} />;
-		if (total === 0) return <EmptyWorkspace />;
+		if (total === 0) return <EmptyWorkspace wholeWorkspace />;
 		if (view === "map" && active !== undefined) {
 			return (
 				<ResourcesMap

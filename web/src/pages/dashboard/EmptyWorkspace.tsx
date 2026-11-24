@@ -163,11 +163,12 @@ function StackArt() {
 	);
 }
 
-/** Shown wherever a page has nothing to list because no resource is deployed. */
-export function EmptyWorkspace() {
+/** Shown wherever a page has nothing to list because no resource is deployed; `wholeWorkspace` for pages that read every environment. */
+export function EmptyWorkspace({ wholeWorkspace = false }: { wholeWorkspace?: boolean }) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, setActive } = useEnvironments();
-	const otherEnv = environments.find((e) => e.id !== active?.id);
+	const otherEnv = wholeWorkspace ? undefined : environments.find((e) => e.id !== active?.id);
+	const where = wholeWorkspace || active === undefined ? " in this workspace" : ` to ${active.name}`;
 	const newHref = newResourcePath(
 		activeOrgId ?? "",
 		activeWorkspaceId ?? "",
@@ -177,7 +178,7 @@ export function EmptyWorkspace() {
 		<EmptyHero
 			art={<StackArt />}
 			title="No resources yet"
-			subtitle={`Nothing is deployed${active === undefined ? "" : ` to ${active.name}`}. Deploy from your terminal with the loco CLI, or create a resource here.`}
+			subtitle={`Nothing is deployed${where}. Deploy from your terminal with the loco CLI, or create a resource here.`}
 		>
 			<div className="my-2 flex w-[min(380px,100%)] items-center justify-between gap-6 rounded-lg bg-background py-3.5 pr-3.5 pl-4 text-left ring-1 ring-line">
 				<div className="flex flex-col gap-1.5 font-mono text-[13px]">
