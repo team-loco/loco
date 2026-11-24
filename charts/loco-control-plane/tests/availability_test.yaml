@@ -12,15 +12,12 @@ templates:
   - templates/gateway.yaml
   - templates/scaling.yaml
 tests:
-  - it: runs one API replica and no API disruption budget by default
+  - it: runs one API replica by default
+    template: templates/api-deployment.yaml
     asserts:
       - equal:
           path: spec.replicas
           value: 1
-        template: templates/api-deployment.yaml
-      - containsDocument: {kind: PodDisruptionBudget, apiVersion: policy/v1, name: loco-control-plane-api}
-        template: templates/scaling.yaml
-        not: true
 
   - it: autoscales the ingest proxy from two replicas by default
     asserts:
@@ -39,8 +36,13 @@ tests:
         template: templates/scaling.yaml
         documentSelector: {path: kind, value: HorizontalPodAutoscaler}
 
-  - it: lets one pod of each multi-replica component go at a time
+  - it: lets one pod of each component go at a time
     asserts:
+      - equal:
+          path: spec
+          value: {maxUnavailable: 1, selector: {matchLabels: {app: loco-control-plane-api}}}
+        template: templates/scaling.yaml
+        documentSelector: {path: metadata.name, value: loco-control-plane-api}
       - equal:
           path: spec
           value: {maxUnavailable: 1, selector: {matchLabels: {app: loco-control-plane-obs-proxy-ingest}}}
@@ -56,16 +58,6 @@ tests:
           value: {maxUnavailable: 1, selector: {matchLabels: {app: loco-control-plane-openbao}}}
         template: templates/scaling.yaml
         documentSelector: {path: metadata.name, value: loco-control-plane-openbao}
-
-  - it: gives a component with one replica no disruption budget
-    set:
-      ui.replicaCount: 1
-      obsProxy.ingest.autoscaling.enabled: false
-      obsProxy.ingest.replicaCount: 1
-      openbao.replicas: 1
-    asserts:
-      - hasDocuments: {count: 0}
-        template: templates/scaling.yaml
 
   - it: runs two dashboard replicas
     template: templates/ui.yaml
@@ -140,5 +132,3 @@ tests:
           value: 1
       - notExists:
           path: spec.provider.kubernetes.envoyHpa
-      - notExists:
-          path: spec.provider.kubernetes.envoyPDB

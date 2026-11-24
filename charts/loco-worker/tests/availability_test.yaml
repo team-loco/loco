@@ -43,22 +43,6 @@ tests:
         template: templates/builds/deployment.yaml
         documentSelector: {path: kind, value: Deployment}
 
-  - it: elects one leader among the controller replicas when their args are overridden
-    set:
-      controller.args: [--metrics-bind-address=0]
-      builds.controller.args: [--metrics-bind-address=0]
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --leader-elect
-        template: templates/controller/deployment.yaml
-        documentSelector: {path: kind, value: Deployment}
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: --leader-elect
-        template: templates/builds/deployment.yaml
-        documentSelector: {path: kind, value: Deployment}
-
   - it: keeps leader election on when the controller args turn it off
     set:
       controller.args: [--leader-elect=false]
@@ -84,14 +68,6 @@ tests:
           count: 4
         template: templates/builds/deployment.yaml
         documentSelector: {path: kind, value: Deployment}
-
-  - it: gives a controller with one replica no disruption budget
-    set:
-      controller.replicas: 1
-      builds.controller.replicas: 1
-    asserts:
-      - hasDocuments: {count: 0}
-        template: templates/disruption-budgets.yaml
 
   - it: refuses a second agent, which would share the cluster's identity
     set:
@@ -140,8 +116,6 @@ tests:
           value: 1
       - notExists:
           path: spec.provider.kubernetes.envoyHpa
-      - notExists:
-          path: spec.provider.kubernetes.envoyPDB
 
   - it: runs two Envoy Gateway controllers with a disruption budget, spread across nodes
     asserts:

@@ -23,18 +23,17 @@ spec:
           averageUtilization: {{ .targetCPUUtilizationPercentage }}
 {{- end }}
 {{- end }}
-{{- $replicas := dict (printf "%s-api" .Release.Name) .Values.api.replicaCount }}
+{{- $names := list (printf "%s-api" .Release.Name) }}
 {{- if .Values.ui.enabled }}
-{{- $_ := set $replicas (printf "%s-ui" .Release.Name) .Values.ui.replicaCount }}
+{{- $names = append $names (printf "%s-ui" .Release.Name) }}
 {{- end }}
 {{- if .Values.obsProxy.enabled }}
-{{- $_ := set $replicas (printf "%s-obs-proxy-ingest" .Release.Name) (ternary $ingest.autoscaling.minReplicas $ingest.replicaCount $ingest.autoscaling.enabled) }}
+{{- $names = append $names (printf "%s-obs-proxy-ingest" .Release.Name) }}
 {{- end }}
 {{- if .Values.openbao.enabled }}
-{{- $_ := set $replicas (include "loco-control-plane.openbaoName" .) .Values.openbao.replicas }}
+{{- $names = append $names (include "loco-control-plane.openbaoName" .) }}
 {{- end }}
-{{- range $name, $count := $replicas }}
-{{- if ge (int $count) 2 }}
+{{- range $name := $names }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -46,5 +45,4 @@ spec:
   selector:
     matchLabels:
       app: {{ $name }}
-{{- end }}
 {{- end }}

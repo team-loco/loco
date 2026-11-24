@@ -41,10 +41,8 @@ spec:
                 averageUtilization: {{ .targetCPUUtilizationPercentage }}
       {{- end }}
       {{- end }}
-      {{- if ge (int (ternary .Values.gateway.autoscaling.minReplicas .Values.gateway.replicaCount .Values.gateway.autoscaling.enabled)) 2 }}
       envoyPDB:
         maxUnavailable: 1
-      {{- end }}
       {{- with .Values.gateway.service }}
       envoyService:
         {{- toYaml . | nindent 8 }}

@@ -121,10 +121,8 @@ spec:
                 averageUtilization: {{ .targetCPUUtilizationPercentage }}
       {{- end }}
       {{- end }}
-      {{- if ge (int (ternary .Values.envoyProxy.autoscaling.minReplicas .Values.envoyProxy.replicas .Values.envoyProxy.autoscaling.enabled)) 2 }}
       envoyPDB:
         maxUnavailable: 1
-      {{- end }}
       {{- with .Values.envoyProxy.service }}
       envoyService:
         {{- toYaml . | nindent 8 }}

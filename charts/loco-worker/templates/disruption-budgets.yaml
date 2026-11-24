@@ -1,12 +1,11 @@
-{{- $controllers := dict }}
+{{- $controllers := list }}
 {{- if include "loco-worker.runsApps" . }}
-{{- $_ := set $controllers "loco-controller" .Values.controller.replicas }}
+{{- $controllers = append $controllers "loco-controller" }}
 {{- end }}
 {{- if include "loco-worker.runsBuilds" . }}
-{{- $_ := set $controllers "loco-build-controller" .Values.builds.controller.replicas }}
+{{- $controllers = append $controllers "loco-build-controller" }}
 {{- end }}
-{{- range $name, $replicas := $controllers }}
-{{- if ge (int $replicas) 2 }}
+{{- range $name := $controllers }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -18,5 +17,4 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ $name }}
-{{- end }}
 {{- end }}
