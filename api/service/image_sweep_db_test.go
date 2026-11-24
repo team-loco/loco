@@ -162,10 +162,12 @@ func TestDeployingABuildWithADeletedImageFails(t *testing.T) {
 	}
 }
 
-func TestDeployWaitsForAnImageDeleteInFlight(t *testing.T) {
+func TestDeployDoesNotWaitForAnImageDeleteInFlight(t *testing.T) {
 	t.Parallel()
 	f := newImageSweepFixture(t)
 	registry := newBlockingRegistry()
+	release := sync.OnceFunc(func() { close(registry.release) })
+	t.Cleanup(release)
 	f.sweepWith(registry, 1)
 	old := f.succeeded(t)
 	f.succeeded(t)
@@ -187,25 +189,23 @@ func TestDeployWaitsForAnImageDeleteInFlight(t *testing.T) {
 		_, err := createDeploymentWith(t, f.deployFixture, sameRegionSpec, service)
 		deployed <- err
 	}()
-	select {
-	case err := <-deployed:
-		t.Fatalf("the deploy finished while the image delete held the build: %v", err)
-	case <-time.After(time.Second):
-	}
-
-	close(registry.release)
-	if err := <-swept; err != nil {
-		t.Fatalf("sweep: %v", err)
-	}
 	var err error
 	select {
 	case err = <-deployed:
 	case <-time.After(testSweepDeadline):
-		t.Fatal("the deploy did not finish after the sweep")
+		t.Fatal("the deploy waited for the registry request of an image delete")
 	}
 	wantCode(t, err, connect.CodeFailedPrecondition)
+	if !strings.Contains(err.Error(), errBuildImageDeleted.Error()) {
+		t.Fatalf("err = %v, want %v", err, errBuildImageDeleted)
+	}
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments were created for a deleted image, want 0", n)
+	}
+
+	release()
+	if err := <-swept; err != nil {
+		t.Fatalf("sweep: %v", err)
 	}
 }
 

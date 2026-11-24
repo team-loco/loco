@@ -575,15 +575,16 @@ func (q *Queries) ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]
 }
 
 const listBuildTagStates = `-- name: ListBuildTagStates :many
-SELECT id, resource_id, status, finished_at FROM builds
+SELECT id, resource_id, status, finished_at, image_deleted_at FROM builds
 WHERE id = ANY($1::uuid[])
 `
 
 type ListBuildTagStatesRow struct {
-	ID         uuid.UUID   `json:"id"`
-	ResourceID uuid.UUID   `json:"resourceId"`
-	Status     BuildStatus `json:"status"`
-	FinishedAt *time.Time  `json:"finishedAt"`
+	ID             uuid.UUID   `json:"id"`
+	ResourceID     uuid.UUID   `json:"resourceId"`
+	Status         BuildStatus `json:"status"`
+	FinishedAt     *time.Time  `json:"finishedAt"`
+	ImageDeletedAt *time.Time  `json:"imageDeletedAt"`
 }
 
 func (q *Queries) ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error) {
@@ -600,6 +601,7 @@ func (q *Queries) ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]Li
 			&i.ResourceID,
 			&i.Status,
 			&i.FinishedAt,
+			&i.ImageDeletedAt,
 		); err != nil {
 			return nil, err
 		}
