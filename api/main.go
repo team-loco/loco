@@ -511,7 +511,6 @@ func newDeps(
 			pool,
 			queries,
 			imageResolver,
-			ac.ImageResolveWorkers,
 			ac.RegistryHost,
 			ac.ServiceDefaults,
 			ac.SecretLimits,

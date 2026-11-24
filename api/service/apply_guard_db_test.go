@@ -63,7 +63,6 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 		f.pool,
 		f.queries,
 		resolver,
-		testImageLookups,
 		testRegistryHost,
 		testServiceDefaults(),
 		testSecretConfig(),

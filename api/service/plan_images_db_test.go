@@ -63,7 +63,7 @@ type imagePlan struct {
 func planImages(t *testing.T, f *deployFixture, p imagePlan) (*planv1.PlanResponse, error) {
 	t.Helper()
 	server := NewPlanServer(
-		f.pool, f.queries, p.resolver, testImageLookups, testRegistryHost, testServiceDefaults(),
+		f.pool, f.queries, p.resolver, testRegistryHost, testServiceDefaults(),
 		testSecretConfig(), testClusterSilentAfter, p.counts,
 	)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})

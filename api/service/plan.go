@@ -39,6 +39,9 @@ const (
 	planComputeSpan       = "plan.compute"
 )
 
+// imageLookups is how many images one plan resolves at once.
+const imageLookups = 16
+
 const publicPlanOutOfTime = "the plan ran out of time resolving the file's images; " +
 	"try again, or split the file into partials"
 
@@ -49,7 +52,6 @@ type PlanServer struct {
 	queries      genDb.Querier
 	authz        *authz.Authorizer
 	resolver     ImageResolver
-	lookups      int
 	registryHost string
 	defaults     servicedefaults.Defaults
 	secrets      SecretConfig
@@ -57,13 +59,12 @@ type PlanServer struct {
 	counts       *configv1.CountLimits
 }
 
-// NewPlanServer creates a PlanServer that resolves up to lookups images at once; secrets supplies
-// the per-placement size limit the plan checks each service's declared secrets against.
+// NewPlanServer creates a PlanServer; secrets supplies the per-placement size limit the plan
+// checks each service's declared secrets against.
 func NewPlanServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	resolver ImageResolver,
-	lookups int,
 	registryHost string,
 	defaults servicedefaults.Defaults,
 	secrets SecretConfig,
@@ -75,7 +76,6 @@ func NewPlanServer(
 		queries:      queries,
 		authz:        authz.New(queries),
 		resolver:     resolver,
-		lookups:      lookups,
 		registryHost: registryHost,
 		defaults:     defaults,
 		secrets:      secrets,
@@ -275,7 +275,7 @@ func (s *PlanServer) checkServiceCount(file *locofile.File) error {
 	)
 }
 
-// resolveImages pins each distinct image, up to s.lookups at once.
+// resolveImages pins each distinct image, up to imageLookups at once.
 func (s *PlanServer) resolveImages(
 	ctx context.Context,
 	services map[string]locofile.Service,
@@ -291,7 +291,7 @@ func (s *PlanServer) resolveImages(
 	images := make(map[string]configplan.ImageResult, len(distinct))
 	var mu sync.Mutex
 	var lookups sync.WaitGroup
-	slots := make(chan struct{}, s.lookups)
+	slots := make(chan struct{}, imageLookups)
 	for _, image := range distinct {
 		slots <- struct{}{}
 		lookups.Go(func() {

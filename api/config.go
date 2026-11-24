@@ -134,7 +134,6 @@ const (
 
 	defaultPublicImageMaxBytes   = 1 << 30
 	defaultImageResolveTimeout   = 15 * time.Second
-	defaultImageResolveWorkers   = 16
 	defaultRPCTimeout            = 30 * time.Second
 	defaultShutdownDrainTimeout  = 30 * time.Second
 	defaultPlacementPollInterval = 5 * time.Second
@@ -221,7 +220,6 @@ type APIConfig struct {
 	Tokens                tvm.Config
 	TokenCleanupInterval  time.Duration
 	ImageResolveTimeout   time.Duration
-	ImageResolveWorkers   int
 	PublicImageMaxBytes   int64
 	RPCTimeout            time.Duration
 	ShutdownDrainTimeout  time.Duration
@@ -343,7 +341,6 @@ func newAPIConfig() *APIConfig {
 		TokenCleanupInterval:  envconfig.PositiveDuration("LOCO_TOKEN_CLEANUP_INTERVAL", defaultTokenCleanupInterval),
 		PublicImageMaxBytes:   publicImageMaxBytes,
 		ImageResolveTimeout:   envconfig.PositiveDuration("LOCO_IMAGE_RESOLVE_TIMEOUT", defaultImageResolveTimeout),
-		ImageResolveWorkers:   int(positiveInt32Env("LOCO_IMAGE_RESOLVE_CONCURRENCY", defaultImageResolveWorkers)),
 		RPCTimeout:            envconfig.PositiveDuration("LOCO_RPC_TIMEOUT", defaultRPCTimeout),
 		ShutdownDrainTimeout:  envconfig.PositiveDuration("LOCO_SHUTDOWN_DRAIN_TIMEOUT", defaultShutdownDrainTimeout),
 		Port:                  envconfig.String("APP_PORT", ""),

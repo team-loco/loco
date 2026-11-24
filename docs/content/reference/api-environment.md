@@ -89,7 +89,6 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES` | `5` | Pages of bucket objects checked per run. |
 | `LOCO_PUBLIC_IMAGE_MAX_BYTES` | `1073741824` | Largest compressed size of a prebuilt public image in bytes (1 GiB). |
 | `LOCO_IMAGE_RESOLVE_TIMEOUT` | `15s` | Limit on resolving a prebuilt image to its digest. |
-| `LOCO_IMAGE_RESOLVE_CONCURRENCY` | `16` | Images one plan or apply resolves at the same time. |
 | `LOCO_IMAGE_RETENTION` | `5` | Newest succeeded build images kept per resource. `0` turns image deletion off. |
 | `LOCO_IMAGE_SWEEP_INTERVAL` | `10m` | How often the image sweeper runs. |
 | `LOCO_IMAGE_SWEEP_BUILD_BATCH` | `100` | Builds whose image the sweeper deletes per run. |

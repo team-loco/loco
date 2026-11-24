@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	testImageLookups = 16
 	planPartial      = "web"
 	planOtherPartial = "backend"
 	planNew          = "new"
@@ -90,7 +89,6 @@ func newPlanServer(f *deployFixture) *PlanServer {
 		f.pool,
 		f.queries,
 		resolver,
-		testImageLookups,
 		testRegistryHost,
 		testServiceDefaults(),
 		testSecretConfig(),
