@@ -48,7 +48,8 @@ app domain: the directory name turned into a safe service name with a four-lette
 suffix. It uses Dockerfile in that directory for a source build. In a terminal, it
 asks for the service name. No file is written. Set --name, --region, --domain,
 --dockerfile, or --context to override those choices; --private omits the public
-domain. Use --yes without a terminal.
+domain. Use --yes without a terminal. --no-file deploys this way even when the
+directory has a loco.yaml, which is then neither read nor changed.
 
 If loco.yaml exists, build its source services and apply the file to an environment
 with the builds. The file's services and environments remain the source of truth.
@@ -79,6 +80,7 @@ deleted.
 Examples:
   loco deploy
   loco deploy --name web --port 8080 --yes
+  loco deploy --no-file --name preview --port 8080 --yes
   loco deploy --name worker --image ghcr.io/acme/worker:release --yes
   loco deploy --env staging --yes
   loco deploy --env staging --yes --wait
@@ -89,6 +91,7 @@ Examples:
 	addTargetFlags(cmd)
 	cmd.Flags().String("image", "", "Deploy from a public image reference without building source")
 	cmd.Flags().StringP("file", "f", locofile.FileName, "Path to loco.yaml")
+	cmd.Flags().Bool("no-file", false, "Ignore loco.yaml and deploy one service from flags")
 	cmd.Flags().String("name", "", "Service name when deploying without loco.yaml (defaults to the directory name)")
 	cmd.Flags().Int32("port", 0, "Application port without loco.yaml; without it the service is a worker")
 	cmd.Flags().String("region", "", "Region when deploying without loco.yaml (defaults to the API region)")

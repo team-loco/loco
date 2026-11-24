@@ -1,0 +1,39 @@
+# --no-file deploys one service from flags and leaves an existing loco.yaml unread, even an invalid one.
+fakeapi resource api
+fakeapi plan plan.json
+cd app
+exec loco deploy --no-file --name api --image ghcr.io/acme/api:1 --port 8080 --private --yes
+stdout '^api has no public URL and takes no internet traffic\.$'
+fakeapi applied 7
+cmp loco.yaml original.yaml
+
+# without the flag the file is read, so its error stops the deploy.
+! exec loco deploy --name api --port 8080 --yes
+stderr 'Invalid loco.yaml'
+
+# --no-file and --file are exclusive.
+! exec loco deploy --no-file --file loco.yaml --yes
+stderr '(?i)use either --no-file or --file, not both'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"
+-- app/loco.yaml --
+version: 1
+this is: [not valid
+-- app/original.yaml --
+version: 1
+this is: [not valid
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "api", "changes": [{"path": "image", "after": "ghcr.io/acme/api:1"}]}
+  ]
+}
