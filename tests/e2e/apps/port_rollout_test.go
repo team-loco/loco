@@ -48,9 +48,11 @@ func TestPortRollout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The pollers dial each Service's ClusterIP; only requests that reach the Service count.
 	public := startPortPoller(t, p.Namespace, "port-rollout-public",
-		fmt.Sprintf("http://%s.%s.svc.cluster.local/", gateway, p.Namespace), host)
-	private := startPortPoller(t, w.Namespace, "port-rollout-private", "http://"+app+"/", "")
+		"http://"+serviceIP(t, p.Namespace, gateway)+"/", host)
+	private := startPortPoller(t, w.Namespace, "port-rollout-private",
+		"http://"+serviceIP(t, w.Namespace, app)+"/", "")
 	pollers := []func() portTraffic{public, private}
 	baseline := []portTraffic{public(), private()}
 	previous := append([]portTraffic(nil), baseline...)
@@ -116,6 +118,12 @@ func TestPortRollout(t *testing.T) {
 	}
 	p.DeleteOnCleanup(t, "-n", w.Namespace, "pod", "port-rollout-explicit")
 	checkpoint("after explicit private port probe", false)
+}
+
+func serviceIP(t *testing.T, namespace, service string) string {
+	t.Helper()
+	return strings.TrimSpace(p.MustKubectl(t, "-n", namespace, "get", "service", service,
+		"-o", "jsonpath={.spec.clusterIP}"))
 }
 
 type portTraffic struct{ success, failures int }
