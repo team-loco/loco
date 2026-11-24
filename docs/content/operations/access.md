@@ -127,6 +127,7 @@ The API caps how many of each thing can exist, so one account cannot fill the co
 | API tokens | user, organization, workspace or resource that owns them | 50 | `LOCO_LIMIT_TOKENS_PER_ENTITY` |
 | Domains | resource in one environment | 10 | `LOCO_LIMIT_DOMAINS_PER_RESOURCE` |
 | Secrets | environment | 256 | `LOCO_LIMIT_SECRETS_PER_ENVIRONMENT` |
+| Services | `loco.yaml` file in one plan or apply | 100 | `LOCO_LIMIT_SERVICES_PER_FILE` |
 
 An invitation is refused while the organization is at its member or open-invitation limit. A user signing in with an open invitation to an organization at its member limit signs in without joining it, and the invitation stays open until it expires.
 
@@ -141,7 +142,7 @@ loco workspace update my-workspace --log-retention-days 0
 
 The observability proxy writes the workspace's retention into each row it ingests, so a change applies to rows ingested after the proxy's retention cache next refreshes, at most `INGEST_RETENTION_CACHE_TTL` (30 seconds) later, and existing rows keep the retention they were written with. Records that name no workspace, such as Kubernetes events and Envoy's own metrics, keep the install defaults.
 
-`ConfigService.GetConfig` reports the install defaults in `count_limits`. A system admin can override every limit except organizations per user for one organization, for example to give a large customer more workspaces. Per-workspace and per-resource overrides apply to every workspace or resource of the organization. Each change needs a reason of 1 to 500 characters and records an `org.limits_changed` event with the reason and the old and new values:
+`ConfigService.GetConfig` reports the install defaults in `count_limits`. A system admin can override every limit except organizations per user and services per file for one organization, for example to give a large customer more workspaces. Per-workspace and per-resource overrides apply to every workspace or resource of the organization. Each change needs a reason of 1 to 500 characters and records an `org.limits_changed` event with the reason and the old and new values:
 
 ```sh
 locoadm org limits set <org-id> --workspaces-per-org 500 --reason "Enterprise contract"

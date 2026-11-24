@@ -149,18 +149,29 @@ func setLimits(
 	})
 }
 
+// notOverridable lists the CountLimits fields SetOrgLimits refuses: the limits without an override
+// column in api/limits. Update the two together.
+var notOverridable = map[protoreflect.Name]bool{"orgs_per_user": true, "services_per_file": true}
+
+// limitFields returns the CountLimits fields an organization can override.
 func limitFields() []protoreflect.FieldDescriptor {
 	fields := (&configv1.CountLimits{}).ProtoReflect().Descriptor().Fields()
-	all := make([]protoreflect.FieldDescriptor, fields.Len())
+	overridable := make([]protoreflect.FieldDescriptor, 0, fields.Len())
 	for i := range fields.Len() {
-		all[i] = fields.Get(i)
+		if !notOverridable[fields.Get(i).Name()] {
+			overridable = append(overridable, fields.Get(i))
+		}
 	}
-	return all
+	return overridable
 }
 
 func limitField(name string) protoreflect.FieldDescriptor {
-	return (&configv1.CountLimits{}).ProtoReflect().Descriptor().Fields().
+	field := (&configv1.CountLimits{}).ProtoReflect().Descriptor().Fields().
 		ByName(protoreflect.Name(strings.ReplaceAll(name, "-", "_")))
+	if field == nil || notOverridable[field.Name()] {
+		return nil
+	}
+	return field
 }
 
 func limitNames() []string {

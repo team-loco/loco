@@ -281,8 +281,10 @@ type CountLimits struct {
 	MetricRetentionDays int32 `protobuf:"varint,15,opt,name=metric_retention_days,json=metricRetentionDays,proto3" json:"metric_retention_days,omitempty"`
 	// expired_token_retention_days is how many days an expired API token stays listed before it is deleted.
 	ExpiredTokenRetentionDays int32 `protobuf:"varint,16,opt,name=expired_token_retention_days,json=expiredTokenRetentionDays,proto3" json:"expired_token_retention_days,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// services_per_file is how many services one loco.yaml file may declare.
+	ServicesPerFile int32 `protobuf:"varint,17,opt,name=services_per_file,json=servicesPerFile,proto3" json:"services_per_file,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CountLimits) Reset() {
@@ -423,6 +425,13 @@ func (x *CountLimits) GetMetricRetentionDays() int32 {
 func (x *CountLimits) GetExpiredTokenRetentionDays() int32 {
 	if x != nil {
 		return x.ExpiredTokenRetentionDays
+	}
+	return 0
+}
+
+func (x *CountLimits) GetServicesPerFile() int32 {
+	if x != nil {
+		return x.ServicesPerFile
 	}
 	return 0
 }
@@ -695,7 +704,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x0edefault_region\x18\r \x01(\tR\rdefaultRegionJ\x04\b\x03\x10\x04R\x04auth\"\x80\x01\n" +
 	"\x10HistoryRetention\x129\n" +
 	"\x19build_images_per_resource\x18\x01 \x01(\x05R\x16buildImagesPerResource\x121\n" +
-	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xa2\x06\n" +
+	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xce\x06\n" +
 	"\vCountLimits\x12\"\n" +
 	"\rorgs_per_user\x18\x01 \x01(\x05R\vorgsPerUser\x12,\n" +
 	"\x12workspaces_per_org\x18\x02 \x01(\x05R\x10workspacesPerOrg\x12&\n" +
@@ -713,7 +722,8 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x12log_retention_days\x18\r \x01(\x05R\x10logRetentionDays\x120\n" +
 	"\x14trace_retention_days\x18\x0e \x01(\x05R\x12traceRetentionDays\x122\n" +
 	"\x15metric_retention_days\x18\x0f \x01(\x05R\x13metricRetentionDays\x12?\n" +
-	"\x1cexpired_token_retention_days\x18\x10 \x01(\x05R\x19expiredTokenRetentionDays\"\xf2\x01\n" +
+	"\x1cexpired_token_retention_days\x18\x10 \x01(\x05R\x19expiredTokenRetentionDays\x12*\n" +
+	"\x11services_per_file\x18\x11 \x01(\x05R\x0fservicesPerFile\"\xf2\x01\n" +
 	"\n" +
 	"SizeLimits\x12$\n" +
 	"\x0emin_cpu_millis\x18\x01 \x01(\x05R\fminCpuMillis\x12$\n" +

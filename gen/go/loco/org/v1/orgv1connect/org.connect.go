@@ -219,7 +219,7 @@ type OrgServiceClient interface {
 	GetOrgLimits(context.Context, *v1.GetOrgLimitsRequest) (*v1.GetOrgLimitsResponse, error)
 	// SetOrgLimits overrides the install's count limits for one organization. Only the fields in
 	// update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
-	// belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
+	// and services_per_file cannot be overridden. Lowering a limit deletes nothing. It requires
 	// system:admin.
 	SetOrgLimits(context.Context, *v1.SetOrgLimitsRequest) (*v1.SetOrgLimitsResponse, error)
 	// InviteOrgMember invites an email address; requires an organization admin user and rejects existing members.
@@ -272,7 +272,7 @@ type OrgServiceHandler interface {
 	GetOrgLimits(context.Context, *v1.GetOrgLimitsRequest) (*v1.GetOrgLimitsResponse, error)
 	// SetOrgLimits overrides the install's count limits for one organization. Only the fields in
 	// update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
-	// belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
+	// and services_per_file cannot be overridden. Lowering a limit deletes nothing. It requires
 	// system:admin.
 	SetOrgLimits(context.Context, *v1.SetOrgLimitsRequest) (*v1.SetOrgLimitsResponse, error)
 	// InviteOrgMember invites an email address; requires an organization admin user and rejects existing members.

@@ -2246,7 +2246,7 @@ export const OrgService: GenService<{
   /**
    * SetOrgLimits overrides the install's count limits for one organization. Only the fields in
    * update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user
-   * belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires
+   * and services_per_file cannot be overridden. Lowering a limit deletes nothing. It requires
    * system:admin.
    *
    * @generated from rpc loco.org.v1.OrgService.SetOrgLimits

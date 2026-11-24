@@ -5052,7 +5052,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "SetOrgLimits",
-        "description": "SetOrgLimits overrides the install's count limits for one organization. Only the fields in\n update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user\n belongs to users and cannot be overridden. Lowering a limit deletes nothing. It requires\n system:admin.",
+        "description": "SetOrgLimits overrides the install's count limits for one organization. Only the fields in\n update_mask change; a masked field set to 0 goes back to the install default. orgs_per_user\n and services_per_file cannot be overridden. Lowering a limit deletes nothing. It requires\n system:admin.",
         "operationId": "loco.org.v1.OrgService.SetOrgLimits",
         "parameters": [
           {
@@ -10805,6 +10805,12 @@
             "title": "expired_token_retention_days",
             "format": "int32",
             "description": "expired_token_retention_days is how many days an expired API token stays listed before it is deleted."
+          },
+          "servicesPerFile": {
+            "type": "integer",
+            "title": "services_per_file",
+            "format": "int32",
+            "description": "services_per_file is how many services one loco.yaml file may declare."
           }
         },
         "title": "CountLimits",
