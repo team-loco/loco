@@ -1798,8 +1798,17 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
             self.path = "/index.html"
         return super().send_head()
 
+    def parse_request(self):
+        parsed = super().parse_request()
+        self.log_message("start %s", self.requestline)
+        return parsed
+
+    def finish(self):
+        self.log_message("finish")
+        super().finish()
+
     def log_message(self, format, *args):
-        return
+        log(f"{time.time():.3f} {id(self):x} {format % args}")
 
 
 class UIServer(http.server.ThreadingHTTPServer):

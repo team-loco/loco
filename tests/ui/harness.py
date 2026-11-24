@@ -2,6 +2,7 @@ import atexit
 import contextlib
 import json
 import os
+import shutil
 import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -10,6 +11,7 @@ import evidence
 from playwright.sync_api import sync_playwright
 
 repo = Path(__file__).resolve().parents[2]
+UI_LOGS = []
 
 # A clipboard per page; every suite shares one Chromium and its one system clipboard.
 CLIPBOARD_JS = """Object.defineProperty(navigator, "clipboard", {
@@ -28,7 +30,24 @@ def load_state(args, name, scenario, *, issuer=None):
             atexit.register(
                 lambda: evidence.stop_state(evidence.load_state(args.state))
             )
-    return evidence.load_state(args.state)
+    state = evidence.load_state(args.state)
+    UI_LOGS.append(Path(state["root"]) / "ui.log")
+    return state
+
+
+def probe(context, page):
+    """Whether the page's document completed and whether its URL can be fetched outside the renderer."""
+    try:
+        page.wait_for_function("document.readyState === 'complete'", timeout=3000)
+        document = "complete"
+    except Exception:
+        document = "not complete"
+    try:
+        response = context.request.get(page.url, timeout=3000)
+        fetched = {"status": response.status, "bytes": len(response.body())}
+    except Exception as err:
+        fetched = {"error": str(err).splitlines()[0]}
+    return {"document": document, "fetched": fetched}
 
 
 @contextlib.contextmanager
@@ -41,6 +60,9 @@ def session(out, **launch_options):
             yield browser
         except BaseException:
             out.mkdir(parents=True, exist_ok=True)
+            for number, ui_log in enumerate(UI_LOGS):
+                with contextlib.suppress(Exception):
+                    shutil.copy(ui_log, out / f"ui-{number}.log")
             for index, context in enumerate(browser.contexts):
                 with contextlib.suppress(Exception):
                     context.tracing.stop(path=out / f"failure-{index}.zip")
@@ -48,7 +70,11 @@ def session(out, **launch_options):
                     with contextlib.suppress(Exception):
                         evidence.write_json(
                             out / f"failure-{index}-{number}.json",
-                            {"url": page.url, **getattr(page, "diagnostics", {})},
+                            {
+                                "url": page.url,
+                                "probe": probe(context, page),
+                                **getattr(page, "diagnostics", {}),
+                            },
                         )
                         page.screenshot(
                             path=out / f"failure-{index}-{number}.png",
