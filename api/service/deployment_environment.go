@@ -14,8 +14,7 @@ import (
 
 // resolveVariables resolves the variables of a deployment of resource to the environment. The
 // caller must be able to read every other resource the variables refer to directly, and to list
-// the environment's secrets when the variables read one. The checks run on qtx, so the caller's
-// transaction never waits for a second pool connection while it holds its locks.
+// the environment's secrets when the variables read one. The checks run on qtx.
 func (s *DeploymentServer) resolveVariables(
 	ctx context.Context,
 	qtx *genDb.Queries,
