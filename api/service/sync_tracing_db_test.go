@@ -48,6 +48,7 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 	}
 	placement := f.placement(t, f.clusterID)
 	session := newSyncSession(f.agentServer(), f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+	session.generation = f.syncGeneration(t)
 	for _, msg := range []*agentv1.SyncRequest{
 		{Message: &agentv1.SyncRequest_Applied{Applied: applied(placement.ID, placement.DesiredRevision)}},
 		{Message: &agentv1.SyncRequest_Status{Status: &agentv1.PlacementStatus{

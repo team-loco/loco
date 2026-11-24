@@ -208,7 +208,7 @@ func (s *AgentServer) buildRegistryCredential(
 func (ss *syncSession) cancelStaleBuilds(ctx context.Context) error {
 	pending := make(map[uuid.UUID]struct{}, len(ss.builds.active))
 	for id := range ss.builds.active {
-		if _, sent := ss.builds.canceled[id]; !sent {
+		if _, sent := ss.builds.canceled[id]; !sent && !ss.isFinishing(id) {
 			pending[id] = struct{}{}
 		}
 	}
@@ -338,15 +338,16 @@ func (s *AgentServer) failClusterBuilds(ctx context.Context, params genDb.FailCl
 }
 
 // applyBuildStatus records a build report; its settleFunc tracks whether the cluster still runs
-// the build and cancels the builds the cluster should no longer run.
-func (ss *syncSession) applyBuildStatus(ctx context.Context, status *agentv1.BuildStatus) settleFunc {
+// the build and cancels the builds the cluster should no longer run. A build counts as finishing
+// from before its finish commits until it settles, so cancelStaleBuilds leaves it alone.
+func (ss *syncSession) applyBuildStatus(ctx context.Context, status *agentv1.BuildStatus) (settleFunc, error) {
 	if err := protovalidate.Validate(status); err != nil {
 		slog.WarnContext(ctx, "ignoring invalid build status",
 			"cluster_id", ss.clusterID,
 			"build_id", status.GetBuildId(),
 			"error", err,
 		)
-		return nil
+		return nil, nil
 	}
 	rawID := status.GetBuildId()
 	id, err := uuid.Parse(rawID)
@@ -356,20 +357,41 @@ func (ss *syncSession) applyBuildStatus(ctx context.Context, status *agentv1.Bui
 			"build_id", rawID,
 			"error", err,
 		)
-		return nil
-	}
-	if err := ss.server.recordBuildStatus(ctx, ss.clusterID, id, status); err != nil {
-		return settleErr(err)
+		return nil, nil
 	}
 	finished := buildPhaseFinished(status.GetPhase())
+	if finished {
+		ss.setFinishing(id, true)
+	}
+	if err := ss.server.recordBuildStatus(ctx, ss.clusterID, id, status); err != nil {
+		return nil, err
+	}
 	return func(ctx context.Context) error {
 		if finished {
 			delete(ss.builds.active, id)
+			ss.setFinishing(id, false)
 		} else {
 			ss.builds.active[id] = struct{}{}
 		}
 		return ss.cancelStaleBuilds(ctx)
+	}, nil
+}
+
+func (ss *syncSession) setFinishing(id uuid.UUID, finishing bool) {
+	ss.settledMu.Lock()
+	defer ss.settledMu.Unlock()
+	if finishing {
+		ss.finishing[id] = struct{}{}
+	} else {
+		delete(ss.finishing, id)
 	}
+}
+
+func (ss *syncSession) isFinishing(id uuid.UUID) bool {
+	ss.settledMu.Lock()
+	defer ss.settledMu.Unlock()
+	_, ok := ss.finishing[id]
+	return ok
 }
 
 func (s *AgentServer) recordBuildStatus(

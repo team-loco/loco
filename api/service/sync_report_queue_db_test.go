@@ -30,12 +30,14 @@ func applyQueuedReports(ctx context.Context, session *syncSession) error {
 
 // handleBuildStatus applies and settles a build report as a sync stream does.
 func (ss *syncSession) handleBuildStatus(ctx context.Context, status *agentv1.BuildStatus) error {
-	return ss.applyNow(ctx, ss.applyBuildStatus(ctx, status))
+	settle, err := ss.applyBuildStatus(ctx, status)
+	return ss.settleNow(ctx, settle, err)
 }
 
 // reconcileInventory applies and settles an inventory as a sync stream does.
 func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv1.Inventory) error {
-	return ss.applyNow(ctx, ss.applyInventory(ctx, inventory))
+	settle, err := ss.applyInventory(ctx, inventory)
+	return ss.settleNow(ctx, settle, err)
 }
 
 // reconcilePlacementInventory records the inventory's placements and sends those the cluster lacks.
@@ -60,7 +62,10 @@ func (ss *syncSession) handleNow(ctx context.Context, msg *agentv1.SyncRequest) 
 	return applyQueuedReports(ctx, ss)
 }
 
-func (ss *syncSession) applyNow(ctx context.Context, settle settleFunc) error {
+func (ss *syncSession) settleNow(ctx context.Context, settle settleFunc, err error) error {
+	if err != nil {
+		return err
+	}
 	if settle != nil {
 		if err := settle(ctx); err != nil {
 			return err
@@ -285,6 +290,63 @@ func TestHeartbeatsFlowWhileAReportWaitsForAWrite(t *testing.T) {
 			release()
 			waitFor(t, "the report applied once the write ended", func() bool { return tc.done(t, f, buildID) })
 		})
+	}
+}
+
+func TestAnInventoryMissingAPlacementResendsIt(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	p := f.placement(t, f.clusterID)
+	if _, err := f.pool.Exec(t.Context(),
+		`UPDATE placements SET applied_revision = desired_revision WHERE id = $1`, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer "+testAssertion(t, f.clusterID))
+	stream, err := startSyncServer(t, f).Sync(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory := func(entries ...*agentv1.InventoryEntry) *agentv1.SyncRequest {
+		return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{
+			Inventory: &agentv1.Inventory{Entries: entries},
+		}}
+	}
+	held := &agentv1.InventoryEntry{PlacementId: p.ID.String(), Revision: p.DesiredRevision}
+	if err := stream.Send(inventory(held)); err != nil {
+		t.Fatalf("send inventory: %v", err)
+	}
+	applies := make(chan *agentv1.Apply, 4)
+	go func() {
+		for {
+			msg, err := stream.Receive()
+			if err != nil {
+				return
+			}
+			if apply := msg.GetApply(); apply != nil {
+				applies <- apply
+			}
+		}
+	}()
+	select {
+	case apply := <-applies:
+		t.Fatalf("sent %v to a cluster that holds it", apply)
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	if err := stream.Send(inventory()); err != nil {
+		t.Fatalf("send inventory: %v", err)
+	}
+	select {
+	case apply := <-applies:
+		if apply.GetPlacementId() != p.ID.String() {
+			t.Fatalf("resent %s, want %s", apply.GetPlacementId(), p.ID)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("an inventory without the placement did not resend it")
 	}
 }
 

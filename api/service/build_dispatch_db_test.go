@@ -555,3 +555,40 @@ func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 	}
 	f.wantBuildOutcome(t, id, events.BuildSucceeded, events.FieldImageDigest, testImageDigest)
 }
+
+func TestABuildFinishingOnTheWorkerIsNotCanceled(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	session, sent := f.dispatchSession()
+	id := f.queued(t)
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending: %v", err)
+	}
+	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_RUNNING)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	sent.take()
+
+	succeeded := buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
+	succeeded.ImageDigest = testImageDigest
+	msg := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_BuildStatus{BuildStatus: succeeded}}
+	if err := session.handle(f.ctx, msg); err != nil {
+		t.Fatalf("queue succeeded: %v", err)
+	}
+	apply := <-session.reports
+	apply(f.ctx)
+	wantStatus(t, f.get(t, id), buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED)
+
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending before the report settled: %v", err)
+	}
+	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {
+		t.Fatalf("canceled %v whose finish had not settled yet", canceled)
+	}
+	if err := session.settle(f.ctx); err != nil {
+		t.Fatalf("settle: %v", err)
+	}
+	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {
+		t.Fatalf("canceled %v after its finish settled", canceled)
+	}
+}

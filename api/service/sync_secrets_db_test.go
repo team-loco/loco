@@ -214,6 +214,33 @@ func TestSendingAPlacementWithAMissingSecretDoesNotWaitForAWrite(t *testing.T) {
 	}
 }
 
+func TestARejectedPlacementIsRejectedOncePerRetry(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	config := testAgentConfig()
+	config.ApplyAttempts, config.ApplyRetryDelay = 5, 60
+	server := NewAgentServer(f.pool, f.queries, nil, nil, newTestKeyProvider(t, "k1"), testHeartbeatInterval, config)
+	f.deployWithSecrets(t, []string{missingName})
+	session := newSyncSession(server, f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+
+	release := holdResource(t, f)
+	for range 2 {
+		if err := session.sendPendingPlacements(context.Background()); err != nil {
+			t.Fatalf("send pending: %v", err)
+		}
+	}
+	if queued := len(session.reports); queued != 1 {
+		t.Fatalf("%d rejections queued after two polls, want 1", queued)
+	}
+	release()
+	if err := applyQueuedReports(context.Background(), session); err != nil {
+		t.Fatalf("apply reports: %v", err)
+	}
+	if attempts := f.placement(t, f.clusterID).ApplyAttempts; attempts != 1 {
+		t.Fatalf("apply attempts = %d, want 1", attempts)
+	}
+}
+
 func TestSyncRecordsAnApplyErrorForASecretRemovedOutOfBand(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
