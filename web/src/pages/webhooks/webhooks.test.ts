@@ -117,6 +117,14 @@ test("groups workspace events by subject and leaves out organization events", ()
 	expect(builds?.types).toContain("build.failed");
 });
 
+test("lists a type with an unknown prefix under Other", () => {
+	const groups = webhookEventGroups(["member.added", "quota.exceeded"]);
+	expect(groups).toEqual([
+		{ label: "Members", types: ["member.added"] },
+		{ label: "Other", types: ["quota.exceeded"] },
+	]);
+});
+
 test("accepts only https endpoint URLs", () => {
 	expect(isHttpsUrl("https://hooks.example.com/loco")).toBe(true);
 	expect(isHttpsUrl("http://hooks.example.com/loco")).toBe(false);

@@ -110,6 +110,8 @@ const GROUPS: readonly { label: string; subjects: readonly string[] }[] = [
 	{ label: "Workspace", subjects: ["workspace", "webhook"] },
 ];
 
+const ORGANIZATION_SUBJECTS: ReadonlySet<string> = new Set(["org", "org_member", "invitation"]);
+
 function subjectOf(type: string): string {
 	return RUNTIME_ALERTS.has(type) ? "runtime" : type.slice(0, type.indexOf("."));
 }
@@ -128,8 +130,14 @@ export function chosenLabel(selected: number, total: number): string {
 }
 
 export function webhookEventGroups(types: readonly string[] = AUDIT_EVENT_TYPES): EventGroup[] {
-	return GROUPS.map((g) => ({
-		label: g.label,
-		types: types.filter((t) => t !== "webhook.test" && g.subjects.includes(subjectOf(t))),
-	})).filter((g) => g.types.length > 0);
+	const offered = types.filter((t) => t !== "webhook.test" && !ORGANIZATION_SUBJECTS.has(subjectOf(t)));
+	const known = new Set(GROUPS.flatMap((g) => g.subjects));
+	const groups = [
+		...GROUPS.map((g) => ({
+			label: g.label,
+			types: offered.filter((t) => g.subjects.includes(subjectOf(t))),
+		})),
+		{ label: "Other", types: offered.filter((t) => !known.has(subjectOf(t))) },
+	];
+	return groups.filter((g) => g.types.length > 0);
 }
