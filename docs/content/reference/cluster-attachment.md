@@ -29,6 +29,8 @@ For fully unattended installs, an encrypted token committed to the worker config
 
 Provision any decryption key your chosen Secret tooling requires. The bundle's worker entry point waits for infrastructure and cluster configuration. The agent reads the mounted token file and retries enrollment with backoff while the token is missing, empty or rejected. Its retained identity supports restarts without another join token. An agent whose key the API enrolled but whose cluster ID never reached its key Secret recovers the cluster ID by signing with that key, also without a join token.
 
+When the API rejects the agent's stored cluster ID, because the cluster was removed or the API lost its registration, the agent enrolls with the mounted join token and saves the cluster ID that enrollment returns. Without a token, or with one the API rejects, it keeps retrying and logs a warning. Restore a removed cluster with `locoadm cluster restore CLUSTER_UUID`; it keeps its agent key and needs no token. Register a lost cluster again with `locoadm cluster create --kube-context`, which delivers a new token to the waiting agent.
+
 ```sh
 locoadm cluster list
 locoadm status

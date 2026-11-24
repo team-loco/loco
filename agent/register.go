@@ -23,6 +23,9 @@ var (
 	errClusterIDChanged         = errors.New("control plane registered the agent as a different cluster")
 )
 
+const rejoinHint = "restore a removed cluster with locoadm cluster restore, " +
+	"or create a lost one again with locoadm cluster create --kube-context to deliver a new join token"
+
 func (a *Agent) waitForRegistration(ctx context.Context) error {
 	backoff := newReconnectBackoff(a.cfg)
 	for {
@@ -123,8 +126,9 @@ func (a *Agent) announce(
 		return notEnrolledIfRejected(a.registerCall(ctx, req))
 	}
 	if stored.ClusterID != "" {
-		return nil, fmt.Errorf("%w: the control plane rejected cluster %s; issue one with locoadm cluster join-token",
-			errNotEnrolled, stored.ClusterID)
+		return nil, fmt.Errorf(
+			"%w: the control plane rejected cluster %s; %s", errNotEnrolled, stored.ClusterID, rejoinHint,
+		)
 	}
 	// Without a token, a key enrolled before the agent saved its cluster ID recovers that ID.
 	req.RecoverClusterId = true

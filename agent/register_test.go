@@ -46,6 +46,10 @@ type fakeRegistrar struct {
 	recovered        int
 	synced           int
 	enrollmentTokens chan string
+	// assertedErr, when set, answers every registration by assertion before checking it.
+	assertedErr error
+	// reassignedID, when set, is the cluster ID a registration by assertion returns.
+	reassignedID string
 }
 
 func (f *fakeRegistrar) verify(ctx context.Context) error {
@@ -95,6 +99,9 @@ func (f *fakeRegistrar) Register(
 		f.enrolled++
 		return response, nil
 	}
+	if f.assertedErr != nil && !req.GetRecoverClusterId() {
+		return nil, f.assertedErr
+	}
 	issuer := f.clusterID
 	if req.GetRecoverClusterId() {
 		issuer = f.clusterKey
@@ -104,8 +111,11 @@ func (f *fakeRegistrar) Register(
 	}
 	if req.GetRecoverClusterId() {
 		f.recovered++
-	} else {
-		f.asserted++
+		return response, nil
+	}
+	f.asserted++
+	if f.reassignedID != "" {
+		response.ClusterId = f.reassignedID
 	}
 	return response, nil
 }
@@ -314,5 +324,42 @@ func TestAgentWhoseClusterIsForgottenWaitsForAJoinToken(t *testing.T) {
 	}
 	if registrar.enrolled != 1 || registrar.asserted != 0 {
 		t.Fatalf("enrolled %d, asserted %d", registrar.enrolled, registrar.asserted)
+	}
+}
+
+func TestEnrolledAgentKeepsItsClusterIDWhenRegistrationFailsOtherwise(t *testing.T) {
+	registrar, _, newAgent := newTestRegistrar(t)
+	if err := newAgent(registrar.joinToken).register(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	enrolledID := registrar.clusterID
+	registrar.assertedErr = connect.NewError(connect.CodeUnavailable, "control plane restarting")
+	registrar.publicKey, registrar.joinToken = nil, rand.Text()
+
+	agent := newAgent(registrar.joinToken)
+	if err := agent.register(t.Context()); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("register during an outage: %v, want unavailable", err)
+	}
+	if stored, err := agent.identities.Ensure(t.Context()); err != nil || stored.ClusterID != enrolledID {
+		t.Fatalf("stored cluster ID %q, %v, want %s", stored.ClusterID, err, enrolledID)
+	}
+	if registrar.enrolled != 1 {
+		t.Fatalf("enrolled %d times, want 1", registrar.enrolled)
+	}
+}
+
+func TestEnrolledAgentRejectsAnotherClusterIDWithoutAJoinToken(t *testing.T) {
+	registrar, _, newAgent := newTestRegistrar(t)
+	if err := newAgent(registrar.joinToken).register(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	registrar.reassignedID = uuid.NewString()
+
+	agent := newAgent(registrar.joinToken)
+	if err := agent.register(t.Context()); !errors.Is(err, errClusterIDChanged) {
+		t.Fatalf("register answered with another cluster ID: %v, want %v", err, errClusterIDChanged)
+	}
+	if stored, err := agent.identities.Ensure(t.Context()); err != nil || stored.ClusterID != registrar.clusterID {
+		t.Fatalf("stored cluster ID %q, %v, want %s", stored.ClusterID, err, registrar.clusterID)
 	}
 }
