@@ -8,8 +8,10 @@
 # push to main, the pass-markers job saves one for each check that passed. Path
 # filters on the called workflows' own triggers would leave a required check
 # without a result whenever they skipped it. After a push to main passes the
-# gate, the publish jobs tag the images Images built. A draft pull request runs
-# no checks: changes skips, and the gate fails and cancels its own run.
+# gate, the publish jobs tag the images Images built. The pr-state job reads the
+# pull request's current draft state and head from the API; a pull request that
+# is a draft, or whose head is not the commit the event names, runs no checks,
+# and the gate fails and cancels its own run.
 name: CI
 
 on:
@@ -37,9 +39,41 @@ concurrency:
 
 jobs:
 
+  pr-state:
+    name: Pull request state
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      reason: ${{ steps.state.outputs.reason }}
+      run: ${{ steps.state.outputs.run }}
+    steps:
+      - name: Read the pull request's current draft state and head
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ -z "$PR" ]]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          read -r draft current < <(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '[.draft, .head.sha] | @tsv')
+          if [[ "$draft" == true ]]; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            echo 'reason=Drafts run no checks; marking the pull request ready runs CI' >> "$GITHUB_OUTPUT"
+          elif [[ "$current" != "$HEAD" ]]; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            echo "reason=This run is for $HEAD; the pull request head is now $current" >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          fi
+
   changes:
     name: Changes
-    if: ${{ !github.event.pull_request.draft }}
+    needs: [pr-state]
+    if: needs.pr-state.outputs.run == 'true'
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -310,6 +344,7 @@ jobs:
   gate:
     name: CI Gate
     needs:
+      - pr-state
       - changes
       - auth-conformance
       - buf
@@ -340,12 +375,13 @@ jobs:
       passed: ${{ steps.passed.outputs.passed }}
     steps:
       # The failed gate blocks the merge; the cancelled run sends no failed-run notice.
-      - name: Fail the gate of a draft pull request
-        if: github.event.pull_request.draft
+      - name: Fail the gate of a pull request that runs no checks
+        if: needs.pr-state.outputs.run == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
+          REASON: ${{ needs.pr-state.outputs.reason }}
         run: |
-          echo "::error::Drafts run no checks; marking the pull request ready runs CI"
+          echo "::error::$REASON"
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/cancel"
           exit 1
 
