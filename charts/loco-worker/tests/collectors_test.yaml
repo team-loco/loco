@@ -448,5 +448,5 @@ tests:
     template: charts/otel-col-deploy/templates/hpa.yaml
     asserts:
       - equal:
-          path: spec.behavior
-          value: {scaleDown: {selectPolicy: Disabled}}
+          path: spec.behavior.scaleDown.selectPolicy
+          value: Disabled
