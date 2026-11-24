@@ -329,7 +329,7 @@ func TestDeviceLoginsStayWithinTheStoreBound(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
 	const bound = 4
-	f.server.state = pgAuthStore{queries: f.queries, maxEntries: bound}
+	f.server.state = pgAuthStore{queries: f.queries, maxSignIns: bound}
 	var oldest *authv1.StartDeviceLoginResponse
 	for i := range 10 {
 		started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})

@@ -37,7 +37,7 @@ func countConcurrent(n int, op func() bool) int64 {
 func newAuthStateStore(t *testing.T) (*pgxpool.Pool, pgAuthStore) {
 	t.Helper()
 	pool := dbtest.NewPool(t)
-	return pool, pgAuthStore{queries: genDb.New(pool), maxEntries: maxAuthStates}
+	return pool, pgAuthStore{queries: genDb.New(pool), maxSignIns: maxAuthStates}
 }
 
 func expire(t *testing.T, pool *pgxpool.Pool, key string) {
@@ -137,7 +137,7 @@ func entry(key string) startEntry {
 func TestAuthStateStartEvictsTheOldestSignIns(t *testing.T) {
 	t.Parallel()
 	pool, store := newAuthStateStore(t)
-	store.maxEntries = 3
+	store.maxSignIns = 3
 	start := func(entries ...startEntry) {
 		t.Helper()
 		if err := store.Start(t.Context(), time.Minute, entries...); err != nil {
@@ -171,14 +171,14 @@ func TestAuthStateStartEvictsTheOldestSignIns(t *testing.T) {
 func TestAuthStateStartsConcurrentlyAtTheCap(t *testing.T) {
 	t.Parallel()
 	pool, store := newAuthStateStore(t)
-	store.maxEntries = 20
+	store.maxSignIns = 20
 	const workers, startsEach = 16, 10
 	var next atomic.Int64
 	start := func() error {
 		key := "start-" + strconv.FormatInt(next.Add(1), 10)
 		return store.Start(t.Context(), time.Minute, entry(key))
 	}
-	for range store.maxEntries {
+	for range store.maxSignIns {
 		if err := start(); err != nil {
 			t.Fatal(err)
 		}
@@ -196,9 +196,14 @@ func TestAuthStateStartsConcurrentlyAtTheCap(t *testing.T) {
 		t.Fatalf("%d of %d workers started all their sign-ins on a full store", wins, workers)
 	}
 	// Each concurrent start can miss the rows the others have not committed yet, so up to workers extra
-	// sign-ins remain.
-	if started := len(storedKeys(t, pool, "started_at IS NOT NULL")); started > int(store.maxEntries)+workers {
+	// sign-ins remain. Starts in the same microsecond share a start time and count as one sign-in.
+	var started int
+	const distinctStarts = "SELECT count(DISTINCT started_at) FROM auth_states"
+	if err := pool.QueryRow(t.Context(), distinctStarts).Scan(&started); err != nil {
+		t.Fatal(err)
+	}
+	if started > int(store.maxSignIns)+workers {
 		t.Fatalf("%d started sign-ins after %d concurrent starts, want at most %d",
-			started, workers*startsEach, int(store.maxEntries)+workers)
+			started, workers*startsEach, int(store.maxSignIns)+workers)
 	}
 }

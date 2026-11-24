@@ -73,7 +73,7 @@ func NewAuthServer(
 		db:      db,
 		queries: queries,
 		machine: machine,
-		state:   pgAuthStore{queries: queries, maxEntries: maxAuthStates},
+		state:   pgAuthStore{queries: queries, maxSignIns: maxAuthStates},
 		webURL:  strings.TrimSuffix(webURL, "/"),
 		web:     web,
 		now:     time.Now,

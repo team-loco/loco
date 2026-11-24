@@ -26,7 +26,7 @@ type authStore interface {
 	// Set stores an entry that belongs to a sign-in already started or to a signed-in caller.
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
 	// Start stores the entries of one new sign-in, which count and are deleted together, after deleting
-	// the oldest started sign-ins beyond maxEntries. It returns errAuthStateExists when a key is live.
+	// the oldest started sign-ins beyond maxSignIns. It returns errAuthStateExists when a key is live.
 	Start(ctx context.Context, ttl time.Duration, entries ...startEntry) error
 	// Take removes a live entry and returns it, or errAuthStateNotFound when another call took it first.
 	Take(ctx context.Context, key string) (authEntry, error)
@@ -49,7 +49,7 @@ type authEntry struct {
 // pgAuthStore keeps sign-in state in the auth_states table.
 type pgAuthStore struct {
 	queries    genDb.Querier
-	maxEntries int32
+	maxSignIns int32
 }
 
 func (s pgAuthStore) Get(ctx context.Context, key string) ([]byte, error) {
@@ -78,7 +78,7 @@ func (s pgAuthStore) Restore(ctx context.Context, key string, entry authEntry) e
 }
 
 func (s pgAuthStore) Start(ctx context.Context, ttl time.Duration, entries ...startEntry) error {
-	params := genDb.StartAuthStatesParams{TtlSeconds: ttl.Seconds(), Keep: s.maxEntries - 1}
+	params := genDb.StartAuthStatesParams{TtlSeconds: ttl.Seconds(), Keep: s.maxSignIns - 1}
 	for _, entry := range entries {
 		params.Keys = append(params.Keys, entry.key)
 		params.Values = append(params.Values, entry.value)
