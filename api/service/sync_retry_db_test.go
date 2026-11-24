@@ -125,7 +125,6 @@ func TestCurrentInventoryRecoversDuringApplyBackoff(t *testing.T) {
 	if err := session.reconcilePlacementInventory(t.Context(), inventory); err != nil {
 		t.Fatal(err)
 	}
-	applyQueuedReports(t.Context(), session)
 	got := f.placement(t, f.clusterID)
 	if got.RetryAfter != nil || got.AppliedRevision != placement.DesiredRevision {
 		t.Fatalf("current inventory left backoff %v and applied revision %d", got.RetryAfter, got.AppliedRevision)

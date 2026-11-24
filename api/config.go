@@ -83,7 +83,6 @@ const (
 	defaultApplyAttempts      = 2
 	maxApplyAttempts          = 10
 	defaultApplyRetryDelay    = int32(5 * time.Minute / time.Second)
-	defaultSyncReportQueue    = 1024
 	defaultMaxRestarts        = 2
 	defaultDeployTimeout      = int32(10 * time.Minute / time.Second)
 	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
@@ -802,7 +801,6 @@ func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 		JoinTokenTTL:         joinTokenTTL,
 		ApplyAttempts:        applyAttemptsEnv(),
 		ApplyRetryDelay:      positiveInt32Env("LOCO_APPLY_RETRY_DELAY", defaultApplyRetryDelay),
-		ReportQueue:          positiveInt32Env("LOCO_SYNC_REPORT_QUEUE", defaultSyncReportQueue),
 		PlatformDomain:       envconfig.String("LOCO_PLATFORM_DOMAIN", ""),
 		WorkspaceNamespaceGrace: envconfig.PositiveDuration(
 			"LOCO_WORKSPACE_NAMESPACE_GRACE",

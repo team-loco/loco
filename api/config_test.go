@@ -838,8 +838,6 @@ func TestApplyRetryAndRestartPolicyBounds(t *testing.T) {
 			func() { newAgentConfig(servicedefaults.Defaults{}) }},
 		{"LOCO_APPLY_RETRY_DELAY", []string{"1"}, []string{"0", "5m"},
 			func() { newAgentConfig(servicedefaults.Defaults{}) }},
-		{"LOCO_SYNC_REPORT_QUEUE", []string{"1"}, []string{"0", "-1"},
-			func() { newAgentConfig(servicedefaults.Defaults{}) }},
 		{"LOCO_WORKSPACE_NAMESPACE_GRACE", []string{"1h", "30m"}, []string{"0", "-2h", "soon"},
 			func() { newAgentConfig(servicedefaults.Defaults{}) }},
 		{"LOCO_DEFAULT_MAX_RESTARTS", []string{"1", "5"}, []string{"0", "6", "-1", "5m"}, func() { newServiceDefaults() }},

@@ -43,10 +43,8 @@ type AgentConfig struct {
 	// asks that cluster's agent to delete the workspace's namespace.
 	WorkspaceNamespaceGrace time.Duration
 	// ApplyAttempts and ApplyRetryDelay (seconds) bound how often the API resends a placement a cluster fails to apply.
-	ApplyAttempts   int32
-	ApplyRetryDelay int32
-	// ReportQueue is how many placement reports one sync stream queues; a full queue pauses reading the stream.
-	ReportQueue       int32
+	ApplyAttempts     int32
+	ApplyRetryDelay   int32
 	RegistryTokenMode bool
 	// PlatformDomain is the workers' platform domain; a cluster serving it records
 	// {region}.{PlatformDomain} as its gateway hostname. Empty records none.

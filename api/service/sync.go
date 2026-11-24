@@ -25,6 +25,9 @@ import (
 
 var errSyncSuperseded = errors.New("a newer sync stream for this cluster is connected")
 
+// syncReportQueue is how many status reports one sync stream queues; a full queue pauses reading the stream.
+const syncReportQueue = 1024
+
 type syncStream = agentv1connect.AgentServiceSyncServerStream
 
 func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
@@ -168,7 +171,7 @@ type syncSession struct {
 	sent          map[uuid.UUID]int64
 	builds        buildTracker
 	retryRecorded bool
-	// reports queues placement writes that can wait on a resource lock, for one worker to apply in order.
+	// reports queues status reports, which wait on a resource lock, for one worker to apply in order.
 	reports chan func(context.Context)
 }
 
@@ -183,7 +186,7 @@ func newSyncSession(
 		sendFn:    sendFn,
 		sent:      make(map[uuid.UUID]int64),
 		builds:    newBuildTracker(),
-		reports:   make(chan func(context.Context), server.config.ReportQueue),
+		reports:   make(chan func(context.Context), syncReportQueue),
 	}
 }
 
@@ -497,11 +500,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 				toSend = append(toSend, row.ID)
 			}
 		case inventoryMarkApplied:
-			if queueErr := ss.queueReport(ctx, func(ctx context.Context) {
-				ss.server.markApplied(ctx, ss.clusterID, row.ID, row.DesiredRevision)
-			}); queueErr != nil {
-				return queueErr
-			}
+			ss.server.markApplied(ctx, ss.clusterID, row.ID, row.DesiredRevision)
 		case inventoryAhead:
 			advanced, advanceErr := ss.server.advancePastRevision(
 				ctx,
