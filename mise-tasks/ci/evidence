@@ -79,11 +79,8 @@ mkdir -p "$out"
 # gh refuses to overwrite files, so it downloads into an empty directory and the files are copied over $out.
 download=$(mktemp -d)
 trap 'rm -rf "$download"' EXIT
-if gh run download "$id" --name evidence --dir "$download"; then
-	cp -R "$download"/. "$out"
-else
-	echo "Run $id uploaded no evidence" >&2
-fi
+gh run download "$id" --name evidence --dir "$download" || echo "Run $id uploaded no evidence" >&2
+cp -R "$download"/. "$out"
 echo "Run $id: $conclusion; evidence in $out"
-if [[ $conclusion != success && -f $out/failure.md ]]; then cat "$out/failure.md" >&2; fi
+if [[ $conclusion != success && -f $download/failure.md ]]; then cat "$download/failure.md" >&2; fi
 [[ $conclusion == success ]]
