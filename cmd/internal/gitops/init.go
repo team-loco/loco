@@ -426,8 +426,13 @@ func writeDocument(output *bytes.Buffer, document any) error {
 
 // bundledRegistry turns on the control-plane chart's registry at hostname.
 func bundledRegistry(output, hostname string) error {
-	path := filepath.Join(output, "clusters", "control-plane", "values", "loco-control-plane.yaml")
-	data, err := os.ReadFile(path)
+	root, err := os.OpenRoot(output)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	path := filepath.Join("clusters", "control-plane", "values", "loco-control-plane.yaml")
+	data, err := root.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -439,5 +444,5 @@ func bundledRegistry(output, hostname string) error {
 	if data, err = yaml.Marshal(values); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0600)
+	return root.WriteFile(path, data, 0600)
 }

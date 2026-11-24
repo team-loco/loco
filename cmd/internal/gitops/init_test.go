@@ -255,9 +255,14 @@ func TestInitRegistryPointsBothReleasesAtTheBundledRegistry(t *testing.T) {
 	}
 	readValues(t, filepath.Join(options.Output, "clusters", controlPlaneCluster, "values", "loco-control-plane.yaml"),
 		&control)
-	if !control.Registry.Enabled || control.Registry.Hostname != options.Registry ||
-		control.API.Registry.Service != options.Registry {
-		t.Errorf("control-plane values: %+v", control)
+	if !control.Registry.Enabled {
+		t.Error("control-plane values do not enable the registry")
+	}
+	if control.Registry.Hostname != options.Registry {
+		t.Errorf("registry.hostname is %q, want %q", control.Registry.Hostname, options.Registry)
+	}
+	if control.API.Registry.Service != options.Registry {
+		t.Errorf("api.registry.service is %q, want %q", control.API.Registry.Service, options.Registry)
 	}
 	var worker struct {
 		Env map[string]string `json:"env"`

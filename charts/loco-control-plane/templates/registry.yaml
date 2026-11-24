@@ -6,7 +6,6 @@
 {{- if ne .Values.api.registry.auth "token" }}
 {{- fail "registry.enabled needs api.registry.auth set to token" }}
 {{- end }}
-{{- $scheme := ternary "https" "http" (not (empty (include "loco-control-plane.tlsSecret" .))) }}
 {{- $config := dict
   "distSpecVersion" "1.1.1"
   "storage" (dict "rootDirectory" "/var/lib/registry" "dedupe" false "gc" true "gcDelay" "1h" "gcInterval" "6h")
@@ -15,7 +14,7 @@
     "port" "5000"
     "auth" (dict
       "bearer" (dict
-        "realm" (printf "%s://%s/registry/token" $scheme .Values.controlPlaneHostname)
+        "realm" (printf "%s://%s/registry/token" (include "loco-control-plane.registryScheme" .) .Values.controlPlaneHostname)
         "service" (include "loco-control-plane.registryService" .)
         "cert" $keyFile)
       "failDelay" 1)

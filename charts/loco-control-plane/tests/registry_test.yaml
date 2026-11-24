@@ -149,6 +149,24 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_REGISTRY_TOKEN_SERVICE, value: registry.region.test}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_URL, value: https://registry.region.test}
+
+  - it: uses plain HTTP for the realm and the API's registry URL when the Gateway serves no TLS
+    set:
+      <<: *enabled
+      certManager.enabled: false
+    asserts:
+      - matchRegex:
+          path: data["config.json"]
+          pattern: '"realm":"http://api\.region\.test/registry/token"'
+        template: templates/registry.yaml
+        documentSelector: {path: kind, value: ConfigMap}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_URL, value: http://registry.region.test}
+        template: templates/api-deployment.yaml
 
   - it: admits the registry's key fetch to the API
     set: *enabled

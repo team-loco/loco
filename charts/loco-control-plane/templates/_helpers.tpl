@@ -248,6 +248,7 @@ capabilities:
 {{- end }}
 {{- if $.Values.registry.enabled }}
 {{- $_ := set $settings "LOCO_REGISTRY_HOST" (include "loco-control-plane.registryHostname" $) }}
+{{- $_ := set $settings "LOCO_REGISTRY_URL" (printf "%s://%s" (include "loco-control-plane.registryScheme" $) (include "loco-control-plane.registryHostname" $)) }}
 {{- end }}
 {{- toYaml $settings }}
 {{- end }}
@@ -267,6 +268,10 @@ capabilities:
 
 {{- define "loco-control-plane.registryHostname" -}}
 {{- required "registry.hostname is required when registry.enabled is true" .Values.registry.hostname -}}
+{{- end -}}
+
+{{- define "loco-control-plane.registryScheme" -}}
+{{- ternary "https" "http" (not (empty (include "loco-control-plane.tlsSecret" .))) -}}
 {{- end -}}
 
 {{- define "loco-control-plane.registryService" -}}
