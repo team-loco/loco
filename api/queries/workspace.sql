@@ -125,6 +125,9 @@ DELETE FROM workspaces WHERE id = $1;
 -- name: LockWorkspaceForDeletion :one
 SELECT org_id, name FROM workspaces WHERE id = $1 FOR UPDATE;
 
+-- name: LockWorkspaceEnvironmentsForDeletion :exec
+SELECT id FROM environments WHERE workspace_id = $1 ORDER BY id FOR UPDATE;
+
 -- name: ListWorkspaceResourcesForDeletion :many
 SELECT id, name FROM resources WHERE workspace_id = $1 ORDER BY id FOR UPDATE;
 

@@ -11,6 +11,7 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -43,6 +44,45 @@ func TestDeleteResourceAndStatusReportDoNotDeadlock(t *testing.T) {
 	writers.Go(func() {
 		_, deleteErr = resourceServer.DeleteResource(admin, &resourcev1.DeleteResourceRequest{
 			ResourceId: f.resourceID.String(),
+		})
+	})
+	dbtest.WaitForLockWaiters(t, f.pool, 2)
+	release()
+	writers.Wait()
+	if deleteErr != nil {
+		t.Fatal(deleteErr)
+	}
+	if n := deadlocks(t, f.pool); n != 0 {
+		t.Fatalf("Postgres broke %d deadlocks", n)
+	}
+}
+
+func TestDeleteWorkspaceAndStatusReportDoNotDeadlock(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := f.placement(t, f.clusterID)
+	workspaceID := f.workspaceID(t)
+	workspaces := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
+	admin := reqctx.WithPrincipal(t.Context(), reqctx.Principal{UserID: f.userID, Scopes: f.adminScopes(t)})
+
+	release := sync.OnceFunc(f.holdResourceLock(t))
+	t.Cleanup(release)
+	var writers sync.WaitGroup
+	var deleteErr error
+	writers.Go(func() {
+		_, deleteErr = workspaces.DeleteWorkspace(admin, &workspacev1.DeleteWorkspaceRequest{
+			WorkspaceId: workspaceID.String(), ConfirmDeleteApps: true,
+		})
+	})
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	writers.Go(func() {
+		f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
+			PlacementId: p.ID.String(), DeploymentId: created.GetDeploymentId(), ObservedRevision: p.DesiredRevision,
+			Available: true, Healthy: true, Deployed: true, ReadyReplicas: 1,
 		})
 	})
 	dbtest.WaitForLockWaiters(t, f.pool, 2)

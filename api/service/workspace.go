@@ -472,6 +472,11 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		if orgErr != nil {
 			return fmt.Errorf("lock workspace: %w", orgErr)
 		}
+		// FOR UPDATE, so a status report's key share on an environment waits here before it takes
+		// a resource this transaction deletes.
+		if lockErr := qtx.LockWorkspaceEnvironmentsForDeletion(ctx, wsID); lockErr != nil {
+			return fmt.Errorf("lock environments: %w", lockErr)
+		}
 		resources, listErr := qtx.ListWorkspaceResourcesForDeletion(ctx, wsID)
 		if listErr != nil {
 			return fmt.Errorf("list workspace resources: %w", listErr)

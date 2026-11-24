@@ -296,6 +296,7 @@ type Querier interface {
 	LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhookDeliveryStatusParams) (string, error)
 	LockWorkspace(ctx context.Context, id uuid.UUID) (LockWorkspaceRow, error)
 	LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) error
+	LockWorkspaceEnvironmentsForDeletion(ctx context.Context, workspaceID uuid.UUID) error
 	LockWorkspaceForCreate(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (LockWorkspaceForDeletionRow, error)
 	LockWorkspaceOrganization(ctx context.Context, id uuid.UUID) error
