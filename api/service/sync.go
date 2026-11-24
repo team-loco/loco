@@ -175,8 +175,7 @@ type syncSession struct {
 	sent          map[uuid.UUID]int64
 	builds        buildTracker
 	retryRecorded bool
-	// reports queues the agent reports that write the database, and so can wait for a write's locks,
-	// for one worker to apply in order.
+	// reports queues the agent reports that write the database, for one worker to apply in order.
 	reports chan func(context.Context)
 	// settled holds what applied reports change in the session, for the receive loop to run in order.
 	settledMu    sync.Mutex
@@ -218,9 +217,7 @@ func (ss *syncSession) applyReports(ctx context.Context) {
 	}
 }
 
-// queueReport waits for room in the report queue, so a full queue stops reading the stream. The
-// worker skips a report once a newer stream supersedes this one; the settleFunc a report returns,
-// or its error, reaches the receive loop.
+// queueReport queues a report for the worker, which skips it once a newer stream supersedes this one.
 func (ss *syncSession) queueReport(
 	ctx context.Context,
 	apply func(context.Context) (settleFunc, error),
@@ -383,8 +380,7 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, listed
 	return nil
 }
 
-// reject queues the error as the placement's apply error. The placement counts as sent until the
-// error is recorded, then is left unsent for the next sync to retry.
+// reject queues the error as the placement's apply error and counts the placement sent until it settles.
 func (ss *syncSession) reject(ctx context.Context, placement genDb.Placement, err error) error {
 	ss.sent[placement.ID] = placement.DesiredRevision
 	applied := &agentv1.Applied{
@@ -407,8 +403,7 @@ func (ss *syncSession) retryAfterFailedApply(applied *agentv1.Applied) settleFun
 	return ss.retryUnsent(placementID, applied.GetRevision())
 }
 
-// retryUnsent leaves the placement's revision unsent, unless a newer one went out since, and
-// reschedules the next retry.
+// retryUnsent leaves the placement's revision unsent and reschedules the next retry.
 func (ss *syncSession) retryUnsent(placementID uuid.UUID, revision int64) settleFunc {
 	return func(context.Context) error {
 		if ss.sent[placementID] == revision {
@@ -529,8 +524,7 @@ func diffInventory(rev placementRevision) inventoryAction {
 	return inventoryInSync
 }
 
-// applyInventory records what the inventory shows the cluster holds; its settleFunc resends
-// what the cluster lacks and reconciles the cluster's workspaces and builds.
+// applyInventory records what the cluster holds; its settleFunc resends what it lacks and reconciles its builds.
 func (ss *syncSession) applyInventory(ctx context.Context, inventory *agentv1.Inventory) (settleFunc, error) {
 	toSend, err := ss.recordPlacementInventory(ctx, inventory)
 	if err != nil {

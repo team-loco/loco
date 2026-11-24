@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/buildsource"
@@ -590,5 +592,51 @@ func TestABuildFinishingOnTheWorkerIsNotCanceled(t *testing.T) {
 	}
 	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {
 		t.Fatalf("canceled %v after its finish settled", canceled)
+	}
+}
+
+func TestABuildThatStartsFinishingWhileCancelsAreCheckedIsNotCanceled(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	session, sent := f.dispatchSession()
+	id := f.queued(t)
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending: %v", err)
+	}
+	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_RUNNING)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	sent.take()
+
+	gate, err := f.pool.Begin(f.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := gate.Rollback(f.ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			t.Errorf("release builds: %v", err)
+		}
+	})
+	if _, err := gate.Exec(f.ctx, `LOCK TABLE builds IN ACCESS EXCLUSIVE MODE`); err != nil {
+		t.Fatal(err)
+	}
+	checked := make(chan error, 1)
+	go func() { checked <- session.cancelStaleBuilds(f.ctx) }()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+
+	session.setFinishing(uuid.MustParse(id), true)
+	if _, err := gate.Exec(f.ctx,
+		`UPDATE builds SET status = 'succeeded', image_digest = $2, finished_at = now() WHERE id = $1`,
+		id, testImageDigest); err != nil {
+		t.Fatal(err)
+	}
+	if err := gate.Commit(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-checked; err != nil {
+		t.Fatalf("cancel stale builds: %v", err)
+	}
+	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {
+		t.Fatalf("canceled %v, whose finish began after the check started", canceled)
 	}
 }

@@ -139,3 +139,24 @@ func TestPlacementMessage(t *testing.T) {
 		t.Fatalf("delete = %v", del)
 	}
 }
+
+func TestRetryUnsentKeepsANewerSentRevision(t *testing.T) {
+	id := uuid.New()
+	ss := &syncSession{sent: map[uuid.UUID]int64{id: 2}}
+	if err := ss.retryUnsent(id, 1)(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if ss.sent[id] != 2 || !ss.retryRecorded {
+		t.Fatalf(
+			"sent = %d, retry recorded %t; want the newer revision 2 kept and a retry recorded",
+			ss.sent[id],
+			ss.retryRecorded,
+		)
+	}
+	if err := ss.retryUnsent(id, 2)(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, sent := ss.sent[id]; sent {
+		t.Fatal("the failed revision is still counted as sent")
+	}
+}

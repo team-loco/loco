@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -15,8 +16,7 @@ import (
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
-// applyQueuedReports applies the reports the session queued so far, as its stream's worker does,
-// then settles them as its receive loop does.
+// applyQueuedReports applies and settles the reports the session queued, as its stream does.
 func applyQueuedReports(ctx context.Context, session *syncSession) error {
 	for {
 		select {
@@ -333,6 +333,31 @@ func TestAnInventoryMissingAPlacementResendsIt(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("an inventory without the placement did not resend it")
+	}
+}
+
+func TestASupersededStreamSkipsItsQueuedReports(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	p := f.placement(t, f.clusterID)
+	session := newSyncSession(f.agentServer(), f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+	session.generation = f.syncGeneration(t)
+	msg := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Applied{Applied: applied(p.ID, p.DesiredRevision)}}
+	if err := session.handle(t.Context(), msg); err != nil {
+		t.Fatalf("queue applied: %v", err)
+	}
+	if _, err := f.pool.Exec(t.Context(),
+		`UPDATE clusters SET sync_generation = sync_generation + 1 WHERE id = $1`, f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyQueuedReports(t.Context(), session); !errors.Is(err, errSyncSuperseded) {
+		t.Fatalf("settle = %v, want %v", err, errSyncSuperseded)
+	}
+	if got := f.placement(t, f.clusterID); got.AppliedRevision == p.DesiredRevision {
+		t.Fatal("a superseded stream's applied report was recorded")
 	}
 }
 

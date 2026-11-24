@@ -208,7 +208,7 @@ func (s *AgentServer) buildRegistryCredential(
 func (ss *syncSession) cancelStaleBuilds(ctx context.Context) error {
 	pending := make(map[uuid.UUID]struct{}, len(ss.builds.active))
 	for id := range ss.builds.active {
-		if _, sent := ss.builds.canceled[id]; !sent && !ss.isFinishing(id) {
+		if _, sent := ss.builds.canceled[id]; !sent {
 			pending[id] = struct{}{}
 		}
 	}
@@ -229,6 +229,9 @@ func (ss *syncSession) cancelStaleBuilds(ctx context.Context) error {
 	for _, id := range ids {
 		row, known := states[id]
 		if known && ss.wantsBuild(row) {
+			continue
+		}
+		if ss.isFinishing(id) {
 			continue
 		}
 		buildID := id.String()
@@ -337,9 +340,7 @@ func (s *AgentServer) failClusterBuilds(ctx context.Context, params genDb.FailCl
 	return nil
 }
 
-// applyBuildStatus records a build report; its settleFunc tracks whether the cluster still runs
-// the build and cancels the builds the cluster should no longer run. A build counts as finishing
-// from before its finish commits until it settles, so cancelStaleBuilds leaves it alone.
+// applyBuildStatus records a build report; a finished build counts as finishing until it settles.
 func (ss *syncSession) applyBuildStatus(ctx context.Context, status *agentv1.BuildStatus) (settleFunc, error) {
 	if err := protovalidate.Validate(status); err != nil {
 		slog.WarnContext(ctx, "ignoring invalid build status",
