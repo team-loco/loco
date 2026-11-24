@@ -561,15 +561,6 @@ func (q *Queries) LockWorkspace(ctx context.Context, id uuid.UUID) (LockWorkspac
 	return i, err
 }
 
-const lockWorkspaceEnvironmentsForDeletion = `-- name: LockWorkspaceEnvironmentsForDeletion :exec
-SELECT id FROM environments WHERE workspace_id = $1 ORDER BY id FOR UPDATE
-`
-
-func (q *Queries) LockWorkspaceEnvironmentsForDeletion(ctx context.Context, workspaceID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, lockWorkspaceEnvironmentsForDeletion, workspaceID)
-	return err
-}
-
 const lockWorkspaceForDeletion = `-- name: LockWorkspaceForDeletion :one
 SELECT org_id, name FROM workspaces WHERE id = $1 FOR UPDATE
 `
