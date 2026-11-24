@@ -20,6 +20,11 @@ export function resourceMissing(error: unknown, canReadWorkspace: boolean): bool
 	return error.code === Code.PermissionDenied && canReadWorkspace;
 }
 
+export const refetchUnlessMissing =
+	(canReadWorkspace: boolean) =>
+	(query: { state: { error: unknown } }): boolean =>
+		!resourceMissing(query.state.error, canReadWorkspace);
+
 export interface Route {
 	orgId: string;
 	workspaceId: string | undefined;

@@ -4,6 +4,7 @@ import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspac
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { refetchUnlessMissing } from "@/lib/not-found";
 
 /** How long a looked-up workspace counts as fresh, so the shell's readers share one request. */
 export const WORKSPACE_STALE_MS = 60_000;
@@ -24,7 +25,12 @@ export function useWorkspace(orgId: string | null, workspaceId: string | null) {
 	const direct = useQuery(
 		getWorkspace,
 		{ workspaceId: workspaceId ?? "" },
-		{ enabled: reads, staleTime: WORKSPACE_STALE_MS, retryOnMount: false },
+		{
+			enabled: reads,
+			staleTime: WORKSPACE_STALE_MS,
+			retryOnMount: false,
+			refetchOnWindowFocus: refetchUnlessMissing(true),
+		},
 	);
 	const granted = useQuery(
 		listOrgWorkspaces,
