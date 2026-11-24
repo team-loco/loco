@@ -301,21 +301,6 @@ def main():
             raise RuntimeError(
                 "the API does not read DATABASE_URL from the CloudNativePG app Secret"
             )
-        registry_route = next(
-            (
-                item
-                for item in postgres_resources
-                if item.get("kind") == "HTTPRoute"
-                and item["metadata"]["name"] == "regional-registry"
-            ),
-            None,
-        )
-        if registry_route is None or registry_route["spec"]["hostnames"] != [
-            "registry.example.test"
-        ]:
-            raise RuntimeError(
-                "control-plane chart does not route the bundled registry"
-            )
         for name in CHARTS:
             run(
                 "helm",

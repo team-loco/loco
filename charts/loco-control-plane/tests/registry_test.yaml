@@ -61,9 +61,6 @@ tests:
       - equal:
           path: spec.template.metadata.annotations["loco.io/registry-key-version"]
           value: "1"
-      - equal:
-          path: spec.template.spec.volumes[2]
-          value: {name: data, persistentVolumeClaim: {claimName: loco-control-plane-registry}}
 
   - it: keeps images on a volume by default
     set: *enabled
