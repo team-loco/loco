@@ -24,10 +24,10 @@ spec:
                 - args:
                     - --reconciler=build
                     - --health-probe-bind-address=:8081
-                    - --leader-elect
                     {{- range $controller.args }}
                     - {{ . }}
                     {{- end }}
+                    - --leader-elect
                   command:
                     - /manager
                   env:

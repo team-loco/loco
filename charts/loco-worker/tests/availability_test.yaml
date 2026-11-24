@@ -59,6 +59,32 @@ tests:
         template: templates/builds/deployment.yaml
         documentSelector: {path: kind, value: Deployment}
 
+  - it: keeps leader election on when the controller args turn it off
+    set:
+      controller.args: [--leader-elect=false]
+      builds.controller.args: [--leader-elect=false]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args[3]
+          value: --leader-elect
+        template: templates/controller/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+      - lengthEqual:
+          path: spec.template.spec.containers[0].args
+          count: 4
+        template: templates/controller/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+      - equal:
+          path: spec.template.spec.containers[0].args[3]
+          value: --leader-elect
+        template: templates/builds/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+      - lengthEqual:
+          path: spec.template.spec.containers[0].args
+          count: 4
+        template: templates/builds/deployment.yaml
+        documentSelector: {path: kind, value: Deployment}
+
   - it: gives a controller with one replica no disruption budget
     set:
       controller.replicas: 1

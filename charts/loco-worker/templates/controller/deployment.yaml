@@ -22,10 +22,10 @@ spec:
                 - args:
                     - --reconciler=application
                     - --health-probe-bind-address=:8081
-                    - --leader-elect
                     {{- range .Values.controller.args }}
                     - {{ . }}
                     {{- end }}
+                    - --leader-elect
                   command:
                     - /manager
                   env:
