@@ -147,6 +147,14 @@ tests:
           value: 1
         template: charts/metrics-server/templates/pdb.yaml
 
+  - it: rejects an autoscaled gateway collector
+    set:
+      otel-col-deploy.autoscaling.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: otel-col-deploy runs a fixed replica count; autoscaling would strand the queues of removed replicas
+        template: templates/collectors/collector-configs.yaml
+
   - it: runs two gateway collectors without an autoscaler, with a disruption budget, spread across nodes
     asserts:
       - hasDocuments:

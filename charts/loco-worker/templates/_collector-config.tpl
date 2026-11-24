@@ -12,6 +12,9 @@
 {{- if and $settings.enabled (eq .name "otel-col-cluster") (or (ne (int $collector.Values.replicaCount) 1) $collector.Values.autoscaling.enabled) -}}
 {{- fail "platform telemetry requires one otel-col-cluster replica with autoscaling disabled" -}}
 {{- end -}}
+{{- if and (eq .name "otel-col-deploy") $collector.Values.autoscaling.enabled -}}
+{{- fail "otel-col-deploy runs a fixed replica count; autoscaling would strand the queues of removed replicas" -}}
+{{- end -}}
 {{- if and $settings.platformOnly (not $settings.enabled) -}}
 {{- fail "global.platformTelemetry.platformOnly requires platformTelemetry.enabled" -}}
 {{- end -}}
