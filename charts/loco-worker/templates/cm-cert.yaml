@@ -11,16 +11,10 @@ spec:
         kind: {{ .Values.certManager.issuer.kind }}
     {{- $primary := index .Values.global.domain.apps 0 }}
     commonName: {{ printf "*.%s" $primary | quote }}
-    {{- $region := required "global.region is required" .Values.global.region }}
     dnsNames:
         {{- range .Values.global.domain.apps }}
         - {{ printf "*.%s" . | quote }}
         {{- end }}
-        {{- range .Values.global.domain.apps }}
-        - {{ printf "*.%s.%s" $region . | quote }}
-        {{- end }}
-        - {{ printf "*.%s" (include "loco-worker.platformDomain" .) | quote }}
-        - {{ printf "*.%s.%s" $region (include "loco-worker.platformDomain" .) | quote }}
         {{- range .Values.certManager.additionalDNSNames }}
         - {{ . | quote }}
         {{- end }}

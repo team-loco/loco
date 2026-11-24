@@ -21,12 +21,11 @@ var (
 )
 
 const (
-	fixtureAPIHost        = "api.installation.test"
-	fixtureWebHost        = "console.installation.test"
-	fixtureIngestHost     = "ingest.installation.test"
-	fixtureAppsDomain     = "apps.installation.test"
-	fixturePlatformDomain = "workers.installation.test"
-	gatewayReadyTimeout   = 2 * time.Minute
+	fixtureAPIHost      = "api.installation.test"
+	fixtureWebHost      = "console.installation.test"
+	fixtureIngestHost   = "ingest.installation.test"
+	fixtureAppsDomain   = "apps.installation.test"
+	gatewayReadyTimeout = 2 * time.Minute
 )
 
 func (f *fixture) startLoadBalancer(ctx context.Context) error {

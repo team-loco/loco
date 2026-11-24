@@ -20,7 +20,6 @@ SET last_heartbeat = $2,
     role = $6,
     domains = sqlc.arg(domains)::text[],
     platforms = sqlc.arg(platforms)::text[],
-    gateway_hostname = region || '.' || sqlc.narg(platform_domain)::text,
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL;
 
@@ -85,7 +84,7 @@ DELETE FROM cluster_assertions WHERE expires_at < NOW();
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role, domains, gateway_hostname
+       last_heartbeat, agent_version, agent_public_key, role, domains
 FROM clusters ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one

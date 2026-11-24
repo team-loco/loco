@@ -28,12 +28,12 @@ Supply a published bundle digest and an environment file containing operator-sup
 ```sh
 locoadm init --output ./fleet \
   --api https://api.example.com --web https://app.example.com \
-  --domain apps.example.com --platform-domain workers.example.com --region us-ca-1 --admin admin@example.com \
+  --domain apps.example.com --region us-ca-1 --admin admin@example.com \
   --bundle oci://ghcr.io/team-loco/loco/platform@sha256:BUNDLE_DIGEST \
   --api-env-file ./api.env
 ```
 
-`--domain` is the app domain services are named under. `--platform-domain` is the workers' own gateway domain, which Loco owns and keeps apart from app domains; it fills the required `platformDomain` and `global.domain.platform` chart values. For a control plane and worker on one cluster, add `--single-cluster --name local`. Bootstrap Flux against `clusters/local/`; the combined base selects `./all` and supplies both releases’ values.
+`--domain` is the app domain services are named under. For a control plane and worker on one cluster, add `--single-cluster --name local`. Bootstrap Flux against `clusters/local/`; the combined base selects `./all` and supplies both releases’ values.
 
 `init` generates a static OpenBao seal key and writes it and the API environment as plaintext Secret files with mode `0600`. Encrypt these files before committing, or deliver the named Secrets through External Secrets. Core has no SOPS dependency; the generated README documents operator-managed encryption and Flux decryption. Join tokens are applied directly to worker clusters. Review the generated values and supply storage, database, OIDC, registry and DNS credentials, and the [certificate solvers](#configure-certificate-solvers), before reconciliation. Chart defaults define shared settings; each cluster overrides them in `values/`.
 

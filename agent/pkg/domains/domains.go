@@ -32,8 +32,6 @@ type Config struct {
 	Gateway     string
 	Certificate string
 	Domains     []string
-	// Region, when set, requires the certificate to cover each domain under the region too.
-	Region string
 }
 
 type Reporter struct {
@@ -75,10 +73,6 @@ func (r *Reporter) Served(ctx context.Context) ([]string, error) {
 	for _, domain := range r.config.Domains {
 		hostname := wildcardPrefix + domain
 		if certified != nil && !slices.Contains(certified, hostname) {
-			continue
-		}
-		if certified != nil && r.config.Region != "" &&
-			!slices.Contains(certified, wildcardPrefix+r.config.Region+"."+domain) {
 			continue
 		}
 		if listenersReady(gateway, hostname) {

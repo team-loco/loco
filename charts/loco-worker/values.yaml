@@ -6,10 +6,6 @@ global:
     apps:
       - onloco.app
       - onloco.build
-    # required: the platform domain, the workers' own gateway domain, such as workers.loco.build.
-    # Loco owns it and keeps it apart from the app domains. The gateway answers <region>.<platform>,
-    # and the control plane's platformDomain names the same domain.
-    platform: ""
 
   # @schema additionalProperties: false
   cloudProvider:
@@ -38,8 +34,7 @@ global:
     agent: 1
 
   # code of the cluster's region, such as us-ca-1; the agent reports it and the API refuses a
-  # region the cluster is not registered in. It names the regional hostnames and is attached to
-  # platform records as loco.region.
+  # region the cluster is not registered in. It is attached to platform records as loco.region.
   region: ""
   # @schema additionalProperties: false
   exporter:

@@ -46,9 +46,6 @@ type AgentConfig struct {
 	ApplyAttempts     int32
 	ApplyRetryDelay   int32
 	RegistryTokenMode bool
-	// PlatformDomain is the workers' platform domain; a cluster serving it records
-	// {region}.{PlatformDomain} as its gateway hostname. Empty records none.
-	PlatformDomain string
 }
 
 // AgentServer implements the AgentService for agent communication.
@@ -234,10 +231,6 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 	cpuCores := heartbeat.GetCapacity().GetCpuMillicoresTotal()
 	memBytes := heartbeat.GetCapacity().GetMemoryBytesTotal()
 	healthStatus := healthStatusFromProto(heartbeat.GetHealth())
-	var platformDomain *string
-	if served := heartbeat.GetPlatformDomain(); served != "" && served == s.config.PlatformDomain {
-		platformDomain = &served
-	}
 	err := s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
 		ID:                    clusterID,
 		LastHeartbeat:         &now,
@@ -247,7 +240,6 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 		Role:                  clusterRoleFromProto(heartbeat.GetRole()),
 		Domains:               sortedReportedValues(heartbeat.GetDomains()),
 		Platforms:             sortedReportedValues(heartbeat.GetCapacity().GetPlatforms()),
-		PlatformDomain:        platformDomain,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", clusterID)

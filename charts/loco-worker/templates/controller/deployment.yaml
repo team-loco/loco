@@ -43,8 +43,6 @@ spec:
                       value: {{ index .Values "otel-col-deploy" "ports" "otlp-http" "servicePort" | quote }}
                     - name: LOCO_GATEWAY
                       value: {{ include "loco-worker.gateway" . | quote }}
-                    - name: LOCO_APP_DOMAINS
-                      value: {{ join "," .Values.global.domain.apps | quote }}
                     - name: LOCO_WORKSPACE_NAMESPACE_PREFIX
                       value: {{ .Values.global.workspaceNamespacePrefix | quote }}
                     - name: LOCO_MIN_READY_SECONDS

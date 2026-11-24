@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { domainCheck, domainCoverage, regionalHostname, type CheckResult } from "./app-domain";
+import { domainCheck, domainCoverage, type CheckResult } from "./app-domain";
 
 const idle: CheckResult = { fetching: false, available: undefined, error: null };
 
@@ -26,13 +26,4 @@ test("domainCoverage splits the resource's regions into served and missing", () 
 		missing: ["de-he-1"],
 	});
 	expect(domainCoverage(["us-va-1"], [])).toEqual({ serving: [], missing: [] });
-});
-
-test("regionalHostname puts the region between the label and the app domain", () => {
-	expect(regionalHostname("storefront.onloco.build", "onloco.build", "us-ca-1")).toBe(
-		"storefront.us-ca-1.onloco.build",
-	);
-	expect(regionalHostname("a.b.onloco.build", "onloco.build", "us-ca-1")).toBeNull();
-	expect(regionalHostname("shop.example.com", "onloco.build", "us-ca-1")).toBeNull();
-	expect(regionalHostname("onloco.build", "onloco.build", "us-ca-1")).toBeNull();
 });

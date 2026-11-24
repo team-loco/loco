@@ -26,12 +26,11 @@ const (
 	testServedDomain      = "apps.test"
 	testGatewayNamespace  = "platform"
 	testGateway           = "ingress"
-	testPlatformDomain    = "platform.test"
 	testRegion            = "us-ca-1"
 	testGatewayGeneration = 1
 )
 
-// testDomains returns a reporter for a gateway with one ready listener per checked domain.
+// testDomains returns a reporter for a gateway with one ready listener per app domain.
 func testDomains(t *testing.T) *domains.Reporter {
 	t.Helper()
 	scheme := runtime.NewScheme()
@@ -46,7 +45,7 @@ func testDomains(t *testing.T) *domains.Reporter {
 		}
 	}
 	gateway := &gatewayv1.Gateway{Name: testGateway, Namespace: testGatewayNamespace, Generation: testGatewayGeneration}
-	checked := testConfig().CheckedDomains()
+	checked := testConfig().AppDomains
 	for i, domain := range checked {
 		name := gatewayv1.SectionName(fmt.Sprintf("https-%d", i))
 		host := gatewayv1.Hostname("*." + domain)
@@ -69,10 +68,9 @@ func testDomains(t *testing.T) *domains.Reporter {
 
 func testConfig() *Config {
 	return &Config{
-		Role:           clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS,
-		AppDomains:     []string{testServedDomain},
-		PlatformDomain: testPlatformDomain,
-		Region:         testRegion,
+		Role:       clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS,
+		AppDomains: []string{testServedDomain},
+		Region:     testRegion,
 	}
 }
 
@@ -105,9 +103,6 @@ func TestSendHeartbeatsEnqueuesOneAtOnceAndOneEveryInterval(t *testing.T) {
 			}
 			if !slices.Equal(msg.GetHeartbeat().GetDomains(), []string{testServedDomain}) {
 				t.Fatalf("sent %v, want a heartbeat that reports %s", msg, testServedDomain)
-			}
-			if msg.GetHeartbeat().GetPlatformDomain() != testPlatformDomain {
-				t.Fatalf("sent %v, want the served platform domain", msg)
 			}
 		case <-time.After(testHeartbeatWait):
 			t.Fatalf("no heartbeat within %s", testHeartbeatWait)

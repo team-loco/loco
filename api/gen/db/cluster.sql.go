@@ -193,24 +193,23 @@ func (q *Queries) GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role, domains, gateway_hostname
+       last_heartbeat, agent_version, agent_public_key, role, domains
 FROM clusters ORDER BY created_at, id
 `
 
 type ListAdminClustersRow struct {
-	ID              uuid.UUID   `json:"id"`
-	ClusterKey      *uuid.UUID  `json:"clusterKey"`
-	Name            string      `json:"name"`
-	Region          string      `json:"region"`
-	IsActive        bool        `json:"isActive"`
-	RemovedAt       *time.Time  `json:"removedAt"`
-	HealthStatus    *string     `json:"healthStatus"`
-	LastHeartbeat   *time.Time  `json:"lastHeartbeat"`
-	AgentVersion    *string     `json:"agentVersion"`
-	AgentPublicKey  []byte      `json:"agentPublicKey"`
-	Role            ClusterRole `json:"role"`
-	Domains         []string    `json:"domains"`
-	GatewayHostname *string     `json:"gatewayHostname"`
+	ID             uuid.UUID   `json:"id"`
+	ClusterKey     *uuid.UUID  `json:"clusterKey"`
+	Name           string      `json:"name"`
+	Region         string      `json:"region"`
+	IsActive       bool        `json:"isActive"`
+	RemovedAt      *time.Time  `json:"removedAt"`
+	HealthStatus   *string     `json:"healthStatus"`
+	LastHeartbeat  *time.Time  `json:"lastHeartbeat"`
+	AgentVersion   *string     `json:"agentVersion"`
+	AgentPublicKey []byte      `json:"agentPublicKey"`
+	Role           ClusterRole `json:"role"`
+	Domains        []string    `json:"domains"`
 }
 
 func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error) {
@@ -235,7 +234,6 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.AgentPublicKey,
 			&i.Role,
 			&i.Domains,
-			&i.GatewayHostname,
 		); err != nil {
 			return nil, err
 		}
@@ -472,7 +470,6 @@ SET last_heartbeat = $2,
     role = $6,
     domains = $7::text[],
     platforms = $8::text[],
-    gateway_hostname = region || '.' || $9::text,
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL
 `
@@ -486,7 +483,6 @@ type UpdateClusterHeartbeatParams struct {
 	Role                  ClusterRole `json:"role"`
 	Domains               []string    `json:"domains"`
 	Platforms             []string    `json:"platforms"`
-	PlatformDomain        *string     `json:"platformDomain"`
 }
 
 func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {
@@ -499,7 +495,6 @@ func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterH
 		arg.Role,
 		arg.Domains,
 		arg.Platforms,
-		arg.PlatformDomain,
 	)
 	return err
 }

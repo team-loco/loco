@@ -67,7 +67,7 @@ Settings update requests use optional fields. Omitted fields and JSON `null` pre
 
 `ClusterAdminService.CreateCluster` takes either `region`, the code of a region that has a cluster or `local-1`, or `new_region` with a `country` and a `subdivision` in lowercase letters and digits. The response carries the cluster's `name` and `region`; `name` defaults to the region code for a region's first cluster. `CreateCluster` requires a UUID `request_id`. Persist it before sending and reuse it to recover a lost response. A retry returns the same cluster ID and region; changed name or region, or a removed cluster, fails. Pending enrollment gets a new join token, invalidating the previous token. An enrolled cluster returns no join token and keeps its agent identity. `locoadm cluster create` generates a fresh request ID for each invocation. Administrative cluster reads include `role`, which the agent reports from its install: `apps`, `builds` or `all`.
 
-`RegionAdminService` lists regions with their cluster counts; `locoadm region list` calls it. `ConfigService.GetConfig` returns `default_region`, the API's `LOCO_DEFAULT_REGION` while a cluster that is not removed has it. Cluster reads include `gateway_hostname`, `<region>.<platform domain>` such as `us-ca-1.workers.loco.build`, once the agent reports the platform domain the API's `LOCO_PLATFORM_DOMAIN` names. `DomainService.ListAppDomains` lists the app domains the clusters of an environment serve, the domains service names go under.
+`RegionAdminService` lists regions with their cluster counts; `locoadm region list` calls it. `ConfigService.GetConfig` returns `default_region`, the API's `LOCO_DEFAULT_REGION` while a cluster that is not removed has it. `DomainService.ListAppDomains` lists the app domains the clusters of an environment serve, the domains service names go under.
 
 `ClusterAdminService.CreateCluster` and `IssueJoinToken` accept an optional positive `ttl` duration, bounded by `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` (default `168h`). Omission uses `LOCO_CLUSTER_JOIN_TOKEN_TTL` (default `1h`).
 
@@ -79,12 +79,12 @@ The stream ends once the deployment is canceled or superseded. A failed deployme
 
 ## Operator repository
 
-`locoadm init` writes the [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) to a new directory. Supply public API and dashboard URLs, an application domain, the platform domain the workers' gateways answer under, administrator email, a digest-pinned bundle, and an API environment file:
+`locoadm init` writes the [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) to a new directory. Supply public API and dashboard URLs, an application domain, administrator email, a digest-pinned bundle, and an API environment file:
 
 ```sh
 locoadm init --output ./fleet \
   --api https://api.example.com --web https://app.example.com \
-  --domain apps.example.com --platform-domain workers.example.com --region us-ca-1 --admin admin@example.com \
+  --domain apps.example.com --region us-ca-1 --admin admin@example.com \
   --bundle oci://ghcr.io/team-loco/loco/platform@sha256:BUNDLE_DIGEST \
   --api-env-file ./api.env
 ```

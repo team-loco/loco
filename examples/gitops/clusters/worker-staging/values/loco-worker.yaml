@@ -3,7 +3,6 @@ global:
   domain:
     apps:
       - apps.example.com
-    platform: workers.example.com
   exporter:
     endpoint: https://ingest.example.com
 certManager:

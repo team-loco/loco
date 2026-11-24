@@ -98,8 +98,6 @@ spec:
               value: {{ include "loco-worker.certificate" . | quote }}
             - name: LOCO_APP_DOMAINS
               value: {{ join "," .Values.global.domain.apps | quote }}
-            - name: LOCO_PLATFORM_DOMAIN
-              value: {{ include "loco-worker.platformDomain" . | quote }}
             - name: LOCO_REGION
               value: {{ required "global.region is required" .Values.global.region | quote }}
             - name: LOCO_REGISTRY_AUTH

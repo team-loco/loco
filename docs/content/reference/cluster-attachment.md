@@ -40,7 +40,7 @@ Status reports pending or enrolled clusters, last heartbeats, API and agent vers
 kubectl --context worker-staging get gateway -n loco-system
 ```
 
-Point the application wildcard, such as `*.apps.example.com`, and the region's names, `*.us-ca-1.apps.example.com` and `us-ca-1.<platform domain>`, at that address once, or run external-dns. [Regions](regions.md#hostnames) lists the records. Wait for certificates. Application environments can share a worker cluster. Each keeps separate workloads, secrets and deployment history. Loco’s own staging and production installations use separate clusters.
+Point the application wildcard, such as `*.apps.example.com`, at that address once, or run external-dns. [Regions](regions.md#hostnames) lists the records. Wait for certificates. Application environments can share a worker cluster. Each keeps separate workloads, secrets and deployment history. Loco’s own staging and production installations use separate clusters.
 
 ## Renew a pending token
 

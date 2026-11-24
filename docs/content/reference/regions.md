@@ -26,20 +26,8 @@ The default region is the code the API's `LOCO_DEFAULT_REGION` holds, set throug
 
 ## Hostnames
 
-A region's code is one DNS label in its hostnames. Services get names under an app domain, such as `onloco.build`. The platform domain, such as `workers.loco.build`, is the worker clusters' own gateway domain: Loco owns it, and no service name sits under it. With the app domain `onloco.build` and the platform domain `workers.loco.build`:
-
-| Hostname | Points at | Use |
-|---|---|---|
-| `storefront.onloco.build` | every region the service runs in | the service's primary hostname, the first entry of its `domains` |
-| `storefront.us-ca-1.onloco.build` | the `us-ca-1` gateway | the same service in one region, for debugging, health checks and clients pinned to it |
-| `us-ca-1.workers.loco.build` | the `us-ca-1` gateway | the region's gateway hostname, shown in `locoadm cluster list` |
-
-Loco derives a per-region hostname for the service's primary hostname, the first entry of `domains`, when it is one label under an app domain; other entries of `domains` get none, and a service cannot list a regional name itself. Each worker's certificate covers `*.<code>.<app domain>` for every app domain and `*.<code>.<platform domain>` beside the shared wildcards, so a region's clusters can be added and removed without touching another region's names. The Gateway's shared wildcard listeners, such as `*.onloco.build`, route the regional names too, because a Gateway API wildcard matches any number of labels. Point these records at the region's gateway address:
+Services get names under an app domain, such as `storefront.onloco.build` under `onloco.build`. Each worker's Gateway listens on `*.<app domain>` for every app domain in the worker chart's `global.domain.apps`, and its certificate covers the same wildcards. Hostnames carry no region code: a service answers at the same name in every region it runs in. Point each app domain's wildcard at a gateway:
 
 | Record | Type | Value |
 |---|---|---|
-| `us-ca-1.workers.loco.build` | A | gateway address |
-| `*.us-ca-1.onloco.build` | A | gateway address |
 | `*.onloco.build` | A | the gateway of the region that serves the shared name |
-
-The API records `<code>.<platform domain>` as a cluster's gateway hostname once the agent reports the platform domain's listener and the certificate ready. The API reads the platform domain from `LOCO_PLATFORM_DOMAIN`, which the control-plane chart sets from its required `platformDomain` value. The worker chart's required `global.domain.platform` names the same domain.

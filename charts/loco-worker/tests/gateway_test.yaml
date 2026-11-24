@@ -184,11 +184,23 @@ tests:
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
 
-  - it: admits platform routes only from the release and collector namespaces
+  - it: listens only on the app domains' wildcards
+    set:
+      global.domain.apps: [apps.example.test, other.example.test]
     asserts:
+      - lengthEqual:
+          path: spec.listeners
+          count: 4
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
       - equal:
-          path: spec.listeners[?(@.name =~ /-platform$/)].allowedRoutes.namespaces.selector.matchExpressions
-          value: [{key: kubernetes.io/metadata.name, operator: In, values: [loco-system, loco-obs]}]
+          path: spec.listeners[?(@.name =~ /-apps-0$/)].hostname
+          value: "*.apps.example.test"
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - equal:
+          path: spec.listeners[?(@.name =~ /-apps-1$/)].hostname
+          value: "*.other.example.test"
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: Gateway}
 

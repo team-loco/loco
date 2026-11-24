@@ -701,7 +701,6 @@ type Cluster struct {
 	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
 	AgentVersion          *string     `json:"agentVersion"`
-	GatewayHostname       *string     `json:"gatewayHostname"`
 	SyncGeneration        int64       `json:"syncGeneration"`
 	Domains               []string    `json:"domains"`
 	AgentPublicKey        []byte      `json:"agentPublicKey"`
