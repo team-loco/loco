@@ -398,16 +398,18 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     page.goto(path)
     next_page = page.get_by_role("button", name="Next page", exact=True)
     expect(next_page).to_be_enabled()
-    next_page.click()
-    for _ in range(200):
-        if held:
-            break
-        page.wait_for_timeout(50)
-    assert held, "the next page was never requested"
+    with page.expect_request(
+        lambda r: (
+            r.url.endswith("/ListOrgPeople")
+            and (r.post_data_json or {}).get("pageToken")
+        )
+    ):
+        next_page.click()
     next_page.click()
     page.wait_for_timeout(300)
-    assert len(held) == 1, len(held)
     assert parse_qs(urlparse(page.url).query)["pages"] == ["second"], page.url
+    held.pop().abort()
+    assert not errors, errors
     context.close()
     browser.close()
 print(
