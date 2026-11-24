@@ -158,22 +158,35 @@ func TestSupersededStreamReportWaitingForAWriteIsRefused(t *testing.T) {
 		t.Fatalf("deploy: %v", err)
 	}
 	p := f.placement(t, f.clusterID)
-	client := startSyncServer(t, f)
-	first := openReportStream(t, client, f.clusterID)
+	generation := f.syncGeneration(t)
 
 	release := holdResource(t, f)
-	report(first, statusReport(p.ID, p.DesiredRevision, 1), heartbeatReport())
-	waitFor(t, "first stream's heartbeat recorded", func() bool {
-		return f.heartbeatAt(t) != nil
-	})
-	before := f.syncGeneration(t)
-	openReportStream(t, client, f.clusterID)
-	waitFor(t, "a newer stream began while the first stream's report waited", func() bool {
-		return f.syncGeneration(t) > before
-	})
+	recorded := make(chan struct{})
+	go func() {
+		defer close(recorded)
+		f.agentServer().recordStatus(context.Background(), f.clusterID, generation, &agentv1.PlacementStatus{
+			PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, ReadyReplicas: 1,
+		})
+	}()
+	time.Sleep(200 * time.Millisecond)
+
+	superseded := make(chan error, 1)
+	go func() {
+		_, err := f.pool.Exec(context.Background(),
+			`UPDATE clusters SET sync_generation = sync_generation + 1 WHERE id = $1`, f.clusterID)
+		superseded <- err
+	}()
+	select {
+	case err := <-superseded:
+		if err != nil {
+			t.Fatalf("supersede the stream: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("a status report waiting for a write held up a newer stream")
+	}
 
 	release()
-	time.Sleep(500 * time.Millisecond)
+	<-recorded
 	if got := f.placement(t, f.clusterID); got.ReadyReplicas != 0 || got.ObservedRevision != 0 {
 		t.Fatalf("a superseded stream's report was applied: observed %d ready %d", got.ObservedRevision,
 			got.ReadyReplicas)
