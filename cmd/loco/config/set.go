@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/team-loco/loco/cmd/internal/host"
 	"github.com/team-loco/loco/cmd/internal/session"
 )
 
@@ -24,6 +25,9 @@ func buildSetCmd() *cobra.Command {
 
 			k, err := lookupKey(key)
 			if err != nil {
+				return err
+			}
+			if _, err := host.ParseURL(key, value); err != nil {
 				return err
 			}
 			*k.field(cfg) = value

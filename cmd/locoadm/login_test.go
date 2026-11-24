@@ -61,3 +61,19 @@ func TestLoginSignsInToTheFlaggedAPI(t *testing.T) {
 		t.Fatal("login did not ask the selected API for its configuration")
 	}
 }
+
+func TestLoginNamesTheURLForABareHost(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(keychain.StoreEnvVar, "file")
+	tests := []struct{ api, web, want string }{
+		{"api.loco.test", "https://loco.test", "set --api to a URL such as https://api.loco.test"},
+		{"https://api.loco.test", "loco.test", "set --web to a URL such as https://loco.test"},
+		{"localhost:8080", "https://loco.test", "set --api to a URL such as https://localhost:8080"},
+	}
+	for _, test := range tests {
+		err := runLocoadm(t, "login", "--api", test.api, "--web", test.web, "--device")
+		if err == nil || !strings.Contains(err.Error(), test.want) {
+			t.Errorf("login --api %s --web %s = %v, want %q", test.api, test.web, err, test.want)
+		}
+	}
+}
