@@ -21,6 +21,8 @@ base = f"{state['ui_url']}/org/{org}/wks/{workspace}"
 REQUEST_ID = "00000000-0000-4000-8000-000000000009"
 METRICS = "**/loco.observability.v1.ObservabilityService/QueryMetrics"
 ALLOCATION = "**/loco.resource.v1.ResourceService/GetEnvironmentAllocation"
+CONFIG = "**/loco.config.v1.ConfigService/GetConfig*"
+SPEND = "Spend: not available yet"
 failing = False
 
 
@@ -39,6 +41,14 @@ def metrics(route):
     )
 
 
+def multi_tenant(route):
+    config = route.fetch()
+    route.fulfill(
+        response=config,
+        json={**config.json(), "deploymentMode": "DEPLOYMENT_MODE_MULTI_TENANT"},
+    )
+
+
 def allocation(route):
     if failing:
         route.fulfill(status=500, json={"code": "internal", "message": "boom"})
@@ -52,6 +62,13 @@ with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     page.route(METRICS, metrics)
     page.route(ALLOCATION, allocation)
+    served = []
+
+    def config(route):
+        route.fulfill(response=route.fetch())
+        served.append(route)
+
+    page.route(CONFIG, config)
     listed = []
     page.on(
         "request",
@@ -96,6 +113,11 @@ with session(out) as browser:
     ), listed
     more.click()
     expect(page).to_have_url(re.compile(r"/resources\?.*sort=size\.desc"))
+    # A self-hosted install, the default, has no Spend card.
+    assert served
+    page.go_back()
+    expect(allocated).to_contain_text("GiB memory")
+    expect(page.get_by_label(SPEND)).to_have_count(0)
 
     failing = True
     page.goto(f"{base}?env=production")
@@ -111,6 +133,21 @@ with session(out) as browser:
     unallocated.get_by_role("button", name="Retry", exact=True).click()
     expect(unallocated).to_have_count(0)
     expect(allocated).to_contain_text("GiB memory")
+    assert not errors, errors
+    context.close()
+
+    # The hosted multi-tenant service shows Spend once the config says so.
+    context, page, errors = open_page(browser, state=state)
+    page.route(METRICS, metrics)
+    held = []
+    page.route(CONFIG, multi_tenant)
+    page.route(CONFIG, lambda route: held.append(route), times=1)
+    with page.expect_request(CONFIG):
+        page.goto(f"{base}?env=production")
+    expect(page.get_by_role("group", name=re.compile(r"^Allocated: "))).to_be_visible()
+    expect(page.get_by_label(SPEND)).to_have_count(0)
+    multi_tenant(held[0])
+    expect(page.get_by_label(SPEND)).to_contain_text("soon")
     assert not errors, errors
     context.close()
 print("PASS: dashboard totals")

@@ -1,9 +1,11 @@
 import { useQueryState } from "nuqs";
-import { Navigate } from "react-router";
+import { Navigate, useLocation } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { signInOnClickState } from "@/auth/next";
 import { useSignIn } from "@/auth/SignIn";
 import { AppLoading } from "@/context/AppLoader";
+import { useMultiTenant } from "@/hooks/useMultiTenant";
 
 import { Architecture } from "./splash/Architecture";
 import { Features } from "./splash/Features";
@@ -18,13 +20,20 @@ export function Splash() {
 	const { isAuthenticated, isPending } = useAuth();
 	const { signIn, redirecting } = useSignIn();
 	const [loginHint] = useQueryState("login_hint");
+	const multiTenant = useMultiTenant();
+	const { search } = useLocation();
 
 	if (isAuthenticated) {
 		return <Navigate to="/dashboard" replace />;
 	}
 
-	if (isPending) {
+	if (isPending || multiTenant === undefined) {
 		return <AppLoading />;
+	}
+
+	// Log out lands here, so sign-in waits for a click.
+	if (!multiTenant) {
+		return <Navigate to={{ pathname: "/login", search }} replace state={signInOnClickState} />;
 	}
 
 	const startSignIn = () => {

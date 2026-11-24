@@ -37,9 +37,18 @@ base = f"{ui}/org/{org}/wks/{shared}"
 WORKSPACE_URL = re.compile(re.escape(base) + r"(\?env=[\w-]+)?$")
 issuer = f"{ui}/dex"
 TITLE = "Nothing lives at this address"
+CONFIG = "**/loco.config.v1.ConfigService/GetConfig*"
 
 
 open_page = partial(new_page, state=state)
+
+
+def multi_tenant(route):
+    config = route.fetch()
+    route.fulfill(
+        response=config,
+        json={**config.json(), "deploymentMode": "DEPLOYMENT_MODE_MULTI_TENANT"},
+    )
 
 
 def expect_not_found(page, path):
@@ -418,7 +427,7 @@ with session(out) as browser:
     expect(account).not_to_contain_text(state["users"]["member"]["email"])
     account.click()
     page.get_by_role("menuitem", name="Sign out", exact=True).click()
-    expect(page).to_have_url(ui + "/")
+    expect(page).to_have_url(ui + "/login")
     assert not errors, errors
     cases.append("member")
     context.close()
@@ -446,8 +455,29 @@ with session(out) as browser:
     cases.append("system-admin")
     context.close()
 
+    # A self-hosted install, the default, sends / to sign-in, which waits for a click.
     context, page, errors = open_page(browser, None)
+    page.goto(ui + "/?login_hint=owner%40acme.test")
+    expect(page).to_have_url(ui + "/login?login_hint=owner%40acme.test")
+    expect(
+        page.get_by_role("button", name="Continue as owner@acme.test", exact=True)
+    ).to_be_visible()
+    assert not errors, errors
+    cases.append("self-hosted-root")
+    context.close()
+
+    context, page, errors = open_page(browser, None)
+    held = []
+    context.route(CONFIG, multi_tenant)
+    context.route(CONFIG, lambda route: held.append(route), times=1)
     page.goto(ui + "/")
+    expect(page.get_by_role("status")).to_be_visible()
+    assert held
+    expect(page).to_have_url(ui + "/")
+    expect(page.get_by_role("button", name="Onboard your agent to Loco")).to_have_count(
+        0
+    )
+    multi_tenant(held[0])
     expect(page).to_have_url(ui + "/")
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
     account = (

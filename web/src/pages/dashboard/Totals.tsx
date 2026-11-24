@@ -30,8 +30,10 @@ import { NavArrow } from "@/components/design/NavArrow";
 import { Skeleton } from "@/components/design/Skeleton";
 import { DeployMarkers } from "@/components/design/DeployMarkers";
 import { PartialError } from "@/components/design/ErrorState";
+import { SoonTag } from "@/components/design/SoonTag";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useMultiTenant } from "@/hooks/useMultiTenant";
 import { deployMarkers, MARKER_NAMES } from "@/lib/deployMarkers";
 import { pluralize } from "@/lib/format";
 import { bytesToMi, formatCpu, formatMemory } from "@/lib/quantity";
@@ -70,6 +72,19 @@ function CardHead({ label, children }: { label: string; children?: ReactNode }) 
 			{label}
 			{children}
 		</span>
+	);
+}
+
+function SoonCard({ label }: { label: string }) {
+	return (
+		<div role="group" className={cn(CARD, "text-fg4")} aria-label={`${label}: not available yet`}>
+			<CardHead label={label}>
+				<SoonTag />
+			</CardHead>
+			<span data-slot="stat-value" className={VALUE} aria-hidden="true">
+				—
+			</span>
+		</div>
 	);
 }
 
@@ -469,6 +484,7 @@ export function Totals({
 	nowMs: number;
 }) {
 	const [range, setRange] = useQueryState("range", rangeParser);
+	const multiTenant = useMultiTenant();
 	const spanMs = RANGE_DAYS[range] * DAY_MS;
 	const stepMs = stepSeconds(spanMs) * 1000;
 	const scope = { workspaceId, environmentId, resourceIds: [], spanMs };
@@ -564,6 +580,7 @@ export function Totals({
 						nowMs={nowMs}
 					/>
 				))}
+				{multiTenant === true && <SoonCard label="Spend" />}
 				<AllocatedCard
 					value={allocation.data}
 					failed={allocation.error !== null}

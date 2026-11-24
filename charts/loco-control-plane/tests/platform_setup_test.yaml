@@ -68,6 +68,21 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_DEFAULT_REGION, value: us-ca-1}
+  - it: passes the deployment mode the values name
+    template: templates/api-deployment.yaml
+    set:
+      deploymentMode: multi-tenant
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_DEPLOYMENT_MODE, value: multi-tenant}
+  - it: rejects an unknown deployment mode
+    template: templates/api-deployment.yaml
+    set:
+      deploymentMode: saas
+    asserts:
+      - failedTemplate:
+          errorPattern: "deploymentMode"
   - it: rejects duplicate typed and environment settings
     template: templates/api-deployment.yaml
     set:

@@ -179,6 +179,7 @@ A dashboard sign-in, `loco login` and `loco login --device` keep their state in 
 | `MIN_CLI_VERSION` | empty | Oldest `loco` version the API supports, such as `v0.0.61`. Older CLIs print an update hint. |
 | `LOCO_SCHEMA_URL` | `https://loco.build/schemas/loco.v1.json` | loco.yaml JSON schema that `loco infra init` references. |
 | `LOCO_DEFAULT_REGION` | empty | Region code new services default to, such as `us-ca-1`. Ignored while no cluster has it; see [regions](regions.md#default-region). |
+| `LOCO_DEPLOYMENT_MODE` | `self-hosted` | Who runs this install: `self-hosted` (an operator runs Loco themselves), `dedicated` (a single-tenant install run by the Loco team) or `multi-tenant` (the hosted service shared by many organizations). In `multi-tenant` the dashboard shows its landing page at `/` and a Spend card on the dashboard; in the others `/` goes to sign-in. The control-plane chart value `deploymentMode` sets it. Any other value stops the API at startup. |
 | `ORG_LINKS` | empty | JSON array of up to 10 `{"label", "url"}` links the dashboard sidebar shows for each organization. A URL may contain `{orgId}`. |
 
 ## Service defaults

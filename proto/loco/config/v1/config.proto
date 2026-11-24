@@ -36,6 +36,19 @@ message GetConfigResponse {
   // the region code new services default to, from LOCO_DEFAULT_REGION; empty when unset or when
   // that code is not a live region
   string default_region = 13;
+  // deployment_mode says who runs this install, from LOCO_DEPLOYMENT_MODE.
+  DeploymentMode deployment_mode = 14;
+}
+
+// DeploymentMode says who runs a Loco install and who shares it.
+enum DeploymentMode {
+  DEPLOYMENT_MODE_UNSPECIFIED = 0;
+  // An operator runs Loco themselves.
+  DEPLOYMENT_MODE_SELF_HOSTED = 1;
+  // A single-tenant install run by the Loco team.
+  DEPLOYMENT_MODE_DEDICATED = 2;
+  // The hosted service shared by many organizations.
+  DEPLOYMENT_MODE_MULTI_TENANT = 3;
 }
 
 message HistoryRetention {

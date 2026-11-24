@@ -2,7 +2,7 @@ import { useQueryState } from "nuqs";
 import { Navigate, useLocation } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
-import { nextPathFrom } from "@/auth/next";
+import { nextPathFrom, signInOnClick } from "@/auth/next";
 import { AppLoading } from "@/context/AppLoader";
 
 import { SignInCard } from "./auth/SignInCard";
@@ -22,6 +22,11 @@ export function Login() {
 	}
 
 	return (
-		<SignInCard next={nextPathFrom(location.state)} loginHint={loginHint} error={error} autoStart={!isAuthenticated} />
+		<SignInCard
+			next={nextPathFrom(location.state)}
+			loginHint={loginHint}
+			error={error}
+			autoStart={!isAuthenticated && !signInOnClick(location.state)}
+		/>
 	);
 }
