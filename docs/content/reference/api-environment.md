@@ -12,9 +12,6 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | --- | --- | --- |
 | `APP_ENV` | empty | `PRODUCTION` writes JSON logs to stdout at `LOG_LEVEL` and refuses CORS requests from loopback origins. Any other value writes human-readable logs to stderr. |
 | `APP_PORT` | empty | Listen address, such as `:8000`. Empty listens on port 80. |
-| `LOCO_TLS_ADDR` | empty | Listen address of a second server that terminates TLS itself, such as `:8443`. Empty runs none. Requires `LOCO_TLS_CERT` and `LOCO_TLS_KEY`. |
-| `LOCO_TLS_CERT` | empty | PEM certificate chain of the TLS server, leaf first. |
-| `LOCO_TLS_KEY` | empty | PEM private key of `LOCO_TLS_CERT`. Keep it in the API environment Secret. |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`, for the JSON logs of `APP_ENV=PRODUCTION`. |
 | `GOMEMLIMIT` | none | Go runtime soft memory limit, such as `900MiB`. The chart sets it to the container memory limit. `GOMAXPROCS` follows the container CPU limit, at least 2, without being set. |
 | `PPROF_ADDR` | empty | Address of a Go pprof server. Empty runs none. |
@@ -27,8 +24,6 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | empty | OTLP/HTTP endpoint for traces only. |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | empty | OTLP/HTTP endpoint for metrics only. The API exports Go runtime metrics: memory, garbage collection goal, goroutine count and scheduler latency (`go.schedule.duration`). |
 | `OTEL_PROPAGATORS` | `tracecontext,baggage` | Trace context formats the API reads from requests and writes to outgoing calls: `tracecontext`, `baggage`, `b3`, `b3multi`, `jaeger`, `xray`, `ottrace` or `none`. Each request starts its own trace and links to the caller's span, so a client cannot choose the trace a request joins or whether it is sampled. |
-
-`APP_PORT` serves plain HTTP/1.1 and unencrypted HTTP/2 for a proxy that terminates TLS in front of the API. Agents hold a two-way `AgentService/Sync` stream that needs HTTP/2 from end to end, and a proxy that forwards only HTTP/1.1 makes the API answer `505 HTTP Version Not Supported`. In that case route raw TCP to `LOCO_TLS_ADDR` instead: the API terminates TLS there and offers HTTP/2 and HTTP/1.1 through ALPN, with the same handler and timeouts as `APP_PORT`. The certificate must cover the hostname agents and clients connect to. The API reads it once at startup, so restart the API to load a renewed certificate. The API stops at startup if only some of the three variables are set or the certificate and key don't match. The `loco-control-plane` chart exposes no TLS port: it has no Service port for `LOCO_TLS_ADDR` and its API NetworkPolicy admits only `api.port`, so setting the variables through `api.env` alone starts a listener nothing can reach. The listener is for installs outside the chart, or for operators who add that Service port and policy rule themselves.
 
 ## Database
 
