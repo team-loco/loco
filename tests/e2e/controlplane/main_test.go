@@ -28,24 +28,32 @@ func TestMain(m *testing.M) {
 	os.Exit(c.Run(m, setup))
 }
 
-// setup installs what the suites share: the CRDs and cert-manager.
+// setup installs what the suites share: the CRDs, cert-manager and the CloudNativePG operator, each
+// from the chart the platform bundle mirrors.
 func setup(ctx context.Context) error {
 	if _, err := c.Mise(ctx, []string{"KIND_CLUSTER=" + c.KindCluster()}, "crds:apply"); err != nil {
 		return err
 	}
-	var certManager struct {
-		Repository string `json:"repository"`
-		Chart      string `json:"chart"`
-		Version    string `json:"version"`
+	for _, upstream := range []struct{ release, namespace, set string }{
+		{"cert-manager", "cert-manager", "crds.enabled=true"},
+		{"cloudnative-pg", "cnpg-system", "crds.create=true"},
+	} {
+		var chart struct {
+			Repository string `json:"repository"`
+			Chart      string `json:"chart"`
+			Version    string `json:"version"`
+		}
+		if err := platform.ReadYAML(c.Path("charts", upstream.release+".yaml"), &chart); err != nil {
+			return err
+		}
+		if _, err := c.Helm(ctx, "upgrade", "--install", upstream.release, chart.Chart,
+			"--repo", chart.Repository, "--version", chart.Version,
+			"--namespace", upstream.namespace, "--create-namespace", "--set", upstream.set,
+			"--wait=legacy", "--timeout", installTimeout.String()); err != nil {
+			return err
+		}
 	}
-	if err := platform.ReadYAML(c.Path("charts", "cert-manager.yaml"), &certManager); err != nil {
-		return err
-	}
-	_, err := c.Helm(ctx, "upgrade", "--install", "cert-manager", certManager.Chart,
-		"--repo", certManager.Repository, "--version", certManager.Version,
-		"--namespace", "cert-manager", "--create-namespace", "--set", "crds.enabled=true",
-		"--wait=legacy", "--timeout", installTimeout.String())
-	return err
+	return nil
 }
 
 func mustReadYAML(tb testing.TB, path string, into any) {

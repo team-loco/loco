@@ -271,6 +271,56 @@ obsProxy:
         name: ""
         key: url
 
+# A CloudNativePG cluster for the API database, in the release namespace. It needs the
+# CloudNativePG operator, which the platform bundle's ./postgres-operator entry point installs.
+# @schema additionalProperties: false
+postgres:
+  enabled: false
+  image: ghcr.io/cloudnative-pg/postgresql:18.7-system-trixie@sha256:c437b7c6c00aa7e66f5d6de1dd83602391fdebd4ff776ffb1ab7aaba5e7351ad
+  # @schema minimum: 1
+  instances: 2
+  # Namespace of the CloudNativePG operator, which the network policy admits.
+  operatorNamespace: cnpg-system
+  # @schema additionalProperties: false
+  storage:
+    size: 10Gi
+    storageClass: ""
+  # @schema skipProperties
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+  # Base backups and WAL archives in an S3-compatible bucket.
+  # @schema additionalProperties: false
+  backup:
+    enabled: false
+    # Six-field cron: seconds first.
+    schedule: "0 0 0 * * *"
+    retention: 30d
+    # Folder under the prefix the archive is written to; empty uses the cluster name.
+    serverName: ""
+    # @schema additionalProperties: false
+    s3:
+      endpoint: ""
+      bucket: ""
+      prefix: postgres
+      # @schema additionalProperties: false
+      existingSecret:
+        name: ""
+        accessKeyIdKey: access-key-id
+        secretAccessKeyKey: secret-access-key
+  # Server name in the backup bucket to restore a new cluster from; empty initializes an empty one.
+  recoverFrom: ""
+  # Databases for other services on the same cluster, each owned by a login role whose password is
+  # in passwordSecret, an existing kubernetes.io/basic-auth Secret in the release namespace.
+  # @schema item: object; itemRequired: [name, owner, passwordSecret]; itemProperties: {name: {type: string, pattern: "^[a-z_][a-z0-9_]*$"}, owner: {type: string, pattern: "^[a-z_][a-z0-9_]*$"}, createRole: {type: boolean}, passwordSecret: {type: string, minLength: 1}}
+  databases: []
+  # NetworkPolicy peers admitted to Postgres besides the API, such as the services that own databases.
+  # @schema item: object
+  clients: []
+
 # @schema skipProperties
 clickhouse:
   enabled: false

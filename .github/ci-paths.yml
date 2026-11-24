@@ -250,6 +250,7 @@ e2e-installation:
     - "tests/e2e/fixtures/public-image/**"
     - "tools/platform-release/crds.yaml"
     - "charts/cert-manager.yaml"
+    - "charts/cloudnative-pg.yaml"
     - "dev/compose.cloud-provider-kind.yaml"
     - "dev/dex.yaml"
     # The UI image's own definition. Documentation Container Tests cover what it

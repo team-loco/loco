@@ -56,6 +56,24 @@ clickhouse:
       uncompressed_cache_size: "0"
       background_schedule_pool_size: "16"
       max_concurrent_queries: "100"
+postgres:
+  enabled: true
+  instances: 1
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  backup:
+    enabled: true
+    s3:
+      endpoint: http://s3:8080
+      bucket: openbao-snapshots
+      existingSecret:
+        name: snapshot-s3
 openbao:
   replicas: 1
   storage:

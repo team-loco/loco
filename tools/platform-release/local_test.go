@@ -41,7 +41,7 @@ func TestLocalReleaseOverlapsBuildsAndPushes(t *testing.T) {
 	manifest, err := tool.localRelease(fixture.registry, localOptions{address: fixtureAddress})
 	require.NoError(t, err)
 	require.Len(t, manifest.Images, len(images))
-	require.Len(t, manifest.Artifacts, 7)
+	require.Len(t, manifest.Artifacts, 8)
 	require.Contains(t, manifest.Bundle, "@sha256:")
 	builds, pushes := 0, 0
 	config := ""
@@ -85,7 +85,7 @@ func TestLocalReleaseKeepsUnchangedChartDigestsAcrossCommits(t *testing.T) {
 	second, err := tool.localRelease(fixture.registry, options)
 	require.NoError(t, err)
 	require.NotEqual(t, first.Bundle, second.Bundle)
-	for _, chart := range append([]string{"cert-manager-chart", "gateway-chart"}, charts...) {
+	for _, chart := range append([]string{"cert-manager-chart", cloudNativePGChart, "gateway-chart"}, charts...) {
 		require.Equal(t, first.Artifacts[chart], second.Artifacts[chart], chart)
 	}
 }

@@ -32,7 +32,11 @@ func readSecret(t *testing.T, path string) map[string]string {
 	return secret.StringData
 }
 
-const controlPlaneCluster = "control-plane"
+const (
+	controlPlaneCluster = "control-plane"
+	testAdmin           = "admin@test.local"
+	testDomain          = "apps.test"
+)
 
 func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 	t.Parallel()
@@ -45,9 +49,9 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 		Output:     filepath.Join(root, "fleet"),
 		API:        "https://api.test",
 		Web:        "https://web.test",
-		Domain:     "apps.test",
+		Domain:     testDomain,
 		Region:     "test-east",
-		Admin:      "admin@test.local",
+		Admin:      testAdmin,
 		Bundle:     "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
 		APIEnvFile: env,
 	}
@@ -126,9 +130,9 @@ func TestInitSingleCluster(t *testing.T) {
 		Output:        filepath.Join(root, "fleet"),
 		API:           "http://api.test:8000",
 		Web:           "http://web.test:5173",
-		Domain:        "apps.test",
+		Domain:        testDomain,
 		Region:        "local",
-		Admin:         "admin@test.local",
+		Admin:         testAdmin,
 		Bundle:        "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
 		APIEnvFile:    env,
 		SingleCluster: true,
@@ -161,5 +165,82 @@ func TestInitSingleCluster(t *testing.T) {
 	options.Name = "../outside"
 	if err = Init(options); err == nil {
 		t.Fatal("accepted an unsafe cluster name")
+	}
+}
+
+func TestInitPostgresWaitsForTheOperator(t *testing.T) {
+	t.Parallel()
+	for _, single := range []bool{false, true} {
+		root := t.TempDir()
+		env := filepath.Join(root, "api.env")
+		if err := os.WriteFile(env, []byte("AUTH_ISSUERS=[]\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		options := InitOptions{
+			Output:        filepath.Join(root, "fleet"),
+			API:           "https://api.test",
+			Web:           "https://web.test",
+			Domain:        testDomain,
+			Region:        "test-east",
+			Admin:         testAdmin,
+			Bundle:        "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
+			APIEnvFile:    env,
+			SingleCluster: single,
+			Name:          "local",
+			Postgres:      true,
+		}
+		if err := Init(options); err != nil {
+			t.Fatal(err)
+		}
+		base := "control-plane"
+		if single {
+			base = "all"
+		}
+		data, err := os.ReadFile(filepath.Join(options.Output, "bases", base, "loco.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		paths := map[string]string{}
+		var config []string
+		for document := range strings.SplitSeq(string(data), "\n---\n") {
+			var kustomization struct {
+				Metadata struct {
+					Name string `json:"name"`
+				} `json:"metadata"`
+				Spec struct {
+					Path      string `json:"path"`
+					DependsOn []struct {
+						Name string `json:"name"`
+					} `json:"dependsOn"`
+				} `json:"spec"`
+			}
+			if err = yaml.Unmarshal([]byte(document), &kustomization); err != nil {
+				t.Fatal(err)
+			}
+			paths[kustomization.Metadata.Name] = kustomization.Spec.Path
+			if kustomization.Metadata.Name == "loco-cluster-config" {
+				for _, dependency := range kustomization.Spec.DependsOn {
+					config = append(config, dependency.Name)
+				}
+			}
+		}
+		if paths["loco-postgres"] != "./postgres-operator" {
+			t.Errorf("single=%v: base applies %v, want loco-postgres at ./postgres-operator", single, paths)
+		}
+		if strings.Join(config, " ") != "loco-namespaces loco-postgres-operator" {
+			t.Errorf("single=%v: loco-cluster-config depends on %v", single, config)
+		}
+		values, err := os.ReadFile(filepath.Join(options.Output, "bases", "control-plane", "values", "values.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var parsed struct {
+			Postgres struct {
+				Enabled bool `json:"enabled"`
+			} `json:"postgres"`
+		}
+		if err = yaml.Unmarshal(values, &parsed); err != nil || !parsed.Postgres.Enabled {
+			t.Errorf("single=%v: control-plane values do not enable postgres: %v", single, err)
+		}
 	}
 }

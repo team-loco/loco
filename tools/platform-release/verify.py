@@ -50,6 +50,7 @@ def main():
         "loco-builds-crd",
         "loco-gateway-crd",
         "cert-manager-chart",
+        "cloudnative-pg-chart",
         "gateway-chart",
     )
     refs = {
@@ -97,9 +98,12 @@ def main():
             "layers/infra",
             "layers/control-plane",
             "layers/worker",
+            "postgres-operator",
+            "layers/postgres-operator",
         ):
             if layer.startswith("layers/"):
                 name = layer.split("/")[1]
+                entry = "postgres-operator" if name == "postgres-operator" else "all"
                 rendered = run(
                     "flux",
                     "build",
@@ -109,7 +113,7 @@ def main():
                     "--path",
                     str(temp / layer),
                     "--kustomization-file",
-                    str(temp / "all" / (name + ".yaml")),
+                    str(temp / entry / (name + ".yaml")),
                 )
             else:
                 rendered = run("kustomize", "build", str(temp / layer))
@@ -252,6 +256,41 @@ def main():
         if cp_images != expected_cp_images:
             raise RuntimeError(
                 "control-plane chart does not render the pinned API and observability proxy images"
+            )
+        cp_path.write_text(json.dumps({**cp_values, "postgres": {"enabled": True}}))
+        postgres_resources = documents(
+            run(
+                "helm",
+                "template",
+                "regional",
+                str(ROOT / "charts/loco-control-plane"),
+                "--namespace",
+                "loco-system",
+                "--values",
+                str(cp_path),
+            )
+        )
+        if not any(item.get("kind") == "Cluster" for item in postgres_resources):
+            raise RuntimeError(
+                "control-plane chart renders no CloudNativePG Cluster with postgres.enabled"
+            )
+        api = next(
+            item
+            for item in postgres_resources
+            if item.get("kind") == "Deployment"
+            and item["metadata"]["name"] == "regional-api"
+        )
+        database_url = next(
+            env
+            for env in api["spec"]["template"]["spec"]["containers"][0]["env"]
+            if env["name"] == "DATABASE_URL"
+        )
+        if database_url["valueFrom"]["secretKeyRef"] != {
+            "name": "regional-postgres-app",
+            "key": "uri",
+        }:
+            raise RuntimeError(
+                "the API does not read DATABASE_URL from the CloudNativePG app Secret"
             )
         for name in CHARTS:
             run(

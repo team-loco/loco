@@ -58,6 +58,16 @@ spec:
             {{- end }}
             - name: APP_PORT
               value: {{ printf "0.0.0.0:%v" .Values.api.port | quote }}
+            {{- if .Values.postgres.enabled }}
+            {{- if hasKey .Values.api.env "DATABASE_URL" }}
+            {{- fail "api.env.DATABASE_URL cannot be set while postgres.enabled is true" }}
+            {{- end }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "loco-control-plane.postgresCluster" . }}-app
+                  key: uri
+            {{- end }}
             - name: LOCO_SECRETS_TRANSIT_ADDR
               value: {{ include "loco-control-plane.openbaoURL" . | quote }}
             - name: LOCO_SECRETS_TRANSIT_MOUNT

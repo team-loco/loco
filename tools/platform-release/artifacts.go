@@ -21,7 +21,13 @@ const (
 
 const crdVersions = "tools/platform-release/crds.yaml"
 const gatewayChart = "gateway-helm"
-const certManager = "charts/cert-manager.yaml"
+
+// upstreamCharts are the charts the bundle mirrors from their own repositories, each pinned by a
+// file holding its repository, chart and version.
+var upstreamCharts = []struct{ name, path, repository string }{
+	{"cert-manager-chart", "charts/cert-manager.yaml", "charts/cert-manager"},
+	{cloudNativePGChart, "charts/cloudnative-pg.yaml", "charts/cloudnative-pg"},
+}
 
 var crdSources = []struct{ name, path string }{
 	{"applications", "controller/config/crd/bases/infra.loco.io_applications.yaml"},
@@ -69,11 +75,13 @@ func (t *tool) versions(ref string) (map[string]string, error) {
 			return nil, checkErr
 		}
 	}
-	cert, err := t.stringValue(certManager, fieldVersion, ref)
-	if err != nil {
-		return nil, err
+	for _, upstream := range upstreamCharts {
+		version, err := t.stringValue(upstream.path, fieldVersion, ref)
+		if err != nil {
+			return nil, err
+		}
+		result[upstream.name] = version
 	}
-	result["cert-manager-chart"] = cert
 	gateway, err := t.gateway(ref)
 	if err != nil {
 		return nil, err
@@ -94,7 +102,9 @@ func repositories(repository string) map[string]string {
 	for _, entry := range crdSources {
 		result["loco-"+entry.name+"-crd"] = repository + "/crds/" + entry.name
 	}
-	result["cert-manager-chart"] = repository + "/charts/cert-manager"
+	for _, upstream := range upstreamCharts {
+		result[upstream.name] = repository + "/" + upstream.repository
+	}
 	result["gateway-chart"] = repository + "/charts/gateway-helm"
 	result[platformName] = repository + "/platform"
 	return result
@@ -222,49 +232,13 @@ func (t *tool) packagedArtifacts(directory, commit string) ([]artifact, error) {
 		}
 		result = append(result, artifact{name, pinned[name], data, config, helmLayerType})
 	}
-	cert, err := t.value(certManager, "", "")
-	if err != nil {
-		return nil, err
+	for _, upstream := range upstreamCharts {
+		mirrored, pullErr := t.pullUpstream(directory, upstream.name, upstream.path, pinned[upstream.name])
+		if pullErr != nil {
+			return nil, pullErr
+		}
+		result = append(result, mirrored)
 	}
-	settings, ok := cert.(map[string]any)
-	if !ok {
-		return nil, errors.New("cert-manager chart settings must be an object")
-	}
-	chart, ok := settings["chart"].(string)
-	if !ok {
-		return nil, errors.New("cert-manager chart must be a string")
-	}
-	repository, ok := settings["repository"].(string)
-	if !ok {
-		return nil, errors.New("cert-manager repository must be a string")
-	}
-	if _, checkErr := t.run(
-		"helm",
-		"pull",
-		chart,
-		"--repo",
-		repository,
-		"--version",
-		pinned["cert-manager-chart"],
-		"--destination",
-		directory,
-	); checkErr != nil {
-		return nil, checkErr
-	}
-	certData, err := os.ReadFile(filepath.Join(directory, chart+"-"+pinned["cert-manager-chart"]+".tgz"))
-	if err != nil {
-		return nil, err
-	}
-	result = append(
-		result,
-		artifact{
-			"cert-manager-chart",
-			pinned["cert-manager-chart"],
-			certData,
-			object{fieldName: chart, fieldVersion: pinned["cert-manager-chart"]},
-			helmLayerType,
-		},
-	)
 	data, err := os.ReadFile(
 		filepath.Join(t.root, "charts", "loco-worker", "charts", "gateway-helm-"+pinned["gateway-chart"]+".tgz"),
 	)
@@ -327,4 +301,40 @@ func (t *tool) crdDocument(name, manifestPath, ref string) (any, error) {
 		return t.gateway(ref)
 	}
 	return t.value(manifestPath, "", ref)
+}
+
+// pullUpstream downloads the chart the settings file pins, as the artifact name.
+func (t *tool) pullUpstream(directory, name, settingsPath, version string) (artifact, error) {
+	value, err := t.value(settingsPath, "", "")
+	if err != nil {
+		return artifact{}, err
+	}
+	settings, ok := value.(map[string]any)
+	if !ok {
+		return artifact{}, fmt.Errorf("%s must be an object", settingsPath)
+	}
+	chart, ok := settings["chart"].(string)
+	if !ok {
+		return artifact{}, fmt.Errorf("%s chart must be a string", settingsPath)
+	}
+	repository, ok := settings["repository"].(string)
+	if !ok {
+		return artifact{}, fmt.Errorf("%s repository must be a string", settingsPath)
+	}
+	if _, err = t.run(
+		"helm", "pull", chart, "--repo", repository, "--version", version, "--destination", directory,
+	); err != nil {
+		return artifact{}, err
+	}
+	data, err := os.ReadFile(filepath.Join(directory, chart+"-"+version+".tgz"))
+	if err != nil {
+		return artifact{}, err
+	}
+	return artifact{
+		name:      name,
+		version:   version,
+		data:      data,
+		config:    object{fieldName: chart, fieldVersion: version},
+		mediaType: helmLayerType,
+	}, nil
 }

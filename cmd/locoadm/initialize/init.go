@@ -24,6 +24,12 @@ func Command() *cobra.Command {
 	command.Flags().
 		BoolVar(&options.SingleCluster, "single-cluster", false, "Run the control plane and worker on one cluster")
 	command.Flags().StringVar(&options.Name, "name", "local", "Cluster directory name for --single-cluster")
+	command.Flags().BoolVar(
+		&options.Postgres,
+		"postgres",
+		false,
+		"Run the API database on a CloudNativePG cluster the bundle installs, in place of DATABASE_URL",
+	)
 	flags := []struct {
 		name  string
 		value *string

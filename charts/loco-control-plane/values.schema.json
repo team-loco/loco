@@ -965,6 +965,125 @@
       },
       "additionalProperties": false
     },
+    "postgres": {
+      "type": "object",
+      "properties": {
+        "backup": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "retention": {
+              "type": "string"
+            },
+            "s3": {
+              "type": "object",
+              "properties": {
+                "bucket": {
+                  "type": "string"
+                },
+                "endpoint": {
+                  "type": "string"
+                },
+                "existingSecret": {
+                  "type": "object",
+                  "properties": {
+                    "accessKeyIdKey": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "secretAccessKeyKey": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "prefix": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "schedule": {
+              "type": "string"
+            },
+            "serverName": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "clients": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "owner",
+              "passwordSecret"
+            ],
+            "properties": {
+              "createRole": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z_][a-z0-9_]*$"
+              },
+              "owner": {
+                "type": "string",
+                "pattern": "^[a-z_][a-z0-9_]*$"
+              },
+              "passwordSecret": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "string"
+        },
+        "instances": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "operatorNamespace": {
+          "type": "string"
+        },
+        "recoverFrom": {
+          "type": "string"
+        },
+        "resources": {
+          "type": "object"
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string"
+            },
+            "storageClass": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "ui": {
       "allOf": [
         {

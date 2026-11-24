@@ -6,7 +6,7 @@ Provide these dependencies before installing the chart:
 
 | Dependency | Configuration |
 | --- | --- |
-| PostgreSQL | `DATABASE_URL` in the API environment Secret; use a direct connection for startup migrations. Set `DATABASE_LISTEN_URL` to a direct connection if normal API queries use a transaction pooler. |
+| PostgreSQL | `DATABASE_URL` in the API environment Secret; use a direct connection for startup migrations. Set `DATABASE_LISTEN_URL` to a direct connection if normal API queries use a transaction pooler. Or `postgres.enabled: true` runs it on CloudNativePG; see [Bundled PostgreSQL](#bundled-postgresql). |
 | Identity provider | `AUTH_ISSUERS` in the API environment Secret, with the issuer, audience and web-client settings supported by the API. |
 | Source object storage | Existing S3-compatible bucket and `LOCO_SOURCE_BUCKET*` API environment settings. Without a bucket, source builds are disabled. |
 | Application image registry | Existing registry and `LOCO_REGISTRY_*` API environment settings. Builders and worker nodes must also reach this registry. |
@@ -160,4 +160,44 @@ mise run test:platform-render
 mise run e2e controlplane TestControlPlane
 ```
 
-The E2E suite builds the dashboard, API and proxy images, installs PostgreSQL and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks that an API pod that restarted before the setup Job created the Transit keys logged why, the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request the API refuses for an invalid token, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, an ingest token the API signs with the chart OpenBao's Transit key, secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job, and a raft snapshot from the snapshot CronJob restored into a reinstalled OpenBao. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--keep` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+The E2E suite builds the dashboard, API and proxy images, installs the CloudNativePG operator and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, a one-instance bundled PostgreSQL that backs up to a fixture bucket, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks that an API pod that restarted before the setup Job created the Transit keys logged why, the Gateway's listeners, a completed Postgres base backup, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request the API refuses for an invalid token, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, an ingest token the API signs with the chart OpenBao's Transit key, secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job, and a raft snapshot from the snapshot CronJob restored into a reinstalled OpenBao. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--keep` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+
+## Bundled PostgreSQL
+
+`postgres.enabled: true` runs the API database on a [CloudNativePG](https://cloudnative-pg.io) `Cluster` named `<release>-postgres` in the release namespace. It needs the CloudNativePG operator and its CRDs first; the platform bundle installs them from its `./postgres-operator` entry point, and `postgres.operatorNamespace` (`cnpg-system`) names the namespace it runs in. The cluster runs `postgres.instances` instances (2), one primary and streaming replicas, each on its own PersistentVolumeClaim of `postgres.storage.size` (10Gi) in `postgres.storage.storageClass`, the cluster default when empty. The StorageClass needs `ReadWriteOnce` volumes. `postgres.resources` sets each instance's requests and limits. The image is `postgres.image`, a CloudNativePG `system` image, which carries the `barman-cloud` tools the backups use.
+
+CloudNativePG initializes the database `loco`, owned by the role `loco`, and writes its connection details to the Secret `<release>-postgres-app`. The API reads `DATABASE_URL` from that Secret's `uri` key, which points at the read-write Service `<release>-postgres-rw` on port 5432, and runs its migrations on startup as the database owner. `api.env.DATABASE_URL` is refused while `postgres.enabled` is true; a `DATABASE_URL` in the API environment Secret is overridden. The API pods wait in `CreateContainerConfigError` until the cluster's first instance has initialized and the Secret exists.
+
+The `Cluster` carries `helm.sh/resource-policy: keep`: setting `postgres.enabled: false` or uninstalling the release leaves the cluster, its volumes and its Secrets in place. Delete the `Cluster` yourself to remove the data.
+
+`postgres.databases` adds databases for other services on the same cluster. Each entry has a `name`, an `owner` login role, `createRole: true` to grant that role `CREATEROLE`, and `passwordSecret`, an existing `kubernetes.io/basic-auth` Secret in the release namespace whose `username` is the owner and whose `password` CloudNativePG sets on the role. The chart adds the role to the cluster's managed roles, never as a superuser, and a CloudNativePG `Database` named `<release>-postgres-<name, underscores as dashes>`. CloudNativePG keeps a database when its entry is removed. The owning service connects to `<release>-postgres-rw.<release namespace>:5432` with the role and password from its Secret:
+
+```yaml
+postgres:
+  enabled: true
+  databases:
+    - name: cp_auth
+      owner: cp_auth
+      createRole: true
+      passwordSecret: cp-auth-db
+  clients:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: sign-in
+```
+
+The cluster's NetworkPolicy admits the API pods, the cluster's own instances and the operator namespace on port 5432, and the operator namespace on port 8000, the instance status port. `postgres.clients` adds NetworkPolicy peers admitted on port 5432, such as the namespaces of the services that own `postgres.databases`.
+
+### Backups and restore
+
+`postgres.backup.enabled: true` archives the write-ahead log continuously and takes a base backup on `postgres.backup.schedule`, a six-field cron with seconds first (`0 0 0 * * *`, daily at midnight), plus one at once when the `ScheduledBackup` is created. Both go to `s3://<postgres.backup.s3.bucket>/<postgres.backup.s3.prefix>/<server name>/` at `postgres.backup.s3.endpoint`, any S3-compatible service, gzip-compressed. The server name is `postgres.backup.serverName`, or the cluster name when empty. The Secret `postgres.backup.s3.existingSecret.name` holds the access key ID and secret access key, under the keys `accessKeyIdKey` (`access-key-id`) and `secretAccessKeyKey` (`secret-access-key`). CloudNativePG deletes backups and WAL older than `postgres.backup.retention` (`30d`) beyond the most recent base backup. `kubectl get backups.postgresql.cnpg.io -n <namespace>` lists each base backup and its phase.
+
+A restore creates a new cluster from the archive; CloudNativePG never restores into a running one. To restore:
+
+1. Stop the release from recreating the cluster while you work: `flux suspend helmrelease loco-control-plane -n flux-system` under the platform bundle.
+2. Delete the `Cluster` `<release>-postgres`. CloudNativePG deletes its instances and PersistentVolumeClaims.
+3. Set `postgres.recoverFrom` to the server name the backups were written under, the cluster name unless `postgres.backup.serverName` was set, and set `postgres.backup.serverName` to a name not yet in the bucket. CloudNativePG refuses to archive into a folder that already holds another cluster's WAL.
+4. Resume the release, or run `helm upgrade` with the new values. The new cluster replays the latest base backup and the archived WAL up to the end of the archive, keeps the `loco` database and owner, and writes a new `<release>-postgres-app` Secret with a new password.
+5. Restart the API so it reads that Secret: `kubectl rollout restart deployment/<release>-api -n <namespace>`.
+
+Leave both values set afterwards: `recoverFrom` only applies when the cluster is created, and the cluster keeps archiving under the new server name.

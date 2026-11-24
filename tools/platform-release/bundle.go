@@ -4,30 +4,34 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 )
 
 const (
-	kindKustomization = "Kustomization"
-	kindOCIRepository = "OCIRepository"
-	imageAgent        = "agent"
-	imageAPI          = "api"
-	artifactsName     = "artifacts"
-	certManagerName   = "cert-manager"
-	controlPlaneName  = "control-plane"
-	crdsName          = "crds"
-	infraLayer        = "infra"
-	namespacesLayer   = "namespaces"
-	workerLayer       = "worker"
-	imageController   = "controller"
-	fieldDigest       = "digest"
-	fieldEnabled      = "enabled"
-	fieldImage        = "image"
-	fieldInterval     = "interval"
-	fieldMediaType    = "mediaType"
-	fieldNamespace    = "namespace"
-	fluxNamespace     = "flux-system"
-	reconcilerAccount = "platform-reconciler"
+	kindKustomization  = "Kustomization"
+	kindOCIRepository  = "OCIRepository"
+	imageAgent         = "agent"
+	imageAPI           = "api"
+	artifactsName      = "artifacts"
+	certManagerName    = "cert-manager"
+	controlPlaneName   = "control-plane"
+	crdsName           = "crds"
+	postgresLayer      = "postgres-operator"
+	cloudNativePG      = "cloudnative-pg"
+	cloudNativePGChart = cloudNativePG + "-chart"
+	infraLayer         = "infra"
+	namespacesLayer    = "namespaces"
+	workerLayer        = "worker"
+	imageController    = "controller"
+	fieldDigest        = "digest"
+	fieldEnabled       = "enabled"
+	fieldImage         = "image"
+	fieldInterval      = "interval"
+	fieldMediaType     = "mediaType"
+	fieldNamespace     = "namespace"
+	fluxNamespace      = "flux-system"
+	reconcilerAccount  = "platform-reconciler"
 )
 
 type object = map[string]any
@@ -324,6 +328,12 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 		return nil, err
 	}
 	writeLayer(workerLayer, worker)
+	postgres, err := helmRelease(cloudNativePG, cloudNativePGChart, "cnpg-system", object{}, nil)
+	if err != nil {
+		return nil, err
+	}
+	fields(fields(postgres[1], "spec"), "install")["createNamespace"] = true
+	writeLayer(postgresLayer, postgres)
 	layers := map[string]object{}
 	for _, entry := range []struct {
 		name         string
@@ -334,6 +344,7 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 		{infraLayer, []string{crdsName}},
 		{controlPlaneName, []string{infraLayer}},
 		{workerLayer, []string{infraLayer}},
+		{postgresLayer, []string{namespacesLayer}},
 	} {
 		depends := []object{}
 		for _, name := range entry.dependencies {
@@ -369,16 +380,19 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 		fields(layer, fieldMetadata)["annotations"] = annotations
 		layers[entry.name] = layer
 	}
+	shared := []string{namespacesLayer, crdsName, infraLayer}
 	for _, entry := range []struct {
 		name     string
 		selected []string
 	}{
-		{controlPlaneName, []string{controlPlaneName}},
-		{workerLayer, []string{workerLayer}},
-		{"all", []string{controlPlaneName, workerLayer}},
+		{controlPlaneName, slices.Concat(shared, []string{controlPlaneName})},
+		{workerLayer, slices.Concat(shared, []string{workerLayer})},
+		{"all", slices.Concat(shared, []string{controlPlaneName, workerLayer})},
+		// Opt-in: installs the CloudNativePG operator beside an entry point above.
+		{postgresLayer, []string{postgresLayer}},
 	} {
 		paths := []string{}
-		for _, name := range append([]string{namespacesLayer, crdsName, infraLayer}, entry.selected...) {
+		for _, name := range entry.selected {
 			file := name + ".yaml"
 			output[entry.name+"/"+file] = encoded(layers[name])
 			paths = append(paths, file)
