@@ -12,3 +12,4 @@ nodes:
         nodeRegistration:
           taints: []
   - role: worker
+  - role: worker
