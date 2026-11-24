@@ -57,9 +57,6 @@ func (p *Platform) up(ctx context.Context) error {
 	if err := p.reserveComposeNetwork(ctx); err != nil {
 		return err
 	}
-	if _, err := p.pullimageBinary(ctx); err != nil {
-		return err
-	}
 	logf(
 		"Run %s: building images and binaries, starting kind cluster %s and compose project %s",
 		p.run,
