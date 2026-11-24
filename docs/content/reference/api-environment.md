@@ -52,7 +52,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_SESSION_REFRESH_TOKEN_LIFETIME` | `168h` | Lifetime of a session refresh token, and so of a session nobody uses. |
 | `LOCO_SESSION_REFRESH_REUSE_GRACE` | `10s` | How long after a session refresh the old refresh token still counts as a concurrent refresh, such as a second browser tab, and keeps the session. Later reuse revokes the session. |
 | `LOCO_TOKEN_LAST_USED_INTERVAL` | `5m` | Least time between two writes of a token's last-used time or a member's last sign-in. |
-| `LOCO_TOKEN_CLEANUP_INTERVAL` | `1m` | How often the API deletes expired session and API tokens. |
+| `LOCO_TOKEN_CLEANUP_INTERVAL` | `1m` | How often the API deletes expired session tokens, API tokens and cluster assertions. |
 | `LOCO_STREAM_AUTH_INTERVAL` | `5s` | Time between access rechecks of an open stream. See [open streams](../operations/access.md#open-streams-and-access-changes). |
 | `LOCO_STREAM_AUTH_TIMEOUT` | `2s` | Limit on each stream access recheck; at most `LOCO_STREAM_AUTH_INTERVAL`. |
 

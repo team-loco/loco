@@ -30,6 +30,15 @@ func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) er
 	return err
 }
 
+const deleteExpiredClusterAssertions = `-- name: DeleteExpiredClusterAssertions :exec
+DELETE FROM cluster_assertions WHERE expires_at < NOW()
+`
+
+func (q *Queries) DeleteExpiredClusterAssertions(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredClusterAssertions)
+	return err
+}
+
 const enrollCluster = `-- name: EnrollCluster :one
 UPDATE clusters
 SET agent_public_key = $1,
@@ -375,7 +384,6 @@ func (q *Queries) LockClusterRegistration(ctx context.Context, id uuid.UUID) (Lo
 }
 
 const recordClusterAssertion = `-- name: RecordClusterAssertion :execrows
-WITH expired AS (DELETE FROM cluster_assertions WHERE expires_at < NOW())
 INSERT INTO cluster_assertions (cluster_id, jti, expires_at)
 VALUES ($1, $2, $3)
 ON CONFLICT (cluster_id, jti) DO NOTHING

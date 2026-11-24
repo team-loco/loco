@@ -76,10 +76,12 @@ SELECT id, name, region, cluster_key, agent_public_key FROM clusters
 WHERE cluster_key = $1 AND removed_at IS NULL AND agent_public_key IS NOT NULL;
 
 -- name: RecordClusterAssertion :execrows
-WITH expired AS (DELETE FROM cluster_assertions WHERE expires_at < NOW())
 INSERT INTO cluster_assertions (cluster_id, jti, expires_at)
 VALUES (sqlc.arg(cluster_id), sqlc.arg(jti), sqlc.arg(expires_at))
 ON CONFLICT (cluster_id, jti) DO NOTHING;
+
+-- name: DeleteExpiredClusterAssertions :exec
+DELETE FROM cluster_assertions WHERE expires_at < NOW();
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
