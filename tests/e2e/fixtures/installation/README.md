@@ -16,6 +16,8 @@ The application workflow builds source, checks CA-verified HTTPS and enforces bu
 
 Recovery exports ciphertext to separate throwaway age custodians. A disposable OpenBao instance restores the raft snapshot with the exported seal key, restarts to exercise auto-unseal, decrypts an existing ciphertext and signs data with the original ingest identity. Temporary roots are revoked and disposable resources are removed after success or failure.
 
+The kind cluster has one control-plane node and two workers. Every node reports the host's CPUs, so each adds that many schedulable CPUs without adding real CPU; the three nodes leave room for the platform's CPU requests and the source build pod.
+
 `--no-teardown` keeps the fixture for inspection. `--skip-build` reuses built images. The default path removes the fixture after success or failure. The run records its kind cluster, its cloud-provider-kind project and its registry port-forward port under a lease of the shared test-resource registry (`internal/testres`), owned by its run directory, so any test harness removes a kept run once its worktree is gone. External credentials are public test identities. The operator image's Docker context excludes run directories, kubeconfigs and local credentials.
 
 `--timeout` bounds host setup and acceptance. Cleanup has a separate deadline after cancellation. Failures report allowlisted build, pod, event and node states plus numeric capacity; stdout, specs and provider response bodies stay private. Failed operator execution includes bounded stderr and identifies administrator-status checks separately from login approval.
