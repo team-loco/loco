@@ -171,7 +171,7 @@ func (c *Cluster) pullPrebuilt(ctx context.Context, reference, tag string, retry
 	defer cancel()
 	var firstFailure error
 	for pullCtx.Err() == nil {
-		if _, err = c.Command(pullCtx, "docker", "pull", "-q", pull); err == nil {
+		if _, err = c.Command(pullCtx, "go", "-C", c.root, "run", "./tools/pullimage", pull); err == nil {
 			_, err = c.Command(ctx, "docker", "tag", pull, tag)
 			return err
 		}
@@ -181,8 +181,8 @@ func (c *Cluster) pullPrebuilt(ctx context.Context, reference, tag string, retry
 		if pullCtx.Err() != nil {
 			break
 		}
-		if pull == reference || !strings.Contains(err.Error(), `failed to resolve reference "`+pull+`"`) ||
-			!strings.HasSuffix(err.Error(), pull+": not found") {
+		if pull == reference || !strings.Contains(err.Error(), "failed to resolve reference") ||
+			!strings.Contains(err.Error(), pull+": not found") {
 			return err
 		}
 		select {

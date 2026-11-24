@@ -27,6 +27,7 @@ func scriptedPull(outputs ...string) (pullFunc, *int) {
 func TestPullWithRetry(t *testing.T) {
 	const registryBadGateway = "Error response from daemon: unexpected status from GET request " +
 		"to https://registry-1.docker.io/v2/: 502 Bad Gateway"
+	const droppedTransfer = "failed to copy: read tcp 10.0.0.1:41234->185.199.111.154:443: read: connection timed out\n"
 	const tokenStatus = "failed to fetch oauth token: unexpected status from POST request " +
 		"to https://auth.docker.io/token: "
 	for _, tc := range []struct {
@@ -37,6 +38,7 @@ func TestPullWithRetry(t *testing.T) {
 	}{
 		{"succeeds first time", []string{""}, 1, false},
 		{"retries a dropped request", []string{"failed to do request: Get https://registry.test/blob: EOF\n", ""}, 2, false},
+		{"retries a dropped transfer", []string{droppedTransfer, ""}, 2, false},
 		{"retries a token endpoint 522", []string{tokenStatus + "522", ""}, 2, false},
 		{"does not retry a token endpoint 401", []string{tokenStatus + "401", ""}, 1, true},
 		{"retries a registry 502", []string{registryBadGateway, registryBadGateway, ""}, 3, false},
