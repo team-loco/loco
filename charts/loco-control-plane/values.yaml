@@ -183,7 +183,7 @@ gateway:
   # Envoy replicas when autoscaling is off.
   # @schema minimum: 0
   replicaCount: 2
-  # A CPU-utilization autoscaler for the Envoy Deployment; replaces replicaCount when enabled and the cluster serves the metrics.k8s.io API.
+  # A CPU-utilization autoscaler for the Envoy Deployment; replaces replicaCount when enabled.
   # @schema additionalProperties: false
   autoscaling:
     enabled: true
@@ -232,7 +232,7 @@ obsProxy:
     # Replicas when autoscaling is off.
     # @schema minimum: 0
     replicaCount: 2
-    # A CPU-utilization autoscaler; replaces replicaCount when enabled and the cluster serves the metrics.k8s.io API.
+    # A CPU-utilization autoscaler; replaces replicaCount when enabled.
     # @schema additionalProperties: false
     autoscaling:
       enabled: true
