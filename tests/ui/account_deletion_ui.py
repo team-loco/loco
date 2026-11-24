@@ -162,8 +162,8 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     delete.click()
     dialog.get_by_role("textbox").fill(state["users"]["departing"]["email"])
     confirm.click()
-    expect(page).to_have_url(re.compile(r"/dex/auth\?"))
-    expect(page.get_by_role("heading", name="Sign in", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
+    expect(page).not_to_have_url(re.compile(r"/dex/"))
     assert not any(
         cookie["name"] == evidence.SESSION_COOKIE for cookie in context.cookies()
     )
