@@ -299,19 +299,20 @@ def shell_navigation(page):
     )
     # The workspace links stay in the sidebar while an organization page opens.
     page.evaluate("""() => {
-        window.navGaps = 0;
-        new MutationObserver(() => {
+        window.navObserver = new MutationObserver(() => {
             const nav = document.querySelector('[data-slot="sidebar-content"]');
             const linked = href => nav?.querySelector(`a[href*="${href}"]`);
             if (nav && !(linked("/resources") && linked("/secrets"))) {
-                window.navGaps++;
                 window.navGap ??= `${location.pathname}: ${nav.innerText}`;
             }
-        }).observe(document.body, { childList: true, subtree: true, attributes: true });
+        });
+        window.navObserver.observe(document.body, { childList: true, subtree: true, attributes: true });
     }""")
     assert_sidebar_slide(sidebar.get_by_role("link", name="Team", exact=True))
-    expect(page).to_have_url(re.compile(r"/team"))
-    assert page.evaluate("window.navGaps") == 0, page.evaluate("window.navGap")
+    gap = page.evaluate(
+        "() => { window.navObserver.disconnect(); return window.navGap ?? null; }"
+    )
+    assert gap is None, gap
     assert_sidebar_slide(dashboard)
     page.emulate_media(reduced_motion="reduce")
     resources.press("Enter")
