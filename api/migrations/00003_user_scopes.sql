@@ -141,10 +141,12 @@ CREATE INDEX invitations_invited_by_idx ON invitations (invited_by);
 CREATE INDEX invitations_claimed_by_idx ON invitations (claimed_by);
 
 -- Short-lived sign-in state shared by every API replica: web login state, CLI codes and device codes.
-CREATE TABLE auth_states (
+-- Unlogged: a crash empties it, and the sign-ins in progress start again.
+CREATE UNLOGGED TABLE auth_states (
     key TEXT PRIMARY KEY,
     value BYTEA NOT NULL,
-    -- When a caller who had not signed in started this sign-in; NULL for every other entry.
+    -- When a caller who had not signed in started this sign-in, shared by every entry of that sign-in;
+    -- NULL for every other entry.
     started_at TIMESTAMPTZ,
     expires_at TIMESTAMPTZ NOT NULL
 );

@@ -58,7 +58,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 
 ### Sign-ins in progress
 
-A dashboard sign-in, `loco login` and `loco login --device` keep their state in PostgreSQL between requests, so any API replica can finish a sign-in another one started. A dashboard sign-in stays open for 5 minutes and a device sign-in for 10, until it finishes. The API keeps at most 100,000 entries for open sign-ins: a dashboard sign-in holds one, and a device sign-in two, its user code and its device code. Starting another sign-in deletes the oldest entries beyond that, and a sign-in that loses an entry has to start again. A device sign-in that loses only its user code can no longer be approved, and `loco login --device` waits until it expires.
+A dashboard sign-in, `loco login` and `loco login --device` keep their state in PostgreSQL between requests, so any API replica can finish a sign-in another one started. A dashboard sign-in stays open for 5 minutes and a device sign-in for 10, until it finishes. At most 1,000 sign-ins are in progress at once; starting one more drops the oldest, which then has to start again. The table holding them is not written to the PostgreSQL log, so sign-ins in progress are lost if the database restarts after a crash or fails over; users start them again.
 
 ## Clusters and agents
 

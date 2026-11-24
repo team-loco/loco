@@ -73,7 +73,7 @@ func TestAuthStateStartStoresOnce(t *testing.T) {
 	t.Parallel()
 	pool, store := newAuthStateStore(t)
 	wins := countConcurrent(32, func() bool {
-		err := store.Start(t.Context(), "code", []byte("1"), time.Minute)
+		err := store.Start(t.Context(), time.Minute, startEntry{key: "user-code", value: []byte("1")})
 		if err != nil && !errors.Is(err, errAuthStateExists) {
 			t.Error(err)
 		}
@@ -83,11 +83,11 @@ func TestAuthStateStartStoresOnce(t *testing.T) {
 		t.Fatalf("Start stored %d times, want 1", wins)
 	}
 
-	expire(t, pool, "code")
-	if err := store.Start(t.Context(), "code", []byte("2"), time.Minute); err != nil {
+	expire(t, pool, "user-code")
+	if err := store.Start(t.Context(), time.Minute, startEntry{key: "user-code", value: []byte("2")}); err != nil {
 		t.Fatalf("Start over an expired entry: %v", err)
 	}
-	if got, getErr := store.Get(t.Context(), "code"); getErr != nil || string(got) != "2" {
+	if got, getErr := store.Get(t.Context(), "user-code"); getErr != nil || string(got) != "2" {
 		t.Fatalf("Get = %q, %v", got, getErr)
 	}
 }
@@ -130,36 +130,41 @@ func storedKeys(t *testing.T, pool *pgxpool.Pool, where string) []string {
 	return keys
 }
 
+func entry(key string) startEntry {
+	return startEntry{key: key, value: []byte(key)}
+}
+
 func TestAuthStateStartEvictsTheOldestSignIns(t *testing.T) {
 	t.Parallel()
 	pool, store := newAuthStateStore(t)
 	store.maxEntries = 3
-	for _, key := range []string{"a", "b", "c"} {
-		if err := store.Start(t.Context(), key, []byte(key), time.Minute); err != nil {
+	start := func(entries ...startEntry) {
+		t.Helper()
+		if err := store.Start(t.Context(), time.Minute, entries...); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := store.Set(t.Context(), "device", []byte("d"), time.Minute); err != nil {
+	start(entry("a-code"), entry("a-device"))
+	start(entry("b"))
+	start(entry("c"))
+	if err := store.Set(t.Context(), "approved", []byte("x"), time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Start(t.Context(), "d", []byte("d"), time.Minute); err != nil {
-		t.Fatalf("Start on a full store: %v", err)
-	}
-	if keys := storedKeys(t, pool, "TRUE"); !slices.Equal(keys, []string{"b", "c", "d", "device"}) {
-		t.Fatalf("rows after a start on a full store = %v, want the oldest sign-in evicted", keys)
+	start(entry("d"))
+	if keys := storedKeys(t, pool, "TRUE"); !slices.Equal(keys, []string{"approved", "b", "c", "d"}) {
+		t.Fatalf("rows after a start on a full store = %v, want the oldest sign-in evicted with both its entries", keys)
 	}
 
-	if _, err := store.Take(t.Context(), "b"); err != nil {
+	taken, err := store.Take(t.Context(), "b")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Start(t.Context(), "b", []byte("b"), time.Minute); err != nil {
+	if err := store.Restore(t.Context(), "b", taken); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Start(t.Context(), "e", []byte("e"), time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	if keys := storedKeys(t, pool, "started_at IS NOT NULL"); !slices.Equal(keys, []string{"b", "d", "e"}) {
-		t.Fatalf("started sign-ins = %v, want the restored one kept as the newest", keys)
+	start(entry("e"))
+	if keys := storedKeys(t, pool, "started_at IS NOT NULL"); !slices.Equal(keys, []string{"c", "d", "e"}) {
+		t.Fatalf("started sign-ins = %v, want the restored one evicted as the oldest", keys)
 	}
 }
 
@@ -171,7 +176,7 @@ func TestAuthStateStartsConcurrentlyAtTheCap(t *testing.T) {
 	var next atomic.Int64
 	start := func() error {
 		key := "start-" + strconv.FormatInt(next.Add(1), 10)
-		return store.Start(t.Context(), key, []byte(key), time.Minute)
+		return store.Start(t.Context(), time.Minute, entry(key))
 	}
 	for range store.maxEntries {
 		if err := start(); err != nil {

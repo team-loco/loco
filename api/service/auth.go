@@ -317,16 +317,12 @@ func (s *AuthServer) StartDeviceLogin(
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
 	deviceDigest := bearer.Hash(deviceCode)
-	if err := s.state.Start(ctx, userCodeKey(userCode), []byte(deviceDigest), deviceCodeTTL); err != nil {
-		slog.ErrorContext(ctx, "failed to store device user code", "error", err)
-		return nil, authStoreUnavailable(err)
-	}
-	if err := s.state.Start(ctx, deviceKey(deviceDigest), payload, deviceCodeTTL); err != nil {
-		slog.ErrorContext(ctx, "failed to store device code", "error", err)
-		_, takeErr := s.state.Take(ctx, userCodeKey(userCode))
-		if takeErr != nil && !errors.Is(takeErr, errAuthStateNotFound) {
-			slog.ErrorContext(ctx, "failed to release device user code", "error", takeErr)
-		}
+	err = s.state.Start(ctx, deviceCodeTTL,
+		startEntry{key: userCodeKey(userCode), value: []byte(deviceDigest)},
+		startEntry{key: deviceKey(deviceDigest), value: payload},
+	)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to store device login", "error", err)
 		return nil, authStoreUnavailable(err)
 	}
 	display := formatUserCode(userCode)
@@ -394,10 +390,10 @@ func (s *AuthServer) ApproveDeviceLogin(
 		return nil, authStoreUnavailable(err)
 	}
 	deviceDigest := taken.value
-	// A retryable failure returns the user code to the store, with the time it had left, for the next
+	// A retryable failure returns the user code to its sign-in, with the time it had left, for the next
 	// approval attempt.
 	unavailable := func(cause error) error {
-		if restoreErr := s.state.Start(ctx, userCodeKey(userCode), deviceDigest, taken.ttl); restoreErr != nil {
+		if restoreErr := s.state.Restore(ctx, userCodeKey(userCode), taken); restoreErr != nil {
 			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
 		}
 		return authStoreUnavailable(cause)

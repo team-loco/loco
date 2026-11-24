@@ -11,11 +11,8 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-// maxAuthStates is the most started entries the store keeps; a new start deletes the oldest beyond it.
-// A device login holds two started entries, its user code and its device row, and eviction can delete
-// one without the other. Without its user code the login can no longer be approved and polls as pending
-// until it expires; without its device row it polls as expired.
-const maxAuthStates = 100_000
+// maxAuthStates is the most started sign-ins the store keeps; a new start deletes the oldest beyond it.
+const maxAuthStates = 1_000
 
 var (
 	errAuthStateNotFound = errors.New("auth state not found")
@@ -28,17 +25,25 @@ type authStore interface {
 	Get(ctx context.Context, key string) ([]byte, error)
 	// Set stores an entry that belongs to a sign-in already started or to a signed-in caller.
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
-	// Start stores the value for a new sign-in, deleting the oldest started sign-ins beyond maxEntries.
-	// It returns errAuthStateExists when the key is live.
-	Start(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	// Start stores the entries of one new sign-in, which count and are deleted together, after deleting
+	// the oldest started sign-ins beyond maxEntries. It returns errAuthStateExists when a key is live.
+	Start(ctx context.Context, ttl time.Duration, entries ...startEntry) error
 	// Take removes a live entry and returns it, or errAuthStateNotFound when another call took it first.
 	Take(ctx context.Context, key string) (authEntry, error)
+	// Restore puts back an entry Take removed, as part of the sign-in it belonged to.
+	Restore(ctx context.Context, key string, entry authEntry) error
 }
 
-// authEntry is a taken entry: its value and how long it had left to live.
-type authEntry struct {
+type startEntry struct {
+	key   string
 	value []byte
-	ttl   time.Duration
+}
+
+// authEntry is a taken entry: its value, the sign-in start it belongs to, and how long it had left.
+type authEntry struct {
+	value     []byte
+	startedAt *time.Time
+	ttl       time.Duration
 }
 
 // pgAuthStore keeps sign-in state in the auth_states table.
@@ -59,21 +64,30 @@ func (s pgAuthStore) Get(ctx context.Context, key string) ([]byte, error) {
 }
 
 func (s pgAuthStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	err := s.queries.SetAuthState(ctx, genDb.SetAuthStateParams{Key: key, Value: value, TtlSeconds: ttl.Seconds()})
+	return s.Restore(ctx, key, authEntry{value: value, ttl: ttl})
+}
+
+func (s pgAuthStore) Restore(ctx context.Context, key string, entry authEntry) error {
+	err := s.queries.SetAuthState(ctx, genDb.SetAuthStateParams{
+		Key: key, Value: entry.value, StartedAt: entry.startedAt, TtlSeconds: entry.ttl.Seconds(),
+	})
 	if err != nil {
 		return fmt.Errorf("set auth state: %w", err)
 	}
 	return nil
 }
 
-func (s pgAuthStore) Start(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	stored, err := s.queries.StartAuthState(ctx, genDb.StartAuthStateParams{
-		Key: key, Value: value, TtlSeconds: ttl.Seconds(), Keep: s.maxEntries - 1,
-	})
+func (s pgAuthStore) Start(ctx context.Context, ttl time.Duration, entries ...startEntry) error {
+	params := genDb.StartAuthStatesParams{TtlSeconds: ttl.Seconds(), Keep: s.maxEntries - 1}
+	for _, entry := range entries {
+		params.Keys = append(params.Keys, entry.key)
+		params.Values = append(params.Values, entry.value)
+	}
+	stored, err := s.queries.StartAuthStates(ctx, params)
 	if err != nil {
 		return fmt.Errorf("start auth state: %w", err)
 	}
-	if stored == 0 {
+	if stored < int64(len(entries)) {
 		return errAuthStateExists
 	}
 	return nil
@@ -87,5 +101,7 @@ func (s pgAuthStore) Take(ctx context.Context, key string) (authEntry, error) {
 	if err != nil {
 		return authEntry{}, fmt.Errorf("take auth state: %w", err)
 	}
-	return authEntry{value: row.Value, ttl: time.Duration(row.TtlSeconds * float64(time.Second))}, nil
+	return authEntry{
+		value: row.Value, startedAt: row.StartedAt, ttl: time.Duration(row.TtlSeconds * float64(time.Second)),
+	}, nil
 }

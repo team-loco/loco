@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
 const deleteExpiredAuthStates = `-- name: DeleteExpiredAuthStates :exec
@@ -31,27 +32,37 @@ func (q *Queries) GetAuthState(ctx context.Context, key string) ([]byte, error) 
 
 const setAuthState = `-- name: SetAuthState :exec
 INSERT INTO auth_states (key, value, started_at, expires_at)
-VALUES ($1::text, $2::bytea, NULL, NOW() + make_interval(secs => $3::float8))
+VALUES (
+    $1::text, $2::bytea, $3::timestamptz,
+    NOW() + make_interval(secs => $4::float8)
+)
 ON CONFLICT (key) DO UPDATE
 SET value = EXCLUDED.value, started_at = EXCLUDED.started_at, expires_at = EXCLUDED.expires_at
 `
 
 type SetAuthStateParams struct {
-	Key        string  `json:"key"`
-	Value      []byte  `json:"value"`
-	TtlSeconds float64 `json:"ttlSeconds"`
+	Key        string     `json:"key"`
+	Value      []byte     `json:"value"`
+	StartedAt  *time.Time `json:"startedAt"`
+	TtlSeconds float64    `json:"ttlSeconds"`
 }
 
+// Entries sharing a started_at belong to one started sign-in.
 func (q *Queries) SetAuthState(ctx context.Context, arg SetAuthStateParams) error {
-	_, err := q.db.Exec(ctx, setAuthState, arg.Key, arg.Value, arg.TtlSeconds)
+	_, err := q.db.Exec(ctx, setAuthState,
+		arg.Key,
+		arg.Value,
+		arg.StartedAt,
+		arg.TtlSeconds,
+	)
 	return err
 }
 
-const startAuthState = `-- name: StartAuthState :execrows
+const startAuthStates = `-- name: StartAuthStates :execrows
 WITH evicted AS (
     DELETE FROM auth_states
     WHERE started_at <= (
-        SELECT started_at FROM auth_states
+        SELECT DISTINCT started_at FROM auth_states
         WHERE started_at IS NOT NULL
         ORDER BY started_at DESC
         OFFSET $4::int
@@ -59,25 +70,27 @@ WITH evicted AS (
     )
 )
 INSERT INTO auth_states (key, value, started_at, expires_at)
-VALUES ($1::text, $2::bytea, NOW(), NOW() + make_interval(secs => $3::float8))
+SELECT unnest($1::text[]), unnest($2::bytea[]), NOW(), NOW() + make_interval(secs => $3::float8)
+WHERE NOT EXISTS (SELECT 1 FROM auth_states WHERE key = ANY($1::text[]) AND expires_at > NOW())
 ON CONFLICT (key) DO UPDATE
 SET value = EXCLUDED.value, started_at = EXCLUDED.started_at, expires_at = EXCLUDED.expires_at
 WHERE auth_states.expires_at <= NOW()
 `
 
-type StartAuthStateParams struct {
-	Key        string  `json:"key"`
-	Value      []byte  `json:"value"`
-	TtlSeconds float64 `json:"ttlSeconds"`
-	Keep       int32   `json:"keep"`
+type StartAuthStatesParams struct {
+	Keys       []string `json:"keys"`
+	Values     [][]byte `json:"values"`
+	TtlSeconds float64  `json:"ttlSeconds"`
+	Keep       int32    `json:"keep"`
 }
 
-// Stores a started sign-in after deleting the started sign-ins older than the newest keep. An expired
-// row counts as absent, so its key can be stored again.
-func (q *Queries) StartAuthState(ctx context.Context, arg StartAuthStateParams) (int64, error) {
-	result, err := q.db.Exec(ctx, startAuthState,
-		arg.Key,
-		arg.Value,
+// Stores the entries of one new sign-in after deleting the sign-ins older than the newest keep, and
+// stores none of them while any of their keys is live. An expired row counts as absent, so its key can
+// be stored again.
+func (q *Queries) StartAuthStates(ctx context.Context, arg StartAuthStatesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, startAuthStates,
+		arg.Keys,
+		arg.Values,
 		arg.TtlSeconds,
 		arg.Keep,
 	)
@@ -89,17 +102,18 @@ func (q *Queries) StartAuthState(ctx context.Context, arg StartAuthStateParams) 
 
 const takeAuthState = `-- name: TakeAuthState :one
 DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW()
-RETURNING value, EXTRACT(EPOCH FROM expires_at - NOW())::float8 AS ttl_seconds
+RETURNING value, started_at, EXTRACT(EPOCH FROM expires_at - NOW())::float8 AS ttl_seconds
 `
 
 type TakeAuthStateRow struct {
-	Value      []byte  `json:"value"`
-	TtlSeconds float64 `json:"ttlSeconds"`
+	Value      []byte     `json:"value"`
+	StartedAt  *time.Time `json:"startedAt"`
+	TtlSeconds float64    `json:"ttlSeconds"`
 }
 
 func (q *Queries) TakeAuthState(ctx context.Context, key string) (TakeAuthStateRow, error) {
 	row := q.db.QueryRow(ctx, takeAuthState, key)
 	var i TakeAuthStateRow
-	err := row.Scan(&i.Value, &i.TtlSeconds)
+	err := row.Scan(&i.Value, &i.StartedAt, &i.TtlSeconds)
 	return i, err
 }

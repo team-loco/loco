@@ -325,24 +325,6 @@ func TestDeviceLoginKeepsTheStartOfALongUserAgent(t *testing.T) {
 	}
 }
 
-func TestDeviceLoginRemovesItsUserCodeWhenStartFails(t *testing.T) {
-	t.Parallel()
-	f := newAuthFixture(t)
-	f.server.state = &failingWriteStore{authStore: f.server.state, prefix: deviceKey(""), fails: 1}
-	_, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
-	if codeOf(err) != connect.CodeUnavailable {
-		t.Fatalf("start while the store fails: %v", err)
-	}
-	var started int
-	if scanErr := f.pool.QueryRow(t.Context(),
-		"SELECT count(*) FROM auth_states WHERE started_at IS NOT NULL").Scan(&started); scanErr != nil {
-		t.Fatal(scanErr)
-	}
-	if started != 0 {
-		t.Fatalf("%d started sign-ins left after a failed start, want 0", started)
-	}
-}
-
 func TestDeviceLoginsStayWithinTheStoreBound(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
@@ -358,12 +340,14 @@ func TestDeviceLoginsStayWithinTheStoreBound(t *testing.T) {
 			oldest = started
 		}
 	}
-	var rows int
-	if err := f.pool.QueryRow(t.Context(), "SELECT count(*) FROM auth_states").Scan(&rows); err != nil {
+	var codes, devices int
+	if err := f.pool.QueryRow(t.Context(), `SELECT
+		count(*) FILTER (WHERE key LIKE 'cli:user-code:%'), count(*) FILTER (WHERE key LIKE 'cli:device:%')
+		FROM auth_states`).Scan(&codes, &devices); err != nil {
 		t.Fatal(err)
 	}
-	if rows > bound {
-		t.Fatalf("%d rows after 10 device starts, want at most %d", rows, bound)
+	if codes != bound || devices != bound {
+		t.Fatalf("%d user codes and %d device rows after 10 device starts, want %d of each", codes, devices, bound)
 	}
 	poll := &authv1.PollDeviceLoginRequest{DeviceCode: oldest.GetDeviceCode()}
 	if _, err := f.client.PollDeviceLogin(t.Context(), poll); codeOf(err) != connect.CodeNotFound {
@@ -379,7 +363,7 @@ func TestDevicePollFailsClosedWhenItCannotRecordThePoll(t *testing.T) {
 		t.Fatalf("start: %v", err)
 	}
 	digest := bearer.Hash(started.GetDeviceCode())
-	f.server.state = &failingWriteStore{authStore: f.server.state, prefix: devicePollKey(digest), fails: 1}
+	f.server.state = &failingSetStore{authStore: f.server.state, prefix: devicePollKey(digest), fails: 1}
 	poll := &authv1.PollDeviceLoginRequest{DeviceCode: started.GetDeviceCode()}
 	if _, pollErr := f.client.PollDeviceLogin(t.Context(), poll); codeOf(pollErr) != connect.CodeUnavailable {
 		t.Fatalf("poll while the store fails: %v", pollErr)
@@ -423,27 +407,19 @@ func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	f.assertWorks(t, done.GetTokens())
 }
 
-// failingWriteStore fails the next fails Set and Start calls whose key starts with prefix.
-type failingWriteStore struct {
+// failingSetStore fails the next fails Set calls whose key starts with prefix.
+type failingSetStore struct {
 	authStore
 	prefix string
 	fails  int
 }
 
-func (c *failingWriteStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+func (c *failingSetStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	if strings.HasPrefix(key, c.prefix) && c.fails > 0 {
 		c.fails--
 		return errors.New("store unavailable")
 	}
 	return c.authStore.Set(ctx, key, value, ttl)
-}
-
-func (c *failingWriteStore) Start(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	if strings.HasPrefix(key, c.prefix) && c.fails > 0 {
-		c.fails--
-		return errors.New("store unavailable")
-	}
-	return c.authStore.Start(ctx, key, value, ttl)
 }
 
 func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
@@ -454,7 +430,7 @@ func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	f.server.state = &failingWriteStore{
+	f.server.state = &failingSetStore{
 		authStore: store, prefix: deviceKey(bearer.Hash(started.GetDeviceCode())), fails: 1,
 	}
 	approve := &authv1.ApproveDeviceLoginRequest{UserCode: started.GetUserCode()}
