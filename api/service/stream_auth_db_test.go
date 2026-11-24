@@ -84,7 +84,7 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 			t.Parallel()
 			f, userID, workspaceID := newStreamCredentialFixture(t)
 			// Streams poll for events more often than they recheck access.
-			f.events.poll = time.Millisecond
+			f.events.poll = 250 * time.Millisecond
 			var scopes []genDb.EntityScope
 			if tc.system {
 				scopes = []genDb.EntityScope{
@@ -266,7 +266,7 @@ func (q *canceledQueries) Query(ctx context.Context, sql string, args ...any) (p
 func TestEventStreamReportsCanceledDependencyAsInternal(t *testing.T) {
 	t.Parallel()
 	f, userID, workspaceID := newStreamCredentialFixture(t)
-	f.events.poll = time.Millisecond
+	f.events.poll = 250 * time.Millisecond
 	db := &canceledQueries{DBTX: f.pool}
 	f.events.db = db
 	token := issueStreamCredential(t, f, userID, workspaceID, streamSession, nil)
@@ -291,7 +291,7 @@ func TestEventStreamReportsCanceledDependencyAsInternal(t *testing.T) {
 func TestOwnedEventStreamSurvivesIssuerDeletionUntilRevocation(t *testing.T) {
 	t.Parallel()
 	f, userID, workspaceID := newStreamCredentialFixture(t)
-	f.events.poll = time.Millisecond
+	f.events.poll = 250 * time.Millisecond
 	revoker, _, err := f.machine.Issue(
 		t.Context(),
 		"revoker",
