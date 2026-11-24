@@ -147,9 +147,26 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 				t.Fatal(err)
 			}
 			// The change is in effect once its write returns; how long the write took is not the stream's.
-			changed := time.Now()
+			changed, before := time.Now(), f.pool.Stat()
 			if _, err = stream.Receive(); connect.CodeOf(err) != tc.want {
-				t.Fatalf("idle stream after %s = %v, want %s", tc.name, err, tc.want)
+				pool := f.pool.Stat()
+				t.Fatalf(
+					"idle stream after %s = %v, want %s; %s after the change, since then the pool made %d acquires "+
+						"(%d cut off by a deadline), spent %s acquiring and %s waiting with no idle connection; "+
+						"now %d of %d connections acquired, %d idle, %d being opened",
+					tc.name,
+					err,
+					tc.want,
+					time.Since(changed),
+					pool.AcquireCount()-before.AcquireCount(),
+					pool.CanceledAcquireCount()-before.CanceledAcquireCount(),
+					pool.AcquireDuration()-before.AcquireDuration(),
+					pool.EmptyAcquireWaitTime()-before.EmptyAcquireWaitTime(),
+					pool.AcquiredConns(),
+					pool.MaxConns(),
+					pool.IdleConns(),
+					pool.ConstructingConns(),
+				)
 			}
 			if elapsed, bound := time.Since(changed), streamCheck.Interval+streamCheck.Timeout; elapsed > bound {
 				t.Fatalf("idle stream after %s ended after %s, want within %s", tc.name, elapsed, bound)
