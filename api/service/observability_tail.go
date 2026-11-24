@@ -51,6 +51,10 @@ func (s *ObservabilityServer) TailLogs(
 	}()
 	ctx, cancel := context.WithTimeout(ctx, s.cfg.MaxTailDuration)
 	defer cancel()
+	// The first poll can find nothing for seconds; open the stream for the client before it.
+	if err = stream.SendHeaders(); err != nil {
+		return err
+	}
 	query.Start, query.Limit = started.Add(-defaultTailLookback), tailPageSize
 	if req.GetStartTime() != nil {
 		query.Start = req.GetStartTime().AsTime()

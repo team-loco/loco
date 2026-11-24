@@ -387,6 +387,10 @@ func (s *EventServer) StreamEvents(
 	if err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
+	// The stream sends only when events arrive; open it for the client before the first one.
+	if err = stream.SendHeaders(); err != nil {
+		return err
+	}
 	ticker := time.NewTicker(s.poll)
 	defer ticker.Stop()
 	for {
