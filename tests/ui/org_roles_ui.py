@@ -2,6 +2,7 @@ import argparse
 import re
 import uuid
 from datetime import datetime
+from urllib.parse import parse_qs, urlparse
 
 from harness import call, expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
@@ -378,6 +379,35 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(rows).to_have_count(25)
     expect(page.get_by_text("Page 1", exact=True)).to_be_visible()
     assert not errors, errors
+    context.close()
+
+    # A second Next click while the next page loads does not push a second token.
+    context, page, errors = open_page(browser, state=state)
+    held = []
+
+    def people(route):
+        request = route.request.post_data_json
+        if request.get("pageToken"):
+            held.append(route)
+            return
+        response = route.fetch()
+        body = response.json()
+        route.fulfill(response=response, json={**body, "nextPageToken": "second"})
+
+    context.route("**/loco.org.v1.OrgService/ListOrgPeople", people)
+    page.goto(path)
+    next_page = page.get_by_role("button", name="Next page", exact=True)
+    expect(next_page).to_be_enabled()
+    next_page.click()
+    for _ in range(200):
+        if held:
+            break
+        page.wait_for_timeout(50)
+    assert held, "the next page was never requested"
+    next_page.click()
+    page.wait_for_timeout(300)
+    assert len(held) == 1, len(held)
+    assert parse_qs(urlparse(page.url).query)["pages"] == ["second"], page.url
     context.close()
     browser.close()
 print(

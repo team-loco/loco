@@ -101,7 +101,7 @@ export function Team() {
 	const peopleData = people.query.data;
 	const rows = useMemo(() => teamRows(peopleData?.people ?? []), [peopleData]);
 	const pager = tokenPager(params.pages, people.nextPageToken, (pages) => {
-		void setParams({ pages });
+		if (!people.query.isPlaceholderData) void setParams({ pages });
 	});
 	const resetPage = { pages: null };
 	const counted = people.counts;

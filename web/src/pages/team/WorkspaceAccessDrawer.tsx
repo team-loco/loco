@@ -116,7 +116,7 @@ function AccessRows({
 	});
 	const allRows = all.query.data?.workspaces ?? [];
 	const allPager = tokenPager(tokens, all.nextPageToken, (next) => {
-		setTokens(next ?? []);
+		if (!all.query.isPlaceholderData) setTokens(next ?? []);
 	});
 	const rows = show === "has" ? grantedPage.rows : allRows;
 	const pager =
