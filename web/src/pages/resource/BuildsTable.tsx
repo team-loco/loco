@@ -380,7 +380,7 @@ function buildColumns(
 							name={actor?.name ?? starter.name}
 							email={actor?.email ?? ""}
 							avatarUrl={actor?.avatarUrl ?? ""}
-							className="size-[22px]"
+							className="size-5.5"
 						/>
 						<span className="flex min-w-0 flex-col">
 							<CellText text={starter.name} />

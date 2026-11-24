@@ -87,7 +87,7 @@ export function CliDevice() {
 								autoCapitalize="characters"
 								spellCheck={false}
 								placeholder="XXXX-XXXX"
-								className="h-8.5 font-mono tracking-widest uppercase"
+								className="font-mono tracking-widest uppercase"
 								onChange={(event) => {
 									setUserCode(event.target.value);
 									if (approve.isError) approve.reset();

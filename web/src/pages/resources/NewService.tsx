@@ -501,7 +501,7 @@ function CollapsibleRow({
 function DrawerSection({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children?: ReactNode }) {
 	return (
 		<section className="flex flex-col gap-3">
-			<div className="flex min-h-7.5 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+			<div className="flex min-h-[30px] flex-wrap items-center justify-between gap-x-3 gap-y-2">
 				<h3 className="m-0 text-[14px] font-medium tracking-[-0.01em]">{title}</h3>
 				{actions}
 			</div>
@@ -1019,7 +1019,7 @@ function variablesSummary(count: number): string {
 }
 
 const ENV_CELL =
-	"h-[38px] min-w-0 flex-1 rounded-none border-0 bg-transparent font-mono focus-visible:bg-panel focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:ring-inset dark:bg-transparent";
+	"h-9.5 min-w-0 flex-1 rounded-none border-0 bg-transparent font-mono focus-visible:bg-panel focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:ring-inset dark:bg-transparent";
 
 function CommandSection({
 	value,

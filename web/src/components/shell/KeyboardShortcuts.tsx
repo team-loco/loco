@@ -86,7 +86,7 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
 									{group.rows.map(([keys, label]) => (
 										<div
 											key={label}
-											className="flex min-h-8.5 items-center justify-between gap-4 border-b border-line py-1 text-[13.5px] last:border-b-0"
+											className="flex min-h-[34px] items-center justify-between gap-4 border-b border-line py-1 text-[13.5px] last:border-b-0"
 										>
 											<dt>{label}</dt>
 											<dd className="flex shrink-0 gap-1">

@@ -139,7 +139,7 @@ export function CopyButton({
 				e.stopPropagation();
 				onCopy();
 			}}
-			className={cn("size-[22px] text-fg4 hover:text-foreground", copied && "text-ok-fg hover:text-ok-fg", className)}
+			className={cn("size-5.5 text-fg4 hover:text-foreground", copied && "text-ok-fg hover:text-ok-fg", className)}
 		>
 			{copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
 		</Button>

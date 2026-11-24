@@ -43,7 +43,7 @@ function CommandInput({
 		<div
 			className={cn(
 				"flex shrink-0 items-center border-b border-line",
-				compact ? "h-[38px] gap-2 px-2.5" : "h-[52px] gap-2.5 pr-3.5 pl-4",
+				compact ? "h-9.5 gap-2 px-2.5" : "h-13 gap-2.5 pr-3.5 pl-4",
 			)}
 		>
 			<SearchIcon aria-hidden className="size-3.5 shrink-0 text-fg3" />

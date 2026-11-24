@@ -511,7 +511,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 														s.remove?.run();
 														focusInput();
 													}}
-													className="size-[22px] text-fg4 hover:text-foreground"
+													className="size-5.5 text-fg4 hover:text-foreground"
 												>
 													<XIcon className="size-[11px]" />
 												</Button>

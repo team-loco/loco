@@ -49,7 +49,7 @@ export function ModePicker() {
 							title={item.name}
 							style={{ width: MODE_WIDTH }}
 							data-m={item.id}
-							className="relative z-3 h-[24px] shrink-0 items-center justify-center rounded-control-inner bg-transparent p-0 text-fg3 ring-0 hover:ring-0 data-checked:bg-transparent data-checked:text-foreground data-checked:ring-0 dark:bg-transparent dark:data-checked:bg-transparent"
+							className="relative z-3 h-6 shrink-0 items-center justify-center rounded-control-inner bg-transparent p-0 text-fg3 ring-0 hover:ring-0 data-checked:bg-transparent data-checked:text-foreground data-checked:ring-0 dark:bg-transparent dark:data-checked:bg-transparent"
 						>
 							<Icon aria-hidden className="size-[15px]" />
 						</RadioCard>

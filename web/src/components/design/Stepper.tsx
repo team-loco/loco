@@ -20,7 +20,7 @@ export function Stepper({
 		<div role="group" className="flex h-8.5 w-fit! items-center rounded-sm border border-line" aria-label={label}>
 			<Button
 				variant="ghost"
-				className="h-full w-[34px] rounded-none px-0 text-[15px] text-fg2"
+				className="h-full w-8.5 rounded-none px-0 text-[15px] text-fg2"
 				disabled={disabled || value <= min}
 				onClick={() => {
 					onChange(Math.max(min, value - 1));
@@ -29,10 +29,10 @@ export function Stepper({
 			>
 				−
 			</Button>
-			<span className="w-[34px] text-center font-semibold tabular-nums">{value}</span>
+			<span className="w-8.5 text-center font-semibold tabular-nums">{value}</span>
 			<Button
 				variant="ghost"
-				className="h-full w-[34px] rounded-none px-0 text-[15px] text-fg2"
+				className="h-full w-8.5 rounded-none px-0 text-[15px] text-fg2"
 				disabled={disabled || value >= max}
 				onClick={() => {
 					onChange(Math.min(max, value + 1));
