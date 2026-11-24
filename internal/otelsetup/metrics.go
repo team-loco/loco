@@ -5,25 +5,18 @@ import (
 	"fmt"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
-// StartMetrics installs a global meter provider exporting Go runtime metrics and the process's own
-// instruments over OTLP/HTTP, like Start.
+// StartMetrics starts a meter provider exporting Go runtime metrics over OTLP/HTTP, like Start.
 func StartMetrics(ctx context.Context, serviceName, version string) (*sdkmetric.MeterProvider, error) {
 	exporter, err := otlpmetrichttp.New(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("otlp metric exporter: %w", err)
 	}
 	reader := sdkmetric.NewPeriodicReader(exporter, runtimeProducer())
-	provider, err := newMeterProvider(ctx, reader, serviceName, version)
-	if err != nil {
-		return nil, err
-	}
-	otel.SetMeterProvider(provider)
-	return provider, nil
+	return newMeterProvider(ctx, reader, serviceName, version)
 }
 
 // StopMetrics flushes the metrics provider holds and shuts it down.

@@ -64,6 +64,9 @@ func TestStreamLimitsRefuseStreamsButNotUnaryCalls(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	if got := streamMetrics(t, reader)["open"]; got != 3 {
+		t.Fatalf("open streams after one closed and another opened = %d, want 3", got)
+	}
 }
 
 func TestStreamLimitsAdmitExactlyTheLimitAtOnce(t *testing.T) {

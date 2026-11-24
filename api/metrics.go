@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 
 	"github.com/team-loco/loco/internal/envconfig"
@@ -35,4 +37,12 @@ func stopMetrics(provider *sdkmetric.MeterProvider) {
 	if err := otelsetup.StopMetrics(provider); err != nil {
 		slog.ErrorContext(context.Background(), "failed to flush metrics", "error", err)
 	}
+}
+
+// apiMeter records the API's own instruments on provider, or nowhere while metrics are off.
+func apiMeter(provider *sdkmetric.MeterProvider) metric.Meter {
+	if provider == nil {
+		return noop.NewMeterProvider().Meter(meterName)
+	}
+	return provider.Meter(meterName)
 }

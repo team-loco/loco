@@ -85,6 +85,7 @@ tests:
     set:
       api.replicaCount: 3
       api.streams.maxPerReplica: 100
+      api.streams.maxPerCaller: 7
       api.gatewayRequestsPerReplica: 200
     asserts:
       - equal:
@@ -94,4 +95,8 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_MAX_STREAMS, value: "100"}
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_MAX_CALLER_STREAMS, value: "7"}
         template: templates/api-deployment.yaml
