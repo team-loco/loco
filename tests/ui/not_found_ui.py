@@ -473,18 +473,15 @@ with session(out) as browser:
     context, page, errors = open_page(browser, "resource_reader")
     # While the lookup of an organization outside the caller's list is in flight, the shell shows the loading rows.
     slow = context.new_page()
-    held = []
     pattern = "**/loco.org.v1.OrgService/GetOrg"
 
     def hold(route):
-        held.append(route)
+        pass
 
     slow.route(pattern, hold)
     slow.goto(ui + f"/org/{uuid.UUID(int=0)}/team", wait_until="commit")
     expect(slow.locator('[data-slot="page-loader"]')).to_be_visible()
     slow.unroute(pattern, hold)
-    for route in held:
-        route.continue_()
     expect_not_found(slow, f"/org/{uuid.UUID(int=0)}/team")
     slow.close()
     # The not-found page appears once and nothing replaces it.
