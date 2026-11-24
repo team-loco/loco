@@ -10805,6 +10805,12 @@
             "title": "expired_token_retention_days",
             "format": "int32",
             "description": "expired_token_retention_days is how many days an expired API token stays listed before it is deleted."
+          },
+          "servicesPerFile": {
+            "type": "integer",
+            "title": "services_per_file",
+            "format": "int32",
+            "description": "services_per_file is how many services one loco.yaml file may declare."
           }
         },
         "title": "CountLimits",

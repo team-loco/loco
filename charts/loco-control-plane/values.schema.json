@@ -274,6 +274,14 @@
               "maximum": 2147483647,
               "minimum": 1
             },
+            "servicesPerFile": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 2147483647,
+              "minimum": 1
+            },
             "tokensPerEntity": {
               "type": [
                 "integer",

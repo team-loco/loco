@@ -7,6 +7,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -16,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/appdomain"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
@@ -37,6 +39,9 @@ const (
 	planComputeSpan       = "plan.compute"
 )
 
+const publicPlanOutOfTime = "the plan ran out of time resolving the file's images; " +
+	"try again, or split the file into partials"
+
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
 type PlanServer struct {
 	planv1connect.UnimplementedPlanServiceHandler
@@ -44,6 +49,7 @@ type PlanServer struct {
 	queries      genDb.Querier
 	authz        *authz.Authorizer
 	resolver     ImageResolver
+	lookups      int
 	registryHost string
 	defaults     servicedefaults.Defaults
 	secrets      SecretConfig
@@ -51,12 +57,13 @@ type PlanServer struct {
 	counts       *configv1.CountLimits
 }
 
-// NewPlanServer creates a PlanServer; secrets supplies the per-placement size limit the plan
-// checks each service's declared secrets against.
+// NewPlanServer creates a PlanServer that resolves up to lookups images at once; secrets supplies
+// the per-placement size limit the plan checks each service's declared secrets against.
 func NewPlanServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	resolver ImageResolver,
+	lookups int,
 	registryHost string,
 	defaults servicedefaults.Defaults,
 	secrets SecretConfig,
@@ -68,6 +75,7 @@ func NewPlanServer(
 		queries:      queries,
 		authz:        authz.New(queries),
 		resolver:     resolver,
+		lookups:      lookups,
 		registryHost: registryHost,
 		defaults:     defaults,
 		secrets:      secrets,
@@ -128,6 +136,9 @@ func (s *PlanServer) loadPlan(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidLocofile).WithCause(err)
 	}
+	if countErr := s.checkServiceCount(file); countErr != nil {
+		return nil, countErr
+	}
 
 	environmentID := uuid.MustParse(rawEnvironmentID)
 	env, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, action)
@@ -166,6 +177,9 @@ func (s *PlanServer) loadPlan(
 	targets := regionClusters(clusters)
 
 	images := s.resolveImages(ctx, services)
+	if ctx.Err() != nil {
+		return nil, connect.NewError(connect.CodeDeadlineExceeded, publicPlanOutOfTime).WithCause(ctx.Err())
+	}
 	_, computeSpan := tracing.Start(ctx, planComputeSpan)
 	plan, err := configplan.Compute(configplan.Input{
 		Partial:          file.Partial,
@@ -245,32 +259,63 @@ func pinnedImages(images map[string]configplan.ImageResult) map[string]string {
 	return pinned
 }
 
+// checkServiceCount refuses a file with more services than the limit, before any image lookup.
+func (s *PlanServer) checkServiceCount(file *locofile.File) error {
+	limit, err := limits.ServicesPerFile.Get(limits.Install(s.counts))
+	if err != nil {
+		return err
+	}
+	if len(file.Services) <= int(limit) {
+		return nil
+	}
+	return limits.ErrLimitReached.Detail(
+		"the file declares %d services and the limit is %d; "+
+			"split it into partials or ask a Loco administrator to raise %s",
+		len(file.Services), limit, limits.ServicesPerFile.Env,
+	)
+}
+
+// resolveImages pins each distinct image, up to s.lookups at once.
 func (s *PlanServer) resolveImages(
 	ctx context.Context,
 	services map[string]locofile.Service,
 ) map[string]configplan.ImageResult {
 	ctx, span := tracing.Start(ctx, planResolveImagesSpan)
 	defer span.End()
-	images := map[string]configplan.ImageResult{}
+	var distinct []string
 	for _, service := range services {
-		if service.Image == "" {
-			continue
+		if service.Image != "" && !slices.Contains(distinct, service.Image) {
+			distinct = append(distinct, service.Image)
 		}
-		if _, done := images[service.Image]; done {
-			continue
-		}
-		src := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: service.Image}
-		pinned, err := pinPublicImage(ctx, s.resolver, s.registryHost, src)
-		if err != nil {
-			if public, ok := errors.AsType[*connect.Error](err); ok {
-				err = errors.New(public.Message())
-			}
-			images[service.Image] = configplan.ImageResult{Err: err}
-			continue
-		}
-		images[service.Image] = configplan.ImageResult{Pinned: pinned.GetImage()}
 	}
+	images := make(map[string]configplan.ImageResult, len(distinct))
+	var mu sync.Mutex
+	var lookups sync.WaitGroup
+	slots := make(chan struct{}, s.lookups)
+	for _, image := range distinct {
+		slots <- struct{}{}
+		lookups.Go(func() {
+			defer func() { <-slots }()
+			result := s.resolveImage(ctx, image)
+			mu.Lock()
+			images[image] = result
+			mu.Unlock()
+		})
+	}
+	lookups.Wait()
 	return images
+}
+
+func (s *PlanServer) resolveImage(ctx context.Context, image string) configplan.ImageResult {
+	src := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: image}
+	pinned, err := pinPublicImage(ctx, s.resolver, s.registryHost, src)
+	if err != nil {
+		if public, ok := errors.AsType[*connect.Error](err); ok {
+			err = errors.New(public.Message())
+		}
+		return configplan.ImageResult{Err: err}
+	}
+	return configplan.ImageResult{Pinned: pinned.GetImage()}
 }
 
 func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment) (_ liveEnvironment, err error) {

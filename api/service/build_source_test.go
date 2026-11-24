@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"sync"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -32,12 +33,14 @@ const (
 type fakeResolver struct {
 	digest string
 	err    error
+	mu     sync.Mutex
 	calls  []string
 }
 
 func (f *fakeResolver) Resolve(_ context.Context, ref name.Reference) (string, error) {
-	refName := ref.Name()
-	f.calls = append(f.calls, refName)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, ref.Name())
 	return f.digest, f.err
 }
 
