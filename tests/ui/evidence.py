@@ -1354,12 +1354,7 @@ def renew(state):
     """Extends the lease of a run and of the shared OpenBao it uses."""
     address = state.get("openbao")
     shared = [s["root"] for s in states() if address and s.get("address") == address]
-    testres(
-        "renew",
-        state["root"],
-        *shared,
-        *([state["script"]] if "script" in state else []),
-    )
+    testres("renew", state["root"], *shared)
 
 
 def reap():
@@ -1735,26 +1730,17 @@ def cmd_up(args):
             ],
             cwd=checkout,
             env={k: v for k, v in os.environ.items() if k != BUILD_ENV},
-            text=True,
-            stdout=subprocess.PIPE,
+            process_group=0,
         )
         try:
-            stdout, _ = child.communicate()
-        except BaseException as err:
-            # The child stops its own run before the checkout goes. Ctrl-C already reached it
-            # through the terminal's process group; any other exit asks it to stop.
-            if not isinstance(err, KeyboardInterrupt):
-                child.send_signal(signal.SIGINT)
+            child.wait()
+        except BaseException:
+            # The child stops its own run before the checkout goes.
+            child.send_signal(signal.SIGINT)
             child.wait()
             raise
         if child.returncode != 0:
             raise EvidenceError(f"up of {args.ref} failed ({child.returncode})")
-        paths = stdout.split()
-        if len(paths) != 1 or not Path(paths[0]).is_file():
-            raise EvidenceError(
-                f"up of {args.ref} printed {stdout!r}, want one state file path"
-            )
-        print(paths[0])
     finally:
         testres("release", lease)
 
