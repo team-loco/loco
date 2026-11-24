@@ -1744,6 +1744,26 @@ def button_sizes(page):
     # A control sized in rem keeps its height in root font sizes as the text size grows.
     for name in sized:
         assert abs(heights[name, 16] - heights[name, 20]) < 0.02, heights
+    # A switch's track and knob grow together, so the knob never fills the track.
+    page.goto(
+        state["ui_url"]
+        + base
+        + "/resource/"
+        + resource
+        + "?env=production&tab=settings"
+    )
+    page.add_style_tag(content="*{transition:none !important}")
+    switch = page.get_by_role("switch", name="Configure SDK environment", exact=True)
+    expect(switch).to_be_visible()
+    ratios = {}
+    for font in (16, 20):
+        page.evaluate(f"document.documentElement.style.fontSize = '{font}px'")
+        track = switch.bounding_box()
+        knob = switch.locator("[data-slot=switch-thumb]").bounding_box()
+        ratios[font] = (track["height"] / font, knob["height"] / track["height"])
+    page.evaluate("document.documentElement.style.fontSize = ''")
+    assert abs(ratios[16][0] - ratios[20][0]) < 0.02, ratios
+    assert abs(ratios[16][1] - ratios[20][1]) < 0.02, ratios
 
 
 def metric_lone_sample(page):
