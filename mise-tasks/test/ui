@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Build the API and production UI of this checkout once (a clean checkout reuses its commit's cached build), then run the dashboard suites in tests/ui, each with its own API process, database and seed on the OpenBao and Postgres server every run on the machine shares: every *_ui.py (Chromium) and *_api.py file, or the named suites. Suites run --jobs at a time (default: one per two CPUs), longest first by tests/ui/durations; each suite's output prints when it ends. --shard i/N runs the ith of N shards of equal expected duration: test:ui [suite...] [--shard i/N] [--jobs N]"
+#MISE description="Build the API and production UI of this checkout once (a clean checkout reuses its commit's cached build), then run the dashboard suites in tests/ui, each with its own API process, database and seed on the OpenBao and Postgres server every run on the machine shares: every *_ui.py (Chromium) and *_api.py file, or the named suites. Suites run --jobs at a time (default: one per two CPUs), longest first by tests/ui/durations; each suite's output prints when it ends; a suite named n times runs n times. --shard i/N runs the ith of N shards of equal expected duration: test:ui [suite...] [--shard i/N] [--jobs N]"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -48,6 +48,7 @@ for suite in "${suites[@]}"; do
 done
 
 # Longest first, each suite to the shard with the least expected time; a suite missing from the file counts 10s.
+# A suite named again is labelled name#2, name#3 so its log and result stay its own.
 selected=()
 while IFS= read -r suite; do
 	selected+=("$suite")
@@ -59,7 +60,7 @@ done < <(
 			best = 1
 			for (s = 2; s <= count; s++) if (load[s] < load[best]) best = s
 			load[best] += $1
-			if (best == shard) print $2
+			if (best == shard) print $2 (seen[$2]++ ? "#" seen[$2] : "")
 		}'
 )
 suites=(${selected[@]+"${selected[@]}"})
@@ -86,7 +87,7 @@ exec 3<>"$logs/done"
 run_suite() {
 	local suite=$1 start=$SECONDS status=0 out=/dev/stdout
 	if ((jobs > 1)); then out=$logs/$suite.log; fi
-	uv run --frozen --project tests python "tests/ui/$suite.py" >"$out" 2>&1 || status=$?
+	uv run --frozen --project tests python "tests/ui/${suite%%#*}.py" >"$out" 2>&1 || status=$?
 	echo "$suite $status $((SECONDS - start))" >&3
 }
 # Run every selected suite even after a failure, so one run reports them all.
