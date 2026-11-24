@@ -45,7 +45,9 @@ func TestListOrgResourcesListsWhatTheCallerReads(t *testing.T) {
 	f := newResourceListFixture(t)
 	other := f.tenant.workspace(t, "other")
 	f.tenant.resource(t, other, "remote", &resourcev1.ServiceSpec{
-		Regions: map[string]*resourcev1.RegionTarget{testRegion: {Enabled: true}},
+		Regions: map[string]*resourcev1.RegionTarget{
+			testRegion: {Enabled: true, Cpu: testRegionCPU, Memory: testRegionMemory},
+		},
 	})
 	var home string
 	if err := f.pool.QueryRow(context.Background(), "SELECT name FROM workspaces WHERE id = $1", f.workspaceID).

@@ -140,6 +140,12 @@ func (s *ResourceServer) CreateResource(
 			WithCause(ErrInvalidResourceType)
 	}
 
+	for _, target := range req.GetSpec().GetService().GetRegions() {
+		if sizeErr := validateSize(target.GetCpu(), target.GetMemory()); sizeErr != nil {
+			return nil, &invalidInputError{public: publicInvalidRequest, err: sizeErr}
+		}
+	}
+
 	specJSON, err := protojson.Marshal(req.GetSpec().GetService())
 	if err != nil {
 		return nil, fmt.Errorf("marshal resource spec: %w", err)

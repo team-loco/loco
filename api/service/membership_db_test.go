@@ -525,7 +525,9 @@ func (o *membershipOrg) sharedResource(t *testing.T, name string) uuid.UUID {
 	created, err := o.owner.clients.Resource.CreateResource(t.Context(), &resourcev1.CreateResourceRequest{
 		WorkspaceId: o.shared, Name: name, Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec: &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{
-			Regions: map[string]*resourcev1.RegionTarget{testRegion: {Enabled: true}},
+			Regions: map[string]*resourcev1.RegionTarget{
+				testRegion: {Enabled: true, Cpu: testRegionCPU, Memory: testRegionMemory},
+			},
 		}}},
 	})
 	if err != nil {
