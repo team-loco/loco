@@ -38,6 +38,7 @@ const (
 	userCodeLength     = 8
 	forwardedForHeader = "X-Forwarded-For"
 	maxStoredUserAgent = 256
+	maxUserCodeDraws   = 5
 )
 
 var (
@@ -73,7 +74,7 @@ func NewAuthServer(
 		db:      db,
 		queries: queries,
 		machine: machine,
-		state:   pgAuthStore{queries: queries, maxSignIns: maxAuthStates},
+		state:   pgAuthStore{pool: db, queries: queries, maxSignIns: maxAuthStates},
 		webURL:  strings.TrimSuffix(webURL, "/"),
 		web:     web,
 		now:     time.Now,
@@ -298,11 +299,6 @@ func (s *AuthServer) StartDeviceLogin(
 	_ *authv1.StartDeviceLoginRequest,
 ) (*authv1.StartDeviceLoginResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	deviceCode := bearer.New("")
-	userCode, err := randomUserCode()
-	if err != nil {
-		return nil, fmt.Errorf("generate user code: %w", err)
-	}
 	requestedAt := s.now()
 	grant := deviceGrant{
 		UserAgent:   storedUserAgent(info.RequestHeader().Get("User-Agent")),
@@ -316,11 +312,22 @@ func (s *AuthServer) StartDeviceLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
+	deviceCode := bearer.New("")
 	deviceDigest := bearer.Hash(deviceCode)
-	err = s.state.Start(ctx, deviceCodeTTL,
-		startEntry{key: userCodeKey(userCode), value: []byte(deviceDigest)},
-		startEntry{key: deviceKey(deviceDigest), value: payload},
-	)
+	var userCode string
+	for range maxUserCodeDraws {
+		userCode, err = randomUserCode()
+		if err != nil {
+			return nil, fmt.Errorf("generate user code: %w", err)
+		}
+		err = s.state.Start(ctx, deviceCodeTTL,
+			startEntry{key: userCodeKey(userCode), value: []byte(deviceDigest)},
+			startEntry{key: deviceKey(deviceDigest), value: payload},
+		)
+		if !errors.Is(err, errAuthStateExists) {
+			break
+		}
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to store device login", "error", err)
 		return nil, authStoreUnavailable(err)
