@@ -598,7 +598,10 @@ def check_spec(spec, scenario, methods):
         patterns = [("respond", r["url"]) for r in responses]
         patterns += [("hold_requests", p) for p in shot.get("hold_requests", [])]
         for field, pattern in patterns:
-            if not pattern.startswith("**/") or pattern[3:] not in methods:
+            if (
+                not pattern.startswith("**/")
+                or pattern[3:].removesuffix("*") not in methods
+            ):
                 errors.append(
                     f"shot {name}: {field} {pattern!r} matches no RPC; "
                     "write **/<package>.<Service>/<Method>"
