@@ -48,6 +48,7 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 	}
 	placement := f.placement(t, f.clusterID)
 	session := newSyncSession(f.agentServer(), f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+	session.generation = f.syncGeneration(t)
 	for _, msg := range []*agentv1.SyncRequest{
 		{Message: &agentv1.SyncRequest_Applied{Applied: applied(placement.ID, placement.DesiredRevision)}},
 		{Message: &agentv1.SyncRequest_Status{Status: &agentv1.PlacementStatus{
@@ -58,7 +59,9 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 			t.Fatalf("handle %T: %v", msg.GetMessage(), err)
 		}
 	}
-	applyQueuedReports(t.Context(), session)
+	if err := applyQueuedReports(t.Context(), session); err != nil {
+		t.Fatalf("apply reports: %v", err)
+	}
 
 	origin := trace.SpanContextFromContext(request)
 	for _, name := range []string{syncApplySpan, syncAppliedSpan, syncStatusSpan} {
@@ -104,7 +107,7 @@ func TestBuildStatusSpanLinksToTheRequestThatCreatedTheBuild(t *testing.T) {
 	}
 	session, _ := f.dispatchSession()
 	status := buildStatus(created.GetBuildId(), agentv1.BuildPhase_BUILD_PHASE_RUNNING)
-	if err := session.handle(t.Context(), &agentv1.SyncRequest{
+	if err := session.handleNow(t.Context(), &agentv1.SyncRequest{
 		Message: &agentv1.SyncRequest_BuildStatus{BuildStatus: status},
 	}); err != nil {
 		t.Fatalf("handle build status: %v", err)

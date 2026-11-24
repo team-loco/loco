@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -106,6 +107,9 @@ func (f *deployFixture) sendPending(t *testing.T, server *AgentServer) []*agentv
 	if err := session.sendPendingPlacements(context.Background()); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
+	if err := applyQueuedReports(context.Background(), session); err != nil {
+		t.Fatalf("apply reports: %v", err)
+	}
 	return sent
 }
 
@@ -178,6 +182,62 @@ func TestSyncReportsAMissingSecretAndSendsItAfterRestart(t *testing.T) {
 	sent := f.sendPending(t, server)
 	if len(sent) != 1 || len(sent[0].GetApply().GetEnvSecret().GetData()) != 2 {
 		t.Fatalf("sent %v after the secret was set, want one Apply with both values", sent)
+	}
+}
+
+func TestSendingAPlacementWithAMissingSecretDoesNotWaitForAWrite(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	provider := newTestKeyProvider(t, "k1")
+	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, testAgentConfig())
+	f.deployWithSecrets(t, []string{missingName})
+	session := newSyncSession(server, f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+
+	release := holdResource(t, f)
+	sent := make(chan error, 1)
+	go func() { sent <- session.sendPendingPlacements(context.Background()) }()
+	select {
+	case err := <-sent:
+		if err != nil {
+			t.Fatalf("send pending: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("sending the placement waited for the write that holds its resource")
+	}
+
+	release()
+	if err := applyQueuedReports(context.Background(), session); err != nil {
+		t.Fatalf("apply reports: %v", err)
+	}
+	if placement := f.placement(t, f.clusterID); placement.AppliedError == nil {
+		t.Fatal("the missing secret was not recorded as the placement's apply error")
+	}
+}
+
+func TestARejectedPlacementIsRejectedOncePerRetry(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	config := testAgentConfig()
+	config.ApplyAttempts, config.ApplyRetryDelay = 5, 60
+	server := NewAgentServer(f.pool, f.queries, nil, nil, newTestKeyProvider(t, "k1"), testHeartbeatInterval, config)
+	f.deployWithSecrets(t, []string{missingName})
+	session := newSyncSession(server, f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+
+	release := holdResource(t, f)
+	for range 2 {
+		if err := session.sendPendingPlacements(context.Background()); err != nil {
+			t.Fatalf("send pending: %v", err)
+		}
+	}
+	if queued := len(session.reports); queued != 1 {
+		t.Fatalf("%d rejections queued after two polls, want 1", queued)
+	}
+	release()
+	if err := applyQueuedReports(context.Background(), session); err != nil {
+		t.Fatalf("apply reports: %v", err)
+	}
+	if attempts := f.placement(t, f.clusterID).ApplyAttempts; attempts != 1 {
+		t.Fatalf("apply attempts = %d, want 1", attempts)
 	}
 }
 

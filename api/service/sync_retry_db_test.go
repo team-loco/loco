@@ -44,21 +44,21 @@ func TestPermanentApplyFailuresWaitBeforeAnotherInventorySendsThem(t *testing.T)
 	var sent int
 	session := newSyncSession(server, f.clusterID, func(_ *agentv1.SyncResponse) error { sent++; return nil })
 	inventory := &agentv1.Inventory{}
-	if err := session.reconcilePlacementInventory(t.Context(), inventory); err != nil {
+	if err := session.reconcileInventory(t.Context(), inventory); err != nil {
 		t.Fatal(err)
 	}
 	if sent != 0 {
 		t.Fatalf("inventory resent %d placements during backoff", sent)
 	}
 	f.expireRetry(t)
-	if err := session.reconcilePlacementInventory(t.Context(), inventory); err != nil {
+	if err := session.reconcileInventory(t.Context(), inventory); err != nil {
 		t.Fatal(err)
 	}
 	if sent != 1 {
 		t.Fatalf("expired backoff sent %d placements, want 1", sent)
 	}
 	server.recordApplied(t.Context(), f.clusterID, failed)
-	if err := session.reconcilePlacementInventory(t.Context(), inventory); err != nil {
+	if err := session.reconcileInventory(t.Context(), inventory); err != nil {
 		t.Fatal(err)
 	}
 	if sent != 1 {
@@ -122,7 +122,7 @@ func TestCurrentInventoryRecoversDuringApplyBackoff(t *testing.T) {
 	inventory := &agentv1.Inventory{
 		Entries: []*agentv1.InventoryEntry{{PlacementId: placement.ID.String(), Revision: placement.DesiredRevision}},
 	}
-	if err := session.reconcilePlacementInventory(t.Context(), inventory); err != nil {
+	if err := session.reconcileInventory(t.Context(), inventory); err != nil {
 		t.Fatal(err)
 	}
 	got := f.placement(t, f.clusterID)
@@ -181,7 +181,7 @@ func TestPlacementFailsOnceItRunsOutOfApplyAttempts(t *testing.T) {
 		t.Fatal("inventory resent a failed placement")
 		return nil
 	})
-	if err := session.reconcilePlacementInventory(t.Context(), &agentv1.Inventory{}); err != nil {
+	if err := session.reconcileInventory(t.Context(), &agentv1.Inventory{}); err != nil {
 		t.Fatal(err)
 	}
 

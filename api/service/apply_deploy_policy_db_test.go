@@ -105,7 +105,7 @@ func failApplyUntilFailed(t *testing.T, f *deployFixture, attempts, delay int32)
 	}}}
 	delayDuration := time.Duration(delay) * time.Second
 	for attempt := int32(1); attempt < attempts; attempt++ {
-		if err := session.handle(t.Context(), failure); err != nil {
+		if err := session.handleNow(t.Context(), failure); err != nil {
 			t.Fatal(err)
 		}
 		got := f.workerPlacement(t)
@@ -120,7 +120,7 @@ func failApplyUntilFailed(t *testing.T, f *deployFixture, attempts, delay int32)
 		f.expirePlacementRetry(t, placement.ID)
 		wantResends(t, session, &sent, int(attempt)+1)
 	}
-	if err := session.handle(t.Context(), failure); err != nil {
+	if err := session.handleNow(t.Context(), failure); err != nil {
 		t.Fatal(err)
 	}
 	if got := f.workerPlacement(t); got.ApplyAttempts != attempts || !got.ApplyFailed || got.RetryAfter != nil {

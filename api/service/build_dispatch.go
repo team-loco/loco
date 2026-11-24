@@ -231,6 +231,9 @@ func (ss *syncSession) cancelStaleBuilds(ctx context.Context) error {
 		if known && ss.wantsBuild(row) {
 			continue
 		}
+		if ss.isFinishing(id) {
+			continue
+		}
 		buildID := id.String()
 		msg := &agentv1.SyncResponse{
 			Message: &agentv1.SyncResponse_CancelBuild{
@@ -253,49 +256,51 @@ func (ss *syncSession) wantsBuild(row genDb.ListBuildStatesByIDsRow) bool {
 	return !buildStatusFinished(row.Status)
 }
 
-func (ss *syncSession) reconcileBuildInventory(ctx context.Context, builds []*agentv1.InventoryBuild) error {
-	held := make([]uuid.UUID, 0, len(builds))
-	heldSet := make(map[uuid.UUID]struct{}, len(builds))
-	active := make(map[uuid.UUID]struct{}, len(builds))
+// buildInventory is the builds a cluster's inventory lists: every build it holds, and those still running.
+type buildInventory struct {
+	held   []uuid.UUID
+	active map[uuid.UUID]struct{}
+}
+
+func readBuildInventory(ctx context.Context, clusterID uuid.UUID, builds []*agentv1.InventoryBuild) buildInventory {
+	inventory := buildInventory{
+		held:   make([]uuid.UUID, 0, len(builds)),
+		active: make(map[uuid.UUID]struct{}, len(builds)),
+	}
 	for _, build := range builds {
 		if err := protovalidate.Validate(build); err != nil {
 			slog.WarnContext(ctx, "ignoring invalid build inventory entry",
-				"cluster_id", ss.clusterID,
+				"cluster_id", clusterID,
 				"build_id", build.GetBuildId(),
 				"error", err,
 			)
 			continue
 		}
-		rawID := build.GetBuildId()
-		id, err := uuid.Parse(rawID)
+		id, err := uuid.Parse(build.GetBuildId())
 		if err != nil {
 			continue
 		}
-		held = append(held, id)
-		heldSet[id] = struct{}{}
-		phase := build.GetPhase()
-		if !buildPhaseFinished(phase) {
-			active[id] = struct{}{}
+		inventory.held = append(inventory.held, id)
+		if !buildPhaseFinished(build.GetPhase()) {
+			inventory.active[id] = struct{}{}
 		}
 	}
+	return inventory
+}
 
-	ss.builds.active = active
-	ss.builds.canceled = make(map[uuid.UUID]struct{})
-	for id := range ss.builds.started {
-		if _, ok := heldSet[id]; !ok {
-			delete(ss.builds.started, id)
+// track replaces what the session knows the cluster holds with the inventory.
+func (t *buildTracker) track(inventory buildInventory) {
+	held := make(map[uuid.UUID]struct{}, len(inventory.held))
+	for _, id := range inventory.held {
+		held[id] = struct{}{}
+	}
+	t.active = inventory.active
+	t.canceled = make(map[uuid.UUID]struct{})
+	for id := range t.started {
+		if _, ok := held[id]; !ok {
+			delete(t.started, id)
 		}
 	}
-
-	if err := ss.server.failClusterBuilds(ctx, genDb.FailClusterBuildsParams{
-		ClusterID:      &ss.clusterID,
-		PreviousStatus: genDb.BuildStatusRunning,
-		Held:           held,
-		Message:        buildMissingMessage,
-	}); err != nil {
-		return err
-	}
-	return ss.reconcileBuilds(ctx)
 }
 
 func (s *AgentServer) failClusterBuilds(ctx context.Context, params genDb.FailClusterBuildsParams) error {
@@ -335,14 +340,15 @@ func (s *AgentServer) failClusterBuilds(ctx context.Context, params genDb.FailCl
 	return nil
 }
 
-func (ss *syncSession) handleBuildStatus(ctx context.Context, status *agentv1.BuildStatus) error {
+// applyBuildStatus records a build report; a finished build counts as finishing until it settles.
+func (ss *syncSession) applyBuildStatus(ctx context.Context, status *agentv1.BuildStatus) (settleFunc, error) {
 	if err := protovalidate.Validate(status); err != nil {
 		slog.WarnContext(ctx, "ignoring invalid build status",
 			"cluster_id", ss.clusterID,
 			"build_id", status.GetBuildId(),
 			"error", err,
 		)
-		return nil
+		return nil, nil
 	}
 	rawID := status.GetBuildId()
 	id, err := uuid.Parse(rawID)
@@ -352,18 +358,41 @@ func (ss *syncSession) handleBuildStatus(ctx context.Context, status *agentv1.Bu
 			"build_id", rawID,
 			"error", err,
 		)
-		return nil
+		return nil, nil
+	}
+	finished := buildPhaseFinished(status.GetPhase())
+	if finished {
+		ss.setFinishing(id, true)
 	}
 	if err := ss.server.recordBuildStatus(ctx, ss.clusterID, id, status); err != nil {
-		return err
+		return nil, err
 	}
-	phase := status.GetPhase()
-	if buildPhaseFinished(phase) {
-		delete(ss.builds.active, id)
+	return func(ctx context.Context) error {
+		if finished {
+			delete(ss.builds.active, id)
+			ss.setFinishing(id, false)
+		} else {
+			ss.builds.active[id] = struct{}{}
+		}
+		return ss.cancelStaleBuilds(ctx)
+	}, nil
+}
+
+func (ss *syncSession) setFinishing(id uuid.UUID, finishing bool) {
+	ss.settledMu.Lock()
+	defer ss.settledMu.Unlock()
+	if finishing {
+		ss.finishing[id] = struct{}{}
 	} else {
-		ss.builds.active[id] = struct{}{}
+		delete(ss.finishing, id)
 	}
-	return ss.cancelStaleBuilds(ctx)
+}
+
+func (ss *syncSession) isFinishing(id uuid.UUID) bool {
+	ss.settledMu.Lock()
+	defer ss.settledMu.Unlock()
+	_, ok := ss.finishing[id]
+	return ok
 }
 
 func (s *AgentServer) recordBuildStatus(

@@ -2,27 +2,48 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
+	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
+	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
-// applyQueuedReports applies the reports the session queued so far, as its stream's worker does.
-func applyQueuedReports(ctx context.Context, session *syncSession) {
+// applyQueuedReports applies and settles the reports the session queued, as its stream does.
+func applyQueuedReports(ctx context.Context, session *syncSession) error {
 	for {
 		select {
 		case apply := <-session.reports:
 			apply(ctx)
 		default:
-			return
+			return session.settle(ctx)
 		}
 	}
+}
+
+// handleBuildStatus applies and settles a build report as a sync stream does.
+func (ss *syncSession) handleBuildStatus(ctx context.Context, status *agentv1.BuildStatus) error {
+	return ss.handleNow(ctx, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_BuildStatus{BuildStatus: status}})
+}
+
+// reconcileInventory applies and settles an inventory as a sync stream does.
+func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv1.Inventory) error {
+	return ss.handleNow(ctx, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: inventory}})
+}
+
+// handleNow handles a message, then applies and settles what it queued, as a sync stream does.
+func (ss *syncSession) handleNow(ctx context.Context, msg *agentv1.SyncRequest) error {
+	if err := ss.handle(ctx, msg); err != nil {
+		return err
+	}
+	return applyQueuedReports(ctx, ss)
 }
 
 // openReportStream opens a sync stream as the cluster, discards what the API sends, and returns
@@ -56,11 +77,17 @@ func openReportStream(
 // holdResource locks the resource as a write does, until the returned release runs.
 func holdResource(t *testing.T, f *deployFixture) func() {
 	t.Helper()
+	return holdRow(t, f, `SELECT id FROM resources WHERE id = $1 FOR UPDATE`, f.resourceID)
+}
+
+// holdRow locks the row the query selects as a write does, until the returned release runs.
+func holdRow(t *testing.T, f *deployFixture, query string, id uuid.UUID) func() {
+	t.Helper()
 	tx, err := f.pool.Begin(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := tx.Exec(t.Context(), `SELECT id FROM resources WHERE id = $1 FOR UPDATE`, f.resourceID); err != nil {
+	if _, err := tx.Exec(t.Context(), query, id); err != nil {
 		t.Fatal(err)
 	}
 	released := false
@@ -149,6 +176,181 @@ func TestHeartbeatsFlowWhileAStatusReportWaitsForAWrite(t *testing.T) {
 	if got := f.placement(t, f.clusterID); got.ReadyReplicas != 2 {
 		t.Fatalf("ready replicas = %d after both reports, want the later report's 2", got.ReadyReplicas)
 	}
+}
+
+func TestHeartbeatsFlowWhileAReportWaitsForAWrite(t *testing.T) {
+	t.Parallel()
+	const lockPlacement = `SELECT id FROM placements WHERE id = $1 FOR UPDATE`
+	const lockResource = `SELECT id FROM resources WHERE id = $1 FOR UPDATE`
+	cases := map[string]struct {
+		lock   string
+		report func(p genDb.Placement, buildID string) *agentv1.SyncRequest
+		done   func(t *testing.T, f *buildFixture, buildID string) bool
+	}{
+		"failed apply": {
+			lock: lockResource,
+			report: func(p genDb.Placement, _ string) *agentv1.SyncRequest {
+				failure := applied(p.ID, p.DesiredRevision)
+				failure.Error = testApplyFailure
+				return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Applied{Applied: failure}}
+			},
+			done: func(t *testing.T, f *buildFixture, _ string) bool {
+				t.Helper()
+				return f.placement(t, f.clusterID).AppliedError != nil
+			},
+		},
+		"applied": {
+			lock: lockPlacement,
+			report: func(p genDb.Placement, _ string) *agentv1.SyncRequest {
+				return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Applied{
+					Applied: applied(p.ID, p.DesiredRevision),
+				}}
+			},
+			done: placementApplied,
+		},
+		"inventory": {
+			lock: lockPlacement,
+			report: func(p genDb.Placement, _ string) *agentv1.SyncRequest {
+				entry := &agentv1.InventoryEntry{PlacementId: p.ID.String(), Revision: p.DesiredRevision}
+				return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{
+					Inventory: &agentv1.Inventory{Entries: []*agentv1.InventoryEntry{entry}},
+				}}
+			},
+			done: placementApplied,
+		},
+		"build status": {
+			lock: lockResource,
+			report: func(_ genDb.Placement, buildID string) *agentv1.SyncRequest {
+				return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_BuildStatus{
+					BuildStatus: buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_RUNNING),
+				}}
+			},
+			done: func(t *testing.T, f *buildFixture, buildID string) bool {
+				t.Helper()
+				return f.get(t, buildID).GetStatus() == buildv1.BuildStatus_BUILD_STATUS_RUNNING
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f := newBuildFixture(t)
+			if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+				t.Fatalf("deploy: %v", err)
+			}
+			buildID := f.queued(t)
+			p := f.placement(t, f.clusterID)
+			stream := openReportStream(t, startSyncServer(t, f.deployFixture), f.clusterID)
+
+			held := p.ID
+			if tc.lock == lockResource {
+				held = f.resourceID
+			}
+			if _, err := f.pool.Exec(t.Context(),
+				`UPDATE clusters SET last_heartbeat = NULL WHERE id = $1`, f.clusterID); err != nil {
+				t.Fatal(err)
+			}
+			release := holdRow(t, f.deployFixture, tc.lock, held)
+			report(stream, tc.report(p, buildID), heartbeatReport())
+			waitFor(t, "heartbeat recorded while a write held the row the report needs", func() bool {
+				return f.heartbeatAt(t) != nil
+			})
+			if tc.done(t, f, buildID) {
+				t.Fatal("the report applied while a write held the row it needs")
+			}
+
+			release()
+			waitFor(t, "the report applied once the write ended", func() bool { return tc.done(t, f, buildID) })
+		})
+	}
+}
+
+func TestAnInventoryMissingAPlacementResendsIt(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	p := f.placement(t, f.clusterID)
+	if _, err := f.pool.Exec(t.Context(),
+		`UPDATE placements SET applied_revision = desired_revision WHERE id = $1`, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer "+testAssertion(t, f.clusterID))
+	stream, err := startSyncServer(t, f).Sync(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory := func(entries ...*agentv1.InventoryEntry) *agentv1.SyncRequest {
+		return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{
+			Inventory: &agentv1.Inventory{Entries: entries},
+		}}
+	}
+	held := &agentv1.InventoryEntry{PlacementId: p.ID.String(), Revision: p.DesiredRevision}
+	if err := stream.Send(inventory(held)); err != nil {
+		t.Fatalf("send inventory: %v", err)
+	}
+	applies := make(chan *agentv1.Apply, 4)
+	go func() {
+		for {
+			msg, err := stream.Receive()
+			if err != nil {
+				return
+			}
+			if apply := msg.GetApply(); apply != nil {
+				applies <- apply
+			}
+		}
+	}()
+	select {
+	case apply := <-applies:
+		t.Fatalf("sent %v to a cluster that holds it", apply)
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	if err := stream.Send(inventory()); err != nil {
+		t.Fatalf("send inventory: %v", err)
+	}
+	select {
+	case apply := <-applies:
+		if apply.GetPlacementId() != p.ID.String() {
+			t.Fatalf("resent %s, want %s", apply.GetPlacementId(), p.ID)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("an inventory without the placement did not resend it")
+	}
+}
+
+func TestASupersededStreamSkipsItsQueuedReports(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	p := f.placement(t, f.clusterID)
+	session := newSyncSession(f.agentServer(), f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+	session.generation = f.syncGeneration(t)
+	msg := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Applied{Applied: applied(p.ID, p.DesiredRevision)}}
+	if err := session.handle(t.Context(), msg); err != nil {
+		t.Fatalf("queue applied: %v", err)
+	}
+	if _, err := f.pool.Exec(t.Context(),
+		`UPDATE clusters SET sync_generation = sync_generation + 1 WHERE id = $1`, f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyQueuedReports(t.Context(), session); !errors.Is(err, errSyncSuperseded) {
+		t.Fatalf("settle = %v, want %v", err, errSyncSuperseded)
+	}
+	if got := f.placement(t, f.clusterID); got.AppliedRevision == p.DesiredRevision {
+		t.Fatal("a superseded stream's applied report was recorded")
+	}
+}
+
+func placementApplied(t *testing.T, f *buildFixture, _ string) bool {
+	t.Helper()
+	p := f.placement(t, f.clusterID)
+	return p.AppliedRevision == p.DesiredRevision
 }
 
 func TestSupersededStreamReportWaitingForAWriteIsRefused(t *testing.T) {

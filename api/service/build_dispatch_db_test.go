@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/buildsource"
@@ -539,8 +541,10 @@ func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 		t.Fatalf("drop failing trigger: %v", err)
 	}
 	resynced := newSyncSession(session.server, f.clusterID, sent.send)
-	inventory := []*agentv1.InventoryBuild{{BuildId: id, Phase: agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED}}
-	if err := resynced.reconcileBuildInventory(f.ctx, inventory); err != nil {
+	inventory := &agentv1.Inventory{
+		Builds: []*agentv1.InventoryBuild{{BuildId: id, Phase: agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED}},
+	}
+	if err := resynced.reconcileInventory(f.ctx, inventory); err != nil {
 		t.Fatalf("reconcile inventory: %v", err)
 	}
 	if err := resynced.handleBuildStatus(f.ctx, succeeded); err != nil {
@@ -552,4 +556,87 @@ func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 		t.Fatalf("image digest = %q, want %q", build.GetImageDigest(), testImageDigest)
 	}
 	f.wantBuildOutcome(t, id, events.BuildSucceeded, events.FieldImageDigest, testImageDigest)
+}
+
+func TestABuildFinishingOnTheWorkerIsNotCanceled(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	session, sent := f.dispatchSession()
+	id := f.queued(t)
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending: %v", err)
+	}
+	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_RUNNING)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	sent.take()
+
+	succeeded := buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
+	succeeded.ImageDigest = testImageDigest
+	msg := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_BuildStatus{BuildStatus: succeeded}}
+	if err := session.handle(f.ctx, msg); err != nil {
+		t.Fatalf("queue succeeded: %v", err)
+	}
+	apply := <-session.reports
+	apply(f.ctx)
+	wantStatus(t, f.get(t, id), buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED)
+
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending before the report settled: %v", err)
+	}
+	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {
+		t.Fatalf("canceled %v whose finish had not settled yet", canceled)
+	}
+	if err := session.settle(f.ctx); err != nil {
+		t.Fatalf("settle: %v", err)
+	}
+	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {
+		t.Fatalf("canceled %v after its finish settled", canceled)
+	}
+}
+
+func TestABuildThatStartsFinishingWhileCancelsAreCheckedIsNotCanceled(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	session, sent := f.dispatchSession()
+	id := f.queued(t)
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending: %v", err)
+	}
+	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_RUNNING)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	sent.take()
+
+	gate, err := f.pool.Begin(f.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := gate.Rollback(f.ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			t.Errorf("release builds: %v", err)
+		}
+	})
+	if _, err := gate.Exec(f.ctx, `LOCK TABLE builds IN ACCESS EXCLUSIVE MODE`); err != nil {
+		t.Fatal(err)
+	}
+	checked := make(chan error, 1)
+	go func() { checked <- session.cancelStaleBuilds(f.ctx) }()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+
+	session.setFinishing(uuid.MustParse(id), true)
+	if _, err := gate.Exec(f.ctx,
+		`UPDATE builds SET status = 'succeeded', image_digest = $2, finished_at = now() WHERE id = $1`,
+		id, testImageDigest); err != nil {
+		t.Fatal(err)
+	}
+	if err := gate.Commit(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-checked; err != nil {
+		t.Fatalf("cancel stale builds: %v", err)
+	}
+	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {
+		t.Fatalf("canceled %v, whose finish began after the check started", canceled)
+	}
 }

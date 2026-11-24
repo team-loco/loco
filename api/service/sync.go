@@ -25,7 +25,7 @@ import (
 
 var errSyncSuperseded = errors.New("a newer sync stream for this cluster is connected")
 
-// syncReportQueue is how many status reports one sync stream queues; a full queue pauses reading the stream.
+// syncReportQueue is how many agent reports one sync stream queues; a full queue pauses reading the stream.
 const syncReportQueue = 1024
 
 type syncStream = agentv1connect.AgentServiceSyncServerStream
@@ -72,7 +72,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	}
 	session := newSyncSession(s, cluster.ID, send)
 	session.generation = generation
-	// A stream that ends drops its queued reports; the agent replays every placement's status on its next stream.
+	// A stream that ends drops its queued reports; the agent's next stream replays its statuses and inventory.
 	reportCtx, dropReports := context.WithCancel(ctx)
 	var reports sync.WaitGroup
 	defer reports.Wait()
@@ -121,6 +121,10 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 			dirty = true
 		case <-retryDue:
 			dirty = true
+		case <-session.settledReady:
+			if err := session.settle(ctx); err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -171,9 +175,18 @@ type syncSession struct {
 	sent          map[uuid.UUID]int64
 	builds        buildTracker
 	retryRecorded bool
-	// reports queues status reports, which wait on a resource lock, for one worker to apply in order.
+	// reports queues the agent reports that write the database, for one worker to apply in order.
 	reports chan func(context.Context)
+	// settled holds what applied reports change in the session, for the receive loop to run in order.
+	settledMu    sync.Mutex
+	settled      []settleFunc
+	settledReady chan struct{}
+	// finishing holds the builds whose finish is recorded but not yet settled, guarded by settledMu.
+	finishing map[uuid.UUID]struct{}
 }
+
+// settleFunc runs on the receive loop, which owns the session's state and the stream's sends.
+type settleFunc func(context.Context) error
 
 func newSyncSession(
 	server *AgentServer,
@@ -181,12 +194,14 @@ func newSyncSession(
 	sendFn func(*agentv1.SyncResponse) error,
 ) *syncSession {
 	return &syncSession{
-		server:    server,
-		clusterID: clusterID,
-		sendFn:    sendFn,
-		sent:      make(map[uuid.UUID]int64),
-		builds:    newBuildTracker(),
-		reports:   make(chan func(context.Context), syncReportQueue),
+		server:       server,
+		clusterID:    clusterID,
+		sendFn:       sendFn,
+		sent:         make(map[uuid.UUID]int64),
+		builds:       newBuildTracker(),
+		reports:      make(chan func(context.Context), syncReportQueue),
+		settledReady: make(chan struct{}, 1),
+		finishing:    make(map[uuid.UUID]struct{}),
 	}
 }
 
@@ -202,14 +217,55 @@ func (ss *syncSession) applyReports(ctx context.Context) {
 	}
 }
 
-// queueReport waits for room in the report queue, so a full queue stops reading the stream.
-func (ss *syncSession) queueReport(ctx context.Context, apply func(context.Context)) error {
+// queueReport queues a report for the worker, which skips it once a newer stream supersedes this one.
+func (ss *syncSession) queueReport(
+	ctx context.Context,
+	apply func(context.Context) (settleFunc, error),
+) error {
+	report := func(ctx context.Context) {
+		if err := ss.server.checkSyncGeneration(ctx, ss.clusterID, ss.generation); err != nil {
+			ss.addSettled(func(context.Context) error { return err })
+			return
+		}
+		settle, err := apply(ctx)
+		if err != nil {
+			settle = func(context.Context) error { return err }
+		}
+		ss.addSettled(settle)
+	}
 	select {
-	case ss.reports <- apply:
+	case ss.reports <- report:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func (ss *syncSession) addSettled(settle settleFunc) {
+	if settle == nil {
+		return
+	}
+	ss.settledMu.Lock()
+	ss.settled = append(ss.settled, settle)
+	ss.settledMu.Unlock()
+	select {
+	case ss.settledReady <- struct{}{}:
+	default:
+	}
+}
+
+// settle runs what the applied reports change in the session, in the order they were applied.
+func (ss *syncSession) settle(ctx context.Context) error {
+	ss.settledMu.Lock()
+	settled := ss.settled
+	ss.settled = nil
+	ss.settledMu.Unlock()
+	for _, settle := range settled {
+		if err := settle(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (ss *syncSession) nextRetry(ctx context.Context) (time.Duration, bool) {
@@ -295,8 +351,7 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, listed
 	if !placement.DesiredDeleted && len(placement.SecretEnv) > 0 {
 		secret, err := secrets.envSecret(ctx, placement)
 		if isPlacementSecretError(err) {
-			ss.reject(ctx, placement, err)
-			return nil
+			return ss.reject(ctx, placement, err)
 		}
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to load the secrets of a placement",
@@ -313,8 +368,7 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, listed
 	if placement.RestartedAt != nil && !placement.DesiredDeleted {
 		spec, err := restartedSpec(placement)
 		if err != nil {
-			ss.reject(ctx, placement, err)
-			return nil
+			return ss.reject(ctx, placement, err)
 		}
 		placement.DesiredSpec = spec
 	}
@@ -326,14 +380,38 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, listed
 	return nil
 }
 
-// reject records the error as the placement's apply error and leaves it unsent for the next sync to retry.
-func (ss *syncSession) reject(ctx context.Context, placement genDb.Placement, err error) {
-	ss.server.recordApplyError(ctx, ss.clusterID, placement.ID, &agentv1.Applied{
+// reject queues the error as the placement's apply error and counts the placement sent until it settles.
+func (ss *syncSession) reject(ctx context.Context, placement genDb.Placement, err error) error {
+	ss.sent[placement.ID] = placement.DesiredRevision
+	applied := &agentv1.Applied{
 		PlacementId: placement.ID.String(),
 		Revision:    placement.DesiredRevision,
 		Error:       err.Error(),
+	}
+	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
+		ss.server.recordApplyError(ctx, ss.clusterID, placement.ID, applied)
+		return ss.retryUnsent(placement.ID, placement.DesiredRevision), nil
 	})
-	delete(ss.sent, placement.ID)
+}
+
+// retryAfterFailedApply leaves a placement unsent once the agent stops retrying its apply.
+func (ss *syncSession) retryAfterFailedApply(applied *agentv1.Applied) settleFunc {
+	placementID, err := uuid.Parse(applied.GetPlacementId())
+	if err != nil || applied.GetError() == "" || applied.GetRetrying() {
+		return nil
+	}
+	return ss.retryUnsent(placementID, applied.GetRevision())
+}
+
+// retryUnsent leaves the placement's revision unsent and reschedules the next retry.
+func (ss *syncSession) retryUnsent(placementID uuid.UUID, revision int64) settleFunc {
+	return func(context.Context) error {
+		if ss.sent[placementID] == revision {
+			delete(ss.sent, placementID)
+		}
+		ss.retryRecorded = true
+		return nil
+	}
 }
 
 func placementMessage(
@@ -368,40 +446,36 @@ func placementMessage(
 	}
 }
 
+// handle records a heartbeat at once and queues every other report.
 func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) error {
-	if status := msg.GetStatus(); status != nil {
-		return ss.queueReport(ctx, func(ctx context.Context) {
-			ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
-			ss.server.recordStatus(ctx, ss.clusterID, ss.generation, status)
-			tracing.End(span, nil)
-		})
+	if heartbeat := msg.GetHeartbeat(); heartbeat != nil {
+		ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
+		return nil
 	}
-	ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
-	err := ss.dispatch(ctx, msg)
-	tracing.End(span, err)
-	return err
+	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
+		ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
+		settle, err := ss.apply(ctx, msg)
+		tracing.End(span, err)
+		return settle, err
+	})
 }
 
-func (ss *syncSession) dispatch(ctx context.Context, msg *agentv1.SyncRequest) error {
+// apply records a report and returns what it changes in the session.
+func (ss *syncSession) apply(ctx context.Context, msg *agentv1.SyncRequest) (settleFunc, error) {
 	switch m := msg.GetMessage().(type) {
+	case *agentv1.SyncRequest_Status:
+		ss.server.recordStatus(ctx, ss.clusterID, ss.generation, m.Status)
+		return nil, nil
 	case *agentv1.SyncRequest_Inventory:
-		return ss.reconcileInventory(ctx, m.Inventory)
+		return ss.applyInventory(ctx, m.Inventory)
 	case *agentv1.SyncRequest_Applied:
 		ss.server.recordApplied(ctx, ss.clusterID, m.Applied)
-		placementID, err := uuid.Parse(m.Applied.GetPlacementId())
-		if err == nil && m.Applied.GetError() != "" && !m.Applied.GetRetrying() {
-			delete(ss.sent, placementID)
-			ss.retryRecorded = true
-		}
-		return nil
+		return ss.retryAfterFailedApply(m.Applied), nil
 	case *agentv1.SyncRequest_BuildStatus:
-		return ss.handleBuildStatus(ctx, m.BuildStatus)
-	case *agentv1.SyncRequest_Heartbeat:
-		ss.server.recordHeartbeat(ctx, ss.clusterID, m.Heartbeat)
-		return nil
+		return ss.applyBuildStatus(ctx, m.BuildStatus)
 	default:
 		slog.WarnContext(ctx, "ignoring empty sync message", "cluster_id", ss.clusterID)
-		return nil
+		return nil, nil
 	}
 }
 
@@ -450,18 +524,40 @@ func diffInventory(rev placementRevision) inventoryAction {
 	return inventoryInSync
 }
 
-func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv1.Inventory) error {
-	if err := ss.reconcilePlacementInventory(ctx, inventory); err != nil {
-		return err
+// applyInventory records what the cluster holds; its settleFunc resends what it lacks and reconciles its builds.
+func (ss *syncSession) applyInventory(ctx context.Context, inventory *agentv1.Inventory) (settleFunc, error) {
+	toSend, err := ss.recordPlacementInventory(ctx, inventory)
+	if err != nil {
+		return nil, err
 	}
-	if err := ss.reconcileWorkspaceInventory(ctx, inventory.GetWorkspaceIds()); err != nil {
-		return err
+	builds := readBuildInventory(ctx, ss.clusterID, inventory.GetBuilds())
+	if err := ss.server.failClusterBuilds(ctx, genDb.FailClusterBuildsParams{
+		ClusterID:      &ss.clusterID,
+		PreviousStatus: genDb.BuildStatusRunning,
+		Held:           builds.held,
+		Message:        buildMissingMessage,
+	}); err != nil {
+		return nil, err
 	}
-	builds := inventory.GetBuilds()
-	return ss.reconcileBuildInventory(ctx, builds)
+	return func(ctx context.Context) error {
+		if len(toSend) > 0 {
+			if err := ss.sendPlacements(ctx, toSend); err != nil {
+				return err
+			}
+		}
+		if err := ss.reconcileWorkspaceInventory(ctx, inventory.GetWorkspaceIds()); err != nil {
+			return err
+		}
+		ss.builds.track(builds)
+		return ss.reconcileBuilds(ctx)
+	}, nil
 }
 
-func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventory *agentv1.Inventory) error {
+// recordPlacementInventory records the placements the inventory shows applied and returns those to send.
+func (ss *syncSession) recordPlacementInventory(
+	ctx context.Context,
+	inventory *agentv1.Inventory,
+) ([]uuid.UUID, error) {
 	observed := make(map[uuid.UUID]*agentv1.InventoryEntry, len(inventory.GetEntries()))
 	for _, entry := range inventory.GetEntries() {
 		id, err := uuid.Parse(entry.GetPlacementId())
@@ -477,7 +573,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 
 	rows, err := ss.server.queries.ListClusterPlacementRevisions(ctx, ss.clusterID)
 	if err != nil {
-		return fmt.Errorf("list placements for inventory: %w", err)
+		return nil, fmt.Errorf("list placements for inventory: %w", err)
 	}
 
 	toSend := make([]uuid.UUID, 0)
@@ -530,10 +626,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 		"placements", len(rows),
 		"to_send", len(toSend),
 	)
-	if len(toSend) == 0 {
-		return nil
-	}
-	return ss.sendPlacements(ctx, toSend)
+	return toSend, nil
 }
 
 func (s *AgentServer) advancePastRevision(
