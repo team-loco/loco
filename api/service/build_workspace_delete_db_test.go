@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"slices"
 	"sync"
 	"testing"
 
@@ -29,34 +31,50 @@ func TestBuildOutcomeAndDeleteWorkspaceDoNotDeadlock(t *testing.T) {
 			return f.agentServer().recordBuildStatus(f.ctx, f.clusterID, uuid.MustParse(buildID), status)
 		},
 	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			f := newBuildFixture(t)
-			buildID := f.queued(t)
-			deployBuild(t, f, buildID)
-			workspaces := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
-			admin := reqctx.WithPrincipal(t.Context(), reqctx.Principal{UserID: f.userID, Scopes: f.adminScopes(t)})
+		for _, deleteFirst := range []bool{false, true} {
+			order := "outcome first"
+			if deleteFirst {
+				order = "delete first"
+			}
+			t.Run(name+"/"+order, func(t *testing.T) {
+				t.Parallel()
+				f := newBuildFixture(t)
+				buildID := f.queued(t)
+				deployBuild(t, f, buildID)
+				workspaces := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
+				admin := reqctx.WithPrincipal(t.Context(), reqctx.Principal{UserID: f.userID, Scopes: f.adminScopes(t)})
 
-			release := sync.OnceFunc(f.holdResourceLock(t))
-			t.Cleanup(release)
-			var writers sync.WaitGroup
-			var buildErr, deleteErr error
-			writers.Go(func() { buildErr = finish(f, buildID) })
-			dbtest.WaitForLockWaiters(t, f.pool, 1)
-			writers.Go(func() {
-				_, deleteErr = workspaces.DeleteWorkspace(admin, &workspacev1.DeleteWorkspaceRequest{
-					WorkspaceId: f.workspaceID(t).String(), ConfirmDeleteApps: true,
-				})
+				release := sync.OnceFunc(f.holdResourceLock(t))
+				t.Cleanup(release)
+				var buildErr, deleteErr error
+				writers := []func(){
+					func() { buildErr = finish(f, buildID) },
+					func() {
+						_, deleteErr = workspaces.DeleteWorkspace(admin, &workspacev1.DeleteWorkspaceRequest{
+							WorkspaceId: f.workspaceID(t).String(), ConfirmDeleteApps: true,
+						})
+					},
+				}
+				if deleteFirst {
+					slices.Reverse(writers)
+				}
+				var running sync.WaitGroup
+				for i, write := range writers {
+					running.Go(write)
+					dbtest.WaitForLockWaiters(t, f.pool, i+1)
+				}
+				release()
+				running.Wait()
+				if deleteFirst && errors.Is(buildErr, ErrResourceNotFound) {
+					buildErr = nil
+				}
+				if buildErr != nil || deleteErr != nil {
+					t.Fatalf("build outcome: %v, delete workspace: %v", buildErr, deleteErr)
+				}
+				if n := deadlocks(t, f.pool); n != 0 {
+					t.Fatalf("Postgres broke %d deadlocks", n)
+				}
 			})
-			dbtest.WaitForLockWaiters(t, f.pool, 2)
-			release()
-			writers.Wait()
-			if buildErr != nil || deleteErr != nil {
-				t.Fatalf("build outcome: %v, delete workspace: %v", buildErr, deleteErr)
-			}
-			if n := deadlocks(t, f.pool); n != 0 {
-				t.Fatalf("Postgres broke %d deadlocks", n)
-			}
-		})
+		}
 	}
 }
