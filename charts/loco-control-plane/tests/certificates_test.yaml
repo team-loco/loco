@@ -109,6 +109,15 @@ tests:
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: Gateway}
 
+  - it: covers each extra listener hostname in the Certificate
+    set:
+      gateway.extraListeners: [{hostname: auth.region.test}, {hostname: login.region.test}]
+    template: templates/cm-cert.yaml
+    asserts:
+      - equal:
+          path: spec.dnsNames
+          value: [app.region.test, api.region.test, auth.region.test, login.region.test]
+
   - it: needs no solvers or email for a self-signed issuer
     set:
       certManager.issuer: {type: selfSigned, email: "", name: local, solvers: []}

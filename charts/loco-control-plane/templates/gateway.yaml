@@ -83,8 +83,11 @@ spec:
         namespaces:
           from: Selector
           selector:
-            matchLabels:
-              kubernetes.io/metadata.name: {{ $.Release.Namespace }}
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  {{- toYaml (.namespaces | default (list $.Release.Namespace)) | nindent 18 }}
     {{- end }}
 {{- with .Values.gateway.tls.minVersion }}
 ---

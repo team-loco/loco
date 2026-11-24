@@ -202,6 +202,10 @@ gateway:
     limits:
       memory: 1Gi
   tlsSecretName: ""
+  # More hostnames the Gateway serves like the chart's own, each admitting HTTPRoutes from the
+  # namespaces it lists, or from the release namespace when it lists none.
+  # @schema item: object; itemRequired: [hostname]; itemProperties: {hostname: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)+$"}, namespaces: {type: array, items: {type: string, minLength: 1}}}
+  extraListeners: []
 
 # @schema additionalProperties: false
 certManager:

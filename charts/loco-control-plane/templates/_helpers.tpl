@@ -24,6 +24,15 @@ true
 {{- if include "loco-control-plane.ingestRouted" . -}}
 {{- $listeners = append $listeners (dict "name" "ingest" "hostname" .Values.obsProxy.ingest.hostname) -}}
 {{- end -}}
+{{- range .Values.gateway.extraListeners -}}
+{{- $hostname := .hostname -}}
+{{- range $listeners -}}
+{{- if eq .hostname $hostname -}}
+{{- fail (printf "gateway.extraListeners repeats the hostname %s" $hostname) -}}
+{{- end -}}
+{{- end -}}
+{{- $listeners = append $listeners (dict "name" .hostname "hostname" .hostname "namespaces" .namespaces) -}}
+{{- end -}}
 {{- toJson $listeners -}}
 {{- end -}}
 
