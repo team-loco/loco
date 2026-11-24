@@ -3,6 +3,8 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery, type UseQueryOptions } from "@connectrpc/connect-query";
 import { useEffect } from "react";
 
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
+
 const COUNT_REFRESH_MS = 60_000;
 
 /**
@@ -50,5 +52,16 @@ export function useTokenPage<I extends DescMessage, O extends DescMessage>(
 		total: (counted.data as { totalCount: number } | undefined)?.totalCount,
 		/** The response that carried the total, for lists that return more counts beside it. */
 		counts: counted.data,
+	};
+}
+
+/**
+ * The page number and label that describe the rows on screen. While placeholder rows of the previous
+ * page stay up for a request in flight, the number and label of those rows stay with them.
+ */
+export function useShownPage(page: number, label: string, placeholder: boolean): { page: number; label: string } {
+	return {
+		page: useHeldWhileClosed(page, !placeholder),
+		label: useHeldWhileClosed(label, !placeholder),
 	};
 }

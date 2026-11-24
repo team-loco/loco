@@ -27,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/design/Ta
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { useCopy } from "@/hooks/useCopy";
 import { useLayout } from "@/lib/layout";
-import { useTokenPage } from "@/hooks/useTokenPage";
+import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { tookLabel } from "@/lib/activity-deploys";
 import { deploymentActor, deploymentMethod, deploymentTrigger, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -382,6 +382,11 @@ export function DeploymentsSection({
 		if (!history.query.isPlaceholderData) setDeployPages(pages ?? []);
 	});
 	const deployments = history.query.data?.deployments ?? [];
+	const deployShown = useShownPage(
+		deployPager.page,
+		tokenPageLabel(deployPager.page, deploySize, deployments.length, history.total),
+		history.query.isPlaceholderData,
+	);
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
 	const [buildPages, setBuildPages] = useQueryState("builds", buildPagesParser);
 	const builds = useResourceBuilds(resourceId, environmentId, BUILD_PAGE_SIZE, buildPages);
@@ -522,7 +527,7 @@ export function DeploymentsSection({
 						/>
 					</div>
 					<Pager
-						page={deployPager.page}
+						page={deployShown.page}
 						total={deployments.length}
 						pageSizes={PAGE_SIZES}
 						pageSize={deploySize}
@@ -530,7 +535,7 @@ export function DeploymentsSection({
 							setDeploySize(size);
 							setDeployPages([]);
 						}}
-						label={tokenPageLabel(deployPager.page, deploySize, deployments.length, history.total)}
+						label={deployShown.label}
 						onPrev={deployPager.onPrev}
 						onNext={deployPager.onNext}
 					/>

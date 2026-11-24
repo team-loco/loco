@@ -14,7 +14,7 @@ import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTit
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
-import { useTokenPage } from "@/hooks/useTokenPage";
+import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { formatTotal, pagedRows, tokenPageLabel, tokenPager, type Paging } from "@/lib/paging";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
@@ -118,13 +118,18 @@ function AccessRows({
 	const allPager = tokenPager(tokens, all.nextPageToken, (next) => {
 		setTokens(next ?? []);
 	});
+	const allShown = useShownPage(
+		allPager.page,
+		tokenPageLabel(allPager.page, PAGE_SIZES[0], allRows.length, all.total),
+		all.query.isPlaceholderData,
+	);
 	const rows = show === "has" ? grantedPage.rows : allRows;
 	const pager =
 		show === "has"
 			? grantedPage.pager
 			: {
 					...allPager,
-					label: tokenPageLabel(allPager.page, PAGE_SIZES[0], allRows.length, all.total),
+					...allShown,
 					total: allRows.length,
 					pageSizes: PAGE_SIZES,
 				};

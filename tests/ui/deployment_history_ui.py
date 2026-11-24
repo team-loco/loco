@@ -305,10 +305,14 @@ with session(out) as browser:
 
     context.route("**/loco.observability.v1.ObservabilityService/QueryLogs", build_logs)
     failed = []
+    holding = []
+    held = []
 
     def history(route):
         body = route.request.post_data_json
-        if body.get("pageToken") and not failed:
+        if body.get("pageToken") and holding:
+            held.append(route)
+        elif body.get("pageToken") and not failed:
             failed.append(body)
             route.fulfill(
                 status=503,
@@ -440,8 +444,25 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(section.get_by_text("Pilot page failure", exact=False)).to_have_count(0)
+    # While the next page loads, the previous rows stay and the label keeps naming them.
+    holding.append(True)
     next_button.click()
+    while not held:
+        page.wait_for_timeout(50)
+    holding.clear()
+    expect(section.get_by_text("51–100 of 221", exact=False)).to_be_visible()
+    expect(section.get_by_text("Page 2", exact=True)).to_be_visible()
+    expect(section.get_by_text("101–150 of 221", exact=False)).to_have_count(0)
+    expect(
+        section.get_by_role(
+            "button",
+            name=f"Actions for {data['releases'][50][-8:]}",
+            exact=True,
+        )
+    ).to_be_visible()
+    held.pop().continue_()
     expect(section.get_by_text("101–150 of 221", exact=False)).to_be_visible()
+    expect(section.get_by_text("Page 3", exact=True)).to_be_visible()
     expect(
         section.get_by_role(
             "button",

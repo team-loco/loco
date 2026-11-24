@@ -44,6 +44,7 @@ import { imageVersion } from "@/lib/image";
 import { rolloutState } from "@/lib/resource-status";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
 import { agoLabel, msToTimestamp, readyMs } from "@/lib/time";
+import { useShownPage } from "@/hooks/useTokenPage";
 import { pageTokensParser, tokenPageLabel } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
@@ -516,6 +517,13 @@ export function ResourcesTable({
 	).data?.buckets;
 	const deploys = Map.groupBy(deployBuckets ?? [], (b) => b.resourceId);
 	const matched = draftsOnly ? draftCount : listed.total;
+	const shown = useShownPage(
+		pager.page,
+		data.length === 0
+			? `0 of ${(total + drafts.length).toString()}`
+			: tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched),
+		listed.query.isPlaceholderData,
+	);
 
 	const table = useDataTable("dashboard-resources", {
 		data,
@@ -691,16 +699,7 @@ export function ResourcesTable({
 							empty={empty}
 						/>
 					</DashboardCellContext>
-					<Pager
-						{...pager}
-						label={
-							data.length === 0
-								? `0 of ${(total + drafts.length).toString()}`
-								: tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched)
-						}
-						total={data.length}
-						pageSizes={[PAGE_SIZE]}
-					/>
+					<Pager {...pager} {...shown} total={data.length} pageSizes={[PAGE_SIZE]} />
 				</>
 			)}
 		</Section>
