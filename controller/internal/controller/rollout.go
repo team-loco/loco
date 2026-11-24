@@ -196,8 +196,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	return nil
 }
 
-// keepsServing is whether a deployed revision that was available stays available as the autoscaler
-// adds replicas: every replica that was ready is still ready, whether or not the added ones are.
+// keepsServing is whether every replica that was ready in a deployed, available revision still is.
 func keepsServing(previous *locov1alpha1.RolloutStatus, current []observedReplica, revision int64) bool {
 	if !previous.Available || previous.DeployedRevision != revision {
 		return false
