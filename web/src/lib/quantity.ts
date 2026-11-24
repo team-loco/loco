@@ -1,27 +1,43 @@
 export const MILLI_PER_CORE = 1000;
 const MI_PER_GI = 1024;
 export const BYTES_PER_MI = 1_048_576;
-const DECIMAL_KILO = 1e3;
-const DECIMAL_MEGA = 1e6;
-const DECIMAL_GIGA = 1e9;
 const CPU_DECIMALS = 3;
 const GI_DECIMALS = 1;
 
+const SUFFIX_RE = /(?:Ki|Mi|Gi|Ti|Pi|Ei|[numkMGTPE])$/;
+
+const SUFFIX_FACTOR: Record<string, number> = {
+	"": 1,
+	Ki: 2 ** 10,
+	Mi: 2 ** 20,
+	Gi: 2 ** 30,
+	Ti: 2 ** 40,
+	Pi: 2 ** 50,
+	Ei: 2 ** 60,
+	n: 1e-9,
+	u: 1e-6,
+	m: 1e-3,
+	k: 1e3,
+	M: 1e6,
+	G: 1e9,
+	T: 1e12,
+	P: 1e15,
+	E: 1e18,
+};
+
+// A Kubernetes quantity in its base unit (cores or bytes); 0 for text that is not one.
+function parseQuantity(quantity: string): number {
+	const suffix = SUFFIX_RE.exec(quantity)?.[0] ?? "";
+	const value = Number(quantity.slice(0, quantity.length - suffix.length)) * (SUFFIX_FACTOR[suffix] ?? 0);
+	return Number.isFinite(value) ? value : 0;
+}
+
 export function parseCpuMilli(cpu: string): number {
-	if (cpu === "") return 0;
-	if (cpu.endsWith("m")) return parseFloat(cpu);
-	return parseFloat(cpu) * MILLI_PER_CORE;
+	return parseQuantity(cpu) * MILLI_PER_CORE;
 }
 
 export function parseMemMi(mem: string): number {
-	if (mem === "") return 0;
-	if (mem.endsWith("Gi")) return parseFloat(mem) * MI_PER_GI;
-	if (mem.endsWith("Mi")) return parseFloat(mem);
-	if (mem.endsWith("Ki")) return parseFloat(mem) / MI_PER_GI;
-	if (mem.endsWith("G")) return (parseFloat(mem) * DECIMAL_GIGA) / BYTES_PER_MI;
-	if (mem.endsWith("M")) return (parseFloat(mem) * DECIMAL_MEGA) / BYTES_PER_MI;
-	if (mem.endsWith("k")) return (parseFloat(mem) * DECIMAL_KILO) / BYTES_PER_MI;
-	return parseFloat(mem) / BYTES_PER_MI;
+	return parseQuantity(mem) / BYTES_PER_MI;
 }
 
 function trimDecimals(n: number, digits: number): string {
