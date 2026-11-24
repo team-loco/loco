@@ -48,8 +48,7 @@ func TestPortRollout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The pollers dial each Service's ClusterIP: a failed DNS lookup never reaches the Service
-	// and is not what the rollout changes, so it must not count as a lost request.
+	// The pollers dial each Service's ClusterIP; only requests that reach the Service count.
 	public := startPortPoller(t, p.Namespace, "port-rollout-public",
 		"http://"+serviceIP(t, p.Namespace, gateway)+"/", host)
 	private := startPortPoller(t, w.Namespace, "port-rollout-private",
