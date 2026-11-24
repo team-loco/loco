@@ -61,8 +61,6 @@ type AuthServer struct {
 	webURL  string
 	web     WebAuth
 	now     func() time.Time
-	// userCode draws the code a person types to approve a device login.
-	userCode func() (string, error)
 }
 
 func NewAuthServer(
@@ -73,14 +71,13 @@ func NewAuthServer(
 	web WebAuth,
 ) *AuthServer {
 	return &AuthServer{
-		db:       db,
-		queries:  queries,
-		machine:  machine,
-		state:    pgAuthStore{queries: queries, maxSignIns: maxAuthStates},
-		webURL:   strings.TrimSuffix(webURL, "/"),
-		web:      web,
-		now:      time.Now,
-		userCode: randomUserCode,
+		db:      db,
+		queries: queries,
+		machine: machine,
+		state:   pgAuthStore{pool: db, queries: queries, maxSignIns: maxAuthStates},
+		webURL:  strings.TrimSuffix(webURL, "/"),
+		web:     web,
+		now:     time.Now,
 	}
 }
 
@@ -302,7 +299,6 @@ func (s *AuthServer) StartDeviceLogin(
 	_ *authv1.StartDeviceLoginRequest,
 ) (*authv1.StartDeviceLoginResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	deviceCode := bearer.New("")
 	requestedAt := s.now()
 	grant := deviceGrant{
 		UserAgent:   storedUserAgent(info.RequestHeader().Get("User-Agent")),
@@ -316,13 +312,14 @@ func (s *AuthServer) StartDeviceLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
-	deviceDigest := bearer.Hash(deviceCode)
-	var userCode string
+	var deviceCode, userCode string
 	for range maxUserCodeDraws {
-		userCode, err = s.userCode()
+		deviceCode = bearer.New("")
+		userCode, err = randomUserCode()
 		if err != nil {
 			return nil, fmt.Errorf("generate user code: %w", err)
 		}
+		deviceDigest := bearer.Hash(deviceCode)
 		err = s.state.Start(ctx, deviceCodeTTL,
 			startEntry{key: userCodeKey(userCode), value: []byte(deviceDigest)},
 			startEntry{key: deviceKey(deviceDigest), value: payload},

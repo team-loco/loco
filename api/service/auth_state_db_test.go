@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strconv"
@@ -37,7 +38,7 @@ func countConcurrent(n int, op func() bool) int64 {
 func newAuthStateStore(t *testing.T) (*pgxpool.Pool, pgAuthStore) {
 	t.Helper()
 	pool := dbtest.NewPool(t)
-	return pool, pgAuthStore{queries: genDb.New(pool), maxSignIns: maxAuthStates}
+	return pool, pgAuthStore{pool: pool, queries: genDb.New(pool), maxSignIns: maxAuthStates}
 }
 
 func expire(t *testing.T, pool *pgxpool.Pool, key string) {
@@ -89,6 +90,34 @@ func TestAuthStateStartStoresOnce(t *testing.T) {
 	}
 	if got, getErr := store.Get(t.Context(), "user-code"); getErr != nil || string(got) != "2" {
 		t.Fatalf("Get = %q, %v", got, getErr)
+	}
+}
+
+func TestAuthStateStartStoresNoneWhileAKeyIsHeldUncommitted(t *testing.T) {
+	t.Parallel()
+	pool, store := newAuthStateStore(t)
+	holder, err := pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = holder.Rollback(context.WithoutCancel(t.Context())) }()
+	const hold = "INSERT INTO auth_states (key, value, started_at, expires_at) " +
+		"VALUES ('held', 'x', NOW(), NOW() + INTERVAL '1 minute')"
+	if _, err = holder.Exec(t.Context(), hold); err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { result <- store.Start(t.Context(), time.Minute, entry("held"), entry("sibling")) }()
+	// Start blocks on the held row; commit it so the insert skips that key.
+	time.Sleep(500 * time.Millisecond)
+	if err = holder.Commit(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if err = <-result; !errors.Is(err, errAuthStateExists) {
+		t.Fatalf("Start err = %v, want errAuthStateExists", err)
+	}
+	if _, err = store.Get(t.Context(), "sibling"); !errors.Is(err, errAuthStateNotFound) {
+		t.Fatalf("Get sibling err = %v, want errAuthStateNotFound", err)
 	}
 }
 

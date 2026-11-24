@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
@@ -48,6 +49,7 @@ type authEntry struct {
 
 // pgAuthStore keeps sign-in state in the auth_states table.
 type pgAuthStore struct {
+	pool       *pgxpool.Pool
 	queries    genDb.Querier
 	maxSignIns int32
 }
@@ -83,14 +85,18 @@ func (s pgAuthStore) Start(ctx context.Context, ttl time.Duration, entries ...st
 		params.Keys = append(params.Keys, entry.key)
 		params.Values = append(params.Values, entry.value)
 	}
-	stored, err := s.queries.StartAuthStates(ctx, params)
-	if err != nil {
-		return fmt.Errorf("start auth state: %w", err)
-	}
-	if stored < int64(len(entries)) {
-		return errAuthStateExists
-	}
-	return nil
+	// A key another start holds uncommitted is skipped once that start commits, with the other
+	// entries stored; rolling back leaves none of them.
+	return pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
+		stored, err := genDb.New(tx).StartAuthStates(ctx, params)
+		if err != nil {
+			return fmt.Errorf("start auth state: %w", err)
+		}
+		if stored < int64(len(entries)) {
+			return errAuthStateExists
+		}
+		return nil
+	})
 }
 
 func (s pgAuthStore) Take(ctx context.Context, key string) (authEntry, error) {

@@ -196,29 +196,35 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 	}
 }
 
+// collidingStore refuses its first collisions Start calls as a taken key would.
+type collidingStore struct {
+	authStore
+	collisions int
+}
+
+func (c *collidingStore) Start(ctx context.Context, ttl time.Duration, entries ...startEntry) error {
+	if c.collisions > 0 {
+		c.collisions--
+		return errAuthStateExists
+	}
+	return c.authStore.Start(ctx, ttl, entries...)
+}
+
 func TestStartDeviceLoginRedrawsTakenUserCode(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	first, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	f.server.state = &collidingStore{authStore: f.server.state, collisions: maxUserCodeDraws - 1}
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
-		t.Fatalf("first start: %v", err)
+		t.Fatalf("start after taken user codes: %v", err)
 	}
-	taken := normalizeUserCode(first.GetUserCode())
-	draws := 0
-	f.server.userCode = func() (string, error) {
-		draws++
-		if draws == 1 {
-			return taken, nil
-		}
-		return randomUserCode()
+	poll := &authv1.PollDeviceLoginRequest{DeviceCode: started.GetDeviceCode()}
+	if _, err = f.client.PollDeviceLogin(t.Context(), poll); err != nil {
+		t.Fatalf("poll: %v", err)
 	}
-	second, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
-	if err != nil {
-		t.Fatalf("start with a taken user code: %v", err)
-	}
-	if draws != 2 || second.GetUserCode() == first.GetUserCode() {
-		t.Fatalf("draws = %d, codes %q and %q", draws, first.GetUserCode(), second.GetUserCode())
-	}
+	f.server.state = &collidingStore{authStore: f.server.state, collisions: maxUserCodeDraws}
+	_, err = f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	wantCode(t, err, connect.CodeUnavailable)
 }
 
 func TestCLIDeviceLogin(t *testing.T) {
@@ -354,7 +360,7 @@ func TestDeviceLoginsStayWithinTheStoreBound(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
 	const bound = 4
-	f.server.state = pgAuthStore{queries: f.queries, maxSignIns: bound}
+	f.server.state = pgAuthStore{pool: f.pool, queries: f.queries, maxSignIns: bound}
 	var oldest *authv1.StartDeviceLoginResponse
 	for i := range 10 {
 		started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
