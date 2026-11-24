@@ -222,7 +222,7 @@ func TestApplyDeleteKeepsAServiceAnotherEnvironmentStartedAfterThePlan(t *testin
 		t.Fatalf("deploy production: %v", err)
 	}
 
-	// A build completion deploys to staging under the resource lock alone.
+	// A writer that holds only the resource lock deploys to staging.
 	writer, err := f.pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -255,8 +255,8 @@ func TestApplyDeleteKeepsAServiceAnotherEnvironmentStartedAfterThePlan(t *testin
 	if applyErr != nil {
 		t.Fatalf("Apply: %v", applyErr)
 	}
-	if _, err = f.queries.GetResourceByID(ctx, f.resourceID); err != nil {
-		t.Fatalf("the production apply deleted the service staging started running: %v", err)
+	if !f.hasResource(t, planSvc) {
+		t.Fatal("the production apply deleted the service staging started running")
 	}
 	if got := len(f.activeDeployments(t, stagingID)); got != 1 {
 		t.Fatalf("staging active deployments = %d, want 1", got)
