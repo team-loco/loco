@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -12,17 +11,12 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-// Callers start sign-ins before they sign in. maxAuthStates bounds the sign-ins in progress and
-// maxAuthStartsPerClient those one client address has started and not finished. Concurrent starts
-// can each pass the check, so both bounds are approximate.
-const (
-	maxAuthStates          = 100_000
-	maxAuthStartsPerClient = 30
-)
+// maxAuthStates bounds the started sign-ins: callers start them before they sign in, so a new start
+// deletes the oldest ones beyond this.
+const maxAuthStates = 100_000
 
 var (
 	errAuthStateNotFound = errors.New("auth state not found")
-	errAuthStateFull     = errors.New("auth state store is full")
 	errAuthStateExists   = errors.New("auth state already exists")
 )
 
@@ -32,20 +26,19 @@ type authStore interface {
 	Get(ctx context.Context, key string) ([]byte, error)
 	// Set stores an entry that belongs to a sign-in already started or to a signed-in caller.
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
-	// Start stores the value for a new sign-in by client. It returns errAuthStateExists when the key is
-	// live, and errAuthStateFull when the store or client holds as many live sign-ins as allowed.
-	Start(ctx context.Context, key string, value []byte, ttl time.Duration, client string) error
-	// Restore puts back a sign-in that Take removed, counted against client again; the bounds do not apply.
-	Restore(ctx context.Context, key string, value []byte, ttl time.Duration, client string) error
+	// Start stores the value for a new sign-in, deleting the oldest started sign-ins beyond maxEntries.
+	// It returns errAuthStateExists when the key is live.
+	Start(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	// Restore puts back a started sign-in that Take removed.
+	Restore(ctx context.Context, key string, value []byte, ttl time.Duration) error
 	// Take removes a live entry and returns its value, or errAuthStateNotFound when another call took it first.
 	Take(ctx context.Context, key string) ([]byte, error)
 }
 
 // pgAuthStore keeps sign-in state in the auth_states table.
 type pgAuthStore struct {
-	queries      genDb.Querier
-	maxEntries   int32
-	maxPerClient int32
+	queries    genDb.Querier
+	maxEntries int32
 }
 
 func (s pgAuthStore) Get(ctx context.Context, key string) ([]byte, error) {
@@ -60,12 +53,16 @@ func (s pgAuthStore) Get(ctx context.Context, key string) ([]byte, error) {
 }
 
 func (s pgAuthStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	return s.Restore(ctx, key, value, ttl, "")
+	return s.set(ctx, key, value, ttl, false)
 }
 
-func (s pgAuthStore) Restore(ctx context.Context, key string, value []byte, ttl time.Duration, client string) error {
+func (s pgAuthStore) Restore(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	return s.set(ctx, key, value, ttl, true)
+}
+
+func (s pgAuthStore) set(ctx context.Context, key string, value []byte, ttl time.Duration, started bool) error {
 	err := s.queries.SetAuthState(ctx, genDb.SetAuthStateParams{
-		Key: key, Value: value, Client: client, TtlSeconds: ttl.Seconds(),
+		Key: key, Value: value, Started: started, TtlSeconds: ttl.Seconds(),
 	})
 	if err != nil {
 		return fmt.Errorf("set auth state: %w", err)
@@ -73,25 +70,17 @@ func (s pgAuthStore) Restore(ctx context.Context, key string, value []byte, ttl 
 	return nil
 }
 
-func (s pgAuthStore) Start(ctx context.Context, key string, value []byte, ttl time.Duration, client string) error {
+func (s pgAuthStore) Start(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	stored, err := s.queries.StartAuthState(ctx, genDb.StartAuthStateParams{
-		Key: key, Value: value, Client: client, TtlSeconds: ttl.Seconds(),
-		MaxEntries: s.maxEntries, MaxPerClient: s.maxPerClient,
+		Key: key, Value: value, TtlSeconds: ttl.Seconds(), Keep: s.maxEntries - 1,
 	})
 	if err != nil {
 		return fmt.Errorf("start auth state: %w", err)
 	}
-	if stored == 1 {
-		return nil
+	if stored == 0 {
+		return errAuthStateExists
 	}
-	_, err = s.Get(ctx, key)
-	if errors.Is(err, errAuthStateNotFound) {
-		return errAuthStateFull
-	}
-	if err != nil {
-		return err
-	}
-	return errAuthStateExists
+	return nil
 }
 
 func (s pgAuthStore) Take(ctx context.Context, key string) ([]byte, error) {
@@ -103,18 +92,4 @@ func (s pgAuthStore) Take(ctx context.Context, key string) ([]byte, error) {
 		return nil, fmt.Errorf("take auth state: %w", err)
 	}
 	return value, nil
-}
-
-// authClient names the client that starts a sign-in. An IPv6 client is its /64, the block one
-// subscriber usually holds.
-func authClient(addr netip.Addr) string {
-	addr = addr.Unmap()
-	if !addr.Is6() {
-		return addr.String()
-	}
-	prefix, err := addr.Prefix(64)
-	if err != nil {
-		return addr.String()
-	}
-	return prefix.String()
 }

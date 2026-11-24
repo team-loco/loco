@@ -50,7 +50,6 @@ var (
 		"another refresh of this session just finished; read the stored session and retry",
 	)
 	ErrAuthStoreAvailable = errors.New("sign-in is temporarily unavailable")
-	ErrTooManySignIns     = errors.New("too many sign-ins are in progress; try again in a few minutes")
 )
 
 type AuthServer struct {
@@ -74,7 +73,7 @@ func NewAuthServer(
 		db:      db,
 		queries: queries,
 		machine: machine,
-		state:   pgAuthStore{queries: queries, maxEntries: maxAuthStates, maxPerClient: maxAuthStartsPerClient},
+		state:   pgAuthStore{queries: queries, maxEntries: maxAuthStates},
 		webURL:  strings.TrimSuffix(webURL, "/"),
 		web:     web,
 		now:     time.Now,
@@ -310,8 +309,7 @@ func (s *AuthServer) StartDeviceLogin(
 		RequestedAt: requestedAt,
 		ExpiresAt:   requestedAt.Add(deviceCodeTTL),
 	}
-	addr := clientAddress(info, s.web.TrustedProxyHops)
-	if addr.IsValid() {
+	if addr := clientAddress(info, s.web.TrustedProxyHops); addr.IsValid() {
 		grant.IPAddress = addr.String()
 	}
 	payload, err := json.Marshal(grant)
@@ -319,9 +317,9 @@ func (s *AuthServer) StartDeviceLogin(
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
 	deviceDigest := bearer.Hash(deviceCode)
-	err = s.state.Start(ctx, userCodeKey(userCode), []byte(deviceDigest), deviceCodeTTL, authClient(addr))
-	if err != nil {
-		return nil, authStartError(ctx, err)
+	if err := s.state.Start(ctx, userCodeKey(userCode), []byte(deviceDigest), deviceCodeTTL); err != nil {
+		slog.ErrorContext(ctx, "failed to store device user code", "error", err)
+		return nil, authStoreUnavailable(err)
 	}
 	if err := s.state.Set(ctx, deviceKey(deviceDigest), payload, deviceCodeTTL); err != nil {
 		slog.ErrorContext(ctx, "failed to store device code", "error", err)
@@ -414,13 +412,7 @@ func (s *AuthServer) ApproveDeviceLogin(
 	}
 	// A retryable failure returns the user code to the store for the next approval attempt.
 	unavailable := func(cause error) error {
-		// A device that started without a valid address stored no IPAddress.
-		client := authClient(netip.Addr{})
-		if addr, parseErr := netip.ParseAddr(device.IPAddress); parseErr == nil {
-			client = authClient(addr)
-		}
-		restoreErr := s.state.Restore(ctx, userCodeKey(userCode), deviceDigest, remaining, client)
-		if restoreErr != nil {
+		if restoreErr := s.state.Restore(ctx, userCodeKey(userCode), deviceDigest, remaining); restoreErr != nil {
 			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
 		}
 		return authStoreUnavailable(cause)
@@ -592,15 +584,6 @@ func lockSessionAccount(ctx context.Context, qtx *genDb.Queries, userID uuid.UUI
 		return tvm.ErrInvalidExpiredToken
 	}
 	return nil
-}
-
-// authStartError reports a sign-in that could not start: too many in progress, or the store failed.
-func authStartError(ctx context.Context, err error) error {
-	if errors.Is(err, errAuthStateFull) {
-		return rpcerr.New(connect.CodeResourceExhausted, ErrTooManySignIns)
-	}
-	slog.ErrorContext(ctx, "failed to start sign-in", "error", err)
-	return authStoreUnavailable(err)
 }
 
 // authStoreUnavailable reports a sign-in store failure the client can retry; err stays private.

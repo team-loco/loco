@@ -30,61 +30,66 @@ func (q *Queries) GetAuthState(ctx context.Context, key string) ([]byte, error) 
 }
 
 const setAuthState = `-- name: SetAuthState :exec
-INSERT INTO auth_states (key, value, client, expires_at)
-VALUES ($1::text, $2::bytea, $3::text, NOW() + make_interval(secs => $4::float8))
-ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, client = EXCLUDED.client, expires_at = EXCLUDED.expires_at
+INSERT INTO auth_states (key, value, started_at, expires_at)
+VALUES (
+    $1::text, $2::bytea, CASE WHEN $3::bool THEN NOW() END,
+    NOW() + make_interval(secs => $4::float8)
+)
+ON CONFLICT (key) DO UPDATE
+SET value = EXCLUDED.value, started_at = EXCLUDED.started_at, expires_at = EXCLUDED.expires_at
 `
 
 type SetAuthStateParams struct {
 	Key        string  `json:"key"`
 	Value      []byte  `json:"value"`
-	Client     string  `json:"client"`
+	Started    bool    `json:"started"`
 	TtlSeconds float64 `json:"ttlSeconds"`
 }
 
+// A started entry counts against the bound on started sign-ins.
 func (q *Queries) SetAuthState(ctx context.Context, arg SetAuthStateParams) error {
 	_, err := q.db.Exec(ctx, setAuthState,
 		arg.Key,
 		arg.Value,
-		arg.Client,
+		arg.Started,
 		arg.TtlSeconds,
 	)
 	return err
 }
 
 const startAuthState = `-- name: StartAuthState :execrows
-INSERT INTO auth_states (key, value, client, expires_at)
-SELECT $1::text, $2::bytea, $3::text, NOW() + make_interval(secs => $4::float8)
-WHERE (SELECT count(*) FROM (
-        SELECT 1 FROM auth_states WHERE client <> '' AND expires_at > NOW() LIMIT $5::int
-    ) live)
-        < $5::int
-    AND (SELECT count(*) FROM (
-        SELECT 1 FROM auth_states WHERE client = $3::text AND expires_at > NOW() LIMIT $6::int
-    ) mine) < $6::int
-ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, client = EXCLUDED.client, expires_at = EXCLUDED.expires_at
+WITH evicted AS (
+    DELETE FROM auth_states
+    WHERE key IN (
+        SELECT key FROM auth_states
+        WHERE started_at IS NOT NULL
+        ORDER BY started_at DESC
+        OFFSET $4::int
+        FOR UPDATE SKIP LOCKED
+    )
+)
+INSERT INTO auth_states (key, value, started_at, expires_at)
+VALUES ($1::text, $2::bytea, NOW(), NOW() + make_interval(secs => $3::float8))
+ON CONFLICT (key) DO UPDATE
+SET value = EXCLUDED.value, started_at = EXCLUDED.started_at, expires_at = EXCLUDED.expires_at
 WHERE auth_states.expires_at <= NOW()
 `
 
 type StartAuthStateParams struct {
-	Key          string  `json:"key"`
-	Value        []byte  `json:"value"`
-	Client       string  `json:"client"`
-	TtlSeconds   float64 `json:"ttlSeconds"`
-	MaxEntries   int32   `json:"maxEntries"`
-	MaxPerClient int32   `json:"maxPerClient"`
+	Key        string  `json:"key"`
+	Value      []byte  `json:"value"`
+	TtlSeconds float64 `json:"ttlSeconds"`
+	Keep       int32   `json:"keep"`
 }
 
-// Stores a sign-in start for client while fewer than max_entries sign-ins are in progress and client
-// has fewer than max_per_client. An expired row counts as absent, so its key can be stored again.
+// Stores a started sign-in after deleting the started sign-ins older than the newest keep. An expired
+// row counts as absent, so its key can be stored again.
 func (q *Queries) StartAuthState(ctx context.Context, arg StartAuthStateParams) (int64, error) {
 	result, err := q.db.Exec(ctx, startAuthState,
 		arg.Key,
 		arg.Value,
-		arg.Client,
 		arg.TtlSeconds,
-		arg.MaxEntries,
-		arg.MaxPerClient,
+		arg.Keep,
 	)
 	if err != nil {
 		return 0, err

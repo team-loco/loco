@@ -27,7 +27,6 @@ api:
     # @schema required; minLength: 1
     tag: ""
   imagePullPolicy: Always
-  # More than one replica needs CACHE_TYPE=valkey, so a sign-in can start and finish on different replicas.
   # @schema minimum: 0
   replicaCount: 1
   port: 8000
