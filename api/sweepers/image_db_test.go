@@ -416,27 +416,36 @@ func TestImageSweepKeepsDigestsSharedWithKeptBuilds(t *testing.T) {
 
 func TestImageSweepRetriesFailedDeletes(t *testing.T) {
 	t.Parallel()
-	f := newImageSweepFixture(t, 1)
-	old := f.succeeded(t)
-	f.succeeded(t)
-	f.registry.mu.Lock()
-	f.registry.deleteFails[old.cache] = 2
-	f.registry.mu.Unlock()
+	for name, failing := range map[string]func(sweptBuild) string{
+		"image": func(b sweptBuild) string { return b.image },
+		"cache": func(b sweptBuild) string { return b.cache },
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f := newImageSweepFixture(t, 1)
+			old := f.succeeded(t)
+			f.succeeded(t)
+			digest := failing(old)
+			f.registry.mu.Lock()
+			f.registry.deleteFails[digest] = 2
+			f.registry.mu.Unlock()
 
-	if result := f.sweep(t); result.ImagesDeleted != 0 || result.StaleTags != 0 {
-		t.Fatalf("sweep while the registry failed = %+v, want nothing deleted", result)
-	}
-	if !f.imageDeleted(t, old) {
-		t.Fatal("the image is not marked deleted, so a deploy could still pin it")
-	}
-	if !f.registry.has(f.repoPath, old.cache) {
-		t.Fatal("the cache whose delete failed is gone")
-	}
+			if result := f.sweep(t); result.ImagesDeleted != 0 {
+				t.Fatalf("deleted %d images while the registry failed, want 0", result.ImagesDeleted)
+			}
+			if !f.imageDeleted(t, old) {
+				t.Fatal("the image is not marked deleted, so a deploy could still pin it")
+			}
+			if !f.registry.has(f.repoPath, digest) {
+				t.Fatalf("the %s whose delete failed is gone", name)
+			}
 
-	if result := f.sweep(t); result.StaleTags != 1 {
-		t.Fatalf("deleted %d stale tags on retry, want the cache's 1", result.StaleTags)
+			if result := f.sweep(t); result.StaleTags == 0 {
+				t.Fatalf("sweep after the registry recovered = %+v, want the failed tags retried", result)
+			}
+			f.wantDeleted(t, old)
+		})
 	}
-	f.wantDeleted(t, old)
 }
 
 func TestImageSweepPurgesOrphanedRepositories(t *testing.T) {

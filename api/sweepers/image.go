@@ -147,8 +147,7 @@ func (s *ImageSweeper) deleteExpiredImages(ctx context.Context) (int, error) {
 	return deleted, nil
 }
 
-// deleteBuildImage marks the build's image deleted, then deletes it from the registry with no
-// row locked; deleteStaleTags retries a registry delete that fails.
+// deleteBuildImage marks the image deleted, then calls the registry unlocked; deleteStaleTags retries failures.
 func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) (bool, error) {
 	var marked *genDb.ListDeletableBuildImagesRow
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
