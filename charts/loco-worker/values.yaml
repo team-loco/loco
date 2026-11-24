@@ -16,7 +16,7 @@ global:
     annotations: {}
 
   # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2; Go containers have a CPU limit of
-  # at least 2. Loco's Go binaries set their Go memory limit to 90% of the container memory limit.
+  # at least 2.
   # @schema additionalProperties: false
   resources:
     # @schema skipProperties

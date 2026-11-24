@@ -290,3 +290,26 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].resources.limits.cpu
           value: "2"
+
+  - it: sets the API's Go memory limit from its container memory limit
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GOMEMLIMIT
+            valueFrom: {resourceFieldRef: {containerName: api, resource: limits.memory}}
+
+  - it: takes the API's Go memory limit from api.env when set
+    set:
+      api.env.GOMEMLIMIT: 500MiB
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, value: 500MiB}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GOMEMLIMIT
+            valueFrom: {resourceFieldRef: {containerName: api, resource: limits.memory}}

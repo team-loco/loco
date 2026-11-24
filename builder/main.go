@@ -15,7 +15,6 @@ import (
 	"github.com/team-loco/loco/builder/internal/ocilayout"
 	"github.com/team-loco/loco/builder/internal/registry"
 	"github.com/team-loco/loco/internal/buildinfo"
-	"github.com/team-loco/loco/internal/gomemlimit"
 	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
@@ -37,7 +36,6 @@ func main() {
 	handler := slog.NewTextHandler(os.Stderr, nil)
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
-	gomemlimit.Set(logger)
 	builderVersion := buildinfo.Version(version)
 	slog.Info("starting loco builder", "version", builderVersion)
 
