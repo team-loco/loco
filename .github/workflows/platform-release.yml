@@ -23,6 +23,10 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: mise run lint:crd-versions "origin/$BASE_REF"
+      - name: Check that packaged charts and CRD bundles match the versions already published
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: mise run lint:published-versions "${RELEASE_REPOSITORY,,}"
 
   # A push to main and a release publish the versions their commit pins.
   artifacts:
