@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/varref"
@@ -13,7 +14,7 @@ import (
 
 // resolveVariables resolves the variables of a deployment of resource to the environment. The
 // caller must be able to read every other resource the variables refer to directly, and to list
-// the environment's secrets when the variables read one.
+// the environment's secrets when the variables read one. The checks run on qtx.
 func (s *DeploymentServer) resolveVariables(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -30,13 +31,14 @@ func (s *DeploymentServer) resolveVariables(
 	if err != nil {
 		return varref.Resolved{}, err
 	}
+	authorizer := authz.New(qtx)
 	if len(resolved.Secret) > 0 {
-		if authErr := authorize(ctx, s.authz, actions.ListSecrets, resource.WorkspaceID); authErr != nil {
+		if authErr := authorize(ctx, authorizer, actions.ListSecrets, resource.WorkspaceID); authErr != nil {
 			return varref.Resolved{}, authErr
 		}
 	}
 	for _, name := range resolved.Resources {
-		if authErr := authorize(ctx, s.authz, actions.GetResource, references.ids[name]); authErr != nil {
+		if authErr := authorize(ctx, authorizer, actions.GetResource, references.ids[name]); authErr != nil {
 			return varref.Resolved{}, authErr
 		}
 	}
