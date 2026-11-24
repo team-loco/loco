@@ -20,7 +20,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/limits"
-	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/admin/v1/adminv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -92,7 +91,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine))
 	adminv1connect.RegisterSystemAdminServiceHandler(server, NewSystemAdminServer(pool, queries))
 	tokenv1connect.RegisterTokenServiceHandler(server, NewTokenServer(pool, queries, machine, limits.Defaults()))
-	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute, limits.Defaults())
+	resources := NewResourceServer(pool, queries, testServiceDefaults(), time.Minute, limits.Defaults())
 	resourcev1connect.RegisterResourceServiceHandler(server, resources)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)

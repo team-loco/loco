@@ -672,14 +672,20 @@ func deploymentRouting(
 
 func validateQuantities(service *deploymentv1.ServiceDeploymentSpec) error {
 	for _, target := range service.GetRegions() {
-		if _, err := servicedefaults.ParseCPU(target.GetCpu()); err != nil {
-			return err
-		}
-		if _, err := servicedefaults.ParseMemory(target.GetMemory()); err != nil {
+		if err := validateSize(target.GetCpu(), target.GetMemory()); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// validateSize rejects a cpu or memory that is not a Kubernetes quantity.
+func validateSize(cpu, memory string) error {
+	if _, err := servicedefaults.ParseCPU(cpu); err != nil {
+		return err
+	}
+	_, err := servicedefaults.ParseMemory(memory)
+	return err
 }
 
 // optionalTimestamp converts a nullable database time, mapping nil to a nil timestamp.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -111,6 +113,41 @@ func TestCreateResourceRejectsAnInvalidSlug(t *testing.T) {
 	for _, name := range []string{"!!!", "🚀", testLocalhost} {
 		_, err := createKeyedResource(t, f, name, nil)
 		wantMessage(t, err, connect.CodeInvalidArgument, errInvalidResourceSlug.Error())
+	}
+}
+
+func TestCreateResourceChecksTheRegionSizeItWillDeployWith(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	scopes := []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeWrite},
+	}
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{UserID: f.userID, Scopes: scopes})
+	create := func(name, cpu, memory string) error {
+		spec := testResourceSpec()
+		region := spec.GetService().GetRegions()[testRegion]
+		region.Cpu, region.Memory = cpu, memory
+		_, err := server.CreateResource(ctx, &resourcev1.CreateResourceRequest{
+			WorkspaceId: f.workspaceID(t).String(),
+			Name:        name,
+			Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+			Spec:        spec,
+		})
+		return err
+	}
+	err := create("bad-cpu", "lots", testRegionMemory)
+	wantCode(t, err, connect.CodeInvalidArgument)
+	if !errors.Is(err, servicedefaults.ErrInvalidCPU) {
+		t.Fatalf("cpu err = %v, want ErrInvalidCPU", err)
+	}
+	err = create("bad-memory", testRegionCPU, "plenty")
+	wantCode(t, err, connect.CodeInvalidArgument)
+	if !errors.Is(err, servicedefaults.ErrInvalidMemory) {
+		t.Fatalf("memory err = %v, want ErrInvalidMemory", err)
+	}
+	if err = create("no-size", "", ""); err != nil {
+		t.Fatalf("create without a size, which deploy fills from the defaults: %v", err)
 	}
 }
 
