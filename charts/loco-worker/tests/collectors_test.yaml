@@ -443,3 +443,10 @@ tests:
         template: charts/otel-col-daemon/templates/daemonset.yaml
       - exists: *collectorRequests
         template: charts/otel-col-cluster/templates/statefulset.yaml
+
+  - it: never scales the gateway collector down, which would strand the removed replica's queue claim
+    template: charts/otel-col-deploy/templates/hpa.yaml
+    asserts:
+      - equal:
+          path: spec.behavior
+          value: {scaleDown: {selectPolicy: Disabled}}

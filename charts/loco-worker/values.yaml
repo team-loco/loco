@@ -844,6 +844,10 @@ otel-col-deploy:
     minReplicas: 2
     maxReplicas: 4
     targetCPUUtilizationPercentage: 80
+    # Each replica's queue claim replays only on that replica, so the autoscaler never removes one.
+    behavior:
+      scaleDown:
+        selectPolicy: Disabled
   podDisruptionBudget:
     enabled: true
     maxUnavailable: 1
