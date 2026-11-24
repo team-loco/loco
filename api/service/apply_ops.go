@@ -165,9 +165,19 @@ func (a *applier) importService(ctx context.Context, qtx *genDb.Queries, op conf
 	return a.update(ctx, qtx, op)
 }
 
+// delete removes the service from the environment, and deletes its resource when no other
+// environment runs it. It reads where else the service runs under the apply's resource lock,
+// which every write that starts a deployment holds.
 func (a *applier) delete(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
 	res := a.live.resources[op.Service]
-	if a.live.elsewhere[res.ID] {
+	running := genDb.ListResourcesRunningOutsideEnvironmentParams{
+		ResourceIds: []uuid.UUID{res.ID}, EnvironmentID: a.env.ID,
+	}
+	elsewhere, err := qtx.ListResourcesRunningOutsideEnvironment(ctx, running)
+	if err != nil {
+		return fmt.Errorf("list environments running %s: %w", op.Service, err)
+	}
+	if len(elsewhere) > 0 {
 		return a.removeFromEnvironment(ctx, qtx, res)
 	}
 	if err := removeResourcePlacements(ctx, qtx, res.ID); err != nil {

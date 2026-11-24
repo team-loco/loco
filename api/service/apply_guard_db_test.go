@@ -209,6 +209,60 @@ func TestApplyDeleteInOneEnvironmentKeepsTheOther(t *testing.T) {
 	}
 }
 
+// A deploy to staging that commits after the production plan was read, but before the apply
+// locks the resource, leaves the service running in staging.
+func TestApplyDeleteKeepsAServiceAnotherEnvironmentStartedAfterThePlan(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	f.setPartial(t, planSvc, planPartial)
+	stagingID := f.addStagingEnvironment(t)
+	ctx := context.Background()
+	if _, err := f.deploy(ctx, staticSpec); err != nil {
+		t.Fatalf("deploy production: %v", err)
+	}
+
+	// A build completion deploys to staging under the resource lock alone.
+	writer, err := f.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rollbackOnCleanup(t, writer)
+	qtx := genDb.New(writer)
+	if err = lockResource(ctx, qtx, f.resourceID); err != nil {
+		t.Fatal(err)
+	}
+	var applied sync.WaitGroup
+	var applyErr error
+	applied.Go(func() {
+		_, applyErr = applyFile(t, f, emptyServicesFile, applyOptions{confirmDestructive: true}, f.adminScopes(t))
+	})
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	staging := f.paramsFor(f.otherCluster)
+	staging.EnvironmentID = stagingID
+	counts, err := f.counts(ctx, qtx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = recordTestDeployment(ctx, qtx, counts, staging, staticSpec); err != nil {
+		t.Fatalf("deploy staging: %v", err)
+	}
+	if err = writer.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	applied.Wait()
+
+	if applyErr != nil {
+		t.Fatalf("Apply: %v", applyErr)
+	}
+	if _, err = f.queries.GetResourceByID(ctx, f.resourceID); err != nil {
+		t.Fatalf("the production apply deleted the service staging started running: %v", err)
+	}
+	if got := len(f.activeDeployments(t, stagingID)); got != 1 {
+		t.Fatalf("staging active deployments = %d, want 1", got)
+	}
+}
+
 // holdResourceLock locks the resource row in its own transaction until the returned function
 // runs, so writers that need the row line up behind it in the order their lock protocol takes.
 func (f *deployFixture) holdResourceLock(t *testing.T) func() {
