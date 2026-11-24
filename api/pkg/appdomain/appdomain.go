@@ -4,14 +4,11 @@ package appdomain
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
-)
 
-// labelPattern is an RFC 1123 DNS label: lowercase letters, digits and hyphens, 1 to 63
-// characters, starting and ending with a letter or digit.
-var labelPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
+	"k8s.io/apimachinery/pkg/util/validation"
+)
 
 // Cluster is a cluster and the app domains it serves.
 type Cluster struct {
@@ -49,9 +46,6 @@ func Check(domain string, clusters, targets []Cluster) (string, string, error) {
 			ErrDomainNotServed, domain, matched, strings.Join(missing, ", "),
 		)
 	}
-	if !labelPattern.MatchString(label) {
-		return "", "", ErrInvalidLabel.Detail("%q", label)
-	}
 	return matched, label, nil
 }
 
@@ -73,7 +67,7 @@ func Match(domain string, appDomains []string) (string, string, error) {
 	if label == "" || strings.Contains(label, ".") {
 		return "", "", ErrNotSingleLabel.Detail("%s under %s", domain, matched)
 	}
-	if !labelPattern.MatchString(label) {
+	if len(validation.IsDNS1123Label(label)) > 0 {
 		return "", "", ErrInvalidLabel.Detail("%q", label)
 	}
 	return matched, label, nil
