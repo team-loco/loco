@@ -1693,7 +1693,56 @@ def start_state(*, ref, name, scenario, issuer=None):
 
 
 def cmd_up(args):
-    print(start_state(ref=args.ref, name=args.name, scenario=args.scenario))
+    repo = repo_root()
+    commit = git_commit(repo, args.ref)
+    if commit == git_commit(repo, "HEAD"):
+        print(start_state(ref=args.ref, name=args.name, scenario=args.scenario))
+        return
+    # An earlier ref is started by its own copy of this script.
+    lease = Path(testres("lease", "-name", f"{LABEL}-script", "-pid", os.getpid()))
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(128 + signal.SIGTERM))
+    try:
+        checkout = lease / "src"
+        testres("add", lease, "worktree", checkout)
+        run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "worktree",
+                "add",
+                "--detach",
+                str(checkout),
+                commit,
+            ]
+        )
+        child = subprocess.Popen(
+            [
+                sys.executable,
+                str(checkout / "tests" / "ui" / "evidence.py"),
+                "up",
+                "--ref",
+                commit,
+                "--name",
+                args.name,
+                "--scenario",
+                str(Path(args.scenario).resolve()),
+            ],
+            cwd=checkout,
+            env={k: v for k, v in os.environ.items() if k != BUILD_ENV},
+            process_group=0,
+        )
+        try:
+            child.wait()
+        except BaseException:
+            # The child stops its own run before the checkout goes.
+            child.send_signal(signal.SIGINT)
+            child.wait()
+            raise
+        if child.returncode != 0:
+            raise EvidenceError(f"up of {args.ref} failed ({child.returncode})")
+    finally:
+        testres("release", lease)
 
 
 def build(checkout, env):

@@ -122,6 +122,8 @@ mise exec -- uv run --script "$E" <command>
    and agent on the machine shares. A commit missing from the cache builds once in a temporary
    worktree; concurrent runs of that commit wait for that build. The cache keeps the eight most
    recently used commits and every build a live run uses.
+   `up` with a ref other than `HEAD` starts and seeds that ref with its own `tests/ui/evidence.py`,
+   so the ref needs a script that accepts the scenario.
    Bring up both refs. Each prints the path of its state file on stdout:
 
    ```sh
