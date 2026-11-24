@@ -58,6 +58,7 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 			t.Fatalf("handle %T: %v", msg.GetMessage(), err)
 		}
 	}
+	applyQueuedReports(t.Context(), session)
 
 	origin := trace.SpanContextFromContext(request)
 	for _, name := range []string{syncApplySpan, syncAppliedSpan, syncStatusSpan} {

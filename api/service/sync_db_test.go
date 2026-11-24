@@ -260,6 +260,7 @@ func TestInventoryResendsOnlyWhatDiffers(t *testing.T) {
 	if len(sent) != 0 {
 		t.Fatalf("sent %v for an in-sync placement", sent)
 	}
+	applyQueuedReports(ctx, session)
 	if got := f.placement(t, f.clusterID); got.AppliedRevision != 1 {
 		t.Fatalf("inventory did not record the applied revision: %d", got.AppliedRevision)
 	}
@@ -491,6 +492,7 @@ func testAgentConfig() AgentConfig {
 		JoinTokenMaxTTL:      7 * 24 * time.Hour,
 		ApplyAttempts:        testApplyAttempts,
 		ApplyRetryDelay:      testApplyRetryDelay,
+		ReportQueue:          16,
 
 		WorkspaceNamespaceGrace: time.Hour,
 	}

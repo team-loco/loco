@@ -236,6 +236,7 @@ func TestAPendingInventoryAheadOfARestoredDatabaseAdvancesWithoutMarkingApplied(
 		if err != nil {
 			t.Fatalf("reconcile: %v", err)
 		}
+		applyQueuedReports(ctx, session)
 	}
 
 	reconcile(5, true)

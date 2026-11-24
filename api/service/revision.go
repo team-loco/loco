@@ -13,11 +13,12 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-// Lock order: organization, workspace, environments by id, environment key, resources by id;
-// their builds, deployments, placements last. A write locks the environments it changes, or every
-// environment of the workspace when it changes a resource they share. Agent status, apply and
-// build reports lock the resource only. A transaction that deletes an environment holds every
-// resource of its workspace first, or deletes only an environment without deployments.
+// Lock order: organization, workspace, environments by id, environment key, resources by id,
+// clusters; their builds, deployments, placements last. A write locks the environments it changes,
+// or every environment of the workspace when it changes a resource they share. Agent apply and
+// build reports lock the resource only; a status report locks the resource, then shares its
+// cluster's row to check the stream's sync generation. A transaction that deletes an environment
+// holds every resource of its workspace first, or deletes only an environment without deployments.
 
 // lockWorkspaceEnvironments locks every environment of the workspace in ascending id order.
 func lockWorkspaceEnvironments(ctx context.Context, qtx *genDb.Queries, workspaceID uuid.UUID) error {
