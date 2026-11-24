@@ -11,8 +11,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-// maxAuthStates bounds the started sign-ins: callers start them before they sign in, so a new start
-// deletes the oldest ones beyond this.
+// maxAuthStates is the most started sign-ins the store keeps; a new start deletes the oldest beyond it.
 const maxAuthStates = 100_000
 
 var (

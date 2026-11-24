@@ -321,9 +321,10 @@ func (s *AuthServer) StartDeviceLogin(
 		slog.ErrorContext(ctx, "failed to store device user code", "error", err)
 		return nil, authStoreUnavailable(err)
 	}
-	if err := s.state.Set(ctx, deviceKey(deviceDigest), payload, deviceCodeTTL); err != nil {
+	if err := s.state.Start(ctx, deviceKey(deviceDigest), payload, deviceCodeTTL); err != nil {
 		slog.ErrorContext(ctx, "failed to store device code", "error", err)
-		if _, takeErr := s.state.Take(ctx, userCodeKey(userCode)); takeErr != nil {
+		_, takeErr := s.state.Take(ctx, userCodeKey(userCode))
+		if takeErr != nil && !errors.Is(takeErr, errAuthStateNotFound) {
 			slog.ErrorContext(ctx, "failed to release device user code", "error", takeErr)
 		}
 		return nil, authStoreUnavailable(err)
@@ -392,10 +393,20 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if err != nil {
 		return nil, authStoreUnavailable(err)
 	}
+	// A retryable failure returns the user code to the store for the next approval attempt.
+	unavailable := func(cause error, ttl time.Duration) error {
+		if restoreErr := s.state.Restore(ctx, userCodeKey(userCode), deviceDigest, ttl); restoreErr != nil {
+			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
+		}
+		return authStoreUnavailable(cause)
+	}
 	key := deviceKey(string(deviceDigest))
 	raw, err := s.state.Get(ctx, key)
-	if err != nil {
+	if errors.Is(err, errAuthStateNotFound) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
+	}
+	if err != nil {
+		return nil, unavailable(err, deviceCodeTTL)
 	}
 	var device deviceGrant
 	if decodeErr := json.Unmarshal(raw, &device); decodeErr != nil {
@@ -410,13 +421,6 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
-	// A retryable failure returns the user code to the store for the next approval attempt.
-	unavailable := func(cause error) error {
-		if restoreErr := s.state.Restore(ctx, userCodeKey(userCode), deviceDigest, remaining); restoreErr != nil {
-			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
-		}
-		return authStoreUnavailable(cause)
-	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.CLILoginApproved,
@@ -427,10 +431,10 @@ func (s *AuthServer) ApproveDeviceLogin(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to approve device login", "error", err)
-		return nil, unavailable(err)
+		return nil, unavailable(err, remaining)
 	}
 	if setErr := s.state.Set(ctx, key, payload, remaining); setErr != nil {
-		return nil, unavailable(setErr)
+		return nil, unavailable(setErr, remaining)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
 	return &authv1.ApproveDeviceLoginResponse{}, nil

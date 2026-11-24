@@ -16,12 +16,12 @@ SET value = EXCLUDED.value, started_at = EXCLUDED.started_at, expires_at = EXCLU
 -- name: StartAuthState :execrows
 WITH evicted AS (
     DELETE FROM auth_states
-    WHERE key IN (
-        SELECT key FROM auth_states
+    WHERE started_at <= (
+        SELECT started_at FROM auth_states
         WHERE started_at IS NOT NULL
         ORDER BY started_at DESC
         OFFSET @keep::int
-        FOR UPDATE SKIP LOCKED
+        LIMIT 1
     )
 )
 INSERT INTO auth_states (key, value, started_at, expires_at)
