@@ -152,7 +152,6 @@ func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) 
 	var marked *genDb.ListDeletableBuildImagesRow
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		qtx := genDb.New(tx)
-		marked = nil
 		deletedAt, lockErr := qtx.LockBuildImageForDelete(ctx, buildID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
 			return nil
