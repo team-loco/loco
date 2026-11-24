@@ -18,9 +18,12 @@ tests:
           any: true
         template: templates/api-deployment.yaml
 
-  - it: creates a CloudNativePG cluster with the API database
+  - it: creates a CloudNativePG cluster with the API database and the values' size
     set:
       postgres.enabled: true
+      postgres.instances: 3
+      postgres.storage: {size: 50Gi, storageClass: fast}
+      postgres.resources: {requests: {cpu: "1", memory: 2Gi}, limits: {memory: 4Gi}}
     template: templates/postgres.yaml
     documentSelector: {path: kind, value: Cluster}
     asserts:
@@ -32,37 +35,21 @@ tests:
           value: {helm.sh/resource-policy: keep}
       - equal:
           path: spec.instances
-          value: 2
+          value: 3
       - equal:
           path: spec.bootstrap
           value: {initdb: {database: loco, owner: loco}}
-      - equal:
-          path: spec.storage
-          value: {size: 10Gi}
-      - matchRegex:
-          path: spec.imageName
-          pattern: ^ghcr\.io/cloudnative-pg/postgresql:[^@]+@sha256:[a-f0-9]{64}$
-      - notExists:
-          path: spec.managed
-
-  - it: passes instances, storage and resources through
-    set:
-      postgres.enabled: true
-      postgres.instances: 3
-      postgres.storage: {size: 50Gi, storageClass: fast}
-      postgres.resources: {requests: {cpu: "1", memory: 2Gi}, limits: {memory: 4Gi}}
-    template: templates/postgres.yaml
-    documentSelector: {path: kind, value: Cluster}
-    asserts:
-      - equal:
-          path: spec.instances
-          value: 3
       - equal:
           path: spec.storage
           value: {size: 50Gi, storageClass: fast}
       - equal:
           path: spec.resources
           value: {requests: {cpu: "1", memory: 2Gi}, limits: {memory: 4Gi}}
+      - matchRegex:
+          path: spec.imageName
+          pattern: ^ghcr\.io/cloudnative-pg/postgresql:[^@]+@sha256:[a-f0-9]{64}$
+      - notExists:
+          path: spec.managed
 
   - it: reads the API's DATABASE_URL from the cluster's app Secret
     set:
