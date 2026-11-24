@@ -378,12 +378,8 @@ with session(out) as browser:
         drawer.get_by_role("textbox", name="Container image", exact=True)
     ).to_have_value(image)
     expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
-    # The dashed circle beside it turns while the resource is a draft.
-    assert (
-        drawer.get_by_text("Draft", exact=True)
-        .locator("svg")
-        .evaluate("el => getComputedStyle(el).animationName")
-        == "spin"
+    expect(drawer.get_by_text("Draft", exact=True).locator("svg")).to_have_css(
+        "animation-name", "spin"
     )
     assert stored_drafts(page) == [name], stored_drafts(page)
     # The name and description are edited in the header.
