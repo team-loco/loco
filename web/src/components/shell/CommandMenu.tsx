@@ -677,7 +677,7 @@ export function CommandMenu() {
 			aria-label="Search and run commands"
 			aria-keyshortcuts="Meta+K Control+K"
 			onClick={openPalette}
-			className="absolute top-1/2 left-1/2 flex h-[30px] w-[min(520px,44vw)] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-[7px] border border-line bg-panel pr-1.5 pl-2.5 text-[13px] text-fg3 transition-colors hover:border-line2 hover:text-fg2 max-[760px]:hidden"
+			className="absolute top-1/2 left-1/2 flex h-7.5 w-[min(520px,44vw)] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-[7px] border border-line bg-panel pr-1.5 pl-2.5 text-[13px] text-fg3 transition-colors hover:border-line2 hover:text-fg2 max-[760px]:hidden"
 		>
 			<SearchIcon aria-hidden className="size-3.5" />
 			<span className="min-w-0 flex-1 truncate text-left">Search or jump to…</span>

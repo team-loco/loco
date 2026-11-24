@@ -62,7 +62,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsTr
 			className={cn(
 				segmented
 					? segmentedItemClass
-					: "-mb-px h-[34px] flex-none gap-2 rounded-none border-0 border-b-2 border-transparent px-2.5 text-[14px] font-medium text-fg3 after:hidden hover:text-foreground data-active:border-foreground data-active:text-foreground dark:text-fg3 dark:data-active:border-foreground",
+					: "-mb-px h-8.5 flex-none gap-2 rounded-none border-0 border-b-2 border-transparent px-2.5 text-[14px] font-medium text-fg3 after:hidden hover:text-foreground data-active:border-foreground data-active:text-foreground dark:text-fg3 dark:data-active:border-foreground",
 				className,
 			)}
 			{...props}

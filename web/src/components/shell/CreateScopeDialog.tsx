@@ -119,7 +119,7 @@ function CreateWorkspaceForm({ fixedOrgId, onDone }: { fixedOrgId: string | unde
 								}}
 							>
 								{orgs.map((o) => (
-									<ToggleGroupItem key={o.id} value={o.id} className="h-[26px]! text-[12.5px]">
+									<ToggleGroupItem key={o.id} value={o.id} className="h-6.5! text-[12.5px]">
 										{o.name}
 									</ToggleGroupItem>
 								))}

@@ -323,7 +323,7 @@ function EventPicker({
 										<label
 											key={t}
 											htmlFor={`${groupId}-${t}`}
-											className="flex min-h-[30px] items-center gap-2.5 rounded-md px-2 font-mono text-[12.5px] text-fg2 hover:bg-panel has-data-checked:text-foreground"
+											className="flex min-h-7.5 items-center gap-2.5 rounded-md px-2 font-mono text-[12.5px] text-fg2 hover:bg-panel has-data-checked:text-foreground"
 										>
 											<Checkbox
 												id={`${groupId}-${t}`}

@@ -30,7 +30,7 @@ import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 const SWITCHER_WORKSPACES = 20;
 
 const TRIGGER =
-	"flex h-[26px] min-w-0 items-center gap-[5px] rounded-[5px] px-1.5 -mx-0.5 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
+	"flex h-6.5 min-w-0 items-center gap-[5px] rounded-[5px] px-1.5 -mx-0.5 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
 
 function Slash() {
 	return <BreadcrumbSeparator className="px-0.5 text-fg3">/</BreadcrumbSeparator>;

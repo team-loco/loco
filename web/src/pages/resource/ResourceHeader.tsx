@@ -87,7 +87,7 @@ function Switcher({ items, currentId, offset }: { items: SwitcherItem[]; current
 	);
 }
 
-const MENU_ITEM = "min-h-[30px] gap-2 rounded-md px-2 py-1 text-[13px] whitespace-nowrap";
+const MENU_ITEM = "min-h-7.5 gap-2 rounded-md px-2 py-1 text-[13px] whitespace-nowrap";
 
 function MenuIcon({ children }: { children: React.ReactNode }) {
 	return <span className="flex text-fg3 [&_svg]:size-[15px]">{children}</span>;
@@ -174,7 +174,7 @@ export function ResourceHeader({
 				</Button>
 				<ToggleChip
 					variant="button"
-					className="h-[30px] px-2.5 text-[12.5px]"
+					className="h-7.5 px-2.5 text-[12.5px]"
 					pressed={isSettings}
 					onPressedChange={onSettings}
 				>

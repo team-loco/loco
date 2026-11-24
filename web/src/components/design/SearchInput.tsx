@@ -11,7 +11,7 @@ function SearchInput({
 	return (
 		<InputGroup
 			className={cn(
-				"h-[30px] has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[>[data-align=inline-start]]:[&>input]:pl-2",
+				"h-7.5 has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[>[data-align=inline-start]]:[&>input]:pl-2",
 				className,
 			)}
 		>

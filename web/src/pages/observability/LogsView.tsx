@@ -496,7 +496,7 @@ export function LogsView() {
 										key={l}
 										value={l}
 										className={cn(
-											"inline-flex h-[26px] items-center gap-1.5 rounded-sm px-2 text-[12.5px] text-fg2 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-[inset_0_0_0_1px_var(--line2)]",
+											"inline-flex h-6.5 items-center gap-1.5 rounded-sm px-2 text-[12.5px] text-fg2 hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-[inset_0_0_0_1px_var(--line2)]",
 											n === 0 && "opacity-55 aria-pressed:opacity-100",
 										)}
 									>
@@ -541,7 +541,7 @@ export function LogsView() {
 									setFreezeTs(allTail[0]?.ts ?? nowMs);
 									setView(0, selectedKey);
 								}}
-								className="flex h-[30px] w-full items-center justify-center gap-1.5 rounded-t-card bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
+								className="flex h-7.5 w-full items-center justify-center gap-1.5 rounded-t-card bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
 							>
 								<ArrowUpIcon className="size-[13px]" />
 								{held} {held === 1 ? "new line" : "new lines"}

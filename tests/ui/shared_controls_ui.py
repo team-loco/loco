@@ -1642,6 +1642,23 @@ def traffic(page):
     expect(failed.first).to_have_attribute("aria-label", re.compile(r"failed"))
 
 
+def button_sizes(page):
+    page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
+    sized = ("More actions", "Resource settings")
+    page.add_style_tag(content="*{transition:none !important}")
+    heights = {}
+    for font in (16, 20):
+        page.evaluate(f"document.documentElement.style.fontSize = '{font}px'")
+        for name in sized:
+            button = page.get_by_role("button", name=name, exact=True)
+            expect(button).to_be_visible()
+            heights[name, font] = button.bounding_box()["height"] / font
+    page.evaluate("document.documentElement.style.fontSize = ''")
+    # A control sized in rem keeps its height in root font sizes as the text size grows.
+    for name in sized:
+        assert abs(heights[name, 16] - heights[name, 20]) < 0.02, heights
+
+
 def metrics_many(page):
     names = [f"controls-svc-{i:02d}" for i in range(13)]
     seeded = state.get("controls_many")
@@ -2331,6 +2348,7 @@ with session(out) as browser:
         dashboard,
         dashboard_counts,
         traffic,
+        button_sizes,
         metrics_many,
     ):
         check(page)

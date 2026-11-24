@@ -66,7 +66,7 @@ export function WorkspaceAccessDrawer({
 						name={user?.name ?? ""}
 						email={user?.email ?? ""}
 						avatarUrl={user?.avatarUrl ?? ""}
-						className="size-[26px] shrink-0"
+						className="size-6.5 shrink-0"
 					/>
 					<span className="flex min-w-0 items-baseline gap-2">
 						<SheetTitle className="shrink-0">{user === undefined ? "" : userLabel(user)}</SheetTitle>

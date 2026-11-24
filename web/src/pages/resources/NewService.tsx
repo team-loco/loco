@@ -501,7 +501,7 @@ function CollapsibleRow({
 function DrawerSection({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children?: ReactNode }) {
 	return (
 		<section className="flex flex-col gap-3">
-			<div className="flex min-h-[30px] flex-wrap items-center justify-between gap-x-3 gap-y-2">
+			<div className="flex min-h-7.5 flex-wrap items-center justify-between gap-x-3 gap-y-2">
 				<h3 className="m-0 text-[14px] font-medium tracking-[-0.01em]">{title}</h3>
 				{actions}
 			</div>
