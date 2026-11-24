@@ -89,9 +89,7 @@ jobs:
           base=$(git rev-parse --verify --quiet "origin/$BASE^{commit}" || git rev-parse --verify "$BASE^{commit}")
           echo "Before: $BASE at $base; after: $GITHUB_REF_NAME at $(git rev-parse HEAD)" | tee "$RUNNER_TEMP/evidence/refs.txt"
           evidence=(uv run --frozen --project "$GITHUB_WORKSPACE/tests" python "$GITHUB_WORKSPACE/tests/ui/evidence.py")
-          # The before app is seeded by its own ref's script.
-          git worktree add --detach "$RUNNER_TEMP/before" "$base"
-          before=$(uv run --frozen --project "$GITHUB_WORKSPACE/tests" python "$RUNNER_TEMP/before/tests/ui/evidence.py" up --ref "$base" --name before --scenario "$input/scenario.json")
+          before=$("${evidence[@]}" up --ref "$base" --name before --scenario "$input/scenario.json")
           after=$("${evidence[@]}" up --ref HEAD --name after --scenario "$input/scenario.json")
           "${evidence[@]}" shoot --state "$before" --spec "$input/shots.json" --out "$RUNNER_TEMP/evidence/evidence"
           "${evidence[@]}" shoot --state "$after" --spec "$input/shots.json" --out "$RUNNER_TEMP/evidence/evidence"
