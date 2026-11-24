@@ -86,7 +86,11 @@ def open_page(browser, user, path=None):
     calls = []
 
     def record(response):
-        if "/loco." in response.url:
+        # Streams send an enveloped body, not JSON; only unary calls are recorded.
+        unary = response.request.headers.get("content-type", "").startswith(
+            "application/json"
+        )
+        if "/loco." in response.url and unary:
             calls.append(
                 {
                     "method": response.url.rsplit("/", 1)[-1],
