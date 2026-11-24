@@ -196,6 +196,31 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 	}
 }
 
+func TestStartDeviceLoginRedrawsTakenUserCode(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	first, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("first start: %v", err)
+	}
+	taken := normalizeUserCode(first.GetUserCode())
+	draws := 0
+	f.server.userCode = func() (string, error) {
+		draws++
+		if draws == 1 {
+			return taken, nil
+		}
+		return randomUserCode()
+	}
+	second, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start with a taken user code: %v", err)
+	}
+	if draws != 2 || second.GetUserCode() == first.GetUserCode() {
+		t.Fatalf("draws = %d, codes %q and %q", draws, first.GetUserCode(), second.GetUserCode())
+	}
+}
+
 func TestCLIDeviceLogin(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
