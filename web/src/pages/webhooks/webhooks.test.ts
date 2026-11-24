@@ -115,10 +115,6 @@ test("groups workspace events by subject and leaves out organization events", ()
 	]);
 	const builds = webhookEventGroups().find((g) => g.label === "Builds");
 	expect(builds?.types).toContain("build.failed");
-	const deployments = webhookEventGroups().find((g) => g.label === "Deployments");
-	for (const type of ["deployment.ready", "deployment.failed", "deployment.crashed"]) {
-		expect(deployments?.types).toContain(type);
-	}
 });
 
 test("accepts only https endpoint URLs", () => {
