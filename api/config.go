@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -58,6 +59,8 @@ var (
 	errInvalidRegistryVersion = errors.New("LOCO_REGISTRY_TRANSIT_KEY_VERSION must be a positive integer")
 	errMissingRegistryService = errors.New("LOCO_REGISTRY_TOKEN_SERVICE is required for LOCO_REGISTRY_AUTH=token")
 	errRegistryTokenNoHost    = errors.New("LOCO_REGISTRY_HOST is required for LOCO_REGISTRY_AUTH=token")
+	errTLSListenerPartial     = errors.New("LOCO_TLS_ADDR, LOCO_TLS_CERT and LOCO_TLS_KEY must be set together")
+	errInvalidTLSKeyPair      = errors.New("LOCO_TLS_CERT and LOCO_TLS_KEY are not a matching PEM certificate and key")
 	errRegistryKeyShared      = errors.New(
 		"LOCO_REGISTRY_TRANSIT_KEY must differ from LOCO_SECRETS_TRANSIT_KEY and LOCO_INGEST_TRANSIT_KEY",
 	)
@@ -229,6 +232,7 @@ type APIConfig struct {
 	DefaultRegion         string
 	DeploymentMode        configv1.DeploymentMode
 	PprofAddr             string
+	TLSListener           TLSListenerConfig
 	SourceBucket          sourcebucket.Config
 	SourceMaxBytes        int64
 	RegistryHost          string
@@ -354,6 +358,7 @@ func newAPIConfig() *APIConfig {
 		DefaultRegion:         envconfig.String("LOCO_DEFAULT_REGION", ""),
 		DeploymentMode:        newDeploymentMode(),
 		PprofAddr:             envconfig.String("PPROF_ADDR", ""),
+		TLSListener:           newTLSListenerConfig(),
 		SourceBucket:          sourceBucket,
 		SourceMaxBytes:        sourceMaxBytes,
 		RegistryHost:          registryHost,
@@ -594,6 +599,33 @@ func newDeploymentMode() configv1.DeploymentMode {
 		panic(fmt.Errorf("%w: %q", errInvalidDeploymentMode, raw))
 	}
 	return mode
+}
+
+// TLSListenerConfig is the optional listener that terminates TLS itself, for routes that forward
+// raw TCP. An empty Addr runs none.
+type TLSListenerConfig struct {
+	Addr        string
+	Certificate tls.Certificate
+}
+
+func newTLSListenerConfig() TLSListenerConfig {
+	addr := envconfig.String("LOCO_TLS_ADDR", "")
+	cert := envconfig.String("LOCO_TLS_CERT", "")
+	key := envconfig.String("LOCO_TLS_KEY", "")
+	if addr == "" {
+		if cert != "" || key != "" {
+			panic(errTLSListenerPartial)
+		}
+		return TLSListenerConfig{}
+	}
+	if cert == "" || key == "" {
+		panic(errTLSListenerPartial)
+	}
+	pair, err := tls.X509KeyPair([]byte(cert), []byte(key))
+	if err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidTLSKeyPair, err))
+	}
+	return TLSListenerConfig{Addr: addr, Certificate: pair}
 }
 
 func newSourceBucketConfig() sourcebucket.Config {
