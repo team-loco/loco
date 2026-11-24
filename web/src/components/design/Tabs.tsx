@@ -71,13 +71,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsTr
 }
 
 function TabsCount({ className, ...props }: React.ComponentProps<"span">) {
-	return (
-		<span
-			data-slot="tabs-count"
-			className={cn("font-mono text-[11.5px] font-normal text-fg3 tabular-nums", className)}
-			{...props}
-		/>
-	);
+	return <span className={cn("font-mono text-[11.5px] font-normal text-fg3 tabular-nums", className)} {...props} />;
 }
 
 function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsContentBase>) {
