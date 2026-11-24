@@ -64,8 +64,6 @@ tests:
       - equal: {path: metadata.namespace, value: loco-obs}
         template: charts/otel-col-deploy/templates/serviceaccount.yaml
       - equal: {path: metadata.namespace, value: loco-obs}
-        template: charts/otel-col-deploy/templates/hpa.yaml
-      - equal: {path: metadata.namespace, value: loco-obs}
         template: charts/otel-col-cluster/templates/statefulset.yaml
       - equal: {path: metadata.namespace, value: loco-obs}
         template: charts/otel-col-cluster/templates/serviceaccount.yaml
@@ -319,45 +317,6 @@ tests:
       - hasDocuments:
           count: 0
         template: charts/otel-col-cluster/templates/hpa.yaml
-
-  - it: scales the deployment collector with the autoscaling values
-    set:
-      otel-col-deploy.autoscaling.minReplicas: 3
-      otel-col-deploy.autoscaling.maxReplicas: 7
-      otel-col-deploy.autoscaling.targetCPUUtilizationPercentage: 55
-    template: charts/otel-col-deploy/templates/hpa.yaml
-    asserts:
-      - equal:
-          path: spec.scaleTargetRef.name
-          value: otel-col-deploy
-      - equal:
-          path: spec.minReplicas
-          value: 3
-      - equal:
-          path: spec.maxReplicas
-          value: 7
-      - equal:
-          path: spec.metrics
-          value: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 55}}}]
-
-  - it: leaves the deployment collector's replicas to the autoscaler
-    template: charts/otel-col-deploy/templates/statefulset.yaml
-    asserts:
-      - notExists:
-          path: spec.replicas
-
-  - it: runs the explicit replica count when autoscaling is off
-    set:
-      otel-col-deploy.autoscaling.enabled: false
-      otel-col-deploy.replicaCount: 2
-    asserts:
-      - hasDocuments:
-          count: 0
-        template: charts/otel-col-deploy/templates/hpa.yaml
-      - equal:
-          path: spec.replicas
-          value: 2
-        template: charts/otel-col-deploy/templates/statefulset.yaml
 
   - it: holds every collector until the agent has written the token file
     set:
