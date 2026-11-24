@@ -9,6 +9,7 @@ import { Button } from "@/components/design/Button";
 import { CopyButton } from "@/components/design/CopyButton";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
+import { InlineCode } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
 import { Checkbox } from "@/components/design/Checkbox";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -351,8 +352,8 @@ export function SigningSecret({ secret, onDone }: { secret: string; onDone: () =
 		<>
 			<DialogBody>
 				<p className="m-0 text-[13.5px] text-fg2">
-					Copy it now. You won&apos;t see it again. Use it to verify the{" "}
-					<code className="font-mono">webhook-signature</code> header.
+					Copy it now. You won&apos;t see it again. Use it to verify the <InlineCode>webhook-signature</InlineCode>{" "}
+					header.
 				</p>
 				<div className="flex items-center gap-2.5 rounded-lg bg-panel2 py-2 pr-2 pl-3">
 					<code className="min-w-0 flex-1 font-mono text-[13px] break-all">{secret}</code>

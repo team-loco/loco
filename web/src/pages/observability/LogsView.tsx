@@ -474,9 +474,15 @@ export function LogsView() {
 					}
 					body={
 						<>
-							Anything {workspace === undefined ? "your" : <InlineCode>{workspace.name}</InlineCode>}
-							{workspace === undefined ? "" : "'s"} resources write to <InlineCode>stdout</InlineCode> or{" "}
-							<InlineCode>stderr</InlineCode> lands here.
+							Anything{" "}
+							{workspace === undefined ? (
+								"your"
+							) : (
+								<>
+									<InlineCode>{workspace.name}</InlineCode>&apos;s
+								</>
+							)}{" "}
+							resources write to <InlineCode>stdout</InlineCode> or <InlineCode>stderr</InlineCode> lands here.
 						</>
 					}
 					action={

@@ -16,6 +16,7 @@ import {
 	CommandList,
 } from "@/components/design/Command";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
+import { InlineCode } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -465,7 +466,7 @@ export function VariablesSection({
 		>
 			<span className="-mt-1 text-[12.5px] text-fg3">
 				Plain values, visible to anyone who can read this resource. For anything sensitive, refer to a secret with{" "}
-				<code className="font-mono text-[12px] text-fg2">{referenceOf("secrets", "NAME")}</code>.
+				<InlineCode>{referenceOf("secrets", "NAME")}</InlineCode>.
 				{environment !== undefined && canReadWorkspace && (
 					<>
 						{" "}

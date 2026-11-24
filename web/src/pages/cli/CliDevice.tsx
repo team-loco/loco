@@ -1,3 +1,4 @@
+import { InlineCode } from "@/components/design/InlineCode";
 import { Spinner } from "@/components/design/Spinner";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState, type SubmitEvent } from "react";
@@ -75,8 +76,8 @@ export function CliDevice() {
 				<form className="flex flex-col gap-4" onSubmit={submit}>
 					<p className="m-0 text-center text-[13.5px] text-fg2">
 						{linkedCode === null ? "Enter the code shown by " : "Approve the device running "}
-						<code className="font-mono text-[0.92em] whitespace-nowrap text-foreground">loco login --device</code> to
-						sign it in as <span className="font-medium text-foreground">{email}</span>.
+						<InlineCode>loco login --device</InlineCode> to sign it in as{" "}
+						<span className="font-medium text-foreground">{email}</span>.
 					</p>
 					{linkedCode === null ? (
 						<Field label="Device code" error={errorText}>

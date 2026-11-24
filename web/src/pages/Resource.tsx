@@ -14,6 +14,7 @@ import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectque
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
+import { InlineCode } from "@/components/design/InlineCode";
 import { PageCommands, type PageCommand } from "@/components/shell/CommandMenu";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -490,7 +491,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					) : (
 						<Section>
 							<EmptyState title="Not deployed yet">
-								Run <code className="font-mono">loco deploy</code> to create the first deployment of {resource.name}.
+								Run <InlineCode>loco deploy</InlineCode> to create the first deployment of {resource.name}.
 							</EmptyState>
 						</Section>
 					)}
