@@ -14,10 +14,9 @@ import { createConnectQueryKey, TransportProvider, useQuery } from "@connectrpc/
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
-import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { defaultShouldDehydrateQuery, partialMatchKey, QueryCache, QueryClient } from "@tanstack/react-query";
+import { defaultShouldDehydrateQuery, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider, type AsyncStorage } from "@tanstack/react-query-persist-client";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -57,20 +56,11 @@ const Organizations = lazy(async () => ({ default: (await pageImporters.Organiza
 const PersonalSettings = lazy(async () => ({ default: (await pageImporters.Settings()).PersonalSettings }));
 const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.DashboardRedirect()).DashboardRedirect }));
 
-import { transport, unauthenticated } from "./auth/connect-transport";
+import { transport } from "./auth/connect-transport";
 
 // Every page mounts these; observers that mount while a page loads reuse the data fetched a moment earlier.
 const SHARED_STALE_MS = 10_000;
-const whoAmIKey = createConnectQueryKey({ schema: whoAmI, cardinality: undefined });
 const queryClient = new QueryClient({
-	// The transport already refreshed the session and retried, so an Unauthenticated error means the
-	// session is gone. Asking who the user is again signs them out, which unmounts the polling queries.
-	queryCache: new QueryCache({
-		onError: (error, query) => {
-			if (!unauthenticated(error) || partialMatchKey(query.queryKey, whoAmIKey)) return;
-			void queryClient.invalidateQueries({ queryKey: whoAmIKey }, { cancelRefetch: false });
-		},
-	}),
 	defaultOptions: {
 		queries: {
 			retry: false,

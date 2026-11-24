@@ -1014,41 +1014,56 @@ def volume_error(browser):
     context.close()
 
 
-def expired_session(browser):
+def expired_session_leaves(browser, view, polled):
+    rejected = {"code": "unauthenticated", "message": "session expired"}
     context, page, errors = open_page(
         browser, state=state, timezone_id="UTC", now=datetime.now(UTC)
     )
     mock_telemetry(context)
-    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
-    expect(page.locator("[data-live-button]")).to_have_attribute("aria-pressed", "true")
-    expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
-    rejected = {"code": "unauthenticated", "message": "session expired"}
+    expiry = []
+
+    def answer(route):
+        if expiry:
+            route.fulfill(status=401, json=rejected)
+        elif route.request.url.endswith("/StreamEvents"):
+            route.fulfill(
+                status=200, headers={"content-type": "application/connect+json"}
+            )
+        else:
+            route.fallback()
+
     for method in (
         "loco.observability.v1.ObservabilityService/QueryLogBuckets",
+        "loco.event.v1.EventService/StreamEvents",
         "loco.token.v1.TokenService/GetScopes",
         "loco.auth.v1.AuthService/RefreshWebSession",
         "loco.user.v1.UserService/WhoAmI",
     ):
-        page.route(
-            f"**/{method}",
-            lambda route: route.fulfill(status=401, json=rejected),
-        )
+        page.route(f"**/{method}", answer)
+    page.goto(state["ui_url"] + base + view)
+    expect(page.get_by_role("main")).to_be_visible()
     sent = []
     page.on(
         "request",
-        lambda request: (
-            sent.append(request.url)
-            if request.url.endswith("/QueryLogBuckets")
-            else None
-        ),
+        lambda request: sent.append(request.url.rsplit("/", 1)[-1]),
     )
-    # Live tail moves the volume window every 15 seconds, so each tick is a new request.
+    expiry.append(True)
+    # Live tail moves the volume window every 15 seconds and a failed stream reconnects every 15 seconds.
     page.clock.run_for(15_000)
-    # The shell sends the signed-out user to sign in, which unmounts the logs page.
-    expect(page).not_to_have_url(re.compile(r"/observability"))
+    expect(page).to_have_url(re.compile(r"/(login|dex/auth)"))
     page.clock.run_for(60_000)
-    assert len(sent) <= 2, sent
+    assert sent.count(polled) <= 2, sent
+    assert sent.count("WhoAmI") <= 2, sent
+    assert not errors, errors
     context.close()
+
+
+def expired_session(browser):
+    # Live logs poll the volume; every page streams the shell's events.
+    expired_session_leaves(
+        browser, "/observability?env=production&view=logs", "QueryLogBuckets"
+    )
+    expired_session_leaves(browser, "/settings", "StreamEvents")
 
 
 def metrics_error(browser):
