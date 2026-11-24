@@ -6,6 +6,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+const sizeQuery = `SELECT cpu_millicores($1), memory_bytes($1)`
+
 func TestSQLQuantityFunctionsMatchKubernetesParsing(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
@@ -20,8 +22,7 @@ func TestSQLQuantityFunctionsMatchKubernetesParsing(t *testing.T) {
 			t.Fatalf("%q: not a Kubernetes quantity: %v", value, err)
 		}
 		var cpu, memory int64
-		query := `SELECT cpu_millicores($1), memory_bytes($1)`
-		if err = f.pool.QueryRow(t.Context(), query, value).Scan(&cpu, &memory); err != nil {
+		if err = f.pool.QueryRow(t.Context(), sizeQuery, value).Scan(&cpu, &memory); err != nil {
 			t.Fatalf("%q: %v", value, err)
 		}
 		// MilliValue overflows int64 above 9.2e15 base units; CPU quantities that large are not meaningful.
@@ -32,14 +33,22 @@ func TestSQLQuantityFunctionsMatchKubernetesParsing(t *testing.T) {
 			t.Errorf("memory_bytes(%q) = %d, want %d", value, memory, want)
 		}
 	}
-	for _, value := range []string{"", "abc", "1Zi", "1.2.3", "Mi", "1e", "1ki"} {
+	for _, value := range []string{"", "abc", "1Zi", "1.2.3", "Mi", "1e", "1ki", "-1", "-1e30", "-.5", "-1Gi"} {
 		var cpu, memory int64
-		query := `SELECT cpu_millicores($1), memory_bytes($1)`
-		if err := f.pool.QueryRow(t.Context(), query, value).Scan(&cpu, &memory); err != nil {
+		if err := f.pool.QueryRow(t.Context(), sizeQuery, value).Scan(&cpu, &memory); err != nil {
 			t.Fatalf("%q: %v", value, err)
 		}
 		if cpu != 0 || memory != 0 {
 			t.Errorf("%q = %d, %d, want 0, 0", value, cpu, memory)
+		}
+	}
+	for _, value := range []string{"1e99", "99E", "99Ei"} {
+		var cpu, memory int64
+		if err := f.pool.QueryRow(t.Context(), sizeQuery, value).Scan(&cpu, &memory); err != nil {
+			t.Fatalf("%q: %v", value, err)
+		}
+		if cpu != 9e18 || memory != 9e18 {
+			t.Errorf("%q = %d, %d, want the 9e18 cap", value, cpu, memory)
 		}
 	}
 }

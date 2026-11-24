@@ -4,7 +4,7 @@ export const BYTES_PER_MI = 1_048_576;
 const CPU_DECIMALS = 3;
 const GI_DECIMALS = 1;
 
-const QUANTITY_RE = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|M|G|T|P|E|[eE][+-]?\d+)?$/;
+const SUFFIX_RE = /(?:Ki|Mi|Gi|Ti|Pi|Ei|[numkMGTPE])$/;
 
 const SUFFIX_FACTOR: Record<string, number> = {
 	"": 1,
@@ -27,12 +27,9 @@ const SUFFIX_FACTOR: Record<string, number> = {
 
 // A Kubernetes quantity in its base unit (cores or bytes); 0 for text that is not one.
 function parseQuantity(quantity: string): number {
-	const match = QUANTITY_RE.exec(quantity);
-	if (!match) return 0;
-	const suffix = match[2] ?? "";
-	const isExponent = /^[eE][+-]?\d/.test(suffix);
-	const factor = isExponent ? 10 ** Number(suffix.slice(1)) : SUFFIX_FACTOR[suffix];
-	return Number(match[1]) * (factor ?? 1);
+	const suffix = SUFFIX_RE.exec(quantity)?.[0] ?? "";
+	const value = Number(quantity.slice(0, quantity.length - suffix.length)) * (SUFFIX_FACTOR[suffix] ?? 0);
+	return Number.isFinite(value) ? value : 0;
 }
 
 export function parseCpuMilli(cpu: string): number {

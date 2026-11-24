@@ -497,39 +497,36 @@ $$;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
--- A Kubernetes quantity such as 250m, .5, 1e3, 256Mi or 1Ei as a number in its base unit;
--- 0 for one that does not follow the Kubernetes quantity grammar.
+-- A Kubernetes quantity such as 250m, .5, 1e3, 256Mi or 1Ei as a non-negative number in its base
+-- unit; 0 for one that does not follow the Kubernetes quantity grammar or is negative.
 CREATE FUNCTION quantity_value (quantity TEXT) RETURNS NUMERIC LANGUAGE sql IMMUTABLE AS $$
     SELECT COALESCE((
-        SELECT m[1]::numeric * CASE
-            WHEN m[2] IS NULL THEN 1
-            WHEN m[2] ~ '^[eE][+-]?[0-9]' THEN power(10::numeric, substr(m[2], 2)::int)
-            ELSE CASE m[2]
-                WHEN 'Ki' THEN 1024::numeric WHEN 'Mi' THEN 1048576::numeric
-                WHEN 'Gi' THEN 1073741824::numeric WHEN 'Ti' THEN 1099511627776::numeric
-                WHEN 'Pi' THEN 1125899906842624::numeric WHEN 'Ei' THEN 1152921504606846976::numeric
-                WHEN 'n' THEN 1e-9 WHEN 'u' THEN 1e-6 WHEN 'm' THEN 1e-3
-                WHEN 'k' THEN 1e3 WHEN 'M' THEN 1e6 WHEN 'G' THEN 1e9
-                WHEN 'T' THEN 1e12 WHEN 'P' THEN 1e15 WHEN 'E' THEN 1e18
-            END
+        SELECT m[1]::numeric * CASE COALESCE(m[2], '')
+            WHEN '' THEN 1::numeric
+            WHEN 'Ki' THEN 1024::numeric WHEN 'Mi' THEN 1048576::numeric
+            WHEN 'Gi' THEN 1073741824::numeric WHEN 'Ti' THEN 1099511627776::numeric
+            WHEN 'Pi' THEN 1125899906842624::numeric WHEN 'Ei' THEN 1152921504606846976::numeric
+            WHEN 'n' THEN 1e-9 WHEN 'u' THEN 1e-6 WHEN 'm' THEN 1e-3
+            WHEN 'k' THEN 1e3 WHEN 'M' THEN 1e6 WHEN 'G' THEN 1e9
+            WHEN 'T' THEN 1e12 WHEN 'P' THEN 1e15 WHEN 'E' THEN 1e18
         END
         FROM regexp_match(
             quantity,
-            '^([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|M|G|T|P|E|[eE][+-]?[0-9]{1,2})?$'
+            '^(\+?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]{1,2})?)(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|M|G|T|P|E)?$'
         ) m
     ), 0)
 $$;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
--- A Kubernetes CPU quantity in millicores, capped at the largest BIGINT; 0 for one that does not parse.
+-- A Kubernetes CPU quantity in millicores, capped at 9e18; 0 for one that does not parse.
 CREATE FUNCTION cpu_millicores (quantity TEXT) RETURNS BIGINT LANGUAGE sql IMMUTABLE AS $$
     SELECT ceil(LEAST(quantity_value(quantity) * 1000, 9e18))::bigint
 $$;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
--- A Kubernetes memory quantity in bytes, capped at the largest BIGINT; 0 for one that does not parse.
+-- A Kubernetes memory quantity in bytes, capped at 9e18; 0 for one that does not parse.
 CREATE FUNCTION memory_bytes (quantity TEXT) RETURNS BIGINT LANGUAGE sql IMMUTABLE AS $$
     SELECT ceil(LEAST(quantity_value(quantity), 9e18))::bigint
 $$;
