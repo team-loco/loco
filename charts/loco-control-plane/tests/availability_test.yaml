@@ -12,12 +12,12 @@ templates:
   - templates/gateway.yaml
   - templates/scaling.yaml
 tests:
-  - it: runs one API replica by default
+  - it: runs two API replicas by default
     template: templates/api-deployment.yaml
     asserts:
       - equal:
           path: spec.replicas
-          value: 1
+          value: 2
 
   - it: autoscales the ingest proxy from two replicas by default
     asserts:
