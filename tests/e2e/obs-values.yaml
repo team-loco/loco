@@ -1,7 +1,2 @@
-otel-col-deploy:
-  replicaCount: 2
-  autoscaling:
-    enabled: false
-
 envoyProxy:
   statsFlushInterval: 10s
