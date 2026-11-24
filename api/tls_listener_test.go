@@ -89,7 +89,8 @@ func (echoSync) Sync(_ context.Context, stream agentv1connect.AgentServiceSyncSe
 func TestTLSServerServesSyncStreamOverHTTP2(t *testing.T) {
 	certPEM, keyPEM, roots := selfSignedPEM(t)
 	clearAPIConfigEnv(t)
-	t.Setenv("LOCO_TLS_ADDR", "127.0.0.1:0")
+	addr := freeAddr(t)
+	t.Setenv("LOCO_TLS_ADDR", addr)
 	t.Setenv("LOCO_TLS_CERT", certPEM)
 	t.Setenv("LOCO_TLS_KEY", keyPEM)
 	ac := newAPIConfig()
@@ -103,21 +104,18 @@ func TestTLSServerServesSyncStreamOverHTTP2(t *testing.T) {
 		t.Fatalf("servers = %d, want plain and TLS", len(servers))
 	}
 	tlsServer := servers[1]
-	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", ac.TLSListener.Addr)
-	if err != nil {
-		t.Fatal(err)
-	}
 	served := make(chan error, 1)
-	go func() { served <- tlsServer.ServeTLS(listener, "", "") }()
+	go func() { served <- serve(tlsServer) }()
 	t.Cleanup(func() {
 		if closeErr := tlsServer.Close(); closeErr != nil {
 			t.Error(closeErr)
 		}
-		if serveErr := <-served; !errors.Is(serveErr, http.ErrServerClosed) {
+		if serveErr := <-served; serveErr != nil {
 			t.Error(serveErr)
 		}
 	})
-	url := "https://" + listener.Addr().String()
+	waitListening(t, addr)
+	url := "https://" + addr
 
 	h2 := new(http.Protocols)
 	h2.SetHTTP2(true)
@@ -151,6 +149,38 @@ func TestTLSServerServesSyncStreamOverHTTP2(t *testing.T) {
 	defer response.Body.Close()
 	if response.ProtoMajor != 1 {
 		t.Fatalf("HTTP/1.1 client got %s", response.Proto)
+	}
+}
+
+// freeAddr returns a loopback address with a port nothing listens on, for serve to listen on.
+func freeAddr(t *testing.T) string {
+	t.Helper()
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := listener.Addr().String()
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return addr
+}
+
+func waitListening(t *testing.T, addr string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", addr)
+		if err == nil {
+			if closeErr := conn.Close(); closeErr != nil {
+				t.Fatal(closeErr)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%s never started listening: %v", addr, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
