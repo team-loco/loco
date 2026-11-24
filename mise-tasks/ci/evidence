@@ -69,7 +69,8 @@ fi
 id=${run%% *}
 echo "Evidence run: ${run#* }"
 
-until [[ $(gh run view "$id" --json status --jq .status) == completed ]]; do
+until status=$(gh run view "$id" --json status --jq .status 2>/dev/null) && [[ $status == completed ]]; do
+	echo "Run $id not readable or not finished yet; asking again in 30s" >&2
 	sleep 30
 done
 conclusion=$(gh run view "$id" --json conclusion --jq .conclusion)
