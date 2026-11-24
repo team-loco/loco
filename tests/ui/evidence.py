@@ -1819,51 +1819,67 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
             if key.lower() not in ("host", "connection")
         }
         try:
-            connection.request(
-                self.command,
-                self.path.removeprefix("/api"),
-                body,
-                headers | {"Connection": "close"},
-            )
-            # The response takes the socket over, so keep it to shut down.
-            upstream_socket = connection.sock
-            response = connection.getresponse()
+            connection.connect()
         except OSError:
-            connection.close()
             self.send_error(502, "API unavailable")
             return
         # A stream the API sends nothing on never fails a write to the page, so the
-        # upstream closes when the page's socket does.
+        # upstream closes when the page's socket does. The watcher starts before the
+        # response, which takes the socket over.
+        left = threading.Event()
         done = threading.Event()
         watcher = threading.Thread(
-            target=self.close_upstream_on_disconnect, args=(upstream_socket, done)
+            target=self.close_upstream_on_disconnect,
+            args=(connection.sock, left, done),
         )
         watcher.start()
         try:
-            self.send_response(response.status)
-            for key, value in response.headers.items():
-                if key.lower() not in ("connection", "transfer-encoding"):
-                    self.send_header(key, value)
-            self.end_headers()
-            while chunk := response.read1(64 * 1024):
-                self.wfile.write(chunk)
-                self.wfile.flush()
-        except OSError, http.client.HTTPException:
-            pass  # The page left while a stream was being forwarded.
+            try:
+                connection.request(
+                    self.command,
+                    self.path.removeprefix("/api"),
+                    body,
+                    headers | {"Connection": "close"},
+                )
+                response = connection.getresponse()
+            except OSError, http.client.HTTPException:
+                if not left.is_set():
+                    self.send_error(502, "API unavailable")
+                return
+            try:
+                self.send_response(response.status)
+                for key, value in response.headers.items():
+                    if key.lower() not in ("connection", "transfer-encoding"):
+                        self.send_header(key, value)
+                self.end_headers()
+                while chunk := self.read_upstream(response, left):
+                    self.wfile.write(chunk)
+                    self.wfile.flush()
+            except OSError:
+                pass  # The page left while a stream was being forwarded.
         finally:
             done.set()
             watcher.join()
             connection.close()
 
-    def close_upstream_on_disconnect(self, upstream, done):
+    def read_upstream(self, response, left):
+        try:
+            return response.read1(64 * 1024)
+        except (OSError, http.client.HTTPException) as err:
+            if not left.is_set():
+                log(f"{id(self):x} upstream read of {self.path} failed: {err!r}")
+            return b""
+
+    def close_upstream_on_disconnect(self, upstream, left, done):
         while not done.wait(0.1):
             readable, _, _ = select.select([self.connection], [], [], 0)
             if readable:
                 try:
-                    left = not self.connection.recv(1, socket.MSG_PEEK)
+                    gone = not self.connection.recv(1, socket.MSG_PEEK)
                 except ConnectionError:
-                    left = True
-                if left:
+                    gone = True
+                if gone:
+                    left.set()
                     with contextlib.suppress(OSError):
                         upstream.shutdown(socket.SHUT_RDWR)
                     return
