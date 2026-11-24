@@ -348,6 +348,11 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     ).to_be_disabled()
     endpoint.fill("https://hooks.invalid/named")
     name.fill("Billing alerts")
+    creation.get_by_role("button", name="Show deployments events", exact=True).click()
+    for outcome in ("ready", "failed", "crashed"):
+        expect(
+            creation.get_by_role("checkbox", name=f"deployment.{outcome}", exact=True)
+        ).to_be_visible()
     creation.get_by_role("button", name="Create webhook", exact=True).click()
     signing = page.get_by_role("dialog", name="Signing secret", exact=True)
     page.mouse.click(5, 5)
