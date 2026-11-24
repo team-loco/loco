@@ -26,8 +26,8 @@ const (
 )
 
 var (
-	errQuickDeployFlags    = errors.New("deployment flags for a new service require omitting loco.yaml")
-	errNoFileConflict      = errors.New("use either --no-file or --file, not both")
+	errQuickDeployFlags    = errors.New("flags for a new service need no loco.yaml: remove it or pass --no-file")
+	errNoFileName          = errors.New("--no-file needs a service name: pass it as an argument or with --name")
 	errNameConflict        = errors.New("set the service name with either an argument or --name")
 	errMultipleNames       = errors.New("without loco.yaml, deploy one service at a time")
 	errDomainConflict      = errors.New("--domain and --private cannot be used together")
@@ -42,9 +42,6 @@ func loadDeployFile(cmd *cobra.Command, filePath string) (*locofile.File, []byte
 		return nil, nil, false, err
 	}
 	if noFile {
-		if cmd.Flags().Changed("file") {
-			return nil, nil, false, errNoFileConflict
-		}
 		return nil, nil, true, nil
 	}
 	file, data, err := loadLocoFile(filePath)
@@ -160,6 +157,13 @@ func quickServiceName(cmd *cobra.Command, names []string) (string, error) {
 	}
 	if len(names) == 1 {
 		name = names[0]
+	}
+	noFile, err := cmd.Flags().GetBool("no-file")
+	if err != nil {
+		return "", err
+	}
+	if name == "" && noFile {
+		return "", errNoFileName
 	}
 	yes, err := cmd.Flags().GetBool("yes")
 	if err != nil {

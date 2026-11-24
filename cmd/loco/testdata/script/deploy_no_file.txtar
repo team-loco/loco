@@ -2,18 +2,22 @@
 fakeapi resource api
 fakeapi plan plan.json
 cd app
-exec loco deploy --no-file --name api --image ghcr.io/acme/api:1 --port 8080 --private --yes
+exec loco deploy --no-file api --image ghcr.io/acme/api:1 --port 8080 --private --yes
 stdout '^api has no public URL and takes no internet traffic\.$'
 fakeapi applied 7
-cmp loco.yaml original.yaml
+grep '^this is: \[not valid$' loco.yaml
 
 # without the flag the file is read, so its error stops the deploy.
 ! exec loco deploy --name api --port 8080 --yes
 stderr 'Invalid loco.yaml'
 
+# --no-file needs a name, so it never defaults to the directory name a loco.yaml may already use.
+! exec loco deploy --no-file --port 8080 --yes
+stderr '(?i)--no-file needs a service name'
+
 # --no-file and --file are exclusive.
-! exec loco deploy --no-file --file loco.yaml --yes
-stderr '(?i)use either --no-file or --file, not both'
+! exec loco deploy --no-file api --file loco.yaml --yes
+stderr 'none of the others can be'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
@@ -25,9 +29,6 @@ workspace:
   name: production
   id: "2"
 -- app/loco.yaml --
-version: 1
-this is: [not valid
--- app/original.yaml --
 version: 1
 this is: [not valid
 -- plan.json --
