@@ -88,6 +88,7 @@ type Querier interface {
 	DeleteExpiredAPITokenByName(ctx context.Context, arg DeleteExpiredAPITokenByNameParams) error
 	// Tokens without an organization override, personal tokens included, use the install default retention.
 	DeleteExpiredAPITokens(ctx context.Context, defaultRetentionDays int32) error
+	DeleteExpiredClusterAssertions(ctx context.Context) error
 	DeleteExpiredPlacementWindows(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteExpiredPullRegistryCredentials(ctx context.Context) (int64, error)
 	// session is fully dead once the refresh token expires (access expiry alone is not enough)
