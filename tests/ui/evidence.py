@@ -18,6 +18,7 @@ import signal
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import tomllib
 import urllib.error
@@ -1693,7 +1694,42 @@ def start_state(*, ref, name, scenario, issuer=None):
 
 
 def cmd_up(args):
-    print(start_state(ref=args.ref, name=args.name, scenario=args.scenario))
+    repo = repo_root()
+    if git_commit(repo, args.ref) == git_commit(repo, "HEAD"):
+        print(start_state(ref=args.ref, name=args.name, scenario=args.scenario))
+        return
+    # An earlier ref is started by its own copy of this script, so its seeding
+    # matches that ref's schema. The checkout lives as long as the run.
+    checkout = Path(tempfile.mkdtemp(prefix=f"{LABEL}-script-"))
+    run(
+        ["git", "-C", str(repo), "worktree", "add", "--detach", str(checkout), args.ref]
+    )
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(checkout / "tests" / "ui" / "evidence.py"),
+                "up",
+                "--ref",
+                args.ref,
+                "--name",
+                args.name,
+                "--scenario",
+                str(Path(args.scenario).resolve()),
+            ],
+            cwd=checkout,
+            env={k: v for k, v in os.environ.items() if k != BUILD_ENV},
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+        if result.returncode != 0:
+            raise EvidenceError(f"up of {args.ref} failed ({result.returncode})")
+        state = result.stdout.strip()
+        testres("add", Path(state).parent, "worktree", checkout)
+    except BaseException:
+        run(["git", "-C", str(repo), "worktree", "remove", "--force", str(checkout)])
+        raise
+    print(state)
 
 
 def build(checkout, env):
