@@ -154,7 +154,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	}
 	sort.Slice(rollout.Replicas, func(i, j int) bool { return rollout.Replicas[i].Name < rollout.Replicas[j].Name })
 	sort.Slice(current, func(i, j int) bool { return current[i].pod.Name < current[j].pod.Name })
-	rollout.Available = rollout.Available || keepsServing(previous, current, revision)
+	rollout.Available = rollout.Available || keepsServing(previous, current, revision, rollout.DesiredReplicas)
 	rollout.ProvenRevision = previous.ProvenRevision
 	rollout.DeployedRevision = previous.DeployedRevision
 	// Restarts stop a revision only until it proves itself; a proven revision keeps running.
@@ -196,8 +196,13 @@ func (r *ApplicationReconciler) observeReplicas(
 	return nil
 }
 
-// keepsServing is whether every replica that was ready in a deployed, available revision still is.
-func keepsServing(previous *locov1alpha1.RolloutStatus, current []observedReplica, revision int64) bool {
+// keepsServing is whether a deployed, available revision still has the ready replicas its desired count needs.
+func keepsServing(
+	previous *locov1alpha1.RolloutStatus,
+	current []observedReplica,
+	revision int64,
+	desired int32,
+) bool {
 	if !previous.Available || previous.DeployedRevision != revision {
 		return false
 	}
@@ -205,17 +210,21 @@ func keepsServing(previous *locov1alpha1.RolloutStatus, current []observedReplic
 	for _, replica := range current {
 		ready[replica.status.UID] = replica.status.Ready
 	}
-	served := 0
+	var served, kept int32
 	for _, replica := range previous.Replicas {
 		if !replica.Ready || replica.PlacementRevision != revision {
 			continue
 		}
-		if !ready[replica.UID] {
+		served++
+		stillReady, running := ready[replica.UID]
+		if running && !stillReady {
 			return false
 		}
-		served++
+		if stillReady {
+			kept++
+		}
 	}
-	return served > 0
+	return kept > 0 && kept >= min(served, desired)
 }
 
 func observeReplica(
