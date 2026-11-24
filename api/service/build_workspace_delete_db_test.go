@@ -23,6 +23,11 @@ func TestBuildOutcomeAndDeleteWorkspaceDoNotDeadlock(t *testing.T) {
 			status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_FAILED)
 			return f.agentServer().recordBuildStatus(f.ctx, f.clusterID, uuid.MustParse(buildID), status)
 		},
+		"succeeded report": func(f *buildFixture, buildID string) error {
+			status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
+			status.ImageDigest = testImageDigest
+			return f.agentServer().recordBuildStatus(f.ctx, f.clusterID, uuid.MustParse(buildID), status)
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
