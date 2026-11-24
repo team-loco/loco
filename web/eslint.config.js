@@ -3,33 +3,6 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
-const STORAGE_READ = {
-	name: "@/lib/storage",
-	importNames: ["readStorage"],
-	message:
-		"A read during render keeps its first value under the React compiler. Read through useStoredValue or useStoredJSON.",
-};
-
-function restrictedImports(...extraPaths) {
-	return {
-		paths: [
-			{
-				name: "sonner",
-				importNames: ["toast"],
-				message: 'Import toast from "@/lib/toast", which follows the Toasts setting.',
-			},
-			...extraPaths,
-		],
-		patterns: [
-			{
-				group: ["@/components/ui/*"],
-				message:
-					'Import from "@/components/design/<Component>" instead. components/ui/* is vendored from shadcn and is overwritten by the CLI; add a wrapper in components/design/ if one does not exist yet.',
-			},
-		],
-	};
-}
-
 export default defineConfig([
 	globalIgnores(["dist", "src/components/ui"]),
 	{
@@ -72,16 +45,32 @@ export default defineConfig([
 	{
 		files: ["src/**/*.{ts,tsx}"],
 		ignores: ["src/components/design/**"],
-		rules: { "no-restricted-imports": ["error", restrictedImports()] },
-	},
-	{
-		files: [
-			"src/components/**/*.{ts,tsx}",
-			"src/pages/**/*.{ts,tsx}",
-			"src/context/**/*.{ts,tsx}",
-			"src/hooks/**/*.{ts,tsx}",
-		],
-		ignores: ["src/components/design/**"],
-		rules: { "no-restricted-imports": ["error", restrictedImports(STORAGE_READ)] },
+		rules: {
+			"no-restricted-imports": [
+				"error",
+				{
+					paths: [
+						{
+							name: "sonner",
+							importNames: ["toast"],
+							message: 'Import toast from "@/lib/toast", which follows the Toasts setting.',
+						},
+						{
+							name: "@/lib/storage",
+							importNames: ["readStorage"],
+							message:
+								"A read during render keeps its first value under the React compiler. Read through useStoredValue or useStoredJSON.",
+						},
+					],
+					patterns: [
+						{
+							group: ["@/components/ui/*"],
+							message:
+								'Import from "@/components/design/<Component>" instead. components/ui/* is vendored from shadcn and is overwritten by the CLI; add a wrapper in components/design/ if one does not exist yet.',
+						},
+					],
+				},
+			],
+		},
 	},
 ]);

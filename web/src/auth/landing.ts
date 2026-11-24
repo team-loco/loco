@@ -12,6 +12,7 @@ import { ORG_STORAGE_KEY, pickActive, WORKSPACE_STORAGE_KEY } from "@/context/Co
 import { hasOrganizationMembership } from "@/hooks/useMyScopes";
 import { pageImporters } from "@/lib/lazy-pages";
 import { workspacePath } from "@/lib/routes";
+// eslint-disable-next-line no-restricted-imports -- the sign-in redirect runs outside render
 import { readStorage } from "@/lib/storage";
 
 export async function landingPath(

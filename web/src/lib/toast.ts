@@ -1,6 +1,7 @@
 // eslint-disable-next-line no-restricted-imports -- the one wrapper around sonner's toast
 import { toast as sonner, type ExternalToast } from "sonner";
 
+// eslint-disable-next-line no-restricted-imports -- toasts are raised from event handlers
 import { readStorage } from "@/lib/storage";
 
 export const toastsKey = "loco:toasts:v1";
