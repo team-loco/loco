@@ -28,13 +28,14 @@ tests:
           path: spec.replicas
         template: templates/obs-proxy-ingest-deployment.yaml
       - equal:
-          path: spec.minReplicas
-          value: 2
-        template: templates/scaling.yaml
-        documentSelector: {path: kind, value: HorizontalPodAutoscaler}
-      - equal:
-          path: spec.scaleTargetRef.name
-          value: loco-control-plane-obs-proxy-ingest
+          path: spec
+          value:
+            scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: loco-control-plane-obs-proxy-ingest}
+            minReplicas: 2
+            maxReplicas: 6
+            metrics:
+              - type: Resource
+                resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
         template: templates/scaling.yaml
         documentSelector: {path: kind, value: HorizontalPodAutoscaler}
 
