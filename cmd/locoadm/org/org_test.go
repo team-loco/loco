@@ -19,6 +19,9 @@ import (
 const (
 	testReason      = "large customer"
 	limitsCmd       = "limits"
+	limitsSet       = "set"
+	limitsUnset     = "unset"
+	reasonFlag      = "--reason"
 	workspacesField = "workspaces_per_org"
 )
 
@@ -78,8 +81,8 @@ func TestLimitsGetPrintsTheEffectiveLimits(t *testing.T) {
 func TestLimitsSetSendsOnlyTheNamedLimits(t *testing.T) {
 	fake := &fakeOrgs{}
 	orgID := uuid.NewString()
-	output, err := runOrgCmd(t, fake, limitsCmd, "set", orgID,
-		"--workspaces-per-org", "500", "--deployment-history", "20", "--reason", testReason)
+	output, err := runOrgCmd(t, fake, limitsCmd, limitsSet, orgID,
+		"--workspaces-per-org", "500", "--deployment-history", "20", reasonFlag, testReason)
 	if err != nil {
 		t.Fatalf("set: %v\n%s", err, output)
 	}
@@ -102,10 +105,10 @@ func TestLimitsUnsetClearsTheNamedLimits(t *testing.T) {
 		t,
 		fake,
 		limitsCmd,
-		"unset",
+		limitsUnset,
 		uuid.NewString(),
 		"workspaces-per-org",
-		"--reason",
+		reasonFlag,
 		testReason,
 	)
 	if err != nil {
@@ -121,10 +124,12 @@ func TestLimitsUnsetClearsTheNamedLimits(t *testing.T) {
 func TestLimitsChangesNeedAReasonAndALimit(t *testing.T) {
 	orgID := uuid.NewString()
 	for name, args := range map[string][]string{
-		"set without a reason":   {limitsCmd, "set", orgID, "--workspaces-per-org", "500"},
-		"unset without a reason": {limitsCmd, "unset", orgID, "workspaces-per-org"},
-		"set without a limit":    {limitsCmd, "set", orgID, "--reason", testReason},
-		"unset an unknown limit": {limitsCmd, "unset", orgID, "pods", "--reason", testReason},
+		"set without a reason":   {limitsCmd, limitsSet, orgID, "--workspaces-per-org", "500"},
+		"unset without a reason": {limitsCmd, limitsUnset, orgID, "workspaces-per-org"},
+		"set without a limit":    {limitsCmd, limitsSet, orgID, reasonFlag, testReason},
+		"unset an unknown limit": {limitsCmd, limitsUnset, orgID, "pods", reasonFlag, testReason},
+		"set a file limit":       {limitsCmd, limitsSet, orgID, "--services-per-file", "500", reasonFlag, testReason},
+		"unset a user limit":     {limitsCmd, limitsUnset, orgID, "orgs-per-user", reasonFlag, testReason},
 	} {
 		t.Run(name, func(t *testing.T) {
 			fake := &fakeOrgs{}

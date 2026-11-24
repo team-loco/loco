@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,10 +20,23 @@ import (
 
 const slowLookup = 300 * time.Millisecond
 
-// slowResolver takes slowLookup per image, or until the context ends.
-type slowResolver struct{}
+// slowResolver takes slowLookup per image and records the most lookups in flight at once.
+type slowResolver struct {
+	mu       sync.Mutex
+	inFlight int
+	peak     int
+}
 
-func (slowResolver) Resolve(ctx context.Context, _ name.Reference) (string, error) {
+func (r *slowResolver) Resolve(ctx context.Context, _ name.Reference) (string, error) {
+	r.mu.Lock()
+	r.inFlight++
+	r.peak = max(r.peak, r.inFlight)
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		r.inFlight--
+		r.mu.Unlock()
+	}()
 	select {
 	case <-time.After(slowLookup):
 		return testDigest, nil
@@ -72,24 +86,25 @@ func planImages(t *testing.T, f *deployFixture, p imagePlan) (*planv1.PlanRespon
 	return server.Plan(ctx, &planv1.PlanRequest{File: []byte(imageFile(p.services)), EnvironmentId: f.envID.String()})
 }
 
-func TestPlanResolvesManyImagesWithinTheDeadline(t *testing.T) {
+func TestPlanResolvesImagesConcurrentlyUpToTheBound(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
-	const services = 20
+	const services = 2*imageLookups + 4
+	resolver := &slowResolver{}
 
-	// One lookup after another would take services*slowLookup, twice the deadline.
 	resp, err := planImages(t, f, imagePlan{
-		resolver: slowResolver{}, counts: limits.Defaults(), timeout: services * slowLookup / 2, services: services,
+		resolver: resolver, counts: limits.Defaults(), timeout: 30 * time.Second, services: services,
 	})
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
-	if len(resp.GetErrors()) != 0 {
-		t.Fatalf("errors = %v, want none", resp.GetErrors())
+	if len(resp.GetErrors()) != 0 || len(resp.GetImages()) != services {
+		t.Fatalf("images = %d, errors = %v; want %d images and no errors",
+			len(resp.GetImages()), resp.GetErrors(), services)
 	}
-	if len(resp.GetImages()) != services {
-		t.Fatalf("images = %d, want %d", len(resp.GetImages()), services)
+	if resolver.peak != imageLookups {
+		t.Fatalf("peak lookups in flight = %d, want %d", resolver.peak, imageLookups)
 	}
 }
 
@@ -99,7 +114,7 @@ func TestPlanThatRunsOutOfTimeSaysSo(t *testing.T) {
 	f.markClustersHealthy(t)
 
 	_, err := planImages(t, f, imagePlan{
-		resolver: stuckResolver{}, counts: limits.Defaults(), timeout: 2 * time.Second, services: 1,
+		resolver: stuckResolver{}, counts: limits.Defaults(), timeout: 5 * time.Second, services: 1,
 	})
 	if connect.CodeOf(err) != connect.CodeDeadlineExceeded {
 		t.Fatalf("Plan = %v, want DeadlineExceeded", err)

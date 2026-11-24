@@ -177,8 +177,11 @@ func (s *PlanServer) loadPlan(
 	targets := regionClusters(clusters)
 
 	images := s.resolveImages(ctx, services)
-	if ctx.Err() != nil {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return nil, connect.NewError(connect.CodeDeadlineExceeded, publicPlanOutOfTime).WithCause(ctx.Err())
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	_, computeSpan := tracing.Start(ctx, planComputeSpan)
 	plan, err := configplan.Compute(configplan.Input{
