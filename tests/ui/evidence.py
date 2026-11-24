@@ -285,8 +285,6 @@ def api_env(dev_env, ports, database, issuer):
             "APP_PORT": f":{api_port}",
             "DATABASE_URL": f"postgres://{DB_USER}:{DB_PASSWORD}@{HOST}:{db_port}/{database}?sslmode=disable",
             "LOCO_AGENT_HEARTBEAT_INTERVAL": f"{LEASE_S}s",
-            "CACHE_TYPE": "in-memory",
-            "CACHE_ADDR": "",
             "CORS_ALLOWED_ORIGINS": f"http://{HOST}:{ui_port}",
             "WEB_URL": f"http://{HOST}:{ui_port}",
             "PPROF_ADDR": "",

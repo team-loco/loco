@@ -61,7 +61,6 @@ jobs:
 
     env:
       LOCO_TEST_DATABASE_URL: postgres://loco_test:loco_test@localhost:5432/loco_test?sslmode=disable
-      LOCO_TEST_VALKEY_URL: redis://localhost:6379
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -71,7 +70,7 @@ jobs:
           go-cache: test-api
           image-cache: true
 
-      - name: Start Postgres and Valkey
+      - name: Start Postgres
         run: docker compose -f .github/compose.api-tests.yaml up -d --wait
 
       - name: Run tests

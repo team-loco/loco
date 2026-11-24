@@ -646,6 +646,13 @@ type ApiToken struct {
 	LastUsedAt      *time.Time    `json:"lastUsedAt"`
 }
 
+type AuthState struct {
+	Key       string     `json:"key"`
+	Value     []byte     `json:"value"`
+	StartedAt *time.Time `json:"startedAt"`
+	ExpiresAt time.Time  `json:"expiresAt"`
+}
+
 type Build struct {
 	ID                  uuid.UUID        `json:"id"`
 	ResourceID          uuid.UUID        `json:"resourceId"`
