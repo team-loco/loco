@@ -1,3 +1,4 @@
+import { loneSampleDot } from "@/lib/chart-dot";
 import { useMemo, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { useQueries } from "@tanstack/react-query";
@@ -275,7 +276,7 @@ export function Infrastructure({
 															dataKey="value"
 															name="In"
 															stroke={panel.color}
-															dot={false}
+															dot={loneSampleDot(data.filter((row) => row.value !== undefined).length, panel.color)}
 															isAnimationActive={false}
 														/>
 														<Line
@@ -283,7 +284,7 @@ export function Infrastructure({
 															name="Out"
 															stroke={panel.color}
 															strokeDasharray="4 3"
-															dot={false}
+															dot={loneSampleDot(data.filter((row) => row.out !== undefined).length, panel.color)}
 															isAnimationActive={false}
 														/>
 													</>

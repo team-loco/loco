@@ -1,3 +1,4 @@
+import { loneSampleDot } from "@/lib/chart-dot";
 import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
@@ -293,7 +294,10 @@ export function RegionAverages({
 								dataKey={region}
 								stroke={`var(--series-${i.toString()})`}
 								strokeWidth={1.75}
-								dot={data.length === 1}
+								dot={loneSampleDot(
+									data.filter((row) => row[region] !== undefined).length,
+									`var(--series-${i.toString()})`,
+								)}
 								isAnimationActive={false}
 								connectNulls
 							/>
