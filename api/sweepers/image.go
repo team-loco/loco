@@ -147,11 +147,13 @@ func (s *ImageSweeper) deleteExpiredImages(ctx context.Context) (int, error) {
 	return deleted, nil
 }
 
+// deleteBuildImage marks the build's image deleted, then deletes it from the registry with no
+// row locked; deleteStaleTags retries a registry delete that fails.
 func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) (bool, error) {
-	removed := false
+	var marked *genDb.ListDeletableBuildImagesRow
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		qtx := genDb.New(tx)
-		removed = false
+		marked = nil
 		deletedAt, lockErr := qtx.LockBuildImageForDelete(ctx, buildID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
 			return nil
@@ -173,26 +175,28 @@ func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) 
 		if len(rows) == 0 {
 			return nil
 		}
-		row := rows[0]
-		path, pathErr := imagepath.Path(s.config.RegistryHost, row.ImageRepository)
-		if pathErr != nil {
-			return pathErr
-		}
-		if deleteErr := s.registry.DeleteManifest(ctx, path, row.ImageDigest); deleteErr != nil {
-			return fmt.Errorf("delete image: %w", deleteErr)
-		}
-		if row.CacheDigest != nil {
-			if deleteErr := s.registry.DeleteManifest(ctx, path, *row.CacheDigest); deleteErr != nil {
-				return fmt.Errorf("delete cache: %w", deleteErr)
-			}
-		}
 		if _, markErr := qtx.MarkBuildImageDeleted(ctx, buildID); markErr != nil {
 			return fmt.Errorf("mark image deleted: %w", markErr)
 		}
-		removed = true
+		marked = &rows[0]
 		return nil
 	})
-	return removed, err
+	if err != nil || marked == nil {
+		return false, err
+	}
+	path, err := imagepath.Path(s.config.RegistryHost, marked.ImageRepository)
+	if err != nil {
+		return false, err
+	}
+	if err := s.registry.DeleteManifest(ctx, path, marked.ImageDigest); err != nil {
+		return false, fmt.Errorf("delete image: %w", err)
+	}
+	if marked.CacheDigest != nil {
+		if err := s.registry.DeleteManifest(ctx, path, *marked.CacheDigest); err != nil {
+			return false, fmt.Errorf("delete cache: %w", err)
+		}
+	}
+	return true, nil
 }
 
 func (s *ImageSweeper) sweepRepositories(ctx context.Context, result *ImageSweepResult) error {
@@ -413,6 +417,8 @@ func tagExpired(tag buildTag, state genDb.ListBuildTagStatesRow, found bool, cut
 		return false
 	}
 	switch state.Status {
+	case genDb.BuildStatusSucceeded:
+		return state.ImageDeletedAt != nil
 	case genDb.BuildStatusFailed:
 		return state.FinishedAt.Before(cutoff)
 	case genDb.BuildStatusCanceled:

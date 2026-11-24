@@ -293,7 +293,7 @@ WHERE id = $1
 SELECT id FROM resources WHERE id = ANY(sqlc.arg(ids)::uuid[]);
 
 -- name: ListBuildTagStates :many
-SELECT id, resource_id, status, finished_at FROM builds
+SELECT id, resource_id, status, finished_at, image_deleted_at FROM builds
 WHERE id = ANY(sqlc.arg(ids)::uuid[]);
 
 -- name: ListLiveBuildDigests :many

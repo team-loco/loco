@@ -420,18 +420,21 @@ func TestImageSweepRetriesFailedDeletes(t *testing.T) {
 	old := f.succeeded(t)
 	f.succeeded(t)
 	f.registry.mu.Lock()
-	f.registry.deleteFails[old.cache] = 1
+	f.registry.deleteFails[old.cache] = 2
 	f.registry.mu.Unlock()
 
-	if result := f.sweep(t); result.ImagesDeleted != 0 {
-		t.Fatalf("deleted %d images while the registry failed, want 0", result.ImagesDeleted)
+	if result := f.sweep(t); result.ImagesDeleted != 0 || result.StaleTags != 0 {
+		t.Fatalf("sweep while the registry failed = %+v, want nothing deleted", result)
 	}
-	if f.imageDeleted(t, old) {
-		t.Fatal("a failed delete marked the image deleted")
+	if !f.imageDeleted(t, old) {
+		t.Fatal("the image is not marked deleted, so a deploy could still pin it")
+	}
+	if !f.registry.has(f.repoPath, old.cache) {
+		t.Fatal("the cache whose delete failed is gone")
 	}
 
-	if result := f.sweep(t); result.ImagesDeleted != 1 {
-		t.Fatalf("deleted %d images on retry, want 1", result.ImagesDeleted)
+	if result := f.sweep(t); result.StaleTags != 1 {
+		t.Fatalf("deleted %d stale tags on retry, want the cache's 1", result.StaleTags)
 	}
 	f.wantDeleted(t, old)
 }
