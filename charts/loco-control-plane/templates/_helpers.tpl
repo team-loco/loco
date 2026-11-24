@@ -233,3 +233,12 @@ capabilities:
 {{- end }}
 {{- toYaml $settings }}
 {{- end }}
+
+{{- define "loco-control-plane.spreadByNode" -}}
+- maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+  labelSelector:
+    matchLabels:
+      {{- toYaml . | nindent 6 }}
+{{- end -}}

@@ -97,6 +97,8 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
+      topologySpreadConstraints:
+        {{- include "loco-control-plane.spreadByNode" (dict "app" $name) | nindent 8 }}
       containers:
         - name: openbao
           image: {{ .Values.openbao.image | quote }}

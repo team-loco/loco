@@ -27,6 +27,7 @@ spec:
                     {{- range $controller.args }}
                     - {{ . }}
                     {{- end }}
+                    - --leader-elect
                   command:
                     - /manager
                   env:
@@ -68,4 +69,6 @@ spec:
                 {{- toYaml $controller.podSecurityContext | nindent 16 }}
             serviceAccountName: loco-build-controller
             terminationGracePeriodSeconds: 10
+            topologySpreadConstraints:
+                {{- include "loco-worker.spreadByNode" (dict "app.kubernetes.io/name" "loco-build-controller") | nindent 16 }}
 {{- end }}

@@ -7,9 +7,18 @@ certManager:
 agent:
   image:
     tag: e2e
+# One copy of the components that need no standby here, so a 1.3-CPU build pod still fits the 4-CPU node.
 envoyProxy:
+  replicas: 1
+  autoscaling:
+    enabled: false
   tracing:
     samplingRate: 100
+gateway-helm:
+  deployment:
+    replicas: 1
+metrics-server:
+  replicas: 1
 controller:
   healthyAfterSeconds: 60
   image:

@@ -1,0 +1,134 @@
+suite: availability
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/api-deployment.yaml
+  - templates/obs-proxy-ingest-deployment.yaml
+  - templates/ui.yaml
+  - templates/openbao.yaml
+  - templates/gateway.yaml
+  - templates/scaling.yaml
+tests:
+  - it: runs one API replica by default
+    template: templates/api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: autoscales the ingest proxy from two replicas by default
+    asserts:
+      - notExists:
+          path: spec.replicas
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - equal:
+          path: spec
+          value:
+            scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: loco-control-plane-obs-proxy-ingest}
+            minReplicas: 2
+            maxReplicas: 6
+            metrics:
+              - type: Resource
+                resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+        template: templates/scaling.yaml
+        documentSelector: {path: kind, value: HorizontalPodAutoscaler}
+
+  - it: lets one pod of each component go at a time
+    asserts:
+      - equal:
+          path: spec
+          value: {maxUnavailable: 1, selector: {matchLabels: {app: loco-control-plane-api}}}
+        template: templates/scaling.yaml
+        documentSelector: {path: metadata.name, value: loco-control-plane-api}
+      - equal:
+          path: spec
+          value: {maxUnavailable: 1, selector: {matchLabels: {app: loco-control-plane-obs-proxy-ingest}}}
+        template: templates/scaling.yaml
+        documentSelector: {path: spec.selector.matchLabels.app, value: loco-control-plane-obs-proxy-ingest}
+      - equal:
+          path: spec
+          value: {maxUnavailable: 1, selector: {matchLabels: {app: loco-control-plane-ui}}}
+        template: templates/scaling.yaml
+        documentSelector: {path: metadata.name, value: loco-control-plane-ui}
+      - equal:
+          path: spec
+          value: {maxUnavailable: 1, selector: {matchLabels: {app: loco-control-plane-openbao}}}
+        template: templates/scaling.yaml
+        documentSelector: {path: metadata.name, value: loco-control-plane-openbao}
+
+  - it: runs two dashboard replicas
+    template: templates/ui.yaml
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: spreads each component's pods across nodes and still schedules on one node
+    asserts:
+      - equal: &apiSpread
+          path: spec.template.spec.topologySpreadConstraints
+          value:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: {matchLabels: {app: loco-control-plane-api}}
+        template: templates/api-deployment.yaml
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+          value: {app: loco-control-plane-obs-proxy-ingest}
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+          value: {app: loco-control-plane-ui}
+        template: templates/ui.yaml
+        documentSelector: {path: kind, value: Deployment}
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels
+          value: {app: loco-control-plane-openbao}
+        template: templates/openbao.yaml
+        documentSelector: {path: kind, value: StatefulSet}
+
+  - it: autoscales the gateway's Envoy proxies from two with a disruption budget and spreads them across nodes
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: EnvoyProxy}
+    asserts:
+      - notExists:
+          path: spec.provider.kubernetes.envoyDeployment.replicas
+      - equal:
+          path: spec.provider.kubernetes.envoyHpa
+          value:
+            minReplicas: 2
+            maxReplicas: 6
+            metrics:
+              - type: Resource
+                resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+      - equal:
+          path: spec.provider.kubernetes.envoyPDB
+          value: {maxUnavailable: 1}
+      - equal:
+          path: spec.provider.kubernetes.envoyDeployment.pod.topologySpreadConstraints[0]
+          value:
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                gateway.envoyproxy.io/owning-gateway-name: loco-control-plane
+                gateway.envoyproxy.io/owning-gateway-namespace: loco-system
+
+  - it: runs a fixed number of gateway Envoy proxies when autoscaling is off
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: EnvoyProxy}
+    set:
+      gateway.autoscaling.enabled: false
+      gateway.replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.envoyDeployment.replicas
+          value: 1
+      - notExists:
+          path: spec.provider.kubernetes.envoyHpa

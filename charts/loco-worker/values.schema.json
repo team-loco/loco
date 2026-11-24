@@ -142,7 +142,8 @@
               "type": "object"
             },
             "replicas": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 0
             },
             "resources": {
               "type": "object"
@@ -415,7 +416,8 @@
           "type": "object"
         },
         "replicas": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         },
         "resources": {
           "type": "object"
@@ -486,6 +488,31 @@
             }
           },
           "additionalProperties": false
+        },
+        "autoscaling": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "maxReplicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minReplicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "targetCPUUtilizationPercentage": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 0
         },
         "resources": {
           "type": "object"
@@ -730,7 +757,9 @@
           "type": "object",
           "properties": {
             "agent": {
-              "type": "integer"
+              "type": "integer",
+              "maximum": 1,
+              "minimum": 0
             }
           },
           "additionalProperties": false

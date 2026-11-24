@@ -4,6 +4,10 @@ gatewayNamespace: loco-control-plane
 certManager:
   enabled: false
 gateway:
+  # The failover check reads the admin stats of the one Envoy that the port-forwarded requests reach.
+  replicaCount: 1
+  autoscaling:
+    enabled: false
   service:
     type: NodePort
     externalTrafficPolicy: Cluster

@@ -24,6 +24,8 @@ spec:
         app: {{ .Release.Name }}-ui
     spec:
       automountServiceAccountToken: false
+      topologySpreadConstraints:
+        {{- include "loco-control-plane.spreadByNode" (dict "app" (printf "%s-ui" .Release.Name)) | nindent 8 }}
       securityContext:
         runAsNonRoot: true
         seccompProfile:
