@@ -328,7 +328,16 @@ WHERE b.id IN (
 UPDATE builds SET stage = $2 WHERE id = $1;
 
 -- name: LockBuildResource :exec
-SELECT r.id FROM resources r JOIN builds b ON b.resource_id = r.id
+WITH workspace_lock AS MATERIALIZED (
+    SELECT w.id FROM workspaces w
+    JOIN resources r ON r.workspace_id = w.id
+    JOIN builds b ON b.resource_id = r.id
+    WHERE b.id = $1
+    FOR KEY SHARE OF w
+)
+SELECT r.id FROM resources r
+JOIN workspace_lock w ON w.id = r.workspace_id
+JOIN builds b ON b.resource_id = r.id
 WHERE b.id = $1 FOR UPDATE OF r;
 
 -- name: LockBuild :one

@@ -36,7 +36,7 @@ func TestSuspendingAnOrganizationWaitsForABuildReport(t *testing.T) {
 	buildID := uuid.MustParse(f.queued(t))
 	deployBuild(t, f, buildID.String())
 
-	// The gate locks in recordBuildStatus's order: resource, build, then the resource's placements.
+	// The gate locks in recordBuildStatus's order: workspace share, resource, build, then the resource's placements.
 	ctx := context.Background()
 	gate, qgate := beginGate(t, f.deployFixture)
 	if err := qgate.LockBuildResource(ctx, buildID); err != nil {
