@@ -96,7 +96,7 @@ func TestIngress(t *testing.T) {
 		if !p.Reaches(
 			t,
 			platform.ProbePod{Namespace: w.Namespace, Name: "e2e-workspace-probe-private"},
-			serviceURL(w, privateID),
+			serviceURL(t, w, privateID),
 		) {
 			t.Error("a pod in the workspace cannot reach the private app")
 		}
@@ -219,8 +219,10 @@ func requireObject(t *testing.T, w *platform.Workspace, kind, name string, want 
 	}
 }
 
-func serviceURL(w *platform.Workspace, resourceID string) string {
-	return "http://resource-" + resourceID + "." + w.Namespace + ".svc.cluster.local/"
+// serviceURL addresses the app's Service by cluster IP; a probe does no name lookup.
+func serviceURL(t *testing.T, w *platform.Workspace, resourceID string) string {
+	t.Helper()
+	return "http://" + serviceIP(t, w.Namespace, "resource-"+resourceID) + "/"
 }
 
 // gatewayReaches probes the app from a pod carrying the Envoy proxy's labels in the gateway's
@@ -234,5 +236,5 @@ func gatewayReaches(t *testing.T, w *platform.Workspace, resourceID, probe strin
 			"gateway.envoyproxy.io/owning-gateway-name":      "eg",
 			"gateway.envoyproxy.io/owning-gateway-namespace": p.Namespace,
 		},
-	}, serviceURL(w, resourceID))
+	}, serviceURL(t, w, resourceID))
 }
