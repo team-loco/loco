@@ -96,7 +96,7 @@ with session(out) as browser:
     ).to_be_visible()
     expect(
         page.get_by_text(
-            "Secrets belong to production. Any resource here can refer to one from its variables.",
+            "Secrets belong to an environment, and this one is production. Any resource here can refer to one from its variables.",
             exact=True,
         )
     ).to_be_visible()

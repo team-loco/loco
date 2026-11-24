@@ -37,6 +37,7 @@ import { formatDay } from "../settings/parts";
 import { DOCS_URL } from "../splash/links";
 import { WebhooksArt } from "./WebhooksArt";
 import { DELIVERY_TICKS, eventsSummary, hasPending, refreshDeliveries, tickStrip, type Tick } from "./webhooks";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const PENDING_REFRESH_MS = 5_000;
 const WEBHOOK_DOCS = `${DOCS_URL}/operations/webhooks/`;
@@ -150,7 +151,13 @@ export function WebhooksPage({
 				<EmptyHero
 					art={<WebhooksArt />}
 					title="No webhooks yet"
-					subtitle={`Loco sends a signed POST to your URL when something happens in ${workspaceName}, such as a build finishing, a resource scaling or a secret changing.`}
+					subtitle={
+						<>
+							Loco sends a signed <InlineCode>POST</InlineCode> to your URL when something happens in{" "}
+							<InlineCode>{workspaceName}</InlineCode>, such as a build finishing, a resource scaling or a secret
+							changing.
+						</>
+					}
 				>
 					<div className="mt-1.5 flex flex-wrap justify-center gap-2">
 						{newWebhook}

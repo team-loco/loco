@@ -33,6 +33,7 @@ import { DOCS_URL } from "@/pages/splash/links";
 import { ImportDialog, SecretDialog } from "./SecretDialogs";
 import { SecretsArt } from "./SecretsArt";
 import { deleteBlocked, deleteBody, matchesSearch, setterLabel } from "./secrets";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const SECRETS_DOCS = `${DOCS_URL}/operations/variables/`;
 const PAGE_PARAMS = { new: parseAsStringLiteral(["1"]), q: parseAsString.withDefault("") };
@@ -141,11 +142,7 @@ export function SecretsPage({
 							<span className="mx-0.5 inline-block rounded-[4px] bg-panel2 px-1.5 font-mono text-[12px] leading-[18px] text-foreground">
 								{environmentName}
 							</span>
-							. Reference one with{" "}
-							<code className="mx-0.5 inline-block rounded-[4px] whitespace-nowrap bg-panel2 px-1.5 font-mono text-[12px] leading-[18px] text-foreground">
-								{referenceOf("secrets", "NAME")}
-							</code>
-							.
+							. Reference one with <InlineCode>{referenceOf("secrets", "NAME")}</InlineCode>.
 						</span>
 					}
 					search={
@@ -177,7 +174,12 @@ export function SecretsPage({
 									<EmptyHero
 										art={<SecretsArt environment={environmentName} />}
 										title={`No secrets in ${environmentName}`}
-										subtitle={`Secrets belong to ${environmentName}. Any resource here can refer to one from its variables.`}
+										subtitle={
+											<>
+												Secrets belong to an environment, and this one is <InlineCode>{environmentName}</InlineCode>.
+												Any resource here can refer to one from its variables.
+											</>
+										}
 										className="rounded-none"
 									>
 										<div className="mt-1.5 flex flex-wrap justify-center gap-2">

@@ -60,7 +60,7 @@ call(
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     page.goto(path)
-    section = page.get_by_role("region", name="Retention", exact=True)
+    section = page.get_by_role("region", name="Data retention", exact=True)
     for signal in ("Logs", "Traces", "Metrics"):
         expect_row(section, signal, install, "organization limit")
 
@@ -101,7 +101,7 @@ with session(out) as browser:
 
     context, page, errors = open_page(browser, "member", state=state)
     page.goto(path)
-    section = page.get_by_role("region", name="Retention", exact=True)
+    section = page.get_by_role("region", name="Data retention", exact=True)
     expect_row(section, "Logs", install, "organization limit")
     expect(section.get_by_role("button", name="Edit retention")).to_be_disabled()
     assert not errors, errors

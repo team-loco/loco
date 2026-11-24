@@ -1103,7 +1103,7 @@ def settings(page):
     )
     check_table(
         page,
-        named_table("Retention", "Traces"),
+        named_table("Data retention", "Traces"),
         "Organization limit",
         "Signal",
         clickable=False,
@@ -1231,7 +1231,11 @@ with session(
             "Staging EU West",
         ),
         (f"/org/{org}/wks/{workspace}/webhooks", "Webhooks", "hooks.invalid"),
-        (f"/org/{org}/wks/{workspace}/settings?scope=workspace", "Retention", "Traces"),
+        (
+            f"/org/{org}/wks/{workspace}/settings?scope=workspace",
+            "Data retention",
+            "Traces",
+        ),
     ):
         page.goto(state["ui_url"] + path)
         table = named_table(name, ready)(page)
