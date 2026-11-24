@@ -539,8 +539,10 @@ func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 		t.Fatalf("drop failing trigger: %v", err)
 	}
 	resynced := newSyncSession(session.server, f.clusterID, sent.send)
-	inventory := []*agentv1.InventoryBuild{{BuildId: id, Phase: agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED}}
-	if err := resynced.reconcileBuildInventory(f.ctx, inventory); err != nil {
+	inventory := &agentv1.Inventory{
+		Builds: []*agentv1.InventoryBuild{{BuildId: id, Phase: agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED}},
+	}
+	if err := resynced.reconcileInventory(f.ctx, inventory); err != nil {
 		t.Fatalf("reconcile inventory: %v", err)
 	}
 	if err := resynced.handleBuildStatus(f.ctx, succeeded); err != nil {

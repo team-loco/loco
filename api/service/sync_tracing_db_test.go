@@ -58,7 +58,9 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 			t.Fatalf("handle %T: %v", msg.GetMessage(), err)
 		}
 	}
-	applyQueuedReports(t.Context(), session)
+	if err := applyQueuedReports(t.Context(), session); err != nil {
+		t.Fatalf("apply reports: %v", err)
+	}
 
 	origin := trace.SpanContextFromContext(request)
 	for _, name := range []string{syncApplySpan, syncAppliedSpan, syncStatusSpan} {
@@ -104,7 +106,7 @@ func TestBuildStatusSpanLinksToTheRequestThatCreatedTheBuild(t *testing.T) {
 	}
 	session, _ := f.dispatchSession()
 	status := buildStatus(created.GetBuildId(), agentv1.BuildPhase_BUILD_PHASE_RUNNING)
-	if err := session.handle(t.Context(), &agentv1.SyncRequest{
+	if err := session.handleNow(t.Context(), &agentv1.SyncRequest{
 		Message: &agentv1.SyncRequest_BuildStatus{BuildStatus: status},
 	}); err != nil {
 		t.Fatalf("handle build status: %v", err)
