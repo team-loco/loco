@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -209,9 +210,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 	})
 
 	It("keeps a deployed revision healthy while the autoscaler removes a replica", func() {
-		app, serving := scaledDownApp(r, "scale-down")
-		Expect(k8sClient.Delete(ctx, serving[1], client.GracePeriodSeconds(0))).To(Succeed())
-		reconcileStuckApp(r, app)
+		app, _ := scaledDownApp(r, "scale-down", 2)
 		Expect(app.Status.Rollout.DesiredReplicas).To(Equal(int32(1)))
 		Expect(app.Status.Rollout.Available).To(BeTrue())
 		Expect(app.Status.Rollout.Healthy).To(BeTrue())
@@ -222,16 +221,24 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 	})
 
 	It("degrades a deployed revision whose kept replica stops being ready while the autoscaler removes one", func() {
-		app, serving := scaledDownApp(r, "scale-down-unready")
-		Expect(k8sClient.Delete(ctx, serving[1], client.GracePeriodSeconds(0))).To(Succeed())
+		app, serving := scaledDownApp(r, "scale-down-unready", 2)
 		setUnready(serving[0])
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Available).To(BeFalse())
 		Expect(app.Status.Rollout.Healthy).To(BeFalse())
 	})
 
+	It("degrades a deployed revision whose replica stops being ready while the autoscaler lowers its count", func() {
+		app, serving := servingApp(r, "scale-down-still-running", 3)
+		scaleAsAutoscaler(appDeployment(app), 2)
+		setUnready(serving[2])
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
+	})
+
 	It("degrades a deployed revision that loses a serving replica without scaling down", func() {
-		app, serving := servingTwoApp(r, "serving-two-gone")
+		app, serving := servingApp(r, "serving-gone", 2)
 		Expect(k8sClient.Delete(ctx, serving[1], client.GracePeriodSeconds(0))).To(Succeed())
 		setDeploymentCounts(app, 2, 1)
 		reconcileStuckApp(r, app)
@@ -326,29 +333,34 @@ func scaledUpApp(r *ApplicationReconciler, name string) (*locov1alpha1.Applicati
 	return app, serving
 }
 
-// servingTwoApp deploys an autoscaled service that the autoscaler runs at two serving replicas.
-func servingTwoApp(r *ApplicationReconciler, name string) (*locov1alpha1.Application, []*corev1.Pod) {
+// servingApp deploys an autoscaled service that the autoscaler runs at count serving replicas.
+func servingApp(r *ApplicationReconciler, name string, count int32) (*locov1alpha1.Application, []*corev1.Pod) {
 	GinkgoHelper()
 	app := deadlineApp(name, 1)
 	app.Spec.ServiceSpec.Resources.Replicas.Max = 3
 	app.Spec.ServiceSpec.Resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, CPUTarget: 70}
 	Expect(k8sClient.Create(ctx, app)).To(Succeed())
 	reconcileStuckApp(r, app)
-	scaleAsAutoscaler(appDeployment(app), 2)
-	serving := []*corev1.Pod{serveReplica(app, name+"-a"), serveReplica(app, name+"-b")}
-	setDeploymentCounts(app, 2, 2)
+	scaleAsAutoscaler(appDeployment(app), count)
+	serving := make([]*corev1.Pod, 0, count)
+	for i := range count {
+		serving = append(serving, serveReplica(app, fmt.Sprintf("%s-%d", name, i)))
+	}
+	setDeploymentCounts(app, count, count)
 	reconcileStuckApp(r, app)
 	Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
 	Expect(app.Status.Rollout.Healthy).To(BeTrue())
 	return app, serving
 }
 
-// scaledDownApp runs servingTwoApp, then has the autoscaler lower it to one replica before the
-// Deployment's counts catch up.
-func scaledDownApp(r *ApplicationReconciler, name string) (*locov1alpha1.Application, []*corev1.Pod) {
+// scaledDownApp runs servingApp, then has the autoscaler remove its last replica and observes it before
+// the Deployment's counts catch up.
+func scaledDownApp(r *ApplicationReconciler, name string, count int32) (*locov1alpha1.Application, []*corev1.Pod) {
 	GinkgoHelper()
-	app, serving := servingTwoApp(r, name)
-	scaleAsAutoscaler(appDeployment(app), 1)
+	app, serving := servingApp(r, name, count)
+	scaleAsAutoscaler(appDeployment(app), count-1)
+	Expect(k8sClient.Delete(ctx, serving[count-1], client.GracePeriodSeconds(0))).To(Succeed())
+	reconcileStuckApp(r, app)
 	return app, serving
 }
 

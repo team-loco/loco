@@ -196,8 +196,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	return nil
 }
 
-// keepsServing is whether a deployed, available revision still serves: every replica that was ready
-// and still runs is ready, and the ones gone are no more than a lower desired count removed.
+// keepsServing is whether a deployed, available revision still has the ready replicas its desired count needs.
 func keepsServing(
 	previous *locov1alpha1.RolloutStatus,
 	current []observedReplica,
