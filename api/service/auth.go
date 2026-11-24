@@ -325,6 +325,9 @@ func (s *AuthServer) StartDeviceLogin(
 	}
 	if err := s.state.Set(ctx, deviceKey(deviceDigest), payload, deviceCodeTTL); err != nil {
 		slog.ErrorContext(ctx, "failed to store device code", "error", err)
+		if _, takeErr := s.state.Take(ctx, userCodeKey(userCode)); takeErr != nil {
+			slog.ErrorContext(ctx, "failed to release device user code", "error", takeErr)
+		}
 		return nil, authStoreUnavailable(err)
 	}
 	display := formatUserCode(userCode)
@@ -411,7 +414,13 @@ func (s *AuthServer) ApproveDeviceLogin(
 	}
 	// A retryable failure returns the user code to the store for the next approval attempt.
 	unavailable := func(cause error) error {
-		if restoreErr := s.state.Set(ctx, userCodeKey(userCode), deviceDigest, remaining); restoreErr != nil {
+		// A device that started without a valid address stored no IPAddress.
+		client := authClient(netip.Addr{})
+		if addr, parseErr := netip.ParseAddr(device.IPAddress); parseErr == nil {
+			client = authClient(addr)
+		}
+		restoreErr := s.state.Restore(ctx, userCodeKey(userCode), deviceDigest, remaining, client)
+		if restoreErr != nil {
 			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
 		}
 		return authStoreUnavailable(cause)
@@ -494,7 +503,7 @@ func (s *AuthServer) throttleDevicePoll(ctx context.Context, deviceDigest string
 		return fmt.Errorf("encode device poll time: %w", err)
 	}
 	if setErr := s.state.Set(ctx, pollKey, stamp, devicePollInterval); setErr != nil {
-		slog.WarnContext(ctx, "failed to record device poll", "error", setErr)
+		return authStoreUnavailable(setErr)
 	}
 	return nil
 }
@@ -585,7 +594,6 @@ func lockSessionAccount(ctx context.Context, qtx *genDb.Queries, userID uuid.UUI
 	return nil
 }
 
-// authStoreUnavailable reports a sign-in store failure the client can retry; err stays private.
 // authStartError reports a sign-in that could not start: too many in progress, or the store failed.
 func authStartError(ctx context.Context, err error) error {
 	if errors.Is(err, errAuthStateFull) {
@@ -595,6 +603,7 @@ func authStartError(ctx context.Context, err error) error {
 	return authStoreUnavailable(err)
 }
 
+// authStoreUnavailable reports a sign-in store failure the client can retry; err stays private.
 func authStoreUnavailable(err error) *connect.Error {
 	return connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable.Error()).WithCause(err)
 }

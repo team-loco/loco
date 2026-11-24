@@ -358,8 +358,7 @@ type Querier interface {
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWorkspaceWebhookSecretParams) (Webhook, error)
-	// A new key is stored only while fewer than max_entries live rows exist.
-	SetAuthState(ctx context.Context, arg SetAuthStateParams) (int64, error)
+	SetAuthState(ctx context.Context, arg SetAuthStateParams) error
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
 	SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error
 	SetDeploymentCanceledBy(ctx context.Context, arg SetDeploymentCanceledByParams) error
@@ -371,8 +370,8 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
-	// Stores a sign-in start for client while the table holds fewer than max_entries live rows and client
-	// fewer than max_per_client. An expired row counts as absent, so its key can be stored again.
+	// Stores a sign-in start for client while fewer than max_entries sign-ins are in progress and client
+	// has fewer than max_per_client. An expired row counts as absent, so its key can be stored again.
 	StartAuthState(ctx context.Context, arg StartAuthStateParams) (int64, error)
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
 	// Retires the older deployments' placements in the cluster's region: one that never ran is canceled,

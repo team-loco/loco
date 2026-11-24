@@ -131,23 +131,26 @@ func TestAuthStateHoldsAtMostMaxEntries(t *testing.T) {
 	pool, store := newAuthStateStore(t)
 	store.maxEntries = 2
 	for _, key := range []string{"one", "two"} {
-		if err := store.Set(t.Context(), key, []byte(key), time.Minute); err != nil {
+		if err := store.Start(t.Context(), key, []byte(key), time.Minute, key); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := store.Set(t.Context(), "third", []byte("3"), time.Minute); !errors.Is(err, errAuthStateFull) {
-		t.Fatalf("Set(third) on a full store err = %v, want errAuthStateFull", err)
-	}
-	if err := store.Start(t.Context(), "third", []byte("3"), time.Minute, ""); !errors.Is(err, errAuthStateFull) {
+	if err := store.Start(t.Context(), "third", []byte("3"), time.Minute, "third"); !errors.Is(err, errAuthStateFull) {
 		t.Fatalf("Start(third) on a full store err = %v, want errAuthStateFull", err)
 	}
-	if err := store.Set(t.Context(), "one", []byte("updated"), time.Minute); err != nil {
-		t.Fatalf("Set(one) updating a stored key on a full store: %v", err)
+	if err := store.Set(t.Context(), "device", []byte("d"), time.Minute); err != nil {
+		t.Fatalf("Set of a started sign-in's entry on a full store: %v", err)
+	}
+	if _, err := store.Take(t.Context(), "one"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Restore(t.Context(), "one", []byte("one"), time.Minute, "one"); err != nil {
+		t.Fatalf("Restore on a full store: %v", err)
 	}
 
 	expire(t, pool, "two")
-	if err := store.Set(t.Context(), "third", []byte("3"), time.Minute); err != nil {
-		t.Fatalf("Set(third) after an entry expired: %v", err)
+	if err := store.Start(t.Context(), "third", []byte("3"), time.Minute, "third"); err != nil {
+		t.Fatalf("Start(third) after a sign-in expired: %v", err)
 	}
 }
 

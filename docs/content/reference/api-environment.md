@@ -17,7 +17,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `PPROF_ADDR` | empty | Address of a Go pprof server. Empty runs none. |
 | `CORS_ALLOWED_ORIGINS` | empty | Comma-separated browser origins allowed to call the API. The `WEB_URL` origin is always allowed. |
 | `WEB_URL` | empty | Dashboard origin. Required when `AUTH_ISSUERS` configures a dashboard client; invitation links point at it. |
-| `LOCO_TRUSTED_PROXY_HOPS` | `0` | How many proxies in front of the API append the address they received a request from to `X-Forwarded-For`. The API shows the entry that many places from the right as a session's address; `0` uses the connection's address. The chart sets `1` for its gateway. |
+| `LOCO_TRUSTED_PROXY_HOPS` | `0` | How many proxies in front of the API append the address they received a request from to `X-Forwarded-For`. The API takes the entry that many places from the right as the caller's address; `0` uses the connection's address. It shows that address on sessions, and callers with the same address share one [sign-in limit](#sign-ins-in-progress). The chart sets `1` for its gateway. |
 | `LOCO_RPC_TIMEOUT` | `30s` | Deadline of each unary RPC. Streams have none. |
 | `LOCO_SHUTDOWN_DRAIN_TIMEOUT` | `30s` | How long shutdown waits for open requests before closing their connections. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | OTLP/HTTP endpoint for the API's own traces and Go runtime metrics. Tracing is off while this and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` are both empty; metrics are off while this and `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` are both empty. A backend that accepts only traces belongs in `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, which leaves metrics off. The OpenTelemetry SDK reads its other `OTEL_*` variables too. |
@@ -25,7 +25,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | empty | OTLP/HTTP endpoint for metrics only. The API exports Go runtime metrics: memory, garbage collection goal, goroutine count and scheduler latency (`go.schedule.duration`). |
 | `OTEL_PROPAGATORS` | `tracecontext,baggage` | Trace context formats the API reads from requests and writes to outgoing calls: `tracecontext`, `baggage`, `b3`, `b3multi`, `jaeger`, `xray`, `ottrace` or `none`. Each request starts its own trace and links to the caller's span, so a client cannot choose the trace a request joins or whether it is sampled. |
 
-## Database and cache
+## Database
 
 | Variable | Default | Effect |
 | --- | --- | --- |
@@ -55,6 +55,10 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_STREAM_AUTH_TIMEOUT` | `2s` | Limit on each stream access recheck; at most `LOCO_STREAM_AUTH_INTERVAL`. |
 | `LOCO_MAX_STREAMS` | `500` | Log tails, event streams and deployment watches one API instance holds open; it refuses more with `ResourceExhausted`. The chart sets it from `api.streams.maxPerReplica`. |
 | `LOCO_MAX_CALLER_STREAMS` | `50` | Streams one caller holds open on one API instance; it refuses more with `ResourceExhausted`. The chart sets it from `api.streams.maxPerCaller`. |
+
+### Sign-ins in progress
+
+A dashboard sign-in, `loco login` and `loco login --device` keep their state in PostgreSQL between requests, so any API replica can finish a sign-in another one started. A dashboard sign-in stays open for 5 minutes and a device sign-in for 10, until it finishes. One caller address can have 30 dashboard and device sign-ins open at once, and the installation 100,000. IPv6 addresses count per /64. Starting one beyond either limit fails with `ResourceExhausted` and the message "too many sign-ins are in progress; try again in a few minutes"; it can start again once an open sign-in finishes or expires. Behind proxies, set `LOCO_TRUSTED_PROXY_HOPS` so each caller is counted by their own address rather than the proxy's.
 
 ## Clusters and agents
 

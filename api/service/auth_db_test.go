@@ -319,6 +319,41 @@ func TestDeviceLoginKeepsTheStartOfALongUserAgent(t *testing.T) {
 	}
 }
 
+func TestDeviceLoginReleasesItsSlotWhenStartFails(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	f.server.state = &failingSetStore{
+		authStore: pgAuthStore{queries: f.queries, maxEntries: maxAuthStates, maxPerClient: 1},
+		prefix:    deviceKey(""),
+		fails:     1,
+	}
+	_, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if codeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("start while the store fails: %v", err)
+	}
+	if _, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{}); err != nil {
+		t.Fatalf("start after a failed start: %v", err)
+	}
+}
+
+func TestDevicePollFailsClosedWhenItCannotRecordThePoll(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	digest := bearer.Hash(started.GetDeviceCode())
+	f.server.state = &failingSetStore{authStore: f.server.state, prefix: devicePollKey(digest), fails: 1}
+	poll := &authv1.PollDeviceLoginRequest{DeviceCode: started.GetDeviceCode()}
+	if _, pollErr := f.client.PollDeviceLogin(t.Context(), poll); codeOf(pollErr) != connect.CodeUnavailable {
+		t.Fatalf("poll while the store fails: %v", pollErr)
+	}
+	if _, pollErr := f.client.PollDeviceLogin(t.Context(), poll); pollErr != nil {
+		t.Fatalf("poll once the store recovers: %v", pollErr)
+	}
+}
+
 func TestDeviceLoginRefusesAClientWithTooManyInProgress(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
@@ -366,14 +401,15 @@ func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	f.assertWorks(t, done.GetTokens())
 }
 
+// failingSetStore fails the next fails Set calls whose key starts with prefix.
 type failingSetStore struct {
 	authStore
-	key   string
-	fails int
+	prefix string
+	fails  int
 }
 
 func (c *failingSetStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
-	if key == c.key && c.fails > 0 {
+	if strings.HasPrefix(key, c.prefix) && c.fails > 0 {
 		c.fails--
 		return errors.New("store unavailable")
 	}
@@ -383,16 +419,31 @@ func (c *failingSetStore) Set(ctx context.Context, key string, value []byte, ttl
 func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
+	full := pgAuthStore{queries: f.queries, maxEntries: 1, maxPerClient: maxAuthStartsPerClient}
+	f.server.state = full
 	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
+	userCode := userCodeKey(normalizeUserCode(started.GetUserCode()))
+	client := func() string {
+		var owner string
+		if scanErr := f.pool.QueryRow(t.Context(),
+			"SELECT client FROM auth_states WHERE key = $1", userCode).Scan(&owner); scanErr != nil {
+			t.Fatal(scanErr)
+		}
+		return owner
+	}
+	startedBy := client()
 	f.server.state = &failingSetStore{
-		authStore: f.server.state, key: deviceKey(bearer.Hash(started.GetDeviceCode())), fails: 1,
+		authStore: full, prefix: deviceKey(bearer.Hash(started.GetDeviceCode())), fails: 1,
 	}
 	approve := &authv1.ApproveDeviceLoginRequest{UserCode: started.GetUserCode()}
 	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); codeOf(approveErr) != connect.CodeUnavailable {
 		t.Fatalf("approve while the store fails: %v", approveErr)
+	}
+	if restoredBy := client(); restoredBy != startedBy {
+		t.Fatalf("restored user code belongs to %q, want %q", restoredBy, startedBy)
 	}
 	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); approveErr != nil {
 		t.Fatalf("retried approve: %v", approveErr)

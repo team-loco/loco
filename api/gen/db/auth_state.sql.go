@@ -29,40 +29,35 @@ func (q *Queries) GetAuthState(ctx context.Context, key string) ([]byte, error) 
 	return value, err
 }
 
-const setAuthState = `-- name: SetAuthState :execrows
-INSERT INTO auth_states (key, value, expires_at)
-SELECT $1::text, $2::bytea, NOW() + make_interval(secs => $3::float8)
-WHERE EXISTS (SELECT 1 FROM auth_states WHERE key = $1::text)
-    OR (SELECT count(*) FROM (SELECT 1 FROM auth_states WHERE expires_at > NOW() LIMIT $4::int) live)
-        < $4::int
-ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, expires_at = EXCLUDED.expires_at
+const setAuthState = `-- name: SetAuthState :exec
+INSERT INTO auth_states (key, value, client, expires_at)
+VALUES ($1::text, $2::bytea, $3::text, NOW() + make_interval(secs => $4::float8))
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, client = EXCLUDED.client, expires_at = EXCLUDED.expires_at
 `
 
 type SetAuthStateParams struct {
 	Key        string  `json:"key"`
 	Value      []byte  `json:"value"`
+	Client     string  `json:"client"`
 	TtlSeconds float64 `json:"ttlSeconds"`
-	MaxEntries int32   `json:"maxEntries"`
 }
 
-// A new key is stored only while fewer than max_entries live rows exist.
-func (q *Queries) SetAuthState(ctx context.Context, arg SetAuthStateParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setAuthState,
+func (q *Queries) SetAuthState(ctx context.Context, arg SetAuthStateParams) error {
+	_, err := q.db.Exec(ctx, setAuthState,
 		arg.Key,
 		arg.Value,
+		arg.Client,
 		arg.TtlSeconds,
-		arg.MaxEntries,
 	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	return err
 }
 
 const startAuthState = `-- name: StartAuthState :execrows
 INSERT INTO auth_states (key, value, client, expires_at)
 SELECT $1::text, $2::bytea, $3::text, NOW() + make_interval(secs => $4::float8)
-WHERE (SELECT count(*) FROM (SELECT 1 FROM auth_states WHERE expires_at > NOW() LIMIT $5::int) live)
+WHERE (SELECT count(*) FROM (
+        SELECT 1 FROM auth_states WHERE client <> '' AND expires_at > NOW() LIMIT $5::int
+    ) live)
         < $5::int
     AND (SELECT count(*) FROM (
         SELECT 1 FROM auth_states WHERE client = $3::text AND expires_at > NOW() LIMIT $6::int
@@ -80,8 +75,8 @@ type StartAuthStateParams struct {
 	MaxPerClient int32   `json:"maxPerClient"`
 }
 
-// Stores a sign-in start for client while the table holds fewer than max_entries live rows and client
-// fewer than max_per_client. An expired row counts as absent, so its key can be stored again.
+// Stores a sign-in start for client while fewer than max_entries sign-ins are in progress and client
+// has fewer than max_per_client. An expired row counts as absent, so its key can be stored again.
 func (q *Queries) StartAuthState(ctx context.Context, arg StartAuthStateParams) (int64, error) {
 	result, err := q.db.Exec(ctx, startAuthState,
 		arg.Key,
