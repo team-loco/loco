@@ -29,7 +29,7 @@ import {
 } from "@/lib/routes";
 import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
 import { DraftSheet, NewService } from "@/pages/resources/NewService";
-import { ResourcesEmpty } from "@/pages/resources/ResourcesEmpty";
+import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
 import { ResourcesMap } from "@/pages/resources/ResourcesMap";
 import { ResourceTable } from "@/pages/resources/ResourceTable";
 import { draftRows } from "@/pages/resources/table";
@@ -115,7 +115,7 @@ export function Resources() {
 		}
 		if (scoped)
 			return <ResourceAccess orgId={orgId} workspaceId={workspaceId} resources={granted.data?.resources ?? []} />;
-		if (total === 0) return <ResourcesEmpty environmentId={active?.id} newHref={serviceHref} />;
+		if (total === 0) return <EmptyWorkspace />;
 		if (view === "map" && active !== undefined) {
 			return (
 				<ResourcesMap

@@ -43,7 +43,7 @@ in the repo's `AGENTS.md`.
 Published UI images load `/runtime-config.js` before the application bundle. An installation can mount a public configuration file at `/public/runtime-config.js`:
 
 ```js
-window.locoConfig = { apiURL: "/api" };
+window.locoConfig = { apiURL: "/api", docsURL: "https://docs.loco.build" };
 ```
 
-A relative API address resolves against the dashboard's origin. This value overrides the image's compiled `PUBLIC_API_URL`. With no runtime value, the compiled address still applies; with neither configured, the dashboard uses its current origin. The runtime configuration file must contain only public settings and is served without immutable caching. Development continues to use the existing build environment.
+`docsURL` is the base address of the documentation the dashboard links to; it defaults to `https://docs.loco.build`. A relative API address resolves against the dashboard's origin. This value overrides the image's compiled `PUBLIC_API_URL`. With no runtime value, the compiled address still applies; with neither configured, the dashboard uses its current origin. The runtime configuration file must contain only public settings and is served without immutable caching. Development continues to use the existing build environment.

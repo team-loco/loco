@@ -9,12 +9,17 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { useCopy } from "@/hooks/useCopy";
 import { formatSpan, windowSpan, type TimeWindow } from "@/lib/obs-time";
 import type { ObservabilityView } from "@/lib/routes";
-import { DOCS_URL } from "@/pages/splash/links";
+import { DOCS_LOGS, DOCS_OPERATIONS, DOCS_TRACES } from "@/pages/splash/links";
 
 import { useObs } from "./context";
 import { queryStr } from "./query";
 
-const DOCS_PATH = `${DOCS_URL}/operations/applications/`;
+const DOCS_PAGE: Record<ObservabilityView, string> = {
+	logs: DOCS_LOGS,
+	metrics: DOCS_OPERATIONS,
+	traces: DOCS_TRACES,
+	events: DOCS_OPERATIONS,
+};
 
 const LOG_ROWS: { y: number; w: number; mark: string }[] = [
 	{ y: 28, w: 48, mark: ART_SOFT },
@@ -113,7 +118,7 @@ export function ObsHero({
 			{children}
 			<div className="mt-1.5 flex flex-wrap justify-center gap-2">
 				{action}
-				<DocsButton href={DOCS_PATH} />
+				<DocsButton href={DOCS_PAGE[view]} />
 			</div>
 		</EmptyHero>
 	);

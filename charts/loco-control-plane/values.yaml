@@ -2,6 +2,8 @@
 ui:
   enabled: true
   hostname: app.loco.build
+  # Base address of the documentation the dashboard links to.
+  docsURL: https://docs.loco.build
   # @schema additionalProperties: false
   image:
     repository: ghcr.io/team-loco/loco-ui
