@@ -109,7 +109,7 @@ func TestAuthStateStartStoresNoneWhileAKeyIsHeldUncommitted(t *testing.T) {
 	result := make(chan error, 1)
 	go func() { result <- store.Start(t.Context(), time.Minute, entry("held"), entry("sibling")) }()
 	// Start blocks on the held row; commit it so the insert skips that key.
-	time.Sleep(500 * time.Millisecond)
+	dbtest.WaitForLockWaiters(t, pool, 1)
 	if err = holder.Commit(t.Context()); err != nil {
 		t.Fatal(err)
 	}
