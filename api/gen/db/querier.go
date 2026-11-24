@@ -358,8 +358,9 @@ type Querier interface {
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWorkspaceWebhookSecretParams) (Webhook, error)
-	SetAuthState(ctx context.Context, arg SetAuthStateParams) error
-	// An expired row counts as absent, so its key can be stored again.
+	// A new key is stored only while fewer than max_entries live rows exist.
+	SetAuthState(ctx context.Context, arg SetAuthStateParams) (int64, error)
+	// An expired row counts as absent, so its key can be stored again. A full table stores nothing.
 	SetAuthStateIfAbsent(ctx context.Context, arg SetAuthStateIfAbsentParams) (int64, error)
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
 	SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error

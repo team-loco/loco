@@ -37,6 +37,7 @@ const (
 	userCodeAlphabet   = "BCDFGHJKLMNPQRSTVWXZ"
 	userCodeLength     = 8
 	forwardedForHeader = "X-Forwarded-For"
+	maxStoredUserAgent = 256
 )
 
 var (
@@ -72,7 +73,7 @@ func NewAuthServer(
 		db:      db,
 		queries: queries,
 		machine: machine,
-		state:   pgAuthStore{queries: queries},
+		state:   pgAuthStore{queries: queries, maxEntries: maxAuthStates},
 		webURL:  strings.TrimSuffix(webURL, "/"),
 		web:     web,
 		now:     time.Now,
@@ -99,6 +100,15 @@ func deviceKey(deviceDigest string) string {
 
 func devicePollKey(deviceDigest string) string {
 	return "cli:device-poll:" + deviceDigest
+}
+
+func userCodeKey(userCode string) string {
+	return "cli:user-code:" + bearer.Hash(userCode)
+}
+
+// storedUserAgent keeps the first maxStoredUserAgent bytes of a device's User-Agent, as valid UTF-8.
+func storedUserAgent(userAgent string) string {
+	return strings.ToValidUTF8(userAgent[:min(len(userAgent), maxStoredUserAgent)], "")
 }
 
 func randomUserCode() (string, error) {
@@ -301,7 +311,7 @@ func (s *AuthServer) StartDeviceLogin(
 	requestedAt := s.now()
 	grant := deviceGrant{
 		UserCode:    userCode,
-		UserAgent:   info.RequestHeader().Get("User-Agent"),
+		UserAgent:   storedUserAgent(info.RequestHeader().Get("User-Agent")),
 		RequestedAt: requestedAt,
 		ExpiresAt:   requestedAt.Add(deviceCodeTTL),
 	}
@@ -313,7 +323,7 @@ func (s *AuthServer) StartDeviceLogin(
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
 	deviceDigest := bearer.Hash(deviceCode)
-	stored, err := s.state.SetIfAbsent(ctx, "cli:user-code:"+userCode, []byte(deviceDigest), deviceCodeTTL)
+	stored, err := s.state.SetIfAbsent(ctx, userCodeKey(userCode), []byte(deviceDigest), deviceCodeTTL)
 	if err != nil || !stored {
 		slog.ErrorContext(ctx, "failed to store device user code", "error", err, "stored", stored)
 		return nil, authStoreUnavailable(err)
@@ -344,7 +354,7 @@ func (s *AuthServer) GetDeviceLogin(
 	if len(userCode) != userCodeLength {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
-	deviceDigest, err := s.state.Get(ctx, "cli:user-code:"+userCode)
+	deviceDigest, err := s.state.Get(ctx, userCodeKey(userCode))
 	if errors.Is(err, errAuthStateNotFound) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
@@ -379,14 +389,14 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if len(userCode) != userCodeLength {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
-	deviceDigest, err := s.state.Get(ctx, "cli:user-code:"+userCode)
+	deviceDigest, err := s.state.Get(ctx, userCodeKey(userCode))
 	if errors.Is(err, errAuthStateNotFound) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	if err != nil {
 		return nil, authStoreUnavailable(err)
 	}
-	took, err := s.state.Take(ctx, "cli:user-code:"+userCode)
+	took, err := s.state.Take(ctx, userCodeKey(userCode))
 	if err != nil || !took {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
@@ -410,7 +420,7 @@ func (s *AuthServer) ApproveDeviceLogin(
 	}
 	// A retryable failure returns the user code to the store for the next approval attempt.
 	unavailable := func(cause error) error {
-		if restoreErr := s.state.Set(ctx, "cli:user-code:"+userCode, deviceDigest, remaining); restoreErr != nil {
+		if restoreErr := s.state.Set(ctx, userCodeKey(userCode), deviceDigest, remaining); restoreErr != nil {
 			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
 		}
 		return authStoreUnavailable(cause)

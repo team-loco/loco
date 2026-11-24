@@ -34,7 +34,7 @@ func countConcurrent(n int, op func() bool) int64 {
 func newAuthStateStore(t *testing.T) (*pgxpool.Pool, pgAuthStore) {
 	t.Helper()
 	pool := dbtest.NewPool(t)
-	return pool, pgAuthStore{queries: genDb.New(pool)}
+	return pool, pgAuthStore{queries: genDb.New(pool), maxEntries: maxAuthStates}
 }
 
 func expire(t *testing.T, pool *pgxpool.Pool, key string) {
@@ -123,5 +123,30 @@ func TestAuthStateExpires(t *testing.T) {
 	}
 	if len(keys) != 1 || keys[0] != "fresh" {
 		t.Fatalf("rows after cleanup = %v, want [fresh]", keys)
+	}
+}
+
+func TestAuthStateHoldsAtMostMaxEntries(t *testing.T) {
+	t.Parallel()
+	pool, store := newAuthStateStore(t)
+	store.maxEntries = 2
+	for _, key := range []string{"one", "two"} {
+		if err := store.Set(t.Context(), key, []byte(key), time.Minute); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.Set(t.Context(), "third", []byte("3"), time.Minute); !errors.Is(err, errAuthStateFull) {
+		t.Fatalf("Set(third) on a full store err = %v, want errAuthStateFull", err)
+	}
+	if stored, err := store.SetIfAbsent(t.Context(), "third", []byte("3"), time.Minute); err != nil || stored {
+		t.Fatalf("SetIfAbsent(third) on a full store = %v, %v", stored, err)
+	}
+	if err := store.Set(t.Context(), "one", []byte("updated"), time.Minute); err != nil {
+		t.Fatalf("Set(one) updating a stored key on a full store: %v", err)
+	}
+
+	expire(t, pool, "two")
+	if err := store.Set(t.Context(), "third", []byte("3"), time.Minute); err != nil {
+		t.Fatalf("Set(third) after an entry expired: %v", err)
 	}
 }

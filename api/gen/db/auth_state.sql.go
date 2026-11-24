@@ -29,9 +29,12 @@ func (q *Queries) GetAuthState(ctx context.Context, key string) ([]byte, error) 
 	return value, err
 }
 
-const setAuthState = `-- name: SetAuthState :exec
+const setAuthState = `-- name: SetAuthState :execrows
 INSERT INTO auth_states (key, value, expires_at)
-VALUES ($1, $2, NOW() + make_interval(secs => $3::float8))
+SELECT $1::text, $2::bytea, NOW() + make_interval(secs => $3::float8)
+WHERE EXISTS (SELECT 1 FROM auth_states WHERE key = $1::text)
+    OR (SELECT count(*) FROM (SELECT 1 FROM auth_states WHERE expires_at > NOW() LIMIT $4::int) live)
+        < $4::int
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, expires_at = EXCLUDED.expires_at
 `
 
@@ -39,16 +42,28 @@ type SetAuthStateParams struct {
 	Key        string  `json:"key"`
 	Value      []byte  `json:"value"`
 	TtlSeconds float64 `json:"ttlSeconds"`
+	MaxEntries int32   `json:"maxEntries"`
 }
 
-func (q *Queries) SetAuthState(ctx context.Context, arg SetAuthStateParams) error {
-	_, err := q.db.Exec(ctx, setAuthState, arg.Key, arg.Value, arg.TtlSeconds)
-	return err
+// A new key is stored only while fewer than max_entries live rows exist.
+func (q *Queries) SetAuthState(ctx context.Context, arg SetAuthStateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setAuthState,
+		arg.Key,
+		arg.Value,
+		arg.TtlSeconds,
+		arg.MaxEntries,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setAuthStateIfAbsent = `-- name: SetAuthStateIfAbsent :execrows
 INSERT INTO auth_states (key, value, expires_at)
-VALUES ($1, $2, NOW() + make_interval(secs => $3::float8))
+SELECT $1::text, $2::bytea, NOW() + make_interval(secs => $3::float8)
+WHERE (SELECT count(*) FROM (SELECT 1 FROM auth_states WHERE expires_at > NOW() LIMIT $4::int) live)
+    < $4::int
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, expires_at = EXCLUDED.expires_at
 WHERE auth_states.expires_at <= NOW()
 `
@@ -57,11 +72,17 @@ type SetAuthStateIfAbsentParams struct {
 	Key        string  `json:"key"`
 	Value      []byte  `json:"value"`
 	TtlSeconds float64 `json:"ttlSeconds"`
+	MaxEntries int32   `json:"maxEntries"`
 }
 
-// An expired row counts as absent, so its key can be stored again.
+// An expired row counts as absent, so its key can be stored again. A full table stores nothing.
 func (q *Queries) SetAuthStateIfAbsent(ctx context.Context, arg SetAuthStateIfAbsentParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setAuthStateIfAbsent, arg.Key, arg.Value, arg.TtlSeconds)
+	result, err := q.db.Exec(ctx, setAuthStateIfAbsent,
+		arg.Key,
+		arg.Value,
+		arg.TtlSeconds,
+		arg.MaxEntries,
+	)
 	if err != nil {
 		return 0, err
 	}

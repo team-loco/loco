@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"connectrpc.com/connect/v2/connectinprocess"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
@@ -296,6 +297,25 @@ func TestDeviceLoginDescribesTheRequestingDevice(t *testing.T) {
 		UserCode: started.GetUserCode(),
 	}); approveErr != nil {
 		t.Fatalf("approve after describing: %v", approveErr)
+	}
+}
+
+func TestDeviceLoginKeepsTheStartOfALongUserAgent(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("User-Agent", "loco/"+strings.Repeat("é", 64<<10))
+	started, err := f.client.StartDeviceLogin(ctx, &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	got, err := f.server.GetDeviceLogin(f.webCtx, &authv1.GetDeviceLoginRequest{UserCode: started.GetUserCode()})
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	agent := got.GetUserAgent()
+	if len(agent) > maxStoredUserAgent || !strings.HasPrefix(agent, "loco/éé") || !utf8.ValidString(agent) {
+		t.Fatalf("stored user agent is %d bytes, starts %q", len(agent), agent[:min(len(agent), 16)])
 	}
 }
 
