@@ -70,47 +70,21 @@ func (a *Agent) register(ctx context.Context) error {
 		Domains:      a.servedDomains(ctx),
 		Region:       a.cfg.Region,
 	}
-	callCtx := ctx
-	if stored.ClusterID == "" {
-		token, tokenErr := a.joinToken()
-		if tokenErr != nil {
-			return tokenErr
-		}
-		if token != "" {
-			req.Enrollment = &agentv1.Enrollment{JoinToken: token, PublicKey: stored.PublicKey()}
-		} else {
-			// Without a token, a key enrolled before the agent saved its cluster ID recovers that ID.
-			req.RecoverClusterId = true
-			recovery := identity.Identity{Key: stored.Key, ClusterID: key}
-			assertion, signErr := recovery.Assertion(time.Now(), a.cfg.AssertionLifetime)
-			if signErr != nil {
-				return signErr
-			}
-			recoveryCtx, info := connect.NewClientContext(ctx)
-			info.RequestHeader().Set("Authorization", bearer.Header(assertion))
-			callCtx = recoveryCtx
-		}
-	} else {
-		a.credentials.Use(stored)
-	}
-
-	resp, err := a.client.Register(callCtx, req)
+	resp, err := a.announce(ctx, stored, req)
 	if err != nil {
-		if stored.ClusterID == "" && connect.CodeOf(err) == connect.CodeUnauthenticated {
-			return errNotEnrolled
-		}
-		return fmt.Errorf("register RPC failed: %w", err)
+		return err
 	}
-	if stored.ClusterID == "" {
+	// Only an enrollment with a join token, or recovery of an unsaved ID, may name a new cluster ID.
+	if resp.GetClusterId() != stored.ClusterID {
+		if stored.ClusterID != "" && req.GetEnrollment() == nil {
+			return fmt.Errorf("%w: %s, enrolled as %s", errClusterIDChanged, resp.GetClusterId(), stored.ClusterID)
+		}
 		if err := a.identities.SaveClusterID(ctx, resp.GetClusterId()); err != nil {
 			return err
 		}
 		stored.ClusterID = resp.GetClusterId()
-		a.credentials.Use(stored)
 	}
-	if resp.GetClusterId() != stored.ClusterID {
-		return fmt.Errorf("%w: %s, enrolled as %s", errClusterIDChanged, resp.GetClusterId(), stored.ClusterID)
-	}
+	a.credentials.Use(stored)
 
 	heartbeatInterval := resp.GetHeartbeatInterval().AsDuration()
 	if heartbeatInterval <= 0 {
@@ -125,6 +99,67 @@ func (a *Agent) register(ctx context.Context) error {
 		"domains", req.GetDomains(),
 	)
 	return nil
+}
+
+// announce registers as the stored cluster ID. Without one, or when the control plane no longer
+// accepts it, the agent enrolls with the configured join token.
+func (a *Agent) announce(
+	ctx context.Context,
+	stored identity.Identity,
+	req *agentv1.RegisterRequest,
+) (*agentv1.RegisterResponse, error) {
+	if stored.ClusterID != "" {
+		resp, err := a.registerAs(ctx, stored, req)
+		if connect.CodeOf(err) != connect.CodeUnauthenticated {
+			return resp, err
+		}
+	}
+	token, err := a.joinToken()
+	if err != nil {
+		return nil, err
+	}
+	if token != "" {
+		req.Enrollment = &agentv1.Enrollment{JoinToken: token, PublicKey: stored.PublicKey()}
+		return notEnrolledIfRejected(a.registerCall(ctx, req))
+	}
+	if stored.ClusterID != "" {
+		return nil, fmt.Errorf("%w: the control plane rejected cluster %s; issue one with locoadm cluster join-token",
+			errNotEnrolled, stored.ClusterID)
+	}
+	// Without a token, a key enrolled before the agent saved its cluster ID recovers that ID.
+	req.RecoverClusterId = true
+	recovery := identity.Identity{Key: stored.Key, ClusterID: req.GetClusterKey()}
+	return notEnrolledIfRejected(a.registerAs(ctx, recovery, req))
+}
+
+// registerAs authenticates the call as signer, before the agent's credentials are in use.
+func (a *Agent) registerAs(
+	ctx context.Context,
+	signer identity.Identity,
+	req *agentv1.RegisterRequest,
+) (*agentv1.RegisterResponse, error) {
+	assertion, err := signer.Assertion(time.Now(), a.cfg.AssertionLifetime)
+	if err != nil {
+		return nil, err
+	}
+	callCtx, info := connect.NewClientContext(ctx)
+	info.RequestHeader().Set("Authorization", bearer.Header(assertion))
+	return a.registerCall(callCtx, req)
+}
+
+func (a *Agent) registerCall(ctx context.Context, req *agentv1.RegisterRequest) (*agentv1.RegisterResponse, error) {
+	resp, err := a.client.Register(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("register RPC failed: %w", err)
+	}
+	return resp, nil
+}
+
+func notEnrolledIfRejected(resp *agentv1.RegisterResponse, err error) (*agentv1.RegisterResponse, error) {
+	if connect.CodeOf(err) == connect.CodeUnauthenticated {
+		return nil, errNotEnrolled
+	}
+	return resp, err
 }
 
 // joinToken is the configured join token, or "" when none has been delivered yet.

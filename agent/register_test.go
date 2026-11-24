@@ -267,3 +267,52 @@ func TestAgentWithAKeyButNoClusterIDRecoversItWithoutAJoinToken(t *testing.T) {
 		t.Fatalf("enrolled %d, recovered %d, synced %d", registrar.enrolled, registrar.recovered, registrar.synced)
 	}
 }
+
+// forgetCluster makes the registrar forget the agent's enrollment, as a control plane does after its
+// database is reset, and issues a new cluster ID and join token.
+func (f *fakeRegistrar) forgetCluster() {
+	f.clusterID = uuid.NewString()
+	f.joinToken = rand.Text()
+	f.publicKey = nil
+}
+
+func TestAgentWhoseClusterIsForgottenReenrollsWithANewJoinToken(t *testing.T) {
+	registrar, _, newAgent := newTestRegistrar(t)
+	if err := newAgent(registrar.joinToken).register(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	registrar.forgetCluster()
+
+	rejoined := newAgent(registrar.joinToken)
+	if err := rejoined.register(t.Context()); err != nil {
+		t.Fatalf("register a forgotten cluster with a new join token: %v", err)
+	}
+	openTestSync(t, rejoined)
+	if stored, err := rejoined.identities.Ensure(t.Context()); err != nil || stored.ClusterID != registrar.clusterID {
+		t.Fatalf("stored cluster ID %q, %v, want %s", stored.ClusterID, err, registrar.clusterID)
+	}
+	if err := newAgent(registrar.joinToken).register(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if registrar.enrolled != 2 || registrar.asserted != 1 || registrar.synced != 1 {
+		t.Fatalf("enrolled %d, asserted %d, synced %d", registrar.enrolled, registrar.asserted, registrar.synced)
+	}
+}
+
+func TestAgentWhoseClusterIsForgottenWaitsForAJoinToken(t *testing.T) {
+	registrar, _, newAgent := newTestRegistrar(t)
+	if err := newAgent(registrar.joinToken).register(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	stale := registrar.joinToken
+	registrar.forgetCluster()
+
+	for _, token := range []string{"", stale} {
+		if err := newAgent(token).register(t.Context()); !errors.Is(err, errNotEnrolled) {
+			t.Fatalf("register a forgotten cluster with join token %q: %v, want %v", token, err, errNotEnrolled)
+		}
+	}
+	if registrar.enrolled != 1 || registrar.asserted != 0 {
+		t.Fatalf("enrolled %d, asserted %d", registrar.enrolled, registrar.asserted)
+	}
+}
