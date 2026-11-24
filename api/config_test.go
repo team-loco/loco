@@ -21,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/webhooks"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -318,6 +319,27 @@ func TestNewAPIConfigReadsClosedSignup(t *testing.T) {
 	}
 }
 
+func TestNewAPIConfigReadsDeploymentMode(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want configv1.DeploymentMode
+	}{
+		{"", configv1.DeploymentMode_DEPLOYMENT_MODE_SELF_HOSTED},
+		{"self-hosted", configv1.DeploymentMode_DEPLOYMENT_MODE_SELF_HOSTED},
+		{"dedicated", configv1.DeploymentMode_DEPLOYMENT_MODE_DEDICATED},
+		{"multi-tenant", configv1.DeploymentMode_DEPLOYMENT_MODE_MULTI_TENANT},
+	}
+	for _, tt := range tests {
+		t.Run(tt.raw, func(t *testing.T) {
+			clearAPIConfigEnv(t)
+			t.Setenv("LOCO_DEPLOYMENT_MODE", tt.raw)
+			if got := newAPIConfig().DeploymentMode; got != tt.want {
+				t.Errorf("deployment mode = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv(registryHostEnv, testRegistryHost)
@@ -473,6 +495,7 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		env  map[string]string
 		want error
 	}{
+		{"unknown deployment mode", map[string]string{"LOCO_DEPLOYMENT_MODE": "saas"}, errInvalidDeploymentMode},
 		{"non-numeric source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "lots"}, errInvalidSourceBytes},
 		{"zero source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "0"}, errInvalidSourceBytes},
 		{

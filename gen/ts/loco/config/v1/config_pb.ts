@@ -2,8 +2,8 @@
 // @generated from file loco/config/v1/config.proto (package loco.config.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Duration, DurationJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_duration } from "@bufbuild/protobuf/wkt";
 import type { FailurePolicy, FailurePolicyJson, HealthCheckConfig, HealthCheckConfigJson, ObservabilityConfig, ObservabilityConfigJson } from "../../deployment/v1/deployment_pb";
@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QiiQQKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMSOwoRaGlzdG9yeV9yZXRlbnRpb24YCSABKAsyIC5sb2NvLmNvbmZpZy52MS5IaXN0b3J5UmV0ZW50aW9uEj8KHG9ic2VydmFiaWxpdHlfbWF4X3RpbWVfcmFuZ2UYCiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEwoLYXBpX3ZlcnNpb24YCyABKAkSGAoQd2ViX2F1dGhfZW5hYmxlZBgMIAEoCBIWCg5kZWZhdWx0X3JlZ2lvbhgNIAEoCUoECAMQBFIEYXV0aCJgChBIaXN0b3J5UmV0ZW50aW9uEiEKGWJ1aWxkX2ltYWdlc19wZXJfcmVzb3VyY2UYASABKAUSKQoGZXZlbnRzGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIoIECgtDb3VudExpbWl0cxIVCg1vcmdzX3Blcl91c2VyGAEgASgFEhoKEndvcmtzcGFjZXNfcGVyX29yZxgCIAEoBRIXCg9tZW1iZXJzX3Blcl9vcmcYAyABKAUSGwoTaW52aXRhdGlvbnNfcGVyX29yZxgEIAEoBRIiChplbnZpcm9ubWVudHNfcGVyX3dvcmtzcGFjZRgFIAEoBRIfChdyZXNvdXJjZXNfcGVyX3dvcmtzcGFjZRgGIAEoBRIeChZ3ZWJob29rc19wZXJfd29ya3NwYWNlGAcgASgFEhkKEXRva2Vuc19wZXJfZW50aXR5GAggASgFEhwKFGRvbWFpbnNfcGVyX3Jlc291cmNlGAkgASgFEh8KF3NlY3JldHNfcGVyX2Vudmlyb25tZW50GAogASgFEhoKEmRlcGxveW1lbnRfaGlzdG9yeRgLIAEoBRIVCg1idWlsZF9oaXN0b3J5GAwgASgFEhoKEmxvZ19yZXRlbnRpb25fZGF5cxgNIAEoBRIcChR0cmFjZV9yZXRlbnRpb25fZGF5cxgOIAEoBRIdChVtZXRyaWNfcmV0ZW50aW9uX2RheXMYDyABKAUSJAocZXhwaXJlZF90b2tlbl9yZXRlbnRpb25fZGF5cxgQIAEoBRIZChFzZXJ2aWNlc19wZXJfZmlsZRgRIAEoBSKcAQoKU2l6ZUxpbWl0cxIWCg5taW5fY3B1X21pbGxpcxgBIAEoBRIWCg5tYXhfY3B1X21pbGxpcxgCIAEoBRIYChBtaW5fbWVtb3J5X2J5dGVzGAMgASgDEhgKEG1heF9tZW1vcnlfYnl0ZXMYBCABKAMSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBSIlCgdPcmdMaW5rEg0KBWxhYmVsGAEgASgJEgsKA3VybBgCIAEoCSK9AgoURGVmYXVsdFNlcnZpY2VDb25maWcSOwoMaGVhbHRoX2NoZWNrGAEgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnEgsKA2NwdRgCIAEoCRIOCgZtZW1vcnkYAyABKAkSFAoMbWluX3JlcGxpY2FzGAQgASgFEhQKDG1heF9yZXBsaWNhcxgFIAEoBRISCgpjcHVfdGFyZ2V0GAggASgFEj4KDW9ic2VydmFiaWxpdHkYCSABKAsyJy5sb2NvLmRlcGxveW1lbnQudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZxI5Cg5mYWlsdXJlX3BvbGljeRgLIAEoCzIhLmxvY28uZGVwbG95bWVudC52MS5GYWlsdXJlUG9saWN5SgQIBhAHSgQIBxAISgQIChALMmYKDUNvbmZpZ1NlcnZpY2USVQoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlIgOQAgFCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_google_protobuf_duration, file_loco_deployment_v1_deployment]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QiwgQKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMSOwoRaGlzdG9yeV9yZXRlbnRpb24YCSABKAsyIC5sb2NvLmNvbmZpZy52MS5IaXN0b3J5UmV0ZW50aW9uEj8KHG9ic2VydmFiaWxpdHlfbWF4X3RpbWVfcmFuZ2UYCiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEwoLYXBpX3ZlcnNpb24YCyABKAkSGAoQd2ViX2F1dGhfZW5hYmxlZBgMIAEoCBIWCg5kZWZhdWx0X3JlZ2lvbhgNIAEoCRI3Cg9kZXBsb3ltZW50X21vZGUYDiABKA4yHi5sb2NvLmNvbmZpZy52MS5EZXBsb3ltZW50TW9kZUoECAMQBFIEYXV0aCJgChBIaXN0b3J5UmV0ZW50aW9uEiEKGWJ1aWxkX2ltYWdlc19wZXJfcmVzb3VyY2UYASABKAUSKQoGZXZlbnRzGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIoIECgtDb3VudExpbWl0cxIVCg1vcmdzX3Blcl91c2VyGAEgASgFEhoKEndvcmtzcGFjZXNfcGVyX29yZxgCIAEoBRIXCg9tZW1iZXJzX3Blcl9vcmcYAyABKAUSGwoTaW52aXRhdGlvbnNfcGVyX29yZxgEIAEoBRIiChplbnZpcm9ubWVudHNfcGVyX3dvcmtzcGFjZRgFIAEoBRIfChdyZXNvdXJjZXNfcGVyX3dvcmtzcGFjZRgGIAEoBRIeChZ3ZWJob29rc19wZXJfd29ya3NwYWNlGAcgASgFEhkKEXRva2Vuc19wZXJfZW50aXR5GAggASgFEhwKFGRvbWFpbnNfcGVyX3Jlc291cmNlGAkgASgFEh8KF3NlY3JldHNfcGVyX2Vudmlyb25tZW50GAogASgFEhoKEmRlcGxveW1lbnRfaGlzdG9yeRgLIAEoBRIVCg1idWlsZF9oaXN0b3J5GAwgASgFEhoKEmxvZ19yZXRlbnRpb25fZGF5cxgNIAEoBRIcChR0cmFjZV9yZXRlbnRpb25fZGF5cxgOIAEoBRIdChVtZXRyaWNfcmV0ZW50aW9uX2RheXMYDyABKAUSJAocZXhwaXJlZF90b2tlbl9yZXRlbnRpb25fZGF5cxgQIAEoBRIZChFzZXJ2aWNlc19wZXJfZmlsZRgRIAEoBSKcAQoKU2l6ZUxpbWl0cxIWCg5taW5fY3B1X21pbGxpcxgBIAEoBRIWCg5tYXhfY3B1X21pbGxpcxgCIAEoBRIYChBtaW5fbWVtb3J5X2J5dGVzGAMgASgDEhgKEG1heF9tZW1vcnlfYnl0ZXMYBCABKAMSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBSIlCgdPcmdMaW5rEg0KBWxhYmVsGAEgASgJEgsKA3VybBgCIAEoCSK9AgoURGVmYXVsdFNlcnZpY2VDb25maWcSOwoMaGVhbHRoX2NoZWNrGAEgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnEgsKA2NwdRgCIAEoCRIOCgZtZW1vcnkYAyABKAkSFAoMbWluX3JlcGxpY2FzGAQgASgFEhQKDG1heF9yZXBsaWNhcxgFIAEoBRISCgpjcHVfdGFyZ2V0GAggASgFEj4KDW9ic2VydmFiaWxpdHkYCSABKAsyJy5sb2NvLmRlcGxveW1lbnQudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZxI5Cg5mYWlsdXJlX3BvbGljeRgLIAEoCzIhLmxvY28uZGVwbG95bWVudC52MS5GYWlsdXJlUG9saWN5SgQIBhAHSgQIBxAISgQIChALKpMBCg5EZXBsb3ltZW50TW9kZRIfChtERVBMT1lNRU5UX01PREVfVU5TUEVDSUZJRUQQABIfChtERVBMT1lNRU5UX01PREVfU0VMRl9IT1NURUQQARIdChlERVBMT1lNRU5UX01PREVfREVESUNBVEVEEAISIAocREVQTE9ZTUVOVF9NT0RFX01VTFRJX1RFTkFOVBADMmYKDUNvbmZpZ1NlcnZpY2USVQoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlIgOQAgFCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_google_protobuf_duration, file_loco_deployment_v1_deployment]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -105,6 +105,13 @@ export type GetConfigResponse = Message<"loco.config.v1.GetConfigResponse"> & {
    * @generated from field: string default_region = 13;
    */
   defaultRegion: string;
+
+  /**
+   * deployment_mode says who runs this install, from LOCO_DEPLOYMENT_MODE.
+   *
+   * @generated from field: loco.config.v1.DeploymentMode deployment_mode = 14;
+   */
+  deploymentMode: DeploymentMode;
 };
 
 /**
@@ -177,6 +184,13 @@ export type GetConfigResponseJson = {
    * @generated from field: string default_region = 13;
    */
   defaultRegion?: string;
+
+  /**
+   * deployment_mode says who runs this install, from LOCO_DEPLOYMENT_MODE.
+   *
+   * @generated from field: loco.config.v1.DeploymentMode deployment_mode = 14;
+   */
+  deploymentMode?: DeploymentModeJson;
 };
 
 /**
@@ -712,6 +726,52 @@ export type DefaultServiceConfigJson = {
  */
 export const DefaultServiceConfigSchema: GenMessage<DefaultServiceConfig, {jsonType: DefaultServiceConfigJson}> = /*@__PURE__*/
   messageDesc(file_loco_config_v1_config, 6);
+
+/**
+ * DeploymentMode says who runs a Loco install and who shares it.
+ *
+ * @generated from enum loco.config.v1.DeploymentMode
+ */
+export enum DeploymentMode {
+  /**
+   * @generated from enum value: DEPLOYMENT_MODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * An operator runs Loco themselves.
+   *
+   * @generated from enum value: DEPLOYMENT_MODE_SELF_HOSTED = 1;
+   */
+  SELF_HOSTED = 1,
+
+  /**
+   * A single-tenant install run by the Loco team.
+   *
+   * @generated from enum value: DEPLOYMENT_MODE_DEDICATED = 2;
+   */
+  DEDICATED = 2,
+
+  /**
+   * The hosted service shared by many organizations.
+   *
+   * @generated from enum value: DEPLOYMENT_MODE_MULTI_TENANT = 3;
+   */
+  MULTI_TENANT = 3,
+}
+
+/**
+ * DeploymentMode says who runs a Loco install and who shares it.
+ *
+ * @generated from enum loco.config.v1.DeploymentMode
+ */
+export type DeploymentModeJson = "DEPLOYMENT_MODE_UNSPECIFIED" | "DEPLOYMENT_MODE_SELF_HOSTED" | "DEPLOYMENT_MODE_DEDICATED" | "DEPLOYMENT_MODE_MULTI_TENANT";
+
+/**
+ * Describes the enum loco.config.v1.DeploymentMode.
+ */
+export const DeploymentModeSchema: GenEnum<DeploymentMode, DeploymentModeJson> = /*@__PURE__*/
+  enumDesc(file_loco_config_v1_config, 0);
 
 /**
  * ConfigService provides static configuration values. Clients can query this to show safe defaults.

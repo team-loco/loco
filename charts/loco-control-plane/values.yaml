@@ -167,6 +167,9 @@ controlPlaneHostname: api.loco.build
 platformDomain: ""
 # Region code new services default to (the API's LOCO_DEFAULT_REGION); empty sets none.
 defaultRegion: ""
+# Who runs this install (the API's LOCO_DEPLOYMENT_MODE); empty leaves the API's default, self-hosted.
+# @schema enum: ["", "self-hosted", "dedicated", "multi-tenant"]
+deploymentMode: ""
 
 # @schema additionalProperties: false
 gateway:

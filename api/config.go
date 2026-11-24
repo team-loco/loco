@@ -48,6 +48,7 @@ var (
 	errInvalidOrgLinks        = errors.New("ORG_LINKS is invalid")
 	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
 	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
+	errInvalidDeploymentMode  = errors.New("LOCO_DEPLOYMENT_MODE must be self-hosted, dedicated or multi-tenant")
 	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
 	errInvalidSecretsTransit  = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
 	errInvalidSystemAdmins    = errors.New(systemAdminsEnv + " is invalid")
@@ -226,6 +227,7 @@ type APIConfig struct {
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	MinCLIVersion         string
 	DefaultRegion         string
+	DeploymentMode        configv1.DeploymentMode
 	PprofAddr             string
 	SourceBucket          sourcebucket.Config
 	SourceMaxBytes        int64
@@ -350,6 +352,7 @@ func newAPIConfig() *APIConfig {
 		CORSAllowedOrigins:    corsOrigins,
 		MinCLIVersion:         minCLIVersion,
 		DefaultRegion:         envconfig.String("LOCO_DEFAULT_REGION", ""),
+		DeploymentMode:        newDeploymentMode(),
 		PprofAddr:             envconfig.String("PPROF_ADDR", ""),
 		SourceBucket:          sourceBucket,
 		SourceMaxBytes:        sourceMaxBytes,
@@ -576,6 +579,21 @@ func newSignupPolicy() auth.SignupPolicy {
 		panic(fmt.Errorf("%w: %w", errInvalidSignupPolicy, err))
 	}
 	return policy
+}
+
+var deploymentModes = map[string]configv1.DeploymentMode{
+	"self-hosted":  configv1.DeploymentMode_DEPLOYMENT_MODE_SELF_HOSTED,
+	"dedicated":    configv1.DeploymentMode_DEPLOYMENT_MODE_DEDICATED,
+	"multi-tenant": configv1.DeploymentMode_DEPLOYMENT_MODE_MULTI_TENANT,
+}
+
+func newDeploymentMode() configv1.DeploymentMode {
+	raw := envconfig.String("LOCO_DEPLOYMENT_MODE", "self-hosted")
+	mode, ok := deploymentModes[raw]
+	if !ok {
+		panic(fmt.Errorf("%w: %q", errInvalidDeploymentMode, raw))
+	}
+	return mode
 }
 
 func newSourceBucketConfig() sourcebucket.Config {

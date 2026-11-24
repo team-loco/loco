@@ -23,6 +23,62 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// DeploymentMode says who runs a Loco install and who shares it.
+type DeploymentMode int32
+
+const (
+	DeploymentMode_DEPLOYMENT_MODE_UNSPECIFIED DeploymentMode = 0
+	// An operator runs Loco themselves.
+	DeploymentMode_DEPLOYMENT_MODE_SELF_HOSTED DeploymentMode = 1
+	// A single-tenant install run by the Loco team.
+	DeploymentMode_DEPLOYMENT_MODE_DEDICATED DeploymentMode = 2
+	// The hosted service shared by many organizations.
+	DeploymentMode_DEPLOYMENT_MODE_MULTI_TENANT DeploymentMode = 3
+)
+
+// Enum value maps for DeploymentMode.
+var (
+	DeploymentMode_name = map[int32]string{
+		0: "DEPLOYMENT_MODE_UNSPECIFIED",
+		1: "DEPLOYMENT_MODE_SELF_HOSTED",
+		2: "DEPLOYMENT_MODE_DEDICATED",
+		3: "DEPLOYMENT_MODE_MULTI_TENANT",
+	}
+	DeploymentMode_value = map[string]int32{
+		"DEPLOYMENT_MODE_UNSPECIFIED":  0,
+		"DEPLOYMENT_MODE_SELF_HOSTED":  1,
+		"DEPLOYMENT_MODE_DEDICATED":    2,
+		"DEPLOYMENT_MODE_MULTI_TENANT": 3,
+	}
+)
+
+func (x DeploymentMode) Enum() *DeploymentMode {
+	p := new(DeploymentMode)
+	*p = x
+	return p
+}
+
+func (x DeploymentMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DeploymentMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_loco_config_v1_config_proto_enumTypes[0].Descriptor()
+}
+
+func (DeploymentMode) Type() protoreflect.EnumType {
+	return &file_loco_config_v1_config_proto_enumTypes[0]
+}
+
+func (x DeploymentMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DeploymentMode.Descriptor instead.
+func (DeploymentMode) EnumDescriptor() ([]byte, []int) {
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{0}
+}
+
 type GetConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -77,8 +133,10 @@ type GetConfigResponse struct {
 	// the region code new services default to, from LOCO_DEFAULT_REGION; empty when unset or when
 	// that code is not a live region
 	DefaultRegion string `protobuf:"bytes,13,opt,name=default_region,json=defaultRegion,proto3" json:"default_region,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// deployment_mode says who runs this install, from LOCO_DEPLOYMENT_MODE.
+	DeploymentMode DeploymentMode `protobuf:"varint,14,opt,name=deployment_mode,json=deploymentMode,proto3,enum=loco.config.v1.DeploymentMode" json:"deployment_mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetConfigResponse) Reset() {
@@ -193,6 +251,13 @@ func (x *GetConfigResponse) GetDefaultRegion() string {
 		return x.DefaultRegion
 	}
 	return ""
+}
+
+func (x *GetConfigResponse) GetDeploymentMode() DeploymentMode {
+	if x != nil {
+		return x.DeploymentMode
+	}
+	return DeploymentMode_DEPLOYMENT_MODE_UNSPECIFIED
 }
 
 type HistoryRetention struct {
@@ -684,7 +749,7 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a\x1egoogle/protobuf/duration.proto\x1a#loco/deployment/v1/deployment.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\xcb\x05\n" +
+	"\x10GetConfigRequest\"\x94\x06\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12\x1d\n" +
@@ -701,7 +766,8 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\vapi_version\x18\v \x01(\tR\n" +
 	"apiVersion\x12(\n" +
 	"\x10web_auth_enabled\x18\f \x01(\bR\x0ewebAuthEnabled\x12%\n" +
-	"\x0edefault_region\x18\r \x01(\tR\rdefaultRegionJ\x04\b\x03\x10\x04R\x04auth\"\x80\x01\n" +
+	"\x0edefault_region\x18\r \x01(\tR\rdefaultRegion\x12G\n" +
+	"\x0fdeployment_mode\x18\x0e \x01(\x0e2\x1e.loco.config.v1.DeploymentModeR\x0edeploymentModeJ\x04\b\x03\x10\x04R\x04auth\"\x80\x01\n" +
 	"\x10HistoryRetention\x129\n" +
 	"\x19build_images_per_resource\x18\x01 \x01(\x05R\x16buildImagesPerResource\x121\n" +
 	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xce\x06\n" +
@@ -745,7 +811,12 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"cpu_target\x18\b \x01(\x05R\tcpuTarget\x12M\n" +
 	"\robservability\x18\t \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12H\n" +
 	"\x0efailure_policy\x18\v \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\v2f\n" +
+	"\x10\v*\x93\x01\n" +
+	"\x0eDeploymentMode\x12\x1f\n" +
+	"\x1bDEPLOYMENT_MODE_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bDEPLOYMENT_MODE_SELF_HOSTED\x10\x01\x12\x1d\n" +
+	"\x19DEPLOYMENT_MODE_DEDICATED\x10\x02\x12 \n" +
+	"\x1cDEPLOYMENT_MODE_MULTI_TENANT\x10\x032f\n" +
 	"\rConfigService\x12U\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponse\"\x03\x90\x02\x01B:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 
@@ -761,38 +832,41 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_loco_config_v1_config_proto_rawDescData
 }
 
+var file_loco_config_v1_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_loco_config_v1_config_proto_goTypes = []any{
-	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
-	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
-	(*HistoryRetention)(nil),       // 2: loco.config.v1.HistoryRetention
-	(*CountLimits)(nil),            // 3: loco.config.v1.CountLimits
-	(*SizeLimits)(nil),             // 4: loco.config.v1.SizeLimits
-	(*OrgLink)(nil),                // 5: loco.config.v1.OrgLink
-	(*DefaultServiceConfig)(nil),   // 6: loco.config.v1.DefaultServiceConfig
-	(*durationpb.Duration)(nil),    // 7: google.protobuf.Duration
-	(*v1.HealthCheckConfig)(nil),   // 8: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil), // 9: loco.deployment.v1.ObservabilityConfig
-	(*v1.FailurePolicy)(nil),       // 10: loco.deployment.v1.FailurePolicy
+	(DeploymentMode)(0),            // 0: loco.config.v1.DeploymentMode
+	(*GetConfigRequest)(nil),       // 1: loco.config.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),      // 2: loco.config.v1.GetConfigResponse
+	(*HistoryRetention)(nil),       // 3: loco.config.v1.HistoryRetention
+	(*CountLimits)(nil),            // 4: loco.config.v1.CountLimits
+	(*SizeLimits)(nil),             // 5: loco.config.v1.SizeLimits
+	(*OrgLink)(nil),                // 6: loco.config.v1.OrgLink
+	(*DefaultServiceConfig)(nil),   // 7: loco.config.v1.DefaultServiceConfig
+	(*durationpb.Duration)(nil),    // 8: google.protobuf.Duration
+	(*v1.HealthCheckConfig)(nil),   // 9: loco.deployment.v1.HealthCheckConfig
+	(*v1.ObservabilityConfig)(nil), // 10: loco.deployment.v1.ObservabilityConfig
+	(*v1.FailurePolicy)(nil),       // 11: loco.deployment.v1.FailurePolicy
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
-	6,  // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
-	5,  // 1: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
-	4,  // 2: loco.config.v1.GetConfigResponse.size_limits:type_name -> loco.config.v1.SizeLimits
-	3,  // 3: loco.config.v1.GetConfigResponse.count_limits:type_name -> loco.config.v1.CountLimits
-	2,  // 4: loco.config.v1.GetConfigResponse.history_retention:type_name -> loco.config.v1.HistoryRetention
-	7,  // 5: loco.config.v1.GetConfigResponse.observability_max_time_range:type_name -> google.protobuf.Duration
-	7,  // 6: loco.config.v1.HistoryRetention.events:type_name -> google.protobuf.Duration
-	8,  // 7: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	9,  // 8: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.deployment.v1.ObservabilityConfig
-	10, // 9: loco.config.v1.DefaultServiceConfig.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
-	0,  // 10: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
-	1,  // 11: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	7,  // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
+	6,  // 1: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
+	5,  // 2: loco.config.v1.GetConfigResponse.size_limits:type_name -> loco.config.v1.SizeLimits
+	4,  // 3: loco.config.v1.GetConfigResponse.count_limits:type_name -> loco.config.v1.CountLimits
+	3,  // 4: loco.config.v1.GetConfigResponse.history_retention:type_name -> loco.config.v1.HistoryRetention
+	8,  // 5: loco.config.v1.GetConfigResponse.observability_max_time_range:type_name -> google.protobuf.Duration
+	0,  // 6: loco.config.v1.GetConfigResponse.deployment_mode:type_name -> loco.config.v1.DeploymentMode
+	8,  // 7: loco.config.v1.HistoryRetention.events:type_name -> google.protobuf.Duration
+	9,  // 8: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	10, // 9: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.deployment.v1.ObservabilityConfig
+	11, // 10: loco.config.v1.DefaultServiceConfig.failure_policy:type_name -> loco.deployment.v1.FailurePolicy
+	1,  // 11: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	2,  // 12: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	12, // [12:13] is the sub-list for method output_type
+	11, // [11:12] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_loco_config_v1_config_proto_init() }
@@ -805,13 +879,14 @@ func file_loco_config_v1_config_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_config_v1_config_proto_rawDesc), len(file_loco_config_v1_config_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_loco_config_v1_config_proto_goTypes,
 		DependencyIndexes: file_loco_config_v1_config_proto_depIdxs,
+		EnumInfos:         file_loco_config_v1_config_proto_enumTypes,
 		MessageInfos:      file_loco_config_v1_config_proto_msgTypes,
 	}.Build()
 	File_loco_config_v1_config_proto = out.File

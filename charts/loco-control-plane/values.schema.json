@@ -447,6 +447,15 @@
     "defaultRegion": {
       "type": "string"
     },
+    "deploymentMode": {
+      "type": "string",
+      "enum": [
+        "",
+        "self-hosted",
+        "dedicated",
+        "multi-tenant"
+      ]
+    },
     "gateway": {
       "type": "object",
       "properties": {

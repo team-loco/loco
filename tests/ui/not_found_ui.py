@@ -37,9 +37,18 @@ base = f"{ui}/org/{org}/wks/{shared}"
 WORKSPACE_URL = re.compile(re.escape(base) + r"(\?env=[\w-]+)?$")
 issuer = f"{ui}/dex"
 TITLE = "Nothing lives at this address"
+CONFIG = "**/loco.config.v1.ConfigService/GetConfig*"
 
 
 open_page = partial(new_page, state=state)
+
+
+def multi_tenant(route):
+    config = route.fetch()
+    route.fulfill(
+        response=config,
+        json={**config.json(), "deploymentMode": "DEPLOYMENT_MODE_MULTI_TENANT"},
+    )
 
 
 def expect_not_found(page, path):
@@ -446,8 +455,33 @@ with session(out) as browser:
     cases.append("system-admin")
     context.close()
 
+    # A self-hosted install, the default, shows the sign-in card at / and waits for a click.
     context, page, errors = open_page(browser, None)
     page.goto(ui + "/")
+    expect(
+        page.get_by_role("heading", name="Sign in to loco", exact=True)
+    ).to_be_visible()
+    expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
+    expect(page).to_have_url(ui + "/")
+    expect(page.get_by_role("button", name="Onboard your agent to Loco")).to_have_count(
+        0
+    )
+    assert not errors, errors
+    cases.append("self-hosted-root")
+    context.close()
+
+    context, page, errors = open_page(browser, None)
+    held = []
+    context.route(CONFIG, multi_tenant)
+    context.route(CONFIG, held.append, times=1)
+    # The sign-in check settles while the config is held, and / shows neither page.
+    with page.expect_request(CONFIG), page.expect_response("**/WhoAmI*"):
+        page.goto(ui + "/")
+    expect(page.get_by_role("heading", name="Sign in to loco")).to_have_count(0)
+    expect(page.get_by_role("button", name="Onboard your agent to Loco")).to_have_count(
+        0
+    )
+    multi_tenant(held[0])
     expect(page).to_have_url(ui + "/")
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
     account = (

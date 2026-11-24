@@ -231,6 +231,9 @@ capabilities:
 {{- with $.Values.defaultRegion }}
 {{- $_ := set $settings "LOCO_DEFAULT_REGION" . }}
 {{- end }}
+{{- with $.Values.deploymentMode }}
+{{- $_ := set $settings "LOCO_DEPLOYMENT_MODE" . }}
+{{- end }}
 {{- toYaml $settings }}
 {{- end }}
 

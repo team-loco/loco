@@ -121,7 +121,7 @@ def check_browser(browser, state, issuer_url):
     ).click()
     expect(page).to_have_url(state["ui_url"] + "/")
     expect(
-        page.get_by_role("button", name="Onboard your agent to Loco")
+        page.get_by_role("heading", name="Sign in to loco", exact=True)
     ).to_be_visible()
     remaining = cookies(context, state)
     assert evidence.SESSION_COOKIE not in remaining

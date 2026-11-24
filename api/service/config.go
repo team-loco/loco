@@ -43,6 +43,7 @@ type ConfigSettings struct {
 	CountLimits               *configv1.CountLimits
 	HistoryRetention          *configv1.HistoryRetention
 	DefaultRegion             string
+	DeploymentMode            configv1.DeploymentMode
 }
 
 type liveRegionChecker interface {
@@ -97,6 +98,7 @@ func (s *ConfigServer) GetConfig(
 		SchemaUrl:                  s.settings.SchemaURL,
 		WebAuthEnabled:             s.webAuthEnabled,
 		DefaultRegion:              defaultRegion,
+		DeploymentMode:             s.settings.DeploymentMode,
 		OrgLinks:                   s.orgLinks,
 		CountLimits:                s.settings.CountLimits,
 		HistoryRetention:           s.settings.HistoryRetention,

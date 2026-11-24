@@ -30,6 +30,7 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		APITokenMaxLifetime:       42 * time.Hour,
 		ObservabilityMaxTimeRange: 6 * time.Hour,
 		CountLimits:               limits.Defaults(),
+		DeploymentMode:            configv1.DeploymentMode_DEPLOYMENT_MODE_MULTI_TENANT,
 	}, nil)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
@@ -75,6 +76,9 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	}
 	if resp.GetMinCliVersion() != "v1.2.3" {
 		t.Errorf("min CLI version %q", resp.GetMinCliVersion())
+	}
+	if resp.GetDeploymentMode() != configv1.DeploymentMode_DEPLOYMENT_MODE_MULTI_TENANT {
+		t.Errorf("deployment mode = %v, want multi-tenant", resp.GetDeploymentMode())
 	}
 }
 

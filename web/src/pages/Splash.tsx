@@ -3,7 +3,10 @@ import { Navigate } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { useSignIn } from "@/auth/SignIn";
+import { PageTitle } from "@/components/PageTitle";
 import { AppLoading } from "@/context/AppLoader";
+import { useMultiTenant } from "@/hooks/useMultiTenant";
+import { SignInCard } from "@/pages/auth/SignInCard";
 
 import { Architecture } from "./splash/Architecture";
 import { Features } from "./splash/Features";
@@ -18,13 +21,24 @@ export function Splash() {
 	const { isAuthenticated, isPending } = useAuth();
 	const { signIn, redirecting } = useSignIn();
 	const [loginHint] = useQueryState("login_hint");
+	const multiTenant = useMultiTenant();
 
 	if (isAuthenticated) {
 		return <Navigate to="/dashboard" replace />;
 	}
 
-	if (isPending) {
+	if (isPending || multiTenant === undefined) {
 		return <AppLoading />;
+	}
+
+	// A signed-out visitor, including one who just logged out, starts sign-in with a click.
+	if (!multiTenant) {
+		return (
+			<>
+				<PageTitle title="Sign in" />
+				<SignInCard next={null} loginHint={loginHint} error={null} autoStart={false} />
+			</>
+		);
 	}
 
 	const startSignIn = () => {
