@@ -1,4 +1,5 @@
 import argparse
+import json
 import re
 import uuid
 from functools import partial
@@ -410,6 +411,35 @@ with session(out) as browser:
     cases.append("owner-other-org")
     context.close()
 
+    # A workspace of the caller's own organization draws its page without waiting for the workspace lookup.
+    context, page, errors = open_page(browser, "owner")
+    held = []
+    page.route(
+        "**/loco.workspace.v1.WorkspaceService/GetWorkspace",
+        lambda route: held.append(route),
+    )
+    with page.expect_request(re.compile(r"/ListSecrets$")):
+        page.goto(base + "/secrets", wait_until="commit")
+    for route in held:
+        route.continue_()
+    context.close()
+
+    # A cold load of a page waits for nothing the page does not wait for itself: only the page's own loader shows.
+    context, page, errors = open_page(browser, "owner")
+    held = []
+    page.route(
+        "**/loco.token.v1.TokenService/GetScopes", lambda route: held.append(route)
+    )
+    with expect_rpc(page, "ListUserOrgs", lambda body: True):
+        page.goto(base + "/secrets", wait_until="commit")
+    page.evaluate(
+        "new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))"
+    )
+    expect(page.locator('[data-slot="page-loader"]')).to_have_count(0)
+    for route in held:
+        route.continue_()
+    context.close()
+
     context, page, errors = open_page(browser, "member")
     foreign = f"/org/{uuid.uuid4()}/wks/{sibling}"
     page.goto(ui + foreign)
@@ -441,13 +471,53 @@ with session(out) as browser:
         f"'{uuid.UUID(int=0)}');",
     )
     context, page, errors = open_page(browser, "resource_reader")
-    for path in (
-        f"/org/{uuid.UUID(int=0)}/team",
-        f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}",
-        f"/org/{org}/wks/{uuid.UUID(int=0)}",
+    # The not-found page appears once and nothing replaces it.
+    context.add_init_script(
+        f"const title = {json.dumps(TITLE)};"
+        """window.shellAfterNotFound = 0;
+        window.notFoundDraws = 0;
+        let shown = false;
+        new MutationObserver(() => {
+            const shell = document.querySelector('[data-slot="sidebar-content"]');
+            if (shell && window.notFoundDraws > 0) window.shellAfterNotFound++;
+            const now = document.body?.innerText.includes(title) ?? false;
+            if (now && !shown) window.notFoundDraws++;
+            shown = now;
+        }).observe(document, { childList: true, subtree: true, characterData: true });"""
+    )
+    settle = (
+        "new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))"
+    )
+
+    def requests_to(page, method):
+        urls = []
+        page.on(
+            "request",
+            lambda r: urls.append(r.url) if r.url.endswith("/" + method) else None,
+        )
+        return urls
+
+    for path, lookup in (
+        (f"/org/{uuid.UUID(int=0)}/team", "GetOrg"),
+        (f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}", "GetOrg"),
+        (f"/org/{org}/wks/{uuid.UUID(int=0)}", "GetWorkspace"),
     ):
-        page.goto(ui + path)
+        with expect_rpc(page, lookup, lambda body: True):
+            page.goto(ui + path)
         expect_not_found(page, path)
+        page.evaluate(settle)
+        draws = "[window.shellAfterNotFound, window.notFoundDraws]"
+        assert page.evaluate(draws) == [0, 1], (path, page.evaluate(draws))
+        # Returning to the tab refetches what is stale, but not the lookup that said the address is absent.
+        asked = requests_to(page, lookup)
+        with expect_rpc(page, "ListUserOrgs", lambda body: True):
+            page.evaluate(
+                "document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))"
+            )
+        page.evaluate(settle)
+        expect_not_found(page, path)
+        assert asked == [], (path, asked)
+        assert page.evaluate(draws) == [0, 1], ("refocus", path)
     page.goto(ui + f"/org/{org}/team")
     expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
