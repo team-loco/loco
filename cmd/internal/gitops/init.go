@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	yamlv3 "go.yaml.in/yaml/v3"
 
 	"github.com/team-loco/loco/cmd/internal/dotenv"
+	"github.com/team-loco/loco/cmd/internal/host"
 	example "github.com/team-loco/loco/examples/gitops"
 	"sigs.k8s.io/yaml"
 )
@@ -33,16 +33,13 @@ func Init(options InitOptions) error {
 		(len(options.Name) > 63 || !regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`).MatchString(options.Name)) {
 		return errors.New("name must be a lowercase cluster name")
 	}
-	endpoints := make([]*url.URL, 0, 2)
-	for _, address := range []string{options.API, options.Web} {
-		endpoint, err := url.Parse(address)
-		if err != nil || endpoint.Hostname() == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") ||
-			endpoint.User != nil ||
-			endpoint.RawQuery != "" ||
-			endpoint.Fragment != "" {
-			return errors.New("api and web must be absolute HTTP URLs without credentials, queries or fragments")
-		}
-		endpoints = append(endpoints, endpoint)
+	apiURL, err := host.ParseURL("--api", options.API)
+	if err != nil {
+		return err
+	}
+	webURL, err := host.ParseURL("--web", options.Web)
+	if err != nil {
+		return err
 	}
 	if options.Output == "" || options.Domain == "" || options.Region == "" || options.Admin == "" {
 		return errors.New("output, domain, region and admin are required")
@@ -63,7 +60,6 @@ func Init(options InitOptions) error {
 	if err := os.Mkdir(options.Output, 0700); err != nil {
 		return err
 	}
-	apiURL, webURL := endpoints[0], endpoints[1]
 	replacements := strings.NewReplacer(
 		"https://api.example.com",
 		strings.TrimRight(options.API, "/"),

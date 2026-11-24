@@ -3,7 +3,9 @@ package host
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/session"
@@ -24,14 +26,14 @@ func GetHost(cmd *cobra.Command) (string, error) {
 		}
 		if host != "" {
 			slog.Debug("using host from flag")
-			return host, nil
+			return checked("--host", host)
 		}
 	}
 
 	host := os.Getenv(LocoHostEnv)
 	if host != "" {
 		slog.Debug("using host from environment variable")
-		return host, nil
+		return checked(LocoHostEnv, host)
 	}
 
 	cfg, err := session.Load()
@@ -40,7 +42,7 @@ func GetHost(cmd *cobra.Command) (string, error) {
 	}
 	if cfg.LocoHost != "" {
 		slog.Debug("using host from config file")
-		return cfg.LocoHost, nil
+		return checked("locoHost in ~/.loco/"+session.ConfigFileName, cfg.LocoHost)
 	}
 
 	slog.Debug("defaulting to prod url")
@@ -54,12 +56,12 @@ func GetWebHost(cmd *cobra.Command) (string, error) {
 		return "", fmt.Errorf("error reading web-host flag: %w", err)
 	}
 	if host != "" {
-		return host, nil
+		return checked("--web-host", host)
 	}
 
 	host = os.Getenv("LOCO_WEB_HOST")
 	if host != "" {
-		return host, nil
+		return checked("LOCO_WEB_HOST", host)
 	}
 
 	cfg, err := session.Load()
@@ -67,8 +69,37 @@ func GetWebHost(cmd *cobra.Command) (string, error) {
 		return "", fmt.Errorf("load config: %w", err)
 	}
 	if cfg.WebHost != "" {
-		return cfg.WebHost, nil
+		return checked("webHost in ~/.loco/"+session.ConfigFileName, cfg.WebHost)
 	}
 
 	return DefaultWebHost, nil
+}
+
+// ParseURL parses an API or dashboard address, rejecting one that is not an absolute HTTP or
+// HTTPS URL; the error names source (a flag, variable or config key) and, for a bare host, the URL to type.
+func ParseURL(source, value string) (*url.URL, error) {
+	if !strings.Contains(value, "://") {
+		return nil, fmt.Errorf("set %s to a URL such as https://%s", source, value)
+	}
+	u, err := url.Parse(value)
+	if err != nil || !isEndpoint(u) {
+		return nil, fmt.Errorf(
+			"set %s to an http:// or https:// URL without credentials, query or fragment, not %q", source, value,
+		)
+	}
+	return u, nil
+}
+
+func checked(source, value string) (string, error) {
+	if _, err := ParseURL(source, value); err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+func isEndpoint(u *url.URL) bool {
+	if u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return false
+	}
+	return u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == ""
 }

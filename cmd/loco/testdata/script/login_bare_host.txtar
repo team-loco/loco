@@ -1,0 +1,10 @@
+# login names the URL to type when a host has no scheme.
+! exec loco login --host api.example.test
+stderr 'Set --host to a URL such as https://api\.example\.test'
+
+env LOCO_WEB_HOST=example.test
+! exec loco login --host https://api.example.test
+stderr 'Set LOCO_WEB_HOST to a URL such as https://example\.test'
+
+! exec loco config set locoHost api.example.test
+stderr 'Set locoHost to a URL such as https://api\.example\.test'

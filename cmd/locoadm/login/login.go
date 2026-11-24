@@ -3,6 +3,7 @@ package login
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/team-loco/loco/cmd/internal/host"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/internal/login"
 )
@@ -15,6 +16,12 @@ func Command() *cobra.Command {
 		Short: "Sign in to the installation's API; the first sign-in of a configured admin makes it a system admin",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if _, err := host.ParseURL("--api", api); err != nil {
+				return err
+			}
+			if _, err := host.ParseURL("--web", web); err != nil {
+				return err
+			}
 			device, err := cmd.Flags().GetBool("device")
 			if err != nil {
 				return err

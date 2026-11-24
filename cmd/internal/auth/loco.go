@@ -3,7 +3,6 @@ package auth
 import (
 	"errors"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 var (
 	errEmptyAPIToken     = errors.New("the LOCO_TOKEN variable is empty. Set an API token or unset LOCO_TOKEN")
 	errTokenHostRequired = errors.New("set LOCO_HOST to the API URL when using LOCO_TOKEN")
-	errTokenHostInvalid  = errors.New("LOCO_HOST must be an HTTP or HTTPS API URL when using LOCO_TOKEN")
 	errTokenHostMismatch = errors.New("--host must match LOCO_HOST when using LOCO_TOKEN")
 )
 
@@ -34,10 +32,8 @@ func ResolveLocoLogin(cmd *cobra.Command) (Login, error) {
 	if tokenHost == "" {
 		return Login{}, errTokenHostRequired
 	}
-	u, err := url.Parse(tokenHost)
-	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") ||
-		u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
-		return Login{}, errTokenHostInvalid
+	if _, err := host.ParseURL(host.LocoHostEnv, tokenHost); err != nil {
+		return Login{}, err
 	}
 	apiHost, err := host.GetHost(cmd)
 	if err != nil {
