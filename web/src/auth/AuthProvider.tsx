@@ -19,7 +19,7 @@ interface AuthContextType {
 	isAuthenticated: boolean;
 	isPending: boolean;
 	error: Error | null;
-	logout: (returnTo?: "/login") => Promise<void>;
+	logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const signedOut = unauthenticated(error);
 	const user = signedOut ? null : (data?.user ?? null);
 
-	const logout = async (returnTo: "/" | "/login" = "/") => {
+	const logout = async () => {
 		try {
 			await signOut();
 		} catch (err) {
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 		queryClient.clear();
 		removeStorage(QUERY_CACHE_KEY);
-		window.location.replace(returnTo);
+		window.location.replace("/");
 	};
 
 	return (

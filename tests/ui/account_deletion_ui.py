@@ -162,8 +162,12 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     delete.click()
     dialog.get_by_role("textbox").fill(state["users"]["departing"]["email"])
     confirm.click()
-    expect(page).to_have_url(re.compile(r"/dex/auth\?"))
-    expect(page.get_by_role("heading", name="Sign in", exact=True)).to_be_visible()
+    # Sign-in waits for a click: an identity-provider session that is still active
+    # would otherwise sign the deleted user straight back in.
+    expect(
+        page.get_by_role("button", name=re.compile("^(Continue|Sign in)$")).first
+    ).to_be_visible()
+    assert "/dex/" not in page.url, page.url
     assert not any(
         cookie["name"] == evidence.SESSION_COOKIE for cookie in context.cookies()
     )
