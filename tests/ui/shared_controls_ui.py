@@ -1014,6 +1014,43 @@ def volume_error(browser):
     context.close()
 
 
+def expired_session(browser):
+    context, page, errors = open_page(
+        browser, state=state, timezone_id="UTC", now=datetime.now(UTC)
+    )
+    mock_telemetry(context)
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    expect(page.locator("[data-live-button]")).to_have_attribute("aria-pressed", "true")
+    expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
+    rejected = {"code": "unauthenticated", "message": "session expired"}
+    for method in (
+        "loco.observability.v1.ObservabilityService/QueryLogBuckets",
+        "loco.token.v1.TokenService/GetScopes",
+        "loco.auth.v1.AuthService/RefreshWebSession",
+        "loco.user.v1.UserService/WhoAmI",
+    ):
+        page.route(
+            f"**/{method}",
+            lambda route: route.fulfill(status=401, json=rejected),
+        )
+    sent = []
+    page.on(
+        "request",
+        lambda request: (
+            sent.append(request.url)
+            if request.url.endswith("/QueryLogBuckets")
+            else None
+        ),
+    )
+    # Live tail moves the volume window every 15 seconds, so each tick is a new request.
+    page.clock.run_for(15_000)
+    # The shell sends the signed-out user to sign in, which unmounts the logs page.
+    expect(page).not_to_have_url(re.compile(r"/observability"))
+    page.clock.run_for(60_000)
+    assert len(sent) <= 2, sent
+    context.close()
+
+
 def metrics_error(browser):
     context, page, errors = open_page(
         browser, state=state, timezone_id="UTC", now=datetime.now(UTC)
@@ -2224,6 +2261,7 @@ with session(out) as browser:
     mock_telemetry(context)
     time_preferences(browser)
     volume_error(browser)
+    expired_session(browser)
     metrics_error(browser)
     page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
     new_resource_menu(page)
