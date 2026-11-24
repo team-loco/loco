@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -143,7 +144,13 @@ func newOutboundHTTPClient() *http.Client {
 }
 
 func serve(server *http.Server) error {
-	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+	var err error
+	if server.TLSConfig != nil {
+		err = server.ListenAndServeTLS("", "")
+	} else {
+		err = server.ListenAndServe()
+	}
+	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
@@ -225,7 +232,7 @@ func run() error {
 	}()
 	startBackground(ctx, &background, ac, d)
 
-	server := newServer(ac, mux)
+	servers := newServers(ac, mux)
 	if ac.PprofAddr != "" {
 		pprofServer = newPprofServer(ac.PprofAddr)
 		background.Go(func() {
@@ -236,17 +243,24 @@ func run() error {
 		})
 	}
 
-	slog.Info("starting server", "addr", server.Addr)
-	served := make(chan error, 1)
-	go func() { served <- serve(server) }()
-	select {
-	case err := <-served:
-		return err
-	case <-ctx.Done():
+	served := make(chan error, len(servers))
+	for _, server := range servers {
+		slog.Info("starting server", "addr", server.Addr, "tls", server.TLSConfig != nil)
+		go func() { served <- serve(server) }()
 	}
-	slog.InfoContext(ctx, "shutdown signal received", "signal", context.Cause(ctx))
-	shutdownErr := shutdown(server, pprofServer, ac.ShutdownDrainTimeout)
-	return errors.Join(shutdownErr, <-served)
+	running := len(servers)
+	var serveErr error
+	select {
+	case serveErr = <-served:
+		running--
+	case <-ctx.Done():
+		slog.InfoContext(ctx, "shutdown signal received", "signal", context.Cause(ctx))
+	}
+	errs := []error{serveErr, shutdown(servers, pprofServer, ac.ShutdownDrainTimeout)}
+	for range running {
+		errs = append(errs, <-served)
+	}
+	return errors.Join(errs...)
 }
 
 type deps struct {
@@ -607,7 +621,9 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 	}
 }
 
-func newServer(ac *APIConfig, mux *http.ServeMux) *http.Server {
+// newServers returns the plain HTTP/1.1 and h2c server and, when configured, the TLS server, all
+// serving one handler.
+func newServers(ac *APIConfig, mux *http.ServeMux) []*http.Server {
 	allowLoopback := ac.Env != envProduction
 	corsOrigins := ac.CORSAllowedOrigins
 	webOrigin := auth.NewWebCookies(ac.WebURL, nil).Origin()
@@ -624,18 +640,37 @@ func newServer(ac *APIConfig, mux *http.ServeMux) *http.Server {
 	protocols.SetHTTP1(true)
 	protocols.SetUnencryptedHTTP2(true)
 
+	handler := auth.StreamTransport(muxWCors)
+	plain := newHTTPServer(ac.Port, handler, protocols)
+	if ac.TLSListener.Addr == "" {
+		return []*http.Server{plain}
+	}
+
+	tlsProtocols := new(http.Protocols)
+	tlsProtocols.SetHTTP1(true)
+	tlsProtocols.SetHTTP2(true)
+	tlsServer := newHTTPServer(ac.TLSListener.Addr, handler, tlsProtocols)
+	tlsServer.TLSConfig = &tls.Config{
+		Certificates: []tls.Certificate{ac.TLSListener.Certificate},
+		MinVersion:   tls.VersionTLS12,
+	}
+	return []*http.Server{plain, tlsServer}
+}
+
+// newHTTPServer sets no read or write timeout: agent Sync streams and log tails stay open for hours.
+func newHTTPServer(addr string, handler http.Handler, protocols *http.Protocols) *http.Server {
 	return &http.Server{
-		Addr:              ac.Port,
-		Handler:           auth.StreamTransport(muxWCors),
+		Addr:              addr,
+		Handler:           handler,
 		Protocols:         protocols,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
 }
 
-// shutdown closes the pprof server, then drains server for up to drainTimeout before closing the
-// connections still open.
-func shutdown(server, pprofServer *http.Server, drainTimeout time.Duration) error {
+// shutdown closes the pprof server, then drains servers together for up to drainTimeout before
+// closing the connections still open.
+func shutdown(servers []*http.Server, pprofServer *http.Server, drainTimeout time.Duration) error {
 	ctx := context.Background()
 	drainCtx, cancel := context.WithTimeout(ctx, drainTimeout)
 	defer cancel()
@@ -646,11 +681,22 @@ func shutdown(server, pprofServer *http.Server, drainTimeout time.Duration) erro
 		}
 	}
 
-	if err := server.Shutdown(drainCtx); err != nil {
-		slog.WarnContext(ctx, "graceful shutdown did not finish, closing remaining connections", "error", err)
+	errs := make([]error, len(servers))
+	var drains sync.WaitGroup
+	for i, server := range servers {
+		drains.Go(func() { errs[i] = drain(drainCtx, server) })
+	}
+	drains.Wait()
+	return errors.Join(errs...)
+}
+
+func drain(ctx context.Context, server *http.Server) error {
+	if err := server.Shutdown(ctx); err != nil {
+		slog.WarnContext(ctx, "graceful shutdown did not finish, closing remaining connections",
+			"addr", server.Addr, "error", err)
 		return server.Close()
 	}
-	slog.InfoContext(ctx, "server shutdown completed gracefully")
+	slog.InfoContext(ctx, "server shutdown completed gracefully", "addr", server.Addr)
 	return nil
 }
 
