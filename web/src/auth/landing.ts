@@ -12,6 +12,7 @@ import { ORG_STORAGE_KEY, pickActive, WORKSPACE_STORAGE_KEY } from "@/context/Co
 import { hasOrganizationMembership } from "@/hooks/useMyScopes";
 import { pageImporters } from "@/lib/lazy-pages";
 import { workspacePath } from "@/lib/routes";
+// eslint-disable-next-line no-restricted-imports -- the sign-in redirect runs outside render
 import { readStorage } from "@/lib/storage";
 
 export async function landingPath(
@@ -39,7 +40,7 @@ async function dashboardPath(
 	queryClient: QueryClient,
 	orgs: readonly Organization[],
 ): Promise<string> {
-	const orgId = pickActive(orgs, undefined, ORG_STORAGE_KEY);
+	const orgId = pickActive(orgs, undefined, readStorage(ORG_STORAGE_KEY));
 	if (orgId === null) {
 		await pageImporters.Organizations();
 		return "/organizations";
@@ -48,7 +49,7 @@ async function dashboardPath(
 	const workspaces = hasOrganizationMembership(scopes, orgId)
 		? await pickableWorkspaces(transport, queryClient, orgId)
 		: [];
-	const workspaceId = pickActive(workspaces, undefined, WORKSPACE_STORAGE_KEY);
+	const workspaceId = pickActive(workspaces, undefined, readStorage(WORKSPACE_STORAGE_KEY));
 	if (workspaceId === null) {
 		await pageImporters.Team();
 		return `/org/${orgId}/team`;

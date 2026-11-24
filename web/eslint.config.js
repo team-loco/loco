@@ -55,6 +55,12 @@ export default defineConfig([
 							importNames: ["toast"],
 							message: 'Import toast from "@/lib/toast", which follows the Toasts setting.',
 						},
+						{
+							name: "@/lib/storage",
+							importNames: ["readStorage"],
+							message:
+								"A read during render keeps its first value under the React compiler. Read through useStoredValue or useStoredJSON.",
+						},
 					],
 					patterns: [
 						{

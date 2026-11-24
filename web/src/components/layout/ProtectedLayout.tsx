@@ -32,7 +32,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const orgs = orgsRes?.orgs;
 	const scopes = useMyScopes({ enabled: !!user });
 
-	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
+	const [storedOrg] = useStoredValue(ORG_STORAGE_KEY, "");
+	const activeOrgId = pickActive(orgs, orgParam, storedOrg);
 
 	// Without a workspace in the URL, the active one is the remembered workspace if it is in the organization, else its newest.
 	const picking =

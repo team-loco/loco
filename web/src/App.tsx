@@ -37,6 +37,7 @@ import { useEnvironmentInUrl } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { notFound } from "@/lib/not-found";
 import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
+// eslint-disable-next-line no-restricted-imports -- the query cache persister reads outside render
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 import { pageImporters } from "@/lib/lazy-pages";
