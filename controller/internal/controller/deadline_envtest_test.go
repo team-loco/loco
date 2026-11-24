@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"encoding/json"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -178,6 +180,47 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Deadline).NotTo(BeNil())
 		Expect(app.Status.Rollout.Deadline.PlacementRevision).To(Equal(int64(3)))
+	})
+
+	It("keeps a deployed revision healthy while the autoscaler adds a replica", func() {
+		app := deadlineApp("scale-up", 1)
+		app.Spec.ServiceSpec.Resources.Replicas.Max = 3
+		app.Spec.ServiceSpec.Resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, CPUTarget: 70}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		serving := serveReplica(app, "scale-up-serving")
+		setRolloutCounts(app, 1, 1)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+		Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+
+		By("adding a replica that is not ready yet")
+		dep := appDeployment(app)
+		scale, err := json.Marshal(map[string]any{"spec": map[string]int32{"replicas": 2}})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.SubResource("scale").Patch(ctx, dep, client.RawPatch(client.Merge.Type(), scale),
+			client.FieldOwner("horizontal-pod-autoscaler"))).To(Succeed())
+		createReplica(app, "scale-up-added")
+		dep = appDeployment(app)
+		dep.Status.ObservedGeneration = dep.Generation
+		dep.Status.Replicas, dep.Status.UpdatedReplicas = 2, 2
+		dep.Status.ReadyReplicas, dep.Status.AvailableReplicas = 1, 1
+		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.DesiredReplicas).To(Equal(int32(2)))
+		Expect(app.Status.Rollout.Available).To(BeTrue())
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+
+		By("degrading it once the replica that served stops being ready")
+		serving.Status.Conditions[1].Status = corev1.ConditionFalse
+		Expect(k8sClient.Status().Update(ctx, serving)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
+
+		By("staying degraded on the next observation")
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
 	})
 
 	It("reports a service healthy once its replicas are ready and deployed once they are available", func() {
