@@ -54,11 +54,8 @@ message Cluster {
   optional string agent_key_fingerprint = 11;
   ClusterRole role = 12;
   repeated string domains = 13;
-  reserved 14;
-  reserved "dns_records";
-  // the region's gateway, {region}.{platform domain}; empty until the agent reports the platform
-  // domain served
-  string gateway_hostname = 15;
+  reserved 14, 15;
+  reserved "dns_records", "gateway_hostname";
 }
 
 // ClusterRole is chosen when the worker is installed and reported by its agent.

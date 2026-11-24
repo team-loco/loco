@@ -14,7 +14,6 @@ import { DomainType, type AppDomain, type ResourceDomain } from "@gen/loco/domai
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import { CopyId } from "@/components/design/CopyId";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -27,7 +26,7 @@ import { AppDomainInput } from "@/components/design/AppDomainInput";
 import { Switch } from "@/components/design/Switch";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { toastConnectError } from "@/lib/error-handler";
-import { domainCoverage, regionalHostname } from "@/lib/app-domain";
+import { domainCoverage } from "@/lib/app-domain";
 import { LimitedAction, LimitUsageText } from "@/components/design/LimitedAction";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
@@ -60,9 +59,6 @@ function DomainRow({
 	const update = useMutation(updateResourceDomain);
 	const removeBlocked = domain.isPrimary && !onlyDomain;
 	const { serving, missing } = domainCoverage(served, running);
-	const regional = domain.isPrimary
-		? serving.flatMap((region) => regionalHostname(domain.domain, domain.appDomain ?? "", region) ?? [])
-		: [];
 
 	const saveEdit = async () => {
 		if (editing === null) return;
@@ -204,17 +200,6 @@ function DomainRow({
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
-			{regional.length > 0 && (
-				<ul aria-label={`Regional hostnames of ${domain.domain}`} className="m-0 flex w-full list-none flex-col p-0">
-					{regional.map((host) => (
-						<li key={host} className="flex min-w-0">
-							<CopyId value={host} className="-ml-1.5 min-w-0 font-mono text-[12px] font-normal text-fg2">
-								<span className="[overflow-wrap:anywhere]">{host}</span>
-							</CopyId>
-						</li>
-					))}
-				</ul>
-			)}
 		</div>
 	);
 }

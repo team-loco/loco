@@ -26,7 +26,7 @@ func TestCertificates(t *testing.T) {
 		sets = append([]string{"gateway-helm.enabled=false", "agent.image.tag=e2e",
 			"controller.image.tag=e2e", "cluster.role=apps", "otel-col-daemon.enabled=false",
 			"otel-col-deploy.enabled=false", "otel-col-cluster.enabled=false", "certManager.issuer.type=selfSigned",
-			"global.domain.platform=platform.example.test", "global.region=local-1"}, sets...)
+			"global.region=local-1"}, sets...)
 		args := make([]string, 0, 9+len(sets))
 		args = append(args, "template", release, c.Path("charts", "loco-worker"), "-n", certificatesNamespace,
 			"--show-only", template, "--set-json", `global.domain.apps=["apps.example.test"]`)
@@ -69,7 +69,7 @@ spec:
 `)
 		c.MustApply(t, render("existing", certificateTemplate, "certManager.issuer.create=false",
 			"certManager.issuer.name=existing-local", "certManager.issuer.kind=Issuer"))
-		checkCertificate(t, "existing", "probe.platform.example.test")
+		checkCertificate(t, "existing", "probe.apps.example.test")
 	})
 }
 

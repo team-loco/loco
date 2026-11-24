@@ -943,9 +943,6 @@
       },
       "additionalProperties": false
     },
-    "platformDomain": {
-      "type": "string"
-    },
     "ui": {
       "allOf": [
         {

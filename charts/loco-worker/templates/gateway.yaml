@@ -50,40 +50,6 @@ spec:
             matchLabels:
               loco.io/app: "true"
     {{- end }}
-    - name: https-platform
-      hostname: {{ printf "*.%s" (include "loco-worker.platformDomain" .) | quote }}
-      protocol: HTTPS
-      port: 443
-      allowedRoutes:
-        namespaces:
-          from: Selector
-          selector:
-            matchExpressions:
-              - key: kubernetes.io/metadata.name
-                operator: In
-                values:
-                  - {{ .Release.Namespace }}
-                  - {{ include "loco-worker.observabilityNamespace" . }}
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - name: {{ include "loco-worker.tlsSecret" . }}
-            kind: Secret
-            group: ""
-    - name: http-platform
-      hostname: {{ printf "*.%s" (include "loco-worker.platformDomain" .) | quote }}
-      protocol: HTTP
-      port: 80
-      allowedRoutes:
-        namespaces:
-          from: Selector
-          selector:
-            matchExpressions:
-              - key: kubernetes.io/metadata.name
-                operator: In
-                values:
-                  - {{ .Release.Namespace }}
-                  - {{ include "loco-worker.observabilityNamespace" . }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy

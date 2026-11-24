@@ -103,8 +103,6 @@ CREATE TABLE
         capacity_cpu_millicores BIGINT,
         capacity_memory_bytes BIGINT,
         agent_version TEXT,
-        -- publicly resolvable FQDN of this cluster's gateway; a hostname, never an address
-        gateway_hostname TEXT,
         sync_generation BIGINT NOT NULL DEFAULT 0,
         domains TEXT[] NOT NULL DEFAULT '{}',
         agent_public_key BYTEA CHECK (octet_length(agent_public_key) = 32),

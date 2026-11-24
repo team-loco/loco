@@ -9051,12 +9051,6 @@
               "format": "hostname"
             },
             "title": "domains"
-          },
-          "platformDomain": {
-            "type": "string",
-            "title": "platform_domain",
-            "format": "hostname",
-            "description": "the platform domain whose listener and certificate are ready; empty while either is not"
           }
         },
         "title": "Heartbeat",
@@ -10353,11 +10347,6 @@
               "type": "string"
             },
             "title": "domains"
-          },
-          "gatewayHostname": {
-            "type": "string",
-            "title": "gateway_hostname",
-            "description": "the region's gateway, {region}.{platform domain}; empty until the agent reports the platform\n domain served"
           }
         },
         "title": "Cluster",

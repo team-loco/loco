@@ -65,15 +65,6 @@ tests:
           content: {name: LOCO_GATEWAY, value: eg}
         template: templates/controller/deployment.yaml
 
-  - it: passes the app domains the controller adds regional hostnames under
-    set:
-      global.domain.apps: [onloco.app, onloco.build]
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: LOCO_APP_DOMAINS, value: "onloco.app,onloco.build"}
-        template: templates/controller/deployment.yaml
-
   - it: reads the collector namespace, Service and ports from the values
     set:
       otel-col-deploy.namespaceOverride: telemetry

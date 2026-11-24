@@ -12,10 +12,7 @@ import (
 const (
 	locoNamespace = "loco-system"
 	appDomain     = "e2e.test.local"
-	// WorkerPlatformDomain is the worker chart's global.domain.platform and the API's
-	// LOCO_PLATFORM_DOMAIN.
-	WorkerPlatformDomain = "e2e-platform.test.local"
-	clusterRegion        = "local-1"
+	clusterRegion = "local-1"
 	// bucketRegion is the S3 region the source bucket signs requests for.
 	bucketRegion  = "us-east-1"
 	clusterName   = "e2e-test-cluster"

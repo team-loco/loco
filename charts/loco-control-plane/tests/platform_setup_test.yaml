@@ -45,21 +45,6 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: EVENTS_RETENTION, value: 720h}
-  - it: requires the platform domain
-    template: templates/api-deployment.yaml
-    set:
-      platformDomain: ""
-    asserts:
-      - failedTemplate:
-          errorPattern: "platformDomain is required"
-  - it: passes the platform domain the values name
-    template: templates/api-deployment.yaml
-    set:
-      platformDomain: workers.example.test
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: LOCO_PLATFORM_DOMAIN, value: workers.example.test}
   - it: passes the default region the values name
     template: templates/api-deployment.yaml
     set:

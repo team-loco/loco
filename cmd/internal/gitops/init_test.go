@@ -42,15 +42,14 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 		t.Fatal(err)
 	}
 	options := InitOptions{
-		Output:         filepath.Join(root, "fleet"),
-		API:            "https://api.test",
-		Web:            "https://web.test",
-		Domain:         "apps.test",
-		PlatformDomain: "workers.test",
-		Region:         "test-east",
-		Admin:          "admin@test.local",
-		Bundle:         "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
-		APIEnvFile:     env,
+		Output:     filepath.Join(root, "fleet"),
+		API:        "https://api.test",
+		Web:        "https://web.test",
+		Domain:     "apps.test",
+		Region:     "test-east",
+		Admin:      "admin@test.local",
+		Bundle:     "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
+		APIEnvFile: env,
 	}
 	if err := Init(options); err != nil {
 		t.Fatal(err)
@@ -64,15 +63,6 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 	api := readSecret(t, filepath.Join(options.Output, "clusters", controlPlaneCluster, "config", "api-env.yaml"))
 	if api["DATABASE_URL"] != "postgres://fixture" {
 		t.Fatal("API environment differs from input")
-	}
-	for path, want := range map[string]string{
-		filepath.Join("clusters", controlPlaneCluster, "values", "loco-control-plane.yaml"): "platformDomain: workers.test",
-		filepath.Join("clusters", "worker-staging", "values", "loco-worker.yaml"):           "platform: workers.test",
-	} {
-		values, readErr := os.ReadFile(filepath.Join(options.Output, path))
-		if readErr != nil || !strings.Contains(string(values), want) {
-			t.Fatalf("%s lacks %q: %v", path, want, readErr)
-		}
 	}
 	readme, err := os.ReadFile(filepath.Join(options.Output, "README.md"))
 	if err != nil || !strings.Contains(string(readme), "encrypt them before committing") {
@@ -133,17 +123,16 @@ func TestInitSingleCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	options := InitOptions{
-		Output:         filepath.Join(root, "fleet"),
-		API:            "http://api.test:8000",
-		Web:            "http://web.test:5173",
-		Domain:         "apps.test",
-		PlatformDomain: "workers.test",
-		Region:         "local",
-		Admin:          "admin@test.local",
-		Bundle:         "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
-		APIEnvFile:     env,
-		SingleCluster:  true,
-		Name:           "combined",
+		Output:        filepath.Join(root, "fleet"),
+		API:           "http://api.test:8000",
+		Web:           "http://web.test:5173",
+		Domain:        "apps.test",
+		Region:        "local",
+		Admin:         "admin@test.local",
+		Bundle:        "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
+		APIEnvFile:    env,
+		SingleCluster: true,
+		Name:          "combined",
 	}
 	if err := Init(options); err != nil {
 		t.Fatal(err)

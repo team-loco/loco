@@ -184,8 +184,6 @@ func collectorManifest(t *testing.T) string {
 	t.Helper()
 	values := writeFile(t, "metrics-values.yaml", fmt.Sprintf(`global:
   region: %[1]s
-  domain:
-    platform: workers.e2e.test.local
   platformTelemetry:
     enabled: true
     platformOnly: true

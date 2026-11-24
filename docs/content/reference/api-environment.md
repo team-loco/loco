@@ -69,7 +69,6 @@ A dashboard sign-in, `loco login` and `loco login --device` keep their state in 
 | `LOCO_AGENT_ASSERTION_MAX_LIFETIME` | `5m` | Longest lifetime the API accepts on an agent's signed cluster assertion. |
 | `LOCO_CLUSTER_JOIN_TOKEN_TTL` | `1h` | Default lifetime of a cluster join token. See [cluster enrollment](cluster-attachment.md). |
 | `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` | `168h` | Longest lifetime a join token may request. Must be at least `LOCO_CLUSTER_JOIN_TOKEN_TTL`. |
-| `LOCO_PLATFORM_DOMAIN` | empty | The platform domain: the worker clusters' own gateway domain, the worker chart's `global.domain.platform`. Loco owns it and keeps it apart from the app domains services are named under. A cluster that serves it records `<region>.<domain>` as its gateway hostname, such as `us-ca-1.workers.loco.build`. Empty records none. The control-plane chart sets it from its required `platformDomain` value. |
 | `LOCO_APPLY_ATTEMPTS` | `2` | Times the API sends a deployment a cluster fails to apply before it marks the deployment failed, 1 to 10. |
 | `LOCO_APPLY_RETRY_DELAY` | `300` | Seconds between those sends. |
 | `LOCO_WORKSPACE_NAMESPACE_GRACE` | `24h` | How long a workspace may have no deployments on a cluster before the API asks that cluster's agent to delete the workspace's namespace there. |

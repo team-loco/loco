@@ -1630,15 +1630,13 @@ func (x *CancelBuild) GetBuildId() string {
 
 // Heartbeat is sent periodically by the agent.
 type Heartbeat struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Capacity *AgentCapacity         `protobuf:"bytes,1,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	Health   *AgentHealth           `protobuf:"bytes,2,opt,name=health,proto3" json:"health,omitempty"`
-	Role     v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
-	Domains  []string               `protobuf:"bytes,4,rep,name=domains,proto3" json:"domains,omitempty"`
-	// the platform domain whose listener and certificate are ready; empty while either is not
-	PlatformDomain string `protobuf:"bytes,6,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Capacity      *AgentCapacity         `protobuf:"bytes,1,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Health        *AgentHealth           `protobuf:"bytes,2,opt,name=health,proto3" json:"health,omitempty"`
+	Role          v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
+	Domains       []string               `protobuf:"bytes,4,rep,name=domains,proto3" json:"domains,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Heartbeat) Reset() {
@@ -1697,13 +1695,6 @@ func (x *Heartbeat) GetDomains() []string {
 		return x.Domains
 	}
 	return nil
-}
-
-func (x *Heartbeat) GetPlatformDomain() string {
-	if x != nil {
-		return x.PlatformDomain
-	}
-	return ""
 }
 
 // AgentCapacity reports cluster resource capacity.
@@ -1997,15 +1988,13 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\bplatform\x18\v \x01(\tB\x1f\xbaH\x1cr\x1aR\vlinux/amd64R\vlinux/arm64R\bplatform\x12*\n" +
 	"\vtraceparent\x18\f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vtraceparent\"2\n" +
 	"\vCancelBuild\x12#\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xa7\x02\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\x89\x02\n" +
 	"\tHeartbeat\x128\n" +
 	"\bcapacity\x18\x01 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
 	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12<\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12&\n" +
-	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\x123\n" +
-	"\x0fplatform_domain\x18\x06 \x01(\tB\n" +
-	"\xbaH\a\xd8\x01\x01r\x02h\x01R\x0eplatformDomainJ\x04\b\x05\x10\x06R\vdns_records\"\xce\x02\n" +
+	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\vdns_recordsR\x0fplatform_domain\"\xce\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
 	"\x13cpu_millicores_used\x18\x02 \x01(\x03R\x11cpuMillicoresUsed\x12,\n" +

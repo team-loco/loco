@@ -1,7 +1,5 @@
 global:
   region: local-1
-  domain:
-    platform: workers.ci.invalid
   exporter:
     endpoint: https://ingest.ci.invalid
 

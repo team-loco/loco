@@ -133,7 +133,7 @@ func TestObservability(t *testing.T) {
 		return
 	}
 
-	t.Run("the region's hostname serves the app over HTTPS", o.regionalHTTPS)
+	t.Run("the app's hostname serves it over HTTPS", o.https)
 
 	t.Run("migrations", migrations)
 
@@ -712,12 +712,11 @@ func clusterEventsOnce(t *testing.T) {
 	}
 }
 
-// regionalHTTPS requests the app at its hostname under the run's region through the gateway's HTTPS
-// listener, trusting only the run's certificate.
-func (o *observed) regionalHTTPS(t *testing.T) {
-	regional := strings.TrimSuffix(o.host, "."+p.Domain) + "." + p.Region + "." + p.Domain
-	platform.Eventually(t, routeTimeout, "the gateway to serve "+regional, func(ctx context.Context) error {
-		status, err := p.GatewayHTTPS(ctx, regional, "/healthz")
+// https requests the app at its hostname through the gateway's HTTPS listener, trusting only the
+// run's certificate.
+func (o *observed) https(t *testing.T) {
+	platform.Eventually(t, routeTimeout, "the gateway to serve "+o.host+" over HTTPS", func(ctx context.Context) error {
+		status, err := p.GatewayHTTPS(ctx, o.host, "/healthz")
 		if err != nil || status != http.StatusOK {
 			return fmt.Errorf("HTTP %d (%w)", status, err)
 		}

@@ -1,5 +1,4 @@
 controlPlaneHostname: api.example.com
-platformDomain: workers.example.com
 ui:
   hostname: app.example.com
 api:

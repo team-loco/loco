@@ -232,13 +232,8 @@ message Heartbeat {
     not_in: [0]
   }];
   repeated string domains = 4 [(buf.validate.field).repeated.items.string.hostname = true];
-  reserved 5;
-  reserved "dns_records";
-  // the platform domain whose listener and certificate are ready; empty while either is not
-  string platform_domain = 6 [
-    (buf.validate.field).string.hostname = true,
-    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
-  ];
+  reserved 5, 6;
+  reserved "dns_records", "platform_domain";
 }
 
 // AgentCapacity reports cluster resource capacity.
