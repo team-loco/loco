@@ -671,9 +671,6 @@ func (s *AgentServer) recordStatus(
 			return nil
 		}
 		placement := genDb.LockPlacementResourceParams{ID: placementID, ClusterID: clusterID}
-		if envErr := qtx.LockPlacementEnvironment(ctx, genDb.LockPlacementEnvironmentParams(placement)); envErr != nil {
-			return fmt.Errorf("lock status environment: %w", envErr)
-		}
 		if _, resourceErr := qtx.LockPlacementResource(ctx, placement); errors.Is(resourceErr, pgx.ErrNoRows) {
 			return nil
 		} else if resourceErr != nil {

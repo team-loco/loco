@@ -302,11 +302,6 @@ WHERE d.id IN (
         ))
   );
 
--- name: LockPlacementEnvironment :exec
--- Takes the lock a deployment's foreign key check takes on its environment.
-SELECT e.id FROM environments e JOIN placements p ON p.environment_id = e.id
-WHERE p.id = $1 AND p.cluster_id = $2 FOR KEY SHARE OF e;
-
 -- name: LockPlacementResource :one
 SELECT r.id FROM resources r JOIN placements p ON p.resource_id = r.id
 WHERE p.id = $1 AND p.cluster_id = $2 FOR UPDATE OF r;

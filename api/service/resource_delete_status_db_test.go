@@ -11,6 +11,7 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -53,6 +54,58 @@ func TestDeleteResourceAndStatusReportDoNotDeadlock(t *testing.T) {
 	}
 	if n := deadlocks(t, f.pool); n != 0 {
 		t.Fatalf("Postgres broke %d deadlocks", n)
+	}
+}
+
+func TestDeleteWorkspaceAndStatusReportDoNotDeadlock(t *testing.T) {
+	t.Parallel()
+	for name, reportFirst := range map[string]bool{"deletion first": false, "report first": true} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f := newDeployFixture(t)
+			created, err := createTestDeployment(t, f, sameRegionSpec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := f.placement(t, f.clusterID)
+			workspaceID := f.workspaceID(t)
+			workspaces := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
+			admin := reqctx.WithPrincipal(t.Context(), reqctx.Principal{UserID: f.userID, Scopes: f.adminScopes(t)})
+			var deleteErr error
+			deleteWorkspace := func() {
+				_, deleteErr = workspaces.DeleteWorkspace(admin, &workspacev1.DeleteWorkspaceRequest{
+					WorkspaceId: workspaceID.String(), ConfirmDeleteApps: true,
+				})
+			}
+			// Replica activity makes the report update its deployment twice, so its foreign key
+			// check reaches the environment after the resource.
+			report := func() {
+				f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
+					PlacementId: p.ID.String(), DeploymentId: created.GetDeploymentId(),
+					ObservedRevision: p.DesiredRevision, Available: true, Healthy: true, Deployed: true,
+					ReadyReplicas: 1,
+					Replicas: []*deploymentv1.Replica{{Uid: "pod", DeploymentId: created.GetDeploymentId(),
+						Ready: true, State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}},
+				})
+			}
+			order := []func(){deleteWorkspace, report}
+			if reportFirst {
+				order = []func(){report, deleteWorkspace}
+			}
+
+			release := sync.OnceFunc(f.holdResourceLock(t))
+			t.Cleanup(release)
+			var writers sync.WaitGroup
+			f.queueBehindGate(t, &writers, order...)
+			release()
+			writers.Wait()
+			if deleteErr != nil {
+				t.Fatal(deleteErr)
+			}
+			if n := deadlocks(t, f.pool); n != 0 {
+				t.Fatalf("Postgres broke %d deadlocks", n)
+			}
+		})
 	}
 }
 
