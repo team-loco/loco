@@ -110,8 +110,6 @@ linters:
         - "charm.land/lipgloss/v2.Fprint"
         - "charm.land/lipgloss/v2.Fprintln"
         - "charm.land/lipgloss/v2.Fprintf"
-        # memlimit.Set logs its own failures to the logger it is given.
-        - "github.com/KimMachineGun/automemlimit/memlimit.Set"
 
     errchkjson:
       report-no-exported: true

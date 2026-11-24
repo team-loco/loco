@@ -7,7 +7,6 @@ require (
 	connectrpc.com/connect/v2 v2.0.2
 	filippo.io/age v1.3.2
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0
-	github.com/KimMachineGun/automemlimit v1.0.2
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/uuid v1.6.0
@@ -53,7 +52,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/paulmach/orb v0.14.0 // indirect
-	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect
