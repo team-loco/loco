@@ -1,5 +1,5 @@
-import { createContext, use, useEffect, useSyncExternalStore, type ReactNode } from "react";
-import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
+import { createContext, use, useSyncExternalStore, type ReactNode } from "react";
+import { useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
@@ -8,7 +8,7 @@ import type { ClaimedOrg, User } from "@gen/loco/user/v1/user_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { removeStorage } from "@/lib/storage";
 
-import { onSessionExpired, signOut, unauthenticated } from "./connect-transport";
+import { signOut, unauthenticated } from "./connect-transport";
 import { getClaimedOrgs, setClaimedOrgs, subscribeClaimedOrgs } from "./claimed";
 
 interface AuthContextType {
@@ -37,16 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		},
 	);
 	const queryClient = useQueryClient();
-	useEffect(
-		() =>
-			onSessionExpired(() => {
-				void queryClient.invalidateQueries(
-					{ queryKey: createConnectQueryKey({ schema: whoAmI, cardinality: undefined }) },
-					{ cancelRefetch: false },
-				);
-			}),
-		[queryClient],
-	);
 	const claimedOrgs = useSyncExternalStore(subscribeClaimedOrgs, getClaimedOrgs);
 	const signedOut = unauthenticated(error);
 	const user = signedOut ? null : (data?.user ?? null);

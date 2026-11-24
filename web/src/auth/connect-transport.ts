@@ -31,14 +31,11 @@ async function withSessionLock<T>(run: () => Promise<T>): Promise<T> {
 
 let refreshing: Promise<void> | undefined;
 let sessionGeneration = 0;
-const expiryListeners = new Set<() => void>();
+let sessionExpired = () => {};
 
-/** Runs listener each time the session cannot be renewed; returns its unsubscribe. */
-export function onSessionExpired(listener: () => void): () => void {
-	expiryListeners.add(listener);
-	return () => {
-		expiryListeners.delete(listener);
-	};
+/** Registers what runs each time the session cannot be renewed. */
+export function onSessionExpired(run: () => void) {
+	sessionExpired = run;
 }
 
 async function refreshSession(generation: number): Promise<void> {
@@ -52,7 +49,7 @@ async function refreshSession(generation: number): Promise<void> {
 				await sessions.refreshWebSession({});
 			} catch (refreshErr) {
 				if (unauthenticated(refreshErr)) {
-					for (const listener of expiryListeners) listener();
+					sessionExpired();
 				}
 				throw refreshErr;
 			}

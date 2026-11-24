@@ -14,6 +14,7 @@ import { createConnectQueryKey, TransportProvider, useQuery } from "@connectrpc/
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
+import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { defaultShouldDehydrateQuery, QueryClient } from "@tanstack/react-query";
@@ -56,7 +57,7 @@ const Organizations = lazy(async () => ({ default: (await pageImporters.Organiza
 const PersonalSettings = lazy(async () => ({ default: (await pageImporters.Settings()).PersonalSettings }));
 const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.DashboardRedirect()).DashboardRedirect }));
 
-import { transport } from "./auth/connect-transport";
+import { onSessionExpired, transport } from "./auth/connect-transport";
 
 // Every page mounts these; observers that mount while a page loads reuse the data fetched a moment earlier.
 const SHARED_STALE_MS = 10_000;
@@ -70,6 +71,13 @@ const queryClient = new QueryClient({
 			retry: false,
 		},
 	},
+});
+
+onSessionExpired(() => {
+	void queryClient.invalidateQueries(
+		{ queryKey: createConnectQueryKey({ schema: whoAmI, cardinality: undefined }) },
+		{ cancelRefetch: false },
+	);
 });
 
 const sharedQueryKeys = [
