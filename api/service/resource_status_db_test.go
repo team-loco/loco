@@ -652,3 +652,17 @@ func TestRegionLastGoodDeploymentSkipsADeploymentReplacedBeforeItRan(t *testing.
 	f.ready(t, f.clusterID, 1)
 	f.assertLastGood(t, first.String())
 }
+
+func TestResourceStatusStaysHealthyWhileTheAutoscalerAddsAReplica(t *testing.T) {
+	t.Parallel()
+	f := newResourceStatusFixture(t)
+	f.deployProduction(t, 1)
+	f.ready(t, f.clusterID, 1)
+	f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
+		Available: true, Healthy: true, Deployed: true, ReadyReplicas: 1, DesiredReplicas: statusTwoReplicas,
+	})
+	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
+		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
+	})
+}
