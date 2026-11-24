@@ -20,6 +20,10 @@ export function resourceMissing(error: unknown, canReadWorkspace: boolean): bool
 	return error.code === Code.PermissionDenied && canReadWorkspace;
 }
 
+/** A lookup that said the resource is absent is not asked again: a refetch would reset it to pending and bring the wait back. */
+export const refetchUnlessMissing = (query: { state: { error: unknown } }): boolean =>
+	!resourceMissing(query.state.error, true);
+
 export interface Route {
 	orgId: string;
 	workspaceId: string | undefined;
