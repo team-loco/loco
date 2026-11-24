@@ -1703,9 +1703,9 @@ def cmd_up(args):
     if commit == git_commit(repo, "HEAD"):
         print(start_state(ref=args.ref, name=args.name, scenario=args.scenario))
         return
-    # An earlier ref is started by its own copy of this script. The checkout lives as long as the run.
-    lease = Path(testres("lease", "-name", f"{LABEL}-script", "-ttl", f"{LEASE_S}s"))
-    state_path = None
+    # An earlier ref is started by its own copy of this script.
+    lease = Path(testres("lease", "-name", f"{LABEL}-script", "-pid", os.getpid()))
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(128 + signal.SIGTERM))
     try:
         checkout = lease / "src"
         testres("add", lease, "worktree", checkout)
@@ -1740,23 +1740,23 @@ def cmd_up(args):
         )
         try:
             stdout, _ = child.communicate()
-        except BaseException:
-            child.wait()  # The child stops its own run before the checkout it runs from goes.
+        except BaseException as err:
+            # The child stops its own run before the checkout goes. Ctrl-C already reached it
+            # through the terminal's process group; any other exit asks it to stop.
+            if not isinstance(err, KeyboardInterrupt):
+                child.send_signal(signal.SIGINT)
+            child.wait()
             raise
         if child.returncode != 0:
             raise EvidenceError(f"up of {args.ref} failed ({child.returncode})")
-        state_path = Path(stdout.strip())
-        state = load_state(state_path)
-        state["script"] = str(lease)
-        write_json(state_path, state)
-    except BaseException:
-        state = load_state(state_path) if state_path else {}
-        if state:
-            stop_state(state)
-        if "script" not in state:
-            testres("release", lease)
-        raise
-    print(state_path)
+        paths = stdout.split()
+        if len(paths) != 1 or not Path(paths[0]).is_file():
+            raise EvidenceError(
+                f"up of {args.ref} printed {stdout!r}, want one state file path"
+            )
+        print(paths[0])
+    finally:
+        testres("release", lease)
 
 
 def build(checkout, env):
@@ -2188,8 +2188,6 @@ def stop_state(state):
         except EvidenceError as err:
             log(f"left database {state['database']} to the next run's cleanup: {err}")
     testres("release", state["root"])
-    if "script" in state:
-        testres("release", state["script"])
     log(f"stopped {state['id']}")
 
 
