@@ -8,13 +8,10 @@
 # push to main, the pass-markers job saves one for each check that passed. Path
 # filters on the called workflows' own triggers would leave a required check
 # without a result whenever they skipped it. After a push to main passes the
-# gate, the publish jobs tag the images Images built. A pull request runs no
-# checks when the API says it is a draft now, or that its head is no longer the
-# commit the event names; the gate then fails and cancels its own run. The event
-# payload can be older than the pull request: a push followed at once by
-# marking ready carries draft: true on the new head's run and the old head on
-# the ready_for_review run. So pr-state reads the pull request, and a run for a
-# replaced head reruns the newest head's run, which reads the pull request again.
+# gate, the publish jobs tag the images Images built. The pr-state job reads the
+# pull request's current draft state and head from the API; a pull request that
+# is a draft, or whose head is not the commit the event names, runs no checks,
+# and the gate fails and cancels its own run.
 name: CI
 
 on:
@@ -46,7 +43,6 @@ jobs:
     name: Pull request state
     runs-on: ubuntu-latest
     permissions:
-      actions: write
       pull-requests: read
     outputs:
       reason: ${{ steps.state.outputs.reason }}
@@ -58,7 +54,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-          ACTION: ${{ github.event.action }}
         run: |
           if [[ -z "$PR" ]]; then
             echo 'run=true' >> "$GITHUB_OUTPUT"
@@ -71,21 +66,6 @@ jobs:
           elif [[ "$current" != "$HEAD" ]]; then
             echo 'run=false' >> "$GITHUB_OUTPUT"
             echo "reason=This run is for $HEAD; the pull request head is now $current" >> "$GITHUB_OUTPUT"
-            # Only a ready_for_review event carries a head older than the push before it. The newest
-            # head's run may have read the draft state before the pull request was ready; run it again.
-            [[ "$ACTION" == ready_for_review ]] || exit 0
-            run=
-            for _ in {1..12}; do
-              read -r run conclusion < <(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-                -f event=pull_request -f head_sha="$current" -F per_page=1 \
-                --jq '.workflow_runs[0] | select(.status == "completed") | [.id, .conclusion] | @tsv') || true
-              [[ -n "$run" ]] && break
-              sleep 10
-            done
-            if [[ -n "$run" && "$conclusion" != success ]]; then
-              gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run/rerun" ||
-                echo "::warning::Could not rerun run $run"
-            fi
           else
             echo 'run=true' >> "$GITHUB_OUTPUT"
           fi
