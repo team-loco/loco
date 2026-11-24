@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 type StorageArea = "local" | "session";
 
@@ -6,6 +6,13 @@ function storageFor(area: StorageArea): Storage {
 	return area === "local" ? window.localStorage : window.sessionStorage;
 }
 
+const listeners = new Set<(key: string) => void>();
+
+function notify(key: string): void {
+	for (const listener of listeners) listener(key);
+}
+
+/** For code that runs outside render. Components read through `useStoredValue` or `useStoredJSON`. */
 export function readStorage(key: string, area: StorageArea = "local"): string | null {
 	try {
 		return storageFor(area).getItem(key);
@@ -20,6 +27,8 @@ export function writeStorage(key: string, value: string, area: StorageArea = "lo
 		return true;
 	} catch {
 		return false;
+	} finally {
+		notify(key);
 	}
 }
 
@@ -28,17 +37,22 @@ export function removeStorage(key: string, area: StorageArea = "local"): void {
 		storageFor(area).removeItem(key);
 	} catch {
 		return;
+	} finally {
+		notify(key);
 	}
 }
 
-const listeners = new Set<() => void>();
-
-function subscribe(listener: () => void): () => void {
-	listeners.add(listener);
-	window.addEventListener("storage", listener);
-	return () => {
-		listeners.delete(listener);
-		window.removeEventListener("storage", listener);
+function subscribeTo(key: string): (listener: () => void) => () => void {
+	return (listener) => {
+		const onWrite = (written: string) => {
+			if (written === key) listener();
+		};
+		listeners.add(onWrite);
+		window.addEventListener("storage", listener);
+		return () => {
+			listeners.delete(onWrite);
+			window.removeEventListener("storage", listener);
+		};
 	};
 }
 
@@ -55,6 +69,7 @@ export function useStoredJSON<T>(
 	key: string | null,
 	parse: (value: unknown) => T,
 ): [T, (fn: (current: T) => T | null) => boolean] {
+	const subscribe = useMemo(() => subscribeTo(key ?? ""), [key]);
 	const raw = useSyncExternalStore(subscribe, () => (key === null ? null : readStorage(key)));
 	const update = useCallback(
 		(fn: (current: T) => T | null): boolean => {
@@ -63,7 +78,6 @@ export function useStoredJSON<T>(
 			let saved = true;
 			if (next === null) removeStorage(key);
 			else saved = writeStorage(key, JSON.stringify(next));
-			for (const listener of listeners) listener();
 			return saved;
 		},
 		[key, parse],
@@ -72,14 +86,8 @@ export function useStoredJSON<T>(
 }
 
 export function useStoredValue(key: string, fallback: string): [string, (value: string) => boolean] {
+	const subscribe = useMemo(() => subscribeTo(key), [key]);
 	const value = useSyncExternalStore(subscribe, () => readStorage(key) ?? fallback);
-	const update = useCallback(
-		(next: string) => {
-			const saved = writeStorage(key, next);
-			for (const listener of listeners) listener();
-			return saved;
-		},
-		[key],
-	);
+	const update = useCallback((next: string) => writeStorage(key, next), [key]);
 	return [value, update];
 }

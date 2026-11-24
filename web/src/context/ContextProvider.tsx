@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
-import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
+import { removeStorage, useStoredValue, writeStorage } from "@/lib/storage";
 
 export const ORG_STORAGE_KEY = "loco:active-org:v1";
 export const WORKSPACE_STORAGE_KEY = "loco:active-workspace:v1";
@@ -32,11 +32,10 @@ const OrgWorkspaceContext = createContext<OrgWorkspaceContextType>(NO_CONTEXT);
 export function pickActive(
 	items: readonly { id: string }[] | undefined,
 	fromUrl: string | undefined,
-	storageKey: string,
+	stored: string | null,
 ): string | null {
 	if (fromUrl !== undefined) return fromUrl;
 	if (items === undefined) return null;
-	const stored = readStorage(storageKey);
 	if (stored !== null && items.some((item) => item.id === stored)) return stored;
 	return items[0]?.id ?? null;
 }
@@ -59,11 +58,13 @@ export function ContextProvider({
 	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
 	const navigate = useNavigate();
 
-	const activeOrgId = pickActive(availableOrgs, orgParam, ORG_STORAGE_KEY);
+	const [storedOrg] = useStoredValue(ORG_STORAGE_KEY, "");
+	const [storedWorkspace] = useStoredValue(WORKSPACE_STORAGE_KEY, "");
+	const activeOrgId = pickActive(availableOrgs, orgParam, storedOrg);
 	const activeWorkspaceId = pickActive(
 		workspacesSettled ? pickableWorkspaces : undefined,
 		workspaceParam,
-		WORKSPACE_STORAGE_KEY,
+		storedWorkspace,
 	);
 
 	useEffect(() => {

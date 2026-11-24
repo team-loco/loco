@@ -10,7 +10,7 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { readStorage, writeStorage } from "@/lib/storage";
+import { useStoredValue } from "@/lib/storage";
 
 const storageKey = (workspaceId: string) => `loco:env:v1:${workspaceId}`;
 
@@ -41,12 +41,13 @@ export function useEnvironments() {
 	);
 	const environments = data?.environments ?? [];
 
-	const requested = envParam ?? (activeWorkspaceId !== null ? readStorage(storageKey(activeWorkspaceId)) : null);
+	const [storedEnv, storeEnv] = useStoredValue(storageKey(activeWorkspaceId ?? ""), "");
+	const requested = envParam ?? (activeWorkspaceId !== null && storedEnv !== "" ? storedEnv : null);
 	const active: Environment | undefined =
 		environments.find((e) => e.slug === requested || e.id === requested) ?? environments[0];
 
 	const setActive = (env: Environment) => {
-		if (activeWorkspaceId !== null) writeStorage(storageKey(activeWorkspaceId), env.slug);
+		if (activeWorkspaceId !== null) storeEnv(env.slug);
 		void setEnvParam(env.slug);
 	};
 
