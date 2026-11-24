@@ -11,7 +11,6 @@ import (
 	"github.com/team-loco/loco/api/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/limits"
-	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/guardrails"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
@@ -36,8 +35,6 @@ var (
 	errStreamAuthTimeout       = errors.New("LOCO_STREAM_AUTH_TIMEOUT must not exceed LOCO_STREAM_AUTH_INTERVAL")
 	errDatabaseURLMissing      = errors.New("DATABASE_URL is required")
 	errDatabasePoolSize        = errors.New("DATABASE_MIN_CONNS must not exceed DATABASE_MAX_CONNS")
-	errCacheAddrMissing        = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
-	errUnknownCacheType        = errors.New("unknown cache type")
 	errInvalidPublicImageBytes = errors.New("LOCO_PUBLIC_IMAGE_MAX_BYTES is not a positive integer")
 	errInvalidSourceBytes      = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
 	errClickHouseDatabase      = errors.New("CLICKHOUSE_DB must be a ClickHouse identifier when CLICKHOUSE_URL is set")
@@ -69,8 +66,6 @@ var (
 )
 
 const (
-	cacheTypeValkey       = "valkey"
-	cacheTypeMemory       = "in-memory"
 	defaultSourceMaxBytes = 200 * 1024 * 1024
 
 	defaultServiceCPU         = "100m"
@@ -228,8 +223,6 @@ type APIConfig struct {
 	ShutdownDrainTimeout  time.Duration
 	LogLevel              slog.Level
 	Port                  string
-	CacheType             string   // Cache backend type: "in-memory" or "valkey"
-	CacheAddr             string   // Valkey address (when CacheType is "valkey")
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	MinCLIVersion         string
 	DefaultRegion         string
@@ -276,7 +269,6 @@ func newAPIConfig() *APIConfig {
 	database := newDatabaseConfig()
 	ingestConfig := newIngestConfig()
 	databaseListenConfig := newDatabaseListenConfig(database.URL)
-	cacheType, cacheAddr := newCacheConfig()
 	registryHost := envconfig.String("LOCO_REGISTRY_HOST", "")
 	registryPrefix := envconfig.String("LOCO_REGISTRY_PREFIX", "")
 	sourceMaxBytes := positiveInt64Env("LOCO_SOURCE_MAX_BYTES", defaultSourceMaxBytes, errInvalidSourceBytes)
@@ -355,8 +347,6 @@ func newAPIConfig() *APIConfig {
 		ClickHouse:            newClickHouseConfig(),
 		Observability:         newObservabilityConfig(),
 		LogLevel:              logLevel,
-		CacheType:             cacheType,
-		CacheAddr:             cacheAddr,
 		CORSAllowedOrigins:    corsOrigins,
 		MinCLIVersion:         minCLIVersion,
 		DefaultRegion:         envconfig.String("LOCO_DEFAULT_REGION", ""),
@@ -588,18 +578,6 @@ func newSignupPolicy() auth.SignupPolicy {
 	return policy
 }
 
-func newCacheConfig() (string, string) {
-	cacheType := envconfig.String("CACHE_TYPE", cacheTypeMemory)
-	cacheAddr := envconfig.String("CACHE_ADDR", "")
-	if cacheType != cacheTypeValkey && cacheType != cacheTypeMemory {
-		panic(fmt.Errorf("%w: %q", errUnknownCacheType, cacheType))
-	}
-	if cacheType == cacheTypeValkey && cacheAddr == "" {
-		panic(errCacheAddrMissing)
-	}
-	return cacheType, cacheAddr
-}
-
 func newSourceBucketConfig() sourcebucket.Config {
 	forcePathStyle := envconfig.Bool("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE", false)
 	cfg := sourcebucket.Config{
@@ -786,13 +764,6 @@ func newImageRegistry(cfg registryclient.Config, retention int32) (sweepers.Imag
 		return nil, fmt.Errorf("registry client: %w", err)
 	}
 	return client, nil
-}
-
-func newCache(cacheType, cacheAddr string) (cache.Cache, error) {
-	if cacheType == cacheTypeValkey {
-		return cache.NewValkey(cacheAddr)
-	}
-	return cache.NewMemory()
 }
 
 func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {

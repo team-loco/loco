@@ -19,7 +19,6 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
@@ -46,15 +45,6 @@ func newAuthFixture(t *testing.T) *authFixture {
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
 	machine := testMachine(queries)
-	store, err := cache.NewMemory()
-	if err != nil {
-		t.Fatalf("cache: %v", err)
-	}
-	t.Cleanup(func() {
-		if closeErr := store.Close(); closeErr != nil {
-			t.Logf("close cache: %v", closeErr)
-		}
-	})
 
 	identity := auth.Identity{Issuer: testIssuer, Subject: "sub-1", Email: "dev@example.test", EmailVerified: true}
 	userID := signUp(t, openResolver(t, pool), identity.Subject, identity.Email)
@@ -65,7 +55,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 		queries: queries,
 		clock:   time.Now(),
 	}
-	f.server = NewAuthServer(pool, queries, machine, store, "https://app.loco.test/", WebAuth{})
+	f.server = NewAuthServer(pool, queries, machine, "https://app.loco.test/", WebAuth{})
 	f.server.now = func() time.Time { return f.clock }
 	rpcServer := connect.NewServer()
 	authv1connect.RegisterAuthServiceHandler(rpcServer, f.server)
@@ -256,14 +246,14 @@ func TestCLIDeviceLogin(t *testing.T) {
 	}
 }
 
-type racingCache struct {
-	cache.Cache
+type racingStore struct {
+	authStore
 	key    string
 	during func()
 }
 
-func (c *racingCache) Get(ctx context.Context, key string) ([]byte, error) {
-	value, err := c.Cache.Get(ctx, key)
+func (c *racingStore) Get(ctx context.Context, key string) ([]byte, error) {
+	value, err := c.authStore.Get(ctx, key)
 	if key == c.key && c.during != nil {
 		during := c.during
 		c.during = nil
@@ -318,8 +308,8 @@ func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	}
 	msg := started
 	deviceDigest := bearer.Hash(msg.GetDeviceCode())
-	racing := &racingCache{Cache: f.server.cache, key: deviceKey(deviceDigest)}
-	f.server.cache = racing
+	racing := &racingStore{authStore: f.server.state, key: deviceKey(deviceDigest)}
+	f.server.state = racing
 	racing.during = func() {
 		_, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
 			UserCode: msg.GetUserCode(),
@@ -343,18 +333,18 @@ func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	f.assertWorks(t, done.GetTokens())
 }
 
-type failingSetCache struct {
-	cache.Cache
+type failingSetStore struct {
+	authStore
 	key   string
 	fails int
 }
 
-func (c *failingSetCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+func (c *failingSetStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	if key == c.key && c.fails > 0 {
 		c.fails--
-		return errors.New("cache unavailable")
+		return errors.New("store unavailable")
 	}
-	return c.Cache.Set(ctx, key, value, ttl)
+	return c.authStore.Set(ctx, key, value, ttl)
 }
 
 func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
@@ -364,8 +354,8 @@ func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	f.server.cache = &failingSetCache{
-		Cache: f.server.cache, key: deviceKey(bearer.Hash(started.GetDeviceCode())), fails: 1,
+	f.server.state = &failingSetStore{
+		authStore: f.server.state, key: deviceKey(bearer.Hash(started.GetDeviceCode())), fails: 1,
 	}
 	approve := &authv1.ApproveDeviceLoginRequest{UserCode: started.GetUserCode()}
 	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); codeOf(approveErr) != connect.CodeUnavailable {
@@ -441,15 +431,15 @@ func TestCLIRefreshIssuesWorkingTokens(t *testing.T) {
 	f.assertWorks(t, refreshed.GetTokens())
 }
 
-type commitCheckingCache struct {
-	cache.Cache
+type commitCheckingStore struct {
+	authStore
 	t        *testing.T
 	pool     *pgxpool.Pool
 	key      string
 	approved int
 }
 
-func (c *commitCheckingCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+func (c *commitCheckingStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	if strings.HasPrefix(key, c.key) {
 		query := "SELECT count(*) FROM events WHERE type = $1"
 		err := c.pool.QueryRow(ctx, query, events.CLILoginApproved).Scan(&c.approved)
@@ -457,14 +447,14 @@ func (c *commitCheckingCache) Set(ctx context.Context, key string, value []byte,
 			c.t.Fatalf("count approval events: %v", err)
 		}
 	}
-	return c.Cache.Set(ctx, key, value, ttl)
+	return c.authStore.Set(ctx, key, value, ttl)
 }
 
 func TestCLILoginStoresCodeAfterApprovalCommits(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	loopback := &commitCheckingCache{Cache: f.server.cache, t: t, pool: f.server.db, key: "cli:code:"}
-	f.server.cache = loopback
+	loopback := &commitCheckingStore{authStore: f.server.state, t: t, pool: f.server.db, key: "cli:code:"}
+	f.server.state = loopback
 	_, err := f.server.ApproveCLILogin(f.webCtx, &authv1.ApproveCLILoginRequest{
 		State: testState, CodeChallenge: challengeFor("a-verifier-that-is-long-enough-to-satisfy-rfc-7636-limits"),
 	})
@@ -479,8 +469,8 @@ func TestCLILoginStoresCodeAfterApprovalCommits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	device := &commitCheckingCache{Cache: f.server.cache, t: t, pool: f.server.db, key: "cli:device:"}
-	f.server.cache = device
+	device := &commitCheckingStore{authStore: f.server.state, t: t, pool: f.server.db, key: "cli:device:"}
+	f.server.state = device
 	_, err = f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{UserCode: started.GetUserCode()})
 	if err != nil {
 		t.Fatalf("approve device: %v", err)

@@ -166,6 +166,8 @@ func (*TestingQueries) DeleteExpiredAPITokens(_ context.Context, _ int32) error 
 
 func (*TestingQueries) DeleteExpiredClusterAssertions(_ context.Context) error { return nil }
 
+func (*TestingQueries) DeleteExpiredAuthStates(_ context.Context) error { return nil }
+
 func (*TestingQueries) DeleteExpiredAPITokenByName(
 	_ context.Context,
 	_ queries.DeleteExpiredAPITokenByNameParams,

@@ -37,7 +37,6 @@ import (
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/migrations"
-	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
 	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
@@ -183,11 +182,6 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
-	appCache, err := newCache(ac.CacheType, ac.CacheAddr)
-	if err != nil {
-		return fmt.Errorf("create cache: %w", err)
-	}
-	defer appCache.Close()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -204,7 +198,7 @@ func run() error {
 		defer clickhouse.Close()
 	}
 
-	d, err := newDeps(ctx, ac, pool, appCache, clickhouse)
+	d, err := newDeps(ctx, ac, pool, clickhouse)
 	if err != nil {
 		return err
 	}
@@ -302,7 +296,6 @@ func newDeps(
 	ctx context.Context,
 	ac *APIConfig,
 	pool *pgxpool.Pool,
-	appCache cache.Cache,
 	clickhouse *chClient.Client,
 ) (*deps, error) {
 	queries := genDb.New(pool)
@@ -339,7 +332,6 @@ func newDeps(
 		pool,
 		queries,
 		machine,
-		appCache,
 		ac.WebURL,
 		service.WebAuth{
 			Provider: provider,

@@ -24,7 +24,6 @@ import (
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/internal/bearer"
@@ -56,7 +55,7 @@ type AuthServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	machine *tvm.VendingMachine
-	cache   cache.Cache
+	state   authStore
 	webURL  string
 	web     WebAuth
 	now     func() time.Time
@@ -66,7 +65,6 @@ func NewAuthServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
-	store cache.Cache,
 	webURL string,
 	web WebAuth,
 ) *AuthServer {
@@ -74,7 +72,7 @@ func NewAuthServer(
 		db:      db,
 		queries: queries,
 		machine: machine,
-		cache:   store,
+		state:   pgAuthStore{queries: queries},
 		webURL:  strings.TrimSuffix(webURL, "/"),
 		web:     web,
 		now:     time.Now,
@@ -247,7 +245,7 @@ func (s *AuthServer) ApproveCLILogin(
 		slog.ErrorContext(ctx, "failed to approve cli login", "error", err)
 		return nil, authStoreUnavailable(err)
 	}
-	if setErr := s.cache.Set(ctx, "cli:code:"+bearer.Hash(code), payload, cliCodeTTL); setErr != nil {
+	if setErr := s.state.Set(ctx, "cli:code:"+bearer.Hash(code), payload, cliCodeTTL); setErr != nil {
 		return nil, authStoreUnavailable(setErr)
 	}
 	slog.InfoContext(ctx, "approved cli login", "userId", grant.UserID)
@@ -255,14 +253,14 @@ func (s *AuthServer) ApproveCLILogin(
 }
 
 func (s *AuthServer) take(ctx context.Context, key string, into any) (bool, error) {
-	raw, err := s.cache.Get(ctx, key)
-	if errors.Is(err, cache.ErrNotFound) {
+	raw, err := s.state.Get(ctx, key)
+	if errors.Is(err, errAuthStateNotFound) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	took, err := s.cache.Take(ctx, key)
+	took, err := s.state.Take(ctx, key)
 	if err != nil || !took {
 		return false, err
 	}
@@ -315,12 +313,12 @@ func (s *AuthServer) StartDeviceLogin(
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
 	deviceDigest := bearer.Hash(deviceCode)
-	stored, err := s.cache.SetIfAbsent(ctx, "cli:user-code:"+userCode, []byte(deviceDigest), deviceCodeTTL)
+	stored, err := s.state.SetIfAbsent(ctx, "cli:user-code:"+userCode, []byte(deviceDigest), deviceCodeTTL)
 	if err != nil || !stored {
 		slog.ErrorContext(ctx, "failed to store device user code", "error", err, "stored", stored)
 		return nil, authStoreUnavailable(err)
 	}
-	if err := s.cache.Set(ctx, deviceKey(deviceDigest), payload, deviceCodeTTL); err != nil {
+	if err := s.state.Set(ctx, deviceKey(deviceDigest), payload, deviceCodeTTL); err != nil {
 		slog.ErrorContext(ctx, "failed to store device code", "error", err)
 		return nil, authStoreUnavailable(err)
 	}
@@ -346,14 +344,14 @@ func (s *AuthServer) GetDeviceLogin(
 	if len(userCode) != userCodeLength {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
-	deviceDigest, err := s.cache.Get(ctx, "cli:user-code:"+userCode)
-	if errors.Is(err, cache.ErrNotFound) {
+	deviceDigest, err := s.state.Get(ctx, "cli:user-code:"+userCode)
+	if errors.Is(err, errAuthStateNotFound) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	if err != nil {
 		return nil, authStoreUnavailable(err)
 	}
-	raw, err := s.cache.Get(ctx, deviceKey(string(deviceDigest)))
+	raw, err := s.state.Get(ctx, deviceKey(string(deviceDigest)))
 	if err != nil {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
@@ -381,19 +379,19 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if len(userCode) != userCodeLength {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
-	deviceDigest, err := s.cache.Get(ctx, "cli:user-code:"+userCode)
-	if errors.Is(err, cache.ErrNotFound) {
+	deviceDigest, err := s.state.Get(ctx, "cli:user-code:"+userCode)
+	if errors.Is(err, errAuthStateNotFound) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	if err != nil {
 		return nil, authStoreUnavailable(err)
 	}
-	took, err := s.cache.Take(ctx, "cli:user-code:"+userCode)
+	took, err := s.state.Take(ctx, "cli:user-code:"+userCode)
 	if err != nil || !took {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	key := deviceKey(string(deviceDigest))
-	raw, err := s.cache.Get(ctx, key)
+	raw, err := s.state.Get(ctx, key)
 	if err != nil {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
@@ -410,9 +408,9 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
-	// A retryable failure returns the user code to the cache for the next approval attempt.
+	// A retryable failure returns the user code to the store for the next approval attempt.
 	unavailable := func(cause error) error {
-		if restoreErr := s.cache.Set(ctx, "cli:user-code:"+userCode, deviceDigest, remaining); restoreErr != nil {
+		if restoreErr := s.state.Set(ctx, "cli:user-code:"+userCode, deviceDigest, remaining); restoreErr != nil {
 			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
 		}
 		return authStoreUnavailable(cause)
@@ -429,7 +427,7 @@ func (s *AuthServer) ApproveDeviceLogin(
 		slog.ErrorContext(ctx, "failed to approve device login", "error", err)
 		return nil, unavailable(err)
 	}
-	if setErr := s.cache.Set(ctx, key, payload, remaining); setErr != nil {
+	if setErr := s.state.Set(ctx, key, payload, remaining); setErr != nil {
 		return nil, unavailable(setErr)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
@@ -443,8 +441,8 @@ func (s *AuthServer) PollDeviceLogin(
 	info, _ := connect.CallInfoForServerContext(ctx)
 	deviceDigest := bearer.Hash(req.GetDeviceCode())
 	key := deviceKey(deviceDigest)
-	raw, err := s.cache.Get(ctx, key)
-	if errors.Is(err, cache.ErrNotFound) {
+	raw, err := s.state.Get(ctx, key)
+	if errors.Is(err, errAuthStateNotFound) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDeviceCodeExpired)
 	}
 	if err != nil {
@@ -460,7 +458,7 @@ func (s *AuthServer) PollDeviceLogin(
 		}
 		return &authv1.PollDeviceLoginResponse{}, nil
 	}
-	took, err := s.cache.Take(ctx, key)
+	took, err := s.state.Take(ctx, key)
 	if err != nil || !took {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDeviceCodeExpired)
 	}
@@ -474,8 +472,8 @@ func (s *AuthServer) PollDeviceLogin(
 func (s *AuthServer) throttleDevicePoll(ctx context.Context, deviceDigest string) error {
 	pollKey := devicePollKey(deviceDigest)
 	now := s.now()
-	last, err := s.cache.Get(ctx, pollKey)
-	if err != nil && !errors.Is(err, cache.ErrNotFound) {
+	last, err := s.state.Get(ctx, pollKey)
+	if err != nil && !errors.Is(err, errAuthStateNotFound) {
 		return authStoreUnavailable(err)
 	}
 	if err == nil {
@@ -491,7 +489,7 @@ func (s *AuthServer) throttleDevicePoll(ctx context.Context, deviceDigest string
 	if err != nil {
 		return fmt.Errorf("encode device poll time: %w", err)
 	}
-	if setErr := s.cache.Set(ctx, pollKey, stamp, devicePollInterval); setErr != nil {
+	if setErr := s.state.Set(ctx, pollKey, stamp, devicePollInterval); setErr != nil {
 		slog.WarnContext(ctx, "failed to record device poll", "error", setErr)
 	}
 	return nil

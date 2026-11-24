@@ -36,8 +36,6 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `DATABASE_STATEMENT_TIMEOUT` | `15s` | PostgreSQL `statement_timeout` of each pooled connection. |
 | `LOCO_PLACEMENT_POLL_INTERVAL` | `5s` | How often agent streams recheck placements in case a notification was missed. |
 | `LOCO_ACTIVITY_POLL_INTERVAL` | `30s` | How often deployment watches recheck activity in case a notification was missed. |
-| `CACHE_TYPE` | `in-memory` | `in-memory` or `valkey`. Use `valkey` with more than one API replica, so a sign-in can start and finish on different replicas. |
-| `CACHE_ADDR` | empty | Valkey address. Required for `CACHE_TYPE=valkey`. |
 
 ## Sign-in and tokens
 
@@ -52,7 +50,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_SESSION_REFRESH_TOKEN_LIFETIME` | `168h` | Lifetime of a session refresh token, and so of a session nobody uses. |
 | `LOCO_SESSION_REFRESH_REUSE_GRACE` | `10s` | How long after a session refresh the old refresh token still counts as a concurrent refresh, such as a second browser tab, and keeps the session. Later reuse revokes the session. |
 | `LOCO_TOKEN_LAST_USED_INTERVAL` | `5m` | Least time between two writes of a token's last-used time or a member's last sign-in. |
-| `LOCO_TOKEN_CLEANUP_INTERVAL` | `1m` | How often the API deletes expired session tokens, API tokens and cluster assertions. |
+| `LOCO_TOKEN_CLEANUP_INTERVAL` | `1m` | How often the API deletes expired session tokens, API tokens, cluster assertions and sign-in state. |
 | `LOCO_STREAM_AUTH_INTERVAL` | `5s` | Time between access rechecks of an open stream. See [open streams](../operations/access.md#open-streams-and-access-changes). |
 | `LOCO_STREAM_AUTH_TIMEOUT` | `2s` | Limit on each stream access recheck; at most `LOCO_STREAM_AUTH_INTERVAL`. |
 | `LOCO_MAX_STREAMS` | `500` | Log tails, event streams and deployment watches one API instance holds open; it refuses more with `ResourceExhausted`. The chart sets it from `api.streams.maxPerReplica`. |

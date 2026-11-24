@@ -98,7 +98,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")
 		for _, prefix := range []string{
-			"LOCO_", "DATABASE_", "CACHE_", "CLICKHOUSE_", "OTEL_", "APP_", "WEB_", "WEBHOOK_",
+			"LOCO_", "DATABASE_", "CLICKHOUSE_", "OTEL_", "APP_", "WEB_", "WEBHOOK_",
 			"AUTH_", "INSTALL_", "MIN_CLI_", "ORG_", "INVITATION_", "EVENTS_", "LOG_", "CORS_", "PPROF_",
 		} {
 			if strings.HasPrefix(name, prefix) {
@@ -473,8 +473,6 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		env  map[string]string
 		want error
 	}{
-		{"valkey without address", map[string]string{"CACHE_TYPE": cacheTypeValkey}, errCacheAddrMissing},
-		{"unknown cache type", map[string]string{"CACHE_TYPE": "redis"}, errUnknownCacheType},
 		{"non-numeric source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "lots"}, errInvalidSourceBytes},
 		{"zero source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "0"}, errInvalidSourceBytes},
 		{

@@ -71,7 +71,6 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		// Every test tenant is an organization of the one e2e user.
 		"LOCO_LIMIT_ORGS_PER_USER=50",
 		"DATABASE_URL=" + p.databaseURL,
-		"CACHE_TYPE=in-memory",
 		"APP_PORT=" + bind + ":" + strconv.Itoa(port),
 		"CLICKHOUSE_URL=" + p.clickhouseDSN(),
 		"CLICKHOUSE_DB=" + p.values.clickhouseDB,

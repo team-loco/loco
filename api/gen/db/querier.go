@@ -88,6 +88,7 @@ type Querier interface {
 	DeleteExpiredAPITokenByName(ctx context.Context, arg DeleteExpiredAPITokenByNameParams) error
 	// Tokens without an organization override, personal tokens included, use the install default retention.
 	DeleteExpiredAPITokens(ctx context.Context, defaultRetentionDays int32) error
+	DeleteExpiredAuthStates(ctx context.Context) error
 	DeleteExpiredClusterAssertions(ctx context.Context) error
 	DeleteExpiredPlacementWindows(ctx context.Context, cutoff time.Time) (int64, error)
 	DeleteExpiredPullRegistryCredentials(ctx context.Context) (int64, error)
@@ -118,6 +119,7 @@ type Querier interface {
 	FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error)
 	FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) (int64, error)
 	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
+	GetAuthState(ctx context.Context, key string) ([]byte, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 	GetBuildCluster(ctx context.Context, arg GetBuildClusterParams) (uuid.UUID, error)
 	// creator_* is NULL when the creating user no longer exists.
@@ -356,6 +358,9 @@ type Querier interface {
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWorkspaceWebhookSecretParams) (Webhook, error)
+	SetAuthState(ctx context.Context, arg SetAuthStateParams) error
+	// An expired row counts as absent, so its key can be stored again.
+	SetAuthStateIfAbsent(ctx context.Context, arg SetAuthStateIfAbsentParams) (int64, error)
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
 	SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error
 	SetDeploymentCanceledBy(ctx context.Context, arg SetDeploymentCanceledByParams) error
@@ -375,6 +380,7 @@ type Querier interface {
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
 	SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error)
+	TakeAuthState(ctx context.Context, key string) (int64, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error

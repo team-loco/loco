@@ -140,7 +140,17 @@ CREATE INDEX invitations_org_idx ON invitations (org_id);
 CREATE INDEX invitations_invited_by_idx ON invitations (invited_by);
 CREATE INDEX invitations_claimed_by_idx ON invitations (claimed_by);
 
+-- Short-lived sign-in state shared by every API replica: web login state, CLI codes and device codes.
+CREATE TABLE auth_states (
+    key TEXT PRIMARY KEY,
+    value BYTEA NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX auth_states_expires_at_idx ON auth_states (expires_at);
+
 -- +goose Down
+DROP TABLE IF EXISTS auth_states;
 DROP TABLE IF EXISTS invitations;
 DROP TYPE IF EXISTS org_role;
 DROP TABLE IF EXISTS api_tokens;
