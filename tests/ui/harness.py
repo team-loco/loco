@@ -35,6 +35,21 @@ def load_state(args, name, scenario, *, issuer=None):
     return state
 
 
+def probe(context, page):
+    """Whether the page's document completed and whether its URL can be fetched outside the renderer."""
+    try:
+        page.wait_for_function("document.readyState === 'complete'", timeout=3000)
+        document = "complete"
+    except Exception:
+        document = "not complete"
+    try:
+        response = context.request.get(page.url, timeout=3000)
+        fetched = {"status": response.status, "bytes": len(response.body())}
+    except Exception as err:
+        fetched = {"error": str(err).splitlines()[0]}
+    return {"document": document, "fetched": fetched}
+
+
 @contextlib.contextmanager
 def session(out, **launch_options):
     with (
@@ -55,7 +70,11 @@ def session(out, **launch_options):
                     with contextlib.suppress(Exception):
                         evidence.write_json(
                             out / f"failure-{index}-{number}.json",
-                            {"url": page.url, **getattr(page, "diagnostics", {})},
+                            {
+                                "url": page.url,
+                                "probe": probe(context, page),
+                                **getattr(page, "diagnostics", {}),
+                            },
                         )
                         page.screenshot(
                             path=out / f"failure-{index}-{number}.png",
