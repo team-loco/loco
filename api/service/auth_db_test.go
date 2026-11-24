@@ -314,8 +314,14 @@ func TestDeviceLoginKeepsTheStartOfALongUserAgent(t *testing.T) {
 		t.Fatalf("get: %v", err)
 	}
 	agent := got.GetUserAgent()
-	if len(agent) > maxStoredUserAgent || !strings.HasPrefix(agent, "loco/éé") || !utf8.ValidString(agent) {
-		t.Fatalf("stored user agent is %d bytes, starts %q", len(agent), agent[:min(len(agent), 16)])
+	if len(agent) > maxStoredUserAgent {
+		t.Fatalf("stored user agent is %d bytes, want at most %d", len(agent), maxStoredUserAgent)
+	}
+	if !strings.HasPrefix(agent, "loco/éé") {
+		t.Fatalf("stored user agent starts %q, want the start of the header", agent[:min(len(agent), 16)])
+	}
+	if !utf8.ValidString(agent) {
+		t.Fatal("stored user agent is not valid UTF-8")
 	}
 }
 
@@ -494,10 +500,23 @@ func TestCLIDeviceApprovalRetriesAfterAFailedRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
+	userCode := userCodeKey(normalizeUserCode(started.GetUserCode()))
+	expiry := func() time.Time {
+		var at time.Time
+		if scanErr := f.pool.QueryRow(t.Context(),
+			"SELECT expires_at FROM auth_states WHERE key = $1", userCode).Scan(&at); scanErr != nil {
+			t.Fatal(scanErr)
+		}
+		return at
+	}
+	before := expiry()
 	f.server.state = &failingGetStore{authStore: f.server.state, key: deviceKey(bearer.Hash(started.GetDeviceCode()))}
 	approve := &authv1.ApproveDeviceLoginRequest{UserCode: started.GetUserCode()}
 	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); codeOf(approveErr) != connect.CodeUnavailable {
 		t.Fatalf("approve while reading the device fails: %v", approveErr)
+	}
+	if after := expiry(); after.Sub(before).Abs() > time.Second {
+		t.Fatalf("restored user code expires at %v, want its original expiry %v", after, before)
 	}
 	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); approveErr != nil {
 		t.Fatalf("retried approve: %v", approveErr)

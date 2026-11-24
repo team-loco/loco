@@ -262,14 +262,14 @@ func (s *AuthServer) ApproveCLILogin(
 }
 
 func (s *AuthServer) take(ctx context.Context, key string, into any) (bool, error) {
-	raw, err := s.state.Take(ctx, key)
+	entry, err := s.state.Take(ctx, key)
 	if errors.Is(err, errAuthStateNotFound) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	return true, json.Unmarshal(raw, into)
+	return true, json.Unmarshal(entry.value, into)
 }
 
 func (s *AuthServer) ExchangeCLICode(
@@ -386,16 +386,18 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if len(userCode) != userCodeLength {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
-	deviceDigest, err := s.state.Take(ctx, userCodeKey(userCode))
+	taken, err := s.state.Take(ctx, userCodeKey(userCode))
 	if errors.Is(err, errAuthStateNotFound) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	if err != nil {
 		return nil, authStoreUnavailable(err)
 	}
-	// A retryable failure returns the user code to the store for the next approval attempt.
-	unavailable := func(cause error, ttl time.Duration) error {
-		if restoreErr := s.state.Start(ctx, userCodeKey(userCode), deviceDigest, ttl); restoreErr != nil {
+	deviceDigest := taken.value
+	// A retryable failure returns the user code to the store, with the time it had left, for the next
+	// approval attempt.
+	unavailable := func(cause error) error {
+		if restoreErr := s.state.Start(ctx, userCodeKey(userCode), deviceDigest, taken.ttl); restoreErr != nil {
 			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
 		}
 		return authStoreUnavailable(cause)
@@ -406,7 +408,7 @@ func (s *AuthServer) ApproveDeviceLogin(
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	if err != nil {
-		return nil, unavailable(err, deviceCodeTTL)
+		return nil, unavailable(err)
 	}
 	var device deviceGrant
 	if decodeErr := json.Unmarshal(raw, &device); decodeErr != nil {
@@ -431,10 +433,10 @@ func (s *AuthServer) ApproveDeviceLogin(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to approve device login", "error", err)
-		return nil, unavailable(err, remaining)
+		return nil, unavailable(err)
 	}
 	if setErr := s.state.Set(ctx, key, payload, remaining); setErr != nil {
-		return nil, unavailable(setErr, remaining)
+		return nil, unavailable(setErr)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
 	return &authv1.ApproveDeviceLoginResponse{}, nil

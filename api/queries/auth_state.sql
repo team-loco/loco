@@ -27,7 +27,8 @@ SET value = EXCLUDED.value, started_at = EXCLUDED.started_at, expires_at = EXCLU
 WHERE auth_states.expires_at <= NOW();
 
 -- name: TakeAuthState :one
-DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW() RETURNING value;
+DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW()
+RETURNING value, EXTRACT(EPOCH FROM expires_at - NOW())::float8 AS ttl_seconds;
 
 -- name: DeleteExpiredAuthStates :exec
 DELETE FROM auth_states WHERE expires_at <= NOW();

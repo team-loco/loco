@@ -11,7 +11,10 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-// maxAuthStates is the most started sign-ins the store keeps; a new start deletes the oldest beyond it.
+// maxAuthStates is the most started entries the store keeps; a new start deletes the oldest beyond it.
+// A device login holds two started entries, its user code and its device row, and eviction can delete
+// one without the other. Without its user code the login can no longer be approved and polls as pending
+// until it expires; without its device row it polls as expired.
 const maxAuthStates = 100_000
 
 var (
@@ -28,8 +31,14 @@ type authStore interface {
 	// Start stores the value for a new sign-in, deleting the oldest started sign-ins beyond maxEntries.
 	// It returns errAuthStateExists when the key is live.
 	Start(ctx context.Context, key string, value []byte, ttl time.Duration) error
-	// Take removes a live entry and returns its value, or errAuthStateNotFound when another call took it first.
-	Take(ctx context.Context, key string) ([]byte, error)
+	// Take removes a live entry and returns it, or errAuthStateNotFound when another call took it first.
+	Take(ctx context.Context, key string) (authEntry, error)
+}
+
+// authEntry is a taken entry: its value and how long it had left to live.
+type authEntry struct {
+	value []byte
+	ttl   time.Duration
 }
 
 // pgAuthStore keeps sign-in state in the auth_states table.
@@ -70,13 +79,13 @@ func (s pgAuthStore) Start(ctx context.Context, key string, value []byte, ttl ti
 	return nil
 }
 
-func (s pgAuthStore) Take(ctx context.Context, key string) ([]byte, error) {
-	value, err := s.queries.TakeAuthState(ctx, key)
+func (s pgAuthStore) Take(ctx context.Context, key string) (authEntry, error) {
+	row, err := s.queries.TakeAuthState(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, errAuthStateNotFound
+		return authEntry{}, errAuthStateNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("take auth state: %w", err)
+		return authEntry{}, fmt.Errorf("take auth state: %w", err)
 	}
-	return value, nil
+	return authEntry{value: row.Value, ttl: time.Duration(row.TtlSeconds * float64(time.Second))}, nil
 }

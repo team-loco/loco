@@ -88,12 +88,18 @@ func (q *Queries) StartAuthState(ctx context.Context, arg StartAuthStateParams) 
 }
 
 const takeAuthState = `-- name: TakeAuthState :one
-DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW() RETURNING value
+DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW()
+RETURNING value, EXTRACT(EPOCH FROM expires_at - NOW())::float8 AS ttl_seconds
 `
 
-func (q *Queries) TakeAuthState(ctx context.Context, key string) ([]byte, error) {
+type TakeAuthStateRow struct {
+	Value      []byte  `json:"value"`
+	TtlSeconds float64 `json:"ttlSeconds"`
+}
+
+func (q *Queries) TakeAuthState(ctx context.Context, key string) (TakeAuthStateRow, error) {
 	row := q.db.QueryRow(ctx, takeAuthState, key)
-	var value []byte
-	err := row.Scan(&value)
-	return value, err
+	var i TakeAuthStateRow
+	err := row.Scan(&i.Value, &i.TtlSeconds)
+	return i, err
 }
