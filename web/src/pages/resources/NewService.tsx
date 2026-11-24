@@ -346,7 +346,7 @@ function DraftPanel({
 								maxLength={MAX_NAME_LENGTH}
 								autoComplete="off"
 								spellCheck={false}
-								className="-my-0.5 -ml-[5px] max-w-full rounded-[5px] px-[5px] py-px focus:shadow-[inset_0_0_0_1px_var(--line)]"
+								className="-my-0.5 -ml-[5px] max-w-full min-w-[6ch] rounded-[5px] px-[5px] py-px field-sizing-content focus:shadow-[inset_0_0_0_1px_var(--line)]"
 								onChange={(e) => {
 									setNameText(e.target.value);
 									if (

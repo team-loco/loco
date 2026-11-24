@@ -68,7 +68,7 @@ function workspaceColumns({
 			header: "Name",
 			size: 160,
 			minSize: 100,
-			meta: { primary: true },
+			meta: { primary: true, fit: true, fitMax: 320 },
 			cell: ({ row: { original: w } }) => (
 				<span className="flex min-w-0 items-center gap-2">
 					<CellText
