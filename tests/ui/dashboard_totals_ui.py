@@ -141,7 +141,7 @@ with session(out) as browser:
     page.route(METRICS, metrics)
     held = []
     page.route(CONFIG, multi_tenant)
-    page.route(CONFIG, held.append, times=1)
+    page.route(CONFIG, lambda route: held.append(route), times=1)
     with page.expect_request(CONFIG):
         page.goto(f"{base}?env=production")
     expect(page.get_by_role("group", name=re.compile(r"^Allocated: "))).to_be_visible()

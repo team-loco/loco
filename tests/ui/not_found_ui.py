@@ -467,7 +467,7 @@ with session(out) as browser:
     context, page, errors = open_page(browser, None)
     held = []
     context.route(CONFIG, multi_tenant)
-    context.route(CONFIG, held.append, times=1)
+    context.route(CONFIG, lambda route: held.append(route), times=1)
     page.goto(ui + "/")
     expect(page.get_by_role("status")).to_be_visible()
     assert held
