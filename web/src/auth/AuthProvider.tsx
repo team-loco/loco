@@ -40,9 +40,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(
 		() =>
 			onSessionExpired(() => {
-				void queryClient.invalidateQueries({
-					queryKey: createConnectQueryKey({ schema: whoAmI, cardinality: undefined }),
-				});
+				void queryClient.invalidateQueries(
+					{ queryKey: createConnectQueryKey({ schema: whoAmI, cardinality: undefined }) },
+					{ cancelRefetch: false },
+				);
 			}),
 		[queryClient],
 	);

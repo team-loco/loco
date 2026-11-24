@@ -1058,6 +1058,41 @@ def expired_session_leaves(browser, view, polled):
     context.close()
 
 
+def refresh_unavailable(browser):
+    context, page, errors = open_page(
+        browser, state=state, timezone_id="UTC", now=datetime.now(UTC)
+    )
+    mock_telemetry(context)
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    expect(page.get_by_role("main")).to_be_visible()
+    sent = []
+    page.on("request", lambda request: sent.append(request.url.rsplit("/", 1)[-1]))
+    answers = {
+        "loco.observability.v1.ObservabilityService/QueryLogBuckets": (
+            401,
+            "unauthenticated",
+        ),
+        "loco.token.v1.TokenService/GetScopes": (401, "unauthenticated"),
+        "loco.auth.v1.AuthService/RefreshWebSession": (503, "unavailable"),
+    }
+
+    def refuse(status, code):
+        return lambda route: route.fulfill(
+            status=status, json={"code": code, "message": "refused"}
+        )
+
+    for method, (status, code) in answers.items():
+        page.route(f"**/{method}", refuse(status, code))
+    page.clock.run_for(15_000)
+    expect(page.get_by_role("main")).to_be_visible()
+    page.clock.run_for(15_000)
+    # A refresh the server could not answer is not a refused session, so the user stays signed in.
+    assert "/observability" in page.url, page.url
+    assert "WhoAmI" not in sent, sent
+    assert not errors, errors
+    context.close()
+
+
 def expired_session(browser):
     # Live logs poll the volume; every page streams the shell's events.
     expired_session_leaves(
@@ -2277,6 +2312,7 @@ with session(out) as browser:
     time_preferences(browser)
     volume_error(browser)
     expired_session(browser)
+    refresh_unavailable(browser)
     metrics_error(browser)
     page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
     new_resource_menu(page)
