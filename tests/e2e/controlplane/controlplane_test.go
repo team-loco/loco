@@ -108,8 +108,8 @@ type controlPlane struct {
 }
 
 // TestControlPlane installs the loco-control-plane chart with two API replicas on an empty
-// CloudNativePG database, then checks in order: routing through the chart's Gateway, a Postgres
-// base backup in the bucket, OpenBao across an upgrade,
+// CloudNativePG database, then checks in order: routing through the chart's Gateway, OpenBao
+// across an upgrade,
 // a snapshot restored into a reinstalled OpenBao, ingest tokens and OTLP ingest, and the API
 // retry policy, which reprograms the Gateway.
 func TestControlPlane(t *testing.T) {
@@ -120,7 +120,6 @@ func TestControlPlane(t *testing.T) {
 		run  func(*testing.T)
 	}{
 		{"the Gateway routes the API and dashboard", cp.checkRouting},
-		{"Postgres archives a base backup to the bucket", cp.checkBackup},
 		{"OpenBao keeps its keys across an upgrade", cp.checkUpgrade},
 		{"a snapshot restores into a reinstalled OpenBao", cp.checkRestore},
 		{"the API issues ingest tokens the ingest proxy takes", cp.checkIngest},

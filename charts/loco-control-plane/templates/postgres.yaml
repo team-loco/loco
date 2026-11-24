@@ -1,22 +1,6 @@
 {{- with .Values.postgres }}
 {{- if .enabled }}
 {{- $cluster := include "loco-control-plane.postgresCluster" $ }}
-{{- $backup := .backup }}
-{{- $store := dict }}
-{{- if $backup.enabled }}
-{{- $s3 := $backup.s3 }}
-{{- $store = dict
-  "destinationPath" (printf "s3://%s/%s" (required "postgres.backup.s3.bucket is required" $s3.bucket) $s3.prefix)
-  "endpointURL" (required "postgres.backup.s3.endpoint is required" $s3.endpoint)
-  "s3Credentials" (dict
-    "accessKeyId" (dict "name" (required "postgres.backup.s3.existingSecret.name is required" $s3.existingSecret.name) "key" $s3.existingSecret.accessKeyIdKey)
-    "secretAccessKey" (dict "name" $s3.existingSecret.name "key" $s3.existingSecret.secretAccessKeyKey))
-  "wal" (dict "compression" "gzip")
-  "data" (dict "compression" "gzip") }}
-{{- end }}
-{{- if and .recoverFrom (not $store) }}
-{{- fail "postgres.recoverFrom needs postgres.backup.enabled and its bucket" }}
-{{- end }}
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -36,31 +20,9 @@ spec:
   resources:
     {{- toYaml .resources | nindent 4 }}
   bootstrap:
-    {{- if .recoverFrom }}
-    recovery:
-      source: backup
-      database: loco
-      owner: loco
-    {{- else }}
     initdb:
       database: loco
       owner: loco
-    {{- end }}
-  {{- if .recoverFrom }}
-  externalClusters:
-    - name: backup
-      barmanObjectStore:
-        {{- toYaml (merge (dict "serverName" .recoverFrom) $store) | nindent 8 }}
-  {{- end }}
-  {{- if $store }}
-  backup:
-    retentionPolicy: {{ $backup.retention | quote }}
-    barmanObjectStore:
-      {{- with $backup.serverName }}
-      serverName: {{ . | quote }}
-      {{- end }}
-      {{- toYaml $store | nindent 6 }}
-  {{- end }}
   {{- with .databases }}
   managed:
     roles:
@@ -85,21 +47,6 @@ spec:
   name: {{ .name | quote }}
   owner: {{ .owner | quote }}
   ensure: present
-  cluster:
-    name: {{ $cluster }}
-{{- end }}
-{{- if $store }}
----
-apiVersion: postgresql.cnpg.io/v1
-kind: ScheduledBackup
-metadata:
-  name: {{ $cluster }}
-  namespace: {{ $.Release.Namespace }}
-spec:
-  schedule: {{ $backup.schedule | quote }}
-  immediate: true
-  backupOwnerReference: self
-  method: barmanObjectStore
   cluster:
     name: {{ $cluster }}
 {{- end }}

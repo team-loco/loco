@@ -43,20 +43,7 @@ The repository has `releases/control-plane.yaml`, staging and production worker 
 
 `--postgres` runs the API database on a CloudNativePG cluster in the control-plane namespace instead of an operator-supplied `DATABASE_URL`. It adds the Flux Kustomization `loco-postgres` to `bases/control-plane/loco.yaml`, which applies the bundle's `./postgres-operator` entry point: the CloudNativePG operator in `cnpg-system`. `loco-cluster-config` then waits for `loco-postgres-operator`, so the control-plane release starts after the operator's CRDs and webhooks exist. It also sets `postgres.enabled: true` in the control-plane base values. Leave `DATABASE_URL` out of the API environment file; the API reads it from the cluster's `loco-control-plane-postgres-app` Secret.
 
-The cluster runs two instances on 10Gi volumes of the default StorageClass. Set `postgres.instances`, `postgres.storage` and `postgres.resources` in the control-plane values to change them. For backups, create a bucket in any S3-compatible service and a Secret in `loco-system` with its access key, and set:
-
-```yaml
-postgres:
-  backup:
-    enabled: true
-    s3:
-      endpoint: https://s3.example.com
-      bucket: loco-backups
-      existingSecret:
-        name: postgres-backup-s3
-```
-
-The [control-plane chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md#bundled-postgresql) describes the schedule, retention, extra databases for other services, and how to restore into a new cluster. Without `--postgres`, add the same Kustomization, dependency and value to an existing repository to switch to the bundled database; the new database starts empty.
+The cluster runs two instances on 10Gi volumes of the default StorageClass. Set `postgres.instances`, `postgres.storage` and `postgres.resources` in the control-plane values to change them. The bundled PostgreSQL has no backups yet; back it up yourself, for example with `pg_dump`. The [control-plane chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md#bundled-postgresql) describes extra databases for other services. Without `--postgres`, add the same Kustomization, dependency and value to an existing repository to switch to the bundled database; the new database starts empty.
 
 ### Configure certificate solvers
 

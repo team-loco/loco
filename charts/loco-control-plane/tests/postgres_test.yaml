@@ -43,8 +43,6 @@ tests:
           path: spec.imageName
           pattern: ^ghcr\.io/cloudnative-pg/postgresql:[^@]+@sha256:[a-f0-9]{64}$
       - notExists:
-          path: spec.backup
-      - notExists:
           path: spec.managed
 
   - it: passes instances, storage and resources through
@@ -86,93 +84,6 @@ tests:
       - failedTemplate:
           errorMessage: api.env.DATABASE_URL cannot be set while postgres.enabled is true
 
-  - it: backs up to the S3 bucket on a schedule
-    set:
-      postgres.enabled: true
-      postgres.backup:
-        enabled: true
-        schedule: "0 0 3 * * *"
-        retention: 14d
-        s3:
-          endpoint: https://s3.example.test
-          bucket: backups
-          prefix: pg
-          existingSecret: {name: pg-s3}
-    asserts:
-      - equal:
-          path: spec.backup
-          value:
-            retentionPolicy: 14d
-            barmanObjectStore:
-              destinationPath: s3://backups/pg
-              endpointURL: https://s3.example.test
-              s3Credentials:
-                accessKeyId: {name: pg-s3, key: access-key-id}
-                secretAccessKey: {name: pg-s3, key: secret-access-key}
-              wal: {compression: gzip}
-              data: {compression: gzip}
-        template: templates/postgres.yaml
-        documentSelector: {path: kind, value: Cluster}
-      - equal:
-          path: spec
-          value:
-            schedule: "0 0 3 * * *"
-            immediate: true
-            backupOwnerReference: self
-            method: barmanObjectStore
-            cluster: {name: loco-control-plane-postgres}
-        template: templates/postgres.yaml
-        documentSelector: {path: kind, value: ScheduledBackup}
-
-  - it: requires a bucket and credentials for backups
-    set:
-      postgres.enabled: true
-      postgres.backup.enabled: true
-    template: templates/postgres.yaml
-    asserts:
-      - failedTemplate:
-          errorMessage: postgres.backup.s3.bucket is required
-
-  - it: archives under another server name and restores from an earlier one
-    set:
-      postgres.enabled: true
-      postgres.backup:
-        enabled: true
-        serverName: loco-2
-        s3: {endpoint: https://s3.example.test, bucket: backups, existingSecret: {name: pg-s3}}
-      postgres.recoverFrom: loco-control-plane-postgres
-    template: templates/postgres.yaml
-    documentSelector: {path: kind, value: Cluster}
-    asserts:
-      - equal:
-          path: spec.backup.barmanObjectStore.serverName
-          value: loco-2
-      - equal:
-          path: spec.bootstrap
-          value: {recovery: {source: backup, database: loco, owner: loco}}
-      - equal:
-          path: spec.externalClusters
-          value:
-            - name: backup
-              barmanObjectStore:
-                serverName: loco-control-plane-postgres
-                destinationPath: s3://backups/postgres
-                endpointURL: https://s3.example.test
-                s3Credentials:
-                  accessKeyId: {name: pg-s3, key: access-key-id}
-                  secretAccessKey: {name: pg-s3, key: secret-access-key}
-                wal: {compression: gzip}
-                data: {compression: gzip}
-
-  - it: refuses to restore without backups configured
-    set:
-      postgres.enabled: true
-      postgres.recoverFrom: loco-control-plane-postgres
-    template: templates/postgres.yaml
-    asserts:
-      - failedTemplate:
-          errorMessage: postgres.recoverFrom needs postgres.backup.enabled and its bucket
-
   - it: adds a login role and a database for each extra database
     set:
       postgres.enabled: true
@@ -204,7 +115,8 @@ tests:
       postgres.databases: [{name: cp_auth, owner: cp_auth}]
     template: templates/postgres.yaml
     asserts:
-      - failedTemplate: {}
+      - failedTemplate:
+          errorPattern: "at '/postgres/databases/0': missing property 'passwordSecret'"
 
   - it: admits the API, its own instances and the operator to Postgres
     set:
