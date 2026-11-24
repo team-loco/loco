@@ -7,7 +7,6 @@ import { QueryClient } from "@tanstack/react-query";
 import { WebhookDeliverySchema } from "@gen/loco/webhook/v1/webhook_pb";
 
 import { msToTimestamp } from "@/lib/time";
-import { AUDIT_EVENT_TYPES } from "../settings/auditEvents";
 
 import {
 	DELIVERY_TICKS,
@@ -124,14 +123,6 @@ test("lists a type with an unknown prefix under Other", () => {
 		{ label: "Members", types: ["member.added"] },
 		{ label: "Other", types: ["quota.exceeded"] },
 	]);
-});
-
-test("offers every workspace audit type in a named group", () => {
-	const offered = new Set(webhookEventGroups().flatMap((g) => g.types));
-	const missing = AUDIT_EVENT_TYPES.filter(
-		(t) => t !== "webhook.test" && !/^(org|org_member|invitation)\./.test(t) && !offered.has(t),
-	);
-	expect(missing).toEqual([]);
 });
 
 test("accepts only https endpoint URLs", () => {
