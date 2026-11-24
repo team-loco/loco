@@ -129,6 +129,15 @@ api:
     ttl: ""
     # @schema type: string; pattern: ^$|^[+]?([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)(([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h))*$; not: {pattern: '^[+]?([0]*([.][0]*)?(ns|us|µs|μs|ms|s|m|h))+$'}
     maxTtl: ""
+  # Log tails, event streams and deployment watches stay open while a page shows them. The API
+  # refuses a stream past either limit with resource_exhausted, and the gateway's circuit breaker
+  # for the API leaves room for every replica's streams on top of 1,024 unary requests per replica.
+  # @schema additionalProperties: false
+  streams:
+    # @schema type: integer; minimum: 1; maximum: 2147483647
+    maxPerReplica: 500
+    # @schema type: integer; minimum: 1; maximum: 2147483647
+    maxPerCaller: 50
   env: {}
   # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2. The chart sets GOMEMLIMIT to the
   # memory limit; memory the kernel charges outside the Go heap, such as page cache, is not counted.

@@ -26,7 +26,6 @@ func (f *deployFixture) deploymentWriter(t *testing.T) (*DeploymentServer, conte
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
 		limits.Defaults(),
-		8,
 		nil,
 	)
 	scopes := []genDb.EntityScope{

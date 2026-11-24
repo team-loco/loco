@@ -66,7 +66,6 @@ func (f *deployFixture) deploymentServer() *DeploymentServer {
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
 		limits.Defaults(),
-		8,
 		nil,
 	)
 }

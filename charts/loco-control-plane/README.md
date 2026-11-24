@@ -53,6 +53,8 @@ Open log tails, deployment watches and event streams periodically recheck access
 
 See [open streams and access changes](../../docs/content/operations/access.md#open-streams-and-access-changes) for revocation timing.
 
+Each API replica holds at most `api.streams.maxPerReplica` streams open (500 by default) and `api.streams.maxPerCaller` for one caller (50); past either it refuses the stream with `ResourceExhausted` and counts it in the `loco.api.streams.refused` metric, beside `loco.api.streams.open`. The gateway's circuit breaker for the API allows `api.replicaCount` × (`api.streams.maxPerReplica` + 1024) requests at once, so open streams leave 1,024 unary requests per replica before the gateway answers 503.
+
 `LOCO_TARGET_PLATFORM` selects the installation's application processor: `linux/amd64` (default) or `linux/arm64`. Set it through `api.env` or the API environment Secret. The API rejects other values at startup. Workers report the platforms their actual Kubernetes nodes support. New deployments and builds require a compatible worker. Builds run on native matching nodes, pass the explicit target to BuildKit and validate the resulting image configuration before publishing. Application Pods select only nodes matching the target. The API machine's processor does not choose this value.
 
 The target is saved with every build and deployment. Changing the installation target requires rebuilding source images for new deployments; it does not rewrite the target of a retained deployment or rollback. A multi-architecture worker can run both old and new snapshots on their matching nodes.

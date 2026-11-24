@@ -9,6 +9,7 @@ set:
 templates:
   - templates/api-route.yaml
   - templates/api-traffic-policy.yaml
+  - templates/api-deployment.yaml
   - templates/ui.yaml
 tests:
   - it: retries only the API route's connection failures on a headless installation
@@ -79,3 +80,22 @@ tests:
           pattern: ^(connect-failure|reset-before-request|refused-stream)$
       - notExists:
           path: spec.retry.retryOn.httpStatusCodes
+
+  - it: sizes the API circuit breaker to every replica's streams and unary requests
+    set:
+      api.replicaCount: 3
+      api.streams.maxPerReplica: 100
+      api.streams.maxPerCaller: 7
+    asserts:
+      - equal:
+          path: spec.circuitBreaker
+          value: {maxParallelRequests: 3372, maxPendingRequests: 3372}
+        template: templates/api-traffic-policy.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_MAX_STREAMS, value: "100"}
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_MAX_CALLER_STREAMS, value: "7"}
+        template: templates/api-deployment.yaml

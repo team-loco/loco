@@ -74,7 +74,6 @@ func TestImperativeChildAuditEventsRetainResource(t *testing.T) {
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
 		limits.Defaults(),
-		8,
 		nil,
 	)
 	scopes := []genDb.EntityScope{

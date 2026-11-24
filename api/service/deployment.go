@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sync"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -29,12 +28,8 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-// MaxDeploymentWatchStreams caps concurrent streams per principal on an API replica.
-const MaxDeploymentWatchStreams = 25
-
 var (
-	errDeploymentWatchLimit = rpcerr.NewCoded(connect.CodeResourceExhausted, "deployment watch stream limit reached")
-	ErrDeploymentNotFound   = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")
+	ErrDeploymentNotFound = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")
 )
 
 var deploymentStatuses = map[genDb.DeploymentStatus]deploymentv1.DeploymentStatus{
@@ -185,9 +180,6 @@ type DeploymentServer struct {
 	silentAfter    time.Duration
 	maxSecretBytes int32
 	counts         *configv1.CountLimits
-	watchLimit     int32
-	watchMu        sync.Mutex
-	watchStreams   map[genDb.Entity]int32
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
@@ -200,7 +192,6 @@ func NewDeploymentServer(
 	clusterSilentAfter time.Duration,
 	maxSecretBytes int32,
 	counts *configv1.CountLimits,
-	watchLimit int32,
 	notifier *pgnotify.Notifier,
 ) *DeploymentServer {
 	return &DeploymentServer{
@@ -214,8 +205,6 @@ func NewDeploymentServer(
 		silentAfter:    clusterSilentAfter,
 		maxSecretBytes: maxSecretBytes,
 		counts:         counts,
-		watchLimit:     watchLimit,
-		watchStreams:   make(map[genDb.Entity]int32),
 	}
 }
 
@@ -664,25 +653,6 @@ func (s *DeploymentServer) DeleteDeployment(
 	}
 
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
-}
-
-func (s *DeploymentServer) acquireWatch(entity genDb.Entity) bool {
-	s.watchMu.Lock()
-	defer s.watchMu.Unlock()
-	if s.watchStreams[entity] >= s.watchLimit {
-		return false
-	}
-	s.watchStreams[entity]++
-	return true
-}
-
-func (s *DeploymentServer) releaseWatch(entity genDb.Entity) {
-	s.watchMu.Lock()
-	defer s.watchMu.Unlock()
-	s.watchStreams[entity]--
-	if s.watchStreams[entity] == 0 {
-		delete(s.watchStreams, entity)
-	}
 }
 
 // deploymentRouting is the routing an Application uses: the deployment's own when it carries

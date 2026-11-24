@@ -38,7 +38,6 @@ func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
 		limits.Defaults(),
-		8,
 		nil,
 	)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{

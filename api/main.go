@@ -26,6 +26,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/team-loco/loco/api/auth"
@@ -207,7 +208,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	baseServer, authenticatedServer, err := newRPCServers(ctx, ac, d)
+	baseServer, authenticatedServer, err := newRPCServers(ctx, ac, d, apiMeter(meterProvider))
 	if err != nil {
 		return err
 	}
@@ -478,7 +479,6 @@ func newDeps(
 			clusterSilentAfter,
 			ac.SecretLimits.MaxPlacementBytes,
 			ac.CountLimits,
-			service.MaxDeploymentWatchStreams,
 			deploymentNotifier,
 		),
 		build: service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
@@ -526,10 +526,19 @@ func newDeps(
 	}, nil
 }
 
-func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authenticated *connect.Server, err error) {
+func newRPCServers(
+	ctx context.Context,
+	ac *APIConfig,
+	d *deps,
+	meter metric.Meter,
+) (base, authenticated *connect.Server, err error) {
 	deadlineInterceptor := interceptor.NewDeadlineInterceptor(ctx, ac.RPCTimeout)
 	errorInterceptor := interceptor.NewErrorInterceptor()
 	tracingInterceptor, err := newTracingInterceptor()
+	if err != nil {
+		return nil, nil, err
+	}
+	streamLimiter, err := interceptor.NewStreamLimiter(ac.StreamLimits, meter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -541,6 +550,7 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 		interceptor.NewContextInterceptor().Interceptor(),
 		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer, ac.StreamAuth).
 			WebCookies(auth.NewWebCookies(ac.WebURL, ac.CORSAllowedOrigins)).Interceptor(),
+		streamLimiter.Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	return base, authenticated, nil

@@ -33,14 +33,6 @@ func (s *DeploymentServer) WatchDeployment(
 	req *deploymentv1.WatchDeploymentRequest,
 	stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream,
 ) (err error) {
-	principal, err := principalFrom(ctx)
-	if err != nil {
-		return err
-	}
-	if !s.acquireWatch(principal.Entity) {
-		return errDeploymentWatchLimit
-	}
-	defer s.releaseWatch(principal.Entity)
 	id := uuid.MustParse(req.GetDeploymentId())
 	if err = s.authorizeDeploymentActivity(ctx, id); err != nil {
 		return err
