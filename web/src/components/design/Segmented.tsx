@@ -3,7 +3,7 @@ import { useId, type ReactNode } from "react";
 
 export const segmentedGroupClass = "rounded-control bg-panel2 p-0.5 data-[variant=line]:rounded-control";
 export const segmentedItemClass =
-	"relative isolate h-[26px] gap-[7px] rounded-control-inner! border border-transparent px-2.5 text-[12.5px] font-normal text-fg2 after:hidden hover:bg-transparent hover:text-foreground aria-pressed:bg-transparent aria-pressed:text-foreground data-pressed:bg-transparent data-pressed:text-foreground data-active:bg-transparent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-transparent dark:data-active:text-foreground";
+	"relative isolate h-6.5 gap-[7px] rounded-control-inner! border border-transparent px-2.5 text-[12.5px] font-normal text-fg2 after:hidden hover:bg-transparent hover:text-foreground aria-pressed:bg-transparent aria-pressed:text-foreground data-pressed:bg-transparent data-pressed:text-foreground data-active:bg-transparent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-transparent dark:data-active:text-foreground";
 
 /** The group jumps to its new place at once and its thumb slides inside it, whatever moves the group on the page. */
 export const segmentedRoot = <motion.div layout layoutRoot transition={{ layout: { duration: 0 } }} />;

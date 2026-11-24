@@ -52,7 +52,7 @@ export function FilterPopover({
 					render={
 						<Button
 							variant="outline"
-							className={cn("h-[30px] max-w-[260px] px-2.5", clearable && "rounded-r-none border-r-0")}
+							className={cn("h-7.5 max-w-[260px] px-2.5", clearable && "rounded-r-none border-r-0")}
 						/>
 					}
 				>

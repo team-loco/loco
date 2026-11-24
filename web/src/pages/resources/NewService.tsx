@@ -1019,7 +1019,7 @@ function variablesSummary(count: number): string {
 }
 
 const ENV_CELL =
-	"h-[38px] min-w-0 flex-1 rounded-none border-0 bg-transparent font-mono focus-visible:bg-panel focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:ring-inset dark:bg-transparent";
+	"h-9.5 min-w-0 flex-1 rounded-none border-0 bg-transparent font-mono focus-visible:bg-panel focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:ring-inset dark:bg-transparent";
 
 function CommandSection({
 	value,

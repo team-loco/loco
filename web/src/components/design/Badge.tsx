@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 const badgeVariants = cva("gap-1 rounded-sm border-transparent font-medium [&>svg]:size-3!", {
 	variants: {
 		size: {
-			default: "h-[22px] px-2 text-sm",
-			sm: "h-[18px] px-1.5 py-0 text-xs",
+			default: "h-5.5 px-2 text-sm",
+			sm: "h-4.5 px-1.5 py-0 text-xs",
 		},
 		tone: {
 			ok: "bg-ok-bg text-ok-fg",

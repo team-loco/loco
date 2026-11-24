@@ -396,7 +396,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 				<div
 					role="presentation"
 					onClick={focusInput}
-					className="flex min-h-[42px] cursor-text flex-wrap items-center gap-1.5 rounded-lg border border-line2 bg-raise py-[5px] pr-1.5 pl-3 focus-within:border-fg3 focus-within:shadow-[0_0_0_3px_color-mix(in_oklab,var(--fg)_7%,transparent)]"
+					className="flex min-h-10.5 cursor-text flex-wrap items-center gap-1.5 rounded-lg border border-line2 bg-raise py-[5px] pr-1.5 pl-3 focus-within:border-fg3 focus-within:shadow-[0_0_0_3px_color-mix(in_oklab,var(--fg)_7%,transparent)]"
 				>
 					<SearchIcon className="mr-0.5 size-3.5 shrink-0 text-fg3" />
 					{tokens.map((t, i) => (
@@ -426,7 +426,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 						autoComplete="off"
 						spellCheck={false}
 						className={cn(
-							"h-[30px] min-w-[200px] flex-1 border-0 bg-transparent font-mono text-[12.5px] text-foreground outline-none placeholder:font-sans placeholder:text-[13px] placeholder:text-fg4",
+							"h-7.5 min-w-[200px] flex-1 border-0 bg-transparent font-mono text-[12.5px] text-foreground outline-none placeholder:font-sans placeholder:text-[13px] placeholder:text-fg4",
 							textIgnored && "text-fg3 line-through",
 						)}
 					/>
@@ -511,7 +511,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 														s.remove?.run();
 														focusInput();
 													}}
-													className="size-[22px] text-fg4 hover:text-foreground"
+													className="size-5.5 text-fg4 hover:text-foreground"
 												>
 													<XIcon className="size-[11px]" />
 												</Button>
@@ -587,7 +587,7 @@ function TokenChip({
 		<span
 			data-slot="query-token"
 			className={cn(
-				"inline-flex h-[26px] items-center overflow-hidden rounded-sm border border-line2 bg-panel",
+				"inline-flex h-6.5 items-center overflow-hidden rounded-sm border border-line2 bg-panel",
 				reason !== null && "opacity-55",
 			)}
 		>

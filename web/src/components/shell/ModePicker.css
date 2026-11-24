@@ -5,7 +5,7 @@
 	align-items: center;
 	justify-content: center;
 	color: var(--fg);
-	height: 24px;
+	height: 1.5rem;
 	border-radius: var(--radius-control-inner);
 	background: var(--raise);
 	box-shadow:

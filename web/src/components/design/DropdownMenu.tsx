@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 const popup =
 	"rounded-card border border-line bg-popover p-[5px] text-foreground shadow-popover ring-0 dark:border-line2";
 const item =
-	"cursor-pointer min-h-[34px] gap-2.5 rounded-lg px-2.5 py-1.5 text-[13.5px] focus:bg-panel focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground data-disabled:pointer-events-auto data-disabled:cursor-not-allowed data-popup-open:bg-panel data-open:bg-panel dark:focus:bg-panel2 dark:data-popup-open:bg-panel2 dark:data-open:bg-panel2 [&_svg:not([class*='size-'])]:size-3.5";
+	"cursor-pointer min-h-8.5 gap-2.5 rounded-lg px-2.5 py-1.5 text-[13.5px] focus:bg-panel focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground data-disabled:pointer-events-auto data-disabled:cursor-not-allowed data-popup-open:bg-panel data-open:bg-panel dark:focus:bg-panel2 dark:data-popup-open:bg-panel2 dark:data-open:bg-panel2 [&_svg:not([class*='size-'])]:size-3.5";
 
 function DropdownMenuTrigger({ className, ...props }: React.ComponentProps<typeof DropdownMenuTriggerBase>) {
 	return (

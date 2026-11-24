@@ -139,7 +139,7 @@ export function AppSidebar() {
 				<SidebarMenuButton
 					aria-label="Search and run commands"
 					aria-keyshortcuts="Meta+K Control+K"
-					className="sb-search h-[34px] gap-[9px] rounded-[7px] border border-line bg-raise pr-1.5 pl-2.5 text-fg3 hover:border-line2 hover:bg-raise hover:text-fg2"
+					className="sb-search h-8.5 gap-[9px] rounded-[7px] border border-line bg-raise pr-1.5 pl-2.5 text-fg3 hover:border-line2 hover:bg-raise hover:text-fg2"
 					onClick={() => {
 						if (isMobile) setOpenMobile(false);
 						openPalette();

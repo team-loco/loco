@@ -161,7 +161,7 @@ function ReferencePicker({
 									<CommandItem
 										key={item.ref}
 										value={item.name}
-										className="h-[30px] justify-between gap-3 text-[12.5px]"
+										className="h-7.5 justify-between gap-3 text-[12.5px]"
 										onSelect={() => {
 											onPick(item);
 											setOpen(false);
@@ -303,7 +303,7 @@ function ConnectionVariables({
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-[26px] text-[11.5px] text-fg3"
+								className="h-6.5 text-[11.5px] text-fg3"
 								aria-label={`Copy ${ref}`}
 								onClick={() => {
 									copy(ref, ref);

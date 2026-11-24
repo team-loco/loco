@@ -139,7 +139,7 @@ export function CopyButton({
 				e.stopPropagation();
 				onCopy();
 			}}
-			className={cn("size-[22px] text-fg4 hover:text-foreground", copied && "text-ok-fg hover:text-ok-fg", className)}
+			className={cn("size-5.5 text-fg4 hover:text-foreground", copied && "text-ok-fg hover:text-ok-fg", className)}
 		>
 			{copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
 		</Button>
@@ -223,7 +223,7 @@ export function JumpButton({
 			disabled={disabled}
 			onClick={onClick}
 			className={cn(
-				"flex h-[34px] w-full items-center gap-2 rounded-sm border border-line bg-background px-2.5 text-left text-foreground",
+				"flex h-8.5 w-full items-center gap-2 rounded-sm border border-line bg-background px-2.5 text-left text-foreground",
 				disabled ? "cursor-not-allowed text-fg4" : "cursor-pointer hover:border-fg4 hover:bg-panel",
 			)}
 		>

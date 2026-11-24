@@ -250,7 +250,7 @@ export function TraceHeader({
 								title={`${item.label}, ${durationLabel(item.nanos)} (${percent(item.share)})`}
 								aria-pressed={pinned === item.key}
 								className={cn(
-									"inline-flex h-[22px] min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-left text-[12.5px] transition-opacity hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+									"inline-flex h-5.5 min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-left text-[12.5px] transition-opacity hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 									pinned === item.key && "bg-panel2",
 									highlight !== null && highlight !== item.key && "opacity-40",
 								)}
@@ -278,7 +278,7 @@ export function TraceHeader({
 								variant="ghost"
 								size="sm"
 								aria-expanded={expanded}
-								className="h-[22px] px-1.5 text-[12.5px] text-fg3"
+								className="h-5.5 px-1.5 text-[12.5px] text-fg3"
 								onClick={() => {
 									setExpanded(!expanded);
 								}}
