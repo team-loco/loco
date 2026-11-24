@@ -16,11 +16,18 @@ import { getOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectque
 import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery } from "@connectrpc/connect-query";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Navigate, useLocation, useParams } from "react-router";
 
 interface ProtectedLayoutProps {
 	children: ReactNode;
+}
+
+/** An answer that is not known yet is `loading`; nothing is drawn from it until it is `found` or `notFound`. */
+type RouteState = "loading" | "found" | "notFound";
+
+function undecided(query: { data: unknown; error: unknown }, enabled: boolean): boolean {
+	return enabled && query.data === undefined && query.error === null;
 }
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
@@ -28,11 +35,12 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { pathname, search, hash } = useLocation();
 	const { user, signedOut, isPending, error } = useAuth();
 
-	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? "" }, { enabled: !!user });
-	const orgs = orgsRes?.orgs;
+	const orgsQuery = useQuery(listUserOrgs, { userId: user?.id ?? "" }, { enabled: !!user });
+	const orgs = orgsQuery.data?.orgs;
 	const scopes = useMyScopes({ enabled: !!user });
 
-	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
+	const [storedOrg] = useStoredValue(ORG_STORAGE_KEY, "");
+	const activeOrgId = pickActive(orgs, orgParam, storedOrg === "" ? null : storedOrg);
 
 	// Without a workspace in the URL, the active one is the remembered workspace if it is in the organization, else its newest.
 	const picking =
@@ -44,55 +52,59 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		(w): w is Workspace => w?.orgId === activeOrgId,
 	);
 
+	// A remembered workspace of the organization is the pick whatever the newest list says, so the list is not waited for.
+	const rememberedHere = remembered.workspace?.orgId === activeOrgId;
 	const workspacesSettled =
 		(orgParam !== undefined || orgs !== undefined) &&
 		!scopes.isLoading &&
-		!(picking && (newest.isLoading || remembered.isLoading));
+		!(picking && !rememberedHere && (newest.isLoading || remembered.isLoading));
+
+	const orgsAnswered = !scopes.isLoading && !orgsQuery.isLoading;
+	const workspaceLookup =
+		orgsAnswered &&
+		orgParam !== undefined &&
+		workspaceParam !== undefined &&
+		scopes.workspaceLevel(orgParam, workspaceParam) >= 1;
 	const urlWorkspace = useQuery(
 		getWorkspace,
 		{ workspaceId: workspaceParam ?? "" },
-		{
-			enabled:
-				workspacesSettled &&
-				orgParam !== undefined &&
-				workspaceParam !== undefined &&
-				scopes.workspaceLevel(orgParam, workspaceParam) >= 1,
-			staleTime: WORKSPACE_STALE_MS,
-			retryOnMount: false,
-		},
+		{ enabled: workspaceLookup, staleTime: WORKSPACE_STALE_MS, retryOnMount: false },
 	);
 	// A caller whose scopes cover every organization (system) can open an ID that is not in its list.
-	const urlOrg = useQuery(
-		getOrg,
-		{ orgId: orgParam ?? "" },
-		{
-			enabled:
-				workspacesSettled &&
-				orgParam !== undefined &&
-				orgs !== undefined &&
-				!orgs.some((o) => o.id === orgParam) &&
-				scopes.orgMember(orgParam),
-		},
-	);
-	const routeNotFound =
-		workspacesSettled &&
+	const orgLookup =
+		orgsAnswered &&
 		orgParam !== undefined &&
-		// not_found and invalid_argument mean the organization or workspace is absent. A denial counts as absent
-		// only for the workspace lookup, which runs for a caller who can read the workspace.
-		(resourceMissing(urlOrg.error, false) ||
+		orgs !== undefined &&
+		!orgs.some((o) => o.id === orgParam) &&
+		scopes.orgMember(orgParam);
+	const urlOrg = useQuery(getOrg, { orgId: orgParam ?? "" }, { enabled: orgLookup });
+
+	let routeState: RouteState = "found";
+	if (orgParam !== undefined) {
+		if (!orgsAnswered || undecided(urlOrg, orgLookup) || undecided(urlWorkspace, workspaceLookup)) {
+			routeState = "loading";
+		} else if (
+			// not_found and invalid_argument mean the organization or workspace is absent. A denial counts as absent
+			// only for the workspace lookup, which runs for a caller who can read the workspace.
+			resourceMissing(urlOrg.error, false) ||
 			resourceMissing(urlWorkspace.error, true) ||
-			(!urlWorkspace.isLoading &&
-				!urlOrg.isLoading &&
-				!routeKnown(
-					{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
-					scopes.scopes,
-				)));
+			!routeKnown(
+				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
+				scopes.scopes,
+			)
+		) {
+			routeState = "notFound";
+		}
+	}
+	// A shell already on screen stays while the next route is looked up; only the first draw waits for the answer.
+	const [shellShown, setShellShown] = useState(false);
+	if (routeState === "found" && !shellShown) setShellShown(true);
 
 	if (signedOut) {
 		return <Navigate to="/login" replace state={nextPathState(pathname + search + hash)} />;
 	}
 
-	if (isPending) {
+	if (isPending || (routeState === "loading" && !shellShown)) {
 		return <AppLoading />;
 	}
 
@@ -104,7 +116,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		<ContextProvider availableOrgs={orgs} pickableWorkspaces={pickable} workspacesSettled={workspacesSettled}>
 			<KeyboardShortcutsProvider>
 				<CommandPaletteProvider>
-					{routeNotFound ? (
+					{routeState === "notFound" ? (
 						<NotFound unknownWorkspace />
 					) : (
 						<NotFoundBoundary path={pathname}>

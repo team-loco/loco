@@ -6,6 +6,13 @@ function storageFor(area: StorageArea): Storage {
 	return area === "local" ? window.localStorage : window.sessionStorage;
 }
 
+const listeners = new Set<() => void>();
+
+function notify(): void {
+	for (const listener of listeners) listener();
+}
+
+/** For code that runs outside render. Components read through `useStoredValue` or `useStoredJSON`. */
 export function readStorage(key: string, area: StorageArea = "local"): string | null {
 	try {
 		return storageFor(area).getItem(key);
@@ -20,6 +27,8 @@ export function writeStorage(key: string, value: string, area: StorageArea = "lo
 		return true;
 	} catch {
 		return false;
+	} finally {
+		notify();
 	}
 }
 
@@ -28,10 +37,10 @@ export function removeStorage(key: string, area: StorageArea = "local"): void {
 		storageFor(area).removeItem(key);
 	} catch {
 		return;
+	} finally {
+		notify();
 	}
 }
-
-const listeners = new Set<() => void>();
 
 function subscribe(listener: () => void): () => void {
 	listeners.add(listener);
@@ -63,7 +72,6 @@ export function useStoredJSON<T>(
 			let saved = true;
 			if (next === null) removeStorage(key);
 			else saved = writeStorage(key, JSON.stringify(next));
-			for (const listener of listeners) listener();
 			return saved;
 		},
 		[key, parse],
@@ -75,9 +83,7 @@ export function useStoredValue(key: string, fallback: string): [string, (value: 
 	const value = useSyncExternalStore(subscribe, () => readStorage(key) ?? fallback);
 	const update = useCallback(
 		(next: string) => {
-			const saved = writeStorage(key, next);
-			for (const listener of listeners) listener();
-			return saved;
+			return writeStorage(key, next);
 		},
 		[key],
 	);

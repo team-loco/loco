@@ -39,7 +39,7 @@ async function dashboardPath(
 	queryClient: QueryClient,
 	orgs: readonly Organization[],
 ): Promise<string> {
-	const orgId = pickActive(orgs, undefined, ORG_STORAGE_KEY);
+	const orgId = pickActive(orgs, undefined, readStorage(ORG_STORAGE_KEY));
 	if (orgId === null) {
 		await pageImporters.Organizations();
 		return "/organizations";
@@ -48,7 +48,7 @@ async function dashboardPath(
 	const workspaces = hasOrganizationMembership(scopes, orgId)
 		? await pickableWorkspaces(transport, queryClient, orgId)
 		: [];
-	const workspaceId = pickActive(workspaces, undefined, WORKSPACE_STORAGE_KEY);
+	const workspaceId = pickActive(workspaces, undefined, readStorage(WORKSPACE_STORAGE_KEY));
 	if (workspaceId === null) {
 		await pageImporters.Team();
 		return `/org/${orgId}/team`;
