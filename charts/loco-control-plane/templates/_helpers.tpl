@@ -24,6 +24,9 @@ true
 {{- if include "loco-control-plane.ingestRouted" . -}}
 {{- $listeners = append $listeners (dict "name" "ingest" "hostname" .Values.obsProxy.ingest.hostname) -}}
 {{- end -}}
+{{- range .Values.gateway.extraListeners -}}
+{{- $listeners = append $listeners (dict "name" (.hostname | replace "." "-") "hostname" .hostname "namespaces" (.namespaces | default (list $.Release.Namespace))) -}}
+{{- end -}}
 {{- toJson $listeners -}}
 {{- end -}}
 

@@ -236,3 +236,49 @@ tests:
     template: templates/gateway.yaml
     asserts:
       - hasDocuments: {count: 0}
+
+  - it: adds an HTTPS listener per extra hostname that admits routes from the namespaces it names
+    set:
+      gatewayNamespace: edge
+      gateway.extraListeners:
+        - {hostname: auth.region.test, namespaces: [fleet, sign-in]}
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: Gateway}
+    asserts:
+      - equal:
+          path: spec.listeners[2]
+          value:
+            name: https-auth-region-test
+            hostname: auth.region.test
+            protocol: HTTPS
+            port: 443
+            tls:
+              mode: Terminate
+              certificateRefs: [{name: loco-control-plane-tls, kind: Secret, group: ""}]
+            allowedRoutes:
+              namespaces:
+                from: Selector
+                selector:
+                  matchExpressions:
+                    - {key: kubernetes.io/metadata.name, operator: In, values: [fleet, sign-in]}
+
+  - it: admits an extra listener's routes from the release namespace when it names none
+    set:
+      certManager.enabled: false
+      gateway.extraListeners: [{hostname: auth.region.test}]
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: Gateway}
+    asserts:
+      - equal:
+          path: spec.listeners[2].allowedRoutes.namespaces.selector.matchExpressions[0].values
+          value: [loco-control-plane]
+      - equal:
+          path: spec.listeners[2].protocol
+          value: HTTP
+
+  - it: rejects an extra listener without a hostname
+    set:
+      gateway.extraListeners: [{namespaces: [fleet]}]
+    template: templates/gateway.yaml
+    asserts:
+      - failedTemplate: {}
