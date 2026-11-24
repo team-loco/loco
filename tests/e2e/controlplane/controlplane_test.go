@@ -308,7 +308,8 @@ func (cp *controlPlane) checkRouting(t *testing.T) {
 			t.Errorf("/runtime-config.js is served with %s: %s", name, values)
 		}
 	}
-	if config := strings.TrimSpace(runtime.text(t)); config != `window.locoConfig = {"apiURL":"/api"};` {
+	wantConfig := `window.locoConfig = {"apiURL":"/api","docsURL":"https://docs.loco.build"};`
+	if config := strings.TrimSpace(runtime.text(t)); config != wantConfig {
 		t.Errorf("/runtime-config.js = %s", config)
 	}
 	var config struct {

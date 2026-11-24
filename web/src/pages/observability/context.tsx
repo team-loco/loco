@@ -57,6 +57,8 @@ interface ObsContextValue {
 	view: ObservabilityView;
 	resources: ObsResource[];
 	resourcesLoading: boolean;
+	/** True once the workspace's resources have loaded and a reader of the whole workspace sees none. */
+	noResources: boolean;
 	/** IDs every query must name because the user reads only these resources, or null when it may query the whole workspace. */
 	scopedResourceIds: string[] | null;
 	resourceByName: Map<string, ObsResource>;
@@ -129,12 +131,15 @@ export function ObsProvider({
 		);
 	};
 
+	const noResources = grants === "workspace" && !resourcesLoading && resources.length === 0;
+
 	const value: ObsContextValue = {
 		orgId,
 		workspaceId,
 		view,
 		resources,
 		resourcesLoading,
+		noResources,
 		scopedResourceIds,
 		resourceByName,
 		resourceById,

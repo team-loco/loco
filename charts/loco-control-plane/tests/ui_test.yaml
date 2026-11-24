@@ -14,7 +14,7 @@ tests:
       - equal:
           path: data["runtime-config.js"]
           value: |
-            window.locoConfig = {"apiURL":"/api"};
+            window.locoConfig = {"apiURL":"/api","docsURL":"https://docs.loco.build"};
         documentSelector: {path: kind, value: ConfigMap}
       - equal:
           path: spec.hostnames

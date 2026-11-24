@@ -14,5 +14,5 @@ declare module "*.woff2" {
 }
 
 interface Window {
-	locoConfig?: { apiURL?: string };
+	locoConfig?: { apiURL?: string; docsURL?: string };
 }

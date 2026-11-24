@@ -15,7 +15,7 @@ import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { usePollingWorkspaceResources } from "@/hooks/useWorkspaceDeployments";
-import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
+import { DRAFT_PARAM, resourcePath, settingsPath } from "@/lib/routes";
 import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
 import { draftItems } from "@/pages/dashboard/resourceRows";
@@ -42,7 +42,7 @@ function DashboardSkeleton() {
 
 export function Dashboard() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
+	const { active, isLoading: envsLoading } = useEnvironments();
 	const { grants, regions } = useEnvironmentRegions(activeOrgId, activeWorkspaceId, active?.id);
 	const nowMs = useNow(NOW_TICK_MS).getTime();
 
@@ -61,7 +61,6 @@ export function Dashboard() {
 	const [draftId] = useQueryState(DRAFT_PARAM);
 	const defaultRegion = useQuery(getConfig, {}).data?.defaultRegion ?? "";
 	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id, { env: active?.slug ?? null });
-	const otherEnv = environments.find((e) => e.id !== active?.id);
 	// Until grants resolve a scoped viewer is indistinguishable from a workspace reader, and the
 	// workspace view queries environment-wide metrics the proxy refuses them.
 	const loading = envsLoading || grants === undefined || data.isLoading;
@@ -113,14 +112,7 @@ export function Dashboard() {
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
 			) : envTotal === 0 && drafts.length === 0 ? (
-				<EmptyWorkspace
-					envName={active.name}
-					newHref={newResourcePath(orgId, workspaceId, { env: active.slug })}
-					otherEnvName={otherEnv?.name ?? null}
-					onSwitchEnv={() => {
-						if (otherEnv !== undefined) setActive(otherEnv);
-					}}
-				/>
+				<EmptyWorkspace />
 			) : (
 				<>
 					<Totals

@@ -4,13 +4,25 @@ import { Page } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { observabilityViewParser, type ObservabilityView } from "@/lib/routes";
 
-import { ObsProvider } from "./observability/context";
+import { EmptyWorkspace } from "./dashboard/EmptyWorkspace";
+import { ObsProvider, useObs } from "./observability/context";
 import { EventsView } from "./observability/EventsView";
 import { LogsView } from "./observability/LogsView";
 import { MetricsView } from "./observability/MetricsView";
 import { TracesView } from "./observability/TracesView";
+import { ViewHeader } from "./observability/ViewHeader";
 
 function ViewBody({ view }: { view: ObservabilityView }) {
+	const { noResources } = useObs();
+	// Events also record what happens before the first deploy; every other view reads from a deployed resource.
+	if (view !== "events" && noResources) {
+		return (
+			<>
+				<ViewHeader />
+				<EmptyWorkspace wholeWorkspace />
+			</>
+		);
+	}
 	switch (view) {
 		case "logs":
 			return <LogsView />;

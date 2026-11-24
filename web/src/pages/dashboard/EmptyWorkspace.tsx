@@ -1,10 +1,16 @@
 import { ArrowUpRightIcon, PlusIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import { CopyButton } from "@/components/design/CopyButton";
 import { EmptyHero } from "@/components/design/EmptyHero";
-import { DOCS_URL } from "@/pages/splash/links";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useEnvironments } from "@/hooks/useEnvironment";
+import { newResourcePath } from "@/lib/routes";
+import { DOCS_GET_STARTED } from "@/pages/splash/links";
+
+import "./EmptyWorkspace.css";
 
 const COMMANDS = ["loco login", "loco deploy"];
 const TILE_STROKE = "color-mix(in oklch, var(--fg) 42%, var(--bg))";
@@ -20,10 +26,22 @@ const PODS = [
 	[10.5, 10.5],
 ];
 
-function Tile({ y, stroke, top }: { y: number; stroke: string; top: string }) {
+function Tile({
+	y,
+	stroke,
+	top,
+	className,
+	children,
+}: {
+	y: number;
+	stroke: string;
+	top: string;
+	className: string;
+	children?: ReactNode;
+}) {
 	const line = { stroke, strokeWidth: 1, strokeLinejoin: "round" as const };
 	return (
-		<>
+		<g className={`stack-tile ${className}`}>
 			<path
 				d={`M20 ${(y + 20).toString()} L60 ${(y + 40).toString()} L60 ${(y + 46).toString()} L20 ${(y + 26).toString()} Z`}
 				fill="var(--panel2)"
@@ -46,7 +64,16 @@ function Tile({ y, stroke, top }: { y: number; stroke: string; top: string }) {
 				opacity={0.45}
 				{...line}
 			/>
-		</>
+			{children}
+		</g>
+	);
+}
+
+function Pins({ className, d }: { className: string; d: string }) {
+	return (
+		<g className={`stack-pins ${className}`} stroke="var(--info)" strokeWidth={1.2} strokeDasharray="2 2" opacity={0}>
+			<path d={d} />
+		</g>
 	);
 }
 
@@ -70,6 +97,7 @@ function StackArt() {
 					))}
 				</g>
 				<rect
+					className="stack-cell"
 					width={20}
 					height={20}
 					fill="var(--fg)"
@@ -79,44 +107,78 @@ function StackArt() {
 					{...fine}
 				/>
 			</g>
-			<Tile y={46} stroke={TILE_STROKE} top="var(--bg)" />
-			<g transform={ISO(46)} stroke={TILE_STROKE} opacity={0.6}>
-				{HATCH.map((x) => (
-					<path key={x} d={`M${x.toString()} 3.5 V16.5`} {...fine} />
-				))}
-			</g>
-			<Tile y={32} stroke={TILE_STROKE} top="var(--bg)" />
-			<g transform={ISO(32)} fill={TILE_STROKE} fillOpacity={0.24} stroke={TILE_STROKE}>
-				{PODS.map(([x = 0, py = 0]) => (
-					<rect key={`${x.toString()}-${py.toString()}`} x={x} y={py} width={5.5} height={5.5} rx={0.6} {...fine} />
-				))}
-			</g>
-			<Tile y={18} stroke={TOP_STROKE} top="color-mix(in oklch, var(--info) 10%, var(--bg))" />
-			<g transform={ISO(18)} fill="none" stroke="var(--info)">
-				<circle cx={10} cy={10} r={6} {...fine} strokeWidth={1.2} />
-				<path d="M4 10 H16 M5.2 6.8 H14.8 M5.2 13.2 H14.8" opacity={0.75} {...fine} />
-				<ellipse cx={10} cy={10} rx={2.7} ry={6} {...fine} />
-			</g>
+			<Tile y={46} stroke={TILE_STROKE} top="var(--bg)" className="stack-t1">
+				<g transform={ISO(46)} stroke={TILE_STROKE}>
+					{HATCH.map((x, i) => (
+						<path
+							key={x}
+							className="stack-hatch"
+							style={{ animationDelay: `${(i * 0.07).toFixed(2)}s` }}
+							pathLength={1}
+							d={`M${x.toString()} 3.5 V16.5`}
+							{...fine}
+						/>
+					))}
+				</g>
+			</Tile>
+			<Pins className="stack-p2" d="M20 58 V66 M60 78 V86 M100 58 V66" />
+			<Tile y={32} stroke={TILE_STROKE} top="var(--bg)" className="stack-t2">
+				<g transform={ISO(32)} fill={TILE_STROKE} fillOpacity={0.24} stroke={TILE_STROKE}>
+					{PODS.map(([x = 0, py = 0], i) => (
+						<rect
+							key={`${x.toString()}-${py.toString()}`}
+							className="stack-pod"
+							style={{ animationDelay: `${(i * 0.12).toFixed(2)}s` }}
+							x={x}
+							y={py}
+							width={5.5}
+							height={5.5}
+							rx={0.6}
+							{...fine}
+						/>
+					))}
+				</g>
+			</Tile>
+			<Pins className="stack-p3" d="M20 44 V52 M60 64 V72 M100 44 V52" />
+			<Tile y={18} stroke={TOP_STROKE} top="color-mix(in oklch, var(--info) 10%, var(--bg))" className="stack-t3">
+				<g transform={ISO(18)} fill="none" stroke="var(--info)">
+					<circle cx={10} cy={10} r={6} {...fine} strokeWidth={1.2} />
+					<path d="M4 10 H16 M5.2 6.8 H14.8 M5.2 13.2 H14.8" opacity={0.75} {...fine} />
+					<ellipse className="stack-meridian" cx={10} cy={10} rx={6} ry={6} {...fine} />
+					<ellipse className="stack-meridian stack-meridian-b" cx={10} cy={10} rx={6} ry={6} {...fine} />
+					<circle className="stack-pulse" cx={10} cy={10} r={6} {...fine} strokeWidth={1.4} />
+				</g>
+			</Tile>
+			<path
+				className="stack-trace"
+				pathLength={1}
+				d="M36 104 L60 92 V58 L60 38"
+				fill="none"
+				stroke="var(--info)"
+				strokeWidth={1.6}
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
 		</svg>
 	);
 }
 
-export function EmptyWorkspace({
-	envName,
-	newHref,
-	otherEnvName,
-	onSwitchEnv,
-}: {
-	envName: string;
-	newHref: string;
-	otherEnvName: string | null;
-	onSwitchEnv: () => void;
-}) {
+/** Shown wherever a page has nothing to list because no resource is deployed; `wholeWorkspace` for pages that read every environment. */
+export function EmptyWorkspace({ wholeWorkspace = false }: { wholeWorkspace?: boolean }) {
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const { environments, active, setActive } = useEnvironments();
+	const otherEnv = wholeWorkspace ? undefined : environments.find((e) => e.id !== active?.id);
+	const where = wholeWorkspace || active === undefined ? " in this workspace" : ` to ${active.name}`;
+	const newHref = newResourcePath(
+		activeOrgId ?? "",
+		activeWorkspaceId ?? "",
+		active === undefined ? {} : { env: active.slug },
+	);
 	return (
 		<EmptyHero
 			art={<StackArt />}
 			title="No resources yet"
-			subtitle={`Nothing is deployed to ${envName}. Deploy from your terminal with the loco CLI, or create a resource here.`}
+			subtitle={`Nothing is deployed${where}. Deploy from your terminal with the loco CLI, or create a resource here.`}
 		>
 			<div className="my-2 flex w-[min(380px,100%)] items-center justify-between gap-6 rounded-lg bg-background py-3.5 pr-3.5 pl-4 text-left ring-1 ring-line">
 				<div className="flex flex-col gap-1.5 font-mono text-[13px]">
@@ -138,15 +200,21 @@ export function EmptyWorkspace({
 					variant="outline"
 					size="lg"
 					nativeButton={false}
-					render={<a href={DOCS_URL} target="_blank" rel="noopener noreferrer" />}
+					render={<a href={DOCS_GET_STARTED} target="_blank" rel="noopener noreferrer" />}
 				>
 					Read the docs
 					<ArrowUpRightIcon />
 				</Button>
 			</div>
-			{otherEnvName !== null && (
-				<Button variant="link" className="mt-1" onClick={onSwitchEnv}>
-					View {otherEnvName} instead
+			{otherEnv !== undefined && (
+				<Button
+					variant="link"
+					className="mt-1"
+					onClick={() => {
+						setActive(otherEnv);
+					}}
+				>
+					View {otherEnv.name} instead
 				</Button>
 			)}
 		</EmptyHero>

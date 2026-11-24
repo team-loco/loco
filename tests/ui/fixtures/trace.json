@@ -1,8 +1,52 @@
 {
   "users": {
-    "owner": {"email": "owner@acme.test", "name": "Olivia Owner"}
+    "owner": {
+      "email": "owner@acme.test",
+      "name": "Olivia Owner"
+    }
   },
   "orgs": [
-    {"name": "acme", "owner": "owner", "workspaces": ["shared"]}
+    {
+      "name": "acme",
+      "owner": "owner",
+      "workspaces": [
+        "shared"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "workspace": "acme/shared",
+      "name": "web",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "placements": {
+            "us-ca-1": {
+              "ready_replicas": 1
+            }
+          },
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-ca-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    }
   ]
 }

@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   runtime-config.js: |
-    window.locoConfig = {"apiURL":"/api"};
+    window.locoConfig = {{ dict "apiURL" "/api" "docsURL" .Values.ui.docsURL | toJson }};
 ---
 apiVersion: apps/v1
 kind: Deployment

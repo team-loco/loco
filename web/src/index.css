@@ -52,6 +52,7 @@
 
 .code-lines.code-wrap .sh__line {
 	position: relative;
+	min-height: 1lh;
 	padding-left: calc(var(--code-digits) * 1ch + 2rem);
 }
 

@@ -1,0 +1,259 @@
+.stack-tile,
+.stack-cell,
+.stack-pins,
+.stack-hatch,
+.stack-pod,
+.stack-trace,
+.stack-pulse {
+	animation-duration: 5.2s;
+	animation-iteration-count: infinite;
+	animation-fill-mode: both;
+	animation-timing-function: linear;
+}
+.stack-t1 {
+	animation-name: stack-t1;
+}
+.stack-t2 {
+	animation-name: stack-t2;
+}
+.stack-t3 {
+	animation-name: stack-t3;
+}
+.stack-cell {
+	animation-name: stack-cell;
+}
+.stack-p2 {
+	animation-name: stack-pins-2;
+}
+.stack-p3 {
+	animation-name: stack-pins-3;
+}
+.stack-hatch {
+	stroke-dasharray: 1;
+	animation-name: stack-hatch;
+}
+.stack-pod {
+	animation-name: stack-pod;
+}
+.stack-trace {
+	stroke-dasharray: 0.16 1.2;
+	animation-name: stack-trace;
+}
+.stack-pulse {
+	transform-box: fill-box;
+	transform-origin: center;
+	animation-name: stack-pulse;
+}
+.stack-meridian {
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: stack-meridian 3.2s linear infinite;
+}
+.stack-meridian-b {
+	animation-delay: -1.6s;
+}
+@keyframes stack-t1 {
+	0% {
+		transform: translateY(-22px);
+		opacity: 0;
+		animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1);
+	}
+	7% {
+		transform: translateY(1.5px);
+		opacity: 1;
+		animation-timing-function: ease-out;
+	}
+	10%,
+	72% {
+		transform: translateY(0);
+		opacity: 1;
+		animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0);
+	}
+	84%,
+	100% {
+		transform: translateY(-4px);
+		opacity: 0;
+	}
+}
+@keyframes stack-t2 {
+	0%,
+	8% {
+		transform: translateY(-22px);
+		opacity: 0;
+		animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1);
+	}
+	15% {
+		transform: translateY(1.5px);
+		opacity: 1;
+		animation-timing-function: ease-out;
+	}
+	18%,
+	68% {
+		transform: translateY(0);
+		opacity: 1;
+		animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0);
+	}
+	80%,
+	100% {
+		transform: translateY(-10px);
+		opacity: 0;
+	}
+}
+@keyframes stack-t3 {
+	0%,
+	16% {
+		transform: translateY(-22px);
+		opacity: 0;
+		animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1);
+	}
+	23% {
+		transform: translateY(1.5px);
+		opacity: 1;
+		animation-timing-function: ease-out;
+	}
+	26%,
+	64% {
+		transform: translateY(0);
+		opacity: 1;
+		animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0);
+	}
+	76%,
+	100% {
+		transform: translateY(-16px);
+		opacity: 0;
+	}
+}
+@keyframes stack-cell {
+	0%,
+	5% {
+		opacity: 0;
+	}
+	9%,
+	78% {
+		opacity: 1;
+	}
+	90%,
+	100% {
+		opacity: 0;
+	}
+}
+@keyframes stack-pins-2 {
+	0%,
+	13% {
+		opacity: 0;
+	}
+	15% {
+		opacity: 1;
+	}
+	24%,
+	100% {
+		opacity: 0;
+	}
+}
+@keyframes stack-pins-3 {
+	0%,
+	21% {
+		opacity: 0;
+	}
+	23% {
+		opacity: 1;
+	}
+	32%,
+	100% {
+		opacity: 0;
+	}
+}
+@keyframes stack-hatch {
+	0%,
+	8% {
+		stroke-dashoffset: 1;
+		opacity: 0.6;
+	}
+	14%,
+	100% {
+		stroke-dashoffset: 0;
+		opacity: 0.6;
+	}
+}
+@keyframes stack-pod {
+	0%,
+	16% {
+		fill-opacity: 0.06;
+	}
+	19% {
+		fill-opacity: 0.55;
+	}
+	24%,
+	100% {
+		fill-opacity: 0.24;
+	}
+}
+@keyframes stack-trace {
+	0%,
+	30% {
+		stroke-dashoffset: 0.16;
+		opacity: 0;
+	}
+	31% {
+		opacity: 1;
+	}
+	46% {
+		stroke-dashoffset: -1;
+		opacity: 1;
+	}
+	47%,
+	100% {
+		stroke-dashoffset: -1;
+		opacity: 0;
+	}
+}
+@keyframes stack-pulse {
+	0%,
+	45% {
+		transform: scale(1);
+		opacity: 0;
+	}
+	46% {
+		opacity: 0.9;
+	}
+	58%,
+	100% {
+		transform: scale(1.9);
+		opacity: 0;
+	}
+}
+@keyframes stack-meridian {
+	0% {
+		transform: scaleX(1);
+	}
+	50% {
+		transform: scaleX(0);
+	}
+	100% {
+		transform: scaleX(-1);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.stack-tile,
+	.stack-cell,
+	.stack-hatch,
+	.stack-pod,
+	.stack-meridian {
+		animation: none;
+	}
+	.stack-hatch {
+		stroke-dasharray: none;
+		opacity: 0.6;
+	}
+	.stack-pod {
+		fill-opacity: 0.24;
+	}
+	.stack-meridian-b {
+		transform: scaleX(0.45);
+	}
+	.stack-pins,
+	.stack-trace,
+	.stack-pulse {
+		display: none;
+	}
+}

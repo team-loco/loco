@@ -6,12 +6,11 @@ import { functionalUpdate } from "@tanstack/react-table";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
-import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
+import { BellIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 
-import { Button } from "@/components/design/Button";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
@@ -31,13 +30,13 @@ import { isUnimplemented } from "@/lib/error-handler";
 import { errorShare, TRAFFIC_METRICS, trafficPoints, trafficValue, type TrafficPoint } from "@/lib/traffic";
 import { sortParser } from "@/lib/sort-parser";
 import { HOUR_MS, MINUTE_MS, aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
-import { newResourcePath, resourcePath } from "@/lib/routes";
+import { resourcePath } from "@/lib/routes";
 import { formatHourMinute, readyMs, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { filteredResources, useObs, type ObsResource } from "./context";
 import { MetricChart, type ChartMarker, type ChartSeries, type PinAction } from "./MetricChart";
-import { coversWholeRange, ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { ObsHero } from "./ObsEmpty";
 import { liveTokens, narrow, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
 import { ViewHeader } from "./ViewHeader";
@@ -407,7 +406,7 @@ function Meter({ value, format }: { value: { v: number; limit: number } | undefi
 
 export function MetricsView() {
 	const timePref = useTimePreferences();
-	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, maxMs, goTo, setQuery, text } = useObs();
+	const { orgId, workspaceId, resources, resourcesLoading, tokens, range, goTo, setQuery, text } = useObs();
 	const navigate = useNavigate();
 	const [sort, setSort] = useQueryState("sort", metricSortParser);
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
@@ -522,31 +521,6 @@ export function MetricsView() {
 			</>
 		);
 	}
-	if (!loading && cpu.series.length === 0 && mem.series.length === 0 && tokens.length === 0) {
-		return (
-			<>
-				<ViewHeader />
-				<ObsHero
-					view="metrics"
-					title={coversWholeRange(range, maxMs) ? "No metrics collected" : "No metrics in this range"}
-					body="CPU and memory start as soon as a resource is up. Requests and latency come from resources with a public address."
-					action={
-						<>
-							<Button
-								nativeButton={false}
-								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.slug } : {})} />}
-							>
-								<PlusIcon />
-								New resource
-							</Button>
-							<WidenRangeButton />
-						</>
-					}
-				/>
-			</>
-		);
-	}
-
 	const focusRow = (p: Placement) => {
 		setQuery(
 			[

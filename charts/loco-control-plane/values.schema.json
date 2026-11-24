@@ -967,6 +967,9 @@
         }
       ],
       "properties": {
+        "docsURL": {
+          "type": "string"
+        },
         "enabled": {
           "type": "boolean"
         },
