@@ -451,9 +451,7 @@ func TestListWorkspaceResourcesListsTheGrantedResources(t *testing.T) {
 	t.Parallel()
 	f := newResourceListFixture(t)
 	f.tenant.resource(t, f.workspaceID, "hidden", &resourcev1.ServiceSpec{
-		Regions: map[string]*resourcev1.RegionTarget{
-			"hidden-region": {Enabled: true, Cpu: testRegionCPU, Memory: testRegionMemory},
-		},
+		Regions: map[string]*resourcev1.RegionTarget{"hidden-region": {Enabled: true}},
 	})
 	f.ctx = reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.ids[listAlpha], Scope: genDb.ScopeRead},

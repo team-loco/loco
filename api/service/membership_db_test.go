@@ -20,7 +20,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/limits"
-	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/admin/v1/adminv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -92,7 +91,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine))
 	adminv1connect.RegisterSystemAdminServiceHandler(server, NewSystemAdminServer(pool, queries))
 	tokenv1connect.RegisterTokenServiceHandler(server, NewTokenServer(pool, queries, machine, limits.Defaults()))
-	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute, limits.Defaults())
+	resources := NewResourceServer(pool, queries, testServiceDefaults(), time.Minute, limits.Defaults())
 	resourcev1connect.RegisterResourceServiceHandler(server, resources)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
@@ -525,9 +524,7 @@ func (o *membershipOrg) sharedResource(t *testing.T, name string) uuid.UUID {
 	created, err := o.owner.clients.Resource.CreateResource(t.Context(), &resourcev1.CreateResourceRequest{
 		WorkspaceId: o.shared, Name: name, Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec: &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{
-			Regions: map[string]*resourcev1.RegionTarget{
-				testRegion: {Enabled: true, Cpu: testRegionCPU, Memory: testRegionMemory},
-			},
+			Regions: map[string]*resourcev1.RegionTarget{testRegion: {Enabled: true}},
 		}}},
 	})
 	if err != nil {

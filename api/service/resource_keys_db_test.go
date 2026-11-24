@@ -116,7 +116,7 @@ func TestCreateResourceRejectsAnInvalidSlug(t *testing.T) {
 	}
 }
 
-func TestCreateResourceRejectsARegionSizeThatIsNotAQuantity(t *testing.T) {
+func TestCreateResourceChecksTheRegionSizeItWillDeployWith(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
@@ -124,20 +124,30 @@ func TestCreateResourceRejectsARegionSizeThatIsNotAQuantity(t *testing.T) {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeWrite},
 	}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{UserID: f.userID, Scopes: scopes})
-	for _, size := range []struct{ cpu, memory string }{{"lots", testRegionMemory}, {testRegionCPU, "plenty"}} {
+	create := func(name, cpu, memory string) error {
 		spec := testResourceSpec()
 		region := spec.GetService().GetRegions()[testRegion]
-		region.Cpu, region.Memory = size.cpu, size.memory
+		region.Cpu, region.Memory = cpu, memory
 		_, err := server.CreateResource(ctx, &resourcev1.CreateResourceRequest{
 			WorkspaceId: f.workspaceID(t).String(),
-			Name:        "sized",
+			Name:        name,
 			Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 			Spec:        spec,
 		})
-		wantCode(t, err, connect.CodeInvalidArgument)
-		if !errors.Is(err, servicedefaults.ErrInvalidCPU) && !errors.Is(err, servicedefaults.ErrInvalidMemory) {
-			t.Fatalf("cpu %q memory %q: err = %v, want an invalid size", size.cpu, size.memory, err)
-		}
+		return err
+	}
+	err := create("bad-cpu", "lots", testRegionMemory)
+	wantCode(t, err, connect.CodeInvalidArgument)
+	if !errors.Is(err, servicedefaults.ErrInvalidCPU) {
+		t.Fatalf("cpu err = %v, want ErrInvalidCPU", err)
+	}
+	err = create("bad-memory", testRegionCPU, "plenty")
+	wantCode(t, err, connect.CodeInvalidArgument)
+	if !errors.Is(err, servicedefaults.ErrInvalidMemory) {
+		t.Fatalf("memory err = %v, want ErrInvalidMemory", err)
+	}
+	if err = create("no-size", "", ""); err != nil {
+		t.Fatalf("create without a size, which deploy fills from the defaults: %v", err)
 	}
 }
 

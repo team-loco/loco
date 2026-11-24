@@ -141,7 +141,8 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	for _, target := range req.GetSpec().GetService().GetRegions() {
-		if sizeErr := validateSize(target.GetCpu(), target.GetMemory()); sizeErr != nil {
+		size := s.defaults.Fill(target, nil)
+		if sizeErr := validateSize(size.CPU, size.Memory); sizeErr != nil {
 			return nil, &invalidInputError{public: publicInvalidRequest, err: sizeErr}
 		}
 	}
