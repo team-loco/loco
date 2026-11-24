@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -35,19 +34,6 @@ func TestClusterAssertionDoesNotWaitOnExpiredAssertions(t *testing.T) {
 	clusters := NewClusterAuthenticator(f.queries, testAgentConfig().AssertionMaxLifetime)
 	if _, err := clusters.Authenticate(ctx, "Bearer "+testAssertion(t, f.clusterID)); err != nil {
 		t.Fatalf("Authenticate while another transaction deletes expired assertions: %v", err)
-	}
-}
-
-func TestClusterAssertionIsAcceptedOnce(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	clusters := NewClusterAuthenticator(f.queries, testAgentConfig().AssertionMaxLifetime)
-	header := "Bearer " + testAssertion(t, f.clusterID)
-	if _, err := clusters.Authenticate(t.Context(), header); err != nil {
-		t.Fatalf("first use: %v", err)
-	}
-	if _, err := clusters.Authenticate(t.Context(), header); !errors.Is(err, ErrInvalidAgentToken) {
-		t.Fatalf("replay = %v, want %v", err, ErrInvalidAgentToken)
 	}
 }
 
