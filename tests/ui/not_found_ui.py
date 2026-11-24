@@ -427,7 +427,7 @@ with session(out) as browser:
     expect(account).not_to_contain_text(state["users"]["member"]["email"])
     account.click()
     page.get_by_role("menuitem", name="Sign out", exact=True).click()
-    expect(page).to_have_url(ui + "/")
+    expect(page).to_have_url(ui + "/login")
     assert not errors, errors
     cases.append("member")
     context.close()
@@ -455,17 +455,11 @@ with session(out) as browser:
     cases.append("system-admin")
     context.close()
 
-    # A self-hosted install, the default, shows the sign-in card at / and waits for a click.
+    # A self-hosted install, the default, sends / to sign-in, which waits for a click.
     context, page, errors = open_page(browser, None)
     page.goto(ui + "/")
-    expect(
-        page.get_by_role("heading", name="Sign in to loco", exact=True)
-    ).to_be_visible()
+    expect(page).to_have_url(ui + "/login")
     expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
-    expect(page).to_have_url(ui + "/")
-    expect(page.get_by_role("button", name="Onboard your agent to Loco")).to_have_count(
-        0
-    )
     assert not errors, errors
     cases.append("self-hosted-root")
     context.close()
@@ -474,10 +468,10 @@ with session(out) as browser:
     held = []
     context.route(CONFIG, multi_tenant)
     context.route(CONFIG, held.append, times=1)
-    # The sign-in check settles while the config is held, and / shows neither page.
-    with page.expect_request(CONFIG), page.expect_response("**/WhoAmI*"):
-        page.goto(ui + "/")
-    expect(page.get_by_role("heading", name="Sign in to loco")).to_have_count(0)
+    page.goto(ui + "/")
+    expect(page.get_by_role("status")).to_be_visible()
+    assert held
+    expect(page).to_have_url(ui + "/")
     expect(page.get_by_role("button", name="Onboard your agent to Loco")).to_have_count(
         0
     )

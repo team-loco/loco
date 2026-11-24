@@ -62,6 +62,13 @@ with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     page.route(METRICS, metrics)
     page.route(ALLOCATION, allocation)
+    served = []
+
+    def config(route):
+        route.fulfill(response=route.fetch())
+        served.append(route)
+
+    page.route(CONFIG, config)
     listed = []
     page.on(
         "request",
@@ -72,7 +79,6 @@ with session(out) as browser:
         ),
     )
     with (
-        page.expect_response(CONFIG),
         expect_rpc(page, "GetEnvironmentAllocation", lambda body: True),
         expect_rpc(
             page,
@@ -83,9 +89,6 @@ with session(out) as browser:
         ),
     ):
         page.goto(f"{base}?env=production")
-    # A self-hosted install, the default, has no Spend card.
-    expect(page.get_by_role("group", name=re.compile(r"^Allocated: "))).to_be_visible()
-    expect(page.get_by_label(SPEND)).to_have_count(0)
     ranges = page.get_by_role("group", name="Time range", exact=True)
     expect(ranges.get_by_role("button")).to_have_text(["24h", "7d", "30d"])
     with expect_rpc(
@@ -110,6 +113,11 @@ with session(out) as browser:
     ), listed
     more.click()
     expect(page).to_have_url(re.compile(r"/resources\?.*sort=size\.desc"))
+    # A self-hosted install, the default, has no Spend card.
+    assert served
+    page.go_back()
+    expect(allocated).to_contain_text("GiB memory")
+    expect(page.get_by_label(SPEND)).to_have_count(0)
 
     failing = True
     page.goto(f"{base}?env=production")

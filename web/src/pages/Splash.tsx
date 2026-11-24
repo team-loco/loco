@@ -2,11 +2,10 @@ import { useQueryState } from "nuqs";
 import { Navigate } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { signInOnClickState } from "@/auth/next";
 import { useSignIn } from "@/auth/SignIn";
-import { PageTitle } from "@/components/PageTitle";
 import { AppLoading } from "@/context/AppLoader";
 import { useMultiTenant } from "@/hooks/useMultiTenant";
-import { SignInCard } from "@/pages/auth/SignInCard";
 
 import { Architecture } from "./splash/Architecture";
 import { Features } from "./splash/Features";
@@ -31,14 +30,9 @@ export function Splash() {
 		return <AppLoading />;
 	}
 
-	// A signed-out visitor, including one who just logged out, starts sign-in with a click.
+	// Log out lands here, so sign-in waits for a click.
 	if (!multiTenant) {
-		return (
-			<>
-				<PageTitle title="Sign in" />
-				<SignInCard next={null} loginHint={loginHint} error={null} autoStart={false} />
-			</>
-		);
+		return <Navigate to="/login" replace state={signInOnClickState} />;
 	}
 
 	const startSignIn = () => {
