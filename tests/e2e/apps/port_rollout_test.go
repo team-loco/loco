@@ -34,7 +34,7 @@ func TestPortRollout(t *testing.T) {
 	// This unlabelled pod is outside the workspace and cannot use the gateway-only ingress rule.
 	// Verify enforcement before using a passing request stream as evidence for the policy change.
 	p.DeleteOnCleanup(t, "-n", p.Namespace, "pod", "port-rollout-denied")
-	if p.Reaches(t, platform.ProbePod{Namespace: p.Namespace, Name: "port-rollout-denied"}, serviceURL(w, id)) {
+	if p.Reaches(t, platform.ProbePod{Namespace: p.Namespace, Name: "port-rollout-denied"}, serviceURL(t, w, id)) {
 		t.Fatal("a pod outside the workspace bypasses gateway ingress isolation")
 	}
 	var denied corev1.Pod
