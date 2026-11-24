@@ -18,7 +18,6 @@ import signal
 import subprocess
 import sys
 import tarfile
-import tempfile
 import time
 import tomllib
 import urllib.error
@@ -1355,7 +1354,12 @@ def renew(state):
     """Extends the lease of a run and of the shared OpenBao it uses."""
     address = state.get("openbao")
     shared = [s["root"] for s in states() if address and s.get("address") == address]
-    testres("renew", state["root"], *shared)
+    testres(
+        "renew",
+        state["root"],
+        *shared,
+        *([state["script"]] if "script" in state else []),
+    )
 
 
 def reap():
@@ -1695,23 +1699,35 @@ def start_state(*, ref, name, scenario, issuer=None):
 
 def cmd_up(args):
     repo = repo_root()
-    if git_commit(repo, args.ref) == git_commit(repo, "HEAD"):
+    commit = git_commit(repo, args.ref)
+    if commit == git_commit(repo, "HEAD"):
         print(start_state(ref=args.ref, name=args.name, scenario=args.scenario))
         return
-    # An earlier ref is started by its own copy of this script, so its seeding
-    # matches that ref's schema. The checkout lives as long as the run.
-    checkout = Path(tempfile.mkdtemp(prefix=f"{LABEL}-script-"))
-    run(
-        ["git", "-C", str(repo), "worktree", "add", "--detach", str(checkout), args.ref]
-    )
+    # An earlier ref is started by its own copy of this script. The checkout lives as long as the run.
+    lease = Path(testres("lease", "-name", f"{LABEL}-script", "-ttl", f"{LEASE_S}s"))
+    state_path = None
     try:
-        result = subprocess.run(
+        checkout = lease / "src"
+        testres("add", lease, "worktree", checkout)
+        run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "worktree",
+                "add",
+                "--detach",
+                str(checkout),
+                commit,
+            ]
+        )
+        child = subprocess.Popen(
             [
                 sys.executable,
                 str(checkout / "tests" / "ui" / "evidence.py"),
                 "up",
                 "--ref",
-                args.ref,
+                commit,
                 "--name",
                 args.name,
                 "--scenario",
@@ -1722,14 +1738,25 @@ def cmd_up(args):
             text=True,
             stdout=subprocess.PIPE,
         )
-        if result.returncode != 0:
-            raise EvidenceError(f"up of {args.ref} failed ({result.returncode})")
-        state = result.stdout.strip()
-        testres("add", Path(state).parent, "worktree", checkout)
+        try:
+            stdout, _ = child.communicate()
+        except BaseException:
+            child.wait()  # The child stops its own run before the checkout it runs from goes.
+            raise
+        if child.returncode != 0:
+            raise EvidenceError(f"up of {args.ref} failed ({child.returncode})")
+        state_path = Path(stdout.strip())
+        state = load_state(state_path)
+        state["script"] = str(lease)
+        write_json(state_path, state)
     except BaseException:
-        run(["git", "-C", str(repo), "worktree", "remove", "--force", str(checkout)])
+        state = load_state(state_path) if state_path else {}
+        if state:
+            stop_state(state)
+        if "script" not in state:
+            testres("release", lease)
         raise
-    print(state)
+    print(state_path)
 
 
 def build(checkout, env):
@@ -2161,6 +2188,8 @@ def stop_state(state):
         except EvidenceError as err:
             log(f"left database {state['database']} to the next run's cleanup: {err}")
     testres("release", state["root"])
+    if "script" in state:
+        testres("release", state["script"])
     log(f"stopped {state['id']}")
 
 
