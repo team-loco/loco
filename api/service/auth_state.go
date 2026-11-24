@@ -28,8 +28,8 @@ type authStore interface {
 	// SetIfAbsent stores the value only when the key is absent or expired and the store has room,
 	// reporting whether it did.
 	SetIfAbsent(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
-	// Take removes the key, reporting whether this call removed a live entry.
-	Take(ctx context.Context, key string) (bool, error)
+	// Take removes a live entry and returns its value, or errAuthStateNotFound when another call took it first.
+	Take(ctx context.Context, key string) ([]byte, error)
 }
 
 // pgAuthStore keeps sign-in state in the auth_states table, holding at most maxEntries live rows.
@@ -72,10 +72,13 @@ func (s pgAuthStore) SetIfAbsent(ctx context.Context, key string, value []byte, 
 	return stored == 1, nil
 }
 
-func (s pgAuthStore) Take(ctx context.Context, key string) (bool, error) {
-	taken, err := s.queries.TakeAuthState(ctx, key)
-	if err != nil {
-		return false, fmt.Errorf("take auth state: %w", err)
+func (s pgAuthStore) Take(ctx context.Context, key string) ([]byte, error) {
+	value, err := s.queries.TakeAuthState(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, errAuthStateNotFound
 	}
-	return taken == 1, nil
+	if err != nil {
+		return nil, fmt.Errorf("take auth state: %w", err)
+	}
+	return value, nil
 }

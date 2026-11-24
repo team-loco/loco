@@ -263,15 +263,11 @@ func (s *AuthServer) ApproveCLILogin(
 }
 
 func (s *AuthServer) take(ctx context.Context, key string, into any) (bool, error) {
-	raw, err := s.state.Get(ctx, key)
+	raw, err := s.state.Take(ctx, key)
 	if errors.Is(err, errAuthStateNotFound) {
 		return false, nil
 	}
 	if err != nil {
-		return false, err
-	}
-	took, err := s.state.Take(ctx, key)
-	if err != nil || !took {
 		return false, err
 	}
 	return true, json.Unmarshal(raw, into)
@@ -389,16 +385,12 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if len(userCode) != userCodeLength {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
-	deviceDigest, err := s.state.Get(ctx, userCodeKey(userCode))
+	deviceDigest, err := s.state.Take(ctx, userCodeKey(userCode))
 	if errors.Is(err, errAuthStateNotFound) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	if err != nil {
 		return nil, authStoreUnavailable(err)
-	}
-	took, err := s.state.Take(ctx, userCodeKey(userCode))
-	if err != nil || !took {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	key := deviceKey(string(deviceDigest))
 	raw, err := s.state.Get(ctx, key)
@@ -468,8 +460,7 @@ func (s *AuthServer) PollDeviceLogin(
 		}
 		return &authv1.PollDeviceLoginResponse{}, nil
 	}
-	took, err := s.state.Take(ctx, key)
-	if err != nil || !took {
+	if _, takeErr := s.state.Take(ctx, key); takeErr != nil {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDeviceCodeExpired)
 	}
 	tokens, err := s.issue(ctx, cliGrant{UserID: *device.UserID}, info)

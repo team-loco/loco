@@ -52,11 +52,11 @@ func TestAuthStateTakeSucceedsOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	wins := countConcurrent(32, func() bool {
-		took, err := store.Take(t.Context(), "take")
-		if err != nil {
+		_, err := store.Take(t.Context(), "take")
+		if err != nil && !errors.Is(err, errAuthStateNotFound) {
 			t.Error(err)
 		}
-		return took
+		return err == nil
 	})
 	if wins != 1 {
 		t.Fatalf("Take succeeded %d times, want 1", wins)
@@ -103,8 +103,8 @@ func TestAuthStateExpires(t *testing.T) {
 	if _, err := store.Get(t.Context(), "stale"); !errors.Is(err, errAuthStateNotFound) {
 		t.Fatalf("Get(stale) err = %v, want errAuthStateNotFound", err)
 	}
-	if took, err := store.Take(t.Context(), "stale"); err != nil || took {
-		t.Fatalf("Take(stale) = %v, %v", took, err)
+	if _, err := store.Take(t.Context(), "stale"); !errors.Is(err, errAuthStateNotFound) {
+		t.Fatalf("Take(stale) err = %v, want errAuthStateNotFound", err)
 	}
 	if err := genDb.New(pool).DeleteExpiredAuthStates(t.Context()); err != nil {
 		t.Fatal(err)

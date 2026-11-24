@@ -381,7 +381,7 @@ type Querier interface {
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
 	SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error)
-	TakeAuthState(ctx context.Context, key string) (int64, error)
+	TakeAuthState(ctx context.Context, key string) ([]byte, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error

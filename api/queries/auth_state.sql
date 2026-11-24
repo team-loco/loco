@@ -19,8 +19,8 @@ WHERE (SELECT count(*) FROM (SELECT 1 FROM auth_states WHERE expires_at > NOW() 
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, expires_at = EXCLUDED.expires_at
 WHERE auth_states.expires_at <= NOW();
 
--- name: TakeAuthState :execrows
-DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW();
+-- name: TakeAuthState :one
+DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW() RETURNING value;
 
 -- name: DeleteExpiredAuthStates :exec
 DELETE FROM auth_states WHERE expires_at <= NOW();

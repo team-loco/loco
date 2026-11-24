@@ -89,14 +89,13 @@ func (q *Queries) SetAuthStateIfAbsent(ctx context.Context, arg SetAuthStateIfAb
 	return result.RowsAffected(), nil
 }
 
-const takeAuthState = `-- name: TakeAuthState :execrows
-DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW()
+const takeAuthState = `-- name: TakeAuthState :one
+DELETE FROM auth_states WHERE key = $1 AND expires_at > NOW() RETURNING value
 `
 
-func (q *Queries) TakeAuthState(ctx context.Context, key string) (int64, error) {
-	result, err := q.db.Exec(ctx, takeAuthState, key)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) TakeAuthState(ctx context.Context, key string) ([]byte, error) {
+	row := q.db.QueryRow(ctx, takeAuthState, key)
+	var value []byte
+	err := row.Scan(&value)
+	return value, err
 }
