@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Build the API and production UI of this checkout once (a clean checkout reuses its commit's cached build), then run the dashboard suites in tests/ui, each with its own API process, database and seed on the OpenBao and Postgres server every run on the machine shares: every *_ui.py (Chromium) and *_api.py file, or the named suites. Suites run --jobs at a time (default: one per two CPUs), longest first by tests/ui/durations; each suite's output prints when it ends. --shard i/N runs the ith of N shards of equal expected duration: test:ui [suite...] [--shard i/N] [--jobs N]"
+#MISE description="Build the API and production UI of this checkout once (a clean checkout reuses its commit's cached build), then run the dashboard suites in tests/ui, each with its own API process, database and seed on the OpenBao and Postgres server every run on the machine shares: every *_ui.py (Chromium) and *_api.py file, or the named suites. Suites run --jobs at a time (default: one per two CPUs), longest first by tests/ui/durations; each suite's output prints when it ends; a suite named n times runs n times. --shard i/N runs the ith of N shards of equal expected duration: test:ui [suite...] [--shard i/N] [--jobs N]"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -65,6 +65,16 @@ done < <(
 suites=(${selected[@]+"${selected[@]}"})
 if ((jobs > ${#suites[@]})); then jobs=${#suites[@]}; fi
 
+# A suite named n times runs n times; runs after the first are labelled name#2, name#3.
+runs=()
+for suite in ${suites[@]+"${suites[@]}"}; do
+	seen=0
+	for run in ${runs[@]+"${runs[@]}"}; do
+		if [[ ${run%%#*} == "$suite" ]]; then seen=$((seen + 1)); fi
+	done
+	if ((seen == 0)); then runs+=("$suite"); else runs+=("$suite#$((seen + 1))"); fi
+done
+
 if git grep -nE 'expect_response|wait_for_response|networkidle' -- 'tests/ui/*.py' ':!tests/ui/harness.py'; then
 	echo "Wait with harness.expect_rpc on the request body, or for the outcome on screen." >&2
 	exit 1
@@ -84,47 +94,47 @@ echo "Built the API and UI in $((SECONDS - start))s"
 mkfifo "$logs/done"
 exec 3<>"$logs/done"
 run_suite() {
-	local suite=$1 start=$SECONDS status=0 out=/dev/stdout
-	if ((jobs > 1)); then out=$logs/$suite.log; fi
-	uv run --frozen --project tests python "tests/ui/$suite.py" >"$out" 2>&1 || status=$?
-	echo "$suite $status $((SECONDS - start))" >&3
+	local run=$1 start=$SECONDS status=0 out=/dev/stdout
+	if ((jobs > 1)); then out=$logs/$run.log; fi
+	uv run --frozen --project tests python "tests/ui/${run%%#*}.py" >"$out" 2>&1 || status=$?
+	echo "$run $status $((SECONDS - start))" >&3
 }
 # Run every selected suite even after a failure, so one run reports them all.
 failed=()
 running=()
 finish_one() {
-	local heartbeat suite status seconds name rest=()
+	local heartbeat run status seconds name rest=()
 	# A background loop reports progress while this read blocks for the whole line.
 	while sleep 60 >/dev/null; do echo "still running: ${running[*]}"; done &
 	heartbeat=$!
-	read -r suite status seconds <&3
+	read -r run status seconds <&3
 	kill "$heartbeat" 2>/dev/null || true
 	wait "$heartbeat" 2>/dev/null || true
 	for name in "${running[@]}"; do
-		if [[ $name != "$suite" ]]; then rest+=("$name"); fi
+		if [[ $name != "$run" ]]; then rest+=("$name"); fi
 	done
 	running=(${rest[@]+"${rest[@]}"})
 	if ((jobs > 1)); then
-		echo "::group::$suite"
-		cat "$logs/$suite.log"
+		echo "::group::$run"
+		cat "$logs/$run.log"
 		echo "::endgroup::"
 	fi
 	if ((status == 0)); then
-		echo "$suite passed in ${seconds}s"
+		echo "$run passed in ${seconds}s"
 	else
-		echo "$suite failed in ${seconds}s"
-		failed+=("$suite")
+		echo "$run failed in ${seconds}s"
+		failed+=("$run")
 	fi
 }
 start=$SECONDS
-for suite in ${suites[@]+"${suites[@]}"}; do
+for run in ${runs[@]+"${runs[@]}"}; do
 	if ((${#running[@]} == jobs)); then finish_one; fi
-	run_suite "$suite" &
-	running+=("$suite")
+	run_suite "$run" &
+	running+=("$run")
 done
 while ((${#running[@]} > 0)); do finish_one; done
 wait
-echo "Ran ${#suites[@]} suites, $jobs at a time, in $((SECONDS - start))s"
+echo "Ran ${#runs[@]} suites, $jobs at a time, in $((SECONDS - start))s"
 if [[ ${#failed[@]} -gt 0 ]]; then
 	echo "Failed suites: ${failed[*]}" >&2
 	exit 1
