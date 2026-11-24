@@ -39,6 +39,7 @@ func TestPullWithRetry(t *testing.T) {
 		{"succeeds first time", []string{""}, 1, false},
 		{"retries a dropped request", []string{"failed to do request: Get https://registry.test/blob: EOF\n", ""}, 2, false},
 		{"retries a dropped transfer", []string{droppedTransfer, ""}, 2, false},
+		{"retries a dropped upload", []string{strings.Replace(droppedTransfer, "read tcp", "write tcp", 1), ""}, 2, false},
 		{"retries a token endpoint 522", []string{tokenStatus + "522", ""}, 2, false},
 		{"does not retry a token endpoint 401", []string{tokenStatus + "401", ""}, 1, true},
 		{"retries a registry 502", []string{registryBadGateway, registryBadGateway, ""}, 3, false},

@@ -75,7 +75,7 @@ esac
 			t.Setenv("FAKE_MANIFEST", tc.manifest)
 			t.Setenv("FAKE_FAILURE", tc.failure)
 			t.Setenv("FAKE_FAILURES", tc.failures)
-			cluster := &Cluster{root: root, env: os.Environ(), pullimage: pullimage}
+			cluster := &Cluster{root: dir, env: os.Environ(), pullimage: pullimage}
 			ctx := t.Context()
 			if tc.stop != nil {
 				var cancel context.CancelFunc

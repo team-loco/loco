@@ -183,12 +183,12 @@ func (c *Cluster) pullPrebuilt(ctx context.Context, reference, tag string, retry
 			pull = reference[:strings.LastIndex(reference, ":")] + "@" + manifest.Digest
 		}
 	}
-	// A newly published index can be readable before its platform manifest. Only wait
-	// for the immutable child that this index actually names; other failures stay fatal.
 	pullimage, err := c.pullimageBinary(ctx)
 	if err != nil {
 		return err
 	}
+	// A newly published index can be readable before its platform manifest. Only wait
+	// for the immutable child that this index actually names; other failures stay fatal.
 	pullCtx, cancel := context.WithTimeout(ctx, publishedImageTimeout)
 	defer cancel()
 	var firstFailure error

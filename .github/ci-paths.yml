@@ -64,7 +64,7 @@ buf:
 charts:
   go:
     # The controlplane shard runs these images.
-    build: [api, observability-proxy, tests/e2e/fixtures/api-failover]
+    build: [api, observability-proxy, tests/e2e/fixtures/api-failover, tools/pullimage]
     test: [tests/e2e/controlplane]
   pull_request: &charts
     - "charts/**"
