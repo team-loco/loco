@@ -94,6 +94,9 @@
 [data-nav="Secrets"][data-active] svg > :nth-child(3) {
 	transform: translateY(-2px) rotate(-16deg);
 }
+[data-nav="Settings"]:not([data-active]) svg > * {
+	transition-duration: 0.6s;
+}
 [data-nav="Settings"][data-active] svg > :nth-child(1) {
 	transform: translateX(-6px);
 }
