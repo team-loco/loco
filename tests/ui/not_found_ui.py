@@ -471,6 +471,16 @@ with session(out) as browser:
         f"'{uuid.UUID(int=0)}');",
     )
     context, page, errors = open_page(browser, "resource_reader")
+    # While the lookup of an organization outside the caller's list is in flight, the shell shows the loading rows.
+    slow = context.new_page()
+    held = []
+    slow.route("**/loco.org.v1.OrgService/GetOrg", lambda route: held.append(route))
+    slow.goto(ui + f"/org/{uuid.UUID(int=0)}/team", wait_until="commit")
+    expect(slow.locator('[data-slot="page-loader"]')).to_be_visible()
+    for route in held:
+        route.continue_()
+    expect_not_found(slow, f"/org/{uuid.UUID(int=0)}/team")
+    slow.close()
     # The not-found page appears once and nothing replaces it.
     context.add_init_script(
         f"const title = {json.dumps(TITLE)};"

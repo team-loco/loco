@@ -29,7 +29,7 @@ export function useWorkspace(orgId: string | null, workspaceId: string | null) {
 			enabled: reads,
 			staleTime: WORKSPACE_STALE_MS,
 			retryOnMount: false,
-			refetchOnWindowFocus: refetchUnlessMissing,
+			refetchOnWindowFocus: refetchUnlessMissing(true),
 		},
 	);
 	const granted = useQuery(

@@ -54,7 +54,6 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const workspaceAccess =
 		orgParam !== undefined && workspaceParam !== undefined ? scopes.workspaceLevel(orgParam, workspaceParam) : 0;
 	const workspaceLookup = workspaceAccess >= 1;
-	// A lookup that said the workspace is absent is not asked again, so its answer stays.
 	const urlWorkspace = useQuery(
 		getWorkspace,
 		{ workspaceId: workspaceParam ?? "" },
@@ -62,7 +61,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			enabled: workspaceLookup,
 			staleTime: WORKSPACE_STALE_MS,
 			retryOnMount: false,
-			refetchOnWindowFocus: refetchUnlessMissing,
+			refetchOnWindowFocus: refetchUnlessMissing(true),
 		},
 	);
 	// A caller whose scopes cover every organization (system) can open an ID that is not in its list.
@@ -72,12 +71,14 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const urlOrg = useQuery(
 		getOrg,
 		{ orgId: orgParam ?? "" },
-		{ enabled: orgLookup, refetchOnWindowFocus: refetchUnlessMissing },
+		{ enabled: orgLookup, refetchOnWindowFocus: refetchUnlessMissing(false) },
 	);
 
-	// An organization outside the caller's list cannot be told from a missing one until its lookups answer.
-	const lookupsPending = (orgLookup && urlOrg.isPending) || (workspaceLookup && urlWorkspace.isPending);
-	const routeLoading = unlisted && lookupsPending;
+	// An organization the caller reaches only through its scopes cannot be told from a missing one until the lookups answer.
+	const orgPending = urlOrg.isPending;
+	const workspacePending = workspaceLookup && urlWorkspace.isPending;
+	const lookupPending = orgPending || workspacePending;
+	const routeLoading = orgLookup && lookupPending;
 	const orgsAnswered = !scopes.isLoading && !orgsQuery.isPending;
 	const routeDecided = orgsAnswered && !routeLoading;
 	// not_found and invalid_argument mean the organization or workspace is absent. A denial counts as absent
