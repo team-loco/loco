@@ -62,3 +62,11 @@ for (const theme of themes) {
 		});
 	}
 }
+
+for (const dark of [false, true]) {
+	test(`catppuccin active nav text reads at 4.5:1 and its icon at 3:1 on the active fill: ${dark ? "dark" : "light"}`, () => {
+		const t = { ...tokens("loco", dark), ...tokens("catppuccin", dark) };
+		expect(ratio(t["--fg"]!, t["--shell-active"]!)).toBeGreaterThanOrEqual(4.5);
+		expect(ratio(t["--btn"]!, t["--shell-active"]!)).toBeGreaterThanOrEqual(3);
+	});
+}
