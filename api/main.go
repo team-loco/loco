@@ -69,6 +69,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
+	"github.com/team-loco/loco/internal/gomemlimit"
 	"github.com/team-loco/loco/internal/ingesttoken"
 )
 
@@ -162,6 +163,7 @@ func run() error {
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
+	gomemlimit.Set(logger)
 	slog.Info("starting loco api", "version", ac.Version)
 
 	tracerProvider, err := startTracing(context.Background(), ac.TracingEnabled, ac.Version)

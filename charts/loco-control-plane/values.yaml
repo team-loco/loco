@@ -139,12 +139,12 @@ api:
     # @schema type: integer; minimum: 1; maximum: 2147483647
     maxPerCaller: 50
   env: {}
-  # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2. The chart sets GOMEMLIMIT to the
-  # memory limit; memory the kernel charges outside the Go heap, such as page cache, is not counted.
+  # The Go runtime sets GOMAXPROCS from the CPU limit, at least 2; Go containers have a CPU limit of
+  # at least 2. Loco's Go binaries set their Go memory limit to 90% of the container memory limit.
   # @schema skipProperties
   resources:
     requests:
-      cpu: 250m
+      cpu: 400m
       memory: 256Mi
     limits:
       cpu: "2"
@@ -176,6 +176,14 @@ gateway:
   name: loco-control-plane
   className: loco-control-plane
   service: {}
+  # Envoy's container in the gateway's Envoy Deployment.
+  # @schema skipProperties
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
   tlsSecretName: ""
 
 # @schema additionalProperties: false
@@ -210,7 +218,7 @@ obsProxy:
         cpu: 100m
         memory: 256Mi
       limits:
-        cpu: 1000m
+        cpu: "2"
         memory: 1Gi
     port: 8080
     grpcPort: 4317
@@ -292,7 +300,7 @@ clickhouse:
         cpu: "1"
         memory: 4Gi
       limits:
-        cpu: "2"
+        cpu: "4"
         memory: 4Gi
     persistence:
       enabled: true
@@ -391,7 +399,7 @@ openbao:
       cpu: 100m
       memory: 256Mi
     limits:
-      cpu: "1"
+      cpu: "2"
       memory: 512Mi
   # @schema additionalProperties: false
   seal:

@@ -427,3 +427,19 @@ tests:
       - matchRegex:
           path: data.relay
           pattern: 'k8s_attributes/route_namespace'
+
+  - it: gives every collector a CPU request and a CPU limit of 2
+    asserts:
+      - equal: &collectorCPULimit
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - equal: *collectorCPULimit
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - equal: *collectorCPULimit
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - exists: &collectorRequests
+          path: spec.template.spec.containers[0].resources.requests.cpu
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - exists: *collectorRequests
+        template: charts/otel-col-cluster/templates/statefulset.yaml

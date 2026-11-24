@@ -18,6 +18,7 @@ import (
 
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
+	"github.com/team-loco/loco/internal/gomemlimit"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
@@ -151,6 +152,7 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
+	gomemlimit.Set(logger)
 
 	proxyVersion := buildinfo.Version(version)
 	logStartup(logger, cfg, proxyVersion)

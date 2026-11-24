@@ -49,6 +49,7 @@ require (
 	connectrpc.com/connect v1.21.0 // indirect
 	github.com/ClickHouse/ch-go v0.75.0 // indirect
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0 // indirect
+	github.com/KimMachineGun/automemlimit v1.0.2 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.26 // indirect
@@ -96,6 +97,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/paulmach/orb v0.14.0 // indirect
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect

@@ -9,6 +9,7 @@ templates:
   - charts/otel-col-deploy/templates/service.yaml
   - charts/gateway-helm/templates/envoy-gateway-config.yaml
   - charts/gateway-helm/templates/infra-manager-rbac.yaml
+  - charts/gateway-helm/templates/envoy-gateway-deployment.yaml
 tests:
   - it: deploys proxies beside their Gateways with cross-namespace infrastructure permissions
     asserts:
@@ -96,7 +97,7 @@ tests:
   - it: leaves the Envoy Service settings to Envoy Gateway by default
     asserts:
       - notExists:
-          path: spec.provider
+          path: spec.provider.kubernetes.envoyService
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
 
@@ -110,18 +111,34 @@ tests:
           value: {spec: {ports: [{port: 80, nodePort: 30080}]}}
     asserts:
       - equal:
-          path: spec.provider
+          path: spec.provider.kubernetes.envoyService
           value:
-            type: Kubernetes
-            kubernetes:
-              envoyService:
-                type: NodePort
-                externalTrafficPolicy: Cluster
-                patch:
-                  type: StrategicMerge
-                  value: {spec: {ports: [{port: 80, nodePort: 30080}]}}
+            type: NodePort
+            externalTrafficPolicy: Cluster
+            patch:
+              type: StrategicMerge
+              value: {spec: {ports: [{port: 80, nodePort: 30080}]}}
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
+
+  - it: reserves Envoy's measured CPU and bounds its memory without a CPU limit
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.envoyDeployment.container.resources
+          value: {requests: {cpu: 200m, memory: 256Mi}, limits: {memory: 1Gi}}
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+
+  - it: gives Envoy Gateway's controller a 150m CPU request and its Go memory limit from its container memory limit
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 150m
+        template: charts/gateway-helm/templates/envoy-gateway-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: GOMEMLIMIT, valueFrom: {resourceFieldRef: {resource: limits.memory}}}
+        template: charts/gateway-helm/templates/envoy-gateway-deployment.yaml
 
   - it: samples traces at the configured rate
     set:

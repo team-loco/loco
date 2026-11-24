@@ -31,6 +31,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
+	"github.com/team-loco/loco/internal/gomemlimit"
 )
 
 // agentLoops is the number of goroutines Agent.Run starts. Each gets a slot in errCh so none
@@ -45,6 +46,7 @@ func main() {
 	})
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
+	gomemlimit.Set(logger)
 
 	slog.Info("starting loco agent",
 		"control_plane", cfg.ControlPlaneURL,

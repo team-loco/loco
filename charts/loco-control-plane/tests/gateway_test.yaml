@@ -90,7 +90,7 @@ tests:
           value: {group: gateway.envoyproxy.io, kind: EnvoyProxy, name: loco-control-plane}
         documentSelector: {path: kind, value: Gateway}
       - notExists:
-          path: spec.provider
+          path: spec.provider.kubernetes.envoyService
         documentSelector: {path: kind, value: EnvoyProxy}
 
   - it: passes the Envoy Service settings the values give
@@ -100,8 +100,16 @@ tests:
     documentSelector: {path: kind, value: EnvoyProxy}
     asserts:
       - equal:
-          path: spec.provider
-          value: {type: Kubernetes, kubernetes: {envoyService: {type: NodePort, externalTrafficPolicy: Cluster}}}
+          path: spec.provider.kubernetes.envoyService
+          value: {type: NodePort, externalTrafficPolicy: Cluster}
+
+  - it: reserves Envoy's measured CPU and bounds its memory without a CPU limit
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: EnvoyProxy}
+    asserts:
+      - equal:
+          path: spec.provider.kubernetes.envoyDeployment.container.resources
+          value: {requests: {cpu: 200m, memory: 256Mi}, limits: {memory: 1Gi}}
 
   - it: serves HTTPS on 443 from the TLS Secret the values name
     set:

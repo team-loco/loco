@@ -13,14 +13,18 @@ kind: EnvoyProxy
 metadata:
   name: {{ .Values.gateway.name }}
   namespace: {{ .Values.gatewayNamespace }}
-spec: {{ if not .Values.gateway.service }}{}{{ end }}
-  {{- with .Values.gateway.service }}
+spec:
   provider:
     type: Kubernetes
     kubernetes:
+      envoyDeployment:
+        container:
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+      {{- with .Values.gateway.service }}
       envoyService:
         {{- toYaml . | nindent 8 }}
-  {{- end }}
+      {{- end }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway

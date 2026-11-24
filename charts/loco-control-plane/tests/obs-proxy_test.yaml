@@ -208,3 +208,10 @@ tests:
       - equal:
           path: spec.ingress[0].ports
           value: [{protocol: TCP, port: 4317}, {protocol: TCP, port: 4318}]
+
+  - it: gives the ingest proxy a CPU limit of 2, the Go runtime's minimum thread count
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"

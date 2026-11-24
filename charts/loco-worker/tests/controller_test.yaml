@@ -179,3 +179,10 @@ tests:
       - failedTemplate:
           errorMessage: "registry.pullSecretName applies only to registry.auth static; token mode copies the agent's Secrets"
 
+
+  - it: gives the controller a CPU limit of 2, the Go runtime's minimum thread count
+    template: templates/controller/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"

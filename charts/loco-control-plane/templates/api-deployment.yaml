@@ -47,13 +47,6 @@ spec:
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
-            {{- if not (hasKey .Values.api.env "GOMEMLIMIT") }}
-            - name: GOMEMLIMIT
-              valueFrom:
-                resourceFieldRef:
-                  containerName: api
-                  resource: limits.memory
-            {{- end }}
             - name: APP_PORT
               value: {{ printf "0.0.0.0:%v" .Values.api.port | quote }}
             - name: LOCO_SECRETS_TRANSIT_ADDR

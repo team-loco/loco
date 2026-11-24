@@ -137,6 +137,10 @@ spec:
               value: {{ printf "https://127.0.0.1:%v" .Values.openbao.port | quote }}
             - name: BAO_CACERT
               value: /openbao/tls/ca.crt
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
             {{- if eq $seal.type "transit" }}
             - name: BAO_TOKEN
               valueFrom:

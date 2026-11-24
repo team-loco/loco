@@ -27,6 +27,7 @@ require (
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2 // indirect
 	github.com/ClickHouse/ch-go v0.75.0 // indirect
+	github.com/KimMachineGun/automemlimit v1.0.2 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v7 v7.0.3 // indirect
@@ -56,6 +57,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.165.1 // indirect
 	github.com/paulmach/orb v0.14.0 // indirect
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/pressly/goose/v3 v3.29.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
