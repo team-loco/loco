@@ -8,19 +8,24 @@ import concurrent.futures
 import contextlib
 import fcntl
 import hashlib
+import http.client
 import http.server
 import importlib.metadata
 import json
 import os
 import re
+import select
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tarfile
+import threading
 import time
 import tomllib
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -1801,37 +1806,67 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def proxy_api(self):
-        request = urllib.request.Request(
-            self.api_url + self.path.removeprefix("/api"),
-            data=self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        upstream = urllib.parse.urlsplit(self.api_url)
+        connection = http.client.HTTPConnection(upstream.hostname, upstream.port)
+        body = (
+            self.rfile.read(int(self.headers.get("Content-Length", "0")))
             if self.command == "POST"
-            else None,
-            headers={
-                key: value
-                for key, value in self.headers.items()
-                if key.lower() not in ("host", "connection")
-            },
-            method=self.command,
+            else None
         )
+        headers = {
+            key: value
+            for key, value in self.headers.items()
+            if key.lower() not in ("host", "connection")
+        }
         try:
-            response = urllib.request.urlopen(request)
-        except urllib.error.HTTPError as error:
-            response = error
-        except urllib.error.URLError:
+            connection.request(
+                self.command,
+                self.path.removeprefix("/api"),
+                body,
+                headers | {"Connection": "close"},
+            )
+            # The response takes the socket over, so keep it to shut down.
+            upstream_socket = connection.sock
+            response = connection.getresponse()
+        except OSError:
+            connection.close()
             self.send_error(502, "API unavailable")
             return
-        with response:
+        # A stream the API sends nothing on never fails a write to the page, so the
+        # upstream closes when the page's socket does.
+        done = threading.Event()
+        watcher = threading.Thread(
+            target=self.close_upstream_on_disconnect, args=(upstream_socket, done)
+        )
+        watcher.start()
+        try:
             self.send_response(response.status)
             for key, value in response.headers.items():
                 if key.lower() not in ("connection", "transfer-encoding"):
                     self.send_header(key, value)
             self.end_headers()
-            try:
-                while chunk := response.read1(64 * 1024):
-                    self.wfile.write(chunk)
-                    self.wfile.flush()
-            except BrokenPipeError, ConnectionResetError:
-                pass  # The page left while a stream was being forwarded.
+            while chunk := response.read1(64 * 1024):
+                self.wfile.write(chunk)
+                self.wfile.flush()
+        except OSError, http.client.HTTPException:
+            pass  # The page left while a stream was being forwarded.
+        finally:
+            done.set()
+            watcher.join()
+            connection.close()
+
+    def close_upstream_on_disconnect(self, upstream, done):
+        while not done.wait(0.1):
+            readable, _, _ = select.select([self.connection], [], [], 0)
+            if readable:
+                try:
+                    left = not self.connection.recv(1, socket.MSG_PEEK)
+                except ConnectionError:
+                    left = True
+                if left:
+                    with contextlib.suppress(OSError):
+                        upstream.shutdown(socket.SHUT_RDWR)
+                    return
 
     def send_body(self, content_type, text):
         body = text.encode()
