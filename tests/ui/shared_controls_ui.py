@@ -1746,6 +1746,38 @@ def button_sizes(page):
         assert abs(heights[name, 16] - heights[name, 20]) < 0.02, heights
 
 
+def metric_lone_sample(page):
+    metrics = "**/loco.observability.v1.ObservabilityService/QueryMetrics"
+
+    def lone(route):
+        body = route.request.post_data_json
+        if body["metricName"] != "k8s.pod.cpu_limit_utilization":
+            route.fallback()
+            return
+        point = {
+            "timestamp": stamp(datetime.now(UTC), timedelta(minutes=10)),
+            "value": 0.4,
+        }
+        route.fulfill(
+            json={
+                "series": [
+                    {"resourceId": resource, "points": [point]},
+                    {"resourceId": sorted_resources[0], "points": telemetry_points},
+                ]
+            }
+        )
+
+    page.route(metrics, lone)
+    page.goto(
+        state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
+    )
+    chart = page.locator('[aria-label="CPU over time"]')
+    expect(chart.locator(".recharts-line")).to_have_count(2)
+    # A line with one sample has no length, so its sample is drawn as a dot; the full series draws none.
+    expect(chart.locator(".recharts-line-dots .recharts-dot")).to_have_count(1)
+    page.unroute(metrics, lone)
+
+
 def metrics_many(page):
     names = [f"controls-svc-{i:02d}" for i in range(13)]
     seeded = state.get("controls_many")
@@ -2438,6 +2470,7 @@ with session(out) as browser:
         dashboard_counts,
         traffic,
         button_sizes,
+        metric_lone_sample,
         metrics_many,
     ):
         check(page)

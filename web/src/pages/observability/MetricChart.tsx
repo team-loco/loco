@@ -1,3 +1,4 @@
+import { loneSampleDot } from "@/lib/chart-dot";
 import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { Fragment, useRef, useState, type ReactNode } from "react";
@@ -401,24 +402,26 @@ export function MetricChart({
 								/>
 							))}
 							{pin !== null && <ReferenceLine x={pin.t} stroke="var(--fg3)" />}
-							{series.map((s) => (
-								<Line
-									key={s.key}
-									dataKey={s.key}
-									name={s.name}
-									type="monotone"
-									stroke={s.color}
-									strokeWidth={highlightKey === s.key ? 2.4 : 1.6}
-									strokeOpacity={
-										highlightKey !== null ? (highlightKey === s.key ? 1 : DIMMED) : top.has(s.key) ? 1 : FADED
-									}
-									{...(s.dashed ? { strokeDasharray: DASH } : {})}
-									dot={false}
-									activeDot={{ r: 3.5, stroke: "var(--panel)", strokeWidth: 2 }}
-									isAnimationActive={false}
-									connectNulls
-								/>
-							))}
+							{series.map((s) => {
+								const opacity =
+									highlightKey !== null ? (highlightKey === s.key ? 1 : DIMMED) : top.has(s.key) ? 1 : FADED;
+								return (
+									<Line
+										key={s.key}
+										dataKey={s.key}
+										name={s.name}
+										type="monotone"
+										stroke={s.color}
+										strokeWidth={highlightKey === s.key ? 2.4 : 1.6}
+										strokeOpacity={opacity}
+										{...(s.dashed ? { strokeDasharray: DASH } : {})}
+										dot={loneSampleDot(s.points.length, s.color, opacity)}
+										activeDot={{ r: 3.5, stroke: "var(--panel)", strokeWidth: 2 }}
+										isAnimationActive={false}
+										connectNulls
+									/>
+								);
+							})}
 						</LineChart>
 					</ChartContainer>
 				</DropdownMenuTrigger>
