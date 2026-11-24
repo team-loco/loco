@@ -157,7 +157,7 @@ export function OrgTab({
 	);
 	const rows = listed.query.data?.workspaces ?? [];
 	const pager = tokenPager(params.pages, listed.nextPageToken, (pages) => {
-		void setParams({ pages });
+		if (!listed.query.isPlaceholderData) void setParams({ pages });
 	});
 	const shown = useShownPage(
 		pager.page,
