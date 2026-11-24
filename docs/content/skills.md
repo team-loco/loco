@@ -21,7 +21,7 @@ For one service without `loco.yaml`, run `loco deploy`. Loco turns the directory
 loco deploy --name web --port 8080 --env production --yes
 ```
 
-Use `--region`, `--domain`, `--dockerfile`, or `--context` when needed. `--private` omits the public hostname; `--image` deploys a public image without a source build. Check `loco deploy --help` for the installed release's flags.
+Use `--region`, `--domain`, `--dockerfile`, or `--context` when needed. `--private` omits the public hostname; `--image` deploys a public image without a source build. `--no-file <name>` ignores a `loco.yaml` in the directory. Check `loco deploy --help` for the installed release's flags.
 
 ## Configuration in the repository
 
