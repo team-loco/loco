@@ -1716,6 +1716,10 @@ def runtime_config(api_url):
     return f"window.locoConfig = {json.dumps({'apiURL': api_url})};\n"
 
 
+def trace(line):
+    print(f"{time.time():.3f} {line}", file=sys.stderr, flush=True)
+
+
 class UIHandler(http.server.SimpleHTTPRequestHandler):
     """Serve the production UI with the chart's same-origin /api forwarding."""
 
@@ -1798,8 +1802,20 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
             self.path = "/index.html"
         return super().send_head()
 
-    def log_message(self, format, *args):
+    def parse_request(self):
+        parsed = super().parse_request()
+        trace(f"{id(self):x} start {self.requestline}")
+        return parsed
+
+    def finish(self):
+        trace(f"{id(self):x} finish")
+        super().finish()
+
+    def log_request(self, code="-", size="-"):
         return
+
+    def log_message(self, format, *args):
+        trace(f"{id(self):x} {format % args}")
 
 
 class UIServer(http.server.ThreadingHTTPServer):
