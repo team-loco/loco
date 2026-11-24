@@ -457,9 +457,11 @@ with session(out) as browser:
 
     # A self-hosted install, the default, sends / to sign-in, which waits for a click.
     context, page, errors = open_page(browser, None)
-    page.goto(ui + "/")
-    expect(page).to_have_url(ui + "/login")
-    expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
+    page.goto(ui + "/?login_hint=owner%40acme.test")
+    expect(page).to_have_url(ui + "/login?login_hint=owner%40acme.test")
+    expect(
+        page.get_by_role("button", name="Continue as owner@acme.test", exact=True)
+    ).to_be_visible()
     assert not errors, errors
     cases.append("self-hosted-root")
     context.close()

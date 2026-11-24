@@ -1,5 +1,5 @@
 import { useQueryState } from "nuqs";
-import { Navigate } from "react-router";
+import { Navigate, useLocation } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { signInOnClickState } from "@/auth/next";
@@ -21,6 +21,7 @@ export function Splash() {
 	const { signIn, redirecting } = useSignIn();
 	const [loginHint] = useQueryState("login_hint");
 	const multiTenant = useMultiTenant();
+	const { search } = useLocation();
 
 	if (isAuthenticated) {
 		return <Navigate to="/dashboard" replace />;
@@ -32,7 +33,7 @@ export function Splash() {
 
 	// Log out lands here, so sign-in waits for a click.
 	if (!multiTenant) {
-		return <Navigate to="/login" replace state={signInOnClickState} />;
+		return <Navigate to={{ pathname: "/login", search }} replace state={signInOnClickState} />;
 	}
 
 	const startSignIn = () => {
