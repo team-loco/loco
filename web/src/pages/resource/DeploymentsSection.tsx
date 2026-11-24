@@ -527,7 +527,6 @@ export function DeploymentsSection({
 						/>
 					</div>
 					<Pager
-						page={deployShown.page}
 						total={deployments.length}
 						pageSizes={PAGE_SIZES}
 						pageSize={deploySize}
@@ -535,7 +534,7 @@ export function DeploymentsSection({
 							setDeploySize(size);
 							setDeployPages([]);
 						}}
-						label={deployShown.label}
+						{...deployShown}
 						onPrev={deployPager.onPrev}
 						onNext={deployPager.onNext}
 					/>

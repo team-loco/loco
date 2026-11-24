@@ -114,7 +114,7 @@ export function ResourceTable({
 	const shown = useShownPage(
 		pager.page,
 		tokenPageLabel(pager.page, state.size, draftsOnly ? data.length : serverRows.length, matched),
-		listed.query.isPlaceholderData,
+		listed.query.isPlaceholderData && !draftsOnly,
 	);
 
 	const sorting = [state.sort];

@@ -360,8 +360,7 @@ export function OrgTab({
 					/>
 				)}
 				<Pager
-					label={shown.label}
-					page={shown.page}
+					{...shown}
 					total={rows.length}
 					pageSizes={PAGE_SIZES}
 					pageSize={params.size}

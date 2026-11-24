@@ -262,8 +262,7 @@ export function EventsView() {
 						rowClassName={(row) => row.original.ts > openedAt && "animate-row-flash motion-reduce:animate-none"}
 					/>
 					<Pager
-						label={shown.label}
-						page={shown.page}
+						{...shown}
 						total={items.length}
 						pageSizes={PAGE_SIZES}
 						pageSize={params.size}

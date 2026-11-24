@@ -36,6 +36,7 @@ import { Sparkline } from "@/components/design/Sparkline";
 import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useShownPage } from "@/hooks/useTokenPage";
 import { useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
 import { deployMarkers, MARKER_NAMES } from "@/lib/deployMarkers";
 import { deploymentImage } from "@/lib/deployment-utils";
@@ -44,7 +45,6 @@ import { imageVersion } from "@/lib/image";
 import { rolloutState } from "@/lib/resource-status";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
 import { agoLabel, msToTimestamp, readyMs } from "@/lib/time";
-import { useShownPage } from "@/hooks/useTokenPage";
 import { pageTokensParser, tokenPageLabel } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
@@ -522,7 +522,7 @@ export function ResourcesTable({
 		data.length === 0
 			? `0 of ${(total + drafts.length).toString()}`
 			: tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched),
-		listed.query.isPlaceholderData,
+		listed.query.isPlaceholderData && !draftsOnly,
 	);
 
 	const table = useDataTable("dashboard-resources", {
