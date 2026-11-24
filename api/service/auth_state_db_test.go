@@ -152,7 +152,7 @@ func TestAuthStateStartEvictsTheOldestSignIns(t *testing.T) {
 	if _, err := store.Take(t.Context(), "b"); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Restore(t.Context(), "b", []byte("b"), time.Minute); err != nil {
+	if err := store.Start(t.Context(), "b", []byte("b"), time.Minute); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Start(t.Context(), "e", []byte("e"), time.Minute); err != nil {

@@ -395,7 +395,7 @@ func (s *AuthServer) ApproveDeviceLogin(
 	}
 	// A retryable failure returns the user code to the store for the next approval attempt.
 	unavailable := func(cause error, ttl time.Duration) error {
-		if restoreErr := s.state.Restore(ctx, userCodeKey(userCode), deviceDigest, ttl); restoreErr != nil {
+		if restoreErr := s.state.Start(ctx, userCodeKey(userCode), deviceDigest, ttl); restoreErr != nil {
 			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
 		}
 		return authStoreUnavailable(cause)

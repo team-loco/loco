@@ -31,10 +31,7 @@ func (q *Queries) GetAuthState(ctx context.Context, key string) ([]byte, error) 
 
 const setAuthState = `-- name: SetAuthState :exec
 INSERT INTO auth_states (key, value, started_at, expires_at)
-VALUES (
-    $1::text, $2::bytea, CASE WHEN $3::bool THEN NOW() END,
-    NOW() + make_interval(secs => $4::float8)
-)
+VALUES ($1::text, $2::bytea, NULL, NOW() + make_interval(secs => $3::float8))
 ON CONFLICT (key) DO UPDATE
 SET value = EXCLUDED.value, started_at = EXCLUDED.started_at, expires_at = EXCLUDED.expires_at
 `
@@ -42,18 +39,11 @@ SET value = EXCLUDED.value, started_at = EXCLUDED.started_at, expires_at = EXCLU
 type SetAuthStateParams struct {
 	Key        string  `json:"key"`
 	Value      []byte  `json:"value"`
-	Started    bool    `json:"started"`
 	TtlSeconds float64 `json:"ttlSeconds"`
 }
 
-// A started entry counts against the bound on started sign-ins.
 func (q *Queries) SetAuthState(ctx context.Context, arg SetAuthStateParams) error {
-	_, err := q.db.Exec(ctx, setAuthState,
-		arg.Key,
-		arg.Value,
-		arg.Started,
-		arg.TtlSeconds,
-	)
+	_, err := q.db.Exec(ctx, setAuthState, arg.Key, arg.Value, arg.TtlSeconds)
 	return err
 }
 
