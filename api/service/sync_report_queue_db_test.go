@@ -40,20 +40,6 @@ func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv
 	return ss.settleNow(ctx, settle, err)
 }
 
-// reconcilePlacementInventory records the inventory's placements and sends those the cluster lacks.
-func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventory *agentv1.Inventory) error {
-	toSend, err := ss.recordPlacementInventory(ctx, inventory)
-	if err != nil {
-		return err
-	}
-	if len(toSend) > 0 {
-		if err := ss.sendPlacements(ctx, toSend); err != nil {
-			return err
-		}
-	}
-	return applyQueuedReports(ctx, ss)
-}
-
 // handleNow handles a message, then applies and settles what it queued, as a sync stream does.
 func (ss *syncSession) handleNow(ctx context.Context, msg *agentv1.SyncRequest) error {
 	if err := ss.handle(ctx, msg); err != nil {
