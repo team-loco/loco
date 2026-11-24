@@ -30,32 +30,18 @@ func applyQueuedReports(ctx context.Context, session *syncSession) error {
 
 // handleBuildStatus applies and settles a build report as a sync stream does.
 func (ss *syncSession) handleBuildStatus(ctx context.Context, status *agentv1.BuildStatus) error {
-	settle, err := ss.applyBuildStatus(ctx, status)
-	return ss.settleNow(ctx, settle, err)
+	return ss.handleNow(ctx, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_BuildStatus{BuildStatus: status}})
 }
 
 // reconcileInventory applies and settles an inventory as a sync stream does.
 func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv1.Inventory) error {
-	settle, err := ss.applyInventory(ctx, inventory)
-	return ss.settleNow(ctx, settle, err)
+	return ss.handleNow(ctx, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: inventory}})
 }
 
 // handleNow handles a message, then applies and settles what it queued, as a sync stream does.
 func (ss *syncSession) handleNow(ctx context.Context, msg *agentv1.SyncRequest) error {
 	if err := ss.handle(ctx, msg); err != nil {
 		return err
-	}
-	return applyQueuedReports(ctx, ss)
-}
-
-func (ss *syncSession) settleNow(ctx context.Context, settle settleFunc, err error) error {
-	if err != nil {
-		return err
-	}
-	if settle != nil {
-		if err := settle(ctx); err != nil {
-			return err
-		}
 	}
 	return applyQueuedReports(ctx, ss)
 }
