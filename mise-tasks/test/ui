@@ -48,6 +48,7 @@ for suite in "${suites[@]}"; do
 done
 
 # Longest first, each suite to the shard with the least expected time; a suite missing from the file counts 10s.
+# A suite named again is labelled name#2, name#3 so its log and result stay its own.
 selected=()
 while IFS= read -r suite; do
 	selected+=("$suite")
@@ -59,21 +60,11 @@ done < <(
 			best = 1
 			for (s = 2; s <= count; s++) if (load[s] < load[best]) best = s
 			load[best] += $1
-			if (best == shard) print $2
+			if (best == shard) print $2 (seen[$2]++ ? "#" seen[$2] : "")
 		}'
 )
 suites=(${selected[@]+"${selected[@]}"})
 if ((jobs > ${#suites[@]})); then jobs=${#suites[@]}; fi
-
-# A suite named n times runs n times; runs after the first are labelled name#2, name#3.
-runs=()
-for suite in ${suites[@]+"${suites[@]}"}; do
-	seen=0
-	for run in ${runs[@]+"${runs[@]}"}; do
-		if [[ ${run%%#*} == "$suite" ]]; then seen=$((seen + 1)); fi
-	done
-	if ((seen == 0)); then runs+=("$suite"); else runs+=("$suite#$((seen + 1))"); fi
-done
 
 if git grep -nE 'expect_response|wait_for_response|networkidle' -- 'tests/ui/*.py' ':!tests/ui/harness.py'; then
 	echo "Wait with harness.expect_rpc on the request body, or for the outcome on screen." >&2
@@ -94,47 +85,47 @@ echo "Built the API and UI in $((SECONDS - start))s"
 mkfifo "$logs/done"
 exec 3<>"$logs/done"
 run_suite() {
-	local run=$1 start=$SECONDS status=0 out=/dev/stdout
-	if ((jobs > 1)); then out=$logs/$run.log; fi
-	uv run --frozen --project tests python "tests/ui/${run%%#*}.py" >"$out" 2>&1 || status=$?
-	echo "$run $status $((SECONDS - start))" >&3
+	local suite=$1 start=$SECONDS status=0 out=/dev/stdout
+	if ((jobs > 1)); then out=$logs/$suite.log; fi
+	uv run --frozen --project tests python "tests/ui/${suite%%#*}.py" >"$out" 2>&1 || status=$?
+	echo "$suite $status $((SECONDS - start))" >&3
 }
 # Run every selected suite even after a failure, so one run reports them all.
 failed=()
 running=()
 finish_one() {
-	local heartbeat run status seconds name rest=()
+	local heartbeat suite status seconds name rest=()
 	# A background loop reports progress while this read blocks for the whole line.
 	while sleep 60 >/dev/null; do echo "still running: ${running[*]}"; done &
 	heartbeat=$!
-	read -r run status seconds <&3
+	read -r suite status seconds <&3
 	kill "$heartbeat" 2>/dev/null || true
 	wait "$heartbeat" 2>/dev/null || true
 	for name in "${running[@]}"; do
-		if [[ $name != "$run" ]]; then rest+=("$name"); fi
+		if [[ $name != "$suite" ]]; then rest+=("$name"); fi
 	done
 	running=(${rest[@]+"${rest[@]}"})
 	if ((jobs > 1)); then
-		echo "::group::$run"
-		cat "$logs/$run.log"
+		echo "::group::$suite"
+		cat "$logs/$suite.log"
 		echo "::endgroup::"
 	fi
 	if ((status == 0)); then
-		echo "$run passed in ${seconds}s"
+		echo "$suite passed in ${seconds}s"
 	else
-		echo "$run failed in ${seconds}s"
-		failed+=("$run")
+		echo "$suite failed in ${seconds}s"
+		failed+=("$suite")
 	fi
 }
 start=$SECONDS
-for run in ${runs[@]+"${runs[@]}"}; do
+for suite in ${suites[@]+"${suites[@]}"}; do
 	if ((${#running[@]} == jobs)); then finish_one; fi
-	run_suite "$run" &
-	running+=("$run")
+	run_suite "$suite" &
+	running+=("$suite")
 done
 while ((${#running[@]} > 0)); do finish_one; done
 wait
-echo "Ran ${#runs[@]} suites, $jobs at a time, in $((SECONDS - start))s"
+echo "Ran ${#suites[@]} suites, $jobs at a time, in $((SECONDS - start))s"
 if [[ ${#failed[@]} -gt 0 ]]; then
 	echo "Failed suites: ${failed[*]}" >&2
 	exit 1
