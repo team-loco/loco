@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -34,7 +35,7 @@ func countConcurrent(n int, op func() bool) int64 {
 func newAuthStateStore(t *testing.T) (*pgxpool.Pool, pgAuthStore) {
 	t.Helper()
 	pool := dbtest.NewPool(t)
-	return pool, pgAuthStore{queries: genDb.New(pool), maxEntries: maxAuthStates}
+	return pool, pgAuthStore{queries: genDb.New(pool), maxEntries: maxAuthStates, maxPerClient: maxAuthStartsPerClient}
 }
 
 func expire(t *testing.T, pool *pgxpool.Pool, key string) {
@@ -66,24 +67,23 @@ func TestAuthStateTakeSucceedsOnce(t *testing.T) {
 	}
 }
 
-func TestAuthStateSetIfAbsentStoresOnce(t *testing.T) {
+func TestAuthStateStartStoresOnce(t *testing.T) {
 	t.Parallel()
 	pool, store := newAuthStateStore(t)
 	wins := countConcurrent(32, func() bool {
-		stored, err := store.SetIfAbsent(t.Context(), "code", []byte("1"), time.Minute)
-		if err != nil {
+		err := store.Start(t.Context(), "code", []byte("1"), time.Minute, "")
+		if err != nil && !errors.Is(err, errAuthStateExists) {
 			t.Error(err)
 		}
-		return stored
+		return err == nil
 	})
 	if wins != 1 {
-		t.Fatalf("SetIfAbsent stored %d times, want 1", wins)
+		t.Fatalf("Start stored %d times, want 1", wins)
 	}
 
 	expire(t, pool, "code")
-	stored, err := store.SetIfAbsent(t.Context(), "code", []byte("2"), time.Minute)
-	if err != nil || !stored {
-		t.Fatalf("SetIfAbsent over an expired entry = %v, %v", stored, err)
+	if err := store.Start(t.Context(), "code", []byte("2"), time.Minute, ""); err != nil {
+		t.Fatalf("Start over an expired entry: %v", err)
 	}
 	if got, getErr := store.Get(t.Context(), "code"); getErr != nil || string(got) != "2" {
 		t.Fatalf("Get = %q, %v", got, getErr)
@@ -138,8 +138,8 @@ func TestAuthStateHoldsAtMostMaxEntries(t *testing.T) {
 	if err := store.Set(t.Context(), "third", []byte("3"), time.Minute); !errors.Is(err, errAuthStateFull) {
 		t.Fatalf("Set(third) on a full store err = %v, want errAuthStateFull", err)
 	}
-	if stored, err := store.SetIfAbsent(t.Context(), "third", []byte("3"), time.Minute); err != nil || stored {
-		t.Fatalf("SetIfAbsent(third) on a full store = %v, %v", stored, err)
+	if err := store.Start(t.Context(), "third", []byte("3"), time.Minute, ""); !errors.Is(err, errAuthStateFull) {
+		t.Fatalf("Start(third) on a full store err = %v, want errAuthStateFull", err)
 	}
 	if err := store.Set(t.Context(), "one", []byte("updated"), time.Minute); err != nil {
 		t.Fatalf("Set(one) updating a stored key on a full store: %v", err)
@@ -148,5 +148,49 @@ func TestAuthStateHoldsAtMostMaxEntries(t *testing.T) {
 	expire(t, pool, "two")
 	if err := store.Set(t.Context(), "third", []byte("3"), time.Minute); err != nil {
 		t.Fatalf("Set(third) after an entry expired: %v", err)
+	}
+}
+
+func TestAuthStateBoundsSignInsPerClient(t *testing.T) {
+	t.Parallel()
+	pool, store := newAuthStateStore(t)
+	store.maxPerClient = 2
+	const busy, other = "198.51.100.7", "198.51.100.8"
+	for _, key := range []string{"a", "b"} {
+		if err := store.Start(t.Context(), key, []byte(key), time.Minute, busy); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.Start(t.Context(), "c", []byte("c"), time.Minute, busy); !errors.Is(err, errAuthStateFull) {
+		t.Fatalf("Start beyond the client's bound err = %v, want errAuthStateFull", err)
+	}
+	if err := store.Start(t.Context(), "d", []byte("d"), time.Minute, other); err != nil {
+		t.Fatalf("Start by another client: %v", err)
+	}
+
+	if _, err := store.Take(t.Context(), "a"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Start(t.Context(), "c", []byte("c"), time.Minute, busy); err != nil {
+		t.Fatalf("Start after one of the client's sign-ins finished: %v", err)
+	}
+	expire(t, pool, "b")
+	if err := store.Start(t.Context(), "e", []byte("e"), time.Minute, busy); err != nil {
+		t.Fatalf("Start after one of the client's sign-ins expired: %v", err)
+	}
+}
+
+func TestAuthClientGroupsAnIPv6Subscriber(t *testing.T) {
+	t.Parallel()
+	const v4 = "192.0.2.1"
+	for _, tc := range []struct{ addr, want string }{
+		{v4, v4},
+		{"::ffff:" + v4, v4},
+		{"2001:db8:1:2:aaaa::1", "2001:db8:1:2::/64"},
+		{"2001:db8:1:2:bbbb::2", "2001:db8:1:2::/64"},
+	} {
+		if got := authClient(netip.MustParseAddr(tc.addr)); got != tc.want {
+			t.Errorf("authClient(%s) = %q, want %q", tc.addr, got, tc.want)
+		}
 	}
 }

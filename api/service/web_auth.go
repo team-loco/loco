@@ -84,8 +84,9 @@ func (s *AuthServer) StartWebLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode dashboard login: %w", err)
 	}
-	if err := s.state.Set(ctx, webLoginKey(state, binding), data, webLoginTTL); err != nil {
-		return nil, authStoreUnavailable(err)
+	client := authClient(clientAddress(info, s.web.TrustedProxyHops))
+	if err := s.state.Start(ctx, webLoginKey(state, binding), data, webLoginTTL, client); err != nil {
+		return nil, authStartError(ctx, err)
 	}
 	s.web.Cookies.Set(
 		info.ResponseHeader(),

@@ -59,29 +59,37 @@ func (q *Queries) SetAuthState(ctx context.Context, arg SetAuthStateParams) (int
 	return result.RowsAffected(), nil
 }
 
-const setAuthStateIfAbsent = `-- name: SetAuthStateIfAbsent :execrows
-INSERT INTO auth_states (key, value, expires_at)
-SELECT $1::text, $2::bytea, NOW() + make_interval(secs => $3::float8)
-WHERE (SELECT count(*) FROM (SELECT 1 FROM auth_states WHERE expires_at > NOW() LIMIT $4::int) live)
-    < $4::int
-ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, expires_at = EXCLUDED.expires_at
+const startAuthState = `-- name: StartAuthState :execrows
+INSERT INTO auth_states (key, value, client, expires_at)
+SELECT $1::text, $2::bytea, $3::text, NOW() + make_interval(secs => $4::float8)
+WHERE (SELECT count(*) FROM (SELECT 1 FROM auth_states WHERE expires_at > NOW() LIMIT $5::int) live)
+        < $5::int
+    AND (SELECT count(*) FROM (
+        SELECT 1 FROM auth_states WHERE client = $3::text AND expires_at > NOW() LIMIT $6::int
+    ) mine) < $6::int
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, client = EXCLUDED.client, expires_at = EXCLUDED.expires_at
 WHERE auth_states.expires_at <= NOW()
 `
 
-type SetAuthStateIfAbsentParams struct {
-	Key        string  `json:"key"`
-	Value      []byte  `json:"value"`
-	TtlSeconds float64 `json:"ttlSeconds"`
-	MaxEntries int32   `json:"maxEntries"`
+type StartAuthStateParams struct {
+	Key          string  `json:"key"`
+	Value        []byte  `json:"value"`
+	Client       string  `json:"client"`
+	TtlSeconds   float64 `json:"ttlSeconds"`
+	MaxEntries   int32   `json:"maxEntries"`
+	MaxPerClient int32   `json:"maxPerClient"`
 }
 
-// An expired row counts as absent, so its key can be stored again. A full table stores nothing.
-func (q *Queries) SetAuthStateIfAbsent(ctx context.Context, arg SetAuthStateIfAbsentParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setAuthStateIfAbsent,
+// Stores a sign-in start for client while the table holds fewer than max_entries live rows and client
+// fewer than max_per_client. An expired row counts as absent, so its key can be stored again.
+func (q *Queries) StartAuthState(ctx context.Context, arg StartAuthStateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, startAuthState,
 		arg.Key,
 		arg.Value,
+		arg.Client,
 		arg.TtlSeconds,
 		arg.MaxEntries,
+		arg.MaxPerClient,
 	)
 	if err != nil {
 		return 0, err

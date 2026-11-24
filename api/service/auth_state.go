@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -11,12 +12,18 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-// maxAuthStates bounds the live sign-in entries, which callers create before they sign in.
-const maxAuthStates = 100_000
+// Callers create sign-in entries before they sign in. maxAuthStates bounds the live entries and
+// maxAuthStartsPerClient the sign-ins one client address has started and not finished. Concurrent
+// writes can each pass the check, so both bounds are approximate.
+const (
+	maxAuthStates          = 100_000
+	maxAuthStartsPerClient = 30
+)
 
 var (
 	errAuthStateNotFound = errors.New("auth state not found")
 	errAuthStateFull     = errors.New("auth state store is full")
+	errAuthStateExists   = errors.New("auth state already exists")
 )
 
 // authStore holds short-lived sign-in state that every API replica must see.
@@ -25,17 +32,18 @@ type authStore interface {
 	Get(ctx context.Context, key string) ([]byte, error)
 	// Set returns errAuthStateFull for a new key while maxEntries live entries exist.
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
-	// SetIfAbsent stores the value only when the key is absent or expired and the store has room,
-	// reporting whether it did.
-	SetIfAbsent(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
+	// Start stores the value for a new sign-in by client. It returns errAuthStateExists when the key is
+	// live, and errAuthStateFull when the store or client holds as many live sign-ins as allowed.
+	Start(ctx context.Context, key string, value []byte, ttl time.Duration, client string) error
 	// Take removes a live entry and returns its value, or errAuthStateNotFound when another call took it first.
 	Take(ctx context.Context, key string) ([]byte, error)
 }
 
-// pgAuthStore keeps sign-in state in the auth_states table, holding at most maxEntries live rows.
+// pgAuthStore keeps sign-in state in the auth_states table.
 type pgAuthStore struct {
-	queries    genDb.Querier
-	maxEntries int32
+	queries      genDb.Querier
+	maxEntries   int32
+	maxPerClient int32
 }
 
 func (s pgAuthStore) Get(ctx context.Context, key string) ([]byte, error) {
@@ -62,14 +70,25 @@ func (s pgAuthStore) Set(ctx context.Context, key string, value []byte, ttl time
 	return nil
 }
 
-func (s pgAuthStore) SetIfAbsent(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
-	stored, err := s.queries.SetAuthStateIfAbsent(ctx, genDb.SetAuthStateIfAbsentParams{
-		Key: key, Value: value, TtlSeconds: ttl.Seconds(), MaxEntries: s.maxEntries,
+func (s pgAuthStore) Start(ctx context.Context, key string, value []byte, ttl time.Duration, client string) error {
+	stored, err := s.queries.StartAuthState(ctx, genDb.StartAuthStateParams{
+		Key: key, Value: value, Client: client, TtlSeconds: ttl.Seconds(),
+		MaxEntries: s.maxEntries, MaxPerClient: s.maxPerClient,
 	})
 	if err != nil {
-		return false, fmt.Errorf("set auth state if absent: %w", err)
+		return fmt.Errorf("start auth state: %w", err)
 	}
-	return stored == 1, nil
+	if stored == 1 {
+		return nil
+	}
+	_, err = s.Get(ctx, key)
+	if errors.Is(err, errAuthStateNotFound) {
+		return errAuthStateFull
+	}
+	if err != nil {
+		return err
+	}
+	return errAuthStateExists
 }
 
 func (s pgAuthStore) Take(ctx context.Context, key string) ([]byte, error) {
@@ -81,4 +100,18 @@ func (s pgAuthStore) Take(ctx context.Context, key string) ([]byte, error) {
 		return nil, fmt.Errorf("take auth state: %w", err)
 	}
 	return value, nil
+}
+
+// authClient names the client that starts a sign-in. An IPv6 client is its /64, the block one
+// subscriber usually holds.
+func authClient(addr netip.Addr) string {
+	addr = addr.Unmap()
+	if !addr.Is6() {
+		return addr.String()
+	}
+	prefix, err := addr.Prefix(64)
+	if err != nil {
+		return addr.String()
+	}
+	return prefix.String()
 }

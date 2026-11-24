@@ -319,6 +319,19 @@ func TestDeviceLoginKeepsTheStartOfALongUserAgent(t *testing.T) {
 	}
 }
 
+func TestDeviceLoginRefusesAClientWithTooManyInProgress(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	f.server.state = pgAuthStore{queries: f.queries, maxEntries: maxAuthStates, maxPerClient: 1}
+	if _, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{}); err != nil {
+		t.Fatalf("first start: %v", err)
+	}
+	_, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if codeOf(err) != connect.CodeResourceExhausted {
+		t.Fatalf("start beyond the client's bound: %v", err)
+	}
+}
+
 func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)

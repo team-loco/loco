@@ -649,6 +649,7 @@ type ApiToken struct {
 type AuthState struct {
 	Key       string    `json:"key"`
 	Value     []byte    `json:"value"`
+	Client    string    `json:"client"`
 	ExpiresAt time.Time `json:"expiresAt"`
 }
 

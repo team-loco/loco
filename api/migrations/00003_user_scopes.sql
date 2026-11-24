@@ -144,10 +144,14 @@ CREATE INDEX invitations_claimed_by_idx ON invitations (claimed_by);
 CREATE TABLE auth_states (
     key TEXT PRIMARY KEY,
     value BYTEA NOT NULL,
+    -- The address that started the sign-in, for entries created before the caller signs in.
+    client TEXT NOT NULL DEFAULT '',
     expires_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX auth_states_expires_at_idx ON auth_states (expires_at);
+
+CREATE INDEX auth_states_client_expires_at_idx ON auth_states (client, expires_at);
 
 -- +goose Down
 DROP TABLE IF EXISTS auth_states;
