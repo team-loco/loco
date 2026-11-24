@@ -55,6 +55,8 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_TOKEN_CLEANUP_INTERVAL` | `1m` | How often the API deletes expired session tokens, API tokens and cluster assertions. |
 | `LOCO_STREAM_AUTH_INTERVAL` | `5s` | Time between access rechecks of an open stream. See [open streams](../operations/access.md#open-streams-and-access-changes). |
 | `LOCO_STREAM_AUTH_TIMEOUT` | `2s` | Limit on each stream access recheck; at most `LOCO_STREAM_AUTH_INTERVAL`. |
+| `LOCO_MAX_STREAMS` | `500` | Log tails, event streams and deployment watches one API instance holds open; it refuses more with `ResourceExhausted`. The chart sets it from `api.streams.maxPerReplica`. |
+| `LOCO_MAX_CALLER_STREAMS` | `50` | Streams one caller holds open on one API instance; it refuses more with `ResourceExhausted`. The chart sets it from `api.streams.maxPerCaller`. |
 
 ## Clusters and agents
 

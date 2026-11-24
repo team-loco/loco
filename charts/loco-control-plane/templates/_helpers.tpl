@@ -225,6 +225,8 @@ capabilities:
 {{- $_ := set $settings $env $value }}
 {{- end }}
 {{- end }}
+{{- $_ := set $settings "LOCO_MAX_STREAMS" $.Values.api.streams.maxPerReplica }}
+{{- $_ := set $settings "LOCO_MAX_CALLER_STREAMS" $.Values.api.streams.maxPerCaller }}
 {{- $_ := set $settings "LOCO_PLATFORM_DOMAIN" (required "platformDomain is required: the workers' own gateway domain, their chart's global.domain.platform, such as workers.loco.build" $.Values.platformDomain) }}
 {{- with $.Values.defaultRegion }}
 {{- $_ := set $settings "LOCO_DEFAULT_REGION" . }}

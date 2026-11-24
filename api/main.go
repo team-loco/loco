@@ -26,6 +26,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/team-loco/loco/api/auth"
@@ -478,7 +479,6 @@ func newDeps(
 			clusterSilentAfter,
 			ac.SecretLimits.MaxPlacementBytes,
 			ac.CountLimits,
-			service.MaxDeploymentWatchStreams,
 			deploymentNotifier,
 		),
 		build: service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
@@ -533,6 +533,10 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 	if err != nil {
 		return nil, nil, err
 	}
+	streamLimiter, err := interceptor.NewStreamLimiter(ac.StreamLimits, otel.Meter(meterName))
+	if err != nil {
+		return nil, nil, err
+	}
 	base = connect.NewServer(tracingInterceptor, deadlineInterceptor.Interceptor(), errorInterceptor)
 	authenticated = connect.NewServer(
 		tracingInterceptor,
@@ -541,6 +545,7 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 		interceptor.NewContextInterceptor().Interceptor(),
 		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer, ac.StreamAuth).
 			WebCookies(auth.NewWebCookies(ac.WebURL, ac.CORSAllowedOrigins)).Interceptor(),
+		streamLimiter.Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	return base, authenticated, nil

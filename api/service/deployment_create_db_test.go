@@ -101,7 +101,6 @@ func deployRequest(
 		testClusterSilentAfter,
 		testMaxPlacementBytes,
 		limits.Defaults(),
-		8,
 		nil,
 	)
 	scopes := append([]genDb.EntityScope{

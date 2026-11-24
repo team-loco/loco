@@ -10,7 +10,10 @@ import (
 	"github.com/team-loco/loco/internal/otelsetup"
 )
 
-const otlpMetricsEndpointEnv = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
+const (
+	otlpMetricsEndpointEnv = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
+	meterName              = "github.com/team-loco/loco/api"
+)
 
 func newMetricsEnabled() bool {
 	endpoint := envconfig.String(otlpEndpointEnv, "")

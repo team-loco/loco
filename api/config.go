@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db"
+	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/guardrails"
@@ -110,6 +111,8 @@ const (
 
 	defaultStreamAuthInterval = 5 * time.Second
 	defaultStreamAuthTimeout  = 2 * time.Second
+	defaultMaxStreams         = 500
+	defaultMaxCallerStreams   = 50
 
 	defaultEventsRetention = 90 * 24 * time.Hour
 
@@ -242,6 +245,7 @@ type APIConfig struct {
 	ServiceDefaults       servicedefaults.Defaults
 	AuthIssuers           []auth.IssuerConfig
 	StreamAuth            auth.StreamConfig
+	StreamLimits          interceptor.StreamLimits
 	SignupPolicy          auth.SignupPolicy
 	WebURL                string
 	TrustedProxyHops      int
@@ -302,6 +306,10 @@ func newAPIConfig() *APIConfig {
 	// A stale recheck in flight is followed by one more, so stale access lasts at most interval plus timeout.
 	if streamAuth.Timeout > streamAuth.Interval {
 		panic(fmt.Errorf("%w: timeout %s, interval %s", errStreamAuthTimeout, streamAuth.Timeout, streamAuth.Interval))
+	}
+	streamLimits := interceptor.StreamLimits{
+		PerReplica:   positiveInt32Env("LOCO_MAX_STREAMS", defaultMaxStreams),
+		PerPrincipal: positiveInt32Env("LOCO_MAX_CALLER_STREAMS", defaultMaxCallerStreams),
 	}
 	signupPolicy := newSignupPolicy()
 	minCLIVersion := newMinCLIVersion()
@@ -364,6 +372,7 @@ func newAPIConfig() *APIConfig {
 		ServiceDefaults:       serviceDefaults,
 		AuthIssuers:           authIssuers,
 		StreamAuth:            streamAuth,
+		StreamLimits:          streamLimits,
 		SignupPolicy:          signupPolicy,
 		WebURL:                webURL,
 		Invitations:           invitations,

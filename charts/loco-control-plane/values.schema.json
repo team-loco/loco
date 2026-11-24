@@ -135,6 +135,10 @@
           "type": "string",
           "minLength": 1
         },
+        "gatewayRequestsPerReplica": {
+          "type": "integer",
+          "minimum": 1
+        },
         "image": {
           "type": "object",
           "required": [
@@ -368,6 +372,22 @@
         },
         "startupProbe": {
           "type": "object"
+        },
+        "streams": {
+          "type": "object",
+          "properties": {
+            "maxPerCaller": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1
+            },
+            "maxPerReplica": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
         },
         "systemAdmins": {
           "type": "array",
