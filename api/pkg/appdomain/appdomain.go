@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 // Cluster is a cluster and the app domains it serves.
@@ -64,6 +66,9 @@ func Match(domain string, appDomains []string) (string, string, error) {
 	label := strings.TrimSuffix(domain, "."+matched)
 	if label == "" || strings.Contains(label, ".") {
 		return "", "", ErrNotSingleLabel.Detail("%s under %s", domain, matched)
+	}
+	if len(validation.IsDNS1123Label(label)) > 0 {
+		return "", "", ErrInvalidLabel.Detail("%q", label)
 	}
 	return matched, label, nil
 }

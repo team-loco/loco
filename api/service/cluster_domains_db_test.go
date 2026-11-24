@@ -349,3 +349,33 @@ func (c *domainClient) addUnder(label, appDomain string) error {
 	_, err := c.server.CreateResourceDomain(c.ctx, req)
 	return err
 }
+
+func TestDomainRPCsRejectLabelsThatAreNotDNSLabels(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	client := newDomainClient(t, f)
+	f.serveDomains(t, testAppDomain)
+	bad := "Store_Front." + testAppDomain
+
+	err := client.addUnder("Store_Front", testAppDomain)
+	wantCode(t, err, connect.CodeInvalidArgument)
+	if !strings.Contains(err.Error(), "RFC 1123") {
+		t.Fatalf("create err = %v, want it to name the RFC 1123 rule", err)
+	}
+
+	if addErr := client.add("ok." + testAppDomain); addErr != nil {
+		t.Fatalf("add ok: %v", addErr)
+	}
+	id := client.domainID(t, "ok."+testAppDomain)
+	update := &domainv1.UpdateResourceDomainRequest{DomainId: id, Domain: &bad}
+	_, err = client.server.UpdateResourceDomain(client.ctx, update)
+	wantCode(t, err, connect.CodeInvalidArgument)
+
+	_, err = client.server.CheckDomainAvailability(client.ctx, &domainv1.CheckDomainAvailabilityRequest{Domain: bad})
+	wantCode(t, err, connect.CodeInvalidArgument)
+	free := &domainv1.CheckDomainAvailabilityRequest{Domain: "free." + testAppDomain}
+	resp, err := client.server.CheckDomainAvailability(client.ctx, free)
+	if err != nil || !resp.GetIsAvailable() {
+		t.Fatalf("availability of a valid free label = %v, %v", resp, err)
+	}
+}
