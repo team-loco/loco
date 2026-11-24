@@ -31,6 +31,12 @@ async function withSessionLock<T>(run: () => Promise<T>): Promise<T> {
 
 let refreshing: Promise<void> | undefined;
 let sessionGeneration = 0;
+let sessionExpired = () => {};
+
+/** Registers what runs each time the session cannot be renewed. */
+export function onSessionExpired(run: () => void) {
+	sessionExpired = run;
+}
 
 async function refreshSession(generation: number): Promise<void> {
 	if (generation !== sessionGeneration) return;
@@ -39,7 +45,14 @@ async function refreshSession(generation: number): Promise<void> {
 			await tokens.getScopes({});
 		} catch (err) {
 			if (!unauthenticated(err)) throw err;
-			await sessions.refreshWebSession({});
+			try {
+				await sessions.refreshWebSession({});
+			} catch (refreshErr) {
+				if (unauthenticated(refreshErr)) {
+					sessionExpired();
+				}
+				throw refreshErr;
+			}
 		}
 		sessionGeneration++;
 	}).finally(() => {
