@@ -147,12 +147,15 @@ tests:
           value: 1
         template: charts/metrics-server/templates/pdb.yaml
 
-  - it: autoscales the gateway collector from two with a disruption budget, spread across nodes
+  - it: runs two gateway collectors without an autoscaler, with a disruption budget, spread across nodes
     asserts:
-      - equal:
-          path: spec.minReplicas
-          value: 2
+      - hasDocuments:
+          count: 0
         template: charts/otel-col-deploy/templates/hpa.yaml
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: charts/otel-col-deploy/templates/statefulset.yaml
       - equal:
           path: spec.maxUnavailable
           value: 1

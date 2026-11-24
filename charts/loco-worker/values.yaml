@@ -838,12 +838,11 @@ otel-col-deploy:
     limits:
       cpu: "2"
       memory: 512Mi
+  # Fixed replica count: each replica queues exports on its own volume, so removing one strands its queue.
+  # Raise resources for more capacity.
   replicaCount: 2
   autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 4
-    targetCPUUtilizationPercentage: 80
+    enabled: false
   podDisruptionBudget:
     enabled: true
     maxUnavailable: 1
