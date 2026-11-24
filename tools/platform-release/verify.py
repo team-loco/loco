@@ -257,7 +257,16 @@ def main():
             raise RuntimeError(
                 "control-plane chart does not render the pinned API and observability proxy images"
             )
-        cp_path.write_text(json.dumps({**cp_values, "postgres": {"enabled": True}}))
+        cp_path.write_text(
+            json.dumps(
+                {
+                    **cp_values,
+                    "api": {**cp_values["api"], "registry": {"auth": "token"}},
+                    "postgres": {"enabled": True},
+                    "registry": {"enabled": True, "hostname": "registry.example.test"},
+                }
+            )
+        )
         postgres_resources = documents(
             run(
                 "helm",
@@ -291,6 +300,21 @@ def main():
         }:
             raise RuntimeError(
                 "the API does not read DATABASE_URL from the CloudNativePG app Secret"
+            )
+        registry_route = next(
+            (
+                item
+                for item in postgres_resources
+                if item.get("kind") == "HTTPRoute"
+                and item["metadata"]["name"] == "regional-registry"
+            ),
+            None,
+        )
+        if registry_route is None or registry_route["spec"]["hostnames"] != [
+            "registry.example.test"
+        ]:
+            raise RuntimeError(
+                "control-plane chart does not route the bundled registry"
             )
         for name in CHARTS:
             run(

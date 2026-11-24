@@ -55,6 +55,9 @@ type chartValues struct {
 			Hostname string `json:"hostname"`
 		} `json:"ingest"`
 	} `json:"obsProxy"`
+	Registry struct {
+		Hostname string `json:"hostname"`
+	} `json:"registry"`
 	OpenBao struct {
 		Seal struct {
 			Static struct {
@@ -108,8 +111,8 @@ type controlPlane struct {
 }
 
 // TestControlPlane installs the loco-control-plane chart with two API replicas on an empty
-// CloudNativePG database, then checks in order: routing through the chart's Gateway, OpenBao
-// across an upgrade,
+// CloudNativePG database, then checks in order: routing through the chart's Gateway, the registry's
+// token challenge, OpenBao across an upgrade,
 // a snapshot restored into a reinstalled OpenBao, ingest tokens and OTLP ingest, and the API
 // retry policy, which reprograms the Gateway.
 func TestControlPlane(t *testing.T) {
@@ -120,6 +123,7 @@ func TestControlPlane(t *testing.T) {
 		run  func(*testing.T)
 	}{
 		{"the Gateway routes the API and dashboard", cp.checkRouting},
+		{"the registry sends clients to the API for tokens", cp.checkRegistry},
 		{"OpenBao keeps its keys across an upgrade", cp.checkUpgrade},
 		{"a snapshot restores into a reinstalled OpenBao", cp.checkRestore},
 		{"the API issues ingest tokens the ingest proxy takes", cp.checkIngest},
@@ -245,7 +249,7 @@ func (cp *controlPlane) checkRouting(t *testing.T) {
 	listeners := c.MustKubectl(t, "-n", cp.namespace, "get", "gateway/"+cp.values.Gateway.Name,
 		"-o", "jsonpath={.spec.listeners[*].hostname}")
 	want := strings.Join([]string{cp.values.UI.Hostname, cp.values.ControlPlaneHostname,
-		cp.values.ObsProxy.Ingest.Hostname}, " ")
+		cp.values.ObsProxy.Ingest.Hostname, cp.values.Registry.Hostname}, " ")
 	if listeners != want {
 		t.Errorf("the chart Gateway listens for %q, want exactly %q", listeners, want)
 	}

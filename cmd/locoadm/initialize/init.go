@@ -24,6 +24,12 @@ func Command() *cobra.Command {
 	command.Flags().
 		BoolVar(&options.SingleCluster, "single-cluster", false, "Run the control plane and worker on one cluster")
 	command.Flags().StringVar(&options.Name, "name", "local", "Cluster directory name for --single-cluster")
+	command.Flags().StringVar(
+		&options.Registry,
+		"registry",
+		"",
+		"Hostname of a registry the control-plane chart runs, such as registry.example.com",
+	)
 	command.Flags().BoolVar(
 		&options.Postgres,
 		"postgres",

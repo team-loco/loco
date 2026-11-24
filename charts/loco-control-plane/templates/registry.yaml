@@ -1,0 +1,235 @@
+{{- if .Values.registry.enabled }}
+{{- $name := printf "%s-registry" .Release.Name }}
+{{- $storage := .Values.registry.storage }}
+{{- $s3 := $storage.s3 }}
+{{- $keyFile := "/etc/zot/key/loco-registry-key.pem" }}
+{{- if ne .Values.api.registry.auth "token" }}
+{{- fail "registry.enabled needs api.registry.auth set to token" }}
+{{- end }}
+{{- $scheme := ternary "https" "http" (not (empty (include "loco-control-plane.tlsSecret" .))) }}
+{{- $config := dict
+  "distSpecVersion" "1.1.1"
+  "storage" (dict "rootDirectory" "/var/lib/registry" "dedupe" false "gc" true "gcDelay" "1h" "gcInterval" "6h")
+  "http" (dict
+    "address" "0.0.0.0"
+    "port" "5000"
+    "auth" (dict
+      "bearer" (dict
+        "realm" (printf "%s://%s/registry/token" $scheme .Values.controlPlaneHostname)
+        "service" (include "loco-control-plane.registryService" .)
+        "cert" $keyFile)
+      "failDelay" 1)
+    "compat" (list "docker2s2"))
+  "log" (dict "level" "info") }}
+{{- if eq $storage.type "s3" }}
+{{- $driver := dict
+  "name" "s3"
+  "region" $s3.region
+  "bucket" (required "registry.storage.s3.bucket is required" $s3.bucket)
+  "rootdirectory" $s3.rootDirectory
+  "secure" true }}
+{{- with $s3.endpoint }}
+{{- $_ := set $driver "regionendpoint" . }}
+{{- $_ := set $driver "forcepathstyle" true }}
+{{- end }}
+{{- $_ := set $config.storage "storageDriver" $driver }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+data:
+  config.json: {{ toJson $config | quote }}
+{{- if eq $storage.type "volume" }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  # Disabling the registry or uninstalling the release leaves the stored images in place.
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $storage.volume.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $storage.volume.size | quote }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  # zot keeps its metadata on local disk, so one replica serves the registry.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+      annotations:
+        checksum/config: {{ toJson $config | sha256sum }}
+        # A new key version restarts the registry, which then fetches the new key.
+        loco.io/registry-key-version: {{ .Values.api.registry.transitKeyVersion | quote }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: signing-key
+          image: {{ .Values.openbao.curlImage | quote }}
+          securityContext:
+            {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
+          command: [curl]
+          args:
+            - {{ printf "%s/.well-known/loco-registry-key.pem" (include "loco-control-plane.apiURL" .) | quote }}
+            - --fail
+            - --silent
+            - --show-error
+            - --retry
+            - "120"
+            - --retry-all-errors
+            - --retry-delay
+            - "5"
+            - --output
+            - {{ $keyFile }}
+          volumeMounts:
+            - name: key
+              mountPath: /etc/zot/key
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+      containers:
+        - name: registry
+          image: {{ .Values.registry.image | quote }}
+          securityContext:
+            {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
+          {{- if eq $storage.type "s3" }}
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "registry.storage.s3.existingSecret.name is required" $s3.existingSecret.name | quote }}
+                  key: {{ $s3.existingSecret.accessKeyIdKey | quote }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3.existingSecret.name | quote }}
+                  key: {{ $s3.existingSecret.secretAccessKeyKey | quote }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 5000
+          startupProbe:
+            httpGet:
+              path: /startupz
+              port: http
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/zot/config.json
+              subPath: config.json
+              readOnly: true
+            - name: key
+              mountPath: /etc/zot/key
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/registry
+          resources:
+            {{- toYaml .Values.registry.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $name }}
+        - name: key
+          emptyDir: {}
+        - name: data
+          {{- if eq $storage.type "volume" }}
+          persistentVolumeClaim:
+            claimName: {{ $name }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+    {{- include "loco-control-plane.gatewayRef" . | nindent 4 }}
+  hostnames:
+    - {{ include "loco-control-plane.registryHostname" . | quote }}
+  rules:
+    - timeouts:
+        request: 0s
+      backendRefs:
+        - name: {{ $name }}
+          port: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ $name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.gatewayNamespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: proxy
+              app.kubernetes.io/managed-by: envoy-gateway
+      ports:
+        - protocol: TCP
+          port: 5000
+{{- end }}

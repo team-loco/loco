@@ -24,7 +24,11 @@ true
 {{- if include "loco-control-plane.ingestRouted" . -}}
 {{- $listeners = append $listeners (dict "name" "ingest" "hostname" .Values.obsProxy.ingest.hostname) -}}
 {{- end -}}
-{{- range .Values.gateway.extraListeners -}}
+{{- $extra := .Values.gateway.extraListeners -}}
+{{- if .Values.registry.enabled -}}
+{{- $extra = append $extra (dict "hostname" (include "loco-control-plane.registryHostname" .)) -}}
+{{- end -}}
+{{- range $extra -}}
 {{- $hostname := .hostname -}}
 {{- range $listeners -}}
 {{- if eq .hostname $hostname -}}
@@ -242,6 +246,9 @@ capabilities:
 {{- with $.Values.deploymentMode }}
 {{- $_ := set $settings "LOCO_DEPLOYMENT_MODE" . }}
 {{- end }}
+{{- if $.Values.registry.enabled }}
+{{- $_ := set $settings "LOCO_REGISTRY_HOST" (include "loco-control-plane.registryHostname" $) }}
+{{- end }}
 {{- toYaml $settings }}
 {{- end }}
 
@@ -256,4 +263,18 @@ capabilities:
 
 {{- define "loco-control-plane.postgresCluster" -}}
 {{- printf "%s-postgres" .Release.Name -}}
+{{- end -}}
+
+{{- define "loco-control-plane.registryHostname" -}}
+{{- required "registry.hostname is required when registry.enabled is true" .Values.registry.hostname -}}
+{{- end -}}
+
+{{- define "loco-control-plane.registryService" -}}
+{{- if .Values.api.registry.service -}}
+{{- .Values.api.registry.service -}}
+{{- else if .Values.registry.enabled -}}
+{{- include "loco-control-plane.registryHostname" . -}}
+{{- else -}}
+{{- fail "api.registry.service is required when api.registry.auth is token" -}}
+{{- end -}}
 {{- end -}}

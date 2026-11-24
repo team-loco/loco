@@ -300,6 +300,41 @@ postgres:
   # @schema item: object
   clients: []
 
+# A zot registry for build images, served at hostname through the chart's Gateway. It verifies the
+# tokens the API issues in api.registry.auth token mode, with the key the API publishes.
+# @schema additionalProperties: false
+registry:
+  enabled: false
+  hostname: ""
+  image: ghcr.io/project-zot/zot:v2.1.23@sha256:9d3de83ac2099e6f4843045b4c9b65b7e8baf40f92d28f54906dee9d4d390fd7
+  # @schema additionalProperties: false
+  storage:
+    # @schema enum: [volume, s3]
+    type: volume
+    # @schema additionalProperties: false
+    volume:
+      size: 50Gi
+      storageClass: ""
+    # @schema additionalProperties: false
+    s3:
+      # Empty for AWS S3; set for another S3-compatible service, which the registry addresses by path.
+      endpoint: ""
+      region: us-east-1
+      bucket: ""
+      rootDirectory: /registry
+      # @schema additionalProperties: false
+      existingSecret:
+        name: ""
+        accessKeyIdKey: access-key-id
+        secretAccessKeyKey: secret-access-key
+  # @schema skipProperties
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
 # @schema skipProperties
 clickhouse:
   enabled: false

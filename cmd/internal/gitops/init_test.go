@@ -38,14 +38,15 @@ const (
 	testDomain          = "apps.test"
 )
 
-func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
-	t.Parallel()
+// testOptions writes env as the API environment file and returns init options for a fresh output.
+func testOptions(t *testing.T, env string) InitOptions {
+	t.Helper()
 	root := t.TempDir()
-	env := filepath.Join(root, "api.env")
-	if err := os.WriteFile(env, []byte("DATABASE_URL=postgres://fixture\nAUTH_ISSUERS=[]\n"), 0600); err != nil {
+	path := filepath.Join(root, "api.env")
+	if err := os.WriteFile(path, []byte(env), 0600); err != nil {
 		t.Fatal(err)
 	}
-	options := InitOptions{
+	return InitOptions{
 		Output:     filepath.Join(root, "fleet"),
 		API:        "https://api.test",
 		Web:        "https://web.test",
@@ -53,8 +54,13 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 		Region:     "test-east",
 		Admin:      testAdmin,
 		Bundle:     "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
-		APIEnvFile: env,
+		APIEnvFile: path,
 	}
+}
+
+func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
+	t.Parallel()
+	options := testOptions(t, "DATABASE_URL=postgres://fixture\nAUTH_ISSUERS=[]\n")
 	if err := Init(options); err != nil {
 		t.Fatal(err)
 	}
@@ -171,24 +177,8 @@ func TestInitSingleCluster(t *testing.T) {
 func TestInitPostgresWaitsForTheOperator(t *testing.T) {
 	t.Parallel()
 	for _, single := range []bool{false, true} {
-		root := t.TempDir()
-		env := filepath.Join(root, "api.env")
-		if err := os.WriteFile(env, []byte("AUTH_ISSUERS=[]\n"), 0600); err != nil {
-			t.Fatal(err)
-		}
-		options := InitOptions{
-			Output:        filepath.Join(root, "fleet"),
-			API:           "https://api.test",
-			Web:           "https://web.test",
-			Domain:        testDomain,
-			Region:        "test-east",
-			Admin:         testAdmin,
-			Bundle:        "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
-			APIEnvFile:    env,
-			SingleCluster: single,
-			Name:          "local",
-			Postgres:      true,
-		}
+		options := testOptions(t, "AUTH_ISSUERS=[]\n")
+		options.SingleCluster, options.Name, options.Postgres = single, "local", true
 		if err := Init(options); err != nil {
 			t.Fatal(err)
 		}
@@ -242,5 +232,49 @@ func TestInitPostgresWaitsForTheOperator(t *testing.T) {
 		if err = yaml.Unmarshal(values, &parsed); err != nil || !parsed.Postgres.Enabled {
 			t.Errorf("single=%v: control-plane values do not enable postgres: %v", single, err)
 		}
+	}
+}
+
+func TestInitRegistryPointsBothReleasesAtTheBundledRegistry(t *testing.T) {
+	t.Parallel()
+	options := testOptions(t, "AUTH_ISSUERS=[]\n")
+	options.Registry = "images.test"
+	if err := Init(options); err != nil {
+		t.Fatal(err)
+	}
+	var control struct {
+		Registry struct {
+			Enabled  bool   `json:"enabled"`
+			Hostname string `json:"hostname"`
+		} `json:"registry"`
+		API struct {
+			Registry struct {
+				Service string `json:"service"`
+			} `json:"registry"`
+		} `json:"api"`
+	}
+	readValues(t, filepath.Join(options.Output, "clusters", controlPlaneCluster, "values", "loco-control-plane.yaml"),
+		&control)
+	if !control.Registry.Enabled || control.Registry.Hostname != options.Registry ||
+		control.API.Registry.Service != options.Registry {
+		t.Errorf("control-plane values: %+v", control)
+	}
+	var worker struct {
+		Env map[string]string `json:"env"`
+	}
+	readValues(t, filepath.Join(options.Output, "clusters", "worker-staging", "values", "loco-worker.yaml"), &worker)
+	if worker.Env["LOCO_REGISTRY_HOST"] != options.Registry {
+		t.Errorf("worker LOCO_REGISTRY_HOST is %q, want %q", worker.Env["LOCO_REGISTRY_HOST"], options.Registry)
+	}
+}
+
+func readValues(t *testing.T, path string, into any) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = yaml.Unmarshal(data, into); err != nil {
+		t.Fatal(err)
 	}
 }
