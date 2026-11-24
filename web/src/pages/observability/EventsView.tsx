@@ -21,7 +21,7 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { eventTypesQuery } from "@/lib/audit-query";
 import { useHeldError } from "@/hooks/useHeldError";
-import { useTokenPage } from "@/hooks/useTokenPage";
+import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { formatTotal, pageTokensParser, pagingParsers, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { resolveWindow } from "@/lib/obs-time";
 import { newResourcePath } from "@/lib/routes";
@@ -138,6 +138,11 @@ export function EventsView() {
 	const pager = tokenPager(params.page, page.nextPageToken, (pages) => {
 		if (!page.query.isPlaceholderData) void setParams({ page: pages });
 	});
+	const shown = useShownPage(
+		pager.page,
+		tokenPageLabel(pager.page, params.size, items.length, page.total),
+		page.query.isPlaceholderData,
+	);
 	const selKey = params.event;
 	const selIdx = selKey !== null ? items.findIndex((x) => x.id === selKey) : -1;
 	const selItem = selIdx >= 0 ? items[selIdx] : undefined;
@@ -257,8 +262,7 @@ export function EventsView() {
 						rowClassName={(row) => row.original.ts > openedAt && "animate-row-flash motion-reduce:animate-none"}
 					/>
 					<Pager
-						label={tokenPageLabel(pager.page, params.size, items.length, page.total)}
-						page={pager.page}
+						{...shown}
 						total={items.length}
 						pageSizes={PAGE_SIZES}
 						pageSize={params.size}

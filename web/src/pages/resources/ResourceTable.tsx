@@ -19,6 +19,7 @@ import { Pager } from "@/components/design/Pager";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
+import { useShownPage } from "@/hooks/useTokenPage";
 import { tokenPageLabel } from "@/lib/paging";
 import { userLabel } from "@/lib/user";
 
@@ -110,6 +111,11 @@ export function ResourceTable({
 	const facets = listed.counts?.facets;
 	const counts = statusCounts(listed.total, facets, draftCount);
 	const matched = facets === undefined && !draftsOnly ? undefined : (counts.get(filter.status) ?? 0);
+	const shown = useShownPage(
+		pager.page,
+		tokenPageLabel(pager.page, state.size, draftsOnly ? data.length : serverRows.length, matched),
+		listed.query.isPlaceholderData && !draftsOnly,
+	);
 
 	const sorting = [state.sort];
 	const table = useDataTable("resources", {
@@ -202,7 +208,7 @@ export function ResourceTable({
 					</ResourceCellContext>
 					<Pager
 						{...pager}
-						label={tokenPageLabel(pager.page, state.size, draftsOnly ? data.length : serverRows.length, matched)}
+						{...shown}
 						total={data.length}
 						pageSizes={PAGE_SIZES}
 						pageSize={state.size}

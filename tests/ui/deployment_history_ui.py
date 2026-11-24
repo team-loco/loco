@@ -305,16 +305,25 @@ with session(out) as browser:
 
     context.route("**/loco.observability.v1.ObservabilityService/QueryLogs", build_logs)
     failed = []
+    holding = []
+    held = []
+    seen_tokens = set()
 
     def history(route):
         body = route.request.post_data_json
-        if body.get("pageToken") and not failed:
+        token = body.get("pageToken")
+        # Only a page not requested before is held, so a poll of a shown page passes.
+        if token and holding and token not in seen_tokens:
+            seen_tokens.add(token)
+            held.append(route)
+        elif token and not failed:
             failed.append(body)
             route.fulfill(
                 status=503,
                 json={"code": "unavailable", "message": "Pilot page failure"},
             )
         else:
+            seen_tokens.add(token)
             route.continue_()
 
     context.route("**/loco.deployment.v1.DeploymentService/ListDeployments", history)
@@ -440,8 +449,27 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(section.get_by_text("Pilot page failure", exact=False)).to_have_count(0)
+    # While the next page loads, the previous rows stay and the label keeps naming them.
+    holding.append(True)
     next_button.click()
+    for _ in range(200):
+        if held:
+            break
+        page.wait_for_timeout(50)
+    assert held, "the next page was never requested"
+    holding.clear()
+    expect(section.get_by_text("51–100 of 221", exact=False)).to_be_visible()
+    expect(section.get_by_text("Page 2", exact=True)).to_be_visible()
+    expect(
+        section.get_by_role(
+            "button",
+            name=f"Actions for {data['releases'][50][-8:]}",
+            exact=True,
+        )
+    ).to_be_visible()
+    held.pop().continue_()
     expect(section.get_by_text("101–150 of 221", exact=False)).to_be_visible()
+    expect(section.get_by_text("Page 3", exact=True)).to_be_visible()
     expect(
         section.get_by_role(
             "button",

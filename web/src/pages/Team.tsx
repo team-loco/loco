@@ -31,7 +31,7 @@ import { useWorkspaceFilterChoices } from "@/hooks/orgWorkspaces";
 import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
-import { useTokenPage } from "@/hooks/useTokenPage";
+import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { useCopy } from "@/hooks/useCopy";
 import { toastConnectError } from "@/lib/error-handler";
 import { limitReason, limitUsage } from "@/lib/limits";
@@ -103,6 +103,11 @@ export function Team() {
 	const pager = tokenPager(params.pages, people.nextPageToken, (pages) => {
 		void setParams({ pages });
 	});
+	const shown = useShownPage(
+		pager.page,
+		tokenPageLabel(pager.page, size, rows.length, people.total),
+		people.query.isPlaceholderData,
+	);
 	const resetPage = { pages: null };
 	const counted = people.counts;
 	const workspaceCounts = new Map(Object.entries(counted?.workspaceMemberCounts ?? {}));
@@ -272,7 +277,7 @@ export function Team() {
 				) : (
 					<Pager
 						{...pager}
-						label={tokenPageLabel(pager.page, size, rows.length, people.total)}
+						{...shown}
 						total={rows.length}
 						loading={isLoading}
 						pageSizes={PAGE_SIZES}

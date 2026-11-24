@@ -30,7 +30,7 @@ import { CreateScopeDialog } from "@/components/shell/CreateScopeDialog";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { useOrgLimitDetails } from "@/hooks/useOrgLimits";
-import { useTokenPage } from "@/hooks/useTokenPage";
+import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatCount, pluralize } from "@/lib/format";
 import { limitReason, limitUsage } from "@/lib/limits";
@@ -159,6 +159,11 @@ export function OrgTab({
 	const pager = tokenPager(params.pages, listed.nextPageToken, (pages) => {
 		void setParams({ pages });
 	});
+	const shown = useShownPage(
+		pager.page,
+		tokenPageLabel(pager.page, params.size, rows.length, listed.total),
+		listed.query.isPlaceholderData,
+	);
 	const counted = useQuery(listOrgWorkspaces, {
 		orgId: org.id,
 		pageSize: 1,
@@ -355,8 +360,7 @@ export function OrgTab({
 					/>
 				)}
 				<Pager
-					label={tokenPageLabel(pager.page, params.size, rows.length, listed.total)}
-					page={pager.page}
+					{...shown}
 					total={rows.length}
 					pageSizes={PAGE_SIZES}
 					pageSize={params.size}

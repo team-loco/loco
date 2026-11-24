@@ -36,6 +36,7 @@ import { Sparkline } from "@/components/design/Sparkline";
 import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useShownPage } from "@/hooks/useTokenPage";
 import { useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
 import { deployMarkers, MARKER_NAMES } from "@/lib/deployMarkers";
 import { deploymentImage } from "@/lib/deployment-utils";
@@ -516,6 +517,13 @@ export function ResourcesTable({
 	).data?.buckets;
 	const deploys = Map.groupBy(deployBuckets ?? [], (b) => b.resourceId);
 	const matched = draftsOnly ? draftCount : listed.total;
+	const shown = useShownPage(
+		pager.page,
+		data.length === 0
+			? `0 of ${(total + drafts.length).toString()}`
+			: tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched),
+		listed.query.isPlaceholderData && !draftsOnly,
+	);
 
 	const table = useDataTable("dashboard-resources", {
 		data,
@@ -691,16 +699,7 @@ export function ResourcesTable({
 							empty={empty}
 						/>
 					</DashboardCellContext>
-					<Pager
-						{...pager}
-						label={
-							data.length === 0
-								? `0 of ${(total + drafts.length).toString()}`
-								: tokenPageLabel(pager.page, PAGE_SIZE, draftsOnly ? data.length : serverRows.length, matched)
-						}
-						total={data.length}
-						pageSizes={[PAGE_SIZE]}
-					/>
+					<Pager {...pager} {...shown} total={data.length} pageSizes={[PAGE_SIZE]} />
 				</>
 			)}
 		</Section>
