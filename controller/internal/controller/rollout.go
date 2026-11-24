@@ -154,7 +154,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	}
 	sort.Slice(rollout.Replicas, func(i, j int) bool { return rollout.Replicas[i].Name < rollout.Replicas[j].Name })
 	sort.Slice(current, func(i, j int) bool { return current[i].pod.Name < current[j].pod.Name })
-	rollout.Available = rollout.Available || placed && keepsServing(previous, current, revision)
+	rollout.Available = rollout.Available || keepsServing(previous, current, revision)
 	rollout.ProvenRevision = previous.ProvenRevision
 	rollout.DeployedRevision = previous.DeployedRevision
 	// Restarts stop a revision only until it proves itself; a proven revision keeps running.

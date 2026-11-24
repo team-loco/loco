@@ -52,13 +52,7 @@ var _ = Describe("Application autoscaling", func() {
 			quantity := deployment.Spec.Template.Spec.Containers[0].Resources.Requests[name]
 			Expect(quantity.IsZero()).To(BeFalse())
 		}
-		// The scale subresource uses the same field manager as Kubernetes' HPA controller.
-		scale, err := json.Marshal(map[string]any{"spec": map[string]int32{"replicas": 4}})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(
-			k8sClient.SubResource("scale").
-				Patch(ctx, deployment, client.RawPatch(client.Merge.Type(), scale), client.FieldOwner("horizontal-pod-autoscaler")),
-		).To(Succeed())
+		scaleAsAutoscaler(deployment, 4)
 		dep, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(dep.Spec.Replicas).To(HaveValue(Equal(int32(4))))
@@ -85,3 +79,13 @@ var _ = Describe("Application autoscaling", func() {
 		Expect(apierrors.IsNotFound(k8sClient.Get(ctx, key, hpa))).To(BeTrue())
 	})
 })
+
+// scaleAsAutoscaler scales the Deployment through its scale subresource as the HPA controller does.
+func scaleAsAutoscaler(deployment *appsv1.Deployment, replicas int32) {
+	GinkgoHelper()
+	scale, err := json.Marshal(map[string]any{"spec": map[string]int32{"replicas": replicas}})
+	Expect(err).NotTo(HaveOccurred())
+	patch := client.RawPatch(client.Merge.Type(), scale)
+	Expect(k8sClient.SubResource("scale").Patch(ctx, deployment, patch,
+		client.FieldOwner("horizontal-pod-autoscaler"))).To(Succeed())
+}
