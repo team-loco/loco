@@ -130,7 +130,10 @@ func TestAgentLifecycle(t *testing.T) {
 		outsider := "e2e-outsider-" + strings.ToLower(resourceID[len(resourceID)-8:])
 		p.MustKubectl(t, "create", "namespace", outsider)
 		p.DeleteOnCleanup(t, "namespace", outsider)
-		target := fmt.Sprintf("http://resource-%s.%s.svc.cluster.local/", resourceID, w.Namespace)
+		// The cluster IP leaves the network policy as the only reason for the outsider's probe to fail.
+		ip := strings.TrimSpace(p.MustKubectl(t, "-n", w.Namespace, "get", "service", "resource-"+resourceID,
+			"-o", "jsonpath={.spec.clusterIP}"))
+		target := "http://" + ip + "/"
 		if !p.Reaches(t, platform.ProbePod{Namespace: w.Namespace, Name: "e2e-probe-inside"}, target) {
 			t.Error("a pod in the app's workspace namespace cannot reach the app")
 		}

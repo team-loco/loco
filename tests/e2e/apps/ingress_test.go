@@ -219,8 +219,7 @@ func requireObject(t *testing.T, w *platform.Workspace, kind, name string, want 
 	}
 }
 
-// serviceURL addresses the app's Service by cluster IP, so a probe that fails was refused by the
-// network policy and not by a name lookup.
+// serviceURL addresses the app's Service by cluster IP; a probe does no name lookup.
 func serviceURL(t *testing.T, w *platform.Workspace, resourceID string) string {
 	t.Helper()
 	return "http://" + serviceIP(t, w.Namespace, "resource-"+resourceID) + "/"
