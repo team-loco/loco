@@ -12,7 +12,7 @@
 }
 .es-tokens .es-wire {
 	offset-path: path("M92 62 C112 62 112 60 134 60");
-	animation: es-wire 0.75s linear infinite;
+	animation: es-wire 2s linear infinite;
 }
 .es-tokens .es-dot {
 	animation: es-dot 4.8s ease-out infinite both;

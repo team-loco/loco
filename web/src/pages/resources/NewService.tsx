@@ -364,7 +364,7 @@ function DraftPanel({
 						</SheetTitle>
 					)}
 					<span className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-fg2">
-						<StatusGlyph glyph="draft" />
+						<StatusGlyph glyph="draft" className="motion-safe:animate-[spin_2.6s_linear_infinite]" />
 						Draft
 					</span>
 				</div>
