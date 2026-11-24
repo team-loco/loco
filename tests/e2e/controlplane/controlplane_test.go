@@ -99,7 +99,6 @@ type secretRef struct {
 type controlPlane struct {
 	values    chartValues
 	namespace string
-	password  string
 	// service is the Envoy proxy Service of the chart's Gateway, and gateway its forwarded URL.
 	service string
 	gateway string
@@ -109,7 +108,8 @@ type controlPlane struct {
 }
 
 // TestControlPlane installs the loco-control-plane chart with two API replicas on an empty
-// database, then checks in order: routing through the chart's Gateway, OpenBao across an upgrade,
+// CloudNativePG database, then checks in order: routing through the chart's Gateway, OpenBao
+// across an upgrade,
 // a snapshot restored into a reinstalled OpenBao, ingest tokens and OTLP ingest, and the API
 // retry policy, which reprograms the Gateway.
 func TestControlPlane(t *testing.T) {
@@ -159,8 +159,6 @@ func install(t *testing.T) *controlPlane {
 		"--values", writeJSON(t, "gateway-helm-values.json", workerValues["gateway-helm"]),
 		"--wait=legacy", "--timeout", installTimeout.String())
 
-	cp.password = persisted(t, "password", func() string { return platform.RandomHex(24) })
-	applySecret(t, cp.namespace, "fixture-password", map[string]string{passwordKey: cp.password})
 	snapshots := cp.values.OpenBao.Snapshots
 	applySecret(t, cp.namespace, snapshots.S3.ExistingSecret.Name, map[string]string{
 		snapshots.S3.ExistingSecret.AccessKeyIDKey: persisted(
@@ -174,17 +172,8 @@ func install(t *testing.T) *controlPlane {
 			func() string { return platform.RandomHex(24) },
 		),
 	})
-	var compose struct {
-		Services struct {
-			Postgres struct {
-				Image string `json:"image"`
-			} `json:"postgres"`
-		} `json:"services"`
-	}
-	mustReadYAML(t, c.Path("dev", "compose.yaml"), &compose)
 	helm(t, "upgrade", "--install", "fixtures", c.Path("tests", "e2e", "fixtures", "control-plane"),
 		"--namespace", cp.namespace, "--values", writeJSON(t, "fixtures.json", map[string]string{
-			"postgresImage":              compose.Services.Postgres.Image,
 			"rcloneImage":                snapshots.RcloneImage,
 			"snapshotBucket":             snapshots.S3.Bucket,
 			"snapshotSecret":             snapshots.S3.ExistingSecret.Name,
@@ -197,7 +186,6 @@ func install(t *testing.T) *controlPlane {
 		seal.Key: persisted(t, "seal-key", func() string { return randomBase64(32) }),
 	})
 	applySecret(t, cp.namespace, "api-env", map[string]string{
-		"DATABASE_URL":                   "postgresql://loco:" + cp.password + "@postgres:5432/loco?sslmode=disable",
 		"LOCO_IMAGE_RETENTION":           "0",
 		"LOCO_SECRETS_TRANSIT_CACHE_TTL": "1s",
 	})

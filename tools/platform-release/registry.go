@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -121,17 +122,32 @@ func (r *registry) manifest(ctx context.Context, repository, reference string, m
 
 func absent(err error) bool {
 	var failure *transport.Error
-	if !errors.As(err, &failure) || failure.StatusCode != http.StatusNotFound || len(failure.Errors) == 0 {
+	if !errors.As(err, &failure) || len(failure.Errors) == 0 {
 		return false
 	}
+	known := []transport.ErrorCode{
+		transport.ManifestUnknownErrorCode, transport.NameUnknownErrorCode, transport.BlobUnknownErrorCode,
+	}
+	if failure.StatusCode != http.StatusNotFound {
+		if !deniedToken(failure) {
+			return false
+		}
+		known = []transport.ErrorCode{transport.DeniedErrorCode}
+	}
 	for _, diagnostic := range failure.Errors {
-		switch diagnostic.Code {
-		case transport.ManifestUnknownErrorCode, transport.NameUnknownErrorCode, transport.BlobUnknownErrorCode:
-		default:
+		if !slices.Contains(known, diagnostic.Code) {
 			return false
 		}
 	}
 	return true
+}
+
+// deniedToken reports a token endpoint refusing a repository scope with 403. GHCR refuses an anonymous
+// pull token for a repository that was never pushed with 403 DENIED, as it does for a private one;
+// every published artifact is public.
+func deniedToken(failure *transport.Error) bool {
+	return failure.StatusCode == http.StatusForbidden && failure.Request != nil &&
+		strings.HasPrefix(failure.Request.URL.Query().Get("scope"), "repository:")
 }
 
 func (r *registry) requireImagePlatforms(ctx context.Context, repository, reference string) error {

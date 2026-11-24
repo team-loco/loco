@@ -53,12 +53,18 @@ func testTool(t *testing.T) *tool {
 		crdVersions,
 		encoded(object{"applications": fixtureVersion, buildsName: fixtureVersion, gatewayName: fixtureVersion}),
 	)
-	write(
-		certManager,
-		encoded(
-			object{"chart": certManagerName, "repository": "https://chart.example.invalid", fieldVersion: "v1.0.0"},
-		),
-	)
+	for _, upstream := range upstreamCharts {
+		write(
+			upstream.path,
+			encoded(
+				object{
+					"chart":      strings.TrimSuffix(upstream.name, "-chart"),
+					"repository": "https://chart.example.invalid",
+					fieldVersion: "v1.0.0",
+				},
+			),
+		)
+	}
 	for _, entry := range crdSources[:2] {
 		write(
 			entry.path,
@@ -175,9 +181,9 @@ func (fixture commandFixture) git() error {
 }
 
 func (fixture commandFixture) helm() error {
-	name := "cert-manager-v1.0.0"
-	if fixture.args[1] == "package" {
-		name = filepath.Base(fixture.args[2]) + "-0.1.0"
+	name := filepath.Base(fixture.args[2]) + "-0.1.0"
+	if fixture.args[1] == "pull" {
+		name = fixture.args[2] + "-" + fixture.argument("--version")
 	}
 	data, err := fixture.read("chart.tgz")
 	if err != nil {

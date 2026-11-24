@@ -6,7 +6,7 @@ Provide these dependencies before installing the chart:
 
 | Dependency | Configuration |
 | --- | --- |
-| PostgreSQL | `DATABASE_URL` in the API environment Secret; use a direct connection for startup migrations. Set `DATABASE_LISTEN_URL` to a direct connection if normal API queries use a transaction pooler. |
+| PostgreSQL | `DATABASE_URL` in the API environment Secret; use a direct connection for startup migrations. Set `DATABASE_LISTEN_URL` to a direct connection if normal API queries use a transaction pooler. Or `postgres.enabled: true` runs it on CloudNativePG; see [Bundled PostgreSQL](#bundled-postgresql). |
 | Identity provider | `AUTH_ISSUERS` in the API environment Secret, with the issuer, audience and web-client settings supported by the API. |
 | Source object storage | Existing S3-compatible bucket and `LOCO_SOURCE_BUCKET*` API environment settings. Without a bucket, source builds are disabled. |
 | Application image registry | Existing registry and `LOCO_REGISTRY_*` API environment settings. Builders and worker nodes must also reach this registry. |
@@ -160,4 +160,32 @@ mise run test:platform-render
 mise run e2e controlplane TestControlPlane
 ```
 
-The E2E suite builds the dashboard, API and proxy images, installs PostgreSQL and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks that an API pod that restarted before the setup Job created the Transit keys logged why, the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request the API refuses for an invalid token, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, an ingest token the API signs with the chart OpenBao's Transit key, secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job, and a raft snapshot from the snapshot CronJob restored into a reinstalled OpenBao. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--keep` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+The E2E suite builds the dashboard, API and proxy images, installs the CloudNativePG operator and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, a one-instance bundled PostgreSQL, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks that an API pod that restarted before the setup Job created the Transit keys logged why, the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request the API refuses for an invalid token, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, an ingest token the API signs with the chart OpenBao's Transit key, secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job, and a raft snapshot from the snapshot CronJob restored into a reinstalled OpenBao. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--keep` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+
+## Bundled PostgreSQL
+
+`postgres.enabled: true` runs the API database on a [CloudNativePG](https://cloudnative-pg.io) `Cluster` named `<release>-postgres` in the release namespace. It needs the CloudNativePG operator and its CRDs first; the platform bundle installs them from its `./postgres-operator` entry point, and `postgres.operatorNamespace` (`cnpg-system`) names the namespace it runs in. The cluster runs `postgres.instances` instances (2), one primary and streaming replicas, each on its own PersistentVolumeClaim of `postgres.storage.size` (10Gi) in `postgres.storage.storageClass`, the cluster default when empty. The StorageClass needs `ReadWriteOnce` volumes. `postgres.resources` sets each instance's requests and limits. The image is `postgres.image`, a CloudNativePG `minimal` image.
+
+The bundled PostgreSQL has no backups yet: losing its volumes loses the database. Back it up yourself, for example with `pg_dump` against `<release>-postgres-rw`, until the chart supports backups to object storage.
+
+CloudNativePG initializes the database `loco`, owned by the role `loco`, and writes its connection details to the Secret `<release>-postgres-app`. The API reads `DATABASE_URL` from that Secret's `uri` key, which points at the read-write Service `<release>-postgres-rw` on port 5432, and runs its migrations on startup as the database owner. `api.env.DATABASE_URL` is refused while `postgres.enabled` is true; a `DATABASE_URL` in the API environment Secret is overridden. The API pods wait in `CreateContainerConfigError` until the cluster's first instance has initialized and the Secret exists.
+
+The `Cluster` carries `helm.sh/resource-policy: keep`: setting `postgres.enabled: false` or uninstalling the release leaves the cluster, its volumes and its Secrets in place. Delete the `Cluster` yourself to remove the data.
+
+`postgres.databases` adds databases for other services on the same cluster. Each entry has a `name`, an `owner` login role, `createRole: true` to grant that role `CREATEROLE`, and `passwordSecret`, an existing `kubernetes.io/basic-auth` Secret in the release namespace whose `username` is the owner and whose `password` CloudNativePG sets on the role. The chart adds the role to the cluster's managed roles, never as a superuser, and a CloudNativePG `Database` named `<release>-postgres-<name, underscores as dashes>`. CloudNativePG keeps a database when its entry is removed. The owning service connects to `<release>-postgres-rw.<release namespace>:5432` with the role and password from its Secret:
+
+```yaml
+postgres:
+  enabled: true
+  databases:
+    - name: cp_auth
+      owner: cp_auth
+      createRole: true
+      passwordSecret: cp-auth-db
+  clients:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: sign-in
+```
+
+The cluster's NetworkPolicy admits the API pods, the cluster's own instances and the operator namespace on port 5432, and the operator namespace on port 8000, the instance status port. `postgres.clients` adds NetworkPolicy peers admitted on port 5432, such as the namespaces of the services that own `postgres.databases`.

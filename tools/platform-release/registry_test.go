@@ -116,6 +116,7 @@ func testRegistry(t *testing.T) *registryFixture {
 
 const (
 	pingPath     = "/v2/"
+	tokenPath    = "/token"
 	testUsername = "publisher"
 	testPassword = "credential"
 )
@@ -198,6 +199,49 @@ func TestRegistryAbsenceRequiresStructuredConfirmation(t *testing.T) {
 				require.NoError(t, err)
 				require.Empty(t, ref)
 			}
+		})
+	}
+}
+
+func TestRegistryAbsenceAcceptsADeniedRepositoryToken(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name, path string
+		wantError  bool
+	}{
+		{"token", tokenPath, false},
+		{"manifest", "/v2/example/chart/manifests/" + fixtureVersion, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == test.path {
+					w.WriteHeader(http.StatusForbidden)
+					writeResponse(t, w, []byte(
+						`{"errors":[{"code":"DENIED","message":"requested access to the resource is denied"}]}`,
+					))
+					return
+				}
+				if r.URL.Path == tokenPath {
+					writeResponse(t, w, []byte(`{"token":"access-token"}`))
+					return
+				}
+				if r.Header.Get("Authorization") == "" {
+					w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer realm=%q,service=%q`,
+						server.URL+tokenPath, strings.TrimPrefix(server.URL, "http://")))
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				w.WriteHeader(http.StatusNotFound)
+			}))
+			defer server.Close()
+			ref, err := testClient(server).manifest(context.Background(), "example/chart", fixtureVersion, true)
+			if test.wantError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Empty(t, ref)
 		})
 	}
 }

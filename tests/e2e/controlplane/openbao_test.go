@@ -19,15 +19,16 @@ import (
 )
 
 const (
-	secretResource = "00000000-0000-7000-8000-0000000000a1"
-	openbaoPod     = release + "-openbao-0"
-	initSecret     = release + "-openbao-init"
-	recoveryKeys   = "recovery-keys"
-	generateToken  = "generate-root-token"
-	leaderTimeout  = 2 * time.Minute
-	loginTimeout   = time.Minute
-	snapshotJob    = "openbao-snapshot-e2e"
-	kubectlExec    = "exec"
+	secretResource  = "00000000-0000-7000-8000-0000000000a1"
+	openbaoPod      = release + "-openbao-0"
+	initSecret      = release + "-openbao-init"
+	recoveryKeys    = "recovery-keys"
+	generateToken   = "generate-root-token"
+	leaderTimeout   = 2 * time.Minute
+	loginTimeout    = time.Minute
+	snapshotJob     = "openbao-snapshot-e2e"
+	kubectlExec     = "exec"
+	postgresCluster = release + "-postgres"
 )
 
 var errNoLeader = errors.New("OpenBao elected no leader")
@@ -137,11 +138,13 @@ func (cp *controlPlane) checkRestore(t *testing.T) {
 	cp.checkSecretNames(t, "AFTER_RESTORE AFTER_UPGRADE BEFORE_UPGRADE")
 }
 
-// psql runs SQL in the fixture Postgres and returns its unaligned output.
+// psql runs SQL as the superuser on the chart's CloudNativePG primary and returns its unaligned output.
 func (cp *controlPlane) psql(t *testing.T, sql string, args ...string) string {
 	t.Helper()
+	primary := c.MustKubectl(t, "-n", cp.namespace, "get", "pods", "-o", "name",
+		"-l", "cnpg.io/cluster="+postgresCluster+",cnpg.io/instanceRole=primary")
 	out, err := c.KubectlInput(t.Context(), sql, append([]string{"-n", cp.namespace, kubectlExec, "-i",
-		"deployment/postgres", "--", "psql", "-U", "loco", "-d", "loco", "-v", "ON_ERROR_STOP=1", "-Atq"},
+		strings.TrimSpace(primary), "-c", "postgres", "--", "psql", "-d", "loco", "-v", "ON_ERROR_STOP=1", "-Atq"},
 		args...)...)
 	if err != nil {
 		t.Fatal(err)

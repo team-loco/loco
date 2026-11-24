@@ -253,3 +253,7 @@ capabilities:
     matchLabels:
       {{- toYaml . | nindent 6 }}
 {{- end -}}
+
+{{- define "loco-control-plane.postgresCluster" -}}
+{{- printf "%s-postgres" .Release.Name -}}
+{{- end -}}

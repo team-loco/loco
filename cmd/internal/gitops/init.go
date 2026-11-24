@@ -25,7 +25,9 @@ import (
 type InitOptions struct {
 	Output, API, Web, Domain, Region, Admin, Bundle, APIEnvFile string
 	SingleCluster                                               bool
-	Name                                                        string
+	// Postgres runs the API database on a CloudNativePG cluster the bundle installs.
+	Postgres bool
+	Name     string
 }
 
 func Init(options InitOptions) error {
@@ -106,10 +108,88 @@ func Init(options InitOptions) error {
 			return writeErr
 		}
 	}
+	if options.Postgres {
+		if err := bundledPostgres(options.Output); err != nil {
+			return err
+		}
+	}
 	if options.SingleCluster {
 		return singleCluster(options)
 	}
 	return nil
+}
+
+const fieldName = "name"
+
+// postgresOperator applies the bundle's CloudNativePG operator entry point.
+const postgresOperator = `apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: loco-postgres
+  namespace: flux-system
+spec:
+  interval: 5m
+  sourceRef:
+    kind: OCIRepository
+    name: platform-bundle
+  path: ./postgres-operator
+  prune: true
+  wait: true
+  timeout: 30m
+`
+
+// bundledPostgres adds the CloudNativePG operator to the control-plane base, makes the cluster
+// configuration, and so the control-plane release, wait for it, and turns on postgres.enabled.
+func bundledPostgres(output string) error {
+	root, err := os.OpenRoot(output)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	base := filepath.Join("bases", "control-plane")
+	path := filepath.Join(base, "loco.yaml")
+	data, err := root.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var result bytes.Buffer
+	decoder := yamlv3.NewDecoder(bytes.NewReader(data))
+	for {
+		var document map[string]any
+		if err = decoder.Decode(&document); errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			return err
+		}
+		if metadata, ok := document["metadata"].(map[string]any); ok && metadata[fieldName] == "loco-cluster-config" {
+			spec, isMap := document["spec"].(map[string]any)
+			dependencies, isList := spec["dependsOn"].([]any)
+			if !isMap || !isList {
+				return errors.New("loco-cluster-config has no dependsOn list")
+			}
+			spec["dependsOn"] = append(dependencies, map[string]any{fieldName: "loco-postgres-operator"})
+		}
+		if err = writeDocument(&result, document); err != nil {
+			return err
+		}
+	}
+	result.WriteString(postgresOperator)
+	if err = root.WriteFile(path, result.Bytes(), 0600); err != nil {
+		return err
+	}
+	path = filepath.Join(base, "values", "values.yaml")
+	if data, err = root.ReadFile(path); err != nil {
+		return err
+	}
+	var values map[string]any
+	if err = yaml.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	values["postgres"] = map[string]any{"enabled": true}
+	if data, err = yaml.Marshal(values); err != nil {
+		return err
+	}
+	return root.WriteFile(path, data, 0600)
 }
 
 func substitute(value any, replacements *strings.Replacer) any {
@@ -143,12 +223,9 @@ func renderYAML(data []byte, replacements *strings.Replacer) ([]byte, error) {
 		if document == nil {
 			continue
 		}
-		encoded, err := yaml.Marshal(substitute(document, replacements))
-		if err != nil {
+		if err = writeDocument(&result, substitute(document, replacements)); err != nil {
 			return nil, err
 		}
-		result.Write(encoded)
-		result.WriteString("---\n")
 	}
 }
 
@@ -284,7 +361,7 @@ func singleCluster(options InitOptions) error {
 		return errors.New("cluster has no values generators")
 	}
 	cluster["configMapGenerator"] = append(generators, map[string]any{
-		"name":      "loco-worker-values",
+		fieldName:   "loco-worker-values",
 		"namespace": "flux-system",
 		"files":     []string{"values.yaml=values/loco-worker.yaml"},
 	})
@@ -324,5 +401,15 @@ See https://docs.loco.build/reference/installation for enrollment, upgrades and 
 	if options.Name != "control-plane" {
 		return root.Rename(control, filepath.Join("clusters", options.Name))
 	}
+	return nil
+}
+
+func writeDocument(output *bytes.Buffer, document any) error {
+	encoded, err := yaml.Marshal(document)
+	if err != nil {
+		return err
+	}
+	output.Write(encoded)
+	output.WriteString("---\n")
 	return nil
 }

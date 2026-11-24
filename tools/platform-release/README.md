@@ -6,7 +6,7 @@ Each Helm chart and CRD bundle is versioned on its own and published as an immut
 
 ## Charts and CRD bundles
 
-A chart's version is the `version` in its `Chart.yaml`. The Application, Build and Gateway CRD bundles take theirs from `tools/platform-release/crds.yaml`. The Gateway bundle holds the CRDs of the `gateway-helm` dependency `charts/loco-worker/Chart.yaml` pins. The cert-manager chart is mirrored at the upstream version `charts/cert-manager.yaml` pins. Envoy Gateway is mirrored as its own chart at the `gateway-helm` version the worker chart pins. Charts set no `appVersion` and no default Loco image tag.
+A chart's version is the `version` in its `Chart.yaml`. The Application, Build and Gateway CRD bundles take theirs from `tools/platform-release/crds.yaml`. The Gateway bundle holds the CRDs of the `gateway-helm` dependency `charts/loco-worker/Chart.yaml` pins. The cert-manager and CloudNativePG charts are mirrored at the upstream versions `charts/cert-manager.yaml` and `charts/cloudnative-pg.yaml` pin. Envoy Gateway is mirrored as its own chart at the `gateway-helm` version the worker chart pins. Charts set no `appVersion` and no default Loco image tag.
 
 Bump a chart's version when a file the chart packages changes, and a CRD bundle's version when its CRD file or the `gateway-helm` dependency changes. Pull requests run these checks:
 
@@ -42,6 +42,7 @@ Artifacts use these repository paths under `ghcr.io/<owner>/<repository>`:
 charts/loco-worker
 charts/loco-control-plane
 charts/cert-manager
+charts/cloudnative-pg
 charts/gateway-helm
 crds/applications
 crds/builds
@@ -49,7 +50,7 @@ crds/gateway
 platform
 ```
 
-Flux 2.10.0 is the minimum supported version; `mise.toml` pins the CLI used for validation. Select `./control-plane`, `./worker` or `./all` as the Flux Kustomization path. The worker entry point installs only worker services; the combined entry point runs both roles on one cluster. Postgres is supplied by the operator.
+Flux 2.10.0 is the minimum supported version; `mise.toml` pins the CLI used for validation. Select `./control-plane`, `./worker` or `./all` as the Flux Kustomization path. The worker entry point installs only worker services; the combined entry point runs both roles on one cluster. `./postgres-operator` is an opt-in entry point beside one of them: it installs the CloudNativePG operator for the control-plane chart's `postgres.enabled`. Without it the operator supplies Postgres.
 
 Set these GHCR packages to public. Artifact publication fails until every published chart and CRD bundle permits anonymous pulls, and the bundle requires anonymous access to every artifact and image it pins.
 
@@ -64,6 +65,7 @@ Point an `OCIRepository` named `platform-bundle` in `flux-system` at the `platfo
 | `loco-infra` | CRDs; installs cert-manager and Envoy Gateway as separate releases |
 | `loco-control-plane` | Infrastructure and operator-owned `loco-cluster-config` |
 | `loco-worker` | Infrastructure and operator-owned `loco-cluster-config` |
+| `loco-postgres-operator` | Namespaces; installs the CloudNativePG operator in `cnpg-system`, only from the `./postgres-operator` entry point. The operator's `loco-cluster-config` depends on it, so the control-plane release waits for its CRDs |
 
 The namespace layer uses Flux's bootstrap permissions to create the reconciler identity. The other layers use that service account. The operator's `loco-cluster-config` Kustomization depends on `loco-namespaces`, decrypts standalone Secrets and can install an issuer. Each internal dependency checks the bundle content revision, observed generation and Ready condition, including during uncommitted local builds from one commit.
 

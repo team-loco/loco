@@ -965,6 +965,74 @@
       },
       "additionalProperties": false
     },
+    "postgres": {
+      "type": "object",
+      "properties": {
+        "clients": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "owner",
+              "passwordSecret"
+            ],
+            "properties": {
+              "createRole": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z_][a-z0-9_]*$"
+              },
+              "owner": {
+                "type": "string",
+                "pattern": "^[a-z_][a-z0-9_]*$"
+              },
+              "passwordSecret": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "string"
+        },
+        "instances": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "operatorNamespace": {
+          "type": "string"
+        },
+        "resources": {
+          "type": "object"
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string"
+            },
+            "storageClass": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "ui": {
       "allOf": [
         {

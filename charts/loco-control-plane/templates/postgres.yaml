@@ -1,0 +1,90 @@
+{{- with .Values.postgres }}
+{{- if .enabled }}
+{{- $cluster := include "loco-control-plane.postgresCluster" $ }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ $cluster }}
+  namespace: {{ $.Release.Namespace }}
+  # Uninstalling the release or disabling postgres leaves the database and its volumes in place.
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  instances: {{ .instances }}
+  imageName: {{ .image | quote }}
+  storage:
+    size: {{ .storage.size | quote }}
+    {{- with .storage.storageClass }}
+    storageClass: {{ . | quote }}
+    {{- end }}
+  resources:
+    {{- toYaml .resources | nindent 4 }}
+  bootstrap:
+    initdb:
+      database: loco
+      owner: loco
+  {{- with .databases }}
+  managed:
+    roles:
+      {{- range . }}
+      - name: {{ .owner | quote }}
+        ensure: present
+        login: true
+        superuser: false
+        createrole: {{ .createRole | default false }}
+        passwordSecret:
+          name: {{ .passwordSecret | quote }}
+      {{- end }}
+  {{- end }}
+{{- range .databases }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ printf "%s-%s" $cluster (.name | replace "_" "-") }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  name: {{ .name | quote }}
+  owner: {{ .owner | quote }}
+  ensure: present
+  cluster:
+    name: {{ $cluster }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $cluster }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: {{ $cluster }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: {{ $.Release.Name }}-api
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ $cluster }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .operatorNamespace }}
+        {{- with .clients }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .operatorNamespace }}
+      ports:
+        - protocol: TCP
+          port: 8000
+{{- end }}
+{{- end }}

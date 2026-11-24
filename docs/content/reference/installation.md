@@ -2,11 +2,11 @@
 title: "Installation"
 ---
 
-A Loco installation uses Flux to reconcile a versioned platform bundle and an operator repository containing cluster values and operator-delivered Secrets. PostgreSQL and the cluster network are supplied by the operator.
+A Loco installation uses Flux to reconcile a versioned platform bundle and an operator repository containing cluster values and operator-delivered Secrets. The operator supplies the cluster network, and PostgreSQL unless the bundle runs it on CloudNativePG.
 
 ## Prepare infrastructure
 
-Provide Kubernetes with its CNI, PostgreSQL, an OIDC provider, an S3-compatible source bucket, a registry and DNS. Builds fail unless the CNI enforces Kubernetes NetworkPolicy. Allow the cluster to pull the platform charts, images and OCI artifacts. The [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) documents the minimum Flux version and the input Secrets.
+Provide Kubernetes with its CNI, PostgreSQL or a StorageClass for the [bundled PostgreSQL](#bundled-postgresql), an OIDC provider, an S3-compatible source bucket, a registry and DNS. Builds fail unless the CNI enforces Kubernetes NetworkPolicy. Allow the cluster to pull the platform charts, images and OCI artifacts. The [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) documents the minimum Flux version and the input Secrets.
 
 Each cluster runs its own Flux and reads its own directory. The control plane uses `./control-plane`, a worker uses `./worker`, and a single-cluster installation uses `./all`. Keep the staging and production installations of Loco on separate clusters. A team’s user environments can share worker clusters within one installation.
 
@@ -39,6 +39,12 @@ locoadm init --output ./fleet \
 
 The repository has `releases/control-plane.yaml`, staging and production worker cohorts, and shared role defaults under `bases/`, and one directory under `clusters/` per cluster. Each cluster kustomization selects exactly one release cohort file, references a role base and provides a small values file with endpoints, domains, administrator and region settings. Staging can follow stable releases through a semver range. Production pins an exact bundle digest.
 
+### Bundled PostgreSQL
+
+`--postgres` runs the API database on a CloudNativePG cluster in the control-plane namespace instead of an operator-supplied `DATABASE_URL`. It adds the Flux Kustomization `loco-postgres` to `bases/control-plane/loco.yaml`, which applies the bundle's `./postgres-operator` entry point: the CloudNativePG operator in `cnpg-system`. `loco-cluster-config` then waits for `loco-postgres-operator`, so the control-plane release starts after the operator's CRDs and webhooks exist. It also sets `postgres.enabled: true` in the control-plane base values. Leave `DATABASE_URL` out of the API environment file; the API reads it from the cluster's `loco-control-plane-postgres-app` Secret.
+
+The cluster runs two instances on 10Gi volumes of the default StorageClass. Set `postgres.instances`, `postgres.storage` and `postgres.resources` in the control-plane values to change them. The bundled PostgreSQL has no backups yet; back it up yourself, for example with `pg_dump`. The [control-plane chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md#bundled-postgresql) describes extra databases for other services. Without `--postgres`, add the same Kustomization, dependency and value to an existing repository to switch to the bundled database; the new database starts empty.
+
 ### Configure certificate solvers
 
 Both charts create a Let's Encrypt ACME ClusterIssuer by default and fail to render until `certManager.issuer.solvers` holds cert-manager's [solver list](https://cert-manager.io/docs/configuration/acme/#solvers). Loco assumes no DNS provider. The worker Certificate covers wildcard names, which ACME issues only through DNS-01, so configure a DNS-01 solver for your DNS provider. The generated values set `solvers: []`, and both charts refuse to render until you replace it with your provider's solver, as in this Cloudflare example:
@@ -68,7 +74,7 @@ flux bootstrap git --url=ssh://git@example.com/operator/fleet \
 
 Use a different deploy key on each cluster. If you choose SOPS, install it through your own tooling, encrypt the Secret files, configure `spec.decryption` on `loco-cluster-config`, and provision the cluster key in `flux-system` before reconciliation. Keep an offline recipient for recovery. External Secrets can supply the same named Secrets without Flux decryption.
 
-The bundle supplies namespaces and the reconciler service account. Its namespace layer runs first; the operator's `loco-cluster-config` applies Secrets and optional issuers. Namespaces and CRDs are never pruned. Infrastructure installs cert-manager and an independent gateway release. Control-plane and worker releases wait for infrastructure and cluster configuration.
+The bundle supplies namespaces and the reconciler service account. Its namespace layer runs first; the operator's `loco-cluster-config` applies Secrets and optional issuers. Namespaces and CRDs are never pruned. Infrastructure installs cert-manager and an independent gateway release. The opt-in `./postgres-operator` entry point installs the CloudNativePG operator after the namespaces. Control-plane and worker releases wait for infrastructure and cluster configuration.
 
 Each HelmRelease reads an optional `<release>-base-values` ConfigMap before an optional `<release>-values` ConfigMap and `<release>-secrets` Secret in `flux-system`, with a `values.yaml` key. Standalone credential Secrets live in the workload namespace and are referenced by name. Image digests remain pinned inside the bundle. The control-plane chart renders ClickHouse credential Secrets, reads existing data through Helm `lookup`, and retains those Secrets on uninstall. OpenBao initialization and auto-unseal run through chart Jobs.
 

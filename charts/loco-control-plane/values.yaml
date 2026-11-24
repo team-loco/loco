@@ -271,6 +271,35 @@ obsProxy:
         name: ""
         key: url
 
+# A CloudNativePG cluster for the API database, in the release namespace. It needs the
+# CloudNativePG operator, which the platform bundle's ./postgres-operator entry point installs.
+# @schema additionalProperties: false
+postgres:
+  enabled: false
+  image: ghcr.io/cloudnative-pg/postgresql:18.7-minimal-trixie@sha256:c8caac9817d2b5e5e66297a3ccf86d9fcbd68f097aa6cc00161d83f9635e88cc
+  # @schema minimum: 1
+  instances: 2
+  # Namespace of the CloudNativePG operator, which the network policy admits.
+  operatorNamespace: cnpg-system
+  # @schema additionalProperties: false
+  storage:
+    size: 10Gi
+    storageClass: ""
+  # @schema skipProperties
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+  # Databases for other services on the same cluster, each owned by a login role whose password is
+  # in passwordSecret, an existing kubernetes.io/basic-auth Secret in the release namespace.
+  # @schema item: object; itemRequired: [name, owner, passwordSecret]; itemProperties: {name: {type: string, pattern: "^[a-z_][a-z0-9_]*$"}, owner: {type: string, pattern: "^[a-z_][a-z0-9_]*$"}, createRole: {type: boolean}, passwordSecret: {type: string, minLength: 1}}
+  databases: []
+  # NetworkPolicy peers admitted to Postgres besides the API, such as the services that own databases.
+  # @schema item: object
+  clients: []
+
 # @schema skipProperties
 clickhouse:
   enabled: false
