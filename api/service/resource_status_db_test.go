@@ -657,17 +657,9 @@ func TestResourceStatusStaysHealthyWhileTheAutoscalerAddsAReplica(t *testing.T) 
 	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployProduction(t, 1)
-	deployment := *f.placementIn(t, f.envID, f.clusterID).DeploymentID
-	f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
-		Available: true, Healthy: true, Deployed: true, ReadyReplicas: 1, DesiredReplicas: 1,
-		Replicas: readyReplicas(deployment, 1),
-	})
-
-	replicas := readyReplicas(deployment, statusTwoReplicas)
-	replicas[1].Ready, replicas[1].State = false, string(loco.ReplicaStarting)
+	f.ready(t, f.clusterID, 1)
 	f.report(t, f.envID, f.clusterID, &agentv1.PlacementStatus{
 		Available: true, Healthy: true, Deployed: true, ReadyReplicas: 1, DesiredReplicas: statusTwoReplicas,
-		Replicas: replicas,
 	})
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
