@@ -237,23 +237,12 @@ func (r *registry) publish(
 	return result, nil
 }
 
-func (r *registry) ensure(
-	ctx context.Context,
-	repository, version string,
-	data []byte,
-	config any,
-	mediaType string,
-) (string, error) {
+// verify returns the digest of a published version whose content equals data, and "" when the version is absent.
+func (r *registry) verify(ctx context.Context, repository, version string, data []byte) (string, error) {
 	descriptor, err := r.get(ctx, repository, version)
 	if err != nil {
 		if absent(err) {
-			return r.publish(
-				ctx,
-				repository,
-				version,
-				artifact{version: version, data: data, config: config, mediaType: mediaType},
-				false,
-			)
+			return "", nil
 		}
 		return "", err
 	}
@@ -290,4 +279,24 @@ func (r *registry) ensure(
 		)
 	}
 	return descriptor.Digest.String(), nil
+}
+
+func (r *registry) ensure(
+	ctx context.Context,
+	repository, version string,
+	data []byte,
+	config any,
+	mediaType string,
+) (string, error) {
+	found, err := r.verify(ctx, repository, version, data)
+	if err != nil || found != "" {
+		return found, err
+	}
+	return r.publish(
+		ctx,
+		repository,
+		version,
+		artifact{version: version, data: data, config: config, mediaType: mediaType},
+		false,
+	)
 }

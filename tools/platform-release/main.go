@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	artifactsCommand = "artifacts"
-	bundleCommand    = "bundle"
-	mainCommand      = "main"
-	localCommand     = "local"
+	artifactsCommand      = "artifacts"
+	bundleCommand         = "bundle"
+	mainCommand           = "main"
+	checkPublishedCommand = "check-published"
+	localCommand          = "local"
 )
 
 type commandOptions struct {
@@ -36,7 +37,7 @@ func parseOptions(args []string) (commandOptions, error) {
 	options := commandOptions{}
 	if len(args) == 0 {
 		return options, errors.New(
-			"usage: platform-release {artifacts|bundle|main|local|check-versions|render} [flags]",
+			"usage: platform-release {artifacts|bundle|main|local|check-published|check-versions|render} [flags]",
 		)
 	}
 	options.mode = args[0]
@@ -58,6 +59,8 @@ func parseOptions(args []string) (commandOptions, error) {
 			flags.StringVar(&options.cache, "cache", "", "Image input cache for local development")
 			flags.StringVar(&options.prebuilt, "images", "", "Prebuilt image template, with * for the component")
 		}
+	case checkPublishedCommand:
+		flags.StringVar(&options.repository, "repository", "", "Artifact owner/repository")
 	case "check-versions":
 		flags.StringVar(&options.base, "base", "", "Comparison ref")
 	case "render":
@@ -105,7 +108,7 @@ func (options commandOptions) registry() (*registry, error) {
 			return nil, errors.New("--push, --address, --username and --password are required")
 		}
 		host = options.push
-	} else if options.mode != mainCommand {
+	} else if options.mode != mainCommand && options.mode != checkPublishedCommand {
 		username = os.Getenv("GITHUB_ACTOR")
 		password = os.Getenv("GH_TOKEN")
 		if username == "" || password == "" {
@@ -145,6 +148,8 @@ func (t *tool) execute(options commandOptions) (any, error) {
 		return t.localRelease(r, localOptions{options.address, options.prebuilt, options.cache})
 	case mainCommand:
 		return t.mainRelease(options.commit, r)
+	case checkPublishedCommand:
+		return nil, t.checkPublished(r)
 	case artifactsCommand:
 		if options.commit == "" {
 			return nil, errors.New("--commit is required")

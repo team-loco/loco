@@ -50,6 +50,26 @@ func (t *tool) publishArtifacts(commit string, r *registry) (map[string]string, 
 	return result, nil
 }
 
+// checkPublished fails when a packaged chart or CRD bundle differs from the same version in the registry.
+func (t *tool) checkPublished(r *registry) error {
+	directory, err := os.MkdirTemp("", "loco-release-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(directory)
+	artifacts, err := t.packagedArtifacts(directory, "")
+	if err != nil {
+		return err
+	}
+	names := repositories(r.repository)
+	for _, artifact := range artifacts {
+		if _, err = r.verify(t.ctx, names[artifact.name], artifact.version, artifact.data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (t *tool) published(commit string, r *registry, ref string) (releaseManifest, error) {
 	manifest := releaseManifest{CoreCommit: commit, Artifacts: map[string]string{}, Images: map[string]string{}}
 	names := repositories(r.repository)

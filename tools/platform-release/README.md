@@ -13,9 +13,10 @@ Bump a chart's version when a file the chart packages changes, and a CRD bundle'
 ```sh
 mise run lint:charts
 mise run lint:crd-versions
+mise run lint:published-versions OWNER/REPOSITORY
 ```
 
-`lint:charts` runs `ct lint`, which compares each chart's version with `origin/main` locally and the event base commit in CI, and skips files the chart's `.helmignore` excludes. `lint:crd-versions` compares against the merge base with `origin/main`; pass another ref as its argument for a stacked branch.
+`lint:charts` runs `ct lint`, which compares each chart's version with `origin/main` locally and the event base commit in CI, and skips files the chart's `.helmignore` excludes. `lint:crd-versions` compares against the merge base with `origin/main`; pass another ref as its argument for a stacked branch. `lint:published-versions` packages every chart and CRD bundle and compares each with the same version in the registry, the comparison below; it fails a pull request that changes a chart's content without a version bump.
 
 Every push to `main` that touches charts, CRDs or this tooling runs `mise run release:artifacts`. It publishes each version the registry does not hold yet and skips a version already published with the same content. A version already published with different content fails the run. The check compares the files inside the published layer with the new package and ignores tar metadata and compression, so repackaging the same chart compares equal. A failure names the differing files.
 
