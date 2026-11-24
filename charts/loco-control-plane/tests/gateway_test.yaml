@@ -282,3 +282,19 @@ tests:
     template: templates/gateway.yaml
     asserts:
       - failedTemplate: {}
+
+  - it: rejects an extra hostname the chart already serves
+    set:
+      gateway.extraListeners: [{hostname: api.region.test}]
+    template: templates/gateway.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: gateway.extraListeners repeats the hostname api.region.test
+
+  - it: rejects an extra hostname listed twice
+    set:
+      gateway.extraListeners: [{hostname: auth.region.test}, {hostname: auth.region.test}]
+    template: templates/gateway.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: gateway.extraListeners repeats the hostname auth.region.test

@@ -25,6 +25,12 @@ true
 {{- $listeners = append $listeners (dict "name" "ingest" "hostname" .Values.obsProxy.ingest.hostname) -}}
 {{- end -}}
 {{- range .Values.gateway.extraListeners -}}
+{{- $hostname := .hostname -}}
+{{- range $listeners -}}
+{{- if eq .hostname $hostname -}}
+{{- fail (printf "gateway.extraListeners repeats the hostname %s" $hostname) -}}
+{{- end -}}
+{{- end -}}
 {{- $listeners = append $listeners (dict "name" (.hostname | replace "." "-") "hostname" .hostname "namespaces" (.namespaces | default (list $.Release.Namespace))) -}}
 {{- end -}}
 {{- toJson $listeners -}}

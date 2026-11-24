@@ -136,7 +136,11 @@ gateway:
   extraListeners:
     - hostname: auth.example.com
       namespaces: [sign-in]
-``` `gateway.service` takes the same Envoy Service settings as `loco-worker`'s `envoyProxy.service`. Worker collectors export to the ingest hostname; the API reader and proxy migrator DSNs use the regional ClickHouse, and no cross-region replication is configured.
+```
+
+Every listener shares one Certificate, so a hostname the issuer cannot prove fails that Certificate's single ACME order and blocks HTTPS for every listener, on a fresh install and at renewal. A Secret named in `gateway.tlsSecretName` must cover the extra hostnames itself. The NetworkPolicies in a namespace behind an extra listener must admit the Envoy pods in `gatewayNamespace`. Hostnames must be unique across the chart's listeners and `gateway.extraListeners`; the chart fails on a repeat.
+
+`gateway.service` takes the same Envoy Service settings as `loco-worker`'s `envoyProxy.service`. Worker collectors export to the ingest hostname; the API reader and proxy migrator DSNs use the regional ClickHouse, and no cross-region replication is configured.
 
 The API runs database migrations during normal startup while holding a PostgreSQL migration lock. There is no migration Job or separate migration command. Its startup probe allows five minutes before liveness checks begin; adjust `api.startupProbe` for larger databases. The operator owns the Secrets the chart reads. After rotating their values, restart the corresponding Deployment so it reads the new environment.
 
