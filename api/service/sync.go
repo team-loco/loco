@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -23,6 +24,9 @@ import (
 )
 
 var errSyncSuperseded = errors.New("a newer sync stream for this cluster is connected")
+
+// syncReportQueue is how many status reports one sync stream queues; a full queue pauses reading the stream.
+const syncReportQueue = 1024
 
 type syncStream = agentv1connect.AgentServiceSyncServerStream
 
@@ -68,6 +72,12 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	}
 	session := newSyncSession(s, cluster.ID, send)
 	session.generation = generation
+	// A stream that ends drops its queued reports; the agent replays every placement's status on its next stream.
+	reportCtx, dropReports := context.WithCancel(ctx)
+	var reports sync.WaitGroup
+	defer reports.Wait()
+	defer dropReports()
+	reports.Go(func() { session.applyReports(reportCtx) })
 
 	poll := time.NewTicker(s.notifier.PollInterval())
 	defer poll.Stop()
@@ -161,6 +171,8 @@ type syncSession struct {
 	sent          map[uuid.UUID]int64
 	builds        buildTracker
 	retryRecorded bool
+	// reports queues status reports, which wait on a resource lock, for one worker to apply in order.
+	reports chan func(context.Context)
 }
 
 func newSyncSession(
@@ -174,6 +186,29 @@ func newSyncSession(
 		sendFn:    sendFn,
 		sent:      make(map[uuid.UUID]int64),
 		builds:    newBuildTracker(),
+		reports:   make(chan func(context.Context), syncReportQueue),
+	}
+}
+
+// applyReports applies queued reports one at a time until ctx ends.
+func (ss *syncSession) applyReports(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case apply := <-ss.reports:
+			apply(ctx)
+		}
+	}
+}
+
+// queueReport waits for room in the report queue, so a full queue stops reading the stream.
+func (ss *syncSession) queueReport(ctx context.Context, apply func(context.Context)) error {
+	select {
+	case ss.reports <- apply:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
@@ -334,6 +369,13 @@ func placementMessage(
 }
 
 func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) error {
+	if status := msg.GetStatus(); status != nil {
+		return ss.queueReport(ctx, func(ctx context.Context) {
+			ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
+			ss.server.recordStatus(ctx, ss.clusterID, ss.generation, status)
+			tracing.End(span, nil)
+		})
+	}
 	ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
 	err := ss.dispatch(ctx, msg)
 	tracing.End(span, err)
@@ -351,9 +393,6 @@ func (ss *syncSession) dispatch(ctx context.Context, msg *agentv1.SyncRequest) e
 			delete(ss.sent, placementID)
 			ss.retryRecorded = true
 		}
-		return nil
-	case *agentv1.SyncRequest_Status:
-		ss.server.recordStatus(ctx, ss.clusterID, ss.generation, m.Status)
 		return nil
 	case *agentv1.SyncRequest_BuildStatus:
 		return ss.handleBuildStatus(ctx, m.BuildStatus)
@@ -660,6 +699,12 @@ func (s *AgentServer) recordStatus(
 		return
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		placement := genDb.LockPlacementResourceParams{ID: placementID, ClusterID: clusterID}
+		if _, resourceErr := qtx.LockPlacementResource(ctx, placement); errors.Is(resourceErr, pgx.ErrNoRows) {
+			return nil
+		} else if resourceErr != nil {
+			return fmt.Errorf("lock status resource: %w", resourceErr)
+		}
 		current, lockErr := qtx.LockClusterSyncGeneration(ctx, clusterID)
 		if errors.Is(lockErr, pgx.ErrNoRows) {
 			return nil
@@ -669,12 +714,6 @@ func (s *AgentServer) recordStatus(
 		}
 		if current != generation {
 			return nil
-		}
-		placement := genDb.LockPlacementResourceParams{ID: placementID, ClusterID: clusterID}
-		if _, resourceErr := qtx.LockPlacementResource(ctx, placement); errors.Is(resourceErr, pgx.ErrNoRows) {
-			return nil
-		} else if resourceErr != nil {
-			return fmt.Errorf("lock status resource: %w", resourceErr)
 		}
 		row, updateErr := qtx.UpdatePlacementStatus(ctx, genDb.UpdatePlacementStatusParams{
 			ObservedRevision: status.GetObservedRevision(),
