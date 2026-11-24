@@ -75,19 +75,20 @@ func GetWebHost(cmd *cobra.Command) (string, error) {
 	return DefaultWebHost, nil
 }
 
-// ParseURL parses an API or dashboard address, rejecting one that is not an absolute HTTP or
-// HTTPS URL; the error names source (a flag, variable or config key) and, for a bare host, the URL to type.
+// ParseURL parses an absolute HTTP or HTTPS address, with an error naming source and the URL to type.
 func ParseURL(source, value string) (*url.URL, error) {
-	if !strings.Contains(value, "://") {
+	if value == "" {
+		return nil, fmt.Errorf("set %s to the server's URL, such as https://api.loco.build", source)
+	}
+	if u, err := url.Parse(value); err == nil && isEndpoint(u) {
+		return u, nil
+	}
+	if isBareHost(value) {
 		return nil, fmt.Errorf("set %s to a URL such as https://%s", source, value)
 	}
-	u, err := url.Parse(value)
-	if err != nil || !isEndpoint(u) {
-		return nil, fmt.Errorf(
-			"set %s to an http:// or https:// URL without credentials, query or fragment, not %q", source, value,
-		)
-	}
-	return u, nil
+	return nil, fmt.Errorf(
+		"set %s to an http:// or https:// URL without credentials, query or fragment, not %q", source, value,
+	)
 }
 
 func checked(source, value string) (string, error) {
@@ -98,8 +99,23 @@ func checked(source, value string) (string, error) {
 }
 
 func isEndpoint(u *url.URL) bool {
-	if u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
+	if u.Scheme != "http" && u.Scheme != "https" {
 		return false
 	}
-	return u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == ""
+	if u.Hostname() == "" || u.User != nil {
+		return false
+	}
+	if u.RawQuery != "" || u.ForceQuery {
+		return false
+	}
+	return u.Fragment == ""
+}
+
+// isBareHost reports whether value is a host or host:port with nothing else, so https:// makes it a URL.
+func isBareHost(value string) bool {
+	u, err := url.Parse("https://" + value)
+	if err != nil || u.Host != value {
+		return false
+	}
+	return isEndpoint(u) && !strings.HasSuffix(value, ":")
 }

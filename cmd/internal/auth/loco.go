@@ -32,9 +32,6 @@ func ResolveLocoLogin(cmd *cobra.Command) (Login, error) {
 	if tokenHost == "" {
 		return Login{}, errTokenHostRequired
 	}
-	if _, err := host.ParseURL(host.LocoHostEnv, tokenHost); err != nil {
-		return Login{}, err
-	}
 	apiHost, err := host.GetHost(cmd)
 	if err != nil {
 		return Login{}, err
