@@ -2,4 +2,4 @@
 #MISE description="Check that every packaged chart and CRD bundle equals the version already published; takes the owner/repository of the registry"
 set -euo pipefail
 
-exec go run ./tools/platform-release check-published --commit "$(git rev-parse HEAD)" --repository "${1:?usage: lint:published-versions owner/repository}"
+exec go run ./tools/platform-release check-published --repository "${1:?usage: lint:published-versions owner/repository}"

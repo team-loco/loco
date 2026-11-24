@@ -352,12 +352,14 @@ func writeResponse(t *testing.T, w http.ResponseWriter, data []byte) {
 	}
 }
 
+const chartFile = "chart/Chart.yaml"
+
 func TestRegistryEnsureComparesPublishedFiles(t *testing.T) {
 	t.Parallel()
 	fixture := testRegistry(t)
 	fixture.basic = true
 	fixture.registry.username, fixture.registry.password = testUsername, testPassword
-	layer := mustArchive(t, releaseFiles{"chart/Chart.yaml": []byte("name: chart"), "chart/removed": []byte("old")})
+	layer := mustArchive(t, releaseFiles{chartFile: []byte("name: chart"), "chart/removed": []byte("old")})
 	fixture.blobs[digest(layer)] = layer
 	manifest := encoded(object{
 		"layers":      []any{object{fieldDigest: digest(layer), "size": len(layer)}},
@@ -371,8 +373,19 @@ func TestRegistryEnsureComparesPublishedFiles(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, digest(manifest), ref)
 
-	changed := mustArchive(t, releaseFiles{"chart/Chart.yaml": []byte("name: other"), "chart/added": []byte("new")})
+	changed := mustArchive(t, releaseFiles{chartFile: []byte("name: other"), "chart/added": []byte("new")})
 	_, err = fixture.registry.ensure(ctx, "example/chart", fixtureVersion, changed, object{}, helmLayerType)
 	require.ErrorContains(t, err, "bump its version; differing files: chart/Chart.yaml, chart/added, chart/removed")
+	require.Zero(t, fixture.writes)
+}
+
+func TestRegistryVerifyWritesNothingForAbsentVersion(t *testing.T) {
+	t.Parallel()
+	fixture := testRegistry(t)
+	layer := mustArchive(t, releaseFiles{chartFile: []byte("name: chart")})
+
+	found, err := fixture.registry.verify(context.Background(), "example/chart", fixtureVersion, layer)
+	require.NoError(t, err)
+	require.Empty(t, found)
 	require.Zero(t, fixture.writes)
 }

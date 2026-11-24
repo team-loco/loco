@@ -51,16 +51,13 @@ func (t *tool) publishArtifacts(commit string, r *registry) (map[string]string, 
 }
 
 // checkPublished fails when a packaged chart or CRD bundle differs from the same version in the registry.
-func (t *tool) checkPublished(commit string, r *registry) error {
-	if checkErr := t.validateCommit(commit); checkErr != nil {
-		return checkErr
-	}
+func (t *tool) checkPublished(r *registry) error {
 	directory, err := os.MkdirTemp("", "loco-release-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(directory)
-	artifacts, err := t.packagedArtifacts(directory, commit)
+	artifacts, err := t.packagedArtifacts(directory, "")
 	if err != nil {
 		return err
 	}

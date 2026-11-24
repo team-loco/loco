@@ -43,7 +43,7 @@ func parseOptions(args []string) (commandOptions, error) {
 	options.mode = args[0]
 	flags := flag.NewFlagSet(options.mode, flag.ContinueOnError)
 	switch options.mode {
-	case artifactsCommand, bundleCommand, mainCommand, localCommand, checkPublishedCommand:
+	case artifactsCommand, bundleCommand, mainCommand, localCommand:
 		flags.StringVar(&options.repository, "repository", "", "Artifact owner/repository")
 		if options.mode != localCommand {
 			flags.StringVar(&options.commit, "commit", "", "Source commit")
@@ -59,6 +59,8 @@ func parseOptions(args []string) (commandOptions, error) {
 			flags.StringVar(&options.cache, "cache", "", "Image input cache for local development")
 			flags.StringVar(&options.prebuilt, "images", "", "Prebuilt image template, with * for the component")
 		}
+	case checkPublishedCommand:
+		flags.StringVar(&options.repository, "repository", "", "Artifact owner/repository")
 	case "check-versions":
 		flags.StringVar(&options.base, "base", "", "Comparison ref")
 	case "render":
@@ -147,7 +149,7 @@ func (t *tool) execute(options commandOptions) (any, error) {
 	case mainCommand:
 		return t.mainRelease(options.commit, r)
 	case checkPublishedCommand:
-		return nil, t.checkPublished(options.commit, r)
+		return nil, t.checkPublished(r)
 	case artifactsCommand:
 		if options.commit == "" {
 			return nil, errors.New("--commit is required")
