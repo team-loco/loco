@@ -62,3 +62,17 @@ for (const theme of themes) {
 		});
 	}
 }
+
+for (const dark of [false, true]) {
+	test(`catppuccin text, button and accent fill pairs read at 4.5:1: ${dark ? "dark" : "light"}`, () => {
+		const t = { ...tokens("loco", dark), ...tokens("catppuccin", dark) };
+		for (const surface of [...SURFACES, "accent-soft"]) {
+			expect(ratio(t["--fg"]!, t[`--${surface}`]!)).toBeGreaterThanOrEqual(4.5);
+		}
+		for (const surface of SURFACES) {
+			expect(ratio(t["--fg2"]!, t[`--${surface}`]!)).toBeGreaterThanOrEqual(4.5);
+			expect(ratio(t["--brand"]!, t[`--${surface}`]!)).toBeGreaterThanOrEqual(4.5);
+		}
+		expect(ratio(t["--btn-fg"]!, t["--btn"]!)).toBeGreaterThanOrEqual(4.5);
+	});
+}
