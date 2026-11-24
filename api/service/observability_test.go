@@ -52,6 +52,13 @@ func observabilityTestClient(
 	callers map[string][]genDb.EntityScope,
 ) observabilityClient {
 	t.Helper()
+	httpServer := httptest.NewServer(observabilityTestHandler(server, callers))
+	t.Cleanup(httpServer.Close)
+	transport := connecthttp.NewTransport(httpServer.Client(), httpServer.URL)
+	return observabilityv1connect.NewObservabilityServiceClient(connect.NewClient(transport))
+}
+
+func observabilityTestHandler(server *ObservabilityServer, callers map[string][]genDb.EntityScope) http.Handler {
 	principals := func(next connect.ServerFunc) connect.ServerFunc {
 		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
 			info, _ := connect.CallInfoForServerContext(ctx)
@@ -65,10 +72,7 @@ func observabilityTestClient(
 	observabilityv1connect.RegisterObservabilityServiceHandler(rpcServer, server)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, rpcServer)
-	httpServer := httptest.NewServer(mux)
-	t.Cleanup(httpServer.Close)
-	transport := connecthttp.NewTransport(httpServer.Client(), httpServer.URL)
-	return observabilityv1connect.NewObservabilityServiceClient(connect.NewClient(transport))
+	return mux
 }
 
 func callerContext(t *testing.T, token string) context.Context {
