@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, SearchXIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { toast } from "@/lib/toast";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
@@ -38,6 +38,7 @@ import { TokenTable } from "./tokens/TokenTable";
 import { useTokenCreators } from "./tokens/useTokenCreators";
 import { useTokenData } from "./tokens/useTokenData";
 import type { Owner } from "./tokens/useTokenData";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
@@ -50,17 +51,26 @@ const TOKENS_PARAMS = {
 	q: parseAsString.withDefault(""),
 };
 
-function firstRun(owner: Owner): { title: string; body: string } {
+function firstRun(owner: Owner): { title: string; body: ReactNode } {
 	switch (owner.key) {
 		case "org":
 			return {
 				title: "No organization tokens yet",
-				body: `Organization tokens belong to ${owner.label}, so automation keeps working when people leave.`,
+				body: (
+					<>
+						Organization tokens belong to <InlineCode>{owner.label}</InlineCode>, so automation keeps working when
+						people leave.
+					</>
+				),
 			};
 		case "ws":
 			return {
 				title: "No workspace tokens yet",
-				body: `Workspace tokens let CI deploy to ${owner.label}, or to just a few of its resources.`,
+				body: (
+					<>
+						Workspace tokens let CI deploy to <InlineCode>{owner.label}</InlineCode>, or to just a few of its resources.
+					</>
+				),
 			};
 		case "user":
 			return {

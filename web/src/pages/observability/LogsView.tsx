@@ -53,6 +53,7 @@ import { toRows, visibleLogRows, type LogRow } from "./rows";
 import { PAGE_SIZES, VOLUME_BARS_HEIGHT, VolumeBars, type VolumeBucket } from "./shared";
 import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const BATCH = 1000;
 const BUCKETS = 60;
@@ -424,7 +425,12 @@ export function LogsView() {
 				<ObsHero
 					view="logs"
 					title="Logs aren't available here yet"
-					body="This installation has no log store connected. Anything your resources print to stdout or stderr shows up here once it does."
+					body={
+						<>
+							This installation has no log store connected. Anything your resources print to{" "}
+							<InlineCode>stdout</InlineCode> or <InlineCode>stderr</InlineCode> shows up here once it does.
+						</>
+					}
 				/>
 			</>
 		);
@@ -466,7 +472,19 @@ export function LogsView() {
 								? "No logs collected"
 								: `No logs in the ${windowLabel(range, timePref).toLowerCase()}`
 					}
-					body={`Anything ${workspace === undefined ? "your" : `${workspace.name}'s`} resources write to stdout or stderr lands here.`}
+					body={
+						<>
+							Anything{" "}
+							{workspace === undefined ? (
+								"your"
+							) : (
+								<>
+									<InlineCode>{workspace.name}</InlineCode>&apos;s
+								</>
+							)}{" "}
+							resources write to <InlineCode>stdout</InlineCode> or <InlineCode>stderr</InlineCode> lands here.
+						</>
+					}
 					action={
 						<>
 							<CopyCommand command={`loco resource logs ${resources[0]?.slug ?? "<name>"} --follow`} />

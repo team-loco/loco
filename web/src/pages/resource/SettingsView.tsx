@@ -9,6 +9,7 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { DangerZone } from "@/components/design/DangerZone";
+import { InlineCode } from "@/components/design/InlineCode";
 import { Notice } from "@/components/design/Notice";
 import { SaveBar } from "@/components/design/SaveBar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -308,7 +309,7 @@ export function SettingsView({
 							description={
 								managed ? (
 									<>
-										Deleting here causes drift with <code className="font-mono">loco.yaml</code>.
+										Deleting here causes drift with <InlineCode>loco.yaml</InlineCode>.
 									</>
 								) : (
 									"Removes it from every region, along with its domains and variables."

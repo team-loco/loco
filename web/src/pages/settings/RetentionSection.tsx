@@ -175,7 +175,7 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 
 	return (
 		<SettingsSection
-			title="Retention"
+			title="Data retention"
 			actions={
 				drafts === null && (
 					<LimitedAction reason={editBlocked}>
@@ -202,7 +202,7 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 						submit();
 					}}
 				>
-					<DataTable table={table} label="Retention" band />
+					<DataTable table={table} label="Data retention" band />
 					<div className="mx-3 flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-[12.5px] text-fg3">
 						<p className="m-0">
 							A change applies to telemetry ingested after it. Stored telemetry keeps the retention it was written with.

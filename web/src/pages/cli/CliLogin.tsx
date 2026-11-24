@@ -1,3 +1,4 @@
+import { InlineCode } from "@/components/design/InlineCode";
 import { Spinner } from "@/components/design/Spinner";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
@@ -38,8 +39,7 @@ export function CliLogin() {
 			<CliCard title="This sign-in link is incomplete">
 				{() => (
 					<p className="m-0 text-center text-[13.5px] text-fg2">
-						Run <code className="font-mono text-[0.92em] whitespace-nowrap text-foreground">loco login</code> again to
-						get a new link.
+						Run <InlineCode>loco login</InlineCode> again to get a new link.
 					</p>
 				)}
 			</CliCard>
@@ -75,7 +75,7 @@ export function CliLogin() {
 					<p className="m-0 text-center text-[13.5px] text-fg2">
 						A terminal on this computer is asking to sign in as{" "}
 						<span className="font-medium text-foreground">{email}</span>. Continue only if you just ran{" "}
-						<code className="font-mono text-[0.92em] whitespace-nowrap text-foreground">loco login</code>.
+						<InlineCode>loco login</InlineCode>.
 					</p>
 					<div className="flex flex-col gap-2">
 						<Button

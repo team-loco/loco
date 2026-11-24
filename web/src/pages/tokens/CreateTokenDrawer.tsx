@@ -13,6 +13,7 @@ import { CodeBlock } from "@/components/design/CodeBlock";
 import { CopyButton } from "@/components/design/CopyButton";
 import { DateTimePicker } from "@/components/design/DateTimePicker";
 import { Field } from "@/components/design/Field";
+import { InlineCode } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -392,7 +393,8 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 						{`LOCO_TOKEN=${secret.slice(0, SECRET_PREVIEW)}… loco deploy …`}
 					</CodeBlock>
 					<span className="text-[12.5px] text-fg3">
-						Save it as a CI secret named <code>LOCO_TOKEN</code> and set <code>LOCO_HOST</code> to the API URL.
+						Save it as a CI secret named <InlineCode>LOCO_TOKEN</InlineCode> and set <InlineCode>LOCO_HOST</InlineCode>{" "}
+						to the API URL.
 					</span>
 				</div>
 			</SheetBody>

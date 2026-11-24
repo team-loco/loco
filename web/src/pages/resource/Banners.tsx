@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { RotateCwIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
+import { InlineCode } from "@/components/design/InlineCode";
 import { Notice as NoticeBox } from "@/components/design/Notice";
 
 import { servingBehindStop } from "./deployment-progress";
@@ -60,7 +61,7 @@ export function SecretsChangedNotice({
 			{names.map((name, i) => (
 				<Fragment key={name}>
 					{i > 0 && ", "}
-					<code>{name}</code>
+					<InlineCode>{name}</InlineCode>
 				</Fragment>
 			))}{" "}
 			changed after this deployment. Restart to use the new {names.length > 1 ? "values" : "value"}.
