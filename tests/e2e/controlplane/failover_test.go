@@ -34,7 +34,6 @@ const (
 	upstreamConnectFail = "upstream connect error"
 	apiSuffix           = "-api"
 	uiSuffix            = "-ui"
-	failoverDomain      = "failover.e2e.test.local"
 )
 
 // safeRetryTriggers are the failures the API's BackendTrafficPolicy retries: none of them reaches a
@@ -83,7 +82,7 @@ func (cp *controlPlane) checkFailover(t *testing.T) {
 	t.Cleanup(f.cleanup(t))
 	f.startFixture(t)
 	for _, layout := range []string{"headless", "shared", "separate"} {
-		t.Run(layout, func(t *testing.T) { f.checkLayout(t, layout, failoverDomain) })
+		t.Run(layout, func(t *testing.T) { f.checkLayout(t, layout, "failover.e2e.test.local") })
 	}
 }
 

@@ -45,8 +45,7 @@ func testDomains(t *testing.T) *domains.Reporter {
 		}
 	}
 	gateway := &gatewayv1.Gateway{Name: testGateway, Namespace: testGatewayNamespace, Generation: testGatewayGeneration}
-	checked := testConfig().AppDomains
-	for i, domain := range checked {
+	for i, domain := range testConfig().AppDomains {
 		name := gatewayv1.SectionName(fmt.Sprintf("https-%d", i))
 		host := gatewayv1.Hostname("*." + domain)
 		gateway.Spec.Listeners = append(gateway.Spec.Listeners, gatewayv1.Listener{Name: name, Hostname: &host})
@@ -62,7 +61,7 @@ func testDomains(t *testing.T) *domains.Reporter {
 	return domains.New(reader, domains.Config{
 		Namespace: testGatewayNamespace,
 		Gateway:   testGateway,
-		Domains:   checked,
+		Domains:   testConfig().AppDomains,
 	})
 }
 
