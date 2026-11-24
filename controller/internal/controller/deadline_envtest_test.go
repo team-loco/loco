@@ -188,12 +188,7 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(app.Status.Rollout.Healthy).To(BeTrue())
 
 		By("degrading it once the replica that served stops being ready")
-		for i := range serving.Status.Conditions {
-			if serving.Status.Conditions[i].Type == corev1.PodReady {
-				serving.Status.Conditions[i].Status = corev1.ConditionFalse
-			}
-		}
-		Expect(k8sClient.Status().Update(ctx, serving)).To(Succeed())
+		setUnready(serving)
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Available).To(BeFalse())
 		Expect(app.Status.Rollout.Healthy).To(BeFalse())
@@ -208,6 +203,37 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(app.Status.Rollout.Healthy).To(BeTrue())
 
 		Expect(k8sClient.Delete(ctx, serving, client.GracePeriodSeconds(0))).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
+	})
+
+	It("keeps a deployed revision healthy while the autoscaler removes a replica", func() {
+		app, serving := scaledDownApp(r, "scale-down")
+		Expect(k8sClient.Delete(ctx, serving[1], client.GracePeriodSeconds(0))).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.DesiredReplicas).To(Equal(int32(1)))
+		Expect(app.Status.Rollout.Available).To(BeTrue())
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+
+		By("staying healthy on the next observation")
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+	})
+
+	It("degrades a deployed revision whose kept replica stops being ready while the autoscaler removes one", func() {
+		app, serving := scaledDownApp(r, "scale-down-unready")
+		Expect(k8sClient.Delete(ctx, serving[1], client.GracePeriodSeconds(0))).To(Succeed())
+		setUnready(serving[0])
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
+	})
+
+	It("degrades a deployed revision that loses a serving replica without scaling down", func() {
+		app, serving := servingTwoApp(r, "serving-two-gone")
+		Expect(k8sClient.Delete(ctx, serving[1], client.GracePeriodSeconds(0))).To(Succeed())
+		setDeploymentCounts(app, 2, 1)
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Available).To(BeFalse())
 		Expect(app.Status.Rollout.Healthy).To(BeFalse())
@@ -295,11 +321,54 @@ func scaledUpApp(r *ApplicationReconciler, name string) (*locov1alpha1.Applicati
 	dep := appDeployment(app)
 	scaleAsAutoscaler(dep, 2)
 	createReplica(app, name+"-added")
-	dep = appDeployment(app)
-	dep.Status.ObservedGeneration = dep.Generation
-	dep.Status.Replicas, dep.Status.UpdatedReplicas = 2, 2
-	dep.Status.ReadyReplicas, dep.Status.AvailableReplicas = 1, 1
-	Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+	setDeploymentCounts(app, 2, 1)
 	reconcileStuckApp(r, app)
 	return app, serving
+}
+
+// servingTwoApp deploys an autoscaled service that the autoscaler runs at two serving replicas.
+func servingTwoApp(r *ApplicationReconciler, name string) (*locov1alpha1.Application, []*corev1.Pod) {
+	GinkgoHelper()
+	app := deadlineApp(name, 1)
+	app.Spec.ServiceSpec.Resources.Replicas.Max = 3
+	app.Spec.ServiceSpec.Resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, CPUTarget: 70}
+	Expect(k8sClient.Create(ctx, app)).To(Succeed())
+	reconcileStuckApp(r, app)
+	scaleAsAutoscaler(appDeployment(app), 2)
+	serving := []*corev1.Pod{serveReplica(app, name+"-a"), serveReplica(app, name+"-b")}
+	setDeploymentCounts(app, 2, 2)
+	reconcileStuckApp(r, app)
+	Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+	Expect(app.Status.Rollout.Healthy).To(BeTrue())
+	return app, serving
+}
+
+// scaledDownApp runs servingTwoApp, then has the autoscaler lower it to one replica before the
+// Deployment's counts catch up.
+func scaledDownApp(r *ApplicationReconciler, name string) (*locov1alpha1.Application, []*corev1.Pod) {
+	GinkgoHelper()
+	app, serving := servingTwoApp(r, name)
+	scaleAsAutoscaler(appDeployment(app), 1)
+	return app, serving
+}
+
+// setDeploymentCounts stands in for the Deployment controller once it observes the current generation.
+func setDeploymentCounts(app *locov1alpha1.Application, replicas, ready int32) {
+	GinkgoHelper()
+	dep := appDeployment(app)
+	dep.Status.ObservedGeneration = dep.Generation
+	dep.Status.Replicas, dep.Status.UpdatedReplicas = replicas, replicas
+	dep.Status.ReadyReplicas, dep.Status.AvailableReplicas = ready, ready
+	Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+}
+
+func setUnready(pod *corev1.Pod) {
+	GinkgoHelper()
+	Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+	for i := range pod.Status.Conditions {
+		if pod.Status.Conditions[i].Type == corev1.PodReady {
+			pod.Status.Conditions[i].Status = corev1.ConditionFalse
+		}
+	}
+	Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
 }
