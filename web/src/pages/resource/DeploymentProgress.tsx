@@ -240,7 +240,7 @@ function ProgressPanel({
 	return (
 		<section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-4 rounded-card bg-panel px-5 py-[18px]">
 			<div className="flex flex-wrap items-start gap-3">
-				<div className="flex min-w-0 flex-1 flex-col gap-1">
+				<div className="flex min-w-0 flex-[1_1_15rem] flex-col gap-1">
 					<div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
 						<StatusGlyph glyph={HEADLINE_GLYPH[headline.tone]} className="size-4" />
 						<h2

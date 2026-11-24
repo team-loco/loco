@@ -306,6 +306,21 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     incident = page.locator('section[aria-labelledby="incident-title"]')
     expect(panel).to_be_visible()
     expect(incident).to_have_count(0)
+    # At phone width the card's actions wrap under its title, which stays on one line.
+    page.set_viewport_size(evidence.NARROW)
+    title = panel.get_by_role("heading", name="Deploy failed", exact=True)
+    compare = panel.get_by_role("button", name="Compare spec", exact=True)
+    expect(compare).to_be_visible()
+    lines = title.evaluate(
+        "h => h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight)"
+    )
+    assert lines < 1.5, lines
+    title_box = title.bounding_box()
+    assert compare.bounding_box()["y"] >= title_box["y"] + title_box["height"], (
+        compare.bounding_box(),
+        title_box,
+    )
+    page.set_viewport_size(evidence.DESKTOP)
     phase("failed", survivors=False)
     expect(panel.get_by_text("The rollout stopped.", exact=False)).to_be_visible(
         timeout=25000
