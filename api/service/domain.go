@@ -413,6 +413,15 @@ func (s *DomainServer) CheckDomainAvailability(
 	ctx context.Context,
 	req *domainv1.CheckDomainAvailabilityRequest,
 ) (*domainv1.CheckDomainAvailabilityResponse, error) {
+	eligible, err := eligibleClusters(ctx, s.queries, s.silentAfter, s.defaults.TargetPlatform)
+	if err != nil {
+		return nil, fmt.Errorf("list clusters: %w", err)
+	}
+	served := appdomain.Served(regionClusters(eligible))
+	if _, _, matchErr := appdomain.Match(req.GetDomain(), served); matchErr != nil &&
+		!errors.Is(matchErr, appdomain.ErrCustomDomain) {
+		return nil, matchErr
+	}
 	result, err := s.queries.CheckDomainAvailability(ctx, req.GetDomain())
 	if err != nil {
 		return nil, fmt.Errorf("check domain availability: %w", err)
