@@ -29,7 +29,7 @@ func TestDeployWithSecretVariablesNeedsOneConnection(t *testing.T) {
 	t.Cleanup(single.Close)
 	server := NewDeploymentServer(
 		single, genDb.New(single), &fakeResolver{digest: testDigest}, testRegistryHost, testServiceDefaults(),
-		testClusterSilentAfter, testMaxPlacementBytes, limits.Defaults(), 8, nil,
+		testClusterSilentAfter, testMaxPlacementBytes, limits.Defaults(), nil,
 	)
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
