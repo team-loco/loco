@@ -30,7 +30,8 @@ each ended turn wakes the main session with an interim update. This skill does n
    mise run ci:evidence --out "$capture" --shots "$capture/shots.json" --scenario "$capture/scenario.json" [suite...]
    ```
 
-   `--base` names the before ref (default `main`); without `--scenario` CI uses
+   `--base` names the before ref (default `main`) and seeds it with that ref's own
+   `tests/ui/evidence.py`, so the ref needs one that accepts the scenario; without `--scenario` CI uses
    `scenario.example.json`. Suite names after the flags run those `tests/ui` suites in the
    same run.
 
