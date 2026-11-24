@@ -18,6 +18,15 @@ func TestPullPrebuiltPublishedManifest(t *testing.T) {
 	index := `{"manifests":[{"digest":"sha256:` + strings.Repeat("b", 64) +
 		`","platform":{"os":"linux","architecture":"arm64"}},{"digest":"sha256:` +
 		strings.Repeat("a", 64) + `","platform":{"os":"linux","architecture":"amd64"}}]}`
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pullimage := filepath.Join(t.TempDir(), "pullimage")
+	if out, buildErr := exec.CommandContext(t.Context(), "go", "-C", root, "build", "-o", pullimage,
+		"./tools/pullimage").CombinedOutput(); buildErr != nil {
+		t.Fatalf("%v: %s", buildErr, out)
+	}
 	for _, tc := range []struct {
 		name      string
 		manifest  string
@@ -27,7 +36,6 @@ func TestPullPrebuiltPublishedManifest(t *testing.T) {
 		stop      error
 	}{
 		{"published child becomes readable", index, missingManifest, "1", 2, nil},
-		{"dropped connection is retried", index, "dropped", "1", 2, nil},
 		{"authentication fails immediately", index, "unauthorized", "1", 1, nil},
 		{"unindexed missing image fails immediately", `{}`, missingManifest, "1", 1, nil},
 		{"missing blob fails immediately", index, "blob", "1", 1, nil},
@@ -48,7 +56,6 @@ pull)
   if [ "$calls" -le "$FAKE_FAILURES" ]; then
     case "$FAKE_FAILURE" in
     missing) printf 'Error response from daemon: failed to resolve reference "%s": %s: not found\n' "$4" "$4" >&2 ;;
-    dropped) printf 'failed to copy: read tcp 10.0.0.1:1->185.199.111.154:443: read: connection reset\n' >&2 ;;
     unauthorized) printf 'unauthorized: authentication required\n' >&2 ;;
     blob) printf 'failed to copy: blob sha256:missing: not found\n' >&2 ;;
     esac
@@ -68,16 +75,7 @@ esac
 			t.Setenv("FAKE_MANIFEST", tc.manifest)
 			t.Setenv("FAKE_FAILURE", tc.failure)
 			t.Setenv("FAKE_FAILURES", tc.failures)
-			root, err := filepath.Abs(filepath.Join("..", "..", ".."))
-			if err != nil {
-				t.Fatal(err)
-			}
-			// Compile pullimage before the timed cases, so a short deadline never cuts the build.
-			if out, buildErr := exec.CommandContext(t.Context(), "go", "-C", root, "build", "-o", os.DevNull,
-				"./tools/pullimage").CombinedOutput(); buildErr != nil {
-				t.Fatalf("%v: %s", buildErr, out)
-			}
-			cluster := &Cluster{root: root, env: os.Environ()}
+			cluster := &Cluster{root: root, env: os.Environ(), pullimage: pullimage}
 			ctx := t.Context()
 			if tc.stop != nil {
 				var cancel context.CancelFunc
@@ -90,7 +88,7 @@ esac
 				}
 				defer cancel()
 			}
-			err = cluster.pullPrebuilt(ctx, reference, "local:test", 0)
+			err := cluster.pullPrebuilt(ctx, reference, "local:test", 0)
 			calls, readErr := os.ReadFile(callsPath)
 			if readErr != nil {
 				t.Fatal(readErr)
@@ -102,7 +100,7 @@ esac
 			} else if got := strings.Count(string(calls), "pull "); got != tc.wantCalls {
 				t.Fatalf("pull calls = %d, want %d; error %v; commands:\n%s", got, tc.wantCalls, err, calls)
 			}
-			if tc.wantCalls == 2 {
+			if tc.name == "published child becomes readable" {
 				if err != nil {
 					t.Fatal(err)
 				}

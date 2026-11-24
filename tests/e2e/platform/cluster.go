@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"syscall"
 	"testing"
 
@@ -33,6 +34,9 @@ type Cluster struct {
 	clusterReused bool
 	// dockerHubMirror is the address of a registry mirroring Docker Hub, which CI serves from its cache.
 	dockerHubMirror string
+	// pullimage is the built tools/pullimage binary; pullimageMu guards its build.
+	pullimage   string
+	pullimageMu sync.Mutex
 	// lease records every container, compose project and cluster of the run, and its ports.
 	lease *testres.Lease
 }

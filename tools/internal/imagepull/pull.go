@@ -18,7 +18,6 @@ const (
 
 var (
 	registryHTTP5xx = regexp.MustCompile(`unexpected status from [^\n]+: 5[0-9]{2}\b`)
-	droppedTransfer = regexp.MustCompile(`failed to copy: (read|write) tcp\b`)
 
 	transientFailures = []string{
 		"500 Internal Server Error",
@@ -29,6 +28,8 @@ var (
 		"TLS handshake timeout",
 		"connection reset by peer",
 		"unexpected EOF",
+		"failed to copy: read tcp",
+		"failed to copy: write tcp",
 	}
 )
 
@@ -44,7 +45,7 @@ func dockerPull(ctx context.Context, image string) ([]byte, error) {
 }
 
 func transient(output []byte) bool {
-	if registryHTTP5xx.Match(output) || droppedTransfer.Match(output) {
+	if registryHTTP5xx.Match(output) {
 		return true
 	}
 	text := string(output)
