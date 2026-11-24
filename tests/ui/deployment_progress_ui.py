@@ -306,6 +306,17 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     incident = page.locator('section[aria-labelledby="incident-title"]')
     expect(panel).to_be_visible()
     expect(incident).to_have_count(0)
+    # At phone width the card's actions wrap under its title.
+    page.set_viewport_size(evidence.NARROW)
+    expect(panel.get_by_role("button", name="Compare spec", exact=True)).to_be_visible()
+    title_bottom, actions_top = panel.evaluate(
+        """card => [
+            card.querySelector('h2').getBoundingClientRect().bottom,
+            [...card.querySelectorAll('button')].find(b => b.textContent.includes('Compare spec')).getBoundingClientRect().top,
+        ]"""
+    )
+    assert actions_top >= title_bottom, (actions_top, title_bottom)
+    page.set_viewport_size(evidence.DESKTOP)
     phase("failed", survivors=False)
     expect(panel.get_by_text("The rollout stopped.", exact=False)).to_be_visible(
         timeout=25000
