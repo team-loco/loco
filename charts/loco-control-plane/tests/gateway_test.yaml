@@ -61,8 +61,8 @@ tests:
     documentSelector: {path: kind, value: Gateway}
     asserts:
       - equal:
-          path: spec.listeners[*].allowedRoutes.namespaces.selector.matchLabels
-          value: {kubernetes.io/metadata.name: loco-control-plane}
+          path: spec.listeners[*].allowedRoutes.namespaces.selector.matchExpressions
+          value: [{key: kubernetes.io/metadata.name, operator: In, values: [loco-control-plane]}]
 
   - it: attaches every route to the chart's Gateway
     set:
@@ -248,7 +248,7 @@ tests:
       - equal:
           path: spec.listeners[2]
           value:
-            name: https-auth-region-test
+            name: https-auth.region.test
             hostname: auth.region.test
             protocol: HTTPS
             port: 443
