@@ -86,11 +86,10 @@ tests:
       api.replicaCount: 3
       api.streams.maxPerReplica: 100
       api.streams.maxPerCaller: 7
-      api.gatewayRequestsPerReplica: 200
     asserts:
       - equal:
           path: spec.circuitBreaker
-          value: {maxParallelRequests: 900, maxPendingRequests: 900}
+          value: {maxParallelRequests: 3372, maxPendingRequests: 3372}
         template: templates/api-traffic-policy.yaml
       - contains:
           path: spec.template.spec.containers[0].env

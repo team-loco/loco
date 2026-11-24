@@ -25,7 +25,8 @@ spec:
         - reset-before-request
         - refused-stream
   {{- with .Values.api }}
-  {{- $requests := mul .replicaCount (add .streams.maxPerReplica .gatewayRequestsPerReplica) }}
+  {{- /* 1024 unary requests per replica is Envoy's default circuit breaker for one cluster. */}}
+  {{- $requests := mul .replicaCount (add .streams.maxPerReplica 1024) }}
   circuitBreaker:
     maxParallelRequests: {{ $requests }}
     maxPendingRequests: {{ $requests }}

@@ -135,10 +135,6 @@
           "type": "string",
           "minLength": 1
         },
-        "gatewayRequestsPerReplica": {
-          "type": "integer",
-          "minimum": 1
-        },
         "image": {
           "type": "object",
           "required": [

@@ -2,7 +2,6 @@ package interceptor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -70,12 +69,8 @@ func (l *streamLimiter) Interceptor() connect.ServerInterceptor {
 				return next(ctx, spec, stream)
 			}
 			method := attribute.String(streamMethodAttr, spec.Procedure)
-			if err := l.acquire(principal.Entity); err != nil {
-				limit := attribute.String(streamLimitAttr, "replica")
-				if errors.Is(err, errCallerStreamLimit) {
-					limit = attribute.String(streamLimitAttr, "principal")
-				}
-				l.refusals.Add(ctx, 1, metric.WithAttributes(method, limit))
+			if limit, err := l.acquire(principal.Entity); err != nil {
+				l.refusals.Add(ctx, 1, metric.WithAttributes(method, attribute.String(streamLimitAttr, limit)))
 				return err
 			}
 			l.openGauge.Add(ctx, 1, metric.WithAttributes(method))
@@ -88,18 +83,19 @@ func (l *streamLimiter) Interceptor() connect.ServerInterceptor {
 	}
 }
 
-func (l *streamLimiter) acquire(entity genDb.Entity) error {
+// acquire takes a stream slot for entity, or names the limit that refuses it.
+func (l *streamLimiter) acquire(entity genDb.Entity) (string, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.open >= l.limits.PerReplica {
-		return errReplicaStreamLimit
+		return "replica", errReplicaStreamLimit
 	}
 	if l.byPrincipal[entity] >= l.limits.PerPrincipal {
-		return errCallerStreamLimit
+		return "principal", errCallerStreamLimit
 	}
 	l.open++
 	l.byPrincipal[entity]++
-	return nil
+	return "", nil
 }
 
 func (l *streamLimiter) release(entity genDb.Entity) {

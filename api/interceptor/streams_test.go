@@ -83,7 +83,7 @@ func TestStreamLimitsAdmitExactlyTheLimitAtOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 32 {
 		wg.Go(func() {
-			if limiter.acquire(entity) == nil {
+			if _, err := limiter.acquire(entity); err == nil {
 				admitted.Add(1)
 			}
 		})
