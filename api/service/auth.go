@@ -312,14 +312,14 @@ func (s *AuthServer) StartDeviceLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
-	var deviceCode, userCode string
+	deviceCode := bearer.New("")
+	deviceDigest := bearer.Hash(deviceCode)
+	var userCode string
 	for range maxUserCodeDraws {
-		deviceCode = bearer.New("")
 		userCode, err = randomUserCode()
 		if err != nil {
 			return nil, fmt.Errorf("generate user code: %w", err)
 		}
-		deviceDigest := bearer.Hash(deviceCode)
 		err = s.state.Start(ctx, deviceCodeTTL,
 			startEntry{key: userCodeKey(userCode), value: []byte(deviceDigest)},
 			startEntry{key: deviceKey(deviceDigest), value: payload},

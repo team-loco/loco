@@ -87,8 +87,8 @@ func (s pgAuthStore) Start(ctx context.Context, ttl time.Duration, entries ...st
 	}
 	// A key another start holds uncommitted is skipped once that start commits, with the other
 	// entries stored; rolling back leaves none of them.
-	return pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
-		stored, err := genDb.New(tx).StartAuthStates(ctx, params)
+	return withTx(ctx, s.pool, func(qtx *genDb.Queries) error {
+		stored, err := qtx.StartAuthStates(ctx, params)
 		if err != nil {
 			return fmt.Errorf("start auth state: %w", err)
 		}
