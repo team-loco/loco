@@ -84,7 +84,7 @@ spec:
             - name: LOCO_REGISTRY_TRANSIT_KEY_VERSION
               value: {{ .Values.api.registry.transitKeyVersion | quote }}
             - name: LOCO_REGISTRY_TOKEN_SERVICE
-              value: {{ required "api.registry.service is required when api.registry.auth is token" .Values.api.registry.service | quote }}
+              value: {{ include "loco-control-plane.registryService" . | quote }}
             {{- end }}
             {{- if $tokenAuth }}
             - name: LOCO_SECRETS_TRANSIT_AUTH

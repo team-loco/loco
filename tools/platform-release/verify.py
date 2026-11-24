@@ -257,7 +257,16 @@ def main():
             raise RuntimeError(
                 "control-plane chart does not render the pinned API and observability proxy images"
             )
-        cp_path.write_text(json.dumps({**cp_values, "postgres": {"enabled": True}}))
+        cp_path.write_text(
+            json.dumps(
+                {
+                    **cp_values,
+                    "api": {**cp_values["api"], "registry": {"auth": "token"}},
+                    "postgres": {"enabled": True},
+                    "registry": {"enabled": True, "hostname": "registry.example.test"},
+                }
+            )
+        )
         postgres_resources = documents(
             run(
                 "helm",

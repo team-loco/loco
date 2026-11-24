@@ -18,6 +18,11 @@ spec:
             matchLabels:
               app.kubernetes.io/component: proxy
               app.kubernetes.io/managed-by: envoy-gateway
+        {{- if .Values.registry.enabled }}
+        - podSelector:
+            matchLabels:
+              app: {{ .Release.Name }}-registry
+        {{- end }}
         {{- if .Values.obsProxy.enabled }}
         - podSelector:
             matchLabels:

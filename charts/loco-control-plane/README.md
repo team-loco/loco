@@ -9,7 +9,7 @@ Provide these dependencies before installing the chart:
 | PostgreSQL | `DATABASE_URL` in the API environment Secret; use a direct connection for startup migrations. Set `DATABASE_LISTEN_URL` to a direct connection if normal API queries use a transaction pooler. Or `postgres.enabled: true` runs it on CloudNativePG; see [Bundled PostgreSQL](#bundled-postgresql). |
 | Identity provider | `AUTH_ISSUERS` in the API environment Secret, with the issuer, audience and web-client settings supported by the API. |
 | Source object storage | Existing S3-compatible bucket and `LOCO_SOURCE_BUCKET*` API environment settings. Without a bucket, source builds are disabled. |
-| Application image registry | Existing registry and `LOCO_REGISTRY_*` API environment settings. Builders and worker nodes must also reach this registry. |
+| Application image registry | Existing registry and `LOCO_REGISTRY_*` API environment settings. Builders and worker nodes must also reach this registry. Or `registry.enabled: true` runs one; see [Bundled registry](#bundled-registry). |
 | Regional ClickHouse | `clickhouse.enabled: true` runs it in the release namespace, or provide an external ClickHouse with Keeper and supply the API reader, proxy migrator and proxy ingest DSNs through existing Secrets. |
 | cert-manager | The cert-manager controller, which also issues OpenBao's serving certificate. The chart issues one Certificate for the Gateway hostnames with the Issuer set in `certManager.issuer`, the same options as `loco-worker`: `type: acme` needs `certManager.issuer.email` and `certManager.issuer.solvers`, cert-manager's own solver list, which the chart renders verbatim; create any Secret a solver references yourself. `selfSigned` needs neither. `certManager.issuer.create: false` uses an existing issuer by `name` and `kind`. `gateway.tlsSecretName` serves your own Secret without a Gateway Certificate; `certManager.enabled: false` serves plain HTTP on port 80. A self-signed ClusterIssuer with `certManager.issuer.create: true` is created independently of the Gateway certificate, so workers on the same cluster can reference it. |
 | Envoy Gateway | The Envoy Gateway controller in `gatewayNamespace`. The chart creates its own GatewayClass, EnvoyProxy and Gateway; `gateway.create: false` attaches the routes to the existing Gateway `gateway.name` instead. |
@@ -160,7 +160,7 @@ mise run test:platform-render
 mise run e2e controlplane TestControlPlane
 ```
 
-The E2E suite builds the dashboard, API and proxy images, installs the CloudNativePG operator and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, a one-instance bundled PostgreSQL, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks that an API pod that restarted before the setup Job created the Transit keys logged why, the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request the API refuses for an invalid token, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, an ingest token the API signs with the chart OpenBao's Transit key, secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job, and a raft snapshot from the snapshot CronJob restored into a reinstalled OpenBao. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--keep` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+The E2E suite builds the dashboard, API and proxy images, installs the CloudNativePG operator and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, a one-instance bundled PostgreSQL, the bundled registry in token mode, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks that an API pod that restarted before the setup Job created the Transit keys logged why, the Gateway's listeners, the registry's Bearer challenge naming the API's token endpoint, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request the API refuses for an invalid token, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, an ingest token the API signs with the chart OpenBao's Transit key, secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job, and a raft snapshot from the snapshot CronJob restored into a reinstalled OpenBao. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--keep` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
 
 ## Bundled PostgreSQL
 
@@ -189,3 +189,32 @@ postgres:
 ```
 
 The cluster's NetworkPolicy admits the API pods, the cluster's own instances and the operator namespace on port 5432, and the operator namespace on port 8000, the instance status port. `postgres.clients` adds NetworkPolicy peers admitted on port 5432, such as the namespaces of the services that own `postgres.databases`.
+
+## Bundled registry
+
+`registry.enabled: true` runs [zot](https://zotregistry.dev), an OCI registry, for build images as the Deployment `<release>-registry`, and serves it at `registry.hostname` through the chart's Gateway, on a listener of its own like an entry in `gateway.extraListeners`, with HTTPS from the Gateway Certificate. It needs the API's token mode, `api.registry.auth: token`; the chart refuses static mode with the bundled registry. In token mode the registry holds no passwords: it answers clients with a Bearer challenge naming the API's `/registry/token` endpoint on `controlPlaneHostname` and the service `api.registry.service`, which defaults to `registry.hostname`, and verifies the tokens the API signs with the public key the API serves at `/.well-known/loco-registry-key.pem`. An init container fetches that key from the API's private Service before the registry starts, retrying until the API serves it. The chart also sets the API's `LOCO_REGISTRY_HOST` to `registry.hostname` and `LOCO_REGISTRY_URL`, the address the image sweeper uses, to `<scheme>://<registry.hostname>`. The realm and that URL use `https` when the Gateway serves TLS, from cert-manager or `gateway.tlsSecretName`, and `http` otherwise. With `gateway.create: false` the chart cannot see the existing Gateway's TLS, so the scheme still follows `gateway.tlsSecretName` and `certManager.enabled`; set them to match that Gateway.
+
+Images live on a PersistentVolumeClaim `<release>-registry` of `registry.storage.volume.size` (50Gi) in `registry.storage.volume.storageClass` by default, kept when the registry is disabled or the release uninstalled. `registry.storage.type: s3` stores them in an S3-compatible bucket instead:
+
+```yaml
+registry:
+  enabled: true
+  hostname: registry.example.com
+  storage:
+    type: s3
+    s3:
+      endpoint: https://s3.example.com
+      bucket: loco-images
+      existingSecret:
+        name: registry-s3
+api:
+  registry:
+    auth: token
+```
+
+`registry.storage.s3.endpoint` is empty for AWS S3, in `registry.storage.s3.region`; any other endpoint is addressed by path. Images go under `registry.storage.s3.rootDirectory` (`/registry`) in `registry.storage.s3.bucket`, and the Secret `registry.storage.s3.existingSecret.name` holds the access key ID and secret access key under `accessKeyIdKey` (`access-key-id`) and `secretAccessKeyKey` (`secret-access-key`). Either way the registry runs one replica: zot keeps its metadata on local disk. In S3 mode that disk is an emptyDir, and zot rebuilds the metadata by scanning the bucket when it restarts. Every six hours it deletes blobs no image has referenced for an hour.
+
+Worker clusters use the same settings as for any token-mode registry: the `loco-worker` values `registry.auth: token` and `env.LOCO_REGISTRY_HOST: <registry.hostname>`. The registry's NetworkPolicy admits only the Gateway's Envoy pods, and the API's admits the registry for the key fetch.
+
+Raising `api.registry.transitKeyVersion` restarts the registry, which fetches the key again. If the registry restarted before every API replica served the new version, restart it again after the API rollout: `kubectl rollout restart deployment/<release>-registry -n <namespace>`.
+

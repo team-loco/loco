@@ -4,7 +4,7 @@ This repository layout installs a control plane and a staging worker through ver
 
 ## Configure
 
-Copy this directory into your own repository, or use `locoadm init` with the release that includes GitOps scaffolding. Supply Kubernetes clusters with a CNI that enforces NetworkPolicy, external Postgres or the bundled one (`locoadm init --postgres`), an identity provider and a registry configured for Loco's token endpoint. Source builds also need object storage. The control-plane chart supplies ClickHouse and OpenBao; the static seal key belongs in offline custody with recovery material.
+Copy this directory into your own repository, or use `locoadm init` with the release that includes GitOps scaffolding. Supply Kubernetes clusters with a CNI that enforces NetworkPolicy, external Postgres or the bundled one (`locoadm init --postgres`), an identity provider and a registry configured for Loco's token endpoint, or the bundled one (`locoadm init --registry HOST`). Source builds also need object storage. The control-plane chart supplies ClickHouse and OpenBao; the static seal key belongs in offline custody with recovery material.
 
 The Secret files contain plaintext example values. Supply your own values and encrypt them before committing, or deliver the same Secret names through External Secrets. Core requires no encryption tool. Set the production digest pins in `releases/control-plane.yaml` and `releases/workers-production.yaml` to a bundle v2 release. The zero digests are placeholders. Staging's `*` range follows stable releases after bundle v2 is published.
 

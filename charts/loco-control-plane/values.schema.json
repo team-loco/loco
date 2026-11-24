@@ -1033,6 +1033,82 @@
       },
       "additionalProperties": false
     },
+    "registry": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        },
+        "resources": {
+          "type": "object"
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "s3": {
+              "type": "object",
+              "properties": {
+                "bucket": {
+                  "type": "string"
+                },
+                "endpoint": {
+                  "type": "string"
+                },
+                "existingSecret": {
+                  "type": "object",
+                  "properties": {
+                    "accessKeyIdKey": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "secretAccessKeyKey": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "region": {
+                  "type": "string"
+                },
+                "rootDirectory": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "volume",
+                "s3"
+              ]
+            },
+            "volume": {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "type": "string"
+                },
+                "storageClass": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "ui": {
       "allOf": [
         {

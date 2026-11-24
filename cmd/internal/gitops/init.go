@@ -2,6 +2,7 @@ package gitops
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -27,6 +28,8 @@ type InitOptions struct {
 	SingleCluster                                               bool
 	// Postgres runs the API database on a CloudNativePG cluster the bundle installs.
 	Postgres bool
+	// Registry, when set, is the hostname of a registry the control-plane chart runs.
+	Registry string
 	Name     string
 }
 
@@ -77,6 +80,8 @@ func Init(options InitOptions) error {
 		options.Region,
 		"admin@example.com",
 		options.Admin,
+		"registry.example.com",
+		cmp.Or(options.Registry, "registry.example.com"),
 	)
 	if err := copyExample(options, repository, pin, replacements); err != nil {
 		return err
@@ -110,6 +115,11 @@ func Init(options InitOptions) error {
 	}
 	if options.Postgres {
 		if err := bundledPostgres(options.Output); err != nil {
+			return err
+		}
+	}
+	if options.Registry != "" {
+		if err := bundledRegistry(options.Output, options.Registry); err != nil {
 			return err
 		}
 	}
@@ -412,4 +422,27 @@ func writeDocument(output *bytes.Buffer, document any) error {
 	output.Write(encoded)
 	output.WriteString("---\n")
 	return nil
+}
+
+// bundledRegistry turns on the control-plane chart's registry at hostname.
+func bundledRegistry(output, hostname string) error {
+	root, err := os.OpenRoot(output)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	path := filepath.Join("clusters", "control-plane", "values", "loco-control-plane.yaml")
+	data, err := root.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var values map[string]any
+	if err = yaml.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	values["registry"] = map[string]any{"enabled": true, "hostname": hostname}
+	if data, err = yaml.Marshal(values); err != nil {
+		return err
+	}
+	return root.WriteFile(path, data, 0600)
 }

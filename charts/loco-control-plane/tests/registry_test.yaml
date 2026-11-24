@@ -1,0 +1,187 @@
+suite: registry
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+  - values/hosts.yaml
+set:
+  gatewayNamespace: edge
+templates:
+  - templates/registry.yaml
+  - templates/api-deployment.yaml
+  - templates/api-network-policy.yaml
+  - templates/gateway.yaml
+  - templates/cm-cert.yaml
+tests:
+  - it: renders no registry by default
+    template: templates/registry.yaml
+    asserts:
+      - hasDocuments: {count: 0}
+
+  - it: requires a hostname
+    set:
+      registry.enabled: true
+      api.registry.auth: token
+    template: templates/registry.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: registry.hostname is required when registry.enabled is true
+
+  - it: requires the API's token mode
+    set:
+      registry.enabled: true
+      registry.hostname: registry.region.test
+    template: templates/registry.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: registry.enabled needs api.registry.auth set to token
+
+  - it: verifies tokens from the API's realm with the key the API publishes
+    set: &enabled
+      registry.enabled: true
+      registry.hostname: registry.region.test
+      api.registry.auth: token
+    template: templates/registry.yaml
+    documentSelector: {path: kind, value: ConfigMap}
+    asserts:
+      - equal:
+          path: data["config.json"]
+          decodeBase64: false
+          value: '{"distSpecVersion":"1.1.1","http":{"address":"0.0.0.0","auth":{"bearer":{"cert":"/etc/zot/key/loco-registry-key.pem","realm":"https://api.region.test/registry/token","service":"registry.region.test"},"failDelay":1},"compat":["docker2s2"],"port":"5000"},"log":{"level":"info"},"storage":{"dedupe":false,"gc":true,"gcDelay":"1h","gcInterval":"6h","rootDirectory":"/var/lib/registry"}}'
+
+  - it: fetches the API's signing key before it starts
+    set: *enabled
+    template: templates/registry.yaml
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: http://loco-control-plane-api\.loco-control-plane\.svc\.cluster\.local/\.well-known/loco-registry-key\.pem
+      - equal:
+          path: spec.template.metadata.annotations["loco.io/registry-key-version"]
+          value: "1"
+
+  - it: keeps images on a volume by default
+    set: *enabled
+    template: templates/registry.yaml
+    documentSelector: {path: kind, value: PersistentVolumeClaim}
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value: {helm.sh/resource-policy: keep}
+      - equal:
+          path: spec.resources.requests.storage
+          value: 50Gi
+
+  - it: stores images in an S3 bucket with credentials from a Secret
+    set:
+      <<: *enabled
+      registry.storage:
+        type: s3
+        s3:
+          endpoint: https://s3.example.test
+          bucket: images
+          existingSecret: {name: registry-s3}
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/registry.yaml
+        documentSelector: {path: kind, value: PersistentVolumeClaim, skipEmptyTemplates: true}
+      - matchRegex:
+          path: data["config.json"]
+          pattern: '"storageDriver":\{"bucket":"images","forcepathstyle":true,"name":"s3","region":"us-east-1","regionendpoint":"https://s3.example.test","rootdirectory":"/registry","secure":true\}'
+        template: templates/registry.yaml
+        documentSelector: {path: kind, value: ConfigMap}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: AWS_ACCESS_KEY_ID, valueFrom: {secretKeyRef: {name: registry-s3, key: access-key-id}}}
+        template: templates/registry.yaml
+        documentSelector: {path: kind, value: Deployment}
+
+  - it: routes the hostname to the registry with no request timeout
+    set: *enabled
+    template: templates/registry.yaml
+    documentSelector: {path: kind, value: HTTPRoute}
+    asserts:
+      - equal:
+          path: spec.hostnames
+          value: [registry.region.test]
+      - equal:
+          path: spec.parentRefs
+          value: [{name: loco-control-plane, namespace: edge}]
+      - equal:
+          path: spec.rules[0].timeouts
+          value: {request: 0s}
+
+  - it: serves the hostname on the Gateway with the chart's certificate
+    set: *enabled
+    asserts:
+      - contains:
+          path: spec.listeners
+          content:
+            name: https-registry.region.test
+            hostname: registry.region.test
+            protocol: HTTPS
+            port: 443
+            tls: {mode: Terminate, certificateRefs: [{name: loco-control-plane-tls, kind: Secret, group: ""}]}
+            allowedRoutes:
+              namespaces:
+                from: Selector
+                selector:
+                  matchExpressions: [{key: kubernetes.io/metadata.name, operator: In, values: [loco-control-plane]}]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - contains:
+          path: spec.dnsNames
+          content: registry.region.test
+        template: templates/cm-cert.yaml
+
+  - it: points the API's token mode at the bundled registry
+    set: *enabled
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_HOST, value: registry.region.test}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TOKEN_SERVICE, value: registry.region.test}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_URL, value: https://registry.region.test}
+
+  - it: uses plain HTTP for the realm and the API's registry URL when the Gateway serves no TLS
+    set:
+      <<: *enabled
+      certManager.enabled: false
+    asserts:
+      - matchRegex:
+          path: data["config.json"]
+          pattern: '"realm":"http://api\.region\.test/registry/token"'
+        template: templates/registry.yaml
+        documentSelector: {path: kind, value: ConfigMap}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_URL, value: http://registry.region.test}
+        template: templates/api-deployment.yaml
+
+  - it: admits the registry's key fetch to the API
+    set: *enabled
+    template: templates/api-network-policy.yaml
+    asserts:
+      - contains:
+          path: spec.ingress[0].from
+          content: {podSelector: {matchLabels: {app: loco-control-plane-registry}}}
+
+  - it: admits only the Gateway's Envoy pods to the registry
+    set: *enabled
+    template: templates/registry.yaml
+    documentSelector: {path: kind, value: NetworkPolicy}
+    asserts:
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: edge}}
+                  podSelector: {matchLabels: {app.kubernetes.io/component: proxy, app.kubernetes.io/managed-by: envoy-gateway}}
+              ports: [{protocol: TCP, port: 5000}]

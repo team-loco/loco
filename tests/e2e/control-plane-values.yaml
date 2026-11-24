@@ -30,6 +30,8 @@ api:
   imagePullPolicy: Never
   existingSecret: api-env
   replicaCount: 2
+  registry:
+    auth: token
   env:
     ORG_LINKS: '[{"label":"Support","url":"https://support.e2e.test.local/orgs/{orgId}"}]'
 obsProxy:
@@ -56,6 +58,12 @@ clickhouse:
       uncompressed_cache_size: "0"
       background_schedule_pool_size: "16"
       max_concurrent_queries: "100"
+registry:
+  enabled: true
+  hostname: registry.e2e.test.local
+  storage:
+    volume:
+      size: 1Gi
 postgres:
   enabled: true
   instances: 1
