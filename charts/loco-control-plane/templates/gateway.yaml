@@ -18,7 +18,7 @@ spec:
     type: Kubernetes
     kubernetes:
       envoyDeployment:
-        {{- if not (include "loco-control-plane.autoscales" (list . .Values.gateway)) }}
+        {{- if not .Values.gateway.autoscaling.enabled }}
         replicas: {{ .Values.gateway.replicaCount }}
         {{- end }}
         pod:
@@ -27,8 +27,8 @@ spec:
         container:
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
-      {{- if include "loco-control-plane.autoscales" (list . .Values.gateway) }}
       {{- with .Values.gateway.autoscaling }}
+      {{- if .enabled }}
       envoyHpa:
         minReplicas: {{ .minReplicas }}
         maxReplicas: {{ .maxReplicas }}
@@ -41,7 +41,7 @@ spec:
                 averageUtilization: {{ .targetCPUUtilizationPercentage }}
       {{- end }}
       {{- end }}
-      {{- if ge (int (include "loco-control-plane.minReplicas" (list . .Values.gateway))) 2 }}
+      {{- if ge (int (ternary .Values.gateway.autoscaling.minReplicas .Values.gateway.replicaCount .Values.gateway.autoscaling.enabled)) 2 }}
       envoyPDB:
         maxUnavailable: 1
       {{- end }}

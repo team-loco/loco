@@ -234,15 +234,6 @@ capabilities:
 {{- toYaml $settings }}
 {{- end }}
 
-{{- /* Takes (list $ <component values>): true when the component's autoscaler is on. */ -}}
-{{- define "loco-control-plane.autoscales" -}}
-{{- if dig "autoscaling" "enabled" false (index . 1) }}true{{ end -}}
-{{- end -}}
-
-{{- define "loco-control-plane.minReplicas" -}}
-{{- if include "loco-control-plane.autoscales" . }}{{ (index . 1).autoscaling.minReplicas }}{{ else }}{{ (index . 1).replicaCount }}{{ end -}}
-{{- end -}}
-
 {{- define "loco-control-plane.spreadByNode" -}}
 - maxSkew: 1
   topologyKey: kubernetes.io/hostname

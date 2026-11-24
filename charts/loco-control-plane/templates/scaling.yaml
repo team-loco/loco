@@ -1,25 +1,17 @@
-{{- $components := dict "api" .Values.api }}
-{{- if .Values.obsProxy.enabled }}
-{{- $_ := set $components "obs-proxy-ingest" .Values.obsProxy.ingest }}
-{{- end }}
-{{- if .Values.ui.enabled }}
-{{- $_ := set $components "ui" .Values.ui }}
-{{- end }}
-{{- range $component, $values := $components }}
-{{- $name := printf "%s-%s" $.Release.Name $component }}
-{{- if include "loco-control-plane.autoscales" (list $ $values) }}
-{{- with $values.autoscaling }}
+{{- $ingest := .Values.obsProxy.ingest }}
+{{- if and .Values.obsProxy.enabled $ingest.autoscaling.enabled }}
+{{- with $ingest.autoscaling }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ $name }}
+  name: {{ $.Release.Name }}-obs-proxy-ingest
   namespace: {{ $.Release.Namespace }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ $name }}
+    name: {{ $.Release.Name }}-obs-proxy-ingest
   minReplicas: {{ .minReplicas }}
   maxReplicas: {{ .maxReplicas }}
   metrics:
@@ -31,7 +23,18 @@ spec:
           averageUtilization: {{ .targetCPUUtilizationPercentage }}
 {{- end }}
 {{- end }}
-{{- if ge (int (include "loco-control-plane.minReplicas" (list $ $values))) 2 }}
+{{- $replicas := dict (printf "%s-api" .Release.Name) .Values.api.replicaCount }}
+{{- if .Values.ui.enabled }}
+{{- $_ := set $replicas (printf "%s-ui" .Release.Name) .Values.ui.replicaCount }}
+{{- end }}
+{{- if .Values.obsProxy.enabled }}
+{{- $_ := set $replicas (printf "%s-obs-proxy-ingest" .Release.Name) (ternary $ingest.autoscaling.minReplicas $ingest.replicaCount $ingest.autoscaling.enabled) }}
+{{- end }}
+{{- if .Values.openbao.enabled }}
+{{- $_ := set $replicas (include "loco-control-plane.openbaoName" .) .Values.openbao.replicas }}
+{{- end }}
+{{- range $name, $count := $replicas }}
+{{- if ge (int $count) 2 }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -44,17 +47,4 @@ spec:
     matchLabels:
       app: {{ $name }}
 {{- end }}
-{{- end }}
-{{- if and .Values.openbao.enabled (ge (int .Values.openbao.replicas) 2) }}
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: {{ include "loco-control-plane.openbaoName" . }}
-  namespace: {{ .Release.Namespace }}
-spec:
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app: {{ include "loco-control-plane.openbaoName" . }}
 {{- end }}

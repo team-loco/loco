@@ -10,7 +10,7 @@ spec:
   selector:
     matchLabels:
       app: {{ .Release.Name }}-obs-proxy-ingest
-  {{- if not (include "loco-control-plane.autoscales" (list . .Values.obsProxy.ingest)) }}
+  {{- if not .Values.obsProxy.ingest.autoscaling.enabled }}
   replicas: {{ .Values.obsProxy.ingest.replicaCount }}
   {{- end }}
   strategy:
