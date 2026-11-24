@@ -28,6 +28,8 @@ var (
 		"TLS handshake timeout",
 		"connection reset by peer",
 		"unexpected EOF",
+		"failed to copy: read tcp",
+		"failed to copy: write tcp",
 	}
 )
 

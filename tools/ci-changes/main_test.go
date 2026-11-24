@@ -191,7 +191,7 @@ func TestAGoChangeRunsTheSuitesImportingIt(t *testing.T) {
 			"transit-conformance web",
 		"api/migrations/00004_events.sql": apiSuites,
 		"tests/e2e/apps/main_test.go":     "e2e go-lint-and-test",
-		"tools/pullimage/main.go":         "e2e go-lint-and-test obs-chart web",
+		"tools/pullimage/main.go":         "charts e2e go-lint-and-test obs-chart web",
 		"k8sapi/v1alpha1/application_types.go": "auth-conformance charts controller-helm-chart docker e2e " +
 			"e2e-installation go-lint-and-test web",
 	} {

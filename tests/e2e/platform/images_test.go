@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,6 +18,15 @@ func TestPullPrebuiltPublishedManifest(t *testing.T) {
 	index := `{"manifests":[{"digest":"sha256:` + strings.Repeat("b", 64) +
 		`","platform":{"os":"linux","architecture":"arm64"}},{"digest":"sha256:` +
 		strings.Repeat("a", 64) + `","platform":{"os":"linux","architecture":"amd64"}}]}`
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pullimage := filepath.Join(t.TempDir(), "pullimage")
+	if out, buildErr := exec.CommandContext(t.Context(), "go", "-C", root, "build", "-o", pullimage,
+		"./tools/pullimage").CombinedOutput(); buildErr != nil {
+		t.Fatalf("%v: %s", buildErr, out)
+	}
 	for _, tc := range []struct {
 		name      string
 		manifest  string
@@ -39,12 +49,13 @@ set -eu
 printf '%s\n' "$*" >> "$FAKE_CALLS"
 case "$1" in
 version) printf amd64 ;;
+image) exit 1 ;;
 buildx) printf '%s' "$FAKE_MANIFEST" ;;
 pull)
   calls=$(grep -c '^pull ' "$FAKE_CALLS")
   if [ "$calls" -le "$FAKE_FAILURES" ]; then
     case "$FAKE_FAILURE" in
-    missing) printf 'Error response from daemon: failed to resolve reference "%s": %s: not found\n' "$3" "$3" >&2 ;;
+    missing) printf 'Error response from daemon: failed to resolve reference "%s": %s: not found\n' "$4" "$4" >&2 ;;
     unauthorized) printf 'unauthorized: authentication required\n' >&2 ;;
     blob) printf 'failed to copy: blob sha256:missing: not found\n' >&2 ;;
     esac
@@ -64,7 +75,7 @@ esac
 			t.Setenv("FAKE_MANIFEST", tc.manifest)
 			t.Setenv("FAKE_FAILURE", tc.failure)
 			t.Setenv("FAKE_FAILURES", tc.failures)
-			cluster := &Cluster{root: dir, env: os.Environ()}
+			cluster := &Cluster{root: dir, env: os.Environ(), pullimage: pullimage}
 			ctx := t.Context()
 			if tc.stop != nil {
 				var cancel context.CancelFunc
@@ -94,7 +105,7 @@ esac
 					t.Fatal(err)
 				}
 				for command := range strings.SplitSeq(strings.TrimSpace(string(calls)), "\n") {
-					if strings.HasPrefix(command, "pull ") && command != "pull -q "+digest {
+					if strings.HasPrefix(command, "pull ") && command != "pull -q -- "+digest {
 						t.Fatalf("pull command = %q, want selected immutable amd64 digest", command)
 					}
 				}

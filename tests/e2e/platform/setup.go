@@ -57,18 +57,6 @@ func (p *Platform) up(ctx context.Context) error {
 	if err := p.reserveComposeNetwork(ctx); err != nil {
 		return err
 	}
-	if _, err := p.Command(
-		ctx,
-		"go",
-		"-C",
-		p.root,
-		"build",
-		"-o",
-		filepath.Join(p.binDir, "pullimage"),
-		"./tools/pullimage",
-	); err != nil {
-		return err
-	}
 	logf(
 		"Run %s: building images and binaries, starting kind cluster %s and compose project %s",
 		p.run,
@@ -294,7 +282,11 @@ func (p *Platform) pullComposeImages(ctx context.Context, services ...string) er
 
 // pullImages pulls images the Docker host lacks, retrying registry errors.
 func (p *Platform) pullImages(ctx context.Context, images ...string) error {
-	_, err := p.Command(ctx, filepath.Join(p.binDir, "pullimage"), images...)
+	binary, err := p.pullimageBinary(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = p.Command(ctx, binary, images...)
 	return err
 }
 

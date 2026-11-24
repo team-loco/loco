@@ -132,6 +132,24 @@ func builderCopyTarget(dockerfile string) (string, error) {
 	return "", fmt.Errorf("%s copies nothing from the builder stage", dockerfile)
 }
 
+// pullimageBinary builds tools/pullimage once and returns its path.
+func (c *Cluster) pullimageBinary(ctx context.Context) (string, error) {
+	c.pullimageMu.Lock()
+	defer c.pullimageMu.Unlock()
+	if c.pullimage != "" {
+		return c.pullimage, nil
+	}
+	binary := filepath.Join(c.dir, "bin", "pullimage")
+	if err := mkdirReadable(filepath.Dir(binary)); err != nil {
+		return "", err
+	}
+	if _, err := c.Command(ctx, "go", "-C", c.root, "build", "-o", binary, "./tools/pullimage"); err != nil {
+		return "", err
+	}
+	c.pullimage = binary
+	return binary, nil
+}
+
 // PullPrebuilt pulls the Docker host platform's manifest of reference by digest and tags it, so a
 // multi-platform index never resolves to another platform's image.
 func (c *Cluster) PullPrebuilt(ctx context.Context, reference, tag string) error {
@@ -165,13 +183,17 @@ func (c *Cluster) pullPrebuilt(ctx context.Context, reference, tag string, retry
 			pull = reference[:strings.LastIndex(reference, ":")] + "@" + manifest.Digest
 		}
 	}
+	pullimage, err := c.pullimageBinary(ctx)
+	if err != nil {
+		return err
+	}
 	// A newly published index can be readable before its platform manifest. Only wait
 	// for the immutable child that this index actually names; other failures stay fatal.
 	pullCtx, cancel := context.WithTimeout(ctx, publishedImageTimeout)
 	defer cancel()
 	var firstFailure error
 	for pullCtx.Err() == nil {
-		if _, err = c.Command(pullCtx, "docker", "pull", "-q", pull); err == nil {
+		if _, err = c.Command(pullCtx, pullimage, pull); err == nil {
 			_, err = c.Command(ctx, "docker", "tag", pull, tag)
 			return err
 		}
@@ -181,8 +203,7 @@ func (c *Cluster) pullPrebuilt(ctx context.Context, reference, tag string, retry
 		if pullCtx.Err() != nil {
 			break
 		}
-		if pull == reference || !strings.Contains(err.Error(), `failed to resolve reference "`+pull+`"`) ||
-			!strings.HasSuffix(err.Error(), pull+": not found") {
+		if pull == reference || !strings.Contains(err.Error(), pull+": not found") {
 			return err
 		}
 		select {
