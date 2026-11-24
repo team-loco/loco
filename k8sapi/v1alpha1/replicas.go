@@ -112,6 +112,7 @@ type DeployDeadline struct {
 type RolloutStatus struct {
 	DesiredReplicas int32 `json:"desiredReplicas,omitzero"`
 	// Available is every desired replica of the current revision counted: ready for a service, available for a worker.
+	// A deployed revision stays available while replicas are added, as long as every replica that was ready still is.
 	Available bool `json:"available,omitzero"`
 	// Healthy is Available with no current replica restarted within the controller's health window.
 	Healthy bool `json:"healthy,omitzero"`

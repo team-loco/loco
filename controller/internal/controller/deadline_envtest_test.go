@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -180,6 +181,38 @@ var _ = Describe("Application whose new revision misses its deploy timeout", fun
 		Expect(app.Status.Rollout.Deadline.PlacementRevision).To(Equal(int64(3)))
 	})
 
+	It("keeps a deployed revision healthy while the autoscaler adds a replica", func() {
+		app, serving := scaledUpApp(r, "scale-up")
+		Expect(app.Status.Rollout.DesiredReplicas).To(Equal(int32(2)))
+		Expect(app.Status.Rollout.Available).To(BeTrue())
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+
+		By("degrading it once the replica that served stops being ready")
+		for i := range serving.Status.Conditions {
+			if serving.Status.Conditions[i].Type == corev1.PodReady {
+				serving.Status.Conditions[i].Status = corev1.ConditionFalse
+			}
+		}
+		Expect(k8sClient.Status().Update(ctx, serving)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
+
+		By("staying degraded on the next observation")
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
+	})
+
+	It("degrades a deployed revision whose serving replica goes away while the autoscaler adds one", func() {
+		app, serving := scaledUpApp(r, "scale-up-gone")
+		Expect(app.Status.Rollout.Healthy).To(BeTrue())
+
+		Expect(k8sClient.Delete(ctx, serving, client.GracePeriodSeconds(0))).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.Healthy).To(BeFalse())
+	})
+
 	It("reports a service healthy once its replicas are ready and deployed once they are available", func() {
 		app := deadlineApp("first-deploy-ready", 1)
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -244,4 +277,29 @@ func setRolloutCounts(app *locov1alpha1.Application, ready, available int32) {
 	dep.Status.Replicas, dep.Status.UpdatedReplicas = replicas, replicas
 	dep.Status.ReadyReplicas, dep.Status.AvailableReplicas = ready, available
 	Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+}
+
+// scaledUpApp deploys a one-replica service, then has the autoscaler add a replica that is not ready yet.
+func scaledUpApp(r *ApplicationReconciler, name string) (*locov1alpha1.Application, *corev1.Pod) {
+	GinkgoHelper()
+	app := deadlineApp(name, 1)
+	app.Spec.ServiceSpec.Resources.Replicas.Max = 3
+	app.Spec.ServiceSpec.Resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, CPUTarget: 70}
+	Expect(k8sClient.Create(ctx, app)).To(Succeed())
+	reconcileStuckApp(r, app)
+	serving := serveReplica(app, name+"-serving")
+	setRolloutCounts(app, 1, 1)
+	reconcileStuckApp(r, app)
+	Expect(app.Status.Rollout.DeployedRevision).To(Equal(int64(2)))
+
+	dep := appDeployment(app)
+	scaleAsAutoscaler(dep, 2)
+	createReplica(app, name+"-added")
+	dep = appDeployment(app)
+	dep.Status.ObservedGeneration = dep.Generation
+	dep.Status.Replicas, dep.Status.UpdatedReplicas = 2, 2
+	dep.Status.ReadyReplicas, dep.Status.AvailableReplicas = 1, 1
+	Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+	reconcileStuckApp(r, app)
+	return app, serving
 }

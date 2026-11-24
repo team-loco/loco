@@ -287,8 +287,9 @@ spec:
               rollout:
                 properties:
                   available:
-                    description: 'Available is every desired replica of the current
-                      revision counted: ready for a service, available for a worker.'
+                    description: |-
+                      Available is every desired replica of the current revision counted: ready for a service, available for a worker.
+                      A deployed revision stays available while replicas are added, as long as every replica that was ready still is.
                     type: boolean
                   deadline:
                     description: Deadline is set while the current placement revision
