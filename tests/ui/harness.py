@@ -35,19 +35,61 @@ def load_state(args, name, scenario, *, issuer=None):
     return state
 
 
+TCP_STATES = [
+    "",
+    "ESTABLISHED",
+    "SYN_SENT",
+    "SYN_RECV",
+    "FIN_WAIT1",
+    "FIN_WAIT2",
+    "TIME_WAIT",
+    "CLOSE",
+    "CLOSE_WAIT",
+    "LAST_ACK",
+    "LISTEN",
+    "CLOSING",
+]
+
+
+def tcp_sockets(port):
+    """Linux's TCP sockets on `port` with their queued bytes; a LISTEN socket's receive queue counts unaccepted connections."""
+    sockets = []
+    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+        with contextlib.suppress(OSError):
+            for line in Path(table).read_text().splitlines()[1:]:
+                _, local, remote, state, queues = line.split()[:5]
+                ports = [
+                    int(address.rsplit(":", 1)[1], 16) for address in (local, remote)
+                ]
+                if port in ports:
+                    send, receive = (int(queue, 16) for queue in queues.split(":"))
+                    sockets.append(
+                        {
+                            "local": ports[0],
+                            "remote": ports[1],
+                            "state": TCP_STATES[int(state, 16)],
+                            "send_queue": send,
+                            "receive_queue": receive,
+                        }
+                    )
+    return sockets
+
+
 def probe(context, page):
-    """Whether the page's document completed and whether its URL can be fetched outside the renderer."""
+    """The UI port's sockets, the page's readyState and a fetch of its URL outside the renderer."""
+    sockets = tcp_sockets(urlparse(page.url).port)
     try:
-        page.wait_for_function("document.readyState === 'complete'", timeout=3000)
-        document = "complete"
-    except Exception:
-        document = "not complete"
+        document = page.wait_for_function(
+            "document.readyState", timeout=3000
+        ).json_value()
+    except Exception as err:
+        document = {"error": str(err).splitlines()[0]}
     try:
         response = context.request.get(page.url, timeout=3000)
         fetched = {"status": response.status, "bytes": len(response.body())}
     except Exception as err:
         fetched = {"error": str(err).splitlines()[0]}
-    return {"document": document, "fetched": fetched}
+    return {"sockets": sockets, "document": document, "fetched": fetched}
 
 
 @contextlib.contextmanager
