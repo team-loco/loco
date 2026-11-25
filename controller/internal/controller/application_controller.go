@@ -843,6 +843,7 @@ func podTemplate(
 		podSecurity = podSecurity.WithRunAsGroup(*spec.Deployment.RunAsGroup)
 	}
 	podSpec := corev1ac.PodSpec().
+		WithHostUsers(false).
 		WithServiceAccountName(name).
 		WithAutomountServiceAccountToken(false).
 		WithSecurityContext(podSecurity).

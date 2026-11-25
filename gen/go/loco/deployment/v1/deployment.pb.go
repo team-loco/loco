@@ -3289,18 +3289,16 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x13ObservabilityConfig\x12$\n" +
 	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
 	"injectOtel\x88\x01\x01B\x0e\n" +
-	"\f_inject_otel\"\xd7\b\n" +
+	"\f_inject_otel\"\xd3\b\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12D\n" +
 	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12$\n" +
 	"\x04port\x18\t \x01(\x05B\v\xbaH\b\x1a\x06\x18\xff\xff\x03(\x01H\x01R\x04port\x88\x01\x01\x12A\n" +
 	"\arouting\x18\n" +
-	" \x01(\v2\".loco.deployment.v1.ServiceRoutingH\x02R\arouting\x88\x01\x01\x122\n" +
-	"\vrun_as_user\x18\v \x01(\x03B\r\xbaH\n" +
-	"\"\b\x18\xff\xff\xff\xff\a \x00H\x03R\trunAsUser\x88\x01\x01\x124\n" +
-	"\frun_as_group\x18\f \x01(\x03B\r\xbaH\n" +
-	"\"\b\x18\xff\xff\xff\xff\a \x00H\x04R\n" +
+	" \x01(\v2\".loco.deployment.v1.ServiceRoutingH\x02R\arouting\x88\x01\x01\x120\n" +
+	"\vrun_as_user\x18\v \x01(\x03B\v\xbaH\b\"\x06\x18\xff\xff\x03(\x00H\x03R\trunAsUser\x88\x01\x01\x122\n" +
+	"\frun_as_group\x18\f \x01(\x03B\v\xbaH\b\"\x06\x18\xff\xff\x03(\x00H\x04R\n" +
 	"runAsGroup\x88\x01\x01\x12M\n" +
 	"\robservability\x18\r \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12\x1a\n" +
 	"\bplatform\x18\x0f \x01(\tR\bplatform\x12(\n" +

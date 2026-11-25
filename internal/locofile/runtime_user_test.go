@@ -2,6 +2,7 @@ package locofile
 
 import (
 	"encoding/json/v2"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -49,13 +50,23 @@ func TestRuntimeUserEnvironmentOverrides(t *testing.T) {
 	}
 }
 
-func TestRuntimeUserRejectsRootAndNegativeIDs(t *testing.T) {
+func TestRuntimeUserIDs(t *testing.T) {
+	schema := compileSchema(t)
 	for _, field := range []string{"runAsUser", "runAsGroup"} {
-		for _, value := range []string{"0", "-1", "2147483648"} {
-			source := strings.Replace(runtimeUserFile, field+": 1654", field+": "+value, 1)
-			if _, err := Parse([]byte(source)); err == nil {
-				t.Errorf("accepted %s=%s", field, value)
-			}
+		for _, id := range []int64{-1, 0, 1654, 65535, 65536} {
+			t.Run(fmt.Sprintf("%s/%d", field, id), func(t *testing.T) {
+				source := strings.ReplaceAll(runtimeUserFile, field+": 1654", fmt.Sprintf("%s: %d", field, id))
+				// Exercise the environment override as well as the service field.
+				source = strings.ReplaceAll(source, field+": 82", fmt.Sprintf("%s: %d", field, id))
+				_, err := Parse([]byte(source))
+				valid := id >= 0 && id <= 65535
+				if (err == nil) != valid {
+					t.Errorf("parse: %v", err)
+				}
+				if err := validateAgainstSchema(t, schema, source); (err == nil) != valid {
+					t.Errorf("schema: %v", err)
+				}
+			})
 		}
 	}
 }

@@ -46,7 +46,7 @@ func TestDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A named image USER, which runAsUser must override.
+	// Exercise an explicit runtime UID with a named image USER.
 	if err := os.WriteFile(
 		dockerfile,
 		[]byte(strings.ReplaceAll(string(data), "USER 65532:65532", "USER nonroot")),

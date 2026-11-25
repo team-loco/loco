@@ -167,13 +167,13 @@ spec:
                         type: integer
                       runAsGroup:
                         format: int64
-                        maximum: 2147483647
-                        minimum: 1
+                        maximum: 65535
+                        minimum: 0
                         type: integer
                       runAsUser:
                         format: int64
-                        maximum: 2147483647
-                        minimum: 1
+                        maximum: 65535
+                        minimum: 0
                         type: integer
                     required:
                     - image

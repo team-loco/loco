@@ -226,6 +226,14 @@ var _ = Describe("Workspace isolation", func() {
 		}
 		Expect(k8sClient.Create(ctx, admitted)).To(Succeed())
 
+		hostRoot := admitted.DeepCopy()
+		hostRoot.ObjectMeta = metav1.ObjectMeta{Name: "host-root", Namespace: namespace}
+		hostRoot.Spec.HostUsers = new(true)
+		hostRoot.Spec.SecurityContext.RunAsUser = new(int64(0))
+		err = k8sClient.Create(ctx, hostRoot)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(`violates PodSecurity "restricted:latest"`))
+
 		rejected := admitted.DeepCopy()
 		rejected.ObjectMeta = metav1.ObjectMeta{Name: "without-security-context", Namespace: namespace}
 		rejected.Spec.SecurityContext = nil
@@ -242,26 +250,22 @@ var _ = Describe("Workspace isolation", func() {
 			Namespace: testEnvironmentNamespace(app),
 			Name:      testAppName(app),
 		}
-		for _, id := range []int64{1654, 82, 0} {
-			app.Spec.ServiceSpec.Deployment.RunAsUser = nil
-			app.Spec.ServiceSpec.Deployment.RunAsGroup = nil
-			if id != 0 {
-				app.Spec.ServiceSpec.Deployment.RunAsUser = new(id)
-				app.Spec.ServiceSpec.Deployment.RunAsGroup = new(id)
-			}
+		for _, id := range []*int64{new(int64(1654)), new(int64(0)), nil} {
+			app.Spec.ServiceSpec.Deployment.RunAsUser = id
+			app.Spec.ServiceSpec.Deployment.RunAsGroup = id
 			_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
 			Expect(err).NotTo(HaveOccurred())
 			deployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
 			security := deployment.Spec.Template.Spec.SecurityContext
-			Expect(security.RunAsNonRoot).To(HaveValue(BeTrue()))
+			Expect(deployment.Spec.Template.Spec.HostUsers).To(HaveValue(BeFalse()))
 			Expect(security.SeccompProfile.Type).To(Equal(corev1.SeccompProfileTypeRuntimeDefault))
-			if id == 0 {
+			if id == nil {
 				Expect(security.RunAsUser).To(BeNil())
 				Expect(security.RunAsGroup).To(BeNil())
 			} else {
-				Expect(security.RunAsUser).To(HaveValue(Equal(id)))
-				Expect(security.RunAsGroup).To(HaveValue(Equal(id)))
+				Expect(security.RunAsUser).To(HaveValue(Equal(*id)))
+				Expect(security.RunAsGroup).To(HaveValue(Equal(*id)))
 			}
 			container := deployment.Spec.Template.Spec.Containers[0].SecurityContext
 			Expect(container.AllowPrivilegeEscalation).To(HaveValue(BeFalse()))
@@ -269,8 +273,8 @@ var _ = Describe("Workspace isolation", func() {
 		}
 	})
 
-	It("rejects root runtime IDs at the Application API boundary", func() {
-		for _, id := range []int64{0, -1, 2147483648} {
+	It("rejects unmapped runtime IDs at the Application API boundary", func() {
+		for _, id := range []int64{-1, 65536} {
 			app := isolationTestApplication("ws-runtime-reject", "reject-user")
 			app.Spec.ServiceSpec.Deployment.RunAsUser = new(id)
 			err := k8sClient.Create(ctx, app)

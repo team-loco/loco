@@ -19,7 +19,7 @@ var (
 	errTypeMissing            = errors.New("type must be set")
 	errServiceSpecMissing     = errors.New("serviceSpec must be set for SERVICE type")
 	errDeploymentMissing      = errors.New("serviceSpec.deployment must be set")
-	ErrRuntimeID              = errors.New("runtime user and group IDs must be between 1 and 2147483647")
+	ErrRuntimeID              = errors.New("runtime user and group IDs must be between 0 and 65535")
 	errImageMissing           = errors.New("image must be set")
 	errCommandEntryEmpty      = errors.New("command entries must not be empty")
 	errHealthPathMissing      = errors.New("healthCheck.path must be set")
@@ -429,7 +429,7 @@ func ValidateRoute(pathPrefix string, idleTimeout int32) error {
 }
 
 func ValidateRuntimeID(id *int64) error {
-	if id != nil && (*id <= 0 || *id > math.MaxInt32) {
+	if id != nil && (*id < 0 || *id > math.MaxUint16) {
 		return ErrRuntimeID
 	}
 	return nil

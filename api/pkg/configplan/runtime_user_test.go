@@ -7,12 +7,13 @@ import (
 )
 
 func TestRuntimeUserChangesArePlanned(t *testing.T) {
-	for _, configured := range []bool{true, false} {
+	for _, id := range []*int64{new(int64(0)), new(int64(1654)), nil} {
+		configured := id != nil
 		service := fileService()
 		current := liveState()
 		if configured {
-			service.RunAsUser = new(int64(1654))
-			service.RunAsGroup = new(int64(1654))
+			service.RunAsUser = id
+			service.RunAsGroup = id
 		} else {
 			current.RunAsUser = new(int64(1654))
 			current.RunAsGroup = new(int64(1654))
@@ -45,11 +46,13 @@ func TestRuntimeUserChangesArePlanned(t *testing.T) {
 	}
 }
 
-func TestRuntimeUserRejectsRootBeforeApply(t *testing.T) {
-	service := fileService()
-	service.RunAsUser = new(int64(0))
-	plan := compute(t, input(map[string]locofile.Service{webService: service}))
-	if len(plan.Errors) != 1 || plan.Errors[0].Path != "runAsUser" || len(plan.Operations) != 0 {
-		t.Fatalf("plan = %+v", plan)
+func TestRuntimeUserRejectsUnmappedIDsBeforeApply(t *testing.T) {
+	for _, id := range []int64{-1, 65536} {
+		service := fileService()
+		service.RunAsUser = &id
+		plan := compute(t, input(map[string]locofile.Service{webService: service}))
+		if len(plan.Errors) != 1 || plan.Errors[0].Path != "runAsUser" || len(plan.Operations) != 0 {
+			t.Fatalf("ID %d plan = %+v", id, plan)
+		}
 	}
 }

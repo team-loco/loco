@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -16,18 +17,13 @@ func TestApplyRuntimeUserPersistsAndClears(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	base := planFileHeader + applyFileWorker
-	for _, id := range []int64{1654, 82, 0} {
+	for _, id := range []*int64{new(int64(1654)), new(int64(0)), nil} {
 		file := base
-		if id == 1654 {
+		if id != nil {
 			file = strings.Replace(
-				base,
-				"    port: 8080",
-				"    port: 8080\n    runAsUser: 1654\n    runAsGroup: 1654",
-				1,
+				base, "    port: 8080",
+				fmt.Sprintf("    port: 8080\n    runAsUser: %d\n    runAsGroup: %d", *id, *id), 1,
 			)
-		}
-		if id == 82 {
-			file = strings.Replace(base, "    port: 8080", "    port: 8080\n    runAsUser: 82\n    runAsGroup: 82", 1)
 		}
 		f.finishRollouts(t)
 		applyOK(t, f, file, applyOptions{})
@@ -40,31 +36,34 @@ func TestApplyRuntimeUserPersistsAndClears(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if stored.GetService().GetRunAsUser() != id || stored.GetService().GetRunAsGroup() != id {
+		want := &deploymentv1.ServiceDeploymentSpec{RunAsUser: id, RunAsGroup: id}
+		if stored.GetService().GetRunAsUser() != want.GetRunAsUser() ||
+			stored.GetService().GetRunAsGroup() != want.GetRunAsGroup() {
 			t.Fatalf("snapshot = %v", stored)
 		}
 		deployment := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.Deployment
-		if id == 0 {
-			if deployment.RunAsUser != nil || deployment.RunAsGroup != nil {
-				t.Fatalf("runtime overrides not cleared: %+v", deployment)
+		for _, got := range []*int64{deployment.RunAsUser, deployment.RunAsGroup} {
+			if id == nil {
+				if got != nil {
+					t.Fatalf("runtime override not cleared: %d", *got)
+				}
+			} else if got == nil || *got != *id {
+				t.Fatalf("runtime ID = %v, want %d", got, *id)
 			}
-		} else if deployment.RunAsUser == nil || *deployment.RunAsUser != id ||
-			deployment.RunAsGroup == nil || *deployment.RunAsGroup != id {
-			t.Fatalf("placement = %+v", deployment)
 		}
 	}
 }
 
 func TestRuntimeUserWireValidation(t *testing.T) {
 	t.Parallel()
-	for _, id := range []int64{-1, 0, 82, 1654, 2147483648} {
+	for _, id := range []int64{-1, 0, 82, 1654, 65535, 65536} {
 		service := &deploymentv1.ServiceDeploymentSpec{
 			Build:      &deploymentv1.BuildSource{Type: "image"},
 			Port:       new(int32(8080)),
 			RunAsUser:  &id,
 			RunAsGroup: &id,
 		}
-		if err := protovalidate.Validate(service); (err != nil) != (id <= 0 || id > 2147483647) {
+		if err := protovalidate.Validate(service); (err != nil) != (id < 0 || id > 65535) {
 			t.Fatalf("ID %d validation: %v", id, err)
 		}
 		encoded, err := protojson.Marshal(service)

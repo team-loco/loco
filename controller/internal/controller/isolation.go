@@ -66,7 +66,6 @@ const unprivilegedPortStartSysctl = "net.ipv4.ip_unprivileged_port_start"
 func podSecurityContext() *corev1ac.PodSecurityContextApplyConfiguration {
 	seccomp := corev1ac.SeccompProfile().WithType(corev1.SeccompProfileTypeRuntimeDefault)
 	return corev1ac.PodSecurityContext().
-		WithRunAsNonRoot(true).
 		WithSeccompProfile(seccomp).
 		WithSysctls(corev1ac.Sysctl().WithName(unprivilegedPortStartSysctl).WithValue("0"))
 }

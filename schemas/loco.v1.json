@@ -198,18 +198,18 @@
             "integer",
             "null"
           ],
-          "minimum": 1,
-          "description": "Positive numeric UID for the application process. Omitted uses the image user.",
-          "maximum": 2147483647
+          "minimum": 0,
+          "description": "Numeric UID for the application process. Omitted uses the image user.",
+          "maximum": 65535
         },
         "runAsGroup": {
           "type": [
             "integer",
             "null"
           ],
-          "minimum": 1,
-          "description": "Positive numeric primary GID for the application process. Omitted uses the image group.",
-          "maximum": 2147483647
+          "minimum": 0,
+          "description": "Numeric primary GID for the application process. Omitted uses the image group.",
+          "maximum": 65535
         },
         "observability": {
           "anyOf": [
@@ -509,15 +509,15 @@
         },
         "runAsUser": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Positive numeric UID for the application process. Omitted uses the image user.",
-          "maximum": 2147483647
+          "minimum": 0,
+          "description": "Numeric UID for the application process. Omitted uses the image user.",
+          "maximum": 65535
         },
         "runAsGroup": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Positive numeric primary GID for the application process. Omitted uses the image group.",
-          "maximum": 2147483647
+          "minimum": 0,
+          "description": "Numeric primary GID for the application process. Omitted uses the image group.",
+          "maximum": 65535
         },
         "deploy": {
           "$ref": "#/$defs/Deploy",
