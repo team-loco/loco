@@ -69,7 +69,7 @@ Capture `EXPLAIN PLAN`, `EXPLAIN indexes = 1`, `EXPLAIN PIPELINE`, and other app
 
 Reuse the established benchmarking pattern of pinned local containers, separated cache protocols, raw samples, execution plans and before/after tables. Implement against public Core and upstream ClickHouse interfaces. Keep unrelated hosted deployment details out of public artifacts.
 
-## HTML report
+## Report
 
 Produce a complete standalone HTML report for every run or audit, including partial or failed runs. Embed readable charts of latency percentiles, throughput and scaling; use separate series for warm and cold samples and small and large workloads. Include an executive summary of observed flaws, ranked recommendations with evidence, a methodology section, and expandable raw execution plans. Provide a link to the finished HTML file and retain the machine-readable samples alongside it. The HTML must render offline without external assets.
 
