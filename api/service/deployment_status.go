@@ -22,7 +22,7 @@ var placementLiveStatuses = []genDb.PlacementStatus{
 }
 
 // nextPlacementStatus is where a report of the placement's current revision moves it. A stopped
-// revision fails when the previous revision serves in its place or it missed its deploy timeout,
+// revision fails when the previous revision serves in its place, its startup failed, or it missed its deploy timeout,
 // and crashes otherwise. A deployed revision whose replica used up its restarts keeps running and
 // crashes until the replica recovers; one whose replica restarted or stopped being ready is
 // degraded until the controller reports it healthy again.
@@ -30,7 +30,8 @@ func nextPlacementStatus(previous genDb.PlacementStatus, report *agentv1.Placeme
 	ran := previous == genDb.PlacementStatusRunning || previous == genDb.PlacementStatusDegraded
 	switch {
 	case report.GetStopped().GetRollout(),
-		report.GetStopped().GetReason() == agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT:
+		report.GetStopped().GetReason() == agentv1.StopReason_STOP_REASON_DEPLOY_TIMEOUT,
+		report.GetStopped().GetReason() == agentv1.StopReason_STOP_REASON_STARTUP_FAILED:
 		return genDb.PlacementStatusFailed
 	case report.GetStopped() != nil,
 		report.GetProblem().GetReason() == string(loco.ProblemRestartsExhausted):

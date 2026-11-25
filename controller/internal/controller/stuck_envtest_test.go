@@ -104,7 +104,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		}
 	})
 
-	It("fails an image that runs as root and recovers once the replica starts", func() {
+	It("stops an image that runs as root until a new revision is placed", func() {
 		app := isolationTestApplication(stuckWorkspace, "root")
 		app.Spec.ServiceSpec.Routing = nil
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
@@ -119,6 +119,12 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(app.Status.Rollout.Problem).NotTo(BeNil())
 		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemImageUser))
 		Expect(app.Status.Rollout.Problem.Detail).To(ContainSubstring(kubeletRootImageMessage))
+		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
+		Expect(app.Status.Rollout.Stopped.Reason).To(Equal(locov1alpha1.ProblemImageUser))
+		Expect(app.Status.Rollout.Stopped.Replica).To(Equal(pod.Name))
+		Expect(app.Status.Rollout.Stopped.Restarts).To(BeZero())
+		Expect(*appDeployment(app).Spec.Replicas).To(BeZero())
+		Expect(app.Status.Rollout.Deadline.At.After(time.Now())).To(BeTrue())
 
 		started := metav1.Now()
 		running := &corev1.ContainerStateRunning{StartedAt: started}
@@ -127,7 +133,51 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		reconcileStuckApp(r, app)
 
 		Expect(app.Status.Rollout.Available).To(BeFalse())
+		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
+		Expect(*appDeployment(app).Spec.Replicas).To(BeZero())
+
+		app.Annotations[locov1alpha1.KeyPlacementRevision] = "3"
+		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Stopped).To(BeNil())
 		Expect(app.Status.Rollout.Problem).To(BeNil())
+		Expect(*appDeployment(app).Spec.Replicas).To(Equal(int32(1)))
+	})
+
+	It("stops invalid configuration and image names while preserving the previous version", func() {
+		for _, tc := range []struct {
+			name, reason string
+			want         locov1alpha1.ProblemReason
+		}{
+			{"config", reasonCreateContainerConfigError, locov1alpha1.ProblemConfigError},
+			{"invalid-image", reasonInvalidImageName, locov1alpha1.ProblemImagePullFailed},
+		} {
+			app := isolationTestApplication(stuckWorkspace, tc.name)
+			app.Spec.ServiceSpec.Routing = nil
+			app.Spec.ServiceSpec.RestartPolicy = locov1alpha1.RestartPolicySpec{Mode: locov1alpha1.RestartAlways}
+			app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			reconcileStuckApp(r, app)
+			previous := createReplicaSet(app, tc.name+"-previous", "1", 1)
+			stale := createReplicaAt(app, tc.name+"-stale", testImage, "1")
+			setWaiting(stale, tc.reason, "stale failure")
+			reconcileStuckApp(r, app)
+			Expect(app.Status.Rollout.Stopped).To(BeNil())
+			current := createReplicaSet(app, tc.name+"-current", "2", 1)
+			pod := createReplica(app, tc.name+"-replica")
+			setWaiting(pod, tc.reason, "invalid startup configuration")
+			reconcileStuckApp(r, app)
+			Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
+			Expect(app.Status.Rollout.Stopped.Reason).To(Equal(tc.want))
+			Expect(app.Status.Rollout.Stopped.Rollout).To(BeTrue())
+			Expect(appDeployment(app).Spec.Paused).To(BeTrue())
+			Expect(replicaSetReplicas(current)).To(BeZero())
+			Expect(replicaSetReplicas(previous)).To(Equal(int32(1)))
+			Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+			reconcileStuckApp(r, app)
+			Expect(app.Status.Rollout.Problem.Detail).To(ContainSubstring("invalid startup configuration"))
+			Expect(replicaSetReplicas(current)).To(BeZero())
+		}
 	})
 
 	It("reports image pull problems for the current revision", func() {

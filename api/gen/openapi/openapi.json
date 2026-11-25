@@ -9531,7 +9531,8 @@
         "enum": [
           "STOP_REASON_UNSPECIFIED",
           "STOP_REASON_RESTARTS_EXHAUSTED",
-          "STOP_REASON_DEPLOY_TIMEOUT"
+          "STOP_REASON_DEPLOY_TIMEOUT",
+          "STOP_REASON_STARTUP_FAILED"
         ],
         "description": "StopReason is why the controller stopped a placement revision."
       },
@@ -9550,7 +9551,7 @@
           "replicaName": {
             "type": "string",
             "title": "replica_name",
-            "description": "The replica whose restarts stopped the revision."
+            "description": "The replica whose failure stopped the revision."
           },
           "restarts": {
             "type": "integer",

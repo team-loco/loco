@@ -209,6 +209,32 @@ func TestARolloutStoppedAtItsDeployTimeoutFailsWithoutAFallback(t *testing.T) {
 	}
 }
 
+func TestAStartupFailureFailsWithoutAFallback(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	report := &agentv1.PlacementStatus{
+		Stopped: &agentv1.StoppedRevision{Reason: agentv1.StopReason_STOP_REASON_STARTUP_FAILED},
+		Problem: &agentv1.ProblemReport{Reason: string(loco.ProblemImageUser), Detail: "image will run as root"},
+	}
+	f.reportStatus(t, report)
+	f.reportStatus(t, report)
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusFailed {
+		t.Fatalf("deployment = %s, want failed", got)
+	}
+	failed := f.eventsOf(t, events.DeploymentFailed, id)
+	message, _ := loco.ProblemMessage(loco.ProblemImageUser)
+	if len(failed) != 1 || failed[0][events.FieldMessage] != message+" image will run as root" {
+		t.Fatalf("deployment.failed events = %v, want one with the startup failure", failed)
+	}
+	if _, counted := failed[0][events.FieldRestarts]; counted {
+		t.Fatalf("startup failure recorded restarts: %v", failed[0])
+	}
+	if crashed := f.eventsOf(t, events.DeploymentCrashed, id); len(crashed) != 0 {
+		t.Fatalf("startup failure recorded deployment.crashed: %v", crashed)
+	}
+}
+
 func TestARunningPlacementStartsOnceItsRevisionIsDeployed(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
