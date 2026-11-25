@@ -110,3 +110,24 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "OTEL_EXPORTER_OTLP_TRACES_HEADERS is set in both api.env and platformTelemetry"
+
+  - it: names each API replica by its pod UID
+    set:
+      platformTelemetry.enabled: true
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_POD_UID, valueFrom: {fieldRef: {fieldPath: metadata.uid}}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID)"}
+
+  - it: refuses OTEL_RESOURCE_ATTRIBUTES in api.env as well
+    set:
+      platformTelemetry.enabled: true
+      api.env.OTEL_RESOURCE_ATTRIBUTES: team=ops
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: OTEL_RESOURCE_ATTRIBUTES is set in both api.env and platformTelemetry

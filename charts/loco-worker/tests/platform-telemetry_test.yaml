@@ -132,3 +132,18 @@ tests:
       - failedTemplate:
           errorMessage: builds.controller.env sets OTEL_EXPORTER_OTLP_TRACES_HEADERS, which global.platformTelemetry sets
         template: templates/builds/deployment.yaml
+
+  - it: names each controller replica by its pod UID
+    asserts:
+      - contains: &podUID
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_POD_UID, valueFrom: {fieldRef: {fieldPath: metadata.uid}}}
+        template: templates/controller/deployment.yaml
+      - contains: *podUID
+        template: templates/builds/deployment.yaml
+      - contains: &instance
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID)"}
+        template: templates/controller/deployment.yaml
+      - contains: *instance
+        template: templates/builds/deployment.yaml

@@ -172,7 +172,7 @@ global:
     environment: development
 ```
 
-The controllers export their traces and metrics, including the controller-runtime metrics their Prometheus endpoint serves, to the cluster collector's platform pipelines at `otel-col-cluster-platform` on port 4318. A NetworkPolicy admits only the `loco-controller` and `loco-build-controller` pods of the release namespace to that port. `controller.env` and `builds.controller.env` cannot set an OTLP endpoint or headers variable, such as `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, while platform telemetry is on.
+The controllers export their traces and metrics, including the controller-runtime metrics their Prometheus endpoint serves, to the cluster collector's platform pipelines at `otel-col-cluster-platform` on port 4318. A NetworkPolicy admits only the `loco-controller` and `loco-build-controller` pods of the release namespace to that port. Each controller pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, so two replicas export separate series. `controller.env` and `builds.controller.env` cannot set an OTLP endpoint or headers variable, such as `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, or `OTEL_RESOURCE_ATTRIBUTES`, while platform telemetry is on.
 
 Platform pipelines export through `global.exporter` by default, so the observability proxy stores them under the system tenant. `global.platformTelemetry.exporter.endpoint` sends them only to that OTLP/HTTP endpoint instead, with `exporter.headers` and without the ingest token, while application telemetry keeps using `global.exporter`:
 

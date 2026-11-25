@@ -65,6 +65,12 @@ spec:
               value: {{ join "," $headers | quote }}
             {{- end }}
             {{- end }}
+            - name: LOCO_POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.instance.id=$(LOCO_POD_UID)"
             {{- end }}
             {{- $typed := include "loco-control-plane.apiSettings" . | fromYaml }}
             {{- range $name, $value := $typed }}

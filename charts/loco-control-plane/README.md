@@ -168,7 +168,7 @@ The E2E suite builds the dashboard, API and proxy images, installs the CloudNati
 
 ## Platform telemetry
 
-`platformTelemetry.enabled: true` makes the API export its own traces, Go runtime metrics and logs over OTLP/HTTP. It keeps writing its logs to standard output.
+`platformTelemetry.enabled: true` makes the API export its own traces, Go runtime metrics and logs over OTLP/HTTP. It keeps writing its logs to standard output. Each API pod sets `service.instance.id` to its pod UID through `OTEL_RESOURCE_ATTRIBUTES`, which `api.env` then cannot set.
 
 ```yaml
 platformTelemetry:

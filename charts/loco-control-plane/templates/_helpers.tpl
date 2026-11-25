@@ -302,9 +302,9 @@ true
 {{ .Release.Name }}-system-ingest-token
 {{- end -}}
 
-{{/* OTLP exporter variables platformTelemetry owns; a signal-specific one would override the chart's. */}}
+{{/* OTLP variables platformTelemetry owns; a signal-specific one would override the chart's. */}}
 {{- define "loco-control-plane.otlpExporterEnv" -}}
-{{- $names := list -}}
+{{- $names := list "OTEL_RESOURCE_ATTRIBUTES" -}}
 {{- range $signal := list "" "TRACES_" "METRICS_" "LOGS_" -}}
 {{- range $setting := list "ENDPOINT" "HEADERS" -}}
 {{- $names = append $names (printf "OTEL_EXPORTER_OTLP_%s%s" $signal $setting) -}}
