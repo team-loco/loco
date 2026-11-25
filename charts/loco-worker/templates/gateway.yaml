@@ -131,7 +131,8 @@ spec:
                   - name: {{ $collectorService }}
                     namespace: {{ $collectorNamespace }}
                     port: {{ $collectorPort }}
-{{- if or .Values.envoyProxy.http3 .Values.envoyProxy.tls.minVersion }}
+{{- $clientSettings := or .Values.envoyProxy.http3 .Values.envoyProxy.tls.minVersion }}
+{{- if or $clientSettings .Values.envoyProxy.envoyHeaders }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: ClientTrafficPolicy
@@ -145,6 +146,10 @@ spec:
   {{- with .Values.envoyProxy.tls.minVersion }}
   tls:
     minVersion: {{ . | quote }}
+  {{- end }}
+  {{- if .Values.envoyProxy.envoyHeaders }}
+  headers:
+    enableEnvoyHeaders: true
   {{- end }}
   targetRefs:
     - group: gateway.networking.k8s.io

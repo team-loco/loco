@@ -486,6 +486,9 @@
         "create": {
           "type": "boolean"
         },
+        "envoyHeaders": {
+          "type": "boolean"
+        },
         "extraListeners": {
           "type": "array",
           "items": {

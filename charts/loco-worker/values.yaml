@@ -156,6 +156,10 @@ envoyProxy:
   # HTTP/3 over UDP 443 on the app listeners. Envoy Gateway then adds UDP 443 next to TCP 443 on
   # the Envoy Service, which a load balancer that keys its config by port alone rejects.
   http3: false
+  # Envoy adds x-envoy-* headers to responses, among them x-envoy-upstream-service-time, the
+  # milliseconds the upstream took. It shows every client per-request upstream timing, which
+  # sharpens timing attacks. Keep it off in production.
+  envoyHeaders: false
   # @schema additionalProperties: false
   tls:
     # -- Minimum client TLS version; empty keeps Envoy Gateway defaults.

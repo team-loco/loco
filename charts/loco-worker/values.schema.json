@@ -510,6 +510,9 @@
           },
           "additionalProperties": false
         },
+        "envoyHeaders": {
+          "type": "boolean"
+        },
         "http3": {
           "type": "boolean"
         },

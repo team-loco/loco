@@ -213,6 +213,8 @@ tests:
     asserts:
       - notExists:
           path: spec.http3
+      - notExists:
+          path: spec.headers
       - equal:
           path: spec.tls.minVersion
           value: "1.3"
@@ -243,8 +245,49 @@ tests:
           path: spec.tls
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: ClientTrafficPolicy}
+      - notExists:
+          path: spec.headers
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: ClientTrafficPolicy}
       - contains:
           path: spec.ingress[0].ports
           content: {protocol: UDP, port: 10443}
         template: templates/network-policies.yaml
         documentSelector: {path: metadata.name, value: allow-gateway-proxy-ingress}
+
+  - it: enables Envoy headers on a policy of its own when nothing else needs one
+    set:
+      envoyProxy.envoyHeaders: true
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: ClientTrafficPolicy}
+    asserts:
+      - equal:
+          path: spec.headers.enableEnvoyHeaders
+          value: true
+      - notExists:
+          path: spec.http3
+      - notExists:
+          path: spec.tls
+
+  - it: renders one policy when Envoy headers join HTTP/3 and a TLS minimum
+    set:
+      envoyProxy.envoyHeaders: true
+      envoyProxy.http3: true
+      envoyProxy.tls.minVersion: "1.3"
+    asserts:
+      - containsDocument: {kind: ClientTrafficPolicy, apiVersion: gateway.envoyproxy.io/v1alpha1, name: eg, namespace: loco-system, any: true}
+        template: templates/gateway.yaml
+      - exists:
+          path: spec.http3
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: ClientTrafficPolicy}
+      - equal:
+          path: spec.tls.minVersion
+          value: "1.3"
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: ClientTrafficPolicy}
+      - equal:
+          path: spec.headers.enableEnvoyHeaders
+          value: true
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: ClientTrafficPolicy}
