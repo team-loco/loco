@@ -1,9 +1,8 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { XIcon } from "lucide-react";
 import { functionalUpdate } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
-import { ColumnPicker } from "@/components/design/ColumnPicker";
+import { ColumnPicker, RemoveColumnButton } from "@/components/design/ColumnPicker";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Skeleton } from "@/components/design/Skeleton";
 import { formatClock } from "@/lib/time";
@@ -60,16 +59,12 @@ function logColumns({
 			header: () => (
 				<>
 					<span className="truncate">{columnLabel(c)}</span>
-					<button
-						type="button"
-						aria-label={`Remove column ${columnLabel(c)}`}
-						onClick={() => {
+					<RemoveColumnButton
+						label={columnLabel(c)}
+						onRemove={() => {
 							onColumns(columns.filter((x) => x !== c));
 						}}
-						className="absolute top-1/2 right-3 flex size-[18px] -translate-y-1/2 items-center justify-center rounded-sm bg-panel text-fg3 opacity-0 group-hover/head:opacity-100 hover:bg-panel2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-					>
-						<XIcon className="size-3" />
-					</button>
+					/>
 				</>
 			),
 			size: columnWidth(c),

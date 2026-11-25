@@ -307,7 +307,7 @@ with session(out) as browser:
     expect(drawer.get_by_role("button", name="Newer", exact=True)).to_be_enabled()
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"[?&]event="))
-    page.get_by_role("button", name="Add a column", exact=True).click()
+    page.get_by_role("button", name="Add column", exact=True).click()
     page.get_by_role("checkbox", name="Request ID").click()
     page.keyboard.press("Escape")
     expect(page.get_by_role("columnheader", name="Request ID")).to_be_visible()

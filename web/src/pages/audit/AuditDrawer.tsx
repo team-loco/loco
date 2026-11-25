@@ -1,16 +1,16 @@
 import { useState, type ReactNode } from "react";
 import { toJsonString } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
-import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react";
+import { BoxIcon, CopyIcon, UserIcon } from "lucide-react";
 
-import { Button } from "@/components/design/Button";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { useCopy } from "@/hooks/useCopy";
 import { formatFullTime } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { PlainCode } from "@/pages/observability/shared";
+import { cn } from "@/lib/utils";
+import { PanelNav, PlainCode } from "@/pages/observability/shared";
 
 import type { AuditRow } from "./model";
 
@@ -18,7 +18,7 @@ function Field({ term, children, mono = true }: { term: string; children: ReactN
 	return (
 		<div className="grid grid-cols-[110px_minmax(0,1fr)] items-baseline gap-x-4 py-1.5">
 			<dt className="text-fg3">{term}</dt>
-			<dd className={`m-0 min-w-0 [overflow-wrap:anywhere] ${mono ? "font-mono text-[12.5px]" : ""}`}>{children}</dd>
+			<dd className={cn("m-0 min-w-0 [overflow-wrap:anywhere]", mono && "font-mono text-[12.5px]")}>{children}</dd>
 		</div>
 	);
 }
@@ -61,9 +61,15 @@ export function AuditDrawer({
 							</div>
 							<div className="flex shrink-0 items-center gap-0.5">
 								<RowMenu label="More for this event">
-									<DropdownMenuItem onClick={onActor}>More by {row.actor.name}</DropdownMenuItem>
+									<DropdownMenuItem onClick={onActor}>
+										<UserIcon />
+										More by {row.actor.name}
+									</DropdownMenuItem>
 									{onResource !== null && (
-										<DropdownMenuItem onClick={onResource}>More for {row.resource}</DropdownMenuItem>
+										<DropdownMenuItem onClick={onResource}>
+											<BoxIcon />
+											More for {row.resource}
+										</DropdownMenuItem>
 									)}
 									<DropdownMenuSeparator />
 									{row.event.requestId !== "" && (
@@ -72,6 +78,7 @@ export function AuditDrawer({
 												copy("request", row.event.requestId, "Copied request ID");
 											}}
 										>
+											<CopyIcon />
 											Copy request ID
 										</DropdownMenuItem>
 									)}
@@ -80,32 +87,11 @@ export function AuditDrawer({
 											copy("json", raw, "Copied event as JSON");
 										}}
 									>
+										<CopyIcon />
 										Copy as JSON
 									</DropdownMenuItem>
 								</RowMenu>
-								<Button
-									variant="ghost"
-									size="icon"
-									aria-label="Newer"
-									disabled={onNewer === null}
-									onClick={onNewer ?? undefined}
-									className="text-fg2"
-								>
-									<ChevronUpIcon />
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									aria-label="Older"
-									disabled={onOlder === null}
-									onClick={onOlder ?? undefined}
-									className="text-fg2"
-								>
-									<ChevronDownIcon />
-								</Button>
-								<Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-fg2">
-									<XIcon />
-								</Button>
+								<PanelNav onPrev={onNewer} onNext={onOlder} onClose={onClose} />
 							</div>
 						</SheetHeader>
 						<SheetBody>
@@ -113,13 +99,9 @@ export function AuditDrawer({
 								<Field term="Time">{formatFullTime(row.ms, false, timePref)}</Field>
 								<Field term="Actor" mono={false}>
 									{row.actor.name}
-									<span className="text-[11.5px] text-fg3">
-										{" "}
-										{row.actorKind}
-										{row.actor.detail !== "" && row.actor.detail !== row.actorKind && (
-											<span className="font-mono">, {row.actor.detail}</span>
-										)}
-									</span>
+									{row.actor.detail !== "" && (
+										<span className="font-mono text-[12px] text-fg3"> {row.actor.detail}</span>
+									)}
 								</Field>
 								<Field term="Event">{row.event.type}</Field>
 								<Field term="Where">{row.where}</Field>

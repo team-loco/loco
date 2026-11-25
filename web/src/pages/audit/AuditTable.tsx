@@ -1,7 +1,7 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { CpuIcon, KeyRoundIcon, ServerIcon, XIcon } from "lucide-react";
+import { CpuIcon, KeyRoundIcon, ServerIcon } from "lucide-react";
 
-import { ColumnPicker } from "@/components/design/ColumnPicker";
+import { ColumnPicker, RemoveColumnButton } from "@/components/design/ColumnPicker";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { useLayout } from "@/lib/layout";
 import { agoLabel, formatClock } from "@/lib/time";
@@ -64,7 +64,7 @@ function auditColumns(nowMs: number, extra: string[], onExtra: (next: string[]) 
 		{
 			id: "action",
 			header: "Action",
-			size: 264,
+			size: 300,
 			minSize: 90,
 			maxSize: 640,
 			meta: { grow: true },
@@ -98,16 +98,12 @@ function auditColumns(nowMs: number, extra: string[], onExtra: (next: string[]) 
 			header: () => (
 				<>
 					<span className="truncate">{c.label}</span>
-					<button
-						type="button"
-						aria-label={`Remove column ${c.label}`}
-						onClick={() => {
+					<RemoveColumnButton
+						label={c.label}
+						onRemove={() => {
 							onExtra(extra.filter((x) => x !== c.key));
 						}}
-						className="absolute top-1/2 right-3 flex size-[18px] -translate-y-1/2 items-center justify-center rounded-sm bg-panel text-fg3 opacity-0 group-hover/head:opacity-100 hover:bg-panel2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-					>
-						<XIcon className="size-3" />
-					</button>
+					/>
 				</>
 			),
 			size: c.width,
@@ -119,6 +115,7 @@ function auditColumns(nowMs: number, extra: string[], onExtra: (next: string[]) 
 			id: "actions",
 			header: () => (
 				<ColumnPicker
+					label="Add column"
 					columns={extra}
 					onColumns={onExtra}
 					options={EXTRA_COLUMNS.map((c) => ({ key: c.key, label: c.label }))}
