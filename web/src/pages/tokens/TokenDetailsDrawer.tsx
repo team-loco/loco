@@ -1,9 +1,43 @@
-import type { Token } from "@gen/loco/token/v1/token_pb";
+import { Scope, type Token } from "@gen/loco/token/v1/token_pb";
 
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/design/Sheet";
-import { LEVEL_LABEL } from "@/hooks/useMyScopes";
 
-import { accessChips, chipName, ALLOWS, type Entities } from "./model";
+import { chipName, nodeKey, resolveNode, type Entities } from "./model";
+
+const SCOPE_LABEL: Record<Scope, string> = {
+	[Scope.UNSPECIFIED]: "Unspecified",
+	[Scope.READ]: "Read",
+	[Scope.WRITE]: "Write",
+	[Scope.ADMIN]: "Admin",
+	[Scope.MEMBER]: "Member",
+};
+
+export function TokenScopeList({ token, entities }: { token: Token; entities: Entities }) {
+	const groups = Map.groupBy(token.scopes, (scope) => nodeKey(scope.entityType, scope.entityId));
+	return (
+		<ul className="flex flex-col gap-4">
+			{[...groups].map(([key, scopes]) => {
+				const node = resolveNode(entities, key);
+				return (
+					<li key={key} className="rounded-lg border border-line p-3">
+						<span className="font-mono text-[13px] [overflow-wrap:anywhere]">{chipName(node)}</span>
+						{node.parent !== null && (
+							<p className="mt-1 text-[12px] text-fg3 [overflow-wrap:anywhere]">{chipName(node.parent)}</p>
+						)}
+						<p className="mt-1 font-mono text-[11px] text-fg3 [overflow-wrap:anywhere]">{node.id}</p>
+						<ul aria-label={`Scopes for ${chipName(node)}`} className="mt-2 flex flex-wrap gap-2 text-[12px] text-fg2">
+							{scopes.map((scope) => (
+								<li key={scope.scope} className="rounded-md bg-panel px-2 py-1">
+									{SCOPE_LABEL[scope.scope]}
+								</li>
+							))}
+						</ul>
+					</li>
+				);
+			})}
+		</ul>
+	);
+}
 
 export function TokenDetailsDrawer({
 	token,
@@ -27,28 +61,8 @@ export function TokenDetailsDrawer({
 				</SheetHeader>
 				<SheetBody>
 					<SheetDescription className="break-all">{token?.name}</SheetDescription>
-					<p className="text-[13px] text-fg3">
-						All scopes granted to this token. Access to an organization or workspace includes the resources inside it.
-					</p>
-					<ul className="flex flex-col gap-4">
-						{token !== null &&
-							accessChips(entities, token).map(({ key, node, level }) => (
-								<li key={key} className="rounded-lg border border-line p-3">
-									<div className="flex flex-wrap items-baseline justify-between gap-2">
-										<span className="min-w-0 font-mono text-[13px] [overflow-wrap:anywhere]">{chipName(node)}</span>
-										<span className="text-[12px] text-fg2">{LEVEL_LABEL[level]}</span>
-									</div>
-									{node.parent !== null && (
-										<p className="mt-1 text-[12px] text-fg3 [overflow-wrap:anywhere]">{chipName(node.parent)}</p>
-									)}
-									<ul className="mt-2 list-disc space-y-1 pl-4 text-[12px] text-fg2">
-										{ALLOWS[node.kind].slice(0, level).map((allow) => (
-											<li key={allow}>{allow}</li>
-										))}
-									</ul>
-								</li>
-							))}
-					</ul>
+					<p className="text-[13px] text-fg3">Every scope granted to this token, grouped by its target.</p>
+					{token !== null && <TokenScopeList token={token} entities={entities} />}
 				</SheetBody>
 			</SheetContent>
 		</Sheet>

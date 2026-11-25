@@ -706,6 +706,8 @@ function ServiceForm({
 					<span className="-mt-1 text-[12.5px] text-fg3">
 						{form.isPublic ? (
 							"Gets an HTTPS address on an app domain."
+						) : form.port === "" ? (
+							"Without a port, this runs as a worker with no internal address."
 						) : (
 							<>
 								Reachable at <InlineCode>{`http://${slug}`}</InlineCode> by resources in{" "}

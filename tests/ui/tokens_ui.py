@@ -86,11 +86,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     page.keyboard.press("Enter")
     details = page.get_by_role("dialog", name="Token access", exact=True)
     expect(details.get_by_text("acme org", exact=True)).to_be_visible()
-    expect(
-        details.get_by_text(
-            "View the organization, its workspaces and members", exact=True
-        )
-    ).to_be_visible()
+    expect(details.get_by_text("Read", exact=True)).to_be_visible()
     page.keyboard.press("Escape")
     expect(details).to_be_hidden()
     page.get_by_role("button", name="Actions for ci-source").click()

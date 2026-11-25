@@ -383,8 +383,17 @@ with session(out) as browser:
         )
     ).to_be_visible()
     drawer.get_by_role("button", name="Internal", exact=True).click()
+    expect(
+        drawer.get_by_text(
+            "Without a port, this runs as a worker with no internal address.",
+            exact=True,
+        )
+    ).to_be_visible()
+    port_preview = drawer.get_by_role("textbox", name="Port", exact=True)
+    port_preview.fill("8080")
     expect(drawer.get_by_text(f"http://{name}", exact=True)).to_be_visible()
     expect(drawer.get_by_text("on the same cluster.", exact=False)).to_be_visible()
+    port_preview.fill("")
     drawer.get_by_role("button", name="Public", exact=True).click()
 
     expect(drawer.get_by_text("Draft", exact=True).locator("svg")).to_have_css(
