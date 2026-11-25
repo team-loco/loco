@@ -46,7 +46,8 @@ true
 {{- end -}}
 
 {{- define "loco-control-plane.issueCertificate" -}}
-{{- if and .Values.certManager.enabled .Values.gateway.create (not .Values.gateway.tlsSecretName) -}}
+{{- $certManagerTLS := and .Values.certManager.enabled (not .Values.gateway.tlsSecretName) -}}
+{{- if and $certManagerTLS .Values.gateway.create -}}
 true
 {{- end -}}
 {{- end -}}
