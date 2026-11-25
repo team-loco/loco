@@ -1,0 +1,76 @@
+{{- $apiURL := default "" .Values.env.CONTROL_PLANE_URL }}
+{{- if hasPrefix "https://" $apiURL }}
+{{- $url := urlParse $apiURL }}
+{{- $namespace := printf "%s-fallback" .Release.Name }}
+{{- $hostname := first (splitList ":" $url.host) }}
+{{- $port := 443 }}
+{{- if contains ":" $url.host }}
+{{- $port = int (last (splitList ":" $url.host)) }}
+{{- end }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $namespace }}
+  labels:
+    loco.io/app: fallback
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: control-plane
+  namespace: {{ $namespace }}
+spec:
+  endpoints:
+    - fqdn:
+        hostname: {{ $hostname | quote }}
+        port: {{ $port }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: control-plane
+  namespace: {{ $namespace }}
+spec:
+  targetRefs:
+    - group: gateway.envoyproxy.io
+      kind: Backend
+      name: control-plane
+  validation:
+    hostname: {{ $hostname | quote }}
+    wellKnownCACertificates: System
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: application-fallback
+  namespace: {{ $namespace }}
+spec:
+  parentRefs:
+    - name: {{ include "loco-worker.gateway" . }}
+      namespace: {{ .Release.Namespace }}
+  hostnames:
+    {{- range .Values.global.domain.apps }}
+    - {{ printf "*.%s" . | quote }}
+    {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            remove: [X-Forwarded-Host, Authorization, Cookie]
+        - type: URLRewrite
+          urlRewrite:
+            hostname: {{ $hostname | quote }}
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: {{ printf "%s/application-not-found" (trimSuffix "/" $url.path) | quote }}
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: control-plane
+          port: {{ $port }}
+{{- end }}

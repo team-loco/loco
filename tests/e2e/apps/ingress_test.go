@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"slices"
 	"strings"
@@ -67,6 +69,35 @@ func TestIngress(t *testing.T) {
 	})
 
 	publicID, privateID := w.ResourceID(t, public), w.ResourceID(t, private)
+	t.Run("the application error endpoint distinguishes domain registration", func(t *testing.T) {
+		for _, tc := range []struct {
+			host string
+			want string
+		}{
+			{w.Host("missing"), "Application not found"},
+			{publicHost, "Application unavailable"},
+		} {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, p.APIURL+"/application-not-found", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("X-Forwarded-Host", tc.host)
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := io.ReadAll(res.Body)
+			if closeErr := res.Body.Close(); closeErr != nil {
+				t.Fatal(closeErr)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.StatusCode != http.StatusNotFound || !strings.Contains(string(body), tc.want) {
+				t.Fatalf("%s: status %d, body %s", tc.host, res.StatusCode, body)
+			}
+		}
+	})
 	t.Run("only the public app is routed", func(t *testing.T) {
 		hostnames := p.MustKubectl(
 			t,

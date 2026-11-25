@@ -6,12 +6,75 @@ values:
   - ../ci/default-values.yaml
 templates:
   - templates/gateway.yaml
+  - templates/application-fallback.yaml
   - templates/network-policies.yaml
   - charts/otel-col-deploy/templates/service.yaml
   - charts/gateway-helm/templates/envoy-gateway-config.yaml
   - charts/gateway-helm/templates/infra-manager-rbac.yaml
   - charts/gateway-helm/templates/envoy-gateway-deployment.yaml
 tests:
+  - it: routes unmatched application hosts to the control plane over TLS
+    set:
+      env.CONTROL_PLANE_URL: https://api.example.test
+    asserts:
+      - equal:
+          path: spec.validation.wellKnownCACertificates
+          value: System
+        template: templates/application-fallback.yaml
+        documentSelector: {path: kind, value: BackendTLSPolicy}
+      - equal:
+          path: spec.endpoints[0].fqdn
+          value: {hostname: api.example.test, port: 443}
+        template: templates/application-fallback.yaml
+        documentSelector: {path: kind, value: Backend}
+      - equal:
+          path: spec.rules[0].filters[1].urlRewrite.path.replaceFullPath
+          value: /application-not-found
+        template: templates/application-fallback.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.hostnames
+          value: ["*.onloco.app", "*.onloco.build"]
+        template: templates/application-fallback.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.rules[0].filters[0].requestHeaderModifier.remove
+          value: [X-Forwarded-Host, Authorization, Cookie]
+        template: templates/application-fallback.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.listeners[0].allowedRoutes.namespaces.selector.matchExpressions[0].values
+          value: ["true", fallback]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - matchRegex:
+          path: data["envoy-gateway.yaml"]
+          pattern: 'enableBackend: true'
+        template: charts/gateway-helm/templates/envoy-gateway-config.yaml
+
+  - it: uses the API prefix when the control plane shares the dashboard hostname
+    set:
+      env.CONTROL_PLANE_URL: https://loco.example.test:8443/api/
+    asserts:
+      - equal:
+          path: spec.rules[0].filters[1].urlRewrite.path.replaceFullPath
+          value: /api/application-not-found
+        template: templates/application-fallback.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.endpoints[0].fqdn
+          value: {hostname: loco.example.test, port: 8443}
+        template: templates/application-fallback.yaml
+        documentSelector: {path: kind, value: Backend}
+
+  - it: does not send fallback requests to an HTTP control plane
+    set:
+      env.CONTROL_PLANE_URL: http://api.example.test
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/application-fallback.yaml
+
   - it: deploys proxies beside their Gateways with cross-namespace infrastructure permissions
     asserts:
       - matchRegex:

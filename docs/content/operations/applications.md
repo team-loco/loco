@@ -156,6 +156,8 @@ services:
 
 `loco deploy` prints that a private application has no public URL and that a worker takes no traffic, and `loco resource status` shows `URL: none` for both. In the dashboard, the New service drawer on the Resources page offers the same choice with its Public switch. Its Port field starts empty, which creates a worker. A domain added to an existing application takes effect on its next deployment, and removing an application's last domain makes it private from its next deployment.
 
+The Loco gateway serves a branded HTTP 404 page when no application route matches a hostname under an app domain. The page distinguishes an unknown application domain from a registered domain with no matching route. The browser URL stays unchanged. Responses from deployed applications, including their own 404 pages, pass through without replacement.
+
 ## Investigate a rollout
 
 Use application status to find whether a deployment is progressing or ready. `loco resource status` shows a status for each environment the application runs in, and for each region its ready and desired replicas, its deployment and the reason a region is not ready. The ready count covers the ready replicas of every version and stops at the desired count, so a region with one desired replica reads `1/1`, not `2/1`, while a rollout overlaps old and new replicas. The region status also names its serving deployment: the one with the most ready replicas, the live deployment and then the newest on a tie.

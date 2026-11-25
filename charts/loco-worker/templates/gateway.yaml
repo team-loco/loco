@@ -31,8 +31,10 @@ spec:
         namespaces:
           from: Selector
           selector:
-            matchLabels:
-              loco.io/app: "true"
+            matchExpressions:
+              - key: loco.io/app
+                operator: In
+                values: ["true", fallback]
       tls:
         mode: Terminate
         certificateRefs:
@@ -47,8 +49,10 @@ spec:
         namespaces:
           from: Selector
           selector:
-            matchLabels:
-              loco.io/app: "true"
+            matchExpressions:
+              - key: loco.io/app
+                operator: In
+                values: ["true", fallback]
     {{- end }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
