@@ -140,7 +140,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     expect(
         created.get_by_role("img", name="Curl command, token masked")
     ).to_be_visible()
-    eye = created.get_by_role("button", name="Show token")
+    eye = created.get_by_role("button", name="Show token", exact=True)
     copy_button = created.get_by_role("button", name="Copy token")
     for control in [eye, copy_button]:
         assert control.inner_text() == "", "copy and reveal controls use icons"
@@ -148,7 +148,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
             value.bounding_box()["x"] + value.bounding_box()["width"]
             <= control.bounding_box()["x"]
         )
-    created.get_by_role("button", name="Show token").click()
+    created.get_by_role("button", name="Show token", exact=True).click()
     token = value.inner_text()
     assert token.startswith("loco_"), token
     assert token not in blocks.first.inner_text(), (
@@ -158,7 +158,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert "$LOCO_TOKEN" not in created.inner_text()
     expect(created.get_by_text("Example usage", exact=True)).to_have_count(0)
     expect(created.get_by_text("In CI, save the token", exact=False)).to_have_count(0)
-    created.get_by_role("button", name="Hide token").click()
+    created.get_by_role("button", name="Hide token", exact=True).click()
     assert re.fullmatch(r"•+", value.inner_text())
     assert token not in created.inner_html(), "the masked dialog holds the token"
     created.get_by_role("button", name="Copy token").click()
@@ -172,7 +172,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     created.get_by_role("button", name="Hide token in curl", exact=True).click()
     assert token not in created.inner_html()
     created.get_by_role("button", name="Show token in curl", exact=True).click()
-    created.get_by_role("button", name="Show token").click()
+    created.get_by_role("button", name="Show token", exact=True).click()
     for block in created.locator('[data-slot="code-block"] pre').all():
         assert block.evaluate("node => node.scrollWidth <= node.clientWidth")
     page.keyboard.press("Escape")
