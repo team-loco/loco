@@ -15,5 +15,5 @@ export function useOrgFilterChoices(enabled: boolean) {
 		{ enabled, placeholderData: keepPreviousData },
 	);
 	const orgs = (listed.data?.orgs ?? []).flatMap((o) => (o.organization === undefined ? [] : [o.organization]));
-	return { orgs, onSearch: setSearch };
+	return { orgs, search, onSearch: setSearch };
 }

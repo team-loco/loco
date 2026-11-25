@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 
 import { typesIn } from "@/pages/settings/auditEvents";
 
-import { auditQuery, auditRow, toggleCategory, toggleType, typesLabel } from "./model";
+import { auditQuery, auditRow, orgFilterItems, toggleCategory, toggleType, typesLabel } from "./model";
 
 test("the event filter names one type, whole categories, or the first type and a count", () => {
 	expect(typesLabel([])).toBe("");
@@ -92,4 +92,18 @@ test("rows name where an event happened from the IDs the caller can read", () =>
 	).toBe("2f6a1b3c5d7e".slice(-8));
 	expect(installation.org).toBe("Installation");
 	expect(installation.where).toBe("");
+});
+
+test("the organization filter keeps a deleted organization the shown events still name", () => {
+	const rows = [
+		create(EventSchema, { type: "org.updated", orgId: "o1", orgName: "acme" }),
+		create(EventSchema, { type: "org.deleted", orgId: "o2", orgName: "gone-co" }),
+		create(EventSchema, { type: "org.deleted", orgId: "o2", orgName: "gone-co" }),
+		create(EventSchema, { type: "cluster.paused" }),
+	].map((event) => auditRow(event, new Map(), new Map()));
+	expect(orgFilterItems([{ id: "o1", name: "acme" }], rows, "")).toEqual([
+		{ id: "o1", name: "acme" },
+		{ id: "o2", name: "gone-co" },
+	]);
+	expect(orgFilterItems([], rows, " GONE ")).toEqual([{ id: "o2", name: "gone-co" }]);
 });

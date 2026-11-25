@@ -43,7 +43,16 @@ import { DroppedFilters, AuditFilterError } from "./audit/AuditFeedback";
 import { AuditDrawer } from "./audit/AuditDrawer";
 import { ActorFilter, EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
-import { ACTOR_KINDS, auditQuery, auditRow, DEFAULT_RANGE, PAGE_SIZES, RANGES, TYPE_ACTORS } from "./audit/model";
+import {
+	ACTOR_KINDS,
+	auditQuery,
+	auditRow,
+	DEFAULT_RANGE,
+	orgFilterItems,
+	PAGE_SIZES,
+	RANGES,
+	TYPE_ACTORS,
+} from "./audit/model";
 import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
 import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
@@ -232,7 +241,11 @@ export function Audit({ system = false }: { system?: boolean }) {
 	]);
 	if (actor !== "" && !actors.has(actor)) actors.set(actor, { id: actor, name: actor, detail: "", group: "People" });
 	const orgChoice = useOrgFilterChoices(system);
-	const orgItems = orgChoice.orgs.map((o) => ({ id: o.id, name: o.name }));
+	const orgItems = orgFilterItems(
+		orgChoice.orgs.map((o) => ({ id: o.id, name: o.name })),
+		rows,
+		orgChoice.search,
+	);
 	if (orgId !== "" && !orgItems.some((o) => o.id === orgId)) {
 		const name = rows.find((r) => r.event.orgId === orgId)?.org ?? names.get(orgId) ?? orgId.slice(-8);
 		orgItems.unshift({ id: orgId, name });
