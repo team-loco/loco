@@ -28,7 +28,7 @@ describe("clusterState", () => {
 	});
 
 	test("a stale heartbeat is not reporting and none is never reported", () => {
-		expect(clusterState(cluster({ lastHeartbeat: timestampFromMs(NOW - 6 * 60_000) }), NOW)).toBe("not-reporting");
+		expect(clusterState(cluster({ lastHeartbeat: timestampFromMs(NOW - 2 * 60_000) }), NOW)).toBe("not-reporting");
 		expect(clusterState(cluster({ lastHeartbeat: undefined }), NOW)).toBe("never-reported");
 	});
 

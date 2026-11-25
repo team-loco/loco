@@ -28,15 +28,19 @@ export function systemAccess(scopes: readonly EntityScope[]): SystemAccess {
 export type ClusterState =
 	"unhealthy" | "not-reporting" | "degraded" | "never-reported" | "paused" | "healthy" | "removed";
 
-/** A heartbeat older than this means the agent is not reporting. */
-export const NOT_REPORTING_MS = 5 * 60_000;
+const SILENT_AFTER_MS = 90_000;
+
+/** The API marks a cluster silent after three missed 30 second heartbeats; ListClusters' `silent_since` carries that state. */
+function isSilent(beatMs: number, nowMs: number): boolean {
+	return nowMs - beatMs > SILENT_AFTER_MS;
+}
 
 export function clusterState(cluster: Cluster, nowMs: number): ClusterState {
 	if (cluster.removedAt !== undefined) return "removed";
 	if (!cluster.isActive) return "paused";
 	const beat = maybeTsMs(cluster.lastHeartbeat);
 	if (beat === undefined) return "never-reported";
-	if (nowMs - beat > NOT_REPORTING_MS) return "not-reporting";
+	if (isSilent(beat, nowMs)) return "not-reporting";
 	if (cluster.healthStatus === "healthy") return "healthy";
 	return cluster.healthStatus === "degraded" ? "degraded" : "unhealthy";
 }

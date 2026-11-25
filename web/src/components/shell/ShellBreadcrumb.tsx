@@ -22,7 +22,7 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { orgSettingsPath, settingsPath, switchWorkspacePath, WORKSPACE_ROUTE, workspacePath } from "@/lib/routes";
-import { inSystem } from "@/lib/system";
+import { useInSystem } from "@/hooks/useInSystem";
 import { cn } from "@/lib/utils";
 
 import { SystemBreadcrumb } from "./SystemBreadcrumb";
@@ -253,5 +253,5 @@ function WorkspaceBreadcrumb() {
 }
 
 export function ShellBreadcrumb() {
-	return inSystem(useLocation().pathname) ? <SystemBreadcrumb /> : <WorkspaceBreadcrumb />;
+	return useInSystem() ? <SystemBreadcrumb /> : <WorkspaceBreadcrumb />;
 }

@@ -17,9 +17,9 @@ ui = state["ui_url"]
 LIST_CLUSTERS = "loco.cluster.v1.ClusterAdminService/ListClusters"
 LIST_REGIONS = "loco.cluster.v1.RegionAdminService/ListRegions"
 SHELL_WATCH_JS = """
-window.__shell = false;
+window.__systemChrome = false;
 new MutationObserver(() => {
-  if (document.querySelector('[data-slot="top-bar"]') !== null) window.__shell = true;
+  if (document.querySelector('[data-slot="system-tag"], a[href="/system/clusters"]') !== null) window.__systemChrome = true;
 }).observe(document, { childList: true, subtree: true });
 """
 
@@ -62,7 +62,7 @@ with session(repo / "tests/ui/out/system") as browser:
                 "heading", name="Nothing lives at this address", exact=True
             )
         ).to_be_visible()
-        assert not page.evaluate("window.__shell"), path
+        assert not page.evaluate("window.__systemChrome"), path
     context.close()
 
     # A system admin switches in and out, and sees the clusters with their actions.

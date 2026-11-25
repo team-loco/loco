@@ -79,7 +79,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const orgPending = urlOrg.isPending;
 	const workspacePending = workspaceLookup && urlWorkspace.isPending;
 	const lookupPending = orgPending || workspacePending;
-	const routeLoading = orgLookup && lookupPending;
+	const systemPending = inSystem(pathname) && scopes.isLoading;
+	const routeLoading = (orgLookup && lookupPending) || systemPending;
 	const orgsAnswered = !scopes.isLoading && !orgsQuery.isPending;
 	const routeDecided = orgsAnswered && !routeLoading;
 	// not_found and invalid_argument mean the organization or workspace is absent. A denial counts as absent
@@ -92,11 +93,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
 				scopes.scopes,
 			));
-	// A /system address is undecided until the scopes answer, then absent for anyone without a system role.
-	const systemRoute = inSystem(pathname);
-	const systemPending = systemRoute && scopes.isLoading;
-	const systemAbsent = systemRoute && !scopes.isLoading && systemAccess(scopes.scopes) === "none";
-	const routeNotFound = (routeDecided && routeAbsent) || systemAbsent;
+	const systemAbsent = inSystem(pathname) && systemAccess(scopes.scopes) === "none";
+	const routeNotFound = routeDecided && (routeAbsent || systemAbsent);
 
 	if (signedOut) {
 		return (
@@ -104,7 +102,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		);
 	}
 
-	if (isPending || systemPending) {
+	if (isPending) {
 		return <AppLoading />;
 	}
 

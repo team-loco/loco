@@ -21,7 +21,8 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { WINDOW_PARSERS } from "@/lib/obs-time";
-import { CLUSTERS_PATH, inSystem, SYSTEM_PATH } from "@/lib/system";
+import { useInSystem } from "@/hooks/useInSystem";
+import { CLUSTERS_PATH, SYSTEM_PATH } from "@/lib/system";
 import { carriedQuery, QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 import {
 	auditPath,
@@ -100,8 +101,9 @@ export function useNavSections(): NavSection[] {
 	const carriedTokens = toQuery({ q, r }).tokens;
 	const audit = useAuditAccess(activeOrgId);
 	const scopes = useMyScopes();
+	const inSystem = useInSystem();
 
-	if (inSystem(pathname)) return systemSections(pathname);
+	if (inSystem) return systemSections(pathname);
 
 	return [
 		{

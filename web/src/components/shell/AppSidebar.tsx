@@ -48,7 +48,8 @@ import {
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { inSystem, SYSTEM_PATH, systemAccess } from "@/lib/system";
+import { useInSystem } from "@/hooks/useInSystem";
+import { SYSTEM_PATH, systemAccess } from "@/lib/system";
 import { expandOrgLink } from "@/lib/org-links";
 import { colorThemes, parseColorTheme } from "@/lib/theme";
 import { userLabel } from "@/lib/user";
@@ -101,7 +102,7 @@ export function AppSidebar() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { data: config } = useQuery(getConfig, {});
 	const hasSystemRole = systemAccess(useMyScopes().scopes) !== "none";
-	const system = inSystem(pathname);
+	const system = useInSystem();
 
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;

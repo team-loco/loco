@@ -1,8 +1,6 @@
-import { useLocation } from "react-router";
-
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { inSystem } from "@/lib/system";
+import { useInSystem } from "@/hooks/useInSystem";
 import { AlertsDrawer } from "./AlertsDrawer";
 import { CommandMenu } from "./CommandMenu";
 import { ShellBreadcrumb } from "./ShellBreadcrumb";
@@ -11,7 +9,7 @@ import { SidebarToggle } from "./SidebarToggle";
 export function TopBar() {
 	const { activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
-	const system = inSystem(useLocation().pathname);
+	const system = useInSystem();
 	return (
 		<header
 			data-slot="top-bar"
