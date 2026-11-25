@@ -8900,6 +8900,15 @@
             "title": "granted_role",
             "description": "granted_role is the role GrantSystemRole gave the user.",
             "$ref": "#/components/schemas/loco.admin.v1.SystemRole"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "lastActiveAt": {
+            "title": "last_active_at",
+            "description": "last_active_at is the latest use of any of the user's sessions; unset when the user has no session.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "SystemRoleHolder",

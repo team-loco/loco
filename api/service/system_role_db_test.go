@@ -1,6 +1,7 @@
 package service
 
 import (
+	"net/netip"
 	"sync"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/events"
@@ -103,15 +105,37 @@ func revoke(t *testing.T, caller, target membershipUser) error {
 func TestListSystemRolesShowsRolesSourcesAndUnclaimedEmails(t *testing.T) {
 	a, configAdmin := newSystemRoleAPI(t)
 	reader := a.signUp(t, configReaderSubject)
+	a.setName(t, configAdmin, "Config Admin")
 	if err := grantRole(t, configAdmin, reader, roleAdmin); err != nil {
 		t.Fatalf("grant admin to the configured reader: %v", err)
 	}
 
+	// The reader's own request marks its session used; the admin's last use stays as set.
+	adminActive := time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)
+	principal, err := a.machine.GetToken(t.Context(), configAdmin.token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = a.pool.Exec(t.Context(), `UPDATE session_tokens SET last_used_at = $2 WHERE id = $1`,
+		principal.SessionID, adminActive); err != nil {
+		t.Fatal(err)
+	}
+
 	listed := listRoles(t, reader)
+	for _, holder := range listed.GetHolders() {
+		got := holder.GetLastActiveAt()
+		if holder.GetUserId() == configAdmin.id.String() && !got.AsTime().Equal(adminActive) {
+			t.Errorf("admin last active = %v, want %v", got, adminActive)
+		}
+		if got == nil {
+			t.Errorf("holder %s has no last active time", holder.GetEmail())
+		}
+		holder.LastActiveAt = nil
+	}
 	want := &adminv1.ListSystemRolesResponse{
 		Holders: []*adminv1.SystemRoleHolder{
 			{
-				UserId: configAdmin.id.String(), Email: membershipEmail(configAdminSubject),
+				UserId: configAdmin.id.String(), Email: membershipEmail(configAdminSubject), Name: "Config Admin",
 				Issuer: testIssuer, Subject: configAdminSubject, ConfiguredRole: roleAdmin,
 			},
 			{
@@ -126,6 +150,40 @@ func TestListSystemRolesShowsRolesSourcesAndUnclaimedEmails(t *testing.T) {
 	}
 	if !proto.Equal(listed, want) {
 		t.Fatalf("listed = %v, want %v", listed, want)
+	}
+}
+
+func TestListSystemRolesShowsTheLatestSessionActivity(t *testing.T) {
+	a, configAdmin := newSystemRoleAPI(t)
+	ctx := t.Context()
+	older := time.Date(2026, 11, 1, 8, 0, 0, 0, time.UTC)
+	latest := time.Date(2026, 11, 20, 9, 30, 0, 0, time.UTC)
+	webToken, _, err := a.machine.IssueWebSession(ctx, configAdmin.id, netip.MustParseAddr("198.51.100.9"), "browser")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for token, usedAt := range map[string]time.Time{configAdmin.token: older, webToken: latest} {
+		principal, tokenErr := a.machine.GetToken(ctx, token)
+		if tokenErr != nil {
+			t.Fatal(tokenErr)
+		}
+		if _, execErr := a.pool.Exec(ctx, `UPDATE session_tokens SET last_used_at = $2 WHERE id = $1`,
+			principal.SessionID, usedAt); execErr != nil {
+			t.Fatal(execErr)
+		}
+	}
+	reader := a.signUp(t, configReaderSubject)
+	dormant, _ := a.signIn(t, "later-reader")
+
+	activity := map[string]*timestamppb.Timestamp{}
+	for _, holder := range listRoles(t, reader).GetHolders() {
+		activity[holder.GetUserId()] = holder.GetLastActiveAt()
+	}
+	if got := activity[configAdmin.id.String()]; !got.AsTime().Equal(latest) {
+		t.Errorf("admin last active = %v, want %v", got, latest)
+	}
+	if got, ok := activity[dormant.ID.String()]; !ok || got != nil {
+		t.Errorf("holder without a session: listed %v, last active %v, want listed and unset", ok, got)
 	}
 }
 

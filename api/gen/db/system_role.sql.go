@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -108,8 +109,12 @@ func (q *Queries) ListSystemRoleEntriesExcept(ctx context.Context, arg ListSyste
 }
 
 const listSystemRoleHolders = `-- name: ListSystemRoleHolders :many
-SELECT u.id, u.email, i.issuer, i.subject, c.role AS configured_role, g.role AS granted_role
+SELECT u.id, u.email, u.name, i.issuer, i.subject, c.role AS configured_role, g.role AS granted_role,
+       a.last_used_at AS last_active_at
 FROM users u
+LEFT JOIN session_tokens a ON a.id = (
+  SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
+)
 LEFT JOIN identities i ON i.user_id = u.id
 LEFT JOIN system_role_claims c ON c.user_id = u.id
 LEFT JOIN system_role_grants g ON g.user_id = u.id
@@ -120,10 +125,12 @@ ORDER BY u.email
 type ListSystemRoleHoldersRow struct {
 	ID             uuid.UUID   `json:"id"`
 	Email          string      `json:"email"`
+	Name           *string     `json:"name"`
 	Issuer         *string     `json:"issuer"`
 	Subject        *string     `json:"subject"`
 	ConfiguredRole *SystemRole `json:"configuredRole"`
 	GrantedRole    *SystemRole `json:"grantedRole"`
+	LastActiveAt   *time.Time  `json:"lastActiveAt"`
 }
 
 func (q *Queries) ListSystemRoleHolders(ctx context.Context) ([]ListSystemRoleHoldersRow, error) {
@@ -138,10 +145,12 @@ func (q *Queries) ListSystemRoleHolders(ctx context.Context) ([]ListSystemRoleHo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Email,
+			&i.Name,
 			&i.Issuer,
 			&i.Subject,
 			&i.ConfiguredRole,
 			&i.GrantedRole,
+			&i.LastActiveAt,
 		); err != nil {
 			return nil, err
 		}

@@ -6,11 +6,12 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/cmd/internal/clitest"
 	adminv1 "github.com/team-loco/loco/gen/go/loco/admin/v1"
@@ -23,6 +24,7 @@ type fakeAdmins struct {
 	session string
 	granted []*adminv1.GrantSystemRoleRequest
 	revoked []string
+	listed  *adminv1.ListSystemRolesResponse
 }
 
 func (f *fakeAdmins) checkSession(ctx context.Context) {
@@ -36,13 +38,17 @@ func (f *fakeAdmins) ListSystemRoles(
 	ctx context.Context, _ *adminv1.ListSystemRolesRequest,
 ) (*adminv1.ListSystemRolesResponse, error) {
 	f.checkSession(ctx)
+	if f.listed != nil {
+		return f.listed, nil
+	}
 	return listedRoles, nil
 }
 
 var listedRoles = &adminv1.ListSystemRolesResponse{
 	Holders: []*adminv1.SystemRoleHolder{{
-		UserId: "0192f3a0-0000-7000-8000-000000000001", Email: "ada@acme.test",
-		Issuer: "https://idp.acme.test", Subject: "ada",
+		UserId: "0192f3a0-0000-7000-8000-000000000001", Name: "Ada", Email: "ada@acme.test",
+		LastActiveAt: timestamppb.New(time.Date(2026, 11, 20, 9, 30, 0, 0, time.UTC)),
+		Issuer:       "https://idp.acme.test", Subject: "ada",
 		ConfiguredRole: adminv1.SystemRole_SYSTEM_ROLE_READ, GrantedRole: adminv1.SystemRole_SYSTEM_ROLE_ADMIN,
 	}},
 	Unclaimed: []*adminv1.UnclaimedEmail{{Email: "grace@acme.test", Role: adminv1.SystemRole_SYSTEM_ROLE_READ}},
@@ -79,17 +85,39 @@ func runAdminCmd(t *testing.T, fake *fakeAdmins, args ...string) (string, error)
 	return output.String(), err
 }
 
-func TestListPrintsRolesAndUnclaimedEmails(t *testing.T) {
+func TestListPrintsHoldersWithNameAndLastActiveAndUnclaimedEmails(t *testing.T) {
 	output, err := runAdminCmd(t, &fakeAdmins{}, "list")
 	if err != nil {
 		t.Fatalf("list: %v\n%s", err, output)
 	}
-	var got adminv1.ListSystemRolesResponse
-	if err := protojson.Unmarshal([]byte(output), &got); err != nil {
-		t.Fatalf("decode list output: %v\n%s", err, output)
+	want := "USER ID                               NAME  EMAIL          CONFIGURED  " +
+		"GRANTED  LAST ACTIVE          ISSUER                 SUBJECT\n" +
+		"0192f3a0-0000-7000-8000-000000000001  Ada   ada@acme.test  read        " +
+		"admin    2026-11-20 09:30:00  https://idp.acme.test  ada\n" +
+		"\n" +
+		"UNCLAIMED EMAIL  ROLE\n" +
+		"grace@acme.test  read\n"
+	if output != want {
+		t.Fatalf("list output:\n%s\nwant:\n%s", output, want)
 	}
-	if !proto.Equal(&got, listedRoles) {
-		t.Fatalf("list output = %v, want %v", &got, listedRoles)
+}
+
+func TestListShowsADashForAHolderWithoutSessionActivity(t *testing.T) {
+	fake := &fakeAdmins{listed: &adminv1.ListSystemRolesResponse{Holders: []*adminv1.SystemRoleHolder{{
+		UserId: "0192f3a0-0000-7000-8000-000000000002", Email: "grace@acme.test",
+		Issuer: "https://idp.acme.test", Subject: "grace",
+		ConfiguredRole: adminv1.SystemRole_SYSTEM_ROLE_ADMIN,
+	}}}}
+	output, err := runAdminCmd(t, fake, "list")
+	if err != nil {
+		t.Fatalf("list: %v\n%s", err, output)
+	}
+	want := "USER ID                               NAME  EMAIL            CONFIGURED  " +
+		"GRANTED  LAST ACTIVE  ISSUER                 SUBJECT\n" +
+		"0192f3a0-0000-7000-8000-000000000002        grace@acme.test  admin       " +
+		"—        —            https://idp.acme.test  grace\n"
+	if output != want {
+		t.Fatalf("list output:\n%s\nwant:\n%s", output, want)
 	}
 }
 
