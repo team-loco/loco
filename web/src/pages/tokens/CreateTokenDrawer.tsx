@@ -387,7 +387,7 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 							wrap
 							copyText={ciCommand(secret)}
 							{...(shown ? {} : { label: "Example, token masked" })}
-							className={cn("[&_.sh__line]:break-all", !shown && "select-none")}
+							className={cn("[&_code]:break-all", !shown && "select-none")}
 						>
 							{ciCommand(shownSecret)}
 						</CodeBlock>
