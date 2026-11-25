@@ -9,6 +9,7 @@ export const pageImporters = {
 	Team: async () => await import("@/pages/Team"),
 	Audit: async () => await import("@/pages/Audit"),
 	Tokens: async () => await import("@/pages/Tokens"),
+	System: async () => await import("@/pages/System"),
 	Organizations: async () => await import("@/pages/Organizations"),
 	DashboardRedirect: async () => await import("@/pages/DashboardRedirect"),
 } as const;

@@ -64,6 +64,7 @@ AUTHORIZATION_PATH = "/dex/auth"
 # The stand-in issuer's sign-in page, where the dashboard sends a signed-out visitor.
 SIGN_IN_PAGE = "<!doctype html><title>Sign in</title><h1>Sign in</h1>\n"
 USER_SCOPES = ("read", "write", "admin")
+SYSTEM_ENTITY_ID = "00000000-0000-0000-0000-000000000000"
 RUNTIME_CONFIG_PATH = "/runtime-config.js"
 # An OpenBao address every run uses in place of the shared one when set.
 OPENBAO_ENV = "UI_EVIDENCE_OPENBAO"
@@ -899,6 +900,12 @@ def seed(state, scenario):
             state,
             f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {scope_rows};",
         )
+        if "system" in user:
+            psql(
+                state,
+                "INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES "
+                f"({sql_literal(user_id)}, {sql_literal(user['system'])}, 'system', '{SYSTEM_ENTITY_ID}');",
+            )
         token = session_token()
         psql(
             state,
@@ -966,6 +973,7 @@ def seed(state, scenario):
             "scopes": grant["scopes"],
         }
         rpc(api_url, users[orgs[org_name]["owner"]]["token"], RPC_CREATE_MEMBER, body)
+    seed_fleet(state, scenario.get("clusters", []))
     state["resources"] = seed_resources(state, scenario.get("resources", []))
     seed_events(state, scenario.get("events", []))
     if state["resources"]:
@@ -973,6 +981,33 @@ def seed(state, scenario):
             "synthetic clusters, deployments and placements are inserted with SQL; no worker runs these resources"
         )
     state["notes"] = notes
+
+
+def seed_fleet(state, clusters):
+    """Inserts the scenario's clusters; `heartbeat_ago` is seconds since the last heartbeat, absent for a cluster that never reported."""
+    q = sql_literal
+    for cluster in clusters:
+        cluster_id = str(uuid.uuid4())
+        removed = "NOW()" if cluster.get("removed") else "NULL"
+        key = "decode(repeat('ab', 32), 'hex')" if cluster.get("enrolled") else "NULL"
+        version = q(cluster["agent_version"]) if "agent_version" in cluster else "NULL"
+        domains = (
+            "ARRAY[" + ",".join(q(d) for d in cluster.get("domains", [])) + "]::text[]"
+        )
+        statements = [
+            "INSERT INTO clusters(id,name,region,provider,platforms,domains,is_active,is_default,"
+            "removed_at,agent_version,agent_public_key,role) "
+            f"VALUES({q(cluster_id)},{q(cluster['name'])},{q(cluster['region'])},'fixture',"
+            f"ARRAY['linux/amd64'],{domains},{str(cluster.get('active', True)).lower()},false,"
+            f"{removed},{version},{key},{q(cluster.get('role', 'all'))});"
+        ]
+        if "heartbeat_ago" in cluster:
+            statements.append(
+                "INSERT INTO cluster_heartbeats(cluster_id,last_heartbeat,health_status) "
+                f"VALUES({q(cluster_id)},NOW() - make_interval(secs => {int(cluster['heartbeat_ago'])}),"
+                f"{q(cluster.get('health', 'healthy'))});"
+            )
+        psql(state, "".join(statements))
 
 
 def seed_cluster(

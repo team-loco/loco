@@ -13,6 +13,7 @@ import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive, WORKSPACE_STORAGE_KEY } from "@/context/ContextProvider";
 import { useStoredValue } from "@/lib/storage";
+import { inSystem, systemAccess } from "@/lib/system";
 import { getOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
@@ -91,7 +92,11 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
 				scopes.scopes,
 			));
-	const routeNotFound = routeDecided && routeAbsent;
+	// A /system address is undecided until the scopes answer, then absent for anyone without a system role.
+	const systemRoute = inSystem(pathname);
+	const systemPending = systemRoute && scopes.isLoading;
+	const systemAbsent = systemRoute && !scopes.isLoading && systemAccess(scopes.scopes) === "none";
+	const routeNotFound = (routeDecided && routeAbsent) || systemAbsent;
 
 	if (signedOut) {
 		return (
@@ -99,7 +104,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		);
 	}
 
-	if (isPending) {
+	if (isPending || systemPending) {
 		return <AppLoading />;
 	}
 
