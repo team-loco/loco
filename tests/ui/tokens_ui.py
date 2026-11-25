@@ -170,8 +170,9 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert copied_text(page) == token
     blocks.first.hover()
     blocks.first.get_by_role("button", name="Copy code").click()
-    assert f"Authorization: Bearer {token}" in copied_text(page)
-    assert "TokenService/GetScopes" in copied_text(page)
+    command = copied_text(page)
+    assert f"Authorization: Bearer {token}" in command
+    assert "TokenService/GetScopes" in command
     created.get_by_role("button", name="Show token in curl", exact=True).click()
     assert token in blocks.first.inner_text()
     created.get_by_role("button", name="Hide token in curl", exact=True).click()
