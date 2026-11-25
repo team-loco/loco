@@ -10,6 +10,35 @@ import (
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
+func TestWorkspaceInventoryForgetsOnlyWorkspacesTheDatabaseDoesNotHold(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	workspaceID := f.workspaceID(t)
+	var sent []*agentv1.SyncResponse
+	session := newSyncSession(f.agentServer(), f.clusterID, func(msg *agentv1.SyncResponse) error {
+		sent = append(sent, msg)
+		return nil
+	})
+	inventory := &agentv1.Inventory{WorkspaceIds: []string{workspaceID.String()}}
+	if err := session.reconcileInventory(t.Context(), inventory); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent) != 1 || sent[0].GetDeleteWorkspace() != workspaceID.String() {
+		t.Fatalf("an existing workspace without placements: sent %v, want only DeleteWorkspace", sent)
+	}
+
+	if err := f.queries.DeleteWorkspace(t.Context(), workspaceID); err != nil {
+		t.Fatal(err)
+	}
+	sent = nil
+	if err := session.reconcileInventory(t.Context(), inventory); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent) != 1 || sent[0].GetForgetWorkspace() != workspaceID.String() {
+		t.Fatalf("a workspace the database does not hold: sent %v, want ForgetWorkspace", sent)
+	}
+}
+
 func TestWorkspaceInventoryRetainsEmptyWorkspacesAndRetriesDeletedWorkspaces(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
@@ -24,7 +53,7 @@ func TestWorkspaceInventoryRetainsEmptyWorkspacesAndRetriesDeletedWorkspaces(t *
 	}
 	var deleted []string
 	session := newSyncSession(f.agentServer(), f.clusterID, func(msg *agentv1.SyncResponse) error {
-		deleted = append(deleted, msg.GetDeleteWorkspace())
+		deleted = append(deleted, msg.GetForgetWorkspace())
 		return nil
 	})
 	inventory := &agentv1.Inventory{WorkspaceIds: []string{workspaceID.String()}}

@@ -246,11 +246,8 @@ func TestInventoryResendsOnlyWhatDiffers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}
-	if len(sent) != 2 || sent[0].GetApply().GetPlacementId() != p.ID.String() {
-		t.Fatalf("sent %v, want an Apply for the missing placement, then a Delete for the unknown one", sent)
-	}
-	if deleted := sent[1].GetDelete(); deleted.GetPlacementId() != unknown || deleted.GetRevision() != 9 {
-		t.Fatalf("sent %v, want a Delete for the unknown placement at its revision", sent[1])
+	if len(sent) != 1 || sent[0].GetApply().GetPlacementId() != p.ID.String() {
+		t.Fatalf("sent %v, want one Apply for the missing placement", sent)
 	}
 
 	sent = nil

@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -18,7 +20,16 @@ func (ss *syncSession) reconcileWorkspaceInventory(ctx context.Context, workspac
 		if err != nil {
 			return fmt.Errorf("invalid inventory workspace id: %w", err)
 		}
-		// Deleting a workspace cascades to its placement windows, so a deleted workspace reads as unused.
+		_, err = ss.server.queries.GetOrganizationIDByWorkspaceID(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			if forgetErr := ss.forgetWorkspace(workspaceID); forgetErr != nil {
+				return forgetErr
+			}
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("read inventory workspace: %w", err)
+		}
 		used, err := ss.server.queries.WorkspaceHasPlacementWindowSince(
 			ctx,
 			genDb.WorkspaceHasPlacementWindowSinceParams{WorkspaceID: id, ClusterID: ss.clusterID, Since: cutoff},
@@ -34,6 +45,15 @@ func (ss *syncSession) reconcileWorkspaceInventory(ctx context.Context, workspac
 		if err := ss.sendFn(msg); err != nil {
 			return fmt.Errorf("send workspace deletion: %w", err)
 		}
+	}
+	return nil
+}
+
+// forgetWorkspace has the agent delete a workspace the database does not hold: no placement can join it again.
+func (ss *syncSession) forgetWorkspace(workspaceID string) error {
+	msg := &agentv1.SyncResponse{Message: &agentv1.SyncResponse_ForgetWorkspace{ForgetWorkspace: workspaceID}}
+	if err := ss.sendFn(msg); err != nil {
+		return fmt.Errorf("send workspace forget: %w", err)
 	}
 	return nil
 }

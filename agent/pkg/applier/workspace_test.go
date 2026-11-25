@@ -78,3 +78,55 @@ func TestWorkspaceTeardownWaitsForApplicationFinalizersAndConverges(t *testing.T
 		t.Fatalf("inventory after teardown = %v", ids)
 	}
 }
+
+const forgottenWorkspace = "forgotten-id"
+
+func TestForgetWorkspaceDeletesItsPlacedApplicationsThenItsNamespace(t *testing.T) {
+	ctx := t.Context()
+	namespace := &corev1.Namespace{Name: "workspace", Labels: map[string]string{
+		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
+		locolabels.LabelLocoApp:   "true", locolabels.LabelWorkspaceID: forgottenWorkspace,
+	}}
+	application := func(name, workspaceID string, placed bool) *locov1alpha1.Application {
+		app := &locov1alpha1.Application{Name: name, Namespace: testNamespace,
+			Labels: map[string]string{locolabels.LabelWorkspaceID: workspaceID},
+			Spec:   locov1alpha1.ApplicationSpec{WorkspaceID: workspaceID},
+		}
+		if placed {
+			app.Annotations = map[string]string{
+				locov1alpha1.KeyPlacementID: name, locov1alpha1.KeyPlacementRevision: "1",
+			}
+		}
+		return app
+	}
+	placed := application("placed", forgottenWorkspace, true)
+	unplaced := application("unplaced", forgottenWorkspace, false)
+	other := application("other", "other-id", true)
+	a := newTestApplier(t, namespace, placed, unplaced, other)
+
+	if err := a.ForgetWorkspace(ctx, forgottenWorkspace); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.client.Get(ctx, client.ObjectKeyFromObject(placed), placed); !apierrors.IsNotFound(err) {
+		t.Fatalf("placed Application of the forgotten workspace remains: %v", err)
+	}
+	for _, app := range []*locov1alpha1.Application{unplaced, other} {
+		if err := a.client.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
+			t.Fatalf("Application %s deleted: %v", app.Name, err)
+		}
+	}
+	if err := a.client.Get(ctx, client.ObjectKeyFromObject(namespace), &corev1.Namespace{}); err != nil {
+		t.Fatalf("namespace deleted while an Application of the workspace remains: %v", err)
+	}
+
+	if err := a.client.Delete(ctx, unplaced); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.ForgetWorkspace(ctx, forgottenWorkspace); err != nil {
+		t.Fatal(err)
+	}
+	err := a.client.Get(ctx, client.ObjectKeyFromObject(namespace), &corev1.Namespace{})
+	if !apierrors.IsNotFound(err) {
+		t.Fatalf("forgotten workspace namespace remains: %v", err)
+	}
+}

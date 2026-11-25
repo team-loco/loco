@@ -157,6 +157,12 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 				}
 				continue
 			}
+			if workspaceID := msg.GetForgetWorkspace(); workspaceID != "" {
+				if err := a.applier.ForgetWorkspace(streamCtx, workspaceID); err != nil {
+					return fmt.Errorf("forget workspace: %w", err)
+				}
+				continue
+			}
 			if isBuildMessage(msg) {
 				select {
 				case buildOps <- msg:

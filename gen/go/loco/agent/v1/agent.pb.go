@@ -1129,6 +1129,7 @@ type SyncResponse struct {
 	//	*SyncResponse_StartBuild
 	//	*SyncResponse_CancelBuild
 	//	*SyncResponse_DeleteWorkspace
+	//	*SyncResponse_ForgetWorkspace
 	Message       isSyncResponse_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1216,6 +1217,15 @@ func (x *SyncResponse) GetDeleteWorkspace() string {
 	return ""
 }
 
+func (x *SyncResponse) GetForgetWorkspace() string {
+	if x != nil {
+		if x, ok := x.Message.(*SyncResponse_ForgetWorkspace); ok {
+			return x.ForgetWorkspace
+		}
+	}
+	return ""
+}
+
 type isSyncResponse_Message interface {
 	isSyncResponse_Message()
 }
@@ -1240,6 +1250,11 @@ type SyncResponse_DeleteWorkspace struct {
 	DeleteWorkspace string `protobuf:"bytes,5,opt,name=delete_workspace,json=deleteWorkspace,proto3,oneof"`
 }
 
+type SyncResponse_ForgetWorkspace struct {
+	// A workspace the control plane does not hold: the agent deletes its Applications, then its namespaces.
+	ForgetWorkspace string `protobuf:"bytes,6,opt,name=forget_workspace,json=forgetWorkspace,proto3,oneof"`
+}
+
 func (*SyncResponse_Apply) isSyncResponse_Message() {}
 
 func (*SyncResponse_Delete) isSyncResponse_Message() {}
@@ -1249,6 +1264,8 @@ func (*SyncResponse_StartBuild) isSyncResponse_Message() {}
 func (*SyncResponse_CancelBuild) isSyncResponse_Message() {}
 
 func (*SyncResponse_DeleteWorkspace) isSyncResponse_Message() {}
+
+func (*SyncResponse_ForgetWorkspace) isSyncResponse_Message() {}
 
 type Apply struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -1941,14 +1958,15 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12 \n" +
 	"\x06detail\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\x06detail\x120\n" +
-	"\x05since\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"\xae\x02\n" +
+	"\x05since\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"\xe5\x02\n" +
 	"\fSyncResponse\x12,\n" +
 	"\x05apply\x18\x01 \x01(\v2\x14.loco.agent.v1.ApplyH\x00R\x05apply\x12/\n" +
 	"\x06delete\x18\x02 \x01(\v2\x15.loco.agent.v1.DeleteH\x00R\x06delete\x12<\n" +
 	"\vstart_build\x18\x03 \x01(\v2\x19.loco.agent.v1.StartBuildH\x00R\n" +
 	"startBuild\x12?\n" +
 	"\fcancel_build\x18\x04 \x01(\v2\x1a.loco.agent.v1.CancelBuildH\x00R\vcancelBuild\x125\n" +
-	"\x10delete_workspace\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x0fdeleteWorkspaceB\t\n" +
+	"\x10delete_workspace\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x0fdeleteWorkspace\x125\n" +
+	"\x10forget_workspace\x18\x06 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x0fforgetWorkspaceB\t\n" +
 	"\amessage\"\xee\x01\n" +
 	"\x05Apply\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
@@ -2133,6 +2151,7 @@ func file_loco_agent_v1_agent_proto_init() {
 		(*SyncResponse_StartBuild)(nil),
 		(*SyncResponse_CancelBuild)(nil),
 		(*SyncResponse_DeleteWorkspace)(nil),
+		(*SyncResponse_ForgetWorkspace)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

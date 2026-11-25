@@ -169,6 +169,8 @@ message SyncResponse {
     StartBuild start_build = 3;
     CancelBuild cancel_build = 4;
     string delete_workspace = 5 [(buf.validate.field).string.uuid = true];
+    // A workspace the control plane does not hold: the agent deletes its Applications, then its namespaces.
+    string forget_workspace = 6 [(buf.validate.field).string.uuid = true];
   }
 }
 

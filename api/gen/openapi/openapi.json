@@ -9529,6 +9529,11 @@
                   "required": [
                     "deleteWorkspace"
                   ]
+                },
+                {
+                  "required": [
+                    "forgetWorkspace"
+                  ]
                 }
               ]
             },
@@ -9559,6 +9564,11 @@
                     "required": [
                       "deleteWorkspace"
                     ]
+                  },
+                  {
+                    "required": [
+                      "forgetWorkspace"
+                    ]
                   }
                 ]
               }
@@ -9586,11 +9596,17 @@
             "type": "string",
             "title": "delete_workspace",
             "format": "uuid"
+          },
+          "forgetWorkspace": {
+            "type": "string",
+            "title": "forget_workspace",
+            "format": "uuid",
+            "description": "A workspace the control plane does not hold: the agent deletes its Applications, then its namespaces."
           }
         },
         "title": "SyncResponse",
         "additionalProperties": false,
-        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild`, `deleteWorkspace` may be set."
+        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild`, `deleteWorkspace`, `forgetWorkspace` may be set."
       },
       "loco.auth.v1.ApproveCLILoginRequest": {
         "type": "object",
