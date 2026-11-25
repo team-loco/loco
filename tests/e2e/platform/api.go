@@ -99,8 +99,9 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		"LOCO_SECRETS_TRANSIT_AUTH=" + dev["LOCO_SECRETS_TRANSIT_AUTH"],
 		"LOCO_SECRETS_TRANSIT_TOKEN=" + dev["LOCO_SECRETS_TRANSIT_TOKEN"],
 		"LOCO_INGEST_TRANSIT_KEY=" + dev["LOCO_INGEST_TRANSIT_KEY"],
-		"NTFY_URL=" + p.Ntfy.srv.URL,
-		"NTFY_TOPIC=" + ntfyTopic,
+		"WEBHOOK_ALLOW_PRIVATE_NETWORKS=true",
+		`INSTALL_WEBHOOKS=[{"url":"` + p.Webhook.srv.URL + `","secret":"` + installWebhookSecret +
+			`","eventTypes":["build.failed"]}]`,
 	}
 	if p.RegistryToken {
 		env = append(env,

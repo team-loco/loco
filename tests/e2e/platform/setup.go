@@ -82,7 +82,7 @@ func (p *Platform) up(ctx context.Context) error {
 		return err
 	}
 	logf("Starting the API, signing in and enrolling the cluster")
-	p.Ntfy = startNtfy()
+	p.Webhook = startWebhookReceiver()
 	if err := p.StartAPI(ctx); err != nil {
 		return err
 	}

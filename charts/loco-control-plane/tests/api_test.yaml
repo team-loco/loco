@@ -170,37 +170,6 @@ tests:
           content: {name: INVITATION_TTL}
           any: true
 
-  - it: configures ntfy notifications
-    set:
-      api.ntfy.url: https://ntfy.example.com
-      api.ntfy.topic: loco-alerts
-      api.ntfy.eventTypes: [cluster.silent, build.failed]
-      api.ntfy.tokenSecret.name: loco-ntfy
-    template: templates/api-deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: NTFY_URL, value: https://ntfy.example.com}
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: NTFY_TOPIC, value: loco-alerts}
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: {name: NTFY_EVENT_TYPES, value: "cluster.silent,build.failed"}
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: NTFY_TOKEN
-            valueFrom: {secretKeyRef: {name: loco-ntfy, key: token}}
-
-  - it: sets no ntfy variables by default
-    template: templates/api-deployment.yaml
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content: {name: NTFY_URL}
-          any: true
-
   - it: lists no system admins by default
     template: templates/api-deployment.yaml
     asserts:

@@ -178,15 +178,6 @@ func (q *Queries) DeleteInstallWebhooksExcept(ctx context.Context, urls []string
 	return result.RowsAffected(), nil
 }
 
-const deleteNtfyWebhook = `-- name: DeleteNtfyWebhook :exec
-DELETE FROM webhooks WHERE kind = 'ntfy'
-`
-
-func (q *Queries) DeleteNtfyWebhook(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, deleteNtfyWebhook)
-	return err
-}
-
 const deleteWorkspaceWebhook = `-- name: DeleteWorkspaceWebhook :execrows
 DELETE FROM webhooks
 WHERE id = $1 AND kind = 'workspace' AND workspace_id = $2::uuid
@@ -236,47 +227,6 @@ func (q *Queries) FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDe
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const getEventNames = `-- name: GetEventNames :one
-SELECT COALESCE(o.name, '')::text AS org_name,
-       COALESCE(w.name, '')::text AS workspace_name,
-       COALESCE(r.name, '')::text AS resource_name
-FROM (SELECT 1) AS one
-LEFT JOIN organizations o ON o.id = $1::uuid
-LEFT JOIN workspaces w ON w.id = $2::uuid
-LEFT JOIN resources r ON r.id = $3::uuid
-`
-
-type GetEventNamesParams struct {
-	OrgID       *uuid.UUID `json:"orgId"`
-	WorkspaceID *uuid.UUID `json:"workspaceId"`
-	ResourceID  *uuid.UUID `json:"resourceId"`
-}
-
-type GetEventNamesRow struct {
-	OrgName       string `json:"orgName"`
-	WorkspaceName string `json:"workspaceName"`
-	ResourceName  string `json:"resourceName"`
-}
-
-// The names a notification shows for an event's organization, workspace and resource; empty when it has none.
-func (q *Queries) GetEventNames(ctx context.Context, arg GetEventNamesParams) (GetEventNamesRow, error) {
-	row := q.db.QueryRow(ctx, getEventNames, arg.OrgID, arg.WorkspaceID, arg.ResourceID)
-	var i GetEventNamesRow
-	err := row.Scan(&i.OrgName, &i.WorkspaceName, &i.ResourceName)
-	return i, err
-}
-
-const getNtfyWebhookID = `-- name: GetNtfyWebhookID :one
-SELECT id FROM webhooks WHERE kind = 'ntfy'
-`
-
-func (q *Queries) GetNtfyWebhookID(ctx context.Context) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, getNtfyWebhookID)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
 }
 
 const getWebhookDeliveryPayload = `-- name: GetWebhookDeliveryPayload :one
@@ -709,45 +659,6 @@ type UpsertInstallWebhookParams struct {
 
 func (q *Queries) UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error {
 	_, err := q.db.Exec(ctx, upsertInstallWebhook,
-		arg.ID,
-		arg.Url,
-		arg.Provider,
-		arg.KekID,
-		arg.WrappedDek,
-		arg.Secret,
-		arg.EventTypes,
-	)
-	return err
-}
-
-const upsertNtfyWebhook = `-- name: UpsertNtfyWebhook :exec
-INSERT INTO webhooks (id, kind, url, provider, kek_id, wrapped_dek, secret, event_types)
-VALUES (
-    $1, 'ntfy', $2,
-    $3, $4, $5, $6,
-    $7
-)
-ON CONFLICT (kind) WHERE kind = 'ntfy'
-DO UPDATE SET url = EXCLUDED.url,
-              provider = EXCLUDED.provider,
-              kek_id = EXCLUDED.kek_id,
-              wrapped_dek = EXCLUDED.wrapped_dek,
-              secret = EXCLUDED.secret,
-              event_types = EXCLUDED.event_types
-`
-
-type UpsertNtfyWebhookParams struct {
-	ID         uuid.UUID `json:"id"`
-	Url        string    `json:"url"`
-	Provider   string    `json:"provider"`
-	KekID      string    `json:"kekId"`
-	WrappedDek []byte    `json:"wrappedDek"`
-	Secret     []byte    `json:"secret"`
-	EventTypes []string  `json:"eventTypes"`
-}
-
-func (q *Queries) UpsertNtfyWebhook(ctx context.Context, arg UpsertNtfyWebhookParams) error {
-	_, err := q.db.Exec(ctx, upsertNtfyWebhook,
 		arg.ID,
 		arg.Url,
 		arg.Provider,

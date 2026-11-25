@@ -99,7 +99,6 @@ type Querier interface {
 	DeleteExpiredSessionTokens(ctx context.Context) error
 	DeleteExpiredUsedRefreshTokens(ctx context.Context) error
 	DeleteInstallWebhooksExcept(ctx context.Context, urls []string) (int64, error)
-	DeleteNtfyWebhook(ctx context.Context) error
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
@@ -142,14 +141,11 @@ type Querier interface {
 	GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetEnrolledClusterByKeyRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
-	// The names a notification shows for an event's organization, workspace and resource; empty when it has none.
-	GetEventNames(ctx context.Context, arg GetEventNamesParams) (GetEventNamesRow, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
 	GetIdentityForUser(ctx context.Context, userID uuid.UUID) (Identity, error)
 	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
 	GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (GetInvitationClaimDetailsRow, error)
 	GetLiveDeploymentForRegion(ctx context.Context, arg GetLiveDeploymentForRegionParams) (GetLiveDeploymentForRegionRow, error)
-	GetNtfyWebhookID(ctx context.Context) (uuid.UUID, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error)
@@ -432,7 +428,6 @@ type Querier interface {
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) error
 	UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error)
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
-	UpsertNtfyWebhook(ctx context.Context, arg UpsertNtfyWebhookParams) error
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error

@@ -87,8 +87,8 @@ type Platform struct {
 	ClusterKey string
 	JoinToken  string
 
-	// Ntfy receives the notifications the API publishes.
-	Ntfy *Ntfy
+	// Webhook receives the events the API delivers to its install webhook.
+	Webhook *WebhookReceiver
 
 	DB *pgxpool.Pool
 
