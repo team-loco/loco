@@ -1,13 +1,11 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { PlusIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { functionalUpdate } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
-import { Button } from "@/components/design/Button";
-import { Checkbox } from "@/components/design/Checkbox";
+import { ColumnPicker } from "@/components/design/ColumnPicker";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Skeleton } from "@/components/design/Skeleton";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -35,37 +33,6 @@ const LOG_SKELETON = (
 		<Skeleton className="h-3 w-[70%]" />
 	</div>
 );
-
-function ColumnPicker({ columns, onColumns }: { columns: ColumnKey[]; onColumns: (next: ColumnKey[]) => void }) {
-	const extra = columns.filter((c) => !PICKABLE_COLUMNS.includes(c));
-	return (
-		<Popover>
-			<PopoverTrigger render={<Button variant="ghost" size="icon-xs" aria-label="Add a column" title="Add a column" />}>
-				<PlusIcon />
-			</PopoverTrigger>
-			<PopoverContent align="end" aria-label="Columns" className="w-[200px] gap-0 p-1.5">
-				<span className="px-2 pt-1.5 pb-1 text-[11.5px] text-fg3">Columns</span>
-				{[...PICKABLE_COLUMNS, ...extra].map((c) => {
-					const on = columns.includes(c);
-					return (
-						<label
-							key={c}
-							className="flex min-h-8 items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] hover:bg-panel"
-						>
-							<Checkbox
-								checked={on}
-								onCheckedChange={() => {
-									onColumns(on ? columns.filter((x) => x !== c) : [...columns, c]);
-								}}
-							/>
-							<span className={cn(!PICKABLE_COLUMNS.includes(c) && "font-mono text-[12.5px]")}>{columnLabel(c)}</span>
-						</label>
-					);
-				})}
-			</PopoverContent>
-		</Popover>
-	);
-}
 
 function logColumns({
 	columns,
@@ -121,7 +88,17 @@ function logColumns({
 		},
 		{
 			id: "actions",
-			header: () => <ColumnPicker columns={columns} onColumns={onColumns} />,
+			header: () => (
+				<ColumnPicker
+					columns={columns}
+					onColumns={onColumns}
+					options={[...PICKABLE_COLUMNS, ...columns.filter((c) => !PICKABLE_COLUMNS.includes(c))].map((key) => ({
+						key,
+						label: columnLabel(key),
+						mono: !PICKABLE_COLUMNS.includes(key),
+					}))}
+				/>
+			),
 			meta: { label: "Actions", pinEnd: true },
 			cell: ({ row }) => <LogRowMenu row={row.original} />,
 		},

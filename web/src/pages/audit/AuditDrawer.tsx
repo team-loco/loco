@@ -1,31 +1,31 @@
-import { useTimePreferences } from "@/lib/use-time-preferences";
-import { formatFullTime } from "@/lib/time";
+import { useState, type ReactNode } from "react";
 import { toJsonString } from "@bufbuild/protobuf";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
-import { CodeBlock } from "@/components/design/CodeBlock";
-import { CopyId } from "@/components/design/CopyId";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
+import { RowMenu } from "@/components/design/RowMenu";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
-import { agoLabel } from "@/lib/time";
+import { useCopy } from "@/hooks/useCopy";
+import { formatFullTime } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
+import { PlainCode } from "@/pages/observability/shared";
 
 import type { AuditRow } from "./model";
 
-function Item({ term, children }: { term: string; children: ReactNode }) {
+function Field({ term, children, mono = true }: { term: string; children: ReactNode; mono?: boolean }) {
 	return (
-		<>
+		<div className="grid grid-cols-[110px_minmax(0,1fr)] items-baseline gap-x-4 py-1.5">
 			<dt className="text-fg3">{term}</dt>
-			<dd className="m-0 flex min-w-0 flex-col gap-0.5 [overflow-wrap:anywhere]">{children}</dd>
-		</>
+			<dd className={`m-0 min-w-0 [overflow-wrap:anywhere] ${mono ? "font-mono text-[12.5px]" : ""}`}>{children}</dd>
+		</div>
 	);
 }
 
 export function AuditDrawer({
 	open,
 	row,
-	nowMs,
 	onNewer,
 	onOlder,
 	onResource,
@@ -34,7 +34,6 @@ export function AuditDrawer({
 }: {
 	open: boolean;
 	row: AuditRow | undefined;
-	nowMs: number;
 	onNewer: (() => void) | null;
 	onOlder: (() => void) | null;
 	onResource: (() => void) | null;
@@ -42,6 +41,9 @@ export function AuditDrawer({
 	onClose: () => void;
 }) {
 	const timePref = useTimePreferences();
+	const [wrap, setWrap] = useState(true);
+	const [copied, copy] = useCopy();
+	const raw = row === undefined ? "" : toJsonString(EventSchema, row.event, { prettySpaces: 2 });
 	return (
 		<Sheet
 			open={open}
@@ -49,95 +51,95 @@ export function AuditDrawer({
 				if (!next) onClose();
 			}}
 		>
-			<SheetContent size="wide">
+			<SheetContent size="wide" showCloseButton={false}>
 				{row !== undefined && (
 					<>
-						<SheetHeader className="pr-[140px]">
-							<div className="flex min-w-0 items-baseline gap-3">
-								<SheetTitle className="max-w-full shrink-0 truncate">{row.label}</SheetTitle>
-								<SheetDescription className="min-w-0 truncate font-mono text-[12.5px]">{row.detail}</SheetDescription>
+						<SheetHeader className="items-start pr-4">
+							<div className="flex min-w-0 flex-1 flex-col gap-1.5">
+								<SheetTitle className="truncate text-[20px] font-normal tracking-[-0.02em]">{row.label}</SheetTitle>
+								<SheetDescription className="truncate font-mono text-[12px] text-fg3">{row.detail}</SheetDescription>
 							</div>
-							<div className="absolute top-[17px] right-12 flex gap-1">
+							<div className="flex shrink-0 items-center gap-0.5">
+								<RowMenu label="More for this event">
+									<DropdownMenuItem onClick={onActor}>More by {row.actor.name}</DropdownMenuItem>
+									{onResource !== null && (
+										<DropdownMenuItem onClick={onResource}>More for {row.resource}</DropdownMenuItem>
+									)}
+									<DropdownMenuSeparator />
+									{row.event.requestId !== "" && (
+										<DropdownMenuItem
+											onClick={() => {
+												copy("request", row.event.requestId, "Copied request ID");
+											}}
+										>
+											Copy request ID
+										</DropdownMenuItem>
+									)}
+									<DropdownMenuItem
+										onClick={() => {
+											copy("json", raw, "Copied event as JSON");
+										}}
+									>
+										Copy as JSON
+									</DropdownMenuItem>
+								</RowMenu>
 								<Button
-									variant="outline"
+									variant="ghost"
 									size="icon"
-									aria-label="Newer event"
+									aria-label="Newer"
 									disabled={onNewer === null}
 									onClick={onNewer ?? undefined}
+									className="text-fg2"
 								>
 									<ChevronUpIcon />
 								</Button>
 								<Button
-									variant="outline"
+									variant="ghost"
 									size="icon"
-									aria-label="Older event"
+									aria-label="Older"
 									disabled={onOlder === null}
 									onClick={onOlder ?? undefined}
+									className="text-fg2"
 								>
 									<ChevronDownIcon />
+								</Button>
+								<Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="text-fg2">
+									<XIcon />
 								</Button>
 							</div>
 						</SheetHeader>
 						<SheetBody>
-							<dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-4 gap-y-3 text-[13px]">
-								<Item term="Time">
-									<span>{formatFullTime(row.ms, false, timePref)}</span>
-									<span className="text-[11.5px] text-fg3">{agoLabel(row.ms, nowMs)}</span>
-								</Item>
-								<Item term="Actor">
-									<span>{row.actor.name}</span>
+							<dl className="m-0 text-[13px]">
+								<Field term="Time">{formatFullTime(row.ms, false, timePref)}</Field>
+								<Field term="Actor" mono={false}>
+									{row.actor.name}
 									<span className="text-[11.5px] text-fg3">
+										{" "}
 										{row.actorKind}
 										{row.actor.detail !== "" && row.actor.detail !== row.actorKind && (
 											<span className="font-mono">, {row.actor.detail}</span>
 										)}
 									</span>
-								</Item>
-								<Item term="Event">
-									<span className="font-mono text-[12.5px]">{row.event.type}</span>
-								</Item>
-								<Item term="Where">
-									<span className="font-mono text-[12.5px]">{row.where}</span>
-								</Item>
-								<Item term="Environment">
-									<span className="font-mono text-[12.5px]">{row.environment === "" ? "—" : row.environment}</span>
-								</Item>
-								<Item term="Request">
-									{row.event.requestId === "" ? (
-										"—"
-									) : (
-										<CopyId
-											value={row.event.requestId}
-											title="Copy request ID"
-											className="w-fit max-w-full justify-start p-0 font-mono text-[12.5px] font-normal hover:bg-transparent hover:text-foreground"
-										>
-											<span className="min-w-0 truncate">{row.event.requestId}</span>
-										</CopyId>
-									)}
-								</Item>
-								<Item term="Sequence">
-									<span className="font-mono text-[12.5px]">#{row.event.seq.toLocaleString()}</span>
-								</Item>
+								</Field>
+								<Field term="Event">{row.event.type}</Field>
+								<Field term="Where">{row.where}</Field>
+								<Field term="Environment">{row.environment === "" ? "—" : row.environment}</Field>
+								<Field term="Request ID">{row.event.requestId === "" ? "—" : row.event.requestId}</Field>
+								<Field term="Sequence">#{row.event.seq.toLocaleString()}</Field>
 							</dl>
-							<div className="flex flex-wrap gap-2">
-								<Button variant="outline" onClick={onActor}>
-									More by {row.actor.name}
-								</Button>
-								{onResource !== null && (
-									<Button variant="outline" onClick={onResource}>
-										More for {row.resource}
-									</Button>
-								)}
-							</div>
 							<div className="flex flex-col gap-1.5">
 								<span className="text-[12.5px] text-fg3">Raw event</span>
-								<CodeBlock
-									language="json"
-									lineNumbers={false}
-									className="max-h-[min(72vh,760px)] [&_pre]:text-[12px] [&_pre]:leading-[1.55]"
+								<PlainCode
+									copied={copied === "raw"}
+									copyLabel="Copy JSON"
+									onCopy={() => {
+										copy("raw", raw);
+									}}
+									wrap={wrap}
+									onWrap={setWrap}
 								>
-									{toJsonString(EventSchema, row.event, { prettySpaces: 2 })}
-								</CodeBlock>
+									{raw}
+								</PlainCode>
 							</div>
 						</SheetBody>
 					</>

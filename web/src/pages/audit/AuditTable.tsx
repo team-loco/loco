@@ -1,7 +1,9 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { CpuIcon, KeyRoundIcon, ServerIcon } from "lucide-react";
+import { CpuIcon, KeyRoundIcon, ServerIcon, XIcon } from "lucide-react";
 
+import { ColumnPicker } from "@/components/design/ColumnPicker";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { useLayout } from "@/lib/layout";
 import { agoLabel, formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
@@ -21,7 +23,19 @@ function ActorBadge({ row }: { row: AuditRow }) {
 	);
 }
 
-function auditColumns(nowMs: number): DataColumn<AuditRow>[] {
+/** Columns a viewer can add; each reads a field every event carries. */
+const EXTRA_COLUMNS = [
+	{ key: "eventId", label: "Event ID", width: 160, value: (row: AuditRow) => row.event.id.slice(0, 8) },
+	{ key: "eventType", label: "Event type", width: 220, value: (row: AuditRow) => row.event.type },
+	{ key: "requestId", label: "Request ID", width: 190, value: (row: AuditRow) => row.event.requestId },
+];
+
+function parseExtraColumns(value: unknown): string[] {
+	const keys = Array.isArray(value) ? value : [];
+	return EXTRA_COLUMNS.filter((c) => keys.includes(c.key)).map((c) => c.key);
+}
+
+function auditColumns(nowMs: number, extra: string[], onExtra: (next: string[]) => void): DataColumn<AuditRow>[] {
 	return [
 		{
 			id: "time",
@@ -79,6 +93,41 @@ function auditColumns(nowMs: number): DataColumn<AuditRow>[] {
 				</span>
 			),
 		},
+		...EXTRA_COLUMNS.filter((c) => extra.includes(c.key)).map((c): DataColumn<AuditRow> => ({
+			id: c.key,
+			header: () => (
+				<>
+					<span className="truncate">{c.label}</span>
+					<button
+						type="button"
+						aria-label={`Remove column ${c.label}`}
+						onClick={() => {
+							onExtra(extra.filter((x) => x !== c.key));
+						}}
+						className="absolute top-1/2 right-3 flex size-[18px] -translate-y-1/2 items-center justify-center rounded-sm bg-panel text-fg3 opacity-0 group-hover/head:opacity-100 hover:bg-panel2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+					>
+						<XIcon className="size-3" />
+					</button>
+				</>
+			),
+			size: c.width,
+			minSize: 90,
+			maxSize: 640,
+			cell: ({ row }) => <CellText text={c.value(row.original)} className="font-mono text-[12px] text-fg2" />,
+		})),
+		{
+			id: "actions",
+			header: () => (
+				<ColumnPicker
+					columns={extra}
+					onColumns={onExtra}
+					options={EXTRA_COLUMNS.map((c) => ({ key: c.key, label: c.label }))}
+				/>
+			),
+			size: 36,
+			meta: { label: "Add column", pinEnd: true },
+			cell: () => null,
+		},
 	];
 }
 
@@ -107,8 +156,11 @@ export function AuditTable({
 	onSelect: (id: string) => void;
 }) {
 	const timePref = useTimePreferences();
+	const [extra, setExtra] = useLayout("tables.auditX", parseExtraColumns);
 	const table = useDataTable("audit", {
-		columns: auditColumns(nowMs),
+		columns: auditColumns(nowMs, extra, (next) => {
+			setExtra(next.length === 0 ? null : next);
+		}),
 		data: rows,
 		getRowId: (row) => row.event.id,
 	});
