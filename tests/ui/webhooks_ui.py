@@ -292,7 +292,19 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         rotation.get_by_role("button", name="Rotate", exact=True).click()
     held.pop().continue_()
     secret_dialog = page.get_by_role("dialog", name="New signing secret", exact=True)
-    expect(secret_dialog.get_by_text(re.compile(r"^whsec_"))).to_be_visible()
+    value = secret_dialog.locator("[data-secret-value]")
+    assert re.fullmatch(r"•+", value.inner_text()), "the secret starts masked"
+    expect(secret_dialog.get_by_text("Copy it now.", exact=False)).to_be_visible()
+    secret_dialog.get_by_role("button", name="Show signing secret", exact=True).click()
+    secret = value.inner_text()
+    assert re.fullmatch(r"whsec_\S+", secret), secret
+    secret_dialog.get_by_role("button", name="Hide signing secret", exact=True).click()
+    assert re.fullmatch(r"•+", value.inner_text())
+    assert secret not in secret_dialog.inner_html(), (
+        "the masked dialog holds the secret"
+    )
+    secret_dialog.get_by_role("button", name="Copy signing secret", exact=True).click()
+    assert copied_text(page) == secret
     page.mouse.click(5, 5)
     expect(secret_dialog).to_be_visible()
     secret_dialog.get_by_role("button", name="Done", exact=True).click()

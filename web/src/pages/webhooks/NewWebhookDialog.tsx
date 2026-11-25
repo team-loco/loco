@@ -6,11 +6,12 @@ import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { useId, useRef, useState, type RefObject } from "react";
 
 import { Button } from "@/components/design/Button";
-import { CopyButton } from "@/components/design/CopyButton";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
 import { InlineCode } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
+import { Notice } from "@/components/design/Notice";
+import { SecretValue } from "@/components/design/SecretValue";
 import { Checkbox } from "@/components/design/Checkbox";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -348,17 +349,21 @@ function EventPicker({
 }
 
 export function SigningSecret({ secret, onDone }: { secret: string; onDone: () => void }) {
+	const [shown, setShown] = useState(false);
 	return (
 		<>
 			<DialogBody>
+				<SecretValue
+					secret={secret}
+					shown={shown}
+					onShownChange={setShown}
+					noun="signing secret"
+					toastText="Copied signing secret"
+				/>
+				<Notice tone="warn">Copy it now. You won&apos;t be able to see it again.</Notice>
 				<p className="m-0 text-[13.5px] text-fg2">
-					Copy it now. You won&apos;t see it again. Use it to verify the <InlineCode>webhook-signature</InlineCode>{" "}
-					header.
+					Use it to verify the <InlineCode>webhook-signature</InlineCode> header.
 				</p>
-				<div className="flex items-center gap-2.5 rounded-lg bg-panel2 py-2 pr-2 pl-3">
-					<code className="min-w-0 flex-1 font-mono text-[13px] break-all">{secret}</code>
-					<CopyButton text={secret} name="Copy signing secret" toastText="Copied signing secret" />
-				</div>
 			</DialogBody>
 			<DialogFooter>
 				<Button onClick={onDone}>Done</Button>
