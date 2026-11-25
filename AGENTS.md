@@ -169,3 +169,31 @@ Read [charts/AGENTS.md](charts/AGENTS.md) before chart work.
 ## Frontend
 
 Read [web/AGENTS.md](web/AGENTS.md) before frontend work.
+
+## Review guidelines
+
+A pull-request review runs three passes in this order. Every finding gives `file:line` and a concrete failure
+scenario: the input or state, and the wrong result.
+
+1. **Architecture.** Reconstruct the problem from the linked issue and the PR's Context section before reading the
+   diff. Judge where the change lives, which mechanism it uses, and what it reuses or duplicates. A wrong approach is
+   a P0 finding that names the design to use.
+2. **Code.** Complexity first, then correctness, edge cases, regressions and the rules in this file. These are P1
+   findings: an unnamed condition with more than two clauses, a branch per kind of user, a change that undoes a fix
+   merged in the same files the day before without the PR body saying why, and a test that still passes when the
+   behaviour it covers breaks.
+3. **Minmax.** Look for a substantially smaller implementation with the same required behaviour. Each reduction is a
+   P1 finding even though nothing is broken: what to remove, what replaces it, and why behaviour is unchanged. In
+   order of value:
+    - A new mechanism that duplicates an existing one or solves a problem nobody has: a cache, retry loop, registry,
+      background worker, config knob or compatibility layer.
+    - New code where an existing package, dependency or UI component already does the job.
+    - Redundant state: a field derivable from others, two representations of one fact.
+    - One-implementation interfaces, pass-through layers, forwarding wrappers and single-use helpers.
+    - Checks for unreachable states and fallbacks that hide broken invariants.
+    - Tests that assert implementation details or repeat existing coverage.
+    - Scope the requirement did not ask for.
+
+   A reduction never weakens security, durability, error semantics, concurrency safety or compatibility. Cosmetic
+   edits and line-count golf are not findings. When the change is already close to minimal, the review says so in one
+   line.
