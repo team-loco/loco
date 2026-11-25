@@ -345,13 +345,17 @@ func TestASupersededBuildIsCanceledAndItsReplacementStarted(t *testing.T) {
 func TestABuildCanceledBeforeItsStartSettlesIsNotSent(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
-	session, sent := f.dispatchSession()
+	sent := &sentMessages{}
+	session := newSyncSession(f.tokenModeServer(f.queries), f.clusterID, sent.send)
 	id := f.queued(t)
 	if err := session.startQueuedBuilds(f.ctx); err != nil {
 		t.Fatalf("start queued builds: %v", err)
 	}
 	apply := <-session.reports
 	apply(f.ctx)
+	if n := f.buildCredentialCount(t, id); n != 1 {
+		t.Fatalf("%d registry credentials before the cancel, want 1", n)
+	}
 	if _, err := f.cancel(id); err != nil {
 		t.Fatalf("cancel: %v", err)
 	}
