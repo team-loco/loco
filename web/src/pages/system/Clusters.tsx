@@ -69,7 +69,7 @@ export function SystemClusters() {
 								icon={<ServerIcon />}
 								label="Region"
 								items={fleet.regions.map((r) => ({ id: r.code, name: r.code }))}
-								counts={new Map(fleet.regions.map((r) => [r.code, r.clusterCount]))}
+								counts={new Map(fleet.regions.map((r) => [r.code, r.count]))}
 								value={region}
 								onChange={(code) => {
 									void setParams({ region: code === "" ? null : code });

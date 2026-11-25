@@ -17,10 +17,7 @@ export function SystemOverview() {
 	if (fleet.error !== null) {
 		return <ErrorCard error={fleet.error} fallbackMessage="Failed to load the clusters" minHeight="min-h-48" />;
 	}
-	const groups = regionGroups(
-		fleet.clusters.filter((c) => c.removedAt === undefined),
-		fleet.now,
-	);
+	const groups = regionGroups(fleet.clusters.filter((c) => c.removedAt === undefined));
 	const attention = groups.flatMap((g) => g.clusters).filter((c) => stateRank(c.state) < HEALTHY_RANK).length;
 	return (
 		<Page>

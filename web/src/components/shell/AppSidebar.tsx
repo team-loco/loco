@@ -49,9 +49,10 @@ import {
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useInSystem } from "@/hooks/useInSystem";
-import { SYSTEM_PATH, systemAccess } from "@/lib/system";
+import { SYSTEM_PATH, SYSTEM_RETURN_KEY, systemAccess } from "@/lib/system";
 import { expandOrgLink } from "@/lib/org-links";
 import { colorThemes, parseColorTheme } from "@/lib/theme";
+import { useStoredValue } from "@/lib/storage";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
@@ -85,7 +86,7 @@ export function AppSidebar() {
 	const { theme, color, setColor } = useTheme();
 	const openShortcuts = useOpenShortcuts();
 	const { setOpenMobile } = useSidebar();
-	const { pathname } = useLocation();
+	const { pathname, search } = useLocation();
 	// Active-icon motion plays for navigation, not for the page the app loaded on.
 	const [seenPath, setSeenPath] = useState(pathname);
 	const [navigated, setNavigated] = useState(false);
@@ -103,6 +104,7 @@ export function AppSidebar() {
 	const { data: config } = useQuery(getConfig, {});
 	const hasSystemRole = systemAccess(useMyScopes().scopes) !== "none";
 	const system = useInSystem();
+	const [systemReturn, setSystemReturn] = useStoredValue(SYSTEM_RETURN_KEY, "");
 
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
@@ -243,7 +245,13 @@ export function AppSidebar() {
 										aria-checked={system}
 										className={menuItem}
 										onClick={() => {
-											void navigate(system ? "/dashboard" : SYSTEM_PATH);
+											if (system) {
+												void navigate(systemReturn === "" ? "/dashboard" : systemReturn);
+												setSystemReturn("");
+											} else {
+												setSystemReturn(pathname + search);
+												void navigate(SYSTEM_PATH);
+											}
 										}}
 									>
 										System

@@ -15,12 +15,17 @@ import { ServerIcon } from "lucide-react";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
 import { notFound } from "@/lib/not-found";
-import { CLUSTERS_PATH, clusterPath, systemAccess } from "@/lib/system";
+import {
+	CLUSTERS_PATH,
+	clusterPath,
+	LOCAL_REGION,
+	registrationTarget,
+	systemAccess,
+	type TargetKind,
+} from "@/lib/system";
 
 import { JoinToken } from "./JoinToken";
 import { refreshFleet, useFleet } from "./shared";
-
-type Target = "existing" | "new" | "local";
 
 const TARGETS = [
 	{ value: "existing", label: "Existing region" },
@@ -28,34 +33,30 @@ const TARGETS = [
 	{ value: "local", label: "Local" },
 ] as const;
 
-const LOCAL_REGION = "local-1";
-const CODE = /^[a-z0-9]+$/;
-
 export function SystemAddCluster() {
 	const fleet = useFleet();
 	const queryClient = useQueryClient();
 	const create = useMutation(createCluster);
-	const [target, setTarget] = useState<Target>("existing");
+	const [target, setTarget] = useState<TargetKind>("existing");
 	const [region, setRegion] = useState("");
 	const [country, setCountry] = useState("");
 	const [subdivision, setSubdivision] = useState("");
 	const [name, setName] = useState("");
-	// One request ID per form, so a retry after a lost response recovers the same registration.
-	const [requestId] = useState(() => crypto.randomUUID());
+	// The request ID belongs to the submitted registration: a retry of it reuses the ID, an edited one gets a new ID.
+	const [attempt, setAttempt] = useState({ key: "", requestId: "" });
 	const [created, setCreated] = useState<CreateClusterResponse | null>(null);
 	const access = systemAccess(useMyScopes().scopes);
 	if (access !== "admin") notFound();
 
-	const newRegionValid = CODE.test(country) && CODE.test(subdivision);
-	const ready = target === "existing" ? region !== "" : target === "new" ? newRegionValid : true;
+	const registration = registrationTarget(target, region, country, subdivision);
 
 	const submit = async () => {
-		const where =
-			target === "new"
-				? { case: "newRegion" as const, value: { country, subdivision } }
-				: { case: "region" as const, value: target === "local" ? LOCAL_REGION : region };
+		if (registration === undefined) return;
+		const key = JSON.stringify([registration, name.trim()]);
+		const requestId = attempt.key === key ? attempt.requestId : crypto.randomUUID();
+		setAttempt({ key, requestId });
 		try {
-			setCreated(await create.mutateAsync({ requestId, name: name.trim(), target: where }));
+			setCreated(await create.mutateAsync({ requestId, name: name.trim(), target: registration }));
 			await refreshFleet(queryClient);
 		} catch (err) {
 			toastConnectError(err, "Failed to create the cluster");
@@ -89,7 +90,7 @@ export function SystemAddCluster() {
 								icon={<ServerIcon />}
 								label="Choose a region"
 								items={fleet.regions.map((r) => ({ id: r.code, name: r.code }))}
-								counts={new Map(fleet.regions.map((r) => [r.code, r.clusterCount]))}
+								counts={new Map(fleet.regions.map((r) => [r.code, r.count]))}
 								value={region}
 								clearable={false}
 								onChange={setRegion}
@@ -132,7 +133,7 @@ export function SystemAddCluster() {
 							/>
 						</Field>
 						<div className="flex gap-2">
-							<Button type="submit" disabled={!ready || create.isPending}>
+							<Button type="submit" disabled={registration === undefined || create.isPending}>
 								{create.isPending ? "Creating..." : "Create cluster"}
 							</Button>
 							<Button variant="outline" nativeButton={false} render={<Link to={CLUSTERS_PATH} />}>

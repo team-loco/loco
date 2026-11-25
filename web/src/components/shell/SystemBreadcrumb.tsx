@@ -3,7 +3,7 @@ import { listClusters } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_c
 import { Link, matchPath, useLocation } from "react-router";
 
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from "@/components/design/Breadcrumb";
-import { CLUSTERS_PATH, NEW_CLUSTER_PATH, SYSTEM_PATH } from "@/lib/system";
+import { atPath, CLUSTERS_PATH, NEW_CLUSTER_PATH, SYSTEM_PATH } from "@/lib/system";
 
 const CRUMB = "flex h-6.5 items-center rounded-[5px] px-1.5 font-mono text-[12.5px] whitespace-nowrap";
 
@@ -32,10 +32,11 @@ function Crumb({ to, children }: { to?: string; children: string }) {
 export function SystemBreadcrumb() {
 	const { pathname } = useLocation();
 	const clusterId = matchPath(`${CLUSTERS_PATH}/:clusterId`, pathname)?.params.clusterId;
-	const detail = clusterId !== undefined && pathname !== NEW_CLUSTER_PATH;
+	const adding = atPath(pathname, NEW_CLUSTER_PATH, true);
+	const detail = clusterId !== undefined && !adding;
 	const clusters = useQuery(listClusters, {}, { enabled: detail });
 	const name = clusters.data?.clusters.find((c) => c.id === clusterId)?.name ?? clusterId ?? "";
-	const onClusters = pathname.startsWith(CLUSTERS_PATH);
+	const onClusters = atPath(pathname, CLUSTERS_PATH);
 	return (
 		<Breadcrumb className="min-w-0 flex-auto overflow-hidden min-[761px]:flex-1 min-[761px]:basis-0">
 			<BreadcrumbList>
@@ -53,7 +54,7 @@ export function SystemBreadcrumb() {
 				{onClusters && (
 					<>
 						<Crumb {...(clusterId === undefined ? {} : { to: CLUSTERS_PATH })}>Clusters</Crumb>
-						{pathname === NEW_CLUSTER_PATH && (
+						{adding && (
 							<>
 								<Slash />
 								<Crumb>Add</Crumb>

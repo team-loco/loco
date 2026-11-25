@@ -1,13 +1,11 @@
 import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { listClusters } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
-import { listRegions } from "@gen/loco/cluster/v1/cluster-RegionAdminService_connectquery";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { StatusBadge, type StatusStyle } from "@/components/design/StatusBadge";
-import { useNow } from "@/hooks/useNow";
-import { clusterState, STATE_LABEL, type ClusterState } from "@/lib/system";
+import { clusterState, regionCounts, STATE_LABEL, type ClusterState } from "@/lib/system";
 import { formatDateTime, maybeTsMs, timeZoneLabel } from "@/lib/time";
 
 const POLL_MS = 30_000;
@@ -43,29 +41,23 @@ export function SystemTime({ ts }: { ts: Timestamp | undefined }) {
 	);
 }
 
-/** The clusters, the regions and the API version, refreshed every 30 seconds. */
+/** The clusters, their regions and the API version, refreshed every 30 seconds. */
 export function useFleet() {
 	const clusters = useQuery(listClusters, {}, { refetchInterval: POLL_MS });
-	const regions = useQuery(listRegions, {}, { refetchInterval: POLL_MS });
 	const config = useQuery(getConfig, {});
-	const now = useNow(POLL_MS).getTime();
 	const list = clusters.data?.clusters ?? [];
 	return {
 		clusters: list,
-		regions: regions.data?.regions ?? [],
+		regions: regionCounts(list),
 		apiVersion: config.data?.apiVersion ?? "",
-		now,
 		isLoading: clusters.isLoading,
 		error: clusters.error,
-		stateOf: (cluster: (typeof list)[number]) => clusterState(cluster, now),
+		stateOf: clusterState,
 	};
 }
 
 export async function refreshFleet(queryClient: QueryClient): Promise<void> {
-	await Promise.all([
-		queryClient.invalidateQueries({
-			queryKey: createConnectQueryKey({ schema: listClusters, cardinality: undefined }),
-		}),
-		queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listRegions, cardinality: undefined }) }),
-	]);
+	await queryClient.invalidateQueries({
+		queryKey: createConnectQueryKey({ schema: listClusters, cardinality: undefined }),
+	});
 }

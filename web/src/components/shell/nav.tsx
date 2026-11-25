@@ -22,7 +22,7 @@ import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { WINDOW_PARSERS } from "@/lib/obs-time";
 import { useInSystem } from "@/hooks/useInSystem";
-import { CLUSTERS_PATH, SYSTEM_PATH } from "@/lib/system";
+import { atPath, CLUSTERS_PATH, SYSTEM_PATH } from "@/lib/system";
 import { carriedQuery, QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 import {
 	auditPath,
@@ -68,7 +68,7 @@ function systemSections(pathname: string): NavSection[] {
 					icon: <LayoutGridIcon />,
 					keywords: "system fleet health",
 					to: SYSTEM_PATH,
-					active: pathname === SYSTEM_PATH,
+					active: atPath(pathname, SYSTEM_PATH, true),
 				},
 			],
 		},
@@ -80,7 +80,7 @@ function systemSections(pathname: string): NavSection[] {
 					icon: <ServerIcon />,
 					keywords: "system workers regions agents",
 					to: CLUSTERS_PATH,
-					active: pathname.startsWith(CLUSTERS_PATH),
+					active: atPath(pathname, CLUSTERS_PATH),
 				},
 			],
 		},

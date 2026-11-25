@@ -4,7 +4,16 @@ import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { ClusterSchema } from "@gen/loco/cluster/v1/cluster_pb";
 import { EntityScopeSchema, EntityType, Scope } from "@gen/loco/token/v1/token_pb";
 
-import { agentBehind, clusterState, inSystem, regionGroups, systemAccess, workerInstallCommand } from "./system";
+import {
+	agentBehind,
+	clusterState,
+	inSystem,
+	regionCounts,
+	regionGroups,
+	registrationTarget,
+	systemAccess,
+	workerInstallCommand,
+} from "./system";
 
 const NOW = 1_700_000_000_000;
 
@@ -22,32 +31,29 @@ function cluster(fields: MessageInitShape<typeof ClusterSchema> = {}) {
 
 describe("clusterState", () => {
 	test("maps the reported health while heartbeats are fresh", () => {
-		expect(clusterState(cluster(), NOW)).toBe("healthy");
-		expect(clusterState(cluster({ healthStatus: "degraded" }), NOW)).toBe("degraded");
-		expect(clusterState(cluster({ healthStatus: "unhealthy" }), NOW)).toBe("unhealthy");
+		expect(clusterState(cluster())).toBe("healthy");
+		expect(clusterState(cluster({ healthStatus: "degraded" }))).toBe("degraded");
+		expect(clusterState(cluster({ healthStatus: "unhealthy" }))).toBe("unhealthy");
 	});
 
-	test("a stale heartbeat is not reporting and none is never reported", () => {
-		expect(clusterState(cluster({ lastHeartbeat: timestampFromMs(NOW - 2 * 60_000) }), NOW)).toBe("not-reporting");
-		expect(clusterState(cluster({ lastHeartbeat: undefined }), NOW)).toBe("never-reported");
+	test("a silent cluster is not reporting and one without a heartbeat never reported", () => {
+		expect(clusterState(cluster({ silentSince: timestampFromMs(NOW - 60_000) }))).toBe("not-reporting");
+		expect(clusterState(cluster({ lastHeartbeat: undefined }))).toBe("never-reported");
 	});
 
 	test("paused and removed come before health", () => {
-		expect(clusterState(cluster({ isActive: false }), NOW)).toBe("paused");
-		expect(clusterState(cluster({ isActive: false, removedAt: timestampFromMs(NOW) }), NOW)).toBe("removed");
+		expect(clusterState(cluster({ isActive: false }))).toBe("paused");
+		expect(clusterState(cluster({ isActive: false, removedAt: timestampFromMs(NOW) }))).toBe("removed");
 	});
 });
 
 describe("regionGroups", () => {
 	test("puts the region with the worst cluster first", () => {
-		const groups = regionGroups(
-			[
-				cluster({ id: "a", name: "a", region: "de-he-1" }),
-				cluster({ id: "b", name: "b", region: "us-ca-1", healthStatus: "unhealthy" }),
-				cluster({ id: "c", name: "c", region: "us-ca-1" }),
-			],
-			NOW,
-		);
+		const groups = regionGroups([
+			cluster({ id: "a", name: "a", region: "de-he-1" }),
+			cluster({ id: "b", name: "b", region: "us-ca-1", healthStatus: "unhealthy" }),
+			cluster({ id: "c", name: "c", region: "us-ca-1" }),
+		]);
 		expect(groups.map((g) => g.region)).toEqual(["us-ca-1", "de-he-1"]);
 		expect(groups[0]?.clusters.map((c) => c.cluster.name)).toEqual(["b", "c"]);
 	});
@@ -79,8 +85,9 @@ describe("systemAccess", () => {
 	});
 });
 
-test("inSystem matches /system and its children only", () => {
+test("inSystem matches /system and its children as the router does", () => {
 	expect(inSystem("/system")).toBe(true);
+	expect(inSystem("/System/Clusters")).toBe(true);
 	expect(inSystem("/system/clusters/x")).toBe(true);
 	expect(inSystem("/systems")).toBe(false);
 });
@@ -88,6 +95,38 @@ test("inSystem matches /system and its children only", () => {
 test("workerInstallCommand names the secret the chart reads", () => {
 	const [secret, helm] = workerInstallCommand("us-ca-1", "tok").split("\n");
 	expect(secret).toContain("--from-literal=join-token=tok");
+	expect(secret).toContain("--dry-run=client -o yaml | kubectl apply -f -");
+	expect(helm).toContain("-f values.yaml");
 	expect(helm).toContain("--set global.region=us-ca-1");
 	expect(helm).toContain("--set agent.joinToken.existingSecret=loco-agent-join-token");
+});
+
+test("regionCounts counts each region's clusters that are not removed", () => {
+	const clusters = [
+		cluster({ id: "a", region: "us-ca-1" }),
+		cluster({ id: "b", region: "us-ca-1" }),
+		cluster({ id: "c", region: "de-he-1" }),
+		cluster({ id: "d", region: "gb-lnd-1", removedAt: timestampFromMs(NOW) }),
+	];
+	expect(regionCounts(clusters)).toEqual([
+		{ code: "de-he-1", count: 1 },
+		{ code: "us-ca-1", count: 2 },
+	]);
+});
+
+describe("registrationTarget", () => {
+	test("names the region each form choice registers in", () => {
+		expect(registrationTarget("local", "", "", "")).toEqual({ case: "region", value: "local-1" });
+		expect(registrationTarget("existing", "us-ca-1", "", "")).toEqual({ case: "region", value: "us-ca-1" });
+		expect(registrationTarget("new", "", "nz", "akl")).toEqual({
+			case: "newRegion",
+			value: { country: "nz", subdivision: "akl" },
+		});
+	});
+
+	test("is undefined until the choice is complete", () => {
+		expect(registrationTarget("existing", "", "", "")).toBeUndefined();
+		expect(registrationTarget("new", "", "NZ", "akl")).toBeUndefined();
+		expect(registrationTarget("new", "", "nz", "")).toBeUndefined();
+	});
 });

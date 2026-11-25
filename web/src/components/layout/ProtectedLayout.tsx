@@ -79,7 +79,10 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const orgPending = urlOrg.isPending;
 	const workspacePending = workspaceLookup && urlWorkspace.isPending;
 	const lookupPending = orgPending || workspacePending;
-	const systemPending = inSystem(pathname) && scopes.isLoading;
+	// A System address depends on the scopes alone, never on the organization list.
+	const systemRoute = inSystem(pathname);
+	const systemPending = systemRoute && scopes.isLoading;
+	const systemAbsent = systemRoute && !scopes.isLoading && systemAccess(scopes.scopes) === "none";
 	const routeLoading = (orgLookup && lookupPending) || systemPending;
 	const orgsAnswered = !scopes.isLoading && !orgsQuery.isPending;
 	const routeDecided = orgsAnswered && !routeLoading;
@@ -93,8 +96,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
 				scopes.scopes,
 			));
-	const systemAbsent = inSystem(pathname) && systemAccess(scopes.scopes) === "none";
-	const routeNotFound = routeDecided && (routeAbsent || systemAbsent);
+	const routeNotFound = systemAbsent || (routeDecided && routeAbsent);
 
 	if (signedOut) {
 		return (
