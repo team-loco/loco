@@ -405,9 +405,6 @@ func applicationApplyConfiguration(
 }
 
 func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) error {
-	if placement.ResourceID == "" {
-		return fmt.Errorf("%w: delete has no resource_id", ErrInvalidPayload)
-	}
 	name := locoControllerV1.ApplicationName(placement.ID)
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {

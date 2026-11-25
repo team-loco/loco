@@ -246,7 +246,8 @@ func TestDeletePlacementOnlyDeletesItsOwnApplication(t *testing.T) {
 		t.Fatalf("Application owned by p1 was deleted for p0: %v", err)
 	}
 
-	if err := a.DeletePlacement(ctx, placement(t, "p1", 2)); err != nil {
+	// The API knows only the ID and revision of a placement it no longer holds.
+	if err := a.DeletePlacement(ctx, Placement{ID: "p1", Revision: 2}); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 	if _, err := a.live(t); !apierrors.IsNotFound(err) {

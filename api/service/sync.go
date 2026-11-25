@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -549,7 +551,7 @@ func diffInventory(rev placementRevision) inventoryAction {
 
 // applyInventory records what the cluster holds; its settleFunc resends what it lacks and reconciles its builds.
 func (ss *syncSession) applyInventory(ctx context.Context, inventory *agentv1.Inventory) (settleFunc, error) {
-	toSend, err := ss.recordPlacementInventory(ctx, inventory)
+	toSend, unknown, err := ss.recordPlacementInventory(ctx, inventory)
 	if err != nil {
 		return nil, err
 	}
@@ -568,6 +570,9 @@ func (ss *syncSession) applyInventory(ctx context.Context, inventory *agentv1.In
 				return err
 			}
 		}
+		if err := ss.deleteUnknownPlacements(ctx, unknown); err != nil {
+			return err
+		}
 		if err := ss.reconcileWorkspaceInventory(ctx, inventory.GetWorkspaceIds()); err != nil {
 			return err
 		}
@@ -576,11 +581,12 @@ func (ss *syncSession) applyInventory(ctx context.Context, inventory *agentv1.In
 	}, nil
 }
 
-// recordPlacementInventory records the placements the inventory shows applied and returns those to send.
+// recordPlacementInventory records the placements the inventory shows applied, and returns those to send
+// and the inventory entries of placements the cluster does not have in the database.
 func (ss *syncSession) recordPlacementInventory(
 	ctx context.Context,
 	inventory *agentv1.Inventory,
-) ([]uuid.UUID, error) {
+) ([]uuid.UUID, []*agentv1.InventoryEntry, error) {
 	observed := make(map[uuid.UUID]*agentv1.InventoryEntry, len(inventory.GetEntries()))
 	for _, entry := range inventory.GetEntries() {
 		id, err := uuid.Parse(entry.GetPlacementId())
@@ -596,12 +602,13 @@ func (ss *syncSession) recordPlacementInventory(
 
 	rows, err := ss.server.queries.ListClusterPlacementRevisions(ctx, ss.clusterID)
 	if err != nil {
-		return nil, fmt.Errorf("list placements for inventory: %w", err)
+		return nil, nil, fmt.Errorf("list placements for inventory: %w", err)
 	}
 
 	toSend := make([]uuid.UUID, 0)
 	for _, row := range rows {
 		entry, present := observed[row.ID]
+		delete(observed, row.ID)
 		observedRevision := entry.GetRevision()
 		action := diffInventory(placementRevision{
 			id:               row.ID,
@@ -645,11 +652,31 @@ func (ss *syncSession) recordPlacementInventory(
 
 	slog.InfoContext(ctx, "inventory reconciled",
 		"cluster_id", ss.clusterID,
-		"entries", len(observed),
+		"entries", len(inventory.GetEntries()),
 		"placements", len(rows),
 		"to_send", len(toSend),
+		"unknown", len(observed),
 	)
-	return toSend, nil
+	return toSend, slices.Collect(maps.Values(observed)), nil
+}
+
+// deleteUnknownPlacements deletes placements the cluster holds and the database does not, which are never reused.
+func (ss *syncSession) deleteUnknownPlacements(ctx context.Context, entries []*agentv1.InventoryEntry) error {
+	for _, entry := range entries {
+		slog.InfoContext(ctx, "deleting a placement the control plane does not hold",
+			"cluster_id", ss.clusterID,
+			"placement_id", entry.GetPlacementId(),
+			"revision", entry.GetRevision(),
+		)
+		msg := &agentv1.SyncResponse{Message: &agentv1.SyncResponse_Delete{Delete: &agentv1.Delete{
+			PlacementId: entry.GetPlacementId(),
+			Revision:    entry.GetRevision(),
+		}}}
+		if err := ss.sendFn(msg); err != nil {
+			return fmt.Errorf("send unknown placement deletion: %w", err)
+		}
+	}
+	return nil
 }
 
 func (s *AgentServer) advancePastRevision(
