@@ -465,7 +465,9 @@ const listOrgsForUser = `-- name: ListOrgsForUser :many
 SELECT o.id, o.name, o.created_by, o.suspended_at, o.suspension_reason, o.created_at, o.updated_at,
   (SELECT COUNT(*) FROM workspaces w WHERE w.org_id = o.id) AS workspace_count,
   (SELECT COUNT(DISTINCT us.user_id) FROM user_scopes us
-   WHERE us.entity_type = 'organization' AND us.entity_id = o.id) AS member_count
+   WHERE us.entity_type = 'organization' AND us.entity_id = o.id) AS member_count,
+  (SELECT array_agg(us.scope ORDER BY us.scope)::text[] FROM user_scopes us
+   WHERE us.user_id = $1 AND us.entity_type = 'organization' AND us.entity_id = o.id) AS scopes
 FROM organizations o
 WHERE EXISTS (
     SELECT 1 FROM user_scopes us
@@ -495,6 +497,7 @@ type ListOrgsForUserRow struct {
 	Organization   Organization `json:"organization"`
 	WorkspaceCount int64        `json:"workspaceCount"`
 	MemberCount    int64        `json:"memberCount"`
+	Scopes         []string     `json:"scopes"`
 }
 
 func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]ListOrgsForUserRow, error) {
@@ -522,6 +525,7 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams
 			&i.Organization.UpdatedAt,
 			&i.WorkspaceCount,
 			&i.MemberCount,
+			&i.Scopes,
 		); err != nil {
 			return nil, err
 		}

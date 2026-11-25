@@ -229,6 +229,16 @@ var (
 		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeAdmin,
 	}
+	// ListUserSessions requires user:read.
+	ListUserSessions = Action{
+		entityType: db.EntityTypeUser,
+		scope:      db.ScopeRead,
+	}
+	// RevokeUserSessions requires user:admin.
+	RevokeUserSessions = Action{
+		entityType: db.EntityTypeUser,
+		scope:      db.ScopeAdmin,
+	}
 	// DeleteUser requires user:admin.
 	DeleteUser = Action{
 		entityType: db.EntityTypeUser,

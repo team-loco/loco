@@ -243,8 +243,10 @@ type Organization struct {
 	// Counts are populated by ListUserOrgs and ListOrgs.
 	WorkspaceCount *int64 `protobuf:"varint,8,opt,name=workspace_count,json=workspaceCount,proto3,oneof" json:"workspace_count,omitempty"`
 	MemberCount    *int64 `protobuf:"varint,9,opt,name=member_count,json=memberCount,proto3,oneof" json:"member_count,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The listed user's scopes on the organization, set by ListUserOrgs.
+	Scopes        []string `protobuf:"bytes,10,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Organization) Reset() {
@@ -338,6 +340,13 @@ func (x *Organization) GetMemberCount() int64 {
 		return *x.MemberCount
 	}
 	return 0
+}
+
+func (x *Organization) GetScopes() []string {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
 }
 
 // CreateOrgRequest is the request to create a new organization.
@@ -2850,7 +2859,7 @@ var File_loco_org_v1_org_proto protoreflect.FileDescriptor
 
 const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\n" +
-	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bloco/config/v1/config.proto\"\xae\x03\n" +
+	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bloco/config/v1/config.proto\"\xc6\x03\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -2863,7 +2872,9 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\fsuspended_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vsuspendedAt\x12+\n" +
 	"\x11suspension_reason\x18\a \x01(\tR\x10suspensionReason\x12,\n" +
 	"\x0fworkspace_count\x18\b \x01(\x03H\x00R\x0eworkspaceCount\x88\x01\x01\x12&\n" +
-	"\fmember_count\x18\t \x01(\x03H\x01R\vmemberCount\x88\x01\x01B\x12\n" +
+	"\fmember_count\x18\t \x01(\x03H\x01R\vmemberCount\x88\x01\x01\x12\x16\n" +
+	"\x06scopes\x18\n" +
+	" \x03(\tR\x06scopesB\x12\n" +
 	"\x10_workspace_countB\x0f\n" +
 	"\r_member_count\"?\n" +
 	"\x10CreateOrgRequest\x12\"\n" +

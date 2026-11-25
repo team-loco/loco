@@ -16,7 +16,8 @@ import (
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
-// GetAccountDeletionImpact previews a self-service deletion without changing account state.
+// GetAccountDeletionImpact previews deleting the caller's account, or another user's with system read,
+// without changing account state.
 func (s *UserServer) GetAccountDeletionImpact(
 	ctx context.Context, req *userv1.GetAccountDeletionImpactRequest,
 ) (*userv1.GetAccountDeletionImpactResponse, error) {
@@ -27,14 +28,23 @@ func (s *UserServer) GetAccountDeletionImpact(
 	if p.UserID == uuid.Nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 	}
-	if err = check(ctx, s.authz, p, actions.New(actions.GetUser, p.UserID)); err != nil {
+	userID := p.UserID
+	if req.GetUserId() != "" {
+		if userID, err = parseID("user_id", req.GetUserId()); err != nil {
+			return nil, err
+		}
+	}
+	if err = check(ctx, s.authz, p, actions.New(actions.GetUser, userID)); err != nil {
+		return nil, err
+	}
+	if _, err = s.getDBUser(ctx, userID); err != nil {
 		return nil, err
 	}
 	scopes := p.Scopes
 	readable := s.authz.ReadableEntities(scopes)
 	pageSize := normalizePageSize(req.GetPageSize())
 	orgs, err := s.queries.ListAccountDeletionBlockingOrganizations(ctx,
-		genDb.ListAccountDeletionBlockingOrganizationsParams{UserID: p.UserID, PageSize: pageSize + 1})
+		genDb.ListAccountDeletionBlockingOrganizationsParams{UserID: userID, PageSize: pageSize + 1})
 	if err != nil {
 		return nil, fmt.Errorf("list account deletion organizations: %w", err)
 	}
@@ -51,7 +61,7 @@ func (s *UserServer) GetAccountDeletionImpact(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 	}
 	rows, err := s.queries.ListAccountDeletionTokens(ctx, genDb.ListAccountDeletionTokensParams{
-		UserID: p.UserID, SystemRead: readable.System, OrganizationIds: readable.Organizations,
+		UserID: userID, SystemRead: readable.System, OrganizationIds: readable.Organizations,
 		WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
 		PageSize: pageSize + 1, PageToken: cursor.ID, PageCreatedAt: cursor.CreatedAt,
 	})
@@ -76,7 +86,7 @@ func (s *UserServer) GetAccountDeletionImpact(
 	}
 	result.HasInaccessibleOwnedTokens, err = s.queries.HasInaccessibleAccountDeletionTokens(ctx,
 		genDb.HasInaccessibleAccountDeletionTokensParams{
-			UserID: p.UserID, SystemRead: readable.System, OrganizationIds: readable.Organizations,
+			UserID: userID, SystemRead: readable.System, OrganizationIds: readable.Organizations,
 			WorkspaceIds: readable.Workspaces, ResourceIds: readable.Resources,
 		})
 	if err != nil {

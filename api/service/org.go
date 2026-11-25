@@ -251,6 +251,7 @@ func (s *OrgServer) ListUserOrgs(
 		response := orgToProto(org.Organization)
 		response.WorkspaceCount = new(org.WorkspaceCount)
 		response.MemberCount = new(org.MemberCount)
+		response.Scopes = org.Scopes
 		orgResponses = append(orgResponses, response)
 	}
 

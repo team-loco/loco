@@ -161,6 +161,9 @@ FROM session_tokens
 WHERE user_id = $1 AND refresh_expires_at > NOW()
 ORDER BY last_used_at DESC, id DESC;
 
+-- name: DeleteSessionsForUser :exec
+DELETE FROM session_tokens WHERE user_id = $1;
+
 -- name: DeleteSessionForUser :exec
 DELETE FROM session_tokens
 WHERE id = $1 AND user_id = $2;

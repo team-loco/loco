@@ -109,6 +109,7 @@ type Querier interface {
 	DeleteSessionForUser(ctx context.Context, arg DeleteSessionForUserParams) error
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
+	DeleteSessionsForUser(ctx context.Context, userID uuid.UUID) error
 	DeleteStoppedBuildRegistryCredentials(ctx context.Context) (int64, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWebSessionByAccessHash(ctx context.Context, accessTokenHash string) error
