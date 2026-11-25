@@ -6,29 +6,59 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/pmetric/pmetricotlp"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/pdata/ptrace/ptraceotlp"
 
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/systemtenant"
 )
 
+// asPlatform marks resource as a cluster's platform telemetry naming workspaceID, or no workspace.
+func asPlatform(resource pcommon.Resource, workspaceID string) {
+	attrs := resource.Attributes()
+	attrs.PutStr(systemtenant.ScopeAttribute, systemtenant.PlatformScope)
+	attrs.PutStr(clusterAttribute, testForgedClusterID)
+	attrs.PutStr(retentionAttribute, "1")
+	attrs.Remove(workspaceAttribute)
+	if workspaceID != "" {
+		attrs.PutStr(workspaceAttribute, workspaceID)
+	}
+}
+
 func platformLogs(now time.Time, workspaceIDs ...string) plog.Logs {
 	logs := plog.NewLogs()
 	for _, workspaceID := range workspaceIDs {
 		resourceLogs := logs.ResourceLogs().AppendEmpty()
-		tagWorkspace(resourceLogs.Resource(), workspaceID)
-		attrs := resourceLogs.Resource().Attributes()
-		attrs.PutStr(systemtenant.ScopeAttribute, systemtenant.PlatformScope)
-		attrs.PutStr(organizationAttribute, testOrganizationID)
-		attrs.PutStr(retentionAttribute, "1")
-		record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
-		record.SetTimestamp(pcommon.NewTimestampFromTime(now))
+		testLogs(now).ResourceLogs().At(0).CopyTo(resourceLogs)
+		asPlatform(resourceLogs.Resource(), workspaceID)
 	}
 	return logs
+}
+
+func platformTraces(now time.Time, workspaceIDs ...string) ptrace.Traces {
+	traces := ptrace.NewTraces()
+	for _, workspaceID := range workspaceIDs {
+		resourceSpans := traces.ResourceSpans().AppendEmpty()
+		testTraces(now).ResourceSpans().At(0).CopyTo(resourceSpans)
+		asPlatform(resourceSpans.Resource(), workspaceID)
+	}
+	return traces
+}
+
+func platformMetrics(now time.Time, workspaceIDs ...string) pmetric.Metrics {
+	metrics := pmetric.NewMetrics()
+	for _, workspaceID := range workspaceIDs {
+		resourceMetrics := metrics.ResourceMetrics().AppendEmpty()
+		testMetrics(now).ResourceMetrics().At(0).CopyTo(resourceMetrics)
+		asPlatform(resourceMetrics.Resource(), workspaceID)
+	}
+	return metrics
 }
 
 func requireSystemTenant(t *testing.T, resource pcommon.Resource, clusterID string) {
@@ -45,8 +75,10 @@ func requireSystemTenant(t *testing.T, resource pcommon.Resource, clusterID stri
 			t.Fatalf("%s = %v, want %v in %v", key, attrs[key], value, attrs)
 		}
 	}
-	if _, ok := attrs[organizationAttribute]; ok {
-		t.Fatalf("system record kept %s: %v", organizationAttribute, attrs)
+	for _, key := range []string{organizationAttribute, environmentAttribute, resourceAttribute} {
+		if _, ok := attrs[key]; ok {
+			t.Fatalf("system record kept %s: %v", key, attrs)
+		}
 	}
 }
 
@@ -129,20 +161,46 @@ func TestClusterPlatformRecordsLandInTheSystemTenantAndNeverInAWorkspace(t *test
 		t.Fatal(err)
 	}
 
-	logs := platformLogs(now, "", testWorkspaceID, testOtherWorkspaceID)
-	response, err := export(t.Context(), service, service.logsSignal(), admission,
-		plogotlp.NewExportRequestFromLogs(logs))
+	logsResponse, err := export(t.Context(), service, service.logsSignal(), admission,
+		plogotlp.NewExportRequestFromLogs(platformLogs(now, "", testWorkspaceID)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tracesResponse, err := export(t.Context(), service, service.tracesSignal(), admission,
+		ptraceotlp.NewExportRequestFromTraces(platformTraces(now, "", testWorkspaceID)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	metricsResponse, err := export(t.Context(), service, service.metricsSignal(), admission,
+		pmetricotlp.NewExportRequestFromMetrics(platformMetrics(now, "", testWorkspaceID)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if got := response.PartialSuccess().RejectedLogRecords(); got != 2 {
-		t.Fatalf("rejected %d platform records that name a workspace, want 2", got)
+	rejected := map[string]int64{
+		"logs":    logsResponse.PartialSuccess().RejectedLogRecords(),
+		"traces":  tracesResponse.PartialSuccess().RejectedSpans(),
+		"metrics": metricsResponse.PartialSuccess().RejectedDataPoints(),
 	}
-	if len(captured.logs) != 1 || captured.logs[0].ResourceLogs().Len() != 1 {
-		t.Fatalf("stored %v, want only the platform record without a workspace", captured.logs)
+	stored := map[string]int{
+		"logs":    captured.logs[0].ResourceLogs().Len(),
+		"traces":  captured.traces[0].ResourceSpans().Len(),
+		"metrics": captured.metrics[0].ResourceMetrics().Len(),
+	}
+	for signal, count := range rejected {
+		if count != 1 || stored[signal] != 1 {
+			t.Fatalf("%s: rejected %d, stored %d resources, want the workspace's record rejected and one stored",
+				signal, count, stored[signal])
+		}
 	}
 	requireSystemTenant(t, captured.logs[0].ResourceLogs().At(0).Resource(), testClusterID)
+	requireSystemTenant(t, captured.traces[0].ResourceSpans().At(0).Resource(), testClusterID)
+	requireSystemTenant(t, captured.metrics[0].ResourceMetrics().At(0).Resource(), testClusterID)
+	if got := testutil.ToFloat64(
+		service.rejected.WithLabelValues(testClusterID, string(rejectPlatformTenant)),
+	); got != 3 {
+		t.Fatalf("%s{%s} = %v, want 3", rejectedRecordsMetric, rejectPlatformTenant, got)
+	}
 }
 
 func TestWorkloadRecordsCannotNameTheSystemTenant(t *testing.T) {

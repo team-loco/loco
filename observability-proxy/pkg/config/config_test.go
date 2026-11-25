@@ -195,11 +195,15 @@ func TestLoadReadsIngestAuthSettings(t *testing.T) {
 	t.Setenv("SYSTEM_INGEST_TOKEN", "system-token")
 	t.Setenv("SYSTEM_RETENTION_DAYS", "14")
 	overridden := Load()
-	gate = overridden.IngestGate()
-	if gate.ClockSkew != 2*time.Minute || gate.MaxRecordLateness != 3*time.Hour ||
-		overridden.IngestService().RetryAfter != 10*time.Second ||
-		gate.SystemToken != "system-token" || gate.SystemRetentionDays != 14 {
-		t.Fatalf("overrides = %+v, %+v", overridden.IngestGate(), overridden.IngestService())
+	wantGate.ClockSkew = 2 * time.Minute
+	wantGate.MaxRecordLateness = 3 * time.Hour
+	wantGate.SystemToken = "system-token"
+	wantGate.SystemRetentionDays = 14
+	if overridden.IngestGate() != wantGate {
+		t.Fatal("IngestGate() does not carry the overridden settings")
+	}
+	if got := overridden.IngestService().RetryAfter; got != 10*time.Second {
+		t.Fatalf("RetryAfter = %s, want 10s", got)
 	}
 }
 
