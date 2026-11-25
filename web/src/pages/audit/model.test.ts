@@ -52,7 +52,6 @@ test("rows name where an event happened from the IDs the caller can read", () =>
 		where: "storefront / web",
 		resource: "web",
 		environment: "production",
-		actorKind: "Workspace token",
 		actor: { name: "ci", detail: "Workspace token" },
 	});
 	const gone = create(EventSchema, { type: "resource.deleted", workspaceId: "w1", resourceId: "0199aaaa-bbbb" });

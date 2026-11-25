@@ -99,7 +99,7 @@ export function AuditDrawer({
 								<Field term="Time">{formatFullTime(row.ms, false, timePref)}</Field>
 								<Field term="Actor" mono={false}>
 									{row.actor.name}
-									{row.actor.detail !== "" && (
+									{row.actor.detail !== "" && row.event.actorType !== "api_token" && (
 										<span className="font-mono text-[12px] text-fg3"> {row.actor.detail}</span>
 									)}
 								</Field>

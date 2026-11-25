@@ -11,7 +11,6 @@ import {
 	text as dataText,
 	type AuditActor,
 	type AuditUser,
-	tokenKind,
 	typesIn,
 } from "@/pages/settings/auditEvents";
 
@@ -83,7 +82,6 @@ export interface AuditRow {
 	event: Event;
 	ms: number;
 	actor: AuditActor;
-	actorKind: string;
 	label: string;
 	detail: string;
 	where: string;
@@ -106,7 +104,6 @@ export function auditRow(
 		event,
 		ms: tsMs(event.createdAt),
 		actor: auditActor(event),
-		actorKind: event.actorType === "api_token" ? tokenKind(event) : (ACTOR_KINDS[event.actorType] ?? event.actorType),
 		label: auditLabel(event.type, event.data),
 		detail: auditDetail(event, users) ?? "",
 		where: resource === "" ? workspace : `${workspace} / ${resource}`,
