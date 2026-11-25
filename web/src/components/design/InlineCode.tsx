@@ -7,7 +7,7 @@ export function InlineCode({ children, className }: { children: ReactNode; class
 	return (
 		<code
 			className={cn(
-				"inline-block rounded-[4px] bg-panel2 px-1.5 font-mono text-[0.86em] leading-[1.4] whitespace-nowrap text-foreground",
+				"inline rounded-[4px] bg-panel2 px-1.5 font-mono text-[0.86em] leading-[1.4] whitespace-nowrap text-foreground",
 				className,
 			)}
 		>
