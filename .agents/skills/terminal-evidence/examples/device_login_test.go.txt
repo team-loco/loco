@@ -1,0 +1,22 @@
+package main
+
+import (
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/team-loco/loco/cmd/internal/keychain"
+)
+
+// The existing fake API emits ABCD-EFGH and keeps sign-in pending.
+func TestCaptureDeviceLogin(t *testing.T) {
+	api := newFakeAPI()
+	api.identityProvider = true
+	srv := httptest.NewServer(api.handler())
+	defer srv.Close()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(keychain.StoreEnvVar, "file")
+	t.Setenv("LOCO_HOST", srv.URL)
+	os.Args = []string{"loco", "login", "--device"}
+	Cli(scriptVersion)
+}
