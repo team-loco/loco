@@ -141,7 +141,7 @@ func TestCLIEnvironmentUsesFileCredentials(t *testing.T) {
 func TestAPIHealthWaitsForGatewayAndHonorsCancellation(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/health" {
+		if r.URL.Path != "/readyz" {
 			t.Errorf("health path = %s", r.URL.Path)
 		}
 		if requests.Add(1) == 1 {
@@ -153,7 +153,7 @@ func TestAPIHealthWaitsForGatewayAndHonorsCancellation(t *testing.T) {
 	defer server.Close()
 	ctx, cancel := context.WithTimeout(t.Context(), 3*readinessPoll)
 	defer cancel()
-	if err := waitAPI(ctx, server.URL+"/health"); err != nil {
+	if err := waitAPI(ctx, server.URL+"/readyz"); err != nil {
 		t.Fatal(err)
 	}
 	if requests.Load() != 2 {
@@ -161,7 +161,7 @@ func TestAPIHealthWaitsForGatewayAndHonorsCancellation(t *testing.T) {
 	}
 	ctx, cancel = context.WithCancel(t.Context())
 	cancel()
-	if err := waitAPI(ctx, server.URL+"/health"); !errors.Is(err, context.Canceled) {
+	if err := waitAPI(ctx, server.URL+"/readyz"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled health = %v", err)
 	}
 }

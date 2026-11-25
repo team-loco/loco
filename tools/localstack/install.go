@@ -134,7 +134,7 @@ const readinessPoll = 2 * time.Second
 
 func (cfg config) waitRunning(ctx context.Context) error {
 	// Session refresh in locoadm status needs the API and its gateway route.
-	if err := waitAPI(ctx, cfg.apiURL()+"/health"); err != nil {
+	if err := waitAPI(ctx, cfg.apiURL()+"/readyz"); err != nil {
 		return err
 	}
 	ticker := time.NewTicker(readinessPoll)

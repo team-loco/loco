@@ -121,7 +121,7 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		return err
 	}
 	return waitFor(ctx, readyTimeout, name+" health", func(ctx context.Context) error {
-		return httpOK(ctx, "http://127.0.0.1:"+strconv.Itoa(port)+"/health")
+		return httpOK(ctx, "http://127.0.0.1:"+strconv.Itoa(port)+"/readyz")
 	})
 }
 
