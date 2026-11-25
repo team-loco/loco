@@ -16,8 +16,8 @@ loco config --help
 | --- | --- |
 | `locoadm init` | Scaffold an operator GitOps repository with plaintext bootstrap Secrets |
 | `locoadm status --host API_URL` | Read clusters, enrollment, heartbeats, version skew and unclaimed admins from the API |
-| `locoadm login` | Sign in with explicit `--api` and `--web` URLs with the same session as `loco login`; a configured admin's first sign-in makes it a system admin |
-| `locoadm admin list`, `grant <user-id>`, `revoke <user-id>` | List, grant and revoke [system admins](../operations/self-hosting.md#first-system-admin) |
+| `locoadm login` | Sign in with explicit `--api` and `--web` URLs with the same session as `loco login`; a configured email's first sign-in gives it its installation role |
+| `locoadm admin list`, `grant <user-id> [--role read\|admin]`, `revoke <user-id>` | List, grant and revoke [installation roles](../operations/self-hosting.md#installation-roles) |
 | `locoadm cluster create`, `list`, `join-token`, `pause`, `resume`, `remove`, `restore` | Register workers, creating their [region](regions.md), and manage their API records |
 | `locoadm region list` | List [regions](regions.md) and their cluster counts |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
@@ -99,6 +99,6 @@ The command generates the static seal key and writes it and the supplied API env
 locoadm cluster create --name worker-staging --country us --subdivision ca --kube-context worker-staging
 ```
 
-`status` requires a system-admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.
+`status` requires a system read or system admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.
 
 Read a worker gateway’s load balancer address with `kubectl --context WORKER get gateway -n loco-system` or through the provider. Point the apps wildcard at it once, or run external-dns.

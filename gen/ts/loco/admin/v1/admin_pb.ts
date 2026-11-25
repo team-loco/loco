@@ -11,12 +11,15 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/admin/v1/admin.proto.
  */
 export const file_loco_admin_v1_admin: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FkbWluL3YxL2FkbWluLnByb3RvEg1sb2NvLmFkbWluLnYxIoEBCgtTeXN0ZW1BZG1pbhIPCgd1c2VyX2lkGAEgASgJEg0KBWVtYWlsGAIgASgJEg4KBmlzc3VlchgDIAEoCRIPCgdzdWJqZWN0GAQgASgJEjEKB3NvdXJjZXMYBSADKA4yIC5sb2NvLmFkbWluLnYxLlN5c3RlbUFkbWluU291cmNlIhkKF0xpc3RTeXN0ZW1BZG1pbnNSZXF1ZXN0ImAKGExpc3RTeXN0ZW1BZG1pbnNSZXNwb25zZRIqCgZhZG1pbnMYASADKAsyGi5sb2NvLmFkbWluLnYxLlN5c3RlbUFkbWluEhgKEHVuY2xhaW1lZF9lbWFpbHMYAiADKAkiNAoXR3JhbnRTeXN0ZW1BZG1pblJlcXVlc3QSGQoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQEiGgoYR3JhbnRTeXN0ZW1BZG1pblJlc3BvbnNlIjUKGFJldm9rZVN5c3RlbUFkbWluUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIbChlSZXZva2VTeXN0ZW1BZG1pblJlc3BvbnNlKncKEVN5c3RlbUFkbWluU291cmNlEiMKH1NZU1RFTV9BRE1JTl9TT1VSQ0VfVU5TUEVDSUZJRUQQABIeChpTWVNURU1fQURNSU5fU09VUkNFX0NPTkZJRxABEh0KGVNZU1RFTV9BRE1JTl9TT1VSQ0VfR1JBTlQQAjLGAgoSU3lzdGVtQWRtaW5TZXJ2aWNlEmMKEExpc3RTeXN0ZW1BZG1pbnMSJi5sb2NvLmFkbWluLnYxLkxpc3RTeXN0ZW1BZG1pbnNSZXF1ZXN0GicubG9jby5hZG1pbi52MS5MaXN0U3lzdGVtQWRtaW5zUmVzcG9uc2USYwoQR3JhbnRTeXN0ZW1BZG1pbhImLmxvY28uYWRtaW4udjEuR3JhbnRTeXN0ZW1BZG1pblJlcXVlc3QaJy5sb2NvLmFkbWluLnYxLkdyYW50U3lzdGVtQWRtaW5SZXNwb25zZRJmChFSZXZva2VTeXN0ZW1BZG1pbhInLmxvY28uYWRtaW4udjEuUmV2b2tlU3lzdGVtQWRtaW5SZXF1ZXN0GigubG9jby5hZG1pbi52MS5SZXZva2VTeXN0ZW1BZG1pblJlc3BvbnNlQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYWRtaW4vdjE7YWRtaW52MWIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("Chlsb2NvL2FkbWluL3YxL2FkbWluLnByb3RvEg1sb2NvLmFkbWluLnYxIrgBChBTeXN0ZW1Sb2xlSG9sZGVyEg8KB3VzZXJfaWQYASABKAkSDQoFZW1haWwYAiABKAkSDgoGaXNzdWVyGAMgASgJEg8KB3N1YmplY3QYBCABKAkSMgoPY29uZmlndXJlZF9yb2xlGAUgASgOMhkubG9jby5hZG1pbi52MS5TeXN0ZW1Sb2xlEi8KDGdyYW50ZWRfcm9sZRgGIAEoDjIZLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZSJICg5VbmNsYWltZWRFbWFpbBINCgVlbWFpbBgBIAEoCRInCgRyb2xlGAIgASgOMhkubG9jby5hZG1pbi52MS5TeXN0ZW1Sb2xlIhgKFkxpc3RTeXN0ZW1Sb2xlc1JlcXVlc3QifQoXTGlzdFN5c3RlbVJvbGVzUmVzcG9uc2USMAoHaG9sZGVycxgBIAMoCzIfLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZUhvbGRlchIwCgl1bmNsYWltZWQYAiADKAsyHS5sb2NvLmFkbWluLnYxLlVuY2xhaW1lZEVtYWlsImgKFkdyYW50U3lzdGVtUm9sZVJlcXVlc3QSGQoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQESMwoEcm9sZRgCIAEoDjIZLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZUIKukgHggEEEAEgACIZChdHcmFudFN5c3RlbVJvbGVSZXNwb25zZSI0ChdSZXZva2VTeXN0ZW1Sb2xlUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIaChhSZXZva2VTeXN0ZW1Sb2xlUmVzcG9uc2UqVgoKU3lzdGVtUm9sZRIbChdTWVNURU1fUk9MRV9VTlNQRUNJRklFRBAAEhQKEFNZU1RFTV9ST0xFX1JFQUQQARIVChFTWVNURU1fUk9MRV9BRE1JThACMrwCChFTeXN0ZW1Sb2xlU2VydmljZRJgCg9MaXN0U3lzdGVtUm9sZXMSJS5sb2NvLmFkbWluLnYxLkxpc3RTeXN0ZW1Sb2xlc1JlcXVlc3QaJi5sb2NvLmFkbWluLnYxLkxpc3RTeXN0ZW1Sb2xlc1Jlc3BvbnNlEmAKD0dyYW50U3lzdGVtUm9sZRIlLmxvY28uYWRtaW4udjEuR3JhbnRTeXN0ZW1Sb2xlUmVxdWVzdBomLmxvY28uYWRtaW4udjEuR3JhbnRTeXN0ZW1Sb2xlUmVzcG9uc2USYwoQUmV2b2tlU3lzdGVtUm9sZRImLmxvY28uYWRtaW4udjEuUmV2b2tlU3lzdGVtUm9sZVJlcXVlc3QaJy5sb2NvLmFkbWluLnYxLlJldm9rZVN5c3RlbVJvbGVSZXNwb25zZUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2FkbWluL3YxO2FkbWludjFiBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
- * @generated from message loco.admin.v1.SystemAdmin
+ * SystemRoleHolder is a user with an installation role, the higher of the configured and the
+ * granted role.
+ *
+ * @generated from message loco.admin.v1.SystemRoleHolder
  */
-export type SystemAdmin = Message<"loco.admin.v1.SystemAdmin"> & {
+export type SystemRoleHolder = Message<"loco.admin.v1.SystemRoleHolder"> & {
   /**
    * @generated from field: string user_id = 1;
    */
@@ -40,15 +43,27 @@ export type SystemAdmin = Message<"loco.admin.v1.SystemAdmin"> & {
   subject: string;
 
   /**
-   * @generated from field: repeated loco.admin.v1.SystemAdminSource sources = 5;
+   * configured_role is the role the user claimed from LOCO_SYSTEM_ADMINS or LOCO_SYSTEM_READERS.
+   *
+   * @generated from field: loco.admin.v1.SystemRole configured_role = 5;
    */
-  sources: SystemAdminSource[];
+  configuredRole: SystemRole;
+
+  /**
+   * granted_role is the role GrantSystemRole gave the user.
+   *
+   * @generated from field: loco.admin.v1.SystemRole granted_role = 6;
+   */
+  grantedRole: SystemRole;
 };
 
 /**
- * @generated from message loco.admin.v1.SystemAdmin
+ * SystemRoleHolder is a user with an installation role, the higher of the configured and the
+ * granted role.
+ *
+ * @generated from message loco.admin.v1.SystemRoleHolder
  */
-export type SystemAdminJson = {
+export type SystemRoleHolderJson = {
   /**
    * @generated from field: string user_id = 1;
    */
@@ -72,128 +87,184 @@ export type SystemAdminJson = {
   subject?: string;
 
   /**
-   * @generated from field: repeated loco.admin.v1.SystemAdminSource sources = 5;
+   * configured_role is the role the user claimed from LOCO_SYSTEM_ADMINS or LOCO_SYSTEM_READERS.
+   *
+   * @generated from field: loco.admin.v1.SystemRole configured_role = 5;
    */
-  sources?: SystemAdminSourceJson[];
+  configuredRole?: SystemRoleJson;
+
+  /**
+   * granted_role is the role GrantSystemRole gave the user.
+   *
+   * @generated from field: loco.admin.v1.SystemRole granted_role = 6;
+   */
+  grantedRole?: SystemRoleJson;
 };
 
 /**
- * Describes the message loco.admin.v1.SystemAdmin.
- * Use `create(SystemAdminSchema)` to create a new message.
+ * Describes the message loco.admin.v1.SystemRoleHolder.
+ * Use `create(SystemRoleHolderSchema)` to create a new message.
  */
-export const SystemAdminSchema: GenMessage<SystemAdmin, {jsonType: SystemAdminJson}> = /*@__PURE__*/
+export const SystemRoleHolderSchema: GenMessage<SystemRoleHolder, {jsonType: SystemRoleHolderJson}> = /*@__PURE__*/
   messageDesc(file_loco_admin_v1_admin, 0);
 
 /**
- * @generated from message loco.admin.v1.ListSystemAdminsRequest
+ * UnclaimedEmail is a configured email no user has claimed yet.
+ *
+ * @generated from message loco.admin.v1.UnclaimedEmail
  */
-export type ListSystemAdminsRequest = Message<"loco.admin.v1.ListSystemAdminsRequest"> & {
+export type UnclaimedEmail = Message<"loco.admin.v1.UnclaimedEmail"> & {
+  /**
+   * @generated from field: string email = 1;
+   */
+  email: string;
+
+  /**
+   * @generated from field: loco.admin.v1.SystemRole role = 2;
+   */
+  role: SystemRole;
 };
 
 /**
- * @generated from message loco.admin.v1.ListSystemAdminsRequest
+ * UnclaimedEmail is a configured email no user has claimed yet.
+ *
+ * @generated from message loco.admin.v1.UnclaimedEmail
  */
-export type ListSystemAdminsRequestJson = {
+export type UnclaimedEmailJson = {
+  /**
+   * @generated from field: string email = 1;
+   */
+  email?: string;
+
+  /**
+   * @generated from field: loco.admin.v1.SystemRole role = 2;
+   */
+  role?: SystemRoleJson;
 };
 
 /**
- * Describes the message loco.admin.v1.ListSystemAdminsRequest.
- * Use `create(ListSystemAdminsRequestSchema)` to create a new message.
+ * Describes the message loco.admin.v1.UnclaimedEmail.
+ * Use `create(UnclaimedEmailSchema)` to create a new message.
  */
-export const ListSystemAdminsRequestSchema: GenMessage<ListSystemAdminsRequest, {jsonType: ListSystemAdminsRequestJson}> = /*@__PURE__*/
+export const UnclaimedEmailSchema: GenMessage<UnclaimedEmail, {jsonType: UnclaimedEmailJson}> = /*@__PURE__*/
   messageDesc(file_loco_admin_v1_admin, 1);
 
 /**
- * @generated from message loco.admin.v1.ListSystemAdminsResponse
+ * @generated from message loco.admin.v1.ListSystemRolesRequest
  */
-export type ListSystemAdminsResponse = Message<"loco.admin.v1.ListSystemAdminsResponse"> & {
-  /**
-   * @generated from field: repeated loco.admin.v1.SystemAdmin admins = 1;
-   */
-  admins: SystemAdmin[];
-
-  /**
-   * unclaimed_emails are configured emails no user has claimed yet.
-   *
-   * @generated from field: repeated string unclaimed_emails = 2;
-   */
-  unclaimedEmails: string[];
+export type ListSystemRolesRequest = Message<"loco.admin.v1.ListSystemRolesRequest"> & {
 };
 
 /**
- * @generated from message loco.admin.v1.ListSystemAdminsResponse
+ * @generated from message loco.admin.v1.ListSystemRolesRequest
  */
-export type ListSystemAdminsResponseJson = {
-  /**
-   * @generated from field: repeated loco.admin.v1.SystemAdmin admins = 1;
-   */
-  admins?: SystemAdminJson[];
-
-  /**
-   * unclaimed_emails are configured emails no user has claimed yet.
-   *
-   * @generated from field: repeated string unclaimed_emails = 2;
-   */
-  unclaimedEmails?: string[];
+export type ListSystemRolesRequestJson = {
 };
 
 /**
- * Describes the message loco.admin.v1.ListSystemAdminsResponse.
- * Use `create(ListSystemAdminsResponseSchema)` to create a new message.
+ * Describes the message loco.admin.v1.ListSystemRolesRequest.
+ * Use `create(ListSystemRolesRequestSchema)` to create a new message.
  */
-export const ListSystemAdminsResponseSchema: GenMessage<ListSystemAdminsResponse, {jsonType: ListSystemAdminsResponseJson}> = /*@__PURE__*/
+export const ListSystemRolesRequestSchema: GenMessage<ListSystemRolesRequest, {jsonType: ListSystemRolesRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_admin_v1_admin, 2);
 
 /**
- * @generated from message loco.admin.v1.GrantSystemAdminRequest
+ * @generated from message loco.admin.v1.ListSystemRolesResponse
  */
-export type GrantSystemAdminRequest = Message<"loco.admin.v1.GrantSystemAdminRequest"> & {
+export type ListSystemRolesResponse = Message<"loco.admin.v1.ListSystemRolesResponse"> & {
   /**
-   * @generated from field: string user_id = 1;
+   * @generated from field: repeated loco.admin.v1.SystemRoleHolder holders = 1;
    */
-  userId: string;
+  holders: SystemRoleHolder[];
+
+  /**
+   * @generated from field: repeated loco.admin.v1.UnclaimedEmail unclaimed = 2;
+   */
+  unclaimed: UnclaimedEmail[];
 };
 
 /**
- * @generated from message loco.admin.v1.GrantSystemAdminRequest
+ * @generated from message loco.admin.v1.ListSystemRolesResponse
  */
-export type GrantSystemAdminRequestJson = {
+export type ListSystemRolesResponseJson = {
   /**
-   * @generated from field: string user_id = 1;
+   * @generated from field: repeated loco.admin.v1.SystemRoleHolder holders = 1;
    */
-  userId?: string;
+  holders?: SystemRoleHolderJson[];
+
+  /**
+   * @generated from field: repeated loco.admin.v1.UnclaimedEmail unclaimed = 2;
+   */
+  unclaimed?: UnclaimedEmailJson[];
 };
 
 /**
- * Describes the message loco.admin.v1.GrantSystemAdminRequest.
- * Use `create(GrantSystemAdminRequestSchema)` to create a new message.
+ * Describes the message loco.admin.v1.ListSystemRolesResponse.
+ * Use `create(ListSystemRolesResponseSchema)` to create a new message.
  */
-export const GrantSystemAdminRequestSchema: GenMessage<GrantSystemAdminRequest, {jsonType: GrantSystemAdminRequestJson}> = /*@__PURE__*/
+export const ListSystemRolesResponseSchema: GenMessage<ListSystemRolesResponse, {jsonType: ListSystemRolesResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_admin_v1_admin, 3);
 
 /**
- * @generated from message loco.admin.v1.GrantSystemAdminResponse
+ * @generated from message loco.admin.v1.GrantSystemRoleRequest
  */
-export type GrantSystemAdminResponse = Message<"loco.admin.v1.GrantSystemAdminResponse"> & {
+export type GrantSystemRoleRequest = Message<"loco.admin.v1.GrantSystemRoleRequest"> & {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId: string;
+
+  /**
+   * @generated from field: loco.admin.v1.SystemRole role = 2;
+   */
+  role: SystemRole;
 };
 
 /**
- * @generated from message loco.admin.v1.GrantSystemAdminResponse
+ * @generated from message loco.admin.v1.GrantSystemRoleRequest
  */
-export type GrantSystemAdminResponseJson = {
+export type GrantSystemRoleRequestJson = {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId?: string;
+
+  /**
+   * @generated from field: loco.admin.v1.SystemRole role = 2;
+   */
+  role?: SystemRoleJson;
 };
 
 /**
- * Describes the message loco.admin.v1.GrantSystemAdminResponse.
- * Use `create(GrantSystemAdminResponseSchema)` to create a new message.
+ * Describes the message loco.admin.v1.GrantSystemRoleRequest.
+ * Use `create(GrantSystemRoleRequestSchema)` to create a new message.
  */
-export const GrantSystemAdminResponseSchema: GenMessage<GrantSystemAdminResponse, {jsonType: GrantSystemAdminResponseJson}> = /*@__PURE__*/
+export const GrantSystemRoleRequestSchema: GenMessage<GrantSystemRoleRequest, {jsonType: GrantSystemRoleRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_admin_v1_admin, 4);
 
 /**
- * @generated from message loco.admin.v1.RevokeSystemAdminRequest
+ * @generated from message loco.admin.v1.GrantSystemRoleResponse
  */
-export type RevokeSystemAdminRequest = Message<"loco.admin.v1.RevokeSystemAdminRequest"> & {
+export type GrantSystemRoleResponse = Message<"loco.admin.v1.GrantSystemRoleResponse"> & {
+};
+
+/**
+ * @generated from message loco.admin.v1.GrantSystemRoleResponse
+ */
+export type GrantSystemRoleResponseJson = {
+};
+
+/**
+ * Describes the message loco.admin.v1.GrantSystemRoleResponse.
+ * Use `create(GrantSystemRoleResponseSchema)` to create a new message.
+ */
+export const GrantSystemRoleResponseSchema: GenMessage<GrantSystemRoleResponse, {jsonType: GrantSystemRoleResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_admin_v1_admin, 5);
+
+/**
+ * @generated from message loco.admin.v1.RevokeSystemRoleRequest
+ */
+export type RevokeSystemRoleRequest = Message<"loco.admin.v1.RevokeSystemRoleRequest"> & {
   /**
    * @generated from field: string user_id = 1;
    */
@@ -201,9 +272,9 @@ export type RevokeSystemAdminRequest = Message<"loco.admin.v1.RevokeSystemAdminR
 };
 
 /**
- * @generated from message loco.admin.v1.RevokeSystemAdminRequest
+ * @generated from message loco.admin.v1.RevokeSystemRoleRequest
  */
-export type RevokeSystemAdminRequestJson = {
+export type RevokeSystemRoleRequestJson = {
   /**
    * @generated from field: string user_id = 1;
    */
@@ -211,106 +282,107 @@ export type RevokeSystemAdminRequestJson = {
 };
 
 /**
- * Describes the message loco.admin.v1.RevokeSystemAdminRequest.
- * Use `create(RevokeSystemAdminRequestSchema)` to create a new message.
+ * Describes the message loco.admin.v1.RevokeSystemRoleRequest.
+ * Use `create(RevokeSystemRoleRequestSchema)` to create a new message.
  */
-export const RevokeSystemAdminRequestSchema: GenMessage<RevokeSystemAdminRequest, {jsonType: RevokeSystemAdminRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_admin_v1_admin, 5);
-
-/**
- * @generated from message loco.admin.v1.RevokeSystemAdminResponse
- */
-export type RevokeSystemAdminResponse = Message<"loco.admin.v1.RevokeSystemAdminResponse"> & {
-};
-
-/**
- * @generated from message loco.admin.v1.RevokeSystemAdminResponse
- */
-export type RevokeSystemAdminResponseJson = {
-};
-
-/**
- * Describes the message loco.admin.v1.RevokeSystemAdminResponse.
- * Use `create(RevokeSystemAdminResponseSchema)` to create a new message.
- */
-export const RevokeSystemAdminResponseSchema: GenMessage<RevokeSystemAdminResponse, {jsonType: RevokeSystemAdminResponseJson}> = /*@__PURE__*/
+export const RevokeSystemRoleRequestSchema: GenMessage<RevokeSystemRoleRequest, {jsonType: RevokeSystemRoleRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_admin_v1_admin, 6);
 
 /**
- * SystemAdminSource says why a user holds system:admin.
- *
- * @generated from enum loco.admin.v1.SystemAdminSource
+ * @generated from message loco.admin.v1.RevokeSystemRoleResponse
  */
-export enum SystemAdminSource {
+export type RevokeSystemRoleResponse = Message<"loco.admin.v1.RevokeSystemRoleResponse"> & {
+};
+
+/**
+ * @generated from message loco.admin.v1.RevokeSystemRoleResponse
+ */
+export type RevokeSystemRoleResponseJson = {
+};
+
+/**
+ * Describes the message loco.admin.v1.RevokeSystemRoleResponse.
+ * Use `create(RevokeSystemRoleResponseSchema)` to create a new message.
+ */
+export const RevokeSystemRoleResponseSchema: GenMessage<RevokeSystemRoleResponse, {jsonType: RevokeSystemRoleResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_admin_v1_admin, 7);
+
+/**
+ * SystemRole is an installation-wide role. A system reader can read everything in the
+ * installation; a system admin can also do the installation's administration.
+ *
+ * @generated from enum loco.admin.v1.SystemRole
+ */
+export enum SystemRole {
   /**
-   * @generated from enum value: SYSTEM_ADMIN_SOURCE_UNSPECIFIED = 0;
+   * @generated from enum value: SYSTEM_ROLE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * The user claimed an email listed in the API's LOCO_SYSTEM_ADMINS.
-   *
-   * @generated from enum value: SYSTEM_ADMIN_SOURCE_CONFIG = 1;
+   * @generated from enum value: SYSTEM_ROLE_READ = 1;
    */
-  CONFIG = 1,
+  READ = 1,
 
   /**
-   * A system admin granted the role with GrantSystemAdmin.
-   *
-   * @generated from enum value: SYSTEM_ADMIN_SOURCE_GRANT = 2;
+   * @generated from enum value: SYSTEM_ROLE_ADMIN = 2;
    */
-  GRANT = 2,
+  ADMIN = 2,
 }
 
 /**
- * SystemAdminSource says why a user holds system:admin.
+ * SystemRole is an installation-wide role. A system reader can read everything in the
+ * installation; a system admin can also do the installation's administration.
  *
- * @generated from enum loco.admin.v1.SystemAdminSource
+ * @generated from enum loco.admin.v1.SystemRole
  */
-export type SystemAdminSourceJson = "SYSTEM_ADMIN_SOURCE_UNSPECIFIED" | "SYSTEM_ADMIN_SOURCE_CONFIG" | "SYSTEM_ADMIN_SOURCE_GRANT";
+export type SystemRoleJson = "SYSTEM_ROLE_UNSPECIFIED" | "SYSTEM_ROLE_READ" | "SYSTEM_ROLE_ADMIN";
 
 /**
- * Describes the enum loco.admin.v1.SystemAdminSource.
+ * Describes the enum loco.admin.v1.SystemRole.
  */
-export const SystemAdminSourceSchema: GenEnum<SystemAdminSource, SystemAdminSourceJson> = /*@__PURE__*/
+export const SystemRoleSchema: GenEnum<SystemRole, SystemRoleJson> = /*@__PURE__*/
   enumDesc(file_loco_admin_v1_admin, 0);
 
 /**
- * SystemAdminService lists, grants and revokes system:admin. Every RPC requires system admin.
+ * SystemRoleService lists, grants and revokes installation roles. Listing requires system read;
+ * granting and revoking require system admin.
  *
- * @generated from service loco.admin.v1.SystemAdminService
+ * @generated from service loco.admin.v1.SystemRoleService
  */
-export const SystemAdminService: GenService<{
+export const SystemRoleService: GenService<{
   /**
-   * ListSystemAdmins lists the system admins and the configured emails nobody has claimed.
+   * ListSystemRoles lists the users who hold an installation role and the configured emails
+   * nobody has claimed.
    *
-   * @generated from rpc loco.admin.v1.SystemAdminService.ListSystemAdmins
+   * @generated from rpc loco.admin.v1.SystemRoleService.ListSystemRoles
    */
-  listSystemAdmins: {
+  listSystemRoles: {
     methodKind: "unary";
-    input: typeof ListSystemAdminsRequestSchema;
-    output: typeof ListSystemAdminsResponseSchema;
+    input: typeof ListSystemRolesRequestSchema;
+    output: typeof ListSystemRolesResponseSchema;
   },
   /**
-   * GrantSystemAdmin makes an existing user a system admin.
+   * GrantSystemRole gives an existing user a role, or changes the role an earlier grant gave.
+   * It refuses to demote the last system admin and to grant less than the user's configured role.
    *
-   * @generated from rpc loco.admin.v1.SystemAdminService.GrantSystemAdmin
+   * @generated from rpc loco.admin.v1.SystemRoleService.GrantSystemRole
    */
-  grantSystemAdmin: {
+  grantSystemRole: {
     methodKind: "unary";
-    input: typeof GrantSystemAdminRequestSchema;
-    output: typeof GrantSystemAdminResponseSchema;
+    input: typeof GrantSystemRoleRequestSchema;
+    output: typeof GrantSystemRoleResponseSchema;
   },
   /**
-   * RevokeSystemAdmin removes a grant made with GrantSystemAdmin. It refuses to remove the
-   * last system admin and an admin that holds the role only through configuration.
+   * RevokeSystemRole removes a grant made with GrantSystemRole. The user keeps any configured
+   * role. It refuses to remove the last system admin.
    *
-   * @generated from rpc loco.admin.v1.SystemAdminService.RevokeSystemAdmin
+   * @generated from rpc loco.admin.v1.SystemRoleService.RevokeSystemRole
    */
-  revokeSystemAdmin: {
+  revokeSystemRole: {
     methodKind: "unary";
-    input: typeof RevokeSystemAdminRequestSchema;
-    output: typeof RevokeSystemAdminResponseSchema;
+    input: typeof RevokeSystemRoleRequestSchema;
+    output: typeof RevokeSystemRoleResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_admin_v1_admin, 0);

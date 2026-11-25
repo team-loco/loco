@@ -269,7 +269,7 @@ type deps struct {
 	config        *service.ConfigServer
 	clusterAdmin  *service.ClusterAdminServer
 	regionAdmin   *service.RegionAdminServer
-	systemAdmin   *service.SystemAdminServer
+	systemRole    *service.SystemRoleServer
 	user          *service.UserServer
 	auth          *service.AuthServer
 	event         *service.EventServer
@@ -306,10 +306,10 @@ func newDeps(
 	verifier := auth.NewVerifier(authClient, ac.AuthIssuers)
 	resolver := auth.NewResolver(
 		pool, ac.SignupPolicy, ac.CountLimits, ac.Tokens.LastUsedUpdateInterval,
-		auth.WithSystemAdmins(ac.SystemAdmins),
+		auth.WithSystemRoles(ac.SystemRoles),
 	)
-	if err := auth.SyncSystemAdmins(ctx, pool, ac.SystemAdmins); err != nil {
-		return nil, fmt.Errorf("LOCO_SYSTEM_ADMINS: %w", err)
+	if err := auth.SyncSystemRoles(ctx, pool, ac.SystemRoles); err != nil {
+		return nil, fmt.Errorf("sync configured system roles: %w", err)
 	}
 
 	placementNotifier := pgnotify.New(ac.DatabaseListenConfig, "placements", ac.PlacementPollInterval)
@@ -451,7 +451,7 @@ func newDeps(
 		}, queries),
 		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL, ac.Agent.JoinTokenMaxTTL),
 		regionAdmin:  service.NewRegionAdminServer(queries),
-		systemAdmin:  service.NewSystemAdminServer(pool, queries),
+		systemRole:   service.NewSystemRoleServer(pool, queries),
 		user:         service.NewUserServer(pool, queries, machine),
 		auth:         authServiceHandler,
 		event:        service.NewEventServer(pool, queries),
@@ -562,7 +562,7 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 
 	clusterv1connect.RegisterClusterAdminServiceHandler(authenticatedServer, d.clusterAdmin)
 	clusterv1connect.RegisterRegionAdminServiceHandler(authenticatedServer, d.regionAdmin)
-	adminv1connect.RegisterSystemAdminServiceHandler(authenticatedServer, d.systemAdmin)
+	adminv1connect.RegisterSystemRoleServiceHandler(authenticatedServer, d.systemRole)
 	userv1connect.RegisterUserServiceHandler(authenticatedServer, d.user)
 	authv1connect.RegisterAuthServiceHandler(authenticatedServer, d.auth)
 	eventv1connect.RegisterEventServiceHandler(authenticatedServer, d.event)

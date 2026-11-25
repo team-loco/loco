@@ -43,7 +43,8 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | --- | --- | --- |
 | `AUTH_ISSUERS` | empty | JSON array of OpenID Connect issuers, each with `issuer`, `audience` and an optional `web` dashboard client. See [installation](installation.md#register-the-dashboard-with-your-identity-provider). |
 | `AUTH_SIGNUP_MODE` | `open` | `closed` refuses sign-in to anyone without an account. |
-| `LOCO_SYSTEM_ADMINS` | empty | Comma-separated emails that become system admins on their first verified sign-in. See [first system admin](../operations/self-hosting.md#first-system-admin). |
+| `LOCO_SYSTEM_ADMINS` | empty | Comma-separated emails that become system admins on their first verified sign-in. See [installation roles](../operations/self-hosting.md#installation-roles). |
+| `LOCO_SYSTEM_READERS` | empty | Comma-separated emails that become system readers on their first verified sign-in. An email cannot appear in both lists. |
 | `INVITATION_TTL` | `168h` | How long an organization invitation stays open. |
 | `LOCO_API_TOKEN_MAX_LIFETIME` | `8760h` | Longest lifetime of an API token, at least one second. See [API token lifetime](../operations/access.md#api-token-lifetime). |
 | `LOCO_SESSION_ACCESS_TOKEN_LIFETIME` | `1h` | Lifetime of a session access token. |

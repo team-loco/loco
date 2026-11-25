@@ -544,6 +544,48 @@ func (ns NullSessionKind) Value() (driver.Value, error) {
 	return string(ns.SessionKind), nil
 }
 
+type SystemRole string
+
+const (
+	SystemRoleRead  SystemRole = "read"
+	SystemRoleAdmin SystemRole = "admin"
+)
+
+func (e *SystemRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SystemRole(s)
+	case string:
+		*e = SystemRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SystemRole: %T", src)
+	}
+	return nil
+}
+
+type NullSystemRole struct {
+	SystemRole SystemRole `json:"systemRole"`
+	Valid      bool       `json:"valid"` // Valid is true if SystemRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSystemRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.SystemRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SystemRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSystemRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SystemRole), nil
+}
+
 type UserStatus string
 
 const (
@@ -1040,14 +1082,16 @@ type SessionToken struct {
 	CreatedAt        time.Time   `json:"createdAt"`
 }
 
-type SystemAdminClaim struct {
+type SystemRoleClaim struct {
 	Email     string     `json:"email"`
+	Role      SystemRole `json:"role"`
 	UserID    *uuid.UUID `json:"userId"`
 	ClaimedAt *time.Time `json:"claimedAt"`
 }
 
-type SystemAdminGrant struct {
-	UserID uuid.UUID `json:"userId"`
+type SystemRoleGrant struct {
+	UserID uuid.UUID  `json:"userId"`
+	Role   SystemRole `json:"role"`
 }
 
 type UsedSessionRefreshToken struct {

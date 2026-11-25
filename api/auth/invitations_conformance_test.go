@@ -107,11 +107,11 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	admins := auth.SystemAdmins{adminEmail}
-	if err = auth.SyncSystemAdmins(t.Context(), pool, admins); err != nil {
+	admins := auth.SystemRoles{Admins: []string{adminEmail}}
+	if err = auth.SyncSystemRoles(t.Context(), pool, admins); err != nil {
 		t.Fatalf("configure the system admin: %v", err)
 	}
-	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults(), time.Hour, auth.WithSystemAdmins(admins)).
+	admin, _, err := auth.NewResolver(pool, openPolicy, limits.Defaults(), time.Hour, auth.WithSystemRoles(admins)).
 		Resolve(t.Context(), auth.Identity{
 			Issuer: adminIssuer, Subject: adminSubject, Email: adminEmail, EmailVerified: true,
 		})

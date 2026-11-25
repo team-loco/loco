@@ -12,8 +12,7 @@ import (
 )
 
 type Querier interface {
-	AddSystemAdminEntries(ctx context.Context, emails []string) error
-	AddSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error)
+	AddSystemRoleEntries(ctx context.Context, arg AddSystemRoleEntriesParams) error
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
@@ -29,7 +28,7 @@ type Querier interface {
 	ChangePlacementProblemReason(ctx context.Context, arg ChangePlacementProblemReasonParams) (int64, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	ClaimInvitation(ctx context.Context, arg ClaimInvitationParams) (Invitation, error)
-	ClaimSystemAdmin(ctx context.Context, arg ClaimSystemAdminParams) (int64, error)
+	ClaimSystemRole(ctx context.Context, arg ClaimSystemRoleParams) (int64, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
 	ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error
 	CountBuildsForResource(ctx context.Context, arg CountBuildsForResourceParams) (int64, error)
@@ -161,6 +160,7 @@ type Querier interface {
 	GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error)
 	GetSessionWithScopesByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionWithScopesByAccessTokenRow, error)
+	GetSystemRoleSources(ctx context.Context, id uuid.UUID) (GetSystemRoleSourcesRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (GetUserByIdentityRow, error)
@@ -251,9 +251,9 @@ type Querier interface {
 	ListSecretSizes(ctx context.Context, environmentID uuid.UUID) ([]ListSecretSizesRow, error)
 	ListSecrets(ctx context.Context, environmentID uuid.UUID) ([]ListSecretsRow, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
-	ListSystemAdminEntriesExcept(ctx context.Context, emails []string) ([]ListSystemAdminEntriesExceptRow, error)
-	ListSystemAdmins(ctx context.Context) ([]ListSystemAdminsRow, error)
-	ListUnclaimedSystemAdminEmails(ctx context.Context) ([]string, error)
+	ListSystemRoleEntriesExcept(ctx context.Context, arg ListSystemRoleEntriesExceptParams) ([]ListSystemRoleEntriesExceptRow, error)
+	ListSystemRoleHolders(ctx context.Context) ([]ListSystemRoleHoldersRow, error)
+	ListUnclaimedSystemRoleEmails(ctx context.Context) ([]ListUnclaimedSystemRoleEmailsRow, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
@@ -292,9 +292,9 @@ type Querier interface {
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	LockRollout(ctx context.Context, arg LockRolloutParams) ([]byte, error)
-	LockSystemAdminEntriesExcept(ctx context.Context, emails []string) ([]LockSystemAdminEntriesExceptRow, error)
-	// Locks every system:admin row so concurrent revocations cannot remove the last admin.
+	// Locks every system:admin row so concurrent changes cannot remove the last admin.
 	LockSystemAdmins(ctx context.Context) ([]uuid.UUID, error)
+	LockSystemRoleEntriesExcept(ctx context.Context, arg LockSystemRoleEntriesExceptParams) ([]LockSystemRoleEntriesExceptRow, error)
 	LockTokenOwner(ctx context.Context, entityID uuid.UUID) error
 	LockUserAdminOrganizations(ctx context.Context, userID uuid.UUID) ([]LockUserAdminOrganizationsRow, error)
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
@@ -347,9 +347,9 @@ type Querier interface {
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
 	RemoveOrgMember(ctx context.Context, arg RemoveOrgMemberParams) error
 	RemoveResourceScopesForUserInWorkspace(ctx context.Context, arg RemoveResourceScopesForUserInWorkspaceParams) error
-	RemoveSystemAdminEntriesExcept(ctx context.Context, emails []string) ([]RemoveSystemAdminEntriesExceptRow, error)
-	RemoveSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error)
-	RemoveSystemAdminScopeUnlessGranted(ctx context.Context, userID uuid.UUID) error
+	RemoveSystemRoleEntriesExcept(ctx context.Context, arg RemoveSystemRoleEntriesExceptParams) ([]RemoveSystemRoleEntriesExceptRow, error)
+	RemoveSystemRoleGrant(ctx context.Context, userID uuid.UUID) error
+	RemoveSystemScopes(ctx context.Context, userID uuid.UUID) error
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RequeueWebhookDelivery(ctx context.Context, id uuid.UUID) error
@@ -376,6 +376,7 @@ type Querier interface {
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
+	SetSystemRoleGrant(ctx context.Context, arg SetSystemRoleGrantParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	// Stores the entries of one new sign-in after deleting the sign-ins older than the newest keep, and
 	// stores none of them while any of their keys is live. An expired row counts as absent, so its key can
@@ -388,7 +389,6 @@ type Querier interface {
 	SupersedePlacements(ctx context.Context, arg SupersedePlacementsParams) ([]uuid.UUID, error)
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
-	SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error)
 	TakeAuthState(ctx context.Context, key string) (TakeAuthStateRow, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error

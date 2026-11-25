@@ -43,7 +43,7 @@ func Command() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			admins, err := login.Clients.SystemAdmin.ListSystemAdmins(cmd.Context(), &adminv1.ListSystemAdminsRequest{})
+			roles, err := login.Clients.SystemRole.ListSystemRoles(cmd.Context(), &adminv1.ListSystemRolesRequest{})
 			if err != nil {
 				return err
 			}
@@ -51,7 +51,12 @@ func Command() *cobra.Command {
 				APIVersion      string          `json:"apiVersion"`
 				UnclaimedAdmins []string        `json:"unclaimedAdmins"`
 				Clusters        []clusterStatus `json:"clusters"`
-			}{APIVersion: config.GetApiVersion(), UnclaimedAdmins: admins.GetUnclaimedEmails(), Clusters: []clusterStatus{}}
+			}{APIVersion: config.GetApiVersion(), UnclaimedAdmins: []string{}, Clusters: []clusterStatus{}}
+			for _, unclaimed := range roles.GetUnclaimed() {
+				if unclaimed.GetRole() == adminv1.SystemRole_SYSTEM_ROLE_ADMIN {
+					report.UnclaimedAdmins = append(report.UnclaimedAdmins, unclaimed.GetEmail())
+				}
+			}
 			for _, cluster := range clusters.GetClusters() {
 				encoded, err := protojson.Marshal(cluster)
 				if err != nil {

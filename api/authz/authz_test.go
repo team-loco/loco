@@ -594,6 +594,35 @@ func TestEveryOrgScopeImpliesMembership(t *testing.T) {
 	}
 }
 
+func TestSystemRolesCoverEveryEntity(t *testing.T) {
+	a := authz.New(&fakeQueries{})
+	entities := []queries.Entity{
+		{Type: queries.EntityTypeSystem},
+		{Type: queries.EntityTypeOrganization, ID: org2UUID},
+		{Type: queries.EntityTypeWorkspace, ID: authztest.Workspace1},
+		{Type: queries.EntityTypeResource, ID: res1UUID},
+		{Type: queries.EntityTypeUser, ID: authztest.User1},
+	}
+	held := map[queries.Scope][]queries.Scope{
+		queries.ScopeRead:  {queries.ScopeMember, queries.ScopeRead},
+		queries.ScopeAdmin: {queries.ScopeMember, queries.ScopeRead, queries.ScopeAdmin},
+	}
+	for role, allowed := range held {
+		granted := []queries.EntityScope{{EntityType: queries.EntityTypeSystem, Scope: role}}
+		for _, entity := range entities {
+			for _, scope := range []queries.Scope{
+				queries.ScopeMember, queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin,
+			} {
+				required := queries.EntityScope{EntityType: entity.Type, EntityID: entity.ID, Scope: scope}
+				err := a.Check(t.Context(), granted, required)
+				if slices.Contains(allowed, scope) != (err == nil) {
+					t.Errorf("system %s on %s %s: %v", role, entity.Type, scope, err)
+				}
+			}
+		}
+	}
+}
+
 func TestCheckReportsDatabaseFailure(t *testing.T) {
 	pool := dbtest.ClosedPool(t)
 	a := authz.New(queries.New(pool))
@@ -625,7 +654,7 @@ func TestReadableEntities(t *testing.T) {
 	}
 	for _, scope := range []queries.Scope{queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin} {
 		entities := a.ReadableEntities([]queries.EntityScope{{EntityType: queries.EntityTypeSystem, Scope: scope}})
-		if entities.System != (scope == queries.ScopeRead) {
+		if entities.System != (scope != queries.ScopeWrite) {
 			t.Fatalf("system %s: %+v", scope, entities)
 		}
 	}

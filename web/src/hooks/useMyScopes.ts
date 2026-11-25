@@ -33,7 +33,7 @@ export function scopeLevel(scope: Scope): AccessLevel {
 	}
 }
 
-function levelOn(scopes: EntityScope[], type: EntityType, id: string): AccessLevel {
+export function levelOn(scopes: readonly EntityScope[], type: EntityType, id: string): AccessLevel {
 	let best: AccessLevel = 0;
 	for (const s of scopes) {
 		const matches = s.entityType === EntityType.SYSTEM || (s.entityType === type && s.entityId === id);

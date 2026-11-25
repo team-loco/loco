@@ -392,6 +392,12 @@
             "type": "string"
           }
         },
+        "systemReaders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "trustedProxyHops": {
           "type": "integer",
           "minimum": 0

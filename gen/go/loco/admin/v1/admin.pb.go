@@ -22,84 +22,88 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// SystemAdminSource says why a user holds system:admin.
-type SystemAdminSource int32
+// SystemRole is an installation-wide role. A system reader can read everything in the
+// installation; a system admin can also do the installation's administration.
+type SystemRole int32
 
 const (
-	SystemAdminSource_SYSTEM_ADMIN_SOURCE_UNSPECIFIED SystemAdminSource = 0
-	// The user claimed an email listed in the API's LOCO_SYSTEM_ADMINS.
-	SystemAdminSource_SYSTEM_ADMIN_SOURCE_CONFIG SystemAdminSource = 1
-	// A system admin granted the role with GrantSystemAdmin.
-	SystemAdminSource_SYSTEM_ADMIN_SOURCE_GRANT SystemAdminSource = 2
+	SystemRole_SYSTEM_ROLE_UNSPECIFIED SystemRole = 0
+	SystemRole_SYSTEM_ROLE_READ        SystemRole = 1
+	SystemRole_SYSTEM_ROLE_ADMIN       SystemRole = 2
 )
 
-// Enum value maps for SystemAdminSource.
+// Enum value maps for SystemRole.
 var (
-	SystemAdminSource_name = map[int32]string{
-		0: "SYSTEM_ADMIN_SOURCE_UNSPECIFIED",
-		1: "SYSTEM_ADMIN_SOURCE_CONFIG",
-		2: "SYSTEM_ADMIN_SOURCE_GRANT",
+	SystemRole_name = map[int32]string{
+		0: "SYSTEM_ROLE_UNSPECIFIED",
+		1: "SYSTEM_ROLE_READ",
+		2: "SYSTEM_ROLE_ADMIN",
 	}
-	SystemAdminSource_value = map[string]int32{
-		"SYSTEM_ADMIN_SOURCE_UNSPECIFIED": 0,
-		"SYSTEM_ADMIN_SOURCE_CONFIG":      1,
-		"SYSTEM_ADMIN_SOURCE_GRANT":       2,
+	SystemRole_value = map[string]int32{
+		"SYSTEM_ROLE_UNSPECIFIED": 0,
+		"SYSTEM_ROLE_READ":        1,
+		"SYSTEM_ROLE_ADMIN":       2,
 	}
 )
 
-func (x SystemAdminSource) Enum() *SystemAdminSource {
-	p := new(SystemAdminSource)
+func (x SystemRole) Enum() *SystemRole {
+	p := new(SystemRole)
 	*p = x
 	return p
 }
 
-func (x SystemAdminSource) String() string {
+func (x SystemRole) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (SystemAdminSource) Descriptor() protoreflect.EnumDescriptor {
+func (SystemRole) Descriptor() protoreflect.EnumDescriptor {
 	return file_loco_admin_v1_admin_proto_enumTypes[0].Descriptor()
 }
 
-func (SystemAdminSource) Type() protoreflect.EnumType {
+func (SystemRole) Type() protoreflect.EnumType {
 	return &file_loco_admin_v1_admin_proto_enumTypes[0]
 }
 
-func (x SystemAdminSource) Number() protoreflect.EnumNumber {
+func (x SystemRole) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use SystemAdminSource.Descriptor instead.
-func (SystemAdminSource) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use SystemRole.Descriptor instead.
+func (SystemRole) EnumDescriptor() ([]byte, []int) {
 	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
-type SystemAdmin struct {
+// SystemRoleHolder is a user with an installation role, the higher of the configured and the
+// granted role.
+type SystemRoleHolder struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Email  string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
 	// issuer and subject identify the identity the user signs in through.
-	Issuer        string              `protobuf:"bytes,3,opt,name=issuer,proto3" json:"issuer,omitempty"`
-	Subject       string              `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
-	Sources       []SystemAdminSource `protobuf:"varint,5,rep,packed,name=sources,proto3,enum=loco.admin.v1.SystemAdminSource" json:"sources,omitempty"`
+	Issuer  string `protobuf:"bytes,3,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	Subject string `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	// configured_role is the role the user claimed from LOCO_SYSTEM_ADMINS or LOCO_SYSTEM_READERS.
+	ConfiguredRole SystemRole `protobuf:"varint,5,opt,name=configured_role,json=configuredRole,proto3,enum=loco.admin.v1.SystemRole" json:"configured_role,omitempty"`
+	// granted_role is the role GrantSystemRole gave the user.
+	GrantedRole   SystemRole `protobuf:"varint,6,opt,name=granted_role,json=grantedRole,proto3,enum=loco.admin.v1.SystemRole" json:"granted_role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SystemAdmin) Reset() {
-	*x = SystemAdmin{}
+func (x *SystemRoleHolder) Reset() {
+	*x = SystemRoleHolder{}
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SystemAdmin) String() string {
+func (x *SystemRoleHolder) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SystemAdmin) ProtoMessage() {}
+func (*SystemRoleHolder) ProtoMessage() {}
 
-func (x *SystemAdmin) ProtoReflect() protoreflect.Message {
+func (x *SystemRoleHolder) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -111,66 +115,76 @@ func (x *SystemAdmin) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SystemAdmin.ProtoReflect.Descriptor instead.
-func (*SystemAdmin) Descriptor() ([]byte, []int) {
+// Deprecated: Use SystemRoleHolder.ProtoReflect.Descriptor instead.
+func (*SystemRoleHolder) Descriptor() ([]byte, []int) {
 	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SystemAdmin) GetUserId() string {
+func (x *SystemRoleHolder) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *SystemAdmin) GetEmail() string {
+func (x *SystemRoleHolder) GetEmail() string {
 	if x != nil {
 		return x.Email
 	}
 	return ""
 }
 
-func (x *SystemAdmin) GetIssuer() string {
+func (x *SystemRoleHolder) GetIssuer() string {
 	if x != nil {
 		return x.Issuer
 	}
 	return ""
 }
 
-func (x *SystemAdmin) GetSubject() string {
+func (x *SystemRoleHolder) GetSubject() string {
 	if x != nil {
 		return x.Subject
 	}
 	return ""
 }
 
-func (x *SystemAdmin) GetSources() []SystemAdminSource {
+func (x *SystemRoleHolder) GetConfiguredRole() SystemRole {
 	if x != nil {
-		return x.Sources
+		return x.ConfiguredRole
 	}
-	return nil
+	return SystemRole_SYSTEM_ROLE_UNSPECIFIED
 }
 
-type ListSystemAdminsRequest struct {
+func (x *SystemRoleHolder) GetGrantedRole() SystemRole {
+	if x != nil {
+		return x.GrantedRole
+	}
+	return SystemRole_SYSTEM_ROLE_UNSPECIFIED
+}
+
+// UnclaimedEmail is a configured email no user has claimed yet.
+type UnclaimedEmail struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Role          SystemRole             `protobuf:"varint,2,opt,name=role,proto3,enum=loco.admin.v1.SystemRole" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListSystemAdminsRequest) Reset() {
-	*x = ListSystemAdminsRequest{}
+func (x *UnclaimedEmail) Reset() {
+	*x = UnclaimedEmail{}
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListSystemAdminsRequest) String() string {
+func (x *UnclaimedEmail) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListSystemAdminsRequest) ProtoMessage() {}
+func (*UnclaimedEmail) ProtoMessage() {}
 
-func (x *ListSystemAdminsRequest) ProtoReflect() protoreflect.Message {
+func (x *UnclaimedEmail) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -182,34 +196,45 @@ func (x *ListSystemAdminsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListSystemAdminsRequest.ProtoReflect.Descriptor instead.
-func (*ListSystemAdminsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UnclaimedEmail.ProtoReflect.Descriptor instead.
+func (*UnclaimedEmail) Descriptor() ([]byte, []int) {
 	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{1}
 }
 
-type ListSystemAdminsResponse struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Admins []*SystemAdmin         `protobuf:"bytes,1,rep,name=admins,proto3" json:"admins,omitempty"`
-	// unclaimed_emails are configured emails no user has claimed yet.
-	UnclaimedEmails []string `protobuf:"bytes,2,rep,name=unclaimed_emails,json=unclaimedEmails,proto3" json:"unclaimed_emails,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+func (x *UnclaimedEmail) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
 }
 
-func (x *ListSystemAdminsResponse) Reset() {
-	*x = ListSystemAdminsResponse{}
+func (x *UnclaimedEmail) GetRole() SystemRole {
+	if x != nil {
+		return x.Role
+	}
+	return SystemRole_SYSTEM_ROLE_UNSPECIFIED
+}
+
+type ListSystemRolesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSystemRolesRequest) Reset() {
+	*x = ListSystemRolesRequest{}
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListSystemAdminsResponse) String() string {
+func (x *ListSystemRolesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListSystemAdminsResponse) ProtoMessage() {}
+func (*ListSystemRolesRequest) ProtoMessage() {}
 
-func (x *ListSystemAdminsResponse) ProtoReflect() protoreflect.Message {
+func (x *ListSystemRolesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -221,46 +246,33 @@ func (x *ListSystemAdminsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListSystemAdminsResponse.ProtoReflect.Descriptor instead.
-func (*ListSystemAdminsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListSystemRolesRequest.ProtoReflect.Descriptor instead.
+func (*ListSystemRolesRequest) Descriptor() ([]byte, []int) {
 	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ListSystemAdminsResponse) GetAdmins() []*SystemAdmin {
-	if x != nil {
-		return x.Admins
-	}
-	return nil
-}
-
-func (x *ListSystemAdminsResponse) GetUnclaimedEmails() []string {
-	if x != nil {
-		return x.UnclaimedEmails
-	}
-	return nil
-}
-
-type GrantSystemAdminRequest struct {
+type ListSystemRolesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Holders       []*SystemRoleHolder    `protobuf:"bytes,1,rep,name=holders,proto3" json:"holders,omitempty"`
+	Unclaimed     []*UnclaimedEmail      `protobuf:"bytes,2,rep,name=unclaimed,proto3" json:"unclaimed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GrantSystemAdminRequest) Reset() {
-	*x = GrantSystemAdminRequest{}
+func (x *ListSystemRolesResponse) Reset() {
+	*x = ListSystemRolesResponse{}
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GrantSystemAdminRequest) String() string {
+func (x *ListSystemRolesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GrantSystemAdminRequest) ProtoMessage() {}
+func (*ListSystemRolesResponse) ProtoMessage() {}
 
-func (x *GrantSystemAdminRequest) ProtoReflect() protoreflect.Message {
+func (x *ListSystemRolesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -272,38 +284,47 @@ func (x *GrantSystemAdminRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GrantSystemAdminRequest.ProtoReflect.Descriptor instead.
-func (*GrantSystemAdminRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListSystemRolesResponse.ProtoReflect.Descriptor instead.
+func (*ListSystemRolesResponse) Descriptor() ([]byte, []int) {
 	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GrantSystemAdminRequest) GetUserId() string {
+func (x *ListSystemRolesResponse) GetHolders() []*SystemRoleHolder {
 	if x != nil {
-		return x.UserId
+		return x.Holders
 	}
-	return ""
+	return nil
 }
 
-type GrantSystemAdminResponse struct {
+func (x *ListSystemRolesResponse) GetUnclaimed() []*UnclaimedEmail {
+	if x != nil {
+		return x.Unclaimed
+	}
+	return nil
+}
+
+type GrantSystemRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Role          SystemRole             `protobuf:"varint,2,opt,name=role,proto3,enum=loco.admin.v1.SystemRole" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GrantSystemAdminResponse) Reset() {
-	*x = GrantSystemAdminResponse{}
+func (x *GrantSystemRoleRequest) Reset() {
+	*x = GrantSystemRoleRequest{}
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GrantSystemAdminResponse) String() string {
+func (x *GrantSystemRoleRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GrantSystemAdminResponse) ProtoMessage() {}
+func (*GrantSystemRoleRequest) ProtoMessage() {}
 
-func (x *GrantSystemAdminResponse) ProtoReflect() protoreflect.Message {
+func (x *GrantSystemRoleRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_admin_v1_admin_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -315,33 +336,83 @@ func (x *GrantSystemAdminResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GrantSystemAdminResponse.ProtoReflect.Descriptor instead.
-func (*GrantSystemAdminResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GrantSystemRoleRequest.ProtoReflect.Descriptor instead.
+func (*GrantSystemRoleRequest) Descriptor() ([]byte, []int) {
 	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{4}
 }
 
-type RevokeSystemAdminRequest struct {
+func (x *GrantSystemRoleRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *GrantSystemRoleRequest) GetRole() SystemRole {
+	if x != nil {
+		return x.Role
+	}
+	return SystemRole_SYSTEM_ROLE_UNSPECIFIED
+}
+
+type GrantSystemRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GrantSystemRoleResponse) Reset() {
+	*x = GrantSystemRoleResponse{}
+	mi := &file_loco_admin_v1_admin_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GrantSystemRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GrantSystemRoleResponse) ProtoMessage() {}
+
+func (x *GrantSystemRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_admin_v1_admin_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GrantSystemRoleResponse.ProtoReflect.Descriptor instead.
+func (*GrantSystemRoleResponse) Descriptor() ([]byte, []int) {
+	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{5}
+}
+
+type RevokeSystemRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RevokeSystemAdminRequest) Reset() {
-	*x = RevokeSystemAdminRequest{}
-	mi := &file_loco_admin_v1_admin_proto_msgTypes[5]
+func (x *RevokeSystemRoleRequest) Reset() {
+	*x = RevokeSystemRoleRequest{}
+	mi := &file_loco_admin_v1_admin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RevokeSystemAdminRequest) String() string {
+func (x *RevokeSystemRoleRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RevokeSystemAdminRequest) ProtoMessage() {}
+func (*RevokeSystemRoleRequest) ProtoMessage() {}
 
-func (x *RevokeSystemAdminRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_admin_v1_admin_proto_msgTypes[5]
+func (x *RevokeSystemRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_admin_v1_admin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -352,39 +423,39 @@ func (x *RevokeSystemAdminRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RevokeSystemAdminRequest.ProtoReflect.Descriptor instead.
-func (*RevokeSystemAdminRequest) Descriptor() ([]byte, []int) {
-	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{5}
+// Deprecated: Use RevokeSystemRoleRequest.ProtoReflect.Descriptor instead.
+func (*RevokeSystemRoleRequest) Descriptor() ([]byte, []int) {
+	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *RevokeSystemAdminRequest) GetUserId() string {
+func (x *RevokeSystemRoleRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-type RevokeSystemAdminResponse struct {
+type RevokeSystemRoleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RevokeSystemAdminResponse) Reset() {
-	*x = RevokeSystemAdminResponse{}
-	mi := &file_loco_admin_v1_admin_proto_msgTypes[6]
+func (x *RevokeSystemRoleResponse) Reset() {
+	*x = RevokeSystemRoleResponse{}
+	mi := &file_loco_admin_v1_admin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RevokeSystemAdminResponse) String() string {
+func (x *RevokeSystemRoleResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RevokeSystemAdminResponse) ProtoMessage() {}
+func (*RevokeSystemRoleResponse) ProtoMessage() {}
 
-func (x *RevokeSystemAdminResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_admin_v1_admin_proto_msgTypes[6]
+func (x *RevokeSystemRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_admin_v1_admin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,40 +466,47 @@ func (x *RevokeSystemAdminResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RevokeSystemAdminResponse.ProtoReflect.Descriptor instead.
-func (*RevokeSystemAdminResponse) Descriptor() ([]byte, []int) {
-	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{6}
+// Deprecated: Use RevokeSystemRoleResponse.ProtoReflect.Descriptor instead.
+func (*RevokeSystemRoleResponse) Descriptor() ([]byte, []int) {
+	return file_loco_admin_v1_admin_proto_rawDescGZIP(), []int{7}
 }
 
 var File_loco_admin_v1_admin_proto protoreflect.FileDescriptor
 
 const file_loco_admin_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/admin/v1/admin.proto\x12\rloco.admin.v1\x1a\x1bbuf/validate/validate.proto\"\xaa\x01\n" +
-	"\vSystemAdmin\x12\x17\n" +
+	"\x19loco/admin/v1/admin.proto\x12\rloco.admin.v1\x1a\x1bbuf/validate/validate.proto\"\xf5\x01\n" +
+	"\x10SystemRoleHolder\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x16\n" +
 	"\x06issuer\x18\x03 \x01(\tR\x06issuer\x12\x18\n" +
-	"\asubject\x18\x04 \x01(\tR\asubject\x12:\n" +
-	"\asources\x18\x05 \x03(\x0e2 .loco.admin.v1.SystemAdminSourceR\asources\"\x19\n" +
-	"\x17ListSystemAdminsRequest\"y\n" +
-	"\x18ListSystemAdminsResponse\x122\n" +
-	"\x06admins\x18\x01 \x03(\v2\x1a.loco.admin.v1.SystemAdminR\x06admins\x12)\n" +
-	"\x10unclaimed_emails\x18\x02 \x03(\tR\x0funclaimedEmails\"<\n" +
-	"\x17GrantSystemAdminRequest\x12!\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12B\n" +
+	"\x0fconfigured_role\x18\x05 \x01(\x0e2\x19.loco.admin.v1.SystemRoleR\x0econfiguredRole\x12<\n" +
+	"\fgranted_role\x18\x06 \x01(\x0e2\x19.loco.admin.v1.SystemRoleR\vgrantedRole\"U\n" +
+	"\x0eUnclaimedEmail\x12\x14\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\x12-\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x19.loco.admin.v1.SystemRoleR\x04role\"\x18\n" +
+	"\x16ListSystemRolesRequest\"\x91\x01\n" +
+	"\x17ListSystemRolesResponse\x129\n" +
+	"\aholders\x18\x01 \x03(\v2\x1f.loco.admin.v1.SystemRoleHolderR\aholders\x12;\n" +
+	"\tunclaimed\x18\x02 \x03(\v2\x1d.loco.admin.v1.UnclaimedEmailR\tunclaimed\"v\n" +
+	"\x16GrantSystemRoleRequest\x12!\n" +
+	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x129\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x19.loco.admin.v1.SystemRoleB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\"\x19\n" +
+	"\x17GrantSystemRoleResponse\"<\n" +
+	"\x17RevokeSystemRoleRequest\x12!\n" +
 	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\"\x1a\n" +
-	"\x18GrantSystemAdminResponse\"=\n" +
-	"\x18RevokeSystemAdminRequest\x12!\n" +
-	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\"\x1b\n" +
-	"\x19RevokeSystemAdminResponse*w\n" +
-	"\x11SystemAdminSource\x12#\n" +
-	"\x1fSYSTEM_ADMIN_SOURCE_UNSPECIFIED\x10\x00\x12\x1e\n" +
-	"\x1aSYSTEM_ADMIN_SOURCE_CONFIG\x10\x01\x12\x1d\n" +
-	"\x19SYSTEM_ADMIN_SOURCE_GRANT\x10\x022\xc6\x02\n" +
-	"\x12SystemAdminService\x12c\n" +
-	"\x10ListSystemAdmins\x12&.loco.admin.v1.ListSystemAdminsRequest\x1a'.loco.admin.v1.ListSystemAdminsResponse\x12c\n" +
-	"\x10GrantSystemAdmin\x12&.loco.admin.v1.GrantSystemAdminRequest\x1a'.loco.admin.v1.GrantSystemAdminResponse\x12f\n" +
-	"\x11RevokeSystemAdmin\x12'.loco.admin.v1.RevokeSystemAdminRequest\x1a(.loco.admin.v1.RevokeSystemAdminResponseB8Z6github.com/team-loco/loco/gen/go/loco/admin/v1;adminv1b\x06proto3"
+	"\x18RevokeSystemRoleResponse*V\n" +
+	"\n" +
+	"SystemRole\x12\x1b\n" +
+	"\x17SYSTEM_ROLE_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10SYSTEM_ROLE_READ\x10\x01\x12\x15\n" +
+	"\x11SYSTEM_ROLE_ADMIN\x10\x022\xbc\x02\n" +
+	"\x11SystemRoleService\x12`\n" +
+	"\x0fListSystemRoles\x12%.loco.admin.v1.ListSystemRolesRequest\x1a&.loco.admin.v1.ListSystemRolesResponse\x12`\n" +
+	"\x0fGrantSystemRole\x12%.loco.admin.v1.GrantSystemRoleRequest\x1a&.loco.admin.v1.GrantSystemRoleResponse\x12c\n" +
+	"\x10RevokeSystemRole\x12&.loco.admin.v1.RevokeSystemRoleRequest\x1a'.loco.admin.v1.RevokeSystemRoleResponseB8Z6github.com/team-loco/loco/gen/go/loco/admin/v1;adminv1b\x06proto3"
 
 var (
 	file_loco_admin_v1_admin_proto_rawDescOnce sync.Once
@@ -443,31 +521,36 @@ func file_loco_admin_v1_admin_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_admin_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_admin_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_loco_admin_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_loco_admin_v1_admin_proto_goTypes = []any{
-	(SystemAdminSource)(0),            // 0: loco.admin.v1.SystemAdminSource
-	(*SystemAdmin)(nil),               // 1: loco.admin.v1.SystemAdmin
-	(*ListSystemAdminsRequest)(nil),   // 2: loco.admin.v1.ListSystemAdminsRequest
-	(*ListSystemAdminsResponse)(nil),  // 3: loco.admin.v1.ListSystemAdminsResponse
-	(*GrantSystemAdminRequest)(nil),   // 4: loco.admin.v1.GrantSystemAdminRequest
-	(*GrantSystemAdminResponse)(nil),  // 5: loco.admin.v1.GrantSystemAdminResponse
-	(*RevokeSystemAdminRequest)(nil),  // 6: loco.admin.v1.RevokeSystemAdminRequest
-	(*RevokeSystemAdminResponse)(nil), // 7: loco.admin.v1.RevokeSystemAdminResponse
+	(SystemRole)(0),                  // 0: loco.admin.v1.SystemRole
+	(*SystemRoleHolder)(nil),         // 1: loco.admin.v1.SystemRoleHolder
+	(*UnclaimedEmail)(nil),           // 2: loco.admin.v1.UnclaimedEmail
+	(*ListSystemRolesRequest)(nil),   // 3: loco.admin.v1.ListSystemRolesRequest
+	(*ListSystemRolesResponse)(nil),  // 4: loco.admin.v1.ListSystemRolesResponse
+	(*GrantSystemRoleRequest)(nil),   // 5: loco.admin.v1.GrantSystemRoleRequest
+	(*GrantSystemRoleResponse)(nil),  // 6: loco.admin.v1.GrantSystemRoleResponse
+	(*RevokeSystemRoleRequest)(nil),  // 7: loco.admin.v1.RevokeSystemRoleRequest
+	(*RevokeSystemRoleResponse)(nil), // 8: loco.admin.v1.RevokeSystemRoleResponse
 }
 var file_loco_admin_v1_admin_proto_depIdxs = []int32{
-	0, // 0: loco.admin.v1.SystemAdmin.sources:type_name -> loco.admin.v1.SystemAdminSource
-	1, // 1: loco.admin.v1.ListSystemAdminsResponse.admins:type_name -> loco.admin.v1.SystemAdmin
-	2, // 2: loco.admin.v1.SystemAdminService.ListSystemAdmins:input_type -> loco.admin.v1.ListSystemAdminsRequest
-	4, // 3: loco.admin.v1.SystemAdminService.GrantSystemAdmin:input_type -> loco.admin.v1.GrantSystemAdminRequest
-	6, // 4: loco.admin.v1.SystemAdminService.RevokeSystemAdmin:input_type -> loco.admin.v1.RevokeSystemAdminRequest
-	3, // 5: loco.admin.v1.SystemAdminService.ListSystemAdmins:output_type -> loco.admin.v1.ListSystemAdminsResponse
-	5, // 6: loco.admin.v1.SystemAdminService.GrantSystemAdmin:output_type -> loco.admin.v1.GrantSystemAdminResponse
-	7, // 7: loco.admin.v1.SystemAdminService.RevokeSystemAdmin:output_type -> loco.admin.v1.RevokeSystemAdminResponse
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 0: loco.admin.v1.SystemRoleHolder.configured_role:type_name -> loco.admin.v1.SystemRole
+	0, // 1: loco.admin.v1.SystemRoleHolder.granted_role:type_name -> loco.admin.v1.SystemRole
+	0, // 2: loco.admin.v1.UnclaimedEmail.role:type_name -> loco.admin.v1.SystemRole
+	1, // 3: loco.admin.v1.ListSystemRolesResponse.holders:type_name -> loco.admin.v1.SystemRoleHolder
+	2, // 4: loco.admin.v1.ListSystemRolesResponse.unclaimed:type_name -> loco.admin.v1.UnclaimedEmail
+	0, // 5: loco.admin.v1.GrantSystemRoleRequest.role:type_name -> loco.admin.v1.SystemRole
+	3, // 6: loco.admin.v1.SystemRoleService.ListSystemRoles:input_type -> loco.admin.v1.ListSystemRolesRequest
+	5, // 7: loco.admin.v1.SystemRoleService.GrantSystemRole:input_type -> loco.admin.v1.GrantSystemRoleRequest
+	7, // 8: loco.admin.v1.SystemRoleService.RevokeSystemRole:input_type -> loco.admin.v1.RevokeSystemRoleRequest
+	4, // 9: loco.admin.v1.SystemRoleService.ListSystemRoles:output_type -> loco.admin.v1.ListSystemRolesResponse
+	6, // 10: loco.admin.v1.SystemRoleService.GrantSystemRole:output_type -> loco.admin.v1.GrantSystemRoleResponse
+	8, // 11: loco.admin.v1.SystemRoleService.RevokeSystemRole:output_type -> loco.admin.v1.RevokeSystemRoleResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_loco_admin_v1_admin_proto_init() }
@@ -481,7 +564,7 @@ func file_loco_admin_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_admin_v1_admin_proto_rawDesc), len(file_loco_admin_v1_admin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

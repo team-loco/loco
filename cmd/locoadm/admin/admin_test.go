@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -17,10 +18,10 @@ import (
 )
 
 type fakeAdmins struct {
-	adminv1connect.UnimplementedSystemAdminServiceHandler
+	adminv1connect.UnimplementedSystemRoleServiceHandler
 	t       *testing.T
 	session string
-	granted []string
+	granted []*adminv1.GrantSystemRoleRequest
 	revoked []string
 }
 
@@ -31,43 +32,43 @@ func (f *fakeAdmins) checkSession(ctx context.Context) {
 	}
 }
 
-func (f *fakeAdmins) ListSystemAdmins(
-	ctx context.Context, _ *adminv1.ListSystemAdminsRequest,
-) (*adminv1.ListSystemAdminsResponse, error) {
+func (f *fakeAdmins) ListSystemRoles(
+	ctx context.Context, _ *adminv1.ListSystemRolesRequest,
+) (*adminv1.ListSystemRolesResponse, error) {
 	f.checkSession(ctx)
-	return listedAdmins, nil
+	return listedRoles, nil
 }
 
-var listedAdmins = &adminv1.ListSystemAdminsResponse{
-	Admins: []*adminv1.SystemAdmin{{
+var listedRoles = &adminv1.ListSystemRolesResponse{
+	Holders: []*adminv1.SystemRoleHolder{{
 		UserId: "0192f3a0-0000-7000-8000-000000000001", Email: "ada@acme.test",
 		Issuer: "https://idp.acme.test", Subject: "ada",
-		Sources: []adminv1.SystemAdminSource{adminv1.SystemAdminSource_SYSTEM_ADMIN_SOURCE_CONFIG},
+		ConfiguredRole: adminv1.SystemRole_SYSTEM_ROLE_READ, GrantedRole: adminv1.SystemRole_SYSTEM_ROLE_ADMIN,
 	}},
-	UnclaimedEmails: []string{"grace@acme.test"},
+	Unclaimed: []*adminv1.UnclaimedEmail{{Email: "grace@acme.test", Role: adminv1.SystemRole_SYSTEM_ROLE_READ}},
 }
 
-func (f *fakeAdmins) GrantSystemAdmin(
-	ctx context.Context, req *adminv1.GrantSystemAdminRequest,
-) (*adminv1.GrantSystemAdminResponse, error) {
+func (f *fakeAdmins) GrantSystemRole(
+	ctx context.Context, req *adminv1.GrantSystemRoleRequest,
+) (*adminv1.GrantSystemRoleResponse, error) {
 	f.checkSession(ctx)
-	f.granted = append(f.granted, req.GetUserId())
-	return &adminv1.GrantSystemAdminResponse{}, nil
+	f.granted = append(f.granted, req)
+	return &adminv1.GrantSystemRoleResponse{}, nil
 }
 
-func (f *fakeAdmins) RevokeSystemAdmin(
-	ctx context.Context, req *adminv1.RevokeSystemAdminRequest,
-) (*adminv1.RevokeSystemAdminResponse, error) {
+func (f *fakeAdmins) RevokeSystemRole(
+	ctx context.Context, req *adminv1.RevokeSystemRoleRequest,
+) (*adminv1.RevokeSystemRoleResponse, error) {
 	f.checkSession(ctx)
 	f.revoked = append(f.revoked, req.GetUserId())
-	return &adminv1.RevokeSystemAdminResponse{}, nil
+	return &adminv1.RevokeSystemRoleResponse{}, nil
 }
 
 func runAdminCmd(t *testing.T, fake *fakeAdmins, args ...string) (string, error) {
 	t.Helper()
 	fake.t = t
 	fake.session = clitest.Session(t, func(server *connect.Server) {
-		adminv1connect.RegisterSystemAdminServiceHandler(server, fake)
+		adminv1connect.RegisterSystemRoleServiceHandler(server, fake)
 	})
 	cmd := BuildAdminCmd()
 	output := new(bytes.Buffer)
@@ -78,33 +79,56 @@ func runAdminCmd(t *testing.T, fake *fakeAdmins, args ...string) (string, error)
 	return output.String(), err
 }
 
-func TestListPrintsAdminsAndUnclaimedEmails(t *testing.T) {
+func TestListPrintsRolesAndUnclaimedEmails(t *testing.T) {
 	output, err := runAdminCmd(t, &fakeAdmins{}, "list")
 	if err != nil {
 		t.Fatalf("list: %v\n%s", err, output)
 	}
-	var got adminv1.ListSystemAdminsResponse
+	var got adminv1.ListSystemRolesResponse
 	if err := protojson.Unmarshal([]byte(output), &got); err != nil {
 		t.Fatalf("decode list output: %v\n%s", err, output)
 	}
-	if !proto.Equal(&got, listedAdmins) {
-		t.Fatalf("list output = %v, want %v", &got, listedAdmins)
+	if !proto.Equal(&got, listedRoles) {
+		t.Fatalf("list output = %v, want %v", &got, listedRoles)
 	}
 }
 
-func TestGrantAndRevokeSendTheUserID(t *testing.T) {
+func TestGrantSendsTheRoleAndRevokeTheUserID(t *testing.T) {
 	userID := uuid.NewString()
 	fake := &fakeAdmins{}
 	if output, err := runAdminCmd(t, fake, "grant", userID); err != nil ||
-		output != "System admin granted for user "+userID+"\n" {
+		output != "Granted system admin to user "+userID+"\n" {
 		t.Fatalf("grant: %v %q", err, output)
 	}
+	if output, err := runAdminCmd(t, fake, "grant", userID, "--role", "read"); err != nil ||
+		output != "Granted system read to user "+userID+"\n" {
+		t.Fatalf("grant read: %v %q", err, output)
+	}
 	if output, err := runAdminCmd(t, fake, "revoke", userID); err != nil ||
-		output != "System admin revoked for user "+userID+"\n" {
+		output != "Revoked the granted system role of user "+userID+"\n" {
 		t.Fatalf("revoke: %v %q", err, output)
 	}
-	if len(fake.granted) != 1 || fake.granted[0] != userID || len(fake.revoked) != 1 || fake.revoked[0] != userID {
-		t.Fatalf("granted %v, revoked %v; want %s once each", fake.granted, fake.revoked, userID)
+	want := []*adminv1.GrantSystemRoleRequest{
+		{UserId: userID, Role: adminv1.SystemRole_SYSTEM_ROLE_ADMIN},
+		{UserId: userID, Role: adminv1.SystemRole_SYSTEM_ROLE_READ},
+	}
+	equal := func(a, b *adminv1.GrantSystemRoleRequest) bool { return proto.Equal(a, b) }
+	if !slices.EqualFunc(fake.granted, want, equal) {
+		t.Fatalf("granted %v, want %v", fake.granted, want)
+	}
+	if len(fake.revoked) != 1 || fake.revoked[0] != userID {
+		t.Fatalf("revoked %v, want %s once", fake.revoked, userID)
+	}
+}
+
+func TestGrantRejectsAnUnknownRole(t *testing.T) {
+	fake := &fakeAdmins{}
+	if _, err := runAdminCmd(t, fake, "grant", uuid.NewString(), "--role", "write"); err == nil ||
+		!strings.Contains(err.Error(), "invalid --role") {
+		t.Fatalf("grant --role write err = %v, want an invalid role", err)
+	}
+	if len(fake.granted) != 0 {
+		t.Fatalf("grant with an unknown role reached the API: %v", fake.granted)
 	}
 }
 

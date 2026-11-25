@@ -134,6 +134,15 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_SYSTEM_ADMINS, value: "ada@example.com,grace@example.com"}
 
+  - it: lists the configured system readers
+    set:
+      api.systemReaders: [linus@example.com, ken@example.com]
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SYSTEM_READERS, value: "linus@example.com,ken@example.com"}
+
   - it: sets the invitation lifetime
     set:
       api.invitationTtl: 72h

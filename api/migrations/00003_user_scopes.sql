@@ -28,19 +28,23 @@ CREATE INDEX user_scopes_organization_idx ON user_scopes (organization_ref) WHER
 CREATE INDEX user_scopes_workspace_idx ON user_scopes (workspace_ref) WHERE workspace_ref IS NOT NULL;
 CREATE INDEX user_scopes_resource_idx ON user_scopes (resource_ref) WHERE resource_ref IS NOT NULL;
 
--- One row per email in LOCO_SYSTEM_ADMINS. The first verified sign-in with the email claims
--- the row and system:admin; after that the grant belongs to user_id, not to the email.
+CREATE TYPE system_role AS ENUM ('read', 'admin');
+
+-- One row per email in LOCO_SYSTEM_ADMINS or LOCO_SYSTEM_READERS. The first verified sign-in with
+-- the email claims the row and its role; after that the role belongs to user_id, not to the email.
 -- claimed_at stays set when that user is deleted, so the entry never reopens for a new holder
 -- of the address; only removing the email from the list and adding it back opens a new claim.
-CREATE TABLE system_admin_claims (
+CREATE TABLE system_role_claims (
     email TEXT PRIMARY KEY,
+    role system_role NOT NULL,
     user_id UUID UNIQUE REFERENCES users(id) ON DELETE SET NULL,
     claimed_at TIMESTAMPTZ
 );
 
--- One row per system:admin granted through SystemAdminService.GrantSystemAdmin.
-CREATE TABLE system_admin_grants (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+-- One row per installation role granted through SystemRoleService.GrantSystemRole.
+CREATE TABLE system_role_grants (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    role system_role NOT NULL
 );
 
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes
@@ -163,7 +167,8 @@ DROP TABLE IF EXISTS api_tokens;
 DROP TABLE IF EXISTS used_session_refresh_tokens;
 DROP TABLE IF EXISTS session_tokens;
 DROP TYPE IF EXISTS session_kind;
-DROP TABLE IF EXISTS system_admin_grants;
-DROP TABLE IF EXISTS system_admin_claims;
+DROP TABLE IF EXISTS system_role_grants;
+DROP TABLE IF EXISTS system_role_claims;
+DROP TYPE IF EXISTS system_role;
 DROP TABLE IF EXISTS user_scopes;
 DROP TYPE IF EXISTS entity_type;

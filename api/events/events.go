@@ -20,9 +20,9 @@ const (
 	UserCreated          = "user.created"
 	UserUpdated          = "user.updated"
 	UserDeleted          = "user.deleted"
-	SystemAdminClaimed   = "system_admin.claimed"
-	SystemAdminRevoked   = "system_admin.revoked"
-	SystemAdminGranted   = "system_admin.granted"
+	SystemRoleClaimed    = "system_role.claimed"
+	SystemRoleRevoked    = "system_role.revoked"
+	SystemRoleGranted    = "system_role.granted"
 	CLILoginApproved     = "cli_login.approved"
 	CLILoginCompleted    = "cli_login.completed"
 	OrgCreated           = "org.created"
@@ -93,7 +93,7 @@ const (
 	retentionBatchSize = 5000
 )
 
-// Sources of a system:admin grant, recorded as FieldSource.
+// Sources of an installation role, recorded as FieldSource.
 const (
 	SourceConfig = "config"
 	SourceGrant  = "grant"
@@ -169,6 +169,7 @@ const (
 	FieldSubject       = "subject"
 	FieldIdentity      = "identity"
 	FieldSource        = "source"
+	FieldRole          = "role"
 	FieldDomainSource  = "domainSource"
 	FieldEntityType    = "entityType"
 	FieldEntityID      = "entityId"

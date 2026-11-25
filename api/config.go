@@ -51,7 +51,7 @@ var (
 	errInvalidDeploymentMode  = errors.New("LOCO_DEPLOYMENT_MODE must be self-hosted, dedicated or multi-tenant")
 	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
 	errInvalidSecretsTransit  = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
-	errInvalidSystemAdmins    = errors.New(systemAdminsEnv + " is invalid")
+	errInvalidSystemRoles     = errors.New(systemAdminsEnv + " or " + systemReadersEnv + " is invalid")
 	errInvalidIngestKey       = errors.New("LOCO_INGEST_TRANSIT_KEY is invalid")
 	errInvalidRegistryAuth    = errors.New("LOCO_REGISTRY_AUTH must be static or token")
 	errInvalidRegistryKey     = errors.New("LOCO_REGISTRY_TRANSIT_KEY is invalid")
@@ -161,6 +161,7 @@ const (
 	defaultInvitationTTL             = 168 * time.Hour
 
 	systemAdminsEnv            = "LOCO_SYSTEM_ADMINS"
+	systemReadersEnv           = "LOCO_SYSTEM_READERS"
 	defaultIngestTokenLifetime = time.Hour
 
 	defaultRegistryAccessTokenLifetime    = 5 * time.Minute
@@ -256,7 +257,7 @@ type APIConfig struct {
 	SecretLimits          service.SecretConfig
 	CountLimits           *configv1.CountLimits
 	HeartbeatInterval     time.Duration
-	SystemAdmins          auth.SystemAdmins
+	SystemRoles           auth.SystemRoles
 	TracingEnabled        bool
 	MetricsEnabled        bool
 }
@@ -313,7 +314,7 @@ func newAPIConfig() *APIConfig {
 	registryAuth := newRegistryAuthConfig(registry, registryHost, secrets.Key, ingestConfig.TransitKey)
 	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
 	heartbeatInterval := envconfig.PositiveDuration("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
-	systemAdmins := newSystemAdmins()
+	systemRoles := newSystemRoles()
 	tracingEnabled := newTracingEnabled()
 	webURL := envconfig.String("WEB_URL", "")
 	if _, configured := auth.WebIssuer(authIssuers); configured {
@@ -380,7 +381,7 @@ func newAPIConfig() *APIConfig {
 		SecretLimits:          secretLimits,
 		CountLimits:           newCountLimits(),
 		HeartbeatInterval:     heartbeatInterval,
-		SystemAdmins:          systemAdmins,
+		SystemRoles:           systemRoles,
 		TracingEnabled:        tracingEnabled,
 		MetricsEnabled:        newMetricsEnabled(),
 	}
@@ -489,12 +490,12 @@ func newInvitationConfig(webURL string) service.InvitationConfig {
 	}
 }
 
-func newSystemAdmins() auth.SystemAdmins {
-	admins, err := auth.ParseSystemAdmins(listEnv(systemAdminsEnv))
+func newSystemRoles() auth.SystemRoles {
+	roles, err := auth.ParseSystemRoles(listEnv(systemAdminsEnv), listEnv(systemReadersEnv))
 	if err != nil {
-		panic(fmt.Errorf("%w: %w", errInvalidSystemAdmins, err))
+		panic(fmt.Errorf("%w: %w", errInvalidSystemRoles, err))
 	}
-	return admins
+	return roles
 }
 
 func newTransitConfig() transit.Config {

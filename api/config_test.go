@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/guardrails"
 	"github.com/team-loco/loco/api/pkg/registryclient"
@@ -170,18 +169,22 @@ func TestNewAPIConfigReadsObservability(t *testing.T) {
 	}
 }
 
-func TestNewAPIConfigReadsSystemAdmins(t *testing.T) {
+func TestNewAPIConfigReadsSystemRoles(t *testing.T) {
 	clearAPIConfigEnv(t)
-	if ac := newAPIConfig(); len(ac.SystemAdmins) != 0 {
-		t.Fatalf("system admins = %v without %s", ac.SystemAdmins, systemAdminsEnv)
+	if ac := newAPIConfig(); len(ac.SystemRoles.Admins)+len(ac.SystemRoles.Readers) != 0 {
+		t.Fatalf("system roles = %v without %s or %s", ac.SystemRoles, systemAdminsEnv, systemReadersEnv)
 	}
 	t.Setenv(systemAdminsEnv, "Ada@Example.test, grace@example.test,ada@example.test")
+	t.Setenv(systemReadersEnv, "Linus@example.test")
 	ac := newAPIConfig()
-	want := auth.SystemAdmins{"ada@example.test", "grace@example.test"}
-	if !slices.Equal(ac.SystemAdmins, want) {
-		t.Fatalf("system admins = %v, want %v", ac.SystemAdmins, want)
+	if want := []string{"ada@example.test", "grace@example.test"}; !slices.Equal(ac.SystemRoles.Admins, want) {
+		t.Fatalf("system admins = %v, want %v", ac.SystemRoles.Admins, want)
+	}
+	if want := []string{"linus@example.test"}; !slices.Equal(ac.SystemRoles.Readers, want) {
+		t.Fatalf("system readers = %v, want %v", ac.SystemRoles.Readers, want)
 	}
 }
+
 func TestNewAPIConfigReadsCountLimits(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv(limits.WorkspacesPerOrg.Env, "250")
@@ -623,13 +626,19 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			map[string]string{orgLinksEnv: `[{"label":"Support","url":"https://support.loco.test/{userId}"}]`},
 			errInvalidOrgLinks,
 		},
-		{"system admin that is not an email", map[string]string{systemAdminsEnv: "admin"}, errInvalidSystemAdmins},
+		{"system admin that is not an email", map[string]string{systemAdminsEnv: "admin"}, errInvalidSystemRoles},
 		{
 			"system admin with a display name",
 			map[string]string{systemAdminsEnv: "Ada <ada@example.test>"},
-			errInvalidSystemAdmins,
+			errInvalidSystemRoles,
 		},
-		{"empty system admin entry", map[string]string{systemAdminsEnv: "ada@example.test,"}, errInvalidSystemAdmins},
+		{"empty system admin entry", map[string]string{systemAdminsEnv: "ada@example.test,"}, errInvalidSystemRoles},
+		{"system reader that is not an email", map[string]string{systemReadersEnv: "reader"}, errInvalidSystemRoles},
+		{
+			"email listed as both admin and reader",
+			map[string]string{systemAdminsEnv: "ada@example.test", systemReadersEnv: "Ada@example.test"},
+			errInvalidSystemRoles,
+		},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"non-semver min cli version", map[string]string{"MIN_CLI_VERSION": "0.0.61"}, errInvalidMinCLIVersion},
 		{

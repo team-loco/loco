@@ -21,29 +21,40 @@ const adminEmail = "admin@example.test"
 
 func adminResolver(t *testing.T, pool *pgxpool.Pool, mode string, admins ...string) *Resolver {
 	t.Helper()
+	return rolesResolver(t, pool, mode, admins, nil)
+}
+
+func rolesResolver(t *testing.T, pool *pgxpool.Pool, mode string, admins, readers []string) *Resolver {
+	t.Helper()
 	policy, err := ParseSignupPolicy(mode)
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	parsed, err := ParseSystemAdmins(admins)
+	parsed, err := ParseSystemRoles(admins, readers)
 	if err != nil {
-		t.Fatalf("admins: %v", err)
+		t.Fatalf("roles: %v", err)
 	}
-	if err := SyncSystemAdmins(t.Context(), pool, parsed); err != nil {
-		t.Fatalf("sync admins: %v", err)
+	if err := SyncSystemRoles(t.Context(), pool, parsed); err != nil {
+		t.Fatalf("sync roles: %v", err)
 	}
-	return NewResolver(pool, policy, limits.Defaults(), time.Hour, WithSystemAdmins(parsed))
+	return NewResolver(pool, policy, limits.Defaults(), time.Hour, WithSystemRoles(parsed))
 }
 
 func isSystemAdmin(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID) bool {
 	t.Helper()
-	var admin bool
-	if err := pool.QueryRow(t.Context(), `SELECT EXISTS (SELECT 1 FROM user_scopes
-		WHERE user_id = $1 AND scope = 'admin' AND entity_type = 'system' AND entity_id = $2)`,
-		userID, uuid.Nil).Scan(&admin); err != nil {
-		t.Fatalf("read system admin scope: %v", err)
+	return systemScopes(t, pool, userID) == genDb.ScopeAdmin
+}
+
+// systemScopes lists userID's system scopes, comma-separated.
+func systemScopes(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID) string {
+	t.Helper()
+	var scopes string
+	if err := pool.QueryRow(t.Context(), `SELECT COALESCE(string_agg(scope, ',' ORDER BY scope), '')
+		FROM user_scopes WHERE user_id = $1 AND entity_type = 'system' AND entity_id = $2`,
+		userID, uuid.Nil).Scan(&scopes); err != nil {
+		t.Fatalf("read system scopes: %v", err)
 	}
-	return admin
+	return scopes
 }
 
 type adminEvent struct {
@@ -88,10 +99,10 @@ func TestResolveGrantsSystemAdminToAListedVerifiedEmail(t *testing.T) {
 	if !isSystemAdmin(t, pool, user.ID) {
 		t.Fatal("listed email did not get system admin")
 	}
-	claimed := adminEvents(t, pool, events.SystemAdminClaimed)
+	claimed := adminEvents(t, pool, events.SystemRoleClaimed)
 	want := map[string]string{
 		events.FieldEmail: adminEmail, events.FieldIssuer: testIssuerURL, events.FieldSubject: "admin",
-		events.FieldSource: events.SourceConfig,
+		events.FieldSource: events.SourceConfig, events.FieldRole: string(genDb.SystemRoleAdmin),
 	}
 	if len(claimed) != 1 || claimed[0].Subject != user.ID || !maps.Equal(claimed[0].Data, want) {
 		t.Fatalf("claimed events = %+v, want one for %s with %v", claimed, user.ID, want)
@@ -193,12 +204,12 @@ func TestResolveNeverReopensAClaimWhenTheClaimingUserIsDeleted(t *testing.T) {
 	if isSystemAdmin(t, pool, next.ID) {
 		t.Fatal("a deleted admin's address gave system admin to its new holder")
 	}
-	if claimed := adminEvents(t, pool, events.SystemAdminClaimed); len(claimed) != 1 {
+	if claimed := adminEvents(t, pool, events.SystemRoleClaimed); len(claimed) != 1 {
 		t.Fatalf("%d claims, want only the first", len(claimed))
 	}
 }
 
-func TestSyncSystemAdminsRevokesARemovedEmailAndReopensItWhenReadded(t *testing.T) {
+func TestSyncSystemRolesRevokesARemovedEmailAndReopensItWhenReadded(t *testing.T) {
 	pool := dbtest.NewPool(t)
 	r := adminResolver(t, pool, "open", adminEmail)
 	user, _, err := r.Resolve(t.Context(), identity("admin", adminEmail, true))
@@ -210,10 +221,10 @@ func TestSyncSystemAdminsRevokesARemovedEmailAndReopensItWhenReadded(t *testing.
 	if isSystemAdmin(t, pool, user.ID) {
 		t.Fatal("removed email kept system admin")
 	}
-	revoked := adminEvents(t, pool, events.SystemAdminRevoked)
+	revoked := adminEvents(t, pool, events.SystemRoleRevoked)
 	want := map[string]string{
 		events.FieldEmail: adminEmail, events.FieldIssuer: testIssuerURL, events.FieldSubject: "admin",
-		events.FieldSource: events.SourceConfig,
+		events.FieldSource: events.SourceConfig, events.FieldRole: string(genDb.SystemRoleAdmin),
 	}
 	if len(revoked) != 1 || revoked[0].Subject != user.ID || !maps.Equal(revoked[0].Data, want) {
 		t.Fatalf("revoked events = %+v, want one for %s with %v", revoked, user.ID, want)
@@ -255,8 +266,70 @@ func TestResolveConcurrentSignInsClaimOnce(t *testing.T) {
 			t.Fatalf("resolve %d: %v", i, err)
 		}
 	}
-	if claimed := adminEvents(t, pool, events.SystemAdminClaimed); len(claimed) != 1 {
+	if claimed := adminEvents(t, pool, events.SystemRoleClaimed); len(claimed) != 1 {
 		t.Fatalf("%d claims, want 1", len(claimed))
+	}
+}
+
+func TestResolveGivesAListedReaderSystemReadUnderClosedSignup(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	const readerEmail = "reader@example.test"
+	r := rolesResolver(t, pool, "closed", []string{adminEmail}, []string{"Reader@Example.test"})
+
+	reader, _, err := r.Resolve(t.Context(), identity("reader", readerEmail, true))
+	if err != nil {
+		t.Fatalf("listed reader under closed signup: %v", err)
+	}
+	if got := systemScopes(t, pool, reader.ID); got != genDb.ScopeRead {
+		t.Fatalf("reader system scopes = %q, want read", got)
+	}
+	claimed := adminEvents(t, pool, events.SystemRoleClaimed)
+	if len(claimed) != 1 || claimed[0].Subject != reader.ID ||
+		claimed[0].Data[events.FieldRole] != string(genDb.SystemRoleRead) {
+		t.Fatalf("claimed events = %+v, want one read claim for %s", claimed, reader.ID)
+	}
+}
+
+func TestSyncSystemRolesMovesAnEmailBetweenRolesOnItsNextSignIn(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	r := rolesResolver(t, pool, "open", nil, []string{adminEmail})
+	user, _, err := r.Resolve(t.Context(), identity("admin", adminEmail, true))
+	if err != nil {
+		t.Fatalf("claim read: %v", err)
+	}
+
+	r = rolesResolver(t, pool, "open", []string{adminEmail}, nil)
+	if got := systemScopes(t, pool, user.ID); got != "" {
+		t.Fatalf("system scopes after moving the email = %q, want none before a sign-in", got)
+	}
+	if _, _, err = r.Resolve(t.Context(), identity("admin", adminEmail, true)); err != nil {
+		t.Fatalf("claim admin: %v", err)
+	}
+	if got := systemScopes(t, pool, user.ID); got != genDb.ScopeAdmin {
+		t.Fatalf("system scopes after claiming admin = %q, want admin", got)
+	}
+}
+
+func TestSyncSystemRolesKeepsAGrantedRole(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	r := rolesResolver(t, pool, "open", nil, []string{adminEmail})
+	user, _, err := r.Resolve(t.Context(), identity("admin", adminEmail, true))
+	if err != nil {
+		t.Fatalf("claim read: %v", err)
+	}
+	q := genDb.New(pool)
+	if err := q.SetSystemRoleGrant(t.Context(), genDb.SetSystemRoleGrantParams{
+		UserID: user.ID, Role: genDb.SystemRoleAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ApplySystemRole(t.Context(), q, user.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	rolesResolver(t, pool, "open", nil, nil)
+	if got := systemScopes(t, pool, user.ID); got != genDb.ScopeAdmin {
+		t.Fatalf("system scopes after removing the configured reader = %q, want the granted admin", got)
 	}
 }
 

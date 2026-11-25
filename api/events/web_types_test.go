@@ -11,7 +11,7 @@ import (
 // notInDashboard are the recorded types the dashboard leaves out.
 var notInDashboard = []string{
 	"user.created", "user.updated", "user.deleted", "user.suspended", "user.reinstated",
-	"system_admin.claimed", "system_admin.granted", "system_admin.revoked",
+	"system_role.claimed", "system_role.granted", "system_role.revoked",
 	"cli_login.approved", "cli_login.completed",
 	"cluster.registered",
 }
