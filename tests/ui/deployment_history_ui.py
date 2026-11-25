@@ -487,7 +487,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][50][-8:]}",
+            name=f"View spec of {data['releases'][50][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -506,7 +506,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][50][-8:]}",
+            name=f"View spec of {data['releases'][50][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -516,7 +516,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][100][-8:]}",
+            name=f"View spec of {data['releases'][100][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -525,7 +525,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][150][-8:]}",
+            name=f"View spec of {data['releases'][150][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -534,7 +534,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][220][-8:]}",
+            name=f"View spec of {data['releases'][220][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -554,7 +554,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['staging_release'][-8:]}",
+            name=f"View spec of {data['staging_release'][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -563,7 +563,7 @@ with session(out) as browser:
     expect(section.get_by_role("button", name="Next page", exact=True)).to_be_disabled()
     assert not section.get_by_role(
         "button",
-        name=f"Actions for {data['releases'][220][-8:]}",
+        name=f"View spec of {data['releases'][220][-8:]}",
         exact=True,
     ).count()
     assert any(
@@ -585,7 +585,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][150][-8:]}",
+            name=f"View spec of {data['releases'][150][-8:]}",
             exact=True,
         )
     ).to_have_count(0)
