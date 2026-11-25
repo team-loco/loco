@@ -24,28 +24,9 @@ ON CONFLICT (cluster_id) DO UPDATE SET last_heartbeat = EXCLUDED.last_heartbeat`
 	}
 }
 
-// clusterEvents returns the data of the cluster's events of the type.
 func (f *fixture) clusterEvents(t *testing.T, eventType string, cluster uuid.UUID) []map[string]any {
 	t.Helper()
-	rows, err := f.pool.Query(
-		f.ctx,
-		`SELECT data FROM events WHERE type = $1 AND subject_id = $2 AND org_id IS NULL ORDER BY seq`,
-		eventType,
-		cluster,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	var all []map[string]any
-	for rows.Next() {
-		var data map[string]any
-		if err := rows.Scan(&data); err != nil {
-			t.Fatal(err)
-		}
-		all = append(all, data)
-	}
-	return all
+	return dbtest.InstallEvents(t, f.pool, eventType, cluster)
 }
 
 func (f *fixture) sweepClusters(t *testing.T) {

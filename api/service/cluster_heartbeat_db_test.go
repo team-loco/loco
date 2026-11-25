@@ -271,22 +271,7 @@ SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_st
 
 func (f *deployFixture) clusterEvents(t *testing.T, eventType string) []map[string]any {
 	t.Helper()
-	rows, err := f.pool.Query(t.Context(),
-		`SELECT data FROM events WHERE type = $1 AND subject_id = $2 AND org_id IS NULL ORDER BY seq`,
-		eventType, f.clusterID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	var all []map[string]any
-	for rows.Next() {
-		var data map[string]any
-		if err := rows.Scan(&data); err != nil {
-			t.Fatal(err)
-		}
-		all = append(all, data)
-	}
-	return all
+	return dbtest.InstallEvents(t, f.pool, eventType, f.clusterID)
 }
 
 func degradedHeartbeat() *agentv1.Heartbeat {
@@ -386,7 +371,7 @@ func TestHeartbeatsEndASilenceOnceAndTheNextOutageIsReported(t *testing.T) {
 	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 
 	want := []string{"cluster.silent", "cluster.recovered", "cluster.silent", "cluster.recovered"}
-	if got := f.clusterEventTypes(t); !slices.Equal(got, want) {
+	if got := dbtest.InstallEventTypes(t, f.pool, f.clusterID); !slices.Equal(got, want) {
 		t.Fatalf("cluster events = %v, want %v", got, want)
 	}
 	recovered := f.clusterEvents(t, "cluster.recovered")
@@ -481,23 +466,4 @@ func TestHeartbeatWaitsForAPauseThatIsCommitting(t *testing.T) {
 	if silent := f.clusterEvents(t, "cluster.silent"); len(silent) != 0 {
 		t.Fatalf("a cluster paused before the heartbeat read it recorded %v", silent)
 	}
-}
-
-func (f *deployFixture) clusterEventTypes(t *testing.T) []string {
-	t.Helper()
-	rows, err := f.pool.Query(t.Context(),
-		`SELECT type FROM events WHERE subject_id = $1 AND org_id IS NULL ORDER BY seq`, f.clusterID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	var types []string
-	for rows.Next() {
-		var eventType string
-		if err := rows.Scan(&eventType); err != nil {
-			t.Fatal(err)
-		}
-		types = append(types, eventType)
-	}
-	return types
 }
