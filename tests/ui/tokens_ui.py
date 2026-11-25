@@ -81,6 +81,11 @@ with session(repo / "tests/ui/out/tokens") as browser:
         "button", name=re.compile(r"^Organization")
     )
     expect(organization.first).to_have_attribute("aria-pressed", "true")
+    expect(
+        page.get_by_role("group", name="Owner", exact=True)
+        .locator('[data-slot="segmented-count"]')
+        .first
+    ).to_be_visible()
     for count in (
         page.get_by_role("group", name="Owner", exact=True)
         .locator('[data-slot="segmented-count"]')
