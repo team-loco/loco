@@ -52,7 +52,7 @@ with session(repo / "tests/ui/out/system-audit") as browser:
     # The organization filter narrows to one organization and keeps its state in the URL.
     page.get_by_role("button", name="Organization", exact=True).click()
     page.get_by_role(
-        "option", name=re.compile(r"^acme|^" + re.escape(acme[:8]))
+        "option", name=re.compile(r"^acme|^" + re.escape(acme[-8:]))
     ).click()
     expect(page).to_have_url(re.compile(rf"[?&]org={acme}"))
     expect(updated).to_have_count(1)

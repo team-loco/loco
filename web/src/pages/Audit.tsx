@@ -230,7 +230,7 @@ export function Audit({ system = false }: { system?: boolean }) {
 		...new Map(
 			[
 				...rows.filter((r) => r.event.orgId !== "").map((r) => [r.event.orgId, r.org] as const),
-				...(orgId === "" ? [] : [[orgId, names.get(orgId) ?? orgId.slice(0, 8)] as const]),
+				...(orgId === "" ? [] : [[orgId, names.get(orgId) ?? orgId.slice(-8)] as const]),
 			].toReversed(),
 		),
 	].map(([id, name]) => ({ id, name }));

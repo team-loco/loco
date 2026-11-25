@@ -80,6 +80,13 @@ test("rows name where an event happened from the IDs the caller can read", () =>
 	expect(orgEvent.where).toBe("Organization");
 	expect(orgEvent.org).toBe("acme");
 	const installation = auditRow(create(EventSchema, { type: "cluster.paused" }), new Map(), names);
+	expect(
+		auditRow(
+			create(EventSchema, { type: "org.updated", orgId: "0198f2a4-6c1e-7c3b-9d4e-2f6a1b3c5d7e" }),
+			new Map(),
+			names,
+		).org,
+	).toBe("2f6a1b3c5d7e".slice(-8));
 	expect(installation.org).toBe("Installation");
 	expect(installation.where).toBe("");
 });
