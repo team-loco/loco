@@ -21,10 +21,9 @@ const AXIS_FONT = 11;
 const FULL_REQUEST = 100;
 const CHAR_PX = 6;
 const MARKER_BAND = 14;
-const LIMIT_LABEL_X = 40;
+const LIMIT_LABEL_X = 64;
 const LABEL_HEIGHT = 13;
-const NUMBER_HEIGHT = 14;
-const GRID_QUARTERS = [0, 0.25, 0.5, 0.75];
+const GRID_FRACTIONS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 const ERR_LINE = "color-mix(in oklch, var(--err) 55%, transparent)";
 const ERR_LABEL = "color-mix(in oklch, var(--err) 80%, var(--fg2))";
 
@@ -36,10 +35,10 @@ export interface AxisScale {
 }
 
 function axisNumber(value: number, scale: AxisScale): string {
-	return (value / scale.divisor).toFixed(scale.decimals);
+	return String(Number((value / scale.divisor).toFixed(scale.decimals)));
 }
 
-/** Axis numbers, the limit and the event markers, drawn inside the plot so they never share a row. */
+/** Axis numbers, the limit and the event markers, drawn inside the plot with the limit label clear of the axis numbers. */
 function ChartAnnotations({
 	from,
 	to,
@@ -73,10 +72,6 @@ function ChartAnnotations({
 		inRange.map((m) => m.x),
 		area.x + area.width,
 	);
-	const numbers = GRID_QUARTERS.filter((q) => {
-		const tickY = yAt(max * q);
-		return limitY < tickY - NUMBER_HEIGHT || limitY > tickY + 1;
-	});
 	return (
 		<g pointerEvents="none" fontFamily="var(--font-mono)" fontSize={10}>
 			{inRange.map((m) => (
@@ -105,7 +100,7 @@ function ChartAnnotations({
 					</text>
 				</g>
 			))}
-			{numbers.map((q) => (
+			{GRID_FRACTIONS.slice(0, -1).map((q) => (
 				<text key={q} x={area.x + 2} y={yAt(max * q) - 4} fill="var(--fg4)">
 					{axisNumber(max * q, scale)}
 				</text>
@@ -194,8 +189,8 @@ export function RegionAverages({
 	const peak = Math.max(0, ...data.flatMap((row) => regions.map((region) => row[region] ?? 0)));
 	const top = Math.max(limit, ...data.map((row) => row["limit"] ?? 0));
 	const axisScale = absolute ? scale(limit) : { divisor: 1, unit: "%", decimals: 0 };
-	const max = chartMax(peak / axisScale.divisor, top / axisScale.divisor) * axisScale.divisor;
-	const limitNumber = String(Number(axisNumber(limit, axisScale)));
+	const max = chartMax(peak, limit, top);
+	const limitNumber = axisNumber(limit, axisScale);
 	const limitLabel = `limit ${limitNumber}${axisScale.unit === "%" ? "%" : ` ${axisScale.unit}`}`;
 	const latest = (region: string) => data.findLast((row) => row[region] !== undefined)?.[region];
 	const config = Object.fromEntries(
@@ -240,7 +235,7 @@ export function RegionAverages({
 					aria-label={`${title}: ${regions.length > 1 ? "average per region" : "average"}`}
 				>
 					<ComposedChart data={data} margin={{ top: MARKER_BAND, right: 4, bottom: 0, left: 0 }}>
-						<CartesianGrid vertical={false} stroke="var(--line)" />
+						<CartesianGrid vertical={false} stroke="var(--line)" syncWithTicks />
 						<XAxis
 							dataKey="time"
 							type="number"
@@ -255,7 +250,7 @@ export function RegionAverages({
 							tickLine={false}
 							axisLine={false}
 						/>
-						<YAxis hide domain={[0, max]} ticks={GRID_QUARTERS.map((q) => max * q)} />
+						<YAxis hide domain={[0, max]} ticks={GRID_FRACTIONS.map((q) => max * q)} interval={0} allowDataOverflow />
 						{resized && (
 							<Line
 								dataKey="limit"

@@ -24,7 +24,7 @@ const WINDOW_DEPLOYMENTS = 200;
 const MI_PER_GI = 1024;
 const MILLI_PER_VCPU = 1000;
 
-const cpuScale = (): AxisScale => ({ divisor: MILLI_PER_VCPU, unit: "vCPU", decimals: 2 });
+const cpuScale = (): AxisScale => ({ divisor: MILLI_PER_VCPU, unit: "vCPU", decimals: 3 });
 const memoryScale = (limit: number): AxisScale =>
 	limit >= MI_PER_GI ? { divisor: MI_PER_GI, unit: "Gi", decimals: 2 } : { divisor: 1, unit: "Mi", decimals: 0 };
 
@@ -98,7 +98,7 @@ export function MetricsPanel({
 					CPU and memory show up a couple of minutes after <InlineCode>{pendingName}</InlineCode> first starts.
 				</p>
 			) : (
-				<div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-7">
+				<div className="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-7">
 					<RegionAverages
 						{...chart}
 						title="CPU"

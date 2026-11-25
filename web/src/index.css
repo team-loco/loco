@@ -355,16 +355,6 @@
 	}
 }
 
-@keyframes team-art-slot {
-	0%,
-	100% {
-		opacity: 0.55;
-	}
-	50% {
-		opacity: 1;
-	}
-}
-
 @media (prefers-reduced-motion: no-preference) {
 	.tv-anim :is(.tv-span-bar, .tv-zoom-position, .tv-range-window) {
 		transition:
