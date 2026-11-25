@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 
 	"net/http/httptest"
 
+	tea "charm.land/bubbletea/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 
 	"connectrpc.com/connect/v2"
@@ -183,4 +185,19 @@ func TestUserAgentNamesTheCLIVersionSystemAndHost(t *testing.T) {
 	if !regexp.MustCompile(`^loco/v1\.2\.3 \([a-z0-9]+ [a-z0-9]+; [^();]+\)$`).MatchString(got) {
 		t.Fatalf("user agent = %q", got)
 	}
+}
+
+func TestDeviceLoginCopiesUserCode(t *testing.T) {
+	const code = "ABCD-EFGH"
+	m := initialModel(code, "https://loco.test/device", func() tea.Msg { return authSuccessMsg{} })
+	msgs, ok := m.Init()().(tea.BatchMsg)
+	if !ok {
+		t.Fatal("device login did not initialize a batch of commands")
+	}
+	for _, cmd := range msgs {
+		if reflect.DeepEqual(cmd(), tea.SetClipboard(code)()) {
+			return
+		}
+	}
+	t.Fatal("device login did not request copying the user code")
 }

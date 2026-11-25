@@ -274,7 +274,7 @@ func initialModel(userCode, verificationURI string, poll tea.Cmd) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(tick(), m.poll)
+	return tea.Batch(tea.SetClipboard(m.userCode), tick(), m.poll)
 }
 
 func tick() tea.Cmd {

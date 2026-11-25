@@ -77,3 +77,14 @@ func TestLoginNamesTheURLForABareHost(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateCommand(t *testing.T) {
+	root := NewRootCmd()
+	cmd, _, err := root.Find([]string{"update"})
+	if err != nil || cmd.Name() != "update" || cmd.RunE == nil {
+		t.Fatalf("update command not registered: %v", err)
+	}
+	if err := runLocoadm(t, "update", "unexpected"); err == nil {
+		t.Fatal("update accepted an argument")
+	}
+}

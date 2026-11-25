@@ -91,7 +91,7 @@ locoadm login --api https://api.example.com --web https://app.example.com
 locoadm status
 ```
 
-Sign in with a verified email listed in `api.systemAdmins` to claim the first system administrator; `api.systemReaders` lists the emails that claim [system read](../operations/self-hosting.md#installation-roles). `--device` supports approval from another machine. `loco` and `locoadm` share the resulting session.
+Sign in with a verified email listed in `api.systemAdmins` to claim the first system administrator; `api.systemReaders` lists the emails that claim [system read](../operations/self-hosting.md#installation-roles). `--device` supports approval from another machine and copies the displayed code to the clipboard in terminals that support OSC 52. `loco` and `locoadm` share the resulting session.
 
 Bootstrap each worker’s Flux against its directory first. Once the bundle creates `loco-system`, register the worker and deliver its one-time join-token Secret directly:
 

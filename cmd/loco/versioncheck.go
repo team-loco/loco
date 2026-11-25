@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/cmd/internal/host"
+	"github.com/team-loco/loco/cmd/internal/update"
 
 	"github.com/team-loco/loco/internal/rpc"
 
@@ -23,7 +24,6 @@ import (
 const (
 	versionCheckTimeout  = time.Second
 	latestReleaseTimeout = 3 * time.Second
-	releasesURL          = "https://github.com/team-loco/loco/releases"
 	versionFlagName      = "version"
 	skipVersionCheckKey  = "skip-version-check"
 )
@@ -74,7 +74,7 @@ func (c *versionCheck) report(w io.Writer) {
 	if hint == "" {
 		return
 	}
-	printUpdateHint(w, hint, releasesURL)
+	printUpdateHint(w, hint, update.ReleasesURL)
 }
 
 func versionFlagSet(root *cobra.Command) bool {
@@ -82,13 +82,13 @@ func versionFlagSet(root *cobra.Command) bool {
 	return flag != nil && flag.Changed
 }
 
-func reportNewerRelease(ctx context.Context, w io.Writer, u updater, current string) {
+func reportNewerRelease(ctx context.Context, w io.Writer, releasesURL, current string) {
 	if !semver.IsValid(current) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, latestReleaseTimeout)
 	defer cancel()
-	latest, err := u.latestTag(ctx)
+	latest, err := update.New("loco", releasesURL, latestReleaseTimeout).LatestTag(ctx)
 	if err != nil {
 		slog.Debug("could not check for a newer cli release", "error", err)
 		return
@@ -97,7 +97,7 @@ func reportNewerRelease(ctx context.Context, w io.Writer, u updater, current str
 	if hint == "" {
 		return
 	}
-	changelog, err := url.JoinPath(u.releasesURL, "tag", latest)
+	changelog, err := url.JoinPath(releasesURL, "tag", latest)
 	if err != nil {
 		slog.Debug("could not build changelog url", "error", err)
 		return

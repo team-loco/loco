@@ -1,4 +1,4 @@
-package main
+package update
 
 import (
 	"bufio"
@@ -25,18 +25,21 @@ import (
 
 const (
 	updateTimeout  = 5 * time.Minute
-	installCommand = "curl -fsSL https://loco.build/install.sh | sh"
+	installCommand = "curl -fsSL https://loco.build/install.sh | sh -s -- --binary "
+	ReleasesURL    = "https://github.com/team-loco/loco/releases"
 )
 
-type updater struct {
+type Updater struct {
+	binary      string
 	client      *http.Client
 	releasesURL string
 	goos        string
 	goarch      string
 }
 
-func newUpdater(releasesURL string, timeout time.Duration) updater {
-	return updater{
+func New(binary, releasesURL string, timeout time.Duration) Updater {
+	return Updater{
+		binary:      binary,
 		client:      &http.Client{Timeout: timeout},
 		releasesURL: releasesURL,
 		goos:        runtime.GOOS,
@@ -44,30 +47,29 @@ func newUpdater(releasesURL string, timeout time.Duration) updater {
 	}
 }
 
-func newUpdateCmd() *cobra.Command {
+func Command(binary string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "update",
-		Short:       "Update the loco CLI to the latest release",
-		Args:        cobra.NoArgs,
-		Annotations: map[string]string{skipVersionCheckKey: "true"},
+		Use:   "update",
+		Short: "Update the " + binary + " CLI to the latest release",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			u := newUpdater(releasesURL, updateTimeout)
+			u := New(binary, ReleasesURL, updateTimeout)
 			executable, err := os.Executable()
 			if err != nil {
-				return fmt.Errorf("could not locate the running loco binary: %w", err)
+				return fmt.Errorf("could not locate the running %s binary: %w", binary, err)
 			}
 			return u.run(cmd.Context(), cmd.OutOrStdout(), cmd.Root().Version, executable)
 		},
 	}
 }
 
-func (u updater) run(ctx context.Context, w io.Writer, current, executable string) error {
-	latest, err := u.latestTag(ctx)
+func (u Updater) run(ctx context.Context, w io.Writer, current, executable string) error {
+	latest, err := u.LatestTag(ctx)
 	if err != nil {
 		return err
 	}
 	if semver.IsValid(current) && semver.Compare(current, latest) >= 0 {
-		_, err = fmt.Fprintf(w, "loco %s is already the latest version.\n", current)
+		_, err = fmt.Fprintf(w, "%s %s is already the latest version.\n", u.binary, current)
 		return err
 	}
 
@@ -79,15 +81,23 @@ func (u updater) run(ctx context.Context, w io.Writer, current, executable strin
 	if err != nil {
 		return fmt.Errorf("could not resolve %s: %w", executable, err)
 	}
-	if err = replaceExecutable(target, binary); err != nil {
+	if err = u.replaceExecutable(target, binary); err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(w, "Updated loco %s -> %s\nChangelog: %s/tag/%s\n", current, latest, u.releasesURL, latest)
+	_, err = fmt.Fprintf(
+		w,
+		"Updated %s %s -> %s\nChangelog: %s/tag/%s\n",
+		u.binary,
+		current,
+		latest,
+		u.releasesURL,
+		latest,
+	)
 	return err
 }
 
-func (u updater) latestTag(ctx context.Context) (string, error) {
+func (u Updater) LatestTag(ctx context.Context) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, u.releasesURL+"/latest", nil)
 	if err != nil {
 		return "", fmt.Errorf("could not build latest release request: %w", err)
@@ -114,14 +124,14 @@ func (u updater) latestTag(ctx context.Context) (string, error) {
 	return tag, nil
 }
 
-func (u updater) download(ctx context.Context, tag string) ([]byte, error) {
+func (u Updater) download(ctx context.Context, tag string) ([]byte, error) {
 	if u.goos != "linux" && u.goos != "darwin" {
-		return nil, fmt.Errorf("no loco release for %s", u.goos)
+		return nil, fmt.Errorf("no %s release for %s", u.binary, u.goos)
 	}
 	if u.goarch != "amd64" && u.goarch != "arm64" {
-		return nil, fmt.Errorf("no loco release for %s", u.goarch)
+		return nil, fmt.Errorf("no %s release for %s", u.binary, u.goarch)
 	}
-	asset := "loco-" + u.goos + "-" + u.goarch
+	asset := u.binary + "-" + u.goos + "-" + u.goarch
 	base, err := url.JoinPath(u.releasesURL, "download", tag)
 	if err != nil {
 		return nil, fmt.Errorf("could not build release url: %w", err)
@@ -146,7 +156,7 @@ func (u updater) download(ctx context.Context, tag string) ([]byte, error) {
 	return binary, nil
 }
 
-func (u updater) fetch(ctx context.Context, rawURL string) ([]byte, error) {
+func (u Updater) fetch(ctx context.Context, rawURL string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not build request for %s: %w", rawURL, err)
@@ -184,12 +194,17 @@ func checksumFor(checksums []byte, asset string) (string, error) {
 	return "", fmt.Errorf("release checksums do not list %s", asset)
 }
 
-func replaceExecutable(target string, binary []byte) error {
+func (u Updater) replaceExecutable(target string, binary []byte) error {
 	dir := filepath.Dir(target)
-	tmp, err := os.CreateTemp(dir, ".loco-update-*")
+	tmp, err := os.CreateTemp(dir, "."+u.binary+"-update-*")
 	if err != nil {
 		if errors.Is(err, os.ErrPermission) {
-			return fmt.Errorf("no permission to write to %s; rerun with sudo or reinstall with %s", dir, installCommand)
+			return fmt.Errorf(
+				"no permission to write to %s; rerun with sudo or reinstall with %s%s",
+				dir,
+				installCommand,
+				u.binary,
+			)
 		}
 		return fmt.Errorf("could not stage the update in %s: %w", dir, err)
 	}

@@ -14,6 +14,7 @@ loco config --help
 
 | Command | Purpose |
 | --- | --- |
+| `locoadm update` | Update the installed operator CLI |
 | `locoadm init` | Scaffold an operator GitOps repository with plaintext bootstrap Secrets |
 | `locoadm status --host API_URL` | Read clusters, enrollment, heartbeats, version skew and unclaimed admins from the API |
 | `locoadm login` | Sign in with explicit `--api` and `--web` URLs with the same session as `loco login`; a configured email's first sign-in gives it its installation role |

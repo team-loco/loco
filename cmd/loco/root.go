@@ -10,6 +10,7 @@ import (
 	"github.com/team-loco/loco/cmd/internal/groupcmd"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/internal/session"
+	"github.com/team-loco/loco/cmd/internal/update"
 	"github.com/team-loco/loco/cmd/loco/config"
 	"github.com/team-loco/loco/cmd/loco/infra"
 	"github.com/team-loco/loco/cmd/loco/org"
@@ -52,12 +53,14 @@ func NewRootCmd(env Env) *cobra.Command {
 		},
 	}
 
+	updateCmd := update.Command("loco")
+	updateCmd.Annotations = map[string]string{skipVersionCheckKey: "true"}
 	root.AddCommand(newLoginCmd(env),
 		newLogoutCmd(env),
 		newUseCmd(),
 		newWhoAmICmd(env),
 		newWebCmd(),
-		newUpdateCmd(),
+		updateCmd,
 		config.BuildConfigCmd(),
 	)
 
