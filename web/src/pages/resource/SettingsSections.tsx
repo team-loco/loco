@@ -17,7 +17,7 @@ import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFie
 import { SoonTag } from "@/components/design/SoonTag";
 import { Switch } from "@/components/design/Switch";
 import { joinImage, parseImage, splitImage } from "@/lib/image";
-import type { Scaling } from "@/lib/new-resource";
+import type { HealthForm, Scaling } from "@/lib/new-resource";
 import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
 import {
@@ -303,10 +303,10 @@ export function HealthSection({
 	onChange,
 	deployed,
 }: SectionProps & { deployed: boolean }) {
-	const enabled = draft.healthEnabled ?? base.healthEnabled;
+	const form = draft.health ?? base.health;
 	const disabled = locked || !deployed;
-	const edit = (patch: Partial<SettingsDraft>) => {
-		onChange(healthEdit(draft, base, patch));
+	const edit = (patch: Partial<HealthForm>) => {
+		onChange({ health: healthEdit(base, { ...form, ...patch }) });
 	};
 	return (
 		<SettingsBlock
@@ -320,60 +320,60 @@ export function HealthSection({
 			actions={
 				<Switch
 					aria-label="Health check"
-					checked={enabled}
+					checked={form.enabled}
 					disabled={disabled}
 					aria-describedby={describedBy}
-					onCheckedChange={(healthEnabled) => {
-						edit({ healthEnabled });
+					onCheckedChange={(enabled) => {
+						edit({ enabled });
 					}}
 				/>
 			}
 		>
-			{enabled && (
+			{form.enabled && (
 				<div className={grid2}>
 					<Field label="Path" error={errors.healthPath} reserve>
 						<Input
 							className="font-mono"
-							value={draft.healthPath ?? base.healthPath}
+							value={form.path}
 							disabled={disabled}
 							aria-describedby={describedBy}
 							aria-invalid={errors.healthPath !== undefined}
 							onChange={(e) => {
-								edit({ healthPath: e.target.value });
+								edit({ path: e.target.value });
 							}}
 						/>
 					</Field>
 					<UnitInput
 						label="Interval"
 						unit="sec"
-						value={draft.healthInterval ?? base.healthInterval}
+						value={form.interval}
 						error={errors.healthInterval}
 						locked={disabled}
 						describedBy={describedBy}
-						onChange={(healthInterval) => {
-							edit({ healthInterval });
+						onChange={(interval) => {
+							edit({ interval });
 						}}
 					/>
 					<UnitInput
 						label="Timeout"
 						unit="sec"
-						value={draft.healthTimeout ?? base.healthTimeout}
+						value={form.timeout}
 						error={errors.healthTimeout}
 						locked={disabled}
 						describedBy={describedBy}
-						onChange={(healthTimeout) => {
-							edit({ healthTimeout });
+						onChange={(timeout) => {
+							edit({ timeout });
 						}}
 					/>
 					<UnitInput
 						label="Fail after"
 						unit="checks"
-						value={draft.healthFailures ?? base.healthFailures}
+						value={form.failAfter}
 						error={errors.healthFailures}
 						locked={disabled}
 						describedBy={describedBy}
-						onChange={(healthFailures) => {
-							edit({ healthFailures });
+						onChange={(failAfter) => {
+							edit({ failAfter });
 						}}
 					/>
 				</div>

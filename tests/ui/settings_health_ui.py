@@ -59,8 +59,61 @@ idle_checked = undeployed("health-idle-checked", server_check)
 idle_unchecked = undeployed("health-idle")
 
 
-def live(resource_id):
-    return f"SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource_id}'"
+def live(resource_id, regions):
+    names = ",".join(evidence.sql_literal(r) for r in regions)
+    return (
+        "SELECT deployment_id FROM live_deployment_placements "
+        f"WHERE resource_id='{resource_id}' AND region IN ({names})"
+    )
+
+
+OTHER_REGION = "us-va-1"
+
+
+def two_deployments(name):
+    """Seeds a service whose two regions run separate deployments with the same health check."""
+
+    def spec(region):
+        return {
+            "platform": "linux/amd64",
+            "build": {"type": "image", "image": "registry.example.com/app:1"},
+            "regions": {
+                region: {
+                    "cpu": "100m",
+                    "memory": "128Mi",
+                    "minReplicas": 1,
+                    "maxReplicas": 1,
+                }
+            },
+            "port": 8080,
+            "observability": {"injectOtel": True},
+            "env": {"LOG_LEVEL": "info"},
+            "healthCheck": server_check,
+        }
+
+    resource_id = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": name,
+                "deployments": [
+                    {
+                        "environment": "production",
+                        "placements": {
+                            region: {"cluster": evidence.seed_cluster(state, region)}
+                        },
+                        "spec": spec(region),
+                    }
+                    for region in (REGION, OTHER_REGION)
+                ],
+            }
+        ],
+    )[f"acme/shared/{name}"]
+    return resource_id, base.rsplit("/resource/", 1)[0] + f"/resource/{resource_id}"
+
+
+split, split_base = two_deployments("health-split")
 
 
 with session(out) as browser:
@@ -68,10 +121,17 @@ with session(out) as browser:
     deployments = []
     # A health check the fake server stores in place of the requested one.
     server_override = {}
+    # Regions whose deployment requests the fake server refuses.
+    failing = set()
 
     def create_deployment(route):
         body = route.request.post_data_json
         deployments.append(body)
+        if failing & set(body["regions"]):
+            route.fulfill(
+                status=503, json={"code": "unavailable", "message": "region down"}
+            )
+            return
         service = {**body["spec"]["service"], **server_override}
         if "@" not in service["build"]["image"]:
             service["build"]["image"] += "@" + digest
@@ -79,7 +139,8 @@ with session(out) as browser:
         spec = evidence.sql_literal(json.dumps(service))
         deployment = sql(
             state,
-            f"UPDATE deployments SET spec={spec} WHERE id IN ({live(body['resourceId'])}) RETURNING id;",
+            f"UPDATE deployments SET spec={spec} "
+            f"WHERE id IN ({live(body['resourceId'], body['regions'])}) RETURNING id;",
         )
         route.fulfill(json={"deploymentId": deployment})
 
@@ -191,6 +252,34 @@ with session(out) as browser:
     assert "removeHealthCheck" not in sent, sent
     assert sent["spec"]["service"]["healthCheck"] == default_health, sent
     expect(switch).to_be_checked()
+
+    # A save that reaches one deployment and not the other stays pending, and a retry sends
+    # only the one that failed.
+    page.goto(split_base + "?env=production&tab=settings")
+    expect(switch).to_be_checked()
+    switch.click()
+    variables = page.locator("#set-env")
+    variables.get_by_role("button", name="Add", exact=True).click()
+    variables.get_by_label("Name of new variable", exact=True).fill("FEATURE_FLAG")
+    variables.get_by_label("Value of FEATURE_FLAG", exact=True).fill("on")
+    failing.add(OTHER_REGION)
+    first = len(deployments)
+    page.get_by_role("button", name="Save & redeploy", exact=True).click()
+    expect(page.get_by_text("region down", exact=False)).to_be_visible()
+    assert len(deployments) == first + 2, deployments[first:]
+    expect(discard).to_be_visible()
+    failing.clear()
+    with expect_rpc(
+        page, "CreateDeployment", lambda body: body.get("resourceId") == split
+    ) as completed:
+        page.get_by_role("button", name="Save & redeploy", exact=True).click()
+    assert completed.value.ok, completed.value.text()
+    expect(discard).to_have_count(0)
+    retried = deployments[first + 2 :]
+    assert [d["regions"] for d in retried] == [[OTHER_REGION]], retried
+    assert retried[0]["removeHealthCheck"] is True, retried
+    assert "healthCheck" not in retried[0]["spec"]["service"], retried
+    assert retried[0]["spec"]["service"]["env"]["FEATURE_FLAG"] == "on", retried
     assert not errors, errors
     context.close()
     browser.close()

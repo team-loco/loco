@@ -20,23 +20,22 @@ import { refreshVariables } from "./variables";
 import type { Notice, RegionView } from "./model";
 import {
 	FAILURE_POLICY_KEYS,
-	HEALTH_KEYS,
 	REGION_MAP_KEYS,
 	domainsChange,
 	failurePolicyChanged,
 	failurePolicyFrom,
-	healthRemoved,
 	plainEnv,
 	planSave,
 	regionChanges,
 	regionTargets,
 	resolved,
+	retryDraft,
 	type Baseline,
 	type SettingsDraft,
 	variablesChanged,
 } from "./settings-draft";
 
-const SPEC_KEYS = ["image", "port", "healthEnabled", ...HEALTH_KEYS, "observability"] as const;
+const SPEC_KEYS = ["image", "port", "health", "observability"] as const;
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "appDomain"] as const;
 
@@ -177,11 +176,10 @@ export function useSaveSettings({
 			);
 		}
 
-		const deploys = planSave(regions, effective, base);
+		const deploys = planSave(regions, effective, base, env);
 		const savedRegions: string[] = [];
 		let deployFailed = false;
 		for (const planned of deploys) {
-			if (env !== undefined && planned.spec.spec.case === "service") planned.spec.spec.value.env = env;
 			try {
 				await deploy.mutateAsync({
 					resourceId,
@@ -189,7 +187,7 @@ export function useSaveSettings({
 					spec: planned.spec,
 					environmentId,
 					commit: planned.commit,
-					removeHealthCheck: healthRemoved(effective),
+					removeHealthCheck: effective.health?.enabled === false,
 				});
 				savedRegions.push(...planned.regions);
 			} catch (err) {
@@ -198,6 +196,7 @@ export function useSaveSettings({
 			}
 		}
 		if (!deployFailed) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
+		else if (savedRegions.length > 0) next = retryDraft(next);
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
 		setSaving(false);
