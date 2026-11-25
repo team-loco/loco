@@ -6,51 +6,67 @@ import "buf/validate/validate.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/admin/v1;adminv1";
 
-// SystemAdminService lists, grants and revokes system:admin. Every RPC requires system admin.
-service SystemAdminService {
-  // ListSystemAdmins lists the system admins and the configured emails nobody has claimed.
-  rpc ListSystemAdmins(ListSystemAdminsRequest) returns (ListSystemAdminsResponse);
-  // GrantSystemAdmin makes an existing user a system admin.
-  rpc GrantSystemAdmin(GrantSystemAdminRequest) returns (GrantSystemAdminResponse);
-  // RevokeSystemAdmin removes a grant made with GrantSystemAdmin. It refuses to remove the
-  // last system admin and an admin that holds the role only through configuration.
-  rpc RevokeSystemAdmin(RevokeSystemAdminRequest) returns (RevokeSystemAdminResponse);
+// SystemRoleService lists, grants and revokes installation roles. Listing requires system read;
+// granting and revoking require system admin.
+service SystemRoleService {
+  // ListSystemRoles lists the users who hold an installation role and the configured emails
+  // nobody has claimed.
+  rpc ListSystemRoles(ListSystemRolesRequest) returns (ListSystemRolesResponse);
+  // GrantSystemRole gives an existing user a role, or changes the role an earlier grant gave.
+  // It refuses to demote the last system admin and to grant less than the user's configured role.
+  rpc GrantSystemRole(GrantSystemRoleRequest) returns (GrantSystemRoleResponse);
+  // RevokeSystemRole removes a grant made with GrantSystemRole. The user keeps any configured
+  // role. It refuses to remove the last system admin.
+  rpc RevokeSystemRole(RevokeSystemRoleRequest) returns (RevokeSystemRoleResponse);
 }
 
-// SystemAdminSource says why a user holds system:admin.
-enum SystemAdminSource {
-  SYSTEM_ADMIN_SOURCE_UNSPECIFIED = 0;
-  // The user claimed an email listed in the API's LOCO_SYSTEM_ADMINS.
-  SYSTEM_ADMIN_SOURCE_CONFIG = 1;
-  // A system admin granted the role with GrantSystemAdmin.
-  SYSTEM_ADMIN_SOURCE_GRANT = 2;
+// SystemRole is an installation-wide role. A system reader can read everything in the
+// installation; a system admin can also do the installation's administration.
+enum SystemRole {
+  SYSTEM_ROLE_UNSPECIFIED = 0;
+  SYSTEM_ROLE_READ = 1;
+  SYSTEM_ROLE_ADMIN = 2;
 }
 
-message SystemAdmin {
+// SystemRoleHolder is a user with an installation role, the higher of the configured and the
+// granted role.
+message SystemRoleHolder {
   string user_id = 1;
   string email = 2;
   // issuer and subject identify the identity the user signs in through.
   string issuer = 3;
   string subject = 4;
-  repeated SystemAdminSource sources = 5;
+  // configured_role is the role the user claimed from LOCO_SYSTEM_ADMINS or LOCO_SYSTEM_READERS.
+  SystemRole configured_role = 5;
+  // granted_role is the role GrantSystemRole gave the user.
+  SystemRole granted_role = 6;
 }
 
-message ListSystemAdminsRequest {}
-
-message ListSystemAdminsResponse {
-  repeated SystemAdmin admins = 1;
-  // unclaimed_emails are configured emails no user has claimed yet.
-  repeated string unclaimed_emails = 2;
+// UnclaimedEmail is a configured email no user has claimed yet.
+message UnclaimedEmail {
+  string email = 1;
+  SystemRole role = 2;
 }
 
-message GrantSystemAdminRequest {
+message ListSystemRolesRequest {}
+
+message ListSystemRolesResponse {
+  repeated SystemRoleHolder holders = 1;
+  repeated UnclaimedEmail unclaimed = 2;
+}
+
+message GrantSystemRoleRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  SystemRole role = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+message GrantSystemRoleResponse {}
+
+message RevokeSystemRoleRequest {
   string user_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-message GrantSystemAdminResponse {}
-
-message RevokeSystemAdminRequest {
-  string user_id = 1 [(buf.validate.field).string.uuid = true];
-}
-
-message RevokeSystemAdminResponse {}
+message RevokeSystemRoleResponse {}

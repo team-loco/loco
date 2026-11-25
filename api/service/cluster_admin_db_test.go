@@ -49,7 +49,7 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 	return httpServer.URL
 }
 
-func TestClusterAdminHTTPRequiresSystemAdminForEveryMethod(t *testing.T) {
+func TestClusterAdminHTTPRequiresSystemAdminForEveryChange(t *testing.T) {
 	t.Parallel()
 	f := newMembershipOrg(t)
 	a, ctx := f.api, t.Context()
@@ -110,10 +110,6 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false
 			)
 			return err
 		},
-		"list": func(clients *rpc.Clients) error {
-			_, err := clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
-			return err
-		},
 		"pause": func(clients *rpc.Clients) error {
 			_, err := clients.ClusterAdmin.PauseCluster(
 				ctx,
@@ -142,6 +138,12 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false
 			)
 			return err
 		},
+	}
+	reads := map[string]func(*rpc.Clients) error{
+		"list": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
+			return err
+		},
 		"list regions": func(clients *rpc.Clients) error {
 			_, err := clients.RegionAdmin.ListRegions(ctx, &clusterv1.ListRegionsRequest{})
 			return err
@@ -154,20 +156,30 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false
 	for _, candidate := range []struct {
 		name, token string
 		code        connect.Code
+		reads       bool
 	}{
-		{"anonymous", "", connect.CodeUnauthenticated},
-		{"agent assertion", testAssertion(t, clusterID), connect.CodeUnauthenticated},
-		{"ordinary user", ordinary.token, connect.CodePermissionDenied},
-		{"organization admin", f.owner.token, connect.CodePermissionDenied},
-		{"workspace admin", workspaceAdmin.token, connect.CodePermissionDenied},
-		{"workspace API token", apiToken, connect.CodePermissionDenied},
-		{"system read", systemReader.token, connect.CodePermissionDenied},
-		{"system write", systemWriter.token, connect.CodePermissionDenied},
+		{"anonymous", "", connect.CodeUnauthenticated, false},
+		{"agent assertion", testAssertion(t, clusterID), connect.CodeUnauthenticated, false},
+		{"ordinary user", ordinary.token, connect.CodePermissionDenied, false},
+		{"organization admin", f.owner.token, connect.CodePermissionDenied, false},
+		{"workspace admin", workspaceAdmin.token, connect.CodePermissionDenied, false},
+		{"workspace API token", apiToken, connect.CodePermissionDenied, false},
+		{"system read", systemReader.token, connect.CodePermissionDenied, true},
+		{"system write", systemWriter.token, connect.CodePermissionDenied, false},
 	} {
 		t.Run(candidate.name, func(t *testing.T) {
 			clients := rpc.NewHTTPClients(http.DefaultClient, endpoint, candidate.token)
 			for name, call := range methods {
 				if callErr := call(clients); connect.CodeOf(callErr) != candidate.code {
+					t.Fatalf("%s: %v, want %v", name, callErr, candidate.code)
+				}
+			}
+			for name, read := range reads {
+				callErr := read(clients)
+				if candidate.reads && callErr != nil {
+					t.Fatalf("%s: %v, want success", name, callErr)
+				}
+				if !candidate.reads && connect.CodeOf(callErr) != candidate.code {
 					t.Fatalf("%s: %v, want %v", name, callErr, candidate.code)
 				}
 			}

@@ -30,7 +30,7 @@ BEGIN
     RETURN OLD;
 END;
 $$;
-CREATE TRIGGER pause_admin_removal BEFORE DELETE ON system_admin_claims
+CREATE TRIGGER pause_admin_removal BEFORE DELETE ON system_role_claims
 FOR EACH ROW EXECUTE FUNCTION pause_admin_removal();`)
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ FOR EACH ROW EXECUTE FUNCTION pause_admin_removal();`)
 		t.Fatal(err)
 	}
 	synced := make(chan error, 1)
-	go func() { synced <- SyncSystemAdmins(t.Context(), pool, nil) }()
+	go func() { synced <- SyncSystemRoles(t.Context(), pool, SystemRoles{}) }()
 	dbtest.WaitForLockWaiters(t, pool, 1)
 	deleted := make(chan error, 1)
 	go func() { deleted <- genDb.New(pool).DeleteUser(t.Context(), user.ID) }()
@@ -82,12 +82,12 @@ func TestConfigRemovalIncludesAClaimThatCommitsWhileItWaits(t *testing.T) {
 			t.Errorf("rollback claim: %v", rollbackErr)
 		}
 	})
-	claimed, err := r.claimSystemAdmin(t.Context(), genDb.New(tx), user, identity("claiming", adminEmail, true))
+	claimed, err := r.claimSystemRole(t.Context(), genDb.New(tx), user, identity("claiming", adminEmail, true))
 	if err != nil || !claimed {
 		t.Fatalf("claim = %v: %v", claimed, err)
 	}
 	synced := make(chan error, 1)
-	go func() { synced <- SyncSystemAdmins(t.Context(), pool, nil) }()
+	go func() { synced <- SyncSystemRoles(t.Context(), pool, SystemRoles{}) }()
 	// The reconciler reads the entry as unclaimed, then waits for the live
 	// claim transaction. It must acquire that newly discovered user's lock
 	// before removing the claim and grant.

@@ -38,9 +38,16 @@ builds:
 
 The control-plane chart generates missing ClickHouse credentials and preserves existing ones. OpenBao supports static, KMS or transit auto-unseal. Keep the seal material, recovery shares and snapshots under separate backup and custody procedures. External ClickHouse and OpenBao remain supported through their chart settings.
 
-## First system admin
+## Installation roles
 
-Set verified email addresses in `api.systemAdmins`. Their first sign-in claims system-admin access, including under closed signup:
+An installation role applies to the whole installation rather than one organization. There are two:
+
+| Role | Grants |
+| --- | --- |
+| System read | Read every organization, workspace and resource as a `read` member would, and call the read-only installation RPCs: list clusters, regions, users and installation roles, and stream every event. Every change answers `PermissionDenied`. |
+| System admin | Everything system read grants, plus the installation's administration: register and manage clusters, grant and revoke installation roles, suspend organizations and users, set organization limits and rewrap secret keys. |
+
+Set verified email addresses in `api.systemAdmins` and `api.systemReaders`. Their first sign-in claims the listed role, including under closed signup. An email in both lists fails the API's startup:
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
@@ -51,7 +58,7 @@ Configure the dashboard issuer and callback in the control-plane values and refe
 
 For a separately hosted dashboard, forward `/api` on the dashboard origin to the control-plane API and strip the prefix. If the browser connects directly to an API on a sibling host, serve both hosts over HTTPS, allow the dashboard origin for API CORS and add the API origin to the dashboard's `connect-src` policy. Dashboard and API hosts on different sites cannot use the session cookies.
 
-Manage administrator grants with `locoadm admin grant USER_UUID` and `revoke USER_UUID`. Status lists configured emails that remain unclaimed. [Cluster enrollment](../reference/cluster-attachment.md) describes worker registration and join-token Secret delivery.
+A system admin grants a role with `locoadm admin grant USER_UUID --role read|admin` (`admin` by default), changes it by granting the other role, and removes it with `revoke USER_UUID`. A user holds the higher of their configured and granted roles. A configured role changes only through the configuration: revoking it, or granting less than it, fails with `FailedPrecondition`. A grant or revoke that would leave the installation without a system admin fails with `FailedPrecondition`. `locoadm admin list` shows each user's configured and granted role and the configured emails nobody has claimed; `locoadm status` lists the unclaimed admin emails. [Cluster enrollment](../reference/cluster-attachment.md) describes worker registration and join-token Secret delivery.
 
 ## Releases and operations
 

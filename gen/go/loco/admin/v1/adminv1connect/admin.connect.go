@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	// SystemAdminServiceName is the fully-qualified name of the SystemAdminService service.
-	SystemAdminServiceName = "loco.admin.v1.SystemAdminService"
+	// SystemRoleServiceName is the fully-qualified name of the SystemRoleService service.
+	SystemRoleServiceName = "loco.admin.v1.SystemRoleService"
 )
 
 // These constants are the procedure names of the RPCs defined in this package. They're exposed at
@@ -24,155 +24,159 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// SystemAdminServiceListSystemAdminsProcedure is the procedure name of the SystemAdminService's
-	// ListSystemAdmins RPC.
-	SystemAdminServiceListSystemAdminsProcedure = "/loco.admin.v1.SystemAdminService/ListSystemAdmins"
-	// SystemAdminServiceGrantSystemAdminProcedure is the procedure name of the SystemAdminService's
-	// GrantSystemAdmin RPC.
-	SystemAdminServiceGrantSystemAdminProcedure = "/loco.admin.v1.SystemAdminService/GrantSystemAdmin"
-	// SystemAdminServiceRevokeSystemAdminProcedure is the procedure name of the SystemAdminService's
-	// RevokeSystemAdmin RPC.
-	SystemAdminServiceRevokeSystemAdminProcedure = "/loco.admin.v1.SystemAdminService/RevokeSystemAdmin"
+	// SystemRoleServiceListSystemRolesProcedure is the procedure name of the SystemRoleService's
+	// ListSystemRoles RPC.
+	SystemRoleServiceListSystemRolesProcedure = "/loco.admin.v1.SystemRoleService/ListSystemRoles"
+	// SystemRoleServiceGrantSystemRoleProcedure is the procedure name of the SystemRoleService's
+	// GrantSystemRole RPC.
+	SystemRoleServiceGrantSystemRoleProcedure = "/loco.admin.v1.SystemRoleService/GrantSystemRole"
+	// SystemRoleServiceRevokeSystemRoleProcedure is the procedure name of the SystemRoleService's
+	// RevokeSystemRole RPC.
+	SystemRoleServiceRevokeSystemRoleProcedure = "/loco.admin.v1.SystemRoleService/RevokeSystemRole"
 )
 
 var (
-	systemAdminServiceListSystemAdminsSpec = sync.OnceValue(func() connect.Spec {
+	systemRoleServiceListSystemRolesSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_admin_v1_admin_proto.Services().ByName("SystemAdminService").Methods().ByName("ListSystemAdmins"),
-			Procedure:  SystemAdminServiceListSystemAdminsProcedure,
+			Schema:     v1.File_loco_admin_v1_admin_proto.Services().ByName("SystemRoleService").Methods().ByName("ListSystemRoles"),
+			Procedure:  SystemRoleServiceListSystemRolesProcedure,
 		}
 	})
-	systemAdminServiceGrantSystemAdminSpec = sync.OnceValue(func() connect.Spec {
+	systemRoleServiceGrantSystemRoleSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_admin_v1_admin_proto.Services().ByName("SystemAdminService").Methods().ByName("GrantSystemAdmin"),
-			Procedure:  SystemAdminServiceGrantSystemAdminProcedure,
+			Schema:     v1.File_loco_admin_v1_admin_proto.Services().ByName("SystemRoleService").Methods().ByName("GrantSystemRole"),
+			Procedure:  SystemRoleServiceGrantSystemRoleProcedure,
 		}
 	})
-	systemAdminServiceRevokeSystemAdminSpec = sync.OnceValue(func() connect.Spec {
+	systemRoleServiceRevokeSystemRoleSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_admin_v1_admin_proto.Services().ByName("SystemAdminService").Methods().ByName("RevokeSystemAdmin"),
-			Procedure:  SystemAdminServiceRevokeSystemAdminProcedure,
+			Schema:     v1.File_loco_admin_v1_admin_proto.Services().ByName("SystemRoleService").Methods().ByName("RevokeSystemRole"),
+			Procedure:  SystemRoleServiceRevokeSystemRoleProcedure,
 		}
 	})
 )
 
-// SystemAdminServiceClient is a client for the loco.admin.v1.SystemAdminService service.
-type SystemAdminServiceClient interface {
-	// ListSystemAdmins lists the system admins and the configured emails nobody has claimed.
-	ListSystemAdmins(context.Context, *v1.ListSystemAdminsRequest) (*v1.ListSystemAdminsResponse, error)
-	// GrantSystemAdmin makes an existing user a system admin.
-	GrantSystemAdmin(context.Context, *v1.GrantSystemAdminRequest) (*v1.GrantSystemAdminResponse, error)
-	// RevokeSystemAdmin removes a grant made with GrantSystemAdmin. It refuses to remove the
-	// last system admin and an admin that holds the role only through configuration.
-	RevokeSystemAdmin(context.Context, *v1.RevokeSystemAdminRequest) (*v1.RevokeSystemAdminResponse, error)
+// SystemRoleServiceClient is a client for the loco.admin.v1.SystemRoleService service.
+type SystemRoleServiceClient interface {
+	// ListSystemRoles lists the users who hold an installation role and the configured emails
+	// nobody has claimed.
+	ListSystemRoles(context.Context, *v1.ListSystemRolesRequest) (*v1.ListSystemRolesResponse, error)
+	// GrantSystemRole gives an existing user a role, or changes the role an earlier grant gave.
+	// It refuses to demote the last system admin and to grant less than the user's configured role.
+	GrantSystemRole(context.Context, *v1.GrantSystemRoleRequest) (*v1.GrantSystemRoleResponse, error)
+	// RevokeSystemRole removes a grant made with GrantSystemRole. The user keeps any configured
+	// role. It refuses to remove the last system admin.
+	RevokeSystemRole(context.Context, *v1.RevokeSystemRoleRequest) (*v1.RevokeSystemRoleResponse, error)
 }
 
-// NewSystemAdminServiceClient constructs a client for the loco.admin.v1.SystemAdminService service.
+// NewSystemRoleServiceClient constructs a client for the loco.admin.v1.SystemRoleService service.
 // Multiple service clients may share a single connect.Client.
-func NewSystemAdminServiceClient(client *connect.Client) SystemAdminServiceClient {
-	return &systemAdminServiceClient{client: client}
+func NewSystemRoleServiceClient(client *connect.Client) SystemRoleServiceClient {
+	return &systemRoleServiceClient{client: client}
 }
 
-// SystemAdminServiceHandler is an implementation of the loco.admin.v1.SystemAdminService service.
-type SystemAdminServiceHandler interface {
-	// ListSystemAdmins lists the system admins and the configured emails nobody has claimed.
-	ListSystemAdmins(context.Context, *v1.ListSystemAdminsRequest) (*v1.ListSystemAdminsResponse, error)
-	// GrantSystemAdmin makes an existing user a system admin.
-	GrantSystemAdmin(context.Context, *v1.GrantSystemAdminRequest) (*v1.GrantSystemAdminResponse, error)
-	// RevokeSystemAdmin removes a grant made with GrantSystemAdmin. It refuses to remove the
-	// last system admin and an admin that holds the role only through configuration.
-	RevokeSystemAdmin(context.Context, *v1.RevokeSystemAdminRequest) (*v1.RevokeSystemAdminResponse, error)
+// SystemRoleServiceHandler is an implementation of the loco.admin.v1.SystemRoleService service.
+type SystemRoleServiceHandler interface {
+	// ListSystemRoles lists the users who hold an installation role and the configured emails
+	// nobody has claimed.
+	ListSystemRoles(context.Context, *v1.ListSystemRolesRequest) (*v1.ListSystemRolesResponse, error)
+	// GrantSystemRole gives an existing user a role, or changes the role an earlier grant gave.
+	// It refuses to demote the last system admin and to grant less than the user's configured role.
+	GrantSystemRole(context.Context, *v1.GrantSystemRoleRequest) (*v1.GrantSystemRoleResponse, error)
+	// RevokeSystemRole removes a grant made with GrantSystemRole. The user keeps any configured
+	// role. It refuses to remove the last system admin.
+	RevokeSystemRole(context.Context, *v1.RevokeSystemRoleRequest) (*v1.RevokeSystemRoleResponse, error)
 }
 
-// RegisterSystemAdminServiceHandler registers svc as the loco.admin.v1.SystemAdminService
+// RegisterSystemRoleServiceHandler registers svc as the loco.admin.v1.SystemRoleService
 // implementation on server.
-func RegisterSystemAdminServiceHandler(server *connect.Server, svc SystemAdminServiceHandler) {
-	adapter := systemAdminServiceHandler{svc: svc}
+func RegisterSystemRoleServiceHandler(server *connect.Server, svc SystemRoleServiceHandler) {
+	adapter := systemRoleServiceHandler{svc: svc}
 	server.Register(
-		connect.Method{Spec: systemAdminServiceListSystemAdminsSpec(), Handler: adapter.listSystemAdmins},
-		connect.Method{Spec: systemAdminServiceGrantSystemAdminSpec(), Handler: adapter.grantSystemAdmin},
-		connect.Method{Spec: systemAdminServiceRevokeSystemAdminSpec(), Handler: adapter.revokeSystemAdmin},
+		connect.Method{Spec: systemRoleServiceListSystemRolesSpec(), Handler: adapter.listSystemRoles},
+		connect.Method{Spec: systemRoleServiceGrantSystemRoleSpec(), Handler: adapter.grantSystemRole},
+		connect.Method{Spec: systemRoleServiceRevokeSystemRoleSpec(), Handler: adapter.revokeSystemRole},
 	)
 }
 
-// UnimplementedSystemAdminServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedSystemAdminServiceHandler struct{}
+// UnimplementedSystemRoleServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedSystemRoleServiceHandler struct{}
 
-func (UnimplementedSystemAdminServiceHandler) ListSystemAdmins(context.Context, *v1.ListSystemAdminsRequest) (*v1.ListSystemAdminsResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.admin.v1.SystemAdminService.ListSystemAdmins is not implemented")
+func (UnimplementedSystemRoleServiceHandler) ListSystemRoles(context.Context, *v1.ListSystemRolesRequest) (*v1.ListSystemRolesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.admin.v1.SystemRoleService.ListSystemRoles is not implemented")
 }
 
-func (UnimplementedSystemAdminServiceHandler) GrantSystemAdmin(context.Context, *v1.GrantSystemAdminRequest) (*v1.GrantSystemAdminResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.admin.v1.SystemAdminService.GrantSystemAdmin is not implemented")
+func (UnimplementedSystemRoleServiceHandler) GrantSystemRole(context.Context, *v1.GrantSystemRoleRequest) (*v1.GrantSystemRoleResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.admin.v1.SystemRoleService.GrantSystemRole is not implemented")
 }
 
-func (UnimplementedSystemAdminServiceHandler) RevokeSystemAdmin(context.Context, *v1.RevokeSystemAdminRequest) (*v1.RevokeSystemAdminResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.admin.v1.SystemAdminService.RevokeSystemAdmin is not implemented")
+func (UnimplementedSystemRoleServiceHandler) RevokeSystemRole(context.Context, *v1.RevokeSystemRoleRequest) (*v1.RevokeSystemRoleResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.admin.v1.SystemRoleService.RevokeSystemRole is not implemented")
 }
 
-type systemAdminServiceClient struct {
+type systemRoleServiceClient struct {
 	client *connect.Client
 }
 
-func (c *systemAdminServiceClient) ListSystemAdmins(ctx context.Context, req *v1.ListSystemAdminsRequest) (*v1.ListSystemAdminsResponse, error) {
-	var res v1.ListSystemAdminsResponse
-	if err := c.client.CallUnary(ctx, systemAdminServiceListSystemAdminsSpec(), req, &res); err != nil {
+func (c *systemRoleServiceClient) ListSystemRoles(ctx context.Context, req *v1.ListSystemRolesRequest) (*v1.ListSystemRolesResponse, error) {
+	var res v1.ListSystemRolesResponse
+	if err := c.client.CallUnary(ctx, systemRoleServiceListSystemRolesSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-func (c *systemAdminServiceClient) GrantSystemAdmin(ctx context.Context, req *v1.GrantSystemAdminRequest) (*v1.GrantSystemAdminResponse, error) {
-	var res v1.GrantSystemAdminResponse
-	if err := c.client.CallUnary(ctx, systemAdminServiceGrantSystemAdminSpec(), req, &res); err != nil {
+func (c *systemRoleServiceClient) GrantSystemRole(ctx context.Context, req *v1.GrantSystemRoleRequest) (*v1.GrantSystemRoleResponse, error) {
+	var res v1.GrantSystemRoleResponse
+	if err := c.client.CallUnary(ctx, systemRoleServiceGrantSystemRoleSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-func (c *systemAdminServiceClient) RevokeSystemAdmin(ctx context.Context, req *v1.RevokeSystemAdminRequest) (*v1.RevokeSystemAdminResponse, error) {
-	var res v1.RevokeSystemAdminResponse
-	if err := c.client.CallUnary(ctx, systemAdminServiceRevokeSystemAdminSpec(), req, &res); err != nil {
+func (c *systemRoleServiceClient) RevokeSystemRole(ctx context.Context, req *v1.RevokeSystemRoleRequest) (*v1.RevokeSystemRoleResponse, error) {
+	var res v1.RevokeSystemRoleResponse
+	if err := c.client.CallUnary(ctx, systemRoleServiceRevokeSystemRoleSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
 }
 
-type systemAdminServiceHandler struct{ svc SystemAdminServiceHandler }
+type systemRoleServiceHandler struct{ svc SystemRoleServiceHandler }
 
-func (h systemAdminServiceHandler) listSystemAdmins(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.ListSystemAdminsRequest
+func (h systemRoleServiceHandler) listSystemRoles(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListSystemRolesRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
 	}
-	res, err := h.svc.ListSystemAdmins(ctx, &req)
+	res, err := h.svc.ListSystemRoles(ctx, &req)
 	if err != nil {
 		return err
 	}
 	return stream.Send(res)
 }
 
-func (h systemAdminServiceHandler) grantSystemAdmin(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.GrantSystemAdminRequest
+func (h systemRoleServiceHandler) grantSystemRole(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GrantSystemRoleRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
 	}
-	res, err := h.svc.GrantSystemAdmin(ctx, &req)
+	res, err := h.svc.GrantSystemRole(ctx, &req)
 	if err != nil {
 		return err
 	}
 	return stream.Send(res)
 }
 
-func (h systemAdminServiceHandler) revokeSystemAdmin(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.RevokeSystemAdminRequest
+func (h systemRoleServiceHandler) revokeSystemRole(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RevokeSystemRoleRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
 	}
-	res, err := h.svc.RevokeSystemAdmin(ctx, &req)
+	res, err := h.svc.RevokeSystemRole(ctx, &req)
 	if err != nil {
 		return err
 	}

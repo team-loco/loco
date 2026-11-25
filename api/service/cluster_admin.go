@@ -215,7 +215,7 @@ func (s *ClusterAdminServer) ListClusters(
 	ctx context.Context,
 	_ *clusterv1.ListClustersRequest,
 ) (*clusterv1.ListClustersResponse, error) {
-	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
+	if err := authorizeSystem(ctx, s.authz, actions.ListClusters); err != nil {
 		return nil, err
 	}
 	rows, err := s.queries.ListAdminClusters(ctx)

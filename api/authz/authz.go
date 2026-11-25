@@ -25,7 +25,8 @@ func New(q queries.Querier) *Authorizer {
 }
 
 // Check reports whether granted covers required, either directly, through a system scope of the
-// same level, or through the same scope on an organization or workspace that owns the entity.
+// same level or system admin for a read, or through the same scope on an organization or
+// workspace that owns the entity.
 // It returns [ErrEntityNotFound] when the entity does not exist,
 // [ErrInsufficientPermissions] when no granted scope covers it, and the wrapped database error
 // when the owner lookup fails.
@@ -83,13 +84,14 @@ func (a *Authorizer) check(
 	parents map[queries.Entity][]queries.EntityScope,
 ) error {
 	for _, scope := range granted {
-		if !covers(scope.Scope, required.Scope) {
+		if scope.EntityType == queries.EntityTypeSystem {
+			if coversSystem(scope.Scope, required.Scope) {
+				return nil
+			}
 			continue
 		}
-		if scope.EntityType == required.EntityType && scope.EntityID == required.EntityID {
-			return nil
-		}
-		if scope.EntityType == queries.EntityTypeSystem {
+		sameEntity := scope.EntityType == required.EntityType && scope.EntityID == required.EntityID
+		if sameEntity && covers(scope.Scope, required.Scope) {
 			return nil
 		}
 	}
@@ -154,12 +156,14 @@ func (*Authorizer) ReadableEntities(granted []queries.EntityScope) ReadableEntit
 	var system bool
 	var organizations, workspaces, resources []uuid.UUID
 	for _, scope := range granted {
+		if scope.EntityType == queries.EntityTypeSystem {
+			system = system || coversSystem(scope.Scope, queries.ScopeRead)
+			continue
+		}
 		if !covers(scope.Scope, queries.ScopeRead) {
 			continue
 		}
 		switch scope.EntityType {
-		case queries.EntityTypeSystem:
-			system = true
 		case queries.EntityTypeOrganization:
 			organizations = append(organizations, scope.EntityID)
 		case queries.EntityTypeWorkspace:
@@ -189,6 +193,11 @@ func (a *Authorizer) ReadableWorkspaces(
 
 func covers(held queries.Scope, required queries.Scope) bool {
 	return held == required || required == queries.ScopeMember
+}
+
+// coversSystem is covers for a system scope: a system admin also holds system read.
+func coversSystem(held queries.Scope, required queries.Scope) bool {
+	return covers(held, required) || held == queries.ScopeAdmin && required == queries.ScopeRead
 }
 
 func (a *Authorizer) UserScopes(ctx context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {

@@ -31,7 +31,7 @@ import (
 type Clients struct {
 	ClusterAdmin  clusterv1connect.ClusterAdminServiceClient
 	RegionAdmin   clusterv1connect.RegionAdminServiceClient
-	SystemAdmin   adminv1connect.SystemAdminServiceClient
+	SystemRole    adminv1connect.SystemRoleServiceClient
 	Agent         agentv1connect.AgentServiceClient
 	Auth          authv1connect.AuthServiceClient
 	Build         buildv1connect.BuildServiceClient
@@ -75,7 +75,7 @@ func NewClients(connectClient *connect.Client) *Clients {
 	return &Clients{
 		ClusterAdmin:  clusterv1connect.NewClusterAdminServiceClient(connectClient),
 		RegionAdmin:   clusterv1connect.NewRegionAdminServiceClient(connectClient),
-		SystemAdmin:   adminv1connect.NewSystemAdminServiceClient(connectClient),
+		SystemRole:    adminv1connect.NewSystemRoleServiceClient(connectClient),
 		Agent:         agentv1connect.NewAgentServiceClient(connectClient),
 		Auth:          authv1connect.NewAuthServiceClient(connectClient),
 		Build:         buildv1connect.NewBuildServiceClient(connectClient),

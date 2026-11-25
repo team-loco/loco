@@ -11,7 +11,7 @@ import (
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
-func TestIntersectPreservesMembershipBetweenSystemPermissions(t *testing.T) {
+func TestIntersectPreservesReadBetweenSystemPermissions(t *testing.T) {
 	t.Parallel()
 	authorizer := authz.New(nil)
 	member := queries.EntityScope{
@@ -37,7 +37,12 @@ func TestIntersectPreservesMembershipBetweenSystemPermissions(t *testing.T) {
 		if err := authorizer.Check(t.Context(), common, member); err != nil {
 			t.Fatalf("intersection lost shared organization membership: %v", err)
 		}
-		for _, permission := range []queries.Scope{queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin} {
+		read := member
+		read.Scope = queries.ScopeRead
+		if err := authorizer.Check(t.Context(), common, read); err != nil {
+			t.Fatalf("intersection lost the read a system admin shares with a system reader: %v", err)
+		}
+		for _, permission := range []queries.Scope{queries.ScopeWrite, queries.ScopeAdmin} {
 			wanted := member
 			wanted.Scope = permission
 			if err := authorizer.Check(t.Context(), common, wanted); !errors.Is(err, authz.ErrInsufficientPermissions) {

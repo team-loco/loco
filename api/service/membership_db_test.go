@@ -89,7 +89,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, invitations, limits.Defaults()))
 	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries, limits.Defaults()))
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine))
-	adminv1connect.RegisterSystemAdminServiceHandler(server, NewSystemAdminServer(pool, queries))
+	adminv1connect.RegisterSystemRoleServiceHandler(server, NewSystemRoleServer(pool, queries))
 	tokenv1connect.RegisterTokenServiceHandler(server, NewTokenServer(pool, queries, machine, limits.Defaults()))
 	resources := NewResourceServer(pool, queries, testServiceDefaults(), time.Minute, limits.Defaults())
 	resourcev1connect.RegisterResourceServiceHandler(server, resources)

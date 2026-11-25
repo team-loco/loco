@@ -6,14 +6,14 @@
     "description": "Deploy applications and manage workspaces, environments, and resources through Loco's Connect RPC API."
   },
   "paths": {
-    "/loco.admin.v1.SystemAdminService/GrantSystemAdmin": {
+    "/loco.admin.v1.SystemRoleService/GrantSystemRole": {
       "post": {
         "tags": [
-          "loco.admin.v1.SystemAdminService"
+          "loco.admin.v1.SystemRoleService"
         ],
-        "summary": "GrantSystemAdmin",
-        "description": "GrantSystemAdmin makes an existing user a system admin.",
-        "operationId": "loco.admin.v1.SystemAdminService.GrantSystemAdmin",
+        "summary": "GrantSystemRole",
+        "description": "GrantSystemRole gives an existing user a role, or changes the role an earlier grant gave.\n It refuses to demote the last system admin and to grant less than the user's configured role.",
+        "operationId": "loco.admin.v1.SystemRoleService.GrantSystemRole",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -38,7 +38,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/loco.admin.v1.GrantSystemAdminRequest"
+                "$ref": "#/components/schemas/loco.admin.v1.GrantSystemRoleRequest"
               }
             }
           },
@@ -60,7 +60,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/loco.admin.v1.GrantSystemAdminResponse"
+                  "$ref": "#/components/schemas/loco.admin.v1.GrantSystemRoleResponse"
                 }
               }
             }
@@ -68,14 +68,14 @@
         }
       }
     },
-    "/loco.admin.v1.SystemAdminService/ListSystemAdmins": {
+    "/loco.admin.v1.SystemRoleService/ListSystemRoles": {
       "post": {
         "tags": [
-          "loco.admin.v1.SystemAdminService"
+          "loco.admin.v1.SystemRoleService"
         ],
-        "summary": "ListSystemAdmins",
-        "description": "ListSystemAdmins lists the system admins and the configured emails nobody has claimed.",
-        "operationId": "loco.admin.v1.SystemAdminService.ListSystemAdmins",
+        "summary": "ListSystemRoles",
+        "description": "ListSystemRoles lists the users who hold an installation role and the configured emails\n nobody has claimed.",
+        "operationId": "loco.admin.v1.SystemRoleService.ListSystemRoles",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -100,7 +100,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/loco.admin.v1.ListSystemAdminsRequest"
+                "$ref": "#/components/schemas/loco.admin.v1.ListSystemRolesRequest"
               }
             }
           },
@@ -122,7 +122,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/loco.admin.v1.ListSystemAdminsResponse"
+                  "$ref": "#/components/schemas/loco.admin.v1.ListSystemRolesResponse"
                 }
               }
             }
@@ -130,14 +130,14 @@
         }
       }
     },
-    "/loco.admin.v1.SystemAdminService/RevokeSystemAdmin": {
+    "/loco.admin.v1.SystemRoleService/RevokeSystemRole": {
       "post": {
         "tags": [
-          "loco.admin.v1.SystemAdminService"
+          "loco.admin.v1.SystemRoleService"
         ],
-        "summary": "RevokeSystemAdmin",
-        "description": "RevokeSystemAdmin removes a grant made with GrantSystemAdmin. It refuses to remove the\n last system admin and an admin that holds the role only through configuration.",
-        "operationId": "loco.admin.v1.SystemAdminService.RevokeSystemAdmin",
+        "summary": "RevokeSystemRole",
+        "description": "RevokeSystemRole removes a grant made with GrantSystemRole. The user keeps any configured\n role. It refuses to remove the last system admin.",
+        "operationId": "loco.admin.v1.SystemRoleService.RevokeSystemRole",
         "parameters": [
           {
             "name": "Connect-Protocol-Version",
@@ -162,7 +162,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/loco.admin.v1.RevokeSystemAdminRequest"
+                "$ref": "#/components/schemas/loco.admin.v1.RevokeSystemRoleRequest"
               }
             }
           },
@@ -184,7 +184,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/loco.admin.v1.RevokeSystemAdminResponse"
+                  "$ref": "#/components/schemas/loco.admin.v1.RevokeSystemRoleResponse"
                 }
               }
             }
@@ -8668,51 +8668,59 @@
         ],
         "description": "Any JSON value: `null`, number, string, boolean, array, or object."
       },
-      "loco.admin.v1.GrantSystemAdminRequest": {
+      "loco.admin.v1.GrantSystemRoleRequest": {
         "type": "object",
         "properties": {
           "userId": {
             "type": "string",
             "title": "user_id",
             "format": "uuid"
-          }
-        },
-        "title": "GrantSystemAdminRequest",
-        "additionalProperties": false
-      },
-      "loco.admin.v1.GrantSystemAdminResponse": {
-        "type": "object",
-        "title": "GrantSystemAdminResponse",
-        "additionalProperties": false
-      },
-      "loco.admin.v1.ListSystemAdminsRequest": {
-        "type": "object",
-        "title": "ListSystemAdminsRequest",
-        "additionalProperties": false
-      },
-      "loco.admin.v1.ListSystemAdminsResponse": {
-        "type": "object",
-        "properties": {
-          "admins": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/loco.admin.v1.SystemAdmin"
-            },
-            "title": "admins"
           },
-          "unclaimedEmails": {
-            "type": "array",
-            "items": {
-              "type": "string"
+          "role": {
+            "not": {
+              "enum": [
+                "SYSTEM_ROLE_UNSPECIFIED"
+              ]
             },
-            "title": "unclaimed_emails",
-            "description": "unclaimed_emails are configured emails no user has claimed yet."
+            "title": "role",
+            "$ref": "#/components/schemas/loco.admin.v1.SystemRole"
           }
         },
-        "title": "ListSystemAdminsResponse",
+        "title": "GrantSystemRoleRequest",
         "additionalProperties": false
       },
-      "loco.admin.v1.RevokeSystemAdminRequest": {
+      "loco.admin.v1.GrantSystemRoleResponse": {
+        "type": "object",
+        "title": "GrantSystemRoleResponse",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.ListSystemRolesRequest": {
+        "type": "object",
+        "title": "ListSystemRolesRequest",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.ListSystemRolesResponse": {
+        "type": "object",
+        "properties": {
+          "holders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.admin.v1.SystemRoleHolder"
+            },
+            "title": "holders"
+          },
+          "unclaimed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.admin.v1.UnclaimedEmail"
+            },
+            "title": "unclaimed"
+          }
+        },
+        "title": "ListSystemRolesResponse",
+        "additionalProperties": false
+      },
+      "loco.admin.v1.RevokeSystemRoleRequest": {
         "type": "object",
         "properties": {
           "userId": {
@@ -8721,15 +8729,25 @@
             "format": "uuid"
           }
         },
-        "title": "RevokeSystemAdminRequest",
+        "title": "RevokeSystemRoleRequest",
         "additionalProperties": false
       },
-      "loco.admin.v1.RevokeSystemAdminResponse": {
+      "loco.admin.v1.RevokeSystemRoleResponse": {
         "type": "object",
-        "title": "RevokeSystemAdminResponse",
+        "title": "RevokeSystemRoleResponse",
         "additionalProperties": false
       },
-      "loco.admin.v1.SystemAdmin": {
+      "loco.admin.v1.SystemRole": {
+        "type": "string",
+        "title": "SystemRole",
+        "enum": [
+          "SYSTEM_ROLE_UNSPECIFIED",
+          "SYSTEM_ROLE_READ",
+          "SYSTEM_ROLE_ADMIN"
+        ],
+        "description": "SystemRole is an installation-wide role. A system reader can read everything in the\n installation; a system admin can also do the installation's administration."
+      },
+      "loco.admin.v1.SystemRoleHolder": {
         "type": "object",
         "properties": {
           "userId": {
@@ -8749,26 +8767,36 @@
             "type": "string",
             "title": "subject"
           },
-          "sources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/loco.admin.v1.SystemAdminSource"
-            },
-            "title": "sources"
+          "configuredRole": {
+            "title": "configured_role",
+            "description": "configured_role is the role the user claimed from LOCO_SYSTEM_ADMINS or LOCO_SYSTEM_READERS.",
+            "$ref": "#/components/schemas/loco.admin.v1.SystemRole"
+          },
+          "grantedRole": {
+            "title": "granted_role",
+            "description": "granted_role is the role GrantSystemRole gave the user.",
+            "$ref": "#/components/schemas/loco.admin.v1.SystemRole"
           }
         },
-        "title": "SystemAdmin",
-        "additionalProperties": false
+        "title": "SystemRoleHolder",
+        "additionalProperties": false,
+        "description": "SystemRoleHolder is a user with an installation role, the higher of the configured and the\n granted role."
       },
-      "loco.admin.v1.SystemAdminSource": {
-        "type": "string",
-        "title": "SystemAdminSource",
-        "enum": [
-          "SYSTEM_ADMIN_SOURCE_UNSPECIFIED",
-          "SYSTEM_ADMIN_SOURCE_CONFIG",
-          "SYSTEM_ADMIN_SOURCE_GRANT"
-        ],
-        "description": "SystemAdminSource says why a user holds system:admin."
+      "loco.admin.v1.UnclaimedEmail": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "email"
+          },
+          "role": {
+            "title": "role",
+            "$ref": "#/components/schemas/loco.admin.v1.SystemRole"
+          }
+        },
+        "title": "UnclaimedEmail",
+        "additionalProperties": false,
+        "description": "UnclaimedEmail is a configured email no user has claimed yet."
       },
       "loco.agent.v1.AgentCapacity": {
         "type": "object",
@@ -18806,8 +18834,8 @@
   ],
   "tags": [
     {
-      "name": "loco.admin.v1.SystemAdminService",
-      "description": "SystemAdminService lists, grants and revokes system:admin. Every RPC requires system admin."
+      "name": "loco.admin.v1.SystemRoleService",
+      "description": "SystemRoleService lists, grants and revokes installation roles. Listing requires system read;\n granting and revoking require system admin."
     },
     {
       "name": "loco.cluster.v1.ClusterAdminService"

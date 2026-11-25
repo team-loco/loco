@@ -112,6 +112,10 @@ spec:
             - name: LOCO_SYSTEM_ADMINS
               value: {{ join "," . | quote }}
             {{- end }}
+            {{- with .Values.api.systemReaders }}
+            - name: LOCO_SYSTEM_READERS
+              value: {{ join "," . | quote }}
+            {{- end }}
             - name: LOCO_TRUSTED_PROXY_HOPS
               value: {{ .Values.api.trustedProxyHops | quote }}
             {{- with .Values.api.invitationTtl }}

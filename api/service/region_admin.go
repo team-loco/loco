@@ -31,7 +31,7 @@ func (s *RegionAdminServer) ListRegions(
 	ctx context.Context,
 	_ *clusterv1.ListRegionsRequest,
 ) (*clusterv1.ListRegionsResponse, error) {
-	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
+	if err := authorizeSystem(ctx, s.authz, actions.ListClusters); err != nil {
 		return nil, err
 	}
 	rows, err := s.queries.ListAdminRegions(ctx)

@@ -308,7 +308,7 @@ func TestAccountDeletionImpactMatchesOwnerReadHierarchy(t *testing.T) {
 		{genDb.EntityTypeResource, resource, genDb.ScopeRead, 1, false},
 		{genDb.EntityTypeWorkspace, workspace, genDb.ScopeRead, 2, true},
 		{genDb.EntityTypeOrganization, uuid.MustParse(o.orgID), genDb.ScopeRead, 3, false},
-		{genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeAdmin, 0, true},
+		{genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeAdmin, 3, true},
 		{genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeRead, 3, true},
 	} {
 		if _, err := o.api.pool.Exec(t.Context(), "DELETE FROM user_scopes WHERE user_id = $1", u.id); err != nil {

@@ -37,6 +37,9 @@ api:
   # Emails the API makes system admins on their first verified sign-in (LOCO_SYSTEM_ADMINS).
   # @schema item: string
   systemAdmins: []
+  # Emails the API makes system readers on their first verified sign-in (LOCO_SYSTEM_READERS).
+  # @schema item: string
+  systemReaders: []
   invitationTtl: ""
   # Proxies in front of the API that append to X-Forwarded-For (LOCO_TRUSTED_PROXY_HOPS); the gateway is one.
   # @schema minimum: 0

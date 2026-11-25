@@ -223,23 +223,23 @@ func TestPersonalAPITokenCreatesHumanOwnedOrganizations(t *testing.T) {
 
 func TestPersonalAPITokenManagesSystemAdministratorsAndStatus(t *testing.T) {
 	t.Parallel()
-	api, admin := newSystemAdminAPI(t)
+	api, admin := newSystemRoleAPI(t)
 	member := api.signUp(t, "member")
 	client, _ := administrativeToken(t, api, admin, genDb.Entity{Type: genDb.EntityTypeUser, ID: admin.id},
 		genDb.EntityScope{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin},
 	)
-	if _, err := client.SystemAdmin.GrantSystemAdmin(
+	if _, err := client.SystemRole.GrantSystemRole(
 		t.Context(),
-		&adminv1.GrantSystemAdminRequest{UserId: member.id.String()},
+		&adminv1.GrantSystemRoleRequest{UserId: member.id.String(), Role: roleAdmin},
 	); err != nil {
 		t.Fatal(err)
 	}
-	if got := adminSources(listAdmins(t, admin), member.id); len(got) != 1 {
-		t.Fatalf("granted admin sources = %v", got)
+	if _, granted := heldRoles(t, admin, member.id); granted != roleAdmin {
+		t.Fatalf("granted role = %v, want admin", granted)
 	}
-	if _, err := client.SystemAdmin.RevokeSystemAdmin(
+	if _, err := client.SystemRole.RevokeSystemRole(
 		t.Context(),
-		&adminv1.RevokeSystemAdminRequest{UserId: member.id.String()},
+		&adminv1.RevokeSystemRoleRequest{UserId: member.id.String()},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -361,13 +361,13 @@ func TestAdministrativeAPITokensRequireActionPermissions(t *testing.T) {
 					return err
 				}},
 				{"system grant", func() error {
-					_, err := client.SystemAdmin.GrantSystemAdmin(t.Context(), &adminv1.GrantSystemAdminRequest{
-						UserId: member.id.String(),
+					_, err := client.SystemRole.GrantSystemRole(t.Context(), &adminv1.GrantSystemRoleRequest{
+						UserId: member.id.String(), Role: roleAdmin,
 					})
 					return err
 				}},
 				{"system revoke", func() error {
-					_, err := client.SystemAdmin.RevokeSystemAdmin(t.Context(), &adminv1.RevokeSystemAdminRequest{
+					_, err := client.SystemRole.RevokeSystemRole(t.Context(), &adminv1.RevokeSystemRoleRequest{
 						UserId: member.id.String(),
 					})
 					return err

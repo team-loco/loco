@@ -31,17 +31,17 @@ type Resolver struct {
 	pool                   *pgxpool.Pool
 	queries                *genDb.Queries
 	policy                 SignupPolicy
-	systemAdmins           SystemAdmins
+	systemRoles            SystemRoles
 	counts                 *configv1.CountLimits
 	lastUsedUpdateInterval time.Duration
 }
 
 type ResolverOption func(*Resolver)
 
-// WithSystemAdmins grants system:admin to the first verified sign-in with each listed email.
-func WithSystemAdmins(admins SystemAdmins) ResolverOption {
+// WithSystemRoles gives the first verified sign-in with each listed email its installation role.
+func WithSystemRoles(roles SystemRoles) ResolverOption {
 	return func(r *Resolver) {
-		r.systemAdmins = admins
+		r.systemRoles = roles
 	}
 }
 
@@ -120,7 +120,7 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, []Cla
 	if !id.EmailVerified || email == nil {
 		return user, nil, nil
 	}
-	if claimErr := r.claimSystemAdminOnSignIn(ctx, user, id); claimErr != nil {
+	if claimErr := r.claimSystemRoleOnSignIn(ctx, user, id); claimErr != nil {
 		return genDb.User{}, nil, claimErr
 	}
 	claimed, err := r.claimOpenInvitations(ctx, user, id.Email)
@@ -320,7 +320,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 	}
 
 	policyErr := r.policy.Check()
-	if policyErr != nil && !r.systemAdmins.lists(id.Email) {
+	if policyErr != nil && !r.systemRoles.lists(id.Email) {
 		return genDb.User{}, nil, policyErr
 	}
 
@@ -362,12 +362,12 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 	}); err != nil {
 		return genDb.User{}, nil, fmt.Errorf("%w: record identity event: %w", ErrResolve, err)
 	}
-	admin, err := r.claimSystemAdmin(ctx, qtx, user, id)
+	claimedRole, err := r.claimSystemRole(ctx, qtx, user, id)
 	if err != nil {
 		return genDb.User{}, nil, err
 	}
 	// Closed signup still lets a listed email create its account to claim the entry.
-	if policyErr != nil && !admin {
+	if policyErr != nil && !claimedRole {
 		return genDb.User{}, nil, policyErr
 	}
 

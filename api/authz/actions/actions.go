@@ -281,10 +281,15 @@ var (
 		scope:      db.ScopeRead,
 	}
 
+	// ListClusters requires system:read.
+	ListClusters = Action{entityType: db.EntityTypeSystem, scope: db.ScopeRead}
+	// ManageClusters requires system:admin.
 	ManageClusters = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
 
-	// ManageSystemAdmins requires system:admin.
-	ManageSystemAdmins = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
+	// ListSystemRoles requires system:read.
+	ListSystemRoles = Action{entityType: db.EntityTypeSystem, scope: db.ScopeRead}
+	// ManageSystemRoles requires system:admin.
+	ManageSystemRoles = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
 
 	// domains
 
@@ -393,9 +398,10 @@ var (
 	ListWorkspaceAuditEvents     = Action{entityType: db.EntityTypeWorkspace, scope: db.ScopeAdmin}
 	ListResourceAuditEvents      = Action{entityType: db.EntityTypeResource, scope: db.ScopeRead}
 	ListResourceAuditAdminEvents = Action{entityType: db.EntityTypeResource, scope: db.ScopeAdmin}
-	StreamEvents                 = Action{
+	// StreamEvents requires system:read.
+	StreamEvents = Action{
 		entityType: db.EntityTypeSystem,
-		scope:      db.ScopeAdmin,
+		scope:      db.ScopeRead,
 	}
 )
 

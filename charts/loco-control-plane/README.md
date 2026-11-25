@@ -21,7 +21,7 @@ kubectl -n loco-system create secret generic regional-api-env \
   --from-env-file=/secure/loco-api.env
 ```
 
-`api.systemAdmins` lists the emails the API makes system admins on their first verified sign-in, as `LOCO_SYSTEM_ADMINS`; see [self-hosting](../../docs/content/operations/self-hosting.md#first-system-admin).
+`api.systemAdmins` and `api.systemReaders` list the emails the API makes system admins and system readers on their first verified sign-in, as `LOCO_SYSTEM_ADMINS` and `LOCO_SYSTEM_READERS`; see [installation roles](../../docs/content/operations/self-hosting.md#installation-roles).
 
 `api.invitationTtl` sets `INVITATION_TTL`. Core sends no email; the inviter copies and shares the invitation link. Installations that want email consume `invitation.created` and `invitation.resent` through [`INSTALL_WEBHOOKS`](../../docs/content/operations/webhooks.md).
 
