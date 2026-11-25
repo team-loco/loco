@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -101,10 +102,13 @@ func TestAnUnchangedCapabilityReportDoesNotWaitForADeploy(t *testing.T) {
 	})
 }
 
-func TestASupersededStreamDoesNotStoreItsCapabilities(t *testing.T) {
+func TestAStaleGenerationDoesNotStoreCapabilities(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	stream := openReportStream(t, startSyncServer(t, f), f.clusterID)
+	stale, err := f.queries.GetClusterSyncGeneration(t.Context(), f.clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	tx, err := f.pool.Begin(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -119,28 +123,55 @@ func TestASupersededStreamDoesNotStoreItsCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	builds := healthyHeartbeat()
-	builds.Role = clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS
-	report(stream, heartbeatMessage(builds))
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	updated := make(chan error, 1)
+	var update sync.WaitGroup
+	t.Cleanup(update.Wait)
+	update.Go(func() {
+		updated <- f.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
+			ID: f.clusterID, Generation: stale, Role: genDb.ClusterRoleBuilds,
+			Domains: []string{}, Platforms: []string{testPlatform},
+		})
+	})
 	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	if err := tx.Commit(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the waiting capability update finished", func() bool {
-		var running bool
-		if err := f.pool.QueryRow(t.Context(), `SELECT EXISTS (SELECT 1 FROM pg_stat_activity
-			WHERE datname = current_database() AND state = 'active' AND pid <> pg_backend_pid()
-			  AND query LIKE '%name: UpdateClusterReport%')`).Scan(&running); err != nil {
-			t.Fatal(err)
-		}
-		return !running
-	})
+	if err := <-updated; err != nil {
+		t.Fatalf("update capabilities: %v", err)
+	}
 	if role := f.role(t); role != genDb.ClusterRoleAll {
-		t.Fatalf("role = %s after a superseded stream's report, want all", role)
+		t.Fatalf("role = %s after an update from a stale generation, want all", role)
 	}
 }
 
-func TestHeartbeatsQueueOneCapabilityUpdateAtATime(t *testing.T) {
+func TestHeartbeatsDoNotWaitForAFullReportQueue(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	session := newSyncSession(f.agentServer(), f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+	for range cap(session.reports) {
+		session.reports <- func(context.Context) {}
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	healthy := healthyHeartbeat()
+	if err := session.handle(ctx, heartbeatMessage(healthy)); err != nil {
+		t.Fatalf("first heartbeat: %v", err)
+	}
+	first, _ := f.storedHeartbeat(t)
+	degraded := proto.CloneOf(healthy)
+	degraded.Health.ControllerHealthy = false
+	if err := session.handle(ctx, heartbeatMessage(degraded)); err != nil {
+		t.Fatalf("second heartbeat: %v", err)
+	}
+	if at, health := f.storedHeartbeat(t); !at.After(first) || health != clusterHealthDegraded {
+		t.Fatalf("heartbeat at %v (first %v), health %q, want a later degraded heartbeat", at, first, health)
+	}
+}
+
+func TestHeartbeatsKeepOnlyTheNewestCapabilities(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	session := newSyncSession(f.agentServer(), f.clusterID, func(*agentv1.SyncResponse) error { return nil })
@@ -153,8 +184,8 @@ func TestHeartbeatsQueueOneCapabilityUpdateAtATime(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if queued := len(session.reports); queued != 1 {
-		t.Fatalf("%d capability updates queued for two heartbeats, want 1", queued)
+	if pending := len(session.reports) + len(session.capabilitiesReady); pending != 1 {
+		t.Fatalf("%d updates pending for two heartbeats, want 1", pending)
 	}
 	if err := applyQueuedReports(t.Context(), session); err != nil {
 		t.Fatal(err)

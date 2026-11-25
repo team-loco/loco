@@ -19,12 +19,14 @@ import (
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
-// applyQueuedReports applies and settles the reports the session queued, as its stream does.
+// applyQueuedReports applies and settles the reports and capabilities the session queued, as its stream does.
 func applyQueuedReports(ctx context.Context, session *syncSession) error {
 	for {
 		select {
 		case apply := <-session.reports:
 			apply(ctx)
+		case <-session.capabilitiesReady:
+			session.storeCapabilities(ctx)
 		default:
 			if err := session.settle(ctx); err != nil {
 				return err

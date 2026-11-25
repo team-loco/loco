@@ -18,23 +18,6 @@ import (
 
 const moveCluster = `UPDATE clusters SET region = $2 WHERE id = $1`
 
-func (f *deployFixture) addAvailableRegionCluster(t *testing.T) {
-	t.Helper()
-	insert := `
-INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
-VALUES (ARRAY['linux/amd64'], $1, $2, 'kind', true, true) RETURNING id`
-	var id uuid.UUID
-	if err := f.pool.QueryRow(
-		context.Background(),
-		insert,
-		domainsSecondCluster,
-		statusSecondRegion,
-	).Scan(&id); err != nil {
-		t.Fatalf("add staging region cluster: %v", err)
-	}
-	setHeartbeats(t, f.pool, time.Now(), clusterHealthHealthy, id)
-}
-
 func (f *deployFixture) markClusterUnhealthy(t *testing.T, clusterID uuid.UUID) {
 	t.Helper()
 	update := `UPDATE cluster_heartbeats SET health_status = 'unhealthy' WHERE cluster_id = $1`
@@ -66,7 +49,7 @@ func TestListRegionsUsesTheSameEligibleClustersForEveryEnvironment(t *testing.T)
 	if _, err := f.pool.Exec(t.Context(), moveCluster, f.clusterID, statusSecondRegion); err != nil {
 		t.Fatal(err)
 	}
-	f.addAvailableRegionCluster(t)
+	f.addRegionCluster(t)
 	staging := f.addStagingEnvironment(t)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := f.workspaceReadScopes(t)

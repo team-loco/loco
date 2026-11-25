@@ -184,8 +184,10 @@ type syncSession struct {
 	settledReady chan struct{}
 	// finishing holds the builds whose finish is recorded but not yet settled, guarded by settledMu.
 	finishing map[uuid.UUID]struct{}
-	// pendingReport holds the newest heartbeat whose capabilities wait in reports, guarded by settledMu.
-	pendingReport *agentv1.Heartbeat
+	// capabilities holds the newest heartbeat whose capabilities the worker has not stored, guarded by settledMu.
+	capabilities *agentv1.Heartbeat
+	// capabilitiesReady wakes the worker to store capabilities; a full buffer means a wake is already pending.
+	capabilitiesReady chan struct{}
 }
 
 // settleFunc runs on the receive loop, which owns the session's state and the stream's sends.
@@ -197,18 +199,19 @@ func newSyncSession(
 	sendFn func(*agentv1.SyncResponse) error,
 ) *syncSession {
 	return &syncSession{
-		server:       server,
-		clusterID:    clusterID,
-		sendFn:       sendFn,
-		sent:         make(map[uuid.UUID]int64),
-		builds:       newBuildTracker(),
-		reports:      make(chan func(context.Context), syncReportQueue),
-		settledReady: make(chan struct{}, 1),
-		finishing:    make(map[uuid.UUID]struct{}),
+		server:            server,
+		clusterID:         clusterID,
+		sendFn:            sendFn,
+		sent:              make(map[uuid.UUID]int64),
+		builds:            newBuildTracker(),
+		reports:           make(chan func(context.Context), syncReportQueue),
+		settledReady:      make(chan struct{}, 1),
+		capabilitiesReady: make(chan struct{}, 1),
+		finishing:         make(map[uuid.UUID]struct{}),
 	}
 }
 
-// applyReports applies queued reports one at a time until ctx ends.
+// applyReports applies queued reports and the newest capabilities one at a time until ctx ends.
 func (ss *syncSession) applyReports(ctx context.Context) {
 	for {
 		select {
@@ -216,6 +219,8 @@ func (ss *syncSession) applyReports(ctx context.Context) {
 			return
 		case apply := <-ss.reports:
 			apply(ctx)
+		case <-ss.capabilitiesReady:
+			ss.storeCapabilities(ctx)
 		}
 	}
 }
@@ -449,9 +454,10 @@ func placementMessage(
 	}
 }
 
-// handle records a heartbeat's liveness at once and queues its capabilities and every other report.
+// handle records a heartbeat at once and queues every other report.
 func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) error {
-	if heartbeat := msg.GetHeartbeat(); heartbeat != nil && !ss.recordLiveness(ctx, heartbeat) {
+	if heartbeat := msg.GetHeartbeat(); heartbeat != nil {
+		ss.recordHeartbeat(ctx, heartbeat)
 		return nil
 	}
 	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
@@ -462,37 +468,38 @@ func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) err
 	})
 }
 
-// recordLiveness records a valid heartbeat's liveness and reports whether to queue its capabilities. It returns
-// false while an earlier heartbeat's update is still queued; that update then applies this heartbeat's capabilities.
-func (ss *syncSession) recordLiveness(ctx context.Context, heartbeat *agentv1.Heartbeat) bool {
+// recordHeartbeat records a valid heartbeat's liveness and hands its capabilities to the worker without waiting.
+// Capabilities are a snapshot: a newer heartbeat replaces one the worker has not stored yet.
+func (ss *syncSession) recordHeartbeat(ctx context.Context, heartbeat *agentv1.Heartbeat) {
 	// The sync stream bypasses the validation interceptor, and an unknown role cannot be stored.
 	if err := protovalidate.Validate(heartbeat); err != nil {
 		slog.WarnContext(ctx, "ignoring an invalid heartbeat", "error", err, "cluster_id", ss.clusterID)
-		return false
+		return
 	}
 	ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
 	ss.settledMu.Lock()
-	defer ss.settledMu.Unlock()
-	queued := ss.pendingReport != nil
-	ss.pendingReport = heartbeat
-	return !queued
+	ss.capabilities = heartbeat
+	ss.settledMu.Unlock()
+	select {
+	case ss.capabilitiesReady <- struct{}{}:
+	default:
+	}
 }
 
-// takePendingReport returns the newest heartbeat whose capabilities wait for the worker.
-func (ss *syncSession) takePendingReport() *agentv1.Heartbeat {
+// storeCapabilities stores the newest heartbeat's capabilities, if the worker has not stored them yet.
+func (ss *syncSession) storeCapabilities(ctx context.Context) {
 	ss.settledMu.Lock()
-	defer ss.settledMu.Unlock()
-	heartbeat := ss.pendingReport
-	ss.pendingReport = nil
-	return heartbeat
+	heartbeat := ss.capabilities
+	ss.capabilities = nil
+	ss.settledMu.Unlock()
+	if heartbeat != nil {
+		ss.server.recordClusterReport(ctx, ss.clusterID, ss.generation, heartbeat)
+	}
 }
 
 // apply records a report and returns what it changes in the session.
 func (ss *syncSession) apply(ctx context.Context, msg *agentv1.SyncRequest) (settleFunc, error) {
 	switch m := msg.GetMessage().(type) {
-	case *agentv1.SyncRequest_Heartbeat:
-		ss.server.recordClusterReport(ctx, ss.clusterID, ss.generation, ss.takePendingReport())
-		return nil, nil
 	case *agentv1.SyncRequest_Status:
 		ss.server.recordStatus(ctx, ss.clusterID, ss.generation, m.Status)
 		return nil, nil
