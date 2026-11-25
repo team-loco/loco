@@ -4,3 +4,5 @@ export { SystemClusters } from "./system/Clusters";
 export { SystemOverview } from "./system/Overview";
 export { SystemOperators } from "./system/Operators";
 export { SystemUsers } from "./system/Users";
+export { SystemOrgDetail } from "./system/OrgDetail";
+export { SystemOrgs } from "./system/Orgs";

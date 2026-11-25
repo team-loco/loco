@@ -58,6 +58,8 @@ const PersonalSettings = lazy(async () => ({ default: (await pageImporters.Setti
 const SystemOverview = lazy(async () => ({ default: (await pageImporters.System()).SystemOverview }));
 const SystemClusters = lazy(async () => ({ default: (await pageImporters.System()).SystemClusters }));
 const SystemClusterDetail = lazy(async () => ({ default: (await pageImporters.System()).SystemClusterDetail }));
+const SystemOrgs = lazy(async () => ({ default: (await pageImporters.System()).SystemOrgs }));
+const SystemOrgDetail = lazy(async () => ({ default: (await pageImporters.System()).SystemOrgDetail }));
 const SystemAddCluster = lazy(async () => ({ default: (await pageImporters.System()).SystemAddCluster }));
 const SystemOperators = lazy(async () => ({ default: (await pageImporters.System()).SystemOperators }));
 const SystemUsers = lazy(async () => ({ default: (await pageImporters.System()).SystemUsers }));
@@ -307,6 +309,24 @@ function AppRoutes() {
 								<>
 									<PageTitle title="Cluster" />
 									<SystemClusterDetail />
+								</>
+							}
+						/>
+						<Route
+							path="orgs"
+							element={
+								<>
+									<PageTitle title="Organizations" />
+									<SystemOrgs />
+								</>
+							}
+						/>
+						<Route
+							path="orgs/:orgId"
+							element={
+								<>
+									<PageTitle title="Organization" />
+									<SystemOrgDetail />
 								</>
 							}
 						/>

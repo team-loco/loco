@@ -1,12 +1,14 @@
 import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { listClusters } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
+import { getOrg, getOrgLimits, listOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import type { Organization } from "@gen/loco/org/v1/org_pb";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { StatusBadge, type StatusStyle } from "@/components/design/StatusBadge";
 import { clusterState, regionCounts, STATE_LABEL, type ClusterState } from "@/lib/system";
-import { formatDateTime, maybeTsMs, timeZoneLabel } from "@/lib/time";
+import { formatDateTime, formatMonthDayYear, maybeTsMs, timeZoneLabel } from "@/lib/time";
 
 const POLL_MS = 30_000;
 const UTC = { zone: "utc", clock: "24" } as const;
@@ -60,4 +62,32 @@ export async function refreshFleet(queryClient: QueryClient): Promise<void> {
 	await queryClient.invalidateQueries({
 		queryKey: createConnectQueryKey({ schema: listClusters, cardinality: undefined }),
 	});
+}
+
+/** Whether the organization is suspended, with the reason on hover. */
+export function OrgStateBadge({ org }: { org: Organization }) {
+	if (org.suspendedAt === undefined) return <StatusBadge glyph="ok" label="Active" />;
+	return (
+		<span title={org.suspensionReason}>
+			<StatusBadge glyph="warn" label="Suspended" />
+		</span>
+	);
+}
+
+/** A date in UTC. */
+export function SystemDate({ ts }: { ts: Timestamp | undefined }) {
+	const ms = maybeTsMs(ts);
+	if (ms === undefined) return <span className="text-fg3">Unknown</span>;
+	return <time dateTime={new Date(ms).toISOString()}>{formatMonthDayYear(ms, UTC)}</time>;
+}
+
+/** Reloads what the Organizations pages show after a change to an organization. */
+export async function refreshOrgs(queryClient: QueryClient): Promise<void> {
+	await Promise.all([
+		queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: listOrgs, cardinality: undefined }) }),
+		queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: getOrg, cardinality: undefined }) }),
+		queryClient.invalidateQueries({
+			queryKey: createConnectQueryKey({ schema: getOrgLimits, cardinality: undefined }),
+		}),
+	]);
 }

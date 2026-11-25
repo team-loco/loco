@@ -1,4 +1,12 @@
+import type { CountLimits } from "@gen/loco/config/v1/config_pb";
+
 import { formatCount } from "@/lib/format";
+
+/** The numeric fields of CountLimits. */
+export type LimitKey = { [K in keyof CountLimits]-?: CountLimits[K] extends number ? K : never }[keyof CountLimits];
+
+/** GetOrgLimits lists a raised limit by its proto field name. */
+export const protoField = (key: LimitKey) => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 /** How many of something exist against the count limit that caps them. */
 export type LimitUsage = {

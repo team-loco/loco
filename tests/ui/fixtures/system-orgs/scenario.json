@@ -1,0 +1,42 @@
+{
+  "users": {
+    "admin": {"email": "admin@loco.test", "name": "Ada Admin", "system": "admin"},
+    "reader": {"email": "reader@loco.test", "name": "Rae Reader", "system": "read"},
+    "member": {"email": "member@acme.test", "name": "Max Member"},
+    "bulk1": {"email": "bulk1@loco.test", "name": "Bulk 1"},
+    "bulk2": {"email": "bulk2@loco.test", "name": "Bulk 2"},
+    "bulk3": {"email": "bulk3@loco.test", "name": "Bulk 3"}
+  },
+  "orgs": [
+    {"name": "acme", "owner": "member", "workspaces": ["shared"]},
+    {"name": "ops", "owner": "admin", "workspaces": ["main"], "members": ["member"]},
+    {"name": "labs", "owner": "admin", "workspaces": ["bench"]},
+    {"name": "org-01", "owner": "bulk1"},
+    {"name": "org-02", "owner": "bulk2"},
+    {"name": "org-03", "owner": "bulk3"},
+    {"name": "org-04", "owner": "bulk1"},
+    {"name": "org-05", "owner": "bulk2"},
+    {"name": "org-06", "owner": "bulk3"},
+    {"name": "org-07", "owner": "bulk1"},
+    {"name": "org-08", "owner": "bulk2"},
+    {"name": "org-09", "owner": "bulk3"},
+    {"name": "org-10", "owner": "bulk1"},
+    {"name": "org-11", "owner": "bulk2"},
+    {"name": "org-12", "owner": "bulk3"},
+    {"name": "org-13", "owner": "bulk1"},
+    {"name": "org-14", "owner": "bulk2"},
+    {"name": "org-15", "owner": "bulk3"},
+    {"name": "org-16", "owner": "bulk1"},
+    {"name": "org-17", "owner": "bulk2"},
+    {"name": "org-18", "owner": "bulk3"},
+    {"name": "org-19", "owner": "bulk1"},
+    {"name": "org-20", "owner": "bulk2"},
+    {"name": "org-21", "owner": "bulk3"},
+    {"name": "org-22", "owner": "bulk1"},
+    {"name": "org-23", "owner": "bulk2"},
+    {"name": "org-24", "owner": "bulk3"},
+    {"name": "org-25", "owner": "bulk1"},
+    {"name": "org-26", "owner": "bulk2"},
+    {"name": "org-27", "owner": "bulk3"}
+  ]
+}

@@ -8,6 +8,11 @@ export const SYSTEM_PATH = "/system";
 export const CLUSTERS_PATH = "/system/clusters";
 export const SYSTEM_AUDIT_PATH = "/system/audit";
 export const NEW_CLUSTER_PATH = "/system/clusters/new";
+export const ORGS_PATH = "/system/orgs";
+
+export function orgPath(orgId: string): string {
+	return `${ORGS_PATH}/${orgId}`;
+}
 
 export const OPERATORS_PATH = "/system/operators";
 export const USERS_PATH = "/system/users";

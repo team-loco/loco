@@ -1,6 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import type { CountLimits } from "@gen/loco/config/v1/config_pb";
 import type { Organization, OrgLimits } from "@gen/loco/org/v1/org_pb";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
@@ -9,12 +8,10 @@ import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { formatCount } from "@/lib/format";
-import { limitTone, limitUsage } from "@/lib/limits";
+import { limitTone, limitUsage, protoField, type LimitKey } from "@/lib/limits";
 import { cn } from "@/lib/utils";
 
 import { SettingsCard, SettingsSection } from "./parts";
-
-type LimitKey = { [K in keyof CountLimits]-?: CountLimits[K] extends number ? K : never }[keyof CountLimits];
 
 type LimitRow = {
 	key: LimitKey;
@@ -26,9 +23,6 @@ type LimitRow = {
 	where?: string | undefined;
 	unit?: string;
 };
-
-/** GetOrgLimits lists a raised limit by its proto field name. */
-const protoField = (key: LimitKey) => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 interface Row {
 	label: string;
