@@ -94,7 +94,7 @@ certManager:
   existingTLSSecret: gateway-tls
 ```
 
-`envoyProxy.http3: true` serves HTTP/3 on the app listeners through a ClientTrafficPolicy, and Envoy Gateway then adds UDP 443 to the Envoy Service next to TCP 443. It is off by default: a cloud load balancer that keys its configuration by port alone rejects TCP and UDP on the same port, and then never syncs node changes. `envoyProxy.tls.minVersion` renders the same ClientTrafficPolicy without HTTP/3.
+`envoyProxy.http3: true` serves HTTP/3 on the app listeners through a ClientTrafficPolicy, and Envoy Gateway then adds UDP 443 to the Envoy Service next to TCP 443. It is off by default: a cloud load balancer that keys its configuration by port alone rejects TCP and UDP on the same port, and then never syncs node changes. `envoyProxy.tls.minVersion` renders the same ClientTrafficPolicy without HTTP/3. `envoyProxy.envoyHeaders: true` sets `headers.enableEnvoyHeaders` on that policy, so Envoy adds its `x-envoy-*` headers to responses, among them `x-envoy-upstream-service-time`, the milliseconds the upstream took. Every client then sees per-request upstream timing, which sharpens timing attacks, and learns the proxy is Envoy. It is off by default; keep it off in production.
 
 The Gateway's Envoy Service uses Envoy Gateway's defaults unless `envoyProxy.service` supplies native [EnvoyService settings](https://gateway.envoyproxy.io/docs/api/extension_types/#kubernetesservicespec). For a kind installation with host port mappings, expose HTTP on a fixed NodePort:
 

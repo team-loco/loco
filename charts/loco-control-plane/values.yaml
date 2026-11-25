@@ -170,6 +170,10 @@ deploymentMode: ""
 
 # @schema additionalProperties: false
 gateway:
+  # Envoy adds x-envoy-* headers to responses, among them x-envoy-upstream-service-time, the
+  # milliseconds the upstream took. It shows every client per-request upstream timing, which
+  # sharpens timing attacks, and it reveals Envoy. Keep it off in production.
+  envoyHeaders: false
   # @schema additionalProperties: false
   tls:
     # -- Minimum client TLS version; empty keeps Envoy Gateway defaults.

@@ -88,7 +88,7 @@ spec:
                 values:
                   {{- toYaml (.namespaces | default (list $.Release.Namespace)) | nindent 18 }}
     {{- end }}
-{{- with .Values.gateway.tls.minVersion }}
+{{- if or .Values.gateway.tls.minVersion .Values.gateway.envoyHeaders }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: ClientTrafficPolicy
@@ -100,7 +100,13 @@ spec:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: {{ $.Values.gateway.name }}
+  {{- with .Values.gateway.tls.minVersion }}
   tls:
     minVersion: {{ . | quote }}
+  {{- end }}
+  {{- if .Values.gateway.envoyHeaders }}
+  headers:
+    enableEnvoyHeaders: true
+  {{- end }}
 {{- end }}
 {{- end }}
