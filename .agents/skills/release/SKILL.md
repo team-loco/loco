@@ -25,7 +25,7 @@ and neither it nor its revert goes in the notes.
 
 ## 2. Write the summary
 
-The summary has three parts, in this order.
+The summary has four parts, in this order. The workflow appends the generated list of merged pull requests after them.
 
 ### Summary
 
@@ -33,9 +33,12 @@ Two to five sentences a newcomer understands on one read, as if explaining to a 
 Loco can do now that they could not before, and what got fixed. Plain words, one idea per sentence, no flags, file
 names or PR numbers.
 
-### By part of the app
+### Features and Fixes
 
-One `###` heading per part that changed, in this order, skipping parts with no user-facing change:
+Two sections. `## Features` holds what users can do now that they could not before (mostly `feat` commits); `## Fixes`
+holds what now works as it should (mostly `fix` commits). Sort other types (`perf`, `refactor`, `revert`) by what the
+user sees. Inside each section, one `###` heading per part that changed, in this order, skipping parts with no
+user-facing change:
 
 | Heading | Commit scopes |
 | --- | --- |
@@ -71,13 +74,23 @@ When there are none, the section says "None."
 
 Loco can now ...
 
-## What's new
+## Features
 
 ### CLI
 
 - ...
 
 ### API
+
+- ...
+
+## Fixes
+
+### API
+
+- ...
+
+### Dashboard
 
 - ...
 
