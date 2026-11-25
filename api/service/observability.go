@@ -101,6 +101,7 @@ func (s *ObservabilityServer) QueryLogBuckets(
 // logFilterRequest holds the scope and query QueryLogsRequest and TailLogsRequest share.
 type logFilterRequest interface {
 	GetWorkspaceId() string
+	GetInstallation() bool
 	GetEnvironmentId() string
 	GetResourceIds() []string
 	GetQuery() string
@@ -110,13 +111,13 @@ type logFilterRequest interface {
 func (s *ObservabilityServer) logQuery(ctx context.Context, req logFilterRequest) (chClient.LogQuery, error) {
 	filter, resources, err := s.parseQuery(
 		ctx, req.GetQuery(), chClient.ValidateLogFilter,
-		req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds(),
+		req.GetWorkspaceId(), req.GetInstallation(), req.GetEnvironmentId(), req.GetResourceIds(),
 	)
 	if err != nil {
 		return chClient.LogQuery{}, err
 	}
 	return chClient.LogQuery{
-		WorkspaceID:   req.GetWorkspaceId(),
+		WorkspaceID:   queryWorkspace(req.GetWorkspaceId(), req.GetInstallation()),
 		EnvironmentID: req.GetEnvironmentId(),
 		ResourceIDs:   req.GetResourceIds(),
 		Filter:        filter,
@@ -131,7 +132,9 @@ func (s *ObservabilityServer) parseQuery(
 	ctx context.Context,
 	text string,
 	validate func(logquery.Expr) error,
-	workspaceID, environmentID string,
+	workspaceID string,
+	installation bool,
+	environmentID string,
 	resourceIDs []string,
 ) (logquery.Expr, []chClient.ResourceName, error) {
 	query, err := logquery.Parse(text)
@@ -141,10 +144,10 @@ func (s *ObservabilityServer) parseQuery(
 	if err != nil {
 		return nil, nil, querySyntaxError(err)
 	}
-	if err = s.authorizeRead(ctx, workspaceID, environmentID, resourceIDs); err != nil {
+	if err = s.authorizeRead(ctx, workspaceID, installation, environmentID, resourceIDs); err != nil {
 		return nil, nil, err
 	}
-	if workspaceID == systemtenant.WorkspaceID {
+	if installation {
 		if query, err = systemQuery(query); err != nil {
 			return nil, nil, querySyntaxError(err)
 		}
@@ -184,10 +187,11 @@ func (s *ObservabilityServer) QueryMetrics(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 	if err := s.authorizeRead(
-		ctx, req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds(),
+		ctx, req.GetWorkspaceId(), req.GetInstallation(), req.GetEnvironmentId(), req.GetResourceIds(),
 	); err != nil {
 		return nil, err
 	}
+	req.WorkspaceId = queryWorkspace(req.GetWorkspaceId(), req.GetInstallation())
 	series, err := s.clickhouse.QueryMetrics(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("query metrics: %w", err)
@@ -206,7 +210,8 @@ func (s *ObservabilityServer) ListTraces(
 	if err != nil {
 		return nil, err
 	}
-	if req.GetOrderBy() == observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE && len(filter.Resources) == 0 {
+	if req.GetOrderBy() == observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE && len(filter.Resources) == 0 &&
+		!req.GetScope().GetInstallation() {
 		filter.Resources, err = s.resourceNames(ctx, req.GetScope().GetWorkspaceId())
 		if err != nil {
 			return nil, err
@@ -251,11 +256,12 @@ func (s *ObservabilityServer) traceFilter(ctx context.Context, req traceFilterRe
 	scope := req.GetScope()
 	query, resources, err := s.parseQuery(
 		ctx, req.GetQuery(), chClient.ValidateTraceFilter,
-		scope.GetWorkspaceId(), scope.GetEnvironmentId(), scope.GetResourceIds(),
+		scope.GetWorkspaceId(), scope.GetInstallation(), scope.GetEnvironmentId(), scope.GetResourceIds(),
 	)
 	if err != nil {
 		return chClient.TraceFilter{}, err
 	}
+	scope.WorkspaceId = queryWorkspace(scope.GetWorkspaceId(), scope.GetInstallation())
 	return chClient.TraceFilter{Query: query, Resources: resources}, nil
 }
 
@@ -268,10 +274,11 @@ func (s *ObservabilityServer) GetTrace(
 	}
 	scope := req.GetScope()
 	if err := s.authorizeRead(
-		ctx, scope.GetWorkspaceId(), scope.GetEnvironmentId(), scope.GetResourceIds(),
+		ctx, scope.GetWorkspaceId(), scope.GetInstallation(), scope.GetEnvironmentId(), scope.GetResourceIds(),
 	); err != nil {
 		return nil, err
 	}
+	scope.WorkspaceId = queryWorkspace(scope.GetWorkspaceId(), scope.GetInstallation())
 	response, err := s.clickhouse.GetTrace(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("get trace: %w", err)
@@ -281,11 +288,13 @@ func (s *ObservabilityServer) GetTrace(
 
 // authorizeRead checks that the caller can read the workspace or, for a request that names
 // resources, every named resource. Every ClickHouse query also filters on the workspace, so a
-// named resource from another workspace matches no rows. The system tenant's ID asks for the
-// installation scope, which needs system read and takes no resources or environment.
+// named resource from another workspace matches no rows. The installation scope needs system read
+// and takes no resources or environment; no workspace has the system tenant's ID.
 func (s *ObservabilityServer) authorizeRead(
 	ctx context.Context,
-	workspaceID, environmentID string,
+	workspaceID string,
+	installation bool,
+	environmentID string,
 	resourceIDs []string,
 ) error {
 	if s.clickhouse == nil {
@@ -295,8 +304,12 @@ func (s *ObservabilityServer) authorizeRead(
 	if err != nil {
 		return err
 	}
-	if workspaceID == systemtenant.WorkspaceID {
+	if installation {
 		return s.authorizeSystemRead(ctx, p.Scopes, environmentID, resourceIDs)
+	}
+	if workspaceID == systemtenant.WorkspaceID {
+		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).
+			WithCause(authz.ErrEntityNotFound)
 	}
 	workspace, err := parseID("workspace_id", workspaceID)
 	if err != nil {
@@ -335,6 +348,14 @@ func (s *ObservabilityServer) authorizeSystemRead(
 		return connect.NewError(connect.CodeInvalidArgument, systemScopeWorkspaceOnly)
 	}
 	return nil
+}
+
+// queryWorkspace is the workspace ID ClickHouse stores the request's scope under.
+func queryWorkspace(workspaceID string, installation bool) string {
+	if installation {
+		return systemtenant.WorkspaceID
+	}
+	return workspaceID
 }
 
 // systemQuery rejects the workspace fields a system query cannot use and reads @component and

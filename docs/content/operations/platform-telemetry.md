@@ -34,7 +34,7 @@ obsProxy:
 
 ## Read it through the API
 
-A user with the system read or system admin role reads the system tenant through the observability API, the same calls the dashboard uses for a workspace: logs, log buckets, live tail, metrics, traces, trace buckets and a single trace. A request asks for the installation scope by setting `workspace_id` (`scope.workspace_id` for traces) to `00000000-0000-0000-0000-000000000001`. Anyone else, including a workspace or organization admin, gets `permission_denied`. Grant the role with `locoadm admin`.
+A user with the system read or system admin role reads the system tenant through the observability API, the same calls the dashboard uses for a workspace: logs, log buckets, live tail, metrics, traces, trace buckets and a single trace. A request asks for the installation scope by setting `installation: true` (`scope.installation` for traces) instead of `workspace_id`; it sets exactly one of the two. The system tenant's ID is not a workspace ID. Anyone else, including a workspace or organization admin, gets `permission_denied`. Grant the role with `locoadm admin`.
 
 In the installation scope:
 

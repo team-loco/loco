@@ -295,8 +295,10 @@ func (TraceStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 type QueryLogBucketsRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId     string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+	Installation    bool                   `protobuf:"varint,9,opt,name=installation,proto3" json:"installation,omitempty"`
 	ResourceIds     []string               `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
 	StartTime       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	EndTime         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
@@ -343,6 +345,13 @@ func (x *QueryLogBucketsRequest) GetWorkspaceId() string {
 		return x.WorkspaceId
 	}
 	return ""
+}
+
+func (x *QueryLogBucketsRequest) GetInstallation() bool {
+	if x != nil {
+		return x.Installation
+	}
+	return false
 }
 
 func (x *QueryLogBucketsRequest) GetResourceIds() []string {
@@ -510,8 +519,10 @@ func (x *LogBucket) GetResourceId() string {
 // QueryLogsRequest specifies filters and pagination for querying historical logs.
 type QueryLogsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Workspace ID to query logs from (required).
+	// Workspace ID to query logs from; set this or installation.
 	WorkspaceId string `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+	Installation bool `protobuf:"varint,15,opt,name=installation,proto3" json:"installation,omitempty"`
 	// Resource IDs to filter by (e.g., deployment IDs). Empty means all resources.
 	ResourceIds []string `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
 	// Start of time range (inclusive).
@@ -569,6 +580,13 @@ func (x *QueryLogsRequest) GetWorkspaceId() string {
 		return x.WorkspaceId
 	}
 	return ""
+}
+
+func (x *QueryLogsRequest) GetInstallation() bool {
+	if x != nil {
+		return x.Installation
+	}
+	return false
 }
 
 func (x *QueryLogsRequest) GetResourceIds() []string {
@@ -809,8 +827,10 @@ func (x *LogEntry) GetLogAttributes() map[string]string {
 // TailLogsRequest specifies filters for tailing live logs.
 type TailLogsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Workspace ID to tail logs from (required).
+	// Workspace ID to tail logs from; set this or installation.
 	WorkspaceId string `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+	Installation bool `protobuf:"varint,10,opt,name=installation,proto3" json:"installation,omitempty"`
 	// Resource IDs to filter by. Empty means all resources.
 	ResourceIds []string `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
 	// Log query: free text matched in the body, @key:value fields, AND, OR, - and parentheses.
@@ -858,6 +878,13 @@ func (x *TailLogsRequest) GetWorkspaceId() string {
 		return x.WorkspaceId
 	}
 	return ""
+}
+
+func (x *TailLogsRequest) GetInstallation() bool {
+	if x != nil {
+		return x.Installation
+	}
+	return false
 }
 
 func (x *TailLogsRequest) GetResourceIds() []string {
@@ -1024,8 +1051,10 @@ func (x *Heartbeat) GetTimestamp() *timestamppb.Timestamp {
 // QueryMetricsRequest specifies a metrics query with aggregation parameters.
 type QueryMetricsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Workspace ID to query metrics from (required).
+	// Workspace ID to query metrics from; set this or installation.
 	WorkspaceId string `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+	Installation bool `protobuf:"varint,12,opt,name=installation,proto3" json:"installation,omitempty"`
 	// Resource IDs to filter by. Empty means all resources in the workspace.
 	ResourceIds []string `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
 	// Start of time range (inclusive).
@@ -1085,6 +1114,13 @@ func (x *QueryMetricsRequest) GetWorkspaceId() string {
 		return x.WorkspaceId
 	}
 	return ""
+}
+
+func (x *QueryMetricsRequest) GetInstallation() bool {
+	if x != nil {
+		return x.Installation
+	}
+	return false
 }
 
 func (x *QueryMetricsRequest) GetResourceIds() []string {
@@ -1324,10 +1360,12 @@ func (x *MetricPoint) GetValue() float64 {
 }
 
 type TraceScope struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	ResourceIds   []string               `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
-	EnvironmentId string                 `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+	Installation  bool     `protobuf:"varint,4,opt,name=installation,proto3" json:"installation,omitempty"`
+	ResourceIds   []string `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	EnvironmentId string   `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1367,6 +1405,13 @@ func (x *TraceScope) GetWorkspaceId() string {
 		return x.WorkspaceId
 	}
 	return ""
+}
+
+func (x *TraceScope) GetInstallation() bool {
+	if x != nil {
+		return x.Installation
+	}
+	return false
 }
 
 func (x *TraceScope) GetResourceIds() []string {
@@ -2289,9 +2334,10 @@ var File_loco_observability_v1_observability_proto protoreflect.FileDescriptor
 
 const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\n" +
-	")loco/observability/v1/observability.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x04\n" +
-	"\x16QueryLogBucketsRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	")loco/observability/v1/observability.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\x05\n" +
+	"\x16QueryLogBucketsRequest\x12.\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12\"\n" +
+	"\finstallation\x18\t \x01(\bR\finstallation\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12A\n" +
 	"\n" +
@@ -2301,8 +2347,9 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x10interval_seconds\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds\x12L\n" +
 	"\bgroup_by\x18\a \x01(\x0e2%.loco.observability.v1.LogBucketGroupB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\agroupBy\x122\n" +
-	"\x0eenvironment_id\x18\b \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId:q\xbaHn\x1al\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"U\n" +
+	"\x0eenvironment_id\x18\b \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId:\x83\x02\xbaH\xff\x01\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\x1a\x8e\x01\n" +
+	" scope.workspace_xor_installation\x12:set workspace_id or installation, not both and not neither\x1a.this.installation == (this.workspace_id == '')\"U\n" +
 	"\x17QueryLogBucketsResponse\x12:\n" +
 	"\abuckets\x18\x01 \x03(\v2 .loco.observability.v1.LogBucketR\abuckets\"\xb4\x01\n" +
 	"\tLogBucket\x129\n" +
@@ -2311,9 +2358,10 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x04R\x05count\x125\n" +
 	"\x05level\x18\x03 \x01(\x0e2\x1f.loco.observability.v1.LogLevelR\x05level\x12\x1f\n" +
 	"\vresource_id\x18\x04 \x01(\tR\n" +
-	"resourceId\"\xe9\x04\n" +
-	"\x10QueryLogsRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"resourceId\"\xa3\x06\n" +
+	"\x10QueryLogsRequest\x12.\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12\"\n" +
+	"\finstallation\x18\x0f \x01(\bR\finstallation\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12A\n" +
 	"\n" +
@@ -2327,8 +2375,9 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05order\x18\n" +
 	" \x01(\x0e2\x1f.loco.observability.v1.LogOrderR\x05order\x122\n" +
 	"\x0eenvironment_id\x18\r \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12.\n" +
-	"\x13include_total_count\x18\x0e \x01(\bR\x11includeTotalCount:q\xbaHn\x1al\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"\x97\x01\n" +
+	"\x13include_total_count\x18\x0e \x01(\bR\x11includeTotalCount:\x83\x02\xbaH\xff\x01\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\x1a\x8e\x01\n" +
+	" scope.workspace_xor_installation\x12:set workspace_id or installation, not both and not neither\x1a.this.installation == (this.workspace_id == '')\"\x97\x01\n" +
 	"\x11QueryLogsResponse\x129\n" +
 	"\aentries\x18\x01 \x03(\v2\x1f.loco.observability.v1.LogEntryR\aentries\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
@@ -2349,23 +2398,27 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
 	"\x12LogAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xff\x01\n" +
-	"\x0fTailLogsRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbe\x03\n" +
+	"\x0fTailLogsRequest\x12.\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12\"\n" +
+	"\finstallation\x18\n" +
+	" \x01(\bR\finstallation\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12\x1e\n" +
 	"\x05query\x18\x03 \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\x129\n" +
 	"\n" +
 	"start_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x122\n" +
-	"\x0eenvironment_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\x96\x01\n" +
+	"\x0eenvironment_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId:\x95\x01\xbaH\x91\x01\x1a\x8e\x01\n" +
+	" scope.workspace_xor_installation\x12:set workspace_id or installation, not both and not neither\x1a.this.installation == (this.workspace_id == '')\"\x96\x01\n" +
 	"\x10TailLogsResponse\x127\n" +
 	"\x05entry\x18\x01 \x01(\v2\x1f.loco.observability.v1.LogEntryH\x00R\x05entry\x12@\n" +
 	"\theartbeat\x18\x02 \x01(\v2 .loco.observability.v1.HeartbeatH\x00R\theartbeatB\a\n" +
 	"\x05event\"E\n" +
 	"\tHeartbeat\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\x88\b\n" +
-	"\x13QueryMetricsRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xc0\t\n" +
+	"\x13QueryMetricsRequest\x12.\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12\"\n" +
+	"\finstallation\x18\f \x01(\bR\finstallation\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12A\n" +
 	"\n" +
@@ -2385,9 +2438,10 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x06by_pod\x18\v \x01(\bR\x05byPod\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xe3\x01\xbaH\xdf\x01\x1al\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xf4\x02\xbaH\xf0\x02\x1al\n" +
 	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\x1ao\n" +
-	"\x19by_pod.needs_one_resource\x12$by_pod needs exactly one resource_id\x1a,!this.by_pod || size(this.resource_ids) == 1\"S\n" +
+	"\x19by_pod.needs_one_resource\x12$by_pod needs exactly one resource_id\x1a,!this.by_pod || size(this.resource_ids) == 1\x1a\x8e\x01\n" +
+	" scope.workspace_xor_installation\x12:set workspace_id or installation, not both and not neither\x1a.this.installation == (this.workspace_id == '')\"S\n" +
 	"\x14QueryMetricsResponse\x12;\n" +
 	"\x06series\x18\x01 \x03(\v2#.loco.observability.v1.MetricSeriesR\x06series\"\xef\x01\n" +
 	"\fMetricSeries\x12\x1f\n" +
@@ -2400,13 +2454,15 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"]\n" +
 	"\vMetricPoint\x128\n" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x01R\x05value\"\x9f\x01\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value\"\xde\x02\n" +
 	"\n" +
-	"TraceScope\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"TraceScope\x12.\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12\"\n" +
+	"\finstallation\x18\x04 \x01(\bR\finstallation\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
 	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x122\n" +
-	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\xd2\x04\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId:\x95\x01\xbaH\x91\x01\x1a\x8e\x01\n" +
+	" scope.workspace_xor_installation\x12:set workspace_id or installation, not both and not neither\x1a.this.installation == (this.workspace_id == '')\"\xd2\x04\n" +
 	"\x11ListTracesRequest\x12?\n" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12A\n" +
 	"\n" +

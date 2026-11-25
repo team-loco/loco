@@ -13796,6 +13796,11 @@
             "title": "workspace_id",
             "format": "uuid"
           },
+          "installation": {
+            "type": "boolean",
+            "title": "installation",
+            "description": "Reads Loco's own telemetry instead of a workspace's; needs the system read role."
+          },
           "resourceIds": {
             "type": "array",
             "items": {
@@ -13844,7 +13849,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "time_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "scope.workspace_xor_installation // set workspace_id or installation, not both and not neither\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.QueryLogBucketsResponse": {
         "type": "object",
@@ -13868,7 +13873,12 @@
             "type": "string",
             "title": "workspace_id",
             "format": "uuid",
-            "description": "Workspace ID to query logs from (required)."
+            "description": "Workspace ID to query logs from; set this or installation."
+          },
+          "installation": {
+            "type": "boolean",
+            "title": "installation",
+            "description": "Reads Loco's own telemetry instead of a workspace's; needs the system read role."
           },
           "resourceIds": {
             "type": "array",
@@ -13929,7 +13939,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "QueryLogsRequest specifies filters and pagination for querying historical logs.\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "QueryLogsRequest specifies filters and pagination for querying historical logs.\nscope.workspace_xor_installation // set workspace_id or installation, not both and not neither\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.QueryLogsResponse": {
         "type": "object",
@@ -13965,7 +13975,12 @@
             "type": "string",
             "title": "workspace_id",
             "format": "uuid",
-            "description": "Workspace ID to query metrics from (required)."
+            "description": "Workspace ID to query metrics from; set this or installation."
+          },
+          "installation": {
+            "type": "boolean",
+            "title": "installation",
+            "description": "Reads Loco's own telemetry instead of a workspace's; needs the system read role."
           },
           "resourceIds": {
             "type": "array",
@@ -14035,7 +14050,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\nby_pod.needs_one_resource // by_pod needs exactly one resource_id\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\nby_pod.needs_one_resource // by_pod needs exactly one resource_id\nscope.workspace_xor_installation // set workspace_id or installation, not both and not neither\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.QueryMetricsResponse": {
         "type": "object",
@@ -14117,7 +14132,12 @@
             "type": "string",
             "title": "workspace_id",
             "format": "uuid",
-            "description": "Workspace ID to tail logs from (required)."
+            "description": "Workspace ID to tail logs from; set this or installation."
+          },
+          "installation": {
+            "type": "boolean",
+            "title": "installation",
+            "description": "Reads Loco's own telemetry instead of a workspace's; needs the system read role."
           },
           "resourceIds": {
             "type": "array",
@@ -14146,7 +14166,7 @@
         },
         "title": "TailLogsRequest",
         "additionalProperties": false,
-        "description": "TailLogsRequest specifies filters for tailing live logs."
+        "description": "TailLogsRequest specifies filters for tailing live logs.\nscope.workspace_xor_installation // set workspace_id or installation, not both and not neither\n"
       },
       "loco.observability.v1.TailLogsResponse": {
         "type": "object",
@@ -14226,6 +14246,11 @@
             "title": "workspace_id",
             "format": "uuid"
           },
+          "installation": {
+            "type": "boolean",
+            "title": "installation",
+            "description": "Reads Loco's own telemetry instead of a workspace's; needs the system read role."
+          },
           "resourceIds": {
             "type": "array",
             "items": {
@@ -14241,7 +14266,8 @@
           }
         },
         "title": "TraceScope",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "scope.workspace_xor_installation // set workspace_id or installation, not both and not neither\n"
       },
       "loco.observability.v1.TraceSpan": {
         "type": "object",

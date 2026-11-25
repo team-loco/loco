@@ -47,7 +47,8 @@ func TestControllerTelemetryReachesTheSystemTenant(t *testing.T) {
 }
 
 // TestSystemReaderReadsTheAPIsLogs checks that a user with the system read role reads the API's own
-// log lines from the system tenant through the observability API, and that a user without it is denied.
+// log lines from the system tenant through the observability API's installation scope, that the system
+// tenant's ID is not a workspace, and that a user without the role is denied.
 func TestSystemReaderReadsTheAPIsLogs(t *testing.T) {
 	t.Parallel()
 	web := p.Clients(p.ProviderToken(t, systemReaderEmail))
@@ -79,11 +80,11 @@ func TestSystemReaderReadsTheAPIsLogs(t *testing.T) {
 
 	query := func(clients *rpc.Clients) (*observabilityv1.QueryLogsResponse, error) {
 		return clients.Observability.QueryLogs(t.Context(), &observabilityv1.QueryLogsRequest{
-			WorkspaceId: systemtenant.WorkspaceID,
-			StartTime:   timestamppb.New(time.Now().Add(-time.Hour)),
-			EndTime:     timestamppb.Now(),
-			Query:       "@component:loco-api @cluster:" + systemtenant.ControlPlaneClusterID,
-			PageSize:    1,
+			Installation: true,
+			StartTime:    timestamppb.New(time.Now().Add(-time.Hour)),
+			EndTime:      timestamppb.Now(),
+			Query:        "@component:loco-api @cluster:" + systemtenant.ControlPlaneClusterID,
+			PageSize:     1,
 		})
 	}
 	platform.Eventually(t, telemetryTimeout, "an API log line read as a system reader", func(context.Context) error {
@@ -96,6 +97,14 @@ func TestSystemReaderReadsTheAPIsLogs(t *testing.T) {
 		}
 		return nil
 	})
+	_, err = reader.Observability.QueryLogs(t.Context(), &observabilityv1.QueryLogsRequest{
+		WorkspaceId: systemtenant.WorkspaceID,
+		StartTime:   timestamppb.New(time.Now().Add(-time.Hour)),
+		EndTime:     timestamppb.Now(),
+	})
+	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
+		t.Fatalf("system tenant ID as a workspace: code %v (%v), want permission_denied", code, err)
+	}
 	_, err = query(p.User)
 	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
 		t.Fatalf("system scope without the role: code %v (%v), want permission_denied", code, err)

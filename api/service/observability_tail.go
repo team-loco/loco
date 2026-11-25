@@ -39,7 +39,9 @@ func (s *ObservabilityServer) TailLogs(
 		return err
 	}
 	ctx, stop, err := auth.GuardStream(ctx, func(check context.Context) error {
-		return s.authorizeRead(check, req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds())
+		return s.authorizeRead(
+			check, req.GetWorkspaceId(), req.GetInstallation(), req.GetEnvironmentId(), req.GetResourceIds(),
+		)
 	})
 	if err != nil {
 		return err

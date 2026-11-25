@@ -114,7 +114,7 @@ func TestSystemReadersQueryLogs(t *testing.T) {
 	logBodies := func(t *testing.T, query string) []string {
 		t.Helper()
 		response, err := client.QueryLogs(callerContext(t, systemReader), &observabilityv1.QueryLogsRequest{
-			WorkspaceId: systemtenant.WorkspaceID, StartTime: start, EndTime: end, Query: query,
+			Installation: true, StartTime: start, EndTime: end, Query: query,
 			PageSize: 100, IncludeTotalCount: true,
 		})
 		if err != nil {
@@ -149,7 +149,7 @@ func TestSystemReadersQueryLogBuckets(t *testing.T) {
 	t.Parallel()
 	client, start, end := seedSystemTelemetry(t)
 	response, err := client.QueryLogBuckets(callerContext(t, systemAdmin), &observabilityv1.QueryLogBucketsRequest{
-		WorkspaceId: systemtenant.WorkspaceID, StartTime: start, EndTime: end, IntervalSeconds: 60,
+		Installation: true, StartTime: start, EndTime: end, IntervalSeconds: 60,
 		GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL, Query: "@component:loco-api",
 	})
 	if err != nil {
@@ -168,7 +168,7 @@ func TestSystemReadersTailLogs(t *testing.T) {
 	t.Parallel()
 	client, start, _ := seedSystemTelemetry(t)
 	stream, err := client.TailLogs(callerContext(t, systemReader), &observabilityv1.TailLogsRequest{
-		WorkspaceId: systemtenant.WorkspaceID, StartTime: start,
+		Installation: true, StartTime: start,
 		Query: "@cluster:" + systemWorkerCluster,
 	})
 	if err != nil {
@@ -194,7 +194,7 @@ func TestSystemReadersQueryMetrics(t *testing.T) {
 	client, start, end := seedSystemTelemetry(t)
 	for attributes, want := range map[string]float64{"loco-api": 10, "loco-controller": 20} {
 		response, err := client.QueryMetrics(callerContext(t, systemReader), &observabilityv1.QueryMetricsRequest{
-			WorkspaceId: systemtenant.WorkspaceID, StartTime: start, EndTime: end, MetricName: systemMetric,
+			Installation: true, StartTime: start, EndTime: end, MetricName: systemMetric,
 			IntervalSeconds: 60, Aggregation: "max", Attributes: map[string]string{"component": attributes},
 		})
 		if err != nil {
@@ -209,7 +209,7 @@ func TestSystemReadersQueryMetrics(t *testing.T) {
 func TestSystemReadersQueryTraces(t *testing.T) {
 	t.Parallel()
 	client, start, end := seedSystemTelemetry(t)
-	scope := &observabilityv1.TraceScope{WorkspaceId: systemtenant.WorkspaceID}
+	scope := &observabilityv1.TraceScope{Installation: true}
 	ctx := callerContext(t, systemReader)
 	for query, want := range map[string][]string{
 		"":                           {systemTraceAPI, systemTraceController},
@@ -252,20 +252,20 @@ func TestSystemScopeRejectsWorkspaceFilters(t *testing.T) {
 	client, start, end := seedSystemTelemetry(t)
 	ctx := callerContext(t, systemReader)
 	_, err := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
-		WorkspaceId: systemtenant.WorkspaceID, StartTime: start, EndTime: end, Query: "@resource:web",
+		Installation: true, StartTime: start, EndTime: end, Query: "@resource:web",
 	})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("@resource in logs: %v, want invalid argument", err)
 	}
 	_, err = client.ListTraces(ctx, &observabilityv1.ListTracesRequest{
-		Scope: &observabilityv1.TraceScope{WorkspaceId: systemtenant.WorkspaceID}, StartTime: start, EndTime: end,
+		Scope: &observabilityv1.TraceScope{Installation: true}, StartTime: start, EndTime: end,
 		Query: "@resource:web",
 	})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("@resource in traces: %v, want invalid argument", err)
 	}
 	_, err = client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
-		WorkspaceId: systemtenant.WorkspaceID, StartTime: start, EndTime: end, EnvironmentId: tailTestEnvironment,
+		Installation: true, StartTime: start, EndTime: end, EnvironmentId: tailTestEnvironment,
 	})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("environment_id in the system scope: %v, want invalid argument", err)
@@ -277,10 +277,39 @@ func TestWorkspaceMembersCannotReadTheSystemScope(t *testing.T) {
 	client, start, end := seedSystemTelemetry(t)
 	for _, caller := range []string{workspaceReader, orgReader, stranger} {
 		_, err := client.QueryLogs(callerContext(t, caller), &observabilityv1.QueryLogsRequest{
-			WorkspaceId: systemtenant.WorkspaceID, StartTime: start, EndTime: end,
+			Installation: true, StartTime: start, EndTime: end,
 		})
 		if connect.CodeOf(err) != connect.CodePermissionDenied {
 			t.Errorf("%s: %v, want permission denied", caller, err)
+		}
+	}
+}
+
+func TestTheSystemTenantIDIsNotAWorkspace(t *testing.T) {
+	t.Parallel()
+	client, start, end := seedSystemTelemetry(t)
+	for _, caller := range []string{systemReader, systemAdmin} {
+		_, err := client.QueryLogs(callerContext(t, caller), &observabilityv1.QueryLogsRequest{
+			WorkspaceId: systemtenant.WorkspaceID, StartTime: start, EndTime: end,
+		})
+		if connect.CodeOf(err) != connect.CodePermissionDenied {
+			t.Errorf("%s naming the system tenant as a workspace: %v, want permission denied", caller, err)
+		}
+	}
+}
+
+func TestScopeNamesAWorkspaceOrTheInstallation(t *testing.T) {
+	t.Parallel()
+	client, start, end := seedSystemTelemetry(t)
+	for name, workspace := range map[string]string{
+		"both":    observabilityTestWorkspace,
+		"neither": "",
+	} {
+		_, err := client.QueryLogs(callerContext(t, systemReader), &observabilityv1.QueryLogsRequest{
+			WorkspaceId: workspace, Installation: name == "both", StartTime: start, EndTime: end,
+		})
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("%s: %v, want invalid argument", name, err)
 		}
 	}
 }
