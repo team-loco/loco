@@ -24,6 +24,19 @@ Apply the real migrations, populate related tables with deterministic, valid org
 | Large | 10M |
 | Massive | 100M+ where local capacity supports it |
 
+Build distinct database populations using the same Loco schema, plus each candidate schema when evaluating schema changes. Start with these illustrative seed profiles and adjust downstream history counts to the query:
+
+| Population | Organizations | Workspaces | Environments | Resources |
+|---|---:|---:|---:|---:|
+| Tiny installation | 1 | 1 | 1 | 1 |
+| Small installations | 10 | 30 | 60 | 150 |
+| Many small tenants | 10,000 | 30,000 | 60,000 | 150,000 |
+| Large organization | 1 | 1,000 | 2,000 | 100,000 |
+| Large workspace | 1 | 1 | 10 | 10,000 |
+| Mixed and skewed | 10,000 | 50,000 | 100,000 | 1,000,000 |
+
+Include a small selected tenant inside a large database, a large selected tenant, and a hot resource among many idle resources. Exercise the actual relationship fanout for deployments, placements, builds, memberships and events rather than generating unrelated flat tables. Record exact populations and any scaled-down fixtures.
+
 Use applicable scales, not millions of rows in tables whose domain has a small bounded cardinality. Independently grow selected tenant data and unrelated tenant data; include many small tenants, one hot tenant, skewed histories and selective versus broad filters. Exercise first and deep pages, real ordering, empty results and common parameter distributions. Measure working sets that fit and exceed shared buffers and, where feasible, available RAM.
 
 Benchmark isolated statements, complete transactions and realistic mixed read/write traffic. Include concurrent operations on the same resource and different resources, bulk operations and background reconciliation when relevant. For write-heavy workloads, run long enough to observe checkpoints, WAL generation, autovacuum and table/index growth. Compare freshly analyzed fixtures and representative update/delete churn where relevant; do not disable maintenance or durability to improve measured numbers.
@@ -60,6 +73,8 @@ Reset before each cold observation or cold batch, distinguishing first-request s
 
 Capture [EXPLAIN (ANALYZE, BUFFERS, WAL, SETTINGS, FORMAT JSON)](https://www.postgresql.org/docs/18/sql-explain.html) for representative small and large tenants and different parameter selectivities, before and after. Collect plans separately from timed runs because instrumentation adds overhead. EXPLAIN ANALYZE executes writes; use disposable data and roll back where appropriate, restoring the fixture for comparisons (rollback does not undo every side effect, such as sequence increments).
 
+Measure planning and execution time separately. Capture first-use planning, repeated prepared execution, and generic versus custom plan behavior. Enable planning statistics in pg_stat_statements for a separate diagnostic run when available; compare planning calls and time as well as execution time. Measure client-side first-use latency where SQL parsing, analysis and rewriting costs matter, since EXPLAIN planning time does not cover all those stages. Inspect unnecessarily large SQL expressions, generated joins, repeated subqueries and complex predicates; benchmark equivalent simpler SQL, fewer round trips or independent queries run concurrently when that is a valid alternative. Complexity must justify its measured cost.
+
 Inspect estimate versus actual rows and loops, scan selectivity, rows removed by filters, join fanout, repeated subplans, heap fetches, sort/hash spills, temporary I/O and WAL. Check generic versus custom prepared plans for skewed parameters. Inspect index overlap and costs to writes, storage and maintenance; a sequential scan on a small table may be optimal.
 
 Collect per-run deltas from [pg_stat_statements](https://www.postgresql.org/docs/18/pgstatstatements.html), pg_stat_io, pg_stat_database, pg_stat_wal, pg_stat_checkpointer, pg_stat_user_tables and pg_stat_user_indexes as applicable. Record CPU, memory, I/O timing, buffer hits/reads, locks and wait events from pg_stat_activity and pg_locks, replica lag and connection utilization. Enable required instrumentation consistently on the owned instances. Treat cumulative counters as aggregate evidence, not per-request percentiles. Distinguish query execution, lock waits, connection-pool queueing, network and client bottlenecks.
@@ -68,4 +83,4 @@ Collect per-run deltas from [pg_stat_statements](https://www.postgresql.org/docs
 
 Produce a complete standalone HTML report for every run or audit, including partial or failed runs. Publish it as a Claude artifact or Codex Space page, provide the link and retain machine-readable samples alongside it. Render offline without external assets.
 
-Include an executive summary, ranked evidence-backed improvements, charts of cold/warm p90/p95/p99 and throughput across data scales and concurrency, and separate replication and recovery measurements where applicable. Include each matrix cell (pass/fail/unrun, with reasons), revision, exact configuration, seed, commands, data sizes, correctness results, latency sample counts, errors and baseline/candidate deltas. Embed expandable raw execution plans and link raw samples. Distinguish measured effects from hypotheses; do not extrapolate local timings into production SLOs.
+Include an executive summary, ranked evidence-backed improvements, charts of cold/warm p90/p95/p99 and throughput across data scales and concurrency, and separate replication and recovery measurements where applicable. Include each matrix cell (pass/fail/unrun, with reasons), revision, exact configuration, seed, commands, data sizes, correctness results, latency sample counts, errors and baseline/candidate deltas. Embed expandable raw execution plans and link raw samples. For each changed query, compare correctness, planning time, p90/p95/p99 execution or transaction latency, throughput and resource costs against the baseline on every applicable data shape. Treat a repeatable regression outside observed variance as a finding; revise and remeasure, or explicitly identify the remaining tradeoff rather than averaging it away. For audits, test plausible simpler alternatives when the evidence identifies avoidable work. Distinguish measured effects from hypotheses; do not extrapolate local timings into production SLOs.
