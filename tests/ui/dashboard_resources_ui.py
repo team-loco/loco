@@ -98,6 +98,7 @@ with session(out) as browser:
         ),
     ):
         page.goto(f"{base}?env=production")
+    expect(page.get_by_text("now", exact=True)).to_have_count(0)
     table = page.get_by_role("table", name="Resources")
     row = table.get_by_role("row").filter(
         has=page.get_by_role("link", name="svc-1", exact=True)

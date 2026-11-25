@@ -15,13 +15,14 @@ import { useDrafts } from "@/hooks/useDrafts";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { usePollingWorkspaceResources } from "@/hooks/useWorkspaceDeployments";
-import { DRAFT_PARAM, resourcePath, settingsPath } from "@/lib/routes";
+import { DRAFT_PARAM, newResourcePath, resourcePath, settingsPath } from "@/lib/routes";
 import { EmptyWorkspace } from "@/pages/dashboard/EmptyWorkspace";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
 import { draftItems } from "@/pages/dashboard/resourceRows";
 import { ResourcesTable } from "@/pages/dashboard/ResourcesTable";
 import { Totals } from "@/pages/dashboard/Totals";
 import { useEnvironmentRegions } from "@/pages/dashboard/useDashboardData";
+import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
 import { DraftSheet } from "@/pages/resources/NewService";
 
 const NOW_TICK_MS = 60_000;
@@ -107,8 +108,14 @@ export function Dashboard() {
 	}
 
 	return (
-		<Page className="gap-14 pt-9">
-			{heading}
+		<Page className="gap-8 pt-9">
+			<div className="flex justify-end">
+				{heading}
+				<NewResourceMenu
+					serviceHref={newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.slug })}
+					disabled={loading || active === undefined}
+				/>
+			</div>
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
 			) : envTotal === 0 && drafts.length === 0 ? (

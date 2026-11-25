@@ -352,7 +352,7 @@ with session(out) as browser:
         "**/loco.deployment.v1.DeploymentService/CreateDeployment",
         create_deployment,
     )
-    page.goto(base + "/resources?env=production")
+    page.goto(base + "?env=production")
     open_new_service(page)
     expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
     ask = page.get_by_role("dialog", name="New resource")
@@ -376,6 +376,17 @@ with session(out) as browser:
         drawer.get_by_role("textbox", name="Container image", exact=True)
     ).to_have_value(image)
     expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
+    expect(
+        drawer.get_by_text(
+            "Port is the port your application listens on inside the container.",
+            exact=True,
+        )
+    ).to_be_visible()
+    drawer.get_by_role("button", name="Internal", exact=True).click()
+    expect(drawer.get_by_text(f"http://{name}", exact=True)).to_be_visible()
+    expect(drawer.get_by_text("on the same cluster.", exact=False)).to_be_visible()
+    drawer.get_by_role("button", name="Public", exact=True).click()
+
     expect(drawer.get_by_text("Draft", exact=True).locator("svg")).to_have_css(
         "animation-name", "spin"
     )

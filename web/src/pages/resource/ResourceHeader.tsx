@@ -1,4 +1,5 @@
 import {
+	ActivityIcon,
 	ArrowUpRightIcon,
 	BellIcon,
 	CheckIcon,
@@ -11,10 +12,11 @@ import {
 	Undo2Icon,
 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus, type EnvironmentStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { CopyButton } from "@/components/design/CopyButton";
 import { ToggleChip } from "@/components/design/ToggleChip";
 import { Button } from "@/components/design/Button";
 import {
@@ -95,6 +97,7 @@ function MenuIcon({ children }: { children: React.ReactNode }) {
 
 export function ResourceHeader({
 	resource,
+	telemetry,
 	environment,
 	regions,
 	switcher,
@@ -113,6 +116,7 @@ export function ResourceHeader({
 	onDelete,
 }: {
 	resource: Resource;
+	telemetry: Record<"logs" | "metrics" | "traces", string | undefined>;
 	environment: EnvironmentStatus | undefined;
 	regions: RegionView[];
 	switcher: SwitcherItem[];
@@ -148,18 +152,37 @@ export function ResourceHeader({
 					<ResourceStatusBadge status={environment?.status} />
 				</div>
 				{domain !== undefined && (
-					<a
-						href={`https://${domain.domain}`}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="-mt-1.5 inline-flex items-center gap-1 self-start font-mono text-[13px] text-fg2 hover:text-foreground"
-					>
-						{domain.domain}
-						<ArrowUpRightIcon aria-hidden className="size-3.5 text-fg3" />
-					</a>
+					<div className="-mt-1.5 flex min-w-0 items-center gap-2">
+						<a
+							href={`https://${domain.domain}`}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="min-w-0 inline-flex items-center gap-1 self-start font-mono text-[13px] text-fg2 hover:text-foreground"
+						>
+							<span className="truncate">{domain.domain}</span>
+							<ArrowUpRightIcon aria-hidden className="size-3.5 text-fg3" />
+						</a>
+						<CopyButton text={`https://${domain.domain}`} name="Copy resource URL" />
+					</div>
 				)}
 			</div>
 			<div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
+				<DropdownMenu>
+					<DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+						<ActivityIcon /> Telemetry
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						{(["logs", "metrics", "traces"] as const).map((view) => (
+							<DropdownMenuItem
+								key={view}
+								disabled={telemetry[view] === undefined}
+								render={<Link to={telemetry[view] ?? ""} />}
+							>
+								{view === "logs" ? "Logs" : view === "metrics" ? "Metrics" : "Traces"}
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
 				<Button variant="outline" size="sm" aria-haspopup="dialog" onClick={onEvents}>
 					<BellIcon />
 					Events

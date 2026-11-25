@@ -70,6 +70,7 @@
 		color: var(--fg3);
 	}
 	& [data-slot="table-head"] {
+		background: var(--panel);
 		font-weight: 600;
 	}
 	& .rounded-card {
@@ -88,11 +89,8 @@
 		font-weight: 600;
 		letter-spacing: 0;
 	}
-	& [data-slot="table-header"] tr > :first-child {
-		border-top-left-radius: 6px;
-	}
-	& [data-slot="table-header"] tr > :last-child {
-		border-top-right-radius: 6px;
+	& [data-slot="data-table"] {
+		border-radius: calc(var(--radius-card) - 1px);
 	}
 	& [data-slot="button"][data-variant="outline"] {
 		border-color: var(--line2);

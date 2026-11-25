@@ -4,9 +4,11 @@ import json
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from harness import (
     call,
+    copied_text,
     evidence,
     load_state,
     open_page,
@@ -120,6 +122,11 @@ assert (
     )["env"]["MODE"]
     == "production"
 )
+evidence.seed_domains(
+    state,
+    resource,
+    [{"environment": "production", "domain": "details.apps.example.test"}],
+)
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
 USAGE = 0.9
 NOW = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
@@ -162,6 +169,16 @@ with session(out) as browser:
     ).to_be_visible()
     expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
     expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
+    page.get_by_role("button", name="Copy resource URL", exact=True).click()
+    assert copied_text(page) == "https://details.apps.example.test"
+    page.get_by_role("button", name="Telemetry", exact=True).click()
+    for label, view in [("Logs", "logs"), ("Metrics", "metrics"), ("Traces", "traces")]:
+        link = page.get_by_role("menuitem", name=label, exact=True)
+        expect(link).to_have_attribute("href", re.compile(r"/observability\?"))
+        params = parse_qs(urlparse(link.get_attribute("href")).query)
+        assert params.get("r") == [name], params
+        assert params.get("view", ["logs"]) == [view], params
+    page.keyboard.press("Escape")
     title = page.get_by_role("heading", name=name, exact=True)
     events = page.get_by_role("button", name=re.compile(r"^Events"))
     for viewport, below in (

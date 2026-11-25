@@ -198,6 +198,7 @@ export function TokenTable({
 	empty: ReactNode;
 	canDuplicate: boolean;
 	canRevoke: boolean;
+	onView: (token: Token) => void;
 	onDuplicate: (token: Token) => void;
 	onRevoke: (token: Token) => void;
 }) {
@@ -213,6 +214,11 @@ export function TokenTable({
 			band
 			loading={isLoading}
 			empty={empty}
+			rowLabel={(row) => `View access for ${row.original.name}`}
+			onRowClick={(row) => {
+				columns.onView(row.original);
+			}}
+			rowAction="open"
 			rowClassName={(row) => tokenStatus(row.original, now) === "expired" && "opacity-65"}
 		/>
 	);

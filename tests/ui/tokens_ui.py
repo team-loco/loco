@@ -81,6 +81,18 @@ with session(repo / "tests/ui/out/tokens") as browser:
         "button", name=re.compile(r"^Organization")
     )
     expect(organization.first).to_have_attribute("aria-pressed", "true")
+    row = page.get_by_role("row", name="View access for ci-source")
+    row.focus()
+    page.keyboard.press("Enter")
+    details = page.get_by_role("dialog", name="Token access", exact=True)
+    expect(details.get_by_text("acme org", exact=True)).to_be_visible()
+    expect(
+        details.get_by_text(
+            "View the organization, its workspaces and members", exact=True
+        )
+    ).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(details).to_be_hidden()
     page.get_by_role("button", name="Actions for ci-source").click()
     page.get_by_role("menuitem", name="Duplicate").click()
     drawer = page.get_by_role("dialog", name="New token")
@@ -107,6 +119,14 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert re.fullmatch(r"•+", value.inner_text()), "the token starts masked"
     expect(created.get_by_role("img", name="Hidden token")).to_be_visible()
     expect(created.get_by_role("img", name="Example, token masked")).to_be_visible()
+    eye = created.get_by_role("button", name="Show token")
+    copy_button = created.get_by_role("button", name="Copy token")
+    for control in [eye, copy_button]:
+        assert control.inner_text() == "", "copy and reveal controls use icons"
+        assert (
+            value.bounding_box()["x"] + value.bounding_box()["width"]
+            <= control.bounding_box()["x"]
+        )
     created.get_by_role("button", name="Show token").click()
     token = value.inner_text()
     assert token.startswith("loco_"), token
@@ -131,6 +151,24 @@ with session(repo / "tests/ui/out/tokens") as browser:
     page.goto(state["ui_url"] + "/tokens?owner=org")
     menu = page.get_by_role("button", name="Actions for ci-source")
     expect(menu).to_be_visible()
+    # Pinned headers use the same fill as the entire header in the bordered theme.
+    page.evaluate("localStorage.setItem('loco:color:v1', 'paper')")
+    page.reload()
+    expect(page.get_by_role("table", name="Tokens")).to_be_visible()
+    for dark in [False, True]:
+        page.evaluate(
+            "dark => { document.documentElement.dataset.theme = 'paper'; document.documentElement.classList.toggle('dark', dark); }",
+            dark,
+        )
+        page.wait_for_function(
+            "getComputedStyle(document.documentElement).getPropertyValue('--radius-card').trim() === '6px'"
+        )
+        heads = page.get_by_role("table", name="Tokens").locator("th")
+        colors = heads.evaluate_all(
+            "nodes => nodes.map(node => getComputedStyle(node).backgroundColor)"
+        )
+        assert len(set(colors)) == 1 and colors[0] != "rgba(0, 0, 0, 0)", colors
+
     container = page.locator('[data-slot="data-table"]').first
     assert container.get_attribute("data-scroll") is None
     assert container.evaluate("node => getComputedStyle(node).maskImage") == "none"

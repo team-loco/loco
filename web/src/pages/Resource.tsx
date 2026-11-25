@@ -232,7 +232,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const buildLogsHref = (buildId: string) =>
 		hasWs ? buildLogsPath(activeOrgId, activeWorkspaceId, buildId) : undefined;
 	const obsLink = (
-		obsView: "logs" | "metrics",
+		obsView: "logs" | "metrics" | "traces",
 		filter: { key: string; value: string } | null = null,
 	): string | undefined =>
 		hasWs
@@ -445,6 +445,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
 			<ResourceHeader
 				resource={resource}
+				telemetry={{ logs: obsLink("logs"), metrics: obsLink("metrics"), traces: obsLink("traces") }}
 				environment={environment}
 				regions={regions}
 				switcher={switcher}

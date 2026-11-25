@@ -293,10 +293,10 @@ function EventPicker({
 					const count = groupCountLabel(state.count, g.types.length);
 					return (
 						<div key={g.label} className="border-line not-first:border-t">
-							<div className="flex items-center gap-1">
+							<div className="flex items-center gap-1 rounded-md hover:bg-panel focus-within:bg-panel">
 								<label
 									htmlFor={groupId}
-									className="flex min-h-9 flex-1 items-center gap-2.5 rounded-md px-2 text-[13.5px] hover:bg-panel"
+									className="flex min-h-9 flex-1 items-center gap-2.5 rounded-md px-2 text-[13.5px]"
 								>
 									<Checkbox
 										id={groupId}

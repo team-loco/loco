@@ -29,11 +29,16 @@ export function SecretValue({
 	return (
 		<div className="flex items-center gap-2.5 rounded-lg bg-panel py-2.5 pr-2.5 pl-3 font-mono text-[12.5px] break-all">
 			{shown ? (
-				<span data-secret-value="" className="min-w-0 flex-1 select-all">
+				<span data-secret-value="" className="min-w-0 flex-1 select-all [overflow-wrap:anywhere]">
 					{secret}
 				</span>
 			) : (
-				<span data-secret-value="" role="img" aria-label={`Hidden ${noun}`} className="min-w-0 flex-1 select-none">
+				<span
+					data-secret-value=""
+					role="img"
+					aria-label={`Hidden ${noun}`}
+					className="min-w-0 flex-1 select-none [overflow-wrap:anywhere]"
+				>
 					<span aria-hidden="true">{maskSecret(secret, false)}</span>
 				</span>
 			)}
@@ -41,6 +46,8 @@ export function SecretValue({
 				type="button"
 				variant="outline"
 				size="icon-sm"
+				className="shrink-0"
+				aria-pressed={shown}
 				aria-label={eyeLabel}
 				title={eyeLabel}
 				onClick={() => {

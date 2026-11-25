@@ -708,7 +708,8 @@ function ServiceForm({
 							"Gets an HTTPS address on an app domain."
 						) : (
 							<>
-								Reachable only by other resources in <InlineCode>{env.name}</InlineCode>.
+								Reachable at <InlineCode>{`http://${slug}`}</InlineCode> by resources in{" "}
+								<InlineCode>{env.name}</InlineCode> on the same cluster. Port 80 forwards to your container port.
 							</>
 						)}
 					</span>
@@ -749,6 +750,7 @@ function ServiceForm({
 							/>
 						</Field>
 					</div>
+					<p className="text-[12.5px] text-fg3">Port is the port your application listens on inside the container.</p>
 				</DrawerSection>
 
 				<CollapsibleRow

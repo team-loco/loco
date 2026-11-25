@@ -33,6 +33,7 @@ import { TokensArt } from "./tokens/TokensArt";
 import { heldLevel, matchesQuery, OWNER_KEYS, OWNER_TITLE, tokenGrants, tokenStatus } from "./tokens/model";
 import type { OwnerKey } from "./tokens/model";
 import type { AccessItem } from "./tokens/AccessPicker";
+import { TokenDetailsDrawer } from "./tokens/TokenDetailsDrawer";
 import { RevokeDialog } from "./tokens/RevokeDialog";
 import { TokenTable } from "./tokens/TokenTable";
 import { useTokenCreators } from "./tokens/useTokenCreators";
@@ -91,6 +92,7 @@ export function Tokens() {
 	const queryClient = useQueryClient();
 	const now = useNow(NOW_TICK_MS).getTime();
 	const [draft, setDraft] = useState<CreateDraft | null>(null);
+	const [viewing, setViewing] = useState<Token | null>(null);
 	const [revoking, setRevoking] = useState<Token | null>(null);
 	// Duplicating waits for the token's entities and their parents, which decide the access the copy keeps.
 	const [duplicating, setDuplicating] = useState<Token | null>(null);
@@ -112,6 +114,7 @@ export function Tokens() {
 	const anyLoading = data.scopesLoading || OWNER_KEYS.some((k) => data.owners[k].isLoading);
 
 	const setOwner = (next: OwnerKey) => {
+		setViewing(null);
 		void setParams({ owner: next });
 		paged.reset();
 	};
@@ -276,6 +279,7 @@ export function Tokens() {
 							empty={empty}
 							canDuplicate={owner.canCreate}
 							canRevoke={owner.canCreate || owner.key === "user"}
+							onView={setViewing}
 							onDuplicate={setDuplicating}
 							onRevoke={setRevoking}
 						/>
@@ -294,6 +298,13 @@ export function Tokens() {
 				onCreated={(created) => {
 					if (created !== ownerKey) setOwner(created);
 					void invalidate();
+				}}
+			/>
+			<TokenDetailsDrawer
+				token={viewing}
+				entities={data.entities}
+				onClose={() => {
+					setViewing(null);
 				}}
 			/>
 			<RevokeDialog

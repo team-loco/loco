@@ -322,7 +322,6 @@ function AllocatedCard({
 			label="Allocated"
 			growLeft
 			ariaLabel={`Allocated: ${formatCpu(cpuMilli)}, ${memory} memory`}
-			corner={<span className="font-mono text-[11.5px]">now</span>}
 			breakdown={
 				value.resourceCount > 0 ? (
 					<Breakdown
