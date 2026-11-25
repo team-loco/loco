@@ -92,20 +92,20 @@ func TestClusterSilenceWaitsForAPauseThatIsCommitting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	swept := make(chan ClusterSilenceSweepResult, 1)
+	swept := make(chan int, 1)
 	go func() {
-		result, sweepErr := NewClusterSilenceSweeper(f.pool, testSilentAfter, time.Minute).Sweep(f.ctx)
+		silenced, sweepErr := NewClusterSilenceSweeper(f.pool, testSilentAfter, time.Minute).Sweep(f.ctx)
 		if sweepErr != nil {
 			t.Error(sweepErr)
 		}
-		swept <- result
+		swept <- silenced
 	}()
 	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	if err = tx.Commit(f.ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result := <-swept; result.Silenced != 0 {
-		t.Fatalf("sweep silenced %d clusters, want none for a cluster paused before the sweep read it", result.Silenced)
+	if silenced := <-swept; silenced != 0 {
+		t.Fatalf("sweep silenced %d clusters, want none for a cluster paused before the sweep read it", silenced)
 	}
 	if got := f.clusterEvents(t, "cluster.silent", f.clusterID); len(got) != 0 {
 		t.Fatalf("paused cluster recorded %v", got)
