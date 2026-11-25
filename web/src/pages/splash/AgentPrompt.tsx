@@ -29,17 +29,24 @@ export function AgentPrompt() {
 			</span>
 			<span className="sp-agent-ics" aria-hidden>
 				<span className="sp-agent-ic">
-					<svg viewBox="0 0 24 24" width={15} height={15} role="img" aria-label="Claude Code">
+					<svg viewBox="0 0 24 24" width={15} height={15} className="size-[15px]" role="img" aria-label="Claude Code">
 						<path fillRule="evenodd" clipRule="evenodd" fill="#D97757" d={CLAUDE_CODE_PATH} />
 					</svg>
 				</span>
 				<span className="sp-agent-ic">
-					<svg viewBox="0 0 24 24" width={15} height={15} role="img" aria-label="Codex">
+					<svg viewBox="0 0 24 24" width={15} height={15} className="size-[15px]" role="img" aria-label="Codex">
 						<path fillRule="evenodd" clipRule="evenodd" fill="var(--fg)" d={CODEX_PATH} />
 					</svg>
 				</span>
 				<span className="sp-agent-ic">
-					<svg viewBox="0 0 466.73 532.09" width={14} height={14} role="img" aria-label="Cursor">
+					<svg
+						viewBox="0 0 466.73 532.09"
+						width={14}
+						height={14}
+						className="size-[14px]"
+						role="img"
+						aria-label="Cursor"
+					>
 						<path fill="var(--fg)" d={CURSOR_PATH} />
 					</svg>
 				</span>
