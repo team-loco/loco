@@ -194,6 +194,7 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     expect(page).to_have_url(re.compile(r"/login"))
     expect(page).not_to_have_url(re.compile(r"/dex/"))
     deletion[0].continue_()
+    expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
     page.wait_for_timeout(1000)
     expect(page).not_to_have_url(re.compile(r"/dex/"))
     assert not any(
