@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"io"
 	"strings"
 	"testing"
 
@@ -196,21 +195,7 @@ func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
 			t.Fatalf("send heartbeat: %v", err)
 		}
 	}
-	if err := stream.CloseSend(); err != nil {
-		t.Fatalf("close sync stream: %v", err)
-	}
-	// The server ends the stream after it has handled every message the agent sent.
-	for {
-		if _, err := stream.Receive(); err != nil {
-			if !errors.Is(err, io.EOF) {
-				t.Fatalf("sync stream: %v", err)
-			}
-			break
-		}
-	}
-	if got := role(); got != genDb.ClusterRoleAll {
-		t.Fatalf("role = %s after a heartbeat reporting all", got)
-	}
+	waitFor(t, "role all after a heartbeat reporting all", func() bool { return role() == genDb.ClusterRoleAll })
 }
 
 func TestBuildSelectionRequiresHealthyRecentHeartbeats(t *testing.T) {

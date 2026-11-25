@@ -999,9 +999,11 @@ def cluster_row(
     q = sql_literal
     domain_array = "ARRAY[" + ",".join(q(domain) for domain in domains) + "]::text[]"
     return (
-        "INSERT INTO clusters(id,name,region,provider,platforms,domains,is_active,is_default,health_status,last_heartbeat) "
+        "INSERT INTO clusters(id,name,region,provider,platforms,domains,is_active,is_default) "
         f"VALUES({q(cluster_id)},{q(name or 'evidence-' + cluster_id)},{q(region)},'fixture',ARRAY['linux/amd64'],"
-        f"{domain_array},true,{str(default).lower()},{q(health)},NOW());"
+        f"{domain_array},true,{str(default).lower()});"
+        "INSERT INTO cluster_heartbeats(cluster_id,last_heartbeat,health_status) "
+        f"VALUES({q(cluster_id)},NOW(),{q(health)});"
     )
 
 

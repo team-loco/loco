@@ -757,6 +757,7 @@ DROP TABLE IF EXISTS resource_domains;
 DROP TABLE IF EXISTS secrets;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS cluster_assertions;
+DROP TABLE IF EXISTS cluster_heartbeats;
 DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS environment_keys;
 DROP TABLE IF EXISTS environments;

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -446,17 +447,29 @@ func placementMessage(
 	}
 }
 
-// handle records a heartbeat at once and queues every other report.
+// handle records a heartbeat's liveness at once and queues the rest of it and every other report.
 func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) error {
 	if heartbeat := msg.GetHeartbeat(); heartbeat != nil {
-		ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
-		return nil
+		return ss.handleHeartbeat(ctx, heartbeat)
 	}
 	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
 		ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
 		settle, err := ss.apply(ctx, msg)
 		tracing.End(span, err)
 		return settle, err
+	})
+}
+
+func (ss *syncSession) handleHeartbeat(ctx context.Context, heartbeat *agentv1.Heartbeat) error {
+	// The sync stream bypasses the validation interceptor, and an unknown role cannot be stored.
+	if err := protovalidate.Validate(heartbeat); err != nil {
+		slog.WarnContext(ctx, "ignoring an invalid heartbeat", "error", err, "cluster_id", ss.clusterID)
+		return nil
+	}
+	ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
+	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
+		ss.server.recordClusterReport(ctx, ss.clusterID, heartbeat)
+		return nil, nil
 	})
 }
 

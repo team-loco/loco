@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -118,23 +120,28 @@ func holdResource(t *testing.T, f *deployFixture) func() {
 // holdRow locks the row the query selects as a write does, until the returned release runs.
 func holdRow(t *testing.T, f *deployFixture, query string, id uuid.UUID) func() {
 	t.Helper()
+	return holdTx(t, f, func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, query, id)
+		return err
+	})
+}
+
+// holdTx runs lock in a transaction that stays open, as a write's does, until the returned release runs.
+func holdTx(t *testing.T, f *deployFixture, lock func(context.Context, pgx.Tx) error) func() {
+	t.Helper()
 	tx, err := f.pool.Begin(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := tx.Exec(t.Context(), query, id); err != nil {
+	release := sync.OnceFunc(func() {
+		if err := tx.Rollback(context.Background()); err != nil {
+			t.Errorf("release the lock: %v", err)
+		}
+	})
+	t.Cleanup(release)
+	if err := lock(t.Context(), tx); err != nil {
 		t.Fatal(err)
 	}
-	released := false
-	release := func() {
-		if !released {
-			released = true
-			if err := tx.Rollback(context.Background()); err != nil {
-				t.Errorf("release resource: %v", err)
-			}
-		}
-	}
-	t.Cleanup(release)
 	return release
 }
 

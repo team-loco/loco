@@ -96,7 +96,7 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	}
 
 	server := e.agentServer()
-	server.recordHeartbeat(
+	server.recordClusterReport(
 		t.Context(),
 		clusterID,
 		&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Domains: []string{domainsThird}},
@@ -104,7 +104,7 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	if got := e.clusterDomains(t, clusterID); !slices.Equal(got, []string{domainsThird}) {
 		t.Fatalf("domains after heartbeat = %v, want [c.test]", got)
 	}
-	server.recordHeartbeat(t.Context(), clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
+	server.recordClusterReport(t.Context(), clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
 	if got := e.clusterDomains(t, clusterID); len(got) != 0 {
 		t.Fatalf("domains after an empty heartbeat = %v, want none", got)
 	}
@@ -315,9 +315,8 @@ VALUES ($1, $2, $3, 'app', 'app', $4, true)`
 		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 	})
 
-	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, &agentv1.Heartbeat{
-		Role:   clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-		Health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
+	f.agentServer().recordClusterReport(t.Context(), f.clusterID, &agentv1.Heartbeat{
+		Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 	})
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
@@ -328,9 +327,8 @@ VALUES ($1, $2, $3, 'app', 'app', $4, true)`
 		t.Fatalf("%d domains after the cluster dropped the domain, want the assignment kept", n)
 	}
 
-	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, &agentv1.Heartbeat{
+	f.agentServer().recordClusterReport(t.Context(), f.clusterID, &agentv1.Heartbeat{
 		Role:    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-		Health:  &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
 		Domains: []string{testAppDomain},
 	})
 	f.heartbeat(t, f.clusterID, time.Now(), clusterHealthHealthy)

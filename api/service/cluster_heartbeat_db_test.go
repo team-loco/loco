@@ -6,64 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
-
-// holdCluster runs lock in a transaction, as a deploy or a status report does, until the returned
-// release runs.
-func holdCluster(t *testing.T, f *deployFixture, lock func(context.Context, *genDb.Queries) error) func() {
-	t.Helper()
-	tx, err := f.pool.Begin(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := lock(t.Context(), genDb.New(tx)); err != nil {
-		t.Fatal(err)
-	}
-	released := false
-	release := func() {
-		if !released {
-			released = true
-			if err := tx.Rollback(context.Background()); err != nil {
-				t.Errorf("release cluster: %v", err)
-			}
-		}
-	}
-	t.Cleanup(release)
-	return release
-}
-
-// sendHeartbeat records the heartbeat in the background and returns a channel closed once it is recorded.
-func sendHeartbeat(t *testing.T, f *deployFixture, heartbeat *agentv1.Heartbeat) <-chan struct{} {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		f.agentServer().recordHeartbeat(context.Background(), f.clusterID, heartbeat)
-	}()
-	return done
-}
-
-func waitClosed(t *testing.T, what string, done <-chan struct{}) {
-	t.Helper()
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatalf("timed out waiting for: %s", what)
-	}
-}
-
-func sameReportHeartbeat() *agentv1.Heartbeat {
-	return &agentv1.Heartbeat{
-		Role:     clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-		Health:   &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
-		Capacity: &agentv1.AgentCapacity{Platforms: []string{testPlatform}},
-	}
-}
 
 func TestAHeartbeatDoesNotWaitForAWriteThatSharesTheCluster(t *testing.T) {
 	t.Parallel()
@@ -81,43 +31,78 @@ func TestAHeartbeatDoesNotWaitForAWriteThatSharesTheCluster(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			f := newDeployFixture(t)
-			waitClosed(t, "first heartbeat recorded", sendHeartbeat(t, f, sameReportHeartbeat()))
-			holdCluster(t, f, func(ctx context.Context, q *genDb.Queries) error { return lock(ctx, q, f.clusterID) })
-
+			server := f.agentServer()
+			server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 			first := f.heartbeatAt(t)
-			waitClosed(t, "heartbeat recorded while a write shared the cluster",
-				sendHeartbeat(t, f, sameReportHeartbeat()))
-			if !f.heartbeatAt(t).After(*first) {
-				t.Fatal("the heartbeat was not recorded")
+			holdTx(t, f, func(ctx context.Context, tx pgx.Tx) error { return lock(ctx, genDb.New(tx), f.clusterID) })
+
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+			defer cancel()
+			server.recordHeartbeat(ctx, f.clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
+			if at, health := f.storedHeartbeat(t); !at.After(*first) || health != clusterHealthDegraded {
+				t.Fatalf("heartbeat at %v (first %v), health %q, want a later degraded heartbeat", at, first, health)
 			}
 		})
 	}
 }
 
-func TestAHeartbeatChangingTheRoleWaitsForADeployThatCheckedIt(t *testing.T) {
+func TestHeartbeatsFlowWhileARoleChangeWaitsForADeployThatCheckedIt(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	release := holdCluster(t, f, func(ctx context.Context, q *genDb.Queries) error {
-		_, err := q.LockAssignableCluster(ctx, f.clusterID)
+	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	stream := openReportStream(t, startSyncServer(t, f), f.clusterID)
+	release := holdTx(t, f, func(ctx context.Context, tx pgx.Tx) error {
+		_, err := genDb.New(tx).LockAssignableCluster(ctx, f.clusterID)
 		return err
 	})
 
-	heartbeat := sameReportHeartbeat()
-	heartbeat.Role = clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS
-	done := sendHeartbeat(t, f, heartbeat)
-	waitFor(t, "heartbeat recorded while a deploy held the cluster", func() bool { return f.heartbeatAt(t) != nil })
-	select {
-	case <-done:
-		t.Fatal("the role changed while a deploy that checked it was open")
-	case <-time.After(300 * time.Millisecond):
+	builds := healthyHeartbeat()
+	builds.Role = clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS
+	report(stream, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: builds}})
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	first, _ := f.storedHeartbeat(t)
+
+	degraded := &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_BUILDS}
+	report(stream, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: degraded}})
+	waitFor(t, "a second heartbeat recorded while the role change waits", func() bool {
+		at, health := f.storedHeartbeat(t)
+		return at.After(first) && health == clusterHealthDegraded
+	})
+	if role := f.role(t); role != genDb.ClusterRoleAll {
+		t.Fatalf("role = %s while a deploy that checked it is open, want all", role)
 	}
 
 	release()
-	waitClosed(t, "the role changed once the deploy ended", done)
-	role, err := f.queries.GetClusterRole(t.Context(), f.clusterID)
-	if err != nil || role != genDb.ClusterRoleBuilds {
-		t.Fatalf("role = %v, err = %v, want builds", role, err)
+	waitFor(t, "the role changed once the deploy ended", func() bool { return f.role(t) == genDb.ClusterRoleBuilds })
+}
+
+func healthyHeartbeat() *agentv1.Heartbeat {
+	return &agentv1.Heartbeat{
+		Role:     clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Health:   &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
+		Capacity: &agentv1.AgentCapacity{Platforms: []string{testPlatform}},
 	}
+}
+
+func (f *deployFixture) storedHeartbeat(t *testing.T) (time.Time, string) {
+	t.Helper()
+	var at time.Time
+	var health string
+	if err := f.pool.QueryRow(t.Context(),
+		`SELECT last_heartbeat, health_status FROM cluster_heartbeats WHERE cluster_id = $1`, f.clusterID,
+	).Scan(&at, &health); err != nil {
+		t.Fatal(err)
+	}
+	return at, health
+}
+
+func (f *deployFixture) role(t *testing.T) genDb.ClusterRole {
+	t.Helper()
+	role, err := f.queries.GetClusterRole(t.Context(), f.clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return role
 }
 
 // setHeartbeats records a heartbeat at the time and health for the clusters, or for every cluster
