@@ -345,8 +345,12 @@ func TestHeartbeatsFlowWhileStartingQueuedBuildsWaitsForAWrite(t *testing.T) {
 				held = f.resourceID
 			}
 			if _, err := f.pool.Exec(t.Context(),
-				`UPDATE clusters SET last_heartbeat = NULL, role = $2 WHERE id = $1`,
+				`UPDATE clusters SET role = $2 WHERE id = $1`,
 				f.clusterID, clusterRoleFromProto(tc.role)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.pool.Exec(t.Context(),
+				`DELETE FROM cluster_heartbeats WHERE cluster_id = $1`, f.clusterID); err != nil {
 				t.Fatal(err)
 			}
 			release := holdRow(t, f.deployFixture, tc.lock, held)
@@ -400,7 +404,7 @@ func TestAQueuedBuildIsSentWhileALaterBuildWaitsForAWrite(t *testing.T) {
 	first := f.queued(t)
 	second := f.insertBuild(t, genDb.BuildStatusQueued)
 	if _, err := f.pool.Exec(t.Context(),
-		`UPDATE clusters SET last_heartbeat = NULL WHERE id = $1`, f.clusterID); err != nil {
+		`DELETE FROM cluster_heartbeats WHERE cluster_id = $1`, f.clusterID); err != nil {
 		t.Fatal(err)
 	}
 	release := holdRow(t, f.deployFixture, `SELECT id FROM builds WHERE id = $1 FOR UPDATE`, uuid.MustParse(second))
