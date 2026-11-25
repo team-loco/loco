@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -80,9 +81,14 @@ func TestLoginNamesTheURLForABareHost(t *testing.T) {
 
 func TestUpdateCommand(t *testing.T) {
 	root := NewRootCmd()
-	cmd, _, err := root.Find([]string{"update"})
-	if err != nil || cmd.Name() != "update" || cmd.RunE == nil {
-		t.Fatalf("update command not registered: %v", err)
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"update", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "Update the locoadm CLI to the latest release") {
+		t.Fatalf("unexpected update help: %q", out.String())
 	}
 	if err := runLocoadm(t, "update", "unexpected"); err == nil {
 		t.Fatal("update accepted an argument")
