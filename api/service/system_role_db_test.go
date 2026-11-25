@@ -93,11 +93,6 @@ func grantRole(t *testing.T, caller, target membershipUser, role adminv1.SystemR
 	return err
 }
 
-func grant(t *testing.T, caller, target membershipUser) error {
-	t.Helper()
-	return grantRole(t, caller, target, roleAdmin)
-}
-
 func revoke(t *testing.T, caller, target membershipUser) error {
 	t.Helper()
 	_, err := caller.clients.SystemRole.RevokeSystemRole(t.Context(),
@@ -108,7 +103,7 @@ func revoke(t *testing.T, caller, target membershipUser) error {
 func TestListSystemRolesShowsRolesSourcesAndUnclaimedEmails(t *testing.T) {
 	a, configAdmin := newSystemRoleAPI(t)
 	reader := a.signUp(t, configReaderSubject)
-	if err := grant(t, configAdmin, reader); err != nil {
+	if err := grantRole(t, configAdmin, reader, roleAdmin); err != nil {
 		t.Fatalf("grant admin to the configured reader: %v", err)
 	}
 
@@ -144,10 +139,10 @@ func TestGrantChangeAndRevokeSystemRole(t *testing.T) {
 	if code := connect.CodeOf(grantRole(t, configAdmin, target, roleRead)); code != connect.CodeAlreadyExists {
 		t.Fatalf("second read grant code = %v, want %v", code, connect.CodeAlreadyExists)
 	}
-	if code := connect.CodeOf(grant(t, target, target)); code != connect.CodePermissionDenied {
+	if code := connect.CodeOf(grantRole(t, target, target, roleAdmin)); code != connect.CodePermissionDenied {
 		t.Fatalf("reader grants itself admin code = %v, want %v", code, connect.CodePermissionDenied)
 	}
-	if err := grant(t, configAdmin, target); err != nil {
+	if err := grantRole(t, configAdmin, target, roleAdmin); err != nil {
 		t.Fatalf("change the grant to admin: %v", err)
 	}
 	if n := a.countEvents(t, events.SystemRoleGranted, target.id); n != 2 {
@@ -163,14 +158,14 @@ func TestGrantChangeAndRevokeSystemRole(t *testing.T) {
 	if n := a.countEvents(t, events.SystemRoleRevoked, target.id); n != 1 {
 		t.Fatalf("system_role.revoked events = %d, want 1", n)
 	}
-	if code := connect.CodeOf(grant(t, target, configAdmin)); code != connect.CodePermissionDenied {
+	if code := connect.CodeOf(grantRole(t, target, configAdmin, roleAdmin)); code != connect.CodePermissionDenied {
 		t.Fatalf("revoked user grant code = %v, want %v", code, connect.CodePermissionDenied)
 	}
 	if code := connect.CodeOf(revoke(t, configAdmin, target)); code != connect.CodeNotFound {
 		t.Fatalf("revoke a user without a grant code = %v, want %v", code, connect.CodeNotFound)
 	}
 	unknown := membershipUser{id: uuid.New()}
-	if code := connect.CodeOf(grant(t, configAdmin, unknown)); code != connect.CodeNotFound {
+	if code := connect.CodeOf(grantRole(t, configAdmin, unknown, roleAdmin)); code != connect.CodeNotFound {
 		t.Fatalf("grant an unknown user code = %v, want %v", code, connect.CodeNotFound)
 	}
 	if code := connect.CodeOf(grantRole(t, configAdmin, target, roleNone)); code != connect.CodeInvalidArgument {
@@ -181,7 +176,7 @@ func TestGrantChangeAndRevokeSystemRole(t *testing.T) {
 func TestSystemRoleChangesNeverRemoveTheLastAdmin(t *testing.T) {
 	a, configAdmin := newSystemRoleAPI(t)
 	other := a.signUp(t, "other")
-	if err := grant(t, configAdmin, other); err != nil {
+	if err := grantRole(t, configAdmin, other, roleAdmin); err != nil {
 		t.Fatalf("grant: %v", err)
 	}
 	syncRoles(t, a, nil, nil)
@@ -203,7 +198,7 @@ func TestConfiguredRolesChangeOnlyThroughConfiguration(t *testing.T) {
 	if code := connect.CodeOf(revoke(t, configAdmin, reader)); code != connect.CodeFailedPrecondition {
 		t.Fatalf("revoke a configured reader code = %v, want %v", code, connect.CodeFailedPrecondition)
 	}
-	if err := grant(t, configAdmin, reader); err != nil {
+	if err := grantRole(t, configAdmin, reader, roleAdmin); err != nil {
 		t.Fatalf("grant admin to the configured reader: %v", err)
 	}
 	if code := connect.CodeOf(revoke(t, reader, configAdmin)); code != connect.CodeFailedPrecondition {
@@ -216,7 +211,7 @@ func TestConfiguredRolesChangeOnlyThroughConfiguration(t *testing.T) {
 	if err := revoke(t, configAdmin, reader); err != nil {
 		t.Fatalf("revoke the reader's admin grant: %v", err)
 	}
-	if code := connect.CodeOf(grant(t, reader, reader)); code != connect.CodePermissionDenied {
+	if code := connect.CodeOf(grantRole(t, reader, reader, roleAdmin)); code != connect.CodePermissionDenied {
 		t.Fatalf("reader after revoke grant code = %v, want %v", code, connect.CodePermissionDenied)
 	}
 	if configured, granted := heldRoles(t, reader, reader.id); configured != roleRead || granted != roleNone {
@@ -226,7 +221,7 @@ func TestConfiguredRolesChangeOnlyThroughConfiguration(t *testing.T) {
 
 func TestConfigRemovalKeepsAGrantedAdmin(t *testing.T) {
 	a, configAdmin := newSystemRoleAPI(t)
-	if err := grant(t, configAdmin, configAdmin); err != nil {
+	if err := grantRole(t, configAdmin, configAdmin, roleAdmin); err != nil {
 		t.Fatalf("grant the config admin: %v", err)
 	}
 	syncRoles(t, a, nil, nil)
@@ -239,7 +234,7 @@ func TestConfigRemovalKeepsAGrantedAdmin(t *testing.T) {
 func TestListSystemRolesKeepsADeletedAdminsEntryClaimed(t *testing.T) {
 	a, configAdmin := newSystemRoleAPI(t)
 	other := a.signUp(t, "other")
-	if err := grant(t, configAdmin, other); err != nil {
+	if err := grantRole(t, configAdmin, other, roleAdmin); err != nil {
 		t.Fatalf("grant: %v", err)
 	}
 	if err := a.queries.DeleteUser(t.Context(), configAdmin.id); err != nil {
@@ -357,7 +352,7 @@ func TestConcurrentRoleChangesKeepOneSystemAdmin(t *testing.T) {
 	a, configAdmin := newSystemRoleAPI(t)
 	first, second := a.signUp(t, "first"), a.signUp(t, "second")
 	for _, user := range []membershipUser{first, second} {
-		if err := grant(t, configAdmin, user); err != nil {
+		if err := grantRole(t, configAdmin, user, roleAdmin); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -385,7 +380,7 @@ func TestConcurrentRoleChangesKeepOneSystemAdmin(t *testing.T) {
 		if errs[0] != nil {
 			survivor, demoted = second, first
 		}
-		if err := grant(t, survivor, demoted); err != nil {
+		if err := grantRole(t, survivor, demoted, roleAdmin); err != nil {
 			t.Fatalf("round %d: restore the second admin: %v", round, err)
 		}
 	}

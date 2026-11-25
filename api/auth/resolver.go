@@ -320,7 +320,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 	}
 
 	policyErr := r.policy.Check()
-	if policyErr != nil && !r.systemRoles.lists(id.Email) {
+	if policyErr != nil && r.systemRoles.roleOf(id.Email) == "" {
 		return genDb.User{}, nil, policyErr
 	}
 

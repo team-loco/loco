@@ -65,29 +65,23 @@ func parseRoleEmails(entries []string) ([]string, error) {
 	return emails, nil
 }
 
-// roleOf returns the role email is configured for.
-func (r SystemRoles) roleOf(email string) (genDb.SystemRole, bool) {
+// roleOf returns the role email is configured for, or the empty role when it is unlisted.
+func (r SystemRoles) roleOf(email string) genDb.SystemRole {
 	email = strings.ToLower(email)
 	switch {
-	case email == "":
-		return "", false
 	case slices.Contains(r.Admins, email):
-		return genDb.SystemRoleAdmin, true
+		return genDb.SystemRoleAdmin
 	case slices.Contains(r.Readers, email):
-		return genDb.SystemRoleRead, true
+		return genDb.SystemRoleRead
 	}
-	return "", false
-}
-
-func (r SystemRoles) lists(email string) bool {
-	_, ok := r.roleOf(email)
-	return ok
+	return ""
 }
 
 // SyncSystemRoles makes the claim table match roles: it opens a claim for each new email and role
 // and deletes the claims of removed ones, recomputing the role of each user who claimed them.
 func SyncSystemRoles(ctx context.Context, pool *pgxpool.Pool, roles SystemRoles) error {
-	admins, readers := nonNil(roles.Admins), nonNil(roles.Readers)
+	// A nil slice encodes as NULL, which would match no claim and remove none.
+	admins, readers := append([]string{}, roles.Admins...), append([]string{}, roles.Readers...)
 	for {
 		err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 			q := genDb.New(tx)
@@ -151,13 +145,6 @@ func SyncSystemRoles(ctx context.Context, pool *pgxpool.Pool, roles SystemRoles)
 			return err
 		}
 	}
-}
-
-func nonNil(emails []string) []string {
-	if emails == nil {
-		return []string{}
-	}
-	return emails
 }
 
 func revokeConfiguredRole(ctx context.Context, q *genDb.Queries, entry genDb.RemoveSystemRoleEntriesExceptRow) error {
@@ -239,8 +226,8 @@ func (r *Resolver) claimSystemRole(
 	user genDb.User,
 	id Identity,
 ) (bool, error) {
-	role, listed := r.systemRoles.roleOf(id.Email)
-	claimable := id.EmailVerified && listed && user.Status == genDb.UserStatusActive
+	role := r.systemRoles.roleOf(id.Email)
+	claimable := id.EmailVerified && role != "" && user.Status == genDb.UserStatusActive
 	if !claimable {
 		return false, nil
 	}
@@ -290,7 +277,7 @@ func (r *Resolver) claimSystemRole(
 }
 
 func (r *Resolver) claimSystemRoleOnSignIn(ctx context.Context, user genDb.User, id Identity) error {
-	if !id.EmailVerified || !r.systemRoles.lists(id.Email) {
+	if !id.EmailVerified || r.systemRoles.roleOf(id.Email) == "" {
 		return nil
 	}
 	return pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
