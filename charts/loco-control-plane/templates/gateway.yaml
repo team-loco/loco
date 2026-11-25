@@ -1,6 +1,5 @@
 {{- if .Values.gateway.create }}
 {{- $listeners := include "loco-control-plane.listeners" . | fromJsonArray }}
-{{- $tlsSecret := include "loco-control-plane.tlsSecret" . }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
@@ -62,7 +61,7 @@ spec:
       name: {{ .Values.gateway.name }}
   listeners:
     {{- range $listeners }}
-    {{- if $tlsSecret }}
+    {{- if .secret }}
     - name: https-{{ .name }}
       hostname: {{ .hostname | quote }}
       protocol: HTTPS
@@ -70,7 +69,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: {{ $tlsSecret }}
+          - name: {{ .secret }}
             kind: Secret
             group: ""
     {{- else }}

@@ -65,7 +65,7 @@ certManager:
               key: api-token
 ```
 
-The charts create no solver credentials. Deliver any Secret a solver references to the `cert-manager` namespace with the other cluster Secrets. To skip ACME, set `certManager.issuer.create: false` with the `name` and `kind` of an existing issuer, or serve your own TLS Secret with the worker's `certManager.existingTLSSecret` or the control plane's `gateway.tlsSecretName`.
+The charts create no solver credentials. Deliver any Secret a solver references to the `cert-manager` namespace with the other cluster Secrets. To skip ACME, set `certManager.issuer.create: false` with the `name` and `kind` of an existing issuer, or serve your own TLS Secret with the worker's `certManager.existingTLSSecret` or the control plane's `gateway.tlsSecretName`. The control plane serves `gateway.tlsSecretName` on every Gateway listener, which limits a Gateway with more than one listener to HTTP/1.1; worker agents need HTTP/2 to the API, so use cert-manager there.
 
 ## Bootstrap Flux
 

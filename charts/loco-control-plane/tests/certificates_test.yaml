@@ -56,67 +56,88 @@ tests:
       - isKind: {of: ClusterIssuer}
         template: templates/cm-issuer.yaml
 
-  - it: covers every listener hostname in the Certificate, in listener order
+  - it: issues one Certificate per listener, each covering only that listener's hostname
     asserts:
-      - equal:
-          path: spec.dnsNames
-          value: [app.region.test, api.region.test]
+      - hasDocuments: {count: 2}
         template: templates/cm-cert.yaml
       - equal:
-          path: spec.listeners[0].hostname
-          value: app.region.test
-        template: templates/gateway.yaml
-        documentSelector: {path: kind, value: Gateway}
+          path: spec
+          value:
+            secretName: loco-control-plane-ui-tls
+            issuerRef: {name: letsencrypt-prod, kind: ClusterIssuer}
+            dnsNames: [app.region.test]
+        template: templates/cm-cert.yaml
+        documentSelector: {path: metadata.name, value: loco-control-plane-ui}
       - equal:
-          path: spec.listeners[1].hostname
-          value: api.region.test
-        template: templates/gateway.yaml
-        documentSelector: {path: kind, value: Gateway}
-      - lengthEqual:
-          path: spec.listeners
-          count: 2
-        template: templates/gateway.yaml
-        documentSelector: {path: kind, value: Gateway}
+          path: spec
+          value:
+            secretName: loco-control-plane-api-tls
+            issuerRef: {name: letsencrypt-prod, kind: ClusterIssuer}
+            dnsNames: [api.region.test]
+        template: templates/cm-cert.yaml
+        documentSelector: {path: metadata.name, value: loco-control-plane-api}
 
-  - it: serves HTTPS from the Secret the Certificate issues
+  - it: serves each HTTPS listener from its own Certificate's Secret
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: Gateway}
     asserts:
-      - equal:
-          path: spec.secretName
-          value: loco-control-plane-tls
-        template: templates/cm-cert.yaml
       - equal:
           path: spec.listeners[*].protocol
           value: HTTPS
-        template: templates/gateway.yaml
-        documentSelector: {path: kind, value: Gateway}
       - equal:
-          path: spec.listeners[*].tls.certificateRefs
-          value: [{name: loco-control-plane-tls, kind: Secret, group: ""}]
-        template: templates/gateway.yaml
-        documentSelector: {path: kind, value: Gateway}
+          path: spec.listeners[0]
+          value:
+            name: https-ui
+            hostname: app.region.test
+            protocol: HTTPS
+            port: 443
+            tls: {mode: Terminate, certificateRefs: [{name: loco-control-plane-ui-tls, kind: Secret, group: ""}]}
+            allowedRoutes:
+              namespaces:
+                from: Selector
+                selector:
+                  matchExpressions: [{key: kubernetes.io/metadata.name, operator: In, values: [loco-control-plane]}]
+      - equal:
+          path: spec.listeners[1].tls.certificateRefs
+          value: [{name: loco-control-plane-api-tls, kind: Secret, group: ""}]
+      - lengthEqual:
+          path: spec.listeners
+          count: 2
 
-  - it: covers the ingest hostname when ingest is published
+  - it: issues the ingest listener its own Certificate when ingest is published
     set:
       obsProxy.ingest.hostname: ingest.region.test
     asserts:
       - equal:
           path: spec.dnsNames
-          value: [app.region.test, api.region.test, ingest.region.test]
+          value: [ingest.region.test]
         template: templates/cm-cert.yaml
+        documentSelector: {path: spec.secretName, value: loco-control-plane-ingest-tls}
       - equal:
-          path: spec.listeners[2].hostname
-          value: ingest.region.test
+          path: spec.listeners[2].tls.certificateRefs
+          value: [{name: loco-control-plane-ingest-tls, kind: Secret, group: ""}]
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: Gateway}
 
-  - it: covers each extra listener hostname in the Certificate
+  - it: issues each extra listener its own Certificate
     set:
       gateway.extraListeners: [{hostname: auth.region.test}, {hostname: login.region.test}]
-    template: templates/cm-cert.yaml
     asserts:
+      - hasDocuments: {count: 4}
+        template: templates/cm-cert.yaml
       - equal:
-          path: spec.dnsNames
-          value: [app.region.test, api.region.test, auth.region.test, login.region.test]
+          path: spec
+          value:
+            secretName: loco-control-plane-login.region.test-tls
+            issuerRef: {name: letsencrypt-prod, kind: ClusterIssuer}
+            dnsNames: [login.region.test]
+        template: templates/cm-cert.yaml
+        documentSelector: {path: metadata.name, value: loco-control-plane-login.region.test}
+      - equal:
+          path: spec.listeners[3].tls.certificateRefs
+          value: [{name: loco-control-plane-login.region.test-tls, kind: Secret, group: ""}]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
 
   - it: needs no solvers or email for a self-signed issuer
     set:
