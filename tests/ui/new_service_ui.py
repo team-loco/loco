@@ -695,11 +695,8 @@ with session(out) as browser:
     expect(
         dashboard_row.get_by_role("button", name=f"Actions for {name}", exact=True)
     ).to_be_visible()
-    page.goto(base + "?env=production&view=map")
-    node = page.get_by_role("link", name=re.compile(rf"^{re.escape(name)}\s*draft"))
-    expect(node).to_be_visible()
-    node.click()
-    expect(page).to_have_url(re.compile(r"\?env=production&view=map&draft=[0-9a-f-]+$"))
+    dashboard_row.get_by_text(name, exact=True).click()
+    expect(page).to_have_url(re.compile(r"\?env=production&draft=[0-9a-f-]+$"))
     drawer.get_by_role("textbox", name="Timeout, sec").fill("5")
     page.keyboard.press("Escape")
     page.goto(base + "/resources?env=production")

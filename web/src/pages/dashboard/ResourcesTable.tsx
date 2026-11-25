@@ -14,7 +14,7 @@ import {
 import { functionalUpdate } from "@tanstack/react-table";
 import { ArrowRightIcon, FilePenLineIcon, GlobeIcon } from "lucide-react";
 import { createContext, use } from "react";
-import { parseAsString, useQueryState, useQueryStates } from "nuqs";
+import { parseAsString, useQueryStates } from "nuqs";
 import { Link, useLocation, useNavigate } from "react-router";
 import type { DeploymentBucket } from "@gen/loco/deployment/v1/deployment_pb";
 import { queryDeploymentBuckets } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
@@ -27,7 +27,6 @@ import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { ErrorState } from "@/components/design/ErrorState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
-import { Skeleton } from "@/components/design/Skeleton";
 import { Pager } from "@/components/design/Pager";
 import { RowMenu } from "@/components/design/RowMenu";
 import { SearchInput } from "@/components/design/SearchInput";
@@ -35,7 +34,6 @@ import { DeployMarkers } from "@/components/design/DeployMarkers";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ResourceStatusBadge, RolloutBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useShownPage } from "@/hooks/useTokenPage";
 import { useCurrentDeployments } from "@/hooks/useWorkspaceDeployments";
 import { deployMarkers, MARKER_NAMES } from "@/lib/deployMarkers";
@@ -43,22 +41,15 @@ import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
 import { rolloutState } from "@/lib/resource-status";
-import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
+import { draftSearch, resourcesPath } from "@/lib/routes";
 import { agoLabel, msToTimestamp, readyMs } from "@/lib/time";
 import { pageTokensParser, tokenPageLabel } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
-import {
-	shownDrafts,
-	statusCounts,
-	statusInput,
-	useMatchingResourceIds,
-	useResourcePage,
-} from "@/pages/resources/query";
+import { shownDrafts, statusCounts, statusInput, useResourcePage } from "@/pages/resources/query";
 import { StatusFilter } from "@/pages/resources/ResourceFilters";
 import { DRAFT, sortableIds } from "@/pages/resources/table";
 
-import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { DashboardRowMenu } from "./DashboardRowMenu";
 import {
 	ALL,
@@ -71,12 +62,11 @@ import {
 	type DraftItem,
 	type RowFilter,
 } from "./resourceRows";
-import { envResource, useDashboardData, type EnvResource } from "./useDashboardData";
+import { envResource, type EnvResource } from "./useDashboardData";
 
 const PAGE_SIZE = 25;
 const MAX_PIPS = 12;
 const ROW_BUCKETS = 6;
-const MAP_SKELETON_PX = 320;
 
 function replicaTotal(item: DashboardItem): number {
 	return isDraftItem(item) ? 0 : item.totalReplicas;
@@ -380,46 +370,6 @@ const ORDERS: Record<string, { orderBy: ResourceOrder }> = {
 	deploy: { orderBy: ResourceOrder.DEPLOYED },
 };
 
-/** The map of every resource the filters match; it reads the environment's every deployment while shown. */
-function DashboardMap({
-	orgId,
-	workspaceId,
-	environmentId,
-	regions,
-	drafts,
-	matching,
-	empty,
-	hrefFor,
-	onShowTable,
-}: {
-	orgId: string;
-	workspaceId: string;
-	environmentId: string;
-	regions: RegionInfo[];
-	drafts: DraftItem[];
-	/** The resources the filters match; undefined matches all of them. */
-	matching: ReadonlySet<string> | undefined;
-	empty: React.ReactNode;
-	hrefFor: (item: DashboardItem) => string;
-	onShowTable: () => void;
-}) {
-	const data = useDashboardData(orgId, workspaceId, environmentId);
-	if (data.error !== null)
-		return <ErrorState error={data.error} what="resources" rpc={listWorkspaceResources} onRetry={data.refetch} />;
-	if (data.isLoading) return <Skeleton className="m-4" style={{ height: MAP_SKELETON_PX }} />;
-	const rows: DashboardItem[] = [...data.envResources.filter((r) => matching?.has(r.resource.id) !== false), ...drafts];
-	if (rows.length === 0) return <div className="border-t border-line2">{empty}</div>;
-	return (
-		<ArchitectureDiagram
-			rows={rows}
-			regionOrder={regions.map((r) => r.region)}
-			environmentId={environmentId}
-			hrefFor={hrefFor}
-			onShowTable={onShowTable}
-		/>
-	);
-}
-
 export function ResourcesTable({
 	total,
 	drafts,
@@ -455,8 +405,6 @@ export function ResourcesTable({
 	const trafficData = trafficPoints([traffic.data ?? []]);
 	const { search: locationSearch } = useLocation();
 	const navigate = useNavigate();
-	const [view, setView] = useQueryState("view", resourceViewParser.withOptions({ history: "replace" }));
-	const isMap = view === "map";
 	const [state, setState] = useQueryStates(TABLE_PARAMS, {
 		history: "replace",
 		urlKeys: TABLE_URL_KEYS,
@@ -491,7 +439,6 @@ export function ResourcesTable({
 		(page) => void setState({ page }),
 		draftsOnly,
 	);
-	const matching = useMatchingResourceIds(matchedBy, isMap && hasFilters && !draftsOnly).data;
 
 	const draftRegions = (d: DraftItem) => d.regions.map((g) => g.region);
 	const shownItems = shownDrafts(drafts, filter, draftRegions);
@@ -513,7 +460,7 @@ export function ResourcesTable({
 			bucketCount: ROW_BUCKETS,
 			maxResourceNames: MARKER_NAMES,
 		},
-		{ enabled: !isMap && pageIds.length > 0, placeholderData: keepPreviousData },
+		{ enabled: pageIds.length > 0, placeholderData: keepPreviousData },
 	).data?.buckets;
 	const deploys = Map.groupBy(deployBuckets ?? [], (b) => b.resourceId);
 	const matched = draftsOnly ? draftCount : listed.total;
@@ -571,29 +518,15 @@ export function ResourcesTable({
 	};
 
 	const actions = (
-		<>
-			<ToggleGroup
-				variant="segmented"
-				aria-label="View"
-				value={[view]}
-				onValueChange={(v: string[]) => {
-					const next = RESOURCE_VIEWS.find((r) => r === v[0]);
-					if (next !== undefined) void setView(next);
-				}}
-			>
-				<ToggleGroupItem value="table">Table</ToggleGroupItem>
-				<ToggleGroupItem value="map">Map</ToggleGroupItem>
-			</ToggleGroup>
-			<Button
-				variant="outline"
-				size="sm"
-				nativeButton={false}
-				render={<Link to={`${resourcesPath(orgId, workspaceId)}${viewAllSearch(envName, filter)}`} />}
-			>
-				View all
-				<ArrowRightIcon />
-			</Button>
-		</>
+		<Button
+			variant="outline"
+			size="sm"
+			nativeButton={false}
+			render={<Link to={`${resourcesPath(orgId, workspaceId)}${viewAllSearch(envName, filter)}`} />}
+		>
+			View all
+			<ArrowRightIcon />
+		</Button>
 	);
 
 	const filters = (
@@ -659,20 +592,6 @@ export function ResourcesTable({
 		<Section title="Resources" count={matched} actions={actions} filters={filters} search={search}>
 			{listed.error !== null ? (
 				<ErrorState error={listed.error} what="resources" rpc={listWorkspaceResources} onRetry={listed.query.refetch} />
-			) : isMap ? (
-				<DashboardMap
-					orgId={orgId}
-					workspaceId={workspaceId}
-					environmentId={environmentId}
-					regions={regions}
-					drafts={shownItems}
-					matching={draftsOnly ? new Set() : hasFilters ? matching : undefined}
-					empty={empty}
-					hrefFor={itemHref}
-					onShowTable={() => {
-						void setView("table");
-					}}
-				/>
 			) : (
 				<>
 					<DashboardCellContext
