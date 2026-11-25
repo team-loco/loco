@@ -1,5 +1,5 @@
 // Package sweepers holds the background jobs that reclaim build sources, images, registry credentials
-// and placement windows.
+// and placement windows, and the one that reports silent clusters.
 package sweepers
 
 import (

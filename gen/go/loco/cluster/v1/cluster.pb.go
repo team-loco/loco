@@ -200,8 +200,10 @@ type Cluster struct {
 	AgentKeyFingerprint *string                `protobuf:"bytes,11,opt,name=agent_key_fingerprint,json=agentKeyFingerprint,proto3,oneof" json:"agent_key_fingerprint,omitempty"`
 	Role                ClusterRole            `protobuf:"varint,12,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
 	Domains             []string               `protobuf:"bytes,13,rep,name=domains,proto3" json:"domains,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.
+	SilentSince   *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=silent_since,json=silentSince,proto3" json:"silent_since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Cluster) Reset() {
@@ -314,6 +316,13 @@ func (x *Cluster) GetRole() ClusterRole {
 func (x *Cluster) GetDomains() []string {
 	if x != nil {
 		return x.Domains
+	}
+	return nil
+}
+
+func (x *Cluster) GetSilentSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SilentSince
 	}
 	return nil
 }
@@ -1287,7 +1296,7 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\rcluster_count\x18\x02 \x01(\x05R\fclusterCount\"o\n" +
 	"\tNewRegion\x12,\n" +
 	"\acountry\x18\x01 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\acountry\x124\n" +
-	"\vsubdivision\x18\x02 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\vsubdivision\"\xcf\x04\n" +
+	"\vsubdivision\x18\x02 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\vsubdivision\"\x8e\x05\n" +
 	"\aCluster\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vcluster_key\x18\x02 \x01(\tR\n" +
@@ -1303,7 +1312,8 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	" \x01(\tH\x01R\fagentVersion\x88\x01\x01\x127\n" +
 	"\x15agent_key_fingerprint\x18\v \x01(\tH\x02R\x13agentKeyFingerprint\x88\x01\x01\x120\n" +
 	"\x04role\x18\f \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleR\x04role\x12\x18\n" +
-	"\adomains\x18\r \x03(\tR\adomainsB\x10\n" +
+	"\adomains\x18\r \x03(\tR\adomains\x12=\n" +
+	"\fsilent_since\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\vsilentSinceB\x10\n" +
 	"\x0e_health_statusB\x10\n" +
 	"\x0e_agent_versionB\x18\n" +
 	"\x16_agent_key_fingerprintJ\x04\b\x05\x10\x06J\x04\b\x0e\x10\x0fJ\x04\b\x0f\x10\x10R\x04tierR\vdns_recordsR\x10gateway_hostname\"5\n" +
@@ -1435,37 +1445,38 @@ var file_loco_cluster_v1_cluster_proto_depIdxs = []int32{
 	23, // 0: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
 	23, // 1: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
 	0,  // 2: loco.cluster.v1.Cluster.role:type_name -> loco.cluster.v1.ClusterRole
-	4,  // 3: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	23, // 4: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
-	24, // 5: loco.cluster.v1.CreateClusterRequest.ttl:type_name -> google.protobuf.Duration
-	2,  // 6: loco.cluster.v1.CreateClusterRequest.new_region:type_name -> loco.cluster.v1.NewRegion
-	6,  // 7: loco.cluster.v1.CreateClusterResponse.join_token:type_name -> loco.cluster.v1.JoinToken
-	24, // 8: loco.cluster.v1.IssueJoinTokenRequest.ttl:type_name -> google.protobuf.Duration
-	6,  // 9: loco.cluster.v1.IssueJoinTokenResponse.join_token:type_name -> loco.cluster.v1.JoinToken
-	3,  // 10: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
-	4,  // 11: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	1,  // 12: loco.cluster.v1.ListRegionsResponse.regions:type_name -> loco.cluster.v1.Region
-	7,  // 13: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
-	9,  // 14: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
-	11, // 15: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
-	13, // 16: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
-	15, // 17: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
-	17, // 18: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
-	19, // 19: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
-	21, // 20: loco.cluster.v1.RegionAdminService.ListRegions:input_type -> loco.cluster.v1.ListRegionsRequest
-	8,  // 21: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
-	10, // 22: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
-	12, // 23: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
-	14, // 24: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
-	16, // 25: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
-	18, // 26: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
-	20, // 27: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
-	22, // 28: loco.cluster.v1.RegionAdminService.ListRegions:output_type -> loco.cluster.v1.ListRegionsResponse
-	21, // [21:29] is the sub-list for method output_type
-	13, // [13:21] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	23, // 3: loco.cluster.v1.Cluster.silent_since:type_name -> google.protobuf.Timestamp
+	4,  // 4: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
+	23, // 5: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
+	24, // 6: loco.cluster.v1.CreateClusterRequest.ttl:type_name -> google.protobuf.Duration
+	2,  // 7: loco.cluster.v1.CreateClusterRequest.new_region:type_name -> loco.cluster.v1.NewRegion
+	6,  // 8: loco.cluster.v1.CreateClusterResponse.join_token:type_name -> loco.cluster.v1.JoinToken
+	24, // 9: loco.cluster.v1.IssueJoinTokenRequest.ttl:type_name -> google.protobuf.Duration
+	6,  // 10: loco.cluster.v1.IssueJoinTokenResponse.join_token:type_name -> loco.cluster.v1.JoinToken
+	3,  // 11: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
+	4,  // 12: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
+	1,  // 13: loco.cluster.v1.ListRegionsResponse.regions:type_name -> loco.cluster.v1.Region
+	7,  // 14: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
+	9,  // 15: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
+	11, // 16: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
+	13, // 17: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
+	15, // 18: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
+	17, // 19: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
+	19, // 20: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
+	21, // 21: loco.cluster.v1.RegionAdminService.ListRegions:input_type -> loco.cluster.v1.ListRegionsRequest
+	8,  // 22: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
+	10, // 23: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
+	12, // 24: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
+	14, // 25: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
+	16, // 26: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
+	18, // 27: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
+	20, // 28: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
+	22, // 29: loco.cluster.v1.RegionAdminService.ListRegions:output_type -> loco.cluster.v1.ListRegionsResponse
+	22, // [22:30] is the sub-list for method output_type
+	14, // [14:22] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_loco_cluster_v1_cluster_proto_init() }

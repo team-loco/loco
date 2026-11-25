@@ -73,6 +73,9 @@ const (
 	TokenCreated         = "token.created"
 	TokenRevoked         = "token.revoked"
 	ClusterRegistered    = "cluster.registered"
+	ClusterSilent        = "cluster.silent"
+	ClusterRecovered     = "cluster.recovered"
+	ClusterHealthChanged = "cluster.health_changed"
 	WebhookCreated       = "webhook.created"
 	WebhookUpdated       = "webhook.updated"
 	WebhookDeleted       = "webhook.deleted"
@@ -179,6 +182,7 @@ const (
 	FieldOld           = "old"
 	FieldNew           = "new"
 	FieldRestarts      = "restarts"
+	FieldSilentSeconds = "silentSeconds"
 )
 
 type Event struct {

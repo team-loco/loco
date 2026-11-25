@@ -221,12 +221,67 @@ func registeredAs(row genDb.GetEnrolledClusterRow, key uuid.UUID) (registeredClu
 	return registeredCluster{id: row.ID, name: row.Name, region: row.Region}, nil
 }
 
-// recordHeartbeat records that the cluster is alive and how healthy it is.
+// recordHeartbeat records that the cluster is alive and how healthy it is. A change of health records
+// cluster.health_changed. A heartbeat that ends a silence records cluster.recovered, after the cluster.silent
+// the sweeper has not recorded yet when the gap since the previous heartbeat exceeded the silence threshold.
+// All of it happens in the heartbeat's transaction.
 func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {
-	err := s.queries.RecordClusterHeartbeat(ctx, genDb.RecordClusterHeartbeatParams{
-		ID:            clusterID,
-		LastHeartbeat: time.Now(),
-		HealthStatus:  healthStatusFromProto(heartbeat.GetHealth()),
+	status := healthStatusFromProto(heartbeat.GetHealth())
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		cluster, err := qtx.CreateClusterHeartbeat(ctx, genDb.CreateClusterHeartbeatParams{
+			ID: clusterID, HealthStatus: status,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if cluster.Created {
+			return nil
+		}
+		previous, err := qtx.LockClusterHeartbeat(ctx, clusterID)
+		if err != nil {
+			return err
+		}
+		at, err := qtx.RecordClusterHeartbeat(ctx, genDb.RecordClusterHeartbeatParams{
+			ID: clusterID, HealthStatus: status,
+		})
+		if err != nil {
+			return err
+		}
+		event := func(eventType string, data map[string]any) error {
+			data[events.FieldName], data[events.FieldRegion] = cluster.Name, cluster.Region
+			return events.Record(ctx, qtx, events.Event{
+				Type:        eventType,
+				ActorType:   "agent",
+				ActorID:     new(clusterID),
+				SubjectType: events.SubjectCluster,
+				SubjectID:   new(clusterID),
+				Data:        data,
+			})
+		}
+		silentSince := previous.SilentSince
+		missedSilence := cluster.IsActive && at.Sub(previous.LastHeartbeat) > ClusterSilentAfter(s.heartbeatInterval)
+		if silentSince == nil && missedSilence {
+			silentSince = &previous.LastHeartbeat
+			if err = event(events.ClusterSilent, map[string]any{}); err != nil {
+				return err
+			}
+		}
+		if silentSince != nil {
+			silent := int64(at.Sub(*silentSince) / time.Second)
+			if err = event(events.ClusterRecovered, map[string]any{events.FieldSilentSeconds: silent}); err != nil {
+				return err
+			}
+		}
+		if previous.HealthStatus == status {
+			return nil
+		}
+		return event(events.ClusterHealthChanged, map[string]any{
+			events.FieldOld: previous.HealthStatus,
+			events.FieldNew: status,
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record heartbeat", "error", err, "cluster_id", clusterID)

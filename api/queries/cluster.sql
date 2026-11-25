@@ -11,13 +11,54 @@ SET agent_version = $2,
     updated_at = NOW()
 WHERE id = $1;
 
--- name: RecordClusterHeartbeat :exec
-INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
-SELECT id, sqlc.arg(last_heartbeat)::timestamptz, sqlc.arg(health_status)::text
-FROM clusters WHERE id = sqlc.arg(id) AND removed_at IS NULL
-FOR KEY SHARE
-ON CONFLICT (cluster_id) DO UPDATE
-SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_status;
+-- name: CreateClusterHeartbeat :one
+-- Inserts the cluster's first heartbeat and reports created. A concurrent first heartbeat waits for this one's
+-- commit. Returns nothing for a removed cluster.
+WITH target AS (
+    SELECT id, name, region, is_active FROM clusters
+    WHERE id = sqlc.arg(id) AND removed_at IS NULL
+    FOR KEY SHARE
+), inserted AS (
+    INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
+    SELECT id, clock_timestamp(), sqlc.arg(health_status)::text FROM target
+    ON CONFLICT (cluster_id) DO NOTHING
+    RETURNING cluster_id
+)
+SELECT target.name, target.region, target.is_active, EXISTS (SELECT 1 FROM inserted)::boolean AS created
+FROM target;
+
+-- name: LockClusterHeartbeat :one
+SELECT health_status, last_heartbeat, silent_since FROM cluster_heartbeats WHERE cluster_id = $1 FOR UPDATE;
+
+-- name: RecordClusterHeartbeat :one
+-- Stamps the heartbeat with the database clock under the row lock, so the time never moves backwards, and ends
+-- any silence mark.
+UPDATE cluster_heartbeats
+SET last_heartbeat = GREATEST(last_heartbeat, clock_timestamp()),
+    health_status = sqlc.arg(health_status)::text,
+    silent_since = NULL
+WHERE cluster_id = sqlc.arg(id)
+RETURNING last_heartbeat;
+
+-- name: MarkSilentClusters :many
+-- Marks each active cluster whose last heartbeat is older than silent_after_seconds on the database clock, the clock
+-- heartbeats are stamped with, and returns it once. The cluster rows
+-- are share-locked first, so a pause or removal either commits before and excludes the cluster, or waits for this
+-- transaction.
+WITH due AS (
+    SELECT c.id, c.name, c.region FROM clusters c JOIN cluster_heartbeats h ON h.cluster_id = c.id
+    WHERE c.removed_at IS NULL AND c.is_active
+      AND h.silent_since IS NULL
+      AND h.last_heartbeat < clock_timestamp() - make_interval(secs => sqlc.arg(silent_after_seconds)::float8)
+    ORDER BY c.id
+    FOR SHARE OF c
+)
+UPDATE cluster_heartbeats h
+SET silent_since = h.last_heartbeat
+FROM due
+WHERE h.cluster_id = due.id AND h.silent_since IS NULL
+  AND h.last_heartbeat < clock_timestamp() - make_interval(secs => sqlc.arg(silent_after_seconds)::float8)
+RETURNING due.id, due.name, due.region;
 
 -- name: UpdateClusterReport :exec
 -- Matches only a changed report from the current stream; an unchanged one takes no lock on the cluster.
@@ -97,7 +138,7 @@ DELETE FROM cluster_assertions WHERE expires_at < NOW();
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role, domains
+       last_heartbeat, silent_since, agent_version, agent_public_key, role, domains
 FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
 ORDER BY created_at, id;
 

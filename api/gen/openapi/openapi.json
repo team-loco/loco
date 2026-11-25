@@ -10444,6 +10444,11 @@
               "type": "string"
             },
             "title": "domains"
+          },
+          "silentSince": {
+            "title": "silent_since",
+            "description": "The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "Cluster",

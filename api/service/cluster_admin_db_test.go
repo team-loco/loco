@@ -207,6 +207,20 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false
 	if err != nil || len(listed.GetClusters()) != 1 {
 		t.Fatalf("admin list: %v, %v", listed, err)
 	}
+	if listed.GetClusters()[0].GetSilentSince() != nil {
+		t.Fatalf("cluster without a silence lists silent_since %v", listed.GetClusters()[0].GetSilentSince())
+	}
+	setHeartbeats(t, a.pool, time.Now().Add(-time.Hour), clusterHealthHealthy, clusterID)
+	if _, err = a.queries.MarkSilentClusters(ctx, time.Minute.Seconds()); err != nil {
+		t.Fatal(err)
+	}
+	if listed, err = clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if silentSince := listed.GetClusters()[0].GetSilentSince(); silentSince == nil ||
+		time.Since(silentSince.AsTime()) < 59*time.Minute {
+		t.Fatalf("silent cluster lists silent_since %v, want its last heartbeat an hour ago", silentSince)
+	}
 	for _, name := range []string{"pause", "remove", "restore", "resume"} {
 		if err := methods[name](clients); err != nil {
 			t.Fatalf("admin %s: %v", name, err)

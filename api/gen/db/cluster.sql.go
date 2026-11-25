@@ -30,6 +30,47 @@ func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) er
 	return err
 }
 
+const createClusterHeartbeat = `-- name: CreateClusterHeartbeat :one
+WITH target AS (
+    SELECT id, name, region, is_active FROM clusters
+    WHERE id = $1 AND removed_at IS NULL
+    FOR KEY SHARE
+), inserted AS (
+    INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
+    SELECT id, clock_timestamp(), $2::text FROM target
+    ON CONFLICT (cluster_id) DO NOTHING
+    RETURNING cluster_id
+)
+SELECT target.name, target.region, target.is_active, EXISTS (SELECT 1 FROM inserted)::boolean AS created
+FROM target
+`
+
+type CreateClusterHeartbeatParams struct {
+	ID           uuid.UUID `json:"id"`
+	HealthStatus string    `json:"healthStatus"`
+}
+
+type CreateClusterHeartbeatRow struct {
+	Name     string `json:"name"`
+	Region   string `json:"region"`
+	IsActive bool   `json:"isActive"`
+	Created  bool   `json:"created"`
+}
+
+// Inserts the cluster's first heartbeat and reports created. A concurrent first heartbeat waits for this one's
+// commit. Returns nothing for a removed cluster.
+func (q *Queries) CreateClusterHeartbeat(ctx context.Context, arg CreateClusterHeartbeatParams) (CreateClusterHeartbeatRow, error) {
+	row := q.db.QueryRow(ctx, createClusterHeartbeat, arg.ID, arg.HealthStatus)
+	var i CreateClusterHeartbeatRow
+	err := row.Scan(
+		&i.Name,
+		&i.Region,
+		&i.IsActive,
+		&i.Created,
+	)
+	return i, err
+}
+
 const deleteClusterHeartbeat = `-- name: DeleteClusterHeartbeat :exec
 DELETE FROM cluster_heartbeats WHERE cluster_id = $1
 `
@@ -202,7 +243,7 @@ func (q *Queries) GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role, domains
+       last_heartbeat, silent_since, agent_version, agent_public_key, role, domains
 FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
 ORDER BY created_at, id
 `
@@ -216,6 +257,7 @@ type ListAdminClustersRow struct {
 	RemovedAt      *time.Time  `json:"removedAt"`
 	HealthStatus   *string     `json:"healthStatus"`
 	LastHeartbeat  *time.Time  `json:"lastHeartbeat"`
+	SilentSince    *time.Time  `json:"silentSince"`
 	AgentVersion   *string     `json:"agentVersion"`
 	AgentPublicKey []byte      `json:"agentPublicKey"`
 	Role           ClusterRole `json:"role"`
@@ -240,6 +282,7 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.RemovedAt,
 			&i.HealthStatus,
 			&i.LastHeartbeat,
+			&i.SilentSince,
 			&i.AgentVersion,
 			&i.AgentPublicKey,
 			&i.Role,
@@ -348,6 +391,23 @@ func (q *Queries) LockAssignableCluster(ctx context.Context, id uuid.UUID) (Lock
 	return i, err
 }
 
+const lockClusterHeartbeat = `-- name: LockClusterHeartbeat :one
+SELECT health_status, last_heartbeat, silent_since FROM cluster_heartbeats WHERE cluster_id = $1 FOR UPDATE
+`
+
+type LockClusterHeartbeatRow struct {
+	HealthStatus  string     `json:"healthStatus"`
+	LastHeartbeat time.Time  `json:"lastHeartbeat"`
+	SilentSince   *time.Time `json:"silentSince"`
+}
+
+func (q *Queries) LockClusterHeartbeat(ctx context.Context, clusterID uuid.UUID) (LockClusterHeartbeatRow, error) {
+	row := q.db.QueryRow(ctx, lockClusterHeartbeat, clusterID)
+	var i LockClusterHeartbeatRow
+	err := row.Scan(&i.HealthStatus, &i.LastHeartbeat, &i.SilentSince)
+	return i, err
+}
+
 const lockClusterLifecycle = `-- name: LockClusterLifecycle :one
 SELECT id, is_active, removed_at FROM clusters WHERE id = $1 FOR UPDATE
 `
@@ -391,6 +451,53 @@ func (q *Queries) LockClusterRegistration(ctx context.Context, id uuid.UUID) (Lo
 	return i, err
 }
 
+const markSilentClusters = `-- name: MarkSilentClusters :many
+WITH due AS (
+    SELECT c.id, c.name, c.region FROM clusters c JOIN cluster_heartbeats h ON h.cluster_id = c.id
+    WHERE c.removed_at IS NULL AND c.is_active
+      AND h.silent_since IS NULL
+      AND h.last_heartbeat < clock_timestamp() - make_interval(secs => $1::float8)
+    ORDER BY c.id
+    FOR SHARE OF c
+)
+UPDATE cluster_heartbeats h
+SET silent_since = h.last_heartbeat
+FROM due
+WHERE h.cluster_id = due.id AND h.silent_since IS NULL
+  AND h.last_heartbeat < clock_timestamp() - make_interval(secs => $1::float8)
+RETURNING due.id, due.name, due.region
+`
+
+type MarkSilentClustersRow struct {
+	ID     uuid.UUID `json:"id"`
+	Name   string    `json:"name"`
+	Region string    `json:"region"`
+}
+
+// Marks each active cluster whose last heartbeat is older than silent_after_seconds on the database clock, the clock
+// heartbeats are stamped with, and returns it once. The cluster rows
+// are share-locked first, so a pause or removal either commits before and excludes the cluster, or waits for this
+// transaction.
+func (q *Queries) MarkSilentClusters(ctx context.Context, silentAfterSeconds float64) ([]MarkSilentClustersRow, error) {
+	rows, err := q.db.Query(ctx, markSilentClusters, silentAfterSeconds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MarkSilentClustersRow
+	for rows.Next() {
+		var i MarkSilentClustersRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Region); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordClusterAssertion = `-- name: RecordClusterAssertion :execrows
 INSERT INTO cluster_assertions (cluster_id, jti, expires_at)
 VALUES ($1, $2, $3)
@@ -411,24 +518,27 @@ func (q *Queries) RecordClusterAssertion(ctx context.Context, arg RecordClusterA
 	return result.RowsAffected(), nil
 }
 
-const recordClusterHeartbeat = `-- name: RecordClusterHeartbeat :exec
-INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
-SELECT id, $1::timestamptz, $2::text
-FROM clusters WHERE id = $3 AND removed_at IS NULL
-FOR KEY SHARE
-ON CONFLICT (cluster_id) DO UPDATE
-SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_status
+const recordClusterHeartbeat = `-- name: RecordClusterHeartbeat :one
+UPDATE cluster_heartbeats
+SET last_heartbeat = GREATEST(last_heartbeat, clock_timestamp()),
+    health_status = $1::text,
+    silent_since = NULL
+WHERE cluster_id = $2
+RETURNING last_heartbeat
 `
 
 type RecordClusterHeartbeatParams struct {
-	LastHeartbeat time.Time `json:"lastHeartbeat"`
-	HealthStatus  string    `json:"healthStatus"`
-	ID            uuid.UUID `json:"id"`
+	HealthStatus string    `json:"healthStatus"`
+	ID           uuid.UUID `json:"id"`
 }
 
-func (q *Queries) RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) error {
-	_, err := q.db.Exec(ctx, recordClusterHeartbeat, arg.LastHeartbeat, arg.HealthStatus, arg.ID)
-	return err
+// Stamps the heartbeat with the database clock under the row lock, so the time never moves backwards, and ends
+// any silence mark.
+func (q *Queries) RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) (time.Time, error) {
+	row := q.db.QueryRow(ctx, recordClusterHeartbeat, arg.HealthStatus, arg.ID)
+	var last_heartbeat time.Time
+	err := row.Scan(&last_heartbeat)
+	return last_heartbeat, err
 }
 
 const setClusterJoinToken = `-- name: SetClusterJoinToken :one
