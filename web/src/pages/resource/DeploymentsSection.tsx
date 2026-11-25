@@ -4,7 +4,7 @@ import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
-import { CheckIcon, CopyIcon, GitCompareIcon, Undo2Icon, XIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, FileCodeIcon, GitCompareIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
@@ -236,7 +236,7 @@ function rolloutColumns({
 			header: "Spec",
 			size: 100,
 			minSize: 80,
-			meta: { fit: true, fitMax: 120, hideOnMobile: true },
+			meta: { fit: true, fitMax: 120 },
 			cell: ({ row: { original: rollout } }) => (
 				<Button
 					variant="plain-link"
@@ -246,7 +246,8 @@ function rolloutColumns({
 						onViewSpec(lead(rollout));
 					}}
 				>
-					View spec
+					<FileCodeIcon className="hidden max-md:block" aria-hidden />
+					<span className="max-md:hidden">View spec</span>
 				</Button>
 			),
 		},

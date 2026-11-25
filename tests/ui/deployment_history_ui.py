@@ -411,11 +411,20 @@ with session(out) as browser:
     expect(line).to_have_css("white-space", "pre-wrap")
     bar.get_by_role("button", name="Close", exact=True).click()
     expect(spec_dialog).to_have_count(0)
-    section.get_by_role(
+    spec_link = section.get_by_role(
         "button",
         name=f"View spec of {data['releases'][0][-8:]}",
         exact=True,
-    ).click()
+    )
+    desktop = page.viewport_size
+    page.set_viewport_size({"width": 390, "height": 844})
+    expect(spec_link).to_be_visible()
+    spec_link.click()
+    expect(spec_dialog).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(spec_dialog).to_have_count(0)
+    page.set_viewport_size(desktop)
+    spec_link.click()
     for index, deployment_id in enumerate(data["releases"][:2]):
         picker = spec_dialog.get_by_role("button", name="Deployment", exact=True)
         if index:
