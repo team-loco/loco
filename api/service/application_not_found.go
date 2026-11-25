@@ -1,7 +1,7 @@
 package service
 
 import (
-	_ "embed"
+	"embed"
 	"html/template"
 	"log/slog"
 	"net"
@@ -11,10 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-//go:embed application_not_found.html
-var applicationNotFoundHTML string
+//go:embed application_not_found.html application_logo.svg
+var applicationNotFoundAssets embed.FS
 
-var applicationNotFoundPage = template.Must(template.New("application-not-found").Parse(applicationNotFoundHTML))
+var applicationNotFoundPage = template.Must(
+	template.ParseFS(applicationNotFoundAssets, "application_not_found.html", "application_logo.svg"),
+)
 
 func (s *DomainServer) ApplicationNotFound(w http.ResponseWriter, r *http.Request) {
 	host := strings.ToLower(r.Header.Get("X-Forwarded-Host"))
@@ -22,7 +24,7 @@ func (s *DomainServer) ApplicationNotFound(w http.ResponseWriter, r *http.Reques
 		host = name
 	}
 	title := "Application not found"
-	message := "No application is available at this address. Check the URL and try again."
+	message := "No application is available at this address. Please check the URL and try again."
 	status := http.StatusNotFound
 	ctx := r.Context()
 	if len(validation.IsDNS1123Subdomain(host)) == 0 {
