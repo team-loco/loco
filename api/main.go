@@ -569,6 +569,7 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 	mux.HandleFunc(livePath, liveHandler)
 	mux.HandleFunc(healthPath, liveHandler)
 	mux.HandleFunc(readyPath, d.ready)
+	mux.HandleFunc("/application-not-found", d.domain.ApplicationNotFound)
 
 	configv1connect.RegisterConfigServiceHandler(baseServer, d.config)
 	agentv1connect.RegisterAgentServiceHandler(baseServer, d.agent)

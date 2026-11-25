@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} | Loco</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --fg: #18181b;
+      --muted: #66666c;
+      --brand: #2455eb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f11;
+        --fg: #ececef;
+        --muted: #8b8b94;
+        --brand: #7b9cff;
+      }
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--fg);
+      font: 16px/1.6 system-ui, sans-serif;
+    }
+    main { max-width: 32rem; padding: 2rem; }
+    .brand { color: var(--brand); font-size: 1.5rem; font-weight: 750; }
+    .status { color: var(--muted); font-family: monospace; margin-top: 3rem; }
+    h1 { font-size: clamp(1.8rem, 5vw, 2.5rem); line-height: 1.2; margin: .5rem 0; }
+    p { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">Loco</div>
+    <div class="status">{{.Status}}</div>
+    <h1>{{.Title}}</h1>
+    <p>{{.Message}}</p>
+  </main>
+</body>
+</html>
