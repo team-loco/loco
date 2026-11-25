@@ -136,7 +136,7 @@ registry:
 
 ## OpenTelemetry collectors
 
-The OpenTelemetry collectors store nothing: every pipeline exports over OTLP/HTTP to `global.exporter.endpoint`.
+The OpenTelemetry collectors store nothing: every pipeline exports over OTLP/HTTP to `global.exporter.endpoint`. Each export opens a new connection and resolves the endpoint again, so collectors follow the endpoint to a new address on their next export.
 
 | Collector | Collects |
 | --- | --- |
