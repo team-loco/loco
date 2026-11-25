@@ -1104,12 +1104,22 @@ def seed_resources(state, resources):
 
 
 def seed_events(state, events):
-    """Inserts workspace events with their resource and environment; `at` takes time placeholders."""
+    """Inserts events; `at` takes time placeholders.
+
+    An event names a `workspace` or `resource` (`org/workspace[/name]`), or an `org` alone for an
+    organization event; with none of them it belongs to the installation. `actor` (a scenario user)
+    makes that user the actor and `operator` marks the change as a Loco operator's.
+    """
     q = sql_literal
     rows = []
     for event in fill_placeholders(events, placeholder_ids(state), time.time()):
-        workspace = event.get("workspace") or event["resource"].rsplit("/", 1)[0]
-        org = state["orgs"][workspace.split("/", 1)[0]]["id"]
+        workspace = event.get("workspace") or (
+            event["resource"].rsplit("/", 1)[0] if "resource" in event else None
+        )
+        org_name = event.get("org") or (
+            workspace.split("/", 1)[0] if workspace else None
+        )
+        org = state["orgs"][org_name]["id"] if org_name else None
         resource = (
             state["resources"][event["resource"]] if "resource" in event else None
         )
@@ -1118,11 +1128,14 @@ def seed_events(state, events):
             if "environment" in event
             else None
         )
+        actor = state["users"][event["actor"]]["id"] if "actor" in event else None
+        actor_type = "user" if actor else event.get("actor_type", "agent")
         rows.append(
-            "INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data,created_at) "
-            f"VALUES({q(event['type'])},{q(org)},{q(state['workspaces'][workspace])},"
+            "INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,acted_as_operator,data,created_at) "
+            f"VALUES({q(event['type'])},{q(org) if org else 'NULL'},{q(state['workspaces'][workspace]) if workspace else 'NULL'},"
             f"{q(resource) if resource else 'NULL'},{q(environment) if environment else 'NULL'},"
-            f"{q(event.get('actor_type', 'agent'))},{q(json.dumps(event.get('data', {})))},"
+            f"{q(actor_type)},{q(actor) if actor else 'NULL'},{'true' if event.get('operator') else 'false'},"
+            f"{q(json.dumps(event.get('data', {})))},"
             f"{q(event['at']) if 'at' in event else 'NOW()'});"
         )
     if rows:
