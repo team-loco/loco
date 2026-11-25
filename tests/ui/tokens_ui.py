@@ -101,7 +101,7 @@ with session(repo / "tests/ui/out/tokens") as browser:
     drawer.get_by_role("button", name="Create token", exact=True).click()
     created = page.get_by_role("dialog", name="Token created")
     expect(created.get_by_text("qa-token--script-", exact=True)).to_be_visible()
-    value = created.locator("[data-token-value]")
+    value = created.locator("[data-secret-value]")
     blocks = created.locator('[data-slot="code-block"]')
     expect(created.get_by_text("Copy it now.", exact=False)).to_be_visible()
     assert re.fullmatch(r"•+", value.inner_text()), "the token starts masked"
