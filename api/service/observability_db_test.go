@@ -72,19 +72,28 @@ func (f *observabilityFixture) client(t *testing.T, clickhouse *chClient.Client)
 	)
 }
 
-// installationScope stands for a request that asks for the installation scope.
-const installationScope = "installation"
+// A read call's workspace argument is a workspace ID or one of these scope selections.
+const (
+	installationScope = "installation"
+	bothScopes        = "both"
+	noScope           = "neither"
+)
 
-func workspaceID(scope string) string {
-	if scope == installationScope {
+func scopeWorkspace(scope string) string {
+	switch scope {
+	case installationScope, noScope:
 		return ""
+	case bothScopes:
+		return observabilityTestWorkspace
 	}
 	return scope
 }
 
+func scopeInstallation(scope string) bool { return scope == installationScope || scope == bothScopes }
+
 func traceScope(workspace string, resources []string) *observabilityv1.TraceScope {
 	return &observabilityv1.TraceScope{
-		WorkspaceId: workspaceID(workspace), Installation: workspace == installationScope, ResourceIds: resources,
+		WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace), ResourceIds: resources,
 	}
 }
 
@@ -99,14 +108,14 @@ func readCalls() map[string]readCall {
 		"QueryLogs": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			start, end := window()
 			_, err := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
-				WorkspaceId: workspaceID(workspace), Installation: workspace == installationScope,
+				WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace),
 				ResourceIds: resources, StartTime: start, EndTime: end,
 			})
 			return err
 		},
 		"TailLogs": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			stream, err := client.TailLogs(ctx, &observabilityv1.TailLogsRequest{
-				WorkspaceId: workspaceID(workspace), Installation: workspace == installationScope,
+				WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace),
 				ResourceIds: resources,
 			})
 			if err != nil {
@@ -119,7 +128,7 @@ func readCalls() map[string]readCall {
 		"QueryMetrics": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			start, end := window()
 			_, err := client.QueryMetrics(ctx, &observabilityv1.QueryMetricsRequest{
-				WorkspaceId: workspaceID(workspace), Installation: workspace == installationScope,
+				WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace),
 				ResourceIds: resources, StartTime: start, EndTime: end,
 				MetricName: "http.server.requests", IntervalSeconds: 60, Aggregation: "max",
 			})
@@ -136,7 +145,7 @@ func readCalls() map[string]readCall {
 		"QueryLogBuckets": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			start, end := window()
 			_, err := client.QueryLogBuckets(ctx, &observabilityv1.QueryLogBucketsRequest{
-				WorkspaceId: workspaceID(workspace), Installation: workspace == installationScope,
+				WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace),
 				ResourceIds: resources, StartTime: start, EndTime: end,
 				IntervalSeconds: 60, GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL,
 			})
@@ -205,6 +214,12 @@ func TestObservabilityReadsNeedWorkspaceReadOrReadOnEveryNamedResource(t *testin
 		{"organization reader in the system scope", orgReader, system, nil, connect.CodePermissionDenied},
 		{"resource reader in the system scope", resourceReader, system, nil, connect.CodePermissionDenied},
 		{"caller without scopes in the system scope", stranger, system, nil, connect.CodePermissionDenied},
+		{"both workspace and installation", systemReader, bothScopes, nil, connect.CodeInvalidArgument},
+		{"neither workspace nor installation", systemReader, noScope, nil, connect.CodeInvalidArgument},
+		{
+			"system admin naming the system tenant as a workspace",
+			systemAdmin, systemtenant.WorkspaceID, nil, connect.CodePermissionDenied,
+		},
 		{
 			"system reader naming the system tenant as a workspace",
 			systemReader, systemtenant.WorkspaceID, nil, connect.CodePermissionDenied,

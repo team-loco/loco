@@ -1,7 +1,9 @@
 package service
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,12 @@ const (
 	systemTraceController = "fedcba9876543210fedcba9876543210"
 	systemMetric          = "process.runtime.go.goroutines"
 	systemWorkerCluster   = "worker-1"
+	workspaceTrace        = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	workspaceMetricValue  = 999
+	spanError             = "Error"
+	apiComponent          = "loco-api"
+	componentKey          = "component"
+	clusterKey            = "cluster"
 	logInfo               = "INFO"
 	apiStarted            = "api started"
 	apiLostDatabase       = "api lost its database"
@@ -33,8 +41,8 @@ func systemResource(component, cluster string) map[string]string {
 }
 
 // seedSystemTelemetry stores, under the system tenant, a log, a trace and a metric from the API on
-// the control plane and from a controller on a worker cluster, and a workspace log that must stay
-// out of every system read.
+// the control plane and from a controller on a worker cluster, and a workspace's log, trace, span
+// in a system trace and metric with the same names and attributes, which every system read must skip.
 func seedSystemTelemetry(t *testing.T) (client observabilityClient, start, end *timestamppb.Timestamp) {
 	t.Helper()
 	f := newObservabilityFixture(t)
@@ -49,11 +57,11 @@ func seedSystemTelemetry(t *testing.T) (client observabilityClient, start, end *
 		body, severity string
 		resource       map[string]string
 	}{
-		{apiStarted, logInfo, systemResource("loco-api", systemtenant.ControlPlaneClusterID)},
-		{apiLostDatabase, "ERROR", systemResource("loco-api", systemtenant.ControlPlaneClusterID)},
+		{apiStarted, logInfo, systemResource(apiComponent, systemtenant.ControlPlaneClusterID)},
+		{apiLostDatabase, "ERROR", systemResource(apiComponent, systemtenant.ControlPlaneClusterID)},
 		{controllerReconciled, logInfo, systemResource("loco-controller", systemWorkerCluster)},
 		{"workspace log", logInfo, map[string]string{
-			workspaceAttribute: f.workspace.String(), retentionAttribute: "1", "service.name": "loco-api",
+			workspaceAttribute: f.workspace.String(), retentionAttribute: "1", "service.name": apiComponent,
 		}},
 	} {
 		if err = logs.Append(at, row.body, row.severity, row.resource); err != nil {
@@ -69,15 +77,22 @@ func seedSystemTelemetry(t *testing.T) (client observabilityClient, start, end *
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, span := range []struct {
+	workspaceResource := func() map[string]string {
+		resource := systemResource(apiComponent, systemtenant.ControlPlaneClusterID)
+		resource[workspaceAttribute] = f.workspace.String()
+		return resource
+	}
+	for i, span := range []struct {
 		trace, name, status string
 		resource            map[string]string
 	}{
-		{systemTraceAPI, "GET /v1/clusters", "", systemResource("loco-api", systemtenant.ControlPlaneClusterID)},
-		{systemTraceController, "reconcile", "Error", systemResource("loco-controller", systemWorkerCluster)},
+		{workspaceTrace, "workspace trace", spanError, workspaceResource()},
+		{systemTraceAPI, "workspace span", "", workspaceResource()},
+		{systemTraceAPI, "GET /v1/clusters", "", systemResource(apiComponent, systemtenant.ControlPlaneClusterID)},
+		{systemTraceController, "reconcile", spanError, systemResource("loco-controller", systemWorkerCluster)},
 	} {
 		if err = traces.Append(
-			at, span.trace, "0000000000000001", span.name, uint64(time.Millisecond), span.status, span.resource,
+			at, span.trace, fmt.Sprintf("%016x", i+1), span.name, uint64(time.Millisecond), span.status, span.resource,
 		); err != nil {
 			t.Fatal(err)
 		}
@@ -90,8 +105,9 @@ func seedSystemTelemetry(t *testing.T) (client observabilityClient, start, end *
 		value    float64
 		resource map[string]string
 	}{
-		{10, systemResource("loco-api", systemtenant.ControlPlaneClusterID)},
+		{10, systemResource(apiComponent, systemtenant.ControlPlaneClusterID)},
 		{20, systemResource("loco-controller", systemWorkerCluster)},
+		{workspaceMetricValue, workspaceResource()},
 	} {
 		if err = ch.Conn().Exec(
 			t.Context(),
@@ -192,16 +208,29 @@ func TestSystemReadersTailLogs(t *testing.T) {
 func TestSystemReadersQueryMetrics(t *testing.T) {
 	t.Parallel()
 	client, start, end := seedSystemTelemetry(t)
-	for attributes, want := range map[string]float64{"loco-api": 10, "loco-controller": 20} {
+	for _, tc := range []struct {
+		attributes map[string]string
+		want       float64
+	}{
+		{map[string]string{componentKey: apiComponent}, 10},
+		{map[string]string{componentKey: "loco-controller"}, 20},
+		{map[string]string{clusterKey: systemtenant.ControlPlaneClusterID}, 10},
+		{map[string]string{clusterKey: systemWorkerCluster}, 20},
+		{map[string]string{componentKey: apiComponent, clusterKey: systemWorkerCluster}, 0},
+	} {
 		response, err := client.QueryMetrics(callerContext(t, systemReader), &observabilityv1.QueryMetricsRequest{
 			Installation: true, StartTime: start, EndTime: end, MetricName: systemMetric,
-			IntervalSeconds: 60, Aggregation: "max", Attributes: map[string]string{"component": attributes},
+			IntervalSeconds: 60, Aggregation: "max", Attributes: tc.attributes,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(response.GetSeries()) != 1 || response.GetSeries()[0].GetPoints()[0].GetValue() != want {
-			t.Errorf("component %s: series %v, want one at %v", attributes, response.GetSeries(), want)
+		if tc.want == 0 {
+			if len(response.GetSeries()) != 0 {
+				t.Errorf("attributes %v: series %v, want none", tc.attributes, response.GetSeries())
+			}
+		} else if len(response.GetSeries()) != 1 || response.GetSeries()[0].GetPoints()[0].GetValue() != tc.want {
+			t.Errorf("attributes %v: series %v, want one at %v", tc.attributes, response.GetSeries(), tc.want)
 		}
 	}
 }
@@ -251,65 +280,25 @@ func TestSystemScopeRejectsWorkspaceFilters(t *testing.T) {
 	t.Parallel()
 	client, start, end := seedSystemTelemetry(t)
 	ctx := callerContext(t, systemReader)
+	for _, field := range []string{"resource", "build"} {
+		query := "@" + field + ":web"
+		_, logsErr := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
+			Installation: true, StartTime: start, EndTime: end, Query: query,
+		})
+		_, tracesErr := client.ListTraces(ctx, &observabilityv1.ListTracesRequest{
+			Scope: &observabilityv1.TraceScope{Installation: true}, StartTime: start, EndTime: end, Query: query,
+		})
+		for call, err := range map[string]error{"logs": logsErr, "traces": tracesErr} {
+			want := "@" + field + " applies to workspaces, not to the installation scope"
+			if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), want) {
+				t.Errorf("%s with %s: %v, want invalid argument saying %q", call, query, err, want)
+			}
+		}
+	}
 	_, err := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
-		Installation: true, StartTime: start, EndTime: end, Query: "@resource:web",
-	})
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("@resource in logs: %v, want invalid argument", err)
-	}
-	_, err = client.ListTraces(ctx, &observabilityv1.ListTracesRequest{
-		Scope: &observabilityv1.TraceScope{Installation: true}, StartTime: start, EndTime: end,
-		Query: "@resource:web",
-	})
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("@resource in traces: %v, want invalid argument", err)
-	}
-	_, err = client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
 		Installation: true, StartTime: start, EndTime: end, EnvironmentId: tailTestEnvironment,
 	})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("environment_id in the system scope: %v, want invalid argument", err)
-	}
-}
-
-func TestWorkspaceMembersCannotReadTheSystemScope(t *testing.T) {
-	t.Parallel()
-	client, start, end := seedSystemTelemetry(t)
-	for _, caller := range []string{workspaceReader, orgReader, stranger} {
-		_, err := client.QueryLogs(callerContext(t, caller), &observabilityv1.QueryLogsRequest{
-			Installation: true, StartTime: start, EndTime: end,
-		})
-		if connect.CodeOf(err) != connect.CodePermissionDenied {
-			t.Errorf("%s: %v, want permission denied", caller, err)
-		}
-	}
-}
-
-func TestTheSystemTenantIDIsNotAWorkspace(t *testing.T) {
-	t.Parallel()
-	client, start, end := seedSystemTelemetry(t)
-	for _, caller := range []string{systemReader, systemAdmin} {
-		_, err := client.QueryLogs(callerContext(t, caller), &observabilityv1.QueryLogsRequest{
-			WorkspaceId: systemtenant.WorkspaceID, StartTime: start, EndTime: end,
-		})
-		if connect.CodeOf(err) != connect.CodePermissionDenied {
-			t.Errorf("%s naming the system tenant as a workspace: %v, want permission denied", caller, err)
-		}
-	}
-}
-
-func TestScopeNamesAWorkspaceOrTheInstallation(t *testing.T) {
-	t.Parallel()
-	client, start, end := seedSystemTelemetry(t)
-	for name, workspace := range map[string]string{
-		"both":    observabilityTestWorkspace,
-		"neither": "",
-	} {
-		_, err := client.QueryLogs(callerContext(t, systemReader), &observabilityv1.QueryLogsRequest{
-			WorkspaceId: workspace, Installation: name == "both", StartTime: start, EndTime: end,
-		})
-		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("%s: %v, want invalid argument", name, err)
-		}
 	}
 }

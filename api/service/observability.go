@@ -210,8 +210,9 @@ func (s *ObservabilityServer) ListTraces(
 	if err != nil {
 		return nil, err
 	}
-	if req.GetOrderBy() == observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE && len(filter.Resources) == 0 &&
-		!req.GetScope().GetInstallation() {
+	needsResourceNames := req.GetOrderBy() == observabilityv1.TraceOrder_TRACE_ORDER_RESOURCE &&
+		len(filter.Resources) == 0
+	if needsResourceNames && !req.GetScope().GetInstallation() {
 		filter.Resources, err = s.resourceNames(ctx, req.GetScope().GetWorkspaceId())
 		if err != nil {
 			return nil, err
