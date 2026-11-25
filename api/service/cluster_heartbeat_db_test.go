@@ -506,3 +506,45 @@ func TestASupersededStreamsHeartbeatIsIgnored(t *testing.T) {
 		t.Fatalf("cluster events = %v, want none", got)
 	}
 }
+
+func TestAStreamTakeoverWaitsForAHeartbeatInFlight(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.agentServer().recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	generation, err := f.queries.GetClusterSyncGeneration(t.Context(), f.clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := f.pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err = genDb.New(tx).CreateClusterHeartbeat(t.Context(), genDb.CreateClusterHeartbeatParams{
+		ID: f.clusterID, Generation: generation, HealthStatus: clusterHealthHealthy,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	takeover := make(chan error, 1)
+	go func() {
+		_, beginErr := f.queries.BeginClusterSync(context.Background(), f.clusterID)
+		takeover <- beginErr
+	}()
+	select {
+	case err = <-takeover:
+		t.Fatalf("stream takeover finished while a heartbeat was in flight: %v", err)
+	case <-time.After(500 * time.Millisecond):
+	}
+	if err = tx.Commit(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err = <-takeover:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("stream takeover still waiting after the heartbeat committed")
+	}
+}
