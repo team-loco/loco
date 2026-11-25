@@ -63,12 +63,14 @@ For the Go path record query generation, connection reuse, decoding and returned
 
 ## Plans
 
-ClickHouse does not use PostgreSQL's EXPLAIN ANALYZE syntax as the portable execution-plan interface. Capture `EXPLAIN PLAN`, `EXPLAIN indexes = 1`, `EXPLAIN PIPELINE`, and other applicable version-supported variants (including distributed remote plans when applicable). Capture actual measured query execution and ProfileEvents separately; together these provide plan-plus-runtime evidence equivalent in purpose to EXPLAIN ANALYZE. Preserve raw output for baseline/candidate at relevant small/large cells. Check pruning, parts/granules read, join/aggregation/sort work, fanout and memory. Never report that a plan was executed merely because it was explained.
+Capture `EXPLAIN PLAN`, `EXPLAIN indexes = 1`, `EXPLAIN PIPELINE`, and other applicable version-supported variants (including distributed remote plans when applicable). Capture actual measured query execution and ProfileEvents separately; together these show how the query was planned and what it cost to execute. Preserve raw output for baseline/candidate at relevant small/large cells. Check pruning, parts/granules read, join/aggregation/sort work, fanout and memory. Never report that a plan was executed merely because it was explained.
 
 ## Public evidence
 
-Reuse the established benchmarking pattern of pinned local containers, separated cache protocols, raw samples, execution plans and before/after tables. Implement against public Core and upstream ClickHouse interfaces. PostgreSQL-specific instrumentation and cache-control commands do not apply to ClickHouse. Keep unrelated hosted deployment details out of public artifacts.
+Reuse the established benchmarking pattern of pinned local containers, separated cache protocols, raw samples, execution plans and before/after tables. Implement against public Core and upstream ClickHouse interfaces. Keep unrelated hosted deployment details out of public artifacts.
 
-## Report
+## HTML report
+
+Produce a complete standalone HTML report for every run or audit, including partial or failed runs. Embed readable charts of latency percentiles, throughput and scaling; use separate series for warm and cold samples and small and large workloads. Include an executive summary of observed flaws, ranked recommendations with evidence, a methodology section, and expandable raw execution plans. Provide a link to the finished HTML file and retain the machine-readable samples alongside it. The HTML must render offline without external assets.
 
 Include all matrix rows with status (pass/fail/unrun), data shape, topology, concurrency, cache tier, samples/errors, latency quantiles, throughput, resource counters, baseline/candidate delta and correctness checks. Include reproducible command, exact revision and configuration, and paths to raw plans/samples. Identify the specific bottleneck supported by the data and distinguish poor query shape from hardware/cache/merge effects. State whether further runtime or scale validation is needed; do not extrapolate laptop timings to production SLOs.

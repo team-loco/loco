@@ -1,6 +1,6 @@
 ---
 name: chbench
-description: Benchmark Loco ClickHouse queries and schema changes locally, across shard/replica topologies, tenant sizes and telemetry volumes, with correctness checks, cold/warm tail latency, execution plans and reproducible before/after evidence. Use for ClickHouse performance reviews, query changes, or requests to measure scaling.
+description: Benchmark Loco ClickHouse queries and schema changes locally, across shard/replica topologies, tenant sizes and telemetry volumes, with correctness checks, cold/warm tail latency, execution plans and reproducible before/after evidence. Use whenever updating a ClickHouse SQL query (including SQL built in Go) or its schema, or when asked to benchmark Loco’s current ClickHouse implementation, assess scaling, or find performance flaws.
 ---
 
 # chbench
@@ -16,10 +16,12 @@ Measure the actual Loco query and schema, not a simplified stand-in. Run ClickHo
 
 ## Run and compare
 
+For a query change, measure before and after. For an audit of the current implementation, benchmark the current ref, identify flaws from the plans and measurements, and rank improvements by impact; a candidate ref is not required.
+
 - Run a 1s1r baseline first to establish query correctness, then the applicable topology and data-scale matrix. Multi-shard testing requires actual distributed routing and verified physical placement, not several independent single-node containers. Check query semantics on every topology.
 - Compare baseline and candidate refs using identical seed, data, query arguments, topology, limits and cache protocol. Test both small and large workloads; separate selected tenant size from unrelated tenant volume.
 - Use `clickhouse-benchmark` for repeatable native SQL throughput and concurrency tests when the pinned binary supports the required options. Use the Go client path for actual Loco query generation, parameter binding, decoded-result correctness and latency. Use the official native utility rather than building another load generator if it meets the scenario's needs.
 - Record representative `EXPLAIN` variants and actual execution statistics from query logs; verify cold and warm protocols separately. Include raw samples, errors, timeout counts, p50/p90/p95/p99, throughput, rows/bytes read and memory/CPU where available.
 - Do not declare success on a faster but incorrect result, silently dropped rows, failed queries, or a test that only exercised a single topology or small fixture. Record any unrun matrix cells and why; label partial results honestly.
 
-Deliver the report and raw evidence with runnable commands, exact refs, topology, environment and seeds. For public PR evidence, use generated synthetic data only and review artifact contents before publishing. Do not copy Fleet configuration, private implementation, credentials or production samples.
+Deliver a complete standalone HTML report at the end of every benchmark or audit, with raw evidence, runnable commands, exact refs, topology, environment and seeds. For public PR evidence, use generated synthetic data only and review artifact contents before publishing. Do not copy Fleet configuration, private implementation, credentials or production samples.
