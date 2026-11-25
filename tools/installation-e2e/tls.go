@@ -16,6 +16,7 @@ import (
 
 var (
 	errTLS12Accepted    = errors.New("gateway accepted a TLS 1.2 handshake")
+	errNoHTTP2          = errors.New("gateway did not negotiate HTTP/2")
 	errTLSFixtureValues = errors.New("TLS fixture values are missing an expected key")
 )
 
@@ -81,8 +82,8 @@ func verifyTLSMinimum(ctx context.Context, hostname string) (result error) {
 		{fixtureIngestHost + ":443", fixtureIngestHost},
 		{hostname + ":443", hostname},
 	} {
-		if err := waitTLS13(ctx, target.address, target.serverName, roots); err != nil {
-			return fmt.Errorf("TLS minimum for %s: %w", target.serverName, err)
+		if err := waitTLS(ctx, target.address, target.serverName, roots); err != nil {
+			return fmt.Errorf("TLS for %s: %w", target.serverName, err)
 		}
 	}
 	return nil
@@ -129,13 +130,13 @@ func tlsControlPlaneValues(source string) (string, error) {
 	return string(data), nil
 }
 
-func waitTLS13(ctx context.Context, address, serverName string, roots *x509.CertPool) error {
+func waitTLS(ctx context.Context, address, serverName string, roots *x509.CertPool) error {
 	ctx, cancel := context.WithTimeout(ctx, httpsReadyTimeout)
 	defer cancel()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
-		err := requireTLS13(ctx, address, serverName, roots)
+		err := requireTLS(ctx, address, serverName, roots)
 		if err == nil {
 			return nil
 		}
@@ -147,10 +148,12 @@ func waitTLS13(ctx context.Context, address, serverName string, roots *x509.Cert
 	}
 }
 
-func requireTLS13(ctx context.Context, address, serverName string, roots *x509.CertPool) error {
+// requireTLS checks that the gateway negotiates HTTP/2 over TLS 1.3 and rejects TLS 1.2.
+func requireTLS(ctx context.Context, address, serverName string, roots *x509.CertPool) error {
 	for _, version := range []uint16{tls.VersionTLS13, tls.VersionTLS12} {
 		dialer := tls.Dialer{NetDialer: &net.Dialer{Timeout: time.Second}, Config: &tls.Config{
 			RootCAs: roots, ServerName: serverName, MinVersion: version, MaxVersion: version,
+			NextProtos: []string{"h2", "http/1.1"},
 		}}
 		connection, err := dialer.DialContext(ctx, "tcp", address)
 		if err != nil {
@@ -161,8 +164,15 @@ func requireTLS13(ctx context.Context, address, serverName string, roots *x509.C
 			}
 			return err
 		}
+		var protocol string
+		if tlsConnection, ok := connection.(*tls.Conn); ok {
+			protocol = tlsConnection.ConnectionState().NegotiatedProtocol
+		}
 		if err := connection.Close(); err != nil {
 			return err
+		}
+		if version == tls.VersionTLS13 && protocol != "h2" {
+			return fmt.Errorf("%w: ALPN chose %q", errNoHTTP2, protocol)
 		}
 		if version == tls.VersionTLS12 {
 			return errTLS12Accepted

@@ -254,7 +254,7 @@ tests:
             port: 443
             tls:
               mode: Terminate
-              certificateRefs: [{name: loco-control-plane-tls, kind: Secret, group: ""}]
+              certificateRefs: [{name: loco-control-plane-auth.region.test-tls, kind: Secret, group: ""}]
             allowedRoutes:
               namespaces:
                 from: Selector

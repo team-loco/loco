@@ -37,6 +37,11 @@ true
 {{- end -}}
 {{- $listeners = append $listeners (dict "name" .hostname "hostname" .hostname "namespaces" .namespaces) -}}
 {{- end -}}
+{{- if include "loco-control-plane.servesTLS" . -}}
+{{- range $listeners -}}
+{{- $_ := set . "secret" ($.Values.gateway.tlsSecretName | default (printf "%s-%s-tls" $.Release.Name .name)) -}}
+{{- end -}}
+{{- end -}}
 {{- toJson $listeners -}}
 {{- end -}}
 
@@ -46,11 +51,9 @@ true
 {{- end -}}
 {{- end -}}
 
-{{- define "loco-control-plane.tlsSecret" -}}
-{{- if .Values.gateway.tlsSecretName -}}
-{{- .Values.gateway.tlsSecretName -}}
-{{- else if .Values.certManager.enabled -}}
-{{- printf "%s-tls" .Release.Name -}}
+{{- define "loco-control-plane.servesTLS" -}}
+{{- if or .Values.gateway.tlsSecretName .Values.certManager.enabled -}}
+true
 {{- end -}}
 {{- end -}}
 
@@ -271,7 +274,7 @@ capabilities:
 {{- end -}}
 
 {{- define "loco-control-plane.registryScheme" -}}
-{{- ternary "https" "http" (not (empty (include "loco-control-plane.tlsSecret" .))) -}}
+{{- ternary "https" "http" (not (empty (include "loco-control-plane.servesTLS" .))) -}}
 {{- end -}}
 
 {{- define "loco-control-plane.registryService" -}}
