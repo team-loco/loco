@@ -1,7 +1,16 @@
 import argparse
 import re
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    evidence,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -188,7 +197,9 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     expect(page).to_have_url(re.compile(r"/login"))
     expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
     route, response = held[0]
-    with page.expect_response("**/loco.auth.v1.AuthService/SignOut") as signed_out:
+    with expect_rpc(
+        page, "loco.auth.v1.AuthService/SignOut", lambda body: True
+    ) as signed_out:
         route.fulfill(response=response)
     assert signed_out.value.ok, signed_out.value.status
     expect(page).to_have_url(re.compile(r"/login$"))
