@@ -660,6 +660,8 @@ otel-col-daemon:
             action: delete
           - key: loco.resource.id
             action: delete
+          - key: loco.telemetry.scope
+            action: delete
           - key: loco.io/build-id
             action: delete
           - key: k8s.pod.ip

@@ -63,6 +63,14 @@ func positiveIntEnv(name string, fallback int) int {
 	return value
 }
 
+func positiveInt32Env(name string, fallback int32) int32 {
+	value := envconfig.Int32(name, fallback)
+	if value <= 0 {
+		panic(fmt.Errorf("%s %d %w", name, value, envconfig.ErrNotPositive))
+	}
+	return value
+}
+
 func ttlEnv(name string, fallback time.Duration) time.Duration {
 	ttl := envconfig.PositiveDuration(name, fallback)
 	if ttl%time.Second != 0 {

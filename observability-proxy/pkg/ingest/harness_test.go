@@ -25,6 +25,8 @@ const (
 	testRetryAfter        = 30 * time.Second
 	testCurrentKeyID      = "current"
 	testRotatedKeyID      = "rotated"
+	testSystemToken       = "control-plane-token"
+	testSystemDays        = 21
 )
 
 type controlPlane struct {
@@ -72,6 +74,8 @@ func (c *controlPlane) gate() *Gate {
 		RefetchInterval:     testPlacementRefetch,
 		ClockSkew:           testClockSkew,
 		MaxRecordLateness:   testMaxRecordLateness,
+		SystemToken:         testSystemToken,
+		SystemRetentionDays: testSystemDays,
 	})
 }
 

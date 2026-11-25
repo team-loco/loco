@@ -161,7 +161,7 @@ Each collector persists requests before batching them for export (`global.export
 
 ### Kubernetes platform telemetry
 
-`global.platformTelemetry.enabled` adds platform pipelines to the node and cluster collectors: node metrics, cluster state and Kubernetes events from the release namespace, the collector namespaces and `global.platformTelemetry.namespaces`. They use the same exporter. Every platform resource carries `loco.installation.id`, `k8s.cluster.name`, `deployment.environment.name`, `loco.region` and `loco.telemetry.scope=platform`.
+`global.platformTelemetry.enabled` adds platform pipelines to the node and cluster collectors: node metrics, cluster state and Kubernetes events from the release namespace, the collector namespaces and `global.platformTelemetry.namespaces`. They use the same exporter. Every platform resource carries `loco.installation.id`, `k8s.cluster.name`, `deployment.environment.name`, `loco.region` and `loco.telemetry.scope=platform`. The observability proxy stores them under the system tenant, apart from every workspace. The collectors delete `loco.telemetry.scope` from the telemetry workloads send, so only these pipelines set it.
 
 ```yaml
 global:

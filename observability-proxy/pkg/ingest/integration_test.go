@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"testing"
 	"time"
 
@@ -27,9 +28,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/bearer"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
 	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
+	"github.com/team-loco/loco/internal/systemtenant"
 )
 
 const (
@@ -534,5 +537,58 @@ func TestIngestWorksWhenTheServerLocksLogQueries(t *testing.T) {
 	writer := f.startedWriter(t)
 	if err := writer.Consumers().Logs.ConsumeLogs(t.Context(), testLogs(time.Now().UTC())); err != nil {
 		t.Fatalf("ConsumeLogs: %v", err)
+	}
+}
+
+func TestSystemTelemetryIsStoredUnderTheSystemTenant(t *testing.T) {
+	f := newIngestFixture(t)
+	writer := f.startedWriter(t)
+	cp := newPlacedControlPlane(t)
+	service := newGatedService(writer.Consumers(), cp)
+	httpURL, _ := startServers(t, service)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	body, err := plogotlp.NewExportRequestFromLogs(testLogs(now)).MarshalProto()
+	if err != nil {
+		t.Fatalf("marshal logs: %v", err)
+	}
+	postOTLP(t, httpURL+LogsPath, bearer.Header(testSystemToken), body)
+	platform, err := plogotlp.NewExportRequestFromLogs(platformLogs(now, "")).MarshalProto()
+	if err != nil {
+		t.Fatalf("marshal platform logs: %v", err)
+	}
+	postOTLP(t, httpURL+LogsPath, cp.bearer(), platform)
+
+	rows, err := f.admin.Query(
+		t.Context(),
+		"SELECT WorkspaceId, OrganizationId, RetentionDays, ResourceAttributes[?] FROM "+
+			f.database+".otel_logs ORDER BY ResourceAttributes[?]",
+		clusterAttribute,
+		clusterAttribute,
+	)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	var clusters []string
+	for rows.Next() {
+		var workspaceID, organizationID, clusterID string
+		var days uint32
+		if err := rows.Scan(&workspaceID, &organizationID, &days, &clusterID); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if workspaceID != systemtenant.WorkspaceID || organizationID != "" || days != testSystemDays {
+			t.Fatalf(
+				"row from %s: workspace %q, organization %q, %d days",
+				clusterID,
+				workspaceID,
+				organizationID,
+				days,
+			)
+		}
+		clusters = append(clusters, clusterID)
+	}
+	if !slices.Equal(clusters, []string{testClusterID, systemtenant.ControlPlaneClusterID}) {
+		t.Fatalf("system rows came from %v, want the cluster and the control plane", clusters)
 	}
 }
