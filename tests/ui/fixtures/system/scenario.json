@@ -6,12 +6,13 @@
   },
   "orgs": [
     {"name": "acme", "owner": "member", "workspaces": ["shared"]},
-    {"name": "ops", "owner": "admin", "workspaces": ["main"]}
+    {"name": "ops", "owner": "admin", "workspaces": ["main"]},
+    {"name": "labs", "owner": "admin", "workspaces": ["bench"]}
   ],
   "clusters": [
     {"name": "us-ca-1", "region": "us-ca-1", "role": "apps", "enrolled": true, "agent_version": "v0.0.217", "heartbeat_ago": 12, "domains": ["apps.example.test"]},
     {"name": "us-ca-1-builds", "region": "us-ca-1", "role": "builds", "enrolled": true, "agent_version": "v0.0.217", "heartbeat_ago": 20, "health": "degraded"},
-    {"name": "de-he-1", "region": "de-he-1", "role": "all", "enrolled": true, "agent_version": "v0.0.209", "heartbeat_ago": 3600},
+    {"name": "de-he-1", "region": "de-he-1", "role": "all", "enrolled": true, "agent_version": "v0.0.209", "heartbeat_ago": 3600, "silent": true},
     {"name": "de-he-1-b", "region": "de-he-1", "role": "all"},
     {"name": "gb-lnd-1", "region": "gb-lnd-1", "role": "apps", "enrolled": true, "agent_version": "v0.0.217", "heartbeat_ago": 30, "active": false},
     {"name": "jp-13-1", "region": "jp-13-1", "role": "apps", "enrolled": true, "agent_version": "v0.0.214", "heartbeat_ago": 90000, "active": false, "removed": true}

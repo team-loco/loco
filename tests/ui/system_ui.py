@@ -1,8 +1,7 @@
 import argparse
 import re
-from functools import partial
 
-from harness import call, expect_rpc, load_state, open_page, repo, session
+from harness import expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -14,8 +13,8 @@ args = parser.parse_args()
 state = load_state(args, "system", "tests/ui/fixtures/system/scenario.json")
 ui = state["ui_url"]
 
-LIST_CLUSTERS = "loco.cluster.v1.ClusterAdminService/ListClusters"
-LIST_REGIONS = "loco.cluster.v1.RegionAdminService/ListRegions"
+SCOPES = "**/loco.token.v1.TokenService/GetScopes"
+USER_ORGS = "**/loco.org.v1.OrgService/ListUserOrgs"
 SHELL_WATCH_JS = """
 window.__systemChrome = false;
 new MutationObserver(() => {
@@ -24,8 +23,19 @@ new MutationObserver(() => {
 """
 
 
-def serve(body, route):
-    route.fulfill(json=body)
+def hold(context, pattern):
+    """Keeps the requests that match `pattern` pending until the test releases them."""
+    held = []
+    context.route(pattern, lambda route: held.append(route))
+    return held
+
+
+def fleet_calls(requests):
+    return [url for url in requests if "ClusterAdminService" in url]
+
+
+def pick_dialog(page):
+    return page.get_by_role("alertdialog")
 
 
 def open_menu(page):
@@ -42,9 +52,8 @@ def row_menu(page, name, item):
 
 
 with session(repo / "tests/ui/out/system") as browser:
-    # A user without a system role never sees the switch, and /system is not found.
+    # A user without a system role never sees the switch.
     context, page, errors = open_page(browser, user="member", state=state)
-    context.add_init_script(SHELL_WATCH_JS)
     page.goto(ui + "/dashboard")
     expect(page.get_by_title("Switch organization", exact=True)).to_be_visible()
     open_menu(page)
@@ -54,16 +63,37 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_role("menuitemcheckbox", name="System", exact=True)
     ).to_have_count(0)
-    page.keyboard.press("Escape")
-    for path in ("/system", "/system/clusters", "/system/clusters/new"):
-        page.goto(ui + path)
-        expect(
-            page.get_by_role(
+    context.close()
+
+    # Without a system role, /system is not found however the account's requests are timed:
+    # no System page mounts and no fleet call goes out while the scopes or the organization
+    # list are pending.
+    for delayed in (SCOPES, USER_ORGS):
+        for path in (
+            "/system",
+            "/system/clusters",
+            "/System/Clusters",
+            "/system/clusters/new",
+        ):
+            context, page, errors = open_page(browser, user="member", state=state)
+            context.add_init_script(SHELL_WATCH_JS)
+            requests = []
+            page.on("request", lambda request, seen=requests: seen.append(request.url))
+            held = hold(context, delayed)
+            page.goto(ui + path, wait_until="commit")
+            page.wait_for_timeout(500)
+            assert not page.evaluate("window.__systemChrome"), (delayed, path)
+            not_found = page.get_by_role(
                 "heading", name="Nothing lives at this address", exact=True
             )
-        ).to_be_visible()
-        assert not page.evaluate("window.__systemChrome"), path
-    context.close()
+            if delayed == USER_ORGS:
+                expect(not_found).to_be_visible()
+            for route in held:
+                route.continue_()
+            expect(not_found).to_be_visible()
+            assert not page.evaluate("window.__systemChrome"), (delayed, path)
+            assert not fleet_calls(requests), (delayed, path, requests)
+            context.close()
 
     # A system admin switches in and out, and sees the clusters with their actions.
     context, page, errors = open_page(browser, user="admin", state=state)
@@ -94,11 +124,25 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_role("row", name="Open us-ca-1-builds", exact=True)
     ).to_contain_text("Degraded")
-    open_menu(page)
-    switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
-    expect(switch).to_have_attribute("aria-checked", "true")
-    switch.click()
-    expect(page).to_have_url(re.compile(r"/org/[\w-]+/wks/[\w-]+"))
+
+    # Switching System off returns to the page the user came from, in any organization the
+    # scopes reach, listed or not.
+    for org, workspace in (
+        ("ops", "ops/main"),
+        ("acme", "acme/shared"),
+        ("labs", "labs/bench"),
+    ):
+        origin = f"/org/{state['orgs'][org]['id']}/wks/{state['workspaces'][workspace]}/resources"
+        page.goto(ui + origin)
+        open_menu(page)
+        page.get_by_role("menuitemcheckbox", name="System", exact=True).click()
+        expect(page).to_have_url(ui + "/system")
+        open_menu(page)
+        switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
+        expect(switch).to_have_attribute("aria-checked", "true")
+        switch.click()
+        expect(page).to_have_url(re.compile("^" + re.escape(ui + origin)))
+        expect(page.locator('[data-slot="system-tag"]')).to_have_count(0)
 
     page.goto(ui + "/system/clusters")
     expect(page.get_by_role("heading", name="Clusters", exact=True)).to_be_visible()
@@ -120,6 +164,15 @@ with session(repo / "tests/ui/out/system") as browser:
     ).to_be_visible()
     expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_have_count(0)
     page.get_by_role("textbox", name="Filter clusters by name", exact=True).fill("")
+    page.get_by_role("button", name="Region", exact=True).click()
+    page.get_by_role("option", name=re.compile("^de-he-1")).click()
+    expect(page).to_have_url(re.compile(r"[?&]region=de-he-1"))
+    expect(table.get_by_role("row", name="Open de-he-1", exact=True)).to_be_visible()
+    expect(table.get_by_role("row", name="Open de-he-1-b", exact=True)).to_be_visible()
+    expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_have_count(0)
+    page.get_by_role("button", name="Clear region filter", exact=True).click()
+    expect(page).not_to_have_url(re.compile(r"[?&]region="))
+    expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_be_visible()
     page.get_by_role("button", name="Removed", exact=True).click()
     expect(page).to_have_url(re.compile(r"[?&]removed=true"))
     expect(table.get_by_role("row", name="Open jp-13-1", exact=True)).to_be_visible()
@@ -157,6 +210,29 @@ with session(repo / "tests/ui/out/system") as browser:
         dialog.get_by_role("button", name="Resume cluster", exact=True).click()
     expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_contain_text(
         "Healthy"
+    )
+
+    # A paused cluster is removed, then restored: it leaves the list, shows under Removed and
+    # comes back paused.
+    row_menu(page, "gb-lnd-1", "Remove")
+    with expect_rpc(
+        page, "loco.cluster.v1.ClusterAdminService/RemoveCluster", lambda body: True
+    ):
+        dialog.get_by_role("button", name="Remove cluster", exact=True).click()
+    expect(table.get_by_role("row", name="Open gb-lnd-1", exact=True)).to_have_count(0)
+    page.get_by_role("button", name="Removed", exact=True).click()
+    expect(table.get_by_role("row", name="Open gb-lnd-1", exact=True)).to_contain_text(
+        "Removed"
+    )
+    row_menu(page, "gb-lnd-1", "Restore")
+    with expect_rpc(
+        page, "loco.cluster.v1.ClusterAdminService/RestoreCluster", lambda body: True
+    ):
+        dialog.get_by_role("button", name="Restore cluster", exact=True).click()
+    expect(table.get_by_role("row", name="Open gb-lnd-1", exact=True)).to_have_count(0)
+    page.get_by_role("button", name="Removed", exact=True).click()
+    expect(table.get_by_role("row", name="Open gb-lnd-1", exact=True)).to_contain_text(
+        "Paused"
     )
 
     # A join token is masked until revealed.
@@ -232,18 +308,36 @@ with session(repo / "tests/ui/out/system") as browser:
     assert "--set global.region=nz-akl-1" in command, command
     page.get_by_role("link", name="Back to clusters", exact=True).click()
     expect(page.get_by_role("row", name="Open nz-akl-1", exact=True)).to_be_visible()
+    # An existing region and the local region are registered by their codes.
+    page.goto(ui + "/system/clusters/new")
+    page.get_by_role("button", name="Choose a region", exact=True).click()
+    page.get_by_role("option", name=re.compile("^us-ca-1")).click()
+    page.get_by_role("textbox", name="Name", exact=True).fill("us-ca-1-c")
+    with expect_rpc(
+        page,
+        "loco.cluster.v1.ClusterAdminService/CreateCluster",
+        lambda body: (
+            body.get("region") == "us-ca-1" and body.get("name") == "us-ca-1-c"
+        ),
+    ):
+        page.get_by_role("button", name="Create cluster", exact=True).click()
+    expect(
+        page.get_by_role("heading", name="Join us-ca-1-c", exact=True)
+    ).to_be_visible()
+    page.goto(ui + "/system/clusters/new")
+    page.get_by_role("button", name="Local", exact=True).click()
+    with expect_rpc(
+        page,
+        "loco.cluster.v1.ClusterAdminService/CreateCluster",
+        lambda body: body.get("region") == "local-1",
+    ):
+        page.get_by_role("button", name="Create cluster", exact=True).click()
+    expect(page.get_by_role("heading", name="Join local-1", exact=True)).to_be_visible()
     assert not [e for e in errors if e], errors
     context.close()
 
-    # A system reader sees the same pages with no change controls. The API grants read access
-    # to the list calls separately, so the page receives the admin's lists.
-    listed = {
-        method: call(state, method, {}, user="admin")
-        for method in (LIST_CLUSTERS, LIST_REGIONS)
-    }
+    # A system reader sees the same pages with no change controls.
     context, page, errors = open_page(browser, user="reader", state=state)
-    for method, body in listed.items():
-        context.route(f"**/{method}", partial(serve, body))
     page.goto(ui + "/dashboard")
     open_menu(page)
     page.get_by_role("menuitemcheckbox", name="System", exact=True).click()

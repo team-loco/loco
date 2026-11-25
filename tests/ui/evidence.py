@@ -984,7 +984,7 @@ def seed(state, scenario):
 
 
 def seed_fleet(state, clusters):
-    """Inserts the scenario's clusters; `heartbeat_ago` is seconds since the last heartbeat, absent for a cluster that never reported."""
+    """Inserts the scenario's clusters; `heartbeat_ago` is seconds since the last heartbeat, absent for a cluster that never reported, and `silent` marks the cluster silent."""
     q = sql_literal
     for cluster in clusters:
         cluster_id = str(uuid.uuid4())
@@ -1002,10 +1002,11 @@ def seed_fleet(state, clusters):
             f"{removed},{version},{key},{q(cluster.get('role', 'all'))});"
         ]
         if "heartbeat_ago" in cluster:
+            beat = f"NOW() - make_interval(secs => {int(cluster['heartbeat_ago'])})"
+            silent = beat if cluster.get("silent") else "NULL"
             statements.append(
-                "INSERT INTO cluster_heartbeats(cluster_id,last_heartbeat,health_status) "
-                f"VALUES({q(cluster_id)},NOW() - make_interval(secs => {int(cluster['heartbeat_ago'])}),"
-                f"{q(cluster.get('health', 'healthy'))});"
+                "INSERT INTO cluster_heartbeats(cluster_id,last_heartbeat,health_status,silent_since) "
+                f"VALUES({q(cluster_id)},{beat},{q(cluster.get('health', 'healthy'))},{silent});"
             )
         psql(state, "".join(statements))
 
