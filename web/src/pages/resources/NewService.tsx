@@ -853,9 +853,9 @@ function ServiceForm({
 						Open resource
 					</Button>
 				)}
-				<Button type="submit" disabled={isPending || resourceId !== undefined}>
+				<Button type="submit" className="max-w-full min-w-0" disabled={isPending || resourceId !== undefined}>
 					{isPending && <Spinner aria-hidden />}
-					{`Deploy ${name}`}
+					<span className="truncate">{`Deploy ${name}`}</span>
 				</Button>
 			</SheetFooter>
 		</form>

@@ -1101,6 +1101,25 @@ with session(out) as browser:
     assert sizing["scalers"] == {"enabled": True, "cpuTarget": 70}, sizing
     assert not errors, errors
     context.close()
+    # A 63-character name keeps the Deploy label inside its button and the drawer.
+    long_name = "a" * 63
+    context, page, errors = open_page(
+        browser,
+        "owner",
+        narrow=True,
+        storage={drafts_key: json.dumps([seeded_draft(long_name, image)])},
+    )
+    page.goto(base + "/resources?env=production")
+    draft_row(page, long_name).get_by_role("link", name=long_name, exact=True).click()
+    drawer = page.get_by_role("dialog", name=long_name, exact=True)
+    deploy = drawer.get_by_role("button", name=f"Deploy {long_name}", exact=True)
+    expect(deploy).to_be_visible()
+    label = deploy.locator("span.truncate").bounding_box()
+    box = drawer.bounding_box()
+    assert label["x"] >= box["x"], (label, box)
+    assert label["x"] + label["width"] <= box["x"] + box["width"], (label, box)
+    assert not errors, errors
+    context.close()
     # A service in two regions is one deployment that rolls out to both.
     name = f"{repository}-multi"
     draft = seeded_draft(name, image)
