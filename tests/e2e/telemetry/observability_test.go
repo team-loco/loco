@@ -694,7 +694,8 @@ func clusterEventsOnce(t *testing.T) {
 		p.CollectorNamespace(),
 	))
 	p.DeleteOnCleanup(t, "-n", p.CollectorNamespace(), "events.events.k8s.io", marker)
-	query := fmt.Sprintf("SELECT count() FROM otel_logs WHERE position(Body, '%s') > 0", marker)
+	// The platform pipeline keeps its own copy under the system tenant; count the cluster-level rows.
+	query := fmt.Sprintf("SELECT count() FROM otel_logs WHERE position(Body, '%s') > 0 AND WorkspaceId = ''", marker)
 	waitCount(t, "the Kubernetes event in ClickHouse", query, func(count int) bool { return count > 0 })
 	// A second copy from the other OTLP replica would land within the flush window.
 	ctx, cancel := context.WithTimeout(t.Context(), eventFlushWindow)

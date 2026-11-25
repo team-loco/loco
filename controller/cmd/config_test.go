@@ -23,24 +23,29 @@ func TestOperatorConfigReadsTheTelemetrySettings(t *testing.T) {
 	}
 }
 
-func TestOperatorConfigEnablesTracingWithAnOTLPEndpoint(t *testing.T) {
+func TestOperatorConfigEnablesTracingAndMetricsWithTheirOTLPEndpoints(t *testing.T) {
 	for name, tc := range map[string]struct {
-		env  string
-		want bool
+		env         string
+		wantTracing bool
+		wantMetrics bool
 	}{
-		"no endpoint":     {want: false},
-		"shared endpoint": {env: envOTLPEndpoint, want: true},
-		"traces endpoint": {env: envOTLPTracesEndpoint, want: true},
+		"no endpoint":      {},
+		"shared endpoint":  {env: envOTLPEndpoint, wantTracing: true, wantMetrics: true},
+		"traces endpoint":  {env: envOTLPTracesEndpoint, wantTracing: true},
+		"metrics endpoint": {env: envOTLPMetricsEndpoint, wantMetrics: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
-			t.Setenv(envOTLPEndpoint, "")
-			t.Setenv(envOTLPTracesEndpoint, "")
+			for _, variable := range []string{envOTLPEndpoint, envOTLPTracesEndpoint, envOTLPMetricsEndpoint} {
+				t.Setenv(variable, "")
+			}
 			if tc.env != "" {
 				t.Setenv(tc.env, "http://collector.loco.test:4318")
 			}
-			if got := newOperatorConfig().Tracing; got != tc.want {
-				t.Errorf("tracing = %t, want %t", got, tc.want)
+			operator := newOperatorConfig()
+			if operator.Tracing != tc.wantTracing || operator.Metrics != tc.wantMetrics {
+				t.Errorf("tracing, metrics = %t, %t, want %t, %t",
+					operator.Tracing, operator.Metrics, tc.wantTracing, tc.wantMetrics)
 			}
 		})
 	}

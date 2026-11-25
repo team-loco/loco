@@ -1,0 +1,44 @@
+{{- if .Values.global.platformTelemetry.enabled }}
+{{- $namespace := index .Values "otel-col-cluster" "namespaceOverride" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-col-cluster-platform
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "loco-worker.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: otel-col-cluster
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: otlp-http
+      protocol: TCP
+      port: {{ include "loco-worker.platformOTLPPort" . }}
+      targetPort: {{ include "loco-worker.platformOTLPPort" . }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-platform-otlp-ingress
+  namespace: {{ $namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: otel-col-cluster
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [loco-controller, loco-build-controller]
+      ports:
+        - protocol: TCP
+          port: {{ include "loco-worker.platformOTLPPort" . }}
+{{- end }}

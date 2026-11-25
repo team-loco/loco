@@ -151,15 +151,27 @@ func serve(server *http.Server) error {
 
 func main() {
 	if err := run(); err != nil {
-		slog.Error("loco api failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+// run logs the error it returns; once log export starts, it logs it before the log provider flushes.
+func run() (err error) {
 	ac := newAPIConfig()
 
-	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
+	loggerProvider, err := startLogs(context.Background(), ac.LogsEnabled, ac.Version)
+	if err != nil {
+		slog.Error("loco api failed", "error", err)
+		return err
+	}
+	defer stopLogs(loggerProvider)
+	defer func() {
+		if err != nil {
+			slog.Error("loco api failed", "error", err)
+		}
+	}()
+	handler := withOTLPLogs(getLoggerHandler(ac), loggerProvider, ac.LogLevel)
+	logger := slog.New(CustomHandler{Handler: handler})
 	slog.SetDefault(logger)
 	slog.Info("starting loco api", "version", ac.Version)
 

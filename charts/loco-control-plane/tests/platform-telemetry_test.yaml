@@ -1,0 +1,133 @@
+suite: platform telemetry
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/api-deployment.yaml
+  - templates/obs-proxy-ingest-deployment.yaml
+  - templates/platform-telemetry-token.yaml
+tests:
+  - it: exports nothing by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT}
+          any: true
+        template: templates/api-deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: SYSTEM_INGEST_TOKEN}
+          any: true
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - hasDocuments: {count: 0}
+        template: templates/platform-telemetry-token.yaml
+
+  - it: sends the API's telemetry to the proxy's system ingest with a chart-managed token
+    set:
+      platformTelemetry.enabled: true
+    asserts:
+      - containsDocument: {kind: Secret, apiVersion: v1, name: loco-control-plane-system-ingest-token}
+        template: templates/platform-telemetry-token.yaml
+      - isNotEmpty:
+          path: data.token
+        template: templates/platform-telemetry-token.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: SYSTEM_INGEST_TOKEN, valueFrom: {secretKeyRef: {name: loco-control-plane-system-ingest-token, key: token}}}
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value: {name: LOCO_SYSTEM_INGEST_TOKEN, valueFrom: {secretKeyRef: {name: loco-control-plane-system-ingest-token, key: token}}}
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://loco-control-plane-obs-proxy-ingest.loco-control-plane.svc.cluster.local:4318"}
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_HEADERS, value: "Authorization=Bearer%20$(LOCO_SYSTEM_INGEST_TOKEN)"}
+        template: templates/api-deployment.yaml
+
+  - it: sends the API's telemetry to the operator's endpoint and nothing to the proxy
+    set:
+      platformTelemetry: {enabled: true, exporter: {endpoint: "https://otel.example.com", headers: {Authorization: "Bearer a+b/c", x-scope: ops}}}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "https://otel.example.com"}
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_HEADERS, value: "Authorization=Bearer%20a%2Bb%2Fc,x-scope=ops"}
+        template: templates/api-deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SYSTEM_INGEST_TOKEN}
+          any: true
+        template: templates/api-deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: SYSTEM_INGEST_TOKEN}
+          any: true
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - hasDocuments: {count: 0}
+        template: templates/platform-telemetry-token.yaml
+
+  - it: needs the observability proxy without an endpoint
+    set:
+      platformTelemetry.enabled: true
+      obsProxy.enabled: false
+    template: templates/platform-telemetry-token.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "platformTelemetry without exporter.endpoint requires obsProxy.enabled"
+
+  - it: refuses an OTLP endpoint in api.env as well
+    set:
+      platformTelemetry.enabled: true
+      api.env.OTEL_EXPORTER_OTLP_ENDPOINT: http://elsewhere
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "OTEL_EXPORTER_OTLP_ENDPOINT is set in both api.env and platformTelemetry"
+
+  - it: refuses a signal-specific OTLP endpoint in api.env as well
+    set:
+      platformTelemetry.enabled: true
+      api.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://elsewhere
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT is set in both api.env and platformTelemetry"
+
+  - it: refuses signal-specific OTLP headers in api.env as well
+    set:
+      platformTelemetry: {enabled: true, exporter: {endpoint: "https://otel.example.com"}}
+      api.env.OTEL_EXPORTER_OTLP_TRACES_HEADERS: x=y
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "OTEL_EXPORTER_OTLP_TRACES_HEADERS is set in both api.env and platformTelemetry"
+
+  - it: names each API replica by its pod UID
+    set:
+      platformTelemetry.enabled: true
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_POD_UID, valueFrom: {fieldRef: {fieldPath: metadata.uid}}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID)"}
+
+  - it: refuses OTEL_RESOURCE_ATTRIBUTES in api.env as well
+    set:
+      platformTelemetry.enabled: true
+      api.env.OTEL_RESOURCE_ATTRIBUTES: team=ops
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: OTEL_RESOURCE_ATTRIBUTES is set in both api.env and platformTelemetry

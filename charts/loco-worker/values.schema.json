@@ -734,6 +734,21 @@
             "environment": {
               "type": "string"
             },
+            "exporter": {
+              "type": "object",
+              "properties": {
+                "endpoint": {
+                  "type": "string"
+                },
+                "headers": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
             "installation": {
               "type": "string"
             },

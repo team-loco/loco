@@ -37,6 +37,41 @@ spec:
             - secretRef:
                 name: {{ .Values.api.existingSecret | quote }}
           env:
+            {{- if .Values.platformTelemetry.enabled }}
+            {{- range $name := include "loco-control-plane.otlpExporterEnv" . | fromYamlArray }}
+            {{- if hasKey $.Values.api.env $name }}
+            {{- fail (printf "%s is set in both api.env and platformTelemetry" $name) }}
+            {{- end }}
+            {{- end }}
+            {{- if include "loco-control-plane.systemIngest" . }}
+            - name: LOCO_SYSTEM_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "loco-control-plane.systemIngestSecret" . }}
+                  key: token
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ printf "http://%s-obs-proxy-ingest.%s.svc.cluster.local:%v" .Release.Name .Release.Namespace .Values.obsProxy.ingest.httpPort | quote }}
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              value: "Authorization=Bearer%20$(LOCO_SYSTEM_INGEST_TOKEN)"
+            {{- else }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.platformTelemetry.exporter.endpoint | quote }}
+            {{- with .Values.platformTelemetry.exporter.headers }}
+            {{- $headers := list }}
+            {{- range $key, $value := . }}
+            {{- $headers = append $headers (printf "%s=%s" $key ($value | urlquery | replace "+" "%20")) }}
+            {{- end }}
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              value: {{ join "," $headers | quote }}
+            {{- end }}
+            {{- end }}
+            - name: LOCO_POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.instance.id=$(LOCO_POD_UID)"
+            {{- end }}
             {{- $typed := include "loco-control-plane.apiSettings" . | fromYaml }}
             {{- range $name, $value := $typed }}
             {{- if hasKey $.Values.api.env $name }}

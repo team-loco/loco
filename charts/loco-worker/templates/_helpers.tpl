@@ -112,3 +112,31 @@ app.kubernetes.io/name: loco-build-controller
     matchLabels:
       {{- toYaml . | nindent 6 }}
 {{- end -}}
+
+{{- define "loco-worker.platformOTLPPort" -}}
+4318
+{{- end -}}
+
+{{/* OTLP/HTTP endpoint of the cluster collector's platform pipelines, which Loco's controllers export to. */}}
+{{- define "loco-worker.platformOTLPEndpoint" -}}
+{{- printf "http://otel-col-cluster-platform.%s.svc.cluster.local:%s" (index .Values "otel-col-cluster" "namespaceOverride") (include "loco-worker.platformOTLPPort" .) -}}
+{{- end -}}
+
+{{/* A controller's OTLP endpoint and instance ID under platform telemetry; .env may not set those variables as well. */}}
+{{- define "loco-worker.platformOTLPEnv" -}}
+{{- if .root.Values.global.platformTelemetry.enabled -}}
+{{- range $variable := .env -}}
+{{- if regexMatch "^(OTEL_EXPORTER_OTLP_((TRACES|METRICS|LOGS)_)?(ENDPOINT|HEADERS)|OTEL_RESOURCE_ATTRIBUTES)$" $variable.name -}}
+{{- fail (printf "%s sets %s, which global.platformTelemetry sets" $.path $variable.name) -}}
+{{- end -}}
+{{- end -}}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ include "loco-worker.platformOTLPEndpoint" .root | quote }}
+- name: LOCO_POD_UID
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.uid
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: "service.instance.id=$(LOCO_POD_UID)"
+{{- end -}}
+{{- end -}}

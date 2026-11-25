@@ -71,19 +71,39 @@ func main() {
 		os.Exit(1)
 	}
 	restConfig := ctrl.GetConfigOrDie()
-	flush := func() {}
+	var stops []func()
+	flush := func() {
+		for _, stop := range stops {
+			stop()
+		}
+	}
 	if operator.Tracing {
 		provider, tracingErr := otelsetup.Start(context.Background(), setup.serviceName, managerVersion)
 		if tracingErr != nil {
 			setupLog.Error(tracingErr, "unable to start tracing")
 			os.Exit(1)
 		}
-		flush = func() {
+		stops = append(stops, func() {
 			if stopErr := otelsetup.Stop(provider); stopErr != nil {
 				setupLog.Error(stopErr, "unable to stop tracing")
 			}
-		}
+		})
 		tracing.TraceRequests(restConfig)
+	}
+	if operator.Metrics {
+		provider, metricsErr := otelsetup.StartMetrics(
+			context.Background(), setup.serviceName, managerVersion, registryMetrics(),
+		)
+		if metricsErr != nil {
+			setupLog.Error(metricsErr, "unable to start metrics")
+			flush()
+			os.Exit(1)
+		}
+		stops = append(stops, func() {
+			if stopErr := otelsetup.StopMetrics(provider); stopErr != nil {
+				setupLog.Error(stopErr, "unable to stop metrics")
+			}
+		})
 	}
 	fail := func(err error, msg string, keysAndValues ...any) {
 		setupLog.Error(err, msg, keysAndValues...)

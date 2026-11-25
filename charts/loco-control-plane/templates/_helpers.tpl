@@ -287,3 +287,28 @@ capabilities:
 {{- fail "api.registry.service is required when api.registry.auth is token" -}}
 {{- end -}}
 {{- end -}}
+
+{{/* Non-empty when the API sends its own telemetry to the observability proxy's system ingest. */}}
+{{- define "loco-control-plane.systemIngest" -}}
+{{- if and .Values.platformTelemetry.enabled (not .Values.platformTelemetry.exporter.endpoint) -}}
+{{- if not .Values.obsProxy.enabled -}}
+{{- fail "platformTelemetry without exporter.endpoint requires obsProxy.enabled" -}}
+{{- end -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{- define "loco-control-plane.systemIngestSecret" -}}
+{{ .Release.Name }}-system-ingest-token
+{{- end -}}
+
+{{/* OTLP variables platformTelemetry owns; a signal-specific one would override the chart's. */}}
+{{- define "loco-control-plane.otlpExporterEnv" -}}
+{{- $names := list "OTEL_RESOURCE_ATTRIBUTES" -}}
+{{- range $signal := list "" "TRACES_" "METRICS_" "LOGS_" -}}
+{{- range $setting := list "ENDPOINT" "HEADERS" -}}
+{{- $names = append $names (printf "OTEL_EXPORTER_OTLP_%s%s" $signal $setting) -}}
+{{- end -}}
+{{- end -}}
+{{- toYaml $names -}}
+{{- end -}}

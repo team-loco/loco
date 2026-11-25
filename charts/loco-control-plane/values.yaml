@@ -162,6 +162,20 @@ api:
     failureThreshold: 60
     periodSeconds: 5
 
+# Loco's own telemetry: the API exports its traces, metrics and logs over OTLP/HTTP.
+# @schema additionalProperties: false
+platformTelemetry:
+  enabled: false
+  # without an endpoint, the API sends to the observability proxy, which stores everything under
+  # the system tenant; obsProxy.enabled is then required.
+  # @schema additionalProperties: false
+  exporter:
+    # OTLP/HTTP base URL of the operator's own collector or backend, such as https://otel.example.com.
+    endpoint: ""
+    # sent with every export request, such as an Authorization header the endpoint requires.
+    # @schema additionalProperties: {type: string}
+    headers: {}
+
 # Gateway namespace where the Envoy Gateway is deployed
 gatewayNamespace: loco-system
 controlPlaneHostname: api.loco.build

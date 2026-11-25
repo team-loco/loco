@@ -81,3 +81,69 @@ tests:
         documentSelector: {path: metadata.name, value: otel-col-daemon-agent}
       - matchRegex: *stripsScope
         documentSelector: {path: metadata.name, value: otel-col-deploy}
+
+  - it: points both controllers at the cluster collector's platform pipelines
+    asserts:
+      - contains: &platformEndpoint
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-col-cluster-platform.loco-obs.svc.cluster.local:4318"}
+        template: templates/controller/deployment.yaml
+      - contains: *platformEndpoint
+        template: templates/builds/deployment.yaml
+      - equal:
+          path: spec.selector
+          value: {app.kubernetes.io/name: otel-col-cluster, app.kubernetes.io/instance: loco-worker}
+        documentSelector: {path: kind, value: Service}
+        template: templates/collectors/platform-otlp.yaml
+      - equal:
+          path: spec.ingress[0].from[0]
+          value:
+            namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: loco-system}}
+            podSelector: {matchExpressions: [{key: app.kubernetes.io/name, operator: In, values: [loco-controller, loco-build-controller]}]}
+        documentSelector: {path: kind, value: NetworkPolicy}
+        template: templates/collectors/platform-otlp.yaml
+
+  - it: exports no controller telemetry while platform telemetry is off
+    set:
+      global.platformTelemetry.enabled: false
+    asserts:
+      - notContains: &noEndpoint
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT}
+          any: true
+        template: templates/controller/deployment.yaml
+      - notContains: *noEndpoint
+        template: templates/builds/deployment.yaml
+      - hasDocuments: {count: 0}
+        template: templates/collectors/platform-otlp.yaml
+
+  - it: refuses an OTLP endpoint in a controller's env as well
+    set:
+      controller.env: [{name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, value: "http://elsewhere"}]
+    asserts:
+      - failedTemplate:
+          errorMessage: controller.env sets OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, which global.platformTelemetry sets
+        template: templates/controller/deployment.yaml
+
+  - it: refuses OTLP headers in the build controller's env as well
+    set:
+      builds.controller.env: [{name: OTEL_EXPORTER_OTLP_TRACES_HEADERS, value: "x=y"}]
+    asserts:
+      - failedTemplate:
+          errorMessage: builds.controller.env sets OTEL_EXPORTER_OTLP_TRACES_HEADERS, which global.platformTelemetry sets
+        template: templates/builds/deployment.yaml
+
+  - it: names each controller replica by its pod UID
+    asserts:
+      - contains: &podUID
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_POD_UID, valueFrom: {fieldRef: {fieldPath: metadata.uid}}}
+        template: templates/controller/deployment.yaml
+      - contains: *podUID
+        template: templates/builds/deployment.yaml
+      - contains: &instance
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID)"}
+        template: templates/controller/deployment.yaml
+      - contains: *instance
+        template: templates/builds/deployment.yaml
