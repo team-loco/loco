@@ -97,16 +97,25 @@ export interface SystemSlice {
 	region: string;
 }
 
-/** The series each chart draws: one per @cluster and @region value named, or one across everything. */
-export function slices(tokens: Token[]): SystemSlice[] {
+/** The regions the @region terms keep: those named, or every known region, less those excluded; null without a term. */
+function keptRegions(tokens: Token[], known: string[]): string[] | null {
+	const terms = liveTokens("metrics", tokens, "region");
+	if (terms.length === 0) return null;
+	const named = terms.filter((t) => !t.neg).map((t) => t.value);
+	const excluded = terms.filter((t) => t.neg);
+	return (named.length > 0 ? named : known).filter((region) => passes([region], excluded));
+}
+
+/** The series each chart draws: one per @cluster value named and region kept, or one across everything. */
+export function slices(tokens: Token[], knownRegions: string[]): SystemSlice[] {
 	const clusters = liveTokens("metrics", tokens, "cluster").filter((t) => !t.neg);
-	const regions = liveTokens("metrics", tokens, "region").filter((t) => !t.neg);
-	if (clusters.length === 0 && regions.length === 0) return [{ name: "All clusters", attributes: {}, region: "" }];
+	const regions = keptRegions(tokens, knownRegions);
+	if (clusters.length === 0 && regions === null) return [{ name: "All clusters", attributes: {}, region: "" }];
 	return (clusters.length === 0 ? [undefined] : clusters).flatMap((cluster) =>
-		(regions.length === 0 ? [undefined] : regions).map((region) => ({
-			name: [cluster?.value, region?.value].filter((part) => part !== undefined).join(" · "),
+		(regions ?? [undefined]).map((region) => ({
+			name: [cluster?.value, region].filter((part) => part !== undefined).join(" · "),
 			attributes: cluster === undefined ? {} : { cluster: cluster.value },
-			region: region?.value ?? "",
+			region: region ?? "",
 		})),
 	);
 }

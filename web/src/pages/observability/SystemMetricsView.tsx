@@ -1,5 +1,6 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useTransport } from "@connectrpc/connect-query";
+import { useQuery, useTransport } from "@connectrpc/connect-query";
+import { listClusters } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
 import { useQueries } from "@tanstack/react-query";
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { ScrollTextIcon, WaypointsIcon } from "lucide-react";
@@ -38,7 +39,8 @@ export function SystemMetricsView() {
 	const spanMs = windowSpan(range);
 	const endMs = range.kind === "absolute" ? range.to : undefined;
 	const groups = visibleGroups(tokens);
-	const sliced = slices(tokens);
+	const clusters = useQuery(listClusters, {});
+	const sliced = slices(tokens, [...new Set((clusters.data?.clusters ?? []).map((c) => c.region))]);
 	const charts = groups.flatMap((group) =>
 		group.charts.map((chart) => ({ group, chart, key: `${group.key}/${chart.key}` })),
 	);
