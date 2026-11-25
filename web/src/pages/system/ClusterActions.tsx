@@ -101,18 +101,6 @@ const ACTIONS: Record<ClusterAction, ActionCopy> = {
 	},
 };
 
-export function actionLabel(action: ClusterAction): string {
-	return ACTIONS[action].label;
-}
-
-export function actionIcon(action: ClusterAction): ReactNode {
-	return ACTIONS[action].icon;
-}
-
-export function isDestructive(action: ClusterAction): boolean {
-	return ACTIONS[action].destructive;
-}
-
 /** The actions a cluster in this state accepts, in menu order. */
 export function actionsFor(state: ClusterState): ClusterAction[] {
 	if (state === "removed") return ["restore"];
@@ -203,14 +191,14 @@ export function ClusterActionButtons({ cluster, state }: { cluster: Cluster; sta
 			{actionsFor(state).map((action) => (
 				<Button
 					key={action}
-					variant={isDestructive(action) ? "destructive-outline" : "outline"}
+					variant={ACTIONS[action].destructive ? "destructive-outline" : "outline"}
 					size="sm"
 					onClick={() => {
 						request(action);
 					}}
 				>
-					{actionIcon(action)}
-					{actionLabel(action)}
+					{ACTIONS[action].icon}
+					{ACTIONS[action].label}
 				</Button>
 			))}
 			{dialogs}
@@ -227,15 +215,15 @@ export function ClusterRowMenu({ cluster, state }: { cluster: Cluster; state: Cl
 			<RowMenu label={`Actions for ${cluster.name}`} title={cluster.name} monoTitle>
 				{actions.map((action) => (
 					<Fragment key={action}>
-						{isDestructive(action) && <DropdownMenuSeparator />}
+						{ACTIONS[action].destructive && <DropdownMenuSeparator />}
 						<DropdownMenuItem
-							variant={isDestructive(action) ? "destructive" : "default"}
+							variant={ACTIONS[action].destructive ? "destructive" : "default"}
 							onClick={() => {
 								request(action);
 							}}
 						>
-							{actionIcon(action)}
-							{actionLabel(action)}
+							{ACTIONS[action].icon}
+							{ACTIONS[action].label}
 						</DropdownMenuItem>
 					</Fragment>
 				))}
