@@ -86,14 +86,8 @@ with session(out) as browser:
     group_label = first.get_by_text("Runtime alerts", exact=True).locator("..")
     group_row = group_label.locator("..")
     group_label.hover()
-    assert (
-        group_row.evaluate("node => getComputedStyle(node).backgroundColor")
-        != "rgba(0, 0, 0, 0)"
-    )
-    assert (
-        group_label.evaluate("node => getComputedStyle(node).backgroundColor")
-        == "rgba(0, 0, 0, 0)"
-    )
+    expect(group_row).not_to_have_css("background-color", "rgba(0, 0, 0, 0)")
+    expect(group_label).to_have_css("background-color", "rgba(0, 0, 0, 0)")
     first.get_by_role("button", name="Cancel", exact=True).click()
     expect(first).to_have_count(0)
     hook = call(
