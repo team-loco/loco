@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -54,9 +54,13 @@ func main() {
 		"build_namespace", cfg.BuildNamespace,
 		"registry_auth", cfg.RegistryAuth,
 	)
+	controlPlane, err := url.Parse(cfg.ControlPlaneURL)
+	if err != nil {
+		panic(err)
+	}
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
-	if strings.HasPrefix(cfg.ControlPlaneURL, "http://") {
+	if controlPlane.Scheme == "http" {
 		transport.Protocols.SetUnencryptedHTTP2(true)
 	} else {
 		transport.Protocols.SetHTTP1(true)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	"github.com/team-loco/loco/internal/endpointurl"
 	"github.com/team-loco/loco/internal/loglevel"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -147,23 +148,39 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 	}
 }
 
-func TestParseAgentConfigRejectsInvalidControlPlaneURL(t *testing.T) {
+func TestParseAgentConfigControlPlaneURL(t *testing.T) {
+	for _, value := range []string{
+		"http://localhost:8080",
+		"https://api.loco.test:8443",
+		"https://[::1]:8443",
+		"https://api.loco.test/api",
+		"https://api.loco.test/",
+	} {
+		t.Run(value, func(t *testing.T) {
+			env := agentEnv()
+			env[envControlPlaneURL] = value
+			cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
+			if err != nil || cfg.ControlPlaneURL != value {
+				t.Errorf("%s=%q: cfg URL, err = %q, %v", envControlPlaneURL, value, cfg.ControlPlaneURL, err)
+			}
+		})
+	}
 	for _, value := range []string{
 		"api.loco.test",
-		"api.loco.test:8080",
 		"ftp://api.loco.test",
-		"https://",
-		"https://user:pass@api.loco.test",
-		"https://api.loco.test?x=1",
-		"https://api.loco.test?",
-		"https://api.loco.test#frag",
+		"https://user:secret@api.loco.test",
+		"https://api.loco.test?token=secret",
+		"https://api.loco.test#secret",
 	} {
 		t.Run(value, func(t *testing.T) {
 			env := agentEnv()
 			env[envControlPlaneURL] = value
 			_, err := parseAgentConfig(lookup(env), testAgentVersion)
-			if !errors.Is(err, errInvalidURL) || !strings.Contains(err.Error(), envControlPlaneURL) {
-				t.Errorf("%s=%q: err = %v, want errInvalidURL naming the variable", envControlPlaneURL, value, err)
+			if !errors.Is(err, endpointurl.ErrInvalid) || !strings.Contains(err.Error(), envControlPlaneURL) {
+				t.Fatalf("%s=%q: err = %v, want ErrInvalid naming the variable", envControlPlaneURL, value, err)
+			}
+			if strings.Contains(err.Error(), "secret") {
+				t.Errorf("error %q echoes the rejected value", err)
 			}
 		})
 	}
