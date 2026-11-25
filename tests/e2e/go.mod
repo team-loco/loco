@@ -7,6 +7,7 @@ require (
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.12.0
+	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1
 	github.com/team-loco/loco v0.0.0
 	github.com/team-loco/loco/k8sapi v0.0.0
 	go.opentelemetry.io/collector/pdata v1.71.0

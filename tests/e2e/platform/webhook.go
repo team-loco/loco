@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
+
+	standardwebhooks "github.com/standard-webhooks/standard-webhooks/libraries/go"
 )
 
 // installWebhookSecret signs the deliveries to the install webhook: whsec_ and the base64 of 32 zero bytes.
@@ -13,15 +15,13 @@ const installWebhookSecret = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 
 // WebhookEvent is one event delivered to the install webhook.
 type WebhookEvent struct {
-	Type    string          `json:"type"`
-	Subject WebhookSubject  `json:"subject"`
-	Data    json.RawMessage `json:"data"`
+	Type    string         `json:"type"`
+	Subject WebhookSubject `json:"subject"`
 }
 
 // WebhookSubject is the object an event is about.
 type WebhookSubject struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
+	ID string `json:"id"`
 }
 
 // WebhookReceiver is the server the API's install webhook posts to.
@@ -32,11 +32,19 @@ type WebhookReceiver struct {
 }
 
 func startWebhookReceiver() *WebhookReceiver {
+	verifier, err := standardwebhooks.NewWebhook(installWebhookSecret)
+	if err != nil {
+		panic(err)
+	}
 	r := &WebhookReceiver{}
 	r.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err = verifier.Verify(body, req.Header); err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 		var event WebhookEvent
