@@ -243,7 +243,7 @@ func (q *Queries) GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role, domains
+       last_heartbeat, silent_since, agent_version, agent_public_key, role, domains
 FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
 ORDER BY created_at, id
 `
@@ -257,6 +257,7 @@ type ListAdminClustersRow struct {
 	RemovedAt      *time.Time  `json:"removedAt"`
 	HealthStatus   *string     `json:"healthStatus"`
 	LastHeartbeat  *time.Time  `json:"lastHeartbeat"`
+	SilentSince    *time.Time  `json:"silentSince"`
 	AgentVersion   *string     `json:"agentVersion"`
 	AgentPublicKey []byte      `json:"agentPublicKey"`
 	Role           ClusterRole `json:"role"`
@@ -281,6 +282,7 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.RemovedAt,
 			&i.HealthStatus,
 			&i.LastHeartbeat,
+			&i.SilentSince,
 			&i.AgentVersion,
 			&i.AgentPublicKey,
 			&i.Role,

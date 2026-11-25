@@ -56,6 +56,8 @@ message Cluster {
   repeated string domains = 13;
   reserved 14, 15;
   reserved "dns_records", "gateway_hostname";
+  // The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.
+  google.protobuf.Timestamp silent_since = 16;
 }
 
 // ClusterRole is chosen when the worker is installed and reported by its agent.

@@ -135,7 +135,7 @@ DELETE FROM cluster_assertions WHERE expires_at < NOW();
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role, domains
+       last_heartbeat, silent_since, agent_version, agent_public_key, role, domains
 FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
 ORDER BY created_at, id;
 

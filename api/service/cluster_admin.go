@@ -228,6 +228,7 @@ func (s *ClusterAdminServer) ListClusters(
 			Id: row.ID.String(), Name: row.Name, Region: row.Region,
 			IsActive: row.IsActive, RemovedAt: optionalTimestamp(row.RemovedAt),
 			LastHeartbeat: optionalTimestamp(row.LastHeartbeat),
+			SilentSince:   optionalTimestamp(row.SilentSince),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
 			Role:    clusterRoleToProto(row.Role),
 			Domains: row.Domains,
