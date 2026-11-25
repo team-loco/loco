@@ -148,7 +148,7 @@ func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
 	t.Helper()
 	platform.Eventually(t, timeout, what, func(ctx context.Context) error {
 		var heartbeat bool
-		if err := p.DB.QueryRow(ctx, "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = $1", p.ClusterID).
+		if err := p.DB.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM cluster_heartbeats WHERE cluster_id = $1)", p.ClusterID).
 			Scan(&heartbeat); err != nil {
 			return err
 		}
@@ -161,5 +161,6 @@ func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
 
 const (
 	readyAtRevisionOne = "SELECT ready_replicas > 0 AND observed_revision = 1 FROM placements WHERE resource_id = $1"
-	clusterHealth      = "SELECT health_status, capacity_cpu_millicores, capacity_memory_bytes FROM clusters WHERE id = $1"
+	clusterHealth      = "SELECT health_status, capacity_cpu_millicores, capacity_memory_bytes FROM clusters " +
+		"JOIN cluster_heartbeats ON cluster_id = id WHERE id = $1"
 )

@@ -80,7 +80,7 @@ LEFT JOIN users u ON u.id = b.created_by
 WHERE b.id = $1;
 
 -- name: GetBuildCluster :one
-SELECT id FROM clusters
+SELECT id FROM clusters JOIN cluster_heartbeats ON cluster_id = id
 WHERE is_active = true
   AND role IN ('builds', 'all')
   AND sqlc.arg(platform)::text = ANY(platforms)

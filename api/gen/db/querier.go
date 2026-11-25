@@ -82,6 +82,7 @@ type Querier interface {
 	DeleteAPITokenByHash(ctx context.Context, tokenHash string) error
 	DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error
 	DeleteAppliedPlacement(ctx context.Context, arg DeleteAppliedPlacementParams) (int64, error)
+	DeleteClusterHeartbeat(ctx context.Context, clusterID uuid.UUID) error
 	DeleteClusterRegistryCredentials(ctx context.Context, clusterID uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
 	DeleteEventsBefore(ctx context.Context, arg DeleteEventsBeforeParams) (int64, error)
@@ -338,6 +339,7 @@ type Querier interface {
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
+	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) error
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RegionHasClusters(ctx context.Context, region string) (bool, error)
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
@@ -393,8 +395,9 @@ type Querier interface {
 	UpdateBuildStage(ctx context.Context, arg UpdateBuildStageParams) error
 	// Cluster queries for agent operations
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
-	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error
 	UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterLifecycleParams) error
+	// Matches only when the report changed, so an unchanged report takes no lock on the cluster.
+	UpdateClusterReport(ctx context.Context, arg UpdateClusterReportParams) error
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)
 	UpdatePlacementStatus(ctx context.Context, arg UpdatePlacementStatusParams) (UpdatePlacementStatusRow, error)

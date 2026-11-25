@@ -94,11 +94,7 @@ CREATE TABLE
         is_active BOOLEAN NOT NULL,
         is_default BOOLEAN NOT NULL,
         endpoint TEXT,
-        health_status TEXT CHECK (
-            health_status IN ('healthy', 'unhealthy', 'degraded')
-        ),
         last_health_check TIMESTAMPTZ,
-        last_heartbeat TIMESTAMPTZ,
         platforms TEXT[] NOT NULL DEFAULT '{}',
         capacity_cpu_millicores BIGINT,
         capacity_memory_bytes BIGINT,
@@ -118,6 +114,16 @@ CREATE TABLE
 CREATE INDEX idx_clusters_region ON clusters (region);
 
 CREATE INDEX idx_clusters_is_active ON clusters (is_active);
+
+-- The latest heartbeat, in its own row so a heartbeat never waits for a write that locks the cluster.
+CREATE TABLE
+    cluster_heartbeats (
+        cluster_id UUID PRIMARY KEY REFERENCES clusters (id) ON DELETE CASCADE,
+        last_heartbeat TIMESTAMPTZ NOT NULL,
+        health_status TEXT NOT NULL CHECK (
+            health_status IN ('healthy', 'unhealthy', 'degraded')
+        )
+    );
 
 
 CREATE TABLE
@@ -432,8 +438,8 @@ SELECT l.resource_id,
        p.region_status_since,
        COALESCE((SELECT ro.replicas FROM observed_placement_rollouts ro WHERE ro.placement_id = p.id),
                 '[]'::jsonb)::jsonb AS replicas,
-       c.last_heartbeat,
-       c.health_status,
+       h.last_heartbeat,
+       h.health_status,
        ARRAY(
            SELECT rd.domain FROM resource_domains rd
            WHERE rd.resource_id = l.resource_id
@@ -445,6 +451,7 @@ SELECT l.resource_id,
 FROM live_deployment_placements l
 JOIN environments e ON e.id = l.environment_id
 JOIN clusters c ON c.id = l.cluster_id
+LEFT JOIN cluster_heartbeats h ON h.cluster_id = l.cluster_id
 LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
     AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted;
 

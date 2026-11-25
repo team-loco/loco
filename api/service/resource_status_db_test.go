@@ -68,10 +68,7 @@ SELECT c.id FROM c`, statusSecondRegion)
 
 func (f *resourceStatusFixture) heartbeat(t *testing.T, clusterID uuid.UUID, at time.Time, health string) {
 	t.Helper()
-	update := `UPDATE clusters SET last_heartbeat = $2, health_status = $3 WHERE id = $1`
-	if _, err := f.pool.Exec(context.Background(), update, clusterID, at, health); err != nil {
-		t.Fatalf("heartbeat: %v", err)
-	}
+	setHeartbeats(t, f.pool, at, health, clusterID)
 }
 
 func (f *resourceStatusFixture) deployTo(

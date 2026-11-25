@@ -60,18 +60,20 @@ func (f *deployFixture) setClusterDomains(t *testing.T, clusterID uuid.UUID, dom
 func (f *deployFixture) addRegionCluster(t *testing.T, domains ...string) {
 	t.Helper()
 	insert := `
-INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat, domains)
-VALUES (ARRAY['linux/amd64'], $1, $2, 'kind', true, true, 'healthy', NOW(), $3)`
+INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, domains)
+VALUES (ARRAY['linux/amd64'], $1, $2, 'kind', true, true, $3) RETURNING id`
 	served := append([]string{}, domains...)
-	if _, err := f.pool.Exec(
+	var id uuid.UUID
+	if err := f.pool.QueryRow(
 		context.Background(),
 		insert,
 		domainsSecondCluster,
 		statusSecondRegion,
 		served,
-	); err != nil {
+	).Scan(&id); err != nil {
 		t.Fatalf("add region cluster: %v", err)
 	}
+	setHeartbeats(t, f.pool, time.Now(), clusterHealthHealthy, id)
 }
 
 func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {

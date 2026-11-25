@@ -177,8 +177,11 @@ func waitFor(t *testing.T, what string, done func() bool) {
 func (f *deployFixture) heartbeatAt(t *testing.T) *time.Time {
 	t.Helper()
 	var at *time.Time
-	if err := f.pool.QueryRow(t.Context(),
-		`SELECT last_heartbeat FROM clusters WHERE id = $1`, f.clusterID).Scan(&at); err != nil {
+	if err := f.pool.QueryRow(
+		t.Context(),
+		`SELECT (SELECT last_heartbeat FROM cluster_heartbeats WHERE cluster_id = $1)`,
+		f.clusterID,
+	).Scan(&at); err != nil {
 		t.Fatal(err)
 	}
 	return at
@@ -282,7 +285,7 @@ func TestHeartbeatsFlowWhileAReportWaitsForAWrite(t *testing.T) {
 				held = f.resourceID
 			}
 			if _, err := f.pool.Exec(t.Context(),
-				`UPDATE clusters SET last_heartbeat = NULL WHERE id = $1`, f.clusterID); err != nil {
+				`DELETE FROM cluster_heartbeats WHERE cluster_id = $1`, f.clusterID); err != nil {
 				t.Fatal(err)
 			}
 			release := holdRow(t, f.deployFixture, tc.lock, held)

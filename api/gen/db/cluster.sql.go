@@ -30,6 +30,15 @@ func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) er
 	return err
 }
 
+const deleteClusterHeartbeat = `-- name: DeleteClusterHeartbeat :exec
+DELETE FROM cluster_heartbeats WHERE cluster_id = $1
+`
+
+func (q *Queries) DeleteClusterHeartbeat(ctx context.Context, clusterID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteClusterHeartbeat, clusterID)
+	return err
+}
+
 const deleteExpiredClusterAssertions = `-- name: DeleteExpiredClusterAssertions :exec
 DELETE FROM cluster_assertions WHERE expires_at < NOW()
 `
@@ -83,7 +92,7 @@ const getClusterByID = `-- name: GetClusterByID :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
+FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
 WHERE id = $1
 `
 
@@ -194,7 +203,8 @@ func (q *Queries) GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
        last_heartbeat, agent_version, agent_public_key, role, domains
-FROM clusters ORDER BY created_at, id
+FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
+ORDER BY created_at, id
 `
 
 type ListAdminClustersRow struct {
@@ -401,6 +411,26 @@ func (q *Queries) RecordClusterAssertion(ctx context.Context, arg RecordClusterA
 	return result.RowsAffected(), nil
 }
 
+const recordClusterHeartbeat = `-- name: RecordClusterHeartbeat :exec
+INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
+SELECT id, $1::timestamptz, $2::text
+FROM clusters WHERE id = $3 AND removed_at IS NULL
+FOR KEY SHARE
+ON CONFLICT (cluster_id) DO UPDATE
+SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_status
+`
+
+type RecordClusterHeartbeatParams struct {
+	LastHeartbeat time.Time `json:"lastHeartbeat"`
+	HealthStatus  string    `json:"healthStatus"`
+	ID            uuid.UUID `json:"id"`
+}
+
+func (q *Queries) RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) error {
+	_, err := q.db.Exec(ctx, recordClusterHeartbeat, arg.LastHeartbeat, arg.HealthStatus, arg.ID)
+	return err
+}
+
 const setClusterJoinToken = `-- name: SetClusterJoinToken :one
 UPDATE clusters
 SET join_token_hash = $1,
@@ -461,51 +491,11 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 	return err
 }
 
-const updateClusterHeartbeat = `-- name: UpdateClusterHeartbeat :exec
-UPDATE clusters
-SET last_heartbeat = $2,
-    capacity_cpu_millicores = $3,
-    capacity_memory_bytes = $4,
-    health_status = $5,
-    role = $6,
-    domains = $7::text[],
-    platforms = $8::text[],
-    updated_at = NOW()
-WHERE id = $1 AND removed_at IS NULL
-`
-
-type UpdateClusterHeartbeatParams struct {
-	ID                    uuid.UUID   `json:"id"`
-	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
-	HealthStatus          *string     `json:"healthStatus"`
-	Role                  ClusterRole `json:"role"`
-	Domains               []string    `json:"domains"`
-	Platforms             []string    `json:"platforms"`
-}
-
-func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {
-	_, err := q.db.Exec(ctx, updateClusterHeartbeat,
-		arg.ID,
-		arg.LastHeartbeat,
-		arg.CapacityCpuMillicores,
-		arg.CapacityMemoryBytes,
-		arg.HealthStatus,
-		arg.Role,
-		arg.Domains,
-		arg.Platforms,
-	)
-	return err
-}
-
 const updateClusterLifecycle = `-- name: UpdateClusterLifecycle :exec
 UPDATE clusters
 SET is_active = $1,
     removed_at = CASE WHEN $2::boolean THEN NOW()
                       WHEN $3::boolean THEN NULL ELSE removed_at END,
-    last_heartbeat = CASE WHEN $3::boolean THEN NULL ELSE last_heartbeat END,
-    health_status = CASE WHEN $3::boolean THEN NULL ELSE health_status END,
     join_token_hash = CASE WHEN $2::boolean THEN NULL ELSE join_token_hash END,
     sync_generation = sync_generation + CASE
         WHEN $2::boolean OR $3::boolean THEN 1 ELSE 0 END,
@@ -525,6 +515,42 @@ func (q *Queries) UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterL
 		arg.Active,
 		arg.RemoveCluster,
 		arg.RestoreCluster,
+		arg.ID,
+	)
+	return err
+}
+
+const updateClusterReport = `-- name: UpdateClusterReport :exec
+UPDATE clusters
+SET capacity_cpu_millicores = $1::bigint,
+    capacity_memory_bytes = $2::bigint,
+    role = $3::cluster_role,
+    domains = $4::text[],
+    platforms = $5::text[],
+    updated_at = NOW()
+WHERE id = $6 AND removed_at IS NULL
+  AND (capacity_cpu_millicores, capacity_memory_bytes, role, domains, platforms) IS DISTINCT FROM
+      ($1::bigint, $2::bigint,
+       $3::cluster_role, $4::text[], $5::text[])
+`
+
+type UpdateClusterReportParams struct {
+	CapacityCpuMillicores int64       `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   int64       `json:"capacityMemoryBytes"`
+	Role                  ClusterRole `json:"role"`
+	Domains               []string    `json:"domains"`
+	Platforms             []string    `json:"platforms"`
+	ID                    uuid.UUID   `json:"id"`
+}
+
+// Matches only when the report changed, so an unchanged report takes no lock on the cluster.
+func (q *Queries) UpdateClusterReport(ctx context.Context, arg UpdateClusterReportParams) error {
+	_, err := q.db.Exec(ctx, updateClusterReport,
+		arg.CapacityCpuMillicores,
+		arg.CapacityMemoryBytes,
+		arg.Role,
+		arg.Domains,
+		arg.Platforms,
 		arg.ID,
 	)
 	return err

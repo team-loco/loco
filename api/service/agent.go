@@ -227,22 +227,25 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 		slog.WarnContext(ctx, "ignoring an invalid heartbeat", "error", err, "cluster_id", clusterID)
 		return
 	}
-	now := time.Now()
-	cpuCores := heartbeat.GetCapacity().GetCpuMillicoresTotal()
-	memBytes := heartbeat.GetCapacity().GetMemoryBytesTotal()
-	healthStatus := healthStatusFromProto(heartbeat.GetHealth())
-	err := s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
+	err := s.queries.RecordClusterHeartbeat(ctx, genDb.RecordClusterHeartbeatParams{
+		ID:            clusterID,
+		LastHeartbeat: time.Now(),
+		HealthStatus:  healthStatusFromProto(heartbeat.GetHealth()),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to record heartbeat", "error", err, "cluster_id", clusterID)
+		return
+	}
+	err = s.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
 		ID:                    clusterID,
-		LastHeartbeat:         &now,
-		CapacityCpuMillicores: &cpuCores,
-		CapacityMemoryBytes:   &memBytes,
-		HealthStatus:          &healthStatus,
+		CapacityCpuMillicores: heartbeat.GetCapacity().GetCpuMillicoresTotal(),
+		CapacityMemoryBytes:   heartbeat.GetCapacity().GetMemoryBytesTotal(),
 		Role:                  clusterRoleFromProto(heartbeat.GetRole()),
 		Domains:               sortedReportedValues(heartbeat.GetDomains()),
 		Platforms:             sortedReportedValues(heartbeat.GetCapacity().GetPlatforms()),
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", clusterID)
+		slog.ErrorContext(ctx, "failed to update the cluster's report", "error", err, "cluster_id", clusterID)
 	}
 }
 

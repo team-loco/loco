@@ -449,7 +449,7 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 }
 
 const getBuildCluster = `-- name: GetBuildCluster :one
-SELECT id FROM clusters
+SELECT id FROM clusters JOIN cluster_heartbeats ON cluster_id = id
 WHERE is_active = true
   AND role IN ('builds', 'all')
   AND $1::text = ANY(platforms)

@@ -694,9 +694,7 @@ type Cluster struct {
 	IsActive              bool        `json:"isActive"`
 	IsDefault             bool        `json:"isDefault"`
 	Endpoint              *string     `json:"endpoint"`
-	HealthStatus          *string     `json:"healthStatus"`
 	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
-	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
 	Platforms             []string    `json:"platforms"`
 	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
@@ -716,6 +714,12 @@ type ClusterAssertion struct {
 	ClusterID uuid.UUID `json:"clusterId"`
 	Jti       string    `json:"jti"`
 	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+type ClusterHeartbeat struct {
+	ClusterID     uuid.UUID `json:"clusterId"`
+	LastHeartbeat time.Time `json:"lastHeartbeat"`
+	HealthStatus  string    `json:"healthStatus"`
 }
 
 type Deployment struct {

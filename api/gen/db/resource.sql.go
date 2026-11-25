@@ -201,7 +201,7 @@ SELECT region, health_status, available
 FROM (
     SELECT DISTINCT ON (region) region, health_status,
            COALESCE(last_heartbeat >= $1::timestamptz, false)::boolean AS available
-    FROM clusters
+    FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
     WHERE is_active = true
       AND role IN ('apps', 'all')
       AND $2::text = ANY(platforms)
@@ -248,7 +248,7 @@ const listEligibleClusters = `-- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at, domains
-FROM clusters
+FROM clusters JOIN cluster_heartbeats ON cluster_id = id
 WHERE is_active = true
   AND role IN ('apps', 'all')
   AND $1::text = ANY(platforms)
@@ -270,9 +270,9 @@ type ListEligibleClustersRow struct {
 	IsActive              bool       `json:"isActive"`
 	IsDefault             bool       `json:"isDefault"`
 	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          *string    `json:"healthStatus"`
+	HealthStatus          string     `json:"healthStatus"`
 	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
+	LastHeartbeat         time.Time  `json:"lastHeartbeat"`
 	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
 	AgentVersion          *string    `json:"agentVersion"`
