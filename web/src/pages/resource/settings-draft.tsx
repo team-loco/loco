@@ -13,6 +13,7 @@ import {
 	type ObservabilityConfig,
 	type DeploymentSpec,
 	type HealthCheckConfig,
+	type ServiceDeploymentSpec,
 	type SourceCommit,
 } from "@gen/loco/deployment/v1/deployment_pb";
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
@@ -176,9 +177,13 @@ export function baseline(
 	const template = templateView?.current;
 	const svc = template === undefined ? undefined : getServiceSpec(template);
 	const size = regionTarget(svc, templateView?.name);
-	const check = svc === undefined ? storedHealth : svc.healthCheck;
-	const health = check ?? defaults.healthCheck;
 	const deployed = deployedRegions(regions);
+	// The health check comes from the first deployment with a port; a worker runs none.
+	const served = deployed
+		.map((r) => (r.current === undefined ? undefined : getServiceSpec(r.current)))
+		.find((spec) => spec?.port !== undefined);
+	const check = deployed.length === 0 ? storedHealth : served?.healthCheck;
+	const health = check ?? defaults.healthCheck;
 	return {
 		slug,
 		name,
@@ -259,12 +264,6 @@ type HealthErrorKey = (typeof HEALTH_FIELDS)[number][1];
 
 const COMMAND_KEYS = ["command", "args"] as const;
 
-function sameEntries(a: string, b: string): boolean {
-	const left = commandEntries(a);
-	const right = commandEntries(b);
-	return left.length === right.length && left.every((entry, i) => entry === right[i]);
-}
-
 function differs(a: string, b: string): boolean {
 	return a.trim() !== b.trim();
 }
@@ -278,28 +277,30 @@ const SCALAR_LABELS: Record<(typeof SCALAR_KEYS)[number], string> = {
 	port: "Port",
 };
 
-/** One name per pending change, in the order the sections appear. */
-export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
+/**
+ * One name per pending change, in the order the sections appear. A deployment setting stays
+ * pending while any running deployment does not run what the draft intends.
+ */
+export function changeNames(draft: SettingsDraft, base: Baseline, regions: RegionView[]): string[] {
 	const next = resolved(draft, base);
-	const names: string[] = SCALAR_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
+	const pending = pendingSettings(regions, draft, base);
+	const changed = (k: (typeof SCALAR_KEYS)[number]) =>
+		k === "image" || k === "port" ? pending.has(k) : differs(next[k], base[k]);
+	const names: string[] = SCALAR_KEYS.filter(changed).map((k) => SCALAR_LABELS[k]);
 	names.push(
-		...healthChanges(draft, base),
+		...(pending.has("health") ? healthChanges(draft, base) : []),
 		...(Object.keys(draft.scaling ?? {}).some((r) => !sameScaling(next.scaling[r], base.scaling[r]))
 			? ["Scaling"]
 			: []),
 		...Object.keys(next.regions)
 			.filter((r) => next.regions[r] !== base.regions[r])
 			.map((r) => (next.regions[r] === true ? `Add region ${r}` : `Remove region ${r}`)),
-		...namedAdded(draft).map((row) => `Add ${row.key.trim()}`),
-		...Object.keys(draft.env ?? {}).map((n) => `Variable ${n}`),
-		...(draft.removedEnv ?? []).map((n) => `Remove variable ${n}`),
-		...COMMAND_KEYS.filter((k) => !sameEntries(next[k], base[k])).map((k) =>
-			k === "command" ? "Start command" : "Arguments",
-		),
+		...(pending.has("env") ? variableChanges(draft) : []),
+		...COMMAND_KEYS.filter((k) => pending.has(k)).map((k) => (k === "command" ? "Start command" : "Arguments")),
 	);
 	if (next.isPublic !== base.isPublic) names.push(next.isPublic ? "Public access" : "Internal only");
 	names.push(...failurePolicyChanges(next, base));
-	if (next.observability.injectOtel !== base.observability.injectOtel) names.push("Configure SDK environment");
+	if (pending.has("observability")) names.push("Configure SDK environment");
 	return names;
 }
 
@@ -320,8 +321,68 @@ export function healthEdit(base: Baseline, form: HealthForm): HealthForm | undef
 	return form.enabled === base.health.enabled && fieldsKept ? undefined : form;
 }
 
-export function changeCount(draft: SettingsDraft, base: Baseline): number {
-	return changeNames(draft, base).length;
+export function changeCount(draft: SettingsDraft, base: Baseline, regions: RegionView[]): number {
+	return changeNames(draft, base, regions).length;
+}
+
+function variableChanges(draft: SettingsDraft): string[] {
+	return [
+		...namedAdded(draft).map((row) => `Add ${row.key.trim()}`),
+		...Object.keys(draft.env ?? {}).map((n) => `Variable ${n}`),
+		...(draft.removedEnv ?? []).map((n) => `Remove variable ${n}`),
+	];
+}
+
+type SpecSetting = "image" | "port" | "command" | "args" | "observability" | "health" | "env";
+
+/** Whether two deployment specs run the same value of each setting the settings page edits. */
+const SAME_SETTING: Record<SpecSetting, (a: ServiceDeploymentSpec, b: ServiceDeploymentSpec) => boolean> = {
+	image: (a, b) => a.build?.image === b.build?.image,
+	port: (a, b) => a.port === b.port,
+	command: (a, b) => a.command.join("\0") === b.command.join("\0"),
+	args: (a, b) => a.args.join("\0") === b.args.join("\0"),
+	observability: (a, b) => a.observability?.injectOtel === b.observability?.injectOtel,
+	health: (a, b) => sameHealth(a.healthCheck, b.healthCheck),
+	env: (a, b) => sameEnv(a.env, b.env),
+};
+
+/** Which settings the draft edits, for a service no deployment runs. */
+const DRAFTED: Record<SpecSetting, (draft: SettingsDraft) => boolean> = {
+	image: (d) => d.image !== undefined,
+	port: (d) => d.port !== undefined,
+	command: (d) => d.command !== undefined,
+	args: (d) => d.args !== undefined,
+	observability: (d) => d.observability !== undefined,
+	health: (d) => d.health !== undefined,
+	env: variablesChanged,
+};
+
+const SPEC_SETTINGS = Object.keys(SAME_SETTING) as SpecSetting[];
+
+function sameHealth(a: HealthCheckConfig | undefined, b: HealthCheckConfig | undefined): boolean {
+	if (a === undefined || b === undefined) return a === b;
+	return equals(HealthCheckConfigSchema, a, b);
+}
+
+function sameEnv(a: Record<string, string>, b: Record<string, string>): boolean {
+	const keys = Object.keys(a);
+	return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k]);
+}
+
+/** The deployment settings some running deployment does not yet run as the draft intends. */
+function pendingSettings(regions: RegionView[], draft: SettingsDraft, base: Baseline): Set<SpecSetting> {
+	const sources = currentSources(regions);
+	if (sources.length === 0) return new Set(SPEC_SETTINGS.filter((k) => DRAFTED[k](draft)));
+	const env = plainEnv(base.env, draft);
+	const pending = new Set<SpecSetting>();
+	for (const { deployment } of sources) {
+		const current = getServiceSpec(deployment);
+		if (deployment.spec === undefined || current === undefined) continue;
+		const intended = applyDraft(deployment.spec, draft, base, env).spec;
+		if (intended.case !== "service") continue;
+		for (const k of SPEC_SETTINGS) if (!SAME_SETTING[k](intended.value, current)) pending.add(k);
+	}
+	return pending;
 }
 
 export function domainsChange(draft: SettingsDraft, base: Baseline): "add" | "remove" | null {
@@ -429,6 +490,11 @@ function healthFrom(health: HealthForm, current: HealthCheckConfig | undefined, 
 	});
 }
 
+/** Whether a deployment's image, pinned by digest, is the image the draft names. */
+function runsImage(current: string, want: string): boolean {
+	return current === want || current.split("@")[0] === want;
+}
+
 function applyDraft(
 	spec: DeploymentSpec,
 	draft: SettingsDraft,
@@ -439,7 +505,7 @@ function applyDraft(
 	if (next.spec.case !== "service") return next;
 	const svc = next.spec.value;
 	const want = resolved(draft, base);
-	if (draft.image !== undefined && want.image.trim() !== (svc.build?.image ?? "")) {
+	if (draft.image !== undefined && !runsImage(svc.build?.image ?? "", want.image.trim())) {
 		svc.build = create(BuildSourceSchema, { type: IMAGE_BUILD, image: want.image.trim() });
 	}
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
@@ -467,7 +533,9 @@ interface PlannedDeploy {
 export function retryDraft(draft: SettingsDraft): SettingsDraft {
 	const { added, ...rest } = draft;
 	const edits = Object.fromEntries(namedAdded({ added: added ?? [] }).map((row) => [row.key.trim(), row.value]));
-	return Object.keys(edits).length === 0 ? draft : { ...rest, env: { ...draft.env, ...edits } };
+	if (Object.keys(edits).length === 0) return draft;
+	const removedEnv = (draft.removedEnv ?? []).filter((name) => !Object.hasOwn(edits, name));
+	return { ...rest, env: { ...draft.env, ...edits }, removedEnv };
 }
 
 export function variablesChanged(draft: SettingsDraft): boolean {
@@ -519,7 +587,8 @@ export function planSave(
 		if (deployment.spec === undefined) return [];
 		const spec = applyDraft(deployment.spec, draft, base, env);
 		if (!redeployAll && equals(DeploymentSpecSchema, spec, deployment.spec)) return [];
-		const sameImage = draft.image === undefined || draft.image.trim() === getServiceSpec(deployment)?.build?.image;
+		const sameImage =
+			draft.image === undefined || runsImage(getServiceSpec(deployment)?.build?.image ?? "", draft.image.trim());
 		return [{ regions: names, spec: specForRegions(spec, names), commit: sameImage ? deployment.commit : undefined }];
 	});
 }

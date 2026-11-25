@@ -56,7 +56,7 @@ export function useSaveSettings({
 	environmentId: string;
 	regions: RegionView[];
 	base: Baseline;
-	onDone: (next: SettingsDraft, notice: Notice) => void;
+	onDone: (next: SettingsDraft, notice: Notice) => Promise<void>;
 }) {
 	const [saving, setSaving] = useState(false);
 	const update = useMutation(updateResource);
@@ -73,6 +73,12 @@ export function useSaveSettings({
 			key: { case: "resourceId", value: resource.id },
 		});
 		return latest.resource?.revision !== resource.revision;
+	};
+
+	// Saving lasts until the page has reloaded the deployments, so a retry plans from what now runs.
+	const finish = async (next: SettingsDraft, notice: Notice) => {
+		await onDone(next, notice);
+		setSaving(false);
 	};
 
 	const save = async (draft: SettingsDraft) => {
@@ -96,8 +102,7 @@ export function useSaveSettings({
 			try {
 				current = await callUnaryMethod(transport, getResourceEnv, { resourceId, environmentId });
 			} catch (err) {
-				setSaving(false);
-				onDone(draft, {
+				await finish(draft, {
 					tone: "bad",
 					title: withCode`Couldn't save ${resource.name}`,
 					message: getErrorMessage(err, "Failed to load its variables"),
@@ -156,8 +161,7 @@ export function useSaveSettings({
 				next = omit(next, REGION_MAP_KEYS);
 			} catch (err) {
 				if (await revisionMoved(err)) {
-					setSaving(false);
-					onDone(omit(next, REGION_MAP_KEYS), {
+					await finish(omit(next, REGION_MAP_KEYS), {
 						tone: "warn",
 						title: withCode`${resource.name} changed since you opened it`,
 						message: "Showing its current regions and scaling. Make your region changes again.",
@@ -199,9 +203,8 @@ export function useSaveSettings({
 		else if (savedRegions.length > 0) next = retryDraft(next);
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
-		setSaving(false);
 		if (failures.length > 0) {
-			onDone(next, {
+			await finish(next, {
 				tone: "bad",
 				title: withCode`Some changes to ${resource.name} were not saved`,
 				message: (
@@ -239,7 +242,7 @@ export function useSaveSettings({
 					)}
 				</>
 			);
-		onDone(next, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
+		await finish(next, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
 	};
 
 	return { save, saving };

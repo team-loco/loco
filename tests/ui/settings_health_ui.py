@@ -1,5 +1,6 @@
 import argparse
 import json
+import uuid
 from pathlib import Path
 
 import evidence
@@ -59,12 +60,35 @@ idle_checked = undeployed("health-idle-checked", server_check)
 idle_unchecked = undeployed("health-idle")
 
 
-def live(resource_id, regions):
+def redeploy(resource_id, regions, service):
+    """Records a new running deployment of the service in the regions, as a finished rollout would."""
     names = ",".join(evidence.sql_literal(r) for r in regions)
-    return (
-        "SELECT deployment_id FROM live_deployment_placements "
-        f"WHERE resource_id='{resource_id}' AND region IN ({names})"
+    clusters = json.loads(
+        sql(
+            state,
+            "SELECT json_object_agg(region, cluster_id) FROM placements "
+            f"WHERE resource_id='{resource_id}' AND region IN ({names});",
+        )
     )
+    deployment_id = str(uuid.uuid4())
+    evidence.seed_deployments(
+        state,
+        resource_id,
+        [
+            {
+                "id": deployment_id,
+                "environment": "production",
+                "live": False,
+                "spec": service,
+                "placements": {r: {"cluster": clusters[r]} for r in regions},
+            }
+        ],
+        then=[
+            f"UPDATE placements SET deployment_id='{deployment_id}' "
+            f"WHERE resource_id='{resource_id}' AND region IN ({names});"
+        ],
+    )
+    return deployment_id
 
 
 OTHER_REGION = "us-va-1"
@@ -135,18 +159,23 @@ with session(out) as browser:
         service = {**body["spec"]["service"], **server_override}
         if "@" not in service["build"]["image"]:
             service["build"]["image"] += "@" + digest
-        # Stores the requested spec as the live snapshot; the fixture image has no registry.
-        spec = evidence.sql_literal(json.dumps(service))
-        deployment = sql(
-            state,
-            f"UPDATE deployments SET spec={spec} "
-            f"WHERE id IN ({live(body['resourceId'], body['regions'])}) RETURNING id;",
-        )
+        # The fixture image has no registry, so the fake records the rollout as finished.
+        deployment = redeploy(body["resourceId"], body["regions"], service)
         route.fulfill(json={"deploymentId": deployment})
 
     context.route(
         "**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment
     )
+    # Reloads of the resource the suite holds back until it releases them.
+    held = []
+
+    def get_resource(route):
+        if held and held[0] is None:
+            held.append(route)
+        else:
+            route.continue_()
+
+    context.route("**/loco.resource.v1.ResourceService/GetResource", get_resource)
     context.route(
         "**/loco.config.v1.ConfigService/GetConfig*",
         lambda route: route.fulfill(json=config),
@@ -264,10 +293,17 @@ with session(out) as browser:
     variables.get_by_label("Value of FEATURE_FLAG", exact=True).fill("on")
     failing.add(OTHER_REGION)
     first = len(deployments)
+    held.append(None)
     page.get_by_role("button", name="Save & redeploy", exact=True).click()
     expect(page.get_by_text("region down", exact=False)).to_be_visible()
     assert len(deployments) == first + 2, deployments[first:]
-    expect(discard).to_be_visible()
+    # The notice shows once the requests are done; saving lasts until the held reload returns.
+    expect(page.get_by_role("button", name="Saving…", exact=True)).to_be_disabled()
+    pending = held[1:]
+    held.clear()
+    for route in pending:
+        route.continue_()
+    expect(discard).to_be_enabled()
     failing.clear()
     with expect_rpc(
         page, "CreateDeployment", lambda body: body.get("resourceId") == split

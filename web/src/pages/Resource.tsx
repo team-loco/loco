@@ -435,7 +435,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	return (
 		<Page className="gap-5">
 			<PageCommands items={pageCommands} />
-			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
+			<LeaveGuard dirty={!del.isPending && changeCount(draft, base, regions) > 0} resourceName={resource.name} />
 			<ResourceHeader
 				resource={resource}
 				environment={environment}
@@ -545,9 +545,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						onDelete={() => {
 							setModal({ kind: "delete" });
 						}}
-						onSaved={(next) => {
+						onSaved={async (next) => {
 							setNotice(next);
-							void refresh();
+							await refresh();
 						}}
 					/>
 				</div>

@@ -127,7 +127,7 @@ export function SettingsView({
 	onDraft: (draft: SettingsDraft) => void;
 	onBack: () => void;
 	onDelete: () => void;
-	onSaved: (notice: NoticeState) => void;
+	onSaved: (notice: NoticeState) => Promise<void>;
 }) {
 	const [current, setCurrent] = useState(() => {
 		const linked = NAV.find((n) => `#${n.id}` === window.location.hash);
@@ -190,7 +190,7 @@ export function SettingsView({
 	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
 	const errors = validateDraft(draft, base, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY, taken);
 	const errorCount = Object.keys(errors).length;
-	const changes = changeNames(draft, base);
+	const changes = changeNames(draft, base, regions);
 	const count = changes.length;
 	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, base).length > 0;
 	const { save, saving } = useSaveSettings({
@@ -198,10 +198,10 @@ export function SettingsView({
 		environmentId,
 		regions,
 		base,
-		onDone: (next, notice) => {
+		onDone: async (next, notice) => {
 			onDraft(next);
 			setTried(false);
-			onSaved(notice);
+			await onSaved(notice);
 		},
 	});
 	const confirmDomains = () => {
@@ -286,7 +286,7 @@ export function SettingsView({
 						served={served}
 						worker={worker}
 						onDomainsChanged={() => {
-							onSaved({
+							void onSaved({
 								tone: "info",
 								title: "Domain updated",
 								message: "It takes effect on the next deployment.",
