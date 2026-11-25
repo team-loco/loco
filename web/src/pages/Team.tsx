@@ -46,6 +46,7 @@ import { TeamArt } from "./team/TeamArt";
 import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
 import { WorkspaceAccessDrawer } from "./team/WorkspaceAccessDrawer";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
@@ -267,7 +268,7 @@ export function Team() {
 							It’s just you so far
 						</h2>
 						<p className="m-0 max-w-[34em] text-[14px] leading-[1.55] text-fg3">
-							Invite people to {orgName} and choose which workspaces they can see.
+							Invite people to <InlineCode>{orgName}</InlineCode> and choose which workspaces they can see.
 						</p>
 						<span className="mt-1 flex flex-wrap justify-center gap-2">
 							{inviteButton}
@@ -401,7 +402,11 @@ export function Team() {
 			<ConfirmDialog
 				open={removing !== null}
 				title={`Remove ${removing?.name ?? "member"}?`}
-				description={`${removing?.name ?? "They"} loses access to ${orgName} and its workspaces right away.`}
+				description={
+					<>
+						{removing?.name ?? "They"} loses access to <InlineCode>{orgName}</InlineCode> and its workspaces right away.
+					</>
+				}
 				confirmLabel="Remove"
 				pendingLabel="Removing…"
 				pending={remove.isPending}

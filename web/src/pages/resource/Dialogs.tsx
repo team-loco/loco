@@ -1,4 +1,5 @@
 import { ArrowRightIcon, ChevronsUpDownIcon } from "lucide-react";
+import { InlineCode, InlineCodeList, withCode } from "@/components/design/InlineCode";
 import { useState } from "react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -68,13 +69,13 @@ export function RedeployDialogContent({
 	pending: boolean;
 	onConfirm: () => void;
 }) {
-	const regions = running.flatMap((d) => d.placements.filter((p) => p.live).map((p) => p.region)).join(", ");
+	const regions = running.flatMap((d) => d.placements.filter((p) => p.live).map((p) => p.region));
 	return (
-		<DialogContent title={`Restart ${resourceName}`} showCloseButton={false}>
+		<DialogContent title={withCode`Restart ${resourceName}`} showCloseButton={false}>
 			<DialogBody className="leading-normal text-fg2">
 				<span>
-					Replaces every replica in <span className="font-mono text-foreground">{regions}</span> with a fresh one from
-					the same spec. Picks up changed secrets.
+					Replaces every replica in <InlineCodeList names={regions} /> with a fresh one from the same spec. Picks up
+					changed secrets.
 				</span>
 			</DialogBody>
 			<DialogFooter>
@@ -165,9 +166,9 @@ export function RollbackDialogContent({
 	const rows = current === undefined ? [] : specRows(current, target);
 	const changes = rows.filter((r) => !r.same);
 	const shown = everything ? rows : changes;
-	const regions = deploymentRegions(target).join(", ");
+	const regions = deploymentRegions(target);
 	return (
-		<DialogContent size="wide" title={`Roll back ${resourceName}`} showCloseButton={false}>
+		<DialogContent size="wide" title={withCode`Roll back ${resourceName}`} showCloseButton={false}>
 			<DialogBody className="gap-3.5 leading-normal text-fg2">
 				{options.length > 1 && onTarget !== undefined && (
 					<RollbackPicker target={target} options={options} onTarget={onTarget} />
@@ -231,8 +232,8 @@ export function RollbackDialogContent({
 					</div>
 				)}
 				<span>
-					Creates a new deployment in <span className="font-mono text-foreground">{regions}</span> from the spec of{" "}
-					<span className="font-mono text-foreground">{depTag(target)}</span>.
+					Creates a new deployment in <InlineCodeList names={regions} /> from the spec of{" "}
+					<InlineCode>{depTag(target)}</InlineCode>.
 					{current !== undefined && " The running deployment is replaced once the new replicas are ready."}
 				</span>
 			</DialogBody>

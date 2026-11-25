@@ -6,6 +6,7 @@ import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deplo
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
+import { withCode } from "@/components/design/InlineCode";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
@@ -503,7 +504,7 @@ export function AlertsDrawer() {
 				<SheetContent showCloseButton={false}>
 					<SheetHeader>
 						<SheetTitle className="text-[26px] leading-[1.15] tracking-[-0.03em]">
-							{shownResource === undefined ? "Workspace activity" : `${shownResource.name} activity`}
+							{shownResource === undefined ? "Workspace activity" : withCode`${shownResource.name} activity`}
 						</SheetTitle>
 						<Tooltip>
 							<TooltipTrigger

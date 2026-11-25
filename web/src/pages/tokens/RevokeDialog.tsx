@@ -8,6 +8,7 @@ import { toastConnectError } from "@/lib/error-handler";
 import { maybeTsMs } from "@/lib/time";
 
 import { relAgo } from "./model";
+import { InlineCode } from "@/components/design/InlineCode";
 
 export function RevokeDialog({
 	token,
@@ -38,8 +39,16 @@ export function RevokeDialog({
 	return (
 		<ConfirmDialog
 			open={token !== null}
-			title={`Revoke ${shown?.name ?? ""}?`}
-			description={`Requests using ${shown?.name ?? ""} will fail immediately. This can't be undone.`}
+			title={
+				<>
+					Revoke <InlineCode>{shown?.name ?? ""}</InlineCode>?
+				</>
+			}
+			description={
+				<>
+					Requests using <InlineCode>{shown?.name ?? ""}</InlineCode> will fail immediately. This can&apos;t be undone.
+				</>
+			}
 			confirmLabel="Revoke"
 			pendingLabel="Revoking…"
 			pending={mutation.isPending}

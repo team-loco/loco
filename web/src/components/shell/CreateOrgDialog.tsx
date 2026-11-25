@@ -15,6 +15,7 @@ import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/de
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { toastConnectError } from "@/lib/error-handler";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 const nameRules = getOption(CreateOrgRequestSchema.field.name, field).type;
 if (nameRules.case !== "string") throw new Error("Organization name must have string validation rules");
@@ -45,13 +46,13 @@ export function CreateOrgDialog({
 	const taken = (named.data?.orgs.length ?? 0) > 0;
 
 	const nameError =
-		trimmed === ""
-			? null
-			: Array.from(trimmed).length > maxNameLength
-				? `Use at most ${maxNameLength.toString()} characters.`
-				: orgMutation.data === undefined && taken
-					? `${trimmed} is taken.`
-					: null;
+		trimmed === "" ? null : Array.from(trimmed).length > maxNameLength ? (
+			`Use at most ${maxNameLength.toString()} characters.`
+		) : orgMutation.data === undefined && taken ? (
+			<>
+				<InlineCode>{trimmed}</InlineCode> is taken.
+			</>
+		) : null;
 
 	const submit = async () => {
 		if (trimmed === "" || nameError !== null || isPending) return;
@@ -60,7 +61,7 @@ export function CreateOrgDialog({
 			orgId ??= (await orgMutation.mutateAsync({ name: trimmed })).orgId;
 			const { workspaceId } = await workspaceMutation.mutateAsync({ orgId, name: "default" });
 			await queryClient.invalidateQueries();
-			toast.success(`Created ${trimmed}`, { description: "With a default workspace" });
+			toast.success(withCode`Created ${trimmed}`, { description: "With a default workspace" });
 			handleOpenChange(false);
 			onSuccess(orgId, workspaceId);
 		} catch (error) {

@@ -38,6 +38,7 @@ import {
 	STATUS_FAILED,
 	STATUS_SUCCEEDED,
 } from "./webhooks";
+import { withCode } from "@/components/design/InlineCode";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const SKELETON_ROWS = [0, 1, 2];
@@ -259,7 +260,7 @@ function WebhookDetail({
 							{ workspaceId, webhookId: webhook.id, deliveryId },
 							{
 								onSuccess: () => {
-									toast.success(`Redelivering ${eventType}`);
+									toast.success(withCode`Redelivering ${eventType}`);
 								},
 							},
 						);

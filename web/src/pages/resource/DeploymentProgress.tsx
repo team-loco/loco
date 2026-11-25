@@ -55,6 +55,7 @@ import { LogsLink, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
 import { formatFullTime } from "./format";
 import { depImage, depTag, regionDeployment, tookMs, type RegionView } from "./model";
 import { RolloutFlow, type FlowNode } from "./RolloutFlow";
+import { withCode } from "@/components/design/InlineCode";
 
 function regionPhase(m: RolloutMember): DeploymentStatus {
 	const placement = placementIn(m.deployment, m.region.name);
@@ -138,14 +139,14 @@ function ProgressPanel({
 				onSuccess: (res) => {
 					toast.success(
 						res.rollbackDeploymentIds.length > 0
-							? `Canceled ${depTag(deployment)} and queued a rollback`
-							: `Canceled ${depTag(deployment)}`,
+							? withCode`Canceled ${depTag(deployment)} and queued a rollback`
+							: withCode`Canceled ${depTag(deployment)}`,
 					);
 					setConfirmingCancel(false);
 					setRollbackFinished(false);
 				},
 				onError: (err) => {
-					toastConnectError(err, `Could not cancel ${depTag(deployment)}`);
+					toastConnectError(err, withCode`Could not cancel ${depTag(deployment)}`);
 				},
 			},
 		);

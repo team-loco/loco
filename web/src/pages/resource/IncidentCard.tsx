@@ -3,7 +3,9 @@ import { ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { Link } from "react-router";
 import type { Deployment, Replica } from "@gen/loco/deployment/v1/deployment_pb";
 
+import type { ReactNode } from "react";
 import { Button } from "@/components/design/Button";
+import { InlineCode } from "@/components/design/InlineCode";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { HOUR_MS } from "@/lib/obs-time";
 import { agoLabel, formatClock, maybeTsMs, readyMs, tsMs } from "@/lib/time";
@@ -72,9 +74,19 @@ function RegionLogs({
 	);
 }
 
-function replicaTitle(replica: Replica): string {
-	if (replica.restarts === 0) return `Replica ${replica.name} is ${replicaState(replica.state).label.toLowerCase()}`;
-	return `Replica ${replica.name} restarted ${replica.restarts.toString()} ${replica.restarts === 1 ? "time" : "times"}`;
+function replicaTitle(replica: Replica): ReactNode {
+	const name = <InlineCode>{replica.name}</InlineCode>;
+	if (replica.restarts === 0)
+		return (
+			<>
+				Replica {name} is {replicaState(replica.state).label.toLowerCase()}
+			</>
+		);
+	return (
+		<>
+			Replica {name} restarted {replica.restarts.toString()} {replica.restarts === 1 ? "time" : "times"}
+		</>
+	);
 }
 
 export function IncidentCard({
@@ -111,9 +123,14 @@ export function IncidentCard({
 	const goodMs = lastGood === undefined ? undefined : readyMs(lastGood);
 	const servingMs = serving === undefined ? undefined : (maybeTsMs(serving.startedAt) ?? tsMs(serving.createdAt));
 	const sub =
-		serving === undefined || servingMs === undefined
-			? problem.message
-			: `Serving deployment ${depTag(serving)} in ${region.name}, deployed ${agoLabel(servingMs, nowMs)}`;
+		serving === undefined || servingMs === undefined ? (
+			problem.message
+		) : (
+			<>
+				Serving deployment <InlineCode>{depTag(serving)}</InlineCode> in <InlineCode>{region.name}</InlineCode>,
+				deployed {agoLabel(servingMs, nowMs)}
+			</>
+		);
 	const logs = logsHref(only?.name ?? null);
 
 	return (

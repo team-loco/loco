@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { CheckIcon, CopyIcon, LinkIcon, PlusIcon, Trash2Icon, Undo2Icon, UploadIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { getResourceEnv, listResourceOutputs } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
@@ -16,7 +16,7 @@ import {
 	CommandList,
 } from "@/components/design/Command";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
-import { InlineCode } from "@/components/design/InlineCode";
+import { InlineCode, InlineCodeList } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -180,7 +180,7 @@ function ReferencePicker({
 					to={manageHref}
 					className="block border-t border-line px-3.5 py-[9px] text-[12.5px] text-fg2 no-underline hover:text-foreground"
 				>
-					Manage secrets in {environment}
+					Manage secrets in <InlineCode>{environment}</InlineCode>
 				</Link>
 			</PopoverContent>
 		</Popover>
@@ -205,7 +205,7 @@ function VariableRow({
 	removed: boolean;
 	editable: boolean;
 	resolution: Resolution | null;
-	problem: string | undefined;
+	problem: ReactNode;
 	onName?: ((name: string) => void) | undefined;
 	onValue: (value: string) => void;
 	onRemove: () => void;
@@ -284,10 +284,14 @@ function ConnectionVariables({
 				<span className="flex flex-col gap-0.5">
 					<span className="text-[13.5px] font-medium">Connection variables</span>
 					<span className="text-[12.5px] text-fg3">
-						Other resources in this environment can use these to reach {resourceSlug}.
+						Other resources in this environment can use these to reach <InlineCode>{resourceSlug}</InlineCode>.
 					</span>
 				</span>
-				{usedBy.length > 0 && <span className="text-[12.5px] text-fg3">Used by {usedBy.join(", ")}</span>}
+				{usedBy.length > 0 && (
+					<span className="text-[12.5px] text-fg3">
+						Used by <InlineCodeList names={usedBy} />
+					</span>
+				)}
 			</div>
 			<div className={BOX}>
 				{outputs.map((output) => {
@@ -474,7 +478,7 @@ export function VariablesSection({
 							to={secretsHref}
 							className="font-medium whitespace-nowrap text-foreground no-underline after:opacity-0 after:transition-opacity after:duration-120 after:content-['_→'/''] hover:after:opacity-100 motion-reduce:after:transition-none"
 						>
-							Manage secrets in {environmentName}
+							Manage secrets in <InlineCode>{environmentName}</InlineCode>
 						</Link>
 					</>
 				)}

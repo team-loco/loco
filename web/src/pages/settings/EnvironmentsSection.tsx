@@ -1,4 +1,5 @@
 import { charCount, clampChars } from "@/lib/characters";
+import { withCode } from "@/components/design/InlineCode";
 import { createConnectQueryKey, useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { type Environment } from "@gen/loco/environment/v1/environment_pb";
 import {
@@ -163,6 +164,8 @@ export function EnvironmentsSection({
 	const remove = useMutation(deleteEnvironment);
 	const [editing, setEditing] = useState<Environment | "new" | null>(null);
 	const [deleting, setDeleting] = useState<Environment | null>(null);
+	const [lastDeleted, setLastDeleted] = useState<Environment | null>(null);
+	if (deleting !== null && deleting !== lastDeleted) setLastDeleted(deleting);
 	const secretsQuery = useQuery(listSecrets, { environmentId: deleting?.id ?? "" }, { enabled: deleting !== null });
 
 	const environments = envsQuery.data?.environments ?? [];
@@ -175,9 +178,9 @@ export function EnvironmentsSection({
 	const counts = resourcesPerEnvironment(resourcesQuery.data?.resources ?? []);
 	const envsKey = createConnectQueryKey({ schema: listEnvironments, input: { workspaceId }, cardinality: "finite" });
 	const permissionNote = !canWrite
-		? `Requires Write on ${workspaceName} to add or edit environments.`
+		? withCode`Requires Write on ${workspaceName} to add or edit environments.`
 		: !canAdmin
-			? `Requires Admin on ${workspaceName} to delete environments.`
+			? withCode`Requires Admin on ${workspaceName} to delete environments.`
 			: null;
 
 	const deleteBlocked = (env: Environment): string | null => {
@@ -206,7 +209,7 @@ export function EnvironmentsSection({
 			{ environmentId: env.id },
 			{
 				onSuccess: () => {
-					toast.success(`Deleted ${env.name}`);
+					toast.success(withCode`Deleted ${env.name}`);
 					setDeleting(null);
 					void queryClient.invalidateQueries({ queryKey: envsKey });
 				},
@@ -278,7 +281,7 @@ export function EnvironmentsSection({
 
 			<ConfirmDialog
 				open={deleting !== null}
-				title={`Delete ${deleting?.name ?? ""}?`}
+				title={withCode`Delete ${lastDeleted?.name ?? ""}?`}
 				description={deleteDescription(
 					workspaceName,
 					secretsQuery.isSuccess ? secretsQuery.data.secrets.map((secret) => secret.name) : null,
@@ -339,7 +342,7 @@ function EnvironmentForm({
 				},
 				{
 					onSuccess: () => {
-						toast.success(`Saved ${name}`);
+						toast.success(withCode`Saved ${name}`);
 						onDone();
 					},
 					onError: (err) => {
@@ -353,7 +356,7 @@ function EnvironmentForm({
 			{ workspaceId, name, description: description === "" ? undefined : description },
 			{
 				onSuccess: () => {
-					toast.success(`Created ${name}`);
+					toast.success(withCode`Created ${name}`);
 					onDone();
 				},
 				onError: (err) => {
@@ -365,7 +368,7 @@ function EnvironmentForm({
 
 	return (
 		<DialogContent
-			title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.name}`}
+			title={env === undefined ? withCode`New environment in ${workspaceName}` : withCode`Edit ${env.name}`}
 			showCloseButton={false}
 		>
 			<form

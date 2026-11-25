@@ -7,6 +7,7 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { toast } from "@/lib/toast";
 
 import { depTag, isDeployed, type RegionView } from "./model";
+import { InlineCodeList, withCode } from "@/components/design/InlineCode";
 
 /** A deployment to run again and the regions it runs in. */
 export interface DeploymentSource {
@@ -55,8 +56,13 @@ export async function createDeployments(
 }
 
 export function toastRedeploying(resourceName: string, sources: readonly DeploymentSource[]) {
-	const tags = [...new Set(sources.map((s) => depTag(s.deployment)))].join(", ");
-	toast.info(`Redeploying ${resourceName}`, {
-		description: `New deployment from ${tags} in ${sources.flatMap((s) => s.regions).join(", ")}.`,
+	const tags = [...new Set(sources.map((s) => depTag(s.deployment)))];
+	toast.info(withCode`Redeploying ${resourceName}`, {
+		description: (
+			<>
+				New deployment from <InlineCodeList names={tags} /> in{" "}
+				<InlineCodeList names={sources.flatMap((s) => s.regions)} />.
+			</>
+		),
 	});
 }

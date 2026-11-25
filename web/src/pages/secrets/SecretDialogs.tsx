@@ -1,4 +1,5 @@
 import { useMutation } from "@connectrpc/connect-query";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 import { setSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useState } from "react";
@@ -55,7 +56,7 @@ export function SecretDialog({
 			{ environmentId, values: { [current]: value } },
 			{
 				onSuccess: () => {
-					toast.success(updating ? `Updated ${current}` : `Created ${current}`);
+					toast.success(updating ? withCode`Updated ${current}` : withCode`Created ${current}`);
 					reset();
 					onSaved();
 				},
@@ -74,7 +75,7 @@ export function SecretDialog({
 			}}
 		>
 			<DialogContent
-				title={updating ? `Update ${current}` : `New secret in ${environmentName}`}
+				title={updating ? withCode`Update ${current}` : withCode`New secret in ${environmentName}`}
 				showCloseButton={false}
 			>
 				<form
@@ -186,7 +187,14 @@ export function ImportDialog({
 				}
 			}}
 		>
-			<DialogContent title={`Import .env into ${environmentName}`} showCloseButton={false}>
+			<DialogContent
+				title={
+					<>
+						Import <InlineCode>.env</InlineCode> into <InlineCode>{environmentName}</InlineCode>
+					</>
+				}
+				showCloseButton={false}
+			>
 				<form
 					noValidate
 					onSubmit={(e) => {

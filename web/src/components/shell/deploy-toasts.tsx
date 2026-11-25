@@ -1,5 +1,8 @@
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Event } from "@gen/loco/event/v1/event_pb";
+import type { ReactNode } from "react";
+
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 import {
 	deploymentActor,
@@ -16,7 +19,7 @@ export interface DeployToast {
 	deploymentId: string;
 	resourceId: string;
 	tone: "deploying" | "warning" | "failed" | "live";
-	title: string;
+	title: ReactNode;
 	description: string;
 }
 
@@ -32,19 +35,22 @@ function standing(d: Deployment, name: string): { state: string; toast?: Shown }
 					state: "deploying",
 					toast: {
 						tone: "deploying",
-						title: `${name} is deploying`,
+						title: withCode`${name} is deploying`,
 						description: `${deploymentActor(d)}, ${deploymentHeadline(d)}`,
 					},
 				}
 			: {
 					state: `failing:${problem.reason}`,
-					toast: { tone: "warning", title: `${name} deploy is failing`, description },
+					toast: { tone: "warning", title: withCode`${name} deploy is failing`, description },
 				};
 	if (d.status === DeploymentStatus.FAILED || d.status === DeploymentStatus.CRASHED)
-		return { state: "failed", toast: { tone: "failed", title: `${name} deploy failed`, description } };
+		return { state: "failed", toast: { tone: "failed", title: withCode`${name} deploy failed`, description } };
 	if (d.status !== DeploymentStatus.RUNNING && d.status !== DeploymentStatus.DEGRADED) return { state: "done" };
 	// Problems on a live deployment toast from their resource.degraded event, see degradedToast.
-	return { state: "live", toast: { tone: "live", title: `${name} is live on ${deploymentRef(d)}`, description: "" } };
+	return {
+		state: "live",
+		toast: { tone: "live", title: withCode`${name} is live on ${deploymentRef(d)}`, description: "" },
+	};
 }
 
 /** The warning toast for a resource.degraded event, such as "api: out of memory"; null for other events or unknown resources. */
@@ -57,7 +63,14 @@ export function degradedToast(event: Event, names: ReadonlyMap<string, string>):
 		deploymentId: event.deploymentId || event.id,
 		resourceId: event.resourceId,
 		tone: "warning",
-		title: short === undefined ? `${name} has a problem` : `${name}: ${short.toLowerCase()}`,
+		title:
+			short === undefined ? (
+				withCode`${name} has a problem`
+			) : (
+				<>
+					<InlineCode>{name}</InlineCode>: {short.toLowerCase()}
+				</>
+			),
 		description: message,
 	};
 }

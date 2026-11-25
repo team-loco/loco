@@ -26,7 +26,12 @@ export function DeleteResourceDialog({
 		<ConfirmDeleteDialog
 			open={open}
 			onOpenChange={onOpenChange}
-			title={`Delete ${resource.name}${asQuestion ? "?" : ""}`}
+			title={
+				<>
+					Delete <InlineCode>{resource.name}</InlineCode>
+					{asQuestion ? "?" : ""}
+				</>
+			}
 			text={`${running}Deleting it stops its compute right away and releases its domains in every environment. Its logs, metrics and traces may stay queryable for a while. This can't be undone.`}
 			target={resource.name}
 			confirmLabel={confirmLabel}

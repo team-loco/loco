@@ -1,4 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import type { ReactNode } from "react";
 import { toast } from "@/lib/toast";
 
 import { CopyId } from "@/components/design/CopyId";
@@ -19,6 +20,10 @@ function formatErrorMessage(message: string): string {
 	return formatted;
 }
 
+function rawMessage(error: unknown): string {
+	return error instanceof ConnectError ? error.rawMessage : error instanceof Error ? error.message : "";
+}
+
 export function getErrorMessage(error: unknown, fallback = "An error occurred"): string {
 	if (error instanceof ConnectError) {
 		if (error.code === Code.Internal) {
@@ -27,9 +32,9 @@ export function getErrorMessage(error: unknown, fallback = "An error occurred"):
 				return `Please reach out to a Loco support engineer and provide this requestId ${id}`;
 			}
 		}
-		return formatErrorMessage(error.rawMessage || fallback);
+		return formatErrorMessage(rawMessage(error) || fallback);
 	} else if (error instanceof Error) {
-		return formatErrorMessage(error.message || fallback);
+		return formatErrorMessage(rawMessage(error) || fallback);
 	}
 	return formatErrorMessage(fallback);
 }
@@ -59,14 +64,18 @@ export function errorKind(error: unknown): ErrorKind | null {
 
 export function toastConnectError(
 	error: unknown,
-	fallback = "An unexpected error occurred.",
+	fallback: ReactNode = "An unexpected error occurred.",
 	options?: { duration: number },
 ): void {
 	const id = error instanceof ConnectError && error.code === Code.Internal ? requestId(error) : null;
 	if (id === null) {
-		toast.error(getErrorMessage(error, fallback), {
-			duration: options?.duration ?? 5000,
-		});
+		const message =
+			typeof fallback === "string" || rawMessage(error) !== "" ? (
+				getErrorMessage(error, typeof fallback === "string" ? fallback : undefined)
+			) : (
+				<>{fallback}.</>
+			);
+		toast.error(message, { duration: options?.duration ?? 5000 });
 		return;
 	}
 	toast.error(fallback, {

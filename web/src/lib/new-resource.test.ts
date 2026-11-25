@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { textOf } from "@/lib/node-text";
 import { create, toBinary } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
@@ -73,7 +74,9 @@ test("envRowErrors names every row the API would reject and allows empty values"
 	expect(envError([row("EMPTY", "")])).toBeNull();
 	expect(
 		Object.fromEntries(
-			envRowErrors([row("", "x", "unnamed"), row("1BAD", "x", "bad"), row("A", "1", "a"), row(" A ", "2", "b")]),
+			[
+				...envRowErrors([row("", "x", "unnamed"), row("1BAD", "x", "bad"), row("A", "1", "a"), row(" A ", "2", "b")]),
+			].map(([id, message]) => [id, textOf(message)]),
 		),
 	).toEqual({
 		unnamed: "Enter a name for this value",
@@ -155,11 +158,11 @@ test("validateForm accepts an empty port only for a private service without a he
 test("firstError reports the first blocking field in form order", () => {
 	const errors = validateForm({ ...form, regions: [], subdomain: "Bad_Sub", vars: [row("", "x")] }, "empty", 10);
 	expect([errors.regions, errors.subdomain, errors.env].every((e) => e !== null)).toBe(true);
-	expect(firstError(errors)).toBe("Choose at least one region");
-	expect(validateForm({ ...form, appDomain: "" }, "empty", 10).subdomain).toBe(
+	expect(textOf(firstError(errors))).toBe("Choose at least one region");
+	expect(textOf(validateForm({ ...form, appDomain: "" }, "empty", 10).subdomain)).toBe(
 		"No app domain is served in every selected region",
 	);
-	expect(validateForm(form, "taken", 10).subdomain).toBe("web.example.com is taken");
+	expect(textOf(validateForm(form, "taken", 10).subdomain)).toBe("web.example.com is taken");
 	expect(validateForm({ ...form, isPublic: false, appDomain: "" }, "taken", 10).subdomain).toBeNull();
 });
 

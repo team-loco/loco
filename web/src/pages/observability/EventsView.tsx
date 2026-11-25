@@ -40,6 +40,7 @@ import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
 import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const DEFAULT_PAGE_SIZE = 25;
 // Page tokens sit in the obs view's page parameter, which query and range changes clear.
@@ -194,7 +195,18 @@ export function EventsView() {
 				<ObsHero
 					view="events"
 					title={hasResources ? "No events in this range" : "No events yet"}
-					body={`Deploys, restarts, failed health checks and scaling${environment === undefined ? "" : ` in ${environment.name}`} show up here as they happen.`}
+					body={
+						<>
+							Deploys, restarts, failed health checks and scaling
+							{environment === undefined ? null : (
+								<>
+									{" in "}
+									<InlineCode>{environment.name}</InlineCode>
+								</>
+							)}{" "}
+							show up here as they happen.
+						</>
+					}
 					action={
 						hasResources ? (
 							<WidenRangeButton />

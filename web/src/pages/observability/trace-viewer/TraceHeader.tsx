@@ -34,6 +34,7 @@ import { useTraceResources } from "./TraceColors";
 import { durationLabel, spanError, type TraceSummary } from "../traces";
 import { traceIdentity, traceResourceKey, traceServiceLabel } from "../trace-service";
 import { traceJson } from "./trace-json";
+import { InlineCode } from "@/components/design/InlineCode";
 
 export function TraceHeader({
 	trace,
@@ -113,7 +114,11 @@ export function TraceHeader({
 		setTimeout(() => {
 			URL.revokeObjectURL(url);
 		}, 1000);
-		toast.success(`Downloaded trace-${traceId.slice(0, 8)}.json`);
+		toast.success(
+			<>
+				Downloaded <InlineCode>trace-{traceId.slice(0, 8)}.json</InlineCode>
+			</>,
+		);
 	};
 	return (
 		<header

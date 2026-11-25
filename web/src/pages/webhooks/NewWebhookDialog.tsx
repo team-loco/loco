@@ -69,11 +69,15 @@ export function NewWebhookDialog({
 			{open && (
 				<DialogContent
 					title={
-						secret !== null
-							? "Signing secret"
-							: webhook === undefined
-								? `New webhook in ${workspaceName}`
-								: "Edit webhook"
+						secret !== null ? (
+							"Signing secret"
+						) : webhook === undefined ? (
+							<>
+								New webhook in <InlineCode>{workspaceName}</InlineCode>
+							</>
+						) : (
+							"Edit webhook"
+						)
 					}
 					className={secret === null ? "w-[560px]" : undefined}
 					showCloseButton={secret === null}

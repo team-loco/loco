@@ -15,6 +15,7 @@ import { RegionAverages, type AxisScale } from "./RegionAverages";
 import { isDeployed, REFRESH_MS, type RegionView } from "./model";
 import { ReplicaCells } from "./ReplicaCells";
 import { useDeploymentMarkers } from "./useDeploymentMarkers";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
 const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
@@ -94,7 +95,7 @@ export function MetricsPanel({
 		>
 			{pendingName !== undefined ? (
 				<p className="m-0 py-2 text-[13px] text-fg3">
-					CPU and memory show up a couple of minutes after {pendingName} first starts.
+					CPU and memory show up a couple of minutes after <InlineCode>{pendingName}</InlineCode> first starts.
 				</p>
 			) : (
 				<div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-7">

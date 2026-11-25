@@ -64,6 +64,7 @@ import { sizeOptions, type SizeOptions } from "@/lib/sizing";
 import { derivedSlugError, nameError, slug as slugOf } from "@/lib/slug";
 import { useServiceDeploy, type DeployError } from "@/hooks/useServiceDeploy";
 import { DiscardDraftDialog } from "./DiscardDraftDialog";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const SKELETON_ROWS = 6;
 const REGION_POLL_MS = 15_000;
@@ -594,7 +595,7 @@ function ServiceForm({
 	const imageCheck = useImageCheck(env.workspaceId, image);
 	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.appDomain, []);
 	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
-	const shown = (e: string | null, field: keyof NewResourceForm) => (tried || field in edits ? e : null);
+	const shown = (e: ReactNode, field: keyof NewResourceForm): ReactNode => (tried || field in edits ? e : null);
 	const apiError = (field: ApiField) => (deployError?.field?.field === field ? deployError.field.message : null);
 	const subdomainError =
 		check.state !== "empty" ? null : form.subdomain === "" ? shown(errors.subdomain, "subdomain") : errors.subdomain;
@@ -703,9 +704,13 @@ function ServiceForm({
 					}
 				>
 					<span className="-mt-1 text-[12.5px] text-fg3">
-						{form.isPublic
-							? "Gets an HTTPS address on an app domain."
-							: `Reachable only by other resources in ${env.name}.`}
+						{form.isPublic ? (
+							"Gets an HTTPS address on an app domain."
+						) : (
+							<>
+								Reachable only by other resources in <InlineCode>{env.name}</InlineCode>.
+							</>
+						)}
 					</span>
 					<div className="grid grid-cols-1 items-start gap-x-4 gap-y-3 sm:grid-cols-[minmax(0,1fr)_110px]">
 						{form.isPublic && (
@@ -836,7 +841,7 @@ function ServiceForm({
 			<SheetFooter className="flex-wrap items-center">
 				<span className="flex min-w-0 flex-1 flex-col gap-0.5 text-[12.5px] text-fg3 max-sm:basis-full">
 					<span>
-						To <span className="font-mono text-fg2">{env.slug}</span>
+						To <InlineCode>{env.slug}</InlineCode>
 					</span>
 					<FooterError blocker={resourceId === undefined && tried ? footerBlocker : null} deployError={deployError} />
 				</span>
@@ -863,7 +868,7 @@ function deployErrorText(error: DeployError | null): string | null {
 	return error.field.field === "image" ? null : `${API_FIELD_LABEL[error.field.field]}: ${error.field.message}`;
 }
 
-function FooterError({ blocker, deployError }: { blocker: string | null; deployError: DeployError | null }) {
+function FooterError({ blocker, deployError }: { blocker: ReactNode; deployError: DeployError | null }) {
 	const message = blocker ?? deployErrorText(deployError);
 	if (message === null) return null;
 	return (

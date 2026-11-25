@@ -28,6 +28,7 @@ import {
 	type RestartChoice,
 	type SettingsDraft,
 } from "./settings-draft";
+import { InlineCode } from "@/components/design/InlineCode";
 
 export const HEALTH_SECTION_ID = "set-health";
 
@@ -164,7 +165,7 @@ export function ScalingSection({
 	const setAll = (scaling: Scaling) => {
 		onChange({ scaling: Object.fromEntries(names.map((name) => [name, scaling])) });
 	};
-	const error = names.map((name) => errors[`scaling.${name}`]).find((e) => e !== undefined) ?? null;
+	const error = names.map((name): ReactNode => errors[`scaling.${name}`]).find((e) => e !== undefined) ?? null;
 	return (
 		<SettingsBlock
 			id="set-scaling"
@@ -260,7 +261,7 @@ function UnitInput({
 	label: string;
 	unit: string;
 	value: string;
-	error: string | undefined;
+	error: ReactNode;
 	locked: boolean;
 	reserve?: boolean;
 	describedBy: string | undefined;
@@ -540,7 +541,15 @@ export function GeneralSection({
 	return (
 		<SettingsBlock id="set-general" title="General">
 			<div className={grid2}>
-				<Field label="Name" error={errors.name} hint="Shown in the dashboard. loco.yaml does not set it.">
+				<Field
+					label="Name"
+					error={errors.name}
+					hint={
+						<>
+							Shown in the dashboard. <InlineCode>loco.yaml</InlineCode> does not set it.
+						</>
+					}
+				>
 					<Input
 						value={draft.name ?? base.name}
 						disabled={!canWrite}

@@ -3,7 +3,7 @@ import { useObservabilityMaxRange } from "@/hooks/useObservabilityMaxRange";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
 import { RocketIcon, ScrollTextIcon, XIcon } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { toast } from "@/lib/toast";
 import { cancelBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
@@ -44,6 +44,7 @@ import {
 import { formatFullTime } from "./format";
 import { useLayout } from "@/lib/layout";
 import { BUILD_LOG_LIMIT, useBuildLog } from "./useBuilds";
+import { withCode } from "@/components/design/InlineCode";
 
 export interface BuildActor {
 	name: string;
@@ -235,12 +236,12 @@ function CancelBuildDialog({
 			{ buildId: build.id },
 			{
 				onSuccess: () => {
-					toast.success(`Canceled build ${short}`);
+					toast.success(withCode`Canceled build ${short}`);
 					onClose();
 					onCanceled();
 				},
 				onError: (err) => {
-					toastConnectError(err, `Could not cancel build ${short}`);
+					toastConnectError(err, withCode`Could not cancel build ${short}`);
 				},
 			},
 		);
@@ -463,7 +464,7 @@ export function BuildsTable({
 	onShowDeployments: (buildId: string) => void;
 	logsHref: (buildId: string) => string | undefined;
 	onCanceled: () => void;
-	emptyText: string;
+	emptyText: ReactNode;
 }) {
 	const [shownColumns, setShownColumns] = useLayout("tables.history.builds", parseVisibility);
 	const columnVisibility: Visibility = { took: false, ...shownColumns };
@@ -486,7 +487,11 @@ export function BuildsTable({
 			table={table}
 			label="Builds"
 			band
-			empty={<div className="flex h-24 items-center justify-center text-fg3">{emptyText}</div>}
+			empty={
+				<div className="flex h-24 items-center justify-center text-fg3">
+					<span>{emptyText}</span>
+				</div>
+			}
 			onRowClick={(row) => {
 				onOpen(openId === row.id ? null : row.id);
 			}}

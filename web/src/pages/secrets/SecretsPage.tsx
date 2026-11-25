@@ -33,7 +33,7 @@ import { DOCS_URL } from "@/pages/splash/links";
 import { ImportDialog, SecretDialog } from "./SecretDialogs";
 import { SecretsArt } from "./SecretsArt";
 import { deleteBlocked, deleteBody, matchesSearch, setterLabel } from "./secrets";
-import { InlineCode } from "@/components/design/InlineCode";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 const SECRETS_DOCS = `${DOCS_URL}/operations/variables/`;
 const PAGE_PARAMS = { new: parseAsStringLiteral(["1"]), q: parseAsString.withDefault("") };
@@ -170,7 +170,7 @@ export function SecretsPage({
 								secrets.length === 0 ? (
 									<EmptyHero
 										art={<SecretsArt environment={environmentName} />}
-										title={`No secrets in ${environmentName}`}
+										title={withCode`No secrets in ${environmentName}`}
 										subtitle={
 											<>
 												Secrets belong to an environment, and this one is <InlineCode>{environmentName}</InlineCode>.
@@ -225,7 +225,7 @@ export function SecretsPage({
 			/>
 			<ConfirmDialog
 				open={modal?.kind === "delete"}
-				title={modal?.kind === "delete" ? `Delete ${modal.secret.name}?` : ""}
+				title={modal?.kind === "delete" ? withCode`Delete ${modal.secret.name}?` : ""}
 				description={modal?.kind === "delete" ? deleteBody(modal.secret.name) : ""}
 				confirmLabel="Delete"
 				pending={remove.isPending}
@@ -239,12 +239,12 @@ export function SecretsPage({
 						{ environmentId, names: [name] },
 						{
 							onSuccess: () => {
-								toast.success(`Deleted ${name}`);
+								toast.success(withCode`Deleted ${name}`);
 								setModal(null);
 								refresh();
 							},
 							onError: (err) => {
-								toastConnectError(err, `Couldn't delete ${name}`);
+								toastConnectError(err, withCode`Couldn't delete ${name}`);
 							},
 						},
 					);

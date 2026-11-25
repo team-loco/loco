@@ -10,6 +10,7 @@ import {
 import { Button } from "./Button";
 import { modalTitle } from "./Dialog";
 import { Input } from "./Input";
+import { InlineCode } from "@/components/design/InlineCode";
 
 export function ConfirmDeleteDialog({
 	open,
@@ -25,8 +26,8 @@ export function ConfirmDeleteDialog({
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	title: string;
-	text: string;
+	title: ReactNode;
+	text: ReactNode;
 	target: string;
 	confirmLabel: string;
 	pending: boolean;
@@ -74,8 +75,8 @@ function ConfirmBody({
 	children,
 }: {
 	inputRef: RefObject<HTMLInputElement | null>;
-	title: string;
-	text: string;
+	title: ReactNode;
+	text: ReactNode;
 	target: string;
 	confirmLabel: string;
 	pending: boolean;
@@ -100,7 +101,7 @@ function ConfirmBody({
 				{children}
 				<label className="flex flex-col gap-1.5">
 					<span className="text-[12.5px] text-fg2">
-						Type <span className="font-mono text-foreground">{target}</span> to confirm
+						Type <InlineCode>{target}</InlineCode> to confirm
 					</span>
 					<Input
 						ref={inputRef}

@@ -1,4 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import { InlineCodeList, withCode } from "@/components/design/InlineCode";
 import { callUnaryMethod, useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -106,7 +107,7 @@ export function useSaveSettings({
 				setSaving(false);
 				onDone(draft, {
 					tone: "bad",
-					title: `Couldn't save ${resource.name}`,
+					title: withCode`Couldn't save ${resource.name}`,
 					message: getErrorMessage(err, "Failed to load its variables"),
 				});
 				return;
@@ -166,7 +167,7 @@ export function useSaveSettings({
 					setSaving(false);
 					onDone(omit(next, REGION_MAP_KEYS), {
 						tone: "warn",
-						title: `${resource.name} changed since you opened it`,
+						title: withCode`${resource.name} changed since you opened it`,
 						message: "Showing its current regions and scaling. Make your region changes again.",
 					});
 					return;
@@ -211,21 +212,41 @@ export function useSaveSettings({
 		if (failures.length > 0) {
 			onDone(next, {
 				tone: "bad",
-				title: `Some changes to ${resource.name} were not saved`,
-				message: [
-					...failures,
-					...(savedRegions.length > 0 ? [`Saved changes in ${savedRegions.join(", ")}.`] : []),
-				].join("\n"),
+				title: withCode`Some changes to ${resource.name} were not saved`,
+				message: (
+					<>
+						{failures.join("\n")}
+						{savedRegions.length > 0 && (
+							<>
+								{"\n"}Saved changes in <InlineCodeList names={savedRegions} />.
+							</>
+						)}
+					</>
+				),
 			});
 			return;
 		}
-		const parts: string[] = [];
 		const { rolling, stopping } =
 			targets === undefined ? { rolling: deploys.map((d) => d.region), stopping: [] } : regionChanges(effective, base);
-		if (rolling.length > 0) parts.push(`Rolling out in ${rolling.join(", ")}.`);
-		if (stopping.length > 0) parts.push(`Stopping in ${stopping.join(", ")}.`);
-		const message = parts.length === 0 ? "No redeploy needed." : parts.join(" ");
-		onDone(next, { tone: "info", title: `Saved ${renamed ? name : resource.name}`, message });
+		const message =
+			rolling.length + stopping.length === 0 ? (
+				"No redeploy needed."
+			) : (
+				<>
+					{rolling.length > 0 && (
+						<>
+							Rolling out in <InlineCodeList names={rolling} />.
+						</>
+					)}
+					{rolling.length > 0 && stopping.length > 0 && " "}
+					{stopping.length > 0 && (
+						<>
+							Stopping in <InlineCodeList names={stopping} />.
+						</>
+					)}
+				</>
+			);
+		onDone(next, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
 	};
 
 	return { save, saving };

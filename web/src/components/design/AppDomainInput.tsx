@@ -16,6 +16,7 @@ import { RegionHealth } from "@/components/design/RegionHealth";
 import { getErrorMessage } from "@/lib/error-handler";
 import { MAX_SUBDOMAIN_LENGTH, type DomainCheck } from "@/lib/app-domain";
 import { cn } from "@/lib/utils";
+import { withCode } from "@/components/design/InlineCode";
 
 function statusLine(check: DomainCheck, owner: string): { tone: "ok" | "bad" | "muted"; text: ReactNode } | null {
 	switch (check.state) {
@@ -26,13 +27,13 @@ function statusLine(check: DomainCheck, owner: string): { tone: "ok" | "bad" | "
 		case "invalid":
 			return { tone: "bad", text: "Use a–z, 0–9 and dashes" };
 		case "mine":
-			return { tone: "bad", text: `Already on ${owner}` };
+			return { tone: "bad", text: withCode`Already on ${owner}` };
 		case "checking":
-			return { tone: "muted", text: `Checking ${check.host}…` };
+			return { tone: "muted", text: withCode`Checking ${check.host}…` };
 		case "available":
-			return { tone: "ok", text: `${check.host} is available` };
+			return { tone: "ok", text: withCode`${check.host} is available` };
 		case "taken":
-			return { tone: "bad", text: `${check.host} is taken` };
+			return { tone: "bad", text: withCode`${check.host} is taken` };
 		case "failed":
 			return { tone: "bad", text: getErrorMessage(check.error, "Couldn't check availability") };
 	}
@@ -142,7 +143,7 @@ export function AppDomainInput({
 			>
 				{status?.tone === "ok" && <CheckIcon className="size-3.5" />}
 				{status?.tone === "bad" && <XIcon className="size-3.5" />}
-				{status?.text}
+				<span>{status?.text}</span>
 			</span>
 		</div>
 	);
