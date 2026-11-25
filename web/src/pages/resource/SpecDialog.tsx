@@ -1,5 +1,3 @@
-import { useTimePreferences } from "@/lib/use-time-preferences";
-import { formatStarted, readyMs, type TimePreferences } from "@/lib/time";
 import { useState, type CSSProperties } from "react";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon, TextWrapIcon, XIcon } from "lucide-react";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
@@ -17,7 +15,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { useCopy } from "@/hooks/useCopy";
-import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { depTag } from "./model";
@@ -26,10 +23,8 @@ import { changedOnly, diffLines, sideBySide, specText, type DiffLine, type SideB
 const COPIED_MS = 1500;
 const YAML_TYPE = "application/yaml";
 
-function optionLabel(dep: Deployment, pref: TimePreferences): string {
-	const started = readyMs(dep);
-	const label = `${formatShortId(dep.id)} (${depTag(dep)}) in ${deploymentRegions(dep).join(", ")}`;
-	return started === undefined ? label : `${label}, started ${formatStarted(started, pref)}`;
+function optionLabel(dep: Deployment): string {
+	return `${formatShortId(dep.id)} (${depTag(dep)})`;
 }
 
 function Picker({
@@ -43,7 +38,6 @@ function Picker({
 	value: Deployment;
 	onChange: (id: string) => void;
 }) {
-	const timePref = useTimePreferences();
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
@@ -56,14 +50,14 @@ function Picker({
 					/>
 				}
 			>
-				<span className="truncate">{optionLabel(value, timePref)}</span>
+				<span className="truncate">{optionLabel(value)}</span>
 				<ChevronDownIcon className="text-fg3" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="max-h-80 w-auto min-w-[320px]">
 				<DropdownMenuRadioGroup value={value.id} onValueChange={onChange}>
 					{deployments.map((d) => (
 						<DropdownMenuRadioItem key={d.id} value={d.id} className="font-mono text-[12px]">
-							<span className="flex-1">{optionLabel(d, timePref)}</span>
+							<span className="flex-1">{optionLabel(d)}</span>
 							{(d.status === DeploymentStatus.RUNNING || d.status === DeploymentStatus.DEGRADED) && (
 								<Badge tone="pill">running</Badge>
 							)}
