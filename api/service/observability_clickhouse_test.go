@@ -458,7 +458,7 @@ func TestListTracesAndBucketsApplyEveryQueryAlike(t *testing.T) {
 		attributes                      map[string]string
 	}{
 		{traceA, "a1", "", "GET /cart", "", 200 * time.Millisecond, f.resource, map[string]string{userID: "42"}},
-		{traceA, "a2", "a1", "SELECT carts", "Error", 300 * time.Millisecond, f.otherResource, map[string]string{
+		{traceA, "a2", "a1", "SELECT carts", spanError, 300 * time.Millisecond, f.otherResource, map[string]string{
 			"db.system": "postgres",
 		}},
 		{traceB, "b1", "", "POST /orders", "", 50 * time.Millisecond, f.resource, map[string]string{userID: "7"}},

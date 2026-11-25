@@ -16,6 +16,7 @@ import (
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
+	"github.com/team-loco/loco/internal/systemtenant"
 )
 
 const (
@@ -24,6 +25,8 @@ const (
 	resourceReader  = "resource-reader"
 	workspaceWriter = "workspace-writer"
 	stranger        = "stranger"
+	systemReader    = "system-reader"
+	systemAdmin     = "system-admin"
 )
 
 // observabilityFixture is an organization with two workspaces; the first holds two resources.
@@ -54,6 +57,8 @@ func newObservabilityFixture(t *testing.T) *observabilityFixture {
 		orgReader:       {{EntityType: genDb.EntityTypeOrganization, EntityID: f.org, Scope: genDb.ScopeRead}},
 		resourceReader:  {{EntityType: genDb.EntityTypeResource, EntityID: f.resource, Scope: genDb.ScopeRead}},
 		workspaceWriter: {{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspace, Scope: genDb.ScopeWrite}},
+		systemReader:    {{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}},
+		systemAdmin:     {{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}},
 	}
 	return f
 }
@@ -67,6 +72,31 @@ func (f *observabilityFixture) client(t *testing.T, clickhouse *chClient.Client)
 	)
 }
 
+// A read call's workspace argument is a workspace ID or one of these scope selections.
+const (
+	installationScope = "installation"
+	bothScopes        = "both"
+	noScope           = "neither"
+)
+
+func scopeWorkspace(scope string) string {
+	switch scope {
+	case installationScope, noScope:
+		return ""
+	case bothScopes:
+		return observabilityTestWorkspace
+	}
+	return scope
+}
+
+func scopeInstallation(scope string) bool { return scope == installationScope || scope == bothScopes }
+
+func traceScope(workspace string, resources []string) *observabilityv1.TraceScope {
+	return &observabilityv1.TraceScope{
+		WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace), ResourceIds: resources,
+	}
+}
+
 type readCall func(ctx context.Context, client observabilityClient, workspace string, resources []string) error
 
 func readCalls() map[string]readCall {
@@ -78,13 +108,15 @@ func readCalls() map[string]readCall {
 		"QueryLogs": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			start, end := window()
 			_, err := client.QueryLogs(ctx, &observabilityv1.QueryLogsRequest{
-				WorkspaceId: workspace, ResourceIds: resources, StartTime: start, EndTime: end,
+				WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace),
+				ResourceIds: resources, StartTime: start, EndTime: end,
 			})
 			return err
 		},
 		"TailLogs": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			stream, err := client.TailLogs(ctx, &observabilityv1.TailLogsRequest{
-				WorkspaceId: workspace, ResourceIds: resources,
+				WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace),
+				ResourceIds: resources,
 			})
 			if err != nil {
 				return err
@@ -96,7 +128,8 @@ func readCalls() map[string]readCall {
 		"QueryMetrics": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			start, end := window()
 			_, err := client.QueryMetrics(ctx, &observabilityv1.QueryMetricsRequest{
-				WorkspaceId: workspace, ResourceIds: resources, StartTime: start, EndTime: end,
+				WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace),
+				ResourceIds: resources, StartTime: start, EndTime: end,
 				MetricName: "http.server.requests", IntervalSeconds: 60, Aggregation: "max",
 			})
 			return err
@@ -104,7 +137,7 @@ func readCalls() map[string]readCall {
 		"ListTraces": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			start, end := window()
 			_, err := client.ListTraces(ctx, &observabilityv1.ListTracesRequest{
-				Scope:     &observabilityv1.TraceScope{WorkspaceId: workspace, ResourceIds: resources},
+				Scope:     traceScope(workspace, resources),
 				StartTime: start, EndTime: end,
 			})
 			return err
@@ -112,7 +145,8 @@ func readCalls() map[string]readCall {
 		"QueryLogBuckets": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			start, end := window()
 			_, err := client.QueryLogBuckets(ctx, &observabilityv1.QueryLogBucketsRequest{
-				WorkspaceId: workspace, ResourceIds: resources, StartTime: start, EndTime: end,
+				WorkspaceId: scopeWorkspace(workspace), Installation: scopeInstallation(workspace),
+				ResourceIds: resources, StartTime: start, EndTime: end,
 				IntervalSeconds: 60, GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL,
 			})
 			return err
@@ -125,14 +159,14 @@ func readCalls() map[string]readCall {
 		) error {
 			start, end := window()
 			_, err := client.QueryTraceBuckets(ctx, &observabilityv1.QueryTraceBucketsRequest{
-				Scope:     &observabilityv1.TraceScope{WorkspaceId: workspace, ResourceIds: resources},
+				Scope:     traceScope(workspace, resources),
 				StartTime: start, EndTime: end, IntervalSeconds: 60,
 			})
 			return err
 		},
 		"GetTrace": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
 			_, err := client.GetTrace(ctx, &observabilityv1.GetTraceRequest{
-				Scope:   &observabilityv1.TraceScope{WorkspaceId: workspace, ResourceIds: resources},
+				Scope:   traceScope(workspace, resources),
 				TraceId: observabilityTestTraceID,
 			})
 			return err
@@ -145,6 +179,7 @@ func TestObservabilityReadsNeedWorkspaceReadOrReadOnEveryNamedResource(t *testin
 	f := newObservabilityFixture(t)
 	workspace, otherWorkspace := f.workspace.String(), f.otherWorkspace.String()
 	resource, otherResource := f.resource.String(), f.otherResource.String()
+	system := installationScope
 	// A request that passes authorization reaches the unreachable ClickHouse and fails as Internal.
 	cases := []struct {
 		name      string
@@ -172,6 +207,27 @@ func TestObservabilityReadsNeedWorkspaceReadOrReadOnEveryNamedResource(t *testin
 		{
 			"resource reader naming another resource too",
 			resourceReader, workspace, []string{resource, otherResource}, connect.CodePermissionDenied,
+		},
+		{"system reader in the system scope", systemReader, system, nil, connect.CodeInternal},
+		{"system admin in the system scope", systemAdmin, system, nil, connect.CodeInternal},
+		{"workspace reader in the system scope", workspaceReader, system, nil, connect.CodePermissionDenied},
+		{"organization reader in the system scope", orgReader, system, nil, connect.CodePermissionDenied},
+		{"resource reader in the system scope", resourceReader, system, nil, connect.CodePermissionDenied},
+		{"caller without scopes in the system scope", stranger, system, nil, connect.CodePermissionDenied},
+		{"both workspace and installation", systemReader, bothScopes, nil, connect.CodeInvalidArgument},
+		{"neither workspace nor installation", systemReader, noScope, nil, connect.CodeInvalidArgument},
+		{
+			"system admin naming the system tenant as a workspace",
+			systemAdmin, systemtenant.WorkspaceID, nil, connect.CodePermissionDenied,
+		},
+		{
+			"system reader naming the system tenant as a workspace",
+			systemReader, systemtenant.WorkspaceID, nil, connect.CodePermissionDenied,
+		},
+		{"system reader naming a resource", systemReader, system, []string{resource}, connect.CodeInvalidArgument},
+		{
+			"workspace reader naming a resource in the system scope",
+			workspaceReader, system, []string{resource}, connect.CodePermissionDenied,
 		},
 		{
 			"resource reader at the cap",

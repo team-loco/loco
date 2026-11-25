@@ -32,7 +32,17 @@ obsProxy:
       SYSTEM_RETENTION_DAYS: "14"
 ```
 
-To read the rows, query ClickHouse as an admin:
+## Read it through the API
+
+A user with the system read or system admin role reads the system tenant through the observability API, the same calls the dashboard uses for a workspace: logs, log buckets, live tail, metrics, traces, trace buckets and a single trace. A request asks for the installation scope by setting `installation: true` (`scope.installation` for traces) instead of `workspace_id`; it sets exactly one of the two. The system tenant's ID is not a workspace ID. Anyone else, including a workspace or organization admin, gets `permission_denied`. Grant the role with `locoadm admin`.
+
+In the installation scope:
+
+- Queries accept `@component` (the sending component, such as `loco-api` or `loco-controller`) and `@cluster` (the worker cluster's ID, or `control-plane`), next to `@level`, `@region`, `@replica`, text search and the other [query syntax](../reference/log-queries.md). In metrics requests, `attributes` accepts the keys `component` and `cluster`.
+- `resource_ids` and `environment_id` belong to workspaces. A request that sets either, or a query that uses `@resource` or `@build`, fails with `invalid_argument`.
+- Metrics cover what the senders export: the API's runtime and stream metrics, the controllers' runtime and controller-runtime metrics, and the collectors' platform metrics.
+
+To read the rows directly, query ClickHouse as an admin:
 
 ```sql
 SELECT Timestamp, ServiceName, SeverityText, Body

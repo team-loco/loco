@@ -43,7 +43,12 @@ enum LogLevel {
 }
 
 message QueryLogBucketsRequest {
-  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string workspace_id = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+  bool installation = 9;
   repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
   google.protobuf.Timestamp start_time = 3 [(buf.validate.field).required = true];
   google.protobuf.Timestamp end_time = 4 [(buf.validate.field).required = true];
@@ -63,6 +68,12 @@ message QueryLogBucketsRequest {
     message: "start_time must be before or equal to end_time"
     expression: "this.start_time <= this.end_time"
   };
+
+  option (buf.validate.message).cel = {
+    id: "scope.workspace_xor_installation"
+    message: "set workspace_id or installation, not both and not neither"
+    expression: "this.installation == (this.workspace_id == '')"
+  };
 }
 
 // QueryLogBucketsResponse contains nonempty groups ordered by bucket start and group value.
@@ -81,8 +92,13 @@ message LogBucket {
 
 // QueryLogsRequest specifies filters and pagination for querying historical logs.
 message QueryLogsRequest {
-  // Workspace ID to query logs from (required).
-  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  // Workspace ID to query logs from; set this or installation.
+  string workspace_id = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+  bool installation = 15;
   // Resource IDs to filter by (e.g., deployment IDs). Empty means all resources.
   repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
 
@@ -117,6 +133,12 @@ message QueryLogsRequest {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"
     expression: "this.start_time <= this.end_time"
+  };
+
+  option (buf.validate.message).cel = {
+    id: "scope.workspace_xor_installation"
+    message: "set workspace_id or installation, not both and not neither"
+    expression: "this.installation == (this.workspace_id == '')"
   };
 }
 
@@ -163,8 +185,13 @@ message LogEntry {
 
 // TailLogsRequest specifies filters for tailing live logs.
 message TailLogsRequest {
-  // Workspace ID to tail logs from (required).
-  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  // Workspace ID to tail logs from; set this or installation.
+  string workspace_id = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+  bool installation = 10;
   // Resource IDs to filter by. Empty means all resources.
   repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
 
@@ -177,6 +204,12 @@ message TailLogsRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+
+  option (buf.validate.message).cel = {
+    id: "scope.workspace_xor_installation"
+    message: "set workspace_id or installation, not both and not neither"
+    expression: "this.installation == (this.workspace_id == '')"
+  };
 }
 
 // TailLogsResponse is a server-streamed event (log entry or heartbeat).
@@ -200,8 +233,13 @@ message Heartbeat {
 
 // QueryMetricsRequest specifies a metrics query with aggregation parameters.
 message QueryMetricsRequest {
-  // Workspace ID to query metrics from (required).
-  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  // Workspace ID to query metrics from; set this or installation.
+  string workspace_id = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+  bool installation = 12;
   // Resource IDs to filter by. Empty means all resources in the workspace.
   repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
 
@@ -248,6 +286,12 @@ message QueryMetricsRequest {
     message: "by_pod needs exactly one resource_id"
     expression: "!this.by_pod || size(this.resource_ids) == 1"
   };
+
+  option (buf.validate.message).cel = {
+    id: "scope.workspace_xor_installation"
+    message: "set workspace_id or installation, not both and not neither"
+    expression: "this.installation == (this.workspace_id == '')"
+  };
 }
 
 // QueryMetricsResponse contains the aggregated metric data.
@@ -276,12 +320,23 @@ message MetricPoint {
 }
 
 message TraceScope {
-  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string workspace_id = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Reads Loco's own telemetry instead of a workspace's; needs the system read role.
+  bool installation = 4;
   repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
   string environment_id = 3 [
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+
+  option (buf.validate.message).cel = {
+    id: "scope.workspace_xor_installation"
+    message: "set workspace_id or installation, not both and not neither"
+    expression: "this.installation == (this.workspace_id == '')"
+  };
 }
 
 message ListTracesRequest {

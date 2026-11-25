@@ -85,6 +85,8 @@ func traceFieldSQL(field logquery.Field, resources []ResourceName, spans func() 
 	var match string
 	if field.Key == ResourceField {
 		match = resourceSQL(field, resources, b)
+	} else if sql, ok := resourceAttributeSQL(field, b); ok {
+		match = sql
 	} else {
 		match = attributeSQL(field, spanAttributes, b)
 	}

@@ -164,6 +164,9 @@ func fieldSQL(field logquery.Field, resources []ResourceName, b binder) string {
 	case BuildField:
 		return stringMatch("ResourceAttributes["+b.str(buildAttribute)+"]", field, b)
 	}
+	if sql, ok := resourceAttributeSQL(field, b); ok {
+		return sql
+	}
 	return attributeSQL(field, logAttributes, b)
 }
 
