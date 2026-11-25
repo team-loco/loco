@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -15,24 +16,11 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-func (f *deployFixture) addAvailableRegionCluster(t *testing.T) {
-	t.Helper()
-	insert := `
-INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat)
-VALUES (ARRAY['linux/amd64'], $1, $2, 'kind', true, true, 'healthy', NOW())`
-	if _, err := f.pool.Exec(
-		context.Background(),
-		insert,
-		domainsSecondCluster,
-		statusSecondRegion,
-	); err != nil {
-		t.Fatalf("add staging region cluster: %v", err)
-	}
-}
+const moveCluster = `UPDATE clusters SET region = $2 WHERE id = $1`
 
 func (f *deployFixture) markClusterUnhealthy(t *testing.T, clusterID uuid.UUID) {
 	t.Helper()
-	update := `UPDATE clusters SET health_status = 'unhealthy' WHERE id = $1`
+	update := `UPDATE cluster_heartbeats SET health_status = 'unhealthy' WHERE cluster_id = $1`
 	if _, err := f.pool.Exec(context.Background(), update, clusterID); err != nil {
 		t.Fatalf("mark cluster unhealthy: %v", err)
 	}
@@ -58,11 +46,10 @@ func TestListRegionsUsesTheSameEligibleClustersForEveryEnvironment(t *testing.T)
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	f.markClusterUnhealthy(t, f.clusterID)
-	move := `UPDATE clusters SET region = $2 WHERE id = $1`
-	if _, err := f.pool.Exec(t.Context(), move, f.clusterID, statusSecondRegion); err != nil {
+	if _, err := f.pool.Exec(t.Context(), moveCluster, f.clusterID, statusSecondRegion); err != nil {
 		t.Fatal(err)
 	}
-	f.addAvailableRegionCluster(t)
+	f.addRegionCluster(t)
 	staging := f.addStagingEnvironment(t)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := f.workspaceReadScopes(t)
@@ -105,7 +92,7 @@ func TestListRegionsReportsDegradedRegions(t *testing.T) {
 	scopes := f.workspaceReadScopes(t)
 
 	ctx := t.Context()
-	update := `UPDATE clusters SET health_status = 'degraded' WHERE id = $1`
+	update := `UPDATE cluster_heartbeats SET health_status = 'degraded' WHERE cluster_id = $1`
 	if _, err := f.pool.Exec(ctx, update, f.clusterID); err != nil {
 		t.Fatalf("mark default cluster degraded: %v", err)
 	}
@@ -115,8 +102,7 @@ func TestListRegionsReportsDegradedRegions(t *testing.T) {
 		t.Fatalf("regions with a healthy fallback = %v, want the healthy cluster", regions)
 	}
 
-	move := `UPDATE clusters SET region = $2 WHERE id = $1`
-	if _, err := f.pool.Exec(ctx, move, f.clusterID, statusSecondRegion); err != nil {
+	if _, err := f.pool.Exec(ctx, moveCluster, f.clusterID, statusSecondRegion); err != nil {
 		t.Fatalf("move degraded cluster to its own region: %v", err)
 	}
 	regions = listRegions(t, server, scopes, f.envID.String())
@@ -137,7 +123,7 @@ func TestListRegionsReportsOfflineClusters(t *testing.T) {
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := f.workspaceReadScopes(t)
 
-	silent := `UPDATE clusters SET last_heartbeat = NULL WHERE id = $1`
+	silent := `DELETE FROM cluster_heartbeats WHERE cluster_id = $1`
 	if _, err := f.pool.Exec(t.Context(), silent, f.clusterID); err != nil {
 		t.Fatal(err)
 	}
@@ -147,10 +133,10 @@ func TestListRegionsReportsOfflineClusters(t *testing.T) {
 		t.Fatalf("regions = %v, want the available fallback cluster", regions)
 	}
 
-	move := `UPDATE clusters SET region = $2, last_heartbeat = NOW() - INTERVAL '1 day' WHERE id = $1`
-	if _, err := f.pool.Exec(t.Context(), move, f.clusterID, statusSecondRegion); err != nil {
+	if _, err := f.pool.Exec(t.Context(), moveCluster, f.clusterID, statusSecondRegion); err != nil {
 		t.Fatal(err)
 	}
+	setHeartbeats(t, f.pool, time.Now().Add(-24*time.Hour), clusterHealthHealthy, f.clusterID)
 	regions = listRegions(t, server, scopes, f.envID.String())
 	if len(regions) != 2 || regions[1].GetRegion() != statusSecondRegion ||
 		regions[1].GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_OFFLINE {

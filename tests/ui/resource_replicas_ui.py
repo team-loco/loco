@@ -241,7 +241,7 @@ usage = {
 def heartbeat(region, age):
     sql(
         state,
-        f"UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '{age}' WHERE id='{r['clusters'][region]}';",
+        f"UPDATE cluster_heartbeats SET last_heartbeat=NOW()-INTERVAL '{age}' WHERE cluster_id='{r['clusters'][region]}';",
     )
 
 

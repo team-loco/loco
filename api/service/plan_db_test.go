@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -129,10 +130,7 @@ func (f *deployFixture) workspaceReadScopes(t *testing.T) []genDb.EntityScope {
 
 func (f *deployFixture) markClustersHealthy(t *testing.T) {
 	t.Helper()
-	update := `UPDATE clusters SET health_status = 'healthy', last_heartbeat = NOW()`
-	if _, err := f.pool.Exec(context.Background(), update); err != nil {
-		t.Fatalf("mark clusters healthy: %v", err)
-	}
+	setHeartbeats(t, f.pool, time.Now(), clusterHealthHealthy)
 }
 
 func seedPlanWorkspace(t *testing.T, f *deployFixture) {

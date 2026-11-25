@@ -157,7 +157,9 @@ func reattach(ctx context.Context) error {
 	return platform.Poll(ctx, func(ctx context.Context) error {
 		var healthy bool
 		if err := p.DB.QueryRow(
-			ctx, "SELECT COALESCE(health_status = 'healthy', false) FROM clusters WHERE id = $1", p.ClusterID,
+			ctx,
+			"SELECT EXISTS (SELECT 1 FROM cluster_heartbeats WHERE cluster_id = $1 AND health_status = 'healthy')",
+			p.ClusterID,
 		).Scan(&healthy); err != nil {
 			return err
 		}

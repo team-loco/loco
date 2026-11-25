@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -183,6 +184,8 @@ type syncSession struct {
 	settledReady chan struct{}
 	// finishing holds the builds whose finish is recorded but not yet settled, guarded by settledMu.
 	finishing map[uuid.UUID]struct{}
+	// capabilities holds the newest heartbeat whose capabilities the worker has not stored; only handle sends.
+	capabilities chan *agentv1.Heartbeat
 }
 
 // settleFunc runs on the receive loop, which owns the session's state and the stream's sends.
@@ -201,11 +204,12 @@ func newSyncSession(
 		builds:       newBuildTracker(),
 		reports:      make(chan func(context.Context), syncReportQueue),
 		settledReady: make(chan struct{}, 1),
+		capabilities: make(chan *agentv1.Heartbeat, 1),
 		finishing:    make(map[uuid.UUID]struct{}),
 	}
 }
 
-// applyReports applies queued reports one at a time until ctx ends.
+// applyReports applies queued reports and the newest capabilities one at a time until ctx ends.
 func (ss *syncSession) applyReports(ctx context.Context) {
 	for {
 		select {
@@ -213,6 +217,8 @@ func (ss *syncSession) applyReports(ctx context.Context) {
 			return
 		case apply := <-ss.reports:
 			apply(ctx)
+		case heartbeat := <-ss.capabilities:
+			ss.server.recordClusterReport(ctx, ss.clusterID, ss.generation, heartbeat)
 		}
 	}
 }
@@ -449,7 +455,7 @@ func placementMessage(
 // handle records a heartbeat at once and queues every other report.
 func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) error {
 	if heartbeat := msg.GetHeartbeat(); heartbeat != nil {
-		ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
+		ss.recordHeartbeat(ctx, heartbeat)
 		return nil
 	}
 	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
@@ -458,6 +464,23 @@ func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) err
 		tracing.End(span, err)
 		return settle, err
 	})
+}
+
+// recordHeartbeat records a valid heartbeat's liveness and hands its capabilities to the worker without waiting.
+// Capabilities are a snapshot: a newer heartbeat replaces one the worker has not stored yet.
+func (ss *syncSession) recordHeartbeat(ctx context.Context, heartbeat *agentv1.Heartbeat) {
+	// The sync stream bypasses the validation interceptor, and an unknown role cannot be stored.
+	if err := protovalidate.Validate(heartbeat); err != nil {
+		slog.WarnContext(ctx, "ignoring an invalid heartbeat", "error", err, "cluster_id", ss.clusterID)
+		return
+	}
+	ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
+	// The receive loop is the only sender, so after the drain the send finds the slot empty.
+	select {
+	case <-ss.capabilities:
+	default:
+	}
+	ss.capabilities <- heartbeat
 }
 
 // apply records a report and returns what it changes in the session.

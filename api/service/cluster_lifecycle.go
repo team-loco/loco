@@ -97,6 +97,9 @@ func manageCluster(
 			if cluster.RemovedAt == nil {
 				return ErrClusterNotRemoved
 			}
+			if err := qtx.DeleteClusterHeartbeat(ctx, id); err != nil {
+				return fmt.Errorf("clear heartbeat: %w", err)
+			}
 			params.RestoreCluster = true
 		default:
 			return ErrInvalidClusterOperation

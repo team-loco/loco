@@ -52,7 +52,7 @@ clusters = {
 }
 sql(
     state,
-    f"UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE id='{clusters['unhealthy']}';",
+    f"UPDATE cluster_heartbeats SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE cluster_id='{clusters['unhealthy']}';",
 )
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = sql(

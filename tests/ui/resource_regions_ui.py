@@ -58,7 +58,7 @@ with session(out) as browser:
     )[f"acme/shared/{name}"]
     sql(
         state,
-        f"UPDATE clusters SET last_heartbeat=NOW() - INTERVAL '5 minutes' WHERE id IN ('{east_cluster}', '{west_cluster}');",
+        f"UPDATE cluster_heartbeats SET last_heartbeat=NOW() - INTERVAL '5 minutes' WHERE cluster_id IN ('{east_cluster}', '{west_cluster}');",
     )
     # Instant scrolling: a smooth scroll to a focused region card would move the save bar under a click.
     context, page, errors = open_page(browser, state=state, reduced_motion="reduce")
@@ -137,7 +137,7 @@ with session(out) as browser:
 
     sql(
         state,
-        "UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE region='us-ca-1';",
+        "UPDATE cluster_heartbeats SET last_heartbeat=NOW()-INTERVAL '1 day' FROM clusters WHERE id=cluster_id AND region='us-ca-1';",
     )
     page.reload()
     expect(east).to_be_enabled()
@@ -155,7 +155,10 @@ with session(out) as browser:
         == "0"
     )
     expect(east).to_be_disabled()
-    sql(state, "UPDATE clusters SET last_heartbeat=NOW() WHERE region='us-ca-1';")
+    sql(
+        state,
+        "UPDATE cluster_heartbeats SET last_heartbeat=NOW() FROM clusters WHERE id=cluster_id AND region='us-ca-1';",
+    )
     page.reload()
     east.click()
     save()

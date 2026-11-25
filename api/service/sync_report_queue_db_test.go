@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -17,12 +19,14 @@ import (
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
-// applyQueuedReports applies and settles the reports the session queued, as its stream does.
+// applyQueuedReports applies and settles the reports and capabilities the session queued, as its stream does.
 func applyQueuedReports(ctx context.Context, session *syncSession) error {
 	for {
 		select {
 		case apply := <-session.reports:
 			apply(ctx)
+		case heartbeat := <-session.capabilities:
+			session.server.recordClusterReport(ctx, session.clusterID, session.generation, heartbeat)
 		default:
 			if err := session.settle(ctx); err != nil {
 				return err
@@ -118,23 +122,28 @@ func holdResource(t *testing.T, f *deployFixture) func() {
 // holdRow locks the row the query selects as a write does, until the returned release runs.
 func holdRow(t *testing.T, f *deployFixture, query string, id uuid.UUID) func() {
 	t.Helper()
+	return holdTx(t, f, func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, query, id)
+		return err
+	})
+}
+
+// holdTx runs lock in a transaction that stays open, as a write's does, until the returned release runs.
+func holdTx(t *testing.T, f *deployFixture, lock func(context.Context, pgx.Tx) error) func() {
+	t.Helper()
 	tx, err := f.pool.Begin(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := tx.Exec(t.Context(), query, id); err != nil {
+	release := sync.OnceFunc(func() {
+		if err := tx.Rollback(context.Background()); err != nil {
+			t.Errorf("release the lock: %v", err)
+		}
+	})
+	t.Cleanup(release)
+	if err := lock(t.Context(), tx); err != nil {
 		t.Fatal(err)
 	}
-	released := false
-	release := func() {
-		if !released {
-			released = true
-			if err := tx.Rollback(context.Background()); err != nil {
-				t.Errorf("release resource: %v", err)
-			}
-		}
-	}
-	t.Cleanup(release)
 	return release
 }
 
@@ -177,8 +186,11 @@ func waitFor(t *testing.T, what string, done func() bool) {
 func (f *deployFixture) heartbeatAt(t *testing.T) *time.Time {
 	t.Helper()
 	var at *time.Time
-	if err := f.pool.QueryRow(t.Context(),
-		`SELECT last_heartbeat FROM clusters WHERE id = $1`, f.clusterID).Scan(&at); err != nil {
+	if err := f.pool.QueryRow(
+		t.Context(),
+		`SELECT (SELECT last_heartbeat FROM cluster_heartbeats WHERE cluster_id = $1)`,
+		f.clusterID,
+	).Scan(&at); err != nil {
 		t.Fatal(err)
 	}
 	return at
@@ -282,7 +294,7 @@ func TestHeartbeatsFlowWhileAReportWaitsForAWrite(t *testing.T) {
 				held = f.resourceID
 			}
 			if _, err := f.pool.Exec(t.Context(),
-				`UPDATE clusters SET last_heartbeat = NULL WHERE id = $1`, f.clusterID); err != nil {
+				`DELETE FROM cluster_heartbeats WHERE cluster_id = $1`, f.clusterID); err != nil {
 				t.Fatal(err)
 			}
 			release := holdRow(t, f.deployFixture, tc.lock, held)
@@ -333,8 +345,12 @@ func TestHeartbeatsFlowWhileStartingQueuedBuildsWaitsForAWrite(t *testing.T) {
 				held = f.resourceID
 			}
 			if _, err := f.pool.Exec(t.Context(),
-				`UPDATE clusters SET last_heartbeat = NULL, role = $2 WHERE id = $1`,
+				`UPDATE clusters SET role = $2 WHERE id = $1`,
 				f.clusterID, clusterRoleFromProto(tc.role)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.pool.Exec(t.Context(),
+				`DELETE FROM cluster_heartbeats WHERE cluster_id = $1`, f.clusterID); err != nil {
 				t.Fatal(err)
 			}
 			release := holdRow(t, f.deployFixture, tc.lock, held)
@@ -388,7 +404,7 @@ func TestAQueuedBuildIsSentWhileALaterBuildWaitsForAWrite(t *testing.T) {
 	first := f.queued(t)
 	second := f.insertBuild(t, genDb.BuildStatusQueued)
 	if _, err := f.pool.Exec(t.Context(),
-		`UPDATE clusters SET last_heartbeat = NULL WHERE id = $1`, f.clusterID); err != nil {
+		`DELETE FROM cluster_heartbeats WHERE cluster_id = $1`, f.clusterID); err != nil {
 		t.Fatal(err)
 	}
 	release := holdRow(t, f.deployFixture, `SELECT id FROM builds WHERE id = $1 FOR UPDATE`, uuid.MustParse(second))

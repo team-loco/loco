@@ -13,6 +13,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/tracingtest"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
 func waitForSpan(t *testing.T, recorder *tracetest.SpanRecorder, name string) sdktrace.ReadOnlySpan {
@@ -85,8 +86,8 @@ func TestSyncSpansStartTheirOwnTracesLinkedToTheDeployRequest(t *testing.T) {
 		}
 	}
 	ended := len(recorder.Ended())
-	heartbeat := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: &agentv1.Heartbeat{}}}
-	if err := session.handle(t.Context(), heartbeat); err != nil {
+	heartbeat := heartbeatMessage(&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
+	if err := session.handleNow(t.Context(), heartbeat); err != nil {
 		t.Fatalf("handle heartbeat: %v", err)
 	}
 	if got := len(recorder.Ended()); got != ended {

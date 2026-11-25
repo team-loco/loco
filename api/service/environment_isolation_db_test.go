@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 
@@ -99,18 +100,17 @@ SELECT id, $2, $3, 'custom', true FROM resources WHERE slug = $1`
 
 func TestPlanAcceptsOnlyRegionsWithAHealthyCluster(t *testing.T) {
 	t.Parallel()
-	cases := map[string]string{
-		"no healthy cluster":   `UPDATE clusters SET health_status = 'unhealthy', last_heartbeat = NOW()`,
-		"health never checked": `UPDATE clusters SET health_status = NULL, last_heartbeat = NOW()`,
-		"heartbeat stale": `UPDATE clusters SET health_status = 'healthy',
-			last_heartbeat = NOW() - INTERVAL '1 hour'`,
+	cases := map[string]struct {
+		at     time.Duration
+		health string
+	}{
+		"no healthy cluster": {0, clusterHealthUnhealthy},
+		"heartbeat stale":    {-time.Hour, clusterHealthHealthy},
 	}
-	for name, update := range cases {
+	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := newDeployFixture(t)
-			if _, err := f.pool.Exec(context.Background(), update); err != nil {
-				t.Fatalf("update clusters: %v", err)
-			}
+			setHeartbeats(t, f.pool, time.Now().Add(tc.at), tc.health)
 			resp, err := plan(t, f, planFileHeader+planFileNew, f.workspaceReadScopes(t))
 			if err != nil {
 				t.Fatalf("Plan: %v", err)

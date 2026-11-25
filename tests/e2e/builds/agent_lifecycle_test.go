@@ -46,20 +46,17 @@ func TestAgentLifecycle(t *testing.T) {
 	})
 
 	t.Run("heartbeat and capacity", func(t *testing.T) {
-		waitHeartbeat(t, 30*time.Second, "the agent's first heartbeat")
-		var health string
-		var cpu, memory int64
-		if err := p.DB.QueryRow(t.Context(), clusterHealth,
-			p.ClusterID).
-			Scan(&health, &cpu, &memory); err != nil {
-			t.Fatal(err)
-		}
-		if health != "healthy" {
-			t.Errorf("cluster health %q, want healthy", health)
-		}
-		if cpu <= 0 || memory <= 0 {
-			t.Errorf("agent reported capacity %dm CPU and %d bytes, want both positive", cpu, memory)
-		}
+		platform.Eventually(t, 30*time.Second, "a healthy heartbeat with capacity", func(ctx context.Context) error {
+			var health string
+			var cpu, memory int64
+			if err := p.DB.QueryRow(ctx, clusterHealth, p.ClusterID).Scan(&health, &cpu, &memory); err != nil {
+				return err
+			}
+			if health != "healthy" || cpu <= 0 || memory <= 0 {
+				return fmt.Errorf("health %q, capacity %dm CPU and %d bytes", health, cpu, memory)
+			}
+			return nil
+		})
 	})
 
 	w := p.NewTenant(t)
@@ -148,7 +145,7 @@ func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
 	t.Helper()
 	platform.Eventually(t, timeout, what, func(ctx context.Context) error {
 		var heartbeat bool
-		if err := p.DB.QueryRow(ctx, "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = $1", p.ClusterID).
+		if err := p.DB.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM cluster_heartbeats WHERE cluster_id = $1)", p.ClusterID).
 			Scan(&heartbeat); err != nil {
 			return err
 		}
@@ -161,5 +158,6 @@ func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
 
 const (
 	readyAtRevisionOne = "SELECT ready_replicas > 0 AND observed_revision = 1 FROM placements WHERE resource_id = $1"
-	clusterHealth      = "SELECT health_status, capacity_cpu_millicores, capacity_memory_bytes FROM clusters WHERE id = $1"
+	clusterHealth      = "SELECT health_status, capacity_cpu_millicores, capacity_memory_bytes FROM clusters " +
+		"JOIN cluster_heartbeats ON cluster_id = id WHERE id = $1"
 )

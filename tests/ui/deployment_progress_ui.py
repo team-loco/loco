@@ -222,7 +222,7 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
     sql(
         state,
         f"""BEGIN;
-    UPDATE clusters SET last_heartbeat=NOW() WHERE id='{p["cluster"]}';
+    UPDATE cluster_heartbeats SET last_heartbeat=NOW() WHERE cluster_id='{p["cluster"]}';
     UPDATE deployments SET status='{status}',updated_at=NOW(),completed_at={completed} WHERE id='{p["current"]}';
     UPDATE deployment_placements SET status='{"pending" if status == "building" else status}',image={"''" if status == "building" else "spec->'build'->>'image'"},started_at={"NOW()" if status == "running" else "NULL"},completed_at={completed},updated_at=NOW()
     FROM deployments WHERE deployments.id=deployment_placements.deployment_id AND deployment_id='{p["current"]}';

@@ -2,10 +2,8 @@ package service
 
 import (
 	"errors"
-	"io"
 	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2/connectinprocess"
 	"connectrpc.com/connect/v2/connectproto"
@@ -197,37 +195,22 @@ func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
 			t.Fatalf("send heartbeat: %v", err)
 		}
 	}
-	if err := stream.CloseSend(); err != nil {
-		t.Fatalf("close sync stream: %v", err)
-	}
-	// The server ends the stream after it has handled every message the agent sent.
-	for {
-		if _, err := stream.Receive(); err != nil {
-			if !errors.Is(err, io.EOF) {
-				t.Fatalf("sync stream: %v", err)
-			}
-			break
-		}
-	}
-	if got := role(); got != genDb.ClusterRoleAll {
-		t.Fatalf("role = %s after a heartbeat reporting all", got)
-	}
+	waitFor(t, "role all after a heartbeat reporting all", func() bool { return role() == genDb.ClusterRoleAll })
 }
 
 func TestBuildSelectionRequiresHealthyRecentHeartbeats(t *testing.T) {
 	t.Parallel()
-	for _, invalid := range []string{
-		"last_heartbeat = $2", "last_heartbeat = NULL", "health_status = 'unhealthy'", "health_status = 'degraded'",
+	for name, invalid := range map[string]string{
+		"stale":     "UPDATE cluster_heartbeats SET last_heartbeat = NOW() - INTERVAL '1 day' WHERE cluster_id = $1",
+		"never":     "DELETE FROM cluster_heartbeats WHERE cluster_id = $1",
+		"unhealthy": "UPDATE cluster_heartbeats SET health_status = 'unhealthy' WHERE cluster_id = $1",
+		"degraded":  "UPDATE cluster_heartbeats SET health_status = 'degraded' WHERE cluster_id = $1",
 	} {
-		t.Run(invalid, func(t *testing.T) {
+		t.Run(name, func(t *testing.T) {
 			f := newBuildFixture(t)
 			invalidate := func(id uuid.UUID) {
 				t.Helper()
-				args := []any{id}
-				if invalid == "last_heartbeat = $2" {
-					args = append(args, time.Now().Add(-2*testClusterSilentAfter))
-				}
-				if _, err := f.pool.Exec(f.ctx, "UPDATE clusters SET "+invalid+" WHERE id = $1", args...); err != nil {
+				if _, err := f.pool.Exec(f.ctx, invalid, id); err != nil {
 					t.Fatal(err)
 				}
 			}

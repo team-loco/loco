@@ -269,7 +269,7 @@ results = []
 with session(out) as browser:
     sql(
         state,
-        f"UPDATE clusters SET last_heartbeat=NOW() WHERE id IN (SELECT dp.cluster_id FROM deployment_placements dp JOIN deployments d ON d.id=dp.deployment_id WHERE d.resource_id='{data['resource']}');",
+        f"UPDATE cluster_heartbeats SET last_heartbeat=NOW() WHERE cluster_id IN (SELECT dp.cluster_id FROM deployment_placements dp JOIN deployments d ON d.id=dp.deployment_id WHERE d.resource_id='{data['resource']}');",
     )
     sql(
         state,

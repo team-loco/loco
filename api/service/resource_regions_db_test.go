@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
@@ -173,7 +175,10 @@ func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 			case "unknown":
 				targets["unknown"] = proto.CloneOf(targets[testRegion])
 			case "offline":
-				if _, err := f.pool.Exec(t.Context(), "UPDATE clusters SET health_status = 'unhealthy'"); err != nil {
+				if _, err := f.pool.Exec(
+					t.Context(),
+					"UPDATE cluster_heartbeats SET health_status = 'unhealthy'",
+				); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -237,23 +242,19 @@ func TestUpdateResourceRegionsValidatesEveryEnvironmentAtomically(t *testing.T) 
 	targets, revision := regionTargets(t, f)
 	targets[otherRegion] = proto.CloneOf(targets[testRegion])
 	insert := `
-INSERT INTO clusters(platforms, name,region,provider,is_active,is_default,health_status,last_heartbeat)
-VALUES(ARRAY['linux/amd64'], 'extra',$1,'kind',true,false,'unhealthy',NOW())`
-	if _, err := f.pool.Exec(t.Context(), insert, otherRegion); err != nil {
+INSERT INTO clusters(platforms, name,region,provider,is_active,is_default)
+VALUES(ARRAY['linux/amd64'], 'extra',$1,'kind',true,false) RETURNING id`
+	var extra uuid.UUID
+	if err := f.pool.QueryRow(t.Context(), insert, otherRegion).Scan(&extra); err != nil {
 		t.Fatal(err)
 	}
+	setHeartbeats(t, f.pool, time.Now(), clusterHealthUnhealthy, extra)
 	before := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`)
 	wantCode(t, updateResourceRegions(t, f, targets, revision), connect.CodeFailedPrecondition)
 	if after := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`); after != before {
 		t.Fatal("invalid multi-environment update deployed partially")
 	}
-	if _, err := f.pool.Exec(
-		t.Context(),
-		`UPDATE clusters SET health_status='healthy' WHERE region=$1`,
-		otherRegion,
-	); err != nil {
-		t.Fatal(err)
-	}
+	setHeartbeats(t, f.pool, time.Now(), clusterHealthHealthy, extra)
 	if err := updateResourceRegions(t, f, targets, revision); err != nil {
 		t.Fatal(err)
 	}

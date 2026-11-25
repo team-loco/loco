@@ -60,18 +60,20 @@ func (f *deployFixture) setClusterDomains(t *testing.T, clusterID uuid.UUID, dom
 func (f *deployFixture) addRegionCluster(t *testing.T, domains ...string) {
 	t.Helper()
 	insert := `
-INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat, domains)
-VALUES (ARRAY['linux/amd64'], $1, $2, 'kind', true, true, 'healthy', NOW(), $3)`
+INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, domains)
+VALUES (ARRAY['linux/amd64'], $1, $2, 'kind', true, true, $3) RETURNING id`
 	served := append([]string{}, domains...)
-	if _, err := f.pool.Exec(
+	var id uuid.UUID
+	if err := f.pool.QueryRow(
 		context.Background(),
 		insert,
 		domainsSecondCluster,
 		statusSecondRegion,
 		served,
-	); err != nil {
+	).Scan(&id); err != nil {
 		t.Fatalf("add region cluster: %v", err)
 	}
+	setHeartbeats(t, f.pool, time.Now(), clusterHealthHealthy, id)
 }
 
 func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
@@ -94,15 +96,16 @@ func TestRegisterAndHeartbeatRecordTheReportedDomains(t *testing.T) {
 	}
 
 	server := e.agentServer()
-	server.recordHeartbeat(
-		t.Context(),
+	reportCapabilities(
+		t,
+		server,
 		clusterID,
 		&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Domains: []string{domainsThird}},
 	)
 	if got := e.clusterDomains(t, clusterID); !slices.Equal(got, []string{domainsThird}) {
 		t.Fatalf("domains after heartbeat = %v, want [c.test]", got)
 	}
-	server.recordHeartbeat(t.Context(), clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
+	reportCapabilities(t, server, clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
 	if got := e.clusterDomains(t, clusterID); len(got) != 0 {
 		t.Fatalf("domains after an empty heartbeat = %v, want none", got)
 	}
@@ -313,9 +316,8 @@ VALUES ($1, $2, $3, 'app', 'app', $4, true)`
 		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 	})
 
-	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, &agentv1.Heartbeat{
-		Role:   clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-		Health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
+	reportCapabilities(t, f.agentServer(), f.clusterID, &agentv1.Heartbeat{
+		Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 	})
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
@@ -326,9 +328,8 @@ VALUES ($1, $2, $3, 'app', 'app', $4, true)`
 		t.Fatalf("%d domains after the cluster dropped the domain, want the assignment kept", n)
 	}
 
-	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, &agentv1.Heartbeat{
+	reportCapabilities(t, f.agentServer(), f.clusterID, &agentv1.Heartbeat{
 		Role:    clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-		Health:  &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
 		Domains: []string{testAppDomain},
 	})
 	f.heartbeat(t, f.clusterID, time.Now(), clusterHealthHealthy)

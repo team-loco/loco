@@ -11,17 +11,30 @@ SET agent_version = $2,
     updated_at = NOW()
 WHERE id = $1;
 
--- name: UpdateClusterHeartbeat :exec
+-- name: RecordClusterHeartbeat :exec
+INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
+SELECT id, sqlc.arg(last_heartbeat)::timestamptz, sqlc.arg(health_status)::text
+FROM clusters WHERE id = sqlc.arg(id) AND removed_at IS NULL
+FOR KEY SHARE
+ON CONFLICT (cluster_id) DO UPDATE
+SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_status;
+
+-- name: UpdateClusterReport :exec
+-- Matches only a changed report from the current stream; an unchanged one takes no lock on the cluster.
 UPDATE clusters
-SET last_heartbeat = $2,
-    capacity_cpu_millicores = $3,
-    capacity_memory_bytes = $4,
-    health_status = $5,
-    role = $6,
+SET capacity_cpu_millicores = sqlc.arg(capacity_cpu_millicores)::bigint,
+    capacity_memory_bytes = sqlc.arg(capacity_memory_bytes)::bigint,
+    role = sqlc.arg(role)::cluster_role,
     domains = sqlc.arg(domains)::text[],
     platforms = sqlc.arg(platforms)::text[],
     updated_at = NOW()
-WHERE id = $1 AND removed_at IS NULL;
+WHERE id = sqlc.arg(id) AND removed_at IS NULL AND sync_generation = sqlc.arg(generation)
+  AND (capacity_cpu_millicores, capacity_memory_bytes, role, domains, platforms) IS DISTINCT FROM
+      (sqlc.arg(capacity_cpu_millicores)::bigint, sqlc.arg(capacity_memory_bytes)::bigint,
+       sqlc.arg(role)::cluster_role, sqlc.arg(domains)::text[], sqlc.arg(platforms)::text[]);
+
+-- name: DeleteClusterHeartbeat :exec
+DELETE FROM cluster_heartbeats WHERE cluster_id = $1;
 
 -- name: GetClusterRole :one
 SELECT role FROM clusters WHERE id = $1;
@@ -30,7 +43,7 @@ SELECT role FROM clusters WHERE id = $1;
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
+FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
 WHERE id = $1;
 
 -- name: CreateCluster :exec
@@ -85,7 +98,8 @@ DELETE FROM cluster_assertions WHERE expires_at < NOW();
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
        last_heartbeat, agent_version, agent_public_key, role, domains
-FROM clusters ORDER BY created_at, id;
+FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
+ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one
 SELECT id, is_active, removed_at FROM clusters WHERE id = $1 FOR UPDATE;
@@ -99,8 +113,6 @@ UPDATE clusters
 SET is_active = sqlc.arg(active),
     removed_at = CASE WHEN sqlc.arg(remove_cluster)::boolean THEN NOW()
                       WHEN sqlc.arg(restore_cluster)::boolean THEN NULL ELSE removed_at END,
-    last_heartbeat = CASE WHEN sqlc.arg(restore_cluster)::boolean THEN NULL ELSE last_heartbeat END,
-    health_status = CASE WHEN sqlc.arg(restore_cluster)::boolean THEN NULL ELSE health_status END,
     join_token_hash = CASE WHEN sqlc.arg(remove_cluster)::boolean THEN NULL ELSE join_token_hash END,
     sync_generation = sync_generation + CASE
         WHEN sqlc.arg(remove_cluster)::boolean OR sqlc.arg(restore_cluster)::boolean THEN 1 ELSE 0 END,

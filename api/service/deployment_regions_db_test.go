@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -34,12 +35,13 @@ func (f *deployFixture) getDeployment(t *testing.T, id string) *deploymentv1.Dep
 func (f *deployFixture) addOtherRegionCluster(t *testing.T) uuid.UUID {
 	t.Helper()
 	addCluster := `
-INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat)
-VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
+INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
+VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false) RETURNING id`
 	var id uuid.UUID
 	if err := f.pool.QueryRow(context.Background(), addCluster, otherRegion).Scan(&id); err != nil {
 		t.Fatalf("add cluster: %v", err)
 	}
+	setHeartbeats(t, f.pool, time.Now(), clusterHealthHealthy, id)
 	return id
 }
 
