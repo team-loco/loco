@@ -263,7 +263,7 @@ export function LogDetail({
 			</div>
 			<div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-6 pt-5 pb-6">
 				{msgText !== "" && (
-					<section aria-label="Message" className="flex flex-col gap-2">
+					<section aria-label="Message" className="flex shrink-0 flex-col gap-2">
 						<h3 className="m-0 text-[12.5px] font-normal text-fg3">Message</h3>
 						<PlainCode
 							copied={copied === "msg"}
@@ -277,8 +277,8 @@ export function LogDetail({
 						</PlainCode>
 					</section>
 				)}
-				<div className="flex flex-col gap-2">
-					<div className="flex items-center gap-2">
+				<div className={cn("flex flex-col gap-2", showJson && "min-h-[160px] flex-1")}>
+					<div className="flex shrink-0 items-center gap-2">
 						<ToggleGroup
 							variant="segmented"
 							aria-label="Detail view"
@@ -307,7 +307,7 @@ export function LogDetail({
 						<PlainCode
 							copied={copied === "json"}
 							copyLabel="Copy JSON"
-							className="max-h-none"
+							fill
 							onCopy={() => {
 								copy("json", json, "Copied as JSON");
 							}}

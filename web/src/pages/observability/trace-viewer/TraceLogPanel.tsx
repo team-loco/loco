@@ -199,7 +199,7 @@ export function TraceLogPanel({
 					<>
 						<TabsContent data-trace-log-scroll value="logs" className="min-h-0 flex-1 overflow-auto">
 							{opened !== null ? (
-								<aside aria-label="Log line" className="flex min-w-0 flex-col">
+								<aside aria-label="Log line" className="flex h-full min-w-0 flex-col">
 									<LogDetail
 										row={opened}
 										title="h3"

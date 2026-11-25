@@ -154,6 +154,7 @@ export function PlainCode({
 	onCopy,
 	wrap = true,
 	onWrap,
+	fill = false,
 	className,
 }: {
 	children: ReactNode;
@@ -162,10 +163,17 @@ export function PlainCode({
 	onCopy: () => void;
 	wrap?: boolean;
 	onWrap?: ((wrap: boolean) => void) | undefined;
+	fill?: boolean;
 	className?: string | undefined;
 }) {
 	return (
-		<div data-slot="code-block" className="relative rounded-lg bg-panel shadow-[inset_0_0_0_1px_var(--line)]">
+		<div
+			data-slot="code-block"
+			className={cn(
+				"relative rounded-lg bg-panel shadow-[inset_0_0_0_1px_var(--line)]",
+				fill && "flex min-h-0 flex-1 flex-col",
+			)}
+		>
 			{onWrap !== undefined && (
 				<Button
 					variant="ghost"
@@ -193,7 +201,8 @@ export function PlainCode({
 			</Button>
 			<pre
 				className={cn(
-					"m-0 max-h-[320px] overflow-auto py-3 pl-3.5 font-mono text-[11.5px] leading-[1.55] text-foreground",
+					"m-0 overflow-auto py-3 pl-3.5 font-mono text-[11.5px] leading-[1.55] text-foreground",
+					fill ? "min-h-0 flex-1" : "max-h-[320px]",
 					onWrap === undefined ? "pr-11" : "pr-[76px]",
 					wrap ? "break-words whitespace-pre-wrap" : "whitespace-pre",
 					className,

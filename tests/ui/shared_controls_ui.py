@@ -707,7 +707,11 @@ def log_drawer(page):
     expect(detail.get_by_text("@k8s.cluster.name", exact=True)).to_have_count(0)
     expect(detail.get_by_role("textbox", name="Filter attributes")).to_have_count(0)
     json_view = detail.locator("[data-slot=code-block] pre").last
-    assert json_view.bounding_box()["height"] > 320
+    viewer = json_view.bounding_box()
+    drawer = detail.bounding_box()
+    assert viewer["height"] > 320
+    assert viewer["y"] + viewer["height"] <= drawer["y"] + drawer["height"]
+    assert json_view.evaluate("el => el.scrollHeight > el.clientHeight")
     expect(json_view).to_contain_text(f'"{image_digest}"')
     wrap = detail.get_by_role("button", name="Wrap lines", exact=True)
     expect(wrap).to_have_attribute("aria-pressed", "true")
