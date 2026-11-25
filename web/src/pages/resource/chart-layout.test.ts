@@ -4,16 +4,21 @@ import { chartMax, fitLabel, limitLabelX, placeMarkers } from "./chart-layout";
 
 describe("chartMax", () => {
 	test("leaves room above the limit", () => {
-		expect(chartMax(0.4, 1)).toBe(1.25);
-		expect(chartMax(1, 100)).toBe(125);
-		expect(chartMax(8, 256)).toBe(320);
-		expect(chartMax(0.1, 2048)).toBe(2560);
+		expect(chartMax(0.4, 1, 1)).toBe(1.25);
+		expect(chartMax(1, 100, 100)).toBe(125);
+		expect(chartMax(8, 256, 256)).toBe(320);
+		expect(chartMax(0.1, 2048, 2048)).toBe(2560);
+	});
+
+	test("expands for older limits only when they need more space", () => {
+		expect(chartMax(20, 100, 110)).toBe(125);
+		expect(chartMax(20, 100, 200)).toBeGreaterThan(200);
 	});
 
 	test("rises to the peak when it passes the limit", () => {
-		expect(chartMax(3, 1)).toBeGreaterThan(3);
-		expect(chartMax(300, 100) / 100).toBe(chartMax(768, 256) / 256);
-		expect(chartMax(0, 0)).toBeGreaterThan(0);
+		expect(chartMax(3, 1, 1)).toBeGreaterThan(3);
+		expect(chartMax(300, 100, 100) / 100).toBe(chartMax(768, 256, 256) / 256);
+		expect(chartMax(0, 0, 0)).toBeGreaterThan(0);
 	});
 });
 

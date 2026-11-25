@@ -5,8 +5,8 @@ const MARKER_PAD_PX = 5;
 const MIN_LABEL_CHARS = 3;
 
 /** Keep the limit at 80% of the plot unless the data needs more room. */
-export function chartMax(peak: number, limit: number): number {
-	return Math.max(1e-9, peak * HEADROOM, limit * LIMIT_HEADROOM);
+export function chartMax(peak: number, limit: number, historicalLimit: number): number {
+	return Math.max(1e-9, Math.max(peak, historicalLimit) * HEADROOM, limit * LIMIT_HEADROOM);
 }
 
 export interface PlacedMarker {

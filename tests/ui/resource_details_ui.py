@@ -180,8 +180,10 @@ with session(out) as browser:
     cpu_limit = chart.get_by_text("limit 0.5 vCPU", exact=True)
     memory_limit = memory.get_by_text("limit 512 Mi", exact=True)
     expect(memory_limit).to_be_visible()
-    expect(chart.get_by_text("0.125", exact=True)).to_be_visible()
-    expect(memory.get_by_text("128", exact=True)).to_be_visible()
+    for label in ("0", "0.125", "0.25", "0.375", "0.5"):
+        expect(chart.get_by_text(label, exact=True)).to_be_visible()
+    for label in ("0", "128", "256", "384", "512"):
+        expect(memory.get_by_text(label, exact=True)).to_be_visible()
     assert abs(cpu_limit.bounding_box()["y"] - memory_limit.bounding_box()["y"]) < 1
     ticks = chart.locator(".recharts-xAxis-tick-labels text")
     expect(ticks.nth(2)).to_be_visible()
