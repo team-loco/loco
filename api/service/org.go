@@ -411,15 +411,19 @@ func (s *OrgServer) DeleteOrg(
 		if hasResources {
 			return ErrOrgHasWorkspacesWithResources
 		}
-		if deleteErr := qtx.DeleteOrg(ctx, orgID); deleteErr != nil {
-			return fmt.Errorf("delete organization: %w", deleteErr)
-		}
-		return events.Record(ctx, qtx, events.Event{
+		// Recorded first: deleting the organization removes the actor's roles in it.
+		if recordErr := events.Record(ctx, qtx, events.Event{
 			Type:        events.OrgDeleted,
 			OrgID:       new(orgID),
 			SubjectType: events.SubjectOrg,
 			SubjectID:   new(orgID),
-		})
+		}); recordErr != nil {
+			return recordErr
+		}
+		if deleteErr := qtx.DeleteOrg(ctx, orgID); deleteErr != nil {
+			return fmt.Errorf("delete organization: %w", deleteErr)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

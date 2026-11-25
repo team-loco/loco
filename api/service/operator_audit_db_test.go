@@ -10,6 +10,7 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -300,5 +301,19 @@ func TestMemberCannotListInstallationEvents(t *testing.T) {
 	})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("installation_only with org_id: code = %v, want InvalidArgument", connect.CodeOf(err))
+	}
+}
+
+func TestOwnerDeletingTheirOrganizationIsNotMarked(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	orgs := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
+	if _, err := orgs.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID}); err != nil {
+		t.Fatalf("delete org: %v", err)
+	}
+	for _, e := range dbtest.Events(t, f.pool) {
+		if e.Type == events.OrgDeleted && e.ActedAsOperator {
+			t.Fatalf("org.deleted by the owner is marked: %+v", e)
+		}
 	}
 }
