@@ -25,14 +25,14 @@ const (
 
 	maxNtfyMessage = 300
 	defaultTag     = "bell"
-	tagCluster     = "cluster"
 )
 
 type notification struct {
 	Title    string
 	Message  string
 	Priority int
-	Tags     []string
+	// Tags is a comma-separated list of ntfy tags.
+	Tags string
 	// Click is the dashboard page the notification opens; empty when the event has none.
 	Click string
 }
@@ -66,34 +66,34 @@ func notificationFor(
 	n := notification{Priority: ntfyDefault}
 	switch row.Type {
 	case events.BuildFailed:
-		n.Title, n.Priority, n.Tags = "Build failed", ntfyHigh, []string{"x"}
+		n.Title, n.Priority, n.Tags = "Build failed", ntfyHigh, "x"
 		n.Message = fmt.Sprintf("Build of %s failed: %s", where, data.Message)
 	case events.DeploymentFailed:
-		n.Title, n.Priority, n.Tags = "Deployment failed", ntfyHigh, []string{"x"}
+		n.Title, n.Priority, n.Tags = "Deployment failed", ntfyHigh, "x"
 		n.Message = fmt.Sprintf("Deployment of %s failed: %s", where, data.Message)
 	case events.DeploymentCrashed:
-		n.Title, n.Priority, n.Tags = "Deployment crashed", ntfyHigh, []string{"x"}
+		n.Title, n.Priority, n.Tags = "Deployment crashed", ntfyHigh, "x"
 		n.Message = fmt.Sprintf("Deployment of %s keeps restarting: %s", where, data.Message)
 	case events.ClusterSilent:
-		n.Title, n.Priority, n.Tags = "Cluster silent", ntfyUrgent, []string{"rotating_light", tagCluster}
+		n.Title, n.Priority, n.Tags = "Cluster silent", ntfyUrgent, "rotating_light,cluster"
 		n.Message = fmt.Sprintf("Cluster %s stopped reporting.", cluster)
 	case events.ClusterRecovered:
-		n.Title, n.Tags = "Cluster recovered", []string{"white_check_mark", tagCluster}
+		n.Title, n.Tags = "Cluster recovered", "white_check_mark,cluster"
 		n.Message = fmt.Sprintf(
 			"Cluster %s reports again after %s.",
 			cluster,
 			time.Duration(data.SilentSeconds*float64(time.Second)).Round(time.Second),
 		)
 	case events.ClusterHealthChanged:
-		n.Title, n.Tags = "Cluster health changed", []string{"warning", tagCluster}
+		n.Title, n.Tags = "Cluster health changed", "warning,cluster"
 		n.Message = fmt.Sprintf(
 			"Cluster %s went from %s to %s.", cluster, data.Old, data.New,
 		)
 	case events.OrgSuspended:
-		n.Title, n.Tags = "Organization suspended", []string{"no_entry"}
+		n.Title, n.Tags = "Organization suspended", "no_entry"
 		n.Message = fmt.Sprintf("%s was suspended: %s", names.OrgName, data.Reason)
 	default:
-		n.Title, n.Tags = eventTitle(row.Type), []string{defaultTag}
+		n.Title, n.Tags = eventTitle(row.Type), defaultTag
 		n.Message = strings.Join(nonEmpty(where, clusterLabel(data.Name, data.Region)), " / ")
 		if n.Message == "" {
 			n.Message = row.Type
@@ -159,8 +159,8 @@ func (d *Dispatcher) sendNtfy(
 		return err
 	}
 	query := url.Values{"title": {n.Title}, "priority": {strconv.Itoa(n.Priority)}}
-	if len(n.Tags) > 0 {
-		query.Set("tags", strings.Join(n.Tags, ","))
+	if n.Tags != "" {
+		query.Set("tags", n.Tags)
 	}
 	if n.Click != "" {
 		query.Set("click", n.Click)
@@ -175,7 +175,11 @@ func (d *Dispatcher) sendNtfy(
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	res, err := d.installClient.Do(req)
+	client, err := d.clientFor(row.Kind)
+	if err != nil {
+		return err
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}

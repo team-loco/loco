@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 var edgeCluster = map[string]any{events.FieldName: "edge-1", events.FieldRegion: "us-ca-1"}
 
 type ntfyRequest struct {
-	query         map[string][]string
+	query         url.Values
 	body          string
 	authorization string
 	path          string
@@ -117,7 +118,7 @@ func TestNtfyPublishesEachMatchingEventOnce(t *testing.T) {
 	}
 	byTitle := map[string]ntfyRequest{}
 	for _, r := range got {
-		byTitle[r.query["title"][0]] = r
+		byTitle[r.query.Get("title")] = r
 	}
 	silent, suspended := byTitle["Cluster silent"], byTitle["Organization suspended"]
 	if silent.path != "/alerts" {
@@ -126,8 +127,8 @@ func TestNtfyPublishesEachMatchingEventOnce(t *testing.T) {
 	if silent.authorization != "Bearer tk_secret" {
 		t.Errorf("cluster.silent authorization = %q, want the bearer token", silent.authorization)
 	}
-	if silent.query["priority"][0] != "5" {
-		t.Errorf("cluster.silent priority = %q, want 5", silent.query["priority"][0])
+	if silent.query.Get("priority") != "5" {
+		t.Errorf("cluster.silent priority = %q, want 5", silent.query.Get("priority"))
 	}
 	if silent.body != "Cluster edge-1 (us-ca-1) stopped reporting." {
 		t.Errorf("cluster.silent message = %q", silent.body)
@@ -136,8 +137,8 @@ func TestNtfyPublishesEachMatchingEventOnce(t *testing.T) {
 		t.Errorf("org.suspended message = %q", suspended.body)
 	}
 	wantClick := "https://app.loco.test/org/" + f.orgID.String() + "/audit"
-	if suspended.query["click"][0] != wantClick {
-		t.Errorf("org.suspended click = %q, want %q", suspended.query["click"][0], wantClick)
+	if suspended.query.Get("click") != wantClick {
+		t.Errorf("org.suspended click = %q, want %q", suspended.query.Get("click"), wantClick)
 	}
 }
 

@@ -2,7 +2,6 @@ package webhooks
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -162,7 +161,7 @@ func TestNotificationFor(t *testing.T) {
 			if got.Click != tt.click {
 				t.Errorf("click = %q, want %q", got.Click, tt.click)
 			}
-			if strings.Join(got.Tags, ",") != tt.tags {
+			if got.Tags != tt.tags {
 				t.Errorf("tags = %q, want %q", got.Tags, tt.tags)
 			}
 		})
