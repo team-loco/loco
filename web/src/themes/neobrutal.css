@@ -275,16 +275,6 @@
 		border: 2px solid var(--ink);
 		border-radius: 5px;
 	}
-	& .sb-search {
-		border: 2px solid var(--ink);
-		border-radius: 5px;
-		color: var(--fg);
-		box-shadow: 3px 3px 0 0 var(--ink);
-		&:hover {
-			transform: translate(3px, 3px);
-			box-shadow: none;
-		}
-	}
 	& [data-sonner-toast] [data-button][data-action] {
 		background: var(--btn);
 		color: var(--btn-fg);

@@ -129,18 +129,38 @@ with session(out) as browser:
 
     page.goto(base + "/resources")
     header = page.locator('[data-slot="top-bar"]')
-    expect(header.get_by_role("button", name="Search and run commands")).to_have_count(
+    sidebar = page.locator('[data-sidebar="sidebar"]')
+    top_search = header.get_by_role("button", name="Search and run commands")
+    expect(sidebar.get_by_role("button", name="Search and run commands")).to_have_count(
         0
     )
-    search_button = page.get_by_role("button", name="Search and run commands")
-    expect(search_button).to_be_visible()
-    page.get_by_role("button", name="Close sidebar").click()
-    top_search = header.get_by_role("button", name="Search and run commands")
+    label = top_search.get_by_text("Search or jump to…")
     expect(top_search).to_be_visible()
-    expect(top_search).to_contain_text("Search or jump to…")
+    expect(label).to_be_visible()
+    page.get_by_role("button", name="Close sidebar").click()
+    expect(top_search).to_be_visible()
+    expect(label).to_be_visible()
     header.get_by_role("button", name="Open sidebar").click()
-    expect(top_search).to_have_count(0)
-    top_search = search_button
+    expect(label).to_be_visible()
+    crumbs = header.get_by_role("navigation", name="breadcrumb")
+    activity = header.get_by_role("button", name=re.compile("^Workspace activity"))
+    page.set_viewport_size({"width": 800, "height": 800})
+    expect(label).to_be_visible()
+    crumbs_box, search_box, activity_box = (
+        crumbs.bounding_box(),
+        top_search.bounding_box(),
+        activity.bounding_box(),
+    )
+    assert crumbs_box["x"] + crumbs_box["width"] <= search_box["x"] + 1
+    assert search_box["x"] + search_box["width"] <= activity_box["x"] + 1
+    page.set_viewport_size(evidence.NARROW)
+    expect(top_search).to_be_visible()
+    expect(label).to_be_hidden()
+    top_search.click()
+    expect(query).to_be_focused()
+    page.keyboard.press("Escape")
+    expect(palette).to_have_count(0)
+    page.set_viewport_size(evidence.DESKTOP)
     top_search.focus()
     page.keyboard.press("Enter")
     expect(query).to_be_focused()

@@ -1,4 +1,3 @@
-import { useSidebar } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { AlertsDrawer } from "./AlertsDrawer";
@@ -7,20 +6,20 @@ import { ShellBreadcrumb } from "./ShellBreadcrumb";
 import { SidebarToggle } from "./SidebarToggle";
 
 export function TopBar() {
-	const { open, isMobile, openMobile } = useSidebar();
-	const sidebarOpen = isMobile ? openMobile : open;
 	const { activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
 	return (
 		<header
 			data-slot="top-bar"
-			className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line pr-[clamp(16px,3vw,28px)] pl-3 md:rounded-t-overlay"
+			className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b max-[760px]:gap-2 border-line pr-[clamp(16px,3vw,28px)] pl-3 md:rounded-t-overlay"
 		>
 			<SidebarToggle hideWhenOpen className="hover:bg-panel" />
 			<ShellBreadcrumb />
+			<CommandMenu />
 			{/* Each environment gets its own activity drawer, which starts watching for deploys when it mounts. */}
-			<AlertsDrawer key={`${activeWorkspaceId ?? ""}/${active?.id ?? ""}`} />
-			{!sidebarOpen && <CommandMenu />}
+			<div className="flex justify-end min-[761px]:flex-1 min-[761px]:basis-0">
+				<AlertsDrawer key={`${activeWorkspaceId ?? ""}/${active?.id ?? ""}`} />
+			</div>
 		</header>
 	);
 }
