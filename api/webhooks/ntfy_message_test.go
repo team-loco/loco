@@ -2,7 +2,7 @@ package webhooks
 
 import (
 	"fmt"
-	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -17,14 +17,14 @@ func TestNotificationFor(t *testing.T) {
 	names := genDb.GetEventNamesRow{OrgName: "acme", WorkspaceName: "storefront", ResourceName: "web"}
 	resourceURL := fmt.Sprintf("https://app.loco.test/org/%s/wks/%s/resource/%s", org, workspace, resource)
 	tests := []struct {
-		name       string
-		row        genDb.GetWebhookDeliveryPayloadRow
-		names      genDb.GetEventNamesRow
-		title      string
-		message    string
-		priority   int
-		click      string
-		wantTagged string
+		name     string
+		row      genDb.GetWebhookDeliveryPayloadRow
+		names    genDb.GetEventNamesRow
+		title    string
+		message  string
+		priority int
+		click    string
+		tags     string
 	}{
 		{
 			name: "build failure",
@@ -32,12 +32,12 @@ func TestNotificationFor(t *testing.T) {
 				Type: events.BuildFailed, OrgID: &org, WorkspaceID: &workspace, ResourceID: &resource,
 				Data: []byte(`{"message":"exit code 1"}`),
 			},
-			names:      names,
-			title:      "Build failed",
-			message:    "Build of acme / storefront / web failed: exit code 1",
-			priority:   4,
-			click:      resourceURL,
-			wantTagged: "x",
+			names:    names,
+			title:    "Build failed",
+			message:  "Build of acme / storefront / web failed: exit code 1",
+			priority: 4,
+			click:    resourceURL,
+			tags:     "x",
 		},
 		{
 			name: "deployment failure",
@@ -45,32 +45,79 @@ func TestNotificationFor(t *testing.T) {
 				Type: events.DeploymentFailed, OrgID: &org, WorkspaceID: &workspace, ResourceID: &resource,
 				Data: []byte(`{"message":"deploy timed out"}`),
 			},
-			names:      names,
-			title:      "Deployment failed",
-			message:    "Deployment of acme / storefront / web failed: deploy timed out",
-			priority:   4,
-			click:      resourceURL,
-			wantTagged: "x",
+			names:    names,
+			title:    "Deployment failed",
+			message:  "Deployment of acme / storefront / web failed: deploy timed out",
+			priority: 4,
+			click:    resourceURL,
+			tags:     "x",
+		},
+		{
+			name: "deployment crashed",
+			row: genDb.GetWebhookDeliveryPayloadRow{
+				Type: events.DeploymentCrashed, OrgID: &org, WorkspaceID: &workspace, ResourceID: &resource,
+				Data: []byte(`{"message":"restarted 5 times"}`),
+			},
+			names:    names,
+			title:    "Deployment crashed",
+			message:  "Deployment of acme / storefront / web keeps restarting: restarted 5 times",
+			priority: 4,
+			click:    resourceURL,
+			tags:     "x",
+		},
+		{
+			name: "multi-line build failure",
+			row: genDb.GetWebhookDeliveryPayloadRow{
+				Type: events.BuildFailed, OrgID: &org, WorkspaceID: &workspace, ResourceID: &resource,
+				Data: []byte(`{"message":"step 3 failed\n  exit code 1\r\n"}`),
+			},
+			names:    names,
+			title:    "Build failed",
+			message:  "Build of acme / storefront / web failed: step 3 failed exit code 1",
+			priority: 4,
+			click:    resourceURL,
+			tags:     "x",
+		},
+		{
+			name: "event type outside the defaults",
+			row: genDb.GetWebhookDeliveryPayloadRow{
+				Type: events.ClusterRegistered, Data: []byte(`{"name":"edge-1","region":"us-ca-1"}`),
+			},
+			title:    "Cluster registered",
+			message:  "edge-1 (us-ca-1)",
+			priority: 3,
+			tags:     "bell",
+		},
+		{
+			name: "recovery after a fractional silence",
+			row: genDb.GetWebhookDeliveryPayloadRow{
+				Type: events.ClusterRecovered,
+				Data: []byte(`{"name":"edge-1","region":"us-ca-1","silentSeconds":90.6}`),
+			},
+			title:    "Cluster recovered",
+			message:  "Cluster edge-1 (us-ca-1) reports again after 1m31s.",
+			priority: 3,
+			tags:     "white_check_mark,cluster",
 		},
 		{
 			name: "cluster silent",
 			row: genDb.GetWebhookDeliveryPayloadRow{
 				Type: events.ClusterSilent, Data: []byte(`{"name":"edge-1","region":"us-ca-1"}`),
 			},
-			title:      "Cluster silent",
-			message:    "Cluster edge-1 (us-ca-1) stopped reporting.",
-			priority:   5,
-			wantTagged: "rotating_light",
+			title:    "Cluster silent",
+			message:  "Cluster edge-1 (us-ca-1) stopped reporting.",
+			priority: 5,
+			tags:     "rotating_light,cluster",
 		},
 		{
 			name: "cluster recovered",
 			row: genDb.GetWebhookDeliveryPayloadRow{
 				Type: events.ClusterRecovered, Data: []byte(`{"name":"edge-1","region":"us-ca-1","silentSeconds":600}`),
 			},
-			title:      "Cluster recovered",
-			message:    "Cluster edge-1 (us-ca-1) reports again after 10m0s.",
-			priority:   3,
-			wantTagged: "white_check_mark",
+			title:    "Cluster recovered",
+			message:  "Cluster edge-1 (us-ca-1) reports again after 10m0s.",
+			priority: 3,
+			tags:     "white_check_mark,cluster",
 		},
 		{
 			name: "cluster health changed",
@@ -78,22 +125,22 @@ func TestNotificationFor(t *testing.T) {
 				Type: events.ClusterHealthChanged,
 				Data: []byte(`{"name":"edge-1","region":"us-ca-1","old":"healthy","new":"degraded"}`),
 			},
-			title:      "Cluster health changed",
-			message:    "Cluster edge-1 (us-ca-1) went from healthy to degraded.",
-			priority:   3,
-			wantTagged: "warning",
+			title:    "Cluster health changed",
+			message:  "Cluster edge-1 (us-ca-1) went from healthy to degraded.",
+			priority: 3,
+			tags:     "warning,cluster",
 		},
 		{
 			name: "organization suspended",
 			row: genDb.GetWebhookDeliveryPayloadRow{
 				Type: events.OrgSuspended, OrgID: &org, Data: []byte(`{"reason":"unpaid invoice"}`),
 			},
-			names:      genDb.GetEventNamesRow{OrgName: "acme"},
-			title:      "Organization suspended",
-			message:    "acme was suspended: unpaid invoice",
-			priority:   3,
-			click:      "https://app.loco.test/org/" + org.String() + "/audit",
-			wantTagged: "no_entry",
+			names:    genDb.GetEventNamesRow{OrgName: "acme"},
+			title:    "Organization suspended",
+			message:  "acme was suspended: unpaid invoice",
+			priority: 3,
+			click:    "https://app.loco.test/org/" + org.String() + "/audit",
+			tags:     "no_entry",
 		},
 	}
 	for _, tt := range tests {
@@ -103,10 +150,20 @@ func TestNotificationFor(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.Title != tt.title || got.Message != tt.message || got.Priority != tt.priority ||
-				got.Click != tt.click || !slices.Contains(got.Tags, tt.wantTagged) {
-				t.Errorf("notification = %+v, want title %q, message %q, priority %d, click %q, tag %q",
-					got, tt.title, tt.message, tt.priority, tt.click, tt.wantTagged)
+			if got.Title != tt.title {
+				t.Errorf("title = %q, want %q", got.Title, tt.title)
+			}
+			if got.Message != tt.message {
+				t.Errorf("message = %q, want %q", got.Message, tt.message)
+			}
+			if got.Priority != tt.priority {
+				t.Errorf("priority = %d, want %d", got.Priority, tt.priority)
+			}
+			if got.Click != tt.click {
+				t.Errorf("click = %q, want %q", got.Click, tt.click)
+			}
+			if strings.Join(got.Tags, ",") != tt.tags {
+				t.Errorf("tags = %q, want %q", got.Tags, tt.tags)
 			}
 		})
 	}

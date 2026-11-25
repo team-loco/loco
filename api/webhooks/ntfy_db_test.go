@@ -46,6 +46,12 @@ func newNtfyServer(t *testing.T) *ntfyServer {
 	return s
 }
 
+func (s *ntfyServer) respondWith(status int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.status = status
+}
+
 func (s *ntfyServer) received() []ntfyRequest {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -114,27 +120,29 @@ func TestNtfyPublishesEachMatchingEventOnce(t *testing.T) {
 		byTitle[r.query["title"][0]] = r
 	}
 	silent, suspended := byTitle["Cluster silent"], byTitle["Organization suspended"]
-	if silent.path != "/alerts" || silent.authorization != "Bearer tk_secret" ||
-		silent.query["title"][0] != "Cluster silent" || silent.query["priority"][0] != "5" ||
-		silent.body != "Cluster edge-1 (us-ca-1) stopped reporting." {
-		t.Errorf("cluster.silent publish = %+v", silent)
+	if silent.path != "/alerts" {
+		t.Errorf("cluster.silent path = %q, want /alerts", silent.path)
 	}
-	if suspended.body != "acme was suspended: unpaid" ||
-		suspended.query["click"][0] != "https://app.loco.test/org/"+f.orgID.String()+"/audit" {
-		t.Errorf("org.suspended publish = %+v", suspended)
+	if silent.authorization != "Bearer tk_secret" {
+		t.Errorf("cluster.silent authorization = %q, want the bearer token", silent.authorization)
+	}
+	if silent.query["priority"][0] != "5" {
+		t.Errorf("cluster.silent priority = %q, want 5", silent.query["priority"][0])
+	}
+	if silent.body != "Cluster edge-1 (us-ca-1) stopped reporting." {
+		t.Errorf("cluster.silent message = %q", silent.body)
+	}
+	if suspended.body != "acme was suspended: unpaid" {
+		t.Errorf("org.suspended message = %q", suspended.body)
+	}
+	wantClick := "https://app.loco.test/org/" + f.orgID.String() + "/audit"
+	if suspended.query["click"][0] != wantClick {
+		t.Errorf("org.suspended click = %q, want %q", suspended.query["click"][0], wantClick)
 	}
 }
 
-func TestNtfyFailureIsRetriedAndShownOnTheDelivery(t *testing.T) {
-	f := newFixture(t)
-	server := newNtfyServer(t)
-	server.status = http.StatusServiceUnavailable
-	f.syncNtfy(t, server.srv.URL, "", events.ClusterSilent)
-	f.recordInstall(t, events.ClusterSilent, edgeCluster)
-
-	if _, err := f.ntfyDispatcher().DispatchDue(t.Context()); err != nil {
-		t.Fatal(err)
-	}
+func (f *fixture) ntfyDelivery(t *testing.T) (string, int, string) {
+	t.Helper()
 	var status, lastError string
 	var attempts int
 	if err := f.pool.QueryRow(t.Context(), `
@@ -142,16 +150,44 @@ SELECT status, attempts, COALESCE(last_error, '') FROM webhook_deliveries d JOIN
 WHERE w.kind = 'ntfy'`).Scan(&status, &attempts, &lastError); err != nil {
 		t.Fatal(err)
 	}
-	if status != webhooks.StatusPending || attempts != 1 || lastError == "" {
-		t.Fatalf(
-			"delivery = %s after %d attempts with error %q, want pending after one failed attempt",
-			status,
-			attempts,
-			lastError,
-		)
+	return status, attempts, lastError
+}
+
+func TestNtfyFailureIsShownThenRetriedUntilDelivered(t *testing.T) {
+	f := newFixture(t)
+	server := newNtfyServer(t)
+	server.respondWith(http.StatusServiceUnavailable)
+	f.syncNtfy(t, server.srv.URL, "", events.ClusterSilent)
+	f.recordInstall(t, events.ClusterSilent, edgeCluster)
+	dispatcher := f.ntfyDispatcher()
+
+	if _, err := dispatcher.DispatchDue(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	status, attempts, lastError := f.ntfyDelivery(t)
+	if status != webhooks.StatusPending || attempts != 1 {
+		t.Fatalf("delivery = %s after %d attempts, want pending after one", status, attempts)
+	}
+	if lastError == "" {
+		t.Fatal("failed delivery has no last error")
 	}
 	if got := server.received(); len(got) != 1 || got[0].authorization != "" {
 		t.Fatalf("publishes = %+v, want one without an authorization header", got)
+	}
+
+	server.respondWith(http.StatusOK)
+	if _, err := f.pool.Exec(t.Context(), "UPDATE webhook_deliveries SET next_attempt_at = now()"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dispatcher.DispatchDue(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	status, attempts, _ = f.ntfyDelivery(t)
+	if status != webhooks.StatusSucceeded || attempts != 2 {
+		t.Fatalf("delivery = %s after %d attempts, want succeeded on the second", status, attempts)
+	}
+	if got := server.received(); len(got) != 2 {
+		t.Fatalf("publishes = %d, want the failed one and its retry", len(got))
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -20,7 +19,9 @@ import (
 )
 
 var (
-	ErrNtfyServer    = errors.New("ntfy server must be an http or https URL with a host and no credentials")
+	ErrNtfyServer = errors.New(
+		"ntfy server must be an http or https URL with a host and no credentials, query or fragment",
+	)
 	ErrNtfyTopic     = errors.New("ntfy topic must be 1 to 64 letters, digits, underscores or dashes")
 	ErrNtfyEventType = errors.New("ntfy event types must not contain an empty name")
 	ErrNtfyUnset     = errors.New("ntfy server and topic must be set together")
@@ -56,7 +57,7 @@ func NewNtfyConfig(server, topic, token string, eventTypes []string) (*NtfyConfi
 		return nil, ErrNtfyUnset
 	}
 	u, err := url.Parse(server)
-	if err != nil || u.Hostname() == "" || u.User != nil || (u.Scheme != schemeHTTP && u.Scheme != schemeHTTPS) {
+	if err != nil || !validNtfyServer(u) {
 		return nil, ErrNtfyServer
 	}
 	if !ntfyTopic.MatchString(topic) {
@@ -68,11 +69,25 @@ func NewNtfyConfig(server, topic, token string, eventTypes []string) (*NtfyConfi
 	if len(eventTypes) == 0 {
 		eventTypes = DefaultNtfyEventTypes
 	}
+	topicURL, err := url.JoinPath(server, topic)
+	if err != nil {
+		return nil, ErrNtfyServer
+	}
 	return &NtfyConfig{
-		TopicURL:   strings.TrimRight(server, "/") + "/" + topic,
+		TopicURL:   topicURL,
 		Token:      token,
 		EventTypes: eventTypes,
 	}, nil
+}
+
+// validNtfyServer accepts an http or https URL with a host and no credentials, query or fragment.
+func validNtfyServer(u *url.URL) bool {
+	if u.Scheme != schemeHTTP && u.Scheme != schemeHTTPS {
+		return false
+	}
+	hasHost := u.Hostname() != ""
+	plain := u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == ""
+	return hasHost && plain
 }
 
 // SyncNtfy makes the install's ntfy target match cfg, and removes it when cfg is nil. The access token

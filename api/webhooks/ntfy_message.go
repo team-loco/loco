@@ -24,6 +24,7 @@ const (
 	ntfyUrgent  = 5
 
 	maxNtfyMessage = 300
+	defaultTag     = "bell"
 	tagCluster     = "cluster"
 )
 
@@ -61,7 +62,7 @@ func notificationFor(
 		resource = data.ResourceName
 	}
 	where := strings.Join(nonEmpty(names.OrgName, names.WorkspaceName, resource), " / ")
-	cluster := fmt.Sprintf("%s (%s)", data.Name, data.Region)
+	cluster := clusterLabel(data.Name, data.Region)
 	n := notification{Priority: ntfyDefault}
 	switch row.Type {
 	case events.BuildFailed:
@@ -79,7 +80,9 @@ func notificationFor(
 	case events.ClusterRecovered:
 		n.Title, n.Tags = "Cluster recovered", []string{"white_check_mark", tagCluster}
 		n.Message = fmt.Sprintf(
-			"Cluster %s reports again after %s.", cluster, (time.Duration(data.SilentSeconds) * time.Second).String(),
+			"Cluster %s reports again after %s.",
+			cluster,
+			time.Duration(data.SilentSeconds*float64(time.Second)).Round(time.Second),
 		)
 	case events.ClusterHealthChanged:
 		n.Title, n.Tags = "Cluster health changed", []string{"warning", tagCluster}
@@ -90,11 +93,28 @@ func notificationFor(
 		n.Title, n.Tags = "Organization suspended", []string{"no_entry"}
 		n.Message = fmt.Sprintf("%s was suspended: %s", names.OrgName, data.Reason)
 	default:
-		n.Title, n.Message = row.Type, where
+		n.Title, n.Tags = eventTitle(row.Type), []string{defaultTag}
+		n.Message = strings.Join(nonEmpty(where, clusterLabel(data.Name, data.Region)), " / ")
+		if n.Message == "" {
+			n.Message = row.Type
+		}
 	}
-	n.Message = clip.Bytes(strings.TrimSpace(n.Message), maxNtfyMessage)
+	n.Message = clip.Bytes(strings.Join(strings.Fields(n.Message), " "), maxNtfyMessage)
 	n.Click = clickURL(row, webURL)
 	return n, nil
+}
+
+func clusterLabel(name, region string) string {
+	if name == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s (%s)", name, region)
+}
+
+// eventTitle turns "cluster.registered" into "Cluster registered".
+func eventTitle(eventType string) string {
+	words := strings.NewReplacer(".", " ", "_", " ").Replace(eventType)
+	return strings.ToUpper(words[:1]) + words[1:]
 }
 
 func nonEmpty(values ...string) []string {

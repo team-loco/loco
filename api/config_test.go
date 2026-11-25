@@ -310,10 +310,18 @@ func TestNewAPIConfigReadsNtfy(t *testing.T) {
 	t.Setenv(ntfyURLEnv, "https://ntfy.test/")
 	t.Setenv(ntfyTopicEnv, "alerts")
 	t.Setenv("NTFY_TOKEN", "tk_secret")
-	ac := newAPIConfig()
-	if ac.Ntfy == nil || ac.Ntfy.TopicURL != "https://ntfy.test/alerts" || ac.Ntfy.Token != "tk_secret" ||
-		!slices.Equal(ac.Ntfy.EventTypes, webhooks.DefaultNtfyEventTypes) {
-		t.Fatalf("ntfy = %+v, want the topic URL, token and default event types", ac.Ntfy)
+	ntfy := newAPIConfig().Ntfy
+	if ntfy == nil {
+		t.Fatal("ntfy is off with NTFY_URL and NTFY_TOPIC set")
+	}
+	if ntfy.TopicURL != "https://ntfy.test/alerts" {
+		t.Errorf("topic URL = %q, want https://ntfy.test/alerts", ntfy.TopicURL)
+	}
+	if ntfy.Token != "tk_secret" {
+		t.Errorf("token = %q, want tk_secret", ntfy.Token)
+	}
+	if !slices.Equal(ntfy.EventTypes, webhooks.DefaultNtfyEventTypes) {
+		t.Errorf("event types = %v, want the defaults", ntfy.EventTypes)
 	}
 	t.Setenv("NTFY_EVENT_TYPES", "cluster.silent, build.failed")
 	if types := newAPIConfig().Ntfy.EventTypes; !slices.Equal(types, []string{"cluster.silent", "build.failed"}) {
