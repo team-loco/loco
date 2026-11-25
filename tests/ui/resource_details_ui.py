@@ -205,7 +205,9 @@ with session(out) as browser:
     ).to_be_visible()
     page.get_by_role("tab", name=re.compile(r"^Deployments")).click()
     deployment_row = page.get_by_role("row").filter(has_text=deployment[-8:])
-    expect(deployment_row.get_by_role("cell").nth(-2)).to_have_text("30m ago")
+    expect(deployment_row.get_by_role("cell").filter(has_text="ago")).to_have_text(
+        "30m ago"
+    )
     switcher = page.get_by_role("button", name="Switch resource", exact=True)
     switcher.click()
     current = page.get_by_role("option", name=re.compile(rf"^{name}"))

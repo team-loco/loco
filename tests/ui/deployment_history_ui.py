@@ -385,6 +385,7 @@ with session(out) as browser:
     ).click()
     expect(page.get_by_role("menuitem", name="View spec", exact=True)).to_have_count(0)
     page.keyboard.press("Escape")
+    expect(page.get_by_role("menu")).to_have_count(0)
     section.get_by_role(
         "button",
         name=f"View spec of {data['releases'][1][-8:]}",
