@@ -644,6 +644,7 @@ def log_drawer(page):
             "resourceAttributes": {
                 "container.image.name": image_digest,
                 "k8s.cluster.name": "staging",
+                **{f"test.attribute.{i}": "value" for i in range(30)},
             },
         }
     ]
@@ -666,6 +667,16 @@ def log_drawer(page):
     assert 0 < message_box["y"] - (title_box["y"] + title_box["height"]) <= 40, (
         title_box,
         message_box,
+    )
+    copy_box = detail.get_by_role(
+        "button", name="Copy message", exact=True
+    ).bounding_box()
+    assert (
+        abs(
+            (message_box["y"] + message_box["height"] / 2)
+            - (copy_box["y"] + copy_box["height"] / 2)
+        )
+        <= 2
     )
     for key in ("@container.image.name", "@k8s.cluster.name"):
         label = detail.get_by_text(key, exact=True)
@@ -696,7 +707,14 @@ def log_drawer(page):
     expect(detail.get_by_text("@k8s.cluster.name", exact=True)).to_have_count(0)
     expect(detail.get_by_role("textbox", name="Filter attributes")).to_have_count(0)
     json_view = detail.locator("[data-slot=code-block] pre").last
+    viewer = json_view.bounding_box()
+    drawer = detail.bounding_box()
+    assert viewer["height"] > 320
+    assert viewer["y"] + viewer["height"] <= drawer["y"] + drawer["height"]
+    assert json_view.evaluate("el => el.scrollHeight > el.clientHeight")
     expect(json_view).to_contain_text(f'"{image_digest}"')
+    expect(json_view.locator(".sh__token--property").first).to_be_visible()
+    expect(json_view.locator(".sh__token--string").first).to_be_visible()
     wrap = detail.get_by_role("button", name="Wrap lines", exact=True)
     expect(wrap).to_have_attribute("aria-pressed", "true")
     assert json_view.evaluate("el => el.scrollWidth == el.clientWidth")
@@ -728,6 +746,20 @@ def log_drawer(page):
     handle.dblclick()
     page.wait_for_timeout(100)
     assert abs(detail.bounding_box()["width"] - before) <= 1
+    page.keyboard.press("Escape")
+    entries[0]["body"] = '{"msg":"Structured line","status":200,"cached":true}'
+    page.reload()
+    page.get_by_role("row", name=re.compile(r"Structured line")).click()
+    message = detail.get_by_role("region", name="Message")
+    expect(message.locator(".sh__token--property").first).to_be_visible()
+    expect(message.locator(".sh__token--class")).to_have_text("200")
+    expect(message.locator(".sh__token--keyword")).to_have_text("true")
+    page.keyboard.press("Escape")
+    entries[0]["body"] = ""
+    page.reload()
+    page.get_by_role("region", name="Log lines").get_by_role("row").last.click()
+    expect(detail).to_be_visible()
+    expect(detail.get_by_role("region", name="Message")).to_have_count(0)
     page.keyboard.press("Escape")
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
