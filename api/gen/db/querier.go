@@ -351,8 +351,9 @@ type Querier interface {
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
-	// Ends any silence mark.
-	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) error
+	// Stamps the heartbeat with the database clock under the row lock, so the time never moves backwards, and ends
+	// any silence mark.
+	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) (time.Time, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RegionHasClusters(ctx context.Context, region string) (bool, error)
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error

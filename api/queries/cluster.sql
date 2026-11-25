@@ -15,27 +15,30 @@ WHERE id = $1;
 -- Inserts the cluster's first heartbeat and reports created. A concurrent first heartbeat waits for this one's
 -- commit. Returns nothing for a removed cluster.
 WITH target AS (
-    SELECT id, name, region FROM clusters
+    SELECT id, name, region, is_active FROM clusters
     WHERE id = sqlc.arg(id) AND removed_at IS NULL
     FOR KEY SHARE
 ), inserted AS (
     INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
-    SELECT id, sqlc.arg(last_heartbeat)::timestamptz, sqlc.arg(health_status)::text FROM target
+    SELECT id, clock_timestamp(), sqlc.arg(health_status)::text FROM target
     ON CONFLICT (cluster_id) DO NOTHING
     RETURNING cluster_id
 )
-SELECT target.name, target.region, EXISTS (SELECT 1 FROM inserted)::boolean AS created FROM target;
+SELECT target.name, target.region, target.is_active, EXISTS (SELECT 1 FROM inserted)::boolean AS created
+FROM target;
 
 -- name: LockClusterHeartbeat :one
-SELECT health_status, silent_since FROM cluster_heartbeats WHERE cluster_id = $1 FOR UPDATE;
+SELECT health_status, last_heartbeat, silent_since FROM cluster_heartbeats WHERE cluster_id = $1 FOR UPDATE;
 
--- name: RecordClusterHeartbeat :exec
--- Ends any silence mark.
+-- name: RecordClusterHeartbeat :one
+-- Stamps the heartbeat with the database clock under the row lock, so the time never moves backwards, and ends
+-- any silence mark.
 UPDATE cluster_heartbeats
-SET last_heartbeat = sqlc.arg(last_heartbeat)::timestamptz,
+SET last_heartbeat = GREATEST(last_heartbeat, clock_timestamp()),
     health_status = sqlc.arg(health_status)::text,
     silent_since = NULL
-WHERE cluster_id = sqlc.arg(id);
+WHERE cluster_id = sqlc.arg(id)
+RETURNING last_heartbeat;
 
 -- name: MarkSilentClusters :many
 -- Marks each active cluster whose last heartbeat is older than heard_since and returns it once. The cluster rows

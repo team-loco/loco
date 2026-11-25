@@ -347,19 +347,34 @@ func TestConcurrentFirstHeartbeatsRecordTheHealthChange(t *testing.T) {
 	}
 }
 
-func TestHeartbeatEndsASilenceOnceAndTheNextOutageIsReported(t *testing.T) {
+func (f *deployFixture) setLastHeartbeat(t *testing.T, ago time.Duration) {
+	t.Helper()
+	if _, err := f.pool.Exec(t.Context(),
+		`UPDATE cluster_heartbeats SET last_heartbeat = now() - make_interval(secs => $2) WHERE cluster_id = $1`,
+		f.clusterID, ago.Seconds()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (f *deployFixture) concurrentHeartbeats(server *AgentServer, count int) {
+	var wg sync.WaitGroup
+	for range count {
+		wg.Go(func() { server.recordHeartbeat(context.Background(), f.clusterID, healthyHeartbeat()) })
+	}
+	wg.Wait()
+}
+
+func TestHeartbeatsEndASilenceOnceAndTheNextOutageIsReported(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
-	const silentAfter = time.Minute
 	silence := func() {
 		t.Helper()
-		if _, err := f.pool.Exec(t.Context(),
-			`UPDATE cluster_heartbeats SET last_heartbeat = now() - interval '10 minutes' WHERE cluster_id = $1`,
-			f.clusterID); err != nil {
-			t.Fatal(err)
-		}
-		marked, err := f.queries.MarkSilentClusters(t.Context(), time.Now().Add(-silentAfter))
+		f.setLastHeartbeat(t, 10*time.Minute)
+		marked, err := f.queries.MarkSilentClusters(
+			t.Context(),
+			time.Now().Add(-ClusterSilentAfter(testHeartbeatInterval)),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -370,8 +385,7 @@ func TestHeartbeatEndsASilenceOnceAndTheNextOutageIsReported(t *testing.T) {
 
 	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	silence()
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	f.concurrentHeartbeats(server, 4)
 	recovered := f.clusterEvents(t, "cluster.recovered")
 	if len(recovered) != 1 {
 		t.Fatalf("cluster.recovered events = %v, want one", recovered)
@@ -384,5 +398,59 @@ func TestHeartbeatEndsASilenceOnceAndTheNextOutageIsReported(t *testing.T) {
 	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	if recovered = f.clusterEvents(t, "cluster.recovered"); len(recovered) != 2 {
 		t.Fatalf("cluster.recovered events after a second outage = %d, want 2", len(recovered))
+	}
+}
+
+func TestHeartbeatReportsAnOutageTheSweeperMissed(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := f.agentServer()
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	f.setLastHeartbeat(t, 2*ClusterSilentAfter(testHeartbeatInterval))
+
+	f.concurrentHeartbeats(server, 4)
+	if silent := f.clusterEvents(t, "cluster.silent"); len(silent) != 1 {
+		t.Fatalf("cluster.silent events = %v, want one", silent)
+	}
+	recovered := f.clusterEvents(t, "cluster.recovered")
+	if len(recovered) != 1 {
+		t.Fatalf("cluster.recovered events = %v, want one", recovered)
+	}
+	if seconds, ok := recovered[0]["silentSeconds"].(float64); !ok || seconds < 119 {
+		t.Fatalf("cluster.recovered data = %v, want the gap of about 120 seconds", recovered[0])
+	}
+}
+
+func TestHeartbeatAfterAGapOnAPausedClusterRecordsNoSilence(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := f.agentServer()
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	f.setLastHeartbeat(t, time.Hour)
+	if _, err := f.pool.Exec(
+		t.Context(),
+		`UPDATE clusters SET is_active = false WHERE id = $1`,
+		f.clusterID,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	if silent := f.clusterEvents(t, "cluster.silent"); len(silent) != 0 {
+		t.Fatalf("paused cluster recorded %v", silent)
+	}
+}
+
+func TestHeartbeatTimeNeverMovesBackwards(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := f.agentServer()
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	f.setLastHeartbeat(t, -time.Hour)
+	ahead, _ := f.storedHeartbeat(t)
+
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	if stored, _ := f.storedHeartbeat(t); stored.Before(ahead) {
+		t.Fatalf("heartbeat time moved back from %v to %v", ahead, stored)
 	}
 }
