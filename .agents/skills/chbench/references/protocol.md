@@ -51,7 +51,7 @@ Perform the appropriate reset before every cold sample, not merely once before a
 
 ## Timing and tools
 
-[clickhouse-benchmark](https://clickhouse.com/docs/concepts/features/tools-and-utilities/clickhouse-benchmark) is useful for native SQL latency and load. Check local binary `--help`: newer options may not be in the pinned version. Example inside the owned initiator container, using only synthetic benchmark credentials and one fixed query:
+[clickhouse-benchmark](https://clickhouse.com/docs/concepts/features/tools-and-utilities/clickhouse-benchmark) is the default for SQL latency and load. Check local binary `--help`: newer options may not be in the pinned version. Example inside the owned initiator container, using only synthetic benchmark credentials and one fixed query:
 
 ```sh
 clickhouse-benchmark --host=localhost --database=bench --query='SELECT count() FROM bench.otel_logs' --iterations=1000 --concurrency=1 --delay=0 --client-side-time
@@ -59,7 +59,7 @@ clickhouse-benchmark --host=localhost --database=bench --query='SELECT count() F
 
 This example is a tool smoke test only, not a Loco query benchmark. Use the real query/arguments in actual runs. Capture server-time and client-time separately, and distinguish native client latency from actual Go application latency. For warm runs, collect 1,000+ successful observations per cell where practical; use at least 100 for an exploratory p99 and label it low confidence. Report raw sample count, nearest-rank p50/p90/p95/p99/max, variation across repetitions and failures. Run several independent repetitions and interleave baseline/candidate order; avoid claiming wins inside observed variance. Use concurrency 1, 4, 16, 32 or workload-specific levels, and fixed-arrival-rate tests if the pinned utility supports them. Closed-loop throughput understates queueing under overload; native open-loop reports can exclude client queue wait, so report queued/not-sent requests and do not call those latencies end-to-end queue-inclusive. Abort a failing/overloaded cell with clear evidence; do not keep running forever.
 
-For the Go path record query generation, connection reuse, decoding and returned bytes; keep parallel query execution bounded. Capture all measurements as JSON/CSV or equivalent plus a human-readable table. Use query IDs unique to each run and sample; flush query logs after measurement, not within timed samples. Record per-query duration, read_rows, read_bytes, result_rows/bytes, memory_usage, CPU ProfileEvents and spill indicators from supported system.query_log fields. In distributed runs distinguish coordinator/client wall time from worker work; avoid double counting forwarded counters. Record ingestion/replication status, and note missing instrumentation.
+Measure application-side query generation and decoding separately only when relevant; reuse existing integration tests and add custom measurement code only if the native tool cannot answer the question. Capture all measurements as JSON/CSV or equivalent plus a human-readable table. Use query IDs unique to each run and sample; flush query logs after measurement, not within timed samples. Record per-query duration, read_rows, read_bytes, result_rows/bytes, memory_usage, CPU ProfileEvents and spill indicators from supported system.query_log fields. In distributed runs distinguish coordinator/client wall time from worker work; avoid double counting forwarded counters. Record ingestion/replication status, and note missing instrumentation.
 
 ## Plans
 
