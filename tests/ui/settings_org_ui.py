@@ -60,7 +60,9 @@ with session(out) as browser:
         re.compile(r"^[A-Z][a-z]{2} \d{1,2}, \d{4}$")
     )
 
-    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.evaluate(
+        "window.scrollTo({top: document.body.scrollHeight, behavior: 'instant'})"
+    )
     assert page.evaluate("window.scrollY") > 0
     row.get_by_role("link", name="sibling", exact=True).click()
     page.wait_for_url(re.compile(rf"/wks/{sibling}/settings\?scope=workspace(&|$)"))
