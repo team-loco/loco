@@ -234,9 +234,15 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 }
 
 // recordClusterReport stores what the heartbeat says the cluster runs; a change waits for writes that checked it.
-func (s *AgentServer) recordClusterReport(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {
+func (s *AgentServer) recordClusterReport(
+	ctx context.Context,
+	clusterID uuid.UUID,
+	generation int64,
+	heartbeat *agentv1.Heartbeat,
+) {
 	err := s.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
 		ID:                    clusterID,
+		Generation:            generation,
 		CapacityCpuMillicores: heartbeat.GetCapacity().GetCpuMillicoresTotal(),
 		CapacityMemoryBytes:   heartbeat.GetCapacity().GetMemoryBytesTotal(),
 		Role:                  clusterRoleFromProto(heartbeat.GetRole()),

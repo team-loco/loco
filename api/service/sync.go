@@ -184,6 +184,8 @@ type syncSession struct {
 	settledReady chan struct{}
 	// finishing holds the builds whose finish is recorded but not yet settled, guarded by settledMu.
 	finishing map[uuid.UUID]struct{}
+	// pendingReport holds the newest heartbeat whose capabilities wait in reports, guarded by settledMu.
+	pendingReport *agentv1.Heartbeat
 }
 
 // settleFunc runs on the receive loop, which owns the session's state and the stream's sends.
@@ -447,10 +449,10 @@ func placementMessage(
 	}
 }
 
-// handle records a heartbeat's liveness at once and queues the rest of it and every other report.
+// handle records a heartbeat's liveness at once and queues its capabilities and every other report.
 func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) error {
-	if heartbeat := msg.GetHeartbeat(); heartbeat != nil {
-		return ss.handleHeartbeat(ctx, heartbeat)
+	if heartbeat := msg.GetHeartbeat(); heartbeat != nil && !ss.recordLiveness(ctx, heartbeat) {
+		return nil
 	}
 	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
 		ctx, span := ss.server.requestSpan(ctx, ss.clusterID, msg)
@@ -460,22 +462,37 @@ func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) err
 	})
 }
 
-func (ss *syncSession) handleHeartbeat(ctx context.Context, heartbeat *agentv1.Heartbeat) error {
+// recordLiveness records a valid heartbeat's liveness and reports whether to queue its capabilities. It returns
+// false while an earlier heartbeat's update is still queued; that update then applies this heartbeat's capabilities.
+func (ss *syncSession) recordLiveness(ctx context.Context, heartbeat *agentv1.Heartbeat) bool {
 	// The sync stream bypasses the validation interceptor, and an unknown role cannot be stored.
 	if err := protovalidate.Validate(heartbeat); err != nil {
 		slog.WarnContext(ctx, "ignoring an invalid heartbeat", "error", err, "cluster_id", ss.clusterID)
-		return nil
+		return false
 	}
 	ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
-	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
-		ss.server.recordClusterReport(ctx, ss.clusterID, heartbeat)
-		return nil, nil
-	})
+	ss.settledMu.Lock()
+	defer ss.settledMu.Unlock()
+	queued := ss.pendingReport != nil
+	ss.pendingReport = heartbeat
+	return !queued
+}
+
+// takePendingReport returns the newest heartbeat whose capabilities wait for the worker.
+func (ss *syncSession) takePendingReport() *agentv1.Heartbeat {
+	ss.settledMu.Lock()
+	defer ss.settledMu.Unlock()
+	heartbeat := ss.pendingReport
+	ss.pendingReport = nil
+	return heartbeat
 }
 
 // apply records a report and returns what it changes in the session.
 func (ss *syncSession) apply(ctx context.Context, msg *agentv1.SyncRequest) (settleFunc, error) {
 	switch m := msg.GetMessage().(type) {
+	case *agentv1.SyncRequest_Heartbeat:
+		ss.server.recordClusterReport(ctx, ss.clusterID, ss.generation, ss.takePendingReport())
+		return nil, nil
 	case *agentv1.SyncRequest_Status:
 		ss.server.recordStatus(ctx, ss.clusterID, ss.generation, m.Status)
 		return nil, nil

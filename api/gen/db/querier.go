@@ -396,7 +396,7 @@ type Querier interface {
 	// Cluster queries for agent operations
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
 	UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterLifecycleParams) error
-	// Matches only when the report changed, so an unchanged report takes no lock on the cluster.
+	// Matches only a changed report from the current stream; an unchanged one takes no lock on the cluster.
 	UpdateClusterReport(ctx context.Context, arg UpdateClusterReportParams) error
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)

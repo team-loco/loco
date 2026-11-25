@@ -528,7 +528,7 @@ SET capacity_cpu_millicores = $1::bigint,
     domains = $4::text[],
     platforms = $5::text[],
     updated_at = NOW()
-WHERE id = $6 AND removed_at IS NULL
+WHERE id = $6 AND removed_at IS NULL AND sync_generation = $7
   AND (capacity_cpu_millicores, capacity_memory_bytes, role, domains, platforms) IS DISTINCT FROM
       ($1::bigint, $2::bigint,
        $3::cluster_role, $4::text[], $5::text[])
@@ -541,9 +541,10 @@ type UpdateClusterReportParams struct {
 	Domains               []string    `json:"domains"`
 	Platforms             []string    `json:"platforms"`
 	ID                    uuid.UUID   `json:"id"`
+	Generation            int64       `json:"generation"`
 }
 
-// Matches only when the report changed, so an unchanged report takes no lock on the cluster.
+// Matches only a changed report from the current stream; an unchanged one takes no lock on the cluster.
 func (q *Queries) UpdateClusterReport(ctx context.Context, arg UpdateClusterReportParams) error {
 	_, err := q.db.Exec(ctx, updateClusterReport,
 		arg.CapacityCpuMillicores,
@@ -552,6 +553,7 @@ func (q *Queries) UpdateClusterReport(ctx context.Context, arg UpdateClusterRepo
 		arg.Domains,
 		arg.Platforms,
 		arg.ID,
+		arg.Generation,
 	)
 	return err
 }

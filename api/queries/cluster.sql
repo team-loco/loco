@@ -20,7 +20,7 @@ ON CONFLICT (cluster_id) DO UPDATE
 SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_status;
 
 -- name: UpdateClusterReport :exec
--- Matches only when the report changed, so an unchanged report takes no lock on the cluster.
+-- Matches only a changed report from the current stream; an unchanged one takes no lock on the cluster.
 UPDATE clusters
 SET capacity_cpu_millicores = sqlc.arg(capacity_cpu_millicores)::bigint,
     capacity_memory_bytes = sqlc.arg(capacity_memory_bytes)::bigint,
@@ -28,7 +28,7 @@ SET capacity_cpu_millicores = sqlc.arg(capacity_cpu_millicores)::bigint,
     domains = sqlc.arg(domains)::text[],
     platforms = sqlc.arg(platforms)::text[],
     updated_at = NOW()
-WHERE id = sqlc.arg(id) AND removed_at IS NULL
+WHERE id = sqlc.arg(id) AND removed_at IS NULL AND sync_generation = sqlc.arg(generation)
   AND (capacity_cpu_millicores, capacity_memory_bytes, role, domains, platforms) IS DISTINCT FROM
       (sqlc.arg(capacity_cpu_millicores)::bigint, sqlc.arg(capacity_memory_bytes)::bigint,
        sqlc.arg(role)::cluster_role, sqlc.arg(domains)::text[], sqlc.arg(platforms)::text[]);
