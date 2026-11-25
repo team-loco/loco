@@ -63,7 +63,6 @@ import {
 	resourcesPath,
 	resourceViewParser,
 	switchWorkspacePath,
-	workspacePath,
 	type ObservabilityView,
 } from "@/lib/routes";
 import { shortcutLabel } from "@/lib/keyboard";
@@ -172,7 +171,7 @@ function usePaletteItems(open: boolean, pageItems: readonly PaletteItem[]): Pale
 	if (activeOrgId !== null && activeWorkspaceId !== null) {
 		const orgId = activeOrgId;
 		const workspaceId = activeWorkspaceId;
-		if (pathname === workspacePath(orgId, workspaceId) || pathname === resourcesPath(orgId, workspaceId)) {
+		if (pathname === resourcesPath(orgId, workspaceId)) {
 			items.push(
 				{
 					id: "page-show-map",

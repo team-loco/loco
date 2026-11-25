@@ -103,12 +103,8 @@ with session(out) as browser:
         has=page.get_by_role("link", name="svc-1", exact=True)
     )
     expect(row).to_contain_text(re.compile(r"(just now|\d+[mhd] ago)$"))
-    # The table view reads no environment-wide deployment list; the map reads it while shown.
+    # The dashboard reads no environment-wide deployment list.
     assert all(body.get("pageSize") == 10 for body in listed), listed
-    with expect_rpc(page, "ListDeployments", lambda body: body.get("pageSize") == 200):
-        page.get_by_role("button", name="Map", exact=True).click()
-    expect(page.get_by_role("link", name=re.compile(r"^svc-1\b")).first).to_be_visible()
-    page.get_by_role("button", name="Table", exact=True).click()
 
     row.get_by_role("button", name="Actions for svc-1", exact=True).click()
     menu = page.get_by_role("menu")
