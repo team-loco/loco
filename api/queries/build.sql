@@ -296,6 +296,13 @@ SELECT id FROM resources WHERE id = ANY(sqlc.arg(ids)::uuid[]);
 SELECT id, resource_id, status, finished_at, image_deleted_at FROM builds
 WHERE id = ANY(sqlc.arg(ids)::uuid[]);
 
+-- name: LockResourceDigests :exec
+SELECT pg_advisory_xact_lock(sqlc.arg(class)::int, hashtext(sqlc.arg(resource_id)::uuid::text));
+
+-- name: LockBuildResourceDigests :exec
+SELECT pg_advisory_xact_lock(sqlc.arg(class)::int, hashtext(resource_id::text)) FROM builds
+WHERE id = sqlc.arg(build_id);
+
 -- name: IsBuildDigestLive :one
 SELECT EXISTS (
   SELECT 1 FROM builds

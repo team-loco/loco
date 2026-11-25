@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/advisorylock"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
@@ -77,5 +78,49 @@ func TestFinishingABuildWaitsForTheResourceLockOfANewDeployment(t *testing.T) {
 				t.Fatalf("deployment status = %s after its build finished", got)
 			}
 		})
+	}
+}
+
+func TestRecordingABuildSuccessWaitsForAnImageDeleteOfItsResource(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	buildID := f.queued(t)
+	build := f.row(t, buildID)
+
+	ctx := context.Background()
+	gate, err := f.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if rollbackErr := gate.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			t.Errorf("release gate: %v", rollbackErr)
+		}
+	})
+	if err = genDb.New(gate).LockResourceDigests(ctx, genDb.LockResourceDigestsParams{
+		Class:      advisorylock.BuildDigests,
+		ResourceID: f.resourceID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	finished := make(chan error, 1)
+	go func() {
+		status := buildStatus(build.ID.String(), agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
+		status.ImageDigest = testImageDigest
+		finished <- f.agentServer().recordBuildStatus(f.ctx, *build.ClusterID, build.ID, status)
+	}()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	if got := f.row(t, buildID).Status; got == genDb.BuildStatusSucceeded {
+		t.Fatal("the build succeeded while an image delete of its resource held the lock")
+	}
+	if err = gate.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err = <-finished; err != nil {
+		t.Fatalf("finish build: %v", err)
+	}
+	if got := f.row(t, buildID).Status; got != genDb.BuildStatusSucceeded {
+		t.Fatalf("build status = %s, want succeeded", got)
 	}
 }

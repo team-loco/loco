@@ -268,6 +268,7 @@ type Querier interface {
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (Build, error)
 	LockBuildResource(ctx context.Context, id uuid.UUID) error
+	LockBuildResourceDigests(ctx context.Context, arg LockBuildResourceDigestsParams) error
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error)
 	LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
@@ -283,6 +284,7 @@ type Querier interface {
 	LockOrgResources(ctx context.Context, orgID uuid.UUID) error
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
 	LockPlacementResource(ctx context.Context, arg LockPlacementResourceParams) (uuid.UUID, error)
+	LockResourceDigests(ctx context.Context, arg LockResourceDigestsParams) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) error
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)

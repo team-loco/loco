@@ -1093,6 +1093,35 @@ func (q *Queries) LockBuildResource(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const lockBuildResourceDigests = `-- name: LockBuildResourceDigests :exec
+SELECT pg_advisory_xact_lock($1::int, hashtext(resource_id::text)) FROM builds
+WHERE id = $2
+`
+
+type LockBuildResourceDigestsParams struct {
+	Class   int32     `json:"class"`
+	BuildID uuid.UUID `json:"buildId"`
+}
+
+func (q *Queries) LockBuildResourceDigests(ctx context.Context, arg LockBuildResourceDigestsParams) error {
+	_, err := q.db.Exec(ctx, lockBuildResourceDigests, arg.Class, arg.BuildID)
+	return err
+}
+
+const lockResourceDigests = `-- name: LockResourceDigests :exec
+SELECT pg_advisory_xact_lock($1::int, hashtext($2::uuid::text))
+`
+
+type LockResourceDigestsParams struct {
+	Class      int32     `json:"class"`
+	ResourceID uuid.UUID `json:"resourceId"`
+}
+
+func (q *Queries) LockResourceDigests(ctx context.Context, arg LockResourceDigestsParams) error {
+	_, err := q.db.Exec(ctx, lockResourceDigests, arg.Class, arg.ResourceID)
+	return err
+}
+
 const markBuildImageDeleted = `-- name: MarkBuildImageDeleted :execrows
 UPDATE builds
 SET image_deleted_at = NOW()

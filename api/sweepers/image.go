@@ -198,7 +198,7 @@ func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) 
 	return true, nil
 }
 
-// deleteUnusedManifest deletes digest unless a live build uses it, holding the resource lock build status updates take.
+// deleteUnusedManifest deletes digest unless a live build uses it, under the lock a build's success takes.
 func (s *ImageSweeper) deleteUnusedManifest(
 	ctx context.Context,
 	resourceID uuid.UUID,
@@ -207,12 +207,11 @@ func (s *ImageSweeper) deleteUnusedManifest(
 	deleted := false
 	err := pgx.BeginTxFunc(ctx, s.db, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
 		qtx := genDb.New(tx)
-		locked, err := qtx.LockResources(ctx, []uuid.UUID{resourceID})
-		if err != nil {
-			return fmt.Errorf("lock resource: %w", err)
-		}
-		if len(locked) == 0 {
-			return nil
+		if err := qtx.LockResourceDigests(ctx, genDb.LockResourceDigestsParams{
+			Class:      advisorylock.BuildDigests,
+			ResourceID: resourceID,
+		}); err != nil {
+			return fmt.Errorf("lock resource digests: %w", err)
 		}
 		live, err := qtx.IsBuildDigestLive(ctx, genDb.IsBuildDigestLiveParams{ResourceID: resourceID, Digest: digest})
 		if err != nil {
@@ -221,7 +220,7 @@ func (s *ImageSweeper) deleteUnusedManifest(
 		if live {
 			return nil
 		}
-		// A short deadline bounds how long the delete holds the resource lock; deleteStaleTags retries failures.
+		// A short deadline bounds how long a build's success waits; deleteStaleTags retries failures.
 		deleteCtx, cancel := context.WithTimeout(ctx, manifestDeleteTimeout)
 		defer cancel()
 		if err := s.registry.DeleteManifest(deleteCtx, path, digest); err != nil {

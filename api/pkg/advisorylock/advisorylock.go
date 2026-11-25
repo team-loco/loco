@@ -7,3 +7,6 @@ const (
 	RegistrySweep        int64 = 0x6c6f636f0004
 	PlacementWindowSweep int64 = 0x6c6f636f0005
 )
+
+// BuildDigests is the lock class that orders a build's success against the image sweeper deleting its digests.
+const BuildDigests int32 = 0x6c6f0001

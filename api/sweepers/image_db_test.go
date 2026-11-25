@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/advisorylock"
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/imagepath"
 	"github.com/team-loco/loco/api/pkg/registryclient"
@@ -699,7 +700,7 @@ func TestImageSweepKeepsADigestARebuildRecordsMidSweep(t *testing.T) {
 	}
 }
 
-// sweepWhileBuildSucceeds sweeps while a transaction holding the resource lock records the build's success.
+// sweepWhileBuildSucceeds sweeps while a transaction records the build's success with the locks the status path takes.
 func (f *imageSweepFixture) sweepWhileBuildSucceeds(t *testing.T, buildID uuid.UUID, image, cache string) {
 	t.Helper()
 	tx, err := f.pool.Begin(f.ctx)
@@ -712,6 +713,12 @@ func (f *imageSweepFixture) sweepWhileBuildSucceeds(t *testing.T, buildID uuid.U
 		}
 	})
 	qtx := genDb.New(tx)
+	if err = qtx.LockBuildResourceDigests(f.ctx, genDb.LockBuildResourceDigestsParams{
+		Class:   advisorylock.BuildDigests,
+		BuildID: buildID,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if err = qtx.LockBuildResource(f.ctx, buildID); err != nil {
 		t.Fatal(err)
 	}

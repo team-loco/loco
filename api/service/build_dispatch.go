@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/advisorylock"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -465,7 +466,7 @@ func (s *AgentServer) recordBuildStatus(
 	}
 	var finished *buildSource
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if err := qtx.LockBuildResource(ctx, buildID); err != nil {
+		if err := lockBuildForStatus(ctx, qtx, buildID, status.GetPhase()); err != nil {
 			return err
 		}
 		previous, getErr := qtx.LockBuild(ctx, buildID)
@@ -567,6 +568,19 @@ func (s *AgentServer) recordBuildStatus(
 		deleteBuildSources(ctx, s.queries, s.sources, *finished)
 	}
 	return nil
+}
+
+// lockBuildForStatus locks the build's resource, first taking the digest lock the image sweeper holds while it deletes.
+func lockBuildForStatus(ctx context.Context, qtx *genDb.Queries, buildID uuid.UUID, phase agentv1.BuildPhase) error {
+	if phase == agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED {
+		if err := qtx.LockBuildResourceDigests(ctx, genDb.LockBuildResourceDigestsParams{
+			Class:   advisorylock.BuildDigests,
+			BuildID: buildID,
+		}); err != nil {
+			return fmt.Errorf("lock resource digests: %w", err)
+		}
+	}
+	return qtx.LockBuildResource(ctx, buildID)
 }
 
 func messageOr(message, fallback string) string {
