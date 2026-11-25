@@ -418,6 +418,7 @@ with session(out) as browser:
     )
     desktop = page.viewport_size
     page.set_viewport_size({"width": 390, "height": 844})
+    spec_link.scroll_into_view_if_needed()
     expect(spec_link).to_be_visible()
     spec_link.click()
     expect(spec_dialog).to_be_visible()
