@@ -39,7 +39,7 @@
 	background: var(--panel2);
 	color: var(--fg2);
 }
-.sp-agent-ic svg {
+.sp-agent-ic svg:not([role="img"]) {
 	width: 14px;
 	height: 14px;
 }
