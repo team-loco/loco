@@ -3,6 +3,7 @@ package controlplane
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"maps"
 	"mime"
@@ -245,29 +246,69 @@ func (cp *controlPlane) upgrade(t *testing.T) {
 	cp.waitAPIReady(t)
 }
 
-// waitAPIReady waits until every API pod passes its readiness check and the kubelet marks it Ready.
+// waitAPIReady waits until every API pod passes its readiness check in one round and the kubelet marks it Ready.
 func (cp *controlPlane) waitAPIReady(t *testing.T) {
 	t.Helper()
 	ns := []string{"-n", cp.namespace}
-	container := "{.spec.template.spec.containers[0]"
-	fields := container + ".readinessProbe.httpGet.path} " + container + `.ports[?(@.name=="http")].containerPort}`
-	probe := strings.Fields(
-		c.MustKubectl(t, append(ns, "get", "deployment/"+release+"-api", "-o", "jsonpath="+fields)...),
-	)
-	if len(probe) != 2 {
-		t.Fatalf("the API Deployment's readiness probe and http port are %q", probe)
-	}
+	path, port := cp.apiReadinessProbe(t)
 	selector := "app=" + release + "-api"
-	pods := c.MustKubectl(t, append(ns, "get", "pods", "-l", selector, "-o", "jsonpath={.items[*].metadata.name}")...)
-	for pod := range strings.FieldsSeq(pods) {
-		path := "/api/v1/namespaces/" + cp.namespace + "/pods/" + pod + ":" + probe[1] + "/proxy" + probe[0]
-		platform.Eventually(t, loginTimeout, pod+" passes its readiness check", func(ctx context.Context) error {
-			_, err := c.Kubectl(ctx, "get", "--raw", path)
-			return err
-		})
-	}
+	pods := strings.Fields(
+		c.MustKubectl(t, append(ns, "get", "pods", "-l", selector, "-o", "jsonpath={.items[*].metadata.name}")...),
+	)
+	platform.Eventually(t, loginTimeout, "every API pod passes its readiness check", func(ctx context.Context) error {
+		for _, pod := range pods {
+			raw := "/api/v1/namespaces/" + cp.namespace + "/pods/" + pod + ":" + port + "/proxy" + path
+			if _, err := c.Kubectl(ctx, "get", "--raw", raw); err != nil {
+				return fmt.Errorf("%s: %w", pod, err)
+			}
+		}
+		return nil
+	})
 	c.MustKubectl(t, append(ns, "wait", "--for=condition=Ready", "pod", "-l", selector,
 		"--timeout", installTimeout.String())...)
+}
+
+// apiReadinessProbe returns the API readiness probe's path and its port as a number.
+func (cp *controlPlane) apiReadinessProbe(t *testing.T) (string, string) {
+	t.Helper()
+	var deployment struct {
+		Spec struct {
+			Template struct {
+				Spec struct {
+					Containers []struct {
+						ReadinessProbe struct {
+							HTTPGet struct {
+								Path string          `json:"path"`
+								Port json.RawMessage `json:"port"`
+							} `json:"httpGet"`
+						} `json:"readinessProbe"`
+						Ports []struct {
+							Name          string `json:"name"`
+							ContainerPort int    `json:"containerPort"`
+						} `json:"ports"`
+					} `json:"containers"`
+				} `json:"spec"`
+			} `json:"template"`
+		} `json:"spec"`
+	}
+	c.MustGet(t, &deployment, "-n", cp.namespace, "deployment/"+release+"-api")
+	container := deployment.Spec.Template.Spec.Containers[0]
+	probe := container.ReadinessProbe.HTTPGet
+	var number int
+	if json.Unmarshal(probe.Port, &number) == nil {
+		return probe.Path, strconv.Itoa(number)
+	}
+	var name string
+	if err := json.Unmarshal(probe.Port, &name); err != nil {
+		t.Fatalf("the API readiness probe's port is %s: %v", probe.Port, err)
+	}
+	for _, p := range container.Ports {
+		if p.Name == name {
+			return probe.Path, strconv.Itoa(p.ContainerPort)
+		}
+	}
+	t.Fatalf("the API container has no port named %q", name)
+	return "", ""
 }
 
 //nolint:thelper // a step of TestControlPlane
