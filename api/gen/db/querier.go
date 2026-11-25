@@ -179,6 +179,7 @@ type Querier interface {
 	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
 	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
+	IsBuildDigestLive(ctx context.Context, arg IsBuildDigestLiveParams) (bool, error)
 	IsLiveRegion(ctx context.Context, region string) (bool, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error)
@@ -223,7 +224,6 @@ type Querier interface {
 	ListInvitationsByIDs(ctx context.Context, ids []uuid.UUID) ([]Invitation, error)
 	ListLatestResourceDeployments(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error)
-	ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error)
 	ListLiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListLiveDeploymentsForEnvironmentRow, error)
 	ListLiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]ListLiveDeploymentsForResourceRow, error)
 	ListMemberWorkspaceScopes(ctx context.Context, arg ListMemberWorkspaceScopesParams) ([]ListMemberWorkspaceScopesRow, error)

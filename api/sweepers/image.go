@@ -147,7 +147,7 @@ func (s *ImageSweeper) deleteExpiredImages(ctx context.Context) (int, error) {
 	return deleted, nil
 }
 
-// deleteBuildImage marks the image deleted, then calls the registry unlocked; deleteStaleTags retries failures.
+// deleteBuildImage marks the image deleted, then deletes its manifests; deleteStaleTags retries failures.
 func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) (bool, error) {
 	var marked *genDb.ListDeletableBuildImagesRow
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
@@ -186,15 +186,47 @@ func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) 
 	if err != nil {
 		return false, err
 	}
-	if err := s.registry.DeleteManifest(ctx, path, marked.ImageDigest); err != nil {
+	if _, err := s.deleteUnusedManifest(ctx, marked.ResourceID, path, marked.ImageDigest); err != nil {
 		return false, fmt.Errorf("delete image: %w", err)
 	}
 	if marked.CacheDigest != nil {
-		if err := s.registry.DeleteManifest(ctx, path, *marked.CacheDigest); err != nil {
+		if _, err := s.deleteUnusedManifest(ctx, marked.ResourceID, path, *marked.CacheDigest); err != nil {
 			return false, fmt.Errorf("delete cache: %w", err)
 		}
 	}
 	return true, nil
+}
+
+// deleteUnusedManifest deletes digest unless a live build uses it, holding the resource lock build status updates take.
+func (s *ImageSweeper) deleteUnusedManifest(
+	ctx context.Context,
+	resourceID uuid.UUID,
+	path, digest string,
+) (bool, error) {
+	deleted := false
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		qtx := genDb.New(tx)
+		locked, err := qtx.LockResources(ctx, []uuid.UUID{resourceID})
+		if err != nil {
+			return fmt.Errorf("lock resource: %w", err)
+		}
+		if len(locked) == 0 {
+			return nil
+		}
+		live, err := qtx.IsBuildDigestLive(ctx, genDb.IsBuildDigestLiveParams{ResourceID: resourceID, Digest: digest})
+		if err != nil {
+			return fmt.Errorf("check digest use: %w", err)
+		}
+		if live {
+			return nil
+		}
+		if err := s.registry.DeleteManifest(ctx, path, digest); err != nil {
+			return err
+		}
+		deleted = true
+		return nil
+	})
+	return deleted, err
 }
 
 func (s *ImageSweeper) sweepRepositories(ctx context.Context, result *ImageSweepResult) error {
@@ -341,14 +373,6 @@ func (s *ImageSweeper) deleteStaleTags(ctx context.Context, live map[uuid.UUID][
 	for _, state := range states {
 		byID[state.ID] = state
 	}
-	resourceIDs := make([]uuid.UUID, 0, len(live))
-	for id := range live {
-		resourceIDs = append(resourceIDs, id)
-	}
-	protected, err := s.protectedDigests(ctx, resourceIDs)
-	if err != nil {
-		return 0, err
-	}
 
 	now := s.now()
 	cutoff := now.Add(-s.config.TagMinAge)
@@ -363,7 +387,7 @@ func (s *ImageSweeper) deleteStaleTags(ctx context.Context, live map[uuid.UUID][
 			continue
 		}
 		budget--
-		removed, deleteErr := s.deleteTag(ctx, tag, protected[tag.resourceID])
+		removed, deleteErr := s.deleteTag(ctx, tag)
 		if deleteErr != nil {
 			slog.WarnContext(ctx, "failed to delete stale build tag",
 				"repository", tag.path,
@@ -377,29 +401,6 @@ func (s *ImageSweeper) deleteStaleTags(ctx context.Context, live map[uuid.UUID][
 		}
 	}
 	return deleted, nil
-}
-
-func (s *ImageSweeper) protectedDigests(
-	ctx context.Context,
-	resourceIDs []uuid.UUID,
-) (map[uuid.UUID]map[string]struct{}, error) {
-	rows, err := s.queries.ListLiveBuildDigests(ctx, resourceIDs)
-	if err != nil {
-		return nil, fmt.Errorf("list live build digests: %w", err)
-	}
-	protected := map[uuid.UUID]map[string]struct{}{}
-	for _, row := range rows {
-		digests, ok := protected[row.ResourceID]
-		if !ok {
-			digests = map[string]struct{}{}
-			protected[row.ResourceID] = digests
-		}
-		digests[row.ImageDigest] = struct{}{}
-		if row.CacheDigest != nil {
-			digests[*row.CacheDigest] = struct{}{}
-		}
-	}
-	return protected, nil
 }
 
 func tagExpired(tag buildTag, state genDb.ListBuildTagStatesRow, found bool, cutoff time.Time) bool {
@@ -426,7 +427,7 @@ func tagExpired(tag buildTag, state genDb.ListBuildTagStatesRow, found bool, cut
 	}
 }
 
-func (s *ImageSweeper) deleteTag(ctx context.Context, tag buildTag, protected map[string]struct{}) (bool, error) {
+func (s *ImageSweeper) deleteTag(ctx context.Context, tag buildTag) (bool, error) {
 	digest, err := s.registry.TagDigest(ctx, tag.path, tag.tag)
 	if errors.Is(err, registryclient.ErrTagNotFound) {
 		return false, nil
@@ -434,11 +435,5 @@ func (s *ImageSweeper) deleteTag(ctx context.Context, tag buildTag, protected ma
 	if err != nil {
 		return false, err
 	}
-	if _, ok := protected[digest]; ok {
-		return false, nil
-	}
-	if deleteErr := s.registry.DeleteManifest(ctx, tag.path, digest); deleteErr != nil {
-		return false, deleteErr
-	}
-	return true, nil
+	return s.deleteUnusedManifest(ctx, tag.resourceID, tag.path, digest)
 }

@@ -517,6 +517,28 @@ func (q *Queries) GetBuildTraceparent(ctx context.Context, id uuid.UUID) (*strin
 	return traceparent, err
 }
 
+const isBuildDigestLive = `-- name: IsBuildDigestLive :one
+SELECT EXISTS (
+  SELECT 1 FROM builds
+  WHERE resource_id = $1
+    AND status = 'succeeded'
+    AND image_deleted_at IS NULL
+    AND $2::text IN (image_digest, cache_digest)
+)
+`
+
+type IsBuildDigestLiveParams struct {
+	ResourceID uuid.UUID `json:"resourceId"`
+	Digest     string    `json:"digest"`
+}
+
+func (q *Queries) IsBuildDigestLive(ctx context.Context, arg IsBuildDigestLiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isBuildDigestLive, arg.ResourceID, arg.Digest)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listActiveBuildSourceKeys = `-- name: ListActiveBuildSourceKeys :many
 SELECT source_key FROM builds
 WHERE source_key = ANY($1::text[])
@@ -842,39 +864,6 @@ func (q *Queries) ListLatestSucceededBuildsForResources(ctx context.Context, res
 			&i.DockerfilePath,
 			&i.Context,
 		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listLiveBuildDigests = `-- name: ListLiveBuildDigests :many
-SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
-WHERE resource_id = ANY($1::uuid[])
-  AND status = 'succeeded'
-  AND image_deleted_at IS NULL
-`
-
-type ListLiveBuildDigestsRow struct {
-	ResourceID  uuid.UUID `json:"resourceId"`
-	ImageDigest string    `json:"imageDigest"`
-	CacheDigest *string   `json:"cacheDigest"`
-}
-
-func (q *Queries) ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error) {
-	rows, err := q.db.Query(ctx, listLiveBuildDigests, resourceIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListLiveBuildDigestsRow
-	for rows.Next() {
-		var i ListLiveBuildDigestsRow
-		if err := rows.Scan(&i.ResourceID, &i.ImageDigest, &i.CacheDigest); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
