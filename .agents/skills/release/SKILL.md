@@ -60,7 +60,6 @@ the operator or user does about it. Sources:
 
 - Commit subjects with `!` after the type or scope (`feat(charts)!:`).
 - PRs labelled `break-buf` (a breaking API change).
-- Edited migrations (`git diff --stat "$last..origin/main" -- '*migrations*'`): an existing database needs a reset.
 - Renamed or removed chart values, CLI flags, `loco.yaml` fields or config keys found while reading the PRs.
 
 When there are none, the section says "None."
