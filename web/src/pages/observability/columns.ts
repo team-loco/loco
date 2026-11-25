@@ -1,10 +1,11 @@
 import { createParser } from "nuqs";
 
 import { LEVEL_LABEL } from "./format";
-import type { LogRow } from "./rows";
+import { CLUSTER_ATTRIBUTE, type LogRow } from "./rows";
 
 export type ColumnKey = string;
 
+export const SYSTEM_COLUMNS: ColumnKey[] = ["level", "component", "cluster"];
 export const PICKABLE_COLUMNS: ColumnKey[] = [
 	"level",
 	"resource",
@@ -18,9 +19,18 @@ export const PICKABLE_COLUMNS: ColumnKey[] = [
 ];
 export const DEFAULT_COLUMNS: ColumnKey[] = ["level", "resource"];
 
+/** The columns the picker offers: Loco's own telemetry has components and clusters where workspaces have resources. */
+export function pickableColumns(installation: boolean): ColumnKey[] {
+	return installation
+		? PICKABLE_COLUMNS.flatMap((key) => (key === "resource" ? ["component", "cluster"] : [key]))
+		: PICKABLE_COLUMNS;
+}
+
 const LABELS: Record<string, string> = {
 	level: "Level",
 	resource: "Resource",
+	component: "Component",
+	cluster: "Cluster",
 	replica: "Replica",
 	region: "Region",
 	trace: "Trace",
@@ -41,6 +51,8 @@ const REQUEST_ATTRIBUTES: Record<string, string[]> = {
 const WIDTHS: Record<string, number> = {
 	level: 88,
 	resource: 140,
+	component: 140,
+	cluster: 140,
 	replica: 110,
 	region: 112,
 	trace: 128,
@@ -108,7 +120,10 @@ export function columnValue(row: LogRow, key: ColumnKey): string {
 		case "level":
 			return LEVEL_LABEL[row.level];
 		case "resource":
+		case "component":
 			return row.resourceName;
+		case "cluster":
+			return row.entry.resourceAttributes[CLUSTER_ATTRIBUTE] ?? "";
 		case "replica":
 			return row.replica;
 		case "region":

@@ -37,7 +37,7 @@ export function SpanPanel({
 }) {
 	const timePref = useTimePreferences();
 	const { color, selfTime } = useTraceResources();
-	const { tokens, text, setQuery } = useObs();
+	const { tokens, text, setQuery, installation } = useObs();
 	const [, setOpen] = useQueryStates({ trace: parseAsString, span: parseAsString });
 	// Filtering closes the drawer so the trace list shows the result.
 	const filter = (neg: boolean, key: string, value: string) => {
@@ -62,7 +62,7 @@ export function SpanPanel({
 	const share =
 		trace.duration === 0n ? 100 : Math.round((Number(selected.durationNanos) / Number(trace.duration)) * 100);
 	const facts: { label: string; value: ReactNode; sub?: string; mono?: boolean }[] = [
-		{ label: "Resource", value: label(selected), mono: false },
+		{ label: installation ? "Component" : "Resource", value: label(selected), mono: false },
 		{
 			label: "Duration",
 			value: durationLabel(selected.durationNanos),

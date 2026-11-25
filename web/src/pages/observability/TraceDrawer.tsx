@@ -81,10 +81,10 @@ function TraceView({
 	onRetry: () => Promise<unknown>;
 	onClose: () => void;
 }) {
-	const { workspaceId, scopedResourceIds, resourceById } = useObs();
+	const { workspaceId, installation, scopedResourceIds, resourceById } = useObs();
 	// Only workspace readers may read its retention.
-	const traceDays = useQuery(getWorkspace, { workspaceId }, { enabled: scopedResourceIds === null }).data?.workspace
-		?.effectiveRetention?.traceDays;
+	const traceDays = useQuery(getWorkspace, { workspaceId }, { enabled: !installation && scopedResourceIds === null })
+		.data?.workspace?.effectiveRetention?.traceDays;
 	const { zoom, change: setZoom, drawerRef } = useTraceZoom();
 	const [pinned, setPinned] = useState<string | null>(null);
 	const [hovered, setHovered] = useState<string | null>(null);

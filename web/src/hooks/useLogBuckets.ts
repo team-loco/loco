@@ -4,8 +4,11 @@ import { queryLogBuckets } from "@gen/loco/observability/v1/observability-Observ
 import { LogBucketGroup } from "@gen/loco/observability/v1/observability_pb";
 import { msToTimestamp } from "@/lib/time";
 
+import { scopeReady } from "./observabilityScope";
+
 export function useLogBuckets(options: {
 	workspaceId: string;
+	installation?: boolean;
 	environmentId: string;
 	allEnvironments: boolean;
 	resourceIds: string[];
@@ -27,7 +30,7 @@ export function useLogBuckets(options: {
 			groupBy,
 		},
 		{
-			enabled: enabled && filters.workspaceId !== "" && (allEnvironments || environmentId !== ""),
+			enabled: enabled && scopeReady({ ...filters, environmentId }, allEnvironments),
 			staleTime: Infinity,
 			placeholderData: keepPreviousData,
 		},

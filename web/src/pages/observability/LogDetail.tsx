@@ -38,7 +38,7 @@ import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { bodyParts, LEVEL_LABEL, levelStyle } from "./format";
 import { queryKeyReason, quoteValue, withToken, type Token } from "./query";
-import { logJson, logMessageText, WORKLOAD_TITLE, type LogRow } from "./rows";
+import { CLUSTER_ATTRIBUTE, COMPONENT_ATTRIBUTE, logJson, logMessageText, WORKLOAD_TITLE, type LogRow } from "./rows";
 import { CopyButton, PanelNav, PlainCode } from "./shared";
 
 const NUMERIC_RE = /^\d+(\.\d+)?$/;
@@ -55,12 +55,15 @@ interface Attribute {
 function attributes(row: LogRow): Attribute[] {
 	const e = row.entry;
 	const field = (key: string, value: string) => ({ key, value: quoteValue(value) });
+	const cluster = e.resourceAttributes[CLUSTER_ATTRIBUTE] ?? "";
+	const owner = row.installation ? "component" : "resource";
 	const list: Attribute[] = [
 		...(row.workload
 			? []
-			: [
-					{ key: "resource", value: row.resourceName, filter: field("resource", row.resourceName), column: "resource" },
-				]),
+			: [{ key: owner, value: row.resourceName, filter: field(owner, row.resourceName), column: owner }]),
+		...(row.installation
+			? [{ key: "cluster", value: cluster, filter: field("cluster", cluster), column: "cluster" }]
+			: []),
 		{ key: "replica", value: row.replica, filter: field("replica", row.pod), column: "replica" },
 		{ key: "region", value: row.region, filter: field("region", row.region), column: "region" },
 		{ key: "level", value: row.level, filter: field("level", row.level), column: "level" },
@@ -68,6 +71,7 @@ function attributes(row: LogRow): Attribute[] {
 	const extra = new Map<string, Attribute>();
 	for (const [key, value] of Object.entries({ ...e.resourceAttributes, ...e.logAttributes })) {
 		if (key === "k8s.pod.name" || key === "loco.region") continue;
+		if (row.installation && (key === COMPONENT_ATTRIBUTE || key === CLUSTER_ATTRIBUTE)) continue;
 		extra.set(key, { key, value, filter: queryKeyReason(key, "logs") ?? field(key, value), column: key });
 	}
 	const trace: Attribute = { key: "trace", value: e.traceId, filter: field("trace", e.traceId), column: "trace" };
@@ -216,7 +220,9 @@ export function LogDetail({
 									onClick={() => {
 										goTo("metrics", {
 											range: aroundWindow(row.ts, Date.now()),
-											tokens: [{ neg: false, key: "resource", value: row.resourceName }],
+											tokens: [
+												{ neg: false, key: row.installation ? "component" : "resource", value: row.resourceName },
+											],
 											focusTs: row.ts,
 										});
 									}}

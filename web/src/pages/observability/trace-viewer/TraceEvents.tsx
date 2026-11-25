@@ -50,7 +50,7 @@ export function WindowToggle({
 
 /** Events of the trace's resources within `minutes` of the trace. */
 export function useTraceEvents(trace: TraceSummary, minutes: number) {
-	const { workspaceId, resourceById } = useObs();
+	const { workspaceId, installation, resourceById } = useObs();
 	const resources = [...new Set(trace.spans.map((span) => span.resourceId))].flatMap((id) => {
 		const resource = resourceById.get(id);
 		return resource === undefined ? [] : [resource];
@@ -67,6 +67,7 @@ export function useTraceEvents(trace: TraceSummary, minutes: number) {
 			startMs: from,
 			endMs: to,
 		},
+		!installation,
 	);
 	const items = events.map(eventItem);
 	return {

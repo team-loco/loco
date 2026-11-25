@@ -21,9 +21,10 @@ export function useWorkspaceEvents(
 	workspaceId: string,
 	names: ReadonlyMap<string, string>,
 	{ types, resourceIds, startMs, endMs }: { types: string[]; resourceIds?: string[]; startMs?: number; endMs?: number },
+	enabled = true,
 ) {
 	const { activeOrgId } = useOrgWorkspace();
-	const { active } = useEnvironments();
+	const { active } = useEnvironments(enabled);
 	const query = useInfiniteQuery(
 		listEvents,
 		{
@@ -40,6 +41,7 @@ export function useWorkspaceEvents(
 		},
 		{
 			enabled:
+				enabled &&
 				activeOrgId !== null &&
 				workspaceId !== "" &&
 				active !== undefined &&

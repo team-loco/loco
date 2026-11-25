@@ -1,10 +1,12 @@
 import { useQuery, type Query } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
+import { scopeReady } from "./observabilityScope";
 import { ObservabilityService, type GetTraceResponse } from "@gen/loco/observability/v1/observability_pb";
 
 export interface TraceScopeOptions {
 	workspaceId: string;
+	installation?: boolean;
 	environmentId: string;
 	resourceIds: string[];
 	enabled?: boolean;
@@ -24,7 +26,7 @@ export function getTraceQueryOptions(transport: Transport, options: GetTraceOpti
 		}),
 		queryFn: async ({ signal }: { signal: AbortSignal }) =>
 			await createClient(ObservabilityService, transport).getTrace(input, { signal }),
-		enabled: enabled && options.workspaceId !== "" && options.environmentId !== "" && traceId !== "",
+		enabled: enabled && scopeReady(options) && traceId !== "",
 	};
 }
 

@@ -4,10 +4,13 @@ import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import { ObservabilityService, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
 import { msToTimestamp } from "@/lib/time";
 
+import { scopeReady } from "./observabilityScope";
+
 const MAX_TAIL_ENTRIES = 500;
 
 interface UseTailLogsOptions {
 	workspaceId: string;
+	installation?: boolean;
 	environmentId: string;
 	allEnvironments?: boolean;
 	resourceIds: string[];
@@ -28,6 +31,7 @@ const NO_TAIL: Omit<TailState, "key"> = { entries: [], isConnected: false, error
 
 export function tailLogsRequest({
 	workspaceId,
+	installation = false,
 	environmentId,
 	allEnvironments = false,
 	resourceIds,
@@ -36,6 +40,7 @@ export function tailLogsRequest({
 }: UseTailLogsOptions) {
 	return {
 		workspaceId,
+		installation,
 		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
 		query,
@@ -44,7 +49,7 @@ export function tailLogsRequest({
 }
 
 export function useTailLogs(options: UseTailLogsOptions) {
-	const { workspaceId, environmentId, allEnvironments = false, sinceMs, enabled = true } = options;
+	const { workspaceId, installation, environmentId, allEnvironments = false, sinceMs, enabled = true } = options;
 	const transport = useTransport();
 	const request = tailLogsRequest(options);
 	const streamKey = JSON.stringify([
@@ -58,7 +63,7 @@ export function useTailLogs(options: UseTailLogsOptions) {
 	}
 	const openStream = useEffectEvent((signal: AbortSignal) => {
 		const consume = async () => {
-			if (!enabled || workspaceId === "" || (!allEnvironments && environmentId === "")) return;
+			if (!enabled || !scopeReady({ workspaceId, environmentId, installation }, allEnvironments)) return;
 			try {
 				const client = createClient(ObservabilityService, transport);
 				for await (const message of client.tailLogs(request, { signal })) {

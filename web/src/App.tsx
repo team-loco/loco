@@ -37,7 +37,14 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironmentInUrl } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { notFound } from "@/lib/not-found";
-import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
+import { SYSTEM_VIEW_TITLE } from "@/lib/system";
+import {
+	accountSettingsPath,
+	newResourcePath,
+	PROFILE_PATH,
+	settingsPath,
+	SYSTEM_OBSERVABILITY_VIEWS,
+} from "@/lib/routes";
 // eslint-disable-next-line no-restricted-imports -- the query cache persister reads outside render
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
@@ -60,6 +67,7 @@ const SystemClusters = lazy(async () => ({ default: (await pageImporters.System(
 const SystemClusterDetail = lazy(async () => ({ default: (await pageImporters.System()).SystemClusterDetail }));
 const SystemOrgs = lazy(async () => ({ default: (await pageImporters.System()).SystemOrgs }));
 const SystemOrgDetail = lazy(async () => ({ default: (await pageImporters.System()).SystemOrgDetail }));
+const SystemObservability = lazy(async () => ({ default: (await pageImporters.System()).SystemObservability }));
 const SystemAddCluster = lazy(async () => ({ default: (await pageImporters.System()).SystemAddCluster }));
 const SystemOperators = lazy(async () => ({ default: (await pageImporters.System()).SystemOperators }));
 const SystemUsers = lazy(async () => ({ default: (await pageImporters.System()).SystemUsers }));
@@ -330,6 +338,18 @@ function AppRoutes() {
 								</>
 							}
 						/>
+						{SYSTEM_OBSERVABILITY_VIEWS.map((view) => (
+							<Route
+								key={view}
+								path={view}
+								element={
+									<>
+										<PageTitle title={SYSTEM_VIEW_TITLE[view]} />
+										<SystemObservability view={view} />
+									</>
+								}
+							/>
+						))}
 					</Route>
 
 					<Route path="/org/:orgId/wks/:workspaceId" element={<WorkspaceRoutes />}>

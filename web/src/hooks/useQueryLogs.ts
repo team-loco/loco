@@ -5,10 +5,13 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { ObservabilityService, LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { msToTimestamp } from "@/lib/time";
 
+import { scopeReady } from "./observabilityScope";
+
 const NANOS_PER_SECOND = 1_000_000_000;
 
 interface UseQueryLogsOptions {
 	workspaceId: string;
+	installation?: boolean;
 	environmentId: string;
 	allEnvironments?: boolean;
 	resourceIds: string[];
@@ -28,6 +31,7 @@ export function logsQueryOptions(
 	transport: Transport,
 	{
 		workspaceId,
+		installation = false,
 		environmentId,
 		allEnvironments = false,
 		resourceIds,
@@ -44,6 +48,7 @@ export function logsQueryOptions(
 ) {
 	const input = {
 		workspaceId,
+		installation,
 		environmentId: allEnvironments ? "" : environmentId,
 		resourceIds,
 		query,
@@ -105,7 +110,7 @@ export function logsQueryOptions(
 				newerCursor: order === LogOrder.OLDEST_FIRST ? response.nextPageToken : "",
 			};
 		},
-		enabled: enabled && workspaceId !== "" && (allEnvironments || environmentId !== ""),
+		enabled: enabled && scopeReady({ workspaceId, environmentId, installation }, allEnvironments),
 		staleTime: 30_000,
 	};
 }

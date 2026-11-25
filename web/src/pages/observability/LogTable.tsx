@@ -14,11 +14,12 @@ import {
 	columnWidth,
 	MAX_COLUMN_WIDTH,
 	MIN_COLUMN_WIDTH,
-	PICKABLE_COLUMNS,
+	pickableColumns,
 	type ColumnKey,
 	type ColumnWidths,
 } from "./columns";
 import { bodyParts, fmtTs, jsonPreview, LevelBadge, levelStyle } from "./format";
+import { useObs } from "./context";
 import { LogRowMenu } from "./LogRowMenu";
 import { WORKLOAD_TITLE, type LogRow } from "./rows";
 
@@ -35,11 +36,13 @@ const LOG_SKELETON = (
 
 function logColumns({
 	columns,
+	pickable,
 	dated,
 	words,
 	onColumns,
 }: {
 	columns: ColumnKey[];
+	pickable: ColumnKey[];
 	dated: boolean;
 	words: string[];
 	onColumns: (next: ColumnKey[]) => void;
@@ -87,10 +90,10 @@ function logColumns({
 				<ColumnPicker
 					columns={columns}
 					onColumns={onColumns}
-					options={[...PICKABLE_COLUMNS, ...columns.filter((c) => !PICKABLE_COLUMNS.includes(c))].map((key) => ({
+					options={[...pickable, ...columns.filter((c) => !pickable.includes(c))].map((key) => ({
 						key,
 						label: columnLabel(key),
-						mono: !PICKABLE_COLUMNS.includes(key),
+						mono: !pickable.includes(key),
 					}))}
 				/>
 			),
@@ -128,8 +131,9 @@ export function LogTable({
 	onSelect: (key: string) => void;
 	onColumns: (next: ColumnKey[]) => void;
 }) {
+	const { installation } = useObs();
 	const table = useDataTable("logs", {
-		columns: logColumns({ columns, dated, words, onColumns }),
+		columns: logColumns({ columns, pickable: pickableColumns(installation), dated, words, onColumns }),
 		data: rows,
 		getRowId: (row) => row.key,
 		state: { columnSizing: widths },
@@ -189,6 +193,7 @@ function Cell({ row, column }: { row: LogRow; column: ColumnKey }) {
 		case "level":
 			return <LevelBadge level={row.level} />;
 		case "resource":
+		case "component":
 			return row.workload ? (
 				<span className="block truncate font-mono text-[12px] text-fg3" title={WORKLOAD_TITLE}>
 					{row.resourceName}

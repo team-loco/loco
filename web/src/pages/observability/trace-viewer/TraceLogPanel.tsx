@@ -52,7 +52,7 @@ export function TraceLogPanel({
 	onCollapsed: (collapsed: boolean) => void;
 }) {
 	const timePref = useTimePreferences();
-	const { goTo } = useObs();
+	const { goTo, installation } = useObs();
 	const { children } = useTraceResources();
 	const [scope, setScope] = useState("trace");
 	const [minutes, setMinutes] = useState(10);
@@ -140,25 +140,29 @@ export function TraceLogPanel({
 								{more ? "+" : ""}
 							</TabsCount>
 						</TabsTrigger>
-						<TabsTrigger
-							value="events"
-							onClick={() => {
-								onCollapsed(false);
-							}}
-						>
-							Events{" "}
-							{!events.isLoading && events.error === null && (
-								<TabsCount>{`${events.items.length.toString()}${events.more ? "+" : ""}`}</TabsCount>
-							)}
-						</TabsTrigger>
-						<TabsTrigger
-							value="infra"
-							onClick={() => {
-								onCollapsed(false);
-							}}
-						>
-							Infrastructure
-						</TabsTrigger>
+						{!installation && (
+							<>
+								<TabsTrigger
+									value="events"
+									onClick={() => {
+										onCollapsed(false);
+									}}
+								>
+									Events{" "}
+									{!events.isLoading && events.error === null && (
+										<TabsCount>{`${events.items.length.toString()}${events.more ? "+" : ""}`}</TabsCount>
+									)}
+								</TabsTrigger>
+								<TabsTrigger
+									value="infra"
+									onClick={() => {
+										onCollapsed(false);
+									}}
+								>
+									Infrastructure
+								</TabsTrigger>
+							</>
+						)}
 					</TabsList>
 					<span className="flex-1" />
 					{tab === "logs" && !collapsed && (
@@ -310,19 +314,23 @@ export function TraceLogPanel({
 								</section>
 							)}
 						</TabsContent>
-						<TabsContent value="events" className="min-h-0 flex-1 overflow-auto">
-							<TraceEvents trace={trace} events={events} minutes={minutes} onMinutes={setMinutes} />
-						</TabsContent>
-						<TabsContent value="infra" className="min-h-0 flex-1 overflow-auto">
-							<Infrastructure
-								trace={trace}
-								selected={selected}
-								events={events.items}
-								moreEvents={events.more}
-								minutes={minutes}
-								onMinutes={setMinutes}
-							/>
-						</TabsContent>
+						{!installation && (
+							<>
+								<TabsContent value="events" className="min-h-0 flex-1 overflow-auto">
+									<TraceEvents trace={trace} events={events} minutes={minutes} onMinutes={setMinutes} />
+								</TabsContent>
+								<TabsContent value="infra" className="min-h-0 flex-1 overflow-auto">
+									<Infrastructure
+										trace={trace}
+										selected={selected}
+										events={events.items}
+										moreEvents={events.more}
+										minutes={minutes}
+										onMinutes={setMinutes}
+									/>
+								</TabsContent>
+							</>
+						)}
 					</>
 				)}
 			</Tabs>

@@ -42,6 +42,8 @@ import {
 	observabilityPath,
 	observabilityViewParser,
 	resourcesPath,
+	SYSTEM_OBSERVABILITY_VIEWS,
+	systemObservabilityPath,
 	withEnv,
 	workspacePath,
 	type ObservabilityView,
@@ -69,7 +71,10 @@ const OBSERVABILITY_PAGES: { view: ObservabilityView; name: string; icon: ReactN
 const NAV_PARAMS = { env: parseAsString, view: observabilityViewParser };
 const loadCarried = createLoader({ ...WINDOW_PARSERS, ...QUERY_PARSERS });
 
-function systemSections(pathname: string): NavSection[] {
+function systemSections(pathname: string, search: string): NavSection[] {
+	const current = SYSTEM_OBSERVABILITY_VIEWS.find((view) => atPath(pathname, `${SYSTEM_PATH}/${view}`));
+	const { range, from, to, q, r } = loadCarried(search);
+	const carriedTokens = toQuery({ q, r }).tokens;
 	return [
 		{
 			pages: [
@@ -137,6 +142,27 @@ function systemSections(pathname: string): NavSection[] {
 				},
 			],
 		},
+		{
+			label: "Observability",
+			pages: OBSERVABILITY_PAGES.flatMap((page) =>
+				page.view === "events"
+					? []
+					: [
+							{
+								name: page.name,
+								icon: page.icon,
+								keywords: "system observability telemetry",
+								to: systemObservabilityPath(
+									page.view,
+									current !== undefined && current !== page.view
+										? { range, from, to, q: carriedQuery(page.view, carriedTokens, true) }
+										: {},
+								),
+								active: current === page.view,
+							},
+						],
+			),
+		},
 	];
 }
 
@@ -156,7 +182,7 @@ export function useNavSections(): NavSection[] {
 	const scopes = useMyScopes();
 	const inSystem = useInSystem();
 
-	if (inSystem) return systemSections(pathname);
+	if (inSystem) return systemSections(pathname, search);
 
 	return [
 		{

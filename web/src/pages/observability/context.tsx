@@ -9,7 +9,13 @@ import { useObservabilityMaxRange } from "@/hooks/useObservabilityMaxRange";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { observabilityPath, type ObservabilityView } from "@/lib/routes";
+import { useEnvironments } from "@/hooks/useEnvironment";
+import {
+	observabilityPath,
+	systemObservabilityPath,
+	type ObservabilityView,
+	type SystemObservabilityView,
+} from "@/lib/routes";
 import { configuredRegions } from "@/lib/resource-regions";
 
 import { liveTokens, narrow, QUERY_PARSERS, queryStr, queryValues, toQuery, type Token } from "./query";
@@ -52,8 +58,15 @@ export interface GoToOptions {
 }
 
 interface ObsContextValue {
+	/** Empty in the installation scope. */
 	orgId: string;
+	/** Empty in the installation scope. */
 	workspaceId: string;
+	/** Reads Loco's own telemetry, which has no workspace, environment or resources. */
+	installation: boolean;
+	/** The environment queries name; empty when the workspace has none yet or in the installation scope. */
+	environmentId: string;
+	environmentLoading: boolean;
 	view: ObservabilityView;
 	resources: ObsResource[];
 	resourcesLoading: boolean;
@@ -74,6 +87,43 @@ interface ObsContextValue {
 
 const ObsContext = createContext<ObsContextValue | null>(null);
 
+/** The range and query every observability page keeps in the URL, or undefined while the maximum range loads. */
+function useObsParams(view: ObservabilityView) {
+	const [params, setParams] = useQueryStates(OBS_PARAMS);
+	const queryMaxMs = useObservabilityMaxRange();
+	if (queryMaxMs === undefined) return undefined;
+	const maxMs = view === "events" ? EVENTS_MAX_MS : queryMaxMs;
+	const range = toWindow(params, maxMs);
+	const { tokens, text } = toQuery(params);
+	return {
+		params,
+		maxMs,
+		range,
+		tokens,
+		text,
+		/** The range, query, focus and trace a jump to another view carries. */
+		link: (opts: GoToOptions) => ({
+			...windowValues(opts.range ?? range),
+			q: queryStr(opts.tokens ?? tokens, opts.tokens ? "" : text) || null,
+			at: opts.focusTs ?? null,
+			trace: opts.trace ?? null,
+			span: opts.span ?? null,
+		}),
+		setRange: (w: TimeWindow) => {
+			void setParams({ ...windowValues(w), ...CLEARED_VIEW_STATE });
+		},
+		setQuery: (nextTokens: Token[], nextText: string) => {
+			void setParams({ ...queryValues(nextTokens, nextText), page: null, log: null, event: null });
+		},
+	};
+}
+
+const NO_RESOURCES = {
+	resources: [],
+	resourceByName: new Map<string, ObsResource>(),
+	resourceById: new Map<string, ObsResource>(),
+};
+
 export function ObsProvider({
 	orgId,
 	workspaceId,
@@ -87,17 +137,14 @@ export function ObsProvider({
 }) {
 	const transport = useTransport();
 	const navigate = useNavigate();
-	const [params, setParams] = useQueryStates(OBS_PARAMS);
+	const shared = useObsParams(view);
 	const grants = useMyScopes().resourceGrants(orgId, workspaceId);
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
 		workspaceResourcesOptions(transport, workspaceId, grants),
 	);
-
-	const queryMaxMs = useObservabilityMaxRange();
-	if (queryMaxMs === undefined) return <Skeleton className="h-64 w-full" />;
-	const maxMs = view === "events" ? EVENTS_MAX_MS : queryMaxMs;
-	const range = toWindow(params, maxMs);
-	const { tokens, text } = toQuery(params);
+	const { active: environment, isLoading: environmentLoading } = useEnvironments();
+	if (shared === undefined) return <Skeleton className="h-64 w-full" />;
+	const { params, maxMs, range, tokens, text, link, setRange, setQuery } = shared;
 
 	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.slug.localeCompare(b.slug));
 	const resources: ObsResource[] = sorted.map((r, i) => ({
@@ -111,24 +158,8 @@ export function ObsProvider({
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
 	const scopedResourceIds = grants === "workspace" ? null : resources.map((r) => r.id);
 
-	const setRange = (w: TimeWindow) => {
-		void setParams({ ...windowValues(w), ...CLEARED_VIEW_STATE });
-	};
-	const setQuery = (nextTokens: Token[], nextText: string) => {
-		void setParams({ ...queryValues(nextTokens, nextText), page: null, log: null, event: null });
-	};
-
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
-		void navigate(
-			observabilityPath(orgId, workspaceId, next, {
-				env: params.env,
-				...windowValues(opts.range ?? range),
-				q: queryStr(opts.tokens ?? tokens, opts.tokens ? "" : text) || null,
-				at: opts.focusTs ?? null,
-				trace: opts.trace ?? null,
-				span: opts.span ?? null,
-			}),
-		);
+		void navigate(observabilityPath(orgId, workspaceId, next, { env: params.env, ...link(opts) }));
 	};
 
 	const noResources = grants === "workspace" && !resourcesLoading && resources.length === 0;
@@ -136,6 +167,9 @@ export function ObsProvider({
 	const value: ObsContextValue = {
 		orgId,
 		workspaceId,
+		installation: false,
+		environmentId: environment?.id ?? "",
+		environmentLoading,
 		view,
 		resources,
 		resourcesLoading,
@@ -143,6 +177,41 @@ export function ObsProvider({
 		scopedResourceIds,
 		resourceByName,
 		resourceById,
+		maxMs,
+		range,
+		setRange,
+		tokens,
+		text,
+		setQuery,
+		goTo,
+	};
+
+	return <ObsContext value={value}>{children}</ObsContext>;
+}
+
+/** The provider for Loco's own telemetry: no workspace, environment or resources. */
+export function InstallationObsProvider({ view, children }: { view: SystemObservabilityView; children: ReactNode }) {
+	const navigate = useNavigate();
+	const shared = useObsParams(view);
+	if (shared === undefined) return <Skeleton className="h-64 w-full" />;
+	const { maxMs, range, tokens, text, link, setRange, setQuery } = shared;
+
+	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
+		if (next === "events") return;
+		void navigate(systemObservabilityPath(next, link(opts)));
+	};
+
+	const value: ObsContextValue = {
+		orgId: "",
+		workspaceId: "",
+		installation: true,
+		environmentId: "",
+		environmentLoading: false,
+		view,
+		...NO_RESOURCES,
+		resourcesLoading: false,
+		noResources: false,
+		scopedResourceIds: null,
 		maxMs,
 		range,
 		setRange,

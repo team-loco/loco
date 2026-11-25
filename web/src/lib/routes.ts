@@ -2,6 +2,7 @@ import { createSerializer, type inferParserType, parseAsArrayOf, parseAsString, 
 import { matchPath } from "react-router";
 
 import { msParser, WINDOW_PARSERS } from "./obs-time";
+import { SYSTEM_PATH } from "./system";
 import { DAY_MS } from "./time";
 
 export function workspacePath(orgId: string, workspaceId: string, sub = ""): string {
@@ -109,8 +110,7 @@ export const OBSERVABILITY_VIEWS = ["logs", "metrics", "traces", "events"] as co
 export type ObservabilityView = (typeof OBSERVABILITY_VIEWS)[number];
 export const observabilityViewParser = parseAsStringLiteral(OBSERVABILITY_VIEWS).withDefault("logs");
 
-const OBSERVABILITY_LINK = {
-	env: parseAsString,
+const SYSTEM_OBSERVABILITY_LINK = {
 	...WINDOW_PARSERS,
 	q: parseAsString,
 	r: parseAsArrayOf(parseAsString),
@@ -118,6 +118,7 @@ const OBSERVABILITY_LINK = {
 	trace: parseAsString,
 	span: parseAsString,
 };
+const OBSERVABILITY_LINK = { env: parseAsString, ...SYSTEM_OBSERVABILITY_LINK };
 
 const serializeObservability = createSerializer({
 	view: parseAsStringLiteral(OBSERVABILITY_VIEWS),
@@ -133,6 +134,19 @@ export function observabilityPath(
 	link: ObservabilityLink = {},
 ): string {
 	return `${workspacePath(orgId, workspaceId, "observability")}${serializeObservability({ view, ...link })}`;
+}
+
+const serializeSystemObservability = createSerializer(SYSTEM_OBSERVABILITY_LINK);
+
+export const SYSTEM_OBSERVABILITY_VIEWS = ["logs", "metrics", "traces"] as const satisfies readonly ObservabilityView[];
+export type SystemObservabilityView = (typeof SYSTEM_OBSERVABILITY_VIEWS)[number];
+
+/** A page of Loco's own telemetry in System. */
+export function systemObservabilityPath(
+	view: SystemObservabilityView,
+	link: Partial<inferParserType<typeof SYSTEM_OBSERVABILITY_LINK>> = {},
+): string {
+	return `${SYSTEM_PATH}/${view}${serializeSystemObservability(link)}`;
 }
 
 export function buildLogsPath(orgId: string, workspaceId: string, buildId: string): string {
