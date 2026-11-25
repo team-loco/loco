@@ -20,6 +20,10 @@ function formatErrorMessage(message: string): string {
 	return formatted;
 }
 
+function rawMessage(error: unknown): string {
+	return error instanceof ConnectError ? error.rawMessage : error instanceof Error ? error.message : "";
+}
+
 export function getErrorMessage(error: unknown, fallback = "An error occurred"): string {
 	if (error instanceof ConnectError) {
 		if (error.code === Code.Internal) {
@@ -28,9 +32,9 @@ export function getErrorMessage(error: unknown, fallback = "An error occurred"):
 				return `Please reach out to a Loco support engineer and provide this requestId ${id}`;
 			}
 		}
-		return formatErrorMessage(error.rawMessage || fallback);
+		return formatErrorMessage(rawMessage(error) || fallback);
 	} else if (error instanceof Error) {
-		return formatErrorMessage(error.message || fallback);
+		return formatErrorMessage(rawMessage(error) || fallback);
 	}
 	return formatErrorMessage(fallback);
 }
@@ -65,11 +69,13 @@ export function toastConnectError(
 ): void {
 	const id = error instanceof ConnectError && error.code === Code.Internal ? requestId(error) : null;
 	if (id === null) {
-		const raw = error instanceof Error ? (error instanceof ConnectError ? error.rawMessage : error.message) : "";
-		const text = typeof fallback === "string" ? fallback : undefined;
-		toast.error(raw === "" && text === undefined ? fallback : getErrorMessage(error, text), {
-			duration: options?.duration ?? 5000,
-		});
+		const message =
+			typeof fallback === "string" || rawMessage(error) !== "" ? (
+				getErrorMessage(error, typeof fallback === "string" ? fallback : undefined)
+			) : (
+				<>{fallback}.</>
+			);
+		toast.error(message, { duration: options?.duration ?? 5000 });
 		return;
 	}
 	toast.error(fallback, {

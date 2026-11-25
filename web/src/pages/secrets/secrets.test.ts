@@ -1,15 +1,35 @@
 import { create } from "@bufbuild/protobuf";
+import { textOf } from "@/lib/node-text";
 import { describe, expect, test } from "bun:test";
 import { SecretSchema } from "@gen/loco/secret/v1/secret_pb";
 
-import { importPreview, matchesSearch, secretNameProblem } from "./secrets";
+import { deleteBlocked, importPreview, matchesSearch, secretHint, secretNameProblem } from "./secrets";
 
 describe("secretNameProblem", () => {
 	test("asks for capital letters and refuses a name the environment has", () => {
-		expect(secretNameProblem("", false)).toBe("");
-		expect(secretNameProblem("lower", false)).toBe("format");
-		expect(secretNameProblem("API_KEY", true)).toBe("taken");
-		expect(secretNameProblem("API_KEY", false)).toBe("");
+		expect(secretNameProblem("", false, "production")).toBe("");
+		expect(textOf(secretNameProblem("lower", false, "production"))).toBe(
+			"Use capital letters, digits and underscores, not starting with a digit.",
+		);
+		expect(textOf(secretNameProblem("API_KEY", true, "production"))).toBe("API_KEY already exists in production.");
+		expect(secretNameProblem("API_KEY", false, "production")).toBe("");
+	});
+});
+
+describe("secretHint", () => {
+	test("shows the reference for a new secret and who gets an updated value", () => {
+		expect(textOf(secretHint("", [], false))).toBe("Refer to it from a resource’s variables as ${{ secrets.NAME }}.");
+		expect(textOf(secretHint("API_KEY", [], true))).toBe("No resource refers to it yet.");
+		expect(textOf(secretHint("API_KEY", ["api"], true))).toBe("api gets the new value on its next deploy or restart.");
+		expect(textOf(secretHint("API_KEY", ["api", "web"], true))).toBe(
+			"api and web get the new value on their next deploy or restart.",
+		);
+	});
+});
+
+describe("deleteBlocked", () => {
+	test("names the resources that keep a secret from being deleted", () => {
+		expect(textOf(deleteBlocked(["api", "web"]))).toBe("Read by api and web. Remove the reference and redeploy first.");
 	});
 });
 

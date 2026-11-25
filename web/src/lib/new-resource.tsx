@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import { ConnectError } from "@connectrpc/connect";
-import { withCode, type Message } from "@/components/design/InlineCode";
+import { withCode } from "@/components/design/InlineCode";
 import { BadRequestSchema } from "@gen/google/rpc/error_details_pb";
 import { ViolationsSchema } from "@gen/buf/validate/validate_pb";
 import type { AppDomain } from "@gen/loco/domain/v1/domain_pb";
@@ -50,7 +51,7 @@ export interface FormErrors {
 	image: string | null;
 	regions: string | null;
 	port: string | null;
-	subdomain: Message | null;
+	subdomain: ReactNode;
 	env: string | null;
 	scaling: string | null;
 	healthPath: string | null;
@@ -100,8 +101,8 @@ export function envVars(rows: EnvRow[]): [string, string][] {
 const KEY_RULE = "Use letters, digits and _, not starting with a digit";
 
 /** The problem with each variable row, by row id; rows without a problem are absent. */
-export function envRowErrors(rows: EnvRow[]): Map<string, Message> {
-	const errors = new Map<string, Message>();
+export function envRowErrors(rows: EnvRow[]): Map<string, ReactNode> {
+	const errors = new Map<string, ReactNode>();
 	const counts = new Map<string, number>();
 	for (const row of rows.filter((r) => !isBlank(r))) {
 		const key = row.key.trim();
@@ -134,7 +135,7 @@ export function mergeEnv(rows: EnvRow[], pairs: [string, string][], newId: () =>
 	return [...kept, ...pairs.filter(([key]) => !present.has(key)).map(([key, value]) => ({ id: newId(), key, value }))];
 }
 
-function subdomainError(form: NewResourceForm, availability: DomainCheck["state"]): Message | null {
+function subdomainError(form: NewResourceForm, availability: DomainCheck["state"]): ReactNode {
 	if (!form.isPublic) return null;
 	if (form.appDomain === "") return "No app domain is served in every selected region";
 	if (form.subdomain === "") return "Enter a subdomain";
@@ -214,8 +215,8 @@ export function scalingSpec(form: Scaling) {
 	};
 }
 
-export function firstError(errors: FormErrors): Message | null {
-	const ordered: (Message | null)[] = [
+export function firstError(errors: FormErrors): ReactNode {
+	const ordered: ReactNode[] = [
 		errors.image,
 		errors.regions,
 		errors.port,

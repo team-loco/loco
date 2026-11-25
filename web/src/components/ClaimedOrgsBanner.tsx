@@ -1,4 +1,5 @@
 import { useAuth } from "@/auth/AuthProvider";
+import { InlineCode } from "@/components/design/InlineCode";
 
 export function ClaimedOrgsBanner() {
 	const { claimedOrgs, dismissClaimedOrgs } = useAuth();
@@ -12,7 +13,7 @@ export function ClaimedOrgsBanner() {
 			>
 				{claimedOrgs.map((org) => (
 					<span key={org.orgId}>
-						{org.inviterName} added you to <span className="font-semibold">{org.orgName}</span>
+						{org.inviterName} added you to <InlineCode>{org.orgName}</InlineCode>
 					</span>
 				))}
 				<span className="text-sm opacity-80">Click to dismiss</span>

@@ -1,16 +1,46 @@
 import type { Secret } from "@gen/loco/secret/v1/secret_pb";
+import type { ReactNode } from "react";
 
+import { InlineCodeList, withCode } from "@/components/design/InlineCode";
 import { dotEnvNotes, parseDotEnv } from "@/lib/dotenv";
+import { referenceOf } from "@/pages/resource/variables";
 
 export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 const USER_ENTITY = "user";
 const SHORT_ID = 8;
 
-export function secretNameProblem(name: string, taken: boolean): "format" | "taken" | "" {
+export function secretNameProblem(name: string, taken: boolean, env: string): ReactNode {
 	if (name === "") return "";
-	if (!SECRET_NAME.test(name)) return "format";
-	if (taken) return "taken";
+	if (!SECRET_NAME.test(name)) return "Use capital letters, digits and underscores, not starting with a digit.";
+	if (taken) return withCode`${name} already exists in ${env}.`;
 	return "";
+}
+
+/** The note under the value of a secret being created or updated. */
+export function secretHint(name: string, users: string[], updating: boolean): ReactNode {
+	if (!updating)
+		return withCode`Refer to it from a resource’s variables as ${referenceOf("secrets", name === "" ? "NAME" : name)}.`;
+	if (users.length === 0) return "No resource refers to it yet.";
+	const one = users.length === 1;
+	return (
+		<>
+			<InlineCodeList names={users} /> {one ? "gets" : "get"} the new value on {one ? "its" : "their"} next deploy or
+			restart.
+		</>
+	);
+}
+
+export function deleteBody(name: string): ReactNode {
+	return withCode`No resource refers to ${name}. This can’t be undone.`;
+}
+
+/** Why a secret cannot be deleted while resources read it. */
+export function deleteBlocked(users: string[]): ReactNode {
+	return (
+		<>
+			Read by <InlineCodeList names={users} />. Remove the reference and redeploy first.
+		</>
+	);
 }
 
 export interface ImportPreview {

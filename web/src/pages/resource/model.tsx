@@ -48,7 +48,7 @@ export type ModalState =
 export interface Notice {
 	tone: "info" | "warn" | "bad";
 	title: ReactNode;
-	message: string;
+	message: ReactNode;
 }
 
 /** The secrets the resource reads that changed after its oldest running replica started, by name. */

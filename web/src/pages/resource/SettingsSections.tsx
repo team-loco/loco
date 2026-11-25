@@ -28,7 +28,7 @@ import {
 	type RestartChoice,
 	type SettingsDraft,
 } from "./settings-draft";
-import { InlineCode, type Message } from "@/components/design/InlineCode";
+import { InlineCode } from "@/components/design/InlineCode";
 
 export const HEALTH_SECTION_ID = "set-health";
 
@@ -165,7 +165,7 @@ export function ScalingSection({
 	const setAll = (scaling: Scaling) => {
 		onChange({ scaling: Object.fromEntries(names.map((name) => [name, scaling])) });
 	};
-	const error = names.map((name) => errors[`scaling.${name}`]).find((e) => e !== undefined) ?? null;
+	const error = names.map((name): ReactNode => errors[`scaling.${name}`]).find((e) => e !== undefined) ?? null;
 	return (
 		<SettingsBlock
 			id="set-scaling"
@@ -261,7 +261,7 @@ function UnitInput({
 	label: string;
 	unit: string;
 	value: string;
-	error: Message | undefined;
+	error: ReactNode;
 	locked: boolean;
 	reserve?: boolean;
 	describedBy: string | undefined;

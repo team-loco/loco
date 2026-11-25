@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
-import { withCode, type Message } from "@/components/design/InlineCode";
+import { withCode } from "@/components/design/InlineCode";
 import { clone, create, equals } from "@bufbuild/protobuf";
 import {
 	BuildSourceSchema,
@@ -312,7 +313,7 @@ export function domainsChange(draft: SettingsDraft, base: Baseline): "add" | "re
 	return isPublic ? "add" : "remove";
 }
 
-export type DraftErrors = Partial<Record<keyof SettingsDraft | `scaling.${string}`, Message>>;
+export type DraftErrors = Partial<Record<keyof SettingsDraft | `scaling.${string}`, ReactNode>>;
 
 /** Fields whose errors show while the user types, before the first save attempt. */
 export const LIVE_ERROR_KEYS = [
@@ -471,8 +472,8 @@ export function plainEnv(current: Record<string, string>, draft: SettingsDraft):
 }
 
 /** Why each added variable cannot be saved, by its id. */
-export function addedProblems(draft: SettingsDraft, current: Record<string, string>): Map<string, Message> {
-	const problems = new Map<string, Message>();
+export function addedProblems(draft: SettingsDraft, current: Record<string, string>): Map<string, ReactNode> {
+	const problems = new Map<string, ReactNode>();
 	const added = draft.added ?? [];
 	const counts = new Map<string, number>();
 	for (const row of added) counts.set(row.key.trim(), (counts.get(row.key.trim()) ?? 0) + 1);

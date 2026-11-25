@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { expect, test } from "bun:test";
 
 import { textOf } from "@/lib/node-text";
@@ -16,19 +17,19 @@ test("slug matches the API's slug of a name", () => {
 });
 
 test("nameError follows the API's name rules", () => {
-	const nameErr = (name: string, taken = new Set<string>()) => nameError(name, taken);
-	const nameText = (name: string, taken = new Set<string>()) => textOf(nameError(name, taken));
-	for (const blank of ["", "   "]) expect(nameText(blank)).toBe("Enter a name");
+	const nameErr = (name: string, taken = new Set<string>()): ReactNode => nameError(name, taken);
+	for (const blank of ["", "   "]) expect(textOf(nameErr(blank))).toBe("Enter a name");
 	for (const ok of ["QA Echo", "🚀rocket", " web ", "🚀".repeat(63)]) expect(nameErr(ok)).toBeNull();
-	expect(nameText("x".repeat(64))).toBe("Use at most 63 characters");
-	expect(nameText(" QA Echo ", new Set(["QA Echo"]))).toBe("QA Echo already exists in this workspace");
+	expect(textOf(nameErr("x".repeat(64)))).toBe("Use at most 63 characters");
+	expect(textOf(nameErr(" QA Echo ", new Set(["QA Echo"])))).toBe("QA Echo already exists in this workspace");
 });
 
 test("derivedSlugError rejects names whose slug the API refuses", () => {
-	const err = (name: string, taken = new Set<string>()) => textOf(derivedSlugError(name, taken));
-	for (const ok of ["QA Echo", "🚀 Rocket", "Café Orders", "x".repeat(63)]) expect(err(ok)).toBe("");
-	for (const noLetter of ["🚀", "!!!", "日本"]) expect(err(noLetter)).toBe("Include a letter from a to z");
-	for (const digitLed of ["3D Viewer", "7", "1-web"]) expect(err(digitLed)).toBe("Start the name with a letter");
-	expect(err(" Localhost ")).toBe("Localhost is reserved");
-	expect(err("My-App", new Set(["my-app"]))).toBe("Too close to an existing name in this workspace");
+	const err = (name: string, taken = new Set<string>()): ReactNode => derivedSlugError(name, taken);
+	for (const ok of ["QA Echo", "🚀 Rocket", "Café Orders", "x".repeat(63)]) expect(err(ok)).toBeNull();
+	for (const noLetter of ["🚀", "!!!", "日本"]) expect(textOf(err(noLetter))).toBe("Include a letter from a to z");
+	for (const digitLed of ["3D Viewer", "7", "1-web"])
+		expect(textOf(err(digitLed))).toBe("Start the name with a letter");
+	expect(textOf(err(" Localhost "))).toBe("Localhost is reserved");
+	expect(textOf(err("My-App", new Set(["my-app"])))).toBe("Too close to an existing name in this workspace");
 });

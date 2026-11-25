@@ -16,19 +16,17 @@ export function InlineCode({ children, className }: { children: ReactNode; class
 	);
 }
 
-/** Names joined as "a, b and c", each one as inline code; a string child closes the list as plain text, like "2 more". */
+/** Names joined as "a, b and c", each one as inline code; a string child ends the list as plain text, like "2 more". */
 export function InlineCodeList({ names, children }: { names: readonly string[]; children?: string | undefined }) {
+	let element = 0;
 	return new Intl.ListFormat("en", { style: "long", type: "conjunction" })
 		.formatToParts(children === undefined ? names : [...names, children])
 		.map((part, i) => (
 			<Fragment key={i}>
-				{part.type === "element" && part.value !== children ? <InlineCode>{part.value}</InlineCode> : part.value}
+				{part.type === "element" && element++ < names.length ? <InlineCode>{part.value}</InlineCode> : part.value}
 			</Fragment>
 		));
 }
-
-/** A message that may name things: plain text, or text with names as inline code. */
-export type Message = string | ReactElement[];
 
 /** Tagged template for running text: every interpolated value is shown as inline code. */
 export function withCode(strings: TemplateStringsArray, ...values: ReactNode[]): ReactElement[] {

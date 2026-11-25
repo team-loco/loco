@@ -16,7 +16,7 @@ import {
 	CommandList,
 } from "@/components/design/Command";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
-import { InlineCode, InlineCodeList, withCode, type Message } from "@/components/design/InlineCode";
+import { InlineCode, InlineCodeList } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -135,7 +135,7 @@ function ReferencePicker({
 	environment,
 	onPick,
 }: {
-	groups: { id: string; title: ReactNode; items: PickItem[] }[];
+	groups: { title: string; items: PickItem[] }[];
 	manageHref: string;
 	environment: string;
 	onPick: (item: PickItem) => void;
@@ -157,7 +157,7 @@ function ReferencePicker({
 					<CommandList className="p-1.5">
 						<CommandEmpty>Nothing matches.</CommandEmpty>
 						{groups.map((group) => (
-							<CommandGroup key={group.id} heading={group.title}>
+							<CommandGroup key={group.title} heading={group.title}>
 								{group.items.map((item) => (
 									<CommandItem
 										key={item.ref}
@@ -205,7 +205,7 @@ function VariableRow({
 	removed: boolean;
 	editable: boolean;
 	resolution: Resolution | null;
-	problem: Message | undefined;
+	problem: ReactNode;
 	onName?: ((name: string) => void) | undefined;
 	onValue: (value: string) => void;
 	onRemove: () => void;
@@ -383,15 +383,13 @@ export function VariablesSection({
 	const me = resources.find((resource) => resource.resourceId === resourceId);
 	const groups = [
 		{
-			id: "secrets",
-			title: withCode`Secrets in ${environmentName}`,
+			title: `Secrets in ${environmentName}`,
 			items: secretNames.map((name) => ({ name, value: "secret", key: name, ref: referenceOf("secrets", name) })),
 		},
 		...resources
 			.filter((resource) => resource.resourceId !== resourceId)
 			.map((resource) => ({
-				id: resource.resourceId,
-				title: <InlineCode>{resource.resourceSlug}</InlineCode>,
+				title: resource.resourceSlug,
 				items: resource.outputs
 					.filter((output) => output.builtIn)
 					.map((output) => ({

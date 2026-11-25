@@ -1,5 +1,5 @@
 import { ArrowRightIcon, ChevronsUpDownIcon } from "lucide-react";
-import { InlineCodeList, withCode } from "@/components/design/InlineCode";
+import { InlineCode, InlineCodeList, withCode } from "@/components/design/InlineCode";
 import { useState } from "react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -233,7 +233,7 @@ export function RollbackDialogContent({
 				)}
 				<span>
 					Creates a new deployment in <InlineCodeList names={regions} /> from the spec of{" "}
-					<span className="font-mono text-foreground">{depTag(target)}</span>.
+					<InlineCode>{depTag(target)}</InlineCode>.
 					{current !== undefined && " The running deployment is replaced once the new replicas are ready."}
 				</span>
 			</DialogBody>

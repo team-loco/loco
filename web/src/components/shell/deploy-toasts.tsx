@@ -2,7 +2,7 @@ import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deplo
 import type { Event } from "@gen/loco/event/v1/event_pb";
 import type { ReactNode } from "react";
 
-import { withCode } from "@/components/design/InlineCode";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 import {
 	deploymentActor,
@@ -68,7 +68,7 @@ export function degradedToast(event: Event, names: ReadonlyMap<string, string>):
 				withCode`${name} has a problem`
 			) : (
 				<>
-					{withCode`${name}`}: {short.toLowerCase()}
+					<InlineCode>{name}</InlineCode>: {short.toLowerCase()}
 				</>
 			),
 		description: message,

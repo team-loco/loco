@@ -32,8 +32,8 @@ import { DOCS_URL } from "@/pages/splash/links";
 
 import { ImportDialog, SecretDialog } from "./SecretDialogs";
 import { SecretsArt } from "./SecretsArt";
-import { matchesSearch, setterLabel } from "./secrets";
-import { InlineCode, InlineCodeList, withCode } from "@/components/design/InlineCode";
+import { deleteBlocked, deleteBody, matchesSearch, setterLabel } from "./secrets";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 const SECRETS_DOCS = `${DOCS_URL}/operations/variables/`;
 const PAGE_PARAMS = { new: parseAsStringLiteral(["1"]), q: parseAsString.withDefault("") };
@@ -170,11 +170,7 @@ export function SecretsPage({
 								secrets.length === 0 ? (
 									<EmptyHero
 										art={<SecretsArt environment={environmentName} />}
-										title={
-											<>
-												No secrets in <InlineCode>{environmentName}</InlineCode>
-											</>
-										}
+										title={withCode`No secrets in ${environmentName}`}
 										subtitle={
 											<>
 												Secrets belong to an environment, and this one is <InlineCode>{environmentName}</InlineCode>.
@@ -229,24 +225,8 @@ export function SecretsPage({
 			/>
 			<ConfirmDialog
 				open={modal?.kind === "delete"}
-				title={
-					modal?.kind === "delete" ? (
-						<>
-							Delete <InlineCode>{modal.secret.name}</InlineCode>?
-						</>
-					) : (
-						""
-					)
-				}
-				description={
-					modal?.kind === "delete" ? (
-						<>
-							No resource refers to <InlineCode>{modal.secret.name}</InlineCode>. This can’t be undone.
-						</>
-					) : (
-						""
-					)
-				}
+				title={modal?.kind === "delete" ? withCode`Delete ${modal.secret.name}?` : ""}
+				description={modal?.kind === "delete" ? deleteBody(modal.secret.name) : ""}
 				confirmLabel="Delete"
 				pending={remove.isPending}
 				onClose={() => {
@@ -405,8 +385,7 @@ function secretColumns({
 									Delete
 									{secret.usedBy.length > 0 && (
 										<span className="text-[11.5px] text-fg3">
-											Read by <InlineCodeList names={secret.usedBy.map((user) => user.resourceSlug)} />. Remove the
-											reference and redeploy first.
+											{deleteBlocked(secret.usedBy.map((user) => user.resourceSlug))}
 										</span>
 									)}
 								</span>
