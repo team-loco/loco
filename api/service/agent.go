@@ -224,12 +224,17 @@ func registeredAs(row genDb.GetEnrolledClusterRow, key uuid.UUID) (registeredClu
 // recordHeartbeat records that the cluster is alive and how healthy it is. A change of health records
 // cluster.health_changed. A heartbeat that ends a silence records cluster.recovered, after the cluster.silent
 // the sweeper has not recorded yet when the gap since the previous heartbeat exceeded the silence threshold.
-// All of it happens in the heartbeat's transaction.
-func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {
+// All of it happens in the heartbeat's transaction. A heartbeat from a superseded stream records nothing.
+func (s *AgentServer) recordHeartbeat(
+	ctx context.Context,
+	clusterID uuid.UUID,
+	generation int64,
+	heartbeat *agentv1.Heartbeat,
+) {
 	status := healthStatusFromProto(heartbeat.GetHealth())
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		cluster, err := qtx.CreateClusterHeartbeat(ctx, genDb.CreateClusterHeartbeatParams{
-			ID: clusterID, HealthStatus: status,
+			ID: clusterID, Generation: generation, HealthStatus: status,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil

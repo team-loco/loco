@@ -33,11 +33,11 @@ func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) er
 const createClusterHeartbeat = `-- name: CreateClusterHeartbeat :one
 WITH target AS (
     SELECT id, name, region, is_active FROM clusters
-    WHERE id = $1 AND removed_at IS NULL
-    FOR KEY SHARE
+    WHERE id = $1 AND removed_at IS NULL AND sync_generation = $2
+    FOR SHARE
 ), inserted AS (
     INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
-    SELECT id, clock_timestamp(), $2::text FROM target
+    SELECT id, clock_timestamp(), $3::text FROM target
     ON CONFLICT (cluster_id) DO NOTHING
     RETURNING cluster_id
 )
@@ -47,6 +47,7 @@ FROM target
 
 type CreateClusterHeartbeatParams struct {
 	ID           uuid.UUID `json:"id"`
+	Generation   int64     `json:"generation"`
 	HealthStatus string    `json:"healthStatus"`
 }
 
@@ -58,9 +59,10 @@ type CreateClusterHeartbeatRow struct {
 }
 
 // Inserts the cluster's first heartbeat and reports created. A concurrent first heartbeat waits for this one's
-// commit. Returns nothing for a removed cluster.
+// commit. Returns nothing for a removed cluster or a superseded stream; the share lock holds off a new stream
+// until the heartbeat commits.
 func (q *Queries) CreateClusterHeartbeat(ctx context.Context, arg CreateClusterHeartbeatParams) (CreateClusterHeartbeatRow, error) {
-	row := q.db.QueryRow(ctx, createClusterHeartbeat, arg.ID, arg.HealthStatus)
+	row := q.db.QueryRow(ctx, createClusterHeartbeat, arg.ID, arg.Generation, arg.HealthStatus)
 	var i CreateClusterHeartbeatRow
 	err := row.Scan(
 		&i.Name,

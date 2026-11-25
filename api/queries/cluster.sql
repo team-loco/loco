@@ -13,11 +13,12 @@ WHERE id = $1;
 
 -- name: CreateClusterHeartbeat :one
 -- Inserts the cluster's first heartbeat and reports created. A concurrent first heartbeat waits for this one's
--- commit. Returns nothing for a removed cluster.
+-- commit. Returns nothing for a removed cluster or a superseded stream; the share lock holds off a new stream
+-- until the heartbeat commits.
 WITH target AS (
     SELECT id, name, region, is_active FROM clusters
-    WHERE id = sqlc.arg(id) AND removed_at IS NULL
-    FOR KEY SHARE
+    WHERE id = sqlc.arg(id) AND removed_at IS NULL AND sync_generation = sqlc.arg(generation)
+    FOR SHARE
 ), inserted AS (
     INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
     SELECT id, clock_timestamp(), sqlc.arg(health_status)::text FROM target

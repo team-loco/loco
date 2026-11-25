@@ -58,7 +58,8 @@ type Querier interface {
 	CreateBuildRegistryCredential(ctx context.Context, arg CreateBuildRegistryCredentialParams) (int64, error)
 	CreateCluster(ctx context.Context, arg CreateClusterParams) error
 	// Inserts the cluster's first heartbeat and reports created. A concurrent first heartbeat waits for this one's
-	// commit. Returns nothing for a removed cluster.
+	// commit. Returns nothing for a removed cluster or a superseded stream; the share lock holds off a new stream
+	// until the heartbeat commits.
 	CreateClusterHeartbeat(ctx context.Context, arg CreateClusterHeartbeatParams) (CreateClusterHeartbeatRow, error)
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
