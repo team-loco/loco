@@ -86,8 +86,10 @@ func validNtfyServer(u *url.URL) bool {
 		return false
 	}
 	hasHost := u.Hostname() != ""
-	plain := u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == ""
-	return hasHost && plain
+	hasCredentials := u.User != nil
+	hasQuery := u.RawQuery != "" || u.ForceQuery
+	hasFragment := u.Fragment != ""
+	return hasHost && !hasCredentials && !hasQuery && !hasFragment
 }
 
 // SyncNtfy makes the install's ntfy target match cfg, and removes it when cfg is nil. The access token

@@ -54,6 +54,9 @@ func TestNewNtfyConfig(t *testing.T) {
 				t.Fatalf("error = %v, want %v", err, tt.wantErr)
 			}
 			if tt.wantURL == "" {
+				if cfg != nil {
+					t.Fatalf("config = %+v, want nil", cfg)
+				}
 				return
 			}
 			if cfg.TopicURL != tt.wantURL {

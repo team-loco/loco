@@ -2,7 +2,7 @@
 title: "ntfy notifications"
 ---
 
-Loco publishes selected events to a topic on an [ntfy](https://ntfy.sh) server, so an operator's phone or desktop shows a notification within seconds of a failure. Run the ntfy server outside the Loco install, so notifications still arrive when Loco is down.
+Loco publishes selected events to a topic on an [ntfy](https://ntfy.sh) server, so an operator's phone or desktop shows a notification within seconds of a failure. Run the ntfy server outside the Loco install. ntfy reports worker-cluster and application problems that Loco records. A full control-plane outage cannot report itself, so it needs a probe from outside the install (tracked in [#3538](https://github.com/team-loco/loco/issues/3538)).
 
 ## Configure the API
 

@@ -73,7 +73,12 @@ func (f *fixture) ntfyDispatcher() *webhooks.Dispatcher {
 
 func (f *fixture) syncNtfy(t *testing.T, server, token string, types ...string) {
 	t.Helper()
-	cfg, err := webhooks.NewNtfyConfig(server, "alerts", token, types)
+	f.syncNtfyTopic(t, server, "alerts", token, types...)
+}
+
+func (f *fixture) syncNtfyTopic(t *testing.T, server, topic, token string, types ...string) {
+	t.Helper()
+	cfg, err := webhooks.NewNtfyConfig(server, topic, token, types)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,16 +197,64 @@ func TestNtfyFailureIsShownThenRetriedUntilDelivered(t *testing.T) {
 	}
 }
 
-func TestNtfyOffRemovesTheTarget(t *testing.T) {
+func TestNtfyRetryGoesToTheDestinationConfiguredWhenItIsSent(t *testing.T) {
 	f := newFixture(t)
-	f.syncNtfy(t, newNtfyServer(t).srv.URL, "")
+	first, second := newNtfyServer(t), newNtfyServer(t)
+	first.respondWith(http.StatusServiceUnavailable)
+	f.syncNtfy(t, first.srv.URL, "tk_first", events.ClusterSilent)
+	f.recordInstall(t, events.ClusterSilent, edgeCluster)
+	dispatcher := f.ntfyDispatcher()
+	if _, err := dispatcher.DispatchDue(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	f.syncNtfyTopic(t, second.srv.URL, "other", "tk_second", events.ClusterSilent)
+	if _, err := f.pool.Exec(t.Context(), "UPDATE webhook_deliveries SET next_attempt_at = now()"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dispatcher.DispatchDue(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	got := second.received()
+	if len(got) != 1 {
+		t.Fatalf("the new destination received %d publishes, want the retry", len(got))
+	}
+	if got[0].path != "/other" {
+		t.Errorf("retry path = %q, want /other", got[0].path)
+	}
+	if got[0].authorization != "Bearer tk_second" {
+		t.Errorf("retry authorization = %q, want the new token", got[0].authorization)
+	}
+	if status, attempts, _ := f.ntfyDelivery(t); status != webhooks.StatusSucceeded || attempts != 2 {
+		t.Fatalf("delivery = %s after %d attempts, want succeeded on the second", status, attempts)
+	}
+	if len(first.received()) != 1 {
+		t.Fatalf("the old destination received %d publishes, want only the first attempt", len(first.received()))
+	}
+}
+
+func TestNtfyOffDropsQueuedAndLaterEvents(t *testing.T) {
+	f := newFixture(t)
+	server := newNtfyServer(t)
+	f.syncNtfy(t, server.srv.URL, "", events.ClusterSilent)
+	f.recordInstall(t, events.ClusterSilent, edgeCluster)
 	if err := webhooks.SyncNtfy(t.Context(), f.pool, f.provider, nil); err != nil {
 		t.Fatal(err)
 	}
-	var n int
+	f.recordInstall(t, events.ClusterSilent, edgeCluster)
+
+	if _, err := f.ntfyDispatcher().DispatchDue(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := server.received(); len(got) != 0 {
+		t.Fatalf("publishes after turning ntfy off = %+v, want none", got)
+	}
+	var targets int
 	if err := f.pool.QueryRow(t.Context(), "SELECT count(*) FROM webhooks WHERE kind = 'ntfy'").
-		Scan(&n); err != nil ||
-		n != 0 {
-		t.Fatalf("ntfy targets = %d, err %v, want none", n, err)
+		Scan(&targets); err != nil {
+		t.Fatal(err)
+	}
+	if targets != 0 {
+		t.Fatalf("ntfy targets = %d, want none", targets)
 	}
 }

@@ -83,7 +83,7 @@ func TestNotificationFor(t *testing.T) {
 				Type: events.ClusterRegistered, Data: []byte(`{"name":"edge-1","region":"us-ca-1"}`),
 			},
 			title:    "Cluster registered",
-			message:  "edge-1 (us-ca-1)",
+			message:  "Cluster registered: edge-1 (us-ca-1)",
 			priority: 3,
 			tags:     "bell",
 		},

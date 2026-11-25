@@ -94,9 +94,9 @@ func notificationFor(
 		n.Message = fmt.Sprintf("%s was suspended: %s", names.OrgName, data.Reason)
 	default:
 		n.Title, n.Tags = eventTitle(row.Type), defaultTag
-		n.Message = strings.Join(nonEmpty(where, clusterLabel(data.Name, data.Region)), " / ")
-		if n.Message == "" {
-			n.Message = row.Type
+		n.Message = n.Title
+		if names := nonEmpty(where, clusterLabel(data.Name, data.Region)); len(names) > 0 {
+			n.Message += ": " + strings.Join(names, " / ")
 		}
 	}
 	n.Message = clip.Bytes(strings.Join(strings.Fields(n.Message), " "), maxNtfyMessage)
