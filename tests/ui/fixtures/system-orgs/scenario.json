@@ -1,0 +1,12 @@
+{
+  "users": {
+    "admin": {"email": "admin@loco.test", "name": "Ada Admin", "system": "admin"},
+    "reader": {"email": "reader@loco.test", "name": "Rae Reader", "system": "read"},
+    "member": {"email": "member@acme.test", "name": "Max Member"}
+  },
+  "orgs": [
+    {"name": "acme", "owner": "member", "workspaces": ["shared"]},
+    {"name": "ops", "owner": "admin", "workspaces": ["main"], "members": ["member"]},
+    {"name": "labs", "owner": "admin", "workspaces": ["bench"]}
+  ]
+}

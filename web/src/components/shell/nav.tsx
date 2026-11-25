@@ -1,6 +1,7 @@
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import {
 	BoxesIcon,
+	Building2Icon,
 	ChartLineIcon,
 	HistoryIcon,
 	KeyRoundIcon,
@@ -23,7 +24,15 @@ import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { WINDOW_PARSERS } from "@/lib/obs-time";
 import { useInSystem } from "@/hooks/useInSystem";
-import { atPath, CLUSTERS_PATH, OPERATORS_PATH, SYSTEM_AUDIT_PATH, SYSTEM_PATH, USERS_PATH } from "@/lib/system";
+import {
+	atPath,
+	CLUSTERS_PATH,
+	OPERATORS_PATH,
+	ORGS_PATH,
+	SYSTEM_AUDIT_PATH,
+	SYSTEM_PATH,
+	USERS_PATH,
+} from "@/lib/system";
 import { carriedQuery, QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 import {
 	auditPath,
@@ -82,6 +91,18 @@ function systemSections(pathname: string): NavSection[] {
 					keywords: "system workers regions agents",
 					to: CLUSTERS_PATH,
 					active: atPath(pathname, CLUSTERS_PATH),
+				},
+			],
+		},
+		{
+			label: "Tenants",
+			pages: [
+				{
+					name: "Organizations",
+					icon: <Building2Icon />,
+					keywords: "system tenants customers limits suspend",
+					to: ORGS_PATH,
+					active: atPath(pathname, ORGS_PATH),
 				},
 			],
 		},

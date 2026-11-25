@@ -1,5 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { listClusters } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
+import { getOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { Link, matchPath, useLocation } from "react-router";
 
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from "@/components/design/Breadcrumb";
@@ -8,6 +9,7 @@ import {
 	CLUSTERS_PATH,
 	NEW_CLUSTER_PATH,
 	OPERATORS_PATH,
+	ORGS_PATH,
 	SYSTEM_AUDIT_PATH,
 	SYSTEM_PATH,
 	USERS_PATH,
@@ -48,6 +50,9 @@ export function SystemBreadcrumb() {
 	const name = clusters.data?.clusters.find((c) => c.id === clusterId)?.name ?? clusterId ?? "";
 	const onClusters = atPath(pathname, CLUSTERS_PATH);
 	const onAudit = atPath(pathname, SYSTEM_AUDIT_PATH);
+	const orgId = matchPath(`${ORGS_PATH}/:orgId`, pathname)?.params.orgId;
+	const org = useQuery(getOrg, { orgId: orgId ?? "" }, { enabled: orgId !== undefined });
+	const onOrgs = atPath(pathname, ORGS_PATH);
 	return (
 		<Breadcrumb className="min-w-0 flex-auto overflow-hidden min-[761px]:flex-1 min-[761px]:basis-0">
 			<BreadcrumbList>
@@ -62,7 +67,7 @@ export function SystemBreadcrumb() {
 				</BreadcrumbItem>
 				<Slash />
 				{onAudit && <Crumb>Audit log</Crumb>}
-				{!onClusters && !onAudit && <Crumb>{PEOPLE_PAGES[pathname] ?? "Overview"}</Crumb>}
+				{!onClusters && !onOrgs && !onAudit && <Crumb>{PEOPLE_PAGES[pathname] ?? "Overview"}</Crumb>}
 				{onClusters && (
 					<>
 						<Crumb {...(clusterId === undefined ? {} : { to: CLUSTERS_PATH })}>Clusters</Crumb>
@@ -76,6 +81,17 @@ export function SystemBreadcrumb() {
 							<>
 								<Slash />
 								<Crumb>{name}</Crumb>
+							</>
+						)}
+					</>
+				)}
+				{onOrgs && (
+					<>
+						<Crumb {...(orgId === undefined ? {} : { to: ORGS_PATH })}>Organizations</Crumb>
+						{orgId !== undefined && (
+							<>
+								<Slash />
+								<Crumb>{org.data?.organization?.name ?? orgId}</Crumb>
 							</>
 						)}
 					</>
