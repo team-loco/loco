@@ -60,6 +60,9 @@
 
 [data-theme="solarized"] {
 	--radius-control: 2px;
+	--radius-xs: 2px;
+	--radius-sm: 2px;
+	--radius-md: 2px;
 	--radius-card: 3px;
 	--radius-overlay: 3px;
 	--band-radius: 2px;
@@ -144,6 +147,15 @@
 	}
 }
 
-[data-theme="solarized"] :is(.sb-search, [data-slot="account-button"], [data-slot="chip"], .dwa-chip) {
+[data-theme="solarized"]
+	:is(
+		.sb-search,
+		.act-btn,
+		[data-slot="account-button"],
+		[data-slot="chip"],
+		[data-slot="command-button"],
+		[data-slot="step-toggle"],
+		[data-request-id] [data-slot="button"]
+	) {
 	border-radius: 2px;
 }

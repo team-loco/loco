@@ -86,7 +86,7 @@ function Unavailable({ onRetry, className }: { onRetry: () => Promise<unknown>; 
 			className={className}
 			art={
 				<div className="mb-[18px] flex items-center text-[12.5px] text-fg2">
-					<span className={end}>
+					<span data-slot="chip" className={end}>
 						<MonitorIcon className="size-3.5" />
 						This browser
 					</span>

@@ -673,6 +673,7 @@ export function CommandMenu() {
 	return (
 		<button
 			type="button"
+			data-slot="command-button"
 			aria-label="Search and run commands"
 			aria-keyshortcuts="Meta+K Control+K"
 			onClick={openPalette}

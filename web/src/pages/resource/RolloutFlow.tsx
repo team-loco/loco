@@ -45,6 +45,7 @@ function FlowStep({ node, open, onToggle }: { node: FlowNode; open: boolean; onT
 		<button
 			type="button"
 			aria-expanded={open}
+			data-slot="step-toggle"
 			disabled={idle}
 			onClick={() => {
 				onToggle(node.key);
