@@ -243,8 +243,11 @@ with session(repo / "tests/ui/out/system-telemetry") as browser:
     # Live tail reads the installation scope too.
     with page.expect_request(lambda request: request.url.endswith("/TailLogs")):
         page.goto(ui + "/system/logs")
-    tails = scoped(requests, "TailLogs")
-    assert tails, requests
+    for _ in range(50):
+        if scoped(requests, "TailLogs"):
+            break
+        page.wait_for_timeout(100)
+    assert scoped(requests, "TailLogs"), requests
 
     # Every telemetry request, the nested trace scope, buckets and the drawer's logs included,
     # asks for the installation and names no workspace, environment or resource.
