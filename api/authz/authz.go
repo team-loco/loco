@@ -25,7 +25,7 @@ func New(q queries.Querier) *Authorizer {
 }
 
 // Check reports whether granted covers required, either directly, through a system scope of the
-// same level or system admin for a read, or through the same scope on an organization or
+// same level or system admin for any level, or through the same scope on an organization or
 // workspace that owns the entity.
 // It returns [ErrEntityNotFound] when the entity does not exist,
 // [ErrInsufficientPermissions] when no granted scope covers it, and the wrapped database error
@@ -195,9 +195,9 @@ func covers(held queries.Scope, required queries.Scope) bool {
 	return held == required || required == queries.ScopeMember
 }
 
-// coversSystem is covers for a system scope: a system admin also holds system read.
+// coversSystem is covers for a system scope: a system admin holds every scope.
 func coversSystem(held queries.Scope, required queries.Scope) bool {
-	return covers(held, required) || held == queries.ScopeAdmin && required == queries.ScopeRead
+	return held == queries.ScopeAdmin || covers(held, required)
 }
 
 func (a *Authorizer) UserScopes(ctx context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {
