@@ -473,8 +473,6 @@ func deploymentSpecFor(
 	}
 	return &deploymentv1.ServiceDeploymentSpec{
 		Observability: state.Observability.Proto(),
-		RunAsUser:     state.RunAsUser,
-		RunAsGroup:    state.RunAsGroup,
 		Build:         build,
 		Command:       state.Command,
 		Args:          state.Args,

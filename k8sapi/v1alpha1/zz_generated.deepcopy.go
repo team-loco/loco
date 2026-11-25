@@ -492,16 +492,6 @@ func (in *ServiceDeploymentSpec) DeepCopyInto(out *ServiceDeploymentSpec) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.RunAsUser != nil {
-		in, out := &in.RunAsUser, &out.RunAsUser
-		*out = new(int64)
-		**out = **in
-	}
-	if in.RunAsGroup != nil {
-		in, out := &in.RunAsGroup, &out.RunAsGroup
-		*out = new(int64)
-		**out = **in
-	}
 	if in.Command != nil {
 		in, out := &in.Command, &out.Command
 		*out = make([]string, len(*in))

@@ -836,13 +836,8 @@ func podTemplate(
 	podLabels[labelAppKubernetesName] = name
 	podLabels[managed.LabelComponent] = componentApplication
 	podSecurity := podSecurityContext()
-	if spec.Deployment.RunAsUser != nil {
-		podSecurity = podSecurity.WithRunAsUser(*spec.Deployment.RunAsUser)
-	}
-	if spec.Deployment.RunAsGroup != nil {
-		podSecurity = podSecurity.WithRunAsGroup(*spec.Deployment.RunAsGroup)
-	}
 	podSpec := corev1ac.PodSpec().
+		WithHostUsers(false).
 		WithServiceAccountName(name).
 		WithAutomountServiceAccountToken(false).
 		WithSecurityContext(podSecurity).

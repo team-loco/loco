@@ -624,9 +624,7 @@ type ServiceDeploymentSpec struct {
 	// routing is the HTTP routing the deployment's environment uses. An empty message means the
 	// service sets no routing and the defaults apply; without the field the resource's routing
 	// applies.
-	Routing    *ServiceRouting `protobuf:"bytes,10,opt,name=routing,proto3,oneof" json:"routing,omitempty"`
-	RunAsUser  *int64          `protobuf:"varint,11,opt,name=run_as_user,json=runAsUser,proto3,oneof" json:"run_as_user,omitempty"`
-	RunAsGroup *int64          `protobuf:"varint,12,opt,name=run_as_group,json=runAsGroup,proto3,oneof" json:"run_as_group,omitempty"`
+	Routing *ServiceRouting `protobuf:"bytes,10,opt,name=routing,proto3,oneof" json:"routing,omitempty"`
 	// Defaults to the resource settings when omitted; stored in the deployment snapshot.
 	Observability *ObservabilityConfig `protobuf:"bytes,13,opt,name=observability,proto3" json:"observability,omitempty"`
 	// The API assigns the installation target when recording this immutable snapshot.
@@ -706,20 +704,6 @@ func (x *ServiceDeploymentSpec) GetRouting() *ServiceRouting {
 		return x.Routing
 	}
 	return nil
-}
-
-func (x *ServiceDeploymentSpec) GetRunAsUser() int64 {
-	if x != nil && x.RunAsUser != nil {
-		return *x.RunAsUser
-	}
-	return 0
-}
-
-func (x *ServiceDeploymentSpec) GetRunAsGroup() int64 {
-	if x != nil && x.RunAsGroup != nil {
-		return *x.RunAsGroup
-	}
-	return 0
 }
 
 func (x *ServiceDeploymentSpec) GetObservability() *ObservabilityConfig {
@@ -3289,19 +3273,14 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x13ObservabilityConfig\x12$\n" +
 	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
 	"injectOtel\x88\x01\x01B\x0e\n" +
-	"\f_inject_otel\"\xd7\b\n" +
+	"\f_inject_otel\"\xcc\a\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12D\n" +
 	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12$\n" +
 	"\x04port\x18\t \x01(\x05B\v\xbaH\b\x1a\x06\x18\xff\xff\x03(\x01H\x01R\x04port\x88\x01\x01\x12A\n" +
 	"\arouting\x18\n" +
-	" \x01(\v2\".loco.deployment.v1.ServiceRoutingH\x02R\arouting\x88\x01\x01\x122\n" +
-	"\vrun_as_user\x18\v \x01(\x03B\r\xbaH\n" +
-	"\"\b\x18\xff\xff\xff\xff\a \x00H\x03R\trunAsUser\x88\x01\x01\x124\n" +
-	"\frun_as_group\x18\f \x01(\x03B\r\xbaH\n" +
-	"\"\b\x18\xff\xff\xff\xff\a \x00H\x04R\n" +
-	"runAsGroup\x88\x01\x01\x12M\n" +
+	" \x01(\v2\".loco.deployment.v1.ServiceRoutingH\x02R\arouting\x88\x01\x01\x12M\n" +
 	"\robservability\x18\r \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12\x1a\n" +
 	"\bplatform\x18\x0f \x01(\tR\bplatform\x12(\n" +
 	"\acommand\x18\x10 \x03(\tB\x0e\xbaH\v\x92\x01\b\x10d\"\x04r\x02\x10\x01R\acommand\x12\x1c\n" +
@@ -3317,9 +3296,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\r_health_checkB\a\n" +
 	"\x05_portB\n" +
 	"\n" +
-	"\b_routingB\x0e\n" +
-	"\f_run_as_userB\x0f\n" +
-	"\r_run_as_groupJ\x04\b\x0e\x10\x0f\"\xe1\x03\n" +
+	"\b_routingJ\x04\b\x0e\x10\x0f\"\xe1\x03\n" +
 	"\x16RegionDeploymentTarget\x12\x1e\n" +
 	"\x03cpu\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x03cpu\x88\x01\x01\x12$\n" +
 	"\x06memory\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x01R\x06memory\x88\x01\x01\x12/\n" +

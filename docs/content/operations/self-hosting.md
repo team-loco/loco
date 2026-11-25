@@ -18,6 +18,12 @@ Self-hosting runs Loco's control plane and worker software on operator-managed K
 
 The control-plane chart is `charts/loco-control-plane`; the worker chart is `charts/loco-worker`. The platform bundle pins charts, CRDs and images by digest. Use its `./control-plane`, `./worker` or `./all` entry point, and add `./postgres-operator` for the bundled PostgreSQL. Customer workloads continue through the API, agent and `Application` resources.
 
+## Application worker requirements
+
+Application workers require Kubernetes 1.35 or newer and support for [pod user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/). Use Linux with idmapped mount support on the kubelet and pod volume filesystems (normally Linux 6.3 or newer), a compatible OCI runtime such as runc 1.2 or newer, and containerd 2.0 or newer or CRI-O 1.25 or newer.
+
+Every application pod requests `hostUsers: false`. A worker without support fails to start the pod; Loco never falls back to running it in the host user namespace. User namespaces share the node kernel and do not provide a virtual machine boundary between tenants.
+
 ## Installation inputs
 
 Provide Kubernetes and its CNI, PostgreSQL, OIDC, an S3-compatible source bucket, a registry and DNS. The bundle can run PostgreSQL instead: `locoadm init --postgres` installs the CloudNativePG operator and sets the control-plane value `postgres.enabled`, which runs a two-instance cluster for the API on the default StorageClass. It has no backups yet; see [bundled PostgreSQL](../reference/installation.md#bundled-postgresql). `locoadm init --registry HOST` runs a zot registry in the control plane at that hostname, in Loco's token mode, on a volume or an S3-compatible bucket; see [bundled registry](../reference/installation.md#bundled-registry). Platform staging and production use separate clusters. User environments, such as a team’s staging and production, can share the installation’s worker clusters. A single-cluster installation can host one control plane and one worker. Use `locoadm init --single-cluster --name local` to generate its `clusters/local/` directory and combined bundle entry point.

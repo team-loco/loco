@@ -6,7 +6,6 @@ import (
 )
 
 var (
-	ErrRuntimeID          = errors.New("must be a numeric ID between 1 and 2147483647")
 	ErrServiceNotFound    = errors.New("service is not in the file")
 	ErrNotSupportedYet    = errors.New("not supported yet")
 	ErrUnsupportedVersion = errors.New("version must be 1")

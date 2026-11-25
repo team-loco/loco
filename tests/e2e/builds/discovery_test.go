@@ -27,7 +27,7 @@ const (
 )
 
 // TestDiscovery deploys private HTTP and TCP services and checks how other apps reach them: by
-// logical name and port, after a runtime user change, a slug change and a delete, and never
+// logical name and port, after a slug change and a delete, and never
 // across workspaces.
 func TestDiscovery(t *testing.T) {
 	t.Parallel()
@@ -46,7 +46,7 @@ func TestDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A named image USER, which runAsUser must override.
+	// Exercise a named image USER.
 	if err := os.WriteFile(
 		dockerfile,
 		[]byte(strings.ReplaceAll(string(data), "USER 65532:65532", "USER nonroot")),
@@ -59,8 +59,6 @@ func TestDiscovery(t *testing.T) {
 			Context:    "services/cart",
 			Dockerfile: platform.FixtureDockerfile,
 			Env:        map[string]string{"MESSAGE": workspaceOne},
-			RunAsUser:  new(int64(1000)),
-			RunAsGroup: new(int64(1000)),
 			Port:       new(int32(8080)),
 			Regions:    map[string]locofile.Region{p.Region: platform.OneReplica()},
 		},
@@ -89,28 +87,6 @@ func TestDiscovery(t *testing.T) {
 
 	d := &discovery{w: w}
 	t.Run("apps use logical names and configured ports", d.logicalNames)
-
-	t.Run("a runtime user update reuses the image", func(t *testing.T) {
-		before := workspaceBuilds(t, w)
-		cart := file.Services[cartName]
-		cart.RunAsUser = new(int64(1001))
-		file.Services[cartName] = cart
-		platform.WriteLocoFile(t, dir, file)
-		w.MustLoco(t, dir, "infra", "apply", "--yes")
-		platform.Eventually(t, 2*time.Minute, "new pods with the updated UID", func(ctx context.Context) error {
-			out, err := callHTTP(ctx, w, cartName, "/identity")
-			if err != nil {
-				return err
-			}
-			if strings.TrimSpace(out) != "1001:1000" {
-				return fmt.Errorf("identity %q", out)
-			}
-			return nil
-		})
-		if after := workspaceBuilds(t, w); after != before {
-			t.Errorf("the runtime user update started %d builds", after-before)
-		}
-	})
 
 	t.Run("a slug change moves the alias without a build", d.reslug)
 
@@ -217,7 +193,7 @@ type discovery struct {
 func (d *discovery) logicalNames(t *testing.T) {
 	w := d.w
 	for _, check := range []struct{ what, target, path, want string }{
-		{"a numeric UID overrides a named image USER", cartName, "/identity", "1000:1000"},
+		{"a named image USER is preserved", cartName, "/identity", "65532:65532"},
 		{"the qualified name without a port reaches cart", "cart." + w.Namespace + ".svc.cluster.local", "/", workspaceOne},
 		{"the short name reaches cart", cartName, "/", workspaceOne},
 		{"cart:8080 reaches cart over HTTP", "cart:8080", "/", workspaceOne},

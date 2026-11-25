@@ -72,7 +72,7 @@ loco secret list --env production
 
 ## Container requirements
 
-Applications run under Kubernetes' `restricted` Pod Security profile. Use an image with a numeric non-root `USER`, or set `runAsUser` in `loco.yaml` to a positive numeric UID compatible with the image. Set `runAsGroup` when it also needs an explicit primary GID; see [Runtime user](../deployment/loco-yaml.md#runtime-user). The pod sets the `net.ipv4.ip_unprivileged_port_start=0` sysctl, so the process can listen on any port from 1 to 65535 without root or extra capabilities.
+Applications run under Kubernetes' `restricted` Pod Security profile in a user namespace (`hostUsers: false`). The image's declared user can be a name, a numeric ID or root; an image without a `USER` runs as root inside the pod. Kubernetes maps each pod's users to a separate unprivileged range on the node. Privilege escalation remains disabled, all capabilities are dropped and seccomp uses the runtime default. The pod sets the `net.ipv4.ip_unprivileged_port_start=0` sysctl, so the process can listen on any port from 1 to 65535 without root or extra capabilities.
 
 ## Runtime environment
 

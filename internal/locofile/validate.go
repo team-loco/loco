@@ -2,7 +2,6 @@ package locofile
 
 import (
 	"errors"
-	"math"
 	"regexp"
 	"slices"
 )
@@ -63,8 +62,7 @@ func validate(file *File) error {
 }
 
 func validateService(path string, service Service) []error {
-	errs := validateRuntimeIDs(path, service.RunAsUser, service.RunAsGroup)
-	errs = append(errs, validateDeploy(path, service.Deploy)...)
+	errs := validateDeploy(path, service.Deploy)
 	if service.Image != "" && (service.Dockerfile != "" || service.Context != "") {
 		errs = append(errs, &FieldError{Path: path, Err: ErrImageWithBuild})
 	}
@@ -95,7 +93,7 @@ func validateService(path string, service Service) []error {
 }
 
 func validateOverride(path string, override Override) []error {
-	errs := validateRuntimeIDs(path, override.RunAsUser, override.RunAsGroup)
+	errs := make([]error, 0, len(override.Regions))
 	for _, name := range sortedKeys(override.Regions) {
 		region := override.Regions[name]
 		errs = append(errs, validateAutoscaling(path+".regions."+name, region.Autoscaling)...)
@@ -158,14 +156,4 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	slices.Sort(keys)
 	return keys
-}
-
-func validateRuntimeIDs(path string, user, group *int64) []error {
-	var errs []error
-	for field, id := range map[string]*int64{"runAsUser": user, "runAsGroup": group} {
-		if id != nil && (*id <= 0 || *id > math.MaxInt32) {
-			errs = append(errs, &FieldError{Path: path + "." + field, Err: ErrRuntimeID})
-		}
-	}
-	return errs
 }
