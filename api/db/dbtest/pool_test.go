@@ -3,6 +3,7 @@ package dbtest
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"runtime"
 	"testing"
@@ -28,7 +29,7 @@ func TestReapDropsOnlyTheDatabasesOfDeadRuns(t *testing.T) {
 		})
 		return conn
 	}
-	const liveRun, deadRun = 7_000_000_001, 7_000_000_002
+	liveRun, deadRun := rand.Int64(), rand.Int64() //nolint:gosec // names test databases; not a secret
 	name := func(run int64) string { return fmt.Sprintf("%s%d_reaptest", testDatabasePrefix, run) }
 	live, dead := connect(), connect()
 	for _, owner := range []struct {
@@ -49,7 +50,7 @@ func TestReapDropsOnlyTheDatabasesOfDeadRuns(t *testing.T) {
 		})
 	}
 	// The server frees a closed session's locks after the client returns, so release it first.
-	if _, err := dead.Exec(t.Context(), "SELECT pg_advisory_unlock($1)", int64(deadRun)); err != nil {
+	if _, err := dead.Exec(t.Context(), "SELECT pg_advisory_unlock($1)", deadRun); err != nil {
 		t.Fatal(err)
 	}
 	if err := dead.Close(t.Context()); err != nil {
