@@ -201,3 +201,13 @@ func TestDeviceLoginCopiesUserCode(t *testing.T) {
 	}
 	t.Fatal("device login did not request copying the user code")
 }
+
+func TestDeviceLoginShowsClipboardConfirmation(t *testing.T) {
+	const code = "ABCD-EFGH"
+	view := initialModel(code, "https://loco.test/device", nil).View()
+	for _, text := range []string{code, "Code already copied to clipboard."} {
+		if !strings.Contains(view.Content, text) {
+			t.Fatalf("device login view does not contain %q: %s", text, view.Content)
+		}
+	}
+}

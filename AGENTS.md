@@ -61,6 +61,8 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 
 A draft pull request runs no CI; marking it ready runs every check. Keep a PR a draft while you push work in progress, and run browser suites and UI screenshots for it in CI with `mise run ci:evidence`, as the `ci-evidence` skill describes, instead of on your machine.
 
+For visible CLI changes, attach before and after terminal screenshots in light and dark mode to the PR. Capture actual CLI output with synthetic data, never live login codes or credentials.
+
 ## Principles
 
 - **Every change has a test** that fails before it and passes after it.
