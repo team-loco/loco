@@ -126,13 +126,18 @@ func (SessionKind) EnumDescriptor() ([]byte, []int) {
 
 // User represents a user account with OAuth identity and profile information.
 type User struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	AvatarUrl     string                 `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
-	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Email     string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	AvatarUrl string                 `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	Name      string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// status is set only for callers holding system read.
+	Status UserStatus `protobuf:"varint,7,opt,name=status,proto3,enum=loco.user.v1.UserStatus" json:"status,omitempty"`
+	// last_active_at is the latest use of any of the user's sessions; set only for callers holding
+	// system read, and unset when the user has no recorded session.
+	LastActiveAt  *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_active_at,json=lastActiveAt,proto3" json:"last_active_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -205,6 +210,20 @@ func (x *User) GetCreatedAt() *timestamppb.Timestamp {
 func (x *User) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *User) GetStatus() UserStatus {
+	if x != nil {
+		return x.Status
+	}
+	return UserStatus_USER_STATUS_UNSPECIFIED
+}
+
+func (x *User) GetLastActiveAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastActiveAt
 	}
 	return nil
 }
@@ -445,11 +464,15 @@ func (x *UpdateUserResponse) GetUserId() string {
 
 // ListUsersRequest is the request to list users.
 type ListUsersRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
-	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	PageSize  int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
+	// Only users whose name or email contains this text, ignoring case.
+	Query string `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
+	// Sets total_count in the response.
+	IncludeTotalCount bool `protobuf:"varint,4,opt,name=include_total_count,json=includeTotalCount,proto3" json:"include_total_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListUsersRequest) Reset() {
@@ -496,11 +519,28 @@ func (x *ListUsersRequest) GetPageToken() string {
 	return ""
 }
 
+func (x *ListUsersRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *ListUsersRequest) GetIncludeTotalCount() bool {
+	if x != nil {
+		return x.IncludeTotalCount
+	}
+	return false
+}
+
 // ListUsersResponse is the response containing user list.
 type ListUsersResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
+	// The users the query matches, ignoring page_token; set when include_total_count is.
+	// Exact up to 10,000; 10,001 means more than 10,000.
+	TotalCount    int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -547,6 +587,13 @@ func (x *ListUsersResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListUsersResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
 }
 
 // WhoAmIRequest is the request to get the current authenticated user.
@@ -1521,7 +1568,7 @@ var File_loco_user_v1_user_proto protoreflect.FileDescriptor
 
 const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x17loco/user/v1/user.proto\x12\floco.user.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19loco/token/v1/token.proto\"\xd5\x01\n" +
+	"\x17loco/user/v1/user.proto\x12\floco.user.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19loco/token/v1/token.proto\"\xc9\x02\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1d\n" +
@@ -1531,7 +1578,9 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"]\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x120\n" +
+	"\x06status\x18\a \x01(\x0e2\x18.loco.user.v1.UserStatusR\x06status\x12@\n" +
+	"\x0elast_active_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\flastActiveAt\"]\n" +
 	"\x0eGetUserRequest\x12#\n" +
 	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x06userId\x12\x1f\n" +
 	"\x05email\x18\x02 \x01(\tB\a\xbaH\x04r\x02`\x01H\x00R\x05emailB\x05\n" +
@@ -1547,15 +1596,19 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\v_avatar_urlB\a\n" +
 	"\x05_name\"-\n" +
 	"\x12UpdateUserResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"Z\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xaa\x01\n" +
 	"\x10ListUsersRequest\x12'\n" +
 	"\tpage_size\x18\x01 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tR\tpageToken\"e\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\x12\x1e\n" +
+	"\x05query\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01R\x05query\x12.\n" +
+	"\x13include_total_count\x18\x04 \x01(\bR\x11includeTotalCount\"\x86\x01\n" +
 	"\x11ListUsersResponse\x12(\n" +
 	"\x05users\x18\x01 \x03(\v2\x12.loco.user.v1.UserR\x05users\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x0f\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\"\x0f\n" +
 	"\rWhoAmIRequest\"u\n" +
 	"\x0eWhoAmIResponse\x12&\n" +
 	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\x12;\n" +
@@ -1693,44 +1746,46 @@ var file_loco_user_v1_user_proto_goTypes = []any{
 var file_loco_user_v1_user_proto_depIdxs = []int32{
 	27, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
 	27, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
-	2,  // 2: loco.user.v1.GetUserResponse.user:type_name -> loco.user.v1.User
-	2,  // 3: loco.user.v1.ListUsersResponse.users:type_name -> loco.user.v1.User
-	2,  // 4: loco.user.v1.WhoAmIResponse.user:type_name -> loco.user.v1.User
-	11, // 5: loco.user.v1.WhoAmIResponse.claimed_orgs:type_name -> loco.user.v1.ClaimedOrg
-	0,  // 6: loco.user.v1.SetUserStatusRequest.status:type_name -> loco.user.v1.UserStatus
-	28, // 7: loco.user.v1.AccountDeletionToken.entity_type:type_name -> loco.token.v1.EntityType
-	27, // 8: loco.user.v1.AccountDeletionToken.expires_at:type_name -> google.protobuf.Timestamp
-	19, // 9: loco.user.v1.GetAccountDeletionImpactResponse.last_active_admin_organizations:type_name -> loco.user.v1.AccountDeletionOrganization
-	20, // 10: loco.user.v1.GetAccountDeletionImpactResponse.owned_tokens:type_name -> loco.user.v1.AccountDeletionToken
-	1,  // 11: loco.user.v1.Session.kind:type_name -> loco.user.v1.SessionKind
-	27, // 12: loco.user.v1.Session.created_at:type_name -> google.protobuf.Timestamp
-	27, // 13: loco.user.v1.Session.last_used_at:type_name -> google.protobuf.Timestamp
-	22, // 14: loco.user.v1.ListSessionsResponse.sessions:type_name -> loco.user.v1.Session
-	3,  // 15: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
-	9,  // 16: loco.user.v1.UserService.WhoAmI:input_type -> loco.user.v1.WhoAmIRequest
-	5,  // 17: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
-	7,  // 18: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
-	18, // 19: loco.user.v1.UserService.GetAccountDeletionImpact:input_type -> loco.user.v1.GetAccountDeletionImpactRequest
-	14, // 20: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
-	16, // 21: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
-	23, // 22: loco.user.v1.UserService.ListSessions:input_type -> loco.user.v1.ListSessionsRequest
-	25, // 23: loco.user.v1.UserService.RevokeSession:input_type -> loco.user.v1.RevokeSessionRequest
-	12, // 24: loco.user.v1.UserService.SetUserStatus:input_type -> loco.user.v1.SetUserStatusRequest
-	4,  // 25: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
-	10, // 26: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
-	6,  // 27: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
-	8,  // 28: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
-	21, // 29: loco.user.v1.UserService.GetAccountDeletionImpact:output_type -> loco.user.v1.GetAccountDeletionImpactResponse
-	15, // 30: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
-	17, // 31: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
-	24, // 32: loco.user.v1.UserService.ListSessions:output_type -> loco.user.v1.ListSessionsResponse
-	26, // 33: loco.user.v1.UserService.RevokeSession:output_type -> loco.user.v1.RevokeSessionResponse
-	13, // 34: loco.user.v1.UserService.SetUserStatus:output_type -> loco.user.v1.SetUserStatusResponse
-	25, // [25:35] is the sub-list for method output_type
-	15, // [15:25] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	0,  // 2: loco.user.v1.User.status:type_name -> loco.user.v1.UserStatus
+	27, // 3: loco.user.v1.User.last_active_at:type_name -> google.protobuf.Timestamp
+	2,  // 4: loco.user.v1.GetUserResponse.user:type_name -> loco.user.v1.User
+	2,  // 5: loco.user.v1.ListUsersResponse.users:type_name -> loco.user.v1.User
+	2,  // 6: loco.user.v1.WhoAmIResponse.user:type_name -> loco.user.v1.User
+	11, // 7: loco.user.v1.WhoAmIResponse.claimed_orgs:type_name -> loco.user.v1.ClaimedOrg
+	0,  // 8: loco.user.v1.SetUserStatusRequest.status:type_name -> loco.user.v1.UserStatus
+	28, // 9: loco.user.v1.AccountDeletionToken.entity_type:type_name -> loco.token.v1.EntityType
+	27, // 10: loco.user.v1.AccountDeletionToken.expires_at:type_name -> google.protobuf.Timestamp
+	19, // 11: loco.user.v1.GetAccountDeletionImpactResponse.last_active_admin_organizations:type_name -> loco.user.v1.AccountDeletionOrganization
+	20, // 12: loco.user.v1.GetAccountDeletionImpactResponse.owned_tokens:type_name -> loco.user.v1.AccountDeletionToken
+	1,  // 13: loco.user.v1.Session.kind:type_name -> loco.user.v1.SessionKind
+	27, // 14: loco.user.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	27, // 15: loco.user.v1.Session.last_used_at:type_name -> google.protobuf.Timestamp
+	22, // 16: loco.user.v1.ListSessionsResponse.sessions:type_name -> loco.user.v1.Session
+	3,  // 17: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
+	9,  // 18: loco.user.v1.UserService.WhoAmI:input_type -> loco.user.v1.WhoAmIRequest
+	5,  // 19: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
+	7,  // 20: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
+	18, // 21: loco.user.v1.UserService.GetAccountDeletionImpact:input_type -> loco.user.v1.GetAccountDeletionImpactRequest
+	14, // 22: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
+	16, // 23: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
+	23, // 24: loco.user.v1.UserService.ListSessions:input_type -> loco.user.v1.ListSessionsRequest
+	25, // 25: loco.user.v1.UserService.RevokeSession:input_type -> loco.user.v1.RevokeSessionRequest
+	12, // 26: loco.user.v1.UserService.SetUserStatus:input_type -> loco.user.v1.SetUserStatusRequest
+	4,  // 27: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
+	10, // 28: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
+	6,  // 29: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
+	8,  // 30: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
+	21, // 31: loco.user.v1.UserService.GetAccountDeletionImpact:output_type -> loco.user.v1.GetAccountDeletionImpactResponse
+	15, // 32: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
+	17, // 33: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
+	24, // 34: loco.user.v1.UserService.ListSessions:output_type -> loco.user.v1.ListSessionsResponse
+	26, // 35: loco.user.v1.UserService.RevokeSession:output_type -> loco.user.v1.RevokeSessionResponse
+	13, // 36: loco.user.v1.UserService.SetUserStatus:output_type -> loco.user.v1.SetUserStatusResponse
+	27, // [27:37] is the sub-list for method output_type
+	17, // [17:27] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_loco_user_v1_user_proto_init() }

@@ -12,6 +12,26 @@ import (
 	"github.com/google/uuid"
 )
 
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM users u
+  WHERE $2::text = '' OR u.name ILIKE $2 OR u.email ILIKE $2
+  LIMIT $1
+) capped
+`
+
+type CountUsersParams struct {
+	Limit int32  `json:"limit"`
+	Query string `json:"query"`
+}
+
+func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, arg.Limit, arg.Query)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createOrganization = `-- name: CreateOrganization :one
 
 INSERT INTO organizations (name, created_by)
@@ -162,41 +182,87 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const getUserWithActivity = `-- name: GetUserWithActivity :one
+SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at, a.last_used_at AS last_active_at
+FROM users u
+LEFT JOIN session_tokens a ON a.id = (
+  SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
+)
+WHERE u.id = $1
+`
+
+type GetUserWithActivityRow struct {
+	User         User       `json:"user"`
+	LastActiveAt *time.Time `json:"lastActiveAt"`
+}
+
+func (q *Queries) GetUserWithActivity(ctx context.Context, id uuid.UUID) (GetUserWithActivityRow, error) {
+	row := q.db.QueryRow(ctx, getUserWithActivity, id)
+	var i GetUserWithActivityRow
+	err := row.Scan(
+		&i.User.ID,
+		&i.User.Email,
+		&i.User.Name,
+		&i.User.AvatarUrl,
+		&i.User.Status,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.LastActiveAt,
+	)
+	return i, err
+}
+
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, name, avatar_url, status, created_at, updated_at
-FROM users
-WHERE ($2::text IS NULL
-       OR (created_at, id) < (
-         $3::timestamptz,
-         $2::uuid
+SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at, a.last_used_at AS last_active_at
+FROM users u
+LEFT JOIN session_tokens a ON a.id = (
+  SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
+)
+WHERE ($2::text = '' OR u.name ILIKE $2 OR u.email ILIKE $2)
+  AND ($3::text IS NULL
+       OR (u.created_at, u.id) < (
+         $4::timestamptz,
+         $3::uuid
        ))
-ORDER BY created_at DESC, id DESC
+ORDER BY u.created_at DESC, u.id DESC
 LIMIT $1
 `
 
 type ListUsersParams struct {
 	Limit         int32      `json:"limit"`
+	Query         string     `json:"query"`
 	PageToken     *string    `json:"pageToken"`
 	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
-func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.Limit, arg.PageToken, arg.PageCreatedAt)
+type ListUsersRow struct {
+	User         User       `json:"user"`
+	LastActiveAt *time.Time `json:"lastActiveAt"`
+}
+
+func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
+	rows, err := q.db.Query(ctx, listUsers,
+		arg.Limit,
+		arg.Query,
+		arg.PageToken,
+		arg.PageCreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []ListUsersRow
 	for rows.Next() {
-		var i User
+		var i ListUsersRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.Name,
-			&i.AvatarUrl,
-			&i.Status,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.User.ID,
+			&i.User.Email,
+			&i.User.Name,
+			&i.User.AvatarUrl,
+			&i.User.Status,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
+			&i.LastActiveAt,
 		); err != nil {
 			return nil, err
 		}

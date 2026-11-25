@@ -7160,7 +7160,7 @@
           "loco.user.v1.UserService"
         ],
         "summary": "ListUsers",
-        "description": "ListUsers lists users with pagination.",
+        "description": "ListUsers lists users with pagination and an optional name or email search. It requires system read.",
         "operationId": "loco.user.v1.UserService.ListUsers",
         "parameters": [
           {
@@ -17787,6 +17787,17 @@
             "type": "string",
             "title": "page_token",
             "description": "cursor from previous page (base64-encoded timestamp+id)"
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200,
+            "description": "Only users whose name or email contains this text, ignoring case."
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
           }
         },
         "title": "ListUsersRequest",
@@ -17807,6 +17818,12 @@
             "type": "string",
             "title": "next_page_token",
             "description": "empty if no more pages"
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The users the query matches, ignoring page_token; set when include_total_count is.\n Exact up to 10,000; 10,001 means more than 10,000."
           }
         },
         "title": "ListUsersResponse",
@@ -18014,6 +18031,16 @@
           },
           "updatedAt": {
             "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "status": {
+            "title": "status",
+            "description": "status is set only for callers holding system read.",
+            "$ref": "#/components/schemas/loco.user.v1.UserStatus"
+          },
+          "lastActiveAt": {
+            "title": "last_active_at",
+            "description": "last_active_at is the latest use of any of the user's sessions; set only for callers holding\n system read, and unset when the user has no recorded session.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },

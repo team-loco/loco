@@ -12,6 +12,7 @@ import (
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
 // grantSystemReader signs email in and grants it system read until the test ends.
@@ -157,5 +158,24 @@ func TestGrantedSystemAdminRenamesAnOrganizationItDoesNotBelongTo(t *testing.T) 
 	if _, err := admin.session.Org.UpdateOrg(t.Context(),
 		&orgv1.UpdateOrgRequest{OrgId: org.GetOrgId(), Name: new("e2e-system-admin-renamed")}); err != nil {
 		t.Fatalf("UpdateOrg as a system admin who is not a member: %v", err)
+	}
+}
+
+func TestGrantedSystemReaderFindsAUserByEmail(t *testing.T) {
+	t.Parallel()
+	reader := grantSystemReader(t, "user-finder@test.local")
+	findable := signInLifecycleUser(t, "user-findable@test.local")
+
+	listed, err := reader.session.User.ListUsers(t.Context(), &userv1.ListUsersRequest{Query: "USER-FINDABLE"})
+	if err != nil {
+		t.Fatalf("ListUsers as a system reader: %v", err)
+	}
+	if len(listed.GetUsers()) != 1 || listed.GetUsers()[0].GetId() != findable.id ||
+		listed.GetUsers()[0].GetStatus() != userv1.UserStatus_USER_STATUS_ACTIVE {
+		t.Fatalf("ListUsers as a system reader = %v, want the active user %s", listed.GetUsers(), findable.id)
+	}
+	_, err = findable.session.User.ListUsers(t.Context(), &userv1.ListUsersRequest{})
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("ListUsers as an ordinary user: %v, want permission_denied", err)
 	}
 }

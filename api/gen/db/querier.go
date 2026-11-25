@@ -43,6 +43,7 @@ type Querier interface {
 	CountOrgsCreatedBy(ctx context.Context, createdBy uuid.UUID) (int64, error)
 	CountOrgsForUser(ctx context.Context, arg CountOrgsForUserParams) (int64, error)
 	CountSecrets(ctx context.Context, environmentID uuid.UUID) (int64, error)
+	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountWebhookDeliveries(ctx context.Context, arg CountWebhookDeliveriesParams) (CountWebhookDeliveriesRow, error)
 	CountWorkspaceContents(ctx context.Context, workspaceIds []uuid.UUID) ([]CountWorkspaceContentsRow, error)
 	CountWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) (int64, error)
@@ -172,6 +173,7 @@ type Querier interface {
 	// what scopes does user x have on entity y?
 	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]GetUserScopesOnEntityRow, error)
 	GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]GetUserScopesOnOrganizationRow, error)
+	GetUserWithActivity(ctx context.Context, id uuid.UUID) (GetUserWithActivityRow, error)
 	// what users have scope z on entity y?
 	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]uuid.UUID, error)
 	GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (GetWebhookDeliveryPayloadRow, error)
@@ -261,7 +263,7 @@ type Querier interface {
 	ListSystemRoleHolders(ctx context.Context) ([]ListSystemRoleHoldersRow, error)
 	ListUnclaimedSystemRoleEmails(ctx context.Context) ([]ListUnclaimedSystemRoleEmailsRow, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
-	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)

@@ -26,7 +26,7 @@ export const whoAmI = UserService.method.whoAmI;
 export const updateUser = UserService.method.updateUser;
 
 /**
- * ListUsers lists users with pagination.
+ * ListUsers lists users with pagination and an optional name or email search. It requires system read.
  *
  * @generated from rpc loco.user.v1.UserService.ListUsers
  */

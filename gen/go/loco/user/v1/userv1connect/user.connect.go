@@ -128,7 +128,7 @@ type UserServiceClient interface {
 	WhoAmI(context.Context, *v1.WhoAmIRequest) (*v1.WhoAmIResponse, error)
 	// UpdateUser updates user information.
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
-	// ListUsers lists users with pagination.
+	// ListUsers lists users with pagination and an optional name or email search. It requires system read.
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
 	// GetAccountDeletionImpact previews deleting the current session account.
 	GetAccountDeletionImpact(context.Context, *v1.GetAccountDeletionImpactRequest) (*v1.GetAccountDeletionImpactResponse, error)
@@ -158,7 +158,7 @@ type UserServiceHandler interface {
 	WhoAmI(context.Context, *v1.WhoAmIRequest) (*v1.WhoAmIResponse, error)
 	// UpdateUser updates user information.
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
-	// ListUsers lists users with pagination.
+	// ListUsers lists users with pagination and an optional name or email search. It requires system read.
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
 	// GetAccountDeletionImpact previews deleting the current session account.
 	GetAccountDeletionImpact(context.Context, *v1.GetAccountDeletionImpactRequest) (*v1.GetAccountDeletionImpactResponse, error)
