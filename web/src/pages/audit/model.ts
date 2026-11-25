@@ -58,10 +58,6 @@ export function dayLabel(ms: number, nowMs: number, pref: TimePreferences): stri
 	return formatWeekdayDate(ms, pref);
 }
 
-export const INSTALLATION = "Installation";
-/** An organization without a readable name shows the end of its ID; the start of a UUIDv7 is its creation time. */
-const SHORT_ID = 8;
-
 export const ACTOR_KINDS: Record<string, string> = {
 	user: "Person",
 	system: "Loco",
@@ -95,6 +91,10 @@ export interface AuditRow {
 	environment: string;
 }
 
+function orgLabel(event: Event, names: ReadonlyMap<string, string>): string {
+	return event.orgName || (names.get(event.orgId) ?? event.orgId.slice(-8));
+}
+
 /** `names` maps the organization, workspace, resource and environment IDs the caller can read to their names. */
 export function auditRow(
 	event: Event,
@@ -112,9 +112,26 @@ export function auditRow(
 		actor: auditActor(event),
 		label: auditLabel(event.type, event.data),
 		detail: auditDetail(event, users) ?? "",
-		org: event.orgId === "" ? INSTALLATION : (names.get(event.orgId) ?? event.orgId.slice(-SHORT_ID)),
+		org: event.orgId === "" ? "Installation" : orgLabel(event, names),
 		where: resource === "" ? workspace : `${workspace} / ${resource}`,
 		resource,
 		environment: event.environmentId === "" ? "" : name(event.environmentId),
 	};
+}
+
+export interface OrgChoice {
+	id: string;
+	name: string;
+}
+
+/** The organization filter's choices: the listed organizations, then any other organization the shown events name that matches the search. */
+export function orgFilterItems(listed: readonly OrgChoice[], rows: readonly AuditRow[], search: string): OrgChoice[] {
+	const needle = search.trim().toLowerCase();
+	const items = [...listed];
+	for (const r of rows) {
+		const id = r.event.orgId;
+		const matches = r.org.toLowerCase().includes(needle);
+		if (id !== "" && matches && !items.some((o) => o.id === id)) items.push({ id, name: r.org });
+	}
+	return items;
 }

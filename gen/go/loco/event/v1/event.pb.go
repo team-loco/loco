@@ -57,8 +57,11 @@ type Event struct {
 	// The actor changed the organization through an installation role (a Loco operator), not as one of
 	// its members.
 	ActedAsOperator bool `protobuf:"varint,22,opt,name=acted_as_operator,json=actedAsOperator,proto3" json:"acted_as_operator,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The organization's name, or the name an event about it recorded when it is deleted. Empty when
+	// unknown. Set on every listing.
+	OrgName       string `protobuf:"bytes,23,opt,name=org_name,json=orgName,proto3" json:"org_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Event) Reset() {
@@ -243,6 +246,13 @@ func (x *Event) GetActedAsOperator() bool {
 		return x.ActedAsOperator
 	}
 	return false
+}
+
+func (x *Event) GetOrgName() string {
+	if x != nil {
+		return x.OrgName
+	}
+	return ""
 }
 
 type ListEventsRequest struct {
@@ -757,7 +767,7 @@ var File_loco_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x05\n" +
+	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x05\n" +
 	"\x05Event\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -788,7 +798,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\x05title\x18\x13 \x01(\tR\x05title\x12\x1a\n" +
 	"\bseverity\x18\x14 \x01(\tR\bseverity\x12\x16\n" +
 	"\x06region\x18\x15 \x01(\tR\x06region\x12*\n" +
-	"\x11acted_as_operator\x18\x16 \x01(\bR\x0factedAsOperator\"\xb3\x05\n" +
+	"\x11acted_as_operator\x18\x16 \x01(\bR\x0factedAsOperator\x12\x19\n" +
+	"\borg_name\x18\x17 \x01(\tR\aorgName\"\xb3\x05\n" +
 	"\x11ListEventsRequest\x12\"\n" +
 	"\x06org_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12+\n" +
 	"\x11installation_only\x18\x13 \x01(\bR\x10installationOnly\x12&\n" +

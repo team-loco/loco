@@ -25,6 +25,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
+import { useOrgFilterChoices } from "@/hooks/orgFilterChoices";
 import { useWorkspaceFilterChoices } from "@/hooks/orgWorkspaces";
 import { useNow } from "@/hooks/useNow";
 import { useTokenPage } from "@/hooks/useTokenPage";
@@ -42,7 +43,16 @@ import { DroppedFilters, AuditFilterError } from "./audit/AuditFeedback";
 import { AuditDrawer } from "./audit/AuditDrawer";
 import { ActorFilter, EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
-import { ACTOR_KINDS, auditQuery, auditRow, DEFAULT_RANGE, PAGE_SIZES, RANGES, TYPE_ACTORS } from "./audit/model";
+import {
+	ACTOR_KINDS,
+	auditQuery,
+	auditRow,
+	DEFAULT_RANGE,
+	orgFilterItems,
+	PAGE_SIZES,
+	RANGES,
+	TYPE_ACTORS,
+} from "./audit/model";
 import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
 import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
@@ -163,8 +173,10 @@ export function Audit({ system = false }: { system?: boolean }) {
 		startTime: msToTimestamp(custom ? from : openedAt - range.ms),
 		...(custom ? { endTime: msToTimestamp(to) } : {}),
 	};
-	const enabled =
-		(system || orgId !== "") && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading);
+	const targetExists = system || orgId !== "";
+	const filtersValidated = !choicesLoading;
+	const detailsReady = !(params.res || params.env) || !selectedDetails.isLoading;
+	const enabled = targetExists && filtersValidated && detailsReady;
 	const { query, nextPageToken, total } = useTokenPage(listEvents, input, stack, {
 		enabled,
 		refetchInterval: live ? 5000 : false,
@@ -228,10 +240,16 @@ export function Audit({ system = false }: { system?: boolean }) {
 		...TYPE_ACTORS.map((t) => [t, { id: t, name: ACTOR_KINDS[t] ?? t, detail: "", group: "Loco" }] as const),
 	]);
 	if (actor !== "" && !actors.has(actor)) actors.set(actor, { id: actor, name: actor, detail: "", group: "People" });
-	const orgNames = new Map<string, string>();
-	if (orgId !== "") orgNames.set(orgId, names.get(orgId) ?? orgId.slice(-8));
-	for (const r of rows) if (r.event.orgId !== "") orgNames.set(r.event.orgId, r.org);
-	const orgItems = [...orgNames].map(([id, name]) => ({ id, name }));
+	const orgChoice = useOrgFilterChoices(system);
+	const orgItems = orgFilterItems(
+		orgChoice.orgs.map((o) => ({ id: o.id, name: o.name })),
+		rows,
+		orgChoice.search,
+	);
+	if (orgId !== "" && !orgItems.some((o) => o.id === orgId)) {
+		const name = rows.find((r) => r.event.orgId === orgId)?.org ?? names.get(orgId) ?? orgId.slice(-8);
+		orgItems.unshift({ id: orgId, name });
+	}
 	const selIdx = rows.findIndex((r) => r.event.id === params.event);
 	const selected = rows[selIdx];
 	const heldEventId = useHeldWhileClosed(selected?.event.id, selected !== undefined);
@@ -240,7 +258,9 @@ export function Audit({ system = false }: { system?: boolean }) {
 	};
 
 	const searchFiltered = search !== "" || actor !== "" || types.length > 0;
-	const orgScoped = (access.org && workspaceId !== "") || (system && orgId !== "") || installationOnly;
+	const workspaceFilterActive = access.org && workspaceId !== "";
+	const orgFilterActive = system && orgId !== "";
+	const orgScoped = workspaceFilterActive || orgFilterActive || installationOnly;
 	const resourceScoped = resourceId !== "" || environmentId !== "";
 	const anyFilter = searchFiltered || orgScoped || resourceScoped;
 	// Older leaves live mode and the open event; Newer and Newest keep the event open.
@@ -332,6 +352,7 @@ export function Audit({ system = false }: { system?: boolean }) {
 									items={orgItems}
 									placeholder="Find an organization"
 									value={orgId}
+									onSearch={orgChoice.onSearch}
 									onChange={(id) => {
 										setFilters({ org: id, installation: null, event: null });
 									}}

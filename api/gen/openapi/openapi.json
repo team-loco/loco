@@ -13122,6 +13122,11 @@
             "type": "boolean",
             "title": "acted_as_operator",
             "description": "The actor changed the organization through an installation role (a Loco operator), not as one of\n its members."
+          },
+          "orgName": {
+            "type": "string",
+            "title": "org_name",
+            "description": "The organization's name, or the name an event about it recorded when it is deleted. Empty when\n unknown. Set on every listing."
           }
         },
         "title": "Event",

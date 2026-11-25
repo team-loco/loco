@@ -280,6 +280,38 @@ func TestSystemReaderListsEveryOrganizationAndTheInstallation(t *testing.T) {
 	}
 }
 
+func TestSystemListingNamesEachEventsOrganization(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	const name = "second"
+	other := seedTenant(t, f.pool, f.queries, "second@acme.test", name)
+	// An org.updated event records no name, so its name comes from the organization.
+	recordAs(t, f.owner, f, other.orgID, nil)
+	reader := operatorContext(t, genDb.ScopeRead)
+	orgNames := func() map[string]string {
+		names := map[string]string{}
+		for _, e := range listOrgEvents(t, f, reader, &eventv1.ListEventsRequest{}) {
+			names[e.GetType()+" "+e.GetOrgId()] = e.GetOrgName()
+		}
+		return names
+	}
+	created, updated := events.OrgCreated+" "+other.orgID.String(), events.OrgUpdated+" "+other.orgID.String()
+	if names := orgNames(); names[updated] != name || names[created] != name {
+		t.Fatalf("names = %v, want %q on both", names, name)
+	}
+	if _, err := f.pool.Exec(t.Context(), "DELETE FROM organizations WHERE id = $1", other.orgID); err != nil {
+		t.Fatal(err)
+	}
+	if names := orgNames(); names[updated] != "" || names[created] != name {
+		t.Errorf("after deletion names = %v, want empty for org.updated and %q for org.created", names, name)
+	}
+	for _, e := range listOrgEvents(t, f, reader, &eventv1.ListEventsRequest{InstallationOnly: true}) {
+		if e.GetOrgName() != "" {
+			t.Errorf("installation event %v has an organization name", e)
+		}
+	}
+}
+
 func TestMemberCannotListInstallationEvents(t *testing.T) {
 	t.Parallel()
 	f := newEventFixture(t)

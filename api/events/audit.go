@@ -44,17 +44,21 @@ type AuditEvent struct {
 	Title    string
 	Severity string
 	Region   string
+	// OrgName is the organization's name, or the name an event about a deleted organization recorded.
+	OrgName string
 }
 
 const auditSelect = `SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id,
 	e.environment_id, e.deployment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id,
 	e.traceparent, e.data, e.created_at, e.acted_as_operator,
 	u.email, COALESCE(u.name, e.actor_token_name), e.actor_token_type,
-	event_title(e.type, e.data), event_severity(e.type), event_region(e.data)` + auditFrom
+	event_title(e.type, e.data), event_severity(e.type), event_region(e.data),
+	COALESCE(o.name, CASE WHEN e.subject_type = 'organization' THEN e.data->>'name' END, '')` + auditFrom
 
 const auditFrom = `
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+LEFT JOIN organizations o ON o.id = e.org_id
 LEFT JOIN users s ON e.subject_type = 'user' AND s.id = e.subject_id
 LEFT JOIN resources r ON r.id = e.resource_id
 LEFT JOIN workspaces w ON w.id = e.workspace_id
@@ -95,6 +99,7 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 			&event.Title,
 			&event.Severity,
 			&event.Region,
+			&event.OrgName,
 		)
 		return event, err
 	})
