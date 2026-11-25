@@ -35,7 +35,7 @@ import { fmtTs, LEVEL_LABEL } from "./format";
 import { LogDetail } from "./LogDetail";
 import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogTable } from "./LogTable";
-import { coversWholeRange, CopyCommand, ObsHero, WidenRangeButton } from "./ObsEmpty";
+import { coversWholeRange, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import {
 	buildBackendQuery,
 	LEVELS,
@@ -485,12 +485,7 @@ export function LogsView() {
 							resources write to <InlineCode>stdout</InlineCode> or <InlineCode>stderr</InlineCode> lands here.
 						</>
 					}
-					action={
-						<>
-							<CopyCommand command={`loco resource logs ${resources[0]?.slug ?? "<name>"} --follow`} />
-							<WidenRangeButton />
-						</>
-					}
+					action={<WidenRangeButton />}
 				/>
 			) : (
 				<>
