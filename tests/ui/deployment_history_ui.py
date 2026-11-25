@@ -352,7 +352,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][0][-8:]}",
+            name=f"View spec of {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -378,7 +378,7 @@ with session(out) as browser:
     expect(section.get_by_role("columnheader", name="Spec", exact=True)).to_be_visible()
     section.get_by_role(
         "button",
-        name=f"Actions for {data['releases'][0][-8:]}",
+        name=f"Actions for {data['releases'][1][-8:]}",
         exact=True,
     ).click()
     expect(page.get_by_role("menuitem", name="View spec", exact=True)).to_have_count(0)
@@ -576,7 +576,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][0][-8:]}",
+            name=f"View spec of {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -624,7 +624,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][0][-8:]}",
+            name=f"View spec of {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_have_count(0)
@@ -892,7 +892,7 @@ with session(out) as browser:
     expect(
         reader_section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][0][-8:]}",
+            name=f"View spec of {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
