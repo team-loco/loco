@@ -14,7 +14,8 @@ import { useStoredValue } from "@/lib/storage";
 
 const storageKey = (workspaceId: string) => `loco:env:v1:${workspaceId}`;
 
-export function useEnvironments() {
+/** The workspace's environments; `enabled` false for a page with no workspace, which then lists none. */
+export function useEnvironments(enabled = true) {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const scopes = useMyScopes();
 	const [envParam, setEnvParam] = useQueryState("env");
@@ -27,13 +28,14 @@ export function useEnvironments() {
 	const listGranted = typeof grants === "object" && grants.length > 0;
 	const granted = useTanstackQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
-		enabled: listGranted,
+		enabled: enabled && listGranted,
 	});
 	const { data, isLoading: environmentsLoading } = useQuery(
 		listEnvironments,
 		{ workspaceId: activeWorkspaceId ?? "" },
 		{
 			enabled:
+				enabled &&
 				activeOrgId !== null &&
 				activeWorkspaceId !== null &&
 				(scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ) || (granted.data?.resources.length ?? 0) > 0),

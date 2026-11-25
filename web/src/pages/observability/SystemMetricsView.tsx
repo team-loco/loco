@@ -7,7 +7,6 @@ import { ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
-import { useHeldError } from "@/hooks/useHeldError";
 import { useNow } from "@/hooks/useNow";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { isUnimplemented } from "@/lib/error-handler";
@@ -61,15 +60,10 @@ export function SystemMetricsView() {
 			),
 		),
 	});
-	const error = useHeldError(
-		results.find((r) => r.error !== null)?.error ?? null,
-		results.some((r) => r.isFetching),
-	);
-	const loading = error === null && results.some((r) => r.isLoading);
-
+	const resultsOf = (index: number) => results.slice(index * sliced.length, (index + 1) * sliced.length);
 	const seriesOf = (index: number): ChartSeries[] =>
 		sliced.flatMap((slice, i) =>
-			(results[index * sliced.length + i]?.data ?? []).map((series, n) => ({
+			(resultsOf(index)[i]?.data ?? []).map((series, n) => ({
 				key: `${slice.name}/${String(n)}`,
 				name: slice.name,
 				color: seriesColor(i),
@@ -105,7 +99,7 @@ export function SystemMetricsView() {
 		];
 	};
 
-	if (!loading && error !== null && isUnimplemented(error)) {
+	if (results.length > 0 && results.every((r) => r.error !== null && isUnimplemented(r.error))) {
 		return (
 			<>
 				<ViewHeader />
@@ -117,23 +111,12 @@ export function SystemMetricsView() {
 			</>
 		);
 	}
-	if (!loading && error !== null) {
-		return (
-			<>
-				<ViewHeader />
-				<QueryBar valueCounts={valueCounts} />
-				<ErrorState
-					error={error}
-					what="metrics"
-					rpc={queryMetrics}
-					onRetry={async () => await Promise.all(results.map(async (r) => await r.refetch()))}
-				/>
-			</>
-		);
-	}
 
 	const card = (chart: SystemChart, index: number) => {
 		const series = seriesOf(index);
+		const chartResults = resultsOf(index);
+		const failed = chartResults.find((r) => r.error !== null && !r.isFetching)?.error ?? null;
+		const loading = failed === null && chartResults.some((r) => r.isLoading);
 		return (
 			<section
 				key={charts[index]?.key}
@@ -144,7 +127,14 @@ export function SystemMetricsView() {
 					<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{chart.title}</h3>
 					<span className="font-mono text-[12px] text-fg3">{chart.noun}</span>
 				</div>
-				{loading ? (
+				{failed !== null ? (
+					<ErrorState
+						error={failed}
+						what={chart.title}
+						rpc={queryMetrics}
+						onRetry={async () => await Promise.all(chartResults.map(async (r) => await r.refetch()))}
+					/>
+				) : loading ? (
 					<Skeleton className="w-full" style={{ height: CHART_HEIGHT }} />
 				) : series.every((s) => s.points.length === 0) ? (
 					<div

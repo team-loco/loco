@@ -293,6 +293,8 @@ export function LogsView() {
 		enabled: !backend.impossible,
 	});
 	const volumeError = useHeldError(volume.error, volume.isFetching);
+	// Only workspaces have resources to count, and only while the suggestion list is open.
+	const sampleResourceCounts = suggesting && !installation && !backend.impossible;
 	const resourceVolume = useLogBuckets({
 		workspaceId,
 		installation,
@@ -304,7 +306,7 @@ export function LogsView() {
 		end: volumeEnd,
 		intervalSeconds: Math.max(1, Math.ceil((volumeEnd - volumeStart) / 1000)),
 		groupBy: LogBucketGroup.RESOURCE,
-		enabled: !backend.impossible && suggesting && !installation,
+		enabled: sampleResourceCounts,
 	});
 	const bw = intervalSeconds * 1000;
 	const { points, totals } = logVolume(volume.data?.buckets ?? [], volumeStart, volumeEnd, bw);

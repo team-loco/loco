@@ -229,9 +229,9 @@ export function toQuery({ q, r }: { q: Query; r: string[] }): Query {
 
 const CARRIED_KEYS = new Set(["resource", "region", "component", "cluster"]);
 
-/** The query a view keeps from another view: its @resource, @region, @component and @cluster terms that the view can filter by. */
-export function carriedQuery(view: ObservabilityView, tokens: Token[]): string | null {
-	const kept = tokens.filter((t) => CARRIED_KEYS.has(t.key) && fieldDef(t.key)?.views.includes(view));
+/** The query a view keeps from another view: its @resource, @region, @component and @cluster terms that the view can filter by; every one in the installation scope, whose logs, metrics and traces share them. */
+export function carriedQuery(view: ObservabilityView, tokens: Token[], installation = false): string | null {
+	const kept = tokens.filter((t) => CARRIED_KEYS.has(t.key) && (installation || fieldDef(t.key)?.views.includes(view)));
 	return queryStr(kept, "") || null;
 }
 

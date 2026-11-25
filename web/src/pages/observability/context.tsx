@@ -10,7 +10,12 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { observabilityPath, systemObservabilityPath, type ObservabilityView } from "@/lib/routes";
+import {
+	observabilityPath,
+	systemObservabilityPath,
+	type ObservabilityView,
+	type SystemObservabilityView,
+} from "@/lib/routes";
 import { configuredRegions } from "@/lib/resource-regions";
 
 import { liveTokens, narrow, QUERY_PARSERS, queryStr, queryValues, toQuery, type Token } from "./query";
@@ -96,6 +101,14 @@ function useObsParams(view: ObservabilityView) {
 		range,
 		tokens,
 		text,
+		/** The range, query, focus and trace a jump to another view carries. */
+		link: (opts: GoToOptions) => ({
+			...windowValues(opts.range ?? range),
+			q: queryStr(opts.tokens ?? tokens, opts.tokens ? "" : text) || null,
+			at: opts.focusTs ?? null,
+			trace: opts.trace ?? null,
+			span: opts.span ?? null,
+		}),
 		setRange: (w: TimeWindow) => {
 			void setParams({ ...windowValues(w), ...CLEARED_VIEW_STATE });
 		},
@@ -131,7 +144,7 @@ export function ObsProvider({
 	);
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	if (shared === undefined) return <Skeleton className="h-64 w-full" />;
-	const { params, maxMs, range, tokens, text, setRange, setQuery } = shared;
+	const { params, maxMs, range, tokens, text, link, setRange, setQuery } = shared;
 
 	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.slug.localeCompare(b.slug));
 	const resources: ObsResource[] = sorted.map((r, i) => ({
@@ -146,16 +159,7 @@ export function ObsProvider({
 	const scopedResourceIds = grants === "workspace" ? null : resources.map((r) => r.id);
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
-		void navigate(
-			observabilityPath(orgId, workspaceId, next, {
-				env: params.env,
-				...windowValues(opts.range ?? range),
-				q: queryStr(opts.tokens ?? tokens, opts.tokens ? "" : text) || null,
-				at: opts.focusTs ?? null,
-				trace: opts.trace ?? null,
-				span: opts.span ?? null,
-			}),
-		);
+		void navigate(observabilityPath(orgId, workspaceId, next, { env: params.env, ...link(opts) }));
 	};
 
 	const noResources = grants === "workspace" && !resourcesLoading && resources.length === 0;
@@ -186,29 +190,15 @@ export function ObsProvider({
 }
 
 /** The provider for Loco's own telemetry: no workspace, environment or resources. */
-export function InstallationObsProvider({
-	view,
-	children,
-}: {
-	view: Exclude<ObservabilityView, "events">;
-	children: ReactNode;
-}) {
+export function InstallationObsProvider({ view, children }: { view: SystemObservabilityView; children: ReactNode }) {
 	const navigate = useNavigate();
 	const shared = useObsParams(view);
 	if (shared === undefined) return <Skeleton className="h-64 w-full" />;
-	const { maxMs, range, tokens, text, setRange, setQuery } = shared;
+	const { maxMs, range, tokens, text, link, setRange, setQuery } = shared;
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
 		if (next === "events") return;
-		void navigate(
-			systemObservabilityPath(next, {
-				...windowValues(opts.range ?? range),
-				q: queryStr(opts.tokens ?? tokens, opts.tokens ? "" : text) || null,
-				at: opts.focusTs ?? null,
-				trace: opts.trace ?? null,
-				span: opts.span ?? null,
-			}),
-		);
+		void navigate(systemObservabilityPath(next, link(opts)));
 	};
 
 	const value: ObsContextValue = {

@@ -1,4 +1,5 @@
 import argparse
+import json
 import re
 from datetime import UTC, datetime, timedelta
 
@@ -65,12 +66,19 @@ SPANS = [
 ]
 
 
+def request_body(request, method):
+    """The JSON of a request; a stream's body is one enveloped message after a five-byte header."""
+    if method == "TailLogs":
+        return json.loads(request.post_data_buffer[5:])
+    return request.post_data_json or {}
+
+
 def mock_telemetry(context, requests):
     """Answers every observability call from fixed data and records each request body."""
 
     def respond(route):
         method = route.request.url.rsplit("/", 1)[-1]
-        body = route.request.post_data_json or {}
+        body = request_body(route.request, method)
         requests.append((method, body))
         query = body.get("query", "")
         if method == "QueryLogs":
@@ -231,5 +239,22 @@ with session(repo / "tests/ui/out/system-telemetry") as browser:
     expect(drawer.get_by_role("tab", name="Infrastructure")).to_have_count(0)
     traced = scoped(requests, "GetTrace")[0]["scope"]
     assert traced.get("installation") is True and "workspaceId" not in traced, traced
+
+    # Live tail reads the installation scope too.
+    with page.expect_request(lambda request: request.url.endswith("/TailLogs")):
+        page.goto(ui + "/system/logs")
+    tails = scoped(requests, "TailLogs")
+    assert tails, requests
+
+    # Every telemetry request, the nested trace scope, buckets and the drawer's logs included,
+    # asks for the installation and names no workspace, environment or resource.
+    methods = {method for method, _ in requests}
+    for expected in ("QueryLogs", "QueryLogBuckets", "QueryMetrics", "ListTraces"):
+        assert expected in methods, methods
+    for method, body in requests:
+        scope = body.get("scope", body)
+        assert scope.get("installation") is True, (method, body)
+        for field in ("workspaceId", "environmentId", "resourceIds"):
+            assert not scope.get(field), (method, body)
     assert not errors, errors
     context.close()

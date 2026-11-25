@@ -34,7 +34,8 @@ export function useTraceLogs(trace: TraceSummary) {
 			toRows(query.entries, resourceById, installation).map((row) => {
 				const linked = trace.spans.find(
 					(span) =>
-						span.spanId === row.entry.spanId || (row.entry.spanId === "" && span.resourceId === row.entry.resourceId),
+						span.spanId === row.entry.spanId ||
+						(!installation && row.entry.spanId === "" && span.resourceId === row.entry.resourceId),
 				);
 				return linked === undefined ? row : { ...row, color: color(linked) };
 			}),

@@ -155,7 +155,7 @@ function systemSections(pathname: string, search: string): NavSection[] {
 								to: systemObservabilityPath(
 									page.view,
 									current !== undefined && current !== page.view
-										? { range, from, to, q: carriedQuery(page.view, carriedTokens) }
+										? { range, from, to, q: carriedQuery(page.view, carriedTokens, true) }
 										: {},
 								),
 								active: current === page.view,

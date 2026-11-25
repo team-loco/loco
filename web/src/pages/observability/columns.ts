@@ -22,7 +22,7 @@ export const DEFAULT_COLUMNS: ColumnKey[] = ["level", "resource"];
 /** The columns the picker offers: Loco's own telemetry has components and clusters where workspaces have resources. */
 export function pickableColumns(installation: boolean): ColumnKey[] {
 	return installation
-		? [...SYSTEM_COLUMNS, ...PICKABLE_COLUMNS.filter((key) => !SYSTEM_COLUMNS.includes(key) && key !== "resource")]
+		? PICKABLE_COLUMNS.flatMap((key) => (key === "resource" ? ["component", "cluster"] : [key]))
 		: PICKABLE_COLUMNS;
 }
 
