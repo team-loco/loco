@@ -77,7 +77,29 @@ with session(repo / "tests/ui/out/system-audit") as browser:
         drawer.get_by_role("heading", name="Suspended the organization", exact=True)
     ).to_be_visible()
     expect(drawer.locator('[data-slot="operator-tag"]')).to_have_text("Loco admin")
-    expect(drawer.locator("dt", has_text=re.compile("^Organization$"))).to_be_visible()
+    organization = drawer.locator("dt", has_text=re.compile("^Organization$"))
+    expect(organization.locator("xpath=following-sibling::dd")).to_have_text(acme[-8:])
+    # Reloading keeps the drawer open on the same event.
+    event_url = page.url
+    page.reload()
+    expect(page).to_have_url(event_url)
+    expect(
+        page.get_by_role("dialog").get_by_role(
+            "heading", name="Suspended the organization", exact=True
+        )
+    ).to_be_visible()
+
+    # A link naming an organization and installation only keeps the organization.
+    page.goto(ui + f"/system/audit?org={acme}&installation=true")
+    expect(page).to_have_url(re.compile(rf"[?&]org={acme}"))
+    expect(page).not_to_have_url(re.compile(r"[?&]installation="))
+    expect(page.get_by_text("an organization is selected", exact=False)).to_be_visible()
+    expect(page.get_by_role("table", name="Audit events")).to_contain_text(
+        "Suspended the organization"
+    )
+    expect(page.get_by_role("table", name="Audit events")).not_to_contain_text(
+        "Paused a cluster"
+    )
     assert not [e for e in errors if e], errors
     context.close()
 
@@ -93,5 +115,11 @@ with session(repo / "tests/ui/out/system-audit") as browser:
         .locator('[data-slot="operator-tag"]')
     ).to_have_count(0)
     expect(table.get_by_role("columnheader", name="Organization")).to_have_count(0)
+    expect(table).not_to_contain_text("Paused a cluster")
+
+    # An organization's log ignores the System-only filter in its link.
+    page.goto(ui + f"/org/{acme}/audit?installation=true")
+    expect(page).not_to_have_url(re.compile(r"[?&]installation="))
+    expect(table).to_contain_text("Suspended the organization")
     expect(table).not_to_contain_text("Paused a cluster")
     context.close()

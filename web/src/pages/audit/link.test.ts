@@ -5,6 +5,17 @@ import { BadRequestSchema } from "@gen/google/rpc/error_details_pb";
 import { auditFilterViolations, auditLink } from "./link";
 
 describe("audit links", () => {
+	test("an organization's log drops the System filters", () => {
+		const result = auditLink("?org=o1&installation=true&q=hi", [], undefined, undefined);
+		expect(result.search).toBe("q=hi");
+		expect(result.dropped.map((f) => f.label)).toEqual(["Organization", "Installation only"]);
+	});
+	test("the System log keeps an organization and drops installation only beside it", () => {
+		const both = auditLink("?org=o1&installation=true", [], undefined, undefined, "", true);
+		expect(both.search).toBe("org=o1");
+		expect(both.dropped.map((f) => f.label)).toEqual(["Installation only"]);
+		expect(auditLink("?installation=true", [], undefined, undefined, "", true).dropped).toEqual([]);
+	});
 	test("keeps usable event types, page tokens, search and page size", () => {
 		const result = auditLink(
 			"?range=forever&types=resource.created,unknown,secret.set&before=AAAA,BBBB&size=100&q=hello",
