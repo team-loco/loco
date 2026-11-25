@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -156,7 +158,7 @@ func TestUpdateResourceRegionsAppliesAddChangeDisableAndRemove(t *testing.T) {
 
 func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 	t.Parallel()
-	for _, test := range []string{"partial", "sizing", "unknown", "offline"} {
+	for _, test := range []string{"partial", "unknown", "offline"} {
 		t.Run(test, func(t *testing.T) {
 			f := prepareRegionUpdate(t)
 			targets, revision := regionTargets(t, f)
@@ -168,8 +170,6 @@ func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 				); err != nil {
 					t.Fatal(err)
 				}
-			case "sizing":
-				targets[testRegion].Cpu = "bad-cpu"
 			case "unknown":
 				targets["unknown"] = proto.CloneOf(targets[testRegion])
 			case "offline":
@@ -183,6 +183,49 @@ func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 				t.Fatalf("rejected update changed revision: %d", after)
 			}
 		})
+	}
+}
+
+func TestUpdateResourceRegionsRejectsInvalidSizeOnAnyTarget(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name    string
+		enabled bool
+		mutate  func(*resourcev1.RegionTarget)
+		want    error
+	}{
+		{"enabled cpu", true, func(r *resourcev1.RegionTarget) { r.Cpu = "bad-cpu" }, servicedefaults.ErrInvalidCPU},
+		{"disabled cpu", false, func(r *resourcev1.RegionTarget) { r.Cpu = "bad-cpu" }, servicedefaults.ErrInvalidCPU},
+		{
+			"disabled memory", false,
+			func(r *resourcev1.RegionTarget) { r.Memory = "bad-memory" }, servicedefaults.ErrInvalidMemory,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			f := prepareRegionUpdate(t)
+			targets, revision := regionTargets(t, f)
+			targets[testRegion].Enabled = test.enabled
+			test.mutate(targets[testRegion])
+			err := updateResourceRegions(t, f, targets, revision)
+			wantCode(t, err, connect.CodeInvalidArgument)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("err = %v, want %v", err, test.want)
+			}
+			_, after := regionTargets(t, f)
+			if after != revision {
+				t.Fatalf("rejected update changed revision: %d", after)
+			}
+		})
+	}
+}
+
+func TestUpdateResourceRegionsAcceptsDisabledTargetWithoutSize(t *testing.T) {
+	t.Parallel()
+	f := prepareRegionUpdate(t)
+	targets, revision := regionTargets(t, f)
+	targets[otherRegion] = &resourcev1.RegionTarget{Enabled: false}
+	if err := updateResourceRegions(t, f, targets, revision); err != nil {
+		t.Fatalf("update with a disabled target without a size: %v", err)
 	}
 }
 
