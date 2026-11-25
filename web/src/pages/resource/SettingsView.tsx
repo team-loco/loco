@@ -305,7 +305,11 @@ export function SettingsView({
 					<GeneralSection {...props} canWrite={canWrite} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">
 						<DangerZone
-							title={`Delete ${resource.name}`}
+							title={
+								<>
+									Delete <InlineCode>{resource.name}</InlineCode>
+								</>
+							}
 							description={
 								managed ? (
 									<>
@@ -344,7 +348,11 @@ export function SettingsView({
 					)}
 					<ConfirmDialog
 						open={confirming === "internal"}
-						title={`Make ${resource.name} internal?`}
+						title={
+							<>
+								Make <InlineCode>{resource.name}</InlineCode> internal?
+							</>
+						}
 						description="Saving removes every domain below and redeploys, so the resource only answers inside the workspace."
 						confirmLabel="Remove domains and save"
 						onConfirm={() => {

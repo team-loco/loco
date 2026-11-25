@@ -16,6 +16,8 @@ export interface DeployToast {
 	deploymentId: string;
 	resourceId: string;
 	tone: "deploying" | "warning" | "failed" | "live";
+	/** The resource the toast is about; the title continues the sentence after it. */
+	name: string;
 	title: string;
 	description: string;
 }
@@ -23,7 +25,7 @@ export interface DeployToast {
 type Shown = Pick<DeployToast, "tone" | "title" | "description">;
 
 /** Where a deployment stands, as far as toasts tell, and the toast that says so; a change of `state` is a toast. */
-function standing(d: Deployment, name: string): { state: string; toast?: Shown } {
+function standing(d: Deployment): { state: string; toast?: Shown } {
 	const problem = deploymentProblem(d);
 	const description = problem?.message ?? "";
 	if (isInFlight(d.status))
@@ -32,19 +34,19 @@ function standing(d: Deployment, name: string): { state: string; toast?: Shown }
 					state: "deploying",
 					toast: {
 						tone: "deploying",
-						title: `${name} is deploying`,
+						title: " is deploying",
 						description: `${deploymentActor(d)}, ${deploymentHeadline(d)}`,
 					},
 				}
 			: {
 					state: `failing:${problem.reason}`,
-					toast: { tone: "warning", title: `${name} deploy is failing`, description },
+					toast: { tone: "warning", title: " deploy is failing", description },
 				};
 	if (d.status === DeploymentStatus.FAILED || d.status === DeploymentStatus.CRASHED)
-		return { state: "failed", toast: { tone: "failed", title: `${name} deploy failed`, description } };
+		return { state: "failed", toast: { tone: "failed", title: " deploy failed", description } };
 	if (d.status !== DeploymentStatus.RUNNING && d.status !== DeploymentStatus.DEGRADED) return { state: "done" };
 	// Problems on a live deployment toast from their resource.degraded event, see degradedToast.
-	return { state: "live", toast: { tone: "live", title: `${name} is live on ${deploymentRef(d)}`, description: "" } };
+	return { state: "live", toast: { tone: "live", title: ` is live on ${deploymentRef(d)}`, description: "" } };
 }
 
 /** The warning toast for a resource.degraded event, such as "api: out of memory"; null for other events or unknown resources. */
@@ -57,7 +59,8 @@ export function degradedToast(event: Event, names: ReadonlyMap<string, string>):
 		deploymentId: event.deploymentId || event.id,
 		resourceId: event.resourceId,
 		tone: "warning",
-		title: short === undefined ? `${name} has a problem` : `${name}: ${short.toLowerCase()}`,
+		name,
+		title: short === undefined ? " has a problem" : `: ${short.toLowerCase()}`,
 		description: message,
 	};
 }
@@ -80,12 +83,12 @@ export function deployToasts(
 	for (const d of deployments) {
 		const name = names.get(d.resourceId);
 		if (name === undefined) continue;
-		const { state, toast } = standing(d, name);
+		const { state, toast } = standing(d);
 		const known = seen.get(d.id);
 		const quiet = known === undefined && (maybeTsMs(d.updatedAt) ?? 0) < quietBeforeMs;
 		const own = state === "deploying" && d.actorId === viewerId;
 		if (toast !== undefined && !quiet && !own && known !== state)
-			toasts.push({ ...toast, deploymentId: d.id, resourceId: d.resourceId });
+			toasts.push({ ...toast, name, deploymentId: d.id, resourceId: d.resourceId });
 		next.set(d.id, state);
 	}
 	return { seen: next, toasts };

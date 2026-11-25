@@ -15,6 +15,7 @@ import { toastConnectError } from "@/lib/error-handler";
 import { workspacePath } from "@/lib/routes";
 
 import { CreateOrgDialog } from "./CreateOrgDialog";
+import { InlineCode } from "@/components/design/InlineCode";
 
 export type ScopeKind = "org" | "workspace";
 
@@ -91,7 +92,11 @@ function CreateWorkspaceForm({ fixedOrgId, onDone }: { fixedOrgId: string | unde
 
 	return (
 		<DialogContent
-			title={`New workspace in ${orgName}`}
+			title={
+				<>
+					New workspace in <InlineCode>{orgName}</InlineCode>
+				</>
+			}
 			showCloseButton={fixedOrgId === undefined}
 			initialFocus={nameRef}
 		>
@@ -104,8 +109,8 @@ function CreateWorkspaceForm({ fixedOrgId, onDone }: { fixedOrgId: string | unde
 			>
 				<DialogBody>
 					<p className="m-0 text-[13px] leading-normal text-fg2">
-						A workspace is a project inside {orgName}. Its resources, environments, members, tokens and webhooks live
-						here.
+						A workspace is a project inside <InlineCode>{orgName}</InlineCode>. Its resources, environments, members,
+						tokens and webhooks live here.
 					</p>
 					{choosable && (
 						<div className="flex flex-col gap-1.5">

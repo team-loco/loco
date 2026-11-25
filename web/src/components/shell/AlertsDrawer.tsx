@@ -6,6 +6,7 @@ import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deplo
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { RotateCwIcon, XIcon, ScrollTextIcon } from "lucide-react";
+import { InlineCode } from "@/components/design/InlineCode";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
@@ -76,13 +77,19 @@ const LIVE_TOAST_MS = 5000;
 function showDeployToast(t: DeployToast, onView: () => void) {
 	const show = { deploying: toast, warning: toast.warning, failed: toast.error, live: toast.success }[t.tone];
 	// Each change replaces the deployment's toast, so every option is set, even when empty.
-	show(t.title, {
-		id: `deploy-${t.deploymentId}`,
-		description: t.description,
-		action: { label: "View", onClick: onView },
-		icon: t.tone === "deploying" ? <RotateCwIcon className="size-4" /> : undefined,
-		duration: t.tone === "failed" ? Infinity : t.tone === "live" ? LIVE_TOAST_MS : TOAST_MS,
-	});
+	show(
+		<>
+			<InlineCode>{t.name}</InlineCode>
+			{t.title}
+		</>,
+		{
+			id: `deploy-${t.deploymentId}`,
+			description: t.description,
+			action: { label: "View", onClick: onView },
+			icon: t.tone === "deploying" ? <RotateCwIcon className="size-4" /> : undefined,
+			duration: t.tone === "failed" ? Infinity : t.tone === "live" ? LIVE_TOAST_MS : TOAST_MS,
+		},
+	);
 }
 
 function ActivityCard({ children }: { children: ReactNode }) {

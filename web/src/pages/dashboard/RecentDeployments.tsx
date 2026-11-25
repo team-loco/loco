@@ -32,6 +32,7 @@ import {
 	deploymentState,
 	filterStatuses,
 } from "./deploymentRows";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const POLL_MS = 5000;
 const IDLE_POLL_MS = 15_000;
@@ -211,7 +212,14 @@ export function RecentDeployments({
 					onRetry={async () => await Promise.all([listed.refetch(), counted.refetch()])}
 				/>
 			) : total === 0 && rows.length === 0 ? (
-				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
+				<EmptyState
+					icon={<RocketIcon />}
+					title={
+						<>
+							No deployments to <InlineCode>{envName}</InlineCode> in the last 24 hours
+						</>
+					}
+				/>
 			) : (
 				<DataTable
 					table={table}

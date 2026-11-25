@@ -15,6 +15,7 @@ import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { inviteFailure, parseEmails, ROLE_HINT, type InviteOutcome, type Role } from "./model";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const ROLE_OPTIONS = [
 	{ value: "Member", label: "Member" },
@@ -45,7 +46,9 @@ export function InviteDrawer({
 		>
 			<SheetContent size="wide">
 				<SheetHeader>
-					<SheetTitle>Invite to {orgName}</SheetTitle>
+					<SheetTitle>
+						Invite to <InlineCode>{orgName}</InlineCode>
+					</SheetTitle>
 				</SheetHeader>
 				{open && <InviteForm orgId={orgId} orgName={orgName} onClose={onClose} onInvited={onInvited} />}
 			</SheetContent>
@@ -114,9 +117,14 @@ function InviteForm({
 	}
 
 	const hint =
-		invalid > 0
-			? `${pluralize(invalid, "address")} ${invalid === 1 ? "isn't" : "aren't"} valid`
-			: `Separate several with commas, spaces or new lines. They join ${orgName} with the role below when they first sign in.`;
+		invalid > 0 ? (
+			`${pluralize(invalid, "address")} ${invalid === 1 ? "isn't" : "aren't"} valid`
+		) : (
+			<>
+				Separate several with commas, spaces or new lines. They join <InlineCode>{orgName}</InlineCode> with the role
+				below when they first sign in.
+			</>
+		);
 
 	return (
 		<form

@@ -14,7 +14,7 @@ import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectque
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
-import { InlineCode } from "@/components/design/InlineCode";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 import { PageCommands, type PageCommand } from "@/components/shell/CommandMenu";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -279,7 +279,11 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		if (failures.length > 0) {
 			setNotice({
 				tone: "bad",
-				title: `Redeploying ${resource.name} failed`,
+				title: (
+					<>
+						Redeploying <InlineCode>{resource.name}</InlineCode> failed
+					</>
+				),
 				message: failures.join("\n"),
 			});
 			return;
@@ -297,12 +301,16 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		if (failures.length > 0) {
 			setNotice({
 				tone: "bad",
-				title: `Rolling back ${resource.name} failed`,
+				title: (
+					<>
+						Rolling back <InlineCode>{resource.name}</InlineCode> failed
+					</>
+				),
 				message: failures.join("\n"),
 			});
 			return;
 		}
-		toast.info(`Rolling back ${resource.name} in ${deploymentRegions(target).join(", ")}`, {
+		toast.info(withCode`Rolling back ${resource.name} in ${deploymentRegions(target).join(", ")}`, {
 			description: `New deployment created from ${formatShortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
 		});
 	};
@@ -312,7 +320,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			{ resourceId },
 			{
 				onSuccess: () => {
-					toast.success(`Deleted ${resource.name}`);
+					toast.success(withCode`Deleted ${resource.name}`);
 					setModal(null);
 					if (hasWs) {
 						void navigate(withEnv(resourcesPath(activeOrgId, activeWorkspaceId), env));
@@ -491,7 +499,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					) : (
 						<Section>
 							<EmptyState title="Not deployed yet">
-								Run <InlineCode>loco deploy</InlineCode> to create the first deployment of {resource.name}.
+								Run <InlineCode>loco deploy</InlineCode> to create the first deployment of{" "}
+								<InlineCode>{resource.name}</InlineCode>.
 							</EmptyState>
 						</Section>
 					)}

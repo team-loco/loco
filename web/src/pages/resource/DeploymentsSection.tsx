@@ -47,6 +47,7 @@ import {
 } from "./BuildsTable";
 import { canRollBackTo, DEFAULT_PAGE_SIZE, depTag, PAGE_SIZES, REFRESH_MS, tookMs, type RegionView } from "./model";
 import { useResourceBuilds } from "./useBuilds";
+import { InlineCode } from "@/components/design/InlineCode";
 
 const BUILD_PAGE_SIZE = 5;
 const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
@@ -558,7 +559,15 @@ export function DeploymentsSection({
 							onShowDeployments={showBuildDeployments}
 							logsHref={buildLogsHref}
 							onCanceled={builds.refresh}
-							emptyText={imageOnly ? `No builds. ${resourceName} runs a public image.` : "No builds yet."}
+							emptyText={
+								imageOnly ? (
+									<>
+										No builds. <InlineCode>{resourceName}</InlineCode> runs a public image.
+									</>
+								) : (
+									"No builds yet."
+								)
+							}
 						/>
 					</div>
 					<Pager

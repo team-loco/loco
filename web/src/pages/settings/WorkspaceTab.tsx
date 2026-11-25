@@ -33,6 +33,7 @@ import { userLabel } from "@/lib/user";
 import { EnvironmentsSection } from "./EnvironmentsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 import { RetentionSection } from "./RetentionSection";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 const MAX_NAME = 63;
 const MAX_DESCRIPTION = 256;
@@ -87,9 +88,13 @@ export function WorkspaceTab({
 	const nRes = ws.resourceCount;
 	const hasRes = (nRes ?? 0) > 0;
 	const resLabel = nRes === undefined ? "—" : nRes.toString();
-	const subtitle = hasRes
-		? `Delete the ${resLabel} ${nRes === 1 ? "resource" : "resources"} in ${ws.name} first.`
-		: `${resLabel} resources, ${pluralize(ws.memberCount ?? 0, "member")} with direct access`;
+	const subtitle = hasRes ? (
+		<>
+			Delete the {resLabel} {nRes === 1 ? "resource" : "resources"} in <InlineCode>{ws.name}</InlineCode> first.
+		</>
+	) : (
+		`${resLabel} resources, ${pluralize(ws.memberCount ?? 0, "member")} with direct access`
+	);
 	const blockedReason = !canAdmin
 		? `Requires Admin on ${ws.name}`
 		: nRes === undefined
@@ -120,7 +125,7 @@ export function WorkspaceTab({
 			{ workspaceId: ws.id },
 			{
 				onSuccess: () => {
-					toast.success(`Deleted ${ws.name}`);
+					toast.success(withCode`Deleted ${ws.name}`);
 					setDeleteOpen(false);
 					void callUnaryMethod(transport, listOrgWorkspaces, { orgId, pageSize: 2 })
 						.then(
@@ -219,7 +224,11 @@ export function WorkspaceTab({
 
 			<SettingsSection title="Danger zone">
 				<DangerZone
-					title={`Delete ${ws.name}`}
+					title={
+						<>
+							Delete <InlineCode>{ws.name}</InlineCode>
+						</>
+					}
 					description={subtitle}
 					warn={hasRes}
 					actionLabel="Delete workspace"
@@ -244,8 +253,17 @@ export function WorkspaceTab({
 			<ConfirmDeleteDialog
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
-				title={`Delete ${ws.name}?`}
-				text={`This permanently deletes ${ws.name}, its environments and everyone's access to it.`}
+				title={
+					<>
+						Delete <InlineCode>{ws.name}</InlineCode>?
+					</>
+				}
+				text={
+					<>
+						This permanently deletes <InlineCode>{ws.name}</InlineCode>, its environments and everyone&apos;s access to
+						it.
+					</>
+				}
 				target={ws.name}
 				confirmLabel="Delete workspace"
 				pending={remove.isPending}

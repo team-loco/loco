@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useBlocker, type Location } from "react-router";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
+import { InlineCode } from "@/components/design/InlineCode";
 
 function place(location: Location): string {
 	return `${location.pathname}?env=${new URLSearchParams(location.search).get("env") ?? ""}`;
@@ -26,7 +27,12 @@ export function LeaveGuard({ dirty, resourceName }: { dirty: boolean; resourceNa
 		<ConfirmDialog
 			open={blocker.state === "blocked"}
 			title="Discard unsaved changes?"
-			description={`The changes to the settings of ${resourceName} are not saved. Leaving this page discards them.`}
+			description={
+				<>
+					The changes to the settings of <InlineCode>{resourceName}</InlineCode> are not saved. Leaving this page
+					discards them.
+				</>
+			}
 			confirmLabel="Discard changes"
 			cancelLabel="Keep editing"
 			onConfirm={() => {

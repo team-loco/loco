@@ -11,7 +11,7 @@ function DangerZone({
 	blockedReason,
 	onAction,
 }: {
-	title: string;
+	title: React.ReactNode;
 	description?: React.ReactNode;
 	warn?: boolean | undefined;
 	actionLabel: string;

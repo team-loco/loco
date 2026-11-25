@@ -1,39 +1,16 @@
 import type { Secret } from "@gen/loco/secret/v1/secret_pb";
 
 import { dotEnvNotes, parseDotEnv } from "@/lib/dotenv";
-import { referenceOf } from "@/pages/resource/variables";
 
 export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 const USER_ENTITY = "user";
 const SHORT_ID = 8;
 
-function list(names: string[]): string {
-	return new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
-}
-
-export function secretNameProblem(name: string, taken: boolean, env: string): string {
+export function secretNameProblem(name: string, taken: boolean): "format" | "taken" | "" {
 	if (name === "") return "";
-	if (!SECRET_NAME.test(name)) return "Use capital letters, digits and underscores, not starting with a digit.";
-	if (taken) return `${name} already exists in ${env}.`;
+	if (!SECRET_NAME.test(name)) return "format";
+	if (taken) return "taken";
 	return "";
-}
-
-/** The note under the value of a secret being created or updated. */
-export function secretHint(name: string, users: string[], updating: boolean): string {
-	if (!updating)
-		return `Refer to it from a resource’s variables as ${referenceOf("secrets", name === "" ? "NAME" : name)}.`;
-	if (users.length === 0) return "No resource refers to it yet.";
-	const one = users.length === 1;
-	return `${list(users)} ${one ? "gets" : "get"} the new value on ${one ? "its" : "their"} next deploy or restart.`;
-}
-
-export function deleteBody(name: string): string {
-	return `No resource refers to ${name}. This can’t be undone.`;
-}
-
-/** Why a secret cannot be deleted while resources read it. */
-export function deleteBlocked(users: string[]): string {
-	return `Read by ${users.join(", ")}. Remove the reference and redeploy first.`;
 }
 
 export interface ImportPreview {

@@ -14,7 +14,9 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
 import { DotEnvNotes } from "@/components/DotEnvNotes";
-import { importPreview, secretHint, secretNameProblem } from "./secrets";
+import { importPreview, secretNameProblem } from "./secrets";
+import { InlineCode, InlineCodeList, withCode } from "@/components/design/InlineCode";
+import { referenceOf } from "@/pages/resource/variables";
 
 /** Creates a secret, or with name set replaces the value of that secret. */
 export function SecretDialog({
@@ -42,7 +44,7 @@ export function SecretDialog({
 	const save = useMutation(setSecrets);
 	const updating = fixedName !== null;
 	const current = fixedName ?? name;
-	const problem = updating ? "" : secretNameProblem(name, existing.has(name), environmentName);
+	const problem = updating ? "" : secretNameProblem(name, existing.has(name));
 	const reset = () => {
 		setName("");
 		setValue("");
@@ -55,7 +57,7 @@ export function SecretDialog({
 			{ environmentId, values: { [current]: value } },
 			{
 				onSuccess: () => {
-					toast.success(updating ? `Updated ${current}` : `Created ${current}`);
+					toast.success(updating ? withCode`Updated ${current}` : withCode`Created ${current}`);
 					reset();
 					onSaved();
 				},
@@ -74,7 +76,17 @@ export function SecretDialog({
 			}}
 		>
 			<DialogContent
-				title={updating ? `Update ${current}` : `New secret in ${environmentName}`}
+				title={
+					updating ? (
+						<>
+							Update <InlineCode>{current}</InlineCode>
+						</>
+					) : (
+						<>
+							New secret in <InlineCode>{environmentName}</InlineCode>
+						</>
+					)
+				}
 				showCloseButton={false}
 			>
 				<form
@@ -86,7 +98,18 @@ export function SecretDialog({
 				>
 					<DialogBody>
 						{!updating && (
-							<Field label="Name" error={problem === "" ? undefined : problem}>
+							<Field
+								label="Name"
+								error={
+									problem === "" ? undefined : problem === "taken" ? (
+										<>
+											<InlineCode>{name}</InlineCode> already exists in <InlineCode>{environmentName}</InlineCode>.
+										</>
+									) : (
+										"Use capital letters, digits and underscores, not starting with a digit."
+									)
+								}
+							>
 								<Input
 									className="font-mono"
 									value={name}
@@ -136,7 +159,21 @@ export function SecretDialog({
 							<StatusGlyph glyph="warn" className="mt-px" />
 							<span>You won’t be able to see this value again after you save.</span>
 						</div>
-						<span className="text-[12.5px] text-fg3">{secretHint(current, users, updating)}</span>
+						<span className="text-[12.5px] text-fg3">
+							{!updating ? (
+								<>
+									Refer to it from a resource’s variables as{" "}
+									<InlineCode>{referenceOf("secrets", current === "" ? "NAME" : current)}</InlineCode>.
+								</>
+							) : users.length === 0 ? (
+								"No resource refers to it yet."
+							) : (
+								<>
+									<InlineCodeList names={users} /> {users.length === 1 ? "gets" : "get"} the new value on{" "}
+									{users.length === 1 ? "its" : "their"} next deploy or restart.
+								</>
+							)}
+						</span>
 						{save.error !== null && (
 							<span role="alert" className="text-[12.5px] text-bad-fg">
 								{getErrorMessage(save.error, "Couldn't save the secret")}

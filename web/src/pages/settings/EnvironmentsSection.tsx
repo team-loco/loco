@@ -32,8 +32,9 @@ import { LimitedAction, LimitUsageCount } from "@/components/design/LimitedActio
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { limitReason, limitUsage } from "@/lib/limits";
 
-import { deleteDescription, resourcesPerEnvironment } from "./environments";
+import { resourcesPerEnvironment, shownSecrets } from "./environments";
 import { SettingsCard, SettingsSection } from "./parts";
+import { InlineCode, InlineCodeList, withCode } from "@/components/design/InlineCode";
 
 const MAX_DESCRIPTION = 256;
 
@@ -174,11 +175,15 @@ export function EnvironmentsSection({
 	const createBlocked = canWrite ? limitReason(usage) : `Requires Write on ${workspaceName}`;
 	const counts = resourcesPerEnvironment(resourcesQuery.data?.resources ?? []);
 	const envsKey = createConnectQueryKey({ schema: listEnvironments, input: { workspaceId }, cardinality: "finite" });
-	const permissionNote = !canWrite
-		? `Requires Write on ${workspaceName} to add or edit environments.`
-		: !canAdmin
-			? `Requires Admin on ${workspaceName} to delete environments.`
-			: null;
+	const permissionNote = !canWrite ? (
+		<>
+			Requires Write on <InlineCode>{workspaceName}</InlineCode> to add or edit environments.
+		</>
+	) : !canAdmin ? (
+		<>
+			Requires Admin on <InlineCode>{workspaceName}</InlineCode> to delete environments.
+		</>
+	) : null;
 
 	const deleteBlocked = (env: Environment): string | null => {
 		if (!canAdmin) return `Requires Admin on ${workspaceName}`;
@@ -206,7 +211,7 @@ export function EnvironmentsSection({
 			{ environmentId: env.id },
 			{
 				onSuccess: () => {
-					toast.success(`Deleted ${env.name}`);
+					toast.success(withCode`Deleted ${env.name}`);
 					setDeleting(null);
 					void queryClient.invalidateQueries({ queryKey: envsKey });
 				},
@@ -278,11 +283,17 @@ export function EnvironmentsSection({
 
 			<ConfirmDialog
 				open={deleting !== null}
-				title={`Delete ${deleting?.name ?? ""}?`}
-				description={deleteDescription(
-					workspaceName,
-					secretsQuery.isSuccess ? secretsQuery.data.secrets.map((secret) => secret.name) : null,
-				)}
+				title={
+					<>
+						Delete <InlineCode>{deleting?.name ?? ""}</InlineCode>?
+					</>
+				}
+				description={
+					<DeleteDescription
+						workspaceName={workspaceName}
+						secretNames={secretsQuery.isSuccess ? secretsQuery.data.secrets.map((secret) => secret.name) : null}
+					/>
+				}
 				confirmLabel="Delete environment"
 				pendingLabel="Deleting…"
 				pending={remove.isPending}
@@ -294,6 +305,26 @@ export function EnvironmentsSection({
 				}}
 			/>
 		</SettingsSection>
+	);
+}
+
+/** What deleting an environment removes; secretNames is null while they are unknown. */
+function DeleteDescription({ workspaceName, secretNames }: { workspaceName: string; secretNames: string[] | null }) {
+	const { shown, more } = shownSecrets(secretNames ?? []);
+	return (
+		<>
+			This removes the environment from <InlineCode>{workspaceName}</InlineCode>. Loco refuses while it still has
+			deployments.
+			{secretNames === null && " It also permanently deletes its secrets."}
+			{secretNames !== null && secretNames.length > 0 && (
+				<>
+					{" "}
+					It also permanently deletes its {secretNames.length.toString()}{" "}
+					{secretNames.length === 1 ? "secret" : "secrets"}:{" "}
+					<InlineCodeList names={shown} {...(more > 0 && { extra: `${more.toString()} more` })} />.
+				</>
+			)}
+		</>
 	);
 }
 
@@ -339,7 +370,7 @@ function EnvironmentForm({
 				},
 				{
 					onSuccess: () => {
-						toast.success(`Saved ${name}`);
+						toast.success(withCode`Saved ${name}`);
 						onDone();
 					},
 					onError: (err) => {
@@ -353,7 +384,7 @@ function EnvironmentForm({
 			{ workspaceId, name, description: description === "" ? undefined : description },
 			{
 				onSuccess: () => {
-					toast.success(`Created ${name}`);
+					toast.success(withCode`Created ${name}`);
 					onDone();
 				},
 				onError: (err) => {
@@ -365,7 +396,17 @@ function EnvironmentForm({
 
 	return (
 		<DialogContent
-			title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.name}`}
+			title={
+				env === undefined ? (
+					<>
+						New environment in <InlineCode>{workspaceName}</InlineCode>
+					</>
+				) : (
+					<>
+						Edit <InlineCode>{env.name}</InlineCode>
+					</>
+				)
+			}
 			showCloseButton={false}
 		>
 			<form

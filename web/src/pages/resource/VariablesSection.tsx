@@ -180,7 +180,7 @@ function ReferencePicker({
 					to={manageHref}
 					className="block border-t border-line px-3.5 py-[9px] text-[12.5px] text-fg2 no-underline hover:text-foreground"
 				>
-					Manage secrets in {environment}
+					Manage secrets in <InlineCode>{environment}</InlineCode>
 				</Link>
 			</PopoverContent>
 		</Popover>
@@ -284,7 +284,7 @@ function ConnectionVariables({
 				<span className="flex flex-col gap-0.5">
 					<span className="text-[13.5px] font-medium">Connection variables</span>
 					<span className="text-[12.5px] text-fg3">
-						Other resources in this environment can use these to reach {resourceSlug}.
+						Other resources in this environment can use these to reach <InlineCode>{resourceSlug}</InlineCode>.
 					</span>
 				</span>
 				{usedBy.length > 0 && <span className="text-[12.5px] text-fg3">Used by {usedBy.join(", ")}</span>}
@@ -474,7 +474,7 @@ export function VariablesSection({
 							to={secretsHref}
 							className="font-medium whitespace-nowrap text-foreground no-underline after:opacity-0 after:transition-opacity after:duration-120 after:content-['_→'/''] hover:after:opacity-100 motion-reduce:after:transition-none"
 						>
-							Manage secrets in {environmentName}
+							Manage secrets in <InlineCode>{environmentName}</InlineCode>
 						</Link>
 					</>
 				)}

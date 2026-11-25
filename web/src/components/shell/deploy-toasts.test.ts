@@ -31,7 +31,7 @@ function titles(steps: ReturnType<typeof deployment>[], viewerId = "u-me"): stri
 	for (const d of steps) {
 		const next = deployToasts(seen, [d], NAMES, viewerId, OPENED);
 		seen = next.seen;
-		out.push(next.toasts.map((t) => `${t.tone}: ${t.title} (${t.description})`));
+		out.push(next.toasts.map((t) => `${t.tone}: ${t.name}${t.title} (${t.description})`));
 	}
 	return out;
 }
@@ -42,7 +42,7 @@ test("a deployment that last changed before the shell opened toasts only once it
 	const first = deployToasts(new Map(), [old], NAMES, "u-me", OPENED);
 	expect(first.toasts).toEqual([]);
 	const failed = { ...old, status: DeploymentStatus.FAILED };
-	expect(deployToasts(first.seen, [failed], NAMES, "u-me", OPENED).toasts.map((t) => t.title)).toEqual([
+	expect(deployToasts(first.seen, [failed], NAMES, "u-me", OPENED).toasts.map((t) => t.name + t.title)).toEqual([
 		"api deploy failed",
 	]);
 });
@@ -52,7 +52,7 @@ test("a deployment started before the shell opened that fails after it toasts on
 		...deployment(DeploymentStatus.FAILED, { reason: "image_pull_failed", message: "Pull failed." }),
 		createdAt: timestampFromMs(OPENED - 60_000),
 	};
-	expect(deployToasts(new Map(), [failed], NAMES, "u-me", OPENED).toasts.map((t) => t.title)).toEqual([
+	expect(deployToasts(new Map(), [failed], NAMES, "u-me", OPENED).toasts.map((t) => t.name + t.title)).toEqual([
 		"api deploy failed",
 	]);
 });
@@ -61,7 +61,7 @@ test("a new resource's first deploy toasts once its name loads", () => {
 	const d = deployment(DeploymentStatus.DEPLOYING);
 	const unnamed = deployToasts(new Map(), [d], new Map(), "u-me", OPENED);
 	expect(unnamed.toasts).toEqual([]);
-	expect(deployToasts(unnamed.seen, [d], NAMES, "u-me", OPENED).toasts.map((t) => t.title)).toEqual([
+	expect(deployToasts(unnamed.seen, [d], NAMES, "u-me", OPENED).toasts.map((t) => t.name + t.title)).toEqual([
 		"api is deploying",
 	]);
 });
@@ -79,10 +79,11 @@ test("a degraded event toasts the problem, whatever the deployment's age", () =>
 		deploymentId: "d-yesterday",
 		resourceId: "r1",
 		tone: "warning",
-		title: "api: out of memory",
+		name: "api",
+		title: ": out of memory",
 		description: "The service ran out of memory.",
 	});
-	expect(degradedToast(degraded("something_new"), NAMES)?.title).toBe("api has a problem");
+	expect(degradedToast(degraded("something_new"), NAMES)?.title).toBe(" has a problem");
 	expect(degradedToast(degraded("out_of_memory"), new Map())).toBeNull();
 	expect(degradedToast({ ...degraded("out_of_memory"), type: "resource.recovered" }, NAMES)).toBeNull();
 });

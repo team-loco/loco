@@ -14,6 +14,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { NEEDS_ADMIN, scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesKey } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
+import { withCode } from "@/components/design/InlineCode";
 
 export function ResourceRowMenu({
 	resource,
@@ -40,7 +41,7 @@ export function ResourceRowMenu({
 		try {
 			await deleteMutation.mutateAsync({ resourceId: resource.id });
 			await queryClient.invalidateQueries({ queryKey: workspaceResourcesKey(transport, workspaceId) });
-			toast.success(`Deleted ${resource.name}`);
+			toast.success(withCode`Deleted ${resource.name}`);
 			setConfirmOpen(false);
 		} catch (err) {
 			toastConnectError(err, "Failed to delete resource");

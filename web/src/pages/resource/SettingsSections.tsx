@@ -28,6 +28,7 @@ import {
 	type RestartChoice,
 	type SettingsDraft,
 } from "./settings-draft";
+import { InlineCode } from "@/components/design/InlineCode";
 
 export const HEALTH_SECTION_ID = "set-health";
 
@@ -540,7 +541,15 @@ export function GeneralSection({
 	return (
 		<SettingsBlock id="set-general" title="General">
 			<div className={grid2}>
-				<Field label="Name" error={errors.name} hint="Shown in the dashboard. loco.yaml does not set it.">
+				<Field
+					label="Name"
+					error={errors.name}
+					hint={
+						<>
+							Shown in the dashboard. <InlineCode>loco.yaml</InlineCode> does not set it.
+						</>
+					}
+				>
 					<Input
 						value={draft.name ?? base.name}
 						disabled={!canWrite}

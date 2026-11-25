@@ -23,6 +23,7 @@ import { buildRegions, depTag, focusRegion } from "@/pages/resource/model";
 import { createDeployments, currentSources, toastRedeploying, type DeploymentSource } from "@/pages/resource/redeploy";
 
 import type { EnvResource } from "./useDashboardData";
+import { withCode } from "@/components/design/InlineCode";
 
 interface Rollback {
 	target: Deployment;
@@ -102,7 +103,7 @@ export function DashboardRowMenu({
 				sourceDeploymentId: to.id,
 			});
 			setRollback(null);
-			toast.success(`Rolling back ${resource.name} to ${depTag(to)}`);
+			toast.success(withCode`Rolling back ${resource.name} to ${depTag(to)}`);
 			await refresh();
 		} catch (err) {
 			toastConnectError(err, `Failed to roll back ${resource.name}`);

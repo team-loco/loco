@@ -40,6 +40,7 @@ import { userLabel } from "@/lib/user";
 
 import { LimitsSection } from "./LimitsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 const MAX_NAME = 100;
 const PAGE_SIZES = [25, 50, 100] as const;
@@ -236,7 +237,7 @@ export function OrgTab({
 			{ orgId: org.id },
 			{
 				onSuccess: () => {
-					toast.success(`Deleted ${org.name}`);
+					toast.success(withCode`Deleted ${org.name}`);
 					setDeleteOpen(false);
 					void queryClient.invalidateQueries();
 					clearContext();
@@ -384,7 +385,11 @@ export function OrgTab({
 
 			<SettingsSection id="organization-danger" title="Danger zone">
 				<DangerZone
-					title={`Delete ${org.name}`}
+					title={
+						<>
+							Delete <InlineCode>{org.name}</InlineCode>
+						</>
+					}
 					description={subtitle}
 					warn={withResCount > 0}
 					actionLabel="Delete organization"
@@ -409,8 +414,17 @@ export function OrgTab({
 			<ConfirmDeleteDialog
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
-				title={`Delete ${org.name}?`}
-				text={`This permanently deletes ${org.name}, its ${pluralize(workspaceCount ?? 0, "empty workspace")} and all members.`}
+				title={
+					<>
+						Delete <InlineCode>{org.name}</InlineCode>?
+					</>
+				}
+				text={
+					<>
+						This permanently deletes <InlineCode>{org.name}</InlineCode>, its{" "}
+						{pluralize(workspaceCount ?? 0, "empty workspace")} and all members.
+					</>
+				}
 				target={org.name}
 				confirmLabel="Delete organization"
 				pending={remove.isPending}

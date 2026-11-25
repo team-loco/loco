@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatShortId } from "@/lib/utils";
 import { createQueryOptions, skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
@@ -45,7 +46,7 @@ export type ModalState =
 
 export interface Notice {
 	tone: "info" | "warn" | "bad";
-	title: string;
+	title: ReactNode;
 	message: string;
 }
 

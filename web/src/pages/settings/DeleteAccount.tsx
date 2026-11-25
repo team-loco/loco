@@ -18,6 +18,7 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { RevokeDialog } from "@/pages/tokens/RevokeDialog";
 
 import { SettingsCard } from "./parts";
+import { withCode } from "@/components/design/InlineCode";
 
 const SURVIVING_TOKENS =
 	"Organization, workspace and resource tokens you issued keep working after you delete your account. Revoke unused tokens or arrange a handover with their administrators.";
@@ -227,7 +228,7 @@ export function DeleteAccount({ user }: { user: User }) {
 				}}
 				onRevoked={(name) => {
 					setRevoke(null);
-					toast.success(`Revoked ${name}`);
+					toast.success(withCode`Revoked ${name}`);
 					refresh();
 				}}
 			/>

@@ -34,6 +34,7 @@ import { type LimitUsage, limitReason, limitUsage } from "@/lib/limits";
 
 import { MANAGED_NOTICE_ID } from "./ManagedNotice";
 import { SettingsBlock, type SectionProps } from "./SettingsSections";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 const HOST = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
@@ -68,13 +69,17 @@ function DomainRow({
 			return;
 		}
 		if (!HOST.test(host)) {
-			toast.error("Enter a valid hostname, like app.example.com.");
+			toast.error(
+				<>
+					Enter a valid hostname, like <InlineCode>app.example.com</InlineCode>.
+				</>,
+			);
 			return;
 		}
 		try {
 			const res = await check.mutateAsync({ domain: host });
 			if (!res.isAvailable) {
-				toast.error(`${host} is already in use.`);
+				toast.error(withCode`${host} is already in use.`);
 				return;
 			}
 			await update.mutateAsync({ domainId: domain.id, domain: host });
@@ -183,8 +188,8 @@ function DomainRow({
 										onSuccess: () => {
 											toast.success(
 												onlyDomain
-													? `Removed ${domain.domain}. The service becomes private on its next deployment.`
-													: `Removed ${domain.domain}`,
+													? withCode`Removed ${domain.domain}. The service becomes private on its next deployment.`
+													: withCode`Removed ${domain.domain}`,
 											);
 											onChanged();
 										},
@@ -287,7 +292,7 @@ function AddDomainForm({
 			</LimitedAction>
 			{unserved && (
 				<span id={unservedId} className="w-full text-[12.5px] text-fg3">
-					No app domain is served in every region of {resourceName}
+					No app domain is served in every region of <InlineCode>{resourceName}</InlineCode>
 				</span>
 			)}
 		</form>

@@ -38,7 +38,7 @@ import { TokenTable } from "./tokens/TokenTable";
 import { useTokenCreators } from "./tokens/useTokenCreators";
 import { useTokenData } from "./tokens/useTokenData";
 import type { Owner } from "./tokens/useTokenData";
-import { InlineCode } from "@/components/design/InlineCode";
+import { InlineCode, withCode } from "@/components/design/InlineCode";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const NOW_TICK_MS = 60_000;
@@ -304,7 +304,7 @@ export function Tokens() {
 				}}
 				onRevoked={(name) => {
 					setRevoking(null);
-					toast.success(`Revoked ${name}`);
+					toast.success(withCode`Revoked ${name}`);
 					void invalidate();
 				}}
 			/>
