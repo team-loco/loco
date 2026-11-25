@@ -180,19 +180,6 @@ export function SettingsView({
 		resource,
 		regions.filter(isDeployed).flatMap((r) => (r.current === undefined ? [] : [r.current])),
 	);
-	const locked = managed || !canWrite;
-	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
-	const want = resolved(draft, base);
-	const onRegions = Object.keys(want.regions).filter((r) => want.regions[r] === true);
-	const served = servedDomains(domainsQuery.data?.appDomains ?? [], onRegions);
-	const { activeOrgId } = useOrgWorkspace();
-	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
-	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
-	const errors = validateDraft(draft, base, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY, taken);
-	const errorCount = Object.keys(errors).length;
-	const changes = changeNames(draft, base, regions);
-	const count = changes.length;
-	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, base).length > 0;
 	const { save, saving } = useSaveSettings({
 		resource,
 		environmentId,
@@ -204,6 +191,22 @@ export function SettingsView({
 			await onSaved(notice);
 		},
 	});
+	// Fields stay locked until a save and the reload after it finish, so no edit is lost.
+	const locked = managed || !canWrite || saving;
+	// The draft's changes are named against the settings as they were when editing began.
+	const shown = draft.origin ?? base;
+	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
+	const want = resolved(draft, shown);
+	const onRegions = Object.keys(want.regions).filter((r) => want.regions[r] === true);
+	const served = servedDomains(domainsQuery.data?.appDomains ?? [], onRegions);
+	const { activeOrgId } = useOrgWorkspace();
+	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
+	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
+	const errors = validateDraft(draft, shown, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY, taken);
+	const errorCount = Object.keys(errors).length;
+	const changes = changeNames(draft, shown);
+	const count = changes.length;
+	const redeploys = regionMapChanged(draft, shown) || planSave(regions, draft, shown).length > 0;
 	const confirmDomains = () => {
 		if (domainsChange(draft, base) === "remove") {
 			setConfirming("internal");
@@ -213,12 +216,12 @@ export function SettingsView({
 		void save(draft);
 	};
 	const change = (patch: Partial<SettingsDraft>) => {
-		onDraft({ ...draft, ...patch });
+		onDraft({ ...draft, ...patch, origin: shown });
 	};
 	const shownErrors: DraftErrors = tried
 		? errors
 		: Object.fromEntries(LIVE_ERROR_KEYS.map((key) => [key, errors[key]]));
-	const props = { draft, base, errors: shownErrors, locked, describedBy, onChange: change };
+	const props = { draft, base: shown, errors: shownErrors, locked, describedBy, onChange: change };
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -271,7 +274,7 @@ export function SettingsView({
 						differingRegions={regionsWithDifferentVariables(regions)}
 						environmentId={environmentId}
 						draft={draft}
-						canWrite={canWrite}
+						canWrite={canWrite && !saving}
 						canReadWorkspace={canReadWorkspace}
 						onChange={change}
 					/>
@@ -295,7 +298,7 @@ export function SettingsView({
 					/>
 					{!worker && <HealthSection {...props} deployed={regions.some(isDeployed)} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
-					<GeneralSection {...props} canWrite={canWrite} readOnlyId={READ_ONLY_ID} />
+					<GeneralSection {...props} canWrite={canWrite && !saving} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">
 						<DangerZone
 							title={

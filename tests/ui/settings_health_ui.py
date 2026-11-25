@@ -138,6 +138,12 @@ def two_deployments(name):
 
 
 split, split_base = two_deployments("health-split")
+sql(
+    state,
+    f"""INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
+SELECT '{split}', id, 'health-split.apps.example.test', 'app', 'health-split', 'apps.example.test', true
+FROM environments WHERE workspace_id='{state["workspaces"]["acme/shared"]}' AND slug='production';""",
+)
 
 
 with session(out) as browser:
@@ -176,6 +182,13 @@ with session(out) as browser:
             route.continue_()
 
     context.route("**/loco.resource.v1.ResourceService/GetResource", get_resource)
+    removals = []
+
+    def remove_domain(route):
+        removals.append(route.request.post_data_json)
+        route.continue_()
+
+    context.route("**/loco.domain.v1.DomainService/DeleteResourceDomain", remove_domain)
     context.route(
         "**/loco.config.v1.ConfigService/GetConfig*",
         lambda route: route.fulfill(json=config),
@@ -282,8 +295,8 @@ with session(out) as browser:
     assert sent["spec"]["service"]["healthCheck"] == default_health, sent
     expect(switch).to_be_checked()
 
-    # A save that reaches one deployment and not the other stays pending, and a retry sends
-    # only the one that failed.
+    # A save that reaches one deployment and not the other keeps the whole draft, and a retry
+    # sends every deployment again.
     page.goto(split_base + "?env=production&tab=settings")
     expect(switch).to_be_checked()
     switch.click()
@@ -291,31 +304,66 @@ with session(out) as browser:
     variables.get_by_role("button", name="Add", exact=True).click()
     variables.get_by_label("Name of new variable", exact=True).fill("FEATURE_FLAG")
     variables.get_by_label("Value of FEATURE_FLAG", exact=True).fill("on")
+    save_button = page.get_by_role("button", name="Save & redeploy", exact=True)
     failing.add(OTHER_REGION)
     first = len(deployments)
     held.append(None)
-    page.get_by_role("button", name="Save & redeploy", exact=True).click()
+    save_button.click()
     expect(page.get_by_text("region down", exact=False)).to_be_visible()
-    assert len(deployments) == first + 2, deployments[first:]
-    # The notice shows once the requests are done; saving lasts until the held reload returns.
+    for _ in range(100):
+        if len(held) > 1:
+            break
+        page.wait_for_timeout(50)
+    assert len(held) > 1, "the reload after the save was not requested"
+    # Saving, and every field, stays locked while the reload is held.
     expect(page.get_by_role("button", name="Saving…", exact=True)).to_be_disabled()
+    expect(switch).to_be_disabled()
+    assert len(deployments) == first + 2, deployments[first:]
     pending = held[1:]
     held.clear()
     for route in pending:
         route.continue_()
     expect(discard).to_be_enabled()
+    expect(page.get_by_text("Remove health check", exact=False)).to_be_visible()
     failing.clear()
-    with expect_rpc(
-        page, "CreateDeployment", lambda body: body.get("resourceId") == split
-    ) as completed:
-        page.get_by_role("button", name="Save & redeploy", exact=True).click()
-    assert completed.value.ok, completed.value.text()
+    save_button.click()
     expect(discard).to_have_count(0)
     retried = deployments[first + 2 :]
-    assert [d["regions"] for d in retried] == [[OTHER_REGION]], retried
-    assert retried[0]["removeHealthCheck"] is True, retried
-    assert "healthCheck" not in retried[0]["spec"]["service"], retried
-    assert retried[0]["spec"]["service"]["env"]["FEATURE_FLAG"] == "on", retried
+    assert sorted(d["regions"] for d in retried) == [[REGION], [OTHER_REGION]], retried
+    for sent in retried:
+        assert sent["removeHealthCheck"] is True, sent
+        assert "healthCheck" not in sent["spec"]["service"], sent
+        assert sent["spec"]["service"]["env"]["FEATURE_FLAG"] == "on", sent
+
+    # A domain removal that finished is not repeated when the deployments are retried.
+    public = page.get_by_role("switch", name="Public", exact=True)
+    expect(public).to_be_checked()
+    public.click()
+    failing.add(OTHER_REGION)
+    first = len(deployments)
+    save_button.click()
+    with page.expect_response(lambda r: r.url.endswith("/DeleteResourceDomain")):
+        page.get_by_role("button", name="Remove domains and save", exact=True).click()
+    expect(page.get_by_text("region down", exact=False)).to_be_visible()
+    expect(discard).to_be_enabled()
+    expect(page.get_by_text("Internal only", exact=False)).to_be_visible()
+    failing.clear()
+    save_button.click()
+    expect(discard).to_have_count(0)
+    assert len(removals) == 1, removals
+    assert sorted(d["regions"] for d in deployments[first + 2 :]) == [
+        [REGION],
+        [OTHER_REGION],
+    ], deployments[first:]
+
+    # A saved start command leaves the draft even when the server runs another one.
+    server_override["command"] = ["/other"]
+    page.locator("#set-command").get_by_role(
+        "textbox", name="Command", exact=True
+    ).fill("/serve")
+    save_button.click()
+    expect(discard).to_have_count(0)
+    server_override.clear()
     assert not errors, errors
     context.close()
     browser.close()

@@ -19,7 +19,6 @@ import { refreshVariables } from "./variables";
 
 import type { Notice, RegionView } from "./model";
 import {
-	FAILURE_POLICY_KEYS,
 	REGION_MAP_KEYS,
 	domainsChange,
 	failurePolicyChanged,
@@ -29,17 +28,12 @@ import {
 	regionChanges,
 	regionTargets,
 	resolved,
-	retryDraft,
 	type Baseline,
 	type SettingsDraft,
 	variablesChanged,
 } from "./settings-draft";
 
-const SPEC_KEYS = ["image", "port", "health", "observability"] as const;
-
 const DOMAIN_KEYS = ["isPublic", "subdomain", "appDomain"] as const;
-
-const VARIABLE_KEYS = ["added", "env", "removedEnv"] as const;
 
 function omit(draft: SettingsDraft, keys: readonly (keyof SettingsDraft)[]): SettingsDraft {
 	return Object.fromEntries(Object.entries(draft).filter(([k]) => !keys.some((key) => key === k)));
@@ -55,6 +49,7 @@ export function useSaveSettings({
 	resource: Resource;
 	environmentId: string;
 	regions: RegionView[];
+	/** What runs now; the resource updates and domains run only where it differs from the draft. */
 	base: Baseline;
 	onDone: (next: SettingsDraft, notice: Notice) => Promise<void>;
 }) {
@@ -84,12 +79,11 @@ export function useSaveSettings({
 	const save = async (draft: SettingsDraft) => {
 		setSaving(true);
 		const resourceId = resource.id;
+		const origin = draft.origin ?? base;
 		const failures: string[] = [];
-		let next = draft;
-		const attempt = async (label: string, keys: readonly (keyof SettingsDraft)[], run: () => Promise<unknown>) => {
+		const attempt = async (label: string, run: () => Promise<unknown>) => {
 			try {
 				await run();
-				next = omit(next, keys);
 				return true;
 			} catch (err) {
 				failures.push(`${label}: ${getErrorMessage(err, "failed")}`);
@@ -118,7 +112,6 @@ export function useSaveSettings({
 		if (renamed || described) {
 			await attempt(
 				"General",
-				["name", "description"],
 				async () =>
 					await update.mutateAsync({
 						resourceId,
@@ -133,7 +126,6 @@ export function useSaveSettings({
 		if (domainChange === "add") {
 			domainsSaved = await attempt(
 				"Domain",
-				DOMAIN_KEYS,
 				async () =>
 					await addDomain.mutateAsync({
 						resourceId,
@@ -147,7 +139,7 @@ export function useSaveSettings({
 		}
 		if (domainChange === "remove") {
 			const ordered = resource.domains.toSorted((a, b) => Number(a.isPrimary) - Number(b.isPrimary));
-			domainsSaved = await attempt("Domains", DOMAIN_KEYS, async () => {
+			domainsSaved = await attempt("Domains", async () => {
 				for (const d of ordered) await removeDomain.mutateAsync({ domainId: d.id });
 			});
 		}
@@ -158,10 +150,9 @@ export function useSaveSettings({
 		if (targets !== undefined) {
 			try {
 				await update.mutateAsync({ resourceId, regions: { targets }, revision: resource.revision });
-				next = omit(next, REGION_MAP_KEYS);
 			} catch (err) {
 				if (await revisionMoved(err)) {
-					await finish(omit(next, REGION_MAP_KEYS), {
+					await finish(omit(draft, REGION_MAP_KEYS), {
 						tone: "warn",
 						title: withCode`${resource.name} changed since you opened it`,
 						message: "Showing its current regions and scaling. Make your region changes again.",
@@ -174,15 +165,14 @@ export function useSaveSettings({
 		if (failurePolicyChanged(effective, base)) {
 			await attempt(
 				"Deployment behavior",
-				FAILURE_POLICY_KEYS,
 				async () =>
 					await update.mutateAsync({ resourceId, failurePolicy: failurePolicyFrom(resolved(effective, base)) }),
 			);
 		}
 
-		const deploys = planSave(regions, effective, base, env);
+		// Every deployment gets the draft again on a retry; a deployment that already runs it is unchanged.
+		const deploys = planSave(regions, effective, origin, env);
 		const savedRegions: string[] = [];
-		let deployFailed = false;
 		for (const planned of deploys) {
 			try {
 				await deploy.mutateAsync({
@@ -195,16 +185,13 @@ export function useSaveSettings({
 				});
 				savedRegions.push(...planned.regions);
 			} catch (err) {
-				deployFailed = true;
 				failures.push(`${planned.regions.join(", ")}: ${getErrorMessage(err, "failed")}`);
 			}
 		}
-		if (!deployFailed) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
-		else if (savedRegions.length > 0) next = retryDraft(next);
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
 		if (failures.length > 0) {
-			await finish(next, {
+			await finish(draft, {
 				tone: "bad",
 				title: withCode`Some changes to ${resource.name} were not saved`,
 				message: (
@@ -242,7 +229,7 @@ export function useSaveSettings({
 					)}
 				</>
 			);
-		await finish(next, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
+		await finish({}, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
 	};
 
 	return { save, saving };
