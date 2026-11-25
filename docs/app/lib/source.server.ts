@@ -8,5 +8,6 @@ export const docsLlms = llms(source, {
   renderPage: async (page) => `# ${page.data.title}
 
 ${await page.data.getText("processed")}`,
-  renderUrl: (item) => new URL(item.url, import.meta.env.VITE_DOCS_URL).href,
+  renderUrl: (item) =>
+    new URL(item.url.slice(1), import.meta.env.VITE_DOCS_URL).href,
 });

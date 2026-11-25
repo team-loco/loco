@@ -49,20 +49,13 @@ source = "/{skills.md,docs/skills.md}"
 Content-Type = "text/markdown; charset=utf-8"
 Cache-Control = "no-cache"
 
-[[advanced.virtual-hosts]]
-host = "docs.loco.build"
-root = "/documentation"
-
-# Unknown paths on the app host open the UI, so React's NotFound answers them, and
-# the first matching rewrite wins. A rewrite runs before the virtual host picks its
-# root, so every rule applies to both hosts:
+# Unknown paths open the UI, so React's NotFound answers them, and the first
+# matching rewrite wins:
 # - Paths with a file extension stay files, so a missing /assets/x.js is a real 404.
-# - The documentation's own pages stay as they are. package.py replaces {docs} with
-#   the documentation's top-level directories, and the UI's /docs mount is among them.
-# - Everything else becomes /spa.html, a copy of index.html that only the UI root
-#   has. On the documentation host it does not exist, so unknown paths there get 404.
+# - The documentation mounted at /docs stays as it is.
+# - Everything else becomes /spa.html, a copy of index.html.
 # Missing files and unknown documentation paths are answered with page404, which
-# build.ts renders from the UI's NotFound page.
+# web/build.ts renders from the UI's NotFound page.
 [[advanced.rewrites]]
 source = "/**/*.*"
 destination = "$0"
@@ -72,11 +65,11 @@ source = "/"
 destination = "$0"
 
 [[advanced.rewrites]]
-source = "/{docs}"
+source = "/docs"
 destination = "$0"
 
 [[advanced.rewrites]]
-source = "/{docs}/**"
+source = "/docs/**"
 destination = "$0"
 
 [[advanced.rewrites]]

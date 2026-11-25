@@ -47,15 +47,14 @@ WORKDIR /app/docs
 COPY docs ./
 ARG DOCS_ENVIRONMENT=production
 ARG PUBLIC_API_URL
-RUN bun run build "$DOCS_ENVIRONMENT"
+RUN bun run build dashboard "$DOCS_ENVIRONMENT"
 
 FROM ghcr.io/static-web-server/static-web-server:2.44.1@sha256:94618e3d17802265a21926217e6f9e7832b311b6fbf5933684001739fafed06a
 
 COPY --from=docs-builder /app/docs/.sws.toml /etc/sws.toml
 COPY --from=builder /app/web/dist /public
-COPY --from=docs-builder /app/docs/site /documentation
 COPY --from=docs-builder /app/docs/site-mounted /public/docs
-COPY --from=docs-builder /app/docs/site/skills.md /public/skills.md
+COPY docs/content/skills.md /public/skills.md
 COPY schemas/loco.v1.json /public/schemas/loco.v1.json
 
 EXPOSE 8080

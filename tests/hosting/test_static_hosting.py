@@ -29,7 +29,7 @@ MISSING_ASSET = "/assets/missing-abc.js"
 SCHEMA_PATH = "/schemas/loco.v1.json"
 IMAGE = "loco-ui-docs-test"
 UI_HOST = "loco.build"
-DOCS_HOST = "docs.loco.build"
+DOCS_URL = "https://docs.loco.build/"
 API_HOST = "api.loco.build"
 HTTP_ISSUER_HOST = "dex.loco.localhost:5556"
 VERSION = "sha-test"
@@ -52,10 +52,8 @@ APP_PATHS = [
     "/org/test/wks/test",
     "/org/test/wks/test/resource/example",
 ]
-DOCS_BASES = pytest.mark.parametrize(
-    "host,prefix", [(DOCS_HOST, ""), (UI_HOST, "/docs")], ids=["docs-host", "ui-docs"]
-)
-DOCS_PAGE = f"http://{DOCS_HOST}/getting-started/install/"
+DOCS = "/docs"
+DOCS_PAGE = f"http://{UI_HOST}{DOCS}/getting-started/install/"
 
 
 def docker(*args):
@@ -171,10 +169,7 @@ def spa(ui):
 def browser(address):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
-            args=[
-                "--host-resolver-rules="
-                f"MAP {UI_HOST} {address}, MAP {DOCS_HOST} {address}"
-            ]
+            args=[f"--host-resolver-rules=MAP {UI_HOST} {address}"]
         )
         yield browser
         browser.close()
@@ -269,59 +264,48 @@ def test_app_paths_ignore_a_trailing_slash(url, ui, spa, path):
     assert body == (ui[1] if path == "/" else spa)
 
 
-@DOCS_BASES
-def test_docs_serve_the_home_page(url, host, prefix):
-    status, html, _ = response(url + prefix + "/", host)
+def test_docs_serve_the_home_page(url):
+    status, html, _ = response(url + DOCS + "/", UI_HOST)
     assert status == 200
     assert "Deploy with Loco" in html
-    assert f"https://{DOCS_HOST}/" in html
+    assert DOCS_URL in html
 
 
-@DOCS_BASES
-def test_docs_share_the_ui_content_security_policy(url, ui, host, prefix):
-    headers = response(url + prefix + "/", host)[2]
+def test_docs_share_the_ui_content_security_policy(url, ui):
+    headers = response(url + DOCS + "/", UI_HOST)[2]
     assert headers["Content-Security-Policy"] == ui[2]["Content-Security-Policy"]
 
 
-@pytest.mark.parametrize(
-    "host,path", [(UI_HOST, "/"), (UI_HOST, "/dashboard"), (DOCS_HOST, "/")]
-)
-def test_pages_refuse_framing(url, host, path):
-    headers = response(url + path, host)[2]
+@pytest.mark.parametrize("path", ["/", "/dashboard", DOCS + "/"])
+def test_pages_refuse_framing(url, path):
+    headers = response(url + path, UI_HOST)[2]
     assert headers["X-Frame-Options"] == "DENY"
     assert "frame-ancestors 'none'" in headers["Content-Security-Policy"]
 
 
-@DOCS_BASES
-def test_docs_allow_only_hashed_inline_scripts(url, host, prefix):
-    policy = response(url + prefix + "/", host)[2]["Content-Security-Policy"]
+def test_docs_allow_only_hashed_inline_scripts(url):
+    policy = response(url + DOCS + "/", UI_HOST)[2]["Content-Security-Policy"]
     assert "script-src 'self' 'unsafe-inline'" not in policy
     assert "'sha256-" in policy
 
 
-@DOCS_BASES
-def test_docs_serve_guides(url, host, prefix):
-    status, body, _ = response(url + prefix + "/deployment/modes/", host)
+def test_docs_serve_guides(url):
+    status, body, _ = response(url + DOCS + "/deployment/modes/", UI_HOST)
     assert status == 200
     assert "Multi-tenant SaaS" in body
 
 
-@DOCS_BASES
-def test_docs_logo_is_cached_immutably(url, host, prefix):
-    html = response(url + prefix + "/", host)[1]
+def test_docs_logo_is_cached_immutably(url):
+    html = response(url + DOCS + "/", UI_HOST)[1]
     logo = re.search(r'mask-image:url\("([^\"]+)"\)', unescape(html)).group(1)
-    status, _, headers = response(url + logo, host)
+    status, _, headers = response(url + logo, UI_HOST)
     assert status == 200
     assert "immutable" in headers["Cache-Control"]
 
 
-@pytest.mark.parametrize(
-    "host,prefix",
-    [(DOCS_HOST, ""), (UI_HOST, "/docs"), (UI_HOST, "")],
-    ids=["docs-host", "ui-docs", "ui"],
-)
-def test_agent_skill_is_served_as_markdown(url, host, prefix):
-    status, skill, headers = response(url + prefix + "/skills.md", host)
+@pytest.mark.parametrize("prefix", [DOCS, ""], ids=["docs", "root"])
+def test_agent_skill_is_served_as_markdown(url, prefix):
+    status, skill, headers = response(url + prefix + "/skills.md", UI_HOST)
     assert status == 200
     assert skill == (ROOT / "docs/content/skills.md").read_text()
     assert headers["Content-Type"].startswith("text/markdown")
@@ -343,19 +327,16 @@ def test_unknown_app_paths_serve_the_ui(url, spa, path):
 
 
 @pytest.mark.parametrize(
-    "host,path",
+    "path",
     [
-        (UI_HOST, MISSING_ASSET),
-        (UI_HOST, "/missing.json"),
-        (UI_HOST, "/docs/missing-doc-page"),
-        (UI_HOST, "/docs/deployment/missing/"),
-        (DOCS_HOST, UNKNOWN_PATH),
-        (DOCS_HOST, "/deployment/missing/"),
-        (DOCS_HOST, MISSING_ASSET),
+        MISSING_ASSET,
+        "/missing.json",
+        DOCS + "/missing-doc-page",
+        DOCS + "/deployment/missing/",
     ],
 )
-def test_missing_files_are_static_not_found_pages(url, host, path):
-    status, body, _ = response(url + path, host)
+def test_missing_files_are_static_not_found_pages(url, path):
+    status, body, _ = response(url + path, UI_HOST)
     assert status == 404
     assert f"<title>{NOT_FOUND_TITLE}</title>" in body
     assert '<div id="root">' not in body
@@ -370,20 +351,20 @@ class NotFound(NamedTuple):
 
 @pytest.fixture(
     params=[
-        (host, path, viewport, scheme)
-        for host, path in [(UI_HOST, MISSING_ASSET), (DOCS_HOST, UNKNOWN_PATH)]
+        (path, viewport, scheme)
+        for path in [MISSING_ASSET, DOCS + UNKNOWN_PATH]
         for viewport in NOT_FOUND_VIEWPORTS
         for scheme in NOT_FOUND_SCHEMES
     ],
     ids="-".join,
 )
 def not_found(browser, request):
-    host, path, viewport, scheme = request.param
+    path, viewport, scheme = request.param
     width, height = NOT_FOUND_VIEWPORTS[viewport]
     page = browser.new_page(
         viewport={"width": width, "height": height}, color_scheme=scheme
     )
-    url = f"http://{host}{path}"
+    url = f"http://{UI_HOST}{path}"
     problems = []
     page.on(
         "console",
@@ -417,8 +398,8 @@ def not_found(browser, request):
 
 
 def test_not_found_page_loads_without_errors(not_found):
-    # The 404 file is served for every host, so it must load no subresource (the
-    # docs host has no /assets) and break no CSP rule.
+    # The 404 file is served at every depth, so it must load no subresource and
+    # break no CSP rule.
     assert not_found.problems == []
 
 

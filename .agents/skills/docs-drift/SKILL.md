@@ -108,8 +108,9 @@ is a candidate; judge what a reader can see, not the directory.
   development workflow, task names, local ports and credentials.
 - `web/src/**`: dashboard behaviour that a page names (the new-service form's Networking
   choice, `/version.json`). Most UI changes have no documentation and are not drift.
-- `web/Dockerfile`, `web/sws.toml`, `docs/build.ts`, `docs/vite.config.ts`: how the docs are
-  built and served, documented in `contributing/documentation.md`.
+- `web/Dockerfile`, `web/sws.toml`, `docs/build.ts`, `docs/vite.config.ts`,
+  `.github/workflows/docs-pages.yml`: how the docs are built and served, documented in
+  `contributing/documentation.md`.
 
 ## What counts as drift
 

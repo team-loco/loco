@@ -189,6 +189,10 @@ docs:
     - ".github/workflows/docs.yml"
     - ".github/actions/setup-tools/**"
     - ".github/actions/setup-playwright/**"
+    - "tests/hosting/test_pages.py"
+    - "tests/hosting/test_static_hosting.py"
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
   push: *docs
 
 e2e:

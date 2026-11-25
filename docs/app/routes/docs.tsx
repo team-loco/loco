@@ -7,7 +7,7 @@ import {
 } from "fumadocs-ui/layouts/notebook/page";
 import { docs } from "@/lib/source";
 import { source } from "@/lib/source.server";
-import { baseOptions } from "@/lib/layout.shared";
+import { baseOptions, useVersions } from "@/lib/layout.shared";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { getMDXComponents } from "@/components/mdx";
 import { use } from "react";
@@ -33,7 +33,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   const Mdx = page.body;
   const canonical = `${import.meta.env.VITE_DOCS_URL}${url === "/" ? "" : `${url.slice(1)}/`}`;
 
-  const layout = baseOptions();
+  const layout = baseOptions(useVersions());
 
   return (
     <DocsLayout
