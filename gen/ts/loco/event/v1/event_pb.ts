@@ -147,7 +147,7 @@ export type Event = Message<"loco.event.v1.Event"> & {
 
   /**
    * The organization's name, or the name an event about it recorded when it is deleted. Empty when
-   * unknown. Set by the installation-wide listing.
+   * unknown. Set on every listing.
    *
    * @generated from field: string org_name = 23;
    */
@@ -286,7 +286,7 @@ export type EventJson = {
 
   /**
    * The organization's name, or the name an event about it recorded when it is deleted. Empty when
-   * unknown. Set by the installation-wide listing.
+   * unknown. Set on every listing.
    *
    * @generated from field: string org_name = 23;
    */

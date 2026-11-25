@@ -58,7 +58,7 @@ type Event struct {
 	// its members.
 	ActedAsOperator bool `protobuf:"varint,22,opt,name=acted_as_operator,json=actedAsOperator,proto3" json:"acted_as_operator,omitempty"`
 	// The organization's name, or the name an event about it recorded when it is deleted. Empty when
-	// unknown. Set by the installation-wide listing.
+	// unknown. Set on every listing.
 	OrgName       string `protobuf:"bytes,23,opt,name=org_name,json=orgName,proto3" json:"org_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

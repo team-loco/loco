@@ -13126,7 +13126,7 @@
           "orgName": {
             "type": "string",
             "title": "org_name",
-            "description": "The organization's name, or the name an event about it recorded when it is deleted. Empty when\n unknown. Set by the installation-wide listing."
+            "description": "The organization's name, or the name an event about it recorded when it is deleted. Empty when\n unknown. Set on every listing."
           }
         },
         "title": "Event",

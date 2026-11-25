@@ -46,7 +46,7 @@ message Event {
   // its members.
   bool acted_as_operator = 22;
   // The organization's name, or the name an event about it recorded when it is deleted. Empty when
-  // unknown. Set by the installation-wide listing.
+  // unknown. Set on every listing.
   string org_name = 23;
 }
 

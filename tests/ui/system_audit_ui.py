@@ -53,12 +53,11 @@ with session(repo / "tests/ui/out/system-audit") as browser:
     expect(suspended).to_contain_text("acme")
     expect(updated.filter(has_text="labs")).to_have_count(1)
 
-    # The organization filter lists every organization, not only those on the page, and keeps its choice in the URL.
+    # The organization filter lists the 20 newest organizations; search reaches the older acme, and choosing it filters the log.
     page.get_by_role("button", name="Organization", exact=True).click()
-    page.get_by_placeholder("Find an organization").fill("quartz")
-    expect(page.get_by_role("option", name="quartz")).to_have_count(1)
-    expect(page.get_by_role("option", name="acme")).to_have_count(0)
-    page.get_by_placeholder("Find an organization").fill("")
+    expect(page.get_by_role("option", name="bulk-20")).to_have_count(1)
+    expect(page.get_by_role("option", name="acme", exact=True)).to_have_count(0)
+    page.get_by_placeholder("Find an organization").fill("acme")
     page.get_by_role("option", name="acme", exact=True).click()
     expect(page).to_have_url(re.compile(rf"[?&]org={acme}"))
     expect(updated).to_have_count(1)

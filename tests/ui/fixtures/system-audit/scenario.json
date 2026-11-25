@@ -7,7 +7,26 @@
   "orgs": [
     {"name": "acme", "owner": "member", "workspaces": ["shared"]},
     {"name": "labs", "owner": "admin", "workspaces": ["bench"]},
-    {"name": "quartz", "owner": "admin", "workspaces": ["main"]}
+    {"name": "bulk-01", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-02", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-03", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-04", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-05", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-06", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-07", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-08", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-09", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-10", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-11", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-12", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-13", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-14", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-15", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-16", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-17", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-18", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-19", "owner": "admin", "workspaces": ["main"]},
+    {"name": "bulk-20", "owner": "admin", "workspaces": ["main"]}
   ],
   "events": [
     {"type": "user.suspended", "actor": "admin", "at": "{now-50m}"},

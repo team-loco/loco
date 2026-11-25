@@ -164,8 +164,10 @@ export function Audit({ system = false }: { system?: boolean }) {
 		startTime: msToTimestamp(custom ? from : openedAt - range.ms),
 		...(custom ? { endTime: msToTimestamp(to) } : {}),
 	};
-	const enabled =
-		(system || orgId !== "") && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading);
+	const targetExists = system || orgId !== "";
+	const filtersValidated = !choicesLoading;
+	const detailsReady = !(params.res || params.env) || !selectedDetails.isLoading;
+	const enabled = targetExists && filtersValidated && detailsReady;
 	const { query, nextPageToken, total } = useTokenPage(listEvents, input, stack, {
 		enabled,
 		refetchInterval: live ? 5000 : false,
@@ -243,7 +245,9 @@ export function Audit({ system = false }: { system?: boolean }) {
 	};
 
 	const searchFiltered = search !== "" || actor !== "" || types.length > 0;
-	const orgScoped = (access.org && workspaceId !== "") || (system && orgId !== "") || installationOnly;
+	const workspaceFilterActive = access.org && workspaceId !== "";
+	const orgFilterActive = system && orgId !== "";
+	const orgScoped = workspaceFilterActive || orgFilterActive || installationOnly;
 	const resourceScoped = resourceId !== "" || environmentId !== "";
 	const anyFilter = searchFiltered || orgScoped || resourceScoped;
 	// Older leaves live mode and the open event; Newer and Newest keep the event open.
