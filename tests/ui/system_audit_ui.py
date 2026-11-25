@@ -77,7 +77,7 @@ with session(repo / "tests/ui/out/system-audit") as browser:
         drawer.get_by_role("heading", name="Suspended the organization", exact=True)
     ).to_be_visible()
     expect(drawer.locator('[data-slot="operator-tag"]')).to_have_text("Loco admin")
-    expect(drawer.get_by_text("Organization", exact=True)).to_be_visible()
+    expect(drawer.locator("dt", has_text=re.compile("^Organization$"))).to_be_visible()
     assert not [e for e in errors if e], errors
     context.close()
 
