@@ -262,19 +262,21 @@ export function LogDetail({
 				</div>
 			</div>
 			<div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-6 pt-5 pb-6">
-				<section aria-label="Message" className="flex flex-col gap-2">
-					<h3 className="m-0 text-[12.5px] font-normal text-fg3">Message</h3>
-					<PlainCode
-						copied={copied === "msg"}
-						copyLabel="Copy message"
-						onCopy={() => {
-							copy("msg", msgText, "Copied message");
-						}}
-						className={row.json !== null ? undefined : style.body}
-					>
-						{row.json !== null ? msgText : bodyParts(row.message, words)}
-					</PlainCode>
-				</section>
+				{msgText !== "" && (
+					<section aria-label="Message" className="flex flex-col gap-2">
+						<h3 className="m-0 text-[12.5px] font-normal text-fg3">Message</h3>
+						<PlainCode
+							copied={copied === "msg"}
+							copyLabel="Copy message"
+							onCopy={() => {
+								copy("msg", msgText, "Copied message");
+							}}
+							className={cn(row.json === null && style.body, !msgText.includes("\n") && "min-h-9 py-[9px]")}
+						>
+							{row.json !== null ? msgText : bodyParts(row.message, words)}
+						</PlainCode>
+					</section>
+				)}
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-2">
 						<ToggleGroup
@@ -305,6 +307,7 @@ export function LogDetail({
 						<PlainCode
 							copied={copied === "json"}
 							copyLabel="Copy JSON"
+							className="max-h-none"
 							onCopy={() => {
 								copy("json", json, "Copied as JSON");
 							}}
