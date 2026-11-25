@@ -59,6 +59,8 @@ type Config struct {
 	// A delivery whose signing secret the key provider cannot open waits RetryDelays[0] without using an attempt.
 	RetryDelays  []time.Duration
 	PollInterval time.Duration
+	// WebURL is the dashboard's base URL, which ntfy notifications link to; empty leaves the link out.
+	WebURL string
 }
 
 // lease outlasts sending a whole claimed batch, so no other dispatcher reclaims a delivery still in flight.
@@ -179,7 +181,7 @@ func (d *Dispatcher) clientFor(kind genDb.WebhookKind) (*http.Client, error) {
 	switch kind {
 	case genDb.WebhookKindWorkspace:
 		return d.workspaceClient, nil
-	case genDb.WebhookKindInstall:
+	case genDb.WebhookKindInstall, genDb.WebhookKindNtfy:
 		return d.installClient, nil
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnknownKind, kind)
@@ -317,6 +319,9 @@ func (d *Dispatcher) send(
 	row genDb.GetWebhookDeliveryPayloadRow,
 	secrets []string,
 ) error {
+	if row.Kind == genDb.WebhookKindNtfy {
+		return d.sendNtfy(ctx, row, secrets[0])
+	}
 	body, err := json.Marshal(payloadFrom(row))
 	if err != nil {
 		return fmt.Errorf("encode payload: %w", err)

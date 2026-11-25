@@ -48,6 +48,8 @@ const (
 	testRegistryPass    = "secret"
 	retentionEnv        = "EVENTS_RETENTION"
 	installHooksEnv     = "INSTALL_WEBHOOKS"
+	ntfyURLEnv          = "NTFY_URL"
+	ntfyTopicEnv        = "NTFY_TOPIC"
 	webhookTimeoutEnv   = "WEBHOOK_TIMEOUT"
 	webhookBatchEnv     = "WEBHOOK_BATCH"
 	webhookRetryEnv     = "WEBHOOK_RETRY_DELAYS"
@@ -99,7 +101,7 @@ func clearAPIConfigEnv(t *testing.T) {
 		name, _, _ := strings.Cut(entry, "=")
 		for _, prefix := range []string{
 			"LOCO_", "DATABASE_", "CLICKHOUSE_", "OTEL_", "APP_", "WEB_", "WEBHOOK_",
-			"AUTH_", "INSTALL_", "MIN_CLI_", "ORG_", "INVITATION_", "EVENTS_", "LOG_", "CORS_", "PPROF_",
+			"AUTH_", "INSTALL_", "MIN_CLI_", "ORG_", "INVITATION_", "NTFY_", "EVENTS_", "LOG_", "CORS_", "PPROF_",
 		} {
 			if strings.HasPrefix(name, prefix) {
 				t.Setenv(name, "")
@@ -297,6 +299,25 @@ func TestNewAPIConfigReadsInstallWebhooks(t *testing.T) {
 	wantTypes := []string{"deployment.ready"}
 	if hook.URL != testHookURL || hook.Secret != testHookSecret || !slices.Equal(hook.EventTypes, wantTypes) {
 		t.Errorf("install webhook = %+v", hook)
+	}
+}
+
+func TestNewAPIConfigReadsNtfy(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if ac := newAPIConfig(); ac.Ntfy != nil {
+		t.Fatalf("ntfy = %+v without NTFY_URL", ac.Ntfy)
+	}
+	t.Setenv(ntfyURLEnv, "https://ntfy.test/")
+	t.Setenv(ntfyTopicEnv, "alerts")
+	t.Setenv("NTFY_TOKEN", "tk_secret")
+	ac := newAPIConfig()
+	if ac.Ntfy == nil || ac.Ntfy.TopicURL != "https://ntfy.test/alerts" || ac.Ntfy.Token != "tk_secret" ||
+		!slices.Equal(ac.Ntfy.EventTypes, webhooks.DefaultNtfyEventTypes) {
+		t.Fatalf("ntfy = %+v, want the topic URL, token and default event types", ac.Ntfy)
+	}
+	t.Setenv("NTFY_EVENT_TYPES", "cluster.silent, build.failed")
+	if types := newAPIConfig().Ntfy.EventTypes; !slices.Equal(types, []string{"cluster.silent", "build.failed"}) {
+		t.Errorf("event types = %v", types)
 	}
 }
 
@@ -620,6 +641,21 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			"install webhook without a secret",
 			map[string]string{installHooksEnv: `[{"url":"` + testHookURL + `"}]`},
 			errInvalidInstallWebhooks,
+		},
+		{"ntfy topic without a server", map[string]string{ntfyTopicEnv: "alerts"}, errInvalidNtfy},
+		{
+			"ntfy topic with a slash",
+			map[string]string{ntfyURLEnv: "https://ntfy.test", ntfyTopicEnv: "a/b"},
+			errInvalidNtfy,
+		},
+		{
+			"ntfy event types with an empty entry",
+			map[string]string{
+				ntfyURLEnv:         "https://ntfy.test",
+				ntfyTopicEnv:       "alerts",
+				"NTFY_EVENT_TYPES": "build.failed,",
+			},
+			errInvalidNtfy,
 		},
 		{
 			"org link with an unknown placeholder",

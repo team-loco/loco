@@ -25,6 +25,8 @@ kubectl -n loco-system create secret generic regional-api-env \
 
 `api.invitationTtl` sets `INVITATION_TTL`. Core sends no email; the inviter copies and shares the invitation link. Installations that want email consume `invitation.created` and `invitation.resent` through [`INSTALL_WEBHOOKS`](../../docs/content/operations/webhooks.md).
 
+`api.ntfy` publishes selected events to an ntfy topic as `NTFY_URL`, `NTFY_TOPIC`, `NTFY_TOKEN` (from the Secret `api.ntfy.tokenSecret`) and `NTFY_EVENT_TYPES`; see [ntfy notifications](../../docs/content/operations/ntfy.md). Notifications are off while `url` and `topic` are empty.
+
 Typed settings under `api.limits` expose every install count limit, including resource and membership caps, history counts and telemetry retention days. `api.defaults` exposes service CPU, memory, replicas, autoscaling, health and deployment defaults. `api.retention.events` sets `EVENTS_RETENTION`; `api.retention.images` sets `LOCO_IMAGE_RETENTION`. `api.joinToken.ttl` and `api.joinToken.maxTtl` set the default and maximum join-token lifetimes. Null numeric settings and empty strings preserve the API's defaults. Both chart schemas validate value types and bounds. A typed setting and its corresponding `api.env` entry cannot both be supplied.
 
 ```yaml

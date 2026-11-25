@@ -317,6 +317,36 @@
           },
           "additionalProperties": false
         },
+        "ntfy": {
+          "type": "object",
+          "properties": {
+            "eventTypes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tokenSecret": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "topic": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
         "port": {
           "type": "integer"
         },

@@ -41,6 +41,19 @@ api:
   # @schema item: string
   systemReaders: []
   invitationTtl: ""
+  # Publishes selected events to an ntfy topic; off while url and topic are empty (NTFY_URL, NTFY_TOPIC).
+  # @schema additionalProperties: false
+  ntfy:
+    url: ""
+    topic: ""
+    # The Secret key holding the topic's access token (NTFY_TOKEN); optional.
+    # @schema additionalProperties: false
+    tokenSecret:
+      name: ""
+      key: token
+    # Event types to notify (NTFY_EVENT_TYPES); empty notifies the API's default list.
+    # @schema item: string
+    eventTypes: []
   # Proxies in front of the API that append to X-Forwarded-For (LOCO_TRUSTED_PROXY_HOPS); the gateway is one.
   # @schema minimum: 0
   trustedProxyHops: 1
