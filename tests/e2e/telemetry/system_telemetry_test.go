@@ -18,7 +18,7 @@ import (
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
-const systemReaderEmail = "system-telemetry-reader@test.local"
+const systemReaderEmail = "system-reader@test.local"
 
 // TestAPITelemetryReachesTheSystemTenant checks that the API's own logs, traces and metrics,
 // exported with the system ingest token, land under the system tenant stamped as the control plane.
