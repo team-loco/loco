@@ -30,8 +30,6 @@ type Querier interface {
 	ClaimInvitation(ctx context.Context, arg ClaimInvitationParams) (Invitation, error)
 	ClaimSystemRole(ctx context.Context, arg ClaimSystemRoleParams) (int64, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
-	// Clears the mark of each active cluster heard since heard_since and returns it once with the heartbeat it was silent from.
-	ClearRecoveredClusters(ctx context.Context, heardSince time.Time) ([]ClearRecoveredClustersRow, error)
 	ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error
 	CountBuildsForResource(ctx context.Context, arg CountBuildsForResourceParams) (int64, error)
 	CountDeployments(ctx context.Context, arg CountDeploymentsParams) (int64, error)
@@ -59,6 +57,9 @@ type Querier interface {
 	CreateBuild(ctx context.Context, arg CreateBuildParams) (Build, error)
 	CreateBuildRegistryCredential(ctx context.Context, arg CreateBuildRegistryCredentialParams) (int64, error)
 	CreateCluster(ctx context.Context, arg CreateClusterParams) error
+	// Inserts the cluster's first heartbeat and reports created. A concurrent first heartbeat waits for this one's
+	// commit. Returns nothing for a removed cluster.
+	CreateClusterHeartbeat(ctx context.Context, arg CreateClusterHeartbeatParams) (CreateClusterHeartbeatRow, error)
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
 	CreateDeploymentPlacement(ctx context.Context, arg CreateDeploymentPlacementParams) error
@@ -276,6 +277,7 @@ type Querier interface {
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (Build, error)
 	LockBuildResource(ctx context.Context, id uuid.UUID) error
 	LockBuildResourceDigests(ctx context.Context, arg LockBuildResourceDigestsParams) error
+	LockClusterHeartbeat(ctx context.Context, clusterID uuid.UUID) (LockClusterHeartbeatRow, error)
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error)
 	LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
@@ -314,7 +316,9 @@ type Querier interface {
 	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) error
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
-	// Marks each active cluster whose last heartbeat is older than heard_since and returns it once.
+	// Marks each active cluster whose last heartbeat is older than heard_since and returns it once. The cluster rows
+	// are share-locked first, so a pause or removal either commits before and excludes the cluster, or waits for this
+	// transaction.
 	MarkSilentClusters(ctx context.Context, heardSince time.Time) ([]MarkSilentClustersRow, error)
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
@@ -347,9 +351,8 @@ type Querier interface {
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
-	// Returns nothing for a removed cluster. previous_status is empty for the cluster's first heartbeat; the row lock
-	// orders concurrent heartbeats so each status change is seen once.
-	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) (RecordClusterHeartbeatRow, error)
+	// Ends any silence mark.
+	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) error
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RegionHasClusters(ctx context.Context, region string) (bool, error)
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error

@@ -267,13 +267,11 @@ SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_st
 	}
 }
 
-func (f *deployFixture) healthChanges(t *testing.T) []map[string]any {
+func (f *deployFixture) clusterEvents(t *testing.T, eventType string) []map[string]any {
 	t.Helper()
-	rows, err := f.pool.Query(
-		t.Context(),
-		`SELECT data FROM events WHERE type = 'cluster.health_changed' AND subject_id = $1 AND org_id IS NULL ORDER BY seq`,
-		f.clusterID,
-	)
+	rows, err := f.pool.Query(t.Context(),
+		`SELECT data FROM events WHERE type = $1 AND subject_id = $2 AND org_id IS NULL ORDER BY seq`,
+		eventType, f.clusterID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,37 +287,102 @@ func (f *deployFixture) healthChanges(t *testing.T) []map[string]any {
 	return all
 }
 
+func degradedHeartbeat() *agentv1.Heartbeat {
+	return &agentv1.Heartbeat{
+		Role:   clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Health: &agentv1.AgentHealth{KubernetesHealthy: true},
+	}
+}
+
 func TestHeartbeatRecordsOneEventPerHealthChange(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
-	degraded := &agentv1.Heartbeat{
-		Role:   clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
-		Health: &agentv1.AgentHealth{KubernetesHealthy: true},
-	}
 
 	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
-	if changes := f.healthChanges(t); len(changes) != 0 {
+	if changes := f.clusterEvents(t, "cluster.health_changed"); len(changes) != 0 {
 		t.Fatalf("events for the first and a repeated healthy heartbeat = %v, want none", changes)
 	}
 
 	var wg sync.WaitGroup
 	for range 4 {
-		wg.Go(func() { server.recordHeartbeat(t.Context(), f.clusterID, degraded) })
+		wg.Go(func() { server.recordHeartbeat(t.Context(), f.clusterID, degradedHeartbeat()) })
 	}
 	wg.Wait()
-	changes := f.healthChanges(t)
-	if len(changes) != 1 || changes[0]["old"] != clusterHealthHealthy || changes[0]["new"] != clusterHealthDegraded ||
-		changes[0]["region"] == "" || changes[0]["name"] == "" {
-		t.Fatalf(
-			"events after concurrent degraded heartbeats = %v, want one healthy to degraded naming the cluster",
-			changes,
-		)
+	changes := f.clusterEvents(t, "cluster.health_changed")
+	if len(changes) != 1 {
+		t.Fatalf("events after concurrent degraded heartbeats = %v, want one", changes)
+	}
+	if changes[0]["old"] != clusterHealthHealthy || changes[0]["new"] != clusterHealthDegraded {
+		t.Fatalf("health change = %v, want healthy to degraded", changes[0])
+	}
+	if changes[0]["name"] == "" || changes[0]["region"] == "" {
+		t.Fatalf("health change = %v, want the cluster name and region", changes[0])
 	}
 
 	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
-	if changes := f.healthChanges(t); len(changes) != 2 || changes[1]["new"] != clusterHealthHealthy {
+	changes = f.clusterEvents(t, "cluster.health_changed")
+	if len(changes) != 2 || changes[1]["new"] != clusterHealthHealthy {
 		t.Fatalf("events after recovery = %v, want a second one ending healthy", changes)
+	}
+}
+
+func TestConcurrentFirstHeartbeatsRecordTheHealthChange(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := f.agentServer()
+	var wg sync.WaitGroup
+	wg.Go(func() { server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat()) })
+	wg.Go(func() { server.recordHeartbeat(t.Context(), f.clusterID, degradedHeartbeat()) })
+	wg.Wait()
+
+	_, stored := f.storedHeartbeat(t)
+	changes := f.clusterEvents(t, "cluster.health_changed")
+	if len(changes) != 1 {
+		t.Fatalf("events for two first heartbeats with different health = %v, want one", changes)
+	}
+	if changes[0]["new"] != stored {
+		t.Fatalf("health change = %v, want it to end in the stored status %s", changes[0], stored)
+	}
+}
+
+func TestHeartbeatEndsASilenceOnceAndTheNextOutageIsReported(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := f.agentServer()
+	const silentAfter = time.Minute
+	silence := func() {
+		t.Helper()
+		if _, err := f.pool.Exec(t.Context(),
+			`UPDATE cluster_heartbeats SET last_heartbeat = now() - interval '10 minutes' WHERE cluster_id = $1`,
+			f.clusterID); err != nil {
+			t.Fatal(err)
+		}
+		marked, err := f.queries.MarkSilentClusters(t.Context(), time.Now().Add(-silentAfter))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(marked) != 1 {
+			t.Fatalf("marked %d clusters silent, want 1", len(marked))
+		}
+	}
+
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	silence()
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	recovered := f.clusterEvents(t, "cluster.recovered")
+	if len(recovered) != 1 {
+		t.Fatalf("cluster.recovered events = %v, want one", recovered)
+	}
+	if seconds, ok := recovered[0]["silentSeconds"].(float64); !ok || seconds < 590 {
+		t.Fatalf("cluster.recovered data = %v, want about 600 silent seconds", recovered[0])
+	}
+
+	silence()
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	if recovered = f.clusterEvents(t, "cluster.recovered"); len(recovered) != 2 {
+		t.Fatalf("cluster.recovered events after a second outage = %d, want 2", len(recovered))
 	}
 }

@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/team-loco/loco/api/db/dbtest"
+	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
 const testSilentAfter = 90 * time.Second
@@ -52,7 +55,7 @@ func (f *fixture) sweepClusters(t *testing.T) {
 	}
 }
 
-func TestClusterSilenceRecordsOneSilentAndOneRecoveredEvent(t *testing.T) {
+func TestClusterSilenceRecordsOneSilentEventPerOutage(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
 	f.setHeartbeat(t, f.clusterID, 10*time.Minute)
@@ -64,25 +67,48 @@ func TestClusterSilenceRecordsOneSilentAndOneRecoveredEvent(t *testing.T) {
 	wg.Wait()
 	f.sweepClusters(t)
 	silent := f.clusterEvents(t, "cluster.silent", f.clusterID)
-	if len(silent) != 1 || silent[0]["name"] != "c1" || silent[0]["region"] != "us-ca-1" {
-		t.Fatalf("cluster.silent events = %v, want one naming c1 in us-ca-1", silent)
+	if len(silent) != 1 {
+		t.Fatalf("cluster.silent events = %v, want one", silent)
 	}
-	if recovered := f.clusterEvents(t, "cluster.recovered", f.clusterID); len(recovered) != 0 {
-		t.Fatalf("cluster.recovered before the cluster reports = %v", recovered)
+	if silent[0]["name"] != "c1" || silent[0]["region"] != "us-ca-1" {
+		t.Fatalf("cluster.silent data = %v, want c1 in us-ca-1", silent[0])
 	}
+}
 
-	f.setHeartbeat(t, f.clusterID, 0)
-	f.sweepClusters(t)
-	f.sweepClusters(t)
-	recovered := f.clusterEvents(t, "cluster.recovered", f.clusterID)
-	if len(recovered) != 1 || silentSeconds(recovered[0]) < 590 {
-		t.Fatalf("cluster.recovered events = %v, want one with about 600 silent seconds", recovered)
-	}
-
+func TestClusterSilenceWaitsForAPauseThatIsCommitting(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
 	f.setHeartbeat(t, f.clusterID, 10*time.Minute)
-	f.sweepClusters(t)
-	if silent := f.clusterEvents(t, "cluster.silent", f.clusterID); len(silent) != 2 {
-		t.Fatalf("cluster.silent events after a second outage = %d, want 2", len(silent))
+	tx, err := f.pool.Begin(f.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(f.ctx)
+	q := genDb.New(tx)
+	if _, err = q.LockClusterLifecycle(f.ctx, f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	if err = q.UpdateClusterLifecycle(f.ctx, genDb.UpdateClusterLifecycleParams{ID: f.clusterID}); err != nil {
+		t.Fatal(err)
+	}
+
+	swept := make(chan ClusterSilenceSweepResult, 1)
+	go func() {
+		result, sweepErr := NewClusterSilenceSweeper(f.pool, testSilentAfter, time.Minute).Sweep(f.ctx)
+		if sweepErr != nil {
+			t.Error(sweepErr)
+		}
+		swept <- result
+	}()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	if err = tx.Commit(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if result := <-swept; result.Silenced != 0 {
+		t.Fatalf("sweep silenced %d clusters, want none for a cluster paused before the sweep read it", result.Silenced)
+	}
+	if got := f.clusterEvents(t, "cluster.silent", f.clusterID); len(got) != 0 {
+		t.Fatalf("paused cluster recorded %v", got)
 	}
 }
 
@@ -112,11 +138,4 @@ SELECT p.id, r.id, h.id FROM p, r, h`).Scan(&paused, &removed, &heard); err != n
 			t.Errorf("%s cluster recorded %v", name, got)
 		}
 	}
-}
-
-func silentSeconds(data map[string]any) float64 {
-	if seconds, ok := data["silentSeconds"].(float64); ok {
-		return seconds
-	}
-	return -1
 }

@@ -221,36 +221,55 @@ func registeredAs(row genDb.GetEnrolledClusterRow, key uuid.UUID) (registeredClu
 	return registeredCluster{id: row.ID, name: row.Name, region: row.Region}, nil
 }
 
-// recordHeartbeat records that the cluster is alive and how healthy it is, and a change of health as an event.
+// recordHeartbeat records that the cluster is alive and how healthy it is. A change of health records
+// cluster.health_changed, and a heartbeat that ends a silence records cluster.recovered, in the same transaction.
 func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {
 	status := healthStatusFromProto(heartbeat.GetHealth())
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		row, err := qtx.RecordClusterHeartbeat(ctx, genDb.RecordClusterHeartbeatParams{
-			ID:            clusterID,
-			LastHeartbeat: time.Now(),
-			HealthStatus:  status,
+		at := time.Now()
+		cluster, err := qtx.CreateClusterHeartbeat(ctx, genDb.CreateClusterHeartbeatParams{
+			ID: clusterID, LastHeartbeat: at, HealthStatus: status,
 		})
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) || (err == nil && cluster.Created) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		if row.PreviousStatus == "" || row.PreviousStatus == status {
+		previous, err := qtx.LockClusterHeartbeat(ctx, clusterID)
+		if err != nil {
+			return err
+		}
+		err = qtx.RecordClusterHeartbeat(ctx, genDb.RecordClusterHeartbeatParams{
+			ID: clusterID, LastHeartbeat: at, HealthStatus: status,
+		})
+		if err != nil {
+			return err
+		}
+		event := func(eventType string, data map[string]any) error {
+			data[events.FieldName], data[events.FieldRegion] = cluster.Name, cluster.Region
+			return events.Record(ctx, qtx, events.Event{
+				Type:        eventType,
+				ActorType:   "agent",
+				ActorID:     new(clusterID),
+				SubjectType: events.SubjectCluster,
+				SubjectID:   new(clusterID),
+				Data:        data,
+			})
+		}
+		if previous.SilentSince != nil {
+			silent := at.Sub(*previous.SilentSince)
+			err = event(events.ClusterRecovered, map[string]any{events.FieldSilentSeconds: int64(silent / time.Second)})
+			if err != nil {
+				return err
+			}
+		}
+		if previous.HealthStatus == status {
 			return nil
 		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:        events.ClusterHealthChanged,
-			ActorType:   "agent",
-			ActorID:     new(clusterID),
-			SubjectType: events.SubjectCluster,
-			SubjectID:   new(clusterID),
-			Data: map[string]any{
-				events.FieldName:   row.Name,
-				events.FieldRegion: row.Region,
-				events.FieldOld:    row.PreviousStatus,
-				events.FieldNew:    status,
-			},
+		return event(events.ClusterHealthChanged, map[string]any{
+			events.FieldOld: previous.HealthStatus,
+			events.FieldNew: status,
 		})
 	})
 	if err != nil {

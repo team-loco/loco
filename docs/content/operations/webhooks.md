@@ -148,12 +148,12 @@ The `creator_*` fields are absent when that user no longer exists, and on `deplo
 
 ## Cluster events
 
-Cluster events belong to the installation, not to an organization, so install webhooks receive them and workspace webhooks do not. Each names the cluster in `name` and `region`, and has `subject.type` `cluster` with the cluster ID as `subject.id`. Paused and removed clusters record none of them.
+Cluster events belong to the installation, not to an organization, so install webhooks receive them and workspace webhooks do not. Each names the cluster in `name` and `region`, and has `subject.type` `cluster` with the cluster ID as `subject.id`. A paused or removed cluster records no `cluster.silent`; a paused cluster's heartbeats still record the other two.
 
 | Event | Recorded when | Extra `data` fields |
 | --- | --- | --- |
 | `cluster.silent` | A cluster's agent has not reported for three heartbeat intervals (`LOCO_AGENT_HEARTBEAT_INTERVAL`, 30 seconds by default), the point at which the API stops placing work there | none |
-| `cluster.recovered` | A silent cluster reports again | `silentSeconds`, the time since its last heartbeat before the silence |
+| `cluster.recovered` | A silent cluster's agent reports again | `silentSeconds`, the time from the last heartbeat before the silence to the heartbeat that ended it |
 | `cluster.health_changed` | The agent reports a different health than its previous heartbeat: `healthy`, `degraded` or `unhealthy` | `old`, `new` |
 
 Each transition records one event, whatever the number of API replicas or restarts. A cluster's first heartbeat records no `cluster.health_changed`.
