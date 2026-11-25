@@ -342,7 +342,7 @@ with session(out) as browser:
     failing.add(OTHER_REGION)
     first = len(deployments)
     save_button.click()
-    with page.expect_response(lambda r: r.url.endswith("/DeleteResourceDomain")):
+    with expect_rpc(page, "DeleteResourceDomain", lambda body: "domainId" in body):
         page.get_by_role("button", name="Remove domains and save", exact=True).click()
     expect(page.get_by_text("region down", exact=False)).to_be_visible()
     expect(discard).to_be_enabled()
