@@ -117,11 +117,9 @@ jobs:
           FLUX_VERSION=$(python3 -I -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["flux2"])')
           export REGISTRY=${REGISTRY,,} PLATFORMS=linux/$ARCH BINARIES=bin/images HELM_VERSION KUBECTL_VERSION FLUX_VERSION
           export TAG=$tag
-          # A build takes about two minutes; a push that stalls gets one more try.
-          for attempt in 1 2; do
-            timeout 10m docker buildx bake -f docker-bake.hcl -f "$LABELS" --push "${targets[@]}" && break
-            [ "$attempt" = 2 ] && exit 1
-          done
+          # The 10 minute limit covers build and push, which take about two; a stall gets one more try.
+          bake() { timeout --kill-after=30s 10m docker buildx bake -f docker-bake.hcl -f "$LABELS" --push "${targets[@]}"; }
+          bake || bake
           echo "images=$REGISTRY-*:$TAG" >> "$GITHUB_OUTPUT"
 
   merge:
@@ -206,8 +204,6 @@ jobs:
             PLATFORMS=linux/amd64,linux/arm64
             WRITE_CACHE=true
           fi
-          # A build takes about two minutes; a push that stalls gets one more try.
-          for attempt in 1 2; do
-            timeout 10m docker buildx bake -f docker-bake.hcl -f "$LABELS" --push "${targets[@]}" && break
-            [ "$attempt" = 2 ] && exit 1
-          done
+          # The 10 minute limit covers build and push, which take about two; a stall gets one more try.
+          bake() { timeout --kill-after=30s 10m docker buildx bake -f docker-bake.hcl -f "$LABELS" --push "${targets[@]}"; }
+          bake || bake
