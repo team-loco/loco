@@ -391,6 +391,31 @@ func TestABuildQueuedWhileAStartIsQueuedIsSentWhenTheStartSettles(t *testing.T) 
 	}
 }
 
+func TestASentBuildIsCanceledWhenItsClusterStopsRunningBuilds(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	session, sent := f.dispatchSession()
+	id := f.queued(t)
+	if err := session.sendPendingNow(f.ctx); err != nil {
+		t.Fatalf("send pending: %v", err)
+	}
+	sent.take()
+
+	if _, err := f.pool.Exec(f.ctx, `UPDATE clusters SET role = 'apps' WHERE id = $1`, f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	if err := session.sendPending(f.ctx); err != nil {
+		t.Fatalf("send pending: %v", err)
+	}
+	if err := applyQueuedReports(f.ctx, session); err != nil {
+		t.Fatalf("apply reports: %v", err)
+	}
+	wantStatus(t, f.get(t, id), buildv1.BuildStatus_BUILD_STATUS_FAILED)
+	if got := canceledBuilds(sent.take()); len(got) != 1 || got[0] != id {
+		t.Fatalf("canceled %v, want %s", got, id)
+	}
+}
+
 func TestStatusForABuildTheControlPlaneCanceledCancelsIt(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
