@@ -1,13 +1,13 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { formatStarted, readyMs, type TimePreferences } from "@/lib/time";
 import { useState, type CSSProperties } from "react";
-import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from "lucide-react";
+import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon, TextWrapIcon, XIcon } from "lucide-react";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Code } from "@/components/design/CodeBlock";
-import { DialogContent, DialogTitle } from "@/components/design/Dialog";
+import { DialogClose, DialogContent, DialogTitle } from "@/components/design/Dialog";
 import { ToggleChip } from "@/components/design/ToggleChip";
 import {
 	DropdownMenu,
@@ -21,7 +21,7 @@ import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { depTag } from "./model";
-import { changedOnly, diffLines, sideBySide, specText, type SideBySideRow } from "./spec";
+import { changedOnly, diffLines, sideBySide, specText, type DiffLine, type SideBySideRow } from "./spec";
 
 const COPIED_MS = 1500;
 const YAML_TYPE = "application/yaml";
@@ -75,26 +75,30 @@ function Picker({
 	);
 }
 
+function fileName(dep: Deployment): string {
+	return `deployment-${formatShortId(dep.id)}.yaml`;
+}
+
 function download(dep: Deployment, text: string) {
 	const url = URL.createObjectURL(new Blob([text], { type: YAML_TYPE }));
 	const a = document.createElement("a");
 	a.href = url;
-	a.download = `deployment-${formatShortId(dep.id)}.yaml`;
+	a.download = fileName(dep);
 	a.click();
 	URL.revokeObjectURL(url);
 }
 
-function Single({ text }: { text: string }) {
+function Single({ text, wrap }: { text: string; wrap: boolean }) {
 	const digits = text.split("\n").length.toString().length;
 	return (
 		<pre className="m-0 text-(--sh-identifier)" style={{ "--code-digits": digits } as CSSProperties}>
-			<Code code={text} language="yaml" className="code-lines" />
+			<Code code={text} language="yaml" className={cn("code-lines", wrap && "code-wrap")} />
 		</pre>
 	);
 }
 
-function Compare({ from, to, diffOnly }: { from: string; to: string; diffOnly: boolean }) {
-	const all = sideBySide(diffLines(from, to).lines);
+function Compare({ lines, diffOnly, wrap }: { lines: DiffLine[]; diffOnly: boolean; wrap: boolean }) {
+	const all = sideBySide(lines);
 	const rows = diffOnly ? changedOnly(all) : all;
 	const side = (cell: SideBySideRow["left"], tone: "add" | "del") => {
 		const cls =
@@ -108,17 +112,23 @@ function Compare({ from, to, diffOnly }: { from: string; to: string; diffOnly: b
 		return (
 			<>
 				<span className={cn("pr-3 text-right text-fg4 select-none", cls)}>{cell?.n ?? ""}</span>
-				<span className={cn("overflow-hidden pr-3 text-ellipsis whitespace-pre", cls)}>{cell?.text ?? ""}</span>
+				<span className={cn("pr-3", wrap ? "[overflow-wrap:anywhere] whitespace-pre-wrap" : "whitespace-pre", cls)}>
+					{cell?.text ?? ""}
+				</span>
 			</>
 		);
 	};
 	return (
-		<>
+		<div
+			className={cn(
+				"grid",
+				wrap
+					? "grid-cols-[40px_minmax(0,1fr)_40px_minmax(0,1fr)]"
+					: "w-max min-w-full grid-cols-[40px_max-content_40px_max-content]",
+			)}
+		>
 			{rows.map((r, i) => (
-				<div
-					key={i}
-					className="grid grid-cols-[40px_minmax(0,1fr)_40px_minmax(0,1fr)] [&>span:nth-child(3)]:border-l [&>span:nth-child(3)]:border-line"
-				>
+				<div key={i} className="contents [&>span:nth-child(3)]:border-l [&>span:nth-child(3)]:border-line">
 					{"skipped" in r ? (
 						<span
 							data-slot="skipped-rows"
@@ -133,7 +143,7 @@ function Compare({ from, to, diffOnly }: { from: string; to: string; diffOnly: b
 					)}
 				</div>
 			))}
-		</>
+		</div>
 	);
 }
 
@@ -152,6 +162,7 @@ export function SpecDialogContent({
 }) {
 	const [copiedKey, copy] = useCopy(COPIED_MS);
 	const [diffOnly, setDiffOnly] = useState(false);
+	const [wrap, setWrap] = useState(true);
 	const a = deployments.find((d) => d.id === deploymentId) ?? deployments[0];
 	if (a === undefined) return null;
 	const b = compareId === null ? undefined : deployments.find((d) => d.id === compareId);
@@ -161,8 +172,8 @@ export function SpecDialogContent({
 	const firstOther = others[0];
 
 	return (
-		<DialogContent top className={cn(b === undefined ? "w-[720px]" : "w-[1180px]")}>
-			<div className="flex flex-wrap items-center gap-2.5 border-b border-line py-2.5 pr-12 pl-4">
+		<DialogContent top showCloseButton={false} className={cn(b === undefined ? "w-[720px]" : "w-[1180px]")}>
+			<div className="flex flex-wrap items-center gap-2.5 border-b border-line py-2.5 pr-4 pl-4">
 				<DialogTitle className="font-mono text-[15px]">
 					{resourceName}
 					<span className="sr-only"> deployment spec</span>
@@ -217,11 +228,28 @@ export function SpecDialogContent({
 						</Button>
 					</>
 				)}
+			</div>
+			<div
+				data-slot="spec-bar"
+				className="flex h-9 shrink-0 items-center gap-1 border-b border-line pr-1.5 pl-4 text-[12px] text-fg3"
+			>
+				<span className="truncate font-mono">{fileName(a)}</span>
 				<span className="flex-1" />
+				<ToggleChip
+					variant="button"
+					aria-label="Wrap lines"
+					title="Wrap lines"
+					className="size-7 min-w-0 border-0 bg-transparent px-0 text-fg3 hover:text-foreground aria-pressed:bg-panel2"
+					pressed={wrap}
+					onPressedChange={setWrap}
+				>
+					<TextWrapIcon />
+				</ToggleChip>
 				<Button
 					variant="ghost"
 					size="icon-sm"
 					aria-label="Download spec"
+					title="Download"
 					onClick={() => {
 						download(a, aText);
 					}}
@@ -232,15 +260,23 @@ export function SpecDialogContent({
 					variant="ghost"
 					size="icon-sm"
 					aria-label={copiedKey === a.id ? "Copied" : "Copy spec"}
+					title="Copy"
 					onClick={() => {
 						copy(a.id, aText);
 					}}
 				>
 					{copiedKey === a.id ? <CheckIcon /> : <CopyIcon />}
 				</Button>
+				<DialogClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" title="Close" />}>
+					<XIcon />
+				</DialogClose>
 			</div>
-			<div className="min-h-0 overflow-auto bg-panel pt-2 pb-3 font-mono text-[12.5px] leading-5">
-				{b === undefined ? <Single text={aText} /> : <Compare from={aText} to={specText(b)} diffOnly={diffOnly} />}
+			<div data-slot="spec-body" className="min-h-0 overflow-auto bg-panel pt-2 pb-3 font-mono text-[12.5px] leading-5">
+				{b === undefined || diff === undefined ? (
+					<Single text={aText} wrap={wrap} />
+				) : (
+					<Compare lines={diff.lines} diffOnly={diffOnly} wrap={wrap} />
+				)}
 			</div>
 		</DialogContent>
 	);

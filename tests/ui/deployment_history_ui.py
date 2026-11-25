@@ -103,6 +103,8 @@ def fixture():
         region = "us-va-1" if index == len(release_ids) else "us-ca-1"
         active = index in (1, len(release_ids))
         image = f"example.invalid/browser-pilot:release-{index:03}"
+        if index in (1, 2):
+            image += f"@sha256:{index:02x}" + "a" * 300
         build = None
         if index == 2:
             build = {
@@ -352,7 +354,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][0][-8:]}",
+            name=f"View spec of {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -375,15 +377,68 @@ with session(out) as browser:
     expect(
         deployments.get_by_role("cell", name="Add the release checklist", exact=True)
     ).to_be_visible()
+    expect(section.get_by_role("columnheader", name="Spec", exact=True)).to_be_visible()
     section.get_by_role(
         "button",
-        name=f"Actions for {data['releases'][0][-8:]}",
+        name=f"Actions for {data['releases'][1][-8:]}",
         exact=True,
     ).click()
-    page.get_by_role("menuitem", name="View spec", exact=True).click()
+    expect(page.get_by_role("menuitem", name="View spec", exact=True)).to_have_count(0)
+    page.keyboard.press("Escape")
+    section.get_by_role(
+        "button",
+        name=f"View spec of {data['releases'][1][-8:]}",
+        exact=True,
+    ).click()
     spec_dialog = page.get_by_role(
         "dialog", name="history-pilot deployment spec", exact=True
     )
+    older = data["releases"][1][-8:]
+    expect(
+        spec_dialog.get_by_role("button", name="Deployment", exact=True)
+    ).to_contain_text(older)
+    expect(spec_dialog.locator('[data-slot="spec-bar"]')).to_contain_text(
+        f"deployment-{older}.yaml"
+    )
+    bar = spec_dialog.locator('[data-slot="spec-bar"]')
+    for name in ("Wrap lines", "Download spec", "Copy spec", "Close"):
+        expect(bar.get_by_role("button", name=name, exact=True)).to_be_visible()
+    tops = bar.locator("button").evaluate_all(
+        "els => els.map(e => e.getBoundingClientRect().top)"
+    )
+    assert len(set(tops)) == 1, tops
+    wrap = bar.get_by_role("button", name="Wrap lines", exact=True)
+    line = spec_dialog.locator(".sh__line").first
+    expect(wrap).to_have_attribute("aria-pressed", "true")
+    expect(line).to_have_css("white-space", "pre-wrap")
+    scroller = spec_dialog.locator('[data-slot="spec-body"]')
+    sizes = "e => [e.scrollWidth, e.clientWidth]"
+    scroll_width, client_width = scroller.evaluate(sizes)
+    assert scroll_width == client_width, (scroll_width, client_width)
+    wrap.click()
+    expect(wrap).to_have_attribute("aria-pressed", "false")
+    expect(line).to_have_css("white-space", "pre")
+    scroll_width, client_width = scroller.evaluate(sizes)
+    assert scroll_width > client_width, (scroll_width, client_width)
+    wrap.click()
+    expect(line).to_have_css("white-space", "pre-wrap")
+    bar.get_by_role("button", name="Close", exact=True).click()
+    expect(spec_dialog).to_have_count(0)
+    spec_link = section.get_by_role(
+        "button",
+        name=f"View spec of {data['releases'][0][-8:]}",
+        exact=True,
+    )
+    desktop = page.viewport_size
+    page.set_viewport_size({"width": 390, "height": 844})
+    spec_link.scroll_into_view_if_needed()
+    expect(spec_link).to_be_visible()
+    spec_link.click()
+    expect(spec_dialog).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(spec_dialog).to_have_count(0)
+    page.set_viewport_size(desktop)
+    spec_link.click()
     for index, deployment_id in enumerate(data["releases"][:2]):
         picker = spec_dialog.get_by_role("button", name="Deployment", exact=True)
         if index:
@@ -391,6 +446,7 @@ with session(out) as browser:
             page.get_by_role(
                 "menuitemradio", name=re.compile(deployment_id[-8:])
             ).click()
+            page.keyboard.press("Escape")
         expect(picker).to_contain_text(deployment_id[-8:])
         with page.expect_download() as download:
             spec_dialog.get_by_role("button", name="Download spec", exact=True).click()
@@ -398,6 +454,22 @@ with session(out) as browser:
             download.value.suggested_filename == f"deployment-{deployment_id[-8:]}.yaml"
         )
     spec_dialog.get_by_role("button", name="Compare with…", exact=True).click()
+    long_cells = scroller.locator("span", has_text="sha256")
+    expect(long_cells).to_have_count(2)
+    pane_edges = """(scroller) => {
+        const box = scroller.getBoundingClientRect();
+        return [...scroller.querySelectorAll("span")]
+            .filter((s) => s.textContent.includes("sha256"))
+            .map((s) => s.getBoundingClientRect().right - box.right);
+    }"""
+    scroll_width, client_width = scroller.evaluate(sizes)
+    assert scroll_width == client_width, (scroll_width, client_width)
+    assert all(edge <= 1 for edge in scroller.evaluate(pane_edges))
+    wrap.click()
+    scroll_width, client_width = scroller.evaluate(sizes)
+    assert scroll_width > client_width, (scroll_width, client_width)
+    assert all(edge > 1 for edge in scroller.evaluate(pane_edges))
+    wrap.click()
     skipped = spec_dialog.locator('[data-slot="skipped-rows"]')
     expect(skipped).to_have_count(0)
     spec_dialog.get_by_role("button", name="Diff only", exact=True).click()
@@ -444,7 +516,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][50][-8:]}",
+            name=f"View spec of {data['releases'][50][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -463,7 +535,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][50][-8:]}",
+            name=f"View spec of {data['releases'][50][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -473,7 +545,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][100][-8:]}",
+            name=f"View spec of {data['releases'][100][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -482,7 +554,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][150][-8:]}",
+            name=f"View spec of {data['releases'][150][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -491,7 +563,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][220][-8:]}",
+            name=f"View spec of {data['releases'][220][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -511,7 +583,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['staging_release'][-8:]}",
+            name=f"View spec of {data['staging_release'][-8:]}",
             exact=True,
         )
     ).to_be_visible()
@@ -520,7 +592,7 @@ with session(out) as browser:
     expect(section.get_by_role("button", name="Next page", exact=True)).to_be_disabled()
     assert not section.get_by_role(
         "button",
-        name=f"Actions for {data['releases'][220][-8:]}",
+        name=f"View spec of {data['releases'][220][-8:]}",
         exact=True,
     ).count()
     assert any(
@@ -535,14 +607,14 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][0][-8:]}",
+            name=f"View spec of {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][150][-8:]}",
+            name=f"View spec of {data['releases'][150][-8:]}",
             exact=True,
         )
     ).to_have_count(0)
@@ -583,7 +655,7 @@ with session(out) as browser:
     expect(
         section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][0][-8:]}",
+            name=f"View spec of {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_have_count(0)
@@ -851,10 +923,17 @@ with session(out) as browser:
     expect(
         reader_section.get_by_role(
             "button",
-            name=f"Actions for {data['releases'][0][-8:]}",
+            name=f"View spec of {data['releases'][0][-8:]}",
             exact=True,
         )
     ).to_be_visible()
+    expect(
+        reader_section.get_by_role(
+            "button",
+            name=f"Actions for {data['releases'][0][-8:]}",
+            exact=True,
+        )
+    ).to_have_count(0)
     expect(reader_page.get_by_text("Not deployed yet", exact=True)).to_have_count(0)
     reader_section.get_by_role(
         "button",
@@ -862,8 +941,13 @@ with session(out) as browser:
         exact=True,
     ).click()
     expect(
-        reader_page.get_by_role("menuitem", name="View spec", exact=True)
+        reader_page.get_by_role(
+            "menuitem", name="Compare spec with current", exact=True
+        )
     ).to_be_visible()
+    expect(
+        reader_page.get_by_role("menuitem", name="View spec", exact=True)
+    ).to_have_count(0)
     expect(
         reader_page.get_by_role("menuitem", name="Roll back to this", exact=True)
     ).to_have_count(0)

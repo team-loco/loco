@@ -7,7 +7,7 @@ import { functionalUpdate } from "@tanstack/react-table";
 import { CheckIcon, CopyIcon, FileCodeIcon, GitCompareIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Button } from "@/components/design/Button";
 import {
@@ -29,7 +29,7 @@ import { useCopy } from "@/hooks/useCopy";
 import { useLayout } from "@/lib/layout";
 import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { tookLabel } from "@/lib/activity-deploys";
-import { deploymentActor, deploymentMethod, deploymentTrigger, isInFlight } from "@/lib/deployment-utils";
+import { deploymentActor, deploymentMethod, deploymentTrigger } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { maybeTsMs, readyMs } from "@/lib/time";
@@ -64,15 +64,6 @@ interface Row {
 interface RolloutRow {
 	key: string;
 	rows: [Row, ...Row[]];
-}
-
-/** The member a rollout's status shows: one still in flight, else one that failed, else the newest. */
-function leadRow(rows: readonly [Row, ...Row[]]): Row {
-	return (
-		rows.find((r) => isInFlight(r.dep.status)) ??
-		rows.find((r) => r.dep.status === DeploymentStatus.FAILED || r.dep.status === DeploymentStatus.CRASHED) ??
-		rows[0]
-	);
 }
 
 function historyMessage(dep: Deployment): string {
@@ -120,42 +111,31 @@ function RolloutActions({
 	rollout,
 	canWrite,
 	onRollback,
-	onViewSpec,
 	onCompareSpec,
 }: {
 	rollout: RolloutRow;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
-	onViewSpec: (dep: Deployment) => void;
 	onCompareSpec: (dep: Deployment, current: Deployment) => void;
 }) {
 	const dep = rollout.rows[0].dep;
 	const current = rollout.rows.find((r) => r.region.current !== undefined && r.region.current.id !== dep.id)?.region
 		.current;
+	const rollbacks = canWrite ? rollout.rows.filter((r) => canRollBackTo(r.dep, r.region)) : [];
+	if (rollbacks.length === 0 && current === undefined) return null;
 	return (
 		<RowMenu label={`Actions for ${formatShortId(dep.id)}`}>
-			{canWrite &&
-				rollout.rows
-					.filter((r) => canRollBackTo(r.dep, r.region))
-					.map((r) => (
-						<DropdownMenuItem
-							key={r.region.name}
-							onClick={() => {
-								onRollback(r.dep, r.region.current);
-							}}
-						>
-							<Undo2Icon className="text-fg3" />
-							{rollout.rows.length > 1 ? `Roll back to this in ${r.region.name}` : "Roll back to this"}
-						</DropdownMenuItem>
-					))}
-			<DropdownMenuItem
-				onClick={() => {
-					onViewSpec(dep);
-				}}
-			>
-				<FileCodeIcon className="text-fg3" />
-				View spec
-			</DropdownMenuItem>
+			{rollbacks.map((r) => (
+				<DropdownMenuItem
+					key={r.region.name}
+					onClick={() => {
+						onRollback(r.dep, r.region.current);
+					}}
+				>
+					<Undo2Icon className="text-fg3" />
+					{rollout.rows.length > 1 ? `Roll back to this in ${r.region.name}` : "Roll back to this"}
+				</DropdownMenuItem>
+			))}
 			{current !== undefined && (
 				<DropdownMenuItem
 					onClick={() => {
@@ -185,7 +165,7 @@ function rolloutColumns({
 	onCompareSpec: (dep: Deployment, current: Deployment) => void;
 	onOpenBuild: (buildId: string) => void;
 }): DataColumn<RolloutRow>[] {
-	const lead = (rollout: RolloutRow) => leadRow(rollout.rows).dep;
+	const lead = (rollout: RolloutRow) => rollout.rows[0].dep;
 	return [
 		{
 			id: "id",
@@ -313,18 +293,32 @@ function rolloutColumns({
 			cell: ({ row: { original: rollout } }) => <TimeAgo ms={readyMs(rollout.rows[0].dep)} nowMs={nowMs} />,
 		},
 		{
+			id: "spec",
+			header: "Spec",
+			size: 100,
+			minSize: 80,
+			meta: { fit: true, fitMax: 120 },
+			cell: ({ row: { original: rollout } }) => (
+				<Button
+					variant="plain-link"
+					aria-label={`View spec of ${formatShortId(lead(rollout).id)}`}
+					className="text-[13px]"
+					onClick={() => {
+						onViewSpec(lead(rollout));
+					}}
+				>
+					<FileCodeIcon className="hidden max-md:block" aria-hidden />
+					<span className="max-md:hidden">View spec</span>
+				</Button>
+			),
+		},
+		{
 			id: "actions",
 			header: ({ table }) => <DataTableColumnsMenu table={table} />,
 			meta: { label: "Actions", pinEnd: true },
 			enableHiding: false,
 			cell: ({ row: { original: rollout } }) => (
-				<RolloutActions
-					rollout={rollout}
-					canWrite={canWrite}
-					onRollback={onRollback}
-					onViewSpec={onViewSpec}
-					onCompareSpec={onCompareSpec}
-				/>
+				<RolloutActions rollout={rollout} canWrite={canWrite} onRollback={onRollback} onCompareSpec={onCompareSpec} />
 			),
 		},
 	];

@@ -75,7 +75,7 @@ export function specText(dep: Deployment): string {
 	return toYaml(specObject(dep));
 }
 
-interface DiffLine {
+export interface DiffLine {
 	sign: " " | "+" | "−";
 	text: string;
 }
