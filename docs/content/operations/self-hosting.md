@@ -44,7 +44,7 @@ An installation role applies to the whole installation rather than one organizat
 
 | Role | Grants |
 | --- | --- |
-| System read | Read every organization, workspace and resource as a `read` member would, and call the read-only installation RPCs: list clusters, regions, users and installation roles, and stream every event. It allows no change; a change the user's own organization, workspace or resource grants do not allow answers `PermissionDenied`. |
+| System read | Read every organization, workspace and resource as a `read` member would, and call the read-only installation RPCs: list organizations, clusters, regions, users and installation roles, and stream every event. It allows no change; a change the user's own organization, workspace or resource grants do not allow answers `PermissionDenied`. |
 | System admin | Everything system read grants, plus the installation's administration: register and manage clusters, grant and revoke installation roles, suspend organizations and users, set organization limits and rewrap secret keys. |
 
 Set verified email addresses in `api.systemAdmins` and `api.systemReaders`. Their first sign-in claims the listed role, including under closed signup. An email in both lists fails the API's startup:
@@ -59,6 +59,8 @@ Configure the dashboard issuer and callback in the control-plane values and refe
 For a separately hosted dashboard, forward `/api` on the dashboard origin to the control-plane API and strip the prefix. If the browser connects directly to an API on a sibling host, serve both hosts over HTTPS, allow the dashboard origin for API CORS and add the API origin to the dashboard's `connect-src` policy. Dashboard and API hosts on different sites cannot use the session cookies.
 
 A system admin grants a role with `locoadm admin grant USER_UUID --role read|admin` (`admin` by default), changes it by granting the other role, and removes it with `revoke USER_UUID`. A user holds the higher of their configured and granted roles. A configured role changes only through the configuration: revoking it, or granting less than it, fails with `FailedPrecondition`. A grant or revoke that would leave the installation without a system admin fails with `FailedPrecondition`. `locoadm admin list` shows each user's configured and granted role and the configured emails nobody has claimed; `locoadm status` lists the unclaimed admin emails. [Cluster enrollment](../reference/cluster-attachment.md) describes worker registration and join-token Secret delivery.
+
+`OrgService.ListOrgs` lists every organization in the installation, whether or not the caller belongs to it, and answers `PermissionDenied` to anyone without system read. Each entry carries the organization's name, ID, suspension and reason, owners (its admins, by name and email), member, workspace and resource counts and creation time. `query` matches names, IDs and owner emails ignoring case, `state` keeps active or suspended organizations, `order_by` sorts by name or creation time (newest first by default), and `include_total_count` sets `total_count`, exact up to 10,000. `locoadm org list [--query TEXT] [--state active|suspended]` prints the same as a table.
 
 ## Releases and operations
 

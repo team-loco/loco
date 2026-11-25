@@ -34,6 +34,8 @@ const (
 	OrgServiceDeleteOrgProcedure = "/loco.org.v1.OrgService/DeleteOrg"
 	// OrgServiceListUserOrgsProcedure is the procedure name of the OrgService's ListUserOrgs RPC.
 	OrgServiceListUserOrgsProcedure = "/loco.org.v1.OrgService/ListUserOrgs"
+	// OrgServiceListOrgsProcedure is the procedure name of the OrgService's ListOrgs RPC.
+	OrgServiceListOrgsProcedure = "/loco.org.v1.OrgService/ListOrgs"
 	// OrgServiceListOrgMembersProcedure is the procedure name of the OrgService's ListOrgMembers RPC.
 	OrgServiceListOrgMembersProcedure = "/loco.org.v1.OrgService/ListOrgMembers"
 	// OrgServiceListOrgPeopleProcedure is the procedure name of the OrgService's ListOrgPeople RPC.
@@ -97,6 +99,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ListUserOrgs"),
 			Procedure:  OrgServiceListUserOrgsProcedure,
+		}
+	})
+	orgServiceListOrgsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ListOrgs"),
+			Procedure:  OrgServiceListOrgsProcedure,
 		}
 	})
 	orgServiceListOrgMembersSpec = sync.OnceValue(func() connect.Spec {
@@ -197,6 +206,9 @@ type OrgServiceClient interface {
 	DeleteOrg(context.Context, *v1.DeleteOrgRequest) (*v1.DeleteOrgResponse, error)
 	// ListUserOrgs lists organizations for a user.
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
+	// ListOrgs lists every organization in the installation, whether or not the caller belongs to it.
+	// It requires system read.
+	ListOrgs(context.Context, *v1.ListOrgsRequest) (*v1.ListOrgsResponse, error)
 	// ListOrgMembers lists organization members; organization membership is required.
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
 	// ListOrgPeople lists members and open invitations together: invitations newest first, then the
@@ -250,6 +262,9 @@ type OrgServiceHandler interface {
 	DeleteOrg(context.Context, *v1.DeleteOrgRequest) (*v1.DeleteOrgResponse, error)
 	// ListUserOrgs lists organizations for a user.
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
+	// ListOrgs lists every organization in the installation, whether or not the caller belongs to it.
+	// It requires system read.
+	ListOrgs(context.Context, *v1.ListOrgsRequest) (*v1.ListOrgsResponse, error)
 	// ListOrgMembers lists organization members; organization membership is required.
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
 	// ListOrgPeople lists members and open invitations together: invitations newest first, then the
@@ -294,6 +309,7 @@ func RegisterOrgServiceHandler(server *connect.Server, svc OrgServiceHandler) {
 		connect.Method{Spec: orgServiceUpdateOrgSpec(), Handler: adapter.updateOrg},
 		connect.Method{Spec: orgServiceDeleteOrgSpec(), Handler: adapter.deleteOrg},
 		connect.Method{Spec: orgServiceListUserOrgsSpec(), Handler: adapter.listUserOrgs},
+		connect.Method{Spec: orgServiceListOrgsSpec(), Handler: adapter.listOrgs},
 		connect.Method{Spec: orgServiceListOrgMembersSpec(), Handler: adapter.listOrgMembers},
 		connect.Method{Spec: orgServiceListOrgPeopleSpec(), Handler: adapter.listOrgPeople},
 		connect.Method{Spec: orgServiceSetOrgMemberRoleSpec(), Handler: adapter.setOrgMemberRole},
@@ -330,6 +346,10 @@ func (UnimplementedOrgServiceHandler) DeleteOrg(context.Context, *v1.DeleteOrgRe
 
 func (UnimplementedOrgServiceHandler) ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ListUserOrgs is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) ListOrgs(context.Context, *v1.ListOrgsRequest) (*v1.ListOrgsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ListOrgs is not implemented")
 }
 
 func (UnimplementedOrgServiceHandler) ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error) {
@@ -419,6 +439,14 @@ func (c *orgServiceClient) DeleteOrg(ctx context.Context, req *v1.DeleteOrgReque
 func (c *orgServiceClient) ListUserOrgs(ctx context.Context, req *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error) {
 	var res v1.ListUserOrgsResponse
 	if err := c.client.CallUnary(ctx, orgServiceListUserOrgsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) ListOrgs(ctx context.Context, req *v1.ListOrgsRequest) (*v1.ListOrgsResponse, error) {
+	var res v1.ListOrgsResponse
+	if err := c.client.CallUnary(ctx, orgServiceListOrgsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -576,6 +604,18 @@ func (h orgServiceHandler) listUserOrgs(ctx context.Context, _ connect.Spec, str
 		return err
 	}
 	res, err := h.svc.ListUserOrgs(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) listOrgs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListOrgsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListOrgs(ctx, &req)
 	if err != nil {
 		return err
 	}

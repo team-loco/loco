@@ -40,6 +40,14 @@ export const deleteOrg = OrgService.method.deleteOrg;
 export const listUserOrgs = OrgService.method.listUserOrgs;
 
 /**
+ * ListOrgs lists every organization in the installation, whether or not the caller belongs to it.
+ * It requires system read.
+ *
+ * @generated from rpc loco.org.v1.OrgService.ListOrgs
+ */
+export const listOrgs = OrgService.method.listOrgs;
+
+/**
  * ListOrgMembers lists organization members; organization membership is required.
  *
  * @generated from rpc loco.org.v1.OrgService.ListOrgMembers

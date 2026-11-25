@@ -22,6 +22,7 @@ loco config --help
 | `locoadm region list` | List [regions](regions.md) and their cluster counts |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
 | `locoadm recovery export --context CONTEXT --namespace NAMESPACE` | Encrypt seal material and individual recovery shares for separate custodians |
+| `locoadm org list [--query TEXT] [--state active\|suspended]` | List every organization in the installation, with its owners and counts |
 | `locoadm org limits get`, `set`, `unset` | Show or override an organization's [count limits](../operations/access.md#count-limits) |
 | `loco login`, `loco logout`, `loco whoami` | Sign in to a Loco instance, sign out, show the signed-in user |
 | `loco org`, `loco workspace`, `loco use` | Manage organizations and workspaces and choose the current one |
