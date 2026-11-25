@@ -160,6 +160,7 @@ with session(repo / "tests/ui/out/system-people") as browser:
     ).to_have_attribute("aria-disabled", "true")
     expect(page.get_by_role("menu")).to_contain_text("API configuration")
     page.keyboard.press("Escape")
+    expect(page.get_by_role("menu")).to_have_count(0)
 
     page.get_by_role("button", name="Actions for member@acme.test", exact=True).click()
     page.get_by_role("menuitem", name="Revoke grant", exact=True).click()
