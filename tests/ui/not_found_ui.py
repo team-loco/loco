@@ -129,18 +129,22 @@ with session(out) as browser:
 
     page.goto(base + "/resources")
     header = page.locator('[data-slot="top-bar"]')
-    expect(header.get_by_role("button", name="Search and run commands")).to_have_count(
+    sidebar = page.locator('[data-sidebar="sidebar"]')
+    top_search = header.get_by_role("button", name="Search and run commands")
+    expect(sidebar.get_by_role("button", name="Search and run commands")).to_have_count(
         0
     )
-    search_button = page.get_by_role("button", name="Search and run commands")
-    expect(search_button).to_be_visible()
+    expect(top_search).to_be_visible()
+    expect(top_search).to_contain_text("Search or jump to…")
     page.get_by_role("button", name="Close sidebar").click()
-    top_search = header.get_by_role("button", name="Search and run commands")
     expect(top_search).to_be_visible()
     expect(top_search).to_contain_text("Search or jump to…")
     header.get_by_role("button", name="Open sidebar").click()
-    expect(top_search).to_have_count(0)
-    top_search = search_button
+    expect(top_search).to_be_visible()
+    page.set_viewport_size(evidence.NARROW)
+    expect(top_search).to_be_visible()
+    expect(top_search).not_to_contain_text("Search or jump to…")
+    page.set_viewport_size(evidence.DESKTOP)
     top_search.focus()
     page.keyboard.press("Enter")
     expect(query).to_be_focused()

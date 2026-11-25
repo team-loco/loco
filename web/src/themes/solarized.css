@@ -146,7 +146,6 @@
 
 [data-theme="solarized"]
 	:is(
-		.sb-search,
 		.act-btn,
 		[data-slot="account-button"],
 		[data-slot="command-button"],

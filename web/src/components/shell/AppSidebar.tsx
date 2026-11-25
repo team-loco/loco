@@ -2,7 +2,6 @@ import { useQuery } from "@connectrpc/connect-query";
 import {
 	BookOpenIcon,
 	KeyboardIcon,
-	SearchIcon,
 	Building2Icon,
 	ChevronsUpDownIcon,
 	KeyRoundIcon,
@@ -56,8 +55,6 @@ import { accountSettingsPath, workspacePath } from "@/lib/routes";
 
 import { useNavSections } from "./nav";
 import { SidebarToggle } from "./SidebarToggle";
-import { Kbd } from "@/components/design/Kbd";
-import { SHORTCUT_LABEL, useOpenPalette } from "./CommandMenu";
 import { ModePicker } from "./ModePicker";
 import { useOpenShortcuts } from "./KeyboardShortcuts";
 
@@ -83,8 +80,7 @@ export function AppSidebar() {
 	const { user, logout } = useAuth();
 	const { theme, color, setColor } = useTheme();
 	const openShortcuts = useOpenShortcuts();
-	const openPalette = useOpenPalette();
-	const { isMobile, setOpenMobile } = useSidebar();
+	const { setOpenMobile } = useSidebar();
 	const { pathname } = useLocation();
 	// Active-icon motion plays for navigation, not for the page the app loaded on.
 	const [seenPath, setSeenPath] = useState(pathname);
@@ -135,21 +131,6 @@ export function AppSidebar() {
 				<SidebarToggle className="absolute top-3 right-2.5" />
 			</SidebarHeader>
 
-			<div className="px-3 pt-1">
-				<SidebarMenuButton
-					aria-label="Search and run commands"
-					aria-keyshortcuts="Meta+K Control+K"
-					className="sb-search h-8.5 gap-[9px] rounded-[7px] border border-line bg-raise pr-1.5 pl-2.5 text-fg3 hover:border-line2 hover:bg-raise hover:text-fg2"
-					onClick={() => {
-						if (isMobile) setOpenMobile(false);
-						openPalette();
-					}}
-				>
-					<SearchIcon aria-hidden />
-					<span className="flex-1">Search</span>
-					<Kbd className="text-fg3 inset-ring-0">{SHORTCUT_LABEL}</Kbd>
-				</SidebarMenuButton>
-			</div>
 			<SidebarContent className="gap-0 px-3 pt-3 pb-3" data-navigated={navigated ? "" : undefined}>
 				{sections.map((section) => (
 					<SidebarGroup key={section.label ?? "root"} className="p-0">
