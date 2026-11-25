@@ -3,6 +3,7 @@ global:
   # @schema additionalProperties: false
   domain:
     # app domains: customer services get one-label names under them, such as storefront.onloco.app.
+    # @schema minItems: 1; uniqueItems: true
     apps:
       - onloco.app
       - onloco.build

@@ -160,8 +160,10 @@ func listenerReady(gateway *gatewayv1.Gateway, name gatewayv1.SectionName) bool 
 		gatewayv1.ListenerConditionProgrammed,
 	} {
 		condition := meta.FindStatusCondition(conditions, string(conditionType))
-		if condition == nil || condition.Status != metav1.ConditionTrue ||
-			condition.ObservedGeneration != gateway.Generation {
+		if condition == nil || condition.ObservedGeneration != gateway.Generation {
+			return false
+		}
+		if condition.Status != metav1.ConditionTrue {
 			return false
 		}
 	}

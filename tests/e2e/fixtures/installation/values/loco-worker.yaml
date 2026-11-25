@@ -13,6 +13,8 @@ registry:
   auth: static
   pullSecretName: loco-registry-pull
 global:
+  domain:
+    apps: {{ .AppDomains | json }}
   exporter:
     endpoint: http://ingest.installation.test
 env:

@@ -20,7 +20,10 @@ func TestWorkerFluxValuesPreserveBuildNetworkInputs(t *testing.T) {
 	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "values", "loco-worker.yaml")
 	data, err := renderFixtureFile(
 		path,
-		map[string]any{"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}}},
+		map[string]any{
+			"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}},
+			"AppDomains":    []string{fixtureAppsDomain, fixtureOtherAppsDomain},
+		},
 	)
 	if err != nil {
 		t.Fatal(err)

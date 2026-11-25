@@ -195,3 +195,17 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: certManager.additionalDNSNames entry *.elsewhere.test is under no apps domain
+
+  - it: requires at least one app domain
+    set:
+      global.domain.apps: []
+    asserts:
+      - failedTemplate:
+          errorPattern: "/global/domain/apps': minItems"
+
+  - it: rejects a repeated app domain
+    set:
+      global.domain.apps: [apps.example.test, apps.example.test]
+    asserts:
+      - failedTemplate:
+          errorPattern: "/global/domain/apps': items at 0 and 1 are equal"
