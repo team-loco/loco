@@ -170,7 +170,7 @@ Read [charts/AGENTS.md](charts/AGENTS.md) before chart work.
 
 Read [web/AGENTS.md](web/AGENTS.md) before frontend work.
 
-## Review guidelines
+## Code Review Rules
 
 A pull-request review runs three passes in this order. Every finding gives `file:line` and a concrete failure
 scenario: the input or state, and the wrong result.
