@@ -14,18 +14,22 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
+	"github.com/team-loco/loco/internal/systemtenant"
 )
 
 const (
+	organizationAttribute  = "loco.organization.id"
 	workspaceAttribute     = "loco.workspace.id"
+	environmentAttribute   = "loco.environment.id"
+	resourceAttribute      = "loco.resource.id"
 	clusterAttribute       = "loco.cluster.id"
 	retentionAttribute     = "loco.retention.days"
-	rejectionMessagePrefix = "rejected records outside a placement on this cluster: "
+	rejectionMessagePrefix = "rejected records this cluster may not write: "
 	rejectionSeparator     = ", "
 	rejectionCountSep      = "="
 
 	rejectedRecordsMetric = "loco_ingest_rejected_records_total"
-	rejectedRecordsHelp   = "Telemetry records dropped because their workspace had no placement on the sending cluster."
+	rejectedRecordsHelp   = "Telemetry records dropped because the sending cluster may not write them to their tenant."
 	clusterLabel          = "cluster"
 	reasonLabel           = "reason"
 )
@@ -51,8 +55,12 @@ func newTenancyFilter(ctx context.Context, admission *Admission) *tenancyFilter 
 }
 
 func (f *tenancyFilter) reject(resource pcommon.Resource, timestamp pcommon.Timestamp) bool {
-	if f.err != nil {
+	if f.err != nil || f.admission.system(resource) {
 		return false
+	}
+	if platformScope(resource) {
+		f.counts[rejectPlatformTenant]++
+		return true
 	}
 	result, err := f.admission.check(f.ctx, workspaceOf(resource), timestamp.AsTime())
 	if err != nil {
@@ -91,13 +99,16 @@ func (f *tenancyFilter) record(counter *prometheus.CounterVec) {
 }
 
 // stamp sets the cluster and the days to keep each resource's records of one signal, replacing
-// any values the client sent.
+// any values the client sent, and moves system records into the system tenant.
 func (f *tenancyFilter) stamp(resources []pcommon.Resource, signalDays func(*ingestv1.Retention) int32) {
 	if f.err != nil {
 		return
 	}
 	var placed []string
 	for _, resource := range resources {
+		if f.admission.system(resource) {
+			continue
+		}
 		if workspace := workspaceOf(resource); workspace != "" && f.admission.placed(workspace) {
 			placed = append(placed, workspace)
 		}
@@ -111,6 +122,11 @@ func (f *tenancyFilter) stamp(resources []pcommon.Resource, signalDays func(*ing
 	for _, resource := range resources {
 		attrs := resource.Attributes()
 		attrs.PutStr(clusterAttribute, f.admission.ClusterID)
+		if f.admission.system(resource) {
+			stampSystem(attrs)
+			attrs.PutStr(retentionAttribute, strconv.Itoa(int(signalDays(gate.system))))
+			continue
+		}
 		days := f.admission.placements.retention
 		if workspace := workspaceOf(resource); workspace != "" {
 			days = retention[workspace]
@@ -121,6 +137,19 @@ func (f *tenancyFilter) stamp(resources []pcommon.Resource, signalDays func(*ing
 		}
 		attrs.PutStr(retentionAttribute, strconv.Itoa(int(signalDays(days))))
 	}
+}
+
+func stampSystem(attrs pcommon.Map) {
+	for _, key := range []string{organizationAttribute, environmentAttribute, resourceAttribute} {
+		attrs.Remove(key)
+	}
+	attrs.PutStr(workspaceAttribute, systemtenant.WorkspaceID)
+	attrs.PutStr(systemtenant.ScopeAttribute, systemtenant.PlatformScope)
+}
+
+func platformScope(resource pcommon.Resource) bool {
+	value, _ := resource.Attributes().Get(systemtenant.ScopeAttribute)
+	return value.Str() == systemtenant.PlatformScope
 }
 
 func workspaceOf(resource pcommon.Resource) string {

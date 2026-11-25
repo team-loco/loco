@@ -30,6 +30,7 @@ const (
 	defaultIngestClockSkew           = 5 * time.Minute
 	defaultIngestMaxRecordLateness   = time.Hour
 	defaultIngestRetryAfter          = 30 * time.Second
+	defaultSystemRetentionDays       = 30
 )
 
 type Config struct {
@@ -57,6 +58,9 @@ type Config struct {
 	IngestClockSkew           time.Duration
 	IngestMaxRecordLateness   time.Duration
 	IngestRetryAfter          time.Duration
+
+	SystemIngestToken   string
+	SystemRetentionDays int32
 }
 
 func Load() *Config {
@@ -98,6 +102,9 @@ func Load() *Config {
 			defaultIngestMaxRecordLateness,
 		),
 		IngestRetryAfter: ttlEnv("INGEST_RETRY_AFTER", defaultIngestRetryAfter),
+
+		SystemIngestToken:   envconfig.String("SYSTEM_INGEST_TOKEN", ""),
+		SystemRetentionDays: positiveInt32Env("SYSTEM_RETENTION_DAYS", defaultSystemRetentionDays),
 	}
 	if err := cfg.MigrationLock().Validate(); err != nil {
 		panic(fmt.Errorf("migration lock: %w", err))
@@ -124,6 +131,8 @@ func (c *Config) IngestGate() ingest.GateConfig {
 		RefetchInterval:     c.IngestPlacementRefetch,
 		ClockSkew:           c.IngestClockSkew,
 		MaxRecordLateness:   c.IngestMaxRecordLateness,
+		SystemToken:         c.SystemIngestToken,
+		SystemRetentionDays: c.SystemRetentionDays,
 	}
 }
 

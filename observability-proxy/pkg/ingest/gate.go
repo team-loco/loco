@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/go-jose/go-jose/v4"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
@@ -21,6 +23,7 @@ import (
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/rpc"
+	"github.com/team-loco/loco/internal/systemtenant"
 )
 
 var (
@@ -43,6 +46,10 @@ type GateConfig struct {
 	ClockSkew           time.Duration
 	// MaxRecordLateness is how far in the past a workspace's record may be.
 	MaxRecordLateness time.Duration
+	// SystemToken authenticates the control plane's own components; empty admits none.
+	SystemToken string
+	// SystemRetentionDays is how long the system tenant keeps each signal.
+	SystemRetentionDays int32
 }
 
 type Gate struct {
@@ -50,6 +57,7 @@ type Gate struct {
 	http       *http.Client
 	placements ingestv1connect.IngestServiceClient
 	retention  *retentionCache
+	system     *ingestv1.Retention
 
 	keysMu      sync.Mutex
 	keys        jose.JSONWebKeySet
@@ -87,7 +95,12 @@ func NewGate(cfg GateConfig) *Gate {
 		http:       httpClient,
 		placements: client,
 		retention:  newRetentionCache(cfg.RetentionTTL),
-		clusters:   map[string]*clusterPlacements{},
+		system: &ingestv1.Retention{
+			LogDays:    cfg.SystemRetentionDays,
+			TraceDays:  cfg.SystemRetentionDays,
+			MetricDays: cfg.SystemRetentionDays,
+		},
+		clusters: map[string]*clusterPlacements{},
 	}
 }
 
@@ -95,6 +108,9 @@ func (g *Gate) Admit(ctx context.Context, authorization string) (*Admission, err
 	token, ok := bearer.Token(authorization)
 	if !ok {
 		return nil, ErrUnauthenticated
+	}
+	if g.cfg.SystemToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(g.cfg.SystemToken)) == 1 {
+		return &Admission{gate: g, ClusterID: systemtenant.ControlPlaneClusterID, controlPlane: true}, nil
 	}
 	claims, err := g.verify(ctx, token)
 	if err != nil {
@@ -237,11 +253,13 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 type Admission struct {
 	ClusterID string
 
-	gate       *Gate
-	cluster    *clusterPlacements
-	token      string
-	placements snapshot
-	refetched  bool
+	// controlPlane admits a control-plane component, whose every record belongs to the system tenant.
+	controlPlane bool
+	gate         *Gate
+	cluster      *clusterPlacements
+	token        string
+	placements   snapshot
+	refetched    bool
 }
 
 type verdict string
@@ -251,6 +269,7 @@ const (
 	rejectNotPlaced       verdict = "workspace_not_placed"
 	rejectOutsideOfWindow verdict = "outside_placement_window"
 	rejectTooLate         verdict = "older_than_max_lateness"
+	rejectPlatformTenant  verdict = "platform_scope_in_workspace"
 )
 
 func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time) (verdict, error) {
@@ -290,6 +309,12 @@ func (a *Admission) match(workspaceID string, at time.Time) verdict {
 		return accepted
 	}
 	return result
+}
+
+// system reports whether the resource's records belong to the system tenant: every record of a
+// control-plane component, and a cluster's platform-scope records that name no workspace.
+func (a *Admission) system(resource pcommon.Resource) bool {
+	return a.controlPlane || (platformScope(resource) && workspaceOf(resource) == "")
 }
 
 // placed reports whether the workspace has a window on the cluster.

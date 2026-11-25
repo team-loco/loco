@@ -61,7 +61,7 @@ forged_attributes() {
 		$(attribute loco.environment.id "$forged_environment"),
 		$(attribute loco.resource.id "$forged_resource"), $(attribute loco.io/build-id "$forged_build"),
 		$(attribute k8s.pod.uid forged-pod-uid), $(attribute k8s.pod.ip 192.0.2.1), $(attribute loco.region "$forged_region"),
-		$(attribute loco.cluster.id "$forged_cluster")"
+		$(attribute loco.cluster.id "$forged_cluster"), $(attribute loco.telemetry.scope platform)"
 }
 
 pod_label_attributes() {
@@ -164,7 +164,7 @@ for collector in $collectors; do
 		if ! wait_for "$collector $signal rows" has_rows "$(rows "$otel_table" "$forged" 1)"; then
 			fail "$collector wrote no $signal for a client that forged its tenancy"
 		fi
-		forged_rows=$(query "$(rows "$otel_table" "$forged" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '' OR ResourceAttributes['loco.io/build-id'] != '' OR ResourceAttributes['k8s.pod.uid'] != '' OR ResourceAttributes['k8s.pod.ip'] != '')")")
+		forged_rows=$(query "$(rows "$otel_table" "$forged" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '' OR ResourceAttributes['loco.io/build-id'] != '' OR ResourceAttributes['k8s.pod.uid'] != '' OR ResourceAttributes['k8s.pod.ip'] != '' OR ResourceAttributes['loco.telemetry.scope'] != '')")")
 		[ "$forged_rows" -eq 0 ] || fail "$collector kept client-supplied tenancy on $forged_rows $signal row(s)"
 		pod_tenancy="OrganizationId = '$pod_organization' AND WorkspaceId = '$pod_workspace' AND EnvironmentId = '$pod_environment' AND ResourceId = '$pod_resource'"
 		if ! wait_for "$collector $signal rows from pod labels" has_rows "$(rows "$otel_table" "$labelled" "$pod_tenancy")"; then
@@ -203,7 +203,7 @@ for signal in logs traces metrics; do
 	if ! wait_for "$envoy_collector $signal rows" has_rows "$(rows "$otel_table" "$impostor" 1)"; then
 		fail "$envoy_collector wrote no $signal for a client that copied Envoy's attributes"
 	fi
-	impostor_rows=$(query "$(rows "$otel_table" "$impostor" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '')")")
+	impostor_rows=$(query "$(rows "$otel_table" "$impostor" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '' OR ResourceAttributes['loco.telemetry.scope'] != '')")")
 	[ "$impostor_rows" -eq 0 ] || fail "$envoy_collector gave route tenancy to $impostor_rows $signal row(s) from a client that is not Envoy"
 done
 
