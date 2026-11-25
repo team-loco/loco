@@ -64,7 +64,7 @@ function auditColumns(nowMs: number, extra: string[], onExtra: (next: string[]) 
 		{
 			id: "action",
 			header: "Action",
-			size: 300,
+			size: 264,
 			minSize: 90,
 			maxSize: 640,
 			meta: { grow: true },
