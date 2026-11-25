@@ -33,7 +33,8 @@ export const updateOrg = OrgService.method.updateOrg;
 export const deleteOrg = OrgService.method.deleteOrg;
 
 /**
- * ListUserOrgs lists organizations for a user.
+ * ListUserOrgs lists organizations for a user, with the user's scopes on each. Listing another user's
+ * organizations requires system read.
  *
  * @generated from rpc loco.org.v1.OrgService.ListUserOrgs
  */

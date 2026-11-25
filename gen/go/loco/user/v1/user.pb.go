@@ -1032,11 +1032,13 @@ func (*LogoutResponse) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{15}
 }
 
-// GetAccountDeletionImpactRequest pages the current user's surviving owned tokens.
+// GetAccountDeletionImpactRequest pages a user's surviving owned tokens.
 type GetAccountDeletionImpactRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	PageSize  int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// The account to preview; empty means the caller's.
+	UserId        string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1081,6 +1083,13 @@ func (x *GetAccountDeletionImpactRequest) GetPageSize() int32 {
 func (x *GetAccountDeletionImpactRequest) GetPageToken() string {
 	if x != nil {
 		return x.PageToken
+	}
+	return ""
+}
+
+func (x *GetAccountDeletionImpactRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
 	}
 	return ""
 }
@@ -1405,7 +1414,9 @@ func (x *Session) GetIpAddress() string {
 }
 
 type ListSessionsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The account whose sessions to list; empty means the caller's.
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1438,6 +1449,13 @@ func (x *ListSessionsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListSessionsRequest.ProtoReflect.Descriptor instead.
 func (*ListSessionsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListSessionsRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
 }
 
 type ListSessionsResponse struct {
@@ -1485,8 +1503,10 @@ func (x *ListSessionsResponse) GetSessions() []*Session {
 }
 
 type RevokeSessionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// The account that owns the session; empty means the caller's.
+	UserId        string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1528,6 +1548,13 @@ func (x *RevokeSessionRequest) GetSessionId() string {
 	return ""
 }
 
+func (x *RevokeSessionRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 type RevokeSessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1562,6 +1589,86 @@ func (x *RevokeSessionResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RevokeSessionResponse.ProtoReflect.Descriptor instead.
 func (*RevokeSessionResponse) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{24}
+}
+
+type RevokeUserSessionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeUserSessionsRequest) Reset() {
+	*x = RevokeUserSessionsRequest{}
+	mi := &file_loco_user_v1_user_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeUserSessionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeUserSessionsRequest) ProtoMessage() {}
+
+func (x *RevokeUserSessionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_user_v1_user_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeUserSessionsRequest.ProtoReflect.Descriptor instead.
+func (*RevokeUserSessionsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *RevokeUserSessionsRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type RevokeUserSessionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeUserSessionsResponse) Reset() {
+	*x = RevokeUserSessionsResponse{}
+	mi := &file_loco_user_v1_user_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeUserSessionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeUserSessionsResponse) ProtoMessage() {}
+
+func (x *RevokeUserSessionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_user_v1_user_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeUserSessionsResponse.ProtoReflect.Descriptor instead.
+func (*RevokeUserSessionsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{26}
 }
 
 var File_loco_user_v1_user_proto protoreflect.FileDescriptor
@@ -1629,12 +1736,13 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\"\x14\n" +
 	"\x12DeleteUserResponse\"\x0f\n" +
 	"\rLogoutRequest\"\x10\n" +
-	"\x0eLogoutResponse\"i\n" +
+	"\x0eLogoutResponse\"\x8f\x01\n" +
 	"\x1fGetAccountDeletionImpactRequest\x12'\n" +
 	"\tpage_size\x18\x01 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tR\tpageToken\"O\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\x12$\n" +
+	"\auser_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x06userId\"O\n" +
 	"\x1bAccountDeletionOrganization\x12\x15\n" +
 	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x19\n" +
 	"\borg_name\x18\x02 \x01(\tR\aorgName\"\xa3\x02\n" +
@@ -1667,14 +1775,19 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\x12\x18\n" +
 	"\acurrent\x18\x06 \x01(\bR\acurrent\x12\x1d\n" +
 	"\n" +
-	"ip_address\x18\a \x01(\tR\tipAddress\"\x15\n" +
-	"\x13ListSessionsRequest\"I\n" +
+	"ip_address\x18\a \x01(\tR\tipAddress\";\n" +
+	"\x13ListSessionsRequest\x12$\n" +
+	"\auser_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x06userId\"I\n" +
 	"\x14ListSessionsResponse\x121\n" +
-	"\bsessions\x18\x01 \x03(\v2\x15.loco.user.v1.SessionR\bsessions\"?\n" +
+	"\bsessions\x18\x01 \x03(\v2\x15.loco.user.v1.SessionR\bsessions\"e\n" +
 	"\x14RevokeSessionRequest\x12'\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\"\x17\n" +
-	"\x15RevokeSessionResponse*\\\n" +
+	"session_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tsessionId\x12$\n" +
+	"\auser_id\x18\x02 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x06userId\"\x17\n" +
+	"\x15RevokeSessionResponse\">\n" +
+	"\x19RevokeUserSessionsRequest\x12!\n" +
+	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\"\x1c\n" +
+	"\x1aRevokeUserSessionsResponse*\\\n" +
 	"\n" +
 	"UserStatus\x12\x1b\n" +
 	"\x17USER_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -1683,7 +1796,7 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\vSessionKind\x12\x1c\n" +
 	"\x18SESSION_KIND_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10SESSION_KIND_WEB\x10\x01\x12\x14\n" +
-	"\x10SESSION_KIND_CLI\x10\x022\xd5\x06\n" +
+	"\x10SESSION_KIND_CLI\x10\x022\xbe\a\n" +
 	"\vUserService\x12F\n" +
 	"\aGetUser\x12\x1c.loco.user.v1.GetUserRequest\x1a\x1d.loco.user.v1.GetUserResponse\x12C\n" +
 	"\x06WhoAmI\x12\x1b.loco.user.v1.WhoAmIRequest\x1a\x1c.loco.user.v1.WhoAmIResponse\x12O\n" +
@@ -1695,7 +1808,8 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"DeleteUser\x12\x1f.loco.user.v1.DeleteUserRequest\x1a .loco.user.v1.DeleteUserResponse\x12C\n" +
 	"\x06Logout\x12\x1b.loco.user.v1.LogoutRequest\x1a\x1c.loco.user.v1.LogoutResponse\x12U\n" +
 	"\fListSessions\x12!.loco.user.v1.ListSessionsRequest\x1a\".loco.user.v1.ListSessionsResponse\x12X\n" +
-	"\rRevokeSession\x12\".loco.user.v1.RevokeSessionRequest\x1a#.loco.user.v1.RevokeSessionResponse\x12X\n" +
+	"\rRevokeSession\x12\".loco.user.v1.RevokeSessionRequest\x1a#.loco.user.v1.RevokeSessionResponse\x12g\n" +
+	"\x12RevokeUserSessions\x12'.loco.user.v1.RevokeUserSessionsRequest\x1a(.loco.user.v1.RevokeUserSessionsResponse\x12X\n" +
 	"\rSetUserStatus\x12\".loco.user.v1.SetUserStatusRequest\x1a#.loco.user.v1.SetUserStatusResponseB6Z4github.com/team-loco/loco/gen/go/loco/user/v1;userv1b\x06proto3"
 
 var (
@@ -1711,7 +1825,7 @@ func file_loco_user_v1_user_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_user_v1_user_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_loco_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_loco_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_loco_user_v1_user_proto_goTypes = []any{
 	(UserStatus)(0),                          // 0: loco.user.v1.UserStatus
 	(SessionKind)(0),                         // 1: loco.user.v1.SessionKind
@@ -1740,26 +1854,28 @@ var file_loco_user_v1_user_proto_goTypes = []any{
 	(*ListSessionsResponse)(nil),             // 24: loco.user.v1.ListSessionsResponse
 	(*RevokeSessionRequest)(nil),             // 25: loco.user.v1.RevokeSessionRequest
 	(*RevokeSessionResponse)(nil),            // 26: loco.user.v1.RevokeSessionResponse
-	(*timestamppb.Timestamp)(nil),            // 27: google.protobuf.Timestamp
-	(v1.EntityType)(0),                       // 28: loco.token.v1.EntityType
+	(*RevokeUserSessionsRequest)(nil),        // 27: loco.user.v1.RevokeUserSessionsRequest
+	(*RevokeUserSessionsResponse)(nil),       // 28: loco.user.v1.RevokeUserSessionsResponse
+	(*timestamppb.Timestamp)(nil),            // 29: google.protobuf.Timestamp
+	(v1.EntityType)(0),                       // 30: loco.token.v1.EntityType
 }
 var file_loco_user_v1_user_proto_depIdxs = []int32{
-	27, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	27, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	29, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	29, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: loco.user.v1.User.status:type_name -> loco.user.v1.UserStatus
-	27, // 3: loco.user.v1.User.last_active_at:type_name -> google.protobuf.Timestamp
+	29, // 3: loco.user.v1.User.last_active_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: loco.user.v1.GetUserResponse.user:type_name -> loco.user.v1.User
 	2,  // 5: loco.user.v1.ListUsersResponse.users:type_name -> loco.user.v1.User
 	2,  // 6: loco.user.v1.WhoAmIResponse.user:type_name -> loco.user.v1.User
 	11, // 7: loco.user.v1.WhoAmIResponse.claimed_orgs:type_name -> loco.user.v1.ClaimedOrg
 	0,  // 8: loco.user.v1.SetUserStatusRequest.status:type_name -> loco.user.v1.UserStatus
-	28, // 9: loco.user.v1.AccountDeletionToken.entity_type:type_name -> loco.token.v1.EntityType
-	27, // 10: loco.user.v1.AccountDeletionToken.expires_at:type_name -> google.protobuf.Timestamp
+	30, // 9: loco.user.v1.AccountDeletionToken.entity_type:type_name -> loco.token.v1.EntityType
+	29, // 10: loco.user.v1.AccountDeletionToken.expires_at:type_name -> google.protobuf.Timestamp
 	19, // 11: loco.user.v1.GetAccountDeletionImpactResponse.last_active_admin_organizations:type_name -> loco.user.v1.AccountDeletionOrganization
 	20, // 12: loco.user.v1.GetAccountDeletionImpactResponse.owned_tokens:type_name -> loco.user.v1.AccountDeletionToken
 	1,  // 13: loco.user.v1.Session.kind:type_name -> loco.user.v1.SessionKind
-	27, // 14: loco.user.v1.Session.created_at:type_name -> google.protobuf.Timestamp
-	27, // 15: loco.user.v1.Session.last_used_at:type_name -> google.protobuf.Timestamp
+	29, // 14: loco.user.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	29, // 15: loco.user.v1.Session.last_used_at:type_name -> google.protobuf.Timestamp
 	22, // 16: loco.user.v1.ListSessionsResponse.sessions:type_name -> loco.user.v1.Session
 	3,  // 17: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
 	9,  // 18: loco.user.v1.UserService.WhoAmI:input_type -> loco.user.v1.WhoAmIRequest
@@ -1770,19 +1886,21 @@ var file_loco_user_v1_user_proto_depIdxs = []int32{
 	16, // 23: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
 	23, // 24: loco.user.v1.UserService.ListSessions:input_type -> loco.user.v1.ListSessionsRequest
 	25, // 25: loco.user.v1.UserService.RevokeSession:input_type -> loco.user.v1.RevokeSessionRequest
-	12, // 26: loco.user.v1.UserService.SetUserStatus:input_type -> loco.user.v1.SetUserStatusRequest
-	4,  // 27: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
-	10, // 28: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
-	6,  // 29: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
-	8,  // 30: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
-	21, // 31: loco.user.v1.UserService.GetAccountDeletionImpact:output_type -> loco.user.v1.GetAccountDeletionImpactResponse
-	15, // 32: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
-	17, // 33: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
-	24, // 34: loco.user.v1.UserService.ListSessions:output_type -> loco.user.v1.ListSessionsResponse
-	26, // 35: loco.user.v1.UserService.RevokeSession:output_type -> loco.user.v1.RevokeSessionResponse
-	13, // 36: loco.user.v1.UserService.SetUserStatus:output_type -> loco.user.v1.SetUserStatusResponse
-	27, // [27:37] is the sub-list for method output_type
-	17, // [17:27] is the sub-list for method input_type
+	27, // 26: loco.user.v1.UserService.RevokeUserSessions:input_type -> loco.user.v1.RevokeUserSessionsRequest
+	12, // 27: loco.user.v1.UserService.SetUserStatus:input_type -> loco.user.v1.SetUserStatusRequest
+	4,  // 28: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
+	10, // 29: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
+	6,  // 30: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
+	8,  // 31: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
+	21, // 32: loco.user.v1.UserService.GetAccountDeletionImpact:output_type -> loco.user.v1.GetAccountDeletionImpactResponse
+	15, // 33: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
+	17, // 34: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
+	24, // 35: loco.user.v1.UserService.ListSessions:output_type -> loco.user.v1.ListSessionsResponse
+	26, // 36: loco.user.v1.UserService.RevokeSession:output_type -> loco.user.v1.RevokeSessionResponse
+	28, // 37: loco.user.v1.UserService.RevokeUserSessions:output_type -> loco.user.v1.RevokeUserSessionsResponse
+	13, // 38: loco.user.v1.UserService.SetUserStatus:output_type -> loco.user.v1.SetUserStatusResponse
+	28, // [28:39] is the sub-list for method output_type
+	17, // [17:28] is the sub-list for method input_type
 	17, // [17:17] is the sub-list for extension type_name
 	17, // [17:17] is the sub-list for extension extendee
 	0,  // [0:17] is the sub-list for field type_name
@@ -1808,7 +1926,7 @@ func file_loco_user_v1_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_user_v1_user_proto_rawDesc), len(file_loco_user_v1_user_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   25,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

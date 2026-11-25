@@ -20,7 +20,8 @@ service OrgService {
   // DeleteOrg deletes an organization.
   rpc DeleteOrg(DeleteOrgRequest) returns (DeleteOrgResponse);
 
-  // ListUserOrgs lists organizations for a user.
+  // ListUserOrgs lists organizations for a user, with the user's scopes on each. Listing another user's
+  // organizations requires system read.
   rpc ListUserOrgs(ListUserOrgsRequest) returns (ListUserOrgsResponse);
   // ListOrgs lists every organization in the installation, whether or not the caller belongs to it.
   // It requires system read.
@@ -73,6 +74,8 @@ message Organization {
   // Counts are populated by ListUserOrgs and ListOrgs.
   optional int64 workspace_count = 8;
   optional int64 member_count = 9;
+  // The listed user's scopes on the organization, set by ListUserOrgs.
+  repeated string scopes = 10;
 }
 
 // CreateOrgRequest is the request to create a new organization.

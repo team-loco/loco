@@ -204,7 +204,8 @@ type OrgServiceClient interface {
 	UpdateOrg(context.Context, *v1.UpdateOrgRequest) (*v1.UpdateOrgResponse, error)
 	// DeleteOrg deletes an organization.
 	DeleteOrg(context.Context, *v1.DeleteOrgRequest) (*v1.DeleteOrgResponse, error)
-	// ListUserOrgs lists organizations for a user.
+	// ListUserOrgs lists organizations for a user, with the user's scopes on each. Listing another user's
+	// organizations requires system read.
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
 	// ListOrgs lists every organization in the installation, whether or not the caller belongs to it.
 	// It requires system read.
@@ -260,7 +261,8 @@ type OrgServiceHandler interface {
 	UpdateOrg(context.Context, *v1.UpdateOrgRequest) (*v1.UpdateOrgResponse, error)
 	// DeleteOrg deletes an organization.
 	DeleteOrg(context.Context, *v1.DeleteOrgRequest) (*v1.DeleteOrgResponse, error)
-	// ListUserOrgs lists organizations for a user.
+	// ListUserOrgs lists organizations for a user, with the user's scopes on each. Listing another user's
+	// organizations requires system read.
 	ListUserOrgs(context.Context, *v1.ListUserOrgsRequest) (*v1.ListUserOrgsResponse, error)
 	// ListOrgs lists every organization in the installation, whether or not the caller belongs to it.
 	// It requires system read.

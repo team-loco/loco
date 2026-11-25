@@ -33,14 +33,14 @@ export const updateUser = UserService.method.updateUser;
 export const listUsers = UserService.method.listUsers;
 
 /**
- * GetAccountDeletionImpact previews deleting the current session account.
+ * GetAccountDeletionImpact previews deleting the current session account, or user_id's with system read.
  *
  * @generated from rpc loco.user.v1.UserService.GetAccountDeletionImpact
  */
 export const getAccountDeletionImpact = UserService.method.getAccountDeletionImpact;
 
 /**
- * DeleteUser deletes a user account.
+ * DeleteUser deletes a user account. It requires system admin, or the user's own account.
  *
  * @generated from rpc loco.user.v1.UserService.DeleteUser
  */
@@ -54,18 +54,25 @@ export const deleteUser = UserService.method.deleteUser;
 export const logout = UserService.method.logout;
 
 /**
- * ListSessions lists active sessions owned by the signed-in account.
+ * ListSessions lists active sessions owned by the signed-in account, or by user_id with system read.
  *
  * @generated from rpc loco.user.v1.UserService.ListSessions
  */
 export const listSessions = UserService.method.listSessions;
 
 /**
- * RevokeSession ends a session owned by the signed-in account.
+ * RevokeSession ends a session owned by the signed-in account, or by user_id with system admin.
  *
  * @generated from rpc loco.user.v1.UserService.RevokeSession
  */
 export const revokeSession = UserService.method.revokeSession;
+
+/**
+ * RevokeUserSessions ends every session of a user. It requires system admin.
+ *
+ * @generated from rpc loco.user.v1.UserService.RevokeUserSessions
+ */
+export const revokeUserSessions = UserService.method.revokeUserSessions;
 
 /**
  * SetUserStatus suspends or reinstates a user. Requires system admin.

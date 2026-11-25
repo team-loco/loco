@@ -18,16 +18,18 @@ service UserService {
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // ListUsers lists users with pagination and an optional name or email search. It requires system read.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
-  // GetAccountDeletionImpact previews deleting the current session account.
+  // GetAccountDeletionImpact previews deleting the current session account, or user_id's with system read.
   rpc GetAccountDeletionImpact(GetAccountDeletionImpactRequest) returns (GetAccountDeletionImpactResponse);
-  // DeleteUser deletes a user account.
+  // DeleteUser deletes a user account. It requires system admin, or the user's own account.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Logout logs out the current user.
   rpc Logout(LogoutRequest) returns (LogoutResponse);
-  // ListSessions lists active sessions owned by the signed-in account.
+  // ListSessions lists active sessions owned by the signed-in account, or by user_id with system read.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
-  // RevokeSession ends a session owned by the signed-in account.
+  // RevokeSession ends a session owned by the signed-in account, or by user_id with system admin.
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+  // RevokeUserSessions ends every session of a user. It requires system admin.
+  rpc RevokeUserSessions(RevokeUserSessionsRequest) returns (RevokeUserSessionsResponse);
   // SetUserStatus suspends or reinstates a user. Requires system admin.
   rpc SetUserStatus(SetUserStatusRequest) returns (SetUserStatusResponse);
 }
@@ -154,13 +156,18 @@ message LogoutRequest {}
 // LogoutResponse is the response after logging out.
 message LogoutResponse {}
 
-// GetAccountDeletionImpactRequest pages the current user's surviving owned tokens.
+// GetAccountDeletionImpactRequest pages a user's surviving owned tokens.
 message GetAccountDeletionImpactRequest {
   int32 page_size = 1 [(buf.validate.field).int32 = {
     gte: 0
     lte: 200
   }];
   string page_token = 2;
+  // The account to preview; empty means the caller's.
+  string user_id = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
 // AccountDeletionOrganization needs another active administrator before deletion.
@@ -210,7 +217,13 @@ message Session {
   string ip_address = 7;
 }
 
-message ListSessionsRequest {}
+message ListSessionsRequest {
+  // The account whose sessions to list; empty means the caller's.
+  string user_id = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+}
 
 message ListSessionsResponse {
   repeated Session sessions = 1;
@@ -218,6 +231,17 @@ message ListSessionsResponse {
 
 message RevokeSessionRequest {
   string session_id = 1 [(buf.validate.field).string.uuid = true];
+  // The account that owns the session; empty means the caller's.
+  string user_id = 2 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
 message RevokeSessionResponse {}
+
+message RevokeUserSessionsRequest {
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RevokeUserSessionsResponse {}

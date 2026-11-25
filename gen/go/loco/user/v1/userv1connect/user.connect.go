@@ -43,6 +43,9 @@ const (
 	UserServiceListSessionsProcedure = "/loco.user.v1.UserService/ListSessions"
 	// UserServiceRevokeSessionProcedure is the procedure name of the UserService's RevokeSession RPC.
 	UserServiceRevokeSessionProcedure = "/loco.user.v1.UserService/RevokeSession"
+	// UserServiceRevokeUserSessionsProcedure is the procedure name of the UserService's
+	// RevokeUserSessions RPC.
+	UserServiceRevokeUserSessionsProcedure = "/loco.user.v1.UserService/RevokeUserSessions"
 	// UserServiceSetUserStatusProcedure is the procedure name of the UserService's SetUserStatus RPC.
 	UserServiceSetUserStatusProcedure = "/loco.user.v1.UserService/SetUserStatus"
 )
@@ -111,6 +114,13 @@ var (
 			Procedure:  UserServiceRevokeSessionProcedure,
 		}
 	})
+	userServiceRevokeUserSessionsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_user_v1_user_proto.Services().ByName("UserService").Methods().ByName("RevokeUserSessions"),
+			Procedure:  UserServiceRevokeUserSessionsProcedure,
+		}
+	})
 	userServiceSetUserStatusSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -130,16 +140,18 @@ type UserServiceClient interface {
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
 	// ListUsers lists users with pagination and an optional name or email search. It requires system read.
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
-	// GetAccountDeletionImpact previews deleting the current session account.
+	// GetAccountDeletionImpact previews deleting the current session account, or user_id's with system read.
 	GetAccountDeletionImpact(context.Context, *v1.GetAccountDeletionImpactRequest) (*v1.GetAccountDeletionImpactResponse, error)
-	// DeleteUser deletes a user account.
+	// DeleteUser deletes a user account. It requires system admin, or the user's own account.
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Logout logs out the current user.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
-	// ListSessions lists active sessions owned by the signed-in account.
+	// ListSessions lists active sessions owned by the signed-in account, or by user_id with system read.
 	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
-	// RevokeSession ends a session owned by the signed-in account.
+	// RevokeSession ends a session owned by the signed-in account, or by user_id with system admin.
 	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
+	// RevokeUserSessions ends every session of a user. It requires system admin.
+	RevokeUserSessions(context.Context, *v1.RevokeUserSessionsRequest) (*v1.RevokeUserSessionsResponse, error)
 	// SetUserStatus suspends or reinstates a user. Requires system admin.
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 }
@@ -160,16 +172,18 @@ type UserServiceHandler interface {
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
 	// ListUsers lists users with pagination and an optional name or email search. It requires system read.
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
-	// GetAccountDeletionImpact previews deleting the current session account.
+	// GetAccountDeletionImpact previews deleting the current session account, or user_id's with system read.
 	GetAccountDeletionImpact(context.Context, *v1.GetAccountDeletionImpactRequest) (*v1.GetAccountDeletionImpactResponse, error)
-	// DeleteUser deletes a user account.
+	// DeleteUser deletes a user account. It requires system admin, or the user's own account.
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Logout logs out the current user.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
-	// ListSessions lists active sessions owned by the signed-in account.
+	// ListSessions lists active sessions owned by the signed-in account, or by user_id with system read.
 	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
-	// RevokeSession ends a session owned by the signed-in account.
+	// RevokeSession ends a session owned by the signed-in account, or by user_id with system admin.
 	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
+	// RevokeUserSessions ends every session of a user. It requires system admin.
+	RevokeUserSessions(context.Context, *v1.RevokeUserSessionsRequest) (*v1.RevokeUserSessionsResponse, error)
 	// SetUserStatus suspends or reinstates a user. Requires system admin.
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 }
@@ -188,6 +202,7 @@ func RegisterUserServiceHandler(server *connect.Server, svc UserServiceHandler) 
 		connect.Method{Spec: userServiceLogoutSpec(), Handler: adapter.logout},
 		connect.Method{Spec: userServiceListSessionsSpec(), Handler: adapter.listSessions},
 		connect.Method{Spec: userServiceRevokeSessionSpec(), Handler: adapter.revokeSession},
+		connect.Method{Spec: userServiceRevokeUserSessionsSpec(), Handler: adapter.revokeUserSessions},
 		connect.Method{Spec: userServiceSetUserStatusSpec(), Handler: adapter.setUserStatus},
 	)
 }
@@ -229,6 +244,10 @@ func (UnimplementedUserServiceHandler) ListSessions(context.Context, *v1.ListSes
 
 func (UnimplementedUserServiceHandler) RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.RevokeSession is not implemented")
+}
+
+func (UnimplementedUserServiceHandler) RevokeUserSessions(context.Context, *v1.RevokeUserSessionsRequest) (*v1.RevokeUserSessionsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.RevokeUserSessions is not implemented")
 }
 
 func (UnimplementedUserServiceHandler) SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error) {
@@ -306,6 +325,14 @@ func (c *userServiceClient) ListSessions(ctx context.Context, req *v1.ListSessio
 func (c *userServiceClient) RevokeSession(ctx context.Context, req *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error) {
 	var res v1.RevokeSessionResponse
 	if err := c.client.CallUnary(ctx, userServiceRevokeSessionSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *userServiceClient) RevokeUserSessions(ctx context.Context, req *v1.RevokeUserSessionsRequest) (*v1.RevokeUserSessionsResponse, error) {
+	var res v1.RevokeUserSessionsResponse
+	if err := c.client.CallUnary(ctx, userServiceRevokeUserSessionsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -423,6 +450,18 @@ func (h userServiceHandler) revokeSession(ctx context.Context, _ connect.Spec, s
 		return err
 	}
 	res, err := h.svc.RevokeSession(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h userServiceHandler) revokeUserSessions(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RevokeUserSessionsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RevokeUserSessions(ctx, &req)
 	if err != nil {
 		return err
 	}

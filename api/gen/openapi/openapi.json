@@ -4804,7 +4804,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "ListUserOrgs",
-        "description": "ListUserOrgs lists organizations for a user.",
+        "description": "ListUserOrgs lists organizations for a user, with the user's scopes on each. Listing another user's\n organizations requires system read.",
         "operationId": "loco.org.v1.OrgService.ListUserOrgs",
         "parameters": [
           {
@@ -6912,7 +6912,7 @@
           "loco.user.v1.UserService"
         ],
         "summary": "DeleteUser",
-        "description": "DeleteUser deletes a user account.",
+        "description": "DeleteUser deletes a user account. It requires system admin, or the user's own account.",
         "operationId": "loco.user.v1.UserService.DeleteUser",
         "parameters": [
           {
@@ -6974,7 +6974,7 @@
           "loco.user.v1.UserService"
         ],
         "summary": "GetAccountDeletionImpact",
-        "description": "GetAccountDeletionImpact previews deleting the current session account.",
+        "description": "GetAccountDeletionImpact previews deleting the current session account, or user_id's with system read.",
         "operationId": "loco.user.v1.UserService.GetAccountDeletionImpact",
         "parameters": [
           {
@@ -7098,7 +7098,7 @@
           "loco.user.v1.UserService"
         ],
         "summary": "ListSessions",
-        "description": "ListSessions lists active sessions owned by the signed-in account.",
+        "description": "ListSessions lists active sessions owned by the signed-in account, or by user_id with system read.",
         "operationId": "loco.user.v1.UserService.ListSessions",
         "parameters": [
           {
@@ -7284,7 +7284,7 @@
           "loco.user.v1.UserService"
         ],
         "summary": "RevokeSession",
-        "description": "RevokeSession ends a session owned by the signed-in account.",
+        "description": "RevokeSession ends a session owned by the signed-in account, or by user_id with system admin.",
         "operationId": "loco.user.v1.UserService.RevokeSession",
         "parameters": [
           {
@@ -7333,6 +7333,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.user.v1.RevokeSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.user.v1.UserService/RevokeUserSessions": {
+      "post": {
+        "tags": [
+          "loco.user.v1.UserService"
+        ],
+        "summary": "RevokeUserSessions",
+        "description": "RevokeUserSessions ends every session of a user. It requires system admin.",
+        "operationId": "loco.user.v1.UserService.RevokeUserSessions",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.user.v1.RevokeUserSessionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.user.v1.RevokeUserSessionsResponse"
                 }
               }
             }
@@ -15105,6 +15167,14 @@
             ],
             "title": "member_count",
             "format": "int64"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "scopes",
+            "description": "The listed user's scopes on the organization, set by ListUserOrgs."
           }
         },
         "title": "Organization",
@@ -17675,11 +17745,17 @@
           "pageToken": {
             "type": "string",
             "title": "page_token"
+          },
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid",
+            "description": "The account to preview; empty means the caller's."
           }
         },
         "title": "GetAccountDeletionImpactRequest",
         "additionalProperties": false,
-        "description": "GetAccountDeletionImpactRequest pages the current user's surviving owned tokens."
+        "description": "GetAccountDeletionImpactRequest pages a user's surviving owned tokens."
       },
       "loco.user.v1.GetAccountDeletionImpactResponse": {
         "type": "object",
@@ -17755,6 +17831,14 @@
       },
       "loco.user.v1.ListSessionsRequest": {
         "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid",
+            "description": "The account whose sessions to list; empty means the caller's."
+          }
+        },
         "title": "ListSessionsRequest",
         "additionalProperties": false
       },
@@ -17849,6 +17933,12 @@
             "type": "string",
             "title": "session_id",
             "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid",
+            "description": "The account that owns the session; empty means the caller's."
           }
         },
         "title": "RevokeSessionRequest",
@@ -17857,6 +17947,23 @@
       "loco.user.v1.RevokeSessionResponse": {
         "type": "object",
         "title": "RevokeSessionResponse",
+        "additionalProperties": false
+      },
+      "loco.user.v1.RevokeUserSessionsRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "title": "user_id",
+            "format": "uuid"
+          }
+        },
+        "title": "RevokeUserSessionsRequest",
+        "additionalProperties": false
+      },
+      "loco.user.v1.RevokeUserSessionsResponse": {
+        "type": "object",
+        "title": "RevokeUserSessionsResponse",
         "additionalProperties": false
       },
       "loco.user.v1.Session": {

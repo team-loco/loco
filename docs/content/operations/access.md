@@ -73,6 +73,20 @@ API-token activity records the token as actor. Historical creator, issuer and in
 
 Callers holding system read also see each user's `status` (`active` or `suspended`) and `last_active_at` on `ListUsers` and `GetUser`. `last_active_at` is the last recorded session activity: the latest use of any of the user's sessions. Sessions end when their refresh token expires, so a user with no session has none; `locoadm user list` shows `—` for it.
 
+## Manage another user's account
+
+A system admin manages another user's sessions and account. A system reader can look but not change anything; any other caller gets `PermissionDenied`.
+
+| Call | On another user's account |
+| --- | --- |
+| `UserService.ListSessions` | Lists the user's sessions. Requires system read. |
+| `UserService.RevokeSession` | Ends one of the user's sessions. Requires system admin. |
+| `UserService.RevokeUserSessions` | Ends every session of the user. Requires system admin. |
+| `UserService.GetAccountDeletionImpact` | Previews deleting the account. Requires system read. |
+| `UserService.DeleteUser` | Deletes the account. Requires system admin. |
+
+`ListSessions`, `RevokeSession` and `GetAccountDeletionImpact` take an optional `user_id`; without it they act on the caller's own account and need a session sign-in. `RevokeUserSessions` and `DeleteUser` always name the user. `OrgService.ListUserOrgs` with another user's `user_id` requires system read and returns each organization with the user's `scopes` on it.
+
 ## Delete an account
 
 `UserService.DeleteUser` requires `user:admin` on the target account, using a session or API token. It removes the account's organization, workspace and resource grants, sign-in identities, CLI sessions and personal API tokens in one transaction. The user does not need to leave each organization first.

@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/user/v1/user.proto.
  */
 export const file_loco_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIoECCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIoCgZzdGF0dXMYByABKA4yGC5sb2NvLnVzZXIudjEuVXNlclN0YXR1cxIyCg5sYXN0X2FjdGl2ZV9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiTgoOR2V0VXNlclJlcXVlc3QSGwoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQFIABIYCgVlbWFpbBgCIAEoCUIHukgEcgJgAUgAQgUKA2tleSIzCg9HZXRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIs8BChFVcGRhdGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABARJqCgphdmF0YXJfdXJsGAIgASgJQlG6SE66AUsKD3VzZXIuYXZhdGFyX3VybBIcbXVzdCBiZSBlbXB0eSBvciBhIHZhbGlkIFVSSRoadGhpcyA9PSAnJyB8fCB0aGlzLmlzVXJpKClIAIgBARIbCgRuYW1lGAMgASgJQgi6SAVyAxjIAUgBiAEBQg0KC19hdmF0YXJfdXJsQgcKBV9uYW1lIiUKElVwZGF0ZVVzZXJSZXNwb25zZRIPCgd1c2VyX2lkGAEgASgJInsKEExpc3RVc2Vyc1JlcXVlc3QSHQoJcGFnZV9zaXplGAEgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAiABKAkSFwoFcXVlcnkYAyABKAlCCLpIBXIDGMgBEhsKE2luY2x1ZGVfdG90YWxfY291bnQYBCABKAgiZAoRTGlzdFVzZXJzUmVzcG9uc2USIQoFdXNlcnMYASADKAsyEi5sb2NvLnVzZXIudjEuVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkSEwoLdG90YWxfY291bnQYAyABKAUiDwoNV2hvQW1JUmVxdWVzdCJiCg5XaG9BbUlSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXISLgoMY2xhaW1lZF9vcmdzGAIgAygLMhgubG9jby51c2VyLnYxLkNsYWltZWRPcmciRAoKQ2xhaW1lZE9yZxIOCgZvcmdfaWQYASABKAkSEAoIb3JnX25hbWUYAiABKAkSFAoMaW52aXRlcl9uYW1lGAMgASgJIpEBChRTZXRVc2VyU3RhdHVzUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSAASNAoGc3RhdHVzGAMgASgOMhgubG9jby51c2VyLnYxLlVzZXJTdGF0dXNCCrpIB4IBBBABIABCDAoDa2V5EgW6SAIIASIXChVTZXRVc2VyU3RhdHVzUmVzcG9uc2UiLgoRRGVsZXRlVXNlclJlcXVlc3QSGQoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQEiFAoSRGVsZXRlVXNlclJlc3BvbnNlIg8KDUxvZ291dFJlcXVlc3QiEAoOTG9nb3V0UmVzcG9uc2UiVAofR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCSI/ChtBY2NvdW50RGVsZXRpb25Pcmdhbml6YXRpb24SDgoGb3JnX2lkGAEgASgJEhAKCG9yZ19uYW1lGAIgASgJItcBChRBY2NvdW50RGVsZXRpb25Ub2tlbhIMCgRuYW1lGAEgASgJEi4KC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlEhEKCWVudGl0eV9pZBgDIAEoCRISCgpvd25lcl9uYW1lGAQgASgJEi4KCmV4cGlyZXNfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmRpc3BsYXlfc3VmZml4GAYgASgJEhIKCmNhbl9yZXZva2UYByABKAgimQIKIEdldEFjY291bnREZWxldGlvbkltcGFjdFJlc3BvbnNlElIKH2xhc3RfYWN0aXZlX2FkbWluX29yZ2FuaXphdGlvbnMYASADKAsyKS5sb2NvLnVzZXIudjEuQWNjb3VudERlbGV0aW9uT3JnYW5pemF0aW9uEjgKDG93bmVkX3Rva2VucxgCIAMoCzIiLmxvY28udXNlci52MS5BY2NvdW50RGVsZXRpb25Ub2tlbhIXCg9uZXh0X3BhZ2VfdG9rZW4YAyABKAkSJQodaGFzX2luYWNjZXNzaWJsZV9vd25lZF90b2tlbnMYBCABKAgSJwofaGFzX21vcmVfYmxvY2tpbmdfb3JnYW5pemF0aW9ucxgFIAEoCCLZAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRInCgRraW5kGAIgASgOMhkubG9jby51c2VyLnYxLlNlc3Npb25LaW5kEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdXNlcl9hZ2VudBgFIAEoCRIPCgdjdXJyZW50GAYgASgIEhIKCmlwX2FkZHJlc3MYByABKAkiFQoTTGlzdFNlc3Npb25zUmVxdWVzdCI/ChRMaXN0U2Vzc2lvbnNSZXNwb25zZRInCghzZXNzaW9ucxgBIAMoCzIVLmxvY28udXNlci52MS5TZXNzaW9uIjQKFFJldm9rZVNlc3Npb25SZXF1ZXN0EhwKCnNlc3Npb25faWQYASABKAlCCLpIBXIDsAEBIhcKFVJldm9rZVNlc3Npb25SZXNwb25zZSpcCgpVc2VyU3RhdHVzEhsKF1VTRVJfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSVVNFUl9TVEFUVVNfQUNUSVZFEAESGQoVVVNFUl9TVEFUVVNfU1VTUEVOREVEEAIqVwoLU2Vzc2lvbktpbmQSHAoYU0VTU0lPTl9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQU0VTU0lPTl9LSU5EX1dFQhABEhQKEFNFU1NJT05fS0lORF9DTEkQAjLVBgoLVXNlclNlcnZpY2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USQwoGV2hvQW1JEhsubG9jby51c2VyLnYxLldob0FtSVJlcXVlc3QaHC5sb2NvLnVzZXIudjEuV2hvQW1JUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USeQoYR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0Ei0ubG9jby51c2VyLnYxLkdldEFjY291bnREZWxldGlvbkltcGFjdFJlcXVlc3QaLi5sb2NvLnVzZXIudjEuR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2USVQoMTGlzdFNlc3Npb25zEiEubG9jby51c2VyLnYxLkxpc3RTZXNzaW9uc1JlcXVlc3QaIi5sb2NvLnVzZXIudjEuTGlzdFNlc3Npb25zUmVzcG9uc2USWAoNUmV2b2tlU2Vzc2lvbhIiLmxvY28udXNlci52MS5SZXZva2VTZXNzaW9uUmVxdWVzdBojLmxvY28udXNlci52MS5SZXZva2VTZXNzaW9uUmVzcG9uc2USWAoNU2V0VXNlclN0YXR1cxIiLmxvY28udXNlci52MS5TZXRVc2VyU3RhdHVzUmVxdWVzdBojLmxvY28udXNlci52MS5TZXRVc2VyU3RhdHVzUmVzcG9uc2VCNlo0Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby91c2VyL3YxO3VzZXJ2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_token_v1_token]);
+  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIoECCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIoCgZzdGF0dXMYByABKA4yGC5sb2NvLnVzZXIudjEuVXNlclN0YXR1cxIyCg5sYXN0X2FjdGl2ZV9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiTgoOR2V0VXNlclJlcXVlc3QSGwoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQFIABIYCgVlbWFpbBgCIAEoCUIHukgEcgJgAUgAQgUKA2tleSIzCg9HZXRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIs8BChFVcGRhdGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABARJqCgphdmF0YXJfdXJsGAIgASgJQlG6SE66AUsKD3VzZXIuYXZhdGFyX3VybBIcbXVzdCBiZSBlbXB0eSBvciBhIHZhbGlkIFVSSRoadGhpcyA9PSAnJyB8fCB0aGlzLmlzVXJpKClIAIgBARIbCgRuYW1lGAMgASgJQgi6SAVyAxjIAUgBiAEBQg0KC19hdmF0YXJfdXJsQgcKBV9uYW1lIiUKElVwZGF0ZVVzZXJSZXNwb25zZRIPCgd1c2VyX2lkGAEgASgJInsKEExpc3RVc2Vyc1JlcXVlc3QSHQoJcGFnZV9zaXplGAEgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAiABKAkSFwoFcXVlcnkYAyABKAlCCLpIBXIDGMgBEhsKE2luY2x1ZGVfdG90YWxfY291bnQYBCABKAgiZAoRTGlzdFVzZXJzUmVzcG9uc2USIQoFdXNlcnMYASADKAsyEi5sb2NvLnVzZXIudjEuVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkSEwoLdG90YWxfY291bnQYAyABKAUiDwoNV2hvQW1JUmVxdWVzdCJiCg5XaG9BbUlSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXISLgoMY2xhaW1lZF9vcmdzGAIgAygLMhgubG9jby51c2VyLnYxLkNsYWltZWRPcmciRAoKQ2xhaW1lZE9yZxIOCgZvcmdfaWQYASABKAkSEAoIb3JnX25hbWUYAiABKAkSFAoMaW52aXRlcl9uYW1lGAMgASgJIpEBChRTZXRVc2VyU3RhdHVzUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSAASNAoGc3RhdHVzGAMgASgOMhgubG9jby51c2VyLnYxLlVzZXJTdGF0dXNCCrpIB4IBBBABIABCDAoDa2V5EgW6SAIIASIXChVTZXRVc2VyU3RhdHVzUmVzcG9uc2UiLgoRRGVsZXRlVXNlclJlcXVlc3QSGQoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQEiFAoSRGVsZXRlVXNlclJlc3BvbnNlIg8KDUxvZ291dFJlcXVlc3QiEAoOTG9nb3V0UmVzcG9uc2UicgofR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCRIcCgd1c2VyX2lkGAMgASgJQgu6SAjYAQFyA7ABASI/ChtBY2NvdW50RGVsZXRpb25Pcmdhbml6YXRpb24SDgoGb3JnX2lkGAEgASgJEhAKCG9yZ19uYW1lGAIgASgJItcBChRBY2NvdW50RGVsZXRpb25Ub2tlbhIMCgRuYW1lGAEgASgJEi4KC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlEhEKCWVudGl0eV9pZBgDIAEoCRISCgpvd25lcl9uYW1lGAQgASgJEi4KCmV4cGlyZXNfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmRpc3BsYXlfc3VmZml4GAYgASgJEhIKCmNhbl9yZXZva2UYByABKAgimQIKIEdldEFjY291bnREZWxldGlvbkltcGFjdFJlc3BvbnNlElIKH2xhc3RfYWN0aXZlX2FkbWluX29yZ2FuaXphdGlvbnMYASADKAsyKS5sb2NvLnVzZXIudjEuQWNjb3VudERlbGV0aW9uT3JnYW5pemF0aW9uEjgKDG93bmVkX3Rva2VucxgCIAMoCzIiLmxvY28udXNlci52MS5BY2NvdW50RGVsZXRpb25Ub2tlbhIXCg9uZXh0X3BhZ2VfdG9rZW4YAyABKAkSJQodaGFzX2luYWNjZXNzaWJsZV9vd25lZF90b2tlbnMYBCABKAgSJwofaGFzX21vcmVfYmxvY2tpbmdfb3JnYW5pemF0aW9ucxgFIAEoCCLZAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRInCgRraW5kGAIgASgOMhkubG9jby51c2VyLnYxLlNlc3Npb25LaW5kEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdXNlcl9hZ2VudBgFIAEoCRIPCgdjdXJyZW50GAYgASgIEhIKCmlwX2FkZHJlc3MYByABKAkiMwoTTGlzdFNlc3Npb25zUmVxdWVzdBIcCgd1c2VyX2lkGAEgASgJQgu6SAjYAQFyA7ABASI/ChRMaXN0U2Vzc2lvbnNSZXNwb25zZRInCghzZXNzaW9ucxgBIAMoCzIVLmxvY28udXNlci52MS5TZXNzaW9uIlIKFFJldm9rZVNlc3Npb25SZXF1ZXN0EhwKCnNlc3Npb25faWQYASABKAlCCLpIBXIDsAEBEhwKB3VzZXJfaWQYAiABKAlCC7pICNgBAXIDsAEBIhcKFVJldm9rZVNlc3Npb25SZXNwb25zZSI2ChlSZXZva2VVc2VyU2Vzc2lvbnNSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBIhwKGlJldm9rZVVzZXJTZXNzaW9uc1Jlc3BvbnNlKlwKClVzZXJTdGF0dXMSGwoXVVNFUl9TVEFUVVNfVU5TUEVDSUZJRUQQABIWChJVU0VSX1NUQVRVU19BQ1RJVkUQARIZChVVU0VSX1NUQVRVU19TVVNQRU5ERUQQAipXCgtTZXNzaW9uS2luZBIcChhTRVNTSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIUChBTRVNTSU9OX0tJTkRfV0VCEAESFAoQU0VTU0lPTl9LSU5EX0NMSRACMr4HCgtVc2VyU2VydmljZRJGCgdHZXRVc2VyEhwubG9jby51c2VyLnYxLkdldFVzZXJSZXF1ZXN0Gh0ubG9jby51c2VyLnYxLkdldFVzZXJSZXNwb25zZRJDCgZXaG9BbUkSGy5sb2NvLnVzZXIudjEuV2hvQW1JUmVxdWVzdBocLmxvY28udXNlci52MS5XaG9BbUlSZXNwb25zZRJPCgpVcGRhdGVVc2VyEh8ubG9jby51c2VyLnYxLlVwZGF0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLlVwZGF0ZVVzZXJSZXNwb25zZRJMCglMaXN0VXNlcnMSHi5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVxdWVzdBofLmxvY28udXNlci52MS5MaXN0VXNlcnNSZXNwb25zZRJ5ChhHZXRBY2NvdW50RGVsZXRpb25JbXBhY3QSLS5sb2NvLnVzZXIudjEuR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVxdWVzdBouLmxvY28udXNlci52MS5HZXRBY2NvdW50RGVsZXRpb25JbXBhY3RSZXNwb25zZRJPCgpEZWxldGVVc2VyEh8ubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXNwb25zZRJDCgZMb2dvdXQSGy5sb2NvLnVzZXIudjEuTG9nb3V0UmVxdWVzdBocLmxvY28udXNlci52MS5Mb2dvdXRSZXNwb25zZRJVCgxMaXN0U2Vzc2lvbnMSIS5sb2NvLnVzZXIudjEuTGlzdFNlc3Npb25zUmVxdWVzdBoiLmxvY28udXNlci52MS5MaXN0U2Vzc2lvbnNSZXNwb25zZRJYCg1SZXZva2VTZXNzaW9uEiIubG9jby51c2VyLnYxLlJldm9rZVNlc3Npb25SZXF1ZXN0GiMubG9jby51c2VyLnYxLlJldm9rZVNlc3Npb25SZXNwb25zZRJnChJSZXZva2VVc2VyU2Vzc2lvbnMSJy5sb2NvLnVzZXIudjEuUmV2b2tlVXNlclNlc3Npb25zUmVxdWVzdBooLmxvY28udXNlci52MS5SZXZva2VVc2VyU2Vzc2lvbnNSZXNwb25zZRJYCg1TZXRVc2VyU3RhdHVzEiIubG9jby51c2VyLnYxLlNldFVzZXJTdGF0dXNSZXF1ZXN0GiMubG9jby51c2VyLnYxLlNldFVzZXJTdGF0dXNSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3VzZXIvdjE7dXNlcnYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_token_v1_token]);
 
 /**
  * User represents a user account with OAuth identity and profile information.
@@ -728,7 +728,7 @@ export const LogoutResponseSchema: GenMessage<LogoutResponse, {jsonType: LogoutR
   messageDesc(file_loco_user_v1_user, 15);
 
 /**
- * GetAccountDeletionImpactRequest pages the current user's surviving owned tokens.
+ * GetAccountDeletionImpactRequest pages a user's surviving owned tokens.
  *
  * @generated from message loco.user.v1.GetAccountDeletionImpactRequest
  */
@@ -742,10 +742,17 @@ export type GetAccountDeletionImpactRequest = Message<"loco.user.v1.GetAccountDe
    * @generated from field: string page_token = 2;
    */
   pageToken: string;
+
+  /**
+   * The account to preview; empty means the caller's.
+   *
+   * @generated from field: string user_id = 3;
+   */
+  userId: string;
 };
 
 /**
- * GetAccountDeletionImpactRequest pages the current user's surviving owned tokens.
+ * GetAccountDeletionImpactRequest pages a user's surviving owned tokens.
  *
  * @generated from message loco.user.v1.GetAccountDeletionImpactRequest
  */
@@ -759,6 +766,13 @@ export type GetAccountDeletionImpactRequestJson = {
    * @generated from field: string page_token = 2;
    */
   pageToken?: string;
+
+  /**
+   * The account to preview; empty means the caller's.
+   *
+   * @generated from field: string user_id = 3;
+   */
+  userId?: string;
 };
 
 /**
@@ -1078,12 +1092,24 @@ export const SessionSchema: GenMessage<Session, {jsonType: SessionJson}> = /*@__
  * @generated from message loco.user.v1.ListSessionsRequest
  */
 export type ListSessionsRequest = Message<"loco.user.v1.ListSessionsRequest"> & {
+  /**
+   * The account whose sessions to list; empty means the caller's.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId: string;
 };
 
 /**
  * @generated from message loco.user.v1.ListSessionsRequest
  */
 export type ListSessionsRequestJson = {
+  /**
+   * The account whose sessions to list; empty means the caller's.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId?: string;
 };
 
 /**
@@ -1128,6 +1154,13 @@ export type RevokeSessionRequest = Message<"loco.user.v1.RevokeSessionRequest"> 
    * @generated from field: string session_id = 1;
    */
   sessionId: string;
+
+  /**
+   * The account that owns the session; empty means the caller's.
+   *
+   * @generated from field: string user_id = 2;
+   */
+  userId: string;
 };
 
 /**
@@ -1138,6 +1171,13 @@ export type RevokeSessionRequestJson = {
    * @generated from field: string session_id = 1;
    */
   sessionId?: string;
+
+  /**
+   * The account that owns the session; empty means the caller's.
+   *
+   * @generated from field: string user_id = 2;
+   */
+  userId?: string;
 };
 
 /**
@@ -1165,6 +1205,52 @@ export type RevokeSessionResponseJson = {
  */
 export const RevokeSessionResponseSchema: GenMessage<RevokeSessionResponse, {jsonType: RevokeSessionResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_user_v1_user, 24);
+
+/**
+ * @generated from message loco.user.v1.RevokeUserSessionsRequest
+ */
+export type RevokeUserSessionsRequest = Message<"loco.user.v1.RevokeUserSessionsRequest"> & {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId: string;
+};
+
+/**
+ * @generated from message loco.user.v1.RevokeUserSessionsRequest
+ */
+export type RevokeUserSessionsRequestJson = {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId?: string;
+};
+
+/**
+ * Describes the message loco.user.v1.RevokeUserSessionsRequest.
+ * Use `create(RevokeUserSessionsRequestSchema)` to create a new message.
+ */
+export const RevokeUserSessionsRequestSchema: GenMessage<RevokeUserSessionsRequest, {jsonType: RevokeUserSessionsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_user_v1_user, 25);
+
+/**
+ * @generated from message loco.user.v1.RevokeUserSessionsResponse
+ */
+export type RevokeUserSessionsResponse = Message<"loco.user.v1.RevokeUserSessionsResponse"> & {
+};
+
+/**
+ * @generated from message loco.user.v1.RevokeUserSessionsResponse
+ */
+export type RevokeUserSessionsResponseJson = {
+};
+
+/**
+ * Describes the message loco.user.v1.RevokeUserSessionsResponse.
+ * Use `create(RevokeUserSessionsResponseSchema)` to create a new message.
+ */
+export const RevokeUserSessionsResponseSchema: GenMessage<RevokeUserSessionsResponse, {jsonType: RevokeUserSessionsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_user_v1_user, 26);
 
 /**
  * UserStatus is whether a user may sign in.
@@ -1283,7 +1369,7 @@ export const UserService: GenService<{
     output: typeof ListUsersResponseSchema;
   },
   /**
-   * GetAccountDeletionImpact previews deleting the current session account.
+   * GetAccountDeletionImpact previews deleting the current session account, or user_id's with system read.
    *
    * @generated from rpc loco.user.v1.UserService.GetAccountDeletionImpact
    */
@@ -1293,7 +1379,7 @@ export const UserService: GenService<{
     output: typeof GetAccountDeletionImpactResponseSchema;
   },
   /**
-   * DeleteUser deletes a user account.
+   * DeleteUser deletes a user account. It requires system admin, or the user's own account.
    *
    * @generated from rpc loco.user.v1.UserService.DeleteUser
    */
@@ -1313,7 +1399,7 @@ export const UserService: GenService<{
     output: typeof LogoutResponseSchema;
   },
   /**
-   * ListSessions lists active sessions owned by the signed-in account.
+   * ListSessions lists active sessions owned by the signed-in account, or by user_id with system read.
    *
    * @generated from rpc loco.user.v1.UserService.ListSessions
    */
@@ -1323,7 +1409,7 @@ export const UserService: GenService<{
     output: typeof ListSessionsResponseSchema;
   },
   /**
-   * RevokeSession ends a session owned by the signed-in account.
+   * RevokeSession ends a session owned by the signed-in account, or by user_id with system admin.
    *
    * @generated from rpc loco.user.v1.UserService.RevokeSession
    */
@@ -1331,6 +1417,16 @@ export const UserService: GenService<{
     methodKind: "unary";
     input: typeof RevokeSessionRequestSchema;
     output: typeof RevokeSessionResponseSchema;
+  },
+  /**
+   * RevokeUserSessions ends every session of a user. It requires system admin.
+   *
+   * @generated from rpc loco.user.v1.UserService.RevokeUserSessions
+   */
+  revokeUserSessions: {
+    methodKind: "unary";
+    input: typeof RevokeUserSessionsRequestSchema;
+    output: typeof RevokeUserSessionsResponseSchema;
   },
   /**
    * SetUserStatus suspends or reinstates a user. Requires system admin.

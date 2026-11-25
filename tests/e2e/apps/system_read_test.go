@@ -179,3 +179,50 @@ func TestGrantedSystemReaderFindsAUserByEmail(t *testing.T) {
 		t.Fatalf("ListUsers as an ordinary user: %v, want permission_denied", err)
 	}
 }
+
+func TestSystemAdminEndsAnotherUsersSessionsAndAReaderCannot(t *testing.T) {
+	t.Parallel()
+	reader := grantSystemReader(t, "session-reader@test.local")
+	target := signInLifecycleUser(t, "session-target@test.local")
+	admin := signInLifecycleUser(t, "session-admin@test.local")
+	if _, err := p.Admin.SystemRole.GrantSystemRole(t.Context(), &adminv1.GrantSystemRoleRequest{
+		UserId: admin.id, Role: adminv1.SystemRole_SYSTEM_ROLE_ADMIN,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := p.Admin.SystemRole.RevokeSystemRole(context.Background(), &adminv1.RevokeSystemRoleRequest{
+			UserId: admin.id,
+		}); err != nil {
+			t.Errorf("revoke system admin: %v", err)
+		}
+	})
+
+	listed, err := reader.session.User.ListSessions(t.Context(), &userv1.ListSessionsRequest{UserId: target.id})
+	if err != nil {
+		t.Fatalf("ListSessions as a system reader: %v", err)
+	}
+	if len(listed.GetSessions()) == 0 {
+		t.Fatalf("ListSessions as a system reader lists no session of %s", target.id)
+	}
+	_, err = reader.session.User.RevokeUserSessions(t.Context(), &userv1.RevokeUserSessionsRequest{UserId: target.id})
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("RevokeUserSessions as a system reader: %v, want permission_denied", err)
+	}
+	if _, err = target.session.User.WhoAmI(t.Context(), &userv1.WhoAmIRequest{}); err != nil {
+		t.Fatalf("target after the reader's refused revoke: %v", err)
+	}
+
+	if _, err = admin.session.User.RevokeUserSessions(t.Context(),
+		&userv1.RevokeUserSessionsRequest{UserId: target.id}); err != nil {
+		t.Fatalf("RevokeUserSessions as a system admin: %v", err)
+	}
+	listed, err = admin.session.User.ListSessions(t.Context(), &userv1.ListSessionsRequest{UserId: target.id})
+	if err != nil || len(listed.GetSessions()) != 0 {
+		t.Fatalf("sessions after the admin revoked them = %v, %v, want none", listed.GetSessions(), err)
+	}
+	_, err = target.session.User.WhoAmI(t.Context(), &userv1.WhoAmIRequest{})
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("target after the admin revoked its sessions: %v, want unauthenticated", err)
+	}
+}
