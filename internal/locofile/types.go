@@ -24,8 +24,6 @@ type Service struct {
 	Image         string              `json:"image,omitempty"`
 	Command       []string            `json:"command,omitempty"`
 	Args          []string            `json:"args,omitempty"`
-	RunAsUser     *int64              `json:"runAsUser,omitempty"`
-	RunAsGroup    *int64              `json:"runAsGroup,omitempty"`
 	Port          *int32              `json:"port,omitempty"`
 	Health        *Health             `json:"health,omitempty"`
 	Routing       *Routing            `json:"routing,omitempty"`
@@ -45,8 +43,6 @@ type Override struct {
 	Image         string            `json:"image,omitempty"`
 	Command       []string          `json:"command,omitempty"`
 	Args          []string          `json:"args,omitempty"`
-	RunAsUser     *int64            `json:"runAsUser,omitempty"`
-	RunAsGroup    *int64            `json:"runAsGroup,omitempty"`
 	Port          *int32            `json:"port,omitempty"`
 	Health        *Health           `json:"health,omitempty"`
 	Routing       *Routing          `json:"routing,omitempty"`

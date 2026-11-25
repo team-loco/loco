@@ -12385,24 +12385,6 @@
             "title": "routing",
             "description": "routing is the HTTP routing the deployment's environment uses. An empty message means the\n service sets no routing and the defaults apply; without the field the resource's routing\n applies."
           },
-          "runAsUser": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "run_as_user",
-            "format": "int64",
-            "description": "int64.lte = 65535\nint64.gte = 0\n"
-          },
-          "runAsGroup": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "run_as_group",
-            "format": "int64",
-            "description": "int64.lte = 65535\nint64.gte = 0\n"
-          },
           "observability": {
             "title": "observability",
             "description": "Defaults to the resource settings when omitted; stored in the deployment snapshot.",

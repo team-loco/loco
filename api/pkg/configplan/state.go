@@ -49,8 +49,6 @@ type State struct {
 	Args          []string
 	Dockerfile    string
 	Context       string
-	RunAsUser     *int64
-	RunAsGroup    *int64
 	Port          *int32
 	Health        *Health
 	Routing       *Routing
@@ -98,8 +96,6 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 	}
 	state := State{
 		Observability: observability,
-		RunAsUser:     service.RunAsUser,
-		RunAsGroup:    service.RunAsGroup,
 		Image:         pinnedImage,
 		Command:       service.Command,
 		Args:          service.Args,
@@ -195,12 +191,6 @@ func flatten(state *State) map[string]string {
 	}
 	if state.Port != nil {
 		fields[pathPort] = formatInt(*state.Port)
-	}
-	if state.RunAsUser != nil {
-		fields["runAsUser"] = strconv.FormatInt(*state.RunAsUser, 10)
-	}
-	if state.RunAsGroup != nil {
-		fields["runAsGroup"] = strconv.FormatInt(*state.RunAsGroup, 10)
 	}
 	if state.Health != nil {
 		fields[pathHealth+".path"] = state.Health.Path

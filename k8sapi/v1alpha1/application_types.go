@@ -158,15 +158,6 @@ type ServiceDeploymentSpec struct {
 	// +kubebuilder:validation:Maximum=65535
 	Port *int32 `json:"port,omitempty"`
 
-	// +optional
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=65535
-	RunAsUser *int64 `json:"runAsUser,omitempty"`
-	// +optional
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=65535
-	RunAsGroup *int64 `json:"runAsGroup,omitempty"`
-
 	// Command replaces the image ENTRYPOINT. Without it the image's ENTRYPOINT runs.
 	// +optional
 	// +kubebuilder:validation:MaxItems=100

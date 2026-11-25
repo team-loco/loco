@@ -3,7 +3,6 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
-	"math"
 	"regexp"
 	"slices"
 	"strings"
@@ -19,7 +18,6 @@ var (
 	errTypeMissing            = errors.New("type must be set")
 	errServiceSpecMissing     = errors.New("serviceSpec must be set for SERVICE type")
 	errDeploymentMissing      = errors.New("serviceSpec.deployment must be set")
-	ErrRuntimeID              = errors.New("runtime user and group IDs must be between 0 and 65535")
 	errImageMissing           = errors.New("image must be set")
 	errCommandEntryEmpty      = errors.New("command entries must not be empty")
 	errHealthPathMissing      = errors.New("healthCheck.path must be set")
@@ -185,13 +183,6 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 	}
 	if !strings.Contains(spec.Image, ":") && !strings.Contains(spec.Image, "@") {
 		return fmt.Errorf("image %q must include a tag (e.g., :v1.0) or digest (e.g., @sha256:...)", spec.Image)
-	}
-
-	if err := ValidateRuntimeID(spec.RunAsUser); err != nil {
-		return err
-	}
-	if err := ValidateRuntimeID(spec.RunAsGroup); err != nil {
-		return err
 	}
 
 	if err := ValidateCommand(spec.Command); err != nil {
@@ -424,13 +415,6 @@ func ValidateRoute(pathPrefix string, idleTimeout int32) error {
 	}
 	if idleTimeout < 1 {
 		return errIdleTimeoutNotPositive
-	}
-	return nil
-}
-
-func ValidateRuntimeID(id *int64) error {
-	if id != nil && (*id < 0 || *id > math.MaxUint16) {
-		return ErrRuntimeID
 	}
 	return nil
 }

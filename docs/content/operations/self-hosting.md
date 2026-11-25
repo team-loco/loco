@@ -20,7 +20,7 @@ The control-plane chart is `charts/loco-control-plane`; the worker chart is `cha
 
 ## Application worker requirements
 
-Application worker nodes must support Kubernetes [pod user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/). Use Linux with idmapped mount support on the kubelet and pod volume filesystems (normally Linux 6.3 or newer), a compatible OCI runtime such as runc 1.2 or newer, and containerd 2.0 or newer or CRI-O 1.25 or newer. On Kubernetes versions where user namespaces are feature-gated, enable `UserNamespacesSupport` and `UserNamespacesPodSecurityStandards`. Keep the kubelet's default 65,536 IDs per pod, which matches Loco's runtime UID/GID range.
+Application workers require Kubernetes 1.35 or newer and support for [pod user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/). Use Linux with idmapped mount support on the kubelet and pod volume filesystems (normally Linux 6.3 or newer), a compatible OCI runtime such as runc 1.2 or newer, and containerd 2.0 or newer or CRI-O 1.25 or newer.
 
 Every application pod requests `hostUsers: false`. A worker without support fails to start the pod; Loco never falls back to running it in the host user namespace. User namespaces share the node kernel and do not provide a virtual machine boundary between tenants.
 

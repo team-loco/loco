@@ -17,9 +17,9 @@ func TestCheckKubernetesVersion(t *testing.T) {
 		version string
 		want    string
 	}{
-		{"v1.33.9", "upgrade the API server to 1.34"},
-		{"v1.34.0-alpha.1", "unsupported"},
-		{"v1.34.0", ""},
+		{"v1.34.99", "upgrade the API server to 1.35"},
+		{"v1.35.0-alpha.1", "unsupported"},
+		{"v1.35.0", ""},
 		{"v1.35.10", ""},
 		{"v1.36.4+k3s1", ""},
 		{"v1.37.0-eks-build", ""},

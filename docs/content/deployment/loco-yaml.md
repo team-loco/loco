@@ -76,18 +76,7 @@ A workspace's namespaces on a worker cluster exist only while the workspace has 
 
 Applications use the image's declared user, including named users such as `nobody`. An image without a `USER` runs as root inside its pod's user namespace. Kubernetes maps pod users to unprivileged IDs on the worker node.
 
-Set `runAsUser` and `runAsGroup` to override the image's user and primary group:
-
-```yaml
-services:
-  accounting:
-    runAsUser: 1654
-    runAsGroup: 1654
-```
-
-These fields override the image's UID and primary GID independently. Omitted fields use the image defaults; an environment override can replace an ID or remove it with `null`. IDs must be between 0 and 65535; `0` selects root inside the user namespace. Loco disables privilege escalation, drops all capabilities and applies the runtime's default seccomp profile.
-
-Choose IDs that can read the application and write its working directories. The override does not create users or change file ownership. Images that require capabilities such as changing file ownership or switching process users can still fail. Changes roll out new pods without rebuilding the image.
+Loco disables privilege escalation, drops all capabilities and applies the runtime's default seccomp profile. Images that require capabilities such as changing file ownership or switching process users can still fail.
 
 ## Command and arguments
 

@@ -30,15 +30,13 @@ func TestImageUsersRunInUserNamespaces(t *testing.T) {
 	}
 	dir := t.TempDir()
 	for _, tc := range []struct {
-		name     string
-		user     string
-		override *int64
-		wantUID  string
+		name    string
+		user    string
+		wantUID string
 	}{
 		{name: "named", user: "nginx", wantUID: config.Config.User},
 		{name: "root", user: "0", wantUID: "0"},
 		{name: "unspecified", wantUID: "0"},
-		{name: "override", user: "nginx", override: new(int64(0)), wantUID: "0"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			variant := config.DeepCopy()
@@ -52,8 +50,6 @@ func TestImageUsersRunInUserNamespaces(t *testing.T) {
 				t.Fatal(err)
 			}
 			service := platform.ImageService(ref.Name())
-			service.RunAsUser = tc.override
-			service.RunAsGroup = tc.override
 			platform.WriteLocoFile(t, dir, locofile.File{
 				Partial: "image-users", Services: map[string]locofile.Service{"web": service},
 			})
@@ -69,7 +65,8 @@ func TestImageUsersRunInUserNamespaces(t *testing.T) {
 			if _, err := fmt.Sscan(mapping, &inside, &outside, &count); err != nil {
 				t.Fatal(err)
 			}
-			if inside != 0 || outside == 0 || count != 65536 {
+			isolatedRange := inside == 0 && outside >= 65536 && count == 65536
+			if !isolatedRange {
 				t.Fatalf("pod lacks an isolated UID range: %q", mapping)
 			}
 			p.MustKubectl(t, append(exec, "curl", "--fail", "--silent", "--max-time", "5", "http://127.0.0.1:8080/")...)

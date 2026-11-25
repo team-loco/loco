@@ -115,8 +115,6 @@ func MergeDeploymentSpec(
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
 		Platform:      servicedefaults.FirstSet(requestServiceSpec.GetPlatform(), string(defaults.TargetPlatform)),
 		Observability: observability.Proto(),
-		RunAsUser:     requestServiceSpec.RunAsUser,
-		RunAsGroup:    requestServiceSpec.RunAsGroup,
 		Build:         requestServiceSpec.GetBuild(),
 		Command:       requestServiceSpec.GetCommand(),
 		Args:          requestServiceSpec.GetArgs(),
@@ -160,8 +158,6 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 		Observability: locoControllerV1.ObservabilityConfig{
 			InjectOtel: observabilityconfig.Resolve(nil, serviceSpec.GetObservability()).InjectOtel,
 		},
-		RunAsUser:   serviceSpec.RunAsUser,
-		RunAsGroup:  serviceSpec.RunAsGroup,
 		Image:       serviceSpec.GetBuild().GetImage(),
 		Command:     serviceSpec.GetCommand(),
 		Args:        serviceSpec.GetArgs(),

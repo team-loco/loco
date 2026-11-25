@@ -218,6 +218,7 @@ var _ = Describe("Workspace isolation", func() {
 		deployment := &appsv1.Deployment{}
 		Expect(k8sClient.Get(ctx, appKey, deployment)).To(Succeed())
 		Expect(deployment.Spec.Template.Spec.AutomountServiceAccountToken).To(HaveValue(BeFalse()))
+		Expect(deployment.Spec.Template.Spec.HostUsers).To(HaveValue(BeFalse()))
 
 		templateSpec := deployment.Spec.Template.Spec.DeepCopy()
 		admitted := &corev1.Pod{
@@ -241,51 +242,6 @@ var _ = Describe("Workspace isolation", func() {
 		err = k8sClient.Create(ctx, rejected)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(`violates PodSecurity "restricted:latest"`))
-	})
-	It("updates and removes numeric runtime IDs while preserving restricted pod security", func() {
-		app := isolationTestApplication("ws-runtime-user", "runtime-user")
-		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-		Expect(reconciler.ensureServiceAccount(ctx, app)).To(Succeed())
-		key := client.ObjectKey{
-			Namespace: testEnvironmentNamespace(app),
-			Name:      testAppName(app),
-		}
-		for _, id := range []*int64{new(int64(1654)), new(int64(0)), nil} {
-			app.Spec.ServiceSpec.Deployment.RunAsUser = id
-			app.Spec.ServiceSpec.Deployment.RunAsGroup = id
-			_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
-			Expect(err).NotTo(HaveOccurred())
-			deployment := &appsv1.Deployment{}
-			Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
-			security := deployment.Spec.Template.Spec.SecurityContext
-			Expect(deployment.Spec.Template.Spec.HostUsers).To(HaveValue(BeFalse()))
-			Expect(security.SeccompProfile.Type).To(Equal(corev1.SeccompProfileTypeRuntimeDefault))
-			if id == nil {
-				Expect(security.RunAsUser).To(BeNil())
-				Expect(security.RunAsGroup).To(BeNil())
-			} else {
-				Expect(security.RunAsUser).To(HaveValue(Equal(*id)))
-				Expect(security.RunAsGroup).To(HaveValue(Equal(*id)))
-			}
-			container := deployment.Spec.Template.Spec.Containers[0].SecurityContext
-			Expect(container.AllowPrivilegeEscalation).To(HaveValue(BeFalse()))
-			Expect(container.Capabilities.Drop).To(ContainElement(corev1.Capability("ALL")))
-		}
-	})
-
-	It("rejects unmapped runtime IDs at the Application API boundary", func() {
-		for _, id := range []int64{-1, 65536} {
-			app := isolationTestApplication("ws-runtime-reject", "reject-user")
-			app.Spec.ServiceSpec.Deployment.RunAsUser = new(id)
-			err := k8sClient.Create(ctx, app)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("runAsUser"))
-			app.Spec.ServiceSpec.Deployment.RunAsUser = nil
-			app.Spec.ServiceSpec.Deployment.RunAsGroup = new(id)
-			err = k8sClient.Create(ctx, app)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("runAsGroup"))
-		}
 	})
 
 })

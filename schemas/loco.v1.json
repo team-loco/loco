@@ -193,24 +193,6 @@
           ],
           "description": "Region fields to merge keyed by region name."
         },
-        "runAsUser": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 0,
-          "description": "Numeric UID for the application process. Omitted uses the image user.",
-          "maximum": 65535
-        },
-        "runAsGroup": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 0,
-          "description": "Numeric primary GID for the application process. Omitted uses the image group.",
-          "maximum": 65535
-        },
         "observability": {
           "anyOf": [
             {
@@ -506,18 +488,6 @@
           },
           "type": "object",
           "description": "Per-environment overrides keyed by environment name."
-        },
-        "runAsUser": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Numeric UID for the application process. Omitted uses the image user.",
-          "maximum": 65535
-        },
-        "runAsGroup": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Numeric primary GID for the application process. Omitted uses the image group.",
-          "maximum": 65535
         },
         "deploy": {
           "$ref": "#/$defs/Deploy",

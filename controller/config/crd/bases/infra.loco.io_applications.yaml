@@ -165,16 +165,6 @@ spec:
                         maximum: 65535
                         minimum: 1
                         type: integer
-                      runAsGroup:
-                        format: int64
-                        maximum: 65535
-                        minimum: 0
-                        type: integer
-                      runAsUser:
-                        format: int64
-                        maximum: 65535
-                        minimum: 0
-                        type: integer
                     required:
                     - image
                     - platform
