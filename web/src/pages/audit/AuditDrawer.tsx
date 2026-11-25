@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { PanelNav, PlainCode } from "@/pages/observability/shared";
 
 import type { AuditRow } from "./model";
+import { OperatorTag } from "./OperatorTag";
 
 function Field({ term, children, mono = true }: { term: string; children: ReactNode; mono?: boolean }) {
 	return (
@@ -26,6 +27,7 @@ function Field({ term, children, mono = true }: { term: string; children: ReactN
 export function AuditDrawer({
 	open,
 	row,
+	showOrg = false,
 	onNewer,
 	onOlder,
 	onResource,
@@ -34,6 +36,7 @@ export function AuditDrawer({
 }: {
 	open: boolean;
 	row: AuditRow | undefined;
+	showOrg?: boolean;
 	onNewer: (() => void) | null;
 	onOlder: (() => void) | null;
 	onResource: (() => void) | null;
@@ -98,12 +101,13 @@ export function AuditDrawer({
 							<dl className="m-0 text-[13px]">
 								<Field term="Time">{formatFullTime(row.ms, false, timePref)}</Field>
 								<Field term="Actor" mono={false}>
-									{row.actor.name}
+									{row.actor.name} {row.event.actedAsOperator && <OperatorTag />}
 									{row.actor.detail !== "" && row.event.actorType !== "api_token" && (
 										<span className="font-mono text-[12px] text-fg3"> {row.actor.detail}</span>
 									)}
 								</Field>
 								<Field term="Event">{row.event.type}</Field>
+								{showOrg && <Field term="Organization">{row.org}</Field>}
 								<Field term="Where">{row.where}</Field>
 								<Field term="Environment">{row.environment === "" ? "—" : row.environment}</Field>
 								<Field term="Request ID">{row.event.requestId === "" ? "—" : row.event.requestId}</Field>

@@ -16,6 +16,7 @@ export function auditLink(
 	resources: readonly string[] | undefined,
 	environments: readonly string[] | undefined,
 	selectedWorkspace = "",
+	system = false,
 ) {
 	const params = new URLSearchParams(search);
 	const dropped: DroppedFilter[] = [];
@@ -38,6 +39,12 @@ export function auditLink(
 		const kept = values.filter(known);
 		if (kept.length > 0) params.set("types", kept.join(","));
 		else params.delete("types");
+	}
+	if (!system) {
+		drop("org", "Organization", "only the System audit log filters by organization");
+		drop("installation", "Installation only", "only the System audit log filters by installation");
+	} else if (params.has("org") && params.has("installation")) {
+		drop("installation", "Installation only", "an organization is selected; pick one or the other");
 	}
 	const workspace = params.get("ws");
 	if (workspace !== null && workspaces !== undefined && !workspaces.includes(workspace))
@@ -64,12 +71,19 @@ export function auditFilterViolations(error: unknown) {
 
 export const AUDIT_FILTER_FIXES = new Map<
 	string,
-	{ label: string; params: Partial<Record<"range" | "from" | "to" | "size" | "before" | "ws" | "res" | "env", null>> }
+	{
+		label: string;
+		params: Partial<
+			Record<"range" | "from" | "to" | "size" | "before" | "ws" | "res" | "env" | "org" | "installation", null>
+		>;
+	}
 >([
 	["start_time", { label: "Reset time range", params: { range: null, from: null, to: null } }],
 	["end_time", { label: "Reset time range", params: { range: null, from: null, to: null } }],
 	["page_size", { label: "Reset rows per page", params: { size: null } }],
 	["page_token", { label: "Show newest events", params: { before: null } }],
+	["org_id", { label: "Clear organization filter", params: { org: null } }],
+	["installation_only", { label: "Clear installation filter", params: { installation: null } }],
 	["workspace_id", { label: "Clear workspace filter", params: { ws: null, res: null, env: null } }],
 	["resource_id", { label: "Clear resource filter", params: { res: null } }],
 	["environment_id", { label: "Clear environment filter", params: { env: null } }],

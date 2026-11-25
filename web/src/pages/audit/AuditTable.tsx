@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { dayLabel, type AuditRow } from "./model";
+import { OperatorTag } from "./OperatorTag";
 
 function ActorBadge({ row }: { row: AuditRow }) {
 	const { actorType, actorEmail } = row.event;
@@ -35,7 +36,12 @@ function parseExtraColumns(value: unknown): string[] {
 	return EXTRA_COLUMNS.filter((c) => keys.includes(c.key)).map((c) => c.key);
 }
 
-function auditColumns(nowMs: number, extra: string[], onExtra: (next: string[]) => void): DataColumn<AuditRow>[] {
+function auditColumns(
+	nowMs: number,
+	extra: string[],
+	onExtra: (next: string[]) => void,
+	showOrg: boolean,
+): DataColumn<AuditRow>[] {
 	return [
 		{
 			id: "time",
@@ -55,7 +61,10 @@ function auditColumns(nowMs: number, extra: string[], onExtra: (next: string[]) 
 				<span className="flex min-w-0 items-center gap-[9px]">
 					<ActorBadge row={row} />
 					<span className="flex min-w-0 flex-col leading-[1.3]">
-						<CellText text={row.actor.name} />
+						<span className="flex min-w-0 items-center gap-1.5">
+							<CellText text={row.actor.name} />
+							{row.event.actedAsOperator && <OperatorTag />}
+						</span>
 						{row.actor.detail !== "" && <CellText text={row.actor.detail} className="text-[11.5px] text-fg3" />}
 					</span>
 				</span>
@@ -75,6 +84,23 @@ function auditColumns(nowMs: number, extra: string[], onExtra: (next: string[]) 
 				</span>
 			),
 		},
+		...(showOrg
+			? [
+					{
+						id: "org",
+						header: "Organization",
+						size: 180,
+						minSize: 90,
+						maxSize: 640,
+						cell: ({ row: { original: row } }) => (
+							<CellText
+								text={row.org}
+								className={row.event.orgId === "" ? "text-fg3" : "font-mono text-[12px] text-fg2"}
+							/>
+						),
+					} satisfies DataColumn<AuditRow>,
+				]
+			: []),
 		{
 			id: "where",
 			header: "Where",
@@ -143,6 +169,7 @@ export function AuditTable({
 	loading,
 	selectedId,
 	nowMs,
+	showOrg = false,
 	onSelect,
 }: {
 	rows: readonly AuditRow[];
@@ -150,14 +177,20 @@ export function AuditTable({
 	loading: boolean;
 	selectedId: string | null;
 	nowMs: number;
+	showOrg?: boolean;
 	onSelect: (id: string) => void;
 }) {
 	const timePref = useTimePreferences();
 	const [extra, setExtra] = useLayout("tables.auditX", parseExtraColumns);
 	const table = useDataTable("audit", {
-		columns: auditColumns(nowMs, extra, (next) => {
-			setExtra(next.length === 0 ? null : next);
-		}),
+		columns: auditColumns(
+			nowMs,
+			extra,
+			(next) => {
+				setExtra(next.length === 0 ? null : next);
+			},
+			showOrg,
+		),
 		data: rows,
 		getRowId: (row) => row.event.id,
 	});

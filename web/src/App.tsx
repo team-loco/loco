@@ -248,6 +248,15 @@ function AppRoutes() {
 
 					<Route path="/system">
 						<Route
+							path="audit"
+							element={
+								<>
+									<PageTitle title="System audit log" />
+									<Audit system />
+								</>
+							}
+						/>
+						<Route
 							index
 							element={
 								<>

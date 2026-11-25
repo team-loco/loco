@@ -2,10 +2,11 @@ import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { BoxIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
+import { BoxIcon, BuildingIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon, ServerIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
 	parseAsArrayOf,
+	parseAsBoolean,
 	parseAsInteger,
 	parseAsNumberLiteral,
 	parseAsString,
@@ -19,6 +20,7 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { PickFilter } from "@/components/design/FilterPopover";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
+import { ToggleChip } from "@/components/design/ToggleChip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
@@ -61,15 +63,18 @@ const AUDIT_PARAMS = {
 	res: parseAsString.withDefault(""),
 	env: parseAsString.withDefault(""),
 	event: parseAsString,
+	org: parseAsString.withDefault(""),
+	installation: parseAsBoolean.withDefault(false),
 };
 
-export function Audit() {
-	const { orgId = "" } = useParams<{ orgId: string }>();
+/** An organization's audit log; with `system`, the installation's: every organization's events and the installation's own. */
+export function Audit({ system = false }: { system?: boolean }) {
+	const { orgId: routeOrgId = "" } = useParams<{ orgId: string }>();
 	const [params, setParams] = useQueryStates(AUDIT_PARAMS, {
 		history: "replace",
 	});
 	const transport = useTransport();
-	const access = useAuditAccess(orgId);
+	const access = useAuditAccess(system ? null : routeOrgId);
 	const { orgs, activeWorkspaceId } = useOrgWorkspace();
 	const [openedAt, setOpenedAt] = useState(Date.now);
 	const now = useNow(NOW_TICK_MS).getTime();
@@ -80,7 +85,7 @@ export function Audit() {
 	const { from, to } = params;
 	const custom = from !== null && to !== null && to > from;
 	const sent = auditQuery(types, actor, search);
-	const orgChoices = useWorkspaceFilterChoices(orgId, wsParam, access.org);
+	const orgChoices = useWorkspaceFilterChoices(routeOrgId, wsParam, access.org);
 	const choices = access.org ? orgChoices.workspaces : access.workspaces;
 	const choicesLoading = access.isLoading || orgChoices.selectedLoading;
 	// ListEvents reads one workspace per call, so a workspace admin always reads exactly one.
@@ -92,16 +97,16 @@ export function Audit() {
 	const selectedDetails = useWorkspaceDetails(workspaceId === "" ? [] : [workspaceId]);
 	const location = useLocation();
 	const [, setSearchParams] = useSearchParams();
+	const filtersReady = !choicesLoading;
+	const resourcesReady = selectedDetails.resourcesReady.has(workspaceId);
+	const environmentsReady = selectedDetails.environmentsReady.has(workspaceId);
 	const checked = auditLink(
 		location.search,
-		choicesLoading ? undefined : choices.map((w) => w.id),
-		selectedDetails.resourcesReady.has(workspaceId)
-			? (selectedDetails.resourcesOf.get(workspaceId) ?? []).map((r) => r.id)
-			: undefined,
-		selectedDetails.environmentsReady.has(workspaceId)
-			? (selectedDetails.environmentsOf.get(workspaceId) ?? []).map((e) => e.id)
-			: undefined,
+		filtersReady ? choices.map((w) => w.id) : undefined,
+		resourcesReady ? (selectedDetails.resourcesOf.get(workspaceId) ?? []).map((r) => r.id) : undefined,
+		environmentsReady ? (selectedDetails.environmentsOf.get(workspaceId) ?? []).map((e) => e.id) : undefined,
 		workspaceId,
+		system,
 	);
 	const cleanSearch = checked.search;
 	const droppedJSON = JSON.stringify(checked.dropped);
@@ -125,6 +130,9 @@ export function Audit() {
 	const cleaned = new URLSearchParams(cleanSearch);
 	const resourceId = workspaceId === "" ? "" : (cleaned.get("res") ?? "");
 	const environmentId = workspaceId === "" ? "" : (cleaned.get("env") ?? "");
+	// The System log reads the organization the link names, or only installation events; an organization's log reads its own.
+	const orgId = system ? (cleaned.get("org") ?? "") : routeOrgId;
+	const installationOnly = system && cleaned.get("installation") === "true";
 
 	const filterKey = JSON.stringify([
 		orgId,
@@ -137,6 +145,7 @@ export function Audit() {
 		environmentId,
 		size,
 		sent,
+		installationOnly,
 	]);
 	const stack = params.before;
 	const live = params.live === 1 && stack.length === 0 && !custom;
@@ -149,11 +158,13 @@ export function Audit() {
 		resourceId,
 		environmentId,
 		query: sent,
+		installationOnly,
 		pageSize: size,
 		startTime: msToTimestamp(custom ? from : openedAt - range.ms),
 		...(custom ? { endTime: msToTimestamp(to) } : {}),
 	};
-	const enabled = orgId !== "" && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading);
+	const enabled =
+		(system || orgId !== "") && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading);
 	const { query, nextPageToken, total } = useTokenPage(listEvents, input, stack, {
 		enabled,
 		refetchInterval: live ? 5000 : false,
@@ -217,6 +228,10 @@ export function Audit() {
 		...TYPE_ACTORS.map((t) => [t, { id: t, name: ACTOR_KINDS[t] ?? t, detail: "", group: "Loco" }] as const),
 	]);
 	if (actor !== "" && !actors.has(actor)) actors.set(actor, { id: actor, name: actor, detail: "", group: "People" });
+	const orgNames = new Map<string, string>();
+	if (orgId !== "") orgNames.set(orgId, names.get(orgId) ?? orgId.slice(-8));
+	for (const r of rows) if (r.event.orgId !== "") orgNames.set(r.event.orgId, r.org);
+	const orgItems = [...orgNames].map(([id, name]) => ({ id, name }));
 	const selIdx = rows.findIndex((r) => r.event.id === params.event);
 	const selected = rows[selIdx];
 	const heldEventId = useHeldWhileClosed(selected?.event.id, selected !== undefined);
@@ -224,13 +239,10 @@ export function Audit() {
 		void setParams({ event: rows[index]?.event.id ?? null });
 	};
 
-	const anyFilter =
-		search !== "" ||
-		actor !== "" ||
-		types.length > 0 ||
-		(access.org && workspaceId !== "") ||
-		resourceId !== "" ||
-		environmentId !== "";
+	const searchFiltered = search !== "" || actor !== "" || types.length > 0;
+	const orgScoped = (access.org && workspaceId !== "") || (system && orgId !== "") || installationOnly;
+	const resourceScoped = resourceId !== "" || environmentId !== "";
+	const anyFilter = searchFiltered || orgScoped || resourceScoped;
 	// Older leaves live mode and the open event; Newer and Newest keep the event open.
 	const pager = tokenPager(stack, nextPageToken, (before) => {
 		void setParams((before?.length ?? 0) > stack.length ? { before, live: null, event: null } : { before });
@@ -241,6 +253,7 @@ export function Audit() {
 	const rejected = query.error === null ? null : auditSearchError(query.error, types, actor, search);
 	const filterRejected = auditFilterViolations(query.error).length > 0;
 	const loadError = rejected === null && !filterRejected ? query.error : null;
+	const showRows = !filterRejected && rejected === null && loadError === null;
 	const timeWindow: TimeWindow = custom ? { kind: "absolute", from, to } : { kind: "relative", spanMs: range.ms };
 	const setWindow = (next: TimeWindow) => {
 		const preset = next.kind === "relative" ? RANGES.find((r) => r.ms === next.spanMs) : undefined;
@@ -302,153 +315,179 @@ export function Audit() {
 				/>
 				{rejected !== null && <QueryErrorLine error={rejected.error} highlightTo={rejected.end} />}
 			</div>
-			{loadError === null && (
-				<Section
-					filters={
-						<>
-							<EventFilter
-								types={types}
-								onChange={(next) => {
-									setFilters({ types: next, event: null });
-								}}
-							/>
-							{(access.org || choices.length > 1) && (
+			<Section
+				filters={
+					<>
+						<EventFilter
+							types={types}
+							onChange={(next) => {
+								setFilters({ types: next, event: null });
+							}}
+						/>
+						{system && (
+							<>
 								<PickFilter
-									icon={<LayersIcon />}
-									label="Workspace"
-									items={choices}
-									placeholder="Find a workspace"
-									value={workspaceId}
-									clearable={access.org}
-									{...(access.org ? { onSearch: orgChoices.onSearch } : {})}
+									icon={<BuildingIcon />}
+									label="Organization"
+									items={orgItems}
+									placeholder="Find an organization"
+									value={orgId}
 									onChange={(id) => {
-										setFilters({ ws: id, res: null, env: null, event: null });
+										setFilters({ org: id, installation: null, event: null });
 									}}
 								/>
-							)}
-							{workspaceId !== "" && (
-								<>
-									<PickFilter
-										icon={<BoxIcon />}
-										label="Resource"
-										items={(selectedDetails.resourcesOf.get(workspaceId) ?? []).map((r) => ({
-											id: r.id,
-											name: r.name,
-										}))}
-										value={resourceId}
-										placeholder="Find a resource"
-										onChange={(id) => {
-											setFilters({ res: id, event: null });
-										}}
-									/>
-									<PickFilter
-										icon={<GitBranchIcon />}
-										label="Environment"
-										items={(selectedDetails.environmentsOf.get(workspaceId) ?? []).map((e) => ({
-											id: e.id,
-											name: e.name,
-										}))}
-										value={environmentId}
-										onChange={(id) => {
-											setFilters({ env: id, event: null });
-										}}
-									/>
-								</>
-							)}
-							<ActorFilter
-								items={[...actors.values()]}
-								value={actor}
+								<ToggleChip
+									variant="button"
+									pressed={installationOnly}
+									onPressedChange={(on) => {
+										setFilters({ installation: on ? true : null, org: null, event: null });
+									}}
+								>
+									<ServerIcon />
+									Installation only
+								</ToggleChip>
+							</>
+						)}
+						{(access.org || choices.length > 1) && (
+							<PickFilter
+								icon={<LayersIcon />}
+								label="Workspace"
+								items={choices}
+								placeholder="Find a workspace"
+								value={workspaceId}
+								clearable={access.org}
+								{...(access.org ? { onSearch: orgChoices.onSearch } : {})}
 								onChange={(id) => {
-									setFilters({ actor: id, event: null });
+									setFilters({ ws: id, res: null, env: null, event: null });
 								}}
 							/>
-						</>
-					}
-				>
-					{dropped.length > 0 && (
-						<DroppedFilters
-							filters={dropped}
-							onDismiss={() => {
-								setNotice({ key: notice.key, filters: [] });
+						)}
+						{workspaceId !== "" && (
+							<>
+								<PickFilter
+									icon={<BoxIcon />}
+									label="Resource"
+									items={(selectedDetails.resourcesOf.get(workspaceId) ?? []).map((r) => ({
+										id: r.id,
+										name: r.name,
+									}))}
+									value={resourceId}
+									placeholder="Find a resource"
+									onChange={(id) => {
+										setFilters({ res: id, event: null });
+									}}
+								/>
+								<PickFilter
+									icon={<GitBranchIcon />}
+									label="Environment"
+									items={(selectedDetails.environmentsOf.get(workspaceId) ?? []).map((e) => ({
+										id: e.id,
+										name: e.name,
+									}))}
+									value={environmentId}
+									onChange={(id) => {
+										setFilters({ env: id, event: null });
+									}}
+								/>
+							</>
+						)}
+						<ActorFilter
+							items={[...actors.values()]}
+							value={actor}
+							onChange={(id) => {
+								setFilters({ actor: id, event: null });
 							}}
 						/>
-					)}
-					{filterRejected && query.error !== null && <AuditFilterError error={query.error} onFix={fixFilter} />}
-					{!filterRejected && rejected === null && (
-						<AuditTable
-							rows={rows}
-							highlightAfter={live && baseline?.key === filterKey ? baseline.seq : undefined}
-							loading={loading}
-							selectedId={selected?.event.id ?? null}
-							nowMs={now}
-							onSelect={(id) => {
-								void setParams({ event: id });
-							}}
-						/>
-					)}
+					</>
+				}
+			>
+				{dropped.length > 0 && (
+					<DroppedFilters
+						filters={dropped}
+						onDismiss={() => {
+							setNotice({ key: notice.key, filters: [] });
+						}}
+					/>
+				)}
+				{filterRejected && query.error !== null && <AuditFilterError error={query.error} onFix={fixFilter} />}
+				{showRows && (
+					<AuditTable
+						rows={rows}
+						highlightAfter={live && baseline?.key === filterKey ? baseline.seq : undefined}
+						loading={loading}
+						selectedId={selected?.event.id ?? null}
+						nowMs={now}
+						showOrg={system}
+						onSelect={(id) => {
+							void setParams({ event: id });
+						}}
+					/>
+				)}
 
-					{!loading && !filterRejected && rejected === null && rows.length === 0 && (
-						<div className="py-7 text-center text-[13px] text-fg3">
-							{anyFilter
-								? "No events match these filters."
-								: custom
-									? "Nothing happened in this range."
-									: `Nothing happened in the ${range.label.toLowerCase()}.`}
-							{anyFilter && (
-								<>
-									{" "}
-									<Button
-										variant="plain-link"
-										className="text-[13px]"
-										onClick={() => {
-											setFilters({
-												types: null,
-												ws: access.org ? null : wsParam,
-												res: null,
-												env: null,
-												actor: null,
-												q: null,
-												event: null,
-											});
-										}}
-									>
-										Clear filters
-									</Button>
-								</>
-							)}
-						</div>
-					)}
-					{!filterRejected && rejected === null && (
-						<Pager
-							label={
-								first === undefined || last === undefined
-									? ""
-									: `${tokenPageLabel(stack.length, size, rows.length, total)} events, ${agoLabel(first.ms, now).replace(/ ago$/, "")} to ${agoLabel(last.ms, now)}`
-							}
-							page={pager.page}
-							total={rows.length}
-							pageSizes={PAGE_SIZES}
-							pageSize={size}
-							onPageSize={(n) => {
-								setFilters({
-									size: PAGE_SIZES.find((s) => s === n) ?? null,
-									event: null,
-								});
-							}}
-							firstLabel="Newest events"
-							prevLabel="Newer events"
-							nextLabel="Older events"
-							text={{ first: "Newest", prev: "Newer", next: "Older" }}
-							loading={loading}
-							onFirst={pager.onFirst}
-							onPrev={pager.onPrev}
-							onNext={pager.onNext}
-						/>
-					)}
-				</Section>
-			)}
+				{!loading && showRows && rows.length === 0 && (
+					<div className="py-7 text-center text-[13px] text-fg3">
+						{anyFilter
+							? "No events match these filters."
+							: custom
+								? "Nothing happened in this range."
+								: `Nothing happened in the ${range.label.toLowerCase()}.`}
+						{anyFilter && (
+							<>
+								{" "}
+								<Button
+									variant="plain-link"
+									className="text-[13px]"
+									onClick={() => {
+										setFilters({
+											types: null,
+											org: null,
+											installation: null,
+											ws: access.org ? null : wsParam,
+											res: null,
+											env: null,
+											actor: null,
+											q: null,
+											event: null,
+										});
+									}}
+								>
+									Clear filters
+								</Button>
+							</>
+						)}
+					</div>
+				)}
+				{showRows && (
+					<Pager
+						label={
+							first === undefined || last === undefined
+								? ""
+								: `${tokenPageLabel(stack.length, size, rows.length, total)} events, ${agoLabel(first.ms, now).replace(/ ago$/, "")} to ${agoLabel(last.ms, now)}`
+						}
+						page={pager.page}
+						total={rows.length}
+						pageSizes={PAGE_SIZES}
+						pageSize={size}
+						onPageSize={(n) => {
+							setFilters({
+								size: PAGE_SIZES.find((s) => s === n) ?? null,
+								event: null,
+							});
+						}}
+						firstLabel="Newest events"
+						prevLabel="Newer events"
+						nextLabel="Older events"
+						text={{ first: "Newest", prev: "Newer", next: "Older" }}
+						loading={loading}
+						onFirst={pager.onFirst}
+						onPrev={pager.onPrev}
+						onNext={pager.onNext}
+					/>
+				)}
+			</Section>
 			<AuditDrawer
 				open={selected !== undefined}
+				showOrg={system}
 				row={rows.find((r) => r.event.id === heldEventId)}
 				onNewer={selIdx > 0 ? select(selIdx - 1) : null}
 				onOlder={selIdx >= 0 && selIdx < rows.length - 1 ? select(selIdx + 1) : null}

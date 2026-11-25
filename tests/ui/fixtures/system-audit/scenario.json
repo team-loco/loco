@@ -1,0 +1,19 @@
+{
+  "users": {
+    "admin": {"email": "admin@loco.test", "name": "Ada Admin", "system": "admin"},
+    "reader": {"email": "reader@loco.test", "name": "Rae Reader", "system": "read"},
+    "member": {"email": "member@acme.test", "name": "Max Member"}
+  },
+  "orgs": [
+    {"name": "acme", "owner": "member", "workspaces": ["shared"]},
+    {"name": "labs", "owner": "admin", "workspaces": ["bench"]}
+  ],
+  "events": [
+    {"type": "user.suspended", "actor": "admin", "at": "{now-50m}"},
+    {"type": "org.updated", "org": "labs", "actor": "admin", "at": "{now-40m}"},
+    {"type": "org.suspended", "org": "acme", "actor": "admin", "operator": true, "at": "{now-30m}"},
+    {"type": "org.resumed", "org": "acme", "actor": "admin", "operator": true, "at": "{now-20m}"},
+    {"type": "org.updated", "org": "acme", "actor": "member", "at": "{now-10m}"},
+    {"type": "cluster.paused", "actor": "admin", "at": "{now-5m}"}
+  ]
+}
