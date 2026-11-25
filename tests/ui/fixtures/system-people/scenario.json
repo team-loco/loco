@@ -1,0 +1,22 @@
+{
+  "users": {
+    "admin": {"email": "admin@loco.test", "name": "Ada Admin", "system": "admin"},
+    "second": {"email": "second@loco.test", "name": "Sol Second", "system": "admin"},
+    "reader": {"email": "reader@loco.test", "name": "Rae Reader", "system": "read"},
+    "member": {"email": "member@acme.test", "name": "Max Member"},
+    "guest": {"email": "guest@acme.test", "name": "Gus Guest"}
+  },
+  "orgs": [
+    {"name": "acme", "owner": "member", "workspaces": ["shared"]},
+    {"name": "ops", "owner": "admin", "workspaces": ["main"]}
+  ],
+  "system_roles": [
+    {"user": "admin", "configured": "admin"},
+    {"user": "second", "granted": "admin"},
+    {"user": "reader", "configured": "read", "granted": "read"}
+  ],
+  "unclaimed": [
+    {"email": "ops@loco.test", "role": "admin"},
+    {"email": "audit@loco.test", "role": "read"}
+  ]
+}

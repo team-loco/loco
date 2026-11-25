@@ -6,6 +6,7 @@ import {
 	KeyRoundIcon,
 	LayoutGridIcon,
 	ServerIcon,
+	ShieldCheckIcon,
 	LockKeyholeIcon,
 	ScrollTextIcon,
 	Settings2Icon,
@@ -22,7 +23,7 @@ import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { WINDOW_PARSERS } from "@/lib/obs-time";
 import { useInSystem } from "@/hooks/useInSystem";
-import { atPath, CLUSTERS_PATH, SYSTEM_PATH } from "@/lib/system";
+import { atPath, CLUSTERS_PATH, OPERATORS_PATH, SYSTEM_PATH, USERS_PATH } from "@/lib/system";
 import { carriedQuery, QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 import {
 	auditPath,
@@ -81,6 +82,25 @@ function systemSections(pathname: string): NavSection[] {
 					keywords: "system workers regions agents",
 					to: CLUSTERS_PATH,
 					active: atPath(pathname, CLUSTERS_PATH),
+				},
+			],
+		},
+		{
+			label: "People",
+			pages: [
+				{
+					name: "Users",
+					icon: <UsersIcon />,
+					keywords: "system accounts suspend sign-in",
+					to: USERS_PATH,
+					active: atPath(pathname, USERS_PATH),
+				},
+				{
+					name: "Operators",
+					icon: <ShieldCheckIcon />,
+					keywords: "system roles admins readers grant revoke",
+					to: OPERATORS_PATH,
+					active: atPath(pathname, OPERATORS_PATH),
 				},
 			],
 		},

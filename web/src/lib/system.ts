@@ -1,3 +1,4 @@
+import { SystemRole, type SystemRoleHolder } from "@gen/loco/admin/v1/admin_pb";
 import type { Cluster } from "@gen/loco/cluster/v1/cluster_pb";
 import { ClusterRole } from "@gen/loco/cluster/v1/cluster_pb";
 import { EntityType, Scope, type EntityScope } from "@gen/loco/token/v1/token_pb";
@@ -6,6 +7,9 @@ import { matchPath } from "react-router";
 export const SYSTEM_PATH = "/system";
 export const CLUSTERS_PATH = "/system/clusters";
 export const NEW_CLUSTER_PATH = "/system/clusters/new";
+
+export const OPERATORS_PATH = "/system/operators";
+export const USERS_PATH = "/system/users";
 
 export function clusterPath(clusterId: string): string {
 	return `${CLUSTERS_PATH}/${clusterId}`;
@@ -166,3 +170,43 @@ export function registrationTarget(
 
 /** The page the user left to open System, in local storage, for the switch back. */
 export const SYSTEM_RETURN_KEY = "loco:system-return:v1";
+
+export const SYSTEM_ROLE_LABEL: Record<SystemRole, string> = {
+	[SystemRole.UNSPECIFIED]: "None",
+	[SystemRole.READ]: "Read",
+	[SystemRole.ADMIN]: "Admin",
+};
+
+/** The role a holder has: the higher of the configured and the granted role. */
+export function effectiveRole(holder: Pick<SystemRoleHolder, "configuredRole" | "grantedRole">): SystemRole {
+	return holder.configuredRole > holder.grantedRole ? holder.configuredRole : holder.grantedRole;
+}
+
+export function roleSource(holder: Pick<SystemRoleHolder, "configuredRole" | "grantedRole">): string {
+	const configured = holder.configuredRole !== SystemRole.UNSPECIFIED;
+	const granted = holder.grantedRole !== SystemRole.UNSPECIFIED;
+	if (configured && granted) return "Configuration and grant";
+	return configured ? "Configuration" : "Grant";
+}
+
+export type RoleChange = "read" | "admin" | "revoke";
+
+const CONFIGURED_ADMIN = "This user is a configured admin. Change the API configuration to lower the role.";
+const CONFIGURED_ONLY = "This role comes from the API configuration. Remove the email there to take it away.";
+const LAST_ADMIN = "This is the last system admin. Make another user an admin first.";
+
+/** Why the API refuses a change to a holder's role, or undefined when it accepts it. */
+export function roleChangeBlock(
+	holder: SystemRoleHolder,
+	change: RoleChange,
+	holders: readonly SystemRoleHolder[],
+): string | undefined {
+	if (change === "admin") return undefined;
+	if (change === "revoke" && holder.grantedRole === SystemRole.UNSPECIFIED) return CONFIGURED_ONLY;
+	if (change === "read" && holder.configuredRole === SystemRole.ADMIN) return CONFIGURED_ADMIN;
+	const admins = holders.filter((h) => effectiveRole(h) === SystemRole.ADMIN).length;
+	const keepsConfiguredAdmin = change === "revoke" && holder.configuredRole === SystemRole.ADMIN;
+	const removesLastAdmin = effectiveRole(holder) === SystemRole.ADMIN && admins === 1 && !keepsConfiguredAdmin;
+	if (removesLastAdmin) return LAST_ADMIN;
+	return undefined;
+}
