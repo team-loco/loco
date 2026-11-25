@@ -5,7 +5,8 @@
     "member": {"email": "member@acme.test", "name": "Max Member"}
   },
   "orgs": [
-    {"name": "acme", "owner": "member", "workspaces": ["shared"]}
+    {"name": "acme", "owner": "member", "workspaces": ["shared"]},
+    {"name": "ops", "owner": "admin", "workspaces": ["main"]}
   ],
   "clusters": [
     {"name": "us-ca-1", "region": "us-ca-1", "role": "apps", "enrolled": true, "agent_version": "v0.0.217", "heartbeat_ago": 12, "domains": ["apps.example.test"]},

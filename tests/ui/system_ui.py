@@ -1,5 +1,6 @@
 import argparse
 import re
+from functools import partial
 
 from harness import call, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
@@ -21,6 +22,10 @@ new MutationObserver(() => {
   if (document.querySelector('[data-slot="top-bar"]') !== null) window.__shell = true;
 }).observe(document, { childList: true, subtree: true });
 """
+
+
+def serve(body, route):
+    route.fulfill(json=body)
 
 
 def open_menu(page):
@@ -110,7 +115,10 @@ with session(repo / "tests/ui/out/system") as browser:
         "builds"
     )
     expect(page).to_have_url(re.compile(r"[?&]q=builds"))
-    expect(table.get_by_role("row")).to_have_count(2)
+    expect(
+        table.get_by_role("row", name="Open us-ca-1-builds", exact=True)
+    ).to_be_visible()
+    expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_have_count(0)
     page.get_by_role("textbox", name="Filter clusters by name", exact=True).fill("")
     page.get_by_role("button", name="Removed", exact=True).click()
     expect(page).to_have_url(re.compile(r"[?&]removed=true"))
@@ -131,7 +139,9 @@ with session(repo / "tests/ui/out/system") as browser:
         "Healthy"
     )
     row_menu(page, "us-ca-1", "Pause")
-    with expect_rpc(page, "ClusterAdminService/PauseCluster", lambda body: True):
+    with expect_rpc(
+        page, "loco.cluster.v1.ClusterAdminService/PauseCluster", lambda body: True
+    ):
         dialog.get_by_role("button", name="Pause cluster", exact=True).click()
     expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_contain_text(
         "Paused"
@@ -141,7 +151,9 @@ with session(repo / "tests/ui/out/system") as browser:
         ["Resume", "Issue join token", "Remove"]
     )
     page.get_by_role("menuitem", name="Resume", exact=True).click()
-    with expect_rpc(page, "ClusterAdminService/ResumeCluster", lambda body: True):
+    with expect_rpc(
+        page, "loco.cluster.v1.ClusterAdminService/ResumeCluster", lambda body: True
+    ):
         dialog.get_by_role("button", name="Resume cluster", exact=True).click()
     expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_contain_text(
         "Healthy"
@@ -165,7 +177,7 @@ with session(repo / "tests/ui/out/system") as browser:
     row(page, "us-ca-1-builds").click()
     expect(page).to_have_url(re.compile(r"/system/clusters/[\w-]+$"))
     expect(
-        page.get_by_role("heading", name="us-ca-1-builds", exact=True)
+        page.get_by_role("heading", name=re.compile("^us-ca-1-builds "))
     ).to_be_visible()
     for label, value in (
         ("Region", "us-ca-1"),
@@ -181,7 +193,7 @@ with session(repo / "tests/ui/out/system") as browser:
         page.locator("dt", has_text="Key fingerprint").locator(
             "xpath=following-sibling::dd"
         )
-    ).to_contain_text("abababab")
+    ).to_contain_text(re.compile("[0-9a-f]{16}…"))
     expect(page.get_by_role("button", name="Pause", exact=True)).to_be_visible()
     expect(
         page.get_by_role("button", name="Issue join token", exact=True)
@@ -195,14 +207,14 @@ with session(repo / "tests/ui/out/system") as browser:
     page.goto(ui + "/system/clusters")
     page.get_by_role("link", name="Add cluster", exact=True).click()
     expect(page).to_have_url(ui + "/system/clusters/new")
-    page.get_by_role("radio", name="New region", exact=True).click()
+    page.get_by_role("button", name="New region", exact=True).click()
     create = page.get_by_role("button", name="Create cluster", exact=True)
     expect(create).to_be_disabled()
     page.get_by_role("textbox", name="Country", exact=True).fill("nz")
     page.get_by_role("textbox", name="State or province", exact=True).fill("akl")
     with expect_rpc(
         page,
-        "ClusterAdminService/CreateCluster",
+        "loco.cluster.v1.ClusterAdminService/CreateCluster",
         lambda body: body.get("newRegion") == {"country": "nz", "subdivision": "akl"},
     ) as created:
         create.click()
@@ -231,7 +243,7 @@ with session(repo / "tests/ui/out/system") as browser:
     }
     context, page, errors = open_page(browser, user="reader", state=state)
     for method, body in listed.items():
-        context.route(f"**/{method}", lambda route, body=body: route.fulfill(json=body))
+        context.route(f"**/{method}", partial(serve, body))
     page.goto(ui + "/dashboard")
     open_menu(page)
     page.get_by_role("menuitemcheckbox", name="System", exact=True).click()
@@ -244,7 +256,7 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(page.get_by_role("button", name=re.compile("^Actions for"))).to_have_count(0)
     expect(page.get_by_role("link", name="Add cluster", exact=True)).to_have_count(0)
     page.get_by_role("row", name="Open us-ca-1", exact=True).click()
-    expect(page.get_by_role("heading", name="us-ca-1", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name=re.compile("^us-ca-1 "))).to_be_visible()
     for name in ("Pause", "Resume", "Remove", "Restore", "Issue join token"):
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(0)
     page.goto(ui + "/system/clusters/new")
