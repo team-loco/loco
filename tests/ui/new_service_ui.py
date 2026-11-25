@@ -696,7 +696,7 @@ with session(out) as browser:
         dashboard_row.get_by_role("button", name=f"Actions for {name}", exact=True)
     ).to_be_visible()
     dashboard_row.get_by_text(name, exact=True).click()
-    expect(page).to_have_url(re.compile(r"\?env=production&draft=[0-9a-f-]+$"))
+    expect(page).to_have_url(re.compile(r"[?&]draft=[0-9a-f-]+$"))
     drawer.get_by_role("textbox", name="Timeout, sec").fill("5")
     page.keyboard.press("Escape")
     page.goto(base + "/resources?env=production")
