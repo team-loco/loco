@@ -231,7 +231,7 @@ with session(repo / "tests/ui/out/system") as browser:
     assert f"--from-literal=join-token={token}" in command, command
     assert "--set global.region=nz-akl-1" in command, command
     page.get_by_role("link", name="Back to clusters", exact=True).click()
-    expect(page.get_by_text("nz-akl-1", exact=True)).to_be_visible()
+    expect(page.get_by_role("row", name="Open nz-akl-1", exact=True)).to_be_visible()
     assert not [e for e in errors if e], errors
     context.close()
 
