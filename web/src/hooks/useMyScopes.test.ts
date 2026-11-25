@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { EntityScopeSchema, EntityType, Scope } from "@gen/loco/token/v1/token_pb";
-import { hasOrganizationMembership } from "./useMyScopes";
+import { hasOrganizationMembership, levelOn, scopeLevel } from "./useMyScopes";
 
 const ORG = "organization";
 
@@ -38,5 +38,16 @@ describe("organization membership", () => {
 			),
 		).toBe(false);
 		expect(hasOrganizationMembership([], ORG)).toBe(false);
+	});
+});
+
+describe("system scopes", () => {
+	test("a system read scope reads every entity and unlocks no write or admin control", () => {
+		const scopes = [create(EntityScopeSchema, { entityType: EntityType.SYSTEM, scope: Scope.READ })];
+		for (const entityType of [EntityType.ORGANIZATION, EntityType.WORKSPACE, EntityType.RESOURCE]) {
+			const level = levelOn(scopes, entityType, "any");
+			expect(level).toBe(scopeLevel(Scope.READ));
+			expect(level).toBeLessThan(scopeLevel(Scope.WRITE));
+		}
 	});
 });

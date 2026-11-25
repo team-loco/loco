@@ -45,6 +45,10 @@ staticPasswords:
     username: human-operations
     userID: 61e7ff3d-5c6d-406f-ba4f-78da028f029a
     hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: system-reader@test.local
+    username: system-reader
+    userID: 490a7940-a271-4e88-a808-d3c4db261d03
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
 staticClients:
   - id: loco-e2e
     name: Loco component test fixtures

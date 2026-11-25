@@ -53,7 +53,8 @@ func parseRoleEmails(entries []string) ([]string, error) {
 	emails := []string{}
 	for _, entry := range entries {
 		address, err := mail.ParseAddress(entry)
-		if err != nil || address.Name != "" || address.Address != entry {
+		bare := err == nil && address.Name == "" && address.Address == entry
+		if !bare {
 			return nil, fmt.Errorf("%q: %w", entry, errInvalidRoleEmail)
 		}
 		email := strings.ToLower(entry)
@@ -239,7 +240,8 @@ func (r *Resolver) claimSystemRole(
 	id Identity,
 ) (bool, error) {
 	role, listed := r.systemRoles.roleOf(id.Email)
-	if !id.EmailVerified || !listed || user.Status != genDb.UserStatusActive {
+	claimable := id.EmailVerified && listed && user.Status == genDb.UserStatusActive
+	if !claimable {
 		return false, nil
 	}
 	var err error

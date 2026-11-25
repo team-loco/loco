@@ -1,6 +1,7 @@
 package service
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	adminv1 "github.com/team-loco/loco/gen/go/loco/admin/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
@@ -261,6 +263,7 @@ func TestSystemReaderReadsEveryOrganizationAndChangesNothing(t *testing.T) {
 	o.api.resolver = auth.NewResolver(o.api.pool, auth.SignupPolicy{}, limits.Defaults(), time.Hour,
 		auth.WithSystemRoles(readerRoles))
 	o.api.signIn(t, "reader")
+	resourceID := o.sharedResource(t, "api").String()
 	ctx := t.Context()
 	clients := reader.clients
 
@@ -271,6 +274,22 @@ func TestSystemReaderReadsEveryOrganizationAndChangesNothing(t *testing.T) {
 		},
 		"get workspace": func() error {
 			_, err := clients.Workspace.GetWorkspace(ctx, &workspacev1.GetWorkspaceRequest{WorkspaceId: o.shared})
+			return err
+		},
+		"list org workspaces": func() error {
+			listed, err := clients.Workspace.ListOrgWorkspaces(
+				ctx,
+				&workspacev1.ListOrgWorkspacesRequest{OrgId: o.orgID},
+			)
+			if err == nil && len(listed.GetWorkspaces()) != 2 {
+				t.Errorf("org workspaces = %v, want shared and sibling", listed.GetWorkspaces())
+			}
+			return err
+		},
+		"get resource": func() error {
+			_, err := clients.Resource.GetResource(ctx, &resourcev1.GetResourceRequest{
+				Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: resourceID},
+			})
 			return err
 		},
 		"list org members": func() error {
@@ -310,6 +329,10 @@ func TestSystemReaderReadsEveryOrganizationAndChangesNothing(t *testing.T) {
 				&workspacev1.DeleteWorkspaceRequest{WorkspaceId: o.shared})
 			return err
 		},
+		"delete resource": func() error {
+			_, err := clients.Resource.DeleteResource(ctx, &resourcev1.DeleteResourceRequest{ResourceId: resourceID})
+			return err
+		},
 		"suspend org": func() error {
 			_, err := clients.Org.SuspendOrg(ctx, &orgv1.SuspendOrgRequest{OrgId: o.orgID, Reason: "abuse"})
 			return err
@@ -326,6 +349,44 @@ func TestSystemReaderReadsEveryOrganizationAndChangesNothing(t *testing.T) {
 	for name, write := range writes {
 		if code := connect.CodeOf(write()); code != connect.CodePermissionDenied {
 			t.Errorf("%s code = %v, want %v", name, code, connect.CodePermissionDenied)
+		}
+	}
+}
+
+func TestConcurrentRoleChangesKeepOneSystemAdmin(t *testing.T) {
+	a, configAdmin := newSystemRoleAPI(t)
+	first, second := a.signUp(t, "first"), a.signUp(t, "second")
+	for _, user := range []membershipUser{first, second} {
+		if err := grant(t, configAdmin, user); err != nil {
+			t.Fatal(err)
+		}
+	}
+	syncRoles(t, a, nil, nil)
+	for round := range 10 {
+		errs := make([]error, 2)
+		var wg sync.WaitGroup
+		wg.Go(func() { errs[0] = revoke(t, first, second) })
+		wg.Go(func() { errs[1] = grantRole(t, second, first, roleRead) })
+		wg.Wait()
+		if (errs[0] == nil) == (errs[1] == nil) {
+			t.Fatalf("round %d: revoke err %v, downgrade err %v; want exactly one to succeed", round, errs[0], errs[1])
+		}
+		var admins int
+		if err := a.pool.QueryRow(
+			t.Context(),
+			"SELECT count(*) FROM user_scopes WHERE entity_type = 'system' AND scope = 'admin'",
+		).Scan(&admins); err != nil {
+			t.Fatal(err)
+		}
+		if admins != 1 {
+			t.Fatalf("round %d: %d system admins, want 1", round, admins)
+		}
+		survivor, demoted := first, second
+		if errs[0] != nil {
+			survivor, demoted = second, first
+		}
+		if err := grant(t, survivor, demoted); err != nil {
+			t.Fatalf("round %d: restore the second admin: %v", round, err)
 		}
 	}
 }

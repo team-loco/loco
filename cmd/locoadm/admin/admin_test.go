@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -111,8 +112,8 @@ func TestGrantSendsTheRoleAndRevokeTheUserID(t *testing.T) {
 		{UserId: userID, Role: adminv1.SystemRole_SYSTEM_ROLE_ADMIN},
 		{UserId: userID, Role: adminv1.SystemRole_SYSTEM_ROLE_READ},
 	}
-	if len(fake.granted) != len(want) || !proto.Equal(fake.granted[0], want[0]) ||
-		!proto.Equal(fake.granted[1], want[1]) {
+	equal := func(a, b *adminv1.GrantSystemRoleRequest) bool { return proto.Equal(a, b) }
+	if !slices.EqualFunc(fake.granted, want, equal) {
 		t.Fatalf("granted %v, want %v", fake.granted, want)
 	}
 	if len(fake.revoked) != 1 || fake.revoked[0] != userID {
