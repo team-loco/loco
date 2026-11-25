@@ -10,7 +10,7 @@ An environment separates an application's configuration, secrets and deployment 
 | --- | --- | --- |
 | Dashboard | `https://loco.build` | `https://staging.loco.build` |
 | API | `https://api.loco.build` | `https://api.staging.loco.build` |
-| Documentation (canonical) | `https://docs.loco.build` | `https://docs.staging.loco.build` |
+| Documentation (canonical) | `https://docs.loco.build` | `https://staging.loco.build/docs/` |
 | Documentation on the dashboard | `https://loco.build/docs/` | `https://staging.loco.build/docs/` |
 
 The staging docs display a banner and tell search engines not to index them. These endpoints describe Loco's own hosted services; self-hosted installations choose their own domains.
@@ -36,4 +36,4 @@ Saving secrets starts no rollout; new values take effect on the next restart or 
 
 ## Promote the dashboard and documentation
 
-The UI image includes its documentation build. Repository merges build production and staging UI images for the same commit. The existing staging workflow deploys that commit automatically. The production workflow promotes the selected commit's production UI image, including the docs, after staging verification. See [documentation maintenance](../contributing/documentation.md).
+The UI image includes the documentation it serves at `/docs/`. Repository merges build production and staging UI images for the same commit. The existing staging workflow deploys that commit automatically. The production workflow promotes the selected commit's production UI image, including the docs, after staging verification. `docs.loco.build` is published separately, on every merge that changes the documentation. See [documentation maintenance](../contributing/documentation.md).

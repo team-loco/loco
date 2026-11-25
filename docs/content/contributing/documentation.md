@@ -21,7 +21,7 @@ bun run --cwd docs typecheck
 mise run test:hosting
 ```
 
-Docs CI typechecks and builds production and staging. Shared image-hosting checks live in `tests/hosting/`, alongside the platform tests rather than the documentation. The advisory Docs Drift workflow reports code changes that leave these pages stale; its rubric is `.agents/skills/docs-drift/SKILL.md`.
+Docs CI typechecks and builds the Pages site and the staging dashboard mount. Checks of the UI image and its `/docs/` mount live in `tests/hosting/`, alongside the platform tests rather than the documentation. The advisory Docs Drift workflow reports code changes that leave these pages stale; its rubric is `.agents/skills/docs-drift/SKILL.md`.
 
 Bun dependencies are pinned in `docs/package.json` and the root `bun.lock`. The docs build needs only Bun. Python dependencies for shared platform tests are pinned in `tests/uv.lock`. Run `bun install --frozen-lockfile` from the repository root before building.
 
@@ -33,10 +33,12 @@ The site imports its favicon and wordmark from `web/public/`; Vite bundles them 
 
 ## Hosting
 
-The `web/Dockerfile` image packages the dashboard and documentation together. One Static Web Server process serves the dashboard, docs at `/docs/`, the loco.yaml JSON Schema at `/schemas/loco.v1.json`, and the docs hostname through a virtual host.
+The site is published in two places. GitHub Pages serves `docs.loco.build`, the canonical hostname. The `web/Dockerfile` image serves the same pages under `/docs/` on the dashboard hostname: `loco.build/docs/` in production and `staging.loco.build/docs/` in staging, the canonical address of the staging docs.
 
-Production serves `docs.loco.build` and `loco.build/docs/`. Staging serves `docs.staging.loco.build` and `staging.loco.build/docs/`. The docs hostname is canonical. The build prerenders every article twice, with router basenames `/` and `/docs/`, so navigation and assets work at both entry points without a runtime JavaScript server. Generated output goes in `docs/site/` and `docs/site-mounted/` and stays out of Git.
+`mise run docs:build` builds the Pages site into `docs/site/` with router basename `/`, including `404.html` for missing paths and the `CNAME` file that names the custom domain. The Documentation Pages workflow, `.github/workflows/docs-pages.yml`, runs that build and deploys `docs/site/` on every push to `main` that changes the documentation, and on manual dispatch. Pages serves the files without custom headers, so `docs.loco.build` has no Content-Security-Policy and Pages chooses each file's `Content-Type` from its extension.
 
-Vite serves and copies raw Markdown through `docs/public`, a symlink to `content/`, retaining source paths and frontmatter, including `/skills.md`. Fumadocs generates `llms.txt` and `llms-full.txt` through its `llms()` API; React Router prerenders these resource routes alongside `sitemap.xml` and `robots.txt`. The UI image serves the deployment skill at `/skills.md` and `/docs/skills.md` on the dashboard hostname.
+The image runs `bun build.ts dashboard <environment>`, which builds the mount into `docs/site-mounted/` with router basename `/docs/` and generates the image's Static Web Server configuration with exact hashes for the mount's inline scripts. The policy does not allow arbitrary inline scripts. Generated output in `docs/site/`, `docs/site-mounted/` and `.sws.toml` stays out of Git.
 
-`web/sws.toml` defines static roots and dashboard rewrites. Missing documentation URLs return HTTP 404; unknown dashboard paths open the dashboard. `docs/build.ts` runs the two builds and generates the server configuration with exact hashes for inline scripts in both prerendered builds. The policy does not allow arbitrary inline scripts. Generated `.sws.toml` stays outside the public site and out of Git.
+Vite serves and copies raw Markdown through `docs/public`, a symlink to `content/`, retaining source paths and frontmatter, including `/skills.md`. Fumadocs generates `llms.txt` and `llms-full.txt` through its `llms()` API; React Router prerenders these resource routes alongside `sitemap.xml`, `robots.txt` and the search index at `/api/search`. The UI image serves the deployment skill at `/skills.md` and `/docs/skills.md` on the dashboard hostname, along with the CLI install script at `/install.sh` and the loco.yaml JSON Schema at `/schemas/loco.v1.json`.
+
+`web/sws.toml` defines the image's static root and dashboard rewrites. Missing documentation URLs return HTTP 404; unknown dashboard paths open the dashboard.

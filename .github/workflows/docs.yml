@@ -17,7 +17,7 @@ jobs:
       - uses: ./.github/actions/setup-tools
       - run: bun install --frozen-lockfile
       - run: bun run --cwd docs typecheck
-      - name: Build production and staging documentation
+      - name: Build the docs.loco.build site and the staging dashboard mount
         timeout-minutes: 5
         run: |
           mise run docs:build
