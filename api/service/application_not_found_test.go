@@ -14,12 +14,16 @@ func TestApplicationNotFound(t *testing.T) {
 	if err := client.add("known.example.com"); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := f.pool.Exec(t.Context(), "UPDATE clusters SET is_active = false"); err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		host string
 		want string
 	}{
 		{"missing.example.com", "Application not found"},
 		{"known.example.com", "Application unavailable"},
+		{"KNOWN.EXAMPLE.COM:443", "Application unavailable"},
 		{"<script>", "Application not found"},
 	} {
 		t.Run(tc.host, func(t *testing.T) {
