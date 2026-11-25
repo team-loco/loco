@@ -142,9 +142,7 @@ export function SystemMetricsView() {
 			>
 				<div className="flex items-baseline gap-2">
 					<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{chart.title}</h3>
-					<span className="font-mono text-[12px] text-fg3">
-						{chart.aggregation === "rate" ? "per second" : `${chart.unit.trim()}, peak per bucket`}
-					</span>
+					<span className="font-mono text-[12px] text-fg3">{chart.noun}</span>
 				</div>
 				{loading ? (
 					<Skeleton className="w-full" style={{ height: CHART_HEIGHT }} />

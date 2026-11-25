@@ -76,9 +76,7 @@ export type ValueCounts = (key: FieldKey) => [string, number][];
 
 function placeholder(view: QueryView, installation: boolean): string {
 	if (installation) {
-		return view === "logs"
-			? "Search messages, or type @ to filter by component, cluster, level…"
-			: "Type @component or @cluster to filter";
+		return view === "logs" ? "Search messages, or type @ to filter…" : "Type @component or @cluster to filter";
 	}
 	switch (view) {
 		case "logs":

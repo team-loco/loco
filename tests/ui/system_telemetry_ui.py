@@ -179,6 +179,7 @@ with session(repo / "tests/ui/out/system-telemetry") as browser:
     expect(page.get_by_role("option", name=re.compile("^@resource"))).to_have_count(0)
     search.fill("@component:loco-api")
     search.press("Enter")
+    page.locator("h1").click()
     expect(page).to_have_url(re.compile(r"component"))
     expect(lines).to_contain_text("request served")
     expect(lines).not_to_contain_text("reconciled application")

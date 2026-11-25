@@ -7,8 +7,10 @@ export interface SystemChart {
 	title: string;
 	metric: string;
 	aggregation: "avg" | "max" | "rate";
-	/** The unit the axis shows, with the space that separates it from the number. */
+	/** The unit the axis shows after each number; empty when the card header names it. */
 	unit: string;
+	/** What the values count, for the card header. */
+	noun: string;
 	format: (value: number) => string;
 }
 
@@ -26,19 +28,21 @@ const perSecond = (key: string, title: string, metric: string): SystemChart => (
 	metric,
 	aggregation: "rate",
 	unit: "/s",
+	noun: "per second",
 	format: (value) => trafficValue(value, "/s"),
 });
 
-const peak = (key: string, title: string, metric: string, unit: string): SystemChart => ({
+const peak = (key: string, title: string, metric: string, noun: string): SystemChart => ({
 	key,
 	title,
 	metric,
 	aggregation: "max",
-	unit,
-	format: (value) => trafficValue(value, unit),
+	unit: "",
+	noun: `${noun}, peak per bucket`,
+	format: (value) => trafficValue(value, ""),
 });
 
-const GOROUTINES = peak("goroutines", "Goroutines", "go.goroutine.count", " goroutines");
+const GOROUTINES = peak("goroutines", "Goroutines", "go.goroutine.count", "goroutines");
 
 function controller(key: string, title: string, component: string): SystemGroup {
 	return {
@@ -48,7 +52,7 @@ function controller(key: string, title: string, component: string): SystemGroup 
 		charts: [
 			perSecond("reconciles", "Reconciles", "controller_runtime_reconcile_total"),
 			perSecond("reconcile-errors", "Reconcile errors", "controller_runtime_reconcile_errors_total"),
-			peak("queue", "Work queue depth", "workqueue_depth", " items"),
+			peak("queue", "Work queue depth", "workqueue_depth", "items"),
 			GOROUTINES,
 		],
 	};
@@ -61,7 +65,7 @@ export const SYSTEM_GROUPS: SystemGroup[] = [
 		title: "API",
 		component: "loco-api",
 		charts: [
-			peak("streams", "Open streams", "loco.api.streams.open", " streams"),
+			peak("streams", "Open streams", "loco.api.streams.open", "streams"),
 			perSecond("refused", "Refused streams", "loco.api.streams.refused"),
 			GOROUTINES,
 		],
@@ -73,8 +77,8 @@ export const SYSTEM_GROUPS: SystemGroup[] = [
 		title: "Worker clusters",
 		component: null,
 		charts: [
-			peak("node-cpu", "Node CPU in use", "k8s.node.cpu.usage", " cores"),
-			peak("node-allocatable", "Node CPU allocatable", "k8s.node.allocatable_cpu", " cores"),
+			peak("node-cpu", "Node CPU in use", "k8s.node.cpu.usage", "cores"),
+			peak("node-allocatable", "Node CPU allocatable", "k8s.node.allocatable_cpu", "cores"),
 		],
 	},
 ];
