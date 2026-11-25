@@ -669,34 +669,49 @@ VALUES ('cli', 'linux/amd64', $1, $2, $3, 'failed', 'upload', $4, 10, 'Dockerfil
 
 func TestImageSweepKeepsADigestARebuildRecordsMidSweep(t *testing.T) {
 	t.Parallel()
-	for name, retry := range map[string]bool{"first delete": false, "stale tag retry": true} {
-		for _, asCache := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s/cache=%t", name, asCache), func(t *testing.T) {
-				t.Parallel()
-				f := newImageSweepFixture(t, 1)
-				shared := fakeDigest("aaaa", 0)
-				old := f.succeededWith(t, shared, fakeDigest("cccc", 0))
-				f.succeeded(t)
-				if retry {
-					_, err := f.pool.Exec(f.ctx, `UPDATE builds SET image_deleted_at = NOW() WHERE id = $1`, old.id)
-					if err != nil {
-						t.Fatalf("mark image deleted: %v", err)
-					}
+	for _, c := range []struct {
+		name                          string
+		retry, oldCache, rebuildCache bool
+	}{
+		{name: "first delete of image as rebuild image"},
+		{name: "first delete of image as rebuild cache", rebuildCache: true},
+		{name: "first delete of cache as rebuild image", oldCache: true},
+		{name: "first delete of cache as rebuild cache", oldCache: true, rebuildCache: true},
+		{name: "stale tag retry as rebuild image", retry: true},
+		{name: "stale tag retry as rebuild cache", retry: true, rebuildCache: true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			f := newImageSweepFixture(t, 1)
+			shared, unshared := fakeDigest("aaaa", 0), fakeDigest("cccc", 0)
+			oldImage, oldCache := shared, unshared
+			if c.oldCache {
+				oldImage, oldCache = unshared, shared
+			}
+			old := f.succeededWith(t, oldImage, oldCache)
+			f.succeeded(t)
+			if c.retry {
+				_, err := f.pool.Exec(f.ctx, `UPDATE builds SET image_deleted_at = NOW() WHERE id = $1`, old.id)
+				if err != nil {
+					t.Fatalf("mark image deleted: %v", err)
 				}
-				rebuild := f.unfinishedBuild(t, genDb.BuildStatusRunning, nil)
-				image, cache := shared, rebuild.cache
-				if asCache {
-					image, cache = rebuild.image, shared
-				}
-				f.registry.tag(f.repoPath, locoControllerV1.BuildImageTagPrefix+rebuild.id.String(), image)
-				f.registry.tag(f.repoPath, locoControllerV1.BuildCacheTagPrefix+rebuild.id.String(), cache)
+			}
+			rebuild := f.unfinishedBuild(t, genDb.BuildStatusRunning, nil)
+			image, cache := shared, rebuild.cache
+			if c.rebuildCache {
+				image, cache = rebuild.image, shared
+			}
+			f.registry.tag(f.repoPath, locoControllerV1.BuildImageTagPrefix+rebuild.id.String(), image)
+			f.registry.tag(f.repoPath, locoControllerV1.BuildCacheTagPrefix+rebuild.id.String(), cache)
 
-				f.sweepWhileBuildSucceeds(t, rebuild.id, image, cache)
-				if !f.registry.has(f.repoPath, shared) {
-					t.Fatal("the sweep deleted the digest a rebuild recorded during the sweep")
-				}
-			})
-		}
+			f.sweepWhileBuildSucceeds(t, rebuild.id, image, cache)
+			if !f.registry.has(f.repoPath, shared) {
+				t.Fatal("the sweep deleted the digest a rebuild recorded during the sweep")
+			}
+			if f.registry.has(f.repoPath, unshared) {
+				t.Fatal("the sweep kept the expired build's unshared digest")
+			}
+		})
 	}
 }
 
