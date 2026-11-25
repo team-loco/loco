@@ -12,6 +12,8 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
+
+	"github.com/team-loco/loco/internal/endpointurl"
 )
 
 const webCallbackPath = "/auth/callback"
@@ -33,9 +35,11 @@ type WebProvider struct {
 }
 
 func ValidateWebURL(raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil || webOrigin(u) == "" || u.User != nil ||
-		u.RawQuery != "" || u.ForceQuery || strings.Contains(raw, "#") || (u.EscapedPath() != "" && u.EscapedPath() != "/") {
+	u, err := endpointurl.Parse(raw)
+	if err != nil {
+		return errInvalidWebURL
+	}
+	if path := u.EscapedPath(); path != "" && path != "/" {
 		return errInvalidWebURL
 	}
 	return nil

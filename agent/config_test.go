@@ -10,11 +10,13 @@ import (
 
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	"github.com/team-loco/loco/internal/endpointurl"
 	"github.com/team-loco/loco/internal/loglevel"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
+	testControlPlaneURL  = "https://api.loco.test"
 	testAgentVersion     = "sha-test"
 	testIngestSecret     = "loco-otlp-exporter" //nolint:gosec
 	testIngestSecretKey  = "token"
@@ -23,7 +25,7 @@ const (
 
 func agentEnv() map[string]string {
 	return map[string]string{
-		envControlPlaneURL:          "https://api.loco.test",
+		envControlPlaneURL:          testControlPlaneURL,
 		envKeySecret:                "agent-identity",
 		envAssertionLifetime:        "90s",
 		envNamespace:                "loco-system",
@@ -70,7 +72,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 	}
 	want := Config{
 		LogLevel:                 slog.LevelWarn,
-		ControlPlaneURL:          "https://api.loco.test",
+		ControlPlaneURL:          testControlPlaneURL,
 		JoinToken:                "loco_j_join",
 		KeySecret:                "agent-identity",
 		AssertionLifetime:        90 * time.Second,
@@ -144,6 +146,61 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 				t.Errorf("parseAgentConfig without %s = %v, want errMissingEnv", name, err)
 			}
 		})
+	}
+}
+
+func TestParseAgentConfigControlPlaneURL(t *testing.T) {
+	for _, value := range []string{
+		"http://localhost:8080",
+		"https://api.loco.test:8443",
+		"https://[::1]:8443",
+		"https://api.loco.test/api",
+		"https://api.loco.test/",
+	} {
+		t.Run(value, func(t *testing.T) {
+			env := agentEnv()
+			env[envControlPlaneURL] = value
+			cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
+			if err != nil {
+				t.Fatalf("%s=%q: %v", envControlPlaneURL, value, err)
+			}
+			if cfg.ControlPlaneURL != value {
+				t.Errorf("%s = %q, want %q", envControlPlaneURL, cfg.ControlPlaneURL, value)
+			}
+		})
+	}
+	for _, value := range []string{
+		"api.loco.test",
+		"ftp://api.loco.test",
+		"https://user:secret@api.loco.test",
+		"https://api.loco.test?token=secret",
+		"https://api.loco.test#secret",
+		"https://api.loco.test/%zz",
+	} {
+		t.Run(value, func(t *testing.T) {
+			env := agentEnv()
+			env[envControlPlaneURL] = value
+			_, err := parseAgentConfig(lookup(env), testAgentVersion)
+			if !errors.Is(err, endpointurl.ErrInvalid) || !strings.Contains(err.Error(), envControlPlaneURL) {
+				t.Fatalf("%s=%q: err = %v, want ErrInvalid naming the variable", envControlPlaneURL, value, err)
+			}
+			if strings.Contains(err.Error(), value) {
+				t.Errorf("error %q echoes the rejected value", err)
+			}
+		})
+	}
+}
+
+func TestIsCleartext(t *testing.T) {
+	for value, want := range map[string]bool{
+		"http://localhost:8080": true,
+		"HTTP://localhost:8080": true,
+		testControlPlaneURL:     false,
+		"HTTPS://api.loco.test": false,
+	} {
+		if got := isCleartext(value); got != want {
+			t.Errorf("isCleartext(%q) = %t, want %t", value, got, want)
+		}
 	}
 }
 

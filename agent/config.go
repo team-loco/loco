@@ -12,6 +12,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/endpointurl"
 	"github.com/team-loco/loco/internal/loglevel"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -149,6 +150,9 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 			return nil, err
 		}
 		*field = value
+	}
+	if _, err := endpointurl.Parse(cfg.ControlPlaneURL); err != nil {
+		return nil, fmt.Errorf("%s: %w", envControlPlaneURL, err)
 	}
 	appDomains, err := requireEnv(getenv, envAppDomains)
 	if err != nil {

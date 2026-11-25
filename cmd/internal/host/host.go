@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/session"
+	"github.com/team-loco/loco/internal/endpointurl"
 )
 
 const (
@@ -80,7 +81,7 @@ func ParseURL(source, value string) (*url.URL, error) {
 	if value == "" {
 		return nil, fmt.Errorf("set %s to the server's URL, such as https://api.loco.build", source)
 	}
-	if u, err := url.Parse(value); err == nil && isEndpoint(u) {
+	if u, err := endpointurl.Parse(value); err == nil {
 		return u, nil
 	}
 	if isBareHost(value) {
@@ -98,24 +99,11 @@ func checked(source, value string) (string, error) {
 	return value, nil
 }
 
-func isEndpoint(u *url.URL) bool {
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return false
-	}
-	if u.Hostname() == "" || u.User != nil {
-		return false
-	}
-	if u.RawQuery != "" || u.ForceQuery {
-		return false
-	}
-	return u.Fragment == ""
-}
-
 // isBareHost reports whether value is a host or host:port with nothing else, so https:// makes it a URL.
 func isBareHost(value string) bool {
-	u, err := url.Parse("https://" + value)
+	u, err := endpointurl.Parse("https://" + value)
 	if err != nil || u.Host != value {
 		return false
 	}
-	return isEndpoint(u) && !strings.HasSuffix(value, ":")
+	return !strings.HasSuffix(value, ":")
 }

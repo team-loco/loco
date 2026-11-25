@@ -37,6 +37,10 @@ import (
 // blocks on its send after Run has returned.
 const agentLoops = 4
 
+func isCleartext(controlPlaneURL string) bool {
+	return strings.HasPrefix(strings.ToLower(controlPlaneURL), "http://")
+}
+
 func main() {
 	cfg := newAgentConfig()
 
@@ -56,7 +60,7 @@ func main() {
 	)
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
-	if strings.HasPrefix(cfg.ControlPlaneURL, "http://") {
+	if isCleartext(cfg.ControlPlaneURL) {
 		transport.Protocols.SetUnencryptedHTTP2(true)
 	} else {
 		transport.Protocols.SetHTTP1(true)
