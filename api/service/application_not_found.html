@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} | Loco</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --fg: #18181b;
+      --fg3: #66666c;
+      --brand: #2455eb;
+      --panel2: #ececea;
+      --line2: #d8d8d5;
+      --art-strong: color-mix(in oklab, var(--fg) 42%, var(--bg));
+      --art-soft: color-mix(in oklab, var(--fg) 22%, var(--bg));
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f11;
+        --fg: #ececef;
+        --fg3: #8b8b94;
+        --brand: #7b9cff;
+        --panel2: #202023;
+        --line2: #313137;
+      }
+    }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      color: var(--fg);
+      font: 14px/1.45 "Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    header { display: flex; justify-content: center; padding: 20px 16px 0; }
+    .brand { display: flex; align-items: center; height: 32px; }
+    .brand svg { display: block; width: 46px; color: var(--brand); }
+    main { flex: 1; display: grid; place-items: center; padding: 0 16px 56px; }
+    section { box-sizing: border-box; width: 100%; max-width: 560px; padding: 40px 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+    .art { display: block; max-width: 100%; overflow: visible; }
+    h1 { font-size: 24px; font-weight: 400; line-height: 1.25; letter-spacing: -0.03em; margin: 8px 0 0; }
+    p { color: var(--fg3); max-width: 34em; line-height: 1.55; margin: 0; }
+  </style>
+</head>
+<body>
+  <header><div class="brand">{{template "application_logo.svg" .}}</div></header>
+  <main>
+    <section>
+      <svg class="art" viewBox="14 10 226 100" width="300" height="133" aria-hidden="true">
+        <path d="M24 60 L58 77 L58 85 L24 68 Z" fill="var(--panel2)" stroke="var(--art-strong)" stroke-linejoin="round"/>
+        <path d="M58 77 L92 60 L92 68 L58 85 Z" fill="color-mix(in oklab, var(--panel2) 70%, var(--line2))" stroke="var(--art-strong)" stroke-linejoin="round"/>
+        <path d="M58 43 L92 60 L58 77 L24 60 Z" fill="var(--bg)" stroke="var(--art-strong)" stroke-linejoin="round"/>
+        <g transform="matrix(1.7 0.85 -1.7 0.85 58 43)" fill="var(--art-strong)">
+          <rect x="4" y="4" width="5" height="5" rx=".7"/>
+          <rect x="11" y="4" width="5" height="5" rx=".7"/>
+          <rect x="4" y="11" width="5" height="5" rx=".7"/>
+          <rect x="11" y="11" width="5" height="5" rx=".7"/>
+        </g>
+        <path d="M92 62 C112 62 112 60 134 60" fill="none" stroke="var(--art-soft)" stroke-dasharray="2 2.5"/>
+        <rect x="134" y="18" width="98" height="84" rx="7" fill="var(--bg)" stroke="var(--line2)"/>
+        <rect x="142" y="26" width="82" height="11" rx="5.5" fill="var(--bg)" stroke="var(--line2)"/>
+        <circle cx="148.5" cy="31.5" r="1.6" fill="var(--art-strong)"/>
+        <rect x="153" y="30" width="44" height="3" rx="1.5" fill="var(--art-soft)"/>
+        <path d="M183 37 C183 50 160 46 160 58 C160 66 172 66 176 70" fill="none" stroke="var(--art-strong)" stroke-dasharray="2 2"/>
+        <rect x="178" y="62" width="44" height="30" rx="4" fill="none" stroke="var(--art-strong)" stroke-dasharray="3 2.5"/>
+        <text x="200" y="81" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" fill="var(--art-strong)">{{.Status}}</text>
+      </svg>
+      <h1>{{.Title}}</h1>
+      <p>{{.Message}}</p>
+    </section>
+  </main>
+</body>
+</html>
