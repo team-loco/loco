@@ -1,3 +1,4 @@
+import type { Cluster } from "@gen/loco/cluster/v1/cluster_pb";
 import { PlusIcon, SearchXIcon, ServerIcon } from "lucide-react";
 import { parseAsBoolean, parseAsString, useQueryStates } from "nuqs";
 import { Link } from "react-router";
@@ -26,9 +27,11 @@ export function SystemClusters() {
 	const canChange = systemAccess(useMyScopes().scopes) === "admin";
 	const [{ q, region, removed }, setParams] = useQueryStates(PARAMS, { history: "replace" });
 	const needle = q.trim().toLowerCase();
+	const matchesName = (c: Cluster) => c.name.toLowerCase().includes(needle);
+	const matchesRegion = (c: Cluster) => region === "" || c.region === region;
 	const rows = fleet.clusters
 		.filter((c) => (c.removedAt !== undefined) === removed)
-		.filter((c) => c.name.toLowerCase().includes(needle) && (region === "" || c.region === region))
+		.filter((c) => matchesName(c) && matchesRegion(c))
 		.map((cluster) => ({ cluster, state: fleet.stateOf(cluster) }))
 		.toSorted(
 			(a, b) => a.cluster.region.localeCompare(b.cluster.region) || a.cluster.name.localeCompare(b.cluster.name),
