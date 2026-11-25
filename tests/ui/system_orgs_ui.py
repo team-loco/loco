@@ -212,6 +212,7 @@ with session(repo / "tests/ui/out/system-orgs") as browser:
     ):
         dialog.get_by_role("button", name="Return to default", exact=True).click()
     expect(limit_row(page, MEMBERS)).to_contain_text("Install default")
+    expect(page.get_by_text("Latest change: onboarding finished")).to_be_visible()
     assert "overridden" not in limits_of(ops), limits_of(ops)
 
     # An admin suspends an organization with a reason, finds it under the Suspended filter and

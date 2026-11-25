@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { CountLimitsSchema } from "@gen/loco/config/v1/config_pb";
 import { getOrgLimits, setOrgLimits } from "@gen/loco/org/v1/org-OrgService_connectquery";
-import type { OrgLimits } from "@gen/loco/org/v1/org_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -207,11 +206,6 @@ function ChangeDialog({ orgId, change, onClose }: { orgId: string; change: Chang
 	);
 }
 
-function latestChange(limits: OrgLimits): string | null {
-	if (limits.overridden.length === 0) return null;
-	return limits.reason === "" ? null : limits.reason;
-}
-
 /** The organization's limits with where each value comes from; admins override them. */
 export function OrgLimitsSection({ orgId, admin }: { orgId: string; admin: boolean }) {
 	const limits = useQuery(getOrgLimits, { orgId });
@@ -230,14 +224,14 @@ export function OrgLimitsSection({ orgId, admin }: { orgId: string; admin: boole
 		getRowId: (r) => r.key,
 	});
 	const failure = limits.error ?? config.error;
-	const reason = current === undefined ? null : latestChange(current);
+	const changedAt = current?.reason === "" ? undefined : current?.updatedAt;
 	return (
 		<Section
 			title="Limits"
 			meta={
-				reason === null || current === undefined ? undefined : (
+				changedAt === undefined ? undefined : (
 					<>
-						Latest change: {reason}, <SystemTime ts={current.updatedAt} />
+						Latest change: {current?.reason}, <SystemTime ts={changedAt} />
 					</>
 				)
 			}
