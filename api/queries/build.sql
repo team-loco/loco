@@ -85,7 +85,7 @@ WHERE is_active = true
   AND role IN ('builds', 'all')
   AND sqlc.arg(platform)::text = ANY(platforms)
   AND health_status = 'healthy'
-  AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
+  AND last_heartbeat >= clock_timestamp() - make_interval(secs => sqlc.arg(silent_after_seconds)::float8)
 ORDER BY created_at, id
 LIMIT 1;
 

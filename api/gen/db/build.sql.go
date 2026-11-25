@@ -454,18 +454,18 @@ WHERE is_active = true
   AND role IN ('builds', 'all')
   AND $1::text = ANY(platforms)
   AND health_status = 'healthy'
-  AND last_heartbeat >= $2::timestamptz
+  AND last_heartbeat >= clock_timestamp() - make_interval(secs => $2::float8)
 ORDER BY created_at, id
 LIMIT 1
 `
 
 type GetBuildClusterParams struct {
-	Platform   string    `json:"platform"`
-	HeardSince time.Time `json:"heardSince"`
+	Platform           string  `json:"platform"`
+	SilentAfterSeconds float64 `json:"silentAfterSeconds"`
 }
 
 func (q *Queries) GetBuildCluster(ctx context.Context, arg GetBuildClusterParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, getBuildCluster, arg.Platform, arg.HeardSince)
+	row := q.db.QueryRow(ctx, getBuildCluster, arg.Platform, arg.SilentAfterSeconds)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

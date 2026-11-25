@@ -200,13 +200,13 @@ const listClusterRegions = `-- name: ListClusterRegions :many
 SELECT region, health_status, available
 FROM (
     SELECT DISTINCT ON (region) region, health_status,
-           COALESCE(last_heartbeat >= $1::timestamptz, false)::boolean AS available
+           COALESCE(last_heartbeat >= clock_timestamp() - make_interval(secs => $1::float8), false)::boolean AS available
     FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
     WHERE is_active = true
       AND role IN ('apps', 'all')
       AND $2::text = ANY(platforms)
       AND (health_status IN ('healthy', 'degraded')
-           OR last_heartbeat < $1::timestamptz
+           OR last_heartbeat < clock_timestamp() - make_interval(secs => $1::float8)
            OR last_heartbeat IS NULL)
     ORDER BY region, available DESC, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
 ) AS region_clusters
@@ -214,8 +214,8 @@ ORDER BY available DESC, (health_status = 'healthy') DESC, region
 `
 
 type ListClusterRegionsParams struct {
-	HeardSince time.Time `json:"heardSince"`
-	Platform   string    `json:"platform"`
+	SilentAfterSeconds float64 `json:"silentAfterSeconds"`
+	Platform           string  `json:"platform"`
 }
 
 type ListClusterRegionsRow struct {
@@ -225,7 +225,7 @@ type ListClusterRegionsRow struct {
 }
 
 func (q *Queries) ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error) {
-	rows, err := q.db.Query(ctx, listClusterRegions, arg.HeardSince, arg.Platform)
+	rows, err := q.db.Query(ctx, listClusterRegions, arg.SilentAfterSeconds, arg.Platform)
 	if err != nil {
 		return nil, err
 	}
@@ -253,13 +253,13 @@ WHERE is_active = true
   AND role IN ('apps', 'all')
   AND $1::text = ANY(platforms)
   AND health_status = 'healthy'
-  AND last_heartbeat >= $2::timestamptz
+  AND last_heartbeat >= clock_timestamp() - make_interval(secs => $2::float8)
 ORDER BY region ASC, is_default DESC, created_at ASC
 `
 
 type ListEligibleClustersParams struct {
-	Platform   string    `json:"platform"`
-	HeardSince time.Time `json:"heardSince"`
+	Platform           string  `json:"platform"`
+	SilentAfterSeconds float64 `json:"silentAfterSeconds"`
 }
 
 type ListEligibleClustersRow struct {
@@ -282,7 +282,7 @@ type ListEligibleClustersRow struct {
 }
 
 func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error) {
-	rows, err := q.db.Query(ctx, listEligibleClusters, arg.Platform, arg.HeardSince)
+	rows, err := q.db.Query(ctx, listEligibleClusters, arg.Platform, arg.SilentAfterSeconds)
 	if err != nil {
 		return nil, err
 	}

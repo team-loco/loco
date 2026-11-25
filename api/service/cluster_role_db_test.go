@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -30,8 +31,8 @@ func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 		t.Fatal(err)
 	}
 	regions, err := f.queries.ListClusterRegions(t.Context(), genDb.ListClusterRegionsParams{
-		Platform:   testPlatform,
-		HeardSince: time.Now().Add(-testClusterSilentAfter),
+		Platform:           testPlatform,
+		SilentAfterSeconds: testClusterSilentAfter.Seconds(),
 	})
 	if err != nil || len(regions) != 1 || regions[0].Region != testRegion {
 		t.Fatalf("application regions = %v, err = %v", regions, err)
@@ -79,14 +80,68 @@ func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 
 	f.setRole(t, f.clusterID, genDb.ClusterRoleApps)
 	f.setRole(t, f.otherCluster, genDb.ClusterRoleApps)
-	heardSince := time.Now().Add(-testClusterSilentAfter)
 	if _, lookupErr := f.queries.GetBuildCluster(
 		t.Context(),
-		genDb.GetBuildClusterParams{HeardSince: heardSince, Platform: testPlatform},
+		genDb.GetBuildClusterParams{SilentAfterSeconds: testClusterSilentAfter.Seconds(), Platform: testPlatform},
 	); !errors.Is(
 		lookupErr,
 		pgx.ErrNoRows,
 	) {
 		t.Fatalf("build cluster among apps clusters: %v", lookupErr)
+	}
+}
+
+func TestBuildClusterSelectionIgnoresTheReplicaClock(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	f.markClustersHealthy(t)
+	for _, skew := range []time.Duration{time.Hour, -time.Hour} {
+		f.server.now = func() time.Time { return time.Now().Add(skew) }
+		id, err := f.server.buildCluster(t.Context())
+		if err != nil || (id != f.clusterID && id != f.otherCluster) {
+			t.Fatalf("skew %v: build cluster %v, err = %v, want a heartbeating cluster", skew, id, err)
+		}
+	}
+}
+
+func TestEligibilityAndRegionsJudgeHeartbeatsOnTheDatabaseClock(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	f.markClustersHealthy(t)
+	for _, test := range []struct {
+		age  time.Duration
+		want bool
+	}{
+		{age: testClusterSilentAfter - 10*time.Second, want: true},
+		{age: testClusterSilentAfter + 10*time.Second, want: false},
+	} {
+		if _, err := f.pool.Exec(t.Context(),
+			`UPDATE cluster_heartbeats SET last_heartbeat = clock_timestamp() - make_interval(secs => $1)`,
+			test.age.Seconds()); err != nil {
+			t.Fatal(err)
+		}
+		clusters, err := eligibleClusters(t.Context(), f.queries, testClusterSilentAfter, testPlatform)
+		if err != nil {
+			t.Fatal(err)
+		}
+		eligible := slices.ContainsFunc(clusters, func(c genDb.ListEligibleClustersRow) bool {
+			return c.ID == f.clusterID
+		})
+		regions, err := f.queries.ListClusterRegions(t.Context(), genDb.ListClusterRegionsParams{
+			Platform:           testPlatform,
+			SilentAfterSeconds: testClusterSilentAfter.Seconds(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		available := slices.ContainsFunc(regions, func(r genDb.ListClusterRegionsRow) bool {
+			return r.Region == testRegion && r.Available
+		})
+		if eligible != test.want || available != test.want {
+			t.Fatalf(
+				"heartbeat %v old: eligible = %v, region available = %v, want %v",
+				test.age, eligible, available, test.want,
+			)
+		}
 	}
 }
