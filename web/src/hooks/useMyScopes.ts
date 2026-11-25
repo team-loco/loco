@@ -55,13 +55,13 @@ export function hasOrganizationMembership(scopes: readonly EntityScope[], orgId:
 
 /** True when a grant on the organization or workspace, or a system grant (admin holds every scope), gives scope. */
 export function holdsScope(scopes: readonly EntityScope[], orgId: string, workspaceId: string, scope: Scope): boolean {
-	return scopes.some(
-		(s) =>
-			(s.entityType === EntityType.SYSTEM && (s.scope === scope || s.scope === Scope.ADMIN)) ||
-			(s.scope === scope &&
-				((s.entityType === EntityType.ORGANIZATION && s.entityId === orgId) ||
-					(s.entityType === EntityType.WORKSPACE && s.entityId === workspaceId))),
-	);
+	return scopes.some((s) => {
+		const isSystem = s.entityType === EntityType.SYSTEM;
+		const coversScope = s.scope === scope || (isSystem && s.scope === Scope.ADMIN);
+		const coversOrg = s.entityType === EntityType.ORGANIZATION && s.entityId === orgId;
+		const coversWorkspace = s.entityType === EntityType.WORKSPACE && s.entityId === workspaceId;
+		return coversScope && (isSystem || coversOrg || coversWorkspace);
+	});
 }
 
 export function useMyScopes({ enabled = true }: { enabled?: boolean } = {}) {

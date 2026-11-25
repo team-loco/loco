@@ -61,6 +61,14 @@ staticPasswords:
     username: system-audit-reader
     userID: 47694ded-1d49-4668-8894-84daa59eb08d
     hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: system-admin-org-owner@test.local
+    username: system-admin-org-owner
+    userID: 55aaa343-73e1-4ac1-9383-80d793c7da28
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: system-admin-grantee@test.local
+    username: system-admin-grantee
+    userID: a4668951-8876-4e51-8cba-c2dfa9625d72
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
 staticClients:
   - id: loco-e2e
     name: Loco component test fixtures

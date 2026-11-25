@@ -132,3 +132,30 @@ func TestSystemReaderSeesAnInstallationClusterPauseInTheAuditLog(t *testing.T) {
 		t.Fatalf("pause event = %v, want an installation event another user performed", event)
 	}
 }
+
+func TestGrantedSystemAdminRenamesAnOrganizationItDoesNotBelongTo(t *testing.T) {
+	t.Parallel()
+	owner := signInLifecycleUser(t, "system-admin-org-owner@test.local")
+	org, err := owner.session.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new("e2e-system-admin-rename")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin := signInLifecycleUser(t, "system-admin-grantee@test.local")
+	if _, err := p.Admin.SystemRole.GrantSystemRole(t.Context(), &adminv1.GrantSystemRoleRequest{
+		UserId: admin.id, Role: adminv1.SystemRole_SYSTEM_ROLE_ADMIN,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := p.Admin.SystemRole.RevokeSystemRole(context.Background(), &adminv1.RevokeSystemRoleRequest{
+			UserId: admin.id,
+		}); err != nil {
+			t.Errorf("revoke system admin: %v", err)
+		}
+	})
+
+	if _, err := admin.session.Org.UpdateOrg(t.Context(),
+		&orgv1.UpdateOrgRequest{OrgId: org.GetOrgId(), Name: new("e2e-system-admin-renamed")}); err != nil {
+		t.Fatalf("UpdateOrg as a system admin who is not a member: %v", err)
+	}
+}
