@@ -272,8 +272,12 @@ description = "Preview documentation at http://127.0.0.1:8001"
 run = "bun run --cwd docs dev"
 
 [tasks."test:hosting"]
-description = "Check the UI image, its /docs mount and the docs.loco.build artifact"
-run = "uv run --locked --project tests pytest tests/hosting"
+description = "Check the UI image and the documentation it mounts at /docs"
+run = "uv run --locked --project tests pytest tests/hosting/test_static_hosting.py"
+
+[tasks."test:pages"]
+description = "Build the docs.loco.build artifact from the release tags and check it served as Pages serves it"
+run = "uv run --locked --project tests pytest tests/hosting/test_pages.py"
 
 [tasks."test:collectors"]
 description = "Test the collector configuration loco-worker renders into its relay ConfigMaps, and the log severity it collects with the chart-pinned OpenTelemetry Collector"

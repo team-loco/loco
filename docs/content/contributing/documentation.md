@@ -18,10 +18,11 @@ Add Markdown pages under `docs/content/` with a `title` in YAML frontmatter. Reg
 mise run docs:build
 mise run docs:build:staging
 bun run --cwd docs typecheck
+mise run test:pages
 mise run test:hosting
 ```
 
-Docs CI typechecks and builds the Pages site and the staging dashboard mount. Checks of the UI image, its `/docs/` mount and the Pages build live in `tests/hosting/`, alongside the platform tests rather than the documentation. The advisory Docs Drift workflow reports code changes that leave these pages stale; its rubric is `.agents/skills/docs-drift/SKILL.md`.
+Docs CI typechecks, builds the staging dashboard mount and runs `mise run test:pages`, which builds the Pages site and checks it served as Pages serves it. `mise run test:hosting` checks the UI image and its `/docs/` mount. Both live in `tests/hosting/`, alongside the platform tests rather than the documentation. The advisory Docs Drift workflow reports code changes that leave these pages stale; its rubric is `.agents/skills/docs-drift/SKILL.md`.
 
 Bun dependencies are pinned in `docs/package.json` and the root `bun.lock`. The docs build needs only Bun. Python dependencies for shared platform tests are pinned in `tests/uv.lock`. Run `bun install --frozen-lockfile` from the repository root before building.
 
