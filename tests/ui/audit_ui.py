@@ -364,7 +364,7 @@ with session(out) as browser:
     expect(token_row).to_contain_text("deploy-bot")
     expect(token_row).to_contain_text("Workspace token")
     token_row.click()
-    expect(page.get_by_role("dialog").get_by_text("Workspace token")).to_be_visible()
+    expect(page.get_by_role("dialog").get_by_text("deploy-bot")).to_be_visible()
     page.keyboard.press("Escape")
     # The search reads the Where column: the sibling workspace names events on its resources.
     with expect_rpc(page, "ListEvents", lambda body: body.get("query") == "sibling"):
