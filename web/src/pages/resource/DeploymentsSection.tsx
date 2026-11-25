@@ -201,6 +201,26 @@ function rolloutColumns({
 			cell: ({ row: { original: rollout } }) => <DeploymentStatusBadge phase={lead(rollout).status} />,
 		},
 		{
+			id: "spec",
+			header: "Spec",
+			size: 100,
+			minSize: 80,
+			meta: { fit: true, fitMax: 120 },
+			cell: ({ row: { original: rollout } }) => (
+				<Button
+					variant="plain-link"
+					aria-label={`View spec of ${formatShortId(lead(rollout).id)}`}
+					className="text-[13px]"
+					onClick={() => {
+						onViewSpec(lead(rollout));
+					}}
+				>
+					<FileCodeIcon className="hidden max-md:block" aria-hidden />
+					<span className="max-md:hidden">View spec</span>
+				</Button>
+			),
+		},
+		{
 			id: "build",
 			header: "Build",
 			size: 110,
@@ -230,26 +250,6 @@ function rolloutColumns({
 			minSize: 120,
 			meta: { grow: true },
 			cell: ({ row: { original: rollout } }) => <DeployedBy deployment={lead(rollout)} />,
-		},
-		{
-			id: "spec",
-			header: "Spec",
-			size: 100,
-			minSize: 80,
-			meta: { fit: true, fitMax: 120 },
-			cell: ({ row: { original: rollout } }) => (
-				<Button
-					variant="plain-link"
-					aria-label={`View spec of ${formatShortId(lead(rollout).id)}`}
-					className="text-[13px]"
-					onClick={() => {
-						onViewSpec(lead(rollout));
-					}}
-				>
-					<FileCodeIcon className="hidden max-md:block" aria-hidden />
-					<span className="max-md:hidden">View spec</span>
-				</Button>
-			),
 		},
 		{
 			id: "commit",
