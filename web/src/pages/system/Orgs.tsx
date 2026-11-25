@@ -63,8 +63,8 @@ const COLUMNS: DataColumn<OrgSummary>[] = [
 	{
 		id: "name",
 		header: "Organization",
-		size: 220,
-		minSize: 120,
+		size: 160,
+		minSize: 110,
 		accessorFn: (r) => r.organization?.name,
 		meta: { grow: true, primary: true },
 		cell: ({ row: { original: r } }) => <CellText text={r.organization?.name ?? ""} className="text-foreground" />,
@@ -72,7 +72,7 @@ const COLUMNS: DataColumn<OrgSummary>[] = [
 	{
 		id: "owner",
 		header: "Owner",
-		size: 200,
+		size: 150,
 		minSize: 110,
 		meta: { hideOnMobile: true },
 		cell: ({ row: { original: r } }) => <Owners summary={r} />,
@@ -80,14 +80,14 @@ const COLUMNS: DataColumn<OrgSummary>[] = [
 	{
 		id: "state",
 		header: "State",
-		size: 130,
+		size: 115,
 		minSize: 100,
 		cell: ({ row: { original: r } }) => (r.organization === undefined ? null : <OrgStateBadge org={r.organization} />),
 	},
 	{
 		id: "members",
 		header: "Members",
-		size: 110,
+		size: 90,
 		minSize: 80,
 		meta: { hideOnMobile: true, align: "end", cellClassName: COUNT_CELL },
 		cell: ({ row: { original: r } }) => count(r.organization?.memberCount),
@@ -95,7 +95,7 @@ const COLUMNS: DataColumn<OrgSummary>[] = [
 	{
 		id: "workspaces",
 		header: "Workspaces",
-		size: 120,
+		size: 105,
 		minSize: 90,
 		meta: { hideOnMobile: true, align: "end", cellClassName: COUNT_CELL },
 		cell: ({ row: { original: r } }) => count(r.organization?.workspaceCount),
@@ -103,7 +103,7 @@ const COLUMNS: DataColumn<OrgSummary>[] = [
 	{
 		id: "resources",
 		header: "Resources",
-		size: 110,
+		size: 95,
 		minSize: 80,
 		meta: { hideOnMobile: true, align: "end", cellClassName: COUNT_CELL },
 		cell: ({ row: { original: r } }) => count(r.resourceCount),
@@ -111,7 +111,7 @@ const COLUMNS: DataColumn<OrgSummary>[] = [
 	{
 		id: "created",
 		header: "Created",
-		size: 140,
+		size: 115,
 		minSize: 100,
 		accessorFn: (r) => r.organization?.createdAt?.seconds,
 		meta: { hideOnMobile: true, cellClassName: "whitespace-nowrap text-[12.5px] text-fg3" },

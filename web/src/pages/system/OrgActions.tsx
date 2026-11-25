@@ -59,6 +59,7 @@ export function OrgSuspensionButton({ org }: { org: Organization }) {
 						</>
 					}
 					confirmLabel="Resume organization"
+					confirmVariant="default"
 					pending={resume.isPending}
 					onConfirm={() => {
 						void run(
