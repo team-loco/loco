@@ -6,6 +6,7 @@ import (
 
 	"charm.land/fang/v2"
 	"github.com/team-loco/loco/cmd/internal/ui"
+	"github.com/team-loco/loco/cmd/internal/update"
 	"github.com/team-loco/loco/internal/buildinfo"
 )
 
@@ -28,8 +29,7 @@ func Cli(version string) {
 		fang.WithErrorHandler(ui.HandleError))
 	env.versionCheck.report(os.Stderr)
 	if err == nil && versionFlagSet(root) {
-		releases := newUpdater(releasesURL, latestReleaseTimeout)
-		reportNewerRelease(ctx, os.Stderr, releases, root.Version)
+		reportNewerRelease(ctx, os.Stderr, update.ReleasesURL, root.Version)
 	}
 	if err != nil {
 		os.Exit(ui.ExitCode(err))

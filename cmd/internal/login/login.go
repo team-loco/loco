@@ -274,7 +274,7 @@ func initialModel(userCode, verificationURI string, poll tea.Cmd) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(tick(), m.poll)
+	return tea.Batch(tea.SetClipboard(m.userCode), tick(), m.poll)
 }
 
 func tick() tea.Cmd {
@@ -329,11 +329,12 @@ func (m model) View() tea.View {
 	spinnerStyle := lipgloss.NewStyle().Foreground(ui.Accent).Bold(true)
 
 	return tea.NewView(fmt.Sprintf(
-		"%s %s\n\n%s %s\n\n%s %s\n\n%s",
+		"%s %s\n\n%s %s\n%s\n\n%s %s\n\n%s",
 		instructionStyle.Render("Please open the following URL in your browser:"),
 		urlStyle.Render(m.verificationURI),
 		instructionStyle.Render("Then, enter the following user code:"),
 		codeStyle.Render(m.userCode),
+		instructionStyle.Render("Code already copied to clipboard."),
 		spinnerStyle.Render(loadingFrames[m.frameIndex]),
 		instructionStyle.Render("Waiting for authentication..."),
 		lipgloss.NewStyle().Foreground(ui.Fg3).Faint(true).Render("Press 'q' or Ctrl+C to quit"),

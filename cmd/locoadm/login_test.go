@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -75,5 +76,21 @@ func TestLoginNamesTheURLForABareHost(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Errorf("login --api %s --web %s = %v, want %q", test.api, test.web, err, test.want)
 		}
+	}
+}
+
+func TestUpdateCommand(t *testing.T) {
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"update", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "Update the locoadm CLI to the latest release") {
+		t.Fatalf("unexpected update help: %q", out.String())
+	}
+	if err := runLocoadm(t, "update", "unexpected"); err == nil {
+		t.Fatal("update accepted an argument")
 	}
 }

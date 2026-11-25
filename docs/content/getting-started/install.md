@@ -25,6 +25,8 @@ loco update
 
 `loco update` replaces the installed binary with the latest release. `loco --version` prints the installed version and, when a newer release exists, the `loco update` command to install it.
 
+To update the operator CLI, run `locoadm update`. Both commands verify the release checksum before replacing their respective binary.
+
 ## Shell completions
 
 ```sh

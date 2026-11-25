@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	latestTag      = "v0.0.62"
 	develVersion   = "(devel)"
 	invalidTag     = "latest"
 	currentVersion = "v0.0.53"
@@ -73,7 +74,10 @@ func TestNewerReleaseHint(t *testing.T) {
 }
 
 func TestReportNewerRelease(t *testing.T) {
-	srv, _ := newReleaseServer(t, binaryChecksum())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/releases/tag/"+latestTag, http.StatusFound)
+	}))
+	t.Cleanup(srv.Close)
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -105,7 +109,7 @@ func TestReportNewerRelease(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var out bytes.Buffer
-			reportNewerRelease(context.Background(), &out, newTestUpdater(tt.server), tt.current)
+			reportNewerRelease(context.Background(), &out, tt.server.URL+"/releases", tt.current)
 			if len(tt.want) == 0 && out.Len() != 0 {
 				t.Fatalf("output = %q, want none", out.String())
 			}
