@@ -4,7 +4,7 @@ import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { functionalUpdate } from "@tanstack/react-table";
-import { CheckIcon, CopyIcon, FileCodeIcon, GitCompareIcon, Undo2Icon, XIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, GitCompareIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
@@ -120,42 +120,31 @@ function RolloutActions({
 	rollout,
 	canWrite,
 	onRollback,
-	onViewSpec,
 	onCompareSpec,
 }: {
 	rollout: RolloutRow;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
-	onViewSpec: (dep: Deployment) => void;
 	onCompareSpec: (dep: Deployment, current: Deployment) => void;
 }) {
 	const dep = rollout.rows[0].dep;
 	const current = rollout.rows.find((r) => r.region.current !== undefined && r.region.current.id !== dep.id)?.region
 		.current;
+	const rollbacks = canWrite ? rollout.rows.filter((r) => canRollBackTo(r.dep, r.region)) : [];
+	if (rollbacks.length === 0 && current === undefined) return null;
 	return (
 		<RowMenu label={`Actions for ${formatShortId(dep.id)}`}>
-			{canWrite &&
-				rollout.rows
-					.filter((r) => canRollBackTo(r.dep, r.region))
-					.map((r) => (
-						<DropdownMenuItem
-							key={r.region.name}
-							onClick={() => {
-								onRollback(r.dep, r.region.current);
-							}}
-						>
-							<Undo2Icon className="text-fg3" />
-							{rollout.rows.length > 1 ? `Roll back to this in ${r.region.name}` : "Roll back to this"}
-						</DropdownMenuItem>
-					))}
-			<DropdownMenuItem
-				onClick={() => {
-					onViewSpec(dep);
-				}}
-			>
-				<FileCodeIcon className="text-fg3" />
-				View spec
-			</DropdownMenuItem>
+			{rollbacks.map((r) => (
+				<DropdownMenuItem
+					key={r.region.name}
+					onClick={() => {
+						onRollback(r.dep, r.region.current);
+					}}
+				>
+					<Undo2Icon className="text-fg3" />
+					{rollout.rows.length > 1 ? `Roll back to this in ${r.region.name}` : "Roll back to this"}
+				</DropdownMenuItem>
+			))}
 			{current !== undefined && (
 				<DropdownMenuItem
 					onClick={() => {
@@ -243,6 +232,25 @@ function rolloutColumns({
 			cell: ({ row: { original: rollout } }) => <DeployedBy deployment={lead(rollout)} />,
 		},
 		{
+			id: "spec",
+			header: "Spec",
+			size: 100,
+			minSize: 80,
+			meta: { fit: true, fitMax: 120, hideOnMobile: true },
+			cell: ({ row: { original: rollout } }) => (
+				<Button
+					variant="plain-link"
+					aria-label={`View spec of ${formatShortId(lead(rollout).id)}`}
+					className="text-[13px]"
+					onClick={() => {
+						onViewSpec(lead(rollout));
+					}}
+				>
+					View spec
+				</Button>
+			),
+		},
+		{
 			id: "commit",
 			header: "Commit",
 			size: 110,
@@ -318,13 +326,7 @@ function rolloutColumns({
 			meta: { label: "Actions", pinEnd: true },
 			enableHiding: false,
 			cell: ({ row: { original: rollout } }) => (
-				<RolloutActions
-					rollout={rollout}
-					canWrite={canWrite}
-					onRollback={onRollback}
-					onViewSpec={onViewSpec}
-					onCompareSpec={onCompareSpec}
-				/>
+				<RolloutActions rollout={rollout} canWrite={canWrite} onRollback={onRollback} onCompareSpec={onCompareSpec} />
 			),
 		},
 	];

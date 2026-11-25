@@ -375,15 +375,47 @@ with session(out) as browser:
     expect(
         deployments.get_by_role("cell", name="Add the release checklist", exact=True)
     ).to_be_visible()
+    expect(section.get_by_role("columnheader", name="Spec", exact=True)).to_be_visible()
     section.get_by_role(
         "button",
         name=f"Actions for {data['releases'][0][-8:]}",
         exact=True,
     ).click()
-    page.get_by_role("menuitem", name="View spec", exact=True).click()
+    expect(page.get_by_role("menuitem", name="View spec", exact=True)).to_have_count(0)
+    page.keyboard.press("Escape")
+    section.get_by_role(
+        "button",
+        name=f"View spec of {data['releases'][0][-8:]}",
+        exact=True,
+    ).click()
     spec_dialog = page.get_by_role(
         "dialog", name="history-pilot deployment spec", exact=True
     )
+    bar = spec_dialog.locator('[data-slot="spec-bar"]')
+    for name in ("Wrap lines", "Download spec", "Copy spec", "Close"):
+        expect(bar.get_by_role("button", name=name, exact=True)).to_be_visible()
+    tops = bar.locator("button").evaluate_all(
+        "els => els.map(e => e.getBoundingClientRect().top)"
+    )
+    assert len(set(tops)) == 1, tops
+    wrap = bar.get_by_role("button", name="Wrap lines", exact=True)
+    line = spec_dialog.locator(".sh__line").first
+    expect(wrap).to_have_attribute("aria-pressed", "true")
+    expect(line).to_have_css("white-space", "pre-wrap")
+    scroller = spec_dialog.locator(".overflow-auto").last
+    wrap.click()
+    expect(wrap).to_have_attribute("aria-pressed", "false")
+    expect(line).to_have_css("white-space", "pre")
+    assert scroller.evaluate("e => e.scrollWidth >= e.clientWidth")
+    wrap.click()
+    expect(line).to_have_css("white-space", "pre-wrap")
+    bar.get_by_role("button", name="Close", exact=True).click()
+    expect(spec_dialog).to_have_count(0)
+    section.get_by_role(
+        "button",
+        name=f"View spec of {data['releases'][0][-8:]}",
+        exact=True,
+    ).click()
     for index, deployment_id in enumerate(data["releases"][:2]):
         picker = spec_dialog.get_by_role("button", name="Deployment", exact=True)
         if index:
@@ -863,7 +895,7 @@ with session(out) as browser:
     ).click()
     expect(
         reader_page.get_by_role("menuitem", name="View spec", exact=True)
-    ).to_be_visible()
+    ).to_have_count(0)
     expect(
         reader_page.get_by_role("menuitem", name="Roll back to this", exact=True)
     ).to_have_count(0)
