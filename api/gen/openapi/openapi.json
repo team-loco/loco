@@ -4736,6 +4736,68 @@
         }
       }
     },
+    "/loco.org.v1.OrgService/ListOrgs": {
+      "post": {
+        "tags": [
+          "loco.org.v1.OrgService"
+        ],
+        "summary": "ListOrgs",
+        "description": "ListOrgs lists every organization in the installation, whether or not the caller belongs to it.\n It requires system read.",
+        "operationId": "loco.org.v1.OrgService.ListOrgs",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.org.v1.ListOrgsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.org.v1.ListOrgsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.org.v1.OrgService/ListUserOrgs": {
       "post": {
         "tags": [
@@ -14656,6 +14718,76 @@
         "additionalProperties": false,
         "description": "ListOrgPeopleResponse is a page of people. The counts are set when include_total_count is; each is\n exact up to 10,000, and 10,001 means more than 10,000."
       },
+      "loco.org.v1.ListOrgsRequest": {
+        "type": "object",
+        "properties": {
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 200,
+            "minimum": 0,
+            "format": "int32",
+            "description": "default: 50, max: 200"
+          },
+          "pageToken": {
+            "type": "string",
+            "title": "page_token",
+            "maxLength": 1024
+          },
+          "includeTotalCount": {
+            "type": "boolean",
+            "title": "include_total_count",
+            "description": "Sets total_count in the response."
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "maxLength": 200,
+            "description": "Matches an organization's name, its ID or the email of one of its owners, ignoring case."
+          },
+          "state": {
+            "title": "state",
+            "$ref": "#/components/schemas/loco.org.v1.OrgState"
+          },
+          "orderBy": {
+            "title": "order_by",
+            "$ref": "#/components/schemas/loco.org.v1.OrgOrder"
+          },
+          "descending": {
+            "type": "boolean",
+            "title": "descending"
+          }
+        },
+        "title": "ListOrgsRequest",
+        "additionalProperties": false,
+        "description": "ListOrgsRequest selects a page of the installation's organizations."
+      },
+      "loco.org.v1.ListOrgsResponse": {
+        "type": "object",
+        "properties": {
+          "orgs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.org.v1.OrgSummary"
+            },
+            "title": "orgs"
+          },
+          "nextPageToken": {
+            "type": "string",
+            "title": "next_page_token",
+            "description": "Empty on the last page."
+          },
+          "totalCount": {
+            "type": "integer",
+            "title": "total_count",
+            "format": "int32",
+            "description": "The organizations the query and state match, ignoring page_token; set when include_total_count\n is. Exact up to 10,000; 10,001 means more than 10,000."
+          }
+        },
+        "title": "ListOrgsResponse",
+        "additionalProperties": false,
+        "description": "ListOrgsResponse is a page of organizations."
+      },
       "loco.org.v1.ListUserOrgsRequest": {
         "type": "object",
         "properties": {
@@ -14814,6 +14946,16 @@
         "additionalProperties": false,
         "description": "OrgMember pairs a user with their organization scopes."
       },
+      "loco.org.v1.OrgOrder": {
+        "type": "string",
+        "title": "OrgOrder",
+        "enum": [
+          "ORG_ORDER_UNSPECIFIED",
+          "ORG_ORDER_NAME",
+          "ORG_ORDER_CREATED_AT"
+        ],
+        "description": "OrgOrder is what ListOrgs sorts by. Ties sort by ID, in the same direction."
+      },
       "loco.org.v1.OrgPeopleView": {
         "type": "string",
         "title": "OrgPeopleView",
@@ -14864,6 +15006,42 @@
         ],
         "description": "OrgRole selects organization administrator or member access."
       },
+      "loco.org.v1.OrgState": {
+        "type": "string",
+        "title": "OrgState",
+        "enum": [
+          "ORG_STATE_UNSPECIFIED",
+          "ORG_STATE_ACTIVE",
+          "ORG_STATE_SUSPENDED"
+        ],
+        "description": "OrgState is whether an organization runs its workloads."
+      },
+      "loco.org.v1.OrgSummary": {
+        "type": "object",
+        "properties": {
+          "organization": {
+            "title": "organization",
+            "description": "workspace_count and member_count are set.",
+            "$ref": "#/components/schemas/loco.org.v1.Organization"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.org.v1.User"
+            },
+            "title": "owners",
+            "description": "The organization's admins, by name."
+          },
+          "resourceCount": {
+            "type": "string",
+            "title": "resource_count",
+            "format": "int64"
+          }
+        },
+        "title": "OrgSummary",
+        "additionalProperties": false,
+        "description": "OrgSummary is an organization with the people and counts an operator looks for."
+      },
       "loco.org.v1.Organization": {
         "type": "object",
         "properties": {
@@ -14902,7 +15080,7 @@
             ],
             "title": "workspace_count",
             "format": "int64",
-            "description": "Counts are populated by ListUserOrgs."
+            "description": "Counts are populated by ListUserOrgs and ListOrgs."
           },
           "memberCount": {
             "type": [

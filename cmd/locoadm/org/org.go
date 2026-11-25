@@ -27,10 +27,13 @@ var (
 )
 
 func BuildOrgCmd() *cobra.Command {
-	org := &cobra.Command{Use: "org", Short: "Manage organizations (requires system admin)"}
+	org := &cobra.Command{
+		Use:   "org",
+		Short: "List organizations and manage their limits (requires system read or admin)",
+	}
 	limits := &cobra.Command{Use: "limits", Short: "Show or override an organization's count limits"}
 	limits.AddCommand(getCmd(), setCmd(), unsetCmd())
-	org.AddCommand(limits)
+	org.AddCommand(listCmd(), limits)
 	return org
 }
 

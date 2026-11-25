@@ -382,6 +382,11 @@ var (
 		scope:      db.ScopeAdmin,
 	}
 
+	// ListOrgs requires system:read.
+	ListOrgs = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeRead,
+	}
 	// ListUserOrgs requires user:read (to list orgs for a specific user).
 	ListUserOrgs = Action{
 		entityType: db.EntityTypeUser,

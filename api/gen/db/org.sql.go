@@ -237,6 +237,48 @@ func (q *Queries) ListMemberWorkspaceScopes(ctx context.Context, arg ListMemberW
 	return items, nil
 }
 
+const listOrgAdmins = `-- name: ListOrgAdmins :many
+SELECT us.entity_id AS org_id, u.id, u.email, u.name, u.avatar_url
+FROM user_scopes us
+JOIN users u ON u.id = us.user_id
+WHERE us.entity_type = 'organization' AND us.scope = 'admin' AND us.entity_id = ANY($1::uuid[])
+ORDER BY lower(COALESCE(NULLIF(u.name, ''), u.email)), u.id
+`
+
+type ListOrgAdminsRow struct {
+	OrgID     uuid.UUID `json:"orgId"`
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	Name      *string   `json:"name"`
+	AvatarUrl *string   `json:"avatarUrl"`
+}
+
+func (q *Queries) ListOrgAdmins(ctx context.Context, orgIds []uuid.UUID) ([]ListOrgAdminsRow, error) {
+	rows, err := q.db.Query(ctx, listOrgAdmins, orgIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrgAdminsRow
+	for rows.Next() {
+		var i ListOrgAdminsRow
+		if err := rows.Scan(
+			&i.OrgID,
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrgMembersByUserIDs = `-- name: ListOrgMembersByUserIDs :many
 WITH member_scopes AS (
   SELECT
@@ -359,6 +401,55 @@ func (q *Queries) ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMemb
 			&i.Scopes,
 			&i.JoinedAt,
 			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrgSummariesByIDs = `-- name: ListOrgSummariesByIDs :many
+SELECT o.id, o.name, o.created_by, o.suspended_at, o.suspension_reason, o.created_at, o.updated_at,
+  (SELECT COUNT(*) FROM workspaces w WHERE w.org_id = o.id) AS workspace_count,
+  (SELECT COUNT(DISTINCT us.user_id) FROM user_scopes us
+   WHERE us.entity_type = 'organization' AND us.entity_id = o.id) AS member_count,
+  (SELECT COUNT(*) FROM resources r JOIN workspaces w ON w.id = r.workspace_id
+   WHERE w.org_id = o.id) AS resource_count
+FROM organizations o
+WHERE o.id = ANY($1::uuid[])
+`
+
+type ListOrgSummariesByIDsRow struct {
+	Organization   Organization `json:"organization"`
+	WorkspaceCount int64        `json:"workspaceCount"`
+	MemberCount    int64        `json:"memberCount"`
+	ResourceCount  int64        `json:"resourceCount"`
+}
+
+func (q *Queries) ListOrgSummariesByIDs(ctx context.Context, orgIds []uuid.UUID) ([]ListOrgSummariesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, listOrgSummariesByIDs, orgIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrgSummariesByIDsRow
+	for rows.Next() {
+		var i ListOrgSummariesByIDsRow
+		if err := rows.Scan(
+			&i.Organization.ID,
+			&i.Organization.Name,
+			&i.Organization.CreatedBy,
+			&i.Organization.SuspendedAt,
+			&i.Organization.SuspensionReason,
+			&i.Organization.CreatedAt,
+			&i.Organization.UpdatedAt,
+			&i.WorkspaceCount,
+			&i.MemberCount,
+			&i.ResourceCount,
 		); err != nil {
 			return nil, err
 		}
