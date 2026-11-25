@@ -82,11 +82,25 @@ with session(out) as browser:
     )
 
     page.evaluate("window.scrollTo(0, 0)")
-    nav.get_by_role("link", name="Variables", exact=True).click()
-    top = page.evaluate(
-        "document.querySelector('#set-env').getBoundingClientRect().top"
+    expect(nav.get_by_role("link", name="Image", exact=True)).to_have_attribute(
+        "aria-current", "true"
     )
-    assert 140 <= top < 150, top
+    page.evaluate(
+        """() => {
+            window.lit = [];
+            new MutationObserver((records) => {
+                for (const r of records)
+                    if (r.target.getAttribute('aria-current') === 'true') window.lit.push(r.target.textContent);
+            }).observe(document.querySelector('nav[aria-label="Settings sections"]'),
+                { attributes: true, subtree: true, attributeFilter: ['aria-current'] });
+        }"""
+    )
+    nav.get_by_role("link", name="Variables", exact=True).click()
+    page.wait_for_function(
+        "() => { const top = document.querySelector('#set-env').getBoundingClientRect().top; return top >= 140 && top < 150; }"
+    )
+    # The page scrolls past other sections on the way; only the clicked item lights up.
+    assert page.evaluate("window.lit") == ["Variables"], page.evaluate("window.lit")
     expect(nav.get_by_role("link", name="Variables", exact=True)).to_have_attribute(
         "aria-current", "true"
     )

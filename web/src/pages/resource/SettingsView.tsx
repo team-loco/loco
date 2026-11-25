@@ -98,15 +98,6 @@ function sectionInView(): string | undefined {
 	return found;
 }
 
-// A smooth scroll moves the page under the pointer, so a click can land on a control the user did not aim at.
-function jumpToSection() {
-	const root = document.documentElement;
-	root.style.scrollBehavior = "auto";
-	setTimeout(() => {
-		root.style.scrollBehavior = "";
-	}, 0);
-}
-
 export function SettingsView({
 	resource,
 	secretsNotice,
@@ -252,7 +243,6 @@ export function SettingsView({
 							href={`#${n.id}`}
 							aria-current={current === n.id ? "true" : undefined}
 							onClick={() => {
-								jumpToSection();
 								pinnedRef.current = true;
 								setCurrent(n.id);
 							}}
