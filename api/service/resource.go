@@ -534,8 +534,8 @@ func (s *ResourceServer) ListRegions(
 		return nil, err
 	}
 	clusters, err := s.queries.ListClusterRegions(ctx, genDb.ListClusterRegionsParams{
-		Platform:   string(s.defaults.TargetPlatform),
-		HeardSince: time.Now().Add(-s.clusterSilentAfter),
+		Platform:           string(s.defaults.TargetPlatform),
+		SilentAfterSeconds: s.clusterSilentAfter.Seconds(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list cluster regions: %w", err)

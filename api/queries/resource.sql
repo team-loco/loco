@@ -68,20 +68,20 @@ WHERE is_active = true
   AND role IN ('apps', 'all')
   AND sqlc.arg(platform)::text = ANY(platforms)
   AND health_status = 'healthy'
-  AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
+  AND last_heartbeat >= clock_timestamp() - make_interval(secs => sqlc.arg(silent_after_seconds)::float8)
 ORDER BY region ASC, is_default DESC, created_at ASC;
 
 -- name: ListClusterRegions :many
 SELECT region, health_status, available
 FROM (
     SELECT DISTINCT ON (region) region, health_status,
-           COALESCE(last_heartbeat >= sqlc.arg(heard_since)::timestamptz, false)::boolean AS available
+           COALESCE(last_heartbeat >= clock_timestamp() - make_interval(secs => sqlc.arg(silent_after_seconds)::float8), false)::boolean AS available
     FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
     WHERE is_active = true
       AND role IN ('apps', 'all')
       AND sqlc.arg(platform)::text = ANY(platforms)
       AND (health_status IN ('healthy', 'degraded')
-           OR last_heartbeat < sqlc.arg(heard_since)::timestamptz
+           OR last_heartbeat < clock_timestamp() - make_interval(secs => sqlc.arg(silent_after_seconds)::float8)
            OR last_heartbeat IS NULL)
     ORDER BY region, available DESC, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
 ) AS region_clusters

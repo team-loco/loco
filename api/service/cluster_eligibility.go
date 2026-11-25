@@ -64,10 +64,9 @@ func eligibleClusters(
 	silentAfter time.Duration,
 	platform workloadplatform.Platform,
 ) ([]genDb.ListEligibleClustersRow, error) {
-	heardSince := time.Now().Add(-silentAfter)
 	clusters, err := queries.ListEligibleClusters(ctx, genDb.ListEligibleClustersParams{
-		HeardSince: heardSince,
-		Platform:   string(platform),
+		SilentAfterSeconds: silentAfter.Seconds(),
+		Platform:           string(platform),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list eligible clusters: %w", err)

@@ -338,8 +338,8 @@ func (s *BuildServer) buildCluster(ctx context.Context) (uuid.UUID, error) {
 	clusterID, err := s.queries.GetBuildCluster(
 		ctx,
 		genDb.GetBuildClusterParams{
-			HeardSince: s.now().Add(-s.config.ClusterSilentAfter),
-			Platform:   string(s.config.TargetPlatform),
+			SilentAfterSeconds: s.config.ClusterSilentAfter.Seconds(),
+			Platform:           string(s.config.TargetPlatform),
 		},
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
