@@ -153,9 +153,10 @@
 		[data-slot="step-toggle"],
 		[data-slot="error-banner"],
 		[data-slot="search-clear"],
-		[data-level-chip],
-		[data-row-menu],
-		[data-slot="button"][title="Copy request ID"],
+		[data-chip],
+		[data-slot="badge"][data-tone="pill"],
+		.lim-tag,
+		[data-slot="error-banner"] [data-slot="button"],
 		[data-request-id] [data-slot="button"]
 	) {
 	border-radius: 2px;

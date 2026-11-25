@@ -36,7 +36,9 @@ function Badge({
 	tone?: BadgeTone | undefined;
 	size?: "default" | "sm" | undefined;
 }) {
-	return <BadgeBase variant="outline" className={cn(badgeVariants({ tone, size }), className)} {...props} />;
+	return (
+		<BadgeBase variant="outline" data-tone={tone} className={cn(badgeVariants({ tone, size }), className)} {...props} />
+	);
 }
 
 export { Badge, type BadgeTone };

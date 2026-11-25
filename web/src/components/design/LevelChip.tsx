@@ -18,7 +18,7 @@ export function LevelChip({
 		<span
 			title={title}
 			data-slot="chip"
-			data-level-chip
+			data-chip
 			className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md bg-foreground/7 px-2 text-[12px] whitespace-nowrap text-fg2"
 		>
 			{nameFirst ? nameText : levelText}
