@@ -1891,6 +1891,11 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+        self.log_message("wrote body")
+
+    def copyfile(self, source, outputfile):
+        super().copyfile(source, outputfile)
+        self.log_message("wrote body")
 
     def send_head(self):
         path = self.path.split("?", 1)[0]
@@ -1909,7 +1914,9 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
         super().finish()
 
     def log_message(self, format, *args):
-        log(f"{time.time():.3f} {id(self):x} {format % args}")
+        log(
+            f"{time.time():.3f} {id(self):x} port {self.client_address[1]} {format % args}"
+        )
 
 
 class UIServer(http.server.ThreadingHTTPServer):

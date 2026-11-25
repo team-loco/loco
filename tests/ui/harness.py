@@ -11,7 +11,9 @@ import evidence
 from playwright.sync_api import sync_playwright
 
 repo = Path(__file__).resolve().parents[2]
-UI_LOGS = []
+# The port and log file of every UI server this suite started.
+UI_SERVERS = []
+TCP_TABLES = ("/proc/net/tcp", "/proc/net/tcp6")
 
 # A clipboard per page; every suite shares one Chromium and its one system clipboard.
 CLIPBOARD_JS = """Object.defineProperty(navigator, "clipboard", {
@@ -31,17 +33,58 @@ def load_state(args, name, scenario, *, issuer=None):
                 lambda: evidence.stop_state(evidence.load_state(args.state))
             )
     state = evidence.load_state(args.state)
-    UI_LOGS.append(Path(state["root"]) / "ui.log")
+    UI_SERVERS.append((state["ports"]["ui"], Path(state["root"]) / "ui.log"))
     return state
 
 
+TCP_STATES = [
+    "",
+    "ESTABLISHED",
+    "SYN_SENT",
+    "SYN_RECV",
+    "FIN_WAIT1",
+    "FIN_WAIT2",
+    "TIME_WAIT",
+    "CLOSE",
+    "CLOSE_WAIT",
+    "LAST_ACK",
+    "LISTEN",
+    "CLOSING",
+]
+
+
+def tcp_sockets(port):
+    """Linux's TCP sockets on `port` with their queued bytes; a LISTEN socket's receive queue counts unaccepted connections."""
+    sockets = []
+    for table in TCP_TABLES:
+        with contextlib.suppress(OSError):
+            for line in Path(table).read_text().splitlines()[1:]:
+                _, local, remote, state, queues = line.split()[:5]
+                ports = [
+                    int(address.rsplit(":", 1)[1], 16) for address in (local, remote)
+                ]
+                if port in ports:
+                    send, receive = (int(queue, 16) for queue in queues.split(":"))
+                    sockets.append(
+                        {
+                            "local": ports[0],
+                            "remote": ports[1],
+                            "state": TCP_STATES[int(state, 16)],
+                            "send_queue": send,
+                            "receive_queue": receive,
+                        }
+                    )
+    return sockets
+
+
 def probe(context, page):
-    """Whether the page's document completed and whether its URL can be fetched outside the renderer."""
+    """The page's readyState and a fetch of its URL outside the renderer."""
     try:
-        page.wait_for_function("document.readyState === 'complete'", timeout=3000)
-        document = "complete"
-    except Exception:
-        document = "not complete"
+        document = page.wait_for_function(
+            "document.readyState", timeout=3000
+        ).json_value()
+    except Exception as err:
+        document = {"error": str(err).splitlines()[0]}
     try:
         response = context.request.get(page.url, timeout=3000)
         fetched = {"status": response.status, "bytes": len(response.body())}
@@ -59,12 +102,14 @@ def session(out, **launch_options):
         try:
             yield browser
         except BaseException:
+            sockets = [tcp_sockets(port) for port, _ in UI_SERVERS]
             # test:ui labels a suite's repeat runs name#2, name#3; each keeps its own directory.
             _, repeat, number = os.environ.get("UI_RUN_LABEL", "").partition("#")
             if repeat:
                 out = out.with_name(f"{out.name}#{number}")
             out.mkdir(parents=True, exist_ok=True)
-            for number, ui_log in enumerate(UI_LOGS):
+            for number, (_, ui_log) in enumerate(UI_SERVERS):
+                evidence.write_json(out / f"ui-{number}-sockets.json", sockets[number])
                 with contextlib.suppress(Exception):
                     shutil.copy(ui_log, out / f"ui-{number}.log")
             for index, context in enumerate(browser.contexts):
