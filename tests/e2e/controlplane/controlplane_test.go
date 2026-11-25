@@ -242,6 +242,32 @@ func (cp *controlPlane) upgrade(t *testing.T) {
 	helm(t, "upgrade", "--install", release, c.Path("charts", "loco-control-plane"), "--namespace", cp.namespace,
 		"-f", c.Path("tests", "e2e", "control-plane-values.yaml"), "--wait=legacy", "--wait-for-jobs",
 		"--timeout", upgradeTimeout.String())
+	cp.waitAPIReady(t)
+}
+
+// waitAPIReady waits until every API pod passes its readiness check and the kubelet marks it Ready.
+func (cp *controlPlane) waitAPIReady(t *testing.T) {
+	t.Helper()
+	ns := []string{"-n", cp.namespace}
+	container := "{.spec.template.spec.containers[0]"
+	fields := container + ".readinessProbe.httpGet.path} " + container + `.ports[?(@.name=="http")].containerPort}`
+	probe := strings.Fields(
+		c.MustKubectl(t, append(ns, "get", "deployment/"+release+"-api", "-o", "jsonpath="+fields)...),
+	)
+	if len(probe) != 2 {
+		t.Fatalf("the API Deployment's readiness probe and http port are %q", probe)
+	}
+	selector := "app=" + release + "-api"
+	pods := c.MustKubectl(t, append(ns, "get", "pods", "-l", selector, "-o", "jsonpath={.items[*].metadata.name}")...)
+	for pod := range strings.FieldsSeq(pods) {
+		path := "/api/v1/namespaces/" + cp.namespace + "/pods/" + pod + ":" + probe[1] + "/proxy" + probe[0]
+		platform.Eventually(t, loginTimeout, pod+" passes its readiness check", func(ctx context.Context) error {
+			_, err := c.Kubectl(ctx, "get", "--raw", path)
+			return err
+		})
+	}
+	c.MustKubectl(t, append(ns, "wait", "--for=condition=Ready", "pod", "-l", selector,
+		"--timeout", installTimeout.String())...)
 }
 
 //nolint:thelper // a step of TestControlPlane
