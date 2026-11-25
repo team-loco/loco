@@ -103,15 +103,22 @@ func revoke(t *testing.T, caller, target membershipUser) error {
 func TestListSystemRolesShowsRolesSourcesAndUnclaimedEmails(t *testing.T) {
 	a, configAdmin := newSystemRoleAPI(t)
 	reader := a.signUp(t, configReaderSubject)
+	a.setName(t, configAdmin, "Config Admin")
 	if err := grantRole(t, configAdmin, reader, roleAdmin); err != nil {
 		t.Fatalf("grant admin to the configured reader: %v", err)
 	}
 
 	listed := listRoles(t, reader)
+	for _, holder := range listed.GetHolders() {
+		if holder.GetLastActiveAt() == nil {
+			t.Errorf("holder %s has no last active time", holder.GetEmail())
+		}
+		holder.LastActiveAt = nil
+	}
 	want := &adminv1.ListSystemRolesResponse{
 		Holders: []*adminv1.SystemRoleHolder{
 			{
-				UserId: configAdmin.id.String(), Email: membershipEmail(configAdminSubject),
+				UserId: configAdmin.id.String(), Email: membershipEmail(configAdminSubject), Name: "Config Admin",
 				Issuer: testIssuer, Subject: configAdminSubject, ConfiguredRole: roleAdmin,
 			},
 			{

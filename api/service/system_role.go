@@ -60,6 +60,8 @@ func (s *SystemRoleServer) ListSystemRoles(
 		response.Holders = append(response.Holders, &adminv1.SystemRoleHolder{
 			UserId:         row.ID.String(),
 			Email:          row.Email,
+			Name:           derefString(row.Name),
+			LastActiveAt:   optionalTimestamp(row.LastActiveAt),
 			Issuer:         derefString(row.Issuer),
 			Subject:        derefString(row.Subject),
 			ConfiguredRole: systemRoleToProto(row.ConfiguredRole),

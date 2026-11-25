@@ -3,6 +3,7 @@ syntax = "proto3";
 package loco.admin.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/admin/v1;adminv1";
 
@@ -40,6 +41,9 @@ message SystemRoleHolder {
   SystemRole configured_role = 5;
   // granted_role is the role GrantSystemRole gave the user.
   SystemRole granted_role = 6;
+  string name = 7;
+  // last_active_at is the latest use of any of the user's sessions; unset when the user has no session.
+  google.protobuf.Timestamp last_active_at = 8;
 }
 
 // UnclaimedEmail is a configured email no user has claimed yet.

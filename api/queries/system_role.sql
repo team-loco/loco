@@ -51,8 +51,12 @@ WHERE u.id = $1;
 DELETE FROM user_scopes WHERE user_id = $1 AND entity_type = 'system';
 
 -- name: ListSystemRoleHolders :many
-SELECT u.id, u.email, i.issuer, i.subject, c.role AS configured_role, g.role AS granted_role
+SELECT u.id, u.email, u.name, i.issuer, i.subject, c.role AS configured_role, g.role AS granted_role,
+       a.last_used_at AS last_active_at
 FROM users u
+LEFT JOIN session_tokens a ON a.id = (
+  SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
+)
 LEFT JOIN identities i ON i.user_id = u.id
 LEFT JOIN system_role_claims c ON c.user_id = u.id
 LEFT JOIN system_role_grants g ON g.user_id = u.id

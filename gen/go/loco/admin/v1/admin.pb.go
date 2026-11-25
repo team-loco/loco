@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -85,7 +86,10 @@ type SystemRoleHolder struct {
 	// configured_role is the role the user claimed from LOCO_SYSTEM_ADMINS or LOCO_SYSTEM_READERS.
 	ConfiguredRole SystemRole `protobuf:"varint,5,opt,name=configured_role,json=configuredRole,proto3,enum=loco.admin.v1.SystemRole" json:"configured_role,omitempty"`
 	// granted_role is the role GrantSystemRole gave the user.
-	GrantedRole   SystemRole `protobuf:"varint,6,opt,name=granted_role,json=grantedRole,proto3,enum=loco.admin.v1.SystemRole" json:"granted_role,omitempty"`
+	GrantedRole SystemRole `protobuf:"varint,6,opt,name=granted_role,json=grantedRole,proto3,enum=loco.admin.v1.SystemRole" json:"granted_role,omitempty"`
+	Name        string     `protobuf:"bytes,7,opt,name=name,proto3" json:"name,omitempty"`
+	// last_active_at is the latest use of any of the user's sessions; unset when the user has no session.
+	LastActiveAt  *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_active_at,json=lastActiveAt,proto3" json:"last_active_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -160,6 +164,20 @@ func (x *SystemRoleHolder) GetGrantedRole() SystemRole {
 		return x.GrantedRole
 	}
 	return SystemRole_SYSTEM_ROLE_UNSPECIFIED
+}
+
+func (x *SystemRoleHolder) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SystemRoleHolder) GetLastActiveAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastActiveAt
+	}
+	return nil
 }
 
 // UnclaimedEmail is a configured email no user has claimed yet.
@@ -475,14 +493,16 @@ var File_loco_admin_v1_admin_proto protoreflect.FileDescriptor
 
 const file_loco_admin_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/admin/v1/admin.proto\x12\rloco.admin.v1\x1a\x1bbuf/validate/validate.proto\"\xf5\x01\n" +
+	"\x19loco/admin/v1/admin.proto\x12\rloco.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcb\x02\n" +
 	"\x10SystemRoleHolder\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x16\n" +
 	"\x06issuer\x18\x03 \x01(\tR\x06issuer\x12\x18\n" +
 	"\asubject\x18\x04 \x01(\tR\asubject\x12B\n" +
 	"\x0fconfigured_role\x18\x05 \x01(\x0e2\x19.loco.admin.v1.SystemRoleR\x0econfiguredRole\x12<\n" +
-	"\fgranted_role\x18\x06 \x01(\x0e2\x19.loco.admin.v1.SystemRoleR\vgrantedRole\"U\n" +
+	"\fgranted_role\x18\x06 \x01(\x0e2\x19.loco.admin.v1.SystemRoleR\vgrantedRole\x12\x12\n" +
+	"\x04name\x18\a \x01(\tR\x04name\x12@\n" +
+	"\x0elast_active_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\flastActiveAt\"U\n" +
 	"\x0eUnclaimedEmail\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12-\n" +
 	"\x04role\x18\x02 \x01(\x0e2\x19.loco.admin.v1.SystemRoleR\x04role\"\x18\n" +
@@ -532,25 +552,27 @@ var file_loco_admin_v1_admin_proto_goTypes = []any{
 	(*GrantSystemRoleResponse)(nil),  // 6: loco.admin.v1.GrantSystemRoleResponse
 	(*RevokeSystemRoleRequest)(nil),  // 7: loco.admin.v1.RevokeSystemRoleRequest
 	(*RevokeSystemRoleResponse)(nil), // 8: loco.admin.v1.RevokeSystemRoleResponse
+	(*timestamppb.Timestamp)(nil),    // 9: google.protobuf.Timestamp
 }
 var file_loco_admin_v1_admin_proto_depIdxs = []int32{
-	0, // 0: loco.admin.v1.SystemRoleHolder.configured_role:type_name -> loco.admin.v1.SystemRole
-	0, // 1: loco.admin.v1.SystemRoleHolder.granted_role:type_name -> loco.admin.v1.SystemRole
-	0, // 2: loco.admin.v1.UnclaimedEmail.role:type_name -> loco.admin.v1.SystemRole
-	1, // 3: loco.admin.v1.ListSystemRolesResponse.holders:type_name -> loco.admin.v1.SystemRoleHolder
-	2, // 4: loco.admin.v1.ListSystemRolesResponse.unclaimed:type_name -> loco.admin.v1.UnclaimedEmail
-	0, // 5: loco.admin.v1.GrantSystemRoleRequest.role:type_name -> loco.admin.v1.SystemRole
-	3, // 6: loco.admin.v1.SystemRoleService.ListSystemRoles:input_type -> loco.admin.v1.ListSystemRolesRequest
-	5, // 7: loco.admin.v1.SystemRoleService.GrantSystemRole:input_type -> loco.admin.v1.GrantSystemRoleRequest
-	7, // 8: loco.admin.v1.SystemRoleService.RevokeSystemRole:input_type -> loco.admin.v1.RevokeSystemRoleRequest
-	4, // 9: loco.admin.v1.SystemRoleService.ListSystemRoles:output_type -> loco.admin.v1.ListSystemRolesResponse
-	6, // 10: loco.admin.v1.SystemRoleService.GrantSystemRole:output_type -> loco.admin.v1.GrantSystemRoleResponse
-	8, // 11: loco.admin.v1.SystemRoleService.RevokeSystemRole:output_type -> loco.admin.v1.RevokeSystemRoleResponse
-	9, // [9:12] is the sub-list for method output_type
-	6, // [6:9] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	0,  // 0: loco.admin.v1.SystemRoleHolder.configured_role:type_name -> loco.admin.v1.SystemRole
+	0,  // 1: loco.admin.v1.SystemRoleHolder.granted_role:type_name -> loco.admin.v1.SystemRole
+	9,  // 2: loco.admin.v1.SystemRoleHolder.last_active_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: loco.admin.v1.UnclaimedEmail.role:type_name -> loco.admin.v1.SystemRole
+	1,  // 4: loco.admin.v1.ListSystemRolesResponse.holders:type_name -> loco.admin.v1.SystemRoleHolder
+	2,  // 5: loco.admin.v1.ListSystemRolesResponse.unclaimed:type_name -> loco.admin.v1.UnclaimedEmail
+	0,  // 6: loco.admin.v1.GrantSystemRoleRequest.role:type_name -> loco.admin.v1.SystemRole
+	3,  // 7: loco.admin.v1.SystemRoleService.ListSystemRoles:input_type -> loco.admin.v1.ListSystemRolesRequest
+	5,  // 8: loco.admin.v1.SystemRoleService.GrantSystemRole:input_type -> loco.admin.v1.GrantSystemRoleRequest
+	7,  // 9: loco.admin.v1.SystemRoleService.RevokeSystemRole:input_type -> loco.admin.v1.RevokeSystemRoleRequest
+	4,  // 10: loco.admin.v1.SystemRoleService.ListSystemRoles:output_type -> loco.admin.v1.ListSystemRolesResponse
+	6,  // 11: loco.admin.v1.SystemRoleService.GrantSystemRole:output_type -> loco.admin.v1.GrantSystemRoleResponse
+	8,  // 12: loco.admin.v1.SystemRoleService.RevokeSystemRole:output_type -> loco.admin.v1.RevokeSystemRoleResponse
+	10, // [10:13] is the sub-list for method output_type
+	7,  // [7:10] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_loco_admin_v1_admin_proto_init() }

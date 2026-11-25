@@ -5,13 +5,15 @@
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/admin/v1/admin.proto.
  */
 export const file_loco_admin_v1_admin: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FkbWluL3YxL2FkbWluLnByb3RvEg1sb2NvLmFkbWluLnYxIrgBChBTeXN0ZW1Sb2xlSG9sZGVyEg8KB3VzZXJfaWQYASABKAkSDQoFZW1haWwYAiABKAkSDgoGaXNzdWVyGAMgASgJEg8KB3N1YmplY3QYBCABKAkSMgoPY29uZmlndXJlZF9yb2xlGAUgASgOMhkubG9jby5hZG1pbi52MS5TeXN0ZW1Sb2xlEi8KDGdyYW50ZWRfcm9sZRgGIAEoDjIZLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZSJICg5VbmNsYWltZWRFbWFpbBINCgVlbWFpbBgBIAEoCRInCgRyb2xlGAIgASgOMhkubG9jby5hZG1pbi52MS5TeXN0ZW1Sb2xlIhgKFkxpc3RTeXN0ZW1Sb2xlc1JlcXVlc3QifQoXTGlzdFN5c3RlbVJvbGVzUmVzcG9uc2USMAoHaG9sZGVycxgBIAMoCzIfLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZUhvbGRlchIwCgl1bmNsYWltZWQYAiADKAsyHS5sb2NvLmFkbWluLnYxLlVuY2xhaW1lZEVtYWlsImgKFkdyYW50U3lzdGVtUm9sZVJlcXVlc3QSGQoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQESMwoEcm9sZRgCIAEoDjIZLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZUIKukgHggEEEAEgACIZChdHcmFudFN5c3RlbVJvbGVSZXNwb25zZSI0ChdSZXZva2VTeXN0ZW1Sb2xlUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIaChhSZXZva2VTeXN0ZW1Sb2xlUmVzcG9uc2UqVgoKU3lzdGVtUm9sZRIbChdTWVNURU1fUk9MRV9VTlNQRUNJRklFRBAAEhQKEFNZU1RFTV9ST0xFX1JFQUQQARIVChFTWVNURU1fUk9MRV9BRE1JThACMrwCChFTeXN0ZW1Sb2xlU2VydmljZRJgCg9MaXN0U3lzdGVtUm9sZXMSJS5sb2NvLmFkbWluLnYxLkxpc3RTeXN0ZW1Sb2xlc1JlcXVlc3QaJi5sb2NvLmFkbWluLnYxLkxpc3RTeXN0ZW1Sb2xlc1Jlc3BvbnNlEmAKD0dyYW50U3lzdGVtUm9sZRIlLmxvY28uYWRtaW4udjEuR3JhbnRTeXN0ZW1Sb2xlUmVxdWVzdBomLmxvY28uYWRtaW4udjEuR3JhbnRTeXN0ZW1Sb2xlUmVzcG9uc2USYwoQUmV2b2tlU3lzdGVtUm9sZRImLmxvY28uYWRtaW4udjEuUmV2b2tlU3lzdGVtUm9sZVJlcXVlc3QaJy5sb2NvLmFkbWluLnYxLlJldm9rZVN5c3RlbVJvbGVSZXNwb25zZUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2FkbWluL3YxO2FkbWludjFiBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("Chlsb2NvL2FkbWluL3YxL2FkbWluLnByb3RvEg1sb2NvLmFkbWluLnYxIvoBChBTeXN0ZW1Sb2xlSG9sZGVyEg8KB3VzZXJfaWQYASABKAkSDQoFZW1haWwYAiABKAkSDgoGaXNzdWVyGAMgASgJEg8KB3N1YmplY3QYBCABKAkSMgoPY29uZmlndXJlZF9yb2xlGAUgASgOMhkubG9jby5hZG1pbi52MS5TeXN0ZW1Sb2xlEi8KDGdyYW50ZWRfcm9sZRgGIAEoDjIZLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZRIMCgRuYW1lGAcgASgJEjIKDmxhc3RfYWN0aXZlX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJICg5VbmNsYWltZWRFbWFpbBINCgVlbWFpbBgBIAEoCRInCgRyb2xlGAIgASgOMhkubG9jby5hZG1pbi52MS5TeXN0ZW1Sb2xlIhgKFkxpc3RTeXN0ZW1Sb2xlc1JlcXVlc3QifQoXTGlzdFN5c3RlbVJvbGVzUmVzcG9uc2USMAoHaG9sZGVycxgBIAMoCzIfLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZUhvbGRlchIwCgl1bmNsYWltZWQYAiADKAsyHS5sb2NvLmFkbWluLnYxLlVuY2xhaW1lZEVtYWlsImgKFkdyYW50U3lzdGVtUm9sZVJlcXVlc3QSGQoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQESMwoEcm9sZRgCIAEoDjIZLmxvY28uYWRtaW4udjEuU3lzdGVtUm9sZUIKukgHggEEEAEgACIZChdHcmFudFN5c3RlbVJvbGVSZXNwb25zZSI0ChdSZXZva2VTeXN0ZW1Sb2xlUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIaChhSZXZva2VTeXN0ZW1Sb2xlUmVzcG9uc2UqVgoKU3lzdGVtUm9sZRIbChdTWVNURU1fUk9MRV9VTlNQRUNJRklFRBAAEhQKEFNZU1RFTV9ST0xFX1JFQUQQARIVChFTWVNURU1fUk9MRV9BRE1JThACMrwCChFTeXN0ZW1Sb2xlU2VydmljZRJgCg9MaXN0U3lzdGVtUm9sZXMSJS5sb2NvLmFkbWluLnYxLkxpc3RTeXN0ZW1Sb2xlc1JlcXVlc3QaJi5sb2NvLmFkbWluLnYxLkxpc3RTeXN0ZW1Sb2xlc1Jlc3BvbnNlEmAKD0dyYW50U3lzdGVtUm9sZRIlLmxvY28uYWRtaW4udjEuR3JhbnRTeXN0ZW1Sb2xlUmVxdWVzdBomLmxvY28uYWRtaW4udjEuR3JhbnRTeXN0ZW1Sb2xlUmVzcG9uc2USYwoQUmV2b2tlU3lzdGVtUm9sZRImLmxvY28uYWRtaW4udjEuUmV2b2tlU3lzdGVtUm9sZVJlcXVlc3QaJy5sb2NvLmFkbWluLnYxLlJldm9rZVN5c3RlbVJvbGVSZXNwb25zZUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2FkbWluL3YxO2FkbWludjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * SystemRoleHolder is a user with an installation role, the higher of the configured and the
@@ -55,6 +57,18 @@ export type SystemRoleHolder = Message<"loco.admin.v1.SystemRoleHolder"> & {
    * @generated from field: loco.admin.v1.SystemRole granted_role = 6;
    */
   grantedRole: SystemRole;
+
+  /**
+   * @generated from field: string name = 7;
+   */
+  name: string;
+
+  /**
+   * last_active_at is the latest use of any of the user's sessions; unset when the user has no session.
+   *
+   * @generated from field: google.protobuf.Timestamp last_active_at = 8;
+   */
+  lastActiveAt?: Timestamp | undefined;
 };
 
 /**
@@ -99,6 +113,18 @@ export type SystemRoleHolderJson = {
    * @generated from field: loco.admin.v1.SystemRole granted_role = 6;
    */
   grantedRole?: SystemRoleJson;
+
+  /**
+   * @generated from field: string name = 7;
+   */
+  name?: string;
+
+  /**
+   * last_active_at is the latest use of any of the user's sessions; unset when the user has no session.
+   *
+   * @generated from field: google.protobuf.Timestamp last_active_at = 8;
+   */
+  lastActiveAt?: TimestampJson;
 };
 
 /**
