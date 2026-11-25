@@ -71,3 +71,13 @@ tests:
       - failedTemplate:
           errorMessage: platform telemetry requires one otel-col-cluster replica with autoscaling disabled
         template: templates/collectors/collector-configs.yaml
+
+  - it: deletes the platform marker from the telemetry workloads send
+    template: templates/collectors/collector-configs.yaml
+    asserts:
+      - matchRegex: &stripsScope
+          path: data.relay
+          pattern: 'resource/strip_tenancy:\n\s+attributes:\n(\s+- action: delete\n\s+key: \S+\n)*\s+- action: delete\n\s+key: loco\.telemetry\.scope\n'
+        documentSelector: {path: metadata.name, value: otel-col-daemon-agent}
+      - matchRegex: *stripsScope
+        documentSelector: {path: metadata.name, value: otel-col-deploy}
