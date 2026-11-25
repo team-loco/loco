@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/imagepath"
@@ -37,8 +39,6 @@ const (
 	uuidVariantMask     = 0x3f
 	uuidTimestampBytes  = 6
 	bitsPerByte         = 8
-	testLockWait        = 5 * time.Second
-	testLockPoll        = 10 * time.Millisecond
 )
 
 var errFakeRegistry = errors.New("fake registry failure")
@@ -49,7 +49,6 @@ type fakeRegistry struct {
 	deleted     []string
 	deleteFails map[string]int
 	onDelete    func(digest string)
-	onTagDigest func(tag string)
 }
 
 func newFakeRegistry() *fakeRegistry {
@@ -146,12 +145,6 @@ func (r *fakeRegistry) Tags(_ context.Context, path string) ([]string, error) {
 }
 
 func (r *fakeRegistry) TagDigest(_ context.Context, path, tag string) (string, error) {
-	r.mu.Lock()
-	hook := r.onTagDigest
-	r.mu.Unlock()
-	if hook != nil {
-		hook(tag)
-	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	digest, ok := r.tags[path][tag]
@@ -675,80 +668,74 @@ VALUES ('cli', 'linux/amd64', $1, $2, $3, 'failed', 'upload', $4, 10, 'Dockerfil
 
 func TestImageSweepKeepsADigestARebuildRecordsMidSweep(t *testing.T) {
 	t.Parallel()
-	f := newImageSweepFixture(t, 1)
-	shared := fakeDigest("aaaa", 0)
-	old := f.succeededWith(t, shared, fakeDigest("cccc", 0))
-	if _, err := f.pool.Exec(f.ctx, `UPDATE builds SET image_deleted_at = NOW() WHERE id = $1`, old.id); err != nil {
-		t.Fatalf("mark image deleted: %v", err)
-	}
-	rebuild := f.unfinishedBuild(t, genDb.BuildStatusRunning, nil)
-	rebuildTag := locoControllerV1.BuildImageTagPrefix + rebuild.id.String()
-	f.registry.tag(f.repoPath, rebuildTag, shared)
+	for name, retry := range map[string]bool{"first delete": false, "stale tag retry": true} {
+		for _, asCache := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/cache=%t", name, asCache), func(t *testing.T) {
+				t.Parallel()
+				f := newImageSweepFixture(t, 1)
+				shared := fakeDigest("aaaa", 0)
+				old := f.succeededWith(t, shared, fakeDigest("cccc", 0))
+				f.succeeded(t)
+				if retry {
+					_, err := f.pool.Exec(f.ctx, `UPDATE builds SET image_deleted_at = NOW() WHERE id = $1`, old.id)
+					if err != nil {
+						t.Fatalf("mark image deleted: %v", err)
+					}
+				}
+				rebuild := f.unfinishedBuild(t, genDb.BuildStatusRunning, nil)
+				image, cache := shared, rebuild.cache
+				if asCache {
+					image, cache = rebuild.image, shared
+				}
+				f.registry.tag(f.repoPath, locoControllerV1.BuildImageTagPrefix+rebuild.id.String(), image)
+				f.registry.tag(f.repoPath, locoControllerV1.BuildCacheTagPrefix+rebuild.id.String(), cache)
 
-	locked := make(chan struct{})
-	committed := make(chan error, 1)
-	var once sync.Once
-	f.registry.mu.Lock()
-	f.registry.onTagDigest = func(tag string) {
-		if tag != locoControllerV1.BuildImageTagPrefix+old.id {
-			return
+				f.sweepWhileBuildSucceeds(t, rebuild.id, image, cache)
+				if !f.registry.has(f.repoPath, shared) {
+					t.Fatal("the sweep deleted the digest a rebuild recorded during the sweep")
+				}
+			})
 		}
-		once.Do(func() { go func() { committed <- f.recordSuccessWhenSweepWaits(rebuild.id, shared, locked) }() })
-		select {
-		case <-locked:
-		case <-time.After(testLockWait):
-			t.Error("the rebuild never locked its resource")
-		}
-	}
-	f.registry.mu.Unlock()
-
-	f.sweep(t)
-	if err := <-committed; err != nil {
-		t.Fatalf("record rebuild success: %v", err)
-	}
-	if !f.registry.hasTag(f.repoPath, rebuildTag) {
-		t.Fatal("the sweep deleted the digest a rebuild recorded during the sweep")
 	}
 }
 
-// recordSuccessWhenSweepWaits finishes the build under the resource lock and commits once another session waits on it.
-func (f *imageSweepFixture) recordSuccessWhenSweepWaits(
-	buildID uuid.UUID,
-	digest string,
-	locked chan<- struct{},
-) error {
+// sweepWhileBuildSucceeds sweeps while a transaction holding the resource lock records the build's success.
+func (f *imageSweepFixture) sweepWhileBuildSucceeds(t *testing.T, buildID uuid.UUID, image, cache string) {
+	t.Helper()
 	tx, err := f.pool.Begin(f.ctx)
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
-	defer func() { _ = tx.Rollback(f.ctx) }()
+	t.Cleanup(func() {
+		if rollbackErr := tx.Rollback(f.ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			t.Errorf("roll back success: %v", rollbackErr)
+		}
+	})
 	qtx := genDb.New(tx)
-	if err := qtx.LockBuildResource(f.ctx, buildID); err != nil {
-		return err
+	if err = qtx.LockBuildResource(f.ctx, buildID); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := qtx.FinishBuild(f.ctx, genDb.FinishBuildParams{
+	if _, err = qtx.FinishBuild(f.ctx, genDb.FinishBuildParams{
 		ID:          buildID,
 		ClusterID:   &f.clusterID,
 		Status:      genDb.BuildStatusSucceeded,
-		ImageDigest: &digest,
+		ImageDigest: &image,
+		CacheDigest: &cache,
 	}); err != nil {
-		return err
+		t.Fatal(err)
 	}
-	close(locked)
-	deadline := time.Now().Add(testLockWait)
-	for time.Now().Before(deadline) {
-		var waiting int
-		if err := f.pool.QueryRow(f.ctx, `
-SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`,
-		).Scan(&waiting); err != nil {
-			return err
-		}
-		if waiting > 0 {
-			break
-		}
-		time.Sleep(testLockPoll)
+	swept := make(chan error, 1)
+	go func() {
+		_, sweepErr := f.sweeper.Sweep(f.ctx)
+		swept <- sweepErr
+	}()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	if err = tx.Commit(f.ctx); err != nil {
+		t.Fatal(err)
 	}
-	return tx.Commit(f.ctx)
+	if err = <-swept; err != nil {
+		t.Fatalf("sweep: %v", err)
+	}
 }
 
 func TestImageSweepBoundsTagDeletesPerRun(t *testing.T) {

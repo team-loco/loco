@@ -22,6 +22,7 @@ import (
 
 const (
 	uuidVersionTimeOrdered = 7
+	manifestDeleteTimeout  = 5 * time.Second
 
 	imageSweepSpan         = "image.sweep"
 	imagesDeletedAttr      = "loco.sweep.images_deleted"
@@ -189,7 +190,7 @@ func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) 
 	if _, err := s.deleteUnusedManifest(ctx, marked.ResourceID, path, marked.ImageDigest); err != nil {
 		return false, fmt.Errorf("delete image: %w", err)
 	}
-	if marked.CacheDigest != nil {
+	if marked.CacheDigest != nil && *marked.CacheDigest != marked.ImageDigest {
 		if _, err := s.deleteUnusedManifest(ctx, marked.ResourceID, path, *marked.CacheDigest); err != nil {
 			return false, fmt.Errorf("delete cache: %w", err)
 		}
@@ -204,7 +205,7 @@ func (s *ImageSweeper) deleteUnusedManifest(
 	path, digest string,
 ) (bool, error) {
 	deleted := false
-	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+	err := pgx.BeginTxFunc(ctx, s.db, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
 		qtx := genDb.New(tx)
 		locked, err := qtx.LockResources(ctx, []uuid.UUID{resourceID})
 		if err != nil {
@@ -220,7 +221,10 @@ func (s *ImageSweeper) deleteUnusedManifest(
 		if live {
 			return nil
 		}
-		if err := s.registry.DeleteManifest(ctx, path, digest); err != nil {
+		// A short deadline bounds how long the delete holds the resource lock; deleteStaleTags retries failures.
+		deleteCtx, cancel := context.WithTimeout(ctx, manifestDeleteTimeout)
+		defer cancel()
+		if err := s.registry.DeleteManifest(deleteCtx, path, digest); err != nil {
 			return err
 		}
 		deleted = true
