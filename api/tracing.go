@@ -49,7 +49,7 @@ func traceHTTPRequest(r *http.Request) bool {
 	switch r.URL.Path {
 	case rootPath:
 		return false
-	case livePath, readyPath:
+	case livePath, readyPath, healthPath:
 		return false
 	case agentv1connect.AgentServiceSyncProcedure:
 		return false

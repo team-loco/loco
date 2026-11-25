@@ -558,6 +558,7 @@ func newRPCServers(
 
 func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *connect.Server, d *deps) {
 	mux.HandleFunc(livePath, liveHandler)
+	mux.HandleFunc(healthPath, liveHandler)
 	mux.HandleFunc(readyPath, d.ready)
 
 	configv1connect.RegisterConfigServiceHandler(baseServer, d.config)

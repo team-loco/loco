@@ -166,7 +166,7 @@ func TestRPCSpanStartsItsOwnTraceAndLinksTheCaller(t *testing.T) {
 func TestUntracedRoutesRecordNoSpans(t *testing.T) {
 	recorder := recordGlobalSpans(t)
 	srv := newTracedServer(t)
-	for _, path := range []string{rootPath, livePath, readyPath} {
+	for _, path := range []string{rootPath, livePath, readyPath, healthPath} {
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+path, nil)
 		if err != nil {
 			t.Fatal(err)

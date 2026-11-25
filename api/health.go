@@ -16,6 +16,8 @@ import (
 const (
 	livePath  = "/livez"
 	readyPath = "/readyz"
+	// healthPath is the liveness path the chart of the latest release probes.
+	healthPath = "/health"
 
 	readinessTimeout = 2 * time.Second
 )
