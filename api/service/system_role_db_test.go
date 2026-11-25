@@ -110,9 +110,24 @@ func TestListSystemRolesShowsRolesSourcesAndUnclaimedEmails(t *testing.T) {
 		t.Fatalf("grant admin to the configured reader: %v", err)
 	}
 
+	// The reader's own request marks its session used; the admin's last use stays as set.
+	adminActive := time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)
+	principal, err := a.machine.GetToken(t.Context(), configAdmin.token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = a.pool.Exec(t.Context(), `UPDATE session_tokens SET last_used_at = $2 WHERE id = $1`,
+		principal.SessionID, adminActive); err != nil {
+		t.Fatal(err)
+	}
+
 	listed := listRoles(t, reader)
 	for _, holder := range listed.GetHolders() {
-		if holder.GetLastActiveAt() == nil {
+		got := holder.GetLastActiveAt()
+		if holder.GetUserId() == configAdmin.id.String() && !got.AsTime().Equal(adminActive) {
+			t.Errorf("admin last active = %v, want %v", got, adminActive)
+		}
+		if got == nil {
 			t.Errorf("holder %s has no last active time", holder.GetEmail())
 		}
 		holder.LastActiveAt = nil
