@@ -160,7 +160,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	// Restarts stop a revision only until it proves itself; a proven revision keeps running.
 	exhausted := exhaustedRevision(current, revision, policy, now)
 	if rollout.Stopped == nil && placed && previous.ProvenRevision != revision {
-		rollout.Stopped = exhausted
+		rollout.Stopped = cmp.Or(startupFailedRevision(current, revision, now), exhausted)
 	}
 	settled := rolloutSettled(dep, app)
 	r.observeHealth(rollout, current, revision, settled, now)

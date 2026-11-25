@@ -426,3 +426,28 @@ func TestRolloutForwarding(t *testing.T) {
 		t.Fatalf("nil rollout=%v", got)
 	}
 }
+
+func TestStartupFailureIsReportedAsStopped(t *testing.T) {
+	for _, reason := range []locoControllerV1.ProblemReason{
+		locoControllerV1.ProblemConfigError, locoControllerV1.ProblemImageUser, locoControllerV1.ProblemImagePullFailed,
+	} {
+		t.Run(string(reason), func(t *testing.T) {
+			w := newWatcher(nil, nil, testNamespace)
+			application := app("startup", testPlacementID, "5")
+			application.Status.Rollout = &locoControllerV1.RolloutStatus{
+				Stopped: &locoControllerV1.StoppedRevision{PlacementRevision: 5, Reason: reason},
+				Problem: &locoControllerV1.Problem{Reason: reason, Detail: "invalid startup configuration"},
+			}
+			var got *agentv1.PlacementStatus
+			w.Attach(func(status *agentv1.PlacementStatus) { got = status })
+			w.observe(application)
+			if got == nil || got.GetStopped().GetReason() != agentv1.StopReason_STOP_REASON_STARTUP_FAILED {
+				t.Fatalf("report = %v", got)
+			}
+			if got.GetProblem().GetReason() != string(reason) ||
+				got.GetProblem().GetDetail() != "invalid startup configuration" {
+				t.Fatalf("problem = %v", got.GetProblem())
+			}
+		})
+	}
+}

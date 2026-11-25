@@ -34,6 +34,10 @@ func TestNextPlacementStatus(t *testing.T) {
 			&agentv1.PlacementStatus{Available: true}},
 		{"healthy", genDb.PlacementStatusDeploying, genDb.PlacementStatusRunning,
 			&agentv1.PlacementStatus{Available: true, Healthy: true}},
+		{"startup failure", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{Stopped: &agentv1.StoppedRevision{
+				PlacementRevision: 2, Reason: agentv1.StopReason_STOP_REASON_STARTUP_FAILED,
+			}}},
 		{"deploy timeout", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
 			&agentv1.PlacementStatus{Stopped: deployTimedOut()}},
 		{"failed retries", genDb.PlacementStatusFailed, genDb.PlacementStatusFailed, &agentv1.PlacementStatus{}},

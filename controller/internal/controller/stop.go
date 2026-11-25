@@ -25,6 +25,31 @@ func stoppedRevision(app *loco.Application) *loco.StoppedRevision {
 	return app.Status.Rollout.Stopped
 }
 
+// startupFailedRevision stops invalid image names and container configurations before the
+// deploy deadline. Pull and runtime failures can recover and keep their existing retry policy.
+func startupFailedRevision(current []observedReplica, revision int64, now time.Time) *loco.StoppedRevision {
+	for _, replica := range current {
+		for _, status := range replica.pod.Status.ContainerStatuses {
+			waiting := status.State.Waiting
+			if waiting == nil {
+				continue
+			}
+			switch waiting.Reason {
+			case reasonCreateContainerConfigError, reasonInvalidImageName:
+				reason := waitingProblemReason(waiting.Reason, waiting.Message)
+				return &loco.StoppedRevision{
+					PlacementRevision: revision,
+					Reason:            reason,
+					Replica:           replica.status.Name,
+					Detail:            clip.Bytes(fmt.Sprintf("%s: %s", waiting.Reason, waiting.Message), 1024),
+					At:                metav1.NewTime(now),
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // exhaustedRevision is the stop of the revision when one of its replicas restarted past its restart policy.
 func exhaustedRevision(
 	current []observedReplica,

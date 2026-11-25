@@ -93,6 +93,8 @@ const (
 	StopReason_STOP_REASON_RESTARTS_EXHAUSTED StopReason = 1
 	// The revision was not healthy within its deploy timeout.
 	StopReason_STOP_REASON_DEPLOY_TIMEOUT StopReason = 2
+	// The image or container configuration cannot start.
+	StopReason_STOP_REASON_STARTUP_FAILED StopReason = 3
 )
 
 // Enum value maps for StopReason.
@@ -101,11 +103,13 @@ var (
 		0: "STOP_REASON_UNSPECIFIED",
 		1: "STOP_REASON_RESTARTS_EXHAUSTED",
 		2: "STOP_REASON_DEPLOY_TIMEOUT",
+		3: "STOP_REASON_STARTUP_FAILED",
 	}
 	StopReason_value = map[string]int32{
 		"STOP_REASON_UNSPECIFIED":        0,
 		"STOP_REASON_RESTARTS_EXHAUSTED": 1,
 		"STOP_REASON_DEPLOY_TIMEOUT":     2,
+		"STOP_REASON_STARTUP_FAILED":     3,
 	}
 )
 
@@ -953,7 +957,7 @@ type StoppedRevision struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	PlacementRevision int64                  `protobuf:"varint,1,opt,name=placement_revision,json=placementRevision,proto3" json:"placement_revision,omitempty"`
 	Reason            StopReason             `protobuf:"varint,7,opt,name=reason,proto3,enum=loco.agent.v1.StopReason" json:"reason,omitempty"`
-	// The replica whose restarts stopped the revision.
+	// The replica whose failure stopped the revision.
 	ReplicaName string `protobuf:"bytes,2,opt,name=replica_name,json=replicaName,proto3" json:"replica_name,omitempty"`
 	// Restarts of the replica since it last stayed up for the cluster's health window.
 	Restarts    int32                  `protobuf:"varint,3,opt,name=restarts,proto3" json:"restarts,omitempty"`
@@ -2053,12 +2057,13 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x13BUILD_PHASE_RUNNING\x10\x02\x12\x19\n" +
 	"\x15BUILD_PHASE_SUCCEEDED\x10\x03\x12\x16\n" +
 	"\x12BUILD_PHASE_FAILED\x10\x04\x12\x18\n" +
-	"\x14BUILD_PHASE_CANCELED\x10\x05*m\n" +
+	"\x14BUILD_PHASE_CANCELED\x10\x05*\x8d\x01\n" +
 	"\n" +
 	"StopReason\x12\x1b\n" +
 	"\x17STOP_REASON_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eSTOP_REASON_RESTARTS_EXHAUSTED\x10\x01\x12\x1e\n" +
-	"\x1aSTOP_REASON_DEPLOY_TIMEOUT\x10\x022\xa0\x01\n" +
+	"\x1aSTOP_REASON_DEPLOY_TIMEOUT\x10\x02\x12\x1e\n" +
+	"\x1aSTOP_REASON_STARTUP_FAILED\x10\x032\xa0\x01\n" +
 	"\fAgentService\x12K\n" +
 	"\bRegister\x12\x1e.loco.agent.v1.RegisterRequest\x1a\x1f.loco.agent.v1.RegisterResponse\x12C\n" +
 	"\x04Sync\x12\x1a.loco.agent.v1.SyncRequest\x1a\x1b.loco.agent.v1.SyncResponse(\x010\x01B8Z6github.com/team-loco/loco/gen/go/loco/agent/v1;agentv1b\x06proto3"
