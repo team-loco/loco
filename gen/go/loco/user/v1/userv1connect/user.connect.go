@@ -150,7 +150,7 @@ type UserServiceClient interface {
 	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
 	// RevokeSession ends a session owned by the signed-in account, or by user_id with system admin.
 	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
-	// RevokeUserSessions ends every session of a user. It requires system admin, or the user's own account.
+	// RevokeUserSessions ends every session of a user. It requires system admin.
 	RevokeUserSessions(context.Context, *v1.RevokeUserSessionsRequest) (*v1.RevokeUserSessionsResponse, error)
 	// SetUserStatus suspends or reinstates a user. Requires system admin.
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
@@ -182,7 +182,7 @@ type UserServiceHandler interface {
 	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
 	// RevokeSession ends a session owned by the signed-in account, or by user_id with system admin.
 	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
-	// RevokeUserSessions ends every session of a user. It requires system admin, or the user's own account.
+	// RevokeUserSessions ends every session of a user. It requires system admin.
 	RevokeUserSessions(context.Context, *v1.RevokeUserSessionsRequest) (*v1.RevokeUserSessionsResponse, error)
 	// SetUserStatus suspends or reinstates a user. Requires system admin.
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)

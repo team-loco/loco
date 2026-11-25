@@ -77,7 +77,7 @@ Callers holding system read also see each user's `status` (`active` or `suspende
 
 A system admin manages another user's sessions and account. A system reader can look but not change anything; any other caller gets `PermissionDenied`.
 
-| Call | With `user_id` set to another user |
+| Call | On another user's account |
 | --- | --- |
 | `UserService.ListSessions` | Lists the user's sessions. Requires system read. |
 | `UserService.RevokeSession` | Ends one of the user's sessions. Requires system admin. |
@@ -85,7 +85,7 @@ A system admin manages another user's sessions and account. A system reader can 
 | `UserService.GetAccountDeletionImpact` | Previews deleting the account. Requires system read. |
 | `UserService.DeleteUser` | Deletes the account. Requires system admin. |
 
-Without `user_id` each call acts on the caller's own account and needs a session sign-in. `OrgService.ListUserOrgs` with another user's `user_id` requires system read and returns each organization with the user's `scopes` on it.
+`ListSessions`, `RevokeSession` and `GetAccountDeletionImpact` take an optional `user_id`; without it they act on the caller's own account and need a session sign-in. `RevokeUserSessions` and `DeleteUser` always name the user. `OrgService.ListUserOrgs` with another user's `user_id` requires system read and returns each organization with the user's `scopes` on it.
 
 ## Delete an account
 

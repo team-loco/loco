@@ -54,7 +54,7 @@ func (s *UserServer) RevokeSession(
 	ctx context.Context,
 	req *userv1.RevokeSessionRequest,
 ) (*userv1.RevokeSessionResponse, error) {
-	_, userID, err := s.sessionOwner(ctx, req.GetUserId(), actions.RevokeUserSessions)
+	_, userID, err := s.sessionOwner(ctx, req.GetUserId(), actions.RevokeUserSession)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,10 @@ func (s *UserServer) RevokeUserSessions(
 	ctx context.Context,
 	req *userv1.RevokeUserSessionsRequest,
 ) (*userv1.RevokeUserSessionsResponse, error) {
-	_, userID, err := s.sessionOwner(ctx, req.GetUserId(), actions.RevokeUserSessions)
+	if err := authorizeSystem(ctx, s.authz, actions.RevokeUserSessions); err != nil {
+		return nil, err
+	}
+	userID, err := parseID("user_id", req.GetUserId())
 	if err != nil {
 		return nil, err
 	}

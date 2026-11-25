@@ -1419,7 +1419,7 @@ export const UserService: GenService<{
     output: typeof RevokeSessionResponseSchema;
   },
   /**
-   * RevokeUserSessions ends every session of a user. It requires system admin, or the user's own account.
+   * RevokeUserSessions ends every session of a user. It requires system admin.
    *
    * @generated from rpc loco.user.v1.UserService.RevokeUserSessions
    */

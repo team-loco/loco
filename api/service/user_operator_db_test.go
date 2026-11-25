@@ -1,6 +1,7 @@
 package service
 
 import (
+	"net/http"
 	"net/netip"
 	"slices"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 // operatorFixture has a system reader, a system admin, an ordinary user and a target with two sessions.
@@ -86,7 +88,9 @@ func TestSystemReaderListsSessionsButChangesNothing(t *testing.T) {
 		_, err = caller.clients.User.RevokeUserSessions(ctx, &userv1.RevokeUserSessionsRequest{UserId: userID})
 		wantOperatorCode(t, "revoke all sessions", err, connect.CodePermissionDenied)
 	}
-	_, err := f.ordinary.clients.User.ListSessions(ctx, &userv1.ListSessionsRequest{UserId: userID})
+	_, err := f.target.clients.User.RevokeUserSessions(ctx, &userv1.RevokeUserSessionsRequest{UserId: userID})
+	wantOperatorCode(t, "revoke all of one's own sessions", err, connect.CodePermissionDenied)
+	_, err = f.ordinary.clients.User.ListSessions(ctx, &userv1.ListSessionsRequest{UserId: userID})
 	wantOperatorCode(t, "ordinary list", err, connect.CodePermissionDenied)
 	if got := len(f.sessions(t, f.admin)); got != 2 {
 		t.Fatalf("sessions after denied changes = %d, want 2", got)
@@ -109,15 +113,18 @@ func TestSystemAdminRevokesOneThenAllSessions(t *testing.T) {
 		&userv1.RevokeSessionRequest{SessionId: webID, UserId: userID}); err != nil {
 		t.Fatalf("revoke one: %v", err)
 	}
+	revoked := rpc.NewHTTPClients(http.DefaultClient, f.api.url, f.webToken)
+	_, err := revoked.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
+	wantOperatorCode(t, "revoked session", err, connect.CodeUnauthenticated)
 	remaining := f.sessions(t, f.admin)
 	if len(remaining) != 1 || remaining[0].GetId() == webID {
 		t.Fatalf("sessions after revoking one = %v", remaining)
 	}
-	if _, err := f.target.clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{}); err != nil {
+	if _, err = f.target.clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{}); err != nil {
 		t.Fatalf("target's other session after revoking one: %v", err)
 	}
 
-	if _, err := f.admin.clients.User.RevokeUserSessions(
+	if _, err = f.admin.clients.User.RevokeUserSessions(
 		ctx,
 		&userv1.RevokeUserSessionsRequest{UserId: userID},
 	); err != nil {
@@ -126,7 +133,7 @@ func TestSystemAdminRevokesOneThenAllSessions(t *testing.T) {
 	if got := f.sessions(t, f.admin); len(got) != 0 {
 		t.Fatalf("sessions after revoking all = %v", got)
 	}
-	_, err := f.target.clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
+	_, err = f.target.clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
 	wantOperatorCode(t, "target after revoking all", err, connect.CodeUnauthenticated)
 }
 

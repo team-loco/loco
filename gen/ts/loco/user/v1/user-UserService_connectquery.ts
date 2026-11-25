@@ -68,7 +68,7 @@ export const listSessions = UserService.method.listSessions;
 export const revokeSession = UserService.method.revokeSession;
 
 /**
- * RevokeUserSessions ends every session of a user. It requires system admin, or the user's own account.
+ * RevokeUserSessions ends every session of a user. It requires system admin.
  *
  * @generated from rpc loco.user.v1.UserService.RevokeUserSessions
  */
