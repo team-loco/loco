@@ -23,7 +23,7 @@ import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { WINDOW_PARSERS } from "@/lib/obs-time";
 import { useInSystem } from "@/hooks/useInSystem";
-import { atPath, CLUSTERS_PATH, OPERATORS_PATH, SYSTEM_PATH, USERS_PATH } from "@/lib/system";
+import { atPath, CLUSTERS_PATH, OPERATORS_PATH, SYSTEM_AUDIT_PATH, SYSTEM_PATH, USERS_PATH } from "@/lib/system";
 import { carriedQuery, QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 import {
 	auditPath,
@@ -101,6 +101,18 @@ function systemSections(pathname: string): NavSection[] {
 					keywords: "system roles admins readers grant revoke",
 					to: OPERATORS_PATH,
 					active: atPath(pathname, OPERATORS_PATH),
+				},
+			],
+		},
+		{
+			label: "Activity",
+			pages: [
+				{
+					name: "Audit log",
+					icon: <HistoryIcon />,
+					keywords: "system events activity history changes operators",
+					to: SYSTEM_AUDIT_PATH,
+					active: atPath(pathname, SYSTEM_AUDIT_PATH),
 				},
 			],
 		},

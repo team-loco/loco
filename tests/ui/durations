@@ -7,6 +7,7 @@
 27 not_found_ui
 24 system_ui
 20 system_people_ui
+15 system_audit_ui
 22 deployment_progress_ui
 21 deployment_history_ui
 21 settings_labels_ui

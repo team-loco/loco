@@ -108,6 +108,21 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"webhook.deleted": { label: "Removed a webhook", category: "workspaces" },
 };
 
+/** Events of the installation, listed only in the System audit log. */
+const INSTALLATION_LABELS: Record<string, string> = {
+	"cluster.created": "Created a cluster",
+	"cluster.join_token_issued": "Issued a cluster join token",
+	"cluster.paused": "Paused a cluster",
+	"cluster.resumed": "Resumed a cluster",
+	"cluster.removed": "Removed a cluster",
+	"cluster.restored": "Restored a cluster",
+	"user.suspended": "Suspended a user",
+	"user.reinstated": "Reinstated a user",
+	"system_role.claimed": "Claimed a system role",
+	"system_role.granted": "Granted a system role",
+	"system_role.revoked": "Revoked a system role",
+};
+
 export const AUDIT_EVENT_TYPES: readonly string[] = Object.keys(AUDIT_TYPES);
 
 export const AUDIT_CATEGORIES: {
@@ -206,7 +221,7 @@ export function auditLabel(type: string, data?: JsonObject): string {
 		if (source === "custom") return domain.custom;
 		return domain.app[data?.["primary"] === true ? 0 : 1];
 	}
-	return AUDIT_TYPES[type]?.label ?? type;
+	return AUDIT_TYPES[type]?.label ?? INSTALLATION_LABELS[type] ?? type;
 }
 
 export interface AuditUser {

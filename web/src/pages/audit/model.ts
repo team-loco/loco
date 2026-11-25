@@ -58,6 +58,8 @@ export function dayLabel(ms: number, nowMs: number, pref: TimePreferences): stri
 	return formatWeekdayDate(ms, pref);
 }
 
+export const INSTALLATION = "Installation";
+
 export const ACTOR_KINDS: Record<string, string> = {
 	user: "Person",
 	system: "Loco",
@@ -84,6 +86,8 @@ export interface AuditRow {
 	actor: AuditActor;
 	label: string;
 	detail: string;
+	/** The organization name, or "Installation" for an event that belongs to none. */
+	org: string;
 	where: string;
 	resource: string;
 	environment: string;
@@ -98,7 +102,7 @@ export function auditRow(
 	// A deleted resource has no live name; an event about it records the name it had.
 	const name = (id: string) =>
 		names.get(id) ?? (event.subjectId === id ? dataText(event.data, "name") : undefined) ?? id.slice(0, 8);
-	const workspace = event.workspaceId === "" ? "Organization" : name(event.workspaceId);
+	const workspace = event.workspaceId === "" ? (event.orgId === "" ? "" : "Organization") : name(event.workspaceId);
 	const resource = event.resourceId === "" ? "" : name(event.resourceId);
 	return {
 		event,
@@ -106,6 +110,7 @@ export function auditRow(
 		actor: auditActor(event),
 		label: auditLabel(event.type, event.data),
 		detail: auditDetail(event, users) ?? "",
+		org: event.orgId === "" ? INSTALLATION : name(event.orgId),
 		where: resource === "" ? workspace : `${workspace} / ${resource}`,
 		resource,
 		environment: event.environmentId === "" ? "" : name(event.environmentId),

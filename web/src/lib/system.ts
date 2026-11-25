@@ -6,6 +6,7 @@ import { matchPath } from "react-router";
 
 export const SYSTEM_PATH = "/system";
 export const CLUSTERS_PATH = "/system/clusters";
+export const SYSTEM_AUDIT_PATH = "/system/audit";
 export const NEW_CLUSTER_PATH = "/system/clusters/new";
 
 export const OPERATORS_PATH = "/system/operators";

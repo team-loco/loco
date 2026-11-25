@@ -2,10 +2,11 @@ import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueries, useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { BoxIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
+import { BoxIcon, BuildingIcon, GitBranchIcon, LayersIcon, PlayIcon, PauseIcon, ServerIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
 	parseAsArrayOf,
+	parseAsBoolean,
 	parseAsInteger,
 	parseAsNumberLiteral,
 	parseAsString,
@@ -19,6 +20,7 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { PickFilter } from "@/components/design/FilterPopover";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
+import { ToggleChip } from "@/components/design/ToggleChip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
@@ -61,15 +63,19 @@ const AUDIT_PARAMS = {
 	res: parseAsString.withDefault(""),
 	env: parseAsString.withDefault(""),
 	event: parseAsString,
+	org: parseAsString.withDefault(""),
+	installation: parseAsBoolean.withDefault(false),
 };
 
-export function Audit() {
-	const { orgId = "" } = useParams<{ orgId: string }>();
+/** An organization's audit log; with `system`, the installation's: every organization's events and the installation's own. */
+export function Audit({ system = false }: { system?: boolean }) {
+	const { orgId: routeOrgId = "" } = useParams<{ orgId: string }>();
 	const [params, setParams] = useQueryStates(AUDIT_PARAMS, {
 		history: "replace",
 	});
 	const transport = useTransport();
-	const access = useAuditAccess(orgId);
+	const orgId = system ? params.org : routeOrgId;
+	const access = useAuditAccess(system ? null : orgId);
 	const { orgs, activeWorkspaceId } = useOrgWorkspace();
 	const [openedAt, setOpenedAt] = useState(Date.now);
 	const now = useNow(NOW_TICK_MS).getTime();
@@ -137,6 +143,7 @@ export function Audit() {
 		environmentId,
 		size,
 		sent,
+		params.installation,
 	]);
 	const stack = params.before;
 	const live = params.live === 1 && stack.length === 0 && !custom;
@@ -149,11 +156,13 @@ export function Audit() {
 		resourceId,
 		environmentId,
 		query: sent,
+		installationOnly: params.installation,
 		pageSize: size,
 		startTime: msToTimestamp(custom ? from : openedAt - range.ms),
 		...(custom ? { endTime: msToTimestamp(to) } : {}),
 	};
-	const enabled = orgId !== "" && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading);
+	const enabled =
+		(system || orgId !== "") && !choicesLoading && (!(params.res || params.env) || !selectedDetails.isLoading);
 	const { query, nextPageToken, total } = useTokenPage(listEvents, input, stack, {
 		enabled,
 		refetchInterval: live ? 5000 : false,
@@ -217,6 +226,14 @@ export function Audit() {
 		...TYPE_ACTORS.map((t) => [t, { id: t, name: ACTOR_KINDS[t] ?? t, detail: "", group: "Loco" }] as const),
 	]);
 	if (actor !== "" && !actors.has(actor)) actors.set(actor, { id: actor, name: actor, detail: "", group: "People" });
+	const orgItems = [
+		...new Map(
+			[
+				...rows.filter((r) => r.event.orgId !== "").map((r) => [r.event.orgId, r.org] as const),
+				...(orgId === "" ? [] : [[orgId, names.get(orgId) ?? orgId.slice(0, 8)] as const]),
+			].toReversed(),
+		),
+	].map(([id, name]) => ({ id, name }));
 	const selIdx = rows.findIndex((r) => r.event.id === params.event);
 	const selected = rows[selIdx];
 	const heldEventId = useHeldWhileClosed(selected?.event.id, selected !== undefined);
@@ -229,6 +246,8 @@ export function Audit() {
 		actor !== "" ||
 		types.length > 0 ||
 		(access.org && workspaceId !== "") ||
+		(system && orgId !== "") ||
+		params.installation ||
 		resourceId !== "" ||
 		environmentId !== "";
 	// Older leaves live mode and the open event; Newer and Newest keep the event open.
@@ -312,6 +331,30 @@ export function Audit() {
 									setFilters({ types: next, event: null });
 								}}
 							/>
+							{system && (
+								<>
+									<PickFilter
+										icon={<BuildingIcon />}
+										label="Organization"
+										items={orgItems}
+										placeholder="Find an organization"
+										value={orgId}
+										onChange={(id) => {
+											setFilters({ org: id, installation: null, event: null });
+										}}
+									/>
+									<ToggleChip
+										variant="button"
+										pressed={params.installation}
+										onPressedChange={(on) => {
+											setFilters({ installation: on ? true : null, org: null, event: null });
+										}}
+									>
+										<ServerIcon />
+										Installation only
+									</ToggleChip>
+								</>
+							)}
 							{(access.org || choices.length > 1) && (
 								<PickFilter
 									icon={<LayersIcon />}
@@ -381,6 +424,7 @@ export function Audit() {
 							loading={loading}
 							selectedId={selected?.event.id ?? null}
 							nowMs={now}
+							showOrg={system}
 							onSelect={(id) => {
 								void setParams({ event: id });
 							}}
@@ -403,6 +447,8 @@ export function Audit() {
 										onClick={() => {
 											setFilters({
 												types: null,
+												org: null,
+												installation: null,
 												ws: access.org ? null : wsParam,
 												res: null,
 												env: null,
@@ -449,6 +495,7 @@ export function Audit() {
 			)}
 			<AuditDrawer
 				open={selected !== undefined}
+				showOrg={system}
 				row={rows.find((r) => r.event.id === heldEventId)}
 				onNewer={selIdx > 0 ? select(selIdx - 1) : null}
 				onOlder={selIdx >= 0 && selIdx < rows.length - 1 ? select(selIdx + 1) : null}

@@ -72,5 +72,14 @@ test("rows name where an event happened from the IDs the caller can read", () =>
 		data: { url: "https://x.test/h" },
 	});
 	expect(auditRow(removedHook, new Map(), names).detail).toBe("https://x.test/h");
-	expect(auditRow(create(EventSchema, { type: "org.updated" }), new Map(), names).where).toBe("Organization");
+	const orgEvent = auditRow(
+		create(EventSchema, { type: "org.updated", orgId: "o1" }),
+		new Map(),
+		new Map([["o1", "acme"]]),
+	);
+	expect(orgEvent.where).toBe("Organization");
+	expect(orgEvent.org).toBe("acme");
+	const installation = auditRow(create(EventSchema, { type: "cluster.paused" }), new Map(), names);
+	expect(installation.org).toBe("Installation");
+	expect(installation.where).toBe("");
 });
