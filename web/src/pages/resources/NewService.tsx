@@ -515,7 +515,7 @@ function defaultHealth(defaults: DefaultServiceConfig): HealthForm {
 	const hc = defaults.healthCheck;
 	const num = (n: number | undefined) => (n === undefined || n === 0 ? "" : n.toString());
 	return {
-		enabled: (hc?.path ?? "") !== "",
+		enabled: false,
 		path: hc?.path ?? "",
 		interval: num(hc?.intervalSeconds),
 		timeout: num(hc?.timeoutSeconds),
@@ -1093,7 +1093,7 @@ function HealthSection({
 			}
 		>
 			<span className="-mt-1 text-[12.5px] text-fg3">
-				Optional. Without one, a replica counts as ready once its process starts.
+				Optional. Without one, Loco waits for the service port to accept connections.
 			</span>
 			{health.enabled && (
 				<div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
