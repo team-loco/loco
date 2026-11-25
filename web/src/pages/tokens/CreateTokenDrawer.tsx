@@ -10,17 +10,19 @@ import { TokenService } from "@gen/loco/token/v1/token_pb";
 import { BASE_URL } from "@/auth/connect-transport";
 import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
-import { CopyButton } from "@/components/design/CopyButton";
 import { DateTimePicker } from "@/components/design/DateTimePicker";
 import { Field } from "@/components/design/Field";
 import { InlineCode } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
+import { Notice } from "@/components/design/Notice";
+import { maskSecret, SecretValue } from "@/components/design/SecretValue";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { toLocalInput, fromLocalInput } from "@/lib/obs-time";
+import { cn } from "@/lib/utils";
 import { DAY_MS, formatMonthDayYear, formatHourMinute } from "@/lib/time";
 
 import { AccessPicker } from "./AccessPicker";
@@ -48,7 +50,6 @@ export interface CreateDraft {
 const NAME_MAX = 100;
 const MS_PER_SECOND = 1000;
 const CUSTOM = "custom";
-const SECRET_PREVIEW = 14;
 const CUSTOM_DEFAULT_MS = 3 * DAY_MS;
 
 function apiExample(): string {
@@ -364,38 +365,45 @@ function CreateForm({
 }
 
 function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone: () => void }) {
+	const [shown, setShown] = useState(false);
+	const shownSecret = maskSecret(secret, shown);
+	const ciCommand = (token: string) => `export LOCO_TOKEN=${token}\nloco deploy`;
 	return (
 		<>
 			<SheetBody>
 				<span className="flex items-center gap-2 text-[13.5px]">
 					<StatusGlyph glyph="ok" />
 					<span>
-						<span className="font-mono">{name}</span> is ready.
+						<InlineCode>{name}</InlineCode> is ready.
 					</span>
 				</span>
-				<div className="flex items-center gap-2.5 rounded-lg bg-panel py-2.5 pr-2.5 pl-3 font-mono text-[12.5px] break-all">
-					<span className="flex-1 select-all">{secret}</span>
-					<CopyButton text={secret} />
-				</div>
-				<span className="text-[13px] text-fg2">Copy it now. You won&apos;t be able to see it again.</span>
-				<div className="flex flex-col gap-1.5">
-					<span className="text-[13px] font-medium">Call the API with it</span>
-					<CodeBlock lineNumbers={false} wrap>
-						{apiExample()}
-					</CodeBlock>
-					<span className="text-[12.5px] text-fg3">
-						With the token in <span className="font-mono">LOCO_TOKEN</span>, this lists the scopes it holds.
-					</span>
-				</div>
-				<div className="flex flex-col gap-1.5">
-					<span className="text-[13px] font-medium">Use it from CI</span>
-					<CodeBlock lineNumbers={false} wrap>
-						{`LOCO_TOKEN=${secret.slice(0, SECRET_PREVIEW)}… loco deploy …`}
-					</CodeBlock>
-					<span className="text-[12.5px] text-fg3">
-						Save it as a CI secret named <InlineCode>LOCO_TOKEN</InlineCode> and set <InlineCode>LOCO_HOST</InlineCode>{" "}
-						to the API URL.
-					</span>
+				<SecretValue secret={secret} shown={shown} onShownChange={setShown} noun="token" />
+				<Notice tone="warn">Copy it now. You won&apos;t be able to see it again.</Notice>
+				<div className="flex flex-col gap-3">
+					<span className="text-[13px] font-medium">Example usage</span>
+					<div className="flex flex-col gap-1.5">
+						<CodeBlock
+							lineNumbers={false}
+							wrap
+							copyText={ciCommand(secret)}
+							{...(shown ? {} : { label: "Example, token masked" })}
+							className={cn("[&_code]:break-all", !shown && "select-none")}
+						>
+							{ciCommand(shownSecret)}
+						</CodeBlock>
+						<span className="text-[12.5px] text-fg3">
+							In CI, save the token as a secret named <InlineCode>LOCO_TOKEN</InlineCode> and set{" "}
+							<InlineCode>LOCO_HOST</InlineCode> to the API URL.
+						</span>
+					</div>
+					<div className="flex flex-col gap-1.5">
+						<CodeBlock lineNumbers={false} wrap>
+							{apiExample()}
+						</CodeBlock>
+						<span className="text-[12.5px] text-fg3">
+							With the token in <InlineCode>LOCO_TOKEN</InlineCode>, this lists the scopes it holds.
+						</span>
+					</div>
 				</div>
 			</SheetBody>
 			<SheetFooter>
