@@ -25,7 +25,7 @@ const SURVIVING_TOKENS =
 const TOKEN_PAGE_SIZE = 10;
 
 export function DeleteAccount({ user }: { user: User }) {
-	const { logout } = useAuth();
+	const { logout, holdSignIn } = useAuth();
 	const queryClient = useQueryClient();
 	const [pages, setPages] = useState([""]);
 	const impact = useQuery(
@@ -45,28 +45,28 @@ export function DeleteAccount({ user }: { user: User }) {
 			? "Retry the account check before deleting"
 			: null;
 
+	const deletionBlocked = blockedReason !== null || blockers.length > 0;
+
 	const refresh = () => {
 		setPages([""]);
 		void queryClient.invalidateQueries();
 	};
-	const confirmDelete = () => {
-		if (remove.isPending || blockedReason !== null || blockers.length > 0) return;
+	const confirmDelete = async () => {
+		if (remove.isPending || deletionBlocked) return;
 		setError(null);
-		remove.mutate(
-			{ userId: user.id },
-			{
-				onSuccess: () => {
-					toast.success("Account deleted");
-					setDeleteOpen(false);
-					void logout();
-				},
-				onError: (err) => {
-					setError(getErrorMessage(err, "Failed to delete account"));
-					setDeleteOpen(false);
-					refresh();
-				},
-			},
-		);
+		holdSignIn(true);
+		try {
+			await remove.mutateAsync({ userId: user.id });
+		} catch (err) {
+			holdSignIn(false);
+			setError(getErrorMessage(err, "Failed to delete account"));
+			setDeleteOpen(false);
+			refresh();
+			return;
+		}
+		toast.success("Account deleted");
+		setDeleteOpen(false);
+		await logout();
 	};
 
 	return (
@@ -190,7 +190,7 @@ export function DeleteAccount({ user }: { user: User }) {
 				text="This permanently deletes your profile, sessions and personal tokens, removes your memberships and signs you out. Organizations, workspaces and their history stay."
 				pending={remove.isPending}
 				blocked={blockers.length > 0}
-				onConfirm={confirmDelete}
+				onConfirm={() => void confirmDelete()}
 			>
 				{blockers.length > 0 && (
 					<div className="flex flex-col gap-2">

@@ -1,4 +1,4 @@
-import { createContext, use, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, use, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router";
@@ -16,6 +16,9 @@ interface AuthContextType {
 	claimedOrgs: ClaimedOrg[];
 	dismissClaimedOrgs: () => void;
 	signedOut: boolean;
+	/** While held, a session that ends sends the user to a sign-in page that waits for a click. */
+	signInHeld: boolean;
+	holdSignIn: (held: boolean) => void;
 	isAuthenticated: boolean;
 	isPending: boolean;
 	error: Error | null;
@@ -37,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		},
 	);
 	const queryClient = useQueryClient();
+	const [signInHeld, setSignInHeld] = useState(false);
 	const claimedOrgs = useSyncExternalStore(subscribeClaimedOrgs, getClaimedOrgs);
 	const signedOut = unauthenticated(error);
 	const user = signedOut ? null : (data?.user ?? null);
@@ -62,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					setClaimedOrgs([]);
 				},
 				signedOut,
+				signInHeld,
+				holdSignIn: setSignInHeld,
 				isAuthenticated: user !== null,
 				isPending,
 				error: signedOut ? null : error,

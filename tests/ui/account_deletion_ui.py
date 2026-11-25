@@ -1,7 +1,16 @@
 import argparse
 import re
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    evidence,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -161,8 +170,41 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     expect(delete).to_be_focused()
     delete.click()
     dialog.get_by_role("textbox").fill(state["users"]["departing"]["email"])
+    # The server ends the session while the deletion response is still on its way back.
+    held = []
+    sign_in_starts = []
+
+    def delete_user(route):
+        held.append((route, route.fetch()))
+
+    context.route("**/loco.user.v1.UserService/DeleteUser", delete_user)
+    page.on(
+        "request",
+        lambda request: (
+            request.url.endswith("/StartWebLogin")
+            and sign_in_starts.append(request.url)
+        ),
+    )
     confirm.click()
+    for _ in range(100):
+        if held:
+            break
+        page.wait_for_timeout(50)
+    assert held, "DeleteUser was not sent"
+    page.evaluate(
+        "document.dispatchEvent(new Event('visibilitychange', {bubbles: true}))"
+    )
+    expect(page).to_have_url(re.compile(r"/login"))
     expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
+    route, response = held[0]
+    with expect_rpc(
+        page, "loco.auth.v1.AuthService/SignOut", lambda body: True
+    ) as signed_out:
+        route.fulfill(response=response)
+    assert signed_out.value.ok, signed_out.value.status
+    expect(page).to_have_url(re.compile(r"/login$"))
+    expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
+    assert sign_in_starts == [], sign_in_starts
     expect(page).not_to_have_url(re.compile(r"/dex/"))
     assert not any(
         cookie["name"] == evidence.SESSION_COOKIE for cookie in context.cookies()
@@ -180,6 +222,43 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     name.fill("Oscar")
     expect(page.get_by_role("button", name="Save", exact=True)).to_be_enabled()
     assert errors == [], errors
+    context.close()
+
+    # After a rejected deletion, an ordinary session expiry starts sign-in on its own.
+    context, page, errors = open_page(browser, "other", state=state)
+    context.route(
+        "**/loco.user.v1.UserService/GetAccountDeletionImpact",
+        lambda route: route.fulfill(json={}),
+    )
+    page.goto(state["ui_url"] + "/profile")
+    delete = page.get_by_role("button", name="Delete account", exact=True)
+    expect(delete).to_be_enabled()
+    context.route(
+        "**/loco.user.v1.UserService/DeleteUser",
+        lambda route: route.fulfill(
+            status=412,
+            json={"code": "failed_precondition", "message": "Deletion refused"},
+        ),
+    )
+    delete.click()
+    dialog = page.get_by_role("alertdialog", name="Delete your account", exact=True)
+    dialog.get_by_role("textbox").fill("other@acme.test")
+    dialog.get_by_role("button", name="Delete account", exact=True).click()
+    expect(page.get_by_text("Deletion refused")).to_be_visible()
+    rejected = {"code": "unauthenticated", "message": "session expired"}
+    for method in (
+        "loco.user.v1.UserService/GetAccountDeletionImpact",
+        "loco.token.v1.TokenService/GetScopes",
+        "loco.auth.v1.AuthService/RefreshWebSession",
+        "loco.user.v1.UserService/WhoAmI",
+    ):
+        context.route(
+            f"**/{method}", lambda route: route.fulfill(status=401, json=rejected)
+        )
+    page.evaluate(
+        "document.dispatchEvent(new Event('visibilitychange', {bubbles: true}))"
+    )
+    expect(page).to_have_url(re.compile(r"/dex/"))
     context.close()
 
 # The UI promised that automation and shared workspaces survive the human account.
