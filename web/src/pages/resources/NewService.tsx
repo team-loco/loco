@@ -1093,7 +1093,7 @@ function HealthSection({
 			}
 		>
 			<span className="-mt-1 text-[12.5px] text-fg3">
-				Optional. Without one, a replica counts as ready once its process starts.
+				Optional. Without one, Loco waits for the service port to accept connections.
 			</span>
 			{health.enabled && (
 				<div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
