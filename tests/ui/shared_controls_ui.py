@@ -713,6 +713,8 @@ def log_drawer(page):
     assert viewer["y"] + viewer["height"] <= drawer["y"] + drawer["height"]
     assert json_view.evaluate("el => el.scrollHeight > el.clientHeight")
     expect(json_view).to_contain_text(f'"{image_digest}"')
+    expect(json_view.locator(".sh__token--property").first).to_be_visible()
+    expect(json_view.locator(".sh__token--string").first).to_be_visible()
     wrap = detail.get_by_role("button", name="Wrap lines", exact=True)
     expect(wrap).to_have_attribute("aria-pressed", "true")
     assert json_view.evaluate("el => el.scrollWidth == el.clientWidth")
@@ -744,6 +746,14 @@ def log_drawer(page):
     handle.dblclick()
     page.wait_for_timeout(100)
     assert abs(detail.bounding_box()["width"] - before) <= 1
+    page.keyboard.press("Escape")
+    entries[0]["body"] = '{"msg":"Structured line","status":200,"cached":true}'
+    page.reload()
+    page.get_by_role("row", name=re.compile(r"Structured line")).click()
+    message = detail.get_by_role("region", name="Message")
+    expect(message.locator(".sh__token--property").first).to_be_visible()
+    expect(message.locator(".sh__token--class")).to_have_text("200")
+    expect(message.locator(".sh__token--keyword")).to_have_text("true")
     page.keyboard.press("Escape")
     entries[0]["body"] = ""
     page.reload()

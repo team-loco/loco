@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
+import { Code } from "@/components/design/CodeBlock";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -273,7 +274,7 @@ export function LogDetail({
 							}}
 							className={cn(row.json === null && style.body, !msgText.includes("\n") && "min-h-9 py-[9px]")}
 						>
-							{row.json !== null ? msgText : bodyParts(row.message, words)}
+							{row.json !== null ? <Code code={msgText} language="json" /> : bodyParts(row.message, words)}
 						</PlainCode>
 					</section>
 				)}
@@ -316,7 +317,7 @@ export function LogDetail({
 								setWrapJson(wrap ? "on" : "off");
 							}}
 						>
-							{json}
+							<Code code={json} language="json" />
 						</PlainCode>
 					) : (
 						<div className="grid grid-cols-[fit-content(45%)_minmax(0,1fr)_auto]">

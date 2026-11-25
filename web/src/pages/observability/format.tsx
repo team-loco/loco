@@ -124,6 +124,13 @@ function scalarString(v: unknown): string {
 	return JSON.stringify(v);
 }
 
+function jsonValueColor(value: unknown): string {
+	if (typeof value === "string") return "text-(--sh-string)";
+	if (typeof value === "number") return "text-(--sh-class)";
+	if (typeof value === "boolean" || value === null) return "text-(--sh-keyword)";
+	return "text-fg4";
+}
+
 export function jsonPreview(obj: JsonObject, words: string[]): ReactNode[] {
 	const mainKey = MAIN_KEYS.find((k) => k in obj);
 	const main = mainKey !== undefined ? obj[mainKey] : undefined;
@@ -149,8 +156,9 @@ export function jsonPreview(obj: JsonObject, words: string[]): ReactNode[] {
 			const vs = isObj ? "{…}" : scalarString(v);
 			out.push(
 				<span key={`r${String(i)}`} className="mr-2.5">
-					<span className="text-fg3">{k}=</span>
-					<span className={typeof v === "number" ? "text-info-fg" : isObj ? "text-fg4" : "text-fg2"}>{vs}</span>
+					<span className="text-(--sh-property)">{highlight(k, words, "key")}</span>
+					<span className="text-(--sh-sign)">=</span>
+					<span className={jsonValueColor(v)}>{highlight(vs, words, "value")}</span>
 				</span>,
 			);
 		});

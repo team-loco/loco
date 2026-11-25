@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { Fragment, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { bodyParts } from "./format";
+import { bodyParts, jsonPreview } from "./format";
 
 function renderBody(body: string, words: string[] = []): string {
 	const parts = bodyParts(body, words);
@@ -29,4 +29,18 @@ test("log rendering preserves literal bracket text, newlines and HTML escaping",
 test("colon RGB styles, C1 styles and a default reset leave readable text", () => {
 	const html = renderBody("\u001b[38:2::90:20:10mcolor\u001b[m \u009b1mbold\u009b0m");
 	expect(html).toBe("color bold");
+});
+
+test("structured log previews color scalar types and retain query matches", () => {
+	const parts = jsonPreview({ msg: "Request complete", status: 200, method: "GET", cached: true, error: null }, [
+		"GET",
+		"status",
+	]);
+	const html = renderToStaticMarkup(createElement(Fragment, null, parts));
+	expect(html).toContain("text-(--sh-property)");
+	expect(html).toContain("text-(--sh-class)");
+	expect(html).toContain("text-(--sh-keyword)");
+	expect(html).toContain("text-(--sh-string)");
+	expect(html).toContain(">GET</mark>");
+	expect(html).toContain(">status</mark>");
 });
