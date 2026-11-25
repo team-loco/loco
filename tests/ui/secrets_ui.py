@@ -139,7 +139,7 @@ with session(out) as browser:
     assert "hunter2" not in stored("DATABASE_URL")
     expect(
         page.get_by_text(
-            "Scoped to production. Reference one with ${{ secrets.NAME }}."
+            "Sealed when you save, and never shown again. Reference one with ${{ secrets.NAME }}."
         )
     ).to_be_visible()
 
