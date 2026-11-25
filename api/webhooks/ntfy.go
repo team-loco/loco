@@ -69,12 +69,8 @@ func NewNtfyConfig(server, topic, token string, eventTypes []string) (*NtfyConfi
 	if len(eventTypes) == 0 {
 		eventTypes = DefaultNtfyEventTypes
 	}
-	topicURL, err := url.JoinPath(server, topic)
-	if err != nil {
-		return nil, ErrNtfyServer
-	}
 	return &NtfyConfig{
-		TopicURL:   topicURL,
+		TopicURL:   u.JoinPath(topic).String(),
 		Token:      token,
 		EventTypes: eventTypes,
 	}, nil

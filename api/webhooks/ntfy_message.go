@@ -158,10 +158,7 @@ func (d *Dispatcher) sendNtfy(
 	if err != nil {
 		return err
 	}
-	query := url.Values{"title": {n.Title}, "priority": {strconv.Itoa(n.Priority)}}
-	if n.Tags != "" {
-		query.Set("tags", n.Tags)
-	}
+	query := url.Values{"title": {n.Title}, "priority": {strconv.Itoa(n.Priority)}, "tags": {n.Tags}}
 	if n.Click != "" {
 		query.Set("click", n.Click)
 	}

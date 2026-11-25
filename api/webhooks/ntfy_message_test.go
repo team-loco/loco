@@ -149,20 +149,11 @@ func TestNotificationFor(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.Title != tt.title {
-				t.Errorf("title = %q, want %q", got.Title, tt.title)
+			want := notification{
+				Title: tt.title, Message: tt.message, Priority: tt.priority, Tags: tt.tags, Click: tt.click,
 			}
-			if got.Message != tt.message {
-				t.Errorf("message = %q, want %q", got.Message, tt.message)
-			}
-			if got.Priority != tt.priority {
-				t.Errorf("priority = %d, want %d", got.Priority, tt.priority)
-			}
-			if got.Click != tt.click {
-				t.Errorf("click = %q, want %q", got.Click, tt.click)
-			}
-			if got.Tags != tt.tags {
-				t.Errorf("tags = %q, want %q", got.Tags, tt.tags)
+			if got != want {
+				t.Errorf("notification = %+v, want %+v", got, want)
 			}
 		})
 	}
