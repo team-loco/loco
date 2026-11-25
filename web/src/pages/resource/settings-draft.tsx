@@ -23,6 +23,7 @@ import { isEnvKey } from "@/lib/dotenv";
 import {
 	IMAGE_RE,
 	type HealthForm,
+	healthCheckSpec,
 	commandEntries,
 	commandText,
 	healthTimeoutError,
@@ -481,13 +482,8 @@ export function failurePolicyFrom(next: Baseline): FailurePolicy {
 }
 
 function healthFrom(health: HealthForm, current: HealthCheckConfig | undefined, delay: number): HealthCheckConfig {
-	return create(HealthCheckConfigSchema, {
-		initialDelaySeconds: current?.initialDelaySeconds ?? delay,
-		path: health.path.trim(),
-		intervalSeconds: Number(health.interval.trim()),
-		timeoutSeconds: Number(health.timeout.trim()),
-		failureThreshold: Number(health.failAfter.trim()),
-	});
+	const spec = healthCheckSpec({ ...health, path: health.path.trim() }, current?.initialDelaySeconds ?? delay);
+	return create(HealthCheckConfigSchema, spec);
 }
 
 /** Whether a deployment's image, pinned by digest, is the image the draft names. */
