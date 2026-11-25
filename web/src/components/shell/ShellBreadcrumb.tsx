@@ -176,7 +176,7 @@ export function ShellBreadcrumb() {
 	const showEnv = inWorkspace && !pathname.endsWith("/settings") && !pathname.endsWith("/webhooks");
 
 	return (
-		<Breadcrumb className="min-w-0 flex-auto overflow-hidden">
+		<Breadcrumb className="min-w-0 flex-auto overflow-hidden min-[761px]:flex-1 min-[761px]:basis-0">
 			<BreadcrumbList>
 				{org !== undefined && (
 					<>

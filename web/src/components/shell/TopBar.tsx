@@ -17,7 +17,9 @@ export function TopBar() {
 			<ShellBreadcrumb />
 			<CommandMenu />
 			{/* Each environment gets its own activity drawer, which starts watching for deploys when it mounts. */}
-			<AlertsDrawer key={`${activeWorkspaceId ?? ""}/${active?.id ?? ""}`} />
+			<div className="flex min-w-0 justify-end min-[761px]:flex-1 min-[761px]:basis-0">
+				<AlertsDrawer key={`${activeWorkspaceId ?? ""}/${active?.id ?? ""}`} />
+			</div>
 		</header>
 	);
 }
