@@ -154,6 +154,12 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 		args = append(args, setFlag, "cluster.role=apps")
 	}
 	if p.ApplicationFallback {
+		if p.clusterReused {
+			if _, err := p.Kubectl(ctx, "-n", workerRelease+"-fallback", "delete",
+				"backendtlspolicy", "control-plane", "--ignore-not-found"); err != nil {
+				return err
+			}
+		}
 		args = append(
 			args, setFlag, fmt.Sprintf("env.CONTROL_PLANE_URL=https://%s:%d", fallbackAPIHost, fallbackAPIPort),
 		)
