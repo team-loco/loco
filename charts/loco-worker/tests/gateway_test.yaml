@@ -213,6 +213,8 @@ tests:
     asserts:
       - notExists:
           path: spec.http3
+      - notExists:
+          path: spec.headers
       - equal:
           path: spec.tls.minVersion
           value: "1.3"
