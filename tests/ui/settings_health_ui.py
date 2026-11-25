@@ -140,6 +140,7 @@ def two_deployments(name, checked=(REGION, OTHER_REGION)):
 
 split, split_base = two_deployments("health-split")
 mixed, mixed_base = two_deployments("health-mixed", checked=(OTHER_REGION,))
+enable, enable_base = two_deployments("health-enable", checked=())
 sql(
     state,
     f"""INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
@@ -156,9 +157,14 @@ with session(out) as browser:
     # Regions whose deployment requests the fake server refuses.
     failing = set()
 
+    # The resource whose reload after a save the suite holds back, and the held reloads.
+    hold = {"resource": None, "armed": False, "routes": []}
+
     def create_deployment(route):
         body = route.request.post_data_json
         deployments.append(body)
+        if hold["resource"] == body["resourceId"]:
+            hold["armed"] = True
         if failing & set(body["regions"]):
             route.fulfill(
                 status=503, json={"code": "unavailable", "message": "region down"}
@@ -174,32 +180,37 @@ with session(out) as browser:
     context.route(
         "**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment
     )
-    # Reloads of the resource the suite holds back until it releases them.
-    held = []
 
     def get_resource(route):
-        if held and held[0] is None:
-            held.append(route)
+        key = (route.request.post_data_json or {}).get("key", {})
+        if hold["armed"] and key.get("resourceId") == hold["resource"]:
+            hold["routes"].append(route)
         else:
             route.continue_()
 
     context.route("**/loco.resource.v1.ResourceService/GetResource", get_resource)
 
-    def hold_reload():
-        held.append(None)
+    def hold_reload(resource_id):
+        """Holds the reloads of the resource once a save has sent its first deployment request."""
+        hold.update(resource=resource_id, armed=False, routes=[])
 
     def release_reload():
         for _ in range(100):
-            if len(held) > 1:
+            if hold["routes"]:
                 break
             page.wait_for_timeout(50)
-        assert len(held) > 1, "the reload after the save was not requested"
-        # Saving, and every field, stays locked while the reload is held.
+        assert hold["routes"], "the reload after the save was not requested"
+        # Saving, and every field, stays locked while the reload is held, also after leaving
+        # the settings tab and coming back.
         expect(page.get_by_role("button", name="Saving…", exact=True)).to_be_disabled()
         expect(switch).to_be_disabled()
-        pending = held[1:]
-        held.clear()
-        for route in pending:
+        page.get_by_role("button", name="Overview", exact=True).click()
+        page.get_by_role("button", name="Resource settings", exact=True).click()
+        expect(page.get_by_role("button", name="Saving…", exact=True)).to_be_disabled()
+        expect(switch).to_be_disabled()
+        routes = hold["routes"]
+        hold.update(resource=None, armed=False, routes=[])
+        for route in routes:
             route.continue_()
 
     removals = []
@@ -316,7 +327,7 @@ with session(out) as browser:
     expect(switch).to_be_checked()
 
     # A save that reaches one deployment and not the other keeps the whole draft, and a retry
-    # sends every deployment again.
+    # sends only the deployment that missed it.
     page.goto(split_base + "?env=production&tab=settings")
     expect(switch).to_be_checked()
     switch.click()
@@ -327,7 +338,7 @@ with session(out) as browser:
     save_button = page.get_by_role("button", name="Save & redeploy", exact=True)
     failing.add(OTHER_REGION)
     first = len(deployments)
-    hold_reload()
+    hold_reload(split)
     save_button.click()
     expect(page.get_by_text("region down", exact=False)).to_be_visible()
     release_reload()
@@ -338,13 +349,13 @@ with session(out) as browser:
     save_button.click()
     expect(discard).to_have_count(0)
     retried = deployments[first + 2 :]
-    assert sorted(d["regions"] for d in retried) == [[REGION], [OTHER_REGION]], retried
-    for sent in retried:
-        assert sent["removeHealthCheck"] is True, sent
-        assert "healthCheck" not in sent["spec"]["service"], sent
-        assert sent["spec"]["service"]["env"]["FEATURE_FLAG"] == "on", sent
+    assert [d["regions"] for d in retried] == [[OTHER_REGION]], retried
+    assert retried[0]["removeHealthCheck"] is True, retried
+    assert "healthCheck" not in retried[0]["spec"]["service"], retried
+    assert retried[0]["spec"]["service"]["env"]["FEATURE_FLAG"] == "on", retried
 
-    # A domain removal that finished is not repeated when the deployments are retried.
+    # A domain removal that finished is not repeated on the next save, and the deployment that
+    # missed it is not sent again: no deployment differs from what it runs.
     public = page.get_by_role("switch", name="Public", exact=True)
     expect(public).to_be_checked()
     public.click()
@@ -357,13 +368,10 @@ with session(out) as browser:
     expect(discard).to_be_enabled()
     expect(page.get_by_text("Internal only", exact=False)).to_be_visible()
     failing.clear()
-    save_button.click()
+    page.get_by_role("button", name="Save", exact=True).click()
     expect(discard).to_have_count(0)
     assert len(removals) == 1, removals
-    assert sorted(d["regions"] for d in deployments[first + 2 :]) == [
-        [REGION],
-        [OTHER_REGION],
-    ], deployments[first:]
+    assert len(deployments) == first + 2, deployments[first:]
 
     # A saved start command leaves the draft, once the reload is done, even when the server runs
     # another one.
@@ -371,7 +379,7 @@ with session(out) as browser:
     page.locator("#set-command").get_by_role(
         "textbox", name="Command", exact=True
     ).fill("/serve")
-    hold_reload()
+    hold_reload(split)
     save_button.click()
     release_reload()
     expect(discard).to_have_count(0)
@@ -393,6 +401,37 @@ with session(out) as browser:
     assert "healthCheck" not in sent[REGION]["spec"]["service"], sent
     assert sent[OTHER_REGION]["spec"]["service"]["healthCheck"] == server_check, sent
     assert not any("removeHealthCheck" in d for d in sent.values()), sent
+
+    # A check turned on with a port change reaches the region that missed it on retry, after a
+    # health field is changed and typed back.
+    page.goto(enable_base + "?env=production&tab=settings")
+    expect(switch).not_to_be_checked()
+    switch.click()
+    page.get_by_role("textbox", name="Port", exact=True).fill("9090")
+    failing.add(OTHER_REGION)
+    first = len(deployments)
+    hold_reload(enable)
+    save_button.click()
+    expect(page.get_by_text("region down", exact=False)).to_be_visible()
+    release_reload()
+    expect(discard).to_be_enabled()
+    timeout_field = section.get_by_role("textbox", name="Timeout", exact=True)
+    timeout_field.fill("7")
+    timeout_field.fill(str(default_health["timeoutSeconds"]))
+    failing.clear()
+    save_button.click()
+    expect(discard).to_have_count(0)
+    by_region = {d["regions"][0]: d for d in deployments[first:]}
+    first_east = deployments[first:][
+        [d["regions"] for d in deployments[first:]].index([REGION])
+    ]
+    assert first_east["spec"]["service"]["healthCheck"] == default_health, first_east
+    assert [d["regions"] for d in deployments[first + 2 :]] == [[OTHER_REGION]], (
+        deployments[first:]
+    )
+    west = by_region[OTHER_REGION]["spec"]["service"]
+    assert west["healthCheck"] == default_health, west
+    assert west["port"] == 9090, west
     assert not errors, errors
     context.close()
     browser.close()

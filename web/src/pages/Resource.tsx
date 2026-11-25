@@ -545,7 +545,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						canWrite={canWrite}
 						canDelete={canDelete}
 						canReadWorkspace={canListResources}
-						onDraft={setDraft}
+						onDraft={(next) => {
+							// A running save owns the draft; edits wait until it finishes.
+							if (!saving) setDraft(next);
+						}}
 						onBack={() => {
 							setView("overview");
 						}}

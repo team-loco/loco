@@ -29,10 +29,12 @@ import {
 	changeCount,
 	changeNames,
 	failurePolicyFrom,
-	healthEdit,
+	editHealth,
+	switchHealth,
 	plainEnv,
 	planSave,
 	regionChanges,
+	regionMapChanged,
 	regionTargets,
 	resolved,
 	scalingDiffers,
@@ -105,7 +107,9 @@ const scaling = (replicas: number, maxReplicas = replicas, cpuTarget = defaults.
 
 const regions = [region(EAST, deployment("east", EAST)), region(WEST, deployment("west", WEST, 3))];
 const base = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, POLICY);
-const hc = (patch: Partial<HealthForm>): SettingsDraft => ({ health: { ...base.health, ...patch } });
+const hc = (patch: Partial<HealthForm>): SettingsDraft => ({
+	health: { kind: "edit", form: { ...base.health, ...patch } },
+});
 const ENV = { LOG_LEVEL: "info" };
 const planWith = (views: RegionView[], draft: SettingsDraft, b: Baseline) =>
 	planSave(views, draft, b, plainEnv(ENV, draft));
@@ -215,10 +219,7 @@ describe("planSave", () => {
 		getServiceSpec(second)!.build!.image = "example.test/other:release";
 		const mixed = [region(EAST, first), region(WEST, second)];
 		const result = planWith(mixed, { image: IMAGE }, baseline("shop", "shop", "", mixed, [], true, defaults, POLICY));
-		expect(result.map((d) => [d.regions, d.commit])).toEqual([
-			[[EAST], first.commit],
-			[[WEST], undefined],
-		]);
+		expect(result.map((d) => [d.regions, d.commit])).toEqual([[[WEST], undefined]]);
 	});
 
 	test("preserves the source commit for health changes and clears it for another image", () => {
@@ -550,15 +551,32 @@ describe("health check switch", () => {
 	const mixed = [withDelay("east", EAST, undefined), withDelay("west", WEST, 0)];
 	const mixedBase = baseline("shop", "shop", "", mixed, [EAST, WEST], true, checked, POLICY);
 
-	test("turning the switch on and back off from all off leaves no edit", () => {
-		expect(allOffBase.health.enabled).toBe(false);
-		const on = healthEdit(allOffBase, { ...allOffBase.health, enabled: true });
-		expect(on?.enabled).toBe(true);
-		expect(healthEdit(allOffBase, { ...allOffBase.health, enabled: false })).toBeUndefined();
+	const worker = (id: string, name: string) => {
+		const d = deployment(id, name);
+		getServiceSpec(d)!.port = undefined;
+		getServiceSpec(d)!.healthCheck = undefined;
+		return region(name, d);
+	};
+
+	test("turning the switch back undoes the pending edit, and only that", () => {
+		const on = switchHealth(undefined, allOffBase, true);
+		expect(on?.kind).toBe("enable");
+		expect(switchHealth(on, allOffBase, false)).toBeUndefined();
+		const off = switchHealth(undefined, mixedBase, false);
+		expect(off?.kind).toBe("disable");
+		expect(switchHealth(off, mixedBase, true)).toBeUndefined();
+		const edited = editHealth(undefined, mixedBase, { path: "/ready" });
+		expect(switchHealth(edited, mixedBase, false)?.kind).toBe("disable");
+	});
+
+	test("a field typed back to its value keeps the edit pending", () => {
+		const edited = editHealth(editHealth(undefined, base, { timeout: "5" }), base, { timeout: base.health.timeout });
+		expect(edited).toEqual({ kind: "edit", form: base.health });
+		expect(changeNames({ health: edited }, base)).toEqual(["Health check"]);
 	});
 
 	test("turning it on adds the default check, with its startup delay, where none runs", () => {
-		const draft = { health: { ...allOffBase.health, enabled: true } };
+		const draft = { health: switchHealth(undefined, allOffBase, true) };
 		expect(changeNames(draft, allOffBase)).toEqual(["Add health check"]);
 		expect(planned(allOff, draft, allOffBase)).toEqual([
 			[[EAST], "/healthz", 17],
@@ -566,72 +584,15 @@ describe("health check switch", () => {
 		]);
 	});
 
-	test("with a check in one region the switch is on, and turning it off removes that check", () => {
+	test("with a check in one region the switch is on, and turning it off removes that check only", () => {
 		expect(mixedBase.health).toMatchObject({ enabled: true, path: "/healthz" });
-		const draft = { health: { ...mixedBase.health, enabled: false } };
+		const draft = { health: switchHealth(undefined, mixedBase, false) };
 		expect(changeNames(draft, mixedBase)).toEqual(["Remove health check"]);
-		expect(planned(mixed, draft, mixedBase)).toEqual([
-			[[EAST], undefined, undefined],
-			[[WEST], undefined, undefined],
-		]);
-		expect(healthEdit(mixedBase, { ...mixedBase.health, enabled: true })).toBeUndefined();
+		expect(planned(mixed, draft, mixedBase)).toEqual([[[WEST], undefined, undefined]]);
 		expect(planWith(mixed, { port: "9090" }, mixedBase).map((d) => health(d)?.path)).toEqual([undefined, "/healthz"]);
 	});
 
-	test("switched on without edits, a deployment keeps the check it runs", () => {
-		const draft = { health: { ...allOffBase.health, enabled: true } };
-		const refreshed = [withDelay("east", EAST, 60), withDelay("west", WEST, undefined)];
-		expect(planned(refreshed, draft, allOffBase)).toEqual([
-			[[EAST], "/healthz", 60],
-			[[WEST], "/healthz", 17],
-		]);
-		const east = planWith(refreshed, draft, allOffBase)[0];
-		expect(health(east!)).toEqual(getServiceSpec(refreshed[0]!.current!)?.healthCheck);
-	});
-
-	test("an edit gives every deployment the form, each keeping its own startup delay", () => {
-		const views = [withDelay("east", EAST, 60), withDelay("west", WEST, undefined)];
-		const b = baseline("shop", "shop", "", views, [EAST, WEST], true, checked, POLICY);
-		const draft = { health: healthEdit(b, { ...b.health, path: "/ready" }) };
-		expect(planned(views, draft, b)).toEqual([
-			[[EAST], "/ready", 60],
-			[[WEST], "/ready", 17],
-		]);
-	});
-
-	test("turning it off ignores its fields", () => {
-		const draft = { health: { ...base.health, enabled: false, path: "nope" } };
-		expect(changeNames(draft, base)).toEqual(["Remove health check"]);
-		expect(validateDraft(draft, base, regions, SERVED, 10, ENV).healthPath).toBeUndefined();
-	});
-
-	test("a check goes only to deployments with a port", () => {
-		const worker = deployment("worker", WEST);
-		const svc = getServiceSpec(worker)!;
-		svc.healthCheck = undefined;
-		svc.port = undefined;
-		const views = [withDelay("east", EAST, undefined), region(WEST, worker)];
-		const b = baseline("shop", "shop", "", views, [EAST, WEST], true, checked, POLICY);
-		const draft = { health: { ...b.health, enabled: true } };
-		expect(planned(views, draft, b)).toEqual([
-			[[EAST], "/healthz", 17],
-			[[WEST], undefined, undefined],
-		]);
-	});
-
-	test("the switch reads any deployment's check, in either region order", () => {
-		const worker = deployment("worker", EAST);
-		getServiceSpec(worker)!.port = undefined;
-		getServiceSpec(worker)!.healthCheck = undefined;
-		const service = deployment("service", WEST);
-		for (const views of [
-			[region(EAST, worker), region(WEST, service)],
-			[region(WEST, service), region(EAST, worker)],
-		])
-			expect(baseline("shop", "shop", "", views, [EAST, WEST], true, checked, POLICY).health.enabled).toBe(true);
-	});
-
-	test("turning it off removes a check the resource stores even where no deployment runs one", () => {
+	test("turning it off removes a check only the resource stores", () => {
 		const storedCheck = create(HealthCheckConfigSchema, {
 			path: "/stored",
 			intervalSeconds: 9,
@@ -640,33 +601,61 @@ describe("health check switch", () => {
 		});
 		const b = baseline("shop", "shop", "", allOff, [EAST, WEST], true, checked, POLICY, storedCheck);
 		expect(b.health).toMatchObject({ enabled: true, path: "/stored" });
-		const draft = { health: { ...b.health, enabled: false } };
+		const draft = { health: switchHealth(undefined, b, false) };
 		expect(planned(allOff, draft, b)).toEqual([
 			[[EAST], undefined, undefined],
 			[[WEST], undefined, undefined],
 		]);
 	});
 
+	test("turned on, a deployment that runs a check keeps it", () => {
+		const draft = { health: switchHealth(undefined, allOffBase, true) };
+		const refreshed = [withDelay("east", EAST, 60), withDelay("west", WEST, undefined)];
+		expect(planned(refreshed, draft, allOffBase)).toEqual([[[WEST], "/healthz", 17]]);
+	});
+
+	test("an edit gives every deployment the form, each keeping its own startup delay", () => {
+		const views = [withDelay("east", EAST, 60), withDelay("west", WEST, undefined)];
+		const b = baseline("shop", "shop", "", views, [EAST, WEST], true, checked, POLICY);
+		const draft = { health: editHealth(undefined, b, { path: "/ready" }) };
+		expect(planned(views, draft, b)).toEqual([
+			[[EAST], "/ready", 60],
+			[[WEST], "/ready", 17],
+		]);
+	});
+
+	test("turning it off ignores its fields", () => {
+		const draft = { health: { kind: "disable" as const, form: { ...base.health, enabled: false, path: "nope" } } };
+		expect(changeNames(draft, base)).toEqual(["Remove health check"]);
+		expect(validateDraft(draft, base, regions, SERVED, 10, ENV).healthPath).toBeUndefined();
+	});
+
+	test("a health-only edit sends nothing to a worker deployment", () => {
+		const views = [withDelay("east", EAST, undefined), worker("worker", WEST)];
+		const b = baseline("shop", "shop", "", views, [EAST, WEST], true, checked, POLICY);
+		for (const edit of [switchHealth(undefined, b, true), editHealth(undefined, b, { path: "/ready" })])
+			expect(planned(views, { health: edit }, b).map(([names]) => names)).toEqual([[EAST]]);
+	});
+
+	test("the switch reads any deployment's check, in either region order", () => {
+		const service = deployment("service", WEST);
+		for (const views of [
+			[worker("worker", EAST), region(WEST, service)],
+			[region(WEST, service), worker("worker", EAST)],
+		])
+			expect(baseline("shop", "shop", "", views, [EAST, WEST], true, checked, POLICY).health.enabled).toBe(true);
+	});
+
 	test("a pending edit needs a running deployment with a port", () => {
-		const worker = deployment("worker", EAST);
-		getServiceSpec(worker)!.port = undefined;
-		getServiceSpec(worker)!.healthCheck = undefined;
-		const views = [region(EAST, worker)];
-		const b = baseline("shop", "shop", "", views, [EAST], true, checked, POLICY);
-		const draft = { health: { ...b.health, enabled: true } };
-		expect(validateDraft(draft, b, views, SERVED, 10, ENV).health).toBeDefined();
+		for (const views of [[worker("worker", EAST)], [region(EAST, undefined)]]) {
+			const b = baseline("shop", "shop", "", views, [EAST], true, checked, POLICY);
+			const draft = { health: switchHealth(undefined, b, true) };
+			expect(validateDraft(draft, b, views, SERVED, 10, ENV).health).toBeDefined();
+		}
 	});
 
-	test("a pending edit fails validation once no deployment runs", () => {
-		const idle = [region(EAST, undefined)];
-		const idleBase = baseline("shop", "shop", "", idle, [EAST], true, checked, POLICY);
-		const draft = { health: { ...idleBase.health, enabled: true } };
-		expect(changeNames(draft, idleBase)).toEqual(["Add health check"]);
-		expect(validateDraft(draft, idleBase, idle, SERVED, 10, ENV).health).toBeDefined();
-	});
-
-	test("a numerically equal edit is not mistaken for an undeployed service", () => {
-		const draft = { health: healthEdit(base, { ...base.health, interval: "010" }) };
+	test("a numerically equal edit plans nothing", () => {
+		const draft = { health: editHealth(undefined, base, { interval: "010" }) };
 		expect(validateDraft(draft, base, regions, SERVED, 10, ENV)).toEqual({});
 		expect(plan(draft)).toEqual([]);
 	});
@@ -714,27 +703,52 @@ describe("after a partly failed save", () => {
 	const refreshedWith = (change: (svc: NonNullable<ReturnType<typeof getServiceSpec>>) => void) => {
 		const east = deployment("east-2", EAST);
 		change(getServiceSpec(east)!);
-		return [region(EAST, east), region(WEST, deployment("west", WEST, 3))];
+		const views = [region(EAST, east), region(WEST, deployment("west", WEST, 3))];
+		return { views, live: baseline("shop", "shop", "", views, [EAST, WEST], true, defaults, POLICY) };
 	};
 
-	test("a change named against the draft's origin stays pending and a retry plans every deployment", () => {
+	test("a change stays named against the draft's origin and a retry sends only what still differs", () => {
 		const draft: SettingsDraft = { port: "9090", origin: base };
-		const views = refreshedWith((svc) => {
+		const { views, live } = refreshedWith((svc) => {
 			svc.port = 9090;
 		});
 		expect(changeNames(draft, draft.origin!)).toEqual(["Port"]);
-		expect(planWith(views, draft, draft.origin!).map((d) => d.regions)).toEqual([[EAST], [WEST]]);
+		expect(planWith(views, draft, live).map((d) => d.regions)).toEqual([[WEST]]);
 	});
 
-	test("a removal stays pending once the region that saved runs without a check", () => {
-		const draft: SettingsDraft = { health: { ...base.health, enabled: false }, origin: base };
-		const views = refreshedWith((svc) => {
-			svc.healthCheck = undefined;
+	test("an enabled check reaches the region that missed it, after a field is typed back", () => {
+		const unchecked = (id: string, name: string) => {
+			const d = deployment(id, name);
+			getServiceSpec(d)!.healthCheck = undefined;
+			return d;
+		};
+		const before = [region(EAST, unchecked("east", EAST)), region(WEST, unchecked("west", WEST))];
+		const origin = baseline("shop", "shop", "", before, [EAST, WEST], true, defaults, POLICY);
+		const enabled = switchHealth(undefined, origin, true)!;
+		const { views, live } = refreshedWith((svc) => {
+			svc.port = 9090;
 		});
-		const refreshedBase = baseline("shop", "shop", "", views, [EAST, WEST], true, defaults, POLICY);
-		expect(refreshedBase.health.enabled).toBe(true);
-		expect(changeNames(draft, draft.origin!)).toEqual(["Remove health check"]);
-		expect(planWith(views, draft, draft.origin!).map((d) => d.regions)).toEqual([[EAST], [WEST]]);
+		views[1] = region(WEST, unchecked("west", WEST));
+		const typed = editHealth(enabled, live, { timeout: "7" });
+		const health = editHealth(typed, live, { timeout: enabled.form.timeout });
+		expect(health).toEqual(enabled);
+		const [west, ...rest] = planWith(views, { port: "9090", health, origin }, live);
+		expect([west?.regions, rest]).toEqual([[WEST], []]);
+		expect(getServiceSpec(create(DeploymentSchema, { spec: west!.spec }))?.healthCheck).toBeDefined();
+	});
+});
+
+describe("the save plan", () => {
+	test("validation, the Save label and the save use one plan against what runs now", () => {
+		for (const draft of [
+			{ port: "9090" },
+			{ port: "9090", regions: { [WEST]: false } },
+			{ regions: { [WEST]: false } },
+		]) {
+			const planned = planWith(regions, draft, base).length > 0;
+			const blocked = validateDraft(draft, base, regions, SERVED, 10, ENV).regions !== undefined;
+			expect(blocked).toBe(regionMapChanged(draft, base) && planned);
+		}
 	});
 });
 

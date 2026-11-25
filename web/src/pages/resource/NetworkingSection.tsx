@@ -384,6 +384,7 @@ export function NetworkingSection({
 					<span className="text-[13px] font-medium">Domain</span>
 					<AppDomainInput
 						className="max-w-[460px]"
+						disabled={locked}
 						subdomain={subdomain}
 						appDomain={appDomain}
 						options={appDomains.filter((d) => served.includes(d.domain))}

@@ -22,7 +22,8 @@ import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
 import {
 	RESTART_CHOICES,
-	healthEdit,
+	editHealth,
+	switchHealth,
 	scalingDiffers,
 	type Baseline,
 	type DraftErrors,
@@ -303,10 +304,10 @@ export function HealthSection({
 	onChange,
 	deployed,
 }: SectionProps & { deployed: boolean }) {
-	const form = draft.health ?? base.health;
+	const form = draft.health?.form ?? base.health;
 	const disabled = locked || !deployed;
 	const edit = (patch: Partial<HealthForm>) => {
-		onChange({ health: healthEdit(base, { ...form, ...patch }) });
+		onChange({ health: editHealth(draft.health, base, patch) });
 	};
 	return (
 		<SettingsBlock
@@ -323,12 +324,17 @@ export function HealthSection({
 					checked={form.enabled}
 					disabled={disabled}
 					aria-describedby={describedBy}
-					onCheckedChange={(enabled) => {
-						edit({ enabled });
+					onCheckedChange={(on) => {
+						onChange({ health: switchHealth(draft.health, base, on) });
 					}}
 				/>
 			}
 		>
+			{errors.health !== undefined && (
+				<span className="text-[12.5px] text-bad-fg">
+					{errors.health} Discard drops the pending health check change.
+				</span>
+			)}
 			{form.enabled && (
 				<div className={grid2}>
 					<Field label="Path" error={errors.healthPath} reserve>

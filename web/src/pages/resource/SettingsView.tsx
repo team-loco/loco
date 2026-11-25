@@ -209,7 +209,7 @@ export function SettingsView({
 	const errorCount = Object.keys(errors).length;
 	const changes = changeNames(draft, origin);
 	const count = changes.length;
-	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, origin, plainEnv(env, draft)).length > 0;
+	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, base, plainEnv(env, draft)).length > 0;
 	const submit = async () => {
 		await onSave(draft);
 		setTried(false);

@@ -80,7 +80,6 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 	const save = async ({ resource, environmentId, regions, base, draft }: SaveRequest) => {
 		setSaving(true);
 		const resourceId = resource.id;
-		const origin = draft.origin ?? base;
 		const failures: string[] = [];
 		const attempt = async (label: string, run: () => Promise<unknown>) => {
 			try {
@@ -171,8 +170,8 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 			);
 		}
 
-		// Every deployment gets the draft again on a retry; a deployment that already runs it is unchanged.
-		const deploys = planSave(regions, effective, origin, env);
+		// A retry sends only the deployments that do not yet run the draft.
+		const deploys = planSave(regions, effective, base, env);
 		const savedRegions: string[] = [];
 		for (const planned of deploys) {
 			try {
@@ -182,7 +181,7 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 					spec: planned.spec,
 					environmentId,
 					commit: planned.commit,
-					removeHealthCheck: effective.health?.enabled === false,
+					removeHealthCheck: effective.health?.kind === "disable",
 				});
 				savedRegions.push(...planned.regions);
 			} catch (err) {
