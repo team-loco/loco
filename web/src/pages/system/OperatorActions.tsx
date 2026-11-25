@@ -5,6 +5,7 @@ import {
 	revokeSystemRole,
 } from "@gen/loco/admin/v1/admin-SystemRoleService_connectquery";
 import { SystemRole, type SystemRoleHolder } from "@gen/loco/admin/v1/admin_pb";
+import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { getUser } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,9 +40,12 @@ const ROLE_HINT: Record<"read" | "admin", string> = {
 function useRefreshRoles() {
 	const queryClient = useQueryClient();
 	return async () => {
-		await queryClient.invalidateQueries({
-			queryKey: createConnectQueryKey({ schema: listSystemRoles, cardinality: undefined }),
-		});
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: createConnectQueryKey({ schema: listSystemRoles, cardinality: undefined }),
+			}),
+			queryClient.invalidateQueries({ queryKey: createConnectQueryKey({ schema: getScopes, cardinality: undefined }) }),
+		]);
 	};
 }
 
@@ -51,7 +55,7 @@ export function GrantRoleDialog({ open, onClose }: { open: boolean; onClose: () 
 	const [role, setRole] = useState<"read" | "admin">("read");
 	const grant = useMutation(grantSystemRole);
 	const refresh = useRefreshRoles();
-	const address = email.trim();
+	const address = email.trim().toLowerCase();
 	const valid = isPlainEmail(address);
 	const found = useQuery(getUser, { key: { case: "email", value: address } }, { enabled: valid, retry: false });
 	const user = valid ? found.data?.user : undefined;
