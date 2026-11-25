@@ -42,10 +42,19 @@ message Event {
   string severity = 20;
   // The region the event names: its region, or its regions joined with ", ".
   string region = 21;
+  // The actor changed the organization through an installation role (a Loco operator), not as one of
+  // its members.
+  bool acted_as_operator = 22;
 }
 
 message ListEventsRequest {
-  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  // Empty lists the events of every organization and the installation, which needs system read.
+  string org_id = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  // With no org_id: only the events that belong to no organization.
+  bool installation_only = 19;
   // next_page_token from the previous page; empty for the newest events.
   string page_token = 2 [(buf.validate.field).string.max_len = 64];
   int32 page_size = 4 [(buf.validate.field).int32 = {

@@ -76,6 +76,12 @@ const (
 	ClusterSilent        = "cluster.silent"
 	ClusterRecovered     = "cluster.recovered"
 	ClusterHealthChanged = "cluster.health_changed"
+	ClusterCreated       = "cluster.created"
+	ClusterTokenIssued   = "cluster.join_token_issued"
+	ClusterPaused        = "cluster.paused"
+	ClusterResumed       = "cluster.resumed"
+	ClusterRemoved       = "cluster.removed"
+	ClusterRestored      = "cluster.restored"
 	WebhookCreated       = "webhook.created"
 	WebhookUpdated       = "webhook.updated"
 	WebhookDeleted       = "webhook.deleted"
@@ -250,6 +256,7 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		SubjectID:     ev.SubjectID,
 		Data:          raw,
 	}
+	params.ActedAsOperator = ev.ActorType == "" && ev.OrgID != nil && reqctx.ActedAsOperator(ctx)
 	if ev.SubjectType != "" {
 		subjectType := ev.SubjectType
 		params.SubjectType = &subjectType

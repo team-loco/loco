@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -22,6 +23,13 @@ const (
 	clusterRemove  clusterOperation = "remove"
 	clusterRestore clusterOperation = "restore"
 )
+
+var clusterEvents = map[clusterOperation]string{
+	clusterPause:   events.ClusterPaused,
+	clusterResume:  events.ClusterResumed,
+	clusterRemove:  events.ClusterRemoved,
+	clusterRestore: events.ClusterRestored,
+}
 
 var (
 	ErrClusterRemoved      = errors.New("cluster is removed; restore it before resuming")
@@ -106,6 +114,9 @@ func manageCluster(
 		}
 		if err := qtx.UpdateClusterLifecycle(ctx, params); err != nil {
 			return fmt.Errorf("update cluster lifecycle: %w", err)
+		}
+		if err := recordCluster(ctx, qtx, clusterEvents[operation], id, nil); err != nil {
+			return err
 		}
 		return notifyCluster(ctx, qtx, id)
 	})

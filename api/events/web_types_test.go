@@ -14,6 +14,8 @@ var notInDashboard = []string{
 	"system_role.claimed", "system_role.granted", "system_role.revoked",
 	"cli_login.approved", "cli_login.completed",
 	"cluster.registered", "cluster.silent", "cluster.recovered", "cluster.health_changed",
+	"cluster.created", "cluster.join_token_issued", "cluster.paused", "cluster.resumed",
+	"cluster.removed", "cluster.restored",
 }
 
 // TestDashboardListsEveryEventType compares the types events.go records with AUDIT_TYPES in the dashboard.

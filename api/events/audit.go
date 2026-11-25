@@ -12,11 +12,13 @@ import (
 	"github.com/team-loco/loco/internal/logquery"
 )
 
-// AuditQuery selects an organization's events within optional scope and time bounds.
+// AuditQuery selects events within optional scope and time bounds: an organization's, or with no
+// OrgID every event, or with InstallationOnly the ones that belong to no organization.
 type AuditQuery struct {
-	OrgID       uuid.UUID
-	WorkspaceID *uuid.UUID
-	ResourceID  *uuid.UUID
+	OrgID            uuid.UUID
+	InstallationOnly bool
+	WorkspaceID      *uuid.UUID
+	ResourceID       *uuid.UUID
 	// ResourceIDs, when set, keeps events of these resources.
 	ResourceIDs   []uuid.UUID
 	EnvironmentID *uuid.UUID
@@ -46,7 +48,7 @@ type AuditEvent struct {
 
 const auditSelect = `SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id,
 	e.environment_id, e.deployment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id,
-	e.traceparent, e.data, e.created_at,
+	e.traceparent, e.data, e.created_at, e.acted_as_operator,
 	u.email, COALESCE(u.name, e.actor_token_name), e.actor_token_type,
 	event_title(e.type, e.data), event_severity(e.type), event_region(e.data)` + auditFrom
 
@@ -57,7 +59,7 @@ LEFT JOIN users s ON e.subject_type = 'user' AND s.id = e.subject_id
 LEFT JOIN resources r ON r.id = e.resource_id
 LEFT JOIN workspaces w ON w.id = e.workspace_id
 LEFT JOIN environments n ON n.id = e.environment_id
-WHERE e.org_id = $1`
+WHERE true`
 
 // ListAudit reads the events q selects.
 func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, error) {
@@ -86,6 +88,7 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 			&event.Traceparent,
 			&event.Data,
 			&event.CreatedAt,
+			&event.ActedAsOperator,
 			&event.ActorEmail,
 			&event.ActorName,
 			&event.ActorTokenType,
@@ -106,7 +109,7 @@ func CountAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) (int64, error)
 }
 
 func auditSQL(q AuditQuery) (string, []any) {
-	b := &binder{args: []any{q.OrgID}}
+	b := &binder{}
 	sql := auditSelect + auditWhere(q, b)
 	if q.Stream {
 		sql += " AND e.stream_position > " + b.bind(q.AfterPosition) + " ORDER BY e.stream_position"
@@ -117,9 +120,14 @@ func auditSQL(q AuditQuery) (string, []any) {
 	return sql, b.args
 }
 
-// auditWhere is the conditions after auditFrom's org condition.
+// auditWhere is the conditions after auditFrom's WHERE.
 func auditWhere(q AuditQuery, b *binder) string {
 	sql := ""
+	if q.OrgID != uuid.Nil {
+		sql += " AND e.org_id = " + b.bind(q.OrgID)
+	} else if q.InstallationOnly {
+		sql += " AND e.org_id IS NULL"
+	}
 	if len(q.Types) > 0 {
 		sql += " AND e.type = ANY(" + b.bind(q.Types) + ")"
 	}
@@ -165,7 +173,7 @@ const facetValues = `(VALUES ('type', e.type), ('severity', event_severity(e.typ
 // FacetAudit counts each facet key's values over the newest q.Limit events q selects, ignoring q.Filter.
 func FacetAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]Facet, error) {
 	q.Filter = nil
-	b := &binder{args: []any{q.OrgID}}
+	b := &binder{}
 	sql := "SELECT f.key, f.value, count(*) FROM (SELECT e.type, e.data, e.actor_type, e.actor_token_name, " +
 		"u.name AS user_name, r.name AS resource_name" + auditFrom + auditWhere(q, b) +
 		" ORDER BY e.seq DESC LIMIT " + b.bind(q.Limit) + ") e" +

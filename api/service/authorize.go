@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"connectrpc.com/connect/v2"
@@ -69,12 +70,29 @@ func principalFrom(ctx context.Context) (reqctx.Principal, error) {
 func check(ctx context.Context, authorizer *authz.Authorizer, p reqctx.Principal, required ...genDb.EntityScope) error {
 	err := authorizer.Check(ctx, p.Scopes, required...)
 	if err == nil {
+		markOperator(ctx, authorizer, p, required)
 		return nil
 	}
 	if accessDenied(err) {
 		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	return fmt.Errorf("check access: %w", err)
+}
+
+// markOperator marks the request when the caller's installation scopes were needed to pass the check.
+func markOperator(ctx context.Context, authorizer *authz.Authorizer, p reqctx.Principal, required []genDb.EntityScope) {
+	var own []genDb.EntityScope
+	for _, scope := range p.Scopes {
+		if scope.EntityType != genDb.EntityTypeSystem {
+			own = append(own, scope)
+		}
+	}
+	if len(own) == len(p.Scopes) {
+		return
+	}
+	if errors.Is(authorizer.Check(ctx, own, required...), authz.ErrInsufficientPermissions) {
+		reqctx.MarkOperator(ctx)
+	}
 }
 
 // parseIDs parses a repeated request field holding entity IDs; it returns nil for an empty field.

@@ -13046,6 +13046,11 @@
             "type": "string",
             "title": "region",
             "description": "The region the event names: its region, or its regions joined with \", \"."
+          },
+          "actedAsOperator": {
+            "type": "boolean",
+            "title": "acted_as_operator",
+            "description": "The actor changed the organization through an installation role (a Loco operator), not as one of\n its members."
           }
         },
         "title": "Event",
@@ -13093,7 +13098,13 @@
           "orgId": {
             "type": "string",
             "title": "org_id",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Empty lists the events of every organization and the installation, which needs system read."
+          },
+          "installationOnly": {
+            "type": "boolean",
+            "title": "installation_only",
+            "description": "With no org_id: only the events that belong to no organization."
           },
           "pageToken": {
             "type": "string",

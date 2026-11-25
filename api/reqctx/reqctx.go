@@ -4,6 +4,7 @@ package reqctx
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 
@@ -16,6 +17,7 @@ type key int
 const (
 	requestKey key = iota
 	principalKey
+	operatorKey
 )
 
 // Request identifies one RPC call.
@@ -52,8 +54,25 @@ func RequestFrom(ctx context.Context) (Request, bool) {
 	return Request{ID: id, Procedure: procedure}, ok
 }
 
+// WithPrincipal attaches p. The request's operator mark is kept when ctx already carries one.
 func WithPrincipal(ctx context.Context, p Principal) context.Context {
+	if _, ok := ctx.Value(operatorKey).(*atomic.Bool); !ok {
+		ctx = context.WithValue(ctx, operatorKey, new(atomic.Bool))
+	}
 	return context.WithValue(ctx, principalKey, p)
+}
+
+// MarkOperator records that the request passed an access check only through an installation role.
+func MarkOperator(ctx context.Context) {
+	if mark, ok := ctx.Value(operatorKey).(*atomic.Bool); ok {
+		mark.Store(true)
+	}
+}
+
+// ActedAsOperator reports whether the request passed an access check only through an installation role.
+func ActedAsOperator(ctx context.Context) bool {
+	mark, ok := ctx.Value(operatorKey).(*atomic.Bool)
+	return ok && mark.Load()
 }
 
 // PrincipalFrom reports false on public procedures and outside RPC handlers.

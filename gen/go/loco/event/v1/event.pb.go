@@ -53,9 +53,12 @@ type Event struct {
 	// How the Events view grades the event: "normal", "warning" or "error".
 	Severity string `protobuf:"bytes,20,opt,name=severity,proto3" json:"severity,omitempty"`
 	// The region the event names: its region, or its regions joined with ", ".
-	Region        string `protobuf:"bytes,21,opt,name=region,proto3" json:"region,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Region string `protobuf:"bytes,21,opt,name=region,proto3" json:"region,omitempty"`
+	// The actor changed the organization through an installation role (a Loco operator), not as one of
+	// its members.
+	ActedAsOperator bool `protobuf:"varint,22,opt,name=acted_as_operator,json=actedAsOperator,proto3" json:"acted_as_operator,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Event) Reset() {
@@ -235,9 +238,19 @@ func (x *Event) GetRegion() string {
 	return ""
 }
 
+func (x *Event) GetActedAsOperator() bool {
+	if x != nil {
+		return x.ActedAsOperator
+	}
+	return false
+}
+
 type ListEventsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	OrgId string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	// Empty lists the events of every organization and the installation, which needs system read.
+	OrgId string `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	// With no org_id: only the events that belong to no organization.
+	InstallationOnly bool `protobuf:"varint,19,opt,name=installation_only,json=installationOnly,proto3" json:"installation_only,omitempty"`
 	// next_page_token from the previous page; empty for the newest events.
 	PageToken     string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	PageSize      int32  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
@@ -303,6 +316,13 @@ func (x *ListEventsRequest) GetOrgId() string {
 		return x.OrgId
 	}
 	return ""
+}
+
+func (x *ListEventsRequest) GetInstallationOnly() bool {
+	if x != nil {
+		return x.InstallationOnly
+	}
+	return false
 }
 
 func (x *ListEventsRequest) GetPageToken() string {
@@ -737,7 +757,7 @@ var File_loco_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x05\n" +
+	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x05\n" +
 	"\x05Event\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -767,9 +787,11 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\rdeployment_id\x18\x12 \x01(\tR\fdeploymentId\x12\x14\n" +
 	"\x05title\x18\x13 \x01(\tR\x05title\x12\x1a\n" +
 	"\bseverity\x18\x14 \x01(\tR\bseverity\x12\x16\n" +
-	"\x06region\x18\x15 \x01(\tR\x06region\"\x83\x05\n" +
-	"\x11ListEventsRequest\x12\x1f\n" +
-	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
+	"\x06region\x18\x15 \x01(\tR\x06region\x12*\n" +
+	"\x11acted_as_operator\x18\x16 \x01(\bR\x0factedAsOperator\"\xb3\x05\n" +
+	"\x11ListEventsRequest\x12\"\n" +
+	"\x06org_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x05orgId\x12+\n" +
+	"\x11installation_only\x18\x13 \x01(\bR\x10installationOnly\x12&\n" +
 	"\n" +
 	"page_token\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18@R\tpageToken\x12'\n" +
 	"\tpage_size\x18\x04 \x01(\x05B\n" +

@@ -850,25 +850,26 @@ type EnvironmentKey struct {
 }
 
 type Event struct {
-	Seq            int64      `json:"seq"`
-	StreamPosition *int64     `json:"streamPosition"`
-	ID             uuid.UUID  `json:"id"`
-	Type           string     `json:"type"`
-	OrgID          *uuid.UUID `json:"orgId"`
-	WorkspaceID    *uuid.UUID `json:"workspaceId"`
-	ResourceID     *uuid.UUID `json:"resourceId"`
-	EnvironmentID  *uuid.UUID `json:"environmentId"`
-	DeploymentID   *uuid.UUID `json:"deploymentId"`
-	ActorType      string     `json:"actorType"`
-	ActorID        *uuid.UUID `json:"actorId"`
-	ActorTokenName *string    `json:"actorTokenName"`
-	ActorTokenType *string    `json:"actorTokenType"`
-	SubjectType    *string    `json:"subjectType"`
-	SubjectID      *uuid.UUID `json:"subjectId"`
-	RequestID      *string    `json:"requestId"`
-	Traceparent    *string    `json:"traceparent"`
-	Data           []byte     `json:"data"`
-	CreatedAt      time.Time  `json:"createdAt"`
+	Seq             int64      `json:"seq"`
+	StreamPosition  *int64     `json:"streamPosition"`
+	ID              uuid.UUID  `json:"id"`
+	Type            string     `json:"type"`
+	OrgID           *uuid.UUID `json:"orgId"`
+	WorkspaceID     *uuid.UUID `json:"workspaceId"`
+	ResourceID      *uuid.UUID `json:"resourceId"`
+	EnvironmentID   *uuid.UUID `json:"environmentId"`
+	DeploymentID    *uuid.UUID `json:"deploymentId"`
+	ActorType       string     `json:"actorType"`
+	ActorID         *uuid.UUID `json:"actorId"`
+	ActorTokenName  *string    `json:"actorTokenName"`
+	ActorTokenType  *string    `json:"actorTokenType"`
+	ActedAsOperator bool       `json:"actedAsOperator"`
+	SubjectType     *string    `json:"subjectType"`
+	SubjectID       *uuid.UUID `json:"subjectId"`
+	RequestID       *string    `json:"requestId"`
+	Traceparent     *string    `json:"traceparent"`
+	Data            []byte     `json:"data"`
+	CreatedAt       time.Time  `json:"createdAt"`
 }
 
 type EventStreamCounter struct {
