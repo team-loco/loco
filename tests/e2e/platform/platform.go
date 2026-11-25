@@ -87,6 +87,9 @@ type Platform struct {
 	ClusterKey string
 	JoinToken  string
 
+	// Ntfy receives the notifications the API publishes.
+	Ntfy *Ntfy
+
 	DB *pgxpool.Pool
 
 	binDir          string
