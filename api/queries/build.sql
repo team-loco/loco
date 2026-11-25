@@ -296,11 +296,21 @@ SELECT id FROM resources WHERE id = ANY(sqlc.arg(ids)::uuid[]);
 SELECT id, resource_id, status, finished_at, image_deleted_at FROM builds
 WHERE id = ANY(sqlc.arg(ids)::uuid[]);
 
--- name: ListLiveBuildDigests :many
-SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
-WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
-  AND status = 'succeeded'
-  AND image_deleted_at IS NULL;
+-- name: LockResourceDigests :exec
+SELECT pg_advisory_xact_lock(sqlc.arg(class)::int, hashtext(sqlc.arg(resource_id)::uuid::text));
+
+-- name: LockBuildResourceDigests :exec
+SELECT pg_advisory_xact_lock(sqlc.arg(class)::int, hashtext(resource_id::text)) FROM builds
+WHERE id = sqlc.arg(build_id);
+
+-- name: IsBuildDigestLive :one
+SELECT EXISTS (
+  SELECT 1 FROM builds
+  WHERE resource_id = sqlc.arg(resource_id)
+    AND status = 'succeeded'
+    AND image_deleted_at IS NULL
+    AND sqlc.arg(digest)::text IN (image_digest, cache_digest)
+);
 
 -- name: ListLatestSucceededBuildsForResources :many
 SELECT DISTINCT ON (resource_id) id, resource_id, dockerfile_path, context FROM builds

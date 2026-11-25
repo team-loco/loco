@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/advisorylock"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
@@ -78,4 +80,75 @@ func TestFinishingABuildWaitsForTheResourceLockOfANewDeployment(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRecordingABuildSuccessWaitsForAnImageDeleteOfItsResource(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	retained := f.succeed(t, f.queued(t))
+	buildID := f.queued(t)
+	build := f.row(t, buildID)
+	seedDeployment(t, f.deployFixture, sameRegionSpec)
+
+	ctx := context.Background()
+	gate, err := f.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if rollbackErr := gate.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			t.Errorf("release gate: %v", rollbackErr)
+		}
+	})
+	if err = genDb.New(gate).LockResourceDigests(ctx, genDb.LockResourceDigestsParams{
+		Class:      advisorylock.BuildDigests,
+		ResourceID: f.resourceID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	finished := make(chan error, 1)
+	go func() { finished <- f.reportSuccess(build) }()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	if got := f.row(t, buildID).Status; got == genDb.BuildStatusSucceeded {
+		t.Fatal("the build succeeded while an image delete of its resource held the lock")
+	}
+
+	deployed := make(chan error, 1)
+	go func() {
+		_, deployErr := deployService(t, f.deployFixture, dockerfileService(retained))
+		deployed <- deployErr
+	}()
+	select {
+	case err = <-deployed:
+		if err != nil {
+			t.Fatalf("deploy a retained build: %v", err)
+		}
+	case <-time.After(testSweepDeadline):
+		t.Fatal("a deploy waited for a build success that waits on an image delete")
+	}
+
+	if err = gate.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err = <-finished; err != nil {
+		t.Fatalf("finish build: %v", err)
+	}
+	if got := f.row(t, buildID).Status; got != genDb.BuildStatusSucceeded {
+		t.Fatalf("build status = %s, want succeeded", got)
+	}
+}
+
+func (f *buildFixture) reportSuccess(build genDb.Build) error {
+	status := buildStatus(build.ID.String(), agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
+	status.ImageDigest = testImageDigest
+	return f.agentServer().recordBuildStatus(f.ctx, *build.ClusterID, build.ID, status)
+}
+
+func (f *buildFixture) succeed(t *testing.T, buildID string) string {
+	t.Helper()
+	if err := f.reportSuccess(f.row(t, buildID)); err != nil {
+		t.Fatalf("succeed build: %v", err)
+	}
+	return buildID
 }

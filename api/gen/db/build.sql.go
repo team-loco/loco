@@ -517,6 +517,28 @@ func (q *Queries) GetBuildTraceparent(ctx context.Context, id uuid.UUID) (*strin
 	return traceparent, err
 }
 
+const isBuildDigestLive = `-- name: IsBuildDigestLive :one
+SELECT EXISTS (
+  SELECT 1 FROM builds
+  WHERE resource_id = $1
+    AND status = 'succeeded'
+    AND image_deleted_at IS NULL
+    AND $2::text IN (image_digest, cache_digest)
+)
+`
+
+type IsBuildDigestLiveParams struct {
+	ResourceID uuid.UUID `json:"resourceId"`
+	Digest     string    `json:"digest"`
+}
+
+func (q *Queries) IsBuildDigestLive(ctx context.Context, arg IsBuildDigestLiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isBuildDigestLive, arg.ResourceID, arg.Digest)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listActiveBuildSourceKeys = `-- name: ListActiveBuildSourceKeys :many
 SELECT source_key FROM builds
 WHERE source_key = ANY($1::text[])
@@ -852,39 +874,6 @@ func (q *Queries) ListLatestSucceededBuildsForResources(ctx context.Context, res
 	return items, nil
 }
 
-const listLiveBuildDigests = `-- name: ListLiveBuildDigests :many
-SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
-WHERE resource_id = ANY($1::uuid[])
-  AND status = 'succeeded'
-  AND image_deleted_at IS NULL
-`
-
-type ListLiveBuildDigestsRow struct {
-	ResourceID  uuid.UUID `json:"resourceId"`
-	ImageDigest string    `json:"imageDigest"`
-	CacheDigest *string   `json:"cacheDigest"`
-}
-
-func (q *Queries) ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error) {
-	rows, err := q.db.Query(ctx, listLiveBuildDigests, resourceIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListLiveBuildDigestsRow
-	for rows.Next() {
-		var i ListLiveBuildDigestsRow
-		if err := rows.Scan(&i.ResourceID, &i.ImageDigest, &i.CacheDigest); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listQueuedClusterBuilds = `-- name: ListQueuedClusterBuilds :many
 SELECT b.id,
        b.resource_id,
@@ -1101,6 +1090,35 @@ WHERE b.id = $1 FOR UPDATE OF r
 
 func (q *Queries) LockBuildResource(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, lockBuildResource, id)
+	return err
+}
+
+const lockBuildResourceDigests = `-- name: LockBuildResourceDigests :exec
+SELECT pg_advisory_xact_lock($1::int, hashtext(resource_id::text)) FROM builds
+WHERE id = $2
+`
+
+type LockBuildResourceDigestsParams struct {
+	Class   int32     `json:"class"`
+	BuildID uuid.UUID `json:"buildId"`
+}
+
+func (q *Queries) LockBuildResourceDigests(ctx context.Context, arg LockBuildResourceDigestsParams) error {
+	_, err := q.db.Exec(ctx, lockBuildResourceDigests, arg.Class, arg.BuildID)
+	return err
+}
+
+const lockResourceDigests = `-- name: LockResourceDigests :exec
+SELECT pg_advisory_xact_lock($1::int, hashtext($2::uuid::text))
+`
+
+type LockResourceDigestsParams struct {
+	Class      int32     `json:"class"`
+	ResourceID uuid.UUID `json:"resourceId"`
+}
+
+func (q *Queries) LockResourceDigests(ctx context.Context, arg LockResourceDigestsParams) error {
+	_, err := q.db.Exec(ctx, lockResourceDigests, arg.Class, arg.ResourceID)
 	return err
 }
 

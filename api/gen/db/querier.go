@@ -179,6 +179,7 @@ type Querier interface {
 	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
 	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
+	IsBuildDigestLive(ctx context.Context, arg IsBuildDigestLiveParams) (bool, error)
 	IsLiveRegion(ctx context.Context, region string) (bool, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error)
@@ -223,7 +224,6 @@ type Querier interface {
 	ListInvitationsByIDs(ctx context.Context, ids []uuid.UUID) ([]Invitation, error)
 	ListLatestResourceDeployments(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error)
-	ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error)
 	ListLiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListLiveDeploymentsForEnvironmentRow, error)
 	ListLiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]ListLiveDeploymentsForResourceRow, error)
 	ListMemberWorkspaceScopes(ctx context.Context, arg ListMemberWorkspaceScopesParams) ([]ListMemberWorkspaceScopesRow, error)
@@ -268,6 +268,7 @@ type Querier interface {
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (Build, error)
 	LockBuildResource(ctx context.Context, id uuid.UUID) error
+	LockBuildResourceDigests(ctx context.Context, arg LockBuildResourceDigestsParams) error
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error)
 	LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
@@ -283,6 +284,7 @@ type Querier interface {
 	LockOrgResources(ctx context.Context, orgID uuid.UUID) error
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
 	LockPlacementResource(ctx context.Context, arg LockPlacementResourceParams) (uuid.UUID, error)
+	LockResourceDigests(ctx context.Context, arg LockResourceDigestsParams) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) error
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
