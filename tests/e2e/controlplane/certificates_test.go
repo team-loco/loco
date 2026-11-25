@@ -76,9 +76,10 @@ spec:
 // checkCertificate waits for the release's Certificate and checks that its certificate covers host.
 func checkCertificate(t *testing.T, release, host string) {
 	t.Helper()
-	c.MustKubectl(t, "-n", certificatesNamespace, "wait", "certificate/"+release+"-cert", "--for=condition=Ready",
+	certificate := release + "-apps.example.test"
+	c.MustKubectl(t, "-n", certificatesNamespace, "wait", "certificate/"+certificate, "--for=condition=Ready",
 		"--timeout="+installTimeout.String())
-	encoded := c.MustKubectl(t, "-n", certificatesNamespace, "get", "secret", release+"-tls",
+	encoded := c.MustKubectl(t, "-n", certificatesNamespace, "get", "secret", certificate+"-tls",
 		"-o", `jsonpath={.data.tls\.crt}`)
 	data, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
@@ -86,7 +87,7 @@ func checkCertificate(t *testing.T, release, host string) {
 	}
 	block, _ := pem.Decode(data)
 	if block == nil {
-		t.Fatalf("secret %s-tls holds no PEM certificate", release)
+		t.Fatalf("secret %s-tls holds no PEM certificate", certificate)
 	}
 	parsed, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {

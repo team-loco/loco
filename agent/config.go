@@ -43,7 +43,7 @@ const (
 	envHealthyStreamDuration    = "LOCO_HEALTHY_STREAM_DURATION"
 	envLogLevel                 = "LOG_LEVEL"
 	envGateway                  = "LOCO_GATEWAY"
-	envCertificate              = "LOCO_CERTIFICATE"
+	envCertificates             = "LOCO_CERTIFICATES"
 	envAppDomains               = "LOCO_APP_DOMAINS"
 	envRegion                   = "LOCO_REGION"
 	listSeparator               = ","
@@ -99,7 +99,7 @@ type Config struct {
 	ReconnectMaxDelay        time.Duration
 	HealthyStreamDuration    time.Duration
 	Gateway                  string
-	Certificate              string
+	Certificates             []string
 	AppDomains               []string
 	Region                   string
 	IngestTokenSecret        telemetrytoken.Secret
@@ -130,7 +130,6 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		Kubeconfig:    getenv(envKubeconfig),
 		JoinToken:     getenv(envJoinToken),
 		JoinTokenFile: getenv(envJoinTokenFile),
-		Certificate:   getenv(envCertificate),
 	}
 	if cfg.JoinToken != "" && cfg.JoinTokenFile != "" {
 		return nil, errors.New("LOCO_JOIN_TOKEN and LOCO_JOIN_TOKEN_FILE are mutually exclusive")
@@ -156,6 +155,9 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		return nil, err
 	}
 	cfg.AppDomains = strings.Split(appDomains, listSeparator)
+	if certificates := getenv(envCertificates); certificates != "" {
+		cfg.Certificates = strings.Split(certificates, listSeparator)
+	}
 	rawLevel, err := requireEnv(getenv, envLogLevel)
 	if err != nil {
 		return nil, err

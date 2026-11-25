@@ -28,10 +28,10 @@ const (
 var certificateKind = schema.GroupVersionKind{Group: "cert-manager.io", Version: "v1", Kind: "Certificate"}
 
 type Config struct {
-	Namespace   string
-	Gateway     string
-	Certificate string
-	Domains     []string
+	Namespace    string
+	Gateway      string
+	Certificates []string
+	Domains      []string
 }
 
 type Reporter struct {
@@ -82,28 +82,33 @@ func (r *Reporter) Served(ctx context.Context) ([]string, error) {
 	return served, nil
 }
 
+// certifiedNames returns the DNS names of the ready Certificates, or nil when none are configured.
 func (r *Reporter) certifiedNames(ctx context.Context) ([]string, error) {
-	if r.config.Certificate == "" {
+	if len(r.config.Certificates) == 0 {
 		return nil, nil
 	}
-	certificate := &unstructured.Unstructured{}
-	certificate.SetGroupVersionKind(certificateKind)
-	key := client.ObjectKey{Namespace: r.config.Namespace, Name: r.config.Certificate}
-	err := r.reader.Get(ctx, key, certificate)
-	if apierrors.IsNotFound(err) {
-		return []string{}, nil
+	certified := []string{}
+	for _, name := range r.config.Certificates {
+		certificate := &unstructured.Unstructured{}
+		certificate.SetGroupVersionKind(certificateKind)
+		key := client.ObjectKey{Namespace: r.config.Namespace, Name: name}
+		err := r.reader.Get(ctx, key, certificate)
+		if apierrors.IsNotFound(err) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("get certificate %s: %w", key, err)
+		}
+		if !certificateIsReady(certificate) {
+			continue
+		}
+		names, _, err := unstructured.NestedStringSlice(certificate.Object, certificateSpec, certificateDNSNames)
+		if err != nil {
+			return nil, fmt.Errorf("read certificate %s dns names: %w", key, err)
+		}
+		certified = append(certified, names...)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("get certificate %s: %w", key, err)
-	}
-	if !certificateIsReady(certificate) {
-		return []string{}, nil
-	}
-	names, _, err := unstructured.NestedStringSlice(certificate.Object, certificateSpec, certificateDNSNames)
-	if err != nil {
-		return nil, fmt.Errorf("read certificate %s dns names: %w", key, err)
-	}
-	return append([]string{}, names...), nil
+	return certified, nil
 }
 
 func certificateIsReady(certificate *unstructured.Unstructured) bool {

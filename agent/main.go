@@ -118,10 +118,10 @@ func main() {
 		os.Exit(1)
 	}
 	domainReporter := domains.New(domainReader, domains.Config{
-		Namespace:   cfg.Namespace,
-		Gateway:     cfg.Gateway,
-		Certificate: cfg.Certificate,
-		Domains:     cfg.AppDomains,
+		Namespace:    cfg.Namespace,
+		Gateway:      cfg.Gateway,
+		Certificates: cfg.Certificates,
+		Domains:      cfg.AppDomains,
 	})
 	identities := identity.NewStore(clientset, cfg.Namespace, cfg.KeySecret)
 

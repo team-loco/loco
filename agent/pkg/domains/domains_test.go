@@ -17,6 +17,7 @@ const (
 	testNamespace    = "platform"
 	testGateway      = "ingress"
 	testCertificate  = "wildcard"
+	testOtherCert    = "other-wildcard"
 	testDomain       = "apps.test"
 	testOtherDomain  = "other.test"
 	testGeneration   = 3
@@ -37,8 +38,19 @@ var readyListener = listenerState{
 }
 
 func gatewayWith(listeners map[gatewayv1.SectionName]listenerState) *gatewayv1.Gateway {
+	return gatewayFor(map[string]map[gatewayv1.SectionName]listenerState{testDomain: listeners})
+}
+
+func gatewayFor(domains map[string]map[gatewayv1.SectionName]listenerState) *gatewayv1.Gateway {
 	gateway := &gatewayv1.Gateway{Name: testGateway, Namespace: testNamespace, Generation: testGeneration}
-	host := gatewayv1.Hostname("*." + testDomain)
+	for _, domain := range slices.Sorted(maps.Keys(domains)) {
+		addListeners(gateway, domain, domains[domain])
+	}
+	return gateway
+}
+
+func addListeners(gateway *gatewayv1.Gateway, domain string, listeners map[gatewayv1.SectionName]listenerState) {
+	host := gatewayv1.Hostname("*." + domain)
 	for _, name := range slices.Sorted(maps.Keys(listeners)) {
 		gateway.Spec.Listeners = append(gateway.Spec.Listeners, gatewayv1.Listener{Name: name, Hostname: &host})
 		state := listeners[name]
@@ -58,14 +70,17 @@ func gatewayWith(listeners map[gatewayv1.SectionName]listenerState) *gatewayv1.G
 			},
 		})
 	}
-	return gateway
 }
 
 func certificate(ready metav1.ConditionStatus, names ...string) *unstructured.Unstructured {
+	return namedCertificate(testCertificate, ready, names...)
+}
+
+func namedCertificate(name string, ready metav1.ConditionStatus, names ...string) *unstructured.Unstructured {
 	cert := &unstructured.Unstructured{}
 	cert.SetGroupVersionKind(certificateKind)
 	cert.SetNamespace(testNamespace)
-	cert.SetName(testCertificate)
+	cert.SetName(name)
 	cert.SetGeneration(testGeneration)
 	dnsNames := make([]any, 0, len(names))
 	for _, name := range names {
@@ -78,7 +93,7 @@ func certificate(ready metav1.ConditionStatus, names ...string) *unstructured.Un
 	return cert
 }
 
-func reporter(t *testing.T, certificateName string, objects ...client.Object) *Reporter {
+func reporter(t *testing.T, certificates []string, objects ...client.Object) *Reporter {
 	t.Helper()
 	scheme := runtime.NewScheme()
 	if err := gatewayv1.Install(scheme); err != nil {
@@ -86,10 +101,10 @@ func reporter(t *testing.T, certificateName string, objects ...client.Object) *R
 	}
 	reader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 	return New(reader, Config{
-		Namespace:   testNamespace,
-		Gateway:     testGateway,
-		Certificate: certificateName,
-		Domains:     []string{testDomain, testOtherDomain},
+		Namespace:    testNamespace,
+		Gateway:      testGateway,
+		Certificates: certificates,
+		Domains:      []string{testDomain, testOtherDomain},
 	})
 }
 
@@ -109,8 +124,27 @@ func bothListeners(https, http listenerState) map[gatewayv1.SectionName]listener
 func TestServedReportsADomainWhoseListenersAndCertificateAreReady(t *testing.T) {
 	gateway := gatewayWith(bothListeners(readyListener, readyListener))
 	cert := certificate(metav1.ConditionTrue, "*."+testDomain, "*."+testOtherDomain)
-	if got := served(t, reporter(t, testCertificate, gateway, cert)); !slices.Equal(got, []string{testDomain}) {
+	got := served(t, reporter(t, []string{testCertificate}, gateway, cert))
+	if !slices.Equal(got, []string{testDomain}) {
 		t.Fatalf("served = %v, want [%s] and not the domain with no listener", got, testDomain)
+	}
+}
+
+func TestServedReportsEachDomainCoveredByItsOwnReadyCertificate(t *testing.T) {
+	gateway := gatewayFor(map[string]map[gatewayv1.SectionName]listenerState{
+		testDomain:      bothListeners(readyListener, readyListener),
+		testOtherDomain: {"https-apps-1": readyListener, "http-apps-1": readyListener},
+	})
+	certificates := []string{testCertificate, testOtherCert}
+	ready := reporter(t, certificates, gateway,
+		certificate(metav1.ConditionTrue, "*."+testDomain),
+		namedCertificate(testOtherCert, metav1.ConditionTrue, "*."+testOtherDomain))
+	if got := served(t, ready); !slices.Equal(got, []string{testDomain, testOtherDomain}) {
+		t.Fatalf("served = %v, want [%s %s]", got, testDomain, testOtherDomain)
+	}
+	oneMissing := reporter(t, certificates, gateway, certificate(metav1.ConditionTrue, "*."+testDomain))
+	if got := served(t, oneMissing); !slices.Equal(got, []string{testDomain}) {
+		t.Fatalf("served = %v, want [%s] without the other domain's Certificate", got, testDomain)
 	}
 }
 
@@ -129,7 +163,7 @@ func TestServedSkipsADomainWithAListenerThatIsNotReady(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			gateway := gatewayWith(bothListeners(readyListener, state))
 			cert := certificate(metav1.ConditionTrue, "*."+testDomain)
-			if got := served(t, reporter(t, testCertificate, gateway, cert)); len(got) != 0 {
+			if got := served(t, reporter(t, []string{testCertificate}, gateway, cert)); len(got) != 0 {
 				t.Fatalf("served = %v, want none", got)
 			}
 		})
@@ -139,11 +173,16 @@ func TestServedSkipsADomainWithAListenerThatIsNotReady(t *testing.T) {
 func TestServedSkipsADomainWhoseCertificateIsNotReady(t *testing.T) {
 	gateway := gatewayWith(bothListeners(readyListener, readyListener))
 	cases := map[string]*Reporter{
-		"not ready": reporter(t, testCertificate, gateway, certificate(metav1.ConditionFalse, "*."+testDomain)),
-		"missing":   reporter(t, testCertificate, gateway),
+		"not ready": reporter(
+			t,
+			[]string{testCertificate},
+			gateway,
+			certificate(metav1.ConditionFalse, "*."+testDomain),
+		),
+		"missing": reporter(t, []string{testCertificate}, gateway),
 		"name not included": reporter(
 			t,
-			testCertificate,
+			[]string{testCertificate},
 			gateway,
 			certificate(metav1.ConditionTrue, "*."+testOtherDomain),
 		),
@@ -159,13 +198,13 @@ func TestServedSkipsADomainWhoseCertificateIsNotReady(t *testing.T) {
 
 func TestServedWithoutAManagedCertificateReliesOnTheListeners(t *testing.T) {
 	gateway := gatewayWith(bothListeners(readyListener, readyListener))
-	if got := served(t, reporter(t, "", gateway)); !slices.Equal(got, []string{testDomain}) {
+	if got := served(t, reporter(t, nil, gateway)); !slices.Equal(got, []string{testDomain}) {
 		t.Fatalf("served = %v, want [%s]", got, testDomain)
 	}
 }
 
 func TestServedIsEmptyWithoutAGateway(t *testing.T) {
-	if got := served(t, reporter(t, testCertificate)); len(got) != 0 {
+	if got := served(t, reporter(t, []string{testCertificate})); len(got) != 0 {
 		t.Fatalf("served = %v, want none", got)
 	}
 }
