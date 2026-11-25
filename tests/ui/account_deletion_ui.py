@@ -187,7 +187,9 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
             break
         page.wait_for_timeout(50)
     assert deletion, "DeleteUser was not sent"
-    page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+    page.evaluate(
+        "document.dispatchEvent(new Event('visibilitychange', {bubbles: true}))"
+    )
     expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
     expect(page).to_have_url(re.compile(r"/login"))
     expect(page).not_to_have_url(re.compile(r"/dex/"))
