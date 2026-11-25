@@ -27,6 +27,8 @@ interface CodeBlockProps {
 	wrap?: boolean;
 	onWrap?: (wrap: boolean) => void;
 	children: string;
+	/** Accessible reading that replaces the block's text, for a block whose text is masked. */
+	label?: string | undefined;
 	/** Text the copy button writes when it differs from what the block shows. */
 	copyText?: string | undefined;
 	language?: LanguageName | undefined;
@@ -36,6 +38,7 @@ interface CodeBlockProps {
 function CodeBlock({
 	children,
 	copyText,
+	label,
 	language = "plaintext",
 	className,
 	copyLabel = "Copy code",
@@ -97,6 +100,7 @@ function CodeBlock({
 			<pre
 				tabIndex={0}
 				style={gutter}
+				{...(label === undefined ? {} : { role: "img", "aria-label": label })}
 				className={
 					"m-0 min-h-0 overflow-auto py-3 font-mono text-sm leading-[1.6] text-(--sh-identifier) outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
 				}

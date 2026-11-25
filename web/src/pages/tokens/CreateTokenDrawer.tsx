@@ -22,6 +22,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { toLocalInput, fromLocalInput } from "@/lib/obs-time";
+import { cn } from "@/lib/utils";
 import { DAY_MS, formatMonthDayYear, formatHourMinute } from "@/lib/time";
 
 import { AccessPicker } from "./AccessPicker";
@@ -367,8 +368,6 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 	const [shown, setShown] = useState(false);
 	const shownSecret = maskSecret(secret, shown);
 	const ciCommand = (token: string) => `export LOCO_TOKEN=${token}\nloco deploy`;
-	// A no-break space keeps "export LOCO_TOKEN=" together, so only the token breaks across lines.
-	const ciDisplay = ciCommand(shownSecret).replace("export ", "export\u00a0");
 	return (
 		<>
 			<SheetBody>
@@ -387,9 +386,10 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 							lineNumbers={false}
 							wrap
 							copyText={ciCommand(secret)}
-							className={shown ? undefined : "select-none"}
+							{...(shown ? {} : { label: "Example, token masked" })}
+							className={cn("[&_.sh__line]:break-all", !shown && "select-none")}
 						>
-							{ciDisplay}
+							{ciCommand(shownSecret)}
 						</CodeBlock>
 						<span className="text-[12.5px] text-fg3">
 							In CI, save the token as a secret named <InlineCode>LOCO_TOKEN</InlineCode> and set{" "}

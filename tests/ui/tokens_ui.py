@@ -105,14 +105,15 @@ with session(repo / "tests/ui/out/tokens") as browser:
     blocks = created.locator('[data-slot="code-block"]')
     expect(created.get_by_text("Copy it now.", exact=False)).to_be_visible()
     assert re.fullmatch(r"•+", value.inner_text()), "the token starts masked"
-    expect(created.get_by_role("img", name="Token hidden")).to_be_visible()
-    assert "•" in blocks.first.inner_text() and "loco_" not in blocks.first.inner_text()
+    expect(created.get_by_role("img", name="Hidden token")).to_be_visible()
+    expect(created.get_by_role("img", name="Example, token masked")).to_be_visible()
     created.get_by_role("button", name="Show token").click()
     token = value.inner_text()
     assert token.startswith("loco_"), token
     assert token in blocks.first.inner_text()
     created.get_by_role("button", name="Hide token").click()
     assert re.fullmatch(r"•+", value.inner_text())
+    assert token not in created.inner_html(), "the masked dialog holds the token"
     created.get_by_role("button", name="Copy token").click()
     assert copied_text(page) == token
     blocks.first.hover()

@@ -33,12 +33,7 @@ export function SecretValue({
 					{secret}
 				</span>
 			) : (
-				<span
-					data-secret-value=""
-					role="img"
-					aria-label={`${noun.charAt(0).toUpperCase()}${noun.slice(1)} hidden`}
-					className="min-w-0 flex-1 select-none"
-				>
+				<span data-secret-value="" role="img" aria-label={`Hidden ${noun}`} className="min-w-0 flex-1 select-none">
 					<span aria-hidden="true">{maskSecret(secret, false)}</span>
 				</span>
 			)}
