@@ -71,7 +71,7 @@ A dashboard sign-in, `loco login` and `loco login --device` keep their state in 
 | `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` | `168h` | Longest lifetime a join token may request. Must be at least `LOCO_CLUSTER_JOIN_TOKEN_TTL`. |
 | `LOCO_APPLY_ATTEMPTS` | `2` | Times the API sends a deployment a cluster fails to apply before it marks the deployment failed, 1 to 10. |
 | `LOCO_APPLY_RETRY_DELAY` | `300` | Seconds between those sends. |
-| `LOCO_WORKSPACE_NAMESPACE_GRACE` | `24h` | How long a workspace may have no deployments on a cluster before the API asks that cluster's agent to delete the workspace's namespace there. |
+| `LOCO_WORKSPACE_NAMESPACE_GRACE` | `24h` | How long a workspace may have no deployments on a cluster before the API leaves it off the workspaces that cluster keeps, and the cluster's agent deletes the workspace's namespaces there. |
 
 ## Builds and images
 

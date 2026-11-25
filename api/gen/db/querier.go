@@ -203,6 +203,8 @@ type Querier interface {
 	ListClusterPlacementWindows(ctx context.Context, arg ListClusterPlacementWindowsParams) ([]ListClusterPlacementWindowsRow, error)
 	ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error)
 	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
+	// Lists the workspaces with a placement on the cluster that is open or was removed after since.
+	ListClusterWorkspacesSince(ctx context.Context, arg ListClusterWorkspacesSinceParams) ([]uuid.UUID, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
 	ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error)
 	ListDeploymentPlacements(ctx context.Context, deploymentID uuid.UUID) ([]DeploymentPlacement, error)
@@ -413,8 +415,6 @@ type Querier interface {
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
-	// Reports whether the workspace has a placement on the cluster that is open or was removed after since.
-	WorkspaceHasPlacementWindowSince(ctx context.Context, arg WorkspaceHasPlacementWindowSinceParams) (bool, error)
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }
 

@@ -421,7 +421,7 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 		}
 
 		storedID, storedRevision, ok := live.Placement()
-		if ok && storedID != placement.ID {
+		if !ok || storedID != placement.ID {
 			slog.InfoContext(ctx, "Application belongs to another placement, not deleting",
 				"name", name,
 				"placement_id", placement.ID,
@@ -429,7 +429,7 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 			)
 			return nil
 		}
-		if ok && storedRevision > placement.Revision {
+		if storedRevision > placement.Revision {
 			return fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, storedRevision, placement.Revision)
 		}
 

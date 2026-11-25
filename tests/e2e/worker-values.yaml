@@ -7,6 +7,8 @@ certManager:
 agent:
   image:
     tag: e2e
+  # Inventories reconcile what the cluster holds against the control plane within a test's wait.
+  inventoryInterval: 15s
 # One copy of the components that need no standby here, so a 1.3-CPU build pod still fits the 4-CPU node.
 envoyProxy:
   replicas: 1

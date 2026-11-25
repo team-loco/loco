@@ -45,12 +45,17 @@ func appObjects(app *locov1alpha1.Application) []client.Object {
 	name := testAppName(app)
 	namespace := testEnvironmentNamespace(app)
 	envSecretName := getEnvSecretName(app)
-	return []client.Object{
+	objects := []client.Object{
 		&appsv1.Deployment{Name: name, Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
 	}
+	for _, obj := range objects {
+		obj.SetLabels(managedLabels(app))
+		obj.SetAnnotations(ownerAnnotations(app))
+	}
+	return objects
 }
 
 func objectExists(t *testing.T, kubeClient client.Client, obj client.Object) bool {
@@ -130,6 +135,33 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	pullSecretKey := &corev1.Secret{Name: pullSecret.Name, Namespace: pullSecret.Namespace}
 	if !objectExists(t, kubeClient, pullSecretKey) {
 		t.Error("workspace pull secret deleted while another app still uses it")
+	}
+}
+
+func TestDeletingAnAppKeepsObjectsItDoesNotOwn(t *testing.T) {
+	forgotten := workspaceApp("placement-forgotten", "1")
+	replacement := workspaceApp("placement-replacement", "1")
+	replaced := appObjects(replacement)
+	unowned := &corev1.Secret{Name: getEnvSecretName(forgotten), Namespace: testEnvironmentNamespace(forgotten)}
+	kubeClient := fake.NewClientBuilder().
+		WithScheme(workspaceTestScheme(t)).
+		WithObjects(forgotten, replacement).
+		WithObjects(replaced[:3]...).
+		WithObjects(unowned).
+		Build()
+	r := &ApplicationReconciler{
+		Client:                   kubeClient,
+		APIReader:                kubeClient,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
+	if err := r.deleteAppObjects(context.Background(), forgotten); err != nil {
+		t.Fatalf("deleteAppObjects: %v", err)
+	}
+	for _, obj := range append(replaced[:3], unowned) {
+		if !objectExists(t, kubeClient, obj) {
+			t.Errorf("%T %s that the deleted app does not own was deleted", obj, obj.GetName())
+		}
 	}
 }
 

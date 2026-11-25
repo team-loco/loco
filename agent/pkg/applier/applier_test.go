@@ -258,6 +258,36 @@ func TestDeletePlacementOnlyDeletesItsOwnApplication(t *testing.T) {
 	}
 }
 
+func TestDeletePlacementKeepsAnApplicationOfTheSameNameItDoesNotOwn(t *testing.T) {
+	ctx := context.Background()
+	a := newTestApplier(t)
+	app := &locoControllerV1.Application{}
+	app.Name = locoControllerV1.ApplicationName(testPlacementID)
+	app.Namespace = testNamespace
+	if err := a.client.Create(ctx, app); err != nil {
+		t.Fatalf("create Application: %v", err)
+	}
+	owners := map[string]map[string]string{
+		"no placement annotations": nil,
+		"another placement's annotations": {
+			locoControllerV1.KeyPlacementID:       "p9",
+			locoControllerV1.KeyPlacementRevision: "1",
+		},
+	}
+	for name, annotations := range owners {
+		app.Annotations = annotations
+		if err := a.client.Update(ctx, app); err != nil {
+			t.Fatalf("%s: update Application: %v", name, err)
+		}
+		if err := a.DeletePlacement(ctx, placement(t, testPlacementID, 9)); err != nil {
+			t.Fatalf("%s: delete: %v", name, err)
+		}
+		if _, err := a.live(t); err != nil {
+			t.Fatalf("%s: the Application was deleted: %v", name, err)
+		}
+	}
+}
+
 func TestDeletePlacementRejectsStaleRevision(t *testing.T) {
 	ctx := context.Background()
 	a := newTestApplier(t)

@@ -28,7 +28,9 @@ type sentMessages struct {
 }
 
 func (s *sentMessages) send(msg *agentv1.SyncResponse) error {
-	s.msgs = append(s.msgs, msg)
+	if msg.GetKeepWorkspaces() == nil {
+		s.msgs = append(s.msgs, msg)
+	}
 	return nil
 }
 

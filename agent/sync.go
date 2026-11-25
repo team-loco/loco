@@ -151,9 +151,9 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 		case err := <-recvErr:
 			return fmt.Errorf("receive sync message: %w", err)
 		case msg := <-received:
-			if workspaceID := msg.GetDeleteWorkspace(); workspaceID != "" {
-				if err := a.applier.DeleteWorkspace(streamCtx, workspaceID); err != nil {
-					return fmt.Errorf("delete workspace: %w", err)
+			if keep := msg.GetKeepWorkspaces(); keep != nil {
+				if err := a.applier.KeepWorkspaces(streamCtx, keep.GetWorkspaceIds()); err != nil {
+					return fmt.Errorf("keep workspaces: %w", err)
 				}
 				continue
 			}
@@ -211,14 +211,9 @@ func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
 }
 
 func (a *Agent) sendInventory(ctx context.Context, send func(*agentv1.Inventory) error) error {
-	workspaceIDs, err := a.applier.WorkspaceIDs(ctx)
-	if err != nil {
-		return err
-	}
 	return a.builds.WithInventory(ctx, func(builds []*agentv1.InventoryBuild) error {
 		return a.watcher.WithInventory(ctx, func(inventory *agentv1.Inventory) error {
 			inventory.Builds = builds
-			inventory.WorkspaceIds = workspaceIDs
 			return send(inventory)
 		})
 	})
