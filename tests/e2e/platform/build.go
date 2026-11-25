@@ -38,8 +38,29 @@ func (p *Platform) CopyBuildApp(tb testing.TB, dir, label string) {
 // resourceID as the application user.
 func (p *Platform) StartBuild(tb testing.TB, resourceID, label string) StartedBuild {
 	tb.Helper()
+	return p.startBuild(tb, resourceID, label, false)
+}
+
+// StartFailingBuild starts a build of the build-app fixture with a main.go that does not compile.
+func (p *Platform) StartFailingBuild(tb testing.TB, resourceID, label string) StartedBuild {
+	tb.Helper()
+	return p.startBuild(tb, resourceID, label, true)
+}
+
+func (p *Platform) startBuild(tb testing.TB, resourceID, label string, broken bool) StartedBuild {
+	tb.Helper()
 	source := tb.TempDir()
 	p.CopyBuildApp(tb, source, label)
+	if broken {
+		file, err := os.OpenFile(filepath.Join(source, "main.go"), os.O_APPEND|os.O_WRONLY, 0)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		defer file.Close()
+		if _, err = file.WriteString("\nthis does not compile\n"); err != nil {
+			tb.Fatal(err)
+		}
+	}
 	archive := p.packSource(tb, source)
 	info, err := os.Stat(archive)
 	if err != nil {

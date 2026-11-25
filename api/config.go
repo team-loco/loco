@@ -45,6 +45,7 @@ var (
 	errRegistryAuthNoHost     = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
 	errInvalidRegistry        = errors.New("invalid registry configuration")
 	errInvalidInstallWebhooks = errors.New("INSTALL_WEBHOOKS is invalid")
+	errInvalidNtfy            = errors.New("NTFY_URL, NTFY_TOPIC or NTFY_EVENT_TYPES is invalid")
 	errInvalidOrgLinks        = errors.New("ORG_LINKS is invalid")
 	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
 	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
@@ -251,6 +252,7 @@ type APIConfig struct {
 	WebhooksAllowPrivate  bool
 	Webhooks              webhooks.Config
 	InstallWebhooks       []webhooks.InstallWebhook
+	Ntfy                  *webhooks.NtfyConfig
 	OrgLinks              []service.OrgLink
 	Transit               transit.Config
 	Secrets               secretkeys.Config
@@ -373,8 +375,9 @@ func newAPIConfig() *APIConfig {
 		SchemaURL:             envconfig.String("LOCO_SCHEMA_URL", defaultSchemaURL),
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
-		Webhooks:              newWebhookConfig(),
+		Webhooks:              newWebhookConfig(webURL),
 		InstallWebhooks:       installWebhooks,
+		Ntfy:                  newNtfyConfig(),
 		OrgLinks:              orgLinks,
 		Transit:               transitConfig,
 		Secrets:               secrets,
@@ -474,12 +477,13 @@ func newTokenConfig() tvm.Config {
 	}
 }
 
-func newWebhookConfig() webhooks.Config {
+func newWebhookConfig(webURL string) webhooks.Config {
 	return webhooks.Config{
 		RequestTimeout: envconfig.PositiveDuration("WEBHOOK_TIMEOUT", defaultWebhookTimeout),
 		ClaimBatch:     positiveInt32Env("WEBHOOK_BATCH", defaultWebhookBatch),
 		RetryDelays:    positiveDurationListEnv("WEBHOOK_RETRY_DELAYS", defaultWebhookRetryDelays),
 		PollInterval:   envconfig.PositiveDuration("WEBHOOK_POLL_INTERVAL", defaultWebhookPollInterval),
+		WebURL:         webURL,
 	}
 }
 
@@ -553,6 +557,19 @@ func newInstallWebhooks() []webhooks.InstallWebhook {
 		panic(fmt.Errorf("%w: %w", errInvalidInstallWebhooks, err))
 	}
 	return hooks
+}
+
+func newNtfyConfig() *webhooks.NtfyConfig {
+	cfg, err := webhooks.NewNtfyConfig(
+		envconfig.String("NTFY_URL", ""),
+		envconfig.String("NTFY_TOPIC", ""),
+		envconfig.String("NTFY_TOKEN", ""),
+		listEnv("NTFY_EVENT_TYPES"),
+	)
+	if err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidNtfy, err))
+	}
+	return cfg
 }
 
 func newOrgLinks() []service.OrgLink {

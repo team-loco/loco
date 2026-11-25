@@ -122,6 +122,25 @@ spec:
             - name: INVITATION_TTL
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.api.ntfy }}
+            {{- if or .url .topic }}
+            - name: NTFY_URL
+              value: {{ .url | quote }}
+            - name: NTFY_TOPIC
+              value: {{ .topic | quote }}
+            {{- with .eventTypes }}
+            - name: NTFY_EVENT_TYPES
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- if .tokenSecret.name }}
+            - name: NTFY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .tokenSecret.name | quote }}
+                  key: {{ .tokenSecret.key | quote }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.obsProxy.enabled }}
             - name: CLICKHOUSE_DB
               value: {{ .Values.clickhouse.clickhouse.database | quote }}

@@ -6,6 +6,7 @@
     "access",
     "self-hosting",
     "webhooks",
+    "ntfy",
     "secrets-key-provider"
   ],
   "defaultOpen": true

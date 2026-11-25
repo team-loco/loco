@@ -99,6 +99,8 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		"LOCO_SECRETS_TRANSIT_AUTH=" + dev["LOCO_SECRETS_TRANSIT_AUTH"],
 		"LOCO_SECRETS_TRANSIT_TOKEN=" + dev["LOCO_SECRETS_TRANSIT_TOKEN"],
 		"LOCO_INGEST_TRANSIT_KEY=" + dev["LOCO_INGEST_TRANSIT_KEY"],
+		"NTFY_URL=" + p.Ntfy.srv.URL,
+		"NTFY_TOPIC=" + ntfyTopic,
 	}
 	if p.RegistryToken {
 		env = append(env,

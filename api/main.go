@@ -375,6 +375,9 @@ func newDeps(
 	if err = webhooks.SyncInstallWebhooks(ctx, pool, secretKeyProvider, ac.InstallWebhooks); err != nil {
 		return nil, fmt.Errorf("INSTALL_WEBHOOKS: %w", err)
 	}
+	if err = webhooks.SyncNtfy(ctx, pool, secretKeyProvider, ac.Ntfy); err != nil {
+		return nil, fmt.Errorf("NTFY_URL: %w", err)
+	}
 	clusterAuthenticator := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
 	registryConfig := service.RegistryConfig{
 		TokenMode:              ac.RegistryAuth.TokenMode(),
