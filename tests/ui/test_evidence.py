@@ -198,6 +198,30 @@ def test_suite_failure_records_browser_diagnostics(tmp_path):
     ]
 
 
+def test_repeated_suite_runs_keep_their_own_failure_artifacts(tmp_path, monkeypatch):
+    import json
+
+    from harness import open_page, session
+
+    out = tmp_path / "settings-name"
+    for label, url in (
+        ("settings_name_ui", "http://evidence.test/first"),
+        ("settings_name_ui#2", "http://evidence.test/second"),
+    ):
+        monkeypatch.setenv("UI_RUN_LABEL", label)
+        with pytest.raises(RuntimeError, match="suite failed"):
+            with session(out) as browser:
+                context, page, errors = open_page(browser, user=None, state={})
+                page.route(url, lambda route: route.fulfill(body="ok"))
+                page.goto(url)
+                raise RuntimeError("suite failed")
+    for directory, url in (
+        (out, "http://evidence.test/first"),
+        (tmp_path / "settings-name#2", "http://evidence.test/second"),
+    ):
+        assert json.loads((directory / "failure-0-0.json").read_text())["url"] == url
+
+
 def test_settle_excludes_only_named_targets():
     from playwright.sync_api import sync_playwright
 
