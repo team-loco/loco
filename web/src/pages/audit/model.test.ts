@@ -79,6 +79,9 @@ test("rows name where an event happened from the IDs the caller can read", () =>
 	);
 	expect(orgEvent.where).toBe("Organization");
 	expect(orgEvent.org).toBe("acme");
+	expect(
+		auditRow(create(EventSchema, { type: "org.updated", orgId: "o2", orgName: "labs" }), new Map(), new Map()).org,
+	).toBe("labs");
 	const installation = auditRow(create(EventSchema, { type: "cluster.paused" }), new Map(), names);
 	expect(
 		auditRow(

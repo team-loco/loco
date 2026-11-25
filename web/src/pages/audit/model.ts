@@ -59,7 +59,7 @@ export function dayLabel(ms: number, nowMs: number, pref: TimePreferences): stri
 }
 
 export const INSTALLATION = "Installation";
-/** An organization without a readable name shows the end of its ID; the start of a UUIDv7 is its creation time. */
+/** An organization the event does not name shows the end of its ID; the start of a UUIDv7 is its creation time. */
 const SHORT_ID = 8;
 
 export const ACTOR_KINDS: Record<string, string> = {
@@ -95,6 +95,10 @@ export interface AuditRow {
 	environment: string;
 }
 
+function orgLabel(event: Event, names: ReadonlyMap<string, string>): string {
+	return event.orgName || (names.get(event.orgId) ?? event.orgId.slice(-SHORT_ID));
+}
+
 /** `names` maps the organization, workspace, resource and environment IDs the caller can read to their names. */
 export function auditRow(
 	event: Event,
@@ -112,7 +116,7 @@ export function auditRow(
 		actor: auditActor(event),
 		label: auditLabel(event.type, event.data),
 		detail: auditDetail(event, users) ?? "",
-		org: event.orgId === "" ? INSTALLATION : (names.get(event.orgId) ?? event.orgId.slice(-SHORT_ID)),
+		org: event.orgId === "" ? INSTALLATION : orgLabel(event, names),
 		where: resource === "" ? workspace : `${workspace} / ${resource}`,
 		resource,
 		environment: event.environmentId === "" ? "" : name(event.environmentId),

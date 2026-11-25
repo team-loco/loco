@@ -25,6 +25,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
+import { useOrgFilterChoices } from "@/hooks/orgFilterChoices";
 import { useWorkspaceFilterChoices } from "@/hooks/orgWorkspaces";
 import { useNow } from "@/hooks/useNow";
 import { useTokenPage } from "@/hooks/useTokenPage";
@@ -228,10 +229,12 @@ export function Audit({ system = false }: { system?: boolean }) {
 		...TYPE_ACTORS.map((t) => [t, { id: t, name: ACTOR_KINDS[t] ?? t, detail: "", group: "Loco" }] as const),
 	]);
 	if (actor !== "" && !actors.has(actor)) actors.set(actor, { id: actor, name: actor, detail: "", group: "People" });
-	const orgNames = new Map<string, string>();
-	if (orgId !== "") orgNames.set(orgId, names.get(orgId) ?? orgId.slice(-8));
-	for (const r of rows) if (r.event.orgId !== "") orgNames.set(r.event.orgId, r.org);
-	const orgItems = [...orgNames].map(([id, name]) => ({ id, name }));
+	const orgChoice = useOrgFilterChoices(system);
+	const orgItems = orgChoice.orgs.map((o) => ({ id: o.id, name: o.name }));
+	if (orgId !== "" && !orgItems.some((o) => o.id === orgId)) {
+		const name = rows.find((r) => r.event.orgId === orgId)?.org ?? names.get(orgId) ?? orgId.slice(-8);
+		orgItems.unshift({ id: orgId, name });
+	}
 	const selIdx = rows.findIndex((r) => r.event.id === params.event);
 	const selected = rows[selIdx];
 	const heldEventId = useHeldWhileClosed(selected?.event.id, selected !== undefined);
@@ -332,6 +335,7 @@ export function Audit({ system = false }: { system?: boolean }) {
 									items={orgItems}
 									placeholder="Find an organization"
 									value={orgId}
+									onSearch={orgChoice.onSearch}
 									onChange={(id) => {
 										setFilters({ org: id, installation: null, event: null });
 									}}

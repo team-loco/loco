@@ -361,6 +361,7 @@ func (s *EventServer) listAuditEvents(ctx context.Context, query events.AuditQue
 		out[i].ActorEmail = derefString(row.ActorEmail)
 		out[i].ActorName = derefString(row.ActorName)
 		out[i].Title, out[i].Severity, out[i].Region = row.Title, row.Severity, row.Region
+		out[i].OrgName = row.OrgName
 	}
 	return out, nil
 }

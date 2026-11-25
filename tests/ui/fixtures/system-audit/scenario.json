@@ -6,7 +6,8 @@
   },
   "orgs": [
     {"name": "acme", "owner": "member", "workspaces": ["shared"]},
-    {"name": "labs", "owner": "admin", "workspaces": ["bench"]}
+    {"name": "labs", "owner": "admin", "workspaces": ["bench"]},
+    {"name": "quartz", "owner": "admin", "workspaces": ["main"]}
   ],
   "events": [
     {"type": "user.suspended", "actor": "admin", "at": "{now-50m}"},

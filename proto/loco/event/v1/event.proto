@@ -45,6 +45,9 @@ message Event {
   // The actor changed the organization through an installation role (a Loco operator), not as one of
   // its members.
   bool acted_as_operator = 22;
+  // The organization's name, or the name an event about it recorded when it is deleted. Empty when
+  // unknown. Set by the installation-wide listing.
+  string org_name = 23;
 }
 
 message ListEventsRequest {

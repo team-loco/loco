@@ -49,11 +49,17 @@ with session(repo / "tests/ui/out/system-audit") as browser:
         1
     )
 
-    # The organization filter narrows to one organization and keeps its state in the URL.
+    # The reader is not a member: the column names each organization.
+    expect(suspended).to_contain_text("acme")
+    expect(updated.filter(has_text="labs")).to_have_count(1)
+
+    # The organization filter lists every organization, not only those on the page, and keeps its choice in the URL.
     page.get_by_role("button", name="Organization", exact=True).click()
-    page.get_by_role(
-        "option", name=re.compile(r"^acme|^" + re.escape(acme[-8:]))
-    ).click()
+    page.get_by_placeholder("Find an organization").fill("quartz")
+    expect(page.get_by_role("option", name="quartz")).to_have_count(1)
+    expect(page.get_by_role("option", name="acme")).to_have_count(0)
+    page.get_by_placeholder("Find an organization").fill("")
+    page.get_by_role("option", name="acme", exact=True).click()
     expect(page).to_have_url(re.compile(rf"[?&]org={acme}"))
     expect(updated).to_have_count(1)
     expect(paused).to_have_count(0)
@@ -78,7 +84,7 @@ with session(repo / "tests/ui/out/system-audit") as browser:
     ).to_be_visible()
     expect(drawer.locator('[data-slot="operator-tag"]')).to_have_text("Loco admin")
     organization = drawer.locator("dt", has_text=re.compile("^Organization$"))
-    expect(organization.locator("xpath=following-sibling::dd")).to_have_text(acme[-8:])
+    expect(organization.locator("xpath=following-sibling::dd")).to_have_text("acme")
     # Reloading keeps the drawer open on the same event.
     event_url = page.url
     page.reload()
