@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -23,9 +24,22 @@ func applyQueuedReports(ctx context.Context, session *syncSession) error {
 		case apply := <-session.reports:
 			apply(ctx)
 		default:
-			return session.settle(ctx)
+			if err := session.settle(ctx); err != nil {
+				return err
+			}
+			if len(session.reports) == 0 {
+				return nil
+			}
 		}
 	}
+}
+
+// sendPendingNow sends what is pending, then applies and settles what it queued, as a sync stream does.
+func (ss *syncSession) sendPendingNow(ctx context.Context) error {
+	if err := ss.sendPending(ctx); err != nil {
+		return err
+	}
+	return applyQueuedReports(ctx, ss)
 }
 
 // handleBuildStatus applies and settles a build report as a sync stream does.
@@ -54,6 +68,18 @@ func openReportStream(
 	clusterID uuid.UUID,
 ) agentv1connect.AgentServiceSyncClientStream {
 	t.Helper()
+	return openReportStreamReceiving(t, client, clusterID, nil)
+}
+
+// openReportStreamReceiving opens a sync stream as the cluster, passes what the API sends to received
+// unless it is nil, and returns the stream to report on.
+func openReportStreamReceiving(
+	t *testing.T,
+	client agentv1connect.AgentServiceClient,
+	clusterID uuid.UUID,
+	received chan<- *agentv1.SyncResponse,
+) agentv1connect.AgentServiceSyncClientStream {
+	t.Helper()
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+testAssertion(t, clusterID))
 	stream, err := client.Sync(ctx)
@@ -66,7 +92,16 @@ func openReportStream(
 	}
 	go func() {
 		for {
-			if _, err := stream.Receive(); err != nil {
+			msg, err := stream.Receive()
+			if err != nil {
+				return
+			}
+			if received == nil {
+				continue
+			}
+			select {
+			case received <- msg:
+			case <-ctx.Done():
 				return
 			}
 		}
@@ -263,6 +298,129 @@ func TestHeartbeatsFlowWhileAReportWaitsForAWrite(t *testing.T) {
 			waitFor(t, "the report applied once the write ended", func() bool { return tc.done(t, f, buildID) })
 		})
 	}
+}
+
+func TestHeartbeatsFlowWhileStartingQueuedBuildsWaitsForAWrite(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		role clusterv1.ClusterRole
+		lock string
+		done func(t *testing.T, f *buildFixture, buildID string, received []*agentv1.SyncResponse) bool
+	}{
+		"registry credential": {
+			role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+			lock: `SELECT id FROM builds WHERE id = $1 FOR UPDATE`,
+			done: func(_ *testing.T, _ *buildFixture, buildID string, received []*agentv1.SyncResponse) bool {
+				return startedWithCredential(received, buildID)
+			},
+		},
+		"builds disabled": {
+			role: clusterv1.ClusterRole_CLUSTER_ROLE_APPS,
+			lock: `SELECT id FROM resources WHERE id = $1 FOR UPDATE`,
+			done: func(t *testing.T, f *buildFixture, buildID string, _ []*agentv1.SyncResponse) bool {
+				t.Helper()
+				return f.get(t, buildID).GetStatus() == buildv1.BuildStatus_BUILD_STATUS_FAILED
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f := newBuildFixture(t)
+			buildID := f.queued(t)
+			held := uuid.MustParse(buildID)
+			if tc.role == clusterv1.ClusterRole_CLUSTER_ROLE_APPS {
+				held = f.resourceID
+			}
+			if _, err := f.pool.Exec(t.Context(),
+				`UPDATE clusters SET last_heartbeat = NULL, role = $2 WHERE id = $1`,
+				f.clusterID, clusterRoleFromProto(tc.role)); err != nil {
+				t.Fatal(err)
+			}
+			release := holdRow(t, f.deployFixture, tc.lock, held)
+			cfg := testAgentConfig()
+			cfg.RegistryTokenMode = true
+			messages := make(chan *agentv1.SyncResponse, 64)
+			client := startSyncServerWithConfig(t, f.deployFixture, f.bucket, cfg)
+			stream := openReportStreamReceiving(t, client, f.clusterID, messages)
+			var received []*agentv1.SyncResponse
+			done := func() bool {
+				for {
+					select {
+					case msg := <-messages:
+						received = append(received, msg)
+					default:
+						return tc.done(t, f, buildID, received)
+					}
+				}
+			}
+
+			dbtest.WaitForLockWaiters(t, f.pool, 1)
+			report(stream, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{
+				Heartbeat: &agentv1.Heartbeat{Role: tc.role},
+			}})
+			waitFor(t, "heartbeat recorded while starting queued builds waited for a write", func() bool {
+				return f.heartbeatAt(t) != nil
+			})
+			if done() {
+				t.Fatal("the queued build was handled while a write held the row it needs")
+			}
+
+			release()
+			waitFor(t, "the queued build was handled once the write ended", done)
+		})
+	}
+}
+
+// startedWithCredential reports whether received holds a StartBuild for the build with a registry credential.
+func startedWithCredential(received []*agentv1.SyncResponse, buildID string) bool {
+	for _, start := range startedBuilds(received) {
+		if start.GetBuildId() == buildID && start.GetRegistryCredential() != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func TestAQueuedBuildIsSentWhileALaterBuildWaitsForAWrite(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	first := f.queued(t)
+	second := f.insertBuild(t, genDb.BuildStatusQueued)
+	if _, err := f.pool.Exec(t.Context(),
+		`UPDATE clusters SET last_heartbeat = NULL WHERE id = $1`, f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	release := holdRow(t, f.deployFixture, `SELECT id FROM builds WHERE id = $1 FOR UPDATE`, uuid.MustParse(second))
+	cfg := testAgentConfig()
+	cfg.RegistryTokenMode = true
+	messages := make(chan *agentv1.SyncResponse, 64)
+	client := startSyncServerWithConfig(t, f.deployFixture, f.bucket, cfg)
+	stream := openReportStreamReceiving(t, client, f.clusterID, messages)
+	var received []*agentv1.SyncResponse
+	started := func(buildID string) bool {
+		for {
+			select {
+			case msg := <-messages:
+				received = append(received, msg)
+			default:
+				return startedWithCredential(received, buildID)
+			}
+		}
+	}
+
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	report(stream, heartbeatReport())
+	waitFor(t, "the first build sent while a write held the second", func() bool { return started(first) })
+	waitFor(t, "heartbeat recorded while a write held the second build", func() bool {
+		return f.heartbeatAt(t) != nil
+	})
+	if started(second) {
+		t.Fatal("the second build was sent while a write held it")
+	}
+
+	release()
+	waitFor(t, "the second build sent once the write ended", func() bool { return started(second) })
 }
 
 func TestAnInventoryMissingAPlacementResendsIt(t *testing.T) {

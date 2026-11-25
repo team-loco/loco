@@ -36,6 +36,9 @@ type buildTracker struct {
 	started  map[uuid.UUID]struct{}
 	active   map[uuid.UUID]struct{}
 	canceled map[uuid.UUID]struct{}
+	// starting is set while a start of queued builds is queued; startAgain asks for another once it settles.
+	starting   bool
+	startAgain bool
 }
 
 func newBuildTracker() buildTracker {
@@ -88,10 +91,38 @@ func (ss *syncSession) reconcileBuilds(ctx context.Context) error {
 	return ss.cancelStaleBuilds(ctx)
 }
 
+// startQueuedBuilds queues sending the cluster's queued builds; one start runs at a time.
 func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 	if ss.server.sources == nil {
 		return nil
 	}
+	if ss.builds.starting {
+		ss.builds.startAgain = true
+		return nil
+	}
+	ss.builds.starting = true
+	skip := maps.Clone(ss.builds.started)
+	maps.Copy(skip, ss.builds.active)
+	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
+		if err := ss.prepareQueuedBuilds(ctx, skip); err != nil {
+			return nil, err
+		}
+		return func(ctx context.Context) error {
+			ss.builds.starting = false
+			if ss.builds.startAgain {
+				ss.builds.startAgain = false
+				if err := ss.startQueuedBuilds(ctx); err != nil {
+					return err
+				}
+			}
+			return ss.cancelStaleBuilds(ctx)
+		}, nil
+	})
+}
+
+// prepareQueuedBuilds fails queued builds on a cluster that runs none, or settles a send for each queued build
+// not in skip.
+func (ss *syncSession) prepareQueuedBuilds(ctx context.Context, skip map[uuid.UUID]struct{}) error {
 	clusterID := ss.clusterID
 	role, err := ss.server.queries.GetClusterRole(ctx, clusterID)
 	if err != nil {
@@ -110,10 +141,7 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 		return fmt.Errorf("list queued builds: %w", err)
 	}
 	for _, build := range queued {
-		if _, sent := ss.builds.started[build.ID]; sent {
-			continue
-		}
-		if _, held := ss.builds.active[build.ID]; held {
+		if _, held := skip[build.ID]; held {
 			continue
 		}
 		msg, msgErr := ss.server.startBuildMessage(ctx, clusterID, build)
@@ -132,8 +160,29 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 			)
 			continue
 		}
-		if sendErr := ss.sendFn(msg); sendErr != nil {
-			return fmt.Errorf("send build %s: %w", build.ID, sendErr)
+		ss.addSettled(ss.sendBuildStart(build, msg))
+	}
+	return nil
+}
+
+// sendBuildStart sends a prepared build that is still queued on the cluster and not yet sent.
+func (ss *syncSession) sendBuildStart(build genDb.ListQueuedClusterBuildsRow, msg *agentv1.SyncResponse) settleFunc {
+	return func(ctx context.Context) error {
+		if _, sent := ss.builds.started[build.ID]; sent {
+			return nil
+		}
+		if _, held := ss.builds.active[build.ID]; held {
+			return nil
+		}
+		rows, err := ss.server.queries.ListBuildStatesByIDs(ctx, []uuid.UUID{build.ID})
+		if err != nil {
+			return fmt.Errorf("check build %s is still queued: %w", build.ID, err)
+		}
+		if len(rows) == 0 || !ss.queuedHere(rows[0]) {
+			return nil
+		}
+		if err := ss.sendFn(msg); err != nil {
+			return fmt.Errorf("send build %s: %w", build.ID, err)
 		}
 		ss.builds.started[build.ID] = struct{}{}
 		ss.builds.active[build.ID] = struct{}{}
@@ -142,8 +191,8 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 			"build_id", build.ID,
 			"cache_ref", build.CacheRef,
 		)
+		return nil
 	}
-	return nil
 }
 
 func (s *AgentServer) startBuildMessage(
@@ -254,6 +303,10 @@ func (ss *syncSession) wantsBuild(row genDb.ListBuildStatesByIDsRow) bool {
 		return false
 	}
 	return !buildStatusFinished(row.Status)
+}
+
+func (ss *syncSession) queuedHere(row genDb.ListBuildStatesByIDsRow) bool {
+	return ss.wantsBuild(row) && row.Status == genDb.BuildStatusQueued
 }
 
 // buildInventory is the builds a cluster's inventory lists: every build it holds, and those still running.

@@ -77,7 +77,12 @@ func TestSyncSessionEndsWhenAReadFails(t *testing.T) {
 	closed.Close()
 	reads := map[string]func(*syncSession) error{
 		"pending placements": func(ss *syncSession) error { return ss.sendPendingPlacements(ctx) },
-		"queued builds":      func(ss *syncSession) error { return ss.startQueuedBuilds(ctx) },
+		"queued builds": func(ss *syncSession) error {
+			if err := ss.startQueuedBuilds(ctx); err != nil {
+				return err
+			}
+			return applyQueuedReports(ctx, ss)
+		},
 		"held builds": func(ss *syncSession) error {
 			ss.builds.active[uuid.New()] = struct{}{}
 			return ss.cancelStaleBuilds(ctx)

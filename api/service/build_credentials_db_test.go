@@ -38,7 +38,7 @@ func (f *buildFixture) tokenModeServer(queries genDb.Querier) *AgentServer {
 
 func (f *buildFixture) sendBuilds(t *testing.T, session *syncSession, sent *sentMessages) []*agentv1.StartBuild {
 	t.Helper()
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	messages := sent.take()
@@ -208,7 +208,7 @@ func TestBuildThatLeavesTheQueueBeforeItsCredentialIsNotSent(t *testing.T) {
 	sent := &sentMessages{}
 	session := newSyncSession(server, f.clusterID, sent.send)
 
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	if msgs := sent.take(); len(msgs) != 0 {
