@@ -2,10 +2,13 @@ package service
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
 
+	genDb "github.com/team-loco/loco/api/gen/db"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
@@ -16,7 +19,8 @@ type orgListFixture struct {
 }
 
 // newOrgListFixture gives a system reader who belongs to no organization three organizations:
-// alpha with a workspace and a service, beta, which is suspended, and gamma.
+// alpha with a workspace, a service, two owners (dana and fay) and one more member (gus), beta, which
+// is suspended, and gamma.
 func newOrgListFixture(t *testing.T) (*membershipAPI, orgListFixture) {
 	t.Helper()
 	a, _ := newSystemRoleAPI(t)
@@ -31,6 +35,19 @@ func newOrgListFixture(t *testing.T) (*membershipAPI, orgListFixture) {
 		return created.GetOrgId()
 	}
 	f.alpha, f.beta, f.gamma = create(dana, "Alpha"), create(dana, "Beta"), create(erin, "Gamma")
+	fay, gus := a.signUp(t, "fay"), a.signUp(t, "gus")
+	for user, scope := range map[membershipUser]string{fay: genDb.ScopeAdmin, gus: genDb.ScopeMember} {
+		if err := a.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+			UserID: user.id, EntityType: genDb.EntityTypeOrganization, EntityID: uuid.MustParse(f.alpha), Scope: scope,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for user, name := range map[membershipUser]string{dana: "Dana Day", fay: "Fay Fox"} {
+		if _, err := a.pool.Exec(t.Context(), "UPDATE users SET name = $2 WHERE id = $1", user.id, name); err != nil {
+			t.Fatal(err)
+		}
+	}
 	o := &membershipOrg{api: a, owner: dana, orgID: f.alpha}
 	o.shared = o.createWorkspace(t, "shared")
 	o.sharedResource(t, "api")
@@ -64,10 +81,19 @@ func TestListOrgsShowsEveryOrganizationToASystemReader(t *testing.T) {
 		t.Fatalf("listed %v with total %d, want %v", got, response.GetTotalCount(), want)
 	}
 	alpha := response.GetOrgs()[0]
-	if alpha.GetOrganization().GetWorkspaceCount() != 1 || alpha.GetOrganization().GetMemberCount() != 1 ||
-		alpha.GetResourceCount() != 1 || len(alpha.GetOwners()) != 1 ||
-		alpha.GetOwners()[0].GetEmail() != membershipEmail("dana") || alpha.GetOrganization().GetCreatedAt() == nil {
-		t.Fatalf("alpha = %v, want one workspace, member, resource and owner dana", alpha)
+	owners := make([]string, 0, len(alpha.GetOwners()))
+	for _, owner := range alpha.GetOwners() {
+		owners = append(owners, owner.GetName()+" <"+owner.GetEmail()+">")
+	}
+	wantOwners := []string{"Dana Day <" + membershipEmail("dana") + ">", "Fay Fox <" + membershipEmail("fay") + ">"}
+	if alpha.GetOrganization().GetWorkspaceCount() != 1 || alpha.GetOrganization().GetMemberCount() != 3 ||
+		alpha.GetResourceCount() != 1 || !slices.Equal(owners, wantOwners) || alpha.GetOrganization().GetCreatedAt() == nil {
+		t.Fatalf("alpha = %v, want one workspace, three members, one resource and owners %v", alpha, wantOwners)
+	}
+	gamma := response.GetOrgs()[2]
+	if gamma.GetOrganization().GetWorkspaceCount() != 0 || gamma.GetOrganization().GetMemberCount() != 1 ||
+		gamma.GetResourceCount() != 0 || len(gamma.GetOwners()) != 1 {
+		t.Fatalf("gamma = %v, want no workspace or resource and one member who owns it", gamma)
 	}
 	beta := response.GetOrgs()[1].GetOrganization()
 	if beta.GetSuspendedAt() == nil || beta.GetSuspensionReason() != "unpaid" {
@@ -83,6 +109,8 @@ func TestListOrgsSearchesNameIDAndOwnerEmail(t *testing.T) {
 		f.gamma:                 {f.gamma},
 		membershipEmail("dana"): {f.beta, f.alpha},
 		"erin@":                 {f.gamma},
+		membershipEmail("fay"):  {f.alpha},
+		membershipEmail("gus"):  nil,
 		"nobody":                nil,
 		"%":                     nil,
 	} {
@@ -154,18 +182,98 @@ func TestListOrgsPagesInEveryOrder(t *testing.T) {
 	}
 }
 
-func TestListOrgsRejectsATokenFromAnotherOrder(t *testing.T) {
+func TestListOrgsPagesEveryOrganizationOnceWhenKeysTie(t *testing.T) {
 	t.Parallel()
-	_, f := newOrgListFixture(t)
-	first, err := f.reader.clients.Org.ListOrgs(t.Context(), &orgv1.ListOrgsRequest{PageSize: 1})
+	a, f := newOrgListFixture(t)
+	dana := a.signUp(t, "dana")
+	for _, name := range []string{"alpha", "ALPHA"} {
+		if _, err := dana.clients.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new(name)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := a.pool.Exec(t.Context(), "UPDATE organizations SET created_at = '2026-01-01T00:00:00Z'"); err != nil {
+		t.Fatal(err)
+	}
+	for _, order := range []orgv1.OrgOrder{orgv1.OrgOrder_ORG_ORDER_NAME, orgv1.OrgOrder_ORG_ORDER_CREATED_AT} {
+		for _, descending := range []bool{false, true} {
+			request := &orgv1.ListOrgsRequest{OrderBy: order, Descending: descending}
+			whole, err := f.reader.clients.Org.ListOrgs(t.Context(), request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := pageOrgIDs(t, f.reader, request)
+			if want := listedOrgIDs(whole); len(want) != 5 || !slices.Equal(got, want) {
+				t.Errorf("order %v descending %v paged %v, want %v", order, descending, got, want)
+			}
+		}
+	}
+}
+
+// pageOrgIDs lists every organization in the request's order, one per page.
+func pageOrgIDs(t *testing.T, user membershipUser, request *orgv1.ListOrgsRequest) []string {
+	t.Helper()
+	request = &orgv1.ListOrgsRequest{OrderBy: request.GetOrderBy(), Descending: request.GetDescending(), PageSize: 1}
+	var ids []string
+	for {
+		response, err := user.clients.Org.ListOrgs(t.Context(), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, listedOrgIDs(response)...)
+		request.PageToken = response.GetNextPageToken()
+		if response.GetNextPageToken() == "" {
+			return ids
+		}
+	}
+}
+
+func TestListOrgsPagesPastTheLongestName(t *testing.T) {
+	t.Parallel()
+	a, f := newOrgListFixture(t)
+	longest := strings.Repeat("😀", 100)
+	erin := a.signUp(t, "erin")
+	if _, err := erin.clients.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new(longest)}); err != nil {
+		t.Fatal(err)
+	}
+	request := &orgv1.ListOrgsRequest{OrderBy: orgv1.OrgOrder_ORG_ORDER_NAME, Descending: true, PageSize: 1}
+	first, err := f.reader.clients.Org.ListOrgs(t.Context(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = f.reader.clients.Org.ListOrgs(t.Context(), &orgv1.ListOrgsRequest{
-		PageSize: 1, PageToken: first.GetNextPageToken(), OrderBy: orgv1.OrgOrder_ORG_ORDER_NAME,
+	if got := first.GetOrgs()[0].GetOrganization().GetName(); got != longest {
+		t.Fatalf("first name = %q, want the longest name", got)
+	}
+	if len(first.GetNextPageToken()) <= 512 {
+		t.Fatalf("token has %d characters, want one past the old 512 limit", len(first.GetNextPageToken()))
+	}
+	request.PageToken = first.GetNextPageToken()
+	second, err := f.reader.clients.Org.ListOrgs(t.Context(), request)
+	if err != nil {
+		t.Fatalf("second page: %v", err)
+	}
+	if got := listedOrgIDs(second); len(got) != 1 || got[0] != f.gamma {
+		t.Fatalf("second page = %v, want gamma", got)
+	}
+}
+
+func TestListOrgsRejectsATokenFromAnotherOrderOrDirection(t *testing.T) {
+	t.Parallel()
+	_, f := newOrgListFixture(t)
+	first, err := f.reader.clients.Org.ListOrgs(t.Context(), &orgv1.ListOrgsRequest{
+		PageSize: 1, OrderBy: orgv1.OrgOrder_ORG_ORDER_NAME,
 	})
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("err = %v, want InvalidArgument", err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, request := range map[string]*orgv1.ListOrgsRequest{
+		"another order":     {OrderBy: orgv1.OrgOrder_ORG_ORDER_CREATED_AT},
+		"another direction": {OrderBy: orgv1.OrgOrder_ORG_ORDER_NAME, Descending: true},
+	} {
+		request.PageSize, request.PageToken = 1, first.GetNextPageToken()
+		_, err = f.reader.clients.Org.ListOrgs(t.Context(), request)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("%s: err = %v, want InvalidArgument", name, err)
+		}
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -18,9 +18,9 @@ import (
 )
 
 // orgFilterSQL keeps the organizations a ListOrgs request matches. $1 is an ILIKE pattern or empty,
-// $2 is "active", "suspended" or "all".
-const orgFilterSQL = ` WHERE ($2::text <> 'active' OR o.suspended_at IS NULL)
-  AND ($2::text <> 'suspended' OR o.suspended_at IS NOT NULL)
+// $2 is the OrgState: 0 for all, 1 for active, 2 for suspended.
+const orgFilterSQL = ` WHERE ($2::int <> 1 OR o.suspended_at IS NULL)
+  AND ($2::int <> 2 OR o.suspended_at IS NOT NULL)
   AND ($1::text = '' OR o.name ILIKE $1 OR o.id::text ILIKE $1 OR EXISTS (
     SELECT 1 FROM user_scopes us JOIN users u ON u.id = us.user_id
     WHERE us.entity_type = 'organization' AND us.entity_id = o.id AND us.scope = 'admin'
@@ -28,23 +28,26 @@ const orgFilterSQL = ` WHERE ($2::text <> 'active' OR o.suspended_at IS NULL)
 
 var errOrgListToken = errors.New("invalid organization page token")
 
-// orgSort is the key a ListOrgs request orders by; cast is the SQL type of the key.
-type orgSort struct {
-	expr string
-	cast string
+// orgListOrder is the order a ListOrgs request pages in.
+type orgListOrder struct {
+	ByName     bool `json:"b,omitempty"`
+	Descending bool `json:"d,omitempty"`
 }
 
-var (
-	orgSortName    = orgSort{expr: "lower(o.name)", cast: "text"}
-	orgSortCreated = orgSort{
-		expr: "(extract(epoch FROM o.created_at) * 1000000)::bigint", cast: "bigint",
-	}
-)
-
+// orgListCursor is the last row of a page: its name or creation time, as the order needs, and its ID.
 type orgListCursor struct {
-	Cast string    `json:"c"`
-	Key  string    `json:"k"`
-	ID   uuid.UUID `json:"id"`
+	orgListOrder
+	Name      string    `json:"n,omitempty"`
+	CreatedAt time.Time `json:"t,omitzero"`
+	ID        uuid.UUID `json:"id"`
+}
+
+// key is the value the order compares rows by.
+func (c orgListCursor) key() any {
+	if c.ByName {
+		return c.Name
+	}
+	return c.CreatedAt
 }
 
 // ListOrgs lists every organization in the installation. It requires system read.
@@ -52,27 +55,27 @@ func (s *OrgServer) ListOrgs(ctx context.Context, req *orgv1.ListOrgsRequest) (*
 	if err := authorizeSystem(ctx, s.authz, actions.ListOrgs); err != nil {
 		return nil, err
 	}
-	sort := orgSortCreated
-	if req.GetOrderBy() == orgv1.OrgOrder_ORG_ORDER_NAME {
-		sort = orgSortName
+	order := orgListOrder{
+		ByName:     req.GetOrderBy() == orgv1.OrgOrder_ORG_ORDER_NAME,
+		Descending: req.GetDescending() || req.GetOrderBy() == orgv1.OrgOrder_ORG_ORDER_UNSPECIFIED,
 	}
-	descending := req.GetDescending() || req.GetOrderBy() == orgv1.OrgOrder_ORG_ORDER_UNSPECIFIED
-	cursor, err := decodeOrgListCursor(req.GetPageToken(), sort)
+	cursor, err := decodeOrgListCursor(req.GetPageToken())
+	if err == nil && req.GetPageToken() != "" && cursor.orgListOrder != order {
+		err = errOrgListToken
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 	}
-	filter := []any{likePattern(req.GetQuery()), orgStateFilter(req.GetState())}
+	filter := []any{likePattern(req.GetQuery()), int32(req.GetState())}
 	pageSize := normalizePageSize(req.GetPageSize())
-	page, err := s.orgListPage(ctx, filter, sort, descending, cursor, pageSize+1)
+	page, err := s.orgListPage(ctx, filter, order, cursor, pageSize+1)
 	if err != nil {
 		return nil, fmt.Errorf("list organizations: %w", err)
 	}
 	response := &orgv1.ListOrgsResponse{}
 	if len(page) > int(pageSize) {
 		page = page[:pageSize]
-		last := page[len(page)-1]
-		last.Cast = sort.cast
-		token, encodeErr := json.Marshal(last)
+		token, encodeErr := json.Marshal(page[len(page)-1])
 		if encodeErr != nil {
 			return nil, fmt.Errorf("encode organization page token: %w", encodeErr)
 		}
@@ -99,29 +102,37 @@ func (s *OrgServer) countOrgs(ctx context.Context, filter []any, limit int32) (i
 func (s *OrgServer) orgListPage(
 	ctx context.Context,
 	filter []any,
-	sort orgSort,
-	descending bool,
+	order orgListOrder,
 	after orgListCursor,
 	limit int32,
 ) ([]orgListCursor, error) {
+	key, cast := "o.created_at", "timestamptz"
+	if order.ByName {
+		key, cast = "lower(o.name)", "text"
+	}
 	direction, compare := "ASC", ">"
-	if descending {
+	if order.Descending {
 		direction, compare = "DESC", "<"
 	}
 	args := filter
-	sql := "SELECT (" + sort.expr + ")::text, o.id FROM organizations o" + orgFilterSQL
+	sql := "SELECT " + key + ", o.id FROM organizations o" + orgFilterSQL
 	if after.ID != uuid.Nil {
-		sql += " AND (" + sort.expr + ", o.id) " + compare + " ($3::" + sort.cast + ", $4::uuid)"
-		args = append(args, after.Key, after.ID)
+		sql += " AND (" + key + ", o.id) " + compare + " ($3::" + cast + ", $4::uuid)"
+		args = append(args, after.key(), after.ID)
 	}
-	sql += fmt.Sprintf(" ORDER BY %s %s, o.id %s LIMIT $%d", sort.expr, direction, direction, len(args)+1)
+	sql += fmt.Sprintf(" ORDER BY %s %s, o.id %s LIMIT $%d", key, direction, direction, len(args)+1)
 	rows, err := s.db.Query(ctx, apiDb.Named("ListOrgsPage", sql), append(args, limit)...)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (orgListCursor, error) {
-		var c orgListCursor
-		err := row.Scan(&c.Key, &c.ID)
+		c := orgListCursor{orgListOrder: order}
+		var err error
+		if order.ByName {
+			err = row.Scan(&c.Name, &c.ID)
+		} else {
+			err = row.Scan(&c.CreatedAt, &c.ID)
+		}
 		return c, err
 	})
 }
@@ -165,20 +176,8 @@ func (s *OrgServer) orgSummaries(ctx context.Context, page []orgListCursor) ([]*
 	return out, nil
 }
 
-func orgStateFilter(state orgv1.OrgState) string {
-	switch state {
-	case orgv1.OrgState_ORG_STATE_ACTIVE:
-		return "active"
-	case orgv1.OrgState_ORG_STATE_SUSPENDED:
-		return "suspended"
-	default:
-		return "all"
-	}
-}
-
-// decodeOrgListCursor reads a page token; the first page's empty token is the zero cursor. A token
-// made for another order is invalid.
-func decodeOrgListCursor(token string, sort orgSort) (orgListCursor, error) {
+// decodeOrgListCursor reads a page token; the first page's empty token is the zero cursor.
+func decodeOrgListCursor(token string) (orgListCursor, error) {
 	var cursor orgListCursor
 	if token == "" {
 		return cursor, nil
@@ -187,13 +186,8 @@ func decodeOrgListCursor(token string, sort orgSort) (orgListCursor, error) {
 	if err != nil {
 		return cursor, errOrgListToken
 	}
-	if err = json.Unmarshal(raw, &cursor); err != nil || cursor.ID == uuid.Nil || cursor.Cast != sort.cast {
+	if err = json.Unmarshal(raw, &cursor); err != nil || cursor.ID == uuid.Nil {
 		return orgListCursor{}, errOrgListToken
-	}
-	if sort.cast == "bigint" {
-		if _, err = strconv.ParseInt(cursor.Key, 10, 64); err != nil {
-			return orgListCursor{}, errOrgListToken
-		}
 	}
 	return cursor, nil
 }

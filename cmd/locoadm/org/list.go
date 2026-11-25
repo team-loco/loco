@@ -63,10 +63,10 @@ func listCmd() *cobra.Command {
 				}
 				owners := make([]string, 0, len(summary.GetOwners()))
 				for _, owner := range summary.GetOwners() {
-					owners = append(owners, owner.GetEmail())
+					owners = append(owners, ownerLabel(owner))
 				}
 				fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n",
-					org.GetId(), org.GetName(), status, strings.Join(owners, ","), org.GetMemberCount(),
+					org.GetId(), org.GetName(), status, strings.Join(owners, ", "), org.GetMemberCount(),
 					org.GetWorkspaceCount(), summary.GetResourceCount(),
 					org.GetCreatedAt().AsTime().Local().Format(timeLayout))
 			}
@@ -77,4 +77,12 @@ func listCmd() *cobra.Command {
 	cmd.Flags().StringVar(&query, "query", "", "Only organizations whose name, ID or owner email contains this text")
 	cmd.Flags().StringVar(&state, "state", "", "Only active or suspended organizations")
 	return cmd
+}
+
+// ownerLabel is "Name <email>", or the email alone for a user without a name.
+func ownerLabel(owner *orgv1.User) string {
+	if owner.GetName() == "" {
+		return owner.GetEmail()
+	}
+	return owner.GetName() + " <" + owner.GetEmail() + ">"
 }

@@ -152,7 +152,7 @@ func (f *fakeOrgs) ListOrgs(_ context.Context, req *orgv1.ListOrgsRequest) (*org
 				Id: "org-1", Name: "Acme", CreatedAt: timestamppb.New(time.Date(2026, 1, 2, 3, 4, 0, 0, time.UTC)),
 				WorkspaceCount: new(int64(2)), MemberCount: new(int64(3)),
 			},
-			Owners:        []*orgv1.User{{Email: "dana@acme.test"}, {Email: "erin@acme.test"}},
+			Owners:        []*orgv1.User{{Name: "Dana Day", Email: "dana@acme.test"}, {Email: "erin@acme.test"}},
 			ResourceCount: 5,
 		}}}, nil
 	}
@@ -171,20 +171,25 @@ func TestListPrintsEveryPageAsATableAndSendsTheFilters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list: %v\n%s", err, output)
 	}
-	if len(fake.lists) != 2 || fake.lists[0].GetQuery() != "acme" ||
-		fake.lists[0].GetState() != orgv1.OrgState_ORG_STATE_SUSPENDED || fake.lists[1].GetPageToken() != "next" {
-		t.Fatalf("requests = %v, want the query and state on both pages", fake.lists)
+	if len(fake.lists) != 2 || fake.lists[1].GetPageToken() != "next" {
+		t.Fatalf("requests = %v, want two pages", fake.lists)
+	}
+	for i, request := range fake.lists {
+		if request.GetQuery() != "acme" || request.GetState() != orgv1.OrgState_ORG_STATE_SUSPENDED {
+			t.Errorf("request %d = %v, want the query and state", i, request)
+		}
 	}
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) != 3 || !strings.HasPrefix(lines[0], "ID") {
 		t.Fatalf("output = %q, want a header and two rows", output)
 	}
-	for i, want := range [][]string{
-		{"org-1", "Acme", "active", "dana@acme.test,erin@acme.test", "3", "2", "5"},
-		{"org-2", "Beta", "suspended:", "unpaid", "fay@beta.test", "1", "0", "0"},
+	for i, want := range []string{
+		"org-1 Acme active Dana Day <dana@acme.test>, erin@acme.test 3 2 5",
+		"org-2 Beta suspended: unpaid fay@beta.test 1 0 0",
 	} {
-		if got := strings.Fields(lines[i+1]); !slices.Equal(got[:len(want)], want) {
-			t.Errorf("row %d = %v, want it to start with %v", i, got, want)
+		got, wantFields := strings.Fields(lines[i+1]), strings.Fields(want)
+		if len(got) < len(wantFields) || !slices.Equal(got[:len(wantFields)], wantFields) {
+			t.Errorf("row %d = %v, want it to start with %v", i, got, wantFields)
 		}
 	}
 }

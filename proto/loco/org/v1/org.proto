@@ -151,7 +151,7 @@ message ListOrgsRequest {
     gte: 0
     lte: 200
   }]; // default: 50, max: 200
-  string page_token = 2 [(buf.validate.field).string.max_len = 512];
+  string page_token = 2 [(buf.validate.field).string.max_len = 1024];
   // Sets total_count in the response.
   bool include_total_count = 3;
   // Matches an organization's name, its ID or the email of one of its owners, ignoring case.
