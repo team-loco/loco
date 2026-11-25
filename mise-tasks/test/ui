@@ -48,7 +48,7 @@ for suite in "${suites[@]}"; do
 done
 
 # Longest first, each suite to the shard with the least expected time; a suite missing from the file counts 10s.
-# A suite named again is labelled name#2, name#3 so its log and result stay its own.
+# A suite named again is labelled name#2, name#3 so its log, result and failure artifacts stay its own.
 selected=()
 while IFS= read -r suite; do
 	selected+=("$suite")
@@ -87,7 +87,7 @@ exec 3<>"$logs/done"
 run_suite() {
 	local suite=$1 start=$SECONDS status=0 out=/dev/stdout
 	if ((jobs > 1)); then out=$logs/$suite.log; fi
-	uv run --frozen --project tests python "tests/ui/${suite%%#*}.py" >"$out" 2>&1 || status=$?
+	UI_RUN_LABEL=$suite uv run --frozen --project tests python "tests/ui/${suite%%#*}.py" >"$out" 2>&1 || status=$?
 	echo "$suite $status $((SECONDS - start))" >&3
 }
 # Run every selected suite even after a failure, so one run reports them all.

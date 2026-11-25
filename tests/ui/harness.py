@@ -59,6 +59,10 @@ def session(out, **launch_options):
         try:
             yield browser
         except BaseException:
+            # test:ui labels a suite's repeat runs name#2, name#3; each keeps its own directory.
+            _, repeat, number = os.environ.get("UI_RUN_LABEL", "").partition("#")
+            if repeat:
+                out = out.with_name(f"{out.name}#{number}")
             out.mkdir(parents=True, exist_ok=True)
             for number, ui_log in enumerate(UI_LOGS):
                 with contextlib.suppress(Exception):
