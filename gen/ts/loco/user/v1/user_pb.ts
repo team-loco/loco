@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/user/v1/user.proto.
  */
 export const file_loco_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIqMBCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJOCg5HZXRVc2VyUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSABCBQoDa2V5IjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIizwEKEVVwZGF0ZVVzZXJSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEmoKCmF2YXRhcl91cmwYAiABKAlCUbpITroBSwoPdXNlci5hdmF0YXJfdXJsEhxtdXN0IGJlIGVtcHR5IG9yIGEgdmFsaWQgVVJJGhp0aGlzID09ICcnIHx8IHRoaXMuaXNVcmkoKUgAiAEBEhsKBG5hbWUYAyABKAlCCLpIBXIDGMgBSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAkiRQoQTGlzdFVzZXJzUmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCSJPChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIPCg1XaG9BbUlSZXF1ZXN0ImIKDldob0FtSVJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlchIuCgxjbGFpbWVkX29yZ3MYAiADKAsyGC5sb2NvLnVzZXIudjEuQ2xhaW1lZE9yZyJECgpDbGFpbWVkT3JnEg4KBm9yZ19pZBgBIAEoCRIQCghvcmdfbmFtZRgCIAEoCRIUCgxpbnZpdGVyX25hbWUYAyABKAkikQEKFFNldFVzZXJTdGF0dXNSZXF1ZXN0EhsKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBSAASGAoFZW1haWwYAiABKAlCB7pIBHICYAFIABI0CgZzdGF0dXMYAyABKA4yGC5sb2NvLnVzZXIudjEuVXNlclN0YXR1c0IKukgHggEEEAEgAEIMCgNrZXkSBbpIAggBIhcKFVNldFVzZXJTdGF0dXNSZXNwb25zZSIuChFEZWxldGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIUChJEZWxldGVVc2VyUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSJUCh9HZXRBY2NvdW50RGVsZXRpb25JbXBhY3RSZXF1ZXN0Eh0KCXBhZ2Vfc2l6ZRgBIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAIgASgJIj8KG0FjY291bnREZWxldGlvbk9yZ2FuaXphdGlvbhIOCgZvcmdfaWQYASABKAkSEAoIb3JnX25hbWUYAiABKAki1wEKFEFjY291bnREZWxldGlvblRva2VuEgwKBG5hbWUYASABKAkSLgoLZW50aXR5X3R5cGUYAiABKA4yGS5sb2NvLnRva2VuLnYxLkVudGl0eVR5cGUSEQoJZW50aXR5X2lkGAMgASgJEhIKCm93bmVyX25hbWUYBCABKAkSLgoKZXhwaXJlc19hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFgoOZGlzcGxheV9zdWZmaXgYBiABKAkSEgoKY2FuX3Jldm9rZRgHIAEoCCKZAgogR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVzcG9uc2USUgofbGFzdF9hY3RpdmVfYWRtaW5fb3JnYW5pemF0aW9ucxgBIAMoCzIpLmxvY28udXNlci52MS5BY2NvdW50RGVsZXRpb25Pcmdhbml6YXRpb24SOAoMb3duZWRfdG9rZW5zGAIgAygLMiIubG9jby51c2VyLnYxLkFjY291bnREZWxldGlvblRva2VuEhcKD25leHRfcGFnZV90b2tlbhgDIAEoCRIlCh1oYXNfaW5hY2Nlc3NpYmxlX293bmVkX3Rva2VucxgEIAEoCBInCh9oYXNfbW9yZV9ibG9ja2luZ19vcmdhbml6YXRpb25zGAUgASgIItkBCgdTZXNzaW9uEgoKAmlkGAEgASgJEicKBGtpbmQYAiABKA4yGS5sb2NvLnVzZXIudjEuU2Vzc2lvbktpbmQSLgoKY3JlYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgp1c2VyX2FnZW50GAUgASgJEg8KB2N1cnJlbnQYBiABKAgSEgoKaXBfYWRkcmVzcxgHIAEoCSIVChNMaXN0U2Vzc2lvbnNSZXF1ZXN0Ij8KFExpc3RTZXNzaW9uc1Jlc3BvbnNlEicKCHNlc3Npb25zGAEgAygLMhUubG9jby51c2VyLnYxLlNlc3Npb24iNAoUUmV2b2tlU2Vzc2lvblJlcXVlc3QSHAoKc2Vzc2lvbl9pZBgBIAEoCUIIukgFcgOwAQEiFwoVUmV2b2tlU2Vzc2lvblJlc3BvbnNlKlwKClVzZXJTdGF0dXMSGwoXVVNFUl9TVEFUVVNfVU5TUEVDSUZJRUQQABIWChJVU0VSX1NUQVRVU19BQ1RJVkUQARIZChVVU0VSX1NUQVRVU19TVVNQRU5ERUQQAipXCgtTZXNzaW9uS2luZBIcChhTRVNTSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIUChBTRVNTSU9OX0tJTkRfV0VCEAESFAoQU0VTU0lPTl9LSU5EX0NMSRACMtUGCgtVc2VyU2VydmljZRJGCgdHZXRVc2VyEhwubG9jby51c2VyLnYxLkdldFVzZXJSZXF1ZXN0Gh0ubG9jby51c2VyLnYxLkdldFVzZXJSZXNwb25zZRJDCgZXaG9BbUkSGy5sb2NvLnVzZXIudjEuV2hvQW1JUmVxdWVzdBocLmxvY28udXNlci52MS5XaG9BbUlSZXNwb25zZRJPCgpVcGRhdGVVc2VyEh8ubG9jby51c2VyLnYxLlVwZGF0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLlVwZGF0ZVVzZXJSZXNwb25zZRJMCglMaXN0VXNlcnMSHi5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVxdWVzdBofLmxvY28udXNlci52MS5MaXN0VXNlcnNSZXNwb25zZRJ5ChhHZXRBY2NvdW50RGVsZXRpb25JbXBhY3QSLS5sb2NvLnVzZXIudjEuR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVxdWVzdBouLmxvY28udXNlci52MS5HZXRBY2NvdW50RGVsZXRpb25JbXBhY3RSZXNwb25zZRJPCgpEZWxldGVVc2VyEh8ubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXNwb25zZRJDCgZMb2dvdXQSGy5sb2NvLnVzZXIudjEuTG9nb3V0UmVxdWVzdBocLmxvY28udXNlci52MS5Mb2dvdXRSZXNwb25zZRJVCgxMaXN0U2Vzc2lvbnMSIS5sb2NvLnVzZXIudjEuTGlzdFNlc3Npb25zUmVxdWVzdBoiLmxvY28udXNlci52MS5MaXN0U2Vzc2lvbnNSZXNwb25zZRJYCg1SZXZva2VTZXNzaW9uEiIubG9jby51c2VyLnYxLlJldm9rZVNlc3Npb25SZXF1ZXN0GiMubG9jby51c2VyLnYxLlJldm9rZVNlc3Npb25SZXNwb25zZRJYCg1TZXRVc2VyU3RhdHVzEiIubG9jby51c2VyLnYxLlNldFVzZXJTdGF0dXNSZXF1ZXN0GiMubG9jby51c2VyLnYxLlNldFVzZXJTdGF0dXNSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3VzZXIvdjE7dXNlcnYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_token_v1_token]);
+  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIoECCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIoCgZzdGF0dXMYByABKA4yGC5sb2NvLnVzZXIudjEuVXNlclN0YXR1cxIyCg5sYXN0X2FjdGl2ZV9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiTgoOR2V0VXNlclJlcXVlc3QSGwoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQFIABIYCgVlbWFpbBgCIAEoCUIHukgEcgJgAUgAQgUKA2tleSIzCg9HZXRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIs8BChFVcGRhdGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABARJqCgphdmF0YXJfdXJsGAIgASgJQlG6SE66AUsKD3VzZXIuYXZhdGFyX3VybBIcbXVzdCBiZSBlbXB0eSBvciBhIHZhbGlkIFVSSRoadGhpcyA9PSAnJyB8fCB0aGlzLmlzVXJpKClIAIgBARIbCgRuYW1lGAMgASgJQgi6SAVyAxjIAUgBiAEBQg0KC19hdmF0YXJfdXJsQgcKBV9uYW1lIiUKElVwZGF0ZVVzZXJSZXNwb25zZRIPCgd1c2VyX2lkGAEgASgJInsKEExpc3RVc2Vyc1JlcXVlc3QSHQoJcGFnZV9zaXplGAEgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAiABKAkSFwoFcXVlcnkYAyABKAlCCLpIBXIDGMgBEhsKE2luY2x1ZGVfdG90YWxfY291bnQYBCABKAgiZAoRTGlzdFVzZXJzUmVzcG9uc2USIQoFdXNlcnMYASADKAsyEi5sb2NvLnVzZXIudjEuVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkSEwoLdG90YWxfY291bnQYAyABKAUiDwoNV2hvQW1JUmVxdWVzdCJiCg5XaG9BbUlSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXISLgoMY2xhaW1lZF9vcmdzGAIgAygLMhgubG9jby51c2VyLnYxLkNsYWltZWRPcmciRAoKQ2xhaW1lZE9yZxIOCgZvcmdfaWQYASABKAkSEAoIb3JnX25hbWUYAiABKAkSFAoMaW52aXRlcl9uYW1lGAMgASgJIpEBChRTZXRVc2VyU3RhdHVzUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSAASNAoGc3RhdHVzGAMgASgOMhgubG9jby51c2VyLnYxLlVzZXJTdGF0dXNCCrpIB4IBBBABIABCDAoDa2V5EgW6SAIIASIXChVTZXRVc2VyU3RhdHVzUmVzcG9uc2UiLgoRRGVsZXRlVXNlclJlcXVlc3QSGQoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQEiFAoSRGVsZXRlVXNlclJlc3BvbnNlIg8KDUxvZ291dFJlcXVlc3QiEAoOTG9nb3V0UmVzcG9uc2UiVAofR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCSI/ChtBY2NvdW50RGVsZXRpb25Pcmdhbml6YXRpb24SDgoGb3JnX2lkGAEgASgJEhAKCG9yZ19uYW1lGAIgASgJItcBChRBY2NvdW50RGVsZXRpb25Ub2tlbhIMCgRuYW1lGAEgASgJEi4KC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlEhEKCWVudGl0eV9pZBgDIAEoCRISCgpvd25lcl9uYW1lGAQgASgJEi4KCmV4cGlyZXNfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmRpc3BsYXlfc3VmZml4GAYgASgJEhIKCmNhbl9yZXZva2UYByABKAgimQIKIEdldEFjY291bnREZWxldGlvbkltcGFjdFJlc3BvbnNlElIKH2xhc3RfYWN0aXZlX2FkbWluX29yZ2FuaXphdGlvbnMYASADKAsyKS5sb2NvLnVzZXIudjEuQWNjb3VudERlbGV0aW9uT3JnYW5pemF0aW9uEjgKDG93bmVkX3Rva2VucxgCIAMoCzIiLmxvY28udXNlci52MS5BY2NvdW50RGVsZXRpb25Ub2tlbhIXCg9uZXh0X3BhZ2VfdG9rZW4YAyABKAkSJQodaGFzX2luYWNjZXNzaWJsZV9vd25lZF90b2tlbnMYBCABKAgSJwofaGFzX21vcmVfYmxvY2tpbmdfb3JnYW5pemF0aW9ucxgFIAEoCCLZAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRInCgRraW5kGAIgASgOMhkubG9jby51c2VyLnYxLlNlc3Npb25LaW5kEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdXNlcl9hZ2VudBgFIAEoCRIPCgdjdXJyZW50GAYgASgIEhIKCmlwX2FkZHJlc3MYByABKAkiFQoTTGlzdFNlc3Npb25zUmVxdWVzdCI/ChRMaXN0U2Vzc2lvbnNSZXNwb25zZRInCghzZXNzaW9ucxgBIAMoCzIVLmxvY28udXNlci52MS5TZXNzaW9uIjQKFFJldm9rZVNlc3Npb25SZXF1ZXN0EhwKCnNlc3Npb25faWQYASABKAlCCLpIBXIDsAEBIhcKFVJldm9rZVNlc3Npb25SZXNwb25zZSpcCgpVc2VyU3RhdHVzEhsKF1VTRVJfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSVVNFUl9TVEFUVVNfQUNUSVZFEAESGQoVVVNFUl9TVEFUVVNfU1VTUEVOREVEEAIqVwoLU2Vzc2lvbktpbmQSHAoYU0VTU0lPTl9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQU0VTU0lPTl9LSU5EX1dFQhABEhQKEFNFU1NJT05fS0lORF9DTEkQAjLVBgoLVXNlclNlcnZpY2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USQwoGV2hvQW1JEhsubG9jby51c2VyLnYxLldob0FtSVJlcXVlc3QaHC5sb2NvLnVzZXIudjEuV2hvQW1JUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USeQoYR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0Ei0ubG9jby51c2VyLnYxLkdldEFjY291bnREZWxldGlvbkltcGFjdFJlcXVlc3QaLi5sb2NvLnVzZXIudjEuR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2USVQoMTGlzdFNlc3Npb25zEiEubG9jby51c2VyLnYxLkxpc3RTZXNzaW9uc1JlcXVlc3QaIi5sb2NvLnVzZXIudjEuTGlzdFNlc3Npb25zUmVzcG9uc2USWAoNUmV2b2tlU2Vzc2lvbhIiLmxvY28udXNlci52MS5SZXZva2VTZXNzaW9uUmVxdWVzdBojLmxvY28udXNlci52MS5SZXZva2VTZXNzaW9uUmVzcG9uc2USWAoNU2V0VXNlclN0YXR1cxIiLmxvY28udXNlci52MS5TZXRVc2VyU3RhdHVzUmVxdWVzdBojLmxvY28udXNlci52MS5TZXRVc2VyU3RhdHVzUmVzcG9uc2VCNlo0Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby91c2VyL3YxO3VzZXJ2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_token_v1_token]);
 
 /**
  * User represents a user account with OAuth identity and profile information.
@@ -52,6 +52,21 @@ export type User = Message<"loco.user.v1.User"> & {
    * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: Timestamp | undefined;
+
+  /**
+   * status is set only for callers holding system read.
+   *
+   * @generated from field: loco.user.v1.UserStatus status = 7;
+   */
+  status: UserStatus;
+
+  /**
+   * last_active_at is the latest use of any of the user's sessions; set only for callers holding
+   * system read, and unset when the user has no recorded session.
+   *
+   * @generated from field: google.protobuf.Timestamp last_active_at = 8;
+   */
+  lastActiveAt?: Timestamp | undefined;
 };
 
 /**
@@ -89,6 +104,21 @@ export type UserJson = {
    * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: TimestampJson;
+
+  /**
+   * status is set only for callers holding system read.
+   *
+   * @generated from field: loco.user.v1.UserStatus status = 7;
+   */
+  status?: UserStatusJson;
+
+  /**
+   * last_active_at is the latest use of any of the user's sessions; set only for callers holding
+   * system read, and unset when the user has no recorded session.
+   *
+   * @generated from field: google.protobuf.Timestamp last_active_at = 8;
+   */
+  lastActiveAt?: TimestampJson;
 };
 
 /**
@@ -278,6 +308,20 @@ export type ListUsersRequest = Message<"loco.user.v1.ListUsersRequest"> & {
    * @generated from field: string page_token = 2;
    */
   pageToken: string;
+
+  /**
+   * Only users whose name or email contains this text, ignoring case.
+   *
+   * @generated from field: string query = 3;
+   */
+  query: string;
+
+  /**
+   * Sets total_count in the response.
+   *
+   * @generated from field: bool include_total_count = 4;
+   */
+  includeTotalCount: boolean;
 };
 
 /**
@@ -299,6 +343,20 @@ export type ListUsersRequestJson = {
    * @generated from field: string page_token = 2;
    */
   pageToken?: string;
+
+  /**
+   * Only users whose name or email contains this text, ignoring case.
+   *
+   * @generated from field: string query = 3;
+   */
+  query?: string;
+
+  /**
+   * Sets total_count in the response.
+   *
+   * @generated from field: bool include_total_count = 4;
+   */
+  includeTotalCount?: boolean;
 };
 
 /**
@@ -325,6 +383,14 @@ export type ListUsersResponse = Message<"loco.user.v1.ListUsersResponse"> & {
    * @generated from field: string next_page_token = 2;
    */
   nextPageToken: string;
+
+  /**
+   * The users the query matches, ignoring page_token; set when include_total_count is.
+   * Exact up to 10,000; 10,001 means more than 10,000.
+   *
+   * @generated from field: int32 total_count = 3;
+   */
+  totalCount: number;
 };
 
 /**
@@ -344,6 +410,14 @@ export type ListUsersResponseJson = {
    * @generated from field: string next_page_token = 2;
    */
   nextPageToken?: string;
+
+  /**
+   * The users the query matches, ignoring page_token; set when include_total_count is.
+   * Exact up to 10,000; 10,001 means more than 10,000.
+   *
+   * @generated from field: int32 total_count = 3;
+   */
+  totalCount?: number;
 };
 
 /**
@@ -1199,7 +1273,7 @@ export const UserService: GenService<{
     output: typeof UpdateUserResponseSchema;
   },
   /**
-   * ListUsers lists users with pagination.
+   * ListUsers lists users with pagination and an optional name or email search. It requires system read.
    *
    * @generated from rpc loco.user.v1.UserService.ListUsers
    */

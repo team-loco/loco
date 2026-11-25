@@ -67,6 +67,12 @@ Organization, workspace and resource tokens act as themselves. Their issuing use
 
 API-token activity records the token as actor. Historical creator, issuer and invitation references can remain after a user's deletion; they confer no access. An unresolved invitation issuer displays **Unavailable inviter** and the invitation can still be claimed under the organization's normal rules.
 
+## Find users
+
+`UserService.ListUsers` requires system read. `query` keeps the users whose name or email contains the text, ignoring case, and `include_total_count` sets `total_count` to the number of matches (exact up to 10,000). `locoadm user list [--query TEXT]` prints each user's name, email, state and last active time.
+
+Callers holding system read also see each user's `status` (`active` or `suspended`) and `last_active_at` on `ListUsers` and `GetUser`. `last_active_at` is the latest use of any of the user's sessions; sessions end when their refresh token expires, so a user with no session has none.
+
 ## Delete an account
 
 `UserService.DeleteUser` requires `user:admin` on the target account, using a session or API token. It removes the account's organization, workspace and resource grants, sign-in identities, CLI sessions and personal API tokens in one transaction. The user does not need to leave each organization first.

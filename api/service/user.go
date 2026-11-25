@@ -79,9 +79,21 @@ func (s *UserServer) GetUser(
 		return nil, err
 	}
 
-	user, err := s.getUserByID(ctx, targetUserID)
+	dbUser, err := s.getDBUser(ctx, targetID)
 	if err != nil {
 		return nil, err
+	}
+	user := dbUserToProto(dbUser)
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if s.authz.ReadableEntities(p.Scopes).System {
+		lastActive, activeErr := s.queries.GetUserLastActive(ctx, targetID)
+		if activeErr != nil {
+			return nil, fmt.Errorf("get user last active: %w", activeErr)
+		}
+		showOperatorFields(user, dbUser.Status, lastActive)
 	}
 
 	return &userv1.GetUserResponse{User: user}, nil
@@ -169,7 +181,9 @@ func (s *UserServer) ListUsers(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
-	dbUsers, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
+	query := likePattern(req.GetQuery())
+	rows, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
+		Query:         query,
 		Limit:         pageSize + 1,
 		PageToken:     cursor.ID,
 		PageCreatedAt: cursor.CreatedAt,
@@ -177,18 +191,30 @@ func (s *UserServer) ListUsers(
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
-	dbUsers, token := trimPage(dbUsers, pageSize, func(u genDb.User) (uuid.UUID, time.Time) {
-		return u.ID, u.CreatedAt
+	rows, token := trimPage(rows, pageSize, func(row genDb.ListUsersRow) (uuid.UUID, time.Time) {
+		return row.ID, row.CreatedAt
 	})
 
 	var users []*userv1.User
-	for _, dbUser := range dbUsers {
-		users = append(users, dbUserToProto(dbUser))
+	for _, row := range rows {
+		user := dbUserToProto(genDb.User{
+			ID: row.ID, Email: row.Email, Name: row.Name, AvatarUrl: row.AvatarUrl,
+			Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+		})
+		showOperatorFields(user, row.Status, row.LastActiveAt)
+		users = append(users, user)
+	}
+	total, err := totalCount(ctx, req.GetIncludeTotalCount(), func(ctx context.Context, limit int32) (int64, error) {
+		return s.queries.CountUsers(ctx, genDb.CountUsersParams{Query: query, Limit: limit})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("count users: %w", err)
 	}
 
 	return &userv1.ListUsersResponse{
 		Users:         users,
 		NextPageToken: token,
+		TotalCount:    total,
 	}, nil
 }
 
@@ -343,15 +369,31 @@ func (s *UserServer) Logout(
 // Helper methods
 
 func (s *UserServer) getUserByID(ctx context.Context, id string) (*userv1.User, error) {
-	user, err := s.queries.GetUserByID(ctx, uuid.MustParse(id))
+	user, err := s.getDBUser(ctx, uuid.MustParse(id))
+	if err != nil {
+		return nil, err
+	}
+	return dbUserToProto(user), nil
+}
+
+func (s *UserServer) getDBUser(ctx context.Context, id uuid.UUID) (genDb.User, error) {
+	user, err := s.queries.GetUserByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+		return genDb.User{}, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return genDb.User{}, fmt.Errorf("get user: %w", err)
 	}
+	return user, nil
+}
 
-	return dbUserToProto(user), nil
+// showOperatorFields adds the account state and last session activity that only system readers see.
+func showOperatorFields(user *userv1.User, status genDb.UserStatus, lastActive *time.Time) {
+	user.Status = userv1.UserStatus_USER_STATUS_ACTIVE
+	if status == genDb.UserStatusSuspended {
+		user.Status = userv1.UserStatus_USER_STATUS_SUSPENDED
+	}
+	user.LastActiveAt = optionalTimestamp(lastActive)
 }
 
 func dbUserToProto(user genDb.User) *userv1.User {

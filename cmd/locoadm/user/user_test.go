@@ -3,12 +3,16 @@ package user
 import (
 	"bytes"
 	"context"
+	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/cmd/internal/clitest"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const targetEmail = "dev@acme.test"
@@ -18,6 +22,26 @@ type fakeUsers struct {
 	t        *testing.T
 	session  string
 	requests []*userv1.SetUserStatusRequest
+	users    []*userv1.User
+	queries  []string
+}
+
+func (f *fakeUsers) ListUsers(
+	_ context.Context,
+	req *userv1.ListUsersRequest,
+) (*userv1.ListUsersResponse, error) {
+	f.queries = append(f.queries, req.GetQuery())
+	// Two users per page, so the command has to follow the page token.
+	start := 0
+	if req.GetPageToken() != "" {
+		start = 2
+	}
+	end := min(start+2, len(f.users))
+	token := ""
+	if end < len(f.users) {
+		token = "next"
+	}
+	return &userv1.ListUsersResponse{Users: f.users[start:end], NextPageToken: token}, nil
 }
 
 func (f *fakeUsers) SetUserStatus(
@@ -71,5 +95,26 @@ func TestSuspendAndReinstateSendTheEmailAndStatus(t *testing.T) {
 				t.Fatalf("requests = %v", fake.requests)
 			}
 		})
+	}
+}
+
+func TestListShowsEveryPageWithStateAndLastActive(t *testing.T) {
+	active := timestamppb.New(time.Date(2026, 11, 20, 9, 30, 0, 0, time.UTC))
+	fake := &fakeUsers{users: []*userv1.User{
+		{Name: "Ada", Email: "ada@acme.test", Status: userv1.UserStatus_USER_STATUS_ACTIVE, LastActiveAt: active},
+		{Email: "grace@acme.test", Status: userv1.UserStatus_USER_STATUS_SUSPENDED},
+		{Name: "Alan", Email: "alan@acme.test", Status: userv1.UserStatus_USER_STATUS_ACTIVE},
+	}}
+	output := runUserCmd(t, fake, "list", "--query", "acme")
+	for _, want := range []string{
+		"NAME", "LAST ACTIVE", "Ada", "ada@acme.test", "2026-11-20 09:30:00",
+		"grace@acme.test", "suspended", "never", "Alan",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output lacks %q:\n%s", want, output)
+		}
+	}
+	if !slices.Equal(fake.queries, []string{"acme", "acme"}) {
+		t.Errorf("queries = %v, want the query on both pages", fake.queries)
 	}
 }

@@ -31,15 +31,35 @@ WHERE id = sqlc.arg('id')
 RETURNING id, email, name, avatar_url, status, created_at, updated_at;
 
 -- name: ListUsers :many
-SELECT id, email, name, avatar_url, status, created_at, updated_at
-FROM users
-WHERE (sqlc.narg('page_token')::text IS NULL
-       OR (created_at, id) < (
+SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at,
+       a.last_used_at AS last_active_at
+FROM users u
+LEFT JOIN session_tokens a ON a.id = (
+  SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
+)
+WHERE (sqlc.arg('query')::text = '' OR u.name ILIKE sqlc.arg('query') OR u.email ILIKE sqlc.arg('query'))
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (u.created_at, u.id) < (
          sqlc.narg('page_created_at')::timestamptz,
          sqlc.narg('page_token')::uuid
        ))
-ORDER BY created_at DESC, id DESC
+ORDER BY u.created_at DESC, u.id DESC
 LIMIT $1;
+
+-- name: CountUsers :one
+SELECT COUNT(*) FROM (
+  SELECT 1 FROM users u
+  WHERE sqlc.arg('query')::text = '' OR u.name ILIKE sqlc.arg('query') OR u.email ILIKE sqlc.arg('query')
+  LIMIT $1
+) capped;
+
+-- name: GetUserLastActive :one
+SELECT a.last_used_at AS last_active_at
+FROM users u
+LEFT JOIN session_tokens a ON a.id = (
+  SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
+)
+WHERE u.id = $1;
 
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1;

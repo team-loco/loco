@@ -18,6 +18,7 @@ loco config --help
 | `locoadm status --host API_URL` | Read clusters, enrollment, heartbeats, version skew and unclaimed admins from the API |
 | `locoadm login` | Sign in with explicit `--api` and `--web` URLs with the same session as `loco login`; a configured email's first sign-in gives it its installation role |
 | `locoadm admin list`, `grant <user-id> [--role read\|admin]`, `revoke <user-id>` | List, grant and revoke [installation roles](../operations/self-hosting.md#installation-roles) |
+| `locoadm user list [--query TEXT]` | List users with their state and last active time |
 | `locoadm cluster create`, `list`, `join-token`, `pause`, `resume`, `remove`, `restore` | Register workers, creating their [region](regions.md), and manage their API records |
 | `locoadm region list` | List [regions](regions.md) and their cluster counts |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
