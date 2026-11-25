@@ -16,12 +16,13 @@ It does not forward clipboard escape sequences to the host clipboard.
    directory outside every checkout. Use the same synthetic fixture, arguments, dimensions,
    and terminal state for both refs. Do not use live authentication codes, credentials or
    production state. Commands run twice by default, once per theme.
-2. From the repository root, run the helper with the pinned Python environment:
+2. From the repository root, run the helper with the pinned Go toolchain:
 
    ```sh
    evidence=$(mktemp -d)
-   capture="$PWD/.agents/skills/terminal-evidence/scripts/capture.py"
-   mise exec -- uv run --script "$capture" --out "$evidence" --name update-after \
+   capture="$evidence/terminal-evidence"
+   mise exec -- go -C tools/terminal-evidence build -o "$capture" .
+   "$capture" capture --out "$evidence" --name update-after \
      --rows 16 -- /absolute/path/to/locoadm update --help
    ```
 
@@ -35,10 +36,11 @@ It does not forward clipboard escape sequences to the host clipboard.
    (prefer the last line that identifies the desired state). The helper captures the first
    matching frame and stops the process. It fails if the text never appears or the command
    exits first. For a command that exits with an expected error, pass `--expect-exit 1`
-   or its actual exit code. Both modes fail after `--timeout` seconds (15 by default).
+   or its actual exit code. Both modes fail after `--timeout` (15s by default).
    Use `--theme light` or `--theme dark` for a single-theme retry.
 
-   The renderer uses Menlo and Apple Symbols on macOS, and DejaVu Sans Mono on Linux.
+   The renderer uses Menlo and Apple Symbols on macOS, and DejaVu Sans Mono on Linux,
+   with embedded Go Mono as a fallback.
    This is a headless terminal emulator, so check the images for clipping, missing glyphs or
    unsupported terminal controls before publishing. Do not use its screenshot as proof that
    an operating-system clipboard write succeeded.
@@ -51,20 +53,19 @@ ref's fixture into a separate binary. The build helper overlays the test file wi
 changing either checkout.
 
 ```sh
-skill="$PWD/.agents/skills/terminal-evidence"
-"$skill/scripts/build-device-login.sh" /absolute/path/to/before-worktree "$evidence/before"
-"$skill/scripts/build-device-login.sh" /absolute/path/to/after-worktree "$evidence/after"
+"$capture" build-device-login --checkout /absolute/path/to/before-worktree --out "$evidence/before"
+"$capture" build-device-login --checkout /absolute/path/to/after-worktree --out "$evidence/after"
 
-mise exec -- uv run --script "$skill/scripts/capture.py" --out "$evidence" --name login-before \
+"$capture" capture --out "$evidence" --name login-before \
   --rows 8 --until "Press 'q' or Ctrl+C to quit" -- \
   "$evidence/before" '-test.run=^TestCaptureDeviceLogin$'
-mise exec -- uv run --script "$skill/scripts/capture.py" --out "$evidence" --name login-after \
+"$capture" capture --out "$evidence" --name login-after \
   --rows 8 --until "Press 'q' or Ctrl+C to quit" -- \
   "$evidence/after" '-test.run=^TestCaptureDeviceLogin$'
 ```
 
 For other interactive workflows, use a real CLI binary with a local test fixture, or adapt the
-[device-login fixture](examples/device_login_test.go.txt) to the CLI's existing test API.
+[device-login fixture](../../../tools/terminal-evidence/device_login_test.go.txt) to the CLI's existing test API.
 
 ## Attach to the PR
 
@@ -91,8 +92,8 @@ was rewritten to an uploaded asset URL. Never commit the PNGs.
 
 ## Verify the helper
 
-Run the black-box PTY tests after changing the capture script:
+Run the PTY and PNG rendering tests after changing the capture tool:
 
 ```sh
-mise exec -- python .agents/skills/terminal-evidence/scripts/test_capture.py
+mise run test:terminal-evidence
 ```

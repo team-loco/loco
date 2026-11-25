@@ -78,6 +78,8 @@ func TestModulesAChangeAffects(t *testing.T) {
 			[]string{"charts/loco-control-plane/values.yaml"}, []string{apiModule, proxyModule}},
 		{"a fixture app selects only its own module",
 			[]string{"tests/e2e/fixtures/build-app/main.go"}, []string{"tests/e2e/fixtures/build-app"}},
+		{"terminal evidence changes select only the standalone tool",
+			[]string{"tools/terminal-evidence/capture.go"}, []string{"tools/terminal-evidence"}},
 		{"documentation selects nothing", []string{"docs/content/operations/self-hosting.md"}, []string{}},
 		{"no changes select nothing", []string{}, []string{}},
 	} {
