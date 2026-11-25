@@ -222,6 +222,125 @@ def test_repeated_suite_runs_keep_their_own_failure_artifacts(tmp_path, monkeypa
         assert json.loads((directory / "failure-0-0.json").read_text())["url"] == url
 
 
+TCP4 = """  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
+   0: 0100007F:69AA 00000000:0000 0A 00000000:00000002 00:00000000 00000000  1000        0 101 1
+   1: 0100007F:1F90 0100007F:C351 01 00000010:00000020 00:00000000 00000000  1000        0 102 1
+"""
+TCP6 = """  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
+   0: 00000000000000000000000001000000:C350 00000000000000000000000001000000:69AA 01 000003E8:00000000 00:00000000 00000000  1000        0 103 1
+"""
+
+
+def fake_tcp_tables(tmp_path, monkeypatch):
+    import harness
+
+    (tmp_path / "tcp").write_text(TCP4)
+    (tmp_path / "tcp6").write_text(TCP6)
+    monkeypatch.setattr(
+        harness,
+        "TCP_TABLES",
+        (tmp_path / "tcp", tmp_path / "tcp6", tmp_path / "missing"),
+    )
+
+
+def test_tcp_sockets_lists_the_ports_ipv4_and_ipv6_connections(tmp_path, monkeypatch):
+    from harness import tcp_sockets
+
+    fake_tcp_tables(tmp_path, monkeypatch)
+    assert tcp_sockets(27050) == [
+        {
+            "local": 27050,
+            "remote": 0,
+            "state": "LISTEN",
+            "send_queue": 0,
+            "receive_queue": 2,
+        },
+        {
+            "local": 50000,
+            "remote": 27050,
+            "state": "ESTABLISHED",
+            "send_queue": 1000,
+            "receive_queue": 0,
+        },
+    ]
+
+
+def test_tcp_sockets_without_proc_is_empty(tmp_path, monkeypatch):
+    import harness
+
+    monkeypatch.setattr(harness, "TCP_TABLES", (tmp_path / "tcp",))
+    assert harness.tcp_sockets(27050) == []
+
+
+def test_suite_failure_records_ui_sockets_when_navigation_never_commits(
+    tmp_path, monkeypatch
+):
+    import harness
+    from harness import open_page, session
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
+    fake_tcp_tables(tmp_path, monkeypatch)
+    (tmp_path / "ui.log").write_text("served\n")
+    monkeypatch.setattr(harness, "UI_SERVERS", [(27050, tmp_path / "ui.log")])
+    out = tmp_path / "out"
+    held = []
+    with pytest.raises(PlaywrightTimeout):
+        with session(out) as browser:
+            context, page, errors = open_page(browser, user=None, state={})
+            page.set_default_timeout(1000)
+            page.route("http://evidence.test/", lambda route: held.append(route))
+            page.goto("http://evidence.test/")
+    assert json.loads((out / "failure-0-0.json").read_text())["url"] == "about:blank"
+    assert [
+        s["local"] for s in json.loads((out / "ui-0-sockets.json").read_text())
+    ] == [
+        27050,
+        50000,
+    ]
+    assert (out / "ui-0.log").read_text() == "served\n"
+
+
+def test_probe_reports_a_document_still_loading(tmp_path):
+    from harness import open_page, probe, session
+
+    held = []
+    with session(tmp_path) as browser:
+        context, page, errors = open_page(browser, user=None, state={})
+        page.route(
+            "http://evidence.test/",
+            lambda route: route.fulfill(
+                body='<script src="/held.js"></script>', content_type="text/html"
+            ),
+        )
+        page.route("http://evidence.test/held.js", lambda route: held.append(route))
+        page.goto("http://evidence.test/", wait_until="commit")
+        page.wait_for_function("() => document.scripts.length === 1")
+        assert probe(context, page)["document"] == "loading"
+        context.close()
+
+
+def test_ui_logs_the_client_port_once_a_body_is_written(tmp_path, monkeypatch):
+    import http.client
+    import threading
+
+    (tmp_path / "index.html").write_text("app")
+    lines = []
+    monkeypatch.setattr(evidence, "log", lines.append)
+
+    def handler(*a, **kw):
+        return evidence.UIHandler(*a, directory=str(tmp_path), api_url="", **kw)
+
+    with evidence.UIServer((evidence.HOST, 0), handler) as server:
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        connection = http.client.HTTPConnection(evidence.HOST, server.server_address[1])
+        connection.connect()
+        port = connection.sock.getsockname()[1]
+        connection.request("GET", "/org/x?env=production")
+        assert connection.getresponse().read() == b"app"
+        server.shutdown()
+    assert any(line.endswith(f"port {port} wrote body") for line in lines)
+
+
 def test_settle_excludes_only_named_targets():
     from playwright.sync_api import sync_playwright
 

@@ -11,7 +11,9 @@ import evidence
 from playwright.sync_api import sync_playwright
 
 repo = Path(__file__).resolve().parents[2]
-UI_LOGS = []
+# The port and log file of every UI server this suite started.
+UI_SERVERS = []
+TCP_TABLES = ("/proc/net/tcp", "/proc/net/tcp6")
 
 # A clipboard per page; every suite shares one Chromium and its one system clipboard.
 CLIPBOARD_JS = """Object.defineProperty(navigator, "clipboard", {
@@ -31,7 +33,7 @@ def load_state(args, name, scenario, *, issuer=None):
                 lambda: evidence.stop_state(evidence.load_state(args.state))
             )
     state = evidence.load_state(args.state)
-    UI_LOGS.append(Path(state["root"]) / "ui.log")
+    UI_SERVERS.append((state["ports"]["ui"], Path(state["root"]) / "ui.log"))
     return state
 
 
@@ -54,7 +56,7 @@ TCP_STATES = [
 def tcp_sockets(port):
     """Linux's TCP sockets on `port` with their queued bytes; a LISTEN socket's receive queue counts unaccepted connections."""
     sockets = []
-    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+    for table in TCP_TABLES:
         with contextlib.suppress(OSError):
             for line in Path(table).read_text().splitlines()[1:]:
                 _, local, remote, state, queues = line.split()[:5]
@@ -76,8 +78,7 @@ def tcp_sockets(port):
 
 
 def probe(context, page):
-    """The UI port's sockets, the page's readyState and a fetch of its URL outside the renderer."""
-    sockets = tcp_sockets(urlparse(page.url).port)
+    """The page's readyState and a fetch of its URL outside the renderer."""
     try:
         document = page.wait_for_function(
             "document.readyState", timeout=3000
@@ -89,7 +90,7 @@ def probe(context, page):
         fetched = {"status": response.status, "bytes": len(response.body())}
     except Exception as err:
         fetched = {"error": str(err).splitlines()[0]}
-    return {"sockets": sockets, "document": document, "fetched": fetched}
+    return {"document": document, "fetched": fetched}
 
 
 @contextlib.contextmanager
@@ -101,12 +102,14 @@ def session(out, **launch_options):
         try:
             yield browser
         except BaseException:
+            sockets = [tcp_sockets(port) for port, _ in UI_SERVERS]
             # test:ui labels a suite's repeat runs name#2, name#3; each keeps its own directory.
             _, repeat, number = os.environ.get("UI_RUN_LABEL", "").partition("#")
             if repeat:
                 out = out.with_name(f"{out.name}#{number}")
             out.mkdir(parents=True, exist_ok=True)
-            for number, ui_log in enumerate(UI_LOGS):
+            for number, (_, ui_log) in enumerate(UI_SERVERS):
+                evidence.write_json(out / f"ui-{number}-sockets.json", sockets[number])
                 with contextlib.suppress(Exception):
                     shutil.copy(ui_log, out / f"ui-{number}.log")
             for index, context in enumerate(browser.contexts):
