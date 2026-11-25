@@ -23,6 +23,8 @@ const pairs = [
 	["--btn-fg", "--btn"] as const,
 	["--brand", "--bg"] as const,
 	["--brand", "--panel"] as const,
+	["--brand", "--shell"] as const,
+	["--fg", "--shell-active"] as const,
 ];
 
 const sheets = [
