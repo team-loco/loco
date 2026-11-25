@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { EntityScopeSchema, EntityType, Scope } from "@gen/loco/token/v1/token_pb";
-import { hasOrganizationMembership, levelOn, scopeLevel } from "./useMyScopes";
+import { hasOrganizationMembership, holdsScope, levelOn, scopeLevel } from "./useMyScopes";
 
 const ORG = "organization";
 
@@ -49,5 +49,20 @@ describe("system scopes", () => {
 			expect(level).toBe(scopeLevel(Scope.READ));
 			expect(level).toBeLessThan(scopeLevel(Scope.WRITE));
 		}
+	});
+	test("a system admin scope gives write and admin level and holds every scope", () => {
+		const scopes = [create(EntityScopeSchema, { entityType: EntityType.SYSTEM, scope: Scope.ADMIN })];
+		for (const entityType of [EntityType.ORGANIZATION, EntityType.WORKSPACE, EntityType.RESOURCE]) {
+			expect(levelOn(scopes, entityType, "any")).toBe(scopeLevel(Scope.ADMIN));
+		}
+		for (const scope of [Scope.READ, Scope.WRITE, Scope.ADMIN]) {
+			expect(holdsScope(scopes, ORG, "ws", scope)).toBe(true);
+		}
+	});
+	test("a system read scope holds read only", () => {
+		const scopes = [create(EntityScopeSchema, { entityType: EntityType.SYSTEM, scope: Scope.READ })];
+		expect(holdsScope(scopes, ORG, "ws", Scope.READ)).toBe(true);
+		expect(holdsScope(scopes, ORG, "ws", Scope.WRITE)).toBe(false);
+		expect(holdsScope(scopes, ORG, "ws", Scope.ADMIN)).toBe(false);
 	});
 });

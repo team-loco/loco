@@ -605,7 +605,7 @@ func TestSystemRolesCoverEveryEntity(t *testing.T) {
 	}
 	held := map[queries.Scope][]queries.Scope{
 		queries.ScopeRead:  {queries.ScopeMember, queries.ScopeRead},
-		queries.ScopeAdmin: {queries.ScopeMember, queries.ScopeRead, queries.ScopeAdmin},
+		queries.ScopeAdmin: {queries.ScopeMember, queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin},
 	}
 	for role, allowed := range held {
 		granted := []queries.EntityScope{{EntityType: queries.EntityTypeSystem, Scope: role}}

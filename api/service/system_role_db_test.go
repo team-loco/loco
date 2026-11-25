@@ -348,6 +348,29 @@ func TestSystemReaderReadsEveryOrganizationAndChangesNothing(t *testing.T) {
 	}
 }
 
+func TestSystemAdminChangesAnOrganizationItDoesNotBelongTo(t *testing.T) {
+	t.Parallel()
+	o := newMembershipOrg(t)
+	admin := o.api.signUp(t, "sysadmin")
+	roles := auth.SystemRoles{Admins: []string{membershipEmail("sysadmin")}}
+	if err := auth.SyncSystemRoles(t.Context(), o.api.pool, roles); err != nil {
+		t.Fatal(err)
+	}
+	o.api.resolver = auth.NewResolver(o.api.pool, auth.SignupPolicy{}, limits.Defaults(), time.Hour,
+		auth.WithSystemRoles(roles))
+	o.api.signIn(t, "sysadmin")
+	ctx := t.Context()
+
+	if _, err := admin.clients.Org.UpdateOrg(ctx,
+		&orgv1.UpdateOrgRequest{OrgId: o.orgID, Name: new("renamed")}); err != nil {
+		t.Errorf("update org: %v", err)
+	}
+	if _, err := admin.clients.Workspace.CreateWorkspace(ctx,
+		&workspacev1.CreateWorkspaceRequest{OrgId: o.orgID, Name: "operations"}); err != nil {
+		t.Errorf("create workspace: %v", err)
+	}
+}
+
 func TestConcurrentRoleChangesKeepOneSystemAdmin(t *testing.T) {
 	a, configAdmin := newSystemRoleAPI(t)
 	first, second := a.signUp(t, "first"), a.signUp(t, "second")

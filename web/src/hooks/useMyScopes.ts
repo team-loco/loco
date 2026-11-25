@@ -53,6 +53,17 @@ export function hasOrganizationMembership(scopes: readonly EntityScope[], orgId:
 	);
 }
 
+/** True when a grant on the organization or workspace, or a system grant (admin holds every scope), gives scope. */
+export function holdsScope(scopes: readonly EntityScope[], orgId: string, workspaceId: string, scope: Scope): boolean {
+	return scopes.some(
+		(s) =>
+			(s.entityType === EntityType.SYSTEM && (s.scope === scope || s.scope === Scope.ADMIN)) ||
+			(s.scope === scope &&
+				((s.entityType === EntityType.ORGANIZATION && s.entityId === orgId) ||
+					(s.entityType === EntityType.WORKSPACE && s.entityId === workspaceId))),
+	);
+}
+
 export function useMyScopes({ enabled = true }: { enabled?: boolean } = {}) {
 	const { data, isLoading } = useQuery(getScopes, {}, { enabled });
 	const scopes = data?.scopes ?? [];
@@ -71,13 +82,7 @@ export function useMyScopes({ enabled = true }: { enabled?: boolean } = {}) {
 	};
 
 	const holds = (orgId: string, workspaceId: string, scope: Scope): boolean =>
-		scopes.some(
-			(s) =>
-				s.scope === scope &&
-				(s.entityType === EntityType.SYSTEM ||
-					(s.entityType === EntityType.ORGANIZATION && s.entityId === orgId) ||
-					(s.entityType === EntityType.WORKSPACE && s.entityId === workspaceId)),
-		);
+		holdsScope(scopes, orgId, workspaceId, scope);
 
 	const resourceGrants = (orgId: string, workspaceId: string): ResourceGrants | undefined => {
 		if (isLoading) return undefined;
