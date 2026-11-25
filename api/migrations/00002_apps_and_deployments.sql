@@ -122,7 +122,9 @@ CREATE TABLE
         last_heartbeat TIMESTAMPTZ NOT NULL,
         health_status TEXT NOT NULL CHECK (
             health_status IN ('healthy', 'unhealthy', 'degraded')
-        )
+        ),
+        -- Set to the last heartbeat heard while cluster.silent is outstanding; cleared by cluster.recovered.
+        silent_since TIMESTAMPTZ
     );
 
 

@@ -221,12 +221,37 @@ func registeredAs(row genDb.GetEnrolledClusterRow, key uuid.UUID) (registeredClu
 	return registeredCluster{id: row.ID, name: row.Name, region: row.Region}, nil
 }
 
-// recordHeartbeat records that the cluster is alive and how healthy it is.
+// recordHeartbeat records that the cluster is alive and how healthy it is, and a change of health as an event.
 func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {
-	err := s.queries.RecordClusterHeartbeat(ctx, genDb.RecordClusterHeartbeatParams{
-		ID:            clusterID,
-		LastHeartbeat: time.Now(),
-		HealthStatus:  healthStatusFromProto(heartbeat.GetHealth()),
+	status := healthStatusFromProto(heartbeat.GetHealth())
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		row, err := qtx.RecordClusterHeartbeat(ctx, genDb.RecordClusterHeartbeatParams{
+			ID:            clusterID,
+			LastHeartbeat: time.Now(),
+			HealthStatus:  status,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if row.PreviousStatus == "" || row.PreviousStatus == status {
+			return nil
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.ClusterHealthChanged,
+			ActorType:   "agent",
+			ActorID:     new(clusterID),
+			SubjectType: events.SubjectCluster,
+			SubjectID:   new(clusterID),
+			Data: map[string]any{
+				events.FieldName:   row.Name,
+				events.FieldRegion: row.Region,
+				events.FieldOld:    row.PreviousStatus,
+				events.FieldNew:    status,
+			},
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record heartbeat", "error", err, "cluster_id", clusterID)

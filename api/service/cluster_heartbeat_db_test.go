@@ -266,3 +266,60 @@ SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_st
 		t.Fatalf("set heartbeats: %v", err)
 	}
 }
+
+func (f *deployFixture) healthChanges(t *testing.T) []map[string]any {
+	t.Helper()
+	rows, err := f.pool.Query(
+		t.Context(),
+		`SELECT data FROM events WHERE type = 'cluster.health_changed' AND subject_id = $1 AND org_id IS NULL ORDER BY seq`,
+		f.clusterID,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var all []map[string]any
+	for rows.Next() {
+		var data map[string]any
+		if err := rows.Scan(&data); err != nil {
+			t.Fatal(err)
+		}
+		all = append(all, data)
+	}
+	return all
+}
+
+func TestHeartbeatRecordsOneEventPerHealthChange(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := f.agentServer()
+	degraded := &agentv1.Heartbeat{
+		Role:   clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+		Health: &agentv1.AgentHealth{KubernetesHealthy: true},
+	}
+
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	if changes := f.healthChanges(t); len(changes) != 0 {
+		t.Fatalf("events for the first and a repeated healthy heartbeat = %v, want none", changes)
+	}
+
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() { server.recordHeartbeat(t.Context(), f.clusterID, degraded) })
+	}
+	wg.Wait()
+	changes := f.healthChanges(t)
+	if len(changes) != 1 || changes[0]["old"] != clusterHealthHealthy || changes[0]["new"] != clusterHealthDegraded ||
+		changes[0]["region"] == "" || changes[0]["name"] == "" {
+		t.Fatalf(
+			"events after concurrent degraded heartbeats = %v, want one healthy to degraded naming the cluster",
+			changes,
+		)
+	}
+
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	if changes := f.healthChanges(t); len(changes) != 2 || changes[1]["new"] != clusterHealthHealthy {
+		t.Fatalf("events after recovery = %v, want a second one ending healthy", changes)
+	}
+}

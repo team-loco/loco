@@ -30,6 +30,8 @@ type Querier interface {
 	ClaimInvitation(ctx context.Context, arg ClaimInvitationParams) (Invitation, error)
 	ClaimSystemRole(ctx context.Context, arg ClaimSystemRoleParams) (int64, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
+	// Clears the mark of each active cluster heard since heard_since and returns it once with the heartbeat it was silent from.
+	ClearRecoveredClusters(ctx context.Context, heardSince time.Time) ([]ClearRecoveredClustersRow, error)
 	ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error
 	CountBuildsForResource(ctx context.Context, arg CountBuildsForResourceParams) (int64, error)
 	CountDeployments(ctx context.Context, arg CountDeploymentsParams) (int64, error)
@@ -312,6 +314,8 @@ type Querier interface {
 	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) error
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
+	// Marks each active cluster whose last heartbeat is older than heard_since and returns it once.
+	MarkSilentClusters(ctx context.Context, heardSince time.Time) ([]MarkSilentClustersRow, error)
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
 	// Regions are the region codes on cluster rows.
@@ -343,7 +347,9 @@ type Querier interface {
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
-	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) error
+	// Returns nothing for a removed cluster. previous_status is empty for the cluster's first heartbeat; the row lock
+	// orders concurrent heartbeats so each status change is seen once.
+	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) (RecordClusterHeartbeatRow, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RegionHasClusters(ctx context.Context, region string) (bool, error)
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error

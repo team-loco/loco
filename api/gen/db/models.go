@@ -759,9 +759,10 @@ type ClusterAssertion struct {
 }
 
 type ClusterHeartbeat struct {
-	ClusterID     uuid.UUID `json:"clusterId"`
-	LastHeartbeat time.Time `json:"lastHeartbeat"`
-	HealthStatus  string    `json:"healthStatus"`
+	ClusterID     uuid.UUID  `json:"clusterId"`
+	LastHeartbeat time.Time  `json:"lastHeartbeat"`
+	HealthStatus  string     `json:"healthStatus"`
+	SilentSince   *time.Time `json:"silentSince"`
 }
 
 type Deployment struct {

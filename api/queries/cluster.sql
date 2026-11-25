@@ -11,13 +11,49 @@ SET agent_version = $2,
     updated_at = NOW()
 WHERE id = $1;
 
--- name: RecordClusterHeartbeat :exec
-INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
-SELECT id, sqlc.arg(last_heartbeat)::timestamptz, sqlc.arg(health_status)::text
-FROM clusters WHERE id = sqlc.arg(id) AND removed_at IS NULL
-FOR KEY SHARE
-ON CONFLICT (cluster_id) DO UPDATE
-SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_status;
+-- name: RecordClusterHeartbeat :one
+-- Returns nothing for a removed cluster. previous_status is empty for the cluster's first heartbeat; the row lock
+-- orders concurrent heartbeats so each status change is seen once.
+WITH target AS (
+    SELECT id, name, region FROM clusters
+    WHERE id = sqlc.arg(id) AND removed_at IS NULL
+    FOR KEY SHARE
+), previous AS (
+    SELECT health_status FROM cluster_heartbeats
+    WHERE cluster_id = sqlc.arg(id) AND EXISTS (SELECT 1 FROM target)
+    FOR UPDATE
+), written AS (
+    INSERT INTO cluster_heartbeats (cluster_id, last_heartbeat, health_status)
+    SELECT id, sqlc.arg(last_heartbeat)::timestamptz, sqlc.arg(health_status)::text FROM target
+    ON CONFLICT (cluster_id) DO UPDATE
+    SET last_heartbeat = EXCLUDED.last_heartbeat, health_status = EXCLUDED.health_status
+    RETURNING cluster_id
+)
+SELECT target.name, target.region, COALESCE((SELECT health_status FROM previous), '')::text AS previous_status
+FROM target JOIN written ON written.cluster_id = target.id;
+
+-- name: MarkSilentClusters :many
+-- Marks each active cluster whose last heartbeat is older than heard_since and returns it once.
+UPDATE cluster_heartbeats h
+SET silent_since = h.last_heartbeat
+FROM clusters c
+WHERE c.id = h.cluster_id AND c.removed_at IS NULL AND c.is_active
+  AND h.silent_since IS NULL AND h.last_heartbeat < sqlc.arg(heard_since)::timestamptz
+RETURNING c.id, c.name, c.region, h.silent_since::timestamptz AS silent_since;
+
+-- name: ClearRecoveredClusters :many
+-- Clears the mark of each active cluster heard since heard_since and returns it once with the heartbeat it was silent from.
+WITH recovered AS (
+    SELECT h.cluster_id, h.silent_since FROM cluster_heartbeats h JOIN clusters c ON c.id = h.cluster_id
+    WHERE c.removed_at IS NULL AND c.is_active
+      AND h.silent_since IS NOT NULL AND h.last_heartbeat >= sqlc.arg(heard_since)::timestamptz
+    FOR UPDATE OF h
+)
+UPDATE cluster_heartbeats h
+SET silent_since = NULL
+FROM recovered r JOIN clusters c ON c.id = r.cluster_id
+WHERE h.cluster_id = r.cluster_id
+RETURNING c.id, c.name, c.region, r.silent_since::timestamptz AS silent_since;
 
 -- name: UpdateClusterReport :exec
 -- Matches only a changed report from the current stream; an unchanged one takes no lock on the cluster.

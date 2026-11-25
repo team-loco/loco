@@ -265,6 +265,7 @@ type deps struct {
 	registrySweeper *sweepers.RegistrySweeper
 
 	placementWindowSweeper *sweepers.PlacementWindowSweeper
+	clusterSilenceSweeper  *sweepers.ClusterSilenceSweeper
 
 	config        *service.ConfigServer
 	clusterAdmin  *service.ClusterAdminServer
@@ -431,6 +432,7 @@ func newDeps(
 		registrySweeper:    registrySweeper,
 
 		placementWindowSweeper: sweepers.NewPlacementWindowSweeper(pool, placementWindowSweep),
+		clusterSilenceSweeper:  sweepers.NewClusterSilenceSweeper(pool, clusterSilentAfter, ac.HeartbeatInterval),
 
 		config: service.NewConfigServer(service.ConfigSettings{
 			APIVersion:                ac.Version,
@@ -592,6 +594,7 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval, tokenRetention) })
 	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
 	background.Go(func() { d.placementWindowSweeper.Run(ctx) })
+	background.Go(func() { d.clusterSilenceSweeper.Run(ctx) })
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })
 	background.Go(func() { events.RunPublisher(ctx, d.eventPool) })
 	background.Go(func() { d.placementNotifier.Run(ctx) })
