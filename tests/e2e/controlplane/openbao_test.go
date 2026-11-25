@@ -135,8 +135,6 @@ func (cp *controlPlane) checkRestore(t *testing.T) {
 	}
 	cp.upgrade(t)
 	cp.secrets.setOnceTheAPILogsIn(t, "AFTER_RESTORE")
-	// The API pods report ready again on their next readiness probe after transit answers.
-	kubectl("wait", "--for=condition=Ready", "pod", "-l", "app="+release+"-api", "--timeout", installTimeout.String())
 	cp.checkSecretNames(t, "AFTER_RESTORE AFTER_UPGRADE BEFORE_UPGRADE")
 }
 
