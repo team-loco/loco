@@ -176,7 +176,7 @@ export function baseline(
 	isPublic: boolean,
 	defaults: DefaultServiceConfig,
 	failurePolicy: FailurePolicy | undefined,
-	storedHealth: HealthCheckConfig | undefined,
+	storedHealth?: HealthCheckConfig,
 ): Baseline {
 	const templateView = templateRegion(regions);
 	const template = templateView?.current;
@@ -317,7 +317,7 @@ function healthChanges(next: Baseline, base: Baseline): string[] {
 
 /** Whether saving the draft removes the service's health check. */
 export function healthRemoved(draft: SettingsDraft, base: Baseline): boolean {
-	return base.healthEnabled && !resolved(draft, base).healthEnabled;
+	return base.healthEnabled && draft.healthEnabled === false;
 }
 
 export function changeCount(draft: SettingsDraft, base: Baseline): number {
