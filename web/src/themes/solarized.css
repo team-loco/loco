@@ -143,3 +143,7 @@
 		border-radius: 2px;
 	}
 }
+
+[data-theme="solarized"] :is(.sb-search, [data-slot="account-button"], [data-slot="chip"], .dwa-chip) {
+	border-radius: 2px;
+}
