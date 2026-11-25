@@ -38,6 +38,8 @@ builds:
 
 The control-plane chart generates missing ClickHouse credentials and preserves existing ones. OpenBao supports static, KMS or transit auto-unseal. Keep the seal material, recovery shares and snapshots under separate backup and custody procedures. External ClickHouse and OpenBao remain supported through their chart settings.
 
+The worker chart enables branded application error pages when `env.CONTROL_PLANE_URL` uses HTTPS and the API certificate is trusted by Envoy's system roots. Upgrade the control plane before enabling the worker fallback.
+
 ## Installation roles
 
 An installation role applies to the whole installation rather than one organization. There are two:

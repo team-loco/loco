@@ -8,7 +8,7 @@ import (
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
-var p = platform.New(platform.Features{Name: "apps"})
+var p = platform.New(platform.Features{Name: "apps", ApplicationFallback: true})
 
 func TestMain(m *testing.M) {
 	os.Exit(p.Run(m))

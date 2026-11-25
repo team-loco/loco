@@ -75,6 +75,11 @@ func (p *Platform) up(ctx context.Context) error {
 	if err := images.load(ctx); err != nil {
 		return err
 	}
+	if p.ApplicationFallback {
+		if err := p.startApplicationFallbackProxy(ctx); err != nil {
+			return err
+		}
+	}
 	if err := p.installWorker(ctx, images, false); err != nil {
 		return err
 	}
@@ -101,6 +106,8 @@ func (p *Platform) up(ctx context.Context) error {
 		if err := p.installWorker(ctx, images, true); err != nil {
 			return err
 		}
+	}
+	if p.Observability || p.ApplicationFallback {
 		if err := p.forwardGateway(ctx); err != nil {
 			return err
 		}
@@ -119,7 +126,7 @@ func (p *Platform) checkPorts(ctx context.Context) error {
 		"API": p.ports.api, "API replica": p.ports.apiReplica, "observability proxy": p.ports.obsProxy,
 		"OTLP/gRPC ingest": p.ports.otlpGRPC, "OTLP/HTTP ingest": p.ports.otlpHTTP,
 	}
-	if p.Observability {
+	if p.Observability || p.ApplicationFallback {
 		required["gateway"] = p.ports.gateway
 	}
 	for purpose, port := range required {

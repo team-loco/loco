@@ -153,6 +153,17 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 	} else {
 		args = append(args, setFlag, "cluster.role=apps")
 	}
+	if p.ApplicationFallback {
+		if p.clusterReused {
+			if _, err := p.Kubectl(ctx, "-n", workerRelease+"-fallback", "delete",
+				"backendtlspolicy", "control-plane", "--ignore-not-found"); err != nil {
+				return err
+			}
+		}
+		args = append(
+			args, setFlag, fmt.Sprintf("env.CONTROL_PLANE_URL=https://%s:%d", fallbackAPIHost, fallbackAPIPort),
+		)
+	}
 	if collectors {
 		args = append(args, "--values", filepath.Join(p.root, "tests", "e2e", "obs-values.yaml"),
 			setFlag, fmt.Sprintf("global.exporter.endpoint=http://%s:%d", p.ingestContainer(), p.values.ingestHTTPPort))
@@ -186,6 +197,11 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 	args = append(args, "--wait=legacy", "--timeout", rolloutTimeout.String())
 	if _, err := p.Command(ctx, "helm", args...); err != nil {
 		return err
+	}
+	if p.ApplicationFallback {
+		if err := p.trustApplicationFallbackProxy(ctx); err != nil {
+			return err
+		}
 	}
 	if !p.Builds && p.clusterReused {
 		if _, err := p.Kubectl(
@@ -267,30 +283,35 @@ func tag(reference string) string        { return reference[strings.LastIndex(re
 // GatewayHTTPS requests path at host through the gateway's HTTPS listener and returns the status.
 // It trusts only the run's gateway certificate and checks it covers host.
 func (p *Platform) GatewayHTTPS(ctx context.Context, host, path string) (int, error) {
-	pem, err := os.ReadFile(filepath.Join(p.dir, "gateway-tls.crt"))
+	response, err := p.GatewayHTTPSResponse(ctx, host, path)
 	if err != nil {
 		return 0, err
 	}
+	return response.StatusCode, response.Body.Close()
+}
+
+func (p *Platform) GatewayHTTPSResponse(ctx context.Context, host, path string) (*http.Response, error) {
+	pem, err := os.ReadFile(filepath.Join(p.dir, "gateway-tls.crt"))
+	if err != nil {
+		return nil, err
+	}
 	roots := x509.NewCertPool()
 	if !roots.AppendCertsFromPEM(pem) {
-		return 0, errors.New("the gateway certificate is not PEM")
+		return nil, errors.New("the gateway certificate is not PEM")
 	}
 	client := http.Client{
 		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: host, MinVersion: tls.VersionTLS12},
 		},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	request, err := http.NewRequestWithContext(
 		ctx, http.MethodGet, "https://127.0.0.1:"+strconv.Itoa(p.ports.gatewayTLS)+path, nil,
 	)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	request.Host = host
-	response, err := client.Do(request)
-	if err != nil {
-		return 0, err
-	}
-	return response.StatusCode, response.Body.Close()
+	return client.Do(request)
 }

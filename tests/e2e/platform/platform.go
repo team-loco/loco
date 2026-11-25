@@ -27,10 +27,11 @@ import (
 // Features selects the install of a shard.
 type Features struct {
 	// Name names the shard's kind cluster, compose project and run directory.
-	Name          string
-	Builds        bool
-	Observability bool
-	RegistryToken bool
+	Name                string
+	Builds              bool
+	Observability       bool
+	RegistryToken       bool
+	ApplicationFallback bool
 }
 
 const (

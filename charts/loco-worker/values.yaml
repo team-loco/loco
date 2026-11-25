@@ -267,6 +267,8 @@ gateway-helm:
               resource: limits.memory
   config:
     envoyGateway:
+      extensionApis:
+        enableBackend: true
       provider:
         type: Kubernetes
         kubernetes:

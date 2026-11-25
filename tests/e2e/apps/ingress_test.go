@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"slices"
 	"strings"
@@ -67,6 +69,9 @@ func TestIngress(t *testing.T) {
 	})
 
 	publicID, privateID := w.ResourceID(t, public), w.ResourceID(t, private)
+	t.Run("the gateway serves fallback pages without replacing application responses", func(t *testing.T) {
+		checkApplicationFallback(t, w, publicID, publicHost)
+	})
 	t.Run("only the public app is routed", func(t *testing.T) {
 		hostnames := p.MustKubectl(
 			t,
@@ -197,6 +202,57 @@ func TestIngress(t *testing.T) {
 			t.Errorf("the plan created a resource for the unserved domain (%v)", err)
 		}
 	})
+}
+
+func checkApplicationFallback(t *testing.T, w *platform.Workspace, publicID, publicHost string) {
+	t.Helper()
+	secondaryHost := w.Host("secondary")
+	registered, err := p.User.Domain.CreateResourceDomain(t.Context(), &domainv1.CreateResourceDomainRequest{
+		ResourceId: publicID,
+		Domain: &domainv1.DomainInput{
+			DomainSource: domainv1.DomainType_DOMAIN_TYPE_APP,
+			Subdomain:    new(strings.TrimSuffix(secondaryHost, "."+p.Domain)),
+			AppDomain:    new(p.Domain),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if _, err := p.User.Domain.DeleteResourceDomain(t.Context(), &domainv1.DeleteResourceDomainRequest{
+			DomainId: registered.GetDomainId(),
+		}); err != nil {
+			t.Error(err)
+		}
+	}()
+	for _, tc := range []struct {
+		host, path string
+		status     int
+		want       string
+	}{
+		{w.Host("missing"), "/example", http.StatusNotFound, "Application not found"},
+		{secondaryHost, "/", http.StatusNotFound, "Application unavailable"},
+		{publicHost, "/", http.StatusOK, "Welcome to nginx!"},
+		{publicHost, "/missing-test-page", http.StatusNotFound, "404 Not Found"},
+	} {
+		platform.Eventually(t, routeTimeout, tc.host+tc.path, func(ctx context.Context) error {
+			res, err := p.GatewayHTTPSResponse(ctx, tc.host, tc.path)
+			if err != nil {
+				return err
+			}
+			body, err := io.ReadAll(res.Body)
+			if closeErr := res.Body.Close(); closeErr != nil {
+				return closeErr
+			}
+			if err != nil {
+				return err
+			}
+			if res.StatusCode != tc.status || !strings.Contains(string(body), tc.want) {
+				return fmt.Errorf("status %d, body %s", res.StatusCode, body)
+			}
+			return nil
+		})
+	}
 }
 
 func resourceDomains(t *testing.T, w *platform.Workspace, name string) []*domainv1.ResourceDomain {
