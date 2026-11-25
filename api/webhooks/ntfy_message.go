@@ -49,8 +49,6 @@ func notificationFor(
 		Reason        string  `json:"reason"`
 		Name          string  `json:"name"`
 		Region        string  `json:"region"`
-		Old           string  `json:"old"`
-		New           string  `json:"new"`
 		ResourceName  string  `json:"resource_name"`
 		SilentSeconds float64 `json:"silentSeconds"`
 	}
@@ -85,10 +83,16 @@ func notificationFor(
 			time.Duration(data.SilentSeconds*float64(time.Second)).Round(time.Second),
 		)
 	case events.ClusterHealthChanged:
+		// old and new are strings only in cluster health events; other events record objects there.
+		var health struct {
+			Old string `json:"old"`
+			New string `json:"new"`
+		}
+		if err := json.Unmarshal(row.Data, &health); err != nil {
+			return notification{}, fmt.Errorf("decode cluster health: %w", err)
+		}
 		n.Title, n.Tags = "Cluster health changed", "warning,cluster"
-		n.Message = fmt.Sprintf(
-			"Cluster %s went from %s to %s.", cluster, data.Old, data.New,
-		)
+		n.Message = fmt.Sprintf("Cluster %s went from %s to %s.", cluster, health.Old, health.New)
 	case events.OrgSuspended:
 		n.Title, n.Tags = "Organization suspended", "no_entry"
 		n.Message = fmt.Sprintf("%s was suspended: %s", names.OrgName, data.Reason)

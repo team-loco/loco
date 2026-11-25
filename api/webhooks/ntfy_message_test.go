@@ -130,6 +130,18 @@ func TestNotificationFor(t *testing.T) {
 			tags:     "warning,cluster",
 		},
 		{
+			name: "event with object old and new values",
+			row: genDb.GetWebhookDeliveryPayloadRow{
+				Type: events.OrgLimitsChanged, OrgID: &org,
+				Data: []byte(`{"old":{"max_workspaces":3},"new":{"max_workspaces":5}}`),
+			},
+			names:    genDb.GetEventNamesRow{OrgName: names.OrgName},
+			title:    "Org limits changed",
+			message:  "Org limits changed: acme",
+			priority: 3,
+			tags:     "bell",
+		},
+		{
 			name: "organization suspended",
 			row: genDb.GetWebhookDeliveryPayloadRow{
 				Type: events.OrgSuspended, OrgID: &org, Data: []byte(`{"reason":"unpaid invoice"}`),
