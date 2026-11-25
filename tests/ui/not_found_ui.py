@@ -143,7 +143,7 @@ with session(out) as browser:
     expect(top_search).to_be_visible()
     page.set_viewport_size(evidence.NARROW)
     expect(top_search).to_be_visible()
-    expect(top_search).not_to_contain_text("Search or jump to…")
+    expect(top_search.get_by_text("Search or jump to…")).to_be_hidden()
     page.set_viewport_size(evidence.DESKTOP)
     top_search.focus()
     page.keyboard.press("Enter")
