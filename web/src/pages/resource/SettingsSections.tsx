@@ -22,6 +22,7 @@ import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
 import {
 	RESTART_CHOICES,
+	healthEdit,
 	scalingDiffers,
 	type Baseline,
 	type DraftErrors,
@@ -304,6 +305,9 @@ export function HealthSection({
 }: SectionProps & { deployed: boolean }) {
 	const enabled = draft.healthEnabled ?? base.healthEnabled;
 	const disabled = locked || !deployed;
+	const edit = (patch: Partial<SettingsDraft>) => {
+		onChange(healthEdit(draft, base, patch));
+	};
 	return (
 		<SettingsBlock
 			id={HEALTH_SECTION_ID}
@@ -320,7 +324,7 @@ export function HealthSection({
 					disabled={disabled}
 					aria-describedby={describedBy}
 					onCheckedChange={(healthEnabled) => {
-						onChange({ healthEnabled });
+						edit({ healthEnabled });
 					}}
 				/>
 			}
@@ -335,7 +339,7 @@ export function HealthSection({
 							aria-describedby={describedBy}
 							aria-invalid={errors.healthPath !== undefined}
 							onChange={(e) => {
-								onChange({ healthPath: e.target.value });
+								edit({ healthPath: e.target.value });
 							}}
 						/>
 					</Field>
@@ -347,7 +351,7 @@ export function HealthSection({
 						locked={disabled}
 						describedBy={describedBy}
 						onChange={(healthInterval) => {
-							onChange({ healthInterval });
+							edit({ healthInterval });
 						}}
 					/>
 					<UnitInput
@@ -358,7 +362,7 @@ export function HealthSection({
 						locked={disabled}
 						describedBy={describedBy}
 						onChange={(healthTimeout) => {
-							onChange({ healthTimeout });
+							edit({ healthTimeout });
 						}}
 					/>
 					<UnitInput
@@ -369,7 +373,7 @@ export function HealthSection({
 						locked={disabled}
 						describedBy={describedBy}
 						onChange={(healthFailures) => {
-							onChange({ healthFailures });
+							edit({ healthFailures });
 						}}
 					/>
 				</div>

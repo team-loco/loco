@@ -103,11 +103,12 @@ export interface SettingsDraft {
 	cpu?: string;
 	memory?: string;
 	port?: string;
-	healthEnabled?: boolean;
-	healthPath?: string;
-	healthInterval?: string;
-	healthTimeout?: string;
-	healthFailures?: string;
+	/** Set while a health check edit is pending: the switch the user left on or off. */
+	healthEnabled?: boolean | undefined;
+	healthPath?: string | undefined;
+	healthInterval?: string | undefined;
+	healthTimeout?: string | undefined;
+	healthFailures?: string | undefined;
 	command?: string;
 	args?: string;
 	regions?: Record<string, boolean>;
@@ -137,8 +138,8 @@ export interface Baseline {
 	port: string;
 	/** Whether the service runs a health check; the health fields hold the API defaults when it does not. */
 	healthEnabled: boolean;
-	/** Seconds; settings show no field for it. */
-	healthDelay: number;
+	/** The API's startup delay for a new check, in seconds; settings show no field for it. */
+	healthDefaultDelay: number;
 	healthPath: string;
 	healthInterval: string;
 	healthTimeout: string;
@@ -196,7 +197,7 @@ export function baseline(
 		memory: size?.memory ?? "",
 		port: svc?.port?.toString() ?? "",
 		healthEnabled: check !== undefined,
-		healthDelay: health?.initialDelaySeconds ?? 0,
+		healthDefaultDelay: defaults.healthCheck?.initialDelaySeconds ?? 0,
 		healthPath: health?.path ?? "",
 		healthInterval: health === undefined ? "" : health.intervalSeconds.toString(),
 		healthTimeout: health === undefined ? "" : health.timeoutSeconds.toString(),
@@ -239,7 +240,7 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		memory: draft.memory ?? base.memory,
 		port: draft.port ?? base.port,
 		healthEnabled: draft.healthEnabled ?? base.healthEnabled,
-		healthDelay: base.healthDelay,
+		healthDefaultDelay: base.healthDefaultDelay,
 		healthPath: draft.healthPath ?? base.healthPath,
 		healthInterval: draft.healthInterval ?? base.healthInterval,
 		healthTimeout: draft.healthTimeout ?? base.healthTimeout,
@@ -287,7 +288,7 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	const next = resolved(draft, base);
 	const names: string[] = SCALAR_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
 	names.push(
-		...healthChanges(next, base),
+		...healthChanges(draft, next, base),
 		...(Object.keys(draft.scaling ?? {}).some((r) => !sameScaling(next.scaling[r], base.scaling[r]))
 			? ["Scaling"]
 			: []),
@@ -307,17 +308,42 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	return names;
 }
 
-/** The health check changes; field edits count only while the check stays on. */
-function healthChanges(next: Baseline, base: Baseline): string[] {
-	if (next.healthEnabled !== base.healthEnabled)
-		return [next.healthEnabled ? "Add health check" : "Remove health check"];
-	if (!next.healthEnabled) return [];
-	return HEALTH_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
+/** The pending health check edit, named against the baseline. */
+function healthChanges(draft: SettingsDraft, next: Baseline, base: Baseline): string[] {
+	if (draft.healthEnabled === undefined) return [];
+	if (!next.healthEnabled) return ["Remove health check"];
+	if (!base.healthEnabled) return ["Add health check"];
+	const fields = HEALTH_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
+	// A check some deployments still run differently after a partial save.
+	return fields.length > 0 ? fields : ["Health check"];
+}
+
+const CLEARED_HEALTH = {
+	healthEnabled: undefined,
+	healthPath: undefined,
+	healthInterval: undefined,
+	healthTimeout: undefined,
+	healthFailures: undefined,
+} as const;
+
+/**
+ * The draft patch for a health check edit. The edit records the switch it was made under, and
+ * clears once it matches the baseline again.
+ */
+export function healthEdit(
+	draft: SettingsDraft,
+	base: Baseline,
+	patch: Partial<SettingsDraft>,
+): Partial<SettingsDraft> {
+	const next = resolved({ ...draft, healthEnabled: draft.healthEnabled ?? base.healthEnabled, ...patch }, base);
+	const fieldsKept = !next.healthEnabled || HEALTH_KEYS.every((k) => !differs(next[k], base[k]));
+	const reverted = next.healthEnabled === base.healthEnabled && fieldsKept;
+	return reverted ? CLEARED_HEALTH : { ...patch, healthEnabled: next.healthEnabled };
 }
 
 /** Whether saving the draft removes the service's health check. */
-export function healthRemoved(draft: SettingsDraft, base: Baseline): boolean {
-	return base.healthEnabled && draft.healthEnabled === false;
+export function healthRemoved(draft: SettingsDraft): boolean {
+	return draft.healthEnabled === false;
 }
 
 export function changeCount(draft: SettingsDraft, base: Baseline): number {
@@ -363,8 +389,7 @@ export function validateDraft(
 		if (portInvalid !== null) errors.port = portInvalid;
 	}
 	if (next.healthEnabled) Object.assign(errors, healthErrors(draft, next));
-	const healthChanged = healthChanges(next, base).length > 0;
-	if (healthChanged && planSave(regions, draft, base).length === 0)
+	if (draft.healthEnabled !== undefined && currentSources(regions).length === 0)
 		errors.healthEnabled = "The health check can be changed once the service is deployed.";
 	const [variableProblem] = addedProblems(draft, base.env).values();
 	if (variableProblem !== undefined) errors.added = variableProblem;
@@ -427,7 +452,7 @@ export function failurePolicyFrom(next: Baseline): FailurePolicy {
 
 function healthFrom(next: Baseline, current: HealthCheckConfig | undefined): HealthCheckConfig {
 	return create(HealthCheckConfigSchema, {
-		initialDelaySeconds: current?.initialDelaySeconds ?? next.healthDelay,
+		initialDelaySeconds: current?.initialDelaySeconds ?? next.healthDefaultDelay,
 		path: next.healthPath.trim(),
 		intervalSeconds: Number(next.healthInterval.trim()),
 		timeoutSeconds: Number(next.healthTimeout.trim()),
@@ -445,8 +470,8 @@ function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline):
 	}
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
 	if (draft.observability !== undefined) svc.observability = create(ObservabilityConfigSchema, want.observability);
-	if (healthChanges(want, base).length > 0)
-		svc.healthCheck = want.healthEnabled ? healthFrom(want, svc.healthCheck) : undefined;
+	if (draft.healthEnabled !== undefined)
+		svc.healthCheck = draft.healthEnabled ? healthFrom(want, svc.healthCheck) : undefined;
 	if (draft.command !== undefined) svc.command = commandEntries(want.command);
 	if (draft.args !== undefined) svc.args = commandEntries(want.args);
 	return next;

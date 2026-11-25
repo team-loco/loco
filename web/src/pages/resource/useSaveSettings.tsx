@@ -179,25 +179,25 @@ export function useSaveSettings({
 
 		const deploys = planSave(regions, effective, base);
 		const savedRegions: string[] = [];
+		let deployFailed = false;
 		for (const planned of deploys) {
 			if (env !== undefined && planned.spec.spec.case === "service") planned.spec.spec.value.env = env;
-			const ok = await attempt(
-				planned.regions.join(", "),
-				[],
-				async () =>
-					await deploy.mutateAsync({
-						resourceId,
-						regions: planned.regions,
-						spec: planned.spec,
-						environmentId,
-						commit: planned.commit,
-						removeHealthCheck: healthRemoved(effective, base),
-					}),
-			);
-			if (ok) savedRegions.push(...planned.regions);
+			try {
+				await deploy.mutateAsync({
+					resourceId,
+					regions: planned.regions,
+					spec: planned.spec,
+					environmentId,
+					commit: planned.commit,
+					removeHealthCheck: healthRemoved(effective),
+				});
+				savedRegions.push(...planned.regions);
+			} catch (err) {
+				deployFailed = true;
+				failures.push(`${planned.regions.join(", ")}: ${getErrorMessage(err, "failed")}`);
+			}
 		}
-		if (savedRegions.length === deploys.flatMap((d) => d.regions).length)
-			next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
+		if (!deployFailed) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
 		setSaving(false);
