@@ -18,10 +18,35 @@ ui = state["ui_url"]
 GRANT = "loco.admin.v1.SystemRoleService/GrantSystemRole"
 REVOKE = "loco.admin.v1.SystemRoleService/RevokeSystemRole"
 SET_STATUS = "loco.user.v1.UserService/SetUserStatus"
+LIST_USERS = "loco.user.v1.UserService/ListUsers"
+GET_USER = "loco.user.v1.UserService/GetUser"
 
 
 def row(page, label):
     return page.get_by_role("row", name=label, exact=True)
+
+
+def listing(route):
+    """Answers ListUsers with two one-user pages, so paging is observable."""
+    token = (route.request.post_data_json or {}).get("pageToken", "")
+    first = token == ""
+    route.fulfill(
+        json={
+            "users": [
+                {
+                    "id": "00000000-0000-4000-8000-00000000000"
+                    + ("1" if first else "2"),
+                    "email": "first@page.test" if first else "second@page.test",
+                    "name": "First Page" if first else "Second Page",
+                }
+            ],
+            **({"nextPageToken": "page-2"} if first else {}),
+        }
+    )
+
+
+def toast(page, text):
+    return page.locator("[data-sonner-toast]").filter(has_text=text)
 
 
 def holder(page, email):
@@ -51,8 +76,12 @@ with session(repo / "tests/ui/out/system-people") as browser:
     expect(page).to_have_url(re.compile(r"/system/users\?.*user=[\w-]+"))
     drawer = page.get_by_role("dialog")
     expect(drawer).to_contain_text("guest@acme.test")
+    expect(drawer.get_by_text("Not a member of any organization.")).to_be_visible()
     expect(page.get_by_role("button", name="Suspend", exact=True)).to_have_count(0)
     expect(page.get_by_role("button", name="Reinstate", exact=True)).to_have_count(0)
+    page.keyboard.press("Escape")
+    row(page, "Open Max Member").click()
+    expect(page.get_by_role("list", name="Organizations")).to_contain_text("acme")
     assert not [e for e in errors if e], errors
     context.close()
 
@@ -84,6 +113,31 @@ with session(repo / "tests/ui/out/system-people") as browser:
     expect(member).to_contain_text("Read")
     expect(member).to_contain_text("Grant")
 
+    # The API refuses a role below a configured one, and the page shows its message.
+    page.get_by_role("button", name="Grant role", exact=True).click()
+    dialog.get_by_role("textbox", name="Email", exact=True).fill("admin@loco.test")
+    expect(dialog).to_contain_text("Account found: Ada Admin")
+    dialog.get_by_role("button", name="Grant read role", exact=True).click()
+    expect(
+        toast(page, "change the configuration to lower or remove that role")
+    ).to_be_visible()
+    dialog.get_by_role("button", name="Cancel", exact=True).click()
+
+    # A failed account lookup says so instead of claiming the user has no account.
+    page.route(
+        "**/" + GET_USER,
+        lambda route: route.fulfill(
+            status=412,
+            json={"code": "failed_precondition", "message": "directory unavailable"},
+        ),
+    )
+    page.get_by_role("button", name="Grant role", exact=True).click()
+    dialog.get_by_role("textbox", name="Email", exact=True).fill("guest@acme.test")
+    expect(dialog).to_contain_text("Directory unavailable")
+    expect(dialog).not_to_contain_text("No user has this email")
+    dialog.get_by_role("button", name="Cancel", exact=True).click()
+    page.unroute("**/" + GET_USER)
+
     page.get_by_role("button", name="Actions for member@acme.test", exact=True).click()
     page.get_by_role("menuitem", name="Make admin", exact=True).click()
     confirm = page.get_by_role("alertdialog")
@@ -114,8 +168,11 @@ with session(repo / "tests/ui/out/system-people") as browser:
         confirm.get_by_role("button", name="Revoke grant", exact=True).click()
     expect(member).to_have_count(0)
 
-    # A system admin suspends a user from the drawer after a confirm step.
+    # A system admin sees a user's organizations and suspends and reinstates them behind a confirm step.
     page.goto(ui + "/system/users")
+    row(page, "Open Max Member").click()
+    expect(page.get_by_role("list", name="Organizations")).to_contain_text("acme")
+    page.keyboard.press("Escape")
     row(page, "Open Gus Guest").click()
     drawer = page.get_by_role("dialog")
     expect(drawer).to_contain_text("guest@acme.test")
@@ -134,7 +191,26 @@ with session(repo / "tests/ui/out/system-people") as browser:
         confirm.get_by_role("button", name="Suspend user", exact=True).click()
     assert suspended.value.ok
     expect(confirm).to_have_count(0)
+    expect(toast(page, "Suspended Gus Guest")).to_be_visible()
+    drawer.get_by_role("button", name="Reinstate", exact=True).click()
+    with expect_rpc(
+        page, SET_STATUS, lambda body: body.get("status") == "USER_STATUS_ACTIVE"
+    ) as reinstated:
+        confirm.get_by_role("button", name="Reinstate user", exact=True).click()
+    assert reinstated.value.ok
+    expect(toast(page, "Reinstated Gus Guest")).to_be_visible()
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"user="))
+
+    # Pages follow the API's page tokens, kept in the URL.
+    page.route("**/" + LIST_USERS, listing)
+    page.goto(ui + "/system/users")
+    expect(row(page, "Open First Page")).to_be_visible()
+    page.get_by_role("button", name="Next page", exact=True).click()
+    expect(page).to_have_url(re.compile(r"pages=page-2"))
+    expect(row(page, "Open Second Page")).to_be_visible()
+    expect(page.get_by_role("button", name="Next page", exact=True)).to_be_disabled()
+    page.get_by_role("button", name="Previous page", exact=True).click()
+    expect(row(page, "Open First Page")).to_be_visible()
     assert not [e for e in errors if e], errors
     context.close()

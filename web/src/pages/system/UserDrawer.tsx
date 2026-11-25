@@ -4,12 +4,15 @@ import { UserStatus, type User } from "@gen/loco/user/v1/user_pb";
 import { BanIcon, RotateCcwIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
+import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { ErrorCard } from "@/components/ErrorCard";
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { CopyId } from "@/components/design/CopyId";
 import { InlineCode } from "@/components/design/InlineCode";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { Skeleton } from "@/components/design/Skeleton";
 import { toastConnectError } from "@/lib/error-handler";
 import { toast } from "@/lib/toast";
 import { userLabel } from "@/lib/user";
@@ -31,6 +34,8 @@ const STATUS_COPY = {
 		label: "Suspend",
 		confirm: "Suspend user",
 		done: "Suspended",
+		icon: <BanIcon />,
+		variant: "destructive-outline",
 		body: (email: string) => (
 			<>
 				<InlineCode>{email}</InlineCode> can no longer sign in, and their sessions and tokens stop working. Reinstate
@@ -42,6 +47,8 @@ const STATUS_COPY = {
 		label: "Reinstate",
 		confirm: "Reinstate user",
 		done: "Reinstated",
+		icon: <RotateCcwIcon />,
+		variant: "outline",
 		body: (email: string) => (
 			<>
 				<InlineCode>{email}</InlineCode> can sign in again.
@@ -49,6 +56,37 @@ const STATUS_COPY = {
 		),
 	},
 } as const;
+
+const STATUSES = [UserStatus.SUSPENDED, UserStatus.ACTIVE] as const;
+
+function Organizations({ userId }: { userId: string }) {
+	const orgs = useQuery(listUserOrgs, { userId, pageSize: 200 });
+	return (
+		<div className="flex flex-col gap-2">
+			<h3 className="m-0 text-[13px] font-medium">Organizations</h3>
+			{orgs.error !== null ? (
+				<ErrorCard error={orgs.error} fallbackMessage="Failed to load the organizations" minHeight="min-h-24" />
+			) : orgs.data === undefined ? (
+				<Skeleton className="h-16 w-full" />
+			) : orgs.data.orgs.length === 0 ? (
+				<span className="text-[13px] text-fg3">Not a member of any organization.</span>
+			) : (
+				<ul aria-label="Organizations" className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px]">
+					{orgs.data.orgs.map((org) => (
+						<li key={org.id} className="flex items-center gap-2">
+							<span className="min-w-0 truncate">{org.name}</span>
+							{org.suspendedAt !== undefined && (
+								<Badge tone="bad" size="sm">
+									Suspended
+								</Badge>
+							)}
+						</li>
+					))}
+				</ul>
+			)}
+		</div>
+	);
+}
 
 function UserBody({ user, canChange }: { user: User; canChange: boolean }) {
 	const [pending, setPending] = useState<UserStatus.SUSPENDED | UserStatus.ACTIVE | null>(null);
@@ -81,32 +119,26 @@ function UserBody({ user, canChange }: { user: User; canChange: boolean }) {
 						</CopyId>
 					</Fact>
 				</dl>
+				<Organizations userId={user.id} />
 				{canChange && (
 					<div className="flex flex-col gap-2">
 						<span className="text-[12.5px] text-fg3">
 							Suspending blocks sign-in and API access. Reinstating lets the user back in.
 						</span>
 						<div className="flex gap-2">
-							<Button
-								variant="destructive-outline"
-								size="sm"
-								onClick={() => {
-									setPending(UserStatus.SUSPENDED);
-								}}
-							>
-								<BanIcon />
-								Suspend
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									setPending(UserStatus.ACTIVE);
-								}}
-							>
-								<RotateCcwIcon />
-								Reinstate
-							</Button>
+							{STATUSES.map((status) => (
+								<Button
+									key={status}
+									variant={STATUS_COPY[status].variant}
+									size="sm"
+									onClick={() => {
+										setPending(status);
+									}}
+								>
+									{STATUS_COPY[status].icon}
+									{STATUS_COPY[status].label}
+								</Button>
+							))}
 						</div>
 					</div>
 				)}
@@ -166,6 +198,12 @@ export function UserDrawer({
 					)}
 					{user === undefined && <SheetTitle>User</SheetTitle>}
 				</SheetHeader>
+				{found.isLoading && (
+					<SheetBody>
+						<Skeleton className="h-24 w-full" />
+						<Skeleton className="h-16 w-full" />
+					</SheetBody>
+				)}
 				{found.error !== null && (
 					<ErrorCard error={found.error} fallbackMessage="Failed to load the user" minHeight="min-h-48" />
 				)}

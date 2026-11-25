@@ -6,6 +6,7 @@ import {
 } from "@gen/loco/admin/v1/admin-SystemRoleService_connectquery";
 import { SystemRole, type SystemRoleHolder } from "@gen/loco/admin/v1/admin_pb";
 import { getUser } from "@gen/loco/user/v1/user-UserService_connectquery";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheckIcon, ShieldIcon, UserMinusIcon } from "lucide-react";
 import { useState } from "react";
@@ -19,7 +20,7 @@ import { InlineCode } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
 import { RowMenu } from "@/components/design/RowMenu";
 import { SegmentedChoice } from "@/components/design/SegmentedChoice";
-import { toastConnectError } from "@/lib/error-handler";
+import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { effectiveRole, roleChangeBlock, SYSTEM_ROLE_LABEL, type RoleChange } from "@/lib/system";
 import { toast } from "@/lib/toast";
 import { userLabel } from "@/lib/user";
@@ -75,7 +76,12 @@ export function GrantRoleDialog({ open, onClose }: { open: boolean; onClose: () 
 	let hint = "The person needs an account. Type the email they sign in with.";
 	if (valid && found.isFetching) hint = "Looking for the account…";
 	else if (valid && user !== undefined) hint = `Account found: ${userLabel(user)}.`;
-	const missing = valid && !found.isFetching && user === undefined;
+	const lookupError =
+		found.error === null
+			? undefined
+			: found.error instanceof ConnectError && found.error.code === Code.NotFound
+				? "No user has this email. They need to sign in once first."
+				: getErrorMessage(found.error, "Failed to look up the account");
 
 	return (
 		<Dialog
@@ -93,11 +99,7 @@ export function GrantRoleDialog({ open, onClose }: { open: boolean; onClose: () 
 					}}
 				>
 					<DialogBody>
-						<Field
-							label="Email"
-							hint={hint}
-							error={missing ? "No user has this email. They need to sign in once first." : undefined}
-						>
+						<Field label="Email" hint={hint} error={valid ? lookupError : undefined}>
 							<Input
 								autoFocus
 								type="email"
@@ -172,20 +174,17 @@ export function OperatorRowMenu({
 	};
 
 	const name = <InlineCode>{holder.email}</InlineCode>;
-	const copy: Record<RoleChange, { title: string; confirm: string; body: React.ReactNode }> = {
+	const copy: Record<RoleChange, { title: string; body: React.ReactNode }> = {
 		admin: {
 			title: "Make admin",
-			confirm: "Make admin",
 			body: <>{name} gains the installation administration: clusters, users and who holds a role.</>,
 		},
 		read: {
 			title: "Make reader",
-			confirm: "Make reader",
 			body: <>{name} keeps read access to the installation and loses the administration.</>,
 		},
 		revoke: {
 			title: "Revoke grant",
-			confirm: "Revoke grant",
 			body: (
 				<>
 					{name} loses the role this grant gave.
@@ -225,7 +224,7 @@ export function OperatorRowMenu({
 				open={pending !== null}
 				title={pending === null ? "" : copy[pending].title}
 				description={pending === null ? "" : copy[pending].body}
-				confirmLabel={pending === null ? "" : copy[pending].confirm}
+				confirmLabel={pending === null ? "" : copy[pending].title}
 				confirmVariant={pending === "revoke" ? "destructive" : "default"}
 				pending={grant.isPending || revoke.isPending}
 				onConfirm={() => {
