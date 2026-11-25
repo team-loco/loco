@@ -260,7 +260,7 @@ func (cp *controlPlane) checkRouting(t *testing.T) {
 	}
 
 	api := cp.values.ControlPlaneHostname
-	cp.request(t, http.MethodGet, api, "/health", "", nil).expect(t, http.StatusOK)
+	cp.request(t, http.MethodGet, api, "/readyz", "", nil).expect(t, http.StatusOK)
 	var openapi struct {
 		OpenAPI string `json:"openapi"`
 		Info    struct {

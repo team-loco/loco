@@ -21,7 +21,6 @@ const (
 	otlpTracesEndpointEnv = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
 	defaultServiceName    = "loco-api"
 	rootPath              = "/"
-	healthPath            = "/health"
 )
 
 func newTracingEnabled() bool {
@@ -50,7 +49,7 @@ func traceHTTPRequest(r *http.Request) bool {
 	switch r.URL.Path {
 	case rootPath:
 		return false
-	case healthPath:
+	case livePath, readyPath, healthPath:
 		return false
 	case agentv1connect.AgentServiceSyncProcedure:
 		return false

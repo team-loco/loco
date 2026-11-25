@@ -21,7 +21,7 @@ func TestAgentLifecycle(t *testing.T) {
 	t.Parallel()
 
 	t.Run("health and the agent's version", func(t *testing.T) {
-		request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, p.APIURL+"/health", nil)
+		request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, p.APIURL+"/readyz", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -33,7 +33,7 @@ func TestAgentLifecycle(t *testing.T) {
 			t.Error(err)
 		}
 		if response.StatusCode != http.StatusOK {
-			t.Errorf("API /health = %d, want 200", response.StatusCode)
+			t.Errorf("API /readyz = %d, want 200", response.StatusCode)
 		}
 		var version string
 		if err := p.DB.QueryRow(t.Context(), "SELECT agent_version FROM clusters WHERE id = $1", p.ClusterID).

@@ -114,7 +114,8 @@ func newTracedServer(t *testing.T) *httptest.Server {
 	agentv1connect.RegisterAgentServiceHandler(base, &tracedAgent{})
 	mux := http.NewServeMux()
 	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	mux.HandleFunc(livePath, liveHandler)
+	mux.HandleFunc(readyPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mountRPCServers(mux, base, authenticated)
 	tracedMux := withServerTracing(mux)
 	srv := httptest.NewUnstartedServer(tracedMux)
@@ -165,7 +166,7 @@ func TestRPCSpanStartsItsOwnTraceAndLinksTheCaller(t *testing.T) {
 func TestUntracedRoutesRecordNoSpans(t *testing.T) {
 	recorder := recordGlobalSpans(t)
 	srv := newTracedServer(t)
-	for _, path := range []string{rootPath, healthPath} {
+	for _, path := range []string{rootPath, livePath, readyPath, healthPath} {
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+path, nil)
 		if err != nil {
 			t.Fatal(err)

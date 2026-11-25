@@ -407,7 +407,7 @@ func (p *Platform) startRealmProxy(ctx context.Context) error {
 func (p *Platform) startTokenRegistry(ctx context.Context) error {
 	if err := waitFor(ctx, readyTimeout, "the realm proxy to reach the API", func(ctx context.Context) error {
 		_, err := p.Command(ctx, "docker", "exec", p.realmContainer(), "wget", "-q", "-O", "/dev/null",
-			"http://127.0.0.1:"+strconv.Itoa(p.ports.api)+"/health")
+			"http://127.0.0.1:"+strconv.Itoa(p.ports.api)+"/readyz")
 		return err
 	}); err != nil {
 		return err
