@@ -8,7 +8,6 @@ import (
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/team-loco/loco/api/pkg/converter"
@@ -58,19 +57,21 @@ func TestCreateDeploymentHealthCheck(t *testing.T) {
 			seedDeployment(t, f, checkedRegionSpec)
 			service := imageService()
 			service.HealthCheck = tc.health
-			if _, err := deployRequest(t, f, healthRequest(f, f.envID, service, tc.remove)); err != nil {
+			created, err := deployRequest(t, f, healthRequest(f, f.envID, service, tc.remove))
+			if err != nil {
 				t.Fatalf("create deployment: %v", err)
 			}
-			f.wantDeployedHealth(t, f.envID, tc.wantDeployed)
+			f.wantDeployedHealth(t, f.envID, created, tc.wantDeployed)
 			if got := f.resourceHealthCheck(t); !proto.Equal(got, tc.wantResource) {
 				t.Fatalf("resource health check = %v, want %v", got, tc.wantResource)
 			}
 
 			f.finishRollouts(t)
-			if _, err := deployService(t, f, imageService()); err != nil {
+			again, err := deployService(t, f, imageService())
+			if err != nil {
 				t.Fatalf("deploy again: %v", err)
 			}
-			f.wantDeployedHealth(t, f.envID, tc.wantResource)
+			f.wantDeployedHealth(t, f.envID, again, tc.wantResource)
 		})
 	}
 }
@@ -80,13 +81,14 @@ func TestCreateDeploymentRemovingAHealthCheckUpdatesEveryEnvironment(t *testing.
 	f := newDeployFixture(t)
 	seedDeployment(t, f, checkedRegionSpec)
 	staging := f.addStagingEnvironment(t)
-	if _, err := deployServiceIn(t, f, imageService(), staging); err != nil {
+	stagingDeployment, err := deployServiceIn(t, f, imageService(), staging)
+	if err != nil {
 		t.Fatalf("deploy to staging: %v", err)
 	}
 	stagingBefore := f.revision(t, staging)
 	productionBefore := f.revision(t, f.envID)
 
-	if _, err := deployRequest(t, f, healthRequest(f, f.envID, imageService(), true)); err != nil {
+	if _, err = deployRequest(t, f, healthRequest(f, f.envID, imageService(), true)); err != nil {
 		t.Fatalf("remove health check: %v", err)
 	}
 	stagingAfter := f.revision(t, staging)
@@ -98,24 +100,34 @@ func TestCreateDeploymentRemovingAHealthCheckUpdatesEveryEnvironment(t *testing.
 	if n := f.count(t, resourceUpdatedEvents); n != 1 {
 		t.Fatalf("%d resource.updated events, want 1", n)
 	}
-	f.wantDeployedHealth(t, staging, storedHealthCheck())
+	f.wantDeployedHealth(t, staging, stagingDeployment, storedHealthCheck())
 }
 
 func TestCreateDeploymentRemovingAnAbsentHealthCheckLeavesTheResource(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	seedDeployment(t, f, sameRegionSpec)
+	staging := f.addStagingEnvironment(t)
 	before := f.count(t, resourceRevision)
-	if _, err := deployRequest(t, f, healthRequest(f, f.envID, imageService(), true)); err != nil {
+	stagingBefore := f.revision(t, staging)
+	productionBefore := f.revision(t, f.envID)
+	created, err := deployRequest(t, f, healthRequest(f, f.envID, imageService(), true))
+	if err != nil {
 		t.Fatalf("remove health check: %v", err)
 	}
 	if after := f.count(t, resourceRevision); after != before {
 		t.Fatalf("resource revision %d -> %d, want unchanged", before, after)
 	}
+	if f.revision(t, staging) != stagingBefore {
+		t.Fatal("removing an absent check advanced staging's revision")
+	}
+	if f.revision(t, f.envID) <= productionBefore {
+		t.Fatal("the deployment did not advance production's revision")
+	}
 	if n := f.count(t, resourceUpdatedEvents); n != 0 {
 		t.Fatalf("%d resource.updated events, want 0", n)
 	}
-	f.wantDeployedHealth(t, f.envID, nil)
+	f.wantDeployedHealth(t, f.envID, created, nil)
 }
 
 func TestCreateDeploymentRejectedRemovalKeepsTheHealthCheck(t *testing.T) {
@@ -124,36 +136,46 @@ func TestCreateDeploymentRejectedRemovalKeepsTheHealthCheck(t *testing.T) {
 	seedDeployment(t, f, checkedRegionSpec)
 	staging := f.addStagingEnvironment(t)
 	stagingBefore := f.revision(t, staging)
+	productionBefore := f.revision(t, f.envID)
 	resourceBefore := f.count(t, resourceRevision)
 	service := imageService()
-	testTarget(service).MinReplicas = new(int32(3))
-	testTarget(service).MaxReplicas = new(int32(2))
-	_, err := deployRequest(t, f, healthRequest(f, f.envID, service, true))
+	testTarget(service).Cpu = new("lots")
+	request := healthRequest(f, f.envID, service, true)
+	if err := protovalidate.Validate(request); err != nil {
+		t.Fatalf("the request must pass wire validation and fail after the removal: %v", err)
+	}
+	_, err := deployRequest(t, f, request)
 	wantCode(t, err, connect.CodeInvalidArgument)
 	if got := f.resourceHealthCheck(t); !proto.Equal(got, storedHealthCheck()) {
 		t.Fatalf("resource health check = %v, want %v", got, storedHealthCheck())
 	}
-	if f.revision(t, staging) != stagingBefore {
-		t.Fatal("a rejected deployment advanced staging's revision")
+	if f.revision(t, staging) != stagingBefore || f.revision(t, f.envID) != productionBefore {
+		t.Fatal("a rejected deployment advanced an environment's revision")
 	}
 	if f.count(t, resourceRevision) != resourceBefore {
 		t.Fatal("a rejected deployment advanced the resource's revision")
+	}
+	if n := f.count(t, resourceUpdatedEvents); n != 0 {
+		t.Fatalf("%d resource.updated events after a rejected deployment, want 0", n)
 	}
 }
 
 func TestCreateDeploymentRejectsRemovingAHealthCheckItSets(t *testing.T) {
 	t.Parallel()
-	service := imageService()
-	service.HealthCheck = workerHealthCheck()
+	checked := imageService()
+	checked.HealthCheck = workerHealthCheck()
 	for name, tc := range map[string]struct {
-		message proto.Message
+		service *deploymentv1.ServiceDeploymentSpec
+		remove  bool
 		valid   bool
 	}{
-		"remove without a check": {removeRequest(imageService()), true},
-		"remove with a check":    {removeRequest(service), false},
+		"neither":                {service: imageService(), valid: true},
+		"a check":                {service: checked, valid: true},
+		"remove without a check": {service: imageService(), remove: true, valid: true},
+		"remove with a check":    {service: checked, remove: true, valid: false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			err := protovalidate.Validate(tc.message)
+			err := protovalidate.Validate(wireRequest(tc.service, tc.remove))
 			if (err == nil) != tc.valid {
 				t.Fatalf("validate = %v, want valid %v", err, tc.valid)
 			}
@@ -176,38 +198,34 @@ func healthRequest(
 	}
 }
 
-func removeRequest(service *deploymentv1.ServiceDeploymentSpec) *deploymentv1.CreateDeploymentRequest {
+func wireRequest(service *deploymentv1.ServiceDeploymentSpec, remove bool) *deploymentv1.CreateDeploymentRequest {
 	return &deploymentv1.CreateDeploymentRequest{
 		ResourceId:        "01a1dbb5-4966-72e2-a92b-a2560006942a",
 		EnvironmentId:     "01a1dbb5-4966-72e2-a92b-a2560006942b",
 		Spec:              &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}},
-		RemoveHealthCheck: true,
+		RemoveHealthCheck: remove,
 	}
 }
 
-// wantDeployedHealth checks the environment's newest deployment's health check, as stored and as
-// its placement renders it.
+// wantDeployedHealth checks the created deployment's health check, as the API returns it and as
+// the environment's placement, which runs that deployment, renders it.
 func (f *deployFixture) wantDeployedHealth(
 	t *testing.T,
 	environmentID uuid.UUID,
+	created *deploymentv1.CreateDeploymentResponse,
 	want *deploymentv1.HealthCheckConfig,
 ) {
 	t.Helper()
-	var stored []byte
-	query := `SELECT spec FROM deployments WHERE environment_id = $1 ORDER BY created_at DESC LIMIT 1`
-	if err := f.pool.QueryRow(t.Context(), query, environmentID).Scan(&stored); err != nil {
-		t.Fatalf("read deployment spec: %v", err)
-	}
-	spec := &deploymentv1.ServiceDeploymentSpec{}
-	if err := protojson.Unmarshal(stored, spec); err != nil {
-		t.Fatalf("decode deployment spec: %v", err)
-	}
-	if !proto.Equal(spec.GetHealthCheck(), want) {
-		t.Fatalf("stored health check = %v, want %v", spec.GetHealthCheck(), want)
+	deployment := f.getDeployment(t, created.GetDeploymentId())
+	if got := deployment.GetSpec().GetService().GetHealthCheck(); !proto.Equal(got, want) {
+		t.Fatalf("stored health check = %v, want %v", got, want)
 	}
 	var payload locoControllerV1.PlacementPayload
 	if err := json.Unmarshal(f.placementIn(t, environmentID, f.clusterID).DesiredSpec, &payload); err != nil {
 		t.Fatalf("decode desired spec: %v", err)
+	}
+	if payload.AppSpec.DeploymentID != created.GetDeploymentId() {
+		t.Fatalf("placement runs %s, want %s", payload.AppSpec.DeploymentID, created.GetDeploymentId())
 	}
 	rendered := payload.AppSpec.ServiceSpec.Deployment.HealthCheck
 	wantRendered := converter.ProtoToServiceDeploymentSpec(&deploymentv1.DeploymentSpec{

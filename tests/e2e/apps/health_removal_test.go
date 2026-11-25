@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
@@ -68,25 +70,34 @@ func waitServing(t *testing.T, w *platform.Workspace, app, deploymentID string) 
 	})
 }
 
-// waitProbes waits until every pod of the app probes HTTP when httpCheck is set, and only the
-// port otherwise.
+// waitProbes waits until every pod of the app probes HTTP when httpCheck is set, and otherwise
+// only checks that port 8080 accepts connections.
 func waitProbes(t *testing.T, w *platform.Workspace, selector string, httpCheck bool) {
 	t.Helper()
 	platform.Eventually(t, statusTimeout, fmt.Sprintf("pods with an HTTP check %v", httpCheck),
-		func(context.Context) error {
-			pods := appPods(t, w, selector)
-			if len(pods) == 0 {
+		func(ctx context.Context) error {
+			var pods corev1.PodList
+			if err := p.Get(ctx, &pods, "-n", w.Namespace, "pods", "-l", selector); err != nil {
+				return err
+			}
+			if len(pods.Items) == 0 {
 				return errors.New("no pods")
 			}
-			for _, pod := range pods {
-				readiness := pod.Spec.Containers[0].ReadinessProbe
-				if readiness == nil {
-					return fmt.Errorf("pod %s has no readiness probe", pod.Name)
-				}
-				if (readiness.HTTPGet != nil) != httpCheck {
-					return fmt.Errorf("pod %s readiness probe %+v", pod.Name, readiness.ProbeHandler)
+			for _, pod := range pods.Items {
+				if !probesAsWanted(pod.Spec.Containers[0].ReadinessProbe, httpCheck) {
+					return fmt.Errorf("pod %s readiness probe %+v", pod.Name, pod.Spec.Containers[0].ReadinessProbe)
 				}
 			}
 			return nil
 		})
+}
+
+func probesAsWanted(readiness *corev1.Probe, httpCheck bool) bool {
+	if readiness == nil {
+		return false
+	}
+	if httpCheck {
+		return readiness.HTTPGet != nil
+	}
+	return readiness.TCPSocket != nil && readiness.TCPSocket.Port.IntValue() == 8080
 }

@@ -1326,7 +1326,8 @@ type CreateDeploymentRequest struct {
 	Trigger            DeploymentTrigger `protobuf:"varint,9,opt,name=trigger,proto3,enum=loco.deployment.v1.DeploymentTrigger" json:"trigger,omitempty"`
 	SourceDeploymentId string            `protobuf:"bytes,10,opt,name=source_deployment_id,json=sourceDeploymentId,proto3" json:"source_deployment_id,omitempty"`
 	// remove_health_check runs the deployment without a health check and removes the resource's
-	// own, which a spec without one inherits.
+	// own, which a spec without one inherits. The resource's check is the default for every
+	// environment of the workspace; deployments already running in other environments keep theirs.
 	RemoveHealthCheck bool `protobuf:"varint,11,opt,name=remove_health_check,json=removeHealthCheck,proto3" json:"remove_health_check,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache

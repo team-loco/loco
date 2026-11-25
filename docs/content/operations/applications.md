@@ -46,7 +46,7 @@ A deployment is one request to run a version of a service in an environment: a `
 - `running` once every region runs it, and `superseded` once newer deployments replace it in every region.
 - `canceled` when someone [cancels](#cancel) it, or when a newer deployment replaced it before it ran anywhere.
 
-A newer deployment never waits for one in flight. It cancels the older deployment's regions that have not started, and replaces the ones that run once its own replicas are ready there, so the previous version serves until then. `CreateDeployment` takes `regions` (empty means every enabled region) and, for a redeploy or rollback, `trigger` and `source_deployment_id` naming the deployment it copies. A spec without `health_check` runs the resource's own health check; `remove_health_check` runs none and removes the resource's, so later deployments without one run none either.
+A newer deployment never waits for one in flight. It cancels the older deployment's regions that have not started, and replaces the ones that run once its own replicas are ready there, so the previous version serves until then. `CreateDeployment` takes `regions` (empty means every enabled region) and, for a redeploy or rollback, `trigger` and `source_deployment_id` naming the deployment it copies. A spec without `health_check` runs the resource's own health check; `remove_health_check` runs none and removes the resource's, so later deployments without one run none either. The resource's check is the default for every environment of the workspace: removing it in one environment also removes it from the next deployment in another, while deployments already running there keep their check.
 
 ## Restart
 

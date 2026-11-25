@@ -286,7 +286,8 @@ message CreateDeploymentRequest {
     (buf.validate.field).string.uuid = true
   ];
   // remove_health_check runs the deployment without a health check and removes the resource's
-  // own, which a spec without one inherits.
+  // own, which a spec without one inherits. The resource's check is the default for every
+  // environment of the workspace; deployments already running in other environments keep theirs.
   bool remove_health_check = 11;
 
   option (buf.validate.message).cel = {

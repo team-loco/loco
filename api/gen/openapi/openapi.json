@@ -11155,7 +11155,7 @@
           "removeHealthCheck": {
             "type": "boolean",
             "title": "remove_health_check",
-            "description": "remove_health_check runs the deployment without a health check and removes the resource's\n own, which a spec without one inherits."
+            "description": "remove_health_check runs the deployment without a health check and removes the resource's\n own, which a spec without one inherits. The resource's check is the default for every\n environment of the workspace; deployments already running in other environments keep theirs."
           }
         },
         "title": "CreateDeploymentRequest",
