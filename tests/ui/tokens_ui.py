@@ -81,11 +81,34 @@ with session(repo / "tests/ui/out/tokens") as browser:
         "button", name=re.compile(r"^Organization")
     )
     expect(organization.first).to_have_attribute("aria-pressed", "true")
+    for count in (
+        page.get_by_role("group", name="Owner", exact=True)
+        .locator('[data-slot="segmented-count"]')
+        .all()
+    ):
+        expect(count).not_to_have_css("background-color", "rgba(0, 0, 0, 0)")
+        box, parent = count.bounding_box(), count.locator("..").bounding_box()
+        assert (
+            abs(box["y"] + box["height"] / 2 - parent["y"] - parent["height"] / 2) < 1
+        )
+
     row = page.get_by_role("row", name="View access for ci-source")
     row.focus()
     page.keyboard.press("Enter")
-    details = page.get_by_role("dialog", name="Token access", exact=True)
-    expect(details.get_by_text("acme org", exact=True)).to_be_visible()
+    details = page.get_by_role("dialog", name="Token details", exact=True)
+    expect(details.get_by_label("Name", exact=True)).to_have_value("ci-source")
+    expect(details.get_by_label("Name", exact=True)).to_have_attribute("readonly", "")
+    expect(details.get_by_label("Owner", exact=True)).to_have_attribute("readonly", "")
+    expect(details.get_by_label("Expires", exact=True)).to_have_attribute(
+        "readonly", ""
+    )
+    expect(
+        details.get_by_role("button", name="Create token", exact=True)
+    ).to_have_count(0)
+    expect(
+        details.get_by_role("textbox", name="Add a workspace or resource")
+    ).to_have_count(0)
+    expect(details.get_by_text("acme", exact=True)).to_be_visible()
     expect(details.get_by_text("Read", exact=True)).to_be_visible()
     page.keyboard.press("Escape")
     expect(details).to_be_hidden()
@@ -114,7 +137,9 @@ with session(repo / "tests/ui/out/tokens") as browser:
     expect(created.get_by_text("Copy it now.", exact=False)).to_be_visible()
     assert re.fullmatch(r"•+", value.inner_text()), "the token starts masked"
     expect(created.get_by_role("img", name="Hidden token")).to_be_visible()
-    expect(created.get_by_role("img", name="Example, token masked")).to_be_visible()
+    expect(
+        created.get_by_role("img", name="Curl command, token masked")
+    ).to_be_visible()
     eye = created.get_by_role("button", name="Show token")
     copy_button = created.get_by_role("button", name="Copy token")
     for control in [eye, copy_button]:
@@ -126,7 +151,13 @@ with session(repo / "tests/ui/out/tokens") as browser:
     created.get_by_role("button", name="Show token").click()
     token = value.inner_text()
     assert token.startswith("loco_"), token
-    assert token in blocks.first.inner_text()
+    assert token not in blocks.first.inner_text(), (
+        "curl stays masked until its own reveal action"
+    )
+    assert "Bearer ***" in blocks.first.inner_text()
+    assert "$LOCO_TOKEN" not in created.inner_text()
+    expect(created.get_by_text("Example usage", exact=True)).to_have_count(0)
+    expect(created.get_by_text("In CI, save the token", exact=False)).to_have_count(0)
     created.get_by_role("button", name="Hide token").click()
     assert re.fullmatch(r"•+", value.inner_text())
     assert token not in created.inner_html(), "the masked dialog holds the token"
@@ -134,7 +165,13 @@ with session(repo / "tests/ui/out/tokens") as browser:
     assert copied_text(page) == token
     blocks.first.hover()
     blocks.first.get_by_role("button", name="Copy code").click()
-    assert copied_text(page) == f"export LOCO_TOKEN={token}\nloco deploy"
+    assert f"Authorization: Bearer {token}" in copied_text(page)
+    assert "TokenService/GetScopes" in copied_text(page)
+    created.get_by_role("button", name="Show token in curl", exact=True).click()
+    assert token in blocks.first.inner_text()
+    created.get_by_role("button", name="Hide token in curl", exact=True).click()
+    assert token not in created.inner_html()
+    created.get_by_role("button", name="Show token in curl", exact=True).click()
     created.get_by_role("button", name="Show token").click()
     for block in created.locator('[data-slot="code-block"] pre').all():
         assert block.evaluate("node => node.scrollWidth <= node.clientWidth")

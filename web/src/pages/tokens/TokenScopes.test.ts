@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { EntityType, Scope, TokenSchema } from "@gen/loco/token/v1/token_pb";
 
 import { entityNode, withScopeEntities } from "./model";
-import { TokenScopeList } from "./TokenDetailsDrawer";
+import { TokenScopeList } from "./TokenScopes";
 
 test("token details show every target and exact independent scopes", () => {
 	const nodes = ["cart", "orders", "payments", "inventory"].map((name) =>

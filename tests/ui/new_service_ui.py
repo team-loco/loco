@@ -376,12 +376,24 @@ with session(out) as browser:
         drawer.get_by_role("textbox", name="Container image", exact=True)
     ).to_have_value(image)
     expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
-    expect(
-        drawer.get_by_text(
-            "Port is the port your application listens on inside the container.",
-            exact=True,
-        )
-    ).to_be_visible()
+    info = drawer.get_by_role("button", name="About the container port", exact=True)
+    help_popup = page.locator('[data-slot="popover-content"]')
+    expect(help_popup).to_be_hidden()
+    info.hover()
+    expect(help_popup).to_contain_text(
+        "The port your application listens on inside the container."
+    )
+    page.mouse.move(0, 0)
+    expect(help_popup).to_be_hidden()
+    info.click()
+    expect(help_popup).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(help_popup).to_be_hidden()
+    expect(drawer).to_be_visible()
+    info.focus()
+    page.keyboard.press("Enter")
+    expect(help_popup).to_be_visible()
+    page.keyboard.press("Escape")
     drawer.get_by_role("button", name="Internal", exact=True).click()
     expect(
         drawer.get_by_text(
@@ -392,7 +404,16 @@ with session(out) as browser:
     port_preview = drawer.get_by_role("textbox", name="Port", exact=True)
     port_preview.fill("8080")
     expect(drawer.get_by_text(f"http://{name}", exact=True)).to_be_visible()
-    expect(drawer.get_by_text("on the same cluster.", exact=False)).to_be_visible()
+    expect(
+        drawer.get_by_text(
+            f"Reachable at http://{name} inside the workspace in production.",
+            exact=True,
+        )
+    ).to_be_visible()
+    assert (
+        port_preview.bounding_box()["x"]
+        < drawer.bounding_box()["x"] + drawer.bounding_box()["width"] / 2
+    )
     port_preview.fill("")
     drawer.get_by_role("button", name="Public", exact=True).click()
 

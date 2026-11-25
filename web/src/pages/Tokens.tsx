@@ -33,7 +33,6 @@ import { TokensArt } from "./tokens/TokensArt";
 import { heldLevel, matchesQuery, OWNER_KEYS, OWNER_TITLE, tokenGrants, tokenStatus } from "./tokens/model";
 import type { OwnerKey } from "./tokens/model";
 import type { AccessItem } from "./tokens/AccessPicker";
-import { TokenDetailsDrawer } from "./tokens/TokenDetailsDrawer";
 import { RevokeDialog } from "./tokens/RevokeDialog";
 import { TokenTable } from "./tokens/TokenTable";
 import { useTokenCreators } from "./tokens/useTokenCreators";
@@ -289,22 +288,17 @@ export function Tokens() {
 			</Section>
 			<CreateTokenDrawer
 				draft={shownDraft}
+				viewing={viewing === null ? null : { token: viewing, owner: ownerKey }}
 				data={data}
 				now={now}
 				onClose={() => {
 					setDraft(null);
+					setViewing(null);
 					void setParams({ [NEW_PARAM]: null });
 				}}
 				onCreated={(created) => {
 					if (created !== ownerKey) setOwner(created);
 					void invalidate();
-				}}
-			/>
-			<TokenDetailsDrawer
-				token={viewing}
-				entities={data.entities}
-				onClose={() => {
-					setViewing(null);
 				}}
 			/>
 			<RevokeDialog

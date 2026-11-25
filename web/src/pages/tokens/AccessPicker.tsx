@@ -1,5 +1,5 @@
 import { ChevronRightIcon, SearchIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import {
 	Combobox,
@@ -35,6 +35,27 @@ const GROUPS: { label: string; kinds: NodeKind[] }[] = [
 	{ label: "Workspaces", kinds: ["ws"] },
 	{ label: "Resources", kinds: ["res"] },
 ];
+
+export function AccessRow({
+	node,
+	description,
+	children,
+}: {
+	node: EntityNode;
+	description: ReactNode;
+	children: ReactNode;
+}) {
+	return (
+		<div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-line py-2 pr-2.5 pl-3">
+			<span className="flex shrink-0 text-fg3 [&_svg]:size-3.5">{kindIcon(node.kind)}</span>
+			<span className="flex min-w-[9rem] flex-1 flex-col gap-px">
+				<span className="font-mono text-[12.5px] [overflow-wrap:anywhere]">{node.label}</span>
+				<span className="text-[11.5px] text-fg3 [overflow-wrap:anywhere]">{description}</span>
+			</span>
+			{children}
+		</div>
+	);
+}
 
 export function AccessPicker({
 	roots,
@@ -156,12 +177,7 @@ export function AccessPicker({
 		const n = it.node;
 		const lvl = heldLevel(held, n);
 		return (
-			<div key={n.key} className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-line py-2 pr-2.5 pl-3">
-				<span className="flex shrink-0 text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
-				<span className="flex min-w-[9rem] flex-1 flex-col gap-px">
-					<span className="truncate font-mono text-[12.5px]">{n.label}</span>
-					<span className="text-[11.5px] text-fg3">{itemKind(n)}</span>
-				</span>
+			<AccessRow key={n.key} node={n} description={itemKind(n)}>
 				<ToggleGroup
 					variant="segmented"
 					aria-label={`Level for ${n.label}`}
@@ -196,7 +212,7 @@ export function AccessPicker({
 				>
 					<XIcon />
 				</Button>
-			</div>
+			</AccessRow>
 		);
 	});
 

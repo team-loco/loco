@@ -153,6 +153,23 @@ def metrics(route):
 
 results = []
 with session(out) as browser:
+    for mode in ["light", "dark"]:
+        themed_context, themed_page, themed_errors = open_page(
+            browser,
+            state=state,
+            storage={"loco:color:v1": "paper", "loco:mode:v1": mode},
+        )
+        themed_page.goto(base)
+        for tab, label in [("Deployments", "Deployments"), ("Builds", "Builds")]:
+            themed_page.get_by_role("tab", name=re.compile(rf"^{tab}")).click()
+            themed_table = themed_page.get_by_role("table", name=label, exact=True)
+            expect(themed_table.locator("th").first).to_be_visible()
+            gap = themed_table.evaluate(
+                "node => { const card = node.closest('.rounded-card'); return node.querySelector('thead').getBoundingClientRect().top - card.getBoundingClientRect().top - parseFloat(getComputedStyle(card).borderTopWidth); }"
+            )
+            assert abs(gap) < 1, (mode, tab, "blank strip above header", gap)
+        assert not themed_errors, themed_errors
+        themed_context.close()
     context, page, errors = open_page(
         browser,
         state=state,

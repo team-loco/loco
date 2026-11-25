@@ -89,6 +89,10 @@
 		font-weight: 600;
 		letter-spacing: 0;
 	}
+	& .rounded-card:has(> [data-slot="data-table"]:first-child),
+	& .rounded-card:has(> :first-child > [data-slot="data-table"]:first-child) {
+		padding-top: 0;
+	}
 	& [data-slot="data-table"] {
 		border-radius: calc(var(--radius-card) - 1px);
 	}
