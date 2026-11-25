@@ -256,7 +256,11 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		SubjectID:     ev.SubjectID,
 		Data:          raw,
 	}
-	params.ActedAsOperator = ev.ActorType == "" && ev.OrgID != nil && reqctx.ActedAsOperator(ctx)
+	operator, err := actedAsOperator(ctx, q, ev)
+	if err != nil {
+		return err
+	}
+	params.ActedAsOperator = operator
 	if ev.SubjectType != "" {
 		subjectType := ev.SubjectType
 		params.SubjectType = &subjectType
@@ -269,6 +273,25 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		return fmt.Errorf("insert event: %w", err)
 	}
 	return nil
+}
+
+// actedAsOperator reports whether the user behind the request holds no role in the event's
+// organization, an organization, workspace or resource scope in it, when the event is recorded.
+func actedAsOperator(ctx context.Context, q genDb.Querier, ev Event) (bool, error) {
+	if ev.ActorType != "" || ev.OrgID == nil {
+		return false, nil
+	}
+	principal, ok := reqctx.PrincipalFrom(ctx)
+	if !ok || principal.UserID == uuid.Nil {
+		return false, nil
+	}
+	scopes, err := q.GetUserScopesOnOrganization(ctx, genDb.GetUserScopesOnOrganizationParams{
+		ID: *ev.OrgID, UserID: principal.UserID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("look up the actor's roles in the event's organization: %w", err)
+	}
+	return len(scopes) == 0, nil
 }
 
 func actor(ctx context.Context, ev Event) (string, *uuid.UUID, error) {

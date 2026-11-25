@@ -8,6 +8,8 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -16,6 +18,8 @@ import (
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
+
+const operatorReason = "unpaid invoice"
 
 // operatorContext is a request from a user who holds only the installation role.
 func operatorContext(t *testing.T, role genDb.Scope) context.Context {
@@ -66,7 +70,7 @@ func TestOperatorChangeIsMarkedInTheOrganizationsLog(t *testing.T) {
 	orgs := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	if _, err := orgs.SuspendOrg(
 		operatorContext(t, genDb.ScopeAdmin),
-		&orgv1.SuspendOrgRequest{OrgId: f.orgID, Reason: "abuse"},
+		&orgv1.SuspendOrgRequest{OrgId: f.orgID, Reason: operatorReason},
 	); err != nil {
 		t.Fatalf("suspend: %v", err)
 	}
@@ -103,6 +107,50 @@ func TestMemberChangeIsNotMarked(t *testing.T) {
 	}
 	if updated != 2 {
 		t.Fatalf("org.updated events = %d, want 2", updated)
+	}
+}
+
+func TestRequestMixingAnInstallationCheckAndAMemberChangeIsNotMarked(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	ctx := withInstallationRole(f.owner, genDb.ScopeAdmin)
+	if err := authorizeSystem(ctx, authz.New(f.queries), actions.ListUsers); err != nil {
+		t.Fatalf("installation check: %v", err)
+	}
+	orgs := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
+	if _, err := orgs.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: f.orgID, Name: new("renamed")}); err != nil {
+		t.Fatalf("update org: %v", err)
+	}
+	updated := eventOfType(listOrgEvents(t, f, f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID}), events.OrgUpdated)
+	if updated == nil || updated.GetActedAsOperator() {
+		t.Fatalf("org.updated = %v, want one unmarked", updated)
+	}
+}
+
+func TestTokenActorsFollowTheirUser(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	orgs := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
+	asToken := func(ctx context.Context) context.Context {
+		p, _ := reqctx.PrincipalFrom(ctx)
+		p.ActorType, p.ActorID, p.Method = genDb.DeploymentActorTypeApiToken, uuid.New(), genDb.DeploymentMethodApiToken
+		return reqctx.WithPrincipal(ctx, p)
+	}
+	rename := &orgv1.UpdateOrgRequest{OrgId: f.orgID, Name: new("by-member")}
+	if _, err := orgs.UpdateOrg(asToken(f.owner), rename); err != nil {
+		t.Fatalf("member token: %v", err)
+	}
+	if _, err := orgs.SuspendOrg(
+		asToken(operatorContext(t, genDb.ScopeAdmin)), &orgv1.SuspendOrgRequest{OrgId: f.orgID, Reason: operatorReason},
+	); err != nil {
+		t.Fatalf("operator token: %v", err)
+	}
+	list := listOrgEvents(t, f, f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID})
+	if e := eventOfType(list, events.OrgUpdated); e == nil || e.GetActedAsOperator() {
+		t.Fatalf("org.updated by a member's token = %v, want one unmarked", e)
+	}
+	if e := eventOfType(list, events.OrgSuspended); e == nil || !e.GetActedAsOperator() {
+		t.Fatalf("org.suspended by an operator's token = %v, want one marked", e)
 	}
 }
 

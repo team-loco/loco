@@ -68,7 +68,7 @@ A system admin grants a role with `locoadm admin grant USER_UUID --role read|adm
 
 Cluster registration, join-token issue, pause, resume, removal and restore, user suspension and reinstatement, and installation role claims, grants and revokes record events with no organization. Organization members never see them.
 
-When a user changes an organization through an installation role without holding the organization permission the change needs, the event carries `acted_as_operator`, and the organization's own audit log lists it. `locoadm audit` labels the actor "Loco admin". A member who acts with their own organization role is not marked, even when they also hold an installation role.
+An event in an organization carries `acted_as_operator` when the user who made the change holds no role in that organization when the event is recorded: no organization, workspace or resource scope in it. The organization's own audit log lists it, and `locoadm audit` labels the actor "Loco admin". A member of the organization is never marked, even when they also hold an installation role. An API token follows the user behind it.
 
 ## Health endpoints
 
