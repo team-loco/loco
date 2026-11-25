@@ -95,14 +95,16 @@ with session(out) as browser:
         },
     )["webhook"]
     hook_id = hook["id"]
-    # Seed runtime records through the real event-to-delivery trigger. Keep pending
-    # attempts in the future so the sender does not change fixture statuses.
+    # Seed through the real event-to-delivery trigger in one transaction, so the sender
+    # never claims a delivery before its fixture status and future attempt time are set.
     sql(
         state,
-        f"""INSERT INTO events(type,workspace_id,actor_type,created_at)
+        f"""BEGIN;
+INSERT INTO events(type,workspace_id,actor_type,created_at)
 SELECT 'resource.created','{workspace}','system',NOW() - n * INTERVAL '1 minute' FROM generate_series(1,31) n;
 UPDATE webhook_deliveries SET status=CASE WHEN mod(event_seq,3)=0 THEN 'failed' WHEN mod(event_seq,3)=1 THEN 'succeeded' ELSE 'pending' END,
-next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver unavailable' WHERE webhook_id='{hook_id}';""",
+next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver unavailable' WHERE webhook_id='{hook_id}';
+COMMIT;""",
     )
     page.reload()
     search = page.get_by_role("textbox", name="Search webhooks", exact=True)
@@ -155,7 +157,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     failing_count = int(
         sql(
             state,
-            f"SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id='{hook_id}' AND (status='failed' OR (status='pending' AND COALESCE(last_error,'')<>''));",
+            f"SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id='{hook_id}' AND mod(event_seq,3)<>1;",
         )
     )
     expect(all_filter).to_have_text(f"All{total_count}")
