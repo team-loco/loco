@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 	"text/tabwriter"
-	"time"
 
 	"github.com/team-loco/loco/cmd/internal/auth"
+	"github.com/team-loco/loco/cmd/locoadm/internal/lastactive"
 
 	"github.com/spf13/cobra"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -115,11 +115,8 @@ func printUsers(out io.Writer, users []*userv1.User) error {
 		if user.GetStatus() == userv1.UserStatus_USER_STATUS_SUSPENDED {
 			state = "suspended"
 		}
-		lastActive := "—"
-		if user.GetLastActiveAt() != nil {
-			lastActive = user.GetLastActiveAt().AsTime().Format(time.DateTime)
-		}
-		fmt.Fprintf(table, "%s\t%s\t%s\t%s\n", user.GetName(), user.GetEmail(), state, lastActive)
+		fmt.Fprintf(table, "%s\t%s\t%s\t%s\n", user.GetName(), user.GetEmail(), state,
+			lastactive.Format(user.GetLastActiveAt()))
 	}
 	return table.Flush()
 }
