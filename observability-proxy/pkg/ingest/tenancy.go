@@ -124,7 +124,7 @@ func (f *tenancyFilter) stamp(resources []pcommon.Resource, signalDays func(*ing
 		attrs.PutStr(clusterAttribute, f.admission.ClusterID)
 		if f.admission.system(resource) {
 			stampSystem(attrs)
-			attrs.PutStr(retentionAttribute, strconv.Itoa(int(signalDays(gate.system))))
+			attrs.PutStr(retentionAttribute, strconv.Itoa(int(gate.cfg.SystemRetentionDays)))
 			continue
 		}
 		days := f.admission.placements.retention

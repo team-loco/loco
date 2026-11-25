@@ -57,7 +57,6 @@ type Gate struct {
 	http       *http.Client
 	placements ingestv1connect.IngestServiceClient
 	retention  *retentionCache
-	system     *ingestv1.Retention
 
 	keysMu      sync.Mutex
 	keys        jose.JSONWebKeySet
@@ -95,12 +94,7 @@ func NewGate(cfg GateConfig) *Gate {
 		http:       httpClient,
 		placements: client,
 		retention:  newRetentionCache(cfg.RetentionTTL),
-		system: &ingestv1.Retention{
-			LogDays:    cfg.SystemRetentionDays,
-			TraceDays:  cfg.SystemRetentionDays,
-			MetricDays: cfg.SystemRetentionDays,
-		},
-		clusters: map[string]*clusterPlacements{},
+		clusters:   map[string]*clusterPlacements{},
 	}
 }
 
