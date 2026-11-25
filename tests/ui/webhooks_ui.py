@@ -300,6 +300,9 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     assert re.fullmatch(r"whsec_\S+", secret), secret
     secret_dialog.get_by_role("button", name="Hide signing secret", exact=True).click()
     assert re.fullmatch(r"•+", value.inner_text())
+    assert secret not in secret_dialog.inner_html(), (
+        "the masked dialog holds the secret"
+    )
     secret_dialog.get_by_role("button", name="Copy signing secret", exact=True).click()
     assert copied_text(page) == secret
     page.mouse.click(5, 5)
