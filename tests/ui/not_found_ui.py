@@ -381,6 +381,7 @@ with session(out) as browser:
     expect(page.get_by_role("row")).to_have_count(2)
     prompt = page.get_by_role("region", name="It’s just you so far")
     expect(prompt).to_be_visible()
+    expect(prompt.get_by_role("button")).to_have_count(1)
     expect(prompt.get_by_role("button", name="Invite", exact=True)).to_be_visible()
     expect(prompt.get_by_role("link", name="Docs")).to_be_visible()
     page.get_by_role("button", name=re.compile(r"^Invitations")).click()

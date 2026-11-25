@@ -42,7 +42,6 @@ import { DOCS_URL } from "./splash/links";
 import { InviteDrawer } from "./team/InviteDrawer";
 import { teamRows, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
 import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
-import { TeamArt } from "./team/TeamArt";
 import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
 import { WorkspaceAccessDrawer } from "./team/WorkspaceAccessDrawer";
@@ -254,17 +253,9 @@ export function Team() {
 				{justYou && q.trim() === "" ? (
 					<section
 						aria-labelledby="team-invite-prompt"
-						className="mx-3 flex flex-col items-center gap-3.5 border-t border-line2 px-6 pt-11 pb-13 text-center max-md:mx-0"
+						className="mx-3 flex flex-col items-center gap-3.5 border-t border-line2 px-6 py-7 text-center max-md:mx-0"
 					>
-						<TeamArt
-							name={user?.name ?? ""}
-							email={user?.email ?? ""}
-							disabled={inviteBlocked !== null}
-							onInvite={() => {
-								setInviteOpen(true);
-							}}
-						/>
-						<h2 id="team-invite-prompt" className="m-0 mt-2.5 text-2xl font-normal tracking-[-0.03em]">
+						<h2 id="team-invite-prompt" className="m-0 text-2xl font-normal tracking-[-0.03em]">
 							It’s just you so far
 						</h2>
 						<p className="m-0 max-w-[34em] text-[14px] leading-[1.55] text-fg3">

@@ -1,16 +1,12 @@
-const NICE_STEPS = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
 const HEADROOM = 1.06;
-const LIMIT_HEADROOM = 1.12;
+const LIMIT_HEADROOM = 1.25;
 const MARKER_GAP_PX = 4;
 const MARKER_PAD_PX = 5;
 const MIN_LABEL_CHARS = 3;
 
-/** The top of the y axis: a round number above the peak and the limit, with room for the limit's label. */
-export function chartMax(peak: number, limit: number | undefined): number {
-	const raw = Math.max(1e-9, peak, limit === undefined ? 0 : limit * LIMIT_HEADROOM);
-	const want = raw * HEADROOM;
-	const magnitude = 10 ** Math.floor(Math.log10(want));
-	return (NICE_STEPS.find((step) => step * magnitude >= want) ?? 10) * magnitude;
+/** Keep the limit at 80% of the plot unless the data needs more room. */
+export function chartMax(peak: number, limit: number): number {
+	return Math.max(1e-9, peak * HEADROOM, limit * LIMIT_HEADROOM);
 }
 
 export interface PlacedMarker {
