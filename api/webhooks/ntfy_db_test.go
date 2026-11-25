@@ -109,7 +109,11 @@ func TestNtfyPublishesEachMatchingEventOnce(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("published %d notifications, want the cluster.silent and org.suspended ones", len(got))
 	}
-	silent, suspended := got[0], got[1]
+	byTitle := map[string]ntfyRequest{}
+	for _, r := range got {
+		byTitle[r.query["title"][0]] = r
+	}
+	silent, suspended := byTitle["Cluster silent"], byTitle["Organization suspended"]
 	if silent.path != "/alerts" || silent.authorization != "Bearer tk_secret" ||
 		silent.query["title"][0] != "Cluster silent" || silent.query["priority"][0] != "5" ||
 		silent.body != "Cluster edge-1 (us-ca-1) stopped reporting." {
