@@ -45,12 +45,14 @@ export function DeleteAccount({ user }: { user: User }) {
 			? "Retry the account check before deleting"
 			: null;
 
+	const deletionBlocked = blockedReason !== null || blockers.length > 0;
+
 	const refresh = () => {
 		setPages([""]);
 		void queryClient.invalidateQueries();
 	};
 	const confirmDelete = async () => {
-		if (remove.isPending || blockedReason !== null || blockers.length > 0) return;
+		if (remove.isPending || deletionBlocked) return;
 		setError(null);
 		holdSignIn(true);
 		try {
