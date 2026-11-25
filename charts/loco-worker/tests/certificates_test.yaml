@@ -52,7 +52,7 @@ tests:
                   parentRefs: [{name: edge, namespace: gateway, kind: Gateway}]
         template: templates/cm-issuer.yaml
       - hasDocuments:
-          count: 1
+          count: 2
         template: templates/cm-cert.yaml
 
   - it: needs no ACME email or solvers for a self-signed issuer
@@ -115,17 +115,40 @@ tests:
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: Gateway}
 
-  - it: serves the Secret the chart's Certificate issues
+  - it: issues one wildcard Certificate per app domain
     asserts:
-      - equal:
-          path: spec.secretName
-          value: loco-worker-tls
+      - hasDocuments:
+          count: 2
         template: templates/cm-cert.yaml
       - equal:
-          path: spec.listeners[?(@.protocol == "HTTPS")].tls.certificateRefs[0].name
-          value: loco-worker-tls
-        template: templates/gateway.yaml
-        documentSelector: {path: kind, value: Gateway}
+          path: spec
+          value:
+            secretName: loco-worker-onloco.app-tls
+            issuerRef: {name: letsencrypt-prod, kind: ClusterIssuer}
+            commonName: "*.onloco.app"
+            dnsNames: ["*.onloco.app"]
+        template: templates/cm-cert.yaml
+        documentSelector: {path: metadata.name, value: loco-worker-onloco.app}
+      - equal:
+          path: spec
+          value:
+            secretName: loco-worker-onloco.build-tls
+            issuerRef: {name: letsencrypt-prod, kind: ClusterIssuer}
+            commonName: "*.onloco.build"
+            dnsNames: ["*.onloco.build"]
+        template: templates/cm-cert.yaml
+        documentSelector: {path: metadata.name, value: loco-worker-onloco.build}
+
+  - it: serves each app domain's HTTPS listener from its own Certificate's Secret
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: Gateway}
+    asserts:
+      - equal:
+          path: spec.listeners[?(@.name == "https-apps-0")].tls.certificateRefs
+          value: [{name: loco-worker-onloco.app-tls, kind: Secret, group: ""}]
+      - equal:
+          path: spec.listeners[?(@.name == "https-apps-1")].tls.certificateRefs
+          value: [{name: loco-worker-onloco.build-tls, kind: Secret, group: ""}]
 
   - it: rejects an unknown issuer type
     set:
@@ -150,16 +173,25 @@ tests:
       - failedTemplate:
           errorPattern: "/certManager/issuer/email': minLength"
 
-  - it: covers the app domains and the additional names
+  - it: adds each additional name to the Certificate of the longest app domain it falls under
     set:
-      global.domain.apps: [apps.example.test, other.example.test]
-      certManager.additionalDNSNames: ["*.staging-east.apps.example.test", "*.staging-west.apps.example.test"]
+      global.domain.apps: [example.test, apps.example.test]
+      certManager.additionalDNSNames: ["*.staging-east.apps.example.test", "*.edge.example.test"]
     template: templates/cm-cert.yaml
     asserts:
       - equal:
           path: spec.dnsNames
-          value:
-            - "*.apps.example.test"
-            - "*.other.example.test"
-            - "*.staging-east.apps.example.test"
-            - "*.staging-west.apps.example.test"
+          value: ["*.example.test", "*.edge.example.test"]
+        documentSelector: {path: metadata.name, value: loco-worker-example.test}
+      - equal:
+          path: spec.dnsNames
+          value: ["*.apps.example.test", "*.staging-east.apps.example.test"]
+        documentSelector: {path: metadata.name, value: loco-worker-apps.example.test}
+
+  - it: rejects an additional name under no app domain
+    set:
+      certManager.additionalDNSNames: ["*.elsewhere.test"]
+    template: templates/cm-cert.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: certManager.additionalDNSNames entry *.elsewhere.test is under no apps domain

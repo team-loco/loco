@@ -29,10 +29,10 @@ rules:
     resources: ["gateways"]
     resourceNames: [{{ include "loco-worker.gateway" . | quote }}]
     verbs: ["get"]
-  {{- with include "loco-worker.certificate" . }}
+  {{- with include "loco-worker.certificates" . }}
   - apiGroups: ["cert-manager.io"]
     resources: ["certificates"]
-    resourceNames: [{{ . | quote }}]
+    resourceNames: {{ splitList "," . | toJson }}
     verbs: ["get"]
   {{- end }}
 ---

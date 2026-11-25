@@ -1,21 +1,34 @@
 {{- if not .Values.certManager.existingTLSSecret }}
+{{- $domains := .Values.global.domain.apps }}
+{{- $owners := dict }}
+{{- range $name := .Values.certManager.additionalDNSNames }}
+{{- $owner := "" }}
+{{- range $domains }}
+{{- if and (hasSuffix (printf ".%s" .) $name) (gt (len .) (len $owner)) }}
+{{- $owner = . }}
+{{- end }}
+{{- end }}
+{{- $_ := set $owners $name (required (printf "certManager.additionalDNSNames entry %s is under no apps domain" $name) $owner) }}
+{{- end }}
+{{- range $domain := $domains }}
+---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-    name: {{ include "loco-worker.certificate" . }}
-    namespace: {{ .Release.Namespace }}
+    name: {{ include "loco-worker.certificate" (list $ $domain) }}
+    namespace: {{ $.Release.Namespace }}
 spec:
-    secretName: {{ include "loco-worker.tlsSecret" . }}
+    secretName: {{ include "loco-worker.tlsSecret" (list $ $domain) }}
     issuerRef:
-        name: {{ .Values.certManager.issuer.name }}
-        kind: {{ .Values.certManager.issuer.kind }}
-    {{- $primary := index .Values.global.domain.apps 0 }}
-    commonName: {{ printf "*.%s" $primary | quote }}
+        name: {{ $.Values.certManager.issuer.name }}
+        kind: {{ $.Values.certManager.issuer.kind }}
+    commonName: {{ printf "*.%s" $domain | quote }}
     dnsNames:
-        {{- range .Values.global.domain.apps }}
-        - {{ printf "*.%s" . | quote }}
+        - {{ printf "*.%s" $domain | quote }}
+        {{- range $name, $owner := $owners }}
+        {{- if eq $owner $domain }}
+        - {{ $name | quote }}
         {{- end }}
-        {{- range .Values.certManager.additionalDNSNames }}
-        - {{ . | quote }}
         {{- end }}
+{{- end }}
 {{- end }}

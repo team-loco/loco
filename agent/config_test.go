@@ -63,7 +63,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 	env := agentEnv()
 	env[envKubeconfig] = "/tmp/kubeconfig"
 	env[envJoinToken] = "loco_j_join"
-	env[envCertificate] = "wildcard"
+	env[envCertificates] = "wildcard,other-wildcard"
 	cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
 	if err != nil {
 		t.Fatalf("parseAgentConfig: %v", err)
@@ -95,7 +95,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		HealthyStreamDuration:    2 * time.Minute,
 		Kubeconfig:               "/tmp/kubeconfig",
 		Gateway:                  "ingress",
-		Certificate:              "wildcard",
+		Certificates:             []string{"wildcard", "other-wildcard"},
 		AppDomains:               []string{"apps.test", "other.test"},
 		Region:                   "us-ca-1",
 		RegistryAuth:             locoControllerV1.RegistryAuthToken,

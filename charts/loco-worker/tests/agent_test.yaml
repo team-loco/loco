@@ -50,12 +50,18 @@ tests:
         documentSelector: {path: kind, value: Gateway}
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: LOCO_CERTIFICATE, value: loco-worker-cert}
+          content: {name: LOCO_CERTIFICATES, value: "loco-worker-apps.test,loco-worker-other.test"}
         template: templates/agent-deployment.yaml
       - equal:
           path: metadata.name
-          value: loco-worker-cert
+          value: loco-worker-apps.test
         template: templates/cm-cert.yaml
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: loco-worker-other.test
+        template: templates/cm-cert.yaml
+        documentIndex: 1
 
   - it: reads no Certificate and gets no Certificate access with an existing TLS Secret
     set:
@@ -63,7 +69,7 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: LOCO_CERTIFICATE, value: ""}
+          content: {name: LOCO_CERTIFICATES, value: ""}
         template: templates/agent-deployment.yaml
       - notContains:
           path: rules
@@ -88,7 +94,7 @@ tests:
         documentSelector: {path: kind, value: Role}
       - contains:
           path: rules
-          content: {apiGroups: [cert-manager.io], resources: [certificates], resourceNames: [loco-worker-cert], verbs: [get]}
+          content: {apiGroups: [cert-manager.io], resources: [certificates], resourceNames: [loco-worker-apps.test, loco-worker-other.test], verbs: [get]}
         template: templates/agent-rbac.yaml
         documentSelector: {path: kind, value: Role}
       - contains:

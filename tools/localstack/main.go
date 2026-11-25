@@ -79,7 +79,7 @@ func run(ctx context.Context, cfg config, args []string) error {
 			"loco-system",
 			"get",
 			"secret",
-			"loco-worker-tls",
+			"loco-worker-apps."+cfg.Domain+"-tls",
 			"-o",
 			"jsonpath={.data.ca\\.crt}",
 		)

@@ -6,6 +6,7 @@ values:
   - ../ci/default-values.yaml
 templates:
   - templates/gateway.yaml
+  - templates/network-policies.yaml
   - charts/otel-col-deploy/templates/service.yaml
   - charts/gateway-helm/templates/envoy-gateway-config.yaml
   - charts/gateway-helm/templates/infra-manager-rbac.yaml
@@ -204,12 +205,14 @@ tests:
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: Gateway}
 
-  - it: requires TLS 1.3 on the whole Gateway when configured
+  - it: requires TLS 1.3 on the whole Gateway when configured, without HTTP/3
     set:
       envoyProxy.tls.minVersion: "1.3"
     template: templates/gateway.yaml
     documentSelector: {path: kind, value: ClientTrafficPolicy}
     asserts:
+      - notExists:
+          path: spec.http3
       - equal:
           path: spec.tls.minVersion
           value: "1.3"
@@ -217,11 +220,31 @@ tests:
           path: spec.targetRefs
           value: [{group: gateway.networking.k8s.io, kind: Gateway, name: eg}]
 
-  - it: preserves HTTP3 and Envoy's default TLS minimum
-    template: templates/gateway.yaml
-    documentSelector: {path: kind, value: ClientTrafficPolicy}
+  - it: serves no HTTP/3 or UDP by default
+    asserts:
+      - containsDocument: {kind: ClientTrafficPolicy, apiVersion: gateway.envoyproxy.io/v1alpha1}
+        not: true
+        template: templates/gateway.yaml
+      - notContains:
+          path: spec.ingress[0].ports
+          content: {protocol: UDP, port: 10443}
+        template: templates/network-policies.yaml
+        documentSelector: {path: metadata.name, value: allow-gateway-proxy-ingress}
+
+  - it: serves HTTP/3 over UDP when enabled, keeping Envoy's default TLS minimum
+    set:
+      envoyProxy.http3: true
     asserts:
       - exists:
           path: spec.http3
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: ClientTrafficPolicy}
       - notExists:
           path: spec.tls
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: ClientTrafficPolicy}
+      - contains:
+          path: spec.ingress[0].ports
+          content: {protocol: UDP, port: 10443}
+        template: templates/network-policies.yaml
+        documentSelector: {path: metadata.name, value: allow-gateway-proxy-ingress}

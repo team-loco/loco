@@ -26,4 +26,4 @@ The default region is the code the API's `LOCO_DEFAULT_REGION` holds, set throug
 
 ## Hostnames
 
-Services get names under an app domain, such as `storefront.onloco.build` under `onloco.build`. Each worker's Gateway listens on `*.<app domain>` for every app domain in the worker chart's `global.domain.apps`, and its certificate covers the same wildcards. Hostnames carry no region code: a service answers at the same name in every region it runs in. Point each app domain's wildcard, such as `*.onloco.build`, at the gateway of the region that serves the shared name with an A record.
+Services get names under an app domain, such as `storefront.onloco.build` under `onloco.build`. Each worker's Gateway listens on `*.<app domain>` for every app domain in the worker chart's `global.domain.apps`, and each listener has its own Certificate for that one wildcard. Hostnames carry no region code: a service answers at the same name in every region it runs in. Point each app domain's wildcard, such as `*.onloco.build`, at the gateway of the region that serves the shared name with an A record.

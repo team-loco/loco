@@ -510,6 +510,9 @@
           },
           "additionalProperties": false
         },
+        "http3": {
+          "type": "boolean"
+        },
         "replicas": {
           "type": "integer",
           "minimum": 0

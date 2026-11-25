@@ -44,9 +44,9 @@ The Application and build controllers run `controller.replicas` and `builds.cont
 
 Envoy Gateway uses `GatewayNamespace` deployment mode so each proxy runs beside its Gateway. Application ingress policies require that placement. When reusing a controller, keep `config.envoyGateway.provider.kubernetes.deploy.type: GatewayNamespace`; the chart's bundled controller defaults to this mode.
 
-The Gateway terminates TLS with a Secret in the Helm release's namespace. By default the chart creates a Let's Encrypt ACME ClusterIssuer and a wildcard Certificate. This mode needs `certManager.issuer.email` and `certManager.issuer.solvers`, cert-manager's own `solvers` list, and rendering fails without them. The chart renders the list verbatim and creates no credentials. Create any Secret a solver references in the `cert-manager` namespace yourself.
+The Gateway terminates TLS with a Secret in the Helm release's namespace. By default the chart creates a Let's Encrypt ACME ClusterIssuer and one wildcard Certificate per app domain in `global.domain.apps`: `<release>-<domain>` covers `*.<domain>` and writes the Secret `<release>-<domain>-tls`, which that domain's HTTPS listener serves. Each listener's certificate covers only its own domain, so Envoy Gateway negotiates HTTP/2 on every app listener. Each entry in `certManager.additionalDNSNames` joins the Certificate of the longest app domain it falls under, and rendering fails for an entry under none. This mode needs `certManager.issuer.email` and `certManager.issuer.solvers`, cert-manager's own `solvers` list, and rendering fails without them. The chart renders the list verbatim and creates no credentials. Create any Secret a solver references in the `cert-manager` namespace yourself.
 
-The Certificate covers wildcard names, which ACME issues only through DNS-01, so use a DNS-01 solver for your DNS provider, for example Cloudflare, Route53, Cloud DNS, Azure DNS, DigitalOcean or a webhook solver. This one reads a Cloudflare API token from the Secret `cloudflare-api-token`:
+The Certificates cover wildcard names, which ACME issues only through DNS-01, so use a DNS-01 solver for your DNS provider, for example Cloudflare, Route53, Cloud DNS, Azure DNS, DigitalOcean or a webhook solver. This one reads a Cloudflare API token from the Secret `cloudflare-api-token`:
 
 ```yaml
 certManager:
@@ -75,7 +75,7 @@ certManager:
 
 Self-signed certificates require clients to trust the certificate explicitly. They do not provide public browser trust.
 
-To use an issuer managed outside this release, create the Certificate with that issuer's name and kind. An `Issuer` must exist in the release's namespace; a `ClusterIssuer` is cluster scoped.
+To use an issuer managed outside this release, create the Certificates with that issuer's name and kind. An `Issuer` must exist in the release's namespace; a `ClusterIssuer` is cluster scoped.
 
 ```yaml
 certManager:
@@ -85,13 +85,14 @@ certManager:
     kind: ClusterIssuer
 ```
 
-To use an existing TLS Secret, set its name. This skips the chart's Certificate and ClusterIssuer. The supplied Secret must exist in the release's namespace and cover every configured Gateway hostname.
+To use an existing TLS Secret, set its name. This skips the chart's Certificates and ClusterIssuer. The supplied Secret must exist in the release's namespace and cover every configured Gateway hostname. Every HTTPS listener serves it, so with more than one app domain the listeners' certificates overlap and Envoy Gateway serves them HTTP/1.1 only.
 
 ```yaml
 certManager:
   existingTLSSecret: gateway-tls
 ```
 
+`envoyProxy.http3: true` serves HTTP/3 on the app listeners through a ClientTrafficPolicy, and Envoy Gateway then adds UDP 443 to the Envoy Service next to TCP 443. It is off by default: a cloud load balancer that keys its configuration by port alone rejects TCP and UDP on the same port, and then never syncs node changes. `envoyProxy.tls.minVersion` renders the same ClientTrafficPolicy without HTTP/3.
 
 The Gateway's Envoy Service uses Envoy Gateway's defaults unless `envoyProxy.service` supplies native [EnvoyService settings](https://gateway.envoyproxy.io/docs/api/extension_types/#kubernetesservicespec). For a kind installation with host port mappings, expose HTTP on a fixed NodePort:
 
