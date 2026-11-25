@@ -134,7 +134,7 @@ func TestQueuedBuildIsSentWithTheTraceOfTheRequestThatCreatedIt(t *testing.T) {
 		t.Fatalf("start build: %v", err)
 	}
 	session, sent := f.dispatchSession()
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	starts := startedBuilds(sent.take())

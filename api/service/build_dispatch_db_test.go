@@ -97,7 +97,7 @@ WHERE id = $1`, previous, testImageDigest, testCacheDigest); err != nil {
 	}
 
 	id := f.queued(t)
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	starts := startedBuilds(sent.take())
@@ -132,7 +132,7 @@ WHERE id = $1`, previous, testImageDigest, testCacheDigest); err != nil {
 		t.Fatalf("source url valid for %v, want at least an hour", ttl)
 	}
 
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	if msgs := sent.take(); len(msgs) != 0 {
@@ -145,7 +145,7 @@ func TestBuildStatusMovesTheBuildThroughItsPhases(t *testing.T) {
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	sent.take()
@@ -282,7 +282,7 @@ func TestCancelingASentBuildCancelsItOnTheCluster(t *testing.T) {
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	sent.take()
@@ -293,14 +293,14 @@ func TestCancelingASentBuildCancelsItOnTheCluster(t *testing.T) {
 	if !f.bucket.wasDeleted(sourceKeyFor(id)) || !f.sourceDeleted(t, id) {
 		t.Fatal("source not deleted after the build was canceled")
 	}
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	if got := canceledBuilds(sent.take()); len(got) != 1 || got[0] != id {
 		t.Fatalf("canceled %v, want %s", got, id)
 	}
 
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	if msgs := sent.take(); len(msgs) != 0 {
@@ -319,7 +319,7 @@ func TestASupersededBuildIsCanceledAndItsReplacementStarted(t *testing.T) {
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	first := f.queued(t)
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	sent.take()
@@ -328,7 +328,7 @@ func TestASupersededBuildIsCanceledAndItsReplacementStarted(t *testing.T) {
 	if !f.bucket.wasDeleted(sourceKeyFor(first)) || !f.sourceDeleted(t, first) {
 		t.Fatal("superseded source not deleted")
 	}
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	msgs := sent.take()
@@ -492,7 +492,7 @@ func TestBuildDispatchWithoutASourceBucketSendsNothing(t *testing.T) {
 	server := NewAgentServer(f.pool, f.queries, nil, nil, nil, testHeartbeatInterval, serverConfig)
 	sent := &sentMessages{}
 	session := newSyncSession(server, f.clusterID, sent.send)
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	if msgs := sent.take(); len(msgs) != 0 {
@@ -509,7 +509,7 @@ func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	running := buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_RUNNING)
@@ -563,7 +563,7 @@ func TestABuildFinishingOnTheWorkerIsNotCanceled(t *testing.T) {
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_RUNNING)); err != nil {
@@ -581,7 +581,7 @@ func TestABuildFinishingOnTheWorkerIsNotCanceled(t *testing.T) {
 	apply(f.ctx)
 	wantStatus(t, f.get(t, id), buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED)
 
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending before the report settled: %v", err)
 	}
 	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {
@@ -600,7 +600,7 @@ func TestABuildThatStartsFinishingWhileCancelsAreCheckedIsNotCanceled(t *testing
 	f := newBuildFixture(t)
 	session, sent := f.dispatchSession()
 	id := f.queued(t)
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_RUNNING)); err != nil {

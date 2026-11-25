@@ -122,7 +122,7 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 	id := f.queued(t)
 	f.disableBuilds(t, f.clusterID)
 
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending: %v", err)
 	}
 	if starts := startedBuilds(sent.take()); len(starts) != 0 {
@@ -136,7 +136,7 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 	if !f.bucket.wasDeleted(sourceKeyFor(id)) {
 		t.Fatal("the failed build's source was not deleted")
 	}
-	if err := session.sendPending(f.ctx); err != nil {
+	if err := session.sendPendingNow(f.ctx); err != nil {
 		t.Fatalf("send pending again: %v", err)
 	}
 	f.wantBuildOutcome(t, id, events.BuildFailed, events.FieldMessage, buildsDisabledMessage)

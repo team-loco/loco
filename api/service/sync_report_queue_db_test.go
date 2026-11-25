@@ -23,9 +23,22 @@ func applyQueuedReports(ctx context.Context, session *syncSession) error {
 		case apply := <-session.reports:
 			apply(ctx)
 		default:
-			return session.settle(ctx)
+			if err := session.settle(ctx); err != nil {
+				return err
+			}
+			if len(session.reports) == 0 {
+				return nil
+			}
 		}
 	}
+}
+
+// sendPendingNow sends what is pending, then applies and settles what it queued, as a sync stream does.
+func (ss *syncSession) sendPendingNow(ctx context.Context) error {
+	if err := ss.sendPending(ctx); err != nil {
+		return err
+	}
+	return applyQueuedReports(ctx, ss)
 }
 
 // handleBuildStatus applies and settles a build report as a sync stream does.
@@ -261,6 +274,66 @@ func TestHeartbeatsFlowWhileAReportWaitsForAWrite(t *testing.T) {
 
 			release()
 			waitFor(t, "the report applied once the write ended", func() bool { return tc.done(t, f, buildID) })
+		})
+	}
+}
+
+func TestHeartbeatsFlowWhileStartingQueuedBuildsWaitsForAWrite(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		role clusterv1.ClusterRole
+		lock string
+		done func(t *testing.T, f *buildFixture, buildID string) bool
+	}{
+		"registry credential": {
+			role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
+			lock: `SELECT id FROM builds WHERE id = $1 FOR UPDATE`,
+			done: func(t *testing.T, f *buildFixture, buildID string) bool {
+				t.Helper()
+				return f.buildCredentialCount(t, buildID) > 0
+			},
+		},
+		"builds disabled": {
+			role: clusterv1.ClusterRole_CLUSTER_ROLE_APPS,
+			lock: `SELECT id FROM resources WHERE id = $1 FOR UPDATE`,
+			done: func(t *testing.T, f *buildFixture, buildID string) bool {
+				t.Helper()
+				return f.get(t, buildID).GetStatus() == buildv1.BuildStatus_BUILD_STATUS_FAILED
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f := newBuildFixture(t)
+			buildID := f.queued(t)
+			held := uuid.MustParse(buildID)
+			if tc.role == clusterv1.ClusterRole_CLUSTER_ROLE_APPS {
+				held = f.resourceID
+			}
+			if _, err := f.pool.Exec(t.Context(),
+				`UPDATE clusters SET last_heartbeat = NULL, role = $2 WHERE id = $1`,
+				f.clusterID, clusterRoleFromProto(tc.role)); err != nil {
+				t.Fatal(err)
+			}
+			release := holdRow(t, f.deployFixture, tc.lock, held)
+			cfg := testAgentConfig()
+			cfg.RegistryTokenMode = true
+			stream := openReportStream(t, startSyncServerWithConfig(t, f.deployFixture, f.bucket, cfg), f.clusterID)
+			report(stream, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{
+				Heartbeat: &agentv1.Heartbeat{Role: tc.role},
+			}})
+			waitFor(t, "heartbeat recorded while starting queued builds waited for a write", func() bool {
+				return f.heartbeatAt(t) != nil
+			})
+			if tc.done(t, f, buildID) {
+				t.Fatal("the queued build was handled while a write held the row it needs")
+			}
+
+			release()
+			waitFor(t, "the queued build was handled once the write ended", func() bool {
+				return tc.done(t, f, buildID)
+			})
 		})
 	}
 }
