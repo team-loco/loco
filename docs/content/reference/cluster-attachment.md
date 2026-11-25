@@ -64,4 +64,6 @@ locoadm region list
 
 `list` prints every region's code and the number of its clusters that are not removed. The API's `LOCO_DEFAULT_REGION` names the [default region](regions.md#default-region).
 
-Cluster pause, resume, remove and restore remain API operations. Removing an API registration does not provision or destroy Kubernetes infrastructure. Manage the cluster and its software through the operator's infrastructure and Flux workflows.
+The dashboard's **System** area shows the same clusters to users with a system role: switch it on in the user menu. **Overview** lists every cluster by region with its state, last heartbeat and agent version, problems first, and **Clusters** adds a row menu for system admins to issue a join token, pause, resume, remove and restore a cluster. **Add cluster** creates a cluster and shows its join token, masked until revealed, with the commands that give it to the worker chart. A cluster is *not reporting* when its last heartbeat is over five minutes old.
+
+Cluster pause, resume, remove and restore are also API operations. Removing an API registration does not provision or destroy Kubernetes infrastructure. Manage the cluster and its software through the operator's infrastructure and Flux workflows.
