@@ -102,6 +102,7 @@ export interface SettingsDraft {
 	cpu?: string;
 	memory?: string;
 	port?: string;
+	healthEnabled?: boolean;
 	healthPath?: string;
 	healthInterval?: string;
 	healthTimeout?: string;
@@ -133,6 +134,10 @@ export interface Baseline {
 	cpu: string;
 	memory: string;
 	port: string;
+	/** Whether the service runs a health check; the health fields hold the API defaults when it does not. */
+	healthEnabled: boolean;
+	/** Seconds; settings show no field for it. */
+	healthDelay: number;
 	healthPath: string;
 	healthInterval: string;
 	healthTimeout: string;
@@ -170,12 +175,14 @@ export function baseline(
 	isPublic: boolean,
 	defaults: DefaultServiceConfig,
 	failurePolicy: FailurePolicy | undefined,
+	storedHealth: HealthCheckConfig | undefined,
 ): Baseline {
 	const templateView = templateRegion(regions);
 	const template = templateView?.current;
 	const svc = template === undefined ? undefined : getServiceSpec(template);
 	const size = regionTarget(svc, templateView?.name);
-	const health = svc?.healthCheck ?? defaults.healthCheck;
+	const check = svc === undefined ? storedHealth : svc.healthCheck;
+	const health = check ?? defaults.healthCheck;
 	const deployed = deployedRegions(regions);
 	return {
 		slug,
@@ -187,6 +194,8 @@ export function baseline(
 		cpu: size?.cpu ?? "",
 		memory: size?.memory ?? "",
 		port: svc?.port?.toString() ?? "",
+		healthEnabled: check !== undefined,
+		healthDelay: health?.initialDelaySeconds ?? 0,
 		healthPath: health?.path ?? "",
 		healthInterval: health === undefined ? "" : health.intervalSeconds.toString(),
 		healthTimeout: health === undefined ? "" : health.timeoutSeconds.toString(),
@@ -228,6 +237,8 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		cpu: draft.cpu ?? base.cpu,
 		memory: draft.memory ?? base.memory,
 		port: draft.port ?? base.port,
+		healthEnabled: draft.healthEnabled ?? base.healthEnabled,
+		healthDelay: base.healthDelay,
 		healthPath: draft.healthPath ?? base.healthPath,
 		healthInterval: draft.healthInterval ?? base.healthInterval,
 		healthTimeout: draft.healthTimeout ?? base.healthTimeout,
@@ -241,18 +252,9 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 	};
 }
 
-const SCALAR_KEYS = [
-	"name",
-	"description",
-	"image",
-	"cpu",
-	"memory",
-	"port",
-	"healthPath",
-	"healthInterval",
-	"healthTimeout",
-	"healthFailures",
-] as const;
+const SCALAR_KEYS = ["name", "description", "image", "cpu", "memory", "port"] as const;
+
+export const HEALTH_KEYS = ["healthPath", "healthInterval", "healthTimeout", "healthFailures"] as const;
 
 const COMMAND_KEYS = ["command", "args"] as const;
 
@@ -266,7 +268,7 @@ function differs(a: string, b: string): boolean {
 	return a.trim() !== b.trim();
 }
 
-const SCALAR_LABELS: Record<(typeof SCALAR_KEYS)[number], string> = {
+const SCALAR_LABELS: Record<(typeof SCALAR_KEYS)[number] | (typeof HEALTH_KEYS)[number], string> = {
 	name: "Name",
 	description: "Description",
 	image: "Image",
@@ -284,6 +286,7 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	const next = resolved(draft, base);
 	const names: string[] = SCALAR_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
 	names.push(
+		...healthChanges(next, base),
 		...(Object.keys(draft.scaling ?? {}).some((r) => !sameScaling(next.scaling[r], base.scaling[r]))
 			? ["Scaling"]
 			: []),
@@ -303,6 +306,19 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	return names;
 }
 
+/** The health check changes; field edits count only while the check stays on. */
+function healthChanges(next: Baseline, base: Baseline): string[] {
+	if (next.healthEnabled !== base.healthEnabled)
+		return [next.healthEnabled ? "Add health check" : "Remove health check"];
+	if (!next.healthEnabled) return [];
+	return HEALTH_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
+}
+
+/** Whether saving the draft removes the service's health check. */
+export function healthRemoved(draft: SettingsDraft, base: Baseline): boolean {
+	return base.healthEnabled && !resolved(draft, base).healthEnabled;
+}
+
 export function changeCount(draft: SettingsDraft, base: Baseline): number {
 	return changeNames(draft, base).length;
 }
@@ -316,14 +332,7 @@ export function domainsChange(draft: SettingsDraft, base: Baseline): "add" | "re
 export type DraftErrors = Partial<Record<keyof SettingsDraft | `scaling.${string}`, ReactNode>>;
 
 /** Fields whose errors show while the user types, before the first save attempt. */
-export const LIVE_ERROR_KEYS = [
-	"healthPath",
-	"healthInterval",
-	"healthTimeout",
-	"healthFailures",
-	"maxRestarts",
-	"deployTimeout",
-] as const;
+export const LIVE_ERROR_KEYS = [...HEALTH_KEYS, "maxRestarts", "deployTimeout"] as const;
 
 function positive(value: string): boolean {
 	return WHOLE.test(value.trim()) && Number(value.trim()) > 0;
@@ -352,27 +361,7 @@ export function validateDraft(
 		const portInvalid = next.port.trim() === "" ? "Enter a port number" : portRangeError(next.port);
 		if (portInvalid !== null) errors.port = portInvalid;
 	}
-	if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
-	if (
-		draft.healthInterval !== undefined &&
-		!(positive(next.healthInterval) && Number(next.healthInterval) >= MIN_HEALTH_INTERVAL)
-	)
-		errors.healthInterval = `Whole seconds, at least ${MIN_HEALTH_INTERVAL.toString()}`;
-	if (
-		draft.healthTimeout !== undefined &&
-		!(positive(next.healthTimeout) && Number(next.healthTimeout) <= MAX_HEALTH_TIMEOUT)
-	)
-		errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
-	const timeoutOrder = healthTimeoutError(next.healthInterval, next.healthTimeout);
-	if (
-		errors.healthInterval === undefined &&
-		errors.healthTimeout === undefined &&
-		(draft.healthInterval !== undefined || draft.healthTimeout !== undefined) &&
-		timeoutOrder !== null
-	)
-		errors.healthTimeout = timeoutOrder;
-	if (draft.healthFailures !== undefined && !positive(next.healthFailures))
-		errors.healthFailures = "A whole number, at least 1";
+	if (next.healthEnabled) Object.assign(errors, healthErrors(draft, next));
 	const [variableProblem] = addedProblems(draft, base.env).values();
 	if (variableProblem !== undefined) errors.added = variableProblem;
 	// The API enforces the bounds and its message names them.
@@ -389,6 +378,24 @@ export function validateDraft(
 			errors.appDomain = "No app domain is served in every region";
 		if (!SUBDOMAIN_RE.test(draft.subdomain ?? "")) errors.subdomain = "Use lowercase letters, digits and hyphens";
 	}
+	return errors;
+}
+
+function healthErrors(draft: SettingsDraft, next: Baseline): DraftErrors {
+	const errors: DraftErrors = {};
+	if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
+	const interval = Number(next.healthInterval);
+	if (draft.healthInterval !== undefined && !(positive(next.healthInterval) && interval >= MIN_HEALTH_INTERVAL))
+		errors.healthInterval = `Whole seconds, at least ${MIN_HEALTH_INTERVAL.toString()}`;
+	const timeout = Number(next.healthTimeout);
+	if (draft.healthTimeout !== undefined && !(positive(next.healthTimeout) && timeout <= MAX_HEALTH_TIMEOUT))
+		errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
+	const timingEdited = draft.healthInterval !== undefined || draft.healthTimeout !== undefined;
+	const timingValid = errors.healthInterval === undefined && errors.healthTimeout === undefined;
+	const order = timingEdited && timingValid ? healthTimeoutError(next.healthInterval, next.healthTimeout) : null;
+	if (order !== null) errors.healthTimeout = order;
+	if (draft.healthFailures !== undefined && !positive(next.healthFailures))
+		errors.healthFailures = "A whole number, at least 1";
 	return errors;
 }
 
@@ -416,21 +423,12 @@ export function failurePolicyFrom(next: Baseline): FailurePolicy {
 
 function healthFrom(next: Baseline, current: HealthCheckConfig | undefined): HealthCheckConfig {
 	return create(HealthCheckConfigSchema, {
-		initialDelaySeconds: current?.initialDelaySeconds ?? 0,
+		initialDelaySeconds: current?.initialDelaySeconds ?? next.healthDelay,
 		path: next.healthPath.trim(),
 		intervalSeconds: Number(next.healthInterval.trim()),
 		timeoutSeconds: Number(next.healthTimeout.trim()),
 		failureThreshold: Number(next.healthFailures.trim()),
 	});
-}
-
-function healthEdited(draft: SettingsDraft): boolean {
-	return (
-		draft.healthPath !== undefined ||
-		draft.healthInterval !== undefined ||
-		draft.healthTimeout !== undefined ||
-		draft.healthFailures !== undefined
-	);
 }
 
 function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline): DeploymentSpec {
@@ -443,7 +441,8 @@ function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline):
 	}
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
 	if (draft.observability !== undefined) svc.observability = create(ObservabilityConfigSchema, want.observability);
-	if (healthEdited(draft)) svc.healthCheck = healthFrom(want, svc.healthCheck);
+	if (healthChanges(want, base).length > 0)
+		svc.healthCheck = want.healthEnabled ? healthFrom(want, svc.healthCheck) : undefined;
 	if (draft.command !== undefined) svc.command = commandEntries(want.command);
 	if (draft.args !== undefined) svc.args = commandEntries(want.args);
 	return next;

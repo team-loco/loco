@@ -1,12 +1,14 @@
 import argparse
+import json
 from pathlib import Path
 
-from harness import load_state, open_page, repo, session
+import evidence
+from harness import call, expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 from settings_fixture import seed_settings_resource
 
 parser = argparse.ArgumentParser(
-    description="Check health check validation while typing in resource settings"
+    description="Check the health check switch and validation while typing in resource settings"
 )
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
@@ -18,22 +20,50 @@ state = load_state(
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 _, resource, base = seed_settings_resource(state, "health")
+_, unchecked, unchecked_base = seed_settings_resource(state, "health-off", health=False)
+config = call(state, "loco.config.v1.ConfigService/GetConfig", {})
+default_health = config["serviceDefaults"]["healthCheck"]
+default_health["initialDelaySeconds"] = 17
+digest = "sha256:" + "a" * 64
+
+
+def live(resource_id):
+    return f"SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource_id}'"
+
 
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     deployments = []
 
     def create_deployment(route):
-        deployments.append(route.request.post_data_json)
-        route.abort()
+        body = route.request.post_data_json
+        deployments.append(body)
+        service = body["spec"]["service"]
+        if "@" not in service["build"]["image"]:
+            service["build"]["image"] += "@" + digest
+        # Stores the requested spec as the live snapshot; the fixture image has no registry.
+        spec = evidence.sql_literal(json.dumps(service))
+        deployment = sql(
+            state,
+            f"UPDATE deployments SET spec={spec} WHERE id IN ({live(body['resourceId'])}) RETURNING id;",
+        )
+        route.fulfill(json={"deploymentId": deployment})
 
     context.route(
         "**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment
     )
+    context.route(
+        "**/loco.config.v1.ConfigService/GetConfig*",
+        lambda route: route.fulfill(json=config),
+    )
     page.goto(base + "?env=production&tab=settings")
     section = page.locator("#set-health")
     expect(section).to_be_visible()
-    path, interval, timeout = section.locator("input").all()[:3]
+    switch = section.get_by_role("switch", name="Health check", exact=True)
+    fields = section.get_by_role("textbox")
+    discard = page.get_by_role("button", name="Discard", exact=True)
+    expect(switch).to_be_checked()
+    path, interval, timeout = fields.all()[:3]
     height = section.bounding_box()["height"]
 
     def settled():
@@ -75,9 +105,43 @@ with session(out) as browser:
     assert deployments == [], deployments
     timeout.fill("6")
     expect(save).to_be_enabled()
+
+    def saved(match):
+        with expect_rpc(page, "CreateDeployment", match) as completed:
+            save.click()
+        assert completed.value.ok, completed.value.text()
+        expect(discard).to_have_count(0)
+        return deployments[-1]
+
+    # Turning the check off hides its fields and removes it on save.
+    discard.click()
+    switch.click()
+    expect(fields).to_have_count(0)
+    expect(page.get_by_text("Remove health check", exact=True)).to_be_visible()
+    sent = saved(lambda body: body.get("resourceId") == resource)
+    assert sent["removeHealthCheck"] is True, sent
+    assert "healthCheck" not in sent["spec"]["service"], sent
+    expect(switch).not_to_be_checked()
+
+    # A service without a check shows the switch off and no values.
+    page.goto(unchecked_base + "?env=production&tab=settings")
+    expect(switch).not_to_be_checked()
+    expect(fields).to_have_count(0)
+    switch.click()
+    expect(fields.first).to_have_value(default_health["path"])
+    switch.click()
+    expect(discard).to_have_count(0)
+
+    # Turning it on sends the API's default check, startup delay included.
+    switch.click()
+    expect(page.get_by_text("Add health check", exact=True)).to_be_visible()
+    sent = saved(lambda body: body.get("resourceId") == unchecked)
+    assert "removeHealthCheck" not in sent, sent
+    assert sent["spec"]["service"]["healthCheck"] == default_health, sent
+    expect(switch).to_be_checked()
     assert not errors, errors
     context.close()
     browser.close()
 print(
-    "PASS: health check fields flag invalid values while typing without moving the page"
+    "PASS: the health check switch adds and removes a check, and its fields flag invalid values while typing without moving the page"
 )

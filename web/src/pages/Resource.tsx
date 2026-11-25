@@ -202,6 +202,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		resource.domains.length > 0,
 		defaults,
 		resource.failurePolicy,
+		resource.spec?.spec.case === "service" ? resource.spec.spec.value.healthCheck : undefined,
 	);
 	const level =
 		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;

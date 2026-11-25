@@ -293,56 +293,87 @@ function UnitInput({
 	);
 }
 
-export function HealthSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
+export function HealthSection({
+	draft,
+	base,
+	errors,
+	locked,
+	describedBy,
+	onChange,
+	deployed,
+}: SectionProps & { deployed: boolean }) {
+	const enabled = draft.healthEnabled ?? base.healthEnabled;
+	const disabled = locked || !deployed;
 	return (
-		<SettingsBlock id={HEALTH_SECTION_ID} title="Health check">
-			<div className={grid2}>
-				<Field label="Path" error={errors.healthPath} reserve>
-					<Input
-						className="font-mono"
-						value={draft.healthPath ?? base.healthPath}
-						disabled={locked}
-						aria-describedby={describedBy}
-						aria-invalid={errors.healthPath !== undefined}
-						onChange={(e) => {
-							onChange({ healthPath: e.target.value });
+		<SettingsBlock
+			id={HEALTH_SECTION_ID}
+			title="Health check"
+			hint={
+				deployed
+					? "Optional. Without one, Loco waits for the service port to accept connections."
+					: "The health check can be changed once the service is deployed."
+			}
+			actions={
+				<Switch
+					aria-label="Health check"
+					checked={enabled}
+					disabled={disabled}
+					aria-describedby={describedBy}
+					onCheckedChange={(healthEnabled) => {
+						onChange({ healthEnabled });
+					}}
+				/>
+			}
+		>
+			{enabled && (
+				<div className={grid2}>
+					<Field label="Path" error={errors.healthPath} reserve>
+						<Input
+							className="font-mono"
+							value={draft.healthPath ?? base.healthPath}
+							disabled={disabled}
+							aria-describedby={describedBy}
+							aria-invalid={errors.healthPath !== undefined}
+							onChange={(e) => {
+								onChange({ healthPath: e.target.value });
+							}}
+						/>
+					</Field>
+					<UnitInput
+						label="Interval"
+						unit="sec"
+						value={draft.healthInterval ?? base.healthInterval}
+						error={errors.healthInterval}
+						locked={disabled}
+						describedBy={describedBy}
+						onChange={(healthInterval) => {
+							onChange({ healthInterval });
 						}}
 					/>
-				</Field>
-				<UnitInput
-					label="Interval"
-					unit="sec"
-					value={draft.healthInterval ?? base.healthInterval}
-					error={errors.healthInterval}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthInterval) => {
-						onChange({ healthInterval });
-					}}
-				/>
-				<UnitInput
-					label="Timeout"
-					unit="sec"
-					value={draft.healthTimeout ?? base.healthTimeout}
-					error={errors.healthTimeout}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthTimeout) => {
-						onChange({ healthTimeout });
-					}}
-				/>
-				<UnitInput
-					label="Fail after"
-					unit="checks"
-					value={draft.healthFailures ?? base.healthFailures}
-					error={errors.healthFailures}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthFailures) => {
-						onChange({ healthFailures });
-					}}
-				/>
-			</div>
+					<UnitInput
+						label="Timeout"
+						unit="sec"
+						value={draft.healthTimeout ?? base.healthTimeout}
+						error={errors.healthTimeout}
+						locked={disabled}
+						describedBy={describedBy}
+						onChange={(healthTimeout) => {
+							onChange({ healthTimeout });
+						}}
+					/>
+					<UnitInput
+						label="Fail after"
+						unit="checks"
+						value={draft.healthFailures ?? base.healthFailures}
+						error={errors.healthFailures}
+						locked={disabled}
+						describedBy={describedBy}
+						onChange={(healthFailures) => {
+							onChange({ healthFailures });
+						}}
+					/>
+				</div>
+			)}
 		</SettingsBlock>
 	);
 }

@@ -293,7 +293,7 @@ export function SettingsView({
 							});
 						}}
 					/>
-					{!worker && <HealthSection {...props} />}
+					{!worker && <HealthSection {...props} deployed={regions.some(isDeployed)} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
 					<GeneralSection {...props} canWrite={canWrite} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">

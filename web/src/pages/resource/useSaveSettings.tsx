@@ -20,10 +20,12 @@ import { refreshVariables } from "./variables";
 import type { Notice, RegionView } from "./model";
 import {
 	FAILURE_POLICY_KEYS,
+	HEALTH_KEYS,
 	REGION_MAP_KEYS,
 	domainsChange,
 	failurePolicyChanged,
 	failurePolicyFrom,
+	healthRemoved,
 	mergedSpec,
 	plainEnv,
 	planSave,
@@ -35,15 +37,7 @@ import {
 	variablesChanged,
 } from "./settings-draft";
 
-const SPEC_KEYS = [
-	"image",
-	"port",
-	"healthPath",
-	"healthInterval",
-	"healthTimeout",
-	"healthFailures",
-	"observability",
-] as const;
+const SPEC_KEYS = ["image", "port", "healthEnabled", ...HEALTH_KEYS, "observability"] as const;
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "appDomain"] as const;
 
@@ -201,6 +195,7 @@ export function useSaveSettings({
 						spec: merged,
 						environmentId,
 						commit: first.commit,
+						removeHealthCheck: healthRemoved(effective, base),
 					}),
 			);
 			if (ok) savedRegions.push(...planned);
