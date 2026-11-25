@@ -44,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const claimedOrgs = useSyncExternalStore(subscribeClaimedOrgs, getClaimedOrgs);
 	const signedOut = unauthenticated(error);
 	const user = signedOut ? null : (data?.user ?? null);
+	// A refetch that fails keeps the user and the shell; only the first load can fail the account.
+	const loadError = signedOut || data !== undefined ? null : error;
 
 	const logout = async () => {
 		try {
@@ -70,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				holdSignIn: setSignInHeld,
 				isAuthenticated: user !== null,
 				isPending,
-				error: signedOut ? null : error,
+				error: loadError,
 				logout,
 			}}
 		>

@@ -39,3 +39,4 @@
 6 workspace_retention_ui
 5 outside_changes_ui
 4 cli_device_ui
+5 shell_flash_ui
