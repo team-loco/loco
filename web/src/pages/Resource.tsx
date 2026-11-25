@@ -63,6 +63,7 @@ import { queryStr, quoteValue } from "@/pages/observability/query";
 import { LeaveGuard } from "@/pages/resource/LeaveGuard";
 import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
 import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
+import { useSaveSettings } from "@/pages/resource/useSaveSettings";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 
 const EVENTS_REFRESH_MS = 30_000;
@@ -142,6 +143,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const [notice, setNotice] = useState<Notice | null>(null);
 	const [redeploying, setRedeploying] = useState(false);
 	const [draft, setDraft] = useState<SettingsDraft>({});
+	// The page owns the save with the draft, so leaving the settings tab keeps the lock.
+	const { save: saveSettings, saving } = useSaveSettings(async (next, saved) => {
+		setNotice(saved);
+		await refresh();
+		setDraft(next);
+	});
 	const deploy = useMutation(createDeployment);
 	const del = useMutation(deleteResource);
 
@@ -202,6 +209,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		resource.domains.length > 0,
 		defaults,
 		resource.failurePolicy,
+		resource.spec?.spec.case === "service" ? resource.spec.spec.value.healthCheck : undefined,
 	);
 	const level =
 		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;
@@ -537,7 +545,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						canWrite={canWrite}
 						canDelete={canDelete}
 						canReadWorkspace={canListResources}
-						onDraft={setDraft}
+						onDraft={(next) => {
+							// A running save owns the draft; edits wait until it finishes.
+							if (!saving) setDraft(next);
+						}}
 						onBack={() => {
 							setView("overview");
 						}}
@@ -547,6 +558,17 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						onSaved={(next) => {
 							setNotice(next);
 							void refresh();
+						}}
+						saving={saving}
+						onSave={async (saved, validate) => {
+							await saveSettings({
+								resource,
+								environmentId: environmentId ?? "",
+								regions,
+								base,
+								draft: saved,
+								validate,
+							});
 						}}
 					/>
 				</div>

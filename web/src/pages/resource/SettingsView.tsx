@@ -3,7 +3,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listAppDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
-import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { getResourceEnv, listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
@@ -27,6 +27,8 @@ import { isDeployed, type Notice as NoticeState, type RegionView } from "./model
 import { regionsWithDifferentVariables } from "./variables";
 import { NetworkingSection } from "./NetworkingSection";
 import {
+	effectiveDraft,
+	plainEnv,
 	changeNames,
 	domainsChange,
 	LIVE_ERROR_KEYS,
@@ -51,7 +53,6 @@ import {
 	ObservabilitySection,
 	DeploymentSection,
 } from "./SettingsSections";
-import { useSaveSettings } from "./useSaveSettings";
 import { VariablesSection } from "./VariablesSection";
 
 export const SETTINGS_FOCUSES = ["settings", "scaling"] as const;
@@ -113,6 +114,8 @@ export function SettingsView({
 	onBack,
 	onDelete,
 	onSaved,
+	saving,
+	onSave,
 }: {
 	resource: Resource;
 	secretsNotice: ReactNode;
@@ -128,6 +131,13 @@ export function SettingsView({
 	onBack: () => void;
 	onDelete: () => void;
 	onSaved: (notice: NoticeState) => void;
+	/** Whether a save, and the reload after it, is still running. */
+	saving: boolean;
+	/** Saves the draft; `validate` checks it against the variables and plan the save uses. */
+	onSave: (
+		draft: SettingsDraft,
+		validate: (env: Record<string, string>, hasDeployments: boolean) => DraftErrors,
+	) => Promise<void>;
 }) {
 	const [current, setCurrent] = useState(() => {
 		const linked = NAV.find((n) => `#${n.id}` === window.location.hash);
@@ -180,7 +190,18 @@ export function SettingsView({
 		resource,
 		regions.filter(isDeployed).flatMap((r) => (r.current === undefined ? [] : [r.current])),
 	);
-	const locked = managed || !canWrite;
+	// A pending health edit keeps its section, and its error, even once only workers run.
+	const showHealth = !worker || draft.health !== undefined;
+	const readOnly = managed || !canWrite;
+	// Fields stay locked until a save and the reload after it finish, so no edit is lost.
+	const locked = readOnly || saving;
+	// The variables editor, validation and the plan read the same variables.
+	const envQuery = useQuery(
+		getResourceEnv,
+		{ resourceId: resource.id, environmentId },
+		{ enabled: environmentId !== "" },
+	);
+	const env = envQuery.data?.env ?? {};
 	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
 	const want = resolved(draft, base);
 	const onRegions = Object.keys(want.regions).filter((r) => want.regions[r] === true);
@@ -188,29 +209,28 @@ export function SettingsView({
 	const { activeOrgId } = useOrgWorkspace();
 	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
 	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
-	const errors = validateDraft(draft, base, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY, taken);
+	const replicaLimit = sizes.replicas?.max ?? Number.POSITIVE_INFINITY;
+	// Raw input stays in the draft; validation and the plan read the changes the pending list names.
+	const effective = effectiveDraft(draft, base);
+	const validate = (variables: Record<string, string>, hasDeployments: boolean) =>
+		validateDraft(effective, base, regions, served, replicaLimit, variables, hasDeployments, taken);
+	const planned = planSave(regions, effective, base, plainEnv(env, effective));
+	const errors = validate(env, planned.length > 0);
 	const errorCount = Object.keys(errors).length;
 	const changes = changeNames(draft, base);
 	const count = changes.length;
-	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, base).length > 0;
-	const { save, saving } = useSaveSettings({
-		resource,
-		environmentId,
-		regions,
-		base,
-		onDone: (next, notice) => {
-			onDraft(next);
-			setTried(false);
-			onSaved(notice);
-		},
-	});
+	const redeploys = regionMapChanged(draft, base) || planned.length > 0;
+	const submit = async () => {
+		await onSave(draft, validate);
+		setTried(false);
+	};
 	const confirmDomains = () => {
 		if (domainsChange(draft, base) === "remove") {
 			setConfirming("internal");
 			return;
 		}
 		setConfirming(null);
-		void save(draft);
+		void submit();
 	};
 	const change = (patch: Partial<SettingsDraft>) => {
 		onDraft({ ...draft, ...patch });
@@ -239,7 +259,7 @@ export function SettingsView({
 			)}
 			<div className="grid grid-cols-1 items-start gap-8 md:grid-cols-[170px_minmax(0,1fr)]">
 				<nav aria-label="Settings sections" className="flex flex-row flex-wrap gap-0.5 md:sticky md:top-4 md:flex-col">
-					{NAV.filter((n) => !worker || n.id !== HEALTH_SECTION_ID).map((n) => (
+					{NAV.filter((n) => showHealth || n.id !== HEALTH_SECTION_ID).map((n) => (
 						<a
 							key={n.id}
 							href={`#${n.id}`}
@@ -271,7 +291,8 @@ export function SettingsView({
 						differingRegions={regionsWithDifferentVariables(regions)}
 						environmentId={environmentId}
 						draft={draft}
-						canWrite={canWrite}
+						envQuery={envQuery}
+						canWrite={canWrite && !saving}
 						canReadWorkspace={canReadWorkspace}
 						onChange={change}
 					/>
@@ -293,9 +314,9 @@ export function SettingsView({
 							});
 						}}
 					/>
-					{!worker && <HealthSection {...props} />}
+					{showHealth && <HealthSection {...props} deployed={regions.some(isDeployed)} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
-					<GeneralSection {...props} canWrite={canWrite} readOnlyId={READ_ONLY_ID} />
+					<GeneralSection {...props} canWrite={canWrite && !saving} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">
 						<DangerZone
 							title={
@@ -317,7 +338,7 @@ export function SettingsView({
 							onAction={onDelete}
 						/>
 					</SettingsBlock>
-					{count > 0 && (
+					{(count > 0 || saving) && (
 						<SaveBar
 							count={count}
 							names={changes}
@@ -350,7 +371,7 @@ export function SettingsView({
 						confirmLabel="Remove domains and save"
 						onConfirm={() => {
 							setConfirming(null);
-							void save(draft);
+							void submit();
 						}}
 						onClose={() => {
 							setConfirming(null);

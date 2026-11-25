@@ -17,11 +17,13 @@ import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFie
 import { SoonTag } from "@/components/design/SoonTag";
 import { Switch } from "@/components/design/Switch";
 import { joinImage, parseImage, splitImage } from "@/lib/image";
-import type { Scaling } from "@/lib/new-resource";
+import type { HealthForm, Scaling } from "@/lib/new-resource";
 import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
 import {
 	RESTART_CHOICES,
+	editHealth,
+	switchHealth,
 	scalingDiffers,
 	type Baseline,
 	type DraftErrors,
@@ -293,56 +295,101 @@ function UnitInput({
 	);
 }
 
-export function HealthSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
+export function HealthSection({
+	draft,
+	base,
+	errors,
+	locked,
+	describedBy,
+	onChange,
+	deployed,
+}: SectionProps & { deployed: boolean }) {
+	const form = draft.health?.form ?? base.health;
+	const disabled = locked || !deployed;
+	const edit = (patch: Partial<HealthForm>) => {
+		onChange({ health: editHealth(draft.health, base, patch) });
+	};
 	return (
-		<SettingsBlock id={HEALTH_SECTION_ID} title="Health check">
-			<div className={grid2}>
-				<Field label="Path" error={errors.healthPath} reserve>
-					<Input
-						className="font-mono"
-						value={draft.healthPath ?? base.healthPath}
-						disabled={locked}
-						aria-describedby={describedBy}
-						aria-invalid={errors.healthPath !== undefined}
-						onChange={(e) => {
-							onChange({ healthPath: e.target.value });
+		<SettingsBlock
+			id={HEALTH_SECTION_ID}
+			title="Health check"
+			hint={
+				deployed
+					? "Optional. Without one, Loco waits for the service port to accept connections."
+					: "The health check can be changed once the service is deployed."
+			}
+			actions={
+				<Switch
+					aria-label="Health check"
+					checked={form.enabled}
+					disabled={disabled}
+					aria-describedby={describedBy}
+					onCheckedChange={(on) => {
+						onChange({ health: switchHealth(draft.health, base, on) });
+					}}
+				/>
+			}
+		>
+			{draft.health?.form.enabled === false && base.healthStored && (
+				<span className="text-[12.5px] text-fg3">
+					This also removes the check new deployments in every environment start with; deployments already running
+					elsewhere keep theirs.
+				</span>
+			)}
+			{errors.health !== undefined && (
+				<span className="text-[12.5px] text-bad-fg">
+					{errors.health} Discard drops the pending health check change.
+				</span>
+			)}
+			{form.enabled && (
+				<div className={grid2}>
+					<Field label="Path" error={errors.healthPath} reserve>
+						<Input
+							className="font-mono"
+							value={form.path}
+							disabled={disabled}
+							aria-describedby={describedBy}
+							aria-invalid={errors.healthPath !== undefined}
+							onChange={(e) => {
+								edit({ path: e.target.value });
+							}}
+						/>
+					</Field>
+					<UnitInput
+						label="Interval"
+						unit="sec"
+						value={form.interval}
+						error={errors.healthInterval}
+						locked={disabled}
+						describedBy={describedBy}
+						onChange={(interval) => {
+							edit({ interval });
 						}}
 					/>
-				</Field>
-				<UnitInput
-					label="Interval"
-					unit="sec"
-					value={draft.healthInterval ?? base.healthInterval}
-					error={errors.healthInterval}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthInterval) => {
-						onChange({ healthInterval });
-					}}
-				/>
-				<UnitInput
-					label="Timeout"
-					unit="sec"
-					value={draft.healthTimeout ?? base.healthTimeout}
-					error={errors.healthTimeout}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthTimeout) => {
-						onChange({ healthTimeout });
-					}}
-				/>
-				<UnitInput
-					label="Fail after"
-					unit="checks"
-					value={draft.healthFailures ?? base.healthFailures}
-					error={errors.healthFailures}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthFailures) => {
-						onChange({ healthFailures });
-					}}
-				/>
-			</div>
+					<UnitInput
+						label="Timeout"
+						unit="sec"
+						value={form.timeout}
+						error={errors.healthTimeout}
+						locked={disabled}
+						describedBy={describedBy}
+						onChange={(timeout) => {
+							edit({ timeout });
+						}}
+					/>
+					<UnitInput
+						label="Fail after"
+						unit="checks"
+						value={form.failAfter}
+						error={errors.healthFailures}
+						locked={disabled}
+						describedBy={describedBy}
+						onChange={(failAfter) => {
+							edit({ failAfter });
+						}}
+					/>
+				</div>
+			)}
 		</SettingsBlock>
 	);
 }

@@ -22,28 +22,21 @@ import {
 	FAILURE_POLICY_KEYS,
 	REGION_MAP_KEYS,
 	domainsChange,
+	effectiveDraft,
 	failurePolicyChanged,
 	failurePolicyFrom,
-	mergedSpec,
 	plainEnv,
 	planSave,
 	regionChanges,
 	regionTargets,
 	resolved,
 	type Baseline,
+	type DraftErrors,
 	type SettingsDraft,
 	variablesChanged,
 } from "./settings-draft";
 
-const SPEC_KEYS = [
-	"image",
-	"port",
-	"healthPath",
-	"healthInterval",
-	"healthTimeout",
-	"healthFailures",
-	"observability",
-] as const;
+const SPEC_KEYS = ["image", "port", "health", "observability", "command", "args"] as const;
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "appDomain"] as const;
 
@@ -53,19 +46,23 @@ function omit(draft: SettingsDraft, keys: readonly (keyof SettingsDraft)[]): Set
 	return Object.fromEntries(Object.entries(draft).filter(([k]) => !keys.some((key) => key === k)));
 }
 
-export function useSaveSettings({
-	resource,
-	environmentId,
-	regions,
-	base,
-	onDone,
-}: {
+/** What a save works from, read when it starts. */
+export interface SaveRequest {
 	resource: Resource;
 	environmentId: string;
 	regions: RegionView[];
+	/** What runs now; the resource updates and domains run only where it differs from the draft. */
 	base: Baseline;
-	onDone: (next: SettingsDraft, notice: Notice) => void;
-}) {
+	draft: SettingsDraft;
+	/** Validates the draft against the variables and plan this save uses. */
+	validate: (env: Record<string, string>, hasDeployments: boolean) => DraftErrors;
+}
+
+/**
+ * Saves resource settings. The page that owns the draft holds it, so the save and its lock outlive
+ * the settings tab. `onDone` gets the draft to keep, empty once everything saved.
+ */
+export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) => Promise<void>) {
 	const [saving, setSaving] = useState(false);
 	const update = useMutation(updateResource);
 	const addDomain = useMutation(createResourceDomain);
@@ -75,17 +72,21 @@ export function useSaveSettings({
 	const queryClient = useQueryClient();
 
 	// The API refuses a stale region map with FAILED_PRECONDITION; only a moved revision means someone else saved first.
-	const revisionMoved = async (err: unknown) => {
+	const revisionMoved = async (err: unknown, resource: Resource) => {
 		if (!(err instanceof ConnectError) || err.code !== Code.FailedPrecondition) return false;
-		const latest = await callUnaryMethod(transport, getResource, {
-			key: { case: "resourceId", value: resource.id },
-		});
-		return latest.resource?.revision !== resource.revision;
+		try {
+			const latest = await callUnaryMethod(transport, getResource, {
+				key: { case: "resourceId", value: resource.id },
+			});
+			return latest.resource?.revision !== resource.revision;
+		} catch {
+			return false;
+		}
 	};
 
-	const save = async (draft: SettingsDraft) => {
-		setSaving(true);
+	const saveAll = async ({ resource, environmentId, regions, base, draft: raw, validate }: SaveRequest) => {
 		const resourceId = resource.id;
+		const draft = effectiveDraft(raw, base);
 		const failures: string[] = [];
 		let next = draft;
 		const attempt = async (label: string, keys: readonly (keyof SettingsDraft)[], run: () => Promise<unknown>) => {
@@ -104,8 +105,7 @@ export function useSaveSettings({
 			try {
 				current = await callUnaryMethod(transport, getResourceEnv, { resourceId, environmentId });
 			} catch (err) {
-				setSaving(false);
-				onDone(draft, {
+				await onDone(raw, {
 					tone: "bad",
 					title: withCode`Couldn't save ${resource.name}`,
 					message: getErrorMessage(err, "Failed to load its variables"),
@@ -113,7 +113,14 @@ export function useSaveSettings({
 				return;
 			}
 		}
-		const env = current === undefined ? undefined : plainEnv(current.env, draft);
+		// The plan this save sends is the one validated here, before anything changes.
+		const deploys = planSave(regions, draft, base, plainEnv(current?.env ?? {}, draft));
+		const [problem] = Object.values(validate(current?.env ?? {}, deploys.length > 0));
+		if (problem !== undefined) {
+			await onDone(raw, { tone: "bad", title: withCode`Couldn't save ${resource.name}`, message: problem });
+			return;
+		}
+
 		const name = draft.name?.trim();
 		const renamed = name !== undefined && name !== resource.name;
 		const description = draft.description?.trim();
@@ -155,17 +162,15 @@ export function useSaveSettings({
 			});
 		}
 
-		const effective = domainsSaved ? draft : omit(draft, DOMAIN_KEYS);
 		const spec = resource.spec?.spec;
-		const targets = regionTargets(spec?.case === "service" ? spec.value.regions : {}, effective, base);
+		const targets = regionTargets(spec?.case === "service" ? spec.value.regions : {}, draft, base);
 		if (targets !== undefined) {
 			try {
 				await update.mutateAsync({ resourceId, regions: { targets }, revision: resource.revision });
 				next = omit(next, REGION_MAP_KEYS);
 			} catch (err) {
-				if (await revisionMoved(err)) {
-					setSaving(false);
-					onDone(omit(next, REGION_MAP_KEYS), {
+				if (await revisionMoved(err, resource)) {
+					await onDone(omit(next, REGION_MAP_KEYS), {
 						tone: "warn",
 						title: withCode`${resource.name} changed since you opened it`,
 						message: "Showing its current regions and scaling. Make your region changes again.",
@@ -175,42 +180,40 @@ export function useSaveSettings({
 				failures.push(`Regions: ${getErrorMessage(err, "failed")}`);
 			}
 		}
-		if (failurePolicyChanged(effective, base)) {
+		if (failurePolicyChanged(draft, base)) {
 			await attempt(
 				"Deployment behavior",
 				FAILURE_POLICY_KEYS,
-				async () =>
-					await update.mutateAsync({ resourceId, failurePolicy: failurePolicyFrom(resolved(effective, base)) }),
+				async () => await update.mutateAsync({ resourceId, failurePolicy: failurePolicyFrom(resolved(draft, base)) }),
 			);
 		}
 
-		const deploys = planSave(regions, effective, base);
+		// Without the domain change, only the deployments the other settings change are sent.
+		const sent = domainsSaved
+			? deploys
+			: planSave(regions, omit(draft, DOMAIN_KEYS), base, plainEnv(current?.env ?? {}, draft));
 		const savedRegions: string[] = [];
-		const [first] = deploys;
-		if (first !== undefined) {
-			const planned = deploys.map((d) => d.region);
-			const merged = mergedSpec(deploys, first.spec);
-			if (env !== undefined && merged.spec.case === "service") merged.spec.value.env = env;
-			const ok = await attempt(
-				planned.join(", "),
-				[],
-				async () =>
-					await deploy.mutateAsync({
-						resourceId,
-						regions: planned,
-						spec: merged,
-						environmentId,
-						commit: first.commit,
-					}),
-			);
-			if (ok) savedRegions.push(...planned);
+		for (const planned of sent) {
+			try {
+				await deploy.mutateAsync({
+					resourceId,
+					regions: planned.regions,
+					spec: planned.spec,
+					environmentId,
+					commit: planned.commit,
+					removeHealthCheck: draft.health?.form.enabled === false,
+				});
+				savedRegions.push(...planned.regions);
+			} catch (err) {
+				failures.push(`${planned.regions.join(", ")}: ${getErrorMessage(err, "failed")}`);
+			}
 		}
-		if (savedRegions.length === deploys.length) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
+		// Once any deployment saved, the deployment settings clear: the reload shows what each region runs.
+		if (sent.length === 0 || savedRegions.length > 0) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
-		setSaving(false);
 		if (failures.length > 0) {
-			onDone(next, {
+			await onDone(next, {
 				tone: "bad",
 				title: withCode`Some changes to ${resource.name} were not saved`,
 				message: (
@@ -227,7 +230,7 @@ export function useSaveSettings({
 			return;
 		}
 		const { rolling, stopping } =
-			targets === undefined ? { rolling: deploys.map((d) => d.region), stopping: [] } : regionChanges(effective, base);
+			targets === undefined ? { rolling: sent.flatMap((d) => d.regions), stopping: [] } : regionChanges(draft, base);
 		const message =
 			rolling.length + stopping.length === 0 ? (
 				"No redeploy needed."
@@ -246,7 +249,17 @@ export function useSaveSettings({
 					)}
 				</>
 			);
-		onDone(next, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
+		await onDone(next, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
+	};
+
+	// Saving lasts until the page has reloaded what runs, so the next edit starts from it.
+	const save = async (request: SaveRequest) => {
+		setSaving(true);
+		try {
+			await saveAll(request);
+		} finally {
+			setSaving(false);
+		}
 	};
 
 	return { save, saving };

@@ -59,10 +59,12 @@ function DomainRow({
 	const check = useMutation(checkDomainAvailability);
 	const update = useMutation(updateResourceDomain);
 	const removeBlocked = domain.isPrimary && !onlyDomain;
+	const busy = update.isPending || check.isPending;
 	const { serving, missing } = domainCoverage(served, running);
 
 	const saveEdit = async () => {
-		if (editing === null) return;
+		// A running settings save locks the row, an open hostname edit included.
+		if (editing === null || managed) return;
 		const host = editing.trim().toLowerCase();
 		if (host === domain.domain) {
 			setEditing(null);
@@ -95,7 +97,9 @@ function DomainRow({
 			<div className="flex items-center gap-2 border-b border-line px-4 py-1.5">
 				<Input
 					autoFocus
+					aria-label={`Hostname for ${domain.domain}`}
 					value={editing}
+					disabled={managed}
 					onChange={(e) => {
 						setEditing(e.target.value);
 					}}
@@ -113,7 +117,7 @@ function DomainRow({
 				>
 					Cancel
 				</Button>
-				<Button disabled={update.isPending || check.isPending} onClick={() => void saveEdit()}>
+				<Button disabled={managed || busy} onClick={() => void saveEdit()}>
 					Save
 				</Button>
 			</div>
@@ -384,6 +388,7 @@ export function NetworkingSection({
 					<span className="text-[13px] font-medium">Domain</span>
 					<AppDomainInput
 						className="max-w-[460px]"
+						disabled={locked}
 						subdomain={subdomain}
 						appDomain={appDomain}
 						options={appDomains.filter((d) => served.includes(d.domain))}

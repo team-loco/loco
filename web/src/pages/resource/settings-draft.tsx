@@ -17,10 +17,12 @@ import {
 } from "@gen/loco/deployment/v1/deployment_pb";
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
-import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
+import { getServiceSpec, regionTarget, specForRegions } from "@/lib/deployment-utils";
 import { isEnvKey } from "@/lib/dotenv";
 import {
 	IMAGE_RE,
+	type HealthForm,
+	healthCheckSpec,
 	commandEntries,
 	commandText,
 	healthTimeoutError,
@@ -33,6 +35,7 @@ import { SUBDOMAIN_RE } from "@/lib/app-domain";
 import { nameError } from "@/lib/slug";
 
 import { isDeployed, type RegionView } from "./model";
+import { currentSources } from "./redeploy";
 
 // These fields make up the resource's region map, which UpdateResource replaces in one request
 // for every environment; the other spec fields redeploy this environment's regions.
@@ -89,6 +92,15 @@ function observabilitySettings(config: ObservabilityConfig | undefined): Observa
 	return { injectOtel: config.injectOtel };
 }
 
+/**
+ * A health check edit: the form every deployment with a port gets, without a check when it is off.
+ * `toggled` marks an edit the switch started, which switching back undoes.
+ */
+export interface HealthEdit {
+	form: HealthForm;
+	toggled: boolean;
+}
+
 export interface SettingsDraft {
 	name?: string;
 	description?: string;
@@ -102,10 +114,8 @@ export interface SettingsDraft {
 	cpu?: string;
 	memory?: string;
 	port?: string;
-	healthPath?: string;
-	healthInterval?: string;
-	healthTimeout?: string;
-	healthFailures?: string;
+	/** The pending health check edit, kept until the user reverts it, discards it or it saves. */
+	health?: HealthEdit | undefined;
 	command?: string;
 	args?: string;
 	regions?: Record<string, boolean>;
@@ -133,17 +143,17 @@ export interface Baseline {
 	cpu: string;
 	memory: string;
 	port: string;
-	healthPath: string;
-	healthInterval: string;
-	healthTimeout: string;
-	healthFailures: string;
+	/** The check the service runs; its fields hold the API defaults when it runs none. */
+	health: HealthForm;
+	/** The API's startup delay for a new check, in seconds; settings show no field for it. */
+	healthDefaultDelay: number;
+	/** Whether the resource stores a check that deployments without one inherit. */
+	healthStored: boolean;
 	command: string;
 	args: string;
 	scaling: Record<string, Scaling>;
 	regions: Record<string, boolean>;
 	isPublic: boolean;
-	/** The variables the deployments run with, as written. */
-	env: Record<string, string>;
 }
 
 /** A variable added in the settings, before it has a name the deployments know. */
@@ -170,13 +180,17 @@ export function baseline(
 	isPublic: boolean,
 	defaults: DefaultServiceConfig,
 	failurePolicy: FailurePolicy | undefined,
+	storedHealth?: HealthCheckConfig,
 ): Baseline {
 	const templateView = templateRegion(regions);
 	const template = templateView?.current;
 	const svc = template === undefined ? undefined : getServiceSpec(template);
 	const size = regionTarget(svc, templateView?.name);
-	const health = svc?.healthCheck ?? defaults.healthCheck;
 	const deployed = deployedRegions(regions);
+	const running = deployed.flatMap((r) => (r.current === undefined ? [] : [r.current]));
+	// The switch is on while any deployment with a port, or the resource itself, has a check.
+	const check = running.map((d) => getServiceSpec(d)?.healthCheck).find(Boolean) ?? storedHealth;
+	const health = check ?? defaults.healthCheck;
 	return {
 		slug,
 		name,
@@ -187,10 +201,15 @@ export function baseline(
 		cpu: size?.cpu ?? "",
 		memory: size?.memory ?? "",
 		port: svc?.port?.toString() ?? "",
-		healthPath: health?.path ?? "",
-		healthInterval: health === undefined ? "" : health.intervalSeconds.toString(),
-		healthTimeout: health === undefined ? "" : health.timeoutSeconds.toString(),
-		healthFailures: health === undefined ? "" : health.failureThreshold.toString(),
+		health: {
+			enabled: check !== undefined,
+			path: health?.path ?? "",
+			interval: health?.intervalSeconds.toString() ?? "",
+			timeout: health?.timeoutSeconds.toString() ?? "",
+			failAfter: health?.failureThreshold.toString() ?? "",
+		},
+		healthDefaultDelay: defaults.healthCheck?.initialDelaySeconds ?? 0,
+		healthStored: storedHealth !== undefined,
 		command: commandText(svc?.command ?? []),
 		args: commandText(svc?.args ?? []),
 		scaling: Object.fromEntries(
@@ -210,7 +229,6 @@ export function baseline(
 		),
 		regions: Object.fromEntries(regions.map((r) => [r.name, isDeployed(r) || configured.includes(r.name)])),
 		isPublic,
-		env: { ...svc?.env },
 	};
 }
 
@@ -228,39 +246,30 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		cpu: draft.cpu ?? base.cpu,
 		memory: draft.memory ?? base.memory,
 		port: draft.port ?? base.port,
-		healthPath: draft.healthPath ?? base.healthPath,
-		healthInterval: draft.healthInterval ?? base.healthInterval,
-		healthTimeout: draft.healthTimeout ?? base.healthTimeout,
-		healthFailures: draft.healthFailures ?? base.healthFailures,
+		health: draft.health?.form ?? base.health,
+		healthDefaultDelay: base.healthDefaultDelay,
+		healthStored: base.healthStored,
 		command: draft.command ?? base.command,
 		args: draft.args ?? base.args,
 		scaling: { ...base.scaling, ...draft.scaling },
 		regions: { ...base.regions, ...draft.regions },
 		isPublic: draft.isPublic ?? base.isPublic,
-		env: plainEnv(base.env, draft),
 	};
 }
 
-const SCALAR_KEYS = [
-	"name",
-	"description",
-	"image",
-	"cpu",
-	"memory",
-	"port",
-	"healthPath",
-	"healthInterval",
-	"healthTimeout",
-	"healthFailures",
+const SCALAR_KEYS = ["name", "description", "image", "cpu", "memory", "port"] as const;
+
+/** Each health check field, the key its error shows under, and its change label. */
+const HEALTH_FIELDS = [
+	["path", "healthPath", "Health check path"],
+	["interval", "healthInterval", "Health check interval"],
+	["timeout", "healthTimeout", "Health check timeout"],
+	["failAfter", "healthFailures", "Health check failure threshold"],
 ] as const;
 
-const COMMAND_KEYS = ["command", "args"] as const;
+type HealthErrorKey = (typeof HEALTH_FIELDS)[number][1];
 
-function sameEntries(a: string, b: string): boolean {
-	const left = commandEntries(a);
-	const right = commandEntries(b);
-	return left.length === right.length && left.every((entry, i) => entry === right[i]);
-}
+const COMMAND_KEYS = ["command", "args"] as const;
 
 function differs(a: string, b: string): boolean {
 	return a.trim() !== b.trim();
@@ -273,10 +282,6 @@ const SCALAR_LABELS: Record<(typeof SCALAR_KEYS)[number], string> = {
 	cpu: "CPU",
 	memory: "Memory",
 	port: "Port",
-	healthPath: "Health check path",
-	healthInterval: "Health check interval",
-	healthTimeout: "Health check timeout",
-	healthFailures: "Health check failure threshold",
 };
 
 /** One name per pending change, in the order the sections appear. */
@@ -284,6 +289,7 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	const next = resolved(draft, base);
 	const names: string[] = SCALAR_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
 	names.push(
+		...healthChanges(draft, base),
 		...(Object.keys(draft.scaling ?? {}).some((r) => !sameScaling(next.scaling[r], base.scaling[r]))
 			? ["Scaling"]
 			: []),
@@ -303,6 +309,52 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	return names;
 }
 
+function sameEntries(a: string, b: string): boolean {
+	const left = commandEntries(a);
+	const right = commandEntries(b);
+	return left.length === right.length && left.every((entry, i) => entry === right[i]);
+}
+
+/** The pending health check edit, named against the baseline it started from. */
+function healthChanges(draft: SettingsDraft, base: Baseline): string[] {
+	const edit = draft.health;
+	if (edit === undefined) return [];
+	if (!edit.form.enabled) return ["Remove health check"];
+	if (edit.toggled) return ["Add health check"];
+	const fields = HEALTH_FIELDS.filter(([k]) => differs(edit.form[k], base.health[k])).map(([, , label]) => label);
+	return fields.length > 0 ? fields : ["Health check"];
+}
+
+/** The health edit after the switch turns on or off; turning it back undoes the pending one. */
+export function switchHealth(edit: HealthEdit | undefined, base: Baseline, on: boolean): HealthEdit | undefined {
+	if (edit?.toggled === true) return undefined;
+	return { form: { ...(edit?.form ?? base.health), enabled: on }, toggled: true };
+}
+
+/** The health edit after a field changes; fields of a check being turned on stay part of that. */
+export function editHealth(edit: HealthEdit | undefined, base: Baseline, patch: Partial<HealthForm>): HealthEdit {
+	const form = { ...(edit?.form ?? base.health), ...patch };
+	return { form, toggled: edit?.toggled ?? false };
+}
+
+/**
+ * The draft's changes as the pending list names them: fields typed back to their baseline value are
+ * left out, so nothing unlisted is validated, planned or saved. The editor keeps the raw draft.
+ */
+export function effectiveDraft(draft: SettingsDraft, base: Baseline): SettingsDraft {
+	const next = resolved(draft, base);
+	const unchanged: Partial<Record<string, boolean>> = {
+		...Object.fromEntries(SCALAR_KEYS.map((k) => [k, !differs(next[k], base[k])])),
+		...Object.fromEntries(COMMAND_KEYS.map((k) => [k, sameEntries(next[k], base[k])])),
+		restartPolicy: next.restartPolicy === base.restartPolicy,
+		maxRestarts: !differs(next.maxRestarts, base.maxRestarts),
+		deployTimeout: !differs(next.deployTimeout, base.deployTimeout),
+		isPublic: next.isPublic === base.isPublic,
+		observability: next.observability.injectOtel === base.observability.injectOtel,
+	};
+	return Object.fromEntries(Object.entries(draft).filter(([k]) => unchanged[k] !== true));
+}
+
 export function changeCount(draft: SettingsDraft, base: Baseline): number {
 	return changeNames(draft, base).length;
 }
@@ -313,14 +365,12 @@ export function domainsChange(draft: SettingsDraft, base: Baseline): "add" | "re
 	return isPublic ? "add" : "remove";
 }
 
-export type DraftErrors = Partial<Record<keyof SettingsDraft | `scaling.${string}`, ReactNode>>;
+export type DraftErrors = Partial<Record<keyof SettingsDraft | HealthErrorKey | `scaling.${string}`, ReactNode>>;
 
 /** Fields whose errors show while the user types, before the first save attempt. */
 export const LIVE_ERROR_KEYS = [
-	"healthPath",
-	"healthInterval",
-	"healthTimeout",
-	"healthFailures",
+	...HEALTH_FIELDS.map(([, key]) => key),
+	"health",
 	"maxRestarts",
 	"deployTimeout",
 ] as const;
@@ -335,6 +385,8 @@ export function validateDraft(
 	regions: RegionView[],
 	served: string[],
 	replicaLimit: number,
+	env: Record<string, string>,
+	hasDeployments: boolean,
 	takenNames: ReadonlySet<string> = new Set(),
 ): DraftErrors {
 	const next = resolved(draft, base);
@@ -352,28 +404,10 @@ export function validateDraft(
 		const portInvalid = next.port.trim() === "" ? "Enter a port number" : portRangeError(next.port);
 		if (portInvalid !== null) errors.port = portInvalid;
 	}
-	if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
-	if (
-		draft.healthInterval !== undefined &&
-		!(positive(next.healthInterval) && Number(next.healthInterval) >= MIN_HEALTH_INTERVAL)
-	)
-		errors.healthInterval = `Whole seconds, at least ${MIN_HEALTH_INTERVAL.toString()}`;
-	if (
-		draft.healthTimeout !== undefined &&
-		!(positive(next.healthTimeout) && Number(next.healthTimeout) <= MAX_HEALTH_TIMEOUT)
-	)
-		errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
-	const timeoutOrder = healthTimeoutError(next.healthInterval, next.healthTimeout);
-	if (
-		errors.healthInterval === undefined &&
-		errors.healthTimeout === undefined &&
-		(draft.healthInterval !== undefined || draft.healthTimeout !== undefined) &&
-		timeoutOrder !== null
-	)
-		errors.healthTimeout = timeoutOrder;
-	if (draft.healthFailures !== undefined && !positive(next.healthFailures))
-		errors.healthFailures = "A whole number, at least 1";
-	const [variableProblem] = addedProblems(draft, base.env).values();
+	if (draft.health?.form.enabled === true) Object.assign(errors, healthErrors(draft.health.form));
+	if (draft.health !== undefined && !servesPort(regions))
+		errors.health = "The health check needs a running deployment that listens on a port.";
+	const [variableProblem] = addedProblems(draft, env).values();
 	if (variableProblem !== undefined) errors.added = variableProblem;
 	// The API enforces the bounds and its message names them.
 	if (draft.maxRestarts !== undefined && next.restartPolicy === "on-failure" && !positive(next.maxRestarts))
@@ -381,7 +415,7 @@ export function validateDraft(
 	if (draft.deployTimeout !== undefined && !positive(next.deployTimeout))
 		errors.deployTimeout = "Whole seconds, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
-	else if (regionMapChanged(draft, base) && planSave(regions, draft, base).length > 0)
+	else if (regionMapChanged(draft, base) && hasDeployments)
 		errors.regions =
 			"Save region, size and scaling changes separately from image, port, health, observability and domain changes";
 	if (domainsChange(draft, base) === "add") {
@@ -389,6 +423,19 @@ export function validateDraft(
 			errors.appDomain = "No app domain is served in every region";
 		if (!SUBDOMAIN_RE.test(draft.subdomain ?? "")) errors.subdomain = "Use lowercase letters, digits and hyphens";
 	}
+	return errors;
+}
+
+function healthErrors(health: HealthForm): DraftErrors {
+	const errors: DraftErrors = {};
+	if (!health.path.startsWith("/")) errors.healthPath = "Start the path with /";
+	const intervalValid = positive(health.interval) && Number(health.interval) >= MIN_HEALTH_INTERVAL;
+	if (!intervalValid) errors.healthInterval = `Whole seconds, at least ${MIN_HEALTH_INTERVAL.toString()}`;
+	const timeoutValid = positive(health.timeout) && Number(health.timeout) <= MAX_HEALTH_TIMEOUT;
+	if (!timeoutValid) errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
+	const order = intervalValid && timeoutValid ? healthTimeoutError(health.interval, health.timeout) : null;
+	if (order !== null) errors.healthTimeout = order;
+	if (!positive(health.failAfter)) errors.healthFailures = "A whole number, at least 1";
 	return errors;
 }
 
@@ -414,26 +461,31 @@ export function failurePolicyFrom(next: Baseline): FailurePolicy {
 	});
 }
 
-function healthFrom(next: Baseline, current: HealthCheckConfig | undefined): HealthCheckConfig {
-	return create(HealthCheckConfigSchema, {
-		initialDelaySeconds: current?.initialDelaySeconds ?? 0,
-		path: next.healthPath.trim(),
-		intervalSeconds: Number(next.healthInterval.trim()),
-		timeoutSeconds: Number(next.healthTimeout.trim()),
-		failureThreshold: Number(next.healthFailures.trim()),
-	});
+function healthFrom(health: HealthForm, current: HealthCheckConfig | undefined, delay: number): HealthCheckConfig {
+	const spec = healthCheckSpec({ ...health, path: health.path.trim() }, current?.initialDelaySeconds ?? delay);
+	return create(HealthCheckConfigSchema, spec);
 }
 
-function healthEdited(draft: SettingsDraft): boolean {
-	return (
-		draft.healthPath !== undefined ||
-		draft.healthInterval !== undefined ||
-		draft.healthTimeout !== undefined ||
-		draft.healthFailures !== undefined
-	);
+/** The check a deployment with a port runs after the edit: none once disabled, else the form with its own startup delay. */
+function intendedHealth(
+	edit: HealthEdit,
+	current: HealthCheckConfig | undefined,
+	delay: number,
+): HealthCheckConfig | undefined {
+	return edit.form.enabled ? healthFrom(edit.form, current, delay) : undefined;
 }
 
-function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline): DeploymentSpec {
+/** Whether any running deployment listens on a port, so it can run a health check. */
+function servesPort(regions: RegionView[]): boolean {
+	return currentSources(regions).some(({ deployment }) => getServiceSpec(deployment)?.port !== undefined);
+}
+
+function applyDraft(
+	spec: DeploymentSpec,
+	draft: SettingsDraft,
+	base: Baseline,
+	env: Record<string, string>,
+): DeploymentSpec {
 	const next = clone(DeploymentSpecSchema, spec);
 	if (next.spec.case !== "service") return next;
 	const svc = next.spec.value;
@@ -443,15 +495,18 @@ function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline):
 	}
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
 	if (draft.observability !== undefined) svc.observability = create(ObservabilityConfigSchema, want.observability);
-	if (healthEdited(draft)) svc.healthCheck = healthFrom(want, svc.healthCheck);
+	// A deployment without a port runs no health check.
+	if (draft.health !== undefined && svc.port !== undefined)
+		svc.healthCheck = intendedHealth(draft.health, svc.healthCheck, base.healthDefaultDelay);
+	if (variablesChanged(draft)) svc.env = env;
 	if (draft.command !== undefined) svc.command = commandEntries(want.command);
 	if (draft.args !== undefined) svc.args = commandEntries(want.args);
 	return next;
 }
 
-interface RegionDeploy {
+interface PlannedDeploy {
 	commit: SourceCommit | undefined;
-	region: string;
+	regions: string[];
 	spec: DeploymentSpec;
 }
 
@@ -489,37 +544,32 @@ export function addedProblems(draft: SettingsDraft, current: Record<string, stri
 	return problems;
 }
 
-export function planSave(regions: RegionView[], draft: SettingsDraft, base: Baseline): RegionDeploy[] {
-	const redeployAll = domainsChange(draft, base) !== null || variablesChanged(draft);
-	const deploys: RegionDeploy[] = [];
-	for (const region of deployedRegions(regions)) {
-		const current = region.current;
-		if (current?.spec === undefined) continue;
-		const spec = applyDraft(current.spec, draft, base);
-		if (!redeployAll && equals(DeploymentSpecSchema, spec, current.spec)) continue;
-		deploys.push({
-			region: region.name,
-			spec,
-			commit:
-				draft.image === undefined || draft.image.trim() === getServiceSpec(current)?.build?.image
-					? current.commit
-					: undefined,
-		});
-	}
-	return deploys;
-}
-
-/** The spec of one deployment to every planned region, each region keeping its own sizing. */
-export function mergedSpec(deploys: readonly RegionDeploy[], spec: DeploymentSpec): DeploymentSpec {
-	const next = clone(DeploymentSpecSchema, spec);
-	if (next.spec.case !== "service") return next;
-	next.spec.value.regions = Object.fromEntries(
-		deploys.flatMap((d) => {
-			const size = d.spec.spec.case === "service" ? d.spec.spec.value.regions[d.region] : undefined;
-			return size === undefined ? [] : [[d.region, size]];
-		}),
-	);
-	return next;
+/**
+ * The deployments a save sends, planned against what runs now: one per running deployment whose
+ * spec, with the draft applied, differs from the one it runs, to the regions it serves. Settings
+ * plan once per render for validation and the Save label, and again when the save starts. `env` is
+ * the full set of variables every deployment runs.
+ */
+export function planSave(
+	regions: RegionView[],
+	draft: SettingsDraft,
+	base: Baseline,
+	env: Record<string, string>,
+): PlannedDeploy[] {
+	const redeployAll = domainsChange(draft, base) !== null;
+	// Removing a check the resource stores matters even where no deployment runs one.
+	const removesStored = draft.health?.form.enabled === false && base.healthStored;
+	return currentSources(regions).flatMap(({ deployment, regions: names }) => {
+		const current = getServiceSpec(deployment);
+		if (deployment.spec === undefined || current === undefined) return [];
+		const spec = applyDraft(deployment.spec, draft, base, env);
+		const changed = !equals(DeploymentSpecSchema, spec, deployment.spec);
+		const storedRemoval = removesStored && current.port !== undefined;
+		const needed = redeployAll || storedRemoval;
+		if (!changed && !needed) return [];
+		const sameImage = draft.image === undefined || draft.image.trim() === current.build?.image;
+		return [{ regions: names, spec: specForRegions(spec, names), commit: sameImage ? deployment.commit : undefined }];
+	});
 }
 
 export function regionMapChanged(draft: SettingsDraft, base: Baseline): boolean {

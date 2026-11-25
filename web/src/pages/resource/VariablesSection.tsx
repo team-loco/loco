@@ -2,7 +2,10 @@ import { useQuery } from "@connectrpc/connect-query";
 import { CheckIcon, CopyIcon, LinkIcon, PlusIcon, Trash2Icon, Undo2Icon, UploadIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { getResourceEnv, listResourceOutputs } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { listResourceOutputs } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import type { GetResourceEnvResponse } from "@gen/loco/resource/v1/resource_pb";
+import type { ConnectError } from "@connectrpc/connect";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 
 import { Badge } from "@/components/design/Badge";
@@ -334,6 +337,7 @@ export function VariablesSection({
 	differingRegions,
 	environmentId,
 	draft,
+	envQuery,
 	canWrite,
 	canReadWorkspace,
 	onChange,
@@ -346,6 +350,8 @@ export function VariablesSection({
 	differingRegions: string[];
 	environmentId: string;
 	draft: SettingsDraft;
+	/** The variables the deployments run, shared with validation and the save plan. */
+	envQuery: UseQueryResult<GetResourceEnvResponse, ConnectError>;
 	canWrite: boolean;
 	canReadWorkspace: boolean;
 	onChange: (patch: Partial<SettingsDraft>) => void;
@@ -356,7 +362,6 @@ export function VariablesSection({
 	const environmentName = environment?.name ?? "";
 	const secretsHref = withEnv(secretsPath(activeOrgId ?? "", workspaceId), environment?.slug ?? null);
 	const ready = environmentId !== "";
-	const envQuery = useQuery(getResourceEnv, { resourceId, environmentId }, { enabled: ready });
 	const secretsQuery = useQuery(listSecrets, { environmentId }, { enabled: ready && canReadWorkspace });
 	const outputsQuery = useQuery(listResourceOutputs, { environmentId }, { enabled: ready && canReadWorkspace });
 	const [importing, setImporting] = useState(false);
