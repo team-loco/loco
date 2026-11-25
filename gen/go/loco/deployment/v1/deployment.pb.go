@@ -3273,7 +3273,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x13ObservabilityConfig\x12$\n" +
 	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
 	"injectOtel\x88\x01\x01B\x0e\n" +
-	"\f_inject_otel\"\xf3\a\n" +
+	"\f_inject_otel\"\xcc\a\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12D\n" +
@@ -3296,7 +3296,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\r_health_checkB\a\n" +
 	"\x05_portB\n" +
 	"\n" +
-	"\b_routingJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x0e\x10\x0fR\vrun_as_userR\frun_as_group\"\xe1\x03\n" +
+	"\b_routingJ\x04\b\x0e\x10\x0f\"\xe1\x03\n" +
 	"\x16RegionDeploymentTarget\x12\x1e\n" +
 	"\x03cpu\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x03cpu\x88\x01\x01\x12$\n" +
 	"\x06memory\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x01R\x06memory\x88\x01\x01\x12/\n" +

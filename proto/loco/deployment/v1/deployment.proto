@@ -128,8 +128,6 @@ message ServiceDeploymentSpec {
   // service sets no routing and the defaults apply; without the field the resource's routing
   // applies.
   optional ServiceRouting routing = 10;
-  reserved 11, 12;
-  reserved "run_as_user", "run_as_group";
 
   // Defaults to the resource settings when omitted; stored in the deployment snapshot.
   ObservabilityConfig observability = 13;
