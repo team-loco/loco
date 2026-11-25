@@ -245,20 +245,15 @@ tests:
           path: spec.tls
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: ClientTrafficPolicy}
+      - notExists:
+          path: spec.headers
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: ClientTrafficPolicy}
       - contains:
           path: spec.ingress[0].ports
           content: {protocol: UDP, port: 10443}
         template: templates/network-policies.yaml
         documentSelector: {path: metadata.name, value: allow-gateway-proxy-ingress}
-
-  - it: leaves Envoy headers off by default
-    set:
-      envoyProxy.http3: true
-    template: templates/gateway.yaml
-    documentSelector: {path: kind, value: ClientTrafficPolicy}
-    asserts:
-      - notExists:
-          path: spec.headers
 
   - it: enables Envoy headers on a policy of its own when nothing else needs one
     set:
