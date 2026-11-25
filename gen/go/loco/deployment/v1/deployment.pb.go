@@ -1325,8 +1325,12 @@ type CreateDeploymentRequest struct {
 	// Unspecified records a deploy; redeploy and rollback name the deployment they copy.
 	Trigger            DeploymentTrigger `protobuf:"varint,9,opt,name=trigger,proto3,enum=loco.deployment.v1.DeploymentTrigger" json:"trigger,omitempty"`
 	SourceDeploymentId string            `protobuf:"bytes,10,opt,name=source_deployment_id,json=sourceDeploymentId,proto3" json:"source_deployment_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// remove_health_check runs the deployment without a health check and removes the resource's
+	// own, which a spec without one inherits. The resource's check is the default for every
+	// environment of the workspace; deployments already running in other environments keep theirs.
+	RemoveHealthCheck bool `protobuf:"varint,11,opt,name=remove_health_check,json=removeHealthCheck,proto3" json:"remove_health_check,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreateDeploymentRequest) Reset() {
@@ -1406,6 +1410,13 @@ func (x *CreateDeploymentRequest) GetSourceDeploymentId() string {
 		return x.SourceDeploymentId
 	}
 	return ""
+}
+
+func (x *CreateDeploymentRequest) GetRemoveHealthCheck() bool {
+	if x != nil {
+		return x.RemoveHealthCheck
+	}
+	return false
 }
 
 // CreateDeploymentResponse is the response containing the created deployment ID.
@@ -3381,7 +3392,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\rsuperseded_by\x18\f \x01(\tR\fsupersededBy\x124\n" +
 	"\x16previous_deployment_id\x18\r \x01(\tR\x14previousDeploymentIdB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\xa9\x03\n" +
+	"\r_completed_at\"\x94\x05\n" +
 	"\x17CreateDeploymentRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12(\n" +
@@ -3391,7 +3402,9 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x06commit\x18\a \x01(\v2 .loco.deployment.v1.SourceCommitR\x06commit\x12O\n" +
 	"\atrigger\x18\t \x01(\x0e2%.loco.deployment.v1.DeploymentTriggerB\x0e\xbaH\v\x82\x01\b\x18\x00\x18\x01\x18\x02\x18\x03R\atrigger\x12=\n" +
 	"\x14source_deployment_id\x18\n" +
-	" \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x12sourceDeploymentId\"v\n" +
+	" \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x12sourceDeploymentId\x12.\n" +
+	"\x13remove_health_check\x18\v \x01(\bR\x11removeHealthCheck:\xb8\x01\xbaH\xb4\x01\x1a\xb1\x01\n" +
+	"3create_deployment.remove_health_check_without_check\x127remove_health_check needs a spec without a health_check\x1aA!this.remove_health_check || !has(this.spec.service.health_check)\"v\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x125\n" +
 	"\x05build\x18\x02 \x01(\v2\x1f.loco.deployment.v1.BuildSourceR\x05build\"E\n" +

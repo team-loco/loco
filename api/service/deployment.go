@@ -12,11 +12,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
@@ -316,7 +318,8 @@ func (s *DeploymentServer) CreateDeployment(
 		if lockErr := lockOrganization(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
-		if _, lockErr := lockEnvironment(ctx, qtx, environmentID); lockErr != nil {
+		lockErr := lockDeploymentEnvironments(ctx, qtx, resourceID, environmentID, req.GetRemoveHealthCheck())
+		if lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
@@ -342,6 +345,12 @@ func (s *DeploymentServer) CreateDeployment(
 			return targetErr
 		}
 
+		if req.GetRemoveHealthCheck() {
+			removeErr := removeHealthCheck(ctx, qtx, resourceID, render.resourceSpec.GetService())
+			if removeErr != nil {
+				return removeErr
+			}
+		}
 		requestSpec.GetService().Platform = string(s.defaults.TargetPlatform)
 		mergedServiceSpec, mergeErr := mergeRequestSpec(render.resourceSpec, requestSpec, regions, s.defaults)
 		if mergeErr != nil {
@@ -394,6 +403,53 @@ func (s *DeploymentServer) CreateDeployment(
 		DeploymentId: deploymentID.String(),
 		Build:        pinnedBuild,
 	}, nil
+}
+
+// lockDeploymentEnvironments locks the deployment's environment, or every environment of the
+// workspace when the deployment removes the resource's health check, which they all inherit.
+func lockDeploymentEnvironments(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resourceID, environmentID uuid.UUID,
+	removesHealthCheck bool,
+) error {
+	if removesHealthCheck {
+		if err := lockResourceEnvironments(ctx, qtx, resourceID); err != nil {
+			return err
+		}
+	}
+	_, err := lockEnvironment(ctx, qtx, environmentID)
+	return err
+}
+
+// removeHealthCheck removes the resource's health check, which deployments without one inherit, and
+// advances every environment's revision. The caller holds the workspace's environments.
+func removeHealthCheck(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resourceID uuid.UUID,
+	spec *resourcev1.ServiceSpec,
+) error {
+	if spec.GetHealthCheck() == nil {
+		return nil
+	}
+	spec.HealthCheck = nil
+	specJSON, err := protojson.Marshal(spec)
+	if err != nil {
+		return fmt.Errorf("marshal resource spec: %w", err)
+	}
+	if err := qtx.UpdateResourceSpec(ctx, genDb.UpdateResourceSpecParams{ID: resourceID, Spec: specJSON}); err != nil {
+		return fmt.Errorf("remove resource health check: %w", err)
+	}
+	if err := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); err != nil {
+		return err
+	}
+	return events.Record(ctx, qtx, events.Event{
+		Type:        events.ResourceUpdated,
+		ResourceID:  new(resourceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+	})
 }
 
 // mergeRequestSpec fills a request's service spec for the target regions and checks its sizes.
