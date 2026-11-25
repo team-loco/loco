@@ -225,7 +225,11 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     context.close()
 
     # After a rejected deletion, an ordinary session expiry starts sign-in on its own.
-    context, page, errors = open_page(browser, "owner", state=state)
+    context, page, errors = open_page(browser, "other", state=state)
+    context.route(
+        "**/loco.user.v1.UserService/GetAccountDeletionImpact",
+        lambda route: route.fulfill(json={}),
+    )
     page.goto(state["ui_url"] + "/profile")
     delete = page.get_by_role("button", name="Delete account", exact=True)
     expect(delete).to_be_enabled()
@@ -238,7 +242,7 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     )
     delete.click()
     dialog = page.get_by_role("alertdialog", name="Delete your account", exact=True)
-    dialog.get_by_role("textbox").fill("owner@acme.test")
+    dialog.get_by_role("textbox").fill("other@acme.test")
     dialog.get_by_role("button", name="Delete account", exact=True).click()
     expect(page.get_by_text("Deletion refused")).to_be_visible()
     rejected = {"code": "unauthenticated", "message": "session expired"}
