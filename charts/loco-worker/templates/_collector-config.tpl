@@ -34,7 +34,7 @@
 {{- if $settings.enabled -}}
 {{- if $settings.exporter.endpoint -}}
 {{- $platformExporter = "otlp_http/platform" -}}
-{{- $own := omit (deepCopy $exporter) "auth" -}}
+{{- $own := omit $exporter "auth" -}}
 {{- $_ := set $own "endpoint" $settings.exporter.endpoint -}}
 {{- $_ := set $own "headers" $settings.exporter.headers -}}
 {{- $_ := set $config.exporters $platformExporter $own -}}
