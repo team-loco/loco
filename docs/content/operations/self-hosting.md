@@ -62,6 +62,17 @@ A system admin grants a role with `locoadm admin grant USER_UUID --role read|adm
 
 `OrgService.ListOrgs` lists every organization in the installation, whether or not the caller belongs to it, and answers `PermissionDenied` to anyone without system read. Each entry carries the organization's name, ID, suspension and reason, owners (its admins, by name and email), member, workspace and resource counts and creation time. `query` matches names, IDs and owner emails ignoring case, `state` keeps active or suspended organizations, `order_by` sorts by name or creation time (newest first by default), and `include_total_count` sets `total_count`, exact up to 10,000. `locoadm org list [--query TEXT] [--state active|suspended]` prints the same as a table.
 
+## Health endpoints
+
+The API serves two unauthenticated endpoints.
+
+| Path | Answers | Use |
+| --- | --- | --- |
+| `/livez` | `200` while the process serves HTTP. It checks no dependency. | Kubernetes liveness and startup probes |
+| `/readyz` | `200` when PostgreSQL and OpenBao answer, otherwise `503` with a body such as `postgres unavailable` or `transit unavailable`. Each check is bounded by a 2-second timeout and the body never includes connection details. | Kubernetes readiness probe and an external uptime monitor |
+
+The chart's probes use these paths. A database outage removes the API pods from the Service without restarting them. An uptime monitor probes `https://<controlPlaneHostname>/readyz`, or `/api/readyz` when the dashboard and API share a hostname.
+
 ## Releases and operations
 
 Upgrade the control plane first, staging workers second and production workers last by changing cohort pins in `releases/`. Staging cohorts can follow stable semver releases; production cohorts pin reviewed digests. The API supports agents at its own minor version and one minor behind. `locoadm status` reports unsupported or ahead versions and heartbeats from the API. Read the gateway’s load balancer address with `kubectl get gateway -n loco-system` on the worker or through its provider. Point the application wildcard at it once, or run external-dns.

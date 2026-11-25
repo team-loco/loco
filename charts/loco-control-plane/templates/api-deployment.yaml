@@ -154,16 +154,17 @@ spec:
               containerPort: {{ .Values.api.port }}
           startupProbe:
             httpGet:
-              path: /health
+              path: /livez
               port: http
             {{- toYaml .Values.api.startupProbe | nindent 12 }}
           readinessProbe:
             httpGet:
-              path: /health
+              path: /readyz
               port: http
+            timeoutSeconds: 3
           livenessProbe:
             httpGet:
-              path: /health
+              path: /livez
               port: http
           {{- if $openbaoVolumes }}
           volumeMounts:

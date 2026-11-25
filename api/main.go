@@ -291,6 +291,7 @@ type deps struct {
 	observability *service.ObservabilityServer
 	// registryKey is nil unless registry auth runs in token mode.
 	registryKey http.HandlerFunc
+	ready       http.HandlerFunc
 }
 
 func newDeps(
@@ -521,6 +522,13 @@ func newDeps(
 		),
 		observability: service.NewObservabilityServer(clickhouse, authorizer, queries, ac.Observability),
 		registryKey:   registryKeyHandler,
+		ready: readyHandler(
+			readinessCheck{"postgres", pool.Ping},
+			readinessCheck{"transit", func(ctx context.Context) error {
+				_, err := transitKeys.Ingest.KeyID(ctx)
+				return err
+			}},
+		),
 	}, nil
 }
 
@@ -555,10 +563,8 @@ func newRPCServers(
 }
 
 func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *connect.Server, d *deps) {
-	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "Server is healthy.")
-	})
+	mux.HandleFunc(livePath, liveHandler)
+	mux.HandleFunc(readyPath, d.ready)
 
 	configv1connect.RegisterConfigServiceHandler(baseServer, d.config)
 	agentv1connect.RegisterAgentServiceHandler(baseServer, d.agent)

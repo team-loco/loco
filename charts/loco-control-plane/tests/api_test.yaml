@@ -91,7 +91,17 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].startupProbe
-          value: {httpGet: {path: /health, port: http}, failureThreshold: 7, periodSeconds: 3}
+          value: {httpGet: {path: /livez, port: http}, failureThreshold: 7, periodSeconds: 3}
+
+  - it: probes liveness without dependencies and readiness with them
+    template: templates/api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe
+          value: {httpGet: {path: /livez, port: http}}
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe
+          value: {httpGet: {path: /readyz, port: http}, timeoutSeconds: 3}
 
   - it: requires the operator's API Secret
     set:
