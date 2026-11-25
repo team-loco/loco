@@ -106,7 +106,7 @@ export function DashboardRowMenu({
 			toast.success(withCode`Rolling back ${resource.name} to ${depTag(to)}`);
 			await refresh();
 		} catch (err) {
-			toastConnectError(err, `Failed to roll back ${resource.name}`);
+			toastConnectError(err, withCode`Failed to roll back ${resource.name}`);
 		}
 	};
 
@@ -114,7 +114,8 @@ export function DashboardRowMenu({
 		const failures = await createDeployments(deploy.mutateAsync, resource.id, sources, DeploymentTrigger.REDEPLOY);
 		setRestarting(null);
 		await refresh();
-		if (failures.length > 0) toastConnectError(new Error(failures.join("\n")), `Failed to restart ${resource.name}`);
+		if (failures.length > 0)
+			toastConnectError(new Error(failures.join("\n")), withCode`Failed to restart ${resource.name}`);
 		else toastRedeploying(resource.name, sources);
 	};
 

@@ -1,4 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import type { ReactNode } from "react";
 import { toast } from "@/lib/toast";
 
 import { CopyId } from "@/components/design/CopyId";
@@ -57,16 +58,27 @@ export function errorKind(error: unknown): ErrorKind | null {
 	return "internal";
 }
 
+function hasMessage(error: unknown): boolean {
+	return error instanceof ConnectError ? error.rawMessage !== "" : error instanceof Error && error.message !== "";
+}
+
 export function toastConnectError(
 	error: unknown,
-	fallback = "An unexpected error occurred.",
+	fallback: ReactNode = "An unexpected error occurred.",
 	options?: { duration: number },
 ): void {
 	const id = error instanceof ConnectError && error.code === Code.Internal ? requestId(error) : null;
 	if (id === null) {
-		toast.error(getErrorMessage(error, fallback), {
-			duration: options?.duration ?? 5000,
-		});
+		toast.error(
+			typeof fallback === "string"
+				? getErrorMessage(error, fallback)
+				: hasMessage(error)
+					? getErrorMessage(error)
+					: fallback,
+			{
+				duration: options?.duration ?? 5000,
+			},
+		);
 		return;
 	}
 	toast.error(fallback, {

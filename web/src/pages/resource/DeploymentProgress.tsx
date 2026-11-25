@@ -146,7 +146,7 @@ function ProgressPanel({
 					setRollbackFinished(false);
 				},
 				onError: (err) => {
-					toastConnectError(err, `Could not cancel ${depTag(deployment)}`);
+					toastConnectError(err, withCode`Could not cancel ${depTag(deployment)}`);
 				},
 			},
 		);

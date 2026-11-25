@@ -241,7 +241,7 @@ function CancelBuildDialog({
 					onCanceled();
 				},
 				onError: (err) => {
-					toastConnectError(err, `Could not cancel build ${short}`);
+					toastConnectError(err, withCode`Could not cancel build ${short}`);
 				},
 			},
 		);

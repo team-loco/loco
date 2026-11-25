@@ -264,7 +264,7 @@ export function SecretsPage({
 								refresh();
 							},
 							onError: (err) => {
-								toastConnectError(err, `Couldn't delete ${name}`);
+								toastConnectError(err, withCode`Couldn't delete ${name}`);
 							},
 						},
 					);
