@@ -211,7 +211,7 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false
 		t.Fatalf("cluster without a silence lists silent_since %v", listed.GetClusters()[0].GetSilentSince())
 	}
 	setHeartbeats(t, a.pool, time.Now().Add(-time.Hour), clusterHealthHealthy, clusterID)
-	if _, err = a.queries.MarkSilentClusters(ctx, time.Now().Add(-time.Minute)); err != nil {
+	if _, err = a.queries.MarkSilentClusters(ctx, time.Minute.Seconds()); err != nil {
 		t.Fatal(err)
 	}
 	if listed, err = clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{}); err != nil {

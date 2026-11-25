@@ -316,10 +316,11 @@ type Querier interface {
 	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) error
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
-	// Marks each active cluster whose last heartbeat is older than heard_since and returns it once. The cluster rows
+	// Marks each active cluster whose last heartbeat is older than silent_after_seconds on the database clock, the clock
+	// heartbeats are stamped with, and returns it once. The cluster rows
 	// are share-locked first, so a pause or removal either commits before and excludes the cluster, or waits for this
 	// transaction.
-	MarkSilentClusters(ctx context.Context, heardSince time.Time) ([]MarkSilentClustersRow, error)
+	MarkSilentClusters(ctx context.Context, silentAfterSeconds float64) ([]MarkSilentClustersRow, error)
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
 	// Regions are the region codes on cluster rows.

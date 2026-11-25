@@ -54,7 +54,7 @@ func (s *ClusterSilenceSweeper) Sweep(ctx context.Context) (int, error) {
 	var silenced int
 	err := pgx.BeginTxFunc(ctx, s.db, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
 		q := genDb.New(tx)
-		marked, err := q.MarkSilentClusters(ctx, time.Now().Add(-s.silentAfter))
+		marked, err := q.MarkSilentClusters(ctx, s.silentAfter.Seconds())
 		if err != nil {
 			return fmt.Errorf("mark silent clusters: %w", err)
 		}

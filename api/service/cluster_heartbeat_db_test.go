@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/sweepers"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
@@ -368,36 +370,28 @@ func TestHeartbeatsEndASilenceOnceAndTheNextOutageIsReported(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
+	sweeper := sweepers.NewClusterSilenceSweeper(f.pool, ClusterSilentAfter(testHeartbeatInterval), time.Minute)
 	silence := func() {
 		t.Helper()
 		f.setLastHeartbeat(t, 10*time.Minute)
-		marked, err := f.queries.MarkSilentClusters(
-			t.Context(),
-			time.Now().Add(-ClusterSilentAfter(testHeartbeatInterval)),
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(marked) != 1 {
-			t.Fatalf("marked %d clusters silent, want 1", len(marked))
+		if silenced, err := sweeper.Sweep(t.Context()); err != nil || silenced != 1 {
+			t.Fatalf("sweep silenced %d clusters, error %v, want 1", silenced, err)
 		}
 	}
 
 	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	silence()
 	f.concurrentHeartbeats(server, 4)
-	recovered := f.clusterEvents(t, "cluster.recovered")
-	if len(recovered) != 1 {
-		t.Fatalf("cluster.recovered events = %v, want one", recovered)
-	}
-	if seconds, ok := recovered[0]["silentSeconds"].(float64); !ok || seconds < 590 {
-		t.Fatalf("cluster.recovered data = %v, want about 600 silent seconds", recovered[0])
-	}
-
 	silence()
 	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
-	if recovered = f.clusterEvents(t, "cluster.recovered"); len(recovered) != 2 {
-		t.Fatalf("cluster.recovered events after a second outage = %d, want 2", len(recovered))
+
+	want := []string{"cluster.silent", "cluster.recovered", "cluster.silent", "cluster.recovered"}
+	if got := f.clusterEventTypes(t); !slices.Equal(got, want) {
+		t.Fatalf("cluster events = %v, want %v", got, want)
+	}
+	recovered := f.clusterEvents(t, "cluster.recovered")
+	if seconds, ok := recovered[0]["silentSeconds"].(float64); !ok || seconds < 590 {
+		t.Fatalf("cluster.recovered data = %v, want about 600 silent seconds", recovered[0])
 	}
 }
 
@@ -453,4 +447,57 @@ func TestHeartbeatTimeNeverMovesBackwards(t *testing.T) {
 	if stored, _ := f.storedHeartbeat(t); stored.Before(ahead) {
 		t.Fatalf("heartbeat time moved back from %v to %v", ahead, stored)
 	}
+}
+
+func TestHeartbeatWaitsForAPauseThatIsCommitting(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := f.agentServer()
+	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	f.setLastHeartbeat(t, time.Hour)
+	tx, err := f.pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(context.Background())
+	q := genDb.New(tx)
+	if _, err = q.LockClusterLifecycle(t.Context(), f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	if err = q.UpdateClusterLifecycle(t.Context(), genDb.UpdateClusterLifecycleParams{ID: f.clusterID}); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		server.recordHeartbeat(context.Background(), f.clusterID, healthyHeartbeat())
+	}()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	if err = tx.Commit(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	<-done
+	if silent := f.clusterEvents(t, "cluster.silent"); len(silent) != 0 {
+		t.Fatalf("a cluster paused before the heartbeat read it recorded %v", silent)
+	}
+}
+
+func (f *deployFixture) clusterEventTypes(t *testing.T) []string {
+	t.Helper()
+	rows, err := f.pool.Query(t.Context(),
+		`SELECT type FROM events WHERE subject_id = $1 AND org_id IS NULL ORDER BY seq`, f.clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var types []string
+	for rows.Next() {
+		var eventType string
+		if err := rows.Scan(&eventType); err != nil {
+			t.Fatal(err)
+		}
+		types = append(types, eventType)
+	}
+	return types
 }

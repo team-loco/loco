@@ -455,14 +455,16 @@ const markSilentClusters = `-- name: MarkSilentClusters :many
 WITH due AS (
     SELECT c.id, c.name, c.region FROM clusters c JOIN cluster_heartbeats h ON h.cluster_id = c.id
     WHERE c.removed_at IS NULL AND c.is_active
-      AND h.silent_since IS NULL AND h.last_heartbeat < $1::timestamptz
+      AND h.silent_since IS NULL
+      AND h.last_heartbeat < clock_timestamp() - make_interval(secs => $1::float8)
     ORDER BY c.id
     FOR SHARE OF c
 )
 UPDATE cluster_heartbeats h
 SET silent_since = h.last_heartbeat
 FROM due
-WHERE h.cluster_id = due.id AND h.silent_since IS NULL AND h.last_heartbeat < $1::timestamptz
+WHERE h.cluster_id = due.id AND h.silent_since IS NULL
+  AND h.last_heartbeat < clock_timestamp() - make_interval(secs => $1::float8)
 RETURNING due.id, due.name, due.region
 `
 
@@ -472,11 +474,12 @@ type MarkSilentClustersRow struct {
 	Region string    `json:"region"`
 }
 
-// Marks each active cluster whose last heartbeat is older than heard_since and returns it once. The cluster rows
+// Marks each active cluster whose last heartbeat is older than silent_after_seconds on the database clock, the clock
+// heartbeats are stamped with, and returns it once. The cluster rows
 // are share-locked first, so a pause or removal either commits before and excludes the cluster, or waits for this
 // transaction.
-func (q *Queries) MarkSilentClusters(ctx context.Context, heardSince time.Time) ([]MarkSilentClustersRow, error) {
-	rows, err := q.db.Query(ctx, markSilentClusters, heardSince)
+func (q *Queries) MarkSilentClusters(ctx context.Context, silentAfterSeconds float64) ([]MarkSilentClustersRow, error) {
+	rows, err := q.db.Query(ctx, markSilentClusters, silentAfterSeconds)
 	if err != nil {
 		return nil, err
 	}
