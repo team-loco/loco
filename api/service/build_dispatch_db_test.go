@@ -342,6 +342,55 @@ func TestASupersededBuildIsCanceledAndItsReplacementStarted(t *testing.T) {
 	}
 }
 
+func TestABuildCanceledBeforeItsStartSettlesIsNotSent(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	session, sent := f.dispatchSession()
+	id := f.queued(t)
+	if err := session.startQueuedBuilds(f.ctx); err != nil {
+		t.Fatalf("start queued builds: %v", err)
+	}
+	apply := <-session.reports
+	apply(f.ctx)
+	if _, err := f.cancel(id); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	if err := session.settle(f.ctx); err != nil {
+		t.Fatalf("settle: %v", err)
+	}
+	if starts := startedBuilds(sent.take()); len(starts) != 0 {
+		t.Fatalf("started %v after it was canceled", starts)
+	}
+}
+
+func TestABuildQueuedWhileAStartIsQueuedIsSentWhenTheStartSettles(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	session, sent := f.dispatchSession()
+	if err := session.startQueuedBuilds(f.ctx); err != nil {
+		t.Fatalf("start queued builds: %v", err)
+	}
+	apply := <-session.reports
+	apply(f.ctx)
+
+	id := f.queued(t)
+	if err := session.startQueuedBuilds(f.ctx); err != nil {
+		t.Fatalf("start queued builds: %v", err)
+	}
+	if err := applyQueuedReports(f.ctx, session); err != nil {
+		t.Fatalf("apply reports: %v", err)
+	}
+	if starts := startedBuilds(sent.take()); len(starts) != 1 || starts[0].GetBuildId() != id {
+		t.Fatalf("started %v, want %s once", starts, id)
+	}
+	if err := session.sendPendingNow(f.ctx); err != nil {
+		t.Fatalf("send pending: %v", err)
+	}
+	if starts := startedBuilds(sent.take()); len(starts) != 0 {
+		t.Fatalf("resent %v", starts)
+	}
+}
+
 func TestStatusForABuildTheControlPlaneCanceledCancelsIt(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
@@ -581,7 +630,7 @@ func TestABuildFinishingOnTheWorkerIsNotCanceled(t *testing.T) {
 	apply(f.ctx)
 	wantStatus(t, f.get(t, id), buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED)
 
-	if err := session.sendPendingNow(f.ctx); err != nil {
+	if err := session.sendPending(f.ctx); err != nil {
 		t.Fatalf("send pending before the report settled: %v", err)
 	}
 	if canceled := canceledBuilds(sent.take()); len(canceled) != 0 {

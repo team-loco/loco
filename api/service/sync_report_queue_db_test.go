@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -67,6 +68,18 @@ func openReportStream(
 	clusterID uuid.UUID,
 ) agentv1connect.AgentServiceSyncClientStream {
 	t.Helper()
+	return openReportStreamReceiving(t, client, clusterID, nil)
+}
+
+// openReportStreamReceiving opens a sync stream as the cluster, passes what the API sends to received
+// unless it is nil, and returns the stream to report on.
+func openReportStreamReceiving(
+	t *testing.T,
+	client agentv1connect.AgentServiceClient,
+	clusterID uuid.UUID,
+	received chan<- *agentv1.SyncResponse,
+) agentv1connect.AgentServiceSyncClientStream {
+	t.Helper()
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+testAssertion(t, clusterID))
 	stream, err := client.Sync(ctx)
@@ -79,8 +92,12 @@ func openReportStream(
 	}
 	go func() {
 		for {
-			if _, err := stream.Receive(); err != nil {
+			msg, err := stream.Receive()
+			if err != nil {
 				return
+			}
+			if received != nil {
+				received <- msg
 			}
 		}
 	}()
@@ -283,20 +300,24 @@ func TestHeartbeatsFlowWhileStartingQueuedBuildsWaitsForAWrite(t *testing.T) {
 	cases := map[string]struct {
 		role clusterv1.ClusterRole
 		lock string
-		done func(t *testing.T, f *buildFixture, buildID string) bool
+		done func(t *testing.T, f *buildFixture, buildID string, received []*agentv1.SyncResponse) bool
 	}{
 		"registry credential": {
 			role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL,
 			lock: `SELECT id FROM builds WHERE id = $1 FOR UPDATE`,
-			done: func(t *testing.T, f *buildFixture, buildID string) bool {
-				t.Helper()
-				return f.buildCredentialCount(t, buildID) > 0
+			done: func(_ *testing.T, _ *buildFixture, buildID string, received []*agentv1.SyncResponse) bool {
+				for _, start := range startedBuilds(received) {
+					if start.GetBuildId() == buildID && start.GetRegistryCredential() != "" {
+						return true
+					}
+				}
+				return false
 			},
 		},
 		"builds disabled": {
 			role: clusterv1.ClusterRole_CLUSTER_ROLE_APPS,
 			lock: `SELECT id FROM resources WHERE id = $1 FOR UPDATE`,
-			done: func(t *testing.T, f *buildFixture, buildID string) bool {
+			done: func(t *testing.T, f *buildFixture, buildID string, _ []*agentv1.SyncResponse) bool {
 				t.Helper()
 				return f.get(t, buildID).GetStatus() == buildv1.BuildStatus_BUILD_STATUS_FAILED
 			},
@@ -319,21 +340,34 @@ func TestHeartbeatsFlowWhileStartingQueuedBuildsWaitsForAWrite(t *testing.T) {
 			release := holdRow(t, f.deployFixture, tc.lock, held)
 			cfg := testAgentConfig()
 			cfg.RegistryTokenMode = true
-			stream := openReportStream(t, startSyncServerWithConfig(t, f.deployFixture, f.bucket, cfg), f.clusterID)
+			messages := make(chan *agentv1.SyncResponse, 64)
+			client := startSyncServerWithConfig(t, f.deployFixture, f.bucket, cfg)
+			stream := openReportStreamReceiving(t, client, f.clusterID, messages)
+			var received []*agentv1.SyncResponse
+			done := func() bool {
+				for {
+					select {
+					case msg := <-messages:
+						received = append(received, msg)
+					default:
+						return tc.done(t, f, buildID, received)
+					}
+				}
+			}
+
+			dbtest.WaitForLockWaiters(t, f.pool, 1)
 			report(stream, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{
 				Heartbeat: &agentv1.Heartbeat{Role: tc.role},
 			}})
 			waitFor(t, "heartbeat recorded while starting queued builds waited for a write", func() bool {
 				return f.heartbeatAt(t) != nil
 			})
-			if tc.done(t, f, buildID) {
+			if done() {
 				t.Fatal("the queued build was handled while a write held the row it needs")
 			}
 
 			release()
-			waitFor(t, "the queued build was handled once the write ended", func() bool {
-				return tc.done(t, f, buildID)
-			})
+			waitFor(t, "the queued build was handled once the write ended", done)
 		})
 	}
 }

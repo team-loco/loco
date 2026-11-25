@@ -104,39 +104,32 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 	skip := maps.Clone(ss.builds.started)
 	maps.Copy(skip, ss.builds.active)
 	return ss.queueReport(ctx, func(ctx context.Context) (settleFunc, error) {
-		starts, err := ss.prepareQueuedBuilds(ctx, skip)
-		if err != nil {
+		if err := ss.prepareQueuedBuilds(ctx, skip); err != nil {
 			return nil, err
 		}
 		return func(ctx context.Context) error {
 			ss.builds.starting = false
-			if err := ss.sendBuildStarts(ctx, starts); err != nil {
-				return err
-			}
 			if ss.builds.startAgain {
 				ss.builds.startAgain = false
-				return ss.startQueuedBuilds(ctx)
+				if err := ss.startQueuedBuilds(ctx); err != nil {
+					return err
+				}
 			}
-			return nil
+			return ss.cancelStaleBuilds(ctx)
 		}, nil
 	})
 }
 
-// buildStart is a queued build and the message that starts it on the cluster.
-type buildStart struct {
-	build genDb.ListQueuedClusterBuildsRow
-	msg   *agentv1.SyncResponse
-}
-
-// prepareQueuedBuilds fails queued builds on a cluster that runs none, or prepares each queued build not in skip.
-func (ss *syncSession) prepareQueuedBuilds(ctx context.Context, skip map[uuid.UUID]struct{}) ([]buildStart, error) {
+// prepareQueuedBuilds fails queued builds on a cluster that runs none, or settles a send for each queued build
+// not in skip.
+func (ss *syncSession) prepareQueuedBuilds(ctx context.Context, skip map[uuid.UUID]struct{}) error {
 	clusterID := ss.clusterID
 	role, err := ss.server.queries.GetClusterRole(ctx, clusterID)
 	if err != nil {
-		return nil, fmt.Errorf("check whether the cluster accepts builds: %w", err)
+		return fmt.Errorf("check whether the cluster accepts builds: %w", err)
 	}
 	if !runsBuilds(role) {
-		return nil, ss.server.failClusterBuilds(ctx, genDb.FailClusterBuildsParams{
+		return ss.server.failClusterBuilds(ctx, genDb.FailClusterBuildsParams{
 			ClusterID:      &clusterID,
 			PreviousStatus: genDb.BuildStatusQueued,
 			Held:           []uuid.UUID{},
@@ -145,9 +138,8 @@ func (ss *syncSession) prepareQueuedBuilds(ctx context.Context, skip map[uuid.UU
 	}
 	queued, err := ss.server.queries.ListQueuedClusterBuilds(ctx, &clusterID)
 	if err != nil {
-		return nil, fmt.Errorf("list queued builds: %w", err)
+		return fmt.Errorf("list queued builds: %w", err)
 	}
-	starts := make([]buildStart, 0, len(queued))
 	for _, build := range queued {
 		if _, held := skip[build.ID]; held {
 			continue
@@ -168,21 +160,28 @@ func (ss *syncSession) prepareQueuedBuilds(ctx context.Context, skip map[uuid.UU
 			)
 			continue
 		}
-		starts = append(starts, buildStart{build: build, msg: msg})
+		ss.addSettled(ss.sendBuildStart(build, msg))
 	}
-	return starts, nil
+	return nil
 }
 
-func (ss *syncSession) sendBuildStarts(ctx context.Context, starts []buildStart) error {
-	for _, start := range starts {
-		build := start.build
+// sendBuildStart sends a prepared build that is still queued on the cluster and not yet sent.
+func (ss *syncSession) sendBuildStart(build genDb.ListQueuedClusterBuildsRow, msg *agentv1.SyncResponse) settleFunc {
+	return func(ctx context.Context) error {
 		if _, sent := ss.builds.started[build.ID]; sent {
-			continue
+			return nil
 		}
 		if _, held := ss.builds.active[build.ID]; held {
-			continue
+			return nil
 		}
-		if err := ss.sendFn(start.msg); err != nil {
+		rows, err := ss.server.queries.ListBuildStatesByIDs(ctx, []uuid.UUID{build.ID})
+		if err != nil {
+			return fmt.Errorf("check build %s is still queued: %w", build.ID, err)
+		}
+		if len(rows) == 0 || !ss.queuedHere(rows[0]) {
+			return nil
+		}
+		if err := ss.sendFn(msg); err != nil {
 			return fmt.Errorf("send build %s: %w", build.ID, err)
 		}
 		ss.builds.started[build.ID] = struct{}{}
@@ -192,8 +191,8 @@ func (ss *syncSession) sendBuildStarts(ctx context.Context, starts []buildStart)
 			"build_id", build.ID,
 			"cache_ref", build.CacheRef,
 		)
+		return nil
 	}
-	return nil
 }
 
 func (s *AgentServer) startBuildMessage(
@@ -304,6 +303,10 @@ func (ss *syncSession) wantsBuild(row genDb.ListBuildStatesByIDsRow) bool {
 		return false
 	}
 	return !buildStatusFinished(row.Status)
+}
+
+func (ss *syncSession) queuedHere(row genDb.ListBuildStatesByIDsRow) bool {
+	return ss.wantsBuild(row) && row.Status == genDb.BuildStatusQueued
 }
 
 // buildInventory is the builds a cluster's inventory lists: every build it holds, and those still running.
