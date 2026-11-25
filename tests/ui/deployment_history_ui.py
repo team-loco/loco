@@ -374,6 +374,7 @@ with session(out) as browser:
     section.get_by_role("button", name="Add a column", exact=True).click()
     page.get_by_role("menuitemcheckbox", name="Message", exact=True).click()
     page.keyboard.press("Escape")
+    expect(page.get_by_role("menu")).to_have_count(0)
     expect(
         deployments.get_by_role("cell", name="Add the release checklist", exact=True)
     ).to_be_visible()
@@ -383,6 +384,7 @@ with session(out) as browser:
         name=f"Actions for {data['releases'][1][-8:]}",
         exact=True,
     ).click()
+    expect(page.get_by_role("menu")).to_be_focused()
     expect(page.get_by_role("menuitem", name="View spec", exact=True)).to_have_count(0)
     page.keyboard.press("Escape")
     expect(page.get_by_role("menu")).to_have_count(0)
@@ -662,6 +664,7 @@ with session(out) as browser:
     ).to_have_count(0)
     section.get_by_role("button", name="Clear build filter", exact=True).click()
     section.get_by_role("tab", name=re.compile(r"^Builds")).click()
+    expect(page).to_have_url(re.compile(r"[?&]hist=builds"))
     expect(
         section.get_by_role("tabpanel", name=re.compile(r"^Builds")).get_by_role(
             "columnheader", name="Time", exact=True
