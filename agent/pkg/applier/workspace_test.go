@@ -87,9 +87,9 @@ func TestForgetWorkspaceDeletesItsPlacedApplicationsThenItsNamespace(t *testing.
 		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
 		locolabels.LabelLocoApp:   "true", locolabels.LabelWorkspaceID: forgottenWorkspace,
 	}}
-	application := func(name, workspaceID string, placed bool) *locov1alpha1.Application {
+	application := func(name, label, workspaceID string, placed bool) *locov1alpha1.Application {
 		app := &locov1alpha1.Application{Name: name, Namespace: testNamespace,
-			Labels: map[string]string{locolabels.LabelWorkspaceID: workspaceID},
+			Labels: map[string]string{locolabels.LabelWorkspaceID: label},
 			Spec:   locov1alpha1.ApplicationSpec{WorkspaceID: workspaceID},
 		}
 		if placed {
@@ -99,18 +99,23 @@ func TestForgetWorkspaceDeletesItsPlacedApplicationsThenItsNamespace(t *testing.
 		}
 		return app
 	}
-	placed := application("placed", forgottenWorkspace, true)
-	unplaced := application("unplaced", forgottenWorkspace, false)
-	other := application("other", "other-id", true)
-	a := newTestApplier(t, namespace, placed, unplaced, other)
+	placed := application("placed", forgottenWorkspace, forgottenWorkspace, true)
+	unplaced := application("unplaced", forgottenWorkspace, forgottenWorkspace, false)
+	other := application("other", "other-id", "other-id", true)
+	// The spec, not the label, names the workspace an Application belongs to.
+	mislabel := application("mislabel", forgottenWorkspace, "other-id", true)
+	relabel := application("relabel", "other-id", forgottenWorkspace, true)
+	a := newTestApplier(t, namespace, placed, unplaced, other, mislabel, relabel)
 
 	if err := a.ForgetWorkspace(ctx, forgottenWorkspace); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.client.Get(ctx, client.ObjectKeyFromObject(placed), placed); !apierrors.IsNotFound(err) {
-		t.Fatalf("placed Application of the forgotten workspace remains: %v", err)
+	for _, app := range []*locov1alpha1.Application{placed, relabel} {
+		if err := a.client.Get(ctx, client.ObjectKeyFromObject(app), app); !apierrors.IsNotFound(err) {
+			t.Fatalf("Application %s of the forgotten workspace remains: %v", app.Name, err)
+		}
 	}
-	for _, app := range []*locov1alpha1.Application{unplaced, other} {
+	for _, app := range []*locov1alpha1.Application{unplaced, other, mislabel} {
 		if err := a.client.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 			t.Fatalf("Application %s deleted: %v", app.Name, err)
 		}

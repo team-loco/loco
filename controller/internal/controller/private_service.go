@@ -30,10 +30,10 @@ var (
 )
 
 func ownsPrivateService(app *locov1alpha1.Application, svc *corev1.Service) bool {
-	return app.UID != "" &&
-		svc.Labels[locolabels.LabelPrivateServiceOwner] == string(app.UID) &&
-		svc.Labels[managed.LabelComponent] == componentPrivateService &&
-		ownedByApp(app, svc)
+	if app.UID == "" || svc.Labels[locolabels.LabelPrivateServiceOwner] != string(app.UID) {
+		return false
+	}
+	return svc.Labels[managed.LabelComponent] == componentPrivateService && ownedByApp(app, svc)
 }
 
 func (r *ApplicationReconciler) ensurePrivateService(ctx context.Context, app *locov1alpha1.Application) error {

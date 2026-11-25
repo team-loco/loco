@@ -455,9 +455,11 @@ func (r *ApplicationReconciler) deleteOwnedObject(
 
 // ownedByApp reports whether the controller wrote obj for app.
 func ownedByApp(app *locov1alpha1.Application, obj client.Object) bool {
+	if obj.GetLabels()[locolabels.LabelManagedBy] != locolabels.ControllerManagedBy {
+		return false
+	}
 	annotations := obj.GetAnnotations()
-	return obj.GetLabels()[locolabels.LabelManagedBy] == locolabels.ControllerManagedBy &&
-		annotations[locolabels.AnnotationApplicationNamespace] == app.Namespace &&
+	return annotations[locolabels.AnnotationApplicationNamespace] == app.Namespace &&
 		annotations[locolabels.AnnotationApplicationName] == app.Name
 }
 

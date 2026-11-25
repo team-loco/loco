@@ -3,6 +3,8 @@ package service
 import (
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -126,5 +128,29 @@ func TestWorkspaceInventoryDeletesNamespacesOfClustersWithoutPlacementsAfterTheG
 	reconcile(1)
 	if deleted[0] != workspaceID.String() {
 		t.Fatalf("deleted %v, want %s", deleted, workspaceID)
+	}
+}
+
+func TestWorkspaceInventorySendsNoCleanupWhenTheLookupFails(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	workspaceID := f.workspaceID(t)
+	closed, err := pgxpool.NewWithConfig(t.Context(), f.pool.Config())
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed.Close()
+	var sent []*agentv1.SyncResponse
+	session := newSyncSession(f.agentServer(), f.clusterID, func(msg *agentv1.SyncResponse) error {
+		sent = append(sent, msg)
+		return nil
+	})
+	session.server.db = closed
+	session.server.queries = genDb.New(closed)
+	if err := session.reconcileWorkspaceInventory(t.Context(), []string{workspaceID.String()}); err == nil {
+		t.Fatal("a failed workspace lookup returned nil")
+	}
+	if len(sent) != 0 {
+		t.Fatalf("a failed workspace lookup sent %v", sent)
 	}
 }

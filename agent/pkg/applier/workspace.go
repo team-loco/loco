@@ -61,12 +61,14 @@ func (a *Applier) DeleteWorkspace(ctx context.Context, workspaceID string) error
 // namespaces once their finalizers finish.
 func (a *Applier) ForgetWorkspace(ctx context.Context, workspaceID string) error {
 	apps := &locov1alpha1.ApplicationList{}
-	selector := client.MatchingLabels{locolabels.LabelWorkspaceID: workspaceID}
-	if err := a.client.List(ctx, apps, client.InNamespace(a.namespace), selector); err != nil {
+	if err := a.client.List(ctx, apps, client.InNamespace(a.namespace)); err != nil {
 		return fmt.Errorf("list applications of a forgotten workspace: %w", err)
 	}
 	for idx := range apps.Items {
 		app := &apps.Items[idx]
+		if app.Spec.WorkspaceID != workspaceID {
+			continue
+		}
 		if _, _, ok := app.Placement(); !ok {
 			continue
 		}
