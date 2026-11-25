@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -60,6 +61,7 @@ var (
 	errInvalidInteger  = errors.New("must be a positive integer")
 	errInvalidAuth     = errors.New("must be static or token")
 	errInvalidRole     = errors.New("must be apps, builds or all")
+	errInvalidURL      = errors.New("must be an http:// or https:// URL without credentials, query or fragment")
 )
 
 var version string
@@ -149,6 +151,9 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 			return nil, err
 		}
 		*field = value
+	}
+	if !isEndpointURL(cfg.ControlPlaneURL) {
+		return nil, fmt.Errorf("%s %q %w", envControlPlaneURL, cfg.ControlPlaneURL, errInvalidURL)
 	}
 	appDomains, err := requireEnv(getenv, envAppDomains)
 	if err != nil {
@@ -253,6 +258,14 @@ func parseIngestTokenSecret(getenv func(string) string) (telemetrytoken.Secret, 
 	}
 	secret.Namespaces = strings.Split(namespaces, listSeparator)
 	return secret, nil
+}
+
+func isEndpointURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return false
+	}
+	return u.User == nil && u.RawQuery == "" && !u.ForceQuery && u.Fragment == ""
 }
 
 func requireEnv(getenv func(string) string, name string) (string, error) {

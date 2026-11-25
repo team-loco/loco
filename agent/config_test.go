@@ -147,6 +147,28 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 	}
 }
 
+func TestParseAgentConfigRejectsInvalidControlPlaneURL(t *testing.T) {
+	for _, value := range []string{
+		"api.loco.test",
+		"api.loco.test:8080",
+		"ftp://api.loco.test",
+		"https://",
+		"https://user:pass@api.loco.test",
+		"https://api.loco.test?x=1",
+		"https://api.loco.test?",
+		"https://api.loco.test#frag",
+	} {
+		t.Run(value, func(t *testing.T) {
+			env := agentEnv()
+			env[envControlPlaneURL] = value
+			_, err := parseAgentConfig(lookup(env), testAgentVersion)
+			if !errors.Is(err, errInvalidURL) || !strings.Contains(err.Error(), envControlPlaneURL) {
+				t.Errorf("%s=%q: err = %v, want errInvalidURL naming the variable", envControlPlaneURL, value, err)
+			}
+		})
+	}
+}
+
 func TestParseAgentConfigRejectsInvalidDurations(t *testing.T) {
 	durations := []string{
 		envInventoryInterval,
