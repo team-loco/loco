@@ -19,6 +19,26 @@ def org_row(page, name):
     return page.get_by_role("row", name=f"Open {name}", exact=True)
 
 
+def org_rows(page):
+    return page.get_by_role("table", name="Organizations", exact=True).get_by_role(
+        "row", name=re.compile("^Open ")
+    )
+
+
+def names_regex(names):
+    return [re.compile("^" + re.escape(name) + r"\b") for name in names]
+
+
+def pager(page):
+    return page.locator('[data-slot="pager"]')
+
+
+def org_of(org):
+    return call(state, ORG_SERVICE + "GetOrg", {"orgId": org}, user="admin")[
+        "organization"
+    ]
+
+
 def limit_row(page, label):
     return page.get_by_role("table", name="Limits", exact=True).get_by_role(
         "row", name=re.compile("^" + re.escape(label))
@@ -39,42 +59,78 @@ def limits_of(org):
 ops = state["orgs"]["ops"]["id"]
 labs = state["orgs"]["labs"]["id"]
 MEMBERS = "Members per organization"
+NAME_ORDER = ["acme", "labs", "ops"] + [f"org-{n:02d}" for n in range(1, 28)]
 
 with session(repo / "tests/ui/out/system-orgs") as browser:
     # A system reader lists and searches the organizations and opens one, with no change controls.
     context, page, errors = open_page(browser, user="reader", state=state)
-    page.goto(ui + "/system/orgs")
+    # Thirty organizations span two pages. Sorting by name lists them in order, and the page, the
+    # page size and the sort live in the URL.
+    page.goto(ui + "/system/orgs?sort=name&desc=false")
     expect(
         page.get_by_role("heading", name="Organizations", exact=True)
     ).to_be_visible()
-    for name in ("acme", "ops", "labs"):
-        expect(org_row(page, name)).to_be_visible()
+    expect(org_rows(page)).to_have_text(names_regex(NAME_ORDER[:25]))
     expect(org_row(page, "acme")).to_contain_text("Max Member")
     expect(org_row(page, "acme")).to_contain_text("Active")
+    expect(pager(page)).to_contain_text(re.compile(r"1.25 of 30"))
+    next_page = pager(page).get_by_role("button", name="Next page", exact=True)
+    previous = pager(page).get_by_role("button", name="Previous page", exact=True)
+    expect(next_page).to_be_enabled()
+    expect(previous).to_be_disabled()
+
+    next_page.click()
+    expect(page).to_have_url(re.compile(r"[?&]pages="))
+    expect(org_rows(page)).to_have_text(names_regex(NAME_ORDER[25:]))
+    expect(pager(page)).to_contain_text(re.compile(r"26.30 of 30"))
+    page.reload()
+    expect(org_rows(page)).to_have_text(names_regex(NAME_ORDER[25:]))
+    previous.click()
+    expect(page).not_to_have_url(re.compile(r"[?&]pages="))
+    expect(org_rows(page)).to_have_text(names_regex(NAME_ORDER[:25]))
+
+    # Changing the sort, the search or the page size returns to the first page.
+    next_page.click()
+    expect(page).to_have_url(re.compile(r"[?&]pages="))
+    page.get_by_role("columnheader", name="Created", exact=True).get_by_role(
+        "button"
+    ).click()
+    expect(page).not_to_have_url(re.compile(r"[?&]sort="))
+    expect(page).to_have_url(re.compile(r"[?&]desc=false"))
+    expect(page).not_to_have_url(re.compile(r"[?&]pages="))
+    expect(org_rows(page)).to_have_count(25)
+    for index, name in enumerate(("acme", "ops", "labs")):
+        expect(org_rows(page).nth(index)).to_contain_text(name)
+
+    next_page.click()
+    expect(page).to_have_url(re.compile(r"[?&]pages="))
     search = page.get_by_role("textbox", name="Search organizations", exact=True)
+    search.fill("org-")
+    expect(page).to_have_url(re.compile(r"[?&]q=org-"))
+    expect(page).not_to_have_url(re.compile(r"[?&]pages="))
+    expect(pager(page)).to_contain_text(re.compile(r"1.25 of 27"))
+    next_page.click()
+    expect(page).to_have_url(re.compile(r"[?&]pages="))
+    pager(page).locator('[aria-label="Rows per page"]').get_by_text(
+        "50", exact=True
+    ).click()
+    expect(page).to_have_url(re.compile(r"[?&]size=50"))
+    expect(page).not_to_have_url(re.compile(r"[?&]pages="))
+    expect(org_rows(page)).to_have_count(27)
+
+    # Search finds an organization by name or by its owner's email.
     search.fill("acme")
     expect(page).to_have_url(re.compile(r"[?&]q=acme"))
+    expect(org_rows(page)).to_have_count(1)
     expect(org_row(page, "acme")).to_be_visible()
-    expect(org_row(page, "ops")).to_have_count(0)
     search.fill("admin@loco.test")
+    expect(org_rows(page)).to_have_count(2)
     expect(org_row(page, "ops")).to_be_visible()
     expect(org_row(page, "labs")).to_be_visible()
-    expect(org_row(page, "acme")).to_have_count(0)
     search.fill("no-such-organization")
     expect(page.get_by_text("No organizations match", exact=True)).to_be_visible()
     search.fill("")
     expect(org_row(page, "acme")).to_be_visible()
-
-    # Sorting by name orders the rows and keeps the order in the URL.
-    page.get_by_role("columnheader", name="Organization", exact=True).get_by_role(
-        "button"
-    ).click()
-    expect(page).to_have_url(re.compile(r"[?&]sort=name"))
-    expect(page).to_have_url(re.compile(r"[?&]desc=false"))
-    names = (
-        page.get_by_role("row").filter(has_text=re.compile("Active")).all_inner_texts()
-    )
-    assert [n.split()[0] for n in names] == ["acme", "labs", "ops"], names
 
     org_row(page, "ops").click()
     expect(page).to_have_url(f"{ui}/system/orgs/{ops}")
@@ -94,6 +150,12 @@ with session(repo / "tests/ui/out/system-orgs") as browser:
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(0)
     link.click()
     expect(page).to_have_url(re.compile(rf"/org/{ops}/wks/"))
+    # An organization without a workspace links to its team page.
+    bare = state["orgs"]["org-01"]["id"]
+    page.goto(f"{ui}/system/orgs/{bare}")
+    expect(
+        page.get_by_role("link", name="Open workspace", exact=True)
+    ).to_have_attribute("href", f"/org/{bare}/team")
     page.goto(ui + "/system/orgs/00000000-0000-0000-0000-000000000000")
     expect(
         page.get_by_role("heading", name="Nothing lives at this address", exact=True)
@@ -174,6 +236,9 @@ with session(repo / "tests/ui/out/system-orgs") as browser:
     expect(page.get_by_role("heading", name=re.compile("^labs"))).to_contain_text(
         "Suspended"
     )
+    suspended = org_of(labs)
+    assert suspended["suspensionReason"] == "Unpaid invoice", suspended
+    assert "suspendedAt" in suspended, suspended
     expect(page.locator("p", has_text="Reason: Unpaid invoice")).to_be_visible()
 
     page.goto(ui + "/system/orgs")
@@ -196,5 +261,6 @@ with session(repo / "tests/ui/out/system-orgs") as browser:
     expect(page.get_by_role("heading", name=re.compile("^labs"))).to_contain_text(
         "Active"
     )
+    assert "suspendedAt" not in org_of(labs), org_of(labs)
     assert not [e for e in errors if e], errors
     context.close()

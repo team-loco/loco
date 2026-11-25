@@ -2,7 +2,9 @@ import { useQuery } from "@connectrpc/connect-query";
 import { listOrgMembers, listOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { OrgMember } from "@gen/loco/org/v1/org_pb";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { keepPreviousData } from "@tanstack/react-query";
 import { ExternalLinkIcon } from "lucide-react";
+import { useQueryStates } from "nuqs";
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router";
 
@@ -11,9 +13,12 @@ import { Button } from "@/components/design/Button";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { CopyId } from "@/components/design/CopyId";
 import { Page, PageHeader, PageLoading, Section } from "@/components/design/Page";
+import { Pager } from "@/components/design/Pager";
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { useShownPage } from "@/hooks/useTokenPage";
 import { formatCount } from "@/lib/format";
 import { notFound } from "@/lib/not-found";
+import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { workspacePath } from "@/lib/routes";
 import { systemAccess } from "@/lib/system";
 import { userLabel } from "@/lib/user";
@@ -22,7 +27,13 @@ import { OrgSuspensionButton } from "./OrgActions";
 import { OrgLimitsSection } from "./OrgLimits";
 import { OrgStateBadge, SystemDate, SystemTime } from "./shared";
 
-const MEMBER_PAGE = 200;
+function orgTeamPath(orgId: string): string {
+	return `/org/${orgId}/team`;
+}
+
+const MEMBER_PAGE = 25;
+const MEMBER_PAGE_SIZES = [MEMBER_PAGE] as const;
+const PARAMS = { members: pageTokensParser };
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
 	return (
@@ -68,23 +79,44 @@ const MEMBER_COLUMNS: DataColumn<OrgMember>[] = [
 ];
 
 function Members({ orgId, total }: { orgId: string; total: number | undefined }) {
-	const members = useQuery(listOrgMembers, { orgId, pageSize: MEMBER_PAGE });
+	const [params, setParams] = useQueryStates(PARAMS, { history: "replace" });
+	const members = useQuery(
+		listOrgMembers,
+		{ orgId, pageSize: MEMBER_PAGE, pageToken: params.members.at(-1) ?? "" },
+		{ placeholderData: keepPreviousData },
+	);
 	const rows = members.data?.members ?? [];
+	const pager = tokenPager(params.members, members.data?.nextPageToken ?? "", (tokens) => {
+		if (!members.isPlaceholderData) void setParams({ members: tokens });
+	});
+	const shown = useShownPage(
+		pager.page,
+		tokenPageLabel(pager.page, MEMBER_PAGE, rows.length, total),
+		members.isPlaceholderData,
+	);
 	const table = useDataTable("system-org-members", {
 		columns: MEMBER_COLUMNS,
 		data: rows,
 		getRowId: (m) => m.user?.id ?? "",
 	});
 	return (
-		<Section
-			title="Members"
-			count={total === undefined ? undefined : formatCount(total)}
-			meta={members.data?.nextPageToken ? `Showing the first ${MEMBER_PAGE}` : undefined}
-		>
+		<Section title="Members" count={total === undefined ? undefined : formatCount(total)}>
 			{members.error !== null ? (
 				<ErrorCard error={members.error} fallbackMessage="Failed to load the members" minHeight="min-h-32" />
 			) : (
-				<DataTable table={table} label="Members" band loading={members.isPending} />
+				<>
+					<DataTable table={table} label="Members" band loading={members.isPending} />
+					<Pager
+						label={shown.label}
+						page={shown.page}
+						total={rows.length}
+						pageSizes={MEMBER_PAGE_SIZES}
+						loading={members.isPlaceholderData}
+						onFirst={pager.onFirst}
+						onPrev={pager.onPrev}
+						onNext={pager.onNext}
+					/>
+				</>
 			)}
 		</Section>
 	);
@@ -114,17 +146,17 @@ export function SystemOrgDetail() {
 				}
 				actions={
 					<div className="flex flex-wrap items-center gap-2">
-						{workspaceId !== undefined && (
-							<Button
-								variant="outline"
-								size="sm"
-								nativeButton={false}
-								render={<Link to={workspacePath(org.id, workspaceId)} />}
-							>
-								<ExternalLinkIcon />
-								Open workspace
-							</Button>
-						)}
+						<Button
+							variant="outline"
+							size="sm"
+							nativeButton={false}
+							render={
+								<Link to={workspaceId === undefined ? orgTeamPath(org.id) : workspacePath(org.id, workspaceId)} />
+							}
+						>
+							<ExternalLinkIcon />
+							Open workspace
+						</Button>
 						{admin && <OrgSuspensionButton org={org} />}
 					</div>
 				}

@@ -25,9 +25,9 @@ export function OrgSuspensionButton({ org }: { org: Organization }) {
 		setOpen(false);
 	};
 
-	const run = async (action: () => Promise<unknown>, done: string, failed: string) => {
+	const run = async (action: Promise<unknown>, done: string, failed: string) => {
 		try {
-			await action();
+			await action;
 			close();
 			toast(done);
 			await refreshOrgs(queryClient);
@@ -62,11 +62,7 @@ export function OrgSuspensionButton({ org }: { org: Organization }) {
 					confirmVariant="default"
 					pending={resume.isPending}
 					onConfirm={() => {
-						void run(
-							async () => await resume.mutateAsync({ orgId: org.id }),
-							`Resumed ${org.name}`,
-							`Failed to resume ${org.name}`,
-						);
+						void run(resume.mutateAsync({ orgId: org.id }), `Resumed ${org.name}`, `Failed to resume ${org.name}`);
 					}}
 					onClose={close}
 				/>
@@ -81,7 +77,7 @@ export function OrgSuspensionButton({ org }: { org: Organization }) {
 					pending={suspend.isPending}
 					onSubmit={(reason) => {
 						void run(
-							async () => await suspend.mutateAsync({ orgId: org.id, reason }),
+							suspend.mutateAsync({ orgId: org.id, reason }),
 							`Suspended ${org.name}`,
 							`Failed to suspend ${org.name}`,
 						);

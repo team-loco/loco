@@ -25,6 +25,7 @@ const PAGE_SIZES = [25, 50, 100] as const;
 const STATES = ["active", "suspended"] as const;
 const SORTS = ["name", "created"] as const;
 const ALL = "all";
+const MAX_QUERY = 200;
 const COUNT_CELL = "font-mono text-[12.5px]";
 
 const PARAMS = {
@@ -174,63 +175,66 @@ export function SystemOrgs() {
 	return (
 		<Page>
 			<PageHeader title="Organizations" />
-			{page.error !== null ? (
-				<ErrorCard error={page.error} fallbackMessage="Failed to load the organizations" minHeight="min-h-48" />
-			) : (
-				<Section
-					filters={
-						<FilterMenu
-							label="State"
-							icon={<CircleDotIcon />}
-							value={state ?? ALL}
-							options={STATE_OPTIONS}
-							onChange={(value) => {
-								void setParams({ state: STATES.find((s) => s === value) ?? null, pages: null });
-							}}
-						/>
-					}
-					search={
-						<SearchInput
-							value={q}
-							onChange={(e) => {
-								void setParams({ q: e.target.value === "" ? null : e.target.value, pages: null });
-							}}
-							onClear={() => {
-								void setParams({ q: null, pages: null });
-							}}
-							placeholder="Search by name, owner email or ID"
-							aria-label="Search organizations"
-						/>
-					}
-				>
-					<DataTable
-						table={table}
-						label="Organizations"
-						band
-						loading={page.query.isPending}
-						empty={empty}
-						rowAction="navigate"
-						rowLabel={(row) => `Open ${row.original.organization?.name ?? ""}`}
-						onRowClick={(row) => {
-							void navigate(orgPath(row.original.organization?.id ?? ""));
+			<Section
+				filters={
+					<FilterMenu
+						label="State"
+						icon={<CircleDotIcon />}
+						value={state ?? ALL}
+						options={STATE_OPTIONS}
+						onChange={(value) => {
+							void setParams({ state: STATES.find((s) => s === value) ?? null, pages: null });
 						}}
 					/>
-					<Pager
-						label={shown.label}
-						page={shown.page}
-						total={rows.length}
-						pageSizes={PAGE_SIZES}
-						pageSize={size}
-						onPageSize={(next) => {
-							void setParams({ size: PAGE_SIZES.find((n) => n === next) ?? null, pages: null });
+				}
+				search={
+					<SearchInput
+						value={q}
+						maxLength={MAX_QUERY}
+						onChange={(e) => {
+							void setParams({ q: e.target.value === "" ? null : e.target.value, pages: null });
 						}}
-						loading={page.query.isPlaceholderData}
-						onFirst={pager.onFirst}
-						onPrev={pager.onPrev}
-						onNext={pager.onNext}
+						onClear={() => {
+							void setParams({ q: null, pages: null });
+						}}
+						placeholder="Search by name, owner email or ID"
+						aria-label="Search organizations"
 					/>
-				</Section>
-			)}
+				}
+			>
+				{page.error !== null ? (
+					<ErrorCard error={page.error} fallbackMessage="Failed to load the organizations" minHeight="min-h-48" />
+				) : (
+					<>
+						<DataTable
+							table={table}
+							label="Organizations"
+							band
+							loading={page.query.isPending}
+							empty={empty}
+							rowAction="navigate"
+							rowLabel={(row) => `Open ${row.original.organization?.name ?? ""}`}
+							onRowClick={(row) => {
+								void navigate(orgPath(row.original.organization?.id ?? ""));
+							}}
+						/>
+						<Pager
+							label={shown.label}
+							page={shown.page}
+							total={rows.length}
+							pageSizes={PAGE_SIZES}
+							pageSize={size}
+							onPageSize={(next) => {
+								void setParams({ size: PAGE_SIZES.find((n) => n === next) ?? null, pages: null });
+							}}
+							loading={page.query.isPlaceholderData}
+							onFirst={pager.onFirst}
+							onPrev={pager.onPrev}
+							onNext={pager.onNext}
+						/>
+					</>
+				)}
+			</Section>
 		</Page>
 	);
 }

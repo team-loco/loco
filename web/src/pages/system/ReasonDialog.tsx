@@ -30,12 +30,13 @@ function ReasonForm({
 }) {
 	const [reason, setReason] = useState("");
 	const trimmed = reason.trim();
+	const ready = trimmed !== "" && canSubmit && !pending;
 	return (
 		<form
 			className="contents"
 			onSubmit={(e) => {
 				e.preventDefault();
-				if (trimmed !== "" && canSubmit) onSubmit(trimmed);
+				if (ready) onSubmit(trimmed);
 			}}
 		>
 			<DialogBody>
@@ -55,7 +56,7 @@ function ReasonForm({
 				<Button type="button" variant="outline" disabled={pending} onClick={onClose}>
 					Cancel
 				</Button>
-				<Button type="submit" variant={confirmVariant} disabled={pending || trimmed === "" || !canSubmit}>
+				<Button type="submit" variant={confirmVariant} disabled={!ready}>
 					{confirmLabel}
 				</Button>
 			</DialogFooter>

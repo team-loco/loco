@@ -60,6 +60,9 @@ function amount(value: number | undefined, unit: string | undefined): string {
 	return unit === undefined ? formatCount(value) : `${formatCount(value)} ${unit}`;
 }
 
+/** The largest value of an int32 limit. */
+const MAX_LIMIT = 2_147_483_647;
+
 type Change = { row: Row; kind: "override" | "default" };
 
 function columns(admin: boolean, onChange: (change: Change) => void): DataColumn<Row>[] {
@@ -133,17 +136,16 @@ function columns(admin: boolean, onChange: (change: Change) => void): DataColumn
 	];
 }
 
-function ChangeDialog({ orgId, change, onClose }: { orgId: string; change: Change | null; onClose: () => void }) {
+function ChangeDialog({ orgId, change, onClose }: { orgId: string; change: Change; onClose: () => void }) {
 	const queryClient = useQueryClient();
 	const save = useMutation(setOrgLimits);
 	const [text, setText] = useState("");
-	const row = change?.row;
-	const overriding = change?.kind === "override";
+	const { row } = change;
+	const overriding = change.kind === "override";
 	const value = Number(text);
-	const valid = Number.isInteger(value) && value > 0;
+	const valid = Number.isInteger(value) && value >= 1 && value <= MAX_LIMIT;
 
 	const submit = async (reason: string) => {
-		if (row === undefined) return;
 		const limits = create(CountLimitsSchema);
 		limits[row.key] = overriding ? value : 0;
 		try {
@@ -167,20 +169,14 @@ function ChangeDialog({ orgId, change, onClose }: { orgId: string; change: Chang
 
 	return (
 		<ReasonDialog
-			open={change !== null}
+			open
 			title={
-				row === undefined
-					? ""
-					: overriding
-						? `Override ${row.label.toLowerCase()}`
-						: `Return ${row.label.toLowerCase()} to the install default`
+				overriding ? `Override ${row.label.toLowerCase()}` : `Return ${row.label.toLowerCase()} to the install default`
 			}
 			description={
-				row === undefined
-					? ""
-					: overriding
-						? `The install default is ${amount(row.fallback, row.unit)}. The override applies to this organization only.`
-						: `The organization uses the install default of ${amount(row.fallback, row.unit)} again.`
+				overriding
+					? `The install default is ${amount(row.fallback, row.unit)}. The override applies to this organization only.`
+					: `The organization uses the install default of ${amount(row.fallback, row.unit)} again.`
 			}
 			confirmLabel={overriding ? "Override limit" : "Return to default"}
 			canSubmit={!overriding || valid}
@@ -190,11 +186,15 @@ function ChangeDialog({ orgId, change, onClose }: { orgId: string; change: Chang
 			}}
 			onClose={onClose}
 		>
-			{row !== undefined && overriding && (
-				<Field label={row.unit === undefined ? "New limit" : `New limit (${row.unit})`}>
+			{overriding && (
+				<Field
+					label={row.unit === undefined ? "New limit" : `New limit (${row.unit})`}
+					error={text !== "" && !valid ? `Enter a whole number from 1 to ${formatCount(MAX_LIMIT)}.` : undefined}
+				>
 					<Input
 						type="number"
 						min={1}
+						max={MAX_LIMIT}
 						step={1}
 						value={text}
 						onChange={(e) => {
@@ -229,6 +229,7 @@ export function OrgLimitsSection({ orgId, admin }: { orgId: string; admin: boole
 		data: rows,
 		getRowId: (r) => r.key,
 	});
+	const failure = limits.error ?? config.error;
 	const reason = current === undefined ? null : latestChange(current);
 	return (
 		<Section
@@ -241,19 +242,21 @@ export function OrgLimitsSection({ orgId, admin }: { orgId: string; admin: boole
 				)
 			}
 		>
-			{limits.error !== null ? (
-				<ErrorCard error={limits.error} fallbackMessage="Failed to load the limits" minHeight="min-h-32" />
+			{failure !== null ? (
+				<ErrorCard error={failure} fallbackMessage="Failed to load the limits" minHeight="min-h-32" />
 			) : (
-				<DataTable table={table} label="Limits" band loading={limits.isPending} />
+				<DataTable table={table} label="Limits" band loading={limits.isPending || config.isPending} />
 			)}
-			<ChangeDialog
-				key={change === null ? "" : `${change.kind}:${change.row.key}`}
-				orgId={orgId}
-				change={change}
-				onClose={() => {
-					setChange(null);
-				}}
-			/>
+			{change !== null && (
+				<ChangeDialog
+					key={`${change.kind}:${change.row.key}`}
+					orgId={orgId}
+					change={change}
+					onClose={() => {
+						setChange(null);
+					}}
+				/>
+			)}
 		</Section>
 	);
 }
