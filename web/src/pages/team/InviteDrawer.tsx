@@ -165,6 +165,7 @@ function InviteForm({
 						{chips.map((c) => (
 							<li
 								key={c.value}
+								data-chip
 								className={cn(
 									"inline-flex h-6 items-center rounded-md px-2 font-mono text-[11.5px]",
 									c.valid ? "bg-panel2 text-fg2" : "bg-bad-bg text-bad-fg",

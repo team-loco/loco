@@ -369,6 +369,7 @@ export function PartialError({
 	return (
 		<div
 			role="alert"
+			data-slot="error-banner"
 			className="flex flex-wrap items-center gap-2.5 rounded-card border border-[color-mix(in_oklch,var(--warn)_40%,var(--line))] bg-[color-mix(in_oklch,var(--warn)_7%,var(--background))] py-2 pr-2 pl-3 text-[13px]"
 		>
 			<TriangleAlertIcon aria-hidden className="size-[15px] shrink-0 text-warn" />

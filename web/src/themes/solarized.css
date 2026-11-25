@@ -143,3 +143,21 @@
 		border-radius: 2px;
 	}
 }
+
+[data-theme="solarized"]
+	:is(
+		.sb-search,
+		.act-btn,
+		[data-slot="account-button"],
+		[data-slot="command-button"],
+		[data-slot="step-toggle"],
+		[data-slot="error-banner"],
+		[data-slot="search-clear"],
+		[data-chip],
+		[data-slot="badge"][data-tone="pill"],
+		.lim-tag,
+		[data-slot="error-banner"] [data-slot="button"],
+		[data-request-id] [data-slot="button"]
+	) {
+	border-radius: 2px;
+}

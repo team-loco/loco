@@ -24,6 +24,7 @@ function SearchInput({
 					<button
 						type="button"
 						aria-label="Clear search"
+						data-slot="search-clear"
 						onClick={onClear}
 						className="flex size-5 items-center justify-center rounded-sm hover:text-foreground"
 					>
