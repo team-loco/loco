@@ -39,20 +39,21 @@ function omit(draft: SettingsDraft, keys: readonly (keyof SettingsDraft)[]): Set
 	return Object.fromEntries(Object.entries(draft).filter(([k]) => !keys.some((key) => key === k)));
 }
 
-export function useSaveSettings({
-	resource,
-	environmentId,
-	regions,
-	base,
-	onDone,
-}: {
+/** What a save works from, read when it starts. */
+export interface SaveRequest {
 	resource: Resource;
 	environmentId: string;
 	regions: RegionView[];
 	/** What runs now; the resource updates and domains run only where it differs from the draft. */
 	base: Baseline;
-	onDone: (next: SettingsDraft, notice: Notice) => Promise<void>;
-}) {
+	draft: SettingsDraft;
+}
+
+/**
+ * Saves resource settings. The page that owns the draft holds it, so the save and its lock outlive
+ * the settings tab. `onDone` gets the draft to keep, empty once everything saved.
+ */
+export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) => Promise<void>) {
 	const [saving, setSaving] = useState(false);
 	const update = useMutation(updateResource);
 	const addDomain = useMutation(createResourceDomain);
@@ -62,7 +63,7 @@ export function useSaveSettings({
 	const queryClient = useQueryClient();
 
 	// The API refuses a stale region map with FAILED_PRECONDITION; only a moved revision means someone else saved first.
-	const revisionMoved = async (err: unknown) => {
+	const revisionMoved = async (err: unknown, resource: Resource) => {
 		if (!(err instanceof ConnectError) || err.code !== Code.FailedPrecondition) return false;
 		const latest = await callUnaryMethod(transport, getResource, {
 			key: { case: "resourceId", value: resource.id },
@@ -76,7 +77,7 @@ export function useSaveSettings({
 		setSaving(false);
 	};
 
-	const save = async (draft: SettingsDraft) => {
+	const save = async ({ resource, environmentId, regions, base, draft }: SaveRequest) => {
 		setSaving(true);
 		const resourceId = resource.id;
 		const origin = draft.origin ?? base;
@@ -104,7 +105,7 @@ export function useSaveSettings({
 				return;
 			}
 		}
-		const env = current === undefined ? undefined : plainEnv(current.env, draft);
+		const env = plainEnv(current?.env ?? {}, draft);
 		const name = draft.name?.trim();
 		const renamed = name !== undefined && name !== resource.name;
 		const description = draft.description?.trim();
@@ -151,7 +152,7 @@ export function useSaveSettings({
 			try {
 				await update.mutateAsync({ resourceId, regions: { targets }, revision: resource.revision });
 			} catch (err) {
-				if (await revisionMoved(err)) {
+				if (await revisionMoved(err, resource)) {
 					await finish(omit(draft, REGION_MAP_KEYS), {
 						tone: "warn",
 						title: withCode`${resource.name} changed since you opened it`,

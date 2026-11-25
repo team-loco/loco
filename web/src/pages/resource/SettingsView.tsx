@@ -3,7 +3,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listAppDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
-import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { getResourceEnv, listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
@@ -27,6 +27,8 @@ import { isDeployed, type Notice as NoticeState, type RegionView } from "./model
 import { regionsWithDifferentVariables } from "./variables";
 import { NetworkingSection } from "./NetworkingSection";
 import {
+	plainEnv,
+	changeCount,
 	changeNames,
 	domainsChange,
 	LIVE_ERROR_KEYS,
@@ -51,7 +53,6 @@ import {
 	ObservabilitySection,
 	DeploymentSection,
 } from "./SettingsSections";
-import { useSaveSettings } from "./useSaveSettings";
 import { VariablesSection } from "./VariablesSection";
 
 export const SETTINGS_FOCUSES = ["settings", "scaling"] as const;
@@ -113,6 +114,8 @@ export function SettingsView({
 	onBack,
 	onDelete,
 	onSaved,
+	saving,
+	onSave,
 }: {
 	resource: Resource;
 	secretsNotice: ReactNode;
@@ -127,7 +130,10 @@ export function SettingsView({
 	onDraft: (draft: SettingsDraft) => void;
 	onBack: () => void;
 	onDelete: () => void;
-	onSaved: (notice: NoticeState) => Promise<void>;
+	onSaved: (notice: NoticeState) => void;
+	/** Whether a save, and the reload after it, is still running. */
+	saving: boolean;
+	onSave: (draft: SettingsDraft) => Promise<void>;
 }) {
 	const [current, setCurrent] = useState(() => {
 		const linked = NAV.find((n) => `#${n.id}` === window.location.hash);
@@ -180,48 +186,52 @@ export function SettingsView({
 		resource,
 		regions.filter(isDeployed).flatMap((r) => (r.current === undefined ? [] : [r.current])),
 	);
-	const { save, saving } = useSaveSettings({
-		resource,
-		environmentId,
-		regions,
-		base,
-		onDone: async (next, notice) => {
-			onDraft(next);
-			setTried(false);
-			await onSaved(notice);
-		},
-	});
+	const readOnly = managed || !canWrite;
 	// Fields stay locked until a save and the reload after it finish, so no edit is lost.
-	const locked = managed || !canWrite || saving;
+	const locked = readOnly || saving;
 	// The draft's changes are named against the settings as they were when editing began.
-	const shown = draft.origin ?? base;
+	const origin = draft.origin ?? base;
+	const envQuery = useQuery(
+		getResourceEnv,
+		{ resourceId: resource.id, environmentId },
+		{ enabled: environmentId !== "" },
+	);
+	const env = envQuery.data?.env ?? {};
 	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
-	const want = resolved(draft, shown);
+	const want = resolved(draft, base);
 	const onRegions = Object.keys(want.regions).filter((r) => want.regions[r] === true);
 	const served = servedDomains(domainsQuery.data?.appDomains ?? [], onRegions);
 	const { activeOrgId } = useOrgWorkspace();
 	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
 	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
-	const errors = validateDraft(draft, shown, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY, taken);
+	const replicaLimit = sizes.replicas?.max ?? Number.POSITIVE_INFINITY;
+	const errors = validateDraft(draft, base, regions, served, replicaLimit, env, taken);
 	const errorCount = Object.keys(errors).length;
-	const changes = changeNames(draft, shown);
+	const changes = changeNames(draft, origin);
 	const count = changes.length;
-	const redeploys = regionMapChanged(draft, shown) || planSave(regions, draft, shown).length > 0;
+	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, origin, plainEnv(env, draft)).length > 0;
+	const submit = async () => {
+		await onSave(draft);
+		setTried(false);
+	};
 	const confirmDomains = () => {
 		if (domainsChange(draft, base) === "remove") {
 			setConfirming("internal");
 			return;
 		}
 		setConfirming(null);
-		void save(draft);
+		void submit();
 	};
+	// Reverting the last change drops the snapshot, so untouched settings follow what runs again.
 	const change = (patch: Partial<SettingsDraft>) => {
-		onDraft({ ...draft, ...patch, origin: shown });
+		const next = { ...draft, ...patch };
+		if (changeCount(next, origin) > 0) onDraft({ ...next, origin });
+		else onDraft(next.added === undefined ? {} : { added: next.added });
 	};
 	const shownErrors: DraftErrors = tried
 		? errors
 		: Object.fromEntries(LIVE_ERROR_KEYS.map((key) => [key, errors[key]]));
-	const props = { draft, base: shown, errors: shownErrors, locked, describedBy, onChange: change };
+	const props = { draft, base, errors: shownErrors, locked, describedBy, onChange: change };
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -289,7 +299,7 @@ export function SettingsView({
 						served={served}
 						worker={worker}
 						onDomainsChanged={() => {
-							void onSaved({
+							onSaved({
 								tone: "info",
 								title: "Domain updated",
 								message: "It takes effect on the next deployment.",
@@ -353,7 +363,7 @@ export function SettingsView({
 						confirmLabel="Remove domains and save"
 						onConfirm={() => {
 							setConfirming(null);
-							void save(draft);
+							void submit();
 						}}
 						onClose={() => {
 							setConfirming(null);

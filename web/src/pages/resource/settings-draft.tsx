@@ -118,7 +118,7 @@ export interface SettingsDraft {
 	subdomain?: string;
 	appDomain?: string;
 	/** The baseline when the first edit was made; the draft's changes are named against it. */
-	origin?: Baseline;
+	origin?: Baseline | undefined;
 }
 
 export interface Baseline {
@@ -138,13 +138,13 @@ export interface Baseline {
 	health: HealthForm;
 	/** The API's startup delay for a new check, in seconds; settings show no field for it. */
 	healthDefaultDelay: number;
+	/** Whether the resource stores a check that deployments without one inherit. */
+	healthStored: boolean;
 	command: string;
 	args: string;
 	scaling: Record<string, Scaling>;
 	regions: Record<string, boolean>;
 	isPublic: boolean;
-	/** The variables the deployments run with, as written. */
-	env: Record<string, string>;
 }
 
 /** A variable added in the settings, before it has a name the deployments know. */
@@ -182,8 +182,6 @@ export function baseline(
 	// The switch is on while any deployment with a port, or the resource itself, has a check.
 	const check = running.map((d) => getServiceSpec(d)?.healthCheck).find(Boolean) ?? storedHealth;
 	const health = check ?? defaults.healthCheck;
-	// The variables editor shows the newest running deployment's, as GetResourceEnv returns them.
-	const newest = running.toSorted((a, b) => Number(b.createdAt?.seconds ?? 0) - Number(a.createdAt?.seconds ?? 0))[0];
 	return {
 		slug,
 		name,
@@ -202,6 +200,7 @@ export function baseline(
 			failAfter: health?.failureThreshold.toString() ?? "",
 		},
 		healthDefaultDelay: defaults.healthCheck?.initialDelaySeconds ?? 0,
+		healthStored: storedHealth !== undefined,
 		command: commandText(svc?.command ?? []),
 		args: commandText(svc?.args ?? []),
 		scaling: Object.fromEntries(
@@ -221,7 +220,6 @@ export function baseline(
 		),
 		regions: Object.fromEntries(regions.map((r) => [r.name, isDeployed(r) || configured.includes(r.name)])),
 		isPublic,
-		env: { ...(newest === undefined ? undefined : getServiceSpec(newest))?.env },
 	};
 }
 
@@ -241,12 +239,12 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		port: draft.port ?? base.port,
 		health: draft.health ?? base.health,
 		healthDefaultDelay: base.healthDefaultDelay,
+		healthStored: base.healthStored,
 		command: draft.command ?? base.command,
 		args: draft.args ?? base.args,
 		scaling: { ...base.scaling, ...draft.scaling },
 		regions: { ...base.regions, ...draft.regions },
 		isPublic: draft.isPublic ?? base.isPublic,
-		env: plainEnv(base.env, draft),
 	};
 }
 
@@ -352,6 +350,7 @@ export function validateDraft(
 	regions: RegionView[],
 	served: string[],
 	replicaLimit: number,
+	env: Record<string, string>,
 	takenNames: ReadonlySet<string> = new Set(),
 ): DraftErrors {
 	const next = resolved(draft, base);
@@ -370,9 +369,9 @@ export function validateDraft(
 		if (portInvalid !== null) errors.port = portInvalid;
 	}
 	if (draft.health?.enabled === true) Object.assign(errors, healthErrors(draft.health));
-	if (draft.health !== undefined && currentSources(regions).length === 0)
-		errors.health = "The health check can be changed once the service is deployed.";
-	const [variableProblem] = addedProblems(draft, base.env).values();
+	if (draft.health !== undefined && !servesPort(regions))
+		errors.health = "The health check needs a running deployment that listens on a port.";
+	const [variableProblem] = addedProblems(draft, env).values();
 	if (variableProblem !== undefined) errors.added = variableProblem;
 	// The API enforces the bounds and its message names them.
 	if (draft.maxRestarts !== undefined && next.restartPolicy === "on-failure" && !positive(next.maxRestarts))
@@ -380,7 +379,7 @@ export function validateDraft(
 	if (draft.deployTimeout !== undefined && !positive(next.deployTimeout))
 		errors.deployTimeout = "Whole seconds, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
-	else if (regionMapChanged(draft, base) && planSave(regions, draft, base).length > 0)
+	else if (regionMapChanged(draft, base) && planSave(regions, draft, base, plainEnv(env, draft)).length > 0)
 		errors.regions =
 			"Save region, size and scaling changes separately from image, port, health, observability and domain changes";
 	if (domainsChange(draft, base) === "add") {
@@ -443,6 +442,11 @@ function intendedHealth(
 	if (!health.enabled) return undefined;
 	const keep = current !== undefined && !healthFieldsEdited(health, base);
 	return keep ? current : healthFrom(health, current, base.healthDefaultDelay);
+}
+
+/** Whether any running deployment listens on a port, so it can run a health check. */
+function servesPort(regions: RegionView[]): boolean {
+	return currentSources(regions).some(({ deployment }) => getServiceSpec(deployment)?.port !== undefined);
 }
 
 /** Whether a deployment's image, pinned by digest, is the image the draft names. */
@@ -523,7 +527,7 @@ export function planSave(
 	regions: RegionView[],
 	draft: SettingsDraft,
 	base: Baseline,
-	env = plainEnv(base.env, draft),
+	env: Record<string, string>,
 ): PlannedDeploy[] {
 	const planned = currentSources(regions).flatMap(({ deployment, regions: names }) => {
 		if (deployment.spec === undefined) return [];
@@ -540,7 +544,10 @@ export function planSave(
 			},
 		];
 	});
-	const redeploy = domainsChange(draft, base) !== null || planned.some((d) => d.changed);
+	// Removing a check the resource stores matters even where no deployment runs one.
+	const removesStored = draft.health?.enabled === false && base.healthStored;
+	const intent = domainsChange(draft, base) !== null || removesStored;
+	const redeploy = intent || planned.some((d) => d.changed);
 	return redeploy ? planned.map(({ regions: names, spec, commit }) => ({ regions: names, spec, commit })) : [];
 }
 
