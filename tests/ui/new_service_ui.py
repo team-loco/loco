@@ -1101,6 +1101,36 @@ with session(out) as browser:
     assert sizing["scalers"] == {"enabled": True, "cpuTarget": 70}, sizing
     assert not errors, errors
     context.close()
+    # A 63-character name keeps the Deploy label inside its button and the drawer.
+    long_name = "a" * 63
+    context, page, errors = open_page(
+        browser,
+        "owner",
+        narrow=True,
+        storage={drafts_key: json.dumps([seeded_draft(long_name, image)])},
+    )
+    page.goto(base + "/resources?env=production")
+    draft_row(page, long_name).get_by_role("link", name=long_name, exact=True).click()
+    drawer = page.get_by_role("dialog", name=long_name, exact=True)
+    deploy = drawer.get_by_role("button", name=f"Deploy {long_name}", exact=True)
+    expect(deploy).to_be_visible()
+    fit = drawer.evaluate(
+        """(dialog, text) => {
+            const box = (e) => e.getBoundingClientRect();
+            const deploy = [...dialog.querySelectorAll("button")].find((b) => b.textContent === text);
+            const label = deploy.lastElementChild ?? deploy;
+            const [d, b, l] = [dialog, deploy, label].map(box);
+            return {
+                buttonInDrawer: b.left >= d.left && b.right <= d.right,
+                labelInButton: l.left >= b.left && l.right <= b.right,
+                ellipsis: label.scrollWidth > label.clientWidth && getComputedStyle(label).textOverflow === "ellipsis",
+            };
+        }""",
+        f"Deploy {long_name}",
+    )
+    assert fit == {"buttonInDrawer": True, "labelInButton": True, "ellipsis": True}, fit
+    assert not errors, errors
+    context.close()
     # A service in two regions is one deployment that rolls out to both.
     name = f"{repository}-multi"
     draft = seeded_draft(name, image)
