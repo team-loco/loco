@@ -38,7 +38,7 @@ spec:
                 name: {{ .Values.api.existingSecret | quote }}
           env:
             {{- if .Values.platformTelemetry.enabled }}
-            {{- range $name := list "OTEL_EXPORTER_OTLP_ENDPOINT" "OTEL_EXPORTER_OTLP_HEADERS" }}
+            {{- range $name := include "loco-control-plane.otlpExporterEnv" . | fromYamlArray }}
             {{- if hasKey $.Values.api.env $name }}
             {{- fail (printf "%s is set in both api.env and platformTelemetry" $name) }}
             {{- end }}

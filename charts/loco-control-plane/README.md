@@ -188,7 +188,7 @@ platformTelemetry:
       Authorization: Bearer EXAMPLE_TOKEN
 ```
 
-The chart sets `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` for the API; `api.env` cannot set them as well.
+The chart sets `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` for the API. `api.env` cannot set them, nor their per-signal forms such as `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`, which would send that signal elsewhere.
 
 ## Bundled PostgreSQL
 

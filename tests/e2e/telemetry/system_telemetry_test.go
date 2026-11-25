@@ -19,3 +19,16 @@ func TestAPITelemetryReachesTheSystemTenant(t *testing.T) {
 		), func(count int) bool { return count > 0 })
 	}
 }
+
+// TestControllerTelemetryReachesTheSystemTenant checks that the controller's metrics, sent through the
+// cluster collector's platform pipeline with the cluster's ingest token, land under the system tenant
+// stamped with that cluster.
+func TestControllerTelemetryReachesTheSystemTenant(t *testing.T) {
+	t.Parallel()
+	waitCount(t, "the controller's reconcile metrics", fmt.Sprintf(
+		"SELECT count() FROM otel_metrics_sum WHERE WorkspaceId = '%s' AND ServiceName = 'loco-controller' "+
+			"AND MetricName = 'controller_runtime_reconcile_total' AND ResourceAttributes['loco.cluster.id'] = '%s' "+
+			"AND ResourceAttributes['loco.telemetry.scope'] = 'platform'",
+		systemtenant.WorkspaceID, p.ClusterID,
+	), func(count int) bool { return count > 0 })
+}

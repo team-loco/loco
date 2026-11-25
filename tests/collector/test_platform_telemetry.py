@@ -175,16 +175,18 @@ def test_platform_pipelines_use_the_operators_endpoint_when_set():
         assert "auth" not in own
 
 
-def test_controller_telemetry_enters_the_cluster_platform_pipelines(
-    configured_relays, tmp_path
-):
-    cluster = configured_relays["otel-col-cluster"]
-    assert (
-        "otlp/platform"
-        in cluster["service"]["pipelines"]["metrics/platform"]["receivers"]
+def test_the_operators_endpoint_needs_platform_telemetry():
+    values = configured(
+        enabled=False, exporter={"endpoint": "https://otel.example.com"}
     )
-    pipeline = cluster["service"]["pipelines"]["traces/platform"]
-    config = {
+    for config in collector_relays(render_chart("loco-worker", values)).values():
+        assert set(config["exporters"]) == {"otlp_http"}
+
+
+def platform_pipeline_config(cluster, name):
+    """The cluster collector's name pipeline alone, fed over OTLP/HTTP and written to a file."""
+    pipeline = cluster["service"]["pipelines"][name]
+    return {
         "receivers": {
             "otlp/platform": {"protocols": {"http": {"endpoint": "0.0.0.0:4318"}}}
         },
@@ -194,14 +196,93 @@ def test_controller_telemetry_enters_the_cluster_platform_pipelines(
         "exporters": {"file": {"path": "/data/output.json", "flush_interval": "100ms"}},
         "service": {
             "pipelines": {
-                "traces": {
-                    "receivers": pipeline["receivers"],
+                name.split("/")[0]: {
+                    "receivers": ["otlp/platform"],
                     "processors": pipeline["processors"],
                     "exporters": ["file"],
                 }
             }
         },
     }
+
+
+def test_controller_runtime_metrics_pass_the_platform_metrics_pipeline(
+    configured_relays, tmp_path
+):
+    cluster = configured_relays["otel-col-cluster"]
+    config = platform_pipeline_config(cluster, "metrics/platform")
+    point = {"timeUnixNano": "1", "asDouble": 1}
+    controller = {"key": "controller", "value": {"stringValue": "application"}}
+
+    def resource(service, namespace=None):
+        attributes = [{"key": "service.name", "value": {"stringValue": service}}]
+        if namespace:
+            attributes.append(
+                {"key": "k8s.namespace.name", "value": {"stringValue": namespace}}
+            )
+        return {"attributes": attributes}
+
+    metrics = [
+        {
+            "name": "controller_runtime_reconcile_total",
+            "sum": {
+                "aggregationTemporality": 2,
+                "isMonotonic": True,
+                "dataPoints": [{**point, "attributes": [controller]}],
+            },
+        },
+        {"name": "workqueue_depth", "gauge": {"dataPoints": [point]}},
+    ]
+    payload = {
+        "resourceMetrics": [
+            {
+                "resource": resource(service),
+                "scopeMetrics": [{"metrics": metrics}],
+            }
+            for service in ("loco-controller", "loco-build-controller")
+        ]
+        + [
+            {
+                "resource": resource("workload", "loco-ws-tenant"),
+                "scopeMetrics": [{"metrics": metrics}],
+            }
+        ]
+    }
+    with run_collector(tmp_path, config, "otel-col-cluster") as collector:
+        post_otlp(collector, "metrics", payload)
+        received = read_output(
+            collector,
+            lambda document: [
+                (
+                    {
+                        item["key"]: item["value"]["stringValue"]
+                        for item in metrics["resource"]["attributes"]
+                    },
+                    metric["name"],
+                )
+                for metrics in document["resourceMetrics"]
+                for scope in metrics["scopeMetrics"]
+                for metric in scope["metrics"]
+            ],
+            4,
+        )
+    assert {(attrs["service.name"], name) for attrs, name in received} == {
+        (service, name)
+        for service in ("loco-controller", "loco-build-controller")
+        for name in ("controller_runtime_reconcile_total", "workqueue_depth")
+    }
+    assert all(attrs["loco.telemetry.scope"] == "platform" for attrs, _ in received)
+
+
+def test_controller_telemetry_enters_the_cluster_platform_pipelines(
+    configured_relays, tmp_path
+):
+    cluster = configured_relays["otel-col-cluster"]
+    assert (
+        "otlp/platform"
+        in cluster["service"]["pipelines"]["metrics/platform"]["receivers"]
+    )
+    config = platform_pipeline_config(cluster, "traces/platform")
     span = {
         "traceId": "0af7651916cd43dd8448eb211c80319c",
         "spanId": "b7ad6b7169203331",

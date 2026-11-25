@@ -92,3 +92,21 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "OTEL_EXPORTER_OTLP_ENDPOINT is set in both api.env and platformTelemetry"
+
+  - it: refuses a signal-specific OTLP endpoint in api.env as well
+    set:
+      platformTelemetry.enabled: true
+      api.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://elsewhere
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT is set in both api.env and platformTelemetry"
+
+  - it: refuses signal-specific OTLP headers in api.env as well
+    set:
+      platformTelemetry: {enabled: true, exporter: {endpoint: "https://otel.example.com"}}
+      api.env.OTEL_EXPORTER_OTLP_TRACES_HEADERS: x=y
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "OTEL_EXPORTER_OTLP_TRACES_HEADERS is set in both api.env and platformTelemetry"

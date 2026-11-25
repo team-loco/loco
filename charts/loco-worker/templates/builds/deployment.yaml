@@ -31,10 +31,7 @@ spec:
                   command:
                     - /manager
                   env:
-                    {{- if .Values.global.platformTelemetry.enabled }}
-                    - name: OTEL_EXPORTER_OTLP_ENDPOINT
-                      value: {{ include "loco-worker.platformOTLPEndpoint" . | quote }}
-                    {{- end }}
+                    {{- include "loco-worker.platformOTLPEnv" (dict "root" . "env" $controller.env "path" "builds.controller.env") | nindent 20 }}
                     - name: LOCO_NAMESPACE
                       valueFrom:
                         fieldRef:

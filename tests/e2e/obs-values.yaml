@@ -1,2 +1,8 @@
 envoyProxy:
   statsFlushInterval: 10s
+global:
+  platformTelemetry:
+    enabled: true
+    installation: e2e
+    cluster: e2e-test-cluster
+    environment: test

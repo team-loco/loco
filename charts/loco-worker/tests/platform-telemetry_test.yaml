@@ -116,3 +116,19 @@ tests:
         template: templates/builds/deployment.yaml
       - hasDocuments: {count: 0}
         template: templates/collectors/platform-otlp.yaml
+
+  - it: refuses an OTLP endpoint in a controller's env as well
+    set:
+      controller.env: [{name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, value: "http://elsewhere"}]
+    asserts:
+      - failedTemplate:
+          errorMessage: controller.env sets OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, which global.platformTelemetry sets
+        template: templates/controller/deployment.yaml
+
+  - it: refuses OTLP headers in the build controller's env as well
+    set:
+      builds.controller.env: [{name: OTEL_EXPORTER_OTLP_TRACES_HEADERS, value: "x=y"}]
+    asserts:
+      - failedTemplate:
+          errorMessage: builds.controller.env sets OTEL_EXPORTER_OTLP_TRACES_HEADERS, which global.platformTelemetry sets
+        template: templates/builds/deployment.yaml

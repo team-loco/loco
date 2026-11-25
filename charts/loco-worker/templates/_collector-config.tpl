@@ -31,6 +31,7 @@
 {{- $exporterName := "otlp_http" -}}
 {{- $_ := set $config "exporters" (dict $exporterName $exporter) -}}
 {{- $platformExporter := $exporterName -}}
+{{- if $settings.enabled -}}
 {{- if $settings.exporter.endpoint -}}
 {{- $platformExporter = "otlp_http/platform" -}}
 {{- $own := omit (deepCopy $exporter) "auth" -}}
@@ -38,7 +39,6 @@
 {{- $_ := set $own "headers" $settings.exporter.headers -}}
 {{- $_ := set $config.exporters $platformExporter $own -}}
 {{- end -}}
-{{- if $settings.enabled -}}
 {{- if and $settings.platformOnly (index .root.Values "otel-col-deploy" "enabled") -}}
 {{- fail "platformOnly requires otel-col-deploy.enabled=false" -}}
 {{- end -}}
