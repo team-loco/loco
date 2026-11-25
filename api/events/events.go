@@ -256,7 +256,7 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		SubjectID:     ev.SubjectID,
 		Data:          raw,
 	}
-	operator, err := actedAsOperator(ctx, q, ev)
+	operator, err := actedAsOperator(ctx, q, ev, actorType, actorID)
 	if err != nil {
 		return err
 	}
@@ -275,23 +275,34 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 	return nil
 }
 
-// actedAsOperator reports whether the user behind the request holds no role in the event's
-// organization, an organization, workspace or resource scope in it, when the event is recorded.
-func actedAsOperator(ctx context.Context, q genDb.Querier, ev Event) (bool, error) {
-	if ev.ActorType != "" || ev.OrgID == nil {
+// actedAsOperator reports whether the acting user holds no role in the event's organization, an
+// organization, workspace or resource scope in it, when the event is recorded. The lookup locks
+// the roles it finds, so a removal racing the insert waits and the event sees the role the actor
+// had. The acting user is the explicit user actor, or the request's user when no actor is set.
+func actedAsOperator(
+	ctx context.Context, q genDb.Querier, ev Event, actorType string, actorID *uuid.UUID,
+) (bool, error) {
+	if ev.OrgID == nil {
 		return false, nil
 	}
-	principal, ok := reqctx.PrincipalFrom(ctx)
-	if !ok || principal.UserID == uuid.Nil {
+	var userID uuid.UUID
+	switch {
+	case actorType == string(genDb.DeploymentActorTypeUser) && actorID != nil:
+		userID = *actorID
+	case ev.ActorType == "":
+		principal, _ := reqctx.PrincipalFrom(ctx)
+		userID = principal.UserID
+	}
+	if userID == uuid.Nil {
 		return false, nil
 	}
-	scopes, err := q.GetUserScopesOnOrganization(ctx, genDb.GetUserScopesOnOrganizationParams{
-		ID: *ev.OrgID, UserID: principal.UserID,
+	roles, err := q.LockUserRolesInOrganization(ctx, genDb.LockUserRolesInOrganizationParams{
+		OrgID: ev.OrgID, UserID: userID,
 	})
 	if err != nil {
 		return false, fmt.Errorf("look up the actor's roles in the event's organization: %w", err)
 	}
-	return len(scopes) == 0, nil
+	return len(roles) == 0, nil
 }
 
 func actor(ctx context.Context, ev Event) (string, *uuid.UUID, error) {

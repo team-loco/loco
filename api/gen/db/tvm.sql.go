@@ -673,6 +673,48 @@ func (q *Queries) ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]
 	return items, nil
 }
 
+const lockUserRolesInOrganization = `-- name: LockUserRolesInOrganization :many
+SELECT us.scope
+FROM user_scopes us
+WHERE us.user_id = $1
+  AND (
+    us.organization_ref = $2
+    OR us.workspace_ref IN (SELECT w.id FROM workspaces w WHERE w.org_id = $2)
+    OR us.resource_ref IN (
+      SELECT r.id FROM resources r INNER JOIN workspaces w ON w.id = r.workspace_id WHERE w.org_id = $2
+    )
+  )
+LIMIT 1
+FOR SHARE OF us
+`
+
+type LockUserRolesInOrganizationParams struct {
+	UserID uuid.UUID  `json:"userId"`
+	OrgID  *uuid.UUID `json:"orgId"`
+}
+
+// The user's organization, workspace and resource scopes in the organization, locked until the
+// transaction ends so a concurrent removal waits for it.
+func (q *Queries) LockUserRolesInOrganization(ctx context.Context, arg LockUserRolesInOrganizationParams) ([]Scope, error) {
+	rows, err := q.db.Query(ctx, lockUserRolesInOrganization, arg.UserID, arg.OrgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Scope
+	for rows.Next() {
+		var scope Scope
+		if err := rows.Scan(&scope); err != nil {
+			return nil, err
+		}
+		items = append(items, scope)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeAllScopesForUserOnEntity = `-- name: RemoveAllScopesForUserOnEntity :exec
 DELETE FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3
 `

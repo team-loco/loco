@@ -226,11 +226,17 @@ func (s *EventServer) readableResources(
 	return readable, nil
 }
 
+// narrowsBelowOrganization reports whether the request filters by workspace or resource.
+func narrowsBelowOrganization(req *eventv1.ListEventsRequest) bool {
+	return req.GetWorkspaceId() != "" || req.GetResourceId() != "" || len(req.GetResourceIds()) > 0
+}
+
 // authorizeListScope authorizes a ListEvents. A request without an organization lists every
-// organization's events and the installation's, which needs system read.
+// organization's events and the installation's, which needs system read; so does the whole log
+// of one organization, for a caller who is not its admin. Streams and facets never reach it.
 func (s *EventServer) authorizeListScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
 	if req.GetOrgId() == "" {
-		if req.GetWorkspaceId() != "" || req.GetResourceId() != "" || len(req.GetResourceIds()) > 0 {
+		if narrowsBelowOrganization(req) {
 			return eventScope{}, connect.NewError(
 				connect.CodeInvalidArgument,
 				"org_id is required to filter by workspace or resource",
@@ -241,7 +247,14 @@ func (s *EventServer) authorizeListScope(ctx context.Context, req *eventv1.ListE
 	if req.GetInstallationOnly() {
 		return eventScope{}, connect.NewError(connect.CodeInvalidArgument, "installation_only excludes org_id")
 	}
-	return s.authorizeEventScope(ctx, req, actions.ListWorkspaceAuditEvents)
+	scope, err := s.authorizeEventScope(ctx, req, actions.ListWorkspaceAuditEvents)
+	if err == nil || narrowsBelowOrganization(req) {
+		return scope, err
+	}
+	if authorizeSystem(ctx, s.authz, actions.ListInstallationEvents) != nil {
+		return scope, err
+	}
+	return eventScope{kind: eventScopeOrg, orgID: uuid.MustParse(req.GetOrgId())}, nil
 }
 
 func (s *EventServer) authorizeEventScope(
@@ -332,9 +345,7 @@ func (s *EventServer) authorizeEventScope(
 		}, nil
 	}
 	if err := authorize(ctx, s.authz, actions.ListOrgAuditEvents, orgID); err != nil {
-		if systemErr := authorizeSystem(ctx, s.authz, actions.ListInstallationEvents); systemErr != nil {
-			return eventScope{}, err
-		}
+		return eventScope{}, err
 	}
 	return eventScope{kind: eventScopeOrg, orgID: orgID}, nil
 }

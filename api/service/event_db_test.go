@@ -34,6 +34,7 @@ const auditOwnerEmail = "owner@acme.test"
 type eventFixture struct {
 	pool    *pgxpool.Pool
 	queries *genDb.Queries
+	tenant  tenant
 	machine *tvm.VendingMachine
 	events  *EventServer
 	owner   context.Context
@@ -62,6 +63,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 	return &eventFixture{
 		pool:    pool,
 		queries: queries,
+		tenant:  tn,
 		machine: machine,
 		events:  NewEventServer(pool, queries),
 		owner:   tn.owner(t),

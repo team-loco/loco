@@ -3,6 +3,22 @@ SELECT entity_type, entity_id, scope
 FROM user_scopes
 WHERE user_id = $1;
 
+-- name: LockUserRolesInOrganization :many
+-- The user's organization, workspace and resource scopes in the organization, locked until the
+-- transaction ends so a concurrent removal waits for it.
+SELECT us.scope
+FROM user_scopes us
+WHERE us.user_id = sqlc.arg('user_id')
+  AND (
+    us.organization_ref = sqlc.arg('org_id')
+    OR us.workspace_ref IN (SELECT w.id FROM workspaces w WHERE w.org_id = sqlc.arg('org_id'))
+    OR us.resource_ref IN (
+      SELECT r.id FROM resources r INNER JOIN workspaces w ON w.id = r.workspace_id WHERE w.org_id = sqlc.arg('org_id')
+    )
+  )
+LIMIT 1
+FOR SHARE OF us;
+
 -- what scopes does user x have on entity y?
 -- name: GetUserScopesOnEntity :many
 SELECT entity_type, entity_id, scope

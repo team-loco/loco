@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
 
 	adminv1 "github.com/team-loco/loco/gen/go/loco/admin/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
@@ -74,5 +76,59 @@ func TestGrantedSystemReaderFindsAnOrganizationItDoesNotBelongTo(t *testing.T) {
 	_, err = owner.session.Org.ListOrgs(t.Context(), &orgv1.ListOrgsRequest{})
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("ListOrgs as an organization owner: %v, want permission_denied", err)
+	}
+}
+
+func TestSystemReaderSeesAnInstallationClusterPauseInTheAuditLog(t *testing.T) {
+	t.Parallel()
+	reader := signInLifecycleUser(t, "system-audit-reader@test.local")
+	if _, err := p.Admin.SystemRole.GrantSystemRole(t.Context(), &adminv1.GrantSystemRoleRequest{
+		UserId: reader.id, Role: adminv1.SystemRole_SYSTEM_ROLE_READ,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := p.Admin.SystemRole.RevokeSystemRole(context.Background(), &adminv1.RevokeSystemRoleRequest{
+			UserId: reader.id,
+		}); err != nil {
+			t.Errorf("revoke system read: %v", err)
+		}
+	})
+	created, err := p.Admin.ClusterAdmin.CreateCluster(t.Context(), &clusterv1.CreateClusterRequest{
+		RequestId: uuid.NewString(),
+		Target: &clusterv1.CreateClusterRequest_NewRegion{NewRegion: &clusterv1.NewRegion{
+			Country: "zz", Subdivision: "audit1",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := created.GetClusterId()
+	pause := &clusterv1.PauseClusterRequest{ClusterId: id}
+	if _, err = p.Admin.ClusterAdmin.PauseCluster(t.Context(), pause); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, removeErr := p.Admin.ClusterAdmin.RemoveCluster(context.Background(), &clusterv1.RemoveClusterRequest{
+			ClusterId: id,
+		})
+		if removeErr != nil {
+			t.Errorf("remove the audit cluster: %v", removeErr)
+		}
+	})
+
+	listed, err := reader.session.Event.ListEvents(t.Context(), &eventv1.ListEventsRequest{
+		InstallationOnly: true, Query: "@type:cluster.paused",
+	})
+	if err != nil {
+		t.Fatalf("ListEvents as a system reader: %v", err)
+	}
+	paused := func(event *eventv1.Event) bool { return event.GetSubjectId() == id }
+	i := slices.IndexFunc(listed.GetEvents(), paused)
+	if i < 0 {
+		t.Fatalf("the installation audit log does not list the pause of %s: %v", id, listed.GetEvents())
+	}
+	if event := listed.GetEvents()[i]; event.GetOrgId() != "" || event.GetActorId() == reader.id {
+		t.Fatalf("pause event = %v, want an installation event another user performed", event)
 	}
 }

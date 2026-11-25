@@ -18,6 +18,7 @@ import (
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 const operatorReason = "unpaid invoice"
@@ -199,33 +200,23 @@ func TestClusterChangesAreRecordedWithoutAnOrganization(t *testing.T) {
 		}
 	}
 	want := []string{
-		events.ClusterCreated, events.ClusterTokenIssued, events.ClusterTokenIssued, events.ClusterPaused,
-		events.ClusterResumed, events.ClusterPaused, events.ClusterRemoved, events.ClusterRestored,
+		events.ClusterRestored, events.ClusterRemoved, events.ClusterPaused, events.ClusterResumed,
+		events.ClusterPaused, events.ClusterTokenIssued, events.ClusterTokenIssued, events.ClusterCreated,
 	}
 	var got []string
-	for _, e := range installationEvents(t, f) {
+	reader := operatorContext(t, genDb.ScopeRead)
+	listed := listOrgEvents(t, f, reader, &eventv1.ListEventsRequest{InstallationOnly: true})
+	for _, e := range listed {
+		if e.GetOrgId() != "" || e.GetActedAsOperator() {
+			t.Fatalf("installation event %v carries an organization or an operator mark", e)
+		}
 		if e.GetSubjectId() == id {
 			got = append(got, e.GetType())
 		}
 	}
-	if len(got) != len(want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("cluster events = %v, want %v", got, want)
 	}
-	for _, e := range installationEvents(t, f) {
-		if e.GetOrgId() != "" || e.GetActedAsOperator() {
-			t.Fatalf("installation event %v carries an organization or an operator mark", e)
-		}
-	}
-}
-
-func installationEvents(t *testing.T, f *eventFixture) []*eventv1.Event {
-	t.Helper()
-	list := listOrgEvents(t, f, operatorContext(t, genDb.ScopeRead), &eventv1.ListEventsRequest{InstallationOnly: true})
-	// Oldest first.
-	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
-		list[i], list[j] = list[j], list[i]
-	}
-	return list
 }
 
 func TestSystemReaderListsEveryOrganizationAndTheInstallation(t *testing.T) {
@@ -239,6 +230,7 @@ func TestSystemReaderListsEveryOrganizationAndTheInstallation(t *testing.T) {
 		t.Fatal(err)
 	}
 	reader := operatorContext(t, genDb.ScopeRead)
+	all := dbtest.Events(t, f.pool)
 	orgs := map[string]bool{}
 	for _, e := range listOrgEvents(t, f, reader, &eventv1.ListEventsRequest{}) {
 		orgs[e.GetOrgId()] = true
@@ -248,10 +240,15 @@ func TestSystemReaderListsEveryOrganizationAndTheInstallation(t *testing.T) {
 			t.Errorf("listing without an organization misses org %q: %v", id, orgs)
 		}
 	}
-	for _, e := range listOrgEvents(t, f, reader, &eventv1.ListEventsRequest{OrgId: other.orgID.String()}) {
-		if e.GetOrgId() != other.orgID.String() {
-			t.Errorf("organization filter returned %v", e)
+	var wantOther []string
+	for _, e := range slices.Backward(all) {
+		if e.OrgID != nil && *e.OrgID == other.orgID {
+			wantOther = append(wantOther, e.Type)
 		}
+	}
+	page := listOrgEvents(t, f, reader, &eventv1.ListEventsRequest{OrgId: other.orgID.String()})
+	if !slices.Equal(eventTypes(page), wantOther) || len(wantOther) == 0 {
+		t.Errorf("organization filter returned %v, want %v", eventTypes(page), wantOther)
 	}
 	installation := listOrgEvents(t, f, reader, &eventv1.ListEventsRequest{InstallationOnly: true})
 	if len(installation) == 0 {
@@ -270,6 +267,16 @@ func TestSystemReaderListsEveryOrganizationAndTheInstallation(t *testing.T) {
 	}
 	if paged.GetTotalCount() != 2 || len(paged.GetEvents()) != 1 || paged.GetNextPageToken() == "" {
 		t.Fatalf("paged = %v", paged)
+	}
+	next, err := f.events.ListEvents(reader, &eventv1.ListEventsRequest{
+		PageSize: 1, Query: "@type:org.created", PageToken: paged.GetNextPageToken(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(next.GetEvents()) != 1 || next.GetEvents()[0].GetSeq() >= paged.GetEvents()[0].GetSeq() ||
+		next.GetNextPageToken() != "" {
+		t.Fatalf("next page = %v after %v", next, paged)
 	}
 }
 
@@ -311,9 +318,83 @@ func TestOwnerDeletingTheirOrganizationIsNotMarked(t *testing.T) {
 	if _, err := orgs.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID}); err != nil {
 		t.Fatalf("delete org: %v", err)
 	}
+	var deleted []genDb.Event
 	for _, e := range dbtest.Events(t, f.pool) {
-		if e.Type == events.OrgDeleted && e.ActedAsOperator {
-			t.Fatalf("org.deleted by the owner is marked: %+v", e)
+		if e.Type == events.OrgDeleted {
+			deleted = append(deleted, e)
 		}
+	}
+	if len(deleted) != 1 || deleted[0].ActedAsOperator {
+		t.Fatalf("org.deleted events = %+v, want one unmarked", deleted)
+	}
+}
+
+// recordAs records an organization event for the request's user, or for actor when one is given.
+func recordAs(
+	t *testing.T, ctx context.Context, f *eventFixture, orgID uuid.UUID, actor *uuid.UUID,
+) genDb.Event {
+	t.Helper()
+	event := events.Event{Type: events.OrgUpdated, OrgID: &orgID, SubjectType: events.SubjectOrg, SubjectID: &orgID}
+	if actor != nil {
+		event.ActorType, event.ActorID = string(genDb.DeploymentActorTypeUser), actor
+	}
+	if err := events.Record(ctx, f.queries, event); err != nil {
+		t.Fatal(err)
+	}
+	all := dbtest.Events(t, f.pool)
+	return all[len(all)-1]
+}
+
+func TestEventMarkFollowsTheActingUsersRolesInTheEventsOrganization(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	orgID := uuid.MustParse(f.orgID)
+	workspaceID := f.tenant.workspace(t, "web")
+	resourceID := f.tenant.resource(t, workspaceID, "svc", &resourcev1.ServiceSpec{})
+	resolver := openResolver(t, f.pool)
+	userWith := func(name string, entityType genDb.EntityType, entityID uuid.UUID) uuid.UUID {
+		t.Helper()
+		id := signUp(t, resolver, name, name+"@acme.test")
+		if entityID != uuid.Nil {
+			err := f.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+				UserID: id, EntityType: entityType, EntityID: entityID, Scope: genDb.ScopeRead,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		return id
+	}
+	workspaceOnly := userWith("workspace-only", genDb.EntityTypeWorkspace, workspaceID)
+	resourceOnly := userWith("resource-only", genDb.EntityTypeResource, resourceID)
+	noRole := userWith("no-role", "", uuid.Nil)
+
+	for name, tc := range map[string]struct {
+		user   uuid.UUID
+		marked bool
+	}{
+		"owner":          {f.tenant.ownerID, false},
+		"workspace only": {workspaceOnly, false},
+		"resource only":  {resourceOnly, false},
+		"no role":        {noRole, true},
+	} {
+		asRequest := recordAs(t, scoped(t, f.queries, tc.user), f, orgID, nil)
+		asActor := recordAs(t, t.Context(), f, orgID, &tc.user)
+		if asRequest.ActedAsOperator != tc.marked || asActor.ActedAsOperator != tc.marked {
+			t.Errorf("%s: marked = %v as the request's user, %v as an explicit actor; want %v",
+				name, asRequest.ActedAsOperator, asActor.ActedAsOperator, tc.marked)
+		}
+	}
+}
+
+func TestOneRequestRecordingInTwoOrganizationsMarksEachByItsMembership(t *testing.T) {
+	t.Parallel()
+	f := newEventFixture(t)
+	other := seedTenant(t, f.pool, f.queries, "other@acme.test", "other")
+	if a := recordAs(t, f.owner, f, uuid.MustParse(f.orgID), nil); a.ActedAsOperator {
+		t.Errorf("event in the owner's organization is marked: %+v", a)
+	}
+	if b := recordAs(t, f.owner, f, other.orgID, nil); !b.ActedAsOperator {
+		t.Errorf("event in an organization the user is not in is unmarked: %+v", b)
 	}
 }

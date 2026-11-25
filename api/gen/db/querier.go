@@ -308,6 +308,9 @@ type Querier interface {
 	LockTokenOwner(ctx context.Context, entityID uuid.UUID) error
 	LockUserAdminOrganizations(ctx context.Context, userID uuid.UUID) ([]LockUserAdminOrganizationsRow, error)
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	// The user's organization, workspace and resource scopes in the organization, locked until the
+	// transaction ends so a concurrent removal waits for it.
+	LockUserRolesInOrganization(ctx context.Context, arg LockUserRolesInOrganizationParams) ([]Scope, error)
 	LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhookDeliveryStatusParams) (string, error)
 	LockWorkspace(ctx context.Context, id uuid.UUID) (LockWorkspaceRow, error)
 	LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) error

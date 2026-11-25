@@ -58,15 +58,26 @@ func TestAuditListsEventsAndLabelsOperators(t *testing.T) {
 		t.Fatalf("request = %v", req)
 	}
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) != 3 || !strings.HasPrefix(lines[0], "TIME") {
+	if len(lines) != 3 {
 		t.Fatalf("output = %q", output)
 	}
-	if !strings.Contains(lines[1], "ops@loco.test (Loco admin)") || !strings.Contains(lines[1], "org-1") {
-		t.Fatalf("operator row = %q", lines[1])
+	if !strings.HasPrefix(lines[0], "TIME") {
+		t.Fatalf("header = %q", lines[0])
 	}
-	if !strings.Contains(lines[2], "Ada") || strings.Contains(lines[2], "Loco admin") ||
-		!strings.Contains(lines[2], "-") {
-		t.Fatalf("installation row = %q", lines[2])
+	// Columns: time, type, organization, actor.
+	operator := strings.Fields(lines[1])
+	if operator[2] != "org-1" {
+		t.Fatalf("operator row organization = %q in %q", operator[2], lines[1])
+	}
+	if got := strings.Join(operator[3:], " "); got != "ops@loco.test (Loco admin)" {
+		t.Fatalf("operator row actor = %q", got)
+	}
+	installation := strings.Fields(lines[2])
+	if installation[2] != "-" {
+		t.Fatalf("installation row organization = %q in %q", installation[2], lines[2])
+	}
+	if got := strings.Join(installation[3:], " "); got != "Ada" {
+		t.Fatalf("installation row actor = %q", got)
 	}
 }
 
