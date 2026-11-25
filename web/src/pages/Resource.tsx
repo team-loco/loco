@@ -442,7 +442,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	return (
 		<Page className="gap-5">
 			<PageCommands items={pageCommands} />
-			<LeaveGuard dirty={!del.isPending && changeCount(draft, draft.origin ?? base) > 0} resourceName={resource.name} />
+			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
 			<ResourceHeader
 				resource={resource}
 				environment={environment}

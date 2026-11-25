@@ -91,8 +91,8 @@ function observabilitySettings(config: ObservabilityConfig | undefined): Observa
 }
 
 /**
- * A health check edit with its intent: enable adds the form where no check runs, disable removes
- * every check, edit gives every deployment with a port the form's values.
+ * A health check edit with its intent: enable or edit gives every deployment with a port the form,
+ * disable removes every check. The switch turns back by undoing a pending enable or disable.
  */
 export interface HealthEdit {
 	kind: "enable" | "disable" | "edit";
@@ -126,8 +126,6 @@ export interface SettingsDraft {
 	isPublic?: boolean;
 	subdomain?: string;
 	appDomain?: string;
-	/** The baseline when the first edit was made; the draft's changes are named against it. */
-	origin?: Baseline | undefined;
 }
 
 export interface Baseline {
@@ -336,6 +334,21 @@ export function editHealth(edit: HealthEdit | undefined, base: Baseline, patch: 
 	return { kind: edit?.kind === "enable" ? "enable" : "edit", form };
 }
 
+/** The draft without fields typed back to their baseline value, so every field it holds is a pending change. */
+export function pruned(draft: SettingsDraft, base: Baseline): SettingsDraft {
+	const next = resolved(draft, base);
+	const unchanged: Partial<Record<string, boolean>> = {
+		...Object.fromEntries(SCALAR_KEYS.map((k) => [k, !differs(next[k], base[k])])),
+		...Object.fromEntries(COMMAND_KEYS.map((k) => [k, sameEntries(next[k], base[k])])),
+		restartPolicy: next.restartPolicy === base.restartPolicy,
+		maxRestarts: !differs(next.maxRestarts, base.maxRestarts),
+		deployTimeout: !differs(next.deployTimeout, base.deployTimeout),
+		isPublic: next.isPublic === base.isPublic,
+		observability: next.observability.injectOtel === base.observability.injectOtel,
+	};
+	return Object.fromEntries(Object.entries(draft).filter(([k]) => unchanged[k] !== true));
+}
+
 export function changeCount(draft: SettingsDraft, base: Baseline): number {
 	return changeNames(draft, base).length;
 }
@@ -367,6 +380,7 @@ export function validateDraft(
 	served: string[],
 	replicaLimit: number,
 	env: Record<string, string>,
+	planned: readonly PlannedDeploy[],
 	takenNames: ReadonlySet<string> = new Set(),
 ): DraftErrors {
 	const next = resolved(draft, base);
@@ -395,7 +409,7 @@ export function validateDraft(
 	if (draft.deployTimeout !== undefined && !positive(next.deployTimeout))
 		errors.deployTimeout = "Whole seconds, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
-	else if (regionMapChanged(draft, base) && planSave(regions, draft, base, plainEnv(env, draft)).length > 0)
+	else if (regionMapChanged(draft, base) && planned.length > 0)
 		errors.regions =
 			"Save region, size and scaling changes separately from image, port, health, observability and domain changes";
 	if (domainsChange(draft, base) === "add") {
@@ -446,28 +460,18 @@ function healthFrom(health: HealthForm, current: HealthCheckConfig | undefined, 
 	return create(HealthCheckConfigSchema, spec);
 }
 
-/**
- * The check a deployment with a port runs after the edit: none once disabled, its own check or the
- * form when enabled, and the form, with the deployment's startup delay, when edited.
- */
+/** The check a deployment with a port runs after the edit: none once disabled, else the form with its own startup delay. */
 function intendedHealth(
 	edit: HealthEdit,
 	current: HealthCheckConfig | undefined,
 	delay: number,
 ): HealthCheckConfig | undefined {
-	if (edit.kind === "disable") return undefined;
-	if (edit.kind === "enable" && current !== undefined) return current;
-	return healthFrom(edit.form, current, delay);
+	return edit.kind === "disable" ? undefined : healthFrom(edit.form, current, delay);
 }
 
 /** Whether any running deployment listens on a port, so it can run a health check. */
 function servesPort(regions: RegionView[]): boolean {
 	return currentSources(regions).some(({ deployment }) => getServiceSpec(deployment)?.port !== undefined);
-}
-
-/** Whether a deployment's image, pinned by digest, is the image the draft names. */
-function runsImage(current: string, want: string): boolean {
-	return current === want || current.split("@")[0] === want;
 }
 
 function applyDraft(
@@ -480,7 +484,7 @@ function applyDraft(
 	if (next.spec.case !== "service") return next;
 	const svc = next.spec.value;
 	const want = resolved(draft, base);
-	if (draft.image !== undefined && !runsImage(svc.build?.image ?? "", want.image.trim())) {
+	if (draft.image !== undefined && want.image.trim() !== (svc.build?.image ?? "")) {
 		svc.build = create(BuildSourceSchema, { type: IMAGE_BUILD, image: want.image.trim() });
 	}
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
@@ -494,7 +498,7 @@ function applyDraft(
 	return next;
 }
 
-interface PlannedDeploy {
+export interface PlannedDeploy {
 	commit: SourceCommit | undefined;
 	regions: string[];
 	spec: DeploymentSpec;
@@ -523,24 +527,22 @@ export function addedProblems(draft: SettingsDraft, current: Record<string, stri
 	const counts = new Map<string, number>();
 	for (const row of added) counts.set(row.key.trim(), (counts.get(row.key.trim()) ?? 0) + 1);
 	const removed = new Set(draft.removedEnv ?? []);
-	// A variable already set to the same value, as after a partly saved retry, is no clash.
-	const clashes = (key: string, value: string) => Object.hasOwn(current, key) && current[key] !== value;
 	for (const row of added) {
 		const key = row.key.trim();
-		const taken = clashes(key, row.value) && !removed.has(key);
 		if (key === "") {
 			if (row.value !== "") problems.set(row.id, "Enter a name for this value.");
 		} else if (!isEnvKey(key)) problems.set(row.id, "Use letters, digits and underscores, not starting with a digit.");
-		else if (taken || (counts.get(key) ?? 0) > 1) problems.set(row.id, withCode`${key} is already a variable.`);
+		else if ((Object.hasOwn(current, key) && !removed.has(key)) || (counts.get(key) ?? 0) > 1)
+			problems.set(row.id, withCode`${key} is already a variable.`);
 	}
 	return problems;
 }
 
 /**
  * The deployments a save sends, planned against what runs now: one per running deployment whose
- * spec, with the draft applied, differs from the one it runs, to the regions it serves. Validation,
- * the Save label and the save itself all use this plan. `env` is the full set of variables every
- * deployment runs.
+ * spec, with the draft applied, differs from the one it runs, to the regions it serves. Settings
+ * plan once per render for validation and the Save label, and again when the save starts. `env` is
+ * the full set of variables every deployment runs.
  */
 export function planSave(
 	regions: RegionView[],
@@ -559,7 +561,7 @@ export function planSave(
 		const storedRemoval = removesStored && current.port !== undefined;
 		const needed = redeployAll || storedRemoval;
 		if (!changed && !needed) return [];
-		const sameImage = draft.image === undefined || runsImage(current.build?.image ?? "", draft.image.trim());
+		const sameImage = draft.image === undefined || draft.image.trim() === current.build?.image;
 		return [{ regions: names, spec: specForRegions(spec, names), commit: sameImage ? deployment.commit : undefined }];
 	});
 }

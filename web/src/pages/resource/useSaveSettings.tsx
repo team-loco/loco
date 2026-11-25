@@ -65,20 +65,17 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 	// The API refuses a stale region map with FAILED_PRECONDITION; only a moved revision means someone else saved first.
 	const revisionMoved = async (err: unknown, resource: Resource) => {
 		if (!(err instanceof ConnectError) || err.code !== Code.FailedPrecondition) return false;
-		const latest = await callUnaryMethod(transport, getResource, {
-			key: { case: "resourceId", value: resource.id },
-		});
-		return latest.resource?.revision !== resource.revision;
+		try {
+			const latest = await callUnaryMethod(transport, getResource, {
+				key: { case: "resourceId", value: resource.id },
+			});
+			return latest.resource?.revision !== resource.revision;
+		} catch {
+			return false;
+		}
 	};
 
-	// Saving lasts until the page has reloaded the deployments, so a retry plans from what now runs.
-	const finish = async (next: SettingsDraft, notice: Notice) => {
-		await onDone(next, notice);
-		setSaving(false);
-	};
-
-	const save = async ({ resource, environmentId, regions, base, draft }: SaveRequest) => {
-		setSaving(true);
+	const saveAll = async ({ resource, environmentId, regions, base, draft }: SaveRequest) => {
 		const resourceId = resource.id;
 		const failures: string[] = [];
 		const attempt = async (label: string, run: () => Promise<unknown>) => {
@@ -96,7 +93,7 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 			try {
 				current = await callUnaryMethod(transport, getResourceEnv, { resourceId, environmentId });
 			} catch (err) {
-				await finish(draft, {
+				await onDone(draft, {
 					tone: "bad",
 					title: withCode`Couldn't save ${resource.name}`,
 					message: getErrorMessage(err, "Failed to load its variables"),
@@ -152,7 +149,7 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 				await update.mutateAsync({ resourceId, regions: { targets }, revision: resource.revision });
 			} catch (err) {
 				if (await revisionMoved(err, resource)) {
-					await finish(omit(draft, REGION_MAP_KEYS), {
+					await onDone(omit(draft, REGION_MAP_KEYS), {
 						tone: "warn",
 						title: withCode`${resource.name} changed since you opened it`,
 						message: "Showing its current regions and scaling. Make your region changes again.",
@@ -190,21 +187,25 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 		}
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
+		// A partly failed save keeps nothing pending: the reload shows what each region now runs.
 		if (failures.length > 0) {
-			await finish(draft, {
-				tone: "bad",
-				title: withCode`Some changes to ${resource.name} were not saved`,
-				message: (
-					<>
-						{failures.join("\n")}
-						{savedRegions.length > 0 && (
-							<>
-								{"\n"}Saved changes in <InlineCodeList names={savedRegions} />.
-							</>
-						)}
-					</>
-				),
-			});
+			await onDone(
+				{},
+				{
+					tone: "bad",
+					title: withCode`Some changes to ${resource.name} were not saved`,
+					message: (
+						<>
+							{failures.join("\n")}
+							{savedRegions.length > 0 && (
+								<>
+									{"\n"}Saved changes in <InlineCodeList names={savedRegions} />.
+								</>
+							)}
+						</>
+					),
+				},
+			);
 			return;
 		}
 		const { rolling, stopping } =
@@ -229,7 +230,17 @@ export function useSaveSettings(onDone: (next: SettingsDraft, notice: Notice) =>
 					)}
 				</>
 			);
-		await finish({}, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
+		await onDone({}, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
+	};
+
+	// Saving lasts until the page has reloaded what runs, so the next edit starts from it.
+	const save = async (request: SaveRequest) => {
+		setSaving(true);
+		try {
+			await saveAll(request);
+		} finally {
+			setSaving(false);
+		}
 	};
 
 	return { save, saving };

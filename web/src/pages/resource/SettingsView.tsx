@@ -27,8 +27,8 @@ import { isDeployed, type Notice as NoticeState, type RegionView } from "./model
 import { regionsWithDifferentVariables } from "./variables";
 import { NetworkingSection } from "./NetworkingSection";
 import {
+	pruned,
 	plainEnv,
-	changeCount,
 	changeNames,
 	domainsChange,
 	LIVE_ERROR_KEYS,
@@ -189,8 +189,7 @@ export function SettingsView({
 	const readOnly = managed || !canWrite;
 	// Fields stay locked until a save and the reload after it finish, so no edit is lost.
 	const locked = readOnly || saving;
-	// The draft's changes are named against the settings as they were when editing began.
-	const origin = draft.origin ?? base;
+	// The variables editor, validation and the plan read the same variables.
 	const envQuery = useQuery(
 		getResourceEnv,
 		{ resourceId: resource.id, environmentId },
@@ -205,11 +204,12 @@ export function SettingsView({
 	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
 	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
 	const replicaLimit = sizes.replicas?.max ?? Number.POSITIVE_INFINITY;
-	const errors = validateDraft(draft, base, regions, served, replicaLimit, env, taken);
+	const planned = planSave(regions, draft, base, plainEnv(env, draft));
+	const errors = validateDraft(draft, base, regions, served, replicaLimit, env, planned, taken);
 	const errorCount = Object.keys(errors).length;
-	const changes = changeNames(draft, origin);
+	const changes = changeNames(draft, base);
 	const count = changes.length;
-	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, base, plainEnv(env, draft)).length > 0;
+	const redeploys = regionMapChanged(draft, base) || planned.length > 0;
 	const submit = async () => {
 		await onSave(draft);
 		setTried(false);
@@ -222,11 +222,9 @@ export function SettingsView({
 		setConfirming(null);
 		void submit();
 	};
-	// Reverting the last change drops the snapshot, so untouched settings follow what runs again.
+	// A field typed back to what runs leaves the draft, so the draft holds only pending changes.
 	const change = (patch: Partial<SettingsDraft>) => {
-		const next = { ...draft, ...patch };
-		if (changeCount(next, origin) > 0) onDraft({ ...next, origin });
-		else onDraft(next.added === undefined ? {} : { added: next.added });
+		onDraft(pruned({ ...draft, ...patch }, base));
 	};
 	const shownErrors: DraftErrors = tried
 		? errors
@@ -284,6 +282,7 @@ export function SettingsView({
 						differingRegions={regionsWithDifferentVariables(regions)}
 						environmentId={environmentId}
 						draft={draft}
+						envQuery={envQuery}
 						canWrite={canWrite && !saving}
 						canReadWorkspace={canReadWorkspace}
 						onChange={change}
@@ -306,7 +305,7 @@ export function SettingsView({
 							});
 						}}
 					/>
-					{!worker && <HealthSection {...props} deployed={regions.some(isDeployed)} />}
+					{(!worker || draft.health !== undefined) && <HealthSection {...props} deployed={regions.some(isDeployed)} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
 					<GeneralSection {...props} canWrite={canWrite && !saving} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">
