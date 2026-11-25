@@ -94,8 +94,8 @@ spec:
               value: {{ .Values.agent.healthyStreamDuration | quote }}
             - name: LOCO_GATEWAY
               value: {{ include "loco-worker.gateway" . | quote }}
-            - name: LOCO_CERTIFICATE
-              value: {{ include "loco-worker.certificate" . | quote }}
+            - name: LOCO_CERTIFICATES
+              value: {{ include "loco-worker.certificates" . | quote }}
             - name: LOCO_APP_DOMAINS
               value: {{ join "," .Values.global.domain.apps | quote }}
             - name: LOCO_REGION

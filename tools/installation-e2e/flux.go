@@ -75,7 +75,7 @@ func (f *fixture) installFlux(
 		"--web",
 		"http://console.installation.test",
 		"--domain",
-		"apps.installation.test",
+		fixtureAppsDomain,
 		"--region",
 		fixtureRegion,
 		"--admin",
@@ -90,7 +90,10 @@ func (f *fixture) installFlux(
 	for _, release := range []string{"loco-control-plane", "loco-worker"} {
 		data, err := renderFixtureFile(
 			filepath.Join(overrides, release+".yaml"),
-			map[string]any{"PrivateEgress": allowances},
+			map[string]any{
+				"PrivateEgress": allowances,
+				"AppDomains":    []string{fixtureAppsDomain, fixtureOtherAppsDomain},
+			},
 		)
 		if err != nil {
 			return "", "", err

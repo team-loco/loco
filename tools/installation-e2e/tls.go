@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 var (
 	errTLS12Accepted    = errors.New("gateway accepted a TLS 1.2 handshake")
 	errNoHTTP2          = errors.New("gateway did not negotiate HTTP/2")
+	errEnvoyPorts       = errors.New("worker Envoy Service does not serve TCP 443 without UDP 443")
 	errTLSFixtureValues = errors.New("TLS fixture values are missing an expected key")
 )
 
@@ -81,10 +83,26 @@ func verifyTLSMinimum(ctx context.Context, hostname string) (result error) {
 		{fixtureWebHost + ":443", fixtureWebHost},
 		{fixtureIngestHost + ":443", fixtureIngestHost},
 		{hostname + ":443", hostname},
+		// The worker Gateway picks the other app domain's listener by SNI alone.
+		{hostname + ":443", "probe." + fixtureOtherAppsDomain},
 	} {
 		if err := waitTLS(ctx, target.address, target.serverName, roots); err != nil {
 			return fmt.Errorf("TLS for %s: %w", target.serverName, err)
 		}
+	}
+	return requireNoHTTP3(ctx)
+}
+
+// requireNoHTTP3 checks that the worker's Envoy Service serves TCP 443 and, with HTTP/3 off, no UDP 443.
+func requireNoHTTP3(ctx context.Context) error {
+	output, err := kubectl(ctx, "-n", controlNamespace, "get", "services", "-l", gatewaySelector("eg"),
+		"-o", `jsonpath={range .items[0].spec.ports[*]}{.protocol}/{.port}{" "}{end}`)
+	if err != nil {
+		return err
+	}
+	ports := strings.Fields(string(output))
+	if !slices.Contains(ports, "TCP/443") || slices.Contains(ports, "UDP/443") {
+		return fmt.Errorf("%w: %v", errEnvoyPorts, ports)
 	}
 	return nil
 }

@@ -36,7 +36,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: {{ include "loco-worker.tlsSecret" $ }}
+          - name: {{ include "loco-worker.tlsSecret" (list $ $domain) }}
             kind: Secret
             group: ""
     - name: http-apps-{{ $index }}
@@ -131,14 +131,17 @@ spec:
                   - name: {{ $collectorService }}
                     namespace: {{ $collectorNamespace }}
                     port: {{ $collectorPort }}
+{{- if or .Values.envoyProxy.http3 .Values.envoyProxy.tls.minVersion }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: ClientTrafficPolicy
 metadata:
-  name: enable-http3
+  name: {{ include "loco-worker.gateway" . }}
   namespace: {{ .Release.Namespace }}
 spec:
+  {{- if .Values.envoyProxy.http3 }}
   http3: {}
+  {{- end }}
   {{- with .Values.envoyProxy.tls.minVersion }}
   tls:
     minVersion: {{ . | quote }}
@@ -147,3 +150,4 @@ spec:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: {{ include "loco-worker.gateway" . }}
+{{- end }}

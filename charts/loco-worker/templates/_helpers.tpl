@@ -1,5 +1,19 @@
+{{- define "loco-worker.certificate" -}}
+{{- printf "%s-%s" (index . 0).Release.Name (index . 1) -}}
+{{- end -}}
+
 {{- define "loco-worker.tlsSecret" -}}
-{{- default (printf "%s-tls" .Release.Name) .Values.certManager.existingTLSSecret -}}
+{{- default (printf "%s-tls" (include "loco-worker.certificate" .)) (index . 0).Values.certManager.existingTLSSecret -}}
+{{- end -}}
+
+{{- define "loco-worker.certificates" -}}
+{{- if not .Values.certManager.existingTLSSecret -}}
+{{- $names := list -}}
+{{- range .Values.global.domain.apps -}}
+{{- $names = append $names (include "loco-worker.certificate" (list $ .)) -}}
+{{- end -}}
+{{- join "," $names -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "loco-worker.gateway" -}}
@@ -24,12 +38,6 @@ eg
 
 {{- define "loco-worker.collectorService" -}}
 {{- index .Values "otel-col-deploy" "fullnameOverride" -}}
-{{- end -}}
-
-{{- define "loco-worker.certificate" -}}
-{{- if not .Values.certManager.existingTLSSecret -}}
-{{- printf "%s-cert" .Release.Name -}}
-{{- end -}}
 {{- end -}}
 
 {{- define "loco-worker.agentKeySecret" -}}

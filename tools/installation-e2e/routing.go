@@ -28,6 +28,9 @@ const (
 	gatewayReadyTimeout = 2 * time.Minute
 )
 
+// fixtureOtherAppsDomain is a second app domain, so the worker Gateway has two HTTPS listeners.
+const fixtureOtherAppsDomain = "other-apps.installation.test"
+
 func (f *fixture) startLoadBalancer(ctx context.Context) error {
 	image, err := f.pin(ctx, "dev/compose.cloud-provider-kind.yaml", `.services."cloud-provider-kind".image`)
 	if err != nil {
@@ -80,6 +83,12 @@ func (f *fixture) startLoadBalancer(ctx context.Context) error {
 	return nil
 }
 
+// gatewaySelector selects the Envoy Service of a Gateway in controlNamespace.
+func gatewaySelector(gateway string) string {
+	return "gateway.envoyproxy.io/owning-gateway-namespace=" + controlNamespace +
+		",gateway.envoyproxy.io/owning-gateway-name=" + gateway
+}
+
 func configureGatewayDNS(ctx context.Context, worker bool) error {
 	namespace := controlNamespace
 	deadline, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
@@ -99,7 +108,7 @@ func configureGatewayDNS(ctx context.Context, worker bool) error {
 			"get",
 			"services",
 			"-l",
-			"gateway.envoyproxy.io/owning-gateway-namespace="+namespace+",gateway.envoyproxy.io/owning-gateway-name="+gateway,
+			gatewaySelector(gateway),
 			"-o",
 			"jsonpath={.items[0].status.loadBalancer.ingress[0].ip}",
 		)
