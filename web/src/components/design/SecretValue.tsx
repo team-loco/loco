@@ -28,9 +28,20 @@ export function SecretValue({
 	const eyeLabel = `${shown ? "Hide" : "Show"} ${noun}`;
 	return (
 		<div className="flex items-center gap-2.5 rounded-lg bg-panel py-2.5 pr-2.5 pl-3 font-mono text-[12.5px] break-all">
-			<span data-secret-value="" className="min-w-0 flex-1 select-all">
-				{maskSecret(secret, shown)}
-			</span>
+			{shown ? (
+				<span data-secret-value="" className="min-w-0 flex-1 select-all">
+					{secret}
+				</span>
+			) : (
+				<span
+					data-secret-value=""
+					role="img"
+					aria-label={`${noun.charAt(0).toUpperCase()}${noun.slice(1)} hidden`}
+					className="min-w-0 flex-1 select-none"
+				>
+					<span aria-hidden="true">{maskSecret(secret, false)}</span>
+				</span>
+			)}
 			<Button
 				type="button"
 				variant="outline"

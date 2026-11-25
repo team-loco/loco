@@ -383,7 +383,12 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 				<div className="flex flex-col gap-3">
 					<span className="text-[13px] font-medium">Example usage</span>
 					<div className="flex flex-col gap-1.5">
-						<CodeBlock lineNumbers={false} wrap copyText={ciCommand(secret)}>
+						<CodeBlock
+							lineNumbers={false}
+							wrap
+							copyText={ciCommand(secret)}
+							className={shown ? undefined : "select-none"}
+						>
 							{ciDisplay}
 						</CodeBlock>
 						<span className="text-[12.5px] text-fg3">
