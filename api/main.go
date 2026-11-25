@@ -522,13 +522,7 @@ func newDeps(
 		),
 		observability: service.NewObservabilityServer(clickhouse, authorizer, queries, ac.Observability),
 		registryKey:   registryKeyHandler,
-		ready: readyHandler(
-			readinessCheck{"postgres", pool.Ping},
-			readinessCheck{"transit", func(ctx context.Context) error {
-				_, err := transitKeys.Ingest.KeyID(ctx)
-				return err
-			}},
-		),
+		ready:         newReadyHandler(pool, transitKeys.Ingest),
 	}, nil
 }
 

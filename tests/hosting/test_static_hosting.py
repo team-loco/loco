@@ -455,7 +455,7 @@ def dashboard(browser):
 
 
 def test_dashboard_reaches_its_own_api(dashboard):
-    api = f"http://{UI_HOST}/api/health"
+    api = f"http://{UI_HOST}/api/readyz"
     dashboard.route(api, lambda route: route.fulfill(body="api available"))
     assert (
         dashboard.evaluate("url => fetch(url).then(reply => reply.text())", api)

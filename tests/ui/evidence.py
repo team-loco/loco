@@ -1683,7 +1683,7 @@ def start_state(*, ref, name, scenario, issuer=None):
         ]
         testres("add", root, "process", spawn(ui_cmd, source, env, ui_log))
         write_json(state_path, state)
-        wait_http(f"{state['api_url']}/health", api_log)
+        wait_http(f"{state['api_url']}/readyz", api_log)
         wait_http(state["ui_url"] + "/", ui_log)
 
         seed(state, scenario)

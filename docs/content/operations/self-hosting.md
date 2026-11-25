@@ -69,9 +69,9 @@ The API serves two unauthenticated endpoints.
 | Path | Answers | Use |
 | --- | --- | --- |
 | `/livez` | `200` while the process serves HTTP. It checks no dependency. | Kubernetes liveness and startup probes |
-| `/readyz` | `200` when PostgreSQL and OpenBao answer, otherwise `503` with a body such as `postgres unavailable` or `transit unavailable`. Each check is bounded by a 2-second timeout and the body never includes connection details. | Kubernetes readiness probe and an external uptime monitor |
+| `/readyz` | `200` when PostgreSQL and OpenBao answer, otherwise `503` with a body such as `postgres unavailable` or `transit unavailable`. The checks share one 2-second timeout, and the body never includes connection details. | Kubernetes readiness probe and an external uptime monitor |
 
-The chart's probes use these paths. A database outage removes the API pods from the Service without restarting them. An uptime monitor probes `https://<controlPlaneHostname>/readyz`, or `/api/readyz` when the dashboard and API share a hostname.
+The chart's probes use these paths. A database outage removes the API pods from the Service without restarting them. When every API pod is unready, the gateway answers `503` itself, without a dependency name. An uptime monitor probes `https://<controlPlaneHostname>/readyz`, or `/api/readyz` when the dashboard and API share a hostname.
 
 ## Releases and operations
 

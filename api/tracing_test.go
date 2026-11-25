@@ -114,6 +114,7 @@ func newTracedServer(t *testing.T) *httptest.Server {
 	agentv1connect.RegisterAgentServiceHandler(base, &tracedAgent{})
 	mux := http.NewServeMux()
 	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	mux.HandleFunc(livePath, liveHandler)
 	mux.HandleFunc(readyPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mountRPCServers(mux, base, authenticated)
 	tracedMux := withServerTracing(mux)
