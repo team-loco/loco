@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,6 +37,10 @@ import (
 // blocks on its send after Run has returned.
 const agentLoops = 4
 
+func isCleartext(controlPlaneURL string) bool {
+	return strings.HasPrefix(strings.ToLower(controlPlaneURL), "http://")
+}
+
 func main() {
 	cfg := newAgentConfig()
 
@@ -54,13 +58,9 @@ func main() {
 		"build_namespace", cfg.BuildNamespace,
 		"registry_auth", cfg.RegistryAuth,
 	)
-	controlPlane, err := url.Parse(cfg.ControlPlaneURL)
-	if err != nil {
-		panic(err)
-	}
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
-	if controlPlane.Scheme == "http" {
+	if isCleartext(cfg.ControlPlaneURL) {
 		transport.Protocols.SetUnencryptedHTTP2(true)
 	} else {
 		transport.Protocols.SetHTTP1(true)

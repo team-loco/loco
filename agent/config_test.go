@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	testControlPlaneURL  = "https://api.loco.test"
 	testAgentVersion     = "sha-test"
 	testIngestSecret     = "loco-otlp-exporter" //nolint:gosec
 	testIngestSecretKey  = "token"
@@ -24,7 +25,7 @@ const (
 
 func agentEnv() map[string]string {
 	return map[string]string{
-		envControlPlaneURL:          "https://api.loco.test",
+		envControlPlaneURL:          testControlPlaneURL,
 		envKeySecret:                "agent-identity",
 		envAssertionLifetime:        "90s",
 		envNamespace:                "loco-system",
@@ -71,7 +72,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 	}
 	want := Config{
 		LogLevel:                 slog.LevelWarn,
-		ControlPlaneURL:          "https://api.loco.test",
+		ControlPlaneURL:          testControlPlaneURL,
 		JoinToken:                "loco_j_join",
 		KeySecret:                "agent-identity",
 		AssertionLifetime:        90 * time.Second,
@@ -160,8 +161,11 @@ func TestParseAgentConfigControlPlaneURL(t *testing.T) {
 			env := agentEnv()
 			env[envControlPlaneURL] = value
 			cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
-			if err != nil || cfg.ControlPlaneURL != value {
-				t.Errorf("%s=%q: cfg URL, err = %q, %v", envControlPlaneURL, value, cfg.ControlPlaneURL, err)
+			if err != nil {
+				t.Fatalf("%s=%q: %v", envControlPlaneURL, value, err)
+			}
+			if cfg.ControlPlaneURL != value {
+				t.Errorf("%s = %q, want %q", envControlPlaneURL, cfg.ControlPlaneURL, value)
 			}
 		})
 	}
@@ -171,6 +175,7 @@ func TestParseAgentConfigControlPlaneURL(t *testing.T) {
 		"https://user:secret@api.loco.test",
 		"https://api.loco.test?token=secret",
 		"https://api.loco.test#secret",
+		"https://api.loco.test/%zz",
 	} {
 		t.Run(value, func(t *testing.T) {
 			env := agentEnv()
@@ -179,10 +184,23 @@ func TestParseAgentConfigControlPlaneURL(t *testing.T) {
 			if !errors.Is(err, endpointurl.ErrInvalid) || !strings.Contains(err.Error(), envControlPlaneURL) {
 				t.Fatalf("%s=%q: err = %v, want ErrInvalid naming the variable", envControlPlaneURL, value, err)
 			}
-			if strings.Contains(err.Error(), "secret") {
+			if strings.Contains(err.Error(), value) {
 				t.Errorf("error %q echoes the rejected value", err)
 			}
 		})
+	}
+}
+
+func TestIsCleartext(t *testing.T) {
+	for value, want := range map[string]bool{
+		"http://localhost:8080": true,
+		"HTTP://localhost:8080": true,
+		testControlPlaneURL:     false,
+		"HTTPS://api.loco.test": false,
+	} {
+		if got := isCleartext(value); got != want {
+			t.Errorf("isCleartext(%q) = %t, want %t", value, got, want)
+		}
 	}
 }
 
