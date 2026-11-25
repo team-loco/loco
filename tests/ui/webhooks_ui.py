@@ -157,7 +157,7 @@ COMMIT;""",
     failing_count = int(
         sql(
             state,
-            f"SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id='{hook_id}' AND (status='failed' OR (status='pending' AND COALESCE(last_error,'')<>''));",
+            f"SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id='{hook_id}' AND mod(event_seq,3)<>1;",
         )
     )
     expect(all_filter).to_have_text(f"All{total_count}")
