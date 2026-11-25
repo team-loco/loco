@@ -62,6 +62,14 @@ A system admin grants a role with `locoadm admin grant USER_UUID --role read|adm
 
 `OrgService.ListOrgs` lists every organization in the installation, whether or not the caller belongs to it, and answers `PermissionDenied` to anyone without system read. Each entry carries the organization's name, ID, suspension and reason, owners (its admins, by name and email), member, workspace and resource counts and creation time. `query` matches names, IDs and owner emails ignoring case, `state` keeps active or suspended organizations, `order_by` sorts by name or creation time (newest first by default), and `include_total_count` sets `total_count`, exact up to 10,000. `locoadm org list [--query TEXT] [--state active|suspended]` prints the same as a table.
 
+### Installation audit log
+
+`EventService.ListEvents` without an `org_id` lists the events of every organization and the installation's own, newest first, with the same `query`, paging and total count as an organization's audit log. It needs system read. `org_id` narrows it to one organization, and `installation_only` keeps the events that belong to no organization. `locoadm audit` calls it and prints a table; `--org ORG_UUID`, `--installation-only`, `--query` and `--limit` (default 100) select events.
+
+Cluster registration, join-token issue, pause, resume, removal and restore, user suspension and reinstatement, and installation role claims, grants and revokes record events with no organization. Organization members never see them.
+
+An event in an organization carries `acted_as_operator` when the user who made the change holds no role in that organization when the event is recorded: no organization, workspace or resource scope in it. The organization's own audit log lists it, and `locoadm audit` labels the actor "Loco admin". A member of the organization is never marked, even when they also hold an installation role. An API token follows the user behind it.
+
 ## Health endpoints
 
 The API serves these unauthenticated endpoints.

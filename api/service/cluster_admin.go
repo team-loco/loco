@@ -20,6 +20,7 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/bearer"
@@ -137,7 +138,7 @@ func (s *ClusterAdminServer) CreateCluster(
 			return fmt.Errorf("set join token: %w", issueErr)
 		}
 		response.JoinToken = token.proto()
-		return nil
+		return recordCluster(ctx, queries, events.ClusterTokenIssued, row.ID, nil)
 	})
 	if err != nil {
 		return nil, err
@@ -168,6 +169,11 @@ func createClusterRow(
 	if err = queries.CreateCluster(ctx, genDb.CreateClusterParams{Name: name, Region: region, ID: id}); err != nil {
 		return genDb.LockClusterRegistrationRow{}, fmt.Errorf("insert cluster: %w", err)
 	}
+	if err = recordCluster(ctx, queries, events.ClusterCreated, id, map[string]any{
+		events.FieldName: name, events.FieldRegion: region,
+	}); err != nil {
+		return genDb.LockClusterRegistrationRow{}, err
+	}
 	row, err := queries.LockClusterRegistration(ctx, id)
 	if err != nil {
 		return genDb.LockClusterRegistrationRow{}, fmt.Errorf("lock cluster registration: %w", err)
@@ -196,10 +202,17 @@ func (s *ClusterAdminServer) IssueJoinToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, err)
 	}
 	token := newJoinToken(ttl)
-	_, err = s.queries.SetClusterJoinToken(ctx, genDb.SetClusterJoinTokenParams{
-		ID:                 id,
-		JoinTokenHash:      &token.hash,
-		JoinTokenExpiresAt: &token.expiresAt,
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := genDb.New(tx)
+		_, setErr := queries.SetClusterJoinToken(ctx, genDb.SetClusterJoinTokenParams{
+			ID:                 id,
+			JoinTokenHash:      &token.hash,
+			JoinTokenExpiresAt: &token.expiresAt,
+		})
+		if setErr != nil {
+			return setErr
+		}
+		return recordCluster(ctx, queries, events.ClusterTokenIssued, id, nil)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrClusterNotEnrollable)
@@ -209,6 +222,17 @@ func (s *ClusterAdminServer) IssueJoinToken(
 	}
 	slog.InfoContext(ctx, "cluster join token issued", "cluster_id", id)
 	return &clusterv1.IssueJoinTokenResponse{ClusterId: id.String(), JoinToken: token.proto()}, nil
+}
+
+// recordCluster records an installation-level event about a cluster.
+func recordCluster(ctx context.Context, q genDb.Querier, eventType string, id uuid.UUID, data map[string]any) error {
+	err := events.Record(ctx, q, events.Event{
+		Type: eventType, SubjectType: events.SubjectCluster, SubjectID: &id, Data: data,
+	})
+	if err != nil {
+		return fmt.Errorf("record %s: %w", eventType, err)
+	}
+	return nil
 }
 
 func (s *ClusterAdminServer) ListClusters(

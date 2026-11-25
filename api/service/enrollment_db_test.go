@@ -318,7 +318,7 @@ func TestRemovedClusterIsRevoked(t *testing.T) {
 	}
 	unused := e.issueToken(t, e.clusterID)
 	for _, operation := range []clusterOperation{clusterPause, clusterRemove} {
-		if _, err := manageCluster(ctx, e.pool, operation, e.clusterID, false); err != nil {
+		if _, err := manageCluster(systemAdminContext(t), e.pool, operation, e.clusterID, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -334,7 +334,8 @@ func TestRemovedClusterIsRevoked(t *testing.T) {
 		&clusterv1.IssueJoinTokenRequest{ClusterId: e.clusterID.String()},
 	)
 	requireCode(t, err, connect.CodeFailedPrecondition, "join token for a removed cluster")
-	if _, restoreErr := manageCluster(ctx, e.pool, clusterRestore, e.clusterID, false); restoreErr != nil {
+	_, restoreErr := manageCluster(systemAdminContext(t), e.pool, clusterRestore, e.clusterID, false)
+	if restoreErr != nil {
 		t.Fatal(restoreErr)
 	}
 	_, err = e.enroll(t, unused, e.clusterID, newAgentKey(t))

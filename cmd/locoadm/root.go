@@ -5,6 +5,7 @@ import (
 
 	"github.com/team-loco/loco/cmd/internal/groupcmd"
 	"github.com/team-loco/loco/cmd/locoadm/admin"
+	"github.com/team-loco/loco/cmd/locoadm/audit"
 	"github.com/team-loco/loco/cmd/locoadm/cluster"
 	"github.com/team-loco/loco/cmd/locoadm/initialize"
 	"github.com/team-loco/loco/cmd/locoadm/login"
@@ -27,6 +28,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(login.Command())
 	root.AddCommand(user.BuildUserCmd())
 	root.AddCommand(org.BuildOrgCmd())
+	root.AddCommand(audit.BuildAuditCmd())
 	root.AddCommand(recovery.Command(), verify.Command())
 	groupcmd.RejectUnknown(root)
 	return root

@@ -76,6 +76,12 @@ const (
 	ClusterSilent        = "cluster.silent"
 	ClusterRecovered     = "cluster.recovered"
 	ClusterHealthChanged = "cluster.health_changed"
+	ClusterCreated       = "cluster.created"
+	ClusterTokenIssued   = "cluster.join_token_issued"
+	ClusterPaused        = "cluster.paused"
+	ClusterResumed       = "cluster.resumed"
+	ClusterRemoved       = "cluster.removed"
+	ClusterRestored      = "cluster.restored"
 	WebhookCreated       = "webhook.created"
 	WebhookUpdated       = "webhook.updated"
 	WebhookDeleted       = "webhook.deleted"
@@ -250,6 +256,11 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		SubjectID:     ev.SubjectID,
 		Data:          raw,
 	}
+	operator, err := actedAsOperator(ctx, q, ev, actorType, actorID)
+	if err != nil {
+		return err
+	}
+	params.ActedAsOperator = operator
 	if ev.SubjectType != "" {
 		subjectType := ev.SubjectType
 		params.SubjectType = &subjectType
@@ -262,6 +273,36 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		return fmt.Errorf("insert event: %w", err)
 	}
 	return nil
+}
+
+// actedAsOperator reports whether the acting user holds no role in the event's organization, an
+// organization, workspace or resource scope in it, when the event is recorded. The lookup locks
+// the roles it finds, so a removal racing the insert waits and the event sees the role the actor
+// had. The acting user is the explicit user actor, or the request's user when no actor is set.
+func actedAsOperator(
+	ctx context.Context, q genDb.Querier, ev Event, actorType string, actorID *uuid.UUID,
+) (bool, error) {
+	if ev.OrgID == nil {
+		return false, nil
+	}
+	var userID uuid.UUID
+	switch {
+	case actorType == string(genDb.DeploymentActorTypeUser) && actorID != nil:
+		userID = *actorID
+	case ev.ActorType == "":
+		principal, _ := reqctx.PrincipalFrom(ctx)
+		userID = principal.UserID
+	}
+	if userID == uuid.Nil {
+		return false, nil
+	}
+	roles, err := q.LockUserRolesInOrganization(ctx, genDb.LockUserRolesInOrganizationParams{
+		OrgID: ev.OrgID, UserID: userID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("look up the actor's roles in the event's organization: %w", err)
+	}
+	return len(roles) == 0, nil
 }
 
 func actor(ctx context.Context, ev Event) (string, *uuid.UUID, error) {

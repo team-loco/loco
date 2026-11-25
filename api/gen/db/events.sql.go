@@ -36,27 +36,28 @@ func (q *Queries) DeleteEventsBefore(ctx context.Context, arg DeleteEventsBefore
 
 const insertEvent = `-- name: InsertEvent :one
 INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data,
-                    actor_token_name, actor_token_type)
-SELECT $1, $2, $3, $4, $12, $13, $5, $6, $7, $8, $9, $10, $11, t.name, t.entity_type::text
+                    actor_token_name, actor_token_type, acted_as_operator)
+SELECT $1, $2, $3, $4, $12, $13, $5, $6, $7, $8, $9, $10, $11, t.name, t.entity_type::text, $14::boolean
 FROM (SELECT 1) one
 LEFT JOIN api_tokens t ON $5 = 'api_token' AND t.id = $6
 RETURNING seq
 `
 
 type InsertEventParams struct {
-	Type          string     `json:"type"`
-	OrgID         *uuid.UUID `json:"orgId"`
-	WorkspaceID   *uuid.UUID `json:"workspaceId"`
-	ResourceID    *uuid.UUID `json:"resourceId"`
-	ActorType     string     `json:"actorType"`
-	ActorID       *uuid.UUID `json:"actorId"`
-	SubjectType   *string    `json:"subjectType"`
-	SubjectID     *uuid.UUID `json:"subjectId"`
-	RequestID     *string    `json:"requestId"`
-	Traceparent   *string    `json:"traceparent"`
-	Data          []byte     `json:"data"`
-	EnvironmentID *uuid.UUID `json:"environmentId"`
-	DeploymentID  *uuid.UUID `json:"deploymentId"`
+	Type            string     `json:"type"`
+	OrgID           *uuid.UUID `json:"orgId"`
+	WorkspaceID     *uuid.UUID `json:"workspaceId"`
+	ResourceID      *uuid.UUID `json:"resourceId"`
+	ActorType       string     `json:"actorType"`
+	ActorID         *uuid.UUID `json:"actorId"`
+	SubjectType     *string    `json:"subjectType"`
+	SubjectID       *uuid.UUID `json:"subjectId"`
+	RequestID       *string    `json:"requestId"`
+	Traceparent     *string    `json:"traceparent"`
+	Data            []byte     `json:"data"`
+	EnvironmentID   *uuid.UUID `json:"environmentId"`
+	DeploymentID    *uuid.UUID `json:"deploymentId"`
+	ActedAsOperator bool       `json:"actedAsOperator"`
 }
 
 func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error) {
@@ -74,6 +75,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 		arg.Data,
 		arg.EnvironmentID,
 		arg.DeploymentID,
+		arg.ActedAsOperator,
 	)
 	var seq int64
 	err := row.Scan(&seq)
@@ -81,7 +83,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 }
 
 const listEventsAfter = `-- name: ListEventsAfter :many
-SELECT seq, stream_position, id, type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, actor_token_name, actor_token_type, subject_type, subject_id, request_id, traceparent, data, created_at
+SELECT seq, stream_position, id, type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, actor_token_name, actor_token_type, acted_as_operator, subject_type, subject_id, request_id, traceparent, data, created_at
 FROM events
 WHERE stream_position > $1::bigint
 ORDER BY stream_position
@@ -116,6 +118,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 			&i.ActorID,
 			&i.ActorTokenName,
 			&i.ActorTokenType,
+			&i.ActedAsOperator,
 			&i.SubjectType,
 			&i.SubjectID,
 			&i.RequestID,

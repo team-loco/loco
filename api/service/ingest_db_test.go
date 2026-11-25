@@ -161,7 +161,7 @@ func TestIngestTokenExchange(t *testing.T) {
 	requireCode(t, err, connect.CodeUnauthenticated, "assertion signed by another cluster's key")
 
 	for _, operation := range []clusterOperation{clusterPause, clusterRemove} {
-		if _, opErr := manageCluster(t.Context(), f.pool, operation, f.clusterID, false); opErr != nil {
+		if _, opErr := manageCluster(systemAdminContext(t), f.pool, operation, f.clusterID, false); opErr != nil {
 			t.Fatal(opErr)
 		}
 	}

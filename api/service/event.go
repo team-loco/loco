@@ -79,21 +79,22 @@ func uuidString(id *uuid.UUID) string {
 
 func eventToProto(e genDb.Event) *eventv1.Event {
 	out := &eventv1.Event{
-		Seq:            e.Seq,
-		Id:             e.ID.String(),
-		Type:           e.Type,
-		OrgId:          uuidString(e.OrgID),
-		WorkspaceId:    uuidString(e.WorkspaceID),
-		ResourceId:     uuidString(e.ResourceID),
-		EnvironmentId:  uuidString(e.EnvironmentID),
-		DeploymentId:   uuidString(e.DeploymentID),
-		ActorType:      e.ActorType,
-		ActorId:        uuidString(e.ActorID),
-		ActorTokenType: derefString(e.ActorTokenType),
-		SubjectType:    derefString(e.SubjectType),
-		SubjectId:      uuidString(e.SubjectID),
-		RequestId:      derefString(e.RequestID),
-		CreatedAt:      timestamppb.New(e.CreatedAt),
+		Seq:             e.Seq,
+		Id:              e.ID.String(),
+		Type:            e.Type,
+		OrgId:           uuidString(e.OrgID),
+		WorkspaceId:     uuidString(e.WorkspaceID),
+		ResourceId:      uuidString(e.ResourceID),
+		EnvironmentId:   uuidString(e.EnvironmentID),
+		DeploymentId:    uuidString(e.DeploymentID),
+		ActorType:       e.ActorType,
+		ActorId:         uuidString(e.ActorID),
+		ActorTokenType:  derefString(e.ActorTokenType),
+		SubjectType:     derefString(e.SubjectType),
+		SubjectId:       uuidString(e.SubjectID),
+		RequestId:       derefString(e.RequestID),
+		CreatedAt:       timestamppb.New(e.CreatedAt),
+		ActedAsOperator: e.ActedAsOperator,
 	}
 	var data map[string]any
 	if err := json.Unmarshal(e.Data, &data); err == nil {
@@ -112,7 +113,7 @@ func (s *EventServer) ListEvents(
 	if err != nil {
 		return nil, err
 	}
-	scope, err := s.authorizeEventScope(ctx, req, actions.ListWorkspaceAuditEvents)
+	scope, err := s.authorizeListScope(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -223,6 +224,37 @@ func (s *EventServer) readableResources(
 		}
 	}
 	return readable, nil
+}
+
+// narrowsBelowOrganization reports whether the request filters by workspace or resource.
+func narrowsBelowOrganization(req *eventv1.ListEventsRequest) bool {
+	return req.GetWorkspaceId() != "" || req.GetResourceId() != "" || len(req.GetResourceIds()) > 0
+}
+
+// authorizeListScope authorizes a ListEvents. A request without an organization lists every
+// organization's events and the installation's, which needs system read; so does the whole log
+// of one organization, for a caller who is not its admin. Streams and facets never reach it.
+func (s *EventServer) authorizeListScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
+	if req.GetOrgId() == "" {
+		if narrowsBelowOrganization(req) {
+			return eventScope{}, connect.NewError(
+				connect.CodeInvalidArgument,
+				"org_id is required to filter by workspace or resource",
+			)
+		}
+		return eventScope{kind: eventScopeOrg}, authorizeSystem(ctx, s.authz, actions.ListInstallationEvents)
+	}
+	if req.GetInstallationOnly() {
+		return eventScope{}, connect.NewError(connect.CodeInvalidArgument, "installation_only excludes org_id")
+	}
+	scope, err := s.authorizeEventScope(ctx, req, actions.ListWorkspaceAuditEvents)
+	if err == nil || narrowsBelowOrganization(req) {
+		return scope, err
+	}
+	if authorizeSystem(ctx, s.authz, actions.ListInstallationEvents) != nil {
+		return scope, err
+	}
+	return eventScope{kind: eventScopeOrg, orgID: uuid.MustParse(req.GetOrgId())}, nil
 }
 
 func (s *EventServer) authorizeEventScope(
@@ -480,7 +512,9 @@ func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
 }
 
 func auditQuery(req *eventv1.ListEventsRequest, scope eventScope, filter logquery.Expr) (events.AuditQuery, error) {
-	query := events.AuditQuery{OrgID: scope.orgID, Filter: filter, Types: req.GetTypes()}
+	query := events.AuditQuery{
+		OrgID: scope.orgID, InstallationOnly: req.GetInstallationOnly(), Filter: filter, Types: req.GetTypes(),
+	}
 	if scope.kind != eventScopeOrg {
 		query.WorkspaceID = &scope.workspaceID
 	}
