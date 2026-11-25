@@ -14,6 +14,7 @@ import (
 )
 
 func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
+	admin := systemAdminContext(t)
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
@@ -32,11 +33,11 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 	for _, id := range []uuid.UUID{f.clusterID, f.otherCluster} {
-		_, removeErr := manageCluster(systemAdminContext(t), f.pool, clusterRemove, id, false)
+		_, removeErr := manageCluster(admin, f.pool, clusterRemove, id, false)
 		if !errors.Is(removeErr, ErrClusterNotPaused) {
 			t.Fatalf("remove active cluster: %v", removeErr)
 		}
-		if _, err := manageCluster(systemAdminContext(t), f.pool, clusterPause, id, false); err != nil {
+		if _, err := manageCluster(admin, f.pool, clusterPause, id, false); err != nil {
 			t.Fatal(err)
 		}
 		health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
@@ -49,7 +50,7 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 		if row.IsActive {
 			t.Fatal("heartbeat resumed paused cluster")
 		}
-		if _, err := manageCluster(systemAdminContext(t), f.pool, clusterRemove, id, false); err != nil {
+		if _, err := manageCluster(admin, f.pool, clusterRemove, id, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -59,11 +60,11 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 			t.Fatalf("removed stream: %v", got.err)
 		}
 	}
-	_, resumeErr := manageCluster(systemAdminContext(t), f.pool, clusterResume, f.clusterID, false)
+	_, resumeErr := manageCluster(admin, f.pool, clusterResume, f.clusterID, false)
 	if !errors.Is(resumeErr, ErrClusterRemoved) {
 		t.Fatalf("resume removed: %v", resumeErr)
 	}
-	if _, err := manageCluster(systemAdminContext(t), f.pool, clusterRestore, f.clusterID, false); err != nil {
+	if _, err := manageCluster(admin, f.pool, clusterRestore, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
 	restored, err := f.queries.GetClusterByID(ctx, f.clusterID)
@@ -73,7 +74,7 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 	if restored.IsActive || restored.LastHeartbeat != nil || restored.HealthStatus != nil {
 		t.Fatalf("restore reused health or resumed: %+v", restored)
 	}
-	if _, err := manageCluster(systemAdminContext(t), f.pool, clusterResume, f.clusterID, false); err != nil {
+	if _, err := manageCluster(admin, f.pool, clusterResume, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
 	reconnected := openSync(ctx, t, firstReplica, f.clusterID)
@@ -82,22 +83,23 @@ func TestClusterLifecyclePreservesIdentityAndFencesStreams(t *testing.T) {
 		t.Fatalf("restored reconnect failed: %+v", result)
 	case <-time.After(100 * time.Millisecond):
 	}
-	if _, err := manageCluster(systemAdminContext(t), f.pool, clusterPause, f.clusterID, false); err != nil {
+	if _, err := manageCluster(admin, f.pool, clusterPause, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manageCluster(systemAdminContext(t), f.pool, clusterRemove, f.clusterID, false); err != nil {
+	if _, err := manageCluster(admin, f.pool, clusterRemove, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := nextResult(t, reconnected); connect.CodeOf(got.err) != connect.CodePermissionDenied {
 		t.Fatalf("restored stream removal: %v", got.err)
 	}
-	_, missingErr := manageCluster(systemAdminContext(t), f.pool, clusterPause, uuid.New(), false)
+	_, missingErr := manageCluster(admin, f.pool, clusterPause, uuid.New(), false)
 	if !errors.Is(missingErr, ErrClusterNotFound) {
 		t.Fatalf("missing cluster: %v", missingErr)
 	}
 }
 
 func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
+	admin := systemAdminContext(t)
 	t.Parallel()
 	f := newBuildFixture(t)
 	ctx := t.Context()
@@ -105,7 +107,7 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 	if _, err := f.deploy(ctx, staticSpec); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manageCluster(systemAdminContext(t), f.pool, clusterPause, f.clusterID, false); err != nil {
+	if _, err := manageCluster(admin, f.pool, clusterPause, f.clusterID, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.deploy(ctx, staticSpec); !errors.Is(err, ErrClusterNotAssignable) {
@@ -114,11 +116,11 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 	if _, err := queueBuild(ctx, f.pool, buildID, f.resourceID, f.clusterID); !errors.Is(err, ErrClusterNotAssignable) {
 		t.Fatalf("queue build while paused: %v", err)
 	}
-	result, err := manageCluster(systemAdminContext(t), f.pool, clusterRemove, f.clusterID, false)
+	result, err := manageCluster(admin, f.pool, clusterRemove, f.clusterID, false)
 	if !errors.Is(err, ErrClusterHasWorkloads) || len(result.Workloads) != 2 {
 		t.Fatalf("normal removal: %v workloads %+v", err, result.Workloads)
 	}
-	result, err = manageCluster(systemAdminContext(t), f.pool, clusterRemove, f.clusterID, true)
+	result, err = manageCluster(admin, f.pool, clusterRemove, f.clusterID, true)
 	if err != nil || len(result.Workloads) != 2 {
 		t.Fatalf("force removal: %v workloads %+v", err, result.Workloads)
 	}
