@@ -25,8 +25,8 @@ func applyQueuedReports(ctx context.Context, session *syncSession) error {
 		select {
 		case apply := <-session.reports:
 			apply(ctx)
-		case <-session.capabilitiesReady:
-			session.storeCapabilities(ctx)
+		case heartbeat := <-session.capabilities:
+			session.server.recordClusterReport(ctx, session.clusterID, session.generation, heartbeat)
 		default:
 			if err := session.settle(ctx); err != nil {
 				return err

@@ -46,20 +46,17 @@ func TestAgentLifecycle(t *testing.T) {
 	})
 
 	t.Run("heartbeat and capacity", func(t *testing.T) {
-		waitHeartbeat(t, 30*time.Second, "the agent's first heartbeat")
-		var health string
-		var cpu, memory int64
-		if err := p.DB.QueryRow(t.Context(), clusterHealth,
-			p.ClusterID).
-			Scan(&health, &cpu, &memory); err != nil {
-			t.Fatal(err)
-		}
-		if health != "healthy" {
-			t.Errorf("cluster health %q, want healthy", health)
-		}
-		if cpu <= 0 || memory <= 0 {
-			t.Errorf("agent reported capacity %dm CPU and %d bytes, want both positive", cpu, memory)
-		}
+		platform.Eventually(t, 30*time.Second, "a healthy heartbeat with capacity", func(ctx context.Context) error {
+			var health string
+			var cpu, memory int64
+			if err := p.DB.QueryRow(ctx, clusterHealth, p.ClusterID).Scan(&health, &cpu, &memory); err != nil {
+				return err
+			}
+			if health != "healthy" || cpu <= 0 || memory <= 0 {
+				return fmt.Errorf("health %q, capacity %dm CPU and %d bytes", health, cpu, memory)
+			}
+			return nil
+		})
 	})
 
 	w := p.NewTenant(t)

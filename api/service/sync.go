@@ -184,10 +184,8 @@ type syncSession struct {
 	settledReady chan struct{}
 	// finishing holds the builds whose finish is recorded but not yet settled, guarded by settledMu.
 	finishing map[uuid.UUID]struct{}
-	// capabilities holds the newest heartbeat whose capabilities the worker has not stored, guarded by settledMu.
-	capabilities *agentv1.Heartbeat
-	// capabilitiesReady wakes the worker to store capabilities; a full buffer means a wake is already pending.
-	capabilitiesReady chan struct{}
+	// capabilities holds the newest heartbeat whose capabilities the worker has not stored; only handle sends.
+	capabilities chan *agentv1.Heartbeat
 }
 
 // settleFunc runs on the receive loop, which owns the session's state and the stream's sends.
@@ -199,15 +197,15 @@ func newSyncSession(
 	sendFn func(*agentv1.SyncResponse) error,
 ) *syncSession {
 	return &syncSession{
-		server:            server,
-		clusterID:         clusterID,
-		sendFn:            sendFn,
-		sent:              make(map[uuid.UUID]int64),
-		builds:            newBuildTracker(),
-		reports:           make(chan func(context.Context), syncReportQueue),
-		settledReady:      make(chan struct{}, 1),
-		capabilitiesReady: make(chan struct{}, 1),
-		finishing:         make(map[uuid.UUID]struct{}),
+		server:       server,
+		clusterID:    clusterID,
+		sendFn:       sendFn,
+		sent:         make(map[uuid.UUID]int64),
+		builds:       newBuildTracker(),
+		reports:      make(chan func(context.Context), syncReportQueue),
+		settledReady: make(chan struct{}, 1),
+		capabilities: make(chan *agentv1.Heartbeat, 1),
+		finishing:    make(map[uuid.UUID]struct{}),
 	}
 }
 
@@ -219,8 +217,8 @@ func (ss *syncSession) applyReports(ctx context.Context) {
 			return
 		case apply := <-ss.reports:
 			apply(ctx)
-		case <-ss.capabilitiesReady:
-			ss.storeCapabilities(ctx)
+		case heartbeat := <-ss.capabilities:
+			ss.server.recordClusterReport(ctx, ss.clusterID, ss.generation, heartbeat)
 		}
 	}
 }
@@ -477,24 +475,12 @@ func (ss *syncSession) recordHeartbeat(ctx context.Context, heartbeat *agentv1.H
 		return
 	}
 	ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
-	ss.settledMu.Lock()
-	ss.capabilities = heartbeat
-	ss.settledMu.Unlock()
+	// The receive loop is the only sender, so after the drain the send finds the slot empty.
 	select {
-	case ss.capabilitiesReady <- struct{}{}:
+	case <-ss.capabilities:
 	default:
 	}
-}
-
-// storeCapabilities stores the newest heartbeat's capabilities, if the worker has not stored them yet.
-func (ss *syncSession) storeCapabilities(ctx context.Context) {
-	ss.settledMu.Lock()
-	heartbeat := ss.capabilities
-	ss.capabilities = nil
-	ss.settledMu.Unlock()
-	if heartbeat != nil {
-		ss.server.recordClusterReport(ctx, ss.clusterID, ss.generation, heartbeat)
-	}
+	ss.capabilities <- heartbeat
 }
 
 // apply records a report and returns what it changes in the session.

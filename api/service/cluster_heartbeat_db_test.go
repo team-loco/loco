@@ -65,9 +65,10 @@ func TestHeartbeatsFlowWhileARoleChangeWaitsForADeployThatCheckedIt(t *testing.T
 	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	first, _ := f.storedHeartbeat(t)
 
-	degraded := proto.CloneOf(builds)
-	degraded.Health.ControllerHealthy = false
-	report(stream, heartbeatMessage(degraded))
+	apps := proto.CloneOf(builds)
+	apps.Role = clusterv1.ClusterRole_CLUSTER_ROLE_APPS
+	apps.Health.ControllerHealthy = false
+	report(stream, heartbeatMessage(apps))
 	waitFor(t, "a second heartbeat recorded while the role change waits", func() bool {
 		at, health := f.storedHeartbeat(t)
 		return at.After(first) && health == clusterHealthDegraded
@@ -77,29 +78,43 @@ func TestHeartbeatsFlowWhileARoleChangeWaitsForADeployThatCheckedIt(t *testing.T
 	}
 
 	release()
-	waitFor(t, "the role changed once the deploy ended", func() bool { return f.role(t) == genDb.ClusterRoleBuilds })
+	waitFor(t, "the newest role stored after the deploy", func() bool { return f.role(t) == genDb.ClusterRoleApps })
 }
 
 func TestAnUnchangedCapabilityReportDoesNotWaitForADeploy(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
-		t.Fatalf("deploy: %v", err)
-	}
-	p := f.placement(t, f.clusterID)
 	reportCapabilities(t, f.agentServer(), f.clusterID, healthyHeartbeat())
-	stream := openReportStream(t, startSyncServer(t, f), f.clusterID)
+	generation, err := f.queries.GetClusterSyncGeneration(t.Context(), f.clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	holdTx(t, f, func(ctx context.Context, tx pgx.Tx) error {
 		_, err := genDb.New(tx).LockAssignableCluster(ctx, f.clusterID)
 		return err
 	})
 
-	report(stream, heartbeatMessage(healthyHeartbeat()),
-		&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Applied{Applied: applied(p.ID, p.DesiredRevision)}})
-	waitFor(t, "the report queued after an unchanged heartbeat applied while a deploy held the cluster", func() bool {
-		got := f.placement(t, f.clusterID)
-		return got.AppliedRevision == got.DesiredRevision
-	})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	if err := f.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
+		ID: f.clusterID, Generation: generation, Role: genDb.ClusterRoleAll,
+		Domains: []string{}, Platforms: []string{testPlatform},
+	}); err != nil {
+		t.Fatalf("an unchanged report while a deploy held the cluster: %v", err)
+	}
+}
+
+func TestAnInvalidHeartbeatChangesNothing(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	session := newSyncSession(f.agentServer(), f.clusterID, func(*agentv1.SyncResponse) error { return nil })
+	if err := session.handle(t.Context(), heartbeatMessage(&agentv1.Heartbeat{})); err != nil {
+		t.Fatal(err)
+	}
+	if at := f.heartbeatAt(t); at != nil || len(session.capabilities) != 0 {
+		t.Fatalf("an invalid heartbeat stored liveness at %v and queued %d capabilities, want neither",
+			at, len(session.capabilities))
+	}
 }
 
 func TestAStaleGenerationDoesNotStoreCapabilities(t *testing.T) {
@@ -184,7 +199,7 @@ func TestHeartbeatsKeepOnlyTheNewestCapabilities(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if pending := len(session.reports) + len(session.capabilitiesReady); pending != 1 {
+	if pending := len(session.reports) + len(session.capabilities); pending != 1 {
 		t.Fatalf("%d updates pending for two heartbeats, want 1", pending)
 	}
 	if err := applyQueuedReports(t.Context(), session); err != nil {
