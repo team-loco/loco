@@ -3,8 +3,6 @@ package user
 import (
 	"bytes"
 	"context"
-	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -23,14 +21,14 @@ type fakeUsers struct {
 	session  string
 	requests []*userv1.SetUserStatusRequest
 	users    []*userv1.User
-	queries  []string
+	queries  []*userv1.ListUsersRequest
 }
 
 func (f *fakeUsers) ListUsers(
 	_ context.Context,
 	req *userv1.ListUsersRequest,
 ) (*userv1.ListUsersResponse, error) {
-	f.queries = append(f.queries, req.GetQuery())
+	f.queries = append(f.queries, req)
 	// Two users per page, so the command has to follow the page token.
 	start := 0
 	if req.GetPageToken() != "" {
@@ -106,15 +104,16 @@ func TestListShowsEveryPageWithStateAndLastActive(t *testing.T) {
 		{Name: "Alan", Email: "alan@acme.test", Status: userv1.UserStatus_USER_STATUS_ACTIVE},
 	}}
 	output := runUserCmd(t, fake, "list", "--query", "acme")
-	for _, want := range []string{
-		"NAME", "LAST ACTIVE", "Ada", "ada@acme.test", "2026-11-20 09:30:00",
-		"grace@acme.test", "suspended", "never", "Alan",
-	} {
-		if !strings.Contains(output, want) {
-			t.Errorf("output lacks %q:\n%s", want, output)
-		}
+	want := "NAME  EMAIL            STATE      LAST ACTIVE\n" +
+		"Ada   ada@acme.test    active     2026-11-20 09:30:00\n" +
+		"      grace@acme.test  suspended  —\n" +
+		"Alan  alan@acme.test   active     —\n"
+	if output != want {
+		t.Errorf("output:\n%s\nwant:\n%s", output, want)
 	}
-	if !slices.Equal(fake.queries, []string{"acme", "acme"}) {
-		t.Errorf("queries = %v, want the query on both pages", fake.queries)
+	if len(fake.queries) != 2 ||
+		fake.queries[0].GetQuery() != "acme" || fake.queries[0].GetPageToken() != "" ||
+		fake.queries[1].GetQuery() != "acme" || fake.queries[1].GetPageToken() != "next" {
+		t.Errorf("requests = %v, want the query on both pages and the page token on the second", fake.queries)
 	}
 }

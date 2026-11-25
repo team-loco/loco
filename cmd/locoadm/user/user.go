@@ -115,7 +115,7 @@ func printUsers(out io.Writer, users []*userv1.User) error {
 		if user.GetStatus() == userv1.UserStatus_USER_STATUS_SUSPENDED {
 			state = "suspended"
 		}
-		lastActive := "never"
+		lastActive := "—"
 		if user.GetLastActiveAt() != nil {
 			lastActive = user.GetLastActiveAt().AsTime().Format(time.DateTime)
 		}

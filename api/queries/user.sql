@@ -31,8 +31,7 @@ WHERE id = sqlc.arg('id')
 RETURNING id, email, name, avatar_url, status, created_at, updated_at;
 
 -- name: ListUsers :many
-SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at,
-       a.last_used_at AS last_active_at
+SELECT sqlc.embed(u), a.last_used_at AS last_active_at
 FROM users u
 LEFT JOIN session_tokens a ON a.id = (
   SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
@@ -53,8 +52,8 @@ SELECT COUNT(*) FROM (
   LIMIT $1
 ) capped;
 
--- name: GetUserLastActive :one
-SELECT a.last_used_at AS last_active_at
+-- name: GetUserWithActivity :one
+SELECT sqlc.embed(u), a.last_used_at AS last_active_at
 FROM users u
 LEFT JOIN session_tokens a ON a.id = (
   SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1

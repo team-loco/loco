@@ -182,8 +182,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
-const getUserLastActive = `-- name: GetUserLastActive :one
-SELECT a.last_used_at AS last_active_at
+const getUserWithActivity = `-- name: GetUserWithActivity :one
+SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at, a.last_used_at AS last_active_at
 FROM users u
 LEFT JOIN session_tokens a ON a.id = (
   SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
@@ -191,16 +191,29 @@ LEFT JOIN session_tokens a ON a.id = (
 WHERE u.id = $1
 `
 
-func (q *Queries) GetUserLastActive(ctx context.Context, id uuid.UUID) (*time.Time, error) {
-	row := q.db.QueryRow(ctx, getUserLastActive, id)
-	var last_active_at *time.Time
-	err := row.Scan(&last_active_at)
-	return last_active_at, err
+type GetUserWithActivityRow struct {
+	User         User       `json:"user"`
+	LastActiveAt *time.Time `json:"lastActiveAt"`
+}
+
+func (q *Queries) GetUserWithActivity(ctx context.Context, id uuid.UUID) (GetUserWithActivityRow, error) {
+	row := q.db.QueryRow(ctx, getUserWithActivity, id)
+	var i GetUserWithActivityRow
+	err := row.Scan(
+		&i.User.ID,
+		&i.User.Email,
+		&i.User.Name,
+		&i.User.AvatarUrl,
+		&i.User.Status,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.LastActiveAt,
+	)
+	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at,
-       a.last_used_at AS last_active_at
+SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at, a.last_used_at AS last_active_at
 FROM users u
 LEFT JOIN session_tokens a ON a.id = (
   SELECT s.id FROM session_tokens s WHERE s.user_id = u.id ORDER BY s.last_used_at DESC LIMIT 1
@@ -223,13 +236,7 @@ type ListUsersParams struct {
 }
 
 type ListUsersRow struct {
-	ID           uuid.UUID  `json:"id"`
-	Email        string     `json:"email"`
-	Name         *string    `json:"name"`
-	AvatarUrl    *string    `json:"avatarUrl"`
-	Status       UserStatus `json:"status"`
-	CreatedAt    time.Time  `json:"createdAt"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
+	User         User       `json:"user"`
 	LastActiveAt *time.Time `json:"lastActiveAt"`
 }
 
@@ -248,13 +255,13 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 	for rows.Next() {
 		var i ListUsersRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.Name,
-			&i.AvatarUrl,
-			&i.Status,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.User.ID,
+			&i.User.Email,
+			&i.User.Name,
+			&i.User.AvatarUrl,
+			&i.User.Status,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
 			&i.LastActiveAt,
 		); err != nil {
 			return nil, err

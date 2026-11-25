@@ -1,8 +1,10 @@
 package service
 
 import (
+	"net/netip"
 	"slices"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -46,6 +48,9 @@ func TestListUsersSearchesNameAndEmailAndCounts(t *testing.T) {
 	a.setName(t, ada, "Ada Lovelace")
 	grace := a.signUp(t, "grace")
 	a.setName(t, grace, "Grace Hopper")
+	a.signUp(t, "pager1")
+	a.signUp(t, "pager2")
+	a.signUp(t, "pager3")
 	a.signUp(t, "under_score")
 	a.signUp(t, "underXscore")
 	ctx := t.Context()
@@ -73,10 +78,29 @@ func TestListUsersSearchesNameAndEmailAndCounts(t *testing.T) {
 		}
 	}
 
-	page := search("acme.test", 2)
-	if len(page.GetUsers()) != 2 || page.GetNextPageToken() == "" || page.GetTotalCount() != 5 {
-		t.Fatalf("first page = %d users, token %q, total %d; want 2, a token, 5",
-			len(page.GetUsers()), page.GetNextPageToken(), page.GetTotalCount())
+	var seen []string
+	request := &userv1.ListUsersRequest{Query: "PAGER", PageSize: 2, IncludeTotalCount: true}
+	for pages := 0; ; pages++ {
+		listed, err := reader.clients.User.ListUsers(ctx, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if listed.GetTotalCount() != 3 {
+			t.Errorf("page %d total = %d, want 3", pages, listed.GetTotalCount())
+		}
+		seen = append(seen, listedEmails(listed.GetUsers())...)
+		if listed.GetNextPageToken() == "" {
+			if pages != 1 {
+				t.Errorf("last page = %d, want 1", pages)
+			}
+			break
+		}
+		request.PageToken = listed.GetNextPageToken()
+	}
+	slices.Sort(seen)
+	wantSeen := []string{membershipEmail("pager1"), membershipEmail("pager2"), membershipEmail("pager3")}
+	if !slices.Equal(seen, wantSeen) {
+		t.Errorf("paged users = %v, want %v", seen, wantSeen)
 	}
 	withoutTotal, err := reader.clients.User.ListUsers(ctx, &userv1.ListUsersRequest{})
 	if err != nil || withoutTotal.GetTotalCount() != 0 {
@@ -104,7 +128,23 @@ func TestSystemReaderSeesUserStateAndLastActive(t *testing.T) {
 	target := a.signUp(t, "target")
 	neverSignedIn, _ := a.signIn(t, "dormant")
 	ctx := t.Context()
-	if err := setStatus(t, admin, target, userv1.UserStatus_USER_STATUS_SUSPENDED); err != nil {
+	older := time.Date(2026, 11, 1, 8, 0, 0, 0, time.UTC)
+	latest := time.Date(2026, 11, 20, 9, 30, 0, 0, time.UTC)
+	webToken, _, err := a.machine.IssueWebSession(ctx, target.id, netip.MustParseAddr("198.51.100.9"), "browser")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for token, usedAt := range map[string]time.Time{target.token: older, webToken: latest} {
+		principal, tokenErr := a.machine.GetToken(ctx, token)
+		if tokenErr != nil {
+			t.Fatal(tokenErr)
+		}
+		if _, execErr := a.pool.Exec(ctx, `UPDATE session_tokens SET last_used_at = $2 WHERE id = $1`,
+			principal.SessionID, usedAt); execErr != nil {
+			t.Fatal(execErr)
+		}
+	}
+	if err = setStatus(t, admin, target, userv1.UserStatus_USER_STATUS_SUSPENDED); err != nil {
 		t.Fatal(err)
 	}
 
@@ -117,8 +157,13 @@ func TestSystemReaderSeesUserStateAndLastActive(t *testing.T) {
 		byID[user.GetId()] = user
 	}
 	if user := byID[target.id.String()]; user.GetStatus() != userv1.UserStatus_USER_STATUS_SUSPENDED ||
-		user.GetLastActiveAt() == nil {
-		t.Errorf("suspended user in list: status %v, last active %v", user.GetStatus(), user.GetLastActiveAt())
+		!user.GetLastActiveAt().AsTime().Equal(latest) {
+		t.Errorf(
+			"suspended user in list: status %v, last active %v, want %v",
+			user.GetStatus(),
+			user.GetLastActiveAt(),
+			latest,
+		)
 	}
 	if user := byID[reader.id.String()]; user.GetStatus() != userv1.UserStatus_USER_STATUS_ACTIVE ||
 		user.GetLastActiveAt() == nil {
@@ -136,8 +181,14 @@ func TestSystemReaderSeesUserStateAndLastActive(t *testing.T) {
 		t.Fatal(err)
 	}
 	if user := got.GetUser(); user.GetStatus() != userv1.UserStatus_USER_STATUS_SUSPENDED ||
-		user.GetLastActiveAt() == nil {
-		t.Errorf("get user: status %v, last active %v", user.GetStatus(), user.GetLastActiveAt())
+		!user.GetLastActiveAt().AsTime().Equal(latest) {
+		t.Errorf("get user: status %v, last active %v, want %v", user.GetStatus(), user.GetLastActiveAt(), latest)
+	}
+	_, err = reader.clients.User.GetUser(ctx, &userv1.GetUserRequest{
+		Key: &userv1.GetUserRequest_UserId{UserId: uuid.NewString()},
+	})
+	if code := connect.CodeOf(err); code != connect.CodeNotFound {
+		t.Errorf("get missing user: code %v, want %v", code, connect.CodeNotFound)
 	}
 
 	ordinary := a.signUp(t, "ordinary")

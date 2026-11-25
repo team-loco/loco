@@ -71,7 +71,7 @@ API-token activity records the token as actor. Historical creator, issuer and in
 
 `UserService.ListUsers` requires system read. `query` keeps the users whose name or email contains the text, ignoring case, and `include_total_count` sets `total_count` to the number of matches (exact up to 10,000). `locoadm user list [--query TEXT]` prints each user's name, email, state and last active time.
 
-Callers holding system read also see each user's `status` (`active` or `suspended`) and `last_active_at` on `ListUsers` and `GetUser`. `last_active_at` is the latest use of any of the user's sessions; sessions end when their refresh token expires, so a user with no session has none.
+Callers holding system read also see each user's `status` (`active` or `suspended`) and `last_active_at` on `ListUsers` and `GetUser`. `last_active_at` is the last recorded session activity: the latest use of any of the user's sessions. Sessions end when their refresh token expires, so a user with no session has none; `locoadm user list` shows `—` for it.
 
 ## Delete an account
 
