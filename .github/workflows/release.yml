@@ -130,7 +130,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: platform-release
     permissions:
-      actions: write
       attestations: read
       contents: write
       packages: write
@@ -178,7 +177,3 @@ jobs:
             --notes "$SUMMARY" \
             --generate-notes \
             bin/loco-* bin/locoadm-* bin/checksums.txt bin/release.json
-
-      # A release published with this workflow's token starts no release-triggered workflow.
-      - name: Publish the release's documentation
-        run: gh workflow run docs-pages.yml --ref main

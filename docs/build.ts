@@ -1,12 +1,13 @@
 import { $, Glob, file, write } from "bun";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-// `bun build.ts pages` builds docs.loco.build into site/: the newest v* tag at /
-// and /<tag>/, the tag before it at /<tag>/, and this checkout at /staging/.
+// `bun build.ts pages` builds docs.loco.build into site/: the content of the
+// newest v* tag at / and /<tag>/, of the tag before it at /<tag>/, and of this
+// checkout at /staging/, all rendered by this checkout.
 // `bun build.ts dashboard <production|staging>` builds the dashboard's /docs/
 // mount into site-mounted/ and writes its Static Web Server configuration to
 // .sws.toml.
@@ -20,17 +21,16 @@ assert(
   `Unknown environment: ${environment}`,
 );
 
-// Builds the docs of the checkout at root for the router basename base into output.
+// Renders the docs app in app for the router basename base into output.
 async function build(
-  root: string,
+  app: string,
   base: string,
   url: string,
   environment: string,
   output: string,
   version = "",
 ) {
-  const dir = join(root, "docs");
-  await $`${process.execPath} --bun run react-router build`.cwd(dir).env({
+  await $`${process.execPath} --bun run react-router build`.cwd(app).env({
     ...process.env,
     VITE_DOCS_URL: url,
     VITE_DOCS_ENVIRONMENT: environment,
@@ -38,7 +38,7 @@ async function build(
     DOCS_BASE_PATH: base,
   });
   await rm(output, { recursive: true, force: true });
-  await cp(join(dir, "build/client"), output, { recursive: true });
+  await cp(join(app, "build/client"), output, { recursive: true });
   if (base !== "/") {
     await cp(join(output, base), output, { recursive: true });
     await rm(join(output, base), { recursive: true });
@@ -46,55 +46,76 @@ async function build(
 }
 
 if (target === "pages") {
-  const site = join(docs, "site");
-  const tags = (await $`git tag --list ${"v*"} --sort=-v:refname`.cwd(docs).text())
+  const tags = (await $`git tag --list ${"v*"} --sort=-v:refname`.cwd(repository).text())
     .split("\n")
     .filter(Boolean)
     .slice(0, 2);
-  const versions: { name: string; url: string }[] = [];
-  // A tag whose docs fail to build is left out; the next tag becomes current.
+  assert.equal(tags.length, 2, "Pages needs two v* tags");
+  // The site is assembled in scratch, so a failed build leaves site/ as it was.
+  const scratch = await realpath(await mkdtemp(join(tmpdir(), "loco-docs-")));
+  const site = join(scratch, "site");
+  // Each tag's content is rendered by a copy of this docs app, beside links to
+  // the repository's web/ and dependencies.
+  const apps = [];
   for (const tag of tags) {
-    const checkout = await mkdtemp(join(tmpdir(), `loco-docs-${tag}-`));
-    try {
-      await $`git worktree add --detach ${checkout} ${tag}`.cwd(docs);
-      await $`bun install --frozen-lockfile`.cwd(checkout);
-      const current = versions.length === 0;
-      const prefix = `/${tag}/`;
-      if (current) await build(checkout, "/", pages, "production", site, tag);
-      await build(
-        checkout,
-        prefix,
-        new URL(prefix, pages).href,
-        "production",
-        join(site, tag),
-        tag,
-      );
-      versions.push({ name: tag, url: current ? "/" : prefix });
-    } catch (error) {
-      console.warn(`Skipping the docs of ${tag}: ${error}`);
-    } finally {
-      await $`git worktree remove --force ${checkout}`.cwd(docs).nothrow();
+    const root = join(scratch, tag);
+    const app = join(root, "docs");
+    await mkdir(join(app, "content"), { recursive: true });
+    for (const name of ["web", "node_modules"]) {
+      await symlink(join(repository, name), join(root, name));
     }
+    await symlink(join(docs, "node_modules"), join(app, "node_modules"));
+    for (const name of [
+      "app",
+      "public",
+      "package.json",
+      "tsconfig.json",
+      "vite.config.ts",
+      "react-router.config.ts",
+    ]) {
+      await cp(join(docs, name), join(app, name), {
+        recursive: true,
+        verbatimSymlinks: true,
+      });
+    }
+    await $`git archive ${`${tag}:docs/content`} | tar -x -C ${join(app, "content")}`.cwd(
+      repository,
+    );
+    apps.push(app);
   }
-  assert(versions.length > 0, `No release docs built from ${tags.join(", ")}`);
+  const [current, previous] = tags;
+  await build(apps[0], "/", pages, "production", site, current);
+  for (const [i, tag] of tags.entries()) {
+    const prefix = `/${tag}/`;
+    const url = new URL(prefix, pages).href;
+    await build(apps[i], prefix, url, "production", join(site, tag), tag);
+  }
   await build(
-    repository,
+    docs,
     "/staging/",
     new URL("staging/", pages).href,
     "staging",
     join(site, "staging"),
     "staging",
   );
-  versions.push({ name: "staging", url: "/staging/" });
   await cp(join(site, "404/index.html"), join(site, "404.html"));
-  await write(join(site, "CNAME"), `${new URL(pages).hostname}\n`);
-  await write(join(site, "versions.json"), JSON.stringify(versions));
+  await write(
+    join(site, "versions.json"),
+    JSON.stringify([
+      { name: current, url: "/" },
+      { name: previous, url: `/${previous}/` },
+      { name: "staging", url: "/staging/" },
+    ]),
+  );
+  await rm(join(docs, "site"), { recursive: true, force: true });
+  await cp(site, join(docs, "site"), { recursive: true });
+  await rm(scratch, { recursive: true });
   process.exit();
 }
 
 const mount = join(docs, "site-mounted");
 await build(
-  repository,
+  docs,
   "/docs/",
   environment === "production" ? pages : new URL("staging/", pages).href,
   environment,

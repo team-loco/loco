@@ -18,6 +18,10 @@ on:
       - ".github/workflows/docs-pages.yml"
   release:
     types: [published]
+  # The Release workflow publishes with its own token, which starts no release-triggered run.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -30,13 +34,14 @@ concurrency:
 jobs:
   build:
     name: Build documentation
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
-          # The build checks out the release tags.
+          # The build reads the content of the release tags.
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
