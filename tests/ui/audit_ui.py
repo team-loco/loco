@@ -287,34 +287,32 @@ with session(out) as browser:
         drawer.get_by_role("heading", name="Created a resource", exact=True)
     ).to_be_visible()
     expect(drawer.get_by_text("Time", exact=True)).to_be_visible()
-    expect(
-        drawer.get_by_role("button", name="Newer event", exact=True)
-    ).to_be_disabled()
+    expect(drawer.get_by_role("button", name="Newer", exact=True)).to_be_disabled()
     page.mouse.move(0, 0)
-    expect(drawer.get_by_title("Copy request ID", exact=True)).to_be_visible()
-    request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()
+    request_cell = drawer.get_by_text("Request ID", exact=True).locator(
+        "xpath=following-sibling::dd"
+    )
+    expect(request_cell).to_be_visible()
+    request_id = request_cell.inner_text().strip()
+    drawer.get_by_role("button", name="More for this event", exact=True).click()
     expect(
-        drawer.get_by_role("button", name="More by Olivia Owner", exact=True)
+        page.get_by_role("menuitem", name="More by Olivia Owner", exact=True)
     ).to_be_visible()
-    # The title and what the event acted on share one line.
-    # Both boxes come from one frame, so the drawer's slide-in cannot skew them.
-    gap = drawer.locator('[data-slot="sheet-description"]').evaluate(
-        """node => {
-            const title = node.previousElementSibling.getBoundingClientRect();
-            const target = node.getBoundingClientRect();
-            return { left: target.left - title.right, top: target.top - title.bottom };
-        }"""
-    )
-    assert gap["left"] >= 0 and gap["top"] < 0, gap
-    drawer.get_by_role("button", name="Older event", exact=True).click()
+    page.keyboard.press("Escape")
+    expect(drawer).to_be_visible()
+    drawer.get_by_role("button", name="Older", exact=True).click()
     page.mouse.move(0, 0)
-    expect(drawer.get_by_title("Copy request ID", exact=True)).not_to_have_text(
-        request_id
-    )
-    request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()
-    expect(drawer.get_by_role("button", name="Newer event", exact=True)).to_be_enabled()
+    expect(request_cell).not_to_have_text(request_id)
+    request_id = request_cell.inner_text().strip()
+    expect(drawer.get_by_role("button", name="Newer", exact=True)).to_be_enabled()
     page.keyboard.press("Escape")
     expect(page).not_to_have_url(re.compile(r"[?&]event="))
+    page.get_by_role("button", name="Add column", exact=True).click()
+    page.get_by_role("checkbox", name="Request ID").click()
+    page.keyboard.press("Escape")
+    expect(page.get_by_role("columnheader", name="Request ID")).to_be_visible()
+    page.get_by_role("button", name="Remove column Request ID", exact=True).click()
+    expect(page.get_by_role("columnheader", name="Request ID")).to_have_count(0)
 
     search = page.get_by_role("combobox", name="Search and filter")
     suggestions = page.get_by_role("listbox", name="Suggestions")
@@ -366,7 +364,11 @@ with session(out) as browser:
     expect(token_row).to_contain_text("deploy-bot")
     expect(token_row).to_contain_text("Workspace token")
     token_row.click()
-    expect(page.get_by_role("dialog").get_by_text("Workspace token")).to_be_visible()
+    expect(
+        page.get_by_role("dialog")
+        .get_by_role("definition")
+        .filter(has_text="deploy-bot")
+    ).to_be_visible()
     page.keyboard.press("Escape")
     # The search reads the Where column: the sibling workspace names events on its resources.
     with expect_rpc(page, "ListEvents", lambda body: body.get("query") == "sibling"):
@@ -516,8 +518,9 @@ with session(out) as browser:
         lambda body: "@actor:" + users["owner"]["id"] in body.get("query", ""),
     ) as by_actor:
         page.get_by_role("dialog").get_by_role(
-            "button", name=re.compile(r"^More by ")
+            "button", name="More for this event", exact=True
         ).click()
+        page.get_by_role("menuitem", name=re.compile(r"^More by ")).click()
     assert (
         "@actor:" + users["owner"]["id"]
         in by_actor.value.request.post_data_json["query"]

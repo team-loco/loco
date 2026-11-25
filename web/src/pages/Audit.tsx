@@ -450,7 +450,6 @@ export function Audit() {
 			<AuditDrawer
 				open={selected !== undefined}
 				row={rows.find((r) => r.event.id === heldEventId)}
-				nowMs={now}
 				onNewer={selIdx > 0 ? select(selIdx - 1) : null}
 				onOlder={selIdx >= 0 && selIdx < rows.length - 1 ? select(selIdx + 1) : null}
 				onActor={() => {
