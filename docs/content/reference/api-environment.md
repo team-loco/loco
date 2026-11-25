@@ -164,10 +164,6 @@ A dashboard sign-in, `loco login` and `loco login --device` keep their state in 
 | --- | --- | --- |
 | `EVENTS_RETENTION` | `2160h` | How long audit events are kept. |
 | `INSTALL_WEBHOOKS` | empty | JSON array of install webhooks. See [webhooks](../operations/webhooks.md). |
-| `NTFY_URL` | empty | Base URL of an ntfy server. With `NTFY_TOPIC`, turns on ntfy notifications. See [ntfy notifications](../operations/ntfy.md). |
-| `NTFY_TOPIC` | empty | ntfy topic that receives the notifications: letters, digits, `_` and `-`, at most 64 characters. |
-| `NTFY_TOKEN` | empty | Access token for a protected topic. Keep it in the API environment Secret. |
-| `NTFY_EVENT_TYPES` | `build.failed,deployment.failed,deployment.crashed,cluster.silent,cluster.recovered,cluster.health_changed,org.suspended` | Comma-separated event types to notify. |
 | `WEBHOOK_TIMEOUT` | `10s` | Limit on each delivery attempt. |
 | `WEBHOOK_RETRY_DELAYS` | `30s,2m,10m,1h,6h,24h` | Comma-separated waits between delivery attempts. |
 | `WEBHOOK_BATCH` | `50` | Deliveries the dispatcher claims at a time. |

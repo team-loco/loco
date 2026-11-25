@@ -3,7 +3,6 @@ package builds
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -13,12 +12,12 @@ import (
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
-const ntfyTimeout = 30 * time.Second
+const webhookTimeout = 30 * time.Second
 
-func TestFailedBuildNotifiesNtfy(t *testing.T) {
+func TestFailedBuildReachesInstallWebhook(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
-	const name = "e2e-ntfy-build"
+	const name = "e2e-webhook-build"
 	created, err := p.User.Resource.CreateResource(t.Context(), &resourcev1.CreateResourceRequest{
 		WorkspaceId: w.ID,
 		Name:        name,
@@ -42,16 +41,13 @@ func TestFailedBuildNotifiesNtfy(t *testing.T) {
 		t.Fatalf("build ended %v, want failed", finished.GetStatus())
 	}
 
-	want := fmt.Sprintf("Build of %s / %s / %s failed", w.OrgName, w.Name, name)
-	platform.Eventually(t, ntfyTimeout, "ntfy to receive the build failure", func(context.Context) error {
-		for _, message := range p.Ntfy.Messages() {
-			if message.Title == "Build failed" && strings.HasPrefix(message.Message, want) {
-				if message.Priority != "4" {
-					return fmt.Errorf("priority %q, want 4", message.Priority)
-				}
+	const what = "the install webhook to receive the build failure"
+	platform.Eventually(t, webhookTimeout, what, func(context.Context) error {
+		for _, event := range p.Webhook.Events() {
+			if event.Type == "build.failed" && event.Subject.ID == started.ID {
 				return nil
 			}
 		}
-		return fmt.Errorf("no %q notification among %d", want, len(p.Ntfy.Messages()))
+		return fmt.Errorf("no build.failed event for build %s among %d", started.ID, len(p.Webhook.Events()))
 	})
 }

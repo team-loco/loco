@@ -60,7 +60,7 @@ CREATE TRIGGER events_append_only
 BEFORE UPDATE ON events
 FOR EACH ROW EXECUTE FUNCTION events_reject_update();
 
-CREATE TYPE webhook_kind AS ENUM ('workspace', 'install', 'ntfy');
+CREATE TYPE webhook_kind AS ENUM ('workspace', 'install');
 
 CREATE TABLE webhooks (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -72,7 +72,7 @@ CREATE TABLE webhooks (
     provider TEXT NOT NULL,
     kek_id TEXT NOT NULL,
     wrapped_dek BYTEA NOT NULL,
-    -- The signing secret, or the access token of an ntfy topic: an AES-256-GCM nonce followed by the ciphertext under the data key.
+    -- The signing secret: an AES-256-GCM nonce followed by the ciphertext under the data key.
     secret BYTEA NOT NULL,
     -- The secret a rotation replaced, sealed the same way; deliveries are also signed with it until it expires.
     previous_secret BYTEA,
@@ -83,14 +83,13 @@ CREATE TABLE webhooks (
     CONSTRAINT webhooks_previous_secret CHECK ((previous_secret IS NULL) = (previous_secret_expires_at IS NULL)),
     CONSTRAINT webhooks_kind_owner CHECK (
         (kind = 'workspace' AND workspace_id IS NOT NULL)
-        OR (kind IN ('install', 'ntfy') AND workspace_id IS NULL)
+        OR (kind = 'install' AND workspace_id IS NULL)
     )
 );
 
 CREATE INDEX webhooks_created_by_idx ON webhooks (created_by);
 CREATE INDEX webhooks_workspace_idx ON webhooks (workspace_id);
 CREATE UNIQUE INDEX webhooks_install_url_idx ON webhooks (url) WHERE kind = 'install';
-CREATE UNIQUE INDEX webhooks_ntfy_idx ON webhooks (kind) WHERE kind = 'ntfy';
 
 CREATE TABLE webhook_deliveries (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -123,7 +122,7 @@ BEGIN
     FROM webhooks w
     WHERE CASE
         WHEN NEW.type = 'webhook.test' THEN w.id = NEW.subject_id
-        ELSE (w.kind IN ('install', 'ntfy') OR (w.kind = 'workspace' AND w.workspace_id = NEW.workspace_id))
+        ELSE (w.kind = 'install' OR (w.kind = 'workspace' AND w.workspace_id = NEW.workspace_id))
             AND (cardinality(w.event_types) = 0 OR NEW.type = ANY(w.event_types))
     END;
     RETURN NULL;

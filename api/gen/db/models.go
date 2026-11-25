@@ -633,7 +633,6 @@ type WebhookKind string
 const (
 	WebhookKindWorkspace WebhookKind = "workspace"
 	WebhookKindInstall   WebhookKind = "install"
-	WebhookKindNtfy      WebhookKind = "ntfy"
 )
 
 func (e *WebhookKind) Scan(src interface{}) error {
