@@ -60,9 +60,6 @@
 
 [data-theme="solarized"] {
 	--radius-control: 2px;
-	--radius-xs: 2px;
-	--radius-sm: 2px;
-	--radius-md: 2px;
 	--radius-card: 3px;
 	--radius-overlay: 3px;
 	--band-radius: 2px;
@@ -152,9 +149,13 @@
 		.sb-search,
 		.act-btn,
 		[data-slot="account-button"],
-		[data-slot="chip"],
 		[data-slot="command-button"],
 		[data-slot="step-toggle"],
+		[data-slot="error-banner"],
+		[data-slot="search-clear"],
+		[data-level-chip],
+		[data-row-menu],
+		[data-slot="button"][title="Copy request ID"],
 		[data-request-id] [data-slot="button"]
 	) {
 	border-radius: 2px;

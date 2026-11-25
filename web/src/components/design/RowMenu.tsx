@@ -26,7 +26,9 @@ export function RowMenu({
 }) {
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={label} className="text-fg2" />}>
+			<DropdownMenuTrigger
+				render={<Button variant="ghost" size="icon-sm" aria-label={label} data-row-menu className="text-fg2" />}
+			>
 				<EllipsisIcon className="size-4" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-auto min-w-[220px]">
