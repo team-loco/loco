@@ -169,3 +169,33 @@ Read [charts/AGENTS.md](charts/AGENTS.md) before chart work.
 ## Frontend
 
 Read [web/AGENTS.md](web/AGENTS.md) before frontend work.
+
+## Code Review Rules
+
+A pull-request review runs three passes in this order. Every finding gives `file:line` and the evidence its pass asks
+for. Material architecture, complexity and minmax findings are P1 even when nothing is broken; a design that cannot
+work as built is P0. Cosmetic findings are not reported.
+
+1. **Architecture.** Reconstruct the requirement from the PR description, any linked issue and the surrounding code
+   before reading the diff. Judge where the change lives, which mechanism it uses, and what it reuses or duplicates.
+   A finding names the design to use and what the current one costs: a duplicated mechanism, a wrong owner, a
+   guarantee it breaks.
+2. **Code.** Complexity first, then correctness, edge cases, regressions and the rules in this file. A correctness
+   finding gives a concrete failure scenario: the input or state, and the wrong result. These are findings too, each
+   with the clearer version written out: a condition with more than two clauses and no name, a branch per kind of
+   user, a change that undoes an earlier fix in the same files without the PR body saying why, and a test that still
+   passes when the behaviour it covers breaks. A branch that authorization or a business rule requires is not a finding.
+3. **Minmax.** Look for a substantially smaller implementation with the same required behaviour. A finding says what
+   to remove, what replaces it, and why behaviour is unchanged. In order of value:
+    - A new mechanism that duplicates an existing one or solves a problem nobody has: a cache, retry loop, registry,
+      background worker, config knob or compatibility layer.
+    - New code where an existing package, dependency or UI component already does the job.
+    - Redundant state: a field derivable from others, two representations of one fact.
+    - One-implementation interfaces, pass-through layers, forwarding wrappers and single-use helpers.
+    - Checks for unreachable states and fallbacks that hide broken invariants.
+    - Tests that assert implementation details or repeat existing coverage.
+    - Scope the requirement did not ask for.
+
+   A reduction never weakens security, durability, error semantics, concurrency safety or compatibility. Cosmetic
+   edits and line-count golf are not findings. When the change is already close to minimal, the review says so in one
+   line.
