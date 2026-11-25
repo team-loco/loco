@@ -68,13 +68,18 @@ const VALUE_WORD_RE = /^(-?)@(\w+):(.*)$/;
 const KEY_WORD_RE = /^(-?)@(\w*)$/;
 const MAX_VALUES = 10;
 const MAX_TEXT_VALUES = 3;
-const TEXT_VALUE_KEYS = new Set<FieldKey>(["resource", "level", "region"]);
+const TEXT_VALUE_KEYS = new Set<FieldKey>(["resource", "component", "cluster", "level", "region"]);
 const MAX_PINNED = 10;
 const RECENT_SAVE_MS = 1500;
 
 export type ValueCounts = (key: FieldKey) => [string, number][];
 
-function placeholder(view: QueryView): string {
+function placeholder(view: QueryView, installation: boolean): string {
+	if (installation) {
+		return view === "logs"
+			? "Search messages, or type @ to filter by component, cluster, level…"
+			: "Type @component or @cluster to filter";
+	}
 	switch (view) {
 		case "logs":
 			return "Search messages, or type @ to filter by resource, level, replica…";
@@ -123,6 +128,8 @@ export interface QueryState {
 	orgId: string;
 	workspaceId: string;
 	view: QueryView;
+	/** Reads Loco's own telemetry: fields name components and clusters, not resources. */
+	installation?: boolean;
 	tokens: Token[];
 	text: string;
 	setQuery: (tokens: Token[], text: string) => void;
@@ -131,12 +138,14 @@ export interface QueryState {
 
 /** The query bar of an observability view, editing the view's query. */
 export function QueryBar(props: QueryBarProps) {
-	const { orgId, workspaceId, view, tokens, text, setQuery, resourceByName } = useObs();
-	return <QueryInput {...props} state={{ orgId, workspaceId, view, tokens, text, setQuery, resourceByName }} />;
+	const { orgId, workspaceId, installation, view, tokens, text, setQuery, resourceByName } = useObs();
+	return (
+		<QueryInput {...props} state={{ orgId, workspaceId, installation, view, tokens, text, setQuery, resourceByName }} />
+	);
 }
 
 export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: QueryBarProps & { state: QueryState }) {
-	const { orgId, workspaceId, view, tokens, text: applied, setQuery, resourceByName } = state;
+	const { orgId, workspaceId, installation = false, view, tokens, text: applied, setQuery, resourceByName } = state;
 	const [text, setText] = useState(applied);
 	const [synced, setSynced] = useState(applied);
 	if (synced !== applied) {
@@ -163,7 +172,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 		};
 	}, [appliedRecent, updateRecent]);
 
-	const fields = viewFields(view);
+	const fields = viewFields(view, installation);
 	const support = tokenSupport(view, tokens);
 	const textIgnored = !searchesText(view) && applied !== "";
 	const words = text.split(" ");
@@ -420,7 +429,7 @@ export function QueryInput({ state, valueCounts, sampledKeys, onOpenChange }: Qu
 							setNow(Date.now());
 							setOpen(true);
 						}}
-						placeholder={tokens.length > 0 ? "" : placeholder(view)}
+						placeholder={tokens.length > 0 ? "" : placeholder(view, installation)}
 						aria-label="Search and filter"
 						aria-describedby={textIgnored ? "omni-text-ignored" : undefined}
 						autoComplete="off"

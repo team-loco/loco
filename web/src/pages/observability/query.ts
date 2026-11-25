@@ -41,6 +41,8 @@ export function queryLevel(value: string): Level {
 
 export type FieldKey =
 	| "resource"
+	| "component"
+	| "cluster"
 	| "level"
 	| "replica"
 	| "build"
@@ -65,18 +67,23 @@ export interface FieldDef {
 	label: string;
 	views: QueryView[];
 	negate: QueryView[];
+	/** Offered only in the workspace or the installation scope; unset means both. */
+	scope?: "workspace" | "installation";
 }
 
 const ALL_VIEWS: QueryView[] = ["logs", "metrics", "traces", "events", "audit"];
+const SYSTEM_VIEWS: QueryView[] = ["logs", "metrics", "traces"];
 const REGION_VIEWS: QueryView[] = ["logs", "metrics", "events", "audit"];
 const AUDIT: QueryView[] = ["audit"];
 const EVENT_VIEWS: QueryView[] = ["events", "audit"];
 
 export const FIELDS: FieldDef[] = [
-	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS },
+	{ key: "resource", label: "Resource", views: ALL_VIEWS, negate: ALL_VIEWS, scope: "workspace" },
+	{ key: "component", label: "Component", views: SYSTEM_VIEWS, negate: ["logs", "traces"], scope: "installation" },
+	{ key: "cluster", label: "Cluster", views: SYSTEM_VIEWS, negate: ["logs", "traces"], scope: "installation" },
 	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"] },
 	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"] },
-	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"] },
+	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"], scope: "workspace" },
 	{ key: "region", label: "Region", views: REGION_VIEWS, negate: REGION_VIEWS },
 	{ key: "method", label: "HTTP method", views: ["logs"], negate: ["logs"] },
 	{ key: "severity", label: "Severity", views: EVENT_VIEWS, negate: EVENT_VIEWS },
@@ -97,8 +104,9 @@ export function fieldDef(key: string): FieldDef | undefined {
 	return FIELDS.find((f) => f.key === key);
 }
 
-export function viewFields(view: QueryView): FieldDef[] {
-	return FIELDS.filter((f) => f.views.includes(view));
+export function viewFields(view: QueryView, installation = false): FieldDef[] {
+	const scope = installation ? "installation" : "workspace";
+	return FIELDS.filter((f) => f.views.includes(view) && (f.scope === undefined || f.scope === scope));
 }
 
 export function searchesText(view: QueryView): boolean {
@@ -219,11 +227,11 @@ export function toQuery({ q, r }: { q: Query; r: string[] }): Query {
 	return { tokens: [...named, ...q.tokens], text: q.text };
 }
 
-/** The query a view keeps from another view: its @resource and @region terms that the view can filter by. */
+const CARRIED_KEYS = new Set(["resource", "region", "component", "cluster"]);
+
+/** The query a view keeps from another view: its @resource, @region, @component and @cluster terms that the view can filter by. */
 export function carriedQuery(view: ObservabilityView, tokens: Token[]): string | null {
-	const kept = tokens.filter(
-		(t) => (t.key === "resource" || t.key === "region") && fieldDef(t.key)?.views.includes(view),
-	);
+	const kept = tokens.filter((t) => CARRIED_KEYS.has(t.key) && fieldDef(t.key)?.views.includes(view));
 	return queryStr(kept, "") || null;
 }
 

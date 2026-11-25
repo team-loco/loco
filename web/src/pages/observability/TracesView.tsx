@@ -13,9 +13,9 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { useEnvironments } from "@/hooks/useEnvironment";
 import { useGetTrace } from "@/hooks/useGetTrace";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
+import { scopeReady as canRun } from "@/hooks/observabilityScope";
 import { useTokenPage } from "@/hooks/useTokenPage";
 import { useTraceBuckets } from "@/hooks/useTraceBuckets";
 import { isUnimplemented } from "@/lib/error-handler";
@@ -82,30 +82,41 @@ function TraceSession({
 	setZoomPrev: (zoom: TimeWindow | null) => void;
 }) {
 	const timePref = useTimePreferences();
-	const { workspaceId, resources, resourcesLoading, scopedResourceIds, resourceById, range, tokens, text, setQuery } =
-		useObs();
+	const {
+		workspaceId,
+		installation,
+		environmentId,
+		environmentLoading,
+		resources,
+		resourcesLoading,
+		scopedResourceIds,
+		resourceById,
+		range,
+		tokens,
+		text,
+		setQuery,
+	} = useObs();
 	const [params, setParams] = useQueryStates(TRACES_PARAMS);
 	const resetPage = useCallback(() => {
 		void setParams({ page: null }, { history: "replace" });
 	}, [setParams]);
-	const { active, isLoading: environmentLoading } = useEnvironments();
-	const environmentId = active?.id ?? "";
 	const [frozenEnd, setFrozenEnd] = useState(Date.now);
 	const bounds = resolveWindow(range, frozenEnd);
 	const scopeReady = scopedResourceIds === null || scopedResourceIds.length > 0;
-	const scopeChosen = workspaceId !== "" && environmentId !== "";
+	const runnable = canRun({ workspaceId, environmentId, installation });
 	const orderBy = params.sort === null ? TraceOrder.START_TIME : TRACE_ORDERS[params.sort];
 	const ascending = params.dir === "asc";
 	const query = queryStr(tokens, text);
 	const filters = {
 		workspaceId,
+		installation,
 		environmentId,
 		resourceIds: scopedResourceIds ?? [],
 		start: bounds.from,
 		end: bounds.to,
 	};
 	const counted = {
-		scope: { workspaceId, environmentId, resourceIds: filters.resourceIds },
+		scope: { workspaceId, installation, environmentId, resourceIds: filters.resourceIds },
 		startTime: msToTimestamp(bounds.from),
 		endTime: msToTimestamp(bounds.to),
 		query,
@@ -114,7 +125,7 @@ function TraceSession({
 		listTraces,
 		{ ...counted, pageSize: params.size, orderBy, descending: !ascending },
 		params.page,
-		{ enabled: scopeReady && scopeChosen, staleTime: Infinity },
+		{ enabled: scopeReady && runnable, staleTime: Infinity },
 		counted,
 		resetPage,
 	);
@@ -140,6 +151,7 @@ function TraceSession({
 	const shownId = useHeldWhileClosed(openId, openId !== "");
 	const detail = useGetTrace({
 		workspaceId,
+		installation,
 		environmentId,
 		resourceIds: scopedResourceIds ?? [],
 		traceId: shownId,
@@ -173,6 +185,7 @@ function TraceSession({
 	const crossesDay = formatIsoDate(bounds.from, timePref) !== formatIsoDate(bounds.to, timePref);
 	const valueCounts = (key: FieldKey): [string, number][] => {
 		if (key === "resource") return resources.map((r) => [r.slug, 0]);
+		if (key === "component") return [...new Set(traces.map((t) => t.serviceName))].map((name) => [name, 0]);
 		if (key === "status")
 			return [
 				["error", 0],
@@ -239,7 +252,11 @@ function TraceSession({
 				<ObsHero
 					view="traces"
 					title="Traces aren't available here yet"
-					body="This installation has no trace store connected. Traces your services send over OTLP show up here once it does."
+					body={
+						installation
+							? "This installation has no trace store connected. Loco's own traces show up here once it does."
+							: "This installation has no trace store connected. Traces your services send over OTLP show up here once it does."
+					}
 				/>
 			</>
 		);
@@ -262,11 +279,15 @@ function TraceSession({
 				{header}
 				<ObsHero
 					view="traces"
-					title="Send your first trace"
-					body="Instrument your app to send traces. Loco configures the collector connection by default; you can also configure your SDK directly."
+					title={installation ? "No traces collected" : "Send your first trace"}
+					body={
+						installation
+							? "The API and the controllers send their traces here once platform telemetry is on."
+							: "Instrument your app to send traces. Loco configures the collector connection by default; you can also configure your SDK directly."
+					}
 					action={<WidenRangeButton />}
 				>
-					<TraceSetup />
+					{!installation && <TraceSetup />}
 				</ObsHero>
 			</>
 		);
@@ -324,6 +345,7 @@ function TraceSession({
 					crossesDay={crossesDay}
 					today={formatIsoDate(frozenEnd, timePref)}
 					resourceName={(t) => traceIdentity(t, resourceById.get(t.resourceId)?.slug)}
+					resourceHeader={installation ? "Component" : "Resource"}
 					onOpen={open}
 					sorting={sorting}
 					onSorting={onSorting}
@@ -379,10 +401,12 @@ function traceColumns({
 	crossesDay,
 	today,
 	resourceName,
+	resourceHeader,
 }: {
 	crossesDay: boolean;
 	today: string;
 	resourceName: (t: TraceSummary) => ReturnType<typeof traceIdentity>;
+	resourceHeader: string;
 }): DataColumn<TraceSummary>[] {
 	return [
 		{
@@ -396,7 +420,7 @@ function traceColumns({
 		{
 			id: "resource",
 			accessorFn: (t) => t.resourceId,
-			header: "Resource",
+			header: resourceHeader,
 			size: 110,
 			minSize: 100,
 			maxSize: 640,
@@ -462,6 +486,7 @@ function TraceList({
 	crossesDay,
 	today,
 	resourceName,
+	resourceHeader,
 	onOpen,
 	sorting,
 	onSorting,
@@ -475,6 +500,7 @@ function TraceList({
 	crossesDay: boolean;
 	today: string;
 	resourceName: (t: TraceSummary) => ReturnType<typeof traceIdentity>;
+	resourceHeader: string;
 	onOpen: (id: string) => void;
 	sorting: { id: string; desc: boolean }[];
 	onSorting: (next: { id: string; desc: boolean }) => void;
@@ -482,7 +508,7 @@ function TraceList({
 	onWidths: (next: ColumnWidths) => void;
 	empty: ReactNode;
 }) {
-	const columns = traceColumns({ crossesDay, today, resourceName });
+	const columns = traceColumns({ crossesDay, today, resourceName, resourceHeader });
 	const table = useDataTable("traces", {
 		columns,
 		data: traces,

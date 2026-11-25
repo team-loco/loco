@@ -26,9 +26,11 @@ import {
 	tokenSupport,
 	toQuery,
 	unquoteValue,
+	viewFields,
 	type RecentQuery,
 	type Token,
 } from "./query";
+import { columnValue } from "./columns";
 import { toRows } from "./rows";
 
 const loadQuery = createLoader(QUERY_PARSERS);
@@ -261,5 +263,28 @@ describe("carriedQuery", () => {
 	test("drops region where the view has no region filter, and returns null when nothing is left", () => {
 		expect(carriedQuery("traces", tokens)).toBe("@resource:web -@resource:api");
 		expect(carriedQuery("traces", parseQuery("@region:eu-west-1").tokens)).toBeNull();
+	});
+});
+
+describe("installation scope fields", () => {
+	test("offers components and clusters instead of resources and builds", () => {
+		const keys = (installation: boolean) => viewFields("logs", installation).map((f) => f.key);
+		expect(keys(true)).toContain("component");
+		expect(keys(true)).toContain("cluster");
+		expect(keys(true)).not.toContain("resource");
+		expect(keys(true)).not.toContain("build");
+		expect(keys(false)).toContain("resource");
+		expect(keys(false)).not.toContain("component");
+	});
+
+	test("names the component and cluster of a line", () => {
+		const entry = create(LogEntrySchema, {
+			resourceAttributes: { "service.name": "loco-api", "loco.cluster.id": "control-plane" },
+		});
+		const row = toRows([entry], new Map(), true)[0];
+		if (row === undefined) throw new Error("no row");
+		expect(row.resourceName).toBe("loco-api");
+		expect(row.workload).toBe(false);
+		expect(columnValue(row, "cluster")).toBe("control-plane");
 	});
 });

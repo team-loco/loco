@@ -14,7 +14,6 @@ import { Pager } from "@/components/design/Pager";
 import { Sheet, SheetContent, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { useEnvironments } from "@/hooks/useEnvironment";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { useHeldError } from "@/hooks/useHeldError";
@@ -29,7 +28,7 @@ import { DAY_MS, msToTimestamp } from "@/lib/time";
 import { DEFAULT_SPAN_MS, msParser, windowLabel, windowSpan } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
 
-import { columnsParser, widthsParser, type ColumnKey } from "./columns";
+import { columnsParser, SYSTEM_COLUMNS, widthsParser, type ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { fmtTs, LEVEL_LABEL } from "./format";
 import { LogDetail } from "./LogDetail";
@@ -49,7 +48,7 @@ import {
 } from "./query";
 import { QueryBar, QueryErrorLine } from "./QueryBar";
 import { logVolume } from "./log-volume";
-import { toRows, visibleLogRows, type LogRow } from "./rows";
+import { CLUSTER_ATTRIBUTE, toRows, visibleLogRows, type LogRow } from "./rows";
 import { PAGE_SIZES, VOLUME_BARS_HEIGHT, VolumeBars, type VolumeBucket } from "./shared";
 import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
@@ -73,7 +72,16 @@ const LOGS_PARAMS = {
 	at: msParser,
 	live: parseAsStringLiteral(["0"]),
 };
-const SAMPLED_KEYS: ReadonlySet<FieldKey> = new Set(["region", "replica", "build", "method", "trace"]);
+const SYSTEM_LOGS_PARAMS = { ...LOGS_PARAMS, cols: columnsParser.withDefault(SYSTEM_COLUMNS) };
+const SAMPLED_KEYS: ReadonlySet<FieldKey> = new Set([
+	"component",
+	"cluster",
+	"region",
+	"replica",
+	"build",
+	"method",
+	"trace",
+]);
 const TAIL_TICK_MS = 1000;
 const IDLE_TICK_MS = 15_000;
 const FRESH_MS = 1800;
@@ -102,6 +110,9 @@ export function LogsView() {
 	const {
 		orgId,
 		workspaceId,
+		installation,
+		environmentId,
+		environmentLoading,
 		resources,
 		scopedResourceIds,
 		resourceById,
@@ -112,10 +123,8 @@ export function LogsView() {
 		text,
 		setQuery,
 	} = useObs();
-	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
-	const { active: environment, isLoading: environmentLoading } = useEnvironments();
+	const [params, setParams] = useQueryStates(installation ? SYSTEM_LOGS_PARAMS : LOGS_PARAMS, { history: "replace" });
 	const { workspace } = useWorkspace(orgId, workspaceId);
-	const environmentId = environment?.id ?? "";
 	const { size, page, log: selectedKey, cols: columns, widths, at: anchor, live } = params;
 	const [history, setHistory] = useState(createLogHistory);
 	const [focusActive, setFocusActive] = useState(anchor !== null);
@@ -127,6 +136,7 @@ export function LogsView() {
 	const spanMs = windowSpan(range);
 	const queryKey = JSON.stringify([
 		workspaceId,
+		installation,
 		environmentId,
 		backend.query,
 		backend.resourceIds,
@@ -172,6 +182,7 @@ export function LogsView() {
 
 	const logs = useQueryLogs({
 		workspaceId,
+		installation,
 		environmentId,
 		allEnvironments: backend.allEnvironments,
 		resourceIds: backend.resourceIds,
@@ -187,6 +198,7 @@ export function LogsView() {
 	});
 	const tailState = useTailLogs({
 		workspaceId,
+		installation,
 		environmentId,
 		allEnvironments: backend.allEnvironments,
 		resourceIds: backend.resourceIds,
@@ -196,8 +208,8 @@ export function LogsView() {
 
 	const cutoffCursor = (playback.paused?.olderCursor ?? logs.olderCursor) || null;
 	const newerCursor = (playback.paused?.newerCursor ?? logs.newerCursor) || null;
-	const batchRows = toRows(logs.entries, resourceById).toSorted((a, b) => b.ts - a.ts);
-	const allTail = tail && cursor === "" ? toRows(tailState.entries, resourceById) : [];
+	const batchRows = toRows(logs.entries, resourceById, installation).toSorted((a, b) => b.ts - a.ts);
+	const allTail = tail && cursor === "" ? toRows(tailState.entries, resourceById, installation) : [];
 
 	const frozen = selectedKey !== null && freezeTs !== null;
 	const tailRows = frozen ? allTail.filter((r) => r.ts <= freezeTs) : allTail;
@@ -235,6 +247,7 @@ export function LogsView() {
 		const latest = logs.refetchLatest();
 		const latestKey = JSON.stringify([
 			workspaceId,
+			installation,
 			environmentId,
 			backend.query,
 			backend.resourceIds,
@@ -269,6 +282,7 @@ export function LogsView() {
 	const intervalSeconds = Math.max(1, Math.ceil((volumeEnd - volumeStart) / 1000 / (BUCKETS - 1)));
 	const volume = useLogBuckets({
 		workspaceId,
+		installation,
 		environmentId,
 		allEnvironments: backend.allEnvironments,
 		resourceIds: backend.resourceIds,
@@ -281,6 +295,7 @@ export function LogsView() {
 	const volumeError = useHeldError(volume.error, volume.isFetching);
 	const resourceVolume = useLogBuckets({
 		workspaceId,
+		installation,
 		environmentId,
 		allEnvironments: backend.allEnvironments,
 		resourceIds: backend.resourceIds,
@@ -289,7 +304,7 @@ export function LogsView() {
 		end: volumeEnd,
 		intervalSeconds: Math.max(1, Math.ceil((volumeEnd - volumeStart) / 1000)),
 		groupBy: LogBucketGroup.RESOURCE,
-		enabled: !backend.impossible && suggesting,
+		enabled: !backend.impossible && suggesting && !installation,
 	});
 	const bw = intervalSeconds * 1000;
 	const { points, totals } = logVolume(volume.data?.buckets ?? [], volumeStart, volumeEnd, bw);
@@ -371,6 +386,8 @@ export function LogsView() {
 		}
 		if (key === "level" || key === "resource") return [...m.entries()].toSorted((a, b) => b[1] - a[1]);
 		for (const r of rows) {
+			if (key === "component") add(r.resourceName);
+			if (key === "cluster") add(r.entry.resourceAttributes[CLUSTER_ATTRIBUTE] ?? "");
 			if (key === "region") add(r.region);
 			if (key === "replica") add(r.pod);
 			if (key === "build") add(r.build);
@@ -426,10 +443,14 @@ export function LogsView() {
 					view="logs"
 					title="Logs aren't available here yet"
 					body={
-						<>
-							This installation has no log store connected. Anything your resources print to{" "}
-							<InlineCode>stdout</InlineCode> or <InlineCode>stderr</InlineCode> shows up here once it does.
-						</>
+						installation ? (
+							"This installation has no log store connected. Loco's own logs show up here once it does."
+						) : (
+							<>
+								This installation has no log store connected. Anything your resources print to{" "}
+								<InlineCode>stdout</InlineCode> or <InlineCode>stderr</InlineCode> shows up here once it does.
+							</>
+						)
 					}
 				/>
 			</>
@@ -473,17 +494,24 @@ export function LogsView() {
 								: `No logs in the ${windowLabel(range, timePref).toLowerCase()}`
 					}
 					body={
-						<>
-							Anything{" "}
-							{workspace === undefined ? (
-								"your"
-							) : (
-								<>
-									<InlineCode>{workspace.name}</InlineCode>&apos;s
-								</>
-							)}{" "}
-							resources write to <InlineCode>stdout</InlineCode> or <InlineCode>stderr</InlineCode> lands here.
-						</>
+						installation ? (
+							<>
+								The API sends its logs here once <InlineCode>platformTelemetry</InlineCode> is on in the control plane
+								chart.
+							</>
+						) : (
+							<>
+								Anything{" "}
+								{workspace === undefined ? (
+									"your"
+								) : (
+									<>
+										<InlineCode>{workspace.name}</InlineCode>&apos;s
+									</>
+								)}{" "}
+								resources write to <InlineCode>stdout</InlineCode> or <InlineCode>stderr</InlineCode> lands here.
+							</>
+						)
 					}
 					action={<WidenRangeButton />}
 				/>

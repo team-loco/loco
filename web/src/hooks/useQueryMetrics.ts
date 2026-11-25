@@ -5,10 +5,13 @@ import { ObservabilityService } from "@gen/loco/observability/v1/observability_p
 import { stepSeconds } from "@/lib/obs-time";
 import { msToTimestamp } from "@/lib/time";
 
+import { scopeReady } from "./observabilityScope";
+
 const REFRESH_MS = 60_000;
 
 interface UseQueryMetricsOptions {
 	workspaceId: string;
+	installation?: boolean;
 	resourceIds: string[];
 	spanMs: number;
 	endMs?: number | undefined;
@@ -24,6 +27,7 @@ export function metricsQueryOptions(
 	transport: Transport,
 	{
 		workspaceId,
+		installation = false,
 		resourceIds,
 		spanMs,
 		endMs,
@@ -38,6 +42,7 @@ export function metricsQueryOptions(
 ) {
 	const input = {
 		workspaceId,
+		installation,
 		resourceIds,
 		metricName,
 		environmentId,
@@ -70,7 +75,7 @@ export function metricsQueryOptions(
 			);
 			return response.series;
 		},
-		enabled: enabled && workspaceId !== "" && environmentId !== "",
+		enabled: enabled && scopeReady({ workspaceId, environmentId, installation }),
 		staleTime: REFRESH_MS,
 		placeholderData: keepPreviousData,
 		refetchInterval: endMs === undefined ? REFRESH_MS : (false as const),

@@ -9,11 +9,12 @@ import { ObsProvider, useObs } from "./observability/context";
 import { EventsView } from "./observability/EventsView";
 import { LogsView } from "./observability/LogsView";
 import { MetricsView } from "./observability/MetricsView";
+import { SystemMetricsView } from "./observability/SystemMetricsView";
 import { TracesView } from "./observability/TracesView";
 import { ViewHeader } from "./observability/ViewHeader";
 
-function ViewBody({ view }: { view: ObservabilityView }) {
-	const { noResources } = useObs();
+export function ViewBody({ view }: { view: ObservabilityView }) {
+	const { noResources, installation } = useObs();
 	// Events also record what happens before the first deploy; every other view reads from a deployed resource.
 	if (view !== "events" && noResources) {
 		return (
@@ -27,7 +28,7 @@ function ViewBody({ view }: { view: ObservabilityView }) {
 		case "logs":
 			return <LogsView />;
 		case "metrics":
-			return <MetricsView />;
+			return installation ? <SystemMetricsView /> : <MetricsView />;
 		case "traces":
 			return <TracesView />;
 		case "events":

@@ -17,6 +17,8 @@ export function orgPath(orgId: string): string {
 export const OPERATORS_PATH = "/system/operators";
 export const USERS_PATH = "/system/users";
 
+export const SYSTEM_VIEW_TITLE = { logs: "Logs", metrics: "Metrics", traces: "Traces" } as const;
+
 export function clusterPath(clusterId: string): string {
 	return `${CLUSTERS_PATH}/${clusterId}`;
 }

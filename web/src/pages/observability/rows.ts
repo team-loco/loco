@@ -12,8 +12,10 @@ export interface LogRow {
 	ts: number;
 	level: Level;
 	resourceId: string;
-	/** The Loco resource's name or, for a workload Loco did not create, its Kubernetes workload name. */
+	/** The Loco resource's name or, for a workload Loco did not create, its Kubernetes workload name; in the installation scope, the component. */
 	resourceName: string;
+	/** Whether the line is Loco's own telemetry, which has components and clusters instead of resources. */
+	installation: boolean;
 	/** Whether the line comes from a Kubernetes workload that is not a Loco resource. */
 	workload: boolean;
 	color: string;
@@ -36,6 +38,10 @@ function hashString(s: string): string {
 function podName(entry: LogEntry): string {
 	return entry.resourceAttributes["k8s.pod.name"] ?? "";
 }
+
+/** The resource attributes Loco's own telemetry names its component and cluster by. */
+export const COMPONENT_ATTRIBUTE = "service.name";
+export const CLUSTER_ATTRIBUTE = "loco.cluster.id";
 
 export const WORKLOAD_TITLE = "Kubernetes workload, not a Loco resource";
 
@@ -61,7 +67,7 @@ export function replicaOf(pod: string): string {
 	return parts.length > 1 ? (parts.at(-1) ?? pod) : pod;
 }
 
-export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResource>): LogRow[] {
+export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResource>, installation = false): LogRow[] {
 	const seen = new Map<string, number>();
 	const rows: LogRow[] = [];
 	for (const entry of entries) {
@@ -71,13 +77,18 @@ export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResourc
 		const n = seen.get(base) ?? 0;
 		seen.set(base, n + 1);
 		const res = resourceById.get(entry.resourceId);
-		const workload = entry.resourceId === "";
+		const workload = !installation && entry.resourceId === "";
 		rows.push({
 			key: `${base}#${String(n)}`,
 			ts,
 			level: logLevel(entry.level),
 			resourceId: entry.resourceId,
-			resourceName: workload ? workloadName(entry) : (res?.slug ?? entry.resourceId.slice(0, 8)),
+			resourceName: installation
+				? (entry.resourceAttributes[COMPONENT_ATTRIBUTE] ?? "")
+				: workload
+					? workloadName(entry)
+					: (res?.slug ?? entry.resourceId.slice(0, 8)),
+			installation,
 			workload,
 			color: res?.color ?? "var(--fg4)",
 			pod,
@@ -106,7 +117,7 @@ export function logJson(row: LogRow, pref: TimePreferences): string {
 			timestamp: formatIsoTimestamp(row.ts, pref),
 			level: row.level,
 			message: row.json ?? row.message,
-			[row.workload ? "workload" : "resource"]: row.resourceName,
+			[row.installation ? "component" : row.workload ? "workload" : "resource"]: row.resourceName,
 			replica: row.pod,
 			region: row.region,
 			...(e.traceId === "" ? {} : { trace_id: e.traceId }),

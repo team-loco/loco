@@ -1,6 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { queryTraceBuckets } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { msToTimestamp } from "@/lib/time";
+import { scopeReady } from "./observabilityScope";
 import type { TraceScopeOptions } from "./useGetTrace";
 
 interface TraceBucketsOptions extends TraceScopeOptions {
@@ -11,15 +12,24 @@ interface TraceBucketsOptions extends TraceScopeOptions {
 }
 
 export function useTraceBuckets(options: TraceBucketsOptions) {
-	const { enabled = true, start, end, workspaceId, environmentId, resourceIds, ...filters } = options;
+	const {
+		enabled = true,
+		start,
+		end,
+		workspaceId,
+		installation = false,
+		environmentId,
+		resourceIds,
+		...filters
+	} = options;
 	return useQuery(
 		queryTraceBuckets,
 		{
 			...filters,
-			scope: { workspaceId, environmentId, resourceIds },
+			scope: { workspaceId, installation, environmentId, resourceIds },
 			startTime: msToTimestamp(start),
 			endTime: msToTimestamp(end),
 		},
-		{ enabled: enabled && workspaceId !== "" && environmentId !== "", staleTime: Infinity },
+		{ enabled: enabled && scopeReady({ workspaceId, environmentId, installation }), staleTime: Infinity },
 	);
 }
