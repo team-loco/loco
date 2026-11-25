@@ -390,6 +390,12 @@ describe("addedProblems", () => {
 			]),
 		);
 	});
+
+	test("accepts a variable that already runs with the same value, as after a partly saved retry", () => {
+		expect(addedProblems({ added: [{ id: "a", key: "LOG_LEVEL", value: "info" }] }, { LOG_LEVEL: "info" }).size).toBe(
+			0,
+		);
+	});
 });
 
 describe("validateDraft", () => {

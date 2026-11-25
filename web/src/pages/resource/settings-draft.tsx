@@ -507,13 +507,15 @@ export function addedProblems(draft: SettingsDraft, current: Record<string, stri
 	const counts = new Map<string, number>();
 	for (const row of added) counts.set(row.key.trim(), (counts.get(row.key.trim()) ?? 0) + 1);
 	const removed = new Set(draft.removedEnv ?? []);
+	// A variable already set to the same value, as after a partly saved retry, is no clash.
+	const clashes = (key: string, value: string) => Object.hasOwn(current, key) && current[key] !== value;
 	for (const row of added) {
 		const key = row.key.trim();
+		const taken = clashes(key, row.value) && !removed.has(key);
 		if (key === "") {
 			if (row.value !== "") problems.set(row.id, "Enter a name for this value.");
 		} else if (!isEnvKey(key)) problems.set(row.id, "Use letters, digits and underscores, not starting with a digit.");
-		else if ((Object.hasOwn(current, key) && !removed.has(key)) || (counts.get(key) ?? 0) > 1)
-			problems.set(row.id, withCode`${key} is already a variable.`);
+		else if (taken || (counts.get(key) ?? 0) > 1) problems.set(row.id, withCode`${key} is already a variable.`);
 	}
 	return problems;
 }
