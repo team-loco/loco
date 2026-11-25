@@ -3,7 +3,16 @@ import re
 from pathlib import Path
 
 import evidence
-from harness import call, expect_rpc, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    copied_text,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(description="Check the new token drawer")
@@ -92,6 +101,25 @@ with session(repo / "tests/ui/out/tokens") as browser:
     drawer.get_by_role("button", name="Create token", exact=True).click()
     created = page.get_by_role("dialog", name="Token created")
     expect(created.get_by_text("qa-token--script-", exact=True)).to_be_visible()
+    value = created.locator("[data-token-value]")
+    blocks = created.locator('[data-slot="code-block"]')
+    expect(created.get_by_text("Copy it now.", exact=False)).to_be_visible()
+    assert re.fullmatch(r"•+", value.inner_text()), "the token starts masked"
+    assert "•" in blocks.first.inner_text() and "loco_" not in blocks.first.inner_text()
+    created.get_by_role("button", name="Show token").click()
+    token = value.inner_text()
+    assert token.startswith("loco_") and "…" not in token, token
+    assert token in blocks.first.inner_text()
+    created.get_by_role("button", name="Hide token").click()
+    assert re.fullmatch(r"•+", value.inner_text())
+    created.get_by_role("button", name="Copy token").click()
+    assert copied_text(page) == token
+    blocks.first.hover()
+    blocks.first.get_by_role("button", name="Copy code").click()
+    assert copied_text(page) == f"export LOCO_TOKEN={token}\nloco deploy"
+    for block in blocks.all():
+        assert "…" not in block.inner_text()
+    created.get_by_role("button", name="Show token").click()
     for block in created.locator('[data-slot="code-block"] pre').all():
         assert block.evaluate("node => node.scrollWidth <= node.clientWidth")
     page.keyboard.press("Escape")

@@ -27,12 +27,15 @@ interface CodeBlockProps {
 	wrap?: boolean;
 	onWrap?: (wrap: boolean) => void;
 	children: string;
+	/** Text the copy button writes when it differs from what the block shows. */
+	copyText?: string | undefined;
 	language?: LanguageName | undefined;
 	className?: string | undefined;
 }
 
 function CodeBlock({
 	children,
+	copyText,
 	language = "plaintext",
 	className,
 	copyLabel = "Copy code",
@@ -59,7 +62,7 @@ function CodeBlock({
 				copied ? "text-ok-fg opacity-100" : "text-fg3 hover:text-foreground",
 			)}
 			onClick={() => {
-				copy("code", children);
+				copy("code", copyText ?? children);
 			}}
 		>
 			{copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
