@@ -432,6 +432,7 @@ with session(out) as browser:
             page.get_by_role(
                 "menuitemradio", name=re.compile(deployment_id[-8:])
             ).click()
+            page.keyboard.press("Escape")
         expect(picker).to_contain_text(deployment_id[-8:])
         with page.expect_download() as download:
             spec_dialog.get_by_role("button", name="Download spec", exact=True).click()
