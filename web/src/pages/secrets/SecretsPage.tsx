@@ -138,8 +138,8 @@ export function SecretsPage({
 				<Section
 					filters={
 						<span className="min-w-0 flex-[1_1_320px] text-[12.5px] leading-[22px] text-fg3">
-							Scoped to <InlineCode className="text-[12px] leading-[18px]">{environmentName}</InlineCode>. Reference one
-							with <InlineCode className="text-[12px] leading-[18px]">{referenceOf("secrets", "NAME")}</InlineCode>.
+							Sealed when you save, and never shown again. Reference one with{" "}
+							<InlineCode className="text-[12px] leading-[18px]">{referenceOf("secrets", "NAME")}</InlineCode>.
 						</span>
 					}
 					search={
