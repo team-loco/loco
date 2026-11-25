@@ -197,7 +197,7 @@ type Querier interface {
 	IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error)
 	ListAPITokenNames(ctx context.Context, ids []uuid.UUID) ([]ListAPITokenNamesRow, error)
 	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
-	// Keep the active-successor predicate aligned with OrgAdminHasNoActiveSuccessor.
+	// Keep these predicates aligned with OrgAdminHasNoActiveSuccessor, which DeleteUser checks.
 	ListAccountDeletionBlockingOrganizations(ctx context.Context, arg ListAccountDeletionBlockingOrganizationsParams) ([]ListAccountDeletionBlockingOrganizationsRow, error)
 	ListAccountDeletionTokens(ctx context.Context, arg ListAccountDeletionTokensParams) ([]ListAccountDeletionTokensRow, error)
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)

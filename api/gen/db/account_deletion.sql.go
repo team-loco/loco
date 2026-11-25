@@ -53,8 +53,7 @@ const listAccountDeletionBlockingOrganizations = `-- name: ListAccountDeletionBl
 SELECT o.id, o.name
 FROM organizations o
 JOIN user_scopes s ON s.entity_type = 'organization' AND s.entity_id = o.id
-JOIN users u ON u.id = s.user_id
-WHERE s.user_id = $1 AND s.scope = 'admin' AND u.status = 'active'
+WHERE s.user_id = $1 AND s.scope = 'admin'
   AND NOT EXISTS (
     SELECT 1 FROM user_scopes other JOIN users other_user ON other_user.id = other.user_id
     WHERE other.entity_type = 'organization' AND other.entity_id = o.id
@@ -74,7 +73,7 @@ type ListAccountDeletionBlockingOrganizationsRow struct {
 	Name string    `json:"name"`
 }
 
-// Keep the active-successor predicate aligned with OrgAdminHasNoActiveSuccessor.
+// Keep these predicates aligned with OrgAdminHasNoActiveSuccessor, which DeleteUser checks.
 func (q *Queries) ListAccountDeletionBlockingOrganizations(ctx context.Context, arg ListAccountDeletionBlockingOrganizationsParams) ([]ListAccountDeletionBlockingOrganizationsRow, error) {
 	rows, err := q.db.Query(ctx, listAccountDeletionBlockingOrganizations, arg.UserID, arg.PageSize)
 	if err != nil {

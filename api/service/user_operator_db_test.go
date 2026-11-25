@@ -211,3 +211,28 @@ func TestListUserOrgsShowsAnotherUsersScopesToSystemReaders(t *testing.T) {
 	_, err = f.ordinary.clients.Org.ListUserOrgs(ctx, request)
 	wantOperatorCode(t, "ordinary list of another user's organizations", err, connect.CodePermissionDenied)
 }
+
+func TestDeletionPreviewListsTheOrganizationOfASuspendedOnlyAdmin(t *testing.T) {
+	t.Parallel()
+	f := newOperatorFixture(t)
+	ctx := t.Context()
+	org, err := f.target.clients.Org.CreateOrg(ctx, &orgv1.CreateOrgRequest{Name: new("suspended-admin-org")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = setStatus(t, f.admin, f.target, userv1.UserStatus_USER_STATUS_SUSPENDED); err != nil {
+		t.Fatalf("suspend: %v", err)
+	}
+	userID := f.target.id.String()
+	impact, err := f.admin.clients.User.GetAccountDeletionImpact(ctx,
+		&userv1.GetAccountDeletionImpactRequest{UserId: userID})
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	blocking := impact.GetLastActiveAdminOrganizations()
+	if len(blocking) != 1 || blocking[0].GetOrgId() != org.GetOrgId() {
+		t.Errorf("blocking organizations = %v, want %s", blocking, org.GetOrgId())
+	}
+	_, err = f.admin.clients.User.DeleteUser(ctx, &userv1.DeleteUserRequest{UserId: userID})
+	wantOperatorCode(t, "delete of the suspended only administrator", err, connect.CodeFailedPrecondition)
+}
