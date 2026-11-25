@@ -67,7 +67,8 @@ global:
   # these settings apply to the node DaemonSet and the single cluster collector.
   # @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {installation: {minLength: 1}}}}, {if: {properties: {enabled: {const: true}}}, then: {properties: {cluster: {minLength: 1}}}}, {if: {properties: {enabled: {const: true}}}, then: {properties: {environment: {minLength: 1}}}}]
   platformTelemetry:
-    # opt in; adds platform pipelines next to the application telemetry pipelines.
+    # opt in; adds platform pipelines next to the application telemetry pipelines, and the
+    # controllers export their traces and metrics to the cluster collector's platform pipelines.
     enabled: false
     # keep only platform pipelines in the node and cluster collectors.
     # requires enabled: true and otel-col-deploy.enabled: false.
@@ -94,6 +95,13 @@ global:
     # and events, next to the release and collector namespaces. node and cluster metrics without
     # a namespace are always included.
     namespaces: [kube-system, cert-manager]
+    # without an endpoint, platform pipelines use global.exporter, and the observability proxy
+    # stores them under the system tenant. with one, they go only to that OTLP/HTTP endpoint.
+    # @schema additionalProperties: false
+    exporter:
+      endpoint: ""
+      # @schema additionalProperties: {type: string}
+      headers: {}
 
 # Cert-manager configuration
 # @schema additionalProperties: false; allOf: [{if: {properties: {existingTLSSecret: {const: ''}, issuer: {properties: {create: {const: true}, type: {const: acme}}}}}, then: {properties: {issuer: {properties: {email: {minLength: 1}}}}}}]

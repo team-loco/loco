@@ -41,7 +41,7 @@ spec:
               drop:
                 - ALL
           env:
-            {{- range $name, $value := omit .Values.obsProxy.ingest.env "PORT" "CONTROL_PLANE_URL" "OTLP_GRPC_PORT" "OTLP_HTTP_PORT" "CLICKHOUSE_DB" "CLICKHOUSE_INGEST_URL" "CLICKHOUSE_MIGRATOR_URL" }}
+            {{- range $name, $value := omit .Values.obsProxy.ingest.env "PORT" "CONTROL_PLANE_URL" "OTLP_GRPC_PORT" "OTLP_HTTP_PORT" "CLICKHOUSE_DB" "CLICKHOUSE_INGEST_URL" "CLICKHOUSE_MIGRATOR_URL" "SYSTEM_INGEST_TOKEN" }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
@@ -63,6 +63,13 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- include "loco-control-plane.clickhouseURL" (dict "root" . "grant" "GRANT ALL" "path" "obsProxy.ingest.clickhouse.migratorExistingSecret" "secret" .Values.obsProxy.ingest.clickhouse.migratorExistingSecret) | nindent 18 }}
+            {{- if include "loco-control-plane.systemIngest" . }}
+            - name: SYSTEM_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "loco-control-plane.systemIngestSecret" . }}
+                  key: token
+            {{- end }}
           ports:
             - name: health
               containerPort: {{ .Values.obsProxy.ingest.port }}

@@ -5,6 +5,7 @@
     "variables",
     "access",
     "self-hosting",
+    "platform-telemetry",
     "webhooks",
     "ntfy",
     "secrets-key-provider"

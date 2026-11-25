@@ -154,7 +154,7 @@ API routes retry once when a connection fails before the upstream handles the re
 
 The dashboard and the API run `ui.replicaCount` and `api.replicaCount` replicas, 2 by default. The ingest proxy and the Gateway's Envoy proxies each scale on CPU between `minReplicas` and `maxReplicas` of `obsProxy.ingest.autoscaling` and `gateway.autoscaling`, 2 to 6 by default. The autoscalers read CPU use from the `metrics.k8s.io` API, which the loco-worker chart's metrics server provides; on a cluster without it they hold `minReplicas` and report `FailedGetResourceMetric` until set to `enabled: false`. With `enabled: false` they run `obsProxy.ingest.replicaCount` and `gateway.replicaCount`, 2 by default. The API, the dashboard, the ingest proxy, OpenBao and the Gateway's Envoy proxies each have a PodDisruptionBudget that lets one pod go at a time, whatever their replica count, and spread their pods across nodes by hostname with `whenUnsatisfiable: ScheduleAnyway`, so a one-node cluster still schedules them. ClickHouse has neither.
 
-The observability proxy runs as the Deployment `<release>-obs-proxy-ingest`, using `obsProxy.image` and `obsProxy.imagePullPolicy` and configured under `obsProxy.ingest`, with an OTLP Service reachable from pods in the release namespace. Before it ingests, it runs the ClickHouse schema migrations as the migrator user, and it checks ingest tokens through the chart's private API Service. Setting `obsProxy.ingest.hostname` publishes `/v1/` on that hostname through the Gateway. The hostname has no default. `obsProxy.ingest.env` sets the proxy's optional settings, each described with its default in [the architecture reference](../../docs/content/reference/architecture.md): `MIGRATION_RETRY_BUDGET`, `MIGRATION_LOCK_TTL`, `MIGRATION_LOCK_RETRY_PERIOD`, `OTLP_MAX_REQUEST_BYTES`, `INGEST_JWKS_REFRESH_INTERVAL`, `INGEST_RETRY_AFTER`, `INGEST_PLACEMENT_CACHE_TTL`, `INGEST_RETENTION_CACHE_TTL`, `INGEST_PLACEMENT_REFETCH_INTERVAL`, `INGEST_CLOCK_SKEW` and `INGEST_MAX_RECORD_LATENESS`. The chart supplies `PORT`, `CONTROL_PLANE_URL`, `OTLP_GRPC_PORT`, `OTLP_HTTP_PORT`, `CLICKHOUSE_DB`, `CLICKHOUSE_INGEST_URL` and `CLICKHOUSE_MIGRATOR_URL`; `obsProxy.ingest.env` cannot override them. `obsProxy.enabled: false` renders no proxy and leaves the API's `CLICKHOUSE_URL` unset, so the API answers observability requests with `Unavailable`. ClickHouse's network policy admits the proxy and the API pods on port 9000.
+The observability proxy runs as the Deployment `<release>-obs-proxy-ingest`, using `obsProxy.image` and `obsProxy.imagePullPolicy` and configured under `obsProxy.ingest`, with an OTLP Service reachable from pods in the release namespace. Before it ingests, it runs the ClickHouse schema migrations as the migrator user, and it checks ingest tokens through the chart's private API Service. Setting `obsProxy.ingest.hostname` publishes `/v1/` on that hostname through the Gateway. The hostname has no default. `obsProxy.ingest.env` sets the proxy's optional settings, each described with its default in [the architecture reference](../../docs/content/reference/architecture.md): `MIGRATION_RETRY_BUDGET`, `MIGRATION_LOCK_TTL`, `MIGRATION_LOCK_RETRY_PERIOD`, `OTLP_MAX_REQUEST_BYTES`, `INGEST_JWKS_REFRESH_INTERVAL`, `INGEST_RETRY_AFTER`, `INGEST_PLACEMENT_CACHE_TTL`, `INGEST_RETENTION_CACHE_TTL`, `INGEST_PLACEMENT_REFETCH_INTERVAL`, `INGEST_CLOCK_SKEW`, `INGEST_MAX_RECORD_LATENESS` and `SYSTEM_RETENTION_DAYS`. The chart supplies `PORT`, `CONTROL_PLANE_URL`, `OTLP_GRPC_PORT`, `OTLP_HTTP_PORT`, `CLICKHOUSE_DB`, `CLICKHOUSE_INGEST_URL`, `CLICKHOUSE_MIGRATOR_URL` and `SYSTEM_INGEST_TOKEN`; `obsProxy.ingest.env` cannot override them. `obsProxy.enabled: false` renders no proxy and leaves the API's `CLICKHOUSE_URL` unset, so the API answers observability requests with `Unavailable`. ClickHouse's network policy admits the proxy and the API pods on port 9000.
 
 Validate rendering and a Kubernetes installation with:
 
@@ -165,6 +165,30 @@ mise run e2e controlplane TestControlPlane
 ```
 
 The E2E suite builds the dashboard, API and proxy images, installs the CloudNativePG operator and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, a one-instance bundled PostgreSQL, the bundled registry in token mode, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks that an API pod that restarted before the setup Job created the Transit keys logged why, the Gateway's listeners, the registry's Bearer challenge naming the API's token endpoint, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request the API refuses for an invalid token, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, an ingest token the API signs with the chart OpenBao's Transit key, secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job, and a raft snapshot from the snapshot CronJob restored into a reinstalled OpenBao. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--keep` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+
+## Platform telemetry
+
+`platformTelemetry.enabled: true` makes the API export its own traces, Go runtime metrics and logs over OTLP/HTTP. It keeps writing its logs to standard output.
+
+```yaml
+platformTelemetry:
+  enabled: true
+```
+
+Without `platformTelemetry.exporter.endpoint`, the API sends to `<release>-obs-proxy-ingest` on `obsProxy.ingest.httpPort`, which needs `obsProxy.enabled`. The chart generates a token in the Secret `<release>-system-ingest-token`, keeps it across upgrades, and gives it to the proxy as `SYSTEM_INGEST_TOKEN` and to the API as its bearer token. The proxy stores everything that token sends under the system tenant; see [platform telemetry](../../docs/content/operations/platform-telemetry.md).
+
+With an endpoint, the API sends only there, with `platformTelemetry.exporter.headers` on every request, and the chart creates no token:
+
+```yaml
+platformTelemetry:
+  enabled: true
+  exporter:
+    endpoint: https://otel.example.com
+    headers:
+      Authorization: Bearer EXAMPLE_TOKEN
+```
+
+The chart sets `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` for the API; `api.env` cannot set them as well.
 
 ## Bundled PostgreSQL
 

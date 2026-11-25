@@ -1,0 +1,93 @@
+---
+title: "Platform telemetry"
+---
+
+Platform telemetry is the logs, metrics and traces Loco's own components produce: the API, the controllers and the Kubernetes clusters they run on. It is off by default. Operators turn it on to watch the installation itself, across the control plane and every worker cluster.
+
+## What is collected
+
+| Source | Signals | Turned on by |
+| --- | --- | --- |
+| API | Traces of requests and RPCs, Go runtime metrics, every log record at `LOG_LEVEL` or above | `loco-control-plane` value `platformTelemetry.enabled` |
+| Application and build controllers | Traces of reconciles and Kubernetes API calls, controller-runtime metrics (reconciles, work queues, client requests), Go runtime metrics | `loco-worker` value `global.platformTelemetry.enabled` |
+| Worker cluster | Node metrics, cluster state and Kubernetes events from the Loco, collector and `global.platformTelemetry.namespaces` namespaces | `loco-worker` value `global.platformTelemetry.enabled` |
+
+The API keeps writing its logs to standard output either way. Customer workloads' telemetry is never part of it.
+
+## Where it goes
+
+By default, everything goes to the control plane's observability proxy, which stores it in ClickHouse under the **system tenant**: rows whose `WorkspaceId` is `00000000-0000-0000-0000-000000000001`. No workspace has that ID, so no customer query returns these rows. Each row names its sender in `ResourceAttributes['loco.cluster.id']`: the worker cluster's ID, or `control-plane` for the API. `ServiceName` names the component, such as `loco-api`.
+
+The proxy accepts system telemetry only from Loco's own senders:
+
+- The API presents a token the `loco-control-plane` chart generates and keeps in the Secret `<release>-system-ingest-token`.
+- A worker's collectors present the cluster's ingest token, as they do for application telemetry, and mark platform records with `loco.telemetry.scope=platform`. The collectors delete that marker from anything workloads send, and the proxy rejects a platform record that names a workspace.
+
+System rows keep 30 days of every signal. Set `SYSTEM_RETENTION_DAYS` through `obsProxy.ingest.env` to change it:
+
+```yaml
+obsProxy:
+  ingest:
+    env:
+      SYSTEM_RETENTION_DAYS: "14"
+```
+
+To read the rows, query ClickHouse as an admin:
+
+```sql
+SELECT Timestamp, ServiceName, SeverityText, Body
+FROM loco_obs.otel_logs
+WHERE WorkspaceId = '00000000-0000-0000-0000-000000000001'
+ORDER BY Timestamp DESC
+LIMIT 100
+```
+
+## Turn it on
+
+On the control plane:
+
+```yaml
+platformTelemetry:
+  enabled: true
+```
+
+On each worker, with the identity every platform record carries:
+
+```yaml
+global:
+  platformTelemetry:
+    enabled: true
+    installation: production
+    cluster: us-ca-1-a
+    environment: production
+```
+
+## Send it somewhere else
+
+Each chart takes an OTLP/HTTP endpoint and headers for an operator's own collector or backend. With an endpoint set, that chart's platform telemetry goes only there and nothing of it reaches the observability proxy; customer telemetry still does.
+
+```yaml
+# loco-control-plane
+platformTelemetry:
+  enabled: true
+  exporter:
+    endpoint: https://otel.example.com
+    headers:
+      Authorization: Bearer EXAMPLE_TOKEN
+```
+
+```yaml
+# loco-worker
+global:
+  platformTelemetry:
+    enabled: true
+    installation: production
+    cluster: us-ca-1-a
+    environment: production
+    exporter:
+      endpoint: https://otel.example.com
+      headers:
+        Authorization: Bearer EXAMPLE_TOKEN
+```
+
+The API exports to `<endpoint>/v1/traces`, `/v1/metrics` and `/v1/logs`. On a worker, the controllers send to the cluster collector, which forwards platform records to the endpoint with its persistent queue and retries. See the [`loco-control-plane`](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md#platform-telemetry) and [`loco-worker`](https://github.com/team-loco/loco/blob/main/charts/loco-worker/README.md#kubernetes-platform-telemetry) chart READMEs for the details.

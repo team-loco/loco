@@ -159,7 +159,13 @@ func main() {
 func run() error {
 	ac := newAPIConfig()
 
-	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
+	loggerProvider, err := startLogs(context.Background(), ac.LogsEnabled, ac.Version)
+	if err != nil {
+		return err
+	}
+	defer stopLogs(loggerProvider)
+	handler := withOTLPLogs(getLoggerHandler(ac), loggerProvider, ac.LogLevel)
+	logger := slog.New(CustomHandler{Handler: handler})
 	slog.SetDefault(logger)
 	slog.Info("starting loco api", "version", ac.Version)
 

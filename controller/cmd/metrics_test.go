@@ -10,11 +10,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	corev1 "k8s.io/api/core/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -106,4 +110,27 @@ func containsAll(body string, names []string) bool {
 		}
 	}
 	return true
+}
+
+func TestOTLPMetricsCarryTheControllerRuntimeRegistry(t *testing.T) {
+	const name = "loco_test_registry_metric_total"
+	counter := prometheus.NewCounter(prometheus.CounterOpts{Name: name, Help: "test"})
+	metrics.Registry.MustRegister(counter)
+	t.Cleanup(func() { metrics.Registry.Unregister(counter) })
+	counter.Inc()
+
+	reader := sdkmetric.NewManualReader(sdkmetric.WithProducer(registryMetrics()))
+	sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	var collected metricdata.ResourceMetrics
+	if err := reader.Collect(t.Context(), &collected); err != nil {
+		t.Fatal(err)
+	}
+	for _, scope := range collected.ScopeMetrics {
+		for _, metric := range scope.Metrics {
+			if metric.Name == name {
+				return
+			}
+		}
+	}
+	t.Fatalf("collected %v, want %s from the controller-runtime registry", collected.ScopeMetrics, name)
 }

@@ -9,13 +9,20 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
-// StartMetrics starts a meter provider exporting Go runtime metrics over OTLP/HTTP, like Start.
-func StartMetrics(ctx context.Context, serviceName, version string) (*sdkmetric.MeterProvider, error) {
+// StartMetrics starts a meter provider exporting Go runtime metrics and those of producers over
+// OTLP/HTTP, like Start.
+func StartMetrics(
+	ctx context.Context, serviceName, version string, producers ...sdkmetric.Producer,
+) (*sdkmetric.MeterProvider, error) {
 	exporter, err := otlpmetrichttp.New(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("otlp metric exporter: %w", err)
 	}
-	reader := sdkmetric.NewPeriodicReader(exporter, runtimeProducer())
+	options := []sdkmetric.PeriodicReaderOption{runtimeProducer()}
+	for _, producer := range producers {
+		options = append(options, sdkmetric.WithProducer(producer))
+	}
+	reader := sdkmetric.NewPeriodicReader(exporter, options...)
 	return newMeterProvider(ctx, reader, serviceName, version)
 }
 

@@ -53,6 +53,9 @@ func (p *Platform) StopAPIReplica() {
 	p.stopProcess(replicaProcess)
 }
 
+// systemIngestToken authenticates the API's own telemetry to the observability proxy.
+const systemIngestToken = "e2e-system-ingest-token" //nolint:gosec // a fixed test credential
+
 func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 	dev, err := readEnvFile(filepath.Join(p.root, "dev", "api.env"))
 	if err != nil {
@@ -116,6 +119,11 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 			"LOCO_REGISTRY_USERNAME="+RegistryAPIUser.Name,
 			"LOCO_REGISTRY_PASSWORD="+RegistryAPIUser.Password,
 		)
+	}
+	if p.Observability {
+		env = append(env,
+			"OTEL_EXPORTER_OTLP_ENDPOINT="+p.OTLPURL,
+			"OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer%20"+systemIngestToken)
 	}
 	if err := p.startProcess(name, env, filepath.Join(p.binDir, "loco-api")); err != nil {
 		return err
@@ -235,6 +243,7 @@ func (p *Platform) startObsProxy(ctx context.Context) error {
 		"CLICKHOUSE_INGEST_URL=" + dsn,
 		"OTLP_GRPC_PORT=" + strconv.Itoa(p.ports.otlpGRPC),
 		"OTLP_HTTP_PORT=" + strconv.Itoa(p.ports.otlpHTTP),
+		"SYSTEM_INGEST_TOKEN=" + systemIngestToken,
 	}, filepath.Join(p.binDir, "loco-obs-proxy")); err != nil {
 		return err
 	}

@@ -30,6 +30,14 @@
 {{- $_ := set $config.service "extensions" (concat (default list $config.service.extensions) (keys $extensions | sortAlpha) | uniq) -}}
 {{- $exporterName := "otlp_http" -}}
 {{- $_ := set $config "exporters" (dict $exporterName $exporter) -}}
+{{- $platformExporter := $exporterName -}}
+{{- if $settings.exporter.endpoint -}}
+{{- $platformExporter = "otlp_http/platform" -}}
+{{- $own := omit (deepCopy $exporter) "auth" -}}
+{{- $_ := set $own "endpoint" $settings.exporter.endpoint -}}
+{{- $_ := set $own "headers" $settings.exporter.headers -}}
+{{- $_ := set $config.exporters $platformExporter $own -}}
+{{- end -}}
 {{- if $settings.enabled -}}
 {{- if and $settings.platformOnly (index .root.Values "otel-col-deploy" "enabled") -}}
 {{- fail "platformOnly requires otel-col-deploy.enabled=false" -}}
@@ -58,6 +66,9 @@
 {{- $_ := set $kubelet "collection_interval" $settings.collectionInterval -}}
 {{- $_ := set $config.receivers "kubeletstats/platform" $kubelet -}}
 {{- else -}}
+{{- $receivers = list "k8s_cluster" "otlp/platform" -}}
+{{- $_ := set $config.receivers "otlp/platform" (dict "protocols" (dict "http" (dict "endpoint" (printf "${env:MY_POD_IP}:%v" (include "loco-worker.platformOTLPPort" .root))))) -}}
+{{- $_ := set $config.service.pipelines "traces/platform" (dict "receivers" (list "otlp/platform") "processors" (list "memory_limiter" "resource/platform")) -}}
 {{- $_ := set $config.receivers.k8s_cluster "collection_interval" $settings.collectionInterval -}}
 {{- $_ := set $config.receivers.k8s_cluster "node_conditions_to_report" $settings.nodeConditions -}}
 {{- $_ := set $config.receivers.k8s_cluster "allocatable_types_to_report" $settings.allocatableTypes -}}
@@ -66,13 +77,13 @@
 {{- end -}}
 {{- $_ := set $config.service.pipelines "metrics/platform" (dict "receivers" $receivers "processors" (list "memory_limiter" "filter/platform" "resource/platform")) -}}
 {{- if $settings.platformOnly -}}
-{{- $pipelines := pick $config.service.pipelines "metrics/platform" "logs/platform" -}}
+{{- $pipelines := pick $config.service.pipelines "metrics/platform" "logs/platform" "traces/platform" -}}
 {{- $_ := set $config.service "pipelines" $pipelines -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
-{{- range $pipeline := $config.service.pipelines -}}
-{{- $_ := set $pipeline "exporters" (list $exporterName) -}}
+{{- range $name, $pipeline := $config.service.pipelines -}}
+{{- $_ := set $pipeline "exporters" (list (ternary $platformExporter $exporterName (hasSuffix "/platform" $name))) -}}
 {{- end -}}
 {{- toYaml $config -}}
 {{- end -}}

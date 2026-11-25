@@ -1,0 +1,14 @@
+{{- if include "loco-control-plane.systemIngest" . }}
+{{- $name := include "loco-control-plane.systemIngestSecret" . }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $name }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+type: Opaque
+data:
+  token: {{ if $existing }}{{ index $existing.data "token" }}{{ else }}{{ randBytes 32 | sha256sum | b64enc }}{{ end }}
+{{- end }}
