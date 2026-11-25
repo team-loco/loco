@@ -62,7 +62,7 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		return err
 	}
 	bind := "127.0.0.1"
-	if p.Observability || p.RegistryToken {
+	if p.Observability || p.RegistryToken || p.ApplicationFallback {
 		// The ingest container and the realm proxy reach the API from the kind network.
 		bind = "0.0.0.0"
 	}

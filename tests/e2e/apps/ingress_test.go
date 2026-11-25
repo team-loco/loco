@@ -69,34 +69,8 @@ func TestIngress(t *testing.T) {
 	})
 
 	publicID, privateID := w.ResourceID(t, public), w.ResourceID(t, private)
-	t.Run("the application error endpoint distinguishes domain registration", func(t *testing.T) {
-		for _, tc := range []struct {
-			host string
-			want string
-		}{
-			{w.Host("missing"), "Application not found"},
-			{publicHost, "Application unavailable"},
-		} {
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, p.APIURL+"/application-not-found", nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			req.Header.Set("X-Forwarded-Host", tc.host)
-			res, err := http.DefaultClient.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			body, err := io.ReadAll(res.Body)
-			if closeErr := res.Body.Close(); closeErr != nil {
-				t.Fatal(closeErr)
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			if res.StatusCode != http.StatusNotFound || !strings.Contains(string(body), tc.want) {
-				t.Fatalf("%s: status %d, body %s", tc.host, res.StatusCode, body)
-			}
-		}
+	t.Run("the gateway serves fallback pages without replacing application responses", func(t *testing.T) {
+		checkApplicationFallback(t, w, publicID, publicHost)
 	})
 	t.Run("only the public app is routed", func(t *testing.T) {
 		hostnames := p.MustKubectl(
@@ -228,6 +202,56 @@ func TestIngress(t *testing.T) {
 			t.Errorf("the plan created a resource for the unserved domain (%v)", err)
 		}
 	})
+}
+
+func checkApplicationFallback(t *testing.T, w *platform.Workspace, publicID, publicHost string) {
+	t.Helper()
+	secondaryHost := w.Host("secondary")
+	registered, err := p.User.Domain.CreateResourceDomain(t.Context(), &domainv1.CreateResourceDomainRequest{
+		ResourceId: publicID,
+		Domain: &domainv1.DomainInput{
+			Subdomain: new(strings.TrimSuffix(secondaryHost, "."+p.Domain)),
+			AppDomain: new(p.Domain),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if _, err := p.User.Domain.DeleteResourceDomain(t.Context(), &domainv1.DeleteResourceDomainRequest{
+			DomainId: registered.GetDomainId(),
+		}); err != nil {
+			t.Error(err)
+		}
+	}()
+	for _, tc := range []struct {
+		host, path string
+		status     int
+		want       string
+	}{
+		{w.Host("missing"), "/example", http.StatusNotFound, "Application not found"},
+		{secondaryHost, "/", http.StatusNotFound, "Application unavailable"},
+		{publicHost, "/", http.StatusOK, "Welcome to nginx!"},
+		{publicHost, "/missing-test-page", http.StatusNotFound, "404 Not Found"},
+	} {
+		platform.Eventually(t, routeTimeout, tc.host+tc.path, func(ctx context.Context) error {
+			res, err := p.GatewayHTTPSResponse(ctx, tc.host, tc.path)
+			if err != nil {
+				return err
+			}
+			body, err := io.ReadAll(res.Body)
+			if closeErr := res.Body.Close(); closeErr != nil {
+				return closeErr
+			}
+			if err != nil {
+				return err
+			}
+			if res.StatusCode != tc.status || !strings.Contains(string(body), tc.want) {
+				return fmt.Errorf("status %d, body %s", res.StatusCode, body)
+			}
+			return nil
+		})
+	}
 }
 
 func resourceDomains(t *testing.T, w *platform.Workspace, name string) []*domainv1.ResourceDomain {
