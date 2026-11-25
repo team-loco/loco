@@ -474,7 +474,7 @@ func (ss *syncSession) recordHeartbeat(ctx context.Context, heartbeat *agentv1.H
 		slog.WarnContext(ctx, "ignoring an invalid heartbeat", "error", err, "cluster_id", ss.clusterID)
 		return
 	}
-	ss.server.recordHeartbeat(ctx, ss.clusterID, heartbeat)
+	ss.server.recordHeartbeat(ctx, ss.clusterID, ss.generation, heartbeat)
 	// The receive loop is the only sender, so after the drain the send finds the slot empty.
 	select {
 	case <-ss.capabilities:

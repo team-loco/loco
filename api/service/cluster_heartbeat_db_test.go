@@ -37,13 +37,15 @@ func TestAHeartbeatDoesNotWaitForAWriteThatSharesTheCluster(t *testing.T) {
 			t.Parallel()
 			f := newDeployFixture(t)
 			server := f.agentServer()
-			server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+			server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 			first := f.heartbeatAt(t)
 			holdTx(t, f, func(ctx context.Context, tx pgx.Tx) error { return lock(ctx, genDb.New(tx), f.clusterID) })
 
 			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 			defer cancel()
-			server.recordHeartbeat(ctx, f.clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL})
+			server.recordCurrentHeartbeat(
+				ctx, f.clusterID, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL},
+			)
 			if at, health := f.storedHeartbeat(t); !at.After(*first) || health != clusterHealthDegraded {
 				t.Fatalf("heartbeat at %v (first %v), health %q, want a later degraded heartbeat", at, first, health)
 			}
@@ -54,7 +56,7 @@ func TestAHeartbeatDoesNotWaitForAWriteThatSharesTheCluster(t *testing.T) {
 func TestHeartbeatsFlowWhileARoleChangeWaitsForADeployThatCheckedIt(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	f.agentServer().recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	stream := openReportStream(t, startSyncServer(t, f), f.clusterID)
 	release := holdTx(t, f, func(ctx context.Context, tx pgx.Tx) error {
 		_, err := genDb.New(tx).LockAssignableCluster(ctx, f.clusterID)
@@ -286,15 +288,15 @@ func TestHeartbeatRecordsOneEventPerHealthChange(t *testing.T) {
 	f := newDeployFixture(t)
 	server := f.agentServer()
 
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	if changes := f.clusterEvents(t, "cluster.health_changed"); len(changes) != 0 {
 		t.Fatalf("events for the first and a repeated healthy heartbeat = %v, want none", changes)
 	}
 
 	var wg sync.WaitGroup
 	for range 4 {
-		wg.Go(func() { server.recordHeartbeat(t.Context(), f.clusterID, degradedHeartbeat()) })
+		wg.Go(func() { server.recordCurrentHeartbeat(t.Context(), f.clusterID, degradedHeartbeat()) })
 	}
 	wg.Wait()
 	changes := f.clusterEvents(t, "cluster.health_changed")
@@ -308,7 +310,7 @@ func TestHeartbeatRecordsOneEventPerHealthChange(t *testing.T) {
 		t.Fatalf("health change = %v, want the cluster name and region", changes[0])
 	}
 
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	changes = f.clusterEvents(t, "cluster.health_changed")
 	if len(changes) != 2 || changes[1]["new"] != clusterHealthHealthy {
 		t.Fatalf("events after recovery = %v, want a second one ending healthy", changes)
@@ -320,8 +322,8 @@ func TestConcurrentFirstHeartbeatsRecordTheHealthChange(t *testing.T) {
 	f := newDeployFixture(t)
 	server := f.agentServer()
 	var wg sync.WaitGroup
-	wg.Go(func() { server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat()) })
-	wg.Go(func() { server.recordHeartbeat(t.Context(), f.clusterID, degradedHeartbeat()) })
+	wg.Go(func() { server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat()) })
+	wg.Go(func() { server.recordCurrentHeartbeat(t.Context(), f.clusterID, degradedHeartbeat()) })
 	wg.Wait()
 
 	_, stored := f.storedHeartbeat(t)
@@ -346,7 +348,7 @@ func (f *deployFixture) setLastHeartbeat(t *testing.T, ago time.Duration) {
 func (f *deployFixture) concurrentHeartbeats(server *AgentServer, count int) {
 	var wg sync.WaitGroup
 	for range count {
-		wg.Go(func() { server.recordHeartbeat(context.Background(), f.clusterID, healthyHeartbeat()) })
+		wg.Go(func() { server.recordCurrentHeartbeat(context.Background(), f.clusterID, healthyHeartbeat()) })
 	}
 	wg.Wait()
 }
@@ -364,11 +366,11 @@ func TestHeartbeatsEndASilenceOnceAndTheNextOutageIsReported(t *testing.T) {
 		}
 	}
 
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	silence()
 	f.concurrentHeartbeats(server, 4)
 	silence()
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 
 	want := []string{"cluster.silent", "cluster.recovered", "cluster.silent", "cluster.recovered"}
 	if got := dbtest.InstallEventTypes(t, f.pool, f.clusterID); !slices.Equal(got, want) {
@@ -384,7 +386,7 @@ func TestHeartbeatReportsAnOutageTheSweeperMissed(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	f.setLastHeartbeat(t, 2*ClusterSilentAfter(testHeartbeatInterval))
 
 	f.concurrentHeartbeats(server, 4)
@@ -404,7 +406,7 @@ func TestHeartbeatAfterAGapOnAPausedClusterRecordsNoSilence(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	f.setLastHeartbeat(t, time.Hour)
 	if _, err := f.pool.Exec(
 		t.Context(),
@@ -414,7 +416,7 @@ func TestHeartbeatAfterAGapOnAPausedClusterRecordsNoSilence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	if silent := f.clusterEvents(t, "cluster.silent"); len(silent) != 0 {
 		t.Fatalf("paused cluster recorded %v", silent)
 	}
@@ -424,11 +426,11 @@ func TestHeartbeatTimeNeverMovesBackwards(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	f.setLastHeartbeat(t, -time.Hour)
 	ahead, _ := f.storedHeartbeat(t)
 
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	if stored, _ := f.storedHeartbeat(t); stored.Before(ahead) {
 		t.Fatalf("heartbeat time moved back from %v to %v", ahead, stored)
 	}
@@ -438,7 +440,7 @@ func TestHeartbeatWaitsForAPauseThatIsCommitting(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := f.agentServer()
-	server.recordHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
 	f.setLastHeartbeat(t, time.Hour)
 	tx, err := f.pool.Begin(t.Context())
 	if err != nil {
@@ -456,7 +458,7 @@ func TestHeartbeatWaitsForAPauseThatIsCommitting(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		server.recordHeartbeat(context.Background(), f.clusterID, healthyHeartbeat())
+		server.recordCurrentHeartbeat(context.Background(), f.clusterID, healthyHeartbeat())
 	}()
 	dbtest.WaitForLockWaiters(t, f.pool, 1)
 	if err = tx.Commit(t.Context()); err != nil {
@@ -465,5 +467,42 @@ func TestHeartbeatWaitsForAPauseThatIsCommitting(t *testing.T) {
 	<-done
 	if silent := f.clusterEvents(t, "cluster.silent"); len(silent) != 0 {
 		t.Fatalf("a cluster paused before the heartbeat read it recorded %v", silent)
+	}
+}
+
+// recordCurrentHeartbeat records the heartbeat as the cluster's current stream does.
+func (s *AgentServer) recordCurrentHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {
+	generation, err := s.queries.GetClusterSyncGeneration(ctx, clusterID)
+	if err != nil {
+		panic(err)
+	}
+	s.recordHeartbeat(ctx, clusterID, generation, heartbeat)
+}
+
+func TestASupersededStreamsHeartbeatIsIgnored(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	server := f.agentServer()
+	server.recordCurrentHeartbeat(t.Context(), f.clusterID, healthyHeartbeat())
+	stale, err := f.queries.GetClusterSyncGeneration(t.Context(), f.clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.queries.BeginClusterSync(t.Context(), f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	f.setLastHeartbeat(t, 2*ClusterSilentAfter(testHeartbeatInterval))
+	before, _ := f.storedHeartbeat(t)
+
+	server.recordHeartbeat(
+		t.Context(), f.clusterID, stale, &agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL},
+	)
+
+	after, health := f.storedHeartbeat(t)
+	if !after.Equal(before) || health != clusterHealthHealthy {
+		t.Fatalf("heartbeat at %v (was %v), health %q, want the stored heartbeat unchanged", after, before, health)
+	}
+	if got := dbtest.InstallEventTypes(t, f.pool, f.clusterID); len(got) != 0 {
+		t.Fatalf("cluster events = %v, want none", got)
 	}
 }
