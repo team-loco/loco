@@ -1,16 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
+import { SystemRole, SystemRoleHolderSchema } from "@gen/loco/admin/v1/admin_pb";
 import { ClusterSchema } from "@gen/loco/cluster/v1/cluster_pb";
 import { EntityScopeSchema, EntityType, Scope } from "@gen/loco/token/v1/token_pb";
 
 import {
 	agentBehind,
 	clusterState,
+	effectiveRole,
 	inSystem,
 	regionCounts,
 	regionGroups,
 	registrationTarget,
+	roleChangeBlock,
+	roleSource,
 	systemAccess,
 	workerInstallCommand,
 } from "./system";
@@ -128,5 +132,40 @@ describe("registrationTarget", () => {
 		expect(registrationTarget("existing", "", "", "")).toBeUndefined();
 		expect(registrationTarget("new", "", "NZ", "akl")).toBeUndefined();
 		expect(registrationTarget("new", "", "nz", "")).toBeUndefined();
+	});
+});
+
+describe("system roles", () => {
+	const holder = (configuredRole: SystemRole, grantedRole: SystemRole, email = "a@loco.test") =>
+		create(SystemRoleHolderSchema, { email, configuredRole, grantedRole });
+	const { READ, ADMIN, UNSPECIFIED } = SystemRole;
+
+	test("a holder has the higher role and names where it comes from", () => {
+		expect(effectiveRole(holder(READ, ADMIN))).toBe(ADMIN);
+		expect(effectiveRole(holder(ADMIN, READ))).toBe(ADMIN);
+		expect(roleSource(holder(READ, UNSPECIFIED))).toBe("Configuration");
+		expect(roleSource(holder(UNSPECIFIED, READ))).toBe("Grant");
+		expect(roleSource(holder(READ, ADMIN))).toBe("Configuration and grant");
+	});
+
+	test("lowering the last admin is refused, with another admin it is not", () => {
+		const only = holder(UNSPECIFIED, ADMIN);
+		expect(roleChangeBlock(only, "read", [only, holder(UNSPECIFIED, READ)])).toContain("last system admin");
+		expect(roleChangeBlock(only, "revoke", [only])).toContain("last system admin");
+		expect(roleChangeBlock(only, "read", [only, holder(UNSPECIFIED, ADMIN)])).toBeUndefined();
+	});
+
+	test("a configured role only changes in the configuration", () => {
+		const configured = holder(ADMIN, UNSPECIFIED);
+		expect(roleChangeBlock(configured, "read", [configured, holder(UNSPECIFIED, ADMIN)])).toContain("configured admin");
+		expect(roleChangeBlock(configured, "revoke", [configured, holder(UNSPECIFIED, ADMIN)])).toContain(
+			"API configuration",
+		);
+		expect(roleChangeBlock(holder(READ, UNSPECIFIED), "admin", [])).toBeUndefined();
+	});
+
+	test("revoking a grant beside a configured admin role keeps the admin", () => {
+		const both = holder(ADMIN, ADMIN);
+		expect(roleChangeBlock(both, "revoke", [both])).toBeUndefined();
 	});
 });

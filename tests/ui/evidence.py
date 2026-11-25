@@ -974,6 +974,9 @@ def seed(state, scenario):
         }
         rpc(api_url, users[orgs[org_name]["owner"]]["token"], RPC_CREATE_MEMBER, body)
     seed_fleet(state, scenario.get("clusters", []))
+    seed_system_roles(
+        state, users, scenario.get("system_roles", []), scenario.get("unclaimed", [])
+    )
     state["resources"] = seed_resources(state, scenario.get("resources", []))
     seed_events(state, scenario.get("events", []))
     if state["resources"]:
@@ -981,6 +984,29 @@ def seed(state, scenario):
             "synthetic clusters, deployments and placements are inserted with SQL; no worker runs these resources"
         )
     state["notes"] = notes
+
+
+def seed_system_roles(state, users, holders, unclaimed):
+    """Records each holder's configured and granted role, and the configured emails nobody has claimed."""
+    q = sql_literal
+    for holder in holders:
+        user = users[holder["user"]]
+        if "configured" in holder:
+            psql(
+                state,
+                "INSERT INTO system_role_claims(email,role,user_id,claimed_at) "
+                f"VALUES({q(user['email'])},{q(holder['configured'])},{q(user['id'])},NOW());",
+            )
+        if "granted" in holder:
+            psql(
+                state,
+                f"INSERT INTO system_role_grants(user_id,role) VALUES({q(user['id'])},{q(holder['granted'])});",
+            )
+    for entry in unclaimed:
+        psql(
+            state,
+            f"INSERT INTO system_role_claims(email,role) VALUES({q(entry['email'])},{q(entry['role'])});",
+        )
 
 
 def seed_fleet(state, clusters):

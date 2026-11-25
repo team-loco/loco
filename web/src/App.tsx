@@ -59,6 +59,8 @@ const SystemOverview = lazy(async () => ({ default: (await pageImporters.System(
 const SystemClusters = lazy(async () => ({ default: (await pageImporters.System()).SystemClusters }));
 const SystemClusterDetail = lazy(async () => ({ default: (await pageImporters.System()).SystemClusterDetail }));
 const SystemAddCluster = lazy(async () => ({ default: (await pageImporters.System()).SystemAddCluster }));
+const SystemOperators = lazy(async () => ({ default: (await pageImporters.System()).SystemOperators }));
+const SystemUsers = lazy(async () => ({ default: (await pageImporters.System()).SystemUsers }));
 const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.DashboardRedirect()).DashboardRedirect }));
 
 import { onSessionExpired, transport } from "./auth/connect-transport";
@@ -269,6 +271,24 @@ function AppRoutes() {
 								<>
 									<PageTitle title="Add cluster" />
 									<SystemAddCluster />
+								</>
+							}
+						/>
+						<Route
+							path="operators"
+							element={
+								<>
+									<PageTitle title="Operators" />
+									<SystemOperators />
+								</>
+							}
+						/>
+						<Route
+							path="users"
+							element={
+								<>
+									<PageTitle title="Users" />
+									<SystemUsers />
 								</>
 							}
 						/>
