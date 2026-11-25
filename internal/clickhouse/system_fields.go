@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"strings"
+
 	"github.com/team-loco/loco/internal/logquery"
 	"github.com/team-loco/loco/internal/systemtenant"
 )
@@ -12,8 +14,12 @@ var systemFieldAttributes = map[string]string{
 	"cluster":   "loco.cluster.id",
 }
 
-// SystemFields rewrites the component and cluster fields of a system-scope query to the attributes
-// they stand for.
+// resourceAttributePrefix marks a field key that names a resource attribute only; no parsed key
+// contains it.
+const resourceAttributePrefix = "\x00resource:"
+
+// SystemFields rewrites the component and cluster fields of a system-scope query to the resource
+// attributes of the sender, never a log or span attribute of the same name.
 func SystemFields(expr logquery.Expr) logquery.Expr {
 	switch expr := expr.(type) {
 	case logquery.And:
@@ -24,11 +30,20 @@ func SystemFields(expr logquery.Expr) logquery.Expr {
 		return logquery.Not{Term: SystemFields(expr.Term)}
 	case logquery.Field:
 		if attribute, ok := systemFieldAttributes[expr.Key]; ok {
-			expr.Key = attribute
+			expr.Key = resourceAttributePrefix + attribute
 		}
 		return expr
 	}
 	return expr
+}
+
+// resourceAttributeSQL matches a field SystemFields rewrote against the resource attribute it names.
+func resourceAttributeSQL(field logquery.Field, b binder) (string, bool) {
+	attribute, ok := strings.CutPrefix(field.Key, resourceAttributePrefix)
+	if !ok {
+		return "", false
+	}
+	return stringMatch("ResourceAttributes["+b.str(attribute)+"]", field, b), true
 }
 
 func systemTerms(terms []logquery.Expr) []logquery.Expr {
