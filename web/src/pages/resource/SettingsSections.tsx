@@ -307,7 +307,7 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 			actions={
 				<Switch
 					checked={enabled}
-					disabled={locked}
+					disabled={locked || base.healthEnabled}
 					aria-label="Health check"
 					aria-describedby={describedBy}
 					onCheckedChange={(healthEnabled: boolean) => {

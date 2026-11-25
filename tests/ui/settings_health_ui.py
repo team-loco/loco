@@ -38,6 +38,7 @@ with session(out) as browser:
     section = page.locator("#set-health")
     expect(section).to_be_visible()
     expect(section.get_by_role("switch", name="Health check")).to_be_checked()
+    expect(section.get_by_role("switch", name="Health check")).to_be_disabled()
     expect(section.locator("input").first).to_have_value("/health")
     path, interval, timeout = section.locator("input").all()[:3]
     height = section.bounding_box()["height"]
