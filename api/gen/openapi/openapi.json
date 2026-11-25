@@ -11151,6 +11151,11 @@
             "type": "string",
             "title": "source_deployment_id",
             "format": "uuid"
+          },
+          "removeHealthCheck": {
+            "type": "boolean",
+            "title": "remove_health_check",
+            "description": "remove_health_check runs the deployment without a health check and removes the resource's\n own, which a spec without one inherits."
           }
         },
         "title": "CreateDeploymentRequest",
@@ -11158,7 +11163,7 @@
           "spec"
         ],
         "additionalProperties": false,
-        "description": "CreateDeploymentRequest is the request to create a new deployment."
+        "description": "CreateDeploymentRequest is the request to create a new deployment.\ncreate_deployment.remove_health_check_without_check // remove_health_check needs a spec without a health_check\n"
       },
       "loco.deployment.v1.CreateDeploymentResponse": {
         "type": "object",

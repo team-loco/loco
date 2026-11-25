@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -342,6 +343,12 @@ func (s *DeploymentServer) CreateDeployment(
 			return targetErr
 		}
 
+		if req.GetRemoveHealthCheck() {
+			removeErr := removeHealthCheck(ctx, qtx, resourceID, render.resourceSpec.GetService())
+			if removeErr != nil {
+				return removeErr
+			}
+		}
 		requestSpec.GetService().Platform = string(s.defaults.TargetPlatform)
 		mergedServiceSpec, mergeErr := mergeRequestSpec(render.resourceSpec, requestSpec, regions, s.defaults)
 		if mergeErr != nil {
@@ -394,6 +401,27 @@ func (s *DeploymentServer) CreateDeployment(
 		DeploymentId: deploymentID.String(),
 		Build:        pinnedBuild,
 	}, nil
+}
+
+// removeHealthCheck removes the resource's health check, which deployments without one inherit.
+func removeHealthCheck(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resourceID uuid.UUID,
+	spec *resourcev1.ServiceSpec,
+) error {
+	if spec.GetHealthCheck() == nil {
+		return nil
+	}
+	spec.HealthCheck = nil
+	specJSON, err := protojson.Marshal(spec)
+	if err != nil {
+		return fmt.Errorf("marshal resource spec: %w", err)
+	}
+	if err := qtx.UpdateResourceSpec(ctx, genDb.UpdateResourceSpecParams{ID: resourceID, Spec: specJSON}); err != nil {
+		return fmt.Errorf("remove resource health check: %w", err)
+	}
+	return nil
 }
 
 // mergeRequestSpec fills a request's service spec for the target regions and checks its sizes.
