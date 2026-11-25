@@ -260,7 +260,7 @@ usage = 'arg "<shard>" help="the test package: builds, apps, telemetry or contro
 run = 'E2E_TEARDOWN_ONLY=true go -C tests/e2e test -count=1 -run "^$" "./${usage_shard}"'
 
 [tasks."docs:build"]
-description = "Build the docs.loco.build site into docs/site, the GitHub Pages artifact"
+description = "Build docs.loco.build into docs/site: the two newest v* tags and this checkout as staging"
 run = "bun run --cwd docs build pages"
 
 [tasks."docs:build:staging"]

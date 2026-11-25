@@ -33,9 +33,19 @@ The site imports its favicon and wordmark from `web/public/`; Vite bundles them 
 
 ## Hosting
 
-The site is published in two places. GitHub Pages serves `docs.loco.build`, the canonical hostname. The `web/Dockerfile` image serves the same pages under `/docs/` on the dashboard hostname: `loco.build/docs/` in production and `staging.loco.build/docs/` in staging, the canonical address of the staging docs.
+The site is published in two places. GitHub Pages serves `docs.loco.build`, the canonical hostname. The `web/Dockerfile` image serves the docs of its own commit under `/docs/` on the dashboard hostname: `loco.build/docs/` and `staging.loco.build/docs/`.
 
-`mise run docs:build` builds the Pages site into `docs/site/` with router basename `/`, including `404.html` for missing paths and the `CNAME` file that names the custom domain. The Documentation Pages workflow, `.github/workflows/docs-pages.yml`, runs that build and deploys `docs/site/` on every push to `main` that changes the documentation, and on manual dispatch. Pages serves the files without custom headers, so `docs.loco.build` has no Content-Security-Policy and Pages chooses each file's `Content-Type` from its extension.
+`docs.loco.build` holds three versions:
+
+| Path | Version |
+| --- | --- |
+| `/` and `/<tag>/` | The newest `v*` tag |
+| `/<tag>/` | The tag before it |
+| `/staging/` | `main`, with the staging banner and `noindex` |
+
+`mise run docs:build` builds them into `docs/site/`. It checks out each tag in a temporary Git worktree, installs its dependencies and builds it with that tag's own sources, under the router basename of its path; a tag whose docs fail to build is left out, and the next one takes its place. Each version has its own search index, `llms.txt`, `sitemap.xml` and canonical URLs. The root adds `404.html`, which answers every missing path, the `CNAME` file that names the custom domain, and `versions.json`, the list the version menu in the docs header reads at run time, so older builds list newer versions without a rebuild.
+
+The Documentation Pages workflow, `.github/workflows/docs-pages.yml`, runs that build from `main` and deploys `docs/site/` on every push to `main` that changes the documentation, on every published release and on manual dispatch. The Release workflow dispatches it after publishing a release. Pages serves the files without custom headers, so `docs.loco.build` has no Content-Security-Policy and Pages chooses each file's `Content-Type` from its extension.
 
 The image runs `bun build.ts dashboard <environment>`, which builds the mount into `docs/site-mounted/` with router basename `/docs/` and generates the image's Static Web Server configuration with exact hashes for the mount's inline scripts. The policy does not allow arbitrary inline scripts. Generated output in `docs/site/`, `docs/site-mounted/` and `.sws.toml` stays out of Git.
 

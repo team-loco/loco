@@ -1,4 +1,5 @@
-# Publishes docs/site to GitHub Pages, which serves it at docs.loco.build.
+# Publishes docs/site to GitHub Pages, which serves it at docs.loco.build: the
+# two newest releases and main as staging.
 name: Documentation Pages
 
 on:
@@ -15,6 +16,8 @@ on:
       - "package.json"
       - "bun.lock"
       - ".github/workflows/docs-pages.yml"
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -32,6 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: main
+          # The build checks out the release tags.
+          fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
       - run: bun install --frozen-lockfile
