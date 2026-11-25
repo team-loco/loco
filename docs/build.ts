@@ -1,6 +1,7 @@
 import { $, Glob, file, write } from "bun";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { rmSync } from "node:fs";
 import { cp, mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -53,6 +54,7 @@ if (target === "pages") {
   assert.equal(tags.length, 2, "Pages needs two v* tags");
   // The site is assembled in scratch, so a failed build leaves site/ as it was.
   const scratch = await realpath(await mkdtemp(join(tmpdir(), "loco-docs-")));
+  process.on("exit", () => rmSync(scratch, { recursive: true, force: true }));
   const site = join(scratch, "site");
   // Each tag's content is rendered by a copy of this docs app, beside links to
   // the repository's web/ and dependencies.
@@ -98,6 +100,11 @@ if (target === "pages") {
     join(site, "staging"),
     "staging",
   );
+  // Crawlers read only the root robots.txt.
+  for (const version of [current, previous, "staging"]) {
+    await rm(join(site, version, "robots.txt"));
+    await rm(join(site, version, "robots.txt.data"));
+  }
   await cp(join(site, "404/index.html"), join(site, "404.html"));
   await write(
     join(site, "versions.json"),
@@ -109,7 +116,6 @@ if (target === "pages") {
   );
   await rm(join(docs, "site"), { recursive: true, force: true });
   await cp(site, join(docs, "site"), { recursive: true });
-  await rm(scratch, { recursive: true });
   process.exit();
 }
 

@@ -21,7 +21,7 @@ bun run --cwd docs typecheck
 mise run test:hosting
 ```
 
-Docs CI typechecks and builds the Pages site and the staging dashboard mount. Checks of the UI image and its `/docs/` mount live in `tests/hosting/`, alongside the platform tests rather than the documentation. The advisory Docs Drift workflow reports code changes that leave these pages stale; its rubric is `.agents/skills/docs-drift/SKILL.md`.
+Docs CI typechecks and builds the Pages site and the staging dashboard mount. Checks of the UI image, its `/docs/` mount and the Pages build live in `tests/hosting/`, alongside the platform tests rather than the documentation. The advisory Docs Drift workflow reports code changes that leave these pages stale; its rubric is `.agents/skills/docs-drift/SKILL.md`.
 
 Bun dependencies are pinned in `docs/package.json` and the root `bun.lock`. The docs build needs only Bun. Python dependencies for shared platform tests are pinned in `tests/uv.lock`. Run `bun install --frozen-lockfile` from the repository root before building.
 
@@ -43,9 +43,9 @@ The site is published in two places. GitHub Pages serves `docs.loco.build`, the 
 | `/<tag>/` | The tag before it |
 | `/staging/` | `main`, with the staging banner and `noindex` |
 
-`mise run docs:build` builds them into `docs/site/`. It checks out each tag in a temporary Git worktree, installs its dependencies and builds it with that tag's own sources, under the router basename of its path; a tag whose docs fail to build is left out, and the next one takes its place. Each version has its own search index, `llms.txt`, `sitemap.xml` and canonical URLs. The root adds `404.html`, which answers every missing path, the `CNAME` file that names the custom domain, and `versions.json`, the list the version menu in the docs header reads at run time, so older builds list newer versions without a rebuild.
+`mise run docs:build` builds them into `docs/site/`. It extracts each tag's `docs/content` with `git archive` and renders every version with the current checkout's docs app, under the router basename of its path, so all versions share the same layout, version menu and search. Each version has its own search index, `llms.txt`, `sitemap.xml` and canonical URLs. The root adds `404.html`, which answers every missing path, `robots.txt`, the only one crawlers read, and `versions.json`, the list the version menu in the docs header reads at run time. The build fails if any version fails, and leaves `docs/site/` untouched.
 
-The Documentation Pages workflow, `.github/workflows/docs-pages.yml`, runs that build from `main` and deploys `docs/site/` on every push to `main` that changes the documentation, on every published release and on manual dispatch. The Release workflow dispatches it after publishing a release. Pages serves the files without custom headers, so `docs.loco.build` has no Content-Security-Policy and Pages chooses each file's `Content-Type` from its extension.
+The Documentation Pages workflow, `.github/workflows/docs-pages.yml`, runs that build from `main` and deploys `docs/site/` on every push to `main` that changes the documentation, after every successful Release run, on every published release and on manual dispatch. A failed build deploys nothing, and Pages keeps serving the last deploy. Pages serves the files without custom headers, so `docs.loco.build` has no Content-Security-Policy and Pages chooses each file's `Content-Type` from its extension. The custom domain is set in the repository's Pages settings.
 
 The image runs `bun build.ts dashboard <environment>`, which builds the mount into `docs/site-mounted/` with router basename `/docs/` and generates the image's Static Web Server configuration with exact hashes for the mount's inline scripts. The policy does not allow arbitrary inline scripts. Generated output in `docs/site/`, `docs/site-mounted/` and `.sws.toml` stays out of Git.
 

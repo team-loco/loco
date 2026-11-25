@@ -272,7 +272,7 @@ description = "Preview documentation at http://127.0.0.1:8001"
 run = "bun run --cwd docs dev"
 
 [tasks."test:hosting"]
-description = "Check the UI image and the documentation it mounts at /docs"
+description = "Check the UI image, its /docs mount and the docs.loco.build artifact"
 run = "uv run --locked --project tests pytest tests/hosting"
 
 [tasks."test:collectors"]

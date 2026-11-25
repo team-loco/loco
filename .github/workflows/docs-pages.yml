@@ -15,6 +15,8 @@ on:
       - "web/public/logo.svg"
       - "package.json"
       - "bun.lock"
+      - "mise.toml"
+      - "mise.lock"
       - ".github/workflows/docs-pages.yml"
   release:
     types: [published]
