@@ -103,6 +103,8 @@ def fixture():
         region = "us-va-1" if index == len(release_ids) else "us-ca-1"
         active = index in (1, len(release_ids))
         image = f"example.invalid/browser-pilot:release-{index:03}"
+        if index in (1, 2):
+            image += f"@sha256:{index:02x}" + "a" * 300
         build = None
         if index == 2:
             build = {
@@ -385,11 +387,18 @@ with session(out) as browser:
     page.keyboard.press("Escape")
     section.get_by_role(
         "button",
-        name=f"View spec of {data['releases'][0][-8:]}",
+        name=f"View spec of {data['releases'][1][-8:]}",
         exact=True,
     ).click()
     spec_dialog = page.get_by_role(
         "dialog", name="history-pilot deployment spec", exact=True
+    )
+    older = data["releases"][1][-8:]
+    expect(
+        spec_dialog.get_by_role("button", name="Deployment", exact=True)
+    ).to_contain_text(older)
+    expect(spec_dialog.locator('[data-slot="spec-bar"]')).to_contain_text(
+        f"deployment-{older}.yaml"
     )
     bar = spec_dialog.locator('[data-slot="spec-bar"]')
     for name in ("Wrap lines", "Download spec", "Copy spec", "Close"):
@@ -402,11 +411,15 @@ with session(out) as browser:
     line = spec_dialog.locator(".sh__line").first
     expect(wrap).to_have_attribute("aria-pressed", "true")
     expect(line).to_have_css("white-space", "pre-wrap")
-    scroller = spec_dialog.locator(".overflow-auto").last
+    scroller = spec_dialog.locator('[data-slot="spec-body"]')
+    sizes = "e => [e.scrollWidth, e.clientWidth]"
+    scroll_width, client_width = scroller.evaluate(sizes)
+    assert scroll_width == client_width, (scroll_width, client_width)
     wrap.click()
     expect(wrap).to_have_attribute("aria-pressed", "false")
     expect(line).to_have_css("white-space", "pre")
-    assert scroller.evaluate("e => e.scrollWidth >= e.clientWidth")
+    scroll_width, client_width = scroller.evaluate(sizes)
+    assert scroll_width > client_width, (scroll_width, client_width)
     wrap.click()
     expect(line).to_have_css("white-space", "pre-wrap")
     bar.get_by_role("button", name="Close", exact=True).click()
@@ -441,6 +454,22 @@ with session(out) as browser:
             download.value.suggested_filename == f"deployment-{deployment_id[-8:]}.yaml"
         )
     spec_dialog.get_by_role("button", name="Compare with…", exact=True).click()
+    long_cells = scroller.locator("span", has_text="sha256")
+    expect(long_cells).to_have_count(2)
+    pane_edges = """(scroller) => {
+        const box = scroller.getBoundingClientRect();
+        return [...scroller.querySelectorAll("span")]
+            .filter((s) => s.textContent.includes("sha256"))
+            .map((s) => s.getBoundingClientRect().right - box.right);
+    }"""
+    scroll_width, client_width = scroller.evaluate(sizes)
+    assert scroll_width == client_width, (scroll_width, client_width)
+    assert all(edge <= 1 for edge in scroller.evaluate(pane_edges))
+    wrap.click()
+    scroll_width, client_width = scroller.evaluate(sizes)
+    assert scroll_width > client_width, (scroll_width, client_width)
+    assert all(edge > 1 for edge in scroller.evaluate(pane_edges))
+    wrap.click()
     skipped = spec_dialog.locator('[data-slot="skipped-rows"]')
     expect(skipped).to_have_count(0)
     spec_dialog.get_by_role("button", name="Diff only", exact=True).click()
@@ -898,12 +927,24 @@ with session(out) as browser:
             exact=True,
         )
     ).to_be_visible()
+    expect(
+        reader_section.get_by_role(
+            "button",
+            name=f"Actions for {data['releases'][0][-8:]}",
+            exact=True,
+        )
+    ).to_have_count(0)
     expect(reader_page.get_by_text("Not deployed yet", exact=True)).to_have_count(0)
     reader_section.get_by_role(
         "button",
         name=f"Actions for {data['releases'][1][-8:]}",
         exact=True,
     ).click()
+    expect(
+        reader_page.get_by_role(
+            "menuitem", name="Compare spec with current", exact=True
+        )
+    ).to_be_visible()
     expect(
         reader_page.get_by_role("menuitem", name="View spec", exact=True)
     ).to_have_count(0)

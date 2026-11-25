@@ -21,7 +21,7 @@ import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { depTag } from "./model";
-import { changedOnly, diffLines, sideBySide, specText, type SideBySideRow } from "./spec";
+import { changedOnly, diffLines, sideBySide, specText, type DiffLine, type SideBySideRow } from "./spec";
 
 const COPIED_MS = 1500;
 const YAML_TYPE = "application/yaml";
@@ -97,8 +97,8 @@ function Single({ text, wrap }: { text: string; wrap: boolean }) {
 	);
 }
 
-function Compare({ from, to, diffOnly, wrap }: { from: string; to: string; diffOnly: boolean; wrap: boolean }) {
-	const all = sideBySide(diffLines(from, to).lines);
+function Compare({ lines, diffOnly, wrap }: { lines: DiffLine[]; diffOnly: boolean; wrap: boolean }) {
+	const all = sideBySide(lines);
 	const rows = diffOnly ? changedOnly(all) : all;
 	const side = (cell: SideBySideRow["left"], tone: "add" | "del") => {
 		const cls =
@@ -112,25 +112,23 @@ function Compare({ from, to, diffOnly, wrap }: { from: string; to: string; diffO
 		return (
 			<>
 				<span className={cn("pr-3 text-right text-fg4 select-none", cls)}>{cell?.n ?? ""}</span>
-				<span
-					className={cn(
-						"pr-3",
-						wrap ? "[overflow-wrap:anywhere] whitespace-pre-wrap" : "overflow-hidden text-ellipsis whitespace-pre",
-						cls,
-					)}
-				>
+				<span className={cn("pr-3", wrap ? "[overflow-wrap:anywhere] whitespace-pre-wrap" : "whitespace-pre", cls)}>
 					{cell?.text ?? ""}
 				</span>
 			</>
 		);
 	};
 	return (
-		<>
+		<div
+			className={cn(
+				"grid",
+				wrap
+					? "grid-cols-[40px_minmax(0,1fr)_40px_minmax(0,1fr)]"
+					: "w-max min-w-full grid-cols-[40px_max-content_40px_max-content]",
+			)}
+		>
 			{rows.map((r, i) => (
-				<div
-					key={i}
-					className="grid grid-cols-[40px_minmax(0,1fr)_40px_minmax(0,1fr)] [&>span:nth-child(3)]:border-l [&>span:nth-child(3)]:border-line"
-				>
+				<div key={i} className="contents [&>span:nth-child(3)]:border-l [&>span:nth-child(3)]:border-line">
 					{"skipped" in r ? (
 						<span
 							data-slot="skipped-rows"
@@ -145,7 +143,7 @@ function Compare({ from, to, diffOnly, wrap }: { from: string; to: string; diffO
 					)}
 				</div>
 			))}
-		</>
+		</div>
 	);
 }
 
@@ -273,11 +271,11 @@ export function SpecDialogContent({
 					<XIcon />
 				</DialogClose>
 			</div>
-			<div className="min-h-0 overflow-auto bg-panel pt-2 pb-3 font-mono text-[12.5px] leading-5">
-				{b === undefined ? (
+			<div data-slot="spec-body" className="min-h-0 overflow-auto bg-panel pt-2 pb-3 font-mono text-[12.5px] leading-5">
+				{b === undefined || diff === undefined ? (
 					<Single text={aText} wrap={wrap} />
 				) : (
-					<Compare from={aText} to={specText(b)} diffOnly={diffOnly} wrap={wrap} />
+					<Compare lines={diff.lines} diffOnly={diffOnly} wrap={wrap} />
 				)}
 			</div>
 		</DialogContent>

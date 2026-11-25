@@ -7,7 +7,7 @@ import { functionalUpdate } from "@tanstack/react-table";
 import { CheckIcon, CopyIcon, FileCodeIcon, GitCompareIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Button } from "@/components/design/Button";
 import {
@@ -29,7 +29,7 @@ import { useCopy } from "@/hooks/useCopy";
 import { useLayout } from "@/lib/layout";
 import { useShownPage, useTokenPage } from "@/hooks/useTokenPage";
 import { tookLabel } from "@/lib/activity-deploys";
-import { deploymentActor, deploymentMethod, deploymentTrigger, isInFlight } from "@/lib/deployment-utils";
+import { deploymentActor, deploymentMethod, deploymentTrigger } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { pageTokensParser, tokenPageLabel, tokenPager } from "@/lib/paging";
 import { maybeTsMs, readyMs } from "@/lib/time";
@@ -64,15 +64,6 @@ interface Row {
 interface RolloutRow {
 	key: string;
 	rows: [Row, ...Row[]];
-}
-
-/** The member a rollout's status shows: one still in flight, else one that failed, else the newest. */
-function leadRow(rows: readonly [Row, ...Row[]]): Row {
-	return (
-		rows.find((r) => isInFlight(r.dep.status)) ??
-		rows.find((r) => r.dep.status === DeploymentStatus.FAILED || r.dep.status === DeploymentStatus.CRASHED) ??
-		rows[0]
-	);
 }
 
 function historyMessage(dep: Deployment): string {
@@ -174,7 +165,7 @@ function rolloutColumns({
 	onCompareSpec: (dep: Deployment, current: Deployment) => void;
 	onOpenBuild: (buildId: string) => void;
 }): DataColumn<RolloutRow>[] {
-	const lead = (rollout: RolloutRow) => leadRow(rollout.rows).dep;
+	const lead = (rollout: RolloutRow) => rollout.rows[0].dep;
 	return [
 		{
 			id: "id",
