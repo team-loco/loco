@@ -1,0 +1,74 @@
+import { useQuery } from "@connectrpc/connect-query";
+import { listClusters } from "@gen/loco/cluster/v1/cluster-ClusterAdminService_connectquery";
+import { Link, matchPath, useLocation } from "react-router";
+
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from "@/components/design/Breadcrumb";
+import { atPath, CLUSTERS_PATH, NEW_CLUSTER_PATH, SYSTEM_PATH } from "@/lib/system";
+
+const CRUMB = "flex h-6.5 items-center rounded-[5px] px-1.5 font-mono text-[12.5px] whitespace-nowrap";
+
+function Slash() {
+	return <BreadcrumbSeparator className="px-0.5 text-fg3 max-[760px]:px-0">/</BreadcrumbSeparator>;
+}
+
+function Crumb({ to, children }: { to?: string; children: string }) {
+	return (
+		<BreadcrumbItem className="min-w-0">
+			{to === undefined ? (
+				<span className={`${CRUMB} truncate text-foreground`}>{children}</span>
+			) : (
+				<Link
+					to={to}
+					className={`${CRUMB} text-fg3 outline-none transition-colors hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50`}
+				>
+					{children}
+				</Link>
+			)}
+		</BreadcrumbItem>
+	);
+}
+
+/** Every System page starts with the dark System tag, so it is clear the page is not an organization's. */
+export function SystemBreadcrumb() {
+	const { pathname } = useLocation();
+	const clusterId = matchPath(`${CLUSTERS_PATH}/:clusterId`, pathname)?.params.clusterId;
+	const adding = atPath(pathname, NEW_CLUSTER_PATH, true);
+	const detail = clusterId !== undefined && !adding;
+	const clusters = useQuery(listClusters, {}, { enabled: detail });
+	const name = clusters.data?.clusters.find((c) => c.id === clusterId)?.name ?? clusterId ?? "";
+	const onClusters = atPath(pathname, CLUSTERS_PATH);
+	return (
+		<Breadcrumb className="min-w-0 flex-auto overflow-hidden min-[761px]:flex-1 min-[761px]:basis-0">
+			<BreadcrumbList>
+				<BreadcrumbItem>
+					<Link
+						to={SYSTEM_PATH}
+						data-slot="system-tag"
+						className="flex h-5.5 items-center rounded-[5px] bg-foreground px-2 text-[11.5px] font-semibold tracking-[0.02em] text-background uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+					>
+						System
+					</Link>
+				</BreadcrumbItem>
+				<Slash />
+				{!onClusters && <Crumb>Overview</Crumb>}
+				{onClusters && (
+					<>
+						<Crumb {...(clusterId === undefined ? {} : { to: CLUSTERS_PATH })}>Clusters</Crumb>
+						{adding && (
+							<>
+								<Slash />
+								<Crumb>Add</Crumb>
+							</>
+						)}
+						{detail && (
+							<>
+								<Slash />
+								<Crumb>{name}</Crumb>
+							</>
+						)}
+					</>
+				)}
+			</BreadcrumbList>
+		</Breadcrumb>
+	);
+}

@@ -55,6 +55,10 @@ const Audit = lazy(async () => ({ default: (await pageImporters.Audit()).Audit }
 const Tokens = lazy(async () => ({ default: (await pageImporters.Tokens()).Tokens }));
 const Organizations = lazy(async () => ({ default: (await pageImporters.Organizations()).Organizations }));
 const PersonalSettings = lazy(async () => ({ default: (await pageImporters.Settings()).PersonalSettings }));
+const SystemOverview = lazy(async () => ({ default: (await pageImporters.System()).SystemOverview }));
+const SystemClusters = lazy(async () => ({ default: (await pageImporters.System()).SystemClusters }));
+const SystemClusterDetail = lazy(async () => ({ default: (await pageImporters.System()).SystemClusterDetail }));
+const SystemAddCluster = lazy(async () => ({ default: (await pageImporters.System()).SystemAddCluster }));
 const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.DashboardRedirect()).DashboardRedirect }));
 
 import { onSessionExpired, transport } from "./auth/connect-transport";
@@ -239,6 +243,45 @@ function AppRoutes() {
 						}
 					/>
 					<Route path="/org/:orgId/settings" element={<OrgRedirect to="settings" />} />
+
+					<Route path="/system">
+						<Route
+							index
+							element={
+								<>
+									<PageTitle title="System" />
+									<SystemOverview />
+								</>
+							}
+						/>
+						<Route
+							path="clusters"
+							element={
+								<>
+									<PageTitle title="Clusters" />
+									<SystemClusters />
+								</>
+							}
+						/>
+						<Route
+							path="clusters/new"
+							element={
+								<>
+									<PageTitle title="Add cluster" />
+									<SystemAddCluster />
+								</>
+							}
+						/>
+						<Route
+							path="clusters/:clusterId"
+							element={
+								<>
+									<PageTitle title="Cluster" />
+									<SystemClusterDetail />
+								</>
+							}
+						/>
+					</Route>
 
 					<Route path="/org/:orgId/wks/:workspaceId" element={<WorkspaceRoutes />}>
 						<Route

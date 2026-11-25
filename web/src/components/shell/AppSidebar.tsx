@@ -18,6 +18,7 @@ import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery
 import { useAuth } from "@/auth/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar";
 import { LocoLogo } from "@/components/design/LocoLogo";
+import { Switch } from "@/components/design/Switch";
 import { ThemeSwatch } from "@/components/design/ThemePreview";
 import {
 	DropdownMenu,
@@ -46,8 +47,12 @@ import {
 	useSidebar,
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useMyScopes } from "@/hooks/useMyScopes";
+import { useInSystem } from "@/hooks/useInSystem";
+import { SYSTEM_PATH, SYSTEM_RETURN_KEY, systemAccess } from "@/lib/system";
 import { expandOrgLink } from "@/lib/org-links";
 import { colorThemes, parseColorTheme } from "@/lib/theme";
+import { useStoredValue } from "@/lib/storage";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
@@ -81,7 +86,7 @@ export function AppSidebar() {
 	const { theme, color, setColor } = useTheme();
 	const openShortcuts = useOpenShortcuts();
 	const { setOpenMobile } = useSidebar();
-	const { pathname } = useLocation();
+	const { pathname, search } = useLocation();
 	// Active-icon motion plays for navigation, not for the page the app loaded on.
 	const [seenPath, setSeenPath] = useState(pathname);
 	const [navigated, setNavigated] = useState(false);
@@ -97,6 +102,9 @@ export function AppSidebar() {
 	const colorName = colorThemes.find((t) => t.id === color)?.name ?? "";
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { data: config } = useQuery(getConfig, {});
+	const hasSystemRole = systemAccess(useMyScopes().scopes) !== "none";
+	const system = useInSystem();
+	const [systemReturn, setSystemReturn] = useStoredValue(SYSTEM_RETURN_KEY, "");
 
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
@@ -228,6 +236,30 @@ export function AppSidebar() {
 								Organizations
 							</MenuLink>
 						</MenuGroup>
+						{hasSystemRole && (
+							<>
+								<MenuSeparator />
+								<MenuGroup>
+									<DropdownMenuItem
+										role="menuitemcheckbox"
+										aria-checked={system}
+										className={menuItem}
+										onClick={() => {
+											if (system) {
+												void navigate(systemReturn === "" ? "/dashboard" : systemReturn);
+												setSystemReturn("");
+											} else {
+												setSystemReturn(pathname + search);
+												void navigate(SYSTEM_PATH);
+											}
+										}}
+									>
+										System
+										<Switch checked={system} tabIndex={-1} aria-hidden className="pointer-events-none" />
+									</DropdownMenuItem>
+								</MenuGroup>
+							</>
+						)}
 						<MenuSeparator />
 						<MenuGroup>
 							<MenuLink icon={<KeyboardIcon />} onClick={openShortcuts}>

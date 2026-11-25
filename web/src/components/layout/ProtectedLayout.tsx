@@ -13,6 +13,7 @@ import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive, WORKSPACE_STORAGE_KEY } from "@/context/ContextProvider";
 import { useStoredValue } from "@/lib/storage";
+import { inSystem, systemAccess } from "@/lib/system";
 import { getOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
@@ -78,7 +79,11 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const orgPending = urlOrg.isPending;
 	const workspacePending = workspaceLookup && urlWorkspace.isPending;
 	const lookupPending = orgPending || workspacePending;
-	const routeLoading = orgLookup && lookupPending;
+	// A System address depends on the scopes alone, never on the organization list.
+	const systemRoute = inSystem(pathname);
+	const systemPending = systemRoute && scopes.isLoading;
+	const systemAbsent = systemRoute && !scopes.isLoading && systemAccess(scopes.scopes) === "none";
+	const routeLoading = (orgLookup && lookupPending) || systemPending;
 	const orgsAnswered = !scopes.isLoading && !orgsQuery.isPending;
 	const routeDecided = orgsAnswered && !routeLoading;
 	// not_found and invalid_argument mean the organization or workspace is absent. A denial counts as absent
@@ -91,7 +96,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
 				scopes.scopes,
 			));
-	const routeNotFound = routeDecided && routeAbsent;
+	const routeNotFound = systemAbsent || (routeDecided && routeAbsent);
 
 	if (signedOut) {
 		return (

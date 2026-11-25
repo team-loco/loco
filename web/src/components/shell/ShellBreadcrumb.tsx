@@ -22,8 +22,10 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { orgSettingsPath, settingsPath, switchWorkspacePath, WORKSPACE_ROUTE, workspacePath } from "@/lib/routes";
+import { useInSystem } from "@/hooks/useInSystem";
 import { cn } from "@/lib/utils";
 
+import { SystemBreadcrumb } from "./SystemBreadcrumb";
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 
 // The workspace switcher lists the newest workspaces; the organization's settings list the rest.
@@ -163,7 +165,7 @@ function WorkspaceSwitcher({
 	);
 }
 
-export function ShellBreadcrumb() {
+function WorkspaceBreadcrumb() {
 	const { pathname } = useLocation();
 	const { orgs, activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active: env, setActive: setEnv } = useEnvironments();
@@ -248,4 +250,8 @@ export function ShellBreadcrumb() {
 			/>
 		</Breadcrumb>
 	);
+}
+
+export function ShellBreadcrumb() {
+	return useInSystem() ? <SystemBreadcrumb /> : <WorkspaceBreadcrumb />;
 }

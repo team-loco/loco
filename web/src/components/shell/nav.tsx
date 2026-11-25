@@ -5,6 +5,7 @@ import {
 	HistoryIcon,
 	KeyRoundIcon,
 	LayoutGridIcon,
+	ServerIcon,
 	LockKeyholeIcon,
 	ScrollTextIcon,
 	Settings2Icon,
@@ -20,6 +21,8 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { WINDOW_PARSERS } from "@/lib/obs-time";
+import { useInSystem } from "@/hooks/useInSystem";
+import { atPath, CLUSTERS_PATH, SYSTEM_PATH } from "@/lib/system";
 import { carriedQuery, QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 import {
 	auditPath,
@@ -56,6 +59,34 @@ const OBSERVABILITY_PAGES: { view: ObservabilityView; name: string; icon: ReactN
 const NAV_PARAMS = { env: parseAsString, view: observabilityViewParser };
 const loadCarried = createLoader({ ...WINDOW_PARSERS, ...QUERY_PARSERS });
 
+function systemSections(pathname: string): NavSection[] {
+	return [
+		{
+			pages: [
+				{
+					name: "Overview",
+					icon: <LayoutGridIcon />,
+					keywords: "system fleet health",
+					to: SYSTEM_PATH,
+					active: atPath(pathname, SYSTEM_PATH, true),
+				},
+			],
+		},
+		{
+			label: "Fleet",
+			pages: [
+				{
+					name: "Clusters",
+					icon: <ServerIcon />,
+					keywords: "system workers regions agents",
+					to: CLUSTERS_PATH,
+					active: atPath(pathname, CLUSTERS_PATH),
+				},
+			],
+		},
+	];
+}
+
 export function useNavSections(): NavSection[] {
 	const { pathname, search } = useLocation();
 	const [{ env, view }] = useQueryStates(NAV_PARAMS);
@@ -70,6 +101,9 @@ export function useNavSections(): NavSection[] {
 	const carriedTokens = toQuery({ q, r }).tokens;
 	const audit = useAuditAccess(activeOrgId);
 	const scopes = useMyScopes();
+	const inSystem = useInSystem();
+
+	if (inSystem) return systemSections(pathname);
 
 	return [
 		{
