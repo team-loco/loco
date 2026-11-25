@@ -2,7 +2,6 @@ import argparse
 import json
 import uuid
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 import evidence
 from harness import call, expect_rpc, load_state, open_page, repo, session, sql
@@ -183,18 +182,13 @@ with session(out) as browser:
     )
 
     def get_resource(route):
-        # Queries go out as GET, with the message in the query string.
-        query = parse_qs(urlparse(route.request.url).query)
-        message = json.loads(query.get("message", ["{}"])[0])
-        if hold["armed"] and message.get("resourceId") == hold["resource"]:
+        body = route.request.post_data_json or {}
+        if hold["armed"] and body.get("resourceId") == hold["resource"]:
             hold["routes"].append(route)
         else:
             route.continue_()
 
-    context.route(
-        lambda url: "/loco.resource.v1.ResourceService/GetResource?" in url,
-        get_resource,
-    )
+    context.route("**/loco.resource.v1.ResourceService/GetResource", get_resource)
 
     def hold_reload(resource_id):
         """Holds the reloads of the resource once a save has sent its first deployment request."""
