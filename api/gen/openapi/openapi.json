@@ -9073,14 +9073,6 @@
               "$ref": "#/components/schemas/loco.agent.v1.InventoryBuild"
             },
             "title": "builds"
-          },
-          "workspaceIds": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "title": "workspace_ids"
           }
         },
         "title": "Inventory",

@@ -234,10 +234,10 @@ func TestInventoryResendsOnlyWhatDiffers(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 
 	var sent []*agentv1.SyncResponse
-	session := newSyncSession(server, f.clusterID, func(msg *agentv1.SyncResponse) error {
+	session := newSyncSession(server, f.clusterID, skipKeptWorkspaces(func(msg *agentv1.SyncResponse) error {
 		sent = append(sent, msg)
 		return nil
-	})
+	}))
 
 	unknown := uuid.NewString()
 	err := session.reconcileInventory(ctx, &agentv1.Inventory{Entries: []*agentv1.InventoryEntry{
@@ -365,6 +365,10 @@ func openSyncWithAssertion(
 	go func() {
 		for {
 			msg, err := stream.Receive()
+			// Every inventory answers with the kept workspaces; their tests read them from the session.
+			if msg.GetKeepWorkspaces() != nil {
+				continue
+			}
 			results <- syncResult{msg: msg, err: err}
 			if err != nil {
 				return

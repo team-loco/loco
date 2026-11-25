@@ -42,7 +42,8 @@ func TestPermanentApplyFailuresWaitBeforeAnotherInventorySendsThem(t *testing.T)
 		t.Fatalf("fresh session resent %d permanently failed placements before its retry time", len(sent))
 	}
 	var sent int
-	session := newSyncSession(server, f.clusterID, func(_ *agentv1.SyncResponse) error { sent++; return nil })
+	count := func(_ *agentv1.SyncResponse) error { sent++; return nil }
+	session := newSyncSession(server, f.clusterID, skipKeptWorkspaces(count))
 	inventory := &agentv1.Inventory{}
 	if err := session.reconcileInventory(t.Context(), inventory); err != nil {
 		t.Fatal(err)
@@ -115,10 +116,10 @@ func TestCurrentInventoryRecoversDuringApplyBackoff(t *testing.T) {
 		f.clusterID,
 		&agentv1.Applied{PlacementId: placement.ID.String(), Revision: placement.DesiredRevision, Error: "apply error"},
 	)
-	session := newSyncSession(server, f.clusterID, func(_ *agentv1.SyncResponse) error {
+	session := newSyncSession(server, f.clusterID, skipKeptWorkspaces(func(_ *agentv1.SyncResponse) error {
 		t.Fatal("current inventory must not resend the placement")
 		return nil
-	})
+	}))
 	inventory := &agentv1.Inventory{
 		Entries: []*agentv1.InventoryEntry{{PlacementId: placement.ID.String(), Revision: placement.DesiredRevision}},
 	}
@@ -177,10 +178,10 @@ func TestPlacementFailsOnceItRunsOutOfApplyAttempts(t *testing.T) {
 	if sent := f.sendPending(t, server); len(sent) != 0 {
 		t.Fatalf("fresh session resent %d failed placements", len(sent))
 	}
-	session := newSyncSession(server, f.clusterID, func(_ *agentv1.SyncResponse) error {
+	session := newSyncSession(server, f.clusterID, skipKeptWorkspaces(func(_ *agentv1.SyncResponse) error {
 		t.Fatal("inventory resent a failed placement")
 		return nil
-	})
+	}))
 	if err := session.reconcileInventory(t.Context(), &agentv1.Inventory{}); err != nil {
 		t.Fatal(err)
 	}

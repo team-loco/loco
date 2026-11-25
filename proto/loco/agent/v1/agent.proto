@@ -65,7 +65,8 @@ message SyncRequest {
 message Inventory {
   repeated InventoryEntry entries = 1;
   repeated InventoryBuild builds = 2;
-  repeated string workspace_ids = 3 [(buf.validate.field).repeated.items.string.uuid = true];
+  reserved 3;
+  reserved "workspace_ids";
 }
 
 message InventoryEntry {

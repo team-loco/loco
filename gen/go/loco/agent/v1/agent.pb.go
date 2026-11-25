@@ -482,7 +482,6 @@ type Inventory struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entries       []*InventoryEntry      `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
 	Builds        []*InventoryBuild      `protobuf:"bytes,2,rep,name=builds,proto3" json:"builds,omitempty"`
-	WorkspaceIds  []string               `protobuf:"bytes,3,rep,name=workspace_ids,json=workspaceIds,proto3" json:"workspace_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -527,13 +526,6 @@ func (x *Inventory) GetEntries() []*InventoryEntry {
 func (x *Inventory) GetBuilds() []*InventoryBuild {
 	if x != nil {
 		return x.Builds
-	}
-	return nil
-}
-
-func (x *Inventory) GetWorkspaceIds() []string {
-	if x != nil {
-		return x.WorkspaceIds
 	}
 	return nil
 }
@@ -1930,12 +1922,10 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\v2\x1e.loco.agent.v1.PlacementStatusH\x00R\x06status\x12?\n" +
 	"\fbuild_status\x18\x04 \x01(\v2\x1a.loco.agent.v1.BuildStatusH\x00R\vbuildStatus\x128\n" +
 	"\theartbeat\x18\x05 \x01(\v2\x18.loco.agent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
-	"\amessage\"\xaf\x01\n" +
+	"\amessage\"\x90\x01\n" +
 	"\tInventory\x127\n" +
 	"\aentries\x18\x01 \x03(\v2\x1d.loco.agent.v1.InventoryEntryR\aentries\x125\n" +
-	"\x06builds\x18\x02 \x03(\v2\x1d.loco.agent.v1.InventoryBuildR\x06builds\x122\n" +
-	"\rworkspace_ids\x18\x03 \x03(\tB\r\xbaH\n" +
-	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\fworkspaceIds\"}\n" +
+	"\x06builds\x18\x02 \x03(\v2\x1d.loco.agent.v1.InventoryBuildR\x06buildsJ\x04\b\x03\x10\x04R\rworkspace_ids\"}\n" +
 	"\x0eInventoryEntry\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12,\n" +

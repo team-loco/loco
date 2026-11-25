@@ -153,10 +153,10 @@ func TestInventoryAheadOfTheDatabaseAdvancesThePlacement(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 
 	var sent []*agentv1.SyncResponse
-	session := newSyncSession(server, f.clusterID, func(msg *agentv1.SyncResponse) error {
+	session := newSyncSession(server, f.clusterID, skipKeptWorkspaces(func(msg *agentv1.SyncResponse) error {
 		sent = append(sent, msg)
 		return nil
-	})
+	}))
 
 	err := session.reconcileInventory(ctx, &agentv1.Inventory{Entries: []*agentv1.InventoryEntry{
 		{PlacementId: p.ID.String(), Revision: 5},
@@ -183,10 +183,10 @@ func TestInventoryAheadOfTheDatabaseAdvancesThePlacement(t *testing.T) {
 		t.Fatalf("remove placement: %v", err)
 	}
 	sent = nil
-	session = newSyncSession(server, f.clusterID, func(msg *agentv1.SyncResponse) error {
+	session = newSyncSession(server, f.clusterID, skipKeptWorkspaces(func(msg *agentv1.SyncResponse) error {
 		sent = append(sent, msg)
 		return nil
-	})
+	}))
 	err = session.reconcileInventory(ctx, &agentv1.Inventory{Entries: []*agentv1.InventoryEntry{
 		{PlacementId: p.ID.String(), Revision: 9},
 	}})
@@ -223,10 +223,10 @@ func TestAPendingInventoryAheadOfARestoredDatabaseAdvancesWithoutMarkingApplied(
 	p := f.placement(t, f.clusterID)
 
 	var sent []*agentv1.SyncResponse
-	session := newSyncSession(server, f.clusterID, func(msg *agentv1.SyncResponse) error {
+	session := newSyncSession(server, f.clusterID, skipKeptWorkspaces(func(msg *agentv1.SyncResponse) error {
 		sent = append(sent, msg)
 		return nil
-	})
+	}))
 	reconcile := func(revision int64, pending bool) {
 		t.Helper()
 		sent = nil

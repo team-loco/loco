@@ -211,14 +211,9 @@ func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
 }
 
 func (a *Agent) sendInventory(ctx context.Context, send func(*agentv1.Inventory) error) error {
-	workspaceIDs, err := a.applier.WorkspaceIDs(ctx)
-	if err != nil {
-		return err
-	}
 	return a.builds.WithInventory(ctx, func(builds []*agentv1.InventoryBuild) error {
 		return a.watcher.WithInventory(ctx, func(inventory *agentv1.Inventory) error {
 			inventory.Builds = builds
-			inventory.WorkspaceIds = workspaceIDs
 			return send(inventory)
 		})
 	})

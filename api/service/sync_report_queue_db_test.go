@@ -51,6 +51,16 @@ func (ss *syncSession) handleBuildStatus(ctx context.Context, status *agentv1.Bu
 	return ss.handleNow(ctx, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_BuildStatus{BuildStatus: status}})
 }
 
+// skipKeptWorkspaces forwards every message but the kept workspaces each inventory answers with.
+func skipKeptWorkspaces(send func(*agentv1.SyncResponse) error) func(*agentv1.SyncResponse) error {
+	return func(msg *agentv1.SyncResponse) error {
+		if msg.GetKeepWorkspaces() != nil {
+			return nil
+		}
+		return send(msg)
+	}
+}
+
 // reconcileInventory applies and settles an inventory as a sync stream does.
 func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv1.Inventory) error {
 	return ss.handleNow(ctx, &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: inventory}})

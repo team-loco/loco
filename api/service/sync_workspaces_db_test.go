@@ -4,7 +4,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -25,14 +24,16 @@ func TestKeptWorkspacesFollowThePlacementGrace(t *testing.T) {
 		t.Fatal(err)
 	}
 	session, sent := recordingSession(f)
-	// The unknown workspace makes every inventory send the kept workspaces.
-	inventory := &agentv1.Inventory{WorkspaceIds: []string{workspaceID, uuid.NewString()}}
 	kept := func(want bool) {
 		t.Helper()
-		if err := session.reconcileInventory(ctx, inventory); err != nil {
+		*sent = nil
+		if err := session.reconcileInventory(ctx, &agentv1.Inventory{}); err != nil {
 			t.Fatal(err)
 		}
-		ids, _ := lastKeptWorkspaces(t, *sent)
+		if len(*sent) != 1 || (*sent)[0].GetKeepWorkspaces() == nil {
+			t.Fatalf("sent %v, want one kept-workspaces message", *sent)
+		}
+		ids := (*sent)[0].GetKeepWorkspaces().GetWorkspaceIds()
 		if slices.Contains(ids, workspaceID) != want {
 			t.Fatalf("kept workspaces %v, want the workspace kept %v", ids, want)
 		}
@@ -71,7 +72,7 @@ func TestKeptWorkspacesLeaveOutADeletedWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	session, sent := recordingSession(f)
-	if err := session.sendKeptWorkspaces(ctx, []string{workspaceID.String()}); err != nil {
+	if err := session.sendKeptWorkspaces(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if ids, _ := lastKeptWorkspaces(t, *sent); len(ids) != 0 {
@@ -90,7 +91,7 @@ func TestKeptWorkspacesAreNotSentWhenTheQueryFails(t *testing.T) {
 	session, sent := recordingSession(f)
 	session.server.db = closed
 	session.server.queries = genDb.New(closed)
-	if err := session.sendKeptWorkspaces(t.Context(), []string{uuid.NewString()}); err == nil {
+	if err := session.sendKeptWorkspaces(t.Context()); err == nil {
 		t.Fatal("a failed workspace query returned nil")
 	}
 	if len(*sent) != 0 {
@@ -98,7 +99,7 @@ func TestKeptWorkspacesAreNotSentWhenTheQueryFails(t *testing.T) {
 	}
 }
 
-func TestKeptWorkspacesCoverEveryApplySentBeforeThem(t *testing.T) {
+func TestKeptWorkspacesFollowTheInventorysApplies(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
@@ -106,8 +107,7 @@ func TestKeptWorkspacesCoverEveryApplySentBeforeThem(t *testing.T) {
 		t.Fatal(err)
 	}
 	session, sent := recordingSession(f)
-	inventory := &agentv1.Inventory{WorkspaceIds: []string{uuid.NewString()}}
-	if err := session.reconcileInventory(ctx, inventory); err != nil {
+	if err := session.reconcileInventory(ctx, &agentv1.Inventory{}); err != nil {
 		t.Fatal(err)
 	}
 	ids, at := lastKeptWorkspaces(t, *sent)
@@ -117,23 +117,6 @@ func TestKeptWorkspacesCoverEveryApplySentBeforeThem(t *testing.T) {
 	}
 	if !slices.Contains(ids, f.workspaceID(t).String()) {
 		t.Fatalf("kept workspaces %v leave out the workspace of an Apply already sent", ids)
-	}
-}
-
-func TestKeptWorkspacesAreNotSentWhileTheClusterHoldsNothingElse(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	ctx := t.Context()
-	if _, err := f.deploy(ctx, staticSpec); err != nil {
-		t.Fatal(err)
-	}
-	session, sent := recordingSession(f)
-	inventory := &agentv1.Inventory{WorkspaceIds: []string{f.workspaceID(t).String()}}
-	if err := session.reconcileInventory(ctx, inventory); err != nil {
-		t.Fatal(err)
-	}
-	if slices.ContainsFunc(*sent, func(msg *agentv1.SyncResponse) bool { return msg.GetKeepWorkspaces() != nil }) {
-		t.Fatalf("sent %v for a cluster holding only kept workspaces", *sent)
 	}
 }
 

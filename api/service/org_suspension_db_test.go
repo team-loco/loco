@@ -85,10 +85,10 @@ func (f *deployFixture) orgEvents(t *testing.T, eventType string) []genDb.Event 
 func (f *deployFixture) pendingMessages(t *testing.T) []*agentv1.SyncResponse {
 	t.Helper()
 	var sent []*agentv1.SyncResponse
-	session := newSyncSession(f.agentServer(), f.clusterID, func(msg *agentv1.SyncResponse) error {
+	session := newSyncSession(f.agentServer(), f.clusterID, skipKeptWorkspaces(func(msg *agentv1.SyncResponse) error {
 		sent = append(sent, msg)
 		return nil
-	})
+	}))
 	if err := session.sendPendingPlacements(t.Context()); err != nil {
 		t.Fatalf("send pending placements: %v", err)
 	}
@@ -98,10 +98,10 @@ func (f *deployFixture) pendingMessages(t *testing.T) []*agentv1.SyncResponse {
 func (f *deployFixture) inventoryMessages(t *testing.T, entries ...*agentv1.InventoryEntry) []*agentv1.SyncResponse {
 	t.Helper()
 	var sent []*agentv1.SyncResponse
-	session := newSyncSession(f.agentServer(), f.clusterID, func(msg *agentv1.SyncResponse) error {
+	session := newSyncSession(f.agentServer(), f.clusterID, skipKeptWorkspaces(func(msg *agentv1.SyncResponse) error {
 		sent = append(sent, msg)
 		return nil
-	})
+	}))
 	if err := session.reconcileInventory(t.Context(), &agentv1.Inventory{Entries: entries}); err != nil {
 		t.Fatalf("reconcile inventory: %v", err)
 	}
