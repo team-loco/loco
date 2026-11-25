@@ -161,8 +161,38 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     expect(delete).to_be_focused()
     delete.click()
     dialog.get_by_role("textbox").fill(state["users"]["departing"]["email"])
+    # Other requests are refused while the deletion is still in flight.
+    deletion = []
+    rejected = {"code": "unauthenticated", "message": "session expired"}
+    context.route(
+        "**/loco.user.v1.UserService/DeleteUser", lambda route: deletion.append(route)
+    )
+    for method in (
+        "loco.user.v1.UserService/GetAccountDeletionImpact",
+        "loco.token.v1.TokenService/GetScopes",
+        "loco.auth.v1.AuthService/RefreshWebSession",
+        "loco.user.v1.UserService/WhoAmI",
+    ):
+        context.route(
+            f"**/{method}",
+            lambda route: (
+                route.fulfill(status=401, json=rejected)
+                if deletion
+                else route.fallback()
+            ),
+        )
     confirm.click()
+    for _ in range(100):
+        if deletion:
+            break
+        page.wait_for_timeout(50)
+    assert deletion, "DeleteUser was not sent"
+    page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
     expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
+    expect(page).to_have_url(re.compile(r"/login"))
+    expect(page).not_to_have_url(re.compile(r"/dex/"))
+    deletion[0].continue_()
+    page.wait_for_timeout(1000)
     expect(page).not_to_have_url(re.compile(r"/dex/"))
     assert not any(
         cookie["name"] == evidence.SESSION_COOKIE for cookie in context.cookies()

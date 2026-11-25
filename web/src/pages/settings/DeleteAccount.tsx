@@ -25,7 +25,7 @@ const SURVIVING_TOKENS =
 const TOKEN_PAGE_SIZE = 10;
 
 export function DeleteAccount({ user }: { user: User }) {
-	const { logout } = useAuth();
+	const { logout, holdSignIn } = useAuth();
 	const queryClient = useQueryClient();
 	const [pages, setPages] = useState([""]);
 	const impact = useQuery(
@@ -52,6 +52,7 @@ export function DeleteAccount({ user }: { user: User }) {
 	const confirmDelete = () => {
 		if (remove.isPending || blockedReason !== null || blockers.length > 0) return;
 		setError(null);
+		holdSignIn(true);
 		remove.mutate(
 			{ userId: user.id },
 			{
@@ -61,6 +62,7 @@ export function DeleteAccount({ user }: { user: User }) {
 					void logout();
 				},
 				onError: (err) => {
+					holdSignIn(false);
 					setError(getErrorMessage(err, "Failed to delete account"));
 					setDeleteOpen(false);
 					refresh();

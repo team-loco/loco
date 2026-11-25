@@ -3,7 +3,7 @@ import { useWorkspace, WORKSPACE_STALE_MS } from "@/hooks/useWorkspace";
 import { refetchUnlessMissing, resourceMissing, routeKnown } from "@/lib/not-found";
 import { NotFound, NotFoundBoundary } from "@/pages/NotFound";
 import { useAuth } from "@/auth/AuthProvider";
-import { nextPathState } from "@/auth/next";
+import { nextPathState, signInOnClickState } from "@/auth/next";
 import { ClaimedOrgsBanner } from "@/components/ClaimedOrgsBanner";
 import { ErrorCard } from "@/components/ErrorCard";
 import { PageLoading } from "@/components/design/Page";
@@ -27,7 +27,7 @@ interface ProtectedLayoutProps {
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
 	const { pathname, search, hash } = useLocation();
-	const { user, signedOut, isPending, error } = useAuth();
+	const { user, signedOut, signInHeld, isPending, error } = useAuth();
 
 	const orgsQuery = useQuery(listUserOrgs, { userId: user?.id ?? "" }, { enabled: !!user });
 	const orgs = orgsQuery.data?.orgs;
@@ -94,7 +94,9 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const routeNotFound = routeDecided && routeAbsent;
 
 	if (signedOut) {
-		return <Navigate to="/login" replace state={nextPathState(pathname + search + hash)} />;
+		return (
+			<Navigate to="/login" replace state={signInHeld ? signInOnClickState : nextPathState(pathname + search + hash)} />
+		);
 	}
 
 	if (isPending) {
