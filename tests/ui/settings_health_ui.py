@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import uuid
 from pathlib import Path
 
@@ -139,6 +140,14 @@ def two_deployments(name, checked=(REGION, OTHER_REGION)):
 
 
 split, split_base = two_deployments("health-split")
+split_domain = "health-split.apps.example.test"
+sql(
+    state,
+    f"""INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
+SELECT '{split}', id, '{split_domain}', 'app', 'health-split', 'apps.example.test', true
+FROM environments WHERE workspace_id='{state["workspaces"]["acme/shared"]}' AND slug='production';""",
+)
+_, last, last_base = seed_settings_resource(state, "health-last")
 mixed, mixed_base = two_deployments("health-mixed", checked=(OTHER_REGION,))
 
 
@@ -189,7 +198,7 @@ with session(out) as browser:
         """Holds the resource's reloads once the save has sent its last deployment request."""
         hold.update(resource=resource_id, requests=requests, routes=[])
 
-    def release_reload():
+    def release_reload(locked=()):
         for _ in range(100):
             if hold["routes"]:
                 break
@@ -199,6 +208,8 @@ with session(out) as browser:
         # the settings tab and coming back.
         expect(page.get_by_role("button", name="Saving…", exact=True)).to_be_disabled()
         expect(switch).to_be_disabled()
+        for field in locked:
+            expect(field).to_be_disabled()
         page.get_by_role("button", name="Overview", exact=True).click()
         page.get_by_role("button", name="Resource settings", exact=True).click()
         expect(page.get_by_role("button", name="Saving…", exact=True)).to_be_disabled()
@@ -340,14 +351,20 @@ with session(out) as browser:
     expect(switch).to_be_checked()
 
     # A saved start command leaves the draft, once the reload is done, even when the server runs
-    # another one.
+    # another one. A hostname edit left open stays locked while the save runs.
+    page.get_by_role("button", name=f"Actions for {split_domain}", exact=True).click()
+    page.get_by_role("menuitem", name="Edit hostname", exact=True).click()
+    hostname = page.get_by_role(
+        "textbox", name=f"Hostname for {split_domain}", exact=True
+    )
+    expect(hostname).to_be_enabled()
     server_override["command"] = ["/other"]
     page.locator("#set-command").get_by_role(
         "textbox", name="Command", exact=True
     ).fill("/serve")
     hold_reload(split, 2)
     save_button.click()
-    release_reload()
+    release_reload(locked=[hostname])
     expect(discard).to_have_count(0)
     server_override.clear()
 
@@ -368,6 +385,33 @@ with session(out) as browser:
     assert sent[OTHER_REGION]["spec"]["service"]["healthCheck"] == server_check, sent
     assert not any("removeHealthCheck" in d for d in sent.values()), sent
 
+    # Removing the last check leaves the switch off after the reload, and a later save of another
+    # setting does not bring the check back.
+    page.goto(last_base + "?env=production&tab=settings")
+    expect(switch).to_be_checked()
+    switch.click()
+    sent = saved(lambda body: body.get("resourceId") == last)
+    assert sent["removeHealthCheck"] is True, sent
+    expect(switch).not_to_be_checked()
+    expect(fields).to_have_count(0)
+    page.get_by_role("textbox", name="Port", exact=True).fill("9090")
+    sent = saved(lambda body: body.get("resourceId") == last)
+    assert "healthCheck" not in sent["spec"]["service"], sent
+    expect(switch).not_to_be_checked()
+
+    # Typing keeps what was typed, a trailing space and a new line included.
+    description = page.get_by_role("textbox", name="Description", exact=True)
+    description.click()
+    description.press("End")
+    description.press_sequentially(" ")
+    expect(description).to_have_value(re.compile(r" $"))
+    command = page.locator("#set-command").get_by_role(
+        "textbox", name="Command", exact=True
+    )
+    command.click()
+    command.press("End")
+    command.press("Enter")
+    expect(command).to_have_value(re.compile(r"\n$"))
     assert not errors, errors
     context.close()
     browser.close()

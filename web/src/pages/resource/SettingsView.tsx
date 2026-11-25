@@ -27,7 +27,7 @@ import { isDeployed, type Notice as NoticeState, type RegionView } from "./model
 import { regionsWithDifferentVariables } from "./variables";
 import { NetworkingSection } from "./NetworkingSection";
 import {
-	pruned,
+	effectiveDraft,
 	plainEnv,
 	changeNames,
 	domainsChange,
@@ -133,7 +133,11 @@ export function SettingsView({
 	onSaved: (notice: NoticeState) => void;
 	/** Whether a save, and the reload after it, is still running. */
 	saving: boolean;
-	onSave: (draft: SettingsDraft) => Promise<void>;
+	/** Saves the draft; `validate` checks it against the variables and plan the save uses. */
+	onSave: (
+		draft: SettingsDraft,
+		validate: (env: Record<string, string>, hasDeployments: boolean) => DraftErrors,
+	) => Promise<void>;
 }) {
 	const [current, setCurrent] = useState(() => {
 		const linked = NAV.find((n) => `#${n.id}` === window.location.hash);
@@ -186,6 +190,8 @@ export function SettingsView({
 		resource,
 		regions.filter(isDeployed).flatMap((r) => (r.current === undefined ? [] : [r.current])),
 	);
+	// A pending health edit keeps its section, and its error, even once only workers run.
+	const showHealth = !worker || draft.health !== undefined;
 	const readOnly = managed || !canWrite;
 	// Fields stay locked until a save and the reload after it finish, so no edit is lost.
 	const locked = readOnly || saving;
@@ -204,14 +210,18 @@ export function SettingsView({
 	const drafts = useDrafts(activeOrgId ?? "", resource.workspaceId, environmentId).drafts;
 	const taken = useTakenKeys(activeOrgId ?? "", resource.workspaceId, drafts, resource.id).names;
 	const replicaLimit = sizes.replicas?.max ?? Number.POSITIVE_INFINITY;
-	const planned = planSave(regions, draft, base, plainEnv(env, draft));
-	const errors = validateDraft(draft, base, regions, served, replicaLimit, env, planned, taken);
+	// Raw input stays in the draft; validation and the plan read the changes the pending list names.
+	const effective = effectiveDraft(draft, base);
+	const validate = (variables: Record<string, string>, hasDeployments: boolean) =>
+		validateDraft(effective, base, regions, served, replicaLimit, variables, hasDeployments, taken);
+	const planned = planSave(regions, effective, base, plainEnv(env, effective));
+	const errors = validate(env, planned.length > 0);
 	const errorCount = Object.keys(errors).length;
 	const changes = changeNames(draft, base);
 	const count = changes.length;
 	const redeploys = regionMapChanged(draft, base) || planned.length > 0;
 	const submit = async () => {
-		await onSave(draft);
+		await onSave(draft, validate);
 		setTried(false);
 	};
 	const confirmDomains = () => {
@@ -222,9 +232,8 @@ export function SettingsView({
 		setConfirming(null);
 		void submit();
 	};
-	// A field typed back to what runs leaves the draft, so the draft holds only pending changes.
 	const change = (patch: Partial<SettingsDraft>) => {
-		onDraft(pruned({ ...draft, ...patch }, base));
+		onDraft({ ...draft, ...patch });
 	};
 	const shownErrors: DraftErrors = tried
 		? errors
@@ -250,7 +259,7 @@ export function SettingsView({
 			)}
 			<div className="grid grid-cols-1 items-start gap-8 md:grid-cols-[170px_minmax(0,1fr)]">
 				<nav aria-label="Settings sections" className="flex flex-row flex-wrap gap-0.5 md:sticky md:top-4 md:flex-col">
-					{NAV.filter((n) => !worker || n.id !== HEALTH_SECTION_ID).map((n) => (
+					{NAV.filter((n) => showHealth || n.id !== HEALTH_SECTION_ID).map((n) => (
 						<a
 							key={n.id}
 							href={`#${n.id}`}
@@ -305,7 +314,7 @@ export function SettingsView({
 							});
 						}}
 					/>
-					{(!worker || draft.health !== undefined) && <HealthSection {...props} deployed={regions.some(isDeployed)} />}
+					{showHealth && <HealthSection {...props} deployed={regions.some(isDeployed)} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
 					<GeneralSection {...props} canWrite={canWrite && !saving} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">
@@ -329,7 +338,7 @@ export function SettingsView({
 							onAction={onDelete}
 						/>
 					</SettingsBlock>
-					{count > 0 && (
+					{(count > 0 || saving) && (
 						<SaveBar
 							count={count}
 							names={changes}

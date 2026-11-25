@@ -560,13 +560,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							void refresh();
 						}}
 						saving={saving}
-						onSave={async (saved) => {
+						onSave={async (saved, validate) => {
 							await saveSettings({
 								resource,
 								environmentId: environmentId ?? "",
 								regions,
 								base,
 								draft: saved,
+								validate,
 							});
 						}}
 					/>

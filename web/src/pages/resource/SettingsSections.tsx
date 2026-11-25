@@ -330,6 +330,12 @@ export function HealthSection({
 				/>
 			}
 		>
+			{draft.health?.form.enabled === false && base.healthStored && (
+				<span className="text-[12.5px] text-fg3">
+					This also removes the check new deployments in every environment start with; deployments already running
+					elsewhere keep theirs.
+				</span>
+			)}
 			{errors.health !== undefined && (
 				<span className="text-[12.5px] text-bad-fg">
 					{errors.health} Discard drops the pending health check change.

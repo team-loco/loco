@@ -55,6 +55,8 @@ export const RESTART_CHOICES = [
 
 export type RestartChoice = (typeof RESTART_CHOICES)[number]["value"];
 
+export const FAILURE_POLICY_KEYS = ["restartPolicy", "maxRestarts", "deployTimeout"] as const;
+
 interface FailurePolicySettings {
 	restartPolicy: RestartChoice;
 	maxRestarts: string;
@@ -91,12 +93,12 @@ function observabilitySettings(config: ObservabilityConfig | undefined): Observa
 }
 
 /**
- * A health check edit with its intent: enable or edit gives every deployment with a port the form,
- * disable removes every check. The switch turns back by undoing a pending enable or disable.
+ * A health check edit: the form every deployment with a port gets, without a check when it is off.
+ * `toggled` marks an edit the switch started, which switching back undoes.
  */
 export interface HealthEdit {
-	kind: "enable" | "disable" | "edit";
 	form: HealthForm;
+	toggled: boolean;
 }
 
 export interface SettingsDraft {
@@ -317,25 +319,29 @@ function sameEntries(a: string, b: string): boolean {
 function healthChanges(draft: SettingsDraft, base: Baseline): string[] {
 	const edit = draft.health;
 	if (edit === undefined) return [];
-	if (edit.kind !== "edit") return [edit.kind === "enable" ? "Add health check" : "Remove health check"];
+	if (!edit.form.enabled) return ["Remove health check"];
+	if (edit.toggled) return ["Add health check"];
 	const fields = HEALTH_FIELDS.filter(([k]) => differs(edit.form[k], base.health[k])).map(([, , label]) => label);
 	return fields.length > 0 ? fields : ["Health check"];
 }
 
 /** The health edit after the switch turns on or off; turning it back undoes the pending one. */
 export function switchHealth(edit: HealthEdit | undefined, base: Baseline, on: boolean): HealthEdit | undefined {
-	if (edit?.kind === (on ? "disable" : "enable")) return undefined;
-	return { kind: on ? "enable" : "disable", form: { ...(edit?.form ?? base.health), enabled: on } };
+	if (edit?.toggled === true) return undefined;
+	return { form: { ...(edit?.form ?? base.health), enabled: on }, toggled: true };
 }
 
 /** The health edit after a field changes; fields of a check being turned on stay part of that. */
 export function editHealth(edit: HealthEdit | undefined, base: Baseline, patch: Partial<HealthForm>): HealthEdit {
 	const form = { ...(edit?.form ?? base.health), ...patch };
-	return { kind: edit?.kind === "enable" ? "enable" : "edit", form };
+	return { form, toggled: edit?.toggled ?? false };
 }
 
-/** The draft without fields typed back to their baseline value, so every field it holds is a pending change. */
-export function pruned(draft: SettingsDraft, base: Baseline): SettingsDraft {
+/**
+ * The draft's changes as the pending list names them: fields typed back to their baseline value are
+ * left out, so nothing unlisted is validated, planned or saved. The editor keeps the raw draft.
+ */
+export function effectiveDraft(draft: SettingsDraft, base: Baseline): SettingsDraft {
 	const next = resolved(draft, base);
 	const unchanged: Partial<Record<string, boolean>> = {
 		...Object.fromEntries(SCALAR_KEYS.map((k) => [k, !differs(next[k], base[k])])),
@@ -380,7 +386,7 @@ export function validateDraft(
 	served: string[],
 	replicaLimit: number,
 	env: Record<string, string>,
-	planned: readonly PlannedDeploy[],
+	hasDeployments: boolean,
 	takenNames: ReadonlySet<string> = new Set(),
 ): DraftErrors {
 	const next = resolved(draft, base);
@@ -409,7 +415,7 @@ export function validateDraft(
 	if (draft.deployTimeout !== undefined && !positive(next.deployTimeout))
 		errors.deployTimeout = "Whole seconds, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
-	else if (regionMapChanged(draft, base) && planned.length > 0)
+	else if (regionMapChanged(draft, base) && hasDeployments)
 		errors.regions =
 			"Save region, size and scaling changes separately from image, port, health, observability and domain changes";
 	if (domainsChange(draft, base) === "add") {
@@ -466,7 +472,7 @@ function intendedHealth(
 	current: HealthCheckConfig | undefined,
 	delay: number,
 ): HealthCheckConfig | undefined {
-	return edit.kind === "disable" ? undefined : healthFrom(edit.form, current, delay);
+	return edit.form.enabled ? healthFrom(edit.form, current, delay) : undefined;
 }
 
 /** Whether any running deployment listens on a port, so it can run a health check. */
@@ -498,7 +504,7 @@ function applyDraft(
 	return next;
 }
 
-export interface PlannedDeploy {
+interface PlannedDeploy {
 	commit: SourceCommit | undefined;
 	regions: string[];
 	spec: DeploymentSpec;
@@ -552,7 +558,7 @@ export function planSave(
 ): PlannedDeploy[] {
 	const redeployAll = domainsChange(draft, base) !== null;
 	// Removing a check the resource stores matters even where no deployment runs one.
-	const removesStored = draft.health?.kind === "disable" && base.healthStored;
+	const removesStored = draft.health?.form.enabled === false && base.healthStored;
 	return currentSources(regions).flatMap(({ deployment, regions: names }) => {
 		const current = getServiceSpec(deployment);
 		if (deployment.spec === undefined || current === undefined) return [];

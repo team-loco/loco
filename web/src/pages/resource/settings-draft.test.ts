@@ -33,7 +33,7 @@ import {
 	switchHealth,
 	plainEnv,
 	planSave,
-	pruned,
+	effectiveDraft,
 	regionChanges,
 	regionMapChanged,
 	regionTargets,
@@ -109,7 +109,7 @@ const scaling = (replicas: number, maxReplicas = replicas, cpuTarget = defaults.
 const regions = [region(EAST, deployment("east", EAST)), region(WEST, deployment("west", WEST, 3))];
 const base = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, POLICY);
 const hc = (patch: Partial<HealthForm>): SettingsDraft => ({
-	health: { kind: "edit", form: { ...base.health, ...patch } },
+	health: { form: { ...base.health, ...patch }, toggled: false },
 });
 const ENV = { LOG_LEVEL: "info" };
 const planWith = (views: RegionView[], draft: SettingsDraft, b: Baseline) =>
@@ -179,7 +179,7 @@ describe("planSave", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, { restartPolicy: "never" }, oddBase),
+				planWith(regions, { restartPolicy: "never" }, oddBase).length > 0,
 			).deployTimeout,
 		).toBeUndefined();
 		expect(failurePolicyFrom(resolved({ restartPolicy: "never" }, oddBase)).deployTimeoutSeconds).toBe(90);
@@ -194,7 +194,7 @@ describe("planSave", () => {
 
 	test("failure policy fields reject values that are not whole numbers", () => {
 		const errors = (draft: SettingsDraft) =>
-			validateDraft(draft, base, regions, SERVED, 10, ENV, planWith(regions, draft, base));
+			validateDraft(draft, base, regions, SERVED, 10, ENV, planWith(regions, draft, base).length > 0);
 		expect(errors({ maxRestarts: "0" }).maxRestarts).toBe("A whole number, at least 1");
 		expect(errors({ maxRestarts: "21" }).maxRestarts).toBeUndefined();
 		expect(errors({ restartPolicy: "never", maxRestarts: "x" }).maxRestarts).toBeUndefined();
@@ -408,7 +408,8 @@ describe("addedProblems", () => {
 describe("validateDraft", () => {
 	test("limits the name to 63 characters, counting an emoji as one", () => {
 		expect(
-			validateDraft({ name: "  " }, base, regions, SERVED, 10, ENV, planWith(regions, { name: "  " }, base)).name,
+			validateDraft({ name: "  " }, base, regions, SERVED, 10, ENV, planWith(regions, { name: "  " }, base).length > 0)
+				.name,
 		).toBe("Enter a name");
 		expect(
 			validateDraft(
@@ -418,7 +419,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, { name: "🚀".repeat(63) }, base),
+				planWith(regions, { name: "🚀".repeat(63) }, base).length > 0,
 			).name,
 		).toBeUndefined();
 		expect(
@@ -429,12 +430,12 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, { name: "a".repeat(64) }, base),
+				planWith(regions, { name: "a".repeat(64) }, base).length > 0,
 			).name,
 		).toBe("Use at most 63 characters");
 	});
 	test("reports only the fields the draft touched", () => {
-		expect(validateDraft({}, base, regions, SERVED, 10, ENV, planWith(regions, {}, base))).toEqual({});
+		expect(validateDraft({}, base, regions, SERVED, 10, ENV, planWith(regions, {}, base).length > 0)).toEqual({});
 		expect(
 			validateDraft(
 				{ port: "http", ...hc({ path: "ready" }) },
@@ -443,7 +444,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, { port: "http", ...hc({ path: "ready" }) }, base),
+				planWith(regions, { port: "http", ...hc({ path: "ready" }) }, base).length > 0,
 			),
 		).toEqual({
 			port: "Use a port from 1 to 65535",
@@ -453,8 +454,15 @@ describe("validateDraft", () => {
 
 	test("keeps the health timeout below the interval", () => {
 		expect(
-			validateDraft(hc({ timeout: "9" }), base, regions, SERVED, 10, ENV, planWith(regions, hc({ timeout: "9" }), base))
-				.healthTimeout,
+			validateDraft(
+				hc({ timeout: "9" }),
+				base,
+				regions,
+				SERVED,
+				10,
+				ENV,
+				planWith(regions, hc({ timeout: "9" }), base).length > 0,
+			).healthTimeout,
 		).toBeUndefined();
 		expect(
 			validateDraft(
@@ -464,7 +472,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, hc({ timeout: "10" }), base),
+				planWith(regions, hc({ timeout: "10" }), base).length > 0,
 			).healthTimeout,
 		).toBe("Must be below the interval");
 		expect(
@@ -475,7 +483,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, hc({ interval: "5", timeout: "5" }), base),
+				planWith(regions, hc({ interval: "5", timeout: "5" }), base).length > 0,
 			).healthTimeout,
 		).toBe("Must be below the interval");
 		expect(
@@ -486,7 +494,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, hc({ interval: "0", timeout: "0" }), base),
+				planWith(regions, hc({ interval: "0", timeout: "0" }), base).length > 0,
 			),
 		).toEqual({
 			healthInterval: "Whole seconds, at least 5",
@@ -500,7 +508,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, hc({ interval: "4" }), base),
+				planWith(regions, hc({ interval: "4" }), base).length > 0,
 			).healthInterval,
 		).toBe("Whole seconds, at least 5");
 		expect(
@@ -511,7 +519,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, hc({ interval: "5", timeout: "2" }), base),
+				planWith(regions, hc({ interval: "5", timeout: "2" }), base).length > 0,
 			),
 		).toEqual({});
 		expect(
@@ -522,25 +530,26 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, hc({ interval: "90", timeout: "61" }), base),
+				planWith(regions, hc({ interval: "90", timeout: "61" }), base).length > 0,
 			).healthTimeout,
 		).toBe("Whole seconds, 1 to 60");
 	});
 
 	test("asks for a port when the field is cleared", () => {
 		expect(
-			validateDraft({ port: "" }, base, regions, SERVED, 10, ENV, planWith(regions, { port: "" }, base)).port,
+			validateDraft({ port: "" }, base, regions, SERVED, 10, ENV, planWith(regions, { port: "" }, base).length > 0)
+				.port,
 		).toBe("Enter a port number");
 	});
 
 	test("keeps the port within 1 through 65535", () => {
 		for (const port of ["0", "70000", "65536"])
-			expect(validateDraft({ port }, base, regions, SERVED, 10, ENV, planWith(regions, { port }, base)).port).toBe(
-				"Use a port from 1 to 65535",
-			);
+			expect(
+				validateDraft({ port }, base, regions, SERVED, 10, ENV, planWith(regions, { port }, base).length > 0).port,
+			).toBe("Use a port from 1 to 65535");
 		for (const port of ["1", "65535"])
 			expect(
-				validateDraft({ port }, base, regions, SERVED, 10, ENV, planWith(regions, { port }, base)).port,
+				validateDraft({ port }, base, regions, SERVED, 10, ENV, planWith(regions, { port }, base).length > 0).port,
 			).toBeUndefined();
 	});
 
@@ -553,7 +562,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, { regions: { [EAST]: false, [WEST]: false } }, base),
+				planWith(regions, { regions: { [EAST]: false, [WEST]: false } }, base).length > 0,
 			).regions,
 		).toBe("Keep at least one region");
 	});
@@ -567,7 +576,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, { cpu: "1", image: "ghcr.io/acme/shop:1.5.0" }, base),
+				planWith(regions, { cpu: "1", image: "ghcr.io/acme/shop:1.5.0" }, base).length > 0,
 			).regions,
 		).toBe(
 			"Save region, size and scaling changes separately from image, port, health, observability and domain changes",
@@ -580,7 +589,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, { cpu: "1", scaling: { [EAST]: scaling(4) } }, base),
+				planWith(regions, { cpu: "1", scaling: { [EAST]: scaling(4) } }, base).length > 0,
 			),
 		).toEqual({});
 	});
@@ -595,7 +604,7 @@ describe("validateDraft", () => {
 				SERVED,
 				10,
 				ENV,
-				planWith(regions, { isPublic: true, subdomain: "Shop!", appDomain: "other.dev" }, privateBase),
+				planWith(regions, { isPublic: true, subdomain: "Shop!", appDomain: "other.dev" }, privateBase).length > 0,
 			),
 		).toEqual({
 			appDomain: "No app domain is served in every region",
@@ -613,7 +622,7 @@ describe("validateDraft", () => {
 					SERVED,
 					10,
 					ENV,
-					planWith(regions, { scaling: { [EAST]: value } }, base),
+					planWith(regions, { scaling: { [EAST]: value } }, base).length > 0,
 				)[`scaling.${EAST}`],
 			).toBeDefined();
 		}
@@ -694,18 +703,18 @@ describe("health check switch", () => {
 
 	test("turning the switch back undoes the pending edit, and only that", () => {
 		const on = switchHealth(undefined, allOffBase, true);
-		expect(on?.kind).toBe("enable");
+		expect(on).toMatchObject({ form: { enabled: true }, toggled: true });
 		expect(switchHealth(on, allOffBase, false)).toBeUndefined();
 		const off = switchHealth(undefined, mixedBase, false);
-		expect(off?.kind).toBe("disable");
+		expect(off).toMatchObject({ form: { enabled: false }, toggled: true });
 		expect(switchHealth(off, mixedBase, true)).toBeUndefined();
 		const edited = editHealth(undefined, mixedBase, { path: "/ready" });
-		expect(switchHealth(edited, mixedBase, false)?.kind).toBe("disable");
+		expect(switchHealth(edited, mixedBase, false)).toMatchObject({ form: { enabled: false, path: "/ready" } });
 	});
 
 	test("a field typed back to its value keeps the edit pending", () => {
 		const edited = editHealth(editHealth(undefined, base, { timeout: "5" }), base, { timeout: base.health.timeout });
-		expect(edited).toEqual({ kind: "edit", form: base.health });
+		expect(edited).toEqual({ form: base.health, toggled: false });
 		expect(changeNames({ health: edited }, base)).toEqual(["Health check"]);
 	});
 
@@ -763,18 +772,26 @@ describe("health check switch", () => {
 	});
 
 	test("turning it off ignores its fields", () => {
-		const draft = { health: { kind: "disable" as const, form: { ...base.health, enabled: false, path: "nope" } } };
+		const draft = { health: { form: { ...base.health, enabled: false, path: "nope" }, toggled: true } };
 		expect(changeNames(draft, base)).toEqual(["Remove health check"]);
 		expect(
-			validateDraft(draft, base, regions, SERVED, 10, ENV, planWith(regions, draft, base)).healthPath,
+			validateDraft(draft, base, regions, SERVED, 10, ENV, planWith(regions, draft, base).length > 0).healthPath,
 		).toBeUndefined();
 	});
 
-	test("a health-only edit sends nothing to a worker deployment", () => {
+	test("turning a check on sends it to the deployment with a port and nothing to the worker", () => {
 		const views = [withDelay("east", EAST, undefined), worker("worker", WEST)];
 		const b = baseline("shop", "shop", "", views, [EAST, WEST], true, checked, POLICY);
-		for (const edit of [switchHealth(undefined, b, true), editHealth(undefined, b, { path: "/ready" })])
-			expect(planned(views, { health: edit }, b).map(([names]) => names)).toEqual([[EAST]]);
+		const edit = switchHealth(undefined, b, true);
+		expect(planned(views, { health: edit }, b)).toEqual([[[EAST], "/healthz", 17]]);
+	});
+
+	test("editing a running check sends it to the deployment with a port and nothing to the worker", () => {
+		const views = [withDelay("east", EAST, 60), worker("worker", WEST)];
+		const b = baseline("shop", "shop", "", views, [EAST, WEST], true, checked, POLICY);
+		expect(b.health.enabled).toBe(true);
+		const edit = editHealth(undefined, b, { path: "/ready" });
+		expect(planned(views, { health: edit }, b)).toEqual([[[EAST], "/ready", 60]]);
 	});
 
 	test("the switch reads any deployment's check, in either region order", () => {
@@ -790,13 +807,15 @@ describe("health check switch", () => {
 		for (const views of [[worker("worker", EAST)], [region(EAST, undefined)]]) {
 			const b = baseline("shop", "shop", "", views, [EAST], true, checked, POLICY);
 			const draft = { health: switchHealth(undefined, b, true) };
-			expect(validateDraft(draft, b, views, SERVED, 10, ENV, planWith(views, draft, b)).health).toBeDefined();
+			expect(
+				validateDraft(draft, b, views, SERVED, 10, ENV, planWith(views, draft, b).length > 0).health,
+			).toBeDefined();
 		}
 	});
 
 	test("a numerically equal edit plans nothing", () => {
 		const draft = { health: editHealth(undefined, base, { interval: "010" }) };
-		expect(validateDraft(draft, base, regions, SERVED, 10, ENV, planWith(regions, draft, base))).toEqual({});
+		expect(validateDraft(draft, base, regions, SERVED, 10, ENV, planWith(regions, draft, base).length > 0)).toEqual({});
 		expect(plan(draft)).toEqual([]);
 	});
 
@@ -848,14 +867,15 @@ describe("the save plan", () => {
 		]) {
 			const planned = planWith(regions, draft, base).length > 0;
 			const blocked =
-				validateDraft(draft, base, regions, SERVED, 10, ENV, planWith(regions, draft, base)).regions !== undefined;
+				validateDraft(draft, base, regions, SERVED, 10, ENV, planWith(regions, draft, base).length > 0).regions !==
+				undefined;
 			expect(blocked).toBe(regionMapChanged(draft, base) && planned);
 		}
 	});
 });
 
-test("a field typed back to what runs leaves the draft", () => {
-	const draft = pruned({ description: "new", port: "8080" }, base);
+test("a field typed back to what runs is not a change to validate, plan or save", () => {
+	const draft = effectiveDraft({ description: "new", port: "8080" }, base);
 	expect(draft).toEqual({ description: "new" });
 	expect(plan(draft)).toEqual([]);
 });
