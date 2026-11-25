@@ -157,7 +157,7 @@ export function ResourceHeader({
 							href={`https://${domain.domain}`}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="min-w-0 inline-flex items-center gap-1 self-start font-mono text-[13px] text-fg2 hover:text-foreground"
+							className="min-w-0 inline-flex items-center gap-1 font-mono text-[13px] text-fg2 hover:text-foreground"
 						>
 							<span className="truncate">{domain.domain}</span>
 							<ArrowUpRightIcon aria-hidden className="size-3.5 text-fg3" />
@@ -195,69 +195,71 @@ export function ResourceHeader({
 						</span>
 					)}
 				</Button>
-				<ToggleChip
-					variant="button"
-					className="h-7.5 px-2.5 text-[12.5px]"
-					pressed={isSettings}
-					onPressedChange={onSettings}
-				>
-					<Settings2Icon />
-					Resource settings
-				</ToggleChip>
-				<DropdownMenu>
-					<DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More actions" />}>
-						<EllipsisIcon />
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-auto min-w-[180px] rounded-lg p-1">
-						<DropdownMenuItem
-							className={MENU_ITEM}
-							disabled={!canWrite || rollbackTarget === undefined}
-							title={writeHint}
-							onClick={onRollback}
-						>
-							<MenuIcon>
-								<Undo2Icon />
-							</MenuIcon>
-							Roll back
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							className={MENU_ITEM}
-							disabled={!canRedeploy}
-							title={writeHint ?? "Create a new deployment from the current one"}
-							onClick={onRedeploy}
-						>
-							<MenuIcon>
-								<RotateCwIcon />
-							</MenuIcon>
-							Restart
-						</DropdownMenuItem>
-						<DropdownMenuItem className={MENU_ITEM} onClick={onScale}>
-							<MenuIcon>
-								<ChevronsUpDownIcon />
-							</MenuIcon>
-							Scale
-						</DropdownMenuItem>
-						<DropdownMenuItem className={MENU_ITEM} disabled={primary === undefined} onClick={onViewSpec}>
-							<MenuIcon>
-								<FileCodeIcon />
-							</MenuIcon>
-							View spec
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							className={MENU_ITEM}
-							variant="destructive"
-							disabled={!canDelete}
-							title={canDelete ? undefined : NEEDS_ADMIN}
-							onClick={onDelete}
-						>
-							<MenuIcon>
-								<Trash2Icon />
-							</MenuIcon>
-							Delete resource
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+				<div className="flex items-center gap-2">
+					<ToggleChip
+						variant="button"
+						className="h-7.5 px-2.5 text-[12.5px]"
+						pressed={isSettings}
+						onPressedChange={onSettings}
+					>
+						<Settings2Icon />
+						Resource settings
+					</ToggleChip>
+					<DropdownMenu>
+						<DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More actions" />}>
+							<EllipsisIcon />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-auto min-w-[180px] rounded-lg p-1">
+							<DropdownMenuItem
+								className={MENU_ITEM}
+								disabled={!canWrite || rollbackTarget === undefined}
+								title={writeHint}
+								onClick={onRollback}
+							>
+								<MenuIcon>
+									<Undo2Icon />
+								</MenuIcon>
+								Roll back
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								className={MENU_ITEM}
+								disabled={!canRedeploy}
+								title={writeHint ?? "Create a new deployment from the current one"}
+								onClick={onRedeploy}
+							>
+								<MenuIcon>
+									<RotateCwIcon />
+								</MenuIcon>
+								Restart
+							</DropdownMenuItem>
+							<DropdownMenuItem className={MENU_ITEM} onClick={onScale}>
+								<MenuIcon>
+									<ChevronsUpDownIcon />
+								</MenuIcon>
+								Scale
+							</DropdownMenuItem>
+							<DropdownMenuItem className={MENU_ITEM} disabled={primary === undefined} onClick={onViewSpec}>
+								<MenuIcon>
+									<FileCodeIcon />
+								</MenuIcon>
+								View spec
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								className={MENU_ITEM}
+								variant="destructive"
+								disabled={!canDelete}
+								title={canDelete ? undefined : NEEDS_ADMIN}
+								onClick={onDelete}
+							>
+								<MenuIcon>
+									<Trash2Icon />
+								</MenuIcon>
+								Delete resource
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
 			</div>
 		</div>
 	);

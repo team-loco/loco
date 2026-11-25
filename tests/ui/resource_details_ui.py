@@ -188,6 +188,14 @@ with session(out) as browser:
     ):
         page.set_viewport_size(viewport)
         expect(events).to_be_visible()
+        settings_button = page.get_by_role(
+            "button", name="Resource settings", exact=True
+        )
+        more_button = page.get_by_role("button", name="More actions", exact=True)
+        assert (
+            abs(settings_button.bounding_box()["y"] - more_button.bounding_box()["y"])
+            < 1
+        )
         heading = title.bounding_box()
         assert (
             events.bounding_box()["y"] >= heading["y"] + heading["height"]
