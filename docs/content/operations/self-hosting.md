@@ -44,7 +44,7 @@ An installation role applies to the whole installation rather than one organizat
 
 | Role | Grants |
 | --- | --- |
-| System read | Read every organization, workspace and resource as a `read` member would, and call the read-only installation RPCs: list clusters, regions, users and installation roles, and stream every event. Every change answers `PermissionDenied`. |
+| System read | Read every organization, workspace and resource as a `read` member would, and call the read-only installation RPCs: list clusters, regions, users and installation roles, and stream every event. It allows no change; a change the user's own organization, workspace or resource grants do not allow answers `PermissionDenied`. |
 | System admin | Everything system read grants, plus the installation's administration: register and manage clusters, grant and revoke installation roles, suspend organizations and users, set organization limits and rewrap secret keys. |
 
 Set verified email addresses in `api.systemAdmins` and `api.systemReaders`. Their first sign-in claims the listed role, including under closed signup. An email in both lists fails the API's startup:
