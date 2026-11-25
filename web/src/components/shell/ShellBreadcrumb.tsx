@@ -30,10 +30,10 @@ import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
 const SWITCHER_WORKSPACES = 20;
 
 const TRIGGER =
-	"flex h-6.5 min-w-0 items-center gap-[5px] rounded-[5px] px-1.5 -mx-0.5 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
+	"flex h-6.5 min-w-0 items-center gap-[5px] rounded-[5px] px-1.5 -mx-0.5 max-[760px]:gap-0.5 max-[760px]:px-1 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
 
 function Slash() {
-	return <BreadcrumbSeparator className="px-0.5 text-fg3">/</BreadcrumbSeparator>;
+	return <BreadcrumbSeparator className="px-0.5 text-fg3 max-[760px]:px-0">/</BreadcrumbSeparator>;
 }
 
 function EnvSwitcher({ children, label }: { children: ReactNode; label: string }) {
@@ -42,7 +42,7 @@ function EnvSwitcher({ children, label }: { children: ReactNode; label: string }
 			<DropdownMenu>
 				<DropdownMenuTrigger title="Switch environment" className={cn(TRIGGER, "max-w-[220px]")}>
 					<span className="truncate">{label}</span>
-					<ChevronDownIcon className="size-3.5 shrink-0 text-fg3" />
+					<ChevronDownIcon className="size-3.5 shrink-0 text-fg3 max-[760px]:size-3" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent className="w-[240px]" align="start" sideOffset={6} alignOffset={-4}>
 					<DropdownMenuGroup>
@@ -70,7 +70,7 @@ function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => voi
 			<DropdownMenu>
 				<DropdownMenuTrigger title="Switch organization" className={cn(TRIGGER, "max-w-[220px]")}>
 					<span className="truncate text-fg3">{org.name}</span>
-					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3" />
+					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3 max-[760px]:size-3" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent className="w-[248px]" align="start" sideOffset={6} alignOffset={-4}>
 					<DropdownMenuGroup>
@@ -121,7 +121,7 @@ function WorkspaceSwitcher({
 			<DropdownMenu>
 				<DropdownMenuTrigger title="Switch workspace" className={cn(TRIGGER, "max-w-[220px]")}>
 					<span className="truncate">{workspace.name}</span>
-					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3" />
+					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3 max-[760px]:size-3" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent className="w-[248px]" align="start" sideOffset={6} alignOffset={-4}>
 					<DropdownMenuGroup>
@@ -176,7 +176,7 @@ export function ShellBreadcrumb() {
 	const showEnv = inWorkspace && !pathname.endsWith("/settings") && !pathname.endsWith("/webhooks");
 
 	return (
-		<Breadcrumb className="min-w-0 flex-1 overflow-hidden">
+		<Breadcrumb className="min-w-0 flex-auto overflow-hidden">
 			<BreadcrumbList>
 				{org !== undefined && (
 					<>

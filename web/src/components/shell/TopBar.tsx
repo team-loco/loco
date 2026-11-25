@@ -11,13 +11,13 @@ export function TopBar() {
 	return (
 		<header
 			data-slot="top-bar"
-			className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line pr-[clamp(16px,3vw,28px)] pl-3 md:rounded-t-overlay"
+			className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b max-[760px]:gap-2 border-line pr-[clamp(16px,3vw,28px)] pl-3 md:rounded-t-overlay"
 		>
 			<SidebarToggle hideWhenOpen className="hover:bg-panel" />
 			<ShellBreadcrumb />
+			<CommandMenu />
 			{/* Each environment gets its own activity drawer, which starts watching for deploys when it mounts. */}
 			<AlertsDrawer key={`${activeWorkspaceId ?? ""}/${active?.id ?? ""}`} />
-			<CommandMenu />
 		</header>
 	);
 }

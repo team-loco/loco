@@ -666,7 +666,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 	);
 }
 
-/** The command field centred in the top bar; an icon button below 760px. */
+/** The command field in the top bar; an icon button below 760px. */
 export function CommandMenu() {
 	const openPalette = useOpenPalette();
 
@@ -677,7 +677,7 @@ export function CommandMenu() {
 			aria-label="Search and run commands"
 			aria-keyshortcuts="Meta+K Control+K"
 			onClick={openPalette}
-			className="flex size-7.5 items-center justify-center rounded-[7px] border border-line bg-panel text-[13px] text-fg3 transition-colors hover:border-line2 hover:text-fg2 min-[761px]:absolute min-[761px]:top-1/2 min-[761px]:left-1/2 min-[761px]:h-7.5 min-[761px]:w-[min(440px,34vw)] min-[761px]:-translate-x-1/2 min-[761px]:-translate-y-1/2 min-[761px]:justify-start min-[761px]:gap-2 min-[761px]:pr-1.5 min-[761px]:pl-2.5"
+			className="-ml-0.5 flex size-7.5 shrink-0 items-center justify-center rounded-[7px] border border-line bg-panel text-[13px] text-fg3 transition-colors hover:border-line2 hover:text-fg2 min-[761px]:ml-0 min-[761px]:w-[440px] min-[761px]:shrink min-[761px]:justify-start min-[761px]:gap-2 min-[761px]:pr-1.5 min-[761px]:pl-2.5"
 		>
 			<SearchIcon aria-hidden className="size-3.5" />
 			<span className="hidden min-w-0 flex-1 truncate text-left min-[761px]:block">Search or jump to…</span>
