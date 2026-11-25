@@ -423,14 +423,42 @@ func (r *ApplicationReconciler) deleteAppObjects(ctx context.Context, app *locov
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
 	}
 	for _, obj := range objects {
-		err := r.Delete(ctx, obj)
-		if err == nil || apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
-			continue
+		if err := r.deleteOwnedObject(ctx, app, obj); err != nil {
+			return fmt.Errorf("delete %T %s/%s: %w", obj, namespace, obj.GetName(), err)
 		}
-		return fmt.Errorf("delete %T %s/%s: %w", obj, namespace, obj.GetName(), err)
 	}
 	slog.InfoContext(ctx, "app objects deleted", "namespace", namespace, "name", name)
 	return nil
+}
+
+// deleteOwnedObject deletes obj only while app owns it: another placement of the same resource and
+// environment writes objects under the same names.
+func (r *ApplicationReconciler) deleteOwnedObject(
+	ctx context.Context,
+	app *locov1alpha1.Application,
+	obj client.Object,
+) error {
+	err := r.APIReader.Get(ctx, client.ObjectKeyFromObject(obj), obj)
+	if apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !ownedByApp(app, obj) {
+		return nil
+	}
+	uid, version := obj.GetUID(), obj.GetResourceVersion()
+	err = r.Delete(ctx, obj, client.Preconditions{UID: &uid, ResourceVersion: &version})
+	return client.IgnoreNotFound(err)
+}
+
+// ownedByApp reports whether the controller wrote obj for app.
+func ownedByApp(app *locov1alpha1.Application, obj client.Object) bool {
+	annotations := obj.GetAnnotations()
+	return obj.GetLabels()[locolabels.LabelManagedBy] == locolabels.ControllerManagedBy &&
+		annotations[locolabels.AnnotationApplicationNamespace] == app.Namespace &&
+		annotations[locolabels.AnnotationApplicationName] == app.Name
 }
 
 func (r *ApplicationReconciler) environmentNamespace(app *locov1alpha1.Application) string {
