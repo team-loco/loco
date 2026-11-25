@@ -122,6 +122,9 @@ func (s *ResourceServer) updateRegions(
 		desired := state
 		desired.Regions = make(map[string]configplan.Region, len(req.GetRegions().GetTargets()))
 		for name, target := range req.GetRegions().GetTargets() {
+			if sizeErr := validateSize(target.GetCpu(), target.GetMemory()); sizeErr != nil {
+				return &invalidInputError{public: publicInvalidRequest, err: sizeErr}
+			}
 			if !target.GetEnabled() {
 				continue
 			}

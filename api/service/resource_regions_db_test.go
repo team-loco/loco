@@ -156,7 +156,7 @@ func TestUpdateResourceRegionsAppliesAddChangeDisableAndRemove(t *testing.T) {
 
 func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 	t.Parallel()
-	for _, test := range []string{"partial", "sizing", "unknown", "offline"} {
+	for _, test := range []string{"partial", "unknown", "offline"} {
 		t.Run(test, func(t *testing.T) {
 			f := prepareRegionUpdate(t)
 			targets, revision := regionTargets(t, f)
@@ -168,8 +168,6 @@ func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 				); err != nil {
 					t.Fatal(err)
 				}
-			case "sizing":
-				targets[testRegion].Cpu = "bad-cpu"
 			case "unknown":
 				targets["unknown"] = proto.CloneOf(targets[testRegion])
 			case "offline":
@@ -178,6 +176,31 @@ func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 				}
 			}
 			wantCode(t, updateResourceRegions(t, f, targets, revision), connect.CodeFailedPrecondition)
+			_, after := regionTargets(t, f)
+			if after != revision {
+				t.Fatalf("rejected update changed revision: %d", after)
+			}
+		})
+	}
+}
+
+func TestUpdateResourceRegionsRejectsInvalidSizeOnAnyTarget(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name    string
+		enabled bool
+		mutate  func(*resourcev1.RegionTarget)
+	}{
+		{"enabled cpu", true, func(r *resourcev1.RegionTarget) { r.Cpu = "bad-cpu" }},
+		{"disabled cpu", false, func(r *resourcev1.RegionTarget) { r.Cpu = "bad-cpu" }},
+		{"disabled memory", false, func(r *resourcev1.RegionTarget) { r.Memory = "bad-memory" }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			f := prepareRegionUpdate(t)
+			targets, revision := regionTargets(t, f)
+			targets[testRegion].Enabled = test.enabled
+			test.mutate(targets[testRegion])
+			wantCode(t, updateResourceRegions(t, f, targets, revision), connect.CodeInvalidArgument)
 			_, after := regionTargets(t, f)
 			if after != revision {
 				t.Fatalf("rejected update changed revision: %d", after)
