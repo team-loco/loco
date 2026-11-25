@@ -30,11 +30,16 @@ func TestForgottenWorkspaceLeavesTheCluster(t *testing.T) {
 	p.DeleteOnCleanup(t, "namespace", unowned)
 
 	err := pgx.BeginFunc(t.Context(), p.DB, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(t.Context(), "DELETE FROM placements WHERE resource_id = $1", resourceID); err != nil {
-			return err
+		for _, statement := range []string{
+			"DELETE FROM placements WHERE resource_id IN (SELECT id FROM resources WHERE workspace_id = $1)",
+			"DELETE FROM resources WHERE workspace_id = $1",
+			"DELETE FROM workspaces WHERE id = $1",
+		} {
+			if _, err := tx.Exec(t.Context(), statement, w.ID); err != nil {
+				return err
+			}
 		}
-		_, err := tx.Exec(t.Context(), "DELETE FROM workspaces WHERE id = $1", w.ID)
-		return err
+		return nil
 	})
 	if err != nil {
 		t.Fatalf("forget the workspace: %v", err)

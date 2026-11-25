@@ -229,14 +229,11 @@ FROM merged m
 JOIN placement_windows pw ON pw.id = m.last_id
 ORDER BY m.placed_at, pw.workspace_id;
 
--- name: WorkspaceHasPlacementWindowSince :one
--- Reports whether the workspace has a placement on the cluster that is open or was removed after since.
-SELECT EXISTS (
-    SELECT 1 FROM placement_windows
-    WHERE workspace_id = sqlc.arg(workspace_id)
-      AND cluster_id = sqlc.arg(cluster_id)
-      AND (removed_at IS NULL OR removed_at > sqlc.arg(since)::timestamptz)
-);
+-- name: ListClusterWorkspacesSince :many
+-- Lists the workspaces with a placement on the cluster that is open or was removed after since.
+SELECT DISTINCT workspace_id FROM placement_windows
+WHERE cluster_id = sqlc.arg(cluster_id)
+  AND (removed_at IS NULL OR removed_at > sqlc.arg(since)::timestamptz);
 
 -- name: DeleteExpiredPlacementWindows :execrows
 DELETE FROM placement_windows

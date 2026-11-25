@@ -300,6 +300,38 @@ func (q *Queries) ListClusterPlacementWindows(ctx context.Context, arg ListClust
 	return items, nil
 }
 
+const listClusterWorkspacesSince = `-- name: ListClusterWorkspacesSince :many
+SELECT DISTINCT workspace_id FROM placement_windows
+WHERE cluster_id = $1
+  AND (removed_at IS NULL OR removed_at > $2::timestamptz)
+`
+
+type ListClusterWorkspacesSinceParams struct {
+	ClusterID uuid.UUID `json:"clusterId"`
+	Since     time.Time `json:"since"`
+}
+
+// Lists the workspaces with a placement on the cluster that is open or was removed after since.
+func (q *Queries) ListClusterWorkspacesSince(ctx context.Context, arg ListClusterWorkspacesSinceParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listClusterWorkspacesSince, arg.ClusterID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var workspace_id uuid.UUID
+		if err := rows.Scan(&workspace_id); err != nil {
+			return nil, err
+		}
+		items = append(items, workspace_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPendingPlacements = `-- name: ListPendingPlacements :many
 SELECT id, desired_revision FROM placements
 WHERE cluster_id = $1 AND applied_revision < desired_revision
@@ -962,27 +994,4 @@ func (q *Queries) UpsertPlacement(ctx context.Context, arg UpsertPlacementParams
 	var i UpsertPlacementRow
 	err := row.Scan(&i.ID, &i.DesiredRevision)
 	return i, err
-}
-
-const workspaceHasPlacementWindowSince = `-- name: WorkspaceHasPlacementWindowSince :one
-SELECT EXISTS (
-    SELECT 1 FROM placement_windows
-    WHERE workspace_id = $1
-      AND cluster_id = $2
-      AND (removed_at IS NULL OR removed_at > $3::timestamptz)
-)
-`
-
-type WorkspaceHasPlacementWindowSinceParams struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	ClusterID   uuid.UUID `json:"clusterId"`
-	Since       time.Time `json:"since"`
-}
-
-// Reports whether the workspace has a placement on the cluster that is open or was removed after since.
-func (q *Queries) WorkspaceHasPlacementWindowSince(ctx context.Context, arg WorkspaceHasPlacementWindowSinceParams) (bool, error) {
-	row := q.db.QueryRow(ctx, workspaceHasPlacementWindowSince, arg.WorkspaceID, arg.ClusterID, arg.Since)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
 }

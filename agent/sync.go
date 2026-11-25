@@ -151,15 +151,9 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 		case err := <-recvErr:
 			return fmt.Errorf("receive sync message: %w", err)
 		case msg := <-received:
-			if workspaceID := msg.GetDeleteWorkspace(); workspaceID != "" {
-				if err := a.applier.DeleteWorkspace(streamCtx, workspaceID); err != nil {
-					return fmt.Errorf("delete workspace: %w", err)
-				}
-				continue
-			}
-			if workspaceID := msg.GetForgetWorkspace(); workspaceID != "" {
-				if err := a.applier.ForgetWorkspace(streamCtx, workspaceID); err != nil {
-					return fmt.Errorf("forget workspace: %w", err)
+			if keep := msg.GetKeepWorkspaces(); keep != nil {
+				if err := a.applier.KeepWorkspaces(streamCtx, keep.GetWorkspaceIds()); err != nil {
+					return fmt.Errorf("keep workspaces: %w", err)
 				}
 				continue
 			}

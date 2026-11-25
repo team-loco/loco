@@ -568,7 +568,7 @@ func (ss *syncSession) applyInventory(ctx context.Context, inventory *agentv1.In
 				return err
 			}
 		}
-		if err := ss.reconcileWorkspaceInventory(ctx, inventory.GetWorkspaceIds()); err != nil {
+		if err := ss.sendKeptWorkspaces(ctx, inventory.GetWorkspaceIds()); err != nil {
 			return err
 		}
 		ss.builds.track(builds)

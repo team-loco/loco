@@ -1,7 +1,6 @@
 package applier
 
 import (
-	"slices"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -12,85 +11,30 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-func TestWorkspaceTeardownWaitsForApplicationFinalizersAndConverges(t *testing.T) {
+const (
+	keptWorkspace    = "kept-id"
+	droppedWorkspace = "dropped-id"
+)
+
+func TestKeepWorkspacesDeletesEveryOtherWorkspaceAfterItsApplications(t *testing.T) {
 	ctx := t.Context()
-	namespace := &corev1.Namespace{Name: "workspace", Labels: map[string]string{
-		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
-		locolabels.LabelLocoApp:   "true", locolabels.LabelWorkspaceID: "workspace-id",
-	}}
-	sibling := namespace.DeepCopy()
-	sibling.Name = "second-environment"
-	other := namespace.DeepCopy()
-	other.Name = "other"
-	other.Labels[locolabels.LabelWorkspaceID] = "other-id"
-	unmanaged := namespace.DeepCopy()
-	unmanaged.Name = "unmanaged"
+	workspaceNamespace := func(name, workspaceID string) *corev1.Namespace {
+		return &corev1.Namespace{Name: name, Labels: map[string]string{
+			locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
+			locolabels.LabelLocoApp:   "true", locolabels.LabelWorkspaceID: workspaceID,
+		}}
+	}
+	kept := workspaceNamespace("kept", keptWorkspace)
+	dropped := workspaceNamespace("dropped", droppedWorkspace)
+	droppedSibling := workspaceNamespace("dropped-second-environment", droppedWorkspace)
+	unmanaged := workspaceNamespace("unmanaged", droppedWorkspace)
 	delete(unmanaged.Labels, locolabels.LabelManagedBy)
-	app := &locov1alpha1.Application{Name: "app", Namespace: testNamespace,
-		Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
-		Spec:       locov1alpha1.ApplicationSpec{WorkspaceID: "workspace-id"},
-	}
-	a := newTestApplier(t, namespace, sibling, other, unmanaged, app)
-	ids, err := a.WorkspaceIDs(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(ids) != 2 || !slices.Contains(ids, "workspace-id") || !slices.Contains(ids, "other-id") {
-		t.Fatalf("workspace IDs = %v", ids)
-	}
-	if err = a.client.Delete(ctx, app); err != nil {
-		t.Fatal(err)
-	}
-	if err = a.DeleteWorkspace(ctx, "workspace-id"); err != nil {
-		t.Fatal(err)
-	}
-	if err = a.client.Get(ctx, client.ObjectKeyFromObject(namespace), &corev1.Namespace{}); err != nil {
-		t.Fatalf("namespace removed before finalization: %v", err)
-	}
-	if err = a.client.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
-		t.Fatal(err)
-	}
-	app.Finalizers = nil
-	if err = a.client.Update(ctx, app); err != nil {
-		t.Fatal(err)
-	}
-	for range 2 {
-		if err = a.DeleteWorkspace(ctx, "workspace-id"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err = a.client.Get(ctx, client.ObjectKeyFromObject(namespace), &corev1.Namespace{}); !apierrors.IsNotFound(err) {
-		t.Fatalf("workspace namespace remains: %v", err)
-	}
-	if err = a.client.Get(ctx, client.ObjectKeyFromObject(sibling), &corev1.Namespace{}); !apierrors.IsNotFound(err) {
-		t.Fatalf("second environment namespace remains: %v", err)
-	}
-	for _, ns := range []*corev1.Namespace{other, unmanaged} {
-		if err = a.client.Get(ctx, client.ObjectKeyFromObject(ns), &corev1.Namespace{}); err != nil {
-			t.Fatalf("unrelated namespace deleted: %v", err)
-		}
-	}
-	ids, err = a.WorkspaceIDs(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(ids) != 1 || ids[0] != "other-id" {
-		t.Fatalf("inventory after teardown = %v", ids)
-	}
-}
 
-const forgottenWorkspace = "forgotten-id"
-
-func TestForgetWorkspaceDeletesItsPlacedApplicationsThenItsNamespace(t *testing.T) {
-	ctx := t.Context()
-	namespace := &corev1.Namespace{Name: "workspace", Labels: map[string]string{
-		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
-		locolabels.LabelLocoApp:   "true", locolabels.LabelWorkspaceID: forgottenWorkspace,
-	}}
 	application := func(name, label, workspaceID string, placed bool) *locov1alpha1.Application {
 		app := &locov1alpha1.Application{Name: name, Namespace: testNamespace,
-			Labels: map[string]string{locolabels.LabelWorkspaceID: label},
-			Spec:   locov1alpha1.ApplicationSpec{WorkspaceID: workspaceID},
+			Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
+			Labels:     map[string]string{locolabels.LabelWorkspaceID: label},
+			Spec:       locov1alpha1.ApplicationSpec{WorkspaceID: workspaceID},
 		}
 		if placed {
 			app.Annotations = map[string]string{
@@ -99,39 +43,65 @@ func TestForgetWorkspaceDeletesItsPlacedApplicationsThenItsNamespace(t *testing.
 		}
 		return app
 	}
-	placed := application("placed", forgottenWorkspace, forgottenWorkspace, true)
-	unplaced := application("unplaced", forgottenWorkspace, forgottenWorkspace, false)
-	other := application("other", "other-id", "other-id", true)
 	// The spec, not the label, names the workspace an Application belongs to.
-	mislabel := application("mislabel", forgottenWorkspace, "other-id", true)
-	relabel := application("relabel", "other-id", forgottenWorkspace, true)
-	a := newTestApplier(t, namespace, placed, unplaced, other, mislabel, relabel)
+	placed := application("placed", keptWorkspace, droppedWorkspace, true)
+	unplaced := application("unplaced", droppedWorkspace, droppedWorkspace, false)
+	keptApp := application("kept", droppedWorkspace, keptWorkspace, true)
+	a := newTestApplier(t, kept, dropped, droppedSibling, unmanaged, placed, unplaced, keptApp)
 
-	if err := a.ForgetWorkspace(ctx, forgottenWorkspace); err != nil {
+	if err := a.KeepWorkspaces(ctx, []string{keptWorkspace}); err != nil {
 		t.Fatal(err)
 	}
-	for _, app := range []*locov1alpha1.Application{placed, relabel} {
-		if err := a.client.Get(ctx, client.ObjectKeyFromObject(app), app); !apierrors.IsNotFound(err) {
-			t.Fatalf("Application %s of the forgotten workspace remains: %v", app.Name, err)
-		}
-	}
-	for _, app := range []*locov1alpha1.Application{unplaced, other, mislabel} {
+	deleting := map[*locov1alpha1.Application]bool{placed: true, unplaced: false, keptApp: false}
+	for app, want := range deleting {
 		if err := a.client.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
-			t.Fatalf("Application %s deleted: %v", app.Name, err)
+			t.Fatal(err)
+		}
+		if got := !app.DeletionTimestamp.IsZero(); got != want {
+			t.Fatalf("Application %s deleting = %v, want %v", app.Name, got, want)
 		}
 	}
-	if err := a.client.Get(ctx, client.ObjectKeyFromObject(namespace), &corev1.Namespace{}); err != nil {
-		t.Fatalf("namespace deleted while an Application of the workspace remains: %v", err)
+	if err := a.client.Get(ctx, client.ObjectKeyFromObject(dropped), &corev1.Namespace{}); err != nil {
+		t.Fatalf("namespace deleted while Applications of its workspace remain: %v", err)
 	}
 
+	for _, app := range []*locov1alpha1.Application{placed, unplaced} {
+		app.Finalizers = nil
+		if err := a.client.Update(ctx, app); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := a.client.Delete(ctx, unplaced); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.ForgetWorkspace(ctx, forgottenWorkspace); err != nil {
+	if err := a.KeepWorkspaces(ctx, []string{keptWorkspace}); err != nil {
+		t.Fatal(err)
+	}
+	for _, ns := range []*corev1.Namespace{dropped, droppedSibling} {
+		err := a.client.Get(ctx, client.ObjectKeyFromObject(ns), &corev1.Namespace{})
+		if !apierrors.IsNotFound(err) {
+			t.Fatalf("namespace %s of the dropped workspace remains: %v", ns.Name, err)
+		}
+	}
+	for _, ns := range []*corev1.Namespace{kept, unmanaged} {
+		if err := a.client.Get(ctx, client.ObjectKeyFromObject(ns), &corev1.Namespace{}); err != nil {
+			t.Fatalf("namespace %s deleted: %v", ns.Name, err)
+		}
+	}
+}
+
+func TestKeepingNoWorkspacesDropsEveryWorkspaceNamespace(t *testing.T) {
+	ctx := t.Context()
+	namespace := &corev1.Namespace{Name: "workspace", Labels: map[string]string{
+		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
+		locolabels.LabelLocoApp:   "true", locolabels.LabelWorkspaceID: droppedWorkspace,
+	}}
+	a := newTestApplier(t, namespace)
+	if err := a.KeepWorkspaces(ctx, nil); err != nil {
 		t.Fatal(err)
 	}
 	err := a.client.Get(ctx, client.ObjectKeyFromObject(namespace), &corev1.Namespace{})
 	if !apierrors.IsNotFound(err) {
-		t.Fatalf("forgotten workspace namespace remains: %v", err)
+		t.Fatalf("namespace remains after an empty kept set: %v", err)
 	}
 }

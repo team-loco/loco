@@ -9122,6 +9122,22 @@
         "title": "InventoryEntry",
         "additionalProperties": false
       },
+      "loco.agent.v1.KeepWorkspaces": {
+        "type": "object",
+        "properties": {
+          "workspaceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "workspace_ids"
+          }
+        },
+        "title": "KeepWorkspaces",
+        "additionalProperties": false,
+        "description": "KeepWorkspaces is the complete set of workspaces the cluster keeps; the agent deletes every other workspace."
+      },
       "loco.agent.v1.PlacementStatus": {
         "type": "object",
         "properties": {
@@ -9527,12 +9543,7 @@
                 },
                 {
                   "required": [
-                    "deleteWorkspace"
-                  ]
-                },
-                {
-                  "required": [
-                    "forgetWorkspace"
+                    "keepWorkspaces"
                   ]
                 }
               ]
@@ -9562,12 +9573,7 @@
                   },
                   {
                     "required": [
-                      "deleteWorkspace"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "forgetWorkspace"
+                      "keepWorkspaces"
                     ]
                   }
                 ]
@@ -9592,21 +9598,14 @@
             "title": "cancel_build",
             "$ref": "#/components/schemas/loco.agent.v1.CancelBuild"
           },
-          "deleteWorkspace": {
-            "type": "string",
-            "title": "delete_workspace",
-            "format": "uuid"
-          },
-          "forgetWorkspace": {
-            "type": "string",
-            "title": "forget_workspace",
-            "format": "uuid",
-            "description": "A workspace the control plane does not hold: the agent deletes its Applications, then its namespaces."
+          "keepWorkspaces": {
+            "title": "keep_workspaces",
+            "$ref": "#/components/schemas/loco.agent.v1.KeepWorkspaces"
           }
         },
         "title": "SyncResponse",
         "additionalProperties": false,
-        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild`, `deleteWorkspace`, `forgetWorkspace` may be set."
+        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild`, `keepWorkspaces` may be set."
       },
       "loco.auth.v1.ApproveCLILoginRequest": {
         "type": "object",
