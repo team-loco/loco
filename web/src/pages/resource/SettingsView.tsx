@@ -78,10 +78,10 @@ function scrollToSection(node: HTMLElement | null) {
 	node?.scrollIntoView({ block: "start", behavior: "instant" });
 }
 
-function scrollToHash(node: HTMLElement | null) {
+function scrollToHash(node: HTMLElement | null, behavior: ScrollBehavior) {
 	const id = window.location.hash.slice(1);
 	if (node !== null && id !== "")
-		node.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ block: "start", behavior: "instant" });
+		node.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ block: "start", behavior });
 }
 
 const SPY_VIEWPORT_FRACTION = 0.3;
@@ -96,15 +96,6 @@ function sectionInView(): string | undefined {
 		if (top !== undefined && top <= window.innerHeight * SPY_VIEWPORT_FRACTION) found = id;
 	}
 	return found;
-}
-
-// A smooth scroll moves the page under the pointer, so a click can land on a control the user did not aim at.
-function jumpToSection() {
-	const root = document.documentElement;
-	root.style.scrollBehavior = "auto";
-	setTimeout(() => {
-		root.style.scrollBehavior = "";
-	}, 0);
 }
 
 export function SettingsView({
@@ -144,8 +135,10 @@ export function SettingsView({
 	});
 	// A clicked or linked section stays highlighted until the user scrolls again.
 	const pinnedRef = useRef(focus === "scaling" || window.location.hash !== "");
+	// Deep links correct instantly; a menu click corrects with the page's motion preference.
+	const correctionRef = useRef<ScrollBehavior>("instant");
 	const sectionsRef = useCallback((node: HTMLElement | null) => {
-		scrollToHash(node);
+		scrollToHash(node, correctionRef.current);
 		if (node === null) return;
 		const follow = () => {
 			if (pinnedRef.current) return;
@@ -161,7 +154,7 @@ export function SettingsView({
 		const resize = new ResizeObserver(() => {
 			if (pinnedRef.current)
 				requestAnimationFrame(() => {
-					scrollToHash(node);
+					scrollToHash(node, correctionRef.current);
 				});
 			follow();
 		});
@@ -252,8 +245,8 @@ export function SettingsView({
 							href={`#${n.id}`}
 							aria-current={current === n.id ? "true" : undefined}
 							onClick={() => {
-								jumpToSection();
 								pinnedRef.current = true;
+								correctionRef.current = "auto";
 								setCurrent(n.id);
 							}}
 							className={cn(

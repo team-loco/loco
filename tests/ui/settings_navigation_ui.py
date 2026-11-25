@@ -67,6 +67,33 @@ with session(out) as browser:
     expect(nav.get_by_role("link", name="Image", exact=True)).to_have_attribute(
         "aria-current", "true"
     )
+    # Click before the late-loading connection variables push the sections down.
+    page.evaluate(
+        """() => {
+            window.frames = [];
+            const frame = () => {
+                const active = document.querySelector('nav[aria-label="Settings sections"] [aria-current]');
+                window.frames.push([window.scrollY, active?.textContent]);
+                requestAnimationFrame(frame);
+            };
+            frame();
+        }"""
+    )
+    nav.get_by_role("link", name="Health check", exact=True).click()
+    page.wait_for_function(
+        """() => {
+            const top = document.querySelector('#set-health').getBoundingClientRect().top;
+            const last = window.frames.slice(-20);
+            return top >= 140 && top < 150 && last.length === 20 && last.every((f) => f[0] === last[0][0]);
+        }"""
+    )
+    frames = page.evaluate("window.frames")
+    final = frames[-1][0]
+    moving = [f for f in frames if 0 < f[0] < final]
+    assert moving, frames
+    assert all(f[1] == "Health check" for f in moving), moving
+    # A wheel event hands the highlight back to the scroll-spy.
+    page.mouse.wheel(0, 1)
     # Connection variables load late and push every section below them down.
     expect(page.get_by_text("Connection variables", exact=True)).to_be_visible()
     page.evaluate("document.querySelector('#set-health').scrollIntoView()")
@@ -78,16 +105,6 @@ with session(out) as browser:
     )
     page.evaluate("document.querySelector('#set-scaling').scrollIntoView()")
     expect(nav.get_by_role("link", name="Scaling", exact=True)).to_have_attribute(
-        "aria-current", "true"
-    )
-
-    page.evaluate("window.scrollTo(0, 0)")
-    nav.get_by_role("link", name="Variables", exact=True).click()
-    top = page.evaluate(
-        "document.querySelector('#set-env').getBoundingClientRect().top"
-    )
-    assert 140 <= top < 150, top
-    expect(nav.get_by_role("link", name="Variables", exact=True)).to_have_attribute(
         "aria-current", "true"
     )
 
