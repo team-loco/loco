@@ -39,8 +39,8 @@ with session(out) as browser:
     expect(section).to_be_visible()
     expect(section.get_by_role("switch", name="Health check")).to_be_checked()
     expect(section.get_by_role("switch", name="Health check")).to_be_disabled()
-    expect(section.locator("input").first).to_have_value("/health")
-    path, interval, timeout = section.locator("input").all()[:3]
+    expect(section.locator("input:not([aria-hidden])").first).to_have_value("/health")
+    path, interval, timeout = section.locator("input:not([aria-hidden])").all()[:3]
     height = section.bounding_box()["height"]
 
     def settled():
@@ -87,7 +87,7 @@ with session(out) as browser:
     section = page.locator("#set-health")
     toggle = section.get_by_role("switch", name="Health check")
     expect(toggle).not_to_be_checked()
-    expect(section.locator("input")).to_have_count(0)
+    expect(section.locator("input:not([aria-hidden])")).to_have_count(0)
     port = page.get_by_role("textbox", name="Port", exact=True)
     port.fill("9090")
     save = page.get_by_role("button", name="Save & redeploy", exact=True)
@@ -100,13 +100,15 @@ with session(out) as browser:
     page.goto(bare + "?env=production&tab=settings")
     toggle.click()
     expect(toggle).to_be_checked()
-    path, interval, timeout, failures = section.locator("input").all()
+    path, interval, timeout, failures = section.locator(
+        "input:not([aria-hidden])"
+    ).all()
     expect(path).to_have_value(defaults["path"])
     expect(interval).to_have_value(str(defaults["intervalSeconds"]))
     expect(timeout).to_have_value(str(defaults["timeoutSeconds"]))
     expect(failures).to_have_value(str(defaults["failureThreshold"]))
     toggle.click()
-    expect(section.locator("input")).to_have_count(0)
+    expect(section.locator("input:not([aria-hidden])")).to_have_count(0)
     expect(page.get_by_text("unsaved change")).to_have_count(0)
     assert not errors, errors
     context.close()

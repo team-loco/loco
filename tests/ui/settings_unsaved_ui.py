@@ -29,7 +29,7 @@ with session(out) as browser:
     page.get_by_role("link", name=display_name, exact=True).first.click()
     page.get_by_role("button", name="Resource settings", exact=True).click()
     wait_for_query(page, lambda query: query.get("tab") == ["settings"])
-    path = page.locator("#set-health input").first
+    path = page.locator("#set-health input:not([aria-hidden])").first
     guard = page.get_by_role("alertdialog", name="Discard unsaved changes?")
 
     page.get_by_role("link", name="Dashboard", exact=True).click()
@@ -41,12 +41,12 @@ with session(out) as browser:
     path.fill("/ready")
     expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
     expect(page.get_by_text("Health check path", exact=True)).to_be_visible()
-    page.locator("#set-health input").nth(1).fill("45")
+    page.locator("#set-health input:not([aria-hidden])").nth(1).fill("45")
     expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
     expect(
         page.get_by_text("Health check path, Health check interval", exact=True)
     ).to_be_visible()
-    page.locator("#set-health input").nth(1).fill("30")
+    page.locator("#set-health input:not([aria-hidden])").nth(1).fill("30")
     page.get_by_role("link", name="Dashboard", exact=True).click()
     expect(guard).to_be_visible()
     expect(guard).to_contain_text(f"settings of {display_name} are not saved")
@@ -72,15 +72,17 @@ with session(out) as browser:
     page.get_by_role("link", name="Resources", exact=True).click()
     page.get_by_role("link", name=display_name, exact=True).first.click()
     page.get_by_role("button", name="Resource settings", exact=True).click()
-    expect(page.locator("#set-health input").first).to_have_value("/health")
+    expect(page.locator("#set-health input:not([aria-hidden])").first).to_have_value(
+        "/health"
+    )
     expect(page.get_by_text("unsaved change")).to_have_count(0)
 
-    page.locator("#set-health input").first.fill("/again")
+    page.locator("#set-health input:not([aria-hidden])").first.fill("/again")
     expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
     page.reload()
     assert dialogs == ["beforeunload"], dialogs
 
-    page.locator("#set-health input").first.fill("/deleted")
+    page.locator("#set-health input:not([aria-hidden])").first.fill("/deleted")
     page.get_by_role("button", name="Delete resource", exact=True).click()
     delete = page.get_by_role("alertdialog", name=f"Delete {display_name}", exact=True)
     delete.get_by_role("textbox").fill(display_name)
