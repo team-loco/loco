@@ -107,6 +107,10 @@ description = "Test the loco and locoadm CLIs"
 dir = "cmd"
 run = "go test -v -coverprofile=coverage.out ./..."
 
+[tasks."test:terminal-evidence"]
+description = "Test terminal screenshot capture and rendering"
+run = "mise exec -- go -C tools/terminal-evidence test ./..."
+
 [tasks."test:e2e-platform"]
 description = "Run the E2E platform helper tests"
 run = "go -C tests/e2e test ./platform"

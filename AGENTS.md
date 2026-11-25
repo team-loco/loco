@@ -54,6 +54,8 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 - **`docs/content/`**, **`schemas/`**: User documentation and the JSON Schemas editors load, including `loco.yaml`'s, which `loco infra validate` embeds through the `schemas` package.
 
 The root Go module holds only `internal/`, `gen/`, `tools/` and `schemas/`; CLI-only dependencies belong in `cmd/go.mod`.
+The terminal evidence tool has its own Go module under `tools/terminal-evidence/` to keep terminal
+emulation and font dependencies out of the platform modules.
 
 ## Build/Lint/Test Commands
 
@@ -173,6 +175,10 @@ Read [charts/AGENTS.md](charts/AGENTS.md) before chart work.
 Read [web/AGENTS.md](web/AGENTS.md) before frontend work.
 
 ## Code Review Rules
+
+Read each open automated Codex review thread on a PR before handing it off. Fix relevant
+findings and verify the pushed change before resolving a thread; explain findings that do not
+apply with evidence.
 
 A pull-request review runs three passes in this order. Every finding gives `file:line` and the evidence its pass asks
 for. Material architecture, complexity and minmax findings are P1 even when nothing is broken; a design that cannot
