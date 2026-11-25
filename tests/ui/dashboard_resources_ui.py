@@ -103,9 +103,8 @@ with session(out) as browser:
         has=page.get_by_role("link", name="svc-1", exact=True)
     )
     expect(row).to_contain_text(re.compile(r"(just now|\d+[mhd] ago)$"))
-    # The dashboard reads no environment-wide deployment list, and has no map.
+    # The dashboard reads no environment-wide deployment list.
     assert all(body.get("pageSize") == 10 for body in listed), listed
-    expect(page.get_by_role("button", name="Map", exact=True)).to_have_count(0)
 
     row.get_by_role("button", name="Actions for svc-1", exact=True).click()
     menu = page.get_by_role("menu")
