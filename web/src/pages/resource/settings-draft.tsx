@@ -17,7 +17,7 @@ import {
 } from "@gen/loco/deployment/v1/deployment_pb";
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
-import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
+import { getServiceSpec, regionTarget, specForRegions } from "@/lib/deployment-utils";
 import { isEnvKey } from "@/lib/dotenv";
 import {
 	IMAGE_RE,
@@ -33,6 +33,7 @@ import { SUBDOMAIN_RE } from "@/lib/app-domain";
 import { nameError } from "@/lib/slug";
 
 import { isDeployed, type RegionView } from "./model";
+import { currentSources } from "./redeploy";
 
 // These fields make up the resource's region map, which UpdateResource replaces in one request
 // for every environment; the other spec fields redeploy this environment's regions.
@@ -362,6 +363,9 @@ export function validateDraft(
 		if (portInvalid !== null) errors.port = portInvalid;
 	}
 	if (next.healthEnabled) Object.assign(errors, healthErrors(draft, next));
+	const healthChanged = healthChanges(next, base).length > 0;
+	if (healthChanged && planSave(regions, draft, base).length === 0)
+		errors.healthEnabled = "The health check can be changed once the service is deployed.";
 	const [variableProblem] = addedProblems(draft, base.env).values();
 	if (variableProblem !== undefined) errors.added = variableProblem;
 	// The API enforces the bounds and its message names them.
@@ -384,11 +388,11 @@ export function validateDraft(
 function healthErrors(draft: SettingsDraft, next: Baseline): DraftErrors {
 	const errors: DraftErrors = {};
 	if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
-	const interval = Number(next.healthInterval);
-	if (draft.healthInterval !== undefined && !(positive(next.healthInterval) && interval >= MIN_HEALTH_INTERVAL))
+	const intervalValid = positive(next.healthInterval) && Number(next.healthInterval) >= MIN_HEALTH_INTERVAL;
+	if (draft.healthInterval !== undefined && !intervalValid)
 		errors.healthInterval = `Whole seconds, at least ${MIN_HEALTH_INTERVAL.toString()}`;
-	const timeout = Number(next.healthTimeout);
-	if (draft.healthTimeout !== undefined && !(positive(next.healthTimeout) && timeout <= MAX_HEALTH_TIMEOUT))
+	const timeoutValid = positive(next.healthTimeout) && Number(next.healthTimeout) <= MAX_HEALTH_TIMEOUT;
+	if (draft.healthTimeout !== undefined && !timeoutValid)
 		errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
 	const timingEdited = draft.healthInterval !== undefined || draft.healthTimeout !== undefined;
 	const timingValid = errors.healthInterval === undefined && errors.healthTimeout === undefined;
@@ -448,9 +452,9 @@ function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline):
 	return next;
 }
 
-interface RegionDeploy {
+interface PlannedDeploy {
 	commit: SourceCommit | undefined;
-	region: string;
+	regions: string[];
 	spec: DeploymentSpec;
 }
 
@@ -488,37 +492,16 @@ export function addedProblems(draft: SettingsDraft, current: Record<string, stri
 	return problems;
 }
 
-export function planSave(regions: RegionView[], draft: SettingsDraft, base: Baseline): RegionDeploy[] {
+/** One deployment per running deployment the draft changes, to the regions that deployment serves. */
+export function planSave(regions: RegionView[], draft: SettingsDraft, base: Baseline): PlannedDeploy[] {
 	const redeployAll = domainsChange(draft, base) !== null || variablesChanged(draft);
-	const deploys: RegionDeploy[] = [];
-	for (const region of deployedRegions(regions)) {
-		const current = region.current;
-		if (current?.spec === undefined) continue;
-		const spec = applyDraft(current.spec, draft, base);
-		if (!redeployAll && equals(DeploymentSpecSchema, spec, current.spec)) continue;
-		deploys.push({
-			region: region.name,
-			spec,
-			commit:
-				draft.image === undefined || draft.image.trim() === getServiceSpec(current)?.build?.image
-					? current.commit
-					: undefined,
-		});
-	}
-	return deploys;
-}
-
-/** The spec of one deployment to every planned region, each region keeping its own sizing. */
-export function mergedSpec(deploys: readonly RegionDeploy[], spec: DeploymentSpec): DeploymentSpec {
-	const next = clone(DeploymentSpecSchema, spec);
-	if (next.spec.case !== "service") return next;
-	next.spec.value.regions = Object.fromEntries(
-		deploys.flatMap((d) => {
-			const size = d.spec.spec.case === "service" ? d.spec.spec.value.regions[d.region] : undefined;
-			return size === undefined ? [] : [[d.region, size]];
-		}),
-	);
-	return next;
+	return currentSources(regions).flatMap(({ deployment, regions: names }) => {
+		if (deployment.spec === undefined) return [];
+		const spec = applyDraft(deployment.spec, draft, base);
+		if (!redeployAll && equals(DeploymentSpecSchema, spec, deployment.spec)) return [];
+		const sameImage = draft.image === undefined || draft.image.trim() === getServiceSpec(deployment)?.build?.image;
+		return [{ regions: names, spec: specForRegions(spec, names), commit: sameImage ? deployment.commit : undefined }];
+	});
 }
 
 export function regionMapChanged(draft: SettingsDraft, base: Baseline): boolean {

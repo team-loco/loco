@@ -184,7 +184,7 @@ describe("planSave", () => {
 		const observability = { injectOtel: false };
 		expect(changeCount({ observability }, base)).toBe(1);
 		const changed = plan({ observability });
-		expect(changed.map((d) => d.region)).toEqual([EAST, WEST]);
+		expect(changed.flatMap((d) => d.regions)).toEqual([EAST, WEST]);
 		for (const d of changed) {
 			const svc = getServiceSpec(create(DeploymentSchema, { spec: d.spec }));
 			expect(svc?.observability).toEqual(create(ObservabilityConfigSchema, observability));
@@ -213,7 +213,7 @@ describe("planSave", () => {
 			{ image: IMAGE },
 			baseline("shop", "shop", "", mixed, [], true, defaults, POLICY, undefined),
 		);
-		expect(result.map((d) => [d.region, d.commit])).toEqual([[WEST, undefined]]);
+		expect(result.map((d) => [d.regions, d.commit])).toEqual([[[WEST], undefined]]);
 	});
 
 	test("preserves the source commit for health changes and clears it for another image", () => {
@@ -222,8 +222,8 @@ describe("planSave", () => {
 	});
 
 	test("variable changes redeploy every running region", () => {
-		expect(plan({ env: { FEATURE_FLAGS: "beta" } }).map((d) => d.region)).toEqual([EAST, WEST]);
-		expect(plan({ removedEnv: ["LOG_LEVEL"] }).map((d) => d.region)).toEqual([EAST, WEST]);
+		expect(plan({ env: { FEATURE_FLAGS: "beta" } }).flatMap((d) => d.regions)).toEqual([EAST, WEST]);
+		expect(plan({ removedEnv: ["LOG_LEVEL"] }).flatMap((d) => d.regions)).toEqual([EAST, WEST]);
 	});
 
 	test("does nothing for an empty draft or region map edits", () => {
@@ -233,7 +233,7 @@ describe("planSave", () => {
 
 	test("carries every deployment change into one deployment per running region", () => {
 		const result = plan({ image: "ghcr.io/acme/shop:1.5.0", port: "9090", healthPath: "/ready" });
-		expect(result.map((d) => d.region)).toEqual([EAST, WEST]);
+		expect(result.flatMap((d) => d.regions)).toEqual([EAST, WEST]);
 		const svc = getServiceSpec(create(DeploymentSchema, { spec: result[0]?.spec }));
 		expect(svc?.build?.image).toBe("ghcr.io/acme/shop:1.5.0");
 		expect(svc?.port).toBe(9090);
@@ -245,7 +245,7 @@ describe("planSave", () => {
 
 	test("sets and clears the command and args in every running region", () => {
 		const set = plan({ command: "/http-echo", args: "-text=hello world\n\n-listen=:8080\n" });
-		expect(set.map((d) => d.region)).toEqual([EAST, WEST]);
+		expect(set.flatMap((d) => d.regions)).toEqual([EAST, WEST]);
 		for (const d of set) {
 			const svc = getServiceSpec(create(DeploymentSchema, { spec: d.spec }));
 			expect(svc?.command).toEqual(["/http-echo"]);
@@ -268,7 +268,7 @@ describe("planSave", () => {
 	});
 
 	test("redeploys every region when the resource goes private", () => {
-		expect(plan({ isPublic: false }).map((d) => d.region)).toEqual([EAST, WEST]);
+		expect(plan({ isPublic: false }).flatMap((d) => d.regions)).toEqual([EAST, WEST]);
 	});
 });
 
@@ -518,18 +518,38 @@ describe("health check switch", () => {
 	const health = (d: { spec: Deployment["spec"] }) =>
 		getServiceSpec(create(DeploymentSchema, { spec: d.spec }))?.healthCheck;
 
-	test("a switch turned on and back off changes no region", () => {
+	const delayed = (id: string, name: string, initialDelaySeconds: number) => {
+		const d = deployment(id, name);
+		getServiceSpec(d)!.healthCheck!.initialDelaySeconds = initialDelaySeconds;
+		return region(name, d);
+	};
+
+	test("a switch turned on and back off keeps each region's check", () => {
 		expect(mixedBase.healthEnabled).toBe(false);
-		const draft = { healthEnabled: false, name: "renamed" };
-		expect(changeNames(draft, mixedBase)).toEqual(["Name"]);
-		expect(planSave(mixed, draft, mixedBase)).toEqual([]);
+		const draft = { healthEnabled: false, port: "9090" };
+		expect(changeNames(draft, mixedBase)).toEqual(["Port"]);
+		expect(planSave(mixed, draft, mixedBase).map((d) => [d.regions, health(d)?.path])).toEqual([
+			[[EAST], undefined],
+			[[WEST], "/healthz"],
+		]);
+		expect(healthRemoved(draft, mixedBase)).toBe(false);
+	});
+
+	test("editing the check keeps each region's startup delay", () => {
+		const delays = [delayed("east", EAST, 5), delayed("west", WEST, 60)];
+		const delaysBase = baseline("shop", "shop", "", delays, [EAST, WEST], true, checked, POLICY, undefined);
+		const planned = planSave(delays, { healthPath: "/ready" }, delaysBase);
+		expect(planned.map((d) => [d.regions, health(d)?.path, health(d)?.initialDelaySeconds])).toEqual([
+			[[EAST], "/ready", 5],
+			[[WEST], "/ready", 60],
+		]);
 	});
 
 	test("turning it on adds the default check with its startup delay", () => {
 		const draft = { healthEnabled: true };
 		expect(changeNames(draft, mixedBase)).toEqual(["Add health check"]);
 		const [east] = planSave(mixed, draft, mixedBase);
-		expect(east?.region).toBe(EAST);
+		expect(east?.regions).toEqual([EAST]);
 		expect(east === undefined ? undefined : health(east)).toMatchObject({
 			path: "/healthz",
 			initialDelaySeconds: 17,
@@ -542,14 +562,14 @@ describe("health check switch", () => {
 		const draft = { healthEnabled: false, healthPath: "nope" };
 		expect(changeNames(draft, base)).toEqual(["Remove health check"]);
 		expect(validateDraft(draft, base, regions, SERVED, 10).healthPath).toBeUndefined();
-		expect(plan(draft).map((d) => [d.region, health(d)])).toEqual([
-			[EAST, undefined],
-			[WEST, undefined],
+		expect(plan(draft).map((d) => [d.regions, health(d)])).toEqual([
+			[[EAST], undefined],
+			[[WEST], undefined],
 		]);
 		expect(healthRemoved(draft, base)).toBe(true);
 	});
 
-	test("an undeployed service shows its stored check", () => {
+	test("an undeployed service shows its stored check and refuses a change nothing would store", () => {
 		const idle = [region(EAST, undefined)];
 		expect(baseline("shop", "shop", "", idle, [EAST], true, checked, POLICY, undefined).healthEnabled).toBe(false);
 		const storedCheck = create(HealthCheckConfigSchema, {
@@ -560,5 +580,6 @@ describe("health check switch", () => {
 		});
 		const idleBase = baseline("shop", "shop", "", idle, [EAST], true, checked, POLICY, storedCheck);
 		expect([idleBase.healthEnabled, idleBase.healthPath, idleBase.healthInterval]).toEqual([true, "/ready", "9"]);
+		expect(validateDraft({ healthEnabled: false }, idleBase, idle, SERVED, 10).healthEnabled).toBeDefined();
 	});
 });

@@ -5,7 +5,7 @@ from pathlib import Path
 import evidence
 from harness import call, expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
-from settings_fixture import seed_settings_resource
+from settings_fixture import REGION, seed_settings_resource
 
 parser = argparse.ArgumentParser(
     description="Check the health check switch and validation while typing in resource settings"
@@ -25,6 +25,38 @@ config = call(state, "loco.config.v1.ConfigService/GetConfig", {})
 default_health = config["serviceDefaults"]["healthCheck"]
 default_health["initialDelaySeconds"] = 17
 digest = "sha256:" + "a" * 64
+server_check = {
+    "path": "/server",
+    "initialDelaySeconds": 5,
+    "intervalSeconds": 30,
+    "timeoutSeconds": 5,
+    "failureThreshold": 3,
+}
+
+
+def undeployed(name, health=None):
+    service = {
+        "routing": {"port": 8080},
+        "regions": {
+            REGION: {
+                "enabled": True,
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1,
+            }
+        },
+    }
+    if health is not None:
+        service["healthCheck"] = health
+    resource_id = evidence.seed_resources(
+        state, [{"workspace": "acme/shared", "name": name, "service": service}]
+    )[f"acme/shared/{name}"]
+    return base.rsplit("/resource/", 1)[0] + f"/resource/{resource_id}"
+
+
+idle_checked = undeployed("health-idle-checked", server_check)
+idle_unchecked = undeployed("health-idle")
 
 
 def live(resource_id):
@@ -34,11 +66,13 @@ def live(resource_id):
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     deployments = []
+    # A health check the fake server stores in place of the requested one.
+    server_override = {}
 
     def create_deployment(route):
         body = route.request.post_data_json
         deployments.append(body)
-        service = body["spec"]["service"]
+        service = {**body["spec"]["service"], **server_override}
         if "@" not in service["build"]["image"]:
             service["build"]["image"] += "@" + digest
         # Stores the requested spec as the live snapshot; the fixture image has no registry.
@@ -118,10 +152,28 @@ with session(out) as browser:
     switch.click()
     expect(fields).to_have_count(0)
     expect(page.get_by_text("Remove health check", exact=True)).to_be_visible()
+    # The server reports a check after the save; the switch follows it once the draft lets go.
+    server_override["healthCheck"] = server_check
     sent = saved(lambda body: body.get("resourceId") == resource)
+    server_override.clear()
     assert sent["removeHealthCheck"] is True, sent
     assert "healthCheck" not in sent["spec"]["service"], sent
+    expect(switch).to_be_checked()
+    expect(fields.first).to_have_value("/server")
+
+    # A service no region runs shows its stored check, or none, and cannot change it.
+    hint = "The health check can be changed once the service is deployed."
+    page.goto(idle_checked + "?env=production&tab=settings")
+    expect(section.get_by_text(hint, exact=True)).to_be_visible()
+    expect(switch).to_be_checked()
+    expect(switch).to_be_disabled()
+    expect(fields.first).to_have_value("/server")
+    expect(fields.first).to_be_disabled()
+    page.goto(idle_unchecked + "?env=production&tab=settings")
+    expect(section.get_by_text(hint, exact=True)).to_be_visible()
     expect(switch).not_to_be_checked()
+    expect(switch).to_be_disabled()
+    expect(fields).to_have_count(0)
 
     # A service without a check shows the switch off and no values.
     page.goto(unchecked_base + "?env=production&tab=settings")

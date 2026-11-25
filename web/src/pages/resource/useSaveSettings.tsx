@@ -26,7 +26,6 @@ import {
 	failurePolicyChanged,
 	failurePolicyFrom,
 	healthRemoved,
-	mergedSpec,
 	plainEnv,
 	planSave,
 	regionChanges,
@@ -180,27 +179,25 @@ export function useSaveSettings({
 
 		const deploys = planSave(regions, effective, base);
 		const savedRegions: string[] = [];
-		const [first] = deploys;
-		if (first !== undefined) {
-			const planned = deploys.map((d) => d.region);
-			const merged = mergedSpec(deploys, first.spec);
-			if (env !== undefined && merged.spec.case === "service") merged.spec.value.env = env;
+		for (const planned of deploys) {
+			if (env !== undefined && planned.spec.spec.case === "service") planned.spec.spec.value.env = env;
 			const ok = await attempt(
-				planned.join(", "),
+				planned.regions.join(", "),
 				[],
 				async () =>
 					await deploy.mutateAsync({
 						resourceId,
-						regions: planned,
-						spec: merged,
+						regions: planned.regions,
+						spec: planned.spec,
 						environmentId,
-						commit: first.commit,
+						commit: planned.commit,
 						removeHealthCheck: healthRemoved(effective, base),
 					}),
 			);
-			if (ok) savedRegions.push(...planned);
+			if (ok) savedRegions.push(...planned.regions);
 		}
-		if (savedRegions.length === deploys.length) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
+		if (savedRegions.length === deploys.flatMap((d) => d.regions).length)
+			next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
 		setSaving(false);
@@ -222,7 +219,9 @@ export function useSaveSettings({
 			return;
 		}
 		const { rolling, stopping } =
-			targets === undefined ? { rolling: deploys.map((d) => d.region), stopping: [] } : regionChanges(effective, base);
+			targets === undefined
+				? { rolling: deploys.flatMap((d) => d.regions), stopping: [] }
+				: regionChanges(effective, base);
 		const message =
 			rolling.length + stopping.length === 0 ? (
 				"No redeploy needed."
