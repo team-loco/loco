@@ -210,8 +210,9 @@ func checkApplicationFallback(t *testing.T, w *platform.Workspace, publicID, pub
 	registered, err := p.User.Domain.CreateResourceDomain(t.Context(), &domainv1.CreateResourceDomainRequest{
 		ResourceId: publicID,
 		Domain: &domainv1.DomainInput{
-			Subdomain: new(strings.TrimSuffix(secondaryHost, "."+p.Domain)),
-			AppDomain: new(p.Domain),
+			DomainSource: domainv1.DomainType_DOMAIN_TYPE_APP,
+			Subdomain:    new(strings.TrimSuffix(secondaryHost, "."+p.Domain)),
+			AppDomain:    new(p.Domain),
 		},
 	})
 	if err != nil {
