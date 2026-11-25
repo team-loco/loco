@@ -44,6 +44,7 @@ async function build(
     await cp(join(output, base), output, { recursive: true });
     await rm(join(output, base), { recursive: true });
   }
+  await cp(join(output, "404/index.html"), join(output, "404.html"));
 }
 
 if (target === "pages") {
@@ -52,7 +53,7 @@ if (target === "pages") {
     .filter(Boolean)
     .slice(0, 2);
   assert.equal(tags.length, 2, "Pages needs two v* tags");
-  // The site is assembled in scratch, so a failed build leaves site/ as it was.
+  // The site is assembled in scratch, so a failed render leaves site/ as it was.
   const scratch = await realpath(await mkdtemp(join(tmpdir(), "loco-docs-")));
   process.on("exit", () => rmSync(scratch, { recursive: true, force: true }));
   const site = join(scratch, "site");
@@ -105,7 +106,6 @@ if (target === "pages") {
     await rm(join(site, version, "robots.txt"));
     await rm(join(site, version, "robots.txt.data"));
   }
-  await cp(join(site, "404/index.html"), join(site, "404.html"));
   await write(
     join(site, "versions.json"),
     JSON.stringify([

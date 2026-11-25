@@ -1,9 +1,11 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import threading
 from functools import partial
+from html import unescape
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -13,13 +15,15 @@ from test_static_hosting import ROOT, navigate, response
 
 PAGES = "https://docs.loco.build"
 SITE = ROOT / "docs/site"
-CURRENT, PREVIOUS = subprocess.run(
-    ["git", "tag", "--list", "v*", "--sort=-v:refname"],
-    cwd=ROOT,
-    check=True,
-    capture_output=True,
-    text=True,
-).stdout.split()[:2]
+
+
+def git(*args):
+    return subprocess.run(
+        ["git", *args], cwd=ROOT, check=True, capture_output=True, text=True
+    ).stdout
+
+
+CURRENT, PREVIOUS = git("tag", "--list", "v*", "--sort=-v:refname").split()[:2]
 VERSIONS = pytest.mark.parametrize(
     "prefix,name",
     [
@@ -90,6 +94,39 @@ def open_guide(page, pages, prefix):
     page.wait_for_load_state("networkidle")
 
 
+def distinct_passage(tag, other):
+    """Returns a page of tag's content and a passage of its prose that other's content lacks."""
+    paths = git("ls-tree", "-r", "--name-only", f"{tag}:docs/content").split()
+    for path in (path for path in paths if path.endswith(".md")):
+        theirs = subprocess.run(
+            ["git", "show", f"{other}:docs/content/{path}"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        ).stdout
+        code = False
+        for line in git("show", f"{tag}:docs/content/{path}").splitlines():
+            code ^= line.startswith("```")
+            if code or line.startswith(("---", "title:")):
+                continue
+            for fragment in re.split(r"[`\[\]()*_|#>]", line):
+                fragment = fragment.strip(" -.")
+                if len(fragment) >= 30 and fragment not in theirs:
+                    slug = re.sub(r"(^|/)index$", "", path.removesuffix(".md"))
+                    return f"{slug}/" if slug else "", fragment
+    pytest.skip(f"{tag} and {other} have the same content")
+
+
+@pytest.mark.parametrize(
+    "tag,other", [(CURRENT, PREVIOUS), (PREVIOUS, CURRENT)], ids=["current", "previous"]
+)
+def test_tag_paths_render_their_own_content(pages, tag, other):
+    page, passage = distinct_passage(tag, other)
+    status, body, _ = response(f"{pages}/{tag}/{page}")
+    assert status == 200
+    assert passage in unescape(body)
+
+
 def test_versions_list_current_previous_and_staging(pages):
     assert json.loads(response(pages + "/versions.json")[1]) == [
         {"name": CURRENT, "url": "/"},
@@ -119,8 +156,11 @@ def test_version_search_opens_pages_in_the_version(page, pages, prefix, name):
     open_guide(page, pages, prefix)
     page.get_by_role("button", name=re.compile(r"^Search")).first.click()
     page.get_by_role("combobox", name="Search", exact=True).fill("webhooks")
-    page.get_by_role("option").first.click()
-    expect(page).to_have_url(re.compile(re.escape(pages + prefix) + r"\w"))
+    page.get_by_role("option").filter(has_text=re.compile(r"Webhooks$")).first.click()
+    expect(page).to_have_url(
+        re.compile(re.escape(f"{pages}{prefix}operations/webhooks") + "/?$")
+    )
+    expect(page.get_by_role("heading", level=1)).to_have_text("Webhooks")
 
 
 @VERSIONS
@@ -156,17 +196,23 @@ def test_missing_paths_answer_not_found(pages, path):
     assert "Page not found" in body
 
 
-def test_a_failed_version_fails_the_build(pages, tmp_path):
-    # Two tags whose content has no title, which the renderer rejects.
+def test_a_failed_previous_version_fails_the_build(pages, tmp_path):
+    # The previous tag's content has no title, which the renderer rejects; the latest is valid.
     content = tmp_path / "docs/content"
     content.mkdir(parents=True)
     (content / "index.md").write_text("---\ndescription: no title\n---\n\nBody\n")
-    git = ["git", "-C", tmp_path, "-c", "user.name=t", "-c", "user.email=t@t"]
+    repo = ["git", "-C", tmp_path, "-c", "user.name=t", "-c", "user.email=t@t"]
+
+    def tag(name):
+        subprocess.run([*repo, "add", "-A"], check=True)
+        subprocess.run([*repo, "commit", "-qm", name], check=True)
+        subprocess.run([*repo, "tag", name], check=True)
+
     subprocess.run(["git", "init", "-q", tmp_path], check=True)
-    subprocess.run([*git, "add", "."], check=True)
-    subprocess.run([*git, "commit", "-qm", "broken"], check=True)
-    for tag in ["v0.0.1", "v0.0.2"]:
-        subprocess.run([*git, "tag", tag], check=True)
+    tag("v0.0.1")
+    shutil.rmtree(content)
+    shutil.copytree(ROOT / "docs/content", content)
+    tag("v0.0.2")
     versions = (SITE / "versions.json").read_text()
 
     result = build_pages({**os.environ, "GIT_DIR": str(tmp_path / ".git")})
