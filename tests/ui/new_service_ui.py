@@ -1114,10 +1114,21 @@ with session(out) as browser:
     drawer = page.get_by_role("dialog", name=long_name, exact=True)
     deploy = drawer.get_by_role("button", name=f"Deploy {long_name}", exact=True)
     expect(deploy).to_be_visible()
-    label = deploy.locator("span.truncate").bounding_box()
-    box = drawer.bounding_box()
-    assert label["x"] >= box["x"], (label, box)
-    assert label["x"] + label["width"] <= box["x"] + box["width"], (label, box)
+    fit = drawer.evaluate(
+        """(dialog, text) => {
+            const box = (e) => e.getBoundingClientRect();
+            const deploy = [...dialog.querySelectorAll("button")].find((b) => b.textContent === text);
+            const label = deploy.lastElementChild ?? deploy;
+            const [d, b, l] = [dialog, deploy, label].map(box);
+            return {
+                buttonInDrawer: b.left >= d.left && b.right <= d.right,
+                labelInButton: l.left >= b.left && l.right <= b.right,
+                ellipsis: label.scrollWidth > label.clientWidth && getComputedStyle(label).textOverflow === "ellipsis",
+            };
+        }""",
+        f"Deploy {long_name}",
+    )
+    assert fit == {"buttonInDrawer": True, "labelInButton": True, "ellipsis": True}, fit
     assert not errors, errors
     context.close()
     # A service in two regions is one deployment that rolls out to both.
