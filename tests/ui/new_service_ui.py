@@ -592,8 +592,11 @@ with session(out) as browser:
     expect(variables_header).to_contain_text("3 variables")
 
     health = drawer.get_by_role("switch", name="Health check", exact=True)
-    expect(health).to_be_checked()
+    expect(health).not_to_be_checked()
     interval = drawer.get_by_role("textbox", name="Interval, sec")
+    expect(interval).to_have_count(0)
+    health.click()
+    expect(health).to_be_checked()
     health.click()
     expect(interval).to_have_count(0)
     health.click()

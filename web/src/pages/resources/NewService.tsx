@@ -515,7 +515,7 @@ function defaultHealth(defaults: DefaultServiceConfig): HealthForm {
 	const hc = defaults.healthCheck;
 	const num = (n: number | undefined) => (n === undefined || n === 0 ? "" : n.toString());
 	return {
-		enabled: (hc?.path ?? "") !== "",
+		enabled: false,
 		path: hc?.path ?? "",
 		interval: num(hc?.intervalSeconds),
 		timeout: num(hc?.timeoutSeconds),

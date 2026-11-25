@@ -138,7 +138,10 @@ export function CommandSection({ draft, base, locked, describedBy, onChange }: S
 			hint="How the container starts. Loco passes each line to the program as one entry, without a shell."
 		>
 			<CommandFields
-				value={{ command: draft.command ?? base.command, args: draft.args ?? base.args }}
+				value={{
+					command: draft.command ?? base.command,
+					args: draft.args ?? base.args,
+				}}
 				disabled={locked}
 				describedBy={describedBy}
 				onChange={onChange}
@@ -163,7 +166,9 @@ export function ScalingSection({
 	const first = names[0];
 	const value = first === undefined ? undefined : (draft.scaling?.[first] ?? base.scaling[first]);
 	const setAll = (scaling: Scaling) => {
-		onChange({ scaling: Object.fromEntries(names.map((name) => [name, scaling])) });
+		onChange({
+			scaling: Object.fromEntries(names.map((name) => [name, scaling])),
+		});
 	};
 	const error = names.map((name): ReactNode => errors[`scaling.${name}`]).find((e) => e !== undefined) ?? null;
 	return (
@@ -294,55 +299,76 @@ function UnitInput({
 }
 
 export function HealthSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
+	const enabled = draft.healthEnabled ?? base.healthEnabled;
 	return (
-		<SettingsBlock id={HEALTH_SECTION_ID} title="Health check">
-			<div className={grid2}>
-				<Field label="Path" error={errors.healthPath} reserve>
-					<Input
-						className="font-mono"
-						value={draft.healthPath ?? base.healthPath}
-						disabled={locked}
-						aria-describedby={describedBy}
-						aria-invalid={errors.healthPath !== undefined}
-						onChange={(e) => {
-							onChange({ healthPath: e.target.value });
+		<SettingsBlock
+			id={HEALTH_SECTION_ID}
+			title="Health check"
+			actions={
+				<Switch
+					checked={enabled}
+					disabled={locked}
+					aria-label="Health check"
+					aria-describedby={describedBy}
+					onCheckedChange={(healthEnabled: boolean) => {
+						onChange({ healthEnabled });
+					}}
+				/>
+			}
+		>
+			{enabled ? (
+				<div className={grid2}>
+					<Field label="Path" error={errors.healthPath} reserve>
+						<Input
+							className="font-mono"
+							value={draft.healthPath ?? base.healthPath}
+							disabled={locked}
+							aria-describedby={describedBy}
+							aria-invalid={errors.healthPath !== undefined}
+							onChange={(e) => {
+								onChange({ healthPath: e.target.value });
+							}}
+						/>
+					</Field>
+					<UnitInput
+						label="Interval"
+						unit="sec"
+						value={draft.healthInterval ?? base.healthInterval}
+						error={errors.healthInterval}
+						locked={locked}
+						describedBy={describedBy}
+						onChange={(healthInterval) => {
+							onChange({ healthInterval });
 						}}
 					/>
-				</Field>
-				<UnitInput
-					label="Interval"
-					unit="sec"
-					value={draft.healthInterval ?? base.healthInterval}
-					error={errors.healthInterval}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthInterval) => {
-						onChange({ healthInterval });
-					}}
-				/>
-				<UnitInput
-					label="Timeout"
-					unit="sec"
-					value={draft.healthTimeout ?? base.healthTimeout}
-					error={errors.healthTimeout}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthTimeout) => {
-						onChange({ healthTimeout });
-					}}
-				/>
-				<UnitInput
-					label="Fail after"
-					unit="checks"
-					value={draft.healthFailures ?? base.healthFailures}
-					error={errors.healthFailures}
-					locked={locked}
-					describedBy={describedBy}
-					onChange={(healthFailures) => {
-						onChange({ healthFailures });
-					}}
-				/>
-			</div>
+					<UnitInput
+						label="Timeout"
+						unit="sec"
+						value={draft.healthTimeout ?? base.healthTimeout}
+						error={errors.healthTimeout}
+						locked={locked}
+						describedBy={describedBy}
+						onChange={(healthTimeout) => {
+							onChange({ healthTimeout });
+						}}
+					/>
+					<UnitInput
+						label="Fail after"
+						unit="checks"
+						value={draft.healthFailures ?? base.healthFailures}
+						error={errors.healthFailures}
+						locked={locked}
+						describedBy={describedBy}
+						onChange={(healthFailures) => {
+							onChange({ healthFailures });
+						}}
+					/>
+				</div>
+			) : (
+				<span className="text-[12.5px] text-fg3">
+					Optional. Without one, a replica counts as ready once its process starts.
+				</span>
+			)}
 		</SettingsBlock>
 	);
 }

@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from harness import load_state, open_page, repo, session
+from harness import call, load_state, open_page, repo, session
 from playwright.sync_api import expect
 from settings_fixture import seed_settings_resource
 
@@ -18,6 +18,10 @@ state = load_state(
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 _, resource, base = seed_settings_resource(state, "health")
+_, _, bare = seed_settings_resource(state, "nohealth", health=False)
+defaults = call(state, "loco.config.v1.ConfigService/GetConfig", {})["serviceDefaults"][
+    "healthCheck"
+]
 
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
@@ -33,6 +37,8 @@ with session(out) as browser:
     page.goto(base + "?env=production&tab=settings")
     section = page.locator("#set-health")
     expect(section).to_be_visible()
+    expect(section.get_by_role("switch", name="Health check")).to_be_checked()
+    expect(section.locator("input").first).to_have_value("/health")
     path, interval, timeout = section.locator("input").all()[:3]
     height = section.bounding_box()["height"]
 
@@ -75,6 +81,32 @@ with session(out) as browser:
     assert deployments == [], deployments
     timeout.fill("6")
     expect(save).to_be_enabled()
+
+    page.goto(bare + "?env=production&tab=settings")
+    section = page.locator("#set-health")
+    toggle = section.get_by_role("switch", name="Health check")
+    expect(toggle).not_to_be_checked()
+    expect(section.locator("input")).to_have_count(0)
+    port = page.get_by_role("textbox", name="Port", exact=True)
+    port.fill("9090")
+    save = page.get_by_role("button", name="Save & redeploy", exact=True)
+    save.click()
+    expect(save).to_be_enabled()
+    page.wait_for_timeout(500)
+    assert len(deployments) == 1, deployments
+    assert "healthCheck" not in deployments[0]["spec"]["service"], deployments[0]
+
+    page.goto(bare + "?env=production&tab=settings")
+    toggle.click()
+    expect(toggle).to_be_checked()
+    path, interval, timeout, failures = section.locator("input").all()
+    expect(path).to_have_value(defaults["path"])
+    expect(interval).to_have_value(str(defaults["intervalSeconds"]))
+    expect(timeout).to_have_value(str(defaults["timeoutSeconds"]))
+    expect(failures).to_have_value(str(defaults["failureThreshold"]))
+    toggle.click()
+    expect(section.locator("input")).to_have_count(0)
+    expect(page.get_by_text("unsaved change")).to_have_count(0)
     assert not errors, errors
     context.close()
     browser.close()

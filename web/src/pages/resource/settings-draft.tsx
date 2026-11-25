@@ -45,7 +45,11 @@ const MIN_HEALTH_INTERVAL = 5;
 const MAX_HEALTH_TIMEOUT = 60;
 
 export const RESTART_CHOICES = [
-	{ value: "on-failure", label: "On failure", policy: RestartPolicy.ON_FAILURE },
+	{
+		value: "on-failure",
+		label: "On failure",
+		policy: RestartPolicy.ON_FAILURE,
+	},
 	{ value: "always", label: "Always", policy: RestartPolicy.ALWAYS },
 	{ value: "never", label: "Never", policy: RestartPolicy.NEVER },
 ] as const;
@@ -69,7 +73,12 @@ function failurePolicySettings(
 ): FailurePolicySettings {
 	const choice = RESTART_CHOICES.find((c) => c.policy === policy?.restartPolicy);
 	if (policy === undefined || choice === undefined) {
-		return { restartPolicy: "on-failure", maxRestarts: "", deployTimeout: "", failurePolicyMissing: true };
+		return {
+			restartPolicy: "on-failure",
+			maxRestarts: "",
+			deployTimeout: "",
+			failurePolicyMissing: true,
+		};
 	}
 	const restarts = policy.maxRestarts > 0 ? policy.maxRestarts : (defaults.failurePolicy?.maxRestarts ?? 0);
 	return {
@@ -102,6 +111,7 @@ export interface SettingsDraft {
 	cpu?: string;
 	memory?: string;
 	port?: string;
+	healthEnabled?: boolean;
 	healthPath?: string;
 	healthInterval?: string;
 	healthTimeout?: string;
@@ -133,6 +143,8 @@ export interface Baseline {
 	cpu: string;
 	memory: string;
 	port: string;
+	/** Whether the service has a health check; the fields below hold the API defaults when it has none. */
+	healthEnabled: boolean;
 	healthPath: string;
 	healthInterval: string;
 	healthTimeout: string;
@@ -187,6 +199,7 @@ export function baseline(
 		cpu: size?.cpu ?? "",
 		memory: size?.memory ?? "",
 		port: svc?.port?.toString() ?? "",
+		healthEnabled: svc?.healthCheck !== undefined,
 		healthPath: health?.path ?? "",
 		healthInterval: health === undefined ? "" : health.intervalSeconds.toString(),
 		healthTimeout: health === undefined ? "" : health.timeoutSeconds.toString(),
@@ -228,6 +241,7 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		cpu: draft.cpu ?? base.cpu,
 		memory: draft.memory ?? base.memory,
 		port: draft.port ?? base.port,
+		healthEnabled: draft.healthEnabled ?? base.healthEnabled,
 		healthPath: draft.healthPath ?? base.healthPath,
 		healthInterval: draft.healthInterval ?? base.healthInterval,
 		healthTimeout: draft.healthTimeout ?? base.healthTimeout,
@@ -241,18 +255,9 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 	};
 }
 
-const SCALAR_KEYS = [
-	"name",
-	"description",
-	"image",
-	"cpu",
-	"memory",
-	"port",
-	"healthPath",
-	"healthInterval",
-	"healthTimeout",
-	"healthFailures",
-] as const;
+const SCALAR_KEYS = ["name", "description", "image", "cpu", "memory", "port"] as const;
+
+const HEALTH_KEYS = ["healthPath", "healthInterval", "healthTimeout", "healthFailures"] as const;
 
 const COMMAND_KEYS = ["command", "args"] as const;
 
@@ -273,17 +278,27 @@ const SCALAR_LABELS: Record<(typeof SCALAR_KEYS)[number], string> = {
 	cpu: "CPU",
 	memory: "Memory",
 	port: "Port",
+};
+
+const HEALTH_LABELS: Record<(typeof HEALTH_KEYS)[number], string> = {
 	healthPath: "Health check path",
 	healthInterval: "Health check interval",
 	healthTimeout: "Health check timeout",
 	healthFailures: "Health check failure threshold",
 };
 
+function healthChanges(next: Baseline, base: Baseline): string[] {
+	if (next.healthEnabled !== base.healthEnabled) return ["Health check"];
+	if (!next.healthEnabled) return [];
+	return HEALTH_KEYS.filter((k) => differs(next[k], base[k])).map((k) => HEALTH_LABELS[k]);
+}
+
 /** One name per pending change, in the order the sections appear. */
 export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	const next = resolved(draft, base);
 	const names: string[] = SCALAR_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
 	names.push(
+		...healthChanges(next, base),
 		...(Object.keys(draft.scaling ?? {}).some((r) => !sameScaling(next.scaling[r], base.scaling[r]))
 			? ["Scaling"]
 			: []),
@@ -352,27 +367,29 @@ export function validateDraft(
 		const portInvalid = next.port.trim() === "" ? "Enter a port number" : portRangeError(next.port);
 		if (portInvalid !== null) errors.port = portInvalid;
 	}
-	if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
-	if (
-		draft.healthInterval !== undefined &&
-		!(positive(next.healthInterval) && Number(next.healthInterval) >= MIN_HEALTH_INTERVAL)
-	)
-		errors.healthInterval = `Whole seconds, at least ${MIN_HEALTH_INTERVAL.toString()}`;
-	if (
-		draft.healthTimeout !== undefined &&
-		!(positive(next.healthTimeout) && Number(next.healthTimeout) <= MAX_HEALTH_TIMEOUT)
-	)
-		errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
-	const timeoutOrder = healthTimeoutError(next.healthInterval, next.healthTimeout);
-	if (
-		errors.healthInterval === undefined &&
-		errors.healthTimeout === undefined &&
-		(draft.healthInterval !== undefined || draft.healthTimeout !== undefined) &&
-		timeoutOrder !== null
-	)
-		errors.healthTimeout = timeoutOrder;
-	if (draft.healthFailures !== undefined && !positive(next.healthFailures))
-		errors.healthFailures = "A whole number, at least 1";
+	if (next.healthEnabled) {
+		if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
+		if (
+			draft.healthInterval !== undefined &&
+			!(positive(next.healthInterval) && Number(next.healthInterval) >= MIN_HEALTH_INTERVAL)
+		)
+			errors.healthInterval = `Whole seconds, at least ${MIN_HEALTH_INTERVAL.toString()}`;
+		if (
+			draft.healthTimeout !== undefined &&
+			!(positive(next.healthTimeout) && Number(next.healthTimeout) <= MAX_HEALTH_TIMEOUT)
+		)
+			errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
+		const timeoutOrder = healthTimeoutError(next.healthInterval, next.healthTimeout);
+		if (
+			errors.healthInterval === undefined &&
+			errors.healthTimeout === undefined &&
+			(draft.healthInterval !== undefined || draft.healthTimeout !== undefined) &&
+			timeoutOrder !== null
+		)
+			errors.healthTimeout = timeoutOrder;
+		if (draft.healthFailures !== undefined && !positive(next.healthFailures))
+			errors.healthFailures = "A whole number, at least 1";
+	}
 	const [variableProblem] = addedProblems(draft, base.env).values();
 	if (variableProblem !== undefined) errors.added = variableProblem;
 	// The API enforces the bounds and its message names them.
@@ -426,6 +443,7 @@ function healthFrom(next: Baseline, current: HealthCheckConfig | undefined): Hea
 
 function healthEdited(draft: SettingsDraft): boolean {
 	return (
+		draft.healthEnabled !== undefined ||
 		draft.healthPath !== undefined ||
 		draft.healthInterval !== undefined ||
 		draft.healthTimeout !== undefined ||
@@ -439,11 +457,14 @@ function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline):
 	const svc = next.spec.value;
 	const want = resolved(draft, base);
 	if (draft.image !== undefined && want.image.trim() !== (svc.build?.image ?? "")) {
-		svc.build = create(BuildSourceSchema, { type: IMAGE_BUILD, image: want.image.trim() });
+		svc.build = create(BuildSourceSchema, {
+			type: IMAGE_BUILD,
+			image: want.image.trim(),
+		});
 	}
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
 	if (draft.observability !== undefined) svc.observability = create(ObservabilityConfigSchema, want.observability);
-	if (healthEdited(draft)) svc.healthCheck = healthFrom(want, svc.healthCheck);
+	if (healthEdited(draft)) svc.healthCheck = want.healthEnabled ? healthFrom(want, svc.healthCheck) : undefined;
 	if (draft.command !== undefined) svc.command = commandEntries(want.command);
 	if (draft.args !== undefined) svc.args = commandEntries(want.args);
 	return next;

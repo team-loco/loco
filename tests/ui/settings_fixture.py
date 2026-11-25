@@ -5,8 +5,8 @@ from harness import evidence
 REGION = "us-ca-1"
 
 
-def seed_settings_resource(state, prefix, cpu="100m", memory="128Mi"):
-    """Seeds a running service with a health check; returns its name, id and settings URL."""
+def seed_settings_resource(state, prefix, cpu="100m", memory="128Mi", health=True):
+    """Seeds a running service, with a health check unless health is False; returns its name, id and settings URL."""
     workspace = state["workspaces"]["acme/shared"]
     org = state["orgs"]["acme"]["id"]
     name = f"{prefix}-{uuid.uuid4().hex[:8]}"
@@ -31,6 +31,8 @@ def seed_settings_resource(state, prefix, cpu="100m", memory="128Mi"):
             "failureThreshold": 3,
         },
     }
+    if not health:
+        del spec["healthCheck"]
     resource = evidence.seed_resources(
         state,
         [
