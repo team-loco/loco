@@ -487,7 +487,11 @@ export function BuildsTable({
 			table={table}
 			label="Builds"
 			band
-			empty={<div className="flex h-24 items-center justify-center text-fg3">{emptyText}</div>}
+			empty={
+				<div className="flex h-24 items-center justify-center text-fg3">
+					<span>{emptyText}</span>
+				</div>
+			}
 			onRowClick={(row) => {
 				onOpen(openId === row.id ? null : row.id);
 			}}

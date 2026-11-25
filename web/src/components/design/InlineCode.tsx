@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type ReactElement, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -7,7 +7,7 @@ export function InlineCode({ children, className }: { children: ReactNode; class
 	return (
 		<code
 			className={cn(
-				"inline rounded-[4px] bg-panel2 px-1.5 font-mono text-[0.86em] leading-[1.4] whitespace-nowrap text-foreground",
+				"inline rounded-[4px] bg-panel2 px-1 font-mono text-[0.86em] leading-[1.4] text-foreground [overflow-wrap:anywhere] box-decoration-clone",
 				className,
 			)}
 		>
@@ -16,20 +16,22 @@ export function InlineCode({ children, className }: { children: ReactNode; class
 	);
 }
 
-/** Names joined as "a, b and c", each one as inline code; `extra` closes the list as plain text, like "2 more". */
-export function InlineCodeList({ names, extra }: { names: readonly string[]; extra?: string }) {
-	const items = extra === undefined ? names : [...names, extra];
+/** Names joined as "a, b and c", each one as inline code; a string child closes the list as plain text, like "2 more". */
+export function InlineCodeList({ names, children }: { names: readonly string[]; children?: string | undefined }) {
 	return new Intl.ListFormat("en", { style: "long", type: "conjunction" })
-		.formatToParts(items)
+		.formatToParts(children === undefined ? names : [...names, children])
 		.map((part, i) => (
 			<Fragment key={i}>
-				{part.type === "element" && part.value !== extra ? <InlineCode>{part.value}</InlineCode> : part.value}
+				{part.type === "element" && part.value !== children ? <InlineCode>{part.value}</InlineCode> : part.value}
 			</Fragment>
 		));
 }
 
+/** A message that may name things: plain text, or text with names as inline code. */
+export type Message = string | ReactElement[];
+
 /** Tagged template for running text: every interpolated value is shown as inline code. */
-export function withCode(strings: TemplateStringsArray, ...values: ReactNode[]) {
+export function withCode(strings: TemplateStringsArray, ...values: ReactNode[]): ReactElement[] {
 	return strings.map((text, i) => (
 		<Fragment key={i}>
 			{text}

@@ -58,10 +58,6 @@ export function errorKind(error: unknown): ErrorKind | null {
 	return "internal";
 }
 
-function hasMessage(error: unknown): boolean {
-	return error instanceof ConnectError ? error.rawMessage !== "" : error instanceof Error && error.message !== "";
-}
-
 export function toastConnectError(
 	error: unknown,
 	fallback: ReactNode = "An unexpected error occurred.",
@@ -69,16 +65,11 @@ export function toastConnectError(
 ): void {
 	const id = error instanceof ConnectError && error.code === Code.Internal ? requestId(error) : null;
 	if (id === null) {
-		toast.error(
-			typeof fallback === "string"
-				? getErrorMessage(error, fallback)
-				: hasMessage(error)
-					? getErrorMessage(error)
-					: fallback,
-			{
-				duration: options?.duration ?? 5000,
-			},
-		);
+		const raw = error instanceof Error ? (error instanceof ConnectError ? error.rawMessage : error.message) : "";
+		const text = typeof fallback === "string" ? fallback : undefined;
+		toast.error(raw === "" && text === undefined ? fallback : getErrorMessage(error, text), {
+			duration: options?.duration ?? 5000,
+		});
 		return;
 	}
 	toast.error(fallback, {

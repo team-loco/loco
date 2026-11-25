@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { CheckIcon, CopyIcon, LinkIcon, PlusIcon, Trash2Icon, Undo2Icon, UploadIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { getResourceEnv, listResourceOutputs } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
@@ -16,7 +16,7 @@ import {
 	CommandList,
 } from "@/components/design/Command";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
-import { InlineCode } from "@/components/design/InlineCode";
+import { InlineCode, InlineCodeList, withCode, type Message } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -135,7 +135,7 @@ function ReferencePicker({
 	environment,
 	onPick,
 }: {
-	groups: { title: string; items: PickItem[] }[];
+	groups: { id: string; title: ReactNode; items: PickItem[] }[];
 	manageHref: string;
 	environment: string;
 	onPick: (item: PickItem) => void;
@@ -157,7 +157,7 @@ function ReferencePicker({
 					<CommandList className="p-1.5">
 						<CommandEmpty>Nothing matches.</CommandEmpty>
 						{groups.map((group) => (
-							<CommandGroup key={group.title} heading={group.title}>
+							<CommandGroup key={group.id} heading={group.title}>
 								{group.items.map((item) => (
 									<CommandItem
 										key={item.ref}
@@ -205,7 +205,7 @@ function VariableRow({
 	removed: boolean;
 	editable: boolean;
 	resolution: Resolution | null;
-	problem: string | undefined;
+	problem: Message | undefined;
 	onName?: ((name: string) => void) | undefined;
 	onValue: (value: string) => void;
 	onRemove: () => void;
@@ -287,7 +287,11 @@ function ConnectionVariables({
 						Other resources in this environment can use these to reach <InlineCode>{resourceSlug}</InlineCode>.
 					</span>
 				</span>
-				{usedBy.length > 0 && <span className="text-[12.5px] text-fg3">Used by {usedBy.join(", ")}</span>}
+				{usedBy.length > 0 && (
+					<span className="text-[12.5px] text-fg3">
+						Used by <InlineCodeList names={usedBy} />
+					</span>
+				)}
 			</div>
 			<div className={BOX}>
 				{outputs.map((output) => {
@@ -379,13 +383,15 @@ export function VariablesSection({
 	const me = resources.find((resource) => resource.resourceId === resourceId);
 	const groups = [
 		{
-			title: `Secrets in ${environmentName}`,
+			id: "secrets",
+			title: withCode`Secrets in ${environmentName}`,
 			items: secretNames.map((name) => ({ name, value: "secret", key: name, ref: referenceOf("secrets", name) })),
 		},
 		...resources
 			.filter((resource) => resource.resourceId !== resourceId)
 			.map((resource) => ({
-				title: resource.resourceSlug,
+				id: resource.resourceId,
+				title: <InlineCode>{resource.resourceSlug}</InlineCode>,
 				items: resource.outputs
 					.filter((output) => output.builtIn)
 					.map((output) => ({

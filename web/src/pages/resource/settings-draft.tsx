@@ -1,4 +1,5 @@
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
+import { withCode, type Message } from "@/components/design/InlineCode";
 import { clone, create, equals } from "@bufbuild/protobuf";
 import {
 	BuildSourceSchema,
@@ -311,7 +312,7 @@ export function domainsChange(draft: SettingsDraft, base: Baseline): "add" | "re
 	return isPublic ? "add" : "remove";
 }
 
-export type DraftErrors = Partial<Record<keyof SettingsDraft | `scaling.${string}`, string>>;
+export type DraftErrors = Partial<Record<keyof SettingsDraft | `scaling.${string}`, Message>>;
 
 /** Fields whose errors show while the user types, before the first save attempt. */
 export const LIVE_ERROR_KEYS = [
@@ -470,8 +471,8 @@ export function plainEnv(current: Record<string, string>, draft: SettingsDraft):
 }
 
 /** Why each added variable cannot be saved, by its id. */
-export function addedProblems(draft: SettingsDraft, current: Record<string, string>): Map<string, string> {
-	const problems = new Map<string, string>();
+export function addedProblems(draft: SettingsDraft, current: Record<string, string>): Map<string, Message> {
+	const problems = new Map<string, Message>();
 	const added = draft.added ?? [];
 	const counts = new Map<string, number>();
 	for (const row of added) counts.set(row.key.trim(), (counts.get(row.key.trim()) ?? 0) + 1);
@@ -482,7 +483,7 @@ export function addedProblems(draft: SettingsDraft, current: Record<string, stri
 			if (row.value !== "") problems.set(row.id, "Enter a name for this value.");
 		} else if (!isEnvKey(key)) problems.set(row.id, "Use letters, digits and underscores, not starting with a digit.");
 		else if ((Object.hasOwn(current, key) && !removed.has(key)) || (counts.get(key) ?? 0) > 1)
-			problems.set(row.id, `${key} is already a variable.`);
+			problems.set(row.id, withCode`${key} is already a variable.`);
 	}
 	return problems;
 }

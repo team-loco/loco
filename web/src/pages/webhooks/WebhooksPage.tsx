@@ -232,9 +232,7 @@ export function WebhooksPage({
 				title="Delete webhook?"
 				description={
 					<>
-						Deliveries to{" "}
-						<InlineCode className="whitespace-normal [overflow-wrap:anywhere]">{deleting?.url}</InlineCode> stop right
-						away.
+						Deliveries to <InlineCode>{deleting?.url}</InlineCode> stop right away.
 					</>
 				}
 				confirmLabel="Delete webhook"

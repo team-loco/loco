@@ -223,7 +223,14 @@ export function ImportDialog({
 				}
 			}}
 		>
-			<DialogContent title={`Import .env into ${environmentName}`} showCloseButton={false}>
+			<DialogContent
+				title={
+					<>
+						Import .env into <InlineCode>{environmentName}</InlineCode>
+					</>
+				}
+				showCloseButton={false}
+			>
 				<form
 					noValidate
 					onSubmit={(e) => {

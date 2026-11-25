@@ -38,12 +38,12 @@ export function CreateOrgDialog({
 	const queryClient = useQueryClient();
 	const isPending = orgMutation.isPending || workspaceMutation.isPending;
 	const trimmed = orgName.trim();
-	const existing = useQuery(
+	const named = useQuery(
 		listUserOrgs,
 		{ userId: user?.id ?? "", name: trimmed, pageSize: 1 },
 		{ enabled: open && user !== null && trimmed !== "" },
 	);
-	const taken = (existing.data?.orgs.length ?? 0) > 0;
+	const taken = (named.data?.orgs.length ?? 0) > 0;
 
 	const nameError =
 		trimmed === "" ? null : Array.from(trimmed).length > maxNameLength ? (

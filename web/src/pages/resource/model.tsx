@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { withCode } from "@/components/design/InlineCode";
 import { formatShortId } from "@/lib/utils";
 import { createQueryOptions, skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
@@ -116,7 +117,7 @@ export function buildRegions(
 
 export interface RegionProblem {
 	region: string;
-	title: string;
+	title: ReactNode;
 	message: string;
 }
 
@@ -126,11 +127,11 @@ export function regionProblem(region: RegionView): RegionProblem | undefined {
 	const message = status.message ?? "";
 	switch (status.status) {
 		case ResourceStatus.UNAVAILABLE:
-			return { region: region.name, title: `${region.name} is down`, message };
+			return { region: region.name, title: withCode`${region.name} is down`, message };
 		case ResourceStatus.DEGRADED:
-			return { region: region.name, title: `${region.name} is degraded`, message };
+			return { region: region.name, title: withCode`${region.name} is degraded`, message };
 		case ResourceStatus.UNKNOWN:
-			return { region: region.name, title: `${region.name} is not reporting`, message };
+			return { region: region.name, title: withCode`${region.name} is not reporting`, message };
 		case ResourceStatus.HEALTHY:
 			break;
 		case ResourceStatus.DEPLOYING:
@@ -140,7 +141,7 @@ export function regionProblem(region: RegionView): RegionProblem | undefined {
 	}
 	return {
 		region: region.name,
-		title: `Deployment ${formatShortId(status.deploymentId)} failed in ${region.name}`,
+		title: withCode`Deployment ${formatShortId(status.deploymentId)} failed in ${region.name}`,
 		message,
 	};
 }

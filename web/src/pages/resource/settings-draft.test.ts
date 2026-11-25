@@ -1,4 +1,5 @@
 import { DefaultServiceConfigSchema } from "@gen/loco/config/v1/config_pb";
+import { textOf } from "@/lib/node-text";
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
 import {
@@ -367,7 +368,9 @@ describe("addedProblems", () => {
 			{ id: "b", key: "LOG_LEVEL", value: "debug" },
 			{ id: "c", key: "1X", value: "1" },
 		];
-		expect(addedProblems({ added }, { LOG_LEVEL: "info" })).toEqual(
+		expect(
+			new Map([...addedProblems({ added }, { LOG_LEVEL: "info" })].map(([id, message]) => [id, textOf(message)])),
+		).toEqual(
 			new Map([
 				["b", "LOG_LEVEL is already a variable."],
 				["c", "Use letters, digits and underscores, not starting with a digit."],

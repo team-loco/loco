@@ -1,12 +1,12 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { toast } from "@/lib/toast";
 
 export function useCopy(
 	resetMs = 1200,
-): [string | null, (key: string, text: string, toastText?: string, description?: string) => void] {
+): [string | null, (key: string, text: string, toastText?: ReactNode, description?: string) => void] {
 	const [copied, setCopied] = useState<string | null>(null);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const copy = async (key: string, text: string, toastText?: string, description?: string) => {
+	const copy = async (key: string, text: string, toastText?: ReactNode, description?: string) => {
 		try {
 			// navigator.clipboard is undefined outside secure contexts, so the call itself can throw.
 			await navigator.clipboard.writeText(text);

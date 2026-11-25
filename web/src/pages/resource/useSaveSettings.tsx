@@ -1,4 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import { withCode } from "@/components/design/InlineCode";
 import { callUnaryMethod, useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -106,7 +107,7 @@ export function useSaveSettings({
 				setSaving(false);
 				onDone(draft, {
 					tone: "bad",
-					title: `Couldn't save ${resource.name}`,
+					title: withCode`Couldn't save ${resource.name}`,
 					message: getErrorMessage(err, "Failed to load its variables"),
 				});
 				return;
@@ -166,7 +167,7 @@ export function useSaveSettings({
 					setSaving(false);
 					onDone(omit(next, REGION_MAP_KEYS), {
 						tone: "warn",
-						title: `${resource.name} changed since you opened it`,
+						title: withCode`${resource.name} changed since you opened it`,
 						message: "Showing its current regions and scaling. Make your region changes again.",
 					});
 					return;
@@ -211,7 +212,7 @@ export function useSaveSettings({
 		if (failures.length > 0) {
 			onDone(next, {
 				tone: "bad",
-				title: `Some changes to ${resource.name} were not saved`,
+				title: withCode`Some changes to ${resource.name} were not saved`,
 				message: [
 					...failures,
 					...(savedRegions.length > 0 ? [`Saved changes in ${savedRegions.join(", ")}.`] : []),
@@ -225,7 +226,7 @@ export function useSaveSettings({
 		if (rolling.length > 0) parts.push(`Rolling out in ${rolling.join(", ")}.`);
 		if (stopping.length > 0) parts.push(`Stopping in ${stopping.join(", ")}.`);
 		const message = parts.length === 0 ? "No redeploy needed." : parts.join(" ");
-		onDone(next, { tone: "info", title: `Saved ${renamed ? name : resource.name}`, message });
+		onDone(next, { tone: "info", title: withCode`Saved ${renamed ? name : resource.name}`, message });
 	};
 
 	return { save, saving };

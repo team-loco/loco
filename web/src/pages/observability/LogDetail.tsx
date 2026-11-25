@@ -1,4 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
+import { withCode } from "@/components/design/InlineCode";
 import { useState, type ElementType, type ReactNode } from "react";
 import { Link } from "react-router";
 import {
@@ -324,7 +325,7 @@ export function LogDetail({
 									copied={copied === `a:${a.key}`}
 									isColumn={a.column !== undefined && columns.includes(a.column)}
 									onCopy={() => {
-										copy(`a:${a.key}`, a.value, `Copied ${a.key}`);
+										copy(`a:${a.key}`, a.value, withCode`Copied ${a.key}`);
 									}}
 									onFilter={(neg) => {
 										if (typeof a.filter !== "string") addTok({ neg, ...a.filter });

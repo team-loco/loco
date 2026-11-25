@@ -28,7 +28,7 @@ import {
 	type RestartChoice,
 	type SettingsDraft,
 } from "./settings-draft";
-import { InlineCode } from "@/components/design/InlineCode";
+import { InlineCode, type Message } from "@/components/design/InlineCode";
 
 export const HEALTH_SECTION_ID = "set-health";
 
@@ -261,7 +261,7 @@ function UnitInput({
 	label: string;
 	unit: string;
 	value: string;
-	error: string | undefined;
+	error: Message | undefined;
 	locked: boolean;
 	reserve?: boolean;
 	describedBy: string | undefined;

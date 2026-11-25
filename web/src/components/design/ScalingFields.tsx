@@ -1,3 +1,4 @@
+import type { Message } from "@/components/design/InlineCode";
 import type { Scaling } from "@/lib/new-resource";
 import type { ReplicaRange } from "@/lib/sizing";
 import { cn } from "@/lib/utils";
@@ -53,7 +54,7 @@ export function ScalingFields({
 	replicaRange: ReplicaRange | null;
 	onChange: (value: Scaling) => void;
 	disabled?: boolean;
-	error?: string | null;
+	error?: Message | null;
 	/** The new-resource drawer's shorter autoscaling hint. */
 	inDrawer?: boolean;
 }) {

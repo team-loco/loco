@@ -14,7 +14,7 @@ import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectque
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { DeleteResourceDialog } from "@/components/DeleteResourceDialog";
-import { InlineCode, withCode } from "@/components/design/InlineCode";
+import { InlineCode, InlineCodeList, withCode } from "@/components/design/InlineCode";
 import { PageCommands, type PageCommand } from "@/components/shell/CommandMenu";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -310,9 +310,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			});
 			return;
 		}
-		toast.info(withCode`Rolling back ${resource.name} in ${deploymentRegions(target).join(", ")}`, {
-			description: `New deployment created from ${formatShortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
-		});
+		toast.info(
+			<>
+				Rolling back <InlineCode>{resource.name}</InlineCode> in <InlineCodeList names={deploymentRegions(target)} />
+			</>,
+			{
+				description: withCode`New deployment created from ${formatShortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
+			},
+		);
 	};
 
 	const handleDelete = () => {

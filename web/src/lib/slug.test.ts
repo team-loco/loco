@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 
+import { textOf } from "@/lib/node-text";
 import { derivedSlugError, nameError, slug } from "./slug";
 
 test("slug matches the API's slug of a name", () => {
@@ -16,15 +17,16 @@ test("slug matches the API's slug of a name", () => {
 
 test("nameError follows the API's name rules", () => {
 	const nameErr = (name: string, taken = new Set<string>()) => nameError(name, taken);
-	for (const blank of ["", "   "]) expect(nameErr(blank)).toBe("Enter a name");
+	const nameText = (name: string, taken = new Set<string>()) => textOf(nameError(name, taken));
+	for (const blank of ["", "   "]) expect(nameText(blank)).toBe("Enter a name");
 	for (const ok of ["QA Echo", "🚀rocket", " web ", "🚀".repeat(63)]) expect(nameErr(ok)).toBeNull();
-	expect(nameErr("x".repeat(64))).toBe("Use at most 63 characters");
-	expect(nameErr(" QA Echo ", new Set(["QA Echo"]))).toBe("QA Echo already exists in this workspace");
+	expect(nameText("x".repeat(64))).toBe("Use at most 63 characters");
+	expect(nameText(" QA Echo ", new Set(["QA Echo"]))).toBe("QA Echo already exists in this workspace");
 });
 
 test("derivedSlugError rejects names whose slug the API refuses", () => {
-	const err = (name: string, taken = new Set<string>()) => derivedSlugError(name, taken);
-	for (const ok of ["QA Echo", "🚀 Rocket", "Café Orders", "x".repeat(63)]) expect(err(ok)).toBeNull();
+	const err = (name: string, taken = new Set<string>()) => textOf(derivedSlugError(name, taken));
+	for (const ok of ["QA Echo", "🚀 Rocket", "Café Orders", "x".repeat(63)]) expect(err(ok)).toBe("");
 	for (const noLetter of ["🚀", "!!!", "日本"]) expect(err(noLetter)).toBe("Include a letter from a to z");
 	for (const digitLed of ["3D Viewer", "7", "1-web"]) expect(err(digitLed)).toBe("Start the name with a letter");
 	expect(err(" Localhost ")).toBe("Localhost is reserved");

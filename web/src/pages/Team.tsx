@@ -401,11 +401,10 @@ export function Team() {
 			/>
 			<ConfirmDialog
 				open={removing !== null}
-				title={<>Remove {removing === null ? "member" : <InlineCode>{removing.name}</InlineCode>}?</>}
+				title={`Remove ${removing?.name ?? "member"}?`}
 				description={
 					<>
-						{removing === null ? "They" : <InlineCode>{removing.name}</InlineCode>} loses access to{" "}
-						<InlineCode>{orgName}</InlineCode> and its workspaces right away.
+						{removing?.name ?? "They"} loses access to <InlineCode>{orgName}</InlineCode> and its workspaces right away.
 					</>
 				}
 				confirmLabel="Remove"

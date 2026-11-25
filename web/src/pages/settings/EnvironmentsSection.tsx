@@ -321,7 +321,7 @@ function DeleteDescription({ workspaceName, secretNames }: { workspaceName: stri
 					{" "}
 					It also permanently deletes its {secretNames.length.toString()}{" "}
 					{secretNames.length === 1 ? "secret" : "secrets"}:{" "}
-					<InlineCodeList names={shown} {...(more > 0 && { extra: `${more.toString()} more` })} />.
+					<InlineCodeList names={shown}>{more > 0 ? `${more.toString()} more` : undefined}</InlineCodeList>.
 				</>
 			)}
 		</>

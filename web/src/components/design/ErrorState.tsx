@@ -35,7 +35,7 @@ import { Button } from "./Button";
 import { CopyId } from "./CopyId";
 import { EmptyHero } from "./EmptyHero";
 import { Spinner } from "./Spinner";
-import { InlineCode } from "@/components/design/InlineCode";
+import { withCode } from "@/components/design/InlineCode";
 
 /** What the caller is missing when the load is denied: the workspace, an admin role, an admin role for the audit log, or the whole organization. */
 export type DeniedScope = "workspace" | "role" | "audit" | "org";
@@ -246,23 +246,11 @@ function Denied({ scope, className }: { scope: DeniedScope; className: string | 
 	);
 	const copy = {
 		workspace: {
-			title: (
-				<>
-					You don’t have access to <InlineCode>{ws}</InlineCode>
-				</>
-			),
-			body: (
-				<>
-					You’re in <InlineCode>{org}</InlineCode>, but not in this workspace. An admin can add you.
-				</>
-			),
+			title: withCode`You don’t have access to ${ws}`,
+			body: withCode`You’re in ${org}, but not in this workspace. An admin can add you.`,
 		},
 		role: {
-			title: (
-				<>
-					Only admins can change <InlineCode>{org}</InlineCode> settings
-				</>
-			),
+			title: withCode`Only admins can change ${org} settings`,
 			body: "You’re a Member. An admin can change your role.",
 		},
 		audit: {
@@ -270,16 +258,8 @@ function Denied({ scope, className }: { scope: DeniedScope; className: string | 
 			body: "You’re a Member. Organization and workspace admins can see who changed what.",
 		},
 		org: {
-			title: (
-				<>
-					You’re not a member of <InlineCode>{org}</InlineCode>
-				</>
-			),
-			body: (
-				<>
-					Ask someone in <InlineCode>{org}</InlineCode> to invite you.
-				</>
-			),
+			title: withCode`You’re not a member of ${org}`,
+			body: withCode`Ask someone in ${org} to invite you.`,
 		},
 	}[scope];
 	return (

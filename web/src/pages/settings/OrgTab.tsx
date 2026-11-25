@@ -40,7 +40,7 @@ import { userLabel } from "@/lib/user";
 
 import { LimitsSection } from "./LimitsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
-import { InlineCode, withCode } from "@/components/design/InlineCode";
+import { InlineCode, InlineCodeList, withCode } from "@/components/design/InlineCode";
 
 const MAX_NAME = 100;
 const PAGE_SIZES = [25, 50, 100] as const;
@@ -193,10 +193,16 @@ export function OrgTab({
 	const withResCount = withResources.data?.totalCount ?? 0;
 	const withResNames = (withResources.data?.workspaces ?? []).map((w) => w.name);
 	const unnamed = withResCount - withResNames.length;
-	const lastName = unnamed > 0 ? `${formatCount(unnamed)} more` : withResNames.pop();
-	const joinedNames = withResNames.length > 0 ? `${withResNames.join(", ")} and ${lastName ?? ""}` : (lastName ?? "");
 	const subtitle =
-		withResCount > 0 ? `Delete the resources in ${joinedNames} first.` : "Empty workspaces are deleted with it.";
+		withResCount > 0 ? (
+			<>
+				Delete the resources in{" "}
+				<InlineCodeList names={withResNames}>{unnamed > 0 ? `${formatCount(unnamed)} more` : undefined}</InlineCodeList>{" "}
+				first.
+			</>
+		) : (
+			"Empty workspaces are deleted with it."
+		);
 	const blockedReason = !canAdmin
 		? `Requires Admin on ${org.name}`
 		: withResources.isPending
