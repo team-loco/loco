@@ -47,7 +47,7 @@ The cluster runs two instances on 10Gi volumes of the default StorageClass. Set 
 
 ### Bundled registry
 
-`--registry registry.example.com` runs a zot registry for build images in the control plane, served at that hostname through the control-plane Gateway with the same certificate as the API. It sets `registry.enabled` and `registry.hostname` in the control-plane cluster values and the registry hostname in `api.registry.service` and the worker's `LOCO_REGISTRY_HOST`. The control-plane base already sets `api.registry.auth: token`, and the worker base `registry.auth: token`, which the bundled registry requires: workers and builds get short-lived tokens from the API, and no registry password exists. Leave `LOCO_REGISTRY_USERNAME` and `LOCO_REGISTRY_PASSWORD` out of the API environment file. Point the hostname's DNS at the control-plane Gateway, and add it to the DNS-01 solver's zone. Images go to a 50Gi volume of the default StorageClass; for an S3-compatible bucket, set `registry.storage.type: s3` and `registry.storage.s3` as the [control-plane chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md#bundled-registry) describes.
+`--registry registry.example.com` runs a zot registry for build images in the control plane, served at that hostname through the control-plane Gateway on a listener with its own certificate. It sets `registry.enabled` and `registry.hostname` in the control-plane cluster values and the registry hostname in `api.registry.service` and the worker's `LOCO_REGISTRY_HOST`. The control-plane base already sets `api.registry.auth: token`, and the worker base `registry.auth: token`, which the bundled registry requires: workers and builds get short-lived tokens from the API, and no registry password exists. Leave `LOCO_REGISTRY_USERNAME` and `LOCO_REGISTRY_PASSWORD` out of the API environment file. Point the hostname's DNS at the control-plane Gateway, and add it to the DNS-01 solver's zone. Images go to a 50Gi volume of the default StorageClass; for an S3-compatible bucket, set `registry.storage.type: s3` and `registry.storage.s3` as the [control-plane chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md#bundled-registry) describes.
 
 ### Configure certificate solvers
 
@@ -66,6 +66,8 @@ certManager:
 ```
 
 The charts create no solver credentials. Deliver any Secret a solver references to the `cert-manager` namespace with the other cluster Secrets. To skip ACME, set `certManager.issuer.create: false` with the `name` and `kind` of an existing issuer, or serve your own TLS Secret with the worker's `certManager.existingTLSSecret` or the control plane's `gateway.tlsSecretName`. The control plane serves `gateway.tlsSecretName` on every Gateway listener, which limits a Gateway with more than one listener to HTTP/1.1; worker agents need HTTP/2 to the API, so use cert-manager there.
+
+With cert-manager, the control plane issues one Certificate per Gateway hostname. Upgrading from chart 0.12.21 or earlier leaves the shared Certificate's Secret `<release>-tls` in `gatewayNamespace`; nothing reads it, and `kubectl -n <gatewayNamespace> delete secret <release>-tls` removes it. Each listener serves no HTTPS until cert-manager issues its new Certificate.
 
 ## Bootstrap Flux
 
