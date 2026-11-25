@@ -89,6 +89,8 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
+	// ReadSystemTelemetry requires system:read.
+	ReadSystemTelemetry = Action{entityType: db.EntityTypeSystem, scope: db.ScopeRead}
 	// ReadResourceTelemetry requires resource:read.
 	ReadResourceTelemetry = Action{
 		entityType: db.EntityTypeResource,

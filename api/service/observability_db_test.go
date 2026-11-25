@@ -16,6 +16,7 @@ import (
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
+	"github.com/team-loco/loco/internal/systemtenant"
 )
 
 const (
@@ -24,6 +25,8 @@ const (
 	resourceReader  = "resource-reader"
 	workspaceWriter = "workspace-writer"
 	stranger        = "stranger"
+	systemReader    = "system-reader"
+	systemAdmin     = "system-admin"
 )
 
 // observabilityFixture is an organization with two workspaces; the first holds two resources.
@@ -54,6 +57,8 @@ func newObservabilityFixture(t *testing.T) *observabilityFixture {
 		orgReader:       {{EntityType: genDb.EntityTypeOrganization, EntityID: f.org, Scope: genDb.ScopeRead}},
 		resourceReader:  {{EntityType: genDb.EntityTypeResource, EntityID: f.resource, Scope: genDb.ScopeRead}},
 		workspaceWriter: {{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspace, Scope: genDb.ScopeWrite}},
+		systemReader:    {{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead}},
+		systemAdmin:     {{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}},
 	}
 	return f
 }
@@ -145,6 +150,7 @@ func TestObservabilityReadsNeedWorkspaceReadOrReadOnEveryNamedResource(t *testin
 	f := newObservabilityFixture(t)
 	workspace, otherWorkspace := f.workspace.String(), f.otherWorkspace.String()
 	resource, otherResource := f.resource.String(), f.otherResource.String()
+	system := systemtenant.WorkspaceID
 	// A request that passes authorization reaches the unreachable ClickHouse and fails as Internal.
 	cases := []struct {
 		name      string
@@ -172,6 +178,17 @@ func TestObservabilityReadsNeedWorkspaceReadOrReadOnEveryNamedResource(t *testin
 		{
 			"resource reader naming another resource too",
 			resourceReader, workspace, []string{resource, otherResource}, connect.CodePermissionDenied,
+		},
+		{"system reader in the system scope", systemReader, system, nil, connect.CodeInternal},
+		{"system admin in the system scope", systemAdmin, system, nil, connect.CodeInternal},
+		{"workspace reader in the system scope", workspaceReader, system, nil, connect.CodePermissionDenied},
+		{"organization reader in the system scope", orgReader, system, nil, connect.CodePermissionDenied},
+		{"resource reader in the system scope", resourceReader, system, nil, connect.CodePermissionDenied},
+		{"caller without scopes in the system scope", stranger, system, nil, connect.CodePermissionDenied},
+		{"system reader naming a resource", systemReader, system, []string{resource}, connect.CodeInvalidArgument},
+		{
+			"workspace reader naming a resource in the system scope",
+			workspaceReader, system, []string{resource}, connect.CodePermissionDenied,
 		},
 		{
 			"resource reader at the cap",
