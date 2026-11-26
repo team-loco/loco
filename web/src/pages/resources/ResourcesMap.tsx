@@ -88,7 +88,7 @@ export function ResourcesMap({
 			}
 		>
 			{deployed.length === 0 ? (
-				<div className="py-10 text-center text-fg3">Nothing is deployed to {env.name} yet.</div>
+				<div className="py-10 text-center text-fg3">No resources in {env.name}</div>
 			) : (
 				<ArchitectureDiagram
 					rows={deployed}

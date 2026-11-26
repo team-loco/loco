@@ -251,7 +251,7 @@ function TraceSession({
 				{header}
 				<ObsHero
 					view="traces"
-					title="Traces aren't available here yet"
+					title="Traces unavailable"
 					body={
 						installation
 							? "This installation has no trace store connected. Loco's own traces show up here once it does."

@@ -355,7 +355,7 @@ function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhoo
 		return <span className="text-[12px] text-bad-fg">{getErrorMessage(query.error, "Failed to load deliveries")}</span>;
 	}
 	const ticks = tickStrip(query.data.deliveries);
-	if (ticks.length === 0) return <span className="text-[12px] text-fg3">No deliveries yet</span>;
+	if (ticks.length === 0) return <span className="text-[12px] text-fg3">No deliveries</span>;
 	const errors = counts?.failingCount ?? 0;
 	const label = `${formatTotal(errors)} failing`;
 	return (
