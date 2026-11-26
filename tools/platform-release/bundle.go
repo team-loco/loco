@@ -270,6 +270,7 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 			crdsName: object{fieldEnabled: false},
 			"config": object{
 				"envoyGateway": object{
+					"extensionApis": object{"enableBackend": true},
 					"provider": object{
 						"type":       "Kubernetes",
 						"kubernetes": object{"deploy": object{"type": "GatewayNamespace"}},
