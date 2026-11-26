@@ -7,13 +7,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/team-loco/loco/internal/kindnode"
 )
 
 func TestPrepareKindNodesIncludesRetainedNodesAndStopsOnFailure(t *testing.T) {
 	calls := filepath.Join(t.TempDir(), "nodes")
 	t.Setenv("KIND_TEST_CALLS", calls)
-	fakeCommand(t, "kind", "#!/bin/sh\nprintf 'owned-control-plane\\nowned-worker\\nowned-worker2\\n'\n")
+	t.Setenv("KIND_TEST_SYSFS", kindnode.PrepareUserNamespaceSysfs)
+	fakeCommand(t, "kind", `#!/bin/sh
+if [ "$*" != 'get nodes --name owned' ]; then exit 54; fi
+printf 'owned-control-plane\nowned-worker\nowned-worker2\n'
+`)
 	fakeCommand(t, "docker", `#!/bin/sh
+if [ "$1 $3 $4" != 'exec sh -ec' ] || [ "$5" != "$KIND_TEST_SYSFS" ]; then exit 55; fi
 printf '%s\n' "$2" >> "$KIND_TEST_CALLS"
 if [ "$2" = "$KIND_TEST_FAIL_NODE" ]; then exit 53; fi
 `)
