@@ -1,11 +1,13 @@
 package service
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -225,5 +227,158 @@ VALUES ('cli', 'linux/amd64', $1, $2, $3, $6, 'upload', $4, 10, 'Dockerfile', 'r
 				t.Fatalf("normal %s build needs attention: %v", status, response.GetWorkloads())
 			}
 		})
+	}
+}
+
+func TestClusterOperationsShowsUnservedApplicationDomains(t *testing.T) {
+	t.Parallel()
+	f := newResourceStatusFixture(t)
+	f.setClusterDomains(t, f.clusterID, testAppDomain)
+	if _, err := f.pool.Exec(t.Context(), `INSERT INTO resource_domains
+(resource_id, environment_id, domain, domain_source, subdomain_label, app_domain, is_primary)
+VALUES ($1, $2, $3, 'app', 'app', $4, true)`, f.resourceID, f.envID, domainsServedHostname, testAppDomain); err != nil {
+		t.Fatal(err)
+	}
+	f.deployProduction(t, 1)
+	f.ready(t, f.clusterID, 1)
+	server := operationsServer(f.deployFixture)
+	req := &clusterv1.GetClusterOperationsRequest{ClusterId: f.clusterID.String()}
+	before, err := server.GetClusterOperations(systemAdminContext(t), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before.GetWorkloads()) != 0 {
+		t.Fatalf("healthy routed deployment needs attention: %v", before.GetWorkloads())
+	}
+	reportCapabilities(
+		t,
+		f.agentServer(),
+		f.clusterID,
+		&agentv1.Heartbeat{Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL},
+	)
+	if status := f.placementStatus(t, f.liveDeployment(t)); status != genDb.PlacementStatusRunning {
+		t.Fatalf("test needs a running placement, got %s", status)
+	}
+	after, err := server.GetClusterOperations(systemAdminContext(t), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.GetWorkloads()) != 1 {
+		t.Fatalf("unserved hostname missing from attention: %v", after.GetWorkloads())
+	}
+	work := after.GetWorkloads()[0]
+	if work.GetStatus() != string(genDb.PlacementStatusDegraded) ||
+		work.GetMessage() != regionMessageDomainsUnserved+domainsServedHostname {
+		t.Fatalf("unserved hostname explanation = %v", work)
+	}
+	reportCapabilities(t, f.agentServer(), f.clusterID, &agentv1.Heartbeat{
+		Role: clusterv1.ClusterRole_CLUSTER_ROLE_ALL, Domains: []string{testAppDomain},
+	})
+	recovered, err := server.GetClusterOperations(systemAdminContext(t), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recovered.GetWorkloads()) != 0 {
+		t.Fatalf("restored hostname still needs attention: %v", recovered.GetWorkloads())
+	}
+}
+
+func TestClusterOperationsActivityCombinesIndexedRelatedSources(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	deployment := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	build := uuid.New()
+	if _, err := f.pool.Exec(t.Context(), `INSERT INTO builds
+(method, platform, id, resource_id, cluster_id, status, source_type, source_key, source_size,
+ dockerfile_path, image_repository, created_by, message)
+VALUES ('cli', 'linux/amd64', $1, $2, $3, 'failed', 'upload', $4, 10, 'Dockerfile',
+        'registry.loco.test/x', $5, 'build failed')`,
+		build, f.resourceID, f.clusterID, build.String(), f.userID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	var expected []int64
+	for _, subject := range []struct {
+		kind, event string
+		id          uuid.UUID
+		deployment  *uuid.UUID
+	}{
+		{"cluster", "cluster.health_changed", f.clusterID, nil},
+		{"deployment", "deployment.ready", deployment, &deployment},
+		{"build", "build.failed", build, &deployment},
+	} {
+		rows, err := f.pool.Query(
+			t.Context(),
+			`INSERT INTO events(type, actor_type, subject_type, subject_id, deployment_id)
+SELECT $1, 'agent', $2, $3, $4 FROM generate_series(1, 15) RETURNING seq`,
+			subject.event, subject.kind, subject.id, subject.deployment,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seqs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected = append(expected, seqs...)
+
+		recent, err := f.queries.ListClusterEvents(t.Context(), &f.clusterID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(recent) == 0 || recent[0].Event.SubjectID == nil {
+			t.Fatalf("%s source missing from recent activity", subject.kind)
+		}
+		if *recent[0].Event.SubjectID != subject.id {
+			t.Fatalf("%s source newest event belongs to %s", subject.kind, recent[0].Event.SubjectID)
+		}
+	}
+	// More recent unrelated history must not displace this cluster's older events.
+	if _, err := f.pool.Exec(t.Context(), `INSERT INTO events(type, actor_type, subject_type, subject_id)
+SELECT 'cluster.health_changed', 'agent', 'cluster', $1 FROM generate_series(1, 10000)`, uuid.New()); err != nil {
+		t.Fatal(err)
+	}
+	server := operationsServer(f)
+	response, err := server.GetClusterOperations(
+		systemAdminContext(t), &clusterv1.GetClusterOperationsRequest{ClusterId: f.clusterID.String()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := response.GetEvents()
+	if len(entries) != 20 {
+		t.Fatalf("recent related events = %d, want 20", len(entries))
+	}
+	slices.Sort(expected)
+	slices.Reverse(expected)
+	expected = expected[:20]
+	actual := make([]int64, len(entries))
+	for i, entry := range entries {
+		actual[i] = entry.GetSeq()
+	}
+	if !slices.Equal(actual, expected) {
+		t.Fatalf("recent event sequences = %v, want newest20 %v", actual, expected)
+	}
+	seen := make(map[string]bool)
+	for i, entry := range entries {
+		if seen[entry.GetId()] {
+			t.Fatalf("event linked by build and deployment is duplicated: %s", entry.GetId())
+		}
+		seen[entry.GetId()] = true
+		if i > 0 && entries[i-1].GetSeq() <= entry.GetSeq() {
+			t.Fatalf("events out of descending order: %v", entries)
+		}
+		if entry.GetSubjectId() != build.String() && entry.GetSubjectId() != deployment.String() {
+			t.Fatalf("unrelated event entered recent history: %v", entry)
+		}
+	}
+	quiet, err := server.GetClusterOperations(
+		systemAdminContext(t), &clusterv1.GetClusterOperationsRequest{ClusterId: f.otherCluster.String()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(quiet.GetEvents()) != 0 {
+		t.Fatalf("quiet cluster inherited unrelated history: %v", quiet.GetEvents())
 	}
 }

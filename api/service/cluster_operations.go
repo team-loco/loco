@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -54,6 +55,13 @@ func (s *ClusterAdminServer) GetClusterOperations(
 		message := row.Message
 		if row.ProblemReason != "" {
 			message = problemReportMessage(&agentv1.ProblemReport{Reason: row.ProblemReason, Detail: row.Message})
+		}
+		if len(row.UnservedDomains) > 0 {
+			domainMessage := regionMessageDomainsUnserved + strings.Join(row.UnservedDomains, ", ")
+			if message != "" {
+				message += " "
+			}
+			message += domainMessage
 		}
 		out.Workloads = append(out.Workloads, &clusterv1.ClusterWorkloadAttention{
 			Id: row.ID.String(), Kind: row.Kind, ResourceId: row.ResourceID.String(), ResourceName: row.ResourceName,

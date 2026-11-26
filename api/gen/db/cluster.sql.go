@@ -318,9 +318,11 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 
 const listClusterAttention = `-- name: ListClusterAttention :many
 SELECT l.deployment_id AS id, 'deployment'::text AS kind, l.resource_id, r.name AS resource_name,
-       w.org_id, r.workspace_id, l.environment_id, e.slug AS environment_slug, l.status::text AS status,
+       w.org_id, r.workspace_id, l.environment_id, e.slug AS environment_slug,
+       CASE WHEN l.status = 'running' AND cardinality(rr.unserved_domains) > 0 THEN 'degraded' ELSE l.status::text END AS status,
        COALESCE(NULLIF(rr.problem->>'detail', ''), p.applied_error, '')::text AS message,
-       COALESCE(rr.problem->>'reason', p.problem_reason, '')::text AS problem_reason, COALESCE(p.status_updated_at, d.created_at)::timestamptz AS updated_at
+       COALESCE(rr.problem->>'reason', p.problem_reason, '')::text AS problem_reason,
+       COALESCE(rr.unserved_domains, ARRAY[]::text[]) AS unserved_domains, COALESCE(p.status_updated_at, d.created_at)::timestamptz AS updated_at
 FROM live_deployment_placements l
 JOIN deployments d ON d.id = l.deployment_id
 JOIN resources r ON r.id = l.resource_id
@@ -329,10 +331,10 @@ JOIN environments e ON e.id = l.environment_id
 LEFT JOIN placements p ON p.deployment_id = l.deployment_id AND p.cluster_id = l.cluster_id
 LEFT JOIN resource_region_inputs rr ON rr.deployment_id = l.deployment_id AND rr.cluster_id = l.cluster_id
 WHERE l.cluster_id = $2
-  AND (l.status IN ('failed', 'crashed', 'degraded') OR p.problem_reason <> '' OR p.apply_failed OR (rr.problem IS NOT NULL AND rr.problem <> 'null'::jsonb))
+  AND (l.status IN ('failed', 'crashed', 'degraded') OR p.problem_reason <> '' OR p.apply_failed OR cardinality(rr.unserved_domains) > 0 OR (rr.problem IS NOT NULL AND rr.problem <> 'null'::jsonb))
 UNION ALL
 SELECT b.id, 'build'::text, b.resource_id, r.name, w.org_id, r.workspace_id, COALESCE(b.origin_environment_id, '00000000-0000-0000-0000-000000000000'::uuid),
-       COALESCE(e.slug, '')::text, b.status::text, b.message, ''::text, COALESCE(b.finished_at, b.started_at, b.created_at)::timestamptz
+       COALESCE(e.slug, '')::text, b.status::text, b.message, ''::text, ARRAY[]::text[], COALESCE(b.finished_at, b.started_at, b.created_at)::timestamptz
 FROM builds b
 JOIN resources r ON r.id = b.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
@@ -361,6 +363,7 @@ type ListClusterAttentionRow struct {
 	Status          string    `json:"status"`
 	Message         string    `json:"message"`
 	ProblemReason   string    `json:"problemReason"`
+	UnservedDomains []string  `json:"unservedDomains"`
 	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
@@ -385,6 +388,7 @@ func (q *Queries) ListClusterAttention(ctx context.Context, arg ListClusterAtten
 			&i.Status,
 			&i.Message,
 			&i.ProblemReason,
+			&i.UnservedDomains,
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -436,13 +440,30 @@ func (q *Queries) ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]Li
 }
 
 const listClusterEvents = `-- name: ListClusterEvents :many
+WITH related AS (
+    (SELECT es.seq FROM events es
+     WHERE es.subject_type = 'cluster' AND es.subject_id = $1
+     ORDER BY es.seq DESC LIMIT 20)
+    UNION
+    SELECT recent.seq FROM deployment_placements dp
+    CROSS JOIN LATERAL (
+        SELECT ed.seq FROM events ed WHERE ed.deployment_id = dp.deployment_id ORDER BY ed.seq DESC LIMIT 20
+    ) recent
+    WHERE dp.cluster_id = $1
+    UNION
+    SELECT recent.seq FROM builds b
+    CROSS JOIN LATERAL (
+        SELECT eb.seq FROM events eb WHERE eb.subject_type = 'build' AND eb.subject_id = b.id ORDER BY eb.seq DESC LIMIT 20
+    ) recent
+    WHERE b.cluster_id = $1
+), latest AS (
+    SELECT seq FROM related ORDER BY seq DESC LIMIT 20
+)
 SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.deployment_id, e.actor_type, e.actor_id, e.actor_token_name, e.actor_token_type, e.acted_as_operator, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, event_title(e.type, e.data)::text AS title, event_severity(e.type)::text AS severity,
        COALESCE(u.name, e.actor_token_name, '')::text AS actor_name, COALESCE(u.email, '')::text AS actor_email
-FROM events e LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
-WHERE (e.subject_type = 'cluster' AND e.subject_id = $1)
-   OR EXISTS (SELECT 1 FROM deployment_placements dp WHERE dp.cluster_id = $1 AND dp.deployment_id = e.deployment_id)
-   OR (e.subject_type = 'build' AND EXISTS (SELECT 1 FROM builds b WHERE b.id = e.subject_id AND b.cluster_id = $1))
-ORDER BY e.seq DESC LIMIT 20
+FROM latest JOIN events e ON e.seq = latest.seq
+LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+ORDER BY e.seq DESC
 `
 
 type ListClusterEventsRow struct {
@@ -453,6 +474,8 @@ type ListClusterEventsRow struct {
 	ActorEmail string `json:"actorEmail"`
 }
 
+// Each related subject contributes at most one page through its own index, so a quiet cluster never
+// scans the installation's globally ordered event history. UNION removes events linked in several ways.
 func (q *Queries) ListClusterEvents(ctx context.Context, clusterID *uuid.UUID) ([]ListClusterEventsRow, error) {
 	rows, err := q.db.Query(ctx, listClusterEvents, clusterID)
 	if err != nil {

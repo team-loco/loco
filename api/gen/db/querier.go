@@ -205,6 +205,8 @@ type Querier interface {
 	ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error)
 	ListClusterAttention(ctx context.Context, arg ListClusterAttentionParams) ([]ListClusterAttentionRow, error)
 	ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]ListClusterDomainsRow, error)
+	// Each related subject contributes at most one page through its own index, so a quiet cluster never
+	// scans the installation's globally ordered event history. UNION removes events linked in several ways.
 	ListClusterEvents(ctx context.Context, clusterID *uuid.UUID) ([]ListClusterEventsRow, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
 	// Returns each workspace's windows on the cluster that are open or closed after since,
