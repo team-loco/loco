@@ -1,6 +1,7 @@
 import argparse
 import re
 import time
+from urllib.parse import parse_qs, urlsplit
 
 from harness import expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
@@ -301,9 +302,11 @@ with session(repo / "tests/ui/out/system") as browser:
         page.get_by_role("heading", name="Busiest node CPU", exact=True)
     ).to_be_visible()
     metrics = page.get_by_role("link", name="Open system metrics", exact=True)
-    expect(metrics).to_have_attribute(
-        "href", re.compile(r"/system/metrics\?q=%40cluster%3A")
-    )
+    metrics_url = urlsplit(metrics.get_attribute("href"))
+    assert metrics_url.path == "/system/metrics"
+    assert parse_qs(metrics_url.query).get("q") == [
+        "@cluster:" + urlsplit(page.url).path.rsplit("/", 1)[-1]
+    ]
     page.goto(ui + "/system/clusters/00000000-0000-0000-0000-000000000000")
     expect(
         page.get_by_role("heading", name="Nothing lives at this address", exact=True)
