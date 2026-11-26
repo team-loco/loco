@@ -55,7 +55,7 @@ func (c *Cluster) setupKind(ctx context.Context) error {
 		if _, err := c.Kubectl(ctx, "cluster-info"); err == nil {
 			c.clusterReused = true
 			logf("Reusing kind cluster %s", c.cluster)
-			return c.replaceKindnet(ctx)
+			return c.configureKindNode(ctx)
 		}
 		logf("Kind cluster %s is unreachable, recreating it", c.cluster)
 		if _, err := c.Command(
@@ -96,10 +96,21 @@ func (c *Cluster) setupKind(ctx context.Context) error {
 	if err := c.writeKubeconfig(ctx); err != nil {
 		return err
 	}
-	return c.replaceKindnet(ctx)
+	return c.configureKindNode(ctx)
 }
 
-func (c *Cluster) replaceKindnet(ctx context.Context) error {
+func (c *Cluster) configureKindNode(ctx context.Context) error {
+	// Kind masks DMI files under /sys. An unmasked mount lets the kernel permit
+	// nested pod user namespaces to mount their own sysfs.
+	// https://github.com/kubernetes-sigs/kind/issues/3436
+	if _, err := c.Command(ctx, "docker", "exec", c.Node(), "sh", "-ec", `
+userns_sysfs=/run/loco-userns-sysfs
+mkdir -p "$userns_sysfs"
+if ! mountpoint -q "$userns_sysfs"; then
+    mount -t sysfs -o ro,nosuid,nodev,noexec sysfs "$userns_sysfs"
+fi`); err != nil {
+		return fmt.Errorf("prepare kind node sysfs for pod user namespaces: %w", err)
+	}
 	if _, err := c.Kubectl(
 		ctx, "-n", "kube-system", "set", "image", "daemonset/kindnet", "kindnet-cni="+kindnetImage,
 	); err != nil {
