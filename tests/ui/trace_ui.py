@@ -2226,7 +2226,7 @@ with session(out) as browser:
     assert trace_reads() == reads, (reads, trace_reads())
     assert not errors, errors
     context.close()
-    # Long operations keep status, title and trace ID on one row at every size.
+    # Long operations keep status beside the title; narrow screens give the ID its own row.
     long_name = "flagd.evaluation.v2.Service/ResolveBoolean"
     spans[0]["name"] = long_name
     for trace_spans in ([spans[0]], spans[:3]):
@@ -2259,9 +2259,14 @@ with session(out) as browser:
                     )
                 ]
                 centers = [box["y"] + box["height"] / 2 for box in boxes]
-                assert max(centers) - min(centers) <= 1, (font, width, boxes)
+                assert abs(centers[0] - centers[1]) <= 1, (font, width, boxes)
                 assert boxes[0]["x"] + boxes[0]["width"] <= boxes[1]["x"]
-                assert boxes[1]["x"] + boxes[1]["width"] <= boxes[2]["x"]
+                if width >= 640:
+                    assert max(centers) - min(centers) <= 1, (font, width, boxes)
+                    assert boxes[1]["x"] + boxes[1]["width"] <= boxes[2]["x"]
+                else:
+                    assert boxes[2]["y"] >= boxes[1]["y"] + boxes[1]["height"]
+                    assert boxes[1]["width"] >= 100, (font, width, boxes)
                 assert chip.evaluate("el => el.scrollWidth <= el.clientWidth")
                 if len(trace_spans) == 1 and width >= 1180:
                     identity_width = title.locator("..").bounding_box()["width"]

@@ -129,7 +129,7 @@ export function TraceHeader({
 			)}
 		>
 			<div className="col-start-1 row-start-1 flex min-w-0 flex-col gap-2">
-				<div className="flex min-w-0 items-center gap-2">
+				<div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:flex">
 					{trace !== undefined && (
 						<Badge tone={trace.errors > 0 ? "bad" : "ok"}>{trace.errors > 0 ? "Error" : "OK"}</Badge>
 					)}
@@ -142,7 +142,7 @@ export function TraceHeader({
 								<Button
 									variant="ghost"
 									size="sm"
-									className="tv-tid-c group/tid ml-2 h-6 gap-[7px] rounded-[6px] border-0 bg-panel2 pr-[7px] pl-2 text-[12px] text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:ring-0 in-data-[theme=neobrutal]:rounded-[5px] in-data-[theme=neobrutal]:border-2 in-data-[theme=neobrutal]:border-(--ink) in-data-[theme=neobrutal]:bg-background in-data-[theme=neobrutal]:shadow-none in-data-[theme=neobrutal]:focus-visible:border-(--ink) in-data-[theme=neobrutal]:focus-visible:bg-panel2 in-data-[theme=neobrutal]:focus-visible:shadow-none"
+									className="tv-tid-c group/tid col-span-2 ml-0 h-6 justify-self-start sm:ml-2 gap-[7px] rounded-[6px] border-0 bg-panel2 pr-[7px] pl-2 text-[12px] text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:ring-0 in-data-[theme=neobrutal]:rounded-[5px] in-data-[theme=neobrutal]:border-2 in-data-[theme=neobrutal]:border-(--ink) in-data-[theme=neobrutal]:bg-background in-data-[theme=neobrutal]:shadow-none in-data-[theme=neobrutal]:focus-visible:border-(--ink) in-data-[theme=neobrutal]:focus-visible:bg-panel2 in-data-[theme=neobrutal]:focus-visible:shadow-none"
 									aria-label={`Copy trace ID ${traceId}`}
 									onClick={() => {
 										copy("trace", traceId);
@@ -235,7 +235,10 @@ export function TraceHeader({
 									"tv-mseg min-w-1 border-0 p-0 transition-opacity focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:outline-none",
 									highlight !== null && highlight !== item.key && "opacity-25",
 								)}
-								style={{ flexGrow: Math.max(item.share, 0.012), background: item.color }}
+								style={{
+									flexGrow: Math.max(item.share, 0.012),
+									background: item.color,
+								}}
 							/>
 						))}
 						{rest.length > 0 && (
