@@ -125,7 +125,7 @@ func TestProxyTelemetryReachesTheSystemTenant(t *testing.T) {
 		}
 		return err
 	})
-	status, rejected := postLogs(t, "", "proxy platform telemetry e2e", "Bearer "+token)
+	status, rejected := postLogs(t, t.Context(), "", "proxy platform telemetry e2e", "Bearer "+token)
 	if status != http.StatusOK || rejected != 0 {
 		t.Fatalf("cluster log ingestion: status %d, rejected %d", status, rejected)
 	}

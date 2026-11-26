@@ -573,7 +573,7 @@ func TestPlacementCacheRefetchesOnceOnAMiss(t *testing.T) {
 // concurrent cluster telemetry before a new workload has been placed.
 func TestHTTPNewPlacementConvergesAfterClusterLogs(t *testing.T) {
 	service, recorder, cp := newTestService(t, nil)
-	service.gate.cfg.RefetchInterval = time.Second
+	service.gate.cfg.RefetchInterval = time.Hour
 	priming := testLogsRequest()
 	priming.Logs().ResourceLogs().At(0).Resource().Attributes().Remove(workspaceAttribute)
 	body, err := priming.MarshalProto()
@@ -612,6 +612,8 @@ func TestHTTPNewPlacementConvergesAfterClusterLogs(t *testing.T) {
 	}
 	t.Log("before refresh: HTTP 200, rejected=1, marker absent from recording storage")
 
+	// Requests above have completed; shorten the interval for bounded convergence.
+	service.gate.cfg.RefetchInterval = time.Millisecond
 	deadline := time.NewTimer(3 * time.Second)
 	defer deadline.Stop()
 	ticker := time.NewTicker(10 * time.Millisecond)

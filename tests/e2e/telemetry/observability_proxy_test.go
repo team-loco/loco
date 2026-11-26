@@ -133,7 +133,7 @@ func TestObservabilityProxy(t *testing.T) {
 		for name, header := range map[string]string{
 			"no": "", "a forged": "Bearer " + forged(token), "a user session": "Bearer " + p.UserToken,
 		} {
-			if status, _ := postLogs(t, w.ID, marker, header); status != http.StatusUnauthorized {
+			if status, _ := postLogs(t, t.Context(), w.ID, marker, header); status != http.StatusUnauthorized {
 				t.Errorf("OTLP with %s token: HTTP %d, want 401", name, status)
 			}
 		}
@@ -157,9 +157,10 @@ func TestObservabilityProxy(t *testing.T) {
 			t,
 			ingestTokenTimeout,
 			"ingest admission to observe the placed workspace",
-			func(context.Context) error {
+			func(ctx context.Context) error {
 				status, rejected := postLogs(
 					t,
+					ctx,
 					w.ID,
 					`{"msg":"`+marker+`","http.request.method":"PATCH"}`,
 					"Bearer "+token,
@@ -174,7 +175,13 @@ func TestObservabilityProxy(t *testing.T) {
 				return nil
 			},
 		)
-		status, rejected := postLogs(t, otherWorkspace, "e2e-otlp-rejected-"+rand.Text()[:8], "Bearer "+token)
+		status, rejected := postLogs(
+			t,
+			t.Context(),
+			otherWorkspace,
+			"e2e-otlp-rejected-"+rand.Text()[:8],
+			"Bearer "+token,
+		)
 		if status != http.StatusOK || rejected != 1 {
 			t.Errorf(
 				"logs of an unplaced workspace: HTTP %d with %d rejected, want 200 with one rejected through partial success",
@@ -256,14 +263,14 @@ func forged(token string) string {
 
 // postLogs posts one OTLP/HTTP protobuf log record of workspaceID to the ingest proxy and returns
 // the HTTP status and the records the proxy reports rejected.
-func postLogs(t *testing.T, workspaceID, body, authorization string) (int, int64) {
+func postLogs(t *testing.T, ctx context.Context, workspaceID, body, authorization string) (int, int64) {
 	t.Helper()
 	payload := platform.OTLPLogs(t, workspaceID, body)
 	headers := map[string]string{contentType: "application/x-protobuf"}
 	if authorization != "" {
 		headers["Authorization"] = authorization
 	}
-	response := do(t, http.MethodPost, p.OTLPURL+"/v1/logs", headers, payload)
+	response := do(t, ctx, http.MethodPost, p.OTLPURL+"/v1/logs", headers, payload)
 	if response.status != http.StatusOK {
 		return response.status, 0
 	}
@@ -280,9 +287,9 @@ type httpResponse struct {
 	body   []byte
 }
 
-func do(t *testing.T, method, url string, headers map[string]string, body []byte) httpResponse {
+func do(t *testing.T, ctx context.Context, method, url string, headers map[string]string, body []byte) httpResponse {
 	t.Helper()
-	request, err := http.NewRequestWithContext(t.Context(), method, url, bytes.NewReader(body))
+	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,10 +310,10 @@ func do(t *testing.T, method, url string, headers map[string]string, body []byte
 
 func httpStatus(t *testing.T, method, url string, headers map[string]string, body []byte) int {
 	t.Helper()
-	return do(t, method, url, headers, body).status
+	return do(t, t.Context(), method, url, headers, body).status
 }
 
 func httpHeader(t *testing.T, method, url string, headers map[string]string, body []byte, name string) string {
 	t.Helper()
-	return do(t, method, url, headers, body).header.Get(name)
+	return do(t, t.Context(), method, url, headers, body).header.Get(name)
 }
