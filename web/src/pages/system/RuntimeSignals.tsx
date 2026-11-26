@@ -19,11 +19,15 @@ const SIGNALS = [
 	{
 		title: "Busiest node CPU",
 		metric: "k8s.node.cpu.usage",
+        scale: 1,
+        unit: "",
 		format: (value: number) => `${value.toFixed(2)} cores`,
 	},
 	{
 		title: "Busiest node memory",
 		metric: "k8s.node.memory.working_set",
+        scale: 1024 ** 3,
+        unit: " GiB",
 		format: formatBytes,
 	},
 ];
@@ -51,7 +55,7 @@ function Signal({ clusterId, signal }: { clusterId: string; signal: (typeof SIGN
 		limits: [],
 		points: item.points.flatMap((point) => {
 			const t = maybeTsMs(point.timestamp);
-			return t === undefined ? [] : [{ t, v: point.value }];
+			return t === undefined ? [] : [{ t, v: point.value / signal.scale }];
 		}),
 	}));
 	const empty = series.every((item) => item.points.length === 0);
@@ -78,8 +82,8 @@ function Signal({ clusterId, signal }: { clusterId: string; signal: (typeof SIGN
 					series={series}
 					from={now - HOUR_MS}
 					to={now}
-					fmt={signal.format}
-					unit=""
+					fmt={(value) => signal.format(value * signal.scale)}
+					unit={signal.unit}
 					highlight={null}
 					markers={[]}
 					height={145}
