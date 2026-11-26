@@ -101,7 +101,7 @@ with session(repo / "tests/ui/out/system") as browser:
     open_menu(page)
     switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
     expect(switch).to_have_attribute("aria-checked", "false")
-    origin = page.url
+    origin = re.compile(re.escape(page.url.split("?")[0]) + r"(?:\?|$)")
     thumb = switch.locator("[data-slot=switch-thumb]")
     thumb.evaluate("""el => el.addEventListener('transitionrun', () => {
       el.getAnimations().forEach(animation => animation.pause());
