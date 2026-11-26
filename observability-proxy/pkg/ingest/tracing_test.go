@@ -100,6 +100,7 @@ func TestProxyTraceLoopbackStopsAtSystemIngestion(t *testing.T) {
 					clusterID = testClusterID
 				}
 				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", server.URL+TracesPath)
+				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_TIMEOUT", "1000")
 				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_HEADERS", "Authorization="+strings.ReplaceAll(auth, " ", "%20"))
 				// A user-provided resource setting cannot erase the recursion guard.
 				t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "loco.telemetry.scope=workload")
