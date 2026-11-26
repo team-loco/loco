@@ -1,7 +1,9 @@
 package ingest
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
+	"errors"
 	"maps"
 	"slices"
 	"strconv"
@@ -17,6 +19,19 @@ const (
 	// maxBodyFieldKey bounds the length of a flattened attribute key.
 	maxBodyFieldKey = 256
 )
+
+// Keep number text intact instead of rounding large integers through float64.
+var bodyUnmarshalers = json.UnmarshalFromFunc(func(decoder *jsontext.Decoder, value *any) error {
+	if decoder.PeekKind() != jsontext.KindNumber {
+		return errors.ErrUnsupported
+	}
+	number, err := decoder.ReadToken()
+	if err != nil {
+		return err
+	}
+	*value = number.String()
+	return nil
+})
 
 // normalizeLogs copies the fields of each JSON object body into the record's
 // attributes, keyed by dotted path (user.id) with array elements by index (roles.0), then copies
@@ -56,10 +71,8 @@ func flattenJSONBody(record plog.LogRecord) {
 	if !strings.HasPrefix(body, "{") {
 		return
 	}
-	decoder := json.NewDecoder(strings.NewReader(body))
-	decoder.UseNumber()
 	var object map[string]any
-	if decoder.Decode(&object) != nil || decoder.More() {
+	if json.Unmarshal([]byte(body), &object, json.WithUnmarshalers(bodyUnmarshalers)) != nil {
 		return
 	}
 	fields := map[string]string{}
@@ -99,8 +112,6 @@ func flattenJSONValue(path string, value any, fields map[string]string) {
 		}
 	case string:
 		setField(fields, path, value)
-	case json.Number:
-		setField(fields, path, value.String())
 	case bool:
 		setField(fields, path, strconv.FormatBool(value))
 	case nil:

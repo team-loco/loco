@@ -60,6 +60,10 @@ func TestExportedLogsCarryTheirJSONBodyFieldsAsAttributes(t *testing.T) {
 		{name: "plain text", body: "GET /healthz 200", want: map[string]string{}},
 		{name: "JSON array", body: `[{"a":1}]`, want: map[string]string{}},
 		{name: "two objects", body: `{"a":1} {"b":2}`, want: map[string]string{}},
+		{name: "missing closing brace", body: `{"a":1`, want: map[string]string{}},
+		{name: "extra closing brace", body: `{"a":1}}`, want: map[string]string{}},
+		{name: "trailing closing bracket", body: `{"a":1}]`, want: map[string]string{}},
+		{name: "duplicate object names", body: `{"a":1,"a":2}`, want: map[string]string{}},
 		{name: "multi-line object", body: "{\"a\":1,\n\"b\":2}", want: map[string]string{"a": "1", "b": "2"}},
 		{
 			name: "structured OTLP object",

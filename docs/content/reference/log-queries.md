@@ -30,7 +30,7 @@ A word, such as `timeout`, matches lines whose message contains it. A quoted phr
 
 The built-in fields take precedence over attributes with the same name. Keys starting with `loco.` are reserved, apart from Kubernetes labels under `loco.io/`; use `@resource` and `@region` instead.
 
-When a line's message is a JSON object (on one or multiple lines, or sent as a structured OpenTelemetry body), its fields are also attributes, named by their path: `{"user":{"id":"42"},"roles":["admin"]}` gives `@user.id:42` and `@roles[0]:admin`. Attributes the line already has keep their values.
+When a line's message is a JSON object (on one or multiple lines, or sent as a structured OpenTelemetry body), its fields are also attributes, named by their path: `{"user":{"id":"42"},"roles":["admin"]}` gives `@user.id:42` and `@roles[0]:admin`. Attributes the line already has keep their values. Field extraction requires a complete object with unique field names. Malformed input keeps its body and remains searchable as message text.
 
 A line with an HTTP method or status code attribute also has it under a short name: `@method` reads `http.request.method` or `http.method`, and `@status_code` reads `http.response.status_code` or `http.status_code`. A line that has its own `method` or `status_code` attribute keeps it.
 

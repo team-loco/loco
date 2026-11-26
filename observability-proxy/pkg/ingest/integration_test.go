@@ -294,6 +294,12 @@ func TestLogBodiesRoundTripAndRemainSearchable(t *testing.T) {
 		},
 		{name: "text", body: quotedLogText, want: quotedLogText, query: `"say \"hello\""`},
 		{name: "json-string", body: quotedJSONString, want: quotedJSONString, query: `hello`},
+		{
+			name:  "malformed-object",
+			body:  `{"user":{"id":"42"}}}`,
+			want:  `{"user":{"id":"42"}}}`,
+			query: `-@user.id:42`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			logs := testLogs(now)
