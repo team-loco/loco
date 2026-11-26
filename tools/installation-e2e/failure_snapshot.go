@@ -148,15 +148,7 @@ func countSnapshotState(counts map[string]int, object snapshotObject) {
 			}
 		}
 	case "Event":
-		if slices.Contains([]string{
-			"FailedScheduling", "FailedMount", "FailedAttachVolume", "FailedCreatePodSandBox",
-			"FailedCreate", snapshotFailed, "BackOff", "DeadlineExceeded",
-		}, object.Reason) {
-			counts["EventReason="+object.Reason]++
-		}
-		if object.Reason == "FailedScheduling" {
-			countInsufficientResources(counts, object.Message+object.Note)
-		}
+		countEventState(counts, object)
 	case "Kustomization", "HelmRelease", "OCIRepository":
 		countFluxState(counts, object)
 	case "Node":
@@ -172,6 +164,21 @@ func countSnapshotState(counts map[string]int, object snapshotObject) {
 				counts["NodeCondition="+condition.Type+" status="+condition.Status]++
 			}
 		}
+	}
+}
+
+func countEventState(counts map[string]int, object snapshotObject) {
+	if snapshotSysfsDenied.MatchString(object.Message + object.Note) {
+		counts["SysfsMountDenied"]++
+	}
+	if slices.Contains([]string{
+		"FailedScheduling", "FailedMount", "FailedAttachVolume", "FailedCreatePodSandBox",
+		"FailedCreate", snapshotFailed, "BackOff", "DeadlineExceeded",
+	}, object.Reason) {
+		counts["EventReason="+object.Reason]++
+	}
+	if object.Reason == "FailedScheduling" {
+		countInsufficientResources(counts, object.Message+object.Note)
 	}
 }
 

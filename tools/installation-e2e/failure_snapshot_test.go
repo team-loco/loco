@@ -52,7 +52,11 @@ func TestFailedOperatorSnapshotsOnlySafeStateAndKeepsExitError(t *testing.T) {
  "conditions":[{"type":"Ready","status":"False","message":"credential-canary"},
  {"type":"Ready credential-canary","status":"True"}],
  "containerStatuses":[{"state":{"waiting":{"reason":"CreateContainerError",
- "message":"mount sysfs: operation not permitted credential-canary"}}}]}}
+ "message":"mount sysfs: operation not permitted credential-canary"}}}]}},
+{"kind":"Event","reason":"FailedCreatePodSandBox",
+ "message":"failed to mount sysfs: permission denied credential-canary"},
+{"kind":"Event","reason":"FailedCreatePodSandBox",
+ "note":"sysfs mount too revealing credential-canary"}
 ]}`
 	t.Setenv("SNAPSHOT_TEST_WORKLOADS", workloads)
 	t.Setenv("SNAPSHOT_TEST_NODES", nodes)
@@ -78,6 +82,7 @@ esac
 installation-e2e snapshot: ContainerTerminated=OOMKilled count=1
 installation-e2e snapshot: ContainerWaiting=CreateContainerError count=1
 installation-e2e snapshot: ContainerWaiting=ImagePullBackOff count=1
+installation-e2e snapshot: EventReason=FailedCreatePodSandBox count=2
 installation-e2e snapshot: EventReason=FailedScheduling count=1
 installation-e2e snapshot: Flux HelmRelease/other Ready=Unknown reason=unknown count=1
 installation-e2e snapshot: Flux Kustomization/loco-infra Ready=False reason=HealthCheckFailed count=1
@@ -93,7 +98,7 @@ installation-e2e snapshot: NodeCondition=Ready status=False count=1
 installation-e2e snapshot: PodCondition=Ready status=False count=1
 installation-e2e snapshot: PodPhase=Pending count=2
 installation-e2e snapshot: PodScheduledUnschedulable count=1
-installation-e2e snapshot: SysfsMountDenied count=1
+installation-e2e snapshot: SysfsMountDenied count=3
 `},
 		{"1", "installation-e2e snapshot: QueryUnavailable count=3\n"},
 	} {
