@@ -514,7 +514,9 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
     }
     row(page, "us-ca-1").click()
     signals = page.locator('[data-slot="cluster-runtime-signal"]')
-    expect(signals.get_by_label(re.compile(r"^Busiest node (CPU|memory) over time$"))).to_have_count(2)
+    expect(
+        signals.get_by_label(re.compile(r"^Busiest node (CPU|memory) over time$"))
+    ).to_have_count(2)
 
     def assert_metric_scope(cluster_id):
         assert {body["metricName"] for body in seen_metrics} == {
@@ -555,7 +557,9 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
             )
     expect(page).to_have_url(ui + next_path)
     expect(signals.locator('[data-slot="skeleton"]')).to_have_count(2)
-    expect(signals.get_by_label(re.compile(r"^Busiest node (CPU|memory) over time$"))).to_have_count(0)
+    expect(
+        signals.get_by_label(re.compile(r"^Busiest node (CPU|memory) over time$"))
+    ).to_have_count(0)
     seen_metrics = [
         cpu_request.value.post_data_json,
         memory_request.value.post_data_json,
