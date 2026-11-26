@@ -78,7 +78,7 @@ func classifyReplica(pod *corev1.Pod, events *podEvent, now time.Time) loco.Repl
 	for _, status := range pod.Status.ContainerStatuses {
 		waiting := status.State.Waiting
 		if waiting != nil {
-			if waitingProblemReason(waiting.Reason, waiting.Message) != "" {
+			if waitingProblemReason(waiting.Reason) != "" {
 				result.State = loco.ReplicaFailing
 				result.Detail = waiting.Reason + ": " + waiting.Message
 				return result

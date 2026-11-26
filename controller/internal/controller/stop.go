@@ -36,7 +36,7 @@ func startupFailedRevision(current []observedReplica, revision int64, now time.T
 			}
 			switch waiting.Reason {
 			case reasonCreateContainerConfigError, reasonInvalidImageName:
-				reason := waitingProblemReason(waiting.Reason, waiting.Message)
+				reason := waitingProblemReason(waiting.Reason)
 				return &loco.StoppedRevision{
 					PlacementRevision: revision,
 					Reason:            reason,

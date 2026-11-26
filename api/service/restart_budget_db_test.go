@@ -215,7 +215,7 @@ func TestAStartupFailureFailsWithoutAFallback(t *testing.T) {
 	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	report := &agentv1.PlacementStatus{
 		Stopped: &agentv1.StoppedRevision{Reason: agentv1.StopReason_STOP_REASON_STARTUP_FAILED},
-		Problem: &agentv1.ProblemReport{Reason: string(loco.ProblemImageUser), Detail: "image will run as root"},
+		Problem: &agentv1.ProblemReport{Reason: string(loco.ProblemConfigError), Detail: "secret app-env not found"},
 	}
 	f.reportStatus(t, report)
 	f.reportStatus(t, report)
@@ -223,8 +223,8 @@ func TestAStartupFailureFailsWithoutAFallback(t *testing.T) {
 		t.Fatalf("deployment = %s, want failed", got)
 	}
 	failed := f.eventsOf(t, events.DeploymentFailed, id)
-	message, _ := loco.ProblemMessage(loco.ProblemImageUser)
-	if len(failed) != 1 || failed[0][events.FieldMessage] != message+" image will run as root" {
+	message, _ := loco.ProblemMessage(loco.ProblemConfigError)
+	if len(failed) != 1 || failed[0][events.FieldMessage] != message+" secret app-env not found" {
 		t.Fatalf("deployment.failed events = %v, want one with the startup failure", failed)
 	}
 	if _, counted := failed[0][events.FieldRestarts]; counted {

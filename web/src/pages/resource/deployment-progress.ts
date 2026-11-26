@@ -190,7 +190,6 @@ export const PROBLEM_REASONS: Record<string, string> = {
 	apply_failed: "Couldn’t apply the deployment",
 	unschedulable: "No room to run",
 	image_pull_failed: "Image pull failed",
-	image_user: "Image user not allowed",
 	config_error: "Configuration error",
 	restarting: "Restarting",
 	restarts_exhausted: "Too many restarts",

@@ -16,8 +16,6 @@ func TestStartupFailedRevision(t *testing.T) {
 		want           loco.ProblemReason
 	}{
 		{reasonCreateContainerConfigError, "secret key missing", loco.ProblemConfigError},
-		{reasonCreateContainerConfigError, "image will run as root", loco.ProblemImageUser},
-		{reasonCreateContainerConfigError, "non-numeric user", loco.ProblemImageUser},
 		{"InvalidImageName", "invalid reference format", loco.ProblemImagePullFailed},
 		{"ErrImagePull", "registry unavailable", ""},
 		{"ImagePullBackOff", "registry unavailable", ""},
