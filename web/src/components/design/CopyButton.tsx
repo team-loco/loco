@@ -20,8 +20,8 @@ export function CopyButton({
 	const [copied, copy] = useCopy();
 	return (
 		<Button
-			variant="outline"
-			size="icon-sm"
+			variant="ghost"
+			size="icon-xs"
 			className="shrink-0"
 			title={copied === null ? (name ?? label) : "Copied"}
 			aria-label={copied === null ? (name ?? label) : "Copied"}
