@@ -2231,6 +2231,7 @@ with session(out) as browser:
     spans[0]["name"] = long_name
     for trace_spans in ([spans[0]], spans[:3]):
         context, page, errors = open_page(browser, state=state, now=now)
+        context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
         context.route(
             "**/loco.observability.v1.ObservabilityService/GetTrace",
             lambda route, _request, data=trace_spans: route.fulfill(
