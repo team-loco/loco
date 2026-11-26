@@ -2226,6 +2226,50 @@ with session(out) as browser:
     assert trace_reads() == reads, (reads, trace_reads())
     assert not errors, errors
     context.close()
+    # Long operations keep status, title and trace ID on one row at every size.
+    long_name = "flagd.evaluation.v2.Service/ResolveBoolean"
+    spans[0]["name"] = long_name
+    for trace_spans in ([spans[0]], spans[:3]):
+        context, page, errors = open_page(browser, state=state, now=now)
+        context.route(
+            "**/loco.observability.v1.ObservabilityService/GetTrace",
+            lambda route, data=trace_spans: route.fulfill(json={"spans": data}),
+        )
+        page.goto(state["ui_url"] + base + "&trace=" + trace)
+        drawer = page.get_by_role("dialog", name=long_name)
+        header = drawer.locator("[data-slot=trace-header]")
+        title = header.get_by_role("heading", name=long_name, exact=True)
+        chip = header.get_by_role("button", name="Copy trace ID " + trace, exact=True)
+        expect(title).to_be_visible()
+        for font in (16, 20):
+            page.evaluate(
+                "size => document.documentElement.style.fontSize = size + 'px'", font
+            )
+            for width in (1280, 390):
+                page.set_viewport_size({"width": width, "height": 844})
+                boxes = [
+                    locator.bounding_box()
+                    for locator in (
+                        header.locator("[data-slot=badge]").first,
+                        title,
+                        chip,
+                    )
+                ]
+                centers = [box["y"] + box["height"] / 2 for box in boxes]
+                assert max(centers) - min(centers) <= 1, (font, width, boxes)
+                assert boxes[0]["x"] + boxes[0]["width"] <= boxes[1]["x"]
+                assert boxes[1]["x"] + boxes[1]["width"] <= boxes[2]["x"]
+                assert chip.evaluate("el => el.scrollWidth <= el.clientWidth")
+                if len(trace_spans) == 1:
+                    identity_width = title.locator("..").bounding_box()["width"]
+                    assert identity_width > header.bounding_box()["width"] * 0.7
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= window.innerWidth"
+                )
+        chip.click()
+        assert copied_text(page) == trace
+        assert not errors, errors
+        context.close()
     browser.close()
 assert all(row.get("scope", {}).get("environmentId") for row in recorded)
 assert all(

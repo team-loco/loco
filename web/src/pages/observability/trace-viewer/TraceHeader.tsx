@@ -123,10 +123,13 @@ export function TraceHeader({
 	return (
 		<header
 			data-slot="trace-header"
-			className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-7 gap-y-3 border-b border-line py-3.5 pr-4 pl-6 min-[1180px]:grid-cols-[minmax(0,1fr)_minmax(0,520px)_auto]"
+			className={cn(
+				"grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-7 gap-y-3 border-b border-line py-3.5 pr-4 pl-6",
+				items.length > 1 && "min-[1180px]:grid-cols-[minmax(0,1fr)_minmax(0,520px)_auto]",
+			)}
 		>
 			<div className="col-start-1 row-start-1 flex min-w-0 flex-col gap-2">
-				<div className="flex min-w-0 flex-wrap items-center gap-2">
+				<div className="flex min-w-0 items-center gap-2">
 					{trace !== undefined && (
 						<Badge tone={trace.errors > 0 ? "bad" : "ok"}>{trace.errors > 0 ? "Error" : "OK"}</Badge>
 					)}
@@ -294,7 +297,7 @@ export function TraceHeader({
 					</div>
 				</div>
 			)}
-			<div className="col-start-2 row-start-1 flex min-[1180px]:col-start-3">
+			<div className={cn("col-start-2 row-start-1 flex", items.length > 1 && "min-[1180px]:col-start-3")}>
 				{trace !== undefined && (
 					<DropdownMenu>
 						<DropdownMenuTrigger
