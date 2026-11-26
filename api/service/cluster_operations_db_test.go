@@ -131,7 +131,7 @@ func TestClusterOperationsShowsDeployingSchedulingProblemsAndRelatedEvents(t *te
 	work := response.GetWorkloads()[0]
 	if work.GetId() != deployment.String() || work.GetResourceId() != f.resourceID.String() ||
 		work.GetWorkspaceId() == "" ||
-		work.GetOrgId() == "" ||
+		work.GetOrgId() != f.tenant.orgID.String() ||
 		work.GetEnvironmentId() != f.envID.String() ||
 		!strings.Contains(work.GetMessage(), detail) {
 		t.Fatalf("work lacks link or scheduler reason: %v", work)
