@@ -1810,6 +1810,8 @@ with session(out) as browser:
     expect(large_flame.get_by_role("button")).to_have_count(3001)
     large_flame.get_by_role("button").first.hover()
     page.mouse.wheel(0, -400)
+    # Wheel zoom commits on an animation frame controlled by this context's clock.
+    page.clock.run_for(16)
     expect(drawer.get_by_role("button", name="Reset zoom", exact=True)).to_be_visible()
     assert not errors, errors
     context.close()
