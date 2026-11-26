@@ -288,7 +288,7 @@ capabilities:
 {{- end -}}
 {{- end -}}
 
-{{/* Non-empty when the API sends its own telemetry to the observability proxy's system ingest. */}}
+{{/* Non-empty when control-plane components send their own telemetry to the observability proxy's system ingest. */}}
 {{- define "loco-control-plane.systemIngest" -}}
 {{- if and .Values.platformTelemetry.enabled (not .Values.platformTelemetry.exporter.endpoint) -}}
 {{- if not .Values.obsProxy.enabled -}}
@@ -302,13 +302,55 @@ true
 {{ .Release.Name }}-system-ingest-token
 {{- end -}}
 
-{{/* OTLP variables platformTelemetry owns; a signal-specific one would override the chart's. */}}
+{{/* Variables platformTelemetry owns; user env entries must not override its identity or exporter. */}}
 {{- define "loco-control-plane.otlpExporterEnv" -}}
-{{- $names := list "OTEL_RESOURCE_ATTRIBUTES" -}}
+{{- $names := list "OTEL_RESOURCE_ATTRIBUTES" "LOCO_SYSTEM_INGEST_TOKEN" "LOCO_POD_UID" -}}
 {{- range $signal := list "" "TRACES_" "METRICS_" "LOGS_" -}}
 {{- range $setting := list "ENDPOINT" "HEADERS" -}}
 {{- $names = append $names (printf "OTEL_EXPORTER_OTLP_%s%s" $signal $setting) -}}
 {{- end -}}
 {{- end -}}
 {{- toYaml $names -}}
+{{- end -}}
+
+{{- define "loco-control-plane.platformTelemetryEnv" -}}
+{{- $env := .env -}}
+{{- $path := .path -}}
+{{- with .root -}}
+{{- if .Values.platformTelemetry.enabled }}
+{{- range $name := include "loco-control-plane.otlpExporterEnv" . | fromYamlArray }}
+{{- if hasKey $env $name }}
+{{- fail (printf "%s is set in both %s and platformTelemetry" $name $path) }}
+{{- end }}
+{{- end }}
+{{- if include "loco-control-plane.systemIngest" . }}
+- name: LOCO_SYSTEM_INGEST_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "loco-control-plane.systemIngestSecret" . }}
+      key: token
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ printf "http://%s-obs-proxy-ingest.%s.svc.cluster.local:%v" .Release.Name .Release.Namespace .Values.obsProxy.ingest.httpPort | quote }}
+- name: OTEL_EXPORTER_OTLP_HEADERS
+  value: "Authorization=Bearer%20$(LOCO_SYSTEM_INGEST_TOKEN)"
+{{- else }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ .Values.platformTelemetry.exporter.endpoint | quote }}
+{{- with .Values.platformTelemetry.exporter.headers }}
+{{- $headers := list }}
+{{- range $key, $value := . }}
+{{- $headers = append $headers (printf "%s=%s" $key ($value | urlquery | replace "+" "%20")) }}
+{{- end }}
+- name: OTEL_EXPORTER_OTLP_HEADERS
+  value: {{ join "," $headers | quote }}
+{{- end }}
+{{- end }}
+- name: LOCO_POD_UID
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.uid
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: "service.instance.id=$(LOCO_POD_UID)"
+{{- end }}
+{{- end -}}
 {{- end -}}

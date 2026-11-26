@@ -41,6 +41,7 @@ spec:
               drop:
                 - ALL
           env:
+            {{- include "loco-control-plane.platformTelemetryEnv" (dict "root" . "env" .Values.obsProxy.ingest.env "path" "obsProxy.ingest.env") | nindent 12 }}
             {{- range $name, $value := omit .Values.obsProxy.ingest.env "PORT" "CONTROL_PLANE_URL" "OTLP_GRPC_PORT" "OTLP_HTTP_PORT" "CLICKHOUSE_DB" "CLICKHOUSE_INGEST_URL" "CLICKHOUSE_MIGRATOR_URL" "SYSTEM_INGEST_TOKEN" }}
             - name: {{ $name }}
               value: {{ $value | quote }}

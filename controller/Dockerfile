@@ -15,6 +15,7 @@ WORKDIR /workspace
 COPY internal/buildinfo ./internal/buildinfo
 COPY internal/clip ./internal/clip
 COPY internal/otelsetup ./internal/otelsetup
+COPY internal/systemtenant ./internal/systemtenant
 COPY k8sapi ./k8sapi
 COPY controller ./controller
 

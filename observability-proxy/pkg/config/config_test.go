@@ -218,3 +218,19 @@ func TestLoadReadsIngestSettings(t *testing.T) {
 		t.Fatalf("ports = %d, %d, %d", cfg.Port, cfg.OTLPGRPCPort, cfg.OTLPHTTPPort)
 	}
 }
+
+func TestTracingEnabledOnlyWithExporterEndpoint(t *testing.T) {
+	for _, endpoint := range []string{"", "OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"} {
+		t.Run(endpoint, func(t *testing.T) {
+			setRequiredEnv(t)
+			t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+			t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
+			if endpoint != "" {
+				t.Setenv(endpoint, "http://collector:4318")
+			}
+			if got := Load().TracingEnabled; got != (endpoint != "") {
+				t.Fatalf("tracing enabled = %v for %q", got, endpoint)
+			}
+		})
+	}
+}

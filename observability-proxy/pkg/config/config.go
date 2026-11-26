@@ -34,6 +34,7 @@ const (
 )
 
 type Config struct {
+	TracingEnabled  bool
 	Port            int
 	ControlPlaneURL string
 	ClickHouseDB    string
@@ -64,7 +65,10 @@ type Config struct {
 }
 
 func Load() *Config {
+	endpoint := envconfig.String("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+	tracesEndpoint := envconfig.String("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
 	cfg := &Config{
+		TracingEnabled:  endpoint != "" || tracesEndpoint != "",
 		Port:            requiredIntEnv("PORT"),
 		ControlPlaneURL: requiredStringEnv("CONTROL_PLANE_URL"),
 		ClickHouseDB:    requiredIdentifierEnv("CLICKHOUSE_DB"),
