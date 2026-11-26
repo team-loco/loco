@@ -104,3 +104,17 @@ func TestRootSamplerDropsOnlyParentlessClientSpans(t *testing.T) {
 		})
 	}
 }
+
+func TestOwnResourceAlwaysCarriesPlatformScope(t *testing.T) {
+	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "loco.telemetry.scope=workload,team=platform")
+	res, err := newResource(t.Context(), "loco-obs-proxy", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, ok := res.Set().Value("loco.telemetry.scope"); !ok || value.AsString() != "platform" {
+		t.Fatalf("own telemetry scope = %v, present %v; want platform", value, ok)
+	}
+	if value, ok := res.Set().Value("team"); !ok || value.AsString() != "platform" {
+		t.Fatalf("operator attribute = %v, present %v; want preserved", value, ok)
+	}
+}

@@ -15,9 +15,11 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
+	"github.com/team-loco/loco/internal/otelsetup"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
@@ -31,8 +33,9 @@ const (
 var version string
 
 type proxy struct {
-	server *http.Server
-	ingest *ingestServer
+	tracing *sdktrace.TracerProvider
+	server  *http.Server
+	ingest  *ingestServer
 }
 
 type listeners struct {
@@ -84,7 +87,12 @@ func logStartup(logger *slog.Logger, cfg *config.Config, proxyVersion string) {
 func (p *proxy) shutdown() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-	err := p.ingest.shutdown(shutdownCtx)
+	var err error
+	if p.tracing != nil {
+		err = otelsetup.Stop(p.tracing)
+		p.tracing = nil
+	}
+	err = errors.Join(err, p.ingest.shutdown(shutdownCtx))
 	if shutdownErr := p.server.Shutdown(shutdownCtx); shutdownErr != nil {
 		err = errors.Join(err, fmt.Errorf("shut down server: %w", shutdownErr))
 	}
@@ -92,6 +100,13 @@ func (p *proxy) shutdown() error {
 }
 
 func (p *proxy) run(ctx context.Context, cfg *config.Config, ln listeners) error {
+	if cfg.TracingEnabled {
+		provider, err := otelsetup.Start(ctx, "loco-obs-proxy", buildinfo.Version(version))
+		if err != nil {
+			return err
+		}
+		p.tracing = provider
+	}
 	serveErr := make(chan error, serversPerProxy)
 	go func() {
 		serveErr <- p.server.Serve(ln.main)

@@ -9,10 +9,15 @@ Platform telemetry is the logs, metrics and traces Loco's own components produce
 | Source | Signals | Turned on by |
 | --- | --- | --- |
 | API | Traces of requests and RPCs, Go runtime metrics, every log record at `LOG_LEVEL` or above | `loco-control-plane` value `platformTelemetry.enabled` |
+| Observability proxy | Workload ingestion traces, including the storage write and record counts | `loco-control-plane` value `platformTelemetry.enabled` |
 | Application and build controllers | Traces of reconciles and Kubernetes API calls, controller-runtime metrics (reconciles, work queues, client requests), Go runtime metrics | `loco-worker` value `global.platformTelemetry.enabled` |
 | Worker cluster | Node metrics, cluster state and Kubernetes events from the Loco, collector and `global.platformTelemetry.namespaces` namespaces | `loco-worker` value `global.platformTelemetry.enabled` |
 
 The API keeps writing its logs to standard output either way. Customer workloads' telemetry is never part of it.
+
+The proxy traces admitted, decoded batches that retain at least one non-system record after tenancy filtering. HTTP and gRPC use the same ingestion path. It starts a root span rather than adopting a span from the submitted telemetry; attributes report accepted and rejected record counts, and a storage failure marks the span as an error. Health checks, authentication failures and decoding failures do not produce proxy spans. Proxy logs remain on standard output; the setting does not enable a proxy OTLP log exporter or runtime metric exporter.
+
+System-only batches produce no proxy spans, whether authenticated with the system ingest token or sent through a worker's platform pipelines. A mixed batch produces one ingestion span when it retains workload records. When that span returns to the proxy as system telemetry, ingestion stores it without generating another span. Loco's own SDK resources always carry `loco.telemetry.scope=platform`, even when operator resource attributes try to replace it. External collectors forwarding these signals back with a worker token must preserve that platform resource marker; arbitrary identity rewriting is outside this guarantee. With the marker preserved, self-ingestion suppresses the next generation of spans. The ClickHouse exporter's internal instrumentation and the proxy's authorization/export HTTP clients remain uninstrumented, so they cannot create another export cycle.
 
 ## Where it goes
 

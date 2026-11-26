@@ -8,11 +8,14 @@ import (
 
 	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/team-loco/loco/internal/systemtenant"
 )
 
 const shutdownTimeout = 5 * time.Second
@@ -56,6 +59,9 @@ func newResource(ctx context.Context, serviceName, version string) (*resource.Re
 	res, err := resource.New(ctx,
 		resource.WithAttributes(semconv.ServiceName(serviceName), semconv.ServiceVersion(version)),
 		resource.WithFromEnv(),
+		// Own telemetry stays identifiable when an external collector forwards it back
+		// with a worker token; proxy ingestion must not trace itself recursively.
+		resource.WithAttributes(attribute.String(systemtenant.ScopeAttribute, systemtenant.PlatformScope)),
 		resource.WithTelemetrySDK(),
 	)
 	if err != nil {

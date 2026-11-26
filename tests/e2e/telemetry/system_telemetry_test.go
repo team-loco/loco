@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -109,4 +110,27 @@ func TestSystemReaderReadsTheAPIsLogs(t *testing.T) {
 	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
 		t.Fatalf("system scope without the role: code %v (%v), want permission_denied", code, err)
 	}
+}
+
+// TestProxyTelemetryReachesTheSystemTenant exercises the proxy's real HTTP ingestion and
+// chart-wired exporter, then reads its span back from ClickHouse under the system tenant.
+func TestProxyTelemetryReachesTheSystemTenant(t *testing.T) {
+	t.Parallel()
+	var token string
+	platform.Eventually(t, ingestTokenTimeout, "the cluster ingest token", func(ctx context.Context) error {
+		var err error
+		token, err = p.IngestToken(ctx, p.CollectorNamespace())
+		if err == nil && token == "" {
+			return errors.New("empty ingest token")
+		}
+		return err
+	})
+	status, rejected := postLogs(t, "", "proxy platform telemetry e2e", "Bearer "+token)
+	if status != http.StatusOK || rejected != 0 {
+		t.Fatalf("cluster log ingestion: status %d, rejected %d", status, rejected)
+	}
+	waitCount(t, "the proxy's own ingestion span", fmt.Sprintf(
+		"SELECT count() FROM otel_traces WHERE WorkspaceId = '%s' AND ServiceName = 'loco-obs-proxy' "+
+			"AND SpanName = 'ingest.logs' AND ResourceAttributes['loco.cluster.id'] = '%s' AND OrganizationId = ''",
+		systemtenant.WorkspaceID, systemtenant.ControlPlaneClusterID), func(count int) bool { return count > 0 })
 }

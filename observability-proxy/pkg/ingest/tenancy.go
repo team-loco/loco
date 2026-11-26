@@ -48,6 +48,7 @@ type tenancyFilter struct {
 	admission *Admission
 	counts    map[verdict]int64
 	err       error
+	workload  bool
 }
 
 func newTenancyFilter(ctx context.Context, admission *Admission) *tenancyFilter {
@@ -127,6 +128,7 @@ func (f *tenancyFilter) stamp(resources []pcommon.Resource, signalDays func(*ing
 			attrs.PutStr(retentionAttribute, strconv.Itoa(int(gate.cfg.SystemRetentionDays)))
 			continue
 		}
+		f.workload = true
 		days := f.admission.placements.retention
 		if workspace := workspaceOf(resource); workspace != "" {
 			days = retention[workspace]

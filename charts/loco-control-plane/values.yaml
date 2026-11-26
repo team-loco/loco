@@ -162,7 +162,7 @@ api:
     failureThreshold: 60
     periodSeconds: 5
 
-# Loco's own telemetry: the API exports its traces, metrics and logs over OTLP/HTTP.
+# Loco's own telemetry: API traces/metrics/logs and proxy workload-ingestion traces over OTLP/HTTP.
 # @schema additionalProperties: false
 platformTelemetry:
   enabled: false

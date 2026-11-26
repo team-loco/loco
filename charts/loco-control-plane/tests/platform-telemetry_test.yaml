@@ -131,3 +131,39 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: OTEL_RESOURCE_ATTRIBUTES is set in both api.env and platformTelemetry
+
+  - it: exports proxy workload-ingest spans through the native system endpoint
+    set:
+      platformTelemetry.enabled: true
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://loco-control-plane-obs-proxy-ingest.loco-control-plane.svc.cluster.local:4318"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_HEADERS, value: "Authorization=Bearer%20$(LOCO_SYSTEM_INGEST_TOKEN)"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_RESOURCE_ATTRIBUTES, value: "service.instance.id=$(LOCO_POD_UID)"}
+
+  - it: exports proxy spans to the operator endpoint with its authentication
+    set:
+      platformTelemetry: {enabled: true, exporter: {endpoint: "https://otel.example.com", headers: {Authorization: "Bearer a+b/c"}}}
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "https://otel.example.com"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTEL_EXPORTER_OTLP_HEADERS, value: "Authorization=Bearer%20a%2Bb%2Fc"}
+
+  - it: refuses conflicting proxy telemetry endpoints
+    set:
+      platformTelemetry.enabled: true
+      obsProxy.ingest.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://elsewhere
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set in both obsProxy.ingest.env and platformTelemetry"

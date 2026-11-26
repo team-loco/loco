@@ -21,6 +21,10 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric/pmetricotlp"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/pdata/ptrace/ptraceotlp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otelcodes "go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -91,6 +95,7 @@ type otlpResponse interface {
 
 // signal describes one OTLP signal so a single export path serves logs, traces and metrics.
 type signal[Req otlpRequest, Resp otlpResponse, Payload any] struct {
+	name        string
 	newRequest  func() Req
 	newResponse func() Resp
 	payload     func(Req) Payload
@@ -102,6 +107,7 @@ type signal[Req otlpRequest, Resp otlpResponse, Payload any] struct {
 
 func (s *Service) logsSignal() signal[plogotlp.ExportRequest, plogotlp.ExportResponse, plog.Logs] {
 	return signal[plogotlp.ExportRequest, plogotlp.ExportResponse, plog.Logs]{
+		name:        "ingest.logs",
 		newRequest:  plogotlp.NewExportRequest,
 		newResponse: plogotlp.NewExportResponse,
 		payload:     plogotlp.ExportRequest.Logs,
@@ -120,6 +126,7 @@ func (s *Service) logsSignal() signal[plogotlp.ExportRequest, plogotlp.ExportRes
 
 func (s *Service) tracesSignal() signal[ptraceotlp.ExportRequest, ptraceotlp.ExportResponse, ptrace.Traces] {
 	return signal[ptraceotlp.ExportRequest, ptraceotlp.ExportResponse, ptrace.Traces]{
+		name:        "ingest.traces",
 		newRequest:  ptraceotlp.NewExportRequest,
 		newResponse: ptraceotlp.NewExportResponse,
 		payload:     ptraceotlp.ExportRequest.Traces,
@@ -135,6 +142,7 @@ func (s *Service) tracesSignal() signal[ptraceotlp.ExportRequest, ptraceotlp.Exp
 
 func (s *Service) metricsSignal() signal[pmetricotlp.ExportRequest, pmetricotlp.ExportResponse, pmetric.Metrics] {
 	return signal[pmetricotlp.ExportRequest, pmetricotlp.ExportResponse, pmetric.Metrics]{
+		name:        "ingest.metrics",
 		newRequest:  pmetricotlp.NewExportRequest,
 		newResponse: pmetricotlp.NewExportResponse,
 		payload:     pmetricotlp.ExportRequest.Metrics,
@@ -155,6 +163,7 @@ func export[Req otlpRequest, Resp otlpResponse, Payload any](
 	admission *Admission,
 	request Req,
 ) (Resp, error) {
+	started := time.Now()
 	response := sig.newResponse()
 	payload := sig.payload(request)
 	filter := newTenancyFilter(ctx, admission)
@@ -166,7 +175,21 @@ func export[Req otlpRequest, Resp otlpResponse, Payload any](
 		sig.reject(response, rejected, filter.message())
 	}
 	if sig.count(payload) > 0 {
+		var span trace.Span
+		// System telemetry may contain the proxy's own spans. Only workload batches
+		// produce telemetry, so exporting a span back through ingest ends here.
+		if filter.workload {
+			ctx, span = otel.Tracer("github.com/team-loco/loco/observability-proxy").Start(ctx, sig.name,
+				trace.WithTimestamp(started), trace.WithSpanKind(trace.SpanKindServer),
+				trace.WithAttributes(attribute.Int("loco.ingest.accepted_records", sig.count(payload)),
+					attribute.Int64("loco.ingest.rejected_records", filter.rejected())))
+			defer span.End()
+		}
 		if err := sig.consume(ctx, payload); err != nil {
+			if span != nil {
+				span.RecordError(err)
+				span.SetStatus(otelcodes.Error, "telemetry storage unavailable")
+			}
 			return response, err
 		}
 	}
