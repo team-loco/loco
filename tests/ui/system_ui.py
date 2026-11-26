@@ -291,7 +291,9 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(page.get_by_role("heading", name="Issues", exact=True)).to_be_visible()
     expect(page.get_by_role("heading", name="Events", exact=True)).to_be_visible()
     expect(page.get_by_role("heading", name="CPU", exact=True)).to_be_visible()
-    metrics = page.get_by_role("link", name="Metrics", exact=True)
+    metrics = page.get_by_role("region", name="Metrics", exact=True).get_by_role(
+        "link", name="Metrics", exact=True
+    )
     metrics_url = urlsplit(metrics.get_attribute("href"))
     assert metrics_url.path == "/system/metrics"
     assert parse_qs(metrics_url.query).get("q") == [
