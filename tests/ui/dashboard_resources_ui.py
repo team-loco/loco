@@ -99,6 +99,20 @@ with session(out) as browser:
     ):
         page.goto(f"{base}?env=production")
     expect(page.get_by_text("now", exact=True)).to_have_count(0)
+    create_box = page.get_by_role(
+        "button", name="New resource", exact=True
+    ).bounding_box()
+    range_box = page.get_by_role("group", name="Time range", exact=True).bounding_box()
+    assert (
+        abs(
+            create_box["y"]
+            + create_box["height"] / 2
+            - range_box["y"]
+            - range_box["height"] / 2
+        )
+        < 1
+    )
+
     table = page.get_by_role("table", name="Resources")
     row = table.get_by_role("row").filter(
         has=page.get_by_role("link", name="svc-1", exact=True)

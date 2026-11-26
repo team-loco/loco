@@ -108,14 +108,8 @@ export function Dashboard() {
 	}
 
 	return (
-		<Page className="gap-8 pt-9">
-			<div className="flex justify-end">
-				{heading}
-				<NewResourceMenu
-					serviceHref={newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.slug })}
-					disabled={loading || active === undefined}
-				/>
-			</div>
+		<Page className="gap-14 pt-9">
+			{heading}
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
 			) : envTotal === 0 && drafts.length === 0 ? (
@@ -123,6 +117,12 @@ export function Dashboard() {
 			) : (
 				<>
 					<Totals
+						actions={
+							<NewResourceMenu
+								serviceHref={newResourcePath(orgId, workspaceId, { env: active.slug })}
+								disabled={false}
+							/>
+						}
 						orgId={orgId}
 						workspaceId={workspaceId}
 						environmentId={active.id}
