@@ -18,7 +18,7 @@ const (
 	maxBodyFieldKey = 256
 )
 
-// normalizeLogs copies the fields of each single-line JSON object body into the record's
+// normalizeLogs copies the fields of each JSON object body into the record's
 // attributes, keyed by dotted path (user.id) with array elements by index (roles.0), then copies
 // the HTTP method and status code to method and status_code. Attributes the record already has are
 // kept, and the body is left as it is. When two fields flatten to the same path, such as "a.b" and
@@ -50,11 +50,10 @@ func aliasAttribute(attributes pcommon.Map, alias string, sources ...string) {
 }
 
 func flattenJSONBody(record plog.LogRecord) {
-	if record.Body().Type() != pcommon.ValueTypeStr {
-		return
-	}
-	body := strings.TrimSpace(record.Body().Str())
-	if !strings.HasPrefix(body, "{") || strings.ContainsAny(body, "\r\n") {
+	// AsString preserves text and serializes structured OTLP bodies as JSON, just as
+	// the ClickHouse exporter does. Decode both forms through the same path.
+	body := strings.TrimSpace(record.Body().AsString())
+	if !strings.HasPrefix(body, "{") {
 		return
 	}
 	decoder := json.NewDecoder(strings.NewReader(body))

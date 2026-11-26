@@ -32,6 +32,7 @@ import (
 	chClient "github.com/team-loco/loco/internal/clickhouse"
 	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
+	"github.com/team-loco/loco/internal/logquery"
 	"github.com/team-loco/loco/internal/systemtenant"
 )
 
@@ -257,6 +258,76 @@ func (f *ingestFixture) startedWriter(t *testing.T) *Writer {
 		}
 	})
 	return writer
+}
+
+func TestLogBodiesRoundTripAndRemainSearchable(t *testing.T) {
+	f := newIngestFixture(t)
+	writer := f.startedWriter(t)
+	cp := newPlacedControlPlane(t)
+	service := newGatedService(writer.Consumers(), cp)
+	httpURL, _ := startServers(t, service)
+	reader := f.reader(t)
+	now := time.Now().UTC().Truncate(time.Second)
+	for _, tc := range []struct {
+		name  string
+		body  any
+		want  string
+		query string
+	}{
+		{
+			name:  "structured",
+			body:  map[string]any{jsonBodyMessageKey: quotedLogMessage, "user": map[string]any{"id": "42"}},
+			want:  quotedJSONObject,
+			query: `@user.id:42 @msg:"said \"hello\""`,
+		},
+		{
+			name:  "json-line",
+			body:  quotedJSONObject,
+			want:  quotedJSONObject,
+			query: `@user.id:42 @msg:"said \"hello\""`,
+		},
+		{
+			name:  "multiline",
+			body:  "{\n  \"msg\": \"paid\",\n  \"user\": {\"id\": \"42\"}\n}",
+			want:  "{\n  \"msg\": \"paid\",\n  \"user\": {\"id\": \"42\"}\n}",
+			query: `@user.id:42 @msg:paid`,
+		},
+		{name: "text", body: quotedLogText, want: quotedLogText, query: `"say \"hello\""`},
+		{name: "json-string", body: quotedJSONString, want: quotedJSONString, query: `hello`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logs := testLogs(now)
+			record := logs.ResourceLogs().At(0).ScopeLogs().At(0).LogRecords().At(0)
+			if err := record.Body().FromRaw(tc.body); err != nil {
+				t.Fatal(err)
+			}
+			record.Attributes().PutStr("case", tc.name)
+			payload, err := plogotlp.NewExportRequestFromLogs(logs).MarshalProto()
+			if err != nil {
+				t.Fatal(err)
+			}
+			postOTLP(t, httpURL+LogsPath, cp.bearer(), payload)
+			filter, err := logquery.Parse("@case:" + tc.name + " " + tc.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := reader.QueryLogs(t.Context(), chClient.LogQuery{
+				WorkspaceID: testWorkspaceID, ResourceIDs: []string{testResourceID},
+				Start: now.Add(-testWindow), End: now.Add(testWindow), Limit: testQueryLimit,
+				Filter: filter, Order: observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			entries := result.GetEntries()
+			if len(entries) != 1 {
+				t.Fatalf("query %q returned %d entries, want one", tc.query, len(entries))
+			}
+			if entries[0].GetBody() != tc.want {
+				t.Fatalf("body = %q, want %q", entries[0].GetBody(), tc.want)
+			}
+		})
+	}
 }
 
 func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
