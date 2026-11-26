@@ -432,11 +432,17 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_text("The build failed while installing dependencies.", exact=True)
     ).to_be_visible()
-    expect(
-        page.get_by_role("link", name="synthetic-build", exact=True)
-    ).to_have_attribute(
-        "href", re.compile("@build%3A" + build_id + "|%40build%3A" + build_id)
+    build_url = urlsplit(
+        page.get_by_role("link", name="synthetic-build", exact=True).get_attribute(
+            "href"
+        )
     )
+    assert build_url.path == (
+        f"/org/{state['orgs']['ops']['id']}"
+        f"/wks/{state['workspaces']['ops/main']}/observability"
+    )
+    assert parse_qs(build_url.query).get("view") == ["logs"]
+    assert parse_qs(build_url.query).get("q") == ["@build:" + build_id]
     expect(
         page.get_by_text(
             "No Loco events have been recorded for this cluster.", exact=True
