@@ -81,6 +81,42 @@ with session(repo / "tests/ui/out/tokens") as browser:
         "button", name=re.compile(r"^Organization")
     )
     expect(organization.first).to_have_attribute("aria-pressed", "true")
+    expect(
+        page.get_by_role("group", name="Owner", exact=True)
+        .locator('[data-slot="segmented-count"]')
+        .first
+    ).to_be_visible()
+    for count in (
+        page.get_by_role("group", name="Owner", exact=True)
+        .locator('[data-slot="segmented-count"]')
+        .all()
+    ):
+        expect(count).not_to_have_css("background-color", "rgba(0, 0, 0, 0)")
+        box, parent = count.bounding_box(), count.locator("..").bounding_box()
+        assert (
+            abs(box["y"] + box["height"] / 2 - parent["y"] - parent["height"] / 2) < 1
+        )
+
+    row = page.get_by_role("row", name="View access for ci-source")
+    row.focus()
+    page.keyboard.press("Enter")
+    details = page.get_by_role("dialog", name="Token details", exact=True)
+    expect(details.get_by_label("Name", exact=True)).to_have_value("ci-source")
+    expect(details.get_by_label("Name", exact=True)).to_have_attribute("readonly", "")
+    expect(details.get_by_label("Owner", exact=True)).to_have_attribute("readonly", "")
+    expect(details.get_by_label("Expires", exact=True)).to_have_attribute(
+        "readonly", ""
+    )
+    expect(
+        details.get_by_role("button", name="Create token", exact=True)
+    ).to_have_count(0)
+    expect(
+        details.get_by_role("textbox", name="Add a workspace or resource")
+    ).to_have_count(0)
+    expect(details.get_by_text("acme", exact=True)).to_be_visible()
+    expect(details.get_by_text("Read", exact=True)).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(details).to_be_hidden()
     page.get_by_role("button", name="Actions for ci-source").click()
     page.get_by_role("menuitem", name="Duplicate").click()
     drawer = page.get_by_role("dialog", name="New token")
@@ -106,20 +142,43 @@ with session(repo / "tests/ui/out/tokens") as browser:
     expect(created.get_by_text("Copy it now.", exact=False)).to_be_visible()
     assert re.fullmatch(r"•+", value.inner_text()), "the token starts masked"
     expect(created.get_by_role("img", name="Hidden token")).to_be_visible()
-    expect(created.get_by_role("img", name="Example, token masked")).to_be_visible()
-    created.get_by_role("button", name="Show token").click()
+    expect(
+        created.get_by_role("img", name="Curl command, token masked")
+    ).to_be_visible()
+    eye = created.get_by_role("button", name="Show token", exact=True)
+    copy_button = created.get_by_role("button", name="Copy token")
+    for control in [eye, copy_button]:
+        assert control.inner_text() == "", "copy and reveal controls use icons"
+        assert (
+            value.bounding_box()["x"] + value.bounding_box()["width"]
+            <= control.bounding_box()["x"]
+        )
+    created.get_by_role("button", name="Show token", exact=True).click()
     token = value.inner_text()
     assert token.startswith("loco_"), token
-    assert token in blocks.first.inner_text()
-    created.get_by_role("button", name="Hide token").click()
+    assert token not in blocks.first.inner_text(), (
+        "curl stays masked until its own reveal action"
+    )
+    assert "Bearer ***" in blocks.first.inner_text()
+    assert "$LOCO_TOKEN" not in created.inner_text()
+    expect(created.get_by_text("Example usage", exact=True)).to_have_count(0)
+    expect(created.get_by_text("In CI, save the token", exact=False)).to_have_count(0)
+    created.get_by_role("button", name="Hide token", exact=True).click()
     assert re.fullmatch(r"•+", value.inner_text())
     assert token not in created.inner_html(), "the masked dialog holds the token"
     created.get_by_role("button", name="Copy token").click()
     assert copied_text(page) == token
     blocks.first.hover()
     blocks.first.get_by_role("button", name="Copy code").click()
-    assert copied_text(page) == f"export LOCO_TOKEN={token}\nloco deploy"
-    created.get_by_role("button", name="Show token").click()
+    command = copied_text(page)
+    assert f"Authorization: Bearer {token}" in command
+    assert "TokenService/GetScopes" in command
+    created.get_by_role("button", name="Show token in curl", exact=True).click()
+    assert token in blocks.first.inner_text()
+    created.get_by_role("button", name="Hide token in curl", exact=True).click()
+    assert token not in created.inner_html()
+    created.get_by_role("button", name="Show token in curl", exact=True).click()
+    created.get_by_role("button", name="Show token", exact=True).click()
     for block in created.locator('[data-slot="code-block"] pre').all():
         assert block.evaluate("node => node.scrollWidth <= node.clientWidth")
     page.keyboard.press("Escape")
@@ -131,6 +190,24 @@ with session(repo / "tests/ui/out/tokens") as browser:
     page.goto(state["ui_url"] + "/tokens?owner=org")
     menu = page.get_by_role("button", name="Actions for ci-source")
     expect(menu).to_be_visible()
+    # Pinned headers use the same fill as the entire header in the bordered theme.
+    page.evaluate("localStorage.setItem('loco:color:v1', 'paper')")
+    page.reload()
+    expect(page.get_by_role("table", name="Tokens")).to_be_visible()
+    for dark in [False, True]:
+        page.evaluate(
+            "dark => { document.documentElement.dataset.theme = 'paper'; document.documentElement.classList.toggle('dark', dark); }",
+            dark,
+        )
+        page.wait_for_function(
+            "getComputedStyle(document.documentElement).getPropertyValue('--radius-card').trim() === '6px'"
+        )
+        heads = page.get_by_role("table", name="Tokens").locator("th")
+        colors = heads.evaluate_all(
+            "nodes => nodes.map(node => getComputedStyle(node).backgroundColor)"
+        )
+        assert len(set(colors)) == 1 and colors[0] != "rgba(0, 0, 0, 0)", colors
+
     container = page.locator('[data-slot="data-table"]').first
     assert container.get_attribute("data-scroll") is None
     assert container.evaluate("node => getComputedStyle(node).maskImage") == "none"

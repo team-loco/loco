@@ -91,6 +91,7 @@ export function Tokens() {
 	const queryClient = useQueryClient();
 	const now = useNow(NOW_TICK_MS).getTime();
 	const [draft, setDraft] = useState<CreateDraft | null>(null);
+	const [viewing, setViewing] = useState<Token | null>(null);
 	const [revoking, setRevoking] = useState<Token | null>(null);
 	// Duplicating waits for the token's entities and their parents, which decide the access the copy keeps.
 	const [duplicating, setDuplicating] = useState<Token | null>(null);
@@ -112,6 +113,7 @@ export function Tokens() {
 	const anyLoading = data.scopesLoading || OWNER_KEYS.some((k) => data.owners[k].isLoading);
 
 	const setOwner = (next: OwnerKey) => {
+		setViewing(null);
 		void setParams({ owner: next });
 		paged.reset();
 	};
@@ -276,6 +278,7 @@ export function Tokens() {
 							empty={empty}
 							canDuplicate={owner.canCreate}
 							canRevoke={owner.canCreate || owner.key === "user"}
+							onView={setViewing}
 							onDuplicate={setDuplicating}
 							onRevoke={setRevoking}
 						/>
@@ -285,10 +288,12 @@ export function Tokens() {
 			</Section>
 			<CreateTokenDrawer
 				draft={shownDraft}
+				viewing={viewing === null ? null : { token: viewing, owner: ownerKey }}
 				data={data}
 				now={now}
 				onClose={() => {
 					setDraft(null);
+					setViewing(null);
 					void setParams({ [NEW_PARAM]: null });
 				}}
 				onCreated={(created) => {

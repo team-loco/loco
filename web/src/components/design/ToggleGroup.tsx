@@ -70,7 +70,10 @@ function ToggleGroupItem({
 			)}
 			{children}
 			{count !== undefined && (
-				<span data-slot="segmented-count" className="font-mono text-[11px] text-fg3">
+				<span
+					data-slot="segmented-count"
+					className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-sm bg-foreground/7 px-1 font-mono text-[10.5px] leading-none text-fg3 tabular-nums"
+				>
 					{count}
 				</span>
 			)}

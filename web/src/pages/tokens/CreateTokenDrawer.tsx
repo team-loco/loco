@@ -1,11 +1,11 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { CheckIcon } from "lucide-react";
-import { useRef, useState, type RefObject } from "react";
+import { CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { useRef, useState, type RefObject, type ReactNode } from "react";
 import { createToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { TokenService } from "@gen/loco/token/v1/token_pb";
+import { TokenService, type Token } from "@gen/loco/token/v1/token_pb";
 
 import { BASE_URL } from "@/auth/connect-transport";
 import { Button } from "@/components/design/Button";
@@ -15,7 +15,7 @@ import { Field } from "@/components/design/Field";
 import { InlineCode } from "@/components/design/InlineCode";
 import { Input } from "@/components/design/Input";
 import { Notice } from "@/components/design/Notice";
-import { maskSecret, SecretValue } from "@/components/design/SecretValue";
+import { SecretValue } from "@/components/design/SecretValue";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -23,8 +23,9 @@ import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { toLocalInput, fromLocalInput } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
-import { DAY_MS, formatMonthDayYear, formatHourMinute } from "@/lib/time";
+import { DAY_MS, formatMonthDayYear, formatHourMinute, maybeTsMs } from "@/lib/time";
 
+import { TokenScopeList } from "./TokenScopes";
 import { AccessPicker } from "./AccessPicker";
 import type { AccessItem } from "./AccessPicker";
 import {
@@ -52,9 +53,9 @@ const MS_PER_SECOND = 1000;
 const CUSTOM = "custom";
 const CUSTOM_DEFAULT_MS = 3 * DAY_MS;
 
-function apiExample(): string {
+function apiExample(token: string): string {
 	return [
-		'curl -H "Authorization: Bearer $LOCO_TOKEN" \\',
+		`curl -H "Authorization: Bearer ${token}" \\`,
 		"  -H 'Content-Type: application/json' -d '{}' \\",
 		`  ${BASE_URL}/${TokenService.typeName}/${TokenService.method.getScopes.name}`,
 	].join("\n");
@@ -62,12 +63,14 @@ function apiExample(): string {
 
 export function CreateTokenDrawer({
 	draft,
+	viewing = null,
 	data,
 	now,
 	onClose,
 	onCreated,
 }: {
 	draft: CreateDraft | null;
+	viewing?: { token: Token; owner: OwnerKey } | null;
 	data: TokenData;
 	now: number;
 	onClose: () => void;
@@ -78,7 +81,7 @@ export function CreateTokenDrawer({
 	const config = useQuery(getConfig, {}, { enabled: draft !== null });
 	return (
 		<Sheet
-			open={draft !== null}
+			open={draft !== null || viewing !== null}
 			disablePointerDismissal={secret !== null}
 			onOpenChange={(open) => {
 				if (open) return;
@@ -86,10 +89,15 @@ export function CreateTokenDrawer({
 				onClose();
 			}}
 		>
-			<SheetContent size="wide" initialFocus={nameRef}>
+			<SheetContent size="wide" initialFocus={viewing === null ? nameRef : undefined}>
 				<SheetHeader>
-					<SheetTitle>{secret === null ? "New token" : "Token created"}</SheetTitle>
+					<SheetTitle>
+						{viewing !== null ? "Token details" : secret === null ? "New token" : "Token created"}
+					</SheetTitle>
 				</SheetHeader>
+				{viewing !== null && (
+					<ReadOnlyToken token={viewing.token} owner={viewing.owner} data={data} onClose={onClose} />
+				)}
 				{secret !== null && (
 					<Reveal
 						name={secret.name}
@@ -129,6 +137,80 @@ export function CreateTokenDrawer({
 				)}
 			</SheetContent>
 		</Sheet>
+	);
+}
+
+function TokenFields({
+	name,
+	owner,
+	expires,
+	permissions,
+}: {
+	name: ReactNode;
+	owner: ReactNode;
+	expires: ReactNode;
+	permissions: ReactNode;
+}) {
+	return (
+		<SheetBody>
+			{name}
+			<div className="flex flex-col gap-1.5">
+				<span className="text-[13px] font-medium">Owner</span>
+				{owner}
+			</div>
+			<div className="flex flex-col gap-1.5">
+				<span className="text-[13px] font-medium">Expires</span>
+				{expires}
+			</div>
+			<div className="flex flex-col gap-1.5">
+				<span className="text-[13px] font-medium">Permissions</span>
+				{permissions}
+			</div>
+		</SheetBody>
+	);
+}
+
+function ReadOnlyToken({
+	token,
+	owner,
+	data,
+	onClose,
+}: {
+	token: Token;
+	owner: OwnerKey;
+	data: TokenData;
+	onClose: () => void;
+}) {
+	const timePref = useTimePreferences();
+	const expires = maybeTsMs(token.expiresAt);
+	return (
+		<>
+			<TokenFields
+				name={
+					<Field label="Name">
+						<Input readOnly value={token.name} className="font-mono" />
+					</Field>
+				}
+				owner={<Input readOnly aria-label="Owner" value={`${OWNER_TITLE[owner]}: ${data.owners[owner].owner.label}`} />}
+				expires={
+					<Input
+						readOnly
+						aria-label="Expires"
+						value={
+							expires === undefined
+								? "Never"
+								: `${formatMonthDayYear(expires, timePref)}, ${formatHourMinute(expires, timePref)}`
+						}
+					/>
+				}
+				permissions={<TokenScopeList token={token} entities={data.entities} />}
+			/>
+			<SheetFooter>
+				<Button type="button" variant="outline" onClick={onClose}>
+					Close
+				</Button>
+			</SheetFooter>
+		</>
 	);
 }
 
@@ -215,42 +297,44 @@ function CreateForm({
 
 	return (
 		<form
+			noValidate
 			className="contents"
 			onSubmit={(e) => {
 				e.preventDefault();
 				void submit();
 			}}
 		>
-			<SheetBody>
-				<Field
-					label="Name"
-					error={nameErr}
-					reserve
-					hint={
-						name !== typed && name !== "" ? (
-							<>
-								Saved as <span className="font-mono">{name}</span>
-							</>
-						) : undefined
-					}
-				>
-					<Input
-						ref={nameRef}
-						autoComplete="off"
-						value={typed}
-						maxLength={NAME_MAX}
-						placeholder="github-actions-deploy"
-						aria-invalid={nameErr !== null}
-						className="font-mono"
-						onChange={(e) => {
-							setTyped(e.target.value);
-							setNameTouched(true);
-							setNameTaken(null);
-						}}
-					/>
-				</Field>
-				<div className="flex flex-col gap-1.5">
-					<span className="text-[13px] font-medium">Owner</span>
+			<TokenFields
+				name={
+					<Field
+						label="Name"
+						error={nameErr}
+						reserve
+						hint={
+							name !== typed && name !== "" ? (
+								<>
+									Saved as <span className="font-mono">{name}</span>
+								</>
+							) : undefined
+						}
+					>
+						<Input
+							ref={nameRef}
+							autoComplete="off"
+							value={typed}
+							maxLength={NAME_MAX}
+							placeholder="github-actions-deploy"
+							aria-invalid={nameErr !== null}
+							className="font-mono"
+							onChange={(e) => {
+								setTyped(e.target.value);
+								setNameTouched(true);
+								setNameTaken(null);
+							}}
+						/>
+					</Field>
+				}
+				owner={
 					<ToggleGroup
 						variant="segmented"
 						aria-label="Owner"
@@ -278,76 +362,78 @@ function CreateForm({
 							);
 						})}
 					</ToggleGroup>
-				</div>
-				<div className="flex flex-col gap-1.5">
-					<span className="text-[13px] font-medium">Expires</span>
-					<ToggleGroup
-						variant="segmented"
-						aria-label="Expiry"
-						className="w-max"
-						value={[selected === CUSTOM ? CUSTOM : seconds.toString()]}
-						onValueChange={(v: string[]) => {
-							if (v[0] === CUSTOM) {
-								setSelected(CUSTOM);
-								return;
-							}
-							const next = options.find((d) => d.toString() === v[0]);
-							if (next !== undefined) setSelected(next);
-						}}
-					>
-						{options.map((d) => (
-							<ToggleGroupItem key={d} value={d.toString()}>
-								{(d * MS_PER_SECOND) % DAY_MS === 0
-									? pluralize((d * MS_PER_SECOND) / DAY_MS, "day")
-									: pluralize(d, "second")}
-							</ToggleGroupItem>
-						))}
-						<ToggleGroupItem value={CUSTOM}>Custom</ToggleGroupItem>
-					</ToggleGroup>
-					{selected === CUSTOM && (
-						<DateTimePicker
-							label="Expires at"
-							value={customAt}
-							onChange={(value) => {
-								const ms = fromLocalInput(value, timePref);
-								setCustom({ ms, text: Number.isFinite(ms) ? null : value });
+				}
+				expires={
+					<>
+						<ToggleGroup
+							variant="segmented"
+							aria-label="Expiry"
+							className="w-max"
+							value={[selected === CUSTOM ? CUSTOM : seconds.toString()]}
+							onValueChange={(v: string[]) => {
+								if (v[0] === CUSTOM) {
+									setSelected(CUSTOM);
+									return;
+								}
+								const next = options.find((d) => d.toString() === v[0]);
+								if (next !== undefined) setSelected(next);
 							}}
-						/>
-					)}
-					{expiryErr === null ? (
-						<span className="text-[12.5px] text-fg3">
-							Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND, timePref)},{" "}
-							{formatHourMinute(now + seconds * MS_PER_SECOND, timePref)}
-						</span>
-					) : (
-						<span className="text-[12.5px] text-bad-fg">{expiryErr}</span>
-					)}
-				</div>
-				<div className="flex flex-col gap-1.5">
-					<span className="text-[13px] font-medium">Permissions</span>
-					<AccessPicker
-						key={ownerKey}
-						roots={data.roots}
-						org={data.activeOrg}
-						held={data.held}
-						items={items}
-						allowUser={ownerKey === "user"}
-						scope={ownerKey === "user" ? null : owner.node}
-						onChange={setItems}
-					/>
-					<span className="text-[12.5px] text-fg3">You can only grant access you hold yourself.</span>
-					{allows.length > 0 && (
-						<ul className="m-0 mt-1.5 flex list-none flex-col gap-1.5 p-0">
-							{allows.map((line) => (
-								<li key={line} className="flex items-start gap-2 text-[12.5px] text-fg2">
-									<CheckIcon className="mt-0.5 size-3.5 shrink-0 text-ok-fg" />
-									{line}
-								</li>
+						>
+							{options.map((d) => (
+								<ToggleGroupItem key={d} value={d.toString()}>
+									{(d * MS_PER_SECOND) % DAY_MS === 0
+										? pluralize((d * MS_PER_SECOND) / DAY_MS, "day")
+										: pluralize(d, "second")}
+								</ToggleGroupItem>
 							))}
-						</ul>
-					)}
-				</div>
-			</SheetBody>
+							<ToggleGroupItem value={CUSTOM}>Custom</ToggleGroupItem>
+						</ToggleGroup>
+						{selected === CUSTOM && (
+							<DateTimePicker
+								label="Expires at"
+								value={customAt}
+								onChange={(value) => {
+									const ms = fromLocalInput(value, timePref);
+									setCustom({ ms, text: Number.isFinite(ms) ? null : value });
+								}}
+							/>
+						)}
+						{expiryErr === null ? (
+							<span className="text-[12.5px] text-fg3">
+								Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND, timePref)},{" "}
+								{formatHourMinute(now + seconds * MS_PER_SECOND, timePref)}
+							</span>
+						) : (
+							<span className="text-[12.5px] text-bad-fg">{expiryErr}</span>
+						)}
+					</>
+				}
+				permissions={
+					<>
+						<AccessPicker
+							key={ownerKey}
+							roots={data.roots}
+							org={data.activeOrg}
+							held={data.held}
+							items={items}
+							allowUser={ownerKey === "user"}
+							scope={ownerKey === "user" ? null : owner.node}
+							onChange={setItems}
+						/>
+						<span className="text-[12.5px] text-fg3">You can only grant access you hold yourself.</span>
+						{allows.length > 0 && (
+							<ul className="m-0 mt-1.5 flex list-none flex-col gap-1.5 p-0">
+								{allows.map((line) => (
+									<li key={line} className="flex items-start gap-2 text-[12.5px] text-fg2">
+										<CheckIcon className="mt-0.5 size-3.5 shrink-0 text-ok-fg" />
+										{line}
+									</li>
+								))}
+							</ul>
+						)}
+					</>
+				}
+			/>
 			<SheetFooter>
 				<Button type="button" variant="outline" onClick={onCancel}>
 					Cancel
@@ -366,8 +452,7 @@ function CreateForm({
 
 function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone: () => void }) {
 	const [shown, setShown] = useState(false);
-	const shownSecret = maskSecret(secret, shown);
-	const ciCommand = (token: string) => `export LOCO_TOKEN=${token}\nloco deploy`;
+	const [curlShown, setCurlShown] = useState(false);
 	return (
 		<>
 			<SheetBody>
@@ -379,31 +464,32 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 				</span>
 				<SecretValue secret={secret} shown={shown} onShownChange={setShown} noun="token" />
 				<Notice tone="warn">Copy it now. You won&apos;t be able to see it again.</Notice>
-				<div className="flex flex-col gap-3">
-					<span className="text-[13px] font-medium">Example usage</span>
-					<div className="flex flex-col gap-1.5">
-						<CodeBlock
-							lineNumbers={false}
-							wrap
-							copyText={ciCommand(secret)}
-							{...(shown ? {} : { label: "Example, token masked" })}
-							className={cn("[&_code]:break-all", !shown && "select-none")}
+				<div className="flex flex-col gap-1.5">
+					<div className="flex items-center justify-between gap-2">
+						<span className="text-[13px] font-medium">Curl</span>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-xs"
+							aria-label={curlShown ? "Hide token in curl" : "Show token in curl"}
+							title={curlShown ? "Hide token in curl" : "Show token in curl"}
+							aria-pressed={curlShown}
+							onClick={() => {
+								setCurlShown(!curlShown);
+							}}
 						>
-							{ciCommand(shownSecret)}
-						</CodeBlock>
-						<span className="text-[12.5px] text-fg3">
-							In CI, save the token as a secret named <InlineCode>LOCO_TOKEN</InlineCode> and set{" "}
-							<InlineCode>LOCO_HOST</InlineCode> to the API URL.
-						</span>
+							{curlShown ? <EyeOffIcon /> : <EyeIcon />}
+						</Button>
 					</div>
-					<div className="flex flex-col gap-1.5">
-						<CodeBlock lineNumbers={false} wrap>
-							{apiExample()}
-						</CodeBlock>
-						<span className="text-[12.5px] text-fg3">
-							With the token in <InlineCode>LOCO_TOKEN</InlineCode>, this lists the scopes it holds.
-						</span>
-					</div>
+					<CodeBlock
+						lineNumbers={false}
+						wrap
+						copyText={apiExample(secret)}
+						label={curlShown ? undefined : "Curl command, token masked"}
+						className={cn("[&_code]:break-all", !curlShown && "select-none")}
+					>
+						{apiExample(curlShown ? secret : "***")}
+					</CodeBlock>
 				</div>
 			</SheetBody>
 			<SheetFooter>

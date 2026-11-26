@@ -1123,13 +1123,18 @@ def team(page):
 
 def tokens(page):
     page.goto(state["ui_url"] + "/tokens?owner=org")
-    check_table(
+    table = check_table(
         page,
         named_table("Tokens", "ci-deploy"),
         "Last used",
         "Created by",
-        clickable=False,
     )
+
+    table.locator("tbody tr[data-interactive]").first.get_by_role("cell").nth(1).click()
+    details = page.get_by_role("dialog", name="Token details", exact=True)
+    expect(details.get_by_label("Name", exact=True)).to_have_attribute("readonly", "")
+    page.keyboard.press("Escape")
+    expect(details).to_be_hidden()
 
 
 def webhooks(page):

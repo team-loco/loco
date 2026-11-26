@@ -322,7 +322,6 @@ function AllocatedCard({
 			label="Allocated"
 			growLeft
 			ariaLabel={`Allocated: ${formatCpu(cpuMilli)}, ${memory} memory`}
-			corner={<span className="font-mono text-[11.5px]">now</span>}
 			breakdown={
 				value.resourceCount > 0 ? (
 					<Breakdown
@@ -475,6 +474,7 @@ export function Totals({
 	environmentId,
 	envName,
 	nowMs,
+	actions,
 }: {
 	hrefFor: (id: string) => string;
 	orgId: string;
@@ -482,6 +482,7 @@ export function Totals({
 	environmentId: string;
 	envName: string;
 	nowMs: number;
+	actions?: ReactNode;
 }) {
 	const [range, setRange] = useQueryState("range", rangeParser);
 	const multiTenant = useMultiTenant();
@@ -521,26 +522,29 @@ export function Totals({
 	const sizeHref = `${resourcesPath(orgId, workspaceId)}?${new URLSearchParams({ env: envName, sort: "size.desc" }).toString()}`;
 	return (
 		<div className="flex flex-col gap-3">
-			<div className="flex items-center justify-between gap-2">
-				<p className="m-0 flex items-baseline gap-2 text-[12.5px] text-fg3">
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+				<p className="m-0 flex flex-wrap items-baseline gap-x-2 text-[12.5px] text-fg3">
 					<span className="text-[13px]">Public traffic</span>
 					<span>Requests from the internet</span>
 				</p>
-				<ToggleGroup
-					variant="segmented"
-					aria-label="Time range"
-					value={[range]}
-					onValueChange={(values) => {
-						const next = RANGES.find((r) => r === values[0]);
-						if (next !== undefined) void setRange(next);
-					}}
-				>
-					{RANGES.map((r) => (
-						<ToggleGroupItem key={r} value={r}>
-							{r}
-						</ToggleGroupItem>
-					))}
-				</ToggleGroup>
+				<div className="ml-auto flex items-center gap-2">
+					<ToggleGroup
+						variant="segmented"
+						aria-label="Time range"
+						value={[range]}
+						onValueChange={(values) => {
+							const next = RANGES.find((r) => r === values[0]);
+							if (next !== undefined) void setRange(next);
+						}}
+					>
+						{RANGES.map((r) => (
+							<ToggleGroupItem key={r} value={r}>
+								{r}
+							</ToggleGroupItem>
+						))}
+					</ToggleGroup>
+					{actions}
+				</div>
 			</div>
 			{traffic.error !== null && (
 				<PartialError

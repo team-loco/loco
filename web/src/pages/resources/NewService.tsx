@@ -1,6 +1,6 @@
 import { useQuery as useRpcQuery } from "@connectrpc/connect-query";
 import { toast } from "@/lib/toast";
-import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, InfoIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import { InlineInput } from "@/components/design/InlineInput";
 import { Input } from "@/components/design/Input";
 import { AppDomainInput } from "@/components/design/AppDomainInput";
 import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -640,7 +641,13 @@ function ServiceForm({
 					<Field
 						label="Container image"
 						error={errors.image ?? apiError("image") ?? imageCheck.error}
-						hint={imageCheck.checking ? "Checking the image…" : undefined}
+						aside={
+							imageCheck.checking ? (
+								<span role="status" className="text-[12.5px] text-fg3">
+									Checking the image…
+								</span>
+							) : undefined
+						}
 					>
 						<Input
 							value={image}
@@ -706,13 +713,21 @@ function ServiceForm({
 					<span className="-mt-1 text-[12.5px] text-fg3">
 						{form.isPublic ? (
 							"Gets an HTTPS address on an app domain."
+						) : form.port === "" ? (
+							"Without a port, this runs as a worker with no internal address."
 						) : (
 							<>
-								Reachable only by other resources in <InlineCode>{env.name}</InlineCode>.
+								Reachable at <InlineCode>{`http://${slug}`}</InlineCode> inside the workspace in{" "}
+								<InlineCode>{env.name}</InlineCode>.
 							</>
 						)}
 					</span>
-					<div className="grid grid-cols-1 items-start gap-x-4 gap-y-3 sm:grid-cols-[minmax(0,1fr)_110px]">
+					<div
+						className={cn(
+							"grid grid-cols-1 items-start gap-x-4 gap-y-3",
+							form.isPublic && "sm:grid-cols-[minmax(0,1fr)_110px]",
+						)}
+					>
 						{form.isPublic && (
 							<div className="flex min-w-0 flex-col gap-1.5">
 								<span className="text-[13px] font-medium">Address</span>
@@ -735,8 +750,30 @@ function ServiceForm({
 						)}
 						<Field
 							label="Port"
+							aside={
+								<Popover>
+									<PopoverTrigger
+										openOnHover
+										render={
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon-xs"
+												className="size-4"
+												aria-label="About the container port"
+											/>
+										}
+									>
+										<InfoIcon className="size-3.5" />
+									</PopoverTrigger>
+									<PopoverContent side="top" align="start" aria-label="Container port" className="w-64 text-[12.5px]">
+										The port your application listens on inside the container. Internal addresses use port 80 and are
+										reachable within the same environment and cluster.
+									</PopoverContent>
+								</Popover>
+							}
 							error={shown(errors.port, "port") ?? apiError("port")}
-							className="max-w-[140px] sm:col-start-2 sm:max-w-none"
+							className="w-[110px] max-w-full [&>span]:justify-start [&>span]:gap-1.5"
 						>
 							<Input
 								value={form.port}

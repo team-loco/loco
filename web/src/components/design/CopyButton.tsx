@@ -21,14 +21,15 @@ export function CopyButton({
 	return (
 		<Button
 			variant="outline"
-			size="sm"
-			aria-label={copied === null ? name : "Copied"}
+			size="icon-sm"
+			className="shrink-0"
+			title={copied === null ? (name ?? label) : "Copied"}
+			aria-label={copied === null ? (name ?? label) : "Copied"}
 			onClick={() => {
 				copy(COPY_KEY, text, toastText);
 			}}
 		>
 			{copied === null ? <CopyIcon /> : <CheckIcon className="text-ok-fg" />}
-			{copied === null ? label : "Copied"}
 		</Button>
 	);
 }

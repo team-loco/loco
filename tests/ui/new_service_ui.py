@@ -300,8 +300,13 @@ with session(out) as browser:
     reject_next = []
     missing = "registry.example.com/acme/doesnotexist:1"
     pinned_image = f"registry.example.com/acme/{repository}@sha256:" + "a" * 64
+    held_image_checks = []
+    hold_image_check = True
 
     def resolve_image(route):
+        if hold_image_check:
+            held_image_checks.append(route)
+            return
         if route.request.post_data_json["image"] == missing:
             route.fulfill(
                 status=400,
@@ -352,8 +357,8 @@ with session(out) as browser:
         "**/loco.deployment.v1.DeploymentService/CreateDeployment",
         create_deployment,
     )
-    page.goto(base + "/resources?env=production")
-    open_new_service(page)
+    page.goto(base + "?env=production")
+    page.get_by_role("link", name="New resource", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
     ask = page.get_by_role("dialog", name="New resource")
     image_input = ask.get_by_role("textbox", name="Container image")
@@ -368,7 +373,8 @@ with session(out) as browser:
     image_input.fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
     expect(name_input).to_have_value(name)
-    ask.get_by_role("button", name="Continue", exact=True).click()
+    with page.expect_request("**/loco.deployment.v1.DeploymentService/ResolveImage"):
+        ask.get_by_role("button", name="Continue", exact=True).click()
 
     expect(page).to_have_url(DRAFT_URL)
     drawer = page.get_by_role("dialog", name=name, exact=True)
@@ -376,6 +382,54 @@ with session(out) as browser:
         drawer.get_by_role("textbox", name="Container image", exact=True)
     ).to_have_value(image)
     expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
+    info = drawer.get_by_role("button", name="About the container port", exact=True)
+    help_popup = page.locator('[data-slot="popover-content"]')
+    expect(help_popup).to_be_hidden()
+    info.hover()
+    expect(help_popup).to_contain_text(
+        "The port your application listens on inside the container."
+    )
+    # Finishing an image check must not move a hovered control out from under the pointer.
+    info_before = info.bounding_box()
+    hold_image_check = False
+    held_image_checks.pop().fulfill(json={"image": pinned_image})
+    expect(drawer.get_by_text("Checking the image…", exact=True)).to_be_hidden()
+    assert abs(info.bounding_box()["y"] - info_before["y"]) < 1
+    expect(help_popup).to_be_visible()
+    page.mouse.move(0, 0)
+    expect(help_popup).to_be_hidden()
+    info.click()
+    expect(help_popup).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(help_popup).to_be_hidden()
+    expect(drawer).to_be_visible()
+    info.focus()
+    page.keyboard.press("Enter")
+    expect(help_popup).to_be_visible()
+    page.keyboard.press("Escape")
+    drawer.get_by_role("button", name="Internal", exact=True).click()
+    expect(
+        drawer.get_by_text(
+            "Without a port, this runs as a worker with no internal address.",
+            exact=True,
+        )
+    ).to_be_visible()
+    port_preview = drawer.get_by_role("textbox", name="Port", exact=True)
+    port_preview.fill("8080")
+    expect(drawer.get_by_text(f"http://{name}", exact=True)).to_be_visible()
+    expect(
+        drawer.get_by_text(
+            f"Reachable at http://{name} inside the workspace in production.",
+            exact=True,
+        )
+    ).to_be_visible()
+    assert (
+        port_preview.bounding_box()["x"]
+        < drawer.bounding_box()["x"] + drawer.bounding_box()["width"] / 2
+    )
+    port_preview.fill("")
+    drawer.get_by_role("button", name="Public", exact=True).click()
+
     expect(drawer.get_by_text("Draft", exact=True).locator("svg")).to_have_css(
         "animation-name", "spin"
     )
