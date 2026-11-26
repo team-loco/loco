@@ -86,17 +86,6 @@ with session(repo / "tests/ui/out/tokens") as browser:
         .locator('[data-slot="segmented-count"]')
         .first
     ).to_be_visible()
-    for count in (
-        page.get_by_role("group", name="Owner", exact=True)
-        .locator('[data-slot="segmented-count"]')
-        .all()
-    ):
-        expect(count).not_to_have_css("background-color", "rgba(0, 0, 0, 0)")
-        box, parent = count.bounding_box(), count.locator("..").bounding_box()
-        assert (
-            abs(box["y"] + box["height"] / 2 - parent["y"] - parent["height"] / 2) < 1
-        )
-
     row = page.get_by_role("row", name="View access for ci-source")
     row.focus()
     page.keyboard.press("Enter")

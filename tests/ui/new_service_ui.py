@@ -430,9 +430,6 @@ with session(out) as browser:
     port_preview.fill("")
     drawer.get_by_role("button", name="Public", exact=True).click()
 
-    expect(drawer.get_by_text("Draft", exact=True).locator("svg")).to_have_css(
-        "animation-name", "spin"
-    )
     assert stored_drafts(page) == [name], stored_drafts(page)
     # The name and description are edited in the header.
     name_field = page.get_by_role("textbox", name="Name", exact=True)

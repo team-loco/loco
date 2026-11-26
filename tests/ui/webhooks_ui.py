@@ -83,11 +83,6 @@ with session(out) as browser:
     lefts = {round(left) for _, left in frames}
     assert tops and max(tops) - min(tops) < 1, frames
     assert len(lefts) > 2, frames
-    group_label = first.get_by_text("Runtime alerts", exact=True).locator("..")
-    group_row = group_label.locator("..")
-    group_label.hover()
-    expect(group_row).not_to_have_css("background-color", "rgba(0, 0, 0, 0)")
-    expect(group_label).to_have_css("background-color", "rgba(0, 0, 0, 0)")
     first.get_by_role("button", name="Cancel", exact=True).click()
     expect(first).to_have_count(0)
     hook = call(

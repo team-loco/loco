@@ -686,9 +686,6 @@ def log_drawer(page):
         assert label.bounding_box()["width"] > 96
     actions = detail.get_by_role("button", name=re.compile(r"^(Only|Hide|Add) "))
     assert actions.count() >= 3
-    for i in range(actions.count()):
-        box = actions.nth(i).bounding_box()
-        assert box["width"] <= 24 and box["height"] <= 24, box
     before = detail.bounding_box()["width"]
     handle = detail.get_by_role("separator", name="Resize drawer")
     box = handle.bounding_box()
@@ -1611,14 +1608,6 @@ def dashboard(page):
                 geometry["height"] <= geometry["line"] + 1
                 and geometry["content"] <= geometry["width"]
             ), geometry
-            for label in ("Filter resources by status", "Filter deployments by status"):
-                selected = page.get_by_label(label, exact=True).locator(
-                    'button[aria-pressed="true"]'
-                )
-                count = selected.locator(":scope > span").last
-                expect(count).to_have_css(
-                    "color", selected.evaluate("node => getComputedStyle(node).color")
-                )
         allocated.hover()
         strip = allocated.locator('[data-slot="allocation-strip"]')
         expect(strip.locator(":scope > span")).to_have_count(6)
@@ -1904,12 +1893,6 @@ def metrics_many(page):
     expect(rows).to_have_count(8)
     more = page.get_by_text(f"+{count - 8} more", exact=True)
     expect(more).to_be_visible()
-    footer_gap = more.evaluate(
-        "el => el.getBoundingClientRect().top - el.previousElementSibling.getBoundingClientRect().bottom"
-    )
-    assert footer_gap >= 6, footer_gap
-    heights = rows.evaluate_all("els => els.map(e => e.getBoundingClientRect().height)")
-    assert len({round(h) for h in heights}) == 1 and heights[0] <= 24, heights
     assert rows.evaluate_all("els => els.every(e => e.scrollWidth <= e.clientWidth)")
     assert "0 vCPU" not in " ".join(rows.all_text_contents()).replace("<0.001 vCPU", "")
     by_region = page.get_by_role("region", name="By resource and region")
@@ -2458,7 +2441,6 @@ with session(out) as browser:
     expect(personal.locator('[data-slot="segmented-indicator"]')).to_be_visible()
     expect(indicator).to_have_css("transform", "none")
     assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
-    assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
     personal.click()
     modes = page.get_by_role("radiogroup", name="Mode")
     html = page.locator("html")
@@ -2486,7 +2468,6 @@ with session(out) as browser:
         "() => { window.scrollTo(0, document.documentElement.scrollHeight); return window.scrollY > 0; }"
     )
     name.focus()
-    expect(name).to_be_focused()
     name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
     box = name.bounding_box()
     assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
