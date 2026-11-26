@@ -167,3 +167,21 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set in both obsProxy.ingest.env and platformTelemetry"
+
+  - it: refuses overriding the generated proxy exporter token
+    set:
+      platformTelemetry.enabled: true
+      obsProxy.ingest.env.LOCO_SYSTEM_INGEST_TOKEN: wrong-token
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "LOCO_SYSTEM_INGEST_TOKEN is set in both obsProxy.ingest.env and platformTelemetry"
+
+  - it: refuses overriding the generated proxy instance identity
+    set:
+      platformTelemetry.enabled: true
+      obsProxy.ingest.env.LOCO_POD_UID: wrong-pod
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "LOCO_POD_UID is set in both obsProxy.ingest.env and platformTelemetry"
