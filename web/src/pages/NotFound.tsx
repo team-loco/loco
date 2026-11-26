@@ -1,4 +1,4 @@
-import { LayoutGridIcon, SearchIcon } from "lucide-react";
+import { LayoutGridIcon } from "lucide-react";
 import { Component, type ComponentProps, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 
@@ -6,9 +6,7 @@ import { PageTitle } from "@/components/PageTitle";
 import { Button } from "@/components/design/Button";
 import { ART_SOFT, ART_STRONG, ClusterArt } from "@/components/design/ClusterArt";
 import { EmptyHero } from "@/components/design/EmptyHero";
-import { Kbd } from "@/components/design/Kbd";
 import { LocoLogo } from "@/components/design/LocoLogo";
-import { SHORTCUT_LABEL, useOpenPalette } from "@/components/shell/CommandMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { PageNotFound } from "@/lib/not-found";
 import { workspacePath } from "@/lib/routes";
@@ -64,21 +62,10 @@ function MissingPath() {
 	);
 }
 
-function PaletteButton() {
-	const openPalette = useOpenPalette();
-	return (
-		<Button variant="outline" aria-keyshortcuts="Meta+K Control+K" onClick={openPalette}>
-			<SearchIcon className="text-fg3" aria-hidden />
-			Command palette
-			<Kbd className="ml-0.5">{SHORTCUT_LABEL}</Kbd>
-		</Button>
-	);
-}
-
 /**
  * `staticPage` renders the page for the 404 file the static server returns for missing files and unknown
  * documentation paths, built by build.ts. That file runs no script and has no router, so it leaves out the
- * parts that need them (the missing path and the command palette button) and gets the logo inline, because
+ * missing path, which needs the router and gets the logo inline, because
  * /logo.svg does not exist on the documentation host.
  */
 export function NotFound({
@@ -124,7 +111,6 @@ export function NotFound({
 							<LayoutGridIcon className="text-fg3" aria-hidden />
 							Go to dashboard
 						</Button>
-						{!isStatic && <PaletteButton />}
 					</div>
 				</EmptyHero>
 			</div>
