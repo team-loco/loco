@@ -450,13 +450,16 @@ with session(out) as browser:
                 "menuitemradio", name=re.compile(deployment_id[-8:])
             ).click()
             page.keyboard.press("Escape")
-        expect(picker).to_contain_text(deployment_id[-8:])
+        expect(picker).to_have_text(re.compile(rf"^{deployment_id[-8:]} \([^)]+\)$"))
         with page.expect_download() as download:
             spec_dialog.get_by_role("button", name="Download spec", exact=True).click()
         assert (
             download.value.suggested_filename == f"deployment-{deployment_id[-8:]}.yaml"
         )
     spec_dialog.get_by_role("button", name="Compare with…", exact=True).click()
+    expect(
+        spec_dialog.get_by_role("button", name="Compare with", exact=True)
+    ).to_have_text(re.compile(r"^[a-z0-9]{8} \([^)]+\)$"))
     long_cells = scroller.locator("span", has_text="sha256")
     expect(long_cells).to_have_count(2)
     pane_edges = """(scroller) => {
@@ -481,7 +484,10 @@ with session(out) as browser:
     picker.click()
     expect(
         page.get_by_role("menuitemradio", name=re.compile(data["releases"][3][-8:]))
-    ).to_have_text(re.compile(r"\) in [a-z0-9-]+(, [a-z0-9-]+)*\s*$"))
+    ).to_have_text(re.compile(r"^[a-z0-9]{8} \([^)]+\)$"))
+    expect(
+        page.get_by_role("menuitemradio", name=re.compile(data["releases"][0][-8:]))
+    ).to_have_text(re.compile(r"^[a-z0-9]{8} \([^)]+\)running$"))
     page.keyboard.press("Escape")
     page.keyboard.press("Escape")
     expect(
