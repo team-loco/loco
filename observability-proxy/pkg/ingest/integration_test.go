@@ -326,6 +326,8 @@ func TestLogBodiesRoundTripAndRemainSearchable(t *testing.T) {
 			if entries[0].GetBody() != tc.want {
 				t.Fatalf("body = %q, want %q", entries[0].GetBody(), tc.want)
 			}
+			t.Logf("query: @case:%s %s\nbody: %s\nattributes: %v",
+				tc.name, tc.query, entries[0].GetBody(), entries[0].GetLogAttributes())
 		})
 	}
 }
