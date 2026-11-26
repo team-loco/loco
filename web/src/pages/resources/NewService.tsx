@@ -641,7 +641,13 @@ function ServiceForm({
 					<Field
 						label="Container image"
 						error={errors.image ?? apiError("image") ?? imageCheck.error}
-						hint={imageCheck.checking ? "Checking the image…" : undefined}
+						aside={
+							imageCheck.checking ? (
+								<span role="status" className="text-[12.5px] text-fg3">
+									Checking the image…
+								</span>
+							) : undefined
+						}
 					>
 						<Input
 							value={image}

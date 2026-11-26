@@ -300,8 +300,13 @@ with session(out) as browser:
     reject_next = []
     missing = "registry.example.com/acme/doesnotexist:1"
     pinned_image = f"registry.example.com/acme/{repository}@sha256:" + "a" * 64
+    held_image_checks = []
+    hold_image_check = True
 
     def resolve_image(route):
+        if hold_image_check:
+            held_image_checks.append(route)
+            return
         if route.request.post_data_json["image"] == missing:
             route.fulfill(
                 status=400,
@@ -368,7 +373,8 @@ with session(out) as browser:
     image_input.fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
     expect(name_input).to_have_value(name)
-    ask.get_by_role("button", name="Continue", exact=True).click()
+    with page.expect_request("**/loco.deployment.v1.DeploymentService/ResolveImage"):
+        ask.get_by_role("button", name="Continue", exact=True).click()
 
     expect(page).to_have_url(DRAFT_URL)
     drawer = page.get_by_role("dialog", name=name, exact=True)
@@ -383,6 +389,13 @@ with session(out) as browser:
     expect(help_popup).to_contain_text(
         "The port your application listens on inside the container."
     )
+    # Finishing an image check must not move a hovered control out from under the pointer.
+    info_before = info.bounding_box()
+    hold_image_check = False
+    held_image_checks.pop().fulfill(json={"image": pinned_image})
+    expect(drawer.get_by_text("Checking the image…", exact=True)).to_be_hidden()
+    assert abs(info.bounding_box()["y"] - info_before["y"]) < 1
+    expect(help_popup).to_be_visible()
     page.mouse.move(0, 0)
     expect(help_popup).to_be_hidden()
     info.click()
