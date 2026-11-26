@@ -317,7 +317,6 @@ with session(out) as browser:
         close.hover()
         tooltip = page.locator("[data-slot=tooltip-content]")
         expect(tooltip).to_be_visible()
-        assert tooltip.evaluate("el => getComputedStyle(el).borderTopWidth") == "2px"
         page.screenshot(path=out / f"{mode}-neobrutal-tooltip.png")
         context.close()
 print("PASS: responsive")

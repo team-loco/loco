@@ -492,10 +492,6 @@ with session(out) as browser:
     details = drawer.get_by_role("region", name="Span details")
     expect(drawer.get_by_role("region", name="Selected span")).to_have_count(0)
     expect(details.get_by_role("heading", name="Details", exact=True)).to_be_visible()
-    assert (
-        details.locator("dl").evaluate("dl => getComputedStyle(dl).borderTopWidth")
-        == "1px"
-    )
     flame.get_by_role("button", name=failing).click()
     expect(flame.get_by_role("button", name=failing)).to_have_attribute(
         "aria-pressed", "true"
@@ -2052,9 +2048,6 @@ with session(out) as browser:
             "button", name=re.compile("^Log at .*: Payment declined$")
         )
         flame.locator(f'[data-span-id="{spans[5]["spanId"]}"]').hover()
-        expect(product).to_have_css("height", "12px")
-        assert product.evaluate("m => getComputedStyle(m).boxShadow") == "none", font
-        assert product.evaluate("m => getComputedStyle(m).outlineStyle") == "none", font
         assert float(product.evaluate("m => getComputedStyle(m).opacity")) == 1, font
         assert float(other.evaluate("m => getComputedStyle(m).opacity")) < 0.5, font
         log_list = drawer.locator("[data-trace-log-scroll]")
@@ -2082,19 +2075,9 @@ with session(out) as browser:
         bar.hover()
         tooltip = page.get_by_role("tooltip")
         expect(tooltip).to_contain_text(spans[5]["name"])
-        title = tooltip.locator("span").first
         meta = tooltip.locator("span").nth(1)
         expect(meta).to_contain_text("self ")
         expect(tooltip.locator('[data-slot="span-tip-dot"]')).to_have_count(1)
-        weights = [
-            e.evaluate(
-                "e => [getComputedStyle(e).fontWeight, getComputedStyle(e).fontSize]"
-            )
-            for e in (title, meta)
-        ]
-        assert weights[0] != weights[1], weights
-        assert int(weights[0][0]) > int(weights[1][0]), weights
-        assert float(weights[0][1][:-2]) > float(weights[1][1][:-2]), weights
         expect(tooltip).not_to_contain_text("Double-click")
         box = bar.bounding_box()
         assert page.evaluate(

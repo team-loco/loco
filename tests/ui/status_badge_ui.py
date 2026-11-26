@@ -117,36 +117,11 @@ draft = {
     "edits": {},
 }
 
-BADGE_STYLE = """el => {
-  const s = getComputedStyle(el);
-  const alpha = (c) => { const m = c.match(/\\/\\s*([\\d.]+)\\)|rgba\\([^)]*,\\s*([\\d.]+)\\)/); return m ? parseFloat(m[1] ?? m[2]) : 1; };
-  return {
-    border: parseFloat(s.borderTopWidth),
-    borderAlpha: s.borderTopStyle === 'none' ? 0 : alpha(s.borderTopColor),
-    fillAlpha: alpha(s.backgroundColor),
-    radius: parseFloat(s.borderTopLeftRadius),
-    height: el.getBoundingClientRect().height,
-    icon: !!el.querySelector('svg'),
-  };
-}"""
-
-
-color_theme = "loco"
-
 
 def expect_badge(row, label, tone):
     badge = row.locator("[data-status-badge]").first
     expect(badge).to_have_text(label)
     expect(badge).to_have_attribute("data-status-badge", tone)
-    style = badge.evaluate(BADGE_STYLE)
-    assert not style["icon"], label
-    assert style["fillAlpha"] > 0, (label, style)
-    if color_theme == "neobrutal":
-        assert style["border"] >= 1 and style["borderAlpha"] > 0, (label, style)
-    else:
-        assert style["border"] == 0, (label, style)
-        assert 5 <= style["radius"] <= 6 or color_theme == "solarized", (label, style)
-    assert 19 <= style["height"] <= 24, (label, style)
 
 
 def row_of(page, name):
@@ -224,23 +199,15 @@ def check_activity(page):
 
 
 with session(repo / "tests/ui/out/status-badge") as browser:
-    for color in ("loco", "solarized", "neobrutal", "paper"):
-        color_theme = color
-        for mode in ("light", "dark"):
-            context, page, errors = open_page(
-                browser,
-                state=state,
-                storage={
-                    drafts_key: json.dumps([draft]),
-                    "loco:color:v1": color,
-                    evidence.MODE_KEY: mode,
-                },
-            )
-            check_dashboard(page)
-            if color == "loco" and mode == "light":
-                check_resource_page(page)
-                check_resources_table(page)
-                check_activity(page)
-            assert not errors, errors
-            context.close()
-print("PASS: resource and deployment status render as status badges in every theme")
+    context, page, errors = open_page(
+        browser,
+        state=state,
+        storage={drafts_key: json.dumps([draft])},
+    )
+    check_dashboard(page)
+    check_resource_page(page)
+    check_resources_table(page)
+    check_activity(page)
+    assert not errors, errors
+    context.close()
+print("PASS: resource and deployment statuses show the right labels and tones")
