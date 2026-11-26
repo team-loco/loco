@@ -684,6 +684,8 @@ def log_drawer(page):
         fits = label.evaluate("el => el.scrollWidth <= el.clientWidth")
         assert fits, f"{key} is truncated"
         assert label.bounding_box()["width"] > 96
+    actions = detail.get_by_role("button", name=re.compile(r"^(Only|Hide|Add) "))
+    assert actions.count() >= 3
     before = detail.bounding_box()["width"]
     handle = detail.get_by_role("separator", name="Resize drawer")
     box = handle.bounding_box()
