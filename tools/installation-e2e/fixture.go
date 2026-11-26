@@ -170,6 +170,9 @@ func (f *fixture) acceptance(ctx context.Context) error {
 			return checkErr
 		}
 	}
+	if err = f.prepareKindNodes(ctx); err != nil {
+		return err
+	}
 	if _, checkErr := command(
 		ctx,
 		f.root,
