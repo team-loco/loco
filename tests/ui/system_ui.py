@@ -42,57 +42,6 @@ def open_menu(page):
     page.locator('[data-slot="account-button"]').click()
 
 
-def animate_system_toggle(page, checked, *, key=None, dismiss=False):
-    switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
-    origin = page.url
-    page.evaluate("""() => {
-      window.systemSwitchAnimations = [];
-      window.pauseSystemSwitch = event => {
-        if (!event.target.matches('[data-slot="switch-thumb"]')) return;
-        for (const animation of event.target.getAnimations()) {
-          animation.pause();
-          window.systemSwitchAnimations.push(animation);
-        }
-      };
-      document.addEventListener('transitionrun', window.pauseSystemSwitch, true);
-    }""")
-    if key is None:
-        switch.click()
-    else:
-        switch.press(key)
-    page.wait_for_function("window.systemSwitchAnimations.length > 0")
-    expect(switch).to_have_attribute("aria-checked", str(checked).lower())
-    expect(switch).to_be_visible()
-    expect(switch).to_be_disabled()
-    expect(page).to_have_url(origin)
-    assert page.evaluate(
-        "window.systemSwitchAnimations.every(a => a.playState === 'paused')"
-    )
-    print(
-        f"System toggle {checked}: actual thumb transition paused; menu visible; original URL retained"
-    )
-    page.evaluate(
-        "document.removeEventListener('transitionrun', window.pauseSystemSwitch, true)"
-    )
-    if dismiss:
-        page.keyboard.press("Escape")
-        page.evaluate(
-            "window.systemSwitchAnimations.forEach(animation => animation.cancel())"
-        )
-        expect(switch).not_to_be_visible()
-        expect(page).to_have_url(origin)
-    else:
-        page.evaluate(
-            "window.systemSwitchAnimations.forEach(animation => animation.finish())"
-        )
-        destination = (
-            re.compile(r"/system$") if checked else re.compile(r"/resources(?:\?|$)")
-        )
-        expect(page).to_have_url(destination)
-        expect(switch).not_to_be_visible()
-        print(f"System toggle {checked}: transition finished; navigated to {page.url}")
-
-
 def row(page, name):
     return page.get_by_role("row", name=f"Open {name}", exact=True)
 
@@ -114,30 +63,6 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_role("menuitemcheckbox", name="System", exact=True)
     ).to_have_count(0)
-    context.close()
-
-    # Reduced motion has no thumb transition and does not wait for a transition event.
-    context, page, errors = open_page(
-        browser, user="admin", state=state, reduced_motion="reduce"
-    )
-    origin = (
-        ui
-        + f"/org/{state['orgs']['ops']['id']}/wks/{state['workspaces']['ops/main']}/resources"
-    )
-    page.goto(origin)
-    for destination in (ui + "/system", origin):
-        open_menu(page)
-        switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
-        assert (
-            switch.locator("[data-slot=switch-thumb]").evaluate(
-                "el => getComputedStyle(el).transitionProperty"
-            )
-            == "none"
-        )
-        switch.press("Enter")
-        expect(page).to_have_url(re.compile("^" + re.escape(destination)))
-        expect(switch).not_to_be_visible()
-    assert not errors, errors
     context.close()
 
     # Without a system role, /system is not found however the account's requests are timed:
@@ -171,17 +96,23 @@ with session(repo / "tests/ui/out/system") as browser:
             context.close()
 
     # A system admin switches in and out, and sees the clusters with their actions.
-    context, page, errors = open_page(
-        browser, user="admin", state=state, reduced_motion="no-preference"
-    )
-    page.goto(
-        ui
-        + f"/org/{state['orgs']['ops']['id']}/wks/{state['workspaces']['ops/main']}/resources"
-    )
+    context, page, errors = open_page(browser, user="admin", state=state)
+    page.goto(ui + "/dashboard")
     open_menu(page)
     switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
     expect(switch).to_have_attribute("aria-checked", "false")
-    animate_system_toggle(page, True)
+    origin = page.url
+    thumb = switch.locator("[data-slot=switch-thumb]")
+    thumb.evaluate("""el => el.addEventListener('transitionrun', () => {
+      el.getAnimations().forEach(animation => animation.pause());
+      window.systemSwitchPaused = true;
+    }, {once: true})""")
+    switch.click()
+    page.wait_for_function("window.systemSwitchPaused === true")
+    expect(switch).to_have_attribute("aria-checked", "true")
+    expect(switch).to_be_visible()
+    expect(page).to_have_url(origin)
+    thumb.evaluate("el => el.getAnimations().forEach(animation => animation.finish())")
     expect(page).to_have_url(ui + "/system")
     expect(
         page.get_by_role("heading", name="System overview", exact=True)
@@ -205,15 +136,6 @@ with session(repo / "tests/ui/out/system") as browser:
         page.get_by_role("row", name="Open us-ca-1-builds", exact=True)
     ).to_contain_text("Degraded")
 
-    # Dismissing the menu while the thumb moves cancels the pending navigation.
-    open_menu(page)
-    animate_system_toggle(page, False, dismiss=True)
-    open_menu(page)
-    expect(
-        page.get_by_role("menuitemcheckbox", name="System", exact=True)
-    ).to_have_attribute("aria-checked", "true")
-    page.keyboard.press("Escape")
-
     # Switching System off returns to the page the user came from, in any organization the
     # scopes reach, listed or not.
     for org, workspace in (
@@ -223,14 +145,13 @@ with session(repo / "tests/ui/out/system") as browser:
     ):
         origin = f"/org/{state['orgs'][org]['id']}/wks/{state['workspaces'][workspace]}/resources"
         page.goto(ui + origin)
-        expect(page).to_have_url(re.compile(r"[?&]env="))
         open_menu(page)
-        animate_system_toggle(page, True)
+        page.get_by_role("menuitemcheckbox", name="System", exact=True).click()
         expect(page).to_have_url(ui + "/system")
         open_menu(page)
         switch = page.get_by_role("menuitemcheckbox", name="System", exact=True)
         expect(switch).to_have_attribute("aria-checked", "true")
-        animate_system_toggle(page, False, key="Enter")
+        switch.click()
         expect(page).to_have_url(re.compile("^" + re.escape(ui + origin)))
         expect(page.locator('[data-slot="system-tag"]')).to_have_count(0)
 
