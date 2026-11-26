@@ -64,6 +64,13 @@ def expect_not_found(page, path):
     for name in ("Resources", "Logs", "Settings"):
         expect(page.get_by_role("link", name=name, exact=True)).to_have_count(0)
     expect(page.get_by_role("button", name="Search and run commands")).to_have_count(0)
+    expect(
+        page.get_by_role("button", name=re.compile("^Command palette"))
+    ).to_have_count(0)
+    dashboard = page.get_by_role("link", name="Go to dashboard", exact=True)
+    expect(dashboard).to_be_visible()
+    action = dashboard.bounding_box()
+    assert abs(action["x"] + action["width"] / 2 - page.viewport_size["width"] / 2) <= 1
 
 
 def stub_sign_in(context, user):
@@ -96,7 +103,9 @@ with session(out) as browser:
                 return Promise.resolve();
             };""")
     page.goto(ui + "/no/such/page?x=1")
-    expect_not_found(page, "/no/such/page?x=1")
+    for viewport in (evidence.NARROW, evidence.DESKTOP):
+        page.set_viewport_size(viewport)
+        expect_not_found(page, "/no/such/page?x=1")
     page.get_by_role("link", name="Go to dashboard", exact=True).click()
     expect(page).to_have_url(re.compile(rf"/org/{org}/wks/[0-9a-f-]+(\?env=[\w-]+)?$"))
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
@@ -113,19 +122,13 @@ with session(out) as browser:
     palette = page.get_by_role("dialog", name="Command palette")
     results = palette.get_by_role("listbox", name="Results")
     query = palette.get_by_role("combobox", name="Search resources, pages and actions")
-    search = page.get_by_role(
-        "button", name=re.compile(r"^Command palette (⌘K|Ctrl K)$")
-    )
-    search.click()
-    expect(query).to_be_focused()
-    page.keyboard.press("Escape")
-    expect(palette).to_have_count(0)
-    expect(search).to_be_focused()
+    dashboard = page.get_by_role("link", name="Go to dashboard", exact=True)
+    dashboard.focus()
     page.keyboard.press("ControlOrMeta+k")
     expect(query).to_be_focused()
     page.keyboard.press("Escape")
     expect(palette).to_have_count(0)
-    expect(search).to_be_focused()
+    expect(dashboard).to_be_focused()
 
     page.goto(base + "/resources")
     header = page.locator('[data-slot="top-bar"]')
