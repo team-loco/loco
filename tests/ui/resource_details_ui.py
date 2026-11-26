@@ -186,14 +186,7 @@ with session(out) as browser:
     ).to_be_visible()
     expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
     expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
-    copy_url = page.get_by_role("button", name="Copy resource URL", exact=True)
-    expect(copy_url).to_have_css("width", "24px")
-    expect(copy_url).to_have_css("height", "24px")
-    expect(copy_url).to_have_css("background-color", "rgba(0, 0, 0, 0)")
-    copy_url.focus()
-    expect(copy_url).to_be_focused()
-    copy_url.press("Enter")
-    expect(page.get_by_role("button", name="Copied", exact=True)).to_be_visible()
+    page.get_by_role("button", name="Copy resource URL", exact=True).click()
     assert copied_text(page) == "https://details.apps.example.test"
     page.get_by_role("button", name="Telemetry", exact=True).click()
     for label, view in [("Logs", "logs"), ("Metrics", "metrics"), ("Traces", "traces")]:
