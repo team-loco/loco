@@ -208,9 +208,10 @@ with session(out) as browser:
 
     page.goto(f"{base}?env=staging")
     # The empty environment is named by its name; its slug stays in the URL.
-    expect(
-        page.get_by_text("Nothing is deployed to Staging.", exact=False)
-    ).to_be_visible()
+    empty = page.locator("section").filter(
+        has=page.get_by_role("heading", name="No resources", exact=True)
+    )
+    expect(empty.get_by_text("Staging", exact=True)).to_be_visible()
     docs = page.get_by_role("link", name="Read the docs", exact=True)
     expect(docs).to_have_attribute("target", "_blank")
     assert not errors, errors

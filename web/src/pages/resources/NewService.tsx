@@ -408,9 +408,7 @@ function DraftPanel({
 			if (!open) return <SheetBody />;
 			return (
 				<SheetBody>
-					<EmptyState title="This draft isn't here">
-						It was deployed or discarded, or it was saved in another browser.
-					</EmptyState>
+					<EmptyState title="Draft not found" />
 				</SheetBody>
 			);
 		}

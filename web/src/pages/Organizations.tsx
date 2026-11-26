@@ -101,16 +101,14 @@ export function Organizations() {
 			return (
 				<EmptyState
 					icon={<Building2 />}
-					title="No organizations yet"
+					title="No organizations"
 					action={
 						<Button onClick={openCreate}>
 							<Plus />
-							Create your first organization
+							Create organization
 						</Button>
 					}
-				>
-					Get started by creating your first organization to manage workspaces and deploy resources.
-				</EmptyState>
+				/>
 			);
 		}
 		return (

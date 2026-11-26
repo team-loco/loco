@@ -108,7 +108,7 @@ export function ObsHero({
 }: {
 	view: ObservabilityView;
 	title: ReactNode;
-	body: ReactNode;
+	body?: ReactNode;
 	action?: ReactNode;
 	children?: ReactNode;
 }) {

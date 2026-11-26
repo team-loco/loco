@@ -277,16 +277,7 @@ function TraceSession({
 		return (
 			<>
 				{header}
-				<ObsHero
-					view="traces"
-					title={installation ? "No traces collected" : "Send your first trace"}
-					body={
-						installation
-							? "The API and the controllers send their traces here once platform telemetry is on."
-							: "Instrument your app to send traces. Loco configures the collector connection by default; you can also configure your SDK directly."
-					}
-					action={<WidenRangeButton />}
-				>
+				<ObsHero view="traces" title="No traces collected" action={<WidenRangeButton />}>
 					{!installation && <TraceSetup />}
 				</ObsHero>
 			</>

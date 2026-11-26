@@ -171,12 +171,6 @@ export function SecretsPage({
 									<EmptyHero
 										art={<SecretsArt environment={environmentName} />}
 										title={withCode`No secrets in ${environmentName}`}
-										subtitle={
-											<>
-												Secrets belong to an environment, and this one is <InlineCode>{environmentName}</InlineCode>.
-												Any resource here can refer to one from its variables.
-											</>
-										}
 										className="rounded-none"
 									>
 										<div className="mt-1.5 flex flex-wrap justify-center gap-2">
