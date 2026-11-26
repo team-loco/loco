@@ -108,7 +108,7 @@ with session(repo / "tests/ui/out/system") as browser:
       window.systemSwitchPaused = true;
     }, {once: true})""")
     switch.click()
-    page.wait_for_function("window.systemSwitchPaused === true")
+    page.wait_for_function("() => window.systemSwitchPaused === true")
     expect(switch).to_have_attribute("aria-checked", "true")
     expect(switch).to_be_visible()
     expect(page).to_have_url(origin)
