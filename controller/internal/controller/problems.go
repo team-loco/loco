@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -17,8 +16,6 @@ const (
 	reasonErrImagePull               = "ErrImagePull"
 	reasonInvalidImageName           = "InvalidImageName"
 	reasonCrashLoopBackOff           = "CrashLoopBackOff"
-	kubeletRootImage                 = "image will run as root"
-	kubeletNonNumericUser            = "non-numeric user"
 )
 
 func replicaProblemReason(
@@ -47,7 +44,7 @@ func replicaProblemReason(
 	}
 	for _, status := range pod.Status.ContainerStatuses {
 		if waiting := status.State.Waiting; waiting != nil {
-			if reason := waitingProblemReason(waiting.Reason, waiting.Message); reason != "" {
+			if reason := waitingProblemReason(waiting.Reason); reason != "" {
 				found(reason)
 			}
 			if waiting.Reason == reasonCrashLoopBackOff {
@@ -83,20 +80,13 @@ func replicaProblemReason(
 	return best
 }
 
-func waitingProblemReason(reason, detail string) loco.ProblemReason {
+func waitingProblemReason(reason string) loco.ProblemReason {
 	switch reason {
 	case reasonCreateContainerConfigError:
-		return configErrorReason(detail)
+		return loco.ProblemConfigError
 	case reasonImagePullBackOff, reasonErrImagePull, reasonInvalidImageName:
 		return loco.ProblemImagePullFailed
 	default:
 		return ""
 	}
-}
-
-func configErrorReason(detail string) loco.ProblemReason {
-	if strings.Contains(detail, kubeletRootImage) || strings.Contains(detail, kubeletNonNumericUser) {
-		return loco.ProblemImageUser
-	}
-	return loco.ProblemConfigError
 }

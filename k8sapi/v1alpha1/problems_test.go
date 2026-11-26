@@ -5,7 +5,7 @@ import "testing"
 func TestProblemMessages(t *testing.T) {
 	reasons := []ProblemReason{
 		ProblemBuildFailed, ProblemApplyFailed, ProblemUnschedulable,
-		ProblemImagePullFailed, ProblemImageUser, ProblemConfigError,
+		ProblemImagePullFailed, ProblemConfigError,
 		ProblemRestarting, ProblemRestartsExhausted, ProblemOutOfMemory, ProblemHealthCheckFailing,
 		ProblemDeployTimeout, ProblemUncleanShutdown,
 	}

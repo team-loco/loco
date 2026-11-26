@@ -18,11 +18,10 @@ import (
 )
 
 const (
-	stuckWorkspace          = "ws-stuck"
-	kubeletRootImageMessage = "container has runAsNonRoot and image will run as root " +
-		"(pod: \"resource-root_ws-stuck(1)\", container: resource-root)"
-	kubeletPullMessage  = "Back-off pulling image \"registry.example.com/app:v1\""
-	kubeletCrashMessage = "back-off 5m0s restarting failed container"
+	stuckWorkspace       = "ws-stuck"
+	kubeletConfigMessage = `secret "app-env" not found`
+	kubeletPullMessage   = "Back-off pulling image \"registry.example.com/app:v1\""
+	kubeletCrashMessage  = "back-off 5m0s restarting failed container"
 )
 
 func reconcileStuckApp(r *ApplicationReconciler, app *locov1alpha1.Application) {
@@ -104,23 +103,23 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		}
 	})
 
-	It("stops an image that runs as root until a new revision is placed", func() {
-		app := isolationTestApplication(stuckWorkspace, "root")
+	It("stops missing environment configuration until a new revision is placed", func() {
+		app := isolationTestApplication(stuckWorkspace, "config-recovery")
 		app.Spec.ServiceSpec.Routing = nil
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Available).To(BeFalse())
 
-		pod := createReplica(app, "root-replica")
-		setWaiting(pod, reasonCreateContainerConfigError, kubeletRootImageMessage)
+		pod := createReplica(app, "config-recovery-replica")
+		setWaiting(pod, reasonCreateContainerConfigError, kubeletConfigMessage)
 		reconcileStuckApp(r, app)
 
 		Expect(app.Status.Rollout.Problem).NotTo(BeNil())
-		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemImageUser))
-		Expect(app.Status.Rollout.Problem.Detail).To(ContainSubstring(kubeletRootImageMessage))
+		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemConfigError))
+		Expect(app.Status.Rollout.Problem.Detail).To(ContainSubstring(kubeletConfigMessage))
 		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
-		Expect(app.Status.Rollout.Stopped.Reason).To(Equal(locov1alpha1.ProblemImageUser))
+		Expect(app.Status.Rollout.Stopped.Reason).To(Equal(locov1alpha1.ProblemConfigError))
 		Expect(app.Status.Rollout.Stopped.Replica).To(Equal(pod.Name))
 		Expect(app.Status.Rollout.Stopped.Restarts).To(BeZero())
 		Expect(*appDeployment(app).Spec.Replicas).To(BeZero())
@@ -217,10 +216,10 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		pulling := createReplica(app, "mixed-a-pulling")
 		setWaiting(pulling, reasonErrImagePull, kubeletPullMessage)
 		broken := createReplica(app, "mixed-z-broken")
-		setWaiting(broken, reasonCreateContainerConfigError, kubeletRootImageMessage)
+		setWaiting(broken, reasonCreateContainerConfigError, kubeletConfigMessage)
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Rollout.Problem).NotTo(BeNil())
-		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemImageUser))
+		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemConfigError))
 
 		Expect(k8sClient.Delete(ctx, broken)).To(Succeed())
 		reconcileStuckApp(r, app)

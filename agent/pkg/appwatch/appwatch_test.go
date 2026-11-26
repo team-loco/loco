@@ -429,7 +429,7 @@ func TestRolloutForwarding(t *testing.T) {
 
 func TestStartupFailureIsReportedAsStopped(t *testing.T) {
 	for _, reason := range []locoControllerV1.ProblemReason{
-		locoControllerV1.ProblemConfigError, locoControllerV1.ProblemImageUser, locoControllerV1.ProblemImagePullFailed,
+		locoControllerV1.ProblemConfigError, locoControllerV1.ProblemImagePullFailed,
 	} {
 		t.Run(string(reason), func(t *testing.T) {
 			w := newWatcher(nil, nil, testNamespace)

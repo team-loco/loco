@@ -223,7 +223,6 @@ func stopReason(reason locoControllerV1.ProblemReason) agentv1.StopReason {
 	case locoControllerV1.ProblemRestartsExhausted:
 		return agentv1.StopReason_STOP_REASON_RESTARTS_EXHAUSTED
 	case locoControllerV1.ProblemConfigError,
-		locoControllerV1.ProblemImageUser,
 		locoControllerV1.ProblemImagePullFailed:
 		return agentv1.StopReason_STOP_REASON_STARTUP_FAILED
 	case locoControllerV1.ProblemDeployTimeout:

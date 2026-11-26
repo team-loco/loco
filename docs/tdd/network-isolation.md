@@ -116,9 +116,9 @@ removed and when the app is deleted.
 ### Pod hardening
 
 The namespace enforces, audits and warns the `restricted` Pod Security profile. App pods
-run with `runAsNonRoot`, the `RuntimeDefault` seccomp profile, no privilege escalation and
-all capabilities dropped, and neither the pod nor its ServiceAccount mounts an API token.
-Images must run as a numeric non-root user.
+use the image's chosen user inside a user namespace, with the `RuntimeDefault` seccomp
+profile, no privilege escalation and all capabilities dropped. Neither the pod nor its
+ServiceAccount mounts an API token.
 
 ---
 

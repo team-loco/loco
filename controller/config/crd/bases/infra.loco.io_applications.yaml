@@ -323,7 +323,6 @@ spec:
                         - apply_failed
                         - unschedulable
                         - image_pull_failed
-                        - image_user
                         - config_error
                         - restarting
                         - restarts_exhausted
@@ -485,7 +484,6 @@ spec:
                         - apply_failed
                         - unschedulable
                         - image_pull_failed
-                        - image_user
                         - config_error
                         - restarting
                         - restarts_exhausted

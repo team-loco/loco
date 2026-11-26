@@ -64,7 +64,7 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 
 func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	t.Parallel()
-	const detail = "container has runAsNonRoot and image will run as root"
+	const detail = "secret app-env not found"
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()
@@ -83,7 +83,7 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 		f.clusterID,
 		0,
 		&agentv1.PlacementStatus{
-			Problem:          &agentv1.ProblemReport{Reason: string(loco.ProblemImageUser), Detail: detail},
+			Problem:          &agentv1.ProblemReport{Reason: string(loco.ProblemConfigError), Detail: detail},
 			Stopped:          deployTimedOut(),
 			PlacementId:      p.ID.String(),
 			ObservedRevision: 1,
@@ -98,7 +98,7 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deployment to proto: %v", err)
 	}
-	if deployment.GetPlacements()[0].GetProblem().GetReason() != string(loco.ProblemImageUser) ||
+	if deployment.GetPlacements()[0].GetProblem().GetReason() != string(loco.ProblemConfigError) ||
 		deployment.GetPlacements()[0].GetProblem().GetDetail() != detail {
 		t.Fatalf("deployment problem=%v", deployment.GetPlacements()[0].GetProblem())
 	}
