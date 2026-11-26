@@ -384,9 +384,12 @@ with session(out) as browser:
                 page.goto(origin + path)
         else:
             page.goto(origin + path)
-        marker = "checkout" if scene.startswith("resource") else "Settings"
-        page.get_by_text(marker, exact=True).first.wait_for()
-        page.locator("[role=status][aria-busy]").wait_for(state="detached")
+        ready = (
+            page.get_by_role("heading", name="checkout", exact=True)
+            if scene.startswith("resource")
+            else page.get_by_role("textbox", name="Name", exact=True)
+        )
+        expect(ready).to_be_visible()
         if user == "member":
             assert any(
                 request["method"] == "GetOrg" and request["status"] == 200
