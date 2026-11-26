@@ -41,6 +41,8 @@ func TestImageUsersRunInUserNamespaces(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			variant := config.DeepCopy()
 			variant.Config.User = tc.user
+			// Nginx's default worker user requires chown when the image runs as root.
+			variant.Config.Cmd = []string{"sh", "-c", `exec nginx -g "daemon off; user $(id -un);"`}
 			modified, err := mutate.ConfigFile(image, variant)
 			if err != nil {
 				t.Fatal(err)
