@@ -2233,7 +2233,9 @@ with session(out) as browser:
         context, page, errors = open_page(browser, state=state, now=now)
         context.route(
             "**/loco.observability.v1.ObservabilityService/GetTrace",
-            lambda route, data=trace_spans: route.fulfill(json={"spans": data}),
+            lambda route, _request, data=trace_spans: route.fulfill(
+                json={"spans": data}
+            ),
         )
         page.goto(state["ui_url"] + base + "&trace=" + trace)
         drawer = page.get_by_role("dialog", name=long_name)
