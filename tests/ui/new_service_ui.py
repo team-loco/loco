@@ -358,7 +358,7 @@ with session(out) as browser:
         create_deployment,
     )
     page.goto(base + "?env=production")
-    open_new_service(page)
+    page.get_by_role("link", name="New resource", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
     ask = page.get_by_role("dialog", name="New resource")
     image_input = ask.get_by_role("textbox", name="Container image")
