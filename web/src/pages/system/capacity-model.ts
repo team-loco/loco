@@ -1,4 +1,4 @@
-import type { Cluster, ClusterCapacity } from "@gen/loco/cluster/v1/cluster_pb";
+import { ClusterRole, type Cluster, type ClusterCapacity } from "@gen/loco/cluster/v1/cluster_pb";
 
 import { BYTES_PER_MI, formatCpu, formatMemory } from "@/lib/quantity";
 import { tsMs } from "@/lib/time";
@@ -34,12 +34,21 @@ export function reservations(capacity: ClusterCapacity): Reservation[] {
 	];
 }
 
-/** A stale or paused cluster contributes no current headroom to the deployment pool. */
+export function runsApps(cluster: Cluster): boolean {
+	return cluster.role === ClusterRole.APPS || cluster.role === ClusterRole.ALL;
+}
+
+export function capacityHeading(cluster: Cluster): string {
+	if (cluster.role === ClusterRole.BUILDS) return "Build headroom";
+	return runsApps(cluster) ? "Deployment headroom" : "Workload headroom";
+}
+
+/** Only healthy application clusters contribute current deployment headroom. */
 export function availableCapacity(clusters: readonly Cluster[]): {
 	capacity: ClusterCapacity | undefined;
 	included: number;
 } {
-	const eligible = clusters.filter((cluster) => clusterState(cluster) === "healthy");
+	const eligible = clusters.filter(runsApps).filter((cluster) => clusterState(cluster) === "healthy");
 	const reports = eligible.flatMap((cluster) =>
 		cluster.capacity === undefined || cluster.capacity.stale ? [] : [cluster.capacity],
 	);

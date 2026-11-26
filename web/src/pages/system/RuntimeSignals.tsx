@@ -56,7 +56,7 @@ function Signal({ clusterId, signal }: { clusterId: string; signal: (typeof SIGN
 	}));
 	const empty = series.every((item) => item.points.length === 0);
 	return (
-		<div className="min-w-0 px-5 py-4">
+		<div data-slot="cluster-runtime-signal" data-cluster-id={clusterId} className="min-w-0 px-5 py-4">
 			<h3 className="m-0 text-[13.5px] font-medium">{signal.title}</h3>
 			<p className="mt-1 mb-3 text-[12px] text-fg3">Highest node sample in each time bucket · past hour</p>
 			{result.isLoading ? (
@@ -107,7 +107,7 @@ export function RuntimeSignals({ clusterId }: { clusterId: string }) {
 		>
 			<div className="grid grid-cols-1 divide-y divide-line lg:grid-cols-2 lg:divide-x lg:divide-y-0">
 				{SIGNALS.map((signal) => (
-					<Signal key={signal.metric} clusterId={clusterId} signal={signal} />
+					<Signal key={`${clusterId}/${signal.metric}`} clusterId={clusterId} signal={signal} />
 				))}
 			</div>
 		</Section>

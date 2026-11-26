@@ -9,6 +9,7 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 import { notFound } from "@/lib/not-found";
 import { ROLE_LABEL, systemAccess, type ClusterState } from "@/lib/system";
 
+import { capacityHeading } from "./capacity-model";
 import { Capacity } from "./Capacity";
 import { ClusterOperations } from "./ClusterOperations";
 import { RuntimeSignals } from "./RuntimeSignals";
@@ -69,7 +70,7 @@ export function SystemClusterDetail() {
 					{cluster.healthMessage}
 				</p>
 			)}
-			<Section title="Deployment headroom">
+			<Section title={capacityHeading(cluster)}>
 				<Capacity capacity={cluster.capacity} />
 			</Section>
 			<ClusterOperations clusterId={cluster.id} />

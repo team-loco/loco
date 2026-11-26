@@ -1,5 +1,6 @@
 import argparse
 import re
+import time
 
 from harness import expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
@@ -458,4 +459,113 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_role("heading", name="Nothing lives at this address", exact=True)
     ).to_be_visible()
+    context.close()
+
+
+# Synthetic metric responses verify request scope and prevent old samples leaking across cluster switches.
+with session(repo / "tests/ui/out/system-metric-scope") as browser:
+    context, page, errors = open_page(browser, user="reader", state=state)
+    seen_metrics = []
+    held_metrics = []
+    hold_metrics = False
+
+    def metric_response(route):
+        seen_metrics.append(route.request.post_data_json)
+        if hold_metrics:
+            held_metrics.append(route)
+            return
+        now = int(time.time())
+        route.fulfill(
+            json={
+                "series": [
+                    {
+                        "points": [
+                            {
+                                "timestamp": time.strftime(
+                                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 120)
+                                ),
+                                "value": 1.25,
+                            },
+                            {
+                                "timestamp": time.strftime(
+                                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 60)
+                                ),
+                                "value": 1.5,
+                            },
+                        ]
+                    }
+                ]
+            }
+        )
+
+    context.route(
+        "**/loco.observability.v1.ObservabilityService/QueryMetrics", metric_response
+    )
+    context.route(
+        "**/loco.cluster.v1.ClusterAdminService/GetClusterOperations",
+        lambda route: route.fulfill(json={}),
+    )
+    with expect_rpc(
+        page, "loco.cluster.v1.ClusterAdminService/ListClusters", lambda body: True
+    ) as fleet:
+        page.goto(ui + "/system/clusters")
+    clusters = {
+        cluster["name"]: cluster["id"] for cluster in fleet.value.json()["clusters"]
+    }
+    row(page, "us-ca-1").click()
+    signals = page.locator('[data-slot="cluster-runtime-signal"]')
+    expect(signals.locator("svg.recharts-surface")).to_have_count(2)
+
+    def assert_metric_scope(cluster_id):
+        assert {body["metricName"] for body in seen_metrics} == {
+            "k8s.node.cpu.usage",
+            "k8s.node.memory.working_set",
+        }, seen_metrics
+        for body in seen_metrics:
+            assert body["installation"] is True, body
+            assert body.get("workspaceId", "") == "", body
+            assert body["attributes"] == {"cluster": cluster_id}, body
+            assert body["aggregation"] == "max", body
+
+    assert_metric_scope(clusters["us-ca-1"])
+    seen_metrics.clear()
+    hold_metrics = True
+    next_path = "/system/clusters/" + clusters["de-he-1"]
+
+    # This is a same-component client route transition, so the old query observer could otherwise retain data.
+    def next_metric(request, name):
+        return (
+            request.url.endswith(
+                "/loco.observability.v1.ObservabilityService/QueryMetrics"
+            )
+            and request.post_data_json.get("metricName") == name
+        )
+
+    with page.expect_request(
+        lambda request: next_metric(request, "k8s.node.cpu.usage")
+    ) as cpu_request:
+        with page.expect_request(
+            lambda request: next_metric(request, "k8s.node.memory.working_set")
+        ) as memory_request:
+            page.evaluate(
+                "path => { history.pushState({}, '', path); dispatchEvent(new PopStateEvent('popstate')); }",
+                next_path,
+            )
+    expect(page).to_have_url(ui + next_path)
+    expect(signals.locator('[data-slot="skeleton"]')).to_have_count(2)
+    expect(signals.locator("svg.recharts-surface")).to_have_count(0)
+    seen_metrics = [
+        cpu_request.value.post_data_json,
+        memory_request.value.post_data_json,
+    ]
+    assert_metric_scope(clusters["de-he-1"])
+    for route in held_metrics:
+        route.fulfill(json={})
+    expect(
+        page.get_by_text(
+            "No samples in the past hour. Check platform telemetry collection.",
+            exact=True,
+        )
+    ).to_have_count(2)
+    assert not errors, errors
     context.close()

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import { ClusterCapacitySchema, ClusterSchema } from "@gen/loco/cluster/v1/cluster_pb";
+import { ClusterCapacitySchema, ClusterRole, ClusterSchema } from "@gen/loco/cluster/v1/cluster_pb";
 
-import { availableCapacity, headroom, reservations } from "./capacity-model";
+import { availableCapacity, capacityHeading, headroom, reservations } from "./capacity-model";
 
 const capacity = () =>
 	create(ClusterCapacitySchema, {
@@ -20,6 +20,7 @@ const capacity = () =>
 const cluster = () =>
 	create(ClusterSchema, {
 		isActive: true,
+		role: ClusterRole.APPS,
 		healthStatus: "healthy",
 		lastHeartbeat: timestampFromMs(1000),
 		capacity: capacity(),
@@ -55,6 +56,22 @@ describe("deployment headroom", () => {
 		expect(result.included).toBe(2);
 		expect(result.capacity?.cpuMillicoresAllocatable).toBe(16000n);
 		expect(result.capacity?.cpuMillicoresRequested).toBe(7000n);
+	});
+
+	test("excludes healthy build-only and unknown-role clusters from application headroom", () => {
+		const apps = cluster();
+		const combined = cluster();
+		combined.role = ClusterRole.ALL;
+		const builds = cluster();
+		builds.role = ClusterRole.BUILDS;
+		const unknown = cluster();
+		unknown.role = ClusterRole.UNSPECIFIED;
+		const result = availableCapacity([apps, combined, builds, unknown]);
+		expect(result.included).toBe(2);
+		expect(result.capacity?.cpuMillicoresAllocatable).toBe(16000n);
+		expect(capacityHeading(apps)).toBe("Deployment headroom");
+		expect(capacityHeading(builds)).toBe("Build headroom");
+		expect(capacityHeading(unknown)).toBe("Workload headroom");
 	});
 
 	test("dates pooled headroom by the oldest included report", () => {
