@@ -19,7 +19,7 @@ with session(repo / "tests/ui/out/system-audit") as browser:
     context, page, errors = open_page(browser, user="member", state=state)
     page.goto(ui + "/system/audit")
     expect(
-        page.get_by_role("heading", name="Nothing lives at this address", exact=True)
+        page.get_by_role("heading", name="Page not found", exact=True)
     ).to_be_visible()
     expect(page.get_by_role("table", name="Audit events")).to_have_count(0)
     context.close()

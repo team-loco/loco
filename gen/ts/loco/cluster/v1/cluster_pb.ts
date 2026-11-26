@@ -7,13 +7,15 @@ import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Duration, DurationJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Event, EventJson } from "../../event/v1/event_pb";
+import { file_loco_event_v1_event } from "../../event/v1/event_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/cluster/v1/cluster.proto.
  */
 export const file_loco_cluster_v1_cluster: GenFile = /*@__PURE__*/
-  fileDesc("Ch1sb2NvL2NsdXN0ZXIvdjEvY2x1c3Rlci5wcm90bxIPbG9jby5jbHVzdGVyLnYxIi0KBlJlZ2lvbhIMCgRjb2RlGAEgASgJEhUKDWNsdXN0ZXJfY291bnQYAiABKAUiWQoJTmV3UmVnaW9uEiMKB2NvdW50cnkYASABKAlCErpID3INMgteW2EtejAtOV0rJBInCgtzdWJkaXZpc2lvbhgCIAEoCUISukgPcg0yC15bYS16MC05XSskIv8DCgdDbHVzdGVyEgoKAmlkGAEgASgJEhMKC2NsdXN0ZXJfa2V5GAIgASgJEgwKBG5hbWUYAyABKAkSDgoGcmVnaW9uGAQgASgJEhEKCWlzX2FjdGl2ZRgGIAEoCBIuCgpyZW1vdmVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIaCg1oZWFsdGhfc3RhdHVzGAggASgJSACIAQESMgoObGFzdF9oZWFydGJlYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKDWFnZW50X3ZlcnNpb24YCiABKAlIAYgBARIiChVhZ2VudF9rZXlfZmluZ2VycHJpbnQYCyABKAlIAogBARIqCgRyb2xlGAwgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlEg8KB2RvbWFpbnMYDSADKAkSMAoMc2lsZW50X3NpbmNlGBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIQCg5faGVhbHRoX3N0YXR1c0IQCg5fYWdlbnRfdmVyc2lvbkIYChZfYWdlbnRfa2V5X2ZpbmdlcnByaW50SgQIBRAGSgQIDhAPSgQIDxAQUgR0aWVyUgtkbnNfcmVjb3Jkc1IQZ2F0ZXdheV9ob3N0bmFtZSIrCg9DbHVzdGVyV29ya2xvYWQSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCSJHChBDbHVzdGVyV29ya2xvYWRzEjMKCXdvcmtsb2FkcxgBIAMoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyV29ya2xvYWQiSgoJSm9pblRva2VuEg0KBXRva2VuGAEgASgJEi4KCmV4cGlyZXNfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIuEBChRDcmVhdGVDbHVzdGVyUmVxdWVzdBImCgN0dGwYBSABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SHAoKcmVxdWVzdF9pZBgEIAEoCUIIukgFcgOwAQESFgoEbmFtZRgBIAEoCUIIukgFcgMY/wESHAoGcmVnaW9uGAIgASgJQgq6SAdyBRABGP8BSAASMAoKbmV3X3JlZ2lvbhgGIAEoCzIaLmxvY28uY2x1c3Rlci52MS5OZXdSZWdpb25IAEIPCgZ0YXJnZXQSBbpIAggBSgQIAxAEUgR0aWVyInkKFUNyZWF0ZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEi4KCmpvaW5fdG9rZW4YAiABKAsyGi5sb2NvLmNsdXN0ZXIudjEuSm9pblRva2VuEgwKBG5hbWUYAyABKAkSDgoGcmVnaW9uGAQgASgJIl0KFUlzc3VlSm9pblRva2VuUmVxdWVzdBImCgN0dGwYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQEiXAoWSXNzdWVKb2luVG9rZW5SZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEi4KCmpvaW5fdG9rZW4YAiABKAsyGi5sb2NvLmNsdXN0ZXIudjEuSm9pblRva2VuIhUKE0xpc3RDbHVzdGVyc1JlcXVlc3QiQgoUTGlzdENsdXN0ZXJzUmVzcG9uc2USKgoIY2x1c3RlcnMYASADKAsyGC5sb2NvLmNsdXN0ZXIudjEuQ2x1c3RlciIzChNQYXVzZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIioKFFBhdXNlQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkiNAoUUmVzdW1lQ2x1c3RlclJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQEiKwoVUmVzdW1lQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkiQwoUUmVtb3ZlQ2x1c3RlclJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQESDQoFZm9yY2UYAiABKAgiYAoVUmVtb3ZlQ2x1c3RlclJlc3BvbnNlEhIKCmNsdXN0ZXJfaWQYASABKAkSMwoJd29ya2xvYWRzGAIgAygLMiAubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJXb3JrbG9hZCI1ChVSZXN0b3JlQ2x1c3RlclJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQEiLAoWUmVzdG9yZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIhQKEkxpc3RSZWdpb25zUmVxdWVzdCI/ChNMaXN0UmVnaW9uc1Jlc3BvbnNlEigKB3JlZ2lvbnMYASADKAsyFy5sb2NvLmNsdXN0ZXIudjEuUmVnaW9uKnEKC0NsdXN0ZXJSb2xlEhwKGENMVVNURVJfUk9MRV9VTlNQRUNJRklFRBAAEhUKEUNMVVNURVJfUk9MRV9BUFBTEAESFwoTQ0xVU1RFUl9ST0xFX0JVSUxEUxACEhQKEENMVVNURVJfUk9MRV9BTEwQAzK1BQoTQ2x1c3RlckFkbWluU2VydmljZRJeCg1DcmVhdGVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLkNyZWF0ZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLkNyZWF0ZUNsdXN0ZXJSZXNwb25zZRJhCg5Jc3N1ZUpvaW5Ub2tlbhImLmxvY28uY2x1c3Rlci52MS5Jc3N1ZUpvaW5Ub2tlblJlcXVlc3QaJy5sb2NvLmNsdXN0ZXIudjEuSXNzdWVKb2luVG9rZW5SZXNwb25zZRJbCgxMaXN0Q2x1c3RlcnMSJC5sb2NvLmNsdXN0ZXIudjEuTGlzdENsdXN0ZXJzUmVxdWVzdBolLmxvY28uY2x1c3Rlci52MS5MaXN0Q2x1c3RlcnNSZXNwb25zZRJbCgxQYXVzZUNsdXN0ZXISJC5sb2NvLmNsdXN0ZXIudjEuUGF1c2VDbHVzdGVyUmVxdWVzdBolLmxvY28uY2x1c3Rlci52MS5QYXVzZUNsdXN0ZXJSZXNwb25zZRJeCg1SZXN1bWVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLlJlc3VtZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLlJlc3VtZUNsdXN0ZXJSZXNwb25zZRJeCg1SZW1vdmVDbHVzdGVyEiUubG9jby5jbHVzdGVyLnYxLlJlbW92ZUNsdXN0ZXJSZXF1ZXN0GiYubG9jby5jbHVzdGVyLnYxLlJlbW92ZUNsdXN0ZXJSZXNwb25zZRJhCg5SZXN0b3JlQ2x1c3RlchImLmxvY28uY2x1c3Rlci52MS5SZXN0b3JlQ2x1c3RlclJlcXVlc3QaJy5sb2NvLmNsdXN0ZXIudjEuUmVzdG9yZUNsdXN0ZXJSZXNwb25zZTJuChJSZWdpb25BZG1pblNlcnZpY2USWAoLTGlzdFJlZ2lvbnMSIy5sb2NvLmNsdXN0ZXIudjEuTGlzdFJlZ2lvbnNSZXF1ZXN0GiQubG9jby5jbHVzdGVyLnYxLkxpc3RSZWdpb25zUmVzcG9uc2VCPFo6Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jbHVzdGVyL3YxO2NsdXN0ZXJ2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("Ch1sb2NvL2NsdXN0ZXIvdjEvY2x1c3Rlci5wcm90bxIPbG9jby5jbHVzdGVyLnYxIi0KBlJlZ2lvbhIMCgRjb2RlGAEgASgJEhUKDWNsdXN0ZXJfY291bnQYAiABKAUiWQoJTmV3UmVnaW9uEiMKB2NvdW50cnkYASABKAlCErpID3INMgteW2EtejAtOV0rJBInCgtzdWJkaXZpc2lvbhgCIAEoCUISukgPcg0yC15bYS16MC05XSskIssECgdDbHVzdGVyEgoKAmlkGAEgASgJEhMKC2NsdXN0ZXJfa2V5GAIgASgJEgwKBG5hbWUYAyABKAkSDgoGcmVnaW9uGAQgASgJEhEKCWlzX2FjdGl2ZRgGIAEoCBIuCgpyZW1vdmVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIaCg1oZWFsdGhfc3RhdHVzGAggASgJSACIAQESMgoObGFzdF9oZWFydGJlYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKDWFnZW50X3ZlcnNpb24YCiABKAlIAYgBARIiChVhZ2VudF9rZXlfZmluZ2VycHJpbnQYCyABKAlIAogBARIqCgRyb2xlGAwgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlEg8KB2RvbWFpbnMYDSADKAkSMAoMc2lsZW50X3NpbmNlGBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCghjYXBhY2l0eRgRIAEoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyQ2FwYWNpdHkSFgoOaGVhbHRoX21lc3NhZ2UYEiABKAlCEAoOX2hlYWx0aF9zdGF0dXNCEAoOX2FnZW50X3ZlcnNpb25CGAoWX2FnZW50X2tleV9maW5nZXJwcmludEoECAUQBkoECA4QD0oECA8QEFIEdGllclILZG5zX3JlY29yZHNSEGdhdGV3YXlfaG9zdG5hbWUiKwoPQ2x1c3Rlcldvcmtsb2FkEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkiRwoQQ2x1c3Rlcldvcmtsb2FkcxIzCgl3b3JrbG9hZHMYASADKAsyIC5sb2NvLmNsdXN0ZXIudjEuQ2x1c3Rlcldvcmtsb2FkIkoKCUpvaW5Ub2tlbhINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLhAQoUQ3JlYXRlQ2x1c3RlclJlcXVlc3QSJgoDdHRsGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhwKCnJlcXVlc3RfaWQYBCABKAlCCLpIBXIDsAEBEhYKBG5hbWUYASABKAlCCLpIBXIDGP8BEhwKBnJlZ2lvbhgCIAEoCUIKukgHcgUQARj/AUgAEjAKCm5ld19yZWdpb24YBiABKAsyGi5sb2NvLmNsdXN0ZXIudjEuTmV3UmVnaW9uSABCDwoGdGFyZ2V0EgW6SAIIAUoECAMQBFIEdGllciJ5ChVDcmVhdGVDbHVzdGVyUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCRIuCgpqb2luX3Rva2VuGAIgASgLMhoubG9jby5jbHVzdGVyLnYxLkpvaW5Ub2tlbhIMCgRuYW1lGAMgASgJEg4KBnJlZ2lvbhgEIAEoCSJdChVJc3N1ZUpvaW5Ub2tlblJlcXVlc3QSJgoDdHRsGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIlwKFklzc3VlSm9pblRva2VuUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCRIuCgpqb2luX3Rva2VuGAIgASgLMhoubG9jby5jbHVzdGVyLnYxLkpvaW5Ub2tlbiIVChNMaXN0Q2x1c3RlcnNSZXF1ZXN0IkIKFExpc3RDbHVzdGVyc1Jlc3BvbnNlEioKCGNsdXN0ZXJzGAEgAygLMhgubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXIiMwoTUGF1c2VDbHVzdGVyUmVxdWVzdBIcCgpjbHVzdGVyX2lkGAEgASgJQgi6SAVyA7ABASIqChRQYXVzZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIjQKFFJlc3VtZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIisKFVJlc3VtZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIkMKFFJlbW92ZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEg0KBWZvcmNlGAIgASgIImAKFVJlbW92ZUNsdXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEjMKCXdvcmtsb2FkcxgCIAMoCzIgLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyV29ya2xvYWQiNQoVUmVzdG9yZUNsdXN0ZXJSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBIiwKFlJlc3RvcmVDbHVzdGVyUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCSIUChJMaXN0UmVnaW9uc1JlcXVlc3QiPwoTTGlzdFJlZ2lvbnNSZXNwb25zZRIoCgdyZWdpb25zGAEgAygLMhcubG9jby5jbHVzdGVyLnYxLlJlZ2lvbiKgAgoPQ2x1c3RlckNhcGFjaXR5EiIKGmNwdV9taWxsaWNvcmVzX2FsbG9jYXRhYmxlGAEgASgDEiAKGGNwdV9taWxsaWNvcmVzX3JlcXVlc3RlZBgCIAEoAxIgChhtZW1vcnlfYnl0ZXNfYWxsb2NhdGFibGUYAyABKAMSHgoWbWVtb3J5X2J5dGVzX3JlcXVlc3RlZBgEIAEoAxIYChBwb2RzX2FsbG9jYXRhYmxlGAUgASgFEhQKDHBvZHNfcnVubmluZxgGIAEoBRIvCgtyZXBvcnRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoNcG9kc19hc3NpZ25lZBgIIAEoBRINCgVzdGFsZRgJIAEoCCI7ChtHZXRDbHVzdGVyT3BlcmF0aW9uc1JlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQEingEKHEdldENsdXN0ZXJPcGVyYXRpb25zUmVzcG9uc2USPAoJd29ya2xvYWRzGAEgAygLMikubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJXb3JrbG9hZEF0dGVudGlvbhIaChJoYXNfbW9yZV93b3JrbG9hZHMYAiABKAgSJAoGZXZlbnRzGAMgAygLMhQubG9jby5ldmVudC52MS5FdmVudCKJAgoYQ2x1c3Rlcldvcmtsb2FkQXR0ZW50aW9uEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSEwoLcmVzb3VyY2VfaWQYAyABKAkSFQoNcmVzb3VyY2VfbmFtZRgEIAEoCRIOCgZvcmdfaWQYBSABKAkSFAoMd29ya3NwYWNlX2lkGAYgASgJEhYKDmVudmlyb25tZW50X2lkGAcgASgJEhgKEGVudmlyb25tZW50X3NsdWcYCCABKAkSDgoGc3RhdHVzGAkgASgJEg8KB21lc3NhZ2UYCiABKAkSLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqcQoLQ2x1c3RlclJvbGUSHAoYQ0xVU1RFUl9ST0xFX1VOU1BFQ0lGSUVEEAASFQoRQ0xVU1RFUl9ST0xFX0FQUFMQARIXChNDTFVTVEVSX1JPTEVfQlVJTERTEAISFAoQQ0xVU1RFUl9ST0xFX0FMTBADMqoGChNDbHVzdGVyQWRtaW5TZXJ2aWNlEl4KDUNyZWF0ZUNsdXN0ZXISJS5sb2NvLmNsdXN0ZXIudjEuQ3JlYXRlQ2x1c3RlclJlcXVlc3QaJi5sb2NvLmNsdXN0ZXIudjEuQ3JlYXRlQ2x1c3RlclJlc3BvbnNlEmEKDklzc3VlSm9pblRva2VuEiYubG9jby5jbHVzdGVyLnYxLklzc3VlSm9pblRva2VuUmVxdWVzdBonLmxvY28uY2x1c3Rlci52MS5Jc3N1ZUpvaW5Ub2tlblJlc3BvbnNlElsKDExpc3RDbHVzdGVycxIkLmxvY28uY2x1c3Rlci52MS5MaXN0Q2x1c3RlcnNSZXF1ZXN0GiUubG9jby5jbHVzdGVyLnYxLkxpc3RDbHVzdGVyc1Jlc3BvbnNlEnMKFEdldENsdXN0ZXJPcGVyYXRpb25zEiwubG9jby5jbHVzdGVyLnYxLkdldENsdXN0ZXJPcGVyYXRpb25zUmVxdWVzdBotLmxvY28uY2x1c3Rlci52MS5HZXRDbHVzdGVyT3BlcmF0aW9uc1Jlc3BvbnNlElsKDFBhdXNlQ2x1c3RlchIkLmxvY28uY2x1c3Rlci52MS5QYXVzZUNsdXN0ZXJSZXF1ZXN0GiUubG9jby5jbHVzdGVyLnYxLlBhdXNlQ2x1c3RlclJlc3BvbnNlEl4KDVJlc3VtZUNsdXN0ZXISJS5sb2NvLmNsdXN0ZXIudjEuUmVzdW1lQ2x1c3RlclJlcXVlc3QaJi5sb2NvLmNsdXN0ZXIudjEuUmVzdW1lQ2x1c3RlclJlc3BvbnNlEl4KDVJlbW92ZUNsdXN0ZXISJS5sb2NvLmNsdXN0ZXIudjEuUmVtb3ZlQ2x1c3RlclJlcXVlc3QaJi5sb2NvLmNsdXN0ZXIudjEuUmVtb3ZlQ2x1c3RlclJlc3BvbnNlEmEKDlJlc3RvcmVDbHVzdGVyEiYubG9jby5jbHVzdGVyLnYxLlJlc3RvcmVDbHVzdGVyUmVxdWVzdBonLmxvY28uY2x1c3Rlci52MS5SZXN0b3JlQ2x1c3RlclJlc3BvbnNlMm4KElJlZ2lvbkFkbWluU2VydmljZRJYCgtMaXN0UmVnaW9ucxIjLmxvY28uY2x1c3Rlci52MS5MaXN0UmVnaW9uc1JlcXVlc3QaJC5sb2NvLmNsdXN0ZXIudjEuTGlzdFJlZ2lvbnNSZXNwb25zZUI8WjpnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2NsdXN0ZXIvdjE7Y2x1c3RlcnYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp, file_loco_event_v1_event]);
 
 /**
  * Region is the code clusters share, `{country}-{subdivision}-{n}` or `local-1`.
@@ -179,6 +181,18 @@ export type Cluster = Message<"loco.cluster.v1.Cluster"> & {
    * @generated from field: google.protobuf.Timestamp silent_since = 16;
    */
   silentSince?: Timestamp | undefined;
+
+  /**
+   * Last successful capacity sample; absent before the first successful sample.
+   *
+   * @generated from field: loco.cluster.v1.ClusterCapacity capacity = 17;
+   */
+  capacity?: ClusterCapacity | undefined;
+
+  /**
+   * @generated from field: string health_message = 18;
+   */
+  healthMessage: string;
 };
 
 /**
@@ -251,6 +265,18 @@ export type ClusterJson = {
    * @generated from field: google.protobuf.Timestamp silent_since = 16;
    */
   silentSince?: TimestampJson;
+
+  /**
+   * Last successful capacity sample; absent before the first successful sample.
+   *
+   * @generated from field: loco.cluster.v1.ClusterCapacity capacity = 17;
+   */
+  capacity?: ClusterCapacityJson;
+
+  /**
+   * @generated from field: string health_message = 18;
+   */
+  healthMessage?: string;
 };
 
 /**
@@ -915,6 +941,330 @@ export const ListRegionsResponseSchema: GenMessage<ListRegionsResponse, {jsonTyp
   messageDesc(file_loco_cluster_v1_cluster, 21);
 
 /**
+ * ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.
+ * Requested resources cover assigned, non-terminal pods including init containers and overhead.
+ * Aggregate headroom does not guarantee a workload can be scheduled on an individual node.
+ *
+ * @generated from message loco.cluster.v1.ClusterCapacity
+ */
+export type ClusterCapacity = Message<"loco.cluster.v1.ClusterCapacity"> & {
+  /**
+   * @generated from field: int64 cpu_millicores_allocatable = 1;
+   */
+  cpuMillicoresAllocatable: bigint;
+
+  /**
+   * @generated from field: int64 cpu_millicores_requested = 2;
+   */
+  cpuMillicoresRequested: bigint;
+
+  /**
+   * @generated from field: int64 memory_bytes_allocatable = 3;
+   */
+  memoryBytesAllocatable: bigint;
+
+  /**
+   * @generated from field: int64 memory_bytes_requested = 4;
+   */
+  memoryBytesRequested: bigint;
+
+  /**
+   * @generated from field: int32 pods_allocatable = 5;
+   */
+  podsAllocatable: number;
+
+  /**
+   * @generated from field: int32 pods_running = 6;
+   */
+  podsRunning: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp reported_at = 7;
+   */
+  reportedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int32 pods_assigned = 8;
+   */
+  podsAssigned: number;
+
+  /**
+   * Sample is older than the installation's configured heartbeat silence threshold.
+   *
+   * @generated from field: bool stale = 9;
+   */
+  stale: boolean;
+};
+
+/**
+ * ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.
+ * Requested resources cover assigned, non-terminal pods including init containers and overhead.
+ * Aggregate headroom does not guarantee a workload can be scheduled on an individual node.
+ *
+ * @generated from message loco.cluster.v1.ClusterCapacity
+ */
+export type ClusterCapacityJson = {
+  /**
+   * @generated from field: int64 cpu_millicores_allocatable = 1;
+   */
+  cpuMillicoresAllocatable?: string;
+
+  /**
+   * @generated from field: int64 cpu_millicores_requested = 2;
+   */
+  cpuMillicoresRequested?: string;
+
+  /**
+   * @generated from field: int64 memory_bytes_allocatable = 3;
+   */
+  memoryBytesAllocatable?: string;
+
+  /**
+   * @generated from field: int64 memory_bytes_requested = 4;
+   */
+  memoryBytesRequested?: string;
+
+  /**
+   * @generated from field: int32 pods_allocatable = 5;
+   */
+  podsAllocatable?: number;
+
+  /**
+   * @generated from field: int32 pods_running = 6;
+   */
+  podsRunning?: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp reported_at = 7;
+   */
+  reportedAt?: TimestampJson;
+
+  /**
+   * @generated from field: int32 pods_assigned = 8;
+   */
+  podsAssigned?: number;
+
+  /**
+   * Sample is older than the installation's configured heartbeat silence threshold.
+   *
+   * @generated from field: bool stale = 9;
+   */
+  stale?: boolean;
+};
+
+/**
+ * Describes the message loco.cluster.v1.ClusterCapacity.
+ * Use `create(ClusterCapacitySchema)` to create a new message.
+ */
+export const ClusterCapacitySchema: GenMessage<ClusterCapacity, {jsonType: ClusterCapacityJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 22);
+
+/**
+ * @generated from message loco.cluster.v1.GetClusterOperationsRequest
+ */
+export type GetClusterOperationsRequest = Message<"loco.cluster.v1.GetClusterOperationsRequest"> & {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId: string;
+};
+
+/**
+ * @generated from message loco.cluster.v1.GetClusterOperationsRequest
+ */
+export type GetClusterOperationsRequestJson = {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId?: string;
+};
+
+/**
+ * Describes the message loco.cluster.v1.GetClusterOperationsRequest.
+ * Use `create(GetClusterOperationsRequestSchema)` to create a new message.
+ */
+export const GetClusterOperationsRequestSchema: GenMessage<GetClusterOperationsRequest, {jsonType: GetClusterOperationsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 23);
+
+/**
+ * @generated from message loco.cluster.v1.GetClusterOperationsResponse
+ */
+export type GetClusterOperationsResponse = Message<"loco.cluster.v1.GetClusterOperationsResponse"> & {
+  /**
+   * @generated from field: repeated loco.cluster.v1.ClusterWorkloadAttention workloads = 1;
+   */
+  workloads: ClusterWorkloadAttention[];
+
+  /**
+   * @generated from field: bool has_more_workloads = 2;
+   */
+  hasMoreWorkloads: boolean;
+
+  /**
+   * @generated from field: repeated loco.event.v1.Event events = 3;
+   */
+  events: Event[];
+};
+
+/**
+ * @generated from message loco.cluster.v1.GetClusterOperationsResponse
+ */
+export type GetClusterOperationsResponseJson = {
+  /**
+   * @generated from field: repeated loco.cluster.v1.ClusterWorkloadAttention workloads = 1;
+   */
+  workloads?: ClusterWorkloadAttentionJson[];
+
+  /**
+   * @generated from field: bool has_more_workloads = 2;
+   */
+  hasMoreWorkloads?: boolean;
+
+  /**
+   * @generated from field: repeated loco.event.v1.Event events = 3;
+   */
+  events?: EventJson[];
+};
+
+/**
+ * Describes the message loco.cluster.v1.GetClusterOperationsResponse.
+ * Use `create(GetClusterOperationsResponseSchema)` to create a new message.
+ */
+export const GetClusterOperationsResponseSchema: GenMessage<GetClusterOperationsResponse, {jsonType: GetClusterOperationsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 24);
+
+/**
+ * ClusterWorkloadAttention identifies current Loco work that is blocked or failing.
+ *
+ * @generated from message loco.cluster.v1.ClusterWorkloadAttention
+ */
+export type ClusterWorkloadAttention = Message<"loco.cluster.v1.ClusterWorkloadAttention"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string resource_id = 3;
+   */
+  resourceId: string;
+
+  /**
+   * @generated from field: string resource_name = 4;
+   */
+  resourceName: string;
+
+  /**
+   * @generated from field: string org_id = 5;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string workspace_id = 6;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string environment_id = 7;
+   */
+  environmentId: string;
+
+  /**
+   * @generated from field: string environment_slug = 8;
+   */
+  environmentSlug: string;
+
+  /**
+   * @generated from field: string status = 9;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string message = 10;
+   */
+  message: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 11;
+   */
+  updatedAt?: Timestamp | undefined;
+};
+
+/**
+ * ClusterWorkloadAttention identifies current Loco work that is blocked or failing.
+ *
+ * @generated from message loco.cluster.v1.ClusterWorkloadAttention
+ */
+export type ClusterWorkloadAttentionJson = {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id?: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind?: string;
+
+  /**
+   * @generated from field: string resource_id = 3;
+   */
+  resourceId?: string;
+
+  /**
+   * @generated from field: string resource_name = 4;
+   */
+  resourceName?: string;
+
+  /**
+   * @generated from field: string org_id = 5;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string workspace_id = 6;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string environment_id = 7;
+   */
+  environmentId?: string;
+
+  /**
+   * @generated from field: string environment_slug = 8;
+   */
+  environmentSlug?: string;
+
+  /**
+   * @generated from field: string status = 9;
+   */
+  status?: string;
+
+  /**
+   * @generated from field: string message = 10;
+   */
+  message?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 11;
+   */
+  updatedAt?: TimestampJson;
+};
+
+/**
+ * Describes the message loco.cluster.v1.ClusterWorkloadAttention.
+ * Use `create(ClusterWorkloadAttentionSchema)` to create a new message.
+ */
+export const ClusterWorkloadAttentionSchema: GenMessage<ClusterWorkloadAttention, {jsonType: ClusterWorkloadAttentionJson}> = /*@__PURE__*/
+  messageDesc(file_loco_cluster_v1_cluster, 25);
+
+/**
  * ClusterRole is chosen when the worker is installed and reported by its agent.
  *
  * @generated from enum loco.cluster.v1.ClusterRole
@@ -981,6 +1331,14 @@ export const ClusterAdminService: GenService<{
     methodKind: "unary";
     input: typeof ListClustersRequestSchema;
     output: typeof ListClustersResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.cluster.v1.ClusterAdminService.GetClusterOperations
+   */
+  getClusterOperations: {
+    methodKind: "unary";
+    input: typeof GetClusterOperationsRequestSchema;
+    output: typeof GetClusterOperationsResponseSchema;
   },
   /**
    * @generated from rpc loco.cluster.v1.ClusterAdminService.PauseCluster

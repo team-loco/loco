@@ -3,11 +3,9 @@
 -- name: UpdateClusterAgentInfo :exec
 UPDATE clusters
 SET agent_version = $2,
-    capacity_cpu_millicores = $3,
-    capacity_memory_bytes = $4,
-    role = $5,
+    role = sqlc.arg(role),
     domains = sqlc.arg(domains)::text[],
-    platforms = sqlc.arg(platforms)::text[],
+    platforms = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END,
     updated_at = NOW()
 WHERE id = $1;
 
@@ -64,16 +62,14 @@ RETURNING due.id, due.name, due.region;
 -- name: UpdateClusterReport :exec
 -- Matches only a changed report from the current stream; an unchanged one takes no lock on the cluster.
 UPDATE clusters
-SET capacity_cpu_millicores = sqlc.arg(capacity_cpu_millicores)::bigint,
-    capacity_memory_bytes = sqlc.arg(capacity_memory_bytes)::bigint,
-    role = sqlc.arg(role)::cluster_role,
+SET role = sqlc.arg(role)::cluster_role,
     domains = sqlc.arg(domains)::text[],
-    platforms = sqlc.arg(platforms)::text[],
+    platforms = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END,
     updated_at = NOW()
 WHERE id = sqlc.arg(id) AND removed_at IS NULL AND sync_generation = sqlc.arg(generation)
-  AND (capacity_cpu_millicores, capacity_memory_bytes, role, domains, platforms) IS DISTINCT FROM
-      (sqlc.arg(capacity_cpu_millicores)::bigint, sqlc.arg(capacity_memory_bytes)::bigint,
-       sqlc.arg(role)::cluster_role, sqlc.arg(domains)::text[], sqlc.arg(platforms)::text[]);
+  AND (role, domains, platforms) IS DISTINCT FROM
+      (sqlc.arg(role)::cluster_role, sqlc.arg(domains)::text[],
+       CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(platforms)::text[] ELSE platforms END);
 
 -- name: DeleteClusterHeartbeat :exec
 DELETE FROM cluster_heartbeats WHERE cluster_id = $1;
@@ -83,8 +79,7 @@ SELECT role FROM clusters WHERE id = $1;
 
 -- name: GetClusterByID :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
+       last_health_check, last_heartbeat, agent_version, created_at, updated_at
 FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
 WHERE id = $1;
 
@@ -139,8 +134,11 @@ DELETE FROM cluster_assertions WHERE expires_at < NOW();
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, silent_since, agent_version, agent_public_key, role, domains
-FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
+       last_heartbeat, silent_since, agent_version, agent_public_key, role, domains,
+       h.capacity_reported_at, h.reported_cpu_millicores, h.requested_cpu_millicores,
+       h.reported_memory_bytes, h.requested_memory_bytes,
+       h.capacity_pods, h.assigned_pods, h.running_pods, h.health_message
+FROM clusters LEFT JOIN cluster_heartbeats h ON cluster_id = id
 ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one
@@ -176,3 +174,74 @@ ORDER BY kind, id;
 SELECT id, name, region, domains FROM clusters
 WHERE id = ANY(sqlc.arg(ids)::uuid[])
 ORDER BY region, name;
+
+-- name: RecordClusterCapacity :exec
+-- Runs under the heartbeat transaction/stream lock. A missing sample leaves the last sample's timestamp unchanged.
+UPDATE cluster_heartbeats
+SET health_message = sqlc.arg(health_message),
+    capacity_reported_at = CASE WHEN sqlc.arg(has_capacity)::boolean THEN clock_timestamp() ELSE capacity_reported_at END,
+    reported_cpu_millicores = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(cpu_allocatable)::bigint ELSE reported_cpu_millicores END,
+    requested_cpu_millicores = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(cpu_requested)::bigint ELSE requested_cpu_millicores END,
+    reported_memory_bytes = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(memory_allocatable)::bigint ELSE reported_memory_bytes END,
+    requested_memory_bytes = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(memory_requested)::bigint ELSE requested_memory_bytes END,
+    capacity_pods = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(pods_allocatable)::int ELSE capacity_pods END,
+    assigned_pods = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(pods_assigned)::int ELSE assigned_pods END,
+    running_pods = CASE WHEN sqlc.arg(has_capacity)::boolean THEN sqlc.arg(pods_running)::int ELSE running_pods END
+WHERE cluster_id = sqlc.arg(id);
+
+-- name: ListClusterAttention :many
+SELECT l.deployment_id AS id, 'deployment'::text AS kind, l.resource_id, r.name AS resource_name,
+       w.org_id, r.workspace_id, l.environment_id, e.slug AS environment_slug,
+       CASE WHEN l.status = 'running' AND cardinality(rr.unserved_domains) > 0 THEN 'degraded' ELSE l.status::text END AS status,
+       COALESCE(NULLIF(rr.problem->>'detail', ''), p.applied_error, '')::text AS message,
+       COALESCE(rr.problem->>'reason', p.problem_reason, '')::text AS problem_reason,
+       COALESCE(rr.unserved_domains, ARRAY[]::text[]) AS unserved_domains, COALESCE(p.status_updated_at, d.created_at)::timestamptz AS updated_at
+FROM live_deployment_placements l
+JOIN deployments d ON d.id = l.deployment_id
+JOIN resources r ON r.id = l.resource_id
+JOIN workspaces w ON w.id = r.workspace_id
+JOIN environments e ON e.id = l.environment_id
+LEFT JOIN placements p ON p.deployment_id = l.deployment_id AND p.cluster_id = l.cluster_id
+LEFT JOIN resource_region_inputs rr ON rr.deployment_id = l.deployment_id AND rr.cluster_id = l.cluster_id
+WHERE l.cluster_id = sqlc.arg(cluster_id)
+  AND (l.status IN ('failed', 'crashed', 'degraded') OR p.problem_reason <> '' OR p.apply_failed OR cardinality(rr.unserved_domains) > 0 OR (rr.problem IS NOT NULL AND rr.problem <> 'null'::jsonb))
+UNION ALL
+SELECT b.id, 'build'::text, b.resource_id, r.name, w.org_id, r.workspace_id, COALESCE(b.origin_environment_id, '00000000-0000-0000-0000-000000000000'::uuid),
+       COALESCE(e.slug, '')::text, b.status::text, b.message, ''::text, ARRAY[]::text[], COALESCE(b.finished_at, b.started_at, b.created_at)::timestamptz
+FROM builds b
+JOIN resources r ON r.id = b.resource_id
+JOIN workspaces w ON w.id = r.workspace_id
+LEFT JOIN environments e ON e.id = b.origin_environment_id
+WHERE b.cluster_id = sqlc.arg(cluster_id) AND b.status = 'failed'
+  AND NOT EXISTS (SELECT 1 FROM builds newer WHERE newer.resource_id = b.resource_id
+                  AND newer.origin_environment_id IS NOT DISTINCT FROM b.origin_environment_id AND (newer.created_at, newer.id) > (b.created_at, b.id))
+ORDER BY updated_at DESC, id DESC
+LIMIT sqlc.arg(row_limit);
+
+-- name: ListClusterEvents :many
+-- Each related subject contributes at most one page through its own index, so a quiet cluster never
+-- scans the installation's globally ordered event history. UNION removes events linked in several ways.
+WITH related AS (
+    (SELECT es.seq FROM events es
+     WHERE es.subject_type = 'cluster' AND es.subject_id = sqlc.arg(cluster_id)
+     ORDER BY es.seq DESC LIMIT 20)
+    UNION
+    SELECT recent.seq FROM deployment_placements dp
+    CROSS JOIN LATERAL (
+        SELECT ed.seq FROM events ed WHERE ed.deployment_id = dp.deployment_id ORDER BY ed.seq DESC LIMIT 20
+    ) recent
+    WHERE dp.cluster_id = sqlc.arg(cluster_id)
+    UNION
+    SELECT recent.seq FROM builds b
+    CROSS JOIN LATERAL (
+        SELECT eb.seq FROM events eb WHERE eb.subject_type = 'build' AND eb.subject_id = b.id ORDER BY eb.seq DESC LIMIT 20
+    ) recent
+    WHERE b.cluster_id = sqlc.arg(cluster_id)
+), latest AS (
+    SELECT seq FROM related ORDER BY seq DESC LIMIT 20
+)
+SELECT sqlc.embed(e), event_title(e.type, e.data)::text AS title, event_severity(e.type)::text AS severity,
+       COALESCE(u.name, e.actor_token_name, '')::text AS actor_name, COALESCE(u.email, '')::text AS actor_email
+FROM latest JOIN events e ON e.seq = latest.seq
+LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+ORDER BY e.seq DESC;

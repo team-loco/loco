@@ -939,14 +939,8 @@ with session(out) as browser:
     expect(gone).to_have_count(0)
     mode[0] = "empty"
     page.get_by_role("button", name="Refresh", exact=True).click()
-    page.get_by_text("Send your first trace", exact=True).wait_for()
+    page.get_by_text("No traces collected", exact=True).wait_for()
     expect(page.get_by_role("combobox", name="Search and filter")).to_have_count(0)
-    expect(
-        page.get_by_text(
-            "Loco configures the collector connection by default. Add instrumentation to your app, or configure its SDK endpoint yourself.",
-            exact=True,
-        )
-    ).to_be_visible()
     page.get_by_role("tab", name="Python", exact=True).click()
     expect(
         page.get_by_text("opentelemetry-instrument python app.py", exact=False)
@@ -1812,6 +1806,8 @@ with session(out) as browser:
     expect(large_flame.get_by_role("button")).to_have_count(3001)
     large_flame.get_by_role("button").first.hover()
     page.mouse.wheel(0, -400)
+    # Wheel zoom commits on an animation frame controlled by this context's clock.
+    page.clock.run_for(16)
     expect(drawer.get_by_role("button", name="Reset zoom", exact=True)).to_be_visible()
     assert not errors, errors
     context.close()

@@ -169,28 +169,14 @@ export function EmptyWorkspace({ wholeWorkspace = false }: { wholeWorkspace?: bo
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, setActive } = useEnvironments();
 	const otherEnv = wholeWorkspace ? undefined : environments.find((e) => e.id !== active?.id);
-	const where =
-		wholeWorkspace || active === undefined ? (
-			" in this workspace"
-		) : (
-			<>
-				{" to "}
-				<InlineCode>{active.name}</InlineCode>
-			</>
-		);
+	const scope = wholeWorkspace || active === undefined ? undefined : <InlineCode>{active.name}</InlineCode>;
 	const newHref = newResourcePath(
 		activeOrgId ?? "",
 		activeWorkspaceId ?? "",
 		active === undefined ? {} : { env: active.slug },
 	);
 	return (
-		<EmptyHero
-			art={<StackArt />}
-			title="No resources yet"
-			subtitle={
-				<>Nothing is deployed{where}. Deploy from your terminal with the loco CLI, or create a resource here.</>
-			}
-		>
+		<EmptyHero art={<StackArt />} title="No resources" subtitle={scope}>
 			<div className="my-2 flex w-[min(380px,100%)] items-center justify-between gap-6 rounded-lg bg-background py-3.5 pr-3.5 pl-4 text-left ring-1 ring-line">
 				<div className="flex flex-col gap-1.5 font-mono text-[13px]">
 					{COMMANDS.map((cmd) => (

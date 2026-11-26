@@ -61,8 +61,7 @@ SELECT workspace_id FROM resources WHERE id = $1;
 
 -- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at, domains
+       last_health_check, last_heartbeat, agent_version, created_at, updated_at, domains
 FROM clusters JOIN cluster_heartbeats ON cluster_id = id
 WHERE is_active = true
   AND role IN ('apps', 'all')

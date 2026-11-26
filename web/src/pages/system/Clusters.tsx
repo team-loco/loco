@@ -38,15 +38,9 @@ export function SystemClusters() {
 		);
 	const filtered = needle !== "" || region !== "";
 	const empty = filtered ? (
-		<EmptyState icon={<SearchXIcon />} title="No clusters match" query={needle}>
-			Clear the name or region filter to see the others.
-		</EmptyState>
+		<EmptyState icon={<SearchXIcon />} title="No matches" query={needle} />
 	) : (
-		<EmptyState icon={<ServerIcon />} title={removed ? "No removed clusters" : "No clusters yet"}>
-			{removed
-				? "Clusters you remove appear here until you restore them."
-				: "Add a cluster to give Loco somewhere to run workloads."}
-		</EmptyState>
+		<EmptyState icon={<ServerIcon />} title={removed ? "No removed clusters" : "No clusters"} />
 	);
 
 	return (

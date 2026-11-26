@@ -44,24 +44,26 @@ var (
 )
 
 type ClusterAdminServer struct {
-	pool            *pgxpool.Pool
-	queries         genDb.Querier
-	authz           *authz.Authorizer
-	joinTokenTTL    time.Duration
-	joinTokenMaxTTL time.Duration
+	pool              *pgxpool.Pool
+	queries           genDb.Querier
+	authz             *authz.Authorizer
+	joinTokenTTL      time.Duration
+	joinTokenMaxTTL   time.Duration
+	heartbeatInterval time.Duration
 }
 
 func NewClusterAdminServer(
 	pool *pgxpool.Pool,
 	queries genDb.Querier,
-	joinTokenTTL, joinTokenMaxTTL time.Duration,
+	joinTokenTTL, joinTokenMaxTTL, heartbeatInterval time.Duration,
 ) *ClusterAdminServer {
 	return &ClusterAdminServer{
-		pool:            pool,
-		queries:         queries,
-		authz:           authz.New(queries),
-		joinTokenTTL:    joinTokenTTL,
-		joinTokenMaxTTL: joinTokenMaxTTL,
+		pool:              pool,
+		queries:           queries,
+		authz:             authz.New(queries),
+		joinTokenTTL:      joinTokenTTL,
+		joinTokenMaxTTL:   joinTokenMaxTTL,
+		heartbeatInterval: heartbeatInterval,
 	}
 }
 
@@ -254,8 +256,22 @@ func (s *ClusterAdminServer) ListClusters(
 			LastHeartbeat: optionalTimestamp(row.LastHeartbeat),
 			SilentSince:   optionalTimestamp(row.SilentSince),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
-			Role:    clusterRoleToProto(row.Role),
-			Domains: row.Domains,
+			HealthMessage: derefString(row.HealthMessage),
+			Role:          clusterRoleToProto(row.Role),
+			Domains:       row.Domains,
+		}
+		if row.CapacityReportedAt != nil {
+			cluster.Capacity = &clusterv1.ClusterCapacity{
+				CpuMillicoresAllocatable: *row.ReportedCpuMillicores,
+				CpuMillicoresRequested:   *row.RequestedCpuMillicores,
+				MemoryBytesAllocatable:   *row.ReportedMemoryBytes,
+				MemoryBytesRequested:     *row.RequestedMemoryBytes,
+				PodsAllocatable:          *row.CapacityPods,
+				PodsAssigned:             *row.AssignedPods,
+				PodsRunning:              *row.RunningPods,
+				ReportedAt:               timestamppb.New(*row.CapacityReportedAt),
+				Stale:                    time.Since(*row.CapacityReportedAt) > ClusterSilentAfter(s.heartbeatInterval),
+			}
 		}
 		if row.AgentPublicKey != nil {
 			fingerprint := sha256.Sum256(row.AgentPublicKey)

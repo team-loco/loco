@@ -109,6 +109,10 @@ These observations are not approved conventions for new screens:
 
 A new screen should have an identifiable task and scope, the appropriate existing page/section hierarchy, semantic theme tokens, shared wrappers, bounded technical text and legible narrow behavior. Its normal, pending, invalid, empty and failed states should have clear labels and recovery. Compare it with the relevant reference screen in both themes before approval.
 
+### System cluster operations
+
+Lead cluster pages with deployment headroom, Loco health, work needing attention and recent Loco activity. Capacity reports compare requested resources with allocatable capacity; measured runtime usage is a separate signal. Label missing and stale reports, and never present aggregate headroom as a promise that a deployment will fit on a node. Keep nodes and Kubernetes details behind diagnostic drilldowns when they explain a Loco problem. The System area is not a generic Kubernetes resource or YAML browser.
+
 ### Feature contracts and source links
 
 These are feature/API requirements, separate from the visual guidance above. Follow the maintained implementation and protocol when behavior changes:
@@ -157,3 +161,5 @@ The dashboard allocation strip and bars use `--allocation-0` through `--allocati
 Audit filter rejections use the shared error receipt and empty hero inside the toolbar section. The receipt carries request, call, code and API field details; the heading and reset action describe the affected filter. Unusable link filters use the shared warning banner with a Dismiss action.
 
 Audit search rejections use the same empty hero with a search receipt, the API message as the heading and field insertion actions. The table and pager remain hidden until the search is accepted.
+
+System pages use short noun headings and data labels. Omit status explanations, tutorial sentences, reassuring summaries and navigation advice. Show actual error reasons and state badges directly; empty states use short labels.

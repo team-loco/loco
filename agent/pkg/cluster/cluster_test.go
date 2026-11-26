@@ -31,6 +31,7 @@ func pod(name string, phase corev1.PodPhase, cpu, memory string) *corev1.Pod {
 	return &corev1.Pod{
 		Name: name, Namespace: "default",
 		Spec: corev1.PodSpec{
+			NodeName: "a",
 			Containers: []corev1.Container{{
 				Name: "app",
 				Resources: corev1.ResourceRequirements{
@@ -87,10 +88,10 @@ func TestCapacity(t *testing.T) {
 	if got := capacity.GetPodsTotal(); got != 220 {
 		t.Errorf("pods total = %d, want 220", got)
 	}
-	if got := capacity.GetCpuMillicoresUsed(); got != 750 {
+	if got := capacity.GetCpuMillicoresRequested(); got != 750 {
 		t.Errorf("cpu used = %d, want 750", got)
 	}
-	if got := capacity.GetMemoryBytesUsed(); got != 1536<<20 {
+	if got := capacity.GetMemoryBytesRequested(); got != 1536<<20 {
 		t.Errorf("memory used = %d, want %d", got, int64(1536<<20))
 	}
 	if got := capacity.GetPodsRunning(); got != 1 {
@@ -149,5 +150,38 @@ func TestCapacityReportsMixedWorkerPlatforms(t *testing.T) {
 	}
 	if got := strings.Join(capacity.GetPlatforms(), ","); got != "linux/amd64,linux/arm64" {
 		t.Fatalf("platforms %s", got)
+	}
+}
+
+func TestCapacityCountsEffectiveAssignedRequests(t *testing.T) {
+	t.Parallel()
+	running := pod("running", corev1.PodRunning, "200m", "128Mi")
+	running.Spec.InitContainers = []corev1.Container{{Name: "init", Resources: corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("800m"),
+			corev1.ResourceMemory: resource.MustParse("256Mi"),
+		},
+	}}}
+	running.Spec.Overhead = corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("100m"),
+		corev1.ResourceMemory: resource.MustParse("64Mi"),
+	}
+	assigned := pod("starting", corev1.PodPending, "250m", "64Mi")
+	waiting := pod("unassigned", corev1.PodPending, "10", "10Gi")
+	waiting.Spec.NodeName = ""
+	client := fake.NewClientset(node("a", "4", "8Gi", "110"), running, assigned, waiting)
+	capacity, err := NewInspector(client, "loco-system", "loco-controller").Capacity(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if capacity.GetCpuMillicoresRequested() != 1150 || capacity.GetMemoryBytesRequested() != 384<<20 {
+		t.Fatalf(
+			"effective requests = %dm CPU / %d bytes, want 1150m / 384Mi",
+			capacity.GetCpuMillicoresRequested(),
+			capacity.GetMemoryBytesRequested(),
+		)
+	}
+	if capacity.GetPodsAssigned() != 2 || capacity.GetPodsRunning() != 1 {
+		t.Fatalf("assigned/running = %d/%d, want 2/1", capacity.GetPodsAssigned(), capacity.GetPodsRunning())
 	}
 }

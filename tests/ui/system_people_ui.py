@@ -65,7 +65,7 @@ with session(repo / "tests/ui/out/system-people") as browser:
     operators = page.get_by_role("table", name="Operators", exact=True)
     expect(operators).to_contain_text("admin@loco.test")
     expect(operators).to_contain_text("Configuration and grant")
-    waiting = page.get_by_role("table", name="Waiting to sign in", exact=True)
+    waiting = page.get_by_role("table", name="Pending", exact=True)
     expect(waiting).to_contain_text("ops@loco.test")
     expect(waiting).to_contain_text("audit@loco.test")
     expect(page.get_by_role("button", name="Grant role", exact=True)).to_have_count(0)
@@ -97,7 +97,7 @@ with session(repo / "tests/ui/out/system-people") as browser:
     page.get_by_role("textbox", name="Filter operators by email", exact=True).fill("")
 
     page.get_by_role("button", name="Grant role", exact=True).click()
-    dialog = page.get_by_role("dialog", name="Grant an installation role", exact=True)
+    dialog = page.get_by_role("dialog", name="Grant role", exact=True)
     submit = dialog.get_by_role("button", name="Grant read role", exact=True)
     expect(submit).to_be_disabled()
     dialog.get_by_role("textbox", name="Email", exact=True).fill("nobody@acme.test")

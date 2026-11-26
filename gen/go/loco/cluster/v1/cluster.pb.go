@@ -8,6 +8,7 @@ package clusterv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -201,7 +202,10 @@ type Cluster struct {
 	Role                ClusterRole            `protobuf:"varint,12,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
 	Domains             []string               `protobuf:"bytes,13,rep,name=domains,proto3" json:"domains,omitempty"`
 	// The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.
-	SilentSince   *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=silent_since,json=silentSince,proto3" json:"silent_since,omitempty"`
+	SilentSince *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=silent_since,json=silentSince,proto3" json:"silent_since,omitempty"`
+	// Last successful capacity sample; absent before the first successful sample.
+	Capacity      *ClusterCapacity `protobuf:"bytes,17,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	HealthMessage string           `protobuf:"bytes,18,opt,name=health_message,json=healthMessage,proto3" json:"health_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -325,6 +329,20 @@ func (x *Cluster) GetSilentSince() *timestamppb.Timestamp {
 		return x.SilentSince
 	}
 	return nil
+}
+
+func (x *Cluster) GetCapacity() *ClusterCapacity {
+	if x != nil {
+		return x.Capacity
+	}
+	return nil
+}
+
+func (x *Cluster) GetHealthMessage() string {
+	if x != nil {
+		return x.HealthMessage
+	}
+	return ""
 }
 
 type ClusterWorkload struct {
@@ -1286,17 +1304,358 @@ func (x *ListRegionsResponse) GetRegions() []*Region {
 	return nil
 }
 
+// ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.
+// Requested resources cover assigned, non-terminal pods including init containers and overhead.
+// Aggregate headroom does not guarantee a workload can be scheduled on an individual node.
+type ClusterCapacity struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	CpuMillicoresAllocatable int64                  `protobuf:"varint,1,opt,name=cpu_millicores_allocatable,json=cpuMillicoresAllocatable,proto3" json:"cpu_millicores_allocatable,omitempty"`
+	CpuMillicoresRequested   int64                  `protobuf:"varint,2,opt,name=cpu_millicores_requested,json=cpuMillicoresRequested,proto3" json:"cpu_millicores_requested,omitempty"`
+	MemoryBytesAllocatable   int64                  `protobuf:"varint,3,opt,name=memory_bytes_allocatable,json=memoryBytesAllocatable,proto3" json:"memory_bytes_allocatable,omitempty"`
+	MemoryBytesRequested     int64                  `protobuf:"varint,4,opt,name=memory_bytes_requested,json=memoryBytesRequested,proto3" json:"memory_bytes_requested,omitempty"`
+	PodsAllocatable          int32                  `protobuf:"varint,5,opt,name=pods_allocatable,json=podsAllocatable,proto3" json:"pods_allocatable,omitempty"`
+	PodsRunning              int32                  `protobuf:"varint,6,opt,name=pods_running,json=podsRunning,proto3" json:"pods_running,omitempty"`
+	ReportedAt               *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=reported_at,json=reportedAt,proto3" json:"reported_at,omitempty"`
+	PodsAssigned             int32                  `protobuf:"varint,8,opt,name=pods_assigned,json=podsAssigned,proto3" json:"pods_assigned,omitempty"`
+	// Sample is older than the installation's configured heartbeat silence threshold.
+	Stale         bool `protobuf:"varint,9,opt,name=stale,proto3" json:"stale,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClusterCapacity) Reset() {
+	*x = ClusterCapacity{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClusterCapacity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClusterCapacity) ProtoMessage() {}
+
+func (x *ClusterCapacity) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClusterCapacity.ProtoReflect.Descriptor instead.
+func (*ClusterCapacity) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ClusterCapacity) GetCpuMillicoresAllocatable() int64 {
+	if x != nil {
+		return x.CpuMillicoresAllocatable
+	}
+	return 0
+}
+
+func (x *ClusterCapacity) GetCpuMillicoresRequested() int64 {
+	if x != nil {
+		return x.CpuMillicoresRequested
+	}
+	return 0
+}
+
+func (x *ClusterCapacity) GetMemoryBytesAllocatable() int64 {
+	if x != nil {
+		return x.MemoryBytesAllocatable
+	}
+	return 0
+}
+
+func (x *ClusterCapacity) GetMemoryBytesRequested() int64 {
+	if x != nil {
+		return x.MemoryBytesRequested
+	}
+	return 0
+}
+
+func (x *ClusterCapacity) GetPodsAllocatable() int32 {
+	if x != nil {
+		return x.PodsAllocatable
+	}
+	return 0
+}
+
+func (x *ClusterCapacity) GetPodsRunning() int32 {
+	if x != nil {
+		return x.PodsRunning
+	}
+	return 0
+}
+
+func (x *ClusterCapacity) GetReportedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReportedAt
+	}
+	return nil
+}
+
+func (x *ClusterCapacity) GetPodsAssigned() int32 {
+	if x != nil {
+		return x.PodsAssigned
+	}
+	return 0
+}
+
+func (x *ClusterCapacity) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
+}
+
+type GetClusterOperationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetClusterOperationsRequest) Reset() {
+	*x = GetClusterOperationsRequest{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetClusterOperationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetClusterOperationsRequest) ProtoMessage() {}
+
+func (x *GetClusterOperationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetClusterOperationsRequest.ProtoReflect.Descriptor instead.
+func (*GetClusterOperationsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetClusterOperationsRequest) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+type GetClusterOperationsResponse struct {
+	state            protoimpl.MessageState      `protogen:"open.v1"`
+	Workloads        []*ClusterWorkloadAttention `protobuf:"bytes,1,rep,name=workloads,proto3" json:"workloads,omitempty"`
+	HasMoreWorkloads bool                        `protobuf:"varint,2,opt,name=has_more_workloads,json=hasMoreWorkloads,proto3" json:"has_more_workloads,omitempty"`
+	Events           []*v1.Event                 `protobuf:"bytes,3,rep,name=events,proto3" json:"events,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetClusterOperationsResponse) Reset() {
+	*x = GetClusterOperationsResponse{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetClusterOperationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetClusterOperationsResponse) ProtoMessage() {}
+
+func (x *GetClusterOperationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetClusterOperationsResponse.ProtoReflect.Descriptor instead.
+func (*GetClusterOperationsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *GetClusterOperationsResponse) GetWorkloads() []*ClusterWorkloadAttention {
+	if x != nil {
+		return x.Workloads
+	}
+	return nil
+}
+
+func (x *GetClusterOperationsResponse) GetHasMoreWorkloads() bool {
+	if x != nil {
+		return x.HasMoreWorkloads
+	}
+	return false
+}
+
+func (x *GetClusterOperationsResponse) GetEvents() []*v1.Event {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+// ClusterWorkloadAttention identifies current Loco work that is blocked or failing.
+type ClusterWorkloadAttention struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind            string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	ResourceId      string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceName    string                 `protobuf:"bytes,4,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
+	OrgId           string                 `protobuf:"bytes,5,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	WorkspaceId     string                 `protobuf:"bytes,6,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	EnvironmentId   string                 `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	EnvironmentSlug string                 `protobuf:"bytes,8,opt,name=environment_slug,json=environmentSlug,proto3" json:"environment_slug,omitempty"`
+	Status          string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	Message         string                 `protobuf:"bytes,10,opt,name=message,proto3" json:"message,omitempty"`
+	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ClusterWorkloadAttention) Reset() {
+	*x = ClusterWorkloadAttention{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClusterWorkloadAttention) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClusterWorkloadAttention) ProtoMessage() {}
+
+func (x *ClusterWorkloadAttention) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClusterWorkloadAttention.ProtoReflect.Descriptor instead.
+func (*ClusterWorkloadAttention) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ClusterWorkloadAttention) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetResourceName() string {
+	if x != nil {
+		return x.ResourceName
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetEnvironmentSlug() string {
+	if x != nil {
+		return x.EnvironmentSlug
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ClusterWorkloadAttention) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
 var File_loco_cluster_v1_cluster_proto protoreflect.FileDescriptor
 
 const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\n" +
-	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"A\n" +
+	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19loco/event/v1/event.proto\"A\n" +
 	"\x06Region\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12#\n" +
 	"\rcluster_count\x18\x02 \x01(\x05R\fclusterCount\"o\n" +
 	"\tNewRegion\x12,\n" +
 	"\acountry\x18\x01 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\acountry\x124\n" +
-	"\vsubdivision\x18\x02 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\vsubdivision\"\x8e\x05\n" +
+	"\vsubdivision\x18\x02 \x01(\tB\x12\xbaH\x0fr\r2\v^[a-z0-9]+$R\vsubdivision\"\xf3\x05\n" +
 	"\aCluster\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vcluster_key\x18\x02 \x01(\tR\n" +
@@ -1313,7 +1672,9 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\x15agent_key_fingerprint\x18\v \x01(\tH\x02R\x13agentKeyFingerprint\x88\x01\x01\x120\n" +
 	"\x04role\x18\f \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleR\x04role\x12\x18\n" +
 	"\adomains\x18\r \x03(\tR\adomains\x12=\n" +
-	"\fsilent_since\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\vsilentSinceB\x10\n" +
+	"\fsilent_since\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\vsilentSince\x12<\n" +
+	"\bcapacity\x18\x11 \x01(\v2 .loco.cluster.v1.ClusterCapacityR\bcapacity\x12%\n" +
+	"\x0ehealth_message\x18\x12 \x01(\tR\rhealthMessageB\x10\n" +
 	"\x0e_health_statusB\x10\n" +
 	"\x0e_agent_versionB\x18\n" +
 	"\x16_agent_key_fingerprintJ\x04\b\x05\x10\x06J\x04\b\x0e\x10\x0fJ\x04\b\x0f\x10\x10R\x04tierR\vdns_recordsR\x10gateway_hostname\"5\n" +
@@ -1383,16 +1744,50 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"cluster_id\x18\x01 \x01(\tR\tclusterId\"\x14\n" +
 	"\x12ListRegionsRequest\"H\n" +
 	"\x13ListRegionsResponse\x121\n" +
-	"\aregions\x18\x01 \x03(\v2\x17.loco.cluster.v1.RegionR\aregions*q\n" +
+	"\aregions\x18\x01 \x03(\v2\x17.loco.cluster.v1.RegionR\aregions\"\xbf\x03\n" +
+	"\x0fClusterCapacity\x12<\n" +
+	"\x1acpu_millicores_allocatable\x18\x01 \x01(\x03R\x18cpuMillicoresAllocatable\x128\n" +
+	"\x18cpu_millicores_requested\x18\x02 \x01(\x03R\x16cpuMillicoresRequested\x128\n" +
+	"\x18memory_bytes_allocatable\x18\x03 \x01(\x03R\x16memoryBytesAllocatable\x124\n" +
+	"\x16memory_bytes_requested\x18\x04 \x01(\x03R\x14memoryBytesRequested\x12)\n" +
+	"\x10pods_allocatable\x18\x05 \x01(\x05R\x0fpodsAllocatable\x12!\n" +
+	"\fpods_running\x18\x06 \x01(\x05R\vpodsRunning\x12;\n" +
+	"\vreported_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"reportedAt\x12#\n" +
+	"\rpods_assigned\x18\b \x01(\x05R\fpodsAssigned\x12\x14\n" +
+	"\x05stale\x18\t \x01(\bR\x05stale\"F\n" +
+	"\x1bGetClusterOperationsRequest\x12'\n" +
+	"\n" +
+	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\"\xc3\x01\n" +
+	"\x1cGetClusterOperationsResponse\x12G\n" +
+	"\tworkloads\x18\x01 \x03(\v2).loco.cluster.v1.ClusterWorkloadAttentionR\tworkloads\x12,\n" +
+	"\x12has_more_workloads\x18\x02 \x01(\bR\x10hasMoreWorkloads\x12,\n" +
+	"\x06events\x18\x03 \x03(\v2\x14.loco.event.v1.EventR\x06events\"\xfd\x02\n" +
+	"\x18ClusterWorkloadAttention\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1f\n" +
+	"\vresource_id\x18\x03 \x01(\tR\n" +
+	"resourceId\x12#\n" +
+	"\rresource_name\x18\x04 \x01(\tR\fresourceName\x12\x15\n" +
+	"\x06org_id\x18\x05 \x01(\tR\x05orgId\x12!\n" +
+	"\fworkspace_id\x18\x06 \x01(\tR\vworkspaceId\x12%\n" +
+	"\x0eenvironment_id\x18\a \x01(\tR\renvironmentId\x12)\n" +
+	"\x10environment_slug\x18\b \x01(\tR\x0fenvironmentSlug\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x18\n" +
+	"\amessage\x18\n" +
+	" \x01(\tR\amessage\x129\n" +
+	"\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt*q\n" +
 	"\vClusterRole\x12\x1c\n" +
 	"\x18CLUSTER_ROLE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CLUSTER_ROLE_APPS\x10\x01\x12\x17\n" +
 	"\x13CLUSTER_ROLE_BUILDS\x10\x02\x12\x14\n" +
-	"\x10CLUSTER_ROLE_ALL\x10\x032\xb5\x05\n" +
+	"\x10CLUSTER_ROLE_ALL\x10\x032\xaa\x06\n" +
 	"\x13ClusterAdminService\x12^\n" +
 	"\rCreateCluster\x12%.loco.cluster.v1.CreateClusterRequest\x1a&.loco.cluster.v1.CreateClusterResponse\x12a\n" +
 	"\x0eIssueJoinToken\x12&.loco.cluster.v1.IssueJoinTokenRequest\x1a'.loco.cluster.v1.IssueJoinTokenResponse\x12[\n" +
-	"\fListClusters\x12$.loco.cluster.v1.ListClustersRequest\x1a%.loco.cluster.v1.ListClustersResponse\x12[\n" +
+	"\fListClusters\x12$.loco.cluster.v1.ListClustersRequest\x1a%.loco.cluster.v1.ListClustersResponse\x12s\n" +
+	"\x14GetClusterOperations\x12,.loco.cluster.v1.GetClusterOperationsRequest\x1a-.loco.cluster.v1.GetClusterOperationsResponse\x12[\n" +
 	"\fPauseCluster\x12$.loco.cluster.v1.PauseClusterRequest\x1a%.loco.cluster.v1.PauseClusterResponse\x12^\n" +
 	"\rResumeCluster\x12%.loco.cluster.v1.ResumeClusterRequest\x1a&.loco.cluster.v1.ResumeClusterResponse\x12^\n" +
 	"\rRemoveCluster\x12%.loco.cluster.v1.RemoveClusterRequest\x1a&.loco.cluster.v1.RemoveClusterResponse\x12a\n" +
@@ -1413,70 +1808,82 @@ func file_loco_cluster_v1_cluster_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_cluster_v1_cluster_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_cluster_v1_cluster_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_loco_cluster_v1_cluster_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_loco_cluster_v1_cluster_proto_goTypes = []any{
-	(ClusterRole)(0),               // 0: loco.cluster.v1.ClusterRole
-	(*Region)(nil),                 // 1: loco.cluster.v1.Region
-	(*NewRegion)(nil),              // 2: loco.cluster.v1.NewRegion
-	(*Cluster)(nil),                // 3: loco.cluster.v1.Cluster
-	(*ClusterWorkload)(nil),        // 4: loco.cluster.v1.ClusterWorkload
-	(*ClusterWorkloads)(nil),       // 5: loco.cluster.v1.ClusterWorkloads
-	(*JoinToken)(nil),              // 6: loco.cluster.v1.JoinToken
-	(*CreateClusterRequest)(nil),   // 7: loco.cluster.v1.CreateClusterRequest
-	(*CreateClusterResponse)(nil),  // 8: loco.cluster.v1.CreateClusterResponse
-	(*IssueJoinTokenRequest)(nil),  // 9: loco.cluster.v1.IssueJoinTokenRequest
-	(*IssueJoinTokenResponse)(nil), // 10: loco.cluster.v1.IssueJoinTokenResponse
-	(*ListClustersRequest)(nil),    // 11: loco.cluster.v1.ListClustersRequest
-	(*ListClustersResponse)(nil),   // 12: loco.cluster.v1.ListClustersResponse
-	(*PauseClusterRequest)(nil),    // 13: loco.cluster.v1.PauseClusterRequest
-	(*PauseClusterResponse)(nil),   // 14: loco.cluster.v1.PauseClusterResponse
-	(*ResumeClusterRequest)(nil),   // 15: loco.cluster.v1.ResumeClusterRequest
-	(*ResumeClusterResponse)(nil),  // 16: loco.cluster.v1.ResumeClusterResponse
-	(*RemoveClusterRequest)(nil),   // 17: loco.cluster.v1.RemoveClusterRequest
-	(*RemoveClusterResponse)(nil),  // 18: loco.cluster.v1.RemoveClusterResponse
-	(*RestoreClusterRequest)(nil),  // 19: loco.cluster.v1.RestoreClusterRequest
-	(*RestoreClusterResponse)(nil), // 20: loco.cluster.v1.RestoreClusterResponse
-	(*ListRegionsRequest)(nil),     // 21: loco.cluster.v1.ListRegionsRequest
-	(*ListRegionsResponse)(nil),    // 22: loco.cluster.v1.ListRegionsResponse
-	(*timestamppb.Timestamp)(nil),  // 23: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),    // 24: google.protobuf.Duration
+	(ClusterRole)(0),                     // 0: loco.cluster.v1.ClusterRole
+	(*Region)(nil),                       // 1: loco.cluster.v1.Region
+	(*NewRegion)(nil),                    // 2: loco.cluster.v1.NewRegion
+	(*Cluster)(nil),                      // 3: loco.cluster.v1.Cluster
+	(*ClusterWorkload)(nil),              // 4: loco.cluster.v1.ClusterWorkload
+	(*ClusterWorkloads)(nil),             // 5: loco.cluster.v1.ClusterWorkloads
+	(*JoinToken)(nil),                    // 6: loco.cluster.v1.JoinToken
+	(*CreateClusterRequest)(nil),         // 7: loco.cluster.v1.CreateClusterRequest
+	(*CreateClusterResponse)(nil),        // 8: loco.cluster.v1.CreateClusterResponse
+	(*IssueJoinTokenRequest)(nil),        // 9: loco.cluster.v1.IssueJoinTokenRequest
+	(*IssueJoinTokenResponse)(nil),       // 10: loco.cluster.v1.IssueJoinTokenResponse
+	(*ListClustersRequest)(nil),          // 11: loco.cluster.v1.ListClustersRequest
+	(*ListClustersResponse)(nil),         // 12: loco.cluster.v1.ListClustersResponse
+	(*PauseClusterRequest)(nil),          // 13: loco.cluster.v1.PauseClusterRequest
+	(*PauseClusterResponse)(nil),         // 14: loco.cluster.v1.PauseClusterResponse
+	(*ResumeClusterRequest)(nil),         // 15: loco.cluster.v1.ResumeClusterRequest
+	(*ResumeClusterResponse)(nil),        // 16: loco.cluster.v1.ResumeClusterResponse
+	(*RemoveClusterRequest)(nil),         // 17: loco.cluster.v1.RemoveClusterRequest
+	(*RemoveClusterResponse)(nil),        // 18: loco.cluster.v1.RemoveClusterResponse
+	(*RestoreClusterRequest)(nil),        // 19: loco.cluster.v1.RestoreClusterRequest
+	(*RestoreClusterResponse)(nil),       // 20: loco.cluster.v1.RestoreClusterResponse
+	(*ListRegionsRequest)(nil),           // 21: loco.cluster.v1.ListRegionsRequest
+	(*ListRegionsResponse)(nil),          // 22: loco.cluster.v1.ListRegionsResponse
+	(*ClusterCapacity)(nil),              // 23: loco.cluster.v1.ClusterCapacity
+	(*GetClusterOperationsRequest)(nil),  // 24: loco.cluster.v1.GetClusterOperationsRequest
+	(*GetClusterOperationsResponse)(nil), // 25: loco.cluster.v1.GetClusterOperationsResponse
+	(*ClusterWorkloadAttention)(nil),     // 26: loco.cluster.v1.ClusterWorkloadAttention
+	(*timestamppb.Timestamp)(nil),        // 27: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),          // 28: google.protobuf.Duration
+	(*v1.Event)(nil),                     // 29: loco.event.v1.Event
 }
 var file_loco_cluster_v1_cluster_proto_depIdxs = []int32{
-	23, // 0: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
-	23, // 1: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
+	27, // 0: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
+	27, // 1: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
 	0,  // 2: loco.cluster.v1.Cluster.role:type_name -> loco.cluster.v1.ClusterRole
-	23, // 3: loco.cluster.v1.Cluster.silent_since:type_name -> google.protobuf.Timestamp
-	4,  // 4: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	23, // 5: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
-	24, // 6: loco.cluster.v1.CreateClusterRequest.ttl:type_name -> google.protobuf.Duration
-	2,  // 7: loco.cluster.v1.CreateClusterRequest.new_region:type_name -> loco.cluster.v1.NewRegion
-	6,  // 8: loco.cluster.v1.CreateClusterResponse.join_token:type_name -> loco.cluster.v1.JoinToken
-	24, // 9: loco.cluster.v1.IssueJoinTokenRequest.ttl:type_name -> google.protobuf.Duration
-	6,  // 10: loco.cluster.v1.IssueJoinTokenResponse.join_token:type_name -> loco.cluster.v1.JoinToken
-	3,  // 11: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
-	4,  // 12: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	1,  // 13: loco.cluster.v1.ListRegionsResponse.regions:type_name -> loco.cluster.v1.Region
-	7,  // 14: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
-	9,  // 15: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
-	11, // 16: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
-	13, // 17: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
-	15, // 18: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
-	17, // 19: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
-	19, // 20: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
-	21, // 21: loco.cluster.v1.RegionAdminService.ListRegions:input_type -> loco.cluster.v1.ListRegionsRequest
-	8,  // 22: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
-	10, // 23: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
-	12, // 24: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
-	14, // 25: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
-	16, // 26: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
-	18, // 27: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
-	20, // 28: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
-	22, // 29: loco.cluster.v1.RegionAdminService.ListRegions:output_type -> loco.cluster.v1.ListRegionsResponse
-	22, // [22:30] is the sub-list for method output_type
-	14, // [14:22] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	27, // 3: loco.cluster.v1.Cluster.silent_since:type_name -> google.protobuf.Timestamp
+	23, // 4: loco.cluster.v1.Cluster.capacity:type_name -> loco.cluster.v1.ClusterCapacity
+	4,  // 5: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
+	27, // 6: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
+	28, // 7: loco.cluster.v1.CreateClusterRequest.ttl:type_name -> google.protobuf.Duration
+	2,  // 8: loco.cluster.v1.CreateClusterRequest.new_region:type_name -> loco.cluster.v1.NewRegion
+	6,  // 9: loco.cluster.v1.CreateClusterResponse.join_token:type_name -> loco.cluster.v1.JoinToken
+	28, // 10: loco.cluster.v1.IssueJoinTokenRequest.ttl:type_name -> google.protobuf.Duration
+	6,  // 11: loco.cluster.v1.IssueJoinTokenResponse.join_token:type_name -> loco.cluster.v1.JoinToken
+	3,  // 12: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
+	4,  // 13: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
+	1,  // 14: loco.cluster.v1.ListRegionsResponse.regions:type_name -> loco.cluster.v1.Region
+	27, // 15: loco.cluster.v1.ClusterCapacity.reported_at:type_name -> google.protobuf.Timestamp
+	26, // 16: loco.cluster.v1.GetClusterOperationsResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkloadAttention
+	29, // 17: loco.cluster.v1.GetClusterOperationsResponse.events:type_name -> loco.event.v1.Event
+	27, // 18: loco.cluster.v1.ClusterWorkloadAttention.updated_at:type_name -> google.protobuf.Timestamp
+	7,  // 19: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
+	9,  // 20: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
+	11, // 21: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
+	24, // 22: loco.cluster.v1.ClusterAdminService.GetClusterOperations:input_type -> loco.cluster.v1.GetClusterOperationsRequest
+	13, // 23: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
+	15, // 24: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
+	17, // 25: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
+	19, // 26: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
+	21, // 27: loco.cluster.v1.RegionAdminService.ListRegions:input_type -> loco.cluster.v1.ListRegionsRequest
+	8,  // 28: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
+	10, // 29: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
+	12, // 30: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
+	25, // 31: loco.cluster.v1.ClusterAdminService.GetClusterOperations:output_type -> loco.cluster.v1.GetClusterOperationsResponse
+	14, // 32: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
+	16, // 33: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
+	18, // 34: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
+	20, // 35: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
+	22, // 36: loco.cluster.v1.RegionAdminService.ListRegions:output_type -> loco.cluster.v1.ListRegionsResponse
+	28, // [28:37] is the sub-list for method output_type
+	19, // [19:28] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_loco_cluster_v1_cluster_proto_init() }
@@ -1495,7 +1902,7 @@ func file_loco_cluster_v1_cluster_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_cluster_v1_cluster_proto_rawDesc), len(file_loco_cluster_v1_cluster_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   22,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

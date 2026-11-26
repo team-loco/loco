@@ -101,7 +101,8 @@ func TestAnUnchangedCapabilityReportDoesNotWaitForADeploy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 	if err := f.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
-		ID: f.clusterID, Generation: generation, Role: genDb.ClusterRoleAll,
+		HasCapacity: true,
+		ID:          f.clusterID, Generation: generation, Role: genDb.ClusterRoleAll,
 		Domains: []string{}, Platforms: []string{testPlatform},
 	}); err != nil {
 		t.Fatalf("an unchanged report while a deploy held the cluster: %v", err)
@@ -149,7 +150,8 @@ func TestAStaleGenerationDoesNotStoreCapabilities(t *testing.T) {
 	t.Cleanup(update.Wait)
 	update.Go(func() {
 		updated <- f.queries.UpdateClusterReport(ctx, genDb.UpdateClusterReportParams{
-			ID: f.clusterID, Generation: stale, Role: genDb.ClusterRoleBuilds,
+			HasCapacity: true,
+			ID:          f.clusterID, Generation: stale, Role: genDb.ClusterRoleBuilds,
 			Domains: []string{}, Platforms: []string{testPlatform},
 		})
 	})

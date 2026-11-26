@@ -197,7 +197,7 @@ export function Team() {
 		q.trim() !== "" ? (
 			<EmptyState
 				icon={<SearchXIcon />}
-				title="Nobody matches"
+				title="No members match"
 				query={q.trim()}
 				action={
 					<Button

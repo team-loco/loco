@@ -98,7 +98,7 @@ export function SystemAddCluster() {
 						)}
 						{target === "new" && (
 							<div className="grid grid-cols-2 gap-3">
-								<Field label="Country" hint="Lowercase letters and digits, such as us.">
+								<Field label="Country" hint="Lowercase letters and digits">
 									<Input
 										value={country}
 										placeholder="us"
@@ -107,7 +107,7 @@ export function SystemAddCluster() {
 										}}
 									/>
 								</Field>
-								<Field label="State or province" hint="Such as ca.">
+								<Field label="State or province">
 									<Input
 										value={subdivision}
 										placeholder="ca"
@@ -120,10 +120,10 @@ export function SystemAddCluster() {
 						)}
 						{target === "local" && (
 							<p className="m-0 text-[13px] text-fg3">
-								Local clusters join the development region <span className="font-mono">{LOCAL_REGION}</span>.
+								Region <span className="font-mono">{LOCAL_REGION}</span>
 							</p>
 						)}
-						<Field label="Name" hint="Leave empty to name the first cluster of a region after its code.">
+						<Field label="Name" hint="Optional">
 							<Input
 								value={name}
 								maxLength={255}
@@ -146,8 +146,7 @@ export function SystemAddCluster() {
 				<Section title={`Join ${created.name}`}>
 					<div className="flex max-w-[720px] flex-col gap-4 p-5">
 						<p className="m-0 text-[13.5px] text-fg2">
-							The cluster is registered in <span className="font-mono">{created.region}</span>. It shows Never reported
-							until its agent connects with the token.
+							Region <span className="font-mono">{created.region}</span>
 						</p>
 						{created.joinToken !== undefined && (
 							<JoinToken

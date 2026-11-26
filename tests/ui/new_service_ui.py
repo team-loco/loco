@@ -179,7 +179,7 @@ with session(out) as browser:
     ).to_be_visible()
     ask.get_by_role("button", name="Close", exact=True).last.click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
-    expect(page.get_by_text("No resources yet", exact=True)).to_be_visible()
+    expect(page.get_by_text("No resources", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="Copy commands", exact=True)).to_be_visible()
     expect(page.get_by_text("member-draft")).to_have_count(0)
     page.get_by_role("link", name="New resource", exact=True).click()
@@ -188,11 +188,11 @@ with session(out) as browser:
         "button", name="Close", exact=True
     ).last.click()
     page.goto(base + "?env=production")
-    expect(page.get_by_text("No resources yet", exact=True)).to_be_visible()
+    expect(page.get_by_text("No resources", exact=True)).to_be_visible()
     expect(page.get_by_text("member-draft")).to_have_count(0)
     for view in ("logs", "metrics", "traces"):
         page.goto(f"{base}/observability?view={view}&env=production")
-        expect(page.get_by_text("No resources yet", exact=True)).to_be_visible()
+        expect(page.get_by_text("No resources", exact=True)).to_be_visible()
     expect(
         page.get_by_role("link", name="Read the docs", exact=True)
     ).to_have_attribute("href", re.compile(r"/getting-started/install/$"))

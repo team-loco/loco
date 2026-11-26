@@ -1034,6 +1034,22 @@ def seed_fleet(state, clusters):
                 "INSERT INTO cluster_heartbeats(cluster_id,last_heartbeat,health_status,silent_since) "
                 f"VALUES({q(cluster_id)},{beat},{q(cluster.get('health', 'healthy'))},{silent});"
             )
+        capacity = cluster.get("capacity")
+        if capacity is not None:
+            age = int(capacity.get("reported_ago", cluster.get("heartbeat_ago", 0)))
+            statements.append(
+                "UPDATE cluster_heartbeats SET "
+                f"capacity_reported_at=NOW()-make_interval(secs => {age}),"
+                f"reported_cpu_millicores={int(capacity['cpu_allocatable'])},"
+                f"requested_cpu_millicores={int(capacity['cpu_requested'])},"
+                f"reported_memory_bytes={int(capacity['memory_allocatable'])},"
+                f"requested_memory_bytes={int(capacity['memory_requested'])},"
+                f"capacity_pods={int(capacity['pods_allocatable'])},"
+                f"assigned_pods={int(capacity['pods_assigned'])},"
+                f"running_pods={int(capacity['pods_running'])},"
+                f"health_message={q(cluster.get('health_message', ''))} "
+                f"WHERE cluster_id={q(cluster_id)};"
+            )
         psql(state, "".join(statements))
 
 

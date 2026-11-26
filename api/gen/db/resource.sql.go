@@ -246,8 +246,7 @@ func (q *Queries) ListClusterRegions(ctx context.Context, arg ListClusterRegions
 
 const listEligibleClusters = `-- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at, domains
+       last_health_check, last_heartbeat, agent_version, created_at, updated_at, domains
 FROM clusters JOIN cluster_heartbeats ON cluster_id = id
 WHERE is_active = true
   AND role IN ('apps', 'all')
@@ -263,22 +262,20 @@ type ListEligibleClustersParams struct {
 }
 
 type ListEligibleClustersRow struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	Region                string     `json:"region"`
-	Provider              string     `json:"provider"`
-	IsActive              bool       `json:"isActive"`
-	IsDefault             bool       `json:"isDefault"`
-	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          string     `json:"healthStatus"`
-	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	LastHeartbeat         time.Time  `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	AgentVersion          *string    `json:"agentVersion"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
-	Domains               []string   `json:"domains"`
+	ID              uuid.UUID  `json:"id"`
+	Name            string     `json:"name"`
+	Region          string     `json:"region"`
+	Provider        string     `json:"provider"`
+	IsActive        bool       `json:"isActive"`
+	IsDefault       bool       `json:"isDefault"`
+	Endpoint        *string    `json:"endpoint"`
+	HealthStatus    string     `json:"healthStatus"`
+	LastHealthCheck *time.Time `json:"lastHealthCheck"`
+	LastHeartbeat   time.Time  `json:"lastHeartbeat"`
+	AgentVersion    *string    `json:"agentVersion"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
+	Domains         []string   `json:"domains"`
 }
 
 func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error) {
@@ -301,8 +298,6 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 			&i.HealthStatus,
 			&i.LastHealthCheck,
 			&i.LastHeartbeat,
-			&i.CapacityCpuMillicores,
-			&i.CapacityMemoryBytes,
 			&i.AgentVersion,
 			&i.CreatedAt,
 			&i.UpdatedAt,

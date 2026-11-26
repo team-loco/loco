@@ -266,7 +266,7 @@ function WebhookDetail({
 						);
 					}}
 					redelivering={redeliver.isPending}
-					empty={filter === ALL ? "No deliveries yet. Events appear here as they are sent." : "Nothing failing."}
+					empty={filter === ALL ? "No deliveries" : "No failed deliveries"}
 				/>
 				{query.error !== null && (
 					<Button

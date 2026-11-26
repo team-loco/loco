@@ -7,21 +7,14 @@ import { InlineCode } from "@/components/design/InlineCode";
 import { Page, PageHeader, PageLoading, Section } from "@/components/design/Page";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { notFound } from "@/lib/not-found";
-import { ROLE_LABEL, systemAccess, type ClusterState } from "@/lib/system";
+import { ROLE_LABEL, systemAccess } from "@/lib/system";
 
+import { Capacity } from "./Capacity";
+import { ClusterOperations } from "./ClusterOperations";
+import { RuntimeSignals } from "./RuntimeSignals";
 import { ClusterActionButtons } from "./ClusterActions";
 import { AgentVersion } from "./ClusterTable";
 import { ClusterStateBadge, SystemTime, useFleet } from "./shared";
-
-const MEANING: Record<ClusterState, string> = {
-	healthy: "The agent is reporting and the cluster takes new placements.",
-	degraded: "The agent reports a problem. Workloads keep running.",
-	unhealthy: "The agent reports that Kubernetes and the Loco controller are both unhealthy.",
-	"not-reporting": "The agent has stopped sending heartbeats. Workloads may still be running.",
-	"never-reported": "The agent has not connected yet. Install the worker with a join token to enroll it.",
-	paused: "The cluster takes no new placements. Workloads already on it keep running.",
-	removed: "The cluster is removed from Loco. Restore it to use it again.",
-};
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
 	return (
@@ -60,7 +53,16 @@ export function SystemClusterDetail() {
 					)
 				}
 			/>
-			<p className="m-0 text-[13.5px] text-fg2">{MEANING[state]}</p>
+			{cluster.healthMessage !== "" && (
+				<p className="m-0 rounded-card border border-line bg-panel px-5 py-3 text-[13px] text-fg2">
+					{cluster.healthMessage}
+				</p>
+			)}
+			<Section title="Capacity">
+				<Capacity capacity={cluster.capacity} />
+			</Section>
+			<ClusterOperations clusterId={cluster.id} />
+			<RuntimeSignals clusterId={cluster.id} />
 			<Section title="Details">
 				<dl className="m-0 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-5 p-5">
 					<Fact label="Region">

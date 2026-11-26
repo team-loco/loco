@@ -128,7 +128,7 @@ with session(repo / "tests/ui/out/system-orgs") as browser:
     expect(org_row(page, "ops")).to_be_visible()
     expect(org_row(page, "labs")).to_be_visible()
     search.fill("no-such-organization")
-    expect(page.get_by_text("No organizations match", exact=True)).to_be_visible()
+    expect(page.get_by_text("No matches", exact=True)).to_be_visible()
     search.fill("")
     expect(org_row(page, "acme")).to_be_visible()
 
@@ -158,7 +158,7 @@ with session(repo / "tests/ui/out/system-orgs") as browser:
     ).to_have_attribute("href", f"/org/{bare}/team")
     page.goto(ui + "/system/orgs/00000000-0000-0000-0000-000000000000")
     expect(
-        page.get_by_role("heading", name="Nothing lives at this address", exact=True)
+        page.get_by_role("heading", name="Page not found", exact=True)
     ).to_be_visible()
     assert not [e for e in errors if e], errors
     context.close()

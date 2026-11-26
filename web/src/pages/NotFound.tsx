@@ -97,8 +97,7 @@ export function NotFound({
 							{!isStatic && <MissingPath />}
 						</>
 					}
-					title="Nothing lives at this address"
-					subtitle="The link may be wrong, or you may not have access to it."
+					title="Page not found"
 					className="w-full max-w-[560px] bg-transparent py-10"
 				>
 					<div className="mt-1.5 flex flex-wrap justify-center gap-2">

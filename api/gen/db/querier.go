@@ -203,7 +203,11 @@ type Querier interface {
 	ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error)
 	ListBuildingDeployments(ctx context.Context, buildID string) ([]Deployment, error)
 	ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error)
+	ListClusterAttention(ctx context.Context, arg ListClusterAttentionParams) ([]ListClusterAttentionRow, error)
 	ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]ListClusterDomainsRow, error)
+	// Each related subject contributes at most one page through its own index, so a quiet cluster never
+	// scans the installation's globally ordered event history. UNION removes events linked in several ways.
+	ListClusterEvents(ctx context.Context, clusterID *uuid.UUID) ([]ListClusterEventsRow, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
 	// Returns each workspace's windows on the cluster that are open or closed after since,
 	// merged into non-overlapping intervals.
@@ -359,6 +363,8 @@ type Querier interface {
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
+	// Runs under the heartbeat transaction/stream lock. A missing sample leaves the last sample's timestamp unchanged.
+	RecordClusterCapacity(ctx context.Context, arg RecordClusterCapacityParams) error
 	// Stamps the heartbeat with the database clock under the row lock, so the time never moves backwards, and ends
 	// any silence mark.
 	RecordClusterHeartbeat(ctx context.Context, arg RecordClusterHeartbeatParams) (time.Time, error)

@@ -1740,16 +1740,18 @@ func (x *Heartbeat) GetDomains() []string {
 
 // AgentCapacity reports cluster resource capacity.
 type AgentCapacity struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	CpuMillicoresTotal int64                  `protobuf:"varint,1,opt,name=cpu_millicores_total,json=cpuMillicoresTotal,proto3" json:"cpu_millicores_total,omitempty"`
-	CpuMillicoresUsed  int64                  `protobuf:"varint,2,opt,name=cpu_millicores_used,json=cpuMillicoresUsed,proto3" json:"cpu_millicores_used,omitempty"`
-	MemoryBytesTotal   int64                  `protobuf:"varint,3,opt,name=memory_bytes_total,json=memoryBytesTotal,proto3" json:"memory_bytes_total,omitempty"`
-	MemoryBytesUsed    int64                  `protobuf:"varint,4,opt,name=memory_bytes_used,json=memoryBytesUsed,proto3" json:"memory_bytes_used,omitempty"`
-	PodsTotal          int32                  `protobuf:"varint,5,opt,name=pods_total,json=podsTotal,proto3" json:"pods_total,omitempty"`
-	PodsRunning        int32                  `protobuf:"varint,6,opt,name=pods_running,json=podsRunning,proto3" json:"pods_running,omitempty"`
-	Platforms          []string               `protobuf:"bytes,7,rep,name=platforms,proto3" json:"platforms,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	CpuMillicoresTotal     int64                  `protobuf:"varint,1,opt,name=cpu_millicores_total,json=cpuMillicoresTotal,proto3" json:"cpu_millicores_total,omitempty"`
+	CpuMillicoresRequested int64                  `protobuf:"varint,2,opt,name=cpu_millicores_requested,json=cpuMillicoresRequested,proto3" json:"cpu_millicores_requested,omitempty"`
+	MemoryBytesTotal       int64                  `protobuf:"varint,3,opt,name=memory_bytes_total,json=memoryBytesTotal,proto3" json:"memory_bytes_total,omitempty"`
+	MemoryBytesRequested   int64                  `protobuf:"varint,4,opt,name=memory_bytes_requested,json=memoryBytesRequested,proto3" json:"memory_bytes_requested,omitempty"`
+	PodsTotal              int32                  `protobuf:"varint,5,opt,name=pods_total,json=podsTotal,proto3" json:"pods_total,omitempty"`
+	PodsRunning            int32                  `protobuf:"varint,6,opt,name=pods_running,json=podsRunning,proto3" json:"pods_running,omitempty"`
+	Platforms              []string               `protobuf:"bytes,7,rep,name=platforms,proto3" json:"platforms,omitempty"`
+	// Non-terminal pods assigned to a node; includes pods still starting.
+	PodsAssigned  int32 `protobuf:"varint,8,opt,name=pods_assigned,json=podsAssigned,proto3" json:"pods_assigned,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AgentCapacity) Reset() {
@@ -1789,9 +1791,9 @@ func (x *AgentCapacity) GetCpuMillicoresTotal() int64 {
 	return 0
 }
 
-func (x *AgentCapacity) GetCpuMillicoresUsed() int64 {
+func (x *AgentCapacity) GetCpuMillicoresRequested() int64 {
 	if x != nil {
-		return x.CpuMillicoresUsed
+		return x.CpuMillicoresRequested
 	}
 	return 0
 }
@@ -1803,9 +1805,9 @@ func (x *AgentCapacity) GetMemoryBytesTotal() int64 {
 	return 0
 }
 
-func (x *AgentCapacity) GetMemoryBytesUsed() int64 {
+func (x *AgentCapacity) GetMemoryBytesRequested() int64 {
 	if x != nil {
-		return x.MemoryBytesUsed
+		return x.MemoryBytesRequested
 	}
 	return 0
 }
@@ -1829,6 +1831,13 @@ func (x *AgentCapacity) GetPlatforms() []string {
 		return x.Platforms
 	}
 	return nil
+}
+
+func (x *AgentCapacity) GetPodsAssigned() int32 {
+	if x != nil {
+		return x.PodsAssigned
+	}
+	return 0
 }
 
 // AgentHealth reports agent and cluster health status.
@@ -2036,16 +2045,17 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12<\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12&\n" +
-	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\vdns_recordsR\x0fplatform_domain\"\xce\x02\n" +
+	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\vdns_recordsR\x0fplatform_domain\"\x87\x03\n" +
 	"\rAgentCapacity\x120\n" +
-	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
-	"\x13cpu_millicores_used\x18\x02 \x01(\x03R\x11cpuMillicoresUsed\x12,\n" +
-	"\x12memory_bytes_total\x18\x03 \x01(\x03R\x10memoryBytesTotal\x12*\n" +
-	"\x11memory_bytes_used\x18\x04 \x01(\x03R\x0fmemoryBytesUsed\x12\x1d\n" +
+	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x128\n" +
+	"\x18cpu_millicores_requested\x18\x02 \x01(\x03R\x16cpuMillicoresRequested\x12,\n" +
+	"\x12memory_bytes_total\x18\x03 \x01(\x03R\x10memoryBytesTotal\x124\n" +
+	"\x16memory_bytes_requested\x18\x04 \x01(\x03R\x14memoryBytesRequested\x12\x1d\n" +
 	"\n" +
 	"pods_total\x18\x05 \x01(\x05R\tpodsTotal\x12!\n" +
 	"\fpods_running\x18\x06 \x01(\x05R\vpodsRunning\x12?\n" +
-	"\tplatforms\x18\a \x03(\tB!\xbaH\x1e\x92\x01\x1b\"\x19r\x172\x15^linux/(amd64|arm64)$R\tplatforms\"\x85\x01\n" +
+	"\tplatforms\x18\a \x03(\tB!\xbaH\x1e\x92\x01\x1b\"\x19r\x172\x15^linux/(amd64|arm64)$R\tplatforms\x12#\n" +
+	"\rpods_assigned\x18\b \x01(\x05R\fpodsAssigned\"\x85\x01\n" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +

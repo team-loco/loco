@@ -5,6 +5,7 @@ package loco.cluster.v1;
 import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "loco/event/v1/event.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/cluster/v1;clusterv1";
 
@@ -12,6 +13,7 @@ service ClusterAdminService {
   rpc CreateCluster(CreateClusterRequest) returns (CreateClusterResponse);
   rpc IssueJoinToken(IssueJoinTokenRequest) returns (IssueJoinTokenResponse);
   rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
+  rpc GetClusterOperations(GetClusterOperationsRequest) returns (GetClusterOperationsResponse);
   rpc PauseCluster(PauseClusterRequest) returns (PauseClusterResponse);
   rpc ResumeCluster(ResumeClusterRequest) returns (ResumeClusterResponse);
   rpc RemoveCluster(RemoveClusterRequest) returns (RemoveClusterResponse);
@@ -58,6 +60,9 @@ message Cluster {
   reserved "dns_records", "gateway_hostname";
   // The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.
   google.protobuf.Timestamp silent_since = 16;
+  // Last successful capacity sample; absent before the first successful sample.
+  ClusterCapacity capacity = 17;
+  string health_message = 18;
 }
 
 // ClusterRole is chosen when the worker is installed and reported by its agent.
@@ -164,4 +169,45 @@ message ListRegionsRequest {}
 
 message ListRegionsResponse {
   repeated Region regions = 1;
+}
+
+// ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.
+// Requested resources cover assigned, non-terminal pods including init containers and overhead.
+// Aggregate headroom does not guarantee a workload can be scheduled on an individual node.
+message ClusterCapacity {
+  int64 cpu_millicores_allocatable = 1;
+  int64 cpu_millicores_requested = 2;
+  int64 memory_bytes_allocatable = 3;
+  int64 memory_bytes_requested = 4;
+  int32 pods_allocatable = 5;
+  int32 pods_running = 6;
+  google.protobuf.Timestamp reported_at = 7;
+  int32 pods_assigned = 8;
+  // Sample is older than the installation's configured heartbeat silence threshold.
+  bool stale = 9;
+}
+
+message GetClusterOperationsRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetClusterOperationsResponse {
+  repeated ClusterWorkloadAttention workloads = 1;
+  bool has_more_workloads = 2;
+  repeated loco.event.v1.Event events = 3;
+}
+
+// ClusterWorkloadAttention identifies current Loco work that is blocked or failing.
+message ClusterWorkloadAttention {
+  string id = 1;
+  string kind = 2;
+  string resource_id = 3;
+  string resource_name = 4;
+  string org_id = 5;
+  string workspace_id = 6;
+  string environment_id = 7;
+  string environment_slug = 8;
+  string status = 9;
+  string message = 10;
+  google.protobuf.Timestamp updated_at = 11;
 }

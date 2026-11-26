@@ -80,11 +80,7 @@ export function SystemUsers() {
 						label="Users"
 						band
 						loading={page.isLoading}
-						empty={
-							<EmptyState icon={<UsersIcon />} title="No users yet">
-								People appear here after they sign in.
-							</EmptyState>
-						}
+						empty={<EmptyState icon={<UsersIcon />} title="No users" />}
 						activeRowId={params.user}
 						onRowClick={(row) => {
 							void setParams({ user: row.original.id });

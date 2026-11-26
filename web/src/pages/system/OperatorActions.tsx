@@ -94,7 +94,7 @@ export function GrantRoleDialog({ open, onClose }: { open: boolean; onClose: () 
 				if (!next) close();
 			}}
 		>
-			<DialogContent size="form" title="Grant an installation role">
+			<DialogContent size="form" title="Grant role">
 				<form
 					className="contents"
 					onSubmit={(e) => {

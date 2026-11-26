@@ -94,12 +94,6 @@ with session(out) as browser:
     expect(
         page.get_by_role("textbox", name="Search secrets", exact=True)
     ).to_be_visible()
-    expect(
-        page.get_by_text(
-            "Secrets belong to an environment, and this one is production. Any resource here can refer to one from its variables.",
-            exact=True,
-        )
-    ).to_be_visible()
 
     page.get_by_role("button", name="New secret", exact=True).first.click()
     dialog = page.get_by_role("dialog", name="New secret in production")

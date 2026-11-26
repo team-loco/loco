@@ -158,6 +158,6 @@ func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
 
 const (
 	readyAtRevisionOne = "SELECT ready_replicas > 0 AND observed_revision = 1 FROM placements WHERE resource_id = $1"
-	clusterHealth      = "SELECT health_status, capacity_cpu_millicores, capacity_memory_bytes FROM clusters " +
+	clusterHealth      = "SELECT health_status, reported_cpu_millicores, reported_memory_bytes FROM clusters " +
 		"JOIN cluster_heartbeats ON cluster_id = id WHERE id = $1"
 )

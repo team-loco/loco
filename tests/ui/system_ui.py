@@ -1,5 +1,7 @@
 import argparse
 import re
+import time
+from urllib.parse import parse_qs, urlsplit
 
 from harness import copied_text, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
@@ -83,9 +85,7 @@ with session(repo / "tests/ui/out/system") as browser:
             page.goto(ui + path, wait_until="commit")
             page.wait_for_timeout(500)
             assert not page.evaluate("window.__systemChrome"), (delayed, path)
-            not_found = page.get_by_role(
-                "heading", name="Nothing lives at this address", exact=True
-            )
+            not_found = page.get_by_role("heading", name="Page not found", exact=True)
             if delayed == USER_ORGS:
                 expect(not_found).to_be_visible()
             for route in held:
@@ -114,15 +114,17 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(page).to_have_url(origin)
     thumb.evaluate("el => el.getAnimations().forEach(animation => animation.finish())")
     expect(page).to_have_url(ui + "/system")
-    expect(
-        page.get_by_role("heading", name="System overview", exact=True)
-    ).to_be_visible()
+    expect(page.get_by_role("heading", name="Overview", exact=True)).to_be_visible()
     expect(page.locator('[data-slot="system-tag"]')).to_have_text("System")
     sidebar = page.locator('[data-slot="sidebar"]')
     expect(sidebar.get_by_role("link", name="Clusters", exact=True)).to_be_visible()
     expect(sidebar.get_by_role("link", name="Resources", exact=True)).to_have_count(0)
     # Problems come first: the unhealthy and unreporting regions before the healthy one.
-    regions = page.locator("section h2").all_inner_texts()
+    regions = [
+        text
+        for text in page.locator("section h2").all_inner_texts()
+        if re.fullmatch(r"[a-z]{2}-[a-z0-9]+-[0-9]+", text)
+    ]
     assert regions[0] in ("de-he-1", "us-ca-1"), regions
     assert regions.index("gb-lnd-1") > regions.index("de-he-1"), regions
     assert "jp-13-1" not in regions, regions
@@ -285,6 +287,29 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_role("button", name="Issue join token", exact=True)
     ).to_be_visible()
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
+        "0.8 vCPU unreserved"
+    )
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
+        "7.2 vCPU requested / 8 vCPU allocatable"
+    )
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
+        "42 assigned / 220 allocatable"
+    )
+    expect(
+        page.get_by_text("The build controller is not ready.", exact=True)
+    ).to_be_visible()
+    expect(page.get_by_role("heading", name="Issues", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="Events", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="CPU", exact=True)).to_be_visible()
+    metrics = page.get_by_role("region", name="Metrics", exact=True).get_by_role(
+        "link", name="Metrics", exact=True
+    )
+    metrics_url = urlsplit(metrics.get_attribute("href"))
+    assert metrics_url.path == "/system/metrics"
+    assert parse_qs(metrics_url.query).get("q") == [
+        "@cluster:" + urlsplit(page.url).path.rsplit("/", 1)[-1]
+    ]
     # A full UUID and its copy icon stay inside their fact, including at larger text sizes.
     cluster_id = page.url.rsplit("/", 1)[-1]
     id_fact = page.locator("dt", has_text="Cluster ID").locator(
@@ -312,7 +337,7 @@ with session(repo / "tests/ui/out/system") as browser:
     page.set_viewport_size({"width": 1280, "height": 800})
     page.goto(ui + "/system/clusters/00000000-0000-0000-0000-000000000000")
     expect(
-        page.get_by_role("heading", name="Nothing lives at this address", exact=True)
+        page.get_by_role("heading", name="Page not found", exact=True)
     ).to_be_visible()
 
     # Add cluster creates a cluster in a new region and shows its token masked.
@@ -377,9 +402,7 @@ with session(repo / "tests/ui/out/system") as browser:
     page.goto(ui + "/dashboard")
     open_menu(page)
     page.get_by_role("menuitemcheckbox", name="System", exact=True).click()
-    expect(
-        page.get_by_role("heading", name="System overview", exact=True)
-    ).to_be_visible()
+    expect(page.get_by_role("heading", name="Overview", exact=True)).to_be_visible()
     page.goto(ui + "/system/clusters")
     table = page.get_by_role("table", name="Clusters", exact=True)
     expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_be_visible()
@@ -389,8 +412,195 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(page.get_by_role("heading", name=re.compile("^us-ca-1 "))).to_be_visible()
     for name in ("Pause", "Resume", "Remove", "Restore", "Issue join token"):
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(0)
+    # Synthetic responses isolate UI retry/empty and navigation behavior; backend coverage uses real reports.
+    operations = "**/loco.cluster.v1.ClusterAdminService/GetClusterOperations"
+    metrics_rpc = "**/loco.observability.v1.ObservabilityService/QueryMetrics"
+    context.route(metrics_rpc, lambda route: route.fulfill(json={}))
+    context.route(
+        operations,
+        lambda route: route.fulfill(
+            status=503,
+            json={"code": "unavailable", "message": "Activity temporarily unavailable"},
+        ),
+    )
+    page.goto(ui + "/system/clusters")
+    row(page, "us-ca-1").click()
+    expect(page.get_by_role("heading", name="Activity", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Retry", exact=True)).to_be_visible()
+    context.unroute(operations)
+    build_id = "b0000000-0000-4000-8000-000000000001"
+    context.route(
+        operations,
+        lambda route: route.fulfill(
+            json={
+                "workloads": [
+                    {
+                        "id": build_id,
+                        "kind": "build",
+                        "resourceName": "synthetic-build",
+                        "status": "failed",
+                        "message": "The build failed while installing dependencies.",
+                        "orgId": state["orgs"]["ops"]["id"],
+                        "workspaceId": state["workspaces"]["ops/main"],
+                        "resourceId": "b0000000-0000-4000-8000-000000000002",
+                        "environmentSlug": "production",
+                    }
+                ]
+            }
+        ),
+    )
+    page.get_by_role("button", name="Retry", exact=True).click()
+    expect(page.get_by_role("heading", name="Issues", exact=True)).to_be_visible()
+    expect(
+        page.get_by_text("The build failed while installing dependencies.", exact=True)
+    ).to_be_visible()
+    build_url = urlsplit(
+        page.get_by_role("link", name="synthetic-build", exact=True).get_attribute(
+            "href"
+        )
+    )
+    assert build_url.path == (
+        f"/org/{state['orgs']['ops']['id']}"
+        f"/wks/{state['workspaces']['ops/main']}/observability"
+    )
+    assert parse_qs(build_url.query).get("view") == ["logs"]
+    assert parse_qs(build_url.query).get("q") == ["@build:" + build_id]
+    expect(page.get_by_text("No events", exact=True)).to_be_visible()
+    expect(
+        page.get_by_text(
+            "No data",
+            exact=True,
+        )
+    ).to_have_count(2)
+    context.unroute(operations)
+    context.route(operations, lambda route: route.fulfill(json={}))
+    page.goto(ui + "/system/clusters")
+    row(page, "de-he-1").click()
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text("Stale")
+    page.goto(ui + "/system/clusters")
+    row(page, "de-he-1-b").click()
+    expect(
+        page.get_by_role("region", name="Capacity", exact=True).get_by_text(
+            "Not reported", exact=True
+        )
+    ).to_be_visible()
     page.goto(ui + "/system/clusters/new")
     expect(
-        page.get_by_role("heading", name="Nothing lives at this address", exact=True)
+        page.get_by_role("heading", name="Page not found", exact=True)
     ).to_be_visible()
+    context.close()
+
+
+# Synthetic metric responses verify request scope and prevent old samples leaking across cluster switches.
+with session(repo / "tests/ui/out/system-metric-scope") as browser:
+    context, page, errors = open_page(browser, user="reader", state=state)
+    seen_metrics = []
+    held_metrics = []
+    hold_metrics = False
+
+    def metric_response(route):
+        seen_metrics.append(route.request.post_data_json)
+        if hold_metrics:
+            held_metrics.append(route)
+            return
+        now = int(time.time())
+        route.fulfill(
+            json={
+                "series": [
+                    {
+                        "points": [
+                            {
+                                "timestamp": time.strftime(
+                                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 120)
+                                ),
+                                "value": 1.25,
+                            },
+                            {
+                                "timestamp": time.strftime(
+                                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 60)
+                                ),
+                                "value": 1.5,
+                            },
+                        ]
+                    }
+                ]
+            }
+        )
+
+    context.route(
+        "**/loco.observability.v1.ObservabilityService/QueryMetrics", metric_response
+    )
+    context.route(
+        "**/loco.cluster.v1.ClusterAdminService/GetClusterOperations",
+        lambda route: route.fulfill(json={}),
+    )
+    with expect_rpc(
+        page, "loco.cluster.v1.ClusterAdminService/ListClusters", lambda body: True
+    ) as fleet:
+        page.goto(ui + "/system/clusters")
+    clusters = {
+        cluster["name"]: cluster["id"] for cluster in fleet.value.json()["clusters"]
+    }
+    row(page, "us-ca-1").click()
+    signals = page.locator('[data-slot="cluster-runtime-signal"]')
+    expect(signals.get_by_label(re.compile(r"^(CPU|Memory) over time$"))).to_have_count(
+        2
+    )
+
+    def assert_metric_scope(cluster_id):
+        assert {body["metricName"] for body in seen_metrics} == {
+            "k8s.node.cpu.usage",
+            "k8s.node.memory.working_set",
+        }, seen_metrics
+        for body in seen_metrics:
+            assert body["installation"] is True, body
+            assert body.get("workspaceId", "") == "", body
+            assert body["attributes"] == {"cluster": cluster_id}, body
+            assert body["aggregation"] == "max", body
+
+    assert_metric_scope(clusters["us-ca-1"])
+    seen_metrics.clear()
+    hold_metrics = True
+    next_path = "/system/clusters/" + clusters["de-he-1"]
+
+    # This is a same-component client route transition, so the old query observer could otherwise retain data.
+    def next_metric(request, name):
+        return (
+            request.url.endswith(
+                "/loco.observability.v1.ObservabilityService/QueryMetrics"
+            )
+            and request.post_data_json.get("metricName") == name
+            and request.post_data_json.get("attributes", {}).get("cluster")
+            == clusters["de-he-1"]
+        )
+
+    with page.expect_request(
+        lambda request: next_metric(request, "k8s.node.cpu.usage")
+    ) as cpu_request:
+        with page.expect_request(
+            lambda request: next_metric(request, "k8s.node.memory.working_set")
+        ) as memory_request:
+            page.evaluate(
+                "path => { history.pushState({}, '', path); dispatchEvent(new PopStateEvent('popstate')); }",
+                next_path,
+            )
+    expect(page).to_have_url(ui + next_path)
+    expect(signals.locator('[data-slot="skeleton"]')).to_have_count(2)
+    expect(signals.get_by_label(re.compile(r"^(CPU|Memory) over time$"))).to_have_count(
+        0
+    )
+    seen_metrics = [
+        cpu_request.value.post_data_json,
+        memory_request.value.post_data_json,
+    ]
+    assert_metric_scope(clusters["de-he-1"])
+    for route in held_metrics:
+        route.fulfill(json={})
+    expect(
+        page.get_by_text(
+            "No data",
+            exact=True,
+        )
+    ).to_have_count(2)
+    assert not errors, errors
     context.close()

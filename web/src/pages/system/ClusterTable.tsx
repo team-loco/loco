@@ -6,6 +6,7 @@ import { Badge } from "@/components/design/Badge";
 import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { agentBehind, clusterPath, ROLE_LABEL, type ClusterState } from "@/lib/system";
 
+import { CapacityCell } from "./Capacity";
 import { ClusterRowMenu } from "./ClusterActions";
 import { ClusterStateBadge, SystemTime } from "./shared";
 
@@ -44,6 +45,13 @@ function columns(apiVersion: string, canChange: boolean): DataColumn<ClusterRow>
 			size: 140,
 			minSize: 110,
 			cell: ({ row: { original: r } }) => <ClusterStateBadge state={r.state} />,
+		},
+		{
+			id: "headroom",
+			header: "Capacity",
+			size: 225,
+			minSize: 180,
+			cell: ({ row: { original: r } }) => <CapacityCell capacity={r.cluster.capacity} />,
 		},
 		{
 			id: "role",

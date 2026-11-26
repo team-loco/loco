@@ -133,28 +133,25 @@ func (q *Queries) EnrollCluster(ctx context.Context, arg EnrollClusterParams) (E
 
 const getClusterByID = `-- name: GetClusterByID :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
+       last_health_check, last_heartbeat, agent_version, created_at, updated_at
 FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
 WHERE id = $1
 `
 
 type GetClusterByIDRow struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	Region                string     `json:"region"`
-	Provider              string     `json:"provider"`
-	IsActive              bool       `json:"isActive"`
-	IsDefault             bool       `json:"isDefault"`
-	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          *string    `json:"healthStatus"`
-	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	AgentVersion          *string    `json:"agentVersion"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
+	ID              uuid.UUID  `json:"id"`
+	Name            string     `json:"name"`
+	Region          string     `json:"region"`
+	Provider        string     `json:"provider"`
+	IsActive        bool       `json:"isActive"`
+	IsDefault       bool       `json:"isDefault"`
+	Endpoint        *string    `json:"endpoint"`
+	HealthStatus    *string    `json:"healthStatus"`
+	LastHealthCheck *time.Time `json:"lastHealthCheck"`
+	LastHeartbeat   *time.Time `json:"lastHeartbeat"`
+	AgentVersion    *string    `json:"agentVersion"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
 func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error) {
@@ -171,8 +168,6 @@ func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterB
 		&i.HealthStatus,
 		&i.LastHealthCheck,
 		&i.LastHeartbeat,
-		&i.CapacityCpuMillicores,
-		&i.CapacityMemoryBytes,
 		&i.AgentVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -245,25 +240,37 @@ func (q *Queries) GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
-       last_heartbeat, silent_since, agent_version, agent_public_key, role, domains
-FROM clusters LEFT JOIN cluster_heartbeats ON cluster_id = id
+       last_heartbeat, silent_since, agent_version, agent_public_key, role, domains,
+       h.capacity_reported_at, h.reported_cpu_millicores, h.requested_cpu_millicores,
+       h.reported_memory_bytes, h.requested_memory_bytes,
+       h.capacity_pods, h.assigned_pods, h.running_pods, h.health_message
+FROM clusters LEFT JOIN cluster_heartbeats h ON cluster_id = id
 ORDER BY created_at, id
 `
 
 type ListAdminClustersRow struct {
-	ID             uuid.UUID   `json:"id"`
-	ClusterKey     *uuid.UUID  `json:"clusterKey"`
-	Name           string      `json:"name"`
-	Region         string      `json:"region"`
-	IsActive       bool        `json:"isActive"`
-	RemovedAt      *time.Time  `json:"removedAt"`
-	HealthStatus   *string     `json:"healthStatus"`
-	LastHeartbeat  *time.Time  `json:"lastHeartbeat"`
-	SilentSince    *time.Time  `json:"silentSince"`
-	AgentVersion   *string     `json:"agentVersion"`
-	AgentPublicKey []byte      `json:"agentPublicKey"`
-	Role           ClusterRole `json:"role"`
-	Domains        []string    `json:"domains"`
+	ID                     uuid.UUID   `json:"id"`
+	ClusterKey             *uuid.UUID  `json:"clusterKey"`
+	Name                   string      `json:"name"`
+	Region                 string      `json:"region"`
+	IsActive               bool        `json:"isActive"`
+	RemovedAt              *time.Time  `json:"removedAt"`
+	HealthStatus           *string     `json:"healthStatus"`
+	LastHeartbeat          *time.Time  `json:"lastHeartbeat"`
+	SilentSince            *time.Time  `json:"silentSince"`
+	AgentVersion           *string     `json:"agentVersion"`
+	AgentPublicKey         []byte      `json:"agentPublicKey"`
+	Role                   ClusterRole `json:"role"`
+	Domains                []string    `json:"domains"`
+	CapacityReportedAt     *time.Time  `json:"capacityReportedAt"`
+	ReportedCpuMillicores  *int64      `json:"reportedCpuMillicores"`
+	RequestedCpuMillicores *int64      `json:"requestedCpuMillicores"`
+	ReportedMemoryBytes    *int64      `json:"reportedMemoryBytes"`
+	RequestedMemoryBytes   *int64      `json:"requestedMemoryBytes"`
+	CapacityPods           *int32      `json:"capacityPods"`
+	AssignedPods           *int32      `json:"assignedPods"`
+	RunningPods            *int32      `json:"runningPods"`
+	HealthMessage          *string     `json:"healthMessage"`
 }
 
 func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error) {
@@ -289,6 +296,100 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.AgentPublicKey,
 			&i.Role,
 			&i.Domains,
+			&i.CapacityReportedAt,
+			&i.ReportedCpuMillicores,
+			&i.RequestedCpuMillicores,
+			&i.ReportedMemoryBytes,
+			&i.RequestedMemoryBytes,
+			&i.CapacityPods,
+			&i.AssignedPods,
+			&i.RunningPods,
+			&i.HealthMessage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClusterAttention = `-- name: ListClusterAttention :many
+SELECT l.deployment_id AS id, 'deployment'::text AS kind, l.resource_id, r.name AS resource_name,
+       w.org_id, r.workspace_id, l.environment_id, e.slug AS environment_slug,
+       CASE WHEN l.status = 'running' AND cardinality(rr.unserved_domains) > 0 THEN 'degraded' ELSE l.status::text END AS status,
+       COALESCE(NULLIF(rr.problem->>'detail', ''), p.applied_error, '')::text AS message,
+       COALESCE(rr.problem->>'reason', p.problem_reason, '')::text AS problem_reason,
+       COALESCE(rr.unserved_domains, ARRAY[]::text[]) AS unserved_domains, COALESCE(p.status_updated_at, d.created_at)::timestamptz AS updated_at
+FROM live_deployment_placements l
+JOIN deployments d ON d.id = l.deployment_id
+JOIN resources r ON r.id = l.resource_id
+JOIN workspaces w ON w.id = r.workspace_id
+JOIN environments e ON e.id = l.environment_id
+LEFT JOIN placements p ON p.deployment_id = l.deployment_id AND p.cluster_id = l.cluster_id
+LEFT JOIN resource_region_inputs rr ON rr.deployment_id = l.deployment_id AND rr.cluster_id = l.cluster_id
+WHERE l.cluster_id = $2
+  AND (l.status IN ('failed', 'crashed', 'degraded') OR p.problem_reason <> '' OR p.apply_failed OR cardinality(rr.unserved_domains) > 0 OR (rr.problem IS NOT NULL AND rr.problem <> 'null'::jsonb))
+UNION ALL
+SELECT b.id, 'build'::text, b.resource_id, r.name, w.org_id, r.workspace_id, COALESCE(b.origin_environment_id, '00000000-0000-0000-0000-000000000000'::uuid),
+       COALESCE(e.slug, '')::text, b.status::text, b.message, ''::text, ARRAY[]::text[], COALESCE(b.finished_at, b.started_at, b.created_at)::timestamptz
+FROM builds b
+JOIN resources r ON r.id = b.resource_id
+JOIN workspaces w ON w.id = r.workspace_id
+LEFT JOIN environments e ON e.id = b.origin_environment_id
+WHERE b.cluster_id = $2 AND b.status = 'failed'
+  AND NOT EXISTS (SELECT 1 FROM builds newer WHERE newer.resource_id = b.resource_id
+                  AND newer.origin_environment_id IS NOT DISTINCT FROM b.origin_environment_id AND (newer.created_at, newer.id) > (b.created_at, b.id))
+ORDER BY updated_at DESC, id DESC
+LIMIT $1
+`
+
+type ListClusterAttentionParams struct {
+	RowLimit  int32     `json:"rowLimit"`
+	ClusterID uuid.UUID `json:"clusterId"`
+}
+
+type ListClusterAttentionRow struct {
+	ID              uuid.UUID `json:"id"`
+	Kind            string    `json:"kind"`
+	ResourceID      uuid.UUID `json:"resourceId"`
+	ResourceName    string    `json:"resourceName"`
+	OrgID           uuid.UUID `json:"orgId"`
+	WorkspaceID     uuid.UUID `json:"workspaceId"`
+	EnvironmentID   uuid.UUID `json:"environmentId"`
+	EnvironmentSlug string    `json:"environmentSlug"`
+	Status          string    `json:"status"`
+	Message         string    `json:"message"`
+	ProblemReason   string    `json:"problemReason"`
+	UnservedDomains []string  `json:"unservedDomains"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+func (q *Queries) ListClusterAttention(ctx context.Context, arg ListClusterAttentionParams) ([]ListClusterAttentionRow, error) {
+	rows, err := q.db.Query(ctx, listClusterAttention, arg.RowLimit, arg.ClusterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClusterAttentionRow
+	for rows.Next() {
+		var i ListClusterAttentionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ResourceID,
+			&i.ResourceName,
+			&i.OrgID,
+			&i.WorkspaceID,
+			&i.EnvironmentID,
+			&i.EnvironmentSlug,
+			&i.Status,
+			&i.Message,
+			&i.ProblemReason,
+			&i.UnservedDomains,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -327,6 +428,88 @@ func (q *Queries) ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]Li
 			&i.Name,
 			&i.Region,
 			&i.Domains,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClusterEvents = `-- name: ListClusterEvents :many
+WITH related AS (
+    (SELECT es.seq FROM events es
+     WHERE es.subject_type = 'cluster' AND es.subject_id = $1
+     ORDER BY es.seq DESC LIMIT 20)
+    UNION
+    SELECT recent.seq FROM deployment_placements dp
+    CROSS JOIN LATERAL (
+        SELECT ed.seq FROM events ed WHERE ed.deployment_id = dp.deployment_id ORDER BY ed.seq DESC LIMIT 20
+    ) recent
+    WHERE dp.cluster_id = $1
+    UNION
+    SELECT recent.seq FROM builds b
+    CROSS JOIN LATERAL (
+        SELECT eb.seq FROM events eb WHERE eb.subject_type = 'build' AND eb.subject_id = b.id ORDER BY eb.seq DESC LIMIT 20
+    ) recent
+    WHERE b.cluster_id = $1
+), latest AS (
+    SELECT seq FROM related ORDER BY seq DESC LIMIT 20
+)
+SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.deployment_id, e.actor_type, e.actor_id, e.actor_token_name, e.actor_token_type, e.acted_as_operator, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, event_title(e.type, e.data)::text AS title, event_severity(e.type)::text AS severity,
+       COALESCE(u.name, e.actor_token_name, '')::text AS actor_name, COALESCE(u.email, '')::text AS actor_email
+FROM latest JOIN events e ON e.seq = latest.seq
+LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+ORDER BY e.seq DESC
+`
+
+type ListClusterEventsRow struct {
+	Event      Event  `json:"event"`
+	Title      string `json:"title"`
+	Severity   string `json:"severity"`
+	ActorName  string `json:"actorName"`
+	ActorEmail string `json:"actorEmail"`
+}
+
+// Each related subject contributes at most one page through its own index, so a quiet cluster never
+// scans the installation's globally ordered event history. UNION removes events linked in several ways.
+func (q *Queries) ListClusterEvents(ctx context.Context, clusterID *uuid.UUID) ([]ListClusterEventsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterEvents, clusterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClusterEventsRow
+	for rows.Next() {
+		var i ListClusterEventsRow
+		if err := rows.Scan(
+			&i.Event.Seq,
+			&i.Event.StreamPosition,
+			&i.Event.ID,
+			&i.Event.Type,
+			&i.Event.OrgID,
+			&i.Event.WorkspaceID,
+			&i.Event.ResourceID,
+			&i.Event.EnvironmentID,
+			&i.Event.DeploymentID,
+			&i.Event.ActorType,
+			&i.Event.ActorID,
+			&i.Event.ActorTokenName,
+			&i.Event.ActorTokenType,
+			&i.Event.ActedAsOperator,
+			&i.Event.SubjectType,
+			&i.Event.SubjectID,
+			&i.Event.RequestID,
+			&i.Event.Traceparent,
+			&i.Event.Data,
+			&i.Event.CreatedAt,
+			&i.Title,
+			&i.Severity,
+			&i.ActorName,
+			&i.ActorEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -520,6 +703,50 @@ func (q *Queries) RecordClusterAssertion(ctx context.Context, arg RecordClusterA
 	return result.RowsAffected(), nil
 }
 
+const recordClusterCapacity = `-- name: RecordClusterCapacity :exec
+UPDATE cluster_heartbeats
+SET health_message = $1,
+    capacity_reported_at = CASE WHEN $2::boolean THEN clock_timestamp() ELSE capacity_reported_at END,
+    reported_cpu_millicores = CASE WHEN $2::boolean THEN $3::bigint ELSE reported_cpu_millicores END,
+    requested_cpu_millicores = CASE WHEN $2::boolean THEN $4::bigint ELSE requested_cpu_millicores END,
+    reported_memory_bytes = CASE WHEN $2::boolean THEN $5::bigint ELSE reported_memory_bytes END,
+    requested_memory_bytes = CASE WHEN $2::boolean THEN $6::bigint ELSE requested_memory_bytes END,
+    capacity_pods = CASE WHEN $2::boolean THEN $7::int ELSE capacity_pods END,
+    assigned_pods = CASE WHEN $2::boolean THEN $8::int ELSE assigned_pods END,
+    running_pods = CASE WHEN $2::boolean THEN $9::int ELSE running_pods END
+WHERE cluster_id = $10
+`
+
+type RecordClusterCapacityParams struct {
+	HealthMessage     string    `json:"healthMessage"`
+	HasCapacity       bool      `json:"hasCapacity"`
+	CpuAllocatable    int64     `json:"cpuAllocatable"`
+	CpuRequested      int64     `json:"cpuRequested"`
+	MemoryAllocatable int64     `json:"memoryAllocatable"`
+	MemoryRequested   int64     `json:"memoryRequested"`
+	PodsAllocatable   int32     `json:"podsAllocatable"`
+	PodsAssigned      int32     `json:"podsAssigned"`
+	PodsRunning       int32     `json:"podsRunning"`
+	ID                uuid.UUID `json:"id"`
+}
+
+// Runs under the heartbeat transaction/stream lock. A missing sample leaves the last sample's timestamp unchanged.
+func (q *Queries) RecordClusterCapacity(ctx context.Context, arg RecordClusterCapacityParams) error {
+	_, err := q.db.Exec(ctx, recordClusterCapacity,
+		arg.HealthMessage,
+		arg.HasCapacity,
+		arg.CpuAllocatable,
+		arg.CpuRequested,
+		arg.MemoryAllocatable,
+		arg.MemoryRequested,
+		arg.PodsAllocatable,
+		arg.PodsAssigned,
+		arg.PodsRunning,
+		arg.ID,
+	)
+	return err
+}
+
 const recordClusterHeartbeat = `-- name: RecordClusterHeartbeat :one
 UPDATE cluster_heartbeats
 SET last_heartbeat = GREATEST(last_heartbeat, clock_timestamp()),
@@ -570,23 +797,20 @@ const updateClusterAgentInfo = `-- name: UpdateClusterAgentInfo :exec
 
 UPDATE clusters
 SET agent_version = $2,
-    capacity_cpu_millicores = $3,
-    capacity_memory_bytes = $4,
-    role = $5,
-    domains = $6::text[],
-    platforms = $7::text[],
+    role = $3,
+    domains = $4::text[],
+    platforms = CASE WHEN $5::boolean THEN $6::text[] ELSE platforms END,
     updated_at = NOW()
 WHERE id = $1
 `
 
 type UpdateClusterAgentInfoParams struct {
-	ID                    uuid.UUID   `json:"id"`
-	AgentVersion          *string     `json:"agentVersion"`
-	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
-	Role                  ClusterRole `json:"role"`
-	Domains               []string    `json:"domains"`
-	Platforms             []string    `json:"platforms"`
+	ID           uuid.UUID   `json:"id"`
+	AgentVersion *string     `json:"agentVersion"`
+	Role         ClusterRole `json:"role"`
+	Domains      []string    `json:"domains"`
+	HasCapacity  bool        `json:"hasCapacity"`
+	Platforms    []string    `json:"platforms"`
 }
 
 // Cluster queries for agent operations
@@ -594,10 +818,9 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 	_, err := q.db.Exec(ctx, updateClusterAgentInfo,
 		arg.ID,
 		arg.AgentVersion,
-		arg.CapacityCpuMillicores,
-		arg.CapacityMemoryBytes,
 		arg.Role,
 		arg.Domains,
+		arg.HasCapacity,
 		arg.Platforms,
 	)
 	return err
@@ -634,35 +857,31 @@ func (q *Queries) UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterL
 
 const updateClusterReport = `-- name: UpdateClusterReport :exec
 UPDATE clusters
-SET capacity_cpu_millicores = $1::bigint,
-    capacity_memory_bytes = $2::bigint,
-    role = $3::cluster_role,
-    domains = $4::text[],
-    platforms = $5::text[],
+SET role = $1::cluster_role,
+    domains = $2::text[],
+    platforms = CASE WHEN $3::boolean THEN $4::text[] ELSE platforms END,
     updated_at = NOW()
-WHERE id = $6 AND removed_at IS NULL AND sync_generation = $7
-  AND (capacity_cpu_millicores, capacity_memory_bytes, role, domains, platforms) IS DISTINCT FROM
-      ($1::bigint, $2::bigint,
-       $3::cluster_role, $4::text[], $5::text[])
+WHERE id = $5 AND removed_at IS NULL AND sync_generation = $6
+  AND (role, domains, platforms) IS DISTINCT FROM
+      ($1::cluster_role, $2::text[],
+       CASE WHEN $3::boolean THEN $4::text[] ELSE platforms END)
 `
 
 type UpdateClusterReportParams struct {
-	CapacityCpuMillicores int64       `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   int64       `json:"capacityMemoryBytes"`
-	Role                  ClusterRole `json:"role"`
-	Domains               []string    `json:"domains"`
-	Platforms             []string    `json:"platforms"`
-	ID                    uuid.UUID   `json:"id"`
-	Generation            int64       `json:"generation"`
+	Role        ClusterRole `json:"role"`
+	Domains     []string    `json:"domains"`
+	HasCapacity bool        `json:"hasCapacity"`
+	Platforms   []string    `json:"platforms"`
+	ID          uuid.UUID   `json:"id"`
+	Generation  int64       `json:"generation"`
 }
 
 // Matches only a changed report from the current stream; an unchanged one takes no lock on the cluster.
 func (q *Queries) UpdateClusterReport(ctx context.Context, arg UpdateClusterReportParams) error {
 	_, err := q.db.Exec(ctx, updateClusterReport,
-		arg.CapacityCpuMillicores,
-		arg.CapacityMemoryBytes,
 		arg.Role,
 		arg.Domains,
+		arg.HasCapacity,
 		arg.Platforms,
 		arg.ID,
 		arg.Generation,
