@@ -105,6 +105,8 @@ export function AppSidebar() {
 	const hasSystemRole = systemAccess(useMyScopes().scopes) !== "none";
 	const system = useInSystem();
 	const [systemReturn, setSystemReturn] = useStoredValue(SYSTEM_RETURN_KEY, "");
+	const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+	const [systemTarget, setSystemTarget] = useState<boolean | null>(null);
 
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
@@ -180,7 +182,13 @@ export function AppSidebar() {
 			</SidebarContent>
 
 			<SidebarFooter className="p-3">
-				<DropdownMenu>
+				<DropdownMenu
+					open={accountMenuOpen}
+					onOpenChange={(open) => {
+						setAccountMenuOpen(open);
+						if (open) setSystemTarget(null);
+					}}
+				>
 					<DropdownMenuTrigger
 						data-slot="account-button"
 						className="relative flex h-9 w-full items-center justify-center rounded-md px-[30px] outline-none transition-colors duration-150 hover:bg-shell-hover focus-visible:ring-2 focus-visible:ring-sidebar-ring aria-expanded:bg-shell-hover"
@@ -242,20 +250,43 @@ export function AppSidebar() {
 								<MenuGroup>
 									<DropdownMenuItem
 										role="menuitemcheckbox"
-										aria-checked={system}
+										aria-checked={systemTarget ?? system}
 										className={menuItem}
+										closeOnClick={false}
+										disabled={systemTarget !== null}
 										onClick={() => {
-											if (system) {
-												void navigate(systemReturn === "" ? "/dashboard" : systemReturn);
-												setSystemReturn("");
-											} else {
-												setSystemReturn(pathname + search);
-												void navigate(SYSTEM_PATH);
+											setSystemTarget(!system);
+										}}
+										ref={(item) => {
+											if (item === null || systemTarget === null) return;
+											if (!accountMenuOpen) return;
+											let cancelled = false;
+											const animations = item.getAnimations({ subtree: true });
+											async function finishSwitch() {
+												await Promise.allSettled(animations.map(async (animation) => await animation.finished));
+												if (cancelled) return;
+												setAccountMenuOpen(false);
+												if (systemTarget) {
+													setSystemReturn(pathname + search);
+													void navigate(SYSTEM_PATH);
+												} else {
+													void navigate(systemReturn === "" ? "/dashboard" : systemReturn);
+													setSystemReturn("");
+												}
 											}
+											void finishSwitch();
+											return () => {
+												cancelled = true;
+											};
 										}}
 									>
 										System
-										<Switch checked={system} tabIndex={-1} aria-hidden className="pointer-events-none" />
+										<Switch
+											checked={systemTarget ?? system}
+											tabIndex={-1}
+											aria-hidden
+											className="pointer-events-none motion-reduce:transition-none [&_[data-slot=switch-thumb]]:motion-reduce:transition-none"
+										/>
 									</DropdownMenuItem>
 								</MenuGroup>
 							</>
