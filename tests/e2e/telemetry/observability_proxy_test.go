@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -151,11 +152,29 @@ func TestObservabilityProxy(t *testing.T) {
 		)
 		w.MustLoco(t, dir, "deploy", "--yes")
 		marker := "e2e-otlp-ingest-" + rand.Text()[:8]
-		status, rejected := postLogs(t, w.ID, `{"msg":"`+marker+`","http.request.method":"PATCH"}`, "Bearer "+token)
-		if status != http.StatusOK || rejected != 0 {
-			t.Errorf("logs of a placed workspace: HTTP %d with %d rejected, want 200 with none", status, rejected)
-		}
-		status, rejected = postLogs(t, otherWorkspace, "e2e-otlp-rejected-"+rand.Text()[:8], "Bearer "+token)
+		// Other ingesters can warm the placement cache before this workspace deploys.
+		platform.Eventually(
+			t,
+			ingestTokenTimeout,
+			"ingest admission to observe the placed workspace",
+			func(context.Context) error {
+				status, rejected := postLogs(
+					t,
+					w.ID,
+					`{"msg":"`+marker+`","http.request.method":"PATCH"}`,
+					"Bearer "+token,
+				)
+				if status != http.StatusOK || rejected != 0 {
+					return fmt.Errorf(
+						"logs of a placed workspace: HTTP %d with %d rejected, want 200 with none",
+						status,
+						rejected,
+					)
+				}
+				return nil
+			},
+		)
+		status, rejected := postLogs(t, otherWorkspace, "e2e-otlp-rejected-"+rand.Text()[:8], "Bearer "+token)
 		if status != http.StatusOK || rejected != 1 {
 			t.Errorf(
 				"logs of an unplaced workspace: HTTP %d with %d rejected, want 200 with one rejected through partial success",

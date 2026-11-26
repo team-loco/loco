@@ -569,6 +569,70 @@ func TestPlacementCacheRefetchesOnceOnAMiss(t *testing.T) {
 	}
 }
 
+// TestHTTPNewPlacementConvergesAfterClusterLogs warms the same snapshot used by
+// concurrent cluster telemetry before a new workload has been placed.
+func TestHTTPNewPlacementConvergesAfterClusterLogs(t *testing.T) {
+	service, recorder, cp := newTestService(t, nil)
+	service.gate.cfg.RefetchInterval = time.Second
+	priming := testLogsRequest()
+	priming.Logs().ResourceLogs().At(0).Resource().Attributes().Remove(workspaceAttribute)
+	body, err := priming.MarshalProto()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response := post(t, service, cp.bearer(), protobufContentType, "", body); response.Code != http.StatusOK {
+		t.Fatalf("prime cluster placement snapshot: HTTP %d", response.Code)
+	}
+
+	cp.Place(testOtherWorkspaceID, time.Now().Add(-time.Minute), time.Time{})
+	workload := testLogsRequest()
+	workload.Logs().ResourceLogs().At(0).Resource().Attributes().PutStr(workspaceAttribute, testOtherWorkspaceID)
+	const marker = "new-placement-marker"
+	workload.Logs().ResourceLogs().At(0).ScopeLogs().At(0).LogRecords().At(0).Body().SetStr(marker)
+	body, err = workload.MarshalProto()
+	if err != nil {
+		t.Fatal(err)
+	}
+	send := func() int64 {
+		response := post(t, service, cp.bearer(), protobufContentType, "", body)
+		if response.Code != http.StatusOK {
+			t.Fatalf("placed workload: HTTP %d", response.Code)
+		}
+		decoded := plogotlp.NewExportResponse()
+		if err := decoded.UnmarshalProto(response.Body.Bytes()); err != nil {
+			t.Fatal(err)
+		}
+		return decoded.PartialSuccess().RejectedLogRecords()
+	}
+	if rejected := send(); rejected != 1 {
+		t.Fatalf("warm snapshot: rejected %d records, want 1", rejected)
+	}
+	if len(recorder.received) != 1 {
+		t.Fatalf("rejected workload reached storage: %d batches", len(recorder.received))
+	}
+	t.Log("before refresh: HTTP 200, rejected=1, marker absent from recording storage")
+
+	deadline := time.NewTimer(3 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for send() != 0 {
+		select {
+		case <-deadline.C:
+			t.Fatal("new placement did not become admitted within 3 seconds")
+		case <-ticker.C:
+		}
+	}
+	if len(recorder.received) != 2 {
+		t.Fatalf("accepted workload: %d batches in storage, want 2", len(recorder.received))
+	}
+	got := recorder.received[1].ResourceLogs().At(0).ScopeLogs().At(0).LogRecords().At(0).Body().Str()
+	if got != marker {
+		t.Fatalf("stored log body = %q, want %q", got, marker)
+	}
+	t.Log("after refresh: HTTP 200, rejected=0, same marker present in recording storage")
+}
+
 func TestRevocationSeenOnRefetchFailsTheRequest(t *testing.T) {
 	service, recorder, cp := newTestService(t, nil)
 	if response := post(
