@@ -116,8 +116,8 @@ export function SystemClusterDetail() {
 						)}
 					</Fact>
 					<Fact label="Cluster ID">
-						<CopyId value={cluster.id} className="-ml-1.5">
-							<span className="font-mono text-[12.5px]">{cluster.id}</span>
+						<CopyId value={cluster.id} className="-ml-1.5 max-w-full">
+							<span className="truncate font-mono text-[12.5px]">{cluster.id}</span>
 						</CopyId>
 					</Fact>
 				</dl>
