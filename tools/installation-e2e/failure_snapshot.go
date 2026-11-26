@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"maps"
@@ -16,10 +16,12 @@ import (
 const failureSnapshotTimeout = 30 * time.Second
 const snapshotFailed = "Failed"
 const snapshotTrue = "True"
+const snapshotReady = "Ready"
 
 var snapshotCPU = regexp.MustCompile(`^[0-9]{1,12}(\.[0-9]{1,9})?m?$`)
 var snapshotMemory = regexp.MustCompile(`^[0-9]{1,12}(\.[0-9]{1,9})?([KMGTPE]i?|k)?$`)
 var snapshotReason = regexp.MustCompile(`^[A-Za-z]{1,64}$`)
+var snapshotSysfsDenied = regexp.MustCompile(`(?is)sysfs.*(permission denied|operation not permitted|too revealing)`)
 var snapshotConditionStatuses = []string{snapshotTrue, "False", "Unknown"}
 
 // snapshotFluxNames are the Flux objects the installation creates itself.
@@ -56,7 +58,8 @@ type snapshotObject struct {
 type snapshotContainer struct {
 	State struct {
 		Waiting struct {
-			Reason string `json:"reason"`
+			Reason  string `json:"reason"`
+			Message string `json:"message"`
 		} `json:"waiting"`
 		Terminated struct {
 			Reason string `json:"reason"`
@@ -66,13 +69,8 @@ type snapshotContainer struct {
 
 func (f *fixture) failureSnapshot(ctx context.Context) {
 	counts := map[string]int{}
-	namespace, err := f.pin(ctx, "charts/loco-worker/values.yaml", ".builds.namespace")
-	if err != nil {
-		fmt.Println("installation-e2e snapshot: unavailable")
-		return
-	}
 	for _, args := range [][]string{
-		{"-n", namespace, kubectlGet, "pods,jobs,builds,events"},
+		{kubectlGet, "pods,jobs,builds,events", "--all-namespaces"},
 		{kubectlGet, "nodes"},
 		{kubectlGet, "kustomizations,helmreleases,ocirepositories", "--all-namespaces"},
 	} {
@@ -125,6 +123,9 @@ func countSnapshotState(counts map[string]int, object snapshotObject) {
 			counts["PodPhase="+object.Status.Phase]++
 		}
 		for _, condition := range object.Status.Conditions {
+			if condition.Type == snapshotReady && slices.Contains(snapshotConditionStatuses, condition.Status) {
+				counts["PodCondition=Ready status="+condition.Status]++
+			}
 			unscheduled := condition.Type == "PodScheduled" && condition.Status == "False"
 			if unscheduled && condition.Reason == "Unschedulable" {
 				counts["PodScheduledUnschedulable"]++
@@ -132,6 +133,9 @@ func countSnapshotState(counts map[string]int, object snapshotObject) {
 			}
 		}
 		for _, container := range slices.Concat(object.Status.InitContainerStatuses, object.Status.ContainerStatuses) {
+			if snapshotSysfsDenied.MatchString(container.State.Waiting.Message) {
+				counts["SysfsMountDenied"]++
+			}
 			reason := container.State.Waiting.Reason
 			if slices.Contains([]string{
 				"ContainerCreating", "PodInitializing", "ErrImagePull", "ImagePullBackOff", "CrashLoopBackOff",
@@ -144,15 +148,7 @@ func countSnapshotState(counts map[string]int, object snapshotObject) {
 			}
 		}
 	case "Event":
-		if slices.Contains([]string{
-			"FailedScheduling", "FailedMount", "FailedAttachVolume", "FailedCreatePodSandBox",
-			"FailedCreate", snapshotFailed, "BackOff", "DeadlineExceeded",
-		}, object.Reason) {
-			counts["EventReason="+object.Reason]++
-		}
-		if object.Reason == "FailedScheduling" {
-			countInsufficientResources(counts, object.Message+object.Note)
-		}
+		countEventState(counts, object)
 	case "Kustomization", "HelmRelease", "OCIRepository":
 		countFluxState(counts, object)
 	case "Node":
@@ -162,12 +158,27 @@ func countSnapshotState(counts map[string]int, object snapshotObject) {
 		}
 		for _, condition := range object.Status.Conditions {
 			known := slices.Contains([]string{
-				"Ready", "MemoryPressure", "DiskPressure", "PIDPressure", "NetworkUnavailable",
+				snapshotReady, "MemoryPressure", "DiskPressure", "PIDPressure", "NetworkUnavailable",
 			}, condition.Type)
 			if known && slices.Contains(snapshotConditionStatuses, condition.Status) {
 				counts["NodeCondition="+condition.Type+" status="+condition.Status]++
 			}
 		}
+	}
+}
+
+func countEventState(counts map[string]int, object snapshotObject) {
+	if snapshotSysfsDenied.MatchString(object.Message + object.Note) {
+		counts["SysfsMountDenied"]++
+	}
+	if slices.Contains([]string{
+		"FailedScheduling", "FailedMount", "FailedAttachVolume", "FailedCreatePodSandBox",
+		"FailedCreate", snapshotFailed, "BackOff", "DeadlineExceeded",
+	}, object.Reason) {
+		counts["EventReason="+object.Reason]++
+	}
+	if object.Reason == "FailedScheduling" {
+		countInsufficientResources(counts, object.Message+object.Note)
 	}
 }
 
@@ -177,7 +188,7 @@ func countFluxState(counts map[string]int, object snapshotObject) {
 		name = object.Metadata.Name
 	}
 	for _, condition := range object.Status.Conditions {
-		if condition.Type != "Ready" || condition.Status == snapshotTrue ||
+		if condition.Type != snapshotReady || condition.Status == snapshotTrue ||
 			!slices.Contains(snapshotConditionStatuses, condition.Status) {
 			continue
 		}
