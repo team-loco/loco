@@ -6,6 +6,8 @@ import { Page, PageHeader, PageLoading, Section } from "@/components/design/Page
 import { pluralize } from "@/lib/format";
 import { regionGroups, stateRank } from "@/lib/system";
 
+import { Capacity } from "./Capacity";
+import { availableCapacity } from "./capacity-model";
 import { ClusterTable } from "./ClusterTable";
 import { useFleet } from "./shared";
 
@@ -18,6 +20,8 @@ export function SystemOverview() {
 		return <ErrorCard error={fleet.error} fallbackMessage="Failed to load the clusters" minHeight="min-h-48" />;
 	}
 	const groups = regionGroups(fleet.clusters.filter((c) => c.removedAt === undefined));
+	const headroom = availableCapacity(fleet.clusters);
+	const activeClusters = fleet.clusters.filter((cluster) => cluster.isActive && cluster.removedAt === undefined).length;
 	const attention = groups.flatMap((g) => g.clusters).filter((c) => stateRank(c.state) < HEALTHY_RANK).length;
 	return (
 		<Page>
@@ -35,6 +39,13 @@ export function SystemOverview() {
 							? "Every cluster is reporting and healthy."
 							: `${pluralize(attention, "cluster")} need${attention === 1 ? "s" : ""} attention. Problems are listed first.`}
 					</p>
+					<Section title="Deployment headroom" meta="Healthy active clusters with current reports">
+						<Capacity capacity={headroom.capacity} reportLabel="Oldest included report" />
+						<p className="m-0 border-t border-line px-5 py-3 text-[12px] text-fg3">
+							{headroom.included} of {activeClusters} active clusters included. Unhealthy clusters and missing or stale
+							reports are excluded.
+						</p>
+					</Section>
 					{groups.map((group) => (
 						<Section
 							key={group.region}

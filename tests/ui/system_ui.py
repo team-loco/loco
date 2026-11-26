@@ -111,7 +111,11 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(sidebar.get_by_role("link", name="Clusters", exact=True)).to_be_visible()
     expect(sidebar.get_by_role("link", name="Resources", exact=True)).to_have_count(0)
     # Problems come first: the unhealthy and unreporting regions before the healthy one.
-    regions = page.locator("section h2").all_inner_texts()
+    regions = [
+        text
+        for text in page.locator("section h2").all_inner_texts()
+        if re.fullmatch(r"[a-z]{2}-[a-z0-9]+-[0-9]+", text)
+    ]
     assert regions[0] in ("de-he-1", "us-ca-1"), regions
     assert regions.index("gb-lnd-1") > regions.index("de-he-1"), regions
     assert "jp-13-1" not in regions, regions
@@ -274,6 +278,31 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_role("button", name="Issue join token", exact=True)
     ).to_be_visible()
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
+        "0.8 vCPU unreserved"
+    )
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
+        "7.2 vCPU requested / 8 vCPU allocatable"
+    )
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text(
+        "42 assigned / 220 allocatable"
+    )
+    expect(
+        page.get_by_text("The build controller is not ready.", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_role("heading", name="Work needing attention", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_role("heading", name="Recent Loco events", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_role("heading", name="Busiest node CPU", exact=True)
+    ).to_be_visible()
+    metrics = page.get_by_role("link", name="Open system metrics", exact=True)
+    expect(metrics).to_have_attribute(
+        "href", re.compile(r"/system/metrics\?q=%40cluster%3A")
+    )
     page.goto(ui + "/system/clusters/00000000-0000-0000-0000-000000000000")
     expect(
         page.get_by_role("heading", name="Nothing lives at this address", exact=True)
@@ -353,6 +382,78 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(page.get_by_role("heading", name=re.compile("^us-ca-1 "))).to_be_visible()
     for name in ("Pause", "Resume", "Remove", "Restore", "Issue join token"):
         expect(page.get_by_role("button", name=name, exact=True)).to_have_count(0)
+    # Synthetic responses isolate UI retry/empty and navigation behavior; backend coverage uses real reports.
+    operations = "**/loco.cluster.v1.ClusterAdminService/GetClusterOperations"
+    metrics_rpc = "**/loco.observability.v1.ObservabilityService/QueryMetrics"
+    context.route(metrics_rpc, lambda route: route.fulfill(json={}))
+    context.route(
+        operations,
+        lambda route: route.fulfill(
+            status=503,
+            json={"code": "unavailable", "message": "Activity temporarily unavailable"},
+        ),
+    )
+    page.goto(ui + "/system/clusters")
+    row(page, "us-ca-1").click()
+    expect(
+        page.get_by_role("heading", name="Loco activity", exact=True)
+    ).to_be_visible()
+    expect(page.get_by_role("button", name="Retry", exact=True)).to_be_visible()
+    context.unroute(operations)
+    build_id = "b0000000-0000-4000-8000-000000000001"
+    context.route(
+        operations,
+        lambda route: route.fulfill(
+            json={
+                "workloads": [
+                    {
+                        "id": build_id,
+                        "kind": "build",
+                        "resourceName": "synthetic-build",
+                        "status": "failed",
+                        "message": "The build failed while installing dependencies.",
+                        "orgId": state["orgs"]["ops"]["id"],
+                        "workspaceId": state["workspaces"]["ops/main"],
+                        "resourceId": "b0000000-0000-4000-8000-000000000002",
+                        "environmentSlug": "production",
+                    }
+                ]
+            }
+        ),
+    )
+    page.get_by_role("button", name="Retry", exact=True).click()
+    expect(
+        page.get_by_role("heading", name="Work needing attention", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_text("The build failed while installing dependencies.", exact=True)
+    ).to_be_visible()
+    expect(
+        page.get_by_role("link", name="synthetic-build", exact=True)
+    ).to_have_attribute(
+        "href", re.compile("@build%3A" + build_id + "|%40build%3A" + build_id)
+    )
+    expect(
+        page.get_by_text(
+            "No Loco events have been recorded for this cluster.", exact=True
+        )
+    ).to_be_visible()
+    expect(
+        page.get_by_text(
+            "No samples in the past hour. Check platform telemetry collection.",
+            exact=True,
+        )
+    ).to_have_count(2)
+    context.unroute(operations)
+    context.route(operations, lambda route: route.fulfill(json={}))
+    page.goto(ui + "/system/clusters")
+    row(page, "de-he-1").click()
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text("stale")
+    page.goto(ui + "/system/clusters")
+    row(page, "de-he-1-b").click()
+    expect(
+        page.get_by_text("Capacity has not been reported yet.", exact=True)
+    ).to_be_visible()
     page.goto(ui + "/system/clusters/new")
     expect(
         page.get_by_role("heading", name="Nothing lives at this address", exact=True)

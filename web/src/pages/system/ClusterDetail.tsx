@@ -9,6 +9,9 @@ import { useMyScopes } from "@/hooks/useMyScopes";
 import { notFound } from "@/lib/not-found";
 import { ROLE_LABEL, systemAccess, type ClusterState } from "@/lib/system";
 
+import { Capacity } from "./Capacity";
+import { ClusterOperations } from "./ClusterOperations";
+import { RuntimeSignals } from "./RuntimeSignals";
 import { ClusterActionButtons } from "./ClusterActions";
 import { AgentVersion } from "./ClusterTable";
 import { ClusterStateBadge, SystemTime, useFleet } from "./shared";
@@ -61,7 +64,17 @@ export function SystemClusterDetail() {
 				}
 			/>
 			<p className="m-0 text-[13.5px] text-fg2">{MEANING[state]}</p>
-			<Section title="Details">
+			{cluster.healthMessage !== "" && (
+				<p className="m-0 rounded-card border border-line bg-panel px-5 py-3 text-[13px] text-fg2">
+					{cluster.healthMessage}
+				</p>
+			)}
+			<Section title="Deployment headroom">
+				<Capacity capacity={cluster.capacity} />
+			</Section>
+			<ClusterOperations clusterId={cluster.id} />
+			<RuntimeSignals clusterId={cluster.id} />
+			<Section title="Connection details">
 				<dl className="m-0 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-5 p-5">
 					<Fact label="Region">
 						<InlineCode>{cluster.region}</InlineCode>
