@@ -48,7 +48,7 @@ function columns(apiVersion: string, canChange: boolean): DataColumn<ClusterRow>
 		},
 		{
 			id: "headroom",
-			header: "Workload headroom",
+			header: "Capacity",
 			size: 225,
 			minSize: 180,
 			cell: ({ row: { original: r } }) => <CapacityCell capacity={r.cluster.capacity} />,

@@ -4,14 +4,12 @@ import { ErrorCard } from "@/components/ErrorCard";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, PageLoading, Section } from "@/components/design/Page";
 import { pluralize } from "@/lib/format";
-import { regionGroups, stateRank } from "@/lib/system";
+import { regionGroups } from "@/lib/system";
 
 import { Capacity } from "./Capacity";
 import { availableCapacity, runsApps } from "./capacity-model";
 import { ClusterTable } from "./ClusterTable";
 import { useFleet } from "./shared";
-
-const HEALTHY_RANK = stateRank("healthy");
 
 export function SystemOverview() {
 	const fleet = useFleet();
@@ -23,29 +21,17 @@ export function SystemOverview() {
 	const headroom = availableCapacity(fleet.clusters);
 	const appClusters = fleet.clusters.filter(runsApps);
 	const activeClusters = appClusters.filter((cluster) => cluster.isActive && cluster.removedAt === undefined).length;
-	const attention = groups.flatMap((g) => g.clusters).filter((c) => stateRank(c.state) < HEALTHY_RANK).length;
 	return (
 		<Page>
-			<PageHeader title="System overview" />
+			<PageHeader title="Overview" />
 			{groups.length === 0 ? (
 				<Section>
-					<EmptyState icon={<ServerIcon />} title="No clusters yet">
-						Add a cluster to give Loco somewhere to run workloads.
-					</EmptyState>
+					<EmptyState icon={<ServerIcon />} title="No clusters" />
 				</Section>
 			) : (
 				<>
-					<p className="m-0 text-[13.5px] text-fg2">
-						{attention === 0
-							? "Every cluster is reporting and healthy."
-							: `${pluralize(attention, "cluster")} need${attention === 1 ? "s" : ""} attention. Problems are listed first.`}
-					</p>
-					<Section title="Deployment headroom" meta="Healthy application clusters with current reports">
-						<Capacity capacity={headroom.capacity} reportLabel="Oldest included report" />
-						<p className="m-0 border-t border-line px-5 py-3 text-[12px] text-fg3">
-							{headroom.included} of {activeClusters} active application clusters included. Build-only clusters,
-							unhealthy clusters and missing or stale reports are excluded.
-						</p>
+					<Section title="Capacity" meta={`${headroom.included}/${activeClusters} app clusters`}>
+						<Capacity capacity={headroom.capacity} reportLabel="Oldest report" />
 					</Section>
 					{groups.map((group) => (
 						<Section

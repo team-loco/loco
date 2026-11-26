@@ -85,9 +85,7 @@ with session(repo / "tests/ui/out/system") as browser:
             page.goto(ui + path, wait_until="commit")
             page.wait_for_timeout(500)
             assert not page.evaluate("window.__systemChrome"), (delayed, path)
-            not_found = page.get_by_role(
-                "heading", name="Nothing lives at this address", exact=True
-            )
+            not_found = page.get_by_role("heading", name="Page not found", exact=True)
             if delayed == USER_ORGS:
                 expect(not_found).to_be_visible()
             for route in held:
@@ -105,9 +103,7 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(switch).to_have_attribute("aria-checked", "false")
     switch.click()
     expect(page).to_have_url(ui + "/system")
-    expect(
-        page.get_by_role("heading", name="System overview", exact=True)
-    ).to_be_visible()
+    expect(page.get_by_role("heading", name="Overview", exact=True)).to_be_visible()
     expect(page.locator('[data-slot="system-tag"]')).to_have_text("System")
     sidebar = page.locator('[data-slot="sidebar"]')
     expect(sidebar.get_by_role("link", name="Clusters", exact=True)).to_be_visible()
@@ -292,16 +288,10 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_text("The build controller is not ready.", exact=True)
     ).to_be_visible()
-    expect(
-        page.get_by_role("heading", name="Work needing attention", exact=True)
-    ).to_be_visible()
-    expect(
-        page.get_by_role("heading", name="Recent Loco events", exact=True)
-    ).to_be_visible()
-    expect(
-        page.get_by_role("heading", name="Busiest node CPU", exact=True)
-    ).to_be_visible()
-    metrics = page.get_by_role("link", name="Open system metrics", exact=True)
+    expect(page.get_by_role("heading", name="Issues", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="Events", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="CPU", exact=True)).to_be_visible()
+    metrics = page.get_by_role("link", name="Metrics", exact=True)
     metrics_url = urlsplit(metrics.get_attribute("href"))
     assert metrics_url.path == "/system/metrics"
     assert parse_qs(metrics_url.query).get("q") == [
@@ -334,7 +324,7 @@ with session(repo / "tests/ui/out/system") as browser:
     page.set_viewport_size({"width": 1280, "height": 800})
     page.goto(ui + "/system/clusters/00000000-0000-0000-0000-000000000000")
     expect(
-        page.get_by_role("heading", name="Nothing lives at this address", exact=True)
+        page.get_by_role("heading", name="Page not found", exact=True)
     ).to_be_visible()
 
     # Add cluster creates a cluster in a new region and shows its token masked.
@@ -399,9 +389,7 @@ with session(repo / "tests/ui/out/system") as browser:
     page.goto(ui + "/dashboard")
     open_menu(page)
     page.get_by_role("menuitemcheckbox", name="System", exact=True).click()
-    expect(
-        page.get_by_role("heading", name="System overview", exact=True)
-    ).to_be_visible()
+    expect(page.get_by_role("heading", name="Overview", exact=True)).to_be_visible()
     page.goto(ui + "/system/clusters")
     table = page.get_by_role("table", name="Clusters", exact=True)
     expect(table.get_by_role("row", name="Open us-ca-1", exact=True)).to_be_visible()
@@ -424,9 +412,7 @@ with session(repo / "tests/ui/out/system") as browser:
     )
     page.goto(ui + "/system/clusters")
     row(page, "us-ca-1").click()
-    expect(
-        page.get_by_role("heading", name="Loco activity", exact=True)
-    ).to_be_visible()
+    expect(page.get_by_role("heading", name="Activity", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="Retry", exact=True)).to_be_visible()
     context.unroute(operations)
     build_id = "b0000000-0000-4000-8000-000000000001"
@@ -451,9 +437,7 @@ with session(repo / "tests/ui/out/system") as browser:
         ),
     )
     page.get_by_role("button", name="Retry", exact=True).click()
-    expect(
-        page.get_by_role("heading", name="Work needing attention", exact=True)
-    ).to_be_visible()
+    expect(page.get_by_role("heading", name="Issues", exact=True)).to_be_visible()
     expect(
         page.get_by_text("The build failed while installing dependencies.", exact=True)
     ).to_be_visible()
@@ -468,14 +452,10 @@ with session(repo / "tests/ui/out/system") as browser:
     )
     assert parse_qs(build_url.query).get("view") == ["logs"]
     assert parse_qs(build_url.query).get("q") == ["@build:" + build_id]
+    expect(page.get_by_text("No events", exact=True)).to_be_visible()
     expect(
         page.get_by_text(
-            "No Loco events have been recorded for this cluster.", exact=True
-        )
-    ).to_be_visible()
-    expect(
-        page.get_by_text(
-            "No samples in the past hour. Check platform telemetry collection.",
+            "No data",
             exact=True,
         )
     ).to_have_count(2)
@@ -483,15 +463,13 @@ with session(repo / "tests/ui/out/system") as browser:
     context.route(operations, lambda route: route.fulfill(json={}))
     page.goto(ui + "/system/clusters")
     row(page, "de-he-1").click()
-    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text("stale")
+    expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text("Stale")
     page.goto(ui + "/system/clusters")
     row(page, "de-he-1-b").click()
-    expect(
-        page.get_by_text("Capacity has not been reported yet.", exact=True)
-    ).to_be_visible()
+    expect(page.get_by_text("Not reported", exact=True)).to_be_visible()
     page.goto(ui + "/system/clusters/new")
     expect(
-        page.get_by_role("heading", name="Nothing lives at this address", exact=True)
+        page.get_by_role("heading", name="Page not found", exact=True)
     ).to_be_visible()
     context.close()
 
@@ -548,9 +526,9 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
     }
     row(page, "us-ca-1").click()
     signals = page.locator('[data-slot="cluster-runtime-signal"]')
-    expect(
-        signals.get_by_label(re.compile(r"^Busiest node (CPU|memory) over time$"))
-    ).to_have_count(2)
+    expect(signals.get_by_label(re.compile(r"^(CPU|Memory) over time$"))).to_have_count(
+        2
+    )
 
     def assert_metric_scope(cluster_id):
         assert {body["metricName"] for body in seen_metrics} == {
@@ -591,9 +569,9 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
             )
     expect(page).to_have_url(ui + next_path)
     expect(signals.locator('[data-slot="skeleton"]')).to_have_count(2)
-    expect(
-        signals.get_by_label(re.compile(r"^Busiest node (CPU|memory) over time$"))
-    ).to_have_count(0)
+    expect(signals.get_by_label(re.compile(r"^(CPU|Memory) over time$"))).to_have_count(
+        0
+    )
     seen_metrics = [
         cpu_request.value.post_data_json,
         memory_request.value.post_data_json,
@@ -603,7 +581,7 @@ with session(repo / "tests/ui/out/system-metric-scope") as browser:
         route.fulfill(json={})
     expect(
         page.get_by_text(
-            "No samples in the past hour. Check platform telemetry collection.",
+            "No data",
             exact=True,
         )
     ).to_have_count(2)

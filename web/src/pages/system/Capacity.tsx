@@ -8,18 +8,17 @@ import { SystemTime } from "./shared";
 /** Reservations explain deployment headroom; they are distinct from measured runtime usage. */
 export function Capacity({
 	capacity,
-	reportLabel = "Reported capacity",
+	reportLabel = "Reported",
 }: {
 	capacity: ClusterCapacity | undefined;
 	reportLabel?: string;
 }) {
-	if (capacity === undefined)
-		return <p className="m-0 px-5 py-5 text-[13.5px] text-fg3">Capacity has not been reported yet.</p>;
+	if (capacity === undefined) return <p className="m-0 px-5 py-5 text-[13.5px] text-fg3">Not reported</p>;
 	return (
 		<div data-slot="cluster-capacity" className="flex flex-col gap-4 px-5 py-4">
 			<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-fg3">
 				<span className={capacity.stale ? "font-medium text-warn-fg" : ""}>
-					{capacity.stale ? "Last reported capacity · stale" : reportLabel}
+					{capacity.stale ? "Stale" : reportLabel}
 				</span>
 				<SystemTime ts={capacity.reportedAt} />
 			</div>
@@ -51,10 +50,6 @@ export function Capacity({
 					);
 				})}
 			</div>
-			<p className="m-0 text-[12px] text-fg3">
-				Requests reserve capacity; they are not measured usage. Headroom is an estimate, not a guarantee that a
-				deployment fits.
-			</p>
 		</div>
 	);
 }

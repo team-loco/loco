@@ -37,7 +37,7 @@ org = state["orgs"]["acme"]["id"]
 base = f"{ui}/org/{org}/wks/{shared}"
 WORKSPACE_URL = re.compile(re.escape(base) + r"(\?env=[\w-]+)?$")
 issuer = f"{ui}/dex"
-TITLE = "Nothing lives at this address"
+TITLE = "Page not found"
 CONFIG = "**/loco.config.v1.ConfigService/GetConfig*"
 
 

@@ -163,13 +163,9 @@ export function SystemOrgs() {
 	});
 	const filtered = needle !== "" || state !== null;
 	const empty = filtered ? (
-		<EmptyState icon={<SearchXIcon />} title="No organizations match" query={needle}>
-			Clear the search or the state filter to see the others.
-		</EmptyState>
+		<EmptyState icon={<SearchXIcon />} title="No matches" query={needle} />
 	) : (
-		<EmptyState icon={<Building2Icon />} title="No organizations yet">
-			Organizations appear here once people create them.
-		</EmptyState>
+		<EmptyState icon={<Building2Icon />} title="No organizations" />
 	);
 
 	return (

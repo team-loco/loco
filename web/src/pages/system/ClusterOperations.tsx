@@ -24,13 +24,13 @@ export function ClusterOperations({ clusterId }: { clusterId: string }) {
 	const result = useQuery(getClusterOperations, { clusterId }, { refetchInterval: 30_000 });
 	if (result.isLoading)
 		return (
-			<Section title="Loco activity">
+			<Section title="Activity">
 				<Skeleton className="m-5 h-40" />
 			</Section>
 		);
 	if (result.error !== null)
 		return (
-			<Section title="Loco activity">
+			<Section title="Activity">
 				<div className="p-5">
 					<ErrorState
 						error={result.error}
@@ -45,14 +45,9 @@ export function ClusterOperations({ clusterId }: { clusterId: string }) {
 	const events = result.data?.events ?? [];
 	return (
 		<>
-			<Section
-				title="Work needing attention"
-				count={result.data?.hasMoreWorkloads ? "First 50 results" : String(workloads.length)}
-			>
+			<Section title="Issues" count={result.data?.hasMoreWorkloads ? "50+" : String(workloads.length)}>
 				{workloads.length === 0 ? (
-					<p className="m-0 px-5 py-5 text-[13px] text-fg3">
-						No deployments or builds currently need attention on this cluster.
-					</p>
+					<p className="m-0 px-5 py-5 text-[13px] text-fg3">No issues</p>
 				) : (
 					<ul className="m-0 list-none divide-y divide-line p-0">
 						{workloads.map((workload) => (
@@ -70,9 +65,9 @@ export function ClusterOperations({ clusterId }: { clusterId: string }) {
 									<span className="ml-2 text-[12px] text-fg3">
 										{workload.kind} · {workload.environmentSlug}
 									</span>
-									<p className="mt-1 mb-0 break-words text-[12.5px] text-fg2">
-										{workload.message || "Open the resource to inspect its latest rollout."}
-									</p>
+									{workload.message !== "" && (
+										<p className="mt-1 mb-0 break-words text-[12.5px] text-fg2">{workload.message}</p>
+									)}
 								</div>
 								<Badge tone="warn" size="sm">
 									{workload.status}
@@ -84,19 +79,18 @@ export function ClusterOperations({ clusterId }: { clusterId: string }) {
 				)}
 			</Section>
 			<Section
-				title="Recent Loco events"
-				meta="Cluster actions and health changes"
+				title="Events"
 				actions={
 					<Link
 						to={`/system/audit?q=${encodeURIComponent(`@target:${clusterId}`)}`}
 						className="text-[12.5px] text-fg2 underline underline-offset-4"
 					>
-						Open audit log
+						Audit log
 					</Link>
 				}
 			>
 				{events.length === 0 ? (
-					<p className="m-0 px-5 py-5 text-[13px] text-fg3">No Loco events have been recorded for this cluster.</p>
+					<p className="m-0 px-5 py-5 text-[13px] text-fg3">No events</p>
 				) : (
 					<ul className="m-0 list-none divide-y divide-line p-0">
 						{events.map((event) => (

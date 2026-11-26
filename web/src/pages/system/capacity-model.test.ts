@@ -3,7 +3,7 @@ import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { ClusterCapacitySchema, ClusterRole, ClusterSchema } from "@gen/loco/cluster/v1/cluster_pb";
 
-import { availableCapacity, capacityHeading, headroom, reservations } from "./capacity-model";
+import { availableCapacity, headroom, reservations } from "./capacity-model";
 
 const capacity = () =>
 	create(ClusterCapacitySchema, {
@@ -69,9 +69,6 @@ describe("deployment headroom", () => {
 		const result = availableCapacity([apps, combined, builds, unknown]);
 		expect(result.included).toBe(2);
 		expect(result.capacity?.cpuMillicoresAllocatable).toBe(16000n);
-		expect(capacityHeading(apps)).toBe("Deployment headroom");
-		expect(capacityHeading(builds)).toBe("Build headroom");
-		expect(capacityHeading(unknown)).toBe("Workload headroom");
 	});
 
 	test("dates pooled headroom by the oldest included report", () => {

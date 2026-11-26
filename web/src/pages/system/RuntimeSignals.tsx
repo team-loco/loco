@@ -17,14 +17,14 @@ import { MetricChart } from "@/pages/observability/MetricChart";
 const HOUR_MS = 3_600_000;
 const SIGNALS = [
 	{
-		title: "Busiest node CPU",
+		title: "CPU",
 		metric: "k8s.node.cpu.usage",
 		scale: 1,
-		unit: "",
+		unit: " cores",
 		format: (value: number) => `${value.toFixed(2)} cores`,
 	},
 	{
-		title: "Busiest node memory",
+		title: "Memory",
 		metric: "k8s.node.memory.working_set",
 		scale: 1024 ** 3,
 		unit: " GiB",
@@ -61,8 +61,7 @@ function Signal({ clusterId, signal }: { clusterId: string; signal: (typeof SIGN
 	const empty = series.every((item) => item.points.length === 0);
 	return (
 		<div data-slot="cluster-runtime-signal" data-cluster-id={clusterId} className="min-w-0 px-5 py-4">
-			<h3 className="m-0 text-[13.5px] font-medium">{signal.title}</h3>
-			<p className="mt-1 mb-3 text-[12px] text-fg3">Highest node sample in each time bucket · past hour</p>
+			<h3 className="m-0 mb-3 text-[13.5px] font-medium">{signal.title}</h3>
 			{result.isLoading ? (
 				<Skeleton className="h-36 w-full" />
 			) : result.error !== null ? (
@@ -73,9 +72,7 @@ function Signal({ clusterId, signal }: { clusterId: string; signal: (typeof SIGN
 					onRetry={async () => await result.refetch()}
 				/>
 			) : empty ? (
-				<p className="m-0 flex h-36 items-center justify-center text-center text-[12.5px] text-fg3">
-					No samples in the past hour. Check platform telemetry collection.
-				</p>
+				<p className="m-0 flex h-36 items-center justify-center text-center text-[12.5px] text-fg3">No data</p>
 			) : (
 				<MetricChart
 					title={signal.title}
@@ -97,7 +94,8 @@ function Signal({ clusterId, signal }: { clusterId: string; signal: (typeof SIGN
 export function RuntimeSignals({ clusterId }: { clusterId: string }) {
 	return (
 		<Section
-			title="Runtime signals"
+			title="Metrics"
+			meta="Max · 1h"
 			actions={
 				<Link
 					className="text-[12.5px] text-fg2 underline underline-offset-4"
@@ -105,7 +103,7 @@ export function RuntimeSignals({ clusterId }: { clusterId: string }) {
 						q: `@cluster:${clusterId}`,
 					})}
 				>
-					Open system metrics
+					Metrics
 				</Link>
 			}
 		>

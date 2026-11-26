@@ -161,3 +161,5 @@ The dashboard allocation strip and bars use `--allocation-0` through `--allocati
 Audit filter rejections use the shared error receipt and empty hero inside the toolbar section. The receipt carries request, call, code and API field details; the heading and reset action describe the affected filter. Unusable link filters use the shared warning banner with a Dismiss action.
 
 Audit search rejections use the same empty hero with a search receipt, the API message as the heading and field insertion actions. The table and pager remain hidden until the search is accepted.
+
+System pages use short noun headings and data labels. Omit status explanations, tutorial sentences, reassuring summaries and navigation advice. Show actual error reasons and state badges directly; empty states use short labels.

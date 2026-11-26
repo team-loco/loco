@@ -78,14 +78,6 @@ const UNCLAIMED_COLUMNS: DataColumn<UnclaimedEmail>[] = [
 		minSize: 90,
 		cell: ({ row: { original: u } }) => <RoleBadge role={u.role} />,
 	},
-	{
-		id: "note",
-		header: "Note",
-		size: 320,
-		minSize: 160,
-		meta: { grow: true },
-		cell: () => <CellText text="Configured. Takes the role on first sign-in." />,
-	},
 ];
 
 export function SystemOperators() {
@@ -109,13 +101,9 @@ export function SystemOperators() {
 	});
 	const empty =
 		needle !== "" ? (
-			<EmptyState icon={<SearchXIcon />} title="No operators match" query={needle}>
-				Clear the search to see everyone.
-			</EmptyState>
+			<EmptyState icon={<SearchXIcon />} title="No matches" query={needle} />
 		) : (
-			<EmptyState icon={<ShieldCheckIcon />} title="No operators yet">
-				Grant a role to a user, or list emails in the API configuration.
-			</EmptyState>
+			<EmptyState icon={<ShieldCheckIcon />} title="No operators" />
 		);
 
 	return (
@@ -140,7 +128,7 @@ export function SystemOperators() {
 			) : (
 				<>
 					<Section
-						title="Installation roles"
+						title="Roles"
 						search={
 							<SearchInput
 								value={q}
@@ -158,8 +146,8 @@ export function SystemOperators() {
 						<DataTable table={holderTable} label="Operators" band loading={roles.isLoading} empty={empty} />
 					</Section>
 					{unclaimed.length > 0 && (
-						<Section title="Waiting to sign in" count={unclaimed.length}>
-							<DataTable table={unclaimedTable} label="Waiting to sign in" band />
+						<Section title="Pending" count={unclaimed.length}>
+							<DataTable table={unclaimedTable} label="Pending" band />
 						</Section>
 					)}
 				</>

@@ -38,11 +38,6 @@ export function runsApps(cluster: Cluster): boolean {
 	return cluster.role === ClusterRole.APPS || cluster.role === ClusterRole.ALL;
 }
 
-export function capacityHeading(cluster: Cluster): string {
-	if (cluster.role === ClusterRole.BUILDS) return "Build headroom";
-	return runsApps(cluster) ? "Deployment headroom" : "Workload headroom";
-}
-
 /** Only healthy application clusters contribute current deployment headroom. */
 export function availableCapacity(clusters: readonly Cluster[]): {
 	capacity: ClusterCapacity | undefined;

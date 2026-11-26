@@ -153,9 +153,7 @@ with session(repo / "tests/ui/out/system-telemetry") as browser:
     for path in ("/system/logs", "/system/metrics", "/system/traces"):
         page.goto(ui + path)
         expect(
-            page.get_by_role(
-                "heading", name="Nothing lives at this address", exact=True
-            )
+            page.get_by_role("heading", name="Page not found", exact=True)
         ).to_be_visible()
     assert not requests, requests
     context.close()
