@@ -1,7 +1,7 @@
 import argparse
 import re
 
-from harness import expect_rpc, load_state, open_page, repo, session
+from harness import copied_text, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -274,6 +274,31 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(
         page.get_by_role("button", name="Issue join token", exact=True)
     ).to_be_visible()
+    # A full UUID and its copy icon stay inside their fact, including at larger text sizes.
+    cluster_id = page.url.rsplit("/", 1)[-1]
+    id_fact = page.locator("dt", has_text="Cluster ID").locator(
+        "xpath=following-sibling::dd"
+    )
+    copy_id = id_fact.get_by_role("button")
+    for font in (16, 20):
+        page.evaluate(
+            "size => document.documentElement.style.fontSize = size + 'px'", font
+        )
+        for width in (1280, 1440, 390):
+            page.set_viewport_size({"width": width, "height": 844})
+            fact_box = id_fact.bounding_box()
+            for element in (copy_id, copy_id.locator("svg")):
+                box = element.bounding_box()
+                assert (
+                    box["x"] + box["width"] <= fact_box["x"] + fact_box["width"] + 1
+                ), (font, width, box, fact_box)
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= window.innerWidth"
+            )
+    copy_id.click()
+    assert copied_text(page) == cluster_id
+    page.evaluate("document.documentElement.style.removeProperty('font-size')")
+    page.set_viewport_size({"width": 1280, "height": 800})
     page.goto(ui + "/system/clusters/00000000-0000-0000-0000-000000000000")
     expect(
         page.get_by_role("heading", name="Nothing lives at this address", exact=True)
