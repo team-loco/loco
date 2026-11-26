@@ -39,7 +39,13 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 	)
 	clusterv1connect.RegisterClusterAdminServiceHandler(
 		server,
-		NewClusterAdminServer(pool, queries, testAgentConfig().JoinTokenTTL, testAgentConfig().JoinTokenMaxTTL),
+		NewClusterAdminServer(
+			pool,
+			queries,
+			testAgentConfig().JoinTokenTTL,
+			testAgentConfig().JoinTokenMaxTTL,
+			testHeartbeatInterval,
+		),
 	)
 	clusterv1connect.RegisterRegionAdminServiceHandler(server, NewRegionAdminServer(queries))
 	mux := http.NewServeMux()
@@ -140,6 +146,13 @@ VALUES (ARRAY['linux/amd64'], 'admin-test', 'us-ca-1', 'kubernetes', true, false
 		},
 	}
 	reads := map[string]func(*rpc.Clients) error{
+		"operations": func(clients *rpc.Clients) error {
+			_, err := clients.ClusterAdmin.GetClusterOperations(
+				ctx,
+				&clusterv1.GetClusterOperationsRequest{ClusterId: clusterID.String()},
+			)
+			return err
+		},
 		"list": func(clients *rpc.Clients) error {
 			_, err := clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
 			return err

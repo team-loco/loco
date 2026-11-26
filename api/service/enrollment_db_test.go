@@ -36,7 +36,11 @@ func newEnrollmentFixture(t *testing.T) *enrollmentFixture {
 	return &enrollmentFixture{
 		deployFixture: f,
 		admin: NewClusterAdminServer(
-			f.pool, f.queries, testAgentConfig().JoinTokenTTL, testAgentConfig().JoinTokenMaxTTL,
+			f.pool,
+			f.queries,
+			testAgentConfig().JoinTokenTTL,
+			testAgentConfig().JoinTokenMaxTTL,
+			testHeartbeatInterval,
 		),
 		agent: startSyncServer(t, f),
 	}

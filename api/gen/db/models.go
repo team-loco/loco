@@ -727,29 +727,27 @@ type Build struct {
 }
 
 type Cluster struct {
-	ID                    uuid.UUID   `json:"id"`
-	Name                  string      `json:"name"`
-	ClusterKey            *uuid.UUID  `json:"clusterKey"`
-	RemovedAt             *time.Time  `json:"removedAt"`
-	Region                string      `json:"region"`
-	Provider              string      `json:"provider"`
-	IsActive              bool        `json:"isActive"`
-	IsDefault             bool        `json:"isDefault"`
-	Endpoint              *string     `json:"endpoint"`
-	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
-	Platforms             []string    `json:"platforms"`
-	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
-	AgentVersion          *string     `json:"agentVersion"`
-	SyncGeneration        int64       `json:"syncGeneration"`
-	Domains               []string    `json:"domains"`
-	AgentPublicKey        []byte      `json:"agentPublicKey"`
-	JoinTokenHash         *string     `json:"joinTokenHash"`
-	JoinTokenExpiresAt    *time.Time  `json:"joinTokenExpiresAt"`
-	JoinTokenUsedAt       *time.Time  `json:"joinTokenUsedAt"`
-	Role                  ClusterRole `json:"role"`
-	CreatedAt             time.Time   `json:"createdAt"`
-	UpdatedAt             time.Time   `json:"updatedAt"`
+	ID                 uuid.UUID   `json:"id"`
+	Name               string      `json:"name"`
+	ClusterKey         *uuid.UUID  `json:"clusterKey"`
+	RemovedAt          *time.Time  `json:"removedAt"`
+	Region             string      `json:"region"`
+	Provider           string      `json:"provider"`
+	IsActive           bool        `json:"isActive"`
+	IsDefault          bool        `json:"isDefault"`
+	Endpoint           *string     `json:"endpoint"`
+	LastHealthCheck    *time.Time  `json:"lastHealthCheck"`
+	Platforms          []string    `json:"platforms"`
+	AgentVersion       *string     `json:"agentVersion"`
+	SyncGeneration     int64       `json:"syncGeneration"`
+	Domains            []string    `json:"domains"`
+	AgentPublicKey     []byte      `json:"agentPublicKey"`
+	JoinTokenHash      *string     `json:"joinTokenHash"`
+	JoinTokenExpiresAt *time.Time  `json:"joinTokenExpiresAt"`
+	JoinTokenUsedAt    *time.Time  `json:"joinTokenUsedAt"`
+	Role               ClusterRole `json:"role"`
+	CreatedAt          time.Time   `json:"createdAt"`
+	UpdatedAt          time.Time   `json:"updatedAt"`
 }
 
 type ClusterAssertion struct {
@@ -759,10 +757,19 @@ type ClusterAssertion struct {
 }
 
 type ClusterHeartbeat struct {
-	ClusterID     uuid.UUID  `json:"clusterId"`
-	LastHeartbeat time.Time  `json:"lastHeartbeat"`
-	HealthStatus  string     `json:"healthStatus"`
-	SilentSince   *time.Time `json:"silentSince"`
+	ClusterID              uuid.UUID  `json:"clusterId"`
+	LastHeartbeat          time.Time  `json:"lastHeartbeat"`
+	HealthStatus           string     `json:"healthStatus"`
+	SilentSince            *time.Time `json:"silentSince"`
+	CapacityReportedAt     *time.Time `json:"capacityReportedAt"`
+	ReportedCpuMillicores  int64      `json:"reportedCpuMillicores"`
+	RequestedCpuMillicores int64      `json:"requestedCpuMillicores"`
+	ReportedMemoryBytes    int64      `json:"reportedMemoryBytes"`
+	RequestedMemoryBytes   int64      `json:"requestedMemoryBytes"`
+	CapacityPods           int32      `json:"capacityPods"`
+	AssignedPods           int32      `json:"assignedPods"`
+	RunningPods            int32      `json:"runningPods"`
+	HealthMessage          string     `json:"healthMessage"`
 }
 
 type Deployment struct {

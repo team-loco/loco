@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	podresource "k8s.io/component-helpers/resource"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
@@ -65,14 +66,16 @@ func (i *Inspector) Capacity(ctx context.Context) (*agentv1.AgentCapacity, error
 
 	for idx := range pods.Items {
 		pod := &pods.Items[idx]
+		if pod.Spec.NodeName == "" {
+			continue
+		}
+		capacity.PodsAssigned++
 		if pod.Status.Phase == corev1.PodRunning {
 			capacity.PodsRunning++
 		}
-		for cIdx := range pod.Spec.Containers {
-			requests := pod.Spec.Containers[cIdx].Resources.Requests
-			capacity.CpuMillicoresUsed += requests.Cpu().MilliValue()
-			capacity.MemoryBytesUsed += requests.Memory().Value()
-		}
+		requests := podresource.PodRequests(pod, podresource.PodResourcesOptions{})
+		capacity.CpuMillicoresRequested += requests.Cpu().MilliValue()
+		capacity.MemoryBytesRequested += requests.Memory().Value()
 	}
 
 	return capacity, nil

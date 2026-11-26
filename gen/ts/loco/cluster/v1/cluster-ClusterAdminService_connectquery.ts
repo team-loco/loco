@@ -20,6 +20,11 @@ export const issueJoinToken = ClusterAdminService.method.issueJoinToken;
 export const listClusters = ClusterAdminService.method.listClusters;
 
 /**
+ * @generated from rpc loco.cluster.v1.ClusterAdminService.GetClusterOperations
+ */
+export const getClusterOperations = ClusterAdminService.method.getClusterOperations;
+
+/**
  * @generated from rpc loco.cluster.v1.ClusterAdminService.PauseCluster
  */
 export const pauseCluster = ClusterAdminService.method.pauseCluster;

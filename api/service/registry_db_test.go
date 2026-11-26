@@ -698,7 +698,13 @@ func TestRegistryCredentialsEndWhenTheClusterReenrolls(t *testing.T) {
 	t.Parallel()
 	f := newRegistryFixture(t, testRegistryConfig())
 	set := f.issueCredentialSet(t)
-	admin := NewClusterAdminServer(f.pool, f.queries, testAgentConfig().JoinTokenTTL, testAgentConfig().JoinTokenMaxTTL)
+	admin := NewClusterAdminServer(
+		f.pool,
+		f.queries,
+		testAgentConfig().JoinTokenTTL,
+		testAgentConfig().JoinTokenMaxTTL,
+		testHeartbeatInterval,
+	)
 	token, err := admin.IssueJoinToken(
 		systemAdminContext(t),
 		&clusterv1.IssueJoinTokenRequest{ClusterId: f.clusterID.String()},

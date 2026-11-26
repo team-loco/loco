@@ -1458,6 +1458,67 @@
         }
       }
     },
+    "/loco.cluster.v1.ClusterAdminService/GetClusterOperations": {
+      "post": {
+        "tags": [
+          "loco.cluster.v1.ClusterAdminService"
+        ],
+        "summary": "GetClusterOperations",
+        "operationId": "loco.cluster.v1.ClusterAdminService.GetClusterOperations",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.cluster.v1.GetClusterOperationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.cluster.v1.GetClusterOperationsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.cluster.v1.ClusterAdminService/IssueJoinToken": {
       "post": {
         "tags": [
@@ -8939,9 +9000,9 @@
             "title": "cpu_millicores_total",
             "format": "int64"
           },
-          "cpuMillicoresUsed": {
+          "cpuMillicoresRequested": {
             "type": "string",
-            "title": "cpu_millicores_used",
+            "title": "cpu_millicores_requested",
             "format": "int64"
           },
           "memoryBytesTotal": {
@@ -8949,9 +9010,9 @@
             "title": "memory_bytes_total",
             "format": "int64"
           },
-          "memoryBytesUsed": {
+          "memoryBytesRequested": {
             "type": "string",
-            "title": "memory_bytes_used",
+            "title": "memory_bytes_requested",
             "format": "int64"
           },
           "podsTotal": {
@@ -8971,6 +9032,12 @@
               "pattern": "^linux/(amd64|arm64)$"
             },
             "title": "platforms"
+          },
+          "podsAssigned": {
+            "type": "integer",
+            "title": "pods_assigned",
+            "format": "int32",
+            "description": "Non-terminal pods assigned to a node; includes pods still starting."
           }
         },
         "title": "AgentCapacity",
@@ -10521,10 +10588,71 @@
             "title": "silent_since",
             "description": "The last heartbeat before the API recorded cluster.silent; unset while the cluster reports.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "capacity": {
+            "title": "capacity",
+            "description": "Last successful capacity sample; absent before the first successful sample.",
+            "$ref": "#/components/schemas/loco.cluster.v1.ClusterCapacity"
+          },
+          "healthMessage": {
+            "type": "string",
+            "title": "health_message"
           }
         },
         "title": "Cluster",
         "additionalProperties": false
+      },
+      "loco.cluster.v1.ClusterCapacity": {
+        "type": "object",
+        "properties": {
+          "cpuMillicoresAllocatable": {
+            "type": "string",
+            "title": "cpu_millicores_allocatable",
+            "format": "int64"
+          },
+          "cpuMillicoresRequested": {
+            "type": "string",
+            "title": "cpu_millicores_requested",
+            "format": "int64"
+          },
+          "memoryBytesAllocatable": {
+            "type": "string",
+            "title": "memory_bytes_allocatable",
+            "format": "int64"
+          },
+          "memoryBytesRequested": {
+            "type": "string",
+            "title": "memory_bytes_requested",
+            "format": "int64"
+          },
+          "podsAllocatable": {
+            "type": "integer",
+            "title": "pods_allocatable",
+            "format": "int32"
+          },
+          "podsRunning": {
+            "type": "integer",
+            "title": "pods_running",
+            "format": "int32"
+          },
+          "reportedAt": {
+            "title": "reported_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "podsAssigned": {
+            "type": "integer",
+            "title": "pods_assigned",
+            "format": "int32"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "stale",
+            "description": "Sample is older than the installation's configured heartbeat silence threshold."
+          }
+        },
+        "title": "ClusterCapacity",
+        "additionalProperties": false,
+        "description": "ClusterCapacity is a reservation snapshot, not measured CPU or memory usage.\n Requested resources cover assigned, non-terminal pods including init containers and overhead.\n Aggregate headroom does not guarantee a workload can be scheduled on an individual node."
       },
       "loco.cluster.v1.ClusterRole": {
         "type": "string",
@@ -10551,6 +10679,58 @@
         },
         "title": "ClusterWorkload",
         "additionalProperties": false
+      },
+      "loco.cluster.v1.ClusterWorkloadAttention": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "kind"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "resourceName": {
+            "type": "string",
+            "title": "resource_name"
+          },
+          "orgId": {
+            "type": "string",
+            "title": "org_id"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
+          },
+          "environmentSlug": {
+            "type": "string",
+            "title": "environment_slug"
+          },
+          "status": {
+            "type": "string",
+            "title": "status"
+          },
+          "message": {
+            "type": "string",
+            "title": "message"
+          },
+          "updatedAt": {
+            "title": "updated_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "ClusterWorkloadAttention",
+        "additionalProperties": false,
+        "description": "ClusterWorkloadAttention identifies current Loco work that is blocked or failing."
       },
       "loco.cluster.v1.ClusterWorkloads": {
         "type": "object",
@@ -10649,6 +10829,43 @@
           }
         },
         "title": "CreateClusterResponse",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.GetClusterOperationsRequest": {
+        "type": "object",
+        "properties": {
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id",
+            "format": "uuid"
+          }
+        },
+        "title": "GetClusterOperationsRequest",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.GetClusterOperationsResponse": {
+        "type": "object",
+        "properties": {
+          "workloads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.ClusterWorkloadAttention"
+            },
+            "title": "workloads"
+          },
+          "hasMoreWorkloads": {
+            "type": "boolean",
+            "title": "has_more_workloads"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.event.v1.Event"
+            },
+            "title": "events"
+          }
+        },
+        "title": "GetClusterOperationsResponse",
         "additionalProperties": false
       },
       "loco.cluster.v1.IssueJoinTokenRequest": {
@@ -19189,6 +19406,9 @@
       "description": "SystemRoleService lists, grants and revokes installation roles. Listing requires system read;\n granting and revoking require system admin."
     },
     {
+      "name": "loco.event.v1.EventService"
+    },
+    {
       "name": "loco.cluster.v1.ClusterAdminService"
     },
     {
@@ -19228,9 +19448,6 @@
     {
       "name": "loco.environment.v1.EnvironmentService",
       "description": "EnvironmentService manages environments within a workspace."
-    },
-    {
-      "name": "loco.event.v1.EventService"
     },
     {
       "name": "loco.ingest.v1.IngestService",

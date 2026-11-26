@@ -161,7 +161,7 @@ func TestClusterChangesAreRecordedWithoutAnOrganization(t *testing.T) {
 	f := newEventFixture(t)
 	ctx := operatorContext(t, genDb.ScopeAdmin)
 	agent := testAgentConfig()
-	server := NewClusterAdminServer(f.pool, f.queries, agent.JoinTokenTTL, agent.JoinTokenMaxTTL)
+	server := NewClusterAdminServer(f.pool, f.queries, agent.JoinTokenTTL, agent.JoinTokenMaxTTL, testHeartbeatInterval)
 	created, err := server.CreateCluster(ctx, &clusterv1.CreateClusterRequest{
 		RequestId: uuid.NewString(), Name: "edge", Target: inRegion("local-1"),
 	})
