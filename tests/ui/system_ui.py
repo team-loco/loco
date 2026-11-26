@@ -468,7 +468,11 @@ with session(repo / "tests/ui/out/system") as browser:
     expect(page.locator('[data-slot="cluster-capacity"]')).to_contain_text("Stale")
     page.goto(ui + "/system/clusters")
     row(page, "de-he-1-b").click()
-    expect(page.get_by_text("Not reported", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("region", name="Capacity", exact=True).get_by_text(
+            "Not reported", exact=True
+        )
+    ).to_be_visible()
     page.goto(ui + "/system/clusters/new")
     expect(
         page.get_by_role("heading", name="Page not found", exact=True)
