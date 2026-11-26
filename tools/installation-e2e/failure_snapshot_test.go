@@ -19,7 +19,7 @@ func TestFailedOperatorSnapshotsOnlySafeStateAndKeepsExitError(t *testing.T) {
 {"kind":"Pod","status":{"phase":"Pending","conditions":[{"type":"PodScheduled","status":"False",
  "reason":"Unschedulable","message":"Insufficient cpu, Insufficient memory credential-canary"}],
  "containerStatuses":[{"name":"credential-canary",
- "state":{"waiting":{"reason":"ImagePullBackOff","message":"credential-canary"}}},
+ "state":{"waiting":{"reason":"ImagePullBackOff","message":"sysfs information credential-canary"}}},
  {"state":{"terminated":{"reason":"OOMKilled","message":"credential-canary"}}},
  {"state":{"waiting":{"reason":"CrashLoopBackOff credential-canary"}}},
  {"state":{"waiting":null,"terminated":null}}]}},
@@ -46,6 +46,15 @@ func TestFailedOperatorSnapshotsOnlySafeStateAndKeepsExitError(t *testing.T) {
 ]}`
 	t.Setenv("SNAPSHOT_TEST_FLUX", flux)
 	t.Setenv("SNAPSHOT_TEST_JSON", state)
+	workloads := strings.TrimSuffix(state, "\n]}") + `,
+{"kind":"Pod","metadata":{"name":"credential-canary","namespace":"application-namespace"},
+ "spec":{"token":"credential-canary"},"status":{"phase":"Pending",
+ "conditions":[{"type":"Ready","status":"False","message":"credential-canary"},
+ {"type":"Ready credential-canary","status":"True"}],
+ "containerStatuses":[{"state":{"waiting":{"reason":"CreateContainerError",
+ "message":"mount sysfs: operation not permitted credential-canary"}}}]}}
+]}`
+	t.Setenv("SNAPSHOT_TEST_WORKLOADS", workloads)
 	t.Setenv("SNAPSHOT_TEST_NODES", nodes)
 	calls := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("SNAPSHOT_TEST_CALLS", calls)
@@ -58,15 +67,16 @@ if [ "$SNAPSHOT_TEST_FAIL" = 1 ]; then printf 'credential-canary' >&2; exit 42; 
 case "$*" in
 *'get nodes'*) printf '%s' "$SNAPSHOT_TEST_NODES" ;;
 *kustomizations*) printf '%s' "$SNAPSHOT_TEST_FLUX" ;;
+*--all-namespaces*|*' -A '*) printf '%s' "$SNAPSHOT_TEST_WORKLOADS" ;;
 *) printf '%s' "$SNAPSHOT_TEST_JSON" ;;
 esac
 `
 	fakeCommand(t, kubectlExecutable, script)
-	fakeCommand(t, "yq", "#!/bin/sh\nprintf 'loco-builds\\n'\n")
 	f := fixture{root: t.TempDir(), kubeconfig: "/owned/kubeconfig"}
 	for _, tc := range []struct{ fail, snapshot string }{
 		{"", `installation-e2e snapshot: BuildPhase=Running count=1
 installation-e2e snapshot: ContainerTerminated=OOMKilled count=1
+installation-e2e snapshot: ContainerWaiting=CreateContainerError count=1
 installation-e2e snapshot: ContainerWaiting=ImagePullBackOff count=1
 installation-e2e snapshot: EventReason=FailedScheduling count=1
 installation-e2e snapshot: Flux HelmRelease/other Ready=Unknown reason=unknown count=1
@@ -80,8 +90,10 @@ installation-e2e snapshot: NodeCondition=MemoryPressure status=True count=1
 installation-e2e snapshot: NodeCondition=NetworkUnavailable status=Unknown count=1
 installation-e2e snapshot: NodeCondition=PIDPressure status=False count=1
 installation-e2e snapshot: NodeCondition=Ready status=False count=1
-installation-e2e snapshot: PodPhase=Pending count=1
+installation-e2e snapshot: PodCondition=Ready status=False count=1
+installation-e2e snapshot: PodPhase=Pending count=2
 installation-e2e snapshot: PodScheduledUnschedulable count=1
+installation-e2e snapshot: SysfsMountDenied count=1
 `},
 		{"1", "installation-e2e snapshot: QueryUnavailable count=3\n"},
 	} {
@@ -92,21 +104,22 @@ installation-e2e snapshot: PodScheduledUnschedulable count=1
 		if !errors.As(err, &exit) || exit.ExitCode() != 17 || strings.Contains(err.Error(), "credential-canary") {
 			t.Fatalf("case %q lost the original exit status or exposed private output", tc.fail)
 		}
-		if output != "installation-e2e phase: source-deploy\n"+tc.snapshot {
-			t.Fatalf("case %q did not emit only the safe snapshot", tc.fail)
+		if strings.Contains(output, "credential-canary") {
+			t.Fatal("snapshot exposed private fixture data")
 		}
+		if output != "installation-e2e phase: source-deploy\n"+tc.snapshot {
+			t.Fatalf("case %q: safe snapshot = %s, want %s", tc.fail, output, tc.snapshot)
+		}
+		t.Logf("Filtered failure snapshot, failing-query mode %q:\n%s", tc.fail, output)
 	}
 	invocations, readErr := os.ReadFile(calls)
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
-	for _, want := range []string{
-		"--kubeconfig /owned/kubeconfig -n loco-builds get pods,jobs,builds,events -o json",
-		"--kubeconfig /owned/kubeconfig get nodes -o json",
-		"--kubeconfig /owned/kubeconfig get kustomizations,helmreleases,ocirepositories --all-namespaces -o json",
-	} {
-		if !strings.Contains(string(invocations), want) {
-			t.Errorf("snapshot did not query only its cluster: %q", invocations)
+	for invocation := range strings.SplitSeq(strings.TrimSpace(string(invocations)), "\n") {
+		isQuery := strings.HasPrefix(invocation, "get ") || strings.Contains(invocation, " get ")
+		if isQuery && !strings.HasPrefix(invocation, "--kubeconfig /owned/kubeconfig ") {
+			t.Errorf("snapshot queried outside its cluster: %q", invocation)
 		}
 	}
 }
