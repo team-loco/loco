@@ -113,7 +113,7 @@ func TestSystemReaderReadsTheAPIsLogs(t *testing.T) {
 }
 
 // TestProxyTelemetryReachesTheSystemTenant exercises the proxy's real HTTP ingestion and
-// chart-wired exporter, then reads its span back from ClickHouse under the system tenant.
+// configured exporter, then reads its span back from ClickHouse under the system tenant.
 func TestProxyTelemetryReachesTheSystemTenant(t *testing.T) {
 	t.Parallel()
 	var token string

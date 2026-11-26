@@ -53,7 +53,7 @@ func (p *Platform) StopAPIReplica() {
 	p.stopProcess(replicaProcess)
 }
 
-// systemIngestToken authenticates the API's own telemetry to the observability proxy.
+// systemIngestToken authenticates the API's and proxy's own telemetry to the proxy.
 const systemIngestToken = "e2e-system-ingest-token" //nolint:gosec // a fixed test credential
 
 func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
@@ -236,7 +236,7 @@ func (p *Platform) SignalAgent(signal syscall.Signal) error {
 
 func (p *Platform) startObsProxy(ctx context.Context) error {
 	dsn := p.clickhouseDSN()
-	if err := p.startProcess(obsProcess, []string{
+	env := []string{
 		"PORT=" + strconv.Itoa(p.ports.obsProxy),
 		"CONTROL_PLANE_URL=" + p.APIURL,
 		"CLICKHOUSE_DB=" + p.values.clickhouseDB,
@@ -245,7 +245,13 @@ func (p *Platform) startObsProxy(ctx context.Context) error {
 		"OTLP_GRPC_PORT=" + strconv.Itoa(p.ports.otlpGRPC),
 		"OTLP_HTTP_PORT=" + strconv.Itoa(p.ports.otlpHTTP),
 		"SYSTEM_INGEST_TOKEN=" + systemIngestToken,
-	}, filepath.Join(p.binDir, "loco-obs-proxy")); err != nil {
+	}
+	if p.Observability {
+		env = append(env,
+			"OTEL_EXPORTER_OTLP_ENDPOINT="+p.OTLPURL,
+			"OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer%20"+systemIngestToken)
+	}
+	if err := p.startProcess(obsProcess, env, filepath.Join(p.binDir, "loco-obs-proxy")); err != nil {
 		return err
 	}
 	return waitFor(ctx, readyTimeout, "observability proxy readiness", func(ctx context.Context) error {
@@ -270,6 +276,9 @@ func (p *Platform) startIngest(ctx context.Context, images *images) error {
 		"-e", "OTLP_HTTP_PORT="+strconv.Itoa(p.values.ingestHTTPPort),
 		"-e", "CLICKHOUSE_INGEST_URL="+native,
 		"-e", "CLICKHOUSE_MIGRATOR_URL="+native,
+		"-e", "SYSTEM_INGEST_TOKEN="+systemIngestToken,
+		"-e", "OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:"+strconv.Itoa(p.values.ingestHTTPPort),
+		"-e", "OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer%20"+systemIngestToken,
 		images.obsProxy); err != nil {
 		return err
 	}
