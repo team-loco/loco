@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,14 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 )
 
+const (
+	jsonBodyMessageKey = "msg"
+	quotedLogMessage   = `said "hello"`
+	quotedLogText      = `say "hello" from C:\app`
+	quotedJSONString   = `"hello"`
+	quotedJSONObject   = `{"msg":"said \"hello\"","user":{"id":"42"}}`
+)
+
 func TestExportedLogsCarryTheirJSONBodyFieldsAsAttributes(t *testing.T) {
 	manyFields := make([]string, 0, maxBodyFields+1)
 	for i := range maxBodyFields + 1 {
@@ -20,7 +29,7 @@ func TestExportedLogsCarryTheirJSONBodyFieldsAsAttributes(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name     string
-		body     string
+		body     any
 		existing map[string]string
 		want     map[string]string
 	}{
@@ -28,7 +37,7 @@ func TestExportedLogsCarryTheirJSONBodyFieldsAsAttributes(t *testing.T) {
 			name: "nested object, array, number, bool and null",
 			body: ` {"msg":"paid","user":{"id":"42","plan":"pro"},"roles":["admin","dev"],"amount":12.50,"ok":true,"x":null}`,
 			want: map[string]string{
-				"msg": "paid", "user.id": "42", "user.plan": "pro", "roles.0": "admin", "roles.1": "dev",
+				jsonBodyMessageKey: "paid", "user.id": "42", "user.plan": "pro", "roles.0": "admin", "roles.1": "dev",
 				"amount": "12.50", "ok": "true", "x": "null",
 			},
 		},
@@ -51,7 +60,30 @@ func TestExportedLogsCarryTheirJSONBodyFieldsAsAttributes(t *testing.T) {
 		{name: "plain text", body: "GET /healthz 200", want: map[string]string{}},
 		{name: "JSON array", body: `[{"a":1}]`, want: map[string]string{}},
 		{name: "two objects", body: `{"a":1} {"b":2}`, want: map[string]string{}},
-		{name: "multi-line object", body: "{\"a\":1,\n\"b\":2}", want: map[string]string{}},
+		{name: "missing closing brace", body: `{"a":1`, want: map[string]string{}},
+		{name: "extra closing brace", body: `{"a":1}}`, want: map[string]string{}},
+		{name: "trailing closing bracket", body: `{"a":1}]`, want: map[string]string{}},
+		{name: "duplicate object names", body: `{"a":1,"a":2}`, want: map[string]string{}},
+		{name: "multi-line object", body: "{\"a\":1,\n\"b\":2}", want: map[string]string{"a": "1", "b": "2"}},
+		{
+			name: "structured OTLP object",
+			body: map[string]any{
+				jsonBodyMessageKey: quotedLogMessage, "user": map[string]any{"id": "42"},
+				"roles": []any{"operator"}, "ok": true, "count": int64(9007199254740993), "x": nil,
+			},
+			want: map[string]string{
+				jsonBodyMessageKey: quotedLogMessage, "user.id": "42", "roles.0": "operator",
+				"ok": "true", "count": "9007199254740993", "x": "null",
+			},
+		},
+		{name: "quoted text", body: quotedLogText, want: map[string]string{}},
+		{name: "JSON string literal", body: quotedJSONString, want: map[string]string{}},
+		{name: "quoted JSON string", body: `"{\"msg\":\"hello\"}"`, want: map[string]string{}},
+		{
+			name: "quoted JSON field",
+			body: `{"msg":"said \"hello\"","path":"C:\\app"}`,
+			want: map[string]string{jsonBodyMessageKey: quotedLogMessage, "path": `C:\app`},
+		},
 		{name: "invalid JSON", body: `{"a":`, want: map[string]string{}},
 		{name: "empty object", body: `{}`, want: map[string]string{}},
 	} {
@@ -130,7 +162,7 @@ func TestExportedLogsCarryTheHTTPMethodAndStatusCodeUnderShortNames(t *testing.T
 }
 
 // exportLog sends one log record through the HTTP export path and returns its attributes as stored.
-func exportLog(t *testing.T, body string, existing map[string]string) map[string]string {
+func exportLog(t *testing.T, body any, existing map[string]string) map[string]string {
 	t.Helper()
 	service, recorder, cp := newTestService(t, nil)
 	logs := plog.NewLogs()
@@ -138,7 +170,9 @@ func exportLog(t *testing.T, body string, existing map[string]string) map[string
 	resourceLogs.Resource().Attributes().PutStr(workspaceAttribute, testWorkspaceID)
 	record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
 	record.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-	record.Body().SetStr(body)
+	if err := record.Body().FromRaw(body); err != nil {
+		t.Fatal(err)
+	}
 	for key, value := range existing {
 		record.Attributes().PutStr(key, value)
 	}
@@ -150,8 +184,8 @@ func exportLog(t *testing.T, body string, existing map[string]string) map[string
 		t.Fatalf("status = %d, body %q", response.Code, response.Body.String())
 	}
 	stored := recorder.received[0].ResourceLogs().At(0).ScopeLogs().At(0).LogRecords().At(0)
-	if stored.Body().Str() != body {
-		t.Fatalf("body = %q, want it unchanged", stored.Body().Str())
+	if !reflect.DeepEqual(stored.Body().AsRaw(), record.Body().AsRaw()) {
+		t.Fatalf("body = %v, want %v unchanged", stored.Body().AsRaw(), record.Body().AsRaw())
 	}
 	attributes := map[string]string{}
 	for key, value := range stored.Attributes().All() {

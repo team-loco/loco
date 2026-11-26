@@ -1,7 +1,9 @@
 package ingest
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
+	"errors"
 	"maps"
 	"slices"
 	"strconv"
@@ -18,7 +20,20 @@ const (
 	maxBodyFieldKey = 256
 )
 
-// normalizeLogs copies the fields of each single-line JSON object body into the record's
+// Keep number text intact instead of rounding large integers through float64.
+var bodyUnmarshalers = json.UnmarshalFromFunc(func(decoder *jsontext.Decoder, value *any) error {
+	if decoder.PeekKind() != jsontext.KindNumber {
+		return errors.ErrUnsupported
+	}
+	number, err := decoder.ReadToken()
+	if err != nil {
+		return err
+	}
+	*value = number.String()
+	return nil
+})
+
+// normalizeLogs copies the fields of each JSON object body into the record's
 // attributes, keyed by dotted path (user.id) with array elements by index (roles.0), then copies
 // the HTTP method and status code to method and status_code. Attributes the record already has are
 // kept, and the body is left as it is. When two fields flatten to the same path, such as "a.b" and
@@ -50,17 +65,14 @@ func aliasAttribute(attributes pcommon.Map, alias string, sources ...string) {
 }
 
 func flattenJSONBody(record plog.LogRecord) {
-	if record.Body().Type() != pcommon.ValueTypeStr {
+	// AsString preserves text and serializes structured OTLP bodies as JSON, just as
+	// the ClickHouse exporter does. Decode both forms through the same path.
+	body := strings.TrimSpace(record.Body().AsString())
+	if !strings.HasPrefix(body, "{") {
 		return
 	}
-	body := strings.TrimSpace(record.Body().Str())
-	if !strings.HasPrefix(body, "{") || strings.ContainsAny(body, "\r\n") {
-		return
-	}
-	decoder := json.NewDecoder(strings.NewReader(body))
-	decoder.UseNumber()
 	var object map[string]any
-	if decoder.Decode(&object) != nil || decoder.More() {
+	if json.Unmarshal([]byte(body), &object, json.WithUnmarshalers(bodyUnmarshalers)) != nil {
 		return
 	}
 	fields := map[string]string{}
@@ -100,8 +112,6 @@ func flattenJSONValue(path string, value any, fields map[string]string) {
 		}
 	case string:
 		setField(fields, path, value)
-	case json.Number:
-		setField(fields, path, value.String())
 	case bool:
 		setField(fields, path, strconv.FormatBool(value))
 	case nil:
