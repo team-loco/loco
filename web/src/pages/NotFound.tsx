@@ -65,8 +65,7 @@ function MissingPath() {
 /**
  * `staticPage` renders the page for the 404 file the static server returns for missing files and unknown
  * documentation paths, built by build.ts. That file runs no script and has no router, so it leaves out the
- * missing path, which needs the router and gets the logo inline, because
- * /logo.svg does not exist on the documentation host.
+ * missing path. It embeds the logo because /logo.svg does not exist on the documentation host.
  */
 export function NotFound({
 	unknownWorkspace = false,
