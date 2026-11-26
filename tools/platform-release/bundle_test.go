@@ -40,6 +40,18 @@ func TestBundleGoldenOutput(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
+func TestBundleGatewayEnablesBackendAPI(t *testing.T) {
+	t.Parallel()
+	manifest, _, namespace := bundleFixture(t)
+	files, err := buildBundle(manifest, namespace)
+	require.NoError(t, err)
+	var gateway object
+	require.NoError(t, json.Unmarshal(files["layers/infra/envoy-gateway-helmrelease.yaml"], &gateway))
+	config := fields(gateway, "spec", "values", "config", "envoyGateway")
+	require.Contains(t, config, "extensionApis")
+	require.Equal(t, true, fields(config, "extensionApis")["enableBackend"])
+}
+
 func TestBundleRevisionIncludesArtifactsAndImages(t *testing.T) {
 	t.Parallel()
 	for _, field := range []string{artifactsName, "images"} {
