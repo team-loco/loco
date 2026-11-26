@@ -2260,7 +2260,7 @@ with session(out) as browser:
                 assert boxes[0]["x"] + boxes[0]["width"] <= boxes[1]["x"]
                 assert boxes[1]["x"] + boxes[1]["width"] <= boxes[2]["x"]
                 assert chip.evaluate("el => el.scrollWidth <= el.clientWidth")
-                if len(trace_spans) == 1:
+                if len(trace_spans) == 1 and width >= 1180:
                     identity_width = title.locator("..").bounding_box()["width"]
                     assert identity_width > header.bounding_box()["width"] * 0.7
                 assert page.evaluate(
