@@ -95,7 +95,7 @@ export function RuntimeSignals({ clusterId }: { clusterId: string }) {
 	return (
 		<Section
 			title="Metrics"
-			meta="Max · 1h"
+			meta="Max node · 1h"
 			actions={
 				<Link
 					className="text-[12.5px] text-fg2 underline underline-offset-4"
