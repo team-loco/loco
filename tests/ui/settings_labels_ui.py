@@ -353,11 +353,21 @@ with session(out) as browser:
                 row = workspaces.get_by_role("link", name="shared", exact=True).locator(
                     "xpath=ancestor::tr"
                 )
-                background = row.evaluate(
-                    "node => getComputedStyle(node).backgroundColor"
-                )
+                page.mouse.move(0, 0)
+                cell = row.get_by_role("cell").first.bounding_box()
+                assert cell is not None
+                hover_pixel = {
+                    "x": cell["x"] + 4,
+                    "y": cell["y"] + cell["height"] - 5,
+                    "width": 1,
+                    "height": 1,
+                }
+                background = page.screenshot(clip=hover_pixel, animations="disabled")
                 row.hover()
-                expect(row).not_to_have_css("background-color", background)
+                assert (
+                    page.screenshot(clip=hover_pixel, animations="disabled")
+                    != background
+                )
                 page.mouse.move(0, 0)
                 expect(
                     workspaces.get_by_role("button", name="Next page", exact=True)

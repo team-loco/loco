@@ -842,7 +842,7 @@ with session(out) as browser:
     region = page.get_by_role("menuitemradio", name=re.compile(r"^us-va-1"))
     region.click()
     expect(region).to_have_attribute("aria-checked", "true")
-    expect(region.locator("svg")).to_be_hidden()
+    expect(region.locator("svg")).to_be_visible()
     page.keyboard.press("Escape")
     page.get_by_role("button", name="Actions for history-pilot", exact=True).click()
     page.get_by_role("menuitem", name="Delete", exact=True).click()
