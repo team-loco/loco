@@ -435,6 +435,9 @@ func (r *ApplicationReconciler) nextObservation(
 			consider(restart.At.Add(r.HealthyAfter), "restart recovery")
 		}
 		for _, status := range replica.pod.Status.ContainerStatuses {
+			if running := status.State.Running; running != nil && len(replica.status.RestartsAt) > 0 {
+				consider(running.StartedAt.Add(r.HealthyAfter), "restart budget recovery")
+			}
 			consider(readinessFailureAt(replica.pod, status), "readiness grace")
 		}
 	}

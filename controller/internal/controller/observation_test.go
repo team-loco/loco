@@ -77,6 +77,46 @@ func TestRestartRecoverySchedulesHealthAndProof(t *testing.T) {
 	}
 }
 
+func TestProvenRestartBudgetRecoversWithoutPodChanges(t *testing.T) {
+	exited := replicaTestNow
+	started := exited.Add(time.Second)
+	pod := observationPod(started, true)
+	pod.Status.ContainerStatuses[0].RestartCount = 2
+	pod.Status.ContainerStatuses[0].LastTerminationState.Terminated = &corev1.ContainerStateTerminated{
+		ExitCode: 1, FinishedAt: metav1.NewTime(exited),
+	}
+	r, app, dep := observationFixture(pod)
+	r.HealthyAfter = 10 * time.Second
+	app.Spec.ServiceSpec.RestartPolicy = loco.RestartPolicySpec{Mode: loco.RestartOnFailure, MaxRestarts: 1}
+	app.Status.Rollout = &loco.RolloutStatus{ProvenRevision: 2, DeployedRevision: 2,
+		Replicas: []loco.ReplicaStatus{{UID: string(pod.UID), Restarts: 1,
+			RestartsAt: []metav1.Time{metav1.NewTime(exited.Add(-time.Second))}}}}
+	next, err := r.observeReplicas(t.Context(), app, dep, exited.Add(5*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if problem := app.Status.Rollout.Problem; problem == nil || problem.Reason != loco.ProblemRestartsExhausted {
+		t.Fatalf("restart budget not exhausted: %+v", problem)
+	}
+	for !next.at.IsZero() {
+		if next.at.After(started.Add(r.HealthyAfter)) {
+			t.Fatalf("restart recovery delayed until %s", next.at)
+		}
+		t.Logf("observe unchanged Pod at %s (%s)", next.at, next.reason)
+		next, err = r.observeReplicas(t.Context(), app, dep, next.at)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	rollout := app.Status.Rollout
+	if !rollout.Healthy || rollout.Problem != nil || rollout.Stopped != nil {
+		t.Fatalf("proven service did not recover its restart budget: %+v", rollout)
+	}
+	if restarts := rollout.Replicas[0].RestartsAt; len(restarts) != 0 {
+		t.Fatalf("quiet container retains exhausted restart budget: %v", restarts)
+	}
+}
+
 func TestTerminationSchedulesDrainCompletion(t *testing.T) {
 	started := replicaTestNow
 	pod := observationPod(started, false)
