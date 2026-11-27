@@ -3,6 +3,7 @@ package service
 import (
 	"testing"
 
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -68,4 +69,38 @@ ORDER BY seq DESC LIMIT 1`
 	if actorType != string(genDb.DeploymentActorTypeApiToken) || !actorIsToken || !inOrg {
 		t.Fatalf("secret.set actor %s (token %t), in organization %t", actorType, actorIsToken, inOrg)
 	}
+}
+
+func TestSelfRevocationPreservesTokenActor(t *testing.T) {
+	t.Parallel()
+	f := newSecretFixture(t)
+	target := genDb.Entity{Type: genDb.EntityTypeOrganization, ID: f.orgID}
+	ctx := f.tokenContext(
+		t,
+		target,
+		[]genDb.EntityScope{{EntityType: target.Type, EntityID: target.ID, Scope: genDb.ScopeAdmin}},
+	)
+	server := NewTokenServer(f.pool, f.queries, f.machine, limits.Defaults())
+	if _, err := server.RevokeToken(ctx, &tokenv1.RevokeTokenRequest{
+		Name: "ci", EntityType: tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, EntityId: target.ID.String(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := events.ListAudit(
+		t.Context(),
+		f.pool,
+		events.AuditQuery{OrgID: f.orgID, Types: []string{events.TokenRevoked}, Limit: 10},
+	)
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("self-revocation events = %v, %v", listed, err)
+	}
+	if derefString(listed[0].ActorName) != "ci" ||
+		derefString(listed[0].ActorTokenType) != string(genDb.EntityTypeOrganization) {
+		t.Fatalf("self-revocation lost actor: %+v", listed[0])
+	}
+	t.Logf(
+		"self-revocation actor name=%q type=%q",
+		derefString(listed[0].ActorName),
+		derefString(listed[0].ActorTokenType),
+	)
 }

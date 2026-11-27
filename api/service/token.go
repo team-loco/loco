@@ -308,6 +308,9 @@ func (s *TokenServer) RevokeToken(
 	}
 
 	if err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if recordErr := recordTokenEvent(ctx, qtx, events.TokenRevoked, targetEntity, req.GetName()); recordErr != nil {
+			return recordErr
+		}
 		if deleteErr := qtx.DeleteAPITokenByNameAndEntity(ctx, genDb.DeleteAPITokenByNameAndEntityParams{
 			Name:       req.GetName(),
 			EntityType: targetEntity.Type,
@@ -315,7 +318,7 @@ func (s *TokenServer) RevokeToken(
 		}); deleteErr != nil {
 			return fmt.Errorf("delete token: %w", deleteErr)
 		}
-		return recordTokenEvent(ctx, qtx, events.TokenRevoked, targetEntity, req.GetName())
+		return nil
 	}); err != nil {
 		return nil, err
 	}

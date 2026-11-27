@@ -72,7 +72,7 @@ if "audit" not in state:
     )
     sql(
         state,
-        f"""INSERT INTO events(type,org_id,workspace_id,actor_type,actor_id,actor_token_name,actor_token_type)
+        f"""INSERT INTO events(type,org_id,workspace_id,actor_type,actor_id,actor_name,actor_token_type)
 VALUES('webhook.created','{org}','{shared}','api_token',gen_random_uuid(),'deploy-bot','workspace');""",
     )
     state["audit"] = {"checkout": checkout, "inventory": inventory}

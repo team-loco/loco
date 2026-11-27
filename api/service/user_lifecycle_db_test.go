@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/db/dbtest"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -52,6 +53,18 @@ func TestDeleteUserRequiresAnotherActiveAdmin(t *testing.T) {
 	); err != nil {
 		t.Fatalf("delete with active successor: %v", err)
 	}
+	deleted, listErr := events.ListAudit(
+		t.Context(),
+		o.api.pool,
+		events.AuditQuery{Types: []string{events.UserDeleted}, Limit: 10},
+	)
+	if listErr != nil || len(deleted) != 1 {
+		t.Fatalf("self-deletion events = %v, %v", deleted, listErr)
+	}
+	if derefString(deleted[0].ActorEmail) != membershipEmail(o.owner.subject) {
+		t.Fatalf("self-deletion actor email = %q", derefString(deleted[0].ActorEmail))
+	}
+	t.Logf("self-deletion actor email=%q", derefString(deleted[0].ActorEmail))
 	if _, err := o.api.queries.GetOrgByID(t.Context(), uuid.MustParse(o.orgID)); err != nil {
 		t.Fatalf("creator deletion removed organization: %v", err)
 	}

@@ -31,12 +31,12 @@ var queryFields = map[string]bool{
 // The audit query reads events e, the acting user u, the user an event is about, s, and the resource r,
 // workspace w and environment n the event happened in.
 const (
-	actorValues  = "(SELECT unnest(ARRAY[u.name, u.email, e.actor_token_name]))"
+	actorValues  = "(SELECT unnest(ARRAY[e.actor_name, e.actor_email]))"
 	targetValues = "(SELECT unnest(ARRAY[e.subject_id::text, e.data->>'name', e.data->>'domain', s.name, s.email, " +
 		"r.slug, r.name, w.name, n.slug, n.name]) " +
 		"UNION ALL SELECT jsonb_array_elements_text(" +
 		"CASE WHEN jsonb_typeof(e.data->'names') = 'array' THEN e.data->'names' END))"
-	textColumns = "(SELECT unnest(ARRAY[e.type, u.name, u.email, e.actor_token_name, event_title(e.type, e.data), " +
+	textColumns = "(SELECT unnest(ARRAY[e.type, e.actor_name, e.actor_email, event_title(e.type, e.data), " +
 		"event_region(e.data), e.data->>'reason', e.data->>'message', e.data->>'deploymentId', " +
 		"e.data->>'buildId']))"
 )

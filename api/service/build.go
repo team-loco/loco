@@ -190,6 +190,10 @@ func (s *BuildServer) CreateBuild(
 		apiTokenID = &p.ActorID
 	}
 	createErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		actor, err := events.CaptureActor(ctx, qtx, events.Event{ResourceID: &resource.ID})
+		if err != nil {
+			return err
+		}
 		if _, err := qtx.CreateBuild(ctx, genDb.CreateBuildParams{
 			ID:                  buildID,
 			ResourceID:          resource.ID,
@@ -202,6 +206,10 @@ func (s *BuildServer) CreateBuild(
 			ImageRepository:     repository,
 			Platform:            string(s.config.TargetPlatform),
 			CreatedBy:           p.ActorID,
+			ActorName:           actor.Name,
+			ActorEmail:          actor.Email,
+			ActorTokenType:      actor.TokenType,
+			ActedAsOperator:     actor.ActedAsOperator,
 			ApiTokenID:          apiTokenID,
 			Method:              p.Method,
 			GitCommit:           req.GitCommit,
@@ -216,6 +224,7 @@ func (s *BuildServer) CreateBuild(
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:          events.BuildCreated,
+			ActorSnapshot: actor,
 			EnvironmentID: originEnvironmentID,
 			WorkspaceID:   new(resource.WorkspaceID),
 			ResourceID:    new(resource.ID),

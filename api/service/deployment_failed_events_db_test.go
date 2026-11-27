@@ -289,3 +289,77 @@ func TestDeploymentReadyRecordedOnceAcrossConcurrentReports(t *testing.T) {
 		})
 	}
 }
+
+func TestDeploymentOutcomePreservesInitiatingActor(t *testing.T) {
+	for _, kind := range []genDb.DeploymentActorType{genDb.DeploymentActorTypeUser, genDb.DeploymentActorTypeApiToken} {
+		t.Run(string(kind), func(t *testing.T) {
+			t.Parallel()
+			f := newDeployFixture(t)
+			f.nameUser(t)
+			actorID := f.userID
+			wantName, wantEmail, wantTokenType := failedDeployUser, deployFixtureEmail, ""
+			if kind == genDb.DeploymentActorTypeApiToken {
+				actorID = f.apiToken(t)
+				wantName, wantEmail, wantTokenType = "ci", "", string(genDb.EntityTypeResource)
+			}
+			id := f.deployAs(t, kind, actorID)
+			if _, err := f.pool.Exec(t.Context(), "DELETE FROM user_scopes WHERE user_id = $1", f.userID); err != nil {
+				t.Fatal(err)
+			}
+			if kind == genDb.DeploymentActorTypeApiToken {
+				if _, err := f.pool.Exec(t.Context(), "DELETE FROM api_tokens WHERE id = $1", actorID); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if _, err := f.pool.Exec(
+					t.Context(),
+					"UPDATE users SET name = 'Renamed', email = 'renamed@example.test' WHERE id = $1",
+					actorID,
+				); err != nil {
+					t.Fatal(err)
+				}
+			}
+			placement := f.placement(t, f.clusterID)
+			for range 3 {
+				f.agentServer().recordApplied(t.Context(), f.clusterID, &agentv1.Applied{
+					PlacementId: placement.ID.String(), Revision: placement.DesiredRevision, Error: failedDeployMessage,
+				})
+			}
+			rows, err := events.ListAudit(
+				t.Context(),
+				f.pool,
+				events.AuditQuery{ResourceID: &f.resourceID, Types: []string{events.DeploymentFailed}, Limit: 10},
+			)
+			if err != nil || len(rows) != 1 {
+				t.Fatalf("deployment %s failure = %v, %v", id, rows, err)
+			}
+			ev := rows[0]
+			t.Logf(
+				"outcome after membership removal and identity change: actor=%s name=%q email=%q tokenType=%q operator=%v",
+				kind,
+				derefString(
+					ev.ActorName,
+				),
+				derefString(ev.ActorEmail),
+				derefString(ev.ActorTokenType),
+				ev.ActedAsOperator,
+			)
+			if ev.ActorName == nil || *ev.ActorName != wantName {
+				t.Errorf("outcome actor name = %v, want %q", ev.ActorName, wantName)
+			}
+			if derefString(ev.ActorEmail) != wantEmail || derefString(ev.ActorTokenType) != wantTokenType ||
+				ev.ActedAsOperator {
+				t.Errorf(
+					"outcome actor email/type/operator = %q/%q/%v, want %q/%q/false",
+					derefString(
+						ev.ActorEmail,
+					),
+					derefString(ev.ActorTokenType),
+					ev.ActedAsOperator,
+					wantEmail,
+					wantTokenType,
+				)
+			}
+		})
+	}
+}

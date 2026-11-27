@@ -271,15 +271,18 @@ func (s *UserServer) DeleteUser(
 		case !errors.Is(identityErr, pgx.ErrNoRows):
 			return fmt.Errorf("get user identity: %w", identityErr)
 		}
-		if deleteErr := qtx.DeleteUser(lockedCtx, userID); deleteErr != nil {
-			return fmt.Errorf("delete user: %w", deleteErr)
-		}
-		return events.Record(lockedCtx, qtx, events.Event{
+		if recordErr := events.Record(lockedCtx, qtx, events.Event{
 			Type:        events.UserDeleted,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(userID),
 			Data:        data,
-		})
+		}); recordErr != nil {
+			return recordErr
+		}
+		if deleteErr := qtx.DeleteUser(lockedCtx, userID); deleteErr != nil {
+			return fmt.Errorf("delete user: %w", deleteErr)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

@@ -459,10 +459,9 @@ WITH related AS (
 ), latest AS (
     SELECT seq FROM related ORDER BY seq DESC LIMIT 20
 )
-SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.deployment_id, e.actor_type, e.actor_id, e.actor_token_name, e.actor_token_type, e.acted_as_operator, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, event_title(e.type, e.data)::text AS title, event_severity(e.type)::text AS severity,
-       COALESCE(u.name, e.actor_token_name, '')::text AS actor_name, COALESCE(u.email, '')::text AS actor_email
+SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id, e.deployment_id, e.actor_type, e.actor_id, e.actor_name, e.actor_email, e.actor_token_type, e.acted_as_operator, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, event_title(e.type, e.data)::text AS title, event_severity(e.type)::text AS severity,
+       COALESCE(e.actor_name, '')::text AS actor_name, COALESCE(e.actor_email, '')::text AS actor_email
 FROM latest JOIN events e ON e.seq = latest.seq
-LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 ORDER BY e.seq DESC
 `
 
@@ -497,7 +496,8 @@ func (q *Queries) ListClusterEvents(ctx context.Context, clusterID *uuid.UUID) (
 			&i.Event.DeploymentID,
 			&i.Event.ActorType,
 			&i.Event.ActorID,
-			&i.Event.ActorTokenName,
+			&i.Event.ActorName,
+			&i.Event.ActorEmail,
 			&i.Event.ActorTokenType,
 			&i.Event.ActedAsOperator,
 			&i.Event.SubjectType,

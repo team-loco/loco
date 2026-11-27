@@ -88,6 +88,14 @@ func createDeployment(
 	params.PlainEnv = d.resolved.Plain
 	params.SecretEnv = d.resolved.Secret
 	params.Traceparent = tracing.Origin(ctx)
+	actor, err := events.CaptureActor(ctx, qtx, events.Event{
+		ActorType: string(params.ActorType), ActorID: &params.ActorID, ResourceID: &params.ResourceID,
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	params.ActorName, params.ActorEmail, params.ActorTokenType = actor.Name, actor.Email, actor.TokenType
+	params.ActedAsOperator = actor.ActedAsOperator
 	deploymentID, err := qtx.CreateDeployment(ctx, params)
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)

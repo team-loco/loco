@@ -265,3 +265,41 @@ func TestAuditNamesTokensAfterDeletion(t *testing.T) {
 		}
 	}
 }
+
+func TestRecordedActorSurvivesUserRenameAndDeletion(t *testing.T) {
+	pool := dbtest.NewPool(t)
+	q := genDb.New(pool)
+	ctx := t.Context()
+	user, err := q.CreateUser(ctx, genDb.CreateUserParams{Email: "original@example.test", Name: new("Original Actor")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = events.Record(
+		ctx,
+		q,
+		events.Event{Type: events.UserUpdated, ActorType: "user", ActorID: &user.ID},
+	); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutation := range []string{
+		"UPDATE users SET name = 'Renamed Actor', email = 'renamed@example.test' WHERE id = $1",
+		"DELETE FROM users WHERE id = $1",
+	} {
+		if _, err = pool.Exec(ctx, mutation, user.ID); err != nil {
+			t.Fatal(err)
+		}
+		filter, parseErr := logquery.Parse(`@actor:original@example.test`)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		rows, listErr := events.ListAudit(ctx, pool, events.AuditQuery{Filter: filter, Limit: 10})
+		if listErr != nil || len(rows) != 1 {
+			t.Fatalf("historical actor search after %s: %v, %v", mutation, rows, listErr)
+		}
+		if rows[0].ActorName == nil || *rows[0].ActorName != "Original Actor" || rows[0].ActorEmail == nil ||
+			*rows[0].ActorEmail != "original@example.test" {
+			t.Fatalf("historical actor changed: %+v", rows[0])
+		}
+		t.Logf("after %s: actor name=%q email=%q", mutation, *rows[0].ActorName, *rows[0].ActorEmail)
+	}
+}

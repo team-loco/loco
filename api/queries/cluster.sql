@@ -241,7 +241,6 @@ WITH related AS (
     SELECT seq FROM related ORDER BY seq DESC LIMIT 20
 )
 SELECT sqlc.embed(e), event_title(e.type, e.data)::text AS title, event_severity(e.type)::text AS severity,
-       COALESCE(u.name, e.actor_token_name, '')::text AS actor_name, COALESCE(u.email, '')::text AS actor_email
+       COALESCE(e.actor_name, '')::text AS actor_name, COALESCE(e.actor_email, '')::text AS actor_email
 FROM latest JOIN events e ON e.seq = latest.seq
-LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 ORDER BY e.seq DESC;

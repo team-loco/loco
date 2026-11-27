@@ -197,6 +197,9 @@ func TestTokenBuildFailureNamesTheTokenActor(t *testing.T) {
 		t.Fatalf("build created by %s with token %v, want %s with token %s",
 			row.CreatedBy, row.ApiTokenID, tokenID, tokenID)
 	}
+	if _, err := f.pool.Exec(t.Context(), "DELETE FROM api_tokens WHERE id = $1", tokenID); err != nil {
+		t.Fatal(err)
+	}
 	session, _ := f.dispatchSession()
 	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_FAILED)); err != nil {
 		t.Fatalf("failed: %v", err)
@@ -219,6 +222,23 @@ func TestTokenBuildFailureNamesTheTokenActor(t *testing.T) {
 			t.Fatalf("token actor has human creator field %s: %v", field, ev.data)
 		}
 	}
+	listed, err := events.ListAudit(
+		t.Context(),
+		f.pool,
+		events.AuditQuery{ResourceID: &f.resourceID, Types: []string{events.BuildFailed}, Limit: 10},
+	)
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("list build failure after token revocation: %v, %v", listed, err)
+	}
+	if derefString(listed[0].ActorName) != "ci" ||
+		derefString(listed[0].ActorTokenType) != string(genDb.EntityTypeResource) {
+		t.Fatalf("build failure lost revoked token identity: %+v", listed[0])
+	}
+	t.Logf(
+		"build failure after token revocation: name=%q tokenType=%q",
+		derefString(listed[0].ActorName),
+		derefString(listed[0].ActorTokenType),
+	)
 	if ev.data[events.FieldReason] != events.BuildFailureBuild {
 		t.Fatalf("build.failed data = %v", ev.data)
 	}

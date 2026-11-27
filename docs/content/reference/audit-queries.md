@@ -2,6 +2,8 @@
 title: "Audit queries"
 ---
 
+Actor names and emails are recorded with each action. Build and deployment outcomes retain the identity that initiated them. Renaming or deleting a user, or revoking a token, does not change that history.
+
 An audit query selects audit events by who acted, what they acted on, the event type and the request, and runtime events by severity, region, reason and resource. The dashboard's audit log search, `loco resource events --query` and the `query` field of `EventService.ListEvents` take the same syntax as [log queries](log-queries.md), with the fields below. The organization, workspace, resource, environment and time range stay separate request fields.
 
 ```text

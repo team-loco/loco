@@ -1147,10 +1147,13 @@ def seed_events(state, events):
         actor = state["users"][event["actor"]]["id"] if "actor" in event else None
         actor_type = "user" if actor else event.get("actor_type", "agent")
         rows.append(
-            "INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,acted_as_operator,data,created_at) "
+            "INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,actor_name,actor_email,acted_as_operator,data,created_at) "
             f"VALUES({q(event['type'])},{q(org) if org else 'NULL'},{q(state['workspaces'][workspace]) if workspace else 'NULL'},"
             f"{q(resource) if resource else 'NULL'},{q(environment) if environment else 'NULL'},"
-            f"{q(actor_type)},{q(actor) if actor else 'NULL'},{'true' if event.get('operator') else 'false'},"
+            f"{q(actor_type)},{q(actor) if actor else 'NULL'},"
+            f"(SELECT name FROM users WHERE id={q(actor) if actor else 'NULL'}),"
+            f"(SELECT email FROM users WHERE id={q(actor) if actor else 'NULL'}),"
+            f"{'true' if event.get('operator') else 'false'},"
             f"{q(json.dumps(event.get('data', {})))},"
             f"{q(event['at']) if 'at' in event else 'NOW()'});"
         )

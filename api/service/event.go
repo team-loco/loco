@@ -89,6 +89,8 @@ func eventToProto(e genDb.Event) *eventv1.Event {
 		DeploymentId:    uuidString(e.DeploymentID),
 		ActorType:       e.ActorType,
 		ActorId:         uuidString(e.ActorID),
+		ActorName:       derefString(e.ActorName),
+		ActorEmail:      derefString(e.ActorEmail),
 		ActorTokenType:  derefString(e.ActorTokenType),
 		SubjectType:     derefString(e.SubjectType),
 		SubjectId:       uuidString(e.SubjectID),
@@ -358,8 +360,6 @@ func (s *EventServer) listAuditEvents(ctx context.Context, query events.AuditQue
 	out := make([]*eventv1.Event, len(rows))
 	for i, row := range rows {
 		out[i] = eventToProto(row.Event)
-		out[i].ActorEmail = derefString(row.ActorEmail)
-		out[i].ActorName = derefString(row.ActorName)
 		out[i].Title, out[i].Severity, out[i].Region = row.Title, row.Severity, row.Region
 		out[i].OrgName = row.OrgName
 	}

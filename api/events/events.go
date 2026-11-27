@@ -191,6 +191,15 @@ const (
 	FieldSilentSeconds = "silentSeconds"
 )
 
+// ActorSnapshot is the actor identity and organization context at the initiating action.
+// Builds and deployments retain it for outcomes reported after credentials or roles change.
+type ActorSnapshot struct {
+	Name            *string
+	Email           *string
+	TokenType       *string
+	ActedAsOperator bool
+}
+
 type Event struct {
 	Type          string
 	OrgID         *uuid.UUID
@@ -202,6 +211,7 @@ type Event struct {
 	SubjectID     *uuid.UUID
 	ActorType     string
 	ActorID       *uuid.UUID
+	ActorSnapshot *ActorSnapshot
 	Data          map[string]any
 }
 
@@ -212,29 +222,17 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 	if actorErr != nil {
 		return actorErr
 	}
-	if ev.ResourceID == nil && ev.SubjectType == SubjectResource {
-		ev.ResourceID = ev.SubjectID
+	ev, err := completeScope(ctx, q, ev)
+	if err != nil {
+		return err
 	}
-	if ev.DeploymentID == nil && ev.SubjectType == SubjectDeployment {
-		ev.DeploymentID = ev.SubjectID
-	}
-	if ev.WorkspaceID == nil && ev.ResourceID != nil {
-		res, err := q.GetResourceByID(ctx, *ev.ResourceID)
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("look up event resource: %w", err)
+	snapshot := ev.ActorSnapshot
+	if snapshot == nil {
+		operator, operatorErr := actedAsOperator(ctx, q, ev, actorType, actorID)
+		if operatorErr != nil {
+			return operatorErr
 		}
-		if err == nil {
-			ev.WorkspaceID = &res.WorkspaceID
-		}
-	}
-	if ev.OrgID == nil && ev.WorkspaceID != nil {
-		orgID, err := q.GetOrganizationIDByWorkspaceID(ctx, *ev.WorkspaceID)
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("look up event workspace: %w", err)
-		}
-		if err == nil {
-			ev.OrgID = &orgID
-		}
+		snapshot = &ActorSnapshot{ActedAsOperator: operator}
 	}
 	data := ev.Data
 	if data == nil {
@@ -256,11 +254,11 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		SubjectID:     ev.SubjectID,
 		Data:          raw,
 	}
-	operator, err := actedAsOperator(ctx, q, ev, actorType, actorID)
-	if err != nil {
-		return err
-	}
-	params.ActedAsOperator = operator
+	params.HasActorSnapshot = ev.ActorSnapshot != nil
+	params.ActorName = snapshot.Name
+	params.ActorEmail = snapshot.Email
+	params.ActorTokenType = snapshot.TokenType
+	params.ActedAsOperator = snapshot.ActedAsOperator
 	if ev.SubjectType != "" {
 		subjectType := ev.SubjectType
 		params.SubjectType = &subjectType
@@ -273,6 +271,68 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		return fmt.Errorf("insert event: %w", err)
 	}
 	return nil
+}
+
+// CaptureActor snapshots identity and organization context before asynchronous work starts.
+func CaptureActor(ctx context.Context, q genDb.Querier, ev Event) (*ActorSnapshot, error) {
+	actorType, actorID, err := actor(ctx, ev)
+	if err != nil {
+		return nil, err
+	}
+	ev, err = completeScope(ctx, q, ev)
+	if err != nil {
+		return nil, err
+	}
+	return captureActor(ctx, q, ev, actorType, actorID)
+}
+
+func captureActor(
+	ctx context.Context,
+	q genDb.Querier,
+	ev Event,
+	actorType string,
+	actorID *uuid.UUID,
+) (*ActorSnapshot, error) {
+	identity, err := q.GetEventActor(ctx, genDb.GetEventActorParams{ActorType: actorType, ActorID: actorID})
+	if err != nil {
+		return nil, fmt.Errorf("look up event actor: %w", err)
+	}
+	operator, err := actedAsOperator(ctx, q, ev, actorType, actorID)
+	if err != nil {
+		return nil, err
+	}
+	return &ActorSnapshot{
+		Name: new(identity.Name), Email: identity.Email, TokenType: new(identity.TokenType),
+		ActedAsOperator: operator,
+	}, nil
+}
+
+func completeScope(ctx context.Context, q genDb.Querier, ev Event) (Event, error) {
+	if ev.ResourceID == nil && ev.SubjectType == SubjectResource {
+		ev.ResourceID = ev.SubjectID
+	}
+	if ev.DeploymentID == nil && ev.SubjectType == SubjectDeployment {
+		ev.DeploymentID = ev.SubjectID
+	}
+	if ev.WorkspaceID == nil && ev.ResourceID != nil {
+		res, err := q.GetResourceByID(ctx, *ev.ResourceID)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return ev, fmt.Errorf("look up event resource: %w", err)
+		}
+		if err == nil {
+			ev.WorkspaceID = &res.WorkspaceID
+		}
+	}
+	if ev.OrgID == nil && ev.WorkspaceID != nil {
+		orgID, err := q.GetOrganizationIDByWorkspaceID(ctx, *ev.WorkspaceID)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return ev, fmt.Errorf("look up event workspace: %w", err)
+		}
+		if err == nil {
+			ev.OrgID = &orgID
+		}
+	}
+	return ev, nil
 }
 
 // actedAsOperator reports whether the acting user holds no role in the event's organization, an
@@ -292,6 +352,11 @@ func actedAsOperator(
 	case ev.ActorType == "":
 		principal, _ := reqctx.PrincipalFrom(ctx)
 		userID = principal.UserID
+	case actorType == string(genDb.DeploymentActorTypeApiToken) && actorID != nil:
+		principal, ok := reqctx.PrincipalFrom(ctx)
+		if ok && principal.ActorID == *actorID {
+			userID = principal.UserID
+		}
 	}
 	if userID == uuid.Nil {
 		return false, nil
@@ -395,10 +460,14 @@ func RecordBuildOutcome(
 		EnvironmentID: creator.OriginEnvironmentID,
 		ActorType:     actorType,
 		ActorID:       &actorID,
-		ResourceID:    new(resourceID),
-		SubjectType:   SubjectBuild,
-		SubjectID:     new(buildID),
-		Data:          data,
+		ActorSnapshot: &ActorSnapshot{
+			Name: creator.ActorName, Email: creator.ActorEmail, TokenType: creator.ActorTokenType,
+			ActedAsOperator: creator.ActedAsOperator,
+		},
+		ResourceID:  new(resourceID),
+		SubjectType: SubjectBuild,
+		SubjectID:   new(buildID),
+		Data:        data,
 	})
 }
 

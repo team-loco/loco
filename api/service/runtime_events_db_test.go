@@ -38,7 +38,10 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		Available:        true,
 		Healthy:          true,
 		Deployed:         true,
-		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)},
+		Problem: &agentv1.ProblemReport{
+			Reason: string(locov1alpha1.ProblemRestarting),
+			Detail: "container exited with code 42",
+		},
 	}
 	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
 	if err != nil {
@@ -110,8 +113,19 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 			event.GetActorType() != events.ActorSystem {
 			t.Fatalf("scope = %v", event)
 		}
-		if event.GetData().GetFields()["message"].GetStringValue() == "private Kubernetes detail" {
-			t.Fatal("diagnostics exposed")
+		if event.GetData().GetFields()["reason"].GetStringValue() == string(locov1alpha1.ProblemRestarting) {
+			t.Logf(
+				"reported detail=%q; ListEvents message=%q",
+				"container exited with code 42",
+				event.GetData().GetFields()["message"].GetStringValue(),
+			)
+		}
+		if event.GetData().GetFields()["reason"].GetStringValue() == string(locov1alpha1.ProblemRestarting) &&
+			!strings.Contains(
+				event.GetData().GetFields()["message"].GetStringValue(),
+				"container exited with code 42",
+			) {
+			t.Fatalf("degradation lost reported detail: %v", event)
 		}
 	}
 	var deliveries int
