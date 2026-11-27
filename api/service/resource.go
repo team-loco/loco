@@ -321,7 +321,11 @@ func (s *ResourceServer) GetResource(
 		return nil, fmt.Errorf("derive resource status: %w", err)
 	}
 
-	resource, err := s.dbResourceToProto(res, statuses[res.ID], resourceDomains)
+	publications, err := s.domainPublications(ctx, []uuid.UUID{res.ID})
+	if err != nil {
+		return nil, err
+	}
+	resource, err := s.dbResourceToProto(res, statuses[res.ID], resourceDomains, publications)
 	if err != nil {
 		return nil, err
 	}
@@ -876,7 +880,10 @@ func applyScale(r *resourcev1.ScaleResourceRequest, target *deploymentv1.RegionD
 }
 
 // resourceDomainToListProto converts a slice of ResourceDomain to proto ResourceDomain list
-func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.ResourceDomain {
+func resourceDomainToListProto(
+	domains []genDb.ResourceDomain,
+	publications map[string]*domainv1.DomainPublication,
+) []*domainv1.ResourceDomain {
 	protoDomains := make([]*domainv1.ResourceDomain, 0, len(domains))
 	for _, d := range domains {
 		domainSource := domainv1.DomainType_DOMAIN_TYPE_UNSPECIFIED
@@ -886,6 +893,7 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 
 		domain := &domainv1.ResourceDomain{
 			Id:           d.ID.String(),
+			Publication:  publications[d.Domain],
 			ResourceId:   d.ResourceID.String(),
 			Domain:       d.Domain,
 			DomainSource: domainSource,
@@ -908,6 +916,7 @@ func (s *ResourceServer) dbResourceToProto(
 	res genDb.Resource,
 	statuses []*resourcev1.EnvironmentStatus,
 	domains []genDb.ResourceDomain,
+	publications map[string]*domainv1.DomainPublication,
 ) (*resourcev1.Resource, error) {
 	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
 	if err != nil {
@@ -921,7 +930,7 @@ func (s *ResourceServer) dbResourceToProto(
 		Name:                res.Name,
 		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:                spec,
-		Domains:             resourceDomainToListProto(domains),
+		Domains:             resourceDomainToListProto(domains, publications),
 		CreatedBy:           res.CreatedBy.String(),
 		CreatedAt:           timestamppb.New(res.CreatedAt),
 		UpdatedAt:           timestamppb.New(res.UpdatedAt),

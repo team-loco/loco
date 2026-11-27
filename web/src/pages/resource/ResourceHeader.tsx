@@ -36,6 +36,8 @@ import { useWidth } from "@/hooks/useWidth";
 
 import { isDeployed, type RegionView } from "./model";
 
+import { DomainPublicationBadge } from "./DomainPublicationBadge";
+
 interface SwitcherItem {
 	id: string;
 	name: string;
@@ -152,7 +154,7 @@ export function ResourceHeader({
 					<ResourceStatusBadge status={environment?.status} />
 				</div>
 				{domain !== undefined && (
-					<div className="-mt-1.5 flex min-w-0 items-center gap-2">
+					<div className="-mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
 						<a
 							href={`https://${domain.domain}`}
 							target="_blank"
@@ -163,6 +165,7 @@ export function ResourceHeader({
 							<ArrowUpRightIcon aria-hidden className="size-3.5 text-fg3" />
 						</a>
 						<CopyButton text={`https://${domain.domain}`} name="Copy resource URL" />
+						<DomainPublicationBadge publication={domain.publication} />
 					</div>
 				)}
 			</div>

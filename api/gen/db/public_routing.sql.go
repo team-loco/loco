@@ -231,6 +231,55 @@ func (q *Queries) ListBoundResourceDomains(ctx context.Context, arg ListBoundRes
 	return items, nil
 }
 
+const listDomainPublicationStates = `-- name: ListDomainPublicationStates :many
+SELECT rd.domain, (b.id IS NOT NULL)::boolean AS managed,
+ COALESCE(p.revision, 0)::bigint AS revision,
+ COALESCE(p.acknowledged_revision, 0)::bigint AS acknowledged_revision,
+ COALESCE(cardinality(p.cluster_ids), 0)::int AS cluster_count,
+ COALESCE(p.message, '')::text AS message
+FROM resource_domains rd
+LEFT JOIN route_publishers b ON b.app_domain = rd.app_domain
+LEFT JOIN public_route_publications p ON p.hostname = rd.domain
+ AND p.resource_id = rd.resource_id AND p.environment_id = rd.environment_id
+WHERE rd.resource_id = ANY($1::uuid[])
+`
+
+type ListDomainPublicationStatesRow struct {
+	Domain               string `json:"domain"`
+	Managed              bool   `json:"managed"`
+	Revision             int64  `json:"revision"`
+	AcknowledgedRevision int64  `json:"acknowledgedRevision"`
+	ClusterCount         int32  `json:"clusterCount"`
+	Message              string `json:"message"`
+}
+
+func (q *Queries) ListDomainPublicationStates(ctx context.Context, dollar_1 []uuid.UUID) ([]ListDomainPublicationStatesRow, error) {
+	rows, err := q.db.Query(ctx, listDomainPublicationStates, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDomainPublicationStatesRow
+	for rows.Next() {
+		var i ListDomainPublicationStatesRow
+		if err := rows.Scan(
+			&i.Domain,
+			&i.Managed,
+			&i.Revision,
+			&i.AcknowledgedRevision,
+			&i.ClusterCount,
+			&i.Message,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicRoutingWork = `-- name: ListPublicRoutingWork :many
 SELECT resource_id, environment_id FROM public_routing_dirty WHERE next_attempt_at <= NOW()
 ORDER BY next_attempt_at, resource_id, environment_id LIMIT $1

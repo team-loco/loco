@@ -133,3 +133,15 @@ UPDATE route_publishers SET bootstrapped = true WHERE id = $1;
 SELECT EXISTS (SELECT 1 FROM desired_deployment_placements d
  WHERE d.resource_id = $1 AND d.environment_id = $2
  AND NOT resource_suspended(d.resource_id))::boolean AS has_targets;
+
+-- name: ListDomainPublicationStates :many
+SELECT rd.domain, (b.id IS NOT NULL)::boolean AS managed,
+ COALESCE(p.revision, 0)::bigint AS revision,
+ COALESCE(p.acknowledged_revision, 0)::bigint AS acknowledged_revision,
+ COALESCE(cardinality(p.cluster_ids), 0)::int AS cluster_count,
+ COALESCE(p.message, '')::text AS message
+FROM resource_domains rd
+LEFT JOIN route_publishers b ON b.app_domain = rd.app_domain
+LEFT JOIN public_route_publications p ON p.hostname = rd.domain
+ AND p.resource_id = rd.resource_id AND p.environment_id = rd.environment_id
+WHERE rd.resource_id = ANY($1::uuid[]);

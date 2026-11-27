@@ -13,6 +13,7 @@ import (
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -101,17 +102,34 @@ func renderStatusView(stdout io.Writer, name string, resource *resourcev1.Resour
 		url = "none"
 	}
 
-	content := fmt.Sprintf(
+	var content strings.Builder
+	fmt.Fprintf(&content,
 		"%s %s\n%s %s",
 		labelStyle.Render("Service:"), valueStyle.Render(name),
 		labelStyle.Render("URL:"), valueStyle.Render(url),
 	)
 
+	for _, domain := range resource.GetDomains() {
+		publication := domain.GetPublication()
+		state := "Pending"
+		switch publication.GetState() {
+		case domainv1.PublicationState_PUBLICATION_STATE_OPERATOR_MANAGED:
+			state = "Operator managed"
+		case domainv1.PublicationState_PUBLICATION_STATE_PUBLISHED:
+			state = "Published"
+		case domainv1.PublicationState_PUBLICATION_STATE_ERROR:
+			state = "Error"
+		}
+		fmt.Fprintf(&content, "\n%s %s: %s", labelStyle.Render("Public routing:"), domain.GetDomain(), state)
+		if publication.GetMessage() != "" {
+			content.WriteString(" (" + publication.GetMessage() + ")")
+		}
+	}
 	title := titleStyle.Render("Service Status")
 	if _, err := lipgloss.Fprintln(stdout, title); err != nil {
 		return err
 	}
-	block := blockStyle.Render(content)
+	block := blockStyle.Render(content.String())
 	if _, err := lipgloss.Fprintln(stdout, block); err != nil {
 		return err
 	}

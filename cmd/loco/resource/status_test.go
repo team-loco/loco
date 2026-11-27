@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -100,5 +101,34 @@ func TestReplicaStateLabelCountsRestartsAgainstTheOnFailureBudget(t *testing.T) 
 		if got := replicaStateLabel(restarting, tt.policy); got != tt.want {
 			t.Errorf("%s label = %q, want %q", tt.policy.GetRestartPolicy(), got, tt.want)
 		}
+	}
+}
+
+func TestStatusViewSeparatesPublicationFromWorkloadHealth(t *testing.T) {
+	for _, tc := range []struct {
+		state domainv1.PublicationState
+		want  string
+	}{
+		{domainv1.PublicationState_PUBLICATION_STATE_OPERATOR_MANAGED, "Operator managed"},
+		{domainv1.PublicationState_PUBLICATION_STATE_PENDING, "Pending"},
+		{domainv1.PublicationState_PUBLICATION_STATE_PUBLISHED, "Published"},
+		{domainv1.PublicationState_PUBLICATION_STATE_ERROR, "Error"},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			res := &resourcev1.Resource{
+				Domains: []*domainv1.ResourceDomain{
+					{Domain: "web.example.com", Publication: &domainv1.DomainPublication{State: tc.state}},
+				},
+			}
+			var out bytes.Buffer
+			if err := renderStatusView(&out, "web", res); err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{"web.example.com", "Public routing:", tc.want, notDeployedMessage} {
+				if !strings.Contains(out.String(), want) {
+					t.Fatalf("missing %q: %s", want, out.String())
+				}
+			}
+		})
 	}
 }
