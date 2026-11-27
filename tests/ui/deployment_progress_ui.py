@@ -430,6 +430,25 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
             request["endTime"].replace("Z", "+00:00")
         ) <= failure_time + timedelta(minutes=5), request
 
+    # A later cluster outage must not be replaced by this stale deployment problem.
+    sql(
+        state,
+        f"UPDATE cluster_heartbeats SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE cluster_id='{p['cluster']}';",
+    )
+    page.reload()
+    expect(
+        incident.get_by_text(
+            "the cluster running this region has stopped reporting", exact=True
+        )
+    ).to_be_visible()
+    expect(
+        incident.get_by_text("Process exited with code 1", exact=True)
+    ).to_have_count(0)
+    sql(
+        state,
+        f"UPDATE cluster_heartbeats SET last_heartbeat=NOW() WHERE cluster_id='{p['cluster']}';",
+    )
+    page.reload()
     incident.get_by_role("button", name="Roll back", exact=True).click()
     dialog = page.get_by_role("dialog", name="Roll back progress-ui", exact=True)
     expect(dialog).to_be_visible()

@@ -134,7 +134,12 @@ export function IncidentCard({
 }) {
 	const timePref = useTimePreferences();
 	const current = region.current;
-	const report = placementIn(current, region.name)?.problem;
+	const placementProblem = placementIn(current, region.name)?.problem;
+	const report =
+		placementProblem !== undefined &&
+		problem.message === [placementProblem.message, placementProblem.detail].filter(Boolean).join(" ")
+			? placementProblem
+			: undefined;
 	const at = maybeTsMs(report?.since) ?? maybeTsMs(region.status?.statusSince);
 	const serving = region.serving;
 	const failing = (region.status?.replicas ?? []).filter(
