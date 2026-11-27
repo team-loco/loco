@@ -962,9 +962,6 @@ func setReadyReplicas(app *locov1alpha1.Application) {
 	}
 }
 
-// Gateway API limits each HTTPRoute to 16 hostnames.
-const hostnamesPerRoute = 16
-
 func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1alpha1.Application) error {
 	app.Status.PublicRoute = nil
 	routing := app.Spec.ServiceSpec.Routing
@@ -977,14 +974,15 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 		}
 		app.Status.PublicRoute = observation
 		allReady := true
-		for hostnames := range slices.Chunk(routing.Hostnames, hostnamesPerRoute) {
+		// Acceptance of a multi-hostname route can ignore names with no matching listener.
+		for _, hostname := range routing.Hostnames {
 			offset := len(desired)
 			routeName := getRouteName(app)
 			if offset > 0 {
 				routeName = fmt.Sprintf("%s-%d", routeName, offset)
 			}
 			desired = append(desired, routeName)
-			ready, err := r.applyPublicRoute(ctx, app, routeName, hostnames)
+			ready, err := r.applyPublicRoute(ctx, app, routeName, []string{hostname})
 			if err != nil {
 				return err
 			}
