@@ -329,7 +329,7 @@ export function ClusterNodes({ clusterId }: { clusterId: string }) {
 	};
 	const nodeTable = useDataTable("capacity-nodes", {
 		data: nodes.data?.nodes ?? [],
-		columns: nodeColumns(sample !== undefined),
+		columns: nodeColumns(sample !== undefined && !sample.stale),
 		getRowId: (item) => item.name,
 	});
 	const consumerTable = useDataTable("node-consumers", {

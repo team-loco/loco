@@ -17,7 +17,7 @@ export function allocationTiles(response: GetNodeAllocationsResponse): Allocatio
 	if (response.remainder !== undefined) consumers.push(response.remainder);
 	if (response.system !== undefined) consumers.push(response.system);
 	const tiles: AllocationTile[] = consumers.map((consumer) => ({
-		id: consumer.id,
+		id: `${consumer.kind}:${consumer.id}`,
 		name: consumer.name,
 		value: Number(allocationValue(consumer, response.memory)),
 		consumer,
@@ -31,7 +31,7 @@ export function allocationTiles(response: GetNodeAllocationsResponse): Allocatio
 		const headroomKnown = current && allocatable !== undefined;
 		if (headroomKnown && allocatable > requested) {
 			tiles.push({
-				id: "available",
+				id: "capacity:available",
 				name: "Available",
 				value: Number(allocatable - requested),
 				available: true,

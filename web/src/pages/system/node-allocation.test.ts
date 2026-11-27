@@ -31,8 +31,8 @@ describe("node reservation map", () => {
 		const data = snapshot();
 		const tiles = allocationTiles(data);
 		expect(tiles).toHaveLength(15);
-		expect(tiles.find((tile) => tile.id === "other")?.value).toBe(35000);
-		expect(tiles.find((tile) => tile.id === "system")?.value).toBe(3000);
+		expect(tiles.find((tile) => tile.consumer?.kind === "other")?.value).toBe(35000);
+		expect(tiles.find((tile) => tile.consumer?.kind === "system")?.value).toBe(3000);
 		expect(tiles.find((tile) => tile.available)?.value).toBe(50000);
 		const rects = allocationRects(tiles);
 		const total = tiles.reduce((sum, tile) => sum + tile.value, 0);
@@ -41,6 +41,13 @@ describe("node reservation map", () => {
 			expect(rect.x + rect.width).toBeLessThanOrEqual(100.00000001);
 			expect(rect.y + rect.height).toBeLessThanOrEqual(100.00000001);
 		}
+	});
+	test("keeps opaque workspace names distinct from system, remainder and available tiles", () => {
+		const data = snapshot();
+		for (const [index, id] of ["system", "other", "available"].entries()) data.top[index]!.id = id;
+		const tiles = allocationTiles(data);
+		expect(new Set(tiles.map((tile) => tile.id)).size).toBe(tiles.length);
+		expect(tiles.filter((tile) => tile.consumer?.kind === "workspace")).toHaveLength(12);
 	});
 	test("does not infer available capacity from missing or stale sources", () => {
 		for (const state of ["missing", "stale-requests", "stale-capacity"]) {
